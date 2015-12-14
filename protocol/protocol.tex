@@ -1,0 +1,340 @@
+\documentclass[8pt]{article}
+\RequirePackage{amsmath}
+\RequirePackage{bytefield}
+\RequirePackage{graphicx}
+
+\setlength{\oddsidemargin}{-0.25in} % Left margin of 1 in + 0 in = 1 in
+\setlength{\textwidth}{7in}   % Right margin of 8.5 in - 1 in - 6.5 in = 1 in
+\setlength{\topmargin}{-.75in}  % Top margin of 2 in -0.75 in = 1 in
+\setlength{\textheight}{9.2in}  % Lower margin of 11 in - 9 in - 1 in = 1 in
+
+% terminology
+
+\newcommand{\Zcash}{\textbf{Zcash} }
+\newcommand{\Zerocash}{\textbf{Zerocash} }
+%
+% keypairs:
+\newcommand{\PublicAddress}{\mathsf{addr_{pk}}}
+\newcommand{\PrivateAddress}{\mathsf{addr_{sk}}}
+\newcommand{\PublicAddressName}{\emph{protected address}}
+\newcommand{\PrivateAddressName}{\emph{protected address secret}}
+\newcommand{\SpendAuthorityPublic}{\mathsf{a_{pk}}}
+\newcommand{\SpendAuthorityPrivate}{\mathsf{a_{sk}}}
+\newcommand{\SpendAuthorityName}{\emph{spend authority}}
+\newcommand{\TransmitPublic}{\mathsf{pk_{enc}}}
+\newcommand{\TransmitPrivate}{\mathsf{sk_{enc}}}
+\newcommand{\TransmitName}{\emph{key-private encryption}}
+\newcommand{\Value}{\mathsf{v}}
+%
+% buckets
+\newcommand{\Bucket}{\mathsf{b}}
+\newcommand{\BucketRand}{\mathsf{r}}
+\newcommand{\BucketAddressRand}{\mathsf{\rho}}
+\newcommand{\BucketEncryptedName}{\emph{encrypted bucket}}
+\newcommand{\CRH}{\mathbf{CRH}}
+\newcommand{\PRF}[2]{\mathbf{PRF_{#1}^{#2}}}
+\newcommand{\PRFaddr}[1]{\PRF{#1}{addr}}
+\newcommand{\PRFsn}[1]{\PRF{#1}{sn}}
+\newcommand{\PRFpk}[2]{\PRF{#1}{pk_{#2}}}
+\newcommand{\SHA}{\mathtt{SHA256Compress}}
+\newcommand{\SHAName}{\emph{SHA-256 compression}}
+\newcommand{\bm}{\mathbf{\mathtt{bm}}}
+\newcommand{\InternalHashK}{\mathsf{k}}
+\newcommand{\InternalHash}{\mathsf{InternalH}}
+% merkle tree
+\newcommand{\MerkleDepth}{\mathsf{d}}
+\newcommand{\Pour}{\mathtt{Pour}}
+\newcommand{\sn}{\mathsf{sn}}
+% bitcoin
+\newcommand{\vin}{\mathtt{vin}}
+\newcommand{\vout}{\mathtt{vout}}
+\newcommand{\vpour}{\mathtt{vpour}}
+\newcommand{\vpubOld}{\mathtt{vpub\_old}}
+\newcommand{\vpubNew}{\mathtt{vpub\_new}}
+\newcommand{\anchor}{\mathtt{anchor}}
+\newcommand{\scriptSig}{\mathtt{scriptSig}}
+\newcommand{\scriptPubKey}{\mathtt{scriptPubKey}}
+\newcommand{\serials}{\mathtt{serials}}
+\newcommand{\commitments}{\mathtt{commitments}}
+\newcommand{\encryptedBuckets}{\mathtt{encrypted\_buckets}}
+\newcommand{\rt}{\mathsf{rt}}
+% pour
+\newcommand{\hSig}{\mathsf{h_{Sig}}}
+\newcommand{\Nold}{N_{Old}}
+\newcommand{\Nnew}{N_{New}}
+\newcommand{\vmacs}{\mathtt{vmacs}}
+\newcommand{\zkproof}{\mathtt{zkproof}}
+\newcommand{\PourStatement}{\texttt{POUR}}
+\newcommand{\PourProof}{\pi_{\PourStatement}}
+\newcommand{\vpubold}{\mathsf{vpub_{old}}}
+\newcommand{\vpubnew}{\mathsf{vpub_{new}}}
+\newcommand{\bOld}[1]{\mathsf{b_{#1}^{old}}}
+\newcommand{\bNew}[1]{\mathsf{b_{#1}^{new}}}
+\newcommand{\vOld}[1]{\mathsf{v_{#1}^{old}}}
+\newcommand{\vNew}[1]{\mathsf{v_{#1}^{new}}}
+\newcommand{\NP}{\mathsf{NP}}
+\newcommand{\path}[1]{\mathsf{path_{#1}}}
+
+% TODO: COMM is used in the zerocash paper. We should use it
+% where applicable. (The paper treats bm as a COMM, when it really
+% isn't anymore after changes made by the academics that weren't
+% included in the paper).
+%\newcommand{\COMM}[1]{\mathbf{COMM_{#1}}}
+
+\newcommand{\BucketCommitment}[1]{\mathtt{BucketCommitment(#1)}}
+
+\begin{document}
+
+\title{Zcash Protocol Specification}
+\author{Sean Bowe | Daira Hopwood}
+\date{\today}
+\maketitle
+\section{Introduction}
+
+\Zcash is an implementation of the \emph{decentralized anonymous payment} (DAP) scheme \Zerocash with minor adjustments to terminology, functionality and performance. It bridges the existing value transfer scheme used by Bitcoin with an anonymous payment scheme protected by zero-knowledge succinct non-interactive arguments of knowledge (\textbf{zk-SNARK}s). 
+
+\section{Concepts}
+
+\subsection{Endianness}
+
+All numerical objects in Zcash are big endian.
+
+\subsection{Cryptographic Functions}
+
+\subparagraph{}
+
+$\CRH$ is a collision-resistant hash function. In \Zcash, the $\SHAName$ function is used which takes a 512-bit block and produces a 256-bit hash.
+
+\subparagraph{}
+
+$\PRF{x}{}$ is a pseudo-random function seeded by $x$. Three \textit{independent} $\PRF{x}{}$ are needed in our scheme: $\PRFaddr{x}$, $\PRFsn{x}$, and $\PRFpk{x}{i}$. It is required that $\PRFsn{x}$ be collision-resistant in order to prevent a double-spending attack. In \Zcash, the $\SHAName$ function is used to seed all three of these functions. The bits $\mathtt{00}$, $\mathtt{01}$ and $\mathtt{10}$ are included (respectively) within the blocks that are hashed, ensuring that the functions are independent.
+
+\begin{equation*}
+\SpendAuthorityPublic = \PRFaddr{\SpendAuthorityPrivate}(0) = \CRH\left(
+\;
+\begin{bytefield}[bitwidth=0.07em]{512}
+	\bitbox{242}{256 bit $\SpendAuthorityPrivate$} &
+	\bitbox{242}{$0^{254}$} &
+	\bitbox{14}{0} &
+	\bitbox{14}{0}
+\end{bytefield}
+\enspace
+\right)
+\end{equation*}
+
+\begin{equation*}
+\sn = \PRFsn{\SpendAuthorityPrivate}(\BucketAddressRand) = \CRH\left(
+\;
+\begin{bytefield}[bitwidth=0.07em]{512}
+	\bitbox{242}{256 bit $\SpendAuthorityPrivate$} &
+	\bitbox{242}{254 bit truncated $\BucketAddressRand$} &
+	\bitbox{14}{0} &
+	\bitbox{14}{1}
+\end{bytefield}
+\enspace
+\right)
+\end{equation*}
+
+
+\begin{equation*}
+h_i = \PRFpk{\SpendAuthorityPrivate}{i}(\hSig) = \CRH\left(
+\;
+\begin{bytefield}[bitwidth=0.07em]{512}
+	\bitbox{242}{256 bit $\SpendAuthorityPrivate$} &
+	\bitbox{14}{1} &
+	\bitbox{14}{0} &
+	\bitbox{14}{i} &
+	\bitbox{241}{253 bit truncated $\hSig$}
+\end{bytefield}
+\enspace
+\right)
+\end{equation*}
+
+\subsection{Confidential Address Keypair}
+
+\subparagraph{}
+
+A keypair $(\PublicAddress, \PrivateAddress)$ is generated by a user any time they wish to receive value from another in the system. The public $\PublicAddress$ is called a $\PublicAddressName$ and is a tuple $(\SpendAuthorityPublic, \TransmitPublic)$ which are the public components of a $\SpendAuthorityName$ keypair $(\SpendAuthorityPublic, \SpendAuthorityPrivate)$ and a $\TransmitName$ keypair $(\TransmitPublic, \TransmitPrivate)$. The private $\PrivateAddress$ is called a $\PrivateAddressName$ and is a tuple $(\SpendAuthorityPrivate, \TransmitPrivate)$ which are the respective \textit{private} components of the aforementioned $\SpendAuthorityName$ and $\TransmitName$ keypairs.
+
+\subsection{Buckets}
+
+\subparagraph{}
+
+A bucket (denoted $\Bucket$) is a tuple $(\Value, \SpendAuthorityPublic_{i}, \BucketRand, \BucketAddressRand)$ which represents that a value $\Value$ is spendable by the recipient who holds the $\SpendAuthorityName$ keypair $(\SpendAuthorityPublic, \SpendAuthorityPrivate)$. $\BucketRand$ and $\BucketAddressRand$ are randomly generated tokens which are used to blind the value and recipient \textit{except} to those who possess these tokens.
+
+\subparagraph{In-band secret distribution}
+
+In order to send the secret $\Value$, $\BucketRand$ and $\BucketAddressRand$ to the recipient (necessary for the recipient to later spend) \textit{without} requiring an out-of-band communication channel, the $\TransmitName$ public key $\TransmitPublic$ is used to encrypt these secrets to form an \textit{encrypted bucket}. The recipient's possession of the associated $(\PublicAddress, \PrivateAddress)$ (which contains both $\SpendAuthorityPublic$ and $\TransmitPrivate$) is used to reconstruct the original bucket.
+
+\subparagraph{Bucket commitments}
+
+The underlying $\Value$ and $\SpendAuthorityPublic$ are blinded with $\BucketRand$ and $\BucketAddressRand$ using the collision-resistant hash function $\CRH$ in a multi-layered process. The resulting hash $\bm$ is called a \textit{bucket commitment}.
+
+% TODO: this appears to be ineffective
+\begin{flushright}
+
+\begin{equation*}
+\InternalHash := \CRH\left(
+\;
+\begin{bytefield}[bitwidth=0.07em]{512}
+	\bitbox{256}{256 bit $\SpendAuthorityPublic$} &
+	\bitbox{256}{256 bit $\BucketAddressRand$}
+\end{bytefield}
+\enspace
+\right)
+\end{equation*}
+
+\begin{equation*}
+\InternalHashK := \CRH\left(
+\;
+\begin{bytefield}[bitwidth=0.07em]{512}
+	\bitbox{256}{256 bit $\BucketRand$} &
+	\bitbox{256}{256 bit $\InternalHash$}
+\end{bytefield}
+\enspace
+\right)
+\end{equation*}
+
+\begin{equation*}
+\bm := \CRH\left(
+\;
+\begin{bytefield}[bitwidth=0.07em]{512}
+	\bitbox{64}{64 bit $\Value$} &
+	\bitbox{192}{192 bit padding} &
+	\bitbox{256}{256 bit $\InternalHashK$}
+\end{bytefield}
+\enspace
+\right)
+\end{equation*}
+
+\end{flushright}
+
+We say that the bucket commitment of a bucket $\Bucket$ = $\BucketCommitment{\Bucket}$.
+
+\subparagraph{Serials}
+
+A serial $\sn$ is produced by $\PRFsn{\SpendAuthorityPrivate}(\BucketAddressRand)$. Part of the process of spending a bucket is disclosing this serial without disclosing either $\BucketAddressRand$ or $\SpendAuthorityPrivate$. This allows it to be used to prevent double-spending.
+
+\subsection{Bucket Commitment Tree}
+
+\begin{center}
+\includegraphics[scale=.4]{incremental_merkle}
+\end{center}
+
+\subparagraph{}
+
+The bucket commitment tree is an \textit{incremental merkle tree} of depth $\MerkleDepth$ used to store bucket commitments that transactions produce. Just as the \textit{unspent transaction output set} (UTXO) used in Bitcoin proper, it is used to express the existence of value and the capability to spend it. However, unlike the UTXO, it is \textit{not} the job of this tree to protect against double-spending, as it is append-only.
+
+\subparagraph{}
+
+Blocks in the blockchain are associated (by all nodes) with the root of this tree after all of its constituent transactions' bucket commitments have been entered into the tree associated with the previous block.
+
+\subsection{Spent Serials Map}
+
+\subparagraph{}
+
+Transactions insert serials into a \textit{spent serials map} which is maintained alongside the UTXO by all nodes. Transactions that attempt to insert a serial into this map that already exists within it are invalid as they are attempting to double-spend.
+
+\subsection{Bitcoin Transactions}
+
+\subparagraph{}
+
+Bitcoin transactions consist of a vector of inputs ($\mathtt{vin}$) and a vector of outputs ($\mathtt{vout}$). Inputs and outputs are associated with a value. The total value of the outputs must not exceed the total value of the inputs.
+
+\subparagraph{Value pool}
+
+Transaction inputs insert value into a \textit{value pool}, and transaction outputs remove value from this pool. The remaining value in the pool is available to miners as a fee.
+
+\section{Pour}
+
+\subparagraph{}
+
+$\Pour$s are the primary operations performed by transactions that interact with our scheme. In principle, it is the action of spending $\Nold$ buckets $\bOld{}$ and creating $\Nnew$ buckets $\bNew{}$. \Zcash transactions have an additional field $\vpour$, which is a vector of $\Pour$s. Each $\Pour$ consists of:
+
+\begin{list}{}{}
+
+\item $\vpubOld$ which is a value $\vpubold$ that the pour removes from the value pool.
+
+\item $\vpubNew$ which is a value $\vpubnew$ that the pour inserts into the value pool.
+
+\item $\anchor$ which is a merkle root $\rt$ of the bucket commitment tree at some block height in the past, or the merkle root produced by a previous pour in this transaction. \textbf{(TODO: clarify this)}
+
+\item $\scriptSig$ which is a Bitcoin script which creates conditions for acceptance of a $\Pour$ in a transaction. The $\SHA$ hash of this value is $\hSig$.
+
+\item $\scriptPubKey$ which is a Bitcoin script used to satisfy the conditions of the $\scriptSig$.
+
+\item $\serials$ which is an $\Nold$ size vector of serials $\sn^{old}_{1}, \sn^{old}_{2}, ..., \sn^{old}_{\Nold}$.
+
+\item $\commitments$ which is a $\Nnew$ size vector of bucket commitments $\bm^{new}_{1}, \bm^{new}_{2}, ..., \bm^{new}_{\Nnew}$.
+
+\item $\encryptedBuckets$ which is a $\Nnew$ size vector of encrypted buckets.
+
+\item $\vmacs$ which is a $\Nold$ size vector of message authentication codes $h$ which bind $\hSig$ to each $\SpendAuthorityPrivate$ of the $\Pour$.
+
+\item $\zkproof$ which is the zero-knowledge proof $\PourProof$.
+
+\end{list}
+
+\subparagraph{Merkle root validity}
+
+A $\Pour$ is valid if $\rt$ is a bucket commitment tree root found in either the blockchain or a merkle root produced by inserting the bucket commitments of a previous $\Pour$ in the transaction to the bucket commitment tree identified by that previous $\Pour$'s $\anchor$.
+
+\subparagraph{Non-malleability}
+
+A $\Pour$ is valid if the script formed by appending $\scriptPubKey$ to $\scriptSig$ returns $true$. The $\scriptSig$ is cryptographically bound to $\PourProof$.
+
+\subparagraph{Balance}
+
+A $\Pour$ can be seen, from the perspective of the transaction, as an input and an output simultaneously. $\vpubOld$ takes value from the value pool and $\vpubNew$ adds value to the value pool. As a result, $\vpubOld$ is treated like an \textit{output} value, whereas $\vpubNew$ is treated like an \textit{input} value.
+
+\subparagraph{Commitments and Serials}
+
+Transactions which contain $\Pour$s, when entered into the blockchain, append to the bucket commitment tree with all constituent bucket commitments. All of the constituent serials are also entered into the spent serials map of the blockchain \textit{and} mempool. Transactions are not valid if they attempt to add a serial to the spent serials map that already exists.
+
+\subsection{$\PourProof$}
+
+\subparagraph{}
+
+In \Zcash, $\Nold$ and $\Nnew$ are both $2$.
+
+\subparagraph{}
+
+A valid instance of $\PourProof$ assures that given a \textit{primary input} ($\rt$, $\sn^{old}_{1}$, $\sn^{old}_{2}$, $\bm^{new}_{1}$, $\bm^{new}_{2}$, $\vpubold$, $\vpubnew$, $\hSig$, $h_1$, $h_2$), a witness of \textit{auxiliary input} ($\path{1}$, $\path{2}$, $\bOld{1}$, $\bOld{2}$, $\SpendAuthorityPrivate^{old}_1$, $\SpendAuthorityPrivate^{old}_2$, $\bNew{1}$, $\bNew{2}$) exists, where:
+
+\begin{list}{}{}
+
+\item for each $i \in \{1, 2\}$: $\bOld{i}$ = $(\vOld{i}, \SpendAuthorityPublic^{old}_i, \BucketRand^{old}_i, \BucketAddressRand^{old}_i)$
+
+\item for each $i \in \{1, 2\}$: $\bNew{i}$ = $(\vNew{i}, \SpendAuthorityPublic^{new}_i, \BucketRand^{new}_i, \BucketAddressRand^{new}_i)$.
+
+\item The following conditions hold:
+
+\end{list}
+
+\subparagraph{Merkle path validity}
+
+for each $i \in \{1, 2\}$ $\mid$ $\vOld{i} \neq 0$: $\path{i}$ must be a valid path of depth $\MerkleDepth$ from \linebreak $\BucketCommitment{\bOld{i}}$ to bucket commitment merkle tree root $\rt$.
+
+\subparagraph{Balance}
+
+$\vpubold + \vOld{1} + \vOld{2} = \vpubnew + \vNew{1} + \vNew{2}$.
+
+\subparagraph{Serial integrity}
+
+for each $i \in \{1, 2\}$: $\PRFsn{\SpendAuthorityPrivate^{old}_{i}}(\BucketAddressRand^{old}_{i})$ = $\sn^{old}_{i}$.
+
+\subparagraph{Spend authority}
+
+for each $i \in \{1, 2\}$: $\SpendAuthorityPublic^{old}_{i}$ = $\PRFaddr{\SpendAuthorityPrivate^{old}_{i}}(0)$.
+
+\subparagraph{Non-malleability}
+
+% TODO: protocol is really gross here, let's clarify the
+% indices and use of PRFpk independence from other h sdfhjgahsdjkgfas
+for each $i \in \{1, 2\}$: $h_i$ = $\PRFpk{\SpendAuthorityPrivate^{old}_i}{i-1}(\hSig)$
+
+\subparagraph{Commitment integrity}
+
+for each $i \in \{1, 2\}$: $\bm^{new}_i$ = $\BucketCommitment{\bNew{i}}$
+
+\end{document}
