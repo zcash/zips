@@ -337,4 +337,140 @@ for each $i \in \{1, 2\}$: $h_i$ = $\PRFpk{\SpendAuthorityPrivate^{old}_i}{i-1}(
 
 for each $i \in \{1, 2\}$: $\bm^{new}_i$ = $\BucketCommitment{\bNew{i}}$
 
+\section{Encoding addresses, private keys, buckets, and pours}
+
+This section describes how \Zcash encodes public addresses, private keys,
+buckets, and pours.
+
+Addresses, keys, and buckets, can be encoded as a byte string; this is called
+the \emph{raw encoding}. This byte string can then be further encoded using
+Base58Check. The Base58Check layer is the same as for upstream Bitcoin
+addresses.
+
+SHA-256 compression function outputs are always represented as strings of 32
+bytes.
+
+The language consisting of the following encoding possibilities is prefix-free.
+
+\subsection{Public Addresses}
+
+A public address consists of $\SpendAuthorityPublic$ and $\TransmitPublic$.
+$\SpendAuthorityPublic$ is a SHA-256 compression function output.
+$\TransmitPublic$ is an encryption public key (currently ECIES, but this may
+change to Curve25519/crypto\_box), which is an elliptic curve point.
+
+\textbf{TODO: Aren't we including the cleartext addresses, too?}
+
+\subsubsection{Raw Encoding}
+
+The raw encoding of a \Zcash public address consists of:
+
+\begin{equation*}
+\begin{bytefield}[bitwidth=0.07em]{520}
+	\bitbox{80}{0x??} &
+    \bitbox{256}{$\SpendAuthorityPublic$ (32 bytes)} &
+    \bitbox{256}{A 33-byte encoding of $\TransmitPublic$}
+\end{bytefield}
+\end{equation*}
+
+\begin{itemize}
+    \item A byte, 0x??, indicating this version of the raw encoding of a \Zcash
+        public address.
+    \item 32 bytes specifying $\SpendAuthorityPublic$.
+    \item An encoding of $\TransmitPublic$: The byte 0x01, followed by 32 bytes
+        representing the x coordinate of the elliptic curve point according to
+        the FE20SP primitive specified in section 5.5.4 of IEEE Std 1363-2000.
+        [Non-normative note: Since the curve is over a prime field, this is just
+            the 32-byte big-endian representation of the x coordinate. The
+            overall encoding matches the EC20SP-X primitive specified in section
+            5.5.6.3 of IEEE Std 1363a-2004.]
+\end{itemize}
+
+\textbf{TODO: pick a version byte distinct from other Bitcoin stuff, and that
+produces the correct Base58 leading character}
+
+\textbf{TODO: what about the network version byte?}
+
+\subsection{Private Keys}
+
+A \Zcash private key consists of $\SpendAuthorityPrivate$ and
+$\TransmitPrivate$. $\SpendAuthorityPrivate$ is a SHA-256 compression function
+output. $\TransmitPrivate$ is an encryption private key (currently ECIES), which
+is an integer.
+
+\subsubsection{Raw Encoding}
+
+The raw encoding of a \Zcash private key consists of, in order:
+
+\begin{equation*}
+\begin{bytefield}[bitwidth=0.07em]{520}
+	\bitbox{80}{0x??} &
+    \bitbox{256}{$\SpendAuthorityPrivate$ (32 bytes)} &
+    \bitbox{256}{$\TransmitPrivate$ (32 bytes)}
+\end{bytefield}
+\end{equation*}
+
+\begin{itemize}
+    \item A byte 0x?? indicating this version of the raw encoding of a Zcash
+        private key.
+    \item 32 bytes specifying $\SpendAuthorityPrivate$.
+    \item 32 bytes specifying a big-endian encoding of $\TransmitPrivate$.
+\end{itemize}
+
+\textbf{TODO: pick a version byte distinct from other Bitcoin stuff, and that
+produces the correct Base58 leading character}
+
+\textbf{TODO: what about the network version byte?}
+
+\subsection{Buckets (on the blockchain)}
+
+A bucket consists of $(\PublicAddress, \Value, \BucketAddressRand, \BucketRand,
+\bm)$, where:
+
+\begin{itemize}
+    \item $\PublicAddress$ is a \Zcash public address.
+    \item $\Value$ is a 64-bit unsigned integer representing the value of the
+        bucket in zatoshi.
+    \item $\BucketAddressRand$ is a 32-byte $\PRFsn{\SpendAuthorityPrivate}$ seed.
+    \item $\BucketRand$ is a 32-byte COMM trapdoor.
+    \item $\bm$ is a commitment which is a SHA-256 compression function output.
+\end{itemize}
+
+Note that the value $s$ described as being part of a bucket/coin in the Zerocash
+paper is not encoded because it is fixed to zero.
+
+\subsection{Raw Encoding}
+
+The raw encoding of a \Zcash bucket consists of, in order:
+
+\begin{equation*}
+\begin{bytefield}[bitwidth=0.05em]{200}
+	\bitbox{80}{0x??} &
+    \bitbox{80}{$\PublicAddress$} &
+    \bitbox{230}{$\Value$ (8 bytes, big endian)} &
+    \bitbox{230}{$\BucketAddressRand$ (32 bytes)} &
+    \bitbox{230}{$\BucketRand$ (32 bytes)} &
+    \bitbox{230}{$\bm$ (32 bytes)} &
+\end{bytefield}
+\end{equation*}
+
+\begin{itemize}
+    \item A byte 0x?? indicating this version of the raw encoding of a \Zcash
+        bucket.
+    \item 65 bytes specifying the raw encoding of the \Zcash public address
+        $\PublicAddress$ (defined above).
+    \item 8 bytes specifying a big-endian encoding of $\Value$.
+    \item 32 bytes specifying $\BucketAddressRand$.
+    \item 32 bytes specifying $\BucketRand$.
+    \item 32 bytes specifying $\bm$.
+\end{itemize}
+
+\section{Pours (within a transaction on the blockchain)}
+
+TBD.
+
+\section{Transactions}
+
+TBD.
+
 \end{document}
