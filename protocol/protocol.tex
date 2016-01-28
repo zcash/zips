@@ -86,6 +86,7 @@
 \newcommand{\CoinAddressRandNew}[1]{\mathsf{\uprho^{new}_\mathnormal{#1}}}
 \newcommand{\TransmitPlaintextVersionByte}{\mathbf{0x00}}
 \newcommand{\CRH}{\mathsf{CRH}}
+\newcommand{\CRHbox}[1]{\CRH\left(\;\raisebox{-1.3ex}{\usebox{#1}}\;\right)}
 \newcommand{\PRF}[2]{\mathsf{{PRF}^{#2}_\mathnormal{#1}}}
 \newcommand{\PRFaddr}[1]{\PRF{#1}{addr}}
 \newcommand{\PRFsn}[1]{\PRF{#1}{sn}}
@@ -204,50 +205,47 @@ functions. The bits $\mathtt{00}$, $\mathtt{01}$ and $\mathtt{10}$ are included
 (respectively) within the blocks that are hashed, ensuring that the functions are
 independent.
 
-\begin{equation*}
-\SpendAuthorityPublic = \PRFaddr{\SpendAuthorityPrivate}(0) = \CRH\left(
-\;
-\begin{bytefield}[bitwidth=0.07em]{512}
-	\bitbox{242}{256 bit $\SpendAuthorityPrivate$} &
-	\bitbox{14}{0} &
-	\bitbox{14}{0} &
-	\bitbox{242}{$0^{254}$} &
+\newsavebox{\addrbox}
+\begin{lrbox}{\addrbox}
+\begin{bytefield}[bitwidth=0.065em]{512}
+        \bitbox{242}{256 bit $\SpendAuthorityPrivate$} &
+        \bitbox{14}{0} &
+        \bitbox{14}{0} &
+        \bitbox{242}{$0^{254}$} &
 \end{bytefield}
-\enspace
-\right)
+\end{lrbox}
+
+\newsavebox{\snbox}
+\begin{lrbox}{\snbox}
+\begin{bytefield}[bitwidth=0.065em]{512}
+        \bitbox{242}{256 bit $\SpendAuthorityPrivate$} &
+        \bitbox{14}{0} &
+        \bitbox{14}{1} &
+        \bitbox{242}{$\Trailing{254}(\CoinAddressRand)$} &
+\end{bytefield}
+\end{lrbox}
+
+\newsavebox{\pkbox}
+\begin{lrbox}{\pkbox}
+\begin{bytefield}[bitwidth=0.065em]{512}
+        \bitbox{242}{256 bit $\SpendAuthorityPrivate$} &
+        \bitbox{14}{1} &
+        \bitbox{14}{0} &
+        \bitbox{14}{$i$} &
+        \bitbox{228}{$\Trailing{253}(\hSig)$}
+\end{bytefield}
+\end{lrbox}
+
+\begin{equation*}
+\begin{aligned}
+\SpendAuthorityPublic &:= \PRFaddr{\SpendAuthorityPrivate}(0) &= \CRHbox{\addrbox} \\
+\sn &:= \PRFsn{\SpendAuthorityPrivate}(\CoinAddressRand) &= \CRHbox{\snbox} \\
+\h{i} &:= \PRFpk{\SpendAuthorityPrivate}(i, \hSig) &= \CRHbox{\pkbox}
+\end{aligned}
 \end{equation*}
 
-\begin{equation*}
-\sn = \PRFsn{\SpendAuthorityPrivate}(\CoinAddressRand) = \CRH\left(
-\;
-\begin{bytefield}[bitwidth=0.07em]{512}
-	\bitbox{242}{256 bit $\SpendAuthorityPrivate$} &
-	\bitbox{14}{0} &
-	\bitbox{14}{1} &
-	\bitbox{242}{254 bit left-truncated $\CoinAddressRand$} &
-\end{bytefield}
-\enspace
-\right)
-\end{equation*}
-
-
-\begin{equation*}
-\h{i} = \PRFpk{\SpendAuthorityPrivate}(i, \hSig) = \CRH\left(
-\;
-\begin{bytefield}[bitwidth=0.07em]{512}
-	\bitbox{242}{256 bit $\SpendAuthorityPrivate$} &
-	\bitbox{14}{1} &
-	\bitbox{14}{0} &
-	\bitbox{14}{i} &
-	\bitbox{241}{253 bit left-truncated $\hSig$}
-\end{bytefield}
-\enspace
-\right)
-\end{equation*}
-
-\term{Left-truncated} means that the most significant bits of the first byte of
-$\CoinAddressRand$ and $\hSig$ respectively are dropped. \daira{Should we instead
-define $\CoinAddressRand$ to be 254 bits and $\hSig$ to be 253 bits?}
+\daira{Should we instead define $\CoinAddressRand$ to be 254 bits and $\hSig$ to be
+253 bits?}
 
 \subsection{Confidential Addresses and Private Keys}
 
@@ -299,44 +297,38 @@ The underlying $\Value$ and $\SpendAuthorityPublic$ are blinded with $\CoinAddre
 and $\CoinCommitRand$ using the collision-resistant hash function $\CRH$ in a
 multi-layered process. The resulting hash $\cm = \CoinCommitment{\Coin}$.
 
-% TODO: this appears to be ineffective
-\begin{flushright}
-
-\begin{equation*}
-\InternalHash := \CRH\left(
-\;
-\begin{bytefield}[bitwidth=0.07em]{512}
+\newsavebox{\ihbox}
+\begin{lrbox}{\ihbox}
+\begin{bytefield}[bitwidth=0.08em]{512}
 	\bitbox{256}{256 bit $\SpendAuthorityPublic$} &
 	\bitbox{256}{256 bit $\CoinAddressRand$}
 \end{bytefield}
-\enspace
-\right)
-\end{equation*}
+\end{lrbox}
 
-\begin{equation*}
-\InternalHashK := \CRH\left(
-\;
-\begin{bytefield}[bitwidth=0.07em]{512}
-	\bitbox{256}{256 bit $\CoinCommitRand$} &
-	\bitbox{256}{256 bit $\InternalHash$}
+\newsavebox{\ihkbox}
+\begin{lrbox}{\ihkbox}
+\begin{bytefield}[bitwidth=0.08em]{512}
+	\bitbox{384}{384 bit $\CoinCommitRand$} &
+	\bitbox{128}{$\Leading{128}(\InternalHash)$}
 \end{bytefield}
-\enspace
-\right)
-\end{equation*}
+\end{lrbox}
 
-\begin{equation*}
-\cm := \CRH\left(
-\;
-\begin{bytefield}[bitwidth=0.07em]{512}
+\newsavebox{\cmbox}
+\begin{lrbox}{\cmbox}
+\begin{bytefield}[bitwidth=0.08em]{512}
 	\bitbox{64}{64 bit $\Value$} &
 	\bitbox{192}{192 bit padding} &
 	\bitbox{256}{256 bit $\InternalHashK$}
 \end{bytefield}
-\enspace
-\right)
-\end{equation*}
+\end{lrbox}
 
-\end{flushright}
+\begin{equation*}
+\begin{aligned}
+\InternalHash  &:= \CRHbox{\ihbox}  \\
+\InternalHashK &:= \CRHbox{\ihkbox} \\
+\cm            &:= \CRHbox{\cmbox}
+\end{aligned}
+\end{equation*}
 
 \subparagraph{Serials}
 
