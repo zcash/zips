@@ -105,12 +105,14 @@
 \newcommand{\Plaintext}[1]{\mathbf{P}_{#1}}
 \newcommand{\Ciphertext}[1]{\mathbf{C}_{#1}}
 \newcommand{\Nonce}{\mathsf{nonce}}
+\newcommand{\Prenonce}{\mathsf{prenonce}}
 \newcommand{\TransmitEncrypt}[1]{\mathsf{Encrypt}_{#1}}
 \newcommand{\TransmitDecrypt}[1]{\mathsf{Decrypt}_{#1}}
 \newcommand{\CRH}{\mathsf{CRH}}
 \newcommand{\CRHbox}[1]{\CRH\left(\;\raisebox{-1.3ex}{\usebox{#1}}\;\right)}
 \newcommand{\CryptoBoxSealHash}{\mathtt{SHA256}}
 \newcommand{\CryptoBoxSealHashbox}[1]{\CryptoBoxSealHash\left(\;\raisebox{-1.3ex}{\usebox{#1}}\;\right)}
+\newcommand{\Justthebox}[1]{\;\raisebox{-1.3ex}{\usebox{#1}}\;}
 \newcommand{\PRF}[2]{\mathsf{{PRF}^{#2}_\mathnormal{#1}}}
 \newcommand{\PRFaddr}[1]{\PRF{#1}{addr}}
 \newcommand{\PRFsn}[1]{\PRF{#1}{sn}}
@@ -181,6 +183,7 @@
 \begin{document}
 
 \title{Zcash Protocol Specification}
+%\subtitle{Version: 2.0-draft}
 \author{Sean Bowe | Daira Hopwood | Taylor Hornby}
 \date{\today}
 \maketitle
@@ -329,12 +332,20 @@ $\TransmitPrivate$) is used to reconstruct the original \coin and \memo.
 The encryption algorithm is defined in terms of $\CryptoBox$ (i.e.
 $\CryptoBoxSpecific$) \cite{cryptobox} as follows.
 
+\newsavebox{\prenoncebox}
+\begin{lrbox}{\prenoncebox}
+\begin{bytefield}[bitwidth=0.05em]{520}
+        \bitbox{120}{64 bit $i-1$} &
+        \bitbox{256}{256 bit $\EphemeralPublic$}
+        \bitbox{256}{256 bit $\TransmitPublicNew{i}$}
+\end{bytefield}
+\end{lrbox}
+
 \newsavebox{\noncebox}
 \begin{lrbox}{\noncebox}
-\begin{bytefield}[bitwidth=0.05em]{520}
-        \bitbox{120}{1 byte $i-1$} &
-        \bitbox{256}{32 byte $\EphemeralPublic$}
-        \bitbox{256}{32 byte $\TransmitPublicNew{i}$}
+\begin{bytefield}[bitwidth=0.085em]{192}
+        \bitbox{128}{$\Leading{128}(\Prenonce)$} &
+        \bitbox{72}{64 bit $i-1$}
 \end{bytefield}
 \end{lrbox}
 
@@ -344,10 +355,12 @@ recipient addresses of each new \coin, and let $\Plaintext{1..\NNew}$ be their
 
 Define:
 
-\begin{itemize}
-  \item[] $\Nonce(i, \EphemeralPublic, \TransmitPublicNew{i}) =
-\CryptoBoxSealHashbox{\noncebox}$.
-\end{itemize}
+\begin{equation*}
+\begin{aligned}
+\Prenonce(i, \EphemeralPublic, \TransmitPublicNew{i}) &:= \CryptoBoxSealHashbox{\prenoncebox} \\
+\Nonce(i, \EphemeralPublic, \TransmitPublicNew{i}) &:= \Justthebox{\noncebox}
+\end{aligned}
+\end{equation*}
 
 Then to encrypt:
 
