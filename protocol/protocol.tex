@@ -1,4 +1,4 @@
-\documentclass[8pt]{article}
+\documentclass{article}
 \RequirePackage{amsmath}
 \RequirePackage{bytefield}
 \RequirePackage{graphicx}
@@ -6,6 +6,8 @@
 \RequirePackage{mathtools}
 \RequirePackage{xspace}
 \RequirePackage{url}
+\RequirePackage{changepage}
+\RequirePackage{lmodern}
 
 \setlength{\oddsidemargin}{-0.25in} % Left margin of 1 in + 0 in = 1 in
 \setlength{\textwidth}{7in}   % Right margin of 8.5 in - 1 in - 6.5 in = 1 in
@@ -54,8 +56,9 @@
 \newcommand{\publicAddress}{\term{confidential address}}
 % Let's rename ``privateAddress'' to something else, since it sounds like an oxymoron to me. (This is related to a code naming issue #602 and we might want to update both at the same time.)
 \newcommand{\privateAddress}{\term{confidential private key}}
-\newcommand{\transmittedPlaintext}{\term{transmitted coin plaintext}}
-\newcommand{\transmittedCiphertext}{\term{transmitted coin ciphertext}}
+\newcommand{\coinPlaintext}{\term{coin plaintext}}
+\newcommand{\coinPlaintexts}{\term{coin plaintexts}}
+\newcommand{\coinsCiphertext}{\term{transmitted coins ciphertext}}
 \newcommand{\transmitPublicAlgorithm}{\term{key-private encryption}}
 \newcommand{\transmitPrivateAlgorithm}{\term{key-private decryption}}
 \newcommand{\spendAuthority}{\term{spend authority}}
@@ -63,6 +66,7 @@
 \newcommand{\spentSerialsMap}{\term{spent serial numbers map}}
 \newcommand{\zkSNARK}{\term{zk-SNARK}}
 \newcommand{\zkSNARKs}{\term{zk-SNARKs}}
+\newcommand{\memo}{\term{memo field}}
 
 % key pairs:
 \newcommand{\PublicAddress}{\mathsf{addr_{pk}}}
@@ -76,7 +80,11 @@
 \newcommand{\SpendAuthorityPublicNew}[1]{\mathsf{a^{new}_{pk,\mathnormal{#1}}}}
 \newcommand{\SpendAuthorityPrivateNew}[1]{\mathsf{a^{new}_{sk,\mathnormal{#1}}}}
 \newcommand{\TransmitPublic}{\mathsf{pk_{enc}}}
+\newcommand{\TransmitPublicNew}[1]{\mathsf{pk_{enc,\mathnormal{#1}}}}
 \newcommand{\TransmitPrivate}{\mathsf{sk_{enc}}}
+\newcommand{\TransmitPrivateNew}[1]{\mathsf{sk_{enc,\mathnormal{#1}}}}
+\newcommand{\EphemeralPublic}{\mathsf{pk_{eph}}}
+\newcommand{\EphemeralPrivate}{\mathsf{sk_{eph}}}
 \newcommand{\Value}{\mathsf{v}}
 
 % Coins
@@ -87,14 +95,31 @@
 \newcommand{\CoinAddressRand}{\mathsf{\uprho}}
 \newcommand{\CoinAddressRandOld}[1]{\mathsf{\uprho^{old}_\mathnormal{#1}}}
 \newcommand{\CoinAddressRandNew}[1]{\mathsf{\uprho^{new}_\mathnormal{#1}}}
+\newcommand{\CoinAddressPreRand}{\mathsf{\upvarphi}}
 \newcommand{\CoinCommitS}{\mathsf{s}}
 \newcommand{\TransmitPlaintextVersionByte}{\mathbf{0x00}}
+\newcommand{\hSigInputVersionByte}{\mathbf{0x00}}
+\newcommand{\Memo}{\mathsf{memo}}
+\newcommand{\CryptoBox}{\mathsf{crypto\_box}}
+\newcommand{\CryptoBoxOpen}{\mathsf{crypto\_box\_open}}
+\newcommand{\CryptoBoxSeal}{\mathsf{crypto\_box\_seal}}
+\newcommand{\CryptoBoxSpecific}{\mathsf{crypto\_box\_curve25519xsalsa20poly1305}}
+\newcommand{\Plaintext}[1]{\mathbf{P}_{#1}}
+\newcommand{\Ciphertext}[1]{\mathbf{C}_{#1}}
+\newcommand{\Nonce}{\mathsf{nonce}}
+\newcommand{\Prenonce}{\mathsf{prenonce}}
+\newcommand{\TransmitEncrypt}[1]{\mathsf{Encrypt}_{#1}}
+\newcommand{\TransmitDecrypt}[1]{\mathsf{Decrypt}_{#1}}
 \newcommand{\CRH}{\mathsf{CRH}}
 \newcommand{\CRHbox}[1]{\CRH\left(\;\raisebox{-1.3ex}{\usebox{#1}}\;\right)}
+\newcommand{\FullHash}{\mathtt{SHA256}}
+\newcommand{\FullHashbox}[1]{\FullHash\left(\;\raisebox{-1.3ex}{\usebox{#1}}\;\right)}
+\newcommand{\Justthebox}[1]{\;\raisebox{-1.3ex}{\usebox{#1}}\;}
 \newcommand{\PRF}[2]{\mathsf{{PRF}^{#2}_\mathnormal{#1}}}
 \newcommand{\PRFaddr}[1]{\PRF{#1}{addr}}
 \newcommand{\PRFsn}[1]{\PRF{#1}{sn}}
 \newcommand{\PRFpk}[1]{\PRF{#1}{pk}}
+\newcommand{\PRFrho}[1]{\PRF{#1}{\CoinAddressRand}}
 \newcommand{\SHA}{\mathtt{SHA256Compress}}
 \newcommand{\SHAName}{\term{SHA-256 compression}}
 \newcommand{\SHAOrig}{\term{SHA-256}}
@@ -103,7 +128,7 @@
 \newcommand{\InternalHashK}{\mathsf{k}}
 \newcommand{\InternalHash}{\mathsf{InternalH}}
 \newcommand{\Leading}[1]{\mathtt{Leading}_{#1}}
-\newcommand{\Trailing}[1]{\mathtt{Trailing}_{#1}}
+\newcommand{\ReplacementCharacter}{\textsf{U+FFFD}}
 
 % merkle tree
 \newcommand{\MerkleDepth}{\mathsf{d}}
@@ -122,7 +147,8 @@
 \newcommand{\scriptPubKey}{\mathtt{scriptPubKey}}
 \newcommand{\serials}{\mathtt{serials}}
 \newcommand{\commitments}{\mathtt{commitments}}
-\newcommand{\TransmitCiphertexts}{\mathtt{ciphertexts}}
+\newcommand{\ephemeralKey}{\mathtt{ephemeralKey}}
+\newcommand{\ciphertexts}{\mathtt{ciphertexts}}
 \newcommand{\rt}{\mathsf{rt}}
 
 % pour
@@ -159,6 +185,7 @@
 \begin{document}
 
 \title{Zcash Protocol Specification}
+%\subtitle{Version: 2.0-draft}
 \author{Sean Bowe | Daira Hopwood | Taylor Hornby}
 \date{\today}
 \maketitle
@@ -195,17 +222,19 @@ the leading (initial) $k$ bits of its input.
 $\CRH$ is a collision-resistant hash function. In \Zcash, the $\SHAName$ function
 is used which takes a 512-bit block and produces a 256-bit hash. This is
 different from the $\SHAOrig$ function, which hashes arbitrary-length strings.
+\cite{sha256}
 
-$\PRF{x}{}$ is a pseudo-random function seeded by $x$. Three \emph{independent}
-$\PRF{x}{}$ are needed in our scheme: $\PRFaddr{x}$, $\PRFsn{x}$, and $\PRFpk{x}$.
-It is required that $\PRFsn{x}$ be collision-resistant across all $x$ --- i.e. it
-should not be feasible to find $(x, y) \neq (x', y')$ such that
-$\PRFsn{x}(y) = \PRFsn{x'}(y')$.
+$\PRF{x}{}$ is a pseudo-random function seeded by $x$. Four \emph{independent}
+$\PRF{x}{}$ are needed in our scheme: $\PRFaddr{x}$, $\PRFsn{x}$, $\PRFpk{x}$, and
+$\PRFrho{x}$. It is required that $\PRFsn{x}$ and $\PRFrho{x}$ be
+collision-resistant across all $x$ --- i.e. it should not be feasible to find
+$(x, y) \neq (x', y')$ such that $\PRFsn{x}(y) = \PRFsn{x'}(y')$, and similarly
+for $\PRFrho{}$.
 
-In \Zcash, the $\SHAName$ function is used to construct all three of these
-functions. The bits $\mathtt{00}$, $\mathtt{01}$ and $\mathtt{10}$ are included
-(respectively) within the blocks that are hashed, ensuring that the functions are
-independent.
+In \Zcash, the $\SHAName$ function is used to construct all four of these
+functions. The bits $\mathtt{00}$, $\mathtt{01}$, $\mathtt{10}$, and $\mathtt{11}$
+are included (respectively) within the blocks that are hashed, ensuring that the
+functions are independent.
 
 \newsavebox{\addrbox}
 \begin{lrbox}{\addrbox}
@@ -238,6 +267,17 @@ independent.
 \end{bytefield}
 \end{lrbox}
 
+\newsavebox{\rhobox}
+\begin{lrbox}{\rhobox}
+\begin{bytefield}[bitwidth=0.065em]{512}
+        \bitbox{242}{256 bit $\CoinAddressPreRand$} &
+        \bitbox{14}{1} &
+        \bitbox{14}{1} &
+        \bitbox{14}{$i$} &
+        \bitbox{228}{$\Leading{253}(\hSig)$}
+\end{bytefield}
+\end{lrbox}
+
 \nathan{Note: If we change input arity (i.e. $\NOld$), we need to be aware of how it
 is associated with this bit-packing.}
 
@@ -245,7 +285,8 @@ is associated with this bit-packing.}
 \begin{aligned}
 \SpendAuthorityPublic &:= \PRFaddr{\SpendAuthorityPrivate}(0) &= \CRHbox{\addrbox} \\
 \sn &:= \PRFsn{\SpendAuthorityPrivate}(\CoinAddressRand) &= \CRHbox{\snbox} \\
-\h{i} &:= \PRFpk{\SpendAuthorityPrivate}(i, \hSig) &= \CRHbox{\pkbox}
+\h{i} &:= \PRFpk{\SpendAuthorityPrivate}(i, \hSig) &= \CRHbox{\pkbox} \\
+\CoinAddressRandNew{i} &:= \PRFrho{\CoinAddressPreRand}(i, \hSig) &= \CRHbox{\rhobox}
 \end{aligned}
 \end{equation*}
 
@@ -288,22 +329,91 @@ A \coin (denoted $\Coin$) is a tuple $(\SpendAuthorityPublic, \Value,
 \CoinAddressRand, \CoinCommitRand)$ which represents that a value $\Value$ is
 spendable by the recipient who holds the $\spendAuthority$ key pair
 $(\SpendAuthorityPublic, \SpendAuthorityPrivate)$ such that
-$\SpendAuthorityPublic = \PRFaddr{\SpendAuthorityPrivate}(0)$. $\CoinAddressRand$ and
-$\CoinCommitRand$ are tokens randomly generated by the sender. Only a hash of
-these values is disclosed publicly, which allows these random tokens to blind the
-value and recipient \emph{except} to those who possess these tokens.
+$\SpendAuthorityPublic = \PRFaddr{\SpendAuthorityPrivate}(0)$.
 
-\subparagraph{In-band secret distribution}
+$\CoinCommitRand$ is randomly generated by the sender; $\CoinAddressRand$
+is generated from a random seed $\CoinAddressPreRand$ using
+$\PRFrho{\CoinAddressPreRand}$. Only a commitment to these values is disclosed
+publicly, which allows the tokens $\CoinCommitRand$ and $\CoinAddressRand$ to blind
+the value and recipient \emph{except} to those who possess these tokens.
 
-In order to transmit the secret $\Value$, $\CoinAddressRand$ and $\CoinCommitRand$ 
-to the recipient (necessary for the recipient to later spend) \emph{without} 
-requiring an out-of-band communication channel, the $\transmitPublicAlgorithm$ 
-public key $\TransmitPublic$ is used to encrypt these secrets to form a 
-\transmittedCiphertext. The recipient's possession of the associated 
-$(\PublicAddress, \PrivateAddress)$ (which contains both $\SpendAuthorityPublic$ and 
-$\TransmitPrivate$) is used to reconstruct the original \coin.
+\subsubsection{In-band secret distribution}
 
-\subparagraph{Coin Commitments}
+In order to transmit the secret $\Value$, $\CoinAddressRand$, and $\CoinCommitRand$
+(necessary for the recipient to later spend) and also a \memo to the recipient
+\emph{without} requiring an out-of-band communication channel, the
+$\transmitPublicAlgorithm$ public key $\TransmitPublic$ is used to encrypt these
+secrets to form a \coinsCiphertext. The recipient's possession of the associated
+$(\PublicAddress, \PrivateAddress)$ (which contains both $\SpendAuthorityPublic$ and
+$\TransmitPrivate$) is used to reconstruct the original \coin and \memo.
+
+The encryption algorithm is defined in terms of $\CryptoBox$ (i.e.
+$\CryptoBoxSpecific$) \cite{cryptobox} as follows.
+
+\newsavebox{\prenoncebox}
+\begin{lrbox}{\prenoncebox}
+\begin{bytefield}[bitwidth=0.05em]{520}
+        \bitbox{120}{64 bit $i-1$} &
+        \bitbox{256}{256 bit $\EphemeralPublic$}
+        \bitbox{256}{256 bit $\TransmitPublicNew{i}$}
+\end{bytefield}
+\end{lrbox}
+
+\newsavebox{\noncebox}
+\begin{lrbox}{\noncebox}
+\begin{bytefield}[bitwidth=0.085em]{192}
+        \bitbox{128}{$\Leading{128}(\Prenonce)$} &
+        \bitbox{72}{64 bit $i-1$}
+\end{bytefield}
+\end{lrbox}
+
+Let $\TransmitPublicNew{\mathrm{1}..\NNew}$ be the Curve25519 public keys for the intended
+recipient addresses of each new \coin, and let $\Plaintext{1..\NNew}$ be their
+\coinPlaintexts.
+
+Define:
+\begin{equation*}
+\begin{aligned}
+\Prenonce(i, \EphemeralPublic, \TransmitPublicNew{i}) &:= \FullHashbox{\prenoncebox} \\
+\Nonce(i, \EphemeralPublic, \TransmitPublicNew{i}) &:= \Justthebox{\noncebox}
+\end{aligned}
+\end{equation*}
+
+Then to encrypt:
+
+\begin{itemize}
+  \item Generate a new Curve25519 (public, private) key pair $(\EphemeralPublic, \EphemeralPrivate)$.
+  \item For $i$ in $\{1..\NNew\}$, let $\Ciphertext{i} = \CryptoBox(\Plaintext{i}, \TransmitPublicNew{i}, \EphemeralPrivate,
+\Nonce(i, \EphemeralPublic, \TransmitPublicNew{i}))$.
+  \item Let $\TransmitEncrypt{\TransmitPublicNew{\mathrm{1}..\NNew}}(\Plaintext{1..\NNew}) =
+(\EphemeralPublic, \Ciphertext{1..\NNew})$.
+\end{itemize}
+
+Let $(\TransmitPublic, \TransmitPrivate)$ be the recipient's Curve25519
+(public, private) key pair, and let $(\EphemeralPublic, \Ciphertext{1..\NNew})$
+be the \coinsCiphertext.
+
+Then for each $i$ in $\{1..\NNew\}$, the recipient will attempt to decrypt that
+ciphertext component as follows:
+
+\begin{itemize}
+  \item $\TransmitDecrypt{\TransmitPrivate}(i, \EphemeralPublic, \Ciphertext{i}) =
+\CryptoBoxOpen(\Ciphertext{i}, \EphemeralPublic, \TransmitPrivate,
+\Nonce(i, \EphemeralPublic, \TransmitPublic))$
+\end{itemize}
+
+Any ciphertext components that fail to decrypt with a given recipient's private key
+will be ignored.
+
+This is a variation on the $\CryptoBoxSeal$ algorithm defined in libsodium
+\cite{cryptoboxseal}, but with a single ephemeral key used for all encryptions in a
+given \PourDescription, and with the nonce for each ciphertext component depending
+on the index $i$. Also, $\FullHash$ (the full hash, not the compression function) is
+used instead of $\mathsf{blake2b}$. The particular nonce construction is chosen so
+that a known-nonce distinguisher for $\mathsf{Salsa20}$ would not directly lead to a
+break of the IK-CCA (key privacy) property.
+
+\subsubsection{Coin Commitments}
 
 The underlying $\Value$ and $\SpendAuthorityPublic$ are blinded with $\CoinAddressRand$
 and $\CoinCommitRand$ using the collision-resistant hash function $\CRH$ in a
@@ -342,7 +452,7 @@ multi-layered process. The resulting hash $\cm = \CoinCommitment{\Coin}$.
 \end{aligned}
 \end{equation*}
 
-\subparagraph{Serials}
+\subsubsection{Serial numbers}
 
 A \serialNumber (denoted $\sn$) equals 
 $\PRFsn{\SpendAuthorityPrivate}(\CoinAddressRand)$. A \coin is spent by proving
@@ -455,28 +565,47 @@ some block height in the past, or the merkle root produced by a previous pour in
 this transaction. \sean{We need to be more specific here.}
 
 \item $\scriptSig$ which is a \script that creates conditions for acceptance of a
-\PourDescription in a transaction. The $\SHA$ hash of this value is $\hSig$.
-
-\daira{Why $\SHA$ and not $\SHAOrig$? The script is variable-length.}
+\PourDescription in a transaction.
 
 \item $\scriptPubKey$ which is a \script used to satisfy the conditions of the
 $\scriptSig$.
 
-\item $\serials$ which is an $\NOld$ size sequence of serials $\snOld{1..\NOld}$.
+\item $\serials$ which is an $\NOld$ size sequence of serials $\snOld{\mathrm{1}..\NOld}$.
 
 \item $\commitments$ which is a $\NNew$ size sequence of \coinCommitments 
-$\cmNew{1..\NNew}$.
+$\cmNew{\mathrm{1}..\NNew}$.
 
-\item $\TransmitCiphertexts$ which is a $\NNew$ size sequence each element of which
-is a \transmittedCiphertext.
+\item $\ephemeralKey$ which is a Curve25519 public key $\EphemeralPublic$.
+
+\item $\ciphertexts$ which is a $\NNew$ size sequence of ciphertext components.
+($\ephemeralKey$ and $\ciphertexts$ together form the \coinsCiphertext.)
 
 \item $\vmacs$ which is a $\NOld$ size sequence of message authentication tags
-$\h{1..\NOld}$ that bind $\hSig$ to each $\SpendAuthorityPrivate$ of the
+$\h{\mathrm{1}..\NOld}$ that bind $\hSig$ to each $\SpendAuthorityPrivate$ of the
 $\PourDescription$.
 
 \item $\zkproof$ which is the zero-knowledge proof $\PourProof$.
 
 \end{list}
+
+\subparagraph{Computation of $\hSig$}
+
+\newsavebox{\hsigbox}
+\begin{lrbox}{\hsigbox}
+\begin{bytefield}[bitwidth=0.045em]{808}
+	\bitbox{80}{$\hSigInputVersionByte$} &
+	\bitbox{256}{256 bit $\snOld{0}$} &
+	\bitbox{24}{...} &
+	\bitbox{256}{256 bit $\snOld{\NOld-1}$} &
+	\bitbox{256}{$\scriptPubKey$}
+\end{bytefield}
+\end{lrbox}
+
+Given a \PourDescription, we define:
+
+\begin{itemize}
+  \item[] $\hSig := \FullHashbox{\hsigbox}$
+\end{itemize}
 
 \subparagraph{Merkle root validity}
 
@@ -512,10 +641,10 @@ exists in the map.
 In \Zcash, $\NOld$ and $\NNew$ are both $2$.
 
 A valid instance of $\PourProof$ assures that given a \term{primary input}
-$(\rt, \snOld{1..\NOld}, \cmNew{1..\NNew}, \vpubOld, \vpubNew, \hSig, \h{1..\NOld})$,
-a witness of \term{auxiliary input}
-$(\treepath{1..\NOld}, \cOld{1..\NOld}, \SpendAuthorityPrivateOld{1..\NOld}, \cNew{1..\NNew})$
-exists, where:
+$(\rt, \snOld{\mathrm{1}..\NOld}, \cmNew{\mathrm{1}..\NNew}, \vpubOld, \vpubNew,
+\hSig, \h{\mathrm{1}..\NOld})$, a witness of \term{auxiliary input}
+$(\treepath{1..\NOld}, \cOld{1..\NOld}, \SpendAuthorityPrivateOld{\mathrm{1}..\NOld},
+\cNew{1..\NNew}, \CoinAddressPreRand)$ exists, where:
 
 \begin{list}{}{}
 
@@ -553,6 +682,10 @@ $\SpendAuthorityPublicOld{i} = \PRFaddr{\SpendAuthorityPrivateOld{i}}(0)$.
 
 for each $i \in \{1..\NOld\}$: $\h{i}$ = $\PRFpk{\SpendAuthorityPrivateOld{i}}(i, \hSig)$
 
+\subparagraph{Uniqueness of $\CoinAddressRandNew{i}$}
+
+for each $i \in \{1..\NNew\}$: $\CoinAddressRandNew{i}$ = $\PRFrho{\CoinAddressPreRand}(i, \hSig)$
+
 \subparagraph{Commitment integrity}
 
 for each $i \in \{1..\NNew\}$: $\cmNew{i}$ = $\CoinCommitment{\cNew{i}}$
@@ -584,9 +717,8 @@ These are encoded in the same way as in \Bitcoin \cite{Base58Check}.
 
 A \publicAddress consists of $\SpendAuthorityPublic$ and $\TransmitPublic$.
 $\SpendAuthorityPublic$ is a SHA-256 compression function output.
-$\TransmitPublic$ is an encryption public key (currently ECIES, but this may
-change to Curve25519/crypto\_box\_seal), which represents an equivalence class
-of two points sharing an $x$ coordinate on an elliptic curve.
+$\TransmitPublic$ is a Curve25519 public key, for use with the encryption
+scheme defined in section ``In-band secret distribution".
 
 \subsubsection{Raw Encoding}
 
@@ -604,14 +736,8 @@ The raw encoding of a confidential address consists of:
     \item A byte, $\PublicAddressLeadByte$, indicating this version of the
         raw encoding of a \Zcash public address.
     \item 32 bytes specifying $\SpendAuthorityPublic$.
-    \item An encoding of $\TransmitPublic$: The byte $\mathbf{0x01}$, followed by 32 bytes
-        representing the $x$ coordinate of an elliptic curve point according to
-        the $\mathsf{FE2OSP}$ primitive specified in section 5.5.4 of IEEE Std 1363-2000.
-        [Non-normative note: Since the curve is over a prime field, this is just
-            the 32-byte big-endian representation of the $x$ coordinate. The
-            overall encoding matches the $\mathsf{EC2OSP{\mhyphen}X}$ primitive
-            specified in section 5.5.6.3 of IEEE Std 1363a-2004. It does not
-            matter which of the two points with the same $x$ coordinate is used.]
+    \item 32 bytes specifying $\TransmitPublic$, using the normal encoding
+        of a Curve25519 public key \cite{Curve25519}.
 \end{itemize}
 
 \daira{check that this lead byte is distinct from other Bitcoin stuff,
@@ -619,14 +745,12 @@ and produces `z' as the Base58Check leading character.}
 
 \nathan{what about the network version byte?}
 
-\daira{add bibliographic references for the IEEE standards.}
-
 \subsection{Confidential Address Secrets}
 
 A confidential address secret consists of $\SpendAuthorityPrivate$ and
 $\TransmitPrivate$. $\SpendAuthorityPrivate$ is a SHA-256 compression function
-output. $\TransmitPrivate$ is an encryption private key (currently ECIES), which
-is an integer.
+output. $\TransmitPrivate$ is a Curve25519 private key, for use with the
+encryption scheme defined in section ``In-band secret distribution".
 
 \subsubsection{Raw Encoding}
 
@@ -644,7 +768,7 @@ The raw encoding of a confidential address secret consists of, in order:
     \item A byte $\PrivateAddressLeadByte$ indicating this version of the
         raw encoding of a \Zcash private key.
     \item 32 bytes specifying $\SpendAuthorityPrivate$.
-    \item 32 bytes specifying a big-endian encoding of $\TransmitPrivate$.
+    \item 32 bytes specifying $\TransmitPrivate$.
 \end{itemize}
 
 \daira{check that this lead byte is distinct from other Bitcoin stuff,
@@ -657,10 +781,11 @@ and produces `z' as the Base58Check leading character.}
 Transmitted coins are stored on the blockchain in encrypted form, together with
 a \coinCommitment $\cm$.
 
-A \transmittedCiphertext is an ECIES encryption of a \transmittedPlaintext to a
-\transmitPublicAlgorithm key $\TransmitPublic$.
+The \coinPlaintexts associated with a \PourDescription are encrypted to the
+respective \transmitPublicAlgorithm keys $\TransmitPublicNew{1..\NNew}$, and the
+result forms a \coinsCiphertext.
 
-A \transmittedPlaintext consists of $(\Value, \CoinAddressRand, \CoinCommitRand)$,
+Each \coinPlaintext consists of $(\Value, \CoinAddressRand, \CoinCommitRand, \Memo)$,
 where:
 
 \begin{itemize}
@@ -668,7 +793,16 @@ where:
         \coin in \zatoshi (1 \ZEC = $10^8$ \zatoshi).
     \item $\CoinAddressRand$ is a 32-byte $\PRFsn{\SpendAuthorityPrivate}$ preimage.
     \item $\CoinCommitRand$ is a 48-byte \COMMtrapdoor.
+    \item $\Memo$ is a 64-byte \memo associated with this \coin.
 \end{itemize}
+
+The usage of the $\memo$ is by agreement between the sender and recipient of the
+\coin. It should be encoded as a UTF-8 human-readable string \cite{Unicode}, padded
+with zero bytes. Wallet software is expected to strip any trailing zero bytes and
+then display the resulting UTF-8 string to the recipient user, where applicable.
+Incorrect UTF-8-encoded byte sequences should be displayed as replacement characters
+(\ReplacementCharacter). This does not preclude uses of the \memo by automated
+software, but specification of such usage is not in the scope of this document.
 
 Note that the value $\CoinCommitS$ described as being part of a \coin in the
 \Zerocash paper is not encoded because the instantiation of $\COMM{\CoinCommitS}$
@@ -676,23 +810,25 @@ does not use it.
 
 \subsection{Raw Encoding}
 
-The raw encoding of a \transmittedPlaintext consists of, in order:
+The raw encoding of a \coinPlaintext consists of, in order:
 
 \begin{equation*}
-\begin{bytefield}[bitwidth=0.05em]{712}
-    \bitbox{64}{$\TransmitPlaintextVersionByte$} &
-    \bitbox{120}{$\Value$ (8 bytes)} &
+\begin{bytefield}[bitwidth=0.035em]{1224}
+    \bitbox{80}{$\TransmitPlaintextVersionByte$} &
+    \bitbox{144}{$\Value$ (8 bytes)} &
     \bitbox{256}{$\CoinAddressRand$ (32 bytes)} &
     \bitbox{384}{$\CoinCommitRand$ (48 bytes)} &
+    \bitbox{512}{$\Memo$ (64 bytes)}
 \end{bytefield}
 \end{equation*}
 
 \begin{itemize}
     \item A byte $\TransmitPlaintextVersionByte$ indicating this version of the raw 
-encoding of a \transmittedPlaintext.
+encoding of a \coinPlaintext.
     \item 8 bytes specifying a big-endian encoding of $\Value$.
     \item 32 bytes specifying $\CoinAddressRand$.
     \item 48 bytes specifying $\CoinCommitRand$.
+    \item 64 bytes specifying $\Memo$.
 \end{itemize}
 
 \section{Pours (within a transaction on the blockchain)}
@@ -707,6 +843,8 @@ TBD.
 \section{Differences from the Zerocash paper}
 
 \begin{itemize}
+    \item Instead of ECIES, we use an encryption scheme based on $\CryptoBox$,
+defined in section ``In-band secret distribution".
     \item Faerie Gold fix (TBD).
     \item The paper defines a coin as a tuple $(\SpendAuthorityPublic, \Value,
 \CoinAddressRand, \CoinCommitRand, \CoinCommitS, \cm)$, whereas this specification
