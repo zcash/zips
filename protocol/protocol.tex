@@ -108,14 +108,15 @@
 \newcommand{\AuthPrivateOld}[1]{\mathsf{a^{old}_{sk,\mathnormal{#1}}}}
 \newcommand{\AuthPublicNew}[1]{\mathsf{a^{new}_{pk,\mathnormal{#1}}}}
 \newcommand{\AuthPrivateNew}[1]{\mathsf{a^{new}_{sk,\mathnormal{#1}}}}
-\newcommand{\TransmitPublic}{\mathsf{pk_{enc}}}
-\newcommand{\TransmitPublicNew}[1]{\mathsf{pk_{enc,\mathnormal{#1}}}}
-\newcommand{\TransmitPrivate}{\mathsf{sk_{enc}}}
-\newcommand{\TransmitPrivateNew}[1]{\mathsf{sk_{enc,\mathnormal{#1}}}}
-\newcommand{\DisclosePublic}{\mathsf{pk_{disclose}}}
-\newcommand{\DisclosePublicNew}[1]{\mathsf{pk_{disclose,\mathnormal{#1}}}}
-\newcommand{\DisclosePrivate}{\mathsf{sk_{disclose}}}
-\newcommand{\DisclosePrivateNew}[1]{\mathsf{sk_{disclose,\mathnormal{#1}}}}
+\newcommand{\enc}{\mathsf{enc}}
+\newcommand{\disclose}{\mathsf{disclose}}
+\newcommand{\PublicKey}[1]{\mathsf{pk_\mathnormal{#1}}}
+\newcommand{\PrivateKey}[1]{\mathsf{sk_\mathnormal{#1}}}
+\newcommand{\SecretKey}[1]{\mathsf{K_\mathnormal{#1}}}
+\newcommand{\TransmitPublic}{\PublicKey{\enc}}
+\newcommand{\TransmitPrivate}{\PrivateKey{\enc}}
+\newcommand{\DisclosePublic}{\PublicKey{\disclose}}
+\newcommand{\DisclosePrivate}{\PrivateKey{\disclose}}
 \newcommand{\EphemeralPublic}{\mathsf{pk_{eph}}}
 \newcommand{\EphemeralPrivate}{\mathsf{sk_{eph}}}
 \newcommand{\Value}{\mathsf{v}}
@@ -137,14 +138,17 @@
 \newcommand{\CryptoBoxOpen}{\mathsf{crypto\_box\_open}}
 \newcommand{\CryptoBoxSeal}{\mathsf{crypto\_box\_seal}}
 \newcommand{\CryptoBoxSpecific}{\mathsf{crypto\_box\_curve25519xsalsa20poly1305}}
+\newcommand{\CryptoSecretBox}{\mathsf{crypto\_secretbox}}
+\newcommand{\CryptoSecretBoxOpen}{\mathsf{crypto\_secretbox\_open}}
+\newcommand{\CryptoSecretBoxSpecific}{\mathsf{crypto\_secretbox\_xsalsa20poly1305}}
 \newcommand{\Plaintext}[1]{\mathbf{P}_{#1}}
 \newcommand{\SymCiphertext}[1]{\mathbf{C}^\mathsf{sym}_{#1}}
-\newcommand{\TransmitCiphertext}[1]{\mathbf{C}^\mathsf{enc}_{#1}}
-\newcommand{\ViewCiphertext}[1]{\mathbf{C}^\mathsf{view}_{#1}}
+\newcommand{\Ciphertext}[1]{\mathbf{C}^\mathsf{pk}_{#1}}
+\newcommand{\Tag}[1]{\mathsf{tag}_{#1}}
 \newcommand{\Nonce}{\mathsf{nonce}}
 \newcommand{\Prenonce}{\mathsf{prenonce}}
-\newcommand{\TransmitEncrypt}[1]{\mathsf{Encrypt}_{#1}}
-\newcommand{\TransmitDecrypt}[1]{\mathsf{Decrypt}_{#1}}
+\newcommand{\Encrypt}[1]{\mathsf{Encrypt}_{#1}}
+\newcommand{\Decrypt}[1]{\mathsf{Decrypt}_{#1}}
 \newcommand{\CRH}{\mathsf{CRH}}
 \newcommand{\CRHbox}[1]{\CRH\left(\;\raisebox{-1.3ex}{\usebox{#1}}\;\right)}
 \newcommand{\FullHash}{\mathtt{SHA256}}
@@ -155,6 +159,7 @@
 \newcommand{\PRFsn}[1]{\PRF{#1}{sn}}
 \newcommand{\PRFpk}[1]{\PRF{#1}{pk}}
 \newcommand{\PRFrho}[1]{\PRF{#1}{\CoinAddressRand}}
+\newcommand{\PRFsym}[1]{\PRF{#1}{sym}}
 \newcommand{\SHA}{\mathtt{SHA256Compress}}
 \newcommand{\SHAName}{\term{SHA-256 compression}}
 \newcommand{\SHAOrig}{\term{SHA-256}}
@@ -232,6 +237,23 @@ protected by zero-knowledge succinct non-interactive arguments of knowledge
 
 Changes from the original \Zerocash are highlighted in \changed{\changedcolor}.
 
+\section{Caution}
+
+\Zcash security depends on consensus. Should your program diverge from
+consensus, its security is weakened or destroyed. The cause of the divergence
+doesn't matter: it could be a bug in your program, it could be an error in
+this documentation which you implemented as described, or it could be you do
+everything right but other software on the network behaves unexpectedly. The
+specific cause will not matter to the users of your software whose wealth is
+lost.
+
+Having said that, a specification of \emph{intended} behaviour is essential
+for security analysis, understanding of the protocol, and maintenance of
+Zcash Core and related software. If you find any mistake in this specification,
+please contact \todo{address}. While the production \Zcash network has yet
+to be launched, please feel free to do so in public even if you believe the
+mistake may indicate a security weakness.
+
 \section{Concepts}
 
 \subsection{Integers, Bit Sequences, and Endianness}
@@ -258,25 +280,29 @@ is used which takes a 512-bit block and produces a 256-bit hash. This is
 different from the $\SHAOrig$ function, which hashes arbitrary-length strings.
 \cite{sha256}
 
-$\PRF{x}{}$ is a pseudo-random function seeded by $x$. \changed{Four} \emph{independent}
+$\PRF{x}{}$ is a pseudo-random function seeded by $x$. \changed{Five} \emph{independent}
 $\PRF{x}{}$ are needed in our scheme: $\PRFaddr{x}$, $\PRFsn{x}$, $\PRFpk{x}$\changed{,
-and $\PRFrho{x}$}. It is required that $\PRFsn{x}$ \changed{and $\PRFrho{x}$} be
-collision-resistant across all $x$ --- i.e. it should not be feasible to find
-$(x, y) \neq (x', y')$ such that $\PRFsn{x}(y) = \PRFsn{x'}(y')$\changed{, and similarly
-for $\PRFrho{}$}.
+$\PRFrho{x}$, and $\PRFsym{x}$}. It is required that $\PRFsn{x}$
+\changed{and $\PRFrho{x}$} be collision-resistant across all $x$ --- i.e.
+it should not be feasible to find $(x, y) \neq (x', y')$ such that
+$\PRFsn{x}(y) = \PRFsn{x'}(y')$\changed{, and similarly for $\PRFrho{}$}.
 
-In \Zcash, the $\SHAName$ function is used to construct all four of these
-functions. The bits $\mathtt{00}$, $\mathtt{01}$, $\mathtt{10}$\changed{, and
-$\mathtt{11}$} are included (respectively) within the blocks that are hashed,
-ensuring that the functions are independent.
+In \Zcash, the $\SHAName$ function is used to construct all \changed{five} of these
+functions. The bit patterns $\mathtt{0000}$, $\mathtt{01xx}$, $\mathtt{10xx}$\changed{,
+$\mathtt{11xx}$, and $\mathtt{00x1}$} are included (respectively) within the
+blocks that are hashed, ensuring that these functions are independent.
+
+\newcommand{\iminusone}{\hspace{0.3pt}\scriptsize{$i$\hspace{0.6pt}-1}}
 
 \newsavebox{\addrbox}
 \begin{lrbox}{\addrbox}
 \begin{bytefield}[bitwidth=0.065em]{512}
         \bitbox{242}{256 bit $\AuthPrivate$} &
-        \bitbox{14}{0} &
-        \bitbox{14}{0} &
-        \bitbox{242}{$0^{254}$} &
+        \bitbox{18}{0} &
+        \bitbox{18}{0} &
+        \bitbox{18}{0} &
+        \bitbox{18}{0} &
+        \bitbox{180}{$0^{252}$} &
 \end{bytefield}
 \end{lrbox}
 
@@ -284,9 +310,9 @@ ensuring that the functions are independent.
 \begin{lrbox}{\snbox}
 \begin{bytefield}[bitwidth=0.065em]{512}
         \bitbox{242}{256 bit $\AuthPrivate$} &
-        \bitbox{14}{0} &
-        \bitbox{14}{1} &
-        \bitbox{242}{$\Leading{254}(\CoinAddressRand)$} &
+        \bitbox{18}{0} &
+        \bitbox{18}{1} &
+        \bitbox{216}{$\Leading{254}(\CoinAddressRand)$} &
 \end{bytefield}
 \end{lrbox}
 
@@ -294,10 +320,10 @@ ensuring that the functions are independent.
 \begin{lrbox}{\pkbox}
 \begin{bytefield}[bitwidth=0.065em]{512}
         \bitbox{242}{256 bit $\AuthPrivate$} &
-        \bitbox{14}{1} &
-        \bitbox{14}{0} &
-        \bitbox{14}{$i$} &
-        \bitbox{228}{$\Leading{253}(\hSig)$}
+        \bitbox{18}{1} &
+        \bitbox{18}{0} &
+        \bitbox{18}{\iminusone} &
+        \bitbox{198}{$\Leading{253}(\hSig)$}
 \end{bytefield}
 \end{lrbox}
 
@@ -306,10 +332,23 @@ ensuring that the functions are independent.
 \setchanged
 \begin{bytefield}[bitwidth=0.065em]{512}
         \bitbox{242}{256 bit $\CoinAddressPreRand$} &
-        \bitbox{14}{1} &
-        \bitbox{14}{1} &
-        \bitbox{14}{$i$} &
-        \bitbox{228}{$\Leading{253}(\hSig)$}
+        \bitbox{18}{1} &
+        \bitbox{18}{1} &
+        \bitbox{18}{\iminusone} &
+        \bitbox{198}{$\Leading{253}(\hSig)$}
+\end{bytefield}
+\end{lrbox}
+
+\newsavebox{\symbox}
+\begin{lrbox}{\symbox}
+\setchanged
+\begin{bytefield}[bitwidth=0.065em]{512}
+        \bitbox{242}{256 bit $\SecretKey{\disclose}$} &
+        \bitbox{18}{0} &
+        \bitbox{18}{0} &
+        \bitbox{18}{\iminusone} &
+        \bitbox{18}{1}
+        \bitbox{180}{$0^{252}$}
 \end{bytefield}
 \end{lrbox}
 
@@ -322,7 +361,9 @@ is associated with this bit-packing.}
 \sn &:= \PRFsn{\AuthPrivate}(\CoinAddressRand) &= \CRHbox{\snbox} \\
 \h{i} &:= \PRFpk{\AuthPrivate}(i, \hSig) &= \CRHbox{\pkbox} \\
 \setchanged \CoinAddressRandNew{i} &\setchanged := \PRFrho{\CoinAddressPreRand}(i, \hSig)
-&\setchanged = \CRHbox{\rhobox}
+&\setchanged = \CRHbox{\rhobox} \\
+\setchanged \SecretKey{i} &\setchanged := \PRFsym{\SecretKey{\disclose}}(i)
+&\setchanged = \CRHbox{\symbox}
 \end{aligned}
 \end{equation*}
 
@@ -417,17 +458,18 @@ encrypt the same secrets.}
 The encryptions are combined to form a \coinsCiphertext.
 
 \changed{
-The encryption algorithm is defined in terms of $\CryptoBox$ (i.e.
-$\CryptoBoxSpecific$) \cite{cryptobox} as follows.
+The encryption algorithm is defined in terms of $\CryptoBox$ (specifically,
+$\CryptoBoxSpecific$) and $\CryptoSecretBox$ (specifically,
+$\CryptoSecretBoxSpecific$) \cite{cryptobox} as follows.
 }
 
 \newsavebox{\prenoncebox}
 \begin{lrbox}{\prenoncebox}
 \setchanged
 \begin{bytefield}[bitwidth=0.05em]{520}
-        \bitbox{120}{64 bit $i-1$} &
+        \bitbox{120}{64 bit $\Tag{i}$} &
         \bitbox{256}{256 bit $\EphemeralPublic$}
-        \bitbox{256}{256 bit $\TransmitPublicNew{i}$}
+        \bitbox{256}{256 bit $\PublicKey{i}$}
 \end{bytefield}
 \end{lrbox}
 
@@ -436,63 +478,125 @@ $\CryptoBoxSpecific$) \cite{cryptobox} as follows.
 \setchanged
 \begin{bytefield}[bitwidth=0.085em]{192}
         \bitbox{128}{$\Leading{128}(\Prenonce)$} &
-        \bitbox{72}{64 bit $i-1$}
+        \bitbox{64}{64 bit $\Tag{i}$}
 \end{bytefield}
 \end{lrbox}
 
-Let $\TransmitPublicNew{\mathrm{1}..\NNew}$ be the \changed{Curve25519} public keys
-for the intended recipient addresses of each new \coin, and let $\Plaintext{1..\NNew}$
-be their \coinPlaintexts.
+\newsavebox{\tagibox}
+\begin{lrbox}{\tagibox}
+\setchanged
+\begin{bytefield}[bitwidth=0.09em]{64}
+        \bitbox{64}{64 bit $i-1$}
+\end{bytefield}
+\end{lrbox}
+
+\newsavebox{\tagdbox}
+\begin{lrbox}{\tagdbox}
+\setchanged
+\begin{bytefield}[bitwidth=0.09em]{64}
+        \bitbox{64}{$1^{64}$}
+\end{bytefield}
+\end{lrbox}
+
+Let $\PublicKey{\mathrm{1}..\NNew}$ be the \changed{Curve25519} public keys
+for the intended recipient addresses of each new \coin,
+\changed{let $\PublicKey{\disclose}$ be the sender's \discloseKeypair public key,}
+and let $\Plaintext{1..\NNew}$ be the \coinPlaintexts.
 
 \changed{
 Define:
 \begin{equation*}
 \begin{aligned}
-\Prenonce(i, \EphemeralPublic, \TransmitPublicNew{i}) &:= \FullHashbox{\prenoncebox} \\
-\Nonce(i, \EphemeralPublic, \TransmitPublicNew{i}) &:= \Justthebox{\noncebox}
+\Prenonce(\Tag{i}, \EphemeralPublic, \PublicKey{i}) &:= \FullHashbox{\prenoncebox} \\
+\Nonce(\Tag{i}, \EphemeralPublic, \PublicKey{i}) &:= \Justthebox{\noncebox} \\
+\Tag{i} &:= \Justthebox{\tagibox} \\
+\Tag{\disclose} &:= \Justthebox{\tagdbox}
 \end{aligned}
 \end{equation*}
 }
 
 Then to encrypt:
 
-\changed{
 \begin{itemize}
-  \item Generate a new Curve25519 (public, private) key pair $(\EphemeralPublic, \EphemeralPrivate)$.
-  \item For $i$ in $\{1..\NNew\}$, let $\TransmitCiphertext{i} = \CryptoBox(\Plaintext{i}, \TransmitPublicNew{i}, \EphemeralPrivate,
-\Nonce(i, \EphemeralPublic, \TransmitPublicNew{i}))$.
-  \item Let $\TransmitEncrypt{\TransmitPublicNew{\mathrm{1}..\NNew}}(\Plaintext{1..\NNew}) =
-(\EphemeralPublic, \TransmitCiphertext{1..\NNew})$.
-\end{itemize}
+\changed{
+  \item Generate a new Curve25519 (public, private) key pair
+$(\EphemeralPublic, \EphemeralPrivate)$.
+  \item Generate a random 256-bit secret key $\SecretKey{\disclose}$.
+  \item For $i$ in $\{1..\NNew\}$,
+    \begin{itemize}
+      \item let $\SecretKey{i} = \PRFsym{\SecretKey{\disclose}}(i)$.
+      \item let $\SymCiphertext{i} = \CryptoSecretBox(\Plaintext{i}, \SecretKey{i}, 0)$.
+    \end{itemize}
+  \item For $i$ in $\{1..\NNew, \disclose\}$, let
+$\Ciphertext{i} = \CryptoBox(\SecretKey{i}, \PublicKey{i}, \EphemeralPrivate,
+\Nonce(\Tag{i}, \EphemeralPublic, \PublicKey{i}))$
+  \item Let $\Encrypt{\PublicKey{\mathrm{1}..\NNew}, \PublicKey{\disclose}}(
+\Plaintext{1..\NNew}) = (\EphemeralPublic, \SymCiphertext{1..\NNew},
+\Ciphertext{1..\NNew}, \Ciphertext{\disclose})$.
 }
+\end{itemize}
+
+%}
+
+%Let:
+%\begin{itemize}
+%  \item $(\PublicKey{j}, \PrivateKey{j})$ (for some $j \in \keynames$})
+%        be a \changed{Curve25519} (public, private) key pair;
+%\changed{
+%  \item $\EphemeralPublic$ be an ephemeral Curve25519 public key,
+%, \Ciphertext{i}{j} Then for each $i$ in $\{1..\NNew\}$, the recipient
+%Let $\changed{(\EphemeralPublic,}\; \TransmitCiphertext{1..\NNew}\changed{,
+%\DiscloseCiphertext{1..\NNew})}$ be the \coinsCiphertext. Then to decrypt using
+%a \changed{Curve25519} (public
+%Let $(\PublicNew{j}, \PrivateNew{j}
 
 Let $(\TransmitPublic, \TransmitPrivate)$ be the recipient's \changed{Curve25519}
-(public, private) key pair, and let $\changed{(\EphemeralPublic,}\;
-\TransmitCiphertext{1..\NNew}\changed{, \ViewCiphertext{1..\NNew})}$ be the
-\coinsCiphertext.
+(public, private) key pair. Then for each $i$ in $\{1..\NNew\}$, the recipient
+will attempt to decrypt that ciphertext component as follows:
 
-Then for each $i$ in $\{1..\NNew\}$, the recipient will attempt to decrypt that
-ciphertext component as follows:
+\begin{itemize}
+\changed{
+  \item $\SecretKey{i} := \CryptoBoxOpen(\Ciphertext{i}, \EphemeralPublic,
+\TransmitPrivate, \Nonce(\Tag{i}, \EphemeralPublic, \TransmitPublic))$
+  \item $\Decrypt{\TransmitPrivate}(i, \EphemeralPublic, \Ciphertext{i},
+\SymCiphertext{i}) = \CryptoSecretBoxOpen(\SymCiphertext{i}, \SecretKey{i}, 0)$
+}
+\end{itemize}
 
 \changed{
-\begin{itemize}
-  \item $\TransmitDecrypt{\TransmitPrivate}(i, \EphemeralPublic, \TransmitCiphertext{i}) =
-\CryptoBoxOpen(\TransmitCiphertext{i}, \EphemeralPublic, \TransmitPrivate,
-\Nonce(i, \EphemeralPublic, \TransmitPublic))$
-\end{itemize}
+Similarly, let $(\DisclosePublic, \DisclosePrivate)$ be a view key holder's
+Curve25519 (public, private) key pair. Then for each \PourDescription in its
+\blockchainview, the view key holder will attempt to decrypt the corresponding
+\coinsCiphertext as follows:
 }
 
-Any ciphertext components that fail to decrypt with a given recipient's private key
-will be ignored.
+\begin{itemize}
+\changed{
+  \item $\SecretKey{\disclose} := \CryptoBoxOpen(\Ciphertext{\disclose}, \EphemeralPublic,
+\DisclosePrivate, \Nonce(\Tag{i}, \EphemeralPublic, \DisclosePublic))$
+  \item For $i$ in $\{1..\NNew\}$,
+    \begin{itemize}
+      \item let $\SecretKey{i} = \PRFsym{\SecretKey{\disclose}}(i)$.
+      \item let $\Decrypt{\DisclosePrivate}(i, \EphemeralPublic, \Ciphertext{\disclose},
+\SymCiphertext{i}) = \CryptoSecretBoxOpen(\SymCiphertext{i}, \SecretKey{i}, 0)$.
+    \end{itemize}
+}
+\end{itemize}
+
+Any ciphertext components that fail to decrypt \MUST be ignored. Once a component
+has been decrypted, it \MUST be validated as described in section ``Coin Commitments''.
 
 \changed{
 This is a variation on the $\CryptoBoxSeal$ algorithm defined in libsodium
 \cite{cryptoboxseal}, but with a single ephemeral key used for all encryptions in a
 given \PourDescription, and with the nonce for each ciphertext component depending
 on the index $i$. Also, $\FullHash$ (the full hash, not the compression function) is
-used instead of $\mathsf{blake2b}$. The particular nonce construction is chosen so
-that a known-nonce distinguisher for $\mathsf{Salsa20}$ would not directly lead to a
-break of the IK-CCA (key privacy) property.
+used instead of $\mathsf{blake2b}$. Symmetric encryption is used in addition to public
+key encryption to reduce the overall length of the ciphertext; this also contributes
+to ensuring that provided that a recipient and a viewing key holder can both decrypt
+the ciphertext for a given output \coin, they see the same plaintext. The particular
+nonce construction is chosen so that a known-nonce distinguisher for $\mathsf{Salsa20}$
+would not directly lead to a break of the IK-CCA (key privacy) property.
 }
 
 \subsubsection{Coin Commitments}
@@ -888,7 +992,7 @@ Transmitted coins are stored on the blockchain in encrypted form, together with
 a \coinCommitment $\cm$.
 
 The \coinPlaintexts associated with a \PourDescription are encrypted to the
-respective \transmitKeypair keys $\TransmitPublicNew{\mathrm{1}..\NNew}$,
+respective \transmitKeypair keys $\PublicKey{\mathrm{1}..\NNew}$,
 and the result forms a \coinsCiphertext.
 
 Each \coinPlaintext consists of $(\Value, \CoinAddressRand, \CoinCommitRand\changed{, \Memo})$,

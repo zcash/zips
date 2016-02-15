@@ -1,4 +1,8 @@
 protocol.pdf: protocol.tex zcash.bib incremental_merkle.pdf
+	$(MAKE) pdf
+
+.PHONY: pdf
+pdf:
 	# If pdflatex fails, touch an input so that 'make' won't think it is up-to-date next time.
 	pdflatex protocol.tex || touch incremental_merkle.pdf
 	bibtex protocol
