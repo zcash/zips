@@ -89,7 +89,6 @@
 \newcommand{\authKeypair}{\term{authorization}}
 \newcommand{\transmitKeypair}{\term{transmission}}
 \newcommand{\discloseKey}{\term{disclosure key}}
-\newcommand{\keyPrivateAlgorithm}{\term{key-private encryption scheme}}
 \newcommand{\incrementalMerkleTree}{\term{incremental merkle tree}}
 \newcommand{\spentSerialsMap}{\term{spent serial numbers map}}
 \newcommand{\zkSNARK}{\term{zk-SNARK}}
@@ -102,7 +101,7 @@
 \newcommand{\SpendingKey}{\mathsf{addr_{sk}}}
 \newcommand{\PaymentAddressLeadByte}{\mathbf{0x92}}
 \newcommand{\ViewingKeyLeadByte}{\mathbf{0x??}}
-\newcommand{\SpendingKeyLeadByte}{\mathbf{0x93}}
+\newcommand{\SpendingKeyLeadByte}{\mathbf{0x??}}
 \newcommand{\AuthPublic}{\mathsf{a_{pk}}}
 \newcommand{\AuthPrivate}{\mathsf{a_{sk}}}
 \newcommand{\DiscloseKey}{\mathsf{a_{vk}}}
@@ -988,10 +987,10 @@ with the following differences:
 }
 
 
-\section{Encoding Addresses, Private keys, Coins, and Pour descriptions}
+\section{Encoding Addresses, Keys, Coin plaintexts, and Pour descriptions}
 
-This section describes how \Zcash encodes public addresses, private keys,
-coins, and \PourDescriptions.
+This section describes how \Zcash encodes \paymentAddresses, \spendingKeys,
+\viewingKeys, \coinPlaintexts, and \PourDescriptions.
 
 Addresses, keys, and coins, can be encoded as a byte string; this is called
 the \term{raw encoding}. This byte string can then be further encoded using
@@ -1020,7 +1019,7 @@ encryption scheme defined in section ``In-band secret distribution".
 
 \subsubsection{Raw Encoding}
 
-The raw encoding of a confidential address consists of:
+The raw encoding of a \paymentAddress consists of:
 
 \begin{equation*}
 \begin{bytefield}[bitwidth=0.07em]{520}
@@ -1048,80 +1047,70 @@ and produces `z' as the Base58Check leading character.}
 
 \subsection{Spending Keys}
 
-A confidential address secret consists of $\AuthPrivate$ and
-$\TransmitPrivate$. $\AuthPrivate$ is a SHA-256 compression function
-output. $\TransmitPrivate$ is a \changed{Curve25519} private key, for use with
-the encryption scheme defined in section ``In-band secret distribution".
+A \spendingKey consists of $\AuthPrivate$.
 
 \subsubsection{Raw Encoding}
 
-The raw encoding of a confidential address secret consists of, in order:
+The raw encoding of a \spendingKey consists of, in order:
 
 \begin{equation*}
-\begin{bytefield}[bitwidth=0.07em]{520}
+\begin{bytefield}[bitwidth=0.07em]{264}
 \changed{
     \bitbox{48}{$\SpendingKeyLeadByte$}
-  &}\bitbox{256}{$\AuthPrivate$ (32 bytes)} &
-    \bitbox{256}{$\TransmitPrivate$ (32 bytes)}
+  &}\bitbox{256}{$\AuthPrivate$ (32 bytes)}
 \end{bytefield}
 \end{equation*}
 
 \begin{itemize}
 \changed{
     \item A byte $\SpendingKeyLeadByte$ indicating this version of the
-        raw encoding of a \Zcash private key.
+        raw encoding of a \Zcash \spendingKey.
 }
     \item 32 bytes specifying $\AuthPrivate$.
-    \item 32 bytes specifying $\TransmitPrivate$.
 \end{itemize}
 
 \daira{check that this lead byte is distinct from other Bitcoin stuff,
-and produces `z' as the Base58Check leading character.}
+and produces a suitable Base58Check leading character.}
 
 \nathan{what about the network version byte?}
 
-\subsection{Coins}
+\subsection{Viewing Keys}
 
-Transmitted coins are stored on the blockchain in encrypted form, together with
-a \coinCommitment $\cm$.
-
-The \coinPlaintexts associated with a \PourDescription are encrypted to the
-respective \transmitKeypair keys $\TransmitPublicNew{\mathrm{1}..\NNew}$,
-and the result forms a \coinsCiphertext.
-
-Each \coinPlaintext consists of $(\changed{\AuthPublic, }\Value, \CoinAddressRand,
-\CoinCommitRand\changed{, \Memo})$, where:
-
-\begin{itemize}
-\changed{
-    \item $\AuthPublic$ is a 32-byte \authKeypair public key of the recipient.
-}
-    \item $\Value$ is a 64-bit unsigned integer representing the value of the
-        \coin in \zatoshi (1 \ZEC = $10^8$ \zatoshi).
-    \item $\CoinAddressRand$ is a 32-byte $\PRFsn{\AuthPrivate}$ preimage.
-    \item $\CoinCommitRand$ is a 48-byte \COMMtrapdoor.
-\changed{
-    \item $\Memo$ is a 64-byte \memo associated with this \coin.
-}
-\end{itemize}
-
-\changed{
-The usage of the $\memo$ is by agreement between the sender and recipient of the
-\coin. It should be encoded as a UTF-8 human-readable string \cite{Unicode}, padded
-with zero bytes. Wallet software is expected to strip any trailing zero bytes and
-then display the resulting UTF-8 string to the recipient user, where applicable.
-Incorrect UTF-8-encoded byte sequences should be displayed as replacement characters
-(\ReplacementCharacter). This does not preclude uses of the \memo by automated
-software, but specification of such usage is not in the scope of this document.
-}
-
-Note that the value $\CoinCommitS$ described as being part of a \coin in the
-\Zerocash paper is not encoded because the instantiation of $\COMM{\CoinCommitS}$
-does not use it.
+A \viewingKey consists of a \discloseKey $\DiscloseKey$, and a
+\transmitKeypair private key $\TransmitPrivate$.
 
 \subsubsection{Raw Encoding}
 
-The raw encoding of a \coinPlaintext consists of, in order:
+The raw encoding of a \viewingKey consists of, in order:
+
+\begin{equation*}
+\begin{bytefield}[bitwidth=0.07em]{520}
+    \bitbox{48}{$\ViewingKeyLeadByte$} &
+    \bitbox{256}{$\DiscloseKey$ (32 bytes)}
+    \bitbox{256}{$\TransmitPrivate$ (32 bytes)}
+\end{bytefield}
+\end{equation*}
+
+\changed{
+\begin{itemize}
+    \item A byte $\ViewingKeyLeadByte$ indicating this version of the
+        raw encoding of a \Zcash \viewingKey.
+    \item 32 bytes specifying $\DiscloseKey$.
+    \item 32 bytes specifying $\TransmitPrivate$.
+\end{itemize}
+}
+
+\daira{check that this lead byte is distinct from other Bitcoin stuff,
+and produces a suitable Base58Check leading character.}
+
+\nathan{what about the network version byte?}
+
+\subsection{Coin Plaintexts}
+
+\subsubsection{Raw Encoding}
+
+The raw encoding of a \coinPlaintext $(\AuthPublic, \Value, \CoinAddressRand,
+\CoinCommitRand, \Memo)$ consists of, in order:
 
 \begin{equation*}
 \begin{bytefield}[bitwidth=0.03em]{1480}
