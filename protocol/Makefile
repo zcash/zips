@@ -1,4 +1,4 @@
-protocol.pdf: protocol.tex zcash.bib incremental_merkle.pdf
+protocol.pdf: protocol.tex zcash.bib incremental_merkle.pdf key_components.pdf
 	$(MAKE) pdf
 
 .PHONY: pdf
