@@ -144,6 +144,7 @@
 \newcommand{\Key}{\mathsf{K}}
 \newcommand{\Nonce}{\mathsf{nonce}}
 \newcommand{\Empty}{\varnothing}
+\newcommand{\RandomSeed}{\mathsf{randomSeed}}
 \newcommand{\TransmitPlaintext}[1]{\Plaintext^\enc_{#1}}
 \newcommand{\TransmitCiphertext}[1]{\Ciphertext^\enc_{#1}}
 \newcommand{\TransmitKey}[1]{\Key^\enc_{#1}}
@@ -152,7 +153,6 @@
 \newcommand{\SharedPlaintext}[1]{\Plaintext^\shared_{#1}}
 \newcommand{\SharedCiphertext}{\Ciphertext^\shared}
 \newcommand{\SharedKey}[1]{\Key^\shared_{#1}}
-\newcommand{\Tag}[1]{\mathsf{tag}_{#1}}
 \newcommand{\KDF}{\mathsf{KDF}}
 \newcommand{\Prenonce}{\mathsf{prenonce}}
 \newcommand{\PkEncrypt}[1]{\mathsf{PkEncrypt}_{#1}}
@@ -202,6 +202,7 @@
 \newcommand{\encCiphertexts}{\mathtt{encCiphertexts}}
 \newcommand{\discloseCiphertexts}{\mathtt{discloseCiphertexts}}
 \newcommand{\sharedCiphertext}{\mathtt{sharedCiphertext}}
+\newcommand{\randomSeed}{\mathtt{randomSeed}}
 \newcommand{\rt}{\mathsf{rt}}
 
 % pour
@@ -677,6 +678,8 @@ components, $\DiscloseCiphertext{\mathrm{1}..\NOld}$.
 $\SharedCiphertext$.
 
 (The preceding four fields together form the \coinsCiphertext.)
+
+\item $\randomSeed$ which is a random 256-bit seed $\RandomSeed$.
 }
 
 \item $\vmacs$ which is a $\NOld$ size sequence of message authentication tags
@@ -694,11 +697,12 @@ $\PourDescription$.
 \newsavebox{\hsigbox}
 \begin{lrbox}{\hsigbox}
 \setchanged
-\begin{bytefield}[bitwidth=0.045em]{808}
+\begin{bytefield}[bitwidth=0.03em]{1064}
 	\bitbox{80}{$\hSigInputVersionByte$} &
 	\bitbox{256}{256 bit $\snOld{0}$} &
 	\bitbox{24}{...} &
 	\bitbox{256}{256 bit $\snOld{\NOld-1}$} &
+	\bitbox{256}{$\RandomSeed$}
 	\bitbox{256}{$\scriptPubKey$}
 \end{bytefield}
 \end{lrbox}
@@ -829,7 +833,7 @@ $\TransmitCiphertext{i} = \SymEncrypt{\TransmitKey{i}}(\TransmitPlaintext{i}, \E
 \subparagraph{$\DiscloseCiphertext{}$ integrity}
 
 for each $i \in \{1..\NOld\}$:
-$\DiscloseCiphertext{i} = \SymEncrypt{\DiscloseKeyOld{i}}(\SharedKey{}, \Tag{i})$
+$\DiscloseCiphertext{i} = \SymEncrypt{\DiscloseKeyOld{i}}(\SharedKey{}, \Nonce(i, \hSig))$
 
 \subparagraph{$\SharedCiphertext$ integrity}
 
@@ -863,10 +867,11 @@ All of the resulting ciphertexts are combined to form a \coinsCiphertext.
 \end{bytefield}
 \end{lrbox}
 
-\newsavebox{\tagbox}
-\begin{lrbox}{\tagbox}
+\newsavebox{\noncebox}
+\begin{lrbox}{\noncebox}
 \setchanged
 \begin{bytefield}[bitwidth=0.032em]{8}
+    \bitbox{256}{256 bit $\hSig$}
     \bitbox{160}{8 bit $i-1$}
 \end{bytefield}
 \end{lrbox}
@@ -898,7 +903,7 @@ Define:
 
 $\KDF(\DHSecret{i}, \EphemeralPublic, \TransmitPublicNew{i}, i) := \FullHashbox{\kdfbox}$.
 
-$\Tag{i} := \Justthebox{\tagbox}$.
+$\Nonce(\hSig, i) := \Justthebox{\noncebox}$.
 }
 
 Let $\TransmitPublicNew{\mathrm{1}..\NNew}$ be the \changed{Curve25519} public keys
@@ -928,7 +933,7 @@ $(\EphemeralPublic, \EphemeralPrivate)$, and a new $\SymSpecific$ key $\SharedKe
   \item For $i$ in $\{1..\NOld\}$,
     \begin{itemize}
       \item Let $\DiscloseCiphertext{i} :=
-\SymEncrypt{\DiscloseKeyOld{i}}(\SharedKey{}, \Tag{i})$.
+\SymEncrypt{\DiscloseKeyOld{i}}(\SharedKey{}, \Nonce(\hSig, i))$.
     \end{itemize}
   \item Let $\SharedCiphertext := \SymEncrypt{\SharedKey{}}(\SharedPlaintext{}, \Empty)$.
 }
@@ -991,7 +996,7 @@ will attempt to decrypt the corresponding \coinsCiphertext as follows:
   \item For $i$ in $\{1..\NNew\}$,
     \begin{itemize}
       \item Let $\SharedKey{i} :=
-\SymDecrypt{\DiscloseKey{}}(\DiscloseCiphertext{i}, \Tag{i})$.
+\SymDecrypt{\DiscloseKey{}}(\DiscloseCiphertext{i}, \Nonce(\hSig, i))$.
       \item If $\SharedKey{i} = \bot$ then continue with the next $i$.
       \item Let $\SharedPlaintext{i} :=
 \SymDecrypt{\SharedKey{i}}(\SharedCiphertext, \Empty)$.
