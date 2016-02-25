@@ -124,6 +124,7 @@
 
 % Coins
 \newcommand{\Coin}[1]{\mathbf{c}_{#1}}
+\newcommand{\CoinPlaintext}[1]{\mathbf{cp}_{#1}}
 \newcommand{\CoinCommitRand}{\mathsf{r}}
 \newcommand{\CoinCommitRandOld}[1]{\mathsf{r^{old}_\mathnormal{#1}}}
 \newcommand{\CoinCommitRandNew}[1]{\mathsf{r^{new}_\mathnormal{#1}}}
@@ -222,7 +223,7 @@
 \newcommand{\treepath}[1]{\mathsf{path}_{#1}}
 \newcommand{\COMM}[1]{\mathsf{COMM}_{#1}}
 \newcommand{\COMMtrapdoor}{\term{\textsf{COMM} trapdoor}}
-\newcommand{\CoinCommitment}[1]{\mathtt{CoinCommitment}(#1)}
+\newcommand{\CoinCommitment}{\mathtt{CoinCommitment}}
 \newcommand{\Receive}{\mathsf{Receive}}
 
 
@@ -249,6 +250,7 @@ protected by zero-knowledge succinct non-interactive arguments of knowledge
 
 Changes from the original \Zerocash are highlighted in \changed{\changedcolor}.
 
+
 \section{Caution}
 
 \Zcash security depends on consensus. Should your program diverge from
@@ -265,6 +267,7 @@ Zcash Core and related software. If you find any mistake in this specification,
 please contact \todo{address}. While the production \Zcash network has yet
 to be launched, please feel free to do so in public even if you believe the
 mistake may indicate a security weakness.
+
 
 \section{Conventions}
 
@@ -407,6 +410,9 @@ need to be aware of how it is associated with this bit-packing.}
 \daira{Should we instead define $\CoinAddressRand$ to be 254 bits and $\hSig$ to be
 253 bits?}
 
+
+\section{Concepts}
+
 \subsection{Payment Addresses, Viewing Keys, and Spending Keys}
 
 A \keyTuple $(\SpendingKey, \changed{\ViewingKey,\;} \PaymentAddress)$ is
@@ -484,199 +490,11 @@ $\PRFrho{\CoinAddressPreRand}$.} Only a commitment to these values is disclosed
 publicly, which allows the tokens $\CoinCommitRand$ and $\CoinAddressRand$ to blind
 the value and recipient \emph{except} to those who possess these tokens.
 
-\subsubsection{In-band secret distribution}
-
-In order to transmit the secret $\Value$, $\CoinAddressRand$, and $\CoinCommitRand$
-(necessary for the recipient to later spend) \changed{and also a \memo} to the
-recipient \emph{without} requiring an out-of-band communication channel, the
-\transmitKeypair public key $\TransmitPublic$ is used to encrypt these
-secrets. The recipient's possession of the associated
-$(\PaymentAddress, \SpendingKey)$ (which contains both $\AuthPublic$ and
-$\TransmitPrivate$) is used to reconstruct the original \coin \changed{ and \memo}.
-\changed{To also transmit these values to a \viewingKey holder for outgoing
-\PourTransfers, the \discloseKey $\DiscloseKey$ is used to symmetrically
-encrypt them, and also to encrypt the ephemeral secret and address public
-keys (to allow the \viewingKey holder to check whether the other encryptions
-are valid).} All of these encryptions are combined to form a \coinsCiphertext.
-
-\changed{
-Let $\SymEncrypt{\Key}(\Plaintext)$ be the $\SymSpecific$ encryption
-\cite{rfc7539} of plaintext $\Plaintext$ with empty ``additional data",
-empty nonce, and key $\Key$.
-}
-
-\newsavebox{\kdfbox}
-\begin{lrbox}{\kdfbox}
-\setchanged
-\begin{bytefield}[bitwidth=0.032em]{832}
-    \bitbox{256}{256 bit $\DHSecret{i}$} &
-    \bitbox{256}{256 bit $\EphemeralPublic$} &
-    \bitbox{256}{256 bit $\TransmitPublicNew{i}$} &
-    \bitbox{160}{8 bit $i-1$}
-\end{bytefield}
-\end{lrbox}
-
-\newsavebox{\sharedbox}
-\begin{lrbox}{\sharedbox}
-\setchanged
-\begin{bytefield}[bitwidth=0.045em]{768}
-    \bitbox{256}{256 bit $\TransmitPublicNew{\mathrm{1}}$}
-    \bitbox{40}{...}
-    \bitbox{256}{256 bit $\TransmitPublicNew{\NNew}$}
-    \bitbox{256}{256 bit $\EphemeralPrivate$}
-\end{bytefield}
-\end{lrbox}
-
-Let $\TransmitPublicNew{\mathrm{1}..\NNew}$ be the \changed{Curve25519} public keys
-for the intended recipient addresses of each new \coin,
-\changed{let $\DiscloseKey$ be the sender's \discloseKey,}
-and let $\Plaintext{1..\NNew}$ be the \coinPlaintexts.
-
-\changed{
-Define:
-\begin{equation*}
-\begin{aligned}
-\KDF(\DHSecret{i}, \EphemeralPublic, \TransmitPublicNew{i}, i) &:= \FullHashbox{\kdfbox} \\
-\SharedPlaintext{} &:= \Justthebox{\sharedbox}
-\end{aligned}
-\end{equation*}
-}
-
-Then to encrypt:
-
-\begin{itemize}
-\changed{
-  \item Generate a new Curve25519 (public, private) key pair:
-$(\EphemeralPublic, \EphemeralPrivate)$.
-  \item For $i$ in $\{1..\NNew\}$,
-    \begin{itemize}
-      \item Let $\DHSecret{i} := \CurveMultiply(\TransmitPublicNew{i},
-\EphemeralPrivate)$.
-      \item Let $\TransmitKey{i} := \KDF(\DHSecret{i}, \EphemeralPublic,
-\TransmitPublicNew{i}, i)$.
-      \item Let $\TransmitCiphertext{i} := \SymEncrypt{\TransmitKey{i}}(\TransmitPlaintext{i})$.
-    \end{itemize}
-  \item Let $\SharedKey{} := ...$.
-  \item Let $\SharedCiphertext := \SymEncrypt{\SharedKey{}}(\SharedPlaintext{})$.
-  \item For $i$ in $\{1..\NOld\}$,
-    \begin{itemize}
-      \item Let $\DiscloseCiphertext{i} := \SymEncrypt{\DiscloseKey{i}}(\SharedKey{})$.
-    \end{itemize}
-}
-\end{itemize}
-
-The resulting \coinsCiphertext is $\changed{(\EphemeralPublic,
-\TransmitCiphertext{\mathrm{1}..\NNew}, \DiscloseCiphertext{\mathrm{1}..\NOld},
-\SharedCiphertext)}$.
-
-Let $(\TransmitPublic, \TransmitPrivate)$ be the recipient's \changed{Curve25519}
-(public, private) key pair, and let $\cmNew{\mathrm{1}..\NNew}$ be the coin
-commitments of each output coin. Then for each $i$ in $\{1..\NNew\}$, the recipient
-will attempt to decrypt that ciphertext component as follows:
-
-\changed{
-\begin{itemize}
-  \item Let $\DHSecret{i} := \CurveMultiply(\EphemeralPublic, \TransmitPrivate)$.
-  \item Return $\DecryptCoin(\DHSecret{i}, \EphemeralPublic, \TransmitPublicNew{i}, i,
-\TransmitCiphertext{i}, \cmNew{i}).$
-\end{itemize}
-
-$\DecryptCoin(\DHSecret{i}, \EphemeralPublic, \TransmitPublicNew{i}, i,
-\TransmitCiphertext{i}, \cmNew{i})$ is defined as follows:
-
-\begin{itemize}
-  \item Let $\TransmitKey{i} := \KDF(\DHSecret{i}, \EphemeralPublic,
-\TransmitPublicNew{i}, i)$.
-  \item Let $\TransmitPlaintext{i} := \SymDecrypt{\TransmitKey{i}}(\TransmitCiphertext{i})$.
-  \item If $\TransmitPlaintext{i} = \bot$, return $\bot$.
-  \item Extract $\Coin{i} := (\AuthPublic, \Value, \CoinAddressRand, \CoinCommitRand)$
-        and $\Memo_{i}$ from $\TransmitPlaintext{i}$.
-  \item If $\CoinCommitment{\Coin{i}} \neq \cmNew{i}$, return $\bot$, else
-        return ($\Coin{i}, \Memo_{i})$.
-\end{itemize}
-}
-
-Note that this corresponds to step 3 (b) i. and ii. (first bullet point) of the
-$\Receive$ algorithm shown in Figure 2 of \cite{ZerocashOakland}.
-
-To test whether a \coin is unspent in a particular \blockchainview also requires
-the \authKeypair private key $\AuthPrivate$; the coin is unspent if and only if
-$\sn = \PRFsn{\AuthPrivate}(\CoinAddressRand)$ is not in the \spentSerials
-for that \blockchainview.
-
-Note that a coin may change from being unspent to spent on a given \blockchainview,
-as transactions are added to that view. Also, blockchain reorganisations may cause
-the transaction in which a coin was output to no longer be on the consensus
-blockchain.
-
-\changed{
-Let $\DiscloseKey{}$ be a \viewingKey holder's \discloseKey.
-Then for each \PourDescription in its \blockchainview, the \viewingKey holder
-will attempt to decrypt the corresponding \coinsCiphertext as follows:
-}
-
-\changed{
-\begin{enumerate}
-  \item Set $\SharedPlaintext{} := \bot$.
-  \item For $i$ in $\{1..\NNew\}$,
-    \begin{itemize}
-      \item Let $\SharedKey{i} := \SymDecrypt{\DiscloseKey{}}(\DiscloseCiphertext{i}, \Tag{i})$.
-      \item If $\SharedKey{i} = \bot$ then continue with the next $i$.
-      \item Let $\SharedPlaintext{i} := \SymDecrypt{\SharedKey{i}}(\SharedCiphertext)$.
-      \item If $\SharedPlaintext{i} = \bot$ then continue with the next $i$.
-      \item Set $\SharedPlaintext{} := \SharedPlaintext{i}$ and exit the loop.
-    \end{itemize}
-  \item If $\SharedPlaintext{} = \bot$ (i.e. it was not set in the loop), then this
-transaction does not contain any information decryptable by the \viewingKey; return $\bot$.
-  \item Extract $\TransmitPublicNew{\mathrm{1}..\NNew}$ and $\EphemeralPrivate$
-from $\SharedPlaintext{}$.
-  \item For $i$ in $\{1..\NNew\}$,
-    \begin{itemize}
-      \item Let $\DHSecret{i} := \CurveMultiply(\TransmitPublicNew{i}, \EphemeralPrivate)$.
-      \item Let $\Coin{i} := \DecryptCoin(\DHSecret{i}, \EphemeralPublic,
-\TransmitPublicNew{i}, i, \TransmitCiphertext{i}, \cmNew{i}).$
-    \end{itemize}
-  \item Return ($\Coin{\mathrm{1}..\NNew}, \Memo_{\mathrm{1}..\NNew})$.
-\end{enumerate}
-}
-
-If a party holds more than one \viewingKey, it may optimize the above
-procedure by performing the loop in step 2 for the $\DiscloseKey{}$ of each
-\viewingKey. It may be assumed that the first $\SharedPlaintext{i}$ that
-decrypts correctly is the one that should be used in step 4 onward.
-(However, additional information is provided by which \viewingKey was able
-to decrypt each $\DiscloseCiphertext{i}$.)
-
-\changed{
-The public key encryption used in this part of the protocol is based loosely on
-the $\CryptoBoxSeal$ algorithm defined in libsodium \cite{cryptoboxseal}, but
-with the following differences:
-\begin{itemize}
-  \item The same ephemeral key is used for all encryptions to the recipient keys
-        in a given \PourDescription.
-  \item The nonce for each ciphertext component depends on the index $i$.
-        The particular nonce construction is chosen so that a known-nonce
-        distinguisher for $\mathsf{Salsa20}$ would not directly lead to a break
-        of the IK-CCA (key privacy) property.
-  \item $\FullHash$ (the full hash, not the compression function) is used instead
-        of $\mathsf{blake2b}$.
-  \item The ephemeral secret $\EphemeralPrivate$ is included together with
-        the \transmitKeypair public keys of the recipients, encrypted to the
-        \discloseKey. This allows a \viewingKey holder to check whether the
-        indicated recipients would be able to decrypt a given component, and
-        if so to decrypt the memo field. (We do not rely on this to ensure
-        that a \viewingKey holder can decrypt the other components of the
-        output coins; instead, those are symmetrically encrypted to the
-        \viewingKey and the correctness of this encryption is checked by the
-        \PourCircuit.)
-\end{itemize}
-}
-
 \subsubsection{Coin Commitments}
 
 The underlying $\Value$ and $\AuthPublic$ are blinded with $\CoinAddressRand$
 and $\CoinCommitRand$ using the collision-resistant hash function $\CRH$ in a
-multi-layered process. The resulting hash $\cm = \CoinCommitment{\Coin}$.
+multi-layered process. The resulting hash $\cm = \CoinCommitment(\Coin{})$.
 
 \newsavebox{\ihbox}
 \begin{lrbox}{\ihbox}
@@ -861,6 +679,8 @@ $\PourDescription$.
 
 \end{list}
 
+\todo{Describe case where there are fewer than $\NOld$ real input coins.}
+
 \subparagraph{Computation of $\hSig$}
 
 \newsavebox{\hsigbox}
@@ -945,9 +765,9 @@ $(\treepath{1..\NOld}, \cOld{1..\NOld}, \AuthPrivateOld{\mathrm{1}..\NOld},
 
 \subparagraph{Merkle path validity}
 
-for each $i \in \{1..\NOld\}$ \changed{$\mid$ $\vOld{i} \neq 0$}: $\treepath{i}$ must be a valid path
-of depth $\MerkleDepth$ from \linebreak $\CoinCommitment{\cOld{i}}$ to Coin 
-commitment merkle tree root $\rt$.
+for each $i \in \{1..\NOld\}$ \changed{$\mid$ $\vOld{i} \neq 0$}:
+$\treepath{i}$ must be a valid path of depth $\MerkleDepth$ from
+$\CoinCommitment(\cOld{i})$ to \coinCommitmentTree root $\rt$.
 
 \subparagraph{Balance}
 
@@ -975,7 +795,198 @@ for each $i \in \{1..\NNew\}$: $\CoinAddressRandNew{i}$ = $\PRFrho{\CoinAddressP
 
 \subparagraph{Commitment integrity}
 
-for each $i \in \{1..\NNew\}$: $\cmNew{i}$ = $\CoinCommitment{\cNew{i}}$
+for each $i \in \{1..\NNew\}$: $\cmNew{i}$ = $\CoinCommitment(\cNew{i})$
+
+
+\section{In-band secret distribution}
+
+In order to transmit the secret $\Value$, $\CoinAddressRand$, and $\CoinCommitRand$
+(necessary for the recipient to later spend) \changed{and also a \memo} to the
+recipient \emph{without} requiring an out-of-band communication channel, the
+\transmitKeypair public key $\TransmitPublic$ is used to encrypt these
+secrets. The recipient's possession of the associated
+$(\PaymentAddress, \SpendingKey)$ (which contains both $\AuthPublic$ and
+$\TransmitPrivate$) is used to reconstruct the original \coin \changed{ and \memo}.
+\changed{To also transmit these values to a \viewingKey holder for outgoing
+\PourTransfers, the \discloseKey $\DiscloseKey$ is used to symmetrically
+encrypt them, and also to encrypt the ephemeral secret and address public
+keys (to allow the \viewingKey holder to check whether the other encryptions
+are valid).} All of these encryptions are combined to form a \coinsCiphertext.
+
+\changed{
+Let $\SymEncrypt{\Key}(\Plaintext)$ be the $\SymSpecific$ encryption
+\cite{rfc7539} of plaintext $\Plaintext$ with empty ``additional data",
+empty nonce, and key $\Key$.
+}
+
+\newsavebox{\kdfbox}
+\begin{lrbox}{\kdfbox}
+\setchanged
+\begin{bytefield}[bitwidth=0.032em]{832}
+    \bitbox{256}{256 bit $\DHSecret{i}$} &
+    \bitbox{256}{256 bit $\EphemeralPublic$} &
+    \bitbox{256}{256 bit $\TransmitPublicNew{i}$} &
+    \bitbox{160}{8 bit $i-1$}
+\end{bytefield}
+\end{lrbox}
+
+\newsavebox{\sharedbox}
+\begin{lrbox}{\sharedbox}
+\setchanged
+\begin{bytefield}[bitwidth=0.045em]{768}
+    \bitbox{256}{256 bit $\TransmitPublicNew{\mathrm{1}}$}
+    \bitbox{40}{...}
+    \bitbox{256}{256 bit $\TransmitPublicNew{\NNew}$}
+    \bitbox{256}{256 bit $\EphemeralPrivate$}
+\end{bytefield}
+\end{lrbox}
+
+Let $\TransmitPublicNew{\mathrm{1}..\NNew}$ be the \changed{Curve25519} public keys
+for the intended recipient addresses of each new \coin,
+\changed{let $\DiscloseKey$ be the sender's \discloseKey,}
+and let $\CoinPlaintext{1..\NNew}$ be the \coinPlaintexts.
+Let $\TransmitPlaintext{i}$ be the raw encoding of $\CoinPlaintext{i}$.
+
+\changed{
+Define:
+\begin{equation*}
+\begin{aligned}
+\KDF(\DHSecret{i}, \EphemeralPublic, \TransmitPublicNew{i}, i) &:= \FullHashbox{\kdfbox} \\
+\SharedPlaintext{} &:= \Justthebox{\sharedbox}
+\end{aligned}
+\end{equation*}
+}
+
+Then to encrypt:
+
+\begin{itemize}
+\changed{
+  \item Generate a new Curve25519 (public, private) key pair:
+$(\EphemeralPublic, \EphemeralPrivate)$.
+  \item For $i$ in $\{1..\NNew\}$,
+    \begin{itemize}
+      \item Let $\DHSecret{i} := \CurveMultiply(\TransmitPublicNew{i},
+\EphemeralPrivate)$.
+      \item Let $\TransmitKey{i} := \KDF(\DHSecret{i}, \EphemeralPublic,
+\TransmitPublicNew{i}, i)$.
+      \item Let $\TransmitCiphertext{i} := \SymEncrypt{\TransmitKey{i}}(\TransmitPlaintext{i})$.
+    \end{itemize}
+  \item Let $\SharedKey{} := ...$.
+  \item Let $\SharedCiphertext := \SymEncrypt{\SharedKey{}}(\SharedPlaintext{})$.
+  \item For $i$ in $\{1..\NOld\}$,
+    \begin{itemize}
+      \item Let $\DiscloseCiphertext{i} := \SymEncrypt{\DiscloseKey{i}}(\SharedKey{})$.
+    \end{itemize}
+}
+\end{itemize}
+
+The resulting \coinsCiphertext is $\changed{(\EphemeralPublic,
+\TransmitCiphertext{\mathrm{1}..\NNew}, \DiscloseCiphertext{\mathrm{1}..\NOld},
+\SharedCiphertext)}$.
+
+Let $(\TransmitPublic, \TransmitPrivate)$ be the recipient's \changed{Curve25519}
+(public, private) key pair, and let $\cmNew{\mathrm{1}..\NNew}$ be the coin
+commitments of each output coin. Then for each $i$ in $\{1..\NNew\}$, the recipient
+will attempt to decrypt that ciphertext component as follows:
+
+\changed{
+\begin{itemize}
+  \item Let $\DHSecret{i} := \CurveMultiply(\EphemeralPublic, \TransmitPrivate)$.
+  \item Return $\DecryptCoin(\DHSecret{i}, \EphemeralPublic, \TransmitPublicNew{i}, i,
+\TransmitCiphertext{i}, \cmNew{i}).$
+\end{itemize}
+
+$\DecryptCoin(\DHSecret{i}, \EphemeralPublic, \TransmitPublicNew{i}, i,
+\TransmitCiphertext{i}, \cmNew{i})$ is defined as follows:
+
+\begin{itemize}
+  \item Let $\TransmitKey{i} := \KDF(\DHSecret{i}, \EphemeralPublic,
+\TransmitPublicNew{i}, i)$.
+  \item Let $\TransmitPlaintext{i} := \SymDecrypt{\TransmitKey{i}}(\TransmitCiphertext{i})$.
+  \item If $\TransmitPlaintext{i} = \bot$, return $\bot$.
+  \item Extract $\CoinPlaintext{i} := (\AuthPublic, \Value, \CoinAddressRand,
+\CoinCommitRand, \Memo)$ from $\TransmitPlaintext{i}$.
+  \item If $\CoinCommitment(\Coin{i}) \neq \cmNew{i}$, return $\bot$, else
+        return $\CoinPlaintext{i}$.
+\end{itemize}
+}
+
+Note that this corresponds to step 3 (b) i. and ii. (first bullet point) of the
+$\Receive$ algorithm shown in Figure 2 of \cite{ZerocashOakland}.
+
+To test whether a \coin is unspent in a particular \blockchainview also requires
+the \authKeypair private key $\AuthPrivate$; the coin is unspent if and only if
+$\sn = \PRFsn{\AuthPrivate}(\CoinAddressRand)$ is not in the \spentSerials
+for that \blockchainview.
+
+Note that a coin may change from being unspent to spent on a given \blockchainview,
+as transactions are added to that view. Also, blockchain reorganisations may cause
+the transaction in which a coin was output to no longer be on the consensus
+blockchain.
+
+\changed{
+Let $\DiscloseKey{}$ be a \viewingKey holder's \discloseKey.
+Then for each \PourDescription in its \blockchainview, the \viewingKey holder
+will attempt to decrypt the corresponding \coinsCiphertext as follows:
+}
+
+\changed{
+\begin{enumerate}
+  \item Set $\SharedPlaintext{} := \bot$.
+  \item For $i$ in $\{1..\NNew\}$,
+    \begin{itemize}
+      \item Let $\SharedKey{i} := \SymDecrypt{\DiscloseKey{}}(\DiscloseCiphertext{i}, \Tag{i})$.
+      \item If $\SharedKey{i} = \bot$ then continue with the next $i$.
+      \item Let $\SharedPlaintext{i} := \SymDecrypt{\SharedKey{i}}(\SharedCiphertext)$.
+      \item If $\SharedPlaintext{i} = \bot$ then continue with the next $i$.
+      \item Set $\SharedPlaintext{} := \SharedPlaintext{i}$ and exit the loop.
+    \end{itemize}
+  \item If $\SharedPlaintext{} = \bot$ (i.e. it was not set in the loop), then this
+transaction does not contain any information decryptable by the \viewingKey; return $\bot$.
+  \item Extract $\TransmitPublicNew{\mathrm{1}..\NNew}$ and $\EphemeralPrivate$
+from $\SharedPlaintext{}$.
+  \item For $i$ in $\{1..\NNew\}$,
+    \begin{itemize}
+      \item Let $\DHSecret{i} := \CurveMultiply(\TransmitPublicNew{i}, \EphemeralPrivate)$.
+      \item Let $\CoinPlaintext{i} := \DecryptCoin(\DHSecret{i}, \EphemeralPublic,
+\TransmitPublicNew{i}, i, \TransmitCiphertext{i}, \cmNew{i}).$
+    \end{itemize}
+  \item Return $\CoinPlaintext{\mathrm{1}..\NNew}$.
+\end{enumerate}
+}
+
+If a party holds more than one \viewingKey, it may optimize the above
+procedure by performing the loop in step 2 for the $\DiscloseKey{}$ of each
+\viewingKey. It may be assumed that the first $\SharedPlaintext{i}$ that
+decrypts correctly is the one that should be used in step 4 onward.
+(However, additional information is provided by which \viewingKey was able
+to decrypt each $\DiscloseCiphertext{i}$.)
+
+\changed{
+The public key encryption used in this part of the protocol is based loosely on
+the $\CryptoBoxSeal$ algorithm defined in libsodium \cite{cryptoboxseal}, but
+with the following differences:
+\begin{itemize}
+  \item The same ephemeral key is used for all encryptions to the recipient keys
+        in a given \PourDescription.
+  \item The nonce for each ciphertext component depends on the index $i$.
+        The particular nonce construction is chosen so that a known-nonce
+        distinguisher for $\mathsf{Salsa20}$ would not directly lead to a break
+        of the IK-CCA (key privacy) property.
+  \item $\FullHash$ (the full hash, not the compression function) is used instead
+        of $\mathsf{blake2b}$.
+  \item The ephemeral secret $\EphemeralPrivate$ is included together with
+        the \transmitKeypair public keys of the recipients, encrypted to the
+        \discloseKey. This allows a \viewingKey holder to check whether the
+        indicated recipients would be able to decrypt a given component, and
+        if so to decrypt the memo field. (We do not rely on this to ensure
+        that a \viewingKey holder can decrypt the other components of the
+        output coins; instead, those are symmetrically encrypted to the
+        \viewingKey and the correctness of this encryption is checked by the
+        \PourCircuit.)
+\end{itemize}
+}
+
 
 \section{Encoding Addresses, Private keys, Coins, and Pour descriptions}
 
@@ -992,7 +1003,7 @@ bytes.
 
 The language consisting of the following encoding possibilities is prefix-free.
 
-\subsection{Transparent Public Addresses}
+\subsection{Transparent Payment Addresses}
 
 These are encoded in the same way as in \Bitcoin \cite{Base58Check}.
 
@@ -1000,7 +1011,7 @@ These are encoded in the same way as in \Bitcoin \cite{Base58Check}.
 
 These are encoded in the same way as in \Bitcoin \cite{Base58Check}.
 
-\subsection{Confidential Public Addresses}
+\subsection{Private Payment Addresses}
 
 A \paymentAddress consists of $\AuthPublic$ and $\TransmitPublic$.
 $\AuthPublic$ is a SHA-256 compression function output.
@@ -1035,7 +1046,7 @@ and produces `z' as the Base58Check leading character.}
 
 \nathan{what about the network version byte?}
 
-\subsection{Confidential Address Secrets}
+\subsection{Spending Keys}
 
 A confidential address secret consists of $\AuthPrivate$ and
 $\TransmitPrivate$. $\AuthPrivate$ is a SHA-256 compression function
@@ -1138,24 +1149,21 @@ encoding of a \coinPlaintext.
 }
 \end{itemize}
 
-\section{Pours (within a transaction on the blockchain)}
-
-TBD.
-
-\changed{Describe case where there are fewer than $\NOld$ real input coins.}
-
-\section{Transactions}
-
-TBD.
-
 
 \changed{
 \section{Differences from the Zerocash paper}
 
+\subsection{Faerie Gold attack and fix}
+
+\todo{}
+
+\subsection{In-band secret distribution}
+
+\todo{}
+
+\subsection{Miscellaneous}
+
 \begin{itemize}
-    \item Instead of ECIES, we use an encryption scheme based on $\CryptoBox$,
-defined in section ``In-band secret distribution".
-    \item Faerie Gold fix (TBD).
     \item The paper defines a coin as a tuple $(\AuthPublic, \Value,
 \CoinAddressRand, \CoinCommitRand, \CoinCommitS, \cm)$, whereas this specification
 defines it as $(\AuthPublic, \Value, \CoinAddressRand, \CoinCommitRand)$.
