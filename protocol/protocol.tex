@@ -112,8 +112,9 @@
 \newcommand{\AuthPrivateNew}[1]{\mathsf{a^{new}_{sk,\mathnormal{#1}}}}
 \newcommand{\AddressPublicNew}[1]{\mathsf{addr^{new}_{pk,\mathnormal{#1}}}}
 \newcommand{\enc}{\mathsf{enc}}
-\newcommand{\alleged}{\mathsf{alleged}}
 \newcommand{\disclose}{\mathsf{disclose}}
+\newcommand{\shared}{\mathsf{shared}}
+\newcommand{\DHSecret}[1]{\mathsf{dhsecret}_{#1}}
 \newcommand{\EphemeralPublic}{\mathsf{epk}}
 \newcommand{\EphemeralPrivate}{\mathsf{esk}}
 \newcommand{\TransmitPublic}{\mathsf{pk_{enc}}}
@@ -122,7 +123,7 @@
 \newcommand{\Value}{\mathsf{v}}
 
 % Coins
-\newcommand{\Coin}{\mathbf{c}}
+\newcommand{\Coin}[1]{\mathbf{c}_{#1}}
 \newcommand{\CoinCommitRand}{\mathsf{r}}
 \newcommand{\CoinCommitRandOld}[1]{\mathsf{r^{old}_\mathnormal{#1}}}
 \newcommand{\CoinCommitRandNew}[1]{\mathsf{r^{new}_\mathnormal{#1}}}
@@ -134,19 +135,30 @@
 \newcommand{\TransmitPlaintextVersionByte}{\mathbf{0x00}}
 \newcommand{\hSigInputVersionByte}{\mathbf{0x00}}
 \newcommand{\Memo}{\mathsf{memo}}
+\newcommand{\CurveMultiply}{\mathsf{Curve25519}}
 \newcommand{\CryptoBox}{\mathsf{crypto\_box}}
 \newcommand{\CryptoBoxOpen}{\mathsf{crypto\_box\_open}}
 \newcommand{\CryptoBoxSeal}{\mathsf{crypto\_box\_seal}}
 \newcommand{\CryptoBoxSpecific}{\mathsf{crypto\_box\_curve25519xsalsa20poly1305}}
-\newcommand{\Plaintext}[1]{\mathbf{P}^\enc_{#1}}
-\newcommand{\AllegedPlaintext}[1]{\mathbf{P}^\alleged_{#1}}
-\newcommand{\DisclosePlaintext}{\mathbf{P}^\disclose}
-\newcommand{\TransmitCiphertext}[1]{\mathbf{C}^\enc_{#1}}
-\newcommand{\DiscloseCiphertext}{\mathbf{C}^\disclose}
+\newcommand{\DecryptCoin}{\mathtt{DecryptCoin}}
+\newcommand{\Plaintext}{\mathbf{P}}
+\newcommand{\Ciphertext}{\mathbf{C}}
+\newcommand{\Key}{\mathsf{K}}
+\newcommand{\TransmitPlaintext}[1]{\Plaintext^\enc_{#1}}
+\newcommand{\TransmitCiphertext}[1]{\Ciphertext^\enc_{#1}}
+\newcommand{\TransmitKey}[1]{\Key^\enc_{#1}}
+\newcommand{\DiscloseCiphertext}[1]{\Ciphertext^\disclose_{#1}}
+\newcommand{\SharedPlaintext}[1]{\Plaintext^\shared_{#1}}
+\newcommand{\SharedCiphertext}{\Ciphertext^\shared}
+\newcommand{\SharedKey}[1]{\Key^\shared_{#1}}
 \newcommand{\Tag}[1]{\mathsf{tag}_{#1}}
-\newcommand{\Nonce}{\mathsf{nonce}}
+\newcommand{\KDF}{\mathsf{KDF}}
 \newcommand{\Prenonce}{\mathsf{prenonce}}
-\newcommand{\Encrypt}[1]{\mathsf{Encrypt}_{#1}}
+\newcommand{\PkEncrypt}[1]{\mathsf{PkEncrypt}_{#1}}
+\newcommand{\SymEncrypt}[1]{\mathsf{SymEncrypt}_{#1}}
+\newcommand{\SymDecrypt}[1]{\mathsf{SymDecrypt}_{#1}}
+\newcommand{\SymSpecific}{\mathsf{AEAD\_CHACHA20\_POLY1305}}
+\newcommand{\Clamp}{\mathsf{clamp_{Curve25519}}}
 \newcommand{\CRH}{\mathsf{CRH}}
 \newcommand{\CRHbox}[1]{\CRH\left(\;\raisebox{-1.3ex}{\usebox{#1}}\;\right)}
 \newcommand{\FullHash}{\mathtt{SHA256}}
@@ -186,7 +198,8 @@
 \newcommand{\commitments}{\mathtt{commitments}}
 \newcommand{\ephemeralKey}{\mathtt{ephemeralKey}}
 \newcommand{\encCiphertexts}{\mathtt{encCiphertexts}}
-\newcommand{\discloseCiphertext}{\mathtt{discloseCiphertext}}
+\newcommand{\discloseCiphertexts}{\mathtt{discloseCiphertexts}}
+\newcommand{\sharedCiphertext}{\mathtt{sharedCiphertext}}
 \newcommand{\rt}{\mathsf{rt}}
 
 % pour
@@ -210,6 +223,7 @@
 \newcommand{\COMM}[1]{\mathsf{COMM}_{#1}}
 \newcommand{\COMMtrapdoor}{\term{\textsf{COMM} trapdoor}}
 \newcommand{\CoinCommitment}[1]{\mathtt{CoinCommitment}(#1)}
+\newcommand{\Receive}{\mathsf{Receive}}
 
 
 \begin{document}
@@ -252,12 +266,14 @@ please contact \todo{address}. While the production \Zcash network has yet
 to be launched, please feel free to do so in public even if you believe the
 mistake may indicate a security weakness.
 
-\section{Concepts}
+\section{Conventions}
 
 \subsection{Integers, Bit Sequences, and Endianness}
 
 All integers visible in \Zcash-specific encodings are unsigned, have a fixed
-bit length, and are encoded as big-endian.
+bit length, and are encoded as big-endian (except in the definition of
+$\SymSpecific$ \cite{rfc7539} which internally uses length fields encoded as
+little-endian).
 
 In bit layout diagrams, each box of the diagram represents a sequence of bits.
 If the content of the box is a byte sequence, it is implicitly converted to
@@ -297,13 +313,42 @@ ensuring that the functions are independent.
 
 \newcommand{\iminusone}{\hspace{0.3pt}\scriptsize{$i$\hspace{0.6pt}-1}}
 
-\newsavebox{\addrbox}
-\begin{lrbox}{\addrbox}
+\newsavebox{\addrboxa}
+\begin{lrbox}{\addrboxa}
+\setchanged
 \begin{bytefield}[bitwidth=0.065em]{512}
         \bitbox{242}{256 bit $\AuthPrivate$} &
         \bitbox{18}{0} &
         \bitbox{18}{0} &
-        \bitbox{222}{$0^{254}$} &
+        \bitbox{186}{$0^{252}$} &
+        \bitbox{18}{0} &
+        \bitbox{18}{0} &
+\end{bytefield}
+\end{lrbox}
+
+\newsavebox{\addrboxb}
+\begin{lrbox}{\addrboxb}
+\setchanged
+\begin{bytefield}[bitwidth=0.065em]{512}
+        \bitbox{242}{256 bit $\DiscloseKey$} &
+        \bitbox{18}{0} &
+        \bitbox{18}{0} &
+        \bitbox{186}{$0^{252}$} &
+        \bitbox{18}{0} &
+        \bitbox{18}{1} &
+\end{bytefield}
+\end{lrbox}
+
+\newsavebox{\addrboxc}
+\begin{lrbox}{\addrboxc}
+\setchanged
+\begin{bytefield}[bitwidth=0.065em]{512}
+        \bitbox{242}{256 bit $\AuthPrivate$} &
+        \bitbox{18}{0} &
+        \bitbox{18}{0} &
+        \bitbox{186}{$0^{252}$} &
+        \bitbox{18}{1} &
+        \bitbox{18}{0} &
 \end{bytefield}
 \end{lrbox}
 
@@ -345,7 +390,13 @@ need to be aware of how it is associated with this bit-packing.}
 
 \begin{equation*}
 \begin{aligned}
-\AuthPublic &:= \PRFaddr{\AuthPrivate}(0) &= \CRHbox{\addrbox} \\
+\setchanged \DiscloseKey &\setchanged := \PRFaddr{\AuthPrivate}(0)
+&\setchanged = \CRHbox{\addrboxa} \\
+\setchanged \AuthPublic &\setchanged := \PRFaddr{\DiscloseKey}(1)
+&\setchanged = \CRHbox{\addrboxb} \\
+\setchanged \TransmitPrivate' &\setchanged := \PRFaddr{\AuthPrivate}(2)
+&\setchanged = \CRHbox{\addrboxc} \\
+\setchanged \TransmitPrivate &\setchanged := \Clamp(\TransmitPrivate') & \\
 \sn &:= \PRFsn{\AuthPrivate}(\CoinAddressRand) &= \CRHbox{\snbox} \\
 \h{i} &:= \PRFpk{\AuthPrivate}(i, \hSig) &= \CRHbox{\pkbox} \\
 \setchanged \CoinAddressRandNew{i} &\setchanged := \PRFrho{\CoinAddressPreRand}(i, \hSig)
@@ -358,7 +409,7 @@ need to be aware of how it is associated with this bit-packing.}
 
 \subsection{Payment Addresses, Viewing Keys, and Spending Keys}
 
-A \keyTuple $(\SpendingKey, \changed{\ViewingKey, }\PaymentAddress)$ is
+A \keyTuple $(\SpendingKey, \changed{\ViewingKey,\;} \PaymentAddress)$ is
 generated by users who wish to receive payments under this scheme.
 \changed{The \viewingKey $\ViewingKey$ is derived from the \spendingKey
 $\SpendingKey$, and the \paymentAddress $\PaymentAddress$ is derived from
@@ -390,7 +441,26 @@ to:
   \item obtain a \paymentAddress\changed{ or \viewingKey} from a \spendingKey.
 \end{itemize}
 
-\todo{Describe derivations.}
+Each key component, i.e. each of $\AuthPublic$, $\TransmitPublic$,
+\changed{$\DiscloseKey$, }$\TransmitPrivate$, and $\AuthPrivate$, is a sequence of
+32 bytes. \changed{$\AuthPublic$, $\DiscloseKey$, and $\TransmitPrivate$ are derived
+as follows:}
+
+\begin{equation*}
+\begin{aligned}
+\setchanged \DiscloseKey &\setchanged := \PRFaddr{\AuthPrivate}(0) & \hspace{30em} \\
+\setchanged \AuthPublic &\setchanged := \PRFaddr{\DiscloseKey}(1) & \\
+\setchanged \TransmitPrivate &\setchanged := \Clamp(\PRFaddr{\AuthPrivate}(2)) &
+\end{aligned}
+\end{equation*}
+
+\changed{
+$\Clamp$ performs the clamping of Curve25519 private key bits, and
+$\CurveMultiply$ performs point multiplication, both as defined in \cite{Curve25519}.
+
+Let $\TransmitPublic := \CurveMultiply(\TransmitPrivate)$, i.e. the public key
+corresponding to the private key $\TransmitPrivate$.
+}
 
 Users can accept payment from multiple parties with a single
 $\PaymentAddress$ and the fact that these payments are destined to
@@ -402,7 +472,7 @@ case that a payee wishes to prevent this they should create a distinct
 
 \subsection{Coins}
 
-A \coin (denoted $\Coin$) is a tuple $\changed{(\AuthPublic, \Value,
+A \coin (denoted $\Coin{}$) is a tuple $\changed{(\AuthPublic, \Value,
 \CoinAddressRand, \CoinCommitRand)}$ which represents that a value $\Value$ is
 spendable by the recipient who holds the $\authKeypair$ key pair
 $(\AuthPublic, \AuthPrivate)$ such that
@@ -430,45 +500,30 @@ keys (to allow the \viewingKey holder to check whether the other encryptions
 are valid).} All of these encryptions are combined to form a \coinsCiphertext.
 
 \changed{
-The encryption algorithm is defined in terms of $\CryptoBox$ (specifically,
-$\CryptoBoxSpecific$) \cite{cryptobox} as follows.
+Let $\SymEncrypt{\Key}(\Plaintext)$ be the $\SymSpecific$ encryption
+\cite{rfc7539} of plaintext $\Plaintext$ with empty ``additional data",
+empty nonce, and key $\Key$.
 }
 
-\newsavebox{\prenoncebox}
-\begin{lrbox}{\prenoncebox}
+\newsavebox{\kdfbox}
+\begin{lrbox}{\kdfbox}
 \setchanged
-\begin{bytefield}[bitwidth=0.05em]{520}
-        \bitbox{120}{64 bit $\Tag{i}$} &
-        \bitbox{256}{256 bit $\EphemeralPublic$}
-        \bitbox{256}{256 bit $\TransmitPublicNew{i}$}
+\begin{bytefield}[bitwidth=0.032em]{832}
+    \bitbox{256}{256 bit $\DHSecret{i}$} &
+    \bitbox{256}{256 bit $\EphemeralPublic$} &
+    \bitbox{256}{256 bit $\TransmitPublicNew{i}$} &
+    \bitbox{160}{8 bit $i-1$}
 \end{bytefield}
 \end{lrbox}
 
-\newsavebox{\noncebox}
-\begin{lrbox}{\noncebox}
+\newsavebox{\sharedbox}
+\begin{lrbox}{\sharedbox}
 \setchanged
-\begin{bytefield}[bitwidth=0.085em]{192}
-        \bitbox{128}{$\Leading{128}(\Prenonce)$} &
-        \bitbox{64}{64 bit $\Tag{i}$}
-\end{bytefield}
-\end{lrbox}
-
-\newsavebox{\tagibox}
-\begin{lrbox}{\tagibox}
-\setchanged
-\begin{bytefield}[bitwidth=0.09em]{64}
-        \bitbox{64}{64 bit $i-1$}
-\end{bytefield}
-\end{lrbox}
-
-\newsavebox{\disclosebox}
-\begin{lrbox}{\disclosebox}
-\setchanged
-\begin{bytefield}[bitwidth=0.05em]{768}
-        \bitbox{256}{256 bit $\EphemeralPrivate$}
-        \bitbox{256}{256 bit $\TransmitPublicNew{\mathrm{1}}$}
-        \bitbox{40}{...}
-        \bitbox{256}{256 bit $\TransmitPublicNew{\NNew}$}
+\begin{bytefield}[bitwidth=0.045em]{768}
+    \bitbox{256}{256 bit $\TransmitPublicNew{\mathrm{1}}$}
+    \bitbox{40}{...}
+    \bitbox{256}{256 bit $\TransmitPublicNew{\NNew}$}
+    \bitbox{256}{256 bit $\EphemeralPrivate$}
 \end{bytefield}
 \end{lrbox}
 
@@ -481,10 +536,8 @@ and let $\Plaintext{1..\NNew}$ be the \coinPlaintexts.
 Define:
 \begin{equation*}
 \begin{aligned}
-\Prenonce(\Tag{i}, \EphemeralPublic, \TransmitPublicNew{i}) &:= \FullHashbox{\prenoncebox} \\
-\Nonce(\Tag{i}, \EphemeralPublic, \TransmitPublicNew{i}) &:= \Justthebox{\noncebox} \\
-\Tag{i} &:= \Justthebox{\tagibox} \\
-\DisclosePlaintext &:= \Justthebox{\disclosebox}
+\KDF(\DHSecret{i}, \EphemeralPublic, \TransmitPublicNew{i}, i) &:= \FullHashbox{\kdfbox} \\
+\SharedPlaintext{} &:= \Justthebox{\sharedbox}
 \end{aligned}
 \end{equation*}
 }
@@ -495,27 +548,56 @@ Then to encrypt:
 \changed{
   \item Generate a new Curve25519 (public, private) key pair:
 $(\EphemeralPublic, \EphemeralPrivate)$.
-  \item For $i$ in $\{1..\NNew\}$, let $\TransmitCiphertext{i} =
-\CryptoBox(\Plaintext{i}, \TransmitPublicNew{i}, \EphemeralPrivate,
-\Nonce(\Tag{i}, \EphemeralPublic, \TransmitPublicNew{i}))$
-  \item Let $\DiscloseCiphertext = ???_{\DiscloseKey}(\DisclosePlaintext)$
+  \item For $i$ in $\{1..\NNew\}$,
+    \begin{itemize}
+      \item Let $\DHSecret{i} := \CurveMultiply(\TransmitPublicNew{i},
+\EphemeralPrivate)$.
+      \item Let $\TransmitKey{i} := \KDF(\DHSecret{i}, \EphemeralPublic,
+\TransmitPublicNew{i}, i)$.
+      \item Let $\TransmitCiphertext{i} := \SymEncrypt{\TransmitKey{i}}(\TransmitPlaintext{i})$.
+    \end{itemize}
+  \item Let $\SharedKey{} := ...$.
+  \item Let $\SharedCiphertext := \SymEncrypt{\SharedKey{}}(\SharedPlaintext{})$.
+  \item For $i$ in $\{1..\NOld\}$,
+    \begin{itemize}
+      \item Let $\DiscloseCiphertext{i} := \SymEncrypt{\DiscloseKey{i}}(\SharedKey{})$.
+    \end{itemize}
 }
 \end{itemize}
 
-The resulting \coinsCiphertext is $\changed{(\TransmitPublic,}\;
-\TransmitCiphertext{\mathrm{1}..\NNew}\changed{, \DiscloseCiphertext)}$.
+The resulting \coinsCiphertext is $\changed{(\EphemeralPublic,
+\TransmitCiphertext{\mathrm{1}..\NNew}, \DiscloseCiphertext{\mathrm{1}..\NOld},
+\SharedCiphertext)}$.
 
 Let $(\TransmitPublic, \TransmitPrivate)$ be the recipient's \changed{Curve25519}
-(public, private) key pair. Then for each $i$ in $\{1..\NNew\}$, the recipient
+(public, private) key pair, and let $\cmNew{\mathrm{1}..\NNew}$ be the coin
+commitments of each output coin. Then for each $i$ in $\{1..\NNew\}$, the recipient
 will attempt to decrypt that ciphertext component as follows:
 
-\begin{itemize}
 \changed{
-  \item $\AllegedPlaintext{i} := \CryptoBoxOpen(\TransmitCiphertext{i},
-\EphemeralPublic, \TransmitPrivate, \Nonce(\Tag{i}, \EphemeralPublic, \TransmitPublic))$
-  \item \todo{validation}
-}
+\begin{itemize}
+  \item Let $\DHSecret{i} := \CurveMultiply(\EphemeralPublic, \TransmitPrivate)$.
+  \item Return $\DecryptCoin(\DHSecret{i}, \EphemeralPublic, \TransmitPublicNew{i}, i,
+\TransmitCiphertext{i}, \cmNew{i}).$
 \end{itemize}
+
+$\DecryptCoin(\DHSecret{i}, \EphemeralPublic, \TransmitPublicNew{i}, i,
+\TransmitCiphertext{i}, \cmNew{i})$ is defined as follows:
+
+\begin{itemize}
+  \item Let $\TransmitKey{i} := \KDF(\DHSecret{i}, \EphemeralPublic,
+\TransmitPublicNew{i}, i)$.
+  \item Let $\TransmitPlaintext{i} := \SymDecrypt{\TransmitKey{i}}(\TransmitCiphertext{i})$.
+  \item If $\TransmitPlaintext{i} = \bot$, return $\bot$.
+  \item Extract $\Coin{i} := (\AuthPublic, \Value, \CoinAddressRand, \CoinCommitRand)$
+        and $\Memo_{i}$ from $\TransmitPlaintext{i}$.
+  \item If $\CoinCommitment{\Coin{i}} \neq \cmNew{i}$, return $\bot$, else
+        return ($\Coin{i}, \Memo_{i})$.
+\end{itemize}
+}
+
+Note that this corresponds to step 3 (b) i. and ii. (first bullet point) of the
+$\Receive$ algorithm shown in Figure 2 of \cite{ZerocashOakland}.
 
 To test whether a \coin is unspent in a particular \blockchainview also requires
 the \authKeypair private key $\AuthPrivate$; the coin is unspent if and only if
@@ -528,32 +610,47 @@ the transaction in which a coin was output to no longer be on the consensus
 blockchain.
 
 \changed{
-Similarly, let $\DiscloseKey$ be a \viewingKey holder's \discloseKey.
+Let $\DiscloseKey{}$ be a \viewingKey holder's \discloseKey.
 Then for each \PourDescription in its \blockchainview, the \viewingKey holder
 will attempt to decrypt the corresponding \coinsCiphertext as follows:
 }
 
-\begin{itemize}
 \changed{
-  \item Let $\DisclosePlaintext := ???_{\DiscloseKey}(\DiscloseCiphertext)$
-  \item Extract $\EphemeralPrivate$ and $\TransmitPublicNew{\mathrm{1}..\NNew}$
-from $\DisclosePlaintext$.
+\begin{enumerate}
+  \item Set $\SharedPlaintext{} := \bot$.
   \item For $i$ in $\{1..\NNew\}$,
     \begin{itemize}
-      \item let $\AllegedPlaintext{i} :=
-\CryptoBoxOpen(\TransmitCiphertext{i}, \EphemeralPrivate,
-\TransmitPublicNew{i}, \Nonce(\Tag{i}, \EphemeralPublic, \TransmitPublicNew{i}))$
-      \item \todo{validation}
+      \item Let $\SharedKey{i} := \SymDecrypt{\DiscloseKey{}}(\DiscloseCiphertext{i}, \Tag{i})$.
+      \item If $\SharedKey{i} = \bot$ then continue with the next $i$.
+      \item Let $\SharedPlaintext{i} := \SymDecrypt{\SharedKey{i}}(\SharedCiphertext)$.
+      \item If $\SharedPlaintext{i} = \bot$ then continue with the next $i$.
+      \item Set $\SharedPlaintext{} := \SharedPlaintext{i}$ and exit the loop.
     \end{itemize}
+  \item If $\SharedPlaintext{} = \bot$ (i.e. it was not set in the loop), then this
+transaction does not contain any information decryptable by the \viewingKey; return $\bot$.
+  \item Extract $\TransmitPublicNew{\mathrm{1}..\NNew}$ and $\EphemeralPrivate$
+from $\SharedPlaintext{}$.
+  \item For $i$ in $\{1..\NNew\}$,
+    \begin{itemize}
+      \item Let $\DHSecret{i} := \CurveMultiply(\TransmitPublicNew{i}, \EphemeralPrivate)$.
+      \item Let $\Coin{i} := \DecryptCoin(\DHSecret{i}, \EphemeralPublic,
+\TransmitPublicNew{i}, i, \TransmitCiphertext{i}, \cmNew{i}).$
+    \end{itemize}
+  \item Return ($\Coin{\mathrm{1}..\NNew}, \Memo_{\mathrm{1}..\NNew})$.
+\end{enumerate}
 }
-\end{itemize}
 
-Any ciphertext components that fail to decrypt \MUST be ignored. Once a component
-has been decrypted, it \MUST be validated as described in section ``Coin Commitments''.
+If a party holds more than one \viewingKey, it may optimize the above
+procedure by performing the loop in step 2 for the $\DiscloseKey{}$ of each
+\viewingKey. It may be assumed that the first $\SharedPlaintext{i}$ that
+decrypts correctly is the one that should be used in step 4 onward.
+(However, additional information is provided by which \viewingKey was able
+to decrypt each $\DiscloseCiphertext{i}$.)
 
 \changed{
-This is based loosely on the $\CryptoBoxSeal$ algorithm defined in libsodium
-\cite{cryptoboxseal}, but with the following differences:
+The public key encryption used in this part of the protocol is based loosely on
+the $\CryptoBoxSeal$ algorithm defined in libsodium \cite{cryptoboxseal}, but
+with the following differences:
 \begin{itemize}
   \item The same ephemeral key is used for all encryptions to the recipient keys
         in a given \PourDescription.
@@ -565,12 +662,13 @@ This is based loosely on the $\CryptoBoxSeal$ algorithm defined in libsodium
         of $\mathsf{blake2b}$.
   \item The ephemeral secret $\EphemeralPrivate$ is included together with
         the \transmitKeypair public keys of the recipients, encrypted to the
-        \discloseKey. This allows a \viewingKey holder to decrypt
-        and validate these ciphertexts (if the sender constructs the \PourDescription
-        honestly). It also ensures (without assuming honesty of the sender) that if
-        the \viewingKey holder can decrypt a given component, then the indicated
-        recipient also has enough information to decrypt it and will receive the
-        same \coinPlaintext.
+        \discloseKey. This allows a \viewingKey holder to check whether the
+        indicated recipients would be able to decrypt a given component, and
+        if so to decrypt the memo field. (We do not rely on this to ensure
+        that a \viewingKey holder can decrypt the other components of the
+        output coins; instead, those are symmetrically encrypted to the
+        \viewingKey and the correctness of this encryption is checked by the
+        \PourCircuit.)
 \end{itemize}
 }
 
@@ -746,10 +844,13 @@ $\cmNew{\mathrm{1}..\NNew}$.
 \item $\encCiphertexts$ which is a $\NNew$ size sequence of ciphertext
 components, $\TransmitCiphertext{\mathrm{1}..\NNew}$.
 
-\item $\discloseCiphertext$ which is the ciphertext component
-$\DiscloseCiphertext$.
+\item $\discloseCiphertexts$ which is a $\NOld$ size sequence of ciphertext
+components, $\DiscloseCiphertext{\mathrm{1}..\NOld}$.
 
-(The preceding three fields together form the \coinsCiphertext.)
+\item $\sharedCiphertext$ which is the ciphertext component
+$\SharedCiphertext$.
+
+(The preceding four fields together form the \coinsCiphertext.)
 }
 
 \item $\vmacs$ which is a $\NOld$ size sequence of message authentication tags
