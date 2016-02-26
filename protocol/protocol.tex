@@ -142,20 +142,17 @@
 \newcommand{\Plaintext}{\mathbf{P}}
 \newcommand{\Ciphertext}{\mathbf{C}}
 \newcommand{\Key}{\mathsf{K}}
-\newcommand{\Nonce}{\mathsf{nonce}}
-\newcommand{\Empty}{\varnothing}
 \newcommand{\RandomSeed}{\mathsf{randomSeed}}
 \newcommand{\TransmitPlaintext}[1]{\Plaintext^\enc_{#1}}
 \newcommand{\TransmitCiphertext}[1]{\Ciphertext^\enc_{#1}}
 \newcommand{\TransmitKey}[1]{\Key^\enc_{#1}}
 \newcommand{\TransmitKeyCompare}[1]{\Key^*_{#1}}
+\newcommand{\DerivedKey}[1]{\Key^\disclose_{#1}}
 \newcommand{\DiscloseCiphertext}[1]{\Ciphertext^\disclose_{#1}}
 \newcommand{\SharedPlaintext}[1]{\Plaintext^\shared_{#1}}
 \newcommand{\SharedCiphertext}{\Ciphertext^\shared}
 \newcommand{\SharedKey}[1]{\Key^\shared_{#1}}
 \newcommand{\KDF}{\mathsf{KDF}}
-\newcommand{\Prenonce}{\mathsf{prenonce}}
-\newcommand{\PkEncrypt}[1]{\mathsf{PkEncrypt}_{#1}}
 \newcommand{\SymEncrypt}[1]{\mathsf{SymEncrypt}_{#1}}
 \newcommand{\SymDecrypt}[1]{\mathsf{SymDecrypt}_{#1}}
 \newcommand{\SymSpecific}{\mathsf{AEAD\_CHACHA20\_POLY1305}}
@@ -170,6 +167,7 @@
 \newcommand{\PRFsn}[1]{\PRF{#1}{sn}}
 \newcommand{\PRFpk}[1]{\PRF{#1}{pk}}
 \newcommand{\PRFrho}[1]{\PRF{#1}{\CoinAddressRand}}
+\newcommand{\PRFdk}[1]{\PRF{#1}{dk}}
 \newcommand{\SHA}{\mathtt{SHA256Compress}}
 \newcommand{\SHAName}{\term{SHA-256 compression}}
 \newcommand{\SHAOrig}{\term{SHA-256}}
@@ -296,8 +294,6 @@ with indices $1$ through $\mathrm{N}$ inclusive. For example,
 $\AuthPublicNew{\mathrm{1}..\NNew}$ means the sequence $[\AuthPublicNew{\mathrm{1}},
 \AuthPublicNew{\mathrm{2}}, ...\;\AuthPublicNew{\NNew}]$.
 
-$\Empty$ denotes an empty byte sequence.
-
 \subsection{Cryptographic Functions}
 
 $\CRH$ is a collision-resistant hash function. In \Zcash, the $\SHAName$ function
@@ -305,17 +301,20 @@ is used which takes a 512-bit block and produces a 256-bit hash. This is
 different from the $\SHAOrig$ function, which hashes arbitrary-length strings.
 \cite{sha256}
 
-$\PRF{x}{}$ is a pseudo-random function seeded by $x$. \changed{Four} \emph{independent}
+$\PRF{x}{}$ is a pseudo-random function seeded by $x$. \changed{Five} \emph{independent}
 $\PRF{x}{}$ are needed in our scheme: $\PRFaddr{x}$, $\PRFsn{x}$, $\PRFpk{x}$\changed{,
-and $\PRFrho{x}$}. It is required that $\PRFsn{x}$ \changed{and $\PRFrho{x}$} be
-collision-resistant across all $x$ --- i.e. it should not be feasible to find
-$(x, y) \neq (x', y')$ such that $\PRFsn{x}(y) = \PRFsn{x'}(y')$\changed{, and similarly
-for $\PRFrho{}$}.
+$\PRFrho{x}$, and $\PRFdk{x}$}.
+
+It is required that $\PRFsn{x}$ \changed{and $\PRFrho{x}$} be collision-resistant
+across all $x$ --- i.e. it should not be feasible to find $(x, y) \neq (x', y')$
+such that $\PRFsn{x}(y) = \PRFsn{x'}(y')$\changed{, and similarly for $\PRFrho{}$}.
 
 In \Zcash, the $\SHAName$ function is used to construct all four of these
 functions. The bits $\mathtt{00}$, $\mathtt{01}$, $\mathtt{10}$\changed{, and
 $\mathtt{11}$} are included (respectively) within the blocks that are hashed,
 ensuring that the functions are independent.
+
+\todo{Fix domain separation for $\PRFdk{x}$.}
 
 \newcommand{\iminusone}{\hspace{0.3pt}\scriptsize{$i$\hspace{0.6pt}-1}}
 
@@ -364,6 +363,18 @@ ensuring that the functions are independent.
 \end{bytefield}
 \end{lrbox}
 
+\newsavebox{\dkbox}
+\begin{lrbox}{\dkbox}
+\setchanged
+\begin{bytefield}[bitwidth=0.065em]{512}
+        \bitbox{242}{256 bit $\DiscloseKey$} &
+        \bitbox{18}{?} &
+        \bitbox{18}{?} &
+        \bitbox{18}{\iminusone} &
+        \bitbox{204}{$\Leading{253}(\hSig)$}
+\end{bytefield}
+\end{lrbox}
+
 \nathan{Note: If we change input or output arity (i.e. $\NOld$ or $\NNew$), we
 need to be aware of how it is associated with this bit-packing.}
 
@@ -373,12 +384,13 @@ need to be aware of how it is associated with this bit-packing.}
 \sn =\;& \PRFsn{\AuthPrivate}(\CoinAddressRand) &:= \CRHbox{\snbox} \\
 \h{i} =\;& \PRFpk{\AuthPrivate}(i, \hSig) &:= \CRHbox{\pkbox} \\
 \setchanged \CoinAddressRandNew{i} =\;&\setchanged \PRFrho{\CoinAddressPreRand}(i, \hSig)
-&\setchanged := \CRHbox{\rhobox}
+&\setchanged := \CRHbox{\rhobox} \\
+\setchanged \DerivedKey{i} =\;&\setchanged \PRFdk{\DiscloseKey}(i, \hSig)
+&\setchanged := \CRHbox{\dkbox}
 \end{aligned}
 \end{equation*}
 
-\daira{Should we instead define $\CoinAddressRand$ to be 254 bits and $\hSig$ to be
-253 bits?}
+\daira{Truncate the left-hand sides rather than the right-hand sides.}
 
 
 \section{Concepts}
@@ -745,7 +757,7 @@ there exists a witness of \term{auxiliary input}:
 \begin{itemize}
   \item[] $(\treepath{1..\NOld}, \cOld{1..\NOld}, \AuthPrivateOld{\mathrm{1}..\NOld},
 \changed{\DiscloseKeyOld{\mathrm{1}..\NOld}, \cpNew{1..\NNew},
-\CoinAddressPreRand, \SharedKey{}, \TransmitKey{1..\NOld}})$
+\CoinAddressPreRand, \TransmitKey{1..\NNew}, \DerivedKey{1..\NOld}, \SharedKey{}})$
 \end{itemize}
 
 where:
@@ -786,33 +798,34 @@ $\AuthPublicOld{i} = \PRFaddr{\DiscloseKeyOld{i}}(1)$.
 \subparagraph{Non-malleability}
 
 for each $i \in \{1..\NOld\}$:
-$\h{i} = \PRFpk{\AuthPrivateOld{i}}(i, \hSig)$
+$\h{i} = \PRFpk{\AuthPrivateOld{i}}(i, \hSig)$.
 
 \changed{
 \subparagraph{Uniqueness of $\CoinAddressRandNew{i}$}
 
 for each $i \in \{1..\NNew\}$:
-$\CoinAddressRandNew{i} = \PRFrho{\CoinAddressPreRand}(i, \hSig)$
+$\CoinAddressRandNew{i} = \PRFrho{\CoinAddressPreRand}(i, \hSig)$.
 }
 
 \subparagraph{Commitment integrity}
 
-for each $i \in \{1..\NNew\}$: $\cmNew{i}$ = $\CoinCommitment(\cNew{i})$
+for each $i \in \{1..\NNew\}$: $\cmNew{i}$ = $\CoinCommitment(\cNew{i})$.
 
 \changed{
 \subparagraph{$\TransmitCiphertext{}$ integrity}
 
 for each $i \in \{1..\NNew\}$:
-$\TransmitCiphertext{i} = \SymEncrypt{\TransmitKey{i}}(\TransmitPlaintext{i}, \Empty)$.
+$\TransmitCiphertext{i} = \SymEncrypt{\TransmitKey{i}}(\TransmitPlaintext{i})$.
 
 \subparagraph{$\DiscloseCiphertext{}$ integrity}
 
 for each $i \in \{1..\NOld\}$:
-$\DiscloseCiphertext{i} = \SymEncrypt{\DiscloseKeyOld{i}}(\SharedKey{}, \Nonce(\hSig, i))$
+$\DiscloseCiphertext{i} = \SymEncrypt{\DerivedKey{i}}(\SharedKey{})$
+and $\DerivedKey{i} = \PRFdk{\DiscloseKeyOld{i}}(i, \hSig)$.
 
 \subparagraph{$\SharedCiphertext$ integrity}
 
-$\SharedCiphertext = \SymEncrypt{\SharedKey{}}(\SharedPlaintext{}, \Empty)$
+$\SharedCiphertext = \SymEncrypt{\SharedKey{}}(\SharedPlaintext{})$.
 }
 
 \section{In-band secret distribution}
@@ -842,15 +855,6 @@ All of the resulting ciphertexts are combined to form a \coinsCiphertext.
 \end{bytefield}
 \end{lrbox}
 
-\newsavebox{\noncebox}
-\begin{lrbox}{\noncebox}
-\setchanged
-\begin{bytefield}[bitwidth=0.032em]{8}
-    \bitbox{256}{256 bit $\hSig$}
-    \bitbox{160}{8 bit $i-1$}
-\end{bytefield}
-\end{lrbox}
-
 \newsavebox{\sharedbox}
 \begin{lrbox}{\sharedbox}
 \setchanged
@@ -868,20 +872,18 @@ All of the resulting ciphertexts are combined to form a \coinsCiphertext.
 \subsection{Encryption}
 
 \changed{
-Let $\SymEncrypt{\Key}(\Plaintext, \Nonce)$ be the $\SymSpecific$ \cite{rfc7539}
-encryption of plaintext $\Plaintext$ with empty ``additional data", nonce $\Nonce$,
+Let $\SymEncrypt{\Key}(\Plaintext)$ be the $\SymSpecific$ \cite{rfc7539}
+encryption of plaintext $\Plaintext$ with empty ``additional data", all-zero nonce,
 and key $\Key$.
 
-Similarly, let $\SymDecrypt{\Key}(\Ciphertext, \Nonce)$ be the $\SymSpecific$
-decryption of ciphertext $\Ciphertext$ with empty ``additional data",
-nonce $\Nonce$, and key $\Key$. The result is either the plaintext byte sequence,
+Similarly, let $\SymDecrypt{\Key}(\Ciphertext)$ be the $\SymSpecific$
+decryption of ciphertext $\Ciphertext$ with empty ``additional data", all-zero
+nonce, and key $\Key$. The result is either the plaintext byte sequence,
 or $\bot$ indicating failure to decrypt.
 
 Define:
 
 $\KDF(\DHSecret{i}, \EphemeralPublic, \TransmitPublicNew{i}, i) := \FullHashbox{\kdfbox}$.
-
-$\Nonce(\hSig, i) := \Justthebox{\noncebox}{-1.3ex}$.
 }
 
 Let $\TransmitPublicNew{\mathrm{1}..\NNew}$ be the \changed{Curve25519} public keys
@@ -905,14 +907,14 @@ $(\EphemeralPublic, \EphemeralPrivate)$, and a new $\SymSpecific$ key $\SharedKe
       \item Let $\TransmitKey{i} := \KDF(\DHSecret{i}, \EphemeralPublic,
 \TransmitPublicNew{i}, i)$.
       \item Let $\TransmitCiphertext{i} :=
-\SymEncrypt{\TransmitKey{i}}(\TransmitPlaintext{i}, \Empty)$.
+\SymEncrypt{\TransmitKey{i}}(\TransmitPlaintext{i})$.
     \end{itemize}
   \item For $i$ in $\{1..\NOld\}$,
     \begin{itemize}
-      \item Let $\DiscloseCiphertext{i} :=
-\SymEncrypt{\DiscloseKeyOld{i}}(\SharedKey{}, \Nonce(\hSig, i))$.
+      \item Let $\DerivedKey{i} := \PRFdk{\DiscloseKeyOld{i}}(i, \hSig)$.
+      \item Let $\DiscloseCiphertext{i} := \SymEncrypt{\DerivedKey{i}}(\SharedKey{})$.
     \end{itemize}
-  \item Let $\SharedCiphertext := \SymEncrypt{\SharedKey{}}(\SharedPlaintext{}, \Empty)$.
+  \item Let $\SharedCiphertext := \SymEncrypt{\SharedKey{}}(\SharedPlaintext{})$.
 }
 \end{itemize}
 
@@ -939,7 +941,7 @@ $\DecryptCoin(\TransmitKey{i}, \TransmitCiphertext{i}, \cmNew{i})$ is defined as
 
 \begin{itemize}
   \item Let $\TransmitPlaintext{i} :=
-\SymDecrypt{\TransmitKey{i}}(\TransmitCiphertext{i}, \Empty)$.
+\SymDecrypt{\TransmitKey{i}}(\TransmitCiphertext{i})$.
   \item If $\TransmitPlaintext{i} = \bot$, return $\bot$.
   \item Extract $\CoinPlaintext{i} = (\AuthPublicNew{i}, \ValueNew{i},
 \CoinAddressRandNew{i}, \CoinCommitRandNew{i}, \Memo_i)$ from $\TransmitPlaintext{i}$.
@@ -972,11 +974,10 @@ will attempt to decrypt the corresponding \coinsCiphertext as follows:
   \item Set $\SharedPlaintext{} := \bot$.
   \item For $i$ in $\{1..\NNew\}$,
     \begin{itemize}
-      \item Let $\SharedKey{i} :=
-\SymDecrypt{\DiscloseKey{}}(\DiscloseCiphertext{i}, \Nonce(\hSig, i))$.
+      \item Let $\DerivedKey{i} := \PRFdk{\DiscloseKey{}}(i, \hSig)$.
+      \item Let $\SharedKey{i} := \SymDecrypt{\DerivedKey{i}}(\DiscloseCiphertext{i})$.
       \item If $\SharedKey{i} = \bot$ then continue with the next $i$.
-      \item Let $\SharedPlaintext{i} :=
-\SymDecrypt{\SharedKey{i}}(\SharedCiphertext, \Empty)$.
+      \item Let $\SharedPlaintext{i} := \SymDecrypt{\SharedKey{i}}(\SharedCiphertext)$.
       \item If $\SharedPlaintext{i} = \bot$ then continue with the next $i$.
       \item Set $\SharedPlaintext{} := \SharedPlaintext{i}$ and exit the loop.
     \end{itemize}
@@ -1018,8 +1019,7 @@ Note that:
         in a given \PourDescription.
   \item In addition to the Diffie-Hellman secret, the KDF takes as input the
         public keys of both parties, and the index $i$.
-  \item The nonce parameter to $\SymSpecific$ is not used for the public key
-        encryption.
+  \item The nonce parameter to $\SymSpecific$ is not used.
   \item The ephemeral secret $\EphemeralPrivate$ is included together with
         the \transmitKeypair public keys of the recipients, symmetrically
         encrypted to the \discloseKey.
