@@ -87,6 +87,7 @@
 \newcommand{\PrivateAddress}{\mathsf{addr_{sk}}}
 \newcommand{\PublicAddressLeadByte}{\mathbf{0x92}}
 \newcommand{\PrivateAddressLeadByte}{\mathbf{0x93}}
+\newcommand{\CoinCommitmentLeadByte}{\mathbf{0xF0}}
 \newcommand{\SpendAuthorityPublic}{\mathsf{a_{pk}}}
 \newcommand{\SpendAuthorityPrivate}{\mathsf{a_{sk}}}
 \newcommand{\SpendAuthorityPublicOld}[1]{\mathsf{a^{old}_{pk,\mathnormal{#1}}}}
@@ -112,7 +113,7 @@
 \newcommand{\CoinAddressPreRand}{\mathsf{\upvarphi}}
 \newcommand{\CoinCommitS}{\mathsf{s}}
 \newcommand{\TransmitPlaintextVersionByte}{\mathbf{0x00}}
-\newcommand{\hSigInputVersionByte}{\mathbf{0x00}}
+\newcommand{\hSigInputVersionByte}{\mathbf{0xF1}}
 \newcommand{\Memo}{\mathsf{memo}}
 \newcommand{\CryptoBox}{\mathsf{crypto\_box}}
 \newcommand{\CryptoBoxOpen}{\mathsf{crypto\_box\_open}}
@@ -243,55 +244,63 @@ $(x, y) \neq (x', y')$ such that $\PRFsn{x}(y) = \PRFsn{x'}(y')$\changed{, and s
 for $\PRFrho{}$}.
 
 In \Zcash, the $\SHAName$ function is used to construct all four of these
-functions. The bits $\mathtt{00}$, $\mathtt{01}$, $\mathtt{10}$\changed{, and
-$\mathtt{11}$} are included (respectively) within the blocks that are hashed,
+functions. The bits \changed{$\mathtt{000}$, $\mathtt{001}$, $\mathtt{01x}$, and
+$\mathtt{10x}$} are included (respectively) within the blocks that are hashed,
 ensuring that the functions are independent.
+
+\newcommand{\iminusone}{\hspace{0.3pt}\scriptsize{$i$\hspace{0.6pt}-1}}
 
 \newsavebox{\addrbox}
 \begin{lrbox}{\addrbox}
-\begin{bytefield}[bitwidth=0.065em]{512}
-        \bitbox{242}{256 bit $\SpendAuthorityPrivate$} &
-        \bitbox{14}{0} &
-        \bitbox{14}{0} &
-        \bitbox{242}{$0^{254}$} &
+\begin{bytefield}[bitwidth=0.06em]{512}
+        \bitbox{18}{0} &
+        \bitbox{18}{0} &
+        \bitbox{18}{0} &
+        \bitbox{18}{0} &
+        \bitbox{224}{252 bit $\SpendAuthorityPrivate$} &
+        \bitbox{256}{$0^{256}$} &
 \end{bytefield}
 \end{lrbox}
 
 \newsavebox{\snbox}
 \begin{lrbox}{\snbox}
-\begin{bytefield}[bitwidth=0.065em]{512}
-        \bitbox{242}{256 bit $\SpendAuthorityPrivate$} &
-        \bitbox{14}{0} &
-        \bitbox{14}{1} &
-        \bitbox{242}{$\Leading{254}(\CoinAddressRand)$} &
+\begin{bytefield}[bitwidth=0.06em]{512}
+        \bitbox{18}{0} &
+        \bitbox{18}{0} &
+        \bitbox{18}{0} &
+        \bitbox{18}{1} &
+        \bitbox{224}{252 bit $\SpendAuthorityPrivate$} &
+        \bitbox{256}{256 bit $\CoinAddressRand$} &
 \end{bytefield}
 \end{lrbox}
 
 \newsavebox{\pkbox}
 \begin{lrbox}{\pkbox}
-\begin{bytefield}[bitwidth=0.065em]{512}
-        \bitbox{242}{256 bit $\SpendAuthorityPrivate$} &
-        \bitbox{14}{1} &
-        \bitbox{14}{0} &
-        \bitbox{14}{$i$} &
-        \bitbox{228}{$\Leading{253}(\hSig)$}
+\begin{bytefield}[bitwidth=0.06em]{512}
+        \bitbox{18}{0} &
+        \bitbox{18}{0} &
+        \bitbox{18}{1} &
+        \bitbox{18}{\iminusone} &
+        \bitbox{224}{252 bit $\SpendAuthorityPrivate$} &
+        \bitbox{256}{256 bit $\hSig$}
 \end{bytefield}
 \end{lrbox}
 
 \newsavebox{\rhobox}
 \begin{lrbox}{\rhobox}
 \setchanged
-\begin{bytefield}[bitwidth=0.065em]{512}
-        \bitbox{242}{256 bit $\CoinAddressPreRand$} &
-        \bitbox{14}{1} &
-        \bitbox{14}{1} &
-        \bitbox{14}{$i$} &
-        \bitbox{228}{$\Leading{253}(\hSig)$}
+\begin{bytefield}[bitwidth=0.06em]{512}
+        \bitbox{18}{0} &
+        \bitbox{18}{1} &
+        \bitbox{18}{0} &
+        \bitbox{18}{\iminusone} &
+        \bitbox{224}{252 bit $\CoinAddressPreRand$} &
+        \bitbox{256}{256 bit $\hSig$}
 \end{bytefield}
 \end{lrbox}
 
-\nathan{Note: If we change input arity (i.e. $\NOld$), we need to be aware of how it
-is associated with this bit-packing.}
+\nathan{Note: If we change input or output arity (i.e. $\NOld$ or $\NNew$), we
+need to be aware of how it is associated with this bit-packing.}
 
 \begin{equation*}
 \begin{aligned}
@@ -302,9 +311,6 @@ is associated with this bit-packing.}
 &\setchanged = \CRHbox{\rhobox}
 \end{aligned}
 \end{equation*}
-
-\daira{Should we instead define $\CoinAddressRand$ to be 254 bits and $\hSig$ to be
-253 bits?}
 
 \subsection{Confidential Addresses and Private Keys}
 
@@ -441,20 +447,24 @@ break of the IK-CCA (key privacy) property.
 \subsubsection{Coin Commitments}
 
 The underlying $\Value$ and $\SpendAuthorityPublic$ are blinded with $\CoinAddressRand$
-and $\CoinCommitRand$ using the collision-resistant hash function $\FullHash$.
+and $\CoinCommitRand$ using the collision-resistant hash function \changed{$\FullHash$}.
 The resulting hash $\cm = \CoinCommitment{\Coin}$.
 
 \newsavebox{\cmbox}
 \begin{lrbox}{\cmbox}
-\begin{bytefield}[bitwidth=0.045em]{832}
+\setchanged
+\begin{bytefield}[bitwidth=0.040em]{840}
+        \bitbox{80}{$\CoinCommitmentLeadByte$} &
 	\bitbox{256}{256 bit $\SpendAuthorityPublic$} &
-	\bitbox{96}{64 bit $\Value$} &
+	\bitbox{128}{64 bit $\Value$} &
 	\bitbox{256}{256 bit $\CoinAddressRand$}
 	\bitbox{256}{256 bit $\CoinCommitRand$} &
 \end{bytefield}
 \end{lrbox}
 
-$\cm := \FullHashbox{\cmbox}$
+\changed{
+\hskip 2em $\cm := \FullHashbox{\cmbox}$
+}
 
 \subsubsection{Serial numbers}
 
@@ -751,8 +761,8 @@ The raw encoding of a confidential address consists of:
 \begin{equation*}
 \begin{bytefield}[bitwidth=0.07em]{520}
     \bitbox{48}{\changed{$\PublicAddressLeadByte$}} &
-    \bitbox{256}{$\SpendAuthorityPublic$ (32 bytes)} &
-    \bitbox{256}{A \changed{32-byte} encoding of $\TransmitPublic$}
+    \bitbox{256}{256 bit $\SpendAuthorityPublic$} &
+    \bitbox{256}{\changed{256 bit} $\TransmitPublic$}
 \end{bytefield}
 \end{equation*}
 
@@ -761,8 +771,8 @@ The raw encoding of a confidential address consists of:
     \item A byte, $\PublicAddressLeadByte$, indicating this version of the
         raw encoding of a \Zcash public address.
 }
-    \item 32 bytes specifying $\SpendAuthorityPublic$.
-    \item \changed{32 bytes} specifying $\TransmitPublic$, \changed{using the
+    \item 256 bits specifying $\SpendAuthorityPublic$.
+    \item \changed{256 bits} specifying $\TransmitPublic$, \changed{using the
         normal encoding of a Curve25519 public key \cite{Curve25519}}.
 \end{itemize}
 
@@ -784,20 +794,25 @@ The raw encoding of a confidential address secret consists of, in order:
 
 \begin{equation*}
 \begin{bytefield}[bitwidth=0.07em]{520}
-    \bitbox{48}{\changed{$\PrivateAddressLeadByte$}} &
-    \bitbox{256}{$\SpendAuthorityPrivate$ (32 bytes)} &
-    \bitbox{256}{$\TransmitPrivate$ (32 bytes)}
+    \bitbox{48}{$\PrivateAddressLeadByte$} &
+    \bitbox{24}{$0^4$} &
+    \bitbox{232}{252 bit $\SpendAuthorityPrivate$} &
+    \bitbox{256}{256 bit $\TransmitPrivate$}
 \end{bytefield}
 \end{equation*}
 
 \begin{itemize}
 \changed{
     \item A byte $\PrivateAddressLeadByte$ indicating this version of the
-        raw encoding of a \Zcash private key.
+          raw encoding of a \Zcash private key.
+    \item 4 zero padding bits.
 }
-    \item 32 bytes specifying $\SpendAuthorityPrivate$.
-    \item 32 bytes specifying $\TransmitPrivate$.
+    \item \changed{252} bits specifying $\SpendAuthorityPrivate$.
+    \item 256 bits specifying $\TransmitPrivate$.
 \end{itemize}
+
+Note that, consistent with big-endian encoding, the zero padding occupies
+the high-order 4 bits of the second byte.
 
 \daira{check that this lead byte is distinct from other Bitcoin stuff,
 and produces `z' as the Base58Check leading character.}
