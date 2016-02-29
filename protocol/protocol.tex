@@ -151,6 +151,7 @@
 \newcommand{\TransmitKey}[1]{\Key^\enc_{#1}}
 \newcommand{\TransmitKeyCompare}[1]{\Key^*_{#1}}
 \newcommand{\DerivedKey}[1]{\Key^\disclose_{#1}}
+\newcommand{\DisclosePlaintext}[1]{\Plaintext^\disclose_{#1}}
 \newcommand{\DiscloseCiphertext}[1]{\Ciphertext^\disclose_{#1}}
 \newcommand{\SharedPlaintext}[1]{\Plaintext^\shared_{#1}}
 \newcommand{\SharedCiphertext}{\Ciphertext^\shared}
@@ -830,12 +831,25 @@ for each $i \in \{1..\NNew\}$: $\cmNew{i}$ = $\CoinCommitment(\cNew{i})$.
 
 for each $i \in \{1..\NNew\}$:
 $\TransmitCiphertext{i} = \SymEncrypt{\TransmitKey{i}}(\TransmitPlaintext{i})$.
+}
 
-\subparagraph{$\DiscloseCiphertext{}$ integrity}
+\subparagraph{\changed{$\DiscloseCiphertext{}$ integrity}}
 
+\newsavebox{\disclosebox}
+\begin{lrbox}{\disclosebox}
+\setchanged
+\begin{bytefield}[bitwidth=0.045em]{320}
+    \bitbox{256}{256 bit $\SharedKey{}$} &
+    \bitbox{120}{64 bit $\vOld{i}$}
+\end{bytefield}
+\end{lrbox}
+
+\changed{
 for each $i \in \{1..\NOld\}$:
-$\DiscloseCiphertext{i} = \SymEncrypt{\DerivedKey{i}}(\SharedKey{})$
-and $\DerivedKey{i} = \PRFdk{\DiscloseKeyOld{i}}(i, \hSig)$.
+$\DiscloseCiphertext{i} = \SymEncrypt{\DerivedKey{i}}(\DisclosePlaintext{i})$
+and $\DerivedKey{i} = \PRFdk{\DiscloseKeyOld{i}}(i, \hSig)$
+
+where $\DisclosePlaintext{i} = \Justthebox{\disclosebox}{-1.3ex}$.
 }
 
 \subparagraph{\changed{$\SharedCiphertext$ integrity}}
@@ -920,17 +934,16 @@ for the intended recipient addresses of each new \coin,
 \changed{let $\DiscloseKeyOld{\mathrm{1}..\NOld}$ be the \discloseKey for each of
 the addresses from which the old \coins are sent,} and let $\CoinPlaintext{1..\NNew}$
 be the \coinPlaintexts.
-Let $\TransmitPlaintext{i}$ be the raw encoding of $\CoinPlaintext{i}$.
 
 Then to encrypt:
 
 \begin{itemize}
 \changed{
-  \item Let $\SharedPlaintext{} := \Justthebox{\sharedbox}{-9.5ex}$
   \item Generate a new Curve25519 (public, private) key pair
 $(\EphemeralPublic, \EphemeralPrivate)$, and a new $\SymSpecific$ key $\SharedKey{}$.
   \item For $i$ in $\{1..\NNew\}$,
     \begin{itemize}
+      \item Let $\TransmitPlaintext{i}$ be the raw encoding of $\CoinPlaintext{i}$.
       \item Let $\DHSecret{i} := \CurveMultiply(\EphemeralPrivate,
 \TransmitPublicNew{i})$.
       \item Let $\TransmitKey{i} := \KDF(\DHSecret{i}, \EphemeralPublic,
@@ -940,9 +953,11 @@ $(\EphemeralPublic, \EphemeralPrivate)$, and a new $\SymSpecific$ key $\SharedKe
     \end{itemize}
   \item For $i$ in $\{1..\NOld\}$,
     \begin{itemize}
+      \item Let $\DisclosePlaintext{i} := \Justthebox{\disclosebox}{-1.3ex}$.
       \item Let $\DerivedKey{i} := \PRFdk{\DiscloseKeyOld{i}}(i, \hSig)$.
-      \item Let $\DiscloseCiphertext{i} := \SymEncrypt{\DerivedKey{i}}(\SharedKey{})$.
+      \item Let $\DiscloseCiphertext{i} := \SymEncrypt{\DerivedKey{i}}(\DisclosePlaintext{i})$.
     \end{itemize}
+  \item Let $\SharedPlaintext{} := \Justthebox{\sharedbox}{-9.5ex}$
   \item Let $\SharedCiphertext := \SymEncrypt{\SharedKey{}}(\SharedPlaintext{})$.
 }
 \end{itemize}
@@ -1000,20 +1015,20 @@ Then for each \PourDescription in its \blockchainview, the \viewingKey holder
 will attempt to decrypt the corresponding \coinsCiphertext as follows:
 
 \begin{enumerate}
-  \item Set $\SharedPlaintext{} := \bot$.
   \item For $i$ in $\{1..\NNew\}$,
     \begin{itemize}
       \item Let $\DerivedKey{i} := \PRFdk{\DiscloseKey{}}(i, \hSig)$.
-      \item Let $\SharedKey{i} := \SymDecrypt{\DerivedKey{i}}(\DiscloseCiphertext{i})$.
-      \item If $\SharedKey{i} = \bot$ then continue with the next $i$.
+      \item Let $\DisclosePlaintext{i} := \SymDecrypt{\DerivedKey{i}}(\DiscloseCiphertext{i})$.
+      \item If $\DisclosePlaintext{i} = \bot$ then set $\SharedPlaintext{i} := \bot$
+and $\vOld{i} := \bot$, and continue with the next $i$.
+      \item Extract $\SharedKey{i}$ and $\vOld{i}$ from $\DisclosePlaintext{i}$.
       \item Let $\SharedPlaintext{i} := \SymDecrypt{\SharedKey{i}}(\SharedCiphertext)$.
-      \item If $\SharedPlaintext{i} = \bot$ then continue with the next $i$.
-      \item Set $\SharedPlaintext{} := \SharedPlaintext{i}$ and exit the loop.
     \end{itemize}
-  \item If $\SharedPlaintext{} = \bot$ (i.e. it was not set in the loop), then this
-transaction does not contain any information decryptable by the \viewingKey; set
+  \item If $\SharedPlaintext{i} = \bot$ for all $i$ in $\{1..\NNew\}$, then set
 $\CoinPlaintext{i} = \bot$ for $i$ in $\{1..\NNew\}$ and return
-$\CoinPlaintext{\mathrm{1}..\NNew}$.
+$(\vOld{\mathrm{1}..\NOld}, \CoinPlaintext{\mathrm{1}..\NNew})$.
+  \item Otherwise, let $\SharedPlaintext{}$ be the first non-$\bot$ value in
+$\SharedPlaintext{1..\NNew}$.
   \item Extract $\TransmitKey{1..\NNew}$, $\TransmitPublicNew{\mathrm{1}..\NNew}$,
 and $\EphemeralPrivate$ from $\SharedPlaintext{}$.
   \item For $i$ in $\{1..\NNew\}$,
@@ -1031,13 +1046,18 @@ of $\CoinPlaintext{i}$ to be $\bot$ (indicating that, although this is a valid
 coin, the recipient would not have been able to decrypt it, and that the \memo
 cannot be verified).
     \end{itemize}
-  \item Return $\CoinPlaintext{\mathrm{1}..\NNew}$.
+  \item Return $(\vOld{\mathrm{1}..\NOld}, \CoinPlaintext{\mathrm{1}..\NNew})$.
 \end{enumerate}
 
+\subparagraph{Note:}
+The above algorithm is not constant-time. An equivalent but constant-time algorithm
+should be used whenever it is desirable to avoid leakage of which ciphertext
+components were decryptable.
+
 If a party holds more than one \viewingKey, it may optimize the above
-procedure by performing the loop in step 2 for the $\DiscloseKey{}$ of each
+procedure by performing the loop in step 1 for the $\DiscloseKey{}$ of each
 \viewingKey. It may be assumed that the first $\SharedPlaintext{i}$ that
-decrypts correctly is the one that should be used in step 4 onward.
+decrypts correctly is the one that should be used in step 3 onward.
 (However, additional information is provided by which \viewingKey was able
 to decrypt each $\DiscloseCiphertext{i}$.)
 
