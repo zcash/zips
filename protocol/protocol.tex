@@ -20,7 +20,7 @@
 \overfullrule=2cm
 
 \newcommand{\doctitle}{Zcash Protocol Specification}
-\newcommand{\docversion}{Version 2.0-draft-2}
+\newcommand{\docversion}{Version 2.0-draft-3}
 \newcommand{\authors}{Sean Bowe | Daira Hopwood | Taylor Hornby}
 
 \hypersetup{
@@ -127,7 +127,7 @@
 \newcommand{\PaymentAddressLeadByte}{\mathbf{0x92}}
 \newcommand{\ViewingKeyLeadByte}{\mathbf{0x??}}
 \newcommand{\SpendingKeyLeadByte}{\mathbf{0x??}}
-\newcommand{\CoinCommitmentLeadByte}{\mathbf{0xF0}}
+\newcommand{\CoinCommitmentLeadByte}{\mathbf{0xC0}}
 \newcommand{\AuthPublic}{\mathsf{a_{pk}}}
 \newcommand{\DiscloseKey}{\mathsf{a_{vk}}}
 \newcommand{\AuthPrivate}{\mathsf{a_{sk}}}
@@ -163,7 +163,7 @@
 \newcommand{\CoinAddressRandNew}[1]{\mathsf{\uprho^{new}_\mathnormal{#1}}}
 \newcommand{\CoinAddressPreRand}{\mathsf{\upvarphi}}
 \newcommand{\CoinCommitS}{\mathsf{s}}
-\newcommand{\hSigInputVersionByte}{\mathbf{0xF1}}
+\newcommand{\hSigInputVersionByte}{\mathbf{0xC1}}
 \newcommand{\Memo}{\mathsf{memo}}
 \newcommand{\CurveMultiply}{\mathsf{Curve25519}}
 \newcommand{\CurveBase}{\underline{9}}
@@ -253,6 +253,8 @@
 \newcommand{\COMMtrapdoor}{\term{\textsf{COMM} trapdoor}}
 \newcommand{\CoinCommitment}{\mathtt{CoinCommitment}}
 \newcommand{\Receive}{\mathsf{Receive}}
+
+\newcommand{\dontcare}{\kern -0.06em\raisebox{0.1ex}{\footnotesize{$\times$}}}
 
 
 \begin{document}
@@ -344,9 +346,7 @@ across all $x$ --- i.e. it should not be feasible to find $(x, y) \neq (x', y')$
 such that $\PRFsn{x}(y) = \PRFsn{x'}(y')$\changed{, and similarly for $\PRFrho{}$}.
 
 In \Zcash, the $\SHAName$ function is used to construct all of these
-functions. The bits \changed{$\mathtt{0000}$, $\mathtt{0001}$, $\mathtt{001x}$,
-$\mathtt{010x}$}\vk{, and $\mathtt{011x}$} are included (respectively) within the blocks
-that are hashed, ensuring that the functions are independent.
+functions.
 
 \newcommand{\iminusone}{\hspace{0.3pt}\scriptsize{$i$\hspace{0.6pt}-1}}
 
@@ -369,9 +369,9 @@ that are hashed, ensuring that the functions are independent.
 \setchanged
 \begin{bytefield}[bitwidth=0.06em]{512}
         \bitbox{18}{0} &
-        \bitbox{18}{0} &
-        \bitbox{18}{0} &
         \bitbox{18}{1} &
+        \bitbox{18}{0} &
+        \bitbox{18}{0} &
         \bitbox{224}{252 bit $\AuthPrivate$} &
         \bitbox{256}{256 bit $\CoinAddressRand$} &
 \end{bytefield}
@@ -382,9 +382,9 @@ that are hashed, ensuring that the functions are independent.
 \setchanged
 \begin{bytefield}[bitwidth=0.06em]{512}
         \bitbox{18}{0} &
+        \bitbox{18}{\iminusone} &
         \bitbox{18}{0} &
         \bitbox{18}{1} &
-        \bitbox{18}{\iminusone} &
         \bitbox{224}{252 bit $\AuthPrivate$} &
         \bitbox{256}{256 bit $\hSig$}
 \end{bytefield}
@@ -395,9 +395,9 @@ that are hashed, ensuring that the functions are independent.
 \setchanged
 \begin{bytefield}[bitwidth=0.06em]{512}
         \bitbox{18}{0} &
+        \bitbox{18}{\iminusone} &
         \bitbox{18}{1} &
         \bitbox{18}{0} &
-        \bitbox{18}{\iminusone} &
         \bitbox{224}{252 bit $\CoinAddressPreRand$} &
         \bitbox{256}{256 bit $\hSig$}
 \end{bytefield}
@@ -408,16 +408,13 @@ that are hashed, ensuring that the functions are independent.
 \setvk
 \begin{bytefield}[bitwidth=0.06em]{512}
         \bitbox{18}{0} &
-        \bitbox{18}{1} &
-        \bitbox{18}{1} &
         \bitbox{18}{\iminusone} &
+        \bitbox{18}{1} &
+        \bitbox{18}{1} &
         \bitbox{224}{252 bit $\DiscloseKey$} &
         \bitbox{256}{256 bit $\hSig$}
 \end{bytefield}
 \end{lrbox}
-
-\nathan{Note: If we change input or output arity (i.e. $\NOld$ or $\NNew$), we
-need to be aware of how it is associated with this bit-packing.}
 
 \begin{equation*}
 \begin{aligned}
@@ -430,6 +427,15 @@ need to be aware of how it is associated with this bit-packing.}
 &\setvk := \CRHbox{\dkbox}
 \end{aligned}
 \end{equation*}
+
+\changed{
+\subparagraph{Note:}
+The most significant four bits of the first byte are used to distinguish
+different uses of $\CRH$, ensuring that the functions are independent.
+In addition to the inputs shown here, the first four bits $\mathtt{1100}$
+(i.e. a first byte of \textbf{0xC\dontcare}) are used to distinguish uses
+of the full $\SHAOrig$ hash function -- see \crossref{comm} and \crossref{hsig}.
+}
 
 
 \section{Concepts}
@@ -523,7 +529,7 @@ $\PRFrho{\CoinAddressPreRand}$.} Only a commitment to these values is disclosed
 publicly, which allows the tokens $\CoinCommitRand$ and $\CoinAddressRand$ to blind
 the value and recipient \emph{except} to those who possess these tokens.
 
-\subsubsection{Coin Commitments}
+\subsubsection{Coin Commitments} \label{comm}
 
 The underlying $\Value$ and $\AuthPublic$ are blinded with $\CoinAddressRand$
 and $\CoinCommitRand$ using the collision-resistant hash function \changed{$\FullHash$}.
@@ -749,7 +755,7 @@ $\PourDescription$.
 
 \todo{Describe case where there are fewer than $\NOld$ real input coins.}
 
-\subparagraph{Computation of $\hSig$}
+\subparagraph{Computation of $\hSig$} \label{hsig}
 
 \newsavebox{\hsigbox}
 \begin{lrbox}{\hsigbox}
