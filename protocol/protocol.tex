@@ -493,9 +493,10 @@ from it.
 \includegraphics[scale=.8]{key_components}
 \end{center}
 
-Note that a \spendingKey holder can derive the other components\vk{,
-and a \viewingKey holder can derive $(\AuthPublic, \TransmitPublic)$,}
-even though these components are not formally part of the respective keys.
+Note that a holder of a \spendingKey can derive the other components\vk{,
+and a holder of a \viewingKey can derive $(\AuthPublic, \TransmitPrivate,
+\TransmitPublic)$,} even though these components are not formally part of
+the respective keys.
 Implementations \MAY cache these derived components, provided that
 they are deleted if the corresponding source component is deleted.
 
@@ -514,6 +515,7 @@ to:
 \changed{$\AuthPrivate$} \vk{and $\DiscloseKey$} \changed{are each 252 bits.}
 $\AuthPublic$, $\TransmitPrivate$, and $\TransmitPublic$, are each 256 bits.
 
+\label{derive}
 \vk{$\DiscloseKey$,\;}\changed{$\AuthPublic$, $\TransmitPrivate$, and
 $\TransmitPublic$ are derived as follows:}
 {\hfuzz=50pt
@@ -524,7 +526,10 @@ $\TransmitPublic$ are derived as follows:}
 \vk{\PRFaddr{\DiscloseKey}(1)}      & \text{\vk{with viewing keys}} \\
 \changed{\PRFaddr{\AuthPrivate}(3)} & \text{\changed{without viewing keys}}
 \end{cases}$} & \\
-\TransmitPrivate &:= \changed{\Clamp(\PRFaddr{\AuthPrivate}(2))} & \\
+\TransmitPrivate &:= \vbox{$\begin{cases}
+\vk{\Clamp(\PRFaddr{\DiscloseKey}(2))}      & \text{\vk{with viewing keys}} \\
+\changed{\Clamp(\PRFaddr{\AuthPrivate}(4))} & \text{\changed{without viewing keys}}
+\end{cases}$} & \\
 \TransmitPublic &:= \changed{\CurveMultiply(\TransmitPrivate, \CurveBase)}
 \end{aligned}
 \end{equation*}
@@ -1007,9 +1012,9 @@ In order to transmit the secret $\Value$, $\CoinAddressRand$, and $\CoinCommitRa
 (necessary for the recipient to later spend) \changed{and also a \memo} to the
 recipient \emph{without} requiring an out-of-band communication channel, the
 \transmitKeypair public key $\TransmitPublic$ is used to encrypt these
-secrets. The recipient's possession of the associated
-$(\PaymentAddress, \SpendingKey)$ (which contains both $\AuthPublic$ and
-$\TransmitPrivate$) is used to reconstruct the original \coin \changed{ and \memo}.
+secrets. The recipient's possession of the associated $\SpendingKey$ (and
+components derived from it) is used to reconstruct the original
+\coin \changed{ and \memo}.
 
 \vk{Several more encryptions are used to also reveal these values to a
 holder of a \viewingKey for any of the input \coins, and also to permit them
@@ -1086,9 +1091,9 @@ The resulting \coinsCiphertext is $\changed{(\EphemeralPublic,
 \subsection{Decryption by a Recipient}
 
 Let $(\TransmitPublic, \TransmitPrivate)$ be the recipient's \changed{Curve25519}
-(public, private) key pair, and let $\cmNew{\allNew}$ be the coin
-commitments of each output coin. Then for each $i \in \setofNew$, the recipient
-will attempt to decrypt that ciphertext component as follows:
+(public, private) key pair derived as in \crossref{derive}, and let $\cmNew{\allNew}$
+be the coin commitments of each output coin. Then for each $i \in \setofNew$, the
+recipient will attempt to decrypt that ciphertext component as follows:
 
 \changed{
 \begin{itemize}
@@ -1309,19 +1314,18 @@ and produces a suitable Base58Check leading character.}
 \subsection{Viewing Keys}
 }
 \vk{
-A \viewingKey consists of a \discloseKey $\DiscloseKey$, and a
-\transmitKeypair private key $\TransmitPrivate$.
+A \viewingKey consists of a \discloseKey $\DiscloseKey$ (from which
+$\TransmitPrivate$ can also be derived).
 
 The raw encoding of a \viewingKey consists of, in order:
 }
 
 \begin{equation*}
-\begin{bytefield}[bitwidth=0.07em]{520}
+\begin{bytefield}[bitwidth=0.07em]{264}
 \setvk
     \bitbox{72}{8 bit $\ViewingKeyLeadByte$} &
     \bitbox{32}{$\zeros{4}$} &
     \bitbox{252}{252 bit $\DiscloseKey$}
-    \bitbox{256}{256 bit $\TransmitPrivate$}
 \end{bytefield}
 \end{equation*}
 
@@ -1331,7 +1335,6 @@ The raw encoding of a \viewingKey consists of, in order:
         raw encoding of a \Zcash \viewingKey.
     \item 4 zero padding bits.
     \item 252 bits specifying $\DiscloseKey$.
-    \item 256 bits specifying $\TransmitPrivate$.
 \end{itemize}
 
 Note that, consistent with big-endian encoding, the zero padding occupies
