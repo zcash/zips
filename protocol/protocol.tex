@@ -739,7 +739,7 @@ Transaction inputs insert value into a \term{value pool}, and transaction output
 remove value from this pool. The remaining value in the pool is available to miners 
 as a fee.
 
-\section{Pour Transfers and Descriptions}
+\section{Pour Transfers and Descriptions} \label{pourdesc}
 
 A \PourDescription is data included in a \block that describes a \PourTransfer,
 i.e. a confidential value transfer. This kind of value transfer is the primary
@@ -932,7 +932,7 @@ for each $i \in \setofOld$:
 $\h{i} = \PRFpk{\AuthPrivateOld{i}}(i, \hSig)$.
 
 \changed{
-\subparagraph{Uniqueness of $\CoinAddressRandNew{i}$}
+\subparagraph{Uniqueness of $\CoinAddressRandNew{i}$} \label{uniquerho}
 
 for each $i \in \setofNew$:
 $\CoinAddressRandNew{i} = \PRFrho{\CoinAddressPreRand}(i, \hSig)$.
@@ -1346,18 +1346,145 @@ and produces a suitable Base58Check leading character.}
 
 \section{Differences from the Zerocash paper}
 
+\subsection{Transaction Structure} \label{trstructure}
+
+\Zerocash introduces two new operations, which are described in
+the paper as new transaction types, in addition to the original
+transaction type of the cryptocurrency on which it is based
+(e.g. \Bitcoin).
+
+In \Zcash, there is only the original \Bitcoin transaction type,
+which is extended to contain a sequence of zero or more
+\Zcash-specific operations.
+
+This allows for the possibility of chaining transfers of protected
+value in a single transaction, e.g. to spend a protected coin that
+has just been created. (In \Zcash, we refer to value stored in UTXOs
+as ``transparent'', and value stored in Pour output coins as ``protected''.)
+This was not possible in the \Zerocash design without using multiple
+transactions. It also allows transparent and protected transfers to
+happen atomically --- possibly under the control of nontrivial script
+conditions, at some cost in distinguishability.
+
+
 \subsection{Unification of Mints and Pours}
 
-\todo{}
+In the original \Zerocash protocol, there were two kinds of transaction
+relating to protected coins:
+\begin{itemize}
+  \item a ``Mint'' transaction takes value from transparent UTXOs as
+input and produces a new protected coin as output.
+  \item a ``Pour'' transaction takes up to $\NOld$ protected
+coins as input, and produces up to $\NNew$ protected coins and a
+transparent UTXO as output.
+\end{itemize}
+
+Only ``Pour'' transactions included a \zkSNARK proof.
+
+In \Zcash, the sequence of operations added to a transaction
+(described in \crossref{trstructure}) consists only of Pours.
+A Pour is generalized to take a transparent UTXO as input, allowing
+Pours to subsume the functionality of Mints. An advantage of this
+is that a transaction that takes input from an UTXO can produce
+up to $\NNew$ output coins, improving the indistinguishability
+properties of the protocol. A related change conceals the input
+arity of the Pour: an unused (zero-value) input is
+indistinguishable from an input that takes value from a coin.
+
+This unification also simplifies the fix to the Faerie Gold attack
+described below, since no special case is needed for Mints.
+
+
+\subsection{Memo fields}
+
+\Zerocash adds a memo field sent from the creator of a Pour to
+the recipient of each output coin. This feature is described in
+more detail in \crossref{coinpt}.
+
 
 \subsection{Faerie Gold attack and fix}
 
-\todo{}
+When a protected \coin is created in \Zerocash, the creator is
+supposed to choose a new $\CoinAddressRand$ value at random.
+The \serialNumber of the \coin is derived from its \spendingKey
+($\AuthPrivate$) and $\CoinAddressRand$. The \coinCommitment
+is derived from the recipient address component $\AuthPublic$,
+the value $\Value$, and the commitment trapdoor $\CoinCommitRand$,
+as well as $\CoinAddressRand$. However nothing prevents creating
+multiple \coins with different $\Value$ and $\CoinCommitRand$
+(hence different \coinCommitments) but the same $\CoinAddressRand$.
 
-(The name ``Faerie Gold'' refers to various Celtic legends in which
-faeries pay mortals in what appears to be gold, but which soon after
-reveals itself to be leaves, gorse blossoms, gingerbread cakes, or
-other less valuable things \cite{LG2004}.)
+An adversary can use this to mislead a coin recipient, by sending
+two coins both of which are verified as valid by $\Receive$ (as
+defined in Figure 2 of \cite{ZerocashOakland}), but only one of
+which can be spent.
+
+We call this a ``Faerie Gold'' attack --- referring to various Celtic
+legends in which faeries pay mortals in what appears to be gold,
+but which soon after reveals itself to be leaves, gorse blossoms,
+gingerbread cakes, or other less valuable things \cite{LG2004}.
+
+This attack does not violate the security definitions given in
+\cite{ZerocashOakland}. The issue could be framed as a problem
+either with the definition of Completeness, or the definition of
+Balance:
+
+\begin{itemize}
+  \item The Completeness property asserts that a validly received
+\coin can be spent provided that its \serialNumber does not appear
+on the ledger. This does not take into account the possibility
+that distinct \coins, which are validly received, could have the
+same \serialNumber. That is, the security definition depends on
+a protocol detail --\serialNumbers-- that is not part of the
+intended abstract security property, and that could be implemented
+incorrectly.
+  \item The Balance property only asserts that an adversary cannot
+obtain \emph{more} funds than they have minted or received via
+payments. It does not prevent an adversary from causing others'
+funds to decrease. In a Faerie Gold attack, an adversary can cause
+spending of a \coin to reduce (to zero) the effective value of another
+\coin for which the attacker does not know the \spendingKey, which
+violates an intuitive conception of global balance.
+\end{itemize}
+
+These problems with the security definitions need to be repaired,
+but doing so is outside the scope of this specification. Here we
+only describe how \Zcash addresses the immediate attack.
+
+It would be possible to address the attack by requiring that a
+recipient remember all of the $\CoinAddressRand$ values for all
+coins they have ever received, and reject duplicates (as proposed
+in \cite{GGM2016}). However, this requirement would interfere
+with the intended \Zcash feature that a holder of a \spendingKey
+can recover access to (and be sure that they are able to spend) all
+of their funds, even if they have forgotten everything but the
+\spendingKey.
+
+Instead, \Zcash enforces that an adversary must choose distinct values
+for each $\CoinAddressRand$, by making use of the fact that all of the
+\serialNumbers in \PourDescriptions that appear in a valid \blockchainview
+must be distinct. The \serialNumbers are used as input to $\FullHash$
+to derive a public value $\hSig$ which uniquely identifies the transaction,
+as described in \crossref{hsig}. ($\hSig$ was already used in \Zerocash
+in a way that requires it to be unique in order to maintain
+indistinguishability of \PourDescriptions; adding the \serialNumbers
+to the input of the hash used to calculate it has the effect of making
+this uniqueness property robust even if the \transaction creator is an
+adversary.)
+
+The $\CoinAddressRand$ value for each output coin is then derived from
+a random private seed $\CoinAddressPreRand$ and $\hSig$ using
+$\PRFrho{\CoinAddressPreRand}$. The correct construction of
+$\CoinAddressRand$ for each output coin is enforced by the circuit
+(see \crossref{uniquerho}).
+
+Now even if the creator of a \PourDescription does not choose
+$\CoinAddressPreRand$ randomly, uniqueness of \serialNumbers and
+collision resistance of both $\FullHash$ and $\PRFrho{}$ will ensure
+that the derived $\CoinAddressRand$ values are unique, at least for
+any two \PourDescriptions that get into a valid \blockchainview.
+This is sufficient to prevent the Faerie Gold attack.
+
 
 \subsection{Internal hash collision attack and fix}
 
@@ -1395,10 +1522,6 @@ define a statistically hiding, computationally binding commitment scheme
 for this use at a 128-bit security level, the overhead of doing so
 within the circuit was not considered to justify the benefits.
 
-\subsection{Viewing keys}
-
-\todo{}
-
 \subsection{Changes to PRF inputs and truncation}
 
 \todo{}
@@ -1432,7 +1555,7 @@ Virza.
 The authors would like to thank everyone with whom they have discussed
 the \Zerocash protocol design; in addition to the inventors, this includes
 Mike Perry, Isis Lovecruft, Leif Ryge, Andrew Miller, Zooko Wilcox,
-Nathan Wilcox, Samantha Hulsey, and no doubt others.
+Samantha Hulsey, and no doubt others.
 
 Mike Perry, Zooko Wilcox, and Nathan Wilcox contributed to the design
 of selective transparency features, now called viewing keys.
