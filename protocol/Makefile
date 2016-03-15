@@ -12,4 +12,4 @@ pdf:
 
 .PHONY: clean
 clean:
-	rm -f protocol.dvi protocol.pdf
+	rm -f protocol.dvi protocol.pdf protocol.bbl protocol.blg protocol.brf protocol.toc protocol.aux protocol.log
