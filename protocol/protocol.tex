@@ -224,6 +224,7 @@
 \newcommand{\anchorField}{\mathtt{anchor}}
 \newcommand{\pourSig}{\mathtt{pourSig}}
 \newcommand{\pourPubKey}{\mathtt{pourPubKey}}
+\newcommand{\dataToBeSigned}{\mathtt{dataToBeSigned}}
 \newcommand{\serials}{\mathtt{serials}}
 \newcommand{\commitments}{\mathtt{commitments}}
 \newcommand{\ephemeralKey}{\mathtt{ephemeralKey}}
@@ -702,8 +703,24 @@ confused with, the \PourCircuit used for the \zkSNARK proof and verification.
 
 A \PourTransfer spends $\NOld$ \coins $\cOld{\allOld}$ and transparent input
 $\vpubOld$, and creates $\NNew$ \coins $\cNew{\allNew}$ and transparent output
-$\vpubNew$. \Zcash transactions have an additional field $\vpour$, which is
-a \sequenceOfPourDescriptions.
+$\vpubNew$.
+
+\changed{
+\Zcash transactions have three additional fields:
+\begin{list}{}{}
+\item $\vpour$, which is a \sequenceOfPourDescriptions.
+
+\item $\pourPubKey$ which is an encoding of a ECDSA public verification key,
+using the secp256k1 curve and parameters defined in \cite{sec2-ecdsa} and
+\cite{secp256k1}.
+
+\item $\pourSig$ which is a signature on part of the \transaction encoding,
+to be verified using $\pourPubKey$.
+\end{list}
+
+The encoding of $\pourPubKey$ and the data to be signed are specified in
+more detail in \crossref{nonmalleability}.
+}
 
 Each \PourDescription consists of:
 
@@ -719,12 +736,6 @@ into the value pool.
 \item $\anchorField$ which is a merkle root $\rt$ of the \coinCommitmentTree at
 some block height in the past, or the merkle root produced by a previous pour in
 this transaction. \sean{We need to be more specific here.}
-
-\item $\pourPubKey$ which is an ECDSA public verification key using the secp256k1
-curve and parameters defined in \cite{sec2-ecdsa} and \cite{secp256k1}.
-
-\item $\pourSig$ which is a signature on the \transaction as specified in
-\crossref{nonmalleability}, to be verified using $\pourPubKey$.
 
 \item $\serials$ which is an $\NOld$ size sequence of serials $\snOld{\allOld}$.
 
@@ -783,10 +794,21 @@ identified by that previous $\PourDescription$'s $\anchor$.
 
 \subsection{Non-malleability} \label{nonmalleability}
 
-A \PourDescription is correctly signed if:
+\changed{
+Let $\dataToBeSigned$ be the raw-format \cite{rawformat} encoding of the
+\transaction excluding the $\pourPubKey$ and $\pourSig$ fields.
+
+In order to ensure that a \PourDescription is cryptographically bound to the
+transparent inputs and outputs corresponding to $\vpubNew$ and $\vpubOld$, and
+to the other \PourDescriptions in the same \transaction, an ephemeral ECDSA
+key pair is generated for each \transaction, and the $\dataToBeSigned$ is
+signed with the private signing key of this key pair. The corresponding public
+verification key is included in the \transaction encoding as $\pourPubKey$.
+
+A \transaction is correctly signed if:
 \begin{itemize}
   \item $\pourSig$ can be verified as an encoding of a signature on
-\todo{what precisely?}, using the ECDSA public key encoded as $\pourPubKey$; and
+$\dataToBeSigned$, using the ECDSA public key encoded as $\pourPubKey$; and
   \item $\pourSig$ has an $\ECDSAs$ value in the lower half of the possible range
 (i.e. $\ECDSAs$ must be in the range from 0x1 to \linebreak
 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0,
@@ -794,9 +816,11 @@ inclusive).
 \end{itemize}
 
 If $\ECDSAs$ is not in the given range, the signature is treated as invalid.
+}
 
 \newsavebox{\sigbox}
 \begin{lrbox}{\sigbox}
+\setchanged
 \begin{bytefield}[bitwidth=0.075em]{512}
     \bitbox{256}{256 bit $\ECDSAr$}
     \bitbox{256}{256 bit $\ECDSAs$}
@@ -805,6 +829,7 @@ If $\ECDSAs$ is not in the given range, the signature is treated as invalid.
 
 \newsavebox{\pubkeybox}
 \begin{lrbox}{\pubkeybox}
+\setchanged
 \begin{bytefield}[bitwidth=0.075em]{264}
     \bitbox{64}{$\zeros{6}$}
     \bitbox{18}{1}
@@ -813,27 +838,32 @@ If $\ECDSAs$ is not in the given range, the signature is treated as invalid.
 \end{bytefield}
 \end{lrbox}
 
+\changed{
 The encoding of a signature is:
-
+}
 \begin{itemize}
   \item[] $\Justthebox{\sigbox}{-1.3ex}$
 \end{itemize}
 
+\changed{
 where $\ECDSAr$ and $\ECDSAs$ are as defined in \cite{sec2-ecdsa}.
 
 The encoding of a public key is as defined in section E.2.3.2 of \cite{std1363}
 for a compressed elliptic curve point with $x$-coordinate $x_P$ and compressed
 $y$-coordinate $\tilde{y}_P$:
-
+}
 \begin{itemize}
   \item[] $\Justthebox{\pubkeybox}{-1.3ex}$
 \end{itemize}
 
+\changed{
 Note that only compressed public keys are valid.
+}
 
-The condition \crossref{nonmalleablepour} in the \zkSNARK statement ensures
-that a holder of all of $\AuthPrivateOld{\allOld}$ has authorized the use of
-the private key corresponding to $\pourPubKey$ to sign this transaction.
+The condition enforced by the \PourCircuit specified in \crossref{nonmalleablepour}
+ensures that a holder of all of $\AuthPrivateOld{\allOld}$ for each
+\PourDescription has authorized the use of the private key corresponding
+to $\pourPubKey$ to sign this transaction.
 
 
 \subsection{Balance}
@@ -1167,6 +1197,8 @@ This was not possible in the \Zerocash design without using multiple
 transactions. It also allows transparent and protected transfers to
 happen atomically --- possibly under the control of nontrivial script
 conditions, at some cost in distinguishability.
+
+\todo{Describe changes to signing.}
 
 
 \subsection{Unification of Mints and Pours}
