@@ -11,6 +11,8 @@
 \RequirePackage[unicode,bookmarksnumbered,bookmarksopen,pdfview=Fit]{hyperref}
 \RequirePackage{nameref}
 \RequirePackage{enumitem}
+\RequirePackage{tabularx}
+\RequirePackage{hhline}
 
 \setlength{\oddsidemargin}{-0.25in} % Left margin of 1 in + 0 in = 1 in
 \setlength{\textwidth}{7in}   % Right margin of 8.5 in - 1 in - 6.5 in = 1 in
@@ -18,6 +20,7 @@
 \setlength{\textheight}{9.2in}  % Lower margin of 11 in - 9 in - 1 in = 1 in
 \setlength{\parskip}{1.5ex}
 \setlength{\parindent}{0ex}
+\renewcommand{\arraystretch}{1.4}
 \overfullrule=2cm
 
 \setlist[itemize]{itemsep=0.5ex,topsep=0.2ex,after=\vspace{1.5ex}}
@@ -80,7 +83,7 @@
 \newcommand{\coinCommitmentTree}{\term{coin commitment tree}}
 \newcommand{\PourDescription}{\term{Pour description}}
 \newcommand{\PourDescriptions}{\term{Pour descriptions}}
-\newcommand{\sequenceOfPourDescriptions}{\changed{sequence of} \PourDescription\changed{\term{s}}}
+\newcommand{\sequenceOfPourDescriptions}{\changed{sequence of} \PourDescription\changed{\term{s}}\xspace}
 \newcommand{\PourTransfer}{\term{Pour transfer}}
 \newcommand{\PourTransfers}{\term{Pour transfers}}
 \newcommand{\fullnode}{\term{full node}}
@@ -217,6 +220,7 @@
 % bitcoin
 \newcommand{\vin}{\mathtt{vin}}
 \newcommand{\vout}{\mathtt{vout}}
+\newcommand{\npour}{\mathtt{npour}}
 \newcommand{\vpour}{\mathtt{vpour}}
 \newcommand{\vpubOldField}{\mathtt{vpub\_old}}
 \newcommand{\vpubNewField}{\mathtt{vpub\_new}}
@@ -232,6 +236,9 @@
 \newcommand{\discloseCiphertexts}{\mathtt{discloseCiphertexts}}
 \newcommand{\randomSeed}{\mathtt{randomSeed}}
 \newcommand{\rt}{\mathsf{rt}}
+\newcommand{\Varies}{\textit{Varies}}
+\newcommand{\heading}[1]{\multicolumn{1}{c|}{#1}}
+\newcommand{\type}[1]{\texttt{#1}}
 
 % pour
 \newcommand{\hSig}{\mathsf{h_{Sig}}}
@@ -245,6 +252,7 @@
 \newcommand{\setofOld}{\setof{\allOld}}
 \newcommand{\setofNew}{\setof{\allNew}}
 \newcommand{\vmacs}{\mathtt{vmacs}}
+\newcommand{\zkproofSize}{\mathtt{zkproofSize}}
 \newcommand{\zkproof}{\mathtt{zkproof}}
 \newcommand{\PourCircuit}{\term{\texttt{POUR} circuit}}
 \newcommand{\PourStatement}{\texttt{POUR}}
@@ -706,62 +714,75 @@ $\vpubOld$, and creates $\NNew$ \coins $\cNew{\allNew}$ and transparent output
 $\vpubNew$.
 
 \changed{
-\Zcash transactions have three additional fields:
-\begin{list}{}{}
-\item $\vpour$, which is a \sequenceOfPourDescriptions.
+\Zcash transactions have the following additional fields:
 
-\item $\pourPubKey$ which is an encoding of a ECDSA public verification key,
+\begin{center}
+\begin{tabularx}{0.9\textwidth}{|c|l|l|X|}
+\hline
+Bytes & \heading{Name} & \heading{Data Type} & \heading{Description} \\
+\hhline{|=|=|=|=|}
+
+\Varies & $\npour$ & \type{compactSize uint} & The number of \PourDescriptions (i.e.
+items in $\vpour$). \\ \hline
+
+$880 \times \npour$ & $\vpour$ & \type{PourDescription[$\npour$]} & The \sequenceOfPourDescriptions in
+this \transaction. \\ \hline
+
+33 & $\pourPubKey$ & \type{char[33]} & An encoding of a ECDSA public verification key,
 using the secp256k1 curve and parameters defined in \cite{sec2-ecdsa} and
-\cite{secp256k1}.
+\cite{secp256k1}. \\ \hline
 
-\item $\pourSig$ which is a signature on part of the \transaction encoding,
-to be verified using $\pourPubKey$.
-\end{list}
+64 & $\pourSig$ & \type{char[64]} & A signature on part of the \transaction encoding,
+to be verified using $\pourPubKey$. \\ \hline
+\end{tabularx}
+\end{center}
 
 The encoding of $\pourPubKey$ and the data to be signed are specified in
 more detail in \crossref{nonmalleability}.
 }
 
-Each \PourDescription consists of:
+Each \type{PourDescription} consists of:
 
-\begin{list}{}{}
-\changed{
-\item $\vpubOldField$ which is a value $\vpubOld$ that the \PourTransfer removes
-from the value pool.
-}
+\begin{center}
+\begin{tabularx}{0.9\textwidth}{|c|l|l|X|}
+\hline
+Bytes & \heading{Name} & \heading{Data Type} & \heading{Description} \\
+\hhline{|=|=|=|=|}
 
-\item $\vpubNewField$ which is a value $\vpubNew$ that the \PourTransfer inserts
-into the value pool.
+\setchanged 8 &\setchanged $\vpubOldField$ &\setchanged \type{int64\_t} &\mbox{}\setchanged
+A value $\vpubOld$ that the \PourTransfer removes from the value pool. \\ \hline
 
-\item $\anchorField$ which is a merkle root $\rt$ of the \coinCommitmentTree at
+8 & $\vpubNewField$ & \type{int64\_t} & A value $\vpubNew$ that the \PourTransfer inserts
+into the value pool. \\ \hline
+
+32 & $\anchorField$ & \type{char[32]} & A merkle root $\rt$ of the \coinCommitmentTree at
 some block height in the past, or the merkle root produced by a previous pour in
-this transaction. \sean{We need to be more specific here.}
+this transaction. \sean{We need to be more specific here.} \\ \hline
 
-\item $\serials$ which is an $\NOld$ size sequence of serials $\snOld{\allOld}$.
+64 & $\serials$ & \type{char[32][$\NOld$]} & A sequence of serials $\snOld{\allOld}$. \\ \hline
 
-\item $\commitments$ which is a $\NNew$ size sequence of \coinCommitments 
-$\cmNew{\allNew}$.
+64 & $\commitments$ & \type{char[32][$\NNew$]}. & A sequence of \coinCommitments 
+$\cmNew{\allNew}$. \\ \hline
 
-\item $\ephemeralKey$ which is a Curve25519 public key $\EphemeralPublic$.
+32 & $\ephemeralKey$ & \type{char[32]} & A Curve25519 public key $\EphemeralPublic$. \\ \hline
 
-\item $\encCiphertexts$ which is a $\NNew$ size sequence of ciphertext
-components, $\TransmitCiphertext{\allNew}$.
+288 & $\encCiphertexts$ & \type{char[144][$\NNew$]} & A sequence of ciphertext
+components, $\TransmitCiphertext{\allNew}$. \\ \hline
 
-\changed{
-(The preceding two fields form the \coinsCiphertext.)
+\setchanged 32 &\setchanged $\randomSeed$ &\setchanged \type{char[32]} &\mbox{}\setchanged
+A 256-bit seed that must be chosen independently at random for each \PourDescription. \\ \hline
 
-\item $\randomSeed$ which is a 256-bit seed that must be chosen independently
-at random for each \PourDescription.
-}
-
-\item $\vmacs$ which is a $\NOld$ size sequence of message authentication tags
+64 & $\vmacs$ & \type{char[32][$\NOld$]} & A sequence of message authentication tags
 $\h{\allOld}$ that bind $\hSig$ to each $\AuthPrivate$ of the
-$\PourDescription$.
+$\PourDescription$. \\ \hline
 
-\item $\zkproof$ which is an encoding, as determined by the libsnark library
-\cite{libsnark}, of the zero-knowledge proof $\PourProof$.
+288 & $\zkproof$ & \type{char[288]} & An encoding, as determined by the libsnark library
+\cite{libsnark}, of the zero-knowledge proof $\PourProof$. \\ \hline
 
-\end{list}
+\end{tabularx}
+\end{center}
+
+The $\ephemeralKey$ and $\encCiphertexts$ fields together form the \coinsCiphertext.
 
 \todo{Describe case where there are fewer than $\NOld$ real input coins.}
 
