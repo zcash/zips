@@ -110,9 +110,7 @@
 \newcommand{\SerialNumber}{\titleterm{Nullifier}}
 \newcommand{\SerialNumbers}{\titleterm{Nullifiers}}
 \newcommand{\spentSerials}{\term{nullifier set}}
-\newcommand{\spentSerialsMap}{\term{nullifier map}}
-\newcommand{\SpentSerials}{\titleterm{Nullifiers}}
-\newcommand{\SpentSerialsMap}{\titleterm{Nullifier Map}}
+\newcommand{\SpentSerials}{\titleterm{Nullifier Set}}
 % Daira: This doesn't adequately distinguish between zk stuff and transparent stuff
 \newcommand{\paymentAddress}{\term{payment address}}
 \newcommand{\paymentAddresses}{\term{payment addresses}}
@@ -185,6 +183,8 @@
 \newcommand{\CoinAddressRandNew}[1]{\mathsf{\uprho^{new}_\mathnormal{#1}}}
 \newcommand{\CoinAddressPreRand}{\mathsf{\upvarphi}}
 \newcommand{\CoinCommitS}{\mathsf{s}}
+\newcommand{\sn}{\mathsf{nf}}
+\newcommand{\snOld}[1]{\sn^\mathsf{old}_\mathnormal{#1}}
 \newcommand{\hSigInputVersionByte}{\hexint{C1}}
 \newcommand{\Memo}{\mathsf{memo}}
 \newcommand{\CurveMultiply}{\mathsf{Curve25519}}
@@ -211,7 +211,7 @@
 \newcommand{\Clamp}{\mathsf{clamp_{Curve25519}}}
 \newcommand{\PRF}[2]{\mathsf{{PRF}^{#2}_\mathnormal{#1}}}
 \newcommand{\PRFaddr}[1]{\PRF{#1}{addr}}
-\newcommand{\PRFsn}[1]{\PRF{#1}{rn}}
+\newcommand{\PRFsn}[1]{\PRF{#1}{\sn}}
 \newcommand{\PRFpk}[1]{\PRF{#1}{pk}}
 \newcommand{\PRFrho}[1]{\PRF{#1}{\CoinAddressRand}}
 \newcommand{\PRFdk}[1]{\PRF{#1}{dk}}
@@ -227,8 +227,6 @@
 
 % merkle tree
 \newcommand{\MerkleDepth}{\mathsf{d}}
-\newcommand{\sn}{\mathsf{dn}}
-\newcommand{\snOld}[1]{\mathsf{{dn}^{old}_\mathnormal{#1}}}
 
 % bitcoin
 \newcommand{\vin}{\mathtt{vin}}
@@ -242,7 +240,7 @@
 \newcommand{\pourSig}{\mathtt{xferSig}}
 \newcommand{\pourPubKey}{\mathtt{xferPubKey}}
 \newcommand{\dataToBeSigned}{\mathtt{dataToBeSigned}}
-\newcommand{\serials}{\mathtt{remnants}}
+\newcommand{\serials}{\mathtt{nullifiers}}
 \newcommand{\commitments}{\mathtt{commitments}}
 \newcommand{\ephemeralKey}{\mathtt{ephemeralKey}}
 \newcommand{\encCiphertexts}{\mathtt{encCiphertexts}}
@@ -650,20 +648,20 @@ entered into the tree associated with the previous block.
 
 \subsection{\SpentSerials}
 
-Transactions insert \serialNumbers into a \spentSerialsMap which is maintained 
+Transactions insert \serialNumbers into a \spentSerials which is maintained
 alongside the UTXO by all nodes.
 
 \eli{a tx is just a string, so it doesn't insert anything. Rather, nodes process 
 tx's and the ``good'' ones lead to the addition of \serialNumbers to the
-\spentSerialsMap.}
+\spentSerials.}
 
-Transactions that attempt to insert a \serialNumber into this map that already
+Transactions that attempt to insert a \serialNumber into this set that already
 exists within it are invalid as they are attempting to double-spend.
 
 \eli{After defining \term{transaction}, one should define what a \term{legal tx} is
 (this definition depends on a particular blockchain [view]) and only then can one
-talk about ``attempts'' of transactions, and insertions of serial numbers into the
-spent serials map.}
+talk about ``attempts'' of transactions, and insertions of \serialNumbers into the
+\spentSerials.}
 
 \subsection{The Blockchain}
 
@@ -719,7 +717,7 @@ as a fee.
 
 A \pourDescription is data included in a \block that describes a \pourTransfer,
 i.e. a confidential value transfer. This kind of value transfer is the primary
-\Zerocash-specific operation performed by transactions; it uses, but should not be
+\Zcash-specific operation performed by transactions; it uses, but should not be
 confused with, the \PourCircuit used for the \zkSNARK proof and verification.
 
 A \pourTransfer spends $\NOld$ \coins $\cOld{\allOld}$ and transparent input
@@ -769,18 +767,19 @@ A value $\vpubOld$ that the \PourTransfer removes from the value pool. \\ \hline
 into the value pool. \\ \hline
 
 32 & $\anchorField$ & \type{char[32]} & A merkle root $\rt$ of the \coinCommitmentTree at
-some block height in the past, or the merkle root produced by a previous xfer in
+some block height in the past, or the merkle root produced by a previous \pourTransfer in
 this transaction. \sean{We need to be more specific here.} \\ \hline
 
-64 & $\serials$ & \type{char[32][$\NOld$]} & A sequence of \serialNumbers $\snOld{\allOld}$. \\ \hline
+64 & $\serials$ & \type{char[32][$\NOld$]} & A sequence of \serialNumbers of the input
+\coins $\snOld{\allOld}$. \\ \hline
 
-64 & $\commitments$ & \type{char[32][$\NNew$]}. & A sequence of \coinCommitments 
-$\cmNew{\allNew}$. \\ \hline
+64 & $\commitments$ & \type{char[32][$\NNew$]}. & A sequence of \coinCommitments for the
+output \coins $\cmNew{\allNew}$. \\ \hline
 
 32 & $\ephemeralKey$ & \type{char[32]} & A Curve25519 public key $\EphemeralPublic$. \\ \hline
 
 288 & $\encCiphertexts$ & \type{char[144][$\NNew$]} & A sequence of ciphertext
-components, $\TransmitCiphertext{\allNew}$. \\ \hline
+components for the encrypted output \coins, $\TransmitCiphertext{\allNew}$. \\ \hline
 
 \setchanged 32 &\setchanged $\randomSeed$ &\setchanged \type{char[32]} &\mbox{}\setchanged
 A 256-bit seed that must be chosen independently at random for each \pourDescription. \\ \hline
@@ -922,9 +921,9 @@ a distinction between Mint and Pour operations. The addition of $\vpubOld$ to a
 A \transaction that contains one or more \pourDescriptions, when entered into the
 blockchain, appends to the \coinCommitmentTree with all constituent 
 \coinCommitments. All of the constituent \serialNumbers are also entered into the 
-\spentSerialsMap of the \blockchainview \emph{and} \mempool. A \transaction is not 
-valid if it attempts to add a \serialNumber to the \spentSerialsMap that already 
-exists in the map.
+\spentSerials of the \blockchainview \emph{and} \mempool. A \transaction is not
+valid if it attempts to add a \serialNumber to the \spentSerials that already
+exists in the set.
 
 \subsection{\PourCircuit and Proofs}
 
@@ -1225,9 +1224,10 @@ which is extended to contain a sequence of zero or more
 \Zcash-specific operations.
 
 This allows for the possibility of chaining transfers of protected
-value in a single transaction, e.g. to spend a protected coin that
-has just been created. (In \Zcash, we refer to value stored in UTXOs
-as ``transparent'', and value stored in Pour output coins as ``protected''.)
+value in a single \Zcash \transaction, e.g. to spend a protected \coin
+that has just been created. (In \Zcash, we refer to value stored in
+UTXOs as ``transparent'', and value stored in \pourTransfer output
+\coins as ``protected''.)
 This was not possible in the \Zerocash design without using multiple
 transactions. It also allows transparent and protected transfers to
 happen atomically --- possibly under the control of nontrivial script
@@ -1250,7 +1250,7 @@ transparent UTXO as output.
 
 Only ``Pour'' transactions included a \zkSNARK proof.
 
-In \Zcash, the sequence of operations added to a transaction
+In \Zcash, the sequence of operations added to a \transaction
 (described in \crossref{trstructure}) consists only of \pourTransfers.
 A \pourTransfer is a Pour operation generalized to take a transparent
 UTXO as input, allowing \pourTransfers to subsume the functionality of
@@ -1266,7 +1266,7 @@ described below, since no special case is needed for Mints.
 
 \subsection{\Memos}
 
-\Zerocash adds a \memo sent from the creator of a \pourDescription to
+\Zcash adds a \memo sent from the creator of a \pourDescription to
 the recipient of each output \coin. This feature is described in
 more detail in \crossref{coinpt}.
 
