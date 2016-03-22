@@ -139,8 +139,14 @@
 \newcommand{\dontcare}{\kern -0.06em\raisebox{0.1ex}{\footnotesize{$\times$}}}
 \newcommand{\CRH}{\mathsf{CRH}}
 \newcommand{\CRHbox}[1]{\CRH\left(\;\raisebox{-1.3ex}{\usebox{#1}}\;\right)}
+\newcommand{\SHA}{\mathtt{SHA256Compress}}
+\newcommand{\SHAName}{\term{SHA-256 compression}}
 \newcommand{\FullHash}{\mathtt{SHA256}}
+\newcommand{\FullHashName}{\term{SHA-256}}
+\newcommand{\KDFHash}{\mathtt{SHA512}}
+\newcommand{\KDFHashName}{\term{SHA-512}}
 \newcommand{\FullHashbox}[1]{\FullHash\left(\;\raisebox{-1.3ex}{\usebox{#1}}\;\right)}
+\newcommand{\KDFHashbox}[1]{\KDFHash\left(\;\raisebox{-1.3ex}{\usebox{#1}}\;\right)}
 \newcommand{\Justthebox}[2]{\;\raisebox{#2}{\usebox{#1}}\;}
 \newcommand{\setof}[1]{\{{#1}\}}
 
@@ -202,7 +208,6 @@
 \newcommand{\DiscloseCiphertext}[1]{\Ciphertext^\disclose_{#1}}
 \newcommand{\SharedPlaintext}{\Plaintext^\shared}
 \newcommand{\KDF}{\mathsf{KDF}}
-\newcommand{\KDFLeadNibble}{\mathbf{2}}
 \newcommand{\SymEncrypt}[1]{\mathsf{SymEncrypt}_{#1}}
 \newcommand{\SymDecrypt}[1]{\mathsf{SymDecrypt}_{#1}}
 \newcommand{\SymSpecific}{\mathsf{AEAD\_CHACHA20\_POLY1305}}
@@ -215,11 +220,9 @@
 \newcommand{\PRFpk}[1]{\PRF{#1}{pk}}
 \newcommand{\PRFrho}[1]{\PRF{#1}{\CoinAddressRand}}
 \newcommand{\PRFdk}[1]{\PRF{#1}{dk}}
-\newcommand{\SHA}{\mathtt{SHA256Compress}}
-\newcommand{\SHAName}{\term{SHA-256 compression}}
-\newcommand{\SHAOrig}{\term{SHA-256}}
 \newcommand{\cm}{\mathsf{cm}}
 \newcommand{\cmNew}[1]{\mathsf{{cm}^{new}_\mathnormal{#1}}}
+\newcommand{\Trailing}[1]{\mathtt{Trailing}_{#1}}
 \newcommand{\ReplacementCharacter}{\textsf{U+FFFD}}
 \newcommand{\CryptoBoxSeal}{\mathsf{crypto\_box\_seal}}
 \newcommand{\ECDSAr}{\mathsf{r}}
@@ -397,6 +400,10 @@ For example, the following diagrams are all equivalent:
 
 and represent the byte sequence $[\hexint{D2}, \hexint{BC}, \hexint{A3}, \hexint{12}]$.
 
+$\Trailing{k}(x)$, where $k$ is an integer, converts the input $x$ to a bit
+sequence using little-endian order, and returns the trailing (final) $k$ bits
+of that bit sequence.
+
 The notation $\allN{}$, used as a subscript, means the sequence of values
 with indices $1$ through $\mathrm{N}$ inclusive. For example,
 $\AuthPublicNew{\allNew}$ means the sequence $[\AuthPublicNew{\mathrm{1}},
@@ -408,8 +415,8 @@ The symbol $\bot$ is used to indicate unavailable information or a failed decryp
 
 $\CRH$ is a collision-resistant hash function. In \Zcash, the $\SHAName$ function
 is used which takes a 512-bit block and produces a 256-bit hash. This is
-different from the $\SHAOrig$ function, which hashes arbitrary-length sequences.
-\cite{sha256}
+different from the $\FullHashName$ function, which hashes arbitrary-length sequences.
+\cite{sha2}
 
 $\PRF{x}{}$ is a pseudo-random function seeded by $x$. \changed{Four} \emph{independent}
 $\PRF{x}{}$ are needed in our scheme: $\PRFaddr{x}$, $\PRFsn{x}$, $\PRFpk{x}$\changed{,
@@ -420,7 +427,7 @@ across all $x$ --- i.e. it should not be feasible to find $(x, y) \neq (x', y')$
 such that $\PRFsn{x}(y) = \PRFsn{x'}(y')$\changed{, and similarly for $\PRFrho{}$}.
 
 In \Zcash, the $\SHAName$ function is used to construct all of these
-functions.
+functions. $\KDFHashName$ is also used to construct a Key Derivation Function.
 
 \newcommand{\iminusone}{\hspace{0.3pt}\scriptsize{$i$\hspace{0.6pt}-1}}
 
@@ -492,7 +499,7 @@ functions.
 The first four bits --i.e. the least significant four bits of the first byte--
 are used to distinguish different uses of $\CRH$, ensuring that the functions
 are independent. In addition to the inputs shown here, the bits $\mathtt{0111}$
-in this position are used to distinguish uses of the full $\SHAOrig$ hash function ---
+in this position are used to distinguish uses of the full $\FullHashName$ hash function ---
 see \crossref{comm}, \crossref{hsig}, and \crossref{inband}.
 (The specific bit patterns chosen here are motivated by the possibility of future
 extensions that either increase $\NOld$ and/or $\NNew$ to 3, or that add an
@@ -1043,16 +1050,13 @@ All of the resulting ciphertexts are combined to form a \coinsCiphertext.
 \newsavebox{\kdfbox}
 \begin{lrbox}{\kdfbox}
 \setchanged
-\begin{bytefield}[bitwidth=0.038em]{840}
-    \bitbox{24}{0} &
-    \bitbox{24}{1} &
-    \bitbox{24}{1} &
-    \bitbox{24}{1} &
-    \bitbox{112}{4 bit $\KDFLeadNibble$} &
+\begin{bytefield}[bitwidth=0.04em]{1016}
+    \bitbox{32}{\iminusone} &
+    \bitbox{32}{0} &
+    \bitbox{246}{$\Trailing{246}(\hSig)$}
     \bitbox{256}{256 bit $\DHSecret{i}$} &
     \bitbox{256}{256 bit $\EphemeralPublic$} &
     \bitbox{256}{256 bit $\TransmitPublicNew{i}$} &
-    \bitbox{160}{8 bit $i-1$}
 \end{bytefield}
 \end{lrbox}
 
@@ -1068,16 +1072,18 @@ decryption of ciphertext $\Ciphertext$, with empty ``associated data",
 all-zero nonce $\zeros{96}$, and 256-bit key $\Key$. The result is either
 the plaintext byte sequence, or $\bot$ indicating failure to decrypt.
 
-Define $\KDF(\DHSecret{i}, \EphemeralPublic, \TransmitPublicNew{i}, i) :=$
+Define $\KDF(\hSig, \DHSecret{i}, \EphemeralPublic, \TransmitPublicNew{i}, i) := \Trailing{256}($
 {\parskip=0.3ex
 
-\hskip 1.5em $\FullHashbox{\kdfbox}$.
-\vskip 1.2ex}
-}
+\hskip 1.5em $\KDFHashbox{\kdfbox}$
+
+$)$.
+}}
 
 Let $\TransmitPublicNew{\allNew}$ be the \changed{Curve25519} public keys
 for the intended recipient addresses of each new \coin, and let
-$\CoinPlaintext{\allNew}$ be the \coinPlaintexts.
+$\CoinPlaintext{\allNew}$ be the \coinPlaintexts. Let $\hSig$ be the
+value computed in \crossref{hsig}.
 
 Then to encrypt:
 \begin{itemize}
@@ -1089,7 +1095,7 @@ $(\EphemeralPublic, \EphemeralPrivate)$.
       \item Let $\TransmitPlaintext{i}$ be the raw encoding of $\CoinPlaintext{i}$.
       \item Let $\DHSecret{i} := \CurveMultiply(\EphemeralPrivate,
 \TransmitPublicNew{i})$.
-      \item Let $\TransmitKey{i} := \KDF(\DHSecret{i}, \EphemeralPublic,
+      \item Let $\TransmitKey{i} := \KDF(\hSig, \DHSecret{i}, \EphemeralPublic,
 \TransmitPublicNew{i}, i)$.
       \item Let $\TransmitCiphertext{i} :=
 \SymEncrypt{\TransmitKey{i}}(\TransmitPlaintext{i})$.
@@ -1104,14 +1110,15 @@ The resulting \coinsCiphertext is $\changed{(\EphemeralPublic,
 
 Let $\PaymentAddress = (\AuthPublic, \TransmitPublic)$ be the recipient's
 \paymentAddress, and let $\TransmitPrivate$ be the recipient's \changed{Curve25519}
-private key. Let $\cmNew{\allNew}$ be the \coinCommitments of each output coin.
+private key. Let $\hSig$ be the value computed in \crossref{hsig}.
+Let $\cmNew{\allNew}$ be the \coinCommitments of each output coin.
 Then for each $i \in \setofNew$, the recipient will attempt to decrypt that ciphertext
 component as follows:
 
 \changed{
 \begin{itemize}
   \item Let $\DHSecret{i} := \CurveMultiply(\TransmitPrivate, \EphemeralPublic)$.
-  \item Let $\TransmitKey{i} := \KDF(\DHSecret{i}, \EphemeralPublic,
+  \item Let $\TransmitKey{i} := \KDF(\hSig, \DHSecret{i}, \EphemeralPublic,
 \TransmitPublicNew{i}, i)$.
   \item Return $\DecryptNote(\TransmitKey{i}, \TransmitCiphertext{i}, \cmNew{i},
 \AuthPublic).$
