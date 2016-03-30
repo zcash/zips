@@ -14,6 +14,7 @@
 \RequirePackage{tabularx}
 \RequirePackage{hhline}
 \RequirePackage{pbox}
+\RequirePackage{comment}
 
 \setlength{\oddsidemargin}{-0.25in} % Left margin of 1 in + 0 in = 1 in
 \setlength{\textwidth}{7in}   % Right margin of 8.5 in - 1 in - 6.5 in = 1 in
@@ -158,7 +159,6 @@
 \newcommand{\SpendingKey}{\mathsf{addr_{sk}}}
 \newcommand{\PaymentAddressLeadByte}{\hexint{92}}
 \newcommand{\SpendingKeyLeadByte}{\hexint{??}}
-\newcommand{\NoteCommitmentLeadNibble}{\mathbf{0}}
 \newcommand{\NotePlaintextLeadByte}{\hexint{00}}
 \newcommand{\AuthPublic}{\mathsf{a_{pk}}}
 \newcommand{\AuthPrivate}{\mathsf{a_{sk}}}
@@ -228,7 +228,7 @@
 \newcommand{\PRFdk}[1]{\PRF{#1}{dk}}
 \newcommand{\cm}{\mathsf{cm}}
 \newcommand{\cmNew}[1]{\mathsf{{cm}^{new}_\mathnormal{#1}}}
-\newcommand{\Leading}[1]{\mathtt{Leading}_{#1}}
+\newcommand{\LeadingBytes}[1]{\mathtt{LeadingBytes}_{#1}}
 \newcommand{\ReplacementCharacter}{\textsf{U+FFFD}}
 \newcommand{\CryptoBoxSeal}{\mathsf{crypto\_box\_seal}}
 \newcommand{\ECDSAr}{\mathsf{r}}
@@ -338,7 +338,7 @@ the mistake may indicate a security weakness.
 \subsection{Integers, Bit Sequences, and Endianness}
 
 All integers in \emph{\Zcash-specific} encodings are unsigned, have a fixed
-bit length, and are encoded as little-endian. \changed{The definition of
+bit length, and are encoded in little-endian byte order. \changed{The definition of
 the encryption scheme based on $\SymSpecific$ \cite{rfc7539} in \crossref{inband}
 uses length fields encoded as little-endian. Also, Curve25519 public and
 private keys are defined as byte sequences, which are converted from integers
@@ -354,12 +354,15 @@ byte sequence $[\hexint{61}, \hexint{62}, \hexint{63}]$.
 In bit layout diagrams, each box of the diagram represents a sequence of bits.
 The bit length is given explicitly in each box, except for the case of a single
 bit, or for the notation $\zeros{n}$ which represents the sequence of $n$ zero bits.
-If the content of the box is a byte sequence, it is implicitly converted to
-a sequence of bits using little-endian order. The bit sequences are then
-concatenated in the order shown from left to right, and the result is converted
-to a sequence of bytes, again using little-endian order. Note that the
-\emph{least significant} bit of each byte is first, i.e. shown toward the left
-of the diagram.
+
+Bits within a byte are shown with the \emph{most significant} bit on the left
+of a diagram. Where bit fields are used, the text will clarify their position
+in each case. In cases where a field starts at a position that is not a byte
+boundary, that field will always be a bit sequence, and its initial bits will
+occupy the less significant bits of the overlapping first byte.
+
+\begin{comment}
+\todo{Update example for big-bit-endian order.}
 
 \newsavebox{\exampleabox}
 \begin{lrbox}{\exampleabox}
@@ -408,10 +411,10 @@ For example, the following diagrams are all equivalent:
 \end{itemize}
 
 and represent the byte sequence $[\hexint{D2}, \hexint{BC}, \hexint{3A}, \hexint{12}]$.
+\end{comment}
 
-$\Leading{k}(x)$, where $k$ is an integer, converts the input $x$ to a bit
-sequence using little-endian order, and returns the leading (initial) $k$ bits
-of that bit sequence.
+$\LeadingBytes{k}(x)$, where $k$ is an integer, returns the leading (initial)
+$k$ bytes of $x$.
 
 The notation $\allN{}$, used as a subscript, means the sequence of values
 with indices $1$ through $\mathrm{N}$ inclusive. For example,
@@ -471,8 +474,8 @@ functions.
 \begin{lrbox}{\pkbox}
 \setchanged
 \begin{bytefield}[bitwidth=0.06em]{512}
-        \bitbox{18}{\iminusone} &
         \bitbox{18}{0} &
+        \bitbox{18}{\iminusone} &
         \bitbox{18}{0} &
         \bitbox{18}{0} &
         \bitbox{224}{252 bit $\AuthPrivate$} &
@@ -484,8 +487,8 @@ functions.
 \begin{lrbox}{\rhobox}
 \setchanged
 \begin{bytefield}[bitwidth=0.06em]{512}
-        \bitbox{18}{\iminusone} &
         \bitbox{18}{0} &
+        \bitbox{18}{\iminusone} &
         \bitbox{18}{1} &
         \bitbox{18}{0} &
         \bitbox{224}{252 bit $\NoteAddressPreRand$} &
@@ -505,9 +508,9 @@ functions.
 
 \changed{
 \subparagraph{Note:}
-The first four bits --i.e. the least significant four bits of the first byte--
+The first four bits --i.e. the most significant four bits of the first byte--
 are used to distinguish different uses of $\CRH$, ensuring that the functions
-are independent. In addition to the inputs shown here, the bits $\mathtt{0111}$
+are independent. In addition to the inputs shown here, the bits $\mathtt{1011}$
 in this position are used to distinguish uses of the full $\FullHashName$ hash
 function --- see \crossref{comm}.
 (The specific bit patterns chosen here are motivated by the possibility of future
@@ -609,18 +612,21 @@ the value and recipient \emph{except} to those who possess these tokens.
 \subsubsection{\NoteCommitments} \label{comm}
 
 The underlying $\Value$ and $\AuthPublic$ are blinded with $\NoteAddressRand$
-and $\NoteCommitRand$ using the collision-resistant hash function \changed{$\FullHash$}.
+and $\NoteCommitRand$ \changed{using the collision-resistant hash function $\FullHash$}.
 The resulting hash $\cm = \Commitment(\NoteTuple{})$.
 
 \newsavebox{\cmbox}
 \begin{lrbox}{\cmbox}
 \setchanged
 \begin{bytefield}[bitwidth=0.036em]{840}
+    \bitbox{24}{1} &
     \bitbox{24}{0} &
     \bitbox{24}{1} &
     \bitbox{24}{1} &
-    \bitbox{24}{1} &
-    \bitbox{112}{4 bit $\NoteCommitmentLeadNibble$} &
+    \bitbox{24}{0} &
+    \bitbox{24}{0} &
+    \bitbox{24}{0} &
+    \bitbox{24}{0} &
     \bitbox{256}{256 bit $\AuthPublic$} &
     \bitbox{128}{64 bit $\Value$} &
     \bitbox{256}{256 bit $\NoteAddressRand$}
@@ -630,6 +636,9 @@ The resulting hash $\cm = \Commitment(\NoteTuple{})$.
 
 \changed{
 \hskip 1em $\cm := \FullHashbox{\cmbox}$
+
+\subparagraph{Note:}
+The leading byte of the $\FullHash$ input is $\hexint{B0}$.
 }
 
 \subsubsection{\Nullifiers}
@@ -948,9 +957,14 @@ If $\ECDSAs$ is not in the given range, the signature is treated as invalid.
 \begin{lrbox}{\pubkeybox}
 \setchanged
 \begin{bytefield}[bitwidth=0.075em]{264}
+    \bitbox{14}{0}
+    \bitbox{14}{0}
+    \bitbox{14}{0}
+    \bitbox{14}{0}
+    \bitbox{14}{0}
+    \bitbox{14}{0}
+    \bitbox{14}{1}
     \bitbox{56}{1 bit $\tilde{y}_P$}
-    \bitbox{18}{1}
-    \bitbox{64}{$\zeros{6}$}
     \bitbox{256}{256 bit $x_P$}
 \end{bytefield}
 \end{lrbox}
@@ -1131,7 +1145,7 @@ the plaintext byte sequence, or $\bot$ indicating failure to decrypt.
 Define:
 
 \hskip 1.5em $\KDF(i, \hSig, \DHSecret{i}, \EphemeralPublic, \TransmitPublicNew{i}) :=
-\Leading{256}(\BlakeHash(\kdftag, \kdfinput))$
+\LeadingBytes{32}(\BlakeHash(\kdftag, \kdfinput))$
 
 where:
 
@@ -1291,7 +1305,7 @@ and produces `z' as the Base58Check leading character.}
 
 \subsection{Spending Keys}
 
-A \spendingKey consists of $\AuthPrivate$.
+A \spendingKey consists of $\AuthPrivate$, which is a sequence of 252 bits.
 
 The raw encoding of a \spendingKey consists of, in order:
 
@@ -1313,8 +1327,7 @@ The raw encoding of a \spendingKey consists of, in order:
     \item \changed{252} bits specifying $\AuthPrivate$.
 \end{itemize}
 
-Consistent with little-endian encoding, the zero padding occupies the
-low-order 4 bits of the second byte.
+The zero padding occupies the most significant 4 bits of the second byte.
 
 \subparagraph{Note:} If an implementation represents $\AuthPrivate$
 internally as a sequence of 32 bytes with the 4 bits of zero padding
@@ -1513,7 +1526,7 @@ within the circuit was not considered to justify the benefits.
 
 \todo{}
 
-%The need for \Leading{253}{\CRH(.)} to be collision-resistant was not
+%The need for collision resistance of \CRH(.) truncated to 253 bits was not
 %explicitly stated in \ (This does not follow from collision resistance of $\CRH$.)
 
 \subsection{In-band secret distribution}
