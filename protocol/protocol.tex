@@ -95,6 +95,7 @@
 \newcommand{\joinSplitTransfers}{\term{JoinSplit operations}}
 \newcommand{\JoinSplitTransfer}{\titleterm{JoinSplit Operation}}
 \newcommand{\JoinSplitTransfers}{\titleterm{JoinSplit Operations}}
+\newcommand{\joinSplitSignature}{\term{JoinSplit signature}}
 \newcommand{\fullnode}{\term{full node}}
 \newcommand{\fullnodes}{\term{full nodes}}
 \newcommand{\anchor}{\term{anchor}}
@@ -182,7 +183,7 @@
 \newcommand{\Value}{\mathsf{v}}
 \newcommand{\ValueNew}[1]{\mathsf{v^{new}_\mathnormal{#1}}}
 
-% Coins
+% Notes
 \newcommand{\NoteTuple}[1]{\mathbf{n}_{#1}}
 \newcommand{\NotePlaintext}[1]{\mathbf{np}_{#1}}
 \newcommand{\NoteCommitRand}{\mathsf{r}}
@@ -258,6 +259,11 @@
 \newcommand{\Varies}{\textit{Varies}}
 \newcommand{\heading}[1]{\multicolumn{1}{c|}{#1}}
 \newcommand{\type}[1]{\texttt{#1}}
+
+\newcommand{\sighashType}{\term{SIGHASH type}}
+\newcommand{\sighashTypes}{\term{SIGHASH types}}
+\newcommand{\SIGHASHALL}{\mathsf{SIGHASH\_ALL}}
+\newcommand{\scriptSig}{\mathtt{scriptSig}}
 
 % JoinSplit
 \newcommand{\hSig}{\mathsf{h_{Sig}}}
@@ -803,6 +809,7 @@ A \joinSplitTransfer spends $\NOld$ \notes $\cOld{\allOld}$ and transparent inpu
 $\vpubOld$, and creates $\NNew$ \notes $\cNew{\allNew}$ and transparent output
 $\vpubNew$.
 
+\subparagraph{Consensus rule:}
 Either $\vpubOld$ or $\vpubNew$ \MUST be zero.
 
 \changed{
@@ -821,14 +828,17 @@ $1026 \times \nJoinSplit$ & $\vJoinSplit$ &
 \raisebox{-1.5ex}{\pbox{10.5em}{\type{JoinSplitDescription} \type{[$\nJoinSplit$]}}} &
 The \sequenceOfJoinSplitDescriptions in this \transaction. \\ \hline
 
-33 & $\joinSplitPubKey$ & \type{char[33]} & An encoding of a ECDSA public verification key,
+33 & $\joinSplitPubKey$ * & \type{char[33]} & An encoding of a ECDSA public verification key,
 using the secp256k1 curve and parameters defined in \cite{sec2-ecdsa} and
 \cite{secp256k1}. \\ \hline
 
-64 & $\joinSplitSig$ & \type{char[64]} & A signature on a prefix of the \transaction encoding,
+64 & $\joinSplitSig$ * & \type{char[64]} & A signature on a prefix of the \transaction encoding,
 to be verified using $\joinSplitPubKey$. \\ \hline
 \end{tabularx}
 \end{center}
+
+* The $\joinSplitPubKey$ and $\joinSplitSig$ fields are present if and only if
+$\nJoinSplit > 0$.
 
 The encoding of $\joinSplitPubKey$ and the data to be signed are specified in
 more detail in \crossref{nonmalleability}.
@@ -921,8 +931,18 @@ identified by that previous \joinSplitDescription's $\anchor$.
 \subsection{Non-malleability} \label{nonmalleability}
 
 \changed{
-Let $\dataToBeSigned$ be the raw-format \cite{rawformat} encoding of the
-\transaction up to and not including the $\joinSplitPubKey$ and $\joinSplitSig$ fields.
+\Bitcoin defines several \sighashTypes that cover various parts of a transaction.
+In \Zcash, all of these \sighashTypes are extended to cover the \Zcash-specific
+fields $\nJoinSplit$, $\vJoinSplit$, and $\joinSplitPubKey$. They \emph{do not}
+cover the field $\joinSplitSig$.
+
+\subparagraph{Consensus rule:}
+If $\nJoinSplit > 0$, the \transaction \MUSTNOT use \sighashTypes other than
+$\SIGHASHALL$.
+
+Let $\dataToBeSigned$ be the hash of the \transaction using the $\SIGHASHALL$
+\sighashType. Note that this \emph{excludes} all of the $\scriptSig$ fields in
+the non-\Zcash-specific parts of the \transaction.
 
 In order to ensure that a \joinSplitDescription is cryptographically bound to the
 transparent inputs and outputs corresponding to $\vpubNew$ and $\vpubOld$, and
@@ -931,7 +951,8 @@ key pair is generated for each \transaction, and the $\dataToBeSigned$ is
 signed with the private signing key of this key pair. The corresponding public
 verification key is included in the \transaction encoding as $\joinSplitPubKey$.
 
-A \transaction is correctly signed if:
+If $\nJoinSplit$ is zero, the $\joinSplitPubKey$ and $\joinSplitSig$ fields are
+omitted. Otherwise, a \transaction has a correct \joinSplitSignature if:
 \begin{itemize}
   \item $\joinSplitSig$ can be verified as an encoding of a signature on
 $\dataToBeSigned$, using the ECDSA public key encoded as $\joinSplitPubKey$; and
