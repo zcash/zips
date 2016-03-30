@@ -138,16 +138,17 @@
 \newcommand{\zeros}[1]{[0]^{#1}}
 \newcommand{\hexint}[1]{\mathbf{0x{#1}}}
 \newcommand{\dontcare}{\kern -0.06em\raisebox{0.1ex}{\footnotesize{$\times$}}}
+\newcommand{\ascii}[1]{\mathbf{``{#1}"}}
 \newcommand{\CRH}{\mathsf{CRH}}
 \newcommand{\CRHbox}[1]{\CRH\left(\;\raisebox{-1.3ex}{\usebox{#1}}\;\right)}
 \newcommand{\SHA}{\mathtt{SHA256Compress}}
 \newcommand{\SHAName}{\term{SHA-256 compression}}
 \newcommand{\FullHash}{\mathtt{SHA256}}
 \newcommand{\FullHashName}{\term{SHA-256}}
-\newcommand{\KDFHash}{\mathtt{SHA512}}
-\newcommand{\KDFHashName}{\term{SHA-512}}
+\newcommand{\BlakeHash}{\mathtt{BLAKE2b}}
+\newcommand{\BlakeHashName}{\term{BLAKE2b}}
 \newcommand{\FullHashbox}[1]{\FullHash\left(\;\raisebox{-1.3ex}{\usebox{#1}}\;\right)}
-\newcommand{\KDFHashbox}[1]{\KDFHash\left(\;\raisebox{-1.3ex}{\usebox{#1}}\;\right)}
+\newcommand{\BlakeHashbox}[2]{\BlakeHash\left({#1},\;\raisebox{-1.3ex}{\usebox{#2}}\;\right)}
 \newcommand{\Justthebox}[2]{\;\raisebox{#2}{\usebox{#1}}\;}
 \newcommand{\setof}[1]{\{{#1}\}}
 \newcommand{\minimum}{\mathsf{min}}
@@ -193,7 +194,7 @@
 \newcommand{\NoteCommitS}{\mathsf{s}}
 \newcommand{\nf}{\mathsf{nf}}
 \newcommand{\nfOld}[1]{\nf^\mathsf{old}_\mathnormal{#1}}
-\newcommand{\hSigInputLeadNibble}{\mathbf{1}}
+\newcommand{\hSigtag}{\mathsf{hSigtag}}
 \newcommand{\Memo}{\mathsf{memo}}
 \newcommand{\CurveMultiply}{\mathsf{Curve25519}}
 \newcommand{\CurveBase}{\bytes{9}}
@@ -210,6 +211,8 @@
 \newcommand{\DiscloseCiphertext}[1]{\Ciphertext^\disclose_{#1}}
 \newcommand{\SharedPlaintext}{\Plaintext^\shared}
 \newcommand{\KDF}{\mathsf{KDF}}
+\newcommand{\kdftag}{\mathsf{kdftag}}
+\newcommand{\kdfinput}{\mathsf{kdfinput}}
 \newcommand{\SymEncrypt}[1]{\mathsf{SymEncrypt}_{#1}}
 \newcommand{\SymDecrypt}[1]{\mathsf{SymDecrypt}_{#1}}
 \newcommand{\SymSpecific}{\mathsf{AEAD\_CHACHA20\_POLY1305}}
@@ -224,7 +227,7 @@
 \newcommand{\PRFdk}[1]{\PRF{#1}{dk}}
 \newcommand{\cm}{\mathsf{cm}}
 \newcommand{\cmNew}[1]{\mathsf{{cm}^{new}_\mathnormal{#1}}}
-\newcommand{\Trailing}[1]{\mathtt{Trailing}_{#1}}
+\newcommand{\Leading}[1]{\mathtt{Leading}_{#1}}
 \newcommand{\ReplacementCharacter}{\textsf{U+FFFD}}
 \newcommand{\CryptoBoxSeal}{\mathsf{crypto\_box\_seal}}
 \newcommand{\ECDSAr}{\mathsf{r}}
@@ -343,6 +346,10 @@ using little-endian encoding.}
 The notation $\hexint{}$ followed by a string of \textbf{boldface} hexadecimal
 digits represents the corresponding integer converted from hexadecimal.
 
+The notation $\ascii{...}$ represents the given string represented as a
+sequence of bytes in US-ASCII. For example, $\ascii{abc}$ represents the
+byte sequence $[\hexint{61}, \hexint{62}, \hexint{63}]$.
+
 In bit layout diagrams, each box of the diagram represents a sequence of bits.
 The bit length is given explicitly in each box, except for the case of a single
 bit, or for the notation $\zeros{n}$ which represents the sequence of $n$ zero bits.
@@ -401,8 +408,8 @@ For example, the following diagrams are all equivalent:
 
 and represent the byte sequence $[\hexint{D2}, \hexint{BC}, \hexint{3A}, \hexint{12}]$.
 
-$\Trailing{k}(x)$, where $k$ is an integer, converts the input $x$ to a bit
-sequence using little-endian order, and returns the trailing (final) $k$ bits
+$\Leading{k}(x)$, where $k$ is an integer, converts the input $x$ to a bit
+sequence using little-endian order, and returns the leading (initial) $k$ bits
 of that bit sequence.
 
 The notation $\allN{}$, used as a subscript, means the sequence of values
@@ -428,7 +435,7 @@ across all $x$ --- i.e. it should not be feasible to find $(x, y) \neq (x', y')$
 such that $\PRFnf{x}(y) = \PRFnf{x'}(y')$\changed{, and similarly for $\PRFrho{}$}.
 
 In \Zcash, the $\SHAName$ function is used to construct all of these
-functions. $\KDFHashName$ is also used to construct a Key Derivation Function.
+functions.
 
 \newcommand{\iminusone}{\hspace{0.3pt}\scriptsize{$i$\hspace{0.6pt}-1}}
 
@@ -500,12 +507,17 @@ functions. $\KDFHashName$ is also used to construct a Key Derivation Function.
 The first four bits --i.e. the least significant four bits of the first byte--
 are used to distinguish different uses of $\CRH$, ensuring that the functions
 are independent. In addition to the inputs shown here, the bits $\mathtt{0111}$
-in this position are used to distinguish uses of the full $\FullHashName$ hash function ---
-see \crossref{comm}, \crossref{hsig}, and \crossref{inband}.
+in this position are used to distinguish uses of the full $\FullHashName$ hash
+function --- see \crossref{comm}.
 (The specific bit patterns chosen here are motivated by the possibility of future
 extensions that either increase $\NOld$ and/or $\NNew$ to 3, or that add an
 additional bit to $\AuthPrivate$ to encode a new key type, or that require an
 additional PRF.)
+
+$\BlakeHashName$ is also used to construct a Key Derivation Function and as a
+hash function for the computation of $\hSig$. The notation $\BlakeHash(p, x)$
+represents the application of $\BlakeHashName$ to a 16-byte personalization string
+$p$ and input $x$, as defined in \cite{blake2}.
 }
 
 
@@ -855,18 +867,22 @@ The $\ephemeralKey$ and $\encCiphertexts$ fields together form the \notesCiphert
 
 \subsection{Computation of \hSigText} \label{hsig}
 
+\newsavebox{\hsigtagbox}
+\begin{lrbox}{\hsigtagbox}
+\setchanged
+\begin{bytefield}[bitwidth=0.16em]{128}
+    \bitbox{72}{72 bit $\ascii{ZcashhSig}$}
+    \bitbox{56}{$\zeros{56}$}
+\end{bytefield}
+\end{lrbox}
+
 \newsavebox{\hsigbox}
 \begin{lrbox}{\hsigbox}
 \setchanged
-\begin{bytefield}[bitwidth=0.033em]{1064}
-    \bitbox{24}{0} &
-    \bitbox{24}{1} &
-    \bitbox{24}{1} &
-    \bitbox{24}{1} &
-    \bitbox{112}{4 bit $\hSigInputLeadNibble$} &
+\begin{bytefield}[bitwidth=0.033em]{1024}
+    \bitbox{256}{$\randomSeed$}
     \bitbox{256}{\hfill 256 bit $\nfOld{\mathrm{1}}$\hfill...\;} &
     \bitbox{256}{256 bit $\nfOld{\NOld}$} &
-    \bitbox{256}{$\randomSeed$}
     \bitbox{256}{$\joinSplitPubKey$}
 \end{bytefield}
 \end{lrbox}
@@ -874,7 +890,9 @@ The $\ephemeralKey$ and $\encCiphertexts$ fields together form the \notesCiphert
 \changed{
 Given a \joinSplitDescription, we define:
 
-\hskip 1em $\hSig := \FullHashbox{\hsigbox}$
+\hskip 1em $\hSigtag := \Justthebox{\hsigtagbox}{-1.3ex}$
+
+\hskip 1em $\hSig := \BlakeHashbox{\hSigtag}{\hsigbox}$
 }
 
 \subsection{Merkle root validity}
@@ -1069,13 +1087,21 @@ $\TransmitPrivate$) is used to reconstruct the original \note \changed{ and \mem
 
 All of the resulting ciphertexts are combined to form a \notesCiphertext.
 
-\newsavebox{\kdfbox}
-\begin{lrbox}{\kdfbox}
+\newsavebox{\kdftagbox}
+\begin{lrbox}{\kdftagbox}
 \setchanged
-\begin{bytefield}[bitwidth=0.04em]{1016}
-    \bitbox{32}{\iminusone} &
-    \bitbox{32}{0} &
-    \bitbox{246}{$\Trailing{246}(\hSig)$}
+\begin{bytefield}[bitwidth=0.16em]{128}
+    \bitbox{64}{64 bit $\ascii{ZcashKDF}$} &
+    \bitbox{32}{8 bit $i\!-\!1$}
+    \bitbox{56}{$\zeros{56}$}
+\end{bytefield}
+\end{lrbox}
+
+\newsavebox{\kdfinputbox}
+\begin{lrbox}{\kdfinputbox}
+\setchanged
+\begin{bytefield}[bitwidth=0.04em]{1024}
+    \bitbox{256}{256-bit $\hSig$}
     \bitbox{256}{256 bit $\DHSecret{i}$} &
     \bitbox{256}{256 bit $\EphemeralPublic$} &
     \bitbox{256}{256 bit $\TransmitPublicNew{i}$} &
@@ -1093,15 +1119,20 @@ Similarly, let $\SymDecrypt{\Key}(\Ciphertext)$ be $\SymSpecific$
 decryption of ciphertext $\Ciphertext$, with empty ``associated data",
 all-zero nonce $\zeros{96}$, and 256-bit key $\Key$. The result is either
 the plaintext byte sequence, or $\bot$ indicating failure to decrypt.
+}
 
-Define $\KDF(i, \hSig, \DHSecret{i}, \EphemeralPublic, \TransmitPublicNew{i}) := \Trailing{256}($
-{\parskip=0.3ex
+Define:
 
-\hskip 1.5em $\KDFHashbox{\kdfbox}$
+\hskip 1.5em $\KDF(i, \hSig, \DHSecret{i}, \EphemeralPublic, \TransmitPublicNew{i}) :=
+\Leading{256}(\BlakeHash(\kdftag, \kdfinput))$
 
-$)$.
-}}
+where:
 
+\hskip 1.5em $\kdftag := \Justthebox{\kdftagbox}{-1.3ex}$
+
+\hskip 1.5em $\kdfinput := \Justthebox{\kdfinputbox}{-1.3ex}$.
+
+\vspace{2ex}
 Let $\TransmitPublicNew{\allNew}$ be the \changed{Curve25519} public keys
 for the intended recipient addresses of each new \note, and let
 $\NotePlaintext{\allNew}$ be the \notePlaintexts. Let $\hSig$ be the
@@ -1409,7 +1440,7 @@ of their funds, even if they have forgotten everything but the
 Instead, \Zcash enforces that an adversary must choose distinct values
 for each $\NoteAddressRand$, by making use of the fact that all of the
 \nullifiers in \joinSplitDescriptions that appear in a valid \blockchainview
-must be distinct. The \nullifiers are used as input to $\FullHash$
+must be distinct. The \nullifiers are used as input to $\BlakeHashName$
 to derive a public value $\hSig$ which uniquely identifies the transaction,
 as described in \crossref{hsig}. ($\hSig$ was already used in \Zerocash
 in a way that requires it to be unique in order to maintain
@@ -1426,7 +1457,7 @@ $\NoteAddressRand$ for each output \note is enforced by the circuit
 
 Now even if the creator of a \joinSplitDescription does not choose
 $\NoteAddressPreRand$ randomly, uniqueness of \nullifiers and
-collision resistance of both $\FullHash$ and $\PRFrho{}$ will ensure
+collision resistance of both $\BlakeHashName$ and $\PRFrho{}$ will ensure
 that the derived $\NoteAddressRand$ values are unique, at least for
 any two \joinSplitDescriptions that get into a valid \blockchainview.
 This is sufficient to prevent the Faerie Gold attack.
