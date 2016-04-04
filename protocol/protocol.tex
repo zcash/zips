@@ -146,10 +146,10 @@
 \newcommand{\SHAName}{\term{SHA-256 compression}}
 \newcommand{\FullHash}{\mathtt{SHA256}}
 \newcommand{\FullHashName}{\term{SHA-256}}
-\newcommand{\BlakeHash}{\mathtt{BLAKE2b}}
-\newcommand{\BlakeHashName}{\term{BLAKE2b}}
+\newcommand{\BlakeHash}{\mathtt{BLAKE2b/256}}
+\newcommand{\BlakeHashName}{\term{BLAKE2b/256}}
+\newcommand{\BlakeFullLength}{\term{BLAKE2b}}
 \newcommand{\FullHashbox}[1]{\FullHash\left(\;\raisebox{-1.3ex}{\usebox{#1}}\;\right)}
-\newcommand{\BlakeHashbox}[2]{\BlakeHash\left({#1},\;\raisebox{-1.3ex}{\usebox{#2}}\;\right)}
 \newcommand{\Justthebox}[2]{\;\raisebox{#2}{\usebox{#1}}\;}
 \newcommand{\setof}[1]{\{{#1}\}}
 \newcommand{\minimum}{\mathsf{min}}
@@ -181,6 +181,9 @@
 \newcommand{\TransmitPrivate}{\mathsf{sk_{enc}}}
 \newcommand{\Value}{\mathsf{v}}
 \newcommand{\ValueNew}[1]{\mathsf{v^{new}_\mathnormal{#1}}}
+\newcommand{\pubKeyHash}{\mathsf{pubKeyHash}}
+\newcommand{\hSigInput}{\mathsf{hSigInput}}
+\newcommand{\dataToBeSigned}{\mathsf{dataToBeSigned}}
 
 % Notes
 \newcommand{\NoteTuple}[1]{\mathbf{n}_{#1}}
@@ -195,7 +198,6 @@
 \newcommand{\NoteCommitS}{\mathsf{s}}
 \newcommand{\nf}{\mathsf{nf}}
 \newcommand{\nfOld}[1]{\nf^\mathsf{old}_\mathnormal{#1}}
-\newcommand{\hSigtag}{\mathsf{hSigtag}}
 \newcommand{\Memo}{\mathsf{memo}}
 \newcommand{\CurveMultiply}{\mathsf{Curve25519}}
 \newcommand{\CurveBase}{\bytes{9}}
@@ -228,7 +230,6 @@
 \newcommand{\PRFdk}[1]{\PRF{#1}{dk}}
 \newcommand{\cm}{\mathsf{cm}}
 \newcommand{\cmNew}[1]{\mathsf{{cm}^{new}_\mathnormal{#1}}}
-\newcommand{\LeadingBytes}[1]{\mathtt{LeadingBytes}_{#1}}
 \newcommand{\ReplacementCharacter}{\textsf{U+FFFD}}
 \newcommand{\CryptoBoxSeal}{\mathsf{crypto\_box\_seal}}
 \newcommand{\ECDSAr}{\mathsf{r}}
@@ -248,7 +249,6 @@
 \newcommand{\anchorField}{\mathtt{anchor}}
 \newcommand{\joinSplitSig}{\mathtt{joinSplitSig}}
 \newcommand{\joinSplitPubKey}{\mathtt{joinSplitPubKey}}
-\newcommand{\dataToBeSigned}{\mathtt{dataToBeSigned}}
 \newcommand{\nullifiersField}{\mathtt{nullifiers}}
 \newcommand{\commitments}{\mathtt{commitments}}
 \newcommand{\ephemeralKey}{\mathtt{ephemeralKey}}
@@ -419,9 +419,6 @@ For example, the following diagrams are all equivalent:
 and represent the byte sequence $[\hexint{D2}, \hexint{BC}, \hexint{3A}, \hexint{12}]$.
 \end{comment}
 
-$\LeadingBytes{k}(x)$, where $k$ is an integer, returns the leading (initial)
-$k$ bytes of $x$.
-
 The notation $\allN{}$, used as a subscript, means the sequence of values
 with indices $1$ through $\mathrm{N}$ inclusive. For example,
 $\AuthPublicNew{\allNew}$ means the sequence $[\AuthPublicNew{\mathrm{1}},
@@ -524,10 +521,12 @@ extensions that either increase $\NOld$ and/or $\NNew$ to 3, or that add an
 additional bit to $\AuthPrivate$ to encode a new key type, or that require an
 additional PRF.)
 
-$\BlakeHashName$ is also used to construct a Key Derivation Function and as a
+$\BlakeHashName$ (that is, $\BlakeFullLength$ with an output digest length of
+32 bytes) is also used to construct a Key Derivation Function and as a
 hash function for the computation of $\hSig$. The notation $\BlakeHash(p, x)$
 represents the application of unkeyed $\BlakeHashName$ to a 16-byte personalization
-string $p$ and input $x$, as defined in \cite{blake2}.
+string $p$ and input $x$, as defined in \cite{blake2}. Note that $\BlakeHashName$
+is not the same as $\BlakeFullLength$ truncated to 256 bits.
 }
 
 
@@ -893,32 +892,29 @@ The $\ephemeralKey$ and $\encCiphertexts$ fields together form the \notesCiphert
 
 \subsection{Computation of \hSigText} \label{hsig}
 
-\newsavebox{\hsigtagbox}
-\begin{lrbox}{\hsigtagbox}
-\setchanged
-\begin{bytefield}[bitwidth=0.16em]{128}
-    \bitbox{72}{72 bit $\ascii{ZcashhSig}$}
-    \bitbox{56}{$\zeros{56}$}
-\end{bytefield}
-\end{lrbox}
-
 \newsavebox{\hsigbox}
 \begin{lrbox}{\hsigbox}
 \setchanged
-\begin{bytefield}[bitwidth=0.033em]{1024}
-    \bitbox{256}{$\randomSeed$}
+\begin{bytefield}[bitwidth=0.04em]{1024}
+    \bitbox{256}{256 bit $\randomSeed$}
     \bitbox{256}{\hfill 256 bit $\nfOld{\mathrm{1}}$\hfill...\;} &
     \bitbox{256}{256 bit $\nfOld{\NOld}$} &
-    \bitbox{256}{$\joinSplitPubKey$}
+    \bitbox{256}{256 bit $\pubKeyHash$}
 \end{bytefield}
 \end{lrbox}
 
 \changed{
-Given a \joinSplitDescription, we define:
-
-\hskip 1em $\hSigtag := \Justthebox{\hsigtagbox}{-1.3ex}$
-
-\hskip 1em $\hSig := \BlakeHashbox{\hSigtag}{\hsigbox}$
+Given a \joinSplitDescription containing the fields $\randomSeed$ and
+$\nullifiersField = \nfOld{\allOld}$, and embedded in a transaction
+containing the field $\joinSplitPubKey$, we compute $\hSig$ for that
+\joinSplitDescription as follows:
+\begin{equation*}
+\begin{aligned}
+\pubKeyHash &:= \BlakeHash(\ascii{ZcashECDSAPubKey},\; \joinSplitPubKey) \\
+\hSigInput &:= \Justthebox{\hsigbox}{-1.3ex} \\
+\hSig &:= \BlakeHash(\ascii{ZcashComputehSig},\; \hSigInput)
+\end{aligned}
+\end{equation*}
 }
 
 \subsection{Merkle root validity}
@@ -1166,7 +1162,7 @@ the plaintext byte sequence, or $\bot$ indicating failure to decrypt.
 Define:
 
 \hskip 1.5em $\KDF(i, \hSig, \DHSecret{i}, \EphemeralPublic, \TransmitPublicNew{i}) :=
-\LeadingBytes{32}(\BlakeHash(\kdftag, \kdfinput))$
+\BlakeHash(\kdftag, \kdfinput)$
 
 where:
 
