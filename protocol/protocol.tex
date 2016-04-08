@@ -132,7 +132,16 @@
 \newcommand{\authKeypair}{\term{authorization}}
 \newcommand{\transmitKeypair}{\term{transmission}}
 \newcommand{\discloseKey}{\term{disclosure key}}
-\newcommand{\incrementalMerkleTree}{\term{incremental merkle tree}}
+\newcommand{\incrementalMerkleTree}{\term{incremental Merkle tree}}
+\newcommand{\merkleRoot}{\term{root}}
+\newcommand{\merkleNode}{\term{node}}
+\newcommand{\merkleNodes}{\term{nodes}}
+\newcommand{\merkleLeaf}{\term{leaf}}
+\newcommand{\merkleLeaves}{\term{leaves}}
+\newcommand{\merklePath}{\term{path}}
+\newcommand{\merkleLayer}{\term{layer}}
+\newcommand{\merkleIndex}{\term{index}}
+\newcommand{\merkleIndices}{\term{indices}}
 \newcommand{\zkSNARK}{\term{zk-SNARK}}
 \newcommand{\zkSNARKs}{\term{zk-SNARKs}}
 \newcommand{\memo}{\term{memo field}}
@@ -157,6 +166,8 @@
 \newcommand{\Justthebox}[2]{\;\raisebox{#2}{\usebox{#1}}\;}
 \newcommand{\setof}[1]{\{{#1}\}}
 \newcommand{\minimum}{\mathsf{min}}
+\newcommand{\floor}{\mathsf{floor}}
+\newcommand{\xor}{\oplus}
 
 % key pairs:
 \newcommand{\PaymentAddress}{\mathsf{addr_{pk}}}
@@ -241,6 +252,8 @@
 
 % merkle tree
 \newcommand{\MerkleDepth}{\mathsf{d}}
+\newcommand{\MerkleNode}[2]{\mathsf{M}^{#1}_{#2}}
+\newcommand{\MerkleSibling}{\mathsf{sibling}}
 
 % bitcoin
 \newcommand{\vin}{\mathtt{vin}}
@@ -720,7 +733,7 @@ The encoding of a \notePlaintext consists of, in order:
 \end{itemize}
 
 
-\subsection{\NoteCommitment{} Tree}
+\subsection{\NoteCommitment{} Tree} \label{merkle}
 
 \begin{center}
 \includegraphics[scale=.4]{incremental_merkle}
@@ -732,9 +745,44 @@ transaction output set} (UTXO) used in \Bitcoin, it is used to express the exist
 of value and the capability to spend it. However, unlike the UTXO, it is \emph{not}
 the job of this tree to protect against double-spending, as it is append-only.
 
-Blocks in the blockchain are associated (by all nodes) with the root of this tree
+Blocks in the blockchain are associated (by all nodes) with the \merkleRoot of this tree
 after all of its constituent \joinSplitDescriptions' \noteCommitments have been
 entered into the tree associated with the previous block.
+
+Each \merkleNode in the \incrementalMerkleTree is associated with a 32-byte hash.
+The \merkleLayer numbered $h$, counting from \merkleLayer $0$ at the \merkleRoot, has
+$2^h$ \merkleNodes with \merkleIndices $0$ to $2^h-1$ inclusive. Let $\MerkleNode{h}{i}$
+be the hash associated with the \merkleNode at \merkleIndex $i$ in \merkleLayer $h$.
+
+Parent \merkleNodes are computed from their children as follows. For $0 \leq h < d$
+and $0 \leq i < 2^h$,
+
+\newsavebox{\merklebox}
+\begin{lrbox}{\merklebox}
+\begin{bytefield}[bitwidth=0.04em]{512}
+    \bitbox{256}{256 bit $\MerkleNode{h+1}{2i}$} &
+    \bitbox{256}{256 bit $\MerkleNode{h+1}{2i+1}$}
+\end{bytefield}
+\end{lrbox}
+
+\hskip 2em $\MerkleNode{h}{i} := \CRHbox{\merklebox}$.
+
+When a \noteCommitment is added to the tree, it occupies the \merkleLeaf
+$\MerkleNode{\MerkleDepth}{i}$  for the next available $i$. As-yet unused
+\merkleLeaves are encoded as the sequence of 32 zero bytes.
+
+A \merklePath from \merkleLeaf $i$ in the \incrementalMerkleTree is the sequence
+
+\hskip 2em $[\MerkleNode{h}{\MerkleSibling(h, i)} \text{ for }
+h \text{ from } \MerkleDepth \text{ down to } 1]$,
+
+where
+
+\hskip 2em $\MerkleSibling(h, i) = \floor\left(\frac{i}{2^{\MerkleDepth-h}}\right) \xor 1$
+
+and $\xor$ denotes bitwise exclusive or. Given such a \merklePath, it is
+possible to verify that the \merkleLeaf is in a tree with a given \merkleRoot.
+
 
 \subsection{\NullifierSet}
 
@@ -1085,8 +1133,8 @@ such that the following conditions hold:
 \subparagraph{Merkle path validity}
 
 for each $i \in \setofOld$ \changed{$\mid$ $\vOld{i} \neq 0$}:
-$\treepath{i}$ must be a valid path of depth $\MerkleDepth$ from \linebreak
-$\Commitment(\cOld{i})$ to \noteCommitmentTree root $\rt$.
+$\treepath{i}$ must be a valid \merklePath of depth $\MerkleDepth$, as defined in
+\crossref{merkle}, from $\Commitment(\cOld{i})$ to \noteCommitmentTree root $\rt$.
 
 \subparagraph{Balance}
 
