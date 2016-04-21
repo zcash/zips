@@ -3,6 +3,7 @@ protocol.pdf: protocol.tex zcash.bib incremental_merkle.pdf key_components.pdf
 
 .PHONY: pdf
 pdf:
+	echo "\\\\renewcommand{\\\\docversion}{Version $$(git describe --tags --abbrev=6)}" |tee protocol.ver
 	# If pdflatex fails, touch an input so that 'make' won't think it is up-to-date next time.
 	rm -f protocol.aux
 	pdflatex protocol.tex || touch incremental_merkle.pdf
