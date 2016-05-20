@@ -349,8 +349,21 @@ protected by zero-knowledge succinct non-interactive arguments of knowledge
 
 Changes from the original \Zerocash are highlighted in \changed{\changedcolor}.
 
+This specification is structured as follows:
 
-\section{Caution}
+\begin{itemize}
+  \item Notation | definitions of notation used throughout the document;
+  \item Concepts | the principal abstractions needed to understand the protocol;
+  \item Abstract Protocol | a high-level description of the protocol in terms
+        of ideal cryptographic components;
+  \item Concrete Protocol | how the functions and encodings of the abstract
+        protocol are instantiated;
+  \item Differences from the \Zerocash protocol | a summary of changes from the
+        protocol in \cite{ZerocashOakland}.
+\end{itemize}
+
+
+\subsection{Caution}
 
 \Zcash security depends on consensus. Should your program diverge from
 consensus, its security is weakened or destroyed. The cause of the divergence
@@ -368,16 +381,7 @@ has yet to be launched, please feel free to do so in public even if you believe
 the mistake may indicate a security weakness.
 
 
-\section{Conventions}
-
-\subsection{Integers, Bit Sequences, and Endianness}
-
-All integers in \emph{\Zcash-specific} encodings are unsigned, have a fixed
-bit length, and are encoded in little-endian byte order. \changed{The
-$\SymSpecific$ encryption scheme \cite{rfc7539} used in \crossref{inband}
-uses length fields encoded as little-endian. Also, Curve25519 public and
-private keys are defined as byte sequences, which are converted from integers
-using little-endian encoding.}
+\section{Notation}
 
 The notation $\hexint{}$ followed by a string of \textbf{boldface} hexadecimal
 digits represents the corresponding integer converted from hexadecimal.
@@ -386,179 +390,12 @@ The notation $\ascii{...}$ represents the given string represented as a
 sequence of bytes in US-ASCII. For example, $\ascii{abc}$ represents the
 byte sequence $[\hexint{61}, \hexint{62}, \hexint{63}]$.
 
-In bit layout diagrams, each box of the diagram represents a sequence of bits.
-The bit length is given explicitly in each box, except for the case of a single
-bit, or for the notation $\zeros{n}$ which represents the sequence of $n$ zero bits.
-
-The entire diagram represents the sequence of \emph{bytes} formed by first
-concatenating these bit sequences, and then treating each subsequence of 8 bits
-as a byte with the bits ordered from \emph{most significant} to
-\emph{least significant}. Thus the \emph{most significant} bit in each byte
-is toward the left of a diagram. Where bit fields are used, the text will
-clarify their position in each case.
-
-\begin{comment}
-\todo{Update example for big-bit-endian order.}
-
-\newsavebox{\exampleabox}
-\begin{lrbox}{\exampleabox}
-\setchanged
-\begin{bytefield}[bitwidth=1.3em]{32}
-        \bitbox{1}{0} &
-        \bitbox{1}{1} &
-        \bitbox{1}{0} &
-        \bitbox{1}{0} &
-        \bitbox{16}{16 bit $\hexint{ABCD}$} &
-        \bitbox{12}{12 bit $\hexint{123}$} &
-\end{bytefield}
-\end{lrbox}
-
-\newsavebox{\examplebbox}
-\begin{lrbox}{\examplebbox}
-\setchanged
-\begin{bytefield}[bitwidth=1.3em]{32}
-        \bitbox{4}{4 bit $\hexint{2}$} &
-        \bitbox{4}{4 bit $\hexint{D}$} &
-        \bitbox{4}{4 bit $\hexint{C}$} &
-        \bitbox{4}{4 bit $\hexint{B}$} &
-        \bitbox{4}{4 bit $\hexint{A}$} &
-        \bitbox{4}{4 bit $\hexint{3}$} &
-        \bitbox{4}{4 bit $\hexint{2}$} &
-        \bitbox{4}{4 bit $\hexint{1}$} &
-\end{bytefield}
-\end{lrbox}
-
-\newsavebox{\examplecbox}
-\begin{lrbox}{\examplecbox}
-\setchanged
-\begin{bytefield}[bitwidth=1.3em]{32}
-        \bitbox{8}{8 bit $\hexint{D2}$} &
-        \bitbox{8}{8 bit $\hexint{BC}$} &
-        \bitbox{8}{8 bit $\hexint{3A}$} &
-        \bitbox{8}{8 bit $\hexint{12}$} &
-\end{bytefield}
-\end{lrbox}
-
-For example, the following diagrams are all equivalent:
-\begin{itemize}
-  \item[] $\Justthebox{\exampleabox}{-1.3ex}$
-  \item[] $\Justthebox{\examplebbox}{-1.3ex}$
-  \item[] $\Justthebox{\examplecbox}{-1.3ex}$
-\end{itemize}
-
-and represent the byte sequence $[\hexint{D2}, \hexint{BC}, \hexint{3A}, \hexint{12}]$.
-\end{comment}
-
 The notation $\allN{}$, used as a subscript, means the sequence of values
 with indices $1$ through $\mathrm{N}$ inclusive. For example,
 $\AuthPublicNew{\allNew}$ means the sequence $[\AuthPublicNew{\mathrm{1}},
 \AuthPublicNew{\mathrm{2}}, ...\;\AuthPublicNew{\NNew}]$.
 
 The symbol $\bot$ is used to indicate unavailable information or a failed decryption.
-
-\subsection{Cryptographic Functions}
-
-$\CRH$ is a collision-resistant hash function. In \Zcash, the $\SHAName$ function
-is used which takes a 512-bit block and produces a 256-bit hash. This is
-different from the $\FullHashName$ function, which hashes arbitrary-length sequences.
-\cite{sha2}
-
-$\PRF{x}{}$ is a pseudo-random function seeded by $x$. \changed{Four} \emph{independent}
-$\PRF{x}{}$ are needed in our scheme: $\PRFaddr{x}$, $\PRFnf{x}$, $\PRFpk{x}$\changed{,
-and $\PRFrho{x}$}.
-
-It is required that $\PRFnf{x}$, $\PRFaddr{x}$\changed{, and $\PRFrho{x}$} be
-collision-resistant across all $x$ --- i.e. it should not be feasible to find
-$(x, y) \neq (x', y')$ such that $\PRFnf{x}(y) = \PRFnf{x'}(y')$, and similarly for
-$\PRFaddr{}$ \changed{and $\PRFrho{}$}.
-
-In \Zcash, the $\SHAName$ function is used to construct all of these
-functions.
-
-\newcommand{\iminusone}{\hspace{0.3pt}\scriptsize{$i$\hspace{0.6pt}-1}}
-
-\newsavebox{\addrbox}
-\begin{lrbox}{\addrbox}
-\setchanged
-\begin{bytefield}[bitwidth=0.06em]{512}
-        \bitbox{18}{$1$} &
-        \bitbox{18}{$1$} &
-        \bitbox{18}{$0$} &
-        \bitbox{18}{$0$} &
-        \bitbox{224}{$252$-bit $x$} &
-        \bitbox{56}{$8$-bit $t$} &
-        \bitbox{200}{$\zeros{248}$}
-\end{bytefield}
-\end{lrbox}
-
-\newsavebox{\nfbox}
-\begin{lrbox}{\nfbox}
-\setchanged
-\begin{bytefield}[bitwidth=0.06em]{512}
-        \bitbox{18}{$1$} &
-        \bitbox{18}{$1$} &
-        \bitbox{18}{$1$} &
-        \bitbox{18}{$0$} &
-        \bitbox{224}{$252$-bit $\AuthPrivate$} &
-        \bitbox{256}{$256$-bit $\NoteAddressRand$}
-\end{bytefield}
-\end{lrbox}
-
-\newsavebox{\pkbox}
-\begin{lrbox}{\pkbox}
-\setchanged
-\begin{bytefield}[bitwidth=0.06em]{512}
-        \bitbox{18}{$0$} &
-        \bitbox{18}{\iminusone} &
-        \bitbox{18}{$0$} &
-        \bitbox{18}{$0$} &
-        \bitbox{224}{$252$-bit $\AuthPrivate$} &
-        \bitbox{256}{$256$-bit $\hSig$}
-\end{bytefield}
-\end{lrbox}
-
-\newsavebox{\rhobox}
-\begin{lrbox}{\rhobox}
-\setchanged
-\begin{bytefield}[bitwidth=0.06em]{512}
-        \bitbox{18}{$0$} &
-        \bitbox{18}{\iminusone} &
-        \bitbox{18}{$1$} &
-        \bitbox{18}{$0$} &
-        \bitbox{224}{$252$-bit $\NoteAddressPreRand$} &
-        \bitbox{256}{$256$-bit $\hSig$}
-\end{bytefield}
-\end{lrbox}
-
-\begin{equation*}
-\begin{aligned}
-&\setchanged \PRFaddr{x}(t) &\setchanged := \CRHbox{\addrbox} \\
-\nf =\;& \PRFnf{\AuthPrivate}(\NoteAddressRand) &:= \CRHbox{\nfbox} \\
-\h{i} =\;& \PRFpk{\AuthPrivate}(i, \hSig) &:= \CRHbox{\pkbox} \\
-\setchanged \NoteAddressRandNew{i} =\;&\setchanged \PRFrho{\NoteAddressPreRand}(i, \hSig)
-&\setchanged := \CRHbox{\rhobox}
-\end{aligned}
-\end{equation*}
-
-\changed{
-\subparagraph{Note:}
-The first four bits --i.e. the most significant four bits of the first byte--
-are used to distinguish different uses of $\CRH$, ensuring that the functions
-are independent. In addition to the inputs shown here, the bits $\mathtt{1011}$
-in this position are used to distinguish uses of the full $\FullHashName$ hash
-function --- see \crossref{comm}.
-(The specific bit patterns chosen here are motivated by the possibility of future
-extensions that either increase $\NOld$ and/or $\NNew$ to 3, or that add an
-additional bit to $\AuthPrivate$ to encode a new key type, or that require an
-additional PRF.)
-
-$\BlakeHashName$ (that is, $\BlakeFullLength$ with an output digest length of
-32 bytes) is also used to construct a Key Derivation Function and as a
-hash function for the computation of $\hSig$. The notation $\BlakeHash(p, x)$
-represents the application of unkeyed $\BlakeHashName$ to a 16-byte personalization
-string $p$ and input $x$, as defined in \cite{blake2}. Note that $\BlakeHashName$
-is not the same as $\BlakeFullLength$ truncated to 256 bits.
-}
 
 
 \section{Concepts}
@@ -875,7 +712,10 @@ Transaction inputs insert value into a \term{value pool}, and transaction output
 remove value from this pool. The remaining value in the pool is available to miners 
 as a fee.
 
-\section{\JoinSplitTransfers{} and Descriptions} \label{pourdesc}
+
+\section{Abstract Protocol}
+
+\subsection{\JoinSplitTransfers{} and Descriptions} \label{pourdesc}
 
 A \joinSplitDescription is data included in a \transaction that describes a \joinSplitTransfer,
 i.e. a confidential value transfer. This kind of value transfer is the primary
@@ -970,7 +810,7 @@ The $\ephemeralKey$ and $\encCiphertexts$ fields together form the \notesCiphert
 
 \todo{Describe case where there are fewer than $\NOld$ real input \notes.}
 
-\subsection{Computation of \hSigText} \label{hsig}
+\subsubsection{Computation of \hSigText} \label{hsig}
 
 \newsavebox{\hsigbox}
 \begin{lrbox}{\hsigbox}
@@ -997,14 +837,14 @@ containing the field $\joinSplitPubKey$, we compute $\hSig$ for that
 \end{equation*}
 }
 
-\subsection{Merkle root validity}
+\subsubsection{Merkle root validity}
 
 A \joinSplitDescription is valid if $\rt$ is a \noteCommitmentTree root found in
 either the blockchain or a merkle root produced by inserting the \noteCommitments
 of a previous \joinSplitDescription in the \transaction to the \noteCommitmentTree
 identified by that previous \joinSplitDescription's $\anchor$.
 
-\subsection{Non-malleability} \label{nonmalleability}
+\subsubsection{Non-malleability} \label{nonmalleability}
 
 \changed{
 \Bitcoin defines several \sighashTypes that cover various parts of a transaction.
@@ -1094,7 +934,7 @@ ensures that a holder of all of $\AuthPrivateOld{\allOld}$ for each
 to $\joinSplitPubKey$ to sign this \transaction.
 
 
-\subsection{Balance}
+\subsubsection{Balance}
 
 A \joinSplitTransfer can be seen, from the perspective of the \transaction, as
 an input \changed{and an output simultaneously}.
@@ -1118,7 +958,7 @@ This restriction helps to avoid unnecessary distinctions between \transactions
 according to client implementation.
 }
 
-\subsection{\NoteCommitments{} and \Nullifiers}
+\subsubsection{\NoteCommitments{} and \Nullifiers}
 
 A \transaction that contains one or more \joinSplitDescriptions, when entered into the
 blockchain, appends to the \noteCommitmentTree with all constituent
@@ -1127,7 +967,7 @@ blockchain, appends to the \noteCommitmentTree with all constituent
 valid if it attempts to add a \nullifier to the \nullifierSet that already
 exists in the set.
 
-\subsection{\JoinSplitCircuit{} and Proofs}
+\subsubsection{\JoinSplitCircuit{} and Proofs}
 
 In \Zcash, $\NOld$ and $\NNew$ are both $2$.
 
@@ -1196,7 +1036,7 @@ $\NoteAddressRandNew{i} = \PRFrho{\NoteAddressPreRand}(i, \hSig)$.
 for each $i \in \setofNew$: $\cmNew{i}$ = $\Commitment(\cNew{i})$.
 
 
-\section{In-band secret distribution} \label{inband}
+\subsection{In-band secret distribution} \label{inband}
 
 In order to transmit the secret $\Value$, $\NoteAddressRand$, and $\NoteCommitRand$
 (necessary for the recipient to later spend) \changed{and also a \memo} to the
@@ -1229,7 +1069,7 @@ All of the resulting ciphertexts are combined to form a \notesCiphertext.
 \end{bytefield}
 \end{lrbox}
 
-\subsection{Encryption}
+\subsubsection{Encryption}
 
 \changed{
 Let $\SymEncrypt{\Key}(\Plaintext)$ be authenticated encryption using
@@ -1281,7 +1121,7 @@ $(\EphemeralPublic, \EphemeralPrivate)$.
 The resulting \notesCiphertext is $\changed{(\EphemeralPublic,
 \TransmitCiphertext{\allNew})}$.
 
-\subsection{Decryption by a Recipient}
+\subsubsection{Decryption by a Recipient}
 
 Let $\PaymentAddress = (\AuthPublic, \TransmitPublic)$ be the recipient's
 \paymentAddress, and let $\TransmitPrivate$ be the recipient's \viewingKey.
@@ -1328,7 +1168,7 @@ blockchain.
 
 
 \changed{
-\subsection{Commentary}
+\subsubsection{Commentary}
 
 The public key encryption used in this part of the protocol is based loosely on
 other encryption schemes based on Diffie-Hellman over an elliptic curve, such
@@ -1349,7 +1189,187 @@ block count and 64-bit nonce as in the original definition of $\SymCipher$.
 \end{itemize}
 
 
-\section{Encoding Addresses and Keys}
+\section{Concrete Protocol}
+
+\subsection{Integers, Bit Sequences, and Endianness}
+
+All integers in \emph{\Zcash-specific} encodings are unsigned, have a fixed
+bit length, and are encoded in little-endian byte order. \changed{The
+$\SymSpecific$ encryption scheme \cite{rfc7539} used in \crossref{inband}
+uses length fields encoded as little-endian. Also, Curve25519 public and
+private keys are defined as byte sequences, which are converted from integers
+using little-endian encoding.}
+
+In bit layout diagrams, each box of the diagram represents a sequence of bits.
+The bit length is given explicitly in each box, except for the case of a single
+bit, or for the notation $\zeros{n}$ which represents the sequence of $n$ zero bits.
+
+The entire diagram represents the sequence of \emph{bytes} formed by first
+concatenating these bit sequences, and then treating each subsequence of 8 bits
+as a byte with the bits ordered from \emph{most significant} to
+\emph{least significant}. Thus the \emph{most significant} bit in each byte
+is toward the left of a diagram. Where bit fields are used, the text will
+clarify their position in each case.
+
+\begin{comment}
+\todo{Update example for big-bit-endian order.}
+
+\newsavebox{\exampleabox}
+\begin{lrbox}{\exampleabox}
+\setchanged
+\begin{bytefield}[bitwidth=1.3em]{32}
+        \bitbox{1}{0} &
+        \bitbox{1}{1} &
+        \bitbox{1}{0} &
+        \bitbox{1}{0} &
+        \bitbox{16}{16 bit $\hexint{ABCD}$} &
+        \bitbox{12}{12 bit $\hexint{123}$} &
+\end{bytefield}
+\end{lrbox}
+
+\newsavebox{\examplebbox}
+\begin{lrbox}{\examplebbox}
+\setchanged
+\begin{bytefield}[bitwidth=1.3em]{32}
+        \bitbox{4}{4 bit $\hexint{2}$} &
+        \bitbox{4}{4 bit $\hexint{D}$} &
+        \bitbox{4}{4 bit $\hexint{C}$} &
+        \bitbox{4}{4 bit $\hexint{B}$} &
+        \bitbox{4}{4 bit $\hexint{A}$} &
+        \bitbox{4}{4 bit $\hexint{3}$} &
+        \bitbox{4}{4 bit $\hexint{2}$} &
+        \bitbox{4}{4 bit $\hexint{1}$} &
+\end{bytefield}
+\end{lrbox}
+
+\newsavebox{\examplecbox}
+\begin{lrbox}{\examplecbox}
+\setchanged
+\begin{bytefield}[bitwidth=1.3em]{32}
+        \bitbox{8}{8 bit $\hexint{D2}$} &
+        \bitbox{8}{8 bit $\hexint{BC}$} &
+        \bitbox{8}{8 bit $\hexint{3A}$} &
+        \bitbox{8}{8 bit $\hexint{12}$} &
+\end{bytefield}
+\end{lrbox}
+
+For example, the following diagrams are all equivalent:
+\begin{itemize}
+  \item[] $\Justthebox{\exampleabox}{-1.3ex}$
+  \item[] $\Justthebox{\examplebbox}{-1.3ex}$
+  \item[] $\Justthebox{\examplecbox}{-1.3ex}$
+\end{itemize}
+
+and represent the byte sequence $[\hexint{D2}, \hexint{BC}, \hexint{3A}, \hexint{12}]$.
+\end{comment}
+
+
+\subsection{Cryptographic Functions}
+
+$\CRH$ is a collision-resistant hash function. In \Zcash, the $\SHAName$ function
+is used which takes a 512-bit block and produces a 256-bit hash. This is
+different from the $\FullHashName$ function, which hashes arbitrary-length sequences.
+\cite{sha2}
+
+$\PRF{x}{}$ is a pseudo-random function seeded by $x$. \changed{Four} \emph{independent}
+$\PRF{x}{}$ are needed in our scheme: $\PRFaddr{x}$, $\PRFnf{x}$, $\PRFpk{x}$\changed{,
+and $\PRFrho{x}$}.
+
+It is required that $\PRFnf{x}$, $\PRFaddr{x}$\changed{, and $\PRFrho{x}$} be
+collision-resistant across all $x$ --- i.e. it should not be feasible to find
+$(x, y) \neq (x', y')$ such that $\PRFnf{x}(y) = \PRFnf{x'}(y')$, and similarly for
+$\PRFaddr{}$ \changed{and $\PRFrho{}$}.
+
+In \Zcash, the $\SHAName$ function is used to construct all of these
+functions.
+
+\newcommand{\iminusone}{\hspace{0.3pt}\scriptsize{$i$\hspace{0.6pt}-1}}
+
+\newsavebox{\addrbox}
+\begin{lrbox}{\addrbox}
+\setchanged
+\begin{bytefield}[bitwidth=0.06em]{512}
+    \bitbox{18}{$1$} &
+    \bitbox{18}{$1$} &
+    \bitbox{18}{$0$} &
+    \bitbox{18}{$0$} &
+    \bitbox{224}{$252$-bit $x$} &
+    \bitbox{56}{$8$-bit $t$} &
+    \bitbox{200}{$\zeros{248}$}
+\end{bytefield}
+\end{lrbox}
+
+\newsavebox{\nfbox}
+\begin{lrbox}{\nfbox}
+\setchanged
+\begin{bytefield}[bitwidth=0.06em]{512}
+    \bitbox{18}{$1$} &
+    \bitbox{18}{$1$} &
+    \bitbox{18}{$1$} &
+    \bitbox{18}{$0$} &
+    \bitbox{224}{$252$-bit $\AuthPrivate$} &
+    \bitbox{256}{$256$-bit $\NoteAddressRand$}
+\end{bytefield}
+\end{lrbox}
+
+\newsavebox{\pkbox}
+\begin{lrbox}{\pkbox}
+\setchanged
+\begin{bytefield}[bitwidth=0.06em]{512}
+    \bitbox{18}{$0$} &
+    \bitbox{18}{\iminusone} &
+    \bitbox{18}{$0$} &
+    \bitbox{18}{$0$} &
+    \bitbox{224}{$252$-bit $\AuthPrivate$} &
+    \bitbox{256}{$256$-bit $\hSig$}
+\end{bytefield}
+\end{lrbox}
+
+\newsavebox{\rhobox}
+\begin{lrbox}{\rhobox}
+\setchanged
+\begin{bytefield}[bitwidth=0.06em]{512}
+    \bitbox{18}{$0$} &
+    \bitbox{18}{\iminusone} &
+    \bitbox{18}{$1$} &
+    \bitbox{18}{$0$} &
+    \bitbox{224}{$252$-bit $\NoteAddressPreRand$} &
+    \bitbox{256}{$256$-bit $\hSig$}
+\end{bytefield}
+\end{lrbox}
+
+\begin{equation*}
+\begin{aligned}
+&\setchanged \PRFaddr{x}(t) &\setchanged := \CRHbox{\addrbox} \\
+\nf =\;& \PRFnf{\AuthPrivate}(\NoteAddressRand) &:= \CRHbox{\nfbox} \\
+\h{i} =\;& \PRFpk{\AuthPrivate}(i, \hSig) &:= \CRHbox{\pkbox} \\
+\setchanged \NoteAddressRandNew{i} =\;&\setchanged \PRFrho{\NoteAddressPreRand}(i, \hSig)
+&\setchanged := \CRHbox{\rhobox}
+\end{aligned}
+\end{equation*}
+
+\changed{
+\subparagraph{Note:}
+The first four bits --i.e. the most significant four bits of the first byte--
+are used to distinguish different uses of $\CRH$, ensuring that the functions
+are independent. In addition to the inputs shown here, the bits $\mathtt{1011}$
+in this position are used to distinguish uses of the full $\FullHashName$ hash
+function --- see \crossref{comm}.
+(The specific bit patterns chosen here are motivated by the possibility of future
+extensions that either increase $\NOld$ and/or $\NNew$ to 3, or that add an
+additional bit to $\AuthPrivate$ to encode a new key type, or that require an
+additional PRF.)
+
+$\BlakeHashName$ (that is, $\BlakeFullLength$ with an output digest length of
+32 bytes) is also used to construct a Key Derivation Function and as a
+hash function for the computation of $\hSig$. The notation $\BlakeHash(p, x)$
+represents the application of unkeyed $\BlakeHashName$ to a 16-byte personalization
+string $p$ and input $x$, as defined in \cite{blake2}. Note that $\BlakeHashName$
+is not the same as $\BlakeFullLength$ truncated to 256 bits.
+}
+
+
+\subsection{Encoding Addresses and Keys}
 
 This section describes how \Zcash encodes \paymentAddresses\changed{, \viewingKeys,}
 and \spendingKeys.
@@ -1363,15 +1383,15 @@ $\SHAName$ outputs are always represented as sequences of 32 bytes.
 
 The language consisting of the following encoding possibilities is prefix-free.
 
-\subsection{Transparent Payment Addresses}
+\subsubsection{Transparent Payment Addresses}
 
 These are encoded in the same way as in \Bitcoin \cite{Base58Check}.
 
-\subsection{Transparent Private Keys}
+\subsubsection{Transparent Private Keys}
 
 These are encoded in the same way as in \Bitcoin \cite{Base58Check}.
 
-\subsection{Protected Payment Addresses}
+\subsubsection{Protected Payment Addresses}
 
 A \paymentAddress consists of $\AuthPublic$ and $\TransmitPublic$.
 $\AuthPublic$ is a $\SHAName$ output.
@@ -1404,7 +1424,7 @@ and produces `z' as the Base58Check leading character.}
 
 \nathan{what about the network version byte?}
 
-\subsection{Spending Keys}
+\subsubsection{Spending Keys}
 
 A \spendingKey consists of $\AuthPrivate$, which is a sequence of 252 bits.
 
