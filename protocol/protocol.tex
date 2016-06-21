@@ -217,7 +217,7 @@
 \newcommand{\SHA}{\mathtt{SHA256Compress}}
 \newcommand{\SHAName}{\term{SHA-256 compression}}
 \newcommand{\FullHash}{\mathtt{SHA256}}
-\newcommand{\FullHashName}{\term{SHA-256}}
+\newcommand{\FullHashName}{\mathsf{SHA\mhyphen256}}
 \newcommand{\BlakeHash}{\mathtt{BLAKE2b\kern 0.05em\mhyphen256}}
 \newcommand{\BlakeHashName}{\term{BLAKE2b\kern 0.05em-256}}
 \newcommand{\BlakeFullLength}{\term{BLAKE2b}}
@@ -296,6 +296,8 @@
 \newcommand{\SymAuth}{\mathsf{Poly1305}}
 \newcommand{\Clamp}{\mathsf{clamp_{Curve25519}}}
 \newcommand{\JoinSplitSigAlg}{\mathsf{JoinSplitSigAlg}}
+\newcommand{\JoinSplitSigSpecific}{\mathsf{Ed25519}}
+\newcommand{\JoinSplitSigHashName}{\mathsf{SHA\mhyphen512}}
 \newcommand{\PRF}[2]{\mathsf{{PRF}^{#2}_\mathnormal{#1}}}
 \newcommand{\PRFaddr}[1]{\PRF{#1}{addr}}
 \newcommand{\PRFnf}[1]{\PRF{#1}{\nf}}
@@ -306,8 +308,10 @@
 \newcommand{\cmNew}[1]{\mathsf{{cm}^{new}_\mathnormal{#1}}}
 \newcommand{\ReplacementCharacter}{\textsf{U+FFFD}}
 \newcommand{\CryptoBoxSeal}{\mathsf{crypto\_box\_seal}}
-\newcommand{\ECDSAr}{\mathsf{r}}
-\newcommand{\ECDSAs}{\mathsf{s}}
+\newcommand{\EdDSAr}{R}
+\newcommand{\EdDSAs}{S}
+\newcommand{\EdDSAR}{\bytes{R}}
+\newcommand{\EdDSAS}{\bytes{S}}
 
 % merkle tree
 \newcommand{\MerkleDepth}{\mathsf{d}}
@@ -774,9 +778,8 @@ $1026 \times \nJoinSplit$ & $\vJoinSplit$ &
 \type{JoinSplitDescription} \type{[$\nJoinSplit$]} &
 The \sequenceOfJoinSplitDescriptions in this \transaction. \\ \hline
 
-33 $\dagger$ & $\joinSplitPubKey$ & \type{char[33]} & An encoding of an ECDSA public verification key,
-using the secp256k1 curve and parameters defined in \cite{sec2-ecdsa} and
-\cite{secp256k1}. \\ \hline
+33 $\dagger$ & $\joinSplitPubKey$ & \type{char[32]} & An encoding of an $\JoinSplitSigAlg$
+public verification key \\ \hline
 
 64 $\dagger$ & $\joinSplitSig$ & \type{char[64]} & A signature on a prefix of the \transaction encoding,
 to be verified using $\joinSplitPubKey$. \\ \hline
@@ -847,7 +850,7 @@ The $\ephemeralKey$ and $\encCiphertexts$ fields together form the \notesCiphert
     \bitbox{256}{$256$-bit $\randomSeed$}
     \bitbox{256}{\hfill $256$-bit $\nfOld{\mathrm{1}}$\hfill...\;} &
     \bitbox{256}{$256$-bit $\nfOld{\NOld}$} &
-    \bitbox{256}{$256$-bit $\pubKeyHash$}
+    \bitbox{256}{$256$-bit $\joinSplitPubKey$}
 \end{bytefield}
 \end{lrbox}
 
@@ -858,7 +861,6 @@ containing the field $\joinSplitPubKey$, we compute $\hSig$ for that
 \joinSplitDescription as follows:
 \begin{equation*}
 \begin{aligned}
-\pubKeyHash &:= \GeneralCRH(\ascii{ZcashECDSAPubKey},\; \joinSplitPubKey) \\
 \hSigInput &:= \Justthebox{\hsigbox}{-1.3ex} \\
 \hSig &:= \GeneralCRH(\ascii{ZcashComputehSig},\; \hSigInput)
 \end{aligned}
@@ -935,45 +937,27 @@ key pair is generated for each \transaction, and the $\dataToBeSigned$ is
 signed with the private signing key of this key pair. The corresponding public
 verification key is included in the \transaction encoding as $\joinSplitPubKey$.
 
+$\JoinSplitSigAlg$ is instantiated as $\JoinSplitSigSpecific$ \cite{ed25519},
+with the additional requirement that $\EdDSAs$ (the integer represented
+by $\EdDSAS$) must be less than the prime
+$\ell = 2^{252} + 27742317777372353535851937790883648493$ defined in \cite{ed25519},
+otherwise the signature is considered invalid.
+Note that $\JoinSplitSigSpecific$ is defined as using $\JoinSplitSigHashName$
+internally.
+
 If $\nJoinSplit$ is zero, the $\joinSplitPubKey$ and $\joinSplitSig$ fields are
-omitted. Otherwise, a \transaction has a correct \joinSplitSignature if:
-\begin{itemize}
-  \item $\joinSplitSig$ can be verified as an encoding of a signature on
-$\dataToBeSigned$, using the ECDSA public key encoded as $\joinSplitPubKey$; and
-  \item $\joinSplitSig$ has an $\ECDSAs$ value in the lower half of the possible range
-(i.e.$\;\ECDSAs$ must fall into the range from \linebreak
-$\hexint{1}$ to $\hexint{7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0}$ \linebreak
-inclusive).
-\end{itemize}
-
-If $\ECDSAs$ is not in the given range, the signature is treated as invalid.
+omitted. Otherwise, a \transaction has a correct \joinSplitSignature if
+$\joinSplitSig$ can be verified as an encoding of a signature on $\dataToBeSigned$
+as specified above, using the $\JoinSplitSigSpecific$ public key encoded as
+$\joinSplitPubKey$.
 }
-
-$\JoinSplitSigAlg$ is instantiated as Ed25519 \cite{ed25519}, using SHA-512 as
-the hash function.
 
 \newsavebox{\sigbox}
 \begin{lrbox}{\sigbox}
 \setchanged
 \begin{bytefield}[bitwidth=0.075em]{512}
-    \bitbox{256}{$256$-bit $\ECDSAr$}
-    \bitbox{256}{$256$-bit $\ECDSAs$}
-\end{bytefield}
-\end{lrbox}
-
-\newsavebox{\pubkeybox}
-\begin{lrbox}{\pubkeybox}
-\setchanged
-\begin{bytefield}[bitwidth=0.075em]{264}
-    \bitbox{14}{$0$}
-    \bitbox{14}{$0$}
-    \bitbox{14}{$0$}
-    \bitbox{14}{$0$}
-    \bitbox{14}{$0$}
-    \bitbox{14}{$0$}
-    \bitbox{14}{$1$}
-    \bitbox{56}{$1$-bit $\tilde{y}_P$}
-    \bitbox{256}{$256$-bit $x_P$}
+    \bitbox{256}{$256$-bit $\EdDSAR$}
+    \bitbox{256}{$256$-bit $\EdDSAS$}
 \end{bytefield}
 \end{lrbox}
 
@@ -985,18 +969,9 @@ The encoding of a signature is:
 \end{itemize}
 
 \changed{
-where $\ECDSAr$ and $\ECDSAs$ are as defined in \cite{sec2-ecdsa}.
+where $\EdDSAR$ and $\EdDSAS$ are as defined in \cite{ed25519}.
 
-The encoding of a public key is as defined in section E.2.3.2 of \cite{std1363}
-for a compressed elliptic curve point with $x$-coordinate $x_P$ and compressed
-$y$-coordinate $\tilde{y}_P$:
-}
-\begin{itemize}
-  \item[] $\Justthebox{\pubkeybox}{-1.3ex}$
-\end{itemize}
-
-\changed{
-Note that only compressed public keys are valid.
+The encoding of a public key is as defined in \cite{ed25519}.
 }
 
 The condition enforced by the \joinSplitCircuit specified in \crossref{nonmalleablepour}
