@@ -625,6 +625,43 @@ $\Memo$ represents a \memo associated with this \note. The usage of the
 }
 
 
+\nsubsection{Transactions, Blocks, and the Block Chain}
+
+At a given point in time, the \blockchainview of each \fullnode consists of a
+sequence of one or more valid \blocks. Each \block consists of a sequence of one or
+more \transactions. To each \transaction there is associated an initial \treestate,
+which consists of a \noteCommitmentTree (\crossref{merkle}), \nullifierSet
+(\crossref{nullifierset}), and data structures associated with \Bitcoin such as
+the UTXO (Unspent Transaction Output) set.
+
+Inputs to a \transaction insert value into a \term{value pool}, and outputs
+remove value from this pool. As in \Bitcoin, the remaining value in the pool is
+available to miners as a fee.
+
+An \anchor is a Merkle tree root of a \noteCommitmentTree. It uniquely identifies
+a \noteCommitmentTree state given the assumed security properties of the Merkle tree's
+hash function. Since the \nullifierSet is always updated together with the
+\noteCommitmentTree, this also identifies a particular state of the \nullifierSet.
+
+In a given node's \blockchainview, \treestates are chained as follows:
+
+\begin{itemize}
+  \item The input \treestate of the first \block is the empty \treestate.
+  \item The input \treestate of the first \transaction of a \block is the final
+        \treestate of the immediately preceding \block.
+  \item The input \treestate of each subsequent \transaction in a \block is the
+        output \treestate of the immediately preceding \transaction.
+  \item The final \treestate of a \block is the output \treestate of its last
+        \transaction.
+\end{itemize}
+
+\daira{\joinSplitDescriptions also have input and output \treestates.}
+
+We rely on Bitcoin-style consensus for \fullnodes to eventually converge on their
+views of valid \blocks, and therefore of the sequence of \treestates in those
+\blocks.
+
+
 \nsubsection{\JoinSplitTransfers{} and Descriptions} \label{joinsplit}
 
 A \joinSplitDescription is data included in a \transaction that describes a \joinSplitTransfer,
@@ -635,6 +672,24 @@ confused with, the \joinSplitCircuit used for the \zkSNARK proof and verificatio
 A \joinSplitTransfer spends $\NOld$ \notes $\nOld{\allOld}$ and transparent input
 $\vpubOld$, and creates $\NNew$ \notes $\nNew{\allNew}$ and transparent output
 $\vpubNew$.
+
+Each \transaction is associated with a \sequenceOfJoinSplitDescriptions.
+
+The inputs and outputs of each \joinSplitTransfer{} \MUST balance exactly.
+The \changed{total $\vpubNew$ value adds to, and the total} $\vpubOld$
+value subtracts from the value pool of the containing \transaction.
+
+\todo{Describe the interaction of transparent value flows with the \joinSplitDescription's
+\changed{$\vpubOld$ and} $\vpubNew$.}
+
+\changed{
+The \anchor of each \joinSplitDescription in a \transaction must refer to either
+some earlier \block's final \treestate, or to the output \treestate of any prior
+\joinSplitDescription in the same \transaction.
+}
+
+These conditions act as constraints on the blocks that a \fullnode will
+accept into its \blockchainview.
 
 
 \nsubsection{\NoteCommitment{} Tree} \label{merkle}
@@ -662,69 +717,15 @@ The \merkleHash associated with the \merkleNode at \merkleIndex $i$ in \merkleLa
 is denoted $\MerkleNode{h}{i}$.
 
 
-\nsubsection{\NullifierSet}
+\nsubsection{\NullifierSet} \label{nullifierset}
 
-Transactions insert \nullifiers into a \nullifierSet which is maintained
-alongside the UTXO by all nodes.
+Each \fullnode maintains a \nullifierSet alongside the \noteCommitmentTree and UTXO set.
+As valid \transactions containing \joinSplitTransfers are processed, the \nullifiers
+revealed in \joinSplitDescriptions are inserted into this \nullifierSet.
 
-\eli{a tx is just a string, so it doesn't insert anything. Rather, nodes process 
-tx's and the ``good'' ones lead to the addition of \nullifiers to the
-\nullifierSet.}
-
-Transactions that attempt to insert a \nullifier into this set that already
-exists within it are invalid as they are attempting to double-spend.
-
-\eli{After defining \term{transaction}, one should define what a \term{legal tx} is
-(this definition depends on a particular blockchain [view]) and only then can one
-talk about ``attempts'' of transactions, and insertions of \nullifiers into the
-\nullifierSet.}
-
-\nsubsection{The Blockchain}
-
-At a given point in time, the \blockchainview of each \fullnode consists of a
-sequence of one or more valid \blocks. Each \block consists of a sequence of one or
-more \transactions. In a given node's \blockchainview, \treestates are chained in an
-obvious way:
-
-\begin{itemize}
-  \item The input \treestate of the first \block is the empty \treestate.
-  \item The input \treestate of the first \transaction of a \block is the final
-        \treestate of the immediately preceding \block.
-  \item The input \treestate of each subsequent \transaction in a \block is the
-        output \treestate of the immediately preceding \transaction.
-  \item The final \treestate of a \block is the output \treestate of its last
-        \transaction.
-\end{itemize}
-
-An \anchor is a Merkle tree root of a \treestate, and uniquely identifies that
-\treestate given the assumed security properties of the Merkle tree's hash function.
-
-Each \transaction is associated with a \sequenceOfJoinSplitDescriptions.
-\todo{They also have a transparent value flow that interacts with the \joinSplitDescription's
-\changed{$\vpubOld$ and} $\vpubNew$.}
-Inputs and outputs are associated with a value.
-
-The total value of the outputs must not exceed the total value of the inputs.
-
-\changed{
-The \anchor of each \joinSplitDescription in a \transaction must refer to either
-some earlier \block's final \treestate, or to the output \treestate of any prior
-\joinSplitDescription in the same \transaction.
-}
-
-These conditions act as constraints on the blocks that a \fullnode will
-accept into its \blockchainview.
-
-We rely on Bitcoin-style consensus for \fullnodes to eventually converge on their 
-views of valid \blocks, and therefore of the sequence of \treestates in those 
-\blocks.
-
-
-\subparagraph{Value pool}
-
-Transaction inputs insert value into a \term{value pool}, and transaction outputs 
-remove value from this pool. The remaining value in the pool is available to miners 
-as a fee.
+If a \joinSplitDescription reveals a \nullifier that already exists in
+the \fullnode's \blockchainview, the containing transaction will be rejected, since
+it would otherwise result in a double-spend.
 
 
 \nsubsection{Coinbase Transactions}
