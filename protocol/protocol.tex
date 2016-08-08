@@ -197,6 +197,7 @@
 \newcommand{\merkleIndices}{\term{indices}}
 \newcommand{\zkSNARK}{\term{zk-SNARK}}
 \newcommand{\zkSNARKs}{\term{zk-SNARKs}}
+\newcommand{\libsnark}{\term{libsnark}}
 \newcommand{\memo}{\term{memo field}}
 \newcommand{\memos}{\term{memo fields}}
 \newcommand{\Memos}{\titleterm{Memo Fields}}
@@ -392,8 +393,17 @@
 \newcommand{\setofOld}{\setof{\allOld}}
 \newcommand{\setofNew}{\setof{\allNew}}
 \newcommand{\vmacs}{\mathtt{vmacs}}
-\newcommand{\zkproofSize}{\mathtt{zkproofSize}}
 \newcommand{\zkproof}{\mathtt{zkproof}}
+\newcommand{\GroupG}[1]{\mathbb{G}_{#1}}
+\newcommand{\PointP}[1]{\mathcal{P}_{#1}}
+\newcommand{\GF}[1]{\mathbb{F}_{#1}}
+\newcommand{\ECtoOSP}{\mathsf{EC2OSP}}
+\newcommand{\ECtoOSPXL}{\mathsf{EC2OSP\mhyphen{}XL}}
+\newcommand{\ECtoOSPXS}{\mathsf{EC2OSP\mhyphen{}XS}}
+\newcommand{\ItoOSP}[1]{\mathsf{I2OSP}_{#1}}
+\newcommand{\FEtoIP}{\mathsf{FE2IP}}
+\newcommand{\rankOneConstraintSystem}{\term{Rank 1 Constraint System}}
+\newcommand{\BNImpl}{\mathtt{ALT\_BN128}}
 \newcommand{\JoinSplitStatement}{\texttt{JoinSplit}}
 \newcommand{\JoinSplitProof}{\pi_{\text{\footnotesize\JoinSplitStatement}}}
 \newcommand{\vpubOld}{\mathsf{v_{pub}^{old}}}
@@ -487,8 +497,15 @@ with indices $1$ through $\mathrm{N}$ inclusive. For example,
 $\AuthPublicNew{\allNew}$ means the sequence $[\AuthPublicNew{\mathrm{1}},
 \AuthPublicNew{\mathrm{2}}, ...\;\AuthPublicNew{\NNew}]$.
 
-The notation $\setof{\allN{}}$ means the set of integers from $1$ through
-$\mathrm{N}$ inclusive.
+The notation $\setof{a..b}$ means the set of integers from $a$ through
+$b$ inclusive.
+
+The notation $\GF{q}$ means the finite field with $q$ elements.
+$\GF{q}[z]$ means the ring of polynomials over $z$ with coefficients
+in $\GF{q}$.
+
+The notation $a \bmod q$, for positive integers $a$ and $q$, means the
+remainder on dividing $a$ by $q$.
 
 The symbol $\bot$ is used to indicate unavailable information or a failed decryption.
 
@@ -859,7 +876,7 @@ Bytes & \heading{Name} & \heading{Data Type} & \heading{Description} \\
 \Varies & $\nJoinSplit$ & \type{compactSize uint} & The number of \joinSplitDescriptions
 in $\vJoinSplit$. \\ \hline
 
-$1026 \times \nJoinSplit$ & $\vJoinSplit$ &
+$1034 \times \nJoinSplit$ & $\vJoinSplit$ &
 \type{JoinSplitDescription} \type{[$\nJoinSplit$]} &
 The \sequenceOfJoinSplitDescriptions in this \transaction. \\ \hline
 
@@ -916,8 +933,8 @@ A 256-bit seed that must be chosen independently at random for each \joinSplitDe
 $\h{\allOld}$ that bind $\hSig$ to each $\AuthPrivate$ of the
 $\joinSplitDescription$. \\ \hline
 
-288 & $\zkproof$ & \type{char[288]} & An encoding, as determined by the libsnark library
-\cite{libsnark}, of the zero-knowledge proof $\JoinSplitProof$. \\ \hline
+296 & $\zkproof$ & \type{char[296]} & An encoding of the zero-knowledge proof $\JoinSplitProof$
+(\crossref{proofencoding}). \\ \hline
 
 \end{tabularx}
 \end{center}
@@ -1102,9 +1119,7 @@ blockchain, appends to the \noteCommitmentTree with all constituent
 valid if it attempts to add a \nullifier to the \nullifierSet that already
 exists in the set.
 
-\nsubsubsection{\JoinSplitCircuit{} and Proofs} \label{circuit}
-
-In \Zcash, $\NOld$ and $\NNew$ are both $2$.
+\nsubsubsection{\JoinSplitCircuit{}} \label{circuit}
 
 A valid instance of $\JoinSplitProof$ assures that given a \term{primary input}:
 
@@ -1149,7 +1164,7 @@ $\changed{\vpubOld\; +} \vsum{i=1}{\NOld} \vOld{i} = \vpubNew + \vsum{i=1}{\NNew
 for each $i \in \setofNew$:
 $\nfOld{i} = \PRFnf{\AuthPrivateOld{i}}(\NoteAddressRandOld{i})$.
 
-\subparagraph{Spend authority}
+\subparagraph{Spend authority} \label{spendauthority}
 
 for each $i \in \setofOld$:
 $\AuthPublicOld{i} = \changed{\PRFaddr{\AuthPrivateOld{i}}(0)}$.
@@ -1169,6 +1184,9 @@ $\NoteAddressRandNew{i} = \PRFrho{\NoteAddressPreRand}(i, \hSig)$.
 \subparagraph{Commitment integrity}
 
 for each $i \in \setofNew$: $\cmNew{i}$ = $\Commitment(\nNew{i})$.
+
+\vspace{2.5ex}
+For details of the form and encoding of proofs, see \crossref{proofs}.
 
 
 \nsubsection{In-band secret distribution} \label{inband}
@@ -1288,11 +1306,8 @@ engineering rationale behind this encryption scheme.
 \nsubsection{Integers, Bit Sequences, and Endianness}
 
 All integers in \emph{\Zcash-specific} encodings are unsigned, have a fixed
-bit length, and are encoded in little-endian byte order. \changed{The
-$\SymSpecific$ encryption scheme \cite{rfc7539} used in \crossref{inband}
-uses length fields encoded as little-endian. Also, Curve25519 public and
-private keys are defined as byte sequences, which are converted from integers
-using little-endian encoding.}
+bit length, and are encoded in little-endian byte order unless otherwise
+specified.
 
 In bit layout diagrams, each box of the diagram represents a sequence of bits.
 The bit length is given explicitly in each box, except for the case of a single
@@ -1784,6 +1799,172 @@ Future key representations may make use of these padding bits.
 }
 
 
+\nsection{Zero-Knowledge Proving System} \label{proofs}
+
+\Zcash uses \zkSNARKs generated by its fork of \libsnark \cite{libsnark}
+using the proving system described in \cite{BCTV}, which is a refinement of
+the system in \cite{Pinocchio}.
+
+The pairing implementation is $\BNImpl$.
+
+Let $q = 21888242871839275222246405745257275088696311157297823662689037894645226208583$.
+
+Let $r = 21888242871839275222246405745257275088548364400416034343698204186575808495617$.
+
+Let $b = 3$.
+
+($q$ and $r$ are prime.)
+
+The pairing is of type $\GroupG{1} \times \GroupG{2} \rightarrow \GroupG{T}$, where:
+\begin{itemize}
+  \item $\GroupG{1}$ is a Barreto--Naehrig curve over $\GF{q}$ with equation
+$y^2 = x^3 + b$.
+  \item $\GroupG{2}$ is a twisted Barreto-Naehrig curve over $\GF{q^2}$ with equation
+$y^2 = x^3 + b/xi$. We represent elements of $\GF{q^2}$ as
+polynomials $a_1 t + a_0 \typecolon \GF{q}[t]$, modulo the irreducible polynomial
+$t^2 + 1$.
+  \item $\GroupG{T}$ is $\GF{q^{12}}$.
+\end{itemize}
+
+Let $\PointP{1} \typecolon \GroupG{1} = (1, 2)$.
+
+\begin{tabular}{@{}l@{}r@{}l@{}}
+Let $\PointP{2} \typecolon \GroupG{2} =\;$
+% are these the right way round?
+&$(11559732032986387107991004021392285783925812861821192530917403151452391805634$ & $\,t\;+$ \\
+&$ 10857046999023057135944570762232829481370756359578518086990519993285655852781$ & $,     $ \\
+&$  4082367875863433681332203403145435568316851327593401208105741076214120093531$ & $\,t\;+$ \\
+&$  8495653923123431417604973247489272438418190587263600148770280649306958101930$ & $).    $
+\end{tabular}
+
+The curves $\GroupG{1}$ and $\GroupG{2}$ both have prime order $r$, and so $\PointP{1}$
+and $\PointP{2}$ are generators of $\GroupG{1}$ and $\GroupG{2}$ respectively.
+
+A proof consists of a tuple
+$(\pi_A  \typecolon \GroupG{1},\;
+  \pi'_A \typecolon \GroupG{1},\;
+  \pi_B  \typecolon \GroupG{2},\;
+  \pi'_B \typecolon \GroupG{1},\;
+  \pi_C  \typecolon \GroupG{1},\;
+  \pi'_C \typecolon \GroupG{1},\;
+  \pi_K  \typecolon \GroupG{1},\;
+  \pi_H  \typecolon \GroupG{1})$.
+It is computed as described in Appendix B of \cite{BCTV}.
+
+Note that many details of the proving system are beyond the scope of this protocol
+document. For example, the \mbox{\rankOneConstraintSystem} corresponding to the
+\joinSplitCircuit is not specified here. In practice it will be necessary to use
+the specific proving and verification keys generated for the \Zcash production
+\blockchain, and a proving system implementation that is interoperable with the
+\Zcash fork of \libsnark, to ensure compatibility.
+
+\nsubsection{Encoding of Points} \label{pointencoding}
+
+\newsavebox{\gonebox}
+\begin{lrbox}{\gonebox}
+\setchanged
+\begin{bytefield}[bitwidth=0.05em]{264}
+    \bitbox{20}{$0$}
+    \bitbox{20}{$0$}
+    \bitbox{20}{$0$}
+    \bitbox{20}{$0$}
+    \bitbox{20}{$0$}
+    \bitbox{20}{$0$}
+    \bitbox{20}{$1$}
+    \bitbox{80}{$1$-bit $\tilde{y}$}
+    \bitbox{256}{$256$-bit $\ItoOSP{32}(x)$}
+\end{bytefield}
+\end{lrbox}
+
+\newsavebox{\gtwobox}
+\begin{lrbox}{\gtwobox}
+\setchanged
+\begin{bytefield}[bitwidth=0.05em]{520}
+    \bitbox{20}{$0$}
+    \bitbox{20}{$0$}
+    \bitbox{20}{$0$}
+    \bitbox{20}{$0$}
+    \bitbox{20}{$1$}
+    \bitbox{20}{$0$}
+    \bitbox{20}{$1$}
+    \bitbox{80}{$1$-bit $\tilde{y}$}
+    \bitbox{512}{$512$-bit $\ItoOSP{64}(x)$}
+\end{bytefield}
+\end{lrbox}
+
+Let $\ItoOSP{\ell}(n)$ be the sequence of $\ell$ bytes representing $n$ in
+big-endian order.
+
+For a point $P \typecolon \GroupG{1} = (x_P, y_P)$:
+\begin{itemize}
+  \item The field elements $x_P$ and $y_P \typecolon \GF{q}$ are represented as
+        integers $x$ and $y \typecolon \setof{0..q-1}$.
+  \item Let $\tilde{y} = y \bmod 2$.
+  \item $P$ is encoded as $\Justthebox{\gonebox}{-1.3ex}$.
+\end{itemize}
+
+For a point $P \typecolon \GroupG{2} = (x_P, y_P)$:
+\begin{itemize}
+  \item A field element $w \typecolon \GF{q^2}$ is represented as
+        a polynomial $a^w_1 t + a^w_0 \typecolon \GF{q}[t]$ modulo $t^2 + 1$.
+        Define $\FEtoIP(w) = a^w_1 q + a^w_0$.
+  \item Let $x = \FEtoIP(x_P)$, $y = \FEtoIP(y_P)$, and $y' = \FEtoIP(-y_P)$.
+  \item Let $\tilde{y} = \begin{cases} 1, &\text{if } y > y' \\0, &\text{otherwise.} \end{cases}$
+  \item $P$ is encoded as $\Justthebox{\gtwobox}{-1.3ex}$.
+\end{itemize}
+
+\vspace{1ex}
+Non-normative notes:
+\begin{itemize}
+  \item The use of big-endian byte order is different from the encoding
+        of other integers in this protocol. The above encodings are consistent with the
+        definition of $\ECtoOSP{}$ for compressed curve points in section
+        5.5.6.2 of IEEE Std 1363a-2004 \cite{std1363a}. The LSB compressed
+        form (i.e. $\ECtoOSPXL$) is used for points on $\GroupG{1}$, and the
+        SORT compressed form (i.e. $\ECtoOSPXS$) for points on $\GroupG{2}$.
+  \item Testing $y > y'$ for the compression of $\GroupG{2}$ points is equivalent
+        to testing whether $(a^y_1, a^y_0) > (a^{-y}_1, a^{-y}_0)$ in lexicographic order.
+  \item Algorithms for decompressing points from the above encodings are
+        given in Appendix A.12.8 of \cite{std1363} for $\GroupG{1}$, and
+        Appendix A.12.11 of \cite{std1363a} for $\GroupG{2}$.
+\end{itemize}
+
+\nsubsection{Encoding of Zero-Knowledge Proofs} \label{proofencoding}
+
+\newsavebox{\proofbox}
+\begin{lrbox}{\proofbox}
+\setchanged
+\begin{bytefield}[bitwidth=0.021em]{2368}
+    \bitbox{264}{264-bit $\pi_A$}
+    \bitbox{264}{264-bit $\pi'_A$}
+    \bitbox{520}{520-bit $\pi_B$}
+    \bitbox{264}{264-bit $\pi'_B$}
+    \bitbox{264}{264-bit $\pi_C$}
+    \bitbox{264}{264-bit $\pi'_C$}
+    \bitbox{264}{264-bit $\pi_K$}
+    \bitbox{264}{264-bit $\pi_H$}
+\end{bytefield}
+\end{lrbox}
+
+A proof is encoded by concatenating the encodings of its elements:
+
+\vspace{1.5ex}
+\hskip 0.2em $\Justthebox{\proofbox}{-1.3ex}$
+\vspace{1ex}
+
+The resulting proof size is 296 bytes.
+
+\vspace{0.8ex}
+
+In addition to the steps to verify a proof given in \cite{BCTV} Appendix B, the
+verifier \MUST check, for the encoding of each element, that:
+\begin{itemize}
+  \item the lead byte is of the required form;
+  \item the remaining bytes encode a big-endian representation of an integer
+        in the range $0..q-1$ or (in the case of $\pi_B$) $0..q^2-1$;
+  \item the encoding represents a point on the relevant curve.
+\end{itemize}
+
 \nsection{Differences from the Zerocash paper}
 
 \nsubsection{Transaction Structure} \label{trstructure}
@@ -2084,6 +2265,11 @@ distinct openings of the \noteCommitment when Condition I or II is violated.
           did not actually use $\NoteCommitS$, and neither does the new
           instantiation of $\Commitment$ in \Zcash. $\cm$ can be computed from
           the other fields.
+    \item The length of proof encodings given in the paper is 288 bytes.
+          This differs from the 296 bytes specified in \crossref{proofencoding},
+          because the paper did not take into account the need to encode compressed
+          $y$-coordinates. The fork of \libsnark used by \Zcash uses a different
+          format to upstream \libsnark, in order to follow \cite{std1363a}.
 \end{itemize}
 
 
@@ -2111,6 +2297,9 @@ of $\PRFaddr{}$ was found by Daira Hopwood.
 \begin{itemize}
     \item Major reorganisation to separate the abstract cryptographic protocol
           from the algorithm instantiations.
+    \item Add a section specifying the zero-knowledge proving system and the
+          encoding of proofs. Change the encoding of points in proofs to follow
+          IEEE Std 1363.
     \item Switch the \joinSplitSignature scheme to Ed25519, with consequent
           changes to the computation of $\hSig$.
     \item Fix the lead bytes in \paymentAddress and \spendingKey encodings to
