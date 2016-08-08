@@ -194,6 +194,7 @@
 \newcommand{\zkSNARK}{\term{zk-SNARK}}
 \newcommand{\zkSNARKs}{\term{zk-SNARKs}}
 \newcommand{\memo}{\term{memo field}}
+\newcommand{\memos}{\term{memo fields}}
 \newcommand{\Memos}{\titleterm{Memo Fields}}
 \newcommand{\keyAgreementScheme}{\term{key agreement scheme}}
 \newcommand{\KeyAgreement}{\titleterm{Key Agreement}}
@@ -1259,27 +1260,17 @@ as \transactions are added to that view. Also, blockchain reorganisations can ca
 the \transaction in which a \note was output to no longer be on the consensus
 blockchain.
 
-
-\changed{
-\nsubsubsection{Commentary}
-
-The public key encryption used in this part of the protocol is based loosely on
-other encryption schemes based on Diffie-Hellman over an elliptic curve, such
-as ECIES or the $\CryptoBoxSeal$ algorithm defined in libsodium \cite{cryptoboxseal}.
 Note that:
-}
+
 \begin{itemize}
-\changed{
-  \item The same ephemeral key is used for all encryptions to the recipient keys
-        in a given \joinSplitDescription.
-  \item In addition to the Diffie-Hellman secret, the KDF takes as input the
-        seed $\hSig$, the public keys of both parties, and the index $i$.
   \item The nonce parameter to $\SymSpecific$ is not used.
   \item The ``IETF" definition of $\SymSpecific$ from \cite{rfc7539} is
 used; this uses a 32-bit block count and a 96-bit nonce, rather than a 64-bit
 block count and 64-bit nonce as in the original definition of $\SymCipher$.
-}
 \end{itemize}
+
+See \crossref{inbandrationale} for further discussion of the security and
+engineering rationale behind this encryption scheme.
 
 
 \nsection{Concrete Protocol}
@@ -1971,9 +1962,62 @@ within the circuit was not considered to justify the benefits.
 %The need for collision resistance of \CRH(.) truncated to 253 bits was not
 %explicitly stated in \ (This does not follow from collision resistance of $\CRH$.)
 
-\nsubsection{In-band secret distribution}
+\nsubsection{In-band secret distribution} \label{inbandrationale}
 
-\todo{}
+\Zerocash specified ECIES (referencing Certicom's SEC 1 standard) as the
+encryption scheme used for the in-band secret distribution. This has been
+changed to a scheme based on Curve25519 key agreement, and the authenticated
+encryption algorithm $\SymSpecific$. This scheme is still loosely based on ECIES,
+and on the $\CryptoBoxSeal$ scheme defined in libsodium \cite{cryptoboxseal}.
+
+The motivations for this change were as follows:
+
+\begin{itemize}
+  \item The \Zerocash paper did not specify the curve to be used.
+        We believe that Curve25519 has significant side-channel resistance,
+        performance, implementation complexity, and robustness advantages
+        over most other available curve choices, as explained in \cite{Curve25519}.
+  \item ECIES permits many options, which were not specified. There are at least
+        --counting conservatively-- 576 possible combinations of options and
+        algorithms over the four standards (ANSI X9.63, IEEE Std 1363a-2004,
+        ISO/IEC 18033-2, and SEC 1) that define ECIES variants \cite{eciescomparison}.
+  \item Although the \Zerocash paper states that ECIES satisfies key privacy
+        (as defined in \cite{BBDP2001}), it is not clear that this holds for
+        all curve parameters and key distributions. For example, if a group of
+        non-prime order is used, the distribution of ciphertexts could be
+        distinguishable depending on the order of the points representing the
+        ephemeral and recipient public keys. Public key validity is also a concern.
+        Curve25519 key agreement is defined in a way that avoids these concerns
+        due to the curve structure and the ``clamping'' of private keys.
+  \item Unlike the DHAES/DHIES proposal on which it is based \cite{dhaes}, ECIES
+        does not require a representation of the sender's ephemeral public key
+        to be included in the input to the KDF, which may impair the security
+        properties of the scheme. (The Std 1363a-2004 version of ECIES \cite{std1363a}
+        has a ``DHAES mode'' that allows this, but the representation of the key
+        input is underspecified, leading to incompatible implementations.)
+        The scheme we use has both the ephemeral and recipient public key
+        encodings --which are unambiguous for Curve25519-- and also $\hSig$ and
+        a nonce as described below, as input to the KDF. Note that because
+        $\TransmitPublic$ is included in the KDF input, being able to break the
+        Elliptic Curve Diffie-Hellman Problem on Curve25519 (without breaking
+        $\SymCipher$ as an authenticated encryption scheme or $\BlakeHashName$ as
+        a KDF) would not help to decrypt the \notesCiphertext unless
+        $\TransmitPublic$ is known or guessed.
+  \item The KDF also takes a public seed $\hSig$ as input. This can be modeled
+        as using a different ``randomness extractor'' for each \joinSplitTransfer,
+        which limits degradation of security with the number of \joinSplitTransfers.
+        This facilitates security analysis as explained in \cite{DGKM2011} --- see
+        section 7 of that paper for a security proof that can be applied to this
+        construction under the assumption that single-block $\BlakeHashName$ is a
+        ``weak PRF''.
+        Note that $\hSig$ is authenticated, by the ZK proof, as having been chosen
+        with knowledge of $\AuthPrivateOld{\allOld}$, so an adversary cannot
+        modify it in a ciphertext from someone else's transaction for use in a
+        chosen-ciphertext attack without detection.
+  \item The scheme used by \Zcash includes an optimization that uses the
+        same ephemeral key (with different nonces) for the two ciphertexts
+        encrypted in each \joinSplitDescription.
+\end{itemize}
 
 \nsubsection{Omission in \Zerocash security proof}
 
