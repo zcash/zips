@@ -139,6 +139,10 @@
 \newcommand{\JoinSplitTransfer}{\titleterm{JoinSplit Operation}}
 \newcommand{\JoinSplitTransfers}{\titleterm{JoinSplit Operations}}
 \newcommand{\joinSplitSignature}{\term{JoinSplit signature}}
+\newcommand{\joinSplitCircuit}{\term{JoinSplit circuit}}
+\newcommand{\JoinSplitCircuit}{\titleterm{JoinSplit Circuit}}
+\newcommand{\joinSplitStatement}{\term{JoinSplit statement}}
+\newcommand{\joinSplitStatements}{\term{JoinSplit statements}}
 \newcommand{\fullnode}{\term{full node}}
 \newcommand{\fullnodes}{\term{full nodes}}
 \newcommand{\anchor}{\term{anchor}}
@@ -249,9 +253,13 @@
 \newcommand{\NotePlaintextLeadByte}{\hexint{00}}
 \newcommand{\AuthPublic}{\mathsf{a_{pk}}}
 \newcommand{\AuthPrivate}{\mathsf{a_{sk}}}
+\newcommand{\AuthPublicX}[1]{\mathsf{a^\mathrm{#1}_{pk}}}
+\newcommand{\AuthPrivateX}[1]{\mathsf{a^\mathrm{#1}_{sk}}}
 \newcommand{\AuthPrivateLength}{\mathsf{\ell_{\AuthPrivate}}}
 \newcommand{\AuthPublicOld}[1]{\mathsf{a^{old}_{pk,\mathnormal{#1}}}}
 \newcommand{\AuthPrivateOld}[1]{\mathsf{a^{old}_{sk,\mathnormal{#1}}}}
+\newcommand{\AuthPublicOldX}[1]{\mathsf{a^{old}_{pk,\mathrm{#1}}}}
+\newcommand{\AuthPrivateOldX}[1]{\mathsf{a^{old}_{sk,\mathrm{#1}}}}
 \newcommand{\AuthPublicNew}[1]{\mathsf{a^{new}_{pk,\mathnormal{#1}}}}
 \newcommand{\AuthPrivateNew}[1]{\mathsf{a^{new}_{sk,\mathnormal{#1}}}}
 \newcommand{\AddressPublicNew}[1]{\mathsf{addr^{new}_{pk,\mathnormal{#1}}}}
@@ -279,6 +287,7 @@
 \newcommand{\NoteCommitRandNew}[1]{\mathsf{r^{new}_\mathnormal{#1}}}
 \newcommand{\NoteAddressRand}{\mathsf{\uprho}}
 \newcommand{\NoteAddressRandOld}[1]{\mathsf{\uprho^{old}_\mathnormal{#1}}}
+\newcommand{\NoteAddressRandOldX}[1]{\mathsf{\uprho^{old}_\mathrm{#1}}}
 \newcommand{\NoteAddressRandNew}[1]{\mathsf{\uprho^{new}_\mathnormal{#1}}}
 \newcommand{\NoteAddressPreRand}{\mathsf{\upvarphi}}
 \newcommand{\NoteAddressPreRandLength}{\mathsf{\ell_{\NoteAddressPreRand}}}
@@ -326,7 +335,10 @@
 \newcommand{\PRFrho}[1]{\PRF{#1}{\NoteAddressRand}}
 \newcommand{\PRFdk}[1]{\PRF{#1}{dk}}
 \newcommand{\cm}{\mathsf{cm}}
+\newcommand{\cmOldX}[1]{\mathsf{{cm}^{old}_\mathrm{#1}}}
 \newcommand{\cmNew}[1]{\mathsf{{cm}^{new}_\mathnormal{#1}}}
+\newcommand{\snOldX}[1]{\mathsf{{sn}^{old}_\mathrm{#1}}}
+\newcommand{\Adversary}{\mathcal{A}}
 \newcommand{\ReplacementCharacter}{\textsf{U+FFFD}}
 \newcommand{\CryptoBoxSeal}{\mathsf{crypto\_box\_seal}}
 \newcommand{\EdDSAr}{R}
@@ -382,8 +394,6 @@
 \newcommand{\vmacs}{\mathtt{vmacs}}
 \newcommand{\zkproofSize}{\mathtt{zkproofSize}}
 \newcommand{\zkproof}{\mathtt{zkproof}}
-\newcommand{\joinSplitCircuit}{\term{JoinSplit circuit}}
-\newcommand{\JoinSplitCircuit}{\titleterm{JoinSplit Circuit}}
 \newcommand{\JoinSplitStatement}{\texttt{JoinSplit}}
 \newcommand{\JoinSplitProof}{\pi_{\text{\footnotesize\JoinSplitStatement}}}
 \newcommand{\vpubOld}{\mathsf{v_{pub}^{old}}}
@@ -2021,18 +2031,59 @@ The motivations for this change were as follows:
 
 \nsubsection{Omission in \Zerocash security proof}
 
-\todo{see \cite{ticket836}}
+The abstract \Zerocash protocol requires $\PRFaddr{}$ only to be a PRF;
+it is not specified to be collision-resistant. This reveals a flaw in
+the proof of the Balance property.
+
+Suppose that an adversary finds a collision on $\PRFaddr{}$ such that
+$\AuthPrivateX{1}$ and $\AuthPrivateX{2}$ are distinct \spendingKeys for
+the same $\AuthPublic$. Because the \noteCommitment is to $\AuthPublic$,
+but the \nullifier is computed from $\AuthPrivate$ (and $\NoteAddressRand$),
+the adversary is able to double-spend the note, once with each $\AuthPrivate$.
+This is not detected because each spend reveals a different \nullifier.
+The \joinSplitStatements are still valid because they can only
+check that the $\AuthPrivate$ in the witness is \emph{some} preimage of
+the $\AuthPublic$ used in the \noteCommitment.
+
+The error is in the proof of Balance in section D.3 of \cite{Zerocash}.
+For the ``$\Adversary$ violates Condition I'' case, the proof says:
+
+\begin{itemize}
+  \item[``(i)] If $\cmOldX{1} = \cmOldX{2}$, then the fact that
+    $\snOldX{1} \neq \snOldX{2}$ implies that the witness $a$ contains
+    two distinct openings of $\cmOldX{1}$ (the first opening contains
+    $(\AuthPrivateOldX{1}, \NoteAddressRandOldX{1})$, while the second
+    opening contains $(\AuthPrivateOldX{2}, \NoteAddressRandOldX{2})$).
+    This violates the binding property of the commitment scheme $\COMM{}$."
+\end{itemize}
+
+In fact the openings do not contain $\AuthPrivateOld{i}$; they contain
+$\AuthPublicOld{i}$.
+
+A similar error occurs in the argument for the ``$\Adversary$ violates
+Condition II'' case.
+
+The flaw is not exploitable for the actual instantiations of $\PRFaddr{}$
+in \Zerocash and \Zcash, which \emph{are} collision-resistant assuming
+that $\SHA$ is.
+
+The proof can be straightforwardly repaired. The intuition is that we can rely
+on collision resistance of $\PRFaddr{}$ (on both its arguments) to argue that
+distinctness of $\AuthPrivateOldX{1}$ and $\AuthPrivateOldX{2}$, together with
+constraint 1(b) of the \joinSplitStatement (see \crossref{spendauthority}),
+implies distinctness of $\AuthPublicOldX{1}$ and $\AuthPublicOldX{2}$, therefore
+distinct openings of the \noteCommitment when Condition I or II is violated.
 
 \nsubsection{Miscellaneous}
 
 \begin{itemize}
     \item The paper defines a \note as a tuple $(\AuthPublic, \Value,
-\NoteAddressRand, \NoteCommitRand, \NoteCommitS, \cm)$, whereas this specification
-defines it as $(\AuthPublic, \Value, \NoteAddressRand, \NoteCommitRand)$.
-This is just a clarification, because the instantiation of $\COMM{\NoteCommitS}$
-in section 5.1 of the paper did not use $\NoteCommitS$ (and neither does the
-new instantiation of $\Commitment$). $\cm$ can be computed from the other
-fields.
+          \NoteAddressRand, \NoteCommitRand, \NoteCommitS, \cm)$, whereas this
+          specification defines it as $(\AuthPublic, \Value, \NoteAddressRand, \NoteCommitRand)$.
+          The instantiation of $\COMM{\NoteCommitS}$ in section 5.1 of the paper
+          did not actually use $\NoteCommitS$, and neither does the new
+          instantiation of $\Commitment$ in \Zcash. $\cm$ can be computed from
+          the other fields.
 \end{itemize}
 
 
