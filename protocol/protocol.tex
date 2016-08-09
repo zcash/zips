@@ -149,6 +149,10 @@
 \newcommand{\anchors}{\term{anchors}}
 \newcommand{\block}{\term{block}}
 \newcommand{\blocks}{\term{blocks}}
+\newcommand{\blockHeader}{\term{block header}}
+\newcommand{\BlockHeaders}{\titleterm{Block Headers}}
+\newcommand{\blockVersionNumber}{\term{block version number}}
+\newcommand{\blockTime}{\term{block time}}
 \newcommand{\transaction}{\term{transaction}}
 \newcommand{\transactions}{\term{transactions}}
 \newcommand{\coinbaseTransaction}{\term{coinbase transaction}}
@@ -385,6 +389,20 @@
 \newcommand{\sighashTypes}{\term{SIGHASH types}}
 \newcommand{\SIGHASHALL}{\mathsf{SIGHASH\_ALL}}
 \newcommand{\scriptSig}{\mathtt{scriptSig}}
+
+% Equihash and block headers
+\newcommand{\validEquihashSolution}{\term{valid Equihash solution}}
+\newcommand{\powtag}{\mathsf{powtag}}
+\newcommand{\powinput}{\mathsf{powinput}}
+\newcommand{\nVersion}{\mathtt{nVersion}}
+\newcommand{\hashPrevBlock}{\mathtt{hashPrevBlock}}
+\newcommand{\hashMerkleRoot}{\mathtt{hashMerkleRoot}}
+\newcommand{\hashReserved}{\mathtt{hashReserved}}
+\newcommand{\nTime}{\mathtt{nTime}}
+\newcommand{\nBits}{\mathtt{nBits}}
+\newcommand{\nNonce}{\mathtt{nNonce}}
+\newcommand{\nSolution}{\mathtt{nSolution}}
+\newcommand{\SHAd}{\FullHashName(\FullHashName())}
 
 % JoinSplit
 \newcommand{\hSig}{\mathsf{h_{Sig}}}
@@ -2001,6 +2019,220 @@ verifier \MUST check, for the encoding of each element, that:
   \item the encoding represents a point on the relevant curve.
 \end{itemize}
 
+
+\nsection{Consensus Changes from Bitcoin}
+
+\nsubsection{\BlockHeaders}
+
+The \Zcash \blockHeader format is as follows:
+
+\begin{center}
+\hbadness=1000
+\begin{tabularx}{0.92\textwidth}{|c|l|p{10.7em}|X|}
+\hline
+Bytes & \heading{Name} & \heading{Data Type} & \heading{Description} \\
+\hhline{|=|=|=|=|}
+
+4 & $\nVersion$ & \type{int32\_t} & The \blockVersionNumber indicates which set of
+\block validation rules to follow. The current and only defined \blockVersionNumber
+for \Zcash is $4$. \\ \hline
+
+32 & $\hashPrevBlock$ & \type{char[32]} & A $\SHAd$ hash in internal byte order of the
+previous \block's header. This ensures no previous \block can be changed without also
+changing this \block's header. \\ \hline
+
+32 & $\hashMerkleRoot$ & \type{char[32]} & A $\SHAd$ hash in internal byte order. The
+merkle root is derived from the hashes of all \transactions included in this \block,
+ensuring that none of those \transactions can be modified without modifying the header. \\ \hline
+
+32 & $\hashReserved$ & \type{char[32]} & A reserved field which should be ignored. \\ \hline
+
+4 & $\nTime$ & \type{uint32\_t} & The \blockTime is a Unix epoch time when the miner
+started hashing the header (according to the miner). This \MUST be greater than or equal
+to the median time of the previous 11 blocks. \todo{has this changed?} A \fullnode
+\MUSTNOT accept \blocks with headers more than two hours in the future according to
+its clock. \\ \hline
+
+4 & $\nBits$ & \type{uint32\_t} & An encoded version of the target threshold this \block's
+header hash must be less than or equal to, in the same nBits format used by \Bitcoin. \\ \hline
+
+32 & $\nNonce$ & \type{char[32]} & An arbitrary field miners change to modify the
+header hash in order to produce a hash below the target threshold. \\ \hline
+
+1344 & $\nSolution$ & \type{char[1344]} & The Equihash solution, which \MUST be valid
+according to \crossref{equihash}. \\ \hline
+
+\end{tabularx}
+\end{center}
+
+The changes relative to \Bitcoin version 4 blocks as described in \cite{blockheaders} are:
+\begin{itemize}
+  \item The \blockVersionNumber \MUST be 4. Previous versions are not supported. Software
+        that parses blocks \MUSTNOT assume, when an encoded \block starts with an $\nVersion$
+        field representing a value other than 4 (e.g. future versions potentially introduced
+        by hard forks), that it will be parseable according to this format.
+  \item The $\hashReserved$ and $\nSolution$ fields have been added.
+  \item The type of the $\nNonce$ field has changed from \type{uint32\_t} to \type{char[32]}.
+\end{itemize}
+
+
+\nsubsection{Proof of Work}
+
+\Zcash uses Equihash \cite{Equihash} as its Proof of Work. Motivations for
+changing the Proof of Work from \term{SHA256d} used by \Bitcoin are described
+in \cite{whyequihash}.
+
+A \block satisfies the Proof of Work if and only if:
+\begin{itemize}
+  \item The $\nSolution$ field encodes a \validEquihashSolution according to \crossref{equihash}.
+  \item The \blockHeader satisfies the difficulty check according to \crossref{difficulty}.
+\end{itemize}
+
+
+\nsubsubsection{Equihash} \label{equihash}
+
+An instance of the Equihash algorithm is parameterized by positive integers $n$ and $k$,
+such that $n$ is a multiple of $k+1$.
+
+The Equihash parameters for the production network are $n = 200, k = 9$.
+\todo{These may not be final.}
+
+The Generalized Birthday Problem is defined as follows: given a sequence
+$X_{1..\mathrm{N}}$ of $n$-bit strings, find $2^k$ distinct $X_{i_j}$ such that
+$\vxor{j=1}{2^k} X_{i_j} = 0$.
+
+In Equihash, $\mathrm{N} = 2^{\frac{n}{k+1}+1}$, and the sequence $X_{1..\mathrm{N}}$ is
+derived from the \blockHeader and a nonce:
+
+\newsavebox{\powtagbox}
+\begin{lrbox}{\powtagbox}
+\begin{bytefield}[bitwidth=0.16em]{128}
+    \bitbox{64}{64-bit $\ascii{ZcashPow}$}
+    \bitbox{32}{32-bit $n$}
+    \bitbox{32}{32-bit $k$}
+\end{bytefield}
+\end{lrbox}
+
+\newsavebox{\powinputbox}
+\begin{lrbox}{\powinputbox}
+\begin{bytefield}[bitwidth=0.064em]{1152}
+    \bitbox{128}{32-bit $\nVersion$}
+    \bitbox{256}{256-bit $\hashPrevBlock$}
+    \bitbox{256}{256-bit $\hashMerkleRoot$} \\
+    \bitbox{256}{256-bit $\hashReserved$}
+    \bitbox{128}{32-bit $\nTime$}
+    \bitbox{128}{32-bit $\nBits$} \\
+    \bitbox{256}{256-bit $\nNonce$}
+    \bitbox{128}{32-bit $g$}
+\end{bytefield}
+\end{lrbox}
+
+Let $\powtag := \Justthebox{\powtagbox}$.
+
+Let $\powinput(g) := \Justthebox[-11.5ex]{\powinputbox}$
+
+Let $\ell := \frac{n}{k+1} + 1$.
+
+Let $T := \concatbits([\GeneralCRH{512}(\powtag, \powinput(j))$
+for $g$ from $0$ up to $\ceiling{\frac{2^k \ell}{512}}\!-\!1])$.
+
+% Blech. Dijkstra was right \cite{EWD831}.
+For $h \in \range{1}{N}$, let $X_h = T_{\ell(h-1)+1..\ell h}$.
+
+(In other words, the bit sequence $T$ is split into $N$ subsequences of $\ell$ bits.
+Note that indices of bits in $T$ are 1-based.)
+
+Define $\ItoBSP \typecolon (\ell \typecolon \Nat) \times \range{0}{2^\ell\!-\!1} \rightarrow \bitseq{\ell}$
+such that $\ItoBSP{\ell}(n)$ is the sequence of $\ell$ bits representing $n$ in
+big-endian order.
+
+Define $\BStoIP \typecolon (\ell \typecolon \Nat) \times \bitseq{\ell} \rightarrow \range{0}{2^\ell\!-\!1}$
+such that $\BStoIP{\ell}$ is the inverse of $\ItoBSP{\ell}$.
+
+Define $\Xi_r(a, b) := \BStoIP{2^{r-1} \ell}(\concatbits(X_{i_{a..b}}))$.
+
+A \validEquihashSolution is then a sequence $i \typecolon \range{1}{N}^{2^k}$ that
+satisfies the following conditions:
+
+\subparagraph{Generalized Birthday condition}
+
+$\vxor{j=1}{2^k} X_{i_j} = 0$.
+
+\subparagraph{Algorithm Binding conditions}
+
+For all $r \in \range{0}{k}$, for all $w \in \range{0}{2^{k-r}\!-\!1}$:
+\begin{itemize}
+  \item $\vxor{j=1}{2^r} X_{i_{w 2^r + j}}$ has $\frac{nr}{k+1}$ leading zeroes.
+  \item $\Xi_r(w 2^r + 1, w 2^r + 2^{r-1}) < \Xi_r(w 2^r + 2^{r-1} + 1, w 2^r + 2^r)$.
+\end{itemize}
+
+Note that this does not include a difficulty condition, because here we
+are defining validity of an Equihash solution independent of difficulty.
+
+An Equihash solution with $n = 200$ and $k = 9$ is encoded in the $\nSolution$
+field of a \blockHeader as follows:
+
+\newsavebox{\solutionbox}
+\begin{lrbox}{\solutionbox}
+\setchanged
+\begin{bytefield}[bitwidth=0.45em]{105}
+    \bitbox{21}{$\ItoBSP{21}(i_1-1)$}
+    \bitbox{21}{$\ItoBSP{21}(i_2-1)$}
+    \bitbox{42}{$\cdots$}
+    \bitbox{21}{$\ItoBSP{21}(i_{512}-1)$}
+\end{bytefield}
+\end{lrbox}
+
+\newcommand{\zb}{\bitbox{1}{$0$}}
+\newcommand{\ob}{\bitbox{1}{$1$}}
+\newsavebox{\eqexamplebox}
+\begin{lrbox}{\eqexamplebox}
+\setchanged
+\begin{bytefield}[bitwidth=0.75em]{63}
+    \bitbox{21}{$\ItoBSP{21}(68)$}
+    \bitbox{21}{$\ItoBSP{21}(41)$}
+    \bitbox{21}{$\ItoBSP{21}(2^{21}-1)$} \\
+    \zb\zb\zb\zb\zb\zb\zb\zb\zb\zb\zb\zb\zb\zb\ob\zb\zb\zb\ob\zb\zb
+    \zb\zb\zb\zb\zb\zb\zb\zb\zb\zb\zb\zb\zb\zb\zb\ob\zb\ob\zb\zb\ob
+    \ob\ob\ob\ob\ob\ob\ob\ob\ob\ob\ob\ob\ob\ob\ob\ob\ob\ob\ob\ob\ob \\
+    \bitbox{8}{8-bit $0$}
+    \bitbox{8}{8-bit $2$}
+    \bitbox{8}{8-bit $32$}
+    \bitbox{8}{8-bit $0$}
+    \bitbox{8}{8-bit $10$}
+    \bitbox{8}{8-bit $127$}
+    \bitbox{8}{8-bit $255$}
+    \bitbox{7}{$\cdots$}
+\end{bytefield}
+\end{lrbox}
+
+\hskip 1.5em $\Justthebox{\solutionbox}$
+
+\vspace{1ex}
+Recall from \crossref{boxnotation} that bits in the above diagram are
+ordered from most to least significant in each byte.
+For example, if the first 3 elements of $i$ are $[69, 42, 2^{21}]$,
+then the corresponding bit array is:
+
+\hskip 1.5em $\Justthebox{\eqexamplebox}$
+
+and so the first 7 bytes of $\nSolution$ would be
+$[0, 2, 32, 0, 10, 127, 255]$.
+
+\nsubsubsection{Difficulty filter} \label{difficulty}
+
+\todo{}
+
+\nsubsubsection{Difficulty adjustment} \label{diffadjustment}
+
+\Zcash uses the DigiShield v3/v4 difficulty adjustment algorithm,
+with altered parameters, to adjust difficulty to target the desired
+2.5-minute block time.
+Unlike \Bitcoin, the difficulty adjustment occurs after every block.
+
+\todo{}
+
+
 \nsection{Differences from the Zerocash paper}
 
 \nsubsection{Transaction Structure} \label{trstructure}
@@ -2336,6 +2568,8 @@ of $\PRFaddr{}$ was found by Daira Hopwood.
     \item Add a section specifying the zero-knowledge proving system and the
           encoding of proofs. Change the encoding of points in proofs to follow
           IEEE Std 1363.
+    \item Add a section on consensus changes from \Bitcoin, and the specification
+          of Equihash.
     \item Change the length of \memos to 512 bytes.
     \item Switch the \joinSplitSignature scheme to Ed25519, with consequent
           changes to the computation of $\hSig$.
@@ -2344,7 +2578,8 @@ of $\PRFaddr{}$ was found by Daira Hopwood.
     \item Clarify cryptographic security requirements and added definitions
           relating to the in-band secret distribution.
     \item Add various citations: the ``Fixing Vulnerabilities in the Zcash
-          Protocol'' blog post, and several crypto papers for security definitions.
+          Protocol'' and ``Why Equihash?'' blog posts, and several crypto papers
+          for security definitions.
     \item Reference the extended version of the \Zerocash paper rather than the
           Oakland proceedings version.
     \item Add \joinSplitTransfers to the Concepts section.
