@@ -402,7 +402,7 @@
 \newcommand{\nBits}{\mathtt{nBits}}
 \newcommand{\nNonce}{\mathtt{nNonce}}
 \newcommand{\nSolution}{\mathtt{nSolution}}
-\newcommand{\SHAd}{\FullHashName(\FullHashName())}
+\newcommand{\SHAd}{\term{SHA-256d}}
 
 % JoinSplit
 \newcommand{\hSig}{\mathsf{h_{Sig}}}
@@ -2174,7 +2174,7 @@ The changes relative to \Bitcoin version 4 blocks as described in \cite{blockhea
 \nsubsection{Proof of Work}
 
 \Zcash uses Equihash \cite{Equihash} as its Proof of Work. Motivations for
-changing the Proof of Work from \term{SHA256d} used by \Bitcoin are described
+changing the Proof of Work from \SHAd used by \Bitcoin are described
 in \cite{whyequihash}.
 
 A \block satisfies the Proof of Work if and only if:
@@ -2187,7 +2187,7 @@ A \block satisfies the Proof of Work if and only if:
 \nsubsubsection{Equihash} \label{equihash}
 
 An instance of the Equihash algorithm is parameterized by positive integers $n$ and $k$,
-such that $n$ is a multiple of $k+1$.
+such that $n$ is a multiple of $k+1$. We assume $k \geq 3$.
 
 The Equihash parameters for the production network are $n = 200, k = 9$.
 \todo{These may not be final.}
@@ -2202,7 +2202,7 @@ derived from the \blockHeader and a nonce:
 \newsavebox{\powtagbox}
 \begin{lrbox}{\powtagbox}
 \begin{bytefield}[bitwidth=0.16em]{128}
-    \bitbox{64}{64-bit $\ascii{ZcashPow}$}
+    \bitbox{64}{64-bit $\ascii{ZcashPoW}$}
     \bitbox{32}{32-bit $n$}
     \bitbox{32}{32-bit $k$}
 \end{bytefield}
@@ -2228,21 +2228,23 @@ Let $\powinput(g) := \Justthebox[-11.5ex]{\powinputbox}$
 
 Let $\ell := \frac{n}{k+1} + 1$.
 
-Let $T := \concatbits([\GeneralCRH{512}(\powtag, \powinput(j))$
-for $g$ from $0$ up to $\ceiling{\frac{2^k \ell}{512}}\!-\!1])$.
+Let $m := \floor{\frac{512}{n}}$.
+
+Let $T := \concatbits([\GeneralCRH{n m}(\powtag, \powinput(g))$
+for $g$ from $0$ up to $\frac{N}{m} - 1])$.
 
 % Blech. Dijkstra was right \cite{EWD831}.
-For $h \in \range{1}{N}$, let $X_h = T_{\ell(h-1)+1..\ell h}$.
+For $h \in \range{1}{N}$, let $X_h = T_{n(h-1)+1..nh}$.
 
-(In other words, the bit sequence $T$ is split into $N$ subsequences of $\ell$ bits.
+(In other words, the bit sequence $T$ is split into $N$ subsequences of $n$ bits.
 Note that indices of bits in $T$ are 1-based.)
 
-Define $\ItoBSP \typecolon (\ell \typecolon \Nat) \times \range{0}{2^\ell\!-\!1} \rightarrow \bitseq{\ell}$
-such that $\ItoBSP{\ell}(n)$ is the sequence of $\ell$ bits representing $n$ in
+Define $\ItoBSP \typecolon (u \typecolon \Nat) \times \range{0}{2^u\!-\!1} \rightarrow \bitseq{u}$
+such that $\ItoBSP{u}(x)$ is the sequence of $u$ bits representing $x$ in
 big-endian order.
 
-Define $\BStoIP \typecolon (\ell \typecolon \Nat) \times \bitseq{\ell} \rightarrow \range{0}{2^\ell\!-\!1}$
-such that $\BStoIP{\ell}$ is the inverse of $\ItoBSP{\ell}$.
+Define $\BStoIP \typecolon (u \typecolon \Nat) \times \bitseq{u} \rightarrow \range{0}{2^u\!-\!1}$
+such that $\BStoIP{u}$ is the inverse of $\ItoBSP{u}$.
 
 Define $\Xi_r(a, b) := \BStoIP{2^{r-1} \ell}(\concatbits(X_{i_{a..b}}))$.
 
@@ -2255,9 +2257,9 @@ $\vxor{j=1}{2^k} X_{i_j} = 0$.
 
 \subparagraph{Algorithm Binding conditions}
 
-For all $r \in \range{0}{k}$, for all $w \in \range{0}{2^{k-r}\!-\!1}$:
+For all $r \in \range{1}{k\!-\!1}$, for all $w \in \range{0}{2^{k-r}\!-\!1}$:
 \begin{itemize}
-  \item $\vxor{j=1}{2^r} X_{i_{w 2^r + j}}$ has $\frac{nr}{k+1}$ leading zeroes.
+  \item $\vxor{j=1}{2^r} X_{i_{w 2^r + j}}$ has $\frac{nr}{k+1}$ leading zeroes; and
   \item $\Xi_r(w 2^r + 1, w 2^r + 2^{r-1}) < \Xi_r(w 2^r + 2^{r-1} + 1, w 2^r + 2^r)$.
 \end{itemize}
 
@@ -2314,15 +2316,18 @@ then the corresponding bit array is:
 and so the first 7 bytes of $\nSolution$ would be
 $[0, 2, 32, 0, 10, 127, 255]$.
 
+\todo{Apologize for the mixing of ends.}
+
 \nsubsubsection{Difficulty filter} \label{difficulty}
 
-\todo{}
+The difficulty filter is unchanged from \Bitcoin, and is calculated using
+\SHAd on the whole \blockHeader (including $\nSolution$).
 
 \nsubsubsection{Difficulty adjustment} \label{diffadjustment}
 
-\Zcash uses the DigiShield v3/v4 difficulty adjustment algorithm,
-with altered parameters, to adjust difficulty to target the desired
-2.5-minute block time.
+\Zcash uses a difficulty adjustment algorithm based on DigiShield v3/v4,
+with simplifications and altered parameters, to adjust difficulty to target
+the desired 2.5-minute block time.
 Unlike \Bitcoin, the difficulty adjustment occurs after every block.
 
 \todo{}
