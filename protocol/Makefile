@@ -9,10 +9,10 @@ pdf:
 	# If $(LATEX) fails, touch an input so that 'make' won't think it is up-to-date next time.
 	rm -f protocol.aux
 	$(LATEX) protocol.tex || touch incremental_merkle.pdf
-	bibtex protocol
+	biber protocol
 	$(LATEX) protocol.tex || touch incremental_merkle.pdf
 	$(LATEX) protocol.tex || touch incremental_merkle.pdf
 
 .PHONY: clean
 clean:
-	rm -f protocol.dvi protocol.pdf protocol.bbl protocol.blg protocol.brf protocol.toc protocol.aux protocol.log
+	rm -f protocol.dvi protocol.pdf protocol.bbl protocol.blg protocol.brf protocol.toc protocol.aux protocol.out protocol.log protocol.bcf protocol.run.xml protocol.ver
