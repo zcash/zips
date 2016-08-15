@@ -8,10 +8,11 @@ pdf:
 	printf '\\renewcommand{\\docversion}{Version %s}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	# If $(LATEX) fails, touch an input so that 'make' won't think it is up-to-date next time.
 	rm -f protocol.aux
-	$(LATEX) protocol.tex || touch incremental_merkle.pdf
+	$(LATEX) protocol.tex || touch protocol.tex
 	biber protocol
-	$(LATEX) protocol.tex || touch incremental_merkle.pdf
-	$(LATEX) protocol.tex || touch incremental_merkle.pdf
+	$(LATEX) protocol.tex || touch protocol.tex
+	$(LATEX) protocol.tex || touch protocol.tex
+	$(LATEX) protocol.tex || touch protocol.tex
 
 .PHONY: clean
 clean:
