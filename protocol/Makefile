@@ -12,6 +12,7 @@ pdf:
 	biber protocol
 	$(LATEX) protocol.tex || touch incremental_merkle.pdf
 	$(LATEX) protocol.tex || touch incremental_merkle.pdf
+	$(LATEX) protocol.tex || touch incremental_merkle.pdf
 
 .PHONY: clean
 clean:
