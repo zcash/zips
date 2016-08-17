@@ -8,6 +8,7 @@
 \RequirePackage{url}
 \RequirePackage{changepage}
 \RequirePackage[unicode,bookmarksnumbered,bookmarksopen,pdfview=Fit]{hyperref}
+\RequirePackage{cleveref}
 \RequirePackage{nameref}
 \RequirePackage{enumitem}
 \RequirePackage{tabularx}
@@ -36,6 +37,9 @@
 
 % bold but not extended
 \newcommand{\textbnx}[1]{{\fontseries{b}\selectfont #1}}
+
+
+\crefformat{footnote}{#2\footnotemark[#1]#3}
 
 \DeclareLabelalphaTemplate{
   \labelelement{\field{citekey}}
@@ -104,6 +108,8 @@
 \makeatother
 \newcommand{\typecolon}{\;\hollowcolon\;}
 
+\newcommand{\hairspace}{~\!}
+
 \RequirePackage[usenames,dvipsnames]{xcolor}
 % https://en.wikibooks.org/wiki/LaTeX/Colors#The_68_standard_colors_known_to_dvips
 \newcommand{\eli}[1]{{\color{JungleGreen}\sf{Eli: #1}}}
@@ -144,6 +150,7 @@
 \newcommand{\NoteCommitment}{\titleterm{Note Commitment}}
 \newcommand{\NoteCommitments}{\titleterm{Note Commitments}}
 \newcommand{\noteCommitmentTree}{\term{note commitment tree}}
+\newcommand{\noteAnonymitySet}{\term{note anonymity set}}
 \newcommand{\joinSplitDescription}{\term{JoinSplit description}}
 \newcommand{\joinSplitDescriptions}{\term{JoinSplit descriptions}}
 \newcommand{\sequenceOfJoinSplitDescriptions}{\changed{sequence of} \joinSplitDescription\changed{\term{s}}\xspace}
@@ -169,6 +176,7 @@
 \newcommand{\blockTime}{\term{block time}}
 \newcommand{\transaction}{\term{transaction}}
 \newcommand{\transactions}{\term{transactions}}
+\newcommand{\Transactions}{\term{Transactions}}
 \newcommand{\coinbaseTransaction}{\term{coinbase transaction}}
 \newcommand{\coinbaseTransactions}{\term{coinbase transactions}}
 \newcommand{\blockchainview}{\term{block chain view}}
@@ -522,6 +530,79 @@ for security analysis, understanding of the protocol, and maintenance of
 please contact \texttt{<security@z.cash>}. While the production \Zcash network
 has yet to be launched, please feel free to do so in public even if you believe
 the mistake may indicate a security weakness.
+
+\nsubsection{High-level Overview}
+
+The following overview is intended to give a concise summary of the ideas
+behind the protocol, for an audience already familiar with \blockchain-based
+cryptocurrencies such as \Bitcoin. It is imprecise in some aspects and is not
+part of the normative protocol specification.
+
+Value in \Zcash is carried by \notes\hairspace\footnote{\label{notesandnullifiers}
+In \Zerocash \cite{BCG+2014}, \notes were called ``coins'', and \nullifiers
+were called ``serial numbers''.},
+which specify an amount and a \payingKey. The \payingKey is part of
+a \paymentAddress, which is a destination to which \notes can be sent.
+As in \Bitcoin, this is associated with a private key that can be used to
+spend \notes sent to the address; in \Zcash this is called a \spendingKey.
+
+To each \note there is cryptographically associated a \noteCommitment, and
+a \nullifier\hairspace\cref{notesandnullifiers} (so that there is a 1:1:1 relation
+between \notes, \noteCommitments, and \nullifiers). However, it is infeasible
+to correlate a commitment with its \nullifier without knowledge of the \note.
+Computing the \nullifier requires the associated private \spendingKey. An
+unspent valid \note, at a given point on the \blockchain, is one for which
+the \noteCommitment has been publicly revealed on the \blockchain prior to
+that point, but the \nullifier has not.
+
+\Transactions can contain ``transparent'' inputs, outputs, and scripts, which
+all work basically as in \Bitcoin. They also contain a sequence of zero or
+more \joinSplitDescriptions. Each of these describes a \joinSplitTransfer\hairspace\footnote{
+\joinSplitTransfers in \Zcash generalize ``Mint'' and ``Pour'' \transactions
+in \Zerocash; see \crossref{trstructure} for the differences.}
+which takes in a transparent value and up to two input \notes, and produces a
+transparent value and up to two output \notes. The \nullifiers of the input
+\notes are revealed (preventing them from being spent again) and the
+commitments of the output \notes are revealed (allowing them to be spent in
+future). Each \joinSplitDescription also includes a computationally sound
+\zkSNARK proof, which proves all of the following:
+
+\begin{itemize}
+  \item The inputs and outputs balance (individually for each \joinSplitTransfer).
+  \item For each input \note of non-zero value, some revealed \noteCommitment
+        exists for that \note.
+  \item The prover knew the private \spendingKeys of the input \notes.
+  \item The \nullifiers and \noteCommitments are computed correctly.
+  \item The private \spendingKeys of the input \notes are cryptographically
+        linked to a signature over the whole \transaction, in such a way that
+        the \transaction cannot be modified by a party who did not know these
+        private keys.
+  \item Each output \note is generated in such a way that its \nullifier will
+        not collide with the \nullifier of any other \note.
+\end{itemize}
+
+Outside the \zkSNARK, it is also checked that the \nullifiers for the input
+\notes had not already been revealed (i.e.\ they had not already been spent).
+
+A \paymentAddress includes two public keys: a \payingKey matching that of \notes
+sent to the address, and a \transmissionKey for a key-private asymmetric encryption
+scheme. ``Key-private'' means that ciphertexts do not reveal information about
+which key they were encrypted to, except to a holder of the corresponding
+private key, which in this context is called the \viewingKey. This facility is
+used to communicate encrypted output \notes on the \blockchain to their
+intended recipient, who can use the \viewingKey to scan the \blockchain for
+\notes addressed to them and then decrypt those \notes.
+
+The basis of the privacy properties of \Zcash is that when a \note is spent,
+the spender only proves that some commitment for it had been revealed, without
+revealing which one. This implies that a spent \note cannot be linked to the
+\transaction in which it was created. Unlike other proposals for private
+payment systems that are based on mixing of a limited number of transactions,
+such as CoinJoin \cite{Bitcoin-CoinJoin} or CryptoNote \cite{vanS2013}, the
+\noteAnonymitySet is all previously created \notes. The \nullifiers are
+necessary to prevent double-spending: each note only has one valid \nullifier,
+and so attempting to spend a \note twice would reveal the \nullifier twice,
+which would cause the second \transaction to be rejected.
 
 
 \nsection{Notation}
