@@ -7,12 +7,12 @@ LATEX=pdflatex
 pdf:
 	printf '\\renewcommand{\\docversion}{Version %s}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	# If $(LATEX) fails, touch an input so that 'make' won't think it is up-to-date next time.
-	rm -f protocol.aux
-	$(LATEX) protocol.tex || touch incremental_merkle.pdf
+	rm -f protocol.aux protocol.bbl protocol.blg protocol.brf protocol.bcf
+	$(LATEX) protocol.tex || { touch incremental_merkle.pdf; exit 1; }
 	biber protocol
-	$(LATEX) protocol.tex || touch incremental_merkle.pdf
-	$(LATEX) protocol.tex || touch incremental_merkle.pdf
-	$(LATEX) protocol.tex || touch incremental_merkle.pdf
+	$(LATEX) protocol.tex || { touch incremental_merkle.pdf; exit 1; }
+	$(LATEX) protocol.tex || { touch incremental_merkle.pdf; exit 1; }
+	$(LATEX) protocol.tex || { touch incremental_merkle.pdf; exit 1; }
 
 .PHONY: clean
 clean:
