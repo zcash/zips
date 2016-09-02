@@ -315,6 +315,14 @@
 \newcommand{\PRFOutputLength}{\mathsf{\ell_{PRF}}}
 \newcommand{\PRFOutput}{\bitseq{\PRFOutputLength}}
 
+% Commitments
+\newcommand{\Commit}[1]{\mathsf{COMM}_{#1}}
+\newcommand{\CommitOutputLength}{\mathsf{\ell_{COMM}}}
+\newcommand{\CommitOutput}{\bitseq{\CommitOutputLength}}
+\newcommand{\NoteCommit}{\mathtt{NoteCommitment}}
+\newcommand{\commitmentTrapdoor}{\term{commitment trapdoor}}
+\newcommand{\Uncommitted}{\mathsf{Uncommitted}}
+
 % Symmetric encryption
 \newcommand{\Sym}{\mathsf{Sym}}
 \newcommand{\SymEncrypt}[1]{\mathsf{Sym.}\mathtt{Encrypt}_\mathsf{#1}}
@@ -474,10 +482,6 @@
 \newcommand{\vNew}[1]{\mathsf{v}_{#1}^\mathsf{new}}
 \newcommand{\NP}{\mathsf{NP}}
 \newcommand{\treepath}[1]{\mathsf{path}_{#1}}
-\newcommand{\COMM}[1]{\mathsf{COMM}_{#1}}
-\newcommand{\commitmentTrapdoor}{\term{commitment trapdoor}}
-\newcommand{\Commitment}{\mathtt{NoteCommitment}}
-\newcommand{\Uncommitted}{\mathsf{Uncommitted}}
 \newcommand{\Receive}{\mathsf{Receive}}
 
 \newcommand{\consensusrule}[1]{\subparagraph{Consensus rule:}{#1}}
@@ -764,12 +768,13 @@ $\PRFrho{\NoteAddressPreRand}$.} Only a commitment to these values is disclosed
 publicly, which allows the tokens $\NoteCommitRand$ and $\NoteAddressRand$ to blind
 the value and recipient \emph{except} to those who possess these tokens.
 
-\nsubsubsection{\NoteCommitments} \label{abstractcomm}
+\nsubsubsection{\NoteCommitments} \label{notecommitment}
 
 The underlying $\Value$ and $\AuthPublic$ are blinded with $\NoteAddressRand$
-and $\NoteCommitRand$. The resulting hash $\cm = \Commitment(\NoteTuple{})$.
+and $\NoteCommitRand$. The resulting hash
+$\cm = \NoteCommit(\NoteTuple{}) = \Commit{\NoteCommitRand}(\Value, \AuthPublic, \NoteAddressRand)$.
 
-$\Commitment$ is required to be a computationally binding and hiding commitment
+$\Commit{}$ is required to be a computationally binding and hiding commitment
 scheme.
 
 \nsubsubsection{\Nullifiers}
@@ -1237,7 +1242,7 @@ When a \noteCommitment is added to the tree, it occupies the \merkleLeafNode
 \merkleHash $\MerkleNode{\MerkleDepth}{i}$ for the next available $i$. As-yet unused
 \merkleLeafNodes are associated with a distinguished \merkleHash $\Uncommitted$.
 It is assumed to be infeasible to find a preimage \note $\NoteTuple{}$ such that
-$\Commitment(\NoteTuple{}) = \Uncommitted$.
+$\NoteCommit(\NoteTuple{}) = \Uncommitted$.
 
 The \merkleNodes at \merkleLayers $0$ to $\MerkleDepth-1$ inclusive are called
 \merkleInternalNodes, and are associated with $\MerkleCRH$ outputs.
@@ -1390,7 +1395,7 @@ such that the following conditions hold:
 
 for each $i \in \setofOld$ \changed{$\mid$ $\vOld{i} \neq 0$}:
 $\treepath{i}$ must be a valid \merklePath of depth $\MerkleDepth$, as defined in
-\crossref{merkle}, from $\Commitment(\nOld{i})$ to \noteCommitmentTree root $\rt$.
+\crossref{merkle}, from $\NoteCommit(\nOld{i})$ to \noteCommitmentTree root $\rt$.
 
 \textbf{Note:} Merkle path validity covers both conditions 1. (a) and 1. (d) of the NP statement
 given in \cite[section 4.2]{BCG+2014}.
@@ -1423,7 +1428,7 @@ $\NoteAddressRandNew{i} = \PRFrho{\NoteAddressPreRand}(i, \hSig)$.
 
 \subparagraph{Commitment integrity}
 
-for each $i \in \setofNew$: $\cmNew{i}$ = $\Commitment(\nNew{i})$.
+for each $i \in \setofNew$: $\cmNew{i}$ = $\NoteCommit(\nNew{i})$.
 
 \vspace{2.5ex}
 For details of the form and encoding of proofs, see \crossref{proofs}.
@@ -1510,7 +1515,7 @@ is defined as follows:
   \item If $\TransmitPlaintext{i} = \bot$, return $\bot$.
   \item Extract $\NotePlaintext{i} = (\ValueNew{i},
 \NoteAddressRandNew{i}, \NoteCommitRandNew{i}, \Memo_i)$ from $\TransmitPlaintext{i}$.
-  \item If $\Commitment((\AuthPublic, \ValueNew{i}, \NoteAddressRandNew{i},
+  \item If $\NoteCommit((\AuthPublic, \ValueNew{i}, \NoteAddressRandNew{i},
 \NoteCommitRandNew{i})) \neq \cmNew{i}$, return $\bot$, else return $\NotePlaintext{i}$.
 \end{itemize}
 }
@@ -1886,7 +1891,7 @@ where:
 
 The underlying $\Value$ and $\AuthPublic$ are blinded with $\NoteAddressRand$
 and $\NoteCommitRand$ \changed{using the collision-resistant hash function $\FullHash$}.
-The resulting hash $\cm = \Commitment(\NoteTuple{})$.
+The resulting hash $\cm = \NoteCommit(\NoteTuple{})$. \todo{separate concrete}
 
 \newsavebox{\cmbox}
 \begin{lrbox}{\cmbox}
@@ -2616,19 +2621,20 @@ This is sufficient to prevent the Faerie Gold attack.
 \nsubsection{Internal hash collision attack and fix}
 
 The \Zerocash security proof requires that the composition of
-$\COMM{\NoteCommitRand}$ and $\COMM{\NoteCommitS}$ is a computationally
-binding commitment to its inputs $\AuthPublic$, $\Value$, and
-$\NoteAddressRand$. However, the instantiation of $\COMM{\NoteCommitRand}$
-and $\COMM{\NoteCommitS}$ in section 5.1 of the paper did not meet
-the definition of a binding commitment at a 128-bit security level.
-Specifically, the internal hash of $\AuthPublic$ and $\NoteAddressRand$
-is truncated to 128 bits (motivated by providing statistical hiding
-security). This allows an attacker, with a work factor on the order of
-$2^{64}$, to find distinct values of $\NoteAddressRand$ with colliding
-outputs of the truncated hash, and therefore the same \noteCommitment.
-This would have allowed such an attacker to break the balance property
-by double-spending \notes, potentially creating arbitrary amounts of
-currency for themself \cite{HW2016}.
+$\Commit{\NoteCommitRand}$ and $\Commit{\NoteCommitS}$ is a
+computationally binding commitment to its inputs $\AuthPublic$,
+$\Value$, and $\NoteAddressRand$. However, the instantiation of
+$\Commit{\NoteCommitRand}$ and $\Commit{\NoteCommitS}$ in
+section 5.1 of the paper did not meet the definition of a binding
+commitment at a 128-bit security level. Specifically, the internal
+hash of $\AuthPublic$ and $\NoteAddressRand$ is truncated to 128 bits
+(motivated by providing statistical hiding security). This allows an
+attacker, with a work factor on the order of $2^{64}$, to find distinct
+values of $\NoteAddressRand$ with colliding outputs of the truncated
+hash, and therefore the same \noteCommitment. This would have allowed
+such an attacker to break the Balance property by double-spending
+\notes, potentially creating arbitrary amounts of currency for themself
+\cite{HW2016}.
 
 \Zcash uses a simpler construction with a single $\FullHashName$ evaluation
 for the commitment. The motivation for the nested construction in \Zerocash
@@ -2740,7 +2746,7 @@ For the ``$\Adversary$ violates Condition I'' case, the proof says:
     two distinct openings of $\cmOldX{1}$ (the first opening contains
     $(\AuthPrivateOldX{1}, \NoteAddressRandOldX{1})$, while the second
     opening contains $(\AuthPrivateOldX{2}, \NoteAddressRandOldX{2})$).
-    This violates the binding property of the commitment scheme $\COMM{}$."
+    This violates the binding property of the commitment scheme $\Commit{}$."
 \end{itemize}
 
 In fact the openings do not contain $\AuthPrivateOld{i}$; they contain
@@ -2766,9 +2772,9 @@ distinct openings of the \noteCommitment when Condition I or II is violated.
     \item The paper defines a \note as a tuple $(\AuthPublic, \Value,
           \NoteAddressRand, \NoteCommitRand, \NoteCommitS, \cm)$, whereas this
           specification defines it as $(\AuthPublic, \Value, \NoteAddressRand, \NoteCommitRand)$.
-          The instantiation of $\COMM{\NoteCommitS}$ in section 5.1 of the paper
+          The instantiation of $\Commit{\NoteCommitS}$ in section 5.1 of the paper
           did not actually use $\NoteCommitS$, and neither does the new
-          instantiation of $\Commitment$ in \Zcash. $\cm$ can be computed from
+          instantiation of $\Commit{}$ in \Zcash. $\cm$ can be computed from
           the other fields.
     \item The length of proof encodings given in the paper is 288 bytes.
           This differs from the 296 bytes specified in \crossref{proofencoding},
