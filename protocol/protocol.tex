@@ -299,8 +299,10 @@
 \newcommand{\EphemeralPublic}{\mathsf{epk}}
 \newcommand{\EphemeralPrivate}{\mathsf{esk}}
 \newcommand{\TransmitPublic}{\mathsf{pk_{enc}}}
+\newcommand{\TransmitPublicSup}[1]{\mathsf{pk}^{#1}_\mathsf{enc}}
 \newcommand{\TransmitPublicNew}[1]{\mathsf{pk^{new}_{\enc,\mathnormal{#1}}}}
 \newcommand{\TransmitPrivate}{\mathsf{sk_{enc}}}
+\newcommand{\TransmitPrivateSup}[1]{\mathsf{sk}^{#1}_\mathsf{enc}}
 \newcommand{\pubKeyHash}{\mathsf{pubKeyHash}}
 \newcommand{\hSigInput}{\mathsf{hSigInput}}
 \newcommand{\dataToBeSigned}{\mathsf{dataToBeSigned}}
@@ -1009,10 +1011,19 @@ that derives the $\KA$ public key corresponding to a given $\KA$ private key.
 Let $\KAAgree \typecolon \KAPrivate \times \KAPublic \rightarrow \KASharedSecret$
 be the agreement function.
 
-\securityrequirement{
-$\KAFormatPrivate$ must preserve sufficient entropy from its input to be used
-as a secure $\KA$ private key. \todo{requirements on security of key agreement and KDF}
-}
+\subparagraph{Note:}
+The range of $\KADerivePublic$ may be a strict subset of $\KAPublic$.
+
+\begin{securityrequirements}
+  \item $\KAFormatPrivate$ must preserve sufficient entropy from its input to be used
+        as a secure $\KA$ private key.
+  \item The key agreement and the KDF defined in the next section must together
+        satisfy a suitable adaptive security assumption along the lines of
+        \cite[section 3]{Bern2006} or \cite[Definition 3]{ABR1999}.
+\end{securityrequirements}
+
+More precise formalization of these requirements is beyond the scope of this
+specification.
 
 
 \nsubsubsection{\KeyDerivation} \label{abstractkdf}
@@ -1028,21 +1039,40 @@ Let $\KDF \typecolon \setofNew \times \GeneralCRHOutput \times \KASharedSecret
 for $\SymEncrypt{}$.
 
 \securityrequirement{
-For any $T = (i \in \setofNew, \hSig \in \GeneralCRHOutput, \TransmitPublicNew{i} \in \KAPublic)$,
-%let $\RandomVar{T}$ be 
-\begin{itemize}
-  \item[] $(\EphemeralPublic, \KDF(i, \hSig, \KAAgree(\EphemeralPrivate, \TransmitPublicNew{}),
-                                   \EphemeralPublic, \TransmitPublicNew{}))$
-          must be computationally indistinguishable between different
-          $\TransmitPrivate \in \KAPrivate$,
-  \item[] where $\EphemeralPublic = \KADerivePublic(\EphemeralPrivate)$ and
-                $\TransmitPublicNew{} = \KADerivePublic(\TransmitPrivate)$.
-\end{itemize}
+In addition to adaptive security of the key agreement and KDF,
+the following security property is required:
 
-This is necessary to ensure that the composition of $\KA$, $\KDF$ and $\Sym$ as
-given in \crossref{inband} is a key-private asymmetric encryption scheme.
-The property of key privacy is defined in \cite{BBDP2001}.
+Let $\TransmitPrivateSup{1}$ and $\TransmitPrivateSup{2}$ each be chosen uniformly and
+independently at random from $\KAPrivate$.
+
+Let $\TransmitPublicSup{j} := \KADerivePublic(\TransmitPrivateSup{j})$.
+
+An adversary can adaptively query a function
+$Q \typecolon \range{1}{2} \times \GeneralCRHOutput \rightarrow
+\KAPublic \times \Keyspace_{\allNew}$ where $Q(j, \hSig)$ is defined as follows:
+\begin{enumerate}
+  \item Choose $\EphemeralPrivate$ uniformly at random from $\KAPrivate$.
+  \item Let $\EphemeralPublic := \KADerivePublic(\EphemeralPrivate)$.
+  \item For $i \in \setofNew$, let $\Key_i :=
+        \KDF(i, \hSig, \KAAgree(\EphemeralPrivate, \TransmitPublicSup{j}), \EphemeralPublic, \TransmitPublicSup{j}))$.
+  \item Return $(\EphemeralPublic, \Key_{\allNew})$.
+\end{enumerate}
+
+Then the adversary must make another query to $Q$ with random $j \in \range{1}{2}$,
+and guess $j$ with probability greater than chance.
 }
+
+If the adversary's advantage is negligible, then the asymmetric encryption scheme
+constructed from $\KA$, $\KDF$ and $\Sym$ in \crossref{inband} will be key-private
+as defined in \cite{BBDP2001}.
+
+\subparagraph{Note:}
+The given definition only requires ciphertexts to be indistinguishable
+between \transmissionKeys that are outputs of $\KADerivePublic$ (which
+includes all keys generated as in \crossref{keycomponents}). If a
+\transmissionKey not in that range is used, it may be distinguishable.
+This is not considered to be a significant security weakness.
+
 
 \nsubsubsection{Signatures} \label{abstractsig}
 
