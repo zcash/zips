@@ -326,7 +326,8 @@
 \newcommand{\TransmitPublicNew}[1]{\mathsf{pk^{new}_{\enc,\mathnormal{#1}}}}
 \newcommand{\TransmitPrivate}{\mathsf{sk_{enc}}}
 \newcommand{\TransmitPrivateSup}[1]{\mathsf{sk}^{#1}_\mathsf{enc}}
-\newcommand{\pubKeyHash}{\mathsf{pubKeyHash}}
+\newcommand{\pksig}{\mathsf{pk_{sig}}}
+
 \newcommand{\hSigInput}{\mathsf{hSigInput}}
 \newcommand{\dataToBeSigned}{\mathsf{dataToBeSigned}}
 
@@ -2769,7 +2770,7 @@ the recipient of each output \note. This feature is described in
 more detail in \crossref{notept}.
 
 
-\nsubsection{Faerie Gold attack and fix}
+\nsubsection{Faerie Gold attack and fix} \label{faeriegold}
 
 When a protected \note is created in \Zerocash, the creator is
 supposed to choose a new $\NoteAddressRand$ value at random.
@@ -2855,7 +2856,7 @@ any two \joinSplitDescriptions that get into a valid \blockchainview.
 This is sufficient to prevent the Faerie Gold attack.
 
 
-\nsubsection{Internal hash collision attack and fix}
+\nsubsection{Internal hash collision attack and fix} \label{internalh}
 
 The \Zerocash security proof requires that the composition of
 $\Commit{\NoteCommitRand}$ and $\Commit{\NoteCommitS}$ is a
@@ -2893,13 +2894,67 @@ define a statistically hiding, computationally binding commitment scheme
 for this use at a 128-bit security level, the overhead of doing so
 within the \joinSplitStatement was not considered to justify the benefits.
 
-\nsubsection{Changes to PRF inputs and truncation}
+\nsubsection{Changes to PRF inputs and truncation} \label{truncation}
 
-...
+The format of inputs to the PRFs instantiated in \crossref{concreteprfs}
+has changed relative to \Zerocash. There is also a requirement for another PRF,
+$\PRFrho{}$, which must be domain-separated from the others.
 
-The need for collision resistance of $\CRH$ truncated to 253 bits was not
-explicitly stated in the \Zerocash paper; this does not follow from
-collision resistance of $\CRH$.
+In the \Zerocash protocol, $\NoteAddressRandOld{i}$ is truncated from 256
+to 254 bits in the input to $\PRFsn{}$ (which corresponds to $\PRFnf{}$ in \Zcash).
+Also, $\hSig$ is truncated from 256 to 253 bits in the input to $\PRFpk{}$.
+These truncations are not taken into account in the security proofs.
+
+Both truncations affect the validity of the proof sketch for Lemma D.2 in
+the proof of Ledger Indistinguishability in \cite[Appendix D]{BCG+2014}.
+In more detail:
+\begin{itemize}
+  \item In the argument relating $\mathbf{H}$ and $\Game_2$, it is stated that in $\Game_2$,
+        ``for each $i \in \setof{1, 2}, \mathsf{sn}_i := \PRFsn{\AuthPrivate}(\NoteAddressRand)$
+        for a random (and not previously used) $\NoteAddressRand$''. It is also
+        argued that ``the calls to $\PRFsn{\AuthPrivate}$ are each by definition unique''.
+        The latter assertion depends on the fact that $\NoteAddressRand$
+        is ``not previously used''. However, the argument is incorrect
+        because the truncated input to $\PRFsn{\AuthPrivate}$, i.e.
+        $[\NoteAddressRand]_{254}$, may repeat even if $\NoteAddressRand$ does not.
+  \item In the same argument, it is stated that ``with overwhelming probability,
+        $\hSig$ is unique''. In fact what is required to be unique is the
+        truncated input to $\PRFpk{}$, i.e. $[\hSig]_{253} = [\CRH(\pksig)]_{253}$.
+        In practice this value will be unique under a plausible assumption on
+        $\CRH$ provided that $\pksig$ is chosen randomly, but no formal argument
+        for this is presented.
+\end{itemize}
+
+Note that $\NoteAddressRand$ is truncated in the input to $\PRFsn{}$
+but not in the input to $\Commit{\NoteCommitRand}$, which further
+complicates the analysis.
+
+As further evidence that it is essential for the proofs to explicitly take any
+such truncations into account, consider a slightly modified protocol in which
+$\NoteAddressRand$ is truncated in the input to $\Commit{\NoteCommitRand}$
+but not in the input to $\PRFsn{}$. In that case, it would be possible to
+violate balance by creating two \notes for which $\NoteAddressRand$ differs
+only in the truncated bits. These \notes would have the same \noteCommitment
+but different \nullifiers, so it would be possible to spend the same value
+twice.
+
+For resistance to Faerie Gold attacks as described in
+\crossref{faeriegold}, \Zcash depends on collision resistance of both
+$\GeneralCRH{256}$ and $\PRFrho{}$. Collision resistance of a truncated hash
+does not follow from collision resistance of the original hash, even if the
+truncation is only by one bit. This motivated instantiating $\GeneralCRH{\ell}$
+as $\Blake{\ell}$ in \Zcash, and avoiding truncation along any path from the
+inputs to the computation of $\hSig$ to the uses of $\NoteAddressRand$.
+
+Since the PRFs are instantiated using $\SHA$ which has an input block
+size of 512 bits (of which 256 bits are used for the PRF input and 4 bits
+are used for domain separation), it was necessary to reduce the size of the
+PRF key to 252 bits. The key is set to $\AuthPrivate$ in the case of
+$\PRFaddr{}$, $\PRFnf{}$, and $\PRFpk{}$, and to $\NoteAddressPreRand$ (which
+does not exist in \Zerocash) for $\PRFrho{}$, and so those values have been
+reduced to 252 bits. This is preferable to requiring reasoning about truncation,
+and 252 bits is quite sufficient for security of these cryptovalues.
+
 
 \nsubsection{In-band secret distribution} \label{inbandrationale}
 
