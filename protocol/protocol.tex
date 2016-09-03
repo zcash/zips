@@ -13,6 +13,7 @@
 \RequirePackage{enumitem}
 \RequirePackage{tabularx}
 \RequirePackage{hhline}
+\RequirePackage[usestackEOL]{stackengine}
 \RequirePackage{comment}
 
 \RequirePackage[style=alphabetic,maxbibnames=99,dateabbrev=false,urldate=iso8601,backref=true,backrefstyle=none,backend=biber]{biblatex}
@@ -154,11 +155,12 @@
 \newcommand{\noteTraceabilitySets}{\term{note traceability sets}}
 \newcommand{\joinSplitDescription}{\term{JoinSplit description}}
 \newcommand{\joinSplitDescriptions}{\term{JoinSplit descriptions}}
+\newcommand{\JoinSplitDescriptions}{\titleterm{JoinSplit Descriptions}}
 \newcommand{\sequenceOfJoinSplitDescriptions}{\changed{sequence of} \joinSplitDescription\changed{\term{s}}\xspace}
-\newcommand{\joinSplitTransfer}{\term{JoinSplit operation}}
-\newcommand{\joinSplitTransfers}{\term{JoinSplit operations}}
-\newcommand{\JoinSplitTransfer}{\titleterm{JoinSplit Operation}}
-\newcommand{\JoinSplitTransfers}{\titleterm{JoinSplit Operations}}
+\newcommand{\joinSplitTransfer}{\term{JoinSplit transfer}}
+\newcommand{\joinSplitTransfers}{\term{JoinSplit transfers}}
+\newcommand{\JoinSplitTransfer}{\titleterm{JoinSplit Transfer}}
+\newcommand{\JoinSplitTransfers}{\titleterm{JoinSplit Transfers}}
 \newcommand{\joinSplitSignature}{\term{JoinSplit signature}}
 \newcommand{\joinSplitStatement}{\term{JoinSplit statement}}
 \newcommand{\joinSplitStatements}{\term{JoinSplit statements}}
@@ -192,7 +194,8 @@
 \newcommand{\blockTime}{\term{block time}}
 \newcommand{\transaction}{\term{transaction}}
 \newcommand{\transactions}{\term{transactions}}
-\newcommand{\Transactions}{\term{Transactions}}
+\newcommand{\Transactions}{\titleterm{Transactions}}
+\newcommand{\transactionVersionNumber}{\term{transaction version number}}
 \newcommand{\coinbaseTransaction}{\term{coinbase transaction}}
 \newcommand{\coinbaseTransactions}{\term{coinbase transactions}}
 \newcommand{\transparentValuePool}{\term{transparent value pool}}
@@ -424,8 +427,12 @@
 \newcommand{\MerkleHash}{\bitseq{\MerkleHashLength}}
 
 % Bitcoin
-\newcommand{\vin}{\mathtt{vin}}
-\newcommand{\vout}{\mathtt{vout}}
+\newcommand{\versionField}{\mathtt{version}}
+\newcommand{\txInCount}{\mathtt{tx\_in\_count}}
+\newcommand{\txIn}{\mathtt{tx\_in}}
+\newcommand{\txOutCount}{\mathtt{tx\_out\_count}}
+\newcommand{\txOut}{\mathtt{tx\_out}}
+\newcommand{\lockTime}{\mathtt{lock\_time}}
 \newcommand{\nJoinSplit}{\mathtt{nJoinSplit}}
 \newcommand{\vJoinSplit}{\mathtt{vJoinSplit}}
 \newcommand{\vpubOldField}{\mathtt{vpub\_old}}
@@ -1220,86 +1227,47 @@ such that bit $b$ has numeric weight $2^b$.
     \item $\NoteCommitRand$ is a 32-byte \commitmentTrapdoor.
 \end{itemize}
 
-\nsubsection{\JoinSplitTransfers{} and Descriptions} \label{joinsplitdesc}
+\nsubsection{\JoinSplitDescriptions} \label{joinsplitdesc}
 
-A \joinSplitDescription is data included in a \transaction that describes a
-\joinSplitTransfer, as described in \crossref{joinsplit}.
+A \joinSplitTransfer, as specified in \crossref{joinsplit}, is encoded in
+\transactions as a \joinSplitDescription.
 
-\changed{
-\Zcash \transactions have the following additional fields:
+Each \transaction includes a sequence of zero or more \joinSplitDescriptions.
+When this sequence is non-empty, the \transaction also includes encodings of a
+$\JoinSplitSigAlg$ public verification key and signature.
 
-\begin{center}
-\hbadness=4000
-\begin{tabularx}{0.92\textwidth}{|c|l|p{10.7em}|X|}
-\hline
-Bytes & \heading{Name} & \heading{Data Type} & \heading{Description} \\
-\hhline{|=|=|=|=|}
+Each \joinSplitDescription consists of $(\vpubOld, \vpubNew, \rt,
+\nfOld{\allOld}, \cmNew{\allNew}, \EphemeralPublic, \RandomSeed,
+\h{\allOld}, \JoinSplitProof, \TransmitCiphertext{\allNew})$
 
-\Varies & $\nJoinSplit$ & \type{compactSize uint} & The number of \joinSplitDescriptions
-in $\vJoinSplit$. \\ \hline
-
-1802 $\times\, \nJoinSplit$ & $\vJoinSplit$ &
-\type{JoinSplitDescription} \type{[$\nJoinSplit$]} &
-The \sequenceOfJoinSplitDescriptions in this \transaction. \\ \hline
-
-32 $\dagger$ & $\joinSplitPubKey$ & \type{char[32]} & An encoding of a $\JoinSplitSigAlg$
-public verification key. \\ \hline
-
-64 $\dagger$ & $\joinSplitSig$ & \type{char[64]} & A signature on a prefix of the \transaction encoding,
-to be verified using $\joinSplitPubKey$. \\ \hline
-\end{tabularx}
-\end{center}
-
-$\dagger$ The $\joinSplitPubKey$ and $\joinSplitSig$ fields are present if and only if
-$\nJoinSplit > 0$.
-
-The encoding of $\joinSplitPubKey$ and the data to be signed are specified in
-\crossref{nonmalleability}.
-}
-
-Each \type{JoinSplitDescription} consists of:
-
-\begin{center}
-\hbadness=2000
-\begin{tabularx}{0.92\textwidth}{|c|l|l|X|}
-\hline
-Bytes & \heading{Name} & \heading{Data Type} & \heading{Description} \\
-\hhline{|=|=|=|=|}
-
-\setchanged 8 &\setchanged $\vpubOldField$ &\setchanged \type{int64\_t} &\mbox{}\setchanged
-A value $\vpubOld$ that the \joinSplitTransfer removes from the value pool. \\ \hline
-
-8 & $\vpubNewField$ & \type{int64\_t} & A value $\vpubNew$ that the \joinSplitTransfer inserts
-into the value pool. \\ \hline
-
-32 & $\anchorField$ & \type{char[32]} & A merkle root $\rt$ of the \noteCommitmentTree at
-some block height in the past, or the merkle root produced by a previous \joinSplitTransfer in
-this \transaction. \sean{We need to be more specific here.} \\ \hline
-
-64 & $\nullifiersField$ & \type{char[32][$\NOld$]} & A sequence of \nullifiers of the input
-\notes $\nfOld{\allOld}$. \\ \hline
-
-64 & $\commitments$ & \type{char[32][$\NNew$]}. & A sequence of \noteCommitments for the
-output \notes $\cmNew{\allNew}$. \\ \hline
-
-\setchanged 32 &\setchanged $\ephemeralKey$ &\setchanged \type{char[32]} &\mbox{}\setchanged
-A Curve25519 public key $\EphemeralPublic$. \\ \hline
-
-\setchanged 32 &\setchanged $\randomSeed$ &\setchanged \type{char[32]} &\mbox{}\setchanged
-A 256-bit seed that must be chosen independently at random for each \joinSplitDescription. \\ \hline
-
-64 & $\vmacs$ & \type{char[32][$\NOld$]} & A sequence of message authentication tags
-$\h{\allOld}$ that bind $\hSig$ to each $\AuthPrivate$ of the
-$\joinSplitDescription$. \\ \hline
-
-296 & $\zkproof$ & \type{char[296]} & An encoding of the zero-knowledge proof $\JoinSplitProof$
-(\crossref{proofencoding}). \\ \hline
-
-1202 & $\encCiphertexts$ & \type{char[601][$\NNew$]} & A sequence of ciphertext
-components for the encrypted output \notes, $\TransmitCiphertext{\allNew}$. \\ \hline
-
-\end{tabularx}
-\end{center}
+where
+\begin{itemize}
+  \item \changed{$\vpubOld \typecolon \range{0}{\MAXMONEY}$ is
+        the value that the \joinSplitTransfer removes from the \transparentValuePool};
+  \item $\vpubNew \typecolon \range{0}{\MAXMONEY}$ is
+        the value that the \joinSplitTransfer inserts into the \transparentValuePool;
+  \item $\rt \typecolon \MerkleHash$ is an \anchor, as defined in
+        \crossref{blockchain}, for the output \treestate of either
+        a previous \block, or a previous \joinSplitTransfer in this
+        \transaction.
+  \item $\nfOld{\allOld} \typecolon (\PRFOutput)^{\NOld}$ is
+        the sequence of \nullifiers for the input \notes;
+  \item $\cmNew{\allNew} \typecolon {\CommitOutput}^{\NNew}$ is
+        the sequence of \noteCommitments for the output \notes;
+  \item \changed{$\EphemeralPublic \typecolon \KAPublic$ is
+        a key agreement public key, used to derive the key for encryption
+        of the \notesCiphertext (\crossref{inband})};
+  \item \changed{$\RandomSeed \typecolon \RandomSeedType$ is
+        a seed that must be chosen independently at random for each
+        \joinSplitDescription};
+  \item $\h{\allOld} \typecolon (\PRFOutput)^{\NOld}$ is
+        a sequence of tags that bind $\hSig$ to each
+        $\AuthPrivate$ of the input \notes;
+  \item $\JoinSplitProof \typecolon \ZKProof$ is
+        the \zeroKnowledgeProof for the \joinSplitStatement;
+  \item $\TransmitCiphertext{\allNew} \typecolon {\Ciphertext}^{\NNew}$ is
+        a sequence of ciphertext components for the encrypted output \notes.
+\end{itemize}
 
 The $\ephemeralKey$ and $\encCiphertexts$ fields together form the \notesCiphertext.
 
@@ -2369,6 +2337,122 @@ verifier \MUST check, for the encoding of each element, that:
 
 \nsection{Consensus Changes from \Bitcoin}
 
+\nsubsection{Encoding of \Transactions}
+
+The \Zcash \transaction format is as follows:
+
+\begin{center}
+\hbadness=4000
+\begin{tabularx}{0.92\textwidth}{|c|l|p{10.7em}|X|}
+\hline
+Bytes & \heading{Name} & \heading{Data Type} & \heading{Description} \\
+\hhline{|=|=|=|=|}
+
+4 & $\versionField$ & \type{uint32\_t} & Transaction version number; either 1 or 2. \\ \hline
+
+\Varies & $\txInCount$ & \type{compactSize uint} & Number of transparent inputs in this transaction. \\ \hline
+
+\Varies & $\txIn$ & $\txIn$ & Transparent inputs, encoded as in \Bitcoin. \\ \hline
+
+\Varies & $\txOutCount$ & \type{compactSize uint} & Number of transparent outputs in this transaction. \\ \hline
+
+\Varies & $\txOut$ & $\txOut$ & Transparent outputs, encoded as in \Bitcoin. \\ \hline
+
+4 & $\lockTime$ & \type{uint32\_t} & A Unix epoch time or block number, encoded as in \Bitcoin. \\ \hline
+
+\Varies\;$\dagger$ & $\nJoinSplit$ & \type{compactSize uint} & The number of \joinSplitDescriptions
+in $\vJoinSplit$. \\ \hline
+
+\Longunderstack{1802 $\times$ \\ $\nJoinSplit\,\dagger$} & $\vJoinSplit$ & \type{JoinSplitDescription} \type{[$\nJoinSplit$]} &
+A \sequenceOfJoinSplitDescriptions, each encoded as described in \crossref{joinsplitencoding}. \\ \hline
+
+32 $\ddagger$ & $\joinSplitPubKey$ & \type{char[32]} & An encoding of a $\JoinSplitSigAlg$
+public verification key. \\ \hline
+
+64 $\ddagger$ & $\joinSplitSig$ & \type{char[64]} & A signature on a prefix of the \transaction encoding,
+to be verified using $\joinSplitPubKey$. \\ \hline
+\end{tabularx}
+\end{center}
+
+$\dagger$ The $\nJoinSplit$ and $\vJoinSplit$ fields are present if and only if
+$\versionField > 1$.
+
+$\ddagger$ The $\joinSplitPubKey$ and $\joinSplitSig$ fields are present if and only if
+$\versionField > 1$ and $\nJoinSplit > 0$.
+
+The encoding of $\joinSplitPubKey$ and the data to be signed are specified in
+\crossref{nonmalleability}.
+
+The changes relative to \Bitcoin version 1 transactions as described in \cite{Bitcoin-Format} are:
+\begin{itemize}
+  \item The \transactionVersionNumber{} can be either 1 or 2. A version 1 \transaction is
+        equivalent to a version 2 \transaction with $\nJoinSplit = 0$. Software that parses
+        \blocks{} \MUSTNOT assume, when an encoded \block starts with an $\versionField$
+        field representing a value other than 1 or 2 (e.g.\ future versions potentially
+        introduced by hard forks), that it will be parseable according to this format.
+  \item The $\nJoinSplit$, $\vJoinSplit$, $\joinSplitPubKey$, and $\joinSplitSig$ fields
+        have been added.
+\end{itemize}
+
+Software that creates \transactions{} \SHOULD use version 1 for \transactions with no
+\joinSplitDescriptions.
+
+\subparagraph{Note:}
+A \transactionVersionNumber of 2 does not have the same meaning as in \Bitcoin, where
+it is associated with support for \texttt{OP\_CHECKSEQUENCEVERIFY} as specified in \cite{BIP-68}.
+\Zcash was forked from \Bitcoin v0.11.2 and does not support BIP 68, or the related BIPs
+9, 112 and 113.
+
+\nsubsection{Encoding of \JoinSplitDescriptions} \label{joinsplitencoding}
+
+An abstract \joinSplitDescription, as described in \crossref{joinsplit}, is encoded in
+a \transaction as an instance of a \type{JoinSplitDescription} type as follows:
+
+\begin{center}
+\hbadness=2000
+\begin{tabularx}{0.92\textwidth}{|c|l|l|X|}
+\hline
+Bytes & \heading{Name} & \heading{Data Type} & \heading{Description} \\
+\hhline{|=|=|=|=|}
+
+\setchanged 8 &\setchanged $\vpubOldField$ &\setchanged \type{int64\_t} &\mbox{}\setchanged
+A value $\vpubOld$ that the \joinSplitTransfer removes from the \transparentValuePool. \\ \hline
+
+8 & $\vpubNewField$ & \type{int64\_t} & A value $\vpubNew$ that the \joinSplitTransfer inserts
+into the \transparentValuePool. \\ \hline
+
+32 & $\anchorField$ & \type{char[32]} & A merkle root $\rt$ of the \noteCommitmentTree at
+some block height in the past, or the merkle root produced by a previous \joinSplitTransfer in
+this \transaction. \sean{We need to be more specific here.} \\ \hline
+
+64 & $\nullifiersField$ & \type{char[32][$\NOld$]} & A sequence of \nullifiers of the input
+\notes $\nfOld{\allOld}$. \\ \hline
+
+64 & $\commitments$ & \type{char[32][$\NNew$]}. & A sequence of \noteCommitments for the
+output \notes $\cmNew{\allNew}$. \\ \hline
+
+\setchanged 32 &\setchanged $\ephemeralKey$ &\setchanged \type{char[32]} &\mbox{}\setchanged
+A Curve25519 public key $\EphemeralPublic$. \\ \hline
+
+\setchanged 32 &\setchanged $\randomSeed$ &\setchanged \type{char[32]} &\mbox{}\setchanged
+A 256-bit seed that must be chosen independently at random for each \joinSplitDescription. \\ \hline
+
+64 & $\vmacs$ & \type{char[32][$\NOld$]} & A sequence of message authentication tags
+$\h{\allOld}$ that bind $\hSig$ to each $\AuthPrivate$ of the
+$\joinSplitDescription$. \\ \hline
+
+296 & $\zkproof$ & \type{char[296]} & An encoding of the \zeroKnowledgeProof $\JoinSplitProof$
+(see \crossref{proofencoding}). \\ \hline
+
+1202 & $\encCiphertexts$ & \type{char[601][$\NNew$]} & A sequence of ciphertext
+components for the encrypted output \notes, $\TransmitCiphertext{\allNew}$. \\ \hline
+
+\end{tabularx}
+\end{center}
+
+The $\ephemeralKey$ and $\encCiphertexts$ fields together form the \notesCiphertext.
+
+
 \nsubsection{\BlockHeaders}
 
 The \Zcash \blockHeader format is as follows:
@@ -2422,6 +2506,9 @@ The changes relative to \Bitcoin version 4 blocks as described in \cite{Bitcoin-
   \item The type of the $\nNonce$ field has changed from \type{uint32\_t} to \type{char[32]}.
 \end{itemize}
 
+\subparagraph{Note:}
+There is no relation between the values of the $\versionField$ field of a \transaction, and
+the $\nVersion$ field of a \blockHeader.
 
 \nsubsection{Proof of Work}
 
@@ -2727,7 +2814,7 @@ adversary.)
 The $\NoteAddressRand$ value for each output \note is then derived from
 a random private seed $\NoteAddressPreRand$ and $\hSig$ using
 $\PRFrho{\NoteAddressPreRand}$. The correct construction of
-$\NoteAddressRand$ for each output \note is enforced by the circuit
+$\NoteAddressRand$ for each output \note is enforced by the \joinSplitStatement
 (see \crossref{uniquerho}).
 
 Now even if the creator of a \joinSplitDescription does not choose
@@ -2759,13 +2846,13 @@ such an attacker to break the Balance property by double-spending
 \Zcash uses a simpler construction with a single $\FullHashName$ evaluation
 for the commitment. The motivation for the nested construction in \Zerocash
 was to allow Mint transactions to be publically verified without requiring
-a ZK proof (as described under step 3 in
+a \zeroKnowledgeProof (as described under step 3 in
 \cite[section 1.3]{BCG+2014}). Since \Zcash combines ``Mint'' and ``Pour''
-transactions into a generalized \joinSplitTransfer which always uses a ZK proof,
-it does not require the nesting. A side benefit is that this reduces the
-number of $\SHA$ evaluations needed to compute each \noteCommitment from
-three to two, saving a total of four $\SHA$ evaluations in the
-\joinSplitCircuit.
+transactions into a generalized \joinSplitTransfer which always uses a
+\zeroKnowledgeProof, it does not require the nesting. A side benefit is
+that this reduces the number of $\SHA$ evaluations needed to compute
+each \noteCommitment from three to two, saving a total of four $\SHA$
+evaluations in the \joinSplitStatement.
 
 \subparagraph{Note:}
 \Zcash \noteCommitments are not statistically hiding,
@@ -2774,7 +2861,7 @@ described in \cite[section 8.1]{BCG+2014},
 even when used as described in that section. While it is possible to
 define a statistically hiding, computationally binding commitment scheme
 for this use at a 128-bit security level, the overhead of doing so
-within the circuit was not considered to justify the benefits.
+within the \joinSplitStatement was not considered to justify the benefits.
 
 \nsubsection{Changes to PRF inputs and truncation}
 
