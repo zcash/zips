@@ -141,6 +141,9 @@
 \newcommand{\notes}{\term{notes}}
 \newcommand{\Note}{\titleterm{Note}}
 \newcommand{\Notes}{\titleterm{Notes}}
+\newcommand{\dummy}{\term{dummy}}
+\newcommand{\dummyNotes}{\term{dummy notes}}
+\newcommand{\DummyNotes}{\titleterm{Dummy Notes}}
 \newcommand{\commitmentScheme}{\term{commitment scheme}}
 \newcommand{\commitmentTrapdoor}{\term{commitment trapdoor}}
 \newcommand{\commitmentTrapdoors}{\term{commitment trapdoors}}
@@ -538,6 +541,7 @@
 \newcommand{\vNew}[1]{\mathsf{v}_{#1}^\mathsf{new}}
 \newcommand{\treepath}[1]{\mathsf{path}_{#1}}
 \newcommand{\Receive}{\mathsf{Receive}}
+\newcommand{\EnforceCommit}[1]{\mathsf{enforce}_{#1}}
 
 \newcommand{\consensusrule}[1]{\subparagraph{Consensus rule:}{#1}}
 \newenvironment{consensusrules}{\subparagraph{Consensus rules:}\begin{itemize}}{\end{itemize}}
@@ -1332,8 +1336,58 @@ $\joinSplitPubKey$ of the containing \transaction:
 $\hSigCRH$ is instantiated in \crossref{hsigcrh}.
 
 
+\nsubsection{Sending \Notes} \label{send}
+
+In order to send \xprotected value, the sender constructs a \transaction
+containing one or more \joinSplitDescriptions. This involves first generating
+a new $\JoinSplitSigAlg$ key pair, which includes $\joinSplitPubKey$.
+
+For each \joinSplitDescription, the sender chooses $\RandomSeed$ uniformly at
+random on $\bitseq{\RandomSeedLength}$, and selects
+the input \notes. At this point there is sufficient information to compute $\hSig$,
+as described in the previous section. The sender also chooses $\NoteAddressPreRand$
+uniformly at random on $\bitseq{\NoteAddressPreRandLength}$.
+Then it creates each output \note with index $i \typecolon \setofNew$ as follows:
+\begin{itemize}
+  \item Choose $\NoteCommitRandNew{i}$ uniformly at random on $\bitseq{\NoteCommitRandLength}$.
+  \item Compute $\NoteAddressRandNew{i} := \PRFrho{\NoteAddressPreRand}(i, \hSig)$.
+  \item Encrypt the \note to the recipient \transmissionKey $\TransmitPublicNew{i}$,
+        as described in \crossref{inband}, giving the ciphertext component
+        $\TransmitCiphertext{i}$.
+\end{itemize}
+
+In order to minimize information leakage, the sender \SHOULD randomize the order
+of the input \notes and of the output \notes. Other considerations relating to
+information leakage from the structure of \transactions are beyond the
+scope of this specification.
+
+After generating all of the \joinSplitDescriptions, the sender constructs the
+encoded \transaction as described in \crossref{joinsplitencoding}, signed with the
+private \joinSplitSigningKey, and submits it to the network.
 
 
+\nsubsubsection{\DummyNotes} \label{dummynotes}
+
+The fields in a \joinSplitDescription allow for $\NOld$ input \notes, and
+$\NNew$ output \notes. In practice, we may wish to encode a \joinSplitTransfer
+with fewer input or output \notes. This is achieved using \dummyNotes.
+
+A \dummy input \note, with index $i$ in the \joinSplitDescription, is constructed
+as follows:
+\begin{itemize}
+  \item Generate a new random \spendingKey $\AuthPrivateOld{i}$ and derive its
+        \payingKey $\AuthPublicOld{i}$.
+  \item Set $\vOld{i} := 0$.
+  \item Choose $\NoteAddressRandOld{i}$ uniformly at random on $\PRFOutput$.
+  \item Choose $\NoteCommitRandOld{i}$ uniformly at random on $\bitseq{\NoteCommitRandLength}$.
+  \item Compute $\nfOld{i} := \PRFnf{\AuthPrivateOld{i}}(\NoteAddressRandOld{i})$.
+  \item Construct a \dummy \merklePath $\treepath{i}$ for use in the
+        \auxiliaryInput to the \joinSplitStatement (this will not be checked).
+  \item When generating the \joinSplitProof\!\!, set $\EnforceCommit{i}$ to 0.
+\end{itemize}
+
+A \dummy output \note is constructed as normal but with zero value, and
+sent to a random \paymentAddress.
 
 
 \nsubsection{Merkle path validity} \label{merklepath}
@@ -1489,7 +1543,8 @@ there exists a witness of \term{auxiliary input}:
 
 \begin{itemize}
   \item[] $(\treepath{\allOld}, \nOld{\allOld}, \AuthPrivateOld{\allOld},
-\nNew{\allNew}\changed{, \NoteAddressPreRand})$
+            \nNew{\allNew}\changed{, \NoteAddressPreRand,
+            \EnforceCommit{\allOld}})$
 \end{itemize}
 
 where:
@@ -1505,12 +1560,16 @@ such that the following conditions hold:
 
 \subparagraph{Merkle path validity} \label{merklepathvalidity}
 
-for each $i \in \setofOld$ \changed{$\mid$ $\vOld{i} \neq 0$}:
+for each $i \in \setofOld$ \changed{$\mid$ $\EnforceCommit{i} = 1$}:
 $\treepath{i}$ must be a valid \merklePath of depth $\MerkleDepth$, as defined in
-\crossref{merkle}, from $\NoteCommit(\nOld{i})$ to \noteCommitmentTree root $\rt$.
+\crossref{merklepath}, from $\NoteCommit(\nOld{i})$ to \noteCommitmentTree root $\rt$.
 
 \textbf{Note:} Merkle path validity covers both conditions 1. (a) and 1. (d) of the NP statement
 given in \cite[section 4.2]{BCG+2014}.
+
+\subparagraph{Commitment Enforcement}
+
+for each $i \in \setofOld$, if $\vOld{i} \neq 0$ then $\EnforceCommit{i} = 1$.
 
 \subparagraph{Balance}
 
@@ -2879,7 +2938,7 @@ Instead, \Zcash enforces that an adversary must choose distinct values
 for each $\NoteAddressRand$, by making use of the fact that all of the
 \nullifiers in \joinSplitDescriptions that appear in a valid \blockchainview
 must be distinct. This is true regardless of whether the \nullifiers
-corresponded to real or dummy notes.
+corresponded to real or dummy notes (see \crossref{dummynotes}).
 The \nullifiers are used as input to $\Blake{256}$
 to derive a public value $\hSig$ which uniquely identifies the transaction,
 as described in \crossref{hsig}. ($\hSig$ was already used in \Zerocash
