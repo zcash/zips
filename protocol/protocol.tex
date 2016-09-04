@@ -264,6 +264,7 @@
 \newcommand{\KeyAgreement}{\titleterm{Key Agreement}}
 \newcommand{\keyDerivationFunction}{\term{Key Derivation Function}}
 \newcommand{\KeyDerivation}{\titleterm{Key Derivation}}
+\newcommand{\encryptionScheme}{\term{encryption scheme}}
 \newcommand{\symmetricEncryptionScheme}{\term{authenticated one-time symmetric encryption scheme}}
 \newcommand{\SymmetricEncryption}{\titleterm{Authenticated One-Time Symmetric Encryption}}
 \newcommand{\signatureScheme}{\term{signature scheme}}
@@ -329,7 +330,7 @@
 \newcommand{\AuthPrivateNew}[1]{\mathsf{a^{new}_{sk,\mathnormal{#1}}}}
 \newcommand{\AddressPublicNew}[1]{\mathsf{addr^{new}_{pk,\mathnormal{#1}}}}
 \newcommand{\enc}{\mathsf{enc}}
-\newcommand{\DHSecret}[1]{\mathsf{dhsecret}_{#1}}
+\newcommand{\DHSecret}[1]{\mathsf{sharedSecret}_{#1}}
 \newcommand{\EphemeralPublic}{\mathsf{epk}}
 \newcommand{\EphemeralPrivate}{\mathsf{esk}}
 \newcommand{\TransmitPublic}{\mathsf{pk_{enc}}}
@@ -1064,11 +1065,6 @@ for a given key. The security notions INT-CTXT and IND-CPA are as defined in
 \cite{BN2007}.
 }
 
-%$\AuthEnc$ is an asymmetric authenticated encryption scheme. It consists of
-%a randomized key pair generation algorithm $\AuthEncGen \typecolon () -> $,
-%an encryption algorithm $\AuthEncEncrypt \typecolon \Nonce \times ...$,
-%and a decryption algorithm $\AuthEncDecrypt$.
-
 \nsubsubsection{\KeyAgreement} \label{abstractkeyagreement}
 
 A \keyAgreementScheme is a cryptographic protocol in which two parties agree
@@ -1617,36 +1613,30 @@ the original \note \changed{ and \memo}.
 
 All of the resulting ciphertexts are combined to form a \notesCiphertext.
 
+For both encryption and decryption,
+\begin{itemize}
+  \item Let $\Sym$ be the \encryptionScheme instantiated in \crossref{concretesym}.
+  \item Let $\KDF$ be the \keyDerivationFunction instantiated in \crossref{concretekdf}.
+  \item Let $\KA$ be the \keyAgreementScheme instantiated in \crossref{concretekeyagreement}.
+  \item Let $\hSig$ be the value computed for this \joinSplitDescription in \crossref{joinsplitdesc}.
+\end{itemize}
+
 \nsubsubsection{Encryption}
 
-\changed{
-Let $\SymEncrypt{\Key}(\Ptext)$ be authenticated encryption using
-$\SymSpecific$ \cite{RFC-7539} encryption of plaintext $\Ptext \in \Plaintext$,
-with empty ``associated data", all-zero nonce $\zeros{96}$, and 256-bit key
-$\Key \in \Keyspace$.
+Let $\TransmitPublicNew{\allNew}$ be the \transmissionKeys
+for the intended recipient addresses of each new \note.
 
-Similarly, let $\SymDecrypt{\Key}(\Ctext)$ be $\SymSpecific$
-decryption of ciphertext $\Ctext \in \Ciphertext$, with empty
-``associated data", all-zero nonce $\zeros{96}$, and 256-bit key
-$\Key \in \Keyspace$. The result is either the plaintext byte sequence,
-or $\bot$ indicating failure to decrypt.
-}
-
-Let $\TransmitPublicNew{\allNew}$ be the \changed{Curve25519} public keys
-for the intended recipient addresses of each new \note, and let
-$\NotePlaintext{\allNew}$ be the \notePlaintexts as defined in \crossref{notept}.
-Let $\hSig$ be the value computed in \crossref{hsig}. Let $\KDF$ be the
-\keyDerivationFunction instantiated in \crossref{concretekdf}.
+Let $\NotePlaintext{\allNew}$ be the \notePlaintexts as defined in \crossref{notept}.
 
 Then to encrypt:
 \begin{itemize}
 \changed{
-  \item Generate a new Curve25519 (public, private) key pair
+  \item Generate a new $\KA$ (public, private) key pair
 $(\EphemeralPublic, \EphemeralPrivate)$.
   \item For $i \in \setofNew$,
     \begin{itemize}
       \item Let $\TransmitPlaintext{i}$ be the raw encoding of $\NotePlaintext{i}$.
-      \item Let $\DHSecret{i} := \CurveMultiply(\EphemeralPrivate,
+      \item Let $\DHSecret{i} := \KAAgree(\EphemeralPrivate,
 \TransmitPublicNew{i})$.
       \item Let $\TransmitKey{i} := \KDF(i, \hSig, \DHSecret{i}, \EphemeralPublic,
 \TransmitPublicNew{i})$.
@@ -1663,14 +1653,15 @@ The resulting \notesCiphertext is $\changed{(\EphemeralPublic,
 
 Let $\PaymentAddress = (\AuthPublic, \TransmitPublic)$ be the recipient's
 \paymentAddress, and let $\TransmitPrivate$ be the recipient's \viewingKey.
-Let $\hSig$ be the value computed in \crossref{hsig}.
+
 Let $\cmNew{\allNew}$ be the \noteCommitments of each output coin.
+
 Then for each $i \in \setofNew$, the recipient will attempt to decrypt that ciphertext
 component as follows:
 
 \changed{
 \begin{itemize}
-  \item Let $\DHSecret{i} := \CurveMultiply(\TransmitPrivate, \EphemeralPublic)$.
+  \item Let $\DHSecret{i} := \KAAgree(\TransmitPrivate, \EphemeralPublic)$.
   \item Let $\TransmitKey{i} := \KDF(i, \hSig, \DHSecret{i}, \EphemeralPublic,
 \TransmitPublicNew{i})$.
   \item Return $\DecryptNote(\TransmitKey{i}, \TransmitCiphertext{i}, \cmNew{i},
@@ -1691,23 +1682,18 @@ is defined as follows:
 \end{itemize}
 }
 
-\textbf{Note:} This corresponds to step 3 (b) i. and ii. (first bullet point) of the
-$\Receive$ algorithm shown in \cite[Figure 2]{BCG+2014}.
-
 To test whether a \note is unspent in a particular \blockchainview also requires
 the \spendingKey $\AuthPrivate$; the coin is unspent if and only if
 $\nf = \PRFnf{\AuthPrivate}(\NoteAddressRand)$ is not in the \nullifierSet
 for that \blockchainview.
 
 \begin{pnotes}
+  \item The decryption algorithm corresponds to step 3 (b) i. and ii.
+        (first bullet point) of the $\Receive$ algorithm shown in \cite[Figure 2]{BCG+2014}.
   \item A \note can change from being unspent to spent on a given \blockchainview,
-as \transactions are added to that view. Also, blockchain reorganisations can cause
-the \transaction in which a \note was output to no longer be on the consensus
-blockchain.
-  \item The nonce parameter to $\SymSpecific$ is not used.
-  \item The ``IETF" definition of $\SymSpecific$ from \cite{RFC-7539} is
-used; this uses a 32-bit block count and a 96-bit nonce, rather than a 64-bit
-block count and 64-bit nonce as in the original definition of $\SymCipher$.
+        as \transactions are added to that view. Also, blockchain reorganisations
+        can cause the \transaction in which a \note was output to no longer be on
+        the consensus blockchain.
 \end{pnotes}
 
 See \crossref{inbandrationale} for further discussion of the security and
@@ -2010,64 +1996,55 @@ additional PRF.)
 
 \nsubsubsection{\SymmetricEncryption} \label{concretesym}
 
-Let $\Sym$ be an \symmetricEncryptionScheme with keyspace $\Keyspace$, encrypting
-plaintexts in $\Plaintext$ to produce ciphertexts in $\Ciphertext$.
+\changed{
+Let $\Keyspace := \bitseq{256}$, $\Plaintext := \byteseqs$, and $\Ciphertext := \byteseqs$.
 
-$\SymEncrypt{} \typecolon \Keyspace \times \Plaintext \rightarrow \Ciphertext$
-is the encryption algorithm.
+Let $\SymEncrypt{\Key}(\Ptext)$ be authenticated encryption using
+$\SymSpecific$ \cite{RFC-7539} encryption of plaintext $\Ptext \in \Plaintext$,
+with empty ``associated data", all-zero nonce $\zeros{96}$, and 256-bit key
+$\Key \in \Keyspace$.
 
-$\SymDecrypt{} \typecolon \Keyspace \times \Ciphertext \rightarrow
-\Plaintext \cup \setof{\bot}$ is the corresponding decryption algorithm, such that
-for any $\Key \in \Keyspace$ and $\Ptext \in \Plaintext$,
-$\SymDecrypt{\Key}(\SymEncrypt{\Key}(\Ptext)) = \Ptext$.
-$\bot$ is used to represent the decryption of an invalid ciphertext.
+Similarly, let $\SymDecrypt{\Key}(\Ctext)$ be $\SymSpecific$
+decryption of ciphertext $\Ctext \in \Ciphertext$, with empty
+``associated data", all-zero nonce $\zeros{96}$, and 256-bit key
+$\Key \in \Keyspace$. The result is either the plaintext byte sequence,
+or $\bot$ indicating failure to decrypt.
+}
 
-\securityrequirement{
-$\Sym$ must be one-time (INT-CTXT $\wedge$ IND-CPA)-secure. ``One-time'' here means
-that an honest protocol participant will almost surely encrypt only one message with
-a given key; however, the attacker may make many adaptive chosen ciphertext queries
-for a given key. The security notions INT-CTXT and IND-CPA are as defined in
-\cite{BN2007}.
+\pnote{
+The ``IETF" definition of $\SymSpecific$ from \cite{RFC-7539} is
+used; this uses a 32-bit block count and a 96-bit nonce, rather than a 64-bit
+block count and 64-bit nonce as in the original definition of $\SymCipher$.
 }
 
 \nsubsubsection{\KeyAgreement} \label{concretekeyagreement}
 
-A \keyAgreementScheme is a cryptographic protocol in which two parties agree
-a shared secret, each using their private key and the other party's public key.
-
-A \keyAgreementScheme $\KA$ defines a type of public keys $\KAPublic$, a type
-of private keys $\KAPrivate$, and a type of shared secrets $\KASharedSecret$.
-
-Let $\KAFormatPrivate \typecolon \PRFOutput \rightarrow \KAPrivate$ be a function
-that converts a bit string of length $\PRFOutputLength$ to a $\KA$ private key.
-
-Let $\KADerivePublic \typecolon \KAPrivate \rightarrow \KAPublic$ be a function
-that derives the $\KA$ public key corresponding to a given $\KA$ public key.
-
-Let $\KAAgree \typecolon \KAPrivate \times \KAPublic \rightarrow \KASharedSecret$
-be the agreement function.
-
-\securityrequirement{
-$\KAFormatPrivate$ must preserve sufficient entropy from its input to be used
-as a secure $\KA$ private key. \todo{requirements on security of key agreement and KDF}
-}
-
 \changed{
-where
-\begin{itemize}
-  \item $\CurveMultiply(\bytes{n}, \bytes{q})$ performs point
+The \keyAgreementScheme specified in \crossref{abstractkeyagreement} is
+instantiated using Curve25519 \cite{Bern2006} as follows.
+
+Let $\KAPublic$ and $\KASharedSecret$ be the type of Curve25519 public keys
+(i.e.\ a sequence of 32 bytes), and let $\KAPrivate$ be the type of Curve25519
+secret keys.
+
+Let $\CurveMultiply(\bytes{n}, \bytes{q})$ be the result of point
 multiplication of the Curve25519 public key represented by the byte
 sequence $\bytes{q}$ by the Curve25519 secret key represented by the
-byte sequence $\bytes{n}$, as defined in \cite[section 2]{Bern2006};
-  \item $\CurveBase$ is the public byte sequence representing the Curve25519
-base point;
-  \item $\Clamp(\bytes{x})$ takes a 32-byte sequence $\bytes{x}$ as input
-and returns a byte sequence representing a Curve25519 private key, with
+byte sequence $\bytes{n}$, as defined in \cite[section 2]{Bern2006}.
+
+Let $\CurveBase$ be the public byte sequence representing the Curve25519
+base point.
+
+Let $\Clamp(\bytes{x})$ take a 32-byte sequence $\bytes{x}$ as input
+and return a byte sequence representing a Curve25519 private key, with
 bits ``clamped'' as described in \cite[section 3]{Bern2006}:
 ``clear bits $0, 1, 2$ of the first byte, clear bit $7$ of the last byte,
 and set bit $6$ of the last byte.'' Here the bits of a byte are numbered
 such that bit $b$ has numeric weight $2^b$.
-\end{itemize}
+
+Define $\KAFormatPrivate(x) := \Clamp(x)$.
+
+Define $\KAAgree(n, q) := \CurveMultiply(n, q)$.
 }
 
 \nsubsubsection{\KeyDerivation} \label{concretekdf}
