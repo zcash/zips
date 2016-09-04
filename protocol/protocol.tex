@@ -284,10 +284,11 @@
 \newcommand{\dontcare}{\kern -0.06em\raisebox{0.1ex}{\footnotesize{$\times$}}}
 \newcommand{\ascii}[1]{\textbf{``\texttt{#1}"}}
 \newcommand{\Justthebox}[2][-1.3ex]{\;\raisebox{#1}{\usebox{#2}}\;}
+\newcommand{\hSigCRH}{\mathsf{hSigCRH}}
+\newcommand{\hSigLength}{\mathsf{\ell_{hSig}}}
+\newcommand{\hSigType}{\bitseq{\hSigLength}}
 \newcommand{\GeneralCRH}[1]{\mathsf{GeneralCRH}_{#1}}
-\newcommand{\GeneralCRHInput}{\byteseqs}
-\newcommand{\GeneralCRHLength}{\mathsf{\ell_{General}}}
-\newcommand{\GeneralCRHOutput}{\bitseq{\GeneralCRHLength}}
+\newcommand{\EquihashGen}[1]{\mathsf{EquihashGen}_{#1}}
 \newcommand{\CRH}{\mathsf{CRH}}
 \newcommand{\CRHbox}[1]{\SHA\left(\Justthebox{#1}\right)}
 \newcommand{\SHA}{\mathtt{SHA256Compress}}
@@ -300,6 +301,7 @@
 \newcommand{\setof}[1]{\{{#1}\}}
 \newcommand{\range}[2]{\{{#1}\,..\,{#2}\}}
 \newcommand{\Nat}{\mathbb{N}}
+\newcommand{\PosInt}{\mathbb{N}^+}
 \newcommand{\minimum}{\mathsf{min}}
 \newcommand{\floor}[1]{\mathsf{floor}\!\left({#1}\right)}
 \newcommand{\ceiling}[1]{\mathsf{ceiling}\!\left({#1}\right)}
@@ -477,7 +479,8 @@
 % Equihash and block headers
 \newcommand{\validEquihashSolution}{\term{valid Equihash solution}}
 \newcommand{\powtag}{\mathsf{powtag}}
-\newcommand{\powinput}{\mathsf{powinput}}
+\newcommand{\powheader}{\mathsf{powheader}}
+\newcommand{\powcount}{\mathsf{powcount}}
 \newcommand{\nVersion}{\mathtt{nVersion}}
 \newcommand{\hashPrevBlock}{\mathtt{hashPrevBlock}}
 \newcommand{\hashMerkleRoot}{\mathtt{hashMerkleRoot}}
@@ -713,8 +716,7 @@ notwithstanding the compelling arguments to the contrary made in
 \cite{EWD-831}.)
 
 The notation $\range{a}{b}$ means the set of integers from $a$ through
-$b$ inclusive. $k\range{a}{b}$ means the set containing integers $kn$
-for all $n \in \range{a}{b}$.
+$b$ inclusive.
 
 The notation $[f(x)$ for $x$ from $a$ up to $b\,]$ means the sequence
 formed by evaluating $f$ on each integer from $a$ to $b$ inclusive, in
@@ -722,12 +724,15 @@ ascending order. Similarly, $[f(x)$ for $x$ from $a$ down to $b\,]$ means
 the sequence formed by evaluating $f$ on each integer from $a$ to $b$
 inclusive, in descending order.
 
+The notation $a\,||\,b$ means the concatenation of sequences $a$ then $b$.
+
 The notation $\concatbits(S)$ means the sequence of bits obtained by
 concatenating the elements of $S$ viewed as bit sequences. If the
 elements of $S$ are byte sequences, they are converted to bit sequences
 with the \emph{most significant} bit of each byte first.
 
-The notation $\Nat$ means the set of nonnegative integers.
+The notation $\Nat$ means the set of nonnegative integers. $\PosInt$
+means the set of positive integers.
 
 The notation $\GF{n}$ means the finite field with $n$ elements, and
 $\GFstar{n}$ means its group under multiplication.
@@ -758,7 +763,7 @@ $\PRF{x}{}(y) \typecolon Z$, then $\PRF{}{} \typecolon X \times Y \rightarrow Z$
 An argument to a function can determine other argument or result types.
 
 The following integer constants will be instantiated in \crossref{constants}:
-$\MerkleDepth$, $\NOld$, $\NNew$, $\MerkleHashLength$, $\GeneralCRHLength$,
+$\MerkleDepth$, $\NOld$, $\NNew$, $\MerkleHashLength$, $\hSigLength$,
 $\PRFOutputLength$, $\NoteCommitRandLength$, $\RandomSeedLength$, $\AuthPrivateLength$,
 $\NoteAddressPreRandLength$, $\MAXMONEY$. The bit sequence constant
 $\Uncommitted \typecolon \bitseq{\MerkleHashLength}$ will also be defined in
@@ -1004,10 +1009,15 @@ is a collision-resistant hash function used in \crossref{merklepath}.
 It is instantiated in \crossref{merklecrh}.
 
 \changed{
-$\GeneralCRH{} \typecolon (\ell \typecolon 8\range{1}{64}) \times \GeneralCRHInput \rightarrow \bitseq{\ell}$
-is another collision-resistant hash function. The first (subscripted) argument
-indicates the output length in bits. It is used in \crossref{hsig} and
-\crossref{equihash}, and instantiated in \crossref{generalcrh}.
+$\hSigCRH{} \typecolon \bitseq{\RandomSeedLength} \times (\PRFOutput)^{\NOld} \times \JoinSplitSigPublic \rightarrow \hSigType$
+is a collision-resistant hash function used in \crossref{joinsplitdesc}.
+It is instantiated in \crossref{hsigcrh}.
+
+$\EquihashGen{} \typecolon (n \typecolon \PosInt) \times \PosInt \times \byteseqs \times \PosInt \rightarrow \bitseq{n}$
+is another hash function, used in \crossref{equihash} to generate
+input to the Equihash solver. The first two arguments, representing
+the Equihash parameters $n$ and $k$, are written subscripted.
+It is instantiated in \crossref{equihashgen}.
 }
 
 \nsubsubsection{\PseudoRandomFunctions} \label{abstractprfs}
@@ -1018,8 +1028,8 @@ $\PRF{x}{}$ are needed in our protocol:
 \begin{tabular}{@{\hskip 2em}l@{\;}l@{\;}l@{\;}l}
 $\PRFaddr{} $&$\typecolon\; \bitseq{\AuthPrivateLength} $&$\times\; \range{0}{255} $&$\rightarrow \PRFOutput $\\
 $\PRFnf{}   $&$\typecolon\; \bitseq{\AuthPrivateLength} $&$\times\; \PRFOutput $&$\rightarrow \PRFOutput $\\
-$\PRFpk{}   $&$\typecolon\; \bitseq{\AuthPrivateLength} $&$\times\; \GeneralCRHOutput $&$\rightarrow \PRFOutput $\\
-$\PRFrho{}  $&$\typecolon\; \bitseq{\NoteAddressPreRandLength} $&$\times\; \GeneralCRHOutput $&$\rightarrow \PRFOutput $
+$\PRFpk{}   $&$\typecolon\; \bitseq{\AuthPrivateLength} $&$\times\; \hSigType $&$\rightarrow \PRFOutput $\\
+$\PRFrho{}  $&$\typecolon\; \bitseq{\NoteAddressPreRandLength} $&$\times\; \hSigType $&$\rightarrow \PRFOutput $
 \end{tabular}
 
 These are used in \crossref{jsstatement}; $\PRFaddr{}$ is also used to
@@ -1099,7 +1109,7 @@ A \keyDerivationFunction is defined for a particular \keyAgreementScheme and
 agreement and additional arguments, and derives a key suitable for the encryption
 scheme.
 
-Let $\KDF \typecolon \setofNew \times \GeneralCRHOutput \times \KASharedSecret
+Let $\KDF \typecolon \setofNew \times \hSigType \times \KASharedSecret
 \times \KAPublic \times \KAPublic \rightarrow \Keyspace$ be a
 \keyDerivationFunction suitable for use with $\KA$, deriving keys
 for $\SymEncrypt{}$.
@@ -1114,8 +1124,8 @@ independently at random from $\KAPrivate$.
 Let $\TransmitPublicSup{j} := \KADerivePublic(\TransmitPrivateSup{j})$.
 
 An adversary can adaptively query a function
-$Q \typecolon \range{1}{2} \times \GeneralCRHOutput \rightarrow
-\KAPublic \times \Keyspace_{\allNew}$ where $Q(j, \hSig)$ is defined as follows:
+$Q \typecolon \range{1}{2} \times \hSigType \rightarrow
+\KAPublic \times \Keyspace_{\allNew}$ where $Q_j(\hSig)$ is defined as follows:
 \begin{enumerate}
   \item Choose $\EphemeralPrivate$ uniformly at random from $\KAPrivate$.
   \item Let $\EphemeralPublic := \KADerivePublic(\EphemeralPrivate)$.
@@ -1315,31 +1325,16 @@ Either $\vpubOld$ or $\vpubNew$ \MUST be zero.
 
 \todo{Describe case where there are fewer than $\NOld$ real input \notes.}
 
-\nsubsubsection{Computation of \hSigText} \label{hsig}
+The value $\hSig$ is also computed from $\RandomSeed$, $\nfOld{\allOld}$, and the
+$\joinSplitPubKey$ of the containing \transaction:
 
-\newsavebox{\hsigbox}
-\begin{lrbox}{\hsigbox}
-\setchanged
-\begin{bytefield}[bitwidth=0.04em]{1024}
-    \bitbox{256}{$256$-bit $\RandomSeed$}
-    \bitbox{256}{\hfill $256$-bit $\nfOld{\mathrm{1}}$\hfill...\;} &
-    \bitbox{256}{$256$-bit $\nfOld{\NOld}$} &
-    \bitbox{256}{$256$-bit $\joinSplitPubKey$}
-\end{bytefield}
-\end{lrbox}
+\begin{itemize}
+  \item[] $\hSig := \hSigCRH(\RandomSeed, \nfOld{\allOld}, \joinSplitPubKey)$.
+\end{itemize}
 
-\changed{
-Given a \joinSplitDescription containing the fields $\randomSeed$ and
-$\nullifiersField = \nfOld{\allOld}$, and embedded in a transaction
-containing the field $\joinSplitPubKey$, we compute $\hSig$ for that
-\joinSplitDescription as follows:
-\begin{equation*}
-\begin{aligned}
-\hSigInput &:= \Justthebox{\hsigbox} \\
-\hSig &:= \GeneralCRH{256}(\ascii{ZcashComputehSig},\; \hSigInput)
-\end{aligned}
-\end{equation*}
-}
+$\hSigCRH$ is instantiated in \crossref{hsigcrh}.
+
+
 
 
 
@@ -1749,7 +1744,7 @@ Define:
   \item[] $\NOld = 2$
   \item[] $\NNew = 2$
   \item[] $\MerkleHashLength = 256$
-  \item[] $\GeneralCRHLength = 256$
+  \item[] $\hSigLength = 256$
   \item[] $\PRFOutputLength = 256$
   \item[] $\NoteCommitRandLength = \changed{256}$
   \item[] $\changed{\RandomSeedLength = 256}$
@@ -1787,24 +1782,82 @@ $\SHA$ must be collision-resistant, and it must be infeasible to find a preimage
 such that $\SHA(x) = \zeros{256}$.
 }
 
-\nsubsubsection{General Hash Function} \label{generalcrh}
+\nsubsubsection{\hSigText{} Hash Function} \label{hsigcrh}
+
+\newsavebox{\hsigbox}
+\begin{lrbox}{\hsigbox}
+\setchanged
+\begin{bytefield}[bitwidth=0.04em]{1024}
+    \bitbox{256}{$256$-bit $\RandomSeed$}
+    \bitbox{256}{\hfill $256$-bit $\nfOld{\mathrm{1}}$\hfill...\;} &
+    \bitbox{256}{$256$-bit $\nfOld{\NOld}$} &
+    \bitbox{300}{$256$-bit $\joinSplitPubKey$}
+\end{bytefield}
+\end{lrbox}
+
+$\hSigCRH$ is used to compute the value $\hSig$ in \crossref{joinsplitdesc}.
 
 \changed{
-$\GeneralCRH{\ell}$ is a collision-resistant hash function, producing outputs of
-length $\ell \typecolon 8\range{1}{64}$ bits. It is used in \crossref{hsig} and
-\crossref{equihash}.
+\hskip 1.5em $\hSigCRH(\RandomSeed, \nfOld{\allOld}, \joinSplitPubKey) := \GeneralCRH{256}(\ascii{ZcashComputehSig},\; \hSigInput)$
 
-$\GeneralCRH{\ell}(p, x)$ is instantiated by unkeyed $\Blake{\ell}$, that is,
-$\BlakeGeneric$ \cite{ANWW2013}\cite{RFC-7693} in sequential mode, with an output
-digest length of $\ell/8$ bytes, 16-byte personalization string $p$, and input $x$.
+where
 
-\subparagraph{Note:}
+\hskip 1.5em $\hSigInput := \Justthebox{\hsigbox}$.
+}
+
+$\GeneralCRH{\ell}(p, x)$ is instantiated by unkeyed $\Blake{\ell}$
+\cite{ANWW2013}\cite{RFC-7693} in sequential mode, with an output
+digest length of $\ell/8$ bytes, 16-byte personalization string $p$,
+and input $x$.
+
+\pnote{
 $\Blake{\ell}$ is not the same as $\Blake{512}$ truncated to $\ell$ bits.
+}
 
 \securityrequirement{
-$\Blake{\ell}(p, x)$ must be collision-resistant, for any $\ell$ and $p$
-used in the protocol.
+$\Blake{256}(\ascii{ZcashComputehSig}, x)$ must be collision-resistant.
 }
+
+\nsubsubsection{Equihash Generator} \label{equihashgen}
+
+$\EquihashGen{n, k}$ is a specialized hash function that maps an input
+and an index to an output of length $n$ bits. It is used in \crossref{equihash}.
+
+\newsavebox{\powtagbox}
+\begin{lrbox}{\powtagbox}
+\begin{bytefield}[bitwidth=0.16em]{128}
+    \bitbox{64}{64-bit $\ascii{ZcashPoW}$}
+    \bitbox{32}{32-bit $n$}
+    \bitbox{32}{32-bit $k$}
+\end{bytefield}
+\end{lrbox}
+
+\newsavebox{\powcountbox}
+\begin{lrbox}{\powcountbox}
+\begin{bytefield}[bitwidth=0.16em]{32}
+    \bitbox{32}{32-bit $g$}
+\end{bytefield}
+\end{lrbox}
+
+Let $\powtag := \Justthebox{\powtagbox}$.
+
+Let $\powcount(g) := \Justthebox{\powcountbox}$.
+
+\vspace{2ex}
+% Blech. Dijkstra was right \cite{EWD831}.
+Let $\EquihashGen{n, k}(S, i) := T_{h+1\hairspace..\hairspace h+n}$, where
+\begin{itemize}
+  \item $m := \floor{\frac{512}{n}}$;
+  \item $h := (i-1 \bmod m)\, n$;
+  \item $T := \GeneralCRH{n m}(\powtag,\, S \,||\, \powcount(\floor{\frac{i-1}{m}}))$.
+\end{itemize}
+
+Indices of bits in $T$ are 1-based. $\GeneralCRH{\ell}(p, x)$ is defined
+as in the previous section.
+
+\securityrequirement{
+$\Blake{\ell}(\powtag, x)$ must be collision-resistant, for any $\ell$ and
+$\powtag$ used in the protocol.
 }
 
 \nsubsubsection{\PseudoRandomFunctions} \label{concreteprfs}
@@ -2572,17 +2625,8 @@ $\vxor{j=1}{2^k} X_{i_j} = 0$.
 In Equihash, $\mathrm{N} = 2^{\frac{n}{k+1}+1}$, and the sequence $X_{1..\mathrm{N}}$ is
 derived from the \blockHeader and a nonce:
 
-\newsavebox{\powtagbox}
-\begin{lrbox}{\powtagbox}
-\begin{bytefield}[bitwidth=0.16em]{128}
-    \bitbox{64}{64-bit $\ascii{ZcashPoW}$}
-    \bitbox{32}{32-bit $n$}
-    \bitbox{32}{32-bit $k$}
-\end{bytefield}
-\end{lrbox}
-
-\newsavebox{\powinputbox}
-\begin{lrbox}{\powinputbox}
+\newsavebox{\powheaderbox}
+\begin{lrbox}{\powheaderbox}
 \begin{bytefield}[bitwidth=0.064em]{1152}
     \bitbox{128}{32-bit $\nVersion$}
     \bitbox{256}{256-bit $\hashPrevBlock$}
@@ -2591,26 +2635,14 @@ derived from the \blockHeader and a nonce:
     \bitbox{128}{32-bit $\nTime$}
     \bitbox{128}{32-bit $\nBits$} \\
     \bitbox{256}{256-bit $\nNonce$}
-    \bitbox{128}{32-bit $g$}
 \end{bytefield}
 \end{lrbox}
 
-Let $\powtag := \Justthebox{\powtagbox}$.
+Let $\powheader := \Justthebox[-11.5ex]{\powheaderbox}$
 
-Let $\powinput(g) := \Justthebox[-11.5ex]{\powinputbox}$
+For $i \in \range{1}{N}$, let $X_i = \EquihashGen{n, k}(\powheader, i)$.
 
-Let $\ell := \frac{n}{k+1} + 1$.
-
-Let $m := \floor{\frac{512}{n}}$.
-
-Let $T := \concatbits([\GeneralCRH{n m}(\powtag, \powinput(g))$
-for $g$ from $0$ up to $\ceiling{\frac{N}{m}} - 1\hairspace])$.
-
-% Blech. Dijkstra was right \cite{EWD831}.
-For $h \in \range{1}{N}$, let $X_h = T_{n(h-1)+1..nh}$.
-
-(In other words, the bit sequence $T$ is split into $N$ subsequences of $n$ bits.
-Indices of bits in $T$ are 1-based.)
+$\EquihashGen{}$ is instantiated in \crossref{equihashgen}.
 
 Define $\ItoBSP \typecolon (u \typecolon \Nat) \times \range{0}{2^u\!-\!1} \rightarrow \bitseq{u}$
 such that $\ItoBSP{u}(x)$ is the sequence of $u$ bits representing $x$ in
@@ -2688,14 +2720,21 @@ then the corresponding bit array is:
 and so the first 7 bytes of $\nSolution$ would be
 $[0, 2, 32, 0, 10, 127, 255]$.
 
-\subparagraph{Note:}
-$\ItoBSP{}$ and $\BStoIP{}$ are big-endian, while the encoding of
-integer fields in $\powtag$ and $\powinput$ is little-endian. The rationale
-for this is that little-endian serialization of \blockHeaders is consistent
-with \Bitcoin, but using little-endian ordering of bits in the solution
-encoding would require bit-reversal (as opposed to only shifting). The
-comparison of $\Xi_r$ values obtained by a big-endian conversion is equivalent
-to lexicographic comparison as specified in \cite[section IV A]{BK2016}.
+\begin{pnotes}
+  \item $\ItoBSP{}$ and $\BStoIP{}$ are big-endian, while the encoding of
+        integer fields in $\powheader$ and in the instantiation of $\EquihashGen{}$
+        is little-endian. The rationale for this is that little-endian
+        serialization of \blockHeaders is consistent with \Bitcoin, but using
+        little-endian ordering of bits in the solution encoding would require
+        bit-reversal (as opposed to only shifting). The comparison of $\Xi_r$
+        values obtained by a big-endian conversion is equivalent to lexicographic
+        comparison as specified in \cite[section IV A]{BK2016}.
+  \item When $\EquihashGen{}$ is used to construct the input list, the index
+        $i$ runs sequentially from $1$ to $N$, allowing the number of calls
+        to $\BlakeGeneric$ used in the instantiation of $\EquihashGen{}$ to
+        be reduced by a factor of $\floor{\frac{512}{n}}$ (which is a factor
+        of 2 for $n = 200$).
+\end{pnotes}
 
 \nsubsubsection{Difficulty filter} \label{difficulty}
 
