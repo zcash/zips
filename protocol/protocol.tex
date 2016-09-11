@@ -289,7 +289,6 @@
 \newcommand{\hSigCRH}{\mathsf{hSigCRH}}
 \newcommand{\hSigLength}{\mathsf{\ell_{hSig}}}
 \newcommand{\hSigType}{\bitseq{\hSigLength}}
-\newcommand{\GeneralCRH}[1]{\mathsf{GeneralCRH}_{#1}}
 \newcommand{\EquihashGen}[1]{\mathsf{EquihashGen}_{#1}}
 \newcommand{\CRH}{\mathsf{CRH}}
 \newcommand{\CRHbox}[1]{\SHA\left(\Justthebox{#1}\right)}
@@ -1884,21 +1883,18 @@ such that $\SHA(x) = \zeros{256}$.
 $\hSigCRH$ is used to compute the value $\hSig$ in \crossref{joinsplitdesc}.
 
 \changed{
-\hskip 1.5em $\hSigCRH(\RandomSeed, \nfOld{\allOld}, \joinSplitPubKey) := \GeneralCRH{256}(\ascii{ZcashComputehSig},\; \hSigInput)$
+\hskip 1.5em $\hSigCRH(\RandomSeed, \nfOld{\allOld}, \joinSplitPubKey) := \Blake{256}(\ascii{ZcashComputehSig},\; \hSigInput)$
 
 where
 
 \hskip 1.5em $\hSigInput := \Justthebox{\hsigbox}$.
 }
 
-$\GeneralCRH{\ell}(p, x)$ is instantiated by unkeyed $\Blake{\ell}$
+$\Blake{256}(p, x)$ refers to unkeyed $\Blake{256}$
 \cite{ANWW2013}\cite{RFC-7693} in sequential mode, with an output
-digest length of $\ell/8$ bytes, 16-byte personalization string $p$,
-and input $x$.
-
-\pnote{
-$\Blake{\ell}$ is not the same as $\Blake{512}$ truncated to $\ell$ bits.
-}
+digest length of $32$ bytes, 16-byte personalization string $p$,
+and input $x$. This is not the same as $\Blake{512}$ truncated to
+$256$ bits.
 
 \securityrequirement{
 $\Blake{256}(\ascii{ZcashComputehSig}, x)$ must be collision-resistant.
@@ -1935,15 +1931,27 @@ Let $\EquihashGen{n, k}(S, i) := T_{h+1\hairspace..\hairspace h+n}$, where
 \begin{itemize}
   \item $m := \floor{\frac{512}{n}}$;
   \item $h := (i-1 \bmod m)\, n$;
-  \item $T := \GeneralCRH{n m}(\powtag,\, S \,||\, \powcount(\floor{\frac{i-1}{m}}))$.
+  \item $T := \Blake{(n m)}(\powtag,\, S \,||\, \powcount(\floor{\frac{i-1}{m}}))$.
 \end{itemize}
 
-Indices of bits in $T$ are 1-based. $\GeneralCRH{\ell}(p, x)$ is defined
-as in the previous section.
+Indices of bits in $T$ are 1-based.
+
+$\Blake{\ell}(p, x)$ refers to unkeyed $\Blake{\ell}$
+\cite{ANWW2013}\cite{RFC-7693} in sequential mode, with an output
+digest length of $\ell/8$ bytes, 16-byte personalization string $p$,
+and input $x$. This is not the same as $\Blake{512}$ truncated to
+$\ell$ bits.
 
 \securityrequirement{
-$\Blake{\ell}(\powtag, x)$ must be collision-resistant, for any $\ell$ and
-$\powtag$ used in the protocol.
+$\Blake{\ell}(\powtag, x)$ must generate output that is sufficiently
+unpredictable to avoid short-cuts to the Equihash solution process.
+It would suffice to model it as a random oracle.
+}
+
+\pnote{
+When $\EquihashGen{}$ is evaluated for sequential indices (as in \crossref{equihash}),
+the number of calls to $\BlakeGeneric$ can be reduced by a factor of $\floor{\frac{512}{n}}$
+in the best case (which is a factor of 2 for $n = 200$).
 }
 
 \nsubsubsection{\PseudoRandomFunctions} \label{concreteprfs}
@@ -2838,21 +2846,16 @@ then the corresponding bit array is:
 and so the first 7 bytes of $\nSolution$ would be
 $[0, 2, 32, 0, 10, 127, 255]$.
 
-\begin{pnotes}
-  \item $\ItoBSP{}$ and $\BStoIP{}$ are big-endian, while the encoding of
-        integer fields in $\powheader$ and in the instantiation of $\EquihashGen{}$
-        is little-endian. The rationale for this is that little-endian
-        serialization of \blockHeaders is consistent with \Bitcoin, but using
-        little-endian ordering of bits in the solution encoding would require
-        bit-reversal (as opposed to only shifting). The comparison of $\Xi_r$
-        values obtained by a big-endian conversion is equivalent to lexicographic
-        comparison as specified in \cite[section IV A]{BK2016}.
-  \item When $\EquihashGen{}$ is used to construct the input list, the index
-        $i$ runs sequentially from $1$ to $N$, allowing the number of calls
-        to $\BlakeGeneric$ used in the instantiation of $\EquihashGen{}$ to
-        be reduced by a factor of $\floor{\frac{512}{n}}$ (which is a factor
-        of 2 for $n = 200$).
-\end{pnotes}
+\pnote{
+$\ItoBSP{}$ and $\BStoIP{}$ are big-endian, while the encoding of
+integer fields in $\powheader$ and in the instantiation of $\EquihashGen{}$
+is little-endian. The rationale for this is that little-endian
+serialization of \blockHeaders is consistent with \Bitcoin, but using
+little-endian ordering of bits in the solution encoding would require
+bit-reversal (as opposed to only shifting). The comparison of $\Xi_r$
+values obtained by a big-endian conversion is equivalent to lexicographic
+comparison as specified in \cite[section IV A]{BK2016}.
+}
 
 \nsubsubsection{Difficulty filter} \label{difficulty}
 
@@ -2993,9 +2996,9 @@ for each $\NoteAddressRand$, by making use of the fact that all of the
 \nullifiers in \joinSplitDescriptions that appear in a valid \blockchainview
 must be distinct. This is true regardless of whether the \nullifiers
 corresponded to real or dummy notes (see \crossref{dummynotes}).
-The \nullifiers are used as input to $\Blake{256}$
-to derive a public value $\hSig$ which uniquely identifies the transaction,
-as described in \crossref{joinsplitdesc}. ($\hSig$ was already used in \Zerocash
+The \nullifiers are used as input to $\hSigCRH$ to derive a public value
+$\hSig$ which uniquely identifies the transaction, as described in
+\crossref{joinsplitdesc}. ($\hSig$ was already used in \Zerocash
 in a way that requires it to be unique in order to maintain
 indistinguishability of \joinSplitDescriptions; adding the \nullifiers
 to the input of the hash used to calculate it has the effect of making
@@ -3010,7 +3013,7 @@ $\NoteAddressRand$ for each output \note is enforced by the \joinSplitStatement
 
 Now even if the creator of a \joinSplitDescription does not choose
 $\NoteAddressPreRand$ randomly, uniqueness of \nullifiers and
-collision resistance of both $\Blake{256}$ and $\PRFrho{}$ will ensure
+collision resistance of both $\hSigCRH$ and $\PRFrho{}$ will ensure
 that the derived $\NoteAddressRand$ values are unique, at least for
 any two \joinSplitDescriptions that get into a valid \blockchainview.
 This is sufficient to prevent the Faerie Gold attack.
@@ -3101,11 +3104,12 @@ twice.
 
 For resistance to Faerie Gold attacks as described in
 \crossref{faeriegold}, \Zcash depends on collision resistance of both
-$\GeneralCRH{256}$ and $\PRFrho{}$. Collision resistance of a truncated hash
+$\hSigCRH$ and $\PRFrho{}$ (instantiated using $\Blake{256}$ and $\SHA$
+respectively). Collision resistance of a truncated hash
 does not follow from collision resistance of the original hash, even if the
-truncation is only by one bit. This motivated instantiating $\GeneralCRH{\ell}$
-as $\Blake{\ell}$ in \Zcash, and avoiding truncation along any path from the
-inputs to the computation of $\hSig$ to the uses of $\NoteAddressRand$.
+truncation is only by one bit. This motivated avoiding truncation along any
+path from the inputs to the computation of $\hSig$ to the uses of
+$\NoteAddressRand$.
 
 Since the PRFs are instantiated using $\SHA$ which has an input block
 size of 512 bits (of which 256 bits are used for the PRF input and 4 bits
@@ -3275,6 +3279,14 @@ The errors in the proof of Ledger Indistinguishability mentioned in
 
 
 \nsection{Change history}
+
+\subparagraph{2016.0-beta-1.2}
+
+\begin{itemize}
+    \item Remove $\mathsf{GeneralCRH}$ in favour of specifying $\hSigCRH$ and
+          $\EquihashGen{}$ directly in terms of $\BlakeGeneric$.
+    \item Correct the security requirement for $\EquihashGen{}$.
+\end{itemize}
 
 \subparagraph{2016.0-beta-1.1}
 
