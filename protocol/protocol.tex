@@ -488,6 +488,7 @@
 \newcommand{\Varies}{\textit{Varies}}
 \newcommand{\heading}[1]{\multicolumn{1}{c|}{#1}}
 \newcommand{\type}[1]{\texttt{#1}}
+\newcommand{\compactSize}{\type{compactSize uint}}
 
 \newcommand{\sighashType}{\term{SIGHASH type}}
 \newcommand{\sighashTypes}{\term{SIGHASH types}}
@@ -507,7 +508,8 @@
 \newcommand{\nTime}{\mathtt{nTime}}
 \newcommand{\nBits}{\mathtt{nBits}}
 \newcommand{\nNonce}{\mathtt{nNonce}}
-\newcommand{\nSolution}{\mathtt{nSolution}}
+\newcommand{\solutionSize}{\mathtt{solutionSize}}
+\newcommand{\solution}{\mathtt{solution}}
 \newcommand{\SHAd}{\term{SHA-256d}}
 
 % Proving system
@@ -2567,17 +2569,17 @@ Bytes & \heading{Name} & \heading{Data Type} & \heading{Description} \\
 
 4 & $\versionField$ & \type{uint32\_t} & Transaction version number; either 1 or 2. \\ \hline
 
-\Varies & $\txInCount$ & \type{compactSize uint} & Number of \transparent inputs in this transaction. \\ \hline
+\Varies & $\txInCount$ & \compactSize & Number of \transparent inputs in this transaction. \\ \hline
 
 \Varies & $\txIn$ & $\txIn$ & Transparent inputs, encoded as in \Bitcoin. \\ \hline
 
-\Varies & $\txOutCount$ & \type{compactSize uint} & Number of \transparent outputs in this transaction. \\ \hline
+\Varies & $\txOutCount$ & \compactSize & Number of \transparent outputs in this transaction. \\ \hline
 
 \Varies & $\txOut$ & $\txOut$ & Transparent outputs, encoded as in \Bitcoin. \\ \hline
 
 4 & $\lockTime$ & \type{uint32\_t} & A Unix epoch time or block number, encoded as in \Bitcoin. \\ \hline
 
-\Varies\;$\dagger$ & $\nJoinSplit$ & \type{compactSize uint} & The number of \joinSplitDescriptions
+\Varies\;$\dagger$ & $\nJoinSplit$ & \compactSize & The number of \joinSplitDescriptions
 in $\vJoinSplit$. \\ \hline
 
 \Longunderstack{1802 $\times$ \\ $\nJoinSplit\,\dagger$} & $\vJoinSplit$ & \type{JoinSplitDescription} \type{[$\nJoinSplit$]} &
@@ -2708,7 +2710,9 @@ header hash must be less than or equal to, in the same nBits format used by \Bit
 32 & $\nNonce$ & \type{char[32]} & An arbitrary field miners change to modify the
 header hash in order to produce a hash below the target threshold. \\ \hline
 
-1344 & $\nSolution$ & \type{char[1344]} & The Equihash solution, which \MUST be valid
+2 & $\solutionSize$ & \compactSize & The size of an Equihash solution in bytes (always 1344). \\ \hline
+
+1344 & $\solution$ & \type{char[1344]} & The Equihash solution, which \MUST be valid
 according to \crossref{equihash}. \\ \hline
 
 \end{tabularx}
@@ -2720,14 +2724,19 @@ The changes relative to \Bitcoin version 4 blocks as described in \cite{Bitcoin-
         that parses blocks \MUSTNOT assume, when an encoded \block starts with an $\nVersion$
         field representing a value other than 4 (e.g.\ future versions potentially introduced
         by hard forks), that it will be parseable according to this format.
-  \item The $\hashReserved$ and $\nSolution$ fields have been added.
+  \item The $\hashReserved$, $\solutionSize$, and $\solution$ fields have been added.
   \item The type of the $\nNonce$ field has changed from \type{uint32\_t} to \type{char[32]}.
 \end{itemize}
 
-\pnote{
-There is no relation between the values of the $\versionField$ field of a \transaction, and
-the $\nVersion$ field of a \blockHeader.
-}
+\begin{pnotes}
+  \item There is no relation between the values of the $\versionField$ field of a \transaction,
+        and the $\nVersion$ field of a \blockHeader.
+  \item Like other serialized fields of type $\compactSize$, the $\solutionSize$ field \MUST
+        be encoded with the minimum number of bytes (2 in this case), and other encodings
+        \MUST be rejected. This is necessary to avoid a potential attack in which a miner
+        could test several distinct encodings of each Equihash solution against the difficulty
+        filter, rather than only the single intended encoding.
+\end{pnotes}
 
 \nsubsection{Proof of Work}
 
@@ -2737,7 +2746,7 @@ in \cite{WG2016}.
 
 A \block satisfies the Proof of Work if and only if:
 \begin{itemize}
-  \item The $\nSolution$ field encodes a \validEquihashSolution according to \crossref{equihash}.
+  \item The $\solution$ field encodes a \validEquihashSolution according to \crossref{equihash}.
   \item The \blockHeader satisfies the difficulty check according to \crossref{difficulty}.
 \end{itemize}
 
@@ -2804,7 +2813,7 @@ This does not include a difficulty condition, because here we are defining valid
 of an Equihash solution independent of difficulty.
 }
 
-An Equihash solution with $n = 200$ and $k = 9$ is encoded in the $\nSolution$
+An Equihash solution with $n = 200$ and $k = 9$ is encoded in the $\solution$
 field of a \blockHeader as follows:
 
 \newsavebox{\solutionbox}
@@ -2849,7 +2858,7 @@ then the corresponding bit array is:
 
 \hskip 1.5em $\Justthebox{\eqexamplebox}$
 
-and so the first 7 bytes of $\nSolution$ would be
+and so the first 7 bytes of $\solution$ would be
 $[0, 2, 32, 0, 10, 127, 255]$.
 
 \pnote{
@@ -2866,7 +2875,7 @@ comparison as specified in \cite[section IV A]{BK2016}.
 \nsubsubsection{Difficulty filter} \label{difficulty}
 
 The difficulty filter is unchanged from \Bitcoin, and is calculated using
-\SHAd on the whole \blockHeader (including $\nSolution$).
+\SHAd on the whole \blockHeader (including $\solutionSize$ and $\solution$).
 
 \nsubsubsection{Difficulty adjustment} \label{diffadjustment}
 
@@ -3289,6 +3298,8 @@ The errors in the proof of Ledger Indistinguishability mentioned in
 \subparagraph{2016.0-beta-1.3}
 
 \begin{itemize}
+    \item Correct the omission of $\solutionSize$ from the \blockHeader format.
+    \item Document that \compactSize encodings must be canonical.
     \item Add a note about conformance language in the introduction.
 \end{itemize}
 
