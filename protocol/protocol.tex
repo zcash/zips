@@ -636,7 +636,7 @@
 scheme \Zerocash \cite{BCG+2014}, with some security fixes and adjustments
 to terminology, functionality and performance. It bridges the existing
 \emph{transparent} payment scheme used by \Bitcoin \cite{Naka2008} with a
-\emph{protected} payment scheme protected by zero-knowledge succinct
+\emph{protected} payment scheme secured by zero-knowledge succinct
 non-interactive arguments of knowledge (\zkSNARKs).
 
 Changes from the original \Zerocash are explained in \crossref{differences},
@@ -703,15 +703,15 @@ spend \notes sent to the address; in \Zcash this is called a \spendingKey.
 
 To each \note there is cryptographically associated a \noteCommitment, and
 a \nullifier\hairspace\cref{notesandnullifiers} (so that there is a 1:1:1 relation
-between \notes, \noteCommitments, and \nullifiers). However, it is infeasible
-to correlate a commitment with its \nullifier without knowledge of the \note.
-Computing the \nullifier requires the associated private \spendingKey. An
-unspent valid \note, at a given point on the \blockchain, is one for which
-the \noteCommitment has been publically revealed on the \blockchain prior to
-that point, but the \nullifier has not.
+between \notes, \noteCommitments, and \nullifiers). Computing the \nullifier
+requires the associated private \spendingKey. It is infeasible to correlate the
+\noteCommitment with the corresponding \nullifier without knowledge of at least
+this \spendingKey. An unspent valid \note, at a given point on the \blockchain,
+is one for which the \noteCommitment has been publically revealed on the
+\blockchain prior to that point, but the \nullifier has not.
 
 A \transaction can contain \transparent inputs, outputs, and scripts,
-which all work as in \Bitcoin. They also contain a sequence of zero or
+which all work as in \Bitcoin. It also contains a sequence of zero or
 more \joinSplitDescriptions. Each of these describes a \joinSplitTransfer\hairspace\footnote{
 \joinSplitTransfers in \Zcash generalize ``Mint'' and ``Pour'' \transactions
 in \Zerocash; see \crossref{trstructure} for the differences.}
@@ -720,10 +720,11 @@ which takes in a \transparent value and up to two input \notes, and produces a
 \notes are revealed (preventing them from being spent again) and the
 commitments of the output \notes are revealed (allowing them to be spent in
 future). Each \joinSplitDescription also includes a computationally sound
-\zkSNARK proof, which proves all of the following:
+\zkSNARK proof, which proves that all of the following hold except with
+negligable probability:
 
 \begin{itemize}
-  \item The inputs and outputs balance (individually for each \joinSplitTransfer).
+  \item The input and output values balance (individually for each \joinSplitTransfer).
   \item For each input \note of non-zero value, some revealed \noteCommitment
         exists for that \note.
   \item The prover knew the private \spendingKeys of the input \notes.
@@ -732,8 +733,8 @@ future). Each \joinSplitDescription also includes a computationally sound
         linked to a signature over the whole \transaction, in such a way that
         the \transaction cannot be modified by a party who did not know these
         private keys.
-  \item Each output \note is generated in such a way that its \nullifier will
-        not collide with the \nullifier of any other \note.
+  \item Each output \note is generated in such a way that it is infeasible to
+        cause its \nullifier to collide with the \nullifier of any other \note.
 \end{itemize}
 
 Outside the \zkSNARK, it is also checked that the \nullifiers for the input
@@ -780,8 +781,8 @@ types.
 
 Initial arguments to a function or randomized algorithm may be
 written as subscripts, e.g.\ if $x \typecolon X$, $y \typecolon Y$, and
-$\PRF{}{} \typecolon X \times Y \rightarrow Z$, then an invocation of
-$\PRF{}{}(x, y)$ can also be written $\PRF{x}{}(y)$.
+$f \typecolon X \times Y \rightarrow Z$, then an invocation of
+$f(x, y)$ can also be written $f_x(y)$.
 
 The notation $\typeexp{T}{\ell}$, where $T$ is a type and $\ell$ is an integer,
 means the type of sequences of length $\ell$ with elements in $T$. For example,
@@ -939,7 +940,10 @@ $\NoteCommit(\NoteTuple{}) = \Commit{\NoteCommitRand}(\AuthPublic, \Value, \Note
 where $\Commit{}$ is instantiated in \crossref{concretecomm}.
 
 A \nullifier (denoted $\nf$) is derived from the $\NoteAddressRand$ component
-of a \note and the recipient's \spendingKey, as $\PRFnf{\AuthPrivate}(\NoteAddressRand)$.
+of a \note and the recipient's \spendingKey, using a \pseudoRandomFunction (see
+\crossref{abstractprfs}). Specifically it is derived as $\PRFnf{\AuthPrivate}(\NoteAddressRand)$
+where $\PRFnf{}{}$ is instantiated in \crossref{concreteprfs}.
+
 A \note is spent by proving knowledge of $\NoteAddressRand$ and $\AuthPrivate$ in
 zero knowledge while publically disclosing its \nullifier $\nf$, allowing $\nf$ to
 be used to prevent double-spending.
@@ -1015,7 +1019,7 @@ $\vpubNew$.
 
 Each \transaction is associated with a \sequenceOfJoinSplitDescriptions.
 
-The inputs and outputs of each \joinSplitTransfer{} \MUST balance exactly.
+The input and output values of each \joinSplitTransfer{} \MUST balance exactly.
 The \changed{total $\vpubNew$ value adds to, and the total} $\vpubOld$
 value subtracts from the \transparentValuePool of the containing \transaction.
 
@@ -1753,6 +1757,16 @@ $(\EphemeralPublic, \EphemeralPrivate)$.
 
 The resulting \notesCiphertext is $\changed{(\EphemeralPublic,
 \TransmitCiphertext{\allNew})}$.
+
+\pnote{
+It is technically possible to replace $\TransmitCiphertext{i}$ for a given \note
+with a random (and undecryptable) dummy ciphertext, relying instead on out-of-band
+transmission of the \note to the recipient. In this case the ephemeral key \MUST
+still be generated as a random public key (rather than a random bit string) to ensure
+indistinguishability from other \joinSplitDescriptions. This mode of operation raises
+further security considerations, for example of how to validate a \note received
+out-of-band, which are not addressed in this document.
+}
 
 \nsubsubsection{Decryption by a Recipient}
 
@@ -3453,6 +3467,13 @@ The errors in the proof of Ledger Indistinguishability mentioned in
 
 
 \nsection{Change history}
+
+\subparagraph{2016.0-beta-1.5}
+
+\begin{itemize}
+    \item Update the \foundersReward address list.
+    \item Add some clarifications based on Eli Ben-Sasson's review.
+\end{itemize}
 
 \subparagraph{2016.0-beta-1.4}
 
