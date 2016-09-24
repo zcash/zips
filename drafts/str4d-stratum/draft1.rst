@@ -5,6 +5,22 @@ This ZIP describes the Zcash variant of the Stratum protocol, used by miners to
 communicate with mining pool servers.
 
 
+Motivation
+==========
+
+Many existing cryptocurrency miners and pools use the original Stratum protocol
+for communication, in situations where the miner does not require any control
+over what they mine (for example, a miner connected to a local P2Pool node).
+However, the protocol is very specific to Bitcoin, in that it makes assumptions
+about the block header format, and the available nonce space. Zcash has made
+changes that invalidate these assumptions.
+
+Having a formal specification for a Zcash-compatible Stratum-style mining
+protocol means that existing pool operators and miner authors can quickly and
+easily migrate their frameworks to the Zcash network, with no ambiguity about
+interoperability.
+
+
 Specification
 =============
 
@@ -278,22 +294,6 @@ Request (optional)::
 
 The server SHOULD reply with ``mining.set_target``. The server MAY set the
 result id equal to the request id.
-
-
-Motivation
-==========
-
-Many existing cryptocurrency miners and pools use the original Stratum protocol
-for communication, in situations where the miner does not require any control
-over what they mine (for example, a miner connected to a local P2Pool node).
-However, the protocol is very specific to Bitcoin, in that it makes assumptions
-about the block header format, and the available nonce space. Zcash has made
-changes that invalidate these assumptions.
-
-Having a formal specification for a Zcash-compatible Stratum-style mining
-protocol means that existing pool operators and miner authors can quickly and
-easily migrate their frameworks to the Zcash network, with no ambiguity about
-interoperability.
 
 
 Rationale
