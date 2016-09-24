@@ -13,16 +13,22 @@ Motivation
 ==========
 
 Many existing cryptocurrency miners and pools use the original Stratum protocol
-for communication, in situations where the miner does not require any control
-over what they mine (for example, a miner connected to a local P2Pool node).
-However, the protocol is very specific to Bitcoin, in that it makes assumptions
-about the block header format, and the available nonce space. Zcash has made
-changes that invalidate these assumptions.
+[Slushpool-Stratum]_ [Bitcointalk-Stratum]_ for communication, in situations
+where the miner does not require any control over what they mine (for example, a
+miner connected to a local P2Pool node). However, the protocol is very specific
+to Bitcoin, in that it makes assumptions about the block header format, and the
+available nonce space. Zcash has made changes that invalidate these assumptions.
 
 Having a formal specification for a Zcash-compatible Stratum-style mining
 protocol means that existing pool operators and miner authors can quickly and
 easily migrate their frameworks to the Zcash network, with no ambiguity about
 interoperability.
+
+.. [Slushpool-Stratum] Slush Pool. *Stratum Mining Protocol*.
+  URL: https://slushpool.com/help/#!/manual/stratum-protocol
+  (visited on 2016-09-24)
+.. [Bitcointalk-Stratum] -ck, ed. *Stratum protocol documentation*. Bitcoin Forum.
+  URL: https://bitcointalk.org/index.php?topic=557866.0 (visited on 2016-09-24)
 
 
 Specification
@@ -373,7 +379,4 @@ This ZIP was edited by [TODO: fill in]
 References
 ==========
 
-Documentation for the original Stratum protocol:
-
-- https://slushpool.com/help/#!/manual/stratum-protocol
-- https://bitcointalk.org/index.php?topic=557866.0
+.. Citations will be moved down here when rendered.
