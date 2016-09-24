@@ -78,6 +78,34 @@ Protocol Flow
 - Server replies with whether the solution was accepted.
 - Server sends ``mining.notify`` again when there is a new job.
 
+Nonce Parts
+~~~~~~~~~~~
+
+In Bitcoin, blocks contain two nonces: the 4-byte block header nonce, and an
+extra nonce in the coinbase transaction [Bitcoin-Block]_. The original Stratum
+protocol splits this extra nonce into two parts: one set by the server (used
+for splitting the search space amongst connected miners), and the other iterated
+by the miner [Slushpool-Stratum]_. The nonce in Zcash's block header is 32 bytes
+long [Zcash-Block]_, and thus can serve both purposes simultaneously.
+
+We define two nonce parts:
+
+``NONCE_1``
+  The server MUST pick such that ``len(NONCE_1) < 32`` in bytes.
+
+``NONCE_2``
+  The miner MUST pick such that ``len(NONCE_2) = 32 - len(NONCE_1)`` in bytes,
+  or ``len(NONCE_2) = 64 - len(NONCE_1)`` in hex.
+
+The nonce in the block header is the concatenation of ``NONCE_1`` and
+``NONCE_2``.
+
+.. [Zcash-Block] Daira Hopwood, Sean Bowe, Taylor Hornby, Nathan Wilcox.
+  "Block Headers". In: *Zcash Protocol Specification*.
+  Version 2016.0-beta-1.5, Section 6.3. September 22, 2016.
+  URL: https://github.com/zcash/zips/blob/master/protocol/protocol.pdf
+  (visited on 2016-09-24).
+
 Methods
 ~~~~~~~
 
@@ -120,12 +148,7 @@ Response::
   MAY be ``null`` indicating that the server does not support session resuming.
 
 ``NONCE_1`` (hex)
-  The first part of the block header nonce.
-
-  The nonce in Zcash's block header is 32 bytes long. The miner MUST pick
-  ``NONCE_2`` such that ``len(NONCE_2) = 32 - len(NONCE_1)`` in bytes, or
-  ``len(NONCE_2) = 64 - len(NONCE_1)`` in hex.
-
+  The first part of the block header nonce (see `Nonce Parts`_).
 
 ``mining.authorize()``
 ----------------------
@@ -257,7 +280,7 @@ Request::
   MAY be enforced by the server to be unchanged.
 
 ``NONCE_2`` (hex)
-  The second part of the block header nonce.
+  The second part of the block header nonce (see `Nonce Parts`_).
 
 Result::
 
