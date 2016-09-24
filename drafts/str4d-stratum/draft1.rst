@@ -112,6 +112,31 @@ The nonce in the block header is the concatenation of ``NONCE_1`` and
   URL: https://github.com/zcash/zips/blob/master/protocol/protocol.pdf
   (visited on 2016-09-24).
 
+Session Resuming
+~~~~~~~~~~~~~~~~
+
+Servers that support session resuming identify this by setting a ``SESSION_ID``
+in their initial response. Servers MAY set ``SESSION_ID`` to ``null`` to
+indicate that they do not support session resuming. Servers that do not set
+``SESSION_ID`` to ``null`` MUST cache the following information:
+
+- The session ID.
+- ``NONCE_1``
+- Any active job IDs.
+
+Servers MAY drop entries from the cache on their own schedule.
+
+When a miner connects using a previous ``SESSION_ID``:
+
+- If the cache contains the ``SESSION_ID``, the server's initial response MUST
+  be constructed from the cached information.
+
+- If the server does not recognise the session, the ``SESSION_ID`` in the
+  server's initial response MUST NOT equal the ``SESSION_ID`` provided by the
+  miner.
+
+Miners MUST re-authorize all workers upon resuming a session.
+
 Methods
 ~~~~~~~
 
@@ -140,7 +165,7 @@ Request::
 
 ``SESSION_ID`` (str)
   The id for a previous session that the miner wants to resume (e.g. after a
-  temporary network disconnection).
+  temporary network disconnection) (see `Session Resuming`_).
 
   MAY be ``null`` indicating that the miner wants to start a new session.
 
@@ -149,9 +174,7 @@ Response::
     {"id": 1, "result": ["NONCE_1", "SESSION_ID"], "error": null}\n
 
 ``SESSION_ID`` (str)
-  The session id, for use when resuming.
-
-  MAY be ``null`` indicating that the server does not support session resuming.
+  The session id, for use when resuming (see `Session Resuming`_).
 
 ``NONCE_1`` (hex)
   The first part of the block header nonce (see `Nonce Parts`_).
