@@ -137,16 +137,29 @@ Server message::
 
 ``TARGET`` (hex)
   The server target for the next received job and all subsequent jobs (until the
-  next time this message is sent).
+  next time this message is sent). The miner compares proposed block hashes with
+  this target as a 256-bit big-endian integer, and valid blocks MUST NOT have
+  hashes larger than (above) the current target (in accordance with the Zcash
+  network consensus rules [Zcash-Target]_).
 
-  Miners SHOULD NOT submit work above this target.
+  Miners SHOULD NOT submit work above this target. Miners SHOULD validate their
+  solutions before submission (to avoid both unnecessary network traffic and
+  wasted miner time).
 
-  Servers SHOULD NOT accept submissions above this target.
+  Servers MUST NOT accept submissions above this target for jobs sent after this
+  message. Servers MAY accept submissions above this target for jobs sent before
+  this message, but MUST check them against the previous target.
 
 When displaying the current target in the UI to users, miners MAY convert the
 target to an integer difficulty as used in Bitcoin miners. When doing so, miners
 SHOULD use ``powLimit`` (as defined in ``src/chainparams.cpp``) as the basis for
 conversion.
+
+.. [Zcash-Target] Daira Hopwood, Sean Bowe, Taylor Hornby, Nathan Wilcox.
+  "Difficulty filter". In: *Zcash Protocol Specification*.
+  Version 2016.0-beta-1.5, Section 6.4.2. September 22, 2016.
+  URL: https://github.com/zcash/zips/blob/master/protocol/protocol.pdf
+  (visited on 2016-09-24).
 
 ``mining.notify()``
 -------------------
