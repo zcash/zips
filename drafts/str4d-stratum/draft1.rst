@@ -4,6 +4,10 @@ Abstract
 This ZIP describes the Zcash variant of the Stratum protocol, used by miners to
 communicate with mining pool servers.
 
+This document follows the common conventions defined for ZIPs in [ZIP-1]_.
+
+.. [ZIP-1] https://github.com/zcash/zips/blob/master/zips/0001.rst
+
 
 Motivation
 ==========
