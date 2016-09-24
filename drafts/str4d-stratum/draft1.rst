@@ -61,6 +61,12 @@ appear elsewhere in a request or response. Client and server implementations MAY
 assume that once they read a LF character, the current message has been
 completely received.
 
+Per [JSON-RPC-1.0]_, there is no requirement for the ``id`` property in requests
+and responses to be unique; only that servers MUST set ``id`` in their responses
+equal to that in the request they are responding to (or ``null`` for
+notifications). However, it is recommended that clients use unique ids for their
+requests, to simplify their response parsing.
+
 .. [JSON-RPC-1.0] JSON-RPC.org. *JSON-RPC 1.0 Specifications*.
   URL: http://json-rpc.org/wiki/specification (visited on 2016-09-24).
 
