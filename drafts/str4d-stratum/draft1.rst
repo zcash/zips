@@ -57,6 +57,11 @@ Response::
 ``mining.authorize()``
 ----------------------
 
+A miner MUST authorize a worker in order to submit solutions. A miner MAY
+authorize multiple workers in the same session; this could be for statistical
+purposes on the particular server being used. Details of such purposes are
+outside the scope of this specification.
+
 Request::
 
     {"id": 2, "method": "mining.authorize", "params": ["WORKER_NAME", "WORKER_PASSWORD"]}\n
@@ -138,6 +143,8 @@ Request::
 
 ``WORKER_NAME`` (str)
   A previously-authenticated worker name.
+
+  Servers MUST NOT accept submissions from unauthenticated workers.
 
 ``JOB_ID`` (str)
   The id of the job this submission is for.
@@ -255,6 +262,12 @@ Does a 256-bit target waste bandwidth?
 
 - For the current Equihash parameters (200/9), the Equihash solution dominates
   bandwidth usage.
+
+Why does ``mining.submit`` include ``WORKER_NAME``?
+
+- ``WORKER_NAME`` is only included here for statistical purposes (like
+  monitoring performance and/or downtime). ``JOB_ID`` is used for pairing
+  server-stored jobs with submissions.
 
 
 Reference Implementation
