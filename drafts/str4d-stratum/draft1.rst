@@ -15,39 +15,43 @@ Request::
 
     {"id": 1, "method": "mining.subscribe", "params": ["CONNECT_HOST", CONNECT_PORT, "MINER_USER_AGENT", "SESSION_ID"]}\n
 
-- ``CONNECT_HOST`` (str): The host string used by the miner.
+``CONNECT_HOST`` (str)
+  The host string used by the miner.
 
-  - ``pool.example.com``
+  Example: ``pool.example.com``
 
-- ``CONNECT_PORT`` (int): The port used by the miner.
+``CONNECT_PORT`` (int)
+  The port used by the miner.
 
-  - ``3337``
+  Example: ``3337``
 
-- ``MINER_USER_AGENT`` (str): A free-form string specifying the type and version
-  of the mining software. Recommended syntax is the User Agent format used by
-  Zcash nodes.
+``MINER_USER_AGENT`` (str)
+  A free-form string specifying the type and version of the mining software.
+  Recommended syntax is the User Agent format used by Zcash nodes.
 
-  - ``Zatoshi/1.0.0``
+  Example: ``Zatoshi/1.0.0``
 
-- ``SESSION_ID`` (str): The id for a previous session that the miner wants to
-  resume (e.g. after a temporary network disconnection).
+``SESSION_ID`` (str)
+  The id for a previous session that the miner wants to resume (e.g. after a
+  temporary network disconnection).
 
-  - MAY be ``null`` indicating that the miner wants to start a new session.
+  MAY be ``null`` indicating that the miner wants to start a new session.
 
 Response::
 
     {"id": 1, "result": ["NONCE_1", "SESSION_ID"], "error": null}\n
 
-- ``SESSION_ID`` (str): The session id, for use when resuming.
+``SESSION_ID`` (str)
+  The session id, for use when resuming.
 
-  - MAY be ``null`` indicating that the server does not support session
-    resuming.
+  MAY be ``null`` indicating that the server does not support session resuming.
 
-- ``NONCE_1`` (hex): The first part of the block header nonce.
+``NONCE_1`` (hex)
+  The first part of the block header nonce.
 
-The nonce in Zcash's block header is 32 bytes long. The miner MUST pick
-``NONCE_2`` such that ``len(NONCE_2) = 32 - len(NONCE_1)`` in bytes, or
-``len(NONCE_2) = 64 - len(NONCE_1)`` in hex.
+  The nonce in Zcash's block header is 32 bytes long. The miner MUST pick
+  ``NONCE_2`` such that ``len(NONCE_2) = 32 - len(NONCE_1)`` in bytes, or
+  ``len(NONCE_2) = 64 - len(NONCE_1)`` in hex.
 
 
 ``mining.authorize()``
@@ -57,15 +61,18 @@ Request::
 
     {"id": 2, "method": "mining.authorize", "params": ["WORKER_NAME", "WORKER_PASSWORD"]}\n
 
-- ``WORKER_NAME`` (str): The worker name.
+``WORKER_NAME`` (str)
+  The worker name.
 
-- ``WORKER_PASSWORD`` (str): The worker name.
+``WORKER_PASSWORD`` (str)
+  The worker name.
 
 Response::
 
     {"id": 2, "result": AUTHENTICATED, "error": null}\n
 
-- ``AUTHENTICATED`` (bool): The result of authentication.
+``AUTHENTICATED`` (bool)
+  The result of authentication.
 
 The server MAY provide an error message on invalid authentication.
 
@@ -76,12 +83,13 @@ Server message::
 
     {"id": null, "method": "mining.set_target", "params": ["TARGET"]}\n
 
-- ``TARGET`` (hex): The server target for the next received job and all
-  subsequent jobs (until the next time this message is sent).
+``TARGET`` (hex)
+  The server target for the next received job and all subsequent jobs (until the
+  next time this message is sent).
 
-  - Miners SHOULD NOT submit work above this target.
+  Miners SHOULD NOT submit work above this target.
 
-  - Servers SHOULD NOT accept submissions above this target.
+  Servers SHOULD NOT accept submissions above this target.
 
 When displaying the current target in the UI to users, miners MAY convert the
 target to an integer difficulty as used in Bitcoin miners. When doing so, miners
@@ -95,25 +103,31 @@ Server message::
 
     {"id": null, "method": "mining.notify", "params": ["JOB_ID", "VERSION", "PREVHASH", "MERKLEROOT", "RESERVED", "TIME", "BITS", CLEAN_JOBS]}\n
 
-- ``JOB_ID`` (str): The id of this job.
+``JOB_ID`` (str)
+  The id of this job.
 
-- ``VERSION`` (int): The block header version. Used as a switch for subsequent
-  parameters.
+``VERSION`` (int)
+  The block header version. Used as a switch for subsequent parameters.
 
 The following parameters are only valid for ``VERSION == 4``:
 
-- ``PREVHASH`` (hex): The hash of the previous block.
+``PREVHASH`` (hex)
+  The hash of the previous block.
 
-- ``MERKLEROOT`` (hex): The Merkle root of the transactions in this block.
+``MERKLEROOT`` (hex)
+  The Merkle root of the transactions in this block.
 
-- ``RESERVED`` (hex): A 256-bit reserved field; zero by convention.
+``RESERVED`` (hex)
+  A 256-bit reserved field; zero by convention.
 
-- ``TIME`` (hex): The block time suggested by the server.
+``TIME`` (hex)
+  The block time suggested by the server.
 
-- ``BITS`` (compactBits): The current network difficulty target.
+``BITS`` (compactBits)
+  The current network difficulty target.
 
-- ``CLEAN_JOBS`` (bool): If true, a new block has arrived. The miner SHOULD
-  abandon all previous jobs.
+``CLEAN_JOBS`` (bool)
+  If true, a new block has arrived. The miner SHOULD abandon all previous jobs.
 
 ``mining.submit()``
 -------------------
@@ -122,23 +136,28 @@ Request::
 
     {"id": 4, "method": "mining.submit", "params": ["WORKER_NAME", "JOB_ID", "TIME", "NONCE_2", "EQUIHASH_SOLUTION"]}\n
 
-- ``WORKER_NAME`` (str): A previously-authenticated worker name.
+``WORKER_NAME`` (str)
+  A previously-authenticated worker name.
 
-- ``JOB_ID`` (str): The id of the job this submission is for.
+``JOB_ID`` (str)
+  The id of the job this submission is for.
 
-  - Miners MAY make multiple submissions for a single job id.
+  Miners MAY make multiple submissions for a single job id.
 
-- ``TIME`` (hex): The block time used in the submission.
+``TIME`` (hex)
+  The block time used in the submission.
 
-  - MAY be enforced by the server to be unchanged.
+  MAY be enforced by the server to be unchanged.
 
-- ``NONCE_2`` (hex): The second part of the block header nonce.
+``NONCE_2`` (hex)
+  The second part of the block header nonce.
 
 Result::
 
     {"id": 4, "result": ACCEPTED, "error": null}\n
 
-- ``ACCEPTED`` (bool): Whether the block was accepted.
+``ACCEPTED`` (bool)
+  Whether the block was accepted.
 
 The server MAY provide an error message describing the reason for not accepting
 the block, if any.
@@ -150,16 +169,18 @@ Server message::
 
     {"id": null, "method": "client.reconnect", "params": [("HOST", PORT, WAIT_TIME)]}\n
 
-- ``HOST`` (str): The host to reconnect to.
+``HOST`` (str)
+  The host to reconnect to.
 
-  - ``pool.example.com``
+  Example: ``pool.example.com``
 
-- ``PORT`` (int): The port to reconnect to.
+``PORT`` (int)
+  The port to reconnect to.
 
-  - ``3337``
+  Example: ``3337``
 
-- ``WAIT_TIME`` (int): Time in seconds that the miner should wait before
-  reconnecting.
+``WAIT_TIME`` (int)
+  Time in seconds that the miner should wait before reconnecting.
 
 If ``client.reconnect`` is sent with empty parameters, the miner SHOULD
 reconnect to the same host and port it is currently connected to.
@@ -171,8 +192,9 @@ Request (optional)::
 
     {"id": 3, "method": "mining.suggest_target", "params": ["TARGET"]}\n
 
-- ``TARGET`` (hex): The target suggested by the miner for the next received job
-  and all subsequent jobs (until the next time this message is sent).
+``TARGET`` (hex)
+  The target suggested by the miner for the next received job and all subsequent
+  jobs (until the next time this message is sent).
 
 The server SHOULD reply with ``mining.set_target``. The server MAY set the
 result id equal to the request id.
