@@ -379,7 +379,7 @@ Thanks to:
 - Marek Palatinus (slush) and his colleagues for their refinements, suggestions, and
   robust discussion.
 
-This ZIP was edited by [TODO: fill in]
+This ZIP was edited by Daira Hopwood.
 
 
 References
