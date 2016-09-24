@@ -17,8 +17,8 @@ Many existing cryptocurrency miners and pools use the original Stratum protocol
 where the miner does not require any control over what they mine (for example, a
 miner connected to a local [P2Pool]_ node). However, the protocol is very
 specific to Bitcoin, in that it makes assumptions about the block header format,
-and the available nonce space. Zcash has made changes that invalidate these
-assumptions.
+and the available nonce space [Bitcoin-Block]_. Zcash has made changes that
+invalidate these assumptions.
 
 Having a formal specification for a Zcash-compatible Stratum-style mining
 protocol means that existing pool operators and miner authors can quickly and
@@ -31,6 +31,9 @@ interoperability.
 .. [Bitcointalk-Stratum] -ck, ed. *Stratum protocol documentation*. Bitcoin Forum.
   URL: https://bitcointalk.org/index.php?topic=557866.0 (visited on 2016-09-24)
 .. [P2Pool] Bitcoin Wiki. *P2Pool*. URL: https://en.bitcoin.it/wiki/P2Pool
+  (visited on 2016-09-24).
+.. [Bitcoin-Block] Block Headers - Bitcoin Developer Reference.
+  URL: https://bitcoin.org/en/developer-reference#block-headers
   (visited on 2016-09-24).
 
 
