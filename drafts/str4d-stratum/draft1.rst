@@ -171,10 +171,18 @@ Server message::
 ``JOB_ID`` (str)
   The id of this job.
 
-``VERSION`` (int)
-  The block header version. Used as a switch for subsequent parameters.
+``VERSION`` (hex)
+  The block header version, encoded as in a block header (little-endian
+  ``int32_t``).
 
-The following parameters are only valid for ``VERSION == 4``:
+  Used as a switch for subsequent parameters. At time of writing, the only
+  defined block header version is 4. Miners SHOULD alert the user upon receiving
+  jobs containing block header versions they do not know about or support, and
+  MUST ignore such jobs.
+
+  Example: ``04000000``
+
+The following parameters are only valid for ``VERSION == "04000000"``:
 
 ``PREVHASH`` (hex)
   The hash of the previous block.
@@ -186,7 +194,7 @@ The following parameters are only valid for ``VERSION == 4``:
   A 256-bit reserved field; zero by convention.
 
 ``TIME`` (hex)
-  The block time suggested by the server.
+  The block time suggested by the server, encoded as in a block header.
 
 ``BITS`` (compactBits)
   The current network difficulty target.
