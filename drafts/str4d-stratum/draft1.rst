@@ -115,12 +115,18 @@ Request::
 
 Response::
 
-    {"id": 2, "result": AUTHENTICATED, "error": null}\n
+    {"id": 2, "result": AUTHORIZED, "error": "MESSAGE"}\n
 
-``AUTHENTICATED`` (bool)
-  The result of authentication.
+``AUTHORIZED`` (bool)
+  Whether authorization succeeded.
 
-The server MAY provide an error message on invalid authentication.
+``MESSAGE`` (str)
+  An error message. MUST be ``null`` if authorization succeeded.
+
+  If authorization failed, the server MUST provide an error message describing
+  the reason.
+
+  [TODO: Specify format of error messages]
 
 ``mining.set_target()``
 -----------------------
@@ -202,13 +208,18 @@ Request::
 
 Result::
 
-    {"id": 4, "result": ACCEPTED, "error": null}\n
+    {"id": 4, "result": ACCEPTED, "error": "MESSAGE"}\n
 
 ``ACCEPTED`` (bool)
   Whether the block was accepted.
 
-The server MAY provide an error message describing the reason for not accepting
-the block, if any.
+``MESSAGE`` (str)
+  An error message. MUST be ``null`` if the block was accepted.
+
+  If the block was not accepted, the server MUST provide an error message
+  describing the reason for not accepting the block.
+
+  [TODO: Specify format of error messages]
 
 ``client.reconnect()``
 ----------------------
