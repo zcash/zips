@@ -8,6 +8,47 @@ communicate with mining pool servers.
 Specification
 =============
 
+The Stratum protocol is an instance of [JSON-RPC-1.0]_. The miner is a JSON-RPC
+client, and the Stratum server is a JSON-RPC server. The miner starts a session
+by opening a standard TCP connection to the server, which is then used for
+two-way line-based communication:
+
+- The miner can send requests to the server.
+- The server can respond to requests.
+- The server can send notifications to the client.
+
+All communication for a particular session happens through a single connection,
+which is kept open for the duration of the session. If the connection is broken
+or either party disconnects, the active session is ended. Servers MAY support
+session resuming; this is negotiated between the client and server during intial
+setup.
+
+Each request or response is a JSON string, terminated by an ASCII LF character
+(denoted in the rest of this specification by ``\n``). The LF character MUST NOT
+appear elsewhere in a request or response. Client and server implementations MAY
+assume that once they read a LF character, the current message has been
+completely received.
+
+.. [JSON-RPC-1.0] JSON-RPC.org. *JSON-RPC 1.0 Specifications*.
+  URL: http://json-rpc.org/wiki/specification (visited on 2016-09-24).
+
+Protocol Flow
+~~~~~~~~~~~~~
+
+- Client sends ``mining.subscribe`` to set up the session.
+- Server replies with the session information.
+- Client sends ``mining.authorize`` for their worker(s).
+- Server replies with the result of authorization.
+- Server sends ``mining.set_target``.
+- Server sends ``mining.notify`` with a new job.
+- Client mines on that job.
+- Client sends ``mining.submit`` for each solution found.
+- Server replies with whether the solution was accepted.
+- Server sends ``mining.notify`` again when there is a new job.
+
+Methods
+~~~~~~~
+
 ``mining.subscribe()``
 ----------------------
 
