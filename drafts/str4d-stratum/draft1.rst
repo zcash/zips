@@ -16,12 +16,12 @@ Request::
     {"id": 1, "method": "mining.subscribe", "params": ["CONNECT_HOST", CONNECT_PORT, "MINER_USER_AGENT", "SESSION_ID"]}\n
 
 ``CONNECT_HOST`` (str)
-  The host string used by the miner.
+  The host that the miner is connecting to (from the server URL).
 
   Example: ``pool.example.com``
 
 ``CONNECT_PORT`` (int)
-  The port used by the miner.
+  The port that the miner is connecting to (from the server URL).
 
   Example: ``3337``
 
@@ -218,6 +218,17 @@ interoperability.
 
 Rationale
 =========
+
+Why does ``mining.subscribe`` include the host and port?
+
+- It has the same use cases as the ``Host:`` header in HTTP. Specifically, it
+  enables virtual hosting, where virtual pools or private URLs might be used
+  for DDoS protection, but that are aggregated on Stratum server backends.
+  As with HTTP, the server CANNOT trust the host string.
+
+- The port is included separately to parallel the ``client.reconnect`` method;
+  both are extracted from the server URL that the miner is connecting to (e.g.
+  ``stratum+tcp://pool.example.com:3337``).
 
 Why use the 256-bit target instead of a numerical difficulty?
 
