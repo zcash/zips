@@ -191,9 +191,9 @@ Methods
 ``mining.subscribe()``
 ----------------------
 
-Request::
+Request:
 
-    {"id": 1, "method": "mining.subscribe", "params": ["CONNECT_HOST", CONNECT_PORT, "MINER_USER_AGENT", "SESSION_ID"]}\n
+    {"id": 1, "method": "mining.subscribe", "params": ["*CONNECT_HOST*", *CONNECT_PORT*, "*MINER_USER_AGENT*", "*SESSION_ID*"]}\n
 
 ``CONNECT_HOST`` (str)
   The host that the miner is connecting to (from the server URL).
@@ -217,9 +217,9 @@ Request::
 
   MAY be ``null`` indicating that the miner wants to start a new session.
 
-Response::
+Response:
 
-    {"id": 1, "result": ["SESSION_ID", "NONCE_1"], "error": null}\n
+    {"id": 1, "result": ["*SESSION_ID*", "*NONCE_1*"], "error": null}\n
 
 ``SESSION_ID`` (str)
   The session id, for use when resuming (see `Session Resuming`_).
@@ -235,9 +235,9 @@ authorize multiple workers in the same session; this could be for statistical
 purposes on the particular server being used. Details of such purposes are
 outside the scope of this specification.
 
-Request::
+Request:
 
-    {"id": 2, "method": "mining.authorize", "params": ["WORKER_NAME", "WORKER_PASSWORD"]}\n
+    {"id": 2, "method": "mining.authorize", "params": ["*WORKER_NAME*", "*WORKER_PASSWORD*"]}\n
 
 ``WORKER_NAME`` (str)
   The worker name.
@@ -262,9 +262,9 @@ Response::
 ``mining.set_target()``
 -----------------------
 
-Server message::
+Server message:
 
-    {"id": null, "method": "mining.set_target", "params": ["TARGET"]}\n
+    {"id": null, "method": "mining.set_target", "params": ["*TARGET*"]}\n
 
 ``TARGET`` (hex)
   The server target for the next received job and all subsequent jobs (until the
@@ -295,9 +295,9 @@ conversion.
 ``mining.notify()``
 -------------------
 
-Server message::
+Server message:
 
-    {"id": null, "method": "mining.notify", "params": ["JOB_ID", "VERSION", "PREVHASH", "MERKLEROOT", "RESERVED", "TIME", "BITS", CLEAN_JOBS]}\n
+    {"id": null, "method": "mining.notify", "params": ["*JOB_ID*", "*VERSION*", "*PREVHASH*", "*MERKLEROOT*", "*RESERVED*", "*TIME*", "*BITS*", *CLEAN_JOBS*]}\n
 
 ``JOB_ID`` (str)
   The id of this job.
@@ -338,9 +338,9 @@ The following parameters are only valid for ``VERSION == "04000000"``:
 ``mining.submit()``
 -------------------
 
-Request::
+Request:
 
-    {"id": 4, "method": "mining.submit", "params": ["WORKER_NAME", "JOB_ID", "TIME", "NONCE_2", "EQUIHASH_SOLUTION"]}\n
+    {"id": 4, "method": "mining.submit", "params": ["*WORKER_NAME*", "*JOB_ID*", "*TIME*", "*NONCE_2*", "*EQUIHASH_SOLUTION*"]}\n
 
 ``WORKER_NAME`` (str)
   A previously-authenticated worker name.
@@ -360,9 +360,9 @@ Request::
 ``NONCE_2`` (hex)
   The second part of the block header nonce (see `Nonce Parts`_).
 
-Result::
+Result:
 
-    {"id": 4, "result": ACCEPTED, "error": "ERROR"}\n
+    {"id": 4, "result": *ACCEPTED*, "error": "*ERROR*"}\n
 
 ``ACCEPTED`` (bool)
   MUST be ``true`` if the submission was accepted. Per [JSON-RPC-1.0]_, MUST be
@@ -379,9 +379,9 @@ Result::
 ``client.reconnect()``
 ----------------------
 
-Server message::
+Server message:
 
-    {"id": null, "method": "client.reconnect", "params": [("HOST", PORT, WAIT_TIME)]}\n
+    {"id": null, "method": "client.reconnect", "params": [("*HOST*", *PORT*, *WAIT_TIME*)]}\n
 
 ``HOST`` (str)
   The host to reconnect to.
@@ -402,9 +402,9 @@ reconnect to the same host and port it is currently connected to.
 ``mining.suggest_target()``
 ---------------------------
 
-Request (optional)::
+Request (optional):
 
-    {"id": 3, "method": "mining.suggest_target", "params": ["TARGET"]}\n
+    {"id": 3, "method": "mining.suggest_target", "params": ["*TARGET*"]}\n
 
 ``TARGET`` (hex)
   The target suggested by the miner for the next received job and all subsequent
