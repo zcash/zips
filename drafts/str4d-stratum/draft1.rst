@@ -52,8 +52,8 @@ two-way line-based communication:
 All communication for a particular session happens through a single connection,
 which is kept open for the duration of the session. If the connection is broken
 or either party disconnects, the active session is ended. Servers MAY support
-session resuming; this is negotiated between the client and server during intial
-setup.
+session resuming; this is negotiated between the client and server during
+initial setup (see `Session Resuming`_).
 
 Each request or response is a JSON string, terminated by an ASCII LF character
 (denoted in the rest of this specification by ``\n``). The LF character MUST NOT
@@ -64,7 +64,7 @@ completely received.
 Per [JSON-RPC-1.0]_, there is no requirement for the ``id`` property in requests
 and responses to be unique; only that servers MUST set ``id`` in their responses
 equal to that in the request they are responding to (or ``null`` for
-notifications). However, it is recommended that clients use unique ids for their
+notifications). However, it is RECOMMENDED that clients use unique ids for their
 requests, to simplify their response parsing.
 
 .. [JSON-RPC-1.0] JSON-RPC.org. *JSON-RPC 1.0 Specifications*.
