@@ -70,6 +70,49 @@ requests, to simplify their response parsing.
 .. [JSON-RPC-1.0] JSON-RPC.org. *JSON-RPC 1.0 Specifications*.
   URL: http://json-rpc.org/wiki/specification (visited on 2016-09-24).
 
+Error Objects
+~~~~~~~~~~~~~
+
+The [JSON-RPC-1.0]_ specification allows for error objects in responses, but
+does not specify their format. The original Stratum protocol uses the following
+format for error responses [Slushpool-Stratum]_::
+
+    {"id": ##, "result": null, "error": [ERROR_CODE, "ERROR_MESSAGE", TRACEBACK]}\n
+
+For compatibility, this format is retained. We therefore define an error object
+as an array::
+
+    [ERROR_CODE, "ERROR_MESSAGE", TRACEBACK]
+
+``ERROR_CODE`` (int)
+  Indicates the type of error that occurred.
+
+  The error codes are to be interpreted as described in [JSON-RPC-2.0]_.
+  The following application error codes are defined:
+
+  - 20 - Other/Unknown
+  - 21 - Job not found (=stale)
+  - 22 - Duplicate share
+  - 23 - Low difficulty share
+  - 24 - Unauthorized worker
+  - 25 - Not subscribed
+
+``ERROR_MESSAGE`` (str)
+  A human-readable error message. The message SHOULD be limited to a concise
+  single sentence. Miners SHOULD display the message to the user.
+
+``TRACEBACK``
+  Additional information for debugging errors. Format is server-specific.
+
+  Miners MAY attempt to parse the field for displaying to the user, and SHOULD
+  fall back to rendering it as a JSON string.
+
+  Servers MUST set this to ``null`` if they have no additional information.
+
+.. [JSON-RPC-2.0] The JSON-RPC Working Group. *JSON-RPC 2.0 Specification*.
+  Last updated: 2013-01-04.
+  URL: http://www.jsonrpc.org/specification (visited on 2016-09-25).
+
 Protocol Flow
 ~~~~~~~~~~~~~
 
@@ -199,18 +242,16 @@ Request::
 
 Response::
 
-    {"id": 2, "result": AUTHORIZED, "error": "MESSAGE"}\n
+    {"id": 2, "result": AUTHORIZED, "error": "ERROR"}\n
 
 ``AUTHORIZED`` (bool)
   Whether authorization succeeded.
 
-``MESSAGE`` (str)
-  An error message. MUST be ``null`` if authorization succeeded.
+``ERROR`` (obj)
+  An error object. MUST be ``null`` if authorization succeeded.
 
-  If authorization failed, the server MUST provide an error message describing
-  the reason.
-
-  [TODO: Specify format of error messages]
+  If authorization failed, the server MUST provide an error object describing
+  the reason. See `Error Objects`_ for the object format.
 
 ``mining.set_target()``
 -----------------------
@@ -313,18 +354,17 @@ Request::
 
 Result::
 
-    {"id": 4, "result": ACCEPTED, "error": "MESSAGE"}\n
+    {"id": 4, "result": ACCEPTED, "error": "ERROR"}\n
 
 ``ACCEPTED`` (bool)
   Whether the block was accepted.
 
-``MESSAGE`` (str)
-  An error message. MUST be ``null`` if the block was accepted.
+``ERROR`` (obj)
+  An error object. MUST be ``null`` if the block was accepted.
 
-  If the block was not accepted, the server MUST provide an error message
-  describing the reason for not accepting the block.
-
-  [TODO: Specify format of error messages]
+  If the block was not accepted, the server MUST provide an error object
+  describing the reason for not accepting the block. See `Error Objects`_ for
+  the object format.
 
 ``client.reconnect()``
 ----------------------
