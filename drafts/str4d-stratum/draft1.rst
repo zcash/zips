@@ -310,19 +310,21 @@ Server message::
 The following parameters are only valid for ``VERSION == "04000000"``:
 
 ``PREVHASH`` (hex)
-  The hash of the previous block.
+  The 32-byte hash of the previous block, encoded as in a block header.
 
 ``MERKLEROOT`` (hex)
-  The Merkle root of the transactions in this block.
+  The 32-byte Merkle root of the transactions in this block, encoded as in a
+  block header.
 
 ``RESERVED`` (hex)
-  A 256-bit reserved field; zero by convention.
+  A 32-byte reserved field, encoded as in a block header. Zero by convention.
 
 ``TIME`` (hex)
   The block time suggested by the server, encoded as in a block header.
 
-``BITS`` (compactBits)
-  The current network difficulty target.
+``BITS`` (hex)
+  The current network difficulty target, represented in compact format, encoded
+  as in a block header.
 
 ``CLEAN_JOBS`` (bool)
   If true, a new block has arrived. The miner SHOULD abandon all previous jobs.
@@ -345,7 +347,7 @@ Request::
   Miners MAY make multiple submissions for a single job id.
 
 ``TIME`` (hex)
-  The block time used in the submission.
+  The block time used in the submission, encoded as in a block header.
 
   MAY be enforced by the server to be unchanged.
 
