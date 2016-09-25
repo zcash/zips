@@ -245,7 +245,8 @@ Response::
     {"id": 2, "result": AUTHORIZED, "error": "ERROR"}\n
 
 ``AUTHORIZED`` (bool)
-  Whether authorization succeeded.
+  MUST be ``true`` if authorization succeeded. Per [JSON-RPC-1.0]_, MUST be
+  ``null`` if there was an error.
 
 ``ERROR`` (obj)
   An error object. MUST be ``null`` if authorization succeeded.
@@ -359,14 +360,16 @@ Result::
     {"id": 4, "result": ACCEPTED, "error": "ERROR"}\n
 
 ``ACCEPTED`` (bool)
-  Whether the block was accepted.
+  MUST be ``true`` if the submission was accepted. Per [JSON-RPC-1.0]_, MUST be
+  ``null`` if there was an error.
 
 ``ERROR`` (obj)
-  An error object. MUST be ``null`` if the block was accepted.
+  An error object. Per [JSON-RPC-1.0]_, MUST be ``null`` if the submission was
+  accepted without error.
 
-  If the block was not accepted, the server MUST provide an error object
-  describing the reason for not accepting the block. See `Error Objects`_ for
-  the object format.
+  If the submission was not accepted, the server MUST provide an error object
+  describing the reason for not accepting the submission. See `Error Objects`_
+  for the object format.
 
 ``client.reconnect()``
 ----------------------
