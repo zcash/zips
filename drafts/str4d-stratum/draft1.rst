@@ -99,7 +99,7 @@ as an array::
 
 ``ERROR_MESSAGE`` (str)
   A human-readable error message. The message SHOULD be limited to a concise
-  single sentence. Miners SHOULD display the message to the user.
+  single sentence.
 
 ``TRACEBACK``
   Additional information for debugging errors. Format is server-specific.
@@ -108,6 +108,11 @@ as an array::
   fall back to rendering it as a JSON string.
 
   Servers MUST set this to ``null`` if they have no additional information.
+
+Miners SHOULD display a human-readable message to the user. This message can be
+derived from either ``ERROR_CODE`` or ``ERROR_MESSAGE``, or both. An example of
+using ``ERROR_CODE`` over ``ERROR_MESSAGE`` might be that the miner UI offers
+localisation.
 
 .. [JSON-RPC-2.0] The JSON-RPC Working Group. *JSON-RPC 2.0 Specification*.
   Last updated: 2013-01-04.
