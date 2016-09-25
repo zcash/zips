@@ -214,7 +214,7 @@ Request::
 
 Response::
 
-    {"id": 1, "result": ["NONCE_1", "SESSION_ID"], "error": null}\n
+    {"id": 1, "result": ["SESSION_ID", "NONCE_1"], "error": null}\n
 
 ``SESSION_ID`` (str)
   The session id, for use when resuming (see `Session Resuming`_).
