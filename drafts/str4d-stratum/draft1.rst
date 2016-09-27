@@ -148,11 +148,15 @@ We define two nonce parts:
   The server MUST pick such that ``len(NONCE_1) < 32`` in bytes.
 
 ``NONCE_2``
-  The miner MUST pick such that ``len(NONCE_2) = 32 - len(NONCE_1)`` in bytes,
-  or ``len(NONCE_2) = 64 - len(NONCE_1)`` in hex.
+  The miner MUST pick such that ``len(NONCE_2) = 32 - len(NONCE_1)`` in bytes.
+
+  In hex, ``lenHex(NONCE_2) = 64 - lenHex(NONCE_1)``, and both lengths are even.
 
 The nonce in the block header is the concatenation of ``NONCE_1`` and
-``NONCE_2``.
+``NONCE_2`` in hex. This means that miner using bignum representations of nonce
+MUST increment by ``1 << len(NONCE_1)`` to avoid altering ``NONCE_1`` (because
+the encoding of nonce in the block header is little endian, in line with the
+other 32-byte fields [Bitcoin-Block]_ [Zcash-Block]_).
 
 .. [Zcash-Block] Daira Hopwood, Sean Bowe, Taylor Hornby, Nathan Wilcox.
   "Block Headers". In: *Zcash Protocol Specification*.
