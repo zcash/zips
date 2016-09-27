@@ -327,7 +327,8 @@ The following parameters are only valid for ``VERSION == "04000000"``:
   block header.
 
 ``RESERVED`` (hex)
-  A 32-byte reserved field, encoded as in a block header. Zero by convention.
+  A 32-byte reserved field, encoded as in a block header. Zero by convention (in
+  hex, ``0000000000000000000000000000000000000000000000000000000000000000``).
 
 ``TIME`` (hex)
   The block time suggested by the server, encoded as in a block header.
