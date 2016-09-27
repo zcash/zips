@@ -489,6 +489,9 @@ Thanks to:
 - Marek Palatinus (slush) and his colleagues for their refinements, suggestions, and
   robust discussion.
 
+- Jelle Bourdeaud'hui (razakal) and ocminer for their help with testing and
+  finding implementation bugs in the specification.
+
 This ZIP was edited by Daira Hopwood.
 
 
