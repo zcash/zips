@@ -366,8 +366,8 @@ Request:
   The second part of the block header nonce (see `Nonce Parts`_).
 
 ``EQUIHASH_SOLUTION`` (hex)
-  The Equihash solution, encoded as in a block header (including the compactInt
-  at the beginning).
+  The Equihash solution, encoded as in a block header (including the compactSize
+  at the beginning in canonical form [Bitcoin-CompactSize]_).
 
 Result:
 
@@ -384,6 +384,11 @@ Result:
   If the submission was not accepted, the server MUST provide an error object
   describing the reason for not accepting the submission. See `Error Objects`_
   for the object format.
+
+.. [Bitcoin-CompactSize] Bitcoin Wiki. "Variable length integer".
+  In: *Protocol documentation*. Last updated: 2016-09-18.
+  URL: https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
+  (visited on 2016-09-28).
 
 ``client.reconnect()``
 ----------------------
