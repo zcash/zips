@@ -364,6 +364,10 @@ Request:
 ``NONCE_2`` (hex)
   The second part of the block header nonce (see `Nonce Parts`_).
 
+``EQUIHASH_SOLUTION`` (hex)
+  The Equihash solution, encoded as in a block header (including the compactInt
+  at the beginning).
+
 Result:
 
     {"id": 4, "result": *ACCEPTED*, "error": "*ERROR*"}\n
