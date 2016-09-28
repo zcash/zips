@@ -67,6 +67,10 @@ equal to that in the request they are responding to (or ``null`` for
 notifications). However, it is RECOMMENDED that clients use unique ids for their
 requests, to simplify their response parsing.
 
+In the protocol messages below, ``(content)`` indicates that ``content`` is
+optional. Variable names are indicated in *EMPHASIS*. All other characters are
+part of the protocol message.
+
 .. [JSON-RPC-1.0] JSON-RPC.org. *JSON-RPC 1.0 Specifications*.
   URL: http://json-rpc.org/wiki/specification (visited on 2016-09-24).
 
@@ -75,14 +79,14 @@ Error Objects
 
 The [JSON-RPC-1.0]_ specification allows for error objects in responses, but
 does not specify their format. The original Stratum protocol uses the following
-format for error responses [Slushpool-Stratum]_::
+format for error responses [Slushpool-Stratum]_:
 
-    {"id": ##, "result": null, "error": [ERROR_CODE, "ERROR_MESSAGE", TRACEBACK]}\n
+    {"id": ##, "result": null, "error": [*ERROR_CODE*, "*ERROR_MESSAGE*", *TRACEBACK*]} ``\n``
 
 For compatibility, this format is retained. We therefore define an error object
-as an array::
+as an array:
 
-    [ERROR_CODE, "ERROR_MESSAGE", TRACEBACK]
+    [*ERROR_CODE*, "*ERROR_MESSAGE*", *TRACEBACK*]
 
 ``ERROR_CODE`` (int)
   Indicates the type of error that occurred.
@@ -197,7 +201,7 @@ Methods
 
 Request:
 
-    {"id": 1, "method": "mining.subscribe", "params": ["*CONNECT_HOST*", *CONNECT_PORT*, "*MINER_USER_AGENT*", "*SESSION_ID*"]}\n
+    {"id": 1, "method": "mining.subscribe", "params": ["*CONNECT_HOST*", *CONNECT_PORT*, "*MINER_USER_AGENT*", "*SESSION_ID*"]} ``\n``
 
 ``CONNECT_HOST`` (str)
   The host that the miner is connecting to (from the server URL).
@@ -223,7 +227,7 @@ Request:
 
 Response:
 
-    {"id": 1, "result": ["*SESSION_ID*", "*NONCE_1*"], "error": null}\n
+    {"id": 1, "result": ["*SESSION_ID*", "*NONCE_1*"], "error": null} ``\n``
 
 ``SESSION_ID`` (str)
   The session id, for use when resuming (see `Session Resuming`_).
@@ -241,7 +245,7 @@ outside the scope of this specification.
 
 Request:
 
-    {"id": 2, "method": "mining.authorize", "params": ["*WORKER_NAME*", "*WORKER_PASSWORD*"]}\n
+    {"id": 2, "method": "mining.authorize", "params": ["*WORKER_NAME*", "*WORKER_PASSWORD*"]} ``\n``
 
 ``WORKER_NAME`` (str)
   The worker name.
@@ -249,9 +253,9 @@ Request:
 ``WORKER_PASSWORD`` (str)
   The worker name.
 
-Response::
+Response:
 
-    {"id": 2, "result": AUTHORIZED, "error": "ERROR"}\n
+    {"id": 2, "result": *AUTHORIZED*, "error": *ERROR*} ``\n``
 
 ``AUTHORIZED`` (bool)
   MUST be ``true`` if authorization succeeded. Per [JSON-RPC-1.0]_, MUST be
@@ -268,7 +272,7 @@ Response::
 
 Server message:
 
-    {"id": null, "method": "mining.set_target", "params": ["*TARGET*"]}\n
+    {"id": null, "method": "mining.set_target", "params": ["*TARGET*"]} ``\n``
 
 ``TARGET`` (hex)
   The server target for the next received job and all subsequent jobs (until the
@@ -301,7 +305,7 @@ conversion.
 
 Server message:
 
-    {"id": null, "method": "mining.notify", "params": ["*JOB_ID*", "*VERSION*", "*PREVHASH*", "*MERKLEROOT*", "*RESERVED*", "*TIME*", "*BITS*", *CLEAN_JOBS*]}\n
+    {"id": null, "method": "mining.notify", "params": ["*JOB_ID*", "*VERSION*", "*PREVHASH*", "*MERKLEROOT*", "*RESERVED*", "*TIME*", "*BITS*", *CLEAN_JOBS*]} ``\n``
 
 ``JOB_ID`` (str)
   The id of this job.
@@ -345,7 +349,7 @@ The following parameters are only valid for ``VERSION == "04000000"``:
 
 Request:
 
-    {"id": 4, "method": "mining.submit", "params": ["*WORKER_NAME*", "*JOB_ID*", "*TIME*", "*NONCE_2*", "*EQUIHASH_SOLUTION*"]}\n
+    {"id": 4, "method": "mining.submit", "params": ["*WORKER_NAME*", "*JOB_ID*", "*TIME*", "*NONCE_2*", "*EQUIHASH_SOLUTION*"]} ``\n``
 
 ``WORKER_NAME`` (str)
   A previously-authenticated worker name.
@@ -371,7 +375,7 @@ Request:
 
 Result:
 
-    {"id": 4, "result": *ACCEPTED*, "error": "*ERROR*"}\n
+    {"id": 4, "result": *ACCEPTED*, "error": *ERROR*} ``\n``
 
 ``ACCEPTED`` (bool)
   MUST be ``true`` if the submission was accepted. Per [JSON-RPC-1.0]_, MUST be
@@ -395,7 +399,7 @@ Result:
 
 Server message:
 
-    {"id": null, "method": "client.reconnect", "params": [("*HOST*", *PORT*, *WAIT_TIME*)]}\n
+    {"id": null, "method": "client.reconnect", "params": [("*HOST*", *PORT*, *WAIT_TIME*)]} ``\n``
 
 ``HOST`` (str)
   The host to reconnect to.
@@ -410,7 +414,7 @@ Server message:
 ``WAIT_TIME`` (int)
   Time in seconds that the miner should wait before reconnecting.
 
-If ``client.reconnect`` is sent with empty parameters, the miner SHOULD
+If ``client.reconnect`` is sent with an empty parameter array, the miner SHOULD
 reconnect to the same host and port it is currently connected to.
 
 ``mining.suggest_target()``
@@ -418,7 +422,7 @@ reconnect to the same host and port it is currently connected to.
 
 Request (optional):
 
-    {"id": 3, "method": "mining.suggest_target", "params": ["*TARGET*"]}\n
+    {"id": 3, "method": "mining.suggest_target", "params": ["*TARGET*"]} ``\n``
 
 ``TARGET`` (hex)
   The target suggested by the miner for the next received job and all subsequent
