@@ -10,7 +10,7 @@ The obvious advantage of the original implementation was avoiding structural cha
 
 ## Goals
 * We should take this opportunity to understand the implementation better, and build on top of a more recent version of Bitcoin. Upstream has made a number of changes to critical components and has begun to refactor consensus-critical code into a `libconsensus` library.
-* We should rigorously practice our [design policy](https://github.com/Electric-Coin-Company/zerocashd/wiki/design). This includes avoiding changes to upstream's scripting system wherever possible, and only modifying structures with proper versioning plans.
+* We should rigorously practice our [design policy](https://github.com/zcash/zcash/wiki/design/43500230370684f74c53366f4f8a5094dcb2951a). This includes avoiding changes to upstream's scripting system wherever possible, and only modifying structures with proper versioning plans.
 * We should strive to preserve the semantics of our private alpha implementation such that the `zc-raw-*` RPC commands still work properly.
 
 ## Scope
@@ -20,10 +20,10 @@ The obvious advantage of the original implementation was avoiding structural cha
 * **Versioning semantics** ([#114] [ticket114]) require us to avoid breaking upstream tests whenever possible. We need to anticipate both changes to our own structures after launch to support new features (such as circuit changes, see #152) and potential changes to upstream transaction structures we will eventually need to rebase on top of.
 * **Cryptographic binding of pours** ([#366] [ticket366]) is necessary to ensure that (in the most common situation) it is not possible to move a pour from one transaction to another, or replace pours in a transaction without the authorization of its inputs.
 
-[ticket121]: https://github.com/Electric-Coin-Company/zerocashd/issues/121
-[ticket338]: https://github.com/Electric-Coin-Company/zerocashd/issues/338
-[ticket114]: https://github.com/Electric-Coin-Company/zerocashd/issues/114
-[ticket366]: https://github.com/Electric-Coin-Company/zerocashd/issues/366
+[ticket121]: https://github.com/zcash/zcash/issues/121
+[ticket338]: https://github.com/zcash/zcash/issues/338
+[ticket114]: https://github.com/zcash/zcash/issues/114
+[ticket366]: https://github.com/zcash/zcash/issues/366
 
 ### Not in Scope
 
@@ -127,3 +127,7 @@ Each of the following tasks to complete the redesign can be done independently.
 * `CScript` scheme to enforce cryptographic binding of the transaction to the pour. ([#529] [ticket529])
 * Chained pours which allow pours to reference merkle roots produced by other pours. ([#555] [ticket555])
 * A zerocash-specific versioning field can be added, along with upstream interaction semantics. ([#114] [ticket114])
+
+[ticket527]: https://github.com/zcash/zcash/issues/527
+[ticket529]: https://github.com/zcash/zcash/issues/529
+[ticket555]: https://github.com/zcash/zcash/issues/555
