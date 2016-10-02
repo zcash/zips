@@ -467,7 +467,7 @@
 \newcommand{\FounderAddress}{\mathsf{FounderAddress}}
 \newcommand{\FounderAddressList}{\mathsf{FounderAddressList}}
 \newcommand{\FounderAddressIndex}{\mathsf{FounderAddressIndex}}
-\newcommand{\ScriptHash}{\mathsf{ScriptHash}}
+\newcommand{\RedeemScriptHash}{\mathsf{RedeemScriptHash}}
 
 \newcommand{\blockSubsidy}{\term{block subsidy}}
 \newcommand{\minerSubsidy}{\term{miner subsidy}}
@@ -542,6 +542,7 @@
 \newcommand{\sighashTypes}{\term{SIGHASH types}}
 \newcommand{\SIGHASHALL}{\mathsf{SIGHASH\_ALL}}
 \newcommand{\scriptSig}{\mathtt{scriptSig}}
+\newcommand{\scriptPubKey}{\mathtt{scriptPubKey}}
 \newcommand{\ScriptOP}[1]{\texttt{OP\_{#1}}}
 
 % Equihash and block headers
@@ -3124,18 +3125,30 @@ Define:
   \item[] $\FounderAddressIndex(\BlockHeight) := 1 + \floor{\hfrac{\BlockHeight}{\FounderAddressChangeInterval}}$.
 \end{itemize}
 
-Then the \foundersReward for \blockHeight $\BlockHeight$ \MUST be paid to
-the address with Base58Check representation given by
-$\FounderAddressList_{\,\FounderAddressIndex(\BlockHeight)}$, provided that
-$\BlockHeight < \SlowStartShift + \HalvingInterval$. No \foundersReward is required
-to be paid for $\BlockHeight \geq \SlowStartShift + \HalvingInterval$ (i.e. after
-the first halving).
-
 Each address representation in $\FounderAddressList$ denotes a \transparent
-P2SH multisig address. The payment \MUST be performed using a P2SH script
-of the form \ScriptOP{HASH160} \;$\ScriptHash$\; \ScriptOP{EQUAL},
-where $\ScriptHash$ is the standard redeem script hash for the given
-P2SH multisig address \cite{Bitcoin-Multisig}.
+P2SH multisig address.
+
+Let $\RedeemScriptHash(\BlockHeight)$ be the standard redeem script hash, as defined in
+\cite{Bitcoin-Multisig}, for the P2SH multisig address with Base58Check representation
+given by $\FounderAddressList_{\,\FounderAddressIndex(\BlockHeight)}$
+
+\consensusrule{
+A \coinbaseTransaction for \blockHeight $\BlockHeight \in \range{1}{\SlowStartShift + \HalvingInterval - 1}$
+\MUST include at least one output that pays exactly $\FoundersReward(\BlockHeight)$ \zatoshi
+with a standard P2SH script of the form \ScriptOP{HASH160} \;$\RedeemScriptHash(\BlockHeight)$\; \ScriptOP{EQUAL}
+as its $\scriptPubKey$.
+}
+
+\begin{pnotes}
+  \item No \foundersReward is required to be paid for $\BlockHeight \geq \SlowStartShift + \HalvingInterval$
+        (i.e.\ after the first halving), or for $\BlockHeight = 0$ (i.e.\ the genesis block).
+  \item The \foundersReward addresses are not treated specially in any other way, and
+        there can be other outputs to them, in \coinbaseTransactions or otherwise.
+        In particular, it is valid for a \coinbaseTransaction with
+        $\BlockHeight \in \range{1}{\SlowStartShift + \HalvingInterval - 1}$ to have
+        other outputs, possibly to the same address, that do not meet the criterion
+        in the above consensus rule, as long as at least one output meets it.
+\end{pnotes}
 
 
 \nsection{Differences from the Zerocash paper} \label{differences}
@@ -3560,6 +3573,13 @@ The errors in the proof of Ledger Indistinguishability mentioned in
 
 
 \nsection{Change history}
+
+\subparagraph{2016.0-beta-1.7}
+
+\begin{itemize}
+    \item Clarify the consensus rule for payment of the \foundersReward, in
+          response to an issue raised by the NCC audit.
+\end{itemize}
 
 \subparagraph{2016.0-beta-1.6}
 
