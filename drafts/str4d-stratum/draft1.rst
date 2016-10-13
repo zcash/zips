@@ -201,17 +201,7 @@ Methods
 
 Request:
 
-    {"id": 1, "method": "mining.subscribe", "params": ["*CONNECT_HOST*", *CONNECT_PORT*, "*MINER_USER_AGENT*", "*SESSION_ID*"]} ``\n``
-
-``CONNECT_HOST`` (str)
-  The host that the miner is connecting to (from the server URL).
-
-  Example: ``pool.example.com``
-
-``CONNECT_PORT`` (int)
-  The port that the miner is connecting to (from the server URL).
-
-  Example: ``3337``
+    {"id": 1, "method": "mining.subscribe", "params": ["*MINER_USER_AGENT*", "*SESSION_ID*", "*CONNECT_HOST*", *CONNECT_PORT*]} ``\n``
 
 ``MINER_USER_AGENT`` (str)
   A free-form string specifying the type and version of the mining software.
@@ -224,6 +214,16 @@ Request:
   temporary network disconnection) (see `Session Resuming`_).
 
   MAY be ``null`` indicating that the miner wants to start a new session.
+
+``CONNECT_HOST`` (str)
+  The host that the miner is connecting to (from the server URL).
+
+  Example: ``pool.example.com``
+
+``CONNECT_PORT`` (int)
+  The port that the miner is connecting to (from the server URL).
+
+  Example: ``3337``
 
 Response:
 
