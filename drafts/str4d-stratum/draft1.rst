@@ -207,7 +207,7 @@ Request:
   A free-form string specifying the type and version of the mining software.
   Recommended syntax is the User Agent format used by Zcash nodes.
 
-  Example: ``Zatoshi/1.0.0``
+  Example: ``MagicBean/1.0.0``
 
 ``SESSION_ID`` (str)
   The id for a previous session that the miner wants to resume (e.g. after a
