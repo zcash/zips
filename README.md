@@ -5,7 +5,7 @@ Specifications and Zcash Improvement Proposals for the
 [Zcash cryptocurrency](https://z.cash/).
 
 Participation in the Zcash project is subject to a
-[Code of Conduct](https://github.com/zcash/zcash/blob/zc.v0.11.2.latest/code_of_conduct.md).
+[Code of Conduct](https://github.com/zcash/zcash/blob/master/code_of_conduct.md).
 
 License
 -------
