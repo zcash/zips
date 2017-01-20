@@ -216,12 +216,17 @@
 \newcommand{\anchors}{\term{anchors}}
 \newcommand{\block}{\term{block}}
 \newcommand{\blocks}{\term{blocks}}
+\newcommand{\header}{\term{header}}
+\newcommand{\headers}{\term{headers}}
 \newcommand{\blockHeader}{\term{block header}}
 \newcommand{\blockHeaders}{\term{block headers}}
-\newcommand{\BlockHeaders}{\titleterm{Block Headers}}
+\newcommand{\Blockheader}{\term{Block header}}
+\newcommand{\BlockHeader}{\titleterm{Block Header}}
 \newcommand{\blockVersionNumber}{\term{block version number}}
+\newcommand{\Blockversions}{\term{Block versions}}
 \newcommand{\blockTime}{\term{block time}}
 \newcommand{\blockHeight}{\term{block height}}
+\newcommand{\blockHeights}{\term{block heights}}
 \newcommand{\genesisBlock}{\term{genesis block}}
 \newcommand{\transaction}{\term{transaction}}
 \newcommand{\transactions}{\term{transactions}}
@@ -229,6 +234,7 @@
 \newcommand{\transactionFee}{\term{transaction fee}}
 \newcommand{\transactionFees}{\term{transaction fees}}
 \newcommand{\transactionVersionNumber}{\term{transaction version number}}
+\newcommand{\Transactionversion}{\term{Transaction version}}
 \newcommand{\coinbaseTransaction}{\term{coinbase transaction}}
 \newcommand{\coinbaseTransactions}{\term{coinbase transactions}}
 \newcommand{\CoinbaseTransactions}{\titleterm{Coinbase Transactions}}
@@ -497,6 +503,11 @@
 \newcommand{\slowStartPeriod}{\term{slow-start period}}
 \newcommand{\halvingInterval}{\term{halving interval}}
 
+\newcommand{\PoWMedianBlockSpan}{\mathsf{PoWMedianBlockSpan}}
+
+\newcommand{\targetThreshold}{\term{target threshold}}
+\newcommand{\targetThresholds}{\term{target thresholds}}
+
 % Signatures
 \newcommand{\Sig}{\mathsf{Sig}}
 \newcommand{\SigPublic}{\mathsf{Sig.Public}}
@@ -576,8 +587,10 @@
 \newcommand{\hashPrevBlock}{\mathtt{hashPrevBlock}}
 \newcommand{\hashMerkleRoot}{\mathtt{hashMerkleRoot}}
 \newcommand{\hashReserved}{\mathtt{hashReserved}}
-\newcommand{\nTime}{\mathtt{nTime}}
-\newcommand{\nBits}{\mathtt{nBits}}
+\newcommand{\nTimeField}{\mathtt{nTime}}
+\newcommand{\nTime}{\mathsf{nTime}}
+\newcommand{\nBitsField}{\mathtt{nBits}}
+\newcommand{\nBits}{\mathsf{nBits}}
 \newcommand{\nNonce}{\mathtt{nNonce}}
 \newcommand{\solutionSize}{\mathtt{solutionSize}}
 \newcommand{\solution}{\mathtt{solution}}
@@ -1027,6 +1040,10 @@ which consists of a \noteCommitmentTree (\crossref{merkletree}), \nullifierSet
 (\crossref{nullifierset}), and data structures associated with \Bitcoin such as
 the UTXO (Unspent Transaction Output) set.
 
+Each \block in a \blockchainview has a \blockHeight. The \blockHeight of the
+\genesisBlock is 0, and the \blockHeight of each subsequent \block in the
+\blockchain increments by 1.
+
 Inputs to a \transaction insert value into a \transparentValuePool, and outputs
 remove value from this pool. As in \Bitcoin, the remaining value in the pool is
 available to miners as a fee.
@@ -1127,12 +1144,10 @@ Like \Bitcoin, \Zcash creates currency when \blocks are mined. The value created
 mining a \block is called the \blockSubsidy. It is composed of a \minerSubsidy and a
 \foundersReward. As in \Bitcoin, the miner of a \block also receives \transactionFees.
 
-The amount of the \blockSubsidy and \minerSubsidy depends on the \blockHeight.
-The \blockHeight of the \genesisBlock is 0, and the \blockHeight of each subsequent \block in
-the \blockchain increments by 1.
+The calculations of the \blockSubsidy, \minerSubsidy, and \foundersReward depend on
+the \blockHeight, as defined in \crossref{blockchain}.
 
-The calculations of the \blockSubsidy, \minerSubsidy, and \foundersReward for a
-given \blockHeight are given in \crossref{subsidies}.
+These calculations are described in \crossref{subsidies}.
 
 
 \nsubsection{\CoinbaseTransactions}
@@ -1140,7 +1155,7 @@ given \blockHeight are given in \crossref{subsidies}.
 The first \transaction in a block must be a \coinbaseTransaction, which should
 collect and spend any \minerSubsidy and \transactionFees paid by \transactions
 included in this \block. The \coinbaseTransaction must also pay the \foundersReward
-as described in \crossref{coinbases}.
+as described in \crossref{foundersreward}.
 
 
 \nsection{Abstract Protocol}
@@ -2870,7 +2885,7 @@ Bytes & \heading{Name} & \heading{Data Type} & \heading{Description} \\
 
 \Varies & $\txOut$ & $\txOut$ & \xTransparent outputs, encoded as in \Bitcoin. \\ \hline
 
-4 & $\lockTime$ & \type{uint32\_t} & A Unix epoch time or block number, encoded as in \Bitcoin. \\ \hline
+4 & $\lockTime$ & \type{uint32\_t} & A Unix epoch time (UTC) or block number, encoded as in \Bitcoin. \\ \hline
 
 \Varies\;$\dagger$ & $\nJoinSplit$ & \compactSize & The number of \joinSplitDescriptions
 in $\vJoinSplit$. \\ \hline
@@ -2895,17 +2910,31 @@ $\versionField > 1$ and $\nJoinSplit > 0$.
 The encoding of $\joinSplitPubKey$ and the data to be signed are specified in
 \crossref{nonmalleability}.
 
+\begin{consensusrules}
+  \item The \transactionVersionNumber{} \MUST be either 1 or 2.
+  \item A \transaction with one or more coinbase inputs \MUST have no \transparent outputs
+        (i.e.\ \txOutCount{} \MUST be 0).
+  \item If $\versionField = 1$ or $\nJoinSplit = 0$, then \txInCount{} \MUSTNOT be 0.
+  \item If $\nJoinSplit > 0$, then \joinSplitSig{} \MUST represent a valid signature
+        over $\dataToBeSigned$ as defined in \crossref{nonmalleability}.
+  \item \todo{Coinbase maturity rule.}
+  \item \todo{Other rules inherited from \Bitcoin.}
+\end{consensusrules}
+
 \introlist
 The changes relative to \Bitcoin version 1 transactions as described in \cite{Bitcoin-Format} are:
 
 \begin{itemize}
-  \item The \transactionVersionNumber{} can be either 1 or 2. A version 1 \transaction is
+  \item \Transactionversion 0 is not supported. A version 1 \transaction is
         equivalent to a version 2 \transaction with $\nJoinSplit = 0$. Software that parses
-        \blocks{} \MUSTNOT assume, when an encoded \block starts with an $\versionField$
-        field representing a value other than 1 or 2 (e.g.\ future versions potentially
-        introduced by hard forks), that it will be parseable according to this format.
+        \transactions{} \MUSTNOT assume, when an encoded \transaction starts with a
+        $\versionField$ field representing a value other than 1 or 2 (either the past \Bitcoin
+        version 0, or future versions introduced by hard forks), that it will be parseable
+        according to this format.
   \item The $\nJoinSplit$, $\vJoinSplit$, $\joinSplitPubKey$, and $\joinSplitSig$ fields
         have been added.
+  \item In \Zcash it is permitted for a \transaction to have no \transparent inputs provided
+        that $\nJoinSplit > 0$.
 \end{itemize}
 
 Software that creates \transactions{} \SHOULD use version 1 for \transactions with no
@@ -2968,13 +2997,16 @@ components for the encrypted output \notes, $\TransmitCiphertext{\allNew}$. \\ \
 
 The $\ephemeralKey$ and $\encCiphertexts$ fields together form the \notesCiphertext.
 
+Consensus rules applying to a \joinSplitDescription are given in \crossref{joinsplitdesc}.
 
-\nsubsection{\BlockHeaders}
+
+\introlist
+\nsubsection{\BlockHeader} \label{blockheader}
 
 The \Zcash \blockHeader format is as follows:
 
 \begin{center}
-\hbadness=1000
+\hbadness=2500
 \begin{tabularx}{0.92\textwidth}{|c|l|p{10.7em}|X|}
 \hline
 Bytes & \heading{Name} & \heading{Data Type} & \heading{Description} \\
@@ -2985,42 +3017,53 @@ Bytes & \heading{Name} & \heading{Data Type} & \heading{Description} \\
 for \Zcash is $4$. \\ \hline
 
 32 & $\hashPrevBlock$ & \type{char[32]} & A $\SHAd$ hash in internal byte order of the
-previous \block's header. This ensures no previous \block can be changed without also
-changing this \block's header. \\ \hline
+previous \block's \header. This ensures no previous \block can be changed without also
+changing this \block's \header. \\ \hline
 
 32 & $\hashMerkleRoot$ & \type{char[32]} & A $\SHAd$ hash in internal byte order. The
 merkle root is derived from the hashes of all \transactions included in this \block,
-ensuring that none of those \transactions can be modified without modifying the header. \\ \hline
+ensuring that none of those \transactions can be modified without modifying the \header. \\ \hline
 
 32 & $\hashReserved$ & \type{char[32]} & A reserved field which should be ignored. \\ \hline
 
-4 & $\nTime$ & \type{uint32\_t} & The \blockTime is a Unix epoch time when the miner
-started hashing the header (according to the miner). This \MUST be greater than or equal
-to the median time of the previous 11 blocks. A \fullnode{} \MUSTNOT accept \blocks with
-headers more than two hours in the future according to its clock. \\ \hline
+4 & $\nTimeField$ & \type{uint32\_t} & The \blockTime is a Unix epoch time (UTC) when the miner
+started hashing the \header (according to the miner). \\ \hline
 
-4 & $\nBits$ & \type{uint32\_t} & An encoded version of the target threshold this \block's
-header hash must be less than or equal to, in the same nBits format used by \Bitcoin.
+4 & $\nBitsField$ & \type{uint32\_t} & An encoded version of the \targetThreshold this \block's
+\header hash must be less than or equal to, in the same nBits format used by \Bitcoin.
 \cite{Bitcoin-nBits} \\ \hline
 
 32 & $\nNonce$ & \type{char[32]} & An arbitrary field miners change to modify the
-header hash in order to produce a hash below the target threshold. \\ \hline
+\header hash in order to produce a hash less than or equal to the \targetThreshold. \\ \hline
 
 3 & $\solutionSize$ & \compactSize & The size of an Equihash solution in bytes (always 1344). \\ \hline
 
-1344 & $\solution$ & \type{char[1344]} & The Equihash solution, which \MUST be valid
-according to \crossref{equihash}. \\ \hline
+1344 & $\solution$ & \type{char[1344]} & The Equihash solution. \\ \hline
 
 \end{tabularx}
 \end{center}
+
+\begin{consensusrules}
+  \item The \blockVersionNumber{} \MUST be 4.
+  \item The \block{} \MUST pass the difficulty filter defined in \crossref{difficulty}.
+  \item \solution{} \MUST represent a valid Equihash solution as defined in \crossref{equihash}.
+  \item \nTimeField{} \MUST be strictly greater than the median time of the previous
+        $\PoWMedianBlockSpan$ \blocks.
+  \item \todo{Other rules inherited from \Bitcoin.}
+\end{consensusrules}
+
+In addition, a \fullnode{} \MUSTNOT accept \blocks with $\nTimeField$ more than two hours
+in the future according to its clock. This is not strictly a consensus rule because it is
+nondeterministic, and clock time varies between nodes. Also note that a \block that is
+rejected by this rule at a given point in time may later be accepted.
 
 \introlist
 The changes relative to \Bitcoin version 4 blocks as described in \cite{Bitcoin-Block} are:
 
 \begin{itemize}
-  \item The \blockVersionNumber{} \MUST be 4. Previous versions are not supported. Software
-        that parses blocks \MUSTNOT assume, when an encoded \block starts with an $\nVersion$
-        field representing a value other than 4 (e.g.\ future versions potentially introduced
+  \item \Blockversions prior to 4 are not supported. Software that parses \blocks{} \MUSTNOT
+        assume, when an encoded \block starts with an $\nVersion$ field representing a value
+        other than 4 (either past \Bitcoin versions, or future versions potentially introduced
         by hard forks), that it will be parseable according to this format.
   \item The $\hashReserved$, $\solutionSize$, and $\solution$ fields have been added.
   \item The type of the $\nNonce$ field has changed from \type{uint32\_t} to \type{char[32]}.
@@ -3034,6 +3077,10 @@ The changes relative to \Bitcoin version 4 blocks as described in \cite{Bitcoin-
         \MUST be rejected. This is necessary to avoid a potential attack in which a miner
         could test several distinct encodings of each Equihash solution against the difficulty
         filter, rather than only the single intended encoding.
+  \item As in \Bitcoin, the $\nTimeField$ field \MUST represent a time \emph{strictly greater than}
+        the median of the timestamps of the past $\PoWMedianBlockSpan$ \blocks; not greater
+        than or equal to. At the time of writing, the Bitcoin Developer Reference \cite{Bitcoin-Block}
+        is in error on this point.
 \end{pnotes}
 
 \nsubsection{Proof of Work}
@@ -3073,8 +3120,8 @@ derived from the \blockHeader and a nonce:
     \bitbox{256}{256-bit $\hashPrevBlock$}
     \bitbox{256}{256-bit $\hashMerkleRoot$} \\
     \bitbox{256}{256-bit $\hashReserved$}
-    \bitbox{128}{32-bit $\nTime$}
-    \bitbox{128}{32-bit $\nBits$} \\
+    \bitbox{128}{32-bit $\nTimeField$}
+    \bitbox{128}{32-bit $\nBitsField$} \\
     \bitbox{256}{256-bit $\nNonce$}
 \end{bytefield}
 \end{lrbox}
@@ -3212,7 +3259,7 @@ $\MaxBlockSubsidy$, and $\FoundersFraction$ are instantiated in \crossref{consta
   \item $\MinerSubsidy(\BlockHeight) := \BlockSubsidy(\BlockHeight) - \FoundersReward(\BlockHeight)$.
 \end{formulae}
 
-\nsubsection{Coinbase outputs} \label{coinbases}
+\nsubsection{Payment of Founders' Reward} \label{foundersreward}
 
 The \foundersReward is paid by a \transparent output in the \coinbaseTransaction, to
 one of $\NumFounderAddresses$ \transparent addresses, depending on the \blockHeight.
@@ -3304,9 +3351,6 @@ A \coinbaseTransaction for \blockHeight $\BlockHeight \in \range{1}{\SlowStartSh
 with a standard P2SH script of the form \ScriptOP{HASH160} \;$\RedeemScriptHash(\BlockHeight)$\; \ScriptOP{EQUAL}
 as its $\scriptPubKey$.
 }
-
-\todo{Coinbase maturity rule.}
-\todo{Any tx with a coinbase input must have no \transparent outputs (vout).}
 
 \begin{pnotes}
   \item No \foundersReward is required to be paid for $\BlockHeight \geq \SlowStartShift + \HalvingInterval$
@@ -3816,6 +3860,7 @@ The errors in the proof of Ledger Indistinguishability mentioned in
 \subparagraph{2016.0-beta-1.13}
 
 \begin{itemize}
+    \item Clarify some definitions of fields in a \blockHeader.
     \item Define $\PRFaddr{}$ in \crossref{keycomponents}.
 \end{itemize}
 
