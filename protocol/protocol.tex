@@ -271,8 +271,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\shieldedNotes}{\term{shielded notes}}
 \newcommand{\xShielded}{\term{Shielded}}
 \newcommand{\Shielded}{\titleterm{Shielded}}
-\newcommand{\blockchainview}{\term{block chain view}}
 \newcommand{\blockchain}{\term{block chain}}
+\newcommand{\blockchains}{\term{block chains}}
 \newcommand{\mempool}{\term{mempool}}
 \newcommand{\treestate}{\term{treestate}}
 \newcommand{\treestates}{\term{treestates}}
@@ -1121,22 +1121,44 @@ $\Memo$ represents a \memo associated with this \note. The usage of the
 }
 
 
-\nsubsection{Transactions, Blocks, and the Block Chain} \label{blockchain}
+\nsubsection{The Block Chain} \label{blockchain}
 
-At a given point in time, the \blockchainview of each \fullnode consists of a
-sequence of one or more valid \blocks. Each \block consists of a sequence of one or
-more \transactions. To each \transaction there is associated an initial \treestate,
-which consists of a \noteCommitmentTree (\crossref{merkletree}), \nullifierSet
-(\crossref{nullifierset}), and data structures associated with \Bitcoin such as
-the UTXO (Unspent Transaction Output) set.
+At a given point in time, each \fullnode is aware of a set of candidate
+\blocks. These form a tree rooted at the \genesisBlock, where each node
+in the tree refers to its parent via the $\hashPrevBlock$ \blockHeader field
+(see \crossref{blockheader}).
 
-Each \block in a \blockchainview has a \blockHeight. The \blockHeight of the
+A path from the root toward the leaves of the tree consisting of a sequence
+of one or valid \blocks consistent with consensus rules, is called a valid
+\blockchain.
+
+Each \block in a \blockchain has a \blockHeight. The \blockHeight of the
 \genesisBlock is 0, and the \blockHeight of each subsequent \block in the
 \blockchain increments by 1.
+
+The consensus protocol is designed to ensure that for any given \blockHeight,
+the vast majority of nodes should eventually agree on their ``best''
+\blockchain up to that height.
+
+
+\nsubsection{Transactions and Treestates} \label{transactions}
+
+Each \block contains one or more \transactions.
 
 Inputs to a \transaction insert value into a \transparentValuePool, and outputs
 remove value from this pool. As in \Bitcoin, the remaining value in the pool is
 available to miners as a fee.
+
+\vspace{-3ex}
+\consensusrule{
+The \transparentValuePool must have a nonnegative total value.
+}
+\vspace{2ex}
+
+To each \transaction there is associated an initial \treestate. A \treestate
+consists of a \noteCommitmentTree (\crossref{merkletree}), \nullifierSet
+(\crossref{nullifierset}), and data structures associated with \Bitcoin such as
+the UTXO (Unspent Transaction Output) set.
 
 An \anchor is a Merkle tree root of a \noteCommitmentTree. It uniquely identifies
 a \noteCommitmentTree state given the assumed security properties of the Merkle tree's
@@ -1144,7 +1166,7 @@ hash function. Since the \nullifierSet is always updated together with the
 \noteCommitmentTree, this also identifies a particular state of the \nullifierSet.
 
 \introlist
-In a given node's \blockchainview, \treestates are chained as follows:
+In a given \blockchain, \treestates are chained as follows:
 
 \begin{itemize}
   \item The input \treestate of the first \block is the empty \treestate.
@@ -1157,10 +1179,6 @@ In a given node's \blockchainview, \treestates are chained as follows:
 \end{itemize}
 
 \todo{\joinSplitDescriptions also have input and output \treestates.}
-
-We rely on Bitcoin-style consensus for \fullnodes to eventually converge on their
-views of valid \blocks, and therefore of the sequence of \treestates in those
-\blocks.
 
 
 \nsubsection{\JoinSplitTransfers{} and Descriptions} \label{joinsplit}
@@ -1176,21 +1194,18 @@ $\vpubNew$.
 
 Each \transaction is associated with a \sequenceOfJoinSplitDescriptions.
 
-The input and output values of each \joinSplitTransfer{} \MUST balance exactly.
 The \changed{total $\vpubNew$ value adds to, and the total} $\vpubOld$
 value subtracts from the \transparentValuePool of the containing \transaction.
 
-\todo{Describe the interaction of \transparent value flows with the \joinSplitDescription's
-\changed{$\vpubOld$ and} $\vpubNew$.}
-
+\begin{consensusrules}
+  \item The input and output values of each \joinSplitTransfer{} \MUST balance
+        exactly.
 \changed{
-The \anchor of each \joinSplitDescription in a \transaction must refer to either
-some earlier \block's final \treestate, or to the output \treestate of any prior
-\joinSplitDescription in the same \transaction.
+  \item The \anchor of each \joinSplitDescription in a \transaction{} \MUST refer
+        to either some earlier \block's final \treestate, or to the output
+        \treestate of any prior \joinSplitDescription in the same \transaction.
 }
-
-These conditions act as constraints on the blocks that a \fullnode will
-accept into its \blockchainview.
+\end{consensusrules}
 
 \nsubsection{\NoteCommitmentTree} \label{merkletree}
 
@@ -1219,13 +1234,13 @@ is denoted $\MerkleNode{h}{i}$.
 
 \nsubsection{\NullifierSet} \label{nullifierset}
 
-Each \fullnode maintains a \nullifierSet alongside the \noteCommitmentTree and UTXO set.
+Each \fullnode maintains a \nullifierSet logically associated with each \treestate.
 As valid \transactions containing \joinSplitTransfers are processed, the \nullifiers
 revealed in \joinSplitDescriptions are inserted into this \nullifierSet.
 
-If a \joinSplitDescription reveals a \nullifier that already exists in
-the \fullnode's \blockchainview, the containing transaction will be rejected, since
-it would otherwise result in a double-spend.
+If a \joinSplitDescription reveals a \nullifier that already exists in the
+\blockchain at the associated \treestate, the containing \transaction will be
+rejected, since it would otherwise result in a double-spend.
 
 
 \nsubsection{Block Subsidy and Founders' Reward} \label{subsidyconcepts}
@@ -1807,12 +1822,11 @@ according to client implementation.
 
 \nsubsection{\NoteCommitments{} and \Nullifiers}
 
-A \transaction that contains one or more \joinSplitDescriptions, when entered into the
-blockchain, appends to the \noteCommitmentTree with all constituent
+A \transaction that contains one or more \joinSplitDescriptions, when entered
+into the \blockchain, appends to the \noteCommitmentTree with all constituent
 \noteCommitments. All of the constituent \nullifiers are also entered into the
-\nullifierSet of the \blockchainview \emph{and} \mempool. A \transaction is not
-valid if it attempts to add a \nullifier to the \nullifierSet that already
-exists in the set.
+\nullifierSet of the associated \treestate. A \transaction is not valid if it
+attempts to add a \nullifier to the \nullifierSet that already exists in the set.
 
 \nsubsection{\JoinSplitStatement} \label{jsstatement}
 
@@ -2002,18 +2016,18 @@ is defined as follows:
 \end{itemize}
 }
 
-To test whether a \note is unspent in a particular \blockchainview also requires
+To test whether a \note is unspent in a particular \blockchain also requires
 the \spendingKey $\AuthPrivate$; the coin is unspent if and only if
 $\nf = \PRFnf{\AuthPrivate}(\NoteAddressRand)$ is not in the \nullifierSet
-for that \blockchainview.
+for that \blockchain.
 
 \begin{pnotes}
   \item The decryption algorithm corresponds to step 3 (b) i. and ii.
         (first bullet point) of the $\Receive$ algorithm shown in \cite[Figure 2]{BCG+2014}.
-  \item A \note can change from being unspent to spent on a given \blockchainview,
-        as \transactions are added to that view. Also, blockchain reorganisations
-        can cause the \transaction in which a \note was output to no longer be on
-        the consensus blockchain.
+  \item A \note can change from being unspent to spent as a node's view of the best
+        \blockchain is extended by new \transactions. Also, \blockchain reorganisations
+        can cause a node to switch to a different best \blockchain that does not
+        contain the \transaction in which a \note was output.
 \end{pnotes}
 
 See \crossref{inbandrationale} for further discussion of the security and
@@ -3740,7 +3754,7 @@ of their funds, even if they have forgotten everything but the
 
 Instead, \Zcash enforces that an adversary must choose distinct values
 for each $\NoteAddressRand$, by making use of the fact that all of the
-\nullifiers in \joinSplitDescriptions that appear in a valid \blockchainview
+\nullifiers in \joinSplitDescriptions that appear in a valid \blockchain
 must be distinct. This is true regardless of whether the \nullifiers
 corresponded to real or dummy notes (see \crossref{dummynotes}).
 The \nullifiers are used as input to $\hSigCRH$ to derive a public value
@@ -3762,7 +3776,7 @@ Now even if the creator of a \joinSplitDescription does not choose
 $\NoteAddressPreRand$ randomly, uniqueness of \nullifiers and
 collision resistance of both $\hSigCRH$ and $\PRFrho{}$ will ensure
 that the derived $\NoteAddressRand$ values are unique, at least for
-any two \joinSplitDescriptions that get into a valid \blockchainview.
+any two \joinSplitDescriptions that get into a valid \blockchain.
 This is sufficient to prevent the Faerie Gold attack.
 
 
@@ -4056,6 +4070,9 @@ The errors in the proof of Ledger Indistinguishability mentioned in
 \begin{itemize}
     \item Add abstract and keywords.
     \item Fix a typo in the definition of \nullifier integrity.
+    \item Make the description of \blockchains more consistent with
+          upstream \Bitcoin documentation (referring to ``best`` chains
+          rather than using the concept of a \term{block chain view}).
 \end{itemize}
 
 \introlist
