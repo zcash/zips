@@ -1,0 +1,55 @@
+Abstract
+========
+
+This ZIP describes a proposed specification for a standardized format for displaying content within the encrypted memo field of shielded transactions.
+
+Motivation
+==========
+
+A well-defined standard for formatting content within the encrypted memo field would help expand the use cases by providing a structure for different types of data. Users and third-party services could benefit from a standardized formatting convention that defines the type and length of the data contained within.
+
+A proposed common use case could be a standard encoding for sender’s preferred return address.
+
+Specification
+===============
+
+This is a proposal to include the following memo field formatting conventions in the Zcash protocol specification:
+
++ If the first byte (byte 0)'s value is 0xF4 or smaller, then the reader should:
+     + strip any trailing zero bytes
+     + decode it as UTF-8 (replacing any incorrect UTF-8-encoded byte sequences with the replacement character U+FFFD), and display it to the user as a human-readable string.
++ If byte 0's value is 0xF5, then:
+     + Interpret the next few bytes (1 to 9 of them) as a 64-bit unsigned varint/ULEB, and use it as an arbitrary application-defined "type" field.
+     + Interpret the next bytes (1 to 2 of them) as a 16-bit unsigned ULEB, and use it as the length field.
+     + If 1 + the number bytes used for the type field + the number of bytes used for the length field + the length > 512 then error out, i.e. do not do any further processing of the memo, and do not return any information about the memo to the caller other than the fact that it was incorrectly formatted.
+     + Inspect the padding after the end of the indicated length, and if it contains anything other than 0 bytes then error out.
+     + Return to the caller a 3-tuple of the following data:
+           + the type — an integer in [0…2⁶⁴)
+           + the length — an integer in [0…510)
+           + a byte string of that length which contains the payload
++ If the first byte's value is between 0xF6 and 0xFE inclusive on both ends, then this memo is from the future, because first byte of 0xF6–0xFE are reserved for future specifications of this protocol.
++ If byte 0's value is 0xFF then the reader should not make any other assumption about the memo. If you want to put data into a memo field that doesn't use the type-length-value scheme above, then put 0xFF as the first byte, and then do whatever you want with the remaining 511 bytes.
+
+See issue `#1849`_ for further discussion.
+
+.. _`#1849`: https://github.com/zcash/zcash/issues/1849
+
+Rationale
+===========
+
+The new protocol specification is an improvement over the current memo field content specification in the protocol spec version 2016.0-beta-1.10 which currently states:
+
+    The usage of the memo field is by agreement between the sender and recipient of the note. The memo field SHOULD be encoded either as:
+
+    • a UTF-8 human-readable string [Unicode], padded by appending zero bytes; or
+    • an arbitrary sequence of 512 bytes starting with a byte value of 0xF5 or greater, which is therefore not a valid UTF-8 string.
+
+    In the former case, wallet software is expected to strip any trailing zero bytes and then display the resulting UTF-8 string to the recipient user, where applicable. Incorrect UTF-8-encoded byte sequences should be displayed as replacement characters (U+FFFD).
+
+    In the latter case, the contents of the memo field SHOULD NOT be displayed. A start byte of 0xF5 is reserved for use by automated software by private agreement. A start byte of 0xF6 or greater is reserved for use in future Zcash protocol extensions.
+
+
+Backwards Compatibility
+===========================
+
+Encrypted memo field contents sent without the standardized format proposed here will be interpreted according to the specification set out in older versions of the protocol spec.
