@@ -27,7 +27,8 @@ This is a proposal to include the following memo field formatting conventions in
            + the type — an integer in [0…2⁶⁴)
            + the length — an integer in [0…510)
            + a byte string of that length which contains the payload
-+ If the first byte's value is between 0xF6 and 0xFE inclusive on both ends, then this memo is from the future, because first byte of 0xF6–0xFE are reserved for future specifications of this protocol.
++ If byte 0's value is 0xF6, then the user supplied no memo, and the encrypted memo field should be assumed to be empty.
++ If byte 0's value is between 0xF7 and 0xFE inclusive on both ends, then this memo is from the future, because first byte of 0xF7–0xFE are reserved for future specifications of this protocol.
 + If byte 0's value is 0xFF then the reader should not make any other assumption about the memo. If you want to put data into a memo field that doesn't use the type-length-value scheme above, then put 0xFF as the first byte, and then do whatever you want with the remaining 511 bytes.
 
 See issue `#1849`_ for further discussion.
