@@ -1,0 +1,74 @@
+**Title:** Cross-chain Atomic Transaction Standards
+
+**Author:** Jay Graber
+
+**Status:** Active
+
+**Category:** Informational
+
+**Created:** 2017-03-08
+
+Abstract
+===========
+
+This is an Informational ZIP describing a proposed specification for a standardized protocol for performing cross-chain atomic transactions (XCAT) between Zcash and Bitcoin, or other Bitcoin-derived cryptocurrencies.
+
+Motivation
+===========
+
+A well-defined standard for performing cross-chain transactions would improve the liquidity of cryptocurrencies and be useful for third-party services, such as decentralized exchanges.
+
+Specification
+===============
+
+The proposed protocol for XCAT is a set of hash time-locked contracts across both chains, created by two parties who wish to do a cross-chain exchange.
+
+To perform an exchange, both parties need to have the public keys of the other, on both chains. The party that wishes to initiate the exchange (the "seller") constructs two hash time-locked contracts by generating pay-to-script-hash (P2SH) addresses using the XCAT protocol and the public key of their counterparty (the "buyer").
+
+For the purposes of this example, the seller initiating the exchange will be named "Alice", and the buyer agreeing to complete the exchange will be named "Bob".
+
+Alice wishes to initiate an XCAT exchange from Bitcoin to Zcash. She chooses a random number R, hashes it, and creates a P2SH address on the Zcash blockchain using her and Bob's public keys, that she will wait for Bob to fund with the amount he wants to trade. (Agreement on the amount to trade and exchange rate is outside the scope of this protocol, and could be determined out-of-band, or within the user interface of an application using XCAT under the hood)
+
+The script in the P2SH address takes the following form:
+
+::
+
+    OP_IF
+        [HASHOP] <hash digest of R> OP_EQUALVERIFY OP_DUP OP_HASH160 <Alice's pubkey hash>
+    OP_ELSE
+        <time-out duration (12 hours)> CHECKLOCKTIMEVERIFY OP_DROP OP_DUP OP_HASH160 <Bob's pubkey hash>
+    OP_ENDIF
+    OP_EQUALVERIFY
+    OP_CHECKSIG
+
+There are two scenarios for spending funds from this P2SH address. The first is a successful atomic swap which gives Alice the money she asked for, and gives Bob access to the secret R which he can use to redeem his funds on the other blockchain. The second is a fail case which refunds Bob's money if Alice does not follow through.
+
+1. Success case: Alice spends the funds sent to the address, revealing the random number R she hashed to create the script in the process.
+2. Fail case: Alice does not spend the funds sent to the address within the timeout period, so Bob sends his funds back to himself, canceling the transaction.
+
+At the same time that Alice creates this P2SH address on the Zcash blockchain, she must also create a P2SH address on the Bitcoin blockchain, which she funds herself with the amount of BTC she wants to trade out of.
+
+The script for this second transaction takes the following form:
+
+::
+
+    OP_IF
+        [HASHOP] <hash digest of R> OP_EQUALVERIFY OP_DUP OP_HASH160 <Bob's pubkey hash>
+    OP_ELSE
+        <time-out duration (24 hours)> CHECKLOCKTIMEVERIFY OP_DROP OP_DUP OP_HASH160 <Alice's pubkey hash>
+    OP_ENDIF
+    OP_EQUALVERIFY
+    OP_CHECKSIG
+
+The two scenarios for spending funds from this second P2SH address are as follows:
+
+1. Success case: Bob uses R to spend the funds from this P2SH address, as Alice has already revealed R to Bob in the process of spending from the P2SH address he sent ZEC to on the Zcash blockchain. The cross-chain atomic transaction is now complete, and both parties have the funds they requested.
+2. Fail case: Bob has not followed through on his part of the trade within the timeout period, so Alice sends her funds back to herself, canceling the transaction.
+
+The time-lock period on the first transaction must be significantly shorter than the time-lock on the second, in order to give Bob enough time to redeem his funds on the other blockchain using the secret R provided by Alice. If there were an insufficient delay between the first and second timeouut period, Alice could potentially spend Bob's funds at the last minute, and then quickly refund herself before Bob had a chance to redeem his portion using the R she reveals. If  both parties are immediately responsive and execute their trades in a timely manner, providing the correct information, the full cross-chain atomic trade can happen quickly. The full duration of the timeout period for each transaction only elapses in the fail case, when either Alice or Bob defaults on their agreement to exchange.
+
+
+Rationale
+===========
+
+Users are free to come up with their own protocols for cross-chain atomic swaps, but having a well-defined protocol would aid adoption and support third-party services wishing to provide such functionality.
