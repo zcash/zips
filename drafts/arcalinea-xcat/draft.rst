@@ -36,7 +36,7 @@ The script in the P2SH address takes the following form:
     OP_IF
         [HASHOP] <hash digest of R> OP_EQUALVERIFY OP_DUP OP_HASH160 <Alice's pubkey hash>
     OP_ELSE
-        <time-out duration (12 hours)> CHECKLOCKTIMEVERIFY OP_DROP OP_DUP OP_HASH160 <Bob's pubkey hash>
+        <time-out duration (24 hours)> CHECKLOCKTIMEVERIFY OP_DROP OP_DUP OP_HASH160 <Bob's pubkey hash>
     OP_ENDIF
     OP_EQUALVERIFY
     OP_CHECKSIG
@@ -55,7 +55,7 @@ The script for this second transaction takes the following form:
     OP_IF
         [HASHOP] <hash digest of R> OP_EQUALVERIFY OP_DUP OP_HASH160 <Bob's pubkey hash>
     OP_ELSE
-        <time-out duration (24 hours)> CHECKLOCKTIMEVERIFY OP_DROP OP_DUP OP_HASH160 <Alice's pubkey hash>
+        <time-out duration (48 hours)> CHECKLOCKTIMEVERIFY OP_DROP OP_DUP OP_HASH160 <Alice's pubkey hash>
     OP_ENDIF
     OP_EQUALVERIFY
     OP_CHECKSIG
@@ -65,10 +65,21 @@ The two scenarios for spending funds from this second P2SH address are as follow
 1. Success case: Bob uses R to spend the funds from this P2SH address, as Alice has already revealed R to Bob in the process of spending from the P2SH address he sent ZEC to on the Zcash blockchain. The cross-chain atomic transaction is now complete, and both parties have the funds they requested.
 2. Fail case: Bob has not followed through on his part of the trade within the timeout period, so Alice sends her funds back to herself, canceling the transaction.
 
-The time-lock period on the first transaction must be significantly shorter than the time-lock on the second, in order to give Bob enough time to redeem his funds on the other blockchain using the secret R provided by Alice. If there were an insufficient delay between the first and second timeouut period, Alice could potentially spend Bob's funds at the last minute, and then quickly refund herself before Bob had a chance to redeem his portion using the R she reveals. If  both parties are immediately responsive and execute their trades in a timely manner, providing the correct information, the full cross-chain atomic trade can happen quickly. The full duration of the timeout period for each transaction only elapses in the fail case, when either Alice or Bob defaults on their agreement to exchange.
+Timeout Periods
+------------------
+
+Having timeout periods on both transactions allows the XCAT protocol to work by enabling refunds in case a counterparty misbehaves. The example above uses a timeout period of 24 hours for the first transaction and 48 hours for the second, but these are simply suggestions. Actual timeout periods should be considered to be variables that depend on the following factors for any given implementation of XCAT:
+
+**Duration** - The time-lock period on the transaction in which the initiating party reveals R must be significantly shorter than the time-lock period on the second transaction which allows the other party to use the revealed R, in order to give them enough time to redeem their funds using R.
+
+For example, once Alice reveals R by spending what Bob sent to her P2SH address, Bob must have enough time to use R to redeem his funds on the other blockchain before Alice can be allowed to refund herself. If there were an insufficient time delay between the first and second timeout periods, Alice could potentially spend Bob's funds at the last minute, then quickly refund herself on the other blockchain before Bob gets a chance to redeem his portion using the R she reveals.
+
+Note that using long time-locks in the P2SH scripts does not necessarily mean that the transactions themselves will take a long time. If both parties are immediately responsive and execute their trades in a timely manner, providing the correct information, the full cross-chain atomic trade can happen quickly. The full duration of the timeout period for each transaction only elapses in the fail case, when either Alice or Bob defaults on their agreement to exchange.
+
+**Block times** - The protection provided by the timeout period must take into account relative block times between the two blockchains.
 
 
 Rationale
 ===========
 
-Users are free to come up with their own protocols for cross-chain atomic swaps, but having a well-defined protocol would aid adoption and support third-party services wishing to provide such functionality.
+Users are free to come up with their own protocols for cross-chain atomic transactions, but having a well-defined protocol would aid adoption and support third-party services wishing to provide such functionality.
