@@ -174,6 +174,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\CryptoNote}{\termbf{CryptoNote}}
 \newcommand{\ZEC}{\termbf{ZEC}}
 \newcommand{\zatoshi}{\term{zatoshi}}
+\newcommand{\zcashd}{\textsf{zcashd}\,}
 
 \newcommand{\MUST}{\conformance{MUST}}
 \newcommand{\MUSTNOT}{\conformance{MUST NOT}}
@@ -249,6 +250,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\Blockheader}{\term{Block header}}
 \newcommand{\BlockHeader}{\titleterm{Block Header}}
 \newcommand{\blockVersionNumber}{\term{block version number}}
+\newcommand{\blockVersionNumbers}{\term{block version numbers}}
 \newcommand{\Blockversions}{\term{Block versions}}
 \newcommand{\blockTime}{\term{block time}}
 \newcommand{\blockHeight}{\term{block height}}
@@ -260,6 +262,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\transactionFee}{\term{transaction fee}}
 \newcommand{\transactionFees}{\term{transaction fees}}
 \newcommand{\transactionVersionNumber}{\term{transaction version number}}
+\newcommand{\transactionVersionNumbers}{\term{transaction version numbers}}
 \newcommand{\Transactionversion}{\term{Transaction version}}
 \newcommand{\coinbaseTransaction}{\term{coinbase transaction}}
 \newcommand{\coinbaseTransactions}{\term{coinbase transactions}}
@@ -3035,7 +3038,7 @@ The \Zcash \transaction format is as follows:
 Bytes & \heading{Name} & \heading{Data Type} & \heading{Description} \\
 \hhline{|=|=|=|=|}
 
-4 & $\versionField$ & \type{uint32\_t} & Transaction version number; either 1 or 2. \\ \hline
+4 & $\versionField$ & \type{int32\_t} & Transaction version number; either 1 or 2. \\ \hline
 
 \Varies & $\txInCount$ & \compactSize & Number of \transparent inputs in this transaction. \\ \hline
 
@@ -3071,7 +3074,7 @@ The encoding of $\joinSplitPubKey$ and the data to be signed are specified in
 \crossref{nonmalleability}.
 
 \begin{consensusrules}
-  \item The \transactionVersionNumber{} \MUST be either 1 or 2.
+  \item The \transactionVersionNumber{} \MUST be greater than or equal to 1.
   \item A \transaction with one or more coinbase inputs \MUST have no \transparent outputs
         (i.e.\ \txOutCount{} \MUST be 0).
   \item If $\versionField = 1$ or $\nJoinSplit = 0$, then \txInCount{} \MUSTNOT be 0.
@@ -3081,16 +3084,33 @@ The encoding of $\joinSplitPubKey$ and the data to be signed are specified in
   \item \todo{Other rules inherited from \Bitcoin.}
 \end{consensusrules}
 
+\begin{pnotes}
+  \item The semantics of \transactions with \transactionVersionNumber{} not equal
+        to either 1 or 2 is not currently defined. Miners \MUSTNOT create \blocks
+        containing such \transactions.
+  \item The exclusion of \transactions with \transactionVersionNumber{}
+        \emph{greater than} 2 is not a consensus rule; such \transactions may
+        exist in the \blockchain and \MUST be treated identically to version 2
+        \transactions by \fullnodes. Note that a future hard fork might use
+        \transactionVersionNumber{} either greater than 2, or less than 1.
+        It is likely that such a hard fork will change the \transaction format,
+        and software that parses \transactions{} \SHOULD take this into account.
+  \item The $\versionField$ field is a signed integer. (It was incorrectly specified
+        as unsigned in a previous version of this specification.) A future hard fork
+        might use negative values for this field, or otherwise change its interpretation.
+  \item A \transactionVersionNumber of 2 does not have the same meaning as in
+        \Bitcoin, where it is associated with support for \ScriptOP{CHECKSEQUENCEVERIFY}
+        as specified in \cite{BIP-68}. \Zcash was forked from \Bitcoin v0.11.2
+        and does not currently support BIP 68, or the related BIPs 9, 112 and 113.
+\end{pnotes}
+
 \introlist
 The changes relative to \Bitcoin version 1 transactions as described in \cite{Bitcoin-Format} are:
 
 \begin{itemize}
-  \item \Transactionversion 0 is not supported. A version 1 \transaction is
-        equivalent to a version 2 \transaction with $\nJoinSplit = 0$. Software that parses
-        \transactions{} \MUSTNOT assume, when an encoded \transaction starts with a
-        $\versionField$ field representing a value other than 1 or 2 (either the past \Bitcoin
-        version 0, or future versions introduced by hard forks), that it will be parseable
-        according to this format.
+  \item \Transactionversion 0 is not supported.
+  \item A version 1 \transaction is equivalent to a version 2 \transaction with
+        $\nJoinSplit = 0$.
   \item The $\nJoinSplit$, $\vJoinSplit$, $\joinSplitPubKey$, and $\joinSplitSig$ fields
         have been added.
   \item In \Zcash it is permitted for a \transaction to have no \transparent inputs provided
@@ -3100,14 +3120,7 @@ The changes relative to \Bitcoin version 1 transactions as described in \cite{Bi
 Software that creates \transactions{} \SHOULD use version 1 for \transactions with no
 \joinSplitDescriptions.
 
-\pnote{
-A \transactionVersionNumber of 2 does not have the same meaning as in \Bitcoin, where
-it is associated with support for \ScriptOP{CHECKSEQUENCEVERIFY} as specified in \cite{BIP-68}.
-\Zcash was forked from \Bitcoin v0.11.2 and does not currently support BIP 68, or the related BIPs
-9, 112 and 113.
-}
-
-\introlist
+\introsection
 \nsubsection{Encoding of \JoinSplitDescriptions} \label{joinsplitencoding}
 
 An abstract \joinSplitDescription, as described in \crossref{joinsplit}, is encoded in
@@ -3176,7 +3189,7 @@ The \Zcash \blockHeader format is as follows:
 Bytes & \heading{Name} & \heading{Data Type} & \heading{Description} \\
 \hhline{|=|=|=|=|}
 
-4 & $\nVersion$ & \type{uint32\_t} & The \blockVersionNumber indicates which set of
+4 & $\nVersion$ & \type{int32\_t} & The \blockVersionNumber indicates which set of
 \block validation rules to follow. The current and only defined \blockVersionNumber
 for \Zcash is $4$. \\ \hline
 
@@ -3207,11 +3220,15 @@ started hashing the \header (according to the miner). \\ \hline
 \end{tabularx}
 \end{center}
 
+A \block consists of a \blockHeader and a sequence of \transactions. How transactions
+are encoded in a \block is part of the Zcash peer-to-peer protocol but not part of
+the consensus protocol.
+
 Let $\ThresholdBits$ be as defined in \crossref{diffadjustment}, and let $\PoWMedianBlockSpan$
 be the constant defined in \crossref{constants}.
 
 \begin{consensusrules}
-  \item The \blockVersionNumber{} \MUST be 4.
+  \item The \blockVersionNumber{} \MUST be greater than or equal to 4.
   \item For a \block at \blockHeight $\BlockHeight$, \nBitsField{} \MUST be equal to
         $\ThresholdBits(\BlockHeight)$.
   \item The \block{} \MUST pass the difficulty filter defined in \crossref{difficulty}.
@@ -3227,20 +3244,21 @@ in the future according to its clock. This is not strictly a consensus rule beca
 nondeterministic, and clock time varies between nodes. Also note that a \block that is
 rejected by this rule at a given point in time may later be accepted.
 
-\introlist
-The changes relative to \Bitcoin version 4 blocks as described in \cite{Bitcoin-Block} are:
-
-\begin{itemize}
-  \item \Blockversions prior to 4 are not supported. Software that parses \blocks{} \MUSTNOT
-        assume, when an encoded \block starts with an $\nVersion$ field representing a value
-        other than 4 (either past \Bitcoin versions, or future versions potentially introduced
-        by hard forks), that it will be parseable according to this format.
-  \item The $\hashReserved$, $\solutionSize$, and $\solution$ fields have been added.
-  \item The type of the $\nNonce$ field has changed from \type{uint32\_t} to \type{char[32]}.
-  \item The maximum \block size has been doubled to 2000000 bytes.
-\end{itemize}
-
 \begin{pnotes}
+  \item The semantics of blocks with \blockVersionNumber{} not equal to 4
+        is not currently defined. Miners \MUSTNOT create such \blocks, and
+        \SHOULDNOT mine other blocks on top of them.
+  \item The exclusion of \blocks with \blockVersionNumber{} \emph{greater than} 4
+        is not a consensus rule; such \blocks may exist in the \blockchain
+        and \MUST be treated identically to version 4 \blocks by \fullnodes.
+        Note that a future hard fork might use \blockVersionNumber{} either
+        greater than or less than 4. It is likely that such a hard fork will
+        change the \block header and/or \transaction format, and software that
+        parses \blocks{} \SHOULD take this into account.
+  \item The $\nVersion$ field is a signed integer. (It was incorrectly specified
+        as unsigned in a previous version of this specification.) A future
+        hard fork might use negative values for this field, or otherwise change
+        its interpretation.
   \item There is no relation between the values of the $\versionField$ field of a \transaction,
         and the $\nVersion$ field of a \blockHeader.
   \item Like other serialized fields of type $\compactSize$, the $\solutionSize$ field \MUST
@@ -3253,6 +3271,17 @@ The changes relative to \Bitcoin version 4 blocks as described in \cite{Bitcoin-
         Bitcoin Developer Reference \cite{Bitcoin-Block} was previously in error on this point,
         but has now been corrected.
 \end{pnotes}
+
+\introlist
+The changes relative to \Bitcoin version 4 blocks as described in \cite{Bitcoin-Block} are:
+
+\begin{itemize}
+  \item \Blockversions less than 4 are not supported.
+  \item The $\hashReserved$, $\solutionSize$, and $\solution$ fields have been added.
+  \item The type of the $\nNonce$ field has changed from \type{uint32\_t} to \type{char[32]}.
+  \item The maximum \block size has been doubled to 2000000 bytes.
+\end{itemize}
+
 
 \nsubsection{Proof of Work}
 
@@ -4157,6 +4186,9 @@ The errors in the proof of Ledger Indistinguishability mentioned in
 \subparagraph{2017.0-beta-2.7}
 
 \begin{itemize}
+    \item Correct the types and consensus rules for \transactionVersionNumbers
+          and \blockVersionNumbers. (Again, the implementation in \zcashd was as
+          intended.)
     \item Clarify the computation of $\h{i}$ in a \joinSplitStatement.
 \end{itemize}
 
