@@ -4,29 +4,33 @@ protocol.pdf: protocol.tex zcash.bib incremental_merkle.pdf key_components.pdf
 sapling.pdf: protocol.tex zcash.bib incremental_merkle.pdf key_components.pdf
 	$(MAKE) sapling
 
-LATEX=pdflatex
-
 .PHONY: pdf
 pdf:
 	printf '\\renewcommand{\\docversion}{Version %s}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
-	# If $(LATEX) fails, touch an input so that 'make' won't think it is up-to-date next time.
+	# If latexmk fails, touch an input so that 'make' won't think it is up-to-date next time.
 	rm -f protocol.aux protocol.bbl protocol.blg protocol.brf protocol.bcf
-	$(LATEX) protocol.tex || { touch incremental_merkle.pdf; exit 1; }
-	biber protocol
-	$(LATEX) protocol.tex || { touch incremental_merkle.pdf; exit 1; }
-	$(LATEX) protocol.tex || { touch incremental_merkle.pdf; exit 1; }
-	$(LATEX) protocol.tex || { touch incremental_merkle.pdf; exit 1; }
+	latexmk -bibtex -pdf protocol || { touch incremental_merkle.pdf; exit 1; }
+
+.PHONY: pvcpdf
+pvcpdf:
+	printf '\\renewcommand{\\docversion}{Version %s}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	# If latexmk fails, touch an input so that 'make' won't think it is up-to-date next time.
+	rm -f protocol.aux protocol.bbl protocol.blg protocol.brf protocol.bcf
+	latexmk -bibtex -pdf -pvc protocol
 
 .PHONY: sapling
 sapling:
 	printf '\\toggletrue{issapling}\n\\renewcommand{\\docversion}{Version %s [Sapling]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
-	# If $(LATEX) fails, touch an input so that 'make' won't think it is up-to-date next time.
+	# If latexmk fails, touch an input so that 'make' won't think it is up-to-date next time.
 	rm -f sapling.aux sapling.bbl sapling.blg sapling.brf sapling.bcf
-	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.pdf; exit 1; }
-	biber sapling
-	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.pdf; exit 1; }
-	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.pdf; exit 1; }
-	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.pdf; exit 1; }
+	latexmk -bibtex -pdf -jobname=sapling protocol || { touch incremental_merkle.pdf; exit 1; }
+
+.PHONY: pvcsapling
+pvcsapling:
+	printf '\\toggletrue{issapling}\n\\renewcommand{\\docversion}{Version %s [Sapling]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	# If latexmk fails, touch an input so that 'make' won't think it is up-to-date next time.
+	rm -f sapling.aux sapling.bbl sapling.blg sapling.brf sapling.bcf
+	latexmk -bibtex -pdf -jobname=sapling -pvc protocol
 
 .PHONY: clean
 clean:
