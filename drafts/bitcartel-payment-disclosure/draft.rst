@@ -99,7 +99,7 @@ A proposal to prevent information leakage of change addresses is currently under
 
 Also note that an independent third party cannot know for sure if the sender and recipient are not colluding to hide value transfer.  JoinSplits have two inputs and two outputs.  The recipient may identify their receiving address for one output, but not disclose the fact that the other output also belongs to them.
 
-TODO: What happens if a transaction is created (at which point a payment disclosure can be created) but never gets mined and is stuck in the mempool?  Should the payment disclosure be retained or purged?
+When a shielded transaction is created sucessfully and accepted into the local mempool with ``z_sendmany`` or ``z_shieldcoinbase``, the payment disclosure database is updated with information necessary to create a payment disclosure.  However, the transaction itself may never be mined and confirmed in the blockchain, rendering the database entry itself redundant and available for purging at a later date e.g. garbage collection. 
 
 .. [KDFT] https://github.com/zcash/zcash/issues/2102
 
@@ -145,16 +145,19 @@ Validates a payment disclosure and returns JSON output as follows:
 ::
 
     {
-    valid : true,
-    rawhex : "0011...ff",
-    version: 0
-    txid: "4e...",
-    jsindex: 0,
-    outputindex: 1,
-    paymentaddress: zABC123...,
-    value: 10.56100002
-    message: "pay me at z007",
-    signature: "10ab23..."
+      "txid": "68519fe52f2f64aa64e2a601e470fcde1069ab5a39652d277b7d816aa57169d1",
+      "jsIndex": 0,
+      "outputIndex": 0,
+      "version": 0,
+      "ephemeralSymmetricKey": "09d6a2e2e8523280e5f56e79c080e82c4fe228086c92ea10986ca6d9bcea1d17",
+      "message": "howdy",
+      "joinSplitPubKey": "4c8d8135dca734b2c4fda25b2c7db29731d28a5f421f09da284b110bc0d1df91",
+      "signatureVerified": true,
+      "paymentAddress": "ztr4Ef2m7CFTtTvs4UpDz8zJY4Swukr3NRKThfLE12sNdGdav7Yf55G9HMAzGM3baR1FD43u9jb5JsAN67BBvz1UsVdLxoi",
+      "memo": "f600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "value": 10.00000000,
+      "commitmentMatch": true,
+      "valid": true
     }
 
 Valid field is true if all the following conditions hold:
@@ -166,6 +169,7 @@ Valid field is true if all the following conditions hold:
 - value is within range [0..MAX_MONEY]
 - message is within constraints e.g. number of characters, allowed characters
 - signature is valid for all of the above fields
+- commitment derived from the deciphered note matches the commitment in the blockchain
 
 Otherwise an error field is returned explaining why the payment disclosure is invalid:
 
@@ -209,9 +213,10 @@ Record relevant data in a struct (or class) defined as follows:
     };
 
     struct PaymentDisclosureInfo {
-        uint8_t version;          // 0 = experimental, 1 = first production version, etc.
-        uint256 esk;              // zcash/NoteEncryption.cpp
-        uint256 joinSplitPrivKey; // primitives/transaction.h
+        uint8_t version;                // 0 = experimental, 1 = first production version, etc.
+        uint256 esk;                    // zcash/NoteEncryption.cpp
+        uint256 joinSplitPrivKey;       // primitives/transaction.h
+        PaymentAddress zaddr;           // zcash/Address.hpp
     };
 
 Persist the object in a LevelDB key-value store, saved in a subfolder of the configured datadir:
@@ -232,7 +237,7 @@ Given the above, by default on Linux, the payment disclosure database will be sa
 The sender may optionally:
 
 - log records to ``debug.log`` using a new debug category ``paymentdisclosure``
-- have the records returned in result of RPC call ``z_getoperationresult``
+- [Is this useful? Not implemented yet] have the records returned in result of RPC call ``z_getoperationresult``
 
 If the sender needs to provide a payment disclosure to the recipient or a third party, the sender will use RPC call ``z_getpaymentdisclosure`` to generate a Payment Disclosure.
 
@@ -253,6 +258,7 @@ To create a valid Payment Disclosure an implementation must:
             uint256 txid;           // primitives/transaction.h
             size_t js;              // Index into CTransaction.vjoinsplit
             uint8_t n;              // Index into JSDescription fields of length ZC_NUM_JS_OUTPUTS
+            PaymentAddress zaddr;   // zcash/Address.hpp
             std::string message     // parameter to RPC call
         };
 
@@ -294,13 +300,11 @@ To create a valid Payment Disclosure an implementation must:
             unsigned char[64]           payloadSig;
         }
 
-#. Return to the caller a JSON object containing the hex string of the serialized PaymentDisclosure.  If there were errors generating the payment disclosure, return a standard JSON-RPC error with an appropriate error message.
+#. Return to the caller the hex string of the serialized PaymentDisclosure.  If there were errors generating the payment disclosure, return a standard JSON-RPC error with an appropriate error message.
 
 ::
 
-    {
-      "hex" : "091234ABCDEF234781248273842738491....."
-    }
+  00171deabcd9a66c9810ea926c0828e24f2ce880c0796ef5e5803252e8e2a2d609d16971a56a817d7b272d65395aab6910defc70e401a6e264aa642f2fe59f5168000000000000000000f4fda3737075b8b7f00715a5fcf106c74b75150d8f5578b973417f529d3464e2df1d76d937887b8aad659a4a0bdedb34a2706759bd64fa923863094eba504d7b05686f776479c6855c4eee0e2601301bea503ad96d4216702baa8db2141530ae58875def42590afb9681c22948dd2affba1bddd81eeafef1579a760bf13e8afd849287d30800
 
 
 This raw hex string can be given to the recipient or a third party to use with the new RPC call ``z_validatepaymentdisclosure``:
@@ -314,18 +318,23 @@ To validate a payment disclosure, perform the following steps:
 2. Retrieve the ``joinSplitPubKey`` for the transaction and verify the payment disclosure signature ``payloadSig``.
 3. Retrieve the note ciphertext from the blockchain for ``txid``, ``js``, ``n``.
 4. Use the ``esk`` to decrypt the ciphertext into plain text
-5. Return JSON output as described above in the specification. 
+5. Derive commitment from plain text and check it matches commitment in blockchain
+6. Return JSON output as described above in the specification. 
 
 Possible error messages which could cause validation to fail include:
 
-- "txid was not confirmed in blockchain"
-- "could not find data for txid, please reindex with txindex=1"
-- "output index invalid, must be 0 or 1"
-- "transaction does not contain any joinsplits"
-- "joinsplit index is greater than number of joinsplits"
-- "message is too big"
-- "message contains invalid character sequences"
-- "verification of payment disclosure signature failed"
+- "Invalid parameter, expected payment disclosure data in hexadecimal format."
+- "Invalid parameter, payment disclosure data is malformed."
+- "No information available about transaction"
+- "Transaction has not been confirmed yet"
+- "Transaction is not a shielded transaction"
+- "Payment disclosure refers to an invalid joinsplit index"
+- "Payment disclosure refers to an invalid output index"
+- "Payment disclosure refers to an unknown version"
+- "Payment disclosure signature does not match transaction signature"
+- "Payment disclosure refers to an invalid payment address"
+- "Payment disclosure derived commitment does not match blockchain commitment"
+- "Payment disclosure error when deciphering note"
 - ...
 
 
