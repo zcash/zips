@@ -149,7 +149,7 @@ Validates a payment disclosure and returns JSON output as follows:
       "jsIndex": 0,
       "outputIndex": 0,
       "version": 0,
-      "ephemeralSymmetricKey": "09d6a2e2e8523280e5f56e79c080e82c4fe228086c92ea10986ca6d9bcea1d17",
+      "onetimeSymmetricKey": "09d6a2e2e8523280e5f56e79c080e82c4fe228086c92ea10986ca6d9bcea1d17",
       "message": "howdy",
       "joinSplitPubKey": "4c8d8135dca734b2c4fda25b2c7db29731d28a5f421f09da284b110bc0d1df91",
       "signatureVerified": true,
