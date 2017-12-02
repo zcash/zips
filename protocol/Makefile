@@ -11,6 +11,11 @@ pdf:
 	rm -f protocol.aux protocol.bbl protocol.blg protocol.brf protocol.bcf
 	latexmk -bibtex -pdf protocol || { touch incremental_merkle.pdf; exit 1; }
 
+.PHONY: html
+html: pdf sapling
+	pdf2htmlEX --decompose-ligature 1 --font-size-multiplier 60 --split-pages 1 --dest-dir html protocol.pdf
+	pdf2htmlEX --decompose-ligature 1 --font-size-multiplier 60 --split-pages 1 --dest-dir saplinghtml sapling.pdf
+
 .PHONY: pvcpdf
 pvcpdf:
 	printf '\\renewcommand{\\docversion}{Version %s}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
