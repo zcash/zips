@@ -108,7 +108,7 @@ When creating a shielded transaction, for each JoinSplit output, a data structur
 - index [0..len-1] of JoinSplit in array of JoinSplits contained in transaction
 - index [0..1] of JoinSplit output
 - recipient's payment address is a shielded address ``(a_pk, pk_enc)`` [PROTOCOL] §3.1 Payment Addresses and Keys
-- symmetric key used to encrypt the note, also referred to as the ephemeral secret key ``esk`` [PROTOCOL] §4.10.1 Generate a new KA (public, private) key pair ``(epk, esk)``.
+- ephemeral private key ``esk`` used to encrypt the note [PROTOCOL] §4.10.1 Generate a new KA (public, private) key pair ``(epk, esk)``.
 - JoinSplitSig private key used to sign the JoinSplit transaction ``joinSplitPrivKey`` [PROTOCOL] §4.4 Sending Notes
 
 The payment disclosure data should be persisted to disk or a database so it can be retrieved later.
@@ -119,15 +119,21 @@ When persisting, third party applications should expect serialization of payment
 
     ADD_SERIALIZE_METHODS;
     ...
+    
+    READWRITE(marker);
+    READWRITE(version);
+    READWRITE(esk);
     READWRITE(txid);
-    ...
-    READWRITE(joinSplitPrivKey);
+    READWRITE(js);
+    READWRITE(n);
+    READWRITE(zaddr);
+    READWRITE(message);
 
 A new RPC call will be introduced to allow the sender to retrieve the payment disclosure data for a given shielded output index.
 
 ``z_getpaymentdisclosure txid joinsplit_index output_index [message]``
 
-- Returns the payment disclosure in hexadecimal format.
+- Returns the payment disclosure in case-insensitive hexadecimal format, with a prefix of ``zpd:``.
 - Message is an optional parameter, a UTF-8 string.  We may want to restrict/sanitize this user input, e.g. number of characters, allowed characters.
 
 The sender wants the payment disclosure to be non-malleable, to prevent an attacker modifying details like the refund address.  To achieve this, the sender will sign the payment disclosure with the JoinSplitSig private key and append the signature to the end of the payment disclosure data.
@@ -158,12 +164,13 @@ Validates a payment disclosure and returns JSON output as follows:
 
 Valid field is true if all the following conditions hold:
 
+- the payment disclosure is correctly encoded and has a recognized version
 - txid is confirmed in the blockchain
 - jsindex is valid for the txid
 - outputindex is within range [0..1]
 - paymentaddress is a valid shielded address for the network we are on
 - value is within range [0..MAX_MONEY]
-- message is within constraints e.g. number of characters, allowed characters
+- message is within constraints (TODO: currently there are no constrainst defined, such as number of characters, allowed characters)
 - signature is valid for all of the above fields
 - commitment derived from the deciphered note matches the commitment in the blockchain
 
@@ -249,6 +256,7 @@ To create a valid Payment Disclosure an implementation must:
     ::
     
         struct PaymentDisclosurePayload {
+            int32_t marker = PAYMENT_DISCLOSURE_PAYLOAD_MAGIC_BYTES;  // to be disjoint from transaction encoding
             uint8   version;        // 0 = experimental, 1 = first production version, etc.
             uint256 esk;            // zcash/NoteEncryption.cpp
             uint256 txid;           // primitives/transaction.h
@@ -257,6 +265,8 @@ To create a valid Payment Disclosure an implementation must:
             PaymentAddress zaddr;   // zcash/Address.hpp
             std::string message     // parameter to RPC call
         };
+        
+        TODO: Copy magic bytes info here from https://github.com/zcash/zcash/blob/master/src/paymentdisclosure.h
 
 #. Serialize ``PaymentDisclosurePayload`` and sign the raw data using the ``joinSplitPrivKey`` to generate a signature ``payloadSig``.  Sample C++ code to do this:
 
@@ -319,6 +329,7 @@ To validate a payment disclosure, perform the following steps:
 
 Possible error messages which could cause validation to fail include:
 
+TODO: Add bad prefix error message here
 - "Invalid parameter, expected payment disclosure data in hexadecimal format."
 - "Invalid parameter, payment disclosure data is malformed."
 - "No information available about transaction"
