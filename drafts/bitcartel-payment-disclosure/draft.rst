@@ -31,7 +31,7 @@ Payment disclosure is useful in a number of situations, for example:
 
 When a transaction involves only transparent addresses, the sender and recipient can verify payment by examining the blockchain.  A third party can also perform this verification if they know the transparent addresses of the involved parties.
 
-However, if the transaction involves shielded addresses, the blockchain by itself does not contain enough information from which a record of the payment can be reconstructed and verified.
+However, if the transaction involves shielded addresses, the blockchain by itself does not contain enough information to allow a record of the payment to be reconstructed and verified.
 
 Let us examine the types of transaction that might occur and when a method of payment disclosure would be useful:
 
@@ -46,8 +46,6 @@ shielded --> transparent
 
 shielded --> shielded
   The sender, recipient and amount are unknown.  Payment disclosure required.
-
-TODO: Perhap use a table to make this easier to understand, from perspective of sender,recipient and third party?
 
 Design Overview
 ---------------
@@ -71,8 +69,6 @@ Design Considerations
 ---------------------
 The payment disclosure does not prove that the party presenting the payment disclosure is the sender.
 
-To mitigate against a replay attack, the recipient could enforce a policy where the first person to present a given payment disclosure is the honest sender.
-
 [TODO: Example?] To prevent a man-in-the-middle attack, the recipient could pose an interactive challenge involving some out-of-band secret which only the sender would pass successfully.
 
 A non-interactive solution is also possible:
@@ -85,9 +81,9 @@ Using the JoinSplitSig key pair in this way also means that a sender can make pa
 
 Known Issues
 ------------
-Both plaintext outputs of a joinsplit are currently encrypted with symmetric keys derived from the same ephemeral secret key, as discusshed here: https://github.com/zcash/zcash/issues/558#issuecomment-167819936
+Both plaintext outputs of a joinsplit are currently encrypted with symmetric keys derived from the same ephemeral secret key, as discussed here: https://github.com/zcash/zcash/issues/558#issuecomment-167819936
 
-This means that a payment disclosure which includes the ephemeral secret key intended to decipher the note ciphertext belonging to a particular joinsplit output, creates a privacy leak by also deciphering the other joinsplit output and revealing it's amount and payment address.
+This means that a payment disclosure that includes the ephemeral secret key intended to decipher the note ciphertext belonging to a particular joinsplit output, creates a privacy leak by also deciphering the other joinsplit output and revealing its contents (amount, payment address and memo field).
 
 Note the current implementation of the ``z_sendmany`` RPC call:
 
@@ -97,7 +93,7 @@ Note the current implementation of the ``z_sendmany`` RPC call:
 
 A proposal to prevent information leakage of change addresses is currently under development [KDFT].  TODO: Does this block ZIP approval?
 
-Also note that an independent third party cannot know for sure if the sender and recipient are not colluding to hide value transfer.  JoinSplits have two inputs and two outputs.  The recipient may identify their receiving address for one output, but not disclose the fact that the other output also belongs to them.
+Note that an independent third party cannot know for sure that the sender and recipient are not colluding to hide value transfer.  JoinSplits have two inputs and two outputs.  The recipient may identify their receiving address for one output, but not disclose the fact that the other output also belongs to them.  Also, the sender and recipient could collude to transfer value in a different JoinSplit without disclosing it.
 
 When a shielded transaction is created sucessfully and accepted into the local mempool with ``z_sendmany`` or ``z_shieldcoinbase``, the payment disclosure database is updated with information necessary to create a payment disclosure.  However, the transaction itself may never be mined and confirmed in the blockchain, rendering the database entry itself redundant and available for purging at a later date e.g. garbage collection. 
 
