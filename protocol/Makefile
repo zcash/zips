@@ -25,14 +25,14 @@ pvcpdf:
 
 .PHONY: sapling
 sapling:
-	printf '\\toggletrue{issapling}\n\\renewcommand{\\docversion}{Version %s [NU0+Sapling]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	printf '\\toggletrue{issapling}\n\\renewcommand{\\docversion}{Version %s [\\SaplingSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	# If latexmk fails, touch an input so that 'make' won't think it is up-to-date next time.
 	rm -f sapling.aux sapling.bbl sapling.blg sapling.brf sapling.bcf
 	latexmk -bibtex -pdf -jobname=sapling protocol || { touch incremental_merkle.pdf; exit 1; }
 
 .PHONY: pvcsapling
 pvcsapling:
-	printf '\\toggletrue{issapling}\n\\renewcommand{\\docversion}{Version %s [NU0+Sapling]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	printf '\\toggletrue{issapling}\n\\renewcommand{\\docversion}{Version %s [\\SaplingSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	# If latexmk fails, touch an input so that 'make' won't think it is up-to-date next time.
 	rm -f sapling.aux sapling.bbl sapling.blg sapling.brf sapling.bcf
 	latexmk -bibtex -pdf -jobname=sapling -pvc protocol
