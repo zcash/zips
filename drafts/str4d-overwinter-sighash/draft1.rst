@@ -125,6 +125,10 @@ The items 1, 6, 7, 8a, 8d have the same meaning as the original algorithm. [#wik
 * If ``vjoinsplits`` is non-empty, ``hashJoinSplits`` is the double SHA256 of the serialization of all
   JoinSplits concatenated with the joinSplitPubKey;
 
+  * Note that the JoinSplit proofs are included in the signature hash, as with v1 and v2 transactions. In a
+    future transaction digest algorithm, the proofs will likely be omitted as authentication data, in the same
+    way that signatures are omitted here.
+
 * Otherwise, ``hashJoinSplits`` is a ``uint256`` of ``0x0000......0000``.
 
 8b: ``scriptCode``
