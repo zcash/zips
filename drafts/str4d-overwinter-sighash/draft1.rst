@@ -79,6 +79,10 @@ The BLAKE2b-256 personalization field will be set to::
 
   "ZcashSigHash" || BRANCH_ID
 
+This provides domain separation of the signature hash across parallel branches. It also adds a layer of replay
+protection (transactions targeted for one branch will have invalid signatures on other branches), but this is
+not relied on for security. [#overwinter-replay-protection]_
+
 Semantics of the original sighash types remain unchanged, except the followings:
 
 #. The way of serialization is changed;
@@ -277,6 +281,10 @@ References
    * `The Megatransaction: Why Does It Take 25 Seconds? <http://rusty.ozlabs.org/?p=522>`_
 .. [#offline-wallets] `SIGHASH_WITHINPUTVALUE: Super-lightweight HW wallets and offline data <https://bitcointalk.org/index.php?topic=181734.0>`_
 .. [#ZIP0000] ZIP???: Overwinter Network Upgrade
+.. [#overwinter-replay-protection]
+   The new transaction format introduced in the Overwinter upgrade contain the branch ID that a transaction is
+   committing to (for transaction format serialization unambiguity), and the new consensus rules require that
+   the transactions in a block match the expected branch ID for that block height.
 .. [#01-change] In the original algorithm, a ``uint256`` of ``0x0000......0001`` is committed if the input
    index for a ``SINGLE`` signature is greater than or equal to the number of outputs. In this ZIP a
    ``0x0000......0000`` is commited, without changing the semantics.
