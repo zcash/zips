@@ -61,7 +61,7 @@ Specification
 
 A new transaction digest algorithm is defined, but only applicable from the Overwinter upgrade block height
 [#ZIP0000]_::
-  [TODO: Pick one] BLAKE2[b-256|s] of the serialization of:
+  BLAKE2b-256 of the serialization of:
     1. nVersion of the transaction (4-byte little endian)
     2. hashPrevouts (32-byte hash)
     3. hashSequence (32-byte hash)
@@ -75,9 +75,9 @@ A new transaction digest algorithm is defined, but only applicable from the Over
        c. value of the output spent by this input (8-byte little endian)
        d. nSequence of the input (4-byte little endian)
 
-The BLAKE2[b-256|s] personalization field will be set to::
+The BLAKE2b-256 personalization field will be set to::
 
-  ["ZcashSigHash"|"ZcSH"] || BRANCH_ID
+  "ZcashSigHash" || BRANCH_ID
 
 Semantics of the original sighash types remain unchanged, except the followings:
 
@@ -192,10 +192,9 @@ Refer to the reference implementation, reproduced below, for the precise algorit
       hashJoinSplits = ss.GetHash();
   }
 
-  // TODO: Update after choosing outer hash function
   unsigned char personalization[16] = {};
-  memcpy(personalization, "ZcashSigHash", 8);
-  memcpy(personalization, branchId, 4);
+  memcpy(personalization, "ZcashSigHash", 12);
+  memcpy(personalization+12, branchId, 4);
 
   CBlake2HashWriter ss(SER_GETHASH, 0, personalization);
   // Version
