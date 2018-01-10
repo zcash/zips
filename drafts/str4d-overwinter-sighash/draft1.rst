@@ -34,6 +34,8 @@ There are 4 ECDSA signature verification codes in the original Zcash script syst
 (``ALL``, ``NONE``, or ``SINGLE``, possibly modified by ``ANYONECANPAY``), a transaction digest is generated
 with a double SHA256 of a serialized subset of the transaction, and the signature is verified against this
 digest with a given public key. The detailed procedure is described in a Bitcoin Wiki article. [#wiki-checksig]_
+The transaction digest is additionally used for the JoinSplit signature (solely with sighash type ``ALL``).
+[#zcash-protocol]_
 
 Unfortunately, there are at least 2 weaknesses in the original SignatureHash transaction digest algorithm:
 
@@ -275,6 +277,7 @@ References
 ==========
 
 .. [#wiki-checksig] https://en.bitcoin.it/wiki/OP_CHECKSIG
+.. [#zcash-protocol] `Zcash Protocol Specification, Section 4.6 <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
 .. [#quadratic]
    * `CVE-2013-2292 <https://web.nvd.nist.gov/view/vuln/detail?vulnId=CVE-2013-2292>`_
    * `New Bitcoin vulnerability: A transaction that takes at least 3 minutes to verify <https://bitcointalk.org/?topic=140078>`_
