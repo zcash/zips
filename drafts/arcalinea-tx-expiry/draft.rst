@@ -37,7 +37,7 @@ With the addition of this feature, zero-confirmation transactions with an expira
 Default behavior
 -----------------
 
-Default behavior does not change -- transactions do not expire. (Alternative proposal is to set a default expiry period of 2 days, ~1440 blocks.)
+Default behavior does not change -- transactions do not expire. (Alternative proposal is to set a default expiry period of 2 days, ~1440 blocks.) When nBlockExpiry is set to 0, the transaction will not expire from the mempool.
 
 If used in combination with nLockTime, nLockTime must be a blockheight, and nBlockExpiry must be higher. To simplify this feature, we could disallow its use in conjunction with nLockTime.
 
@@ -52,3 +52,10 @@ Wallet behavior and UI
 Wallet should notify user of expired transactions that must be re-sent.
 
 Wallet should notify user and reject the creation of a transaction that builds on a transaction with zero confirmations and an expiry blockheight set.
+
+RPC interface
+--------------
+
+sendtoaddress will allow the user to easily set a blockheight for the transaction to expire.
+
+sendtoaddress "zcashaddress" amount ( blockexpiry "comment" "comment-to" subtractfeefromamount )
