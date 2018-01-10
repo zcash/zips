@@ -69,9 +69,10 @@ A new transaction digest algorithm is defined, but only applicable from the Over
     3. hashSequence (32-byte hash)
     4. hashOutputs (32-byte hash)
     5. hashJoinSplits (32-byte hash)
-    6. nLocktime of the transaction (8-byte little endian)
-    7. sighash type of the signature (4-byte little endian)
-    8. If we are serializing an input (ie. this is not a JoinSplit signature hash):
+    6. nLockTime of the transaction (8-byte little endian)
+    7. nExpiryTime of the transaction (8-byte little endian)
+    8. sighash type of the signature (4-byte little endian)
+    9. If we are serializing an input (ie. this is not a JoinSplit signature hash):
        a. outpoint (32-byte hash + 4-byte little endian) 
        b. scriptCode of the input (serialized as scripts inside CTxOuts) [TODO]
        c. value of the output spent by this input (8-byte little endian)
@@ -99,7 +100,7 @@ Semantics of the original sighash types remain unchanged, except the followings:
 Field definitions
 -----------------
 
-The items 1, 6, 7, 8a, 8d have the same meaning as the original algorithm. [#wiki-checksig]_
+The items 1, 6, 8, 9a, 9d have the same meaning as the original algorithm. [#wiki-checksig]_
 
 2: ``hashPrevouts``
 ```````````````````
@@ -137,7 +138,12 @@ The items 1, 6, 7, 8a, 8d have the same meaning as the original algorithm. [#wik
 
 * Otherwise, ``hashJoinSplits`` is a ``uint256`` of ``0x0000......0000``.
 
-8b: ``scriptCode``
+7: ``nExpiryTime``
+``````````````
+The block height or time at which the transaction becomes unilaterally invalid, and can never be mined.
+[#ZIP-tx-expiry]_
+
+9b: ``scriptCode``
 ``````````````````
 [TODO: TBC]
 
@@ -145,7 +151,7 @@ The items 1, 6, 7, 8a, 8d have the same meaning as the original algorithm. [#wik
 
 * For ``P2SH``, the ``scriptCode`` is the ``script`` serialized as scripts inside ``CTxOut``.
 
-8c: value
+9c: value
 `````````
 An 8-byte value of the amount of ZEC spent in this input.
 
@@ -218,6 +224,8 @@ Refer to the reference implementation, reproduced below, for the precise algorit
   ss << hashJoinSplits;
   // Locktime
   ss << txTo.nLockTime;
+  // Expiry time
+  ss << txTo.nExpiryTime;
   // Sighash type
   ss << nHashType;
 
@@ -291,3 +299,4 @@ References
 .. [#01-change] In the original algorithm, a ``uint256`` of ``0x0000......0001`` is committed if the input
    index for a ``SINGLE`` signature is greater than or equal to the number of outputs. In this ZIP a
    ``0x0000......0000`` is commited, without changing the semantics.
+.. [#ZIP-tx-expiry] ZIP???: Transaction expiry
