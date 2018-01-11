@@ -86,9 +86,9 @@ This provides domain separation of the signature hash across parallel branches. 
 protection (transactions targeted for one branch will have invalid signatures on other branches), but this is
 not relied on for security. [#overwinter-replay-protection]_
 
-Semantics of the original sighash types remain unchanged, except the followings:
+Semantics of the original sighash types remain unchanged, except the following:
 
-#. The way of serialization is changed;
+#. The serialization format is changed;
 
 #. All sighash types commit to the amount being spent by the signed input;
 
@@ -123,14 +123,14 @@ The items 1, 6, 8, 9a, 9d have the same meaning as the original algorithm. [#wik
   inside CTxOuts);
 
 * If sighash type is ``SINGLE`` and the input index is smaller than the number of outputs, ``hashOutputs`` is
-  the double SHA256 of the output amount with ``scriptPubKey`` of the same index as the input;
+  the double SHA256 of the output (serialized as above) with the same index as the input;
 
 * Otherwise, ``hashOutputs`` is a ``uint256`` of ``0x0000......0000``. [#01-change]_
 
 5: ``hashJoinSplits``
 `````````````````````
 * If ``vjoinsplits`` is non-empty, ``hashJoinSplits`` is the double SHA256 of the serialization of all
-  JoinSplits concatenated with the joinSplitPubKey;
+  JoinSplits (in their canonical transaction serialization format) concatenated with the joinSplitPubKey;
 
   * Note that the JoinSplit proofs are included in the signature hash, as with v1 and v2 transactions. In a
     future transaction digest algorithm, the proofs will likely be omitted as authentication data, in the same
