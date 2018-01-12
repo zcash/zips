@@ -1,7 +1,7 @@
 ::
 
   ZIP: ???
-  Title: Network Upgrade Activation Mechanism
+  Title: Network Upgrade Mechanism
   Author: Jack Grigg <jack@z.cash>
   Comments-Summary: No comments yet.
   Category: Process
@@ -19,10 +19,9 @@ RFC 2119.
 Abstract
 ========
 
-This proposal defines an activation mechanism for coordinating upgrades of the Zcash network, in order to
-remove ambiguity about when network upgrades will activate, provide defined periods in which users should
-upgrade their local software, and minimize the risks to both the upgrading network and those users opting out
-of the changes.
+This proposal defines a mechanism for coordinating upgrades of the Zcash network, in order to remove ambiguity
+about when network upgrades will activate, provide defined periods in which users should upgrade their local
+software, and minimize the risks to both the upgrading network and those users opting out of the changes.
 
 
 Motivation
