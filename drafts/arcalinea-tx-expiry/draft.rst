@@ -16,16 +16,16 @@ This is an Standards ZIP describing a new consensus rule to set an expiration ti
 Motivation
 ===========
 
-Transactions that are too large or have insufficient fees are often not mined. This indeterminism is a source of confusion for users and wallets. Allowing transactions to set a block height or timestamp after which it expires from the mempool would provide certainty around how long a transaction has to confirm before it is rejected by the network and must be re-sent.
+Transactions that are too large or have insufficient fees are often not mined. This indeterminism is a source of confusion for users and wallets. Allowing transactions to set a block height after which it expires from the mempool would provide certainty around how long a transaction has to confirm before it is rejected by the network and must be re-sent.
 
 Advantages include improving performance by removing transactions unlikely to be mined, and potentially simplifying bidirectional payment channels by reducing the need to store and compress revocations for past states, since transactions not committed to the chain could expire and become invalid after a period of time.
 
 Specification
 ===============
 
-Transactions will have a new field, nExpiryTime, which will set the block height or UNIX timestamp after which transactions will be removed from the mempool if they have not been mined.
+Transactions will have a new field, nBlockExpiry, which will set the block height after which transactions will be removed from the mempool if they have not been mined.
 
-The data type for nExpiryTime will be uint32_t, conforming to the structure of nLockTime. If used in combination with nLockTime, both nLockTime and nExpiryTime must be the same unit (either block height or timestamp).
+The data type for nBlockExpiry will be uint32_t, conforming to the structure of nLockTime. If used in combination with nLockTime, both nLockTime and nBlockExpiry must be block heights.
 
 For the example below, the last block that the transaction below could possibly be included in is 3539. After that, it will be removed from the mempool.
 
@@ -36,18 +36,11 @@ For the example below, the last block that the transaction below could possibly 
 "blockexpiry": 3539,
 ```
 
-Default: nExpiryTime defaults to 0, which means transaction does not expire, preserving current behavior.
-Minimum: When nExpiryTime is set, it must be at least 60 blocks greater than the current blockheight, or 2 hrs greater than LOCKTIME_MEDIAN_TIME_PAST. This is because of the safety thresholds specified below.
-Maximum: No maximum specified, although based on the highest timestamp available for uint32 numbers, nExpiryTime becomes meaningless after the year 2106.
+Default: TBD. One suggestion is 576 blocks, or about 1 day assuming 2.5 minute block times. Can add a config option to set user's default.
+Minimum: No minimum
+Maximum: 500000000, about 380 years
+No limit: To set no limit on transactions (so that they do not expire), nBlockExpiry should be set to UINT_MAX.  
 
-Timeline of expiration safety thresholds
------------------------------------------
-
-2 hours before a transaction is set to expire, other nodes stop relaying it.
-1 hour before expiring, CreateNewBlock does not include the tx anymore. This is in case mining software changes the timestamp afterwards, resulting in the mining of an invalid block that contains expired transactions.
-1 hour after expiring, wallet marks the transaction as expired and frees the coins.
-
-Another reason to set a minimum expiration period is to mitigate the use of this feature as a spam mechanism.
 
 Upon block reorganization
 --------------------------
@@ -59,18 +52,24 @@ Wallet behavior and UI
 
 With the addition of this feature, zero-confirmation transactions with an expiration block height set will have even less guarantee of inclusion. This means that UIs and services must never rely on zero-confirmation transactions in Zcash.
 
-Wallet should notify user of expired transactions that must be re-sent.
+Wallet should notify user of expired transactions that must be re-sent. See "Notify" section below.
 
 Wallet should notify user and reject the creation of a transaction that builds on a transaction with zero confirmations and an expiry blockheight set.
 
 RPC
 -----
+To use:
+To make changes to the sendtoaddress and z_sendmany commands backwards compatible for future changes, keyword arguments should be accepted by the RPC interface. Since this is not consensus critical behavior, it can be added in a future release. For Overwinter, tx expiry will be set to a default that can be overridden by a flag `txexpirydefault` set in the config file.
+
+-txexpirydefault= set default for tx expiry
+
+To view:
 listtransactions has a new filter attribute, showing expired transactions only:
     listtransactions "*" 10 0 "expired"
 
 WalletTxToJSON shows a boolean expired true/false
 
 Notify
---------
+-------
 
 -expirenotify= can notify an external script when a wallet transaction expires
