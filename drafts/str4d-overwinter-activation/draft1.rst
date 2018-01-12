@@ -110,6 +110,24 @@ parsed under the consensus rules corresponding to their height.
 Incoming blocks with unknown heights (because at least one block in their parent chain is unknown) MUST NOT be
 considered valid, but MAY be cached for future consideration after all their parents have been received.
 
+Chain reorganization
+````````````````````
+It is possible for a reorganization to occur that rolls back from after the activation height, to before that
+height. This can handled in the same way as any regular chain orphaning or reorganization, as long as the new
+chain is valid over the same epochs.
+
+Post-activation upgrading
+`````````````````````````
+If a user does not upgrade their node to a compatible software version before ``ACTIVATION_HEIGHT`` is
+reached, their node will follow the pre-upgrade chain and download blocks that are incompatible with the
+post-upgrade branch. If the user subsequently upgrades their node to a compatible software version, the node
+will consider these blocks to be invalid, and MUST take one of the two following actions:
+
+- Discard all blocks of height ``ACTIVATION_HEIGHT`` and above, and then synchronize with the network.
+
+- Shut down and alert the user of the issue. In this case, the node could offer an option to perform the first
+  action.
+
 Memory pool
 -----------
 
