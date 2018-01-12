@@ -65,26 +65,33 @@ A new transaction digest algorithm is defined, but only applicable from the Over
 [#ZIP0000]_::
   BLAKE2b-256 of the serialization of:
     1. nVersion of the transaction (4-byte little endian)
-    2. hashPrevouts (32-byte hash)
-    3. hashSequence (32-byte hash)
-    4. hashOutputs (32-byte hash)
-    5. hashJoinSplits (32-byte hash)
-    6. nLockTime of the transaction (8-byte little endian)
-    7. nExpiryTime of the transaction (8-byte little endian)
-    8. sighash type of the signature (4-byte little endian)
-    9. If we are serializing an input (ie. this is not a JoinSplit signature hash):
+    2. nVersionBranch of the transaction (4-byte little endian)
+    3. hashPrevouts (32-byte hash)
+    4. hashSequence (32-byte hash)
+    5. hashOutputs (32-byte hash)
+    6. hashJoinSplits (32-byte hash)
+    7. nLockTime of the transaction (8-byte little endian)
+    8. nExpiryTime of the transaction (8-byte little endian)
+    9. sighash type of the signature (4-byte little endian)
+   10. If we are serializing an input (ie. this is not a JoinSplit signature hash):
        a. outpoint (32-byte hash + 4-byte little endian) 
        b. scriptCode of the input (serialized as scripts inside CTxOuts) [TODO]
        c. value of the output spent by this input (8-byte little endian)
        d. nSequence of the input (4-byte little endian)
 
-The BLAKE2b-256 personalization field will be set to::
+The BLAKE2b-256 personalization field is set to::
 
-  "ZcashSigHash" || BRANCH_ID
+  "ZcashSigHash" || BLOCK_BRANCH_ID
 
-This provides domain separation of the signature hash across parallel branches. It also adds a layer of replay
-protection (transactions targeted for one branch will have invalid signatures on other branches), but this is
-not relied on for security. [#overwinter-replay-protection]_
+``BLOCK_BRANCH_ID`` is the ``BRANCH_ID`` for the epoch of the transaction's parent block. [#ZIP-activation-mechanism]_
+Domain separation of the signature hash across parallel branches provides replay protection: transactions
+targeted for one branch will have invalid signatures on other branches. This has two effects on user behavior:
+
+* Transaction creators MUST specify the epoch they want their transaction to be mined in. Across a network
+  upgrade, this means that if a transaction is not mined before the activation height, it will never be mined.
+
+* Transaction validators MUST NOT use ``nVersionBranch`` as the ``BLOCK_BRANCH_ID``: while these are both a
+  ``BRANCH_ID`` "under the hood", they are **semantically different**.
 
 Semantics of the original sighash types remain unchanged, except the following:
 
@@ -100,23 +107,28 @@ Semantics of the original sighash types remain unchanged, except the following:
 Field definitions
 -----------------
 
-The items 1, 6, 8, 9a, 9d have the same meaning as the original algorithm. [#wiki-checksig]_
+The items 1, 7, 9, 10a, 10d have the same meaning as the original algorithm. [#wiki-checksig]_
 
-2: ``hashPrevouts``
+2: ``nVersionBranch``
+`````````````````````
+The ``BRANCH_ID`` of the epoch in which the transaction format corresponding to ``nVersion`` was introduced.
+[#ZIP-overwinter-tx-format]_
+
+3: ``hashPrevouts``
 ```````````````````
 * If the ``ANYONECANPAY`` flag is not set, ``hashPrevouts`` is the double SHA256 of the serialization of all
   input outpoints;
 
 * Otherwise, ``hashPrevouts`` is a ``uint256`` of ``0x0000......0000``.
 
-3: ``hashSequence``
+4: ``hashSequence``
 ```````````````````
 * If none of the ``ANYONECANPAY``, ``SINGLE``, ``NONE`` sighash type is set, ``hashSequence`` is the double
   SHA256 of the serialization of ``nSequence`` of all inputs;
 
 * Otherwise, ``hashSequence`` is a ``uint256`` of ``0x0000......0000``.
 
-4: ``hashOutputs``
+5: ``hashOutputs``
 ``````````````````
 * If the sighash type is neither ``SINGLE`` nor ``NONE``, ``hashOutputs`` is the double SHA256 of the
   serialization of all output amount (8-byte little endian) with ``scriptPubKey`` (serialized as scripts
@@ -127,7 +139,7 @@ The items 1, 6, 8, 9a, 9d have the same meaning as the original algorithm. [#wik
 
 * Otherwise, ``hashOutputs`` is a ``uint256`` of ``0x0000......0000``. [#01-change]_
 
-5: ``hashJoinSplits``
+6: ``hashJoinSplits``
 `````````````````````
 * If ``vjoinsplits`` is non-empty, ``hashJoinSplits`` is the double SHA256 of the serialization of all
   JoinSplits (in their canonical transaction serialization format) concatenated with the joinSplitPubKey;
@@ -138,12 +150,12 @@ The items 1, 6, 8, 9a, 9d have the same meaning as the original algorithm. [#wik
 
 * Otherwise, ``hashJoinSplits`` is a ``uint256`` of ``0x0000......0000``.
 
-7: ``nExpiryTime``
+8: ``nExpiryTime``
 ``````````````
 The block height or time at which the transaction becomes unilaterally invalid, and can never be mined.
 [#ZIP-tx-expiry]_
 
-9b: ``scriptCode``
+10b: ``scriptCode``
 ``````````````````
 [TODO: TBC]
 
@@ -151,7 +163,7 @@ The block height or time at which the transaction becomes unilaterally invalid, 
 
 * For ``P2SH``, the ``scriptCode`` is the ``script`` serialized as scripts inside ``CTxOut``.
 
-9c: value
+10c: value
 `````````
 An 8-byte value of the amount of ZEC spent in this input.
 
@@ -292,10 +304,8 @@ References
    * `The Megatransaction: Why Does It Take 25 Seconds? <http://rusty.ozlabs.org/?p=522>`_
 .. [#offline-wallets] `SIGHASH_WITHINPUTVALUE: Super-lightweight HW wallets and offline data <https://bitcointalk.org/index.php?topic=181734.0>`_
 .. [#ZIP0000] ZIP???: Overwinter Network Upgrade
-.. [#overwinter-replay-protection]
-   The new transaction format introduced in the Overwinter upgrade contain the branch ID that a transaction is
-   committing to (for transaction format serialization unambiguity), and the new consensus rules require that
-   the transactions in a block match the expected branch ID for that block height.
+.. [#ZIP-activation-mechanism] ZIP???: Network Upgrade Activation Mechanism
+.. [#ZIP-tx-format] ZIP???: Overwinter Transaction Format
 .. [#01-change] In the original algorithm, a ``uint256`` of ``0x0000......0001`` is committed if the input
    index for a ``SINGLE`` signature is greater than or equal to the number of outputs. In this ZIP a
    ``0x0000......0000`` is commited, without changing the semantics.
