@@ -74,7 +74,7 @@ There will be new fields for:
 ======== =============== =========================== =======
 Version  Field           Description                 Type
 ======== =============== =========================== =======
-3        version         bit 31 (msb) must be set    int32
+3        version         must be negative            int32
 3        branch_id       branch/fork identifier      uint32
 3        expiry_height   block height                uint32
 3        extra_count     number of extra fields      uint8
@@ -94,7 +94,23 @@ Version  Field           Description                 Type
 Transaction Version
 -------------------
 
-With Overwinter, the most significant bit of the version field must be set, meaning that legacy parsers will interpret the version, the first four bytes of a serialized transaction, as a negative value.  Since legacy parsers expect version to be a positive value, such as 1 or 2, legacy parsers will reject Overwinter transactions as invalid.
+The version field is always serialized in little-endian format.
+
+Version 1 transaction 5c6ba844e1ca1c8083cd53e29971bd82f1f9eea1f86c1763a22dd4ca183ae061
+- begins with 0x01000000
+- 32-bit integer 00 00 00 01 == 1
+
+Version 2 transaction 4435bf8064e74f01262cb1725fd9b53e600fa285950163fd961bed3a64260d8b
+- begins with 0x02000000
+- 32-bit integer 00 00 00 02 == 2
+
+Legacy parsers require the version to be positive.
+
+Overwinter parsers require the version to be negative and should set the most significant bit of the 32-bit signed integer.  When serialized, a Version 3 Overwinter transaction will take the form:
+- begins with 0xfdffffff
+- 32-bit integer ff ff ff fd == -3
+
+Legacy parsers will expect the version to be a positive value, such as 1 or 2, and will thus reject Overwinter transactions as invalid.
 
 Existing code typically checks the tx version using greater than comparison operators::
 
@@ -111,11 +127,11 @@ Existing tests typically set tx.nVersion to zero as an error condition::
 
 By using a negative value for the version field, we ensure there is replay protection between Legacy and Overwinter compatible software.
 
-Consider an example where the raw version field of an Overwinter transaction is 0xFFFFFFFD ( binary 11111111 11111111 11111111 11111101 )
+Consider an example where the raw little-endian bytes of the version field of an Overwinter transaction begin 0xFDFFFFFF ( binary 11111101111111111111111111111111 )
 
 Legacy parsers will deserialize the raw version field as a 32-bit signed integer.  With a negative version value of -3, legacy parsers will reject the transaction.
 
-Overwinter parsers will deserialize the raw version field as a 32-bit signed integer.  With a negative raw value of -3, the Overwinter parser knows the most significant bit has been set; the parser could also choose to speficially test the bit has been set.
+Overwinter parsers will deserialize the raw version field as a 32-bit signed integer.  With a negative raw value of -3, the Overwinter parser will accept the transaction as the most significan bit of the 32-bit signed integer has been set.
 
 Overwinter parsers can retrieve the transaction format version of 3 by getting the absolute value of the raw version field e.g. using standard library call std::abs()
 
@@ -123,30 +139,6 @@ Currently, the nVersion field is a public member variable which can be accessed 
 
     bool isLegacyFormat()         // return true if the msb of nVersion is not set
     unsigned int32 getVersion()   // return absolute value of raw version field which is compatible with Legacy and Overwinter
-
-Alternate Transaction Version
------------------------------
-
-Another option considered is that transaction version 3 could be represented as:
-
-0x80000003 = 10000000 00000000 00000000 00000011
-
-The value of the raw version field is -2147483646, so a Legacy parser would reject this transaction.
-
-To retrieve the transaction version value of 3, an Overwinter parser would need to mask off the most significant byte.
-
-0x7FFFFFFF & 0x80000003 = 00000000 00000000 00000000 00000011
-
-This alternate method however implies that the transaction format should be changed to look like this:
-
-======== =============== =========================== =======
-Version  Field           Description                 Type
-======== =============== =========================== =======
-3        overwinter_flag must be set to 1            1 bit
-3        version         positive value              31 bits
-...      ...             ...                         ...
-======== =============== =========================== =======
-
 
 
 Soft forking with extra fields
