@@ -69,7 +69,6 @@ There will be new fields for:
 
 * branch id
 * expiry height
-* list of extra fields for future soft forks
 
 ======== =============== =========================== =======
 Version  Field           Description                 Type
@@ -77,8 +76,6 @@ Version  Field           Description                 Type
 3        version         must be negative            int32
 3        branch_id       branch/fork identifier      uint32
 3        expiry_height   block height                uint32
-3        extra_count     number of extra fields      uint8
-3        vExtraFields    list of uint32 extra fields vector
 1        in_count        varint                      1-9 bytes
 1        tx_inputs       list of inputs              vector
 1        out_count       varint                      1-9 bytes
@@ -121,7 +118,7 @@ Existing tests typically set tx.nVersion to zero as an error condition::
 
     mtx.nVersion = 0;
     // https://github.com/zcash/zcash/blob/59de56eeca6f9f6f7dc1841630d53676075242a5/src/gtest/test_mempool.cpp#L99
-    
+
     EXPECT_CALL(state, DoS(100, false, REJECT_INVALID, "bad-txns-version-too-low", false)).Times(1);
     // https://github.com/zcash/zcash/blob/30d3d2dfd438a20167ddbe5ed2027d465cbec2f0/src/gtest/test_checktransaction.cpp#L99
 
@@ -141,48 +138,19 @@ Currently, the nVersion field is a public member variable which can be accessed 
     unsigned int32 getVersion()   // return absolute value of raw version field which is compatible with Legacy and Overwinter
 
 
-Soft forking with extra fields
-------------------------------
-
-Transaction version 3 will have no extra fields.
-
-* extra_count must be 0
-* vExtraFields must be empty
-
-The extra fields are to be used by new transaction formats to maintain forwards compatibility.  For example, an Overwinter node should still be able to process transaction format version 4 if it introduces additional data fields which can be ignored by the node.
-
-An Overwinter parser which can only process version 3 transactions should ignore the extra fields::
-
-  if (tx.getVersion() >= 3) {
-    // parse transaction, ignoring extra_count and vExtraFields
-    // optionally assert that extra_count == 0 and vExtraFields.length == 0
-  }
-
-If the parser is aware of transaction version 4, code might look like this::
-
-    if (tx.getVersion() == 3) {
-      ...
-    } else if (tx.getVersion() >= 4 ) {
-      // verify extra_count should be 1
-      // verify vExtraFields.length matches extra_count
-      // retrieve the extra field
-      // verify the extra field
-      // take some action based on the extra field
-    }
-      
-Multiple branches
------------------
+Forwards Compatibility
+----------------------
 
 A branch may support many transaction version formats.  For example:
 
 * Zcash reference implementation, branch "Zcash", versions 3, 4.
 * Fork of Zcash, branch "Clone", versions 3, 4*
 
-4* is transaction format version 4 for the "Clone" branch and might be substantially different from the expected transaction format version 4 for the "Zcash" branch.
+Where transaction format version 4* for the "Clone" branch might be substantially different from the expected transaction format version 4 for the "Zcash" branch.
 
-Given forward compatibility, we want the "Zcash" branch nodes to reject version 4* transactions which are intended only for the "Clone" branch.
+Given forwards compatibility, we want the "Zcash" branch nodes to accept transaction version 4, whilst rejecting version 4* transactions which are intended only for the "Clone" branch.
 
-To achieve this, Overwinter requires a transaction to include a branch ID, to explicitly state which branch (i.e. network) this transaction is intended for.
+To achieve this, Overwinter requires a transaction to include a branch ID, to explicitly state which branch of the network this transaction is intended for.
 
 Overwinter introduces a new signature hashing scheme which includes the branch ID, but by including the branch ID into the transaction format, clients can quickly reject transactions during deserialization without having to check signatures.
 
