@@ -383,9 +383,13 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 % Daira: This doesn't adequately distinguish between zk stuff and transparent stuff
 \newcommand{\paymentAddress}{\term{payment address}}
 \newcommand{\paymentAddresses}{\term{payment addresses}}
+\newcommand{\diversifiedPaymentAddress}{\term{diversified payment address}}
+\newcommand{\diversifiedPaymentAddresses}{\term{diversified payment addresses}}
 \newcommand{\incomingViewingKey}{\term{incoming viewing key}}
 \newcommand{\incomingViewingKeys}{\term{incoming viewing keys}}
 \newcommand{\IncomingViewingKeys}{\titleterm{Incoming Viewing Keys}}
+\newcommand{\fullViewingKey}{\term{full viewing key}}
+\newcommand{\fullViewingKeys}{\term{full viewing keys}}
 \newcommand{\receivingKey}{\term{receiving key}}
 \newcommand{\receivingKeys}{\term{receiving keys}}
 \newcommand{\spendingKey}{\term{spending key}}
@@ -393,6 +397,10 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\payingKey}{\term{paying key}}
 \newcommand{\transmissionKey}{\term{transmission key}}
 \newcommand{\transmissionKeys}{\term{transmission keys}}
+\newcommand{\authSigningKey}{\term{spend authorization key}}
+\newcommand{\authSigningKeys}{\term{spend authorization keys}}
+\newcommand{\delegatedProvingKey}{\term{delegated proving key}}
+\newcommand{\delegatedProvingKeys}{\term{delegated proving keys}}
 \newcommand{\notePlaintext}{\term{note plaintext}}
 \newcommand{\notePlaintexts}{\term{note plaintexts}}
 \newcommand{\NotePlaintexts}{\titleterm{Note Plaintexts}}
@@ -509,6 +517,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 
 % key pairs:
 \newcommand{\PaymentAddress}{\mathsf{addr_{pk}}}
+\newcommand{\DiversifiedPaymentAddress}{\mathsf{addr_{d}}}
 \newcommand{\PaymentAddressLeadByte}{\hexint{16}}
 \newcommand{\PaymentAddressSecondByte}{\hexint{9A}}
 \newcommand{\InViewingKey}{\mathsf{ivk}}
@@ -555,6 +564,15 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\TransmitPublicNew}[1]{\mathsf{pk^{new}_{\enc,\mathnormal{#1}}}}
 \newcommand{\TransmitPrivate}{\mathsf{sk_{enc}}}
 \newcommand{\TransmitPrivateSup}[1]{\mathsf{sk}^{#1}_\mathsf{enc}}
+
+% Sapling
+\newcommand{\AuthPrivateSeed}{\mathsf{sk}}
+\newcommand{\AuthSignPrivate}{\mathsf{ask}}
+\newcommand{\AuthSignPublic}{\mathsf{ak}}
+\newcommand{\AuthProveKey}{\mathsf{rsk}}
+\newcommand{\PRFKey}{\mathsf{rk}}
+\newcommand{\Diversifier}{\mathsf{d}}
+\newcommand{\DiversifiedTransmitPublic}{\mathsf{pk}_\mathsf{d}}
 
 % PRFs
 \newcommand{\PRF}[2]{\mathsf{{PRF}^{#2}_\mathnormal{#1}}}
@@ -1264,12 +1282,20 @@ $\PoWMaxAdjustUp$ will also be defined in that section.
 
 \nsubsection{Payment Addresses and Keys}
 
-\saplingonly{
-\todo{Update this section.}
-}
-
 Users who wish to receive payments under this scheme first generate a
-random \spendingKey $\AuthPrivate$.
+random \spendingKey\sprout{ $\AuthPrivate$}.
+\sapling{In \Sprout this is called $\AuthPrivate$ and in \Sapling it is
+called $\AuthPrivateSeed$.}
+
+The following diagram depicts the relations between key
+components\notsprout{ in \Sprout}\sapling{ and \Sapling}.
+Arrows point from a component to any other component(s) that can be derived
+from it.
+
+\begin{center}
+\sprout{\includegraphics[scale=.7]{key_components}}
+\sapling{\includegraphics[scale=.5]{key_components_sapling}}
+\end{center}
 
 \sproutonly{
 The \receivingKey $\TransmitPrivate$, the \incomingViewingKey
@@ -1278,48 +1304,49 @@ $\PaymentAddress = (\AuthPublic, \TransmitPublic)$ are derived from
 $\AuthPrivate$, as described in \crossref{keycomponents}.
 }
 
-\sproutonly{
-The following diagram depicts the relations between key components.
-Arrows point from a component to any other component(s) that can be derived
-from it.
-}
-
-\begin{center}
-\includegraphics[scale=.7]{key_components}
-\end{center}
-
-The derivation of these components is detailed in \crossref{keycomponents}.
-
 \saplingonly{
-\todo{Add diagram for diversified keys.}
+The \authSigningKey $\AuthSignPrivate$,
+the \delegatedProvingKey $(\AuthSignPublic, \AuthProveKey)$,
+the \fullViewingKey $(\AuthSignPublic, \PRFKey)$,
+the \incomingViewingKey $\InViewingKey$, and
+each \diversifiedPaymentAddress $\DiversifiedPaymentAddress = (\Diversifier, \DiversifiedTransmitPublic)$
+are derived from $\AuthPrivateSeed$, as described in \crossref{keycomponents}.
 }
 
-The composition of \paymentAddresses\changed{, \incomingViewingKeys,} and
-\spendingKeys is a cryptographic protocol detail that should not normally be
-exposed to users. However, user-visible operations should be provided
-to obtain a \paymentAddress\changed{ or \incomingViewingKey} from a \spendingKey.
+The composition of \paymentAddresses, \changed{\incomingViewingKeys,}
+\sapling{\fullViewingKeys,} and \spendingKeys is a cryptographic protocol
+detail that should not normally be exposed to users. However, user-visible
+operations should be provided to obtain a \paymentAddress\changed{ or \incomingViewingKey}
+\sapling{ or \fullViewingKey} from a \spendingKey.
 
-\sproutonly{
 Users can accept payment from multiple parties with a single \paymentAddress
-$\PaymentAddress$ and the fact that these payments are destined to
+and the fact that these payments are destined to
 the same payee is not revealed on the \blockchain, even to the
 paying parties. \emph{However} if two parties collude to compare a
 \paymentAddress they can trivially determine they are the same. In the
 case that a payee wishes to prevent this they should create a distinct
 \paymentAddress for each payer.
+
+\saplingonly{
+\Sapling provides a mechanism to allow the efficient creation of
+\diversifiedPaymentAddresses with the same spending authority. A group of
+such addresses shares the same \fullViewingKey and \incomingViewingKey, and
+so creating as many unlinkable addresses as needed does not increase the cost
+of scanning the \blockchain for relevant \transactions.
 }
 
 \pnote{
 It is conventional in cryptography to refer to the key used to encrypt
 a message in an asymmetric encryption scheme as the ``public key".
-However, the public key used as the \transmissionKey component
-of an address ($\TransmitPublic$) need not be publically distributed; it
-has the same distribution as the \paymentAddress itself. As mentioned above,
-limiting the distribution of the \paymentAddress is important for some use cases.
-This also helps to reduce reliance of the overall protocol on the security
-of the cryptosystem used for \note encryption (see \crossref{inband}), since
-an adversary would have to know $\TransmitPublic$ in order to exploit a
-hypothetical weakness in that cryptosystem.
+However, the public key used as the \transmissionKey component of an address
+($\TransmitPublic$\sapling{ or $\DiversifiedTransmitPublic$}) need not be
+publically distributed; it has the same distribution as the \paymentAddress itself.
+As mentioned above, limiting the distribution of the \paymentAddress is important
+for some use cases. This also helps to reduce reliance of the overall protocol
+on the security of the cryptosystem used for \note encryption
+(see \crossref{inband}), since an adversary would have to know
+$\TransmitPublic$\sapling{ or $\DiversifiedTransmitPublic$} in order to
+exploit a hypothetical weakness in that cryptosystem.
 }
 
 \introsection
