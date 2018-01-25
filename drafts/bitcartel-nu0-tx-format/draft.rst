@@ -46,16 +46,16 @@ Zcash launched with support for upstream Bitcoin version 1 transactions and a cu
 ======== =============== =========================== =======
 Version  Field           Description                 Type
 ======== =============== =========================== =======
-1        version         positive value              int32
-1        in_count        varint                      1-9 bytes
-1        tx_inputs       list of inputs              vector
-1        out_count       varint                      1-9 bytes
-1        tx_outputs      list of outputs             vector
-1        lock_time       block height or timestamp   uint32
-2        nJoinSplit      varint                      1-9 bytes
-2        vJoinSplit      list of joinsplits          vector
-2        joinSplitPubKey joinSplitSig public key     32 bytes
-2        joinSplitSig    signature                   64 bytes
+>= 1     version         positive value              int32
+>= 1     in_count        varint                      1-9 bytes
+>= 1     tx_inputs       list of inputs              vector
+>= 1     out_count       varint                      1-9 bytes
+>= 1     tx_outputs      list of outputs             vector
+>= 1     lock_time       block height or timestamp   uint32
+>= 2     nJoinSplit      varint                      1-9 bytes
+>= 2     vJoinSplit      list of joinsplits          vector
+>= 2     joinSplitPubKey joinSplitSig public key     32 bytes
+>= 2     joinSplitSig    signature                   64 bytes
 ======== =============== =========================== =======
 
 Version 1 and 2 transaction formats are legacy formats.
@@ -72,18 +72,18 @@ There will be new fields for:
 ======== =============== =========================== =======
 Version  Field           Description                 Type
 ======== =============== =========================== =======
-3        version         must be negative            int32
-3        branch_id       branch/fork identifier      uint32
-3        expiry_height   block height                uint32
-1        in_count        varint                      1-9 bytes
-1        tx_inputs       list of inputs              vector
-1        out_count       varint                      1-9 bytes
-1        tx_outputs      list of outputs             vector
-1        lock_time       block height or timestamp   uint32
-2        nJoinSplit      varint                      1-9 bytes
-2        vJoinSplit      list of joinsplits          vector
-2        joinSplitPubKey joinSplitSig public key     32 bytes
-2        joinSplitSig    signature                   64 bytes
+>= 3     version         must be negative            int32
+>= 3     branch_id       branch/fork identifier      uint32
+>= 3     expiry_height   block height                uint32
+>= 1     in_count        varint                      1-9 bytes
+>= 1     tx_inputs       list of inputs              vector
+>= 1     out_count       varint                      1-9 bytes
+>= 1     tx_outputs      list of outputs             vector
+>= 1     lock_time       block height or timestamp   uint32
+>= 2     nJoinSplit      varint                      1-9 bytes
+>= 2     vJoinSplit      list of joinsplits          vector
+>= 2     joinSplitPubKey joinSplitSig public key     32 bytes
+>= 2     joinSplitSig    signature                   64 bytes
 ======== =============== =========================== =======
 
 
