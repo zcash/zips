@@ -35,7 +35,6 @@ A new transaction format is required to:
 * support safe network upgrades as specified in Network Upgrade Activation Mechanism [#zip-0???]_.
 * provide replay protection between Legacy and Overwinter network upgrade.
 * provide replay protection between different branches post-Overwinter e.g. Overwinter and Sapling upgrade.
-* enable soft forks of transactions within a branch i.e. forwards compatibility, where a node will accept a newer transaction version format.
 * enable a branch to support multiple transaction version formats
 * support transaction expiry as specified in the Transaction Expiry [#zip-0???]_
 
