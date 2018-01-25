@@ -37,6 +37,30 @@ pvcsapling:
 	rm -f sapling.aux sapling.bbl sapling.blg sapling.brf sapling.bcf
 	latexmk -bibtex -pdf -jobname=sapling -pvc protocol
 
+LATEX=pdflatex
+
+.PHONY: nolatexmk-pdf
+nolatexmk-pdf:
+	printf '\\renewcommand{\\docversion}{Version %s}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	# If $(LATEX) fails, touch an input so that 'make' won't think it is up-to-date next time.
+	rm -f protocol.aux protocol.bbl protocol.blg protocol.brf protocol.bcf
+	$(LATEX) protocol.tex || { touch incremental_merkle.pdf; exit 1; }
+	biber protocol
+	$(LATEX) protocol.tex || { touch incremental_merkle.pdf; exit 1; }
+	$(LATEX) protocol.tex || { touch incremental_merkle.pdf; exit 1; }
+	$(LATEX) protocol.tex || { touch incremental_merkle.pdf; exit 1; }
+
+.PHONY: nolatexmk-sapling
+nolatexmk-sapling:
+	printf '\\toggletrue{issapling}\n\\renewcommand{\\docversion}{Version %s [\\SaplingSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	# If $(LATEX) fails, touch an input so that 'make' won't think it is up-to-date next time.
+	rm -f sapling.aux sapling.bbl sapling.blg sapling.brf sapling.bcf
+	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.pdf; exit 1; }
+	biber sapling
+	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.pdf; exit 1; }
+	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.pdf; exit 1; }
+	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.pdf; exit 1; }
+
 .PHONY: clean
 clean:
 	rm -f protocol.dvi protocol.pdf protocol.bbl protocol.blg protocol.brf     protocol.toc \
