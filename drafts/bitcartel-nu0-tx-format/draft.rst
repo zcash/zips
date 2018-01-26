@@ -73,7 +73,7 @@ There will be new fields for:
 ======== =============== =========================== =======
 Version  Field           Description                 Type
 ======== =============== =========================== =======
->= 3     version         must be negative            int32
+>= 3     version         must have MSB set           int32
 >= 3     branch_id       branch/fork identifier      uint32
 >= 3     expiry_height   block height                uint32
 >= 1     in_count        varint                      1-9 bytes
@@ -95,26 +95,37 @@ The version field is always serialized in little-endian format.
 
 Version 1 transaction 5c6ba844e1ca1c8083cd53e29971bd82f1f9eea1f86c1763a22dd4ca183ae061
 - begins with 0x01000000
-- 32-bit integer 00 00 00 01 == 1
+- 32-bit signed integer 00 00 00 01 == 1
 
 Version 2 transaction 4435bf8064e74f01262cb1725fd9b53e600fa285950163fd961bed3a64260d8b
 - begins with 0x02000000
-- 32-bit integer 00 00 00 02 == 2
+- 32-bit signed integer 00 00 00 02 == 2
 
-Legacy parsers require the version to be positive.
+Legacy parsers require the transaction version number to be positive.
 
-Overwinter parsers require the version to be negative and should set the most significant bit of the 32-bit signed integer.  When serialized, a Version 3 Overwinter transaction will take the form:
-- begins with 0xfdffffff
-- 32-bit integer ff ff ff fd == -3
+Overwinter parsers also require the transaction version number to be positive, however the serialized version field must have the most significant bit set.
 
-Legacy parsers will expect the version to be a positive value, such as 1 or 2, and will thus reject Overwinter transactions as invalid.
+By setting the most significant bit of the version field, we ensure there is replay protection between Legacy and Overwinter compatible software.  With two's complement integers, the most significant bit indicates whether an integer is positive or negative, therefore Overwinter version fields will be negative.
 
-Existing code typically checks the tx version using greater than comparison operators::
+Consider the following example:
 
-    if (tx.nVersion >= 2) {
+When serialized, a Version 3 Overwinter transaction will take the form:
+- Little endian format: 0x03000080
+- Representing a 32-bit signed integer: 0x80000003
+- Which has a decimal value of: -2147483645
+
+Legacy parsers will expect the version to be a positive value, such as 1 or 2, and will thus reject the Overwinter transaction as invalid.
+
+Overwinter parsers will accept the transaction as valid as the most significant bit of the 32-bit signed integer has been set.  By masking off (unsetting) the most significant bit, the parser can retrieve the actual transaction version number::
+
+    0x80000003 & 0x7FFFFFFFF = 0x00000003 = 3
+
+Existing code can continue to check the transaction version using greater than comparison operators::
+
+    if (tx.nVersion >= 3) {
       for (int js = 0; js < joinsplits; js++) {
 
-Existing tests typically set tx.nVersion to zero as an error condition::
+Existing tests can continue to set tx.nVersion to zero as an error condition::
 
     mtx.nVersion = 0;
     // https://github.com/zcash/zcash/blob/59de56eeca6f9f6f7dc1841630d53676075242a5/src/gtest/test_mempool.cpp#L99
@@ -122,20 +133,11 @@ Existing tests typically set tx.nVersion to zero as an error condition::
     EXPECT_CALL(state, DoS(100, false, REJECT_INVALID, "bad-txns-version-too-low", false)).Times(1);
     // https://github.com/zcash/zcash/blob/30d3d2dfd438a20167ddbe5ed2027d465cbec2f0/src/gtest/test_checktransaction.cpp#L99
 
-By using a negative value for the version field, we ensure there is replay protection between Legacy and Overwinter compatible software.
-
-Consider an example where the raw little-endian bytes of the version field of an Overwinter transaction begin 0xFDFFFFFF ( binary 11111101111111111111111111111111 )
-
-Legacy parsers will deserialize the raw version field as a 32-bit signed integer.  With a negative version value of -3, legacy parsers will reject the transaction.
-
-Overwinter parsers will deserialize the raw version field as a 32-bit signed integer.  With a negative raw value of -3, the Overwinter parser will accept the transaction as the most significan bit of the 32-bit signed integer has been set.
-
-Overwinter parsers can retrieve the transaction format version of 3 by getting the absolute value of the raw version field e.g. using standard library call std::abs()
-
 Currently, the nVersion field is a public member variable which can be accessed directly.  As part of implementing Overwinter, the nVersion field will be made private with access restricted to using getters, e.g.::
 
-    bool isLegacyFormat()         // return true if the msb of nVersion is not set
-    unsigned int32 getVersion()   // return absolute value of raw version field which is compatible with Legacy and Overwinter
+    bool isLegacyFormat()        // return true if the most significant bit of nVersion is unset
+    int32 getRawVersion()        // return version field, -2147483645
+    int32 getVersion()           // return version number, -2147483645 (Legacy), 3 (Overwinter)
 
 
 Forwards Compatibility
