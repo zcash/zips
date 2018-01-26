@@ -94,12 +94,14 @@ Transaction Version
 The version field is always serialized in little-endian format.
 
 Version 1 transaction 5c6ba844e1ca1c8083cd53e29971bd82f1f9eea1f86c1763a22dd4ca183ae061
-- begins with 0x01000000
-- 32-bit signed integer 00 00 00 01 == 1
+
+* begins with 0x01000000
+* 32-bit signed integer 00 00 00 01 == 1
 
 Version 2 transaction 4435bf8064e74f01262cb1725fd9b53e600fa285950163fd961bed3a64260d8b
-- begins with 0x02000000
-- 32-bit signed integer 00 00 00 02 == 2
+
+* begins with 0x02000000
+* 32-bit signed integer 00 00 00 02 == 2
 
 Legacy parsers require the transaction version number to be positive.
 
@@ -110,9 +112,10 @@ By setting the most significant bit of the version field, we ensure there is rep
 Consider the following example:
 
 When serialized, a Version 3 Overwinter transaction will take the form:
-- Little endian format: 0x03000080
-- Representing a 32-bit signed integer: 0x80000003
-- Which has a decimal value of: -2147483645
+
+* Little endian format: 0x03000080
+* Representing a 32-bit signed integer: 0x80000003
+* Which has a decimal value of: -2147483645
 
 Legacy parsers will expect the version to be a positive value, such as 1 or 2, and will thus reject the Overwinter transaction as invalid.
 
