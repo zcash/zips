@@ -87,7 +87,13 @@ ACTIVATION_HEIGHT
 
   It MUST be greater than the value of ``DEPRECATION_HEIGHT`` in the last software version that will not
   contain support for the network upgrade. It SHOULD be chosen to be reached approximately three months after
-  the first software version containing support for the network upgrade is released.
+  the first software version containing support for the network upgrade is released, for the following reason:
+
+  - As of the time of writing (the 1.0.15 release), the release cycle is six weeks long, and nodes undergo
+    auto-senescence 16 weeks after release. Thus, if version ``X`` contains support for a network upgrade,
+    version ``X-1`` will deprecate 10 weeks after the release of version ``X``, which is about 2.3 months. A
+    three-month window provides ample time for users to upgrade their nodes after auto-senescence, and
+    re-integrate into the network prior to activation of the network upgrade.
 
 Activation mechanism
 --------------------
