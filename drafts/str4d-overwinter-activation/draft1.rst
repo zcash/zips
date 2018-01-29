@@ -12,8 +12,21 @@
 Terminology
 ===========
 
-The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to be interpreted as described in
-RFC 2119.
+The key words "MUST", "MUST NOT", "SHOULD", "SHOULD NOT", and "MAY" in this document are to be interpreted as
+described in RFC 2119.
+
+The following terms are interpreted as follows:
+
+Branch
+  A chain of blocks with common consensus rules, where the first block in the chain is not the genesis block,
+  but the child of a parent block created under an older set of consensus rules.
+
+Hard fork
+  The creation of a new branch by a change in the consensus rules of the network. Nodes that do not recognize
+  the new rules will continue to follow the old branch.
+
+Network Upgrade
+  An intentional hard fork undertaken by the community in order to improve the network.
 
 
 Abstract
@@ -27,9 +40,9 @@ software, and minimize the risks to both the upgrading network and those users o
 Motivation
 ==========
 
-Zcash is a *consensual currency*: nobody is ever going to force someone to use a specific version or a
-specific branch of Zcash. [#consensual-currency]_ As such, different sub-communities will always have the
-freedom to choose different variants or branches which offer different design trade-offs.
+Zcash is a *consensual currency*: nobody is ever going to force someone to use a specific software
+implementation or a specific branch of Zcash. [#consensual-currency]_ As such, different sub-communities will
+always have the freedom to choose different variants or branches which offer different design trade-offs.
 
 The current Zcash software includes an *auto-senescence* feature, causing nodes running a particular version
 to automatically shut down 16 weeks after that version was released. This was implemented for several reasons
