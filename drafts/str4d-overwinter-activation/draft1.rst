@@ -73,7 +73,10 @@ Specification
 The following constants are defined for every network upgrade:
 
 BRANCH_ID
-  A globally-unique 32-bit identifier.
+  A globally-unique non-zero 32-bit identifier.
+
+  Implementations MAY use a value of zero in branch ID fields to indicate the absence of any upgrade (i.e.
+  that the Sprout consensus rules apply).
 
 ACTIVATION_HEIGHT
   The block height at which the network upgrade rules will come into effect, and be enforced as part of the
