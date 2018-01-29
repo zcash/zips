@@ -16,16 +16,16 @@ This is an Standards ZIP describing a new consensus rule to set an expiration ti
 Motivation
 ===========
 
-Transactions that are too large or have insufficient fees are often not mined. This indeterminism is a source of confusion for users and wallets. Allowing transactions to set a block height after which it expires from the mempool would provide certainty around how long a transaction has to confirm before it is rejected by the network and must be re-sent.
+Transactions that have insufficient fees are often not mined. This indeterminism is a source of confusion for users and wallets. Allowing transactions to set a block height after which it expires from the mempool would provide certainty around how long a transaction has to confirm before it is rejected by the network and must be re-sent. If the expiry is block height N, it means the transaction must have either: 1. have been included in N-1, or 2. be included in block N. N+1 will be too late, and the transaction will be removed from the mempool.
 
-Advantages include improving performance by removing transactions unlikely to be mined, and potentially simplifying bidirectional payment channels by reducing the need to store and compress revocations for past states, since transactions not committed to the chain could expire and become invalid after a period of time.
+Advantages include optimizing mempool performance by removing transactions unlikely to be mined, and potentially simplifying bidirectional payment channels by reducing the need to store and compress revocations for past states, since transactions not committed to the chain could expire and become invalid after a period of time.
 
 Specification
 ===============
 
 Transactions will have a new field, nBlockExpiry, which will set the block height after which transactions will be removed from the mempool if they have not been mined.
 
-The data type for nBlockExpiry will be uint32_t, conforming to the structure of nLockTime. If used in combination with nLockTime, both nLockTime and nBlockExpiry must be block heights.
+The data type for nBlockExpiry will be uint32_t. If used in combination with nLockTime, both nLockTime and nBlockExpiry must be block heights. nBlockExpiry will never be a UNIX timestamp, unlike nLockTime values.
 
 For the example below, the last block that the transaction below could possibly be included in is 3539. After that, it will be removed from the mempool.
 
@@ -36,16 +36,12 @@ For the example below, the last block that the transaction below could possibly 
 "blockexpiry": 3539,
 ```
 
-Default: TBD. One suggestion is 576 blocks, or about 1 day assuming 2.5 minute block times. Can add a config option to set user's default.
+Default: TBD. Current proposal is 24 blocks, or about 1 hour assuming 2.5 minute block times. Can add a config option to set user's default.
 Minimum: No minimum
 Maximum: 500000000, about 380 years
-No limit: To set no limit on transactions (so that they do not expire), nBlockExpiry should be set to UINT_MAX.  
+No limit: To set no limit on transactions (so that they do not expire), nBlockExpiry should be set to UINT_MAX.
 
-
-Upon block reorganization
---------------------------
-
-Transactions that are confirmed close to the end of their expiry period may be dropped from the mempool upon a block reorg, which could leave dependent transactions stranded in the mempool. Therefore, each time an expired transaction is removed from the mempool, a check must be added to remove its dependent transactions as well.
+Every time a transaction expires and should be removed from the mempool, so should all its dependent transactions.
 
 Wallet behavior and UI
 -----------------------
@@ -54,7 +50,7 @@ With the addition of this feature, zero-confirmation transactions with an expira
 
 Wallet should notify user of expired transactions that must be re-sent. See "Notify" section below.
 
-Wallet should notify user and reject the creation of a transaction that builds on a transaction with zero confirmations and an expiry blockheight set.
+Wallet should notify user when building on a transaction with zero confirmations and an expiry blockheight set. Message TBD.
 
 RPC
 -----
@@ -68,8 +64,3 @@ listtransactions has a new filter attribute, showing expired transactions only:
     listtransactions "*" 10 0 "expired"
 
 WalletTxToJSON shows a boolean expired true/false
-
-Notify
--------
-
--expirenotify= can notify an external script when a wallet transaction expires
