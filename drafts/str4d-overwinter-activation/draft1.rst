@@ -167,7 +167,7 @@ While the current chain tip height is below ``ACTIVATION_HEIGHT``, nodes SHOULD 
 will only be valid on the post-upgrade branch.
 
 When the current chain tip height reaches ``ACTIVATION_HEIGHT``, the node's local transaction memory pool
-SHOULD be cleared.
+SHOULD be cleared of transactions that will never be valid on the post-upgrade branch.
 
 Two-way replay protection
 -------------------------
