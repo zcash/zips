@@ -95,13 +95,23 @@ ACTIVATION_HEIGHT
     three-month window provides ample time for users to upgrade their nodes after auto-senescence, and
     re-integrate into the network prior to activation of the network upgrade.
 
+The relationship between ``BRANCH_ID`` and ``ACTIVATION_HEIGHT`` is many-to-one: it is possible for many
+distinct branches to descend from the same parent block (and thus have the same ``ACTIVATION_HEIGHT``), but a
+specific branch can only have one parent block. Concretely, this means that if the ``ACTIVATION_HEIGHT`` of a
+network upgrade is changed for any reason (e.g. security vulnerabilities or consensus bugs are discovered),
+the ``BRANCH_ID`` MUST also be changed.
+
 Activation mechanism
 --------------------
 
-There MUST only be one network upgrade at a time in progress. Concretely, this means that the Zcash blockchain
-is broken into "epochs" of block height intervals ``[ACTIVATION_HEIGHT_{N-1}, ACTIVATION_HEIGHT_N)`` (ie.
-including ``ACTIVATION_HEIGHT_{N-1}`` and exluding ``ACTIVATION_HEIGHT_N``), on which consensus rule sets are
-defined.
+A blockchain is defined as invalid if, within the set of all network upgrades that have activated in the past
+(or will activate in future) on that chain, an ``ACTIVATION_HEIGHT`` is repeated. Note that this does not
+require ``ACTIVATION_HEIGHT`` to be globally unique, or even locally unique; multiple network upgrades can
+occur in parallel, as long as they are non-overlapping (only one will activate on any given chain).
+
+Concretely, this means that the Zcash blockchain is broken into "epochs" of block height intervals
+``[ACTIVATION_HEIGHT_{N-1}, ACTIVATION_HEIGHT_N)`` (ie. including ``ACTIVATION_HEIGHT_{N-1}`` and excluding
+``ACTIVATION_HEIGHT_N``), on which consensus rule sets are defined.
 
 Consensus rules themselves (and any network behavior or surrounding code that depends on them) MUST be gated
 by block height checks. For example:
