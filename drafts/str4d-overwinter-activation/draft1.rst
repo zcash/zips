@@ -150,9 +150,10 @@ chain is valid over the same epochs.
 Post-activation upgrading
 `````````````````````````
 If a user does not upgrade their node to a compatible software version before ``ACTIVATION_HEIGHT`` is
-reached, their node will follow the pre-upgrade chain and download blocks that are incompatible with the
-post-upgrade branch. If the user subsequently upgrades their node to a compatible software version, the node
-will consider these blocks to be invalid, and MUST take one of the two following actions:
+reached, their node will follow any pre-upgrade branch that persists, and may download blocks that are
+incompatible with the post-upgrade branch. If the user subsequently upgrades their node to a compatible
+software version, the node will consider these blocks to be invalid, and MUST take one of the two following
+actions:
 
 - Discard all blocks of height ``ACTIVATION_HEIGHT`` and above, and then synchronize with the network.
 
@@ -163,7 +164,7 @@ Memory pool
 -----------
 
 While the current chain tip height is below ``ACTIVATION_HEIGHT``, nodes SHOULD NOT accept transactions that
-will only be valid on the post-upgrade chain.
+will only be valid on the post-upgrade branch.
 
 When the current chain tip height reaches ``ACTIVATION_HEIGHT``, the node's local transaction memory pool
 SHOULD be cleared.
