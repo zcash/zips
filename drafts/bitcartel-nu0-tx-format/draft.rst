@@ -4,7 +4,7 @@
   Title: Network Upgrade Zero ("OverWinter") Transaction Format
   Author: Simon Liu <simon@z.cash>
   Comments-Summary: No comments yet.
-  Category: Process
+  Category: Consensus
   Created: 2018-01-10
   License: MIT
 
@@ -13,8 +13,6 @@ Terminology
 
 The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to be interpreted as described in RFC 2119.
 
-"Legacy" - pre-NU0
-
 "NU0" - Network upgade zero
 
 "Overwinter" - Code-name for NU0
@@ -22,8 +20,7 @@ The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to be
 Abstract
 ========
 
-This proposal defines a new transaction format required for Network Upgrade Activation Mechanism [#zip-0???]_
-and Transaction Expiry [#zip-0???]_.
+This proposal defines a new transaction format required for Network Upgrade Activation Mechanism [#zip-0???]_ and Transaction Expiry [#zip-0???]_.
 
 Related to [#zip-0143]_
 
@@ -32,17 +29,20 @@ Motivation
 
 A new transaction format is required to:
 
-* support safe network upgrades as specified in Network Upgrade Activation Mechanism [#zip-0???]_.
-* provide replay protection between Legacy and Overwinter network upgrade.
-* provide replay protection between different branches post-Overwinter e.g. Overwinter and Sapling upgrade.
-* enable a branch to support multiple transaction version formats.
-* ensure transaction formats are parsed uniquely across parallel branches.
-* support transaction expiry as specified in the Transaction Expiry [#zip-0???]_.
+* support safe network upgrades as specified in Network Upgrade Activation Mechanism [#zip-0???]_;
+* provide replay protection between pre-Overwinter and Overwinter network upgrades;
+* provide replay protection between different branches post-Overwinter;
+* enable a branch to support multiple transaction version formats;
+* ensure transaction formats are parsed uniquely across parallel branches;
+* support transaction expiry [#zip-0???]_.
 
 Specification
 =============
 
-Zcash launched with support for upstream Bitcoin version 1 transactions and a custom version 2 transaction format which added fields required for shielded transactions.
+Transaction format version 1 and 2
+----------------------------------
+
+Zcash launched with support for upstream Bitcoin version 1 transactions and a new version 2 transaction format which added fields required for shielded transactions.
 
 ======== =============== =========================== =======
 Version  Field           Description                 Type
@@ -59,28 +59,30 @@ Version  Field           Description                 Type
 >= 2     joinSplitSig    signature                   64 bytes
 ======== =============== =========================== =======
 
-Version 1 and 2 transaction formats are legacy formats.
+Transaction format version 3
+----------------------------
 
-Version 3 transaction format will be introduced for Overwinter.
+A new version 3 transaction format will be introduced for Overwinter.
 
-The version field must have its most significant bit set.
+The version 3 format differs from the version 2 format in the following ways:
 
-There will be new fields for:
-
+* new fields
+  * overwinter flag
 * branch id
 * expiry height
 
 ======== =============== =========================== =======
 Version  Field           Description                 Type
 ======== =============== =========================== =======
->= 3     version         must have MSB set           int32
->= 3     branch_id       branch/fork identifier      uint32
->= 3     expiry_height   block height                uint32
+>= 3     overwinter_flag must be set                 1 bit
+>= 3     version         positive value              unsigned 31 bits
+>= 3     branch_id       format branch identifier    uint32
 >= 1     in_count        varint                      1-9 bytes
 >= 1     tx_inputs       list of inputs              vector
 >= 1     out_count       varint                      1-9 bytes
 >= 1     tx_outputs      list of outputs             vector
 >= 1     lock_time       block height or timestamp   uint32
+>= 3     expiry_height   block height                uint32
 >= 2     nJoinSplit      varint                      1-9 bytes
 >= 2     vJoinSplit      list of joinsplits          vector
 >= 2     joinSplitPubKey joinSplitSig public key     32 bytes
@@ -88,26 +90,29 @@ Version  Field           Description                 Type
 ======== =============== =========================== =======
 
 
-Transaction Version
--------------------
+Version Field
+-------------
 
-The version field is always serialized in little-endian format.
+Like all integer fields in Zcash, the version is serialized in little-endian format.
 
-Version 1 transaction 5c6ba844e1ca1c8083cd53e29971bd82f1f9eea1f86c1763a22dd4ca183ae061
+Version 1 transaction (txid 5c6ba844e1ca1c8083cd53e29971bd82f1f9eea1f86c1763a22dd4ca183ae061 https://zcash.blockexplorer.com/tx/5c6ba844e1ca1c8083cd53e29971bd82f1f9eea1f86c1763a22dd4ca183ae061)
 
-* begins with 0x01000000
-* 32-bit signed integer 00 00 00 01 == 1
+* begins with little-endian byte sequence [0x01, 0x00, 0x00, 0x00]
+* deserialized as 32-bit signed integer with decimal value of 1
 
-Version 2 transaction 4435bf8064e74f01262cb1725fd9b53e600fa285950163fd961bed3a64260d8b
+Version 2 transaction (txid 4435bf8064e74f01262cb1725fd9b53e600fa285950163fd961bed3a64260d8b https://zcash.blockexplorer.com/tx/4435bf8064e74f01262cb1725fd9b53e600fa285950163fd961bed3a64260d8b)
 
-* begins with 0x02000000
-* 32-bit signed integer 00 00 00 02 == 2
+* begins with little-endian byte sequence [0x02, 0x00, 0x00, 0x00]
+* deserialized as 32-bit signed integer with decimal value of 2
 
-Legacy parsers require the transaction version number to be positive.
+Transaction parsers for versions of Zcash prior to Overwinter, and for most other Bitcoin forks, require the transaction version number to be positive.
 
-Overwinter parsers also require the transaction version number to be positive, however the serialized version field must have the most significant bit set.
+With the version 3 transaction format, the first four bytes of a serialized transaction are made up of two fields as shown in the able above:
 
-By setting the most significant bit of the version field, we ensure there is replay protection between Legacy and Overwinter compatible software.  With two's complement integers, the most significant bit indicates whether an integer is positive or negative, therefore Overwinter version fields will be negative.
+* 1 bit Overwinter flag (which must be set)
+* 31 bit unsigned int for the Version
+
+Pre-Overwinter parsers will deserialize these bytes as a 32-bit signed integer.  With two's complement integers, the most significant bit indicates whether an integer is positive or negative.  With the Overwinter flag set, the transaction version will be negative, resulting in pre-Overwinter parsers rejecting the transaction as invalid.  This provides transaction replay protection between per-Overwinter and Overwinter software.
 
 Consider the following example:
 
