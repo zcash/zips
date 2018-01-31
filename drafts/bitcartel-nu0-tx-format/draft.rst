@@ -66,23 +66,24 @@ A new version 3 transaction format will be introduced for Overwinter.
 
 The version 3 format differs from the version 2 format in the following ways:
 
-* new fields
-  * overwinter flag
+* header (first four bytes, little endian encoded)
+  * overwinter flag : bit 31, must be set
+  * version : bits 30-0, positive integer
 * branch id
 * expiry height
 
 ======== =============== =========================== =======
 Version  Field           Description                 Type
 ======== =============== =========================== =======
->= 3     overwinter_flag must be set                 1 bit
->= 3     version         positive value              unsigned 31 bits
->= 3     branch_id       format branch identifier    uint32
+>= 3     header          flag: bit 31 must be set    uint32
+                         version: bits 30-0 positive
+>= 3     branch_id       format branch id            uint32
+>= 3     expiry_height   block height                uint32
 >= 1     in_count        varint                      1-9 bytes
 >= 1     tx_inputs       list of inputs              vector
 >= 1     out_count       varint                      1-9 bytes
 >= 1     tx_outputs      list of outputs             vector
 >= 1     lock_time       block height or timestamp   uint32
->= 3     expiry_height   block height                uint32
 >= 2     nJoinSplit      varint                      1-9 bytes
 >= 2     vJoinSplit      list of joinsplits          vector
 >= 2     joinSplitPubKey joinSplitSig public key     32 bytes
@@ -107,24 +108,34 @@ Version 2 transaction (txid 4435bf8064e74f01262cb1725fd9b53e600fa285950163fd961b
 
 Transaction parsers for versions of Zcash prior to Overwinter, and for most other Bitcoin forks, require the transaction version number to be positive.
 
-With the version 3 transaction format, the first four bytes of a serialized transaction are made up of two fields as shown in the able above:
+With the version 3 transaction format, the first four bytes of a serialized transaction, the 32-bit header, are made up of two fields as shown in the able above:
 
-* 1 bit Overwinter flag (which must be set)
+* 1 bit Overwinter flag, must be set
 * 31 bit unsigned int for the Version
 
-Pre-Overwinter parsers will deserialize these bytes as a 32-bit signed integer.  With two's complement integers, the most significant bit indicates whether an integer is positive or negative.  With the Overwinter flag set, the transaction version will be negative, resulting in pre-Overwinter parsers rejecting the transaction as invalid.  This provides transaction replay protection between per-Overwinter and Overwinter software.
+Pre-Overwinter parsers will deserialize these four bytes as a 32-bit signed integer.  With two's complement integers, the most significant bit indicates whether an integer is positive or negative.  With the Overwinter flag set, the transaction version will be negative, resulting in pre-Overwinter parsers rejecting the transaction as invalid.  This provides transaction replay protection between per-Overwinter and Overwinter software.
 
-Consider the following example:
+Consider the following example of a serialized version 3 transaction.
 
-When serialized, a Version 3 Overwinter transaction will take the form:
+Pre-Overwinter parser:
 
-* Little endian format: 0x03000080
-* Representing a 32-bit signed integer: 0x80000003
-* Which has a decimal value of: -2147483645
+* data begins with little-endian byte sequence: [0x03, 0x00, 0x00, 0x80]
+* deserialized as 32-bit signed integer
+  * with hexadecimal value of 0x80000003 (most significant bit is set)
+  * decimal value of -2147483645
 
 Legacy parsers will expect the version to be a positive value, such as 1 or 2, and will thus reject the Overwinter transaction as invalid.
 
-Overwinter parsers will accept the transaction as valid as the most significant bit of the 32-bit signed integer has been set.  By masking off (unsetting) the most significant bit, the parser can retrieve the actual transaction version number::
+Overwinter parser:
+
+* data begins with little-endian byte sequence: [0x03, 0x00, 0x00, 0x80]
+* deserialized as 32-bit unsigned integer
+  * with binary value of 10000000000000000000000000000011
+* decomposed into two fields  
+  * overwinter flag (bit 31) is set
+  * version (bits 30 - bit 0) have a decimal value of 3
+
+Overwinter parsers will accept the transaction as valid as the most significant bit of the header has been set.  By masking off (unsetting) the most significant bit, the parser can retrieve the transaction version number::
 
     0x80000003 & 0x7FFFFFFFF = 0x00000003 = 3
 
@@ -141,12 +152,11 @@ Existing tests can continue to set tx.nVersion to zero as an error condition::
     EXPECT_CALL(state, DoS(100, false, REJECT_INVALID, "bad-txns-version-too-low", false)).Times(1);
     // https://github.com/zcash/zcash/blob/30d3d2dfd438a20167ddbe5ed2027d465cbec2f0/src/gtest/test_checktransaction.cpp#L99
 
-Currently, the nVersion field is a public member variable which can be accessed directly.  As part of implementing Overwinter, the nVersion field will be made private with access restricted to using getters, e.g.::
+Implementation
+--------------
+It may be useful for implementations to add helper functions to the transaction class.  For example: 
 
-    bool isLegacyFormat()        // return true if the most significant bit of nVersion is unset
-    int32 getRawVersion()        // return version field, -2147483645
-    int32 getVersion()           // return version number, -2147483645 (Legacy), 3 (Overwinter)
-
+    bool isOverwinterV3()        // return true if fOverwinter==true && nVersion==3
 
 Forwards Compatibility
 ----------------------
