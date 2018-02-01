@@ -78,12 +78,12 @@ Version  Field           Description                 Type
 >= 3     header          flag: bit 31 must be set    uint32
                          version: bits 30-0 positive
 >= 3     branch_id       format branch id            uint32
->= 3     expiry_height   block height                uint32
 >= 1     in_count        varint                      1-9 bytes
 >= 1     tx_inputs       list of inputs              vector
 >= 1     out_count       varint                      1-9 bytes
 >= 1     tx_outputs      list of outputs             vector
 >= 1     lock_time       block height or timestamp   uint32
+>= 3     expiry_height   block height                uint32
 >= 2     nJoinSplit      varint                      1-9 bytes
 >= 2     vJoinSplit      list of joinsplits          vector
 >= 2     joinSplitPubKey joinSplitSig public key     32 bytes
