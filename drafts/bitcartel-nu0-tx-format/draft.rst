@@ -13,14 +13,16 @@ Terminology
 
 The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to be interpreted as described in RFC 2119.
 
-"NU0" - Network upgade zero
+"Branch" - A chain of blocks with common consensus rules, where the first block in the chain is not the genesis block, but the child of a parent block created under an older set of consensus rules.
 
-"Overwinter" - Code-name for NU0
+"Network Upgrade" - An intentional hard fork undertaken by the community in order to improve the network.
+
+"Overwinter" - Code name for network upgrade zero.
 
 Abstract
 ========
 
-This proposal defines a new transaction format required for Network Upgrade Activation Mechanism [#zip-0???]_ and Transaction Expiry [#zip-0???]_.
+This proposal defines a new transaction format required for Network Upgrade Mechanism [#zip-0???]_ and Transaction Expiry [#zip-0???]_.
 
 Related to [#zip-0143]_
 
@@ -42,7 +44,7 @@ Specification
 Transaction format version 1 and 2
 ----------------------------------
 
-Zcash launched with support for upstream Bitcoin version 1 transactions and a new version 2 transaction format which added fields required for shielded transactions.
+Zcash launched with support for upstream Bitcoin version 1 transactions and defined a new version 2 transaction format which added fields required for shielded transactions.
 
 ======== =============== =========================== =======
 Version  Field           Description                 Type
@@ -91,10 +93,10 @@ Version  Field           Description                 Type
 ======== =============== =========================== =======
 
 
-Version Field
--------------
+Header Field
+------------
 
-Like all integer fields in Zcash, the version is serialized in little-endian format.
+The first four bytes of pre-Overwinter and Overwinter transactions are little-endian encoded.
 
 Version 1 transaction (txid 5c6ba844e1ca1c8083cd53e29971bd82f1f9eea1f86c1763a22dd4ca183ae061 https://zcash.blockexplorer.com/tx/5c6ba844e1ca1c8083cd53e29971bd82f1f9eea1f86c1763a22dd4ca183ae061)
 
@@ -152,53 +154,59 @@ Existing tests can continue to set tx.nVersion to zero as an error condition::
     EXPECT_CALL(state, DoS(100, false, REJECT_INVALID, "bad-txns-version-too-low", false)).Times(1);
     // https://github.com/zcash/zcash/blob/30d3d2dfd438a20167ddbe5ed2027d465cbec2f0/src/gtest/test_checktransaction.cpp#L99
 
-Implementation
---------------
-It may be useful for implementations to add helper functions to the transaction class.  For example: 
+Format Branch Id
+----------------
 
-    bool isOverwinterV3()        // return true if fOverwinter==true && nVersion==3
+As defined in Network Upgrade Mechanism [#zip-0???]_ every network upgrade can be identified by a branch id, a globally-unique non-zero 32-bit identifier.
 
-Forwards Compatibility
-----------------------
+A format branch id is the branch id when a new transaction format version was introduced on the main chain of a client implementation.  Overwinter requires a transaction to include the format branch id.
 
-A branch may support many transaction version formats.  For example:
+Including a format branch id prevents a client on one branch of the network from attempting to parse transactions intended for another branch, in the situation where the transactions share the same format version number but are specified differently.
 
-* Zcash reference implementation, branch "Zcash", versions 3, 4.
-* Fork of Zcash, branch "Clone", versions 3, 4*
+The combination of transaction version and format branch id, `nVersion || nFormatBranchId` uniquely defines the transaction format, thus enabling parsers to reject transactions from outside the client's chain which cannot be parsed, providing users with replay protection. 
 
-Where transaction format version 4* for the "Clone" branch might be substantially different from the expected transaction format version 4 for the "Zcash" branch.
+For example, at a block height H the reference implementation of Zcash introduces a new transaction version 3 format as part of the Overwinter network upgrade and assigns a branch id of 0x11111111.  Meanwhile, Zclone at that same block height decides to fork the network upgrade, creating a parallel branch with branch id 0xCCCCCCCC and modifying transaction version 3 format with new fields.  The Zcash parser will reject the Zclone transactions and vice versa, ensuring replay protection, even though both clients create transactions with the version number of 3.
 
-Given forwards compatibility, we want the "Zcash" branch nodes to accept transaction version 4, whilst rejecting version 4* transactions which are intended only for the "Clone" branch.
+Expiry Height
+-------------
 
-To achieve this, Overwinter requires a transaction to include a branch ID, to explicitly state which branch of the network this transaction is intended for.
+The expiry height field specifies the last block height at which a transaction must be mined into a block, after which the transaction is deemed to have expired and should be removed from the mempool.  A block is invalid if it contains an expired transaction.  More information can be found in the Transaction Expiry ZIP [#zip-???]_
 
-Overwinter introduces a new signature hashing scheme which includes the branch ID, but by including the branch ID into the transaction format, clients can quickly reject transactions during deserialization without having to check signatures.
+Transaction Validation
+======================
 
-A simple way to filter transactions might look like this::
+A client which supports the consensus rules identified by the format branch id should accept the transaction for further validation.  If the value of the branch id is zero, this indicates the absence of any network upgrade and that Sprout consensus rules apply.
 
-    if (tx.branchID != CLIENT_BRANCH_ID) { ... }
-    
-However given that a branch may support a set of transaction version formats, we should implement such that we can write code like::
+Overwinter parsers should reject transactions from further processing and validation if the:
 
-    if (isBranchSupported(tx.getBranchID())) { ... }
+- version number is unknown
+- overwinter flag is not set
+- format branch id is not set
 
-    if (tx.isSupportedBranch()) { ... }
-    
-Overwinter will introduce a method for developers to easily specify and update a map of supported branch IDs and transaction versions which can be easily accessed throughout the system.
+Overwinter clients should reject transactions for violating consensus rules if:
+
+- version number is invalid according to current set of active consensus rules
+- format branch id is different from the branch id corresponding to the current set of active consensus rules
+- mis-matched format branch id causes signatures to fail verification under the new Overwinter signature hashing scheme which includes a branch id
+
+Reference Implementation
+========================
+
+Coming soon.
 
 Deployment
 ==========
 
 This proposal will be deployed with the Overwinter network upgrade.
 
-Testnet:
+Testnet: block ???
 
-Mainnet:
+Mainnet: block ???
 
-Backward compatibility
-======================
+Backwards compatibility
+=======================
 
-This proposal intentionally creates what is known as a "bilateral hard fork" between Legacy software and Overwinter compatible software. Use of this new transaction format requires that all network participants upgrade their software to a compatible version within the upgrade window. Legacy software will treat Overwinter transactions as invalid.  Overwinter compatible software will reject legacy transactions.  Once Overwinter has activated, nodes will only accept transactions based upon supported branch ID and transaction versions.
+This proposal intentionally creates what is known as a "bilateral hard fork" between pre-Overwinter software and Overwinter compatible software. Use of this new transaction format requires that all network participants upgrade their software to a compatible version within the upgrade window. Pre-Overwinter software will treat Overwinter transactions as invalid.  Overwinter compatible software will reject legacy transactions.  Once Overwinter has activated, nodes will only accept transactions based upon supported branch id and transaction versions.
 
 
 Reference Implementation
