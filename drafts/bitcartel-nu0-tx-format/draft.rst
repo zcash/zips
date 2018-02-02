@@ -69,6 +69,7 @@ A new version 3 transaction format will be introduced for Overwinter.
 The version 3 format differs from the version 2 format in the following ways:
 
 * header (first four bytes, little endian encoded)
+
   * overwinter flag : bit 31, must be set
   * version : bits 30-0, positive integer
 * branch id
@@ -77,8 +78,8 @@ The version 3 format differs from the version 2 format in the following ways:
 ======== =============== =========================== =======
 Version  Field           Description                 Type
 ======== =============== =========================== =======
->= 3     header          flag: bit 31 must be set    uint32
-                         version: bits 30-0 positive
+>= 3     header          - flag (bit 31 must be set)  uint32
+                         - version (bits 30-0)
 >= 3     branch_id       format branch id            uint32
 >= 1     in_count        varint                      1-9 bytes
 >= 1     tx_inputs       list of inputs              vector
@@ -123,6 +124,7 @@ Pre-Overwinter parser:
 
 * data begins with little-endian byte sequence: [0x03, 0x00, 0x00, 0x80]
 * deserialized as 32-bit signed integer
+
   * with hexadecimal value of 0x80000003 (most significant bit is set)
   * decimal value of -2147483645
 
@@ -130,12 +132,14 @@ Legacy parsers will expect the version to be a positive value, such as 1 or 2, a
 
 Overwinter parser:
 
-* data begins with little-endian byte sequence: [0x03, 0x00, 0x00, 0x80]
-* deserialized as 32-bit unsigned integer
-  * with binary value of 10000000000000000000000000000011
-* decomposed into two fields  
-  * overwinter flag (bit 31) is set
-  * version (bits 30 - bit 0) have a decimal value of 3
+- data begins with little-endian byte sequence: [0x03, 0x00, 0x00, 0x80]
+- deserialized as 32-bit unsigned integer
+  
+  - with binary value of 10000000000000000000000000000011
+- decomposed into two fields  
+  
+  - overwinter flag (bit 31) is set
+  - version (bits 30 - bit 0) have a decimal value of 3
 
 Overwinter parsers will accept the transaction as valid as the most significant bit of the header has been set.  By masking off (unsetting) the most significant bit, the parser can retrieve the transaction version number::
 
