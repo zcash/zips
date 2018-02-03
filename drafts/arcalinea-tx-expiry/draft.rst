@@ -64,3 +64,10 @@ listtransactions has a new filter attribute, showing expired transactions only:
     listtransactions "*" 10 0 "expired"
 
 WalletTxToJSON shows a boolean expired true/false
+
+Config
+-------
+
+Default will be user configurable with flag `txblockexpirydelta`
+
+`--txblockexpirydelta=100`
