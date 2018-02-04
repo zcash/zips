@@ -145,19 +145,6 @@ Overwinter parsers will accept the transaction as valid as the most significant 
 
     0x80000003 & 0x7FFFFFFFF = 0x00000003 = 3
 
-Existing code can continue to check the transaction version using greater than comparison operators::
-
-    if (tx.nVersion >= 3) {
-      for (int js = 0; js < joinsplits; js++) {
-
-Existing tests can continue to set tx.nVersion to zero as an error condition::
-
-    mtx.nVersion = 0;
-    // https://github.com/zcash/zcash/blob/59de56eeca6f9f6f7dc1841630d53676075242a5/src/gtest/test_mempool.cpp#L99
-
-    EXPECT_CALL(state, DoS(100, false, REJECT_INVALID, "bad-txns-version-too-low", false)).Times(1);
-    // https://github.com/zcash/zcash/blob/30d3d2dfd438a20167ddbe5ed2027d465cbec2f0/src/gtest/test_checktransaction.cpp#L99
-
 Format Branch Id
 ----------------
 
@@ -193,19 +180,54 @@ Overwinter clients should reject transactions for violating consensus rules if:
 - format branch id is different from the branch id corresponding to the current set of active consensus rules
 - mis-matched format branch id causes signatures to fail verification under the new Overwinter signature hashing scheme which includes a branch id
 
-Reference Implementation
-========================
+Implementation
+==============
 
-Coming soon.
+Transaction Version
+-------------------
+
+Transaction version remains a positive value.
+
+Code can continue to check the transaction version using comparison operators::
+
+    if (tx.nVersion >= 2) {
+        for (int js = 0; js < joinsplits; js++) {
+
+Tests can continue to set the version to zero as an error condition::
+
+    mtx.nVersion = 0
+    
+Overwinter Validation
+---------------------
+
+To test if the format of an Overwinter transaction is valid or not::
+
+    if (tx.nVersion == 3 && tx.fOverwintered) {
+        // Valid v3 format transaction
+        // FIXME: If tx.nFormatBranchId is 0, does that make it invalid?
+    }
+
+To test if the format of an Overwinter transaction is intended for the client's chain::
+
+    if (tx.nVersion == 3 &&
+        tx.fOverwintered &&
+        tx.nFormatBranchId == NetworkUpgradeInfo[Consensus::UPGRADE_OVERWINTER].nBranchId) {
+        // Valid for the client's chain
+    }
 
 Deployment
 ==========
 
 This proposal will be deployed with the Overwinter network upgrade.
 
-Testnet: block ???
+Testnet is set to activate Overwinter at block XXX.
 
-Mainnet: block ???
+- This means that starting from block XXX of testnet, new Overwinter consensus rules take effect and transactions must be using v3 to be accepted as valid.
+
+Mainnet is set to activate Overwinter at block XXX.
+
+- This means that starting from block XXX of mainnet, new Overwinter consensus rules take effect and transactions must be using v3 to be accepted as valid.
+
 
 Backwards compatibility
 =======================
