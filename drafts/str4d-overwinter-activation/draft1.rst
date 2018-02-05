@@ -80,8 +80,8 @@ BRANCH_ID
   that the Sprout consensus rules apply).
 
 ACTIVATION_HEIGHT
-  The block height at which the network upgrade rules will come into effect, and be enforced as part of the
-  blockchain consensus.
+  The non-zero block height at which the network upgrade rules will come into effect, and be enforced as part
+  of the blockchain consensus.
 
   For removal of ambiguity, the block at height ``ACTIVATION_HEIGHT - 1`` is subject to the pre-upgrade
   consensus rules, and would be the last common block in the event of a persistent pre-upgrade branch.
