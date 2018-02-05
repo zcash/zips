@@ -173,9 +173,9 @@ Two-way replay protection
 -------------------------
 
 Before the Overwinter network upgrade, two-way replay protection is ensured by enforcing post-upgrade that the
-MSB of the transaction version is set to 1. From the perspective of old nodes, the transactions will have a
-negative version number, which is invalid under the old consensus rules. Enforcing this rule trivially makes
-old transactions invalid on the Overwinter branch.
+MSB of the transaction version is set to 1. [#zip-tx-format]_ From the perspective of old nodes, the
+transactions will have a negative version number, which is invalid under the old consensus rules. Enforcing
+this rule trivially makes old transactions invalid on the Overwinter branch.
 
 After the Overwinter network upgrade, two-way replay protection is ensured by transaction signatures
 committing to a specific ``BRANCH_ID``. [#zip-0143]_
@@ -229,4 +229,5 @@ References
    - https://z.cash/blog/release-cycle-and-lifetimes.html
    - https://z.cash/blog/release-cycle-update.html
 .. [#roadmap-2018] https://z.cash/blog/roadmap-update-2017-12.html
+.. [#zip-tx-format] Overwinter Transaction Format
 .. [#zip-0143] Transaction Signature Verification for Overwinter
