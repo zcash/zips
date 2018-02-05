@@ -118,15 +118,15 @@ by block height checks. For example:
 
 .. code:: cpp
 
-  if (chainActive.Tip()->nHeight >= OVERWINTER.ACTIVATION_HEIGHT) {
+  if (CurrentEpoch(chainActive.Height(), Params().GetConsensus()) == Consensus::UPGRADE_OVERWINTER) {
       // Overwinter-specific logic
   } else {
-      // Pre-Overwinter logic
+      // Non-Overwinter logic
   }
 
   // ...
 
-  if (pindex->nHeight >= OVERWINTER.ACTIVATION_HEIGHT) {
+  if (NetworkUpgradeActive(pindex->nHeight, Params().GetConsensus(), Consensus::UPGRADE_OVERWINTER)) {
       // Overwinter consensus rules applied to block
   } else {
       // Pre-Overwinter consensus rules applied to block
