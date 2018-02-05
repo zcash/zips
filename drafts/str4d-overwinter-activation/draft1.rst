@@ -187,15 +187,16 @@ Wipe-out protection
 -------------------
 
 Nodes running upgrade-aware software versions will enforce the upgraded consensus rules from
-``ACTIVATION_HEIGHT``. The chain from that height will not reorg to a pre-upgrade branch if any block would
-violate the new consensus rules (such as including any old-format transaction).
+``ACTIVATION_HEIGHT``. The chain from that height will not reorg to a pre-upgrade branch if any block in that
+branch would violate the new consensus rules (such as including any old-format transaction).
 
 Care must be taken, however, to account for possible edge cases where the old and new consensus rules do not
-differ. For example, if the non-upgraded chain only had empty blocks, and the coinbase transactions were valid
-under both the old and new consensus rules, a wipe-out could occur. The Overwinter network upgrade is not
-susceptible to this because all previous transaction versions will become invalid, meaning that the coinbase
-transactions must use the newer transaction version. More generally, this issue could be addressed in a future
-network upgrade by modifying the block header to include a commitment to the ``BRANCH_ID``.
+differ. For example, if the non-upgraded chain only contained empty blocks from ``ACTIVATION_HEIGHT``, and the
+coinbase transactions were valid under both the old and new consensus rules, a wipe-out could occur. The
+Overwinter network upgrade is not susceptible to this because all previous transaction versions will become
+invalid, meaning that the coinbase transactions must use the newer transaction version. More generally, this
+issue could be addressed in a future network upgrade by modifying the block header to include a commitment to
+the ``BRANCH_ID``.
 
 
 Example
