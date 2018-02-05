@@ -15,17 +15,18 @@ Terminology
 The key words "MUST", "MUST NOT", "SHOULD", "SHOULD NOT", and "MAY" in this document are to be interpreted as
 described in RFC 2119. [#RFC2119]_
 
-The following terms are interpreted as follows:
+The terms below are to be interpreted as follows:
 
 Branch
-  A chain of blocks with common consensus rules, where the first block in the chain is not the genesis block,
-  but the child of a parent block created under an older set of consensus rules.
+  A chain of blocks with common consensus rules, where the first block in the chain is either the genesis
+  block, or the child of a parent block created under an older set of consensus rules (ie. the parent block is
+  a member of a different branch). By definition, every block belongs to at most one branch.
 
 Hard fork
   The creation of a new branch by a change in the consensus rules of the network. Nodes that do not recognize
   the new rules will continue to follow the old branch.
 
-Network Upgrade
+Network upgrade
   An intentional hard fork undertaken by the community in order to improve the network.
 
 
