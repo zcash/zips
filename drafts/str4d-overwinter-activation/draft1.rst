@@ -13,7 +13,7 @@ Terminology
 ===========
 
 The key words "MUST", "MUST NOT", "SHOULD", "SHOULD NOT", and "MAY" in this document are to be interpreted as
-described in RFC 2119.
+described in RFC 2119. [#RFC2119]_
 
 The following terms are interpreted as follows:
 
@@ -224,6 +224,7 @@ TBC
 References
 ==========
 
+.. [#RFC2119] https://tools.ietf.org/html/rfc2119
 .. [#consensual-currency] https://z.cash/blog/consensual-currency.html
 .. [#release-lifecycle]
    - https://z.cash/blog/release-cycle-and-lifetimes.html
