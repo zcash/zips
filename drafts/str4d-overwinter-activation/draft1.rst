@@ -56,7 +56,7 @@ to automatically shut down 16 weeks after that version was released. This was im
 
   - Upgrade to an alternative release.
 
-  - Ignore the "deprecation" and keep running the older software.
+  - Modify their node in order to keep running the older software.
 
 Developers can rely on this cadence for coordinating network upgrades. Once the last pre-upgrade software
 version has been deprecated, they can reasonably assume that all node operators on the network either support
