@@ -45,8 +45,9 @@ implementation or a specific branch of Zcash. [#consensual-currency]_ As such, d
 always have the freedom to choose different variants or branches which offer different design trade-offs.
 
 The current Zcash software includes an *auto-senescence* feature, causing nodes running a particular version
-to automatically shut down 16 weeks after that version was released. This was implemented for several reasons
-[#release-lifecycle]_:
+to automatically shut down approximately 16 weeks after that version was released (specifically, at the block
+height ``DEPRECATION_HEIGHT`` defined in the source code for that version). This was implemented for several
+reasons: [#release-lifecycle]_
 
 - It gives the same systemic advantage of removing old software as auto-upgrade behavior.
 
