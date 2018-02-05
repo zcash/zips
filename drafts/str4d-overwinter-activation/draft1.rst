@@ -139,8 +139,9 @@ Block parsing
 Incoming blocks known to have a particular height (due to their parent chain being entirely known) MUST be
 parsed under the consensus rules corresponding to their height.
 
-Incoming blocks with unknown heights (because at least one block in their parent chain is unknown) MUST NOT be
-considered valid, but MAY be cached for future consideration after all their parents have been received.
+Incoming blocks with unknown heights (because at least one block header in their parent chain is unknown)
+MUST NOT be considered valid, but MAY be cached for future consideration after all their parents have been
+received.
 
 Chain reorganization
 ````````````````````
