@@ -112,8 +112,8 @@ require ``ACTIVATION_HEIGHT`` to be globally unique, or even locally unique; mul
 occur in parallel, as long as they are non-overlapping (only one will activate on any given chain).
 
 Concretely, this means that the Zcash blockchain is broken into "epochs" of block height intervals
-``[ACTIVATION_HEIGHT_{N-1}, ACTIVATION_HEIGHT_N)`` (ie. including ``ACTIVATION_HEIGHT_{N-1}`` and excluding
-``ACTIVATION_HEIGHT_N``), on which consensus rule sets are defined.
+``[ACTIVATION_HEIGHT_N, ACTIVATION_HEIGHT_{N+1})`` (ie. including ``ACTIVATION_HEIGHT_N`` and excluding
+``ACTIVATION_HEIGHT_{N+1}``), on which consensus rule sets are defined.
 
 Consensus rules themselves (and any network behavior or surrounding code that depends on them) MUST be gated
 by block height checks. For example:
