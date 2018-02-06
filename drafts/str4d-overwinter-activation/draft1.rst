@@ -3,7 +3,6 @@
   ZIP: ???
   Title: Network Upgrade Mechanism
   Author: Jack Grigg <jack@z.cash>
-  Comments-Summary: No comments yet.
   Category: Process
   Created: 2018-01-08
   License: MIT
@@ -197,12 +196,6 @@ Overwinter network upgrade is not susceptible to this because all previous trans
 invalid, meaning that the coinbase transactions must use the newer transaction version. More generally, this
 issue could be addressed in a future network upgrade by modifying the block header to include a commitment to
 the ``BRANCH_ID``.
-
-
-Example
-=======
-
-TBC
 
 
 Deployment
