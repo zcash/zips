@@ -19,8 +19,8 @@ The terms below are to be interpreted as follows:
 
 Branch
   A chain of blocks with common consensus rules, where the first block in the chain is either the genesis
-  block, or the child of a parent block created under an older set of consensus rules (ie. the parent block is
-  a member of a different branch). By definition, every block belongs to at most one branch.
+  block, or the child of a parent block created under an older set of consensus rules (i.e. the parent block
+  is a member of a different branch). By definition, every block belongs to at most one branch.
 
 Hard fork
   The creation of a new branch by a change in the consensus rules of the network. Nodes that do not recognize
@@ -93,8 +93,8 @@ ACTIVATION_HEIGHT
 
   - As of the time of writing (the 1.0.15 release), the release cycle is six weeks long, and nodes undergo
     auto-senescence 16 weeks after release. Thus, if version ``X`` contains support for a network upgrade,
-    version ``X-1`` will deprecate 10 weeks after the release of version ``X``, which is about 2.3 months. A
-    three-month window provides ample time for users to upgrade their nodes after auto-senescence, and
+    version ``X-1`` will be deprecated 10 weeks after the release of version ``X``, which is about 2.3 months.
+    A three-month window provides ample time for users to upgrade their nodes after auto-senescence, and
     re-integrate into the network prior to activation of the network upgrade.
 
 The relationship between ``BRANCH_ID`` and ``ACTIVATION_HEIGHT`` is many-to-one: it is possible for many
@@ -112,7 +112,7 @@ require ``ACTIVATION_HEIGHT`` to be globally unique, or even locally unique; mul
 occur in parallel, as long as they are non-overlapping (only one will activate on any given chain).
 
 Concretely, this means that the Zcash blockchain is broken into "epochs" of block height intervals
-``[ACTIVATION_HEIGHT_N, ACTIVATION_HEIGHT_{N+1})`` (ie. including ``ACTIVATION_HEIGHT_N`` and excluding
+``[ACTIVATION_HEIGHT_N, ACTIVATION_HEIGHT_{N+1})`` (i.e. including ``ACTIVATION_HEIGHT_N`` and excluding
 ``ACTIVATION_HEIGHT_{N+1}``), on which consensus rule sets are defined.
 
 Consensus rules themselves (and any network behavior or surrounding code that depends on them) MUST be gated
@@ -176,9 +176,9 @@ Two-way replay protection
 -------------------------
 
 Before the Overwinter network upgrade, two-way replay protection is ensured by enforcing post-upgrade that the
-MSB of the transaction version is set to 1. [#zip-tx-format]_ From the perspective of old nodes, the
-transactions will have a negative version number, which is invalid under the old consensus rules. Enforcing
-this rule trivially makes old transactions invalid on the Overwinter branch.
+most significant bit of the transaction version is set to 1. [#zip-tx-format]_ From the perspective of old
+nodes, the transactions will have a negative version number, which is invalid under the old consensus rules.
+Enforcing this rule trivially makes old transactions invalid on the Overwinter branch.
 
 After the Overwinter network upgrade, two-way replay protection is ensured by transaction signatures
 committing to a specific ``BRANCH_ID``. [#zip-0143]_
@@ -187,8 +187,8 @@ Wipe-out protection
 -------------------
 
 Nodes running upgrade-aware software versions will enforce the upgraded consensus rules from
-``ACTIVATION_HEIGHT``. The chain from that height will not reorg to a pre-upgrade branch if any block in that
-branch would violate the new consensus rules (such as including any old-format transaction).
+``ACTIVATION_HEIGHT``. The chain from that height will not reorganize to a pre-upgrade branch if any block in
+that branch would violate the new consensus rules (such as including any old-format transaction).
 
 Care must be taken, however, to account for possible edge cases where the old and new consensus rules do not
 differ. For example, if the non-upgraded chain only contained empty blocks from ``ACTIVATION_HEIGHT``, and the
