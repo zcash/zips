@@ -11,7 +11,7 @@
 Terminology
 ===========
 
-The key words "MUST", "MUST NOT", "SHOULD", "SHOULD NOT", and "MAY" in this document are to be interpreted as
+The key words "MUST", "SHOULD", "SHOULD NOT", and "MAY" in this document are to be interpreted as
 described in RFC 2119. [#RFC2119]_
 
 The terms below are to be interpreted as follows:
@@ -134,14 +134,13 @@ by block height checks. For example:
   }
 
 
-Block parsing
-`````````````
+Block validation
+````````````````
 Incoming blocks known to have a particular height (due to their parent chain being entirely known) MUST be
-parsed under the consensus rules corresponding to their height.
+validated under the consensus rules corresponding to the expected branch ID for that height.
 
 Incoming blocks with unknown heights (because at least one block header in their parent chain is unknown)
-MUST NOT be considered valid, but MAY be cached for future consideration after all their parents have been
-received.
+MAY be cached for future consideration after all their parents have been received.
 
 Chain reorganization
 ````````````````````
