@@ -34,7 +34,7 @@ Abstract
 
 This proposal defines a mechanism for coordinating upgrades of the Zcash network, in order to remove ambiguity
 about when network upgrades will activate, provide defined periods in which users should upgrade their local
-software, and minimize the risks to both the upgrading network and those users opting out of the changes.
+software, and minimize the risks to both the upgrading network and any users opting out of the changes.
 
 
 Motivation
@@ -147,7 +147,7 @@ Chain reorganization
 ````````````````````
 It is possible for a reorganization to occur that rolls back from after the activation height, to before that
 height. This can handled in the same way as any regular chain orphaning or reorganization, as long as the new
-chain is valid over the same epochs.
+chain is valid.
 
 Post-activation upgrading
 `````````````````````````
@@ -187,7 +187,7 @@ Wipe-out protection
 
 Nodes running upgrade-aware software versions will enforce the upgraded consensus rules from
 ``ACTIVATION_HEIGHT``. The chain from that height will not reorganize to a pre-upgrade branch if any block in
-that branch would violate the new consensus rules (such as including any old-format transaction).
+that branch would violate the new consensus rules.
 
 Care must be taken, however, to account for possible edge cases where the old and new consensus rules do not
 differ. For example, if the non-upgraded chain only contained empty blocks from ``ACTIVATION_HEIGHT``, and the
