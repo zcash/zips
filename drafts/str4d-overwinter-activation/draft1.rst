@@ -1,6 +1,6 @@
 ::
 
-  ZIP: ???
+  ZIP: 200
   Title: Network Upgrade Mechanism
   Author: Jack Grigg <jack@z.cash>
   Category: Process
