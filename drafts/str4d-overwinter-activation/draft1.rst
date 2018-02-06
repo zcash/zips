@@ -222,7 +222,7 @@ software will treat post-upgrade blocks as invalid, and will follow any pre-upgr
 Reference Implementation
 ========================
 
-TBC
+https://github.com/zcash/zcash/pull/2898
 
 
 References
@@ -233,6 +233,5 @@ References
 .. [#release-lifecycle]
    - https://z.cash/blog/release-cycle-and-lifetimes.html
    - https://z.cash/blog/release-cycle-update.html
-.. [#roadmap-2018] https://z.cash/blog/roadmap-update-2017-12.html
-.. [#zip-tx-format] Overwinter Transaction Format
-.. [#zip-0143] Transaction Signature Verification for Overwinter
+.. [#zip-tx-format] `Overwinter Transaction Format <https://github.com/zcash/zips/pull/133>`_
+.. [#zip-0143] `Transaction Signature Verification for Overwinter <https://github.com/zcash/zips/pull/129>`_
