@@ -29,17 +29,14 @@ Related to [#zip-0143]_
 Motivation
 ==========
 
-With scheduled network upgrades, at the activation height, nodes on each branch should disconnect from nodes on other branches and only accept new incoming connections from nodes on the same branch (??? or accepted set of branches ???)
+With scheduled network upgrades, at the activation height, nodes on each branch should disconnect from nodes on other branches and only accept new incoming connections from nodes on the same branch.
 
 Specification
 =============
 
-When a new inbound connection is received or an outbound connection
-created, a CNode object is instantiated with the version field set to
-INIT_PROTO_VERSION (209). This value is not transmitted across the network, but for legacy reasons and technical debt beyond the scope of this ZIP, this value will not be changed.
+When a new inbound connection is received or an outbound connection created, a CNode object is instantiated with the version field set to INIT_PROTO_VERSION which has a value of 209. This value is not transmitted across the network, but for legacy reasons and technical debt beyond the scope of this ZIP, this value will not be changed.
 
-Once the two nodes have connected and perform a handshake to negotiate the protocol version, version field of CNode will be updated.  As documented here https://en.bitcoin.it/wiki/Version_Handshake
-on connection, "version" and "verack" messages are exchanged.::
+Once the two nodes have connected and started the handshake to negotiate the protocol version, the version field of CNode will be updated.  The handshake involves "version" and "verack" messages being exchanged.::
 
     L -> R: Send version message with the local peer's version
     R -> L: Send version message back
@@ -47,27 +44,34 @@ on connection, "version" and "verack" messages are exchanged.::
     R:      Sets version to the minimum of the 2 versions
     L -> R: Send verack message after receiving version message from R
     L:      Sets version to the minimum of the 2 versions
+    
+    Source: https://en.bitcoin.it/wiki/Version_Handshake
 
 To send a version message, the node will invoke PushVersion()::
 
-    void CNode::PushVersion()
-      PushMessage("version", PROTOCOL_VERSION, nLocalServices, nTime, addrYou, addrMe,
+    void CNode::PushVersion() {
+        ...
+        PushMessage("version", PROTOCOL_VERSION, nLocalServices, nTime, addrYou, addrMe,
+        ...
+    }
       
 Where:
 
-- Legacy PROTOCOL_VERSION is 170002
-- Overwinter PROTOCOL_VERSION is 170003
+- Pre-Overwinter PROTOCOL_VERSION is 170002
+- OVERWINTER_PROTO_VERSION is 170003
 
 
-Rejecting Legacy Connections
-----------------------------
+Rejecting Pre-Overwinter Connections
+------------------------------------
 
-Currently, nodes will reject connections from nodes with a protocol version lower than the other node's minimum supported protocol version.  This value is defined as::
+Currently, nodes will reject connections from nodes with a protocol version lower than the other node's minimum supported protocol version.
+
+This value is defined as::
 
     //! disconnect from peers older than this proto version
     static const int MIN_PEER_PROTO_VERSION = 170002;
     
-    ...
+With rejection codified as::
     
     if (pfrom->nVersion < MIN_PEER_PROTO_VERSION)
     {
@@ -78,38 +82,12 @@ Prior to activation, Overwinter nodes will contain the following constants::
     static const int PROTOCOL_VERSION = 170003;
     static const int MIN_PEER_PROTO_VERSION = 170002;
 
-This allows pre-Overwinter nodes and Overwinter nodes to remain connected prior to activation.
+This allows pre-Overwinter nodes (which only supports protocol version 170002) and Overwinter nodes (which support both 170002 and 170003) to remain connected prior to activation.
 
-However, once activation occurs, Overwinter nodes must reject connections from legacy 170002 nodes.
+However, once Overwinter activates, Overwinter nodes should:
 
-To achieve this, the version message will be upgraded for Overwinter to include one extra field, a 32-bit BRANCH_ID.  Since legacy nodes do not send this field as part of their version message during the handshake, the legacy node's connection will be rejected.
-
-We can do this by implementing code such as::
-
-    bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, int64_t nTimeReceived)
-        ...
-        if (strCommand == "version")
-            ...
-            vRecv >> addrFrom >> nNonce;
-            vRecv >> LIMITED_STRING(pfrom->strSubVer, 256);
-            pfrom->cleanSubVer = SanitizeString(pfrom->strSubVer);
-            vRecv >> pfrom->nStartingHeight;
-            vRecv >> pfrom->fRelayTxes; // set to true after we get the first filter* message
-            
-            // Overwinter node
-            if (isOverwinterHandshakeActivated()) {
-                if (!vRecv.empty()) {
-                    vRecv >> pfrom->branchID
-                }
-                else {
-                    // disconnect as branch ID is missing
-                    LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, pfrom->nVersion);
-                    pfrom->PushMessage("reject", strCommand, REJECT_OBSOLETE,
-                                       strprintf("Version must be %d or greater", OVERWINTER_PROTO_VERSION));
-                    pfrom->fDisconnect = true;
-                    return false;
-                }
-            }
+- reject new connections from pre-Overwinter nodes
+- disconnect any existing conncetions to pre-Overwinter nodes
 
 
 Network Coalescence
@@ -195,7 +173,7 @@ Backward compatibility
 
 This proposal intentionally creates what is known as a "bilateral hard fork" between Legacy software and Overwinter compatible software. Use of this new handshake requires that all network participants upgrade their software to a compatible version within the upgrade window
 
-Legacy software will accept the numerically larger Overwinter protocol version as valid, but Overwinter compatible software will reject the legacy nodes as they will not send the BRANCH_ID as part of the version message.
+Legacy software will accept the numerically larger Overwinter protocol version as valid, but Overwinter compatible software will reject the legacy nodes once Overwinter activates by rejecting protocol versions lower than the Overwinter protocol version number. 
 
 Reference Implementation
 ========================
