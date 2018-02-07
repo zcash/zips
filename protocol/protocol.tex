@@ -473,8 +473,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\diversifiedTransmissionKeys}{\term{diversified transmission keys}}
 \newcommand{\authSigningKey}{\term{spend authorizing key}}
 \newcommand{\authSigningKeys}{\term{spend authorizing keys}}
-\newcommand{\delegatedProvingKey}{\term{delegated proving key}}
-\newcommand{\delegatedProvingKeys}{\term{delegated proving keys}}
+\newcommand{\authProvingKey}{\term{proof authorizing key}}
+\newcommand{\authProvingKeys}{\term{proof authorizing keys}}
 \newcommand{\humanReadablePart}{\term{Human-Readable Part}}
 \newcommand{\notePlaintext}{\term{note plaintext}}
 \newcommand{\notePlaintexts}{\term{note plaintexts}}
@@ -637,7 +637,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\PtoSHAddressTestnetSecondByte}{\hexint{BA}}
 \newcommand{\PtoPKHAddressTestnetLeadByte}{\hexint{1D}}
 \newcommand{\PtoPKHAddressTestnetSecondByte}{\hexint{25}}
-\newcommand{\NotePlaintextLeadByte}{\hexint{00}}
+\newcommand{\NotePlaintextLeadByteSprout}{\hexint{00}}
+\newcommand{\NotePlaintextLeadByteSapling}{\hexint{01}}
 \newcommand{\AuthPublic}{\mathsf{a_{pk}}}
 \newcommand{\AuthPrivate}{\mathsf{a_{sk}}}
 \newcommand{\AuthPublicX}[1]{\mathsf{a^\mathrm{#1}_{pk}}}
@@ -670,9 +671,9 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\AuthSignBase}{\mathcal{G}}
 \newcommand{\AuthSignPublic}{\mathsf{ak}}
 \newcommand{\PreAuthProvePrivate}{\mathsf{prersk}}
-\newcommand{\AuthProveKey}{\mathsf{rsk}}
-\newcommand{\PRFKey}{\mathsf{rk}}
+\newcommand{\AuthProvePrivate}{\mathsf{rsk}}
 \newcommand{\AuthProveBase}{\mathcal{H}}
+\newcommand{\AuthProvePublic}{\mathsf{rk}}
 \newcommand{\NullifierRand}{\mathsf{nr}}
 \newcommand{\Diversifier}{\mathsf{d}}
 \newcommand{\DiversifierLength}{\mathsf{\ell_{\Diversifier}}}
@@ -686,7 +687,6 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 
 \newcommand{\PRF}[2]{\mathsf{{PRF}^{#2}_\mathnormal{#1}}}
 \newcommand{\PRFaddr}[1]{\PRF{#1}{addr}}
-\newcommand{\PRFaddrSapling}[1]{\PRF{#1}{addrSapling}}
 \newcommand{\PRFnf}[1]{\PRF{#1}{\nf}}
 \newcommand{\PRFsn}[1]{\PRF{#1}{sn}}
 \newcommand{\PRFpk}[1]{\PRF{#1}{pk}}
@@ -764,7 +764,6 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\KAFormatPrivate}{\KA\mathsf{.FormatPrivate}}
 \newcommand{\KADerivePublic}{\KA\mathsf{.DerivePublic}}
 \newcommand{\KAAgree}{\KA\mathsf{.Agree}}
-\newcommand{\KASapling}{\mathsf{KA_{Sapling}}}
 
 \newcommand{\KASprout}{\mathsf{\optSprout{KA}}}
 \newcommand{\KASproutPublic}{\KASprout\mathsf{.Public}}
@@ -803,7 +802,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\ValueNew}[1]{\mathsf{v^{new}_\mathnormal{#1}}}
 \newcommand{\ValueOld}[1]{\mathsf{v^{old}_\mathnormal{#1}}}
 \newcommand{\NoteTuple}[1]{\mathbf{n}_{#1}}
-\newcommand{\NoteType}{\mathsf{Note}}
+\newcommand{\NoteTypeSprout}{\optSprout{\mathsf{Note}}}
+\newcommand{\NoteTypeSapling}{\mathsf{Note^{Sapling}}}
 \newcommand{\NotePlaintext}[1]{\mathbf{np}_{#1}}
 \newcommand{\NoteCommitRand}{\mathsf{\sprout{r}\notsprout{rcm}}}
 \newcommand{\NoteCommitRandLength}{\mathsf{\ell_{\NoteCommitRand}}}
@@ -936,6 +936,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 % Merkle tree
 
 \newcommand{\MerkleDepth}{\mathsf{MerkleDepth}}
+\newcommand{\MerkleDepthSprout}{\optSprout{\MerkleDepth}}
+\newcommand{\MerkleDepthSapling}{\MerkleDepth^\mathsf{Sapling}}
 \newcommand{\MerkleNode}[2]{\mathsf{M}^{#1}_{#2}}
 \newcommand{\MerkleSibling}{\mathsf{sibling}}
 \newcommand{\MerkleCRH}{\mathsf{MerkleCRH}}
@@ -1316,7 +1318,8 @@ value work essentially as in \Bitcoin and have the same privacy properties.
 \xShielded value is carried by \notes\hairspace\footnote{\label{notesandnullifiers}
 In \Zerocash \cite{BCG+2014}, \notes were called \quotedterm{coins}, and \nullifiers
 were called \quotedterm{serial numbers}.},
-which specify an amount and a \payingKey. The \payingKey is part of
+which specify an amount and \sprout{a \payingKey. The \payingKey is part of}
+\notsprout{(indirectly)}
 a \paymentAddress, which is a destination to which \notes can be sent.
 As in \Bitcoin, this is associated with a private key that can be used to
 spend \notes sent to the address; in \Zcash this is called a \spendingKey.
@@ -1324,25 +1327,41 @@ spend \notes sent to the address; in \Zcash this is called a \spendingKey.
 To each \note there is cryptographically associated a \noteCommitment, and
 a \nullifier\hairspace\cref{notesandnullifiers} (so that there is a 1:1:1 relation
 between \notes, \noteCommitments, and \nullifiers). Computing the \nullifier
-requires the associated private \spendingKey. It is infeasible to correlate the
-\noteCommitment with the corresponding \nullifier without knowledge of at least
-this \spendingKey. An unspent valid \note, at a given point on the \blockchain,
+requires the associated private \spendingKey\sapling{ (or the \fullViewingKey for \Sapling \notes)}.
+It is infeasible to correlate the \noteCommitment with the corresponding
+\nullifier without knowledge of at least this \sprout{\spendingKey}\notsprout{key}.
+An unspent valid \note, at a given point on the \blockchain,
 is one for which the \noteCommitment has been publically revealed on the
 \blockchain prior to that point, but the \nullifier has not.
 
 \introlist
 A \transaction can contain \transparent inputs, outputs, and scripts, which all
-work as in \Bitcoin \cite{Bitc-Protocol}. It also contains a sequence of zero or
-more \joinSplitDescriptions. Each of these describes a \joinSplitTransfer\hairspace\footnote{
+work as in \Bitcoin \cite{Bitc-Protocol}.
+\sprout{
+It also contains a sequence of zero or more \joinSplitDescriptions.
+Each of these describes a \joinSplitTransfer\hairspace\footnote{
 \joinSplitTransfers in \Zcash generalize \quotedterm{Mint} and \quotedterm{Pour}
 \transactions in \Zerocash; see \crossref{trstructure} for differences.}
 which takes in a \transparent value and up to two input \notes, and produces a
-\transparent value and up to two output \notes. The \nullifiers of the input
-\notes are revealed (preventing them from being spent again) and the
-commitments of the output \notes are revealed (allowing them to be spent in
-future). Each \joinSplitDescription also includes a computationally sound
-\zkSNARK proof, which proves that all of the following hold except with
-negligable probability:
+\transparent value and up to two output \notes.
+}
+\notsprout{
+It also includes \joinSplitDescriptions, \spendDescriptions, and \outputDescriptions.
+Together these describe \shieldedTransfers which take in \shieldedInput \notes,
+and/or produce \shieldedOutput \notes.
+(For \Sprout, each \joinSplitDescription handles up to two \shieldedInputs and
+up to two \shieldedOutputs. For \Sapling, each \shieldedInput or \shieldedOutput
+has its own description.)
+It is also possible for value to be transferred between the \transparent and
+\shielded domains.
+}
+
+The \nullifiers of the input \notes are revealed (preventing them from being
+spent again) and the commitments of the output \notes are revealed (allowing
+them to be spent in future).
+\sprout{
+Each \joinSplitDescription also includes a computationally sound \zkSNARK proof,
+which proves that all of the following hold except with negligable probability:
 
 \begin{itemize}
   \item The input and output values balance (individually for each \joinSplitTransfer).
@@ -1357,12 +1376,47 @@ negligable probability:
   \item Each output \note is generated in such a way that it is infeasible to
         cause its \nullifier to collide with the \nullifier of any other \note.
 \end{itemize}
+}
+\notsprout{
+A \transaction also includes computationally sound \zkSNARK proofs, which prove
+that all of the following hold except with negligable probability:
+
+For each \shieldedInput,
+
+\begin{itemize}
+  \item \saplingonly{there is a revealed \valueCommitment to the same value as
+        the input \note;}
+  \item some revealed \noteCommitment exists for the input \note;
+  \item the prover knew the \authProvingKey of the input \note;
+  \item the \nullifier and \noteCommitment are computed correctly.
+\end{itemize}
+
+and for each \shieldedOutput,
+
+\begin{itemize}
+  \item \saplingonly{there is a revealed \valueCommitment to the same value as
+        the output \note;}
+  \item the \noteCommitment is computed correctly;
+  \item the output \note is generated in such a way that it is infeasible to
+        cause its \nullifier to collide with the \nullifier of any other \note.
+\end{itemize}
+
+For \Sprout, the \joinSplitStatement also includes an explicit balance check.
+For \Sapling, the \valueCommitments corresponding to the inputs and outputs are
+checked to balance (together with any net \transparent input or output)
+outside the \zkSNARK.
+
+In addition, various measures (differing between \Sprout and \Sapling) are
+used to ensure that the \transaction cannot be modified by a party not authorized
+to do so.
+}
 
 Outside the \zkSNARK, it is \sprout{also} checked that the \nullifiers for the input
 \notes had not already been revealed (i.e.\ they had not already been spent).
 
-A \paymentAddress includes two public keys: a \payingKey matching that of \notes
-sent to the address, and a \transmissionKey for a key-private asymmetric encryption
+A \paymentAddress includes
+\sprout{two public keys: a \payingKey matching that of \notes sent to the address, and}
+a \transmissionKey for a key-private asymmetric encryption
 scheme. \quotedterm{Key-private} means that ciphertexts do not reveal information
 about which key they were encrypted to, except to a holder of the corresponding
 private key, which in this context is called the \receivingKey. This facility is
@@ -1499,19 +1553,24 @@ The symbol $\bot$ is used to indicate unavailable information, or a failed
 decryption or validity check.
 
 The following integer constants will be instantiated in \crossref{constants}:
-$\MerkleDepth$, $\NOld$, $\NNew$, $\MerkleHashLength$, $\hSigLength$,
-$\PRFOutputLength$, $\NoteCommitRandLength$, $\RandomSeedLength$, $\AuthPrivateLength$,
+$\MerkleDepthSprout$, \sapling{$\MerkleDepthSapling$,} $\NOld$, $\NNew$,
+$\MerkleHashLengthSprout$, \sapling{$\MerkleHashLengthSapling$,} $\hSigLength$,
+$\PRFOutputLength$, \sapling{$\PRGOutputLength$,} $\NoteCommitRandLength$,
+$\RandomSeedLength$, $\AuthPrivateLength$, \sapling{$\AuthPrivateSeedLength$,}
 $\NoteAddressPreRandLength$, $\MAXMONEY$, $\SlowStartInterval$, $\HalvingInterval$,
 $\MaxBlockSubsidy$, $\NumFounderAddresses$, $\PoWLimit$, $\PoWAveragingWindow$,
 $\PoWMedianBlockSpan$, $\PoWDampingFactor$, $\PoWTargetSpacing$.
-The bit sequence constant $\Uncommitted \typecolon \bitseq{\MerkleHashLength}$
-and the rational constants $\FoundersFraction$, $\PoWMaxAdjustDown$, and
+
+\sprout{The bit sequence constant $\UncommittedSprout \typecolon \bitseq{\MerkleHashLengthSprout}$,}
+\notsprout{The bit sequence constants $\UncommittedSprout \typecolon \bitseq{\MerkleHashLengthSprout}$
+and $\UncommittedSapling \typecolon \bitseq{\MerkleHashLengthSapling}$,}
+and rational constants $\FoundersFraction$, $\PoWMaxAdjustDown$, and
 $\PoWMaxAdjustUp$ will also be defined in that section.
 
 
 \nsection{Concepts}
 
-\nsubsection{Payment Addresses and Keys}
+\nsubsection{Payment Addresses and Keys} \label{addressesandkeys}
 
 Users who wish to receive payments under this scheme first generate a
 random \spendingKey\sprout{ $\AuthPrivate$}.
@@ -1533,23 +1592,24 @@ from it.
 The \receivingKey $\TransmitPrivate$, the \incomingViewingKey
 $\InViewingKey = (\AuthPublic, \TransmitPrivate)$, and the \paymentAddress
 $\PaymentAddress = (\AuthPublic, \TransmitPublic)$ are derived from
-$\AuthPrivate$, as described in \crossref{keycomponents}.
+$\AuthPrivate$, as described in \crossref{sproutkeycomponents}.
 }
 
 \saplingonly{
 The \authSigningKey $\AuthSignPrivate$,
-the \delegatedProvingKey $(\AuthSignPublic, \AuthProveKey)$,
-the \fullViewingKey $(\AuthSignPublic, \PRFKey)$,
+the \authProvingKey $(\AuthSignPublic, \AuthProvePrivate)$,
+the \fullViewingKey $(\AuthSignPublic, \AuthProvePublic)$,
 the \incomingViewingKey $\InViewingKey$, and
 each \diversifiedPaymentAddress $\DiversifiedPaymentAddress = (\Diversifier, \DiversifiedTransmitPublic)$
-are derived from $\AuthPrivateSeed$, as described in \crossref{keycomponents}.
+are derived from $\AuthPrivateSeed$, as described in \crossref{saplingkeycomponents}.
 }
 
 The composition of \paymentAddresses, \changed{\incomingViewingKeys,}
 \sapling{\fullViewingKeys,} and \spendingKeys is a cryptographic protocol
 detail that should not normally be exposed to users. However, user-visible
-operations should be provided to obtain a \paymentAddress\changed{ or \incomingViewingKey}
-\sapling{ or \fullViewingKey} from a \spendingKey.
+operations should be provided to obtain a
+\paymentAddress\changed{ or \incomingViewingKey}\sapling{ or \fullViewingKey}
+from a \spendingKey.
 
 Users can accept payment from multiple parties with a single \paymentAddress
 and the fact that these payments are destined to
@@ -1582,19 +1642,23 @@ exploit a hypothetical weakness in that cryptosystem.
 }
 
 \introsection
-\nsubsection{\Notes}
+\nsubsection{\Notes} \label{notes}
 
-\saplingonly{
-\todo{Update this section.}
-}
-
-\sproutonly{
+\sprout{
 A \note (denoted $\NoteTuple{}$) is a tuple $\changed{(\AuthPublic, \Value,
 \NoteAddressRand, \NoteCommitRand)}$. It represents that a value $\Value$ is
 spendable by the recipient who holds the \spendingKey $\AuthPrivate$ corresponding
 to $\AuthPublic$, as described in the previous section.
 }
+\notsprout{
+A \note (denoted $\NoteTuple{}$) can be a \Sprout \note\sapling{ or a
+\Sapling \note}. In either case it represents that a value $\Value$ is
+spendable by the recipient who holds the \spendingKey corresponding
+to a given \paymentAddress.
+}
 
+A \Sprout \note is a tuple $\changed{(\AuthPublic,
+\Value, \NoteAddressRand, \NoteCommitRand)}$, where:
 \begin{itemize}
   \item $\AuthPublic \typecolon \PRFOutput$ is the \payingKey of the
         recipient's \paymentAddress;
@@ -1604,14 +1668,35 @@ to $\AuthPublic$, as described in the previous section.
   \item $\NoteAddressRand \typecolon \PRFOutput$
         is used as input to $\PRFnf{\AuthPrivate}$ to derive the
         \nullifier of the \note;
-  \item $\NoteCommitRand \typecolon \bitseq{\NoteCommitRandLength}$
-        is a random bit sequence used as a \commitmentTrapdoor as
-        defined in \crossref{abstractcomm}.
+  \item $\NoteCommitRand \typecolon \NoteCommitSproutTrapdoor$
+        is a random \commitmentTrapdoor as defined in \crossref{abstractcomm}.
 \end{itemize}
 
-\sproutonly{
-Let $\NoteType$ be the type of a \note, i.e.\ \changed{
-$\PRFOutput \times \range{0}{\MAXMONEY} \times \PRFOutput \times \bitseq{\NoteCommitRandLength}$}.
+Let $\NoteTypeSprout$ be the type of a \Sprout \note,
+i.e.\ \changed{$\PRFOutput \times \range{0}{\MAXMONEY} \times \PRFOutput
+\times \NoteCommitSproutTrapdoor$}.
+
+\sapling{
+\vspace{2ex}
+A \Sapling \note is a tuple $(\Diversifier, \DiversifiedTransmitPublic,
+\Value, \NoteAddressRand, \NoteCommitRand)$, where:
+\begin{itemize}
+  \item $\Diversifier \typecolon \bitseq{\DiversifierLength}$
+        is the \diversifier of the recipient's \paymentAddress;
+  \item $\DiversifiedTransmitPublic \typecolon \bitseq{\ellJ}$
+        is the \diversifiedTransmissionKey of the recipient's \paymentAddress;
+  \item $\Value \typecolon \range{0}{\MAXMONEY}$ is an integer
+        representing the value of the \note in \zatoshi;
+  \item $\NoteAddressRand \typecolon \bitseq{\ellJ}$
+        is used as input to $\PRFnr{\AuthProvePublic}$ as part of deriving the
+        \nullifier of the \note;
+  \item $\NoteCommitRand \typecolon \NoteCommitSaplingTrapdoor$
+        is a random \commitmentTrapdoor as defined in \crossref{abstractcomm}.
+\end{itemize}
+
+Let $\NoteTypeSapling$ be the type of a \Sapling \note,
+i.e.\ $\bitseq{\DiversifierLength} \times \bitseq{\ellJ} \times \range{0}{\MAXMONEY}
+\times \bitseq{\ellJ} \times \NoteCommitSaplingTrapdoor$.
 }
 
 Creation of new \notes is described in \crossref{send}. When \notes are sent,
@@ -1620,44 +1705,75 @@ publically. This allows the value and recipient to be kept private, while the
 commitment is used by the \zeroKnowledgeProof when the \note is spent, to check
 that it exists on the \blockchain.
 
-The \noteCommitment is computed as
-$\NoteCommit(\NoteTuple{}) = \Commit{\NoteCommitRand}(\AuthPublic, \Value, \NoteAddressRand)$,
-where $\Commit{}$ is instantiated in \crossref{concretecomm}.
+\vspace{2ex}
+A \notsprout{\Sprout} \noteCommitment is computed as
+\begin{formulae}
+  \item $\NoteCommitmentSprout(\NoteTuple{}) =
+          \NoteCommitSprout{\NoteCommitRand}(\AuthPublic, \Value, \NoteAddressRand)$,
+\end{formulae}
+\vspace{-1.5ex}
+where $\NoteCommitSprout{}$ is instantiated in \crossref{concretecomm}.
 
+\sapling{
+\vspace{2ex}
+A \Sapling \noteCommitment is computed as
+\begin{formulae}
+  \item $\NoteCommitmentSapling(\NoteTuple{}) =
+          \NoteCommitSapling{\NoteCommitRand}(\Diversifier, \DiversifiedTransmitPublic,
+                                              \Value, \NoteAddressRand)$,
+\end{formulae}
+\vspace{-1.5ex}
+where $\NoteCommitSapling{}$ is instantiated in \crossref{concretecomm}.
+}
+
+\vspace{2ex}
 A \nullifier (denoted $\nf$) is derived from the $\NoteAddressRand$ component
-of a \note and the recipient's \spendingKey, using a \pseudoRandomFunction (see
-\crossref{abstractprfs}). Specifically it is derived as $\PRFnf{\AuthPrivate}(\NoteAddressRand)$
+of a \note and the recipient's
+\spendingKey $\AuthPrivate$\sapling{ or \fullViewingKey $(\AuthSignPublic, \AuthProvePublic)$},
+using a \pseudoRandomFunction (see \crossref{abstractprfs}).
+
+\sprout{Specifically}\notsprout{For a \Sprout \note,}
+it is derived as $\PRFnf{\AuthPrivate}(\NoteAddressRand)$
 where $\PRFnf{}{}$ is instantiated in \crossref{concreteprfs}.
 
-A \note is spent by proving knowledge of $\NoteAddressRand$ and $\AuthPrivate$ in
-zero knowledge while publically disclosing its \nullifier $\nf$, allowing $\nf$ to
-be used to prevent double-spending.
+% TODO: \scalarmults should only be in the concrete section
+\sapling{
+For a \Sapling \note, it is derived as
+$\scalarmult{\PRFnr{\AuthProvePublic}(\NoteAddressRand)}{\scalarmult{8}{\AuthSignPublic}}$
+where $\PRFnr{}{}$ is instantiated in \crossref{concreteprfs}.
+}
 
-\nsubsubsection{\NotePlaintexts{} and \Memos}
+A \note is spent by proving knowledge of $\NoteAddressRand$ and
+$\AuthPrivate$\sapling{ or $(\AuthSignPrivate, \AuthProvePrivate)$}
+in zero knowledge while publically disclosing its \nullifier $\nf$,
+allowing $\nf$ to be used to prevent double-spending.
+
+\nsubsubsection{\NotePlaintexts{} and \Memos} \label{noteptconcept}
 
 Transmitted \notes are stored on the \blockchain in encrypted form, together with
 a \noteCommitment $\cm$.
 
 The \notePlaintexts in a \joinSplitDescription are encrypted to the
-respective \transmissionKeys $\TransmitPublicNew{\allNew}$,
-and the result forms part of a \notesCiphertext (see \crossref{inband}
-for further details).
+respective \transmissionKeys $\TransmitPublicNew{\allNew}$.
+Each \notsprout{\Sprout} \notePlaintext (denoted $\NotePlaintext{}$) consists of
+$(\Value, \NoteAddressRand, \NoteCommitRand\changed{, \Memo})$.
 
 \saplingonly{
-\todo{Describe encryption to diversified addresses.}
+The \notePlaintext in each \outputDescription is encrypted to the
+\diversifiedTransmissionKey $\DiversifiedTransmitPublic$.
+Each \Sapling \notePlaintext (denoted $\NotePlaintext{}$) consists of
+$(\Diversifier, \Value, \NoteAddressRand, \NoteCommitRand, \Memo)$.
 }
-
-\sproutonly{
-Each \notePlaintext (denoted $\NotePlaintext{}$) consists of
-$(\Value, \NoteAddressRand, \NoteCommitRand\changed{, \Memo})$.
-}
-
-The first three of these fields are as defined earlier.
 
 \changed{
 $\Memo$ represents a \memo associated with this \note. The usage of the
 \memo is by agreement between the sender and recipient of the \note.
 }
+
+Other fields are as defined in \crossref{notes}.
+
+The result of encryption forms part of a \notesCiphertext (see \crossref{inband}
+for further details).
 
 
 \nsubsection{The Block Chain} \label{blockchain}
@@ -1700,37 +1816,39 @@ The remaining value in the \transparentValuePool{} \MUST be nonnegative.
 }
 \vspace{2ex}
 
-To each \transaction there is associated an initial \treestate.
+\sprout{To each \transaction there is associated an initial \treestate.}
+\notsprout{To each \transaction there are associated initial \treestates
+for \Sprout and for \Sapling.}
 
-\sproutonly{
-A \treestate consists of:
+A \SproutOrNothing \treestate consists of:
 \begin{itemize}
   \item a \noteCommitmentTree (\crossref{merkletree});
-  \item a \nullifierSet (\crossref{nullifierset});
-  \item data structures associated with \Bitcoin such as the UTXO
-        (Unspent Transaction Output) set.
+  \item a \nullifierSet (\crossref{nullifierset}).
 \end{itemize}
-}
 
 \saplingonly{
-A \treestate consists of:
+A \Sapling \treestate consists of:
 \begin{itemize}
-  \item two \noteCommitmentTrees (\crossref{merkletree});
-  \item two \nullifierSets (\crossref{nullifierset});
-  \item data structures associated with \Bitcoin such as the UTXO set.
+  \item another \noteCommitmentTree;
+  \item another \nullifierSet;
+  \item a \outputUniquenessSet (\crossref{outputuniqueset}).
 \end{itemize}
-
-One pair of \noteCommitmentTree and \nullifierSet is associated with \Sprout and
-the other with \Sapling.
 }
 
-An \anchor is a Merkle tree root of a \noteCommitmentTree. It uniquely identifies
-a \noteCommitmentTree state given the assumed security properties of the Merkle tree's
-hash function. Since the \nullifierSet is always updated together with the
-\noteCommitmentTree, this also identifies a particular state of the \nullifierSet.
+Validation state associated with \transparentTransfers, such as the UTXO
+(Unspent Transaction Output) set, is not described in this document; it is
+used in essentially the same way as in \Bitcoin.
+
+An \anchor is a Merkle tree root of a \noteCommitmentTree\sapling{ (either the
+\Sprout tree or the \Sapling tree)}. It uniquely identifies a \noteCommitmentTree
+state given the assumed security properties of the Merkle tree's
+\hashFunction. Since the \nullifierSet is always updated together with the
+\noteCommitmentTree, this also identifies a particular state of the associated
+\nullifierSet\sapling{ and, in the case of \Sapling, \outputUniquenessSet}.
 
 \introlist
-In a given \blockchain, \treestates are chained as follows:
+In a given \blockchain, \sapling{for each of \Sprout and \Sapling,}
+\treestates are chained as follows:
 
 \begin{itemize}
   \item The input \treestate of the first \block is the empty \treestate.
@@ -1742,20 +1860,24 @@ In a given \blockchain, \treestates are chained as follows:
         \transaction.
 \end{itemize}
 
-\joinSplitDescriptions also have interstitial input and output \treestates, explained
-in the following section.
+\joinSplitDescriptions also have interstitial input and output
+\treestates\notsprout{ for \Sprout}, explained in the following section.
+\sapling{There is no equivalent of interstitial \treestates for \Sapling.}
 
 
 \nsubsection{\JoinSplitTransfers{} and Descriptions} \label{joinsplit}
 
 A \joinSplitDescription is data included in a \transaction that describes a \joinSplitTransfer,
-i.e.\ a \shielded value transfer. This kind of value transfer is the primary
-\Zcash-specific operation performed by \transactions; it uses, but should not be
-confused with, the \joinSplitStatement used for the \zkSNARK proof and verification.
+i.e.\ a \shielded value transfer.
+\sprout{This kind of value transfer is}
+\notsprout{In \Sprout, this kind of value transfer was}
+the primary \Zcash-specific operation performed by \transactions.
 
 A \joinSplitTransfer spends $\NOld$ \notes $\nOld{\allOld}$ and \transparent input
 $\vpubOld$, and creates $\NNew$ \notes $\nNew{\allNew}$ and \transparent output
 $\vpubNew$.
+It is associated with an instance of a \joinSplitStatement (\crossref{joinsplitstatement}),
+for which it provides a \zkSNARKProof.
 
 Each \transaction has a \sequenceOfJoinSplitDescriptions.
 
@@ -1763,8 +1885,8 @@ The \changed{total $\vpubNew$ value adds to, and the total} $\vpubOld$
 value subtracts from the \transparentValuePool of the containing \transaction.
 
 The \anchor of each \joinSplitDescription in a \transaction{} refers to a
-\treestate. For the first \joinSplitDescription, this \MUST be the output
-\treestate of a previous \block.
+\SproutOrNothing \treestate. For the first \joinSplitDescription, this \MUST be
+the output \SproutOrNothing \treestate of a previous \block.
 
 \changed{
 For each \joinSplitDescription in a \transaction, an interstitial output \treestate is
@@ -1783,10 +1905,67 @@ it is not known where it will eventually appear in a mined \block. Therefore the
         exactly.
 \changed{
   \item The \anchor of each \joinSplitDescription in a \transaction{} \MUST refer
-        to either some earlier \block's final \treestate, or to the interstitial output
-        \treestate of any prior \joinSplitDescription in the same \transaction.
+        to either some earlier \block's final \SproutOrNothing \treestate, or to
+        the interstitial output \treestate of any prior \joinSplitDescription in
+        the same \transaction.
 }
 \end{consensusrules}
+
+
+\sapling{
+\nsubsection{\SpendTransfers, \OutputTransfers, and their Descriptions} \label{spendsandoutputs}
+
+\joinSplitTransfers are not used for \Sapling \notes. Instead, there is a
+separate \spendTransfer for each \shieldedInput, and a separate \outputTransfer
+for each \shieldedOutput.
+
+\spendDescriptions and \outputDescriptions are data included in a transaction
+that describe \spendTransfers and \outputTransfers, respectively.
+
+A \spendTransfer spends a \note $\nOld{}$. Its \spendDescription includes a
+\xPedersenValueCommitment to the value of the \note.
+It is associated with an instance of a \spendStatement (\crossref{spendstatement})
+for which it provides a \zkSNARKProof.
+
+An \outputTransfer creates a \note $\nNew{}$. Similarly, its \outputDescription
+includes a \xPedersenValueCommitment to the \note value.
+It is associated with an instance of an \outputStatement (\crossref{outputstatement})
+for which it provides a \zkSNARKProof.
+
+Each \transaction has a sequence of \spendDescriptions and a sequence of
+\outputDescriptions.
+
+To ensure balance, we use a homomorphic property of \xPedersenCommitments that
+allows them to be added and subtracted (as elliptic curve points). The result
+of adding two \xPedersenValueCommitments, committing to values $\Value_1$ and
+$\Value_2$, is a new \xPedersenValueCommitment that commits to $\Value_1 + \Value_2$.
+Subtraction works similarly.
+
+Therefore, balance can be enforced by adding all of the \valueCommitments for
+\shieldedInputs, subtracting all of the \valueCommitments for \shieldedOutputs,
+and checking that the result commits to a value consistent with the net \transparent
+value change (see \crossref{saplingbalance} for a full specification).
+This approach allows all of the \zkSNARK statements to be independent of
+each other, potentially increasing opportunities for precomputation.
+
+A \spendDescription also includes an \anchor, which refers to the output
+\Sapling \treestate of a previous \block.
+
+\pnote{
+Interstitial \treestates are not necessary for \Sapling, because a \spendTransfer
+in a given \transaction cannot spend any of the \shieldedOutputs of the same
+\transaction. This is not an onerous restriction because, unlike \Sprout where
+each \joinSplitTransfer must balance individually, in \Sapling it is only necessary
+for the whole \transaction to balance.
+}
+
+\begin{consensusrules}
+  \item The \transaction{} \MUST balance as specified in \crossref{saplingbalance}.
+  \item The \anchor of each \spendDescription in a \transaction{} \MUST refer
+        to some earlier \block's final \Sapling \treestate.
+\end{consensusrules}
+}
+
 
 \nsubsection{\NoteCommitmentTrees} \label{merkletree}
 
@@ -1794,17 +1973,18 @@ it is not known where it will eventually appear in a mined \block. Therefore the
 \includegraphics[scale=.4]{incremental_merkle}
 \end{center}
 
-The \noteCommitmentTree is an \incrementalMerkleTree of fixed depth used to
-store \noteCommitments that \joinSplitTransfers produce. Just as the \term{unspent
-transaction output set} (UTXO set) used in \Bitcoin, it is used to express the existence
-of value and the capability to spend it. However, unlike the UTXO set, it is \emph{not}
-the job of this tree to protect against double-spending, as it is append-only.
+The \noteCommitmentTree is an \incrementalMerkleTree of fixed depth used to store
+\noteCommitments that \joinSplitTransfers\sapling{ and \spendTransfers} produce.
+Just as the \term{unspent transaction output set} (UTXO set) used in \Bitcoin,
+it is used to express the existence of value and the capability to spend it.
+However, unlike the UTXO set, it is \emph{not} the job of this tree to protect
+against double-spending, as it is append-only.
 
 A \merkleRoot of this tree is associated with each \treestate, as described in
 \crossref{transactions}.
 
 Each \merkleNode in the \incrementalMerkleTree is associated with a \merkleHash of
-size $\MerkleHashLength$ bits.
+size $\MerkleHashLengthSprout$ \sapling{ or $\MerkleHashLengthSapling$} bits.
 The \merkleLayer numbered $h$, counting from \merkleLayer $0$ at the \merkleRoot, has
 $2^h$ \merkleNodes with \merkleIndices $0$ to $2^h-1$ inclusive.
 The \merkleHash associated with the \merkleNode at \merkleIndex $i$ in \merkleLayer $h$
@@ -1814,8 +1994,9 @@ is denoted $\MerkleNode{h}{i}$.
 \nsubsection{\NullifierSets} \label{nullifierset}
 
 Each \fullValidator maintains a \nullifierSet logically associated with each \treestate.
-As valid \transactions containing \joinSplitTransfers are processed, the \nullifiers
-revealed in \joinSplitDescriptions are inserted into this \nullifierSet.
+As valid \transactions containing \joinSplitTransfers \sapling{ or \spendTransfers} are
+processed, the \nullifiers revealed in \joinSplitDescriptions \sapling{ and \spendDescriptions}
+are inserted into this \nullifierSet.
 
 \xNullifiers are enforced to be unique within a \validBlockchain, in order to
 prevent double-spends.
@@ -1827,9 +2008,31 @@ A \nullifier{} \MUSTNOT repeat either within a \transaction, or across
 
 \sapling{\pnote{
 \Sprout and \Sapling \nullifiers are considered disjoint, even if they have
-the same bit pattern.
+the same bit pattern. As a result there are two \nullifierSets, one
+for \Sprout and one for \Sapling.
 }}
 
+\sapling{
+\nsubsection{\OutputUniquenessSet} \label{outputuniqueset}
+
+For \Sapling, there is also a set of \outputUniqueValues, called the
+\outputUniquenessSet. When a valid \transaction containing one or more
+\outputTransfers is processed, the \outputUniqueValue revealed in the
+\transaction is inserted into this set.
+
+Like \nullifiers, \outputUniqueValues are enforced to be unique within a
+\validBlockchain. This is needed to prevent Faerie Gold attacks on \Sapling
+transactions (\crossref{faeriegold}).
+
+\consensusrule{
+A \outputUniqueValue{} \MUSTNOT repeat across \transactions in a \validBlockchain.
+}
+
+\pnote{
+Since there is at most one \outputUniqueValue revealed by a \transaction,
+repetition of \outputUniqueValues within a \transaction is not an issue.
+}
+}
 
 \nsubsection{Block Subsidy and Founders' Reward} \label{subsidyconcepts}
 
@@ -1876,8 +2079,16 @@ It is instantiated in \crossref{equihashgen}.
 \introsection
 \nsubsubsection{\PseudoRandomFunctions} \label{abstractprfs}
 
-$\PRF{x}{}$ is a \pseudoRandomFunction keyed by $x$. \changed{Four} \emph{independent}
-$\PRF{x}{}$ are needed in our protocol:
+$\PRF{x}{}$ is a \pseudoRandomFunction keyed by $x$.
+
+Let $\AuthPrivateLength$, $\NoteAddressPreRandLength$, $\hSigLength$, and
+$\PRFOutputLength$ be as defined in \crossref{constants}.
+
+\sapling{Let $\ellJ$ be as defined in \crossref{jubjub}.}
+
+\sprout{\changed{Four} \emph{independent} $\PRF{x}{}$ are needed in our protocol:}
+
+\notsprout{For \Sprout, \changed{four} \emph{independent} $\PRF{x}{}$ are needed:}
 
 \begin{tabular}{@{\hskip 2em}l@{\;}l@{\;}l@{\;}l@{\;}l}
 $\PRFaddr{} $&$\typecolon\; \bitseq{\AuthPrivateLength} $&$\times\; \range{0}{255} $& &$\rightarrow \PRFOutput $\\
@@ -1887,9 +2098,18 @@ $\PRFrho{}  $&$\typecolon\; \bitseq{\NoteAddressPreRandLength} $&$\times\; \seto
 \end{tabular}
 
 These are used in \crossref{joinsplitstatement}; $\PRFaddr{}$ is also used to
-derive a \paymentAddress from a \spendingKey in \crossref{keycomponents}.
+derive a \paymentAddress from a \spendingKey in \crossref{sproutkeycomponents}.
 
-They are instantiated in \crossref{concreteprfs}.
+\sapling{
+For \Sapling, one additional $\PRF{x}{}$ is needed:
+
+\begin{tabular}{@{\hskip 2em}l@{\hskip 1.05em}l@{\hskip 0.85em}l@{\;}l@{\hskip 6.25em}l}
+$\PRFnr{}   $&$\typecolon\; \bitseq{\ellJ}              $&$\times\; \bitseq{\ellJ} $& &$\rightarrow \PRFOutput$
+\end{tabular}
+
+It is used in \crossref{spendstatement}.}
+
+\sprout{They}\notsprout{All of these \pseudoRandomFunctions} are instantiated in \crossref{concreteprfs}.
 
 \begin{securityrequirements}
   \item Security definitions for \pseudoRandomFunctions are given in \cite[section 4]{BDJR2000}.
@@ -1995,6 +2215,10 @@ for $\SymEncrypt{}$.
 In addition to adaptive security of the key agreement and KDF,
 the following security property is required:
 
+\sapling{
+\todo{adapt this definition to handle \Sapling, or maybe just remove it.}
+}
+
 Let $\TransmitPrivateSup{1}$ and $\TransmitPrivateSup{2}$ each be chosen uniformly and
 independently at random from $\KAPrivate$.
 
@@ -2023,7 +2247,7 @@ as defined in \cite{BBDP2001}.
 \pnote{
 The given definition only requires ciphertexts to be indistinguishable
 between \transmissionKeys that are outputs of $\KADerivePublic$ (which
-includes all keys generated as in \crossref{keycomponents}). If a
+includes all keys generated as in \crossref{sproutkeycomponents}). If a
 \transmissionKey not in that range is used, it may be distinguishable.
 This is not considered to be a significant security weakness.
 }
@@ -2048,18 +2272,39 @@ such that for any key pair $(\sk, \vk) \leftarrowR \SigGen()$, and
 any $m \typecolon \SigMessage$ and $s \typecolon \SigSignature \leftarrowR \SigSign{\sk}(m)$,
 $\SigVerify{\vk}(m, s) = 1$.
 
+\sprout{
 \Zcash uses two signature schemes, one used for signatures that can be verified
 by script operations such as \ScriptOP{CHECKSIG} and \ScriptOP{CHECKMULTISIG} as
 in \Bitcoin, and one called $\JoinSplitSig$ which is used to sign \transactions
 that contain at least one \joinSplitDescription. The latter is instantiated in
 \crossref{concretesig}. The following defines only the security properties needed
 for $\JoinSplitSig$.
+}
+\notsprout{
+\Zcash uses three signature schemes:
+
+\begin{itemize}
+  \item one used for signatures that can be verified by script operations such as
+        \ScriptOP{CHECKSIG} and \ScriptOP{CHECKMULTISIG} as in \Bitcoin;
+  \item one called $\JoinSplitSig$ (instantiated in \crossref{concretesig}),
+        which is used to sign \transactions that contain at least one
+        \joinSplitDescription;
+\sapling{
+  \item \saplingonly{one called $\ShieldedOutputsSigSpecific$ (instantiated in \crossref{concretesig}),
+        which is used to sign authorizations of \spendDescriptions, and in
+        \transactions that contain at least one \outputDescription.}
+}
+\end{itemize}
+
+The following defines only the security properties needed
+for $\JoinSplitSig$\sapling{ and $\ShieldedOutputsSigSpecific$}.
+}
 
 \securityrequirement{
-$\JoinSplitSig$ must be Strongly Unforgeable under (non-adaptive)
-Chosen Message Attack (SU-CMA), as defined for example in
-\cite[Definition 6]{BDEHR2011}. This allows an adversary to obtain
-signatures on chosen messages, and then requires it to be infeasible
+$\JoinSplitSig$\sapling{ and $\ShieldedOutputsSigSpecific$} must be
+Strongly Unforgeable under (non-adaptive) Chosen Message Attack (SU-CMA),
+as defined for example in \cite[Definition 6]{BDEHR2011}. This allows an adversary
+to obtain signatures on chosen messages, and then requires it to be infeasible
 for the adversary to forge a previously unseen valid \mbox{(message, signature)}
 pair without access to the signing key.
 }
@@ -2135,6 +2380,9 @@ such that $\abstG{}$ is the left inverse of $\reprG{}$, i.e.
 for all $P \in \GroupG{}$, $\abstG{}(\reprG{}(P)) = P$, and
 for all $S$ not in the image of $\reprG{}$, $\abstG{}(S) = \bot$.
 
+% Do we actually need \GenG? It is natural to include it for some groups
+% and not others.
+
 We extend the $\vsum{}{}$ notation to addition on group elements.
 
 \vspace{-3ex}
@@ -2174,9 +2422,16 @@ and a sequence of nonzero scalars $x_{\alln} \typecolon \typeexp{\GFstar{\ParamG
 such that $\vsum{i = 1}{n}\left(\scalarmult{x_i}{\GroupGHash{U}(m_i)}\right) = \ZeroG{}$.
 \end{securityrequirements}
 
-Note that this property implies (and is stronger than) collision-resistance,
-since a collision $(m_1, m_2)$ for $\GroupGHash{U}$ trivially gives a discrete
-logarithm relation with $x_1 = 1$ and $x_2 = -1$.
+\begin{pnotes}
+  \item This property implies (and is stronger than) collision-resistance,
+        since a collision $(m_1, m_2)$ for $\GroupGHash{U}$ trivially gives a
+        discrete logarithm relation with $x_1 = 1$ and $x_2 = -1$.
+  \item An alternative approach is to model $\GroupGHash{U}$ as a random
+        oracle, and assume that the Discrete Logarithm Problem is hard in
+        the group. We prefer to avoid the Random Oracle Model and instead make
+        a more specific standard-model assumption, which is effectively no
+        stronger than the assumptions made in the random oracle approach.
+\end{pnotes}
 }
 
 \introlist
@@ -2314,9 +2569,6 @@ Similarly, we omit the key subscripts on $\SpendProve$,
 $\SpendVerify$, $\OutputProve$, and $\OutputVerify$, taking
 them to be the $\Groth$ \provingKeys and
 \verifyingKeys defined in \crossref{saplingparameters}.
-
-See \crossref{saplingtransition} for further details on the
-usage of each of these schemes.
 }
 
 \nsubsection{Key Components} \label{keycomponents}
@@ -2325,9 +2577,9 @@ usage of each of these schemes.
 
 Let $\PRFaddr{}$ be a \pseudoRandomFunction, instantiated in \crossref{concreteprfs}.
 
-Let $\KA$ be a \keyAgreementScheme, instantiated in \crossref{concretekeyagreement}.
+Let $\KASprout$ be a \keyAgreementScheme, instantiated in \crossref{concretesproutkeyagreement}.
 
-A new \spendingKey $\AuthPrivate$ is generated by choosing a bit string
+A new \SproutOrNothing \spendingKey $\AuthPrivate$ is generated by choosing a bit string
 uniformly at random from $\bitseq{\AuthPrivateLength}$.
 
 \introlist
@@ -2338,33 +2590,110 @@ as follows:}
 
 \begin{tabular}{@{\hskip 2em}r@{\;}l}
   $\AuthPublic$ &$:= \changed{\PRFaddr{\AuthPrivate}(0)}$ \\
-  $\TransmitPrivate$ &$:= \changed{\KAFormatPrivate(\PRFaddr{\AuthPrivate}(1))}$ \\
-  $\TransmitPublic$ &$:= \changed{\KADerivePublic(\TransmitPrivate)}$.
+  $\TransmitPrivate$ &$:= \changed{\KASproutFormatPrivate(\PRFaddr{\AuthPrivate}(1))}$ \\
+  $\TransmitPublic$ &$:= \changed{\KASproutDerivePublic(\TransmitPrivate)}$.
 \end{tabular}
 
 \sapling{
 \nsubsubsection{\Sapling Key Components} \label{saplingkeycomponents}
 
-Let $\PRFaddrSapling{}$ be a \pseudoRandomFunction, instantiated in \crossref{concreteprfs}.
+Let $\PRGExpandSeed{}$ be a \pseudoRandomGenerator, instantiated in \crossref{concreteprgs}.
 
-Let $\KASapling$ be a \keyAgreementScheme, instantiated in \crossref{concretekeyagreement}.
+Let $\KASapling$ be a \keyAgreementScheme, instantiated in \crossref{concretesaplingkeyagreement}.
 
-A new \spendingKey $\AuthPrivateSeed$ is generated by choosing a bit string
+Let $\CRHivk$ be a \hashFunction, instantiated in \crossref{concretecrhivk}.
+
+Let $\GroupJHash{U}$ be a \term{hash into the group of the $\JubjubCurve$ curve},
+instantiated in \crossref{concretegh}.
+
+Let $\AuthSignBase = \GroupJHash{U}(\ascii{Zcash\_G\_}, \ascii{})$ and
+let $\AuthProveBase = \GroupJHash{U}(\ascii{Zcash\_H\_}, \ascii{})$.
+
+\todo{The second inputs to $\GroupJHash{}$ need to be chosen to produce valid points.}
+
+Let $\reprJ$ be the representation function for the $\JubjubCurve$ \representedGroup,
+instantiated in \crossref{jubjub}.
+
+\vspace{2ex}
+A new \Sapling \spendingKey $\AuthPrivateSeed$ is generated by choosing a bit string
 uniformly at random from $\bitseq{\AuthPrivateSeedLength}$.
 
+This is expanded using $\PRGExpandSeed{}$ to a $512$-bit \expandedSeed,
+then split into two integers,
+$\PreAuthSignPrivate \typecolon \range{0}{2^{256}-1}$ and
+$\PreAuthProvePrivate \typecolon \range{0}{2^{256}-1}$:
+\vspace{1.5ex}
+}
+
+\newsavebox{\expandedseedbox}
+\begin{lrbox}{\expandedseedbox}
+\begin{bytefield}[bitwidth=0.04em]{512}
+\sapling{
+    \bitbox{256}{$256$-bit $\PreAuthSignPrivate$} &
+    \bitbox{256}{$256$-bit $\PreAuthProvePrivate$}
+}
+\end{bytefield}
+\end{lrbox}
+
+\newsavebox{\crhivkinputbox}
+\begin{lrbox}{\crhivkinputbox}
+\begin{bytefield}[bitwidth=0.04em]{512}
+\sapling{
+    \bitbox{256}{$256$-bit $\reprJ(\AuthSignPublic)$} &
+    \bitbox{256}{$256$-bit $\reprJ(\AuthProvePublic)$}
+}
+\end{bytefield}
+\end{lrbox}
+
+\sapling{
+\begin{formulae}
+  \item $\Justthebox{\expandedseedbox} := \PRGExpandSeed{\AuthPrivateSeed}()$ \\
+\end{formulae}
+
 \introlist
-$\AuthPublic$, $\TransmitPrivate$ and $\DiversifiedTransmitPublic$ are derived from
-$\AuthPrivate$
-as follows:
+$\AuthSignPrivate$, $\AuthProvePrivate$, $\AuthSignPublic$, $\AuthProvePublic$,
+and $\InViewingKey$ are then derived as follows:
 
 \begin{tabular}{@{\hskip 2em}r@{\;}l}
-  $\AuthPublic$ &$:= \PRFaddr{\AuthPrivate}(0)$ \\
-  $\TransmitPrivate$ &$:= \KAFormatPrivate(\PRFaddr{\AuthPrivate}(1))$ \\
-  $\TransmitPublic$ &$:= \KADerivePublic(\TransmitPrivate)$.
+  $\AuthSignPrivate$ &$:= \PreAuthSignPrivate \bmod \JubjubScalarThreshold$ \\
+  $\AuthProvePrivate$ &$:= \PreAuthProvePrivate \bmod \JubjubScalarThreshold$ \\
+  $\AuthSignPublic$ &$:= \scalarmult{\AuthSignPrivate}{\AuthSignBase}$ \\
+  $\AuthProvePublic$ &$:= \scalarmult{\AuthProvePrivate}{\AuthProveBase}$ \\
+  $\InViewingKey$ &$:= \CRHivkHashbox{\crhivkinputbox}$.
 \end{tabular}
 
+\vspace{2ex}
+As explained in \crossref{addressesandkeys}, \Sapling allows the efficient
+creation of multiple \diversifiedPaymentAddresses with the same spending
+authority. A group of such addresses shares the same \fullViewingKey and
+\incomingViewingKey.
 
+To create a new \diversifiedPaymentAddress given an \incomingViewingKey
+$\InViewingKey$, first choose a \diversifier $\Diversifier$ uniformly at
+random from $\bitseq{\DiversifierLength}$.
+Then calculate:
 
+\begin{tabular}{@{\hskip 2em}r@{\;}l}
+  $\DiversifiedTransmitBase$ &$:= \GroupJHash{U}(\ascii{Zcash\_gd}, \Diversifier)$ \\
+  $\DiversifiedTransmitPublic$ &$:= \KASaplingDerivePublic(\DiversifiedTransmitBase, \InViewingKey)$.
+\end{tabular}
+
+The resulting \diversifiedPaymentAddress is $(\Diversifier, \DiversifiedTransmitPublic)$.
+
+\begin{pnotes}
+  \item The protocol does not prevent using the \diversifier $\Diversifier$ to produce
+        \quotedterm{vanity} addresses that start with a meaningful string when
+        encoded in Bech32 (see \crossref{saplingpaymentaddrencoding}).
+        Users and writers of software that generates addresses should be aware that
+        this provides weaker privacy properties than a randomly chosen \diversifier,
+        since a vanity address can obviously be distinguished, and might leak more
+        information than intended as to who created it.
+  \item Similarly, address generators \MAY encode information in the \diversifier
+        that can be recovered by the recipient of a payment to determine which
+        \diversifiedPaymentAddress was used. It is \RECOMMENDED that such \diversifiers
+        be randomly chosen unique byte sequences used to index into a database, rather
+        than directly encoding the needed data.
+\end{pnotes}
 }
 
 \nsubsection{\JoinSplitDescriptions} \label{joinsplitdesc}
@@ -2393,9 +2722,9 @@ where
         \transaction.
   \item $\nfOld{\allOld} \typecolon \typeexp{\PRFOutput}{\NOld}$ is
         the sequence of \nullifiers for the input \notes;
-  \item $\cmNew{\allNew} \typecolon \typeexp{\CommitOutput}{\NNew}$ is
+  \item $\cmNew{\allNew} \typecolon \typeexp{\NoteCommitSproutOutput}{\NNew}$ is
         the sequence of \noteCommitments for the output \notes;
-  \item \changed{$\EphemeralPublic \typecolon \KAPublic$ is
+  \item \changed{$\EphemeralPublic \typecolon \KASproutPublic$ is
         a key agreement public key, used to derive the key for encryption
         of the \notesCiphertext (\crossref{inband})};
   \item \changed{$\RandomSeed \typecolon \RandomSeedType$ is
@@ -2434,6 +2763,8 @@ $\hSigCRH$ is instantiated in \crossref{hsigcrh}.
 
 \introlist
 \nsubsection{Sending \Notes} \label{send}
+
+\notsprout{\nsubsubsection{Sending \Notes{} (\Sprout)}} \label{sproutsend}
 
 In order to send \shielded value, the sender constructs a \transaction
 containing one or more \joinSplitDescriptions. This involves first generating
@@ -2478,7 +2809,7 @@ the private \joinSplitSigningKey:
 Then the encoded \transaction including $\joinSplitSig$ is submitted to the network.
 
 
-\nsubsubsection{\DummyNotes} \label{dummynotes}
+\nsubsubsection{\DummyNotes\notsprout{ (\Sprout)}} \label{dummynotes}
 
 The fields in a \joinSplitDescription allow for $\NOld$ input \notes, and
 $\NNew$ output \notes. In practice, we may wish to encode a \joinSplitTransfer
@@ -2505,10 +2836,114 @@ as follows:
 A \dummy output \note is constructed as normal but with zero value, and
 sent to a random \paymentAddress.
 
+\sapling{
+\nsubsubsection{Sending \Notes{} (\Sapling)} \label{saplingsend}
+
+In order to send \shielded value, the sender constructs a \transaction
+containing one or more \shieldedOutputs. This involves first generating
+a new $\ShieldedOutputsSig$ key pair:
+
+\begin{formulae}
+  \item $(\shieldedOutputsPrivKey, \shieldedOutputsPubKey) \leftarrowR \ShieldedOutputsSigGen()$.
+\end{formulae}
+
+Let $\OutputUnique := \reprJ(\shieldedOutputsPubKey)$.
+
+Let $\OutputIndexType$ be the type $\range{0}{2^{32}-1}$.
+
+\introlist
+For each \outputDescription with index $\OutputIndex \typecolon \OutputIndexType$, the sender
+selects a value $\ValueNew{\OutputIndex}$ and a destination \Sapling \paymentAddress
+$(\Diversifier, \DiversifiedTransmitPublic)$, and then performs the following steps:
+
+\begin{enumerate}
+  \item Check that $\DiversifiedTransmitPublic$ is a valid compressed representation of
+        an Edwards point on the $\JubjubCurve$ curve and this point is not of small order
+        (i.e. $\abstJ(\DiversifiedTransmitPublic) \neq \bot$ and
+        $\scalarmult{8}{\abstJ(\DiversifiedTransmitPublic)} \neq \ZeroJ$).
+
+  \item Calculate $\DiversifiedTransmitBase = \GroupJHash{U}(\ascii{Zcash\_gd}, \Diversifier)$
+        and check that $\DiversifiedTransmitBase \neq \bot$.
+
+  \item Choose $\EphemeralPrivate$ uniformly at random on $\range{0}{\ParamJ{r} - 1}$.
+        \todo{any advantage in making this $\range{0}{\JubjubScalarThreshold - 1}$?}
+
+  \item Choose independent random commitment trapdoors:
+
+        \begin{tabular}{@{\hskip 2em}r@{\;}l}
+          $rcvnew$ &$\typecolon \ValueCommitTrapdoor$ \\
+          $rcmnew$ &$\typecolon \NoteCommitSaplingTrapdoor$ \\
+          $\NoteAddressPreRand$ &$\typecolon \UniqueCommitTrapdoor$.
+        \end{tabular}
+
+  \item Calculate
+
+        \begin{tabular}{@{\hskip 2em}r@{\;}l}
+          $\NoteAddressRand$ &$:= \UniqueCommit{\NoteAddressPreRand}(\OutputUnique, \OutputIndex)$
+            where $\OutputIndex$ is an output index \\
+          $cvnew$ &$:= \ValueCommit{rcvnew}(\ValueNew{\OutputIndex})$ \\
+          $cmnew$ &$:= \NoteCommitSapling{rcmnew}(\ValueNew{\OutputIndex}, \NoteAddressRand,
+                         \reprJ(\DiversifiedTransmitBase), \DiversifiedTransmitPublic)$ \\
+          $\EphemeralPublic$ &$:= \KASaplingDerivePublic(\DiversifiedTransmitBase, \EphemeralPrivate)$.
+        \end{tabular}
+
+  \item Calculate $\DHSecret{} \typecolon \AffineEdwardsJubjub$ using an
+        Edwards scalar multiplication with cofactor 8:
+
+        \begin{tabular}{@{\hskip 2em}r@{\;}l}
+          $\DHSecret{}$ &$:= \KASaplingAgree(\EphemeralPrivate, \DiversifiedTransmitPublic)$
+        \end{tabular}
+
+  \item Let $\Key := \KDFSapling(\OutputUnique, \OutputIndex, \DHSecret{}, \EphemeralPublic)$.
+
+  \item Let $\Ptext$ be the raw encoding of the \notePlaintext
+        $(\ValueNew{\OutputIndex}, \NoteAddressRand, \Diversifier, rcmnew, \Memo)$.
+
+  \item Encrypt $\Ptext$ using the IETF version of $\SymSpecific$, with empty associated data,
+        all zero $96$-bit nonce, and $256$-bit key $\Key$, giving $\Ctext$.
+
+  \item Generate a proof $\ProofOutput$ for the \outputCircuit described below.
+
+  \item Return $(cvnew, cmnew, \OutputUnique, \EphemeralPublic, \Ctext, \ProofOutput)$.
+
+%  \item Encrypt the \note to the recipient \transmissionKey $\TransmitPublicNew{i}$,
+%        as described in \crossref{inbandsapling}, giving the ciphertext component
+%        $\TransmitCiphertext{i}$.
+\end{enumerate}
+
+In order to minimize information leakage, the sender \SHOULD randomize the order
+of the input \notes and of the output \notes. Other considerations relating to
+information leakage from the structure of \transactions are beyond the
+scope of this specification.
+
+\introlist
+After generating all of the \spendDescriptions and \outputDescriptions, the sender
+obtains the $\dataToBeSigned$ (\crossref{nonmalleability}), and signs it with
+the private \shieldedOutputsPrivKey:
+
+\begin{formulae}
+  \item $\shieldedOutputsSig \leftarrowR \ShieldedOutputsSigSign{\text{\small\shieldedOutputsPrivKey}}(\dataToBeSigned)$
+\end{formulae}
+
+Then the encoded \transaction including the \shieldedOutputsSignature is submitted
+to the network.
+}
 
 \nsubsection{Merkle path validity} \label{merklepath}
 
+\sprout{
 The depth of the \noteCommitmentTree is $\MerkleDepth$ (defined in \crossref{constants}).
+}
+\notsprout{
+Let $\MerkleDepth$ be $\MerkleDepthSprout$ for the \Sprout \noteCommitmentTree\sapling{,
+or $\MerkleDepthSapling$ for the \Sapling \noteCommitmentTree}. These constants are
+defined in \crossref{constants}.
+
+Similarly, let $\MerkleCRH$ be $\MerkleCRHSprout$ for \Sprout\sapling{, or $\MerkleDepthSapling$
+for \Sapling}.
+
+The following discussion applies independently to the \Sprout and \Sapling \noteCommitmentTrees.
+}
 
 Each \merkleNode in the \incrementalMerkleTree is associated with a \merkleHash,
 which is a byte sequence. The \merkleLayer numbered $h$, counting from
@@ -2520,13 +2955,16 @@ Let $\MerkleNode{h}{i}$ be the \merkleHash associated with the \merkleNode at
 
 The \merkleNodes at \merkleLayer $\MerkleDepth$ are called \merkleLeafNodes.
 When a \noteCommitment is added to the tree, it occupies the \merkleLeafNode
-\merkleHash $\MerkleNode{\MerkleDepth}{i}$ for the next available $i$. As-yet unused
-\merkleLeafNodes are associated with a distinguished \merkleHash $\Uncommitted$.
+\merkleHash $\MerkleNode{\MerkleDepthSprout}{i}$ for the next available $i$. As-yet unused
+\merkleLeafNodes are associated with a distinguished \merkleHash $\UncommittedSprout$
+\sapling{ or \merkleHash $\UncommittedSapling$}.
 It is assumed to be infeasible to find a preimage \note $\NoteTuple{}$ such that
-$\NoteCommit(\NoteTuple{}) = \Uncommitted$.
+$\NoteCommitmentSprout(\NoteTuple{}) = \UncommittedSprout$. \sapling{Similarly, it
+is assumed infeasible to find a preimage \note $\NoteTuple{}$ such that
+$\NoteCommitmentSapling(\NoteTuple{}) = \UncommittedSapling$.}
 
 \introlist
-The \merkleNodes at \merkleLayers $0$ to $\MerkleDepth-1$ inclusive are called
+The \merkleNodes at \merkleLayers $0$ to $\MerkleDepthSprout-1$ inclusive are called
 \merkleInternalNodes, and are associated with $\MerkleCRH$ outputs.
 \MerkleInternalNodes are computed from their children in the next \merkleLayer
 as follows: for $0 \leq h < \MerkleDepth$ and $0 \leq i < 2^h$,
@@ -2651,7 +3089,7 @@ A valid instance of $\ProofJoinSplit$ assures that given a \term{primary input}:
 \begin{formulae}
   \item $(\rt \typecolon \MerkleHash,\\
    \hparen\nfOld{\allOld} \typecolon \typeexp{\PRFOutput}{\NOld},\vspace{0.4ex}\\
-   \hparen\cmNew{\allNew} \typecolon \typeexp{\CommitOutput}{\NNew},\vspace{0.8ex}\\
+   \hparen\cmNew{\allNew} \typecolon \typeexp{\NoteCommitSproutOutput}{\NNew},\vspace{0.8ex}\\
    \hparen\changed{\vpubOld \typecolon \range{0}{2^{64}-1},}\vspace{0.4ex}\\
    \hparen\vpubNew \typecolon \range{0}{2^{64}-1},\\
    \hparen\hSig \typecolon \hSigType,\\
@@ -2663,9 +3101,9 @@ the prover knows an \term{auxiliary input}:
 
 \begin{formulae}
   \item $(\treepath{\allOld} \typecolon \typeexp{\typeexp{\MerkleHash}{\MerkleDepth}}{\NOld},\\
-   \hparen\nOld{\allOld} \typecolon \typeexp{\NoteType}{\NOld},\\
+   \hparen\nOld{\allOld} \typecolon \typeexp{\NoteTypeSprout}{\NOld},\\
    \hparen\AuthPrivateOld{\allOld} \typecolon \typeexp{\bitseq{\AuthPrivateLength}}{\NOld},\\
-   \hparen\nNew{\allNew} \typecolon \typeexp{\NoteType}{\NNew}\changed{,}\vspace{0.8ex}\\
+   \hparen\nNew{\allNew} \typecolon \typeexp{\NoteTypeSprout}{\NNew}\changed{,}\vspace{0.8ex}\\
    \hparen\changed{\NoteAddressPreRand \typecolon \bitseq{\NoteAddressPreRandLength},}\\
    \hparen\changed{\EnforceMerklePath{\allOld} \typecolon \bitseq{\NOld}})$,
 \end{formulae}
@@ -2686,8 +3124,8 @@ such that the following conditions hold:
 \subparagraph{Merkle path validity} \label{sproutmerklepathvalidity}
 
 for each $i \in \setofOld$ \changed{$\mid$ $\EnforceMerklePath{i} = 1$}:
-$\treepath{i}$ must be a valid \merklePath of depth $\MerkleDepth$, as defined in
-\crossref{merklepath}, from $\NoteCommit(\nOld{i})$ to \noteCommitmentTree root $\rt$.
+$\treepath{i}$ must be a valid \merklePath of depth given by $\MerkleDepthSprout$, as defined in
+\crossref{merklepath}, from $\NoteCommitmentSprout(\nOld{i})$ to \noteCommitmentTree root $\rt$.
 
 \textbf{Note:} Merkle path validity covers both conditions 1. (a) and 1. (d) of the NP statement
 given in \cite[section 4.2]{BCG+2014}.
@@ -2726,7 +3164,7 @@ $\NoteAddressRandNew{i} = \PRFrho{\NoteAddressPreRand}(i, \hSig)$.
 
 \subparagraph{Commitment integrity} \label{sproutcommitmentintegrity}
 
-for each $i \in \setofNew$: $\cmNew{i}$ = $\NoteCommit(\nNew{i})$.
+for each $i \in \setofNew$: $\cmNew{i}$ = $\NoteCommitSprout(\nNew{i})$.
 
 \vspace{2.5ex}
 For details of the form and encoding of proofs, see \crossref{phgr}.
@@ -2737,78 +3175,48 @@ For details of the form and encoding of proofs, see \crossref{phgr}.
 
 A valid instance of $\ProofSpend$ assures that given a \term{primary input}:
 
-\begin{formulae}
-  \item $(\rt \typecolon \MerkleHash,\\
-   \hparen\nfOld{\allOld} \typecolon \typeexp{\PRFOutput}{\NOld},\vspace{0.4ex}\\
-   \hparen\cmNew{\allNew} \typecolon \typeexp{\CommitOutput}{\NNew},\vspace{0.8ex}\\
-   \hparen\vpubOld \typecolon \range{0}{2^{64}-1},\vspace{0.4ex}\\
-   \hparen\vpubNew \typecolon \range{0}{2^{64}-1},\\
-   \hparen\hSig \typecolon \hSigType,\\
-   \hparen\h{\allOld} \typecolon \typeexp{\PRFOutput}{\NOld})$,
-\end{formulae}
+\todo{}
+%\begin{formulae}
+%  \item $(\rt \typecolon \MerkleHash,\\
+%   \hparen\nfOld{\allOld} \typecolon \typeexp{\PRFOutput}{\NOld},\vspace{0.4ex}\\
+%   \hparen\cmNew{\allNew} \typecolon \typeexp{\NoteCommitSproutOutput}{\NNew},\vspace{0.8ex}\\
+%   \hparen\vpubOld \typecolon \range{0}{2^{64}-1},\vspace{0.4ex}\\
+%   \hparen\vpubNew \typecolon \range{0}{2^{64}-1},\\
+%   \hparen\hSig \typecolon \hSigType,\\
+%   \hparen\h{\allOld} \typecolon \typeexp{\PRFOutput}{\NOld})$,
+%\end{formulae}
 
 \introlist
 the prover knows an \term{auxiliary input}:
 
 \begin{formulae}
-  \item $(\treepath{\allOld} \typecolon \typeexp{\typeexp{\MerkleHash}{\MerkleDepth}}{\NOld},\\
-   \hparen\nOld{\allOld} \typecolon \typeexp{\NoteType}{\NOld},\\
-   \hparen\AuthPrivateOld{\allOld} \typecolon \typeexp{\bitseq{\AuthPrivateLength}}{\NOld},\\
-   \hparen\nNew{\allNew} \typecolon \typeexp{\NoteType}{\NNew},\vspace{0.8ex}\\
-   \hparen\NoteAddressPreRand \typecolon \bitseq{\NoteAddressPreRandLength},\\
-   \hparen\EnforceMerklePath{\allOld} \typecolon \bitseq{\NOld})$,
+  \item $(\treepath{} \typecolon \typeexp{\MerkleHash}{\MerkleDepthSapling},\\
+   \hparen\nOld{} \typecolon \NoteTypeSapling,\\
+   \hparen\AuthProvePrivate \typecolon \bitseq{252})$
+%   \hparen\nNew{\allNew} \typecolon \typeexp{\NoteTypeSapling}{\NNew},\vspace{0.8ex}\\
+%   \hparen\NoteAddressPreRand \typecolon \bitseq{\NoteAddressPreRandLength}
 \end{formulae}
 
-\introlist
-where:
-
-\begin{formulae}
-  \item for each $i \in \setofOld$: $\nOld{i} = (\AuthPublicOld{i},
-\vOld{i}, \NoteAddressRandOld{i}, \NoteCommitRandOld{i})$;
-  \item for each $i \in \setofNew$: $\nNew{i} = (\AuthPublicNew{i},
-\vNew{i}, \NoteAddressRandNew{i}, \NoteCommitRandNew{i})$
-\end{formulae}
+where $\nOld{} = (\Diversifier, \DiversifiedTransmitPublic,
+\vOld{}, \NoteAddressRandOld{}, \NoteCommitRandOld{})$
 
 \introlist
 such that the following conditions hold:
 
 \subparagraph{Merkle path validity} \label{saplingmerklepathvalidity}
 
-for each $i \in \setofOld$ $\mid$ $\EnforceMerklePath{i} = 1$:
-$\treepath{i}$ must be a valid \merklePath of depth $\MerkleDepth$, as defined in
-\crossref{merklepath}, from $\NoteCommit(\nOld{i})$ to \noteCommitmentTree root $\rt$.
-
-\subparagraph{Merkle path enforcement} \label{saplingmerklepathenforcement}
-
-for each $i \in \setofOld$, if $\vOld{i} \neq 0$ then $\EnforceMerklePath{i} = 1$.
-
-\subparagraph{Balance} \label{saplingbalance}
-
-$\vpubOld\; + \vsum{i=1}{\NOld} \vOld{i} = \vpubNew + \vsum{i=1}{\NNew} \vNew{i} \in \range{0}{2^{64}-1}$.
+$\treepath{}$ must be a valid \merklePath of depth $\MerkleDepthSapling$, as defined in
+\crossref{merklepath}, from $\NoteCommitmentSapling(\nOld{})$ to \noteCommitmentTree root $\rt$.
 
 \subparagraph{\Nullifier{} integrity} \label{saplingnullifierintegrity}
 
-for each $i \in \setofOld$:
-$\nfOld{i} = \PRFnf{\AuthPrivateOld{i}}(\NoteAddressRandOld{i})$.
+$\nfOld{} = \scalarmult{\PRFnr{\AuthProvePublic}(\NoteAddressRand)}{\scalarmult{8}{\AuthSignPublic}}$.
 
 \subparagraph{Spend authority} \label{saplingspendauthority}
 
-for each $i \in \setofOld$:
-$\AuthPublicOld{i} = \PRFaddr{\AuthPrivateOld{i}}(0)$.
-
-\subparagraph{Non-malleability} \label{saplingnonmalleablejs}
-
-for each $i \in \setofOld$:
-$\h{i} = \PRFpk{\AuthPrivateOld{i}}(i, \hSig)$.
-
-\subparagraph{Uniqueness of $\NoteAddressRandNew{i}$} \label{saplinguniquerho}
-
-for each $i \in \setofNew$:
-$\NoteAddressRandNew{i} = \PRFrho{\NoteAddressPreRand}(i, \hSig)$.
-
-\subparagraph{Commitment integrity} \label{saplingcommitmentintegrity}
-
-for each $i \in \setofNew$: $\cmNew{i}$ = $\NoteCommit(\nNew{i})$.
+\todo{}
+%for each $i \in \setofOld$:
+%$\AuthPublicOld{i} = \PRFaddr{\AuthPrivateOld{i}}(0)$.
 
 \vspace{2.5ex}
 For details of the form and encoding of proofs, see \crossref{groth}.
@@ -2816,30 +3224,48 @@ For details of the form and encoding of proofs, see \crossref{groth}.
 \introsection
 \nsubsubsection{\OutputStatement{} (\Sapling)} \label{outputstatement}
 
+\todo{}
 }
 
 
 \nsubsection{In-band secret distribution} \label{inband}
 
-In order to transmit the secret $\Value$, $\NoteAddressRand$, and $\NoteCommitRand$
-(necessary for the recipient to later spend) \changed{and also a \memo} to the
-recipient \emph{without} requiring an out-of-band communication channel, the
-\transmissionKey $\TransmitPublic$ is used to encrypt these
-secrets. The recipient's possession of the associated \incomingViewingKey
-$(\AuthPublic, \TransmitPrivate)$ is used to reconstruct the original \note
-\changed{ and \memo}.
+The secrets that need to be transmitted to a recipient of funds in order for
+them to later spend, are $\Value$, $\NoteAddressRand$, $\NoteCommitRand$\sapling{,
+and in the case of \Sapling $\Diversifier$ and $\DiversifiedTransmitPublic$}.
+\changed{A \memo (\crossref{noteptconcept}) is also transmitted.}
+
+In order to the transmit these secrets securely to a recipient
+\emph{without} requiring an out-of-band communication channel, the
+\transmissionKey $\TransmitPublic$\sapling{ or $\DiversifiedTransmitPublic$}
+is used to encrypt them. The recipient's possession of the associated
+\incomingViewingKey $\InViewingKey$ is used to reconstruct the original
+\note\changed{ and \memo}.
 
 All of the resulting ciphertexts are combined to form a \notesCiphertext.
+
+Let $\Sym$ be the \encryptionScheme instantiated in \crossref{concretesym}.
 
 \introlist
 For both encryption and decryption,
 
+\sprout{
 \begin{itemize}
-  \item Let $\Sym$ be the \encryptionScheme instantiated in \crossref{concretesym}.
-  \item Let $\KDF$ be the \keyDerivationFunction instantiated in \crossref{concretekdf}.
-  \item Let $\KA$ be the \keyAgreementScheme instantiated in \crossref{concretekeyagreement}.
+  \item Let $\KDFSprout$ be the \keyDerivationFunction instantiated in \crossref{concretesproutkdf}.
+  \item Let $\KASprout$ be the \keyAgreementScheme instantiated in \crossref{concretesproutkeyagreement}.
   \item Let $\hSig$ be the value computed for this \joinSplitDescription in \crossref{joinsplitdesc}.
 \end{itemize}
+}
+\notsprout{
+\begin{itemize}
+  \item Let $\KDFSprout$\sapling{ and $\KDFSapling$} be the \keyDerivationFunctions instantiated in
+        \crossref{concretesproutkdf}.
+  \item Let $\KASprout$\sapling{ and $\KASapling$} be the \keyAgreementSchemes instantiated in
+        \crossref{concretekeyagreement}.
+  \item \sproutonly{Let $\hSig$ be the value computed for this \joinSplitDescription in
+        \crossref{joinsplitdesc}.}
+\end{itemize}
+}
 
 \nsubsubsection{Encryption}
 
@@ -2853,14 +3279,14 @@ Then to encrypt:
 
 \begin{itemize}
 \changed{
-  \item Generate a new $\KA$ (public, private) key pair
+  \item Generate a new $\KASprout$ (public, private) key pair
 $(\EphemeralPublic, \EphemeralPrivate)$.
   \item For $i \in \setofNew$,
     \begin{itemize}
       \item Let $\TransmitPlaintext{i}$ be the raw encoding of $\NotePlaintext{i}$.
-      \item Let $\DHSecret{i} := \KAAgree(\EphemeralPrivate,
+      \item Let $\DHSecret{i} := \KASproutAgree(\EphemeralPrivate,
 \TransmitPublicNew{i})$.
-      \item Let $\TransmitKey{i} := \KDF(i, \hSig, \DHSecret{i}, \EphemeralPublic,
+      \item Let $\TransmitKey{i} := \KDFSprout(i, \hSig, \DHSecret{i}, \EphemeralPublic,
 \TransmitPublicNew{i})$.
       \item Let $\TransmitCiphertext{i} :=
 \SymEncrypt{\TransmitKey{i}}(\TransmitPlaintext{i})$.
@@ -2895,8 +3321,8 @@ component as follows:
 
 \changed{
 \begin{itemize}
-  \item Let $\DHSecret{i} := \KAAgree(\TransmitPrivate, \EphemeralPublic)$.
-  \item Let $\TransmitKey{i} := \KDF(i, \hSig, \DHSecret{i}, \EphemeralPublic,
+  \item Let $\DHSecret{i} := \KASproutAgree(\TransmitPrivate, \EphemeralPublic)$.
+  \item Let $\TransmitKey{i} := \KDFSprout(i, \hSig, \DHSecret{i}, \EphemeralPublic,
 \TransmitPublic)$.
   \item Return $\DecryptNote(\TransmitKey{i}, \TransmitCiphertext{i}, \cmNew{i},
 \AuthPublic).$
@@ -2912,7 +3338,7 @@ is defined as follows:
   \item If $\TransmitPlaintext{i} = \bot$, return $\bot$.
   \item Extract $\NotePlaintext{i} = (\ValueNew{i},
 \NoteAddressRandNew{i}, \NoteCommitRandNew{i}, \Memo_i)$ from $\TransmitPlaintext{i}$.
-  \item If $\NoteCommit((\AuthPublic, \ValueNew{i}, \NoteAddressRandNew{i},
+  \item If $\NoteCommitSprout((\AuthPublic, \ValueNew{i}, \NoteAddressRandNew{i},
 \NoteCommitRandNew{i})) \neq \cmNew{i}$, return $\bot$, else return $\NotePlaintext{i}$.
 \end{itemize}
 }
@@ -2971,15 +3397,22 @@ Define:
   \item $\MerkleDepth \typecolon \Nat := \changed{29}$
   \item $\NOld \typecolon \Nat := 2$
   \item $\NNew \typecolon \Nat := 2$
-  \item $\MerkleHashLength \typecolon \Nat := 256$
+  \item $\MerkleHashLengthSprout \typecolon \Nat := 256$
+\sapling{
+  \item $\MerkleHashLengthSapling \typecolon \Nat := 255$
+}
   \item $\hSigLength \typecolon \Nat := 256$
   \item $\PRFOutputLength \typecolon \Nat := 256$
+  \item $\PRGOutputLength \typecolon \Nat := 512$
   \item $\NoteCommitRandLength \typecolon \Nat := \changed{256}$
   \item $\changed{\RandomSeedLength \typecolon \Nat := 256}$
   \item $\AuthPrivateLength \typecolon \Nat := \changed{252}$
   \item $\AuthPrivateSeedLength \typecolon \Nat := \changed{256}$
   \item $\changed{\NoteAddressPreRandLength \typecolon \Nat := 252}$
-  \item $\Uncommitted \typecolon \bitseq{\MerkleHashLength} := \zeros{\MerkleHashLength}$
+  \item $\UncommittedSprout \typecolon \bitseq{\MerkleHashLengthSprout} := \zeros{\MerkleHashLengthSprout}$
+\sapling{
+  \item $\UncommittedSapling \typecolon \bitseq{\MerkleHashLengthSapling} := \zeros{\MerkleHashLengthSapling}$
+}
   \item $\MAXMONEY \typecolon \Nat := \changed{2.1 \smult 10^{15}}$ (\zatoshi)
   \item $\SlowStartInterval \typecolon \Nat := 20000$
   \item $\HalvingInterval \typecolon \Nat := 840000$
@@ -3214,10 +3647,33 @@ are used to distinguish different uses of $\SHA$, ensuring that the functions
 are independent. In addition to the inputs shown here, the bits $\mathtt{1011}$
 in this position are used to distinguish uses of the full $\FullHashName$ hash
 function --- see \crossref{concretecomm}.
-(The specific bit patterns chosen here are motivated by the possibility of future
-extensions that either increase $\NOld$ and/or $\NNew$ to 3, or that add an
-additional bit to $\AuthPrivate$ to encode a new key type, or that require an
-additional PRF.)
+
+(The specific bit patterns chosen here were motivated by the possibility of future
+extensions that might have increased $\NOld$ and/or $\NNew$ to 3, or added an
+additional bit to $\AuthPrivate$ to encode a new key type, or that would have
+required an additional PRF.\sapling{ In fact since \Sapling switches to
+non-$\SHA$-based cryptographic primitives, these extensions are unlikely to
+be necessary.})
+}
+}
+
+\sapling{
+\introsection
+\nsubsubsection{\PseudoRandomGenerators} \label{concreteprgs}
+
+$\PRGExpandSeed{}$, described in \crossref{abstractprgs}, maps a
+\Sapling \spendingKey to an \expandedSeed:
+
+\begin{formulae}
+  \item $\PRGExpandSeed{\AuthPrivateSeed}() = \BlakeTwob{512}(\ascii{Zcash\_ExpandSeed}, \AuthPrivateSeed)$
+\end{formulae}
+
+(The \expandedSeed is used to derive the \authSigningKey $\AuthSignPrivate$
+and the \authProvingKey $\AuthProvePrivate$ in \crossref{saplingkeycomponents}.)
+
+\securityrequirement{
+$\BlakeTwob{512}(\ascii{Zcash\_ExpandSeed}, x)$ must be a \pseudoRandomGenerator
+\cite{SS2005} producing $512$ output bits given key $x$.
 }
 }
 
@@ -3245,14 +3701,14 @@ used; this has a 32-bit block count and a 96-bit nonce, rather than a 64-bit
 block count and 64-bit nonce as in the original definition of $\SymCipher$.
 }
 
-\nsubsubsection{\KeyAgreement} \label{concretekeyagreement}
+\nsubsubsection{\SproutOrNothing \KeyAgreement} \label{concretesproutkeyagreement}
 
 \changed{
 The \keyAgreementScheme specified in \crossref{abstractkeyagreement} is
 instantiated using Curve25519 \cite{Bern2006} as follows.
 
-Let $\KAPublic$ and $\KASharedSecret$ be the type of Curve25519 public keys
-(i.e.\ a sequence of 32 bytes), and let $\KAPrivate$ be the type of Curve25519
+Let $\KASproutPublic$ and $\KASproutSharedSecret$ be the type of Curve25519 public keys
+(i.e.\ a sequence of $32$ bytes), and let $\KASproutPrivate$ be the type of Curve25519
 secret keys.
 
 Let $\CurveMultiply(\bytes{n}, \bytes{q})$ be the result of point
@@ -3270,13 +3726,13 @@ bits ``clamped'' as described in \cite[section 3]{Bern2006}:
 and set bit $6$ of the last byte.'' Here the bits of a byte are numbered
 such that bit $b$ has numeric weight $2^b$.
 
-Define $\KAFormatPrivate(x) := \Clamp(x)$.
+Define $\KASproutFormatPrivate(x) := \Clamp(x)$.
 
-Define $\KAAgree(n, q) := \CurveMultiply(n, q)$.
+Define $\KASproutAgree(n, q) := \CurveMultiply(n, q)$.
 }
 
-\introlist
-\nsubsubsection{\KeyDerivation} \label{concretekdf}
+\introsection
+\nsubsubsection{\SproutOrNothing \KeyDerivation} \label{concretesproutkdf}
 
 \newsavebox{\kdftagbox}
 \begin{lrbox}{\kdftagbox}
@@ -3304,10 +3760,10 @@ The \keyDerivationFunction specified in \crossref{abstractkdf} is instantiated
 using $\BlakeTwob{256}$ as follows:
 
 \begin{formulae}
-  \item $\KDF(i, \hSig, \DHSecret{i}, \EphemeralPublic, \TransmitPublicNew{i}) :=
+  \item $\KDFSprout(i, \hSig, \DHSecret{i}, \EphemeralPublic, \TransmitPublicNew{i}) :=
 \BlakeTwob{256}(\kdftag, \kdfinput)$
 \end{formulae}
-
+\introlist
 where:
 \begin{formulae}
   \item $\kdftag := \Justthebox{\kdftagbox}$
@@ -3322,7 +3778,25 @@ and input $x$. This is not the same as $\BlakeTwob{512}$ truncated to
 $256$ bits, because the digest length is encoded in the parameter
 block.
 
-\nsubsubsection{Signature} \label{concretesig}
+\sapling{
+\nsubsubsubsection{\Sapling \KeyAgreement} \label{concretesaplingkeyagreement}
+
+The \keyAgreementScheme specified in \crossref{abstractkeyagreement} is
+instantiated using Diffie-Hellman with cofactor multiplication on $\JubjubCurve$
+as follows.
+
+Let $\KASaplingPublic$ and $\KASaplingSharedSecret$ be the type of compressed
+$\JubjubCurve$ points $\CompressedEdwardsJubjub$, and let $\KASaplingPrivate$ be
+the type of $\JubjubCurve$ secret keys. \todo{expand this}
+
+\nsubsubsubsection{\Sapling \KeyDerivation} \label{concretesaplingkdf}
+
+Let $\KDFSapling(\OutputUnique, \OutputIndex, \DHSecret{}, \EphemeralPublic) :=
+       \BlakeTwob{256}(\ascii{Zcash\_SaplingKDF},
+                       \OutputUnique || \OutputIndex || \reprJ(\DHSecret{}) || \reprJ(\EphemeralPublic))$.
+}
+
+\nsubsubsection{\JoinSplitSignature} \label{concretesig}
 
 $\JoinSplitSig$ is specified in \crossref{abstractsig}.
 
@@ -3365,6 +3839,14 @@ where $\EdDSAR$ and $\EdDSAS$ are as defined in \cite{BDLSY2012}.
 The encoding of a public key is as defined in \cite{BDLSY2012}.
 }
 
+\sapling{
+\nsubsubsection{\ShieldedOutputsSignature{} and \SpendAuthorizationSignature} \label{concretesaplingsig}
+
+$\ShieldedOutputsSig$ and $\SpendAuthorizationSig$ are specified in \crossref{abstractsig}.
+
+\todo{They are both instantiated as EdJubjub...}
+}
+
 \introlist
 \nsubsubsection{Commitment} \label{concretecomm}
 
@@ -3387,11 +3869,11 @@ The encoding of a public key is as defined in \cite{BDLSY2012}.
 \end{bytefield}
 \end{lrbox}
 
-The commitment scheme $\Commit{}$ specified in \crossref{abstractcomm} is
+The commitment scheme $\NoteCommitSprout{}$ specified in \crossref{abstractcomm} is
 instantiated using $\FullHashName$ as follows:
 
 \begin{formulae}[leftmargin=1em]
-  \item $\Commit{\NoteCommitRand}(\AuthPublic, \Value, \NoteAddressRand) := \FullHashbox{\cmbox}$.
+  \item $\NoteCommitSprout{\NoteCommitRand}(\AuthPublic, \Value, \NoteAddressRand) := \FullHashbox{\cmbox}$.
 \end{formulae}
 
 \pnote{
@@ -3682,12 +4164,18 @@ The \representedGroup $\JubjubCurve$ is defined in this section.
 
 Let $\ParamJ{q} = \ParamS{r}$, as defined in \crossref{blspairing}.
 
+Let $\ParamJ{r} = 6554484396890773809930967563523245729705921265872317281365359162392183254199$.
+
+(\hairspace $\ParamJ{q}$ and $\ParamJ{r}$ are prime.)
+
 Let $\ParamJ{a} = -1$.
 
 Let $\ParamJ{d} = -10240/10241 \pmod{\ParamJ{q}}$.
 
-Let $\GroupJ$ be the group of points on a twisted Edwards curve $\CurveJ$
+Let $\GroupJ$ be the group of points $(u, \varv)$ on a twisted Edwards curve $\CurveJ$
 over $\GF{\ParamJ{q}}$ with equation $\ParamJ{a} \smult u^2 + \varv^2 = 1 + \ParamJ{d} \smult u^2 \smult \varv^2$.
+The zero point with coordinates $(0, 1)$ is denoted $\ZeroJ$.
+$\GroupJ$ has order $8 \smult \ParamJ{r}$.
 
 Let $\ellJ = 256$.
 
@@ -3695,13 +4183,13 @@ Define $\ItoLEBSP{} \typecolon (\ell \typecolon \Nat) \times \range{0}{2^\ell\!-
 such that $\ItoLEBSP{\ell}(x)$ is the sequence of $\ell$ bits representing $x$ in
 little-endian order.
 
-Define $\repr_{\GroupJ} \typecolon \GroupJ \rightarrow \bitseq{\ellJ}$ such
-that $\repr_{\GroupJ}(u, \varv) = \ItoLEBSP{255}(\varv)\,||\,[\tilde{u}]$, where
-$\tilde{u}$ is the low-order bit of $u$.
+Define $\reprJ \typecolon \GroupJ \rightarrow \bitseq{\ellJ}$ such
+that $\reprJ(u, \varv) = \ItoLEBSP{256}(\varv + 2^{255} \smult \tilde{u})$, where
+$\tilde{u} = u \bmod 2$.
 
-Let $\abst_{\GroupJ} \typecolon \bitseq{\ellJ} \rightarrow \GroupJ \union \setof{\bot}$
-be a left inverse of $\repr_{\GroupJ}$ such that if $S$ is not in the range of
-$\repr_{\GroupJ}$, then $\abst_{\GroupJ}(S) = \bot$.
+Let $\abstJ \typecolon \bitseq{\ellJ} \rightarrow \GroupJ \union \setof{\bot}$
+be the left inverse of $\reprJ$ such that if $S$ is not in the range of
+$\reprJ$, then $\abstJ(S) = \bot$.
 
 \introlist
 \subparagraph{Non-normative notes:}
@@ -3859,18 +4347,22 @@ verifier \MUST check, for the encoding of each element, that:
 
 \nsubsection{\NotePlaintexts{} and \Memos} \label{notept}
 
-Transmitted \notes are stored on the blockchain in encrypted form, together with
-a \noteCommitment $\cm$.
+As explained in \crossref{noteptconcept}, transmitted \notes are stored on
+the \blockchain in encrypted form.
 
-The \notePlaintexts associated with a \joinSplitDescription are encrypted to the
-respective \transmissionKeys $\TransmitPublicNew{\allNew}$,
-and the result forms part of a \notesCiphertext (see \crossref{inband}
-for further details).
-
-Each \notePlaintext (denoted $\NotePlaintext{}$) consists of
+The \notePlaintexts in a \joinSplitDescription are encrypted to the
+respective \transmissionKeys $\TransmitPublicNew{\allNew}$.
+Each \notsprout{\Sprout} \notePlaintext (denoted $\NotePlaintext{}$) consists of
 $(\Value, \NoteAddressRand, \NoteCommitRand\changed{, \Memo})$.
 
-The first three of these fields are as defined earlier.
+\saplingonly{
+The \notePlaintext in each \outputDescription is encrypted to the
+\diversifiedTransmissionKey $\DiversifiedTransmitPublic$.
+Each \Sapling \notePlaintext (denoted $\NotePlaintext{}$) consists of
+$(\Diversifier, \DiversifiedTransmitPublic, \Value, \NoteAddressRand,
+\NoteCommitRand, \Memo)$.
+}
+
 \changed{$\Memo$ is a 512-byte \memo associated with this \note.
 
 \introlist
@@ -3895,13 +4387,15 @@ A start byte of $\hexint{F6}$ followed by anything else, or a start byte of $\he
 or greater, are reserved for use in future \Zcash protocol extensions.
 }
 
+Other fields are as defined in \crossref{notes}.
+
 \introlist
-The encoding of a \notePlaintext consists of:
+The encoding of a \SproutOrNothing \notePlaintext consists of:
 \vspace{2ex}
 \begin{equation*}
 \begin{bytefield}[bitwidth=0.029em]{1608}
 \changed{
-    \bitbox{192}{$8$-bit $\NotePlaintextLeadByte$}
+    \bitbox{192}{$8$-bit $\NotePlaintextLeadByteSprout$}
   &}\bitbox{192}{$64$-bit $\Value$} &
     \bitbox{256}{$256$-bit $\NoteAddressRand$} &
     \bitbox{256}{\changed{$256$}-bit $\NoteCommitRand$} &
@@ -3911,8 +4405,8 @@ The encoding of a \notePlaintext consists of:
 
 \begin{itemize}
 \changed{
-    \item A byte, $\NotePlaintextLeadByte$, indicating this version of the
-        encoding of a \notePlaintext.
+    \item A byte, $\NotePlaintextLeadByteSprout$, indicating this version of the
+          encoding of a \SproutOrNothing \notePlaintext.
 }
     \item $8$ bytes specifying $\Value$.
     \item $32$ bytes specifying $\NoteAddressRand$.
@@ -3923,7 +4417,39 @@ The encoding of a \notePlaintext consists of:
 \end{itemize}
 
 
-\nsubsection{Encodings of Addresses and Keys}
+\sapling{
+\introlist
+The encoding of a \Sapling \notePlaintext consists of:
+\vspace{2ex}
+\begin{equation*}
+\begin{bytefield}[bitwidth=0.029em]{1172}
+    \bitbox{192}{$8$-bit $\NotePlaintextLeadByteSapling$}
+    \bitbox{224}{$88$-bit $\Diversifier$}
+    \bitbox{192}{$64$-bit $\Value$}
+    \bitbox{256}{$256$-bit $\NoteAddressRand$}
+    \bitbox{256}{$256$-bit $\NoteCommitRand$}
+    \changed{\bitbox{800}{$\Memo$ ($512$ bytes)}}
+\end{bytefield}
+\end{equation*}
+
+\begin{itemize}
+    \item A byte, $\NotePlaintextLeadByteSapling$, indicating this version of the
+          encoding of a \Sapling \notePlaintext.
+    \item $11$ bytes specifying $\Diversifier$.
+    \item $8$ bytes specifying $\Value$.
+    \item $32$ bytes specifying $\NoteAddressRand$.
+    \item $32$ bytes specifying $\NoteCommitRand$.
+    \item $512$ bytes specifying $\Memo$.
+\end{itemize}
+
+\pnote{
+The encoding of $\Diversifier$ and $\DiversifiedTransmitPublic$ is identical
+to the raw encoding of a \Sapling \paymentAddress in \crossref{saplingpaymentaddrencoding}.
+}
+}
+
+
+\nsubsection{Encodings of Addresses and Keys} \label{addressandkeyencoding}
 
 This section describes how \Zcash encodes \paymentAddresses\changed{, \incomingViewingKeys,}
 and \spendingKeys.
@@ -3942,9 +4468,11 @@ $\SHAName$ outputs are always represented as sequences of $32$ bytes.
 
 The language consisting of the following encoding possibilities is prefix-free.
 
-\nsubsubsection{\Transparent{} Payment Addresses} \label{transparentaddrencoding}
 
-\xTransparent payment addresses are either P2SH (Pay to Script Hash) \cite{BIP-13}
+\introsection
+\nsubsubsection{\TransparentAddresses} \label{transparentaddrencoding}
+
+\xTransparentAddresses are either P2SH (Pay to Script Hash) \cite{BIP-13}
 or P2PKH (Pay to Public Key Hash) \cite{Bitc-P2PKH} addresses.
 
 \introlist
@@ -4007,17 +4535,19 @@ The raw encoding of a P2PKH address consists of:
 These are encoded in the same way as in \Bitcoin \cite{Bitc-Base58},
 for both the production and test networks.
 
-\nsubsubsection{\Shielded{} Payment Addresses} \label{paymentaddrencoding}
 
-A \paymentAddress consists of $\AuthPublic$ and $\TransmitPublic$.
+\nsubsubsection{\SproutOrNothing \PaymentAddresses} \label{sproutpaymentaddrencoding}
+
+A \SproutOrNothing \paymentAddress consists of $\AuthPublic \typecolon \PRFOutput$
+and $\TransmitPublic \typecolon \KASproutPublic$.
 
 $\AuthPublic$ is a $\SHAName$ output.
-$\TransmitPublic$ is a $\KAPublic$ key (see \crossref{concretekeyagreement}),
+$\TransmitPublic$ is a $\KASproutPublic$ key (see \crossref{concretesproutkeyagreement}),
 for use with the encryption scheme defined in \crossref{inband}. These
-components are derived from a \spendingKey as described in \crossref{keycomponents}.
+components are derived from a \spendingKey as described in \crossref{sproutkeycomponents}.
 
 \introlist
-The raw encoding of a \paymentAddress consists of:
+The raw encoding of a \SproutOrNothing \paymentAddress consists of:
 \vspace{2ex}
 \begin{equation*}
 \begin{bytefield}[bitwidth=0.07em]{520}
@@ -4032,13 +4562,13 @@ The raw encoding of a \paymentAddress consists of:
 \begin{itemize}
 \changed{
   \item Two bytes $[\PaymentAddressLeadByte, \PaymentAddressSecondByte]$,
-        indicating this version of the raw encoding of a \Zcash \paymentAddress
+        indicating this version of the raw encoding of a \SproutOrZcash \paymentAddress
         on the production network. (Addresses on the test network use
         $[\PaymentAddressTestnetLeadByte, \PaymentAddressTestnetSecondByte]$
         instead.)
 }
-  \item 256 bits specifying $\AuthPublic$.
-  \item \changed{256 bits} specifying $\TransmitPublic$, \changed{using the
+  \item $32$ bytes specifying $\AuthPublic$.
+  \item \changed{$32$ bytes} specifying $\TransmitPublic$, \changed{using the
         normal encoding of a Curve25519 public key \cite{Bern2006}}.
 \end{itemize}
 
@@ -4049,15 +4579,49 @@ cause the first two characters of the Base58Check encoding to be fixed as
 \ascii{zt}.
 }
 
-\nsubsubsection{\IncomingViewingKeys} \label{inviewingkeyencoding}
+
+\sapling{
+\nsubsubsection{\Sapling \PaymentAddresses} \label{saplingpaymentaddrencoding}
+
+A \Sapling \paymentAddress consists of $\Diversifier \typecolon \bitseq{\DiversifierLength}$
+and $\DiversifiedTransmitPublic \typecolon \KASaplingPublic$.
+
+$\Diversifier$ is a bit sequence, encoded as 11 bytes.
+$\DiversifiedTransmitPublic$ is a $\KASaplingPublic$ key (see \crossref{concretesaplingkeyagreement}),
+for use with the encryption scheme defined in \crossref{inband}.
+These components are derived as described in \crossref{saplingkeycomponents}.
+
+\introlist
+The raw encoding of a \Sapling \paymentAddress consists of:
+\vspace{2ex}
+\begin{equation*}
+\begin{bytefield}[bitwidth=0.07em]{344}
+    \bitbox{88}{$88$-bit $\Diversifier$}
+    \bitbox{256}{$256$-bit $\reprJ(\DiversifiedTransmitPublic)$}
+\end{bytefield}
+\end{equation*}
+
+\begin{itemize}
+  \item $11$ bytes specifying $\Diversifier$.
+  \item $32$ bytes specifying the compressed Edwards encoding of $\DiversifiedTransmitPublic$
+        (see \crossref{jubjub}).
+\end{itemize}
+
+For addresses on the production network, the \humanReadablePart is \ascii{zs}.
+For addresses on the test network, the \humanReadablePart is \ascii{ztestsapling}.
+}
+
+
+\nsubsubsection{\SproutOrNothing \IncomingViewingKeys} \label{sproutinviewingkeyencoding}
 
 \changed{
-An \incomingViewingKey consists of $\AuthPublic$ and $\TransmitPrivate$.
+An \incomingViewingKey consists of $\AuthPublic \typecolon \PRFOutput$ and
+$\TransmitPrivate \typecolon \KASproutPrivate$.
 
 $\AuthPublic$ is a $\SHAName$ output.
-$\TransmitPrivate$ is a $\KAPrivate$ key (see \crossref{concretekeyagreement}),
+$\TransmitPrivate$ is a $\KASproutPrivate$ key (see \crossref{concretesproutkeyagreement}),
 for use with the encryption scheme defined in \crossref{inband}. These
-components are derived from a \spendingKey as described in \crossref{keycomponents}.
+components are derived from a \spendingKey as described in \crossref{sproutkeycomponents}.
 
 \introlist
 The raw encoding of an \incomingViewingKey consists of, in order:
@@ -4087,10 +4651,10 @@ The raw encoding of an \incomingViewingKey consists of, in order:
         of a Curve25519 private key \cite{Bern2006}.
 \end{itemize}
 
-$\TransmitPrivate$ \MUST be ``clamped'' using $\KAFormatPrivate$ as specified
-in \crossref{keycomponents}. That is, a decoded \incomingViewingKey{} \MUST be
-considered invalid if $\TransmitPrivate \neq \KAFormatPrivate(\TransmitPrivate)$.
-($\KAFormatPrivate$ is defined in \crossref{concretekeyagreement}.)
+$\TransmitPrivate$ \MUST be ``clamped'' using $\KASproutFormatPrivate$ as specified
+in \crossref{sproutkeycomponents}. That is, a decoded \incomingViewingKey{} \MUST be
+considered invalid if $\TransmitPrivate \neq \KASproutFormatPrivate(\TransmitPrivate)$.
+($\KASproutFormatPrivate$ is defined in \crossref{concretesproutkeyagreement}.)
 
 \pnote{
 For addresses on the production network, the lead bytes and encoded length
@@ -4100,13 +4664,78 @@ cause the first four characters of the Base58Check encoding to be fixed as
 }
 }
 
-\nsubsubsection{Spending Keys} \label{spendingkeyencoding}
 
-A \spendingKey consists of $\AuthPrivate$, which is a sequence of \changed{252} bits
-(see \crossref{keycomponents}).
+\sapling{
+\nsubsubsection{\Sapling \IncomingViewingKeys} \label{saplinginviewingkeyencoding}
+
+A \Sapling \incomingViewingKey consists of $\InViewingKey \typecolon \KASproutPrivate$.
+
+$\InViewingKey$ is a $\KASproutPrivate$ key (see \crossref{concretesaplingkeyagreement}),
+for use with the encryption scheme defined in \crossref{inband}.
+It is derived as described in \crossref{saplingkeycomponents}.
 
 \introlist
-The raw encoding of a \spendingKey consists of:
+The raw encoding of an \incomingViewingKey consists of:
+\vspace{2ex}
+\begin{equation*}
+\begin{bytefield}[bitwidth=0.07em]{256}
+    \bitbox{256}{$256$-bit $\InViewingKey$}
+\end{bytefield}
+\end{equation*}
+
+\begin{itemize}
+  \item $32$ bytes specifying $\InViewingKey$.
+\end{itemize}
+
+$\InViewingKey$ \MUST be in the range $\range{0}{\JubjubScalarThreshold}$ as specified
+in \crossref{saplingkeycomponents}. That is, a decoded \incomingViewingKey{} \MUST be
+considered invalid if $\InViewingKey$ is not in this range.
+
+For \incomingViewingKeys on the production network, the \humanReadablePart is \ascii{zivks}.
+For \incomingViewingKeys on the test network, the \humanReadablePart is \ascii{zivktestsapling}.
+}
+
+
+\sapling{
+\nsubsubsection{\Sapling \FullViewingKeys} \label{saplingfullviewingkeyencoding}
+
+A \Sapling \fullViewingKey consists of $\AuthSignPublic \typecolon \GroupJ$
+and $\AuthProvePublic \typecolon \GroupJ$.
+
+$\AuthSignPublic$ and $\AuthProvePublic$ are points on the $\JubjubCurve$ curve
+(see \crossref{jubjub}). They are derived as described in \crossref{saplingkeycomponents}.
+
+\introlist
+The raw encoding of a \fullViewingKey consists of:
+\vspace{2ex}
+\begin{equation*}
+\begin{bytefield}[bitwidth=0.07em]{512}
+    \bitbox{256}{$256$-bit $\reprJ(\AuthSignPublic)$}
+    \bitbox{256}{$256$-bit $\reprJ(\AuthProvePublic)$}
+\end{bytefield}
+\end{equation*}
+
+\begin{itemize}
+  \item $32$ bytes specifying the compressed Edwards encoding of $\AuthSignPublic$
+        (see \crossref{jubjub}).
+  \item $32$ bytes specifying the compressed Edwards encoding of $\AuthProvePublic$.
+\end{itemize}
+
+When decoding this representation, the key is not valid if $\abstJ$ returns $\bot$
+for either point.
+
+For \incomingViewingKeys on the production network, the \humanReadablePart is \ascii{zviews}.
+For \incomingViewingKeys on the test network, the \humanReadablePart is \ascii{zviewtestsapling}.
+}
+
+
+\nsubsubsection{\SproutOrNothing \SpendingKeys} \label{sproutspendingkeyencoding}
+
+A \SproutOrNothing \spendingKey consists of $\AuthPrivate$, which is a sequence of
+\changed{252} bits (see \crossref{sproutkeycomponents}).
+
+\introlist
+The raw encoding of a \SproutOrNothing \spendingKey consists of:
 \vspace{2ex}
 \begin{equation*}
 \begin{bytefield}[bitwidth=0.07em]{264}
@@ -4146,6 +4775,30 @@ The zero padding occupies the most significant 4 bits of the third byte.
         be fixed as \ascii{SK}. For the test network, the first two characters
         are fixed as \ascii{ST}.
 \end{pnotes}
+
+
+\sapling{
+\nsubsubsection{\Sapling \SpendingKeys} \label{saplingspendingkeyencoding}
+
+A \Sapling \spendingKey consists of $\AuthPrivateSeed \typecolon \bitseq{\AuthPrivateSeedLength}$
+(see \crossref{sproutkeycomponents}).
+
+\introlist
+The raw encoding of a \Sapling \spendingKey consists of:
+\vspace{2ex}
+\begin{equation*}
+\begin{bytefield}[bitwidth=0.07em]{256}
+    \bitbox{256}{$256$-bit $\AuthPrivateSeed$}
+\end{bytefield}
+\end{equation*}
+
+\begin{itemize}
+    \item $32$ bytes specifying $\AuthPrivateSeed$.
+\end{itemize}
+
+For \spendingKeys on the production network, the \humanReadablePart is \ascii{secret-spending-key-main}.
+For \spendingKeys on the test network, the \humanReadablePart is \ascii{secret-spending-key-test}.
+}
 
 
 \introlist
@@ -4300,7 +4953,7 @@ The encoding of $\joinSplitPubKey$ and the data to be signed are specified in
 
 \begin{consensusrules}
   \sproutonlyitem{The \transactionVersionNumber{} \MUST be greater than or equal to $1$.}
-  \saplingonlyitem{The \transactionVersionNumber{} \MUST be in \range{-100000}{-1}.}
+  \saplingonlyitem{The \transactionVersionNumber{} \MUST be \todo{}.}
   \item If $\versionField = 1$ or $\nJoinSplit = 0$, then \txInCount{} \MUSTNOT be $0$.
   \item A \transaction with one or more coinbase inputs \MUST have no \transparent outputs
         (i.e.\ \txOutCount{} \MUST be $0$).
@@ -4328,15 +4981,15 @@ The encoding of $\joinSplitPubKey$ and the data to be signed are specified in
 }
 \sapling{
   \item The semantics of \transactions with \transactionVersionNumber not equal to
-        1, 2, or -100000 is not currently defined. Miners \MUSTNOT create \blocks
+        $1$, $2$, or \todo{} is not currently defined. Miners \MUSTNOT create \blocks
         before the \Sapling fork height containing \transactions with version
         other than $1$ or $2$, and \MUSTNOT create \blocks at or after the \Sapling
-        fork height containing \transactions with version other than -100000.
+        fork height containing \transactions with version other than \todo{}.
   \item The exclusion of \transactions with \transactionVersionNumber greater than
-        2 for \Sprout, or in the range \range{-99999}{-1} for \Sapling, is not a
+        $2$ for \Sprout, or in the range \todo{} for \Sapling, is not a
         consensus rule. Such \transactions may exist in the \blockchain and \MUST
         be treated identically to version $2$ \transactions before the \Sapling fork
-        height, or to version -100000 \transactions at or after the \Sapling fork
+        height, or to version \todo{} \transactions at or after the \Sapling fork
         height.
 }
   \item Note that a future hard fork might use \emph{any} \transactionVersionNumber.
@@ -4346,7 +4999,7 @@ The encoding of $\joinSplitPubKey$ and the data to be signed are specified in
   \item The $\versionField$ field is a signed integer. (It was incorrectly specified
         as unsigned in a previous version of this specification.) A future hard fork
         might \sprout{use negative values for this field, or otherwise} change its
-        interpretation.
+        interpretation. \nuzero{TODO}
   \item A \transactionVersionNumber of $2$ does not have the same meaning as in
         \Bitcoin, where it is associated with support for \ScriptOP{CHECKSEQUENCEVERIFY}
         as specified in \cite{BIP-68}. \Zcash was forked from \Bitcoin v0.11.2
@@ -5189,8 +5842,28 @@ dummy), and so a roadblock attack cannot be performed by another party
 who does not know these keys.
 }
 
-\saplingonly{\todo{Explain how \Sapling ensures $\NoteAddressRand$
-uniqueness.}}
+\saplingonly{
+In \Sapling, uniqueness of $\NoteAddressRand$ is ensured as follows:
+The creator of a transaction generates a new $\EdJubjub$ (public, private)
+key pair where the public key is $\OutputUnique$. The \outputUniquenessSet
+is used to ensure $\OutputUnique$ values are not repeated. $\OutputUnique$
+is then used in a similar way to $\hSig$ in \Sprout; we use it as input
+to a \xPedersenCommitment $\UniqueCommit{}$, together with a
+unique-per-\transaction output index $\OutputIndex$ and a random key
+$\NoteAddressPreRand$, to derive $\NoteAddressRand$ for each \shieldedOutput.
+The correct construction of $\NoteAddressRand$ for each output \note is
+enforced by the \outputStatement.
+In the same way that collision-resistance of $\PRFrho{}$ on its inputs
+and key ensures uniqueness of derived $\NoteAddressRand$ values in \Sprout,
+collision-resistance of $\UniqueCommit{}$ on its inputs and key ensures
+uniqueness of derived $\NoteAddressRand$ values in \Sapling, at least
+for any two \outputDescriptions that get into a \validBlockchain.
+(The collision-resistance proof for \xPedersenHashes extends to
+\xPedersenCommitments.) The private key corresponding to $\OutputUnique$
+is used to sign the $\SIGHASHALL$ hash (\todo{check}) of the \transaction,
+and so a roadblock attack cannot be performed by another party who does not
+know this key.
+}
 
 
 \nsubsection{Internal hash collision attack and fix} \label{internalh}
@@ -5244,7 +5917,8 @@ within the \joinSplitStatement was not considered to justify the benefits.
 \saplingonly{
 In \Sapling, \xPedersenCommitments are used instead of $\SHA$.
 These commitments are statistically hiding, and so ``everlasting anonymity''
-is supported for \Sapling notes under the same conditions as in \Zerocash.
+is supported for \Sapling notes under the same conditions as in \Zerocash
+(by the protocol, not necessarily by \zcashd).
 }
 
 \nsubsection{Changes to PRF inputs and truncation} \label{truncation}
@@ -5323,6 +5997,7 @@ $\BlakeTwosGeneric$ has an input block size of $512$ bits, and uses a finalizati
 rather than padding of the last input block; it also supports domain separation
 via a personalization parameter distinct from the input. Therefore, there is
 no need for truncation in the inputs to any of these hashes.
+\todo{check, especially $\CRHivk$ which has truncated output.}
 }
 
 \nsubsection{In-band secret distribution} \label{inbandrationale}
@@ -5388,7 +6063,7 @@ The motivations for this change were as follows:
         with knowledge of $\AuthPrivateOld{\allOld}$, so an adversary cannot
         modify it in a ciphertext from someone else's transaction for use in a
         chosen-ciphertext attack without detection.}
-        \sapling{\todo{Update randomness extraction argument for \Sapling.}}
+        \sapling{In \Sapling, $\OutputUnique$ plays a similar rôle as a public seed.}
   \item \sproutonly{The scheme used by \SproutOrZcash includes an optimization that reuses
         the same ephemeral key (with different nonces) for the two ciphertexts
         encrypted in each \joinSplitDescription.}
@@ -5467,14 +6142,14 @@ distinct openings of the \noteCommitment when Condition I or II is violated.
 \begin{itemize}
     \item The paper defines a \note as $((\AuthPublic, \TransmitPublic), \Value,
           \NoteAddressRand, \NoteCommitRand, \NoteCommitS, \cm)$, whereas this
-          specification defines it as $(\AuthPublic, \Value, \NoteAddressRand, \NoteCommitRand)$.
+          specification defines \sprout{it}\notsprout{a \Sprout \note} as
+          $(\AuthPublic, \Value, \NoteAddressRand, \NoteCommitRand)$.
           The instantiation of $\Commit{\NoteCommitS}$ in section 5.1 of the paper
           did not actually use $\NoteCommitS$, and neither does the new
-          instantiation of $\Commit{}$ in \Zcash. $\TransmitPublic$ is also
-          not needed as part of a \note: it is not an input to $\Commit{}$ nor
+          instantiation of $\NoteCommitSprout{}$ in \SproutOrZcash. $\TransmitPublic$ is also
+          not needed as part of a \note: it is not an input to $\NoteCommitSprout{}$ nor
           is it constrained by the \Zerocash \POUR{} \statement or the
           \Zcash \joinSplitStatement. $\cm$ can be computed from the other fields.
-          \sapling{\todo{Update for \Sapling.}}
           \sapling{(The definition of \notes for \Sapling is different again.)}
     \item The length of proof encodings given in the paper is $288$ bytes.
           \sproutonly{This differs from the $296$ bytes specified in \crossref{phgr},
@@ -5519,6 +6194,10 @@ of $\PRFaddr{}$ was found by Daira Hopwood.
 The errors in the proof of Ledger Indistinguishability mentioned in
 \crossref{truncation} were also found by Daira Hopwood.
 
+\sapling{
+The design of \Sapling is primarily due to Matthew Green, Ian Miers,
+Daira Hopwood, Sean Bowe, and Jack Grigg.
+}
 
 
 \introsection
@@ -5541,6 +6220,11 @@ The errors in the proof of Ledger Indistinguishability mentioned in
           A \term{full node} by definition participates in the
           peer-to-peer network, whereas a \fullValidator just needs a copy
           of the \blockchain from somewhere. The latter is what was meant.
+\sapling{
+    \item Add an explanation of how \Sapling prevents Faerie Gold and
+          roadblock attacks.
+    \item \Sapling work in progress.
+}
 \end{itemize}
 
 \introlist
@@ -5700,7 +6384,7 @@ The errors in the proof of Ledger Indistinguishability mentioned in
 \begin{itemize}
     \item Specify the difficulty adjustment algorithm.
     \item Clarify some definitions of fields in a \blockHeader.
-    \item Define $\PRFaddr{}$ in \crossref{keycomponents}.
+    \item Define $\PRFaddr{}$ in \crossref{sproutkeycomponents}.
 \end{itemize}
 
 \introlist
@@ -6161,53 +6845,90 @@ Affine-Montgomery doubling can be implemented as:
 
 \introlist
 Formulae for affine-Edwards addition are given in \cite[section 6]{BBJLP2008}.
-The following are optimized formulae found by Daira Hopwood making use of
-an observation by Bernstein and Lange in \cite[last paragraph of section 4.5.2]{BL2017}.
-
-Affine-Edwards addition $(u_1, \varv_1) + (u_2, \varv_2) = (u_3, \varv_3)$ can be implemented as:
+With a change of variable names to match our convention, the formulae for
+$(u_1, \varv_1) + (u_2, \varv_2) = (u_3, \varv_3)$ are:
 
 \begin{formulae}
-  \item $\constraint{u_1 + \varv_1}{\varv_2 - a \smult u_2}{T}$
-  \item $\constraint{u_1}{\varv_2}{A}$
-  \item $\constraint{\varv_1}{u_2}{B}$
-  \item $\constraint{d \smult A}{B}{C}$
-  \item $\constraint{1 + C}{u_3}{A + B}$
-  \item $\constraint{1 - C}{\varv_3}{T - A + a \smult B}$
+  \item $u_3     = \cfrac{u_1 \smult \varv_2 + \varv_1 \smult u_2}{1 + \ParamJ{d} \smult u_1 \smult u_2 \smult \varv_1 \smult \varv_2}$
+  \item $\varv_3 = \cfrac{\varv_1 \smult \varv_2 - \ParamJ{a} \smult u_1 \smult u_2}{1 - \ParamJ{d} \smult u_1 \smult u_2 \smult \varv_1 \smult \varv_2}$
 \end{formulae}
 
+\introlist
+We use an optimized implementation found by Daira Hopwood making use of an
+observation by Bernstein and Lange in \cite[last paragraph of section 4.5.2]{BL2017}:
+
+\begin{formulae}
+  \item $\constraint{u_1 + \varv_1}{\varv_2 - \ParamJ{a} \smult u_2}{T}$
+  \item $\constraint{u_1}{\varv_2}{A}$
+  \item $\constraint{\varv_1}{u_2}{B}$
+  \item $\constraint{\ParamJ{d} \smult A}{B}{C}$
+  \item $\constraint{1 + C}{u_3}{A + B}$
+  \item $\constraint{1 - C}{\varv_3}{T - A + \ParamJ{a} \smult B}$
+\end{formulae}
+
+\introlist
+The correctness of this implementation can be seen by expanding $T - A + \ParamJ{a} \smult B$:
+
+\begin{tabular}{@{\hskip 2em}r@{\;}l}
+  $T - A + \ParamJ{a} \smult B$
+    & $= (u_1 + \varv_1) \mult (\varv_2 - \ParamJ{a} \smult u_2) - u_1 \smult \varv_2 + \ParamJ{a} \smult \varv_1 \smult u_2$ \\
+    & $= \varv_1 \smult \varv_2 - \ParamJ{a} \smult u_1 \smult u_2 + u_1 \smult \varv_2 - \ParamJ{a} \smult \varv_1 \smult u_2
+                                                                   - u_1 \smult \varv_2 + \ParamJ{a} \smult \varv_1 \smult u_2$ \\
+    & $= \varv_1 \smult \varv_2 - \ParamJ{a} \smult u_1 \smult u_2$
+\end{tabular}
+
+\vspace{2ex}
+\introlist
 The above addition formulae are ``unified'', that is, they can also be
 used for doubling. Affine-Edwards doubling $\scalarmult{2}{(u, \varv)} = (u_3, \varv_3)$
 can also be implemented slightly more efficiently as:
 
 \begin{formulae}
-  \item $\constraint{u + \varv}{\varv - a \smult u}{T}$
+  \item $\constraint{u + \varv}{\varv - \ParamJ{a} \smult u}{T}$
   \item $\constraint{u}{\varv}{A}$
-  \item $\constraint{d \smult A}{A}{C}$
+  \item $\constraint{\ParamJ{d} \smult A}{A}{C}$
   \item $\constraint{1 + C}{u_3}{2 \smult A}$
-  \item $\constraint{1 - C}{\varv_3}{T + (a - 1) \smult A}$
+  \item $\constraint{1 - C}{\varv_3}{T + (\ParamJ{a} - 1) \smult A}$
 \end{formulae}
 
+This implementation is obtained by specializing the addition formulae to
+$(u, \varv) = (u_1, \varv_1) = (u_2, \varv_2)$ and observing that $u \mult \varv = A = B$.
 
 
-\nsubsubsection{Affine-Edwards cofactor multiplication and order check} \label{cctcofactormult}
+\nsubsubsection{Affine-Edwards cofactor multiplication and nonsmall-order check} \label{cctcofactormult}
 
-Cofactor multiplication is used to test whether a point is of small order.
+Cofactor multiplication is used to ensure that that the resulting point is of
+order $\ParamJ{r}$, which avoids certain small-subgroup attacks.
+
 The cofactor for the Jubjub curve is $8$. A cofactor multiplication can therefore
-be implemented by doubling three times:
+be implemented by doubling three times, using the affine-Edwards doubling implementation
+in \crossref{cctedarithmetic}:
 
 \begin{formulae}
   \item $(u, \varv) = \scalarmult{2}{\scalarmult{2}{\scalarmult{2}{(u_0, \varv_0)}}}$
 \end{formulae}
 
-We can ensure that the original point $(u_0, \varv_0)$ was not of small order by asserting
-that the resulting $u$-coordinate is non-zero. Since only non-zero elements of
-$\GF{\ParamS{r}}$ have a multiplicative inverse, this assertion can be implemented
-by requiring to witness the inverse, $z$:
+We can ensure that the original point $(u_0, \varv_0)$ was not of small order (and that
+the resulting point is not $\ZeroJ$) by asserting that $u \neq 0$.
+On a twisted Edwards curve, only the zero point $\ZeroJ$, and the unique point
+of order $2$ at $(0, -1)$ have zero $u$-coordinate.
+
+Since only non-zero elements of $\GF{\ParamS{r}}$ have a multiplicative inverse, the
+assertion $u \neq 0$ can be implemented by witnessing the inverse, $\uinv$:
 
 \begin{formulae}
-  \item $\constraint{z}{u}{1}$
+  \item $\constraint{\uinv}{u}{1}$
 \end{formulae}
 
+This costs $3 \mult 5$ constraints for the doublings and $1$ constraint for the check
+on $u$, for a total of $16$ constraints.
+
+In the case where we \emph{only} need to reject points of small order (less than $\ParamJ{r}$)
+and the result of cofactor multiplication is not needed, it is sufficient to double twice
+and check $u \neq 0$. This works because the check on $u$ rejects both the zero point
+and the point of order $2$, and no other points. The second doubling does not need to
+compute $T$ or the $\varv$-coordinate of the result, so the total cost of this
+nonsmall-order check is $5 + 3 + 1 = 9$ constraints.
 
 
 \nsubsubsection{Fixed-base affine-Edwards scalar multiplication} \label{cctfixedscalarmult}
@@ -6253,18 +6974,19 @@ $750$ constraints.
 
 When the base point $B$ is not fixed, the method in the preceding section
 cannot be used. Instead we use a naïve double-and-add method.
+\todo{change this to what is implemented by sapling-crypto.}
 
 Given $k = \vsum{i=0}{250} k_i \smult 2^i$, we calculate $R = \scalarmult{k}{B}$ using:
 
 \begin{formulae}
   \item $\Acc_u := k_{250} \bchoose B_u : 0$
-  \item $\Acc_{\vv} := k_{250} \bchoose B_{\vv} : 1$
+  \item $\Acc_{\vv}\hairspace := k_{250} \bchoose B_{\vv} : 1$
   \item for $i$ from $249$ down to $0$:
   \item \tab $\Acc := \scalarmult{2}{\Acc}$
   \item \tab let $\Sum = \Acc + B$ 
   \item \tab // select $\Acc$ or $\Sum$ depending on the bit $k_i$
   \item \tab $\Acc_u := k_i \bchoose \Sum_u : \Acc_u$
-  \item \tab $\Acc_{\vv} := k_i \bchoose \Sum_{\vv} : \Acc_{\vv}$
+  \item \tab $\Acc_{\vv}\hairspace := k_i \bchoose \Sum_{\vv} : \Acc_{\vv}$
   \item let $R = \Acc$.
 \end{formulae}
 
@@ -6276,29 +6998,33 @@ for a total of $3252$ constraints.
 It would be more efficient to use $2$-bit fixed windows, but there are only
 two instances of variable-base scalar multiplication in the \spendCircuit
 and one in the \outputCircuit, so the additional complexity was not considered
-justified.
+justified for \Sapling.
 }
 
 \nsubsubsection{Pedersen hashes} \label{cctpedersenhash}
 
 As described in \crossref{pedersen}, we use a variation of Pedersen hashes that
-splits the input into segments of up to ... bits, and then splits each segment
-into windows of 3 bits. The encoding function treats ...
+splits the input into segments of up to $249$ bits, and then splits each segment
+into windows of $3$ bits. The encoding function treats ...
 
 The motivation for this approach is to allow the use of Montgomery arithmetic
-within each segment: the \distinctXCriterion is met because the scalar ...
-Then, the intermediate results from each segment are converted to Edwards form
-and added using the complete addition method from \crossref{cctedarithmetic}:
+within each segment: the \distinctXCriterion is met because all of the terms
+in the Montgomery addition, as well as any intermediate result formed from
+adding a subset of terms, have distinct indices in $\range{1}{(\ParamJ{r}-1)/2}$.
 
-Note that all of the terms on the right-hand-side, as well as any intermediate
-result formed from adding a subset of terms, have distinct indices.
+Then, the sums from each segment are converted to Edwards form and added using
+the complete addition method from \crossref{cctedarithmetic}.
+
+%Let $\split(...)$ = ...
 
 
-$\PedersenHashSegment \typecolon ... \rightarrow \AffineEdwardsJubjub$
+\begin{formulae}
+  \item $\PedersenHashSegment \typecolon \bitseq{249} \rightarrow \AffineEdwardsJubjub$
 
-$\PedersenHashSegment(...) = \MontToEdwards(...)$
+  \item $\PedersenHashSegment(...) = \MontToEdwards(...)$
 
-$\PedersenHash(segment_{\range{1}{n}}) = \vsum{}{} \PedersenHashSegment(...)$
+  \item $\PedersenHash(segment_{\range{1}{n}}) = \vsum{}{} \PedersenHashSegment(...)$
+\end{formulae}
 
 When these hashes are used in the circuit, the first two windows of the input
 are fixed and can be optimized (for example, in the Merkle tree hashes they
@@ -6369,12 +7095,12 @@ $G \typecolon ... \rightarrow ...$
 
 $G(...) = ...$
 
-A 32-bit exclusive-or can be implemented in 32 constraints, one for each bit position
+A 32-bit exclusive-or can be implemented in $32$ constraints, one for each bit position
 $a \xor b = c$:
 
 $(2 \smult a) \times (b) = (a + b - c)$
 
-Additions not involving a message word require 33 constraints:
+Additions not involving a message word require $33$ constraints:
 
 ...
 
