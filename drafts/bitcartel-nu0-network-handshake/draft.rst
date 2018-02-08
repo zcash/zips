@@ -95,7 +95,7 @@ Network Coalescence
 
 Prior to the activation of Overwinter, nodes running pre-Overwinter protocol version 170002 and the Overwinter protocol version 170003 remain connected with the same consensus rules, but it would be preferable for nodes supporting Overwinter to connect to other nodes supporting Overwinter.
 
-This would help the network partition smoothly, since nodes should already be connected to (a majority of) peers running the same protocol version.  Otherwise an Overwinter node may find their connections to legacy nodes droppedsuddenly at the activation height, potentiallyleaving them isolated and susceptible to eclipse attacks. [link]
+This would help the network partition smoothly, since nodes should already be connected to (a majority of) peers running the same protocol version.  Otherwise an Overwinter node may find their connections to legacy nodes dropped suddenly at the activation height, potentially leaving them isolated and susceptible to eclipse attacks. [link]
 
 To assist network coalescence before the activation height, we update the eviction process to place a higher priority on evicting legacy nodes.
 
@@ -111,7 +111,7 @@ Currently, an eviction process takes place when new inbound connections arrive, 
         }
     }
 
-We update this process by adding behaviour so that the set of eviction candidates will prefer pre-Overwinter node, when the chain tip is in a period N blocks before the activation block height, where N is defined as::
+We update this process by adding behaviour so that the set of eviction candidates will prefer pre-Overwinter nodes, when the chain tip is in a period N blocks before the activation block height, where N is defined as::
 
     static const int NETWORK_UPGRADE_PEER_PREFERENCE_BLOCK_PERIOD = 1000.
 
@@ -144,13 +144,13 @@ The existing method of disconnecting a candidate remains:
 
     vEvictionCandidates[0]->fDisconnect = true;
 
-The existing eviction process also classifies and divides eviction candidates into groups.  If a group only has one peer, it will not be evicted.  This means at least one pre-Overwinter node should remain connected upto the activation block height, barring any network issues or a high ban score.
+The existing eviction process will classify and divide eviction candidates into buckets called netgroups.  If a netgroup only has one peer, it will not be evicted.  This means at least one pre-Overwinter node will remain connected upto the activation block height, barring any network issues or a high ban score.
 
 
 Disconnecting Existing Connections
 ----------------------------------
 
-At the activation block height, an Overwinter node may still remain connected to pre-Overwinter nodes.  Currently, when connecting, a node can only perform the networking handshake once, where it sends the version message before any other messages are processed.  To disconnect existing pre-Overwinter connections, ProcessMessage is modified so that once Overwinter activates, the protocol version of a peer is always checked when processing inbound messages.
+At the activation block height, an Overwinter node may still remain connected to pre-Overwinter nodes.  Currently, when connecting, a node can only perform the networking handshake once, where it sends the version message before any other messages are processed.  To disconnect existing pre-Overwinter connections, ProcessMessage is modified so that once Overwinter activates, if necessary, the protocol version of anexisting peer is validated when inbound messages arrive.
 
 Example code::
 
@@ -167,18 +167,20 @@ Example code::
             ...
         }
 
-        // Disconnect existing connection if:
-        // 1. The version message has been received
-        // 2. Overwinter is active
-        // 3. Version is legacy
+        // Disconnect existing peer connection when:
+        // 1. Minimum peer version is less than Overwinter version
+        // 2. The version message has been received from a peer
+        // 3. The peer's version is pre-Overwinter
+        // 4. Overwinter is active
         else if (
+            MIN_PEER_PROTO_VERSION < OVERWINTER_PROTO_VERSION &&
             pfrom->nVersion != 0 &&
-            isOverwinterActivated() &&
-            pfrom->nVersion < OVERWINTER_PROTO_VERSION )
+            pfrom->nVersion < OVERWINTER_PROTO_VERSION &&
+            NetworkUpgradeActive(GetHeight(), chainparams.GetConsensus(), Consensus::UPGRADE_OVERWINTER))
         {
             LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, pfrom->nVersion);
             pfrom->PushMessage("reject", strCommand, REJECT_OBSOLETE,
-                               strprintf("Version must be %d or greater", OVERWINTER_PROTO_VERSION));
+                                strprintf("Version must be %d or greater", OVERWINTER_PROTO_VERSION));
             pfrom->fDisconnect = true;
             return false;
         }
