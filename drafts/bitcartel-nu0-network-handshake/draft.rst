@@ -71,7 +71,7 @@ This value is defined as::
     //! disconnect from peers older than this proto version
     static const int MIN_PEER_PROTO_VERSION = 170002;
     
-With rejection codified as::
+With rejection implemented as::
     
     if (pfrom->nVersion < MIN_PEER_PROTO_VERSION)
     {
@@ -84,7 +84,7 @@ Prior to activation, Overwinter nodes will contain the following constants::
 
 This allows pre-Overwinter nodes (which only supports protocol version 170002) and Overwinter nodes (which support both 170002 and 170003) to remain connected prior to activation.
 
-However, once Overwinter activates, Overwinter nodes should:
+These values cannot be changed at run-time, so when Overwinter activates, Overwinter nodes should take steps to:
 
 - reject new connections from pre-Overwinter nodes
 - disconnect any existing conncetions to pre-Overwinter nodes
@@ -95,36 +95,62 @@ Network Coalescence
 
 Prior to the activation of Overwinter, nodes running pre-Overwinter protocol version 170002 and the Overwinter protocol version 170003 remain connected with the same consensus rules, but it would be preferable for nodes supporting Overwinter to connect to other nodes supporting Overwinter.
 
-This will help the network partition smoothly, since nodes should already be connected to (a majority of) peers running the same protocol version.  Otherwise am Overwinter node may find their connections to legacy nodes dropped at the activation height, leaving them isolated and potentially susceptible to eclipse attacks. [link]
+This would help the network partition smoothly, since nodes should already be connected to (a majority of) peers running the same protocol version.  Otherwise an Overwinter node may find their connections to legacy nodes droppedsuddenly at the activation height, potentiallyleaving them isolated and susceptible to eclipse attacks. [link]
 
 To assist network coalescence before the activation height, we update the eviction process to place a higher priority on evicting legacy nodes.
 
-This can be activated at n blocks before the activation block height, where n could be defined by a constant such as::
+Currently, an eviction process takes place when new inbound connections arrive, but the node has already connected to the maximum number of inbound peers::
 
-    static const int NETWORK_COALESCE_BLOCK_PERIOD = 1000.
+    if (nInbound >= nMaxInbound)
+    {
+        if (!AttemptToEvictConnection(whitelisted)) {
+            // No connection to evict, disconnect the new connection
+            LogPrint("net", "failed to find an eviction candidate - connection dropped (full)\n");
+            CloseSocket(hSocket);
+            return;
+        }
+    }
 
-The eviction code can be updated as follows::
+We update this process by adding behaviour so that the set of eviction candidates will prefer pre-Overwinter node, when the chain tip is in a period N blocks before the activation block height, where N is defined as::
+
+    static const int NETWORK_UPGRADE_PEER_PREFERENCE_BLOCK_PERIOD = 1000.
+
+The eviction candidates can be modified as so::
 
     static bool AttemptToEvictConnection(bool fPreferNewConnection) {
     ...
     // Protect connections with certain characteristics
     ...
-    // Check version of eviction candidates
-    if (current_block_height >= (activationheight - NETWORK_COALESCE_BLOCK_PERIOD)) {
-      // if there exist any legacy nodes, keep them in the eviction set
-      // and at the same time remove overwinter nodes from eviction set.
-      // if there do not exist any legacy nodes,
-      // continue with existing behaviour.
+    // Check version of eviction candidates...
+    // If we are connected to any pre-Overwinter nodes, keep them in the eviction set and remove any Overwinter nodes
+    // If we are only connected to Overwinter nodes, continue with existing behaviour.
+    if ((height < nActivationHeight) &&
+        (height >= (nActivationHeight - NETWORK_UPGRADE_PEER_PREFERENCE_BLOCK_PERIOD)))
+    {
+        // Find any nodes which don't support Overwinter protocol version
+        BOOST_FOREACH(const CNodeRef &node, vEvictionCandidates) {
+            if (node->nVersion < OVERWINTER_PROTO_VERSION) {
+                vTmpEvictionCandidates.push_back(node);
+            }
+        }
+
+        // Prioritize these nodes by replacing eviction set with them
+        if (vTmpEvictionCandidates.size() > 0) {
+            vEvictionCandidates = vTmpEvictionCandidates;
+        }
+    }
+
+The existing method of disconnecting a candidate remains:
+
+    vEvictionCandidates[0]->fDisconnect = true;
+
+The existing eviction process also classifies and divides eviction candidates into groups.  If a group only has one peer, it will not be evicted.  This means at least one pre-Overwinter node should remain connected upto the activation block height, barring any network issues or a high ban score.
 
 
 Disconnecting Existing Connections
 ----------------------------------
 
-It is likely that at the activation block height, an Overwinter node will still be connected to some Legacy nodes.
-
-Currently, when connecting, a node must perform the networking handshake, and send the version message, before any other messages are processed.
-
-To disconnect existing connections, we can modify ProcessMessage so that the protocol version is always checked after Overwinter activates.
+At the activation block height, an Overwinter node may still remain connected to pre-Overwinter nodes.  Currently, when connecting, a node can only perform the networking handshake once, where it sends the version message before any other messages are processed.  To disconnect existing pre-Overwinter connections, ProcessMessage is modified so that once Overwinter activates, the protocol version of a peer is always checked when processing inbound messages.
 
 Example code::
 
@@ -171,9 +197,12 @@ Mainnet:
 Backward compatibility
 ======================
 
-This proposal intentionally creates what is known as a "bilateral hard fork" between Legacy software and Overwinter compatible software. Use of this new handshake requires that all network participants upgrade their software to a compatible version within the upgrade window
+This proposal intentionally creates what is known as a hard fork where Overwinter nodes disconnect from pre-Overwinter nodes.
 
-Legacy software will accept the numerically larger Overwinter protocol version as valid, but Overwinter compatible software will reject the legacy nodes once Overwinter activates by rejecting protocol versions lower than the Overwinter protocol version number. 
+Prior to the network upgrade activating, Overwinter and pre-Overwinter nodes are compatible and can connect to each other. However, Overwinter nodes will have a preference for connecting to other Overwinter nodes, so pre-Overwinter nodes will gradually be disconnected in the run up to activation.
+
+Once the network upgrades, even though pre-Overwinter nodes can still accept the numerically larger protocol version used by Overwinter as being valid, Overwinter nodes will always disconnect peers using lower protocol versions.
+
 
 Reference Implementation
 ========================
