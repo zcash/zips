@@ -61,17 +61,16 @@ Deploying the aforementioned fixes in the original script system is not a simple
 Specification
 =============
 
-A new transaction digest algorithm is defined, but only applicable from the Overwinter upgrade block height
-[#ZIP0000]_::
+A new transaction digest algorithm is defined::
   BLAKE2b-256 of the serialization of:
-    1. nVersion of the transaction (4-byte little endian)
-    2. nVersionBranch of the transaction (4-byte little endian)
+    1. header of the transaction (4-byte little endian)
+    2. nVersionGroupId of the transaction (4-byte little endian)
     3. hashPrevouts (32-byte hash)
     4. hashSequence (32-byte hash)
     5. hashOutputs (32-byte hash)
     6. hashJoinSplits (32-byte hash)
     7. nLockTime of the transaction (4-byte little endian)
-    8. nExpiryTime of the transaction (4-byte little endian)
+    8. nExpiryHeight of the transaction (4-byte little endian)
     9. sighash type of the signature (4-byte little endian)
    10. If we are serializing an input (ie. this is not a JoinSplit signature hash):
        a. outpoint (32-byte hash + 4-byte little endian) 
@@ -79,19 +78,22 @@ A new transaction digest algorithm is defined, but only applicable from the Over
        c. value of the output spent by this input (8-byte little endian)
        d. nSequence of the input (4-byte little endian)
 
+The new algorithm MUST be used for signatures created over the Overwinter transaction format.
+[#ZIP-overwinter-tx-format]_ Combined with the new consensus rule that v1 and v2 transaction formats will be
+invalid from the Overwinter upgrade, [#ZIP-overwinter-tx-format]_ this effectively means that all transactions
+signatures from the Overwinter activation height will use the new algorithm. [#ZIP0000]_
+
 The BLAKE2b-256 personalization field is set to::
 
-  "ZcashSigHash" || BLOCK_BRANCH_ID
+  "ZcashSigHash" || CONSENSUS_BRANCH_ID
 
-``BLOCK_BRANCH_ID`` is the ``BRANCH_ID`` for the epoch of the transaction's parent block. [#ZIP-activation-mechanism]_
-Domain separation of the signature hash across parallel branches provides replay protection: transactions
-targeted for one branch will have invalid signatures on other branches. This has two effects on user behavior:
+``CONSENSUS_BRANCH_ID`` is the little-endian encoding of ``BRANCH_ID`` for the epoch of the transaction's
+parent block. [#ZIP-activation-mechanism]_ Domain separation of the signature hash across parallel branches
+provides replay protection: transactions targeted for one branch will have invalid signatures on other
+branches.
 
-* Transaction creators MUST specify the epoch they want their transaction to be mined in. Across a network
-  upgrade, this means that if a transaction is not mined before the activation height, it will never be mined.
-
-* Transaction validators MUST NOT use ``nVersionBranch`` as the ``BLOCK_BRANCH_ID``: while these are both a
-  ``BRANCH_ID`` "under the hood", they are **semantically different**.
+Transaction creators MUST specify the epoch they want their transaction to be mined in. Across a network
+upgrade, this means that if a transaction is not mined before the activation height, it will never be mined.
 
 Semantics of the original sighash types remain unchanged, except the following:
 
@@ -107,12 +109,17 @@ Semantics of the original sighash types remain unchanged, except the following:
 Field definitions
 -----------------
 
-The items 1, 7, 9, 10a, 10d have the same meaning as the original algorithm. [#wiki-checksig]_
+The items 7, 9, 10a, 10d have the same meaning as the original algorithm. [#wiki-checksig]_
 
-2: ``nVersionBranch``
-`````````````````````
-The ``BRANCH_ID`` of the epoch in which the transaction format corresponding to ``nVersion`` was introduced.
-[#ZIP-overwinter-tx-format]_
+1: ``header``
+`````````````
+Deserialized into two transaction properties: ``fOverwintered`` and ``nVersion``. For transactions that use
+this transaction digest algorithm, ``fOverwintered`` is always set. [#ZIP-overwinter-tx-format]_
+
+2: ``nVersionGroupId``
+``````````````````````
+Provides domain separation of ``nVersion``. It is only defined if ``fOverwintered`` is set, which means that
+it is always defined for transactions that use this algorithm. [#ZIP-overwinter-tx-format]_
 
 3: ``hashPrevouts``
 ```````````````````
@@ -150,9 +157,9 @@ The ``BRANCH_ID`` of the epoch in which the transaction format corresponding to 
 
 * Otherwise, ``hashJoinSplits`` is a ``uint256`` of ``0x0000......0000``.
 
-8: ``nExpiryTime``
-``````````````
-The block height or time at which the transaction becomes unilaterally invalid, and can never be mined.
+8: ``nExpiryHeight``
+````````````````````
+The block height after which the transaction becomes unilaterally invalid, and can never be mined.
 [#ZIP-tx-expiry]_
 
 10b: ``scriptCode``
@@ -220,13 +227,16 @@ Refer to the reference implementation, reproduced below, for the precise algorit
       hashJoinSplits = ss.GetHash();
   }
 
+  uint32_t leConsensusBranchId = htole32(consensusBranchId);
   unsigned char personalization[16] = {};
   memcpy(personalization, "ZcashSigHash", 12);
-  memcpy(personalization+12, branchId, 4);
+  memcpy(personalization+12, &leConsensusBranchId, 4);
 
   CBlake2HashWriter ss(SER_GETHASH, 0, personalization);
-  // Version
-  ss << txTo.nVersion;
+  // fOverwintered and nVersion
+  ss << txTo.GetHeader();
+  // Version group ID
+  ss << txTo.nVersionGroupId;
   // Input prevouts/nSequence (none/all, depending on flags)
   ss << hashPrevouts;
   ss << hashSequence;
@@ -236,8 +246,8 @@ Refer to the reference implementation, reproduced below, for the precise algorit
   ss << hashJoinSplits;
   // Locktime
   ss << txTo.nLockTime;
-  // Expiry time
-  ss << txTo.nExpiryTime;
+  // Expiry height
+  ss << txTo.nExpiryHeight;
   // Sighash type
   ss << nHashType;
 
@@ -305,7 +315,7 @@ References
 .. [#offline-wallets] `SIGHASH_WITHINPUTVALUE: Super-lightweight HW wallets and offline data <https://bitcointalk.org/index.php?topic=181734.0>`_
 .. [#ZIP0000] ZIP???: Overwinter Network Upgrade
 .. [#ZIP-activation-mechanism] ZIP???: Network Upgrade Activation Mechanism
-.. [#ZIP-tx-format] ZIP???: Overwinter Transaction Format
+.. [#ZIP-overwinter-tx-format] ZIP???: Overwinter Transaction Format
 .. [#01-change] In the original algorithm, a ``uint256`` of ``0x0000......0001`` is committed if the input
    index for a ``SINGLE`` signature is greater than or equal to the number of outputs. In this ZIP a
    ``0x0000......0000`` is commited, without changing the semantics.
