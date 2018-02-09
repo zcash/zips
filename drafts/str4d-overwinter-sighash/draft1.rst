@@ -263,7 +263,7 @@ Refer to the reference implementation, reproduced below, for the precise algorit
   if (nIn != NOT_AN_INPUT) {
       // The input being signed (replacing the scriptSig with scriptCode + amount)
       // The prevout may already be contained in hashPrevout, and the nSequence
-      // may already be contain in hashSequence.
+      // may already be contained in hashSequence.
       ss << txTo.vin[nIn].prevout;
       ss << static_cast<const CScriptBase&>(scriptCode);
       ss << amount;
