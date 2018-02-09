@@ -80,7 +80,7 @@ Version  Field           Description                 Type
 ======== =============== =========================== =======
 >= 3     header          - flag (bit 31 must be set)  uint32
                          - version (bits 30-0)
->= 3     vers_group_id   version group id            uint32
+>= 3     vers_group_id   version group id (not zero) uint32
 >= 1     in_count        varint                      1-9 bytes
 >= 1     tx_inputs       list of inputs              vector
 >= 1     out_count       varint                      1-9 bytes
@@ -148,7 +148,7 @@ Overwinter parsers will accept the transaction as valid as the most significant 
 Version Group Id
 ----------------
 
-The version group id is a random and unique identifier assigned to a transaction format version or a group of soft-forking transaction format versions.  The version group id helps nodes disambiguate between branches using the same version number.
+The version group id is a non-zero, random and unique identifier assigned to a transaction format version or a group of soft-forking transaction format versions.  The version group id helps nodes disambiguate between branches using the same version number.
 
 That is, it prevents a client on one branch of the network from attempting to parse transactions intended for another branch, in the situation where the transactions share the same format version number but are actually specified differently.  For example, Zcash and Zclone both define their own custom v3 transaction formats, but each will have its own unique version group id, so that they can reject v3 transactions with unknown version group ids.
 
