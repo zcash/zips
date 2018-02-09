@@ -113,7 +113,7 @@ Semantics of the original sighash types remain unchanged, except the following:
 Field definitions
 -----------------
 
-The items 7, 9, 10a, 10d have the same meaning as the original algorithm. [#wiki-checksig]_
+The items 7, 9, 10a, 10d have the same meaning as the original algorithm from Bitcoin. [#wiki-checksig]_
 
 1: ``header``
 `````````````
@@ -166,12 +166,9 @@ The block height after which the transaction becomes unilaterally invalid, and c
 [#ZIP-tx-expiry]_
 
 10b: ``scriptCode``
-``````````````````
-[TODO: TBC]
-
-* For ``P2PKH``, the ``scriptCode`` is ``0x1976a914{20-byte-pubkey-hash}88ac``.
-
-* For ``P2SH``, the ``scriptCode`` is the ``script`` serialized as scripts inside ``CTxOut``.
+```````````````````
+The script being currently executed: ``redeemScript`` for P2SH, or ``scriptPubKey`` in the general case. This
+is the same script as serialized in the Sprout transaction digest algorithm.
 
 10c: value
 `````````
@@ -271,19 +268,6 @@ Refer to the reference implementation, reproduced below, for the precise algorit
   }
 
   return ss.GetHash();
-
-
-Restrictions on public key type
-===============================
-
-[TODO: decide whether we want to implement this policy]
-
-As a default policy, only compressed public keys are accepted in ``P2PKH`` and ``P2SH``. Each public key
-passed to a sigop must be a compressed key: the first byte MUST be either ``0x02`` or ``0x03``, and the size
-MUST be 33 bytes. Transactions that break this rule will not be relayed or mined by default.
-
-Since this policy is preparation for a future softfork proposal, to avoid potential future funds loss, users
-MUST NOT use uncompressed keys.
 
 
 Example
