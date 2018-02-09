@@ -70,8 +70,8 @@ A new transaction digest algorithm is defined, but only applicable from the Over
     4. hashSequence (32-byte hash)
     5. hashOutputs (32-byte hash)
     6. hashJoinSplits (32-byte hash)
-    7. nLockTime of the transaction (8-byte little endian)
-    8. nExpiryTime of the transaction (8-byte little endian)
+    7. nLockTime of the transaction (4-byte little endian)
+    8. nExpiryTime of the transaction (4-byte little endian)
     9. sighash type of the signature (4-byte little endian)
    10. If we are serializing an input (ie. this is not a JoinSplit signature hash):
        a. outpoint (32-byte hash + 4-byte little endian) 
