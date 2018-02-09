@@ -309,7 +309,7 @@ created by older software will be rejected by the network.
 Reference Implementation
 ========================
 
-TBC
+https://github.com/zcash/zcash/pull/2903
 
 
 References
