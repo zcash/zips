@@ -6,6 +6,7 @@
           Daira Hopwood <daira@z.cash>
   Credits: Johnson Lau <jl2012@xbt.hk>
            Pieter Wuille <pieter.wuille@gmail.com>
+           Bitcoin-ABC
   Category: Process
   Created: 2017-12-27
   License: MIT
@@ -76,6 +77,9 @@ A new transaction digest algorithm is defined::
        b. scriptCode of the input (serialized as scripts inside CTxOuts) [TODO]
        c. value of the output spent by this input (8-byte little endian)
        d. nSequence of the input (4-byte little endian)
+
+The new algorithm is based on the Bitcoin transaction digest algorithm defined in BIP 143, [#BIP0143]_ with
+replay protection inspired by BUIP-HF v1.2. [#BUIP-HF]_
 
 The new algorithm MUST be used for signatures created over the Overwinter transaction format.
 [#ZIP-overwinter-tx-format]_ Combined with the new consensus rule that v1 and v2 transaction formats will be
@@ -312,6 +316,8 @@ References
    * `New Bitcoin vulnerability: A transaction that takes at least 3 minutes to verify <https://bitcointalk.org/?topic=140078>`_
    * `The Megatransaction: Why Does It Take 25 Seconds? <http://rusty.ozlabs.org/?p=522>`_
 .. [#offline-wallets] `SIGHASH_WITHINPUTVALUE: Super-lightweight HW wallets and offline data <https://bitcointalk.org/index.php?topic=181734.0>`_
+.. [#BIP0143] `Transaction Signature Verification for Version 0 Witness Program <https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki>`_
+.. [#BUIP-HF] `BUIP-HF Digest for replay protected signature verification across hard forks, version 1.2 <https://github.com/Bitcoin-ABC/bitcoin-abc/blob/master/doc/abc/replay-protected-sighash.md>`_
 .. [#ZIP0000] ZIP???: Overwinter Network Upgrade
 .. [#ZIP-activation-mechanism] ZIP???: Network Upgrade Activation Mechanism
 .. [#ZIP-overwinter-tx-format] ZIP???: Overwinter Transaction Format
