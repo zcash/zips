@@ -6,7 +6,6 @@
           Daira Hopwood <daira@z.cash>
   Credits: Johnson Lau <jl2012@xbt.hk>
            Pieter Wuille <pieter.wuille@gmail.com>
-  Comments-Summary: No comments yet.
   Category: Process
   Created: 2017-12-27
   License: MIT
