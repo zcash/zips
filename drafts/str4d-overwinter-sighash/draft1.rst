@@ -154,9 +154,8 @@ it is always defined for transactions that use this algorithm. [#ZIP-overwinter-
 * If ``vjoinsplits`` is non-empty, ``hashJoinSplits`` is the BLAKE2b-256 hash of the serialization of all
   JoinSplits (in their canonical transaction serialization format) concatenated with the joinSplitPubKey;
 
-  * Note that the JoinSplit proofs are included in the signature hash, as with v1 and v2 transactions. In a
-    future transaction digest algorithm, the proofs will likely be omitted as authentication data, in the same
-    way that signatures are omitted here.
+  * Note that while signatures are ommitted, the JoinSplit proofs are included in the signature hash, as with
+    v1 and v2 transactions.
 
 * Otherwise, ``hashJoinSplits`` is a ``uint256`` of ``0x0000......0000``.
 
