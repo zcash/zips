@@ -91,8 +91,8 @@ The BLAKE2b-256 personalization field [#BLAKE2-personalization]_ is set to::
 
   "ZcashSigHash" || CONSENSUS_BRANCH_ID
 
-``CONSENSUS_BRANCH_ID`` is the little-endian encoding of ``BRANCH_ID`` for the epoch of the transaction's
-parent block. [#ZIP-activation-mechanism]_ Domain separation of the signature hash across parallel branches
+``CONSENSUS_BRANCH_ID`` is the little-endian encoding of ``BRANCH_ID`` for the epoch of the block containing
+the transaction. [#ZIP-activation-mechanism]_ Domain separation of the signature hash across parallel branches
 provides replay protection: transactions targeted for one branch will have invalid signatures on other
 branches.
 
