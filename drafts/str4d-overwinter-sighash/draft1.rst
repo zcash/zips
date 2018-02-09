@@ -62,6 +62,7 @@ Specification
 =============
 
 A new transaction digest algorithm is defined::
+
   BLAKE2b-256 hash of the serialization of:
     1. header of the transaction (4-byte little endian)
     2. nVersionGroupId of the transaction (4-byte little endian)
