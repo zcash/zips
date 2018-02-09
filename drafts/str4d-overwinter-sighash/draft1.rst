@@ -62,7 +62,7 @@ Specification
 =============
 
 A new transaction digest algorithm is defined::
-  BLAKE2b-256 of the serialization of:
+  BLAKE2b-256 hash of the serialization of:
     1. header of the transaction (4-byte little endian)
     2. nVersionGroupId of the transaction (4-byte little endian)
     3. hashPrevouts (32-byte hash)
@@ -126,32 +126,32 @@ it is always defined for transactions that use this algorithm. [#ZIP-overwinter-
 
 3: ``hashPrevouts``
 ```````````````````
-* If the ``ANYONECANPAY`` flag is not set, ``hashPrevouts`` is the double SHA256 of the serialization of all
-  input outpoints;
+* If the ``ANYONECANPAY`` flag is not set, ``hashPrevouts`` is the BLAKE2b-256 hash of the serialization of
+  all input outpoints;
 
 * Otherwise, ``hashPrevouts`` is a ``uint256`` of ``0x0000......0000``.
 
 4: ``hashSequence``
 ```````````````````
-* If none of the ``ANYONECANPAY``, ``SINGLE``, ``NONE`` sighash type is set, ``hashSequence`` is the double
-  SHA256 of the serialization of ``nSequence`` of all inputs;
+* If none of the ``ANYONECANPAY``, ``SINGLE``, ``NONE`` sighash type is set, ``hashSequence`` is the
+  BLAKE2b-256 hash of the serialization of ``nSequence`` of all inputs;
 
 * Otherwise, ``hashSequence`` is a ``uint256`` of ``0x0000......0000``.
 
 5: ``hashOutputs``
 ``````````````````
-* If the sighash type is neither ``SINGLE`` nor ``NONE``, ``hashOutputs`` is the double SHA256 of the
+* If the sighash type is neither ``SINGLE`` nor ``NONE``, ``hashOutputs`` is the BLAKE2b-256 hash of the
   serialization of all output amount (8-byte little endian) with ``scriptPubKey`` (serialized as scripts
   inside CTxOuts);
 
 * If sighash type is ``SINGLE`` and the input index is smaller than the number of outputs, ``hashOutputs`` is
-  the double SHA256 of the output (serialized as above) with the same index as the input;
+  the BLAKE2b-256 hash of the output (serialized as above) with the same index as the input;
 
 * Otherwise, ``hashOutputs`` is a ``uint256`` of ``0x0000......0000``. [#01-change]_
 
 6: ``hashJoinSplits``
 `````````````````````
-* If ``vjoinsplits`` is non-empty, ``hashJoinSplits`` is the double SHA256 of the serialization of all
+* If ``vjoinsplits`` is non-empty, ``hashJoinSplits`` is the BLAKE2b-256 hash of the serialization of all
   JoinSplits (in their canonical transaction serialization format) concatenated with the joinSplitPubKey;
 
   * Note that the JoinSplit proofs are included in the signature hash, as with v1 and v2 transactions. In a
@@ -180,6 +180,9 @@ An 8-byte value of the amount of ZEC spent in this input.
 Notes
 -----
 
+When generating ``hashPrevouts``, ``hashSequence``, ``hashOutputs``, and ``hashJoinSplits``, the BLAKE2b-256
+personalization field is set to ``Zcash_Inner_Hash``.
+
 The ``hashPrevouts``, ``hashSequence``, ``hashOutputs``, and ``hashJoinSplits`` calculated in an earlier
 verification may be reused in other inputs of the same transaction, so that the time complexity of the whole
 hashing process reduces from O(n\ :sup:`2`) to O(n).
@@ -188,13 +191,16 @@ Refer to the reference implementation, reproduced below, for the precise algorit
 
 .. code:: cpp
 
+  const unsigned char ZCASH_INNER_HASH_PERSONALIZATION[16] =
+      {'Z','c','a','s','h','_','I','n','n','e','r','_','H','a','s','h'};
+
   uint256 hashPrevouts;
   uint256 hashSequence;
   uint256 hashOutputs;
   uint256 hashJoinSplits;
 
   if (!(nHashType & SIGHASH_ANYONECANPAY)) {
-      CHashWriter ss(SER_GETHASH, 0);
+      CBLAKE2bWriter ss(SER_GETHASH, 0, ZCASH_INNER_HASH_PERSONALIZATION);
       for (unsigned int n = 0; n < txTo.vin.size(); n++) {
           ss << txTo.vin[n].prevout;
       }
@@ -202,7 +208,7 @@ Refer to the reference implementation, reproduced below, for the precise algorit
   }
 
   if (!(nHashType & SIGHASH_ANYONECANPAY) && (nHashType & 0x1f) != SIGHASH_SINGLE && (nHashType & 0x1f) != SIGHASH_NONE) {
-      CHashWriter ss(SER_GETHASH, 0);
+      CBLAKE2bWriter ss(SER_GETHASH, 0, ZCASH_INNER_HASH_PERSONALIZATION);
       for (unsigned int n = 0; n < txTo.vin.size(); n++) {
           ss << txTo.vin[n].nSequence;
       }
@@ -210,19 +216,19 @@ Refer to the reference implementation, reproduced below, for the precise algorit
   }
 
   if ((nHashType & 0x1f) != SIGHASH_SINGLE && (nHashType & 0x1f) != SIGHASH_NONE) {
-      CHashWriter ss(SER_GETHASH, 0);
+      CBLAKE2bWriter ss(SER_GETHASH, 0, ZCASH_INNER_HASH_PERSONALIZATION);
       for (unsigned int n = 0; n < txTo.vout.size(); n++) {
           ss << txTo.vout[n];
       }
       hashOutputs = ss.GetHash();
   } else if ((nHashType & 0x1f) == SIGHASH_SINGLE && nIn < txTo.vout.size()) {
-      CHashWriter ss(SER_GETHASH, 0);
+      CBLAKE2bWriter ss(SER_GETHASH, 0, ZCASH_INNER_HASH_PERSONALIZATION);
       ss << txTo.vout[nIn];
       hashOutputs = ss.GetHash();
   }
 
   if (!txTo.vjoinsplit.empty()) {
-      CHashWriter ss(SER_GETHASH, 0);
+      CBLAKE2bWriter ss(SER_GETHASH, 0, ZCASH_INNER_HASH_PERSONALIZATION);
       for (unsigned int n = 0; n < txTo.vjoinsplit.size(); n++) {
           ss << txTo.vjoinsplit[n];
       }
@@ -235,7 +241,7 @@ Refer to the reference implementation, reproduced below, for the precise algorit
   memcpy(personalization, "ZcashSigHash", 12);
   memcpy(personalization+12, &leConsensusBranchId, 4);
 
-  CBlake2HashWriter ss(SER_GETHASH, 0, personalization);
+  CBLAKE2bWriter ss(SER_GETHASH, 0, personalization);
   // fOverwintered and nVersion
   ss << txTo.GetHeader();
   // Version group ID
