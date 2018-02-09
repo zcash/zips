@@ -86,7 +86,7 @@ The new algorithm MUST be used for signatures created over the Overwinter transa
 invalid from the Overwinter upgrade, [#ZIP-overwinter-tx-format]_ this effectively means that all transactions
 signatures from the Overwinter activation height will use the new algorithm. [#ZIP0000]_
 
-The BLAKE2b-256 personalization field is set to::
+The BLAKE2b-256 personalization field [#BLAKE2-personalization]_ is set to::
 
   "ZcashSigHash" || CONSENSUS_BRANCH_ID
 
@@ -327,6 +327,7 @@ References
 .. [#ZIP0000] ZIP???: Overwinter Network Upgrade
 .. [#ZIP-activation-mechanism] ZIP???: Network Upgrade Activation Mechanism
 .. [#ZIP-overwinter-tx-format] ZIP???: Overwinter Transaction Format
+.. [#BLAKE2-personalization] `"BLAKE2: simpler, smaller, fast as MD5", Section 2.8 <https://blake2.net/blake2.pdf>`_
 .. [#01-change] In the original algorithm, a ``uint256`` of ``0x0000......0001`` is committed if the input
    index for a ``SINGLE`` signature is greater than or equal to the number of outputs. In this ZIP a
    ``0x0000......0000`` is commited, without changing the semantics.
