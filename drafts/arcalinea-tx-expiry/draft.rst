@@ -23,9 +23,9 @@ Advantages include optimizing mempool performance by removing transactions unlik
 Specification
 ===============
 
-Transactions will have a new field, nBlockExpiry, which will set the block height after which transactions will be removed from the mempool if they have not been mined.
+Transactions will have a new field, nExpiryHeight, which will set the block height after which transactions will be removed from the mempool if they have not been mined.
 
-The data type for nBlockExpiry will be uint32_t. If used in combination with nLockTime, both nLockTime and nBlockExpiry must be block heights. nBlockExpiry will never be a UNIX timestamp, unlike nLockTime values.
+The data type for nExpiryHeight will be uint32_t. If used in combination with nLockTime, both nLockTime and nExpiryHeight must be block heights. nExpiryHeight will never be a UNIX timestamp, unlike nLockTime values.
 
 For the example below, the last block that the transaction below could possibly be included in is 3539. After that, it will be removed from the mempool.
 
@@ -39,7 +39,7 @@ For the example below, the last block that the transaction below could possibly 
 Default: TBD. Current proposal is 24 blocks, or about 1 hour assuming 2.5 minute block times. Can add a config option to set user's default.
 Minimum: No minimum
 Maximum: 500000000, about 380 years
-No limit: To set no limit on transactions (so that they do not expire), nBlockExpiry should be set to UINT_MAX.
+No limit: To set no limit on transactions (so that they do not expire), nExpiryHeight should be set to UINT_MAX.
 
 Every time a transaction expires and should be removed from the mempool, so should all its dependent transactions.
 
