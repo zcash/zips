@@ -1199,6 +1199,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\PedersenHashPoint}{\mathsf{PedersenHashPoint}}
 \newcommand{\WindowedPedersenCommit}[1]{\mathsf{WindowedPedersenCommit}_{#1}}
 \newcommand{\RawPedersenCommit}[1]{\mathsf{RawPedersenCommit}_{#1}}
+\newcommand{\Digits}{\mathsf{Digits}}
+\newcommand{\abs}{\mathsf{abs}}
 
 % Consensus rules
 
@@ -7354,9 +7356,110 @@ justified for \Sapling.
 
 \nsubsubsection{Pedersen hashes} \label{cctpedersenhash}
 
-As described in \crossref{concretepedersenhash}, we use a variation of
-\xPedersenHashes that splits the input into segments of up to $183$ bits,
-and then splits each segment into windows of $3$ bits.
+The specification of the \xPedersenHashes used in \Sapling is given in
+\crossref{concretepedersenhash}. It is based on the scheme from \cite{BGG1995},
+but tailored to allow several optimizations in the circuit implementation.
+
+\xPedersenHashes are the single most commonly used primitive in the
+\Sapling circuits. $\MerkleDepthSapling$ \xPedersenHash instances are used
+in the \spendCircuit to check a Merkle path to the \noteCommitment of the
+\note being spent. We also reuse the \xPedersenHash implementation to
+construct the commitments $\NoteCommitSaplingAlg$ and $\UniqueCommitAlg$.
+
+This motivates considerable attention to optimizing this circuit
+implementation of this primitive, even at the cost of complexity.
+
+First, we use a windowed scalar multiplication algorithm with signed digits.
+Each $3$-bit message chunk corresponds to a window; the chunk is encoded
+as an integer from the set $\Digits = \rangenozero{-4}{4}$.
+This allows a more efficient lookup of the window entry for each chunk than
+if the set $\range{1}{8}$ had been used, because a point can be conditionally
+negated using only a single constraint.
+
+Next, we optimize the cost of point addition by allowing as many additions
+as possible to be performed on the Montgomery curve. An incomplete
+Montgomery addition costs $3$ constraints, in comparison with an
+Edwards addition which costs $6$ constraints.
+
+However, we cannot do all additions on the Montgomery curve because the
+Montgomery addition is incomplete. In order to be able to prove that
+exceptional cases do not occur, we need to ensure that the \distinctXCriterion
+from \crossref{cctmontarithmetic} is met. This requires splitting the
+input into segments (each using an independent generator), calculating
+an intermediate result for each segment, and then converting to the
+Edwards curve and summing the intermediate results using Edwards addition.
+If the resulting point is $R$, this calculation can be written as:
+
+\begin{formulae}
+  \item $R = \vsum{j=1}{N} \scalarmult{\PedersenEncode{M_j}}{\PedersenBase{D}{j}}$.
+\end{formulae}
+
+For simplicity the definition in \crossref{concretepedersenhash} was given
+as a sum over the contribution of windows rather than segments. However,
+with a suitable definition of $\PedersenEncode{\cdot}$, the above expression
+matches the calculation of $R$ given in that section.
+
+Pad the input to a multiple of $3$ bits, then split it into segments $M_{\barerange{1}{N}}$
+of length $3 \smult c$ bits for $c = 63$ (the last segment may be shorter).
+Split each $M_j$ into $3$-bit chunks $M^{\barerange{1}{L_j}}_j$ where
+$L_j = \length(M_j)/3$. Define:
+
+\begin{formulae}
+  \item $\PedersenEncode{M_j} = \vsum{i=1}{L_j} \enc(M^i_j) \mult 2^{(w+1) \mult (i-1)}$
+\end{formulae}
+
+where $\enc \typecolon \bitseq{3} \rightarrow \Digits$ implements the encoding
+of chunks as signed digits:
+
+\begin{formulae}
+  \item $\enc([s_0, s_1, s_2]) = (1 - 2 \smult s_2) \mult (1 + s_0 + 2 \smult s_1)$.
+\end{formulae}
+
+\begin{theorem}
+The encoding function
+$\fun{M_j \typecolon \bitseq{3 \mult c}}{\PedersenEncode{M_j} \typecolon
+\rangenozero{-\hfrac{\ParamJ{r}-1}{2}}{\hfrac{\ParamJ{r}-1}{2}}}$
+is injective.
+\end{theorem}
+
+\begin{proof}
+We first need to check that the range of
+$\vsum{i=1}{L_j} \enc(M^i_j) \mult 2^{(w+1) \mult (i-1)}$ is a subset of
+the allowable range $\rangenozero{-\hfrac{\ParamJ{r}-1}{2}}{\hfrac{\ParamJ{r}-1}{2}}}$.
+The range of this expression is obviously a subset of
+$\rangenozero{-L}{L}$ where $L = 4 \mult \vsum{i=0}{c-1} 2^{4 \mult i} = 4 \mult \hfrac{2^{4 \mult c}}{15}$.
+
+When $c = 63$, we have
+
+\begin{tabular}{@{\hskip 2em}r@{\;}l}
+  $4 \mult \hfrac{2^{4 \mult c}}{15}$ &$= \hexint{444444444444444444444444444444444444444444444444444444444444444}$ \\
+                                      & \\[-2ex]
+  $\hfrac{\ParamJ{r}-1}{2}$           &$= \hexint{73EDA753299D7D483339D80809A1D8053341049E6640841684B872F6B7B965B}$
+\end{tabular}
+
+so the required condition is met.
+\end{proof}
+
+Since the security proof from \cite[Appendix A]{BGG1995}
+depends only on the encoding being injective and its range not including
+zero, the proof can be adapted straightforwardly to this construction.
+
+
+Now, we need to show that the indices of inputs to addition are
+all distinct disregarding sign.
+
+\begin{theorem}
+Let $S$ and $S'$ be disjoint subsets of $\range{0}{c-1}$.
+
+Let $\abs_s(x) = \begin{cases}
+                   x,  &\caseif x \bmod s < (-x) \bmod s\\
+                   -x, &\caseotherwise.
+                 \end{cases}$
+
+Then
+$\setof{\abs\left(\vsum{i \in S }{} d_i \mult 2^{4 \mult i}\right) \suchthat d \in \typeexp{\Digits}{c}} \intersection
+ \setof{\abs\left(\vsum{i \in S'}{} d_i \mult 2^{4 \mult i}\right) \suchthat d \in \typeexp{\Digits}{c}}$
+\end{theorem}
 
 The motivation for this approach is to allow the use of Montgomery arithmetic
 within each segment: the \distinctXCriterion is met because all of the terms
