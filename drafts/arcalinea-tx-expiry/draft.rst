@@ -33,7 +33,7 @@ For the example below, the last block that the transaction below could possibly 
 "txid": "17561b98cc77cd5a984bb959203e073b5f33cf14cbce90eb32b95ae2c796723f",
 "version": 3,
 "locktime": 2089,
-"blockexpiry": 3539,
+"expiryheight": 3539,
 ```
 
 Default: TBD. Current proposal is 24 blocks, or about 1 hour assuming 2.5 minute block times. Can add a config option to set user's default.
