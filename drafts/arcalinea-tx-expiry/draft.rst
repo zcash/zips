@@ -16,16 +16,18 @@ This is an Standards ZIP describing a new consensus rule to set an expiration ti
 Motivation
 ===========
 
-Transactions that have insufficient fees are often not mined. This indeterminism is a source of confusion for users and wallets. Allowing transactions to set a block height after which it expires from the mempool would provide certainty around how long a transaction has to confirm before it is rejected by the network and must be re-sent. If the expiry is block height N, it means the transaction must have either: 1. have been included in N-1, or 2. be included in block N. N+1 will be too late, and the transaction will be removed from the mempool.
+Transactions that have insufficient fees are often not mined. This indeterminism is a source of confusion for users and wallets. Allowing transactions to set a block height after which it expires from the mempool would provide certainty around how long a transaction has to confirm before it is rejected by the network and must be re-sent.
 
 Advantages include optimizing mempool performance by removing transactions unlikely to be mined, and potentially simplifying bidirectional payment channels by reducing the need to store and compress revocations for past states, since transactions not committed to the chain could expire and become invalid after a period of time.
+
+If the expiry is block height N, it means the transaction must have either: 1. have been included in N-1, or 2. be included in block N. N+1 will be too late, and the transaction will be removed from the mempool.
 
 Specification
 ===============
 
 Transactions will have a new field, nExpiryHeight, which will set the block height after which transactions will be removed from the mempool if they have not been mined.
 
-The data type for nExpiryHeight will be uint32_t. If used in combination with nLockTime, both nLockTime and nExpiryHeight must be block heights. nExpiryHeight will never be a UNIX timestamp, unlike nLockTime values.
+The data type for nExpiryHeight will be uint32_t. If used in combination with nLockTime, both nLockTime and nExpiryHeight must be block heights. nExpiryHeight will never be a UNIX timestamp, unlike nLockTime values, and thus the maximum expiry height will be 500000000. 
 
 For the example below, the last block that the transaction below could possibly be included in is 3539. After that, it will be removed from the mempool.
 
