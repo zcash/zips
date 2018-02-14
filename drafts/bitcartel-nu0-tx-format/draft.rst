@@ -13,7 +13,7 @@ Terminology
 
 The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to be interpreted as described in RFC 2119.
 
-"Branch" - A chain of blocks with common consensus rules, where the first block in the chain is not the genesis block, but the child of a parent block created under an older set of consensus rules.
+"Branch" - The key words "branch" and "network upgrade" in this document are to be interpreted as described in [#zip-0200]_.
 
 "Network Upgrade" - An intentional hard fork undertaken by the community in order to improve the network.
 
@@ -22,17 +22,35 @@ The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to be
 Abstract
 ========
 
-This proposal defines a new transaction format required for Network Upgrade Mechanism [#zip-0???]_ and Transaction Expiry [#zip-0???]_.
+This proposal defines a new transaction format required for Network Upgrade Activation Mechanism [#zip-0200]_ and Transaction Expiry [#zip-0???]_.
 
 Related to [#zip-0143]_
 
 Motivation
 ==========
 
+Zcash launched with support for upstream Bitcoin version 1 transactions and defined a new version 2 transaction format which added fields required for shielded transactions.
+
+======== ================== =========================== ==========
+Version  Field              Description                 Type
+======== ================== =========================== ==========
+>= 1     version            positive value              int32
+>= 1     in_count           varint                      1-9 bytes
+>= 1     tx_inputs          list of inputs              vector
+>= 1     out_count          varint                      1-9 bytes
+>= 1     tx_outputs         list of outputs             vector
+>= 1     lock_time          block height or timestamp   uint32
+>= 2     joinsplit_count    varint                      1-9 bytes
+>= 2     tx_joinsplits      list of joinsplits          vector
+>= 2     joinsplit_pubkey   joinsplit_sig public key    32 bytes
+>= 2     joinsplit_sig      signature                   64 bytes
+======== ================== =========================== ==========
+
+
 A new transaction format is required to:
 
-* support safe network upgrades as specified in Network Upgrade Activation Mechanism [#zip-0???]_;
-* provide replay protection between pre-Overwinter and Overwinter network upgrades;
+* support safe network upgrades as specified in Network Upgrade Activation Mechanism [#zip-0200]_;
+* provide replay protection between pre-Overwinter and Overwinter branches during upgrades;
 * provide replay protection between different branches post-Overwinter;
 * enable a branch to support multiple transaction version formats;
 * ensure transaction formats are parsed uniquely across parallel branches;
@@ -40,26 +58,6 @@ A new transaction format is required to:
 
 Specification
 =============
-
-Transaction format version 1 and 2
-----------------------------------
-
-Zcash launched with support for upstream Bitcoin version 1 transactions and defined a new version 2 transaction format which added fields required for shielded transactions.
-
-======== =============== =========================== =======
-Version  Field           Description                 Type
-======== =============== =========================== =======
->= 1     version         positive value              int32
->= 1     in_count        varint                      1-9 bytes
->= 1     tx_inputs       list of inputs              vector
->= 1     out_count       varint                      1-9 bytes
->= 1     tx_outputs      list of outputs             vector
->= 1     lock_time       block height or timestamp   uint32
->= 2     nJoinSplit      varint                      1-9 bytes
->= 2     vJoinSplit      list of joinsplits          vector
->= 2     joinSplitPubKey joinSplitSig public key     32 bytes
->= 2     joinSplitSig    signature                   64 bytes
-======== =============== =========================== =======
 
 Transaction format version 3
 ----------------------------
@@ -70,28 +68,28 @@ The version 3 format differs from the version 2 format in the following ways:
 
 * header (first four bytes, little endian encoded)
 
-  * overwinter flag : bit 31, must be set
+  * overwintered flag : bit 31, must be set
   * version : bits 30-0, positive integer
 * version group id
 * expiry height
 
-======== =============== =========================== =======
-Version  Field           Description                 Type
-======== =============== =========================== =======
->= 3     header          - flag (bit 31 must be set)  uint32
-                         - version (bits 30-0)
->= 3     vers_group_id   version group id (not zero) uint32
->= 1     in_count        varint                      1-9 bytes
->= 1     tx_inputs       list of inputs              vector
->= 1     out_count       varint                      1-9 bytes
->= 1     tx_outputs      list of outputs             vector
->= 1     lock_time       block height or timestamp   uint32
->= 3     expiry_height   block height                uint32
->= 2     nJoinSplit      varint                      1-9 bytes
->= 2     vJoinSplit      list of joinsplits          vector
->= 2     joinSplitPubKey joinSplitSig public key     32 bytes
->= 2     joinSplitSig    signature                   64 bytes
-======== =============== =========================== =======
+======== ================== =========================== =========
+Version  Field              Description                 Type
+======== ================== =========================== =========
+>= 3     header             - flag (bit 31 must be set) uint32
+                            - version (bits 30-0)
+>= 3     vers_group_id      version group id (not zero) uint32
+>= 1     in_count           varint                      1-9 bytes
+>= 1     tx_inputs          list of inputs              vector
+>= 1     out_count          varint                      1-9 bytes
+>= 1     tx_outputs         list of outputs             vector
+>= 1     lock_time          block height or timestamp   uint32
+>= 3     expiry_height      block height                uint32
+>= 2     joinsplit_count    varint                      1-9 bytes
+>= 2     tx_joinsplits      list of joinsplits          vector
+>= 2     joinsplit_pubkey   joinsplit_sig public key    32 bytes
+>= 2     joinsplit_sig      signature                   64 bytes
+======== ================== =========================== =========
 
 
 Header Field
@@ -111,7 +109,7 @@ Version 2 transaction (txid 4435bf8064e74f01262cb1725fd9b53e600fa285950163fd961b
 
 Transaction parsers for versions of Zcash prior to Overwinter, and for most other Bitcoin forks, require the transaction version number to be positive.
 
-With the version 3 transaction format, the first four bytes of a serialized transaction, the 32-bit header, are made up of two fields as shown in the able above:
+With the version 3 transaction format, the first four bytes of a serialized transaction, the 32-bit header, are made up of two fields as shown in the table above:
 
 * 1 bit Overwinter flag, must be set
 * 31 bit unsigned int for the Version
@@ -134,12 +132,12 @@ Overwinter parser:
 
 - data begins with little-endian byte sequence: [0x03, 0x00, 0x00, 0x80]
 - deserialized as 32-bit unsigned integer
-  
-  - with binary value of 10000000000000000000000000000011
-- decomposed into two fields  
-  
-  - overwinter flag (bit 31) is set
-  - version (bits 30 - bit 0) have a decimal value of 3
+
+  - with binary value of 0b10000000000000000000000000000011
+- the 32-bits are decomposed into two fields
+
+  - overwinter flag (bit 31) as a boolean, expected to be set
+  - version (bits 30 - bit 0) as an unsigned integer, expected to have a decimal value of 3
 
 Overwinter parsers will accept the transaction as valid as the most significant bit of the header has been set.  By masking off (unsetting) the most significant bit, the parser can retrieve the transaction version number::
 
@@ -148,11 +146,11 @@ Overwinter parsers will accept the transaction as valid as the most significant 
 Version Group Id
 ----------------
 
-The version group id is a non-zero, random and unique identifier assigned to a transaction format version or a group of soft-forking transaction format versions.  The version group id helps nodes disambiguate between branches using the same version number.
+The version group id is a non-zero, random and unique identifier assigned to a transaction format version, or a group of soft-forking transaction format versions.  The version group id helps nodes disambiguate between branches using the same version number.
 
-That is, it prevents a client on one branch of the network from attempting to parse transactions intended for another branch, in the situation where the transactions share the same format version number but are actually specified differently.  For example, Zcash and Zclone both define their own custom v3 transaction formats, but each will have its own unique version group id, so that they can reject v3 transactions with unknown version group ids.
+That is, it prevents a client on one branch of the network from attempting to parse transactions intended for another branch, in the situation where the transactions share the same format version number but are actually specified differently.  For example, Zcash and Zclone might both define their own custom v3 transaction formats, but each will have its own unique version group id, so that they can reject v3 transactions with unknown version group ids.
 
-The combination of transaction version and version grouph id, `nVersion || nVersionGroupId` uniquely defines the transaction format, thus enabling parsers to reject transactions from outside the client's chain which cannot be parsed.  This helps provide users with a layer of replay protection at the parser level.  Full replay protection is defined in the Overwinter Transaction Signature Verification scheme [#zip-0???]_.
+The combination of transaction version and version group id, ``nVersion || nVersionGroupId``, uniquely defines the transaction format, thus enabling parsers to reject transactions from outside the client's chain which cannot be parsed.
 
 It is expected that when introducing a new transaction version which requires a hard fork, a new unique version group id will be assigned to that transaction version.
 
@@ -161,7 +159,7 @@ In the case that new transaction versions are soft-fork compatible with older tr
 Expiry Height
 -------------
 
-The expiry height field specifies the last block height at which a transaction must be mined into a block, after which the transaction is deemed to have expired and should be removed from the mempool.  A block is invalid if it contains an expired transaction.  More information can be found in the Transaction Expiry ZIP [#zip-???]_
+The expiry height field, as defined in the Transaction Expiry ZIP [#zip-???]_, stores the block height after which a transaction will be removed from the mempool if it has not been mined.
 
 Transaction Validation
 ======================
@@ -169,48 +167,66 @@ Transaction Validation
 A valid Overwinter transaction intended for Zcash must have:
 
 - version number 3
-- overwinter flag set
 - version group id as specified in Zcash source code
+- overwintered flag set
 
-Overwinter transaction parsers should reject transactions from further processing and validation if the:
+Overwinter transaction parsers should reject transactions for violating consensus rules if:
 
-- version number is unknown
-- overwinter flag is not set
-- version group id is not recognized
+- the overwintered flag is not set
+- the version group id is unknown
+- the version number is unknown
 
 Implementation
 ==============
 
+The comments and code samples in this section apply to the reference C++ implementation of Zcash.  Other implementations may vary.
+
 Transaction Version
 -------------------
 
-Transaction version remains a positive value.
+Transaction version remains a positive value.  The main Zcash chain will follow convention and continue to order transaction versions in an ascending order.
 
-Code can continue to check the transaction version using comparison operators::
+Tests can continue to check for the existence of forwards-compatible transaction fields by checking the transaction version using comparison operators::
 
     if (tx.nVersion >= 2) {
         for (int js = 0; js < joinsplits; js++) {
+            ...
+        }
+    }
+
+When (de)serializing v3 transactions, the version group id should also be checked in case the transaction is intended for a branch which has a different format for its version 3 transaction::
+
+    if (tx.nVersion == 3 && tx.nVersionGroupID == OVERWINTER_VERSION_GROUP_ID) {
+        auto expiryHeight = tx.nExpiryHeight;
+    }
 
 Tests can continue to set the version to zero as an error condition::
 
     mtx.nVersion = 0
-    
+
+
 Overwinter Validation
 ---------------------
 
-To test if the format of an Overwinter transaction is valid or not::
+To test if the format of an Overwinter transaction is v3 or not::
 
-    if (tx.nVersion == 3 && tx.fOverwintered ) {
+    if (tx.fOverwintered && tx.nVersion == 3) {
         // Valid v3 format transaction
     }
 
-To test if the format of an Overwinter transaction is intended for the client's chain::
+This only tests that the format of the transaction matches the v3 specification described above.
 
-    if (tx.nVersion == 3 &&
-        tx.fOverwintered &&
-        tx.nVersionGroupID == OVERWINTER_VERSION_GROUP_ID) {
+To test if the format of an Overwinter transaction is bothv3 and the transaction itself is intended for the client's chain::
+
+    if (tx.fOverwintered &&
+        tx.nVersionGroupID == OVERWINTER_VERSION_GROUP_ID) &&
+        tx.nVersion == 3) {
         // Valid v3 format transaction intended for this client's chain
     }
+
+However, it's possible that a ZClone is using the same version group id and passes the conditional.
+
+Ultimately, a client can determine if a transaction is truly intended for the client's chain or not by following the signature verification process detailed in the Transaction Signature Verification for Overwinter ZIP [#zip-???]_.
 
 Deployment
 ==========
@@ -235,19 +251,19 @@ This proposal intentionally creates what is known as a "bilateral hard fork" bet
 Reference Implementation
 ========================
 
-TBC
-
+https://github.com/zcash/zcash/pull/2925
 
 References
 ==========
 
 Design hard fork activation mechanism https://github.com/zcash/zcash/issues/2286
 
-.. [#zip-0???] Network Upgrade Activation Mechanism
+.. [#zip-0200] Network Upgrade Activation Mechanism
 
 .. [#zip-0???] Transaction Expiry
 
 .. [#zip-0143] Transaction Signature Verification for Overwinter
+
 
 
 
