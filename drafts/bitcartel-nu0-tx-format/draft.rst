@@ -152,9 +152,9 @@ That is, it prevents a client on one branch of the network from attempting to pa
 
 The combination of transaction version and version group id, ``nVersion || nVersionGroupId``, uniquely defines the transaction format, thus enabling parsers to reject transactions from outside the client's chain which cannot be parsed.
 
-It is expected that when introducing a new transaction version which requires a hard fork, a new unique version group id will be assigned to that transaction version.
+By convention, it is expected that when introducing a new transaction version requiring a network upgrade, a new unique version group id will be assigned to that transaction version.
 
-In the case that new transaction versions are soft-fork compatible with older transaction versions, the same version group id could be re-used.
+However, if new transaction versions are soft-fork compatible with older transaction versions, the same version group id can be re-used.
 
 Expiry Height
 -------------
