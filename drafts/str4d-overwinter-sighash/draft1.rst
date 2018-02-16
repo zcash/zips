@@ -130,12 +130,16 @@ it is always defined for transactions that use this algorithm. [#ZIP-overwinter-
 * If the ``ANYONECANPAY`` flag is not set, ``hashPrevouts`` is the BLAKE2b-256 hash of the serialization of
   all input outpoints;
 
+  * The BLAKE2b-256 personalization field is set to ``ZcashPrevoutHash``.
+
 * Otherwise, ``hashPrevouts`` is a ``uint256`` of ``0x0000......0000``.
 
 4: ``hashSequence``
 ```````````````````
 * If none of the ``ANYONECANPAY``, ``SINGLE``, ``NONE`` sighash type is set, ``hashSequence`` is the
   BLAKE2b-256 hash of the serialization of ``nSequence`` of all inputs;
+
+  * The BLAKE2b-256 personalization field is set to ``ZcashSequencHash``.
 
 * Otherwise, ``hashSequence`` is a ``uint256`` of ``0x0000......0000``.
 
@@ -148,12 +152,16 @@ it is always defined for transactions that use this algorithm. [#ZIP-overwinter-
 * If sighash type is ``SINGLE`` and the input index is smaller than the number of outputs, ``hashOutputs`` is
   the BLAKE2b-256 hash of the output (serialized as above) with the same index as the input;
 
+  * The BLAKE2b-256 personalization field is set to ``ZcashOutputsHash`` in both cases above.
+
 * Otherwise, ``hashOutputs`` is a ``uint256`` of ``0x0000......0000``. [#01-change]_
 
 6: ``hashJoinSplits``
 `````````````````````
 * If ``vjoinsplits`` is non-empty, ``hashJoinSplits`` is the BLAKE2b-256 hash of the serialization of all
   JoinSplits (in their canonical transaction serialization format) concatenated with the joinSplitPubKey;
+
+  * The BLAKE2b-256 personalization field is set to ``ZcashJSplitsHash``.
 
   * Note that while signatures are ommitted, the JoinSplit proofs are included in the signature hash, as with
     v1 and v2 transactions.
@@ -177,9 +185,6 @@ An 8-byte value of the amount of ZEC spent in this input.
 Notes
 -----
 
-When generating ``hashPrevouts``, ``hashSequence``, ``hashOutputs``, and ``hashJoinSplits``, the BLAKE2b-256
-personalization field is set to ``Zcash_Inner_Hash``.
-
 The ``hashPrevouts``, ``hashSequence``, ``hashOutputs``, and ``hashJoinSplits`` calculated in an earlier
 verification may be reused in other inputs of the same transaction, so that the time complexity of the whole
 hashing process reduces from O(n\ :sup:`2`) to O(n).
@@ -188,8 +193,14 @@ Refer to the reference implementation, reproduced below, for the precise algorit
 
 .. code:: cpp
 
-  const unsigned char ZCASH_INNER_HASH_PERSONALIZATION[16] =
-      {'Z','c','a','s','h','_','I','n','n','e','r','_','H','a','s','h'};
+  const unsigned char ZCASH_PREVOUTS_HASH_PERSONALIZATION[16] =
+      {'Z','c','a','s','h','P','r','e','v','o','u','t','H','a','s','h'};
+  const unsigned char ZCASH_SEQUENCE_HASH_PERSONALIZATION[16] =
+      {'Z','c','a','s','h','S','e','q','u','e','n','c','H','a','s','h'};
+  const unsigned char ZCASH_OUTPUTS_HASH_PERSONALIZATION[16] =
+      {'Z','c','a','s','h','O','u','t','p','u','t','s','H','a','s','h'};
+  const unsigned char ZCASH_JOINSPLITS_HASH_PERSONALIZATION[16] =
+      {'Z','c','a','s','h','J','S','p','l','i','t','s','H','a','s','h'};
 
   uint256 hashPrevouts;
   uint256 hashSequence;
@@ -197,7 +208,7 @@ Refer to the reference implementation, reproduced below, for the precise algorit
   uint256 hashJoinSplits;
 
   if (!(nHashType & SIGHASH_ANYONECANPAY)) {
-      CBLAKE2bWriter ss(SER_GETHASH, 0, ZCASH_INNER_HASH_PERSONALIZATION);
+      CBLAKE2bWriter ss(SER_GETHASH, 0, ZCASH_PREVOUTS_HASH_PERSONALIZATION);
       for (unsigned int n = 0; n < txTo.vin.size(); n++) {
           ss << txTo.vin[n].prevout;
       }
@@ -205,7 +216,7 @@ Refer to the reference implementation, reproduced below, for the precise algorit
   }
 
   if (!(nHashType & SIGHASH_ANYONECANPAY) && (nHashType & 0x1f) != SIGHASH_SINGLE && (nHashType & 0x1f) != SIGHASH_NONE) {
-      CBLAKE2bWriter ss(SER_GETHASH, 0, ZCASH_INNER_HASH_PERSONALIZATION);
+      CBLAKE2bWriter ss(SER_GETHASH, 0, ZCASH_SEQUENCE_HASH_PERSONALIZATION);
       for (unsigned int n = 0; n < txTo.vin.size(); n++) {
           ss << txTo.vin[n].nSequence;
       }
@@ -213,19 +224,19 @@ Refer to the reference implementation, reproduced below, for the precise algorit
   }
 
   if ((nHashType & 0x1f) != SIGHASH_SINGLE && (nHashType & 0x1f) != SIGHASH_NONE) {
-      CBLAKE2bWriter ss(SER_GETHASH, 0, ZCASH_INNER_HASH_PERSONALIZATION);
+      CBLAKE2bWriter ss(SER_GETHASH, 0, ZCASH_OUTPUTS_HASH_PERSONALIZATION);
       for (unsigned int n = 0; n < txTo.vout.size(); n++) {
           ss << txTo.vout[n];
       }
       hashOutputs = ss.GetHash();
   } else if ((nHashType & 0x1f) == SIGHASH_SINGLE && nIn < txTo.vout.size()) {
-      CBLAKE2bWriter ss(SER_GETHASH, 0, ZCASH_INNER_HASH_PERSONALIZATION);
+      CBLAKE2bWriter ss(SER_GETHASH, 0, ZCASH_OUTPUTS_HASH_PERSONALIZATION);
       ss << txTo.vout[nIn];
       hashOutputs = ss.GetHash();
   }
 
   if (!txTo.vjoinsplit.empty()) {
-      CBLAKE2bWriter ss(SER_GETHASH, 0, ZCASH_INNER_HASH_PERSONALIZATION);
+      CBLAKE2bWriter ss(SER_GETHASH, 0, ZCASH_JOINSPLITS_HASH_PERSONALIZATION);
       for (unsigned int n = 0; n < txTo.vjoinsplit.size(); n++) {
           ss << txTo.vjoinsplit[n];
       }
