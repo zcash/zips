@@ -42,6 +42,7 @@ Default: TBD. Current proposal is 24 blocks, or about 1 hour assuming 2.5 minute
 Minimum: No minimum
 Maximum: 500000000, about 380 years
 No limit: To set no limit on transactions (so that they do not expire), nExpiryHeight should be set to 0.
+Coinbase: nExpiryHeight on coinbase transactions is ignored, and is set to 0 by convention.
 
 Every time a transaction expires and should be removed from the mempool, so should all its dependent transactions.
 
