@@ -532,7 +532,9 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\pseudoRandomGenerators}{\term{Pseudo Random Generators}}
 \newcommand{\PseudoRandomGenerators}{\titleterm{Pseudo Random Generators}}
 \newcommand{\expandedSeed}{\term{expanded seed}}
-\newcommand{\SHAName}{\term{SHA-256 compression}}
+\newcommand{\shaHashFunction}{\term{SHA-256 hash function}}
+\newcommand{\shaCompress}{\term{SHA-256 compression}}
+\newcommand{\shaCompressFunction}{\term{SHA-256 compression function}}
 \newcommand{\xPedersenHash}{\term{Pedersen hash}}
 \newcommand{\xPedersenHashes}{\term{Pedersen hashes}}
 \newcommand{\PedersenHashFunction}{\titleterm{Pedersen Hash Function}}
@@ -592,16 +594,15 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\Index}{\mathsf{Index}}
 \newcommand{\EquihashGen}[1]{\mathsf{EquihashGen}_{#1}}
 \newcommand{\CRH}{\mathsf{CRH}}
-\newcommand{\CRHbox}[1]{\SHA\left(\Justthebox{#1}\right)}
-\newcommand{\SHA}{\mathtt{SHA256Compress}}
-\newcommand{\FullHash}{\mathtt{SHA256}}
-\newcommand{\FullHashName}{\mathsf{SHA\mhyphen256}}
+\newcommand{\SHACompress}{\mathsf{SHA256Compress}}
+\newcommand{\SHAFull}{\mathsf{SHA\mhyphen256}}
 \newcommand{\BlakeTwob}[1]{\mathsf{BLAKE2b\kern 0.05em\mhyphen{#1}}}
 \newcommand{\BlakeTwos}[1]{\mathsf{BLAKE2s\kern 0.05em\mhyphen{#1}}}
 \newcommand{\BlakeTwobGeneric}{\mathsf{BLAKE2b}}
 \newcommand{\BlakeTwosGeneric}{\mathsf{BLAKE2s}}
-\newcommand{\FullHashbox}[1]{\FullHash\left(\Justthebox{#1}\right)}
-\newcommand{\CRHivkHashbox}[1]{\CRHivk\left(\Justthebox{#1}\right)}
+\newcommand{\SHACompressBox}[1]{\SHACompress\left(\Justthebox{#1}\right)}
+\newcommand{\SHAFullBox}[1]{\SHAFull\left(\Justthebox{#1}\right)}
+\newcommand{\CRHivkBox}[1]{\CRHivk\left(\Justthebox{#1}\right)}
 \newcommand{\setof}[1]{\{{#1}\}}
 \newcommand{\barerange}[2]{{#1}\,..\,{#2}}
 \newcommand{\range}[2]{\setof{\barerange{#1}{#2}}}
@@ -2738,7 +2739,7 @@ and $\InViewingKey$ are then derived as follows:
   $\AuthProvePrivate$ &$:= \PreAuthProvePrivate \bmod \JubjubScalarThreshold$ \\
   $\AuthSignPublic$ &$:= \scalarmult{\AuthSignPrivate}{\AuthSignBase}$ \\
   $\AuthProvePublic$ &$:= \scalarmult{\AuthProvePrivate}{\AuthProveBase}$ \\
-  $\InViewingKey$ &$:= \BStoIP{251}(\CRHivkHashbox{\crhivkinputbox})$.
+  $\InViewingKey$ &$:= \BStoIP{251}(\CRHivkBox{\crhivkinputbox})$.
 \end{tabular}
 
 \vspace{2ex}
@@ -3516,11 +3517,34 @@ Define:
 
 \nsubsubsection{\HashFunctions}
 
+\nsubsubsubsection{SHA-256 and SHA256Compress \HashFunctions} \label{concretesha256}
+
+SHA-256 is defined by \cite{NIST2015}.
+
+\Zcash uses the full \shaHashFunction to instantiate $\NoteCommitmentSprout$.
+
+\begin{formulae}
+  \item $\SHAFull \typecolon \byteseqs \rightarrow \bitseq{256}$
+\end{formulae}
+
+It also uses the \shaCompressFunction, $\SHACompress$. This operates
+on a single $512$-bit block and \emph{excludes} the padding step specified
+in \cite[section 5.1]{NIST2015}; i.e.\ the input to $\SHACompress$ is what
+\cite[section 5.2]{NIST2015} refers to as ``the message and its padding''.
+The Initial Hash Value is the same as for full $\SHAFull$.
+
+\Zcash uses $\SHACompress$ to instantiate several \pseudoRandomFunctions and
+$\MerkleCRHSprout$.
+
+\begin{formulae}
+  \item $\SHACompress \typecolon \bitseq{512} \rightarrow \bitseq{256}$
+\end{formulae}
+
+
 \nsubsubsubsection{\MerkleTree{} \HashFunction} \label{merklecrh}
 
 $\MerkleCRH$ is used to hash \incrementalMerkleTree \merkleHashes.
-It is instantiated by the $\SHAName$ function, which takes a 512-bit block
-and produces a 256-bit hash. \cite{NIST2015}
+It is instantiated by $\SHACompress$ as specified in \crossref{concretesha256}.
 
 \newsavebox{\merklebox}
 \begin{lrbox}{\merklebox}
@@ -3531,17 +3555,17 @@ and produces a 256-bit hash. \cite{NIST2015}
 \end{lrbox}
 
 \begin{formulae}
-  \item $\MerkleCRH(\mathsf{left}, \mathsf{right}) := \CRHbox{\merklebox}$.
+  \item $\MerkleCRH(\mathsf{left}, \mathsf{right}) := \SHACompressBox{\merklebox}$.
 \end{formulae}
 
 \pnote{
-$\SHA$ is not the same as the $\FullHashName$ function, which hashes arbitrary-length
+$\SHACompress$ is not the same as the $\SHAFull$ function, which hashes arbitrary-length
 byte sequences.
 }
 
 \securityrequirement{
-$\SHA$ must be collision-resistant, and it must be infeasible to find a preimage $x$
-such that $\SHA(x) = \zeros{256}$.
+$\SHACompress$ must be collision-resistant, and it must be infeasible to find a preimage $x$
+such that $\SHACompress(x) = \zeros{256}$.
 }
 
 \introlist
@@ -3773,7 +3797,7 @@ $n = 200$).
 \nsubsubsection{\PseudoRandomFunctions} \label{concreteprfs}
 
 The \changed{four} independent PRFs described in \crossref{abstractprfs} are
-all instantiated using the $\SHAName$ function:
+all instantiated using the $\shaCompress$ function:
 
 \newcommand{\iminusone}{\hspace{0.3pt}\scriptsize{$i$\hspace{0.6pt}-1}}
 
@@ -3833,16 +3857,16 @@ all instantiated using the $\SHAName$ function:
 \vspace{-2ex}
 \begin{equation*}
 \begin{aligned}
-\setchanged \PRFaddr{x}(t) &\setchanged := \CRHbox{\addrbox} \\
-\PRFnf{\AuthPrivate}(\NoteAddressRand) &:= \CRHbox{\nfbox} \\
-\PRFpk{\AuthPrivate}(i, \hSig) &:= \CRHbox{\pkbox} \\
-\setchanged \PRFrho{\NoteAddressPreRand}(i, \hSig) &\setchanged := \CRHbox{\rhobox}
+\setchanged \PRFaddr{x}(t) &\setchanged := \SHACompressBox{\addrbox} \\
+\PRFnf{\AuthPrivate}(\NoteAddressRand) &:= \SHACompressBox{\nfbox} \\
+\PRFpk{\AuthPrivate}(i, \hSig) &:= \SHACompressBox{\pkbox} \\
+\setchanged \PRFrho{\NoteAddressPreRand}(i, \hSig) &\setchanged := \SHACompressBox{\rhobox}
 \end{aligned}
 \end{equation*}
 
 \begin{securityrequirements}
-  \item The $\SHAName$ function must be collision-resistant.
-  \item The $\SHAName$ function must be a PRF when keyed by the bits
+  \item The \shaCompressFunction must be collision-resistant.
+  \item The \shaCompressFunction must be a PRF when keyed by the bits
         corresponding to $x$, $\AuthPrivate$ or $\NoteAddressPreRand$
         in the above diagrams, with input in the remaining bits.
 \end{securityrequirements}
@@ -3850,16 +3874,16 @@ all instantiated using the $\SHAName$ function:
 \changed{
 \pnote{
 The first four bits --i.e.\ the most significant four bits of the first byte--
-are used to distinguish different uses of $\SHA$, ensuring that the functions
+are used to distinguish different uses of $\SHACompress$, ensuring that the functions
 are independent. In addition to the inputs shown here, the bits $\mathtt{1011}$
-in this position are used to distinguish uses of the full $\FullHashName$ hash
+in this position are used to distinguish uses of the full $\SHAFull$ hash
 function --- see \crossref{concretecomm}.
 
 (The specific bit patterns chosen here were motivated by the possibility of future
 extensions that might have increased $\NOld$ and/or $\NNew$ to 3, or added an
 additional bit to $\AuthPrivate$ to encode a new key type, or that would have
 required an additional PRF.\sapling{ In fact since \Sapling switches to
-non-$\SHA$-based cryptographic primitives, these extensions are unlikely to
+non-$\SHACompress$-based cryptographic primitives, these extensions are unlikely to
 be necessary.})
 }
 }
@@ -4077,20 +4101,20 @@ $\ShieldedOutputsSig$ and $\SpendAuthorizationSig$ are specified in \crossref{ab
 \end{lrbox}
 
 The commitment scheme $\NoteCommitSprout{}$ specified in \crossref{abstractcomm} is
-instantiated using $\FullHashName$ as follows:
+instantiated using $\SHAFull$ as follows:
 
 \begin{formulae}[leftmargin=1em]
-  \item $\NoteCommitSprout{\NoteCommitRand}(\AuthPublic, \Value, \NoteAddressRand) := \FullHashbox{\cmbox}$.
+  \item $\NoteCommitSprout{\NoteCommitRand}(\AuthPublic, \Value, \NoteAddressRand) := \SHAFullBox{\cmbox}$.
 \end{formulae}
 
 \pnote{
-The leading byte of the $\FullHash$ input is $\hexint{B0}$.
+The leading byte of the $\SHAFull$ input is $\hexint{B0}$.
 }
 
 \begin{securityrequirements}
-  \item The $\SHAName$ function must be collision-resistant.
-  \item The $\SHAName$ function must be a PRF when keyed by the bits corresponding
-        to the position of $\NoteCommitRand$ in the second block of $\FullHashName$
+  \item The $\shaCompress$ function must be collision-resistant.
+  \item The $\shaCompress$ function must be a PRF when keyed by the bits corresponding
+        to the position of $\NoteCommitRand$ in the second block of $\SHAFull$
         input, with input to the PRF in the remaining bits of the block and
         the chaining variable.
 \end{securityrequirements}
@@ -4779,7 +4803,7 @@ For \Sapling-specific key and address formats, Bech32 \cite{BIP-173} is used
 instead of Base58Check.
 }
 
-$\SHAName$ outputs are always represented as sequences of $32$ bytes.
+$\shaCompress$ outputs are always represented as sequences of $32$ bytes.
 
 The language consisting of the following encoding possibilities is prefix-free.
 
@@ -4856,7 +4880,7 @@ for both the production and test networks.
 A \SproutOrNothing \paymentAddress consists of $\AuthPublic \typecolon \PRFOutput$
 and $\TransmitPublic \typecolon \KASproutPublic$.
 
-$\AuthPublic$ is a $\SHAName$ output.
+$\AuthPublic$ is a $\shaCompress$ output.
 $\TransmitPublic$ is a $\KASproutPublic$ key (see \crossref{concretesproutkeyagreement}),
 for use with the encryption scheme defined in \crossref{inband}. These
 components are derived from a \spendingKey as described in \crossref{sproutkeycomponents}.
@@ -4933,7 +4957,7 @@ For addresses on the test network, the \humanReadablePart is \ascii{ztestsapling
 An \incomingViewingKey consists of $\AuthPublic \typecolon \PRFOutput$ and
 $\TransmitPrivate \typecolon \KASproutPrivate$.
 
-$\AuthPublic$ is a $\SHAName$ output.
+$\AuthPublic$ is a $\shaCompress$ output.
 $\TransmitPrivate$ is a $\KASproutPrivate$ key (see \crossref{concretesproutkeyagreement}),
 for use with the encryption scheme defined in \crossref{inband}. These
 components are derived from a \spendingKey as described in \crossref{sproutkeycomponents}.
@@ -5119,7 +5143,7 @@ For \spendingKeys on the test network, the \humanReadablePart is \ascii{secret-s
 \introlist
 \nsubsection{\SproutZKParameters} \label{sproutparameters}
 
-For the \Zcash production \blockchain and testnet, the $\FullHashName$ hashes of the
+For the \Zcash production \blockchain and testnet, the $\SHAFull$ hashes of the
 \provingKey and \verifyingKey for the \SproutOrZcash \joinSplitStatement, encoded in
 \libsnark format, are:
 
@@ -5135,7 +5159,7 @@ These parameters were obtained by a multi-party computation described in
 \introsection
 \nsubsection{\SaplingZKParameters} \label{saplingparameters}
 
-The $\FullHashName$ hashes of the \provingKey and \verifyingKey for the \Sapling
+The $\SHAFull$ hashes of the \provingKey and \verifyingKey for the \Sapling
 \spendStatement, encoded in \bellman format, are:
 
 \begin{lines}
@@ -5143,7 +5167,7 @@ The $\FullHashName$ hashes of the \provingKey and \verifyingKey for the \Sapling
   \item[] \texttt{xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  sapling-spend-verifying.key}
 \end{lines}
 
-The $\FullHashName$ hashes of the \provingKey and \verifyingKey for the \Sapling
+The $\SHAFull$ hashes of the \provingKey and \verifyingKey for the \Sapling
 \outputStatement, encoded in \bellman format, are:
 
 \begin{lines}
@@ -6205,8 +6229,8 @@ amounts of currency for themself \cite{HW2016}.
 
 \Zcash uses a simpler construction with a single
 \notsprout{hash evaluation for the commitment:
-$\FullHashName$ for \Sprout\sapling{, and $\PedersenHash$ for \Sapling}.}
-\sprout{$\FullHashName$ evaluation for the commitment.}
+$\SHAFull$ for \Sprout\sapling{, and $\PedersenHash$ for \Sapling}.}
+\sprout{$\SHAFull$ evaluation for the commitment.}
 The motivation for the nested construction in \Zerocash
 was to allow Mint transactions to be publically verified without requiring
 a \zeroKnowledgeProof (as described under step 3 in
@@ -6218,9 +6242,9 @@ transactions into generalized
 \sprout{\joinSplitTransfers, and each transfer always uses a \zeroKnowledgeProof\!\!,
 it does not require the nesting.}
 A side benefit is that this reduces the cost of computing the
-\noteCommitments: \notsprout{for \Sprout} it reduces the number of $\SHA$
+\noteCommitments: \notsprout{for \Sprout} it reduces the number of $\SHACompress$
 evaluations needed to compute each \noteCommitment from three to two,
-saving a total of four $\SHA$ evaluations in the \joinSplitStatement.
+saving a total of four $\SHACompress$ evaluations in the \joinSplitStatement.
 
 \sproutonlypnote{
 \notsprout{\Sprout \noteCommitments are not statistically hiding, so for \Sprout notes,}
@@ -6234,7 +6258,7 @@ within the \joinSplitStatement was not considered to justify the benefits.
 }
 
 \saplingonly{
-In \Sapling, \xPedersenCommitments are used instead of $\SHA$.
+In \Sapling, \xPedersenCommitments are used instead of $\SHACompress$.
 These commitments are statistically hiding, and so ``everlasting anonymity''
 is supported for \Sapling notes under the same conditions as in \Zerocash
 (by the protocol, not necessarily by \zcashd).
@@ -6291,7 +6315,7 @@ twice.
 For resistance to Faerie Gold attacks as described in
 \crossref{faeriegold}, \Zcash depends on collision resistance of
 $\hSigCRH$ (instantiated using $\BlakeTwob{256}$) and \sproutonly{$\PRFrho{}$
-(instantiated using $\SHA$)}. Collision resistance of a truncated hash
+(instantiated using $\SHACompress$)}. Collision resistance of a truncated hash
 does not follow from collision resistance of the original hash, even if the
 truncation is only by one bit. This motivated avoiding truncation along any
 path from the inputs to the computation of $\hSig$ to the uses of
@@ -6299,7 +6323,7 @@ $\NoteAddressRand$.
 }
 
 \sproutonly{
-Since the PRFs are instantiated using $\SHA$ which has an input block
+Since the PRFs are instantiated using $\SHACompress$ which has an input block
 size of 512 bits (of which 256 bits are used for the PRF input and 4 bits
 are used for domain separation), it was necessary to reduce the size of the
 PRF key to 252 bits. The key is set to $\AuthPrivate$ in the case of
@@ -6310,7 +6334,7 @@ and 252 bits is quite sufficient for security of these cryptovalues.
 }
 
 \sapling{
-\Sapling uses \xPedersenHashes and $\BlakeTwosGeneric$ where \Sprout used $\SHA$.
+\Sapling uses \xPedersenHashes and $\BlakeTwosGeneric$ where \Sprout used $\SHACompress$.
 \xPedersenHashes can be efficiently instantiated for arbitrary input lengths.
 $\BlakeTwosGeneric$ has an input block size of $512$ bits, and uses a finalization flag
 rather than padding of the last input block; it also supports domain separation
@@ -6447,7 +6471,7 @@ Condition II'' case.
 
 The flaw is not exploitable for the actual instantiations of $\PRFaddr{}$
 in \Zerocash and \SproutOrZcash, which \emph{are} collision-resistant assuming
-that $\SHA$ is.
+that $\SHACompress$ is.
 
 The proof can be straightforwardly repaired. The intuition is that we can rely
 on collision resistance of $\PRFaddr{}$ (on both its arguments) to argue that
@@ -6522,6 +6546,14 @@ Daira Hopwood, Sean Bowe, and Jack Grigg.
 \introsection
 \nsection{Change History}
 
+\subparagraph{2018.0-beta-10}
+
+\begin{itemize}
+    \item Split the descriptions of $\SHAFull$ and $\SHACompress$\sapling{, and of $\BlakeTwoGeneric$,}
+          into their own sections. Specify $\SHACompress$ more precisely.
+\end{itemize}
+
+\introlist
 \subparagraph{2018.0-beta-9}
 
 \begin{itemize}
@@ -6691,7 +6723,7 @@ Daira Hopwood, Sean Bowe, and Jack Grigg.
 \subparagraph{2017.0-beta-2.3}
 
 \begin{itemize}
-    \item Specify the security requirements on the $\SHAName$ function in order
+    \item Specify the security requirements on the $\shaCompress$ function in order
           for the scheme in \crossref{concretecomm} to be a secure commitment.
     \item Specify $\GroupG{2}$ more precisely.
     \item Explain the use of interstitial \treestates in chained \joinSplitTransfers.
