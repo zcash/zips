@@ -43,7 +43,7 @@ Unfortunately, there are at least 2 weaknesses in the original SignatureHash tra
   transaction. Therefore, data hashing grows in O(n\ :sup:`2`) as the number of sigops in a transaction
   increases. While a 1 MB block would normally take 2 seconds to verify with an average computer in 2015, a
   1MB transaction with 5569 sigops may take 25 seconds to verify. This could be fixed by optimizing the digest
-  algorithm by introducing some reusable “midstate”, so the time complexity becomes O(n). [#quadratic]_
+  algorithm by introducing some reusable "midstate", so the time complexity becomes O(n). [#quadratic]_
 
 * The algorithm does not involve the value being spent by the input. This is usually not a problem for online
   network nodes as they could request for the specified transaction to acquire the output value. For an
@@ -73,7 +73,7 @@ A new transaction digest algorithm is defined::
     7. nLockTime of the transaction (4-byte little endian)
     8. nExpiryHeight of the transaction (4-byte little endian)
     9. sighash type of the signature (4-byte little endian)
-   10. If we are serializing an input (ie. this is not a JoinSplit signature hash):
+   10. If we are serializing an input (i.e. this is not a JoinSplit signature hash):
        a. outpoint (32-byte hash + 4-byte little endian) 
        b. scriptCode of the input (serialized as scripts inside CTxOuts)
        c. value of the output spent by this input (8-byte little endian)
@@ -84,7 +84,7 @@ replay protection inspired by BUIP-HF v1.2. [#BUIP-HF]_
 
 The new algorithm MUST be used for signatures created over the Overwinter transaction format.
 [#ZIP-overwinter-tx-format]_ Combined with the new consensus rule that v1 and v2 transaction formats will be
-invalid from the Overwinter upgrade, [#ZIP-overwinter-tx-format]_ this effectively means that all transactions
+invalid from the Overwinter upgrade, [#ZIP-overwinter-tx-format]_ this effectively means that all transaction
 signatures from the Overwinter activation height will use the new algorithm. [#ZIP0000]_
 
 The BLAKE2b-256 personalization field [#BLAKE2-personalization]_ is set to::
@@ -180,13 +180,13 @@ is the same script as serialized in the Sprout transaction digest algorithm.
 
 10c: value
 `````````
-An 8-byte value of the amount of ZEC spent in this input.
+An 8-byte little-endian value of the amount, in zatoshi, spent in this input.
 
 Notes
 -----
 
 The ``hashPrevouts``, ``hashSequence``, ``hashOutputs``, and ``hashJoinSplits`` calculated in an earlier
-verification may be reused in other inputs of the same transaction, so that the time complexity of the whole
+verification can be reused in other inputs of the same transaction, so that the time complexity of the whole
 hashing process reduces from O(n\ :sup:`2`) to O(n).
 
 Refer to the reference implementation, reproduced below, for the precise algorithm:
@@ -202,6 +202,7 @@ Refer to the reference implementation, reproduced below, for the precise algorit
   const unsigned char ZCASH_JOINSPLITS_HASH_PERSONALIZATION[16] =
       {'Z','c','a','s','h','J','S','p','l','i','t','s','H','a','s','h'};
 
+  // The default values are zeroes
   uint256 hashPrevouts;
   uint256 hashSequence;
   uint256 hashOutputs;
@@ -317,7 +318,7 @@ References
    * `New Bitcoin vulnerability: A transaction that takes at least 3 minutes to verify <https://bitcointalk.org/?topic=140078>`_
    * `The Megatransaction: Why Does It Take 25 Seconds? <http://rusty.ozlabs.org/?p=522>`_
 .. [#offline-wallets] `SIGHASH_WITHINPUTVALUE: Super-lightweight HW wallets and offline data <https://bitcointalk.org/index.php?topic=181734.0>`_
-.. [#BIP0143] `Transaction Signature Verification for Version 0 Witness Program <https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki>`_
+.. [#BIP0143] `BIP 143: Transaction Signature Verification for Version 0 Witness Program <https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki>`_
 .. [#BUIP-HF] `BUIP-HF Digest for replay protected signature verification across hard forks, version 1.2 <https://github.com/Bitcoin-ABC/bitcoin-abc/blob/master/doc/abc/replay-protected-sighash.md>`_
 .. [#ZIP0000] ZIP???: Overwinter Network Upgrade
 .. [#ZIP-activation-mechanism] ZIP???: Network Upgrade Activation Mechanism
