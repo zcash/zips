@@ -82,19 +82,18 @@ A new transaction digest algorithm is defined::
 The new algorithm is based on the Bitcoin transaction digest algorithm defined in BIP 143, [#BIP0143]_ with
 replay protection inspired by BUIP-HF v1.2. [#BUIP-HF]_
 
-The new algorithm MUST be used for signatures created over the Overwinter transaction format.
-[#ZIP-overwinter-tx-format]_ Combined with the new consensus rule that v1 and v2 transaction formats will be
-invalid from the Overwinter upgrade, [#ZIP-overwinter-tx-format]_ this effectively means that all transaction
-signatures from the Overwinter activation height will use the new algorithm. [#ZIP0000]_
+The new algorithm MUST be used for signatures created over the Overwinter transaction format. [#ZIP0202]_
+Combined with the new consensus rule that v1 and v2 transaction formats will be invalid from the Overwinter
+upgrade, [#ZIP0202]_ this effectively means that all transaction signatures from the Overwinter activation
+height will use the new algorithm. [#ZIP0000]_
 
 The BLAKE2b-256 personalization field [#BLAKE2-personalization]_ is set to::
 
   "ZcashSigHash" || CONSENSUS_BRANCH_ID
 
 ``CONSENSUS_BRANCH_ID`` is the little-endian encoding of ``BRANCH_ID`` for the epoch of the block containing
-the transaction. [#ZIP-activation-mechanism]_ Domain separation of the signature hash across parallel branches
-provides replay protection: transactions targeted for one branch will have invalid signatures on other
-branches.
+the transaction. [#ZIP0200]_ Domain separation of the signature hash across parallel branches provides replay
+protection: transactions targeted for one branch will have invalid signatures on other branches.
 
 Transaction creators MUST specify the epoch they want their transaction to be mined in. Across a network
 upgrade, this means that if a transaction is not mined before the activation height, it will never be mined.
@@ -118,12 +117,12 @@ The items 7, 9, 10a, 10d have the same meaning as the original algorithm from Bi
 1: ``header``
 `````````````
 Deserialized into two transaction properties: ``fOverwintered`` and ``nVersion``. For transactions that use
-this transaction digest algorithm, ``fOverwintered`` is always set. [#ZIP-overwinter-tx-format]_
+this transaction digest algorithm, ``fOverwintered`` is always set. [#ZIP0202]_
 
 2: ``nVersionGroupId``
 ``````````````````````
 Provides domain separation of ``nVersion``. It is only defined if ``fOverwintered`` is set, which means that
-it is always defined for transactions that use this algorithm. [#ZIP-overwinter-tx-format]_
+it is always defined for transactions that use this algorithm. [#ZIP0202]_
 
 3: ``hashPrevouts``
 ```````````````````
@@ -170,8 +169,7 @@ it is always defined for transactions that use this algorithm. [#ZIP-overwinter-
 
 8: ``nExpiryHeight``
 ````````````````````
-The block height after which the transaction becomes unilaterally invalid, and can never be mined.
-[#ZIP-tx-expiry]_
+The block height after which the transaction becomes unilaterally invalid, and can never be mined. [#ZIP0203]_
 
 10b: ``scriptCode``
 ```````````````````
@@ -320,11 +318,11 @@ References
 .. [#offline-wallets] `SIGHASH_WITHINPUTVALUE: Super-lightweight HW wallets and offline data <https://bitcointalk.org/index.php?topic=181734.0>`_
 .. [#BIP0143] `BIP 143: Transaction Signature Verification for Version 0 Witness Program <https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki>`_
 .. [#BUIP-HF] `BUIP-HF Digest for replay protected signature verification across hard forks, version 1.2 <https://github.com/Bitcoin-ABC/bitcoin-abc/blob/master/doc/abc/replay-protected-sighash.md>`_
+.. [#ZIP0202] `ZIP 202: Version 3 Transaction Format for Overwinter <https://github.com/zcash/zips/pull/133>`_
 .. [#ZIP0000] ZIP???: Overwinter Network Upgrade
-.. [#ZIP-activation-mechanism] ZIP???: Network Upgrade Activation Mechanism
-.. [#ZIP-overwinter-tx-format] ZIP???: Overwinter Transaction Format
+.. [#ZIP0200] `ZIP 200: Network Upgrade Mechanism <https://github.com/zcash/zips/pull/128>`_
 .. [#BLAKE2-personalization] `"BLAKE2: simpler, smaller, fast as MD5", Section 2.8 <https://blake2.net/blake2.pdf>`_
 .. [#01-change] In the original algorithm, a ``uint256`` of ``0x0000......0001`` is committed if the input
    index for a ``SINGLE`` signature is greater than or equal to the number of outputs. In this ZIP a
    ``0x0000......0000`` is commited, without changing the semantics.
-.. [#ZIP-tx-expiry] ZIP???: Transaction expiry
+.. [#ZIP0203] `ZIP 203: Transaction Expiry <https://github.com/zcash/zips/pull/131>`_
