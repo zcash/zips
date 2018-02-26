@@ -498,6 +498,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\notePlaintext}{\term{note plaintext}}
 \newcommand{\notePlaintexts}{\term{note plaintexts}}
 \newcommand{\NotePlaintexts}{\titleterm{Note Plaintexts}}
+\newcommand{\noteCiphertext}{\term{transmitted note ciphertext}}
 \newcommand{\notesCiphertext}{\term{transmitted notes ciphertext}}
 \newcommand{\incrementalMerkleTree}{\term{incremental Merkle tree}}
 \newcommand{\MerkleTree}{\titleterm{Merkle Tree}}
@@ -957,6 +958,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\SpendAuthSigSpecific}{\mathsf{EdJubjub}}
 \newcommand{\SpendAuthSigHashName}{\mathsf{BlakeTwob{512}}}
 
+\newcommand{\EdDSA}{\mathsf{EdDSA}}
 \newcommand{\EdDSAr}{R}
 \newcommand{\EdDSAs}{S}
 \newcommand{\EdDSAR}{\bytes{R}}
@@ -1006,9 +1008,14 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\joinSplitSig}{\mathtt{joinSplitSig}}
 \newcommand{\joinSplitPrivKey}{\mathtt{joinSplitPrivKey}}
 \newcommand{\joinSplitPubKey}{\mathtt{joinSplitPubKey}}
+\newcommand{\nullifierField}{\mathtt{nullifier}}
 \newcommand{\nullifiersField}{\mathtt{nullifiers}}
+\newcommand{\cvField}{\mathtt{cv}}
+\newcommand{\cmField}{\mathtt{cm}}
+\newcommand{\commitment}{\mathtt{commitment}}
 \newcommand{\commitments}{\mathtt{commitments}}
 \newcommand{\ephemeralKey}{\mathtt{ephemeralKey}}
+\newcommand{\encCiphertext}{\mathtt{encCiphertext}}
 \newcommand{\encCiphertexts}{\mathtt{encCiphertexts}}
 \newcommand{\randomSeed}{\mathtt{randomSeed}}
 \newcommand{\Varies}{\textit{Varies}}
@@ -2880,13 +2887,13 @@ Unlike \joinSplitSignatures of which there is at most one per \transaction,
 \spendAuthSignature.
 
 \introlist
-A \spendDescription consists of $(\rt, \cv, \nf, \ProofSpend, \spendAuthSig)$
+A \spendDescription consists of $(\cv, \rt, \nf, \ProofSpend, \spendAuthSig)$
 
 where
 \begin{itemize}
+  \item $\cv \typecolon \bitseq{\ellJ}$ is the \valueCommitment to the value of the input \note;
   \item $\rt \typecolon \MerkleHashSapling$ is an \anchor, as defined in
         \crossref{blockchain}, for the output \treestate of a previous \block.
-  \item $\cv \typecolon \bitseq{\ellJ}$ is the \valueCommitment to the value of the input \note;
   \item $\nf \typecolon \bitseq{\ellJ}$ is the \nullifier for the input \note;
   \item $\ProofSpend \typecolon \SpendProof$ is
         the \zeroKnowledgeProof for the \spendStatement;
@@ -2897,7 +2904,7 @@ where
   \item Elements of a \spendDescription{} \MUST have the types given above.
   \item The proof $\Proof{\Spend}$ \MUST be valid given a \primaryInput formed
         from the other fields except $\spendAuthSig$.
-        I.e.\ it must be the case that $\SpendVerify{}((\rt, \cv, \nf), \Proof{\Spend}) = 1$.
+        I.e.\ it must be the case that $\SpendVerify{}((\cv, \rt, \nf), \Proof{\Spend}) = 1$.
   \item The \spendAuthSignature{} \MUST be a valid $\SpendAuthSig$ signature using
         $\nf$ as the public key, over \todo{...}
 \end{consensusrules}
@@ -5802,9 +5809,9 @@ A value $\vpubOld$ that the \joinSplitTransfer removes from the \transparentValu
 $8$ & $\vpubNewField$ & \type{uint64\_t} & A value $\vpubNew$ that the \joinSplitTransfer inserts
 into the \transparentValuePool. \\ \hline
 
-$32$ & $\anchorField$ & \type{char[32]} & A merkle root $\rt$ of the \noteCommitmentTree at
-some block height in the past, or the merkle root produced by a previous \joinSplitTransfer in
-this \transaction. \\ \hline
+$32$ & $\anchorField$ & \type{char[32]} & A merkle root $\rt$ of the \SproutOrNothing
+\noteCommitmentTree at some \blockHeight in the past, or the merkle root produced by a previous
+\joinSplitTransfer in this \transaction. \\ \hline
 
 $64$ & $\nullifiersField$ & \type{char[32][$\NOld$]} & A sequence of \nullifiers of the input
 \notes $\nfOld{\allOld}$. \\ \hline
@@ -5838,6 +5845,73 @@ The $\ephemeralKey$ and $\encCiphertexts$ fields together form the \notesCiphert
 which is computed as described in \crossref{inband}.
 
 Consensus rules applying to a \joinSplitDescription are given in \crossref{joinsplitdesc}.
+
+
+\sapling{
+\introsection
+\nsubsection{Encoding of \SpendDescriptions} \label{spendencoding}
+
+An abstract \spendDescription, as described in \crossref{spendsandoutputs}, is encoded in
+a \transaction as an instance of a \type{SpendDescription} type as follows:
+
+\begin{center}
+\hbadness=2000
+\begin{tabularx}{0.92\textwidth}{|c|l|l|X|}
+\hline
+Bytes & \heading{Name} & \heading{Data Type} & \heading{Description} \\
+\hhline{|=|=|=|=|}
+
+$32$ & $\cvField$ & \type{char[32]} & A \valueCommitment to the value of the input \note. \\ \hline
+
+$32$ & $\anchorField$ & \type{char[32]} & A merkle root $\rt$ of the \Sapling
+\noteCommitmentTree at some \blockHeight in the past. \\ \hline
+
+$32$ & $\nullifierField$ & \type{char[32]} & The \nullifier of the input \note, $\nf$. \\ \hline
+
+$192$ & $\zkproof$ & \type{char[192]} & An encoding of the \zeroKnowledgeProof
+$\ProofSpend$ (see \crossref{groth}). \\ \hline
+
+$64$ & $\spendAuthSig$ & \type{char[64]} & A signature authorizing this spend. \\ \hline
+
+\end{tabularx}
+\end{center}
+
+Consensus rules applying to a \spendDescription are given in \crossref{spenddesc}.
+
+
+\introsection
+\nsubsection{Encoding of \OutputDescriptions} \label{outputencoding}
+
+An abstract \outputDescription, as described in \crossref{spendsandoutputs}, is encoded in
+a \transaction as an instance of an \type{OutputDescription} type as follows:
+
+\begin{center}
+\hbadness=2000
+\begin{tabularx}{0.92\textwidth}{|c|l|l|X|}
+\hline
+Bytes & \heading{Name} & \heading{Data Type} & \heading{Description} \\
+\hhline{|=|=|=|=|}
+
+$32$ & $\cvField$ & \type{char[32]} & A \valueCommitment to the value of the output \note. \\ \hline
+
+$32$ & $\cmField$ & \type{char[32]} & The \noteCommitment for the output \note, $\cm$. \\ \hline
+
+$32$ & $\ephemeralKey$ & \type{char[32]} & A $\JubjubCurve$ public key $\EphemeralPublic$. \\ \hline
+
+$580$ & $\encCiphertext$ & \type{char[580]} & A ciphertext component for the
+encrypted output \note, $\TransmitCiphertext{}$. \\ \hline
+
+$192$ & $\zkproof$ & \type{char[192]} & An encoding of the \zeroKnowledgeProof
+$\ProofOutput$ (see \crossref{groth}). \\ \hline
+
+\end{tabularx}
+\end{center}
+
+The $\ephemeralKey$ and $\encCiphertext$ fields together form the \noteCiphertext,
+which is computed as described in \crossref{inband}.
+
+Consensus rules applying to an \outputDescription are given in \crossref{outputdesc}.
+}
 
 
 \introlist
@@ -6971,6 +7045,17 @@ Daira Hopwood, Sean Bowe, and Jack Grigg.
 \introsection
 \nsection{Change History}
 
+\subparagraph{2018.0-beta-11}
+
+\begin{itemize}
+    \item No changes to \Sprout.
+\sapling{
+    \item Add sections on \spendDescriptions and \outputDescriptions.
+    \item Swap order of $\cv$ and $\rt$ in a \spendDescription for consistency.
+}
+\end{itemize}
+
+\introlist
 \subparagraph{2018.0-beta-10}
 
 \begin{itemize}
