@@ -75,7 +75,7 @@ A new transaction digest algorithm is defined::
     9. sighash type of the signature (4-byte little endian)
    10. If we are serializing an input (ie. this is not a JoinSplit signature hash):
        a. outpoint (32-byte hash + 4-byte little endian) 
-       b. scriptCode of the input (serialized as scripts inside CTxOuts) [TODO]
+       b. scriptCode of the input (serialized as scripts inside CTxOuts)
        c. value of the output spent by this input (8-byte little endian)
        d. nSequence of the input (4-byte little endian)
 
