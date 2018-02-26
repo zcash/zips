@@ -7,7 +7,7 @@
   Credits: Johnson Lau <jl2012@xbt.hk>
            Pieter Wuille <pieter.wuille@gmail.com>
            Bitcoin-ABC
-  Category: Process
+  Category: Consensus
   Created: 2017-12-27
   License: MIT
 
