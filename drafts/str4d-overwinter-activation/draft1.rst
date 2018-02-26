@@ -114,8 +114,8 @@ Concretely, this means that the Zcash blockchain is broken into "epochs" of bloc
 ``[ACTIVATION_HEIGHT_N, ACTIVATION_HEIGHT_{N+1})`` (i.e. including ``ACTIVATION_HEIGHT_N`` and excluding
 ``ACTIVATION_HEIGHT_{N+1}``), on which consensus rule sets are defined.
 
-Consensus rules themselves (and any network behavior or surrounding code that depends on them) MUST be gated
-by block height checks. For example:
+When a consensus rule depends on activation of a particular upgrade, its implementation (and that of any
+network behavior or surrounding code that depends on it) MUST be gated by a block height check. For example:
 
 .. code:: cpp
 
@@ -140,7 +140,7 @@ Incoming blocks known to have a particular height (due to their parent chain bei
 validated under the consensus rules corresponding to the expected branch ID for that height.
 
 Incoming blocks with unknown heights (because at least one block header in their parent chain is unknown)
-MAY be cached for future consideration after all their parents have been received.
+MAY be cached, so that they can be reconsidered in the future after all their parents have been received.
 
 Chain reorganization
 ````````````````````
