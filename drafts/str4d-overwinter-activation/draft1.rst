@@ -21,12 +21,12 @@ Branch
   block, or the child of a parent block created under an older set of consensus rules (i.e. the parent block
   is a member of a different branch). By definition, every block belongs to at most one branch.
 
-Hard fork
+Consensus rule change
   The creation of a new branch by a change in the consensus rules of the network. Nodes that do not recognize
   the new rules will continue to follow the old branch.
 
 Network upgrade
-  An intentional hard fork undertaken by the community in order to improve the network.
+  An intentional consensus rule change undertaken by the community in order to improve the network.
 
 
 Abstract
@@ -206,9 +206,10 @@ This proposal will be deployed with the Overwinter network upgrade.
 Backward compatibility
 ======================
 
-This proposal intentionally creates what is known as a "bilateral hard fork". Use of this mechanism requires
-that all network participants upgrade their software to a compatible version within the upgrade window. Older
-software will treat post-upgrade blocks as invalid, and will follow any pre-upgrade branch that persists.
+This proposal intentionally creates what is known as a "bilateral consensus rule change". Use of this
+mechanism requires that all network participants upgrade their software to a compatible version within the
+upgrade window. Older software will treat post-upgrade blocks as invalid, and will follow any pre-upgrade
+branch that persists.
 
 
 Reference Implementation
