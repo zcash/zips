@@ -3,7 +3,7 @@
   ZIP: 200
   Title: Network Upgrade Mechanism
   Author: Jack Grigg <jack@z.cash>
-  Category: Process
+  Category: Consensus
   Created: 2018-01-08
   License: MIT
 
