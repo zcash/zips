@@ -68,16 +68,13 @@ To send a version message, the node will invoke ``PushVersion()``::
         ...
     }
       
-where:
-
-- Pre-Overwinter PROTOCOL_VERSION is 170002
-- OVERWINTER_PROTO_VERSION is 170003
+where ``PROTOCOL_VERSION`` is the highest protocol version supported by the node.
 
 
 Rejecting Pre-Overwinter Connections
 ------------------------------------
 
-Currently, nodes will reject connections from nodes with a protocol version lower than the other node's minimum supported protocol version.
+Currently, nodes will reject connections from peers with an advertised protocol version lower than the other node's minimum supported protocol version.
 
 This value is defined as::
 
@@ -126,7 +123,8 @@ Currently, an eviction process takes place when new inbound connections arrive, 
 
 We update this process by adding behaviour so that the set of eviction candidates will prefer pre-Overwinter nodes, when the chain tip is in a period N blocks before the activation block height, where N is defined as::
 
-    static const int NETWORK_UPGRADE_PEER_PREFERENCE_BLOCK_PERIOD = 1000.
+    /** The period before a network upgrade activates, where connections to upgrading peers are preferred (in blocks). */
+    static const int NETWORK_UPGRADE_PEER_PREFERENCE_BLOCK_PERIOD = 24 * 24 * 3;
 
 The eviction candidates can be modified as so::
 
@@ -137,12 +135,13 @@ The eviction candidates can be modified as so::
     // Check version of eviction candidates...
     // If we are connected to any pre-Overwinter nodes, keep them in the eviction set and remove any Overwinter nodes
     // If we are only connected to Overwinter nodes, continue with existing behaviour.
-    if ((height < nActivationHeight) &&
-        (height >= (nActivationHeight - NETWORK_UPGRADE_PEER_PREFERENCE_BLOCK_PERIOD)))
+    if (nActivationHeight > 0 &&
+        height < nActivationHeight &&
+        height >= nActivationHeight - NETWORK_UPGRADE_PEER_PREFERENCE_BLOCK_PERIOD)
     {
         // Find any nodes which don't support Overwinter protocol version
         BOOST_FOREACH(const CNodeRef &node, vEvictionCandidates) {
-            if (node->nVersion < OVERWINTER_PROTO_VERSION) {
+            if (node->nVersion < params.vUpgrades[Consensus::UPGRADE_OVERWINTER].nProtocolVersion) {
                 vTmpEvictionCandidates.push_back(node);
             }
         }
@@ -181,19 +180,16 @@ Example code::
         }
 
         // Disconnect existing peer connection when:
-        // 1. Minimum peer version is less than Overwinter version
-        // 2. The version message has been received from a peer
-        // 3. The peer's version is pre-Overwinter
-        // 4. Overwinter is active
-        else if (
-            MIN_PEER_PROTO_VERSION < OVERWINTER_PROTO_VERSION &&
-            pfrom->nVersion != 0 &&
-            pfrom->nVersion < OVERWINTER_PROTO_VERSION &&
-            NetworkUpgradeActive(GetHeight(), chainparams.GetConsensus(), Consensus::UPGRADE_OVERWINTER))
+        // 1. The version message has been received
+        // 2. Overwinter is active
+        // 3. Peer version is pre-Overwinter
+        else if (NetworkUpgradeActive(GetHeight(), chainparams.GetConsensus(), Consensus::UPGRADE_OVERWINTER)
+                && (pfrom->nVersion < chainparams.GetConsensus().vUpgrades[Consensus::UPGRADE_OVERWINTER].nProtocolVersion))
         {
             LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, pfrom->nVersion);
             pfrom->PushMessage("reject", strCommand, REJECT_OBSOLETE,
-                                strprintf("Version must be %d or greater", OVERWINTER_PROTO_VERSION));
+                                strprintf("Version must be %d or greater",
+                                chainparams.GetConsensus().vUpgrades[Consensus::UPGRADE_OVERWINTER].nProtocolVersion));
             pfrom->fDisconnect = true;
             return false;
         }
@@ -208,8 +204,6 @@ This proposal will be deployed with the Overwinter network upgrade.
 
 Backward compatibility
 ======================
-
-This proposal intentionally creates what is known as a hard fork where Overwinter nodes disconnect from pre-Overwinter nodes.
 
 Prior to the network upgrade activating, Overwinter and pre-Overwinter nodes are compatible and can connect to each other. However, Overwinter nodes will have a preference for connecting to other Overwinter nodes, so pre-Overwinter nodes will gradually be disconnected in the run up to activation.
 
