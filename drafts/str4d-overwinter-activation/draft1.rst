@@ -16,14 +16,21 @@ described in RFC 2119. [#RFC2119]_
 
 The terms below are to be interpreted as follows:
 
-Branch
-  A chain of blocks with common consensus rules, where the first block in the chain is either the genesis
-  block, or the child of a parent block created under an older set of consensus rules (i.e. the parent block
-  is a member of a different branch). By definition, every block belongs to at most one branch.
+Block chain
+  A sequence of blocks starting at the genesis block, where the header of each block refers to the previous
+  block in the sequence.
+
+Consensus rule set
+  A set of validation rules that determine which block chains are considered valid.
 
 Consensus rule change
-  The creation of a new branch by a change in the consensus rules of the network. Nodes that do not recognize
-  the new rules will continue to follow the old branch.
+  A change in the consensus rule set of the network, such that nodes that do not recognize the new rules will
+  follow a different block chain.
+
+Branch
+  A block chain with a common consensus rule set, where the first block in the chain is either the genesis
+  block, or the child of a parent block created under an older set of consensus rules (i.e. the parent block
+  is a member of a different branch). By definition, every block belongs to at most one branch.
 
 Network upgrade
   An intentional consensus rule change undertaken by the community in order to improve the network.
