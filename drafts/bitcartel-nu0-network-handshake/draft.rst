@@ -12,22 +12,12 @@ Terminology
 
 The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to be interpreted as described in RFC 2119. [#RFC2119]_
 
+The terms "branch" and "network upgrade" in this document are to be interpreted as described in ZIP 200. [#zip-0200]_
+
 The terms below are to be interpreted as follows:
 
-Branch
-  A chain of blocks with common consensus rules, where the first block in the chain is either the genesis
-  block, or the child of a parent block created under an older set of consensus rules (i.e. the parent block
-  is a member of a different branch). By definition, every block belongs to at most one branch.
-
-Hard fork
-  The creation of a new branch by a change in the consensus rules of the network. Nodes that do not recognize
-  the new rules will continue to follow the old branch.
-
-Network upgrade
-  An intentional hard fork undertaken by the community in order to improve the network.
-
 Overwinter
-  Code-name for the first ZCash network upgrade, also known as Network Upgrade Zero.
+  Code-name for the first Zcash network upgrade, also known as Network Upgrade Zero.
 
 
 Abstract
@@ -196,10 +186,26 @@ Example code::
 
 
 
-Deployment
-==========
+Deployment of Overwinter
+========================
 
-This proposal will be deployed with the Overwinter network upgrade.
+The Overwinter network upgrade defines the following network upgrade constants [#zip-0200]_:
+
+BRANCH_ID
+  ``0x5ba81b19``
+
+ACTIVATION_HEIGHT
+  Testnet: 207500
+
+  Mainnet: Not yet defined.
+
+The following ZIPs are deployed by Overwinter:
+
+- ZIP 200 [#zip-0200]_
+- ZIP 201 (this ZIP)
+- ZIP 202 [#zip-0202]_
+- ZIP 203 [#zip-0203]_
+- ZIP 143 [#zip-0143]_
 
 
 Backward compatibility
