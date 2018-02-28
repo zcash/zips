@@ -81,7 +81,7 @@ BRANCH_ID
 
 ACTIVATION_HEIGHT
   The non-zero block height at which the network upgrade rules will come into effect, and be enforced as part
-  of the blockchain consensus.
+  of the block chain consensus.
 
   For removal of ambiguity, the block at height ``ACTIVATION_HEIGHT - 1`` is subject to the pre-upgrade
   consensus rules, and would be the last common block in the event of a persistent pre-upgrade branch.
@@ -105,12 +105,7 @@ the ``BRANCH_ID`` MUST also be changed.
 Activation mechanism
 --------------------
 
-A blockchain is defined as invalid if, within the set of all network upgrades that have activated in the past
-(or will activate in future) on that chain, an ``ACTIVATION_HEIGHT`` is repeated. Note that this does not
-require ``ACTIVATION_HEIGHT`` to be globally unique, or even locally unique; multiple network upgrades can
-occur in parallel, as long as they are non-overlapping (only one will activate on any given chain).
-
-Concretely, this means that the Zcash blockchain is broken into "epochs" of block height intervals
+The Zcash block chain is broken into "epochs" of block height intervals
 ``[ACTIVATION_HEIGHT_N, ACTIVATION_HEIGHT_{N+1})`` (i.e. including ``ACTIVATION_HEIGHT_N`` and excluding
 ``ACTIVATION_HEIGHT_{N+1}``), on which consensus rule sets are defined.
 
@@ -153,13 +148,8 @@ Post-activation upgrading
 If a user does not upgrade their node to a compatible software version before ``ACTIVATION_HEIGHT`` is
 reached, their node will follow any pre-upgrade branch that persists, and may download blocks that are
 incompatible with the post-upgrade branch. If the user subsequently upgrades their node to a compatible
-software version, the node will consider these blocks to be invalid, and MUST take one of the two following
-actions:
-
-- Discard all blocks of height ``ACTIVATION_HEIGHT`` and above, and then synchronize with the network.
-
-- Shut down and alert the user of the issue. In this case, the node could offer an option to perform the first
-  action.
+software version, the node will consider these blocks to be invalid, and if there are a significant number of
+invalid blocks it SHOULD shut down and alert the user of the issue.
 
 Memory pool
 -----------
@@ -174,8 +164,8 @@ Two-way replay protection
 -------------------------
 
 Before the Overwinter network upgrade, two-way replay protection is ensured by enforcing post-upgrade that the
-most significant bit of the transaction version is set to 1. [#zip-tx-format]_ From the perspective of old
-nodes, the transactions will have a negative version number, which is invalid under the old consensus rules.
+most significant bit of the transaction version is set to 1. [#zip-0202]_ From the perspective of old nodes,
+the transactions will have a negative version number, which is invalid under the old consensus rules.
 Enforcing this rule trivially makes old transactions invalid on the Overwinter branch.
 
 After the Overwinter network upgrade, two-way replay protection is ensured by transaction signatures
@@ -200,7 +190,7 @@ the ``BRANCH_ID``.
 Deployment
 ==========
 
-This proposal will be deployed with the Overwinter network upgrade.
+This proposal will be deployed with the Overwinter network upgrade. [#zip-0201]_
 
 
 Backward compatibility
@@ -226,5 +216,6 @@ References
 .. [#release-lifecycle]
    - https://z.cash/blog/release-cycle-and-lifetimes.html
    - https://z.cash/blog/release-cycle-update.html
-.. [#zip-tx-format] `Overwinter Transaction Format <https://github.com/zcash/zips/pull/133>`_
-.. [#zip-0143] `Transaction Signature Verification for Overwinter <https://github.com/zcash/zips/pull/129>`_
+.. [#zip-0202] `ZIP 202: Version 3 Transaction Format for Overwinter <https://github.com/zcash/zips/pull/133>`_
+.. [#zip-0143] `ZIP 143: Transaction Signature Verification for Overwinter <https://github.com/zcash/zips/pull/129>`_
+.. [#zip-0201] `ZIP 201: Network Peer Management for Overwinter <https://github.com/zcash/zips/pull/134>`_
