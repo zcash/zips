@@ -85,7 +85,7 @@ replay protection inspired by BUIP-HF v1.2. [#BUIP-HF]_
 The new algorithm MUST be used for signatures created over the Overwinter transaction format. [#ZIP0202]_
 Combined with the new consensus rule that v1 and v2 transaction formats will be invalid from the Overwinter
 upgrade, [#ZIP0202]_ this effectively means that all transaction signatures from the Overwinter activation
-height will use the new algorithm. [#ZIP0000]_
+height will use the new algorithm. [#ZIP0201]_
 
 The BLAKE2b-256 personalization field [#BLAKE2-personalization]_ is set to::
 
@@ -289,7 +289,7 @@ TBC
 Deployment
 ==========
 
-This proposal is deployed with the Overwinter network upgrade.
+This proposal is deployed with the Overwinter network upgrade. [#ZIP0201]_
 
 
 Backward compatibility
@@ -319,7 +319,7 @@ References
 .. [#BIP0143] `BIP 143: Transaction Signature Verification for Version 0 Witness Program <https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki>`_
 .. [#BUIP-HF] `BUIP-HF Digest for replay protected signature verification across hard forks, version 1.2 <https://github.com/Bitcoin-ABC/bitcoin-abc/blob/master/doc/abc/replay-protected-sighash.md>`_
 .. [#ZIP0202] `ZIP 202: Version 3 Transaction Format for Overwinter <https://github.com/zcash/zips/pull/133>`_
-.. [#ZIP0000] ZIP???: Overwinter Network Upgrade
+.. [#ZIP0201] `ZIP 201: Network Peer Management for Overwinter <https://github.com/zcash/zips/pull/134>`_
 .. [#ZIP0200] `ZIP 200: Network Upgrade Mechanism <https://github.com/zcash/zips/pull/128>`_
 .. [#BLAKE2-personalization] `"BLAKE2: simpler, smaller, fast as MD5", Section 2.8 <https://blake2.net/blake2.pdf>`_
 .. [#01-change] In the original algorithm, a ``uint256`` of ``0x0000......0001`` is committed if the input
