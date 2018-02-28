@@ -168,7 +168,7 @@ However, if new transaction versions are soft-fork compatible with older transac
 Expiry Height
 -------------
 
-The expiry height field, as defined in the Transaction Expiry ZIP [#zip-203]_, stores the block height after which a transaction can no longer be mined.
+The expiry height field, as defined in the Transaction Expiry ZIP [#zip-0203]_, stores the block height after which a transaction can no longer be mined.
 
 Transaction Validation
 ======================
@@ -263,6 +263,7 @@ References
 .. [#RFC2119] https://tools.ietf.org/html/rfc2119
 .. [#zip-0143] `Transaction Signature Verification for Overwinter <https://github.com/zcash/zips/pull/129>`_
 .. [#zip-0200] `Network Upgrade Activation Mechanism <https://github.com/zcash/zips/pull/128/>`_
+.. [#zip-0201] `Network Handshaking for Overwinter <https://github.com/zcash/zips/pull/134/>`_
 .. [#zip-0203] `Transaction Expiry <https://github.com/zcash/zips/pull/131>`_
 .. [#versiongroupid] `OVERWINTER_VERSION_GROUP_ID <https://github.com/zcash/zcash/pull/2925/files#diff-5cb8d9decaa15620a8f98b0c6c44da9bR311>`_
 
