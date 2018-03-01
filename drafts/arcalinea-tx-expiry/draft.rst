@@ -1,12 +1,12 @@
-**Title:** Transaction Expiry
+::
 
-**Author:** Jay Graber
+  ZIP: 203
+  Title: Transaction Expiry
+  Author: Jay Graber <jay@z.cash>
+  Category: Consensus
+  Created: 2018-01-09
+  License: MIT
 
-**Status:** Active
-
-**Category:** Standards
-
-**Created:** 2018-01-09
 
 Abstract
 ===========
@@ -16,11 +16,13 @@ This is an Standards ZIP describing a new consensus rule to set an expiration ti
 Motivation
 ===========
 
-Transactions that have insufficient fees are often not mined. This indeterminism is a source of confusion for users and wallets. Allowing transactions to set a block height after which it expires from the mempool would provide certainty around how long a transaction has to confirm before it is rejected by the network and must be re-sent.
+Transactions that have insufficient fees are often not mined. This indeterminism is a source of confusion for users and wallets. Allowing a transaction to set a block height after which it cannot be mined would provide certainty around how long a transaction has to confirm before it is rejected by the network and must be re-sent.
 
-Advantages include optimizing mempool performance by removing transactions unlikely to be mined, and potentially simplifying bidirectional payment channels by reducing the need to store and compress revocations for past states, since transactions not committed to the chain could expire and become invalid after a period of time.
+Advantages include optimizing mempool performance by removing transactions that will not be mined, and potentially simplifying bidirectional payment channels by reducing the need to store and compress revocations for past states, since transactions not committed to the chain could expire and become invalid after a period of time.
 
-If the expiry is block height N, it means the transaction must have either: 1. have been included in N-1, or 2. be included in block N. N+1 will be too late, and the transaction will be removed from the mempool.
+If the expiry is at block height N, then the transaction must be included in block N or earlier. Block N+1 will be too late, and the transaction will be removed from the mempool.
+
+The new consensus rule will enforce that the transaction will not be considered valid if included in block of height greater than N, and blocks that include transactions which have expired will not be considered valid.
 
 Specification
 ===============
@@ -53,14 +55,14 @@ With the addition of this feature, zero-confirmation transactions with an expira
 
 Wallet should notify user of expired transactions that must be re-sent. See "Notify" section below.
 
-Wallet should notify user when building on a transaction with zero confirmations and an expiry blockheight set. Message TBD.
-
 RPC
 -----
-To use:
-To make changes to the sendtoaddress and z_sendmany commands backwards compatible for future changes, keyword arguments should be accepted by the RPC interface. Since this is not consensus critical behavior, it can be added in a future release. For Overwinter, tx expiry will be set to a default that can be overridden by a flag `txexpirydefault` set in the config file.
 
--txexpirydefault= set default for tx expiry
+To make changes to the sendtoaddress and z_sendmany commands backwards compatible for future changes, keyword arguments should be accepted by the RPC interface. 
+
+For Overwinter, tx expiry will be set to a default that can be overridden by a flag `txexpirydelta` set in the config file.
+
+-txexpirydelta= set the number of blocks after which a transaction that has not been mined will become invalid
 
 To view:
 listtransactions has a new filter attribute, showing expired transactions only:
@@ -74,3 +76,8 @@ Config
 Default will be user configurable with flag `txblockexpirydelta`
 
 `--txblockexpirydelta=100`
+
+Deployment
+------------
+
+This feature will be deployed with Overwinter. The activation blockheight proposal is in [ZIP 201](https://github.com/zcash/zips/blob/master/zip-0201.rst)
