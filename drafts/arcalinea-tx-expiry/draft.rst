@@ -11,7 +11,7 @@
 Abstract
 ===========
 
-This is an Standards ZIP describing a new consensus rule to set an expiration time for transactions that are not mined to be removed from the mempool.
+This is a Standards ZIP describing a new consensus rule to set an expiration time after which a transaction cannot be mined. If it is not mined within that time, the transaction will be removed from nodes' mempools.
 
 Motivation
 ===========
@@ -22,38 +22,38 @@ Advantages include optimizing mempool performance by removing transactions that 
 
 If the expiry is at block height N, then the transaction must be included in block N or earlier. Block N+1 will be too late, and the transaction will be removed from the mempool.
 
-The new consensus rule will enforce that the transaction will not be considered valid if included in block of height greater than N, and blocks that include transactions which have expired will not be considered valid.
+The new consensus rule will enforce that the transaction will not be considered valid if included in block of height greater than N, and blocks that include expired transactions will not be considered valid.
 
 Specification
 ===============
 
-Transactions will have a new field, nExpiryHeight, which will set the block height after which transactions will be removed from the mempool if they have not been mined.
+Transactions will have a new field, ``nExpiryHeight``, which will set the block height after which transactions will be removed from the mempool if they have not been mined.
 
-The data type for nExpiryHeight will be uint32_t. If used in combination with nLockTime, both nLockTime and nExpiryHeight must be block heights. nExpiryHeight will never be a UNIX timestamp, unlike nLockTime values, and thus the maximum expiry height will be 500000000. 
+The data type for ``nExpiryHeight`` will be ``uint32_t``. If used in combination with ``nLockTime``, both ``nLockTime`` and ``nExpiryHeight`` must be block heights. ``nExpiryHeight`` will never be a UNIX timestamp, unlike ``nLockTime`` values, and thus the maximum expiry height will be 499999999. 
 
 For the example below, the last block that the transaction below could possibly be included in is 3539. After that, it will be removed from the mempool.
 
-````
+```
 "txid": "17561b98cc77cd5a984bb959203e073b5f33cf14cbce90eb32b95ae2c796723f",
 "version": 3,
 "locktime": 2089,
 "expiryheight": 3539,
 ```
 
-Default: TBD. Current proposal is 24 blocks, or about 1 hour assuming 2.5 minute block times. Can add a config option to set user's default.
+Default: 20 blocks, or about 1 hour assuming 2.5 minute block times. A configuration option can be used to set the user's default.
 Minimum: No minimum
 Maximum: 499999999, about 380 years
-No limit: To set no limit on transactions (so that they do not expire), nExpiryHeight should be set to 0.
-Coinbase: nExpiryHeight on coinbase transactions is ignored, and is set to 0 by convention.
+No limit: To set no limit on transactions (so that they do not expire), ``nExpiryHeight`` should be set to 0.
+Coinbase: ``nExpiryHeight`` on coinbase transactions is ignored, and is set to 0 by convention.
 
-Every time a transaction expires and should be removed from the mempool, so should all its dependent transactions.
+Every time a transaction expires and should be removed from the mempool, so should all of its dependent transactions.
 
 Wallet behavior and UI
 -----------------------
 
 With the addition of this feature, zero-confirmation transactions with an expiration block height set will have even less guarantee of inclusion. This means that UIs and services must never rely on zero-confirmation transactions in Zcash.
 
-Wallet should notify user of expired transactions that must be re-sent. See "Notify" section below.
+Wallet should notify the user of expired transactions that must be re-sent. 
 
 RPC
 -----
