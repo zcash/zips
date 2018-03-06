@@ -34,6 +34,7 @@
 \RequirePackage{lmodern}
 \RequirePackage{quattrocento}
 \RequirePackage[bb=ams]{mathalfa}
+\RequirePackage[scr]{rsfso}
 %\RequirePackage{txfonts}
 
 % Quattrocento is beautiful but doesn't have an italic face. So we scale
@@ -808,6 +809,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\TransmitCiphertext}[1]{\Ctext^\enc_{#1}}
 \newcommand{\TransmitKey}[1]{\Key^\enc_{#1}}
 \newcommand{\Adversary}{\mathcal{A}}
+\newcommand{\Oracle}{\mathsf{O}}
 \newcommand{\CryptoBoxSeal}{\mathsf{crypto\_box\_seal}}
 
 % Key agreement
@@ -945,6 +947,11 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\SigGen}{\Sig\mathsf{.Gen}}
 \newcommand{\SigSign}[1]{\Sig\mathsf{.Sign}_{#1}}
 \newcommand{\SigVerify}[1]{\Sig\mathsf{.Verify}_{#1}}
+\newcommand{\SigRandom}{\Sig\mathsf{.Random}}
+\newcommand{\SigRandomizePublic}{\Sig\mathsf{.RandomizePublic}}
+\newcommand{\SigRandomizePrivate}{\Sig\mathsf{.RandomizePrivate}}
+\newcommand{\SigRandomnessId}{\Sig\mathsf{.Id}}
+\newcommand{\SigRandomness}{r}
 
 \newcommand{\JoinSplitSig}{\mathsf{JoinSplitSig}}
 \newcommand{\JoinSplitSigPublic}{\JoinSplitSig\mathsf{.Public}}
@@ -1564,6 +1571,8 @@ $f(x, y)$ can also be written $f_x(y)$.
 $\fun{x \typecolon T}{e_x \typecolon U}$ means the function of type $T \rightarrow U$
 mapping formal parameter $x$ to $e_x$ (an expression depending on $x$).
 The types $T$ and $U$ are always explicit.
+
+$\powerset{T}$ means the powerset of $T$.
 }
 
 $\typeexp{T}{\ell}$, where $T$ is a type and $\ell$ is an integer,
@@ -2431,6 +2440,83 @@ pair without access to the signing key.
         knowing the private key, to forge a distinct signature on a previously
         seen message. That is, \joinSplitSignatures\sapling{ and \spendAuthSignatures}
         are intended to be nonmalleable in the sense of \cite{BIP-62}.
+\end{pnotes}
+
+
+\introlist
+\nsubsubsubsection{Signature with Re-Randomizable Keys} \label{abstractsigrerand}
+
+A signature scheme with re-randomizable keys $\Sig$ is a signature scheme that
+additionally defines:
+
+\begin{itemize}
+  \item a type of randomizers $\SigRandom$;
+  \item a public key randomization algorithm $\SigRandomizePublic \typecolon \SigPublic \times \SigRandom \rightarrow \SigPublic$;
+  \item a private key randomization algorithm $\SigRandomizePrivate \typecolon \SigPrivate \times \SigRandom \rightarrow \SigPrivate$
+  \item a distinguished ``identity'' randomizer $\SigRandomnessId \typecolon \SigRandom$
+\end{itemize}
+
+\vspace{-1ex}
+such that if $(\pk \typecolon \SigPublic, \sk \typecolon \SigPrivate)$ is a
+valid $\Sig$ key pair, then:
+\vspace{1ex}
+
+\begin{itemize}
+  \item $\left(\SigRandomizePublic(\pk, \SigRandomness), \SigRandomizePrivate(\sk, \SigRandomness)\right)$
+        is also a valid $\Sig$ key pair for any $\SigRandomness \typecolon \SigRandom$;
+  \item $\SigRandomizePrivate(\paramdot, \SigRandomness) \typecolon \SigPrivate \rightarrow \SigPrivate$
+        is injective and easily invertible for any $\SigRandomness \typecolon \SigRandom$;
+  \item For \emph{any} key pair $(\pk, \sk)$ returned by $\SigGen()$, the distribution of
+        \begin{formulae}
+          \item $\left(\SigRandomizePublic(\pk, \SigRandomness), \SigRandomizePrivate(\sk, \SigRandomness)\right) :
+                \SigRandomness \leftarrowR \SigRandom$
+        \end{formulae}
+        \vspace{-0.ex} is identical to the distribution of $\SigGen()$.
+  \item $\left(\SigRandomizePublic(\pk, \SigRandomnessId), \SigRandomizePrivate(\sk, \SigRandomnessId)\right) = (\pk, \sk)$.
+\end{itemize}
+
+The following security requirement for such signature schemes is based on that
+given in \cite[section 3]{FKMSSS2016}. Note that we require Strong Unforgeability
+under Re-randomized Keys, not Existential Unforgeability under Re-randomized Keys
+(the latter is just called ``Unforgeability under Re-randomized Keys'' in
+\cite[Definition 8]{FKMSSS2016}).
+
+\introsection
+\securityrequirement{\textbf{Strong Unforgeability under Re-randomized Keys (SUFRK-CMA)}
+
+Let $\Oracle \typecolon \SigPrivate \times \SigMessage \times \SigRandom \rightarrow \SigSignature$
+be a generator of signing oracles.
+
+A signing oracle $\Oracle_{\sk}$ for private key $\sk$ has state
+$Q \typecolon \powerset{\SigMessage \times \SigSignature}$ initialized to $\setof{}$
+that records queried messages and corresponding signatures.
+
+\begin{formulae}
+  \item $\Oracle_{\sk} :=$ var $Q \leftarrow \setof{}$ in $\fun{(m \typecolon \SigMessage, \SigRandomness \typecolon \SigRandom)}{}$
+  \item \tab let $\sigma = \SigSign{\SigRandomizePrivate(\sk, \SigRandomness)}(m)$
+  \item \tab $Q \leftarrow Q \union \setof{(m, \sigma)}$
+  \item \tab return $\sigma \typecolon \SigSignature$.
+\end{formulae}
+
+For random $(\pk, \sk) \leftarrowR \SigGen()$, it must be infeasible for an adversary
+given $\pk$ and a new instance of $\Oracle_{\sk}$ to find $(m^*, \sigma^*, \SigRandomness^*)$
+such that $\SigVerify{\SigRandomizePublic(\pk, \SigRandomness^*)}(m^*, \sigma^*) = 1$ and
+$(m^*, \sigma^*) \not\in \Oracle_{\sk}\mathsf{.}Q$.
+}
+
+\begin{pnotes}
+  \item The requirement for $\SigRandomnessId$ simplifies the definition of SUFRK-CMA
+        by removing the need for two oracles (since the oracle for original keys,
+        called $\Oracle_1$ in \cite{FKMSSS2016}, is a special case of the oracle for
+        randomized keys).
+  \item The fact that
+        $\left(\SigRandomizePublic(\pk, \SigRandomness), \SigRandomizePrivate(\sk, \SigRandomness)\right) :
+        \SigRandomness \leftarrowR \SigRandom$ is identically distributed to $\SigGen()$,
+        implies that the combination of a re-randomized public key and signature(s)
+        under that key do not reveal the key from which it was re-randomized.
+  \item Since $\SigRandomizePrivate(\paramdot, \SigRandomness)$ is injective and
+        easily invertible, knowledge of $\SigRandomizePrivate(\sk, \SigRandomness)$
+        \emph{and} $\SigRandomness$ implies knowledge of $\sk$.
 \end{pnotes}
 
 
