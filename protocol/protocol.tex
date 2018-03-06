@@ -159,6 +159,9 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 
 \newcommand{\lrarrow}{\texorpdfstring{$\leftrightarrow$}{↔}}
 
+% Using the astral plane character ð works, but triggers bugs in PDF readers ð
+\newcommand{\rS}{\texorpdfstring{$\ParamS{r}$}{rS}}
+
 % <https://tex.stackexchange.com/a/309445/78411>
 \DeclareFontFamily{U}{FdSymbolA}{}
 \DeclareFontShape{U}{FdSymbolA}{m}{n}{
@@ -7887,6 +7890,56 @@ to be part of the unpacking operation itself.
 needed for the Merkle path check.}
 
 
+\introsection
+\nsubsubsection{Packing modulo \rS} \label{cctmodpack}
+
+Let $a = \vsum{i=0}{n-1} b_i \mult 2^i$.
+
+Then, $a \bmod \ParamS{r} = \left(\vsum{i=0}{n-1} b_i \mult (2^i \bmod \ParamS{r})\!\right) \bmod \ParamS{r}$.
+
+The bit length $n$ is not limited by the field element size.
+
+This operation costs one constraint; it is used in the definition of
+$\PRFnr{}$ in \crossref{concreteprfs}.
+
+
+\introsection
+\nsubsubsection{Range check} \label{cctrange}
+
+Let $a = \vsum{i=0}{n-1} a_i \mult 2^i$, and suppose we want to constrain
+$a \leq c$ for some \emph{constant} $c = \vsum{i=0}{n-1} c_i \mult 2^i$.
+
+Without loss of generality we can assume that $c_{n-1} = 1$, because if it
+were not then we would reduce $n$.
+
+Note that since $a$ and $c$ are provided in binary representation, their
+bit length $n$ is not limited by the field element size. We \emph{do not} assume
+that the bits $a_\barerange{0}{n-1}$ are already boolean-constrained.
+
+Suppose $c$ has $k$ bits set to $1$, and let $j_\barerange{0}{k-1}$ be the
+indices of those bits in ascending order. Let $t$ be the minimum of $k-1$ and
+the number of trailing $1$ bits in $c$.
+
+Let $\Pi_{j_{k-1}} = a_{j_{k-1}}$. For $z \in \range{t}{k-2}$, constrain:
+
+\begin{formulae}
+  \item $\constraint{\Pi_{j_{z+1}}}{a_{j_z}}{\Pi_{j_z}}$
+\end{formulae}
+
+For $i \in \range{0}{n-1}$:
+\begin{itemize}
+  \item if $c_i = 0$, constrain $\constraint{1 - \Pi_{j_z} - a_i}{a_i}{0}$ where $j_z$ is the least element of $j$ greater than $i$;
+  \item if $c_i = 1$, boolean-constrain $a_i$ as in \crossref{cctboolean}.
+\end{itemize}
+
+Note that the constraints corresponding to zero bits of $c$ are \emph{in place of}
+boolean constraints on bits of $a_i$.
+
+This costs $n + k - 1 - t$ constraints.
+
+\todo{Explain why this works (see \url{https://github.com/zcash/zcash/issues/2234\#issuecomment-338930637}).}
+
+
 \introlist
 \nsubsubsection{Checking that affine Edwards coordinates are on the curve} \label{cctedvalidate}
 
@@ -8184,6 +8237,14 @@ This costs $3$ constraints for each of $84$ window lookups, plus $6$ constraints
 each of $83$ Edwards additions (as in \crossref{cctedarithmetic}), for a total of
 $750$ constraints.
 
+\pnote{
+It would be more efficient to use arithmetic on the Montgomery curve, as in
+\crossref{cctpedersenhash}. However since there are only three instances of
+fixed-base scalar multiplication in the \spendCircuit and two in the \outputCircuit
+\footnote{A Pedersen commitment uses fixed-base scalar multiplication as a subcomponent.},
+the additional complexity was not considered justified for \Sapling.
+}
+
 
 \nsubsubsection{Variable-base affine-Edwards scalar multiplication} \label{cctvarscalarmult}
 
@@ -8215,10 +8276,11 @@ of $250$ Edwards additions, and $2$ constraints for each of $251$ point selectio
 for a total of $3252$ constraints.
 
 \pnote{
-It would be more efficient to use $2$-bit fixed windows, but there are only
-two instances of variable-base scalar multiplication in the \spendCircuit
-and one in the \outputCircuit, so the additional complexity was not considered
-justified for \Sapling.
+It would be more efficient to use $2$-bit fixed windows, and/or to use arithmetic
+on the Montgomery curve in a similar way to \crossref{cctpedersenhash}. However
+since there are only two instances of variable-base scalar multiplication in the
+\spendCircuit and one in the \outputCircuit, the additional complexity was not
+considered justified for \Sapling.
 }
 
 \nsubsubsection{Pedersen hash} \label{cctpedersenhash}
@@ -8448,9 +8510,9 @@ as follows:
           \scalarmult{\Value}{\FindGroupJHashOf{D, \ascii{v}}} + \scalarmult{\ValueCommitRand}{\FindGroupJHashOf{D, \ascii{}}}$
 \end{formulae}
 
-In the case that we need for $\ValueCommit{}$,
-%$\Value \typecolon \range{-\MAXMONEY}{\MAXMONEY}$ has at most $51$ bits.
-$\Value$ has at most $63$ bits.
+In the case that we need for $\ValueCommit{}$, $\Value$ has $64$ bits
+\footnote{It would be sufficient to use $51$ bits, which accomodates the range
+$\range{0}{\MAXMONEY}$, but the \Sapling circuit uses $64$.}.
 This can be straightforwardly implemented in ... constraints.
 
 
