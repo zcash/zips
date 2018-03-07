@@ -16,9 +16,9 @@ The obvious advantage of the original implementation was avoiding structural cha
 ## Scope
 
 * **Chained pours** ([#121][ticket121]) mean that we should anticipate multiple pours in a transaction, specifically because the pours may require commitments from previous pours.
-* **Symmetric pours** ([#338] [ticket338]) mean that instead of separate Protect / Pour operations, a *single* Pour operation exists which takes a `vpub_in` and `vpub_out`, unifying the two operations. This requires a circuit change.
-* **Versioning semantics** ([#114] [ticket114]) require us to avoid breaking upstream tests whenever possible. We need to anticipate both changes to our own structures after launch to support new features (such as circuit changes, see #152) and potential changes to upstream transaction structures we will eventually need to rebase on top of.
-* **Cryptographic binding of pours** ([#366] [ticket366]) is necessary to ensure that (in the most common situation) it is not possible to move a pour from one transaction to another, or replace pours in a transaction without the authorization of its inputs.
+* **Symmetric pours** ([#338][ticket338]) mean that instead of separate Protect / Pour operations, a *single* Pour operation exists which takes a `vpub_in` and `vpub_out`, unifying the two operations. This requires a circuit change.
+* **Versioning semantics** ([#114][ticket114]) require us to avoid breaking upstream tests whenever possible. We need to anticipate both changes to our own structures after launch to support new features (such as circuit changes, see #152) and potential changes to upstream transaction structures we will eventually need to rebase on top of.
+* **Cryptographic binding of pours** ([#366][ticket366]) is necessary to ensure that (in the most common situation) it is not possible to move a pour from one transaction to another, or replace pours in a transaction without the authorization of its inputs.
 
 [ticket121]: https://github.com/zcash/zcash/issues/121
 [ticket338]: https://github.com/zcash/zcash/issues/338
@@ -60,14 +60,14 @@ The heart of zerocash modifications is in `CTransaction`. The current layout is 
 
 #### Versioning
 
-In this design, we will increment the latest `nVersion` for transactions, adding new fields to the end to encapsulate our zerocash operations ([#114] [ticket114]). Our fields must anticipate the case that no zerocash operations occur, such as in traditional or "purely cleartext" transactions.
+In this design, we will increment the latest `nVersion` for transactions, adding new fields to the end to encapsulate our zerocash operations ([#114][ticket114]). Our fields must anticipate the case that no zerocash operations occur, such as in traditional or "purely cleartext" transactions.
 
 ##### Alternative: Use bitflags to indicate the presence of zerocash fields
 In this alternative, we use bitflags in the `nVersion` field to indicate the presence of zerocash fields at the end. This would allow us to track upstream CTransaction changes seamlessly, *but* would indefinitely require that upstream `nVersion` bits are available to us for this purpose. Additionally, the absence of these bitflags would conflict in purpose with an empty vector of `PourTx` structures as outlined later.
 
 #### PourTx
 
-We add an additional field to the end of a `CTransaction`, a vector of `PourTx` structures called `vpour`. This vector is merely empty in the case of traditional transactions. Operations are allowed to reference the (commitment tree) merkle root produced by a previous operation or block for verification purposes ([#121] [ticket121]).
+We add an additional field to the end of a `CTransaction`, a vector of `PourTx` structures called `vpour`. This vector is merely empty in the case of traditional transactions. Operations are allowed to reference the (commitment tree) merkle root produced by a previous operation or block for verification purposes ([#121][ticket121]).
 
 The structure of a `PourTx` is as follows:
 
@@ -86,15 +86,15 @@ struct PourTx {
 }
 ```
 
-The `CTransactionSignatureSerializer` (and perhaps other components) will need to be modified so that the inputs are cryptographically bound to the `PourTx`s ([#366] [ticket366]).
+The `CTransactionSignatureSerializer` (and perhaps other components) will need to be modified so that the inputs are cryptographically bound to the `PourTx`s ([#366][ticket366]).
 
-Note that this general operation has both `vpub_in` and `vpub_out` which is a generalization from the academic prototype which has separate `Protect` (with public input) and `Pour` (with public output) operations ([#338] [ticket338]).
+Note that this general operation has both `vpub_in` and `vpub_out` which is a generalization from the academic prototype which has separate `Protect` (with public input) and `Pour` (with public output) operations ([#338][ticket338]).
 
 The `vin` and `vout` fields can be empty if there exist some well-formed `PourTx`s, *in contrast* to Bitcoin's invariants on these vectors.
 
 ##### Chained Pour Validation
 
-Note that chained pours ([#121] [ticket121]) require that witnesses in a `PourTx` after the first may refer to a treestate which is not an ancestor of the block tree state after the `CTransaction` containing it is mined. For example suppose transaction `A` appears prior to transaction `B` in the same block and that each contain two `PourTx`s, `A1`, `A2`, `B1`, and `B2`. Call the tree state of the block's ancestor `T_ancestor`, and the tree state of the latest block `T_block`. The state of `T_block` will be derived from applying on top of `T_ancestor` the commits from `A1`, `A2`, `B1`, and `B2` in that order. However, `B2` may spend an output of `B1`, and if it does so, it will refer to the tree state derived by applying on top of `T_ancestor` commitments from only `B1`. Notice that a *different* output of `B1` may be spent in a later block. In *that* case, this later spend would use a proof anchored in `T_block` or some valid subsequent tree state.
+Note that chained pours ([#121][ticket121]) require that witnesses in a `PourTx` after the first may refer to a treestate which is not an ancestor of the block tree state after the `CTransaction` containing it is mined. For example suppose transaction `A` appears prior to transaction `B` in the same block and that each contain two `PourTx`s, `A1`, `A2`, `B1`, and `B2`. Call the tree state of the block's ancestor `T_ancestor`, and the tree state of the latest block `T_block`. The state of `T_block` will be derived from applying on top of `T_ancestor` the commits from `A1`, `A2`, `B1`, and `B2` in that order. However, `B2` may spend an output of `B1`, and if it does so, it will refer to the tree state derived by applying on top of `T_ancestor` commitments from only `B1`. Notice that a *different* output of `B1` may be spent in a later block. In *that* case, this later spend would use a proof anchored in `T_block` or some valid subsequent tree state.
 
 ##### Script-based Signatures
 
@@ -123,10 +123,10 @@ Various parts of this design can be implemented concurrently and iteratively.
 ### Stage 2: Concurrent tasks
 Each of the following tasks to complete the redesign can be done independently.
 
-* Add old RPC commands. ([#527] [ticket527])
-* `CScript` scheme to enforce cryptographic binding of the transaction to the pour. ([#529] [ticket529])
-* Chained pours which allow pours to reference merkle roots produced by other pours. ([#555] [ticket555])
-* A zerocash-specific versioning field can be added, along with upstream interaction semantics. ([#114] [ticket114])
+* Add old RPC commands. ([#527][ticket527])
+* `CScript` scheme to enforce cryptographic binding of the transaction to the pour. ([#529][ticket529])
+* Chained pours which allow pours to reference merkle roots produced by other pours. ([#555][ticket555])
+* A zerocash-specific versioning field can be added, along with upstream interaction semantics. ([#114][ticket114])
 
 [ticket527]: https://github.com/zcash/zcash/issues/527
 [ticket529]: https://github.com/zcash/zcash/issues/529
