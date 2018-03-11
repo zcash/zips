@@ -1222,6 +1222,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\Addend}{\mathsf{Addend}}
 \newcommand{\Sum}{\mathsf{Sum}}
 \newcommand{\ainv}{a_{\mathsf{inv}}}
+\newcommand{\Ainv}{A_{\mathsf{inv}}}
 
 \newcommand{\repr}{\mathsf{repr}}
 \newcommand{\abst}{\mathsf{abst}}
@@ -7292,6 +7293,17 @@ Daira Hopwood, Sean Bowe, and Jack Grigg.
     \item Change $\PRFnr{}$ to produce output computationally indistinguishable from uniform on
           $\GF{\ParamJ{r}}$.
     \item Change $\UncommittedSapling$ to be a $u$-coordinate for which there is no point on the curve.
+    \item Appendix A updates:
+          \begin{itemize}
+            \item categorize components into larger sections
+            \item fill in the [de]compression and validation algorithm
+            \item more precisely state the assumptions for inputs and outputs
+            \item delete not-all-one component which is no longer needed
+            \item factor out xor into its own component
+            \item specify [un]packing more precisely; separate it from boolean constraints
+            \item optimize checking for non-small order
+            \item notation in variable-base multiplication algorithm.
+          \end{itemize}
 }
 \end{itemize}
 
@@ -7916,9 +7928,12 @@ Some components make use of others; the order of presentation is ``bottom-up''.
 
 It is important for security to ensure that variables intended to be of
 boolean type are boolean-constrained; and for efficiency that they are
-boolean-constrained only once. We follow the convention that components
-typically boolean-constrain their inputs when needed, but not their outputs.
-Exceptions to this convention are explicitly noted.
+boolean-constrained only once. We explicitly state for the boolean inputs and
+outputs of each component whether they are boolean-constrained by the component,
+or are assumed to have been boolean-constrained separately.
+
+Affine coordinates for elliptic curve points are assumed to represent points
+on the relevant curve, unless otherwise specified.
 
 In this section, variables have type $\GF{\ParamS{r}}$ unless otherwise specified.
 In contrast to most of this document, we use zero-based indexing in order
@@ -7926,7 +7941,9 @@ to more closely match the implementation.
 
 
 \introsection
-\nsubsubsection{Boolean constraints} \label{cctboolean}
+\nsubsubsection{Operations on individual bits} \label{cctbitops}
+
+\nsubsubsubsection{Boolean constraints} \label{cctboolean}
 
 A boolean constraint $b \in \bit$ can be implemented as:
 
@@ -7936,9 +7953,10 @@ A boolean constraint $b \in \bit$ can be implemented as:
 
 
 \introlist
-\nsubsubsection{Selection constraints} \label{cctselection}
+\nsubsubsubsection{Selection constraints} \label{cctselection}
 
-A selection constraint $b \bchoose x : y = z$, where $b \in \bit$, can be implemented as:
+A selection constraint $b \bchoose x : y = z$, where $b \typecolon \bit$ has been
+boolean-constrained, can be implemented as:
 
 \begin{formulae}
   \item $\constraint{b}{y - x}{y - z}$
@@ -7946,7 +7964,7 @@ A selection constraint $b \bchoose x : y = z$, where $b \in \bit$, can be implem
 
 
 \introsection
-\nsubsubsection{Nonzero constraints} \label{cctnonzero}
+\nsubsubsubsection{Nonzero constraints} \label{cctnonzero}
 
 Since only nonzero elements of $\GF{\ParamS{r}}$ have a multiplicative inverse, the
 assertion $a \neq 0$ can be implemented by witnessing the inverse,
@@ -7959,80 +7977,79 @@ $\ainv = a^{-1} \pmod{\ParamS{r}}$:
 A global optimization allows to use a single inverse computation outside
 the circuit for any number of nonzero constraints. Suppose that we have
 $n$ variables (or \linearCombinations) that are supposed to be nonzero:
-$a_\barerange{0}{n-1}$. Multiply these together to give $a = \vproduct{i=0}{n-1} a_i$;
-then, constrain $a$ to be nonzero. This works because the product $a$ is nonzero
-if and only if all of $a_\barerange{0}{n-1}$ are nonzero.
+$a_\barerange{0}{n-1}$. Multiply these together (using $n\!-\!1$ constraints)
+to give $a^* = \vproduct{i=0}{n-1} a_i$; then, constrain $a^*$ to be nonzero.
+This works because the product $a^*$ is nonzero if and only if all of
+$a_\barerange{0}{n-1}$ are nonzero.
 
 
 \introsection
-\nsubsubsection{Not-all-one constraints} \label{cctnotallone}
+\nsubsubsubsection{Exclusive-or constraints} \label{cctxor}
 
-Given a sequence $b_\barerange{0}{n-1}$ of variables that have already been
-boolean-constrained, we can assert that they are not all one by letting
-$a = -n + \vsum{i=0}{n-1} b_i$, and asserting $a \neq 0$ as in the previous
-section:
+An exclusive-or operation $a \xor b = c$, where $a, b \typecolon \bit$ are
+already boolean-constrained, can be implemented in one constraint as:
 
 \begin{formulae}
-  \item $\constraint{\ainv}{-n + \vsum{i=0}{n-1} b_i}{1}$
+  \item $\constraint{2 \smult a}{b}{a + b - c}$
 \end{formulae}
 
-(This assumes $n < \ParamS{r}$ which is in practice always the case.)
+This automatically boolean-constrains $c$. Its correctness can be seen
+by checking the truth table of $(a, b)$.
 
 
 \introsection
-\nsubsubsection{Unpacking} \label{cctunpack}
+\nsubsubsection{Operations on multiple bits} \label{cctmultibitops}
 
-A field element $a$ may need to be ``unpacked'' to a sequence of boolean
-variables $b_\barerange{0}{n-1} \typecolon \bitseq{n}$, so that
-$a = \vsum{i=0}{n-1} b_i \mult 2^i$.
+\nsubsubsubsection{[Un]packing modulo \rS} \label{cctmodpack}
 
-\introlist
-This costs $n$ constraints to boolean-constrain $b_\barerange{0}{n-1}$
-as in \crossref{cctboolean}, and one constraint that equates the sum with
-$a$:
+The operation of converting a field element, $a$, to a sequence of boolean
+variables $b_\barerange{0}{n-1} \typecolon \bitseq{n}$ such that
+$a = \vsum{i=0}{n-1} b_i \mult 2^i \pmod{\ParamS{r}}$, is called
+\quotedterm{unpacking}. The inverse operation is called \quotedterm{packing}.
 
-\begin{formulae}
-  \item $\constraint{\vsum{i=0}{n-1} b_i \mult 2^i}{1}{a}$
-\end{formulae}
-
-\pnote{
-Since the last constraint has only a trivial multiplication, it is
-possible to eliminate it by expressing one of the output bits as
-a linear combination of the others and $a$. However, this optimization
-requires substitutions that would interfere with the modularity of the
-circuit implementation (for a saving of only one constraint per unpacking
-operation), and so we do not use it for the \Sapling circuit.
-\todo{Do we want to use it internally to the BLAKE2s implementation where
-modularity is not significantly affected?}
-}
-
-In the case $n = 255$, for $a < 2^{255} - \ParamS{r}$ there are two possible
-representations of $a \typecolon \GF{\ParamS{r}}$ as a sequence of $255$ bits,
-corresponding to $\ItoLEBSP{255}(a)$ and $\ItoLEBSP{255}(a + \ParamS{r})$.
-This is a potential hazard, but it may or may not be necessary to force use
-of the canonical representation $\ItoLEBSP{255}(a)$, depending on the context
-in which the unpacking operation is used. We therefore do not consider this
-to be part of the unpacking operation itself.
-
-\todo{Check where canonical $255$-bit unpackings are needed. They are not
-needed for the Merkle path check.}
-
-
-\introsection
-\nsubsubsection{Packing modulo \rS} \label{cctmodpack}
+In the \quadraticArithmeticProgram these are the same operation (but
+see the note about canonical representation below). We assume that
+the variables $b_\barerange{0}{n-1}$ are boolean-constrained separately.
 
 Let $a = \vsum{i=0}{n-1} b_i \mult 2^i$.
-
 Then, $a \bmod \ParamS{r} = \left(\vsum{i=0}{n-1} b_i \mult (2^i \bmod \ParamS{r})\!\right) \bmod \ParamS{r}$.
 
-The bit length $n$ is not limited by the field element size.
+\introlist
+This can be implemented in one constraint:
 
-This operation costs one constraint; it is used in the definition of
-$\PRFnr{}$ in \crossref{concreteprfs}.
+\begin{formulae}
+  \item $\constraint{\vsum{i=0}{n-1} b_i \mult (2^i \bmod \ParamS{r})}{1}{a}$
+\end{formulae}
+
+\begin{pnotes}
+  \item The bit length $n$ is not limited by the field element size
+        (for example, the case $n = 512$ is used in the definition
+        of $\PRFnr{}$ in \crossref{concreteprfs}).
+
+  \item Since the constraint has only a trivial multiplication, it is
+        possible to eliminate it by merging it into the boolean constraint
+        of one of the output bits, expressing that bit as a linear
+        combination of the others and $a$. However, this optimization
+        requires substitutions that would interfere with the modularity
+        of the circuit implementation (for a saving of only one constraint
+        per unpacking operation), and so we do not use it for the
+        \Sapling circuit.
+        \todo{Do we want to use it internally to the BLAKE2s implementation
+        where modularity is not significantly affected?}
+
+  \item In the case $n = 255$, for $a < 2^{255} - \ParamS{r}$ there are two
+        possible representations of $a \typecolon \GF{\ParamS{r}}$ as a
+        sequence of $255$ bits, corresponding to $\ItoLEBSP{255}(a)$ and
+        $\ItoLEBSP{255}(a + \ParamS{r})$. This is a potential hazard, but
+        it may or may not be necessary to force use of the canonical
+        representation $\ItoLEBSP{255}(a)$, depending on the context
+        in which the [un]packing operation is used. We therefore do not
+        consider this to be part of the [un]packing operation itself.
+\end{pnotes}
 
 
 \introsection
-\nsubsubsection{Range check} \label{cctrange}
+\nsubsubsubsection{Range check} \label{cctrange}
 
 Let $a = \vsum{i=0}{n-1} a_i \mult 2^i$, and suppose we want to constrain
 $a \leq c$ for some \emph{constant} $c = \vsum{i=0}{n-1} c_i \mult 2^i$.
@@ -8069,7 +8086,9 @@ This costs $n + k - 1 - t$ constraints.
 
 
 \introsection
-\nsubsubsection{Checking that affine Edwards coordinates are on the curve} \label{cctedvalidate}
+\nsubsubsection{Elliptic curve operations} \label{cctelliptic}
+
+\nsubsubsubsection{Checking that affine Edwards coordinates are on the curve} \label{cctedvalidate}
 
 To check that $(u, \varv)$ is a point on the Edwards curve, use:
 
@@ -8081,20 +8100,43 @@ To check that $(u, \varv)$ is a point on the Edwards curve, use:
 
 
 \introsection
-\nsubsubsection{Edwards decompression and validation} \label{ccteddecompressvalidate}
+\nsubsubsubsection{Edwards [de]compression and validation} \label{ccteddecompressvalidate}
 
 Define $\DecompressValidate \typecolon \CompressedEdwardsJubjub \rightarrow \AffineEdwardsJubjub$
 as follows:
 
 \begin{formulae}
-  \item $\DecompressValidate(\tilde{u}, \varv) = ...$
+  \item $\DecompressValidate(\tilde{u}, \varv):$
+  \item \tab // Prover supplies the $u$-coordinate.
+  \item \tab Let $u \typecolon \GF{\ParamS{r}}$.
+             \vspace{1ex}
+  \item \tab // \crossref{cctedvalidate}.
+  \item \tab Check that $(u, \varv)$ is a point on the Edwards curve.
+             \vspace{1ex}
+  \item \tab // \crossref{cctmodpack}.
+  \item \tab Unpack $u$ to $\vsum{i=0}{254} u_i \mult 2^i$, equating $\tilde{u}$ with $u_0$.
+             \vspace{1ex}
+  \item \tab // \crossref{cctrange}.
+  \item \tab Check that $\vsum{i=0}{254} u_i \mult 2^i \leq \ParamS{r}-1$.
+             \vspace{1ex}
+  \item \tab Return $(u, \varv)$.
 \end{formulae}
 
-This can be implemented by:
+This costs $3$ constraints for the curve equation check, $1$ constraint for the
+unpacking, and $255 + 133 - 1$ constraints for the range check (which includes
+boolean-constraining $u_\barerange{0}{254}$), for a total of $391$ constraints.
+
+The same \quadraticArithmeticProgram be used for compression and decompression.
+
+\pnote{
+The point-on-curve check could be omitted if $(u, \varv)$ were already known to be on the curve.
+However, the \Sapling circuit never omits it; this provides a redundant consistency check
+on the elliptic curve arithmetic in some cases.
+}
 
 
 \introlist
-\nsubsubsection{Edwards \lrarrow\ Montgomery conversion} \label{cctconversion}
+\nsubsubsubsection{Edwards \lrarrow\ Montgomery conversion} \label{cctconversion}
 
 Define $\EdwardsToMont \typecolon \AffineEdwardsJubjub \rightarrow \AffineMontJubjub$
 as follows:
@@ -8167,7 +8209,7 @@ isomorphic $y$-coordinate rescaling of the \jubjubCurve.)
 
 
 \introsection
-\nsubsubsection{Affine-Montgomery arithmetic} \label{cctmontarithmetic}
+\nsubsubsubsection{Affine-Montgomery arithmetic} \label{cctmontarithmetic}
 
 The incomplete affine-Montgomery addition formulae given in
 \cite[section 4.3.2]{BL2017} are:
@@ -8200,7 +8242,7 @@ $k_1 \neq \pm k_2$. Then the non-unified addition constraints
   \item $\constraint{x_1 - x_3}{\lambda}{y_3 + y_1}$
 \end{formulae}
 
-implement the affine-Montgomery addition $P_1 + P_2 = (x_3, y_3)$ in all cases.
+implement the affine-Montgomery addition $P_1 + P_2 = (x_3, y_3)$ for all such $P_\barerange{1}{2}$.
 \end{theorem}
 
 \begin{proof}
@@ -8240,7 +8282,7 @@ is not the point $(0, 0)$ (the only point of order $2$), as proven in
 
 
 \introlist
-\nsubsubsection{Affine-Edwards arithmetic} \label{cctedarithmetic}
+\nsubsubsubsection{Affine-Edwards arithmetic} \label{cctedarithmetic}
 
 Formulae for affine-Edwards addition are given in \cite[section 6]{BBJLP2008}.
 With a change of variable names to match our convention, the formulae for
@@ -8293,41 +8335,60 @@ This implementation is obtained by specializing the addition formulae to
 $(u, \varv) = (u_1, \varv_1) = (u_2, \varv_2)$ and observing that $u \mult \varv = A = B$.
 
 
-\nsubsubsection{Affine-Edwards cofactor multiplication and nonsmall-order check} \label{cctcofactormult}
+\introsection
+\nsubsubsubsection{Affine-Edwards nonsmall-order check} \label{cctednonsmallorder}
 
-Cofactor multiplication is used to ensure that that the resulting point is of
-order $\ParamJ{r}$, which avoids certain small-subgroup attacks.
+In order to avoid small-subgroup attacks, we check that certain points used in the
+circuit are not of small order. In practice the \Sapling circuit uses this
+in combination with a check that the point is on the curve (\crossref{cctedvalidate}),
+so we combine the two operations.
 
-\introlist
-The cofactor for the Jubjub curve is $8$. A cofactor multiplication can therefore
-be implemented by doubling three times, using the affine-Edwards doubling implementation
-in \crossref{cctedarithmetic}:
+The \jubjubCurve has a large prime-order subgroup with a cofactor of $8$.
+To check for a point $P$ of order $8$ or less, we double twice (as in
+\crossref{cctedarithmetic}) and check that the resulting $u$-coordinate
+is not $0$ (as in \crossref{cctnonzero}).
+
+On a twisted Edwards curve, only the zero point $\ZeroJ$, and the unique point
+of order $2$ at $(0, -1)$ have zero $u$-coordinate. So the check on $u$ rejects
+both $\ZeroJ$ and the point of order $2$, and no other points.
+
+The first doubling can be merged with the curve point check to avoid recomputing $C$ or $T$.
+The second doubling does not need to compute $T$ or the $\varv$-coordinate of the result;
+also, the $u$-coordinate of the result is zero if-and-only-if the intermediate value
+$A$ is zero.
 
 \begin{formulae}
-  \item $(u, \varv) = \scalarmult{2}{\scalarmult{2}{\scalarmult{2}{(u_0, \varv_0)}}}$
+  \item // Curve check.
+  \item $\constraint{u}{u}{uu}$
+  \item $\constraint{\varv}{\varv}{\varvv}$
+  \item $\constraint{\ParamJ{d} \smult uu}{\varvv}{\ParamJ{a} \smult uu + \varvv - 1}$
+        \vspace{1ex}
+  \item // First doubling; subsitute $C = \ParamJ{d} \smult uu \smult \varvv = \ParamJ{a} \smult uu + \varvv - 1$ and
+        $T + (\ParamJ{a} - 1) \smult A = \varvv - \ParamJ{a} \smult uu$.
+  \item $\constraint{u}{\varv}{A_1}$
+  \item $\constraint{\ParamJ{a} \smult uu + \varvv}{u_1}{2 \smult A_1}$
+  \item $\constraint{2 - \ParamJ{a} \smult uu - \varvv}{\varv_1}{\varvv - \ParamJ{a} \smult uu}$
+        \vspace{1ex}
+  \item // Second doubling and non-zero check.
+  \item $\constraint{u_1}{\varv_1}{A_2}$
+  \item // $u$-coordinate is zero if-and-only-if $A_2$ is zero.
+  \item $\constraint{\Ainv}{A_2}{1}$
 \end{formulae}
 
-We can ensure that the original point $(u_0, \varv_0)$ was not of small order (and that
-the resulting point is not $\ZeroJ$) by asserting that $u \neq 0$.
-On a twisted Edwards curve, only the zero point $\ZeroJ$, and the unique point
-of order $2$ at $(0, -1)$ have zero $u$-coordinate.
+The total cost, including the curve check, is $3 + 3 + 2 = 8$ constraints.
 
-The assertion $u \neq 0$ can be implemented in a single constraint as described
-in \crossref{cctnonzero}.
-
-The cost is therefore $3 \mult 5$ constraints for the doublings and $1$ constraint for
-the check on $u$, for a total of $16$ constraints.
-
-In the case where we \emph{only} need to reject points of small order (less than $\ParamJ{r}$)
-and the result of cofactor multiplication is not needed, it is sufficient to double twice
-and check $u \neq 0$. This works because the check on $u$ rejects both the zero point
-and the point of order $2$, and no other points. The second doubling does not need to
-compute $T$ or the $\varv$-coordinate of the result, so the total cost of this
-nonsmall-order check is $5 + 3 + 1 = 9$ constraints.
+\begin{pnotes}
+  \item This \emph{does not} ensure that the point is in the prime-order subgroup.
+  \item If the point $P$ is used as the base of a variable-base scalar
+        multiplication using the algorithm of \crossref{cctvarscalarmult}, then
+        $\scalarmult{4}{P}$ will be calculated as $\Base_2$. Then $\SelectuOf{\Base_2} \neq 0$
+        can be checked using a single constraint (saving $4$ constraints).
+        The \Sapling circuit does not use this optimization.
+\end{pnotes}
 
 
 \introsection
-\nsubsubsection{Fixed-base affine-Edwards scalar multiplication} \label{cctfixedscalarmult}
+\nsubsubsubsection{Fixed-base affine-Edwards scalar multiplication} \label{cctfixedscalarmult}
 
 If the base point $B$ is fixed for a given scalar multiplication $\scalarmult{k}{B}$,
 we can fully precompute window tables for each window position.
@@ -8376,7 +8437,7 @@ the additional complexity was not considered justified for \Sapling.
 
 
 \introsection
-\nsubsubsection{Variable-base affine-Edwards scalar multiplication} \label{cctvarscalarmult}
+\nsubsubsubsection{Variable-base affine-Edwards scalar multiplication} \label{cctvarscalarmult}
 
 When the base point $B$ is not fixed, the method in the preceding section
 cannot be used. Instead we use a naïve double-and-add method.
@@ -8385,20 +8446,20 @@ cannot be used. Instead we use a naïve double-and-add method.
 Given $k = \vsum{i=0}{250} k_i \smult 2^i$, we calculate $R = \scalarmult{k}{B}$ using:
 
 \begin{formulae}
-  \item // $\Base^i = \scalarmult{2^i}{B}$
-  \item let $\Base^0_u = B_u$
-  \item let $\Base^0_{\vv}\hairspace = B_{\vv}$
-  \item let $\Acc^0_u = k_0 \bchoose B_u : 0$
-  \item let $\Acc^0_{\vv}\hairspace = k_0 \bchoose B_{\vv} : 1$
+  \item // $\Base_i = \scalarmult{2^i}{B}$
+  \item let $\Base^u_0 = \SelectuOf{B}$
+  \item let $\Base^{\vv}_0\hairspace = B_{\vv}$
+  \item let $\Acc^u_0 = k_0 \bchoose B^u : 0$
+  \item let $\Acc^{\vv}\_0hairspace = k_0 \bchoose B^{\vv} : 1$
         \vspace{1ex}
   \item for $i$ from $1$ up to $250$:
-  \item \tab let $\Base^i = \scalarmult{2}{\Base^{i-1}}$
+  \item \tab let $\Base_i = \scalarmult{2}{\Base_{i-1}}$
              \vspace{1ex}
-  \item \tab // select $\Base^i$ or $\ZeroJ$ depending on the bit $k_i$
-  \item \tab let $\Addend^i_u = k_i \bchoose \Base^i_u : 0$
-  \item \tab let $\Addend^i_{\vv}\hairspace = k_i \bchoose \Base^i_{\vv} : 1$
-  \item \tab let $\Acc^i = \Acc^{i-1} + \Addend^i$
-  \item let $R = \Acc^{250}$.
+  \item \tab // select $\Base_i$ or $\ZeroJ$ depending on the bit $k_i$
+  \item \tab let $\Addend^u_i = k_i \bchoose \Base^u_i : 0$
+  \item \tab let $\Addend^{\vv}_i\hairspace = k_i \bchoose \Base^{\vv}_i : 1$
+  \item \tab let $\Acc_i = \Acc_{i-1} + \Addend^i$
+  \item let $R = \Acc_{250}$.
 \end{formulae}
 
 This costs $5$ constraints for each of $250$ Edwards doublings, $6$ constraints for each
@@ -8415,7 +8476,7 @@ considered justified for \Sapling.
 
 
 \introsection
-\nsubsubsection{Pedersen hash} \label{cctpedersenhash}
+\nsubsubsubsection{Pedersen hash} \label{cctpedersenhash}
 
 The specification of the \xPedersenHashes used in \Sapling is given in
 \crossref{concretepedersenhash}. It is based on the scheme from
@@ -8550,7 +8611,7 @@ for the Merkle tree hashes $\ell = 516$, so the cost is ... constraints.
 
 
 \introlist
-\nsubsubsection{Mixing Pedersen hash} \label{cctmixinghash}
+\nsubsubsubsection{Mixing Pedersen hash} \label{cctmixinghash}
 
 A mixing \xPedersenHash is used to compute $\NoteAddressRand$ from
 $\cm$ and $\NotePosition$ in \crossref{commitmentsandnullifiers}. It takes as
@@ -8583,7 +8644,7 @@ requires to:
   \item compute the Merkle hash.
 \end{itemize}
 
-The unpacking need not be canonical in the sense discussed in \crossref{cctunpack};
+The unpacking need not be canonical in the sense discussed in \crossref{cctmodpack};
 that is, it is \emph{not} necessary to ensure that the previous-layer or sibling
 bit-sequence inputs represent integers in the range $\range{0}{\ParamS{r}-1}$.
 Since the root of the Merkle tree is calculated outside the circuit using the
@@ -8661,11 +8722,7 @@ $\BlakeTwosGeneric$ is defined in \cite{ANWW2013}. Its main subcomponent is a
 \end{formulae}
 
 A 32-bit exclusive-or can be implemented in $32$ constraints, one for each bit position
-$a \xor b = c$:
-
-\begin{formulae}
-  \item $\constraint{2 \smult a}{b}{a + b - c}$
-\end{formulae}
+$a \xor b = c$ as in \crossref{cctxor}.
 
 Additions not involving a message word require $33$ constraints:
 
@@ -8701,9 +8758,17 @@ cryptanalytic attention to confidently use them for \Sapling.
 \introsection
 \nsubsection{The SaplingSpend circuit} \label{cctsaplingspend}
 
+\begin{formulae}
+  \item ...
+\end{formulae}
 
 
+\introsection
 \nsubsection{The SaplingOutput circuit} \label{cctsaplingoutput}
+
+\begin{formulae}
+  \item ...
+\end{formulae}
 
 } %notsprout
 
