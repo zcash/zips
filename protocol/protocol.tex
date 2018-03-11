@@ -2411,8 +2411,9 @@ $\SigVerify{\vk}(m, s) = 1$.
         \spendDescriptions.}
 \end{itemize}
 
-The following defines only the security properties needed
-for $\JoinSplitSig$\sapling{ and $\SpendAuthSig$}.
+The following defines only the security properties needed for $\JoinSplitSig$.
+\sapling{Security properties for $\SpendAuthSig$ are defined in the next section,
+\crossref{abstractsigrerand}.}
 
 \securityrequirement{
 $\JoinSplitSig$\sapling{ and $\SpendAuthSig$} must be
@@ -2980,7 +2981,7 @@ A \spendDescription consists of $(\cv, \rt, \nf, \ProofSpend, \spendAuthSig)$
 
 where
 \begin{itemize}
-  \item $\cv \typecolon \bitseq{\ellJ}$ is the \valueCommitment to the value of the input \note;
+  \item $\cv \typecolon \ValueCommitOutput$ is the \valueCommitment to the value of the input \note;
   \item $\rt \typecolon \MerkleHashSapling$ is an \anchor, as defined in
         \crossref{blockchain}, for the output \treestate of a previous \block.
   \item $\nf \typecolon \bitseq{\ellJ}$ is the \nullifier for the input \note;
@@ -3014,8 +3015,8 @@ An \outputDescription consists of $(\cv, \cm, \EphemeralPublic, \TransmitCiphert
 
 where
 \begin{itemize}
-  \item $\cv \typecolon \bitseq{\ellJ}$ is the \valueCommitment to the value of the output \note;
-  \item $\cm \typecolon \bitseq{\ellJ}$ is the \noteCommitment for the output \note;
+  \item $\cv \typecolon \ValueCommitOutput$ is the \valueCommitment to the value of the output \note;
+  \item $\cm \typecolon \NoteCommitSaplingOutput$ is the \noteCommitment for the output \note;
   \item $\EphemeralPublic \typecolon \KASaplingPublic$ is
         a key agreement public key, used to derive the key for encryption
         of the \notesCiphertext (\crossref{inband});
@@ -3132,7 +3133,6 @@ $(\Diversifier, \DiversifiedTransmitPublic)$, and then performs the following st
         and check that $\DiversifiedTransmitBase \neq \bot$.
 
   \item Choose $\EphemeralPrivate$ uniformly at random on $\range{0}{\ParamJ{r} - 1}$.
-        \todo{any advantage in making this $\range{0}{\JubjubScalarThreshold - 1}$?}
 
   \item Choose independent random commitment trapdoors:
 
@@ -4085,10 +4085,10 @@ $\PedersenEncode{\paramdot} \typecolon \bitseq{3 \mult \range{1}{c}} \rightarrow
   \item Let $\PedersenEncode{M_i} = \vsum{j=1}{k_i} \enc(m_j) \mult 2^{4 \mult (j-1)}$.
 \end{formulae}
 
-Finally, define $\PedersenHash \typecolon \byteseq{8} \times \bitseq{\PosInt} \rightarrow \bitseq{255}$ by:
+Finally, define $\PedersenHash \typecolon \byteseq{8} \times \bitseq{\PosInt} \rightarrow \MerkleHashSapling$ by:
 
 \begin{formulae}
-  \item $\PedersenHash(D, M) := \ItoLEBSP{255}(\ExtractJ(\PedersenHashToPoint(D, M)))$.
+  \item $\PedersenHash(D, M) := \ItoLEBSP{\MerkleHashLengthSapling}(\ExtractJ(\PedersenHashToPoint(D, M)))$.
 \end{formulae}
 
 See \crossref{cctpedersenhash} for rationale and efficient circuit implementation
@@ -4141,8 +4141,8 @@ Since the security proof from \cite[Appendix A]{BGG1995}
 depends only on the encoding being injective and its range not including
 zero, the proof can be adapted straightforwardly to show that $\PedersenHashToPoint$
 is collision-resistant under the same assumptions and security bounds.
-Because $\ItoLEBSP{255}$ and $\ExtractJ$ are injective, it follows that
-$\PedersenHash$ is equally collision-resistant.
+Because $\ItoLEBSP{\MerkleHashLengthSapling}$ and $\ExtractJ$ are injective,
+it follows that $\PedersenHash$ is equally collision-resistant.
 } %sapling
 
 
@@ -4169,8 +4169,7 @@ Fix $D_1, D_2 \typecolon \byteseq{8}$ with $D_1 \neq D_2$, and consider the func
 This function must be collision-resistant on $(r, M, x)$.
 }
 
-See \crossref{cctmixinghash} for rationale and efficient circuit implementation
-of this function.
+See \crossref{cctmixinghash} for efficient circuit implementation of this function.
 } %sapling
 
 
@@ -4616,7 +4615,8 @@ The encoding of a public key is as defined in \cite{BDLSY2012}.
 \sapling{
 \nsubsubsection{\SpendAuthSignature} \label{concretespendauthsig}
 
-$\SpendAuthSig$ is specified in \crossref{abstractsig}.
+$\SpendAuthSig$ is a signature scheme with re-randomizable keys specified in
+\crossref{abstractsigrerand}.
 
 It is instantiated as EdJubjub, which is defined as $\EdDSA$ \cite{BJLSY2015} over the
 \jubjubCurve which these additional constraints: \todo{...}
@@ -6059,6 +6059,8 @@ Consensus rules applying to a \joinSplitDescription are given in \crossref{joins
 \introsection
 \nsubsection{Encoding of \SpendDescriptions} \label{spendencoding}
 
+Let $\LEBStoOSP{}{}$ be as defined in \crossref{endian}.
+
 An abstract \spendDescription, as described in \crossref{spendsandoutputs}, is encoded in
 a \transaction as an instance of a \type{SpendDescription} type as follows:
 
@@ -6069,12 +6071,14 @@ a \transaction as an instance of a \type{SpendDescription} type as follows:
 Bytes & \heading{Name} & \heading{Data Type} & \heading{Description} \\
 \hhline{|=|=|=|=|}
 
-$32$ & $\cvField$ & \type{char[32]} & A \valueCommitment to the value of the input \note. \\ \hline
+$32$ & $\cvField$ & \type{char[32]} & A \valueCommitment to the value of the input \note,
+$\LEBStoOSPOf{256}{\cv}$. \\ \hline
 
-$32$ & $\anchorField$ & \type{char[32]} & A merkle root $\rt$ of the \Sapling
-\noteCommitmentTree at some \blockHeight in the past. \\ \hline
+$32$ & $\anchorField$ & \type{char[32]} & A \merkleRoot of the \Sapling \noteCommitmentTree
+at some \blockHeight in the past, $\LEBStoOSPOf{256}{\rt}$. \\ \hline
 
-$32$ & $\nullifierField$ & \type{char[32]} & The \nullifier of the input \note, $\nf$. \\ \hline
+$32$ & $\nullifierField$ & \type{char[32]} & The \nullifier of the input \note,
+$\LEBStoOSPOf{256}{\nf}$. \\ \hline
 
 $192$ & $\zkproof$ & \type{char[192]} & An encoding of the \zeroKnowledgeProof
 $\ProofSpend$ (see \crossref{groth}). \\ \hline
@@ -6090,6 +6094,8 @@ Consensus rules applying to a \spendDescription are given in \crossref{spenddesc
 \introsection
 \nsubsection{Encoding of \OutputDescriptions} \label{outputencoding}
 
+Let $\LEBStoOSP{}{}$ be as defined in \crossref{endian}.
+
 An abstract \outputDescription, as described in \crossref{spendsandoutputs}, is encoded in
 a \transaction as an instance of an \type{OutputDescription} type as follows:
 
@@ -6100,11 +6106,14 @@ a \transaction as an instance of an \type{OutputDescription} type as follows:
 Bytes & \heading{Name} & \heading{Data Type} & \heading{Description} \\
 \hhline{|=|=|=|=|}
 
-$32$ & $\cvField$ & \type{char[32]} & A \valueCommitment to the value of the output \note. \\ \hline
+$32$ & $\cvField$ & \type{char[32]} & A \valueCommitment to the value of the output \note,
+$\LEBStoOSPOf{256}{\cv}$. \\ \hline
 
-$32$ & $\cmField$ & \type{char[32]} & The \noteCommitment for the output \note, $\cm$. \\ \hline
+$32$ & $\cmField$ & \type{char[32]} & The \noteCommitment for the output \note,
+$\LEBStoOSPOf{256}{\cm}$. \\ \hline
 
-$32$ & $\ephemeralKey$ & \type{char[32]} & A $\JubjubCurve$ public key $\EphemeralPublic$. \\ \hline
+$32$ & $\ephemeralKey$ & \type{char[32]} & An encoding of a $\JubjubCurve$ public key $\EphemeralPublic$
+(see \crossref{concretesaplingkeyagreement}). \\ \hline
 
 $580$ & $\encCiphertext$ & \type{char[580]} & A ciphertext component for the
 encrypted output \note, $\TransmitCiphertext{}$. \\ \hline
@@ -7305,6 +7314,7 @@ Daira Hopwood, Sean Bowe, and Jack Grigg.
           into their own sections. Specify $\SHACompress$ more precisely.
     \item Add Tracy Hu to acknowledgements\sapling{ (for the idea of explicitly
           encoding the root of the \Sapling \noteCommitmentTree in \blockHeaders)}.
+    \item Move bit/byte/integer conversion primitives into \crossref{endian}.
 \sapling{
     \item Refer to \NUZero and \Sapling just as ``upgrades'' in the abstract, not as
           the next ``minor version'' and ``major version''.
