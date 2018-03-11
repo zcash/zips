@@ -3348,7 +3348,7 @@ is computed from its \noteCommitment $\cm$ and \notePosition $\NotePosition$
 as follows:
 
 \begin{formulae}
-  \item $\NoteAddressRand := \MixingPedersenHash(\ascii{Zcashrho}, \cm, \NotePosition)$.
+  \item $\NoteAddressRand := \MixingPedersenHash(\cm, \NotePosition)$.
 \end{formulae}
 
 $\MixingPedersenHash$ is defined in \crossref{concretemixinghash}.
@@ -3923,6 +3923,12 @@ $\MerkleCRHSapling \typecolon \MerkleLayerSapling \times \MerkleHashSapling \tim
 \securityrequirement{
 $\PedersenHash$ must be collision-resistant.
 }
+
+\pnote{
+The prefix $l$ provides domain separation between inputs at different layers of the
+\noteCommitmentTree. It is distinct from the prefix used in $\NoteCommitSaplingAlg$
+as noted in \crossref{concretewindowedcommit}.
+}
 } %sapling
 
 
@@ -4172,20 +4178,20 @@ A mixing \xPedersenHash is used to compute $\NoteAddressRand$ from
 $\cm$ and $\NotePosition$ in \crossref{commitmentsandnullifiers}. It takes as
 input a \xPedersenCommitment $P$, and hashes it with another input $x$.
 
-We define $\MixingPedersenHash \typecolon \byteseq{8} \times \GroupJ \times \range{0}{\ParamJ{r}-1}
+We define $\MixingPedersenHash \typecolon \GroupJ \times \range{0}{\ParamJ{r}-1}
 \rightarrow \GroupJ$ by:
 
 \begin{formulae}
-  \item $\MixingPedersenHash(D, P, x) := P + \scalarmult{x}{\FindGroupJHashOf{D, \ascii{}}}$.
+  \item $\MixingPedersenHash(P, x) := P + \scalarmult{x}{\FindGroupJHashOf{\ascii{Zcashrho}, \ascii{x}}}$.
 \end{formulae}
 
 \securityrequirement{
-Fix $D_1, D_2 \typecolon \byteseq{8}$ with $D_1 \neq D_2$, and consider the function
+The function
 \begin{formulae}
   \item $\fun{(r, M, x) \typecolon \range{0}{\ParamJ{r}-1} \times \bitseq{\PosInt} \times
-        \range{0}{\ParamJ{r}-1}}{\MixingPedersenHash(D_2, x, \WindowedPedersenCommit{r}(D_1, M)) \typecolon \GroupJ}$.
+           \range{0}{\ParamJ{r}-1}}{\MixingPedersenHash(\WindowedPedersenCommit{r}(M), x) \typecolon \GroupJ}$.
 \end{formulae}
-This function must be collision-resistant on $(r, M, x)$.
+must be collision-resistant on $(r, M, x)$.
 }
 
 See \crossref{cctmixinghash} for efficient circuit implementation of this function.
@@ -4695,8 +4701,8 @@ construction from \crossref{concretepedersenhash}, and adding a randomized point
 on the \jubjubCurve (see \crossref{jubjub}):
 
 \begin{formulae}
-  \item $\WindowedPedersenCommit{r}(D, s) :=
-           \PedersenHashToPoint(D, s) + \scalarmult{r}{\FindGroupJHashOf{D, \ascii{}}}$.
+  \item $\WindowedPedersenCommit{r}(s) :=
+           \PedersenHashToPoint(\ascii{Zcash\_PH}, s) + \scalarmult{r}{\FindGroupJHashOf{\ascii{Zcash\_PH}, \ascii{r}}}$
 \end{formulae}
 
 See \crossref{cctwindowedcommit} for rationale and efficient circuit implementation
@@ -4707,18 +4713,26 @@ instantiated using $\WindowedPedersenCommitAlg$ as follows:
 
 \begin{formulae}
   \item $\NoteCommitSapling{\NoteCommitRand}(\Diversifier, \DiversifiedTransmitPublic, \Value) :=
-           \WindowedPedersenCommit{\NoteCommitRand}(\ascii{Zcash\_cm},
-             \Diversifier \bconcat \DiversifiedTransmitPublic \bconcat \ItoLEBSP{64}(\Value))$.
+           \WindowedPedersenCommit{\NoteCommitRand}(\ones{6} \bconcat \Diversifier \bconcat
+             \DiversifiedTransmitPublic \bconcat \ItoLEBSP{64}(\Value))$.
 \end{formulae}
 
 \begin{securityrequirements}
   \item $\WindowedPedersenCommitAlg$ must be a computationally binding and at least
-        computationally hiding \commitmentScheme, for a given personalization input $D$.
+        computationally hiding \commitmentScheme.
   \item $\NoteCommitSaplingAlg$ must be a computationally binding and at least
         computationally hiding \commitmentScheme.
 \end{securityrequirements}
 
 (They are in fact unconditionally hiding \commitmentSchemes.)
+
+\pnote{
+The prefix $\ones{6}$ distinguishes the use of $\WindowedPedersenCommitAlg$ in
+$\NoteCommitSaplingAlg$ from the layer prefix used in $\MerkleCRHSapling$ (see
+\crossref{merklecrh}). The latter is a $6$-bit little-endian encoding of an integer
+in $\range{0}{\MerkleDepthSapling-1}$, and so cannot collide with $\ones{6}$ because
+$\MerkleDepthSapling < 64$.
+}
 }
 
 
@@ -4735,7 +4749,7 @@ In order to support this property, we also define \quotedterm{homomorphic}
 
 \begin{formulae}
   \item $\HomomorphicPedersenCommit{\ValueCommitRand}(D, \Value) :=
-          \scalarmult{\Value}{\FindGroupJHashOf{D}, \ascii{v}} + \scalarmult{\ValueCommitRand}{\FindGroupJHashOf{D, \ascii{}}}$
+          \scalarmult{\Value}{\FindGroupJHashOf{D}, \ascii{v}} + \scalarmult{\ValueCommitRand}{\FindGroupJHashOf{D, \ascii{r}}}$
 \end{formulae}
 
 
@@ -8607,11 +8621,11 @@ $\cm$ and $\NotePosition$ in \crossref{commitmentsandnullifiers}. It takes as
 input a \xPedersenCommitment $P$, and hashes it with another input $x$.
 
 \introlist
-We define $\MixingPedersenHash \typecolon \byteseq{8} \times \range{0}{\ParamJ{r}-1}
+We define $\MixingPedersenHash \typecolon \range{0}{\ParamJ{r}-1}
 \times \GroupJ \rightarrow \GroupJ$ by:
 
 \begin{formulae}
-  \item $\MixingPedersenHash(D, P, x) := P + \scalarmult{x}{\FindGroupJHashOf{D, \ascii{}}}$.
+  \item $\MixingPedersenHash(P, x) := P + \scalarmult{x}{\FindGroupJHashOf{\ascii{Zcashrho}, \ascii{x}}}$.
 \end{formulae}
 
 This costs \todo{...} for the scalar multiplication, and $6$ constraints for the
@@ -8662,8 +8676,8 @@ We construct \windowedPedersenCommitments by reusing the Pedersen hash
 implementation, and adding a randomized point:
 
 \begin{formulae}
-  \item $\WindowedPedersenCommit{r}(D, s) =
-           \PedersenHashToPoint(D, s) + \scalarmult{r}{\FindGroupJHashOf{D, \ascii{}}}$
+  \item $\WindowedPedersenCommit{r}(s) =
+           \PedersenHashToPoint(\ascii{Zcash\_PH}, s) + \scalarmult{r}{\FindGroupJHashOf{\ascii{Zcash\_PH}, \ascii{r}}}$
 \end{formulae}
 
 \introlist
@@ -8690,7 +8704,7 @@ as follows:
 
 \begin{formulae}
   \item $\HomomorphicPedersenCommit{\ValueCommitRand}(D, \Value) =
-          \scalarmult{\Value}{\FindGroupJHashOf{D, \ascii{v}}} + \scalarmult{\ValueCommitRand}{\FindGroupJHashOf{D, \ascii{}}}$
+          \scalarmult{\Value}{\FindGroupJHashOf{D, \ascii{v}}} + \scalarmult{\ValueCommitRand}{\FindGroupJHashOf{D, \ascii{r}}}$
 \end{formulae}
 
 In the case that we need for $\ValueCommit{}$, $\Value$ has $64$ bits
