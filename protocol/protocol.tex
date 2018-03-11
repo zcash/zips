@@ -869,8 +869,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\ValueOld}[1]{\Value^\mathsf{old}_{#1}}
 \newcommand{\ValueCommitRand}{\mathsf{rcv}}
 \newcommand{\ValueCommitRandLength}{\mathsf{\ell_{\ValueCommitRand}}}
-\newcommand{\ValueCommitRandOld}{\ValueCommitRand^\mathsf{old}}
-\newcommand{\ValueCommitRandNew}{\ValueCommitRand^\mathsf{new}}
+\newcommand{\ValueCommitRandOld}[1]{\ValueCommitRand^\mathsf{old}_{#1}}
+\newcommand{\ValueCommitRandNew}[1]{\ValueCommitRand^\mathsf{new}_{#1}}
 \newcommand{\NoteTuple}[1]{\mathbf{n}_{#1}}
 \newcommand{\NoteTypeSprout}{\optSprout{\mathsf{Note}}}
 \newcommand{\NoteTypeSapling}{\mathsf{Note^{Sapling}}}
@@ -1856,7 +1856,8 @@ used by the \zeroKnowledgeProof when the \note is spent, to check that it exists
 on the \blockchain.
 
 \vspace{2ex}
-A \notsprout{\Sprout} \noteCommitment is computed as
+A \notsprout{\Sprout} \noteCommitment on a \note
+$\NoteTuple{} = \changed{(\AuthPublic, \Value, \NoteAddressRand, \NoteCommitRand)}$ is computed as
 \begin{formulae}
   \item $\NoteCommitmentSprout(\NoteTuple{}) =
           \NoteCommitSprout{\NoteCommitRand}(\AuthPublic, \Value, \NoteAddressRand)$,
@@ -1868,12 +1869,15 @@ where $\NoteCommitSprout{}$ is instantiated in \crossref{concretesproutcommit}.
 \vspace{2ex}
 Let $\GroupJHash{}$ and $U$ be as defined in \crossref{concretegrouphashjubjub}.
 
-A \Sapling \noteCommitment is computed as
+A \Sapling \noteCommitment on a \note
+$\NoteTuple{} = (\Diversifier, \DiversifiedTransmitPublic, \Value, \NoteCommitRand)$ is computed as
 
 \begin{formulae}
   \item $\DiversifiedTransmitBase := \GroupJHash{U}(\ascii{Zcash\_gd}, \Diversifier)$
-  \item $\NoteCommitmentSapling(\NoteTuple{}) :=
-           \NoteCommitSapling{\NoteCommitRand}(\reprJOf{\DiversifiedTransmitBase}, \DiversifiedTransmitPublic, \Value)$
+  \item $\NoteCommitmentSapling(\NoteTuple{}) := \begin{cases}
+          \bot, &\caseif \DiversifiedTransmitBase = \bot \\
+          \NoteCommitSapling{\NoteCommitRand}(\reprJOf{\DiversifiedTransmitBase}, \DiversifiedTransmitPublic, \Value), &\caseotherwise.
+        \end{cases}$
 \end{formulae}
 \vspace{-1.5ex}
 where $\NoteCommitSapling{}$ is instantiated in \crossref{concretewindowedcommit}.
@@ -2120,6 +2124,8 @@ for the whole \transaction to balance.
 \includegraphics[scale=.4]{incremental_merkle}
 \end{center}
 
+\sapling{\todo{The commitment indices in the above diagram should be zero-based to reflect the \notePosition{}.}}
+
 The \noteCommitmentTree is an \incrementalMerkleTree of fixed depth used to store
 \noteCommitments that \joinSplitTransfers\sapling{ and \spendTransfers} produce.
 Just as the \term{unspent transaction output set} (UTXO set) used in \Bitcoin,
@@ -2255,7 +2261,7 @@ $\PRFexpand{}$ is used in \crossref{saplingkeycomponents}; $\PRFnr{}$ is used in
 \begin{securityrequirements}
   \item Security definitions for \pseudoRandomFunctions are given in \cite[section 4]{BDJR2000}.
   \item In addition to being \pseudoRandomFunctions, it is required that
-        $\PRFnf{x}$,\changed{ $\PRFaddr{x}$, \sprout{and} $\PRFrho{x}$}\sapling{, and $\PRFnr{x}$}
+        $\PRFnf{x}$,\changed{ $\PRFaddr{x}$,\sprout{ and} $\PRFrho{x}$}\sapling{, and $\PRFnr{x}$}
         be collision-resistant across all $x$ --- i.e.\ finding $(x, y) \neq (x', y')$
         such that $\PRFnf{x}(y) = \PRFnf{x'}(y')$ should not be feasible\changed{, and
         similarly for $\PRFaddr{}$ and $\PRFrho{}$\sapling{ and $\PRFnr{}$}}.
@@ -2819,7 +2825,7 @@ Let $\KASapling$ be a \keyAgreementScheme, instantiated in \crossref{concretesap
 
 Let $\CRHivk$ be a \hashFunction, instantiated in \crossref{concretecrhivk}.
 
-Let $\FindGroupJHash{U}$ be as defined in \crossref{concretegrouphashjubjub}.
+Let $\FindGroupJHash$ be as defined in \crossref{concretegrouphashjubjub}.
 
 Let $\AuthSignBase = \FindGroupJHashOf{\ascii{Zcash\_G\_}, \ascii{}}$ and
 let $\AuthProveBase = \FindGroupJHashOf{\ascii{Zcash\_H\_}, \ascii{}}$.
@@ -3145,11 +3151,11 @@ $(\Diversifier, \DiversifiedTransmitPublic)$, and then performs the following st
   \item Calculate
 
         \begin{tabular}{@{\hskip 2em}r@{\;}l}
-          $\cvNew{\OutputIndex}$ &$:= \ValueCommit{\ValueCommitRandNew{\OutputIndex}}(\ValueNew{\OutputIndex})$ \\
+          $\cvNew{\OutputIndex}$ &$:= \ValueCommit{\ValueCommitRandNew{\OutputIndex}}(\ValueNew{\OutputIndex})$ \\[1ex]
           $\cmNew{\OutputIndex}$ &$:=
              \NoteCommitSapling{\NoteCommitRandNew{\OutputIndex}}(\reprJOf{\DiversifiedTransmitBase),
                                                                   \DiversifiedTransmitPublic,
-                                                                  \ValueNew{\OutputIndex}}$ \\
+                                                                  \ValueNew{\OutputIndex}}$ \\[1ex]
           $\EphemeralPublic$ &$:= \KASaplingDerivePublic(\EphemeralPrivate, \DiversifiedTransmitBase)$.
         \end{tabular}
 
@@ -3219,9 +3225,7 @@ $\UncommittedSprout$ \sapling{ or $\UncommittedSapling$}.
 It is assumed to be infeasible to find a preimage \note $\NoteTuple{}$ such that
 $\NoteCommitmentSprout(\NoteTuple{}) = \UncommittedSprout$.
 \sapling{(No similar assumption is needed for \Sapling because we use a representation
-for $\UncommittedSapling$ that cannot occur as an output of $\NoteCommitmentSapling$,
-and explicitly check when a \note is spent that this representation is not given as
-its purported \noteCommitment.)}
+for $\UncommittedSapling$ that cannot occur as an output of $\NoteCommitmentSapling$.)}
 
 \introlist
 The \merkleNodes at \merkleLayers $0$ to $\MerkleDepth-1$ inclusive are called
@@ -3244,7 +3248,7 @@ A \merklePath from \merkleLeafNode $\MerkleNode{\MerkleDepth}{i}$ in the
 
 where
 \begin{formulae}
-  \item $\MerkleSibling(h, i) := \floor{\frac{i}{2^{\MerkleDepth-h}}} \xor 1$
+  \item $\MerkleSibling(h, i) := \floor{\frac{i}{\strut 2^{\MerkleDepth-h}}} \xor 1$
 \end{formulae}
 
 Given such a \merklePath, it is possible to verify that \merkleLeafNode
@@ -3473,10 +3477,10 @@ the prover knows an \term{auxiliary input}:
   \item $(\treepath{} \typecolon \typeexp{\MerkleHash}{\MerkleDepthSapling} \times \NotePositionTypeSapling,\\
    \hparen\nOld{} \typecolon \NoteTypeSapling,\\
    \hparen\cmOld{} \typecolon \MerkleHashSapling,\\
-   \hparen\ValueCommitRandOld \typecolon \ValueCommitTrapdoor,\\
+   \hparen\ValueCommitRandOld{} \typecolon \ValueCommitTrapdoor,\\
    \hparen\DiversifiedTransmitBase \typecolon \KASaplingPublic,\\
    \hparen\DiversifiedTransmitPublic \typecolon \KASaplingPublic,\\
-   \hparen\NoteCommitRandOld \typecolon \NoteCommitSaplingTrapdoor,\\
+   \hparen\NoteCommitRandOld{} \typecolon \NoteCommitSaplingTrapdoor,\\
    \hparen\AuthSignPublic \typecolon \KASaplingPublic,\\
    \hparen\AuthProvePrivate \typecolon \KASaplingPrivate)$
 \end{formulae}
@@ -3522,8 +3526,7 @@ where
 
 \subparagraph{Spend authority} \label{saplingspendauthority}
 
-for each $i \in \setofOld$:
-$\AuthPublicOld{i} = \PRFaddr{\AuthPrivateOld{i}}(0)$.
+\todo{}
 
 \vspace{2.5ex}
 For details of the form and encoding of \spendStatement proofs, see \crossref{groth}.
@@ -5140,6 +5143,7 @@ is injective on points in $G$.
 
 
 \sapling{
+\introsection
 \nsubsubsubsection{\GroupHash{} into \Jubjub} \label{concretegrouphashjubjub}
 
 %Let $\CRS$ be the $64$-byte \commonRandomString given by the $\SHAd$ hash
@@ -5150,23 +5154,18 @@ is injective on points in $G$.
 
 Let $\BlakeTwos{256}$ be as defined in \crossref{concreteblake2}.
 
+Let $\LEOStoIP{}$ be as defined in \crossref{endian}.
+
 Let $\abstJ$ be as defined in \crossref{jubjub}.
 
 Let $D \typecolon \byteseq{8}$ be an $8$-byte domain separator, and
 let $M \typecolon \byteseqs$ be the hash input.
 
+\introlist
 The hash $\GroupJHash{\CRS}(D, M)$ is calculated as follows:
 
-\newsavebox{\ghintbox}
-\begin{lrbox}{\ghintbox}
-\begin{bytefield}[bitwidth=0.04em]{256}
-    \sbitbox{256}{256-bit $p$}
-\end{bytefield}
-\end{lrbox}
-
 \begin{formulae}
-  \item $\Justthebox{\ghintbox} := \BlakeTwosOf{256}{D,\, \CRS \bconcat\, M}$
-  \item $P := \abstJOf{p}$
+  \item $P := \abstJOf{\LEOStoIPOf{256}{\BlakeTwosOf{256}{D,\, \CRS \bconcat\, M}}}$
   \item If $P = \bot$ then return $\bot$.
   \item $Q := \scalarmult{8}{P}$
   \item If $Q = \ZeroJ$ then return $\bot$, else return $Q$.
