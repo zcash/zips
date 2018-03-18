@@ -551,6 +551,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\diversifiedTransmissionKeys}{\term{diversified transmission keys}}
 \newcommand{\authSigningKey}{\term{spend authorizing key}}
 \newcommand{\authSigningKeys}{\term{spend authorizing keys}}
+\newcommand{\authRandomizedVerifyingKey}{\term{randomized spend verifying key}}
+\newcommand{\authRandomizedVerifyingKeys}{\term{randomized spend verifying keys}}
 \newcommand{\authProvingKey}{\term{proof authorizing key}}
 \newcommand{\authProvingKeys}{\term{proof authorizing keys}}
 \newcommand{\nullifierKey}{\term{nullifier deriving key}}
@@ -795,26 +797,33 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 
 % Sapling
 
+\newcommand{\Repr}[1]{{#1}^*}
 \newcommand{\SpendingKey}{\mathsf{sk}}
 \newcommand{\SpendingKeyLength}{\mathsf{\ell_{\SpendingKey}}}
 \newcommand{\AuthSignPrivate}{\mathsf{ask}}
 \newcommand{\AuthSignBase}{\mathcal{G}}
 \newcommand{\AuthSignPublic}{\mathsf{ak}}
-\newcommand{\AuthProvePrivate}{\mathsf{rsk}}
+\newcommand{\AuthSignPublicRepr}{\Repr{\AuthSignPublic}}
+\newcommand{\AuthSignRandomizedPublic}{\mathsf{rk}}
+\newcommand{\AuthSignRandomizedPublicRepr}{\Repr{\AuthSignRandomizedPublic}}
+\newcommand{\AuthSignRandomizedPublicOld}{\AuthSignRandomizedPublic^{\mathsf{old}}}
+\newcommand{\AuthSignRandomizedPublicOldRepr}{\AuthSignRandomizedPublic^{\mathsf{old}*}}
+\newcommand{\AuthSignRandomness}{\mathsf{ar}}
+\newcommand{\AuthProvePrivate}{\mathsf{nsk}}
 \newcommand{\AuthProveBase}{\mathcal{H}}
-\newcommand{\AuthProvePublic}{\mathsf{rk}}
+\newcommand{\AuthProvePublic}{\mathsf{nk}}
+\newcommand{\AuthProvePublicRepr}{\Repr{\AuthProvePublic}}
 \newcommand{\NotePosition}{\mathsf{pos}}
 \newcommand{\NotePositionBase}{\mathcal{J}}
 \newcommand{\NotePositionTypeSprout}{\range{0}{2^{\MerkleDepthSprout}-1}}
 \newcommand{\NotePositionTypeSapling}{\range{0}{2^{\MerkleDepthSapling}-1}}
-\newcommand{\NullifierRand}{\mathsf{nr}}
-\newcommand{\Hashnr}{H^{\NullifierRand}}
 \newcommand{\Diversifier}{\mathsf{d}}
 \newcommand{\DiversifierLength}{\mathsf{\ell_{\Diversifier}}}
 \newcommand{\DiversifierType}{\bitseq{\DiversifierLength}}
 \newcommand{\DiversifiedTransmitBase}{\mathsf{g_d}}
+\newcommand{\DiversifiedTransmitBaseRepr}{\Repr{\DiversifiedTransmitBase}}
 \newcommand{\DiversifiedTransmitPublic}{\mathsf{pk_d}}
-\newcommand{\Index}{\mathsf{Index}}
+\newcommand{\DiversifiedTransmitPublicRepr}{\Repr{\DiversifiedTransmitPublic}}
 
 % PRFs
 
@@ -825,9 +834,11 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\PRFsn}[1]{\PRF{#1}{sn}}
 \newcommand{\PRFpk}[1]{\PRF{#1}{pk}}
 \newcommand{\PRFrho}[1]{\PRF{#1}{\NoteAddressRand}}
-\newcommand{\PRFnr}[1]{\PRF{#1}{\NullifierRand}}
+\newcommand{\PRFnfSapling}[1]{\PRF{#1}{nfSapling}}
 \newcommand{\PRFOutputLength}{\mathsf{\ell_{PRF}}}
 \newcommand{\PRFOutput}{\bitseq{\PRFOutputLength}}
+\newcommand{\PRFOutputLengthSapling}{\mathsf{\ell_{PRFSapling}}}
+\newcommand{\PRFOutputSapling}{\bitseq{\PRFOutputLengthSapling}}
 
 % Commitments
 
@@ -1094,6 +1105,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\joinSplitPubKey}{\mathtt{joinSplitPubKey}}
 \newcommand{\nullifierField}{\mathtt{nullifier}}
 \newcommand{\nullifiersField}{\mathtt{nullifiers}}
+\newcommand{\rkField}{\mathtt{rk}}
 \newcommand{\cvField}{\mathtt{cv}}
 \newcommand{\cmField}{\mathtt{cm}}
 \newcommand{\commitment}{\mathtt{commitment}}
@@ -1801,8 +1813,9 @@ The following integer constants will be instantiated in \crossref{constants}:
   $\MerkleDepthSprout$, \sapling{$\MerkleDepthSapling$,}
   $\NOld$, $\NNew$, $\MerkleHashLengthSprout$, \sapling{$\MerkleHashLengthSapling$,}
   $\hSigLength$, $\PRFOutputLength$, $\NoteCommitRandLength$,
-  $\RandomSeedLength$, $\AuthPrivateLength$, \sapling{$\SpendingKeyLength$, $\DiversifierLength$,}
-  $\NoteAddressPreRandLength$, $\MAXMONEY$, $\SlowStartInterval$, $\HalvingInterval$,
+  \changed{$\RandomSeedLength$,} $\AuthPrivateLength$, \changed{$\NoteAddressPreRandLength$,}
+  \sapling{$\SpendingKeyLength$, $\DiversifierLength$, $\InViewingKeyLength$,}
+  $\MAXMONEY$, $\SlowStartInterval$, $\HalvingInterval$,
   $\MaxBlockSubsidy$, $\NumFounderAddresses$, $\PoWAveragingWindow$, $\PoWLimit$,
   $\PoWMedianBlockSpan$, $\PoWDampingFactor$, $\PoWTargetSpacing$.
 \notsprout{\end{formulae}}
@@ -1935,7 +1948,7 @@ A \Sapling \note is a tuple $(\Diversifier, \DiversifiedTransmitPublic,
 \begin{itemize}
   \item $\Diversifier \typecolon \DiversifierType$
         is the \diversifier of the recipient's \paymentAddress;
-  \item $\DiversifiedTransmitPublic \typecolon \bitseq{\ellJ}$
+  \item $\DiversifiedTransmitPublic \typecolon \GroupJ$
         is the \diversifiedTransmissionKey of the recipient's \paymentAddress;
   \item $\Value \typecolon \range{0}{\MAXMONEY}$ is an integer
         representing the value of the \note in \zatoshi;
@@ -1947,8 +1960,8 @@ A \Sapling \note is a tuple $(\Diversifier, \DiversifiedTransmitPublic,
 Let $\NoteTypeSapling$ be the type of a \Sapling \note, i.e.
 
 \begin{formulae}
-  \item $\NoteTypeSapling := \DiversifierType \times \bitseq{\ellJ} \times \range{0}{\MAXMONEY}
-           \times \bitseq{\ellJ} \times \NoteCommitSaplingTrapdoor$.
+  \item $\NoteTypeSapling := \DiversifierType \times \GroupJ \times \range{0}{\MAXMONEY}
+           \times \NoteCommitSaplingTrapdoor$.
 \end{formulae}
 } %sapling
 
@@ -2000,7 +2013,8 @@ We refer to the combination of a \note and its \notePosition $\NotePosition$, as
 \positionedNote.
 
 For a \positionedNote, we can compute the value
-$\NoteAddressRand \typecolon \bitseq{\ellJ}$ as described in \crossref{commitmentsandnullifiers}.
+$\NoteAddressRand \typecolon \bitseq{\PRFOutputLengthSapling}$; see
+\crossref{commitmentsandnullifiers}.
 } %sapling
 
 \vspace{2ex}
@@ -2316,6 +2330,8 @@ Let $\MerkleDepthSprout$, $\MerkleHashLengthSprout$,
 $\RandomSeedLength$, $\hSigLength$, $\PRFOutputLength$, and $\NOld$
 be as defined in \crossref{constants}.
 
+\sapling{Let $\ellJ$ be as defined in \crossref{jubjub}.}
+
 \sprout{
 $\MerkleCRH \typecolon \MerkleHashSprout \times \MerkleHashSprout \rightarrow \MerkleHashSprout$
 is a \collisionResistant \hashFunction used in \crossref{merklepath}.
@@ -2346,25 +2362,41 @@ the Equihash parameters $n$ and $k$, are written subscripted.
 It is instantiated in \crossref{equihashgen}.
 }
 
+\sapling{
+$\CRHivk \typecolon \bitseq{\ellJ} \times \bitseq{\ellJ} \rightarrow \range{0}{2^{\InViewingKeyLength}\!-\!1}$
+is a \collisionResistant \hashFunction used in \crossref{saplingkeycomponents}
+to derive an \incomingViewingKey for a \Sapling \paymentAddress. It is also used
+in the \spendStatement (\crossref{spendstatement}) to confirm use of the correct
+key for the \note being spent. It is instantiated in \crossref{concretecrhivk}.
+
+$\DiversifyHash \typecolon \DiversifierType \rightarrow \GroupJ$ is a \hashFunction
+satisfying the Discrete Logarithm Independence property (which implies \collisionResistance\!\!)
+described in \crossref{abstractgrouphash}.
+It is used to derive a \diversifiedBase from a \diversifier in \crossref{saplingkeycomponents}.
+It is instantiated in \crossref{concretediversifyhash}.
+} %sapling
+
+
 \introsection
 \subsubsection{\PseudoRandomFunctions} \label{abstractprfs}
 
 $\PRF{x}{}$ is a \pseudoRandomFunction keyed by $x$.
 
-Let $\AuthPrivateLength$, $\NoteAddressPreRandLength$, $\hSigLength$, and
-$\PRFOutputLength$ be as defined in \crossref{constants}.
+Let $\AuthPrivateLength$, $\NoteAddressPreRandLength$, $\hSigLength$,
+$\PRFOutputLength$, \sapling{$\PRFOutputLengthSapling$,} $\NOld$, and $\NNew$
+be as defined in \crossref{constants}.
 
-\sapling{Let $\ellJ$ be as defined in \crossref{jubjub}.}
+\sapling{Let $\ellJ$ and $\ParamJ{r}$ be as defined in \crossref{jubjub}.}
 
 \sprout{\changed{Four} \emph{independent} $\PRF{x}{}$ are needed in our protocol:}
 
 \notsprout{For \Sprout, \changed{four} \emph{independent} $\PRF{x}{}$ are needed:}
 
-\begin{tabular}{@{\hskip 2em}l@{\hskip 1.12em}l@{\;}l@{\;}l@{\;}l}
-$\PRFaddr{}   $&$\typecolon\; \bitseq{\AuthPrivateLength} $&$\times\; \range{0}{255} $& &$\rightarrow \PRFOutput $\\
-$\PRFnf{}     $&$\typecolon\; \bitseq{\AuthPrivateLength} $&$\times\; \PRFOutput $& &$\rightarrow \PRFOutput $\\
-$\PRFpk{}     $&$\typecolon\; \bitseq{\AuthPrivateLength} $&$\times\; \setofOld $&$\times\; \hSigType $&$\rightarrow \PRFOutput $\\
-$\PRFrho{}    $&$\typecolon\; \bitseq{\NoteAddressPreRandLength} $&$\times\; \setofNew $&$\times\; \hSigType $&$\rightarrow \PRFOutput $
+\begin{tabular}{@{\hskip 2em}l@{\hskip 1.85em}l@{\;}l@{\;}l@{\;}l}
+$\PRFaddr{}      $&$\typecolon\; \bitseq{\AuthPrivateLength} $&$\times\; \range{0}{255} $& &$\rightarrow \PRFOutput $\\
+$\PRFnf{}        $&$\typecolon\; \bitseq{\AuthPrivateLength} $&$\times\; \PRFOutput $& &$\rightarrow \PRFOutput $\\
+$\PRFpk{}        $&$\typecolon\; \bitseq{\AuthPrivateLength} $&$\times\; \setofOld $&$\times\; \hSigType $&$\rightarrow \PRFOutput $\\
+$\PRFrho{}       $&$\typecolon\; \bitseq{\NoteAddressPreRandLength} $&$\times\; \setofNew $&$\times\; \hSigType $&$\rightarrow \PRFOutput $
 \end{tabular}
 
 These are used in \crossref{joinsplitstatement}; $\PRFaddr{}$ is also used to
@@ -2374,13 +2406,13 @@ derive a \paymentAddress from a \spendingKey in \crossref{sproutkeycomponents}.
 For \Sapling, two additional $\PRF{x}{}$ are needed:
 
 \begin{tabular}{@{\hskip 2em}l@{\;}l@{\hskip 0.6em}l@{\;}l@{\hskip 4.25em}l}
-$\PRFexpand{} $&$\typecolon\; \bitseq{\SpendingKeyLength} $&$\times\; \range{0}{255} $& &$\rightarrow \GF{\ParamJ{r}} $\\
-$\PRFnr{}     $&$\typecolon\; \bitseq{\ellJ}              $&$\times\; \bitseq{\ellJ} $& &$\rightarrow \GF{\ParamJ{r}} $
+$\PRFexpand{}    $&$\typecolon\; \bitseq{\SpendingKeyLength} $&$\times\; \range{0}{255} $& &$\rightarrow \GF{\ParamJ{r}} $\\
+$\PRFnfSapling{} $&$\typecolon\; \bitseq{\ellJ}              $&$\times\; \bitseq{\ellJ} $& &$\rightarrow \PRFOutputSapling $
 \end{tabular}
 
 $\PRFexpand{}$ is used in \crossref{saplingkeycomponents}.
 
-$\PRFnr{}$ is used in \crossref{spendstatement}.
+$\PRFnfSapling{}$ is used in \crossref{spendstatement}.
 } %sapling
 
 \sprout{They}\notsprout{All of these \pseudoRandomFunctions} are instantiated in \crossref{concreteprfs}.
@@ -2388,10 +2420,10 @@ $\PRFnr{}$ is used in \crossref{spendstatement}.
 \begin{securityrequirements}
   \item Security definitions for \pseudoRandomFunctions are given in \cite[section 4]{BDJR2000}.
   \item In addition to being \pseudoRandomFunctions, it is required that
-        $\PRFnf{x}$,\changed{ $\PRFaddr{x}$,\sprout{ and} $\PRFrho{x}$}\sapling{, and $\PRFnr{x}$}
+        $\PRFnf{x}$,\changed{ $\PRFaddr{x}$,\sprout{ and} $\PRFrho{x}$}\sapling{, and $\PRFnfSapling{x}$}
         be \collisionResistant across all $x$ --- i.e.\ finding $(x, y) \neq (x', y')$
         such that $\PRFnf{x}(y) = \PRFnf{x'}(y')$ should not be feasible\changed{, and
-        similarly for $\PRFaddr{}$ and $\PRFrho{}$\sapling{ and $\PRFnr{}$}}.
+        similarly for $\PRFaddr{}$ and $\PRFrho{}$\sapling{ and $\PRFnfSapling{}$}}.
 \end{securityrequirements}
 
 \pnote{$\PRFnf{}$ was called $\PRFsn{}$ in \Zerocash \cite{BCG+2014}.}
@@ -3130,14 +3162,16 @@ Unlike \joinSplitSignatures of which there is at most one per \transaction,
 \spendAuthSignature.
 
 \introlist
-A \spendDescription consists of $(\cv, \rt, \nf, \ProofSpend, \spendAuthSig)$
+A \spendDescription consists of $(\cv, \rt, \nf, \AuthSignRandomizedPublic, \ProofSpend, \spendAuthSig)$
 
 where
 \begin{itemize}
   \item $\cv \typecolon \ValueCommitOutput$ is the \valueCommitment to the value of the input \note;
   \item $\rt \typecolon \MerkleHashSapling$ is an \anchor, as defined in
         \crossref{blockchain}, for the output \treestate of a previous \block.
-  \item $\nf \typecolon \bitseq{\ellJ}$ is the \nullifier for the input \note;
+  \item $\nf \typecolon \bitseq{\PRFOutputLengthSapling}$ is the \nullifier for the input \note;
+  \item $\AuthSignRandomizedPublic \typecolon \SpendAuthSigPublic$ is a randomized public key
+        that should be used to verify $\spendAuthSig$;
   \item $\ProofSpend \typecolon \SpendProof$ is the \zeroKnowledgeProof for the \spendStatement;
   \item $\spendAuthSig \typecolon \SpendAuthSigSignature$ is a signature authorizing this spend.
 \end{itemize}
@@ -3148,7 +3182,7 @@ where
         from the other fields except $\spendAuthSig$.
         I.e.\ it must be the case that $\SpendVerify{}((\cv, \rt, \nf), \Proof{\Spend}) = 1$.
   \item The \spendAuthSignature{} \MUST be a valid $\SpendAuthSig$ signature using
-        $\nf$ as the public key, over \todo{...}
+        $\AuthSignRandomizedPublic$ as the public key, over \todo{...}
 \end{consensusrules}
 } %sapling
 
@@ -3300,9 +3334,9 @@ $(\Diversifier, \DiversifiedTransmitPublic)$, and then performs the following st
         \begin{tabular}{@{\hskip 2em}r@{\;}l}
           $\cvNew{\OutputIndex}$ &$:= \ValueCommit{\ValueCommitRandNew{\OutputIndex}}(\ValueNew{\OutputIndex})$ \\[1ex]
           $\cmNew{\OutputIndex}$ &$:=
-             \NoteCommitSapling{\NoteCommitRandNew{\OutputIndex}}(\reprJOf{\DiversifiedTransmitBase),
-                                                                  \DiversifiedTransmitPublic,
-                                                                  \ValueNew{\OutputIndex}}$ \\[1ex]
+             \NoteCommitSapling{\NoteCommitRandNew{\OutputIndex}}(\reprJOf{\DiversifiedTransmitBase},
+                                                                  \reprJOf{\DiversifiedTransmitPublic},
+                                                                  \ValueNew{\OutputIndex})$ \\[1ex]
           $\EphemeralPublic$ &$:= \KASaplingDerivePublic(\EphemeralPrivate, \DiversifiedTransmitBase)$.
         \end{tabular}
 
@@ -3513,15 +3547,14 @@ as follows:
 $\MixingPedersenHash$ is defined in \crossref{concretemixinghash}.
 } %sapling
 
-Let $\PRFnf{}{}$\sapling{ and $\PRFnr{}{}$} be as instantiated in \crossref{concreteprfs}.
+Let $\PRFnf{}{}$\sapling{ and $\PRFnfSapling{}{}$} be as instantiated in \crossref{concreteprfs}.
 
 \sprout{The \nullifier of a \note}\notsprout{For a \Sprout{} \note, the \nullifier}
 is derived as $\PRFnf{\AuthPrivate}(\NoteAddressRand)$.
 
-% TODO: \scalarmults should only be in the concrete section
 \sapling{
 For a \Sapling{} \note, the \nullifier is derived as
-$\scalarmult{\PRFnr{\AuthProvePublic}(\NoteAddressRand)}{\AuthSignPublic}$.
+$\PRFnfSapling{\AuthProvePublic}(\NoteAddressRand)$.
 } %sapling
 
 
@@ -3621,12 +3654,15 @@ For details of the form and encoding of proofs, see \crossref{phgr}.
 \introsection
 \subsubsection{\SpendStatement{} (\Sapling)} \label{spendstatement}
 
+Let $\AuthSignBase$ be as defined in \crossref{saplingkeycomponents}.
+
 A valid instance of $\ProofSpend$ assures that given a \primaryInput:
 
 \begin{formulae}
   \item $(\rt \typecolon \MerkleHashSapling,\\
    \hparen\cvOld{} \typecolon \ValueCommitOutput,\\
-   \hparen\nfOld{} \typecolon \GroupJ)$,
+   \hparen\nfOld{} \typecolon \bitseq{\PRFOutputLengthSapling},\\
+   \hparen\AuthSignRandomizedPublicOldRepr \typecolon \bitseq{\ellJ})$,
 \end{formulae}
 
 \introlist
@@ -3634,24 +3670,25 @@ the prover knows an \auxiliaryInput:
 
 \begin{formulae}
   \item $(\treepath{} \typecolon \typeexp{\MerkleHash}{\MerkleDepthSapling} \times \NotePositionTypeSapling,\\
-   \hparen\nOld{} \typecolon \NoteTypeSapling,\\
+   \hparen\DiversifiedTransmitBaseRepr \typecolon \bitseq{\ellJ},\\
+   \hparen\DiversifiedTransmitPublicRepr \typecolon \bitseq{\ellJ},\\
+   \hparen\vOld{} \typecolon \range{0}{2^{64}-1},\\
+   \hparen\NoteCommitRandOld{} \typecolon \NoteCommitSaplingTrapdoor,\\
    \hparen\cmOld{} \typecolon \MerkleHashSapling,\\
    \hparen\ValueCommitRandOld{} \typecolon \ValueCommitTrapdoor,\\
-   \hparen\DiversifiedTransmitBase \typecolon \KASaplingPublic,\\
-   \hparen\DiversifiedTransmitPublic \typecolon \KASaplingPublic,\\
-   \hparen\NoteCommitRandOld{} \typecolon \NoteCommitSaplingTrapdoor,\\
-   \hparen\AuthSignPublic \typecolon \KASaplingPublic,\\
-   \hparen\AuthProvePrivate \typecolon \KASaplingPrivate)$
+   \hparen\AuthSignRandomness \typecolon \range{0}{2^{252}-1},\\
+   \hparen\AuthSignPublicRepr \typecolon \bitseq{\ellJ},\\
+   \hparen\AuthProvePrivate \typecolon \range{0}{2^{252}-1})$  % FIXME better type
 \end{formulae}
-
-where $\nOld{} = (\Diversifier, \DiversifiedTransmitPublic, \vOld{}, \NoteCommitRandOld{})$
 
 \introlist
 such that the following conditions hold:
 
 \snarkcondition{Note commitment integrity} \label{saplingnotecommitmentintegrity}
 
-$\pack(\cmOld{}) = \NoteCommitmentSapling(\nOld{})$.
+$\pack(\cmOld{}) = \NoteCommitSapling{\NoteCommitRandOld{}}(\DiversifiedTransmitBaseRepr,
+                                                            \DiversifiedTransmitPublicRepr,
+                                                            \vOld{})$.
 
 \snarkcondition{Merkle path validity} \label{saplingmerklepathvalidity}
 
@@ -3664,7 +3701,9 @@ $\cvOld{} = \ValueCommit{\ValueCommitRandOld{}}(\vOld{})$.
 
 \snarkcondition{Point validity checks} \label{saplingpointvalidity}
 
-$\AuthSignPublic, \DiversifiedTransmitBase \in \GroupJ$.
+$\AuthSignRandomizedPublicOld, \AuthSignPublic, \DiversifiedTransmitBase \in \GroupJ$.
+
+$\scalarmult{8}{\AuthSignRandomizedPublicOld} \neq \ZeroJ$.
 
 $\scalarmult{8}{\AuthSignPublic} \neq \ZeroJ$.
 
@@ -3672,7 +3711,7 @@ $\scalarmult{8}{\DiversifiedTransmitBase} \neq \ZeroJ$.
 
 \snarkcondition{\Nullifier{} integrity} \label{saplingnullifierintegrity}
 
-$\nfOld{} = \scalarmult{\PRFnr{\AuthProvePublic}(\NoteAddressRand)}{\AuthSignPublic}$.
+$\nfOld{} = \PRFnfSapling{\AuthProvePublic}(\NoteAddressRand)$.
 
 where
 
@@ -3683,7 +3722,26 @@ where
 
 \snarkcondition{Spend authority} \label{saplingspendauthority}
 
-\todo{}
+$\AuthSignRandomizedPublicOld = \AuthSignPublic + \scalarmult{\AuthSignRandomness}{\AuthSignBase}$
+
+where
+
+\begin{formulae}
+  \item $\AuthSignRandomizedPublicOld \typecolon \GroupJ = \abstJOf{\AuthSignRandomizedPublicOldRepr}$
+  \item $\AuthSignPublic \typecolon \GroupJ = \abstJOf{\AuthSignPublicRepr}$
+\end{formulae}
+
+\snarkcondition{Diversified address integrity} \label{saplingaddressintegrity}
+
+$\DiversifiedTransmitPublic = \scalarmult{\InViewingKey}{\DiversifiedTransmitBase}$
+
+where
+
+\begin{formulae}
+  \item $\InViewingKey = \CRHivk(\AuthSignPublicRepr, \AuthProvePublicRepr)$
+  \item $\DiversifiedTransmitBase = \abstJOf{\DiversifiedTransmitBaseRepr}$
+\end{formulae}
+
 
 \vspace{2.5ex}
 For details of the form and encoding of \spendStatement proofs, see \crossref{groth}.
@@ -4021,7 +4079,7 @@ $\BlakeTwosOf{\ell}{p, x}$ refers to unkeyed $\BlakeTwos{\ell}$
 in sequential mode, with an output digest length of $\ell/8$ bytes,
 $8$-byte personalization string $p$, and input $x$.
 
-$\BlakeTwosGeneric$ is used to instantiate $\PRFexpand{}$, $\PRFnr{}$,
+$\BlakeTwosGeneric$ is used to instantiate $\PRFexpand{}$, $\PRFnfSapling{}$,
 $\CRHivk$, and $\GroupJHash{}$.
 
 \begin{formulae}
@@ -4171,7 +4229,7 @@ It is defined as follows:
 
 \begin{formulae}
   \item $\CRHivk(\AuthSignPublic, \AuthProvePublic) :=
-           \LEOStoIPOf{256}{\BlakeTwosOf{256}{\ascii{Zcashivk},\; \crhInput}} \bmod 2^{251}$
+           \LEOStoIPOf{256}{\BlakeTwosOf{256}{\ascii{Zcashivk},\; \crhInput}} \bmod 2^{\InViewingKeyLength}$
 \end{formulae}
 
 where
@@ -4382,11 +4440,13 @@ A mixing \xPedersenHash is used to compute $\NoteAddressRand$ from
 $\cm$ and $\NotePosition$ in \crossref{commitmentsandnullifiers}. It takes as
 input a \xPedersenCommitment $P$, and hashes it with another input $x$.
 
+Let $\NotePositionBase = \FindGroupJHashOf{\ascii{Zcash\_J\_}, \ascii{}}$.
+
 We define $\MixingPedersenHash \typecolon \GroupJ \times \range{0}{\ParamJ{r}-1}
 \rightarrow \GroupJ$ by:
 
 \begin{formulae}
-  \item $\MixingPedersenHash(P, x) := P + \scalarmult{x}{\FindGroupJHashOf{\ascii{Zcashrho}, \ascii{x}}}$.
+  \item $\MixingPedersenHash(P, x) := P + \scalarmult{x}{\NotePositionBase}$.
 \end{formulae}
 
 \securityrequirement{
@@ -4564,17 +4624,8 @@ be necessary.})
 \end{bytefield}
 \end{lrbox}
 
-\newsavebox{\nrtagbox}
-\begin{lrbox}{\nrtagbox}
-\setsapling
-\begin{bytefield}[bitwidth=0.14em]{64}
-    \sbitbox{56}{$56$-bit $\ascii{Zcashnr}$} &
-    \sbitbox{24}{$8$-bit $t$}
-\end{bytefield}
-\end{lrbox}
-
-\newsavebox{\nrinputbox}
-\begin{lrbox}{\nrinputbox}
+\newsavebox{\nfsaplingbox}
+\begin{lrbox}{\nfsaplingbox}
 \setsapling
 \begin{bytefield}[bitwidth=0.038em]{512}
     \sbitbox{256}{$256$-bit $\reprJ(\AuthProvePublic)$} &
@@ -4609,46 +4660,19 @@ is injective and $2^{512}$ is large compared to $\ParamJ{r}$.
 
 \vspace{2ex}
 \introlist
-$\PRFnr{}$ is used to derive the randomness for re-randomization of the \authSigningKey $\AuthSignPrivate$.
-
+$\PRFnfSapling{}$ is used to derive the \nullifier for a \Sapling{} \note.
 It is instantiated using the $\BlakeTwosGeneric$ \hashFunction defined in \crossref{concreteblake2}:
 
 \begin{formulae}
-  \item $\Hashnr(\AuthProvePublic, \NoteAddressRand, t) := \BlakeTwosOf{256}{\Justthebox{\nrtagbox}, \Justthebox{\nrinputbox}}$.
-  \item $\PRFnr{\AuthProvePublic}(\NoteAddressRand) :=
-           \left(\LEOStoIPOf{512}{\Hashnr(\AuthProvePublic, \NoteAddressRand, 0) \bconcat
-                                  \Hashnr(\AuthProvePublic, \NoteAddressRand, 1)} \bmod \ParamS{r}\right) \bmod \ParamJ{r}$.
+  \item $\PRFnfSapling{\AuthProvePublic}(\NoteAddressRand) := \BlakeTwosOf{256}{\ascii{Zcash\_nf}, \Justthebox{\nfsaplingbox}}$.
 \end{formulae}
 
-\begin{securityrequirements}
-  \item $\BlakeTwosOf{256}{\Justthebox{\nrtagbox}, \Justthebox{\nrinputbox}}$ must be a PRF
-        for output range $\byteseq{32}$ when keyed by the bits corresponding to $\AuthProvePublic$,
-        with input in the bits corresponding to $\NoteAddressRand$ and $t$.
-        In that case it follows that $\LEOStoIPOf{512}{\Hashnr(\AuthProvePublic, \NoteAddressRand, 0) \bconcat
-        \Hashnr(\AuthProvePublic, \NoteAddressRand, 1)} \bmod \ParamS{r}$ is also a PRF for
-        key $\AuthProvePublic$, input $\NoteAddressRand$, and output range $\GF{\ParamS{r}}$,
-        since $\LEOStoIP{512} \typecolon \byteseq{64} \rightarrow \range{0}{2^{512}-1}$
-        is injective and $2^{512}$ is large compared to $\ParamS{r}$. Also, the probability
-        that the output of this PRF for any $(t, \NoteAddressRand)$ is not in the range
-        $R = \range{0}{8 \smult \ParamJ{r} - 1}$ is insignificant over random choices of
-        $\AuthProvePublic$, since $\frac{8\, \smult\, \ParamJ{r}}{\ParamS{r}} = 1 - \epsilon$
-        where $0 < \epsilon < 2^{-129}$ (as a consequence of the Hasse bound for the \jubjubCurve).
-        The result of taking a uniformly distributed value in $R$ modulo $\ParamJ{r}$ is uniform on
-        $\GF{\ParamJ{r}}$. It follows that under the given assumption about $\BlakeTwos{256}$,
-        $\PRFnr{}$ is a PRF for output range $\GF{\ParamJ{r}}$.
-
-  \item $\PRFnr{}$ must be collision-resistant. This does not follow from standard properties of
-        $\BlakeTwosGeneric$; it is an independent conjecture. This conjecture is plausible because finding
-        a collision on $\PRFnr{}$
-        % TODO: this is wrong because it doesn't take into account the 'mod \ParamJ{r}'. How to fix?
-        %corresponds to finding two values of $(\AuthProvePublic, \NoteAddressRand)$ for which
-        %$\Hashnr(\AuthProvePublic, \NoteAddressRand, 0) \bconcat \Hashnr(\AuthProvePublic, \NoteAddressRand, 1)$,
-        %viewed as an integer, differs by some multiple of $\ParamS{r}$. This
-        should be hard if $\Hashnr$ is behaving pseudo-randomly.
-        (The obstacle to proving this based on the PRF property in the standard model is that the key
-        is not random, but it is clear that it holds in the random oracle model with $\Hashnr$ modeled
-        as a random oracle.)
-\end{securityrequirements}
+\securityrequirement{
+$\BlakeTwosOf{256}{\ascii{Zcash\_nf}, \Justthebox{\nfsaplingbox}}$ must be a
+\collisionResistant PRF for output range $\byteseq{32}$ when keyed by the bits
+corresponding to $\AuthProvePublic$, with input in the bits corresponding to
+$\NoteAddressRand$.
+}
 } %sapling
 
 
@@ -4918,9 +4942,9 @@ The commitment scheme $\NoteCommitSprout{}$ specified in \crossref{abstractcommi
 instantiated using $\WindowedPedersenCommitAlg$ as follows:
 
 \begin{formulae}
-  \item $\NoteCommitSapling{\NoteCommitRand}(\Diversifier, \DiversifiedTransmitPublic, \Value) :=
-           \WindowedPedersenCommit{\NoteCommitRand}(\ones{6} \bconcat \Diversifier \bconcat
-             \DiversifiedTransmitPublic \bconcat \ItoLEBSP{64}(\Value))$.
+  \item $\NoteCommitSapling{\NoteCommitRand}(\DiversifiedTransmitBaseRepr, \DiversifiedTransmitPublicRepr, \Value) :=
+           \WindowedPedersenCommit{\NoteCommitRand}(\ones{6} \bconcat \DiversifiedTransmitBaseRepr \bconcat
+             \DiversifiedTransmitPublicRepr \bconcat \ItoLEBSP{64}(\Value))$.
 \end{formulae}
 
 \begin{securityrequirements}
@@ -6298,6 +6322,9 @@ at some \blockHeight in the past, $\LEBStoOSPOf{256}{\rt}$. \\ \hline
 $32$ & $\nullifierField$ & \type{char[32]} & The \nullifier of the input \note,
 $\LEBStoOSPOf{256}{\nf}$. \\ \hline
 
+$32$ & $\rkField$ & \type{char[32]} & The randomized public key for $\spendAuthSig$,
+$\LEBStoOSPOf{256}{\reprJOf{\AuthSignRandomizedPublic}}$. \\ \hline
+
 $192$ & $\zkproof$ & \type{char[192]} & An encoding of the \zeroKnowledgeProof
 $\ProofSpend$ (see \crossref{groth}). \\ \hline
 
@@ -7498,6 +7525,9 @@ Daira Hopwood, Sean Bowe, and Jack Grigg.
     \item Remove functions from the \Sprout specification that it does not use.
 \sapling{
     \item Change $\MerkleDepthSapling$ from $29$ to $32$.
+    \item Updates to \Sapling construction, changing how the \nullifier is
+          computed and separating it from the \authRandomizedVerifyingKey
+          ($\AuthSignRandomizedPublic$).
 }
     \item Change the \texttt{Makefile} to avoid multiple reloads in PDF readers while
           rebuilding the PDF.
@@ -8259,9 +8289,7 @@ This can be implemented in one constraint:
 \end{formulae}
 
 \begin{pnotes}
-  \item The bit length $n$ is not limited by the field element size
-        (for example, the case $n = 512$ is used in the definition
-        of $\PRFnr{}$ in \crossref{concreteprfs}).
+  \item The bit length $n$ is not limited by the field element size.
 
   \item Since the constraint has only a trivial multiplication, it is
         possible to eliminate it by merging it into the boolean constraint
@@ -8858,12 +8886,14 @@ A mixing \xPedersenHash is used to compute $\NoteAddressRand$ from
 $\cm$ and $\NotePosition$ in \crossref{commitmentsandnullifiers}. It takes as
 input a \xPedersenCommitment $P$, and hashes it with another input $x$.
 
+Let $\NotePositionBase$ be as defined in \crossref{concretemixinghash}.
+
 \introlist
 We define $\MixingPedersenHash \typecolon \range{0}{\ParamJ{r}-1}
 \times \GroupJ \rightarrow \GroupJ$ by:
 
 \begin{formulae}
-  \item $\MixingPedersenHash(P, x) := P + \scalarmult{x}{\FindGroupJHashOf{\ascii{Zcashrho}, \ascii{x}}}$.
+  \item $\MixingPedersenHash(P, x) := P + \scalarmult{x}{\NotePositionBase}$.
 \end{formulae}
 
 This costs \todo{...} for the scalar multiplication, and $6$ constraints for the
