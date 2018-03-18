@@ -491,6 +491,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\transactionVersionNumber}{\term{transaction version number}}
 \newcommand{\transactionVersionNumbers}{\term{transaction version numbers}}
 \newcommand{\Transactionversion}{\term{Transaction version}}
+\newcommand{\versionGroupID}{\term{version group ID}}
 \newcommand{\coinbaseTransaction}{\term{coinbase transaction}}
 \newcommand{\coinbaseTransactions}{\term{coinbase transactions}}
 \newcommand{\CoinbaseTransactions}{\titleterm{Coinbase Transactions}}
@@ -1088,13 +1089,20 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 
 % Transactions
 
+\newcommand{\headerField}{\mathtt{header}}
 \newcommand{\fOverwintered}{\mathtt{fOverwintered}}
 \newcommand{\versionField}{\mathtt{version}}
+\newcommand{\nVersionGroupId}{\mathtt{nVersionGroupId}}
 \newcommand{\txInCount}{\mathtt{tx\_in\_count}}
 \newcommand{\txIn}{\mathtt{tx\_in}}
 \newcommand{\txOutCount}{\mathtt{tx\_out\_count}}
 \newcommand{\txOut}{\mathtt{tx\_out}}
 \newcommand{\lockTime}{\mathtt{lock\_time}}
+\newcommand{\nExpiryHeight}{\mathtt{nExpiryHeight}}
+\newcommand{\nShieldedSpend}{\mathtt{nShieldedSpend}}
+\newcommand{\vShieldedSpend}{\mathtt{vShieldedSpend}}
+\newcommand{\nShieldedOutput}{\mathtt{nShieldedOutput}}
+\newcommand{\vShieldedOutput}{\mathtt{vShieldedOutput}}
 \newcommand{\nJoinSplit}{\mathtt{nJoinSplit}}
 \newcommand{\vJoinSplit}{\mathtt{vJoinSplit}}
 \newcommand{\vpubOldField}{\mathtt{vpub\_old}}
@@ -6110,60 +6118,87 @@ upgrade-supporting nodes \MUST allow for this.
 
 \subsection{Encoding of \Transactions} \label{txnencoding}
 
-\nuzero{\pnote{This section has not yet been updated for v3 transactions; see ZIP 202.}}
-
 The \Zcash \transaction format is as follows:
 
 \begin{center}
+\scalebox{0.92}{
+\notsprout{\renewcommand{\arraystretch}{1.2}}
 \hbadness=10000
-\begin{tabularx}{0.92\textwidth}{|c|l|p{10.7em}|X|}
+\begin{tabularx}{1\textwidth}{|c|c|l|p{10em}|X|}
 \hline
-Bytes & \heading{Name} & \heading{Data Type} & \heading{Description} \\
-\hhline{|=|=|=|=|}
+\!\!Version\!\! & \heading{Bytes} & \heading{Name} & \heading{Data Type} & \heading{Description} \\
+\hhline{|=|=|=|=|=|}
 
-$4$ & $\versionField$ & \type{int32\_t} & Transaction version number; either $1$ or $2$. \\ \hline
+$\geq 1$ & $4$ & $\headerField$ & \type{uint32} & Contains: \begin{compactitemize}
+                                                    \item $\fOverwintered$ flag (bit $31$)
+                                                    \item $\versionField$ (bits $\barerange{30}{0}$) --
+                                                          \transactionVersionNumber.
+                                                  \end{compactitemize} \\ \hline
 
-\Varies & $\txInCount$ & \compactSize & Number of \transparent inputs in this transaction. \\ \hline
+\notsprout{
+$\geq 3$ & $4$ & $\nVersionGroupId\!$ & \type{uint32} & Version group ID (nonzero). \\ \hline
+}
 
-\Varies & $\txIn$ & $\txIn$ & \xTransparent inputs, encoded as in \Bitcoin. \\ \hline
+$\geq 1$ & \Varies & $\txInCount$ & \compactSize & Number of \transparent inputs in this \transaction. \\ \hline
 
-\Varies & $\txOutCount$ & \compactSize & Number of \transparent outputs in this transaction. \\ \hline
+$\geq 1$ & \Varies & $\txIn$ & $\txIn$ & \xTransparent inputs, encoded as in \Bitcoin. \\ \hline
 
-\Varies & $\txOut$ & $\txOut$ & \xTransparent outputs, encoded as in \Bitcoin. \\ \hline
+$\geq 1$ & \Varies & $\txOutCount$ & \compactSize & Number of \transparent outputs in this \transaction. \\ \hline
 
-$4$ & $\lockTime$ & \type{uint32\_t} & A Unix epoch time (UTC) or block number, encoded as in \Bitcoin. \\ \hline
+$\geq 1$ & \Varies & $\txOut$ & $\txOut$ & \xTransparent outputs, encoded as in \Bitcoin. \\ \hline
 
-\Varies\;$\dagger$ & $\nJoinSplit$ & \compactSize & The number of \joinSplitDescriptions
+$\geq 1$ & $4$ & $\lockTime$ & \type{uint32} & A Unix epoch time (UTC) or \blockHeight, encoded as in \Bitcoin. \\ \hline
+
+\notsprout{
+$\geq 3$ & $4$ & $\nExpiryHeight$ & \type{uint32} & A \blockHeight in the range $\range{1}{499999999}$ after which
+the \transaction will expire, or $0$ to disable expiry (\smash{\cite{ZIP-203}}). \\ \hline
+
+$\geq 4$ & \Varies & $\nShieldedSpend$ & \compactSize & The number of \spendDescriptions
+in $\vShieldedSpend$. \\ \hline
+
+$\geq 4$ & \Longunderstack{$384 \mult$ \\$\!\nShieldedSpend\!$} & $\vShieldedSpend$ & \type{SpendDescription} \type{[$\nShieldedSpend$]} &
+A sequence of \spendDescriptions{}, each encoded as in \crossref{spendencoding}. \\ \hline
+
+$\geq 4$ & \Varies & $\nShieldedOutput\!$ & \compactSize & The number of \outputDescriptions
+in $\vShieldedOutput$. \\ \hline
+
+$\geq 4$ & \Longunderstack{$580 \mult$ \\$\!\nShieldedOutput\!$} & $\vShieldedOutput\!$ & \type{OutputDescription} \type{[$\nShieldedOutput$]} &
+A sequence of \outputDescriptions{}, each encoded as in \crossref{outputencoding}. \\ \hline
+} %notsprout
+
+$\geq 2$ & \Varies & $\nJoinSplit$ & \compactSize & The number of \joinSplitDescriptions
 in $\vJoinSplit$. \\ \hline
 
-\Longunderstack{$1802 \mult$ \\ $\nJoinSplit\,\dagger$} & $\vJoinSplit$ & \type{JoinSplitDescription} \type{[$\nJoinSplit$]} &
-A \sequenceOfJoinSplitDescriptions{}, each encoded as described in \crossref{joinsplitencoding}. \\ \hline
+$\geq 2$ & \Longunderstack{$1802 \mult$ \\ $\nJoinSplit$} & $\vJoinSplit$ & \type{JoinSplitDescription}\!\! \type{[$\nJoinSplit$]} &
+A \sequenceOfJoinSplitDescriptions{}, each encoded as in \crossref{joinsplitencoding}. \\ \hline
 
-$32$ $\ddagger$ & $\joinSplitPubKey$ & \type{char[32]} & An encoding of a $\JoinSplitSig$
+$\geq 2\;\dagger$ & $32$ & $\joinSplitPubKey\!$ & \type{char[32]} & An encoding of a $\JoinSplitSig$
 public verification key. \\ \hline
 
-$64$ $\ddagger$ & $\joinSplitSig$ & \type{char[64]} & A signature on a prefix of the \transaction encoding,
+$\geq 2\;\dagger$ & $64$ & $\joinSplitSig$ & \type{char[64]} & A signature on a prefix of the \transaction encoding,
 to be verified using $\joinSplitPubKey$. \\ \hline
 \end{tabularx}
+\renewcommand{\arraystretch}{\defaultarraystretch}
+} %scalebox
 \end{center}
 
-$\dagger$ The $\nJoinSplit$ and $\vJoinSplit$ fields are present if and only if
-$\versionField > 1$.
-
-$\ddagger$ The $\joinSplitPubKey$ and $\joinSplitSig$ fields are present if and only if
-$\versionField > 1$ and $\nJoinSplit > 0$.
+$\dagger$ The $\joinSplitPubKey$ and $\joinSplitSig$ fields are present if and only if
+$\versionField \geq 2$ and $\nJoinSplit > 0$.
 
 The encoding of $\joinSplitPubKey$ and the data to be signed are specified in
 \crossref{nonmalleability}.
 
 \begin{consensusrules}
-  \sproutonlyitem{The \transactionVersionNumber{} \MUST be greater than or equal to $1$.}
-\notsprout{
-  \sproutonlyitem{The $\fOverwintered$ flag \MUSTNOT be set.}
-}
-  \nuzeroonlyitem{The \transactionVersionNumber{} \MUST be $3$. \todo{is this a consensus rule?}}
-  \saplingonwarditem{The \transactionVersionNumber{} \MUST be $3$ or $4$. \todo{is this a consensus rule?}}
-  \item If $\versionField = 1$ or $\nJoinSplit = 0$, then \txInCount{} \MUSTNOT be $0$.
+  \item The \transactionVersionNumber{} \MUST be greater than or equal to $1$.
+  \sproutonlyitem{The \fOverwintered{} flag \MUSTNOT be set.}
+  \nuzeroonwarditem{The \fOverwintered{} flag \MUST be set.}
+  \nuzeroonwarditem{The \versionGroupID{} \MUST be recognized.}
+  \nuzeroonlyitem{The \transactionVersionNumber{} \MUST be $3$, and the \versionGroupID{} \MUST
+        be $\hexint{03C48270}$.}
+  \saplingonwarditem{The \transactionVersionNumber{} and \versionGroupID{} \MUST be
+        either $(3, \hexint{03C48270})$ or $(4, \todo{\Sapling\, \versionGroupID{}})$.}
+  \sproutonlyitem{If $\versionField = 1$ or $\nJoinSplit = 0$, then \txInCount{} \MUSTNOT be $0$.}
+  \saplingonwarditem{At least one of \txInCount, \nShieldedSpend, and \nJoinSplit{} \MUST be nonzero.}
   \item A \transaction with one or more inputs from \coinbaseTransactions{} \MUST have no
         \transparent outputs (i.e.\ \txOutCount{} \MUST be $0$).
   \item If $\nJoinSplit > 0$, then \joinSplitSig{} \MUST represent a valid signature
@@ -6177,10 +6212,23 @@ The encoding of $\joinSplitPubKey$ and the data to be signed are specified in
   \item A \transaction{} \MUSTNOT spend an output of a \coinbaseTransaction
         (necessarily a \transparent output) from a \block less than 100 \blocks prior
         to the spend.
+  \nuzeroonwarditem{\nExpiryHeight{} \MUST be less than or equal to 499999999.}
+  \nuzeroonwarditem{If a \transaction is not a \coinbaseTransaction and its \nExpiryHeight{} field
+        is nonzero, then it \MUSTNOT be mined at a \blockHeight greater than its \nExpiryHeight.}
   \item \todo{Other rules inherited from \Bitcoin.}
 \end{consensusrules}
 
+In addition, consensus rules associated with each \joinSplitDescription (\crossref{joinsplitencoding})\sapling{,
+\spendDescription (\crossref{spendencoding}), and \outputDescription (\crossref{outputencoding})}
+\MUST be followed.
+
 \begin{pnotes}
+  \item Previous versions of this specification defined what is now the \headerField{} field
+        as a signed $\type{int32}$ field which was required to be positive. The consensus
+        rule that the \fOverwintered{} flag \MUSTNOT be set before \NUZero has activated,
+        has the same effect.
+        \sprout{(\NUZero is an upgrade of the \Zcash protocol, not specified in
+        this document.)}
   \item The semantics of \transactions with \transactionVersionNumber not equal to\sprout{
         either $1$ or $2$ is not currently defined. Miners \MUSTNOT create \blocks
         containing such \transactions.
@@ -6199,12 +6247,6 @@ The encoding of $\joinSplitPubKey$ and the data to be signed are specified in
         It is likely that an upgrade that changes the \transactionVersionNumber
         will also change the \transaction format, and software that parses
         \transactions{} \SHOULD take this into account.
-\sprout{
-  \item The $\versionField$ field is a signed integer. (It was incorrectly specified
-        as unsigned in a previous version of this specification.) A future hard fork
-        might \sprout{use negative values for this field, or otherwise} change its
-        interpretation.
-}
 \nuzero{
   \item \todo{Describe interpretation of $\fOverwintered$ and $\versionField$.}
 }
@@ -7517,6 +7559,9 @@ Daira Hopwood, Sean Bowe, and Jack Grigg.
     \item Clarify the bit ordering of SHA-256.
     \item Drop $\type{\_t}$ from the names of representation types.
     \item Remove functions from the \Sprout specification that it does not use.
+\nuzero{
+    \item Updates to transaction format and consensus rules for Overwinter and Sapling.
+} %nuzero
 \sapling{
     \item Change $\MerkleDepthSapling$ from $29$ to $32$.
     \item Updates to \Sapling construction, changing how the \nullifier is
@@ -7524,7 +7569,7 @@ Daira Hopwood, Sean Bowe, and Jack Grigg.
           ($\AuthSignRandomizedPublic$).
     \item Clarify conversions between bit and byte sequences for
           $\SpendingKey$, $\reprJOf{\AuthSignPublic}$, and $\reprJOf{\AuthProvePublic}$.
-}
+} %sapling
     \item Change the \texttt{Makefile} to avoid multiple reloads in PDF readers while
           rebuilding the PDF.
     \item Spacing and pagination improvements.
