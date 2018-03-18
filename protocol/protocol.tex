@@ -551,6 +551,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\authSigningKeys}{\term{spend authorizing keys}}
 \newcommand{\authProvingKey}{\term{proof authorizing key}}
 \newcommand{\authProvingKeys}{\term{proof authorizing keys}}
+\newcommand{\nullifierKey}{\term{nullifier deriving key}}
+\newcommand{\nullifierKeys}{\term{nullifier deriving keys}}
 \newcommand{\humanReadablePart}{\term{Human-Readable Part}}
 \newcommand{\notePlaintext}{\term{note plaintext}}
 \newcommand{\notePlaintexts}{\term{note plaintexts}}
@@ -635,6 +637,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\byte}{\mathbb{B}\kern -0.1em\raisebox{0.55ex}{\overlap{0.0001em}{\scalebox{0.7}{$\mathbb{Y}$}}}}
 \newcommand{\Nat}{\mathbb{N}}
 \newcommand{\PosInt}{\mathbb{N}^+}
+\newcommand{\Int}{\mathbb{Z}}
 \newcommand{\Rat}{\mathbb{Q}}
 \newcommand{\GF}[1]{\mathbb{F}_{\!#1}}
 \newcommand{\GFstar}[1]{\mathbb{F}^\ast_{#1}}
@@ -732,7 +735,6 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\CRHivk}{\mathsf{CRH^{\InViewingKey}}}
 \newcommand{\CRHivkText}{\texorpdfstring{$\CRHivk$}{CRHivk}}
 \newcommand{\CRHivkOutput}{\CRHivk\mathsf{.Output}}
-\newcommand{\CRHivkOutputLength}{\ell_{\InViewingKey}}
 \newcommand{\CRHivkBox}[1]{\CRHivk\!\left(\Justthebox{#1}\right)}
 
 % Key pairs
@@ -742,6 +744,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\PaymentAddressLeadByte}{\hexint{16}}
 \newcommand{\PaymentAddressSecondByte}{\hexint{9A}}
 \newcommand{\InViewingKey}{\mathsf{ivk}}
+\newcommand{\InViewingKeyLength}{\ell_{\InViewingKey}}
 \newcommand{\InViewingKeyLeadByte}{\hexint{A8}}
 \newcommand{\InViewingKeySecondByte}{\hexint{AB}}
 \newcommand{\InViewingKeyThirdByte}{\hexint{D3}}
@@ -1262,9 +1265,6 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\ParamM}[1]{{{#1}_\mathbb{\hskip 0.03em M}}}
 \newcommand{\ParamMexp}[2]{{{#1}_\mathbb{\hskip 0.03em M}\!}^{#2}}
 
-% TODO: should this be a named constant?
-\newcommand{\JubjubScalarThreshold}{2^{251}}
-
 \newcommand{\pack}{\mathsf{pack}}
 
 \newcommand{\Acc}{\mathsf{Acc}}
@@ -1424,9 +1424,10 @@ Technical terms for concepts that play an important rôle in \Zcash are
 written in \term{slanted text}. \emph{Italics} are used for emphasis and
 for references between sections of the document.
 
-The key words \MUST, \MUSTNOT, \SHOULD, and \SHOULDNOT in this
-document are to be interpreted as described in \cite{RFC-2119} when they
-appear in \ALLCAPS. These words may also appear in this document in
+The key words \MUST, \MUSTNOT, \SHOULD,
+\sprout{and \SHOULDNOT}\notsprout{\SHOULDNOT, \MAY, and \RECOMMENDED} in
+this document are to be interpreted as described in \cite{RFC-2119} when
+they appear in \ALLCAPS. These words may also appear in this document in
 lower case as plain English words, absent their normative meanings.
 
 \vspace{2ex}
@@ -1441,7 +1442,7 @@ This specification is structured as follows:
   \item Concrete Protocol — how the functions and encodings of the abstract
         protocol are instantiated;
 \notsprout{
-  \item Upgrade Transitions — the strategy for upgrading from \Sprout to \NUZero
+  \item Network Upgrades — the strategy for upgrading from \Sprout to \NUZero
 and then \Sapling;
 }
   \item Consensus Changes from \Bitcoin — how \Zcash differs from \Bitcoin at
@@ -1468,7 +1469,8 @@ software whose wealth is lost.
 Having said that, a specification of \emph{intended} behaviour is essential
 for security analysis, understanding of the protocol, and maintenance of
 \Zcash and related software. If you find any mistake in this specification,
-please contact \texttt{<security@z.cash>}.
+please file an issue at \url{https://github.com/zcash/zips/issues} or contact
+\texttt{<security@z.cash>}.
 
 \subsection{High-level Overview}
 
@@ -1494,7 +1496,7 @@ spend \notes sent to the address; in \Zcash this is called a \spendingKey.
 To each \note there is cryptographically associated a \noteCommitment, and
 a \nullifier\footnoteref{notesandnullifiers} (so that there is a 1:1:1 relation
 between \notes, \noteCommitments, and \nullifiers). Computing the \nullifier
-requires the associated private \spendingKey\sapling{ (or the \fullViewingKey for \Sapling \notes)}.
+requires the associated private \spendingKey\sapling{ (or the \nullifierKey for \Sapling \notes)}.
 It is infeasible to correlate the \noteCommitment with the corresponding
 \nullifier without knowledge of at least this \sprout{\spendingKey}\notsprout{key}.
 An unspent valid \note, at a given point on the \blockchain,
@@ -1615,8 +1617,9 @@ $\bit$ means the type of bit values, i.e.\ $\setof{0, 1}$.
 
 $\byte$ means the type of byte values, i.e.\ $\range{0}{255}$.
 
-$\Nat$ means the type of nonnegative integers. $\PosInt$
-means the type of positive integers. $\Rat$ means the type of rationals.
+$\Nat$ means the type of nonnegative integers. $\PosInt$~means
+the type of positive integers. $\Int$~means the type of integers.
+$\Rat$~means the type of rationals.
 
 $x \typecolon T$ is used to specify that $x$ has type $T$.
 A cartesian product type is denoted by $S \times T$, and a function type
@@ -1708,31 +1711,74 @@ of $S$.
 
 $\GF{n}$ means the finite field with $n$ elements, and
 $\GFstar{n}$ means its group under multiplication.
+
+Where there is a need to make the distinction, we denote the unique
+representative of $a \typecolon \GF{n}$ in the range $\range{0}{n-1}$
+(or the unique representative of $a \typecolon \GFstar{n}$ in the range
+$\range{1}{n-1}$) as $a \bmod n$. Conversely, we denote the element
+of $\GF{n}$ corresponding to an integer $k \typecolon \Int$
+as $k \pmod{n}$. We also use the latter notation in the context of
+an equality $k = k' \pmod{n}$ as shorthand for $k \bmod n = k' \bmod n$,
+and similarly $k \neq k' \pmod{n}$ as shorthand for $k \bmod n \neq k' \bmod n$.
+(When referring to constants such as $0$ and $1$ it is usually not
+necessary to make the distinction between field elements and their
+representatives, since the meaning is normally clear from context.)
+
 $\GF{n}[z]$ means the ring of polynomials over $z$ with coefficients
 in $\GF{n}$.
 
+$a + b$ means the sum of $a$ and $b$. This may refer to addition of
+integers, rationals, finite field elements, or group elements
+(see \crossref{abstractgroup}) according to context.
+
+$-a$ means the value of the appropriate integer, rational,
+finite field, or group type such that $(-a) + a = 0$
+(or when $a$ is an element of a group $\GroupG{}$, $(-a) + a = \ZeroG{}$),
+and $a - b$ means $a + (-b)$.
+
 $a \mult b$ means the product of multiplying $a$ and $b$.
 This may refer to multiplication of integers, rationals, or
-finite field elements according to context.
+finite field elements according to context (this notation is not
+used for group elements).
 
-$a^b$, for $a$ an integer or finite field element and
-$b$ an integer, means the result of raising $a$ to the exponent $b$.
+$a / b$ (also written $\hfrac{a}{b}$) means the value of the
+appropriate integer, rational, or finite field type such that
+$(a / b) \mult b = a$.
 
 $a \bmod q$, for $a \typecolon \Nat$ and $q \typecolon \PosInt$,
-means the remainder on dividing $a$ by $q$.
+means the remainder on dividing $a$ by $q$. (This usage does not
+conflict with the notation above for the unique representative of
+a field element.)
 
 $a \xor b$ means the bitwise-exclusive-or of $a$ and $b$,
 and $a \band b$ means the bitwise-and of $a$ and $b$. These are
-defined on integers or bit sequences according to context.
+defined on integers or (equal-length) bit sequences according to context.
 
 $\!\vsum{i=1}{\mathrm{N}} a_i$ means the sum of $a_{\allN{}}$.\;
-\notsprout{$\vproduct{i=1}{\mathrm{N}} a_i$ means the product
-of $a_{\allN{}}$.\;}
+$\vproduct{i=1}{\mathrm{N}} a_i$ means the product of $a_{\allN{}}$.\;
 $\vxor{i=1}{\mathrm{N}} a_i$ means the bitwise exclusive-or of $a_{\allN{}}$.
+
+When $N = 0$ these yield the appropriate neutral element, i.e.
+\smash{$\vsum{i=1}{0} a_i = 0$, $\vproduct{i=1}{0} a_i = 1$, and
+$\vxor{i=1}{0} a_i = 0$} or the all-zero bit sequence of the
+appropriate length given by the type of $a$.
 
 \notsprout{
 $b \bchoose x : y$ means $x$ when $b = 1$, or $y$ when $b = 0$.
 }
+
+$a^b$, for $a$ an integer or finite field element and
+$b \typecolon \Int$, means the result of raising $a$ to the exponent $b$,
+i.e.
+\begin{formulae}
+  \item $a^b := \begin{cases}
+          \sproduct{i=1}{b}  \kern 0.15em a, &\caseif b \geq 0 \\[1.5ex]
+          \sproduct{i=1}{-b} \kern 0.1em \hfrac{1}{a}, &\caseotherwise.
+        \end{cases}$
+\end{formulae}
+
+The $\scalarmult{k}{P}$ notation for scalar multiplication in a group is
+defined in \crossref{abstractgroup}.
 
 The binary relations $<$, $\leq$, $=$, $\geq$, and $>$ have their conventional
 meanings on integers and rationals, and are defined lexicographically on
@@ -1955,14 +2001,16 @@ $\NoteAddressRand \typecolon \bitseq{\ellJ}$ as described in \crossref{commitmen
 \vspace{2ex}
 A \nullifier (denoted $\nf$) is derived from the $\NoteAddressRand$ value
 of a \note and the recipient's
-\spendingKey $\AuthPrivate$\sapling{ or \fullViewingKey $(\AuthSignPublic, \AuthProvePublic)$},
-using a \pseudoRandomFunction (see \crossref{abstractprfs}). This computation
-is described in \crossref{commitmentsandnullifiers}.
+\spendingKey $\AuthPrivate$\sapling{ or \nullifierKey $\AuthProvePublic$}.
+This computation uses a \pseudoRandomFunction (see \crossref{abstractprfs}),
+as described in \crossref{commitmentsandnullifiers}.
 
 A \note is spent by proving knowledge of $\NoteAddressRand$ and
-$\AuthPrivate$\sapling{ or $(\AuthSignPrivate, \AuthProvePrivate)$}
+$\AuthPrivate$\sapling{ or $(\AuthSignPublic, \AuthProvePrivate)$}
 in zero knowledge while publically disclosing its \nullifier $\nf$,
-allowing $\nf$ to be used to prevent double-spending.
+allowing $\nf$ to be used to prevent double-spending. \sapling{In the case
+of \Sapling, a \spendAuthSignature is also required, in order to demonstrate
+knowledge of $\AuthSignPrivate$.}
 
 
 \subsubsection{\NotePlaintexts{} and \Memos} \label{noteptconcept}
@@ -1988,6 +2036,8 @@ $\Memo$ represents a \memo associated with this \note. The usage of the
 }
 
 Other fields are as defined in \crossref{notes}.
+
+Encodings are given in \crossref{notept}.
 
 The result of encryption forms part of a \notesCiphertext (see \crossref{inband}
 for further details).
@@ -2095,8 +2145,10 @@ The \changed{total $\vpubNew$ value adds to, and the total} $\vpubOld$
 value subtracts from the \transparentValuePool of the containing \transaction.
 
 The \anchor of each \joinSplitDescription in a \transaction{} refers to a
-\SproutOrNothing \treestate. For the first \joinSplitDescription, this \MUST be
-the output \SproutOrNothing \treestate of a previous \block.
+\SproutOrNothing \treestate.
+
+For each of the $\NOld$ \shieldedInputs, a \nullifier is revealed. This allows
+detection of double-spends as described in \crossref{nullifierset}.
 
 \changed{
 For each \joinSplitDescription in a \transaction, an interstitial output \treestate is
@@ -2113,6 +2165,8 @@ it is not known where it will eventually appear in a mined \block. Therefore the
 \begin{consensusrules}
   \item The input and output values of each \joinSplitTransfer{} \MUST balance
         exactly.
+  \item For the first \joinSplitDescription of a \transaction, the \anchor \MUST
+        be the output \SproutOrNothing \treestate of a previous \block.
 \changed{
   \item The \anchor of each \joinSplitDescription in a \transaction{} \MUST refer
         to either some earlier \block's final \SproutOrNothing \treestate, or to
@@ -2158,8 +2212,9 @@ value change (see \crossref{saplingbalance} for a full specification).
 This approach allows all of the \zkSNARK statements to be independent of
 each other, potentially increasing opportunities for precomputation.
 
-A \spendDescription also includes an \anchor, which refers to the output
-\Sapling \treestate of a previous \block.
+A \spendDescription includes an \anchor, which refers to the output
+\Sapling \treestate of a previous \block. It also reveals a \nullifier,
+which allows detection of double-spends as described in \crossref{nullifierset}.
 
 \pnote{
 Interstitial \treestates are not necessary for \Sapling, because a \spendTransfer
@@ -2250,6 +2305,11 @@ as described in \crossref{foundersreward}.
 \subsection{Abstract Cryptographic Schemes}
 
 \subsubsection{\HashFunctions} \label{abstracthashes}
+
+Let $\MerkleDepthSprout$, $\MerkleHashLengthSprout$,
+\sapling{$\MerkleDepthSapling$, $\MerkleHashLengthSapling$, $\InViewingKeyLength$,}
+$\RandomSeedLength$, $\hSigLength$, $\PRFOutputLength$, and $\NOld$
+be as defined in \crossref{constants}.
 
 \sprout{
 $\MerkleCRH \typecolon \MerkleHashSprout \times \MerkleHashSprout \rightarrow \MerkleHashSprout$
@@ -2512,6 +2572,7 @@ confusion that it might.}
 \end{pnotes}
 
 
+\sapling{
 \introlist
 \subsubsubsection{Signature with Re-Randomizable Keys} \label{abstractsigrerand}
 
@@ -2591,6 +2652,7 @@ $(m^*, \sigma^*) \not\in \Oracle_{\sk}\mathsf{.}Q$.
         easily invertible, knowledge of $\SigRandomizePrivate(\sk, \SigRandomness)$
         \emph{and} $\SigRandomness$ implies knowledge of $\sk$.
 \end{pnotes}
+} %sapling
 
 
 \introlist
@@ -2656,12 +2718,24 @@ for all $S$ not in the image of $\reprG{}$, $\abstG{}(S) = \bot$.
 % Do we actually need \GenG? It is natural to include it for some groups
 % and not others.
 
-We extend the $\vsum{}{}$ notation to addition on group elements.
+For $G \typecolon \GroupG{}$ we write $-G$ for the negation of $G$, such that
+$(-G) + G = \ZeroG{}$. We write $G - H$ for $G + (-H)$.
 
-\vspace{-3ex}
-For $G \typecolon \GroupG{}$ and $k \typecolon \Nat$ (or $k \typecolon \GF{\ParamG{r}}$)
-we write $\scalarmult{k}{G}$ for $\vsum{i = 1}{k} G$.
-\vspace{1ex}
+We also extend the $\vsum{}{}$ notation to addition on group elements.
+
+For $G \typecolon \GroupG{}$ and $k \typecolon \Int$ we write $\scalarmult{k}{G}$
+for scalar multiplication on the group, i.e.
+
+\begin{formulae}
+  \item $\scalarmult{k}{G} := \begin{cases}
+          \ssum{i = 1}{k} G, &\caseif k \geq 0 \\[1.5ex]
+          \ssum{i = 1}{-k} (-G), &\caseotherwise.
+        \end{cases}$
+\end{formulae}
+
+For $G \typecolon \GroupG{}$ and $a \typecolon \GF{\ParamG{r}}$, we may also write
+$\scalarmult{a}{G}$ meaning $\scalarmult{a \bmod \ParamG{r}}{G}$ as defined above.
+(This variant is not defined for fields other than $\GF{\ParamG{r}}$.)
 
 
 \sapling{
@@ -3255,6 +3329,8 @@ information leakage from the structure of \transactions are beyond the
 scope of this specification.
 
 The encoded \transaction is submitted to the network.
+
+\todo{Receiving a \Sapling note.}
 } %sapling
 
 
@@ -3413,7 +3489,8 @@ into the \blockchain, appends to the \noteCommitmentTree with all constituent
 
 All of the constituent \nullifiers are also entered into the
 \nullifierSet of the associated \treestate. A \transaction is not valid if it
-attempts to add a \nullifier to the \nullifierSet that already exists in the set.
+would have added a \nullifier to the \nullifierSet that already exists in the set
+(see \crossref{nullifierset}).
 
 \sprout{Each}\notsprout{In \Sprout, each} \note has a $\NoteAddressRand$ component.
 
@@ -3526,7 +3603,7 @@ $\NoteAddressRandNew{i} = \PRFrho{\NoteAddressPreRand}(i, \hSig)$.
 
 \snarkcondition{Note commitment integrity} \label{sproutcommitmentintegrity}
 
-for each $i \in \setofNew$: $\cmNew{i}$ = $\NoteCommitSprout(\nNew{i})$.
+for each $i \in \setofNew$: $\cmNew{i}$ = $\NoteCommitmentSprout(\nNew{i})$.
 
 \vspace{2.5ex}
 For details of the form and encoding of proofs, see \crossref{phgr}.
@@ -3537,7 +3614,7 @@ For details of the form and encoding of proofs, see \crossref{phgr}.
 \introsection
 \subsubsection{\SpendStatement{} (\Sapling)} \label{spendstatement}
 
-A valid instance of $\ProofSpend$ assures that given a \term{primary input}:
+A valid instance of $\ProofSpend$ assures that given a \primaryInput:
 
 \begin{formulae}
   \item $(\rt \typecolon \MerkleHashSapling,\\
@@ -3767,6 +3844,12 @@ All integers in \Zcash-specific encodings are unsigned, have a fixed
 bit length, and are encoded in little-endian byte order \emph{unless otherwise
 specified}.
 
+\sprout{
+Define $\ItoBEBSP{} \typecolon (\ell \typecolon \Nat) \times \range{0}{2^\ell\!-\!1} \rightarrow \bitseq{\ell}$
+such that $\ItoBEBSP{\ell}(x)$ is the sequence of $\ell$ bits representing $x$ in
+\emph{big-endian} order.
+} %sprout
+\notsprout{
 The following functions convert between sequences of bits, sequences of bytes,
 and integers:
 
@@ -3775,7 +3858,7 @@ and integers:
         such that $\ItoLEBSP{\ell}(x)$ is the sequence of $\ell$ bits representing $x$ in
         little-endian order;
   \item $\ItoBEBSP{} \typecolon (\ell \typecolon \Nat) \times \range{0}{2^\ell\!-\!1} \rightarrow \bitseq{\ell}$
-        such that $\ItoBEBSP{u}(\ell)$ is the sequence of $\ell$ bits representing $x$ in
+        such that $\ItoBEBSP{\ell}(x)$ is the sequence of $\ell$ bits representing $x$ in
         big-endian order.
   \item $\LEOStoIP{} \typecolon (k \typecolon \Nat) \times \byteseq{k} \rightarrow \range{0}{256^k\!-\!1}$
         such that $\LEOStoIP{k}(S)$ is the integer represented in little-endian order by the
@@ -3786,13 +3869,14 @@ and integers:
         value with the \emph{least} significant bit first, and concatenate the resulting bytes
         in the same order as the groups.
 \end{itemize}
+} %notsprout
 
 In bit layout diagrams, each box of the diagram represents a sequence of bits.
 Diagrams are read from left-to-right, with lines read from top-to-bottom;
 the breaking of boxes across lines has no significance.
-The bit length $\ell$ is given explicitly in each box, except for the case of a
-single bit, or for the notation $\zeros{\ell}$ representing the sequence of $\ell$
-zero bits.
+The bit length $\ell$ is given explicitly in each box, except when it is obvious
+(e.g. for a single bit, or for the notation $\zeros{\ell}$ representing the sequence
+of $\ell$ zero bits\notsprout{, or for the output of $\LEBStoOSP{\ell}$}).
 
 The entire diagram represents the sequence of \emph{bytes} formed by first
 concatenating these bit sequences, and then treating each subsequence of 8 bits
@@ -3826,6 +3910,7 @@ Define:
 \sapling{
   \item $\SpendingKeyLength \typecolon \Nat := 256$
   \item $\DiversifierLength \typecolon \Nat := 88$
+  \item $\InViewingKeyLength \typecolon \Nat := 251$
 } %sapling
   \item $\UncommittedSprout \typecolon \bitseq{\MerkleHashLengthSprout} := \zeros{\MerkleHashLengthSprout}$
 \sapling{
@@ -3896,7 +3981,8 @@ $16$-byte personalization string $p$, and input $x$.
 \introlist
 $\BlakeTwobGeneric$ is used to instantiate $\hSigCRH$, $\EquihashGen{}$,
 and $\KDFSprout$.
-\nuzero{From \NUZero onward, it is used to compute \sighashTxHashes.}
+\nuzero{From \NUZero onward, it is used to compute \sighashTxHashes
+as specified in \cite{ZIP-143}.}
 \sapling{For \Sapling, it is also used to instantiate $\KDFSapling$,
 and in the $\EdJubjub$ \signatureScheme which instantiates $\SpendAuthSig$.}
 
@@ -4076,17 +4162,15 @@ where
 \end{formulae}
 
 \vspace{2ex}
-$\BlakeTwosOf{256}{p, x}$ refers to unkeyed $\BlakeTwos{256}$
-\cite{ANWW2013} in sequential mode, with an output digest length of
-$32$ bytes, $8$-byte personalization string $p$, and input $x$.
+$\BlakeTwobOf{256}{p, x}$ is defined in \crossref{concreteblake2}.
 
 \securityrequirement{
-$\LEOStoIPOf{256}{\BlakeTwosOf{256}{\ascii{Zcashivk}, x}} \bmod 2^{251}$
+$\LEOStoIPOf{256}{\BlakeTwosOf{256}{\ascii{Zcashivk}, x}} \bmod 2^{\InViewingKeyLength}$
 must be \collisionResistant on a $64$-byte input $x$. Note that this
 does not follow from collision-resistance of $\BlakeTwos{256}$
 (and the best possible concrete security is that of a $251$-bit hash
 rather than a $256$-bit hash), but it is a reasonable assumption
-given the design and structure of $\BlakeTwosGeneric$.
+given the design, structure, and cryptanalysis to date of $\BlakeTwosGeneric$.
 }
 
 \pnote{
@@ -4165,7 +4249,7 @@ $\PedersenEncode{\paramdot} \typecolon \bitseq{3 \mult \range{1}{c}} \rightarrow
   \item Split $M_i$ into $3$-bit \quotedterm{chunks} $m_\barerange{1}{k_i}$
         so that $M_i = \concatbits(m_\barerange{1}{k_i})$.
   \item Write each $m_j$ as $[\sj{0}, \sj{1}, \sj{2}]$, and let
-        $\enc(m_j) = (1 - 2 \smult \sj{2}) \mult (1 + \sj{0} + 2 \smult \sj{1})$.
+        $\enc(m_j) = (1 - 2 \smult \sj{2}) \mult (1 + \sj{0} + 2 \smult \sj{1}) \typecolon \Int$.
   \item Let $\PedersenEncode{M_i} = \vsum{j=1}{k_i} \enc(m_j) \mult 2^{4 \mult (j-1)}$.
 \end{formulae}
 
@@ -4470,7 +4554,7 @@ It is instantiated using the $\BlakeTwobGeneric$ \hashFunction defined in
 \crossref{concreteblake2}:
 
 \begin{formulae}
-  \item $\PRFexpand{\SpendingKey}() :=
+  \item $\PRFexpand{\SpendingKey}(t) :=
            \LEOStoIPOf{512}{\BlakeTwobOf{512}{\ascii{Zcash\_ExpandSeed}, \Justthebox{\expandbox}}} \pmod{\ParamJ{r}}$
 \end{formulae}
 
@@ -5414,7 +5498,7 @@ verifier \MUST check, for the encoding of each element, that:
 \end{itemize}
 }
 
-\subsection{\NotePlaintexts{} and \Memos} \label{notept}
+\subsection{Encodings of \NotePlaintexts{} and \Memos} \label{notept}
 
 As explained in \crossref{noteptconcept}, transmitted \notes are stored on
 the \blockchain in encrypted form.
@@ -5509,11 +5593,6 @@ The encoding of a \Sapling \notePlaintext consists of:
     \item $32$ bytes specifying $\NoteCommitRand$.
     \item $512$ bytes specifying $\Memo$.
 \end{itemize}
-
-\pnote{
-The encoding of $\Diversifier$ and $\DiversifiedTransmitPublic$ is identical
-to the raw encoding of a \Sapling \paymentAddress in \crossref{saplingpaymentaddrencoding}.
-}
 } %sapling
 
 
@@ -5676,6 +5755,9 @@ The raw encoding of a \Sapling \paymentAddress consists of:
         (see \crossref{jubjub}).
 \end{itemize}
 
+When decoding the representation of $\DiversifiedTransmitPublic$, the address is
+not valid if $\abstJ$ returns $\bot$.
+
 For addresses on the production network, the \humanReadablePart is \ascii{zs}.
 For addresses on the test network, the \humanReadablePart is \ascii{ztestsapling}.
 }
@@ -5754,10 +5836,10 @@ The raw encoding of an \incomingViewingKey consists of:
 \end{equation*}
 
 \begin{itemize}
-  \item $32$ bytes specifying $\InViewingKey$.
+  \item $32$ bytes (little-endian) specifying $\InViewingKey$.
 \end{itemize}
 
-$\InViewingKey$ \MUST be in the range $\range{0}{\JubjubScalarThreshold-1}$ as specified
+$\InViewingKey$ \MUST be in the range $\range{0}{2^{\InViewingKeyLength}-1}$ as specified
 in \crossref{saplingkeycomponents}. That is, a decoded \incomingViewingKey{} \MUST be
 considered invalid if $\InViewingKey$ is not in this range.
 
@@ -6119,10 +6201,10 @@ a \transaction as an instance of a \type{JoinSplitDescription} type as follows:
 Bytes & \heading{Name} & \heading{Data Type} & \heading{Description} \\
 \hhline{|=|=|=|=|}
 
-\setchanged 8 &\setchanged $\vpubOldField$ &\setchanged \type{uint64\_t} &\mbox{}\setchanged
+\setchanged 8 &\setchanged $\vpubOldField$ &\setchanged \type{uint64} &\mbox{}\setchanged
 A value $\vpubOld$ that the \joinSplitTransfer removes from the \transparentValuePool. \\ \hline
 
-$8$ & $\vpubNewField$ & \type{uint64\_t} & A value $\vpubNew$ that the \joinSplitTransfer inserts
+$8$ & $\vpubNewField$ & \type{uint64} & A value $\vpubNew$ that the \joinSplitTransfer inserts
 into the \transparentValuePool. \\ \hline
 
 $32$ & $\anchorField$ & \type{char[32]} & A \merkleRoot $\rt$ of the \SproutOrNothing
@@ -6251,7 +6333,7 @@ The \Zcash \blockHeader format is as follows:
 Bytes & \heading{Name} & \heading{Data Type} & \heading{Description} \\
 \hhline{|=|=|=|=|}
 
-$4$ & $\nVersion$ & \type{int32\_t} & The \blockVersionNumber indicates which set of
+$4$ & $\nVersion$ & \type{int32} & The \blockVersionNumber indicates which set of
 \block validation rules to follow. The current and only defined \blockVersionNumber
 for \Zcash is $4$. \\ \hline
 
@@ -6270,10 +6352,10 @@ $32$ & \sprout{$\hashReserved$}
 \saplingonward{A \merkleRoot (\todo{specify bit sequence to byte sequence conversion}) of the \Sapling{}
 \noteCommitmentTree corresponding to the final \Sapling{} \treestate of this \block.} \\ \hline
 
-$4$ & $\nTimeField$ & \type{uint32\_t} & The \blockTime is a Unix epoch time (UTC) when the miner
+$4$ & $\nTimeField$ & \type{uint32} & The \blockTime is a Unix epoch time (UTC) when the miner
 started hashing the \header (according to the miner). \\ \hline
 
-$4$ & $\nBitsField$ & \type{uint32\_t} & An encoded version of the \targetThreshold this \block's
+$4$ & $\nBitsField$ & \type{uint32} & An encoded version of the \targetThreshold this \block's
 \header hash must be less than or equal to, in the same nBits format used by \Bitcoin.
 \cite{Bitc-nBits} \\ \hline
 
@@ -6317,7 +6399,7 @@ rejected by this rule at a given point in time may later be accepted.
 \begin{pnotes}
   \item The semantics of blocks with \blockVersionNumber{} not equal to $4$
         is not currently defined. Miners \MUSTNOT create such \blocks, and
-        \SHOULDNOT mine other blocks on top of them.
+        \SHOULDNOT mine other blocks that chain to them.
   \item The exclusion of \blocks with \blockVersionNumber{} \emph{greater than} $4$
         is not a consensus rule; such \blocks may exist in the \blockchain
         and \MUST be treated identically to version $4$ \blocks by \fullValidators.
@@ -6325,7 +6407,7 @@ rejected by this rule at a given point in time may later be accepted.
         greater than or less than $4$. It is likely that such a hard fork will
         change the \block header and/or \transaction format, and software that
         parses \blocks{} \SHOULD take this into account.
-  \item The $\nVersion$ field is a signed integer. (It was incorrectly specified
+  \item The $\nVersion$ field is a signed integer. (It was specified
         as unsigned in a previous version of this specification.) A future
         hard fork might use negative values for this field, or otherwise change
         its interpretation.
@@ -6357,7 +6439,7 @@ The changes relative to \Bitcoin version $4$ blocks as described in \cite{Bitc-B
   \item \Blockversions less than $4$ are not supported.
   \item The $\hashReserved$\sapling{ (or $\hashFinalSaplingRoot$)}, $\solutionSize$, and
         $\solution$ fields have been added.
-  \item The type of the $\nNonce$ field has changed from \type{uint32\_t} to \type{char[32]}.
+  \item The type of the $\nNonce$ field has changed from \type{uint32} to \type{char[32]}.
   \item The maximum \block size has been doubled to $2000000$ bytes.
 \end{itemize}
 
@@ -7004,7 +7086,7 @@ Crucially, ``\nullifier integrity'' (\crossref{sproutnullifierintegrity})
 is enforced whether or not the $\EnforceMerklePath{i}$ flag is set
 for an input \note. If this were not the case then an adversary could
 perform the attack by creating a zero-valued \note with a repeated
-\nullifier, since the \nullifier does not depend on the value.
+\nullifier, since the \nullifier would not depend on the value.
 }
 
 \sproutspecific{
@@ -7246,7 +7328,9 @@ The security proofs of \cite{ABR1999} can be adapted straightforwardly to the
 resulting scheme. Although DHAES as defined in that paper does not pass the
 recipient public key or a public seed to the \hashFunction $H$, this does not
 impair the proof because we can consider $H$ to be the specialization of our
-KDF to a given recipient key and seed. \sproutspecific{It is necessary to adapt the
+KDF to a given recipient key and seed. (Passing the recipient public key to
+the KDF could in principle compromise key privacy, but not confidentiality of
+encryption.) \sproutspecific{It is necessary to adapt the
 ``HDH independence'' assumptions and the proof slightly to take into account
 that the ephemeral key is reused for two encryptions.}
 
@@ -7381,6 +7465,8 @@ Daira Hopwood, Sean Bowe, and Jack Grigg.
 \subparagraph{2018.0-beta-15}
 
 \begin{itemize}
+    \item Drop $\type{\_t}$ from the names of representation types.
+    \item Remove functions from the \Sprout specification that it does not use.
     \item Change the \texttt{Makefile} to avoid multiple reloads in PDF readers while
           rebuilding the PDF.
     \item Spacing and pagination improvements.
@@ -7741,11 +7827,11 @@ Daira Hopwood, Sean Bowe, and Jack Grigg.
     \item Specify that \ScriptOP{CODESEPARATOR} has been disabled, and
           no longer affects signature hashes.
     \item Change the representation type of $\vpubOldField$ and $\vpubNewField$
-          to \type{uint64\_t}. (This is not a consensus change because the type of
+          to \type{uint64}. (This is not a consensus change because the type of
           $\vpubOld$ and $\vpubNew$ was already specified to be $\range{0}{\MAXMONEY}$;
           it just better reflects the implementation.)
     \item Correct the representation type of the \block $\nVersion$ field to
-          \type{uint32\_t}.
+          \type{uint32}.
 \end{itemize}
 
 \introlist
@@ -7964,8 +8050,9 @@ and $\mult$ for multiplications by constants in the terms of a \linearCombinatio
 The circuit makes use of a twisted Edwards curve, $\JubjubCurve$, and also a
 Montgomery curve that is birationally equivalent to $\JubjubCurve$.
 From here on we omit ``twisted'' when referring to the Edwards $\JubjubCurve$
-curve or coordinates. By convention we use $(u, \varv)$ for affine coordinates
-on the Edwards curve, and $(x, y)$ for affine coordinates on the Montgomery curve.
+curve or coordinates. Following the notation in \cite{BL2017} we use
+$(u, \varv)$ for affine coordinates on the Edwards curve, and $(x, y)$ for
+affine coordinates on the Montgomery curve.
 
 \introlist
 The Montgomery curve has parameters $\ParamM{A} = 40962$ and $\ParamM{B} = 1$.
@@ -8119,17 +8206,18 @@ by checking the truth table of $(a, b)$.
 
 \subsubsubsection{[Un]packing modulo \rS} \label{cctmodpack}
 
-The operation of converting a field element, $a$, to a sequence of boolean
-variables $b_\barerange{0}{n-1} \typecolon \bitseq{n}$ such that
-$a = \vsum{i=0}{n-1} b_i \mult 2^i \pmod{\ParamS{r}}$, is called
+Let $n \typecolon \PosInt$ be a constant.
+The operation of converting a field element, $a \typecolon \GF{\ParamS{r}}$,
+to a sequence of boolean variables $b_\barerange{0}{n-1} \typecolon \bitseq{n}$
+such that $a = \ssum{i=0}{n-1} b_i \mult 2^i \pmod{\ParamS{r}}$, is called
 \quotedterm{unpacking}. The inverse operation is called \quotedterm{packing}.
 
 In the \quadraticArithmeticProgram these are the same operation (but
 see the note about canonical representation below). We assume that
 the variables $b_\barerange{0}{n-1}$ are boolean-constrained separately.
 
-Let $a = \vsum{i=0}{n-1} b_i \mult 2^i$.
-Then, $a \bmod \ParamS{r} = \left(\vsum{i=0}{n-1} b_i \mult (2^i \bmod \ParamS{r})\!\right) \bmod \ParamS{r}$.
+We have $a \bmod \ParamS{r} = \left(\vsum{i=0}{n-1} b_i \mult 2^i\right) \bmod \ParamS{r}
+                            = \left(\vsum{i=0}{n-1} b_i \mult (2^i \bmod \ParamS{r})\!\right) \bmod \ParamS{r}$.
 
 \introlist
 This can be implemented in one constraint:
@@ -8168,8 +8256,10 @@ This can be implemented in one constraint:
 \introsection
 \subsubsubsection{Range check} \label{cctrange}
 
-Let $a = \vsum{i=0}{n-1} a_i \mult 2^i$, and suppose we want to constrain
-$a \leq c$ for some \emph{constant} $c = \vsum{i=0}{n-1} c_i \mult 2^i$.
+Let $n \typecolon \PosInt$ be a constant, and let
+$a = \ssum{i=0}{n-1} a_i \mult 2^i \typecolon \Nat$.
+Suppose we want to constrain $a \leq c$ for some \emph{constant}
+$c = \ssum{i=0}{n-1} c_i \mult 2^i \typecolon \Nat$.
 
 Without loss of generality we can assume that $c_{n-1} = 1$, because if it
 were not then we would decrease $n$ accordingly.
@@ -8459,7 +8549,7 @@ $(u, \varv) = (u_1, \varv_1) = (u_2, \varv_2)$ and observing that $u \mult \varv
 
 In order to avoid small-subgroup attacks, we check that certain points used in the
 circuit are not of small order. In practice the \Sapling circuit uses this
-in combination with a check that the point is on the curve (\crossref{cctedvalidate}),
+in combination with a check that the coordinates are on the curve (\crossref{cctedvalidate}),
 so we combine the two operations.
 
 The \jubjubCurve has a large prime-order subgroup with a cofactor of $8$.
@@ -8468,7 +8558,7 @@ To check for a point $P$ of order $8$ or less, we double twice (as in
 is not $0$ (as in \crossref{cctnonzero}).
 
 On a twisted Edwards curve, only the zero point $\ZeroJ$, and the unique point
-of order $2$ at $(0, -1)$ have zero $u$-coordinate. So the check on $u$ rejects
+of order $2$ at $(0, -1)$ have zero $u$-coordinate. So this $u$-coordinate check rejects
 both $\ZeroJ$ and the point of order $2$, and no other points.
 
 The first doubling can be merged with the curve point check to avoid recomputing $C$ or $T$.
