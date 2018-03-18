@@ -529,6 +529,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\PaymentAddresses}{\titleterm{Shielded Payment Addresses}}
 \newcommand{\diversifiedPaymentAddress}{\term{diversified payment address}}
 \newcommand{\diversifiedPaymentAddresses}{\term{diversified payment addresses}}
+\newcommand{\diversifiedBase}{\term{diversified base}}
+\newcommand{\diversifiedBases}{\term{diversified bases}}
 \newcommand{\diversifier}{\term{diversifier}}
 \newcommand{\diversifiers}{\term{diversifiers}}
 \newcommand{\incomingViewingKey}{\term{incoming viewing key}}
@@ -736,6 +738,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\CRHivkText}{\texorpdfstring{$\CRHivk$}{CRHivk}}
 \newcommand{\CRHivkOutput}{\CRHivk\mathsf{.Output}}
 \newcommand{\CRHivkBox}[1]{\CRHivk\!\left(\Justthebox{#1}\right)}
+\newcommand{\DiversifyHash}{\mathsf{DiversifyHash}}
 
 % Key pairs
 
@@ -808,7 +811,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\Hashnr}{H^{\NullifierRand}}
 \newcommand{\Diversifier}{\mathsf{d}}
 \newcommand{\DiversifierLength}{\mathsf{\ell_{\Diversifier}}}
-\newcommand{\DiversifierType}{\byteseq{\DiversifierLength/8}}
+\newcommand{\DiversifierType}{\bitseq{\DiversifierLength}}
 \newcommand{\DiversifiedTransmitBase}{\mathsf{g_d}}
 \newcommand{\DiversifiedTransmitPublic}{\mathsf{pk_d}}
 \newcommand{\Index}{\mathsf{Index}}
@@ -1972,16 +1975,18 @@ where $\NoteCommitSprout{}$ is instantiated in \crossref{concretesproutcommit}.
 \sapling{
 \vspace{2ex}
 \introlist
-Let $\GroupJHash{}$ and $U$ be as defined in \crossref{concretegrouphashjubjub}.
+Let $\DiversifyHash$ be as defined in \crossref{concretediversifyhash}.
 
 A \Sapling{} \noteCommitment on a \note
 $\NoteTuple{} = (\Diversifier, \DiversifiedTransmitPublic, \Value, \NoteCommitRand)$ is computed as
 
 \begin{formulae}
-  \item $\DiversifiedTransmitBase := \GroupJHash{U}(\ascii{Zcash\_gd}, \Diversifier)$
+  \item $\DiversifiedTransmitBase := \DiversifyHash(\Diversifier)$
   \item $\NoteCommitmentSapling(\NoteTuple{}) := \begin{cases}
           \bot, &\caseif \DiversifiedTransmitBase = \bot \\
-          \NoteCommitSapling{\NoteCommitRand}(\reprJOf{\DiversifiedTransmitBase}, \DiversifiedTransmitPublic, \Value), &\caseotherwise.
+          \NoteCommitSapling{\NoteCommitRand}(\reprJOf{\DiversifiedTransmitBase},
+                                              \reprJOf{\DiversifiedTransmitPublic},
+                                              \Value), &\caseotherwise.
         \end{cases}$
 \end{formulae}
 \vspace{-1.5ex}
@@ -2964,6 +2969,8 @@ Let $\KASapling$ be a \keyAgreementScheme, instantiated in \crossref{concretesap
 
 Let $\CRHivk$ be a \hashFunction, instantiated in \crossref{concretecrhivk}.
 
+Let $\DiversifyHash$ be a \hashFunction, instantiated in \crossref{concretediversifyhash}.
+
 Let $\FindGroupJHash$ be as defined in \crossref{concretegrouphashjubjub}.
 
 Let $\AuthSignBase = \FindGroupJHashOf{\ascii{Zcash\_G\_}, \ascii{}}$ and
@@ -3016,14 +3023,14 @@ authority. A group of such addresses shares the same \fullViewingKey and
 \incomingViewingKey.
 
 To create a new \diversifiedPaymentAddress given an \incomingViewingKey
-$\InViewingKey$, first choose a \diversifier $\Diversifier$ uniformly at
-random from $\DiversifierType$.
+$\InViewingKey$, repeatedly pick a \diversifier $\Diversifier$ uniformly at
+random from $\DiversifierType$ until
+$\DiversifiedTransmitBase = \DiversifyHash(\Diversifier)$ is not $\bot$.
 Then calculate:
 
-\begin{tabular}{@{\hskip 2em}r@{\;}l}
-  $\DiversifiedTransmitBase$ &$:= \GroupJHash{U}(\ascii{Zcash\_gd}, \Diversifier)$ \\
-  $\DiversifiedTransmitPublic$ &$:= \reprJOf{\KASaplingDerivePublic(\InViewingKey, \DiversifiedTransmitBase)}$.
-\end{tabular}
+\begin{formulae}
+  \item $\DiversifiedTransmitPublic := \KASaplingDerivePublic(\InViewingKey, \DiversifiedTransmitBase)$.
+\end{formulae}
 
 The resulting \diversifiedPaymentAddress is $(\Diversifier, \DiversifiedTransmitPublic)$.
 
@@ -3276,7 +3283,7 @@ $(\Diversifier, \DiversifiedTransmitPublic)$, and then performs the following st
         (i.e. $\abstJOf{\DiversifiedTransmitPublic} \neq \bot$ and
         $\scalarmult{8}{\abstJOf{\DiversifiedTransmitPublic}} \neq \ZeroJ$).
 
-  \item Calculate $\DiversifiedTransmitBase = \GroupJHash{U}(\ascii{Zcash\_gd}, \Diversifier)$
+  \item Calculate $\DiversifiedTransmitBase = \DiversifyHash(\Diversifier)$
         and check that $\DiversifiedTransmitBase \neq \bot$.
 
   \item Choose $\EphemeralPrivate$ uniformly at random on $\range{0}{\ParamJ{r} - 1}$.
@@ -4179,6 +4186,28 @@ not support arbitrary bit lengths, otherwise that would have been
 used rather than external truncation. However, the protocol-specific
 personalization string together with truncation achieve essentially
 the same effect as using that feature.
+}
+} %sapling
+
+
+\sapling{
+\introlist
+\subsubsubsection{$\DiversifyHash$ \HashFunction} \label{concretediversifyhash}
+
+$\DiversifyHash$ is used to derive a \diversifiedBase from a \diversifier in
+\crossref{saplingkeycomponents}.
+
+Let $\GroupJHash{}$ and $U$ be as defined in \crossref{concretegrouphashjubjub}.
+
+Define
+
+\begin{formulae}
+  \item $\DiversifyHash(\Diversifier) := \GroupJHash{U}(\ascii{Zcash\_gd}, \LEBStoOSPOf{\DiversifierLength}{\Diversifier})$
+\end{formulae}
+
+\securityrequirement{
+$\DiversifyHash$ must satisfy the Discrete Logarithm Independence property
+described in \crossref{abstractgrouphash}. \todo{make this more precise.}
 }
 } %sapling
 
