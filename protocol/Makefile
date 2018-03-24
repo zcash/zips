@@ -70,3 +70,32 @@ clean:
               protocol.aux protocol.out protocol.log protocol.bcf protocol.run.xml protocol.fls protocol.fdb_latexmk \
               sapling.dvi  sapling.pdf  sapling.bbl  sapling.blg  sapling.brf      sapling.toc \
               sapling.aux  sapling.out  sapling.log  sapling.bcf  sapling.run.xml  sapling.fls  sapling.fdb_latexmk
+
+optimizer-installed.flag:
+	# Nail down git commits to make backdooring somewhat harder.
+	git clone https://github.com/pts/sam2p.git
+	cd sam2p && git reset --hard a2d7819107324faf7b0904fc7074f7dd4a0e16c7 && $(MAKE)
+	git clone https://github.com/pts/tif22pnm.git
+	cd tif22pnm && git reset --hard 22217c1a3ea355a899e9c7c79903488ca13d1dfe && $(MAKE)
+	git clone https://github.com/pts/pdfsizeopt.git
+	cd pdfsizeopt && git reset --hard 47a03403d70f6975888cee966858bebc51b76463
+	touch optimizer-installed.flag
+
+.PHONY: clean-optimizer
+clean-optimizer:
+	rm -rf sam2p tif22pnm pdfsizeopt optimizer-installed.flag
+
+.PHONY: optimize-pdf
+optimize-pdf: optimizer-installed.flag
+	PATH="${PATH}:$(CURDIR)/sam2p:$(CURDIR)/tif22pnm" pdfsizeopt/pdfsizeopt --do-require-image-optimizers=no \
+              protocol.pdf protocol-opt.pdf
+	mv -f protocol-opt.pdf protocol.pdf
+
+.PHONY: optimize-sapling
+optimize-sapling: optimizer-installed.flag
+	PATH="${PATH}:$(CURDIR)/sam2p:$(CURDIR)/tif22pnm" pdfsizeopt/pdfsizeopt --do-require-image-optimizers=no \
+              sapling.pdf sapling-opt.pdf
+	mv -f sapling-opt.pdf sapling.pdf
+
+.PHONY: optimized
+optimized: pdf sapling optimize-pdf optimize-sapling
