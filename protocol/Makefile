@@ -13,9 +13,10 @@ pdf:
 	mv -f aux/protocol.pdf .
 
 .PHONY: html
-html: pdf sapling
-	pdf2htmlEX --decompose-ligature 1 --font-size-multiplier 60 --split-pages 1 --dest-dir html protocol.pdf
-	pdf2htmlEX --decompose-ligature 1 --font-size-multiplier 60 --split-pages 1 --dest-dir saplinghtml sapling.pdf
+html: protocol.pdf sapling.pdf
+	# Can't use --split-pages 1 because XHR doesn't work by default on local files in Chrome.
+	pdf2htmlEX --decompose-ligature 1 --font-size-multiplier 65 --fit-width 1000 --dest-dir html protocol.pdf
+	pdf2htmlEX --decompose-ligature 1 --font-size-multiplier 65 --fit-width 1000 --dest-dir html sapling.pdf
 
 .PHONY: pvcpdf
 pvcpdf:
@@ -65,7 +66,7 @@ nolatexmk-sapling:
 
 .PHONY: clean
 clean:
-	rm -f aux/* protocol.ver \
+	rm -f aux/* html/* protocol.ver \
               protocol.dvi protocol.pdf protocol.bbl protocol.blg protocol.brf     protocol.toc \
               protocol.aux protocol.out protocol.log protocol.bcf protocol.run.xml protocol.fls protocol.fdb_latexmk \
               sapling.dvi  sapling.pdf  sapling.bbl  sapling.blg  sapling.brf      sapling.toc \

@@ -46,3 +46,21 @@ to optimize just ``protocol.pdf`` or ``sapling.pdf`` respectively.
 
 This gives a size saving of about 50% for ``protocol.pdf``, and
 40% for ``sapling.pdf``.
+
+
+Converting to HTML
+------------------
+
+To convert to HTML you will first need to install ``pdf2htmlEX``. On Debian:
+
+.. code::
+
+   apt-get install pdf2htmlex
+
+Then use ``make html`` (or ``make optimized html``) to convert both PDFs.
+
+The results are placed in the ``html`` directory at ``html/protocol.html``
+and ``html/sapling.html``.
+
+See `<https://github.com/zcash/zips/issues/127>`_ for limitations of
+this conversion.
