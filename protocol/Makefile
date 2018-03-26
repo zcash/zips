@@ -88,14 +88,14 @@ clean-optimizer:
 
 .PHONY: optimize-pdf
 optimize-pdf: optimizer-installed.flag
-	PATH="${PATH}:$(CURDIR)/sam2p:$(CURDIR)/tif22pnm" pdfsizeopt/pdfsizeopt --do-require-image-optimizers=no \
-              protocol.pdf protocol-opt.pdf
+	PATH="${PATH}:$(CURDIR)/sam2p:$(CURDIR)/tif22pnm" pdfsizeopt/pdfsizeopt --v=40 --use-image-optimizer=sam2p \
+              --tmp-dir=aux protocol.pdf protocol-opt.pdf
 	mv -f protocol-opt.pdf protocol.pdf
 
 .PHONY: optimize-sapling
 optimize-sapling: optimizer-installed.flag
-	PATH="${PATH}:$(CURDIR)/sam2p:$(CURDIR)/tif22pnm" pdfsizeopt/pdfsizeopt --do-require-image-optimizers=no \
-              sapling.pdf sapling-opt.pdf
+	PATH="${PATH}:$(CURDIR)/sam2p:$(CURDIR)/tif22pnm" pdfsizeopt/pdfsizeopt --v=40 --use-image-optimizer=sam2p \
+              --tmp-dir=aux sapling.pdf sapling-opt.pdf
 	mv -f sapling-opt.pdf sapling.pdf
 
 .PHONY: optimized
