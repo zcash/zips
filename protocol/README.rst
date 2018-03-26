@@ -36,13 +36,15 @@ Optimizing PDF size
 Optionally, you can use `Péter Szabó <https://github.com/pts>`_'s
 ``pdfsizeopt`` program to optimize the size of the resulting PDF files.
 
-Run ``make optimized`` to rebuild both PDFs and then optimize them.
-This will probably only work on Linux. The first time this is run it
-will automatically clone and build the necessary dependencies (pinned
-by ``git`` hash) from GitHub.
+Use:
 
-Alternatively, you can run ``make optimize-pdf`` or ``make optimize-sapling``
-to optimize just ``protocol.pdf`` or ``sapling.pdf`` respectively.
+* ``make optpdf`` to make an optimized version of ``protocol.pdf``;
+* ``make optsapling`` to make an optimized version of ``sapling.pdf``;
+* ``make optimized`` to make both.
+
+This will probably only work on Linux. The first time one of these
+targets is run, it will automatically clone and build the necessary
+dependencies (pinned by ``git`` hash) from GitHub.
 
 This gives a size saving of about 50% for ``protocol.pdf``, and
 40% for ``sapling.pdf``.

@@ -4,19 +4,17 @@ protocol.pdf: protocol.tex zcash.bib incremental_merkle.pdf key_components.pdf
 sapling.pdf: protocol.tex zcash.bib incremental_merkle.pdf key_components_sapling.pdf
 	$(MAKE) sapling
 
-.PHONY: pdf
-pdf:
+.PHONY: auxpdf
+auxpdf:
 	printf '\\renewcommand{\\docversion}{Version %s}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/protocol.*
 	latexmk -bibtex -pdf -auxdir=aux -outdir=aux protocol
-	mv -f aux/protocol.pdf .
 
-.PHONY: html
-html: protocol.pdf sapling.pdf
-	# Can't use --split-pages 1 because XHR doesn't work by default on local files in Chrome.
-	pdf2htmlEX --decompose-ligature 1 --font-size-multiplier 65 --fit-width 1000 --dest-dir html protocol.pdf
-	pdf2htmlEX --decompose-ligature 1 --font-size-multiplier 65 --fit-width 1000 --dest-dir html sapling.pdf
+.PHONY: pdf
+pdf:
+	$(MAKE) auxpdf
+	mv -f aux/protocol.pdf .
 
 .PHONY: pvcpdf
 pvcpdf:
@@ -25,12 +23,16 @@ pvcpdf:
 	rm -f aux/protocol.*
 	latexmk -bibtex -pdf -pvc -auxdir=aux protocol
 
-.PHONY: sapling
-sapling:
+.PHONY: auxsapling
+auxsapling:
 	printf '\\toggletrue{issapling}\n\\renewcommand{\\docversion}{Version %s [\\SaplingSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/sapling.*
 	latexmk -bibtex -pdf -jobname=sapling -auxdir=aux -outdir=aux protocol
+
+.PHONY: sapling
+sapling:
+	$(MAKE) auxsapling
 	mv -f aux/sapling.pdf .
 
 .PHONY: pvcsapling
@@ -64,6 +66,12 @@ nolatexmk-sapling:
 	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.pdf; exit 1; }
 	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.pdf; exit 1; }
 
+.PHONY: html
+html: protocol.pdf sapling.pdf
+	# Can't use --split-pages 1 because XHR doesn't work by default on local files in Chrome.
+	pdf2htmlEX --decompose-ligature 1 --font-size-multiplier 65 --fit-width 1000 --dest-dir html protocol.pdf
+	pdf2htmlEX --decompose-ligature 1 --font-size-multiplier 65 --fit-width 1000 --dest-dir html sapling.pdf
+
 .PHONY: clean
 clean:
 	rm -f aux/* html/* protocol.ver \
@@ -86,17 +94,17 @@ optimizer-installed.flag:
 clean-optimizer:
 	rm -rf sam2p tif22pnm pdfsizeopt optimizer-installed.flag
 
-.PHONY: optimize-pdf
-optimize-pdf: optimizer-installed.flag
+.PHONY: optpdf
+optpdf: optimizer-installed.flag
+	$(MAKE) auxpdf
 	PATH="${PATH}:$(CURDIR)/sam2p:$(CURDIR)/tif22pnm" pdfsizeopt/pdfsizeopt --v=40 --use-image-optimizer=sam2p \
-              --tmp-dir=aux protocol.pdf protocol-opt.pdf
-	mv -f protocol-opt.pdf protocol.pdf
+              --tmp-dir=aux aux/protocol.pdf protocol.pdf
 
-.PHONY: optimize-sapling
-optimize-sapling: optimizer-installed.flag
+.PHONY: optsapling
+optsapling: optimizer-installed.flag
+	$(MAKE) auxsapling
 	PATH="${PATH}:$(CURDIR)/sam2p:$(CURDIR)/tif22pnm" pdfsizeopt/pdfsizeopt --v=40 --use-image-optimizer=sam2p \
-              --tmp-dir=aux sapling.pdf sapling-opt.pdf
-	mv -f sapling-opt.pdf sapling.pdf
+              --tmp-dir=aux aux/sapling.pdf sapling.pdf
 
 .PHONY: optimized
-optimized: pdf sapling optimize-pdf optimize-sapling
+optimized: optpdf optsapling
