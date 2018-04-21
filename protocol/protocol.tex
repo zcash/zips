@@ -628,6 +628,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\PaymentAddresses}{\titleterm{Shielded Payment Addresses}}
 \newcommand{\diversifiedPaymentAddress}{\term{diversified payment address}}
 \newcommand{\diversifiedPaymentAddresses}{\term{diversified payment addresses}}
+\newcommand{\defaultDiversifiedPaymentAddress}{\term{default diversified payment address}}
 \newcommand{\diversifiedBase}{\term{diversified base}}
 \newcommand{\diversifiedBases}{\term{diversified bases}}
 \newcommand{\diversifier}{\term{diversifier}}
@@ -875,6 +876,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\CRHivkBox}[1]{\CRHivk\!\left(\Justthebox{#1}\right)}
 \newcommand{\DiversifyHash}{\mathsf{DiversifyHash}}
 \newcommand{\DiversifyHashText}{\texorpdfstring{$\DiversifyHash$}{DiversifyHash}}
+\newcommand{\DefaultDiversifier}{\mathsf{DefaultDiversifier}}
 \newcommand{\NotUpMySleeve}{U}
 
 \newcommand{\tx}{\mathsf{tx}}
@@ -992,6 +994,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\PRFOutputNfSapling}{\bitseq{\PRFOutputLengthNfSapling}}
 \newcommand{\PRFOutputLengthExpand}{\mathsf{\ell_{PRFexpand}}}
 \newcommand{\PRFOutputExpand}{\bitseq{\PRFOutputLengthExpand}}
+\newcommand{\PRFInputExpand}{\byteseq{\barerange{1}{2}}}
 
 % Commitments
 
@@ -2685,7 +2688,7 @@ derive a \paymentAddress from a \spendingKey in \crossref{sproutkeycomponents}.
 For \Sapling, three additional $\PRF{x}{}$ are needed:
 
 \begin{tabular}{@{\hskip 2em}l@{\;}l@{\;}l@{\;}l@{\hskip 0.25em}l}
-$\PRFexpand{}    $&$\typecolon\; \SpendingKeyType   $&$\times\; \byte  $& &$\rightarrow \PRFOutputExpand $\\
+$\PRFexpand{}    $&$\typecolon\; \SpendingKeyType   $&$\times\; \PRFInputExpand $& &$\rightarrow \PRFOutputExpand $\\
 $\PRFock{}       $&$\typecolon\; \OutViewingKeyType $&$\times\; \ReprJ \times \ReprJ \times \ReprJ $& &$\rightarrow \Keyspace$\\
 $\PRFnfSapling{} $&$\typecolon\; \ReprJ             $&$\times\; \ReprJ $& &$\rightarrow \PRFOutputNfSapling $
 \end{tabular}
@@ -3497,9 +3500,9 @@ From this \spendingKey, the \authSigningKey $\AuthSignPrivate$ and \authProvingK
 are derived as follows:
 
 \begin{formulae}
-  \item $\AuthSignPrivate := \ToScalar(\PRFexpand{\SpendingKey}(0))$
-  \item $\AuthProvePrivate := \ToScalar(\PRFexpand{\SpendingKey}(1))$
-  \item $\OutViewingKey := \truncate{32}(\PRFexpand{\SpendingKey}(2))$
+  \item $\AuthSignPrivate := \ToScalar(\PRFexpand{\SpendingKey}([0]))$
+  \item $\AuthProvePrivate := \ToScalar(\PRFexpand{\SpendingKey}([1]))$
+  \item $\OutViewingKey := \truncate{32}(\PRFexpand{\SpendingKey}([2]))$
 \end{formulae}
 } %sapling
 
@@ -3542,15 +3545,31 @@ Then calculate:
 
 The resulting \diversifiedPaymentAddress is $(\Diversifier, \DiversifiedTransmitPublic)$.
 
+\vspace{2ex}
+For each \spendingKey, there is also a \defaultDiversifiedPaymentAddress
+with a ``random-looking'' \diversifier. This allows an implementation that does not expose
+diversified addresses as a user-visible feature, to nevertheless use a default address that
+cannot be distinguished (just from the address) from one generated with a random \diversifier
+as above.
+
+Let $\first \typecolon (\byte \rightarrow T \union \setof{\bot}) \rightarrow T \union \setof{\bot}$
+be as defined in \crossref{concretegrouphashjubjub}.
+
+Define $\DefaultDiversifier(\sk) :=
+\first(\fun{i \typecolon \byte}{\DiversifyHash(\truncate{(\DiversifierLength/8)}(\PRFexpand{\sk}([3, i]))) \typecolon \GroupJ})$.
+
+For a random \spendingKey, $\DefaultDiversifier$ returns $\bot$ with probability approximately $2^{-256}$.
+
+
 \begin{pnotes}
   \item Assume that $\PRFexpand{}$ is a PRF with output range $\PRFOutputExpand$, and define
-        $f \typecolon \SpendingKeyType \times \byte \rightarrow \GF{\ParamJ{r}}$ by
+        $f \typecolon \SpendingKeyType \times \PRFInputExpand \rightarrow \GF{\ParamJ{r}}$ by
         \begin{formulae}
           \item $f_{\sk}(t) := \ToScalar(\PRFexpand{\SpendingKey}(t))$.
         \end{formulae}
         Then $f$ is also a PRF, since $\LEOStoIP{512} \typecolon \PRFOutputExpand \rightarrow \binaryrange{512}$
         is injective and $2^{512}$ is large compared to $\ParamJ{r}$. It follows that the
-        distributions $\PRFexpand{\SpendingKey}(0) : \SpendingKey \leftarrowR \SpendingKeyType$
+        distributions $\PRFexpand{\SpendingKey}([0]) : \SpendingKey \leftarrowR \SpendingKeyType$
         and $\SpendAuthSigGenPrivate()$ (defined in \crossref{concretespendauthsig}) are computationally
         indistinguishable.
   \item $\AuthProvePublicRepr$ will be used as a key for $\PRFnfSapling{}$ (see
@@ -5599,15 +5618,6 @@ be necessary.})
 }
 
 
-\newsavebox{\expandbox}
-\begin{lrbox}{\expandbox}
-\setsapling
-\begin{bytefield}[bitwidth=0.042em]{264}
-    \sbitbox{256}{$\LEBStoOSPOf{256}{\SpendingKey}$} &
-    \sbitbox{80}{$8$-bit $t$}
-\end{bytefield}
-\end{lrbox}
-
 \newsavebox{\nfsaplingbox}
 \begin{lrbox}{\nfsaplingbox}
 \setsapling
@@ -5627,12 +5637,12 @@ It is instantiated using the $\BlakeTwobGeneric$ \hashFunction defined in
 \crossref{concreteblake2}:
 
 \begin{formulae}
-  \item $\PRFexpand{\SpendingKey}(t) := \BlakeTwobOf{512}{\ascii{Zcash\_ExpandSeed}, \Justthebox{\expandbox}}$
+  \item $\PRFexpand{\SpendingKey}(t) := \BlakeTwobOf{512}{\ascii{Zcash\_ExpandSeed}, \LEBStoOSPOf{256}{\SpendingKey} \bconcat t}$
 \end{formulae}
 
 \vspace{-4.5ex}
 \securityrequirement{
-$\BlakeTwobOf{512}{\ascii{Zcash\_ExpandSeed}, \Justthebox{\expandbox}}$ must be a PRF for output range
+$\BlakeTwobOf{512}{\ascii{Zcash\_ExpandSeed}, \LEBStoOSPOf{256}{\SpendingKey} \bconcat t}$ must be a PRF for output range
 $\PRFOutputExpand$ when keyed by the bits corresponding to $\SpendingKey$, with input in the bits
 corresponding to $t$.
 } %securityrequirement
@@ -8861,6 +8871,7 @@ found by Brian Warner.
     \item Specify \bindingSignatures and \spendAuthSignatures.
     \item Specify the randomness beacon.
     \item Add output ciphertexts and $\OutCipherKey$.
+    \item Define $\DefaultDiversifier$.
     \item Correct an error in the $y$-coordinate formula for addition
           in \crossref{cctmontarithmetic} (the constraints were correct).
 } %sapling
