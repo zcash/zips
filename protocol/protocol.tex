@@ -3572,7 +3572,7 @@ For a random \spendingKey, $\DefaultDiversifier$ returns $\bot$ with probability
         distributions $\PRFexpand{\SpendingKey}([0]) : \SpendingKey \leftarrowR \SpendingKeyType$
         and $\SpendAuthSigGenPrivate()$ (defined in \crossref{concretespendauthsig}) are computationally
         indistinguishable.
-  \item $\AuthProvePublicRepr$ will be used as a key for $\PRFnfSapling{}$ (see
+  \item $\reprJOf{\AuthProvePublic}$ will be used as a key for $\PRFnfSapling{}$ (see
         \crossref{commitmentsandnullifiers} and \crossref{spendstatement}) to derive
         \nullifiers for \Sapling{} \notes.
         The output of $\reprJ$ is approximately uniformly distributed on
@@ -3704,6 +3704,7 @@ where
         I.e.\ it must be the case that $\SpendVerify{}((\cv, \rt, \nf, \AuthSignRandomizedPublic), \Proof{\Spend}) = 1$.
   \item The \spendAuthSignature{} \MUST be a valid $\SpendAuthSig$ signature over $\dataToBeSigned$
         using $\AuthSignRandomizedPublic$ as the public key.
+        I.e.\ it must be the case that $\SpendAuthSigVerify{\AuthSignRandomizedPublic}(\spendAuthSig) = 1$.
 \end{consensusrules}
 } %sapling
 
@@ -3739,7 +3740,7 @@ where
 \begin{consensusrules}
   \item Elements of an \outputDescription{} \MUST have the types given above.
   \item The proof $\Proof{\Output}$ \MUST be valid given a \primaryInput formed
-        from the other fields except $\TransmitCiphertext{}$.
+        from the other fields except $\TransmitCiphertext{}$ and $\OutCiphertext{}$.
         I.e.\ it must be the case that $\SpendVerify{}((\cv, \cm, \EphemeralPublic), \Proof{\Output}) = 1$.
 \end{consensusrules}
 } %sapling
@@ -3840,10 +3841,10 @@ the following steps:
 
   \item Let $\NotePlaintext{} = (\Diversifier, \ValueNew{}, \NoteCommitRandNew{}, \Memo)$.
 
-  \item Encrypt $\NotePlaintext{}$ to the recipient
+  \item Encrypt $\NotePlaintext{}$, $\cvNew{}$, and $\cmNew{}$ to the recipient
         \diversifiedTransmissionKey $\DiversifiedTransmitPublic$ with
         \diversifiedTransmissionBase $\DiversifiedTransmitBase$, giving the \noteCiphertext
-        $(\EphemeralPublic, \TransmitCiphertext{}, \OutCiphertext)$,
+        $(\EphemeralPublic, \TransmitCiphertext{}, \OutCiphertext)$
         as described in \crossref{saplingencrypt}.
 
   \item Generate a proof $\ProofOutput$ for the \outputStatement described in \crossref{outputstatement}.
@@ -4152,6 +4153,12 @@ The corresponding signing and verifying keys are calculated as:
                             \Bigg(\vgrpsum{j=1}{m} \ValueCommitRandNew{j}\Bigg)$.
 \end{formulae}
 
+\introlist
+In order to check for implementation faults, the signer \SHOULD also check that
+\begin{formulae}
+  \item $\BindingPublic = \BindingSigDerivePublic(\BindingPrivate)$.
+\end{formulae}
+
 \vspace{2ex}
 Let $\SigHash$ be the \sighashTxHash as defined in \cite{ZIP-243}, using $\SIGHASHALL$.
 
@@ -4217,22 +4224,30 @@ replayed in other \transactions.
 \vspace{2ex}
 Let $\SigHash$ be the \sighashTxHash as defined in \cite{ZIP-243}, using $\SIGHASHALL$.
 
-Let $\dataToBeSigned := \Justthebox{\spendauthsigmsgbox}$.
-
 Let $\AuthSignPrivate$ be the \spendAuthPrivateKey as defined in \crossref{saplingkeycomponents}.
 
 \vspace{2ex}
 \introlist
 For each \spendDescription, the signer uses a fresh \spendAuthRandomizer $\AuthSignRandomizer$:
-\begin{formulae}
+\begin{enumerate}
   \item Choose $\AuthSignRandomizer \leftarrowR \SpendAuthSigGenRandom()$.
   \item Let $\AuthSignRandomizedPrivate = \SpendAuthSigRandomizePrivate(\AuthSignRandomizer, \AuthSignPrivate)$.
-  \item Generate a proof $\ProofSpend$ of the \spendStatement (\crossref{spendstatement})
-        with $\AuthSignRandomizer$ in the \auxiliaryInput.
+  \item Let $\AuthSignRandomizedPublic = \SpendAuthSigDerivePublic(\AuthSignRandomizedPrivate)$.
+  \item Generate a proof $\ProofSpend$ of the \spendStatement (\crossref{spendstatement}),
+        with $\AuthSignRandomizer$ in the \auxiliaryInput and $\AuthSignRandomizedPublic$
+        in the \primaryInput.
+  \item Let $\dataToBeSigned = \Justthebox{\spendauthsigmsgbox}$.
   \item Let $\spendAuthSig = \SpendAuthSigSign{\AuthSignRandomizedPrivate}(\dataToBeSigned)$.
-\end{formulae}
+\end{enumerate}
 
 The $\spendAuthSig$ and $\ProofSpend$ are included in the \spendDescription.
+
+\pnote{
+If the spender is computationally or memory-limited, step 4 \MAY be delegated to a different
+party that is capable of performing the \zkProof. In this case privacy will be lost to that
+party since it needs the \fullViewingKey, but it will not obtain spending authority for
+other \transactions, since it is not able to create a \spendAuthSignature by itself.
+} %pnote
 } %sapling
 
 
@@ -4265,11 +4280,13 @@ $\MixingPedersenHash$ is defined in \crossref{concretemixinghash}.
 Let $\PRFnf{}{}$\sapling{ and $\PRFnfSapling{}{}$} be as instantiated in \crossref{concreteprfs}.
 
 \sprout{The \nullifier of a \note}\notsprout{For a \Sprout{} \note, the \nullifier}
-is derived as $\PRFnf{\AuthPrivate}(\NoteAddressRand)$.
+is derived as $\PRFnf{\AuthPrivate}(\NoteAddressRand)$, where $\AuthPrivate$ is the
+\spendingKey associated with the \note.
 
 \sapling{
 For a \Sapling{} \note, the \nullifier is derived as
-$\PRFnfSapling{\AuthProvePublicRepr}(\NoteAddressRand)$.
+$\PRFnfSapling{\AuthProvePublicRepr}(\NoteAddressRand)$, where $\AuthProvePublicRepr$
+is a representation of the \nullifierKey associated with the \note.
 } %sapling
 
 
@@ -4373,9 +4390,13 @@ Let $\MerkleHashLengthSapling$, $\PRFOutputLengthNfSapling$, and $\ScalarLength$
 as defined in \crossref{constants}.
 
 \vspace{-0.5ex}
-Let $\GroupJ$ be as defined in \crossref{jubjub}.
+Let $\ValueCommitAlg$ and $\NoteCommitSaplingAlg$ be as specified in \crossref{abstractcommit}.
 
-Let $\AuthSignBase$ be as defined in \crossref{saplingkeycomponents}.
+Let $\SpendAuthSig$ be as defined in \crossref{concretespendauthsig}.
+
+Let $\GroupJ$ and the cofactor $\ParamJ{h}$ be as defined in \crossref{jubjub}.
+
+Let $\ExtractJ$ be as defined in \crossref{concreteextractorjubjub}.
 
 A valid instance of $\ProofSpend$ assures that given a \primaryInput:
 
@@ -4383,7 +4404,7 @@ A valid instance of $\ProofSpend$ assures that given a \primaryInput:
   \item $\oparen\rt \typecolon \MerkleHashSapling,\\
          \hparen\cvOld{} \typecolon \ValueCommitOutput,\\
          \hparen\nfOld{} \typecolon \bitseq{\PRFOutputLengthNfSapling},\\
-         \hparen\AuthSignRandomizedPublic \typecolon \GroupJ\cparen$,
+         \hparen\AuthSignRandomizedPublic \typecolon \SpendAuthSigPublic\cparen$,
 \end{formulae}
 
 \vspace{-1.5ex}
@@ -4409,17 +4430,15 @@ such that the following conditions hold:
 \vspace{1ex}
 \snarkcondition{Note commitment integrity} \label{spendnotecommitmentintegrity}
 
-$\pack(\cmOld{}) = \NoteCommitSapling{\NoteCommitRandOld{}}(\reprJOf{\DiversifiedTransmitBase},
-                                                            \reprJOf{\DiversifiedTransmitPublic},
-                                                            \vOld{})$.
-
-\todo{define $\pack$.}
+$\cmOld{} = \NoteCommitSapling{\NoteCommitRandOld{}}(\reprJOf{\DiversifiedTransmitBase},
+                                                     \reprJOf{\DiversifiedTransmitPublic},
+                                                     \vOld{})$.
 
 \vspace{-1ex}
 \snarkcondition{Merkle path validity} \label{saplingmerklepathvalidity}
 
 Either $\vOld{} = 0$; or $(\TreePath{}, \NotePosition)$ is a valid \merklePath of depth $\MerkleDepthSapling$,
-as defined in \crossref{merklepath}, from $\cmOld{}$ to the \anchor $\rt$.
+as defined in \crossref{merklepath}, from $\ExtractJ(\cmOld{})$ to the \anchor $\rt$.
 
 \snarkcondition{Value commitment integrity} \label{spendvaluecommitmentintegrity}
 
@@ -4443,24 +4462,47 @@ $\nfOld{} = \PRFnfSapling{\AuthProvePublicRepr}(\NoteAddressRand)$ where
 
 \snarkcondition{Spend authority} \label{spendauthority}
 
-$\AuthSignRandomizedPublic = \AuthSignPublic + \scalarmult{\AuthSignRandomizer}{\AuthSignBase}$.
+$\AuthSignRandomizedPublic = \SpendAuthSigRandomizePublic(\AuthSignRandomizer, \AuthSignPublic)$.
 
 \snarkcondition{Diversified address integrity} \label{spendaddressintegrity}
 
 $\DiversifiedTransmitPublic = \scalarmult{\InViewingKey}{\DiversifiedTransmitBase}$ where
 \begin{formulae}
   \item $\InViewingKey = \CRHivk(\AuthSignPublicRepr, \AuthProvePublicRepr)$
+        \vspace{-1ex}
+  \item $\AuthSignPublicRepr = \reprJOf{\AuthSignPublic}$.
 \end{formulae}
 
 
 \vspace{1.5ex}
 For details of the form and encoding of \spendStatement proofs, see \crossref{groth}.
+
+\begin{pnotes}
+  \item Public and \auxiliaryInputs{} \MUST be constrained to have the types specified. In particular,
+        see \crossref{ccteddecompressvalidate} for implementation of validity checks on compressed
+        representations of \jubjubCurve points.
+
+        The $\ValueCommitOutput$, $\NoteCommitSaplingOutput$, and $\SpendAuthSigPublic$ types also
+        represent points.
+  \item In the Merkle path validity check, each \merkleLayer does \emph{not} check that its
+        input bit sequence is a canonical encoding (in $\range{0}{\ParamJ{r}-1}$) of the integer
+        from the previous \merkleLayer.
+  \item $\SpendAuthSigRandomizePublic(\AuthSignRandomizer, \AuthSignPublic) = \AuthSignPublic + \scalarmult{\AuthSignRandomizer}{\AuthSignBase}$
+        where $\AuthSignBase$ is defined in \crossref{saplingkeycomponents}.
+\end{pnotes}
 } %sapling
 
 
 \sapling{
 \introsection
 \subsubsection{\OutputStatement{} (\Sapling)} \label{outputstatement}
+
+Let $\MerkleHashLengthSapling$, $\PRFOutputLengthNfSapling$, and $\ScalarLength$ be
+as defined in \crossref{constants}.
+
+Let $\ValueCommitAlg$ and $\NoteCommitSaplingAlg$ be as specified in \crossref{abstractcommit}.
+
+Let $\GroupJ$ and the cofactor $\ParamJ{h}$ be as defined in \crossref{jubjub}.
 
 A valid instance of $\ProofOutput$ assures that given a \primaryInput:
 
@@ -4476,7 +4518,7 @@ the prover knows an \auxiliaryInput:
 
 \begin{formulae}
   \item $(\DiversifiedTransmitBase \typecolon \GroupJ,\\[0.5ex]
-   \hparen\DiversifiedTransmitPublic \typecolon \GroupJ,\\
+   \hparen\DiversifiedTransmitPublicRepr \typecolon \ReprJ,\\
    \hparen\vNew{} \typecolon \ValueType,\\
    \hparen\ValueCommitRandNew{} \typecolon \ValueCommitTrapdoor,\\
    \hparen\NoteCommitRandNew{} \typecolon \NoteCommitSaplingTrapdoor,\\
@@ -4488,21 +4530,19 @@ such that the following conditions hold:
 \vspace{1ex}
 \snarkcondition{Note commitment integrity} \label{outputnotecommitmentintegrity}
 
-$\pack(\cmNew{}) = \NoteCommitSapling{\NoteCommitRandNew{}}(\DiversifiedTransmitBaseRepr,
-                                                            \DiversifiedTransmitPublicRepr,
-                                                            \vNew{})$.
-
-\todo{define $\pack$.}
+$\cmNew{} = \NoteCommitSapling{\NoteCommitRandNew{}}(\DiversifiedTransmitBaseRepr,
+                                                     \DiversifiedTransmitPublicRepr,
+                                                     \vNew{})$,
+where $\DiversifiedTransmitBaseRepr = \reprJOf{\DiversifiedTransmitBase}$\,.
 
 \snarkcondition{Value commitment integrity} \label{outputvaluecommitmentintegrity}
 
 $\cvNew{} = \ValueCommit{\ValueCommitRandNew{}}(\vNew{})$.
 
-\snarkcondition{Small order checks} \label{outputnonsmall}
+\snarkcondition{Small order check} \label{outputnonsmall}
 
-$\DiversifiedTransmitBase$ and $\DiversifiedTransmitPublic$ are not of small order,
-i.e.\ $\scalarmult{8}{\DiversifiedTransmitBase} \neq \ZeroJ$
-and $\scalarmult{8}{\DiversifiedTransmitPublic} \neq \ZeroJ$.
+$\DiversifiedTransmitBase$ is not of small order,
+i.e.\ $\scalarmult{\ParamJ{h}}{\DiversifiedTransmitBase} \neq \ZeroJ$.
 
 \vspace{0.5ex}
 \snarkcondition{Ephemeral public key integrity} \label{outputepkintegrity}
@@ -4512,6 +4552,15 @@ $\EphemeralPublic = \scalarmult{\EphemeralPrivate}{\DiversifiedTransmitBase}$.
 
 \vspace{2ex}
 For details of the form and encoding of \outputStatement proofs, see \crossref{groth}.
+
+\begin{pnotes}
+  \item Public and \auxiliaryInputs{} \MUST be constrained to have the types specified. In particular,
+        see \crossref{ccteddecompressvalidate} for implementation of validity checks on compressed
+        representations of \jubjubCurve points.
+
+        The $\ValueCommitOutput$ and $\NoteCommitSaplingOutput$ types also represent points.
+  \item The validity of $\DiversifiedTransmitPublicRepr$ is \emph{not} checked in this circuit.
+\end{pnotes}
 } %sapling
 
 
@@ -4681,6 +4730,7 @@ Let $\NotePlaintext{} = (\Diversifier, \Value, \NoteCommitRand, \Memo)$ be the \
 
 $\NotePlaintext{}$ is encoded as defined in \crossref{notept}.
 
+Let $\cvNew{}$ be the \valueCommitment for the new \note, and let $\cmNew{}$ be the \noteCommitment.
 
 \introlist
 Then to encrypt:
@@ -6003,7 +6053,7 @@ As required, $\RedDSADerivePublic$ is a group homomorphism:
 \begin{tabular}{@{\hskip 1.5em}r@{\;}l}
   $\RedDSADerivePublic(\sk_1 \grpplus \sk_2)$
     &$= \scalarmult{\sk_1 + \sk_2 \pmod{\ParamG{r}}}{\GenG{}}$ \\
-    &$= \scalarmult{\sk_1}{\GenG{}} + \scalarmult{\sk_2}{\GenG{}}$ \\
+    &$= \scalarmult{\sk_1}{\GenG{}} + \scalarmult{\sk_2}{\GenG{}}$ \;(since $\GenG{}$ has order $\ParamG{r}$)\\
     &$= \RedDSADerivePublic(\sk_1)\, \combplus \RedDSADerivePublic(\sk_2)$.
 \end{tabular}
 
@@ -6609,12 +6659,12 @@ The hash $\GroupJHash{\CRS}(D, M)$ is calculated as follows:
   \item If $Q = \ZeroJ$ then return $\bot$, else return $Q$.
 \end{formulae}
 
-Define $\first \typecolon (\Nat \rightarrow T \union \setof{\bot}) \rightarrow T \union \setof{\bot}$
+Define $\first \typecolon (\byte \rightarrow T \union \setof{\bot}) \rightarrow T \union \setof{\bot}$
 so that $\first(f) = f(i)$ where $i$ is the least integer in $\byte$
 such that $f(i) \neq \bot$, or $\bot$ if no such $i$ exists.
 
 Let $\FindGroupJHashOf{D, M} =
-\first(\fun{i \typecolon \Nat}{\GroupJHash{\CRS}(D, M \bconcat [i]) \typecolon \GroupJ})$.
+\first(\fun{i \typecolon \byte}{\GroupJHash{\CRS}(D, M \bconcat\, [i]) \typecolon \GroupJ})$.
 
 \begin{pnotes}
   \item The $\BlakeTwos{256}$ chaining variable after processing $\CRS$ may be precomputed.
@@ -6796,7 +6846,7 @@ The usage of the \memo is by agreement between the sender and recipient of the
 
 In the former case, wallet software is expected to strip any trailing zero bytes
 and then display the resulting \mbox{UTF-8} string to the recipient user, where applicable.
-Incorrect UTF-8-encoded byte sequences should be displayed as replacement characters
+Incorrect UTF-8-encoded byte sequences \SHOULD be displayed as replacement characters
 (\ReplacementCharacter).
 
 In the latter case, the contents of the \memo{} \SHOULDNOT be displayed. A start byte
@@ -7715,7 +7765,7 @@ $32$ & \sprout{$\hashReserved$}
 \notsprout{\Longunderstack[l]{$\hashReserved$ /\\ \sapling{$\hashFinalSaplingRoot$}}} &
 \type{char[32]} &
 \presapling{A reserved field which should be ignored.}
-\saplingonward{A \merkleRoot (\todo{specify bit sequence to byte sequence conversion}) of the \Sapling{}
+\saplingonward{The \merkleRoot $\LEBStoOSPOf{256}{\rt}$ of the \Sapling{}
 \noteCommitmentTree corresponding to the final \Sapling{} \treestate of this \block.} \\ \hline
 
 $4$ & $\nTimeField$ & \type{uint32} & The \blockTime is a Unix epoch time (UTC) when the miner
@@ -7754,9 +7804,9 @@ be the constant defined in \crossref{constants}.
   \item $\nTimeField$ \MUST be strictly greater than the median time of the previous
         $\PoWMedianBlockSpan$ \blocks.
   \item The size of a \block{} \MUST be less than or equal to $2000000$ bytes.
-  \saplingonwarditem{$\hashFinalSaplingRoot$ \MUST be the \merkleRoot of the
-        \Sapling{} \noteCommitmentTree for the final \Sapling{} \treestate
-        of this \block.}
+  \saplingonwarditem{$\hashFinalSaplingRoot$ \MUST be $\LEBStoOSPOf{256}{\rt}$ where
+        $\rt$ is the \merkleRoot of the \Sapling{} \noteCommitmentTree for the final
+        \Sapling{} \treestate of this \block.}
   \item \todo{Other rules inherited from \Bitcoin.}
 \end{consensusrules}
 
@@ -8551,7 +8601,9 @@ within the \joinSplitStatement was not considered to justify the benefits.
 In \Sapling, \xPedersenCommitments are used instead of $\SHACompress$.
 These commitments are statistically hiding, and so ``everlasting anonymity''
 is supported for \Sapling notes under the same conditions as in \Zerocash
-(by the protocol, not necessarily by \zcashd).
+(by the protocol, not necessarily by \zcashd). Note that
+\diversifiedPaymentAddresses can be linked if the discrete logarithm problem
+on the \jubjubCurve can be broken.
 }
 
 \subsection{Changes to PRF inputs and truncation} \label{truncation}
@@ -8873,6 +8925,8 @@ found by Brian Warner.
     \item Specify the randomness beacon.
     \item Add output ciphertexts and $\OutCipherKey$.
     \item Define $\DefaultDiversifier$.
+    \item Change the \spendCircuit and \outputCircuit specifications to remove unintended differences
+          from sapling-crypto.
     \item Correct an error in the $y$-coordinate formula for addition
           in \crossref{cctmontarithmetic} (the constraints were correct).
 } %sapling
