@@ -427,6 +427,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\KeyComponents}{\titleterm{Key Components}}
 \newcommand{\valueCommitment}{\term{value commitment}}
 \newcommand{\valueCommitments}{\term{value commitments}}
+\newcommand{\valueCommitmentScheme}{\term{value commitment scheme}}
 \newcommand{\joinSplitDescription}{\term{JoinSplit description}}
 \newcommand{\joinSplitDescriptions}{\term{JoinSplit descriptions}}
 \newcommand{\JoinSplitDescriptions}{\titleterm{JoinSplit Descriptions}}
@@ -842,6 +843,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\mult}{\cdot}
 \newcommand{\smult}{\!\cdot\!}
 \newcommand{\scalarmult}[2]{\boldsymbol{[}{#1}\boldsymbol{]}\,{#2}}
+\newcommand{\bigscalarmult}[2]{\left[{#1}\right]{#2}}
 \newcommand{\rightarrowR}{\mathop{\clasp[-0.18em]{\raisebox{1.15ex}{\scriptsize R}}{$\,\rightarrow\,$}}}
 \newcommand{\leftarrowR}{\mathop{\clasp[0.15em]{\raisebox{1.15ex}{\scriptsize R}}{$\,\leftarrow\,$}}}
 \newcommand{\union}{\cup}
@@ -1284,6 +1286,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\crhInput}{\mathsf{crhInput}}
 \newcommand{\dataToBeSigned}{\mathsf{dataToBeSigned}}
 \newcommand{\vBalance}{\mathsf{v^{balance}}}
+\newcommand{\vBad}{\mathsf{v^{bad}}}
+\newcommand{\vSum}{\mathsf{v^{*}}}
 
 % Merkle tree
 
@@ -4066,10 +4070,17 @@ all of the $\AuthPrivateOld{\allOld}$ for every \joinSplitDescription in the
 to $\joinSplitPubKey$ to sign this \transaction.
 
 
-\subsection{Balance} \label{joinsplitbalance} \label{saplingbalance}
+\subsection{Balance\pSproutOrNothing} \label{joinsplitbalance}
 
-A \joinSplitTransfer can be seen, from the perspective of the \transaction, as
-an input \changed{and an output simultaneously}.
+In \Bitcoin, all inputs to and outputs from a \transaction are transparent.
+The total value of \transparentOutputs{} must not exceed the total value of
+\transparentInputs. The net value of \transparentOutputs minus \transparentInputs
+is transferred to the miner of the \block containing the \transaction; it is added
+to the \minerSubsidy in the \coinbaseTransaction of the \block.
+
+\Zcash{} \SproutOrNothing extends this by adding \joinSplitTransfers.
+Each \joinSplitTransfer can be seen, from the perspective of the \transparentValuePool,
+as an input \changed{and an output simultaneously}.
 
 \changed{$\vpubOld$ takes value from the \transparentValuePool and}
 $\vpubNew$ adds value to the \transparentValuePool. As a result, \changed{$\vpubOld$ is
@@ -4092,20 +4103,6 @@ This restriction helps to avoid unnecessary distinctions between \transactions
 according to client implementation.
 }
 
-\vspace{2ex}
-\sapling{
-In \Sapling, balance for \spendTransfers and \outputTransfers is enforced by the
-\bindingSignature defined in \crossref{concretebindingsig}.
-
-A positive $\balancingValue$ takes value from the \transparentValuePool.
-A negative $\balancingValue$ adds value to the \transparentValuePool.
-As a result, positive $\vBalance$ is treated like an \emph{output} value,
-whereas negative $\vBalance$ is treated like an \emph{input} value.
-
-Consistency of $\vBalance$ with the \valueCommitments in \spendDescriptions
-is enforced by the \bindingSignature as described in \crossref{bindingsig}.
-} %sapling
-
 
 \newsavebox{\bindingsigmsgbox}
 \begin{lrbox}{\bindingsigmsgbox}
@@ -4118,9 +4115,25 @@ is enforced by the \bindingSignature as described in \crossref{bindingsig}.
 
 \sapling{
 \introsection
-\subsection{\BindingSignature{} (\Sapling)} \label{bindingsig}
+\subsection{Balance and \BindingSignature{} (\Sapling)} \label{saplingbalance} \label{bindingsig}
 
-$\BindingSig$ has a dual rôle in the \Sapling protocol:
+\Sapling adds \spendTransfers and \outputTransfers to the transparent and
+\joinSplitTransfers present in \Sprout.
+The net value of \spendTransfers minus \outputTransfers in a \transaction is
+called the \balancingValue, measured in \zatoshi as a signed integer $\vBalance$.
+
+$\vBalance$ is encoded explicitly in a \transaction as the field \valueBalance{};
+see \crossref{txnencoding}.
+
+A positive $\balancingValue$ takes value from the \transparentValuePool.
+A negative $\balancingValue$ adds value to the \transparentValuePool.
+As a result, positive $\vBalance$ is treated like an \emph{output} value,
+whereas negative $\vBalance$ is treated like an \emph{input} value.
+
+Consistency of $\vBalance$ with the \valueCommitments in \spendDescriptions
+and \outputDescriptions is enforced by the \bindingSignature. This signature
+has a dual rôle in the \Sapling protocol:
+
 \begin{itemize}
   \item To prove that the total value spent by \spendTransfers, minus that
         produced by \outputTransfers, is consistent with the $\vBalance$ field
@@ -4133,8 +4146,7 @@ $\BindingSig$ has a dual rôle in the \Sapling protocol:
 
 Instead of generating a key pair at random, we generate it as a function of the
 \valueCommitments in the \spendDescriptions and \outputDescriptions of the \transaction,
-and the \balancingValue that specifies the net amount by which the \spendDescription
-values are in excess of the \outputDescription values.
+and the \balancingValue.
 
 \vspace{2ex}
 \introlist
@@ -4158,27 +4170,29 @@ Suppose that the \transaction has:
         committing to values $\vOld{\alln}$ with randomness $\ValueCommitRandOld{\alln}$;
   \item $m$ \outputDescriptions with \valueCommitments $\cvNew{\allm}$,
         committing to values $\vNew{\allm}$ with randomness $\ValueCommitRandNew{\allm}$;
-  \item \balancingValue $\vBalance = \vsum{i=1}{n} \vOld{i} - \vsum{j=1}{m} \vNew{j}$
-        as defined in \crossref{saplingbalance}.
+  \item \balancingValue $\vBalance$.
 \end{itemize}
 
+In a correctly constructed \transaction, $\vBalance = \ssum{i=1}{n} \vOld{i} - \ssum{j=1}{m} \vNew{j}$,
+but validators cannot check this directly because the values are hidden by the commitments.
+
 \introlist
-The \txBindingVerificationKey is then calculated as:
+Instead, validators calculate the \txBindingVerificationKey as:
 \begin{formulae}
 % <https://twitter.com/hdevalence/status/984145085674676224> ¯\_(ツ)_/¯
-  \item $\BindingPublic := \Bigg(\vcombsum{i=1}{n} \cvOld{i}\Bigg) \combminus\!
-                           \Bigg(\vcombsum{j=1}{m} \cvNew{j}\Bigg) \combminus
+  \item $\BindingPublic := \Bigg(\!\vcombsum{i=1}{n}\kern 0.2em \cvOld{i}\kern 0.05em\Bigg) \combminus\!
+                           \Bigg(\kern-0.05em\vcombsum{j=1}{m}\kern 0.2em \cvNew{j}\kern 0.05em\Bigg) \combminus
                            \ValueCommit{0}(\vBalance)$.
 \end{formulae}
 
-(This key is not encoded explicitly in the \transaction and must be recalculated
-by validators.)
+(This key is not encoded explicitly in the \transaction and must be recalculated.)
 
 \introlist
-The corresponding signing and verifying keys are calculated as:
+The signer knows $\ValueCommitRandOld{\alln}$ and $\ValueCommitRandNew{\allm}$, and so can
+calculate the corresponding signing key as:
 \begin{formulae}
-  \item $\BindingPrivate := \Bigg(\vgrpsum{i=1}{n} \ValueCommitRandOld{i}\Bigg) \grpminus\!
-                            \Bigg(\vgrpsum{j=1}{m} \ValueCommitRandNew{j}\Bigg)$.
+  \item $\BindingPrivate := \Bigg(\!\vgrpsum{i=1}{n} \ValueCommitRandOld{i}\Bigg) \grpminus\!
+                            \Bigg(\!\vgrpsum{j=1}{m} \ValueCommitRandNew{j}\Bigg)$.
 \end{formulae}
 
 \introlist
@@ -4187,10 +4201,14 @@ In order to check for implementation faults, the signer \SHOULD also check that
   \item $\BindingPublic = \BindingSigDerivePublic(\BindingPrivate)$.
 \end{formulae}
 
-\vspace{2ex}
+\vspace{1ex}
 Let $\SigHash$ be the \sighashTxHash as defined in \cite{ZIP-243}, using $\SIGHASHALL$.
 
 Let $\dataToBeSigned := \Justthebox{\bindingsigmsgbox}$.
+
+A validator checks balance by verifying that $\BindingSigVerify{\BindingPublic}(\dataToBeSigned) = 1$.
+
+We now explain why this works.
 
 \vspace{2ex}
 A \bindingSignature proves knowledge of the discrete logarithm $\BindingPrivate$ of
@@ -4199,13 +4217,51 @@ That is, $\BindingPublic = \scalarmult{\BindingPrivate}{\ValueCommitRandBase}$.
 So the value $0$ and randomness $\BindingPrivate$ is an opening of the \xPedersenCommitment
 $\BindingPublic = \ValueCommit{\BindingPrivate}(0)$.
 By the binding property of the \xPedersenCommitment, it is infeasible to find another
-opening of this commitment to a different value. Therefore, it must be infeasible
-to find a valid \bindingSignature unless $\ssum{i=1}{n} \vOld{i} - \ssum{j=1}{m} \vNew{j} - \vBalance = 0$.
+opening of this commitment to a different value.
+
+Similarly, the binding property of the \valueCommitments in the \spendDescriptions and
+\outputDescriptions ensures that an adversary cannot find more than one opening for any of
+those commitments, i.e.\ we may assume that
+$\vOld{\alln}$ and $\ValueCommitRandOld{\alln}$ are determined by $\cvOld{\alln}$, and that
+$\vNew{\allm}$ and $\ValueCommitRandNew{\allm}$ are determined by $\cvNew{\allm}$.
+
+\introlist
+Using the fact that $\ValueCommit{\ValueCommitRand}(\Value) = \scalarmult{\Value}{\ValueCommitValueBase}\,
+\combplus \scalarmult{\ValueCommitRand}{\ValueCommitRandBase}$, the expression for $\BindingPublic$ above is
+equivalent to:
+
+\vspace{1ex}
+\begin{tabular}{@{\hskip 2em}r@{\;}l}
+  $\BindingPublic$ &$= \bigscalarmult{\Bigg(\!\vgrpsum{i=1}{n} \vOld{i}\Bigg) \grpminus\!
+                                      \Bigg(\!\vgrpsum{j=1}{m} \vNew{j}\Bigg) \grpminus \vBalance}{\ValueCommitValueBase}\, \combplus
+                       \bigscalarmult{\Bigg(\!\vgrpsum{i=1}{n} \ValueCommitRandOld{i}\Bigg) \grpminus\!
+                                      \Bigg(\!\vgrpsum{j=1}{m} \ValueCommitRandNew{j}\Bigg)}{\ValueCommitRandBase}$ \\[3.5ex]
+                   &$= \ValueCommit{\BindingPrivate}\Bigg(\!\vsum{i=1}{n} \vOld{i} - \vsum{j=1}{m} \vNew{j} - \vBalance\Bigg)$.
+\end{tabular}
+
+Let $\vSum = \vsum{i=1}{n} \vOld{i} - \vsum{j=1}{m} \vNew{j} - \vBalance$.
+
+Suppose that $\vSum = \vBad \neq 0 \pmod{\ParamJ{r}}$.
+Then $\BindingPublic = \ValueCommit{\BindingPrivate}(\vBad)$. If the adversary were able to
+find the discrete logarithm of this $\BindingPublic$ with respect to $\ValueCommitRandBase$, say
+$\BindingPrivate'$ (as needed to create a valid \bindingSignature), then $(\vBad, \BindingPrivate)$
+and $(0, \BindingPrivate')$ would be distinct openings of $\BindingPublic$ to different values,
+breaking the binding property of the \valueCommitmentScheme.
+
+The above argument shows only that $\Value^* = 0 \pmod{\ParamJ{r}}$; in order to show that
+$\vSum = 0$, we also need to demonstrate that it does not overflow $\ValueCommitType$.
+
+The $\spendStatements$ prove that all of $\vOld{\alln}$ are in $\ValueType$.
+Similarly the $\outputStatements$ prove that all of $\vNew{\allm}$ are in $\ValueType$.
+Also, $n \mult (2^{\ValueLength}-1)$ and $(m+1) \mult (2^{\ValueLength}-1)$ do not exceed $\SignedScalarLimitJ$.
+This is sufficient to conclude that $\ssum{i=1}{n} \vOld{i} - \ssum{j=1}{m} \vNew{j} - \vBalance$
+does not overflow $\ValueCommitType$.
+
 Thus checking the \bindingSignature ensures that the \transaction balances, without
 the individual values of the \spendDescriptions and \outputDescriptions being revealed.
 
-In addition this proves that the signer, knowing all of the \valueCommitment randomnesses,
-authorized a \transaction with the given \sighashTxHash by signing $\dataToBeSigned$.
+In addition this proves that the signer, knowing the $\biggrpplus$\kern-0.015em-sum of the \valueCommitment
+randomnesses, authorized a \transaction with the given \sighashTxHash by signing $\dataToBeSigned$.
 
 \vspace{-1ex}
 \pnote{
@@ -8938,6 +8994,7 @@ found by Brian Warner.
 \begin{itemize}
     \item No changes to \Sprout.
 \sapling{
+    \item Clarify the security argument for balance in \Sapling.
     \item Correct a subtle problem with the type of the value input to
           $\ValueCommit{}$: although it is only directly used to commit to
           values in $\ValueType$, the security argument depends on a sum
