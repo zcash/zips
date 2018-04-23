@@ -1113,6 +1113,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\NoteCommitRandOld}[1]{\NoteCommitRand^\mathsf{old}_{#1}}
 \newcommand{\NoteCommitRandNew}[1]{\NoteCommitRand^\mathsf{new}_{#1}}
 \newcommand{\NoteAddressRand}{\mathsf{\uprho}}
+\newcommand{\NoteAddressRandRepr}{\NoteAddressRand^{\Repr}}
 \newcommand{\NoteAddressRandOld}[1]{\NoteAddressRand^\mathsf{old}_{#1}}
 \newcommand{\NoteAddressRandNew}[1]{\NoteAddressRand^\mathsf{new}_{#1}}
 \newcommand{\NoteAddressPreRand}{\mathsf{\upvarphi}}
@@ -2288,8 +2289,7 @@ We refer to the combination of a \note and its \notePosition $\NotePosition$, as
 \positionedNote.
 
 For a \positionedNote, we can compute the value
-$\NoteAddressRand \typecolon \bitseq{\PRFOutputLengthNfSapling}$; see
-\crossref{commitmentsandnullifiers}.
+$\NoteAddressRand$ as described in \crossref{commitmentsandnullifiers}.
 } %sapling
 
 \vspace{2ex}
@@ -3926,7 +3926,7 @@ A \dummy{} \Sapling input \note is constructed as follows:
                                     = \NoteCommitSapling{\NoteCommitRand}(\reprJOf{\DiversifiedTransmitBase},
                                                                           \reprJOf{\DiversifiedTransmitPublic},
                                                                           \Value)$.
-  \item Compute $\nfOld{} = \PRFnfSapling{\AuthProvePublicRepr}(\NoteAddressRand)$.
+  \item Compute $\nfOld{} = \PRFnfSapling{\AuthProvePublicRepr}(\reprJ(\NoteAddressRand))$.
   \item Construct a \dummy \merklePath $\TreePath{}$ for use in the
         \auxiliaryInput to the \spendStatement (this will not be checked).
 \end{itemize}
@@ -4299,8 +4299,8 @@ is derived as $\PRFnf{\AuthPrivate}(\NoteAddressRand)$, where $\AuthPrivate$ is 
 
 \sapling{
 For a \Sapling{} \note, the \nullifier is derived as
-$\PRFnfSapling{\AuthProvePublicRepr}(\NoteAddressRand)$, where $\AuthProvePublicRepr$
-is a representation of the \nullifierKey associated with the \note.
+$\PRFnfSapling{\AuthProvePublicRepr}(\NoteAddressRandRepr)$, where $\AuthProvePublicRepr$
+is a representation of the \nullifierKey associated with the \note and $\NoteAddressRandRepr = \reprJ(\NoteAddressRand)$.
 } %sapling
 
 
@@ -4467,11 +4467,12 @@ and $\scalarmult{\ParamJ{h}}{\AuthSignPublic} \neq \ZeroJ$.
 
 \snarkcondition{\Nullifier{} integrity} \label{spendnullifierintegrity}
 
-$\nfOld{} = \PRFnfSapling{\AuthProvePublicRepr}(\NoteAddressRand)$ where
+$\nfOld{} = \PRFnfSapling{\AuthProvePublicRepr}(\NoteAddressRandRepr)$ where
+\vspace{-1ex}
 \begin{formulae}
   \item $\AuthProvePublicRepr = \reprJOf{\scalarmult{\AuthProvePrivate}{\AuthProveBase}}$
         \vspace{-1ex}
-  \item $\NoteAddressRand = \MixingPedersenHash(\cmOld{}, \NotePosition)$.
+  \item $\NoteAddressRandRepr = \reprJ\big(\MixingPedersenHash(\cmOld{}, \NotePosition)\big)$.
 \end{formulae}
 
 \snarkcondition{Spend authority} \label{spendauthority}
@@ -4808,8 +4809,8 @@ $\NoteAddressRand$ value can immediately be calculated as described in
 
 To test whether a \Sapling{} \note is unspent in a particular \blockchain also requires
 the \nullifierKey $\AuthProvePublicRepr$; the coin is unspent if and only if
-$\nf = \PRFnfSapling{\AuthProvePublicRepr}(\NoteAddressRand)$ is not in the \nullifierSet
-for that \blockchain.
+$\nf = \PRFnfSapling{\AuthProvePublicRepr}(\reprJ(\NoteAddressRand))$ is not in the
+\nullifierSet for that \blockchain.
 
 \pnote{
 A \note can change from being unspent to spent as a node's view of the best
@@ -5687,7 +5688,7 @@ be necessary.})
 \setsapling
 \begin{bytefield}[bitwidth=0.046em]{512}
     \sbitbox{256}{$\LEBStoOSPOf{256}{\AuthProvePublicRepr}$} &
-    \sbitbox{256}{$\LEBStoOSPOf{256}{\reprJOf{\NoteAddressRand}\hairspace}$}
+    \sbitbox{256}{$\LEBStoOSPOf{256}{\NoteAddressRandRepr}$}
 \end{bytefield}
 \end{lrbox}
 
@@ -5718,7 +5719,7 @@ $\PRFnfSapling{}$ is used to derive the \nullifier for a \Sapling{} \note.
 It is instantiated using the $\BlakeTwosGeneric$ \hashFunction defined in \crossref{concreteblake2}:
 
 \begin{formulae}
-  \item $\PRFnfSapling{\AuthProvePublicRepr}(\NoteAddressRand) := \BlakeTwosOf{256}{\ascii{Zcash\_nf}, \Justthebox{\nfsaplingbox}}$.
+  \item $\PRFnfSapling{\AuthProvePublicRepr}(\NoteAddressRandRepr) := \BlakeTwosOf{256}{\ascii{Zcash\_nf}, \Justthebox{\nfsaplingbox}}$.
 \end{formulae}
 
 \vspace{-3.5ex}
@@ -8526,9 +8527,11 @@ This is sufficient to prevent the Faerie Gold attack.
 A variation on the attack attempts to cause the \nullifier of a sent
 \note to be repeated, without repeating $\NoteAddressRand$.
 However, since the \nullifier is computed as
-$\PRFnf{\AuthPrivate}(\NoteAddressRand)$, this is only possible if
-the adversary finds a collision (across both inputs) on $\PRFnf{}$,
-which is assumed to be infeasible --- see \crossref{abstractprfs}.
+$\PRFnf{\AuthPrivate}(\NoteAddressRand)$\sapling{ (or
+$\PRFnfSapling{\AuthProvePublic}(\NoteAddressRandRepr)$ for \Sapling)},
+this is only possible if the adversary finds a collision across both
+inputs on $\PRFnf{}$\sapling{ (or $\PRFnfSapling{}$)}, which is assumed
+to be infeasible --- see \crossref{abstractprfs}.
 
 \sproutspecific{
 Crucially, ``\nullifier integrity'' is enforced whether or not the
@@ -8922,6 +8925,7 @@ found by Brian Warner.
 \begin{itemize}
     \item No changes to \Sprout.
 \sapling{
+    \item Correct type ambiguities for $\NoteAddressRand$.
     \item Specify the representation of $i$ in group $\GroupG{2}$ of $\BLSCurve$.
 } %sapling
 \end{itemize}
