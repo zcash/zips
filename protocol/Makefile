@@ -1,3 +1,6 @@
+LATEXMK=latexmk --halt-on-error -bibtex -pdf
+LATEX=pdflatex --halt-on-error
+
 protocol.pdf: protocol.tex zcash.bib incremental_merkle.pdf key_components.pdf
 	$(MAKE) pdf
 
@@ -9,7 +12,7 @@ auxpdf:
 	printf '\\renewcommand{\\docversion}{Version %s}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/protocol.*
-	latexmk -bibtex -pdf -auxdir=aux -outdir=aux protocol
+	$(LATEXMK) -auxdir=aux -outdir=aux protocol
 
 .PHONY: pdf
 pdf:
@@ -21,14 +24,14 @@ pvcpdf:
 	printf '\\renewcommand{\\docversion}{Version %s}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/protocol.*
-	latexmk -bibtex -pdf -pvc -auxdir=aux protocol
+	$(LATEXMK) -pvc -auxdir=aux protocol
 
 .PHONY: auxsapling
 auxsapling:
 	printf '\\toggletrue{issapling}\n\\renewcommand{\\docversion}{Version %s [\\SaplingSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/sapling.*
-	latexmk -bibtex -pdf -jobname=sapling -auxdir=aux -outdir=aux protocol
+	$(LATEXMK) -jobname=sapling -auxdir=aux -outdir=aux protocol
 
 .PHONY: sapling
 sapling:
@@ -40,9 +43,7 @@ pvcsapling:
 	printf '\\toggletrue{issapling}\n\\renewcommand{\\docversion}{Version %s [\\SaplingSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/sapling.*
-	latexmk -bibtex -pdf -jobname=sapling -auxdir=aux -pvc protocol
-
-LATEX=pdflatex
+	$(LATEXMK) -jobname=sapling -auxdir=aux -pvc protocol
 
 .PHONY: nolatexmk-pdf
 nolatexmk-pdf:
