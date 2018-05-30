@@ -1,0 +1,296 @@
+::
+
+  ZIP: 32
+  Title: Shielded Hierarchical Deterministic Wallets
+  Author: Jack Grigg <jack@z.cash>
+          Daira Hopwood <daira@z.cash>
+  Credits: Pieter Wuille <pieter.wuille@gmail.com>
+           Marek Palatinus <slush@satoshilabs.com>
+           Pavol Rusnak <stick@satoshilabs.com>
+  Category: Standards Track
+  Created: 2018-05-22
+  License: MIT
+
+
+Terminology
+===========
+
+The key words "MUST" and "MAY" in this document are to be interpreted as described in RFC 2119. [#RFC2119]_
+
+
+Abstract
+========
+
+This proposal defines a mechanism for extending hierarchical deterministic wallets (as decribed in BIP 32
+[#bip-0032]_) to support Zcash's shielded addresses.
+
+The specification has three parts. The first part defines a system for deriving a tree of Sapling key
+components from a single seed. The second part defines an equivalent, but independent, system for Sprout key
+components (which have a different internal construction). The third part shows how to use these trees in the
+context of existing BIP 44 [#bip-0044]_ wallets.
+
+
+Motivation
+==========
+
+BIP 32 [#bip-0032]_ is the standard mechanism by which wallets for Bitcoin and its derivatives (including
+Zcash's transparent addresses [#slip-0044]_) generate keys and addresses deterministically. This has several
+advantages over random generation:
+
+- Wallets only need to store a single seed (particularly useful for hardware wallets).
+- A one-time backup of the seed (usually stored as a word phrase [#bip-0039]_) can be used to recover funds
+  from all future addresses.
+- Keys are arranged into a tree of chains, enabling wallets to represent "accounts" or other high-level
+  structures.
+- View authority or spend authority can be delegated independently for sub-trees without compromising the
+  master seed.
+
+At present, no such equivalent exists for Zcash's shielded addresses. This is of particular concern for
+hardware wallets; all currently-marketed devices only store a seed internally, and have trained their users to
+only backup that seed. Given that the Sapling upgrade will make it feasible to use hardware wallets with
+shielded addresses, it is desirable to have a standard mechanism for deriving them.
+
+
+Conventions
+===========
+
+Most of the notation and functions used in this ZIP are defined in the Sapling protocol specification
+[#sapling-spec]_. They are reproduced here for convenience:
+
+- truncate\ :sub:`k`\ (*S*) means the sequence formed from the first *k* elements of *S*.
+
+- *a* || *b* means the concatenation of sequences *a* then *b*.
+
+- [*k*] *P* means scalar multiplication in the group *P*.
+
+- LEOS2IP\ :sub:`l`\ (*S*) is the integer in range {0..2\ :sup:`l`\ -1} represented in little-endian order
+  by the byte sequence *S* of length *l*/8.
+
+- BLAKE2b-512(*p*, *x*) refers to unkeyed BLAKE2b-512 in sequential mode, with an output digest length of 64
+  bytes, 16-byte personalization string *p*, and input *x*.
+
+- PRF\ :sup:`expand`\ (*sk, t*) := BLAKE2b-512("Zcash_ExpandSeed", *sk* || *t*)
+
+- ToScalar(*x*) := LEOS2IP(*x*) (mod *r*\ :sub:`J`\ )
+
+We adapt the path notation of BIP 32 [#bip-0032]_ to describe shielded HD paths, using apostrophes to
+indicate hardened derivation as in BIP 44 [#bip-0044]_:
+
+- CDKsk(CDKsk(CDKsk(m\ :sub:`Sprout`\ , a'), b), c) is written as m\ :sub:`Sprout` / a' / b / c
+- CDKfvk(CDKfvk(CDKfvk(M\ :sub:`Sapling`\ , a), b'), c) is written as M\ :sub:`Sapling` / a / b' / c
+
+
+Specification: Sapling key derivation
+=====================================
+
+Sapling extended keys
+---------------------
+
+BIP 32 defines a method to derive a number of child keys from a parent key. In order to prevent these from
+depending solely on the parent key itself, both the private and public keys are extended with a 32-byte chain
+code. We similarly extend Sapling keys with a chain code here. However, the concepts of "private" and "public"
+keys in BIP 32 do not map cleanly to Sapling's key components. We take the following approach:
+
+- We derive child Sapling expanded spending keys, rather than Sapling spending keys. This enables us to
+  implement both hardened and non-hardened derivation modes (the latter being incompatible with Sapling
+  spending keys).
+
+- We do not derive Sapling public keys directly, as this would prevent the use of diversified addresses.
+  Instead, we derive Sapling full viewing keys, from which payment addresses can be generated. This maintains
+  the trust semantics of BIP 32: someone with access to a BIP 32 extended public key is able to view all
+  transactions involving that address, which a Sapling full viewing key also enables.
+
+We represent a Sapling extended spending key as (*ask, nsk, ovk, c*), where (*ask, nsk, ovk*) is the normal
+Sapling expanded spending key, and *c* is the chain code.
+
+We represent a Sapling extended full viewing key as (*ak, nk, ovk, c*), where (*ak, nk, ovk*) is the normal
+Sapling full viewing key, and *c* is the chain code.
+
+Master key generation
+---------------------
+
+Let *S* be a seed byte sequence of a chosen length.
+
+- Calculate *I* = BLAKE2b-512("ZcashIP32Sapling", *S*).
+- Split *I* into two 32-byte sequences, *I*\ :sub:`L` and *I*\ :sub:`R`\ .
+- Use *I*\ :sub:`L` as the master spending key *s*\ :sub:`m`\ , and *I*\ :sub:`R` as the master chain code
+  *c*\ :sub:`m`\ .
+- Calculate the master extended spending key *m*\ :sub:`Sapling` = (*ask*\ :sub:`m`\ , *nsk*\ :sub:`m`\ ,
+  *ovk*\ :sub:`m`\ , *c*\ :sub:`m`\ ) via the standard Sapling derivation [#sapling-key-components]_:
+
+  - *ask*\ :sub:`m` = ToScalar(PRF\ :sup:`expand`\ (*s*\ :sub:`m`\ , 0x00))
+  - *nsk*\ :sub:`m` = ToScalar(PRF\ :sup:`expand`\ (*s*\ :sub:`m`\ , 0x01))
+  - *ovk*\ :sub:`m` = truncate\ :sub:`32`\ (PRF\ :sup:`expand`\ (*s*\ :sub:`m`\ , 0x02))
+  - **TODO** *d*\ :sub:`m` = FirstValid(*i*, truncate\ :sub:`11`\ (PRF\ :sup:`expand`\ (*s*\ :sub:`m`\ , 0x03 || *i*)))
+
+Child key derivation
+--------------------
+
+As in BIP 32, the method for deriving a child extended key, given a parent extended key and an index *i*,
+depends on the type of key being derived, and whether this is a hardened or non-hardened derivation.
+
+Deriving a child extended spending key
+``````````````````````````````````````
+CDKsk((*ask*\ :sub:`par`\ , *nsk*\ :sub:`par`\ , *ovk*\ :sub:`par`\ , *c*\ :sub:`par`\ ), *i*) →
+(*ask*\ :sub:`i`\ , *nsk*\ :sub:`i`\ , *ovk*\ :sub:`i`\ , *c*\ :sub:`i`\ )
+
+- Check whether *i* ≥ 2\ :sup:`31` (whether the child is a hardened key).
+
+  - If so (hardened child): let *I* = PRF\ :sup:`expand`\ (*c*\ :sub:`par`\ , 0x04 || *ask*\ :sub:`par` || *nsk*\ :sub:`par` || *ovk*\ :sub:`par` || *i*)
+  - If not (normal child):  let *I* = PRF\ :sup:`expand`\ (*c*\ :sub:`par`\ , 0x05 || *ak*\ :sub:`par`  || *nk*\ :sub:`par`  || *ovk*\ :sub:`par` || *i*)
+
+- Split *I* into two 32-byte sequences, *I*\ :sub:`L` and *I*\ :sub:`R`\ .
+- Let *I*\ :sub:`ask` = ToScalar(PRF\ :sup:`expand`\ (*I*\ :sub:`L`\ , 0x06))
+- Let *I*\ :sub:`nsk` = ToScalar(PRF\ :sup:`expand`\ (*I*\ :sub:`L`\ , 0x07))
+- Return:
+
+  - *ask*\ :sub:`i` = *I*\ :sub:`ask` + *ask*\ :sub:`par`
+  - *nsk*\ :sub:`i` = *I*\ :sub:`nsk` + *nsk*\ :sub:`par`
+  - *ovk*\ :sub:`i` = truncate\ :sub:`32`\ (PRF\ :sup:`expand`\ (*I*\ :sub:`L`\ , 0x08 || *ovk*\ :sub:`par`\ ))
+  - *c*\ :sub:`i` = *I*\ :sub:`R`
+  - **TODO** *d*\ :sub:`i,j` = FirstValid(*i*, truncate\ :sub:`11`\ (PRF\ :sup:`expand`\ (*s*\ :sub:`m`\ , 0x09 || *d*\ :sub:`par,0` || *j* || *i*)))
+
+Deriving a child extended full viewing key
+``````````````````````````````````````````
+CDKfvk((*ak*\ :sub:`par`\ , *nk*\ :sub:`par`\ , *ovk*\ :sub:`par`\ , *c*\ :sub:`par`\ ), *i*) →
+(*ak*\ :sub:`i`\ , *nk*\ :sub:`i`\ , *ovk*\ :sub:`i`\ , *c*\ :sub:`i`\ )
+
+- Check whether *i* ≥ 2\ :sup:`31` (whether the child is a hardened key).
+
+  - If so (hardened child): return failure
+  - If not (normal child):  let *I* = PRF\ :sup:`expand`\ (*c*\ :sub:`par`\ , 0x05 || *ak*\ :sub:`par`  || *nk*\ :sub:`par`  || *ovk*\ :sub:`par` || *i*)
+
+- Split *I* into two 32-byte sequences, *I*\ :sub:`L` and *I*\ :sub:`R`\ .
+- Let *I*\ :sub:`ask` = ToScalar(PRF\ :sup:`expand`\ (*I*\ :sub:`L`\ , 0x06))
+- Let *I*\ :sub:`nsk` = ToScalar(PRF\ :sup:`expand`\ (*I*\ :sub:`L`\ , 0x07))
+- Return:
+
+  - *ak*\ :sub:`i` = [*I*\ :sub:`ask`\ ] *G* + *ak*\ :sub:`par`
+  - *nk*\ :sub:`i` = [*I*\ :sub:`nsk`\ ] *G* + *nk*\ :sub:`par`
+  - *ovk*\ :sub:`i` = truncate\ :sub:`32`\ (PRF\ :sup:`expand`\ (*I*\ :sub:`L`\ , 0x08 || *ovk*\ :sub:`par`\ ))
+  - *c*\ :sub:`i` = *I*\ :sub:`R`
+  - **TODO** *d*\ :sub:`i,j` = FirstValid(*i*, truncate\ :sub:`11`\ (PRF\ :sup:`expand`\ (*s*\ :sub:`m`\ , 0x09 || *d*\ :sub:`par,0` || *j* || *i*)))
+
+
+Specification: Sprout key derivation
+====================================
+
+For completeness, we define a system for deriving a tree of Sprout keys components. It is unlikely that this
+will garner much usage once Sapling activates, but is presented for those users who may require it.
+
+Sprout extended keys
+--------------------
+
+Due to the way Sprout keys are constructed and used, it is not possible to derive incoming viewing keys or
+payment addresses in parallel with spending keys. Nor is it possible to implement non-hardened derivation.
+We therefore only define and derive Sprout extended spending keys.
+
+We represent a Sprout extended spending key as (*a*\ :sub:`sk`\ , *c*), where *a*\ :sub:`sk` is the normal
+Sprout spending key, and *c* is the chain code.
+
+Master key generation
+---------------------
+
+Let *S* be a seed byte sequence of a chosen length.
+
+- Calculate *I* = BLAKE2b-512("ZcashIP32_Sprout", *S*).
+- Split *I* into two 32-byte sequences, I\ :sub:`L` and I\ :sub:`R`\ .
+- Use *I*\ :sub:`L` as the master spending key a\ :sub:`sk,m`\ , and *I*\ :sub:`R` as the master chain code
+  *c*\ :sub:`m`\ .
+
+Child key derivation
+--------------------
+
+CDKsk((*a*\ :sub:`sk,par`\ , *c*\ :sub:`par`\ ), *i*) → (*a*\ :sub:`sk,i`\ , *c*\ :sub:`i`\ )
+
+- Check whether *i* ≥ 2\ :sup:`31` (whether the child is a hardened key).
+
+  - If so (hardened child): let *I* = PRF\ :sup:`expand`\ (*c*\ :sub:`par`\ , 0x80 || *a*\ :sub:`sk,par` || *i*)
+  - If not (normal child): return failure
+
+- Split *I* into two 32-byte sequences, *I*\ :sub:`L` and *I*\ :sub:`R`\ .
+- Use *I*\ :sub:`L` as the child spending key *a*\ :sub:`sk,i`\ , and *I*\ :sub:`R` as the child chain code
+  *c*\ :sub:`m`\ .
+
+
+Specification: Wallet usage
+===========================
+
+Existing Zcash-supporting HD wallets all use BIP 44 [#bip-0044]_ to organize their derived keys. In order to
+more easily mesh with existing user experiences, we broadly follow BIP 44's design here. However, we have
+altered the design where it makes sense to leverage features of shielded addresses.
+
+Key path levels
+---------------
+
+Both Sprout and Sapling key paths have the following three path levels at the top, all of which use hardened
+derivation:
+
+- ``purpose``: a constant set to 32' (or 0x80000020) following the BIP 43 recommendation. It indicates that
+  the subtree of this node is used according to this specification.
+
+- ``coin_type``: a constant identifying the cybercoin that this subtree's keys are used with. For
+  compatibility with existing BIP 44 implementations, we use the same constants as defined in SLIP 44
+  [#slip-0044]_.
+
+- ``account``: numbered from index 0 in sequentially increasing manner. Defined as in BIP 44 [#bip-0044]_.
+
+Unlike BIP 44, neither Sprout nor Sapling have a `change` path level. This is because shielded addresses are
+never publicly visible in transactions, which means that sending change back to the originating address is
+indistinguishable from using a change address.
+
+Sapling key path
+----------------
+
+Sapling provides a mechanism to allow the efficient creation of diversified payment addresses with the same
+spending authority. A group of such addresses shares the same full viewing key and incoming viewing key, and
+so creating as many unlinkable addresses as needed does not increase the cost of scanning the block chain for
+relevant transactions.
+
+The above key path levels include an account identifier, which in all user interfaces is represented as a
+"bucket of funds" under the control of a single spending authority. Therefore, wallets implementing Sapling
+ZIP 32 derivation MUST support the following path::
+
+    m_Sapling / purpose' / coin_type' / account'
+
+Wallets MUST support generating the default payment address (corresponding to the default diversifier). They
+MAY also support generating a stream of payment addresses for a given account, if they wish to maintain the
+user experience of giving a unique address to each recipient. Note that a given account can have a maximum of
+2\ :sup:`88` payment addresses.
+
+If in certain circumstances a wallet needs to derive independent spend authorities within a single account,
+they MAY additionally support a non-hardened ``address_index`` path level as in BIP 44::
+
+    m_Sapling / purpose' / coin_type' / account' / address_index
+
+Sprout key path
+---------------
+
+Wallets implementing Sprout ZIP 32 derivation MUST support the following path::
+
+    m_Sprout / purpose' / coin_type' / account' / address_index
+
+
+Test Vectors
+============
+
+TBC
+
+
+Reference Implementation
+========================
+
+https://github.com/zcash/zcash/pull/XXXX
+
+
+References
+==========
+
+.. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://tools.ietf.org/html/rfc2119>`_
+.. [#bip-0032] `BIP 32: Hierarchical Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki>`_
+.. [#bip-0039] `BIP 39: Mnemonic code for generating deterministic keys <https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki>`_
+.. [#bip-0043] `BIP 43: Purpose Field for Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0043.mediawiki>`_
+.. [#bip-0044] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>`_
+.. [#slip-0044] `SLIP 44: Registered coin types for BIP-0044 <https://github.com/satoshilabs/slips/blob/master/slip-0044.md>`_
+.. [#sapling-spec] `Zcash Protocol Specification, Version 2018.0-beta-20 [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/sapling.pdf>`_
+.. [#sapling-key-components] `Section 4.2.2: Sapling Key Components. Zcash Protocol Specification, Version 2018.0-beta-20 [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/sapling.pdf>`_
