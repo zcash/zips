@@ -100,11 +100,11 @@ keys in BIP 32 do not map cleanly to Sapling's key components. We take the follo
   the trust semantics of BIP 32: someone with access to a BIP 32 extended public key is able to view all
   transactions involving that address, which a Sapling full viewing key also enables.
 
-We represent a Sapling extended spending key as (*ask, nsk, ovk, c*), where (*ask, nsk, ovk*) is the normal
-Sapling expanded spending key, and *c* is the chain code.
+We represent a Sapling extended spending key as (*ask*, *nsk*, *ovk*, *dk*, *c*), where (*ask*, *nsk*, *ovk*)
+is the normal Sapling expanded spending key, *dk* is a diversifier key, and *c* is the chain code.
 
-We represent a Sapling extended full viewing key as (*ak, nk, ovk, c*), where (*ak, nk, ovk*) is the normal
-Sapling full viewing key, and *c* is the chain code.
+We represent a Sapling extended full viewing key as (*ak*, *nk*, *ovk*, *dk*, *c*), where (*ak*, *nk*, *ovk*)
+is the normal Sapling full viewing key, *dk* is the same diversifier key as above, and *c* is the chain code.
 
 Master key generation
 ---------------------
@@ -116,12 +116,13 @@ Let *S* be a seed byte sequence of a chosen length.
 - Use *I*\ :sub:`L` as the master spending key *s*\ :sub:`m`\ , and *I*\ :sub:`R` as the master chain code
   *c*\ :sub:`m`\ .
 - Calculate the master extended spending key *m*\ :sub:`Sapling` = (*ask*\ :sub:`m`\ , *nsk*\ :sub:`m`\ ,
-  *ovk*\ :sub:`m`\ , *c*\ :sub:`m`\ ) via the standard Sapling derivation [#sapling-key-components]_:
+  *ovk*\ :sub:`m`\ , *dk*\ :sub:`m`\ , *c*\ :sub:`m`\ ) via the standard Sapling derivation
+  [#sapling-key-components]_:
 
   - *ask*\ :sub:`m` = ToScalar(PRF\ :sup:`expand`\ (*s*\ :sub:`m`\ , [0x00]))
   - *nsk*\ :sub:`m` = ToScalar(PRF\ :sup:`expand`\ (*s*\ :sub:`m`\ , [0x01]))
   - *ovk*\ :sub:`m` = truncate\ :sub:`32`\ (PRF\ :sup:`expand`\ (*s*\ :sub:`m`\ , [0x02]))
-  - **TODO** *d*\ :sub:`m` = FirstValid(*i*, truncate\ :sub:`11`\ (PRF\ :sup:`expand`\ (*s*\ :sub:`m`\ , [0x03, *i*])))
+  - *dk*\ :sub:`m` = truncate\ :sub:`32`\ (PRF\ :sup:`expand`\ (*s*\ :sub:`m`\ , [0x10]))
 
 Child key derivation
 --------------------
@@ -131,45 +132,45 @@ depends on the type of key being derived, and whether this is a hardened or non-
 
 Deriving a child extended spending key
 ``````````````````````````````````````
-CDKsk((*ask*\ :sub:`par`\ , *nsk*\ :sub:`par`\ , *ovk*\ :sub:`par`\ , *c*\ :sub:`par`\ ), *i*) →
-(*ask*\ :sub:`i`\ , *nsk*\ :sub:`i`\ , *ovk*\ :sub:`i`\ , *c*\ :sub:`i`\ )
+CDKsk((*ask*\ :sub:`par`\ , *nsk*\ :sub:`par`\ , *ovk*\ :sub:`par`\ , *dk*\ :sub:`par`\ , *c*\ :sub:`par`\ ), *i*) →
+(*ask*\ :sub:`i`\ , *nsk*\ :sub:`i`\ , *ovk*\ :sub:`i`\ , *dk*\ :sub:`i`\ , *c*\ :sub:`i`\ )
 
 - Check whether *i* ≥ 2\ :sup:`31` (whether the child is a hardened key).
 
-  - If so (hardened child): let *I* = PRF\ :sup:`expand`\ (*c*\ :sub:`par`\ , [0x04] || *ask*\ :sub:`par` || *nsk*\ :sub:`par` || *ovk*\ :sub:`par` || *i*)
-  - If not (normal child):  let *I* = PRF\ :sup:`expand`\ (*c*\ :sub:`par`\ , [0x05] || *ak*\ :sub:`par`  || *nk*\ :sub:`par`  || *ovk*\ :sub:`par` || *i*)
+  - If so (hardened child): let *I* = PRF\ :sup:`expand`\ (*c*\ :sub:`par`\ , [0x11] || *ask*\ :sub:`par` || *nsk*\ :sub:`par` || *ovk*\ :sub:`par` || *dk*\ :sub:`par` || *i*)
+  - If not (normal child):  let *I* = PRF\ :sup:`expand`\ (*c*\ :sub:`par`\ , [0x12] || *ak*\ :sub:`par`  || *nk*\ :sub:`par`  || *ovk*\ :sub:`par` || *dk*\ :sub:`par` || *i*)
 
 - Split *I* into two 32-byte sequences, *I*\ :sub:`L` and *I*\ :sub:`R`\ .
-- Let *I*\ :sub:`ask` = ToScalar(PRF\ :sup:`expand`\ (*I*\ :sub:`L`\ , [0x06]))
-- Let *I*\ :sub:`nsk` = ToScalar(PRF\ :sup:`expand`\ (*I*\ :sub:`L`\ , [0x07]))
+- Let *I*\ :sub:`ask` = ToScalar(PRF\ :sup:`expand`\ (*I*\ :sub:`L`\ , [0x13]))
+- Let *I*\ :sub:`nsk` = ToScalar(PRF\ :sup:`expand`\ (*I*\ :sub:`L`\ , [0x14]))
 - Return:
 
   - *ask*\ :sub:`i` = *I*\ :sub:`ask` + *ask*\ :sub:`par`
   - *nsk*\ :sub:`i` = *I*\ :sub:`nsk` + *nsk*\ :sub:`par`
-  - *ovk*\ :sub:`i` = truncate\ :sub:`32`\ (PRF\ :sup:`expand`\ (*I*\ :sub:`L`\ , [0x08] || *ovk*\ :sub:`par`\ ))
+  - *ovk*\ :sub:`i` = truncate\ :sub:`32`\ (PRF\ :sup:`expand`\ (*I*\ :sub:`L`\ , [0x15] || *ovk*\ :sub:`par`\ ))
+  - *dk*\ :sub:`i` = truncate\ :sub:`32`\ (PRF\ :sup:`expand`\ (*I*\ :sub:`L`\ , [0x16] || *dk*\ :sub:`par`\ ))
   - *c*\ :sub:`i` = *I*\ :sub:`R`
-  - **TODO** *d*\ :sub:`i,j` = FirstValid(*i*, truncate\ :sub:`11`\ (PRF\ :sup:`expand`\ (*s*\ :sub:`m`\ , [0x09] || *d*\ :sub:`par,0` || *j* || *i*)))
 
 Deriving a child extended full viewing key
 ``````````````````````````````````````````
-CDKfvk((*ak*\ :sub:`par`\ , *nk*\ :sub:`par`\ , *ovk*\ :sub:`par`\ , *c*\ :sub:`par`\ ), *i*) →
-(*ak*\ :sub:`i`\ , *nk*\ :sub:`i`\ , *ovk*\ :sub:`i`\ , *c*\ :sub:`i`\ )
+CDKfvk((*ak*\ :sub:`par`\ , *nk*\ :sub:`par`\ , *ovk*\ :sub:`par`\ , *dk*\ :sub:`par`\ , *c*\ :sub:`par`\ ), *i*) →
+(*ak*\ :sub:`i`\ , *nk*\ :sub:`i`\ , *ovk*\ :sub:`i`\ , *dk*\ :sub:`i`\ , *c*\ :sub:`i`\ )
 
 - Check whether *i* ≥ 2\ :sup:`31` (whether the child is a hardened key).
 
   - If so (hardened child): return failure
-  - If not (normal child):  let *I* = PRF\ :sup:`expand`\ (*c*\ :sub:`par`\ , [0x05] || *ak*\ :sub:`par`  || *nk*\ :sub:`par`  || *ovk*\ :sub:`par` || *i*)
+  - If not (normal child):  let *I* = PRF\ :sup:`expand`\ (*c*\ :sub:`par`\ , [0x12] || *ak*\ :sub:`par`  || *nk*\ :sub:`par`  || *ovk*\ :sub:`par` || *dk*\ :sub:`par` || *i*)
 
 - Split *I* into two 32-byte sequences, *I*\ :sub:`L` and *I*\ :sub:`R`\ .
-- Let *I*\ :sub:`ask` = ToScalar(PRF\ :sup:`expand`\ (*I*\ :sub:`L`\ , [0x06]))
-- Let *I*\ :sub:`nsk` = ToScalar(PRF\ :sup:`expand`\ (*I*\ :sub:`L`\ , [0x07]))
+- Let *I*\ :sub:`ask` = ToScalar(PRF\ :sup:`expand`\ (*I*\ :sub:`L`\ , [0x13]))
+- Let *I*\ :sub:`nsk` = ToScalar(PRF\ :sup:`expand`\ (*I*\ :sub:`L`\ , [0x14]))
 - Return:
 
   - *ak*\ :sub:`i` = [*I*\ :sub:`ask`\ ] *G* + *ak*\ :sub:`par`
   - *nk*\ :sub:`i` = [*I*\ :sub:`nsk`\ ] *G* + *nk*\ :sub:`par`
-  - *ovk*\ :sub:`i` = truncate\ :sub:`32`\ (PRF\ :sup:`expand`\ (*I*\ :sub:`L`\ , [0x08] || *ovk*\ :sub:`par`\ ))
+  - *ovk*\ :sub:`i` = truncate\ :sub:`32`\ (PRF\ :sup:`expand`\ (*I*\ :sub:`L`\ , [0x15] || *ovk*\ :sub:`par`\ ))
+  - *dk*\ :sub:`i` = truncate\ :sub:`32`\ (PRF\ :sup:`expand`\ (*I*\ :sub:`L`\ , [0x16] || *dk*\ :sub:`par`\ ))
   - *c*\ :sub:`i` = *I*\ :sub:`R`
-  - **TODO** *d*\ :sub:`i,j` = FirstValid(*i*, truncate\ :sub:`11`\ (PRF\ :sup:`expand`\ (*s*\ :sub:`m`\ , [0x09] || *d*\ :sub:`par,0` || *j* || *i*)))
 
 
 Specification: Sprout key derivation
