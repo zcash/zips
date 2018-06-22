@@ -1372,7 +1372,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\nullifiersField}{\mathtt{nullifiers}}
 \newcommand{\rkField}{\mathtt{rk}}
 \newcommand{\cvField}{\mathtt{cv}}
-\newcommand{\cmField}{\mathtt{cm}}
+\newcommand{\cmField}{\mathtt{cmu}}
 \newcommand{\commitment}{\mathtt{commitment}}
 \newcommand{\commitments}{\mathtt{commitments}}
 \newcommand{\ephemeralKey}{\mathtt{ephemeralKey}}
@@ -3911,7 +3911,7 @@ where
         a \fullViewingKey to recover the recipient \diversifiedTransmissionKey $\DiversifiedTransmitPublic$
         and the ephemeral private key $\EphemeralPrivate$ (and therefore the entire \notePlaintext);
   \item $\ProofOutput \typecolon \OutputProof$ is a \zeroKnowledgeProof with \primaryInput
-        $(\cv, \cm, \EphemeralPublic)$ for the \outputStatement defined in \crossref{outputstatement}.
+        $(\cv, \cmU, \EphemeralPublic)$ for the \outputStatement defined in \crossref{outputstatement}.
 \end{itemize}
 
 \begin{consensusrules}
@@ -3919,7 +3919,7 @@ where
         \vspace{-0.5ex}
   \item The proof $\Proof{\Output}$ \MUST be valid given a \primaryInput formed
         from the other fields except $\TransmitCiphertext{}$ and $\OutCiphertext{}$ ---
-        i.e.\ $\SpendVerify{}((\cv, \cm, \EphemeralPublic), \Proof{\Output}) = 1$.
+        i.e.\ $\SpendVerify{}((\cv, \cmU, \EphemeralPublic), \Proof{\Output}) = 1$.
 \end{consensusrules}
 } %sapling
 
@@ -4660,7 +4660,7 @@ Let $\SpendAuthSig$ be as defined in \crossref{concretespendauthsig}.
 Let $\GroupJ$, $\SubgroupJ$, $\reprJ$, $\ParamJ{q}$, $\ParamJ{r}$, and $\ParamJ{h}$ be as defined in \crossref{jubjub}.
 
 \vspace{-0.5ex}
-Let $\ExtractJ \typecolon \SubgroupJ \rightarrow \GF{\ParamJ{q}}$ be as defined in \crossref{concreteextractorjubjub}.
+Let $\ExtractJ \typecolon \SubgroupJ \rightarrow \MerkleHashSapling$ be as defined in \crossref{concreteextractorjubjub}.
 
 Let $\AuthProveBase$ be as defined in \crossref{saplingkeycomponents}.
 
@@ -4707,8 +4707,7 @@ $\cmOld{} = \NoteCommitSapling{\NoteCommitRandOld{}}(\reprJOf{\DiversifiedTransm
 \snarkcondition{Merkle path validity} \label{saplingmerklepathvalidity}
 
 Either $\vOld{} = 0$; or $(\TreePath{}, \NotePosition)$ is a valid \merklePath of depth $\MerkleDepthSapling$,
-as defined in \crossref{merklepath}, from $\cmU = \ItoLEBSP{\MerkleHashLengthSapling}\!\big(\ExtractJ(\cmOld{})\kern-0.1em\big)$
-to the \anchor $\rt$.
+as defined in \crossref{merklepath}, from $\cmU = \ExtractJ(\cmOld{})$ to the \anchor $\rt$.
 
 \snarkcondition{Value commitment integrity} \label{spendvaluecommitmentintegrity}
 
@@ -4782,7 +4781,7 @@ A valid instance of $\ProofOutput$ assures that given a \primaryInput:
 
 \begin{formulae}
   \item $\oparen\cvNew{} \typecolon \ValueCommitOutput,\\
-         \hparen\cmNew{} \typecolon \NoteCommitSaplingOutput,\\
+         \hparen\cmU \typecolon \MerkleHashSapling,\\
          \hparen\EphemeralPublic \typecolon \GroupJ\cparen$,
 \end{formulae}
 
@@ -4804,9 +4803,9 @@ such that the following conditions hold:
 \vspace{1ex}
 \snarkcondition{Note commitment integrity} \label{outputnotecommitmentintegrity}
 
-$\cmNew{} = \NoteCommitSapling{\NoteCommitRandNew{}}(\DiversifiedTransmitBaseRepr,
-                                                     \DiversifiedTransmitPublicRepr,
-                                                     \vNew{})$,
+$\cmU = \ExtractJ\big(\NoteCommitSapling{\NoteCommitRandNew{}}(\DiversifiedTransmitBaseRepr,
+                                                               \DiversifiedTransmitPublicRepr,
+                                                               \vNew{})\kern-0.12em\big)$,
 where $\DiversifiedTransmitBaseRepr = \reprJOf{\DiversifiedTransmitBase}$\,.
 
 \snarkcondition{Value commitment integrity} \label{outputvaluecommitmentintegrity}
@@ -5057,7 +5056,8 @@ Let $\InViewingKey \typecolon \InViewingKeyTypeSapling$ be the recipient's \inco
 as specified in \crossref{saplingkeycomponents}.
 
 Let $(\EphemeralPublic, \TransmitCiphertext{})$ be the \noteCiphertext from the
-\outputDescription{}, and let $\cm$ be the \noteCommitment.
+\outputDescription{}. Let $\cmField$ be that field of the \outputDescription (encoding the
+$u$-coordinate of the \noteCommitment).
 
 \introlist
 The recipient will attempt to decrypt the $\EphemeralPublic$ and $\TransmitCiphertext{}$
@@ -5074,10 +5074,10 @@ components of the \noteCiphertext as follows:
         and $\DiversifiedTransmitBase = \DiversifyHash(\Diversifier)$
   \item if $\NoteCommitRand \geq \ParamJ{r}$ or $\DiversifiedTransmitBase = \bot$, return $\bot$
   \item let $\DiversifiedTransmitPublic = \KASaplingDerivePublic(\InViewingKey, \DiversifiedTransmitBase)$
-  \item if $\NoteCommitSapling{\NoteCommitRand}(\reprJOf{\DiversifiedTransmitBase},
-                                                \reprJOf{\DiversifiedTransmitPublic},
-                                                \Value) \neq \cm$,
-        return $\bot$, else return $\NotePlaintext{}$.
+  \item let $\cmU' = \ExtractJ\big(\NoteCommitSapling{\NoteCommitRandNew{}}(\reprJOf{\DiversifiedTransmitBase},
+                                                                            \reprJOf{\DiversifiedTransmitPublic},
+                                                                            \Value)\kern-0.12em\big)$.
+  \item if $\LEBStoOSPOf{256}{\cmU'} \neq \cmField$, return $\bot$, else return $\NotePlaintext{}$.
 \end{algorithm}
 
 A received \Sapling{} \note is necessarily a \positionedNote, and so its
@@ -5106,8 +5106,10 @@ Let $\OutViewingKey$ be the recipient's \outgoingViewingKey, as specified in
 \crossref{saplingkeycomponents}.
 
 Let $(\EphemeralPublic, \TransmitCiphertext{})$ be the \noteCiphertext from the
-\outputDescription{}, and let $\cmNew{}$ be the \noteCommitment.
 
+and let $\cvField$, $\cmField$, and $\ephemeralKey$ be those
+fields of the \outputDescription (encoding the \valueCommitment, the $u$-coordinate
+of the \noteCommitment, and $\EphemeralPublic$).
 
 \introlist
 \vspace{1ex}
@@ -5115,7 +5117,7 @@ The \outgoingViewingKey holder will attempt to decrypt the \noteCiphertext as fo
 
 \introlist
 \begin{algorithm}
-  \item let $\OutCipherKey = \PRFock{\OutViewingKey}(\cvNew{}, \cmNew{}, \EphemeralPublic)$
+  \item let $\OutCipherKey = \PRFock{\OutViewingKey}(\cvField, \cmField, \ephemeralKey)$
   \item let $\OutPlaintext = \SymDecrypt{\OutCipherKey}(\OutCiphertext)$
   \item if $\OutPlaintext = \bot$, return $\bot$
   \item extract $(\DiversifiedTransmitPublicRepr, \EphemeralPrivate)$ from $\OutPlaintext$
@@ -5132,11 +5134,10 @@ The \outgoingViewingKey holder will attempt to decrypt the \noteCiphertext as fo
   \item if $\NoteCommitRand \geq \ParamJ{r}$ or $\DiversifiedTransmitBase = \bot$, return $\bot$
   \item if $\KASaplingDerivePublic(\EphemeralPrivate, \DiversifiedTransmitBase) \neq \EphemeralPublic$,
         return $\bot$
-  \item if $\NoteCommitSapling{\NoteCommitRandNew{}}(\reprJOf{\DiversifiedTransmitBase},
-                                                     \reprJOf{\DiversifiedTransmitPublic},
-                                                     \Value) \neq \cmNew{}$,
-        return $\bot$, else return $\NotePlaintext{}$.
-
+  \item let $\cmU' = \ExtractJ\big(\NoteCommitSapling{\NoteCommitRandNew{}}(\reprJOf{\DiversifiedTransmitBase},
+                                                                            \reprJOf{\DiversifiedTransmitPublic},
+                                                                            \Value)\kern-0.12em\big)$.
+  \item if $\LEBStoOSPOf{256}{\cmU'} \neq \cmField$, return $\bot$, else return $\NotePlaintext{}$.
 \end{algorithm}
 } %sapling
 
@@ -5698,7 +5699,7 @@ $\PedersenHash$ is used in the \incrementalMerkleTree over \noteCommitments
 
 Let $\GroupJ$, $\SubgroupJ$, $\ZeroJ$, $\ParamJ{q}$, $\ParamJ{r}$, $\ParamJ{a}$, and $\ParamJ{d}$ be as defined in \crossref{jubjub}.
 
-Let $\ExtractJ \typecolon \SubgroupJ \rightarrow \GF{\ParamJ{q}}$ be as defined in \crossref{concreteextractorjubjub}.
+Let $\ExtractJ \typecolon \SubgroupJ \rightarrow \MerkleHashSapling$ be as defined in \crossref{concreteextractorjubjub}.
 
 Let $\FindGroupJHash$ be as defined in \crossref{concretegrouphashjubjub}.
 
@@ -5753,7 +5754,7 @@ $\PedersenEncode{\paramdot} \typecolon \bitseq{3 \mult \range{1}{c}} \rightarrow
 Finally, define $\PedersenHash \typecolon \byteseq{8} \times \bitseq{\PosInt} \rightarrow \MerkleHashSapling$ by:
 
 \begin{formulae}
-  \item $\PedersenHash(D, M) := \ItoLEBSPOf{\MerkleHashLengthSapling}{\ExtractJ(\PedersenHashToPoint(D, M))}$.
+  \item $\PedersenHash(D, M) := \ExtractJ(\PedersenHashToPoint(D, M))$.
 \end{formulae}
 
 See \crossref{cctpedersenhash} for rationale and efficient circuit implementation
@@ -5813,8 +5814,8 @@ Since the security proof from \cite[Appendix A]{BGG1995}
 depends only on the encoding being injective and its range not including
 zero, the proof can be adapted straightforwardly to show that $\PedersenHashToPoint$
 is \collisionResistant under the same assumptions and security bounds.
-Because $\ItoLEBSP{\MerkleHashLengthSapling}$ and $\ExtractJ$ are injective,
-it follows that $\PedersenHash$ is equally \collisionResistant\!.
+Because $\ExtractJ$ is injective, it follows that $\PedersenHash$ is equally
+\collisionResistant\!.
 
 \vspace{2ex}
 \begin{theorem} \label{thmnohashtouncommittedsapling}
@@ -5822,9 +5823,10 @@ $\UncommittedSapling = \ItoLEBSPOf{\MerkleHashLengthSapling}{1}$ is not in the r
 \end{theorem}
 
 \begin{proof}
-By the definition of $\PedersenHash$, $\ItoLEBSPOf{\smash{\MerkleHashLengthSapling}}{1}$
-can be in the range of $\PedersenHash$ only if there exist $D \typecolon \byteseq{8}$ and
-$M \typecolon \bitseq{\PosInt}$ such that $\ExtractJ(\PedersenHashToPoint(D, M)) = 1$.
+By injectivity of $\ItoLEBSP{\MerkleHashLengthSapling}$ and the definitions of
+$\PedersenHash$ and $\ExtractJ$, $\ItoLEBSPOf{\smash{\MerkleHashLengthSapling}}{1}$
+can be in the range of $\PedersenHash$ only if there exist
+$(D \typecolon \byteseq{8}$, $M \typecolon \bitseq{\PosInt})$ such that $\SelectuOf{\PedersenHashToPoint(D, M)} = 1$.
 The latter can only be the affine-Edwards $u$-coordinate of a point in $\strut\GroupJ$.
 We show that there are no points in $\GroupJ$ with affine-Edwards $u$-coordinate $1$.
 Suppose for a contradiction that $(u, \varv) \in \GroupJ$ for $u = 1$ and some
@@ -6959,7 +6961,10 @@ other conditions on points, for example that they have order at least $\ParamJ{r
 
 Let $\SelectuOf{(u, \varv)} = u$ and let $\SelectvOf{(u, \varv)} = \varv$.
 
-Let $\ExtractJ \typecolon \SubgroupJ \rightarrow \GF{\ParamJ{q}}$ be $\Selectu$.
+Define $\ExtractJ \typecolon \SubgroupJ \rightarrow \MerkleHashSapling$ by
+\begin{formulae}
+  \item $\ExtractJ(P) := \ItoLEBSPOf{\MerkleHashLengthSapling}{\SelectuOf{P}}$.
+\end{formulae}
 
 \vspace{-2ex}
 \facts{The point $(0, 1) = \ZeroJ$, and the point $(0, -1)$ has order $2$ in $\GroupJ$.
@@ -7004,6 +7009,10 @@ they can be written as $\varv$ and $-\varv$. In that case by the Lemma, at
 most one of $(u, \varv)$ and $(u, -\varv)$ is in $\SubgroupJ$. Therefore,
 $\Selectu$ is injective on points in $\SubgroupJ$.
 \end{proof}
+
+\vspace{-1ex}
+Since $\ItoLEBSP{\MerkleHashLengthSapling}$ is injective, it follows that
+$\ExtractJ$ is injective on $\SubgroupJ$.
 }
 
 
@@ -8146,8 +8155,8 @@ Bytes & \heading{Name} & \heading{Data Type} & \heading{Description} \\
 $32$ & $\cvField$ & \type{char[32]} & A \valueCommitment to the value of the output \note,
 $\LEBStoOSPOf{256}{\reprJOf{\cv}\kern 0.05em}$. \\ \hline
 
-$32$ & $\cmField$ & \type{char[32]} & The \noteCommitment for the output \note,
-$\LEBStoOSPOf{256}{\cmU}$ where $\cmU = \ItoLEBSPOf{\MerkleHashLengthSapling}{\ExtractJ(\cm)}$. \\ \hline
+$32$ & $\cmField$ & \type{char[32]} & The $u$-coordinate of the \noteCommitment for the output \note,
+$\LEBStoOSPOf{256}{\cmU}$ where $\cmU = \ExtractJ(\cm)$. \\ \hline
 
 $32$ & $\ephemeralKey$ & \type{char[32]} & An encoding of an ephemeral $\JubjubCurve$ public key,
 $\LEBStoOSPOf{256}{\reprJOf{\EphemeralPublic}}$. \\ \hline
@@ -9358,6 +9367,8 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
           $\GroupG{}$ and $\GroupJ$ where applicable.
     \item Change the types of \auxiliaryInputs to the \spendStatement and \outputStatement, to be more
           faithful to the implementation.
+    \item Rename the $\texttt{cm}$ field of an \outputDescription to $\cmField$, reflecting the fact that
+          it is a \jubjubCurve $u$-coordinate.
     \item Add explicit consensus rules that the $\anchorField$ field of a \spendDescription and the $\cmField$
           field of an \outputDescription{} must be canonical encodings.
     \item Change the syntax of a \commitmentScheme to add $\CommitGenTrapdoor$. This is necessary
