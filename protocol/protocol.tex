@@ -1392,11 +1392,14 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\compactSize}{\type{compactSize uint}}
 
 
+\newcommand{\SighashTxHashing}{\titleterm{SIGHASH Transaction Hashing}}
+\newcommand{\sighash}{\term{SIGHASH}}
 \newcommand{\sighashTxHash}{\term{SIGHASH transaction hash}}
 \newcommand{\sighashTxHashes}{\term{SIGHASH transaction hashes}}
 \newcommand{\sighashType}{\term{SIGHASH type}}
 \newcommand{\sighashTypes}{\term{SIGHASH types}}
 \newcommand{\SIGHASHALL}{\mathsf{SIGHASH\_ALL}}
+\newcommand{\SIGHASHSINGLE}{\mathsf{SIGHASH\_SINGLE}}
 \newcommand{\SigHash}{\mathsf{SigHash}}
 \newcommand{\scriptSig}{\mathtt{scriptSig}}
 \newcommand{\scriptPubKey}{\mathtt{scriptPubKey}}
@@ -3529,9 +3532,11 @@ Note that Knowledge Soundness implies Soundness --- i.e.\ the property that it i
 infeasible to find a new proof $\Proof{}$ where $\ZKVerify{\vk}(x, \Proof{}) = 1$ without
 \emph{there existing} an \auxiliaryInput $w$ such that $(x, w) \in \ZKSatisfying$.
 
-It is possible to replay proofs, but informally, a proof for a given $(x, w)$ gives
-no information that helps to find a proof for other $(x, w)$. \todo{Clarify this and/or
-switch to a proving system that provides Simulation Extractability.}
+\vspace{-1ex}
+\nnote{The above properties do not include nonmalleability \cite{DSDCOPS2001}, and the
+design of the protocol using the \zeroKnowledgeProvingSystem must take this
+into account.}
+\vspace{2ex}
 
 \sprout{
 The \provingSystem is instantiated in \crossref{phgr}.
@@ -3880,11 +3885,14 @@ where
   \item $\cv$ and $\AuthSignRandomizedPublic$ \MUSTNOT be of small order, i.e.\ $\scalarmult{\ParamJ{h}}{\cv}$
         \MUSTNOT be $\ZeroJ$ and $\scalarmult{\ParamJ{h}}{\AuthSignRandomizedPublic}$ \MUSTNOT be $\ZeroJ$.
   \item The proof $\Proof{\Spend}$ \MUST be valid given a \primaryInput formed
-        from the other fields except $\spendAuthSig$.
-        I.e.\ it must be the case that $\SpendVerify{}((\cv, \rt, \nf, \AuthSignRandomizedPublic), \Proof{\Spend}) = 1$.
-  \item The \spendAuthSignature{} \MUST be a valid $\SpendAuthSig$ signature over $\SigHash$
-        using $\AuthSignRandomizedPublic$ as the public key.
-        I.e.\ it must be the case that $\SpendAuthSigVerify{\AuthSignRandomizedPublic}(\SigHash, \spendAuthSig) = 1$.
+        from the other fields except $\spendAuthSig$ ---
+        i.e.\ $\SpendVerify{}((\cv, \rt, \nf, \AuthSignRandomizedPublic), \Proof{\Spend}) = 1$.
+  \item Let $\SigHash$ be the \sighashTxHash of this \transaction, not associated with an input,
+        as defined in \crossref{sighash} using $\SIGHASHALL$.
+
+        The \spendAuthSignature{} \MUST be a valid $\SpendAuthSig$ signature over $\SigHash$
+        using $\AuthSignRandomizedPublic$ as the public key ---
+        i.e.\ $\SpendAuthSigVerify{\AuthSignRandomizedPublic}(\SigHash, \spendAuthSig) = 1$.
 \end{consensusrules}
 } %sapling
 
@@ -4211,19 +4219,67 @@ where
 Given such a \merklePath, it is possible to verify that \merkleLeafNode
 $\MerkleNode{\MerkleDepth}{i}$ is in a tree with a given \merkleRoot $\rt = \MerkleNode{0}{0}$.
 
+
+\subsection{\SighashTxHashing} \label{sighash}
+
+\Bitcoin and \Zcash use signatures and/or non-interactive proofs associated
+with \transaction inputs to authorize spending. Because these signatures or proofs
+could otherwise be replayed in a different \transaction, it is necessary to ``bind''
+them to the \transaction for which they are intended. This is done by hashing information
+about the \transaction and (where applicable) the specific input, to give a
+\sighashTxHash which is then used for the spend authorization. The means of
+authorization differs between
+\sprout{\transparentInputs and inputs to \Sprout \joinSplitTransfers,}
+\notsprout{\transparentInputs, inputs to \Sprout \joinSplitTransfers,\sapling{ and \Sapling \spendTransfers,}}
+but the same \sighashTxHash algorithm is used.
+
+In the case of \Zcash, the
+\sprout{$\PHGR$ proving system used is}%
+\notsprout{$\PHGR$\sapling{ and $\Groth$} proving systems used are}%
+\emph{malleable}, meaning that there is the potential for an adversary who does
+not know all of the \auxiliaryInputs to a proof, to malleate it in order to create a new proof
+involving related \auxiliaryInputs \cite{DSDCOPS2001}. This can be understood as similar
+to a malleability attack on an encryption scheme, in which an adversary can malleate a
+ciphertext in order to create an encryption of a related plaintext, without knowing the
+original plaintext. \Zcash has been designed to mitigate malleability attacks, as described
+in \crossref{sproutnonmalleability}\sapling{, \crossref{bindingsig}, and \crossref{spendauthsig}}.
+
+\introlist
+To provide additional flexibility when combining spend authorizations from different
+sources, \Bitcoin defines several \sighashTypes that cover various parts of a transaction
+\cite{Bitcoin-SigHash}. One of these types is $\SIGHASHALL$\changed{, which is used for
+\Zcash-specific signatures, i.e.\ \joinSplitSignatures\sapling{, \spendAuthSignatures,
+and \bindingSignatures}}. \changed{In \sprout{this case}\notsprout{these cases} the
+\sighashTxHash is not associated with a \transparentInput, and so the input
+to hashing excludes \emph{all} of the $\scriptSig$ fields in the non-\Zcash-specific parts
+of the \transaction.}
+
+\changed{In \Zcash, all \sighashTypes are extended to cover the \Zcash-specific
+fields $\nJoinSplit$, $\vJoinSplit$, and if present $\joinSplitPubKey$. These fields
+are described in \crossref{txnencoding}. The hash \emph{does not} cover the field $\joinSplitSig$.}
+\nuzero{
+After \NUZero\sapling{ and \Sapling} activation, all \sighashTypes are also extended to cover
+\transaction fields introduced in those upgrades.
+
+The original \sighash algorithm defined by \Bitcoin suffered from some deficiencies as
+described in \cite{ZIP-143}; in \Zcash these are to be addressed by changing this algorithm
+as part of the \NUZero upgrade.
+} %nuzero
+
+\prenuzero{The \sighash algorithm used prior to \NUZero activation, i.e.\ for
+version 1 and 2 \transactions, will be defined in \cite{ZIP-76} (to be written).}
+
+\nuzeroonly{The \sighash algorithm used after \NUZero activation and before \Sapling
+activation, i.e.\ for version 3 \transactions, is defined in \cite{ZIP-143}.}
+
+\saplingonward{The \sighash algorithm used after \Sapling activation, i.e.\ for
+version 4 \transactions, is defined in \cite{ZIP-243}.}
+
+
 \subsection{Non-malleability\pSproutOrNothing} \label{sproutnonmalleability}
 
-\Bitcoin defines several \sighashTypes that cover various parts of a transaction.
-\changed{In \Zcash, all of these \sighashTypes are extended to cover the \Zcash-specific
-fields $\nJoinSplit$, $\vJoinSplit$, and (if present) $\joinSplitPubKey$, described in
-\crossref{txnencoding}. They \emph{do not} cover the field $\joinSplitSig$.
-
-}
-
-\vspace{3ex}
-Let $\dataToBeSigned$ be the hash of the \transaction{} \changed{using the $\SIGHASHALL$
-\sighashType}. \changed{This \emph{excludes} all of the $\scriptSig$ fields in
-the non-\Zcash-specific parts of the \transaction.}
+Let $\dataToBeSigned$ be the hash of the \transaction{}, not associated with an input,
+\changed{using the $\SIGHASHALL$ \sighashType}.
 
 In order to ensure that a \joinSplitDescription is cryptographically bound to the
 \transparent inputs and outputs corresponding to $\vpubNew$ and $\vpubOld$, and
@@ -8869,7 +8925,10 @@ transactions. It also allows \transparent and \shielded transfers to
 happen atomically --- possibly under the control of nontrivial script
 conditions, at some cost in distinguishability.
 
-\todo{Describe changes to signing.}
+Computation of \sighashTxHashes, as described in \crossref{sighash},
+was changed to clean up handling of an error case for $\SIGHASHSINGLE$,
+to remove the special treatment of \ScriptOP{CODESEPARATOR}, and to
+include \Zcash-specific fields in the hash \cite{ZIP-76}.
 
 
 \subsection{\Memos}
@@ -9428,12 +9487,15 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
     \item Remove the consensus rule
           ``If $\nJoinSplit > 0$, the \transaction{} \MUSTNOT use \sighashTypes other than $\SIGHASHALL$.'',
           which was never implemented.
+    \item Add section on signature hashing.
+    \item Briefly describe the changes to computation of \sighashTxHashes\notsprout{ in \Sprout}.
     \item Clarify that interstitial \treestates form a tree for each \transaction containing \joinSplitDescriptions.
     \item Correct the description of P2PKH addresses in \crossref{transparentaddrencoding} --- they
           use a hash of a compressed, not an uncompressed ECDSA key representation.
     \item Clarify the wording of the caveat\footnoteref{securitycaveat} about the claimed security
           of shielded \transactions.
     \item Correct the definition of set difference ($S \setminus T$).
+    \item Add a note concerning malleability of \zeroKnowledgeProofs.
 \sapling{
     \item Use the more precise subgroup types $\SubgroupG$ and $\SubgroupJ$ in preference to
           $\GroupG{}$ and $\GroupJ$ where applicable.
