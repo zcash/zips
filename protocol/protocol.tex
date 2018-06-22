@@ -4014,6 +4014,18 @@ Let $\ValueCommitAlg$ and $\NoteCommitSaplingAlg$ be as specified in \crossref{a
 
 Let $\reprJ$ and $\ParamJ{h}$ be as defined in \crossref{jubjub}.
 
+\vspace{2ex}
+Let $\OutViewingKey$ be the \outgoingViewingKey of the address from which the payment
+is being sent.
+
+\vspace{-4ex}
+\pnote{If a payment is sent from multiple addresses, the sender \MAY choose one
+of the addresses for this purpose. Alternatively, the sender \MAY use a separate
+\outgoingViewingKey for all payments associated with an \quotedterm{account}.
+The latter is intended to be defined in \cite{ZIP-32} which is currently in draft.
+If the sender prefers to obtain forward secrecy of the payment information with
+respect to compromise of its own secrets, it \MAY set $\OutViewingKey = \bot$.}
+
 \introlist
 \vspace{2ex}
 For each \outputDescription, the sender selects a value $\ValueNew{}$ and a destination
@@ -5093,6 +5105,10 @@ and let $\DiversifiedTransmitBaseNew \typecolon \KASaplingPublicPrimeOrder$ be t
 Since \Sapling \note encryption is used only in the context of \crossref{saplingsend}, we may assume that
 $\DiversifiedTransmitBaseNew$ has already been calculated and is not $\bot$.
 
+Let $\OutViewingKey \typecolon \maybe{\OutViewingKeyType}$ be as described in \crossref{saplingsend},
+i.e.\ the \outgoingViewingKey of the \paymentAddress from which the \note is being spent, or an
+\outgoingViewingKey associated with a \cite{ZIP-32} account, or $\bot$.
+
 \introsection
 Let $\NotePlaintext{} = (\Diversifier, \Value, \NoteCommitRandBytes, \Memo)$ be the \Sapling{} \notePlaintext.
 
@@ -5105,14 +5121,21 @@ Then to encrypt:
 
 \begin{algorithm}
   \item choose a uniformly random ephemeral private key $\EphemeralPrivate \leftarrowR \KASaplingPrivate \setminus \setof{0}$
-  \item Calculate $\EphemeralPublic = \KASaplingDerivePublic(\EphemeralPrivate, \DiversifiedTransmitBaseNew)$.
-  \item Let $\TransmitPlaintext{}$ be the raw encoding of $\NotePlaintext{}$.
-  \item Let $\DHSecret{} = \KASaplingAgree(\EphemeralPrivate, \DiversifiedTransmitPublicNew)$.
-  \item Let $\TransmitKey{} = \KDFSapling(\DHSecret{}, \EphemeralPublic)$.
-  \item Let $\TransmitCiphertext{} = \SymEncrypt{\TransmitKey{}}(\TransmitPlaintext{})$.
-  \item Let $\OutCipherKey = \PRFock{\OutViewingKey}(\cvNew{}, \cmNew{}, \EphemeralPublic)$.
-  \item Let $\OutPlaintext = \LEBStoOSPOf{512}{\reprJOf{\DiversifiedTransmitPublicNew} \bconcat \ItoLEBSPOf{256}{\EphemeralPrivate}}$.
-  \item Let $\OutCiphertext = \SymEncrypt{\OutCipherKey}(\OutPlaintext)$.
+  \item let $\EphemeralPublic = \KASaplingDerivePublic(\EphemeralPrivate, \DiversifiedTransmitBaseNew)$
+  \item let $\TransmitPlaintext{}$ be the raw encoding of $\NotePlaintext{}$
+  \item let $\DHSecret{} = \KASaplingAgree(\EphemeralPrivate, \DiversifiedTransmitPublicNew)$
+  \item let $\TransmitKey{} = \KDFSapling(\DHSecret{}, \EphemeralPublic)$
+  \item let $\TransmitCiphertext{} = \SymEncrypt{\TransmitKey{}}(\TransmitPlaintext{})$
+  \item if $\OutViewingKey = \bot$:
+  \item \tab choose random $\OutCipherKey \leftarrowR \Keyspace$ and $\OutPlaintext \leftarrowR \byteseq{(\ellJ + 256)/8}$
+  \item else:
+  \item \tab let $\cvField = \LEBStoOSP{\ellJ}\big(\reprJ(\cvNew{})\kern-0.12em\big)$
+  \item \tab let $\cmField = \LEBStoOSP{256}\big(\ExtractJ(\cmNew{})\kern-0.15em\big)$
+  \item \tab let $\ephemeralKey = \LEBStoOSPOf{\ellJ}{\reprJOf{\EphemeralPublic}}$
+  \item \tab let $\OutCipherKey = \PRFock{\OutViewingKey}(\cvField, \cmField, \ephemeralKey)$
+  \item \tab let $\OutPlaintext = \LEBStoOSPOf{\ellJ + 256}{\reprJ(\DiversifiedTransmitPublicNew) \,\bconcat\, \ItoLEBSPOf{256}{\EphemeralPrivate}\kern-0.12em}$
+  \item \vspace{-2ex}
+  \item let $\OutCiphertext = \SymEncrypt{\OutCipherKey}(\OutPlaintext)$
 \end{algorithm}
 
 The resulting \noteCiphertext is $(\EphemeralPublic, \TransmitCiphertext{}, \OutCiphertext)$.
@@ -5136,7 +5159,7 @@ received out-of-band, which are not addressed in this document.
 Let $\InViewingKey \typecolon \InViewingKeyTypeSapling$ be the recipient's \incomingViewingKey,
 as specified in \crossref{saplingkeycomponents}.
 
-Let $(\EphemeralPublic, \TransmitCiphertext{})$ be the \noteCiphertext from the
+Let $(\EphemeralPublic, \TransmitCiphertext{}, \OutCiphertext)$ be the \noteCiphertext from the
 \outputDescription{}. Let $\cmField$ be that field of the \outputDescription (encoding the
 $u$-coordinate of the \noteCommitment).
 
@@ -5183,11 +5206,12 @@ contain the \transaction in which a \note was output.
 \sapling{
 \subsubsection{Decryption using a Full Viewing Key (\Sapling)} \label{saplingdecryptovk}
 
-Let $\OutViewingKey$ be the recipient's \outgoingViewingKey, as specified in
-\crossref{saplingkeycomponents}.
+Let $\OutViewingKey \typecolon \OutViewingKeyType$ be the \outgoingViewingKey, as specified
+in \crossref{saplingkeycomponents}, that is to be used for decryption.
+(If $\OutViewingKey = \bot$ was used for encryption, the payment is not decryptable by
+this method.)
 
-Let $(\EphemeralPublic, \TransmitCiphertext{})$ be the \noteCiphertext from the
-
+Let $(\EphemeralPublic, \TransmitCiphertext{}, \OutCiphertext)$ be the \noteCiphertext,
 and let $\cvField$, $\cmField$, and $\ephemeralKey$ be those
 fields of the \outputDescription (encoding the \valueCommitment, the $u$-coordinate
 of the \noteCommitment, and $\EphemeralPublic$).
@@ -5322,13 +5346,20 @@ Let $\NoteTypeSapling$ be as defined in \crossref{notes}.
   \item Return $(\ReceivedSet, \SpentSet)$.
 \end{algorithm}
 
-
-%\pnote{This algorithm \emph{does not} guarantee to detect all \notes
-%The detection and attempted-decryption algorithms are independent. It is incorrect
-%to attempt to detect outgoing \notes by attempting decryption. This differs from the
-%case of receiving a \note using an \incomingViewingKey (\crossref{decryptsaplingivk}).
-%The ... is that it is possible .., and so ... would potentially miss ..}
-
+\vspace{-2ex}
+\begin{nnotes}
+  \item The above algorithm does not use the $\OutViewingKey$ key component, or the $\OutCiphertext$
+        \noteCiphertext component. When scanning the whole \blockchain, these are indeed not necessary.
+        The advantage of supporting decryption using $\OutViewingKey$ as described in \crossref{saplingdecryptovk},
+        is that it allows recovering information about the \notePlaintexts sent in a \transaction from that
+        \transaction alone.
+  \item When scanning only part of a \blockchain, it may be useful to augment the above algorithm with
+        decryption of $\OutCiphertext$ components for each \transaction, in order to obtain information
+        about \notes that were spent in the scanned period but received outside it.
+  \item The above algorithm does not detect \notes that were sent ``out-of-band'' or with incorrect
+        \noteCiphertexts. It is possible to detect whether such \notes were spent only if their \nullifiers
+        are known.
+\end{nnotes}
 } %sapling
 
 
@@ -7731,6 +7762,7 @@ The raw encoding of a \fullViewingKey consists of:
 \begin{bytefield}[bitwidth=0.05em]{512}
     \sbitbox{256}{$\LEBStoOSPOf{256}{\reprJOf{\AuthSignPublic}\kern 0.05em}$}
     \sbitbox{256}{$\LEBStoOSPOf{256}{\reprJOf{\AuthProvePublic}\kern 0.05em}$}
+    \sbitbox{256}{$32$-byte $\OutViewingKey$}
 \end{bytefield}
 \end{equation*}
 
@@ -7738,6 +7770,7 @@ The raw encoding of a \fullViewingKey consists of:
   \item $32$ bytes specifying the compressed Edwards encoding of $\AuthSignPublic$
         (see \crossref{jubjub}).
   \item $32$ bytes specifying the compressed Edwards encoding of $\AuthProvePublic$.
+  \item $32$ bytes specifying the \outgoingViewingKey $\OutViewingKey$.
 \end{itemize}
 
 When decoding this representation, the key is not valid if $\abstJ$ returns $\bot$
@@ -8297,8 +8330,8 @@ $\ProofOutput$ (see \crossref{groth}). \\ \hline
 \end{center}
 
 \vspace{-2ex}
-The $\ephemeralKey$ and $\encCiphertext$ fields together form the \noteCiphertext,
-which is computed as described in \crossref{saplinginband}.
+The $\ephemeralKey$, $\encCiphertext$, and $\outCiphertext$ fields together form the
+\noteCiphertext, which is computed as described in \crossref{saplinginband}.
 
 \vspace{-4ex}
 \consensusrule{$\LEOStoIPOf{256}{\cmField}$ \MUST be less than $\ParamJ{q}$.}
@@ -9518,6 +9551,8 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
     \item Change the syntax of a \commitmentScheme to add $\CommitGenTrapdoor$. This is necessary
           because the intended distribution of \commitmentTrapdoors may not be uniform on all values
           that are acceptable trapdoor inputs.
+    \item Add notes on the purpose of \outgoingViewingKeys.
+    \item Correct the encoding of a \fullViewingKey ($\OutViewingKey$ was missing).
     \item Ensure that \Sprout functions and values are given \Sprout-specific types where appropriate.
     \item Improve cross-referencing.
     \item Clarify the use of $\PHGR$ vs $\Groth$ proofs in \joinSplitStatements.
