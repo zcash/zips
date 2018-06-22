@@ -1088,6 +1088,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 
 \newcommand{\KA}{\mathsf{KA}}
 \newcommand{\KAPublic}{\KA\mathsf{.Public}}
+\newcommand{\KAPublicPrimeOrder}{\KA\mathsf{.PublicPrimeOrder}}
 \newcommand{\KAPrivate}{\KA\mathsf{.Private}}
 \newcommand{\KASharedSecret}{\KA\mathsf{.SharedSecret}}
 \newcommand{\KAFormatPrivate}{\KA\mathsf{.FormatPrivate}}
@@ -1111,6 +1112,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 
 \newcommand{\KASapling}{\mathsf{KA^{Sapling}}}
 \newcommand{\KASaplingPublic}{\KASapling\mathsf{.Public}}
+\newcommand{\KASaplingPublicPrimeOrder}{\KASapling\mathsf{.PublicPrimeOrder}}
 \newcommand{\KASaplingPrivate}{\KASapling\mathsf{.Private}}
 \newcommand{\KASaplingSharedSecret}{\KASapling\mathsf{.SharedSecret}}
 \newcommand{\KASaplingDerivePublic}{\KASapling\mathsf{.DerivePublic}}
@@ -2296,7 +2298,7 @@ A \Sapling \note is a tuple $(\Diversifier, \DiversifiedTransmitPublic,
 \begin{itemize}
   \item $\Diversifier \typecolon \DiversifierType$
         is the \diversifier of the recipient's \paymentAddress;
-  \item $\DiversifiedTransmitPublic \typecolon \KASaplingPublic$
+  \item $\DiversifiedTransmitPublic \typecolon \KASaplingPublicPrimeOrder$
         is the \diversifiedTransmissionKey of the recipient's \paymentAddress;
   \item $\Value \typecolon \range{0}{\MAXMONEY}$ is an integer
         representing the value of the \note in \zatoshi;
@@ -2307,7 +2309,7 @@ A \Sapling \note is a tuple $(\Diversifier, \DiversifiedTransmitPublic,
 \introlist
 Let $\NoteTypeSapling$ be the type of a \Sapling \note, i.e.
 \begin{formulae}
-  \item $\NoteTypeSapling := \DiversifierType \times \KASaplingPublic \times \range{0}{\MAXMONEY}
+  \item $\NoteTypeSapling := \DiversifierType \times \KASaplingPublicPrimeOrder \times \range{0}{\MAXMONEY}
            \times \NoteCommitSaplingTrapdoor$.
 \end{formulae}
 } %sapling
@@ -2837,6 +2839,7 @@ a shared secret, each using their private key and the other party's public key.
 
 A \keyAgreementScheme $\KA$ defines a type of public keys $\KAPublic$, a type
 of private keys $\KAPrivate$, and a type of shared secrets $\KASharedSecret$.
+\sapling{Optionally, it also defines a type $\KAPublicPrimeOrder \subseteq \KAPublic$.}
 
 \sapling{Optional:} Let $\KAFormatPrivate \typecolon \PRFOutputSprout \rightarrow \KAPrivate$
 be a function to convert a bit string of length $\PRFOutputLengthSprout$ to a $\KA$ private key.
@@ -3641,6 +3644,8 @@ the \authProvingKey $\AuthProvePrivate \typecolon \GF{\ParamJ{r}}$, and the
   $\OutViewingKey$ &$:= \truncate{(\OutViewingKeyLength/8)}(\PRFexpand{\SpendingKey}([2]))$
 \end{tabular}
 
+If $\AuthSignPrivate = 0$, discard this key and repeat with a new $\SpendingKey$.
+
 \vspace{1ex}
 $\AuthSignPublic \typecolon \PrimeOrderJ$, $\AuthProvePublic \typecolon \SubgroupJ$, and
 the \incomingViewingKey $\InViewingKey \typecolon \InViewingKeyTypeSapling$ are then derived as:
@@ -3672,7 +3677,8 @@ Then calculate:
 \end{formulae}
 
 \vspace{-1ex}
-The resulting \diversifiedPaymentAddress is $(\Diversifier, \DiversifiedTransmitPublic)$.
+The resulting \diversifiedPaymentAddress is
+$(\Diversifier \typecolon \DiversifierType, \DiversifiedTransmitPublic \typecolon \KASaplingPublicPrimeOrder)$.
 
 \vspace{1ex}
 For each \spendingKey, there is also a \defaultDiversifiedPaymentAddress
@@ -3868,8 +3874,8 @@ where
 \vspace{2ex}
 \begin{consensusrules}
   \item Elements of a \spendDescription{} \MUST be canonical encodings of the types given above.
-  \item $\AuthSignRandomizedPublic$ \MUSTNOT be of small order, i.e.\ $\scalarmult{\ParamJ{h}}{\AuthSignRandomizedPublic}$
-        \MUSTNOT be $\ZeroJ$.
+  \item $\cv$ and $\AuthSignRandomizedPublic$ \MUSTNOT be of small order, i.e.\ $\scalarmult{\ParamJ{h}}{\cv}$
+        \MUSTNOT be $\ZeroJ$ and $\scalarmult{\ParamJ{h}}{\AuthSignRandomizedPublic}$ \MUSTNOT be $\ZeroJ$.
   \item The proof $\Proof{\Spend}$ \MUST be valid given a \primaryInput formed
         from the other fields except $\spendAuthSig$.
         I.e.\ it must be the case that $\SpendVerify{}((\cv, \rt, \nf, \AuthSignRandomizedPublic), \Proof{\Spend}) = 1$.
@@ -3920,6 +3926,8 @@ where
 \begin{consensusrules}
   \item Elements of an \outputDescription{} \MUST be canonical encodings of the types given above.
         \vspace{-0.5ex}
+  \item $\cv$ and $\EphemeralPublic$ \MUSTNOT be of small order, i.e.\ $\scalarmult{\ParamJ{h}}{\cv}$
+        \MUSTNOT be $\ZeroJ$ and $\scalarmult{\ParamJ{h}}{\EphemeralPublic}$ \MUSTNOT be $\ZeroJ$.
   \item The proof $\Proof{\Output}$ \MUST be valid given a \primaryInput formed
         from the other fields except $\TransmitCiphertext{}$ and $\OutCiphertext{}$ ---
         i.e.\ $\SpendVerify{}((\cv, \cmU, \EphemeralPublic), \Proof{\Output}) = 1$.
@@ -4003,9 +4011,9 @@ the following steps:
 
 \vspace{0.5ex}
 \begin{itemize}
-  \item Check that $\DiversifiedTransmitPublic \typecolon \KASaplingPublic$ is a
-        valid Edwards point on the \jubjubCurve and that this point is not of
-        small order (i.e.\ $\scalarmult{\ParamJ{h}}{\DiversifiedTransmitPublic} \neq \ZeroJ$).
+  \item Check that $\DiversifiedTransmitPublic$ is of type $\KASaplingPublicPrimeOrder$, i.e.\ it
+        is a valid Edwards point on the \jubjubCurve not equal to $\ZeroJ$, and
+        $\scalarmult{\ParamJ{r}}{\DiversifiedTransmitPublic} = \ZeroJ$.
 
   \item Calculate $\DiversifiedTransmitBase = \DiversifyHash(\Diversifier)$
         and check that $\DiversifiedTransmitBase \neq \bot$.
@@ -5018,9 +5026,9 @@ For both encryption and decryption,
 \sapling{
 \subsubsection{Encryption (\Sapling)} \label{saplingencrypt}
 
-Let $\DiversifiedTransmitPublicNew \typecolon \KASaplingPublic$ be the
+Let $\DiversifiedTransmitPublicNew \typecolon \KASaplingPublicPrimeOrder$ be the
 \diversifiedTransmissionKey for the intended recipient address of a new \Sapling{} \note,
-and let $\DiversifiedTransmitBaseNew \typecolon \KASaplingPublic$ be the corresponding
+and let $\DiversifiedTransmitBaseNew \typecolon \KASaplingPublicPrimeOrder$ be the corresponding
 \diversifiedBase computed as $\DiversifyHash(\Diversifier)$.
 
 Since \Sapling \note encryption is used only in the context of \crossref{saplingsend}, we may assume that
@@ -5037,7 +5045,7 @@ Let $\cvNew{}$ be the \valueCommitment for the new \note, and let $\cmNew{}$ be 
 Then to encrypt:
 
 \begin{algorithm}
-  \item Choose a uniformly random ephemeral private key $\EphemeralPrivate \leftarrowR \KASaplingPrivate$.
+  \item choose a uniformly random ephemeral private key $\EphemeralPrivate \leftarrowR \KASaplingPrivate \setminus \setof{0}$
   \item Calculate $\EphemeralPublic = \KASaplingDerivePublic(\EphemeralPrivate, \DiversifiedTransmitBaseNew)$.
   \item Let $\TransmitPlaintext{}$ be the raw encoding of $\NotePlaintext{}$.
   \item Let $\DHSecret{} = \KASaplingAgree(\EphemeralPrivate, \DiversifiedTransmitPublicNew)$.
@@ -6243,6 +6251,8 @@ as follows:
 Let $\GroupJ$, $\SubgroupJ$, and the cofactor $\ParamJ{h}$ be as defined in \crossref{jubjub}.
 
 Define $\KASaplingPublic := \GroupJ$.
+
+Define $\KASaplingPublicPrimeOrder := \PrimeOrderJ$.
 
 Define $\KASaplingSharedSecret := \SubgroupJ$.
 
@@ -7524,12 +7534,12 @@ cause the first two characters of the Base58Check encoding to be fixed as
 \subsubsection{\Sapling \PaymentAddresses} \label{saplingpaymentaddrencoding}
 
 A \Sapling \paymentAddress consists of $\Diversifier \typecolon \DiversifierType$
-and $\DiversifiedTransmitPublic \typecolon \KASaplingPublic$.
+and $\DiversifiedTransmitPublic \typecolon \KASaplingPublicPrimeOrder$.
 
-$\Diversifier$ is a sequence of 11 bytes.
-$\DiversifiedTransmitPublic$ is an encoding of a $\KASaplingPublic$ key
-(see \crossref{concretesaplingkeyagreement}),
+$\DiversifiedTransmitPublic$ is an encoding of a $\KASapling$ public key of type
+$\KASaplingPublicPrimeOrder$ (see \crossref{concretesaplingkeyagreement}),
 for use with the encryption scheme defined in \crossref{saplinginband}.
+$\Diversifier$~is a sequence of $11$ bytes.
 These components are derived as described in \crossref{saplingkeycomponents}.
 
 \introlist
@@ -7549,7 +7559,8 @@ The raw encoding of a \Sapling \paymentAddress consists of:
 \end{itemize}
 
 When decoding the representation of $\DiversifiedTransmitPublic$, the address is
-not valid if $\abstJ$ returns $\bot$.
+not valid if $\abstJ$ returns $\bot$ or if the resulting $\DiversifiedTransmitPublic$
+is not of prime order.
 
 For addresses on the production network, the \humanReadablePart is \ascii{zs}.
 For addresses on the test network, the \humanReadablePart is \ascii{ztestsapling}.
@@ -7648,8 +7659,8 @@ For \incomingViewingKeys on the test network, the \humanReadablePart is \ascii{z
 \sapling{
 \subsubsection{\Sapling \FullViewingKeys} \label{saplingfullviewingkeyencoding}
 
-A \Sapling \fullViewingKey consists of $\AuthSignPublic \typecolon \GroupJ$
-and $\AuthProvePublic \typecolon \GroupJ$.
+A \Sapling \fullViewingKey consists of $\AuthSignPublic \typecolon \PrimeOrderJ$,
+$\AuthProvePublic \typecolon \SubgroupJ$, and $\OutViewingKey \typecolon \byteseq{\OutViewingKeyLength/8}$.
 
 $\AuthSignPublic$ and $\AuthProvePublic$ are points on the \jubjubCurve
 (see \crossref{jubjub}). They are derived as described in \crossref{saplingkeycomponents}.
@@ -7671,7 +7682,8 @@ The raw encoding of a \fullViewingKey consists of:
 \end{itemize}
 
 When decoding this representation, the key is not valid if $\abstJ$ returns $\bot$
-for either point.
+for either $\AuthSignPublic$ or $\AuthProvePublic$, or if $\AuthSignPublic \notin \PrimeOrderJ$,
+or if $\AuthProvePublic \notin \SubgroupJ$.
 
 For \incomingViewingKeys on the production network, the \humanReadablePart is \ascii{zviews}.
 For \incomingViewingKeys on the test network, the \humanReadablePart is \ascii{zviewtestsapling}.
@@ -9423,6 +9435,11 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
     \item Add explicit consensus rules that the $\anchorField$ field of a \spendDescription and the $\cmField$
           field of an \outputDescription{} must be canonical encodings.
     \item Enforce that $\EphemeralPrivate$ in $\outCiphertext$ is a canonical encoding.
+    \item Add consensus rules that $\cv$ in a \spendDescription, and $\cv$ and $\EphemeralPublic$ in an
+          \outputDescription, are not of small order. Exclude $0$ from the range of $\EphemeralPrivate$
+          when encrypting \Sapling notes.
+    \item Enforce stronger constraints on the types of key components $\DiversifiedTransmitPublic$,
+          $\AuthSignPublic$, and $\AuthProvePublic$.
     \item Correct or improve the types of $\GroupJHash{}$, $\FindGroupJHash$, $\ExtractJ$, $\PRFexpand{}$,
           $\PRFock{}$, and $\CRHivk$.
     \item Instantiate $\PRFock{}$ using $\BlakeTwob{256}$.
