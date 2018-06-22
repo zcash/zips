@@ -964,6 +964,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\Repr}{\kern-0.03em\ReprNoKern}
 \newcommand{\EphemeralPublicRepr}{\EphemeralPublic^{\Repr}}
 \newcommand{\EphemeralPrivate}{\mathsf{esk}}
+\newcommand{\EphemeralPrivateBytes}{\bytes{\EphemeralPrivate}}
+\newcommand{\EphemeralPrivateBytesType}{\byteseq{32}}
 \newcommand{\TransmitPublic}{\mathsf{pk_{enc}}}
 \newcommand{\TransmitPublicSup}[1]{\mathsf{pk}^{#1}_\mathsf{enc}}
 \newcommand{\TransmitPublicNew}[1]{\mathsf{pk^{new}_{\enc,\mathnormal{#1}}}}
@@ -990,7 +992,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\AuthProvePublicRepr}{\AuthProvePublic^{\Repr}}
 \newcommand{\OutViewingKey}{\mathsf{ovk}}
 \newcommand{\OutViewingKeyLength}{\mathsf{\ell_{\OutViewingKey}}}
-\newcommand{\OutViewingKeyType}{\bitseq{\OutViewingKeyLength}}
+\newcommand{\OutViewingKeyType}{\byteseq{\OutViewingKeyLength/8}}
 \newcommand{\OutCipherKey}{\mathsf{ock}}
 \newcommand{\NotePosition}{\mathsf{pos}}
 \newcommand{\NotePositionBase}{\mathcal{J}}
@@ -1316,6 +1318,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\sk}{\mathsf{sk}}
 \newcommand{\hSigInput}{\mathsf{hSigInput}}
 \newcommand{\crhInput}{\mathsf{crhInput}}
+\newcommand{\ockInput}{\mathsf{ockInput}}
 \newcommand{\dataToBeSigned}{\mathsf{dataToBeSigned}}
 \newcommand{\vBalance}{\mathsf{v^{balance}}}
 \newcommand{\vBad}{\mathsf{v^{bad}}}
@@ -2777,7 +2780,7 @@ For \Sapling, three additional $\PRF{x}{}$ are needed:
 
 \begin{tabular}{@{\hskip 2em}l@{\;}l@{\;}l@{\;}l@{\,}l}
 $\PRFexpand{}    $&$\typecolon\; \SpendingKeyType   $&$\times\; \PRFInputExpand $& &$\rightarrow \PRFOutputExpand $\\
-$\PRFock{}       $&$\typecolon\; \OutViewingKeyType $&$\times\; \ReprJ \times \ReprJ \times \ReprJ $& &$\rightarrow \Keyspace$\\
+$\PRFock{}       $&$\typecolon\; \OutViewingKeyType $&$\times\; \ReprJBytes \times \ReprJBytes \times \ReprJBytes $& &$\rightarrow \Keyspace$\\
 $\PRFnfSapling{} $&$\typecolon\; \SubgroupReprJ     $&$\times\; \ReprJ $& &$\rightarrow \PRFOutputNfSapling $
 \end{tabular}
 
@@ -4557,9 +4560,20 @@ is a representation of the \nullifierKey associated with the \note and $\NoteAdd
 \vspace{-1ex}
 \subsubsection{\JoinSplitStatement\pSproutOrNothing} \label{joinsplitstatement}
 
-A valid instance of $\ProofJoinSplit$ assures that given a \primaryInput:
+\vspace{-2ex}
+Let $\MerkleHashLengthSprout$, $\PRFOutputLengthSprout$, $\MerkleDepthSprout$, $\ValueLength$,
+$\AuthPrivateLength$, $\NoteAddressPreRandLength$, $\hSigLength$, $\NOld$, $\NNew$ be as defined in \crossref{constants}.
 
 \vspace{-1ex}
+Let $\PRFaddr{}$, $\PRFnf{}$, $\PRFpk{}$, and $\PRFrho{}$ be as defined in \crossref{abstractprfs}.
+
+\vspace{-1ex}
+Let $\NoteCommitSprout{}$ be as defined in \crossref{abstractcommit}, and
+let $\NoteTypeSprout$ and $\NoteCommitmentSprout$ be as defined in \crossref{notes}.
+
+A valid instance of $\ProofJoinSplit$ assures that given a \primaryInput:
+
+\vspace{-2ex}
 \begin{formulae}
   \item $\oparen\rt \typecolon \MerkleHashSprout,\\
          \hparen\nfOld{\allOld} \typecolon \typeexp{\PRFOutputSprout}{\NOld},\\
@@ -5120,9 +5134,11 @@ The \outgoingViewingKey holder will attempt to decrypt the \noteCiphertext as fo
   \item let $\OutCipherKey = \PRFock{\OutViewingKey}(\cvField, \cmField, \ephemeralKey)$
   \item let $\OutPlaintext = \SymDecrypt{\OutCipherKey}(\OutCiphertext)$
   \item if $\OutPlaintext = \bot$, return $\bot$
-  \item extract $(\DiversifiedTransmitPublicRepr, \EphemeralPrivate)$ from $\OutPlaintext$
-  \item let $\DiversifiedTransmitPublic = \abstJOf{\DiversifiedTransmitPublicRepr}$
-  \item if $\DiversifiedTransmitPublic = \bot$, return $\bot$
+  \item extract $(\DiversifiedTransmitPublicRepr \typecolon \ReprJ,
+        \EphemeralPrivateBytes \typecolon \EphemeralPrivateBytesType)$ from $\OutPlaintext$
+  \item let $\EphemeralPrivate = \LEOStoIPOf{256}{\EphemeralPrivateBytes}$
+        and $\DiversifiedTransmitPublic = \abstJOf{\DiversifiedTransmitPublicRepr}$
+  \item if $\EphemeralPrivate \geq \ParamJ{r}$ or $\DiversifiedTransmitPublic \notin \KASaplingPublicPrimeOrder$, return $\bot$
   \item let $\DHSecret{} = \KASaplingAgree(\EphemeralPrivate, \DiversifiedTransmitPublic)$
   \item let $\TransmitKey{} = \KDFSapling(\DHSecret{}, \EphemeralPublic)$
   \item let $\TransmitPlaintext{} = \SymDecrypt{\TransmitKey{}}(\TransmitCiphertext{})$
@@ -5140,6 +5156,10 @@ The \outgoingViewingKey holder will attempt to decrypt the \noteCiphertext as fo
   \item if $\LEBStoOSPOf{256}{\cmU'} \neq \cmField$, return $\bot$, else return $\NotePlaintext{}$.
 \end{algorithm}
 } %sapling
+
+\vspace{-2ex}
+\pnote{For a valid \transaction it must be the case that
+$\ephemeralKey = \LEBStoOSP{\ellJ}\big(\reprJOf{\EphemeralPublic}\kern-0.15em\big)$.}
 
 
 \subsection{\Blockchain{} Scanning\pSproutOrNothing} \label{sproutscan}
@@ -6024,6 +6044,17 @@ be necessary.})
 }
 
 
+\newsavebox{\ockbox}
+\begin{lrbox}{\ockbox}
+\setsapling
+\begin{bytefield}[bitwidth=0.038em]{512}
+    \sbitbox{256}{$\LEBStoOSPOf{256}{\OutViewingKey}$} &
+    \sbitbox{256}{$32$-byte $\cvField$}
+    \sbitbox{256}{$32$-byte $\cmField$} &
+    \sbitbox{264}{$32$-byte $\ephemeralKey$}
+\end{bytefield}
+\end{lrbox}
+
 \newsavebox{\nfsaplingbox}
 \begin{lrbox}{\nfsaplingbox}
 \setsapling
@@ -6054,6 +6085,26 @@ corresponding to $t$.
 } %securityrequirement
 
 
+\introlist
+\vspace{2ex}
+$\PRFock{}$ is used in \crossref{saplingencrypt} to derive the
+\outgoingCipherKey $\OutCipherKey$ used to encrypt an \outputCiphertext.
+
+It is instantiated using the $\BlakeTwobGeneric$ \hashFunction defined in
+\crossref{concreteblake2}:
+
+\begin{formulae}
+  \item $\PRFock{\OutViewingKey}(\cvField, \cmField, \ephemeralKey) := \BlakeTwobOf{256}{\ascii{Zcash\_Derive\_ock}, \ockInput}$
+  \item where $\ockInput = \Justthebox{\ockbox}$.
+\end{formulae}
+
+\vspace{-4.5ex}
+\securityrequirement{
+$\BlakeTwobOf{512}{\ascii{Zcash\_Derive\_ock}, \ockInput}$ must be a
+PRF for output range $\Keyspace$ (defined in \crossref{concretesym}) when keyed by the bits corresponding
+to $\OutViewingKey$, with input in the bits corresponding to $\cvField$, $\cmField$, and $\ephemeralKey$.
+} %securityrequirement
+
 \vspace{2ex}
 \introlist
 $\PRFnfSapling{}$ is used to derive the \nullifier for a \Sapling{} \note.
@@ -6068,7 +6119,7 @@ It is instantiated using the $\BlakeTwosGeneric$ \hashFunction defined in \cross
 $\BlakeTwosOf{256}{\ascii{Zcash\_nf}, \Justthebox{\nfsaplingbox}}$ must be a
 \collisionResistant PRF for output range $\byteseq{32}$ when keyed by the bits
 corresponding to $\AuthProvePublicRepr$, with input in the bits corresponding to
-$\NoteAddressRand$. Note that $\AuthProvePublicRepr \typecolon \SubgroupReprJ$
+$\NoteAddressRandRepr$. Note that $\AuthProvePublicRepr \typecolon \SubgroupReprJ$
 is a representation of a point in the $\ParamJ{r}$-order subgroup of the \jubjubCurve,
 and therefore is not uniformly distributed on $\ReprJ$.
 $\SubgroupReprJ$ is defined in \crossref{jubjub}.
@@ -9371,6 +9422,10 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
           it is a \jubjubCurve $u$-coordinate.
     \item Add explicit consensus rules that the $\anchorField$ field of a \spendDescription and the $\cmField$
           field of an \outputDescription{} must be canonical encodings.
+    \item Enforce that $\EphemeralPrivate$ in $\outCiphertext$ is a canonical encoding.
+    \item Correct or improve the types of $\GroupJHash{}$, $\FindGroupJHash$, $\ExtractJ$, $\PRFexpand{}$,
+          $\PRFock{}$, and $\CRHivk$.
+    \item Instantiate $\PRFock{}$ using $\BlakeTwob{256}$.
     \item Change the syntax of a \commitmentScheme to add $\CommitGenTrapdoor$. This is necessary
           because the intended distribution of \commitmentTrapdoors may not be uniform on all values
           that are acceptable trapdoor inputs.
