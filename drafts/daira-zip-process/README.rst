@@ -92,10 +92,10 @@ Versioning
 ==========
 
 ZIPs are strictly versioned. The versioning scheme starts with "Draft 1", "Draft 2",
-etc., for how ever many drafts are needed. When and if the document is considered by
+etc., for however many drafts are needed. When and if the document is considered by
 its authors and the `ZIP Editor`_ to be stable, it becomes "Version 1". Any particular
 ZIP might not reach this stage. Subsequent revisions, if any, are called "Version 2",
-etc. for how ever many revisions are needed.
+etc. for however many revisions are needed.
 
 A ZIP also has a "Change history", separate from the document itself, giving a brief
 summary of the changes made in each version. See `Structure of the ZIPs Repository`_
@@ -194,7 +194,7 @@ changed their name, formally or informally, can also ask for their name to be
 updated on the ZIP metadata; the result will not include their previous name
 unless they ask for it to. (As a technical caveat, the previous name may still
 be visible in previous git revisions of the `ZIPs Repository`_ that remain
-publically accessible, although it may be possible to fix that by a force-push.)
+publicly accessible, although it may be possible to fix that by a force-push.)
 
 
 Relation to the Zcash Protocol Specification
@@ -219,9 +219,9 @@ for the specification).
 
 
 
-It is highly recommended that a single ZIP contain a single key proposal or new 
-idea. The more focussed the ZIP, the more successful it is likely to be. If in 
-doubt, split your ZIP into several well-focussed ones.
+It is highly recommended that a single ZIP contains a single key proposal or new 
+idea. The more focused the ZIP, the more successful it is likely to be. If in 
+doubt, split your ZIP into several well-focused ones.
 
 Both initial proposals and updates to ZIPs SHOULD be submitted by an author of
 the document as a pull request to the `ZIPs repository`_.

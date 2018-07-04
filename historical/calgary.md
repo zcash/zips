@@ -4,7 +4,7 @@
 Calgary is a reimplementation of Zerocash in Bitcoin meant to address a number of shortcomings and design flaws in the original academic implementation. This gives us an opportunity to rework the implementation from scratch, setting out rigorous guidelines for how we interact with upstream code.
 
 ### Bridging implementation gaps
-The original implementation carried Protect and Pour operations through the transaction inputs. This required a number of hacks. Transaction inputs that carried Pours, for example, had no actual `CTxOut` to spend, so a dummy "always_spendable" transaction was created. The scripting system (opcodes in particular) had to be changed to store the zerocash operation metadata. Changes to support things like intermediate Pours or input value to the circuit had unclear interactions with the transaction system.
+The original implementation carried Protect and Pour operations through the transaction inputs. This required a number of hacks. Transaction inputs that carried Pours, for example, had no actual `CTxOut` to spend, so a dummy "always_spendable" transaction was created. The scripting system (opcodes in particular) had to be changed to store the Zerocash operation metadata. Changes to support things like intermediate Pours or input value to the circuit had unclear interactions with the transaction system.
 
 The obvious advantage of the original implementation was avoiding structural changes to `CTransaction`. However, these are necessary, not least because versioning semantics must be laid out in a sensible way.
 
@@ -47,7 +47,7 @@ Additionally, the merkle root anchor indicates to others your "view" of the netw
 
 ### CTransaction
 
-The heart of zerocash modifications is in `CTransaction`. The current layout is as follows:
+The heart of Zerocash modifications is in `CTransaction`. The current layout is as follows:
 
 ```
 {
@@ -60,10 +60,10 @@ The heart of zerocash modifications is in `CTransaction`. The current layout is 
 
 #### Versioning
 
-In this design, we will increment the latest `nVersion` for transactions, adding new fields to the end to encapsulate our zerocash operations ([#114][ticket114]). Our fields must anticipate the case that no zerocash operations occur, such as in traditional or "purely cleartext" transactions.
+In this design, we will increment the latest `nVersion` for transactions, adding new fields to the end to encapsulate our Zerocash operations ([#114][ticket114]). Our fields must anticipate the case that no Zerocash operations occur, such as in traditional or "purely cleartext" transactions.
 
-##### Alternative: Use bitflags to indicate the presence of zerocash fields
-In this alternative, we use bitflags in the `nVersion` field to indicate the presence of zerocash fields at the end. This would allow us to track upstream CTransaction changes seamlessly, *but* would indefinitely require that upstream `nVersion` bits are available to us for this purpose. Additionally, the absence of these bitflags would conflict in purpose with an empty vector of `PourTx` structures as outlined later.
+##### Alternative: Use bitflags to indicate the presence of Zerocash fields
+In this alternative, we use bitflags in the `nVersion` field to indicate the presence of Zerocash fields at the end. This would allow us to track upstream CTransaction changes seamlessly, *but* would indefinitely require that upstream `nVersion` bits are available to us for this purpose. Additionally, the absence of these bitflags would conflict in purpose with an empty vector of `PourTx` structures as outlined later.
 
 #### PourTx
 
