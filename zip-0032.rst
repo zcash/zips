@@ -71,8 +71,11 @@ Most of the notation and functions used in this ZIP are defined in the Sapling p
 
 - I2LEBSP\ :sub:`l`\ (*k*) is the sequence of *l* bits representing *k* in little-endian order.
 
-- BLAKE2b-512(*p*, *x*) refers to unkeyed BLAKE2b-512 in sequential mode, with an output digest length of 64
-  bytes, 16-byte personalization string *p*, and input *x*.
+- BLAKE2b-256(*p*, *x*) refers to unkeyed BLAKE2b-256 in sequential mode, with an output digest length of
+  32 bytes, 16-byte personalization string *p*, and input *x*.
+
+- BLAKE2b-512(*p*, *x*) refers to unkeyed BLAKE2b-512 in sequential mode, with an output digest length of
+  64 bytes, 16-byte personalization string *p*, and input *x*.
 
 - PRF\ :sup:`expand`\ (*sk*, *t*) := BLAKE2b-512("Zcash_ExpandSeed", *sk* || *t*)
 
@@ -307,6 +310,88 @@ Wallets implementing Sprout ZIP 32 derivation MUST support the following path::
     m_Sprout / purpose' / coin_type' / account' / address_index
 
 
+Specification: Fingerprints and Tags
+====================================
+
+Sapling Full Viewing Key Fingerprints and Tags
+----------------------------------------------
+
+A "Sapling full viewing key fingerprint" of a full viewing key with raw encoding *FVK* (as specified
+in [#sapling-spec]_ section 5.6.7) is given by::
+
+    BLAKE2b-256("ZcashSaplingFVFP", *FVK*)
+
+It MAY be used to uniquely identify a particular Sapling full viewing key.
+
+A "Sapling full viewing key tag" is the first 4 bytes of the corresponding Sapling full viewing key
+fingerprint. It is intended for optimizing performance of key lookups, and MUST NOT be assumed to
+uniquely identify a particular key.
+
+Sprout Address Fingerprints and Tags
+------------------------------------
+
+A "Sprout address fingerprint" of a Sprout payment address with raw encoding *ADDR* (as specified in
+[#sapling-spec]_ section 5.6.3, including the lead bytes) is given by::
+
+    BLAKE2b-256("Zcash_Sprout_AFP", *ADDR*)
+
+It MAY be used to uniquely identify a particular Sprout payment address.
+
+A "Sprout address tag" is the first 4 bytes of the corresponding Sprout address fingerprint. It is
+intended for optimizing performance of address lookups, and MUST NOT be assumed to uniquely identify
+a particular address.
+
+
+Specification: Key Encodings
+============================
+
+The following encodings are analogous to the ``xprv`` and ``xpub`` encodings defined
+in BIP 32 for transparent keys and addresses. Each key type has a raw representation
+and a Bech32 [#bip-0173]_ encoding.
+
+
+Sapling extended spending keys
+------------------------------
+
+A Sapling extended spending key (*ask*, *nsk*, *ovk*, *dk*, *c*), at depth *depth*,
+with parent full viewing key tag *parent_fvk_tag* and child number *i*, is
+represented as a byte sequence::
+
+    I2LEOSP\ :sub:`8`\ (*depth*) || *parent_fvk_tag* || I2LEOSP\ :sub:`32`\ (*i*) || *c* || *ask* || *nsk* || *ovk* || *dk*
+
+When encoded as Bech32, the Human-Readable Part is "secret-extended-key-main"
+for the production network, or "secret-extended-key-main" for the test network.
+
+Sapling extended full viewing keys
+----------------------------------
+
+A Sapling extended full viewing key (*ak*, *nk*, *ovk*, *dk*, *c*), at depth *depth*,
+with parent full viewing key tag *parent_fvk_tag* and child number *i*, is
+represented as a byte sequence::
+
+    I2LEOSP\ :sub:`8`\ (*depth*) || *parent_fvk_tag* || I2LEOSP\ :sub:`32`\ (*i*) || *c* || *ak* || *nk* || *ovk* || *dk*
+
+When encoded as Bech32, the Human-Readable Part is "zxviews" for the production
+network, or "zxviewtestsapling" for the test network.
+
+Sprout extended spending keys
+-----------------------------
+
+A Sprout extended spending key (*a*\ :sub:`sk`\ , *c*), at depth *depth*, with
+parent address tag *parent_addr_tag* and child number *i*, is represented as a
+byte sequence::
+
+    I2LEOSP\ :sub:`8`\ (*depth*) || *parent_addr_tag* || I2LEOSP\ :sub:`32`\ (*i*) || *ASK* || *c*
+
+where *ASK* is the raw encoding of the spending key *a*\ :sub:`sk` as specified in
+[#sapling-spec]_ section 5.6.8, including the lead bytes.
+
+When encoded as Bech32, the Human-Readable Part is "zxsprout" for the production
+network, or "zxtestsprout" for the test network. Sprout extended spending keys
+are encoded using Bech32 even though other Sprout keys and addresses are encoded
+using Base58Check.
+
+
 Test Vectors
 ============
 
@@ -328,6 +413,7 @@ References
 .. [#bip-0043] `BIP 43: Purpose Field for Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0043.mediawiki>`_
 .. [#bip-0044] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>`_
 .. [#slip-0044] `SLIP 44: Registered coin types for BIP-0044 <https://github.com/satoshilabs/slips/blob/master/slip-0044.md>`_
+.. [#bip-0173] `BIP 173: Base32 address format for native v0-16 witness outputs <https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki>`_
 .. [#sapling-spec] `Zcash Protocol Specification, Version 2018.0-beta-21 or later [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/sapling.pdf>`_
 .. [#sapling-key-components] `Section 4.2.2: Sapling Key Components. Zcash Protocol Specification, Version 2018.0-beta-21 or later [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/sapling.pdf>`_
 .. [#NIST-SP-800-38G] `NIST Special Publication 800-38G -- Recommendation for Block Cipher Modes of Operation: Methods for Format-Preserving Encryption <https://dx.doi.org/10.6028/NIST.SP.800-38G>`_
