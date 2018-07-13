@@ -18,6 +18,8 @@ Terminology
 The key words "MUST", "MUST NOT", and "MAY" in this document are to be interpreted as described in RFC 2119.
 [#RFC2119]_
 
+"Jubjub" refers to the elliptic curve defined in [#sapling-spec] section 5.4.8.3.
+
 
 Abstract
 ========
@@ -72,6 +74,13 @@ Most of the notation and functions used in this ZIP are defined in the Sapling p
   by the byte sequence *S* of length *l*/8.
 
 - I2LEBSP\ :sub:`l`\ (*k*) is the sequence of *l* bits representing *k* in little-endian order.
+
+- LEBS2OSP\ :sub:`l`\ (*B*) is defined as follows when *l* is a multiple of 8: convert each group of 8 bits
+  in *B* to a byte value with the least significant bit first, and concatenate the resulting bytes in the
+  same order as the groups.
+
+- repr\ :sub:`𝕁`\ (*P*) is the representation of the Jubjub elliptic curve point *P* as a bit sequence,
+  defined in [#sapling-spec]_ section 5.4.8.3.
 
 - BLAKE2b-256(*p*, *x*) refers to unkeyed BLAKE2b-256 in sequential mode, with an output digest length of
   32 bytes, 16-byte personalization string *p*, and input *x*.
@@ -134,6 +143,13 @@ is the normal Sapling expanded spending key, *dk* is a diversifier key, and *c* 
 We represent a Sapling extended full viewing key as (*ak*, *nk*, *ovk*, *dk*, *c*), where (*ak*, *nk*, *ovk*)
 is the normal Sapling full viewing key, *dk* is the same diversifier key as above, and *c* is the chain code.
 
+Helper functions
+----------------
+
+Define EncodeXSKParts(*ask*, *nsk*, *ovk*, *dk*) := I2LEOSP\ :sub:`256`\ (*ask*) || I2LEOSP\ :sub:`256`\ (*nsk*) || *ovk* || *dk*.
+
+Define EncodeFVKParts(*ak*, *nk*, *ovk*, *dk*) := LEBS2OSP\ :sub:`256`\ (repr\ :sub:`𝕁`\ (*ak*)) || LEBS2OSP\ :sub:`256`\ (repr\ :sub:`𝕁`\ (*nk*)) || *ovk* || *dk*.
+
 Master key generation
 ---------------------
 
@@ -165,8 +181,10 @@ CDKsk((*ask*\ :sub:`par`\ , *nsk*\ :sub:`par`\ , *ovk*\ :sub:`par`\ , *dk*\ :sub
 
 - Check whether *i* ≥ 2\ :sup:`31` (whether the child is a hardened key).
 
-  - If so (hardened child): let *I* = PRF\ :sup:`expand`\ (*c*\ :sub:`par`\ , [0x11] || *ask*\ :sub:`par` || *nsk*\ :sub:`par` || *ovk*\ :sub:`par` || *dk*\ :sub:`par` || I2LEOSP\ :sub:`32`\ (*i*))
-  - If not (normal child):  let *I* = PRF\ :sup:`expand`\ (*c*\ :sub:`par`\ , [0x12] || *ak*\ :sub:`par`  || *nk*\ :sub:`par`  || *ovk*\ :sub:`par` || *dk*\ :sub:`par` || I2LEOSP\ :sub:`32`\ (*i*))
+  - If so (hardened child): let *I* = PRF\ :sup:`expand`\ (*c*\ :sub:`par`\ , [0x11] || EncodeXSKParts(*ask*\ :sub:`par`\ , *nsk*\ :sub:`par`\ , *ovk*\ :sub:`par`\ , *dk*\ :sub:`par`\ ) || I2LEOSP\ :sub:`32`\ (*i*))
+  - If not (normal child):  let *I* = PRF\ :sup:`expand`\ (*c*\ :sub:`par`\ , [0x12] || EncodeFVKParts(*ak*\ :sub:`par`\ , *nk*\ :sub:`par`\ , *ovk*\ :sub:`par`\ , *dk*\ :sub:`par`\ ) || I2LEOSP\ :sub:`32`\ (*i*))
+    where (*nk*\ :sub:`par`\ , *ak*\ :sub:`par`\ , *ovk*\ :sub:`par`\ ) is the full viewing key derived from
+    (*ask*\ :sub:`par`\ , *nsk*\ :sub:`par`\ , *ovk*\ :sub:`par`\ ) as described in [#sapling-key-components]_.
 
 - Split *I* into two 32-byte sequences, *I*\ :sub:`L` and *I*\ :sub:`R`\ .
 - Let *I*\ :sub:`ask` = ToScalar(PRF\ :sup:`expand`\ (*I*\ :sub:`L`\ , [0x13]))
@@ -189,7 +207,7 @@ CDKfvk((*ak*\ :sub:`par`\ , *nk*\ :sub:`par`\ , *ovk*\ :sub:`par`\ , *dk*\ :sub:
 - Check whether *i* ≥ 2\ :sup:`31` (whether the child is a hardened key).
 
   - If so (hardened child): return failure
-  - If not (normal child):  let *I* = PRF\ :sup:`expand`\ (*c*\ :sub:`par`\ , [0x12] || *ak*\ :sub:`par`  || *nk*\ :sub:`par`  || *ovk*\ :sub:`par` || *dk*\ :sub:`par` || I2LEOSP\ :sub:`32`\ (*i*))
+  - If not (normal child):  let *I* = PRF\ :sup:`expand`\ (*c*\ :sub:`par`\ , [0x12] || EncodeFVKParts(*ak*\ :sub:`par`\ , *nk*\ :sub:`par`\ , *ovk*\ :sub:`par`\ , *dk*\ :sub:`par`\ ) || I2LEOSP\ :sub:`32`\ (*i*))
 
 - Split *I* into two 32-byte sequences, *I*\ :sub:`L` and *I*\ :sub:`R`\ .
 - Let *I*\ :sub:`ask` = ToScalar(PRF\ :sup:`expand`\ (*I*\ :sub:`L`\ , [0x13]))
@@ -374,7 +392,7 @@ A Sapling extended spending key (*ask*, *nsk*, *ovk*, *dk*, *c*), at depth *dept
 with parent full viewing key tag *parent_fvk_tag* and child number *i*, is
 represented as a byte sequence:
 
-  I2LEOSP\ :sub:`8`\ (*depth*) || *parent_fvk_tag* || I2LEOSP\ :sub:`32`\ (*i*) || *c* || *ask* || *nsk* || *ovk* || *dk*
+  I2LEOSP\ :sub:`8`\ (*depth*) || *parent_fvk_tag* || I2LEOSP\ :sub:`32`\ (*i*) || *c* || EncodeXSKParts(*ask*, *nsk*, *ovk*, *dk*)
 
 For the master extended spending key, *depth* is 0, *parent_fvk_tag* is 4 zero bytes,
 and *i* is 0.
@@ -389,7 +407,7 @@ A Sapling extended full viewing key (*ak*, *nk*, *ovk*, *dk*, *c*), at depth *de
 with parent full viewing key tag *parent_fvk_tag* and child number *i*, is
 represented as a byte sequence:
 
-  I2LEOSP\ :sub:`8`\ (*depth*) || *parent_fvk_tag* || I2LEOSP\ :sub:`32`\ (*i*) || *c* || *ak* || *nk* || *ovk* || *dk*
+  I2LEOSP\ :sub:`8`\ (*depth*) || *parent_fvk_tag* || I2LEOSP\ :sub:`32`\ (*i*) || *c* || EncodeFVKParts(*ak*, *nk*, *ovk*, *dk*)
 
 For the master extended full viewing key, *depth* is 0, *parent_fvk_tag* is 4 zero bytes,
 and *i* is 0.
