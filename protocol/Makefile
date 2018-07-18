@@ -9,7 +9,7 @@ sapling.pdf: protocol.tex zcash.bib incremental_merkle.pdf key_components_saplin
 
 .PHONY: auxpdf
 auxpdf:
-	printf '\\renewcommand{\\docversion}{Version %s}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	printf '\\renewcommand{\\docversion}{Version %s [\\SproutSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/protocol.*
 	$(LATEXMK) -auxdir=aux -outdir=aux protocol
@@ -21,7 +21,7 @@ pdf:
 
 .PHONY: pvcpdf
 pvcpdf:
-	printf '\\renewcommand{\\docversion}{Version %s}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	printf '\\renewcommand{\\docversion}{Version %s [\\SproutSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/protocol.*
 	$(LATEXMK) -pvc -auxdir=aux protocol
@@ -47,7 +47,7 @@ pvcsapling:
 
 .PHONY: nolatexmk-pdf
 nolatexmk-pdf:
-	printf '\\renewcommand{\\docversion}{Version %s}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	printf '\\renewcommand{\\docversion}{Version %s [\\SproutSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	# If $(LATEX) fails, touch an input so that 'make' won't think it is up-to-date next time.
 	rm -f protocol.aux protocol.bbl protocol.blg protocol.brf protocol.bcf
 	$(LATEX) protocol.tex || { touch incremental_merkle.pdf; exit 1; }
