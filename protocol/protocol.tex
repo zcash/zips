@@ -766,7 +766,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 
 % Conventions
 
-\newcommand{\bytes}[1]{\underline{\raisebox{-0.22ex}{}\smash{#1}}}
+\newcommand{\bytes}[1]{\underline{\raisebox{-0.3ex}{}\smash{#1}}}
 \newcommand{\zeros}[1]{[0]^{#1}}
 \newcommand{\ones}[1]{[1]^{#1}}
 \newcommand{\bit}{\mathbb{B}}
@@ -1253,20 +1253,23 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\RedDSADerivePublic}{\RedDSA\mathsf{.DerivePublic}}
 \newcommand{\RedDSASign}[1]{\RedDSA\mathsf{.Sign}_{#1}}
 \newcommand{\RedDSAVerify}[1]{\RedDSA\mathsf{.Verify}_{#1}}
+\newcommand{\RedDSABatchVerify}{\RedDSA\mathsf{.BatchVerify}}
+\newcommand{\RedDSABatchEntry}{\RedDSA\mathsf{.BatchEntry}}
 \newcommand{\RedDSARandom}{\RedDSA\mathsf{.Random}}
 \newcommand{\RedDSAGenRandom}{\RedDSA\mathsf{.GenRandom}}
 \newcommand{\RedDSARandomizePublic}{\RedDSA\mathsf{.RandomizePublic}}
 \newcommand{\RedDSARandomizePrivate}{\RedDSA\mathsf{.RandomizePrivate}}
 \newcommand{\RedDSARandomizerId}{\Zero_{\RedDSARandom}}
 \newcommand{\RedDSARandomizer}{\alpha}
-\newcommand{\RedDSASigR}{R}
-\newcommand{\RedDSASigS}{S}
-\newcommand{\RedDSAReprR}{\bytes{R}}
-\newcommand{\RedDSAReprS}{\bytes{S}}
-\newcommand{\RedDSASigc}{c}
+\newcommand{\RedDSASigR}[1]{R_{#1}}
+\newcommand{\RedDSASigS}[1]{S_{#1}}
+\newcommand{\RedDSAReprR}[1]{\bytes{\RedDSASigR{#1}}}
+\newcommand{\RedDSAReprS}[1]{\bytes{\RedDSASigS{#1}}}
+\newcommand{\RedDSASigc}[1]{c_{#1}}
 \newcommand{\RedDSAHash}{\mathsf{H}}
 \newcommand{\RedDSAHashToScalar}{\RedDSAHash^{\circledast}}
 \newcommand{\RedDSAHashLength}{\ell_{\RedDSAHash}}
+\newcommand{\Entry}[1]{\mathsf{entry}_{#1}}
 
 \newcommand{\RedJubjub}{\mathsf{RedJubjub}}
 \newcommand{\RedDSAAndRedJubjub}{\texorpdfstring{$\RedDSA$ and $\RedJubjub$}{RedDSA and RedJubjub}}
@@ -1432,7 +1435,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\ZKVerifyingKey}{\mathsf{ZK.VerifyingKey}}
 \newcommand{\pk}{\mathsf{pk}}
 \newcommand{\vk}{\mathsf{vk}}
-\newcommand{\vkBytes}{\bytes{\vk}}
+\newcommand{\vkBytes}[1]{\bytes{\vk_{#1}}}
 \newcommand{\ZKGen}{\mathsf{ZK.Gen}}
 \newcommand{\ZKProof}{\mathsf{ZK.Proof}}
 \newcommand{\ZKPrimary}{\mathsf{ZK.PrimaryInput}}
@@ -6540,36 +6543,41 @@ Define $\RedDSASign{} \typecolon (\sk \typecolon \RedDSAPrivate) \times (M \type
 \begin{algorithm}
   \item Choose a byte sequence $T$ uniformly at random on $\byteseq{(\RedDSAHashLength+128)/8}$.
   \item Let $r = \RedDSAHashToScalar(T \bconcat M)$.
-  \item Let $\RedDSASigR = \scalarmult{r}{\GenG{}}$.
-  \item Let $\RedDSAReprR = \LEBStoOSPOf{\ellG{}}{\reprGOf{}{\RedDSASigR}}$.
-  \item Let $\vkBytes = \LEBStoOSPOf{\ellG{}}{\reprGOf{}{\RedDSADerivePublic(\sk)}\kern 0.05em}$.
-  \item Let $\RedDSASigS = (r + \RedDSAHashToScalar(\RedDSAReprR \bconcat \vkBytes \bconcat M) \mult \sk) \bmod \ParamG{r}$.
-  \item Let $\RedDSAReprS = \LEBStoOSPOf{\bitlength(\ParamG{r})}{\ItoLEBSPOf{\bitlength(\ParamG{r})}{\RedDSASigS}\kern-0.16em}$.
-  \item Return $\RedDSAReprR \bconcat \RedDSAReprS$.
+  \item Let $\RedDSASigR{} = \scalarmult{r}{\GenG{}}$.
+  \item Let $\RedDSAReprR{} = \LEBStoOSPOf{\ellG{}}{\reprGOf{}{\RedDSASigR{}}}$.
+  \item Let $\vkBytes{} = \LEBStoOSPOf{\ellG{}}{\reprGOf{}{\RedDSADerivePublic(\sk)}\kern 0.05em}$.
+  \item Let $\RedDSASigS{} = (r + \RedDSAHashToScalar(\RedDSAReprR{} \bconcat \vkBytes{} \bconcat M) \mult \sk) \bmod \ParamG{r}$.
+  \item Let $\RedDSAReprS{} = \LEBStoOSPOf{\bitlength(\ParamG{r})}{\ItoLEBSPOf{\bitlength(\ParamG{r})}{\RedDSASigS{}}\kern-0.16em}$.
+  \item Return $\RedDSAReprR{} \bconcat \RedDSAReprS{}$.
 \end{algorithm}
 
 \introlist
 Define $\RedDSAVerify{} \typecolon (\vk \typecolon \RedDSAPublic) \times (M \typecolon \RedDSAMessage) \times
         (\sigma \typecolon \RedDSASignature) \rightarrow \bit$ as:
 \begin{algorithm}
-  \item Let $\RedDSAReprR$ be the first $\ceiling{\ellG{}/8}$ bytes of $\sigma$, and
-        let $\RedDSAReprS$ be the remaining $\ceiling{\bitlength(\ParamG{r})/8}$ bytes.
-  \item Let $\RedDSASigR = \abstG{}\big(\LEOStoBSP{\ellG{}}(\RedDSAReprR)\kern-0.1em\big)$, and
-        let $\RedDSASigS = \LEOStoIP{\bitlength(\ParamG{r})}(\RedDSAReprS)$.
-  \item Let $\vkBytes = \LEBStoOSPOf{\ellG{}}{\reprGOf{}{\vk}}$.
-  \item Let $\RedDSASigc = \RedDSAHashToScalar(\RedDSAReprR \bconcat \vkBytes \bconcat M)$.
-  \item Return $1$ if $\RedDSASigR \neq \bot$ and $\RedDSASigS < \ParamG{r}$ and
-        $\scalarmult{\ParamG{h}}{\big(\!\!-\scalarmult{\RedDSASigS}{\GenG{}} + \RedDSASigR + \scalarmult{\RedDSASigc}{\vk}\big)} = \ZeroG{}$, otherwise $0$.
+  \item Let $\RedDSAReprR{}$ be the first $\ceiling{\ellG{}/8}$ bytes of $\sigma$, and
+        let $\RedDSAReprS{}$ be the remaining $\ceiling{\bitlength(\ParamG{r})/8}$ bytes.
+  \item Let $\RedDSASigR{} = \abstG{}\big(\LEOStoBSP{\ellG{}}(\RedDSAReprR{})\kern-0.1em\big)$, and
+        let $\RedDSASigS{} = \LEOStoIP{\bitlength(\ParamG{r})}(\RedDSAReprS{})$.
+  \item Let $\vkBytes{} = \LEBStoOSPOf{\ellG{}}{\reprGOf{}{\vk}}$.
+        \vspace{-0.5ex}
+  \item Let $\RedDSASigc{} = \RedDSAHashToScalar(\RedDSAReprR{} \bconcat \vkBytes{} \bconcat M)$.
+        \vspace{0.5ex}
+  \item Return $1$ if $\RedDSASigR{} \neq \bot$ and $\RedDSASigS{} < \ParamG{r}$ and
+        $\scalarmult{\ParamG{h}}{\big(\!\!-\scalarmult{\RedDSASigS{}}{\GenG{}} + \RedDSASigR{} + \scalarmult{\RedDSASigc{}}{\vk}\big)} = \ZeroG{}$, otherwise $0$.
 \end{algorithm}
 
-\vspace{-4ex}
-\pnote{The verification algorithm \emph{does not} check that $\RedDSASigR$ is a point of order
-at least $\ParamG{r}$. It \emph{does} check that $\RedDSAReprR$ is the canonical representation
+\vspace{-2ex}
+\begin{pnotes}
+  \item The verification algorithm \emph{does not} check that $\RedDSASigR{}$ is a point of order
+at least $\ParamG{r}$. It \emph{does} check that $\RedDSAReprR{}$ is the canonical representation
 (as output by $\reprG{}$) of a point on the curve. This is different to $\JoinSplitSigSpecific$ as specified in
 \crossref{concretejssig}.
-}
+  \item Appendix \crossref{reddsabatchverify} describes an optimization that \MAY be used to speed up
+        verification of batches of $\RedDSA$ signatures.
+\end{pnotes}
 
-\vspace{2ex}
+\vspace{1ex}
 \introlist
 The two abelian groups specified in \crossref{abstractsighom} are instantiated for $\RedDSA$
 as follows:
@@ -6592,7 +6600,7 @@ As required, $\RedDSADerivePublic$ is a group homomorphism:
 
 \vspace{1ex}
 A $\RedDSA$ public key $\vk$ can be encoded as a bit sequence $\reprGOf{}{\vk}$\, of
-length $\ellG{}$ bits (or as a corresponding byte sequence $\vkBytes$ by then applying $\LEBStoOSP{\ellG{}}$).
+length $\ellG{}$ bits (or as a corresponding byte sequence $\vkBytes{}$ by then applying $\LEBStoOSP{\ellG{}}$).
 
 \vspace{2ex}
 \introlist
@@ -9561,6 +9569,7 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
     \item Update $\RedDSA$ verification to use cofactor multiplication.
           This is necessary in order for the output of batch verification to match
           that of unbatched verification in all cases.
+    \item Add \crossref{reddsabatchverify}.
 } %sapling
 \end{itemize}
 
@@ -11298,6 +11307,69 @@ cryptanalytic attention to confidently use them for \Sapling.
 \begin{formulae}
   \item ...
 \end{formulae}
+
+} %notsprout
+
+\notsprout{
+\section{Batching Optimizations} \label{batching}
+
+\subsection{$\RedDSA$ batch verification} \label{reddsabatchverify}
+
+The reference verification algorithm for $\RedDSA$ signatures is defined in \crossref{concreteredjubjub}.
+
+Implementations \MAY alternatively use the optimized procedure described in this section to perform
+faster verification of a batch of signatures, i.e.\ to determine whether all signatures in a batch are valid.
+Its input is a sequence of $N$ \quotedterm{batch entries}, each of which is a
+(public key, message, signature) triple.
+
+\vspace{2ex}
+Define $\RedDSABatchEntry := \RedDSAPublic \times \RedDSAMessage \times \RedDSASignature$.
+
+\introlist
+Define $\RedDSABatchVerify \typecolon (\Entry{\barerange{0}{N-1}} \typecolon \typeexp{\RedDSABatchEntry}{N})
+                                      \rightarrow \bit$ as:
+\begin{algorithm}
+  \item For each $i \in \range{0}{N-1}$:
+  \item \tab Let $(\vk_i, M_i, \sigma_i) = \Entry{i}$.
+  \item \tab Let $\RedDSAReprR{i}$ be the first $\ceiling{\ellG{}/8}$ bytes of $\sigma_i$, and
+             let $\RedDSAReprS{i}$ be the remaining $\ceiling{\bitlength(\ParamG{r})/8}$ bytes.
+  \item \tab Let $\RedDSASigR{i} = \abstG{}\big(\LEOStoBSP{\ellG{}}(\RedDSAReprR{i})\kern-0.15em\big)$, and
+             let $\RedDSASigS{i} = \LEOStoIP{\bitlength(\ParamG{r})}(\RedDSAReprS{i})$.
+  \item \tab Let $\vkBytes{i} = \LEBStoOSPOf{\ellG{}}{\reprGOf{}{\vk_i}\kern 0.05em}$.
+  \item \tab Let $\RedDSASigc{i} = \RedDSAHashToScalar(\RedDSAReprR{i} \bconcat \vkBytes{i} \bconcat M_i)$.
+        \vspace{1ex}
+  \item \tab Choose random $z_i \typecolon \GF{\ParamG{r}} \leftarrowR \range{1}{2^{128}-1}$.
+  \item \vspace{-2ex}
+  \item Return $1$ if
+        \vspace{1ex}
+        \begin{itemize}
+          \item for all $i \in \range{0}{N-1}$, $\RedDSASigR{i} \neq \bot$ and $\RedDSASigS{i} < \ParamG{r}$; and
+          \item $\scalarmult{\ParamG{h}}{\left(\bigscalarmult{\ssum{i=0}{N-1}{(z_i \mult \RedDSASigS{i})
+                                                                              \pmod{\ParamG{r}}}}{\GenG{}} +
+                                               \ssum{i=0}{N-1}{\big(\scalarmult{z_i}{\RedDSASigR{i}} +
+                                                                    \scalarmult{z_i \mult \RedDSASigc{i}
+                                                                                \pmod{\ParamG{r}}}{\vk_i}\big)}\!\right)}
+                = \ZeroG{}$,
+        \end{itemize}
+        \vspace{-0.5ex}
+        otherwise $0$.
+\end{algorithm}
+
+The $z_i$ values \MUST be chosen independently of the batch entries.
+
+The performance benefit of this approach arises partly from replacing the per-signature
+scalar multiplication of the base $\GenG{}$ with one such multiplication per batch,
+and partly from using an efficient algorithm for multiscalar multiplication such
+as Pippinger's method \cite{Bernstein2001} or the Bos--Coster method \cite{deRooij1995}, as explained in
+\cite[section 5]{BDLSY2012}.
+
+\pnote{Spend authorization signatures (\crossref{concretespendauthsig}) and
+binding signatures (\crossref{concretebindingsig}) use different bases $\raisedstrut\GenG{}$.
+It is straightforward to adapt the above procedure to handle multiple bases;
+there will be one
+$\bigscalarmult{\ssum{i}{}{(z_i \mult \RedDSASigS{i}) \pmod{\ParamG{r}}}}{\Generator}$ term for each base $\Generator$.
+The benefit of this relative to using separate batches is that the multiscalar multiplication
+can be extended across a larger batch.} %pnote
 
 } %notsprout
 
