@@ -1,30 +1,30 @@
 LATEXMK=latexmk --halt-on-error -bibtex -pdf
 LATEX=pdflatex --halt-on-error
 
-protocol.pdf: protocol.tex zcash.bib incremental_merkle.pdf key_components.pdf
+sprout.pdf: protocol.tex zcash.bib incremental_merkle.pdf key_components.pdf
 	$(MAKE) pdf
 
 sapling.pdf: protocol.tex zcash.bib incremental_merkle.pdf key_components_sapling.pdf
 	$(MAKE) sapling
 
-.PHONY: auxpdf
-auxpdf:
+.PHONY: auxsprout
+auxsprout:
 	printf '\\renewcommand{\\docversion}{Version %s [\\SproutSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
-	rm -f aux/protocol.*
-	$(LATEXMK) -auxdir=aux -outdir=aux protocol
+	rm -f aux/sprout.* aux/protocol.*
+	$(LATEXMK) -jobname=sprout -auxdir=aux -outdir=aux protocol
 
-.PHONY: pdf
-pdf:
-	$(MAKE) auxpdf
-	mv -f aux/protocol.pdf .
+.PHONY: sprout
+sprout:
+	$(MAKE) auxsprout
+	mv -f aux/sprout.pdf .
 
-.PHONY: pvcpdf
-pvcpdf:
+.PHONY: pvcsprout
+pvcsprout:
 	printf '\\renewcommand{\\docversion}{Version %s [\\SproutSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
-	rm -f aux/protocol.*
-	$(LATEXMK) -pvc -auxdir=aux protocol
+	rm -f aux/sprout.* aux/protocol.*
+	$(LATEXMK) -jobname=sprout -auxdir=aux -pvc protocol
 
 .PHONY: auxsapling
 auxsapling:
@@ -37,6 +37,7 @@ auxsapling:
 sapling:
 	$(MAKE) auxsapling
 	mv -f aux/sapling.pdf .
+	ln -sf sapling.pdf protocol.pdf
 
 .PHONY: pvcsapling
 pvcsapling:
@@ -45,11 +46,11 @@ pvcsapling:
 	rm -f aux/sapling.*
 	$(LATEXMK) -jobname=sapling -auxdir=aux -pvc protocol
 
-.PHONY: nolatexmk-pdf
-nolatexmk-pdf:
+.PHONY: nolatexmk-sprout
+nolatexmk-sprout:
 	printf '\\renewcommand{\\docversion}{Version %s [\\SproutSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	# If $(LATEX) fails, touch an input so that 'make' won't think it is up-to-date next time.
-	rm -f protocol.aux protocol.bbl protocol.blg protocol.brf protocol.bcf
+	rm -f sprout.aux sprout.bbl sprout.blg sprout.brf sprout.bcf
 	$(LATEX) protocol.tex || { touch incremental_merkle.pdf; exit 1; }
 	biber protocol
 	$(LATEX) protocol.tex || { touch incremental_merkle.pdf; exit 1; }
@@ -68,18 +69,18 @@ nolatexmk-sapling:
 	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.pdf; exit 1; }
 
 .PHONY: html
-html: protocol.pdf sapling.pdf
+html: sprout.pdf sapling.pdf
 	# Can't use --split-pages 1 because XHR doesn't work by default on local files in Chrome.
-	pdf2htmlEX --decompose-ligature 1 --font-size-multiplier 65 --fit-width 1000 --dest-dir html protocol.pdf
+	pdf2htmlEX --decompose-ligature 1 --font-size-multiplier 65 --fit-width 1000 --dest-dir html sprout.pdf
 	pdf2htmlEX --decompose-ligature 1 --font-size-multiplier 65 --fit-width 1000 --dest-dir html sapling.pdf
 
 .PHONY: clean
 clean:
 	rm -f aux/* html/* protocol.ver \
-              protocol.dvi protocol.pdf protocol.bbl protocol.blg protocol.brf     protocol.toc \
-              protocol.aux protocol.out protocol.log protocol.bcf protocol.run.xml protocol.fls protocol.fdb_latexmk \
-              sapling.dvi  sapling.pdf  sapling.bbl  sapling.blg  sapling.brf      sapling.toc \
-              sapling.aux  sapling.out  sapling.log  sapling.bcf  sapling.run.xml  sapling.fls  sapling.fdb_latexmk
+              sprout.dvi  sprout.pdf  sprout.bbl  sprout.blg  sprout.brf      sprout.toc \
+              sprout.aux  sprout.out  sprout.log  sprout.bcf  sprout.run.xml  sprout.fls  sprout.fdb_latexmk \
+              sapling.dvi sapling.pdf sapling.bbl sapling.blg sapling.brf     sapling.toc \
+              sapling.aux sapling.out sapling.log sapling.bcf sapling.run.xml sapling.fls sapling.fdb_latexmk
 
 optimizer-installed.flag:
 	# Nail down git commits to make backdooring somewhat harder.
@@ -95,17 +96,18 @@ optimizer-installed.flag:
 clean-optimizer:
 	rm -rf sam2p tif22pnm pdfsizeopt optimizer-installed.flag
 
-.PHONY: optpdf
-optpdf: optimizer-installed.flag
-	$(MAKE) auxpdf
+.PHONY: optsprout
+optsprout: optimizer-installed.flag
+	$(MAKE) auxsprout
 	PATH="${PATH}:$(CURDIR)/sam2p:$(CURDIR)/tif22pnm" pdfsizeopt/pdfsizeopt --v=40 --use-image-optimizer=sam2p \
-              --tmp-dir=aux aux/protocol.pdf protocol.pdf
+              --tmp-dir=aux aux/sprout.pdf sprout.pdf
 
 .PHONY: optsapling
 optsapling: optimizer-installed.flag
 	$(MAKE) auxsapling
 	PATH="${PATH}:$(CURDIR)/sam2p:$(CURDIR)/tif22pnm" pdfsizeopt/pdfsizeopt --v=40 --use-image-optimizer=sam2p \
               --tmp-dir=aux aux/sapling.pdf sapling.pdf
+	ln -sf sapling.pdf protocol.pdf
 
 .PHONY: optimized
-optimized: optpdf optsapling
+optimized: optsprout optsapling
