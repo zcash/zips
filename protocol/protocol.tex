@@ -537,6 +537,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\RepresentedGroupsAndPairings}{\titleterm{Represented Groups and Pairings}}
 \newcommand{\PHGR}{\mathsf{PHGR13}}
 \newcommand{\Groth}{\mathsf{Groth16}}
+\newcommand{\GrothText}{\texorpdfstring{$\Groth$}{Groth16}}
+\newcommand{\GrothBatchVerify}{\Groth\mathsf{.BatchVerify}}
 \newcommand{\EncodingOfPHGRProofs}{\titleterm{Encoding of PHGR13 Proofs}}
 \newcommand{\EncodingOfGrothProofs}{\titleterm{Encoding of Groth16 Proofs}}
 \newcommand{\PHGRProvingSystem}{\titleterm{PHGR13}}
@@ -1509,6 +1511,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\Extract}{\mathsf{Extract}}
 \newcommand{\GroupHash}{\mathsf{GroupHash}}
 \newcommand{\FindGroupHash}{\mathsf{FindGroupHash}}
+\newcommand{\Accum}[1]{\mathsf{Accum}_{#1}}
 
 \newcommand{\ParamP}[1]{{{#1}_\mathbb{P}}}
 \newcommand{\ParamPexp}[2]{{{#1}_\mathbb{P}\!}^{#2}}
@@ -1549,6 +1552,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\ParamSexp}[2]{{{#1}_\mathbb{\hskip 0.03em S}\!}^{#2}}
 \newcommand{\GroupS}[1]{\mathbb{S}_{#1}}
 \newcommand{\GroupSstar}[1]{\mathbb{S}^\ast_{#1}}
+\newcommand{\SubgroupSstar}[1]{(\GroupSstar{#1})_{\subgroupr}}
 \newcommand{\CurveS}[1]{\Curve_{\GroupS{#1}}}
 \newcommand{\ZeroS}[1]{\Zero_{\GroupS{#1}}}
 \newcommand{\GenS}[1]{\Generator_{\GroupS{#1}}}
@@ -1558,6 +1562,9 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\abstS}{\abst_{\GroupS}}
 \newcommand{\abstSOf}[1]{\abstS\!\left({#1}\right)\!}
 \newcommand{\PairingS}{\ParamS{\hat{e}}}
+\newcommand{\MillerLoopS}{\ParamS{\mathsf{MillerLoop}}}
+\newcommand{\FinalExpS}{\ParamS{\mathsf{FinalExp}}}
+\newcommand{\GrothProofS}{\ParamS{\mathsf{GrothProof}}}
 
 \newcommand{\ParamJ}[1]{{{#1}_\mathbb{\hskip 0.01em J}}}
 \newcommand{\ParamJexp}[2]{{{#1}_\mathbb{\hskip 0.01em J}\!}^{#2}}
@@ -9568,6 +9575,16 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
 \intropart
 \section{Change History}
 
+\subparagraph{2018.0-beta-26}
+
+\begin{itemize}
+    \item No changes to \Sprout.
+\sapling{
+    \item Add \crossref{grothbatchverify}.
+} %sapling
+\end{itemize}
+
+\introlist
 \subparagraph{2018.0-beta-25}
 
 \begin{itemize}
@@ -11411,6 +11428,99 @@ there will be one
 $\bigscalarmult{\ssum{i}{}{(z_i \mult \RedDSASigS{i}) \pmod{\ParamG{r}}}}{\Generator}$ term for each base $\Generator$.
 The benefit of this relative to using separate batches is that the multiscalar multiplication
 can be extended across a larger batch.} %pnote
+
+} %notsprout
+
+\notsprout{
+\subsection{\GrothText{} batch verification} \label{grothbatchverify}
+
+The reference verification algorithm for $\Groth$ proofs is defined in \crossref{groth}.
+
+Let $\ParamS{q}$, $\ParamS{r}$, $\GroupS{1, 2, T}$, $\GroupSstar{1, 2, T}$, $\GenS{1, 2, T}$,
+and $\PairingS$ be as defined in \crossref{blspairing}.
+
+Define $\MillerLoopS \typecolon \GroupS{1} \times \GroupS{2} \rightarrow \GroupS{T}$
+and $\FinalExpS \typecolon \GroupS{T} \rightarrow \GroupS{T}$ to be the Miller loop and
+final exponentiation respectively of the pairing computation, so that:
+\begin{formulae}
+  \item $\PairingS(P, Q) = \FinalExpS(\MillerLoopS(P, Q))$
+\end{formulae}
+\vspace{-1ex}
+where $\FinalExpS(R) = R^{t}$ for some fixed $t$.
+
+\vspace{2ex}
+Define $\GrothProofS := \GroupSstar{1} \times \SubgroupSstar{2} \times \GroupSstar{1}$.
+
+A $\Groth$ proof consists of a tuple $(\Proof{A}, \Proof{B}, \Proof{C}) \typecolon \GrothProofS$.
+
+Verification of a single $\Groth$ proof requires checking the equation
+\begin{formulae}
+  \item $\PairingS(\Proof{A}, \Proof{B}) = \PairingS(\Proof{C}, \delta) \mult \PairingS(Z, \gamma) \mult Y$
+\end{formulae}
+\vspace{-1ex}
+for some $Y \typecolon \GroupS{T}$, $Z \typecolon \GroupS{1}$, and
+$\delta, \gamma \typecolon \GroupS{2}$ depending on the verification key.
+
+\introlist
+This can be written as:
+\begin{formulae}
+  \item $\PairingS(\Proof{A}, -\Proof{B}) \mult \PairingS(\Proof{C}, \delta) \mult \PairingS(Z, \gamma) \mult Y = 1$.
+\end{formulae}
+
+\introlist
+Raising to the power of random $z \neq 0$ gives:
+\begin{formulae}
+  \item $\PairingS(\scalarmult{z}{\Proof{A}}, -\Proof{B}) \mult \PairingS(\scalarmult{z}{\Proof{C}}, \delta)
+         \mult \PairingS(\scalarmult{z}{Z}, \gamma) \mult Y^z = 1$.
+\end{formulae}
+
+\vspace{2ex}
+This justifies the following optimized procedure for performing faster verification of a batch of $\Groth$ proofs.
+Implementations \MAY use this procedure to determine whether all proofs in a batch are valid.
+
+\introlist
+Define $\GrothBatchVerify \typecolon (\Proof{\barerange{0}{N-1}} \typecolon \typeexp{\GrothProofS}{N})
+                                      \rightarrow \bit$ as:
+\begin{algorithm}
+  \item For each $i \in \range{0}{N-1}$, choose random $z_i \typecolon \GF{\ParamS{r}} \leftarrowR \range{1}{2^{128}-1}$.
+  \item \vspace{-2ex}
+  \item Let $\Accum{AB}     = \sproduct{i=0}{N-1}{\MillerLoopS(\scalarmult{z_i}{\Proof{i,A}}, -\Proof{i,B})}$.
+  \item Let $\Accum{\delta} = \ssum{i=0}{N-1}{\scalarmult{z_i}{\Proof{i,C}}}$.
+  \item Let $\Accum{\gamma} = \ssum{i=0}{N-1}{\scalarmult{z_i}{Z}}$.
+  \item Let $\Accum{Y}      = \ssum{i=0}{N-1}{z_i \pmod{\ParamS{r}}}$.
+  \item \vspace{-2ex}
+  \item Return $1$ if
+        \vspace{1ex}
+        \begin{itemize}
+          \item $\FinalExpS(\Accum{AB} \mult \MillerLoopS(\Accum{\delta}, \delta) \mult \MillerLoopS(\Accum{\gamma}, \gamma))
+                 \mult Y^{\Accum{Y}} = 1$,
+        \end{itemize}
+        \vspace{-0.5ex}
+        otherwise $0$.
+\end{algorithm}
+
+The $z_i$ values \MUST be chosen independently of the batch entries.
+
+The performance benefit of this approach arises partly from computing two of the three Miller loops per batch
+instead of per proof, and partly from using an efficient algorithm for multiscalar multiplication such
+as Pippinger's method \cite{Bernstein2001} or the Bos--Coster method \cite{deRooij1995}, as explained in
+\cite[section 5]{BDLSY2012}.
+
+\pnote{
+Spend proofs (of the \statement in \crossref{spendstatement}) and output proofs (of the \statement
+in \crossref{outputstatement}) use different verification keys, with different parameters $\delta$, $\gamma$,
+$Y$, and $Z$. It is straightforward to adapt the above procedure to handle multiple verification keys;
+the accumulator variables $\Accum{\delta}$, $\Accum{\gamma}$, and $\Accum{Y}$ are duplicated,
+with one term in the verification equation for each variable, while $\Accum{AB}$ is shared.
+
+Neglecting multiplications in $\GroupS{T}$ and other trivial operations, the cost of batched
+verification is therefore
+\begin{itemize}
+  \item for each proof: a Miller loop, and a subgroup check $\Proof{i,B} \in \SubgroupSstar{2}$;
+  \item for each verification key: two Miller loops, and an exponentiation in $\GroupS{T}$;
+  \item one final exponentiation.
+\end{itemize}
+} %pnote
 
 } %notsprout
 
