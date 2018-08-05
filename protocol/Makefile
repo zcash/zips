@@ -37,7 +37,7 @@ auxsapling:
 sapling:
 	$(MAKE) auxsapling
 	mv -f aux/sapling.pdf .
-	ln -sf sapling.pdf protocol.pdf
+	cp -f sapling.pdf protocol.pdf
 
 .PHONY: pvcsapling
 pvcsapling:
@@ -107,7 +107,7 @@ optsapling: optimizer-installed.flag
 	$(MAKE) auxsapling
 	PATH="${PATH}:$(CURDIR)/sam2p:$(CURDIR)/tif22pnm" pdfsizeopt/pdfsizeopt --v=40 --use-image-optimizer=sam2p \
               --tmp-dir=aux aux/sapling.pdf sapling.pdf
-	ln -sf sapling.pdf protocol.pdf
+	cp -f sapling.pdf protocol.pdf
 
 .PHONY: optimized
 optimized: optsprout optsapling
