@@ -540,7 +540,6 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\PHGR}{\mathsf{PHGR13}}
 \newcommand{\Groth}{\mathsf{Groth16}}
 \newcommand{\GrothText}{\texorpdfstring{$\Groth$}{Groth16}}
-\newcommand{\GrothBatchVerify}{\Groth\mathsf{.BatchVerify}}
 \newcommand{\EncodingOfPHGRProofs}{\titleterm{Encoding of PHGR13 Proofs}}
 \newcommand{\EncodingOfGrothProofs}{\titleterm{Encoding of Groth16 Proofs}}
 \newcommand{\PHGRProvingSystem}{\titleterm{PHGR13}}
@@ -1576,6 +1575,9 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\FinalExpS}{\ParamS{\mathsf{FinalExp}}}
 \newcommand{\GrothS}{\Groth_{\kern 0.05em\mathbb{S}}}
 \newcommand{\GrothSProof}{\GrothS\mathsf{.Proof}}
+\newcommand{\GrothSPrimaryInput}{\GrothS\mathsf{.PrimaryInput}}
+\newcommand{\GrothSBatchEntry}{\GrothS\mathsf{.BatchEntry}}
+\newcommand{\GrothSBatchVerify}{\GrothS\mathsf{.BatchVerify}}
 
 \newcommand{\ParamJ}[1]{{{#1}_\mathbb{\hskip 0.01em J}}}
 \newcommand{\ParamJexp}[2]{{{#1}_\mathbb{\hskip 0.01em J}\!}^{#2}}
@@ -9617,6 +9619,8 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
 \sapling{
     \item Clarify that when validating a $\Groth$ proof, it is necessary to perform a
           subgroup check for $\Proof{A}$ and $\Proof{C}$ as well as for $\Proof{B}$.
+    \item Correct the description of $\Groth$ batch verification to explicitly take account of
+          how verification depends on \primaryInputs.
     \item Notational changes:
           \begin{itemize}
             \item Use a superscript $^{\subgroupr}$ to mark the subgroup order, instead of a
@@ -11511,72 +11515,90 @@ Define $\GrothSProof := \SubgroupSstar{1} \times \SubgroupSstar{2} \times \Subgr
 
 A $\GrothS$ proof consists of a tuple $(\Proof{A}, \Proof{B}, \Proof{C}) \typecolon \GrothSProof$.
 
-Verification of a single $\Groth$ proof requires checking the equation
-\vspace{-0.5ex}
-\begin{formulae}
-  \item $\PairingS(\Proof{A}, \Proof{B}) = \PairingS(\Proof{C}, \delta) \mult \PairingS(Z, \gamma) \mult Y$
-\end{formulae}
+Verification of a single $\GrothS$ proof against an instance encoded as $a_{\barerange{0}{\ell}} \typecolon \typeexp{\GF{\ParamS{r}}}{\ell+1}$
+requires checking the equation
 \vspace{-2ex}
-for some $Y \typecolon \GroupS{T}$, $Z \typecolon \GroupS{1}$, and
-$\delta, \gamma \typecolon \GroupS{2}$ depending on the verification key.
+\begin{formulae}
+  \item $\PairingS(\Proof{A}, \Proof{B}) = \PairingS(\Proof{C}, \Delta) \mult
+                                           \PairingS\Big(\ssum{i=0}{\ell}{\scalarmult{a_i}{\Psi_i}}, \Gamma\Big) \mult Y$
+\end{formulae}
+\vspace{-1ex}
+where $\Delta = \scalarmult{\delta}{\GenS{2}}, \Gamma = \scalarmult{\gamma}{\GenS{2}}$, $Y = \scalarmult{\alpha \smult \beta}{\GenS{T}}$,
+and $\Psi_i = \Bigscalarmult{\hfrac{\beta \smult u_i(x) + \alpha \smult v_i(x) + w_i(x)}{\gamma}}{\GenS{1}}$
+for $i \in \range{0}{\ell}$ are elements of the verification key, as described (with slightly different notation)
+in \cite[section 3.2]{Groth2016}.
 
 \introlist
+\vspace{1ex}
 This can be written as:
 \begin{formulae}
-  \item $\PairingS(\Proof{A}, -\Proof{B}) \mult \PairingS(\Proof{C}, \delta) \mult \PairingS(Z, \gamma) \mult Y = 1$.
+  \item $\PairingS(\Proof{A}, -\Proof{B}) \mult \PairingS(\Proof{C}, \Delta) \mult
+         \PairingS\Big(\ssum{i=0}{\ell}{\scalarmult{a_i}{\Psi_i}}, \Gamma\Big) \mult Y = \OneS$.
 \end{formulae}
 
 \introlist
 Raising to the power of random $z \neq 0$ gives:
 \begin{formulae}
-  \item $\PairingS(\scalarmult{z}{\Proof{A}}, -\Proof{B}) \mult \PairingS(\scalarmult{z}{\Proof{C}}, \delta)
-         \mult \PairingS(\scalarmult{z}{Z}, \gamma) \mult Y^z = 1$.
+  \item $\PairingS\Of{\scalarmult{z}{\Proof{A}}, -\Proof{B}} \mult \PairingS\Of{\scalarmult{z}{\Proof{C}}, \Delta} \mult
+         \PairingS\Big(\ssum{i=0}{\ell}{\scalarmult{z \mult a_i}{\Psi_i}}, \Gamma\Big) \mult Y^z = \OneS$.
 \end{formulae}
 
 \vspace{1ex}
 This justifies the following optimized procedure for performing faster verification of a batch of $\GrothS$ proofs.
 Implementations \MAY use this procedure to determine whether all proofs in a batch are valid.
 
+\vspace{1ex}
+Define $\GrothSBatchEntry := \GrothSProof \times \GrothSPrimaryInput$.
+
 \introlist
-Define $\GrothBatchVerify \typecolon (\Proof{\barerange{0}{N-1}} \typecolon \typeexp{\GrothProofS}{N})
-                                      \rightarrow \bit$ as:
+Define $\GrothSBatchVerify \typecolon (\Entry{\barerange{0}{N-1}} \typecolon \typeexp{\GrothSBatchEntry}{N})
+                                       \rightarrow \bit$ as:
 \begin{algorithm}
-  \item For each $i \in \range{0}{N-1}$, choose random $z_i \typecolon \GF{\ParamS{r}} \leftarrowR \range{1}{2^{128}-1}$.
+  \item For each $j \in \range{0}{N-1}$:
+  \item \tab Let $((\Proof{j,A},\, \Proof{j,B},\, \Proof{j,C}),\; a_{j,\,\barerange{0}{\ell}}) = \Entry{j}$.
+  \item \tab Choose random $z_j \typecolon \GFstar{\ParamG{r}} \leftarrowR \range{1}{2^{128}-1}$.
   \item \vspace{-2ex}
-  \item Let $\Accum{AB}     = \sproduct{i=0}{N-1}{\MillerLoopS(\scalarmult{z_i}{\Proof{i,A}}, -\Proof{i,B})}$.
-  \item Let $\Accum{\delta} = \ssum{i=0}{N-1}{\scalarmult{z_i}{\Proof{i,C}}}$.
-  \item Let $\Accum{\gamma} = \ssum{i=0}{N-1}{\scalarmult{z_i}{Z}}$.
-  \item Let $\Accum{Y}      = \ssum{i=0}{N-1}{z_i \pmod{\ParamS{r}}}$.
-  \item \vspace{-2ex}
+  \item \begin{tabular}{@{}l@{\;}l}
+        Let $\Accum{AB}$       &$= \sproduct{j=0}{N-1}{\MillerLoopS\Of{\scalarmult{z_j}{\Proof{j,A}}, -\Proof{j,B}}}$\,. \\[1.5ex]
+        Let $\Accum{\Delta}$   &$= \ssum{j=0}{N-1}{\scalarmult{z_j}{\Proof{j,C}}}$. \\[1.5ex]
+        Let $\Accum{\Gamma,i}$ &$= \ssum{j=0}{N-1}{(z_j\kern-0.08em \mult a_{j,i}) \pmod{\ParamS{r}}}$ for $i \in \range{0}{\ell}$. \\[1.5ex]
+        Let $\Accum{Y}$        &$= \ssum{j=0}{N-1}{z_j \pmod{\ParamS{r}}}$. \\[2.5ex]
+        \end{tabular}
   \item Return $1$ if
         \vspace{1ex}
-        \begin{itemize}
-          \item $\FinalExpS(\Accum{AB} \mult \MillerLoopS(\Accum{\delta}, \delta) \mult \MillerLoopS(\Accum{\gamma}, \gamma))
-                 \mult Y^{\Accum{Y}} = 1$,
-        \end{itemize}
-        \vspace{-1.5ex}
+        \begin{formulae}
+          \item $\FinalExpS\Of{\!\Accum{AB} \mult \MillerLoopS\big(\Accum{\Delta}, \Delta\big) \mult
+                               \MillerLoopS\Big(\ssum{i=0}{\ell}{\scalarmult{\Accum{\Gamma,i}}{\Psi_i}}, \Gamma\Big)\kern-0.25em}
+                 \mult Y^{\Accum{Y}} = \OneS$,
+        \end{formulae}
+        \vspace{-2ex}
         otherwise $0$.
 \end{algorithm}
 
-The $z_i$ values \MUST be chosen independently of the batch entries.
+The $z_j$ values \MUST be chosen independently of the batch entries.
 
-The performance benefit of this approach arises partly from computing two of the three Miller loops per batch
-instead of per proof, and partly from using an efficient algorithm for multiscalar multiplication such
-as Pippinger's method \cite{Bernstein2001} or the Bos--Coster method \cite{deRooij1995}, as explained in
-\cite[section 5]{BDLSY2012}.
+The performance benefit of this approach arises from computing two of the three Miller loops, and
+the final exponentation, per batch instead of per proof. For the multiplications by $z_j$, an efficient
+algorithm for multiscalar multiplication such as Pippinger's method \cite{Bernstein2001} or the Bos--Coster
+method \cite{deRooij1995} may be used.
 
 \pnote{
 Spend proofs (of the \statement in \crossref{spendstatement}) and output proofs (of the \statement
-in \crossref{outputstatement}) use different verification keys, with different parameters $\delta$, $\gamma$,
-$Y$, and $Z$. It is straightforward to adapt the above procedure to handle multiple verification keys;
-the accumulator variables $\Accum{\delta}$, $\Accum{\gamma}$, and $\Accum{Y}$ are duplicated,
+in \crossref{outputstatement}) use different verification keys, with different parameters $\Delta$, $\Gamma$,
+$Y$, and $\Psi_{\barerange{0}{\ell}}$. It is straightforward to adapt the above procedure to handle multiple
+verification keys; the accumulator variables $\Accum{\Delta}$, $\Accum{\Gamma,i}$, and $\Accum{Y}$ are duplicated,
 with one term in the verification equation for each variable, while $\Accum{AB}$ is shared.
 
-Neglecting multiplications in $\GroupS{T}$ and other trivial operations, the cost of batched
-verification is therefore
+Neglecting multiplications in $\SubgroupS{T}$ and $\GF{\ParamS{r}}$, and other trivial operations,
+the cost of batched verification is therefore
 \begin{itemize}
-  \item for each proof: a Miller loop, and a subgroup check $\Proof{i,B} \in \SubgroupSstar{2}$;
-  \item for each verification key: two Miller loops, and an exponentiation in $\GroupS{T}$;
+  \item for each proof: the cost of decoding the proof representation to the form $\GrothSProof$,
+        which requires three point decompressions and three subgroup checks (two for $\SubgroupSstar{1}$
+        and one for $\SubgroupSstar{2}$);
+  \item for each successfully decoded proof: a Miller loop; and a $128$-bit scalar multiplication by $z_j$;
+  \item for each verification key: two Miller loops; an exponentiation in $\SubgroupS{T}$; a multiscalar
+        multiplication with $N$ $128$-bit terms to compute $\Accum{\Delta}$; and a multiscalar multiplication
+        with $\ell+1$ $255$-bit terms to compute $\ssum{i=0}{\ell}{\scalarmult{\Accum{\Gamma,i}}{\Psi_i}}$;
   \item one final exponentiation.
 \end{itemize}
 } %pnote
