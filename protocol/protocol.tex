@@ -130,6 +130,12 @@
 % <https://tex.stackexchange.com/a/12712/78411> (with X in place of m)
 \newcolumntype{L}[1]{>{\raggedright\let\newline\\\arraybackslash\hspace{0pt}}X{#1}}
 
+% <https://tex.stackexchange.com/a/112585/78411>
+\newcolumntype{R}{>{$}r<{,\,\;$}}
+\newcolumntype{S}{>{$}r<{\;$}}
+\newcolumntype{T}{>{$}l<{\;$}}
+\newcolumntype{U}{>{$}l<{$}}
+
 \makeatletter
 \renewcommand*{\@fnsymbol}[1]{\ensuremath{\ifcase#1\or \dagger\or \ddagger\or \mathsection\or \mathparagraph\else\@ctrerr\fi}}
 \makeatother
@@ -772,6 +778,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 
 \newcommand{\bytes}[1]{\underline{\raisebox{-0.3ex}{}\smash{#1}}}
 \newcommand{\zeros}[1]{[0]^{#1}}
+\newcommand{\zerobytes}[1]{[\hexint{00}]^{#1}}
 \newcommand{\ones}[1]{[1]^{#1}}
 \newcommand{\bit}{\mathbb{B}}
 \newcommand{\overlap}[2]{\rlap{#2}\hspace{#1}{#2}}
@@ -871,6 +878,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\band}{\binampersand}
 \newcommand{\suband}{\raisebox{-0.6ex}{\kern-0.06em\scalebox{0.65}{$\binampersand$}}}
 \newcommand{\bchoose}{\;\scalebox{1.2}[1]{\textsf{?}}\;}
+\newcommand{\rotr}{\ggg}
 \newcommand{\mult}{\cdot}
 \newcommand{\smult}{\!\cdot\!}
 \newcommand{\scalarmult}[2]{\boldsymbol{[}{#1}\boldsymbol{]}\,{#2}}
@@ -907,6 +915,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\BlakeTwosGeneric}{\mathsf{BLAKE2s}}
 \newcommand{\BlakeTwos}[1]{\mathsf{BLAKE2s\kern 0.05em\mhyphen{#1}}}
 \newcommand{\BlakeTwosOf}[2]{\BlakeTwos{#1}\!\left({#2}\right)}
+\newcommand{\BlakeParamBlock}{\mathsf{PB}}
+\newcommand{\BlakeIV}{\mathsf{IV}}
 \newcommand{\CRHivk}{\mathsf{CRH^{\InViewingKey}}}
 \newcommand{\CRHivkText}{\texorpdfstring{$\CRHivk$}{CRHivk}}
 \newcommand{\CRHivkOutput}{\CRHivk\mathsf{.Output}}
@@ -2037,6 +2047,7 @@ $\truncate{k}(S)$ means the sequence formed from the first $k$ elements of $S$.
 
 $\hexint{}$ followed by a string of $\mathtt{monospace}$ hexadecimal
 digits means the corresponding integer converted from hexadecimal.
+\notsprout{$\zerobytes{\ell}$ means the sequence of $\ell$ zero bytes.}
 
 $\ascii{...}$ means the given string represented as a
 sequence of bytes in US-ASCII. For example, $\ascii{abc}$ represents the
@@ -9613,6 +9624,16 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
 \intropart
 \section{Change History}
 
+\subparagraph{2018.0-beta-28}
+
+\begin{itemize}
+    \item No changes to \Sprout.
+\sapling{
+    \item Finish \crossref{cctblake2s}.
+} %sapling
+\end{itemize}
+
+\introlist
 \subparagraph{2018.0-beta-27}
 
 \begin{itemize}
@@ -11366,31 +11387,125 @@ $\BlakeTwosGeneric$ is defined in \cite{ANWW2013}. Its main subcomponent is a
 ``$G$ function'', defined as follows:
 
 \begin{formulae}
-  \item $G \typecolon ... \rightarrow ...$
-  \item $G(...) = ...$
+  \item $G \typecolon \range{0}{9} \times \typeexp{\binaryrange{32}}{4} \rightarrow \typeexp{\binaryrange{32}}{4}$
+  \item $G(a, b, c, d, x, y) = (a'', b'', c'', d'')$ where
+  \item \begin{tabular}{@{\tab}l@{\;}l}
+          $a' $ &$= (a + b + x) \bmod 2^{32}$ \\
+          $d' $ &$= (d \xor a') \rotr 16$ \\
+          $c' $ &$= (c + d') \bmod 2^{32}$ \\
+          $b' $ &$= (b \xor c') \rotr 12$ \\
+          $a''$ &$= (a' + b' + y) \bmod 2^{32}$ \\
+          $d''$ &$= (d' \xor a'') \rotr 8$ \\
+          $c''$ &$= (c' + d'') \bmod 2^{32}$ \\
+          $b''$ &$= (b' \xor c'') \rotr 7$ \\
+        \end{tabular}
 \end{formulae}
 
-A 32-bit exclusive-or can be implemented in $32$ constraints, one for each bit position
+The following table is used to determine which message words the $x$ and $y$ arguments
+to $G$ are selected from:
+
+\begin{tabular}{@{\tab}S@{}R@{}R@{}R@{}R@{}R@{}R@{}R@{}R@{}R@{}R@{}R@{}R@{}R@{}R@{}R@{}S@{}S}
+  \sigma_0 = [& 0 & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 & 9 &10 &11 &12 &13 &14 &15 &] \\
+  \sigma_1 = [&14 &10 & 4 & 8 & 9 &15 &13 & 6 & 1 &12 & 0 & 2 &11 & 7 & 5 & 3 &] \\
+  \sigma_2 = [&11 & 8 &12 & 0 & 5 & 2 &15 &13 &10 &14 & 3 & 6 & 7 & 1 & 9 & 4 &] \\
+  \sigma_3 = [& 7 & 9 & 3 & 1 &13 &12 &11 &14 & 2 & 6 & 5 &10 & 4 & 0 &15 & 8 &] \\
+  \sigma_4 = [& 9 & 0 & 5 & 7 & 2 & 4 &10 &15 &14 & 1 &11 &12  &6 & 8 & 3 &13 &] \\
+  \sigma_5 = [& 2 &12 & 6 &10 & 0 &11  &8 & 3 & 4 &13 & 7 & 5 &15 &14 & 1 & 9 &] \\
+  \sigma_6 = [&12 & 5 & 1 &15 &14 &13 & 4 &10 & 0 & 7 & 6 & 3 & 9 & 2 & 8 &11 &] \\
+  \sigma_7 = [&13 &11 & 7 &14 &12 & 1 & 3 & 9 & 5 & 0 &15 & 4 & 8 & 6 & 2 &10 &] \\
+  \sigma_8 = [& 6 &15 &14 & 9 &11 & 3 & 0 & 8 &12 & 2 &13 & 7 & 1 & 4 &10 & 5 &] \\
+  \sigma_9 = [&10 & 2 & 8 & 4 & 7 & 6 & 1 & 5 &15 &11 & 9 &14 & 3 &12 &13 & 0 &] \\
+\end{tabular}
+
+The Initialization Vector is defined as:
+
+\begin{tabular}{@{\tab}S@{}R@{}R@{}R@{}U}
+  \BlakeIV \typecolon \typeexp{\binaryrange{32}}{8} := [\,
+      &\hexint{6A09E667} &\hexint{BB67AE85} &\hexint{3C6EF372} &\hexint{A54FF53A}    \\
+      &\hexint{510E527F} &\hexint{9B05688C} &\hexint{1F83D9AB} &\hexint{5BE0CD19}\,] \\
+\end{tabular}
+
+\vspace{2ex}
+\begin{samepage}
+The full hash function applied to an $8$-byte personalization string and a single
+$64$-byte block, in sequential mode with $32$-byte output, can be expressed as follows.
+
+Define $\BlakeTwos{256} \typecolon (p \typecolon \byteseq{8}) \times (x \typecolon \byteseq{64}) \rightarrow \byteseq{32}$ as:
+
+\begin{formulae}
+  \item let $\BlakeParamBlock \typecolon \byteseq{32} = [32, 0, 1, 1] \bconcat\, \zerobytes{20} \bconcat p$
+  \item let $[\,t_0, t_1, f_0, f_1\,] \typecolon \typeexp{\binaryrange{32}}{4} = [\,0, 0, 0, \hexint{FFFFFFFF}, 0\,]$
+  \item \vspace{-2ex}
+  \item let $h \typecolon \typeexp{\binaryrange{32}}{8} =
+             \listcomp{\LEOStoIPOf{32}{\BlakeParamBlock_{\barerange{4 \mult i}{4 \mult i\,+\,3}}} \xor \BlakeIV_i \for i \from 0 \upto 7}$
+  \item let $v \typecolon \typeexp{\binaryrange{32}}{16} =
+             h \bconcat\,[\,\BlakeIV_0, \BlakeIV_1, \BlakeIV_2, \BlakeIV_3,
+                            t_0 \xor \BlakeIV_4, t_1 \xor \BlakeIV_5, f_0 \xor \BlakeIV_6, f_1 \xor \BlakeIV_7\,]$
+  \item let $m \typecolon \typeexp{\binaryrange{32}}{16} =
+             \listcomp{\LEOStoIPOf{32}{x_{\barerange{4 \mult i}{4 \mult i\,+\,3}}} \for i \from 0 \upto 15}$
+        \vspace{2ex}
+  \item for $r$ from $0$ up to $9$:
+        \vspace{-1ex}
+  \item \begin{tabular}{@{\tab set\;}T@{}T@{}T@{}U@{}T@{}T@{}T@{}T@{}T@{}U@{}U}
+          (v_{ 0}, &v_{ 4}, &v_{ 8}, &v_{12}&) := G(v_{ 0}, &v_{ 4}, &v_{ 8}, &v_{12}, &m_{\sigma_{r, 0}}, &m_{\sigma_{r, 1}}&) \\
+          (v_{ 1}, &v_{ 5}, &v_{ 9}, &v_{13}&) := G(v_{ 1}, &v_{ 5}, &v_{ 9}, &v_{13}, &m_{\sigma_{r, 2}}, &m_{\sigma_{r, 3}}&) \\
+          (v_{ 2}, &v_{ 6}, &v_{10}, &v_{14}&) := G(v_{ 2}, &v_{ 6}, &v_{10}, &v_{14}, &m_{\sigma_{r, 4}}, &m_{\sigma_{r, 5}}&) \\
+          (v_{ 3}, &v_{ 7}, &v_{11}, &v_{15}&) := G(v_{ 3}, &v_{ 7}, &v_{11}, &v_{15}, &m_{\sigma_{r, 6}}, &m_{\sigma_{r, 7}}&) \\[2ex]
+          (v_{ 0}, &v_{ 5}, &v_{10}, &v_{15}&) := G(v_{ 0}, &v_{ 5}, &v_{10}, &v_{15}, &m_{\sigma_{r, 8}}, &m_{\sigma_{r, 9}}&) \\
+          (v_{ 1}, &v_{ 6}, &v_{11}, &v_{12}&) := G(v_{ 1}, &v_{ 6}, &v_{11}, &v_{12}, &m_{\sigma_{r,10}}, &m_{\sigma_{r,11}}&) \\
+          (v_{ 2}, &v_{ 7}, &v_{ 8}, &v_{13}&) := G(v_{ 2}, &v_{ 7}, &v_{ 8}, &v_{13}, &m_{\sigma_{r,12}}, &m_{\sigma_{r,13}}&) \\
+          (v_{ 3}, &v_{ 4}, &v_{ 9}, &v_{14}&) := G(v_{ 3}, &v_{ 4}, &v_{ 9}, &v_{14}, &m_{\sigma_{r,14}}, &m_{\sigma_{r,15}}&) \\
+        \end{tabular}
+  \item
+  \item return $\LEBStoOSPOf{256}{\concatbits\Of{\listcomp{\ItoLEBSPOf{32}{h_i \xor v_i \xor v_{i+8}} \for i \from 0 \upto 7}}}$
+\end{formulae}
+\end{samepage}
+
+In practice the message and output will be expressed as bit sequences. In the \Sapling
+circuit, the personalization string will be constant for each use.
+
+Each 32-bit exclusive-or is implemented in $32$ constraints, one for each bit position
 $a \xor b = c$ as in \crossref{cctxor}.
 
-Additions not involving a message word require $33$ constraints:
+Additions not involving a message word, i.e.\ $(a + b) \bmod 2^{32} = c$, are implemented
+using $34$ constraints: declare $33$ boolean variables $c_{\barerange{0}{32}}$, and
+then constrain
+\begin{formulae}
+  \item $\constraint{\ssum{i=0}{i=31}{(a_i + b_i) \mult 2^i}}{1}{\ssum{i=0}{i=32}{c_i \mult 2^i}}$.
+\end{formulae}
 
-...
+Additions involving a message word, i.e.\ $(a + b + m) \bmod 2^{32} = c$, are implemented
+using $35$ constraints: declare $34$ boolean variables $c_{\barerange{0}{33}}$, and
+then constrain
+\begin{formulae}
+  \item $\constraint{\ssum{i=0}{i=31}{(a_i + b_i + m_i) \mult 2^i}}{1}{\ssum{i=0}{i=33}{c_i \mult 2^i}}$.
+\end{formulae}
 
-Additions of message words require one extra constraint each, i.e.\ $a + b + m = c$
-is implemented by declaring $34$ boolean variables, and ...
+In each case only $c_{\barerange{0}{31}}$ are used subsequently.
 
-There are $10 \smult 4 \smult 2$ such message word additions.
+These additions could be implemented in $33$ and $34$ constraints respectively by using
+substitution to avoid the multiplication by $1$ (e.g.\ substituting the addition constraint
+into the boolean constraint for $c_0$), but this optimization is not done in \Sapling.
 
-Each $G$ evaluation requires 260 constraints. There are $10 \smult 8$ instances
-of $G$:
+\introlist
+Each $G$ evaluation requires $266$ constraints:
+\begin{itemize}
+  \item $4 \mult 32 = 128$ constraints for $\xor$ operations;
+  \item $2 \mult 34 = 68$ constraints for $32$-bit additions not involving message words;
+  \item $2 \mult 35 = 70$ constraints for $32$-bit additions involving message words.
+\end{itemize}
 
-$...$
+\introlist
+The overall cost is $21536$ constraints:
+\begin{itemize}
+  \item $10 \mult 8 \mult 266 = 21280$ constraints for $80$ $G$ evaluations;
+  \item $8 \mult 32 = 256$ constraints for final $v_i \xor v_{i+8}$ operations
+        (the $h_i$ words are constants so no additional constraints
+        are required to exclusive-or with them).
+\end{itemize}
 
-There are also 8 output exclusive-ors.
-
-The total cost is 21136 constraints. This includes boolean-constraining the hash
-output bits, but not the input bits.
+This cost includes boolean-constraining the hash output bits (done implicitly by the
+final $\xor$ operations), but not the message bits.
 
 \nnote{
 It should be clear that $\BlakeTwosGeneric$ is very expensive in the circuit compared
