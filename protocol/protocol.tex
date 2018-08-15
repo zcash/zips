@@ -9632,6 +9632,9 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
     \item No changes to \Sprout.
 \sapling{
     \item Finish \crossref{cctrange}.
+    \item Change \crossref{cctblake2s} to correct the constraint count and
+          to describe batched equality checks performed by the sapling-crypto
+          implementation.
 } %sapling
 \end{itemize}
 
@@ -10928,10 +10931,11 @@ as follows:
 \end{algorithm}
 
 This costs $3$ constraints for the curve equation check, $1$ constraint for the
-unpacking, and $255 + 133 - 1$ constraints for the range check (which includes
-boolean-constraining $u_\barerange{0}{254}$), for a total of $391$ constraints.
+unpacking, and $387$ constraints for the range check (as computed in \crossref{cctrange})
+for a total of $391$ constraints. The cost of the range check includes
+boolean-constraining $u_\barerange{0}{254}$.
 
-The same \quadraticConstraintProgram be used for compression and decompression.
+The same \quadraticConstraintProgram is used for compression and decompression.
 
 \pnote{
 The point-on-curve check could be omitted if $(u, \varv)$ were already known to be on the curve.
@@ -11574,37 +11578,38 @@ Each 32-bit exclusive-or is implemented in $32$ constraints, one for each bit po
 $a \xor b = c$ as in \crossref{cctxor}.
 
 Additions not involving a message word, i.e.\ $(a + b) \bmod 2^{32} = c$, are implemented
-using $34$ constraints: declare $33$ boolean variables $c_{\barerange{0}{32}}$, and
-then constrain
-\begin{formulae}
-  \item $\constraint{\ssum{i=0}{i=31}{(a_i + b_i) \mult 2^i}}{1}{\ssum{i=0}{i=32}{c_i \mult 2^i}}$.
-\end{formulae}
+using $33$ constraints and a $33$-bit equality check: constrain $33$ boolean variables
+$c_{\barerange{0}{32}}$, and then check
+$\ssum{i=0}{i=31}{(a_i + b_i) \mult 2^i} = \ssum{i=0}{i=32}{c_i \mult 2^i}$.
 
 Additions involving a message word, i.e.\ $(a + b + m) \bmod 2^{32} = c$, are implemented
-using $35$ constraints: declare $34$ boolean variables $c_{\barerange{0}{33}}$, and
-then constrain
-\begin{formulae}
-  \item $\constraint{\ssum{i=0}{i=31}{(a_i + b_i + m_i) \mult 2^i}}{1}{\ssum{i=0}{i=33}{c_i \mult 2^i}}$.
-\end{formulae}
+using $34$ constraints and a 34-bit equality check: constrain $34$ boolean variables
+$c_{\barerange{0}{33}}$, and then check
+$\ssum{i=0}{i=31}{(a_i + b_i + m_i) \mult 2^i} = \ssum{i=0}{i=33}{c_i \mult 2^i}$.
 
-In each case only $c_{\barerange{0}{31}}$ are used subsequently.
+For each addition, only $c_{\barerange{0}{31}}$ are used subsequently.
 
-These additions could be implemented in $33$ and $34$ constraints respectively by using
-substitution to avoid the multiplication by $1$ (e.g.\ substituting the addition constraint
-into the boolean constraint for $c_0$), but this optimization is not done in \Sapling.
+The equality checks are batched; as many sets of $33$ or $34$ boolean variables as
+will fit in a $\GF{\ParamS{r}}$ field element are equated together using one constraint.
+This allows $7$ such checks per constraint.
 
+\vspace{2ex}
 \introlist
-Each $G$ evaluation requires $266$ constraints:
+Each $G$ evaluation requires $262$ constraints:
 \begin{itemize}
   \item $4 \mult 32 = 128$ constraints for $\xor$ operations;
-  \item $2 \mult 34 = 68$ constraints for $32$-bit additions not involving message words;
-  \item $2 \mult 35 = 70$ constraints for $32$-bit additions involving message words.
+  \item $2 \mult 33 = 66$ constraints for $32$-bit additions not involving message words
+        (excluding equality checks);
+  \item $2 \mult 34 = 68$ constraints for $32$-bit additions involving message words
+        (excluding equality checks).
 \end{itemize}
 
 \introlist
-The overall cost is $21536$ constraints:
+The overall cost is $21262$ constraints:
 \begin{itemize}
-  \item $10 \mult 8 \mult 266 = 21280$ constraints for $80$ $G$ evaluations;
+  \item $10 \mult 8 \mult 262 = 20960$ constraints for $80$ $G$ evaluations, excluding
+        equality checks;
+  \item $\ceiling{\hfrac{10 \mult 8 \mult 4}{7}} = 46$ constraints for equality checks;
   \item $8 \mult 32 = 256$ constraints for final $v_i \xor v_{i+8}$ operations
         (the $h_i$ words are constants so no additional constraints
         are required to exclusive-or with them).
@@ -11613,16 +11618,19 @@ The overall cost is $21536$ constraints:
 This cost includes boolean-constraining the hash output bits (done implicitly by the
 final $\xor$ operations), but not the message bits.
 
-\nnote{
-It should be clear that $\BlakeTwosGeneric$ is very expensive in the circuit compared
-to elliptic curve operations. This is primarily because it is inefficient to
-use $\GF{\ParamS{r}}$ elements to represent single bits.
-However Pedersen hashes do not have the necessary cryptographic
-properties for the two cases where the \spendCircuit uses $\BlakeTwosGeneric$.
-While it might be possible to use variants of functions with low circuit cost
-such as MiMC \cite{AGRRT2017}, it was felt that they had not yet received sufficient
-cryptanalytic attention to confidently use them for \Sapling.
-} %nnote
+\begin{nnotes}
+  \item The equality checks could be eliminated entirely by substituting each check
+        into a boolean constraint for $c_0$, for instance, but this optimization
+        is not done in \Sapling.
+  \item It should be clear that $\BlakeTwosGeneric$ is very expensive in the circuit
+        compared to elliptic curve operations. This is primarily because it is
+        inefficient to use $\GF{\ParamS{r}}$ elements to represent single bits.
+        However Pedersen hashes do not have the necessary cryptographic properties
+        for the two cases where the \spendCircuit uses $\BlakeTwosGeneric$.
+        While it might be possible to use variants of functions with low circuit cost
+        such as MiMC \cite{AGRRT2017}, it was felt that they had not yet received
+        sufficient cryptanalytic attention to confidently use them for \Sapling.
+\end{nnotes}
 
 
 \introsection
