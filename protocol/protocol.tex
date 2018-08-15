@@ -773,6 +773,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\homomorphicPedersenCommitments}{\term{homomorphic Pedersen commitments}}
 \newcommand{\HomomorphicPedersenCommitment}{\titleterm{Homomorphic Pedersen Commitment}}
 \newcommand{\distinctXCriterion}{\term{distinct-$x$ criterion}}
+\newcommand{\Nary}{\mbox{$N$-ary}}
 
 % Conventions
 
@@ -876,6 +877,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\grpneg}{\bigboxminus{1.8ex}}
 \newcommand{\vartimes}{\bigvartimes{1.8ex}}
 \newcommand{\band}{\binampersand}
+\newcommand{\bor}{\lor}
 \newcommand{\suband}{\raisebox{-0.6ex}{\kern-0.06em\scalebox{0.65}{$\binampersand$}}}
 \newcommand{\bchoose}{\;\scalebox{1.2}[1]{\textsf{?}}\;}
 \newcommand{\rotr}{\ggg}
@@ -9624,6 +9626,16 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
 \intropart
 \section{Change History}
 
+\subparagraph{2018.0-beta-29}
+
+\begin{itemize}
+    \item No changes to \Sprout.
+\sapling{
+    \item Finish \crossref{cctrange}.
+} %sapling
+\end{itemize}
+
+\introlist
 \subparagraph{2018.0-beta-28}
 
 \begin{itemize}
@@ -10762,30 +10774,120 @@ Note that since $a$ and $c$ are provided in binary representation, their
 bit length $n$ is not limited by the field element size. We \emph{do not} assume
 that the bits $a_\barerange{0}{n-1}$ are already boolean-constrained.
 
-Suppose $c$ has $k$ bits set to $1$, and let $j_\barerange{0}{k-1}$ be the
-indices of those bits in ascending order. Let $t$ be the minimum of $k-1$ and
-the number of trailing $1$ bits in $c$.
+Define $\Pi_{m} = \sproduct{i=m}{n-1} (c_i = 0 \bor a_i = 1)$ for $m \in \range{0}{n-1}$.
+Notice that for any $m < n-1$ such that $c_m = 0$, we have $\Pi_m = \Pi_{m+1}$,
+and so it is only necessary to allocate separate variables for the $\Pi_m$
+such that $m < n-1$ and $c_m = 1$. Furthermore if $c_{\barerange{n-2}{0}}$ has
+$t > 0$ trailing $1$ bits, then we do not need to allocate variables for
+$\Pi_{\barerange{0}{t-1}}$ because those variables will not be used below.
+More explicitly:
 
-\introlist
-Let $\Pi_{j_{k-1}} = a_{j_{k-1}}$. For $z \in \range{t}{k-2}$, constrain:
+Let $\Pi_{n-1} = a_{n-1}$.
 
-\begin{formulae}
-  \item $\constraint{\Pi_{j_{z+1}}}{a_{j_z}}{\Pi_{j_z}}$
-\end{formulae}
-
-\introlist
-For $i \in \range{0}{n-1}$:
+For $i \from n-2 \downto t$,
 \begin{itemize}
-  \item if $c_i = 0$, constrain $\constraint{1 - \Pi_{j_z} - a_i}{a_i}{0}$ where $j_z$ is the least element of $j$ greater than $i$;
+  \item if $c_i = 0$, then let $\Pi_i = \Pi_{i+1}$;
+  \item if $c_i = 1$, then constrain $\constraint{\Pi_{i+1}}{a_i}{\Pi_i}$.
+\end{itemize}
+
+Then we constrain the $a_i$ as follows:
+
+\introlist
+For $i \from n-1 \downto 0$,
+\begin{itemize}
+  \item if $c_i = 0$, constrain $\constraint{1 - \Pi_{i+1} - a_i}{a_i}{0}$;
   \item if $c_i = 1$, boolean-constrain $a_i$ as in \crossref{cctboolean}.
 \end{itemize}
 
 Note that the constraints corresponding to zero bits of $c$ are \emph{in place of}
 boolean constraints on bits of $a_i$.
 
-This costs $n + k - 1 - t$ constraints.
+This costs $n + k$ constraints, where $k$ is the number of non-trailing $1$ bits in
+$c_{\barerange{n-2}{0}}$.
 
-\todo{Explain why this works (see \url{https://github.com/zcash/zcash/issues/2234\#issuecomment-338930637}).}
+\introsection
+\begin{theorem} \label{thmrangeconstraints}
+Assume $c_{\barerange{0}{n-1}} \typecolon \bitseq{n}$ and $c_{n-1} = 1$.
+Define $A_m := \ssum{i=m}{n-1} a_i \mult 2^i$ and $C_m := \ssum{i=m}{n-1} c_i \mult 2^i$.
+For any\, $m \in \range{0}{n-1}$, $A_m \leq C_m$ iff the restriction of the above
+constraint system to $i \in \range{m}{n-1}$ is satisfied. Furthermore the system
+at least boolean-constrains $a_{\barerange{0}{n-1}}$.
+\end{theorem}
+
+\begin{proof}
+For $i \in \range{0}{n-1}$ such that $c_i = 1$, the corresponding $a_i$ are
+unconditionally boolean-constrained. This implies that the system
+constrains $\Pi_i \in \bit$ for all $i \in \range{0}{n-1}$. For $i \in \range{0}{n-1}$
+such that $c_i = 0$, the constraint $\constraint{1 - \Pi_{i+1} - a_i}{a_i}{0}$
+constrains $a_i$ to be $0$ if $\Pi_{i+1} = 1$, otherwise it constrains $a_i \in \bit$.
+So all of $a_{\barerange{0}{n-1}}$ are at least boolean-constrained.
+
+To prove the rest of the theorem we proceed by induction on decreasing $m$,
+i.e.\ taking successively longer prefixes of the big-endian binary representations
+of $a$ and $c$.
+
+Base case $m = n-1$: since $c_{n-1} = 1$, the constraint system has
+just one boolean constraint on $a_{n-1}$, which fulfils the theorem since
+$A_{n-1} \leq C_{n-1}$ is always satisfied.
+
+Inductive case $m < n-1$:
+\begin{itemize}
+  \item If $A_{m+1} > C_{m+1}$, then by the inductive hypothesis the constraint system
+        must fail, which fulfils the theorem regardless of the value of $a_m$.
+  \item If $A_{m+1} \leq C_{m+1}$, then by the inductive hypothesis the constraint system
+        restricted to $i \in \range{m+1}{n-1}$ succeeds. We have
+        $\Pi_{m+1} =
+        \sproduct{i=m+1}{n-1} (c_i = 0 \bor a_i = 1) =
+        \sproduct{i=m+1}{n-1} (a_i \geq c_i)$.
+        \begin{itemize}
+          \item If $A_{m+1} = C_{m+1}$, then $a_i = c_i$ for all $i \in \range{m+1}{n-1}$ and
+                so $\Pi_{m+1} = 1$.
+                Also $A_m \leq C_m$ iff $a_m \leq c_m$. \\
+                When $c_m = 1$, only a boolean constraint is added for $a_m$ which fulfils the theorem. \\
+                When $c_m = 0$, $a_m$ is constrained to be $0$ which fulfils the theorem.
+          \item If $A_{m+1} < C_{m+1}$, then it cannot be the case that $a_i \geq c_i$
+                for all $i \in \range{m+1}{n-1}$, so $\Pi_{m+1} = 0$. \\
+                This implies that the constraint on $a_m$ is always equivalent to
+                a boolean constraint, which fulfils the theorem because $A_m \leq C_m$ must
+                be true regardless of the value of $a_m$.
+        \end{itemize}
+\end{itemize}
+\vspace{-2ex}
+This covers all cases.
+\end{proof}
+
+Correctness of the full constraint system follows by taking $m = 0$ in the above theorem.
+
+The algorithm in \crossref{ccteddecompressvalidate} uses range checks with
+$c = \ParamS{r}-1$ to validate compressed Edwards points. In that case $n = 255$ and
+$k = 132$, so the cost of each such range check is $387$ constraints.
+
+\nnote{It is possible to optimize the computation of $\Pi_{\barerange{t}{n-2}}$ further.
+Notice that $\Pi_m$ is only used when $m$ is the index of the last bit of a
+run of $1$ bits in $c$. So for each run of $N$ $1$ bits, it is sufficient to compute
+an \Nary{} AND: $R = \sproduct{i=0}{N-1}{X_i}$. This can be computed in $3$ constraints
+for any $N < \ParamS{r}$; boolean-constrain the output $R$, and then add constraints
+
+\vspace{1ex}
+\begin{tabular}{@{\tab}l@{\;\;}l}
+  $\constraint{N - \ssum{i=0}{N-1}{X_i}}{\mathsf{inv}}{1-R}$ &to enforce that
+    $\ssum{i=0}{N-1}{X_i} \neq N$ when $R = 0$; \\[2ex]
+  $\constraint{N - \ssum{i=0}{N-1}{X_i}}{R}{0}$              &to enforce that
+    $\ssum{i=0}{N-1}{X_i} = N$ when $R = 1$. \\
+\end{tabular}
+
+\vspace{-1ex}
+where $\mathsf{inv}$ is witnessed as $\Big(N - \ssum{i=0}{N-1}{X_i}\Big)^{\!-1}$ if $R = 0$
+or is unconstrained otherwise.
+
+In fact the last constraint is not needed in this context because it is sufficient to
+compute an upper bound on each $\Pi_m$ (i.e.\ it does not benefit a malicious prover to
+witness $R = 1$ when the result of the AND should be $0$).
+So the cost of computing $\Pi$ variables for an arbitrarily long run of $1$ bits can be
+reduced to $2$ constraints. For example, for $c = \ParamS{r}-1$ the overall cost would
+be reduced to $255 + 68 = 323$ constraints.
+
+These optimizations are not used in \Sapling.}
 
 
 \introsection
