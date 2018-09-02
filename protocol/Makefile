@@ -2,7 +2,7 @@ LATEXMK=latexmk --halt-on-error -bibtex -pdf
 LATEX=pdflatex --halt-on-error
 
 sprout.pdf: protocol.tex zcash.bib incremental_merkle.pdf key_components.pdf
-	$(MAKE) pdf
+	$(MAKE) sprout
 
 sapling.pdf: protocol.tex zcash.bib incremental_merkle.pdf key_components_sapling.pdf
 	$(MAKE) sapling
@@ -69,7 +69,7 @@ nolatexmk-sapling:
 	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.pdf; exit 1; }
 
 .PHONY: html
-html: sprout.pdf sapling.pdf
+html: sapling.pdf sprout.pdf
 	# Can't use --split-pages 1 because XHR doesn't work by default on local files in Chrome.
 	pdf2htmlEX --decompose-ligature 1 --font-size-multiplier 65 --fit-width 1000 --dest-dir html sprout.pdf
 	pdf2htmlEX --decompose-ligature 1 --font-size-multiplier 65 --fit-width 1000 --dest-dir html sapling.pdf
@@ -110,4 +110,4 @@ optsapling: optimizer-installed.flag
 	cp -f sapling.pdf protocol.pdf
 
 .PHONY: optimized
-optimized: optsprout optsapling
+optimized: optsapling optsprout

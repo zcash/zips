@@ -15,9 +15,10 @@ Building
 
 Use:
 
-* ``make pdf`` to make the current protocol specification (``protocol.pdf``);
 * ``make sapling`` to make the draft specification for the Overwinter and
-  Sapling upgrades (``sapling.pdf``).
+  Sapling upgrades (``sapling.pdf``);
+* ``make sprout`` to make a version of the specification that does not
+  include Overwinter or Sapling.
 
 By default these use ``latexmk``, which does not work on all systems.
 Use ``make nolatexmk-pdf`` or ``make nolatexmk-sapling`` if you run into
@@ -26,7 +27,7 @@ because it may not run ``pdflatex`` enough times.
 
 There is also support for using the incremental (``-pvc``) mode of
 ``latexmk`` to automatically rebuild when changes in the source files
-are detected: ``make pvcpdf`` or ``make pvcsapling``.
+are detected: ``make pvcsapling`` or ``make pvcsprout``.
 Manual intervention is still needed when there are LaTeX errors.
 
 
@@ -38,16 +39,15 @@ Optionally, you can use `Péter Szabó <https://github.com/pts>`_'s
 
 Use:
 
-* ``make optpdf`` to make an optimized version of ``protocol.pdf``;
 * ``make optsapling`` to make an optimized version of ``sapling.pdf``;
+* ``make optsprout`` to make an optimized version of ``sprout.pdf``;
 * ``make optimized`` to make both.
 
 This will probably only work on Linux. The first time one of these
 targets is run, it will automatically clone and build the necessary
 dependencies (pinned by ``git`` hash) from GitHub.
 
-This gives a size saving of about 50% for ``protocol.pdf``, and
-40% for ``sapling.pdf``.
+This gives a size saving of about 40-50%.
 
 
 Converting to HTML
@@ -61,8 +61,8 @@ To convert to HTML you will first need to install ``pdf2htmlEX``. On Debian:
 
 Then use ``make html`` (or ``make optimized html``) to convert both PDFs.
 
-The results are placed in the ``html`` directory at ``html/protocol.html``
-and ``html/sapling.html``.
+The results are placed in the ``html`` directory at ``html/sapling.html``
+and ``html/sprout.html``.
 
 See `<https://github.com/zcash/zips/issues/127>`_ for limitations of
 this conversion.
