@@ -1350,6 +1350,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\vBalance}{\mathsf{v^{balance}}}
 \newcommand{\vBad}{\mathsf{v^{bad}}}
 \newcommand{\vSum}{\mathsf{v^{*}}}
+\newcommand{\OracleNewAddress}{\Oracle^{\mathsf{NewAddress}}}
+\newcommand{\OracleDH}{\Oracle^{\mathsf{DH}}}
 
 % Merkle tree
 
@@ -5835,21 +5837,116 @@ Define
 \securityrequirement{
 \textbf{Unlinkability:} Given two randomly selected
 \paymentAddresses from different spend authorities, and a third \paymentAddress
-which could be derived from either of those authorities, it is not possible to
-tell which authority the third address was derived from.}
+which could be derived from either of those authorities, such that the three
+addresses use different \diversifiers, it is not possible to tell which authority
+the third address was derived from.
+
+%\introlist
+%Consider the following experiment:
+%\begin{itemize}
+%  \item Choose two \incomingViewingKeys
+%        $\InViewingKey_{1,2} \leftarrowR \InViewingKeyTypeSapling$.
+%  \item An adversary chooses two (not necessarily distinct) \diversifiers
+%        $\Diversifier_{1,2} \typecolon \DiversifierType$.
+%  \item Define $\OracleNewAddress_i(\Diversifier' \typecolon \DiversifierType) := \begin{cases}
+%          \bot, &\caseif \DiversifyHash(\Diversifier') = \bot \\
+%          (\Diversifier', \scalarmult{\InViewingKey_i}{\DiversifyHash(\Diversifier')}), &\caseotherwise
+%        \end{cases}$.
+%  \item Define $\OracleDH_i(\EphemeralPrivate \typecolon \GF{\ParamJ{r}},
+%                            \DiversifiedTransmitBase \typecolon \GroupJ) := \begin{cases}
+%          \bot, &\caseif \scalarmult{\ParamJ{h}}{\DiversifiedTransmitBase} = \ZeroJ \\
+%          \scalarmult{\InViewingKey_i \mult \EphemeralPrivate}{\DiversifiedTransmitBase}, &\caseotherwise
+%        \end{cases}$.
+%  \item Choose $j \leftarrowR \setof{1, 2}$.
+%  \item Give the adversary $\OracleNewAddress_j$ and $\OracleDH_j$.
+%  \item ...
+%\end{itemize}
+%
+%The adversary wins if it returns $j$ with probability significantly greater than $0.5$
+%(i.e.\ than chance), over choices of ....
+
+%% the experiment must capture Brian Warner's attack
+} %securityrequirement
 
 \begin{nnotes}
   \item Suppose that $\GroupJHash{}$ (restricted to inputs for which it does not
         return $\bot$) is modelled as a random oracle from \diversifiers to points
         of order $\ParamJ{r}$ on the \jubjubCurve. In this model, Unlinkability
         of $\DiversifyHash$ holds under the Decisional Diffie-Hellman assumption on the
-        \jubjubCurve.
+        prime-order subgroup of the \jubjubCurve.
+
+        To prove this, consider the ElGamal encryption scheme \cite{ElGamal1985}
+        on this prime-order subgroup, restricted to encrypting plaintexts encoded
+        as the group identity $\ZeroJ$. (ElGamal was originally defined for $\GFstar{p}$
+        but works in any prime-order group.) ElGamal public keys then have the same form
+        as \diversifiedPaymentAddresses. If we make the assumption above on $\GroupJHash{}$,
+        then generating a new \diversifiedPaymentAddress from a given address $\pk$,
+        gives the same distribution of
+        $(\DiversifiedTransmitBase', \DiversifiedTransmitPublic')$ pairs as the
+        distribution of ElGamal ciphertexts obtained by encrypting $\ZeroJ$ under $\pk$.
+        \todo{check whether this is justified.}
+        Then, the definition of \keyPrivacy (IK-CPA as defined in \cite[Definition 1]{BBDP2001})
+        for ElGamal corresponds to the definition of Unlinkability for $\DiversifyHash$.
+        (IK-CCA corresponds to the potentially stronger requirement that $\DiversifyHash$
+        remains Unlinkable when given Diffie-Hellman key agreement oracles for each
+        of the candidate \diversifiedPaymentAddresses.)
+        So if ElGamal is \keyPrivate, then $\DiversifyHash$ is Unlinkable under the
+        same conditions.
+        \cite[Appendix A]{BBDP2001} gives a security proof for \keyPrivacy
+        (both IK-CPA and IK-CCA) of ElGamal under the Decisional Diffie-Hellman
+        assumption on the relevant group. (In fact the proof needed is the
+        ``small modification'' described in the last paragraph in which the generator
+        is chosen at random for each key.)
+
+  \item It is assumed (also for the security of other uses of
+        the group hash, such as Pedersen hashes and commitments) that the discrete
+        logarithm of the output group element with respect to any other generator
+        is unknown. This assumption is justified if the group hash acts as a
+        random oracle.
+        Essentially, \diversifiers act as handles to unknown random numbers.
+        (The group hash inputs used with different personalizations are in different
+        ``namespaces''.)
+
   \item Informally, the random self-reducibility property of DDH implies that an
         adversary would gain no advantage from being able to query an oracle for
         additional $(\DiversifiedTransmitBase, \DiversifiedTransmitPublic)$ pairs
         with the same spend authority as an existing \paymentAddress, since they
         could also create such pairs on their own. This justifies only considering
         two \paymentAddresses in the security definition.
+
+        \todo{FIXME This is not correct, because additional pairs don't quite
+        follow the same distribution as an address with a valid diversifier.
+        The security definition may need to be more complex to model this properly.}
+
+%  \item The restriction that an adversary may not query the ``new address'' oracle
+%        with a .. corresponds to the requirement that a .. not reuse diversifiers
+%        for a given \incomingViewingKey. If this requirement is not met then the
+%        adversary can trivially break Unlinkability. Of course, it is not desirable
+%        to provide ``new address'' or Diffie-Hellman oracles at all in a real
+%        implementation; the oracles are included in the security definition merely in
+%        order to prove the strongest possible security property.
+
+  \item An $88$-bit diversifier cannot be considered cryptographically unguessable
+        at a $128$-bit security level; also, randomly chosen diversifiers are likely
+        to suffer birthday collisions when the number of choices approaches $2^{44}$.
+
+        If most users are choosing diversifiers randomly (as recommended in
+        \crossref{saplingkeycomponents}), then the fact that they
+        may accidentally choose diversifiers that collide (and therefore reveal
+        the fact that they are not derived from the same \incomingViewingKey)
+        does not appreciably reduce the anonymity set.
+
+        In \cite{ZIP-32} an $88$-bit \pseudoRandomPermutation, keyed differently for
+        each node of the derivation tree, is used to select new \diversifiers.
+        This resolves the potential problem, provided that the input to the
+        \pseudoRandomPermutation does not repeat for a given node.
+
+  \item If the holder of an \incomingViewingKey permits an adversary to ask for a new
+        address for that \incomingViewingKey with a given \diversifier, then it can
+        trivially break Unlinkability for the other \diversifiedPaymentAddresses
+        associated with the \incomingViewingKey (this does not compromise other
+        privacy properties). Implementations \SHOULD avoid providing such a
+        ``chosen \diversifier'' oracle.
 \end{nnotes}
 } %sapling
 
