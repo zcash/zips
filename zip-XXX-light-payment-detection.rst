@@ -133,7 +133,7 @@ Output Compression
 ------------------
 
 In the normal Zcash protocol, the output ciphertext consists of the AEAD encrypted form of
-a *note plaintext* (see Zcash Spec section 5.5):
+a *note plaintext* [Note]:
 
 +------------+----------+----------+-------------+-----------------------------------+
 | 8-bit 0x01 | 88-bit d | 64-bit v | 256-bit rcm | memo (512 bytes) + tag (16 bytes) |
@@ -161,13 +161,13 @@ Since the note commitment is sent outside the ciphertext and is authenticated by
 binding signature over the entire transaction, it serves as an adequate check on the
 validity of the decrypted plaintext (assuming you trust the entity assembling
 transactions). We therefore recalculate the note commitment from the decrypted plaintext.
-If the recalculated commitment matches the one in the output, we accept note as valid and
-spendable.
+If the recalculated commitment matches the one in the output, we accept the note as valid
+and spendable.
 
 Spend Compression
 -----------------
 
-Recall that a full Sapling Spend description is 384 bytes long:
+Recall that a full Sapling Spend description is 384 bytes long [Spend]:
 
 +-------+--------------+-----------+
 | Bytes | Name         | Type      |
@@ -197,8 +197,43 @@ Zcash node and any number of light clients. It accomplishes this by parsing a bl
 stream of transactions from the node and converting them into the compact format described
 above.
 
-The proxy stores
+The proxy offers the following API to clients:
 
+.. code:: proto
+
+    service CompactTxStreamer {
+        rpc GetLatestBlock(ChainSpec) returns (BlockID) {}
+        rpc GetBlock(BlockID) returns (CompactBlock) {}
+        rpc GetBlockRange(RangeFilter) returns (stream CompactBlock) {}
+        rpc GetTransaction(TxFilter) returns (FullTransaction) {}
+    }
+
+    // Remember that proto3 fields are all optional.
+
+    // Someday we may want to specify e.g. a particular chain fork.
+    message ChainSpec {}
+
+
+    // A BlockID message contains identifiers to select a block: either a
+    // height or a hash.
+    message BlockID {
+        uint64 blockHeight = 1;
+        bytes blockHash = 2;
+    }
+
+
+    message RangeFilter {
+        BlockID start = 1;
+        BlockID end = 2;
+    }
+
+    // A TxFilter contains the information needed to identify a particular
+    // transaction: either a block and an index, or a direct transaction hash.
+    message TxFilter {
+        BlockID blockID = 1;
+        uint64 txIndex = 2;
+        bytes txHash = 3;
+    }
 
 
 Client operation
@@ -220,6 +255,14 @@ Zcash Company.
 References
 ==========
 
+[ZEC] Zcash Protocol Spec
+
 [bipXXX] define a light client
 
 [XXX] protobufs
+
+[Note] [ZEC] Section 5.5
+
+[Spend] [ZEC] Section 7.x
+
+[Output] [ZEC] Section 7.x
