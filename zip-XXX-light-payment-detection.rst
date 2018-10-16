@@ -13,6 +13,9 @@
 Terminology
 ===========
 
+The key words "MUST", "SHOULD", and "MAY" in this document are to be interpreted as
+described in RFC 2119. [#RFC2119]_
+
 The terms below are to be interpreted as follows:
 
 Light client
@@ -239,6 +242,252 @@ The proxy offers the following API to clients:
 Client operation
 ================
 
+Light clients obtain compact blocks from one or more proxy servers, which they then
+process locally to update their view of the block chain. We consider only a single proxy
+server here without loss of generality.
+
+Local processing
+----------------
+
+Given a ``CompactBlock`` received in height-sequential order from a proxy server, a light
+client can process it in three ways:
+
+Scanning for relevant transactions
+``````````````````````````````````
+For every ``CompactOutput`` in the ``CompactBlock``, the light client can trial-decrypt it
+against a set of Sapling incoming viewing keys. The procedure for trial-decrypting a
+``CompactOutput`` (*cmu*, *epk*, *ciphertext*) with an incoming viewing key *ivk* is a
+slight deviation from the standard decryption process [#sapling-ivk-decryption]_:
+
+- let sharedSecret = KA\ :sup:`Sapling`\ .Agree(*ivk*, *epk*)
+- let K\ :sup:`enc` = KDF\ :sup:`Sapling`\ (sharedSecret, *epk*)
+- let P\ :sup:`enc` = ChaCha20.Decrypt\ :sub:`K^enc`\ (*ciphertext*)
+- extract **np** = (d, v, rcm) from P\ :sup:`enc`
+- let rcm = LEOS2IP\ :sub:`256`\ (rcm) and g\ :sub:`d` = DiversifyHash(d)
+- if rcm >= r\ :sub:`J` or g\ :sub:`d` = ⊥, return ⊥
+- let pk\ :sub:`d` = KASapling.DerivePublic(ivk, g\ :sub:`d`\ )
+- let cm\ :sub:`u`\ ' = Extract\ :sub:`J^(r)`\ (NoteCommitSapling\ :sub:`rcm^new`\ (repr\ :sub:`J`\ (g\ :sub:`d`\ ), repr\ :sub:`J`\ (pk\ :sub:`d`\ ), v)).
+- if LEBS2OSP\ :sub:`256`\ (cm\ :sub:`u`\ ') != *cmu* , return ⊥, else return **np**.
+
+Creating and updating note witnesses
+````````````````````````````````````
+
+As ``CompactBlocks`` are received in-order, the *cmu* values in each ``CompactOutput`` can
+be sequentially appended to a Sapling commitment Merkle tree. This can then be used to
+create and cache incremental witnesses.
+
+Detecting spends
+````````````````
+
+The ``CompactSpend`` entries can be checked against known local nullifiers, to for example
+ensure that a transaction has been received by the network and mined.
+
+Client-server interaction
+-------------------------
+
+We can divide the typical client-server interaction into four distinct phases:
+
+.. code:: text
+
+    Phase   Client                Server
+    =====   ============================
+      A     GetLatestBlock ------------>
+
+            <---------------- BlockID(X)
+
+            GetBlock(X) --------------->
+
+            <----------- CompactBlock(X)
+
+                ===
+
+      B     GetLatestBlock ------------>
+
+            <---------------- BlockID(Y)
+
+            GetBlockRange(X, Y) ------->
+
+            <--------- CompactBlock(X)
+            <--------- CompactBlock(X+1)
+            <--------- CompactBlock(X+2)
+                            ...
+            <--------- CompactBlock(Y-1)
+            <--------- CompactBlock(Y)
+
+                ===
+
+      C     GetTransaction(X+4, 7) ---->
+
+            <--- FullTransaction(X+4, 7)
+
+            GetTransaction(X+9, 2) ---->
+
+            <--- FullTransaction(X+9, 2)
+
+                ===
+
+      D     GetLatestBlock ------------>
+
+            <---------------- BlockID(Z)
+
+            GetBlockRange(Y, Z) ------->
+
+            <--------- CompactBlock(Y)
+            <--------- CompactBlock(Y+1)
+            <--------- CompactBlock(Y+2)
+                            ...
+            <--------- CompactBlock(Z-1)
+            <--------- CompactBlock(Z)
+
+A. The light client starts up for the first time.
+
+   - The light client queries the server to fetch the most recent block ``X``.
+   - The light client queries the commitment tree state for block ``X``.
+
+     - Or, it has to set ``X`` to the block height at which Sapling activated, so as to be
+       sent the entire commitment tree. [TODO: Decide which to specify.]
+
+   - Shielded addresses created by the light client will not have any relevant
+     transactions in this or any prior block.
+
+B. The light client updates its local chain view for the first time.
+
+   - The light client queries the server to fetch the most recent block ``Y``.
+   - It then executes a block range query to fetch every block between ``X`` (inclusive)
+     and ``Y`` (inclusive).
+   - The block at height ``X`` is checked to ensure the received ``blockHash`` matches the
+     light client's cached copy, and then discards it without further processing.
+
+     - An inconsistency would imply that block ``X`` was orphaned during a chain reorg.
+
+   - As each subsequent  ``CompactBlock`` arrives, the light client scans it to find any
+     relevant transactions for addresses generated since ``X`` was fetched (likely the
+     first transactions involving those addresses). If notes are detected, it:
+
+     - Generates incremental witnesses for the notes, and updates them going forward.
+     - Scans for their nullifiers from that block onwards.
+
+C. The light client has detected some notes and displayed them. User interaction has
+   indicated that the corresponding full transactions should be fetched.
+
+   - The light client queries the server for each transaction it wishes to fetch.
+
+D. The user has spent some notes. The light client updates its local chain view some time
+   later.
+
+   - The light client queries the server to fetch the most recent block ``Z``.
+   - It then executes a block range query to fetch every block between ``Y`` (inclusive)
+     and ``Z`` (inclusive).
+   - The block at height ``Y`` is checked to ensure the received ``blockHash`` matches the
+     light client's cached copy, and then discards it without further processing.
+
+     - An inconsistency would imply that block ``Y`` was orphaned during a chain reorg.
+
+   - As each subsequent ``CompactBlock`` arrives, the light client:
+
+     - Updates the incremental witnesses for known notes.
+     - Scans for any known nullifiers. The corresponding notes are marked as spent at that
+       height, and excluded from further witness updates.
+     - Scans for any relevant transactions for addresses generated since ``Y`` was
+       fetched. These are handled as in phase B.
+
+[TODO: Describe differences when importing a pre-existing wallet seed.]
+
+Block privacy via bucketing
+---------------------------
+
+The above interaction reveals to the server at the start of each synchronisation phase (B
+and D) the block height which the light client had previously synchronised to. This is an
+information leak under our security model (assuming network privacy). We can reduce the
+information leakage by "bucketing" the start point of each synchronisation. Doing so also
+enables us to handle most chain reorgs simultaneously.
+
+Let ``⌊X⌋ = X - (X % N)`` be the value of ``X`` rounded down to some multiple of the
+bucket size ``N``. The synchronisation phases from the above interaction are modified as
+follows:
+
+.. code:: text
+
+    Phase   Client                Server
+    =====   ============================
+      B     GetLatestBlock ------------>
+
+            <---------------- BlockID(Y)
+
+            GetBlockRange(⌊X⌋, Y) ----->
+
+            <-------- CompactBlock(⌊X⌋)
+            <-------- CompactBlock(⌊X⌋+1)
+            <-------- CompactBlock(⌊X⌋+2)
+                            ...
+            <-------- CompactBlock(Y-1)
+            <-------- CompactBlock(Y)
+
+                ===
+
+      D     GetLatestBlock ------------>
+
+            <---------------- BlockID(Z)
+
+            GetBlockRange(⌊Y⌋, Z) ----->
+
+            <-------- CompactBlock(⌊Y⌋)
+            <-------- CompactBlock(⌊Y⌋+1)
+                            ...
+            <-------- CompactBlock(Z-1)
+            <-------- CompactBlock(Z)
+
+B. The light client updates its local chain view for the first time.
+
+   - The light client queries the server to fetch the most recent block ``Y``.
+   - It then executes a block range query to fetch every block between ``⌊X⌋`` (inclusive)
+     and ``Y`` (inclusive).
+   - Blocks between ``⌊X⌋`` and ``X`` are checked to ensure that the received
+     ``blockHash`` matches the light client's chain view for each height, and are then
+     discarded without further processing.
+
+     - If an inconsistency is detected at height ``Q``, the light client sets ``X = Q-1``,
+       discards all local blocks with height ``>= Q``, and rolls back the state of all
+       local transactions to height ``Q-1`` (un-mining them as necessary).
+
+   - Blocks between ``X+1`` and ``Y`` are processed as before.
+
+D. The user has spent some notes. The light client updates its local chain view some time
+   later.
+
+   - The light client queries the server to fetch the most recent block ``Z``.
+   - It then executes a block range query to fetch every block between ``⌊Y⌋`` (inclusive)
+     and ``Z`` (inclusive).
+   - Blocks between ``⌊Y⌋`` and ``Y`` are checked to ensure that the received
+     ``blockHash`` matches the light client's chain view for each height, and are then
+     discarded without further processing.
+
+     - If an inconsistency is detected at height ``R``, the light client sets ``Y = R-1``,
+       discards all local blocks with height ``>= R``, and rolls back the following local
+       state to height ``R-1``:
+
+       - All local transactions (un-mining them as necessary).
+       - All tracked nullifiers (unspending or discarding as necessary).
+       - All incremental witnesses (caching strategies are not covered in this ZIP).
+
+   - Blocks between ``Y+1`` and ``Z`` are processed as before.
+
+Transaction privacy
+-------------------
+
+The synchronisation phases give the light client sufficient information to determine
+accurate address balances, show when funds were received or spent, and spend any unspent
+notes. As synchronisation happens via a broadcast medium, it leaks no information about
+which transactions the light client is interested in.
+
+If, however, the light client needs access to other components of a transaction (such as
+the memo fields for received notes, or the outgoing ciphertexts in order to recover spend
+information when importing a wallet seed), it will need to download the full transaction.
+The light client SHOULD obscure the exact transactions of interest by downloading numerous
+uninteresting transactions as well, and SHOULD download all transactions in any block from
+which a single full transaction is fetched (interesting or otherwise). It MUST convey to
+the user that fetching full transactions will reduce their privacy.
+
 Appendix FOO
 ============
 
@@ -255,6 +504,8 @@ Zcash Company.
 References
 ==========
 
+.. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://tools.ietf.org/html/rfc2119>`_
+
 [ZEC] Zcash Protocol Spec
 
 [bipXXX] define a light client
@@ -266,3 +517,5 @@ References
 [Spend] [ZEC] Section 7.x
 
 [Output] [ZEC] Section 7.x
+
+.. [#sapling-ivk-decryption] `Section 4.17.2: Decryption using an Incoming Viewing Key (Sapling). Zcash Protocol Specification, Version 2018.0-beta-31 or later [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
