@@ -391,7 +391,19 @@ some time later.
   - Scans for any relevant transactions for addresses generated since ``Y`` was fetched.
     These are handled as in phase B.
 
-[TODO: Describe differences when importing a pre-existing wallet seed.]
+Importing a pre-existing seed
+`````````````````````````````
+Phase A of the interaction assumes that shielded addresses created by the light client
+will have never been used before. This is not a valid assumption if the light client is
+being initialised with a seed that it did not generate (e.g. a previously backed-up seed).
+In this case, phase A is modified as follows:
+
+**Phase A:** The light client starts up for the first time.
+
+- The light client sets ``X`` to the block height at which Sapling activated.
+
+  - Shielded addresses created by any light client cannot have any relevant transactions
+    prior to Sapling activation.
 
 Block privacy via bucketing
 ---------------------------
