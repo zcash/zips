@@ -339,57 +339,57 @@ We can divide the typical client-server interaction into four distinct phases:
             <--------- CompactBlock(Z-1)
             <--------- CompactBlock(Z)
 
-A. The light client starts up for the first time.
+**Phase A:** The light client starts up for the first time.
 
-   - The light client queries the server to fetch the most recent block ``X``.
-   - The light client queries the commitment tree state for block ``X``.
+- The light client queries the server to fetch the most recent block ``X``.
+- The light client queries the commitment tree state for block ``X``.
 
-     - Or, it has to set ``X`` to the block height at which Sapling activated, so as to be
-       sent the entire commitment tree. [TODO: Decide which to specify.]
+  - Or, it has to set ``X`` to the block height at which Sapling activated, so as to be
+    sent the entire commitment tree. [TODO: Decide which to specify.]
 
-   - Shielded addresses created by the light client will not have any relevant
-     transactions in this or any prior block.
+- Shielded addresses created by the light client will not have any relevant transactions
+  in this or any prior block.
 
-B. The light client updates its local chain view for the first time.
+**Phase B:** The light client updates its local chain view for the first time.
 
-   - The light client queries the server to fetch the most recent block ``Y``.
-   - It then executes a block range query to fetch every block between ``X`` (inclusive)
-     and ``Y`` (inclusive).
-   - The block at height ``X`` is checked to ensure the received ``blockHash`` matches the
-     light client's cached copy, and then discards it without further processing.
+- The light client queries the server to fetch the most recent block ``Y``.
+- It then executes a block range query to fetch every block between ``X`` (inclusive) and
+  ``Y`` (inclusive).
+- The block at height ``X`` is checked to ensure the received ``blockHash`` matches the
+  light client's cached copy, and then discards it without further processing.
 
-     - An inconsistency would imply that block ``X`` was orphaned during a chain reorg.
+  - An inconsistency would imply that block ``X`` was orphaned during a chain reorg.
 
-   - As each subsequent  ``CompactBlock`` arrives, the light client scans it to find any
-     relevant transactions for addresses generated since ``X`` was fetched (likely the
-     first transactions involving those addresses). If notes are detected, it:
+- As each subsequent  ``CompactBlock`` arrives, the light client scans it to find any
+  relevant transactions for addresses generated since ``X`` was fetched (likely the first
+  transactions involving those addresses). If notes are detected, it:
 
-     - Generates incremental witnesses for the notes, and updates them going forward.
-     - Scans for their nullifiers from that block onwards.
+  - Generates incremental witnesses for the notes, and updates them going forward.
+  - Scans for their nullifiers from that block onwards.
 
-C. The light client has detected some notes and displayed them. User interaction has
-   indicated that the corresponding full transactions should be fetched.
+**Phase C:** The light client has detected some notes and displayed them. User interaction
+has indicated that the corresponding full transactions should be fetched.
 
-   - The light client queries the server for each transaction it wishes to fetch.
+- The light client queries the server for each transaction it wishes to fetch.
 
-D. The user has spent some notes. The light client updates its local chain view some time
-   later.
+**Phase D:** The user has spent some notes. The light client updates its local chain view
+some time later.
 
-   - The light client queries the server to fetch the most recent block ``Z``.
-   - It then executes a block range query to fetch every block between ``Y`` (inclusive)
-     and ``Z`` (inclusive).
-   - The block at height ``Y`` is checked to ensure the received ``blockHash`` matches the
-     light client's cached copy, and then discards it without further processing.
+- The light client queries the server to fetch the most recent block ``Z``.
+- It then executes a block range query to fetch every block between ``Y`` (inclusive) and
+  ``Z`` (inclusive).
+- The block at height ``Y`` is checked to ensure the received ``blockHash`` matches the
+  light client's cached copy, and then discards it without further processing.
 
-     - An inconsistency would imply that block ``Y`` was orphaned during a chain reorg.
+  - An inconsistency would imply that block ``Y`` was orphaned during a chain reorg.
 
-   - As each subsequent ``CompactBlock`` arrives, the light client:
+- As each subsequent ``CompactBlock`` arrives, the light client:
 
-     - Updates the incremental witnesses for known notes.
-     - Scans for any known nullifiers. The corresponding notes are marked as spent at that
-       height, and excluded from further witness updates.
-     - Scans for any relevant transactions for addresses generated since ``Y`` was
-       fetched. These are handled as in phase B.
+  - Updates the incremental witnesses for known notes.
+  - Scans for any known nullifiers. The corresponding notes are marked as spent at that
+    height, and excluded from further witness updates.
+  - Scans for any relevant transactions for addresses generated since ``Y`` was fetched.
+    These are handled as in phase B.
 
 [TODO: Describe differences when importing a pre-existing wallet seed.]
 
@@ -437,40 +437,40 @@ follows:
             <-------- CompactBlock(Z-1)
             <-------- CompactBlock(Z)
 
-B. The light client updates its local chain view for the first time.
+**Phase B:** The light client updates its local chain view for the first time.
 
-   - The light client queries the server to fetch the most recent block ``Y``.
-   - It then executes a block range query to fetch every block between ``⌊X⌋`` (inclusive)
-     and ``Y`` (inclusive).
-   - Blocks between ``⌊X⌋`` and ``X`` are checked to ensure that the received
-     ``blockHash`` matches the light client's chain view for each height, and are then
-     discarded without further processing.
+- The light client queries the server to fetch the most recent block ``Y``.
+- It then executes a block range query to fetch every block between ``⌊X⌋`` (inclusive)
+  and ``Y`` (inclusive).
+- Blocks between ``⌊X⌋`` and ``X`` are checked to ensure that the received ``blockHash``
+  matches the light client's chain view for each height, and are then discarded without
+  further processing.
 
-     - If an inconsistency is detected at height ``Q``, the light client sets ``X = Q-1``,
-       discards all local blocks with height ``>= Q``, and rolls back the state of all
-       local transactions to height ``Q-1`` (un-mining them as necessary).
+  - If an inconsistency is detected at height ``Q``, the light client sets ``X = Q-1``,
+    discards all local blocks with height ``>= Q``, and rolls back the state of all local
+    transactions to height ``Q-1`` (un-mining them as necessary).
 
-   - Blocks between ``X+1`` and ``Y`` are processed as before.
+- Blocks between ``X+1`` and ``Y`` are processed as before.
 
-D. The user has spent some notes. The light client updates its local chain view some time
-   later.
+**Phase D:** The user has spent some notes. The light client updates its local chain view
+some time later.
 
-   - The light client queries the server to fetch the most recent block ``Z``.
-   - It then executes a block range query to fetch every block between ``⌊Y⌋`` (inclusive)
-     and ``Z`` (inclusive).
-   - Blocks between ``⌊Y⌋`` and ``Y`` are checked to ensure that the received
-     ``blockHash`` matches the light client's chain view for each height, and are then
-     discarded without further processing.
+- The light client queries the server to fetch the most recent block ``Z``.
+- It then executes a block range query to fetch every block between ``⌊Y⌋`` (inclusive)
+  and ``Z`` (inclusive).
+- Blocks between ``⌊Y⌋`` and ``Y`` are checked to ensure that the received ``blockHash``
+  matches the light client's chain view for each height, and are then discarded without
+  further processing.
 
-     - If an inconsistency is detected at height ``R``, the light client sets ``Y = R-1``,
-       discards all local blocks with height ``>= R``, and rolls back the following local
-       state to height ``R-1``:
+  - If an inconsistency is detected at height ``R``, the light client sets ``Y = R-1``,
+    discards all local blocks with height ``>= R``, and rolls back the following local
+    state to height ``R-1``:
 
-       - All local transactions (un-mining them as necessary).
-       - All tracked nullifiers (unspending or discarding as necessary).
-       - All incremental witnesses (caching strategies are not covered in this ZIP).
+    - All local transactions (un-mining them as necessary).
+    - All tracked nullifiers (unspending or discarding as necessary).
+    - All incremental witnesses (caching strategies are not covered in this ZIP).
 
-   - Blocks between ``Y+1`` and ``Z`` are processed as before.
+- Blocks between ``Y+1`` and ``Z`` are processed as before.
 
 Transaction privacy
 -------------------
