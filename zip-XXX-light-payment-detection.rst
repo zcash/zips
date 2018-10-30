@@ -271,10 +271,35 @@ slight deviation from the standard decryption process [#sapling-ivk-decryption]_
 
 Creating and updating note witnesses
 ````````````````````````````````````
+As ``CompactBlocks`` are received in height order, and the transactions within them have
+their order preserved, the *cmu* values in each ``CompactOutput`` can be sequentially
+appended to an incremental Merkle tree of depth 32 in order to maintain a local copy of
+the Sapling note commitment tree. [#sapling-commitment-tree]_ This can then be used to
+create incremental witnesses for each unspent note the light client is tracking.
+[#incremental-witness]_ An incremental witness updated to height ``X`` corresponds to a
+Merkle path from the note to the Sapling commitment tree anchor for block ``X``.
+[#sapling-merkle-path]_
 
-As ``CompactBlocks`` are received in-order, the *cmu* values in each ``CompactOutput`` can
-be sequentially appended to a Sapling commitment Merkle tree. This can then be used to
-create and cache incremental witnesses.
+Let ``tree`` be the Sapling note commitment tree at height ``X-1``, and ``note_witnesses``
+be the incremental witnesses for unspent notes detected up to height ``X-1``. When the
+``CompactBlock`` at height ``X`` is received:
+
+- For each ``CompactTx`` in ``CompactBlock``:
+
+  - For each ``CompactOutput`` (*cmu*, *epk*, *ciphertext*) in ``CompactBlock``:
+
+    - Append ``cmu`` to ``tree``.
+    - For ``witness`` in ``note_witnesses``:
+
+      - Append ``cmu`` to ``witness``.
+
+    - If ``ciphertext`` contains a relevant note, create an incremental witness from
+      ``tree`` and append it to ``note_witnesses``.
+
+Incremental Merkle trees cannot be rewound, so the light client should cache both the
+Sapling note commitment tree and per-note incremental witnesses for recent block heights.
+Cache management is implementation-dependent, but a cache size of 100 is reasonable, as no
+full Zcash node will roll back the chain by more than 100 blocks.
 
 Detecting spends
 ````````````````
@@ -531,3 +556,9 @@ References
 [Output] [ZEC] Section 7.x
 
 .. [#sapling-ivk-decryption] `Section 4.17.2: Decryption using an Incoming Viewing Key (Sapling). Zcash Protocol Specification, Version 2018.0-beta-31 or later [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
+
+.. [#sapling-commitment-tree] `Section 3.7: Note Commitment Trees. Zcash Protocol Specification, Version 2018.0-beta-32 or later [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
+
+.. [#incremental-witness] `TODO`
+
+.. [#sapling-merkle-path] `Section 4.8: Merkle path validity. Zcash Protocol Specification, Version 2018.0-beta-32 or later [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
