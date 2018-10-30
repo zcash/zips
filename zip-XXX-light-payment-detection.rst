@@ -250,7 +250,7 @@ Local processing
 ----------------
 
 Given a ``CompactBlock`` received in height-sequential order from a proxy server, a light
-client can process it in three ways:
+client can process it in four ways:
 
 Scanning for relevant transactions
 ``````````````````````````````````
@@ -306,6 +306,48 @@ Detecting spends
 
 The ``CompactSpend`` entries can be checked against known local nullifiers, to for example
 ensure that a transaction has been received by the network and mined.
+
+Block header validation
+```````````````````````
+If the ``CompactBlock`` for height ``X`` contains a block header, the light client can
+validate it in a similar way to SPV clients [#spv-clients]_ by performing the following
+checks:
+
+- ``version >= MIN_BLOCK_VERSION``
+- ``prevHash == prevBlock.id.blockHash`` where ``prevBlock`` is the previous
+  ``CompactBlock`` received (at height ``X-1``).
+- ``finalSaplingRoot`` is equal to the root of the Sapling note commitment tree after
+  appending every ``cmu`` in the ``CompactBlock`` in-order.
+- The Equihash solution is valid.
+- ``targetFromBits(bits) != 0 && targetFromBits(bits) <= powLimit``.
+- If the last 27 ``CompactBlocks`` all have block headers, ``bits`` is set correctly
+  according to the difficulty adjustment algorithm.
+- ``toLittleEndian(blockHash) <= targetFromBits(bits)``.
+
+A ``CompactBlock`` that fails any of these checks MUST be discarded. If it was received as
+part of a ``GetBlockRange`` call, the call MUST be aborted.
+
+Block header validation provides light clients with some assurance that the
+``CompactOutputs`` being sent to them are indeed from valid blocks that have been mined.
+The strongest-possible assurance is achieved when all block headers are synchronised; this
+comes at the cost of bandwidth and storage.
+
+By default, ``CompactBlocks`` only contain ``CompactTxs`` for transactions that contain
+Sapling spends or outputs. Thus they do not contain sufficient information to validate
+that the received transaction IDs correspond to the transaction tree root in the block
+header. This does not have a significant effect on light client security: light clients
+only directly depend on ``CompactOutputs``, which can be authenticated via block header
+validation. If a txid is used in a ``GetTransaction`` call, the returned transaction
+SHOULD be checked against the corresponding ``CompactOutputs``, in addition to verifying
+the transaction signatures.
+
+[**TODO:** Do we want the next paragraph here?]
+
+A trivial extension (with corresponding bandwidth cost) would be to transmit empty
+``CompactTxs`` corresponding to transactions that do not contain Sapling spends or
+outputs. A more complex extension would send the inner nodes within the transaction
+trees corresponding to non-Sapling-relevant subtrees; this would require strictly less
+bandwidth that the trivial extension.
 
 Client-server interaction
 -------------------------
@@ -385,12 +427,15 @@ We can divide the typical client-server interaction into four distinct phases:
 
   - An inconsistency would imply that block ``X`` was orphaned during a chain reorg.
 
-- As each subsequent  ``CompactBlock`` arrives, the light client scans it to find any
-  relevant transactions for addresses generated since ``X`` was fetched (likely the first
-  transactions involving those addresses). If notes are detected, it:
+- As each subsequent ``CompactBlock`` arrives, the light client:
 
-  - Generates incremental witnesses for the notes, and updates them going forward.
-  - Scans for their nullifiers from that block onwards.
+  - Validates the block header if it is present.
+  - Scans the ``CompactBlock`` to find any relevant transactions for addresses generated
+    since ``X`` was fetched (likely the first transactions involving those addresses). If
+    notes are detected, it:
+
+    - Generates incremental witnesses for the notes, and updates them going forward.
+    - Scans for their nullifiers from that block onwards.
 
 **Phase C:** The light client has detected some notes and displayed them. User interaction
 has indicated that the corresponding full transactions should be fetched.
@@ -410,6 +455,7 @@ some time later.
 
 - As each subsequent ``CompactBlock`` arrives, the light client:
 
+  - Validates the block header if it is present.
   - Updates the incremental witnesses for known notes.
   - Scans for any known nullifiers. The corresponding notes are marked as spent at that
     height, and excluded from further witness updates.
@@ -562,3 +608,5 @@ References
 .. [#incremental-witness] `TODO`
 
 .. [#sapling-merkle-path] `Section 4.8: Merkle path validity. Zcash Protocol Specification, Version 2018.0-beta-32 or later [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
+
+.. [#spv-clients] `TODO`
