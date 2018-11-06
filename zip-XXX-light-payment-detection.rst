@@ -250,7 +250,7 @@ Local processing
 ----------------
 
 Given a ``CompactBlock`` received in height-sequential order from a proxy server, a light
-client can process it in three ways:
+client can process it in four ways:
 
 Scanning for relevant transactions
 ``````````````````````````````````
@@ -271,16 +271,83 @@ slight deviation from the standard decryption process [#sapling-ivk-decryption]_
 
 Creating and updating note witnesses
 ````````````````````````````````````
+As ``CompactBlocks`` are received in height order, and the transactions within them have
+their order preserved, the *cmu* values in each ``CompactOutput`` can be sequentially
+appended to an incremental Merkle tree of depth 32 in order to maintain a local copy of
+the Sapling note commitment tree. [#sapling-commitment-tree]_ This can then be used to
+create incremental witnesses for each unspent note the light client is tracking.
+[#incremental-witness]_ An incremental witness updated to height ``X`` corresponds to a
+Merkle path from the note to the Sapling commitment tree anchor for block ``X``.
+[#sapling-merkle-path]_
 
-As ``CompactBlocks`` are received in-order, the *cmu* values in each ``CompactOutput`` can
-be sequentially appended to a Sapling commitment Merkle tree. This can then be used to
-create and cache incremental witnesses.
+Let ``tree`` be the Sapling note commitment tree at height ``X-1``, and ``note_witnesses``
+be the incremental witnesses for unspent notes detected up to height ``X-1``. When the
+``CompactBlock`` at height ``X`` is received:
+
+- For each ``CompactTx`` in ``CompactBlock``:
+
+  - For each ``CompactOutput`` (*cmu*, *epk*, *ciphertext*) in ``CompactBlock``:
+
+    - Append ``cmu`` to ``tree``.
+    - For ``witness`` in ``note_witnesses``:
+
+      - Append ``cmu`` to ``witness``.
+
+    - If ``ciphertext`` contains a relevant note, create an incremental witness from
+      ``tree`` and append it to ``note_witnesses``.
+
+Incremental Merkle trees cannot be rewound, so the light client should cache both the
+Sapling note commitment tree and per-note incremental witnesses for recent block heights.
+Cache management is implementation-dependent, but a cache size of 100 is reasonable, as no
+full Zcash node will roll back the chain by more than 100 blocks.
 
 Detecting spends
 ````````````````
 
 The ``CompactSpend`` entries can be checked against known local nullifiers, to for example
 ensure that a transaction has been received by the network and mined.
+
+Block header validation
+```````````````````````
+If the ``CompactBlock`` for height ``X`` contains a block header, the light client can
+validate it in a similar way to SPV clients [#spv-clients]_ by performing the following
+checks:
+
+- ``version >= MIN_BLOCK_VERSION``
+- ``prevHash == prevBlock.id.blockHash`` where ``prevBlock`` is the previous
+  ``CompactBlock`` received (at height ``X-1``).
+- ``finalSaplingRoot`` is equal to the root of the Sapling note commitment tree after
+  appending every ``cmu`` in the ``CompactBlock`` in-order.
+- The Equihash solution is valid.
+- ``targetFromBits(bits) != 0 && targetFromBits(bits) <= powLimit``.
+- If the last 27 ``CompactBlocks`` all have block headers, ``bits`` is set correctly
+  according to the difficulty adjustment algorithm.
+- ``toLittleEndian(blockHash) <= targetFromBits(bits)``.
+
+A ``CompactBlock`` that fails any of these checks MUST be discarded. If it was received as
+part of a ``GetBlockRange`` call, the call MUST be aborted.
+
+Block header validation provides light clients with some assurance that the
+``CompactOutputs`` being sent to them are indeed from valid blocks that have been mined.
+The strongest-possible assurance is achieved when all block headers are synchronised; this
+comes at the cost of bandwidth and storage.
+
+By default, ``CompactBlocks`` only contain ``CompactTxs`` for transactions that contain
+Sapling spends or outputs. Thus they do not contain sufficient information to validate
+that the received transaction IDs correspond to the transaction tree root in the block
+header. This does not have a significant effect on light client security: light clients
+only directly depend on ``CompactOutputs``, which can be authenticated via block header
+validation. If a txid is used in a ``GetTransaction`` call, the returned transaction
+SHOULD be checked against the corresponding ``CompactOutputs``, in addition to verifying
+the transaction signatures.
+
+[**TODO:** Do we want the next paragraph here?]
+
+A trivial extension (with corresponding bandwidth cost) would be to transmit empty
+``CompactTxs`` corresponding to transactions that do not contain Sapling spends or
+outputs. A more complex extension would send the inner nodes within the transaction
+trees corresponding to non-Sapling-relevant subtrees; this would require strictly less
+bandwidth that the trivial extension.
 
 Client-server interaction
 -------------------------
@@ -339,59 +406,75 @@ We can divide the typical client-server interaction into four distinct phases:
             <--------- CompactBlock(Z-1)
             <--------- CompactBlock(Z)
 
-A. The light client starts up for the first time.
+**Phase A:** The light client starts up for the first time.
 
-   - The light client queries the server to fetch the most recent block ``X``.
-   - The light client queries the commitment tree state for block ``X``.
+- The light client queries the server to fetch the most recent block ``X``.
+- The light client queries the commitment tree state for block ``X``.
 
-     - Or, it has to set ``X`` to the block height at which Sapling activated, so as to be
-       sent the entire commitment tree. [TODO: Decide which to specify.]
+  - Or, it has to set ``X`` to the block height at which Sapling activated, so as to be
+    sent the entire commitment tree. [TODO: Decide which to specify.]
 
-   - Shielded addresses created by the light client will not have any relevant
-     transactions in this or any prior block.
+- Shielded addresses created by the light client will not have any relevant transactions
+  in this or any prior block.
 
-B. The light client updates its local chain view for the first time.
+**Phase B:** The light client updates its local chain view for the first time.
 
-   - The light client queries the server to fetch the most recent block ``Y``.
-   - It then executes a block range query to fetch every block between ``X`` (inclusive)
-     and ``Y`` (inclusive).
-   - The block at height ``X`` is checked to ensure the received ``blockHash`` matches the
-     light client's cached copy, and then discards it without further processing.
+- The light client queries the server to fetch the most recent block ``Y``.
+- It then executes a block range query to fetch every block between ``X`` (inclusive) and
+  ``Y`` (inclusive).
+- The block at height ``X`` is checked to ensure the received ``blockHash`` matches the
+  light client's cached copy, and then discards it without further processing.
 
-     - An inconsistency would imply that block ``X`` was orphaned during a chain reorg.
+  - An inconsistency would imply that block ``X`` was orphaned during a chain reorg.
 
-   - As each subsequent  ``CompactBlock`` arrives, the light client scans it to find any
-     relevant transactions for addresses generated since ``X`` was fetched (likely the
-     first transactions involving those addresses). If notes are detected, it:
+- As each subsequent ``CompactBlock`` arrives, the light client:
 
-     - Generates incremental witnesses for the notes, and updates them going forward.
-     - Scans for their nullifiers from that block onwards.
+  - Validates the block header if it is present.
+  - Scans the ``CompactBlock`` to find any relevant transactions for addresses generated
+    since ``X`` was fetched (likely the first transactions involving those addresses). If
+    notes are detected, it:
 
-C. The light client has detected some notes and displayed them. User interaction has
-   indicated that the corresponding full transactions should be fetched.
+    - Generates incremental witnesses for the notes, and updates them going forward.
+    - Scans for their nullifiers from that block onwards.
 
-   - The light client queries the server for each transaction it wishes to fetch.
+**Phase C:** The light client has detected some notes and displayed them. User interaction
+has indicated that the corresponding full transactions should be fetched.
 
-D. The user has spent some notes. The light client updates its local chain view some time
-   later.
+- The light client queries the server for each transaction it wishes to fetch.
 
-   - The light client queries the server to fetch the most recent block ``Z``.
-   - It then executes a block range query to fetch every block between ``Y`` (inclusive)
-     and ``Z`` (inclusive).
-   - The block at height ``Y`` is checked to ensure the received ``blockHash`` matches the
-     light client's cached copy, and then discards it without further processing.
+**Phase D:** The user has spent some notes. The light client updates its local chain view
+some time later.
 
-     - An inconsistency would imply that block ``Y`` was orphaned during a chain reorg.
+- The light client queries the server to fetch the most recent block ``Z``.
+- It then executes a block range query to fetch every block between ``Y`` (inclusive) and
+  ``Z`` (inclusive).
+- The block at height ``Y`` is checked to ensure the received ``blockHash`` matches the
+  light client's cached copy, and then discards it without further processing.
 
-   - As each subsequent ``CompactBlock`` arrives, the light client:
+  - An inconsistency would imply that block ``Y`` was orphaned during a chain reorg.
 
-     - Updates the incremental witnesses for known notes.
-     - Scans for any known nullifiers. The corresponding notes are marked as spent at that
-       height, and excluded from further witness updates.
-     - Scans for any relevant transactions for addresses generated since ``Y`` was
-       fetched. These are handled as in phase B.
+- As each subsequent ``CompactBlock`` arrives, the light client:
 
-[TODO: Describe differences when importing a pre-existing wallet seed.]
+  - Validates the block header if it is present.
+  - Updates the incremental witnesses for known notes.
+  - Scans for any known nullifiers. The corresponding notes are marked as spent at that
+    height, and excluded from further witness updates.
+  - Scans for any relevant transactions for addresses generated since ``Y`` was fetched.
+    These are handled as in phase B.
+
+Importing a pre-existing seed
+`````````````````````````````
+Phase A of the interaction assumes that shielded addresses created by the light client
+will have never been used before. This is not a valid assumption if the light client is
+being initialised with a seed that it did not generate (e.g. a previously backed-up seed).
+In this case, phase A is modified as follows:
+
+**Phase A:** The light client starts up for the first time.
+
+- The light client sets ``X`` to the block height at which Sapling activated.
+
+  - Shielded addresses created by any light client cannot have any relevant transactions
+    prior to Sapling activation.
 
 Block privacy via bucketing
 ---------------------------
@@ -437,40 +520,40 @@ follows:
             <-------- CompactBlock(Z-1)
             <-------- CompactBlock(Z)
 
-B. The light client updates its local chain view for the first time.
+**Phase B:** The light client updates its local chain view for the first time.
 
-   - The light client queries the server to fetch the most recent block ``Y``.
-   - It then executes a block range query to fetch every block between ``⌊X⌋`` (inclusive)
-     and ``Y`` (inclusive).
-   - Blocks between ``⌊X⌋`` and ``X`` are checked to ensure that the received
-     ``blockHash`` matches the light client's chain view for each height, and are then
-     discarded without further processing.
+- The light client queries the server to fetch the most recent block ``Y``.
+- It then executes a block range query to fetch every block between ``⌊X⌋`` (inclusive)
+  and ``Y`` (inclusive).
+- Blocks between ``⌊X⌋`` and ``X`` are checked to ensure that the received ``blockHash``
+  matches the light client's chain view for each height, and are then discarded without
+  further processing.
 
-     - If an inconsistency is detected at height ``Q``, the light client sets ``X = Q-1``,
-       discards all local blocks with height ``>= Q``, and rolls back the state of all
-       local transactions to height ``Q-1`` (un-mining them as necessary).
+  - If an inconsistency is detected at height ``Q``, the light client sets ``X = Q-1``,
+    discards all local blocks with height ``>= Q``, and rolls back the state of all local
+    transactions to height ``Q-1`` (un-mining them as necessary).
 
-   - Blocks between ``X+1`` and ``Y`` are processed as before.
+- Blocks between ``X+1`` and ``Y`` are processed as before.
 
-D. The user has spent some notes. The light client updates its local chain view some time
-   later.
+**Phase D:** The user has spent some notes. The light client updates its local chain view
+some time later.
 
-   - The light client queries the server to fetch the most recent block ``Z``.
-   - It then executes a block range query to fetch every block between ``⌊Y⌋`` (inclusive)
-     and ``Z`` (inclusive).
-   - Blocks between ``⌊Y⌋`` and ``Y`` are checked to ensure that the received
-     ``blockHash`` matches the light client's chain view for each height, and are then
-     discarded without further processing.
+- The light client queries the server to fetch the most recent block ``Z``.
+- It then executes a block range query to fetch every block between ``⌊Y⌋`` (inclusive)
+  and ``Z`` (inclusive).
+- Blocks between ``⌊Y⌋`` and ``Y`` are checked to ensure that the received ``blockHash``
+  matches the light client's chain view for each height, and are then discarded without
+  further processing.
 
-     - If an inconsistency is detected at height ``R``, the light client sets ``Y = R-1``,
-       discards all local blocks with height ``>= R``, and rolls back the following local
-       state to height ``R-1``:
+  - If an inconsistency is detected at height ``R``, the light client sets ``Y = R-1``,
+    discards all local blocks with height ``>= R``, and rolls back the following local
+    state to height ``R-1``:
 
-       - All local transactions (un-mining them as necessary).
-       - All tracked nullifiers (unspending or discarding as necessary).
-       - All incremental witnesses (caching strategies are not covered in this ZIP).
+    - All local transactions (un-mining them as necessary).
+    - All tracked nullifiers (unspending or discarding as necessary).
+    - All incremental witnesses (caching strategies are not covered in this ZIP).
 
-   - Blocks between ``Y+1`` and ``Z`` are processed as before.
+- Blocks between ``Y+1`` and ``Z`` are processed as before.
 
 Transaction privacy
 -------------------
@@ -519,3 +602,11 @@ References
 [Output] [ZEC] Section 7.x
 
 .. [#sapling-ivk-decryption] `Section 4.17.2: Decryption using an Incoming Viewing Key (Sapling). Zcash Protocol Specification, Version 2018.0-beta-31 or later [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
+
+.. [#sapling-commitment-tree] `Section 3.7: Note Commitment Trees. Zcash Protocol Specification, Version 2018.0-beta-32 or later [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
+
+.. [#incremental-witness] `TODO`
+
+.. [#sapling-merkle-path] `Section 4.8: Merkle path validity. Zcash Protocol Specification, Version 2018.0-beta-32 or later [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
+
+.. [#spv-clients] `TODO`
