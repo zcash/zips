@@ -9787,6 +9787,7 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
     \item Modify the description of $3$-bit window lookup in \crossref{cctfixedscalarmult}
           to match sapling-crypto.
     \item Describe $2$-bit window lookup with conditional negation in \crossref{cctpedersenhash}.
+    \item Fix or complete various calculations of constraint costs.
 } %sapling
 \end{itemize}
 
@@ -11811,8 +11812,9 @@ We define $\MixingPedersenHash \typecolon \range{0}{\ParamJ{r}-1}
   \item $\MixingPedersenHash(P, x) := P + \scalarmult{x}{\NotePositionBase}$.
 \end{formulae}
 
-This costs \todo{...} for the scalar multiplication, and $6$ constraints for the
-Edwards addition, for a total of \todo{...} constraints.
+This costs $92$ constraints for the scalar multiplication
+(\crossref{cctfixedscalarmult}), and $6$ constraints for the Edwards addition
+(\crossref{cctedarithmetic}), for a total of $98$ constraints.
 
 
 \introsection
@@ -11841,8 +11843,8 @@ overall path check would fail.
 
 For each layer, the cost is $1 + 2 \smult 255$ boolean constraints,
 $2$ constraints for the conditional swap (implemented as two selection
-constraints), and todo{...} for the Merkle hash, for a total of \todo{...}
-constraints.
+constraints), and $869$ constraints for the Merkle hash (\crossref{cctpedersenhash}),
+for a total of $1380$ constraints.
 
 \nnote{The conditional swap $(a_0, a_1) \mapsto (c_0, c_1)$ could be implemented
 in only one constraint by substituting $c_1 = a_0 + a_1 - c_0$ into the
@@ -11853,7 +11855,8 @@ uses of $c_1$. The \Sapling circuit does not use this optimization.}
 \subsubsection{\WindowedPedersenCommitment} \label{cctwindowedcommit}
 
 We construct \windowedPedersenCommitments by reusing the Pedersen hash
-implementation, and adding a randomized point:
+implementation described in \crossref{cctpedersenhash}, and adding a
+randomized point:
 
 \begin{formulae}
   \item $\WindowedPedersenCommit{r}(s) =
@@ -11863,12 +11866,18 @@ implementation, and adding a randomized point:
 \introlist
 This can be implemented in:
 \begin{itemize}
-  \item $... \smult \ell + ...$ constraints for the Pedersen hash on
-        $\ell = \length(s)$ bits (again assuming that the first $6$ bits are fixed);
+  \item $5 \smult c + 5 \smult n - 6$ constraints for the Pedersen hash applied to
+        $\ell = 6 + \length(s)$ bits, where $c = \ceiling{\hfrac{\ell}{3}}$ and
+        $n = \ceiling{\hfrac{\ell}{3 \mult 63}}$;
   \item $750$ constraints for the fixed-base scalar multiplication;
-  \item $6$ constraints for the final Edwards addition
+  \item $6$ constraints for the final Edwards addition.
 \end{itemize}
-for a total of $... \smult \ell + 756$ constraints.
+
+When $\WindowedPedersenCommit{}$ is used to instantiate $\NoteCommitSapling{}$,
+the cost of the Pedersen hash is $984$ constraints as calculated in
+\crossref{cctpedersenhash}, and so the total cost in that case is $1740$ constraints.
+This does not include the cost of boolean-constraining the input $s$ or the
+randomness $r$.
 
 
 \subsubsection{\HomomorphicPedersenCommitment} \label{ccthomomorphiccommit}
@@ -11895,12 +11904,13 @@ equal to an integer.
 \introlist
 $\ValueCommit{}$ can be implemented in:
 \begin{itemize}
-  \item $64$ constraints to boolean-constrain the value bits;
   \item $750$ constraints for the $252$-bit fixed-base multiplication by $\ValueCommitRand$;
-  \item $?$ constraints for the $64$-bit fixed-base multiplication by $\Value$;
+  \item $191$ constraints for the $64$-bit fixed-base multiplication by $\Value$;
   \item $6$ constraints for the Edwards addition
 \end{itemize}
-for a total cost of $?$ constraints.
+\vspace{-1ex}
+for a total cost of $947$ constraints. This does not include the cost to boolean-constrain
+the input $\Value$ or randomness $\ValueCommitRand$.
 
 
 \introsection
