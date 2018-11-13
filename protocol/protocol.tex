@@ -321,6 +321,7 @@
 \newcommand{\plus}{\hairspace +\hairspace}
 \newcommand{\vv}{\hspace{0.071em}\varv\hspace{0.064em}}
 \newcommand{\varvv}{\varv\kern 0.02em\varv}
+\newcommand{\yy}{\hspace{0.022em}y\hspace{0.021em}}
 
 \newcommand{\hfrac}[2]{\scalebox{0.8}{$\genfrac{}{}{0.5pt}{0}{#1}{#2}$}}
 \newcommand{\ssqrt}[1]{\rlap{\scalebox{0.64}[1]{$\sqrt{\scalebox{1.5625}[1]{${#1}\vphantom{b}$}}$}} %
@@ -9785,6 +9786,7 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
 \sapling{
     \item Modify the description of $3$-bit window lookup in \crossref{cctfixedscalarmult}
           to match sapling-crypto.
+    \item Describe $2$-bit window lookup with conditional negation in \crossref{cctpedersenhash}.
 } %sapling
 \end{itemize}
 
@@ -11713,7 +11715,50 @@ results formed from adding a distinct subset of terms-- have distinct indices
 disregarding sign, hence distinct $x$-coordinates by \theoremref{thmdistinctxcriterion}.
 (We make no assumption about the order of additions.)
 
-\todo{Describe the lookup subcircuit.}
+We now describe the subcircuit used to process each chunk, which contributes most of
+the constraint cost of the hash. This subcircuit is used to perform a lookup of a
+Montgomery point in a $2$-bit window table, conditionally negate the result, and add
+it to an accumulator holding another Montgomery point.
+
+Suppose that the bits of the chunk, $[s_0, s_1, s_2]$, are already boolean-constrained.
+
+We aim to compute $C = A + \scalarmult{(1 - 2 \mult s_2) \mult (1 + s_0 + 2 \mult s_1)}{P}$
+for some fixed base point $P$ and accumulated sum $A$.
+
+We first compute $s\suband = s_0 \band s_1$:
+
+\begin{formulae}
+  \item $\constraint{s_0}{s_1}{s\suband}$
+\end{formulae}
+
+Let $(x_k, y_k) = \scalarmult{k}{P}$ for $k \in \range{1}{4}$. Define each coordinate of
+$(x_S, y_R) = \scalarmult{1 + s_0 + 2 \mult s_1}{P}$ as a linear combination of $s_0$, $s_1$, and $s\suband$:
+
+\begin{formulae}
+  \item let $x_S = x_1 + (x_2-x_1) \mult s_0 + (x_3-x_1) \mult s_1 + (x_4+x_1-x_2-x_3) \mult s\suband$
+  \item let $y_R\hspace{0.01em} = \yy_1 + (\yy_2-\yy_1) \mult s_0 + (\yy_3-\yy_1) \mult s_1 + (\yy_4+\yy_1-\yy_2-\yy_3) \mult s\suband$
+\end{formulae}
+
+We implement the conditional negation as $\constraint{2 \mult y_R}{s_2}{y_R - y_S}$.
+After substitution of $y_R$ this becomes:
+\begin{formulae}
+  \item $\lconstraint{2 \mult (y_1 + (y_2-y_1) \mult s_0 + (y_3-y_1) \mult s_1 + (y_4+y_1-y_2-y_3) \mult s\suband)}\!\lincomb{s_2} = \\
+         \mhspace{1.45em}\lincomb{y_1 + (y_2-y_1) \mult s_0 + (y_3-y_1) \mult s_1 + (y_4+y_1-y_2-y_3) \mult s\suband - y_S}$
+\end{formulae}
+
+Then we substitute $x_S$ into the Montgomery addition constraints from \crossref{cctmontarithmetic}, as follows:
+
+\begin{formulae}
+  \item $\constraint{x_1 + (x_2-x_1) \mult s_0 + (x_3-x_1) \mult s_1 + (x_4+x_1-x_2-x_3) \mult s\suband - x_A}{\lambda}{y_S - y_A}$
+  \item $\constraint{\ParamM{B} \smult \lambda}{\lambda}{\ParamM{A} + x_A + x_1 + (x_2-x_1) \mult s_0 + (x_3-x_1) \mult s_1 + (x_4+x_1-x_2-x_3) \mult s\suband + x_C}$
+  \item $\constraint{x_A - x_C}{\lambda}{y_C + y_A}$
+\end{formulae}
+
+(In the sapling-crypto implementation, linear combinations are first-class values, so these substitutions
+do not need to be done ``by hand''.)
+
+For the first addition in each segment, both sides are looked up and substituted into the Montgomery
+addition, so the first lookup takes only $2$ constraints.
 
 When these hashes are used in the circuit, the first 6 bits of the input
 are fixed. For example, in the Merkle tree hashes they represent the layer number.
@@ -11721,8 +11766,32 @@ This would allow a precomputation for the first two windows, but that
 optimization is not done in \Sapling.
 
 The cost of a Pedersen hash over $\ell$ bits (where $\ell$ includes the fixed
-bits) is ... constraints. In particular, for the Merkle tree hashes $\ell = 516$,
-so the cost is ... constraints.
+bits) is as follows. The number of chunks is $c = \ceiling{\hfrac{\ell}{3}}$ and
+the number of segments is $n = \ceiling{\hfrac{\ell}{3 \mult 63}}$.
+
+\introlist
+The cost is then:
+
+\begin{itemize}
+  \item $2 \smult c$ constraints for the lookups;
+  \item $3 \smult (c-n)$ constraints for incomplete additions on the Montgomery curve;
+  \item $2 \smult n$ constraints for Montgomery-to-Edwards conversions;
+  \item $6 \smult (n-1)$ constraints for Edwards additions;
+\end{itemize}
+
+\vspace{-1ex}
+for a total of $5 \smult c + 5 \smult n - 6$ constraints. This does not include
+the cost of boolean-constraining inputs.
+
+In particular,
+\begin{itemize}
+  \item for the Merkle tree hashes $\ell = 516$, so $c = 172$, $n = 3$,
+        and the cost is $869$ constraints;
+  \item when a Pedersen hash is used to implement part of a Pedersen commitment
+        for $\NoteCommitSapling{}$ (\crossref{concretesaplingnotecommit}),
+        $\ell = 6 + \ValueLength + 2 \smult \ellJ = 582$, $c = 194$, and $n = 4$,
+        so the cost of the hash alone is $984$ constraints.
+\end{itemize}
 
 
 \introlist
