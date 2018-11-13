@@ -168,6 +168,7 @@
 \newcommand{\shortcrossref}[1]{\raisebox{0ex}{\autoref{#1}} on p.\,\pageref*{#1}}
 \newcommand{\theoremref}[1]{\raisebox{0ex}{\autoref{#1}\vphantom{,}} on p.\,\pageref*{#1}}
 \newcommand{\footnoteref}[1]{\hairspace\raisebox{0ex}{\cref{#1}}}
+\newcommand{\snarkref}[2]{\raisebox{0ex}{\hyperref[#2]{\linkstrut\smash{\textbf{#1}}}}}
 
 \newcommand{\autorefprefix}{\linkstrut\S\!}
 \renewcommand{\sectionautorefname}{\autorefprefix}
@@ -994,6 +995,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\MakeRepr}[2]{{#1}\rlap{\raisebox{-0.32ex}{$\Repr$}}\rule{0ex}{2.2ex}^{#2}}
 \newcommand{\EphemeralPublicRepr}{{\EphemeralPublic\Repr}}
 \newcommand{\EphemeralPrivate}{\mathsf{esk}}
+\newcommand{\EphemeralPrivateRepr}{{\EphemeralPrivate\Repr}}
 \newcommand{\EphemeralPrivateBytes}{\bytes{\EphemeralPrivate}}
 \newcommand{\EphemeralPrivateBytesType}{\byteseq{32}}
 \newcommand{\TransmitPublic}{\mathsf{pk_{enc}}}
@@ -1170,6 +1172,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\ValueType}{\binaryrange{\ValueLength}}
 \newcommand{\ValueCommitType}{\bigrange{-\SignedScalarLimitJ}{\SignedScalarLimitJ}}
 \newcommand{\ValueCommitRand}{\mathsf{rcv}}
+\newcommand{\ValueCommitRandRepr}{{\ValueCommitRand\Repr}}
 \newcommand{\ValueCommitRandLength}{\mathsf{\ell_{\ValueCommitRand}}}
 \newcommand{\ValueCommitRandOld}[1]{\ValueCommitRand^\mathsf{old}_{#1}}
 \newcommand{\ValueCommitRandNew}[1]{\ValueCommitRand^\mathsf{new}_{#1}}
@@ -1179,6 +1182,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\NotePlaintext}[1]{\mathbf{np}_{#1}}
 \newcommand{\OutPlaintext}{\mathbf{op}}
 \newcommand{\NoteCommitRand}{\mathsf{\sprout{r}\notsprout{rcm}}}
+\newcommand{\NoteCommitRandRepr}{{\NoteCommitRand\Repr}}
 \newcommand{\NoteCommitRandBytes}{\bytes{\NoteCommitRand}}
 \newcommand{\NoteCommitRandBytesType}{\byteseq{32}}
 \newcommand{\NoteCommitRandLength}{\mathsf{\ell_{\NoteCommitRand}}}
@@ -1196,7 +1200,6 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\cvNew}[1]{\cv^\mathsf{new}_{#1}}
 \newcommand{\cm}{\mathsf{cm}}
 \newcommand{\cmU}{\cm_{\kern -0.06em u}}
-\newcommand{\cmURepr}{\cm\Repr_{\kern -0.04em u}}
 \newcommand{\cmOld}[1]{\cm^\mathsf{old}_{#1}}
 \newcommand{\cmNew}[1]{\cm^\mathsf{new}_{#1}}
 \newcommand{\snOld}[1]{\mathsf{sn}^\mathsf{old}_{#1}}
@@ -4883,7 +4886,7 @@ $\cmOld{} = \NoteCommitSapling{\NoteCommitRandOld{}}(\reprJ\Of{\DiversifiedTrans
                                                      \vOld{})$.
 
 \vspace{-1ex}
-\snarkcondition{Merkle path validity} \label{saplingmerklepathvalidity}
+\snarkcondition{Merkle path validity} \label{spendmerklepathvalidity}
 
 Either $\vOld{} = 0$; or $(\TreePath{}, \NotePosition)$ is a valid \merklePath of depth $\MerkleDepthSapling$,
 as defined in \crossref{merklepath}, from $\cmU = \ExtractJ(\cmOld{})$ to the \anchor $\rt$.
@@ -9784,6 +9787,7 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
 \begin{itemize}
     \item No changes to \Sprout.
 \sapling{
+    \item Complete \crossref{cctsaplingspend}.
     \item Modify the description of $3$-bit window lookup in \crossref{cctfixedscalarmult}
           to match sapling-crypto.
     \item Describe $2$-bit window lookup with conditional negation in \crossref{cctpedersenhash}.
@@ -12060,7 +12064,7 @@ final $\xor$ operations), but not the message bits.
 
 
 \intropart
-\subsection{The SaplingSpend circuit} \label{cctsaplingspend}
+\subsection{The Sapling Spend circuit} \label{cctsaplingspend}
 
 The \Sapling Spend \statement is defined in \crossref{spendstatement}.
 
@@ -12071,7 +12075,16 @@ The primary input is
          \hparen\nfOld{} \typecolon \bitseq{\PRFOutputLengthNfSapling},\\
          \hparen\AuthSignRandomizedPublic \typecolon \SpendAuthSigPublic\cparen$,
 \end{formulae}
-and the auxiliary input is
+\vspace{-1ex}
+which is encoded as $8$ $\GF{\ParamS{r}}$ elements (starting with the fixed element $1$ required by $\Groth$):
+\begin{formulae}
+  \item $[1, \Selectu(\AuthSignRandomizedPublic), \Selectv(\AuthSignRandomizedPublic),
+          \Selectu(\cvOld{}), \Selectv(\cvOld{}), \LEBStoIPOf{\MerkleHashLengthSapling}{\rt},
+          \LEBStoIP{251}\big(\nfOld{\barerange{0}{250}}\big), \LEBStoIP{5}\big(\nfOld{\barerange{251}{255}}\big)]$
+\end{formulae}
+
+\vspace{-1ex}
+The auxiliary input is
 \begin{formulae}
   \item $\oparen\TreePath{} \typecolon \typeexp{\MerkleHash}{\MerkleDepthSapling},\\
          \hparen\NotePosition \typecolon \NotePositionTypeSapling,\vspace{0.4ex}\\
@@ -12083,12 +12096,12 @@ and the auxiliary input is
          \hparen\NoteCommitRandOld{} \typecolon \binaryrange{\ScalarLength},\\
          \hparen\AuthSignRandomizer \typecolon \binaryrange{\ScalarLength},\\
          \hparen\AuthSignPublic \typecolon \SpendAuthSigPublic,\\
-         \hparen\AuthProvePrivate \typecolon \binaryrange{\ScalarLength}\cparen$
+         \hparen\AuthProvePrivate \typecolon \binaryrange{\ScalarLength}\cparen$.
 \end{formulae}
 
 $\ValueCommitOutput$ and $\SpendAuthSigPublic$ are $\GroupJ$, so we have
 $\cvOld{}$, $\cmOld{}$, $\AuthSignRandomizedPublic$, $\DiversifiedTransmitBase$,
-$\DiversifiedTransmitPublic$, and $\AuthSignPublic$ which
+$\DiversifiedTransmitPublic$, and $\AuthSignPublic$ that
 represent \jubjubCurve points. However,
 \begin{itemize}
   \item $\cvOld{}$ will be constrained to an output of $\ValueCommit{}$;
@@ -12104,9 +12117,11 @@ do not need to be explicitly checked to be on the curve.
 In addition, $\AuthProvePublicRepr$ and $\NoteAddressRandRepr$ used in
 \textbf{Nullifier integrity} are compressed representations of
 \jubjubCurve points.
+\todo{explain why these are implemented as \crossref{ccteddecompressvalidate} even
+though the statement spec doesn't explicitly say to do validation.}
 
 Therefore we have $\DiversifiedTransmitBase$, $\AuthSignPublic$, $\AuthProvePublic$,
-and $\NoteAddressRand$ which need to be constrained to valid \jubjubCurve points as
+and $\NoteAddressRand$ that need to be constrained to valid \jubjubCurve points as
 described in \crossref{ccteddecompressvalidate}.
 
 \introsection
@@ -12120,63 +12135,96 @@ in the sapling-crypto code:
 Check & Implements & \heading{Cost} & Reference \\
 \hhline{|=|=|=|=|}
 
-  $\AuthSignPublic$ is on the curve
-      & $\AuthSignPublic \typecolon \SpendAuthSigPublic$             & 4     & \shortcrossref{cctedvalidate} \\ \hline
+  $\AuthSignPublic$ is on the curve \todo{FIXME also decompressed below}
+      & $\AuthSignPublic \typecolon \SpendAuthSigPublic$
+      & 4     & \shortcrossref{cctedvalidate} \\ \hline
   $\AuthSignPublic$ is not small order
-      & \textbf{Small order checks}                                  & 16    & \shortcrossref{cctednonsmallorder} \\ \hline
+      & \snarkref{Small order checks}{spendnonsmall}
+      & 16    & \shortcrossref{cctednonsmallorder} \\ \hline
   $\AuthSignRandomizerRepr \typecolon \bitseq{\ScalarLength}$
-      & $\AuthSignRandomizer \typecolon \binaryrange{\ScalarLength}$ & 252   & \shortcrossref{cctboolean} \\ \hline
+      & $\AuthSignRandomizer \typecolon \binaryrange{\ScalarLength}$
+      & 252   & \shortcrossref{cctboolean} \\ \hline
   $\AuthSignRandomizer' = \scalarmult{\AuthSignRandomizer}{\AuthSignBase}$
-      & \textbf{Spend authority}                                     & 750   & \shortcrossref{cctfixedscalarmult} \\ \cline{1-1}\cline{3-4}
+      & \snarkref{Spend authority}{spendauthority}
+      & 750   & \shortcrossref{cctfixedscalarmult} \\ \cline{1-1}\cline{3-4}
   $\AuthSignRandomizedPublic = \AuthSignRandomizer' + \AuthSignPublic$
-      &                                                              & 6     & \shortcrossref{cctedarithmetic} \\ \hline
-  inputize $\AuthSignRandomizedPublic$
-      & $\AuthSignRandomizedPublic \typecolon \SpendAuthSigPublic$   & 392?  & \shortcrossref{ccteddecompressvalidate} \\ \hline
+      &
+      & 6     & \shortcrossref{cctedarithmetic} \\ \hline
+  inputize $\AuthSignRandomizedPublic$ \todo{not ccteddecompressvalidate => wrong count}
+      & $\AuthSignRandomizedPublic \typecolon \SpendAuthSigPublic$
+      & 392?  & \shortcrossref{ccteddecompressvalidate} \\ \hline
   $\AuthProvePrivateRepr \typecolon \bitseq{\ScalarLength}$
-      & $\AuthProvePrivate \typecolon \binaryrange{\ScalarLength}$   & 252   & \shortcrossref{cctboolean} \\ \hline
+      & $\AuthProvePrivate \typecolon \binaryrange{\ScalarLength}$
+      & 252   & \shortcrossref{cctboolean} \\ \hline
   $\AuthProvePublic = \scalarmult{\AuthProvePrivate}{\AuthProveBase}$
-      & \textbf{Nullifier integrity}                                 & 750   & \shortcrossref{cctfixedscalarmult} \\ \hline
-  $\AuthSignPublicRepr = \reprJ(\AuthSignPublic)$
-      & \textbf{Diversified address integrity}                       & 392   & \shortcrossref{ccteddecompressvalidate} \\ \hline
-  $\AuthProvePublicRepr = \reprJ(\AuthProvePublic)$
-      & \textbf{Nullifier integrity}                                 & 392   & \shortcrossref{ccteddecompressvalidate} \\ \hline
+      & \snarkref{Nullifier integrity}{spendnullifierintegrity}
+      & 750   & \shortcrossref{cctfixedscalarmult} \\ \hline
+  $\AuthSignPublicRepr = \reprJ\Of{\AuthSignPublic \typecolon \GroupJ}$
+      & \snarkref{Diversified address integrity}{spendaddressintegrity}
+      & 392   & \shortcrossref{ccteddecompressvalidate} \\ \hline
+  $\AuthProvePublicRepr = \reprJ\Of{\AuthProvePublic}$
+  \todo{spec doesn't say to validate $\AuthProvePublic$ since it's calculated}
+      & \snarkref{Nullifier integrity}{spendnullifierintegrity}
+      & 392   & \shortcrossref{ccteddecompressvalidate} \\ \hline
   $\InViewingKeyRepr = \ItoLEBSP{251}\big(\CRHivk(\AuthSignPublic, \AuthProvePublic)\kern-0.08em\big)\;\dagger$
-      & \textbf{Diversified address integrity}                       & 21262 & \shortcrossref{cctblake2s} \\ \hline
+      & \snarkref{Diversified address integrity}{spendaddressintegrity}
+      & 21262 & \shortcrossref{cctblake2s} \\ \hline
   $\DiversifiedTransmitBase$ is on the curve
-      & $\DiversifiedTransmitBase \typecolon \GroupJ$                & 4     & \shortcrossref{cctedvalidate} \\ \hline
+      & $\DiversifiedTransmitBase \typecolon \GroupJ$
+      & 4     & \shortcrossref{cctedvalidate} \\ \hline
   $\DiversifiedTransmitBase$ is not small order
-      & \textbf{Small order checks}                                  & 16    & \shortcrossref{cctednonsmallorder} \\ \hline
+      & \snarkref{Small order checks}{spendnonsmall}
+      & 16    & \shortcrossref{cctednonsmallorder} \\ \hline
   $\DiversifiedTransmitPublic = \scalarmult{\InViewingKey}{\DiversifiedTransmitBase}$
-      & \textbf{Diversified address integrity}                       & 3252  & \shortcrossref{cctvarscalarmult} \\ \hline
+      & \snarkref{Diversified address integrity}{spendaddressintegrity}
+      & 3252  & \shortcrossref{cctvarscalarmult} \\ \hline
   $\vOldRepr \typecolon \bitseq{64}$
-      & $\vOld{} \typecolon \binaryrange{64}$                        & 64    & \shortcrossref{cctboolean} \\ \cline{1-1}\cline{3-4}
-  $\vOldRepr = \ItoLEBSP{64}(\vOld{})$
-      &                                                              & 1     & \shortcrossref{cctmodpack} \\ \hline
+      & $\vOld{} \typecolon \binaryrange{64}$
+      & 64    & \shortcrossref{cctboolean} \\ \hline
+  $\ValueCommitRandRepr \typecolon \bitseq{\ScalarLength}$
+      & $\ValueCommitRand \typecolon \binaryrange{\ScalarLength}$
+      & 252   & \shortcrossref{cctboolean} \\ \hline
   $\cv = \ValueCommit{\ValueCommitRand}(\vOld{})$
-      & \textbf{Value commitment integrity}                          & ?     & \shortcrossref{ccthomomorphiccommit} ($\ell = 64$) \\ \cline{1-1}\cline{3-4}
+      & \snarkref{Value commitment integrity}{spendvaluecommitmentintegrity}
+      & 947   & \shortcrossref{ccthomomorphiccommit} \\ \cline{1-1}\cline{3-4}
   inputize $\cv$
-      &                                                              & ?     & \\ \hline
+      &
+      & ?     & \\ \hline
+  $\NoteCommitRandRepr \typecolon \bitseq{\ScalarLength}$
+      & $\NoteCommitRand \typecolon \binaryrange{\ScalarLength}$
+      & 252   & \shortcrossref{cctboolean} \\ \hline
   $\cm = \NoteCommitSapling{\NoteCommitRand}(\DiversifiedTransmitBase, \DiversifiedTransmitPublic, \vOld{})$
 %      = \WindowedPedersenCommit{\NoteCommitRand}(\vOldRepr \bconcat \DiversifiedTransmitBaseRepr \bconcat \DiversifiedTransmitPublicRepr)
-      & \textbf{Note commitment integrity}                           & ?     & \shortcrossref{cctwindowedcommit} ($\ell = 576$) \\ \hline
-  $\cmURepr = \ExtractJ(\cm)$
-      & \textbf{Merkle path validity}                                & 0     & \\ \cline{1-1}\cline{3-4}
+      & \snarkref{Note commitment integrity}{spendnotecommitmentintegrity}
+      & 1740  & \shortcrossref{cctwindowedcommit} ($\ell = 576$) \\ \hline
+  $\cmU = \ExtractJ(\cm)$
+      & \snarkref{Merkle path validity}{spendmerklepathvalidity}
+      & 0     & \\ \cline{1-1}\cline{3-4}
   \raggedright $\rt'$ is the root of a Merkle tree with leaf $\cmU$, and authentication path $(\TreePath{}, \NotePositionRepr)$
-      &                                                              & 32 \mult 1369 & \shortcrossref{cctmerklepath} \\ \cline{1-1}\cline{3-4}
+      &
+      & 32 \mult 1380 & \shortcrossref{cctmerklepath} \\ \cline{1-1}\cline{3-4}
   $\NotePositionRepr = \ItoLEBSPOf{\MerkleDepthSapling}{\NotePosition}$
-      &                                                              & 1     & \shortcrossref{cctmodpack} \\ \cline{1-1}\cline{3-4}
+      &
+      & 1     & \shortcrossref{cctmodpack} \\ \cline{1-1}\cline{3-4}
   if $\vOld{} \neq 0$ then $\rt' = \rt$
-      &                                                              & 1     & \shortcrossref{cctcondeq} \\ \cline{1-1}\cline{3-4}
+      &
+      & 1     & \shortcrossref{cctcondeq} \\ \cline{1-1}\cline{3-4}
   inputize $\rt$
-      &                                                              & ?     & \\ \hline
+      &
+      & ?     & \\ \hline
   $\NoteAddressRand = \MixingPedersenHash(\cmOld{}, \NotePosition)$
-      & \textbf{Nullifier integrity}                                 & ?     & \shortcrossref{cctmixinghash} \\ \cline{1-1}\cline{3-4}
+      & \snarkref{Nullifier integrity}{spendnullifierintegrity}
+      & 98    & \shortcrossref{cctmixinghash} \\ \cline{1-1}\cline{3-4}
   $\NoteAddressRandRepr = \reprJ\Of{\NoteAddressRand}$
-      &                                                              & 392   & \shortcrossref{ccteddecompressvalidate} \\ \cline{1-1}\cline{3-4}
-  $\nf = \PRFnfSapling{\AuthProvePublicRepr}(\NoteAddressRandRepr)$
-      &                                                              & 21262 & \shortcrossref{cctblake2s} \\ \hline
-  pack inputs
-      &                                                              & ?     & \\ \hline %\shortcrossref{cctpackinputs}
+  \todo{spec doesn't say to validate $\NoteAddressRand$ since it's calculated}
+      &
+      & 392   & \shortcrossref{ccteddecompressvalidate} \\ \cline{1-1}\cline{3-4}
+  $\nfOld{} = \PRFnfSapling{\AuthProvePublicRepr}(\NoteAddressRandRepr)$
+      &
+      & 21262 & \shortcrossref{cctblake2s} \\ \hline
+  \raggedright pack $\nfOld{\barerange{0}{250}}$ and $\nfOld{\barerange{251}{255}}$ into two $\GF{\ParamS{r}}$ inputs
+      & input encoding
+      & 2     & \shortcrossref{cctmodpack} \\ \hline
 \end{tabular}
 \end{center}
 
@@ -12186,8 +12234,8 @@ significant $5$~bits, not by converting to an integer and back to a bit sequence
 
 \vspace{-2ex}
 \begin{pnotes}
-  \item The implementation represents $\AuthSignRandomizerRepr$, $\AuthProvePrivateRepr$ and $\InViewingKeyRepr$
-        as bit sequences rather than integers.
+  \item The implementation represents $\AuthSignRandomizerRepr$, $\AuthProvePrivateRepr$, $\InViewingKeyRepr$,
+        and $\vOldRepr$ as bit sequences rather than integers.
   \item The scalar multiplication circuits take the scalar as a bit sequence. For example,
         in $\DiversifiedTransmitPublic = \scalarmult{\InViewingKey}{\DiversifiedTransmitBase}$
         above, the multiplication takes
