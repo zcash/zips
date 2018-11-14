@@ -9788,6 +9788,7 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
     \item No changes to \Sprout.
 \sapling{
     \item Complete \crossref{cctsaplingspend}.
+    \item Add \crossref{cctsaplingoutput}.
     \item Modify the description of $3$-bit window lookup in \crossref{cctfixedscalarmult}
           to match sapling-crypto.
     \item Describe $2$-bit window lookup with conditional negation in \crossref{cctpedersenhash}.
@@ -12246,11 +12247,117 @@ significant $5$~bits, not by converting to an integer and back to a bit sequence
 
 
 \introsection
-\subsection{The SaplingOutput circuit} \label{cctsaplingoutput}
+\subsection{The Sapling Output circuit} \label{cctsaplingoutput}
 
+The \Sapling Output \statement is defined in \crossref{outputstatement}.
+
+The primary input is
 \begin{formulae}
-  \item ...
+  \item $\oparen\cvNew{} \typecolon \ValueCommitOutput,\\
+         \hparen\cmU \typecolon \MerkleHashSapling,\\
+         \hparen\EphemeralPublic \typecolon \GroupJ\cparen$,
 \end{formulae}
+
+which is encoded as $6$ $\GF{\ParamS{r}}$ elements (starting with the fixed element $1$ required by $\Groth$):
+\begin{formulae}
+  \item $[1, \Selectu\Of{\cvNew{}}, \Selectv\Of{\cvNew{}},
+          \Selectu\Of{\EphemeralPublic}, \Selectv\Of{\EphemeralPublic}, \LEBStoIPOf{\MerkleHashLengthSapling}{\cmU}]$
+\end{formulae}
+
+The auxiliary input is
+\begin{formulae}
+  \item $(\DiversifiedTransmitBase \typecolon \GroupJ,\\[0.5ex]
+   \hparen\DiversifiedTransmitPublicRepr \typecolon \ReprJ,\\
+   \hparen\vNew{} \typecolon \ValueType,\\
+   \hparen\ValueCommitRandNew{} \typecolon \binaryrange{\ScalarLength},\\
+   \hparen\NoteCommitRandNew{} \typecolon \binaryrange{\ScalarLength},\\
+   \hparen\EphemeralPrivate \typecolon \binaryrange{\ScalarLength})$
+\end{formulae}
+
+$\ValueCommitOutput$ is $\GroupJ$, so we have $\cvNew{}$, $\EphemeralPublic$,
+and $\DiversifiedTransmitBase$ that represent \jubjubCurve points. However,
+\vspace{1ex}
+\begin{itemize}
+  \item $\cvNew{}$ will be constrained to an output of $\ValueCommit{}$;
+  \item $\EphemeralPublic$ will be constrained to
+        $\scalarmult{\EphemeralPrivate}{\DiversifiedTransmitBase}$
+\end{itemize}
+\vspace{-1ex}
+so $\cvNew{}$ and $\EphemeralPublic$ do not need to be explicitly checked
+to be on the curve.
+
+Therefore we have only $\DiversifiedTransmitBase$ that needs to be constrained
+to a valid \jubjubCurve point as described in \crossref{ccteddecompressvalidate}.
+
+\pnote{$\DiversifiedTransmitPublicRepr$ is \emph{not} checked to be a valid
+compressed representation of a \jubjubCurve point.}
+
+
+\introsection
+In order to aid in comparing the implementation with the specification,
+we present the checks needed in the order in which they are implemented
+in the sapling-crypto code:
+
+\begin{center}
+\begin{tabular}{|p{16em}|l|C|l|}
+\hline
+Check & Implements & \heading{Cost} & Reference \\
+\hhline{|=|=|=|=|}
+
+  $\vOldRepr \typecolon \bitseq{64}$
+      & $\vOld{} \typecolon \binaryrange{64}$
+      & 64    & \shortcrossref{cctboolean} \\ \hline
+  $\ValueCommitRandRepr \typecolon \bitseq{\ScalarLength}$
+      & $\ValueCommitRand \typecolon \binaryrange{\ScalarLength}$
+      & 252   & \shortcrossref{cctboolean} \\ \hline
+  $\cv = \ValueCommit{\ValueCommitRand}(\vOld{})$
+      & \snarkref{Value commitment integrity}{outputvaluecommitmentintegrity}
+      & ?     & \shortcrossref{ccthomomorphiccommit} ($\ell = 64$) \\ \cline{1-1}\cline{3-4}
+  inputize $\cv$
+      &
+      & ?     & \\ \hline
+  $\DiversifiedTransmitBaseRepr = \reprJ(\DiversifiedTransmitBase \typecolon \GroupJ)$
+      & \snarkref{Note commitment integrity}{outputnotecommitmentintegrity}
+      & 392   & \shortcrossref{ccteddecompressvalidate} \\ \hline
+  $\DiversifiedTransmitBase$ is not small order
+      & \snarkref{Small order checks}{outputnonsmall}
+      & 16    & \shortcrossref{cctednonsmallorder} \\ \hline
+  $\EphemeralPrivateRepr \typecolon \bitseq{\ScalarLength}$
+      & $\EphemeralPrivate \typecolon \binaryrange{\ScalarLength}$
+      & 252   & \shortcrossref{cctboolean} \\ \hline
+  $\EphemeralPublic = \scalarmult{\EphemeralPrivate}{\DiversifiedTransmitBase}$
+      & \snarkref{Ephemeral public key integrity}{outputepkintegrity}
+      & 3252  & \shortcrossref{cctvarscalarmult} \\ \hline
+  inputize $\EphemeralPublic$
+      &
+      & ?     & \\ \hline
+  $\DiversifiedTransmitPublicRepr \typecolon \ReprJ$
+      & $\DiversifiedTransmitPublicRepr \typecolon \ReprJ$
+      & 256   & \shortcrossref{cctboolean} \\ \hline
+  $\NoteCommitRandRepr \typecolon \bitseq{\ScalarLength}$
+      & $\NoteCommitRand \typecolon \binaryrange{\ScalarLength}$
+      & 252   & \shortcrossref{cctboolean} \\ \hline
+  $\cm = \NoteCommitSapling{\NoteCommitRand}(\DiversifiedTransmitBase, \DiversifiedTransmitPublic, \vOld{})$
+%      = \WindowedPedersenCommit{\NoteCommitRand}(\vOldRepr \bconcat \DiversifiedTransmitBaseRepr \bconcat \DiversifiedTransmitPublicRepr)
+      & \snarkref{Note commitment integrity}{outputnotecommitmentintegrity}
+      & 1740  & \shortcrossref{cctwindowedcommit} ($\ell = 576$) \\ \hline
+  pack inputs
+      &
+      & ?     & \\ \hline %\shortcrossref{cctpackinputs}
+\end{tabular}
+\end{center}
+
+\begin{pnotes}
+  \item The implementation represents $...$,
+        and $\vOldRepr$ as bit sequences rather than integers.
+  \item The scalar multiplication circuits take the scalar as a bit sequence. For example,
+        in $\EphemeralPublic = \scalarmult{\EphemeralPrivate}{\DiversifiedTransmitBase}$
+        above, the multiplication takes
+        $\EphemeralPrivateRepr$ and $\DiversifiedTransmitBase$ as inputs and constrains
+        $\EphemeralPublic = \scalarmult{\EphemeralPrivate}{\DiversifiedTransmitBase}$
+        where $\EphemeralPrivateRepr = \ItoLEBSPOf{251}{\EphemeralPrivate}$.
+\end{pnotes}
+
 
 } %notsprout
 
