@@ -8,132 +8,319 @@
   Created: 2018-11-27
   License: MIT
 
+
 Terminology
 ===========
 
-The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to be 
-interpreted as described in RFC 2119. [#RFC2119]_
+The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to
+be interpreted as described in RFC 2119. [#RFC2119]_
 
 The terms below are to be interpreted as follows:
 
 Sprout protocol
   Code-name for the Zcash shielded protocol at launch.
 Sapling protocol
-  Code-name for the Zcash shielded protocol added by the second Zcash network upgrade,
-  also known as Network Upgrade 1.
+  Code-name for the Zcash shielded protocol added by the second Zcash network
+  upgrade, also known as Network Upgrade 1.
 
 
 Abstract
 ========
 
-This proposal describes privacy-preserving procedures for transferring funds between
-Sprout and Sapling z-addresses, and supporting RPC operations.
+This proposal describes privacy-preserving procedures to migrate funds from
+Sprout to Sapling z-addresses; and supporting RPC operations to enable,
+disable, and monitor the migration process.
 
 
 Motivation
 ==========
 
-Sapling good, Sprout bad. Summarize why. We assume users will therefore want
-to migrate all their shielded funds to Sapling.
+Zcash Sapling [#zip-0205]_ introduces significant efficiency improvements
+relative to the previous iteration of the Zcash shielded protocol, Sprout.
+These improvements will pave the way for broad mobile, exchange and vendor
+adoption of shielded addresses.
 
-Transfers from Sprout to Sapling can't be fully private because turnstile.
+Therefore, we anticipate that users will want to migrate all their shielded
+funds from Sprout to Sapling.
 
-We want to hide migration txes among all users that are doing the migration.
+The Zcash consensus rules prohibit direct transfers from Sprout to Sapling
+z-addresses, unless the amount is revealed by sending it through the
+"transparent value pool" [#transparent-value-pool]_. The primary motivation
+for this is to allow detection of any overall inflation of the Zcash monetary
+base, due to exploitation of possible vulnerabilities in the shielded
+protocols or their implementation.
 
+Since the exposure of the migrated amount potentially compromises the privacy
+of users, we wish to define a way to perform the migration that mitigates
+this privacy leak as far as possible. This can be done by hiding individual
+migration transactions among those of all users that are doing the migration
+at around the same time.
 
-
+The security analysis of migration strategies is quite subtle; the more
+obvious potential strategies can leak a lot of information.
 
 
 Requirements
 ============
 
-It must be possible to enable or disable migration.
+Migration is performed "in the background" by a ``zcashd`` node. It does not
+significantly interfere with concurrent usage of the node, other than possibly
+increasing the latency of some other shielded operations.
 
-Will eventually transfer all shielded funds in Sprout z-addresses to
+It is possible to enable or disable migration at any time.
+
+All shielded funds in Sprout z-addresses will eventually be transferred to
 Sapling z-addresses, provided the node is working.
 
-Takes a "reasonable" length of time to do so.
+It should take a "reasonable" length of time to complete the transfer;
+typically less than 2 months.
 
-Mitigates information leakage about:
+The design should mitigate information leakage via timing information and
+transaction data, including
 
-* linkage between particular z-addresses or users, and the amounts held
-* the distribution of amounts of individual notes
+ * linkage of particular z-addresses or users, and the amounts held;
+ * information about the distribution of amounts of individual notes.
 
-via timing information and transaction data.
+The design and implementation is stateless, to the extent practical.
 
-Does not interfere with other concurrent usage of the node.
-
-Stateless, to the extent possible. (This is required for the previous point.)
-
-Provides visibility for the wallet/node user into the progress of the
+Visibility is provided for the wallet/node user into the progress of the
 migration.
 
-Provides sufficient information to debug failed transactions that are part
-of the migration.
+There is sufficient information available to debug failed transactions that
+are part of the migration.
 
-Recovers from failed operations to the extent possible.
+The design recovers from failed operations to the extent possible.
 
-Send a variable number of txns for each migration block.
-
-Each user sends not too small number of txns (to obscure their total amount).
+Each user sends a number of migration transactions that is not too small (to
+obscure their total amount).
 
 
 Non-requirements
 ================
 
-No need for breakfast. Or a pony.
+There is no requirement or assumption of network layer anonymity. (Users may,
+but are not expected to, configure Tor.)
 
-Does not require or assume network layer anonymity (but user can configure Tor if they want).
+The migration procedure does not have to provably leak no information.
 
+There is no need to preserve individual note values (i.e. notes can be
+consolidated).
 
+Migration txns need only be hidden among themselves, rather than among all
+kinds of transaction.
 
-
-What is leaked?
----------------
-
-Amount sent through transparent pool.
-Fee.
-Dev fee if any.
-Number of Sprout JoinSplits.
-Number of Sapling Outputs.
-Arrival times of transactions into mempool.
-Expiry height.
-That this is a migration tx (because it has both JoinSplits and Sapling Outputs).
-
-Not leaked
-----------
-
-Transparent inputs/outputs (there are none)
-vpub_out of each JoinSplit (because we only have one nonzero vpub_out)
-
-
-
-
-
-
-
+A small amount (less than 0.01 ZEC) can be left unmigrated if this helps with
+privacy.
 
 
 Specification
 =============
 
+There are two main aspects to a strategy for selecting migration transactions:
 
+ * how many transactions are sent, and when;
+ * the amount sent in each transaction.
+
+
+Transaction schedule
+--------------------
+
+When migration is enabled, a node will send up to 5 transactions for inclusion
+in each block with height a multiple of 500 (that is, they are sent immediately
+after seeing a block with height 499, modulo 500).
+
+The migration transactions to be sent in a particular batch can take
+significant time to generate, and this time depends on the speed of the user's
+computer. If they were generated only after a block is seen at the target
+height minus 1, then this could leak information. Therefore, for target
+height N, implementations SHOULD start generating the transactions at around
+height N-5. Each migration transaction SHOULD specify an anchor at height N-10
+for each Sprout JoinSplit description.
+
+Open questions:
+
+ * does this reliably give sufficient time to generate the transactions?
+ * what happens to a batch if the anchor is invalidated -- should it be
+   regenerated, or cancelled?
+
+Rationale
+'''''''''
+
+Privacy is increased when the times at which to send transactions are
+coordinated between nodes. We choose to send a batch of transactions at each
+coordinated time. Sending multiple transactions in each batch ensures that:
+
+ - less information about balances is leaked;
+ - it is easier to finish in a reasonable length of time.
+
+The choice of 500 blocks as the batch interval ensures that each batch occurs
+at a different time of day, which may help to mitigate problems with the
+availability of nodes being correlated with the local time-of-day.
+
+Simulations show that the migration process will typically complete reasonably
+quickly even if the amount to be migrated is large:
+
+  +-----------+--------------------------------------------+
+  |           |     Time in days to complete migration     |
+  |   Amount  +-----------------+--------+-----------------+
+  |           | 10th-percentile | median | 90th-percentile |
+  +===========+=================+========+=================+
+  |     1 ZEC |       1.01      |  1.50  |       2.33      |
+  +-----------+-----------------+--------+-----------------+
+  |    10 ZEC |       1.63      |  2.46  |       3.45      |
+  +-----------+-----------------+--------+-----------------+
+  |   100 ZEC |       2.46      |  3.91  |       5.72      |
+  +-----------+-----------------+--------+-----------------+
+  |  1000 ZEC |       3.74      |  6.01  |       8.83      |
+  +-----------+-----------------+--------+-----------------+
+  | 10000 ZEC |      13.57      | 17.40  |      21.77      |
+  +-----------+-----------------+--------+-----------------+
+
+The simulation also depends on the amounts sent as specified in the next
+section. It includes the time spent waiting for the first batch to be sent.
+
+
+How much to send in each transaction
+------------------------------------
+
+The amount to send in each transaction is chosen according to the following
+distribution:
+
+1. Choose an integer exponent uniformly in the range 6 to 9 inclusive.
+2. Choose an integer mantissa uniformly in the range 1 to 99 inclusive.
+3. Calculate amount := (mantissa * 10^exponent) zatoshi.
+4. If amount is greater than the amount remaining to send, repeat from step 1.
+
+Implementations MAY optimize this procedure by selecting the exponent and
+mantissa based on the amount remaining to avoid repetition, but the resulting
+distribution MUST be identical.
+
+Rationale
+'''''''''
+
+Suppose that a user has an amount to migrate that is a round number of ZEC.
+Then, a potential attack would be to find some subset of all the migration
+transactions that sum to a round number of ZEC, and infer that all of those
+transactions are from the same user. If amounts sent were a random multiple
+of 1 zatoshi, then the resulting knapsack problem would be likely to have a
+unique solution and be practically solvable for the number of transactions
+involved. The chosen distribution of transaction amounts mitigates this
+potential vulnerability by ensuring that there will be many solutions for sets
+of transactions, including "incorrect" solutions (that is, solutions that mix
+transactions from different users, contrary to the supposed adversary's
+inference).
+
+
+Other design decisions
+----------------------
+
+We assume use of the normal wallet note selection algorithm and change
+handling. Change is sent back to the default address, which is the z-address
+of the first selected Sprout note. The number of JoinSplits will therefore be
+the same as for a normal transaction sending the same amount with the same
+wallet state. Only the ``vpub_out`` of the last JoinSplit will be nonzero.
+There will always be exactly one Sapling Output.
+
+The expiration height is chosen as for other transactions.
+
+The fee for each migration transaction MUST be 0.0001 ZEC.
+
+Some wallets by default add a "developer fee" to each transaction, directed
+to the developer(s) of the wallet. This is typically implemented by adding
+the developer address as an explicit output, so if migration transactions are
+generated internally by ``zcashd``, they will not include the developer fee.
+We strongly recommend *not* patching the ``zcashd`` code to add the developer
+fee output to migration transactions, because doing so partitions the anonymity
+set between users of that wallet and other users.
+
+There MUST NOT be any transparent inputs or outputs, or Sapling Spends, in a
+migration transaction.
+
+The ``lock_time`` field MUST be set to 0 (unused).
+
+
+Open questions
+--------------
+
+The above strategy has several "magic number" parameters:
+
+ - the interval between batches (500 blocks)
+ - the maximum number of transactions in a batch (5)
+ - the distribution of exponents (uniform integer in 6..9)
+ - the distribution of mantissae (uniform integer in 1..99).
+
+These have been chosen by guesswork. Should we change any of them?
+
+In particular, if the amount to migrate is large, then this strategy can
+result in large amounts (up to 990 ZEC, worth USD ~49500 at time of writing)
+transferred in each transaction. This leaks the fact that the transaction was
+sent by a user who has at least that amount.
+
+The strategy does not migrate any remaining fractional amount less than
+0.01 ZEC (worth USD ~0.50 at time of writing). Is this reasonable?
+
+In deciding the amount to send in each transaction, the strategy does not
+take  account of the values of individual Sprout notes, only the total amount
+remaining to migrate. Can a strategy that is sensitive to individual note
+values improve privacy?
+
+An adversary may attempt to interfere with the view of the block chain seen
+by a subset of nodes that are performing migrations, in order to cause those
+nodes to send migration batches at a different time, so that they may be
+distinguished. Is there anything further we can do to mitigate this
+vulnerability?
+
+
+RPC calls
+---------
+
+Nodes MUST maintain a boolean state variable recording whether migration is
+enabled. This can be set or reset using the following RPC call:
+
+  setenablemigration true|false
+
+It is intentional that there is no facility to change options associated with
+the migration, since such options can distinguish users.
+
+Open questions:
+
+ * Should the state variable be persisted, and how?
+ * Is there also a config option?
+
+
+Nodes MUST also support the following RPC call to return the current status of
+the migration:
+
+  getmigrationstatus
+
+Returns:
+
+  {
+    "enabled": true|false,
+    "unmigrated_amount": nnn.n,
+    "unconfirmed_migrated_amount": nnn.n,
+    "confirmed_migrated_amount": nnn.n,
+    "confirmed_migration_transactions": nnn,
+    "time_started": ttt, // Unix timestamp
+    "estimated_time_remaining_seconds": ttt
+  }
+
+The values of ``unmigrated_amount`` and ``migrated_amount`` MUST take into
+account failed transactions, that were not mined within their expiration
+height.
+
+Open question: are any of these fields too hard to compute?
 
 
 Support in zcashd
 =================
 
-Support for Sapling consensus rules was implemented in zcashd version 2.0.0.
-The majority of support for RPC calls and persistence of Sapling z-addresses
-was implemented in version 2.0.1. Both of these versions advertise protocol
-version 170007.
+TODO (point to the PR).
 
 
 References
 ==========
 
-.. [#protocol] `Zcash Protocol Specification, Version 2018.0-beta-32 [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
+.. [#transparent-value-pool] `Zcash Protocol Specification, Version 2018.0-beta-33 [Overwinter+Sapling]; sections 3.4, 4.11 and 4.12 <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
 .. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://tools.ietf.org/html/rfc2119>`_
-.. [#zip-0200] `ZIP 200: Network Upgrade Activation Mechanism <https://github.com/zcash/zips/blob/master/zip-0200.rst>`_
-.. [#zip-0201] `ZIP 201: Network Peer Management for Overwinter <https://github.com/zcash/zips/blob/master/zip-0201.rst>`_
-.. [#zip-0243] `ZIP 243: Transaction Signature Verification for Sapling <https://github.com/zcash/zips/blob/master/zip-0243.rst>`_
+.. [#zip-0205] `ZIP 205: Deployment of the Sapling Network Upgrade <https://github.com/zcash/zips/blob/master/zip-0205.rst>`_
