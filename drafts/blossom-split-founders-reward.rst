@@ -1,0 +1,271 @@
+::
+
+  ZIP: XXX
+  Title: Split Founders' Reward
+  Author: Jack Grigg <jack@z.cash>
+  Category: Consensus
+  Created: 2019-01-04
+  License: MIT
+
+
+Terminology
+===========
+
+The key words "MUST", "SHOULD", "SHOULD NOT", and "MAY" in this document are to be interpreted as described in
+RFC 2119. [#RFC2119]_
+
+
+Abstract
+========
+
+This proposal defines how the consensus rules are altered to split the original Founders' Reward across three
+recipient addresses per block instead of one, corresponding to the three funding streams contained within it.
+
+
+Motivation
+==========
+
+Since the launch of the Zcash network, the consensus rules have required that until the first block reward
+halving, each block must send 20% of the block subsidy to a hard-coded transparent address. [#block-subsidy]_
+This stream of 2.5-ZEC outputs (the value after the mining slow-start was completed) can been split into three
+logical funding streams: [#continued-funding]_
+
+- (73.7%) The Founders' Reward stream
+- (14.4%) The Zcash Foundation Endowment stream
+- (11.9%) The Zerocoin Electric Coin Company Strategic Reserve stream
+
+Modifying the consensus rules to allocate the 2.5 ZEC across three separate recipient addresses decouples
+these three funding streams organizationally, legally, and operationally. It further reinforces transparency
+as to the structure of the original Founders' Reward.
+
+
+Specification
+=============
+
+Funding streams
+---------------
+
+A funding stream is defined by a value per block (in zatoshis), a start height (inclusive), and an end height
+(exclusive). The start height MUST be after the end of the mining slow-start (to make specification of the
+value simpler).
+
+An active funding stream at a given block height is defined as a funding stream for which the block height is
+less than its end height, but not less than its start height.
+
+Each funding stream has an associated set of recipient addresses. Each address is used for at most 17500
+blocks, creating a roughly-monthly sequence of funding periods. The address to be used for a given block
+height is defined as follows (using ``SlowStartShift`` as-defined in [#block-subsidy]_)::
+
+    PeriodLength = 17500
+    PeriodNumber(height) = floor((height - SlowStartShift) / PeriodLength)
+    Address(height) = FundingStream.Addresses[PeriodNumber(height) - PeriodNumber(FundingStream.StartHeight)]
+
+- To-do: adjust the period, taking #3672 and #3690 (both reducing block times) into account.
+
+Consensus rules
+---------------
+
+Prior to activation of the Blossom network upgrade, the existing consensus rule for block subsidies is
+enforced. [#block-subsidy]_
+
+Once the Blossom network upgrade activates, the coinbase transaction in each block MUST contain at least one
+output per active funding stream that pays the stream's value to the stream's recipient address for the
+block's height.
+
+Stream definitions
+------------------
+
+The three logical funding streams described above each start at the Blossom activation height, and end at the
+first block reward halving. They are defined as follows:
+
+======== ================ ================== ==========
+ Stream  Value (zatoshis)    Start height    End height
+======== ================ ================== ==========
+   FR       184250000     Blossom activation   850000
+  ZF E       36000000     Blossom activation   850000
+ZECC SR      29750000     Blossom activation   850000
+======== ================ ================== ==========
+
+- To-do: specify the correct values.
+- To-do: specify the correct start height.
+- To-do: adjust the end height, taking #3672 and #3690 (both reducing block times) into account.
+
+The sets of recipient addresses are defined as follows:
+
+.. code:: cpp
+
+    FS_ADDRESSES_FR = [
+    ];
+
+    FS_ADDRESSES_ZF_E = [
+    ];
+
+    FS_ADDRESSES_ZECC_SR = [
+    ];
+
+- To-do: will the existing FR addresses be used for either the Zcash Company strategic reserve or the remainder, or will fresh addresses be used for all three?
+- To-do: specify the sets of FR addresses.
+
+Example implementation
+----------------------
+
+.. code:: cpp
+
+    struct FundingPeriod {
+        CAmount value,
+        int startHeight,
+        int endHeight,
+    };
+
+    enum FundingStream {
+        FS_FR,
+        FS_ZF_E,
+        FS_ZECC_SR,
+        MAX_FUNDING_STREAMS,
+    };
+
+    struct Params {
+        ...
+        FundingPeriod vFundingPeriods[MAX_FUNDING_STREAMS];
+        ...
+    }
+
+    CMainParams() {
+        ...
+
+        consensus.vFundingPeriods[Consensus::FS_FR].value = 184250000;
+        consensus.vFundingPeriods[Consensus::FS_FR].startHeight =
+            consensus.vUpgrades[Consensus::UPGRADE_BLOSSOM].nActivationHeight;
+        consensus.vFundingPeriods[Consensus::FS_FR].endHeight =
+            (consensus.nSubsidySlowStartInterval / 2) + consensus.nSubsidyHalvingInterval;
+        assert(consensus.vFundingPeriods[Consensus::FS_FR].startHeight <
+            consensus.vFundingPeriods[Consensus::FS_FR].endHeight);
+
+        consensus.vFundingPeriods[Consensus::FS_ZF_E].value = 36000000;
+        consensus.vFundingPeriods[Consensus::FS_ZF_E].startHeight =
+            consensus.vUpgrades[Consensus::UPGRADE_BLOSSOM].nActivationHeight;
+        consensus.vFundingPeriods[Consensus::FS_ZF_E].endHeight =
+            (consensus.nSubsidySlowStartInterval / 2) + consensus.nSubsidyHalvingInterval;
+        assert(consensus.vFundingPeriods[Consensus::FS_ZF_E].startHeight <
+            consensus.vFundingPeriods[Consensus::FS_ZF_E].endHeight);
+
+        consensus.vFundingPeriods[Consensus::FS_ZECC_SR].value = 29750000;
+        consensus.vFundingPeriods[Consensus::FS_ZECC_SR].startHeight =
+            consensus.vUpgrades[Consensus::UPGRADE_BLOSSOM].nActivationHeight;
+        consensus.vFundingPeriods[Consensus::FS_ZECC_SR].endHeight =
+            (consensus.nSubsidySlowStartInterval / 2) + consensus.nSubsidyHalvingInterval;
+        assert(consensus.vFundingPeriods[Consensus::FS_ZECC_SR].startHeight <
+            consensus.vFundingPeriods[Consensus::FS_ZECC_SR].endHeight);
+
+        ...
+    }
+
+    std::set<std::pair<CScript, CAmount>> FundingStreamRecipientAddress(
+        int nHeight,
+        const Consensus::Params& params,
+        Consensus::FundingStream idx)
+    {
+        auto curPeriod = floor((
+            nHeight - params.SubsidySlowStartShift()
+        ) / params.nFundingPeriodLength);
+        auto startPeriod = floor((
+            params.vFundingPeriods[idx].startHeight - params.SubsidySlowStartShift()
+        ) / params.nFundingPeriodLength);
+        return params.vFundingPeriods[idx].addresses[curPeriod - startPeriod];
+    };
+
+    std::set<std::pair<CScript, CAmount>> GetActiveFundingStreams(
+        int nHeight,
+        const Consensus::Params& params)
+    {
+        std::set<std::pair<CScript, CAmount>> requiredStreams;
+        for (int idx = Consensus::FS_FOUNDERS_REWARD; idx < Consensus::MAX_FUNDING_STREAMS; idx++) {
+            // Funding period is [startHeight, endHeight)
+            if (nHeight >= params.vFundingPeriods[idx].startHeight &&
+                nHeight < params.vFundingPeriods[idx].endHeight)
+            {
+                requiredStreams.insert(std::make_pair(
+                    FundingStreamRecipientAddress(nHeight, params, idx),
+                    FundingPeriods[idx].value));
+            }
+        }
+        return requiredStreams;
+    };
+
+    bool ContextualCheckBlock(...)
+    {
+        ...
+
+        if (NetworkUpgradeActive(nHeight, consensusParams, Consensus::UPGRADE_BLOSSOM)) {
+            // Coinbase transaction must include outputs corresponding to the consensus
+            // funding streams active at the current block height.
+            auto requiredStreams = GetActiveFundingStreams(nHeight, consensusParams);
+
+            for (const CTxOut& output : block.vtx[0].vout) {
+                for (auto it = requiredStreams.begin(); it != requiredStreams.end(); ++it) {
+                    if (output.scriptPubKey == it->first && output.nValue == it->second) {
+                        requiredStreams.erase(it);
+                        break;
+                    }
+                }
+            }
+
+            if (!requiredStreams.empty()) {
+                return state.DoS(100, error("%s: funding stream missing", __func__), REJECT_INVALID, "cb-funding-stream-missing");
+            }
+        } else {
+            // Coinbase transaction must include an output sending 20% of
+            // the block reward to a founders reward script, until the last founders
+            // reward block is reached, with exception of the genesis block.
+            // The last founders reward block is defined as the block just before the
+            // first subsidy halving block, which occurs at halving_interval + slow_start_shift
+            if ((nHeight > 0) && (nHeight <= consensusParams.GetLastFoundersRewardBlockHeight())) {
+                bool found = false;
+
+                for (const CTxOut& output : block.vtx[0].vout) {
+                    if (output.scriptPubKey == Params().GetFoundersRewardScriptAtHeight(nHeight)) {
+                        if (output.nValue == (GetBlockSubsidy(nHeight, consensusParams) / 5)) {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!found) {
+                    return state.DoS(100, error("%s: founders reward missing", __func__), REJECT_INVALID, "cb-no-founders-reward");
+                }
+            }
+        }
+
+        ...
+    }
+
+
+Deployment
+==========
+
+This proposal will be deployed with the Blossom network upgrade. [#zip-0XXX]_
+
+
+Backward compatibility
+======================
+
+This proposal intentionally creates what is known as a "bilateral consensus rule change". Use of this
+mechanism requires that all network participants upgrade their software to a compatible version within the
+upgrade window. Older software will treat post-upgrade blocks as invalid, and will follow any pre-upgrade
+branch that persists.
+
+
+Reference Implementation
+========================
+
+TBC
+
+
+References
+==========
+
+.. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://tools.ietf.org/html/rfc2119>`_
+.. [#block-subsidy] `Section 7.7: Calculation of Block Subsidy and Founders' Reward. Zcash Protocol Specification, Version 2018.0-beta-33 or later [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
+.. [#continued-funding] `Continued Funding and Transparency <https://z.cash/blog/continued-funding-and-transparency>`_
+.. [#zip-0XXX] `ZIP XXX: Blossom Network Upgrade <https://github.com/zcash/zips/blob/master/zip-0XXX.rst>`_
