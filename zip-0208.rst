@@ -1,0 +1,131 @@
+::
+
+  ZIP: 208
+  Title: Shorter Block Target Spacing
+  Author: Simon Liu <simon@z.cash>
+          Daira Hopwood <daira@z.cash>
+  Category: Consensus
+  Created: 2018-01-10
+  License: MIT
+
+
+Terminology
+===========
+
+The key words "MUST", "SHOULD", "SHOULD NOT", and "MAY" in this document are to be interpreted as
+described in RFC 2119. [#RFC2119]_
+
+The terms "block chain", "consensus rule change", "branch", and "network upgrade" are to be
+interpreted as defined in [#zip-0200]_.
+
+The term "block target spacing" means the time interval between blocks targeted by the difficulty
+adjustment algorithm in a given branch. It is normally measured in seconds.
+
+
+Abstract
+========
+
+This proposal specifies a change in the block target spacing, to take effect in the Blossom
+network upgrade [#zip-0206]_.
+
+The emission schedule of mined ZEC will be approximately the same in terms of time, but this
+requires the emission per block to be adjusted to take account of the changed block target spacing.
+
+
+Motivation
+==========
+
+- Faster finalization
+  TODO: does it actually provide this? Depends on dual PoW mechanism and recommended required confirmations.
+- Greater throughput of transactions in unit time
+
+
+Specification
+=============
+
+The following constants are defined:
+
+PreBlossomPoWTargetSpacing
+  150 seconds
+
+PostBlossomPoWTargetSpacing
+  75 seconds
+
+Define BlossomPoWTargetSpacingRatio := PreBlossomPoWTargetSpacing / PostBlossomPoWTargetSpacing.
+
+Things that (might) have to change.
+
+Consensus protocol:
+ - difficulty adjustment constants after activation
+ - current values are
+   - PoWLimit := 2^243 - 1 for production
+                 2^251 - 1 for test
+   - PoWAveragingWindow := 17
+   - PoWMedianBlockSpan := 11
+   - PoWMaxAdjustDown := 32/100
+   - PoWMaxAdjustUp := 16/100
+   - PoWDampingFactor := 4
+   - PoWTargetSpacing := 150
+
+ - after Blossom activation
+   - PoWLimit is the same
+   - PoWAveragingWindow the same or increased? (probably same)
+   - PoWMedianBlockSpan the same or increased?
+   - PoWMaxAdjustDown/Up the same
+   - PoWDampingFactor the same
+   - PoWTargetSpacing changed
+
+ - emission per block after activation
+   - MaxBlockSubsidy := floor(1.25 * 10^9 / BlossomPoWTargetSpacingRatio) (zatoshis)
+
+ - halving block heights
+   - Halving(height) := { floor((height - SlowStartShift) / PreBlossomHalvingInterval), if height < BlossomActivationHeight
+                        { floor((BlossomActivationHeight - SlowStartShift) / PreBlossomHalvingInterval +
+                                (height - BlossomActivationHeight) / PostBlossomHalvingInterval), otherwise
+
+ - end of FR block height
+   - in this ZIP, don't change the FR consensus rule directly, but document the dependency on the split FR ZIP
+
+Other:
+ - default expiry blocks
+   - multiply by BlossomPoWTargetSpacingRatio if we want to maintain the same time
+ - EOS halt interval
+   - multiply by BlossomPoWTargetSpacingRatio if we want to maintain the same time
+
+ - sanity checks on nMinimumChainWork and fTransactionsPerDay don't need to change
+
+Maybe:
+ - difficulty target change at activation? not in this ZIP
+
+TODO: check for any other number-of-block constants.
+
+
+Deployment
+==========
+
+This proposal will be deployed with the Blossom network upgrade. [#zip-0206]_
+
+
+Backward compatibility
+======================
+
+This proposal intentionally creates what is known as a "bilateral consensus rule change". Use of this
+mechanism requires that all network participants upgrade their software to a compatible version within the
+upgrade window. Older software will treat post-upgrade blocks as invalid, and will follow any pre-upgrade
+branch that persists.
+
+
+Reference Implementation
+========================
+
+https://github.com/zcash/zcash/pull/xxxx
+
+
+References
+==========
+
+.. [#protocol] `Zcash Protocol Specification, Version 2018.0-beta-33 [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
+.. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://tools.ietf.org/html/rfc2119>`_
+.. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <https://github.com/zcash/zips/blob/master/zip-0200.rst>`_
+.. [#zip-0206] `ZIP 206: Deployment of the Blossom Network Upgrade <https://github.com/zcash/zips/blob/master/zip-0206.rst>`_
+.. [#zip-0207] `ZIP 207: Split Founders' Reward <https://github.com/zcash/zips/blob/master/zip-0207.rst>`_
