@@ -48,7 +48,8 @@ z-addresses, unless the amount is revealed by sending it through the
 "transparent value pool" [#transparent-value-pool]_. The primary motivation
 for this is to allow detection of any overall inflation of the Zcash monetary
 base, due to exploitation of possible vulnerabilities in the shielded
-protocols or their implementation.
+protocols or their implementation, or a compromise of the Sprout multi-party
+computation.
 
 Since the exposure of the migrated amount potentially compromises the privacy
 of users, we wish to define a way to perform the migration that mitigates
@@ -63,9 +64,9 @@ obvious potential strategies can leak a lot of information.
 Requirements
 ============
 
-Migration is performed "in the background" by a ``zcashd`` node. It does not
-significantly interfere with concurrent usage of the node, other than possibly
-increasing the latency of some other shielded operations.
+Migration is performed "in the background" by a ``zcashd`` (or equivalent)
+node. It does not significantly interfere with concurrent usage of the node,
+other than possibly increasing the latency of some other shielded operations.
 
 It is possible to enable or disable migration at any time.
 
@@ -92,7 +93,7 @@ are part of the migration.
 The design recovers from failed operations to the extent possible.
 
 Each user sends a number of migration transactions that is not too small (to
-obscure their total amount).
+obscure their total amount). TODO: this is not a requirement per se.
 
 
 Non-requirements
@@ -127,7 +128,11 @@ Transaction schedule
 
 When migration is enabled, a node will send up to 5 transactions for inclusion
 in each block with height a multiple of 500 (that is, they are sent immediately
-after seeing a block with height 499, modulo 500).
+after seeing a block with height 499, modulo 500). Up to the limit of 5, as
+many transactions are sent as are needed to migrate the remaining funds
+(possibly with a remainder less than 0.01 ZEC left unmigrated).
+
+TODO: if we change the target block interval, 500 might need to be changed.
 
 The migration transactions to be sent in a particular batch can take
 significant time to generate, and this time depends on the speed of the user's
@@ -183,8 +188,10 @@ section. It includes the time spent waiting for the first batch to be sent.
 How much to send in each transaction
 ------------------------------------
 
-The amount to send in each transaction is chosen according to the following
-distribution:
+If the remaining amount is less than 0.01 ZEC, end the migration.
+
+Otherwise, the amount to send in each transaction is chosen according to the
+following distribution:
 
 1. Choose an integer exponent uniformly in the range 6 to 9 inclusive.
 2. Choose an integer mantissa uniformly in the range 1 to 99 inclusive.
@@ -274,18 +281,26 @@ vulnerability?
 RPC calls
 ---------
 
-Nodes MUST maintain a boolean state variable recording whether migration is
-enabled. This can be set or reset using the following RPC call::
+Nodes MUST maintain a boolean state variable during their execution, to
+determine whether migration is enabled. The default when a node starts, is
+set by a configuration option::
 
-  setenablemigration true|false
+  -migration=0/1
 
-It is intentional that there is no facility to change options associated with
-the migration, since such options can distinguish users.
+The destination z-address can optionally be set by another option::
 
-Open questions:
+  -migrationdestaddress=<zaddr>
 
-* Should the state variable be persisted, and how?
-* Is there also a config option?
+If this option is not present then the migration destination address is
+the address for Sapling account 0, with the default diversifier [#zip-0032]_.
+
+The state variable can also be set for a running node using the following
+RPC method::
+
+  setmigration true/false
+
+It is intentional that the only option associated with the migration is the
+destination z-address. Other options could potentially distinguish users.
 
 
 Nodes MUST also support the following RPC call to return the current status of
@@ -297,19 +312,36 @@ Returns::
 
   {
     "enabled": true|false,
+    "destination_address": "zaddr",
     "unmigrated_amount": nnn.n,
     "unconfirmed_migrated_amount": nnn.n,
     "confirmed_migrated_amount": nnn.n,
     "confirmed_migration_transactions": nnn,
     "time_started": ttt, // Unix timestamp
-    "estimated_time_remaining_seconds": ttt
+    "migration_txids": [txids]
   }
+
+The ``destination_address`` field MAY be omitted if the ``-migrationaddress``
+parameter is not set and no default address has yet been generated.
 
 The values of ``unmigrated_amount`` and ``migrated_amount`` MUST take into
 account failed transactions, that were not mined within their expiration
 height.
 
-Open question: are any of these fields too hard to compute?
+``txids`` is a list of strings representing transaction IDs of all known
+migration transactions involving this wallet, as lowercase hexadecimal in
+RPC byte order. A given transaction is defined as a migration transaction
+iff it has:
+ * one or more Sprout JoinSplits with nonzero vpub_new field; and
+ * no Sapling Spends, and;
+ * one or more Sapling Outputs.
+
+The value of ``time_started`` is the earliest Unix timestamp of any known
+migration transation involving this wallet; if there is no such transaction,
+then the field is absent.
+
+A transaction is ``confirmed`` iff it has 10 confirmations.
+TODO: subject to change.
 
 
 Support in zcashd
