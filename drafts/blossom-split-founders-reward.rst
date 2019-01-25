@@ -45,9 +45,9 @@ Specification
 Funding streams
 ---------------
 
-A funding stream is defined by a value per block (in zatoshis), a start height (inclusive), and an end height
-(exclusive). The start height MUST be after the end of the mining slow-start (to make specification of the
-value simpler).
+A funding stream is defined by a constant value per block (in zatoshis), a start height (inclusive), and an
+end height (exclusive). The start height MUST be after the end of the mining slow-start (to make specification
+of the value simpler).
 
 An active funding stream at a given block height is defined as a funding stream for which the block height is
 less than its end height, but not less than its start height.
@@ -66,12 +66,14 @@ height is defined as follows (using ``SlowStartShift`` as-defined in [#block-sub
 Consensus rules
 ---------------
 
-Prior to activation of the Blossom network upgrade, the existing consensus rule for block subsidies is
-enforced. [#block-subsidy]_
+Prior to activation of the Blossom network upgrade, the existing consensus rule for payment of the original
+Founders' Reward is enforced. [#original-fr-consensus-rule]_
 
-Once the Blossom network upgrade activates, the coinbase transaction in each block MUST contain at least one
-output per active funding stream that pays the stream's value to the stream's recipient address for the
-block's height.
+Once the Blossom network upgrade activates:
+
+- The existing consensus rule [#original-fr-consensus-rule]_ is no longer active.
+- The coinbase transaction in each block MUST contain at least one output per active funding stream that pays
+  the stream's value to the stream's recipient address for the block's height.
 
 Stream definitions
 ------------------
@@ -267,4 +269,5 @@ References
 .. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://tools.ietf.org/html/rfc2119>`_
 .. [#block-subsidy] `Section 7.7: Calculation of Block Subsidy and Founders' Reward. Zcash Protocol Specification, Version 2018.0-beta-33 or later [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
 .. [#continued-funding] `Continued Funding and Transparency <https://z.cash/blog/continued-funding-and-transparency>`_
+.. [#original-fr-consensus-rule] `Section 7.8: Payment of Founders' Reward. Zcash Protocol Specification, Version 2018.0-beta-33 or later [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
 .. [#zip-0XXX] `ZIP XXX: Blossom Network Upgrade <https://github.com/zcash/zips/blob/master/zip-0XXX.rst>`_
