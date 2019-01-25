@@ -45,12 +45,18 @@ Specification
 Funding streams
 ---------------
 
-A funding stream is defined by a constant value per block (in zatoshis), a start height (inclusive), and an
-end height (exclusive). The start height MUST be after the end of the mining slow-start (to make specification
-of the value simpler).
+A funding stream is defined by a block reward fraction (represented as a numerator and a denominator), a start
+height (inclusive), and an end height (exclusive).
 
-- To-do: Decide whether to use fractional value per block instead, which gets around the mining slow-start
-  problem (and halvings) but might make implementation more complex.
+By defining the issuance as a proportion of the total block issuance, rather than absolute zatoshis, this ZIP
+dovetails with any changes to both block target times and issuance-per-block rates while maintaining an
+unchanged target-time-based issuance schedule. We anticipate such target-time / issuance rate changes in other
+ZIPs.
+
+The value of a funding stream at a given block height is defined as::
+
+    FundingStream.Value(height) =
+        floor((BlockReward(height) * FundingStream.ValueNumerator) / FundingStream.ValueDenominator)
 
 An active funding stream at a given block height is defined as a funding stream for which the block height is
 less than its end height, but not less than its start height.
@@ -84,13 +90,13 @@ Stream definitions
 The three logical funding streams described above each start at the Blossom activation height, and end at the
 first block reward halving. They are defined as follows:
 
-======== ================ ================== ================================
- Stream  Value (zatoshis)    Start height              End height
-======== ================ ================== ================================
-   FR       184250000     Blossom activation SlowStartShift + HalvingInterval
-  ZF E       36000000     Blossom activation SlowStartShift + HalvingInterval
-ZECC SR      29750000     Blossom activation SlowStartShift + HalvingInterval
-======== ================ ================== ================================
+======== =============== ================= ================== ================================
+ Stream  Value numerator Value denominator    Start height              End height
+======== =============== ================= ================== ================================
+   FR          737              1000       Blossom activation SlowStartShift + HalvingInterval
+  ZF E         144              1000       Blossom activation SlowStartShift + HalvingInterval
+ZECC SR        119              1000       Blossom activation SlowStartShift + HalvingInterval
+======== =============== ================= ================== ================================
 
 - To-do: specify the correct values.
 - To-do: specify the correct start height.
@@ -120,7 +126,8 @@ Example implementation
 
     struct FundingPeriod {
         std::vector<std::string> addresses,
-        CAmount value,
+        uint64_t valueNumerator,
+        uint64_t valueDenominator,
         int startHeight,
         int endHeight,
     };
@@ -142,29 +149,38 @@ Example implementation
         ...
 
         consensus.vFundingPeriods[Consensus::FS_FR].addresses = FS_ADDRESSES_FR;
-        consensus.vFundingPeriods[Consensus::FS_FR].value = 184250000;
+        consensus.vFundingPeriods[Consensus::FS_FR].valueNumerator = 737;
+        consensus.vFundingPeriods[Consensus::FS_FR].valueDenominator = 1000;
         consensus.vFundingPeriods[Consensus::FS_FR].startHeight =
             consensus.vUpgrades[Consensus::UPGRADE_BLOSSOM].nActivationHeight;
         consensus.vFundingPeriods[Consensus::FS_FR].endHeight =
             (consensus.nSubsidySlowStartInterval / 2) + consensus.nSubsidyHalvingInterval;
+        assert(consensus.vFundingPeriods[Consensus::FS_FR].valueNumerator <
+            consensus.vFundingPeriods[Consensus::FS_FR].valueDenominator);
         assert(consensus.vFundingPeriods[Consensus::FS_FR].startHeight <
             consensus.vFundingPeriods[Consensus::FS_FR].endHeight);
 
         consensus.vFundingPeriods[Consensus::FS_ZF_E].addresses = FS_ADDRESSES_ZF_E;
-        consensus.vFundingPeriods[Consensus::FS_ZF_E].value = 36000000;
+        consensus.vFundingPeriods[Consensus::FS_ZF_E].valueNumerator = 144;
+        consensus.vFundingPeriods[Consensus::FS_ZF_E].valueDenominator = 1000;
         consensus.vFundingPeriods[Consensus::FS_ZF_E].startHeight =
             consensus.vUpgrades[Consensus::UPGRADE_BLOSSOM].nActivationHeight;
         consensus.vFundingPeriods[Consensus::FS_ZF_E].endHeight =
             (consensus.nSubsidySlowStartInterval / 2) + consensus.nSubsidyHalvingInterval;
+        assert(consensus.vFundingPeriods[Consensus::FS_ZF_E].valueNumerator <
+            consensus.vFundingPeriods[Consensus::FS_ZF_E].valueDenominator);
         assert(consensus.vFundingPeriods[Consensus::FS_ZF_E].startHeight <
             consensus.vFundingPeriods[Consensus::FS_ZF_E].endHeight);
 
         consensus.vFundingPeriods[Consensus::FS_ZECC_SR].addresses = FS_ADDRESSES_ZECC_SR;
-        consensus.vFundingPeriods[Consensus::FS_ZECC_SR].value = 29750000;
+        consensus.vFundingPeriods[Consensus::FS_ZECC_SR].valueNumerator = 119;
+        consensus.vFundingPeriods[Consensus::FS_ZECC_SR].valueDenominator = 1000;
         consensus.vFundingPeriods[Consensus::FS_ZECC_SR].startHeight =
             consensus.vUpgrades[Consensus::UPGRADE_BLOSSOM].nActivationHeight;
         consensus.vFundingPeriods[Consensus::FS_ZECC_SR].endHeight =
             (consensus.nSubsidySlowStartInterval / 2) + consensus.nSubsidyHalvingInterval;
+        assert(consensus.vFundingPeriods[Consensus::FS_ZECC_SR].valueNumerator <
+            consensus.vFundingPeriods[Consensus::FS_ZECC_SR].valueDenominator);
         assert(consensus.vFundingPeriods[Consensus::FS_ZECC_SR].startHeight <
             consensus.vFundingPeriods[Consensus::FS_ZECC_SR].endHeight);
 
@@ -183,6 +199,17 @@ Example implementation
         return params.vFundingPeriods[idx].addresses[addressIndex];
     };
 
+    CAmount FundingStreamValue(
+        int nHeight,
+        const Consensus::Params& params,
+        Consensus::FundingStream idx)
+    {
+        // Integer division is floor division in C++
+        return CAmount((
+            GetBlockSubsidy(nHeight, params) * params.vFundingPeriods[idx].valueNumerator
+        ) / params.vFundingPeriods[idx].valueDenominator);
+    }
+
     std::set<std::pair<CScript, CAmount>> GetActiveFundingStreams(
         int nHeight,
         const Consensus::Params& params)
@@ -195,7 +222,7 @@ Example implementation
             {
                 requiredStreams.insert(std::make_pair(
                     FundingStreamRecipientAddress(nHeight, params, idx),
-                    FundingPeriods[idx].value));
+                    FundingStreamValue(nHeight, params, idx));
             }
         }
         return requiredStreams;
