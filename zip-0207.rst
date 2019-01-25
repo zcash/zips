@@ -67,16 +67,43 @@ less than its end height, but not less than its start height.
 
 Each funding stream has an associated set of recipient addresses. Each address is used for at most 1/48th of a
 halving interval, creating a roughly-monthly sequence of funding periods. The address to be used for a given
-block height is defined as follows (using ``HalvingInterval`` as-defined in [#protocol-constants]_)::
+block height is defined as follows (using ``SlowStartShift`` and ``HalvingInterval`` as-defined in
+[#protocol-constants]_)::
 
     AddressChangeInterval = HalvingInterval / 48
-    FundingStream[FUND].AddressIndex(height) =
+    AddressPeriod(height) =
         floor((
-            height - FundingStream[FUND].StartHeight
+            height + AddressChangeInterval - SlowStartShift
         ) / AddressChangeInterval)
+    FundingStream[FUND].AddressIndex(height) =
+        AddressPeriod(height) - AddressPeriod(FundingStream[FUND].StartHeight)
     Address(height) = FundingStream[FUND].Addresses[FundingStream[FUND].AddressIndex(height)]
 
-- TODO: Fix ``FundingStream[FUND].AddressIndex`` to line funding periods up across funding streams.
+This has the property that all active funding streams change the address they are using on the same block
+height schedule, aligned to the end of the mining slow start so that 48 funding periods fit cleanly within a
+halving interval. This can be leveraged to simplify implementations, by batching the necessary outputs for
+each funding period.
+
+Below is a visual representation of how stream addresses align with funding periods:
+
+=============================== ======== ======== ========
+        Example height          Stream A Stream B Stream C
+=============================== ======== ======== ========
+  ``AddressChangeInterval - 2``    A0
+  ``AddressChangeInterval - 1``    A0
+  ``AddressChangeInterval``        A1       B0       C0
+  ``AddressChangeInterval + 1``    A1       B0       C0
+             ...
+``2*AddressChangeInterval - 2``    A1       B0       C0
+``2*AddressChangeInterval - 1``    A1       B0       C0
+``2*AddressChangeInterval``        A2                C1
+``2*AddressChangeInterval + 1``    A2                C1
+             ...
+        ``HalvingInterval - 2``    A2                C1
+        ``HalvingInterval - 1``    A2                C1
+        ``HalvingInterval``                          C2
+        ``HalvingInterval + 1``                      C2
+=============================== ======== ======== ========
 
 Consensus rules
 ---------------
@@ -201,9 +228,13 @@ Example implementation
         Consensus::FundingStream idx)
     {
         // Integer division is floor division in C++
-        auto addressIndex = (
-            nHeight - params.vFundingPeriods[idx].startHeight
+        auto curPeriod = (
+            nHeight + params.nFundingPeriodLength - params.SubsidySlowStartShift()
         ) / params.nFundingPeriodLength;
+        auto startPeriod = (
+            params.vFundingPeriods[idx].startHeight + params.nFundingPeriodLength - params.SubsidySlowStartShift()
+        ) / params.nFundingPeriodLength;
+        auto addressIndex = curPeriod - startPeriod;
         return params.vFundingPeriods[idx].addresses[addressIndex];
     };
 
