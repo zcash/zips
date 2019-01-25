@@ -56,11 +56,12 @@ Each funding stream has an associated set of recipient addresses. Each address i
 blocks, creating a roughly-monthly sequence of funding periods. The address to be used for a given block
 height is defined as follows (using ``SlowStartShift`` as-defined in [#block-subsidy]_)::
 
-    PeriodLength = 17500
-    PeriodNumber(height) = floor((height - SlowStartShift) / PeriodLength)
-    Address(height) = FundingStream.Addresses[PeriodNumber(height) - PeriodNumber(FundingStream.StartHeight)]
+    AddressChangeInterval = 17500
+    FundingStream.AddressIndex(height) =
+        floor((height - FundingStream.StartHeight) / AddressChangeInterval)
+    Address(height) = FundingStream.Addresses[FundingStream.AddressIndex(height)]
 
-- To-do: adjust the period, taking #3672 and #3690 (both reducing block times) into account.
+- To-do: adjust ``AddressChangeInterval``, taking #3672 and #3690 (both reducing block times) into account.
 
 Consensus rules
 ---------------
@@ -165,13 +166,11 @@ Example implementation
         const Consensus::Params& params,
         Consensus::FundingStream idx)
     {
-        auto curPeriod = floor((
-            nHeight - params.SubsidySlowStartShift()
-        ) / params.nFundingPeriodLength);
-        auto startPeriod = floor((
-            params.vFundingPeriods[idx].startHeight - params.SubsidySlowStartShift()
-        ) / params.nFundingPeriodLength);
-        return params.vFundingPeriods[idx].addresses[curPeriod - startPeriod];
+        // Integer division is floor division in C++
+        auto addressIndex = (
+            nHeight - params.vFundingPeriods[idx].startHeight
+        ) / params.nFundingPeriodLength;
+        return params.vFundingPeriods[idx].addresses[addressIndex];
     };
 
     std::set<std::pair<CScript, CAmount>> GetActiveFundingStreams(
