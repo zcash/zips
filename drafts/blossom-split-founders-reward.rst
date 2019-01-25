@@ -49,6 +49,9 @@ A funding stream is defined by a constant value per block (in zatoshis), a start
 end height (exclusive). The start height MUST be after the end of the mining slow-start (to make specification
 of the value simpler).
 
+- To-do: Decide whether to use fractional value per block instead, which gets around the mining slow-start
+  problem (and halvings) but might make implementation more complex.
+
 An active funding stream at a given block height is defined as a funding stream for which the block height is
 less than its end height, but not less than its start height.
 
@@ -108,6 +111,7 @@ The sets of recipient addresses are defined as follows:
 
 - To-do: will the existing FR addresses be used for either the Zcash Company strategic reserve or the remainder, or will fresh addresses be used for all three?
 - To-do: specify the sets of FR addresses.
+- To-do: require that the three FR address sets are PGP-signed with appropriate keys.
 
 Example implementation
 ----------------------
