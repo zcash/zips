@@ -27,7 +27,7 @@ Motivation
 
 Since the launch of the Zcash network, the consensus rules have required that until the first block reward
 halving, each block must send 20% of the block subsidy to a hard-coded transparent address. [#block-subsidy]_
-This stream of 2.5-ZEC outputs (the value after the mining slow-start was completed) can been split into three
+This stream of 2.5-ZEC outputs (the value after the mining slow-start was completed) can be split into three
 logical funding streams: [#continued-funding]_
 
 - (73.7%) The Founders' Reward stream
@@ -160,7 +160,7 @@ Example implementation
         ...
     }
 
-    std::set<std::pair<CScript, CAmount>> FundingStreamRecipientAddress(
+    CScript FundingStreamRecipientAddress(
         int nHeight,
         const Consensus::Params& params,
         Consensus::FundingStream idx)
