@@ -26,9 +26,9 @@ Motivation
 ==========
 
 Since the launch of the Zcash network, the consensus rules have required that until the first block reward
-halving, each block must send 20% of the block subsidy to a hard-coded transparent address. [#block-subsidy]_
-This stream of 2.5-ZEC outputs (the value after the mining slow-start was completed) can be split into three
-logical funding streams: [#continued-funding]_
+halving (at block 850,000), each block must send 20% of the block subsidy to a hard-coded transparent address.
+[#block-subsidy]_ This stream of 2.5-ZEC outputs (the value after the mining slow-start was completed) can be
+split into three logical funding streams: [#continued-funding]_
 
 - (73.7%) The Founders' Reward stream
 - (14.4%) The Zcash Foundation Endowment stream
@@ -81,13 +81,13 @@ Stream definitions
 The three logical funding streams described above each start at the Blossom activation height, and end at the
 first block reward halving. They are defined as follows:
 
-======== ================ ================== ==========
- Stream  Value (zatoshis)    Start height    End height
-======== ================ ================== ==========
-   FR       184250000     Blossom activation   850000
-  ZF E       36000000     Blossom activation   850000
-ZECC SR      29750000     Blossom activation   850000
-======== ================ ================== ==========
+======== ================ ================== ================================
+ Stream  Value (zatoshis)    Start height              End height
+======== ================ ================== ================================
+   FR       184250000     Blossom activation SlowStartShift + HalvingInterval
+  ZF E       36000000     Blossom activation SlowStartShift + HalvingInterval
+ZECC SR      29750000     Blossom activation SlowStartShift + HalvingInterval
+======== ================ ================== ================================
 
 - To-do: specify the correct values.
 - To-do: specify the correct start height.
