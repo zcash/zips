@@ -18,8 +18,9 @@ RFC 2119. [#RFC2119]_
 Abstract
 ========
 
-This proposal defines how the consensus rules are altered to split the original Founders' Reward across three
-recipient addresses per block instead of one, corresponding to the three funding streams contained within it.
+This proposal defines how the consensus rules are altered to split the original Founders' Reward across
+several recipient addresses per block instead of one, corresponding to the several funding streams contained
+within it.
 
 
 Motivation
@@ -29,16 +30,10 @@ Since the launch of the Zcash network, the consensus rules have required that un
 halving (at block 850,000), each block must send 20% of the block subsidy to a hard-coded transparent address.
 [#block-subsidy]_ This funding stream is referred to as the Founders' Reward.
 
-This stream of 2.5-ZEC outputs (the value after the mining slow-start was completed) can be split into three
-logical funding streams: [#continued-funding]_
-
-- (73.7%) The Zerocoin Electric Coin Company Equity Fund stream
-- (14.4%) The Zcash Foundation Endowment stream
-- (11.9%) The Zerocoin Electric Coin Company Strategic Reserve stream
-
-Modifying the consensus rules to allocate the 2.5 ZEC across three separate recipient addresses decouples
-these three funding streams organizationally, legally, and operationally. It further reinforces transparency
-as to the structure of the original Founders' Reward.
+This stream of 2.5-ZEC outputs (the value after the mining slow-start was completed) can be split into several
+logical funding streams (for background, see [#continued-funding]_). Modifying the consensus rules to allocate
+the 2.5 ZEC across separate recipient addresses decouples these funding streams organizationally, legally, and
+operationally. It further reinforces transparency as to the structure of the original Founders' Reward.
 
 
 Specification
@@ -137,34 +132,57 @@ Once the Blossom network upgrade activates:
 Stream definitions
 ------------------
 
-The three consensus-defined funding streams described above each start at the Blossom activation height, and
-end at the first block reward halving. They are defined as follows:
+The consensus-defined funding streams described above each start at the Blossom activation height, and end at
+the first block reward halving. They are defined as follows:
 
-======== =============== ================= =========================== =======================
- Stream  Value numerator Value denominator        Start height               End height
-======== =============== ================= =========================== =======================
-ZECC EF        737              1000       ``BlossomActivationHeight`` ``HeightForHalving(1)``
-  ZF E         144              1000       ``BlossomActivationHeight`` ``HeightForHalving(1)``
-ZECC SR        119              1000       ``BlossomActivationHeight`` ``HeightForHalving(1)``
-======== =============== ================= =========================== =======================
+====== =============== ================= =========================== =======================
+Stream Value numerator Value denominator        Start height               End height
+====== =============== ================= =========================== =======================
+ FS 1         3                40        ``BlossomActivationHeight`` ``HeightForHalving(1)``
+ FS 2         1                25        ``BlossomActivationHeight`` ``HeightForHalving(1)``
+ FS 3         1                40        ``BlossomActivationHeight`` ``HeightForHalving(1)``
+ FS 4         1                50        ``BlossomActivationHeight`` ``HeightForHalving(1)``
+ FS 5         1                80        ``BlossomActivationHeight`` ``HeightForHalving(1)``
+ FS 6         1                80        ``BlossomActivationHeight`` ``HeightForHalving(1)``
+ FS 7         1               100        ``BlossomActivationHeight`` ``HeightForHalving(1)``
+ FS 8         1               200        ``BlossomActivationHeight`` ``HeightForHalving(1)``
+====== =============== ================= =========================== =======================
 
 - To-do: specify the correct values.
+
+The sum of the block reward fractions for the above funding streams is ``1/5``, equal to the original
+Founders' Reward (as-defined by ``FoundersFraction`` in [#protocol-constants]_).
 
 The sets of recipient addresses are defined as follows:
 
 .. code:: cpp
 
-    std::vector<std::string> FS_ADDRESSES_ZECC_EF = [
+    std::vector<std::string> FS_1_ADDRESSES = [
     ];
 
-    std::vector<std::string> FS_ADDRESSES_ZF_E = [
+    std::vector<std::string> FS_2_ADDRESSES = [
     ];
 
-    std::vector<std::string> FS_ADDRESSES_ZECC_SR = [
+    std::vector<std::string> FS_3_ADDRESSES = [
+    ];
+
+    std::vector<std::string> FS_4_ADDRESSES = [
+    ];
+
+    std::vector<std::string> FS_5_ADDRESSES = [
+    ];
+
+    std::vector<std::string> FS_6_ADDRESSES = [
+    ];
+
+    std::vector<std::string> FS_7_ADDRESSES = [
+    ];
+
+    std::vector<std::string> FS_8_ADDRESSES = [
     ];
 
 - To-do: specify the sets of FR addresses.
-- To-do: require that the three FR address sets are PGP-signed with appropriate keys.
+- To-do: require that the FR address sets are PGP-signed with appropriate keys.
 
 Example implementation
 ----------------------
@@ -180,9 +198,14 @@ Example implementation
     };
 
     enum FundingStream {
-        FS_ZECC_EF,
-        FS_ZF_E,
-        FS_ZECC_SR,
+        FS_1,
+        FS_2,
+        FS_3,
+        FS_4,
+        FS_5,
+        FS_6,
+        FS_7,
+        FS_8,
         MAX_FUNDING_STREAMS,
     };
 
@@ -193,43 +216,36 @@ Example implementation
         ...
     }
 
+    void AddZIP207FundingStream(
+        Consensus::Params& params,
+        Consensus::FundingStream idx,
+        std::vector<std::string> addresses,
+        uint64_t valueNumerator,
+        uint64_t valueDenominator)
+    {
+        assert(valueNumerator < valueDenominator);
+        params.vFundingPeriods[idx].addresses = addresses;
+        params.vFundingPeriods[idx].valueNumerator = valueNumerator;
+        params.vFundingPeriods[idx].valueDenominator = valueDenominator;
+        params.vFundingPeriods[idx].startHeight =
+            params.vUpgrades[Consensus::UPGRADE_BLOSSOM].nActivationHeight;
+        params.vFundingPeriods[idx].endHeight = HeightForHalving(params, 1);
+        assert(params.vFundingPeriods[idx].startHeight < params.vFundingPeriods[idx].endHeight);
+    };
+
     CMainParams() {
         ...
 
         consensus.nFundingPeriodLength = consensus.nSubsidyPostBlossomHalvingInterval / 48;
 
-        consensus.vFundingPeriods[Consensus::FS_ZECC_EF].addresses = FS_ADDRESSES_ZECC_EF;
-        consensus.vFundingPeriods[Consensus::FS_ZECC_EF].valueNumerator = 737;
-        consensus.vFundingPeriods[Consensus::FS_ZECC_EF].valueDenominator = 1000;
-        consensus.vFundingPeriods[Consensus::FS_ZECC_EF].startHeight =
-            consensus.vUpgrades[Consensus::UPGRADE_BLOSSOM].nActivationHeight;
-        consensus.vFundingPeriods[Consensus::FS_ZECC_EF].endHeight = HeightForHalving(consensus, 1);
-        assert(consensus.vFundingPeriods[Consensus::FS_ZECC_EF].valueNumerator <
-            consensus.vFundingPeriods[Consensus::FS_ZECC_EF].valueDenominator);
-        assert(consensus.vFundingPeriods[Consensus::FS_ZECC_EF].startHeight <
-            consensus.vFundingPeriods[Consensus::FS_ZECC_EF].endHeight);
-
-        consensus.vFundingPeriods[Consensus::FS_ZF_E].addresses = FS_ADDRESSES_ZF_E;
-        consensus.vFundingPeriods[Consensus::FS_ZF_E].valueNumerator = 144;
-        consensus.vFundingPeriods[Consensus::FS_ZF_E].valueDenominator = 1000;
-        consensus.vFundingPeriods[Consensus::FS_ZF_E].startHeight =
-            consensus.vUpgrades[Consensus::UPGRADE_BLOSSOM].nActivationHeight;
-        consensus.vFundingPeriods[Consensus::FS_ZF_E].endHeight = HeightForHalving(consensus, 1);
-        assert(consensus.vFundingPeriods[Consensus::FS_ZF_E].valueNumerator <
-            consensus.vFundingPeriods[Consensus::FS_ZF_E].valueDenominator);
-        assert(consensus.vFundingPeriods[Consensus::FS_ZF_E].startHeight <
-            consensus.vFundingPeriods[Consensus::FS_ZF_E].endHeight);
-
-        consensus.vFundingPeriods[Consensus::FS_ZECC_SR].addresses = FS_ADDRESSES_ZECC_SR;
-        consensus.vFundingPeriods[Consensus::FS_ZECC_SR].valueNumerator = 119;
-        consensus.vFundingPeriods[Consensus::FS_ZECC_SR].valueDenominator = 1000;
-        consensus.vFundingPeriods[Consensus::FS_ZECC_SR].startHeight =
-            consensus.vUpgrades[Consensus::UPGRADE_BLOSSOM].nActivationHeight;
-        consensus.vFundingPeriods[Consensus::FS_ZECC_SR].endHeight = HeightForHalving(consensus, 1);
-        assert(consensus.vFundingPeriods[Consensus::FS_ZECC_SR].valueNumerator <
-            consensus.vFundingPeriods[Consensus::FS_ZECC_SR].valueDenominator);
-        assert(consensus.vFundingPeriods[Consensus::FS_ZECC_SR].startHeight <
-            consensus.vFundingPeriods[Consensus::FS_ZECC_SR].endHeight);
+        AddZIP207FundingStream(consensus, Consensus::FS_1, FS_1_ADDRESSES, 3, 40);
+        AddZIP207FundingStream(consensus, Consensus::FS_2, FS_2_ADDRESSES, 1, 25);
+        AddZIP207FundingStream(consensus, Consensus::FS_3, FS_3_ADDRESSES, 1, 40);
+        AddZIP207FundingStream(consensus, Consensus::FS_4, FS_4_ADDRESSES, 1, 50);
+        AddZIP207FundingStream(consensus, Consensus::FS_5, FS_5_ADDRESSES, 1, 80);
+        AddZIP207FundingStream(consensus, Consensus::FS_6, FS_6_ADDRESSES, 1, 80);
+        AddZIP207FundingStream(consensus, Consensus::FS_7, FS_7_ADDRESSES, 1, 100);
+        AddZIP207FundingStream(consensus, Consensus::FS_8, FS_8_ADDRESSES, 1, 200);
 
         ...
     }
@@ -364,4 +380,5 @@ References
 .. [#continued-funding] `Continued Funding and Transparency <https://z.cash/blog/continued-funding-and-transparency>`_
 .. [#zip-0208] `ZIP 208: Shorter Block Target Spacing <https://github.com/zcash/zips/blob/master/zip-0208.rst>`_
 .. [#original-fr-consensus-rule] `Section 7.8: Payment of Founders' Reward. Zcash Protocol Specification, Version 2018.0-beta-33 or later [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
+.. [#protocol-constants] `Section 5.3: Constants. Zcash Protocol Specification, Version 2018.0-beta-33 or later [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
 .. [#zip-0XXX] `ZIP XXX: Blossom Network Upgrade <https://github.com/zcash/zips/blob/master/zip-0XXX.rst>`_
