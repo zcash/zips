@@ -1241,7 +1241,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\SlowStartInterval}{\mathsf{SlowStartInterval}}
 \newcommand{\SlowStartShift}{\mathsf{SlowStartShift}}
 \newcommand{\SlowStartRate}{\mathsf{SlowStartRate}}
-\newcommand{\HalvingInterval}{\mathsf{HalvingInterval}}
+\newcommand{\PreBlossomHalvingInterval}{\mathsf{\notbeforeblossom{PreBlossom}HalvingInterval}}
+\newcommand{\PostBlossomHalvingInterval}{\mathsf{PostBlossomHalvingInterval}}
 \newcommand{\MaxBlockSubsidy}{\mathsf{MaxBlockSubsidy}}
 \newcommand{\NumFounderAddresses}{\mathsf{NumFounderAddresses}}
 \newcommand{\FounderAddressChangeInterval}{\mathsf{FounderAddressChangeInterval}}
@@ -1259,13 +1260,18 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\slowStartPeriod}{\term{slow-start period}}
 \newcommand{\halvingInterval}{\term{halving interval}}
 
+\newcommand{\BlossomActivationHeight}{\mathsf{BlossomActivationHeight}}
+\newcommand{\IsBlossomActivated}{\mathsf{IsBlossomActivated}}
 \newcommand{\PoWLimit}{\mathsf{PoWLimit}}
 \newcommand{\PoWAveragingWindow}{\mathsf{PoWAveragingWindow}}
 \newcommand{\PoWMedianBlockSpan}{\mathsf{PoWMedianBlockSpan}}
 \newcommand{\PoWMaxAdjustDown}{\mathsf{PoWMaxAdjustDown}}
 \newcommand{\PoWMaxAdjustUp}{\mathsf{PoWMaxAdjustUp}}
 \newcommand{\PoWDampingFactor}{\mathsf{PoWDampingFactor}}
-\newcommand{\PoWTargetSpacing}{\mathsf{PoWTargetSpacing}}
+\newcommand{\PreBlossomPoWTargetSpacing}{\mathsf{\notbeforeblossom{PreBlossom}PoWTargetSpacing}}
+\newcommand{\PostBlossomPoWTargetSpacing}{\mathsf{PostBlossomPoWTargetSpacing}}
+\newcommand{\BlossomPoWTargetSpacingRatio}{\mathsf{BlossomPoWTargetSpacingRatio}}
+\newcommand{\PoWTargetSpacingFunc}{\mathsf{PoWTargetSpacing}}
 \newcommand{\MeanTarget}{\mathsf{MeanTarget}}
 \newcommand{\MedianTime}{\mathsf{MedianTime}}
 \newcommand{\AveragingWindowTimespan}{\mathsf{AveragingWindowTimespan}}
@@ -2245,9 +2251,10 @@ The following integer constants will be instantiated in \crossref{constants}:
     $\NoteCommitRandLength$, \changed{$\RandomSeedLength$,} $\AuthPrivateLength$,
     \changed{$\NoteAddressPreRandLength$,}\sapling{ $\SpendingKeyLength$, $\DiversifierLength$,
     $\InViewingKeyLength$, $\OutViewingKeyLength$, $\ScalarLength$,}
-    $\MAXMONEY$, $\SlowStartInterval$, $\HalvingInterval$, $\MaxBlockSubsidy$,
+    $\MAXMONEY$, $\SlowStartInterval$, $\PreBlossomHalvingInterval$, \blossom{$\PostBlossomHalvingInterval$,}
+    $\MaxBlockSubsidy$,
     $\NumFounderAddresses$, $\PoWLimit$, $\PoWAveragingWindow$, $\PoWMedianBlockSpan$,
-    $\PoWDampingFactor$, and $\PoWTargetSpacing$.
+    $\PoWDampingFactor$, \notblossom{and }$\PreBlossomPoWTargetSpacing$\blossom{, and $\PostBlossomPoWTargetSpacing$}.
   \end{flushleft}
 \end{formulae}
 
@@ -5583,8 +5590,11 @@ Define:
   \item $\UncommittedSapling \typecolon \bitseq{\MerkleHashLengthSapling} := \ItoLEBSPOf{\MerkleHashLengthSapling}{1}$
 } %sapling
   \item $\MAXMONEY \typecolon \Nat := \changed{2.1 \smult 10^{15}}$ (\zatoshi)
+\blossom{
+  \item $\BlossomActivationHeight \typecolon \Nat := 640000$
+} %blossom
   \item $\SlowStartInterval \typecolon \Nat := 20000$
-  \item $\HalvingInterval \typecolon \Nat := 840000$
+  \item $\PreBlossomHalvingInterval \typecolon \Nat := 840000$
   \item $\MaxBlockSubsidy \typecolon \Nat := 1.25 \smult 10^9$ (\zatoshi)
   \item $\NumFounderAddresses \typecolon \Nat := 48$
   \item $\FoundersFraction \typecolon \Rat := \frac{1}{5}$
@@ -5597,7 +5607,10 @@ Define:
   \item $\PoWMaxAdjustDown \typecolon \Rat := \frac{32}{100}$
   \item $\PoWMaxAdjustUp \typecolon \Rat := \frac{16}{100}$
   \item $\PoWDampingFactor \typecolon \Nat := 4$
-  \item $\PoWTargetSpacing \typecolon \Nat := 150$ (seconds).
+  \item $\PreBlossomPoWTargetSpacing \typecolon \Nat := 150$ (seconds).
+\blossom{
+  \item $\PostBlossomPoWTargetSpacing \typecolon \Nat := 75$ (seconds).
+} %blossom
 \end{formulae}
 
 
@@ -8950,7 +8963,9 @@ the desired 2.5-minute block time.
 Unlike \Bitcoin, the difficulty adjustment occurs after every block.
 
 The constants $\PoWLimit$, $\PoWAveragingWindow$, $\PoWMaxAdjustDown$, $\PoWMaxAdjustUp$,
-$\PoWDampingFactor$, and $\PoWTargetSpacing$ are instantiated in \crossref{constants}.
+$\PoWDampingFactor$, \\
+\notblossom{and }$\PreBlossomPoWTargetSpacing$\notbeforeblossom{,\blossom{ $\PostBlossomPoWTargetSpacing$,} and $\PreBlossomHalvingInterval$}
+are instantiated in \crossref{constants}.
 
 Let $\ToCompact$ and $\ToTarget$ be as defined in \crossref{nbits}.
 
@@ -8975,15 +8990,28 @@ Define:
           \floor{x},&\caseif x \geq 0 \\
           -\floor{-x},&\caseotherwise
         \end{cases}$
+\blossom{
+  \item $\IsBlossomActivated(\BlockHeight) := \begin{cases}
+          true,&\caseif \BlockHeight \geq \BlossomActivationHeight \\
+          false,&\caseotherwise
+        \end{cases}$
+  \item $\BlossomPoWTargetSpacingRatio := \hfrac{\PreBlossomPoWTargetSpacing}{\PostBlossomPoWTargetSpacing}$
+  \item $\PostBlossomHalvingInterval := \floor{\PreBlossomHalvingInterval \mult \BlossomPoWTargetSpacingRatio}$
+  \item $\PoWTargetSpacingFunc(\BlockHeight) := \begin{cases}
+          \PreBlossomPoWTargetSpacing,&\caseif \text{not} \IsBlossomActivated(\BlockHeight) \\
+          \PostBlossomPoWTargetSpacing,&\caseotherwise
+        \end{cases}$
+} %blossom
 
-  \item $\AveragingWindowTimespan := \PoWAveragingWindow \mult \PoWTargetSpacing$
-  \item $\MinActualTimespan := \floor{\AveragingWindowTimespan \mult (1 - \PoWMaxAdjustUp)}$
-  \item $\MaxActualTimespan := \floor{\AveragingWindowTimespan \mult (1 + \PoWMaxAdjustDown)}$
+  \item $\AveragingWindowTimespan\blossom{(\BlockHeight)} := \PoWAveragingWindow \mult \PoWTargetSpacingFunc\blossom{(\BlockHeight)}$
+  \item $\MinActualTimespan\blossom{(\BlockHeight)} := \floor{\AveragingWindowTimespan\blossom{(\BlockHeight)} \mult (1 - \PoWMaxAdjustUp)}$
+  \item $\MaxActualTimespan\blossom{(\BlockHeight)} := \floor{\AveragingWindowTimespan\blossom{(\BlockHeight)} \mult (1 + \PoWMaxAdjustDown)}$
   \item $\MedianTime(\BlockHeight) := \median(\listcomp{\nTime(i) \for i \from
                                               \maximum(0, \BlockHeight - \PoWMedianBlockSpan) \upto \BlockHeight - 1})$
   \item $\ActualTimespan(\BlockHeight) := \MedianTime(\BlockHeight) - \MedianTime(\BlockHeight - \PoWAveragingWindow)$
-  \item $\ActualTimespanDamped(\BlockHeight) := \AveragingWindowTimespan + \trunc{\scalebox{0.98}{\hfrac{\ActualTimespan(\BlockHeight) - \AveragingWindowTimespan}{\PoWDampingFactor}}}$
-  \item $\ActualTimespanBounded(\BlockHeight) := \bound{\MinActualTimespan}{\MaxActualTimespan}(\ActualTimespanDamped(\BlockHeight))$
+  \item $\ActualTimespanDamped(\BlockHeight) := \\
+          \AveragingWindowTimespan\blossom{(\BlockHeight)} + \trunc{\scalebox{0.98}{\hfrac{\ActualTimespan(\BlockHeight) - \AveragingWindowTimespan\blossom{(\BlockHeight)}}{\PoWDampingFactor}}}$
+  \item $\ActualTimespanBounded(\BlockHeight) := \bound{\MinActualTimespan\blossom{(\BlockHeight)}}{\MaxActualTimespan\blossom{(\BlockHeight)}}(\ActualTimespanDamped(\BlockHeight))$
   \item $\MeanTarget(\BlockHeight) := \begin{cases}
           \PoWLimit, \hspace{16em}\text{if } \BlockHeight \leq \PoWAveragingWindow \\
           \mean(\listcomp{\ToTarget(\nBits(i)) \for i \from \BlockHeight - \PoWAveragingWindow \upto \BlockHeight - 1}),\\
@@ -9053,21 +9081,31 @@ in its \blockHeader is defined as $\floor{\hfrac{2^{256}}{\ToTarget(\nBits) + 1}
 
 \crossref{subsidyconcepts} defines the \blockSubsidy, \minerSubsidy, and \foundersReward.
 Their amounts in \zatoshi are calculated from the \blockHeight using
-the formulae below. The constants $\SlowStartInterval$, $\HalvingInterval$,
-$\MaxBlockSubsidy$, and $\FoundersFraction$ are instantiated in \crossref{constants}.
+the formulae below. The constants $\SlowStartInterval$, $\PreBlossomHalvingInterval$,
+\blossom{$\PostBlossomHalvingInterval$, $\BlossomActivationHeight$, }$\MaxBlockSubsidy$,
+and $\FoundersFraction$ are instantiated in \crossref{constants}.
 
 \begin{formulae}
   \item $\SlowStartShift \typecolon \Nat := \hfrac{\SlowStartInterval}{2}$
   \item $\SlowStartRate \typecolon \Nat := \hfrac{\MaxBlockSubsidy}{\SlowStartInterval}$
-  \item $\Halving(\BlockHeight) := \floor{\hfrac{\BlockHeight - \SlowStartShift}{\HalvingInterval}}$
+  \item $\Halving(\BlockHeight) := \notblossom{\floor{\hfrac{\BlockHeight - \SlowStartShift}{\PreBlossomHalvingInterval}}}
+        \notbeforeblossom{\begin{cases}
+          \floor{\hfrac{\BlockHeight - \SlowStartShift}{\PreBlossomHalvingInterval}},\hspace{1em}\blossom{\caseif \text{ not } \IsBlossomActivated(\BlockHeight}) \\
+          \blossom{\floor{\hfrac{\BlossomActivationHeight - \SlowStartShift}{\PreBlossomHalvingInterval} + \hfrac{\BlockHeight - \BlossomActivationHeight}{\PostBlossomHalvingInterval}},}&\blossom{\caseotherwise}
+        \end{cases}}$
   \item $\BlockSubsidy(\BlockHeight) := \begin{cases}
           \SlowStartRate \mult \BlockHeight,&\caseif \BlockHeight < \hfrac{\SlowStartInterval}{2} \\[1.4ex]
-          \SlowStartRate \mult (\BlockHeight + 1),&\caseif \hfrac{\SlowStartInterval}{2} \leq \BlockHeight < \SlowStartInterval \\[1.4ex]
-          \floor{\hfrac{\MaxBlockSubsidy}{2^{\Halving(\BlockHeight)}}},&\caseotherwise
+          \SlowStartRate \mult (\BlockHeight + 1),&\caseif \hfrac{\SlowStartInterval}{2} \leq \BlockHeight \\[1.4ex]
+                                                  &\text{ and } \BlockHeight < \SlowStartInterval \\[1.4ex]
+          \floor{\hfrac{\MaxBlockSubsidy}{2^{\Halving(\BlockHeight)}}},&\notblossom{\caseotherwise}\notbeforeblossom{\caseif \SlowStartInterval \leq \BlockHeight} \\
+\notbeforeblossom {
+                                                                       &\blossom{\text{ and not } \IsBlossomActivated(\BlockHeight}) \\[1.4ex]
+          \blossom{\floor{\hfrac{\MaxBlockSubsidy}{\BlossomPoWTargetSpacingRatio \mult 2^{\Halving(\BlockHeight)}}},}&\blossom{\caseotherwise}
+} %notbeforeblossom
         \end{cases}$
 
   \item $\FoundersReward(\BlockHeight) := \begin{cases}
-          \BlockSubsidy(\BlockHeight) \mult \FoundersFraction,&\caseif \BlockHeight < \SlowStartShift + \HalvingInterval \\
+          \BlockSubsidy(\BlockHeight) \mult \FoundersFraction,&\caseif \Halving(\BlockHeight) = 0 \\
           0,&\caseotherwise
         \end{cases}$
 
@@ -9161,7 +9199,7 @@ Let $\SlowStartShift$ be defined as in the previous section.
 Define:
 
 \begin{formulae}
-  \item $\FounderAddressChangeInterval := \ceiling{\hfrac{\SlowStartShift + \HalvingInterval}{\NumFounderAddresses}}$
+  \item $\FounderAddressChangeInterval := \ceiling{\hfrac{\SlowStartShift + \PreBlossomHalvingInterval}{\NumFounderAddresses}}$
   \item $\FounderAddressIndex(\BlockHeight) := 1 + \floor{\hfrac{\BlockHeight}{\FounderAddressChangeInterval}}$.
 \end{formulae}
 
@@ -9170,19 +9208,19 @@ Let $\RedeemScriptHash(\BlockHeight)$ be the standard redeem script hash, as def
 given by $\FounderAddressList_{\,\FounderAddressIndex(\BlockHeight)}$.
 
 \consensusrule{
-A \coinbaseTransaction for \blockHeight $\BlockHeight \in \range{1}{\SlowStartShift + \HalvingInterval - 1}$
+A \coinbaseTransaction for \blockHeight $\BlockHeight \in \range{1}{\SlowStartShift + \PreBlossomHalvingInterval - 1}$
 \MUST include at least one output that pays exactly $\FoundersReward(\BlockHeight)$ \zatoshi
 with a standard P2SH script of the form \ScriptOP{HASH160} \;$\RedeemScriptHash(\BlockHeight)$\; \ScriptOP{EQUAL}
 as its $\scriptPubKey$.
 }
 
 \begin{pnotes}
-  \item No \foundersReward is required to be paid for $\BlockHeight \geq \SlowStartShift + \HalvingInterval$
+  \item No \foundersReward is required to be paid for $\BlockHeight \geq \SlowStartShift + \PreBlossomHalvingInterval$
         (i.e.\ after the first halving), or for $\BlockHeight = 0$ (i.e.\ the \genesisBlock).
   \item The \foundersReward addresses are not treated specially in any other way, and
         there can be other outputs to them, in \coinbaseTransactions or otherwise.
         In particular, it is valid for a \coinbaseTransaction with
-        $\BlockHeight \in \range{1}{\SlowStartShift + \HalvingInterval - 1}$ to have
+        $\BlockHeight \in \range{1}{\SlowStartShift + \PreBlossomHalvingInterval - 1}$ to have
         other outputs, possibly to the same address, that do not meet the criterion
         in the above consensus rule, as long as at least one output meets it.
 \end{pnotes}
@@ -9858,6 +9896,23 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
 \intropart
 \section{Change History}
 
+
+\subparagraph{2019.0-beta-38}
+2019-02-21
+
+\begin{itemize}
+    \item No changes to \Sprout.
+\sapling{
+    \item No changes to \Sapling.
+}
+\blossom{
+    \item Update the following sections to match the current draft of \cite{ZIP-208}:
+          \begin{itemize}
+            \item \crossref{diffadjustment}
+            \item \crossref{subsidies}
+          \end{itemize}
+}
+\end{itemize}
 
 \subparagraph{2019.0-beta-37}
 2019-02-22
