@@ -13,9 +13,9 @@ Terminology
 The key words "MUST", "SHOULD", "SHOULD NOT", and "MAY" in this document are to be interpreted as described in
 RFC 2119. [#RFC2119]_
 
-The "Sprout value pool", as described by section 4.11 of the Zcash Protocol Specification [#protocol]_, is the sum of all previous transactions' `vpub_old` fields subtracted by the sum of all previous transactions `vpub_new` fields.
+The "Sprout value pool", as described by section 4.11 of the Zcash Protocol Specification [#protocol]_, is the sum of all previous transactions' ``vpub_old`` fields subtracted by the sum of all previous transactions ``vpub_new`` fields.
 
-The "Sapling value pool", as described by section 4.12 of Zcash Protocol Specification [#protocol]_, is the negation of the sum of all previous transactions' `valueBalance` fields.
+The "Sapling value pool", as described by section 4.12 of Zcash Protocol Specification [#protocol]_, is the negation of the sum of all previous transactions' ``valueBalance`` fields.
 
 Abstract
 ========
