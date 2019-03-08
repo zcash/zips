@@ -57,7 +57,7 @@ auxblossom:
 	$(LATEXMK) -jobname=blossom -auxdir=aux -outdir=aux protocol
 
 .PHONY: blossom
-sapling:
+blossom:
 	$(MAKE) auxblossom
 	mv -f aux/blossom.pdf .
 
