@@ -10,5 +10,5 @@ Participation in the Zcash project is subject to a
 License
 -------
 
-The contents of this repository are released under the terms of the MIT license.
+Unless otherwise stated in this repository's individual files, the contents of this repository are released under the terms of the MIT license.
 See [COPYING](COPYING) for more information or see http://opensource.org/licenses/MIT.
