@@ -3,6 +3,7 @@
   ZIP: 211
   Title: Disabling Sprout Outputs
   Owners: Daira Hopwood <daira@z.cash>
+  Credits: Sean Bowe <sean@z.cash>
   Status: Draft
   Category: Consensus
   Created: 2019-03-29
