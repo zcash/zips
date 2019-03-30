@@ -19,7 +19,7 @@ described in RFC 2119. [#RFC2119]_
 Abstract
 ========
 
-This ZIP is inspired by Zcash Issue 1119 [#zcash-issue-1119]_ and the
+This ZIP is inspired by Zcash Issue 1112 [#zcash-issue-1112]_ and the
 need for more scalable community polling mechanisms. The proposal would
 seek to implement changes to enable holders of Sapling-shielded ZEC
 to vote on multiple choices within arbitrary proposals without spending
@@ -76,5 +76,5 @@ ZIP, but I wanted to make sure it was submitted before the NU3 deadline.
 References
 ==========
 
-.. [#zcash-issue-1119] `Voting based on proof-of-stake <https://github.com/zcash/zcash/issues/1112>`_
+.. [#zcash-issue-1112] `Voting based on proof-of-stake <https://github.com/zcash/zcash/issues/1112>`_
 .. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://tools.ietf.org/html/rfc2119>`_
