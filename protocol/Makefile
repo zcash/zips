@@ -118,35 +118,36 @@ clean:
               blossom.dvi blossom.pdf blossom.bbl blossom.blg blossom.brf     blossom.toc \
               blossom.aux blossom.out blossom.log blossom.bcf blossom.run.xml blossom.fls blossom.fdb_latexmk
 
-optimizer-installed.flag:
+optimizer-installed.flag2:
+	rm -rf sam2p tif22pnm pdfsizeopt
 	# Nail down git commits to make backdooring somewhat harder.
 	git clone https://github.com/pts/sam2p.git
-	cd sam2p && git reset --hard a2d7819107324faf7b0904fc7074f7dd4a0e16c7 && $(MAKE)
+	cd sam2p && git reset --hard cafd4b8910a56e4b0af833f943a2ae85c7bc0a4d && $(MAKE)
 	git clone https://github.com/pts/tif22pnm.git
 	cd tif22pnm && git reset --hard 22217c1a3ea355a899e9c7c79903488ca13d1dfe && $(MAKE)
 	git clone https://github.com/pts/pdfsizeopt.git
-	cd pdfsizeopt && git reset --hard 47a03403d70f6975888cee966858bebc51b76463
-	touch optimizer-installed.flag
+	cd pdfsizeopt && git reset --hard 5a42db5bef4df1652adb3ef49a9d14bcb58442eb
+	touch optimizer-installed.flag2
 
 .PHONY: clean-optimizer
 clean-optimizer:
-	rm -rf sam2p tif22pnm pdfsizeopt optimizer-installed.flag
+	rm -rf sam2p tif22pnm pdfsizeopt optimizer-installed.flag*
 
 .PHONY: optsprout
-optsprout: optimizer-installed.flag
+optsprout: optimizer-installed.flag2
 	$(MAKE) auxsprout
 	PATH="${PATH}:$(CURDIR)/sam2p:$(CURDIR)/tif22pnm" pdfsizeopt/pdfsizeopt --v=40 --use-image-optimizer=sam2p \
               --tmp-dir=aux aux/sprout.pdf sprout.pdf
 
 .PHONY: optsapling
-optsapling: optimizer-installed.flag
+optsapling: optimizer-installed.flag2
 	$(MAKE) auxsapling
 	PATH="${PATH}:$(CURDIR)/sam2p:$(CURDIR)/tif22pnm" pdfsizeopt/pdfsizeopt --v=40 --use-image-optimizer=sam2p \
               --tmp-dir=aux aux/sapling.pdf sapling.pdf
 	cp -f sapling.pdf protocol.pdf
 
 .PHONY: optblossom
-optblossom: optimizer-installed.flag
+optblossom: optimizer-installed.flag2
 	$(MAKE) auxblossom
 	PATH="${PATH}:$(CURDIR)/sam2p:$(CURDIR)/tif22pnm" pdfsizeopt/pdfsizeopt --v=40 --use-image-optimizer=sam2p \
               --tmp-dir=aux aux/blossom.pdf blossom.pdf
