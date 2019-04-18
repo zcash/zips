@@ -1,13 +1,13 @@
 LATEXMK=latexmk --halt-on-error -bibtex -pdf
 LATEX=pdflatex --halt-on-error
 
-sprout.pdf: protocol.tex zcash.bib incremental_merkle.pdf key_components.pdf
+sprout.pdf: protocol.tex zcash.bib incremental_merkle.png key_components.png
 	$(MAKE) sprout
 
-sapling.pdf: protocol.tex zcash.bib incremental_merkle.pdf key_components_sapling.pdf
+sapling.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
 	$(MAKE) sapling
 
-blossom.pdf: protocol.tex zcash.bib incremental_merkle.pdf key_components_sapling.pdf
+blossom.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
 	$(MAKE) blossom
 
 .PHONY: auxsprout
@@ -62,7 +62,7 @@ blossom:
 	mv -f aux/blossom.pdf .
 
 .PHONY: pvcblossom
-pvcsapling:
+pvcblossom:
 	printf '\\toggletrue{isblossom}\n\\renewcommand{\\docversion}{Version %s [\\BlossomSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/blossom.*
@@ -73,33 +73,33 @@ nolatexmk-sprout:
 	printf '\\renewcommand{\\docversion}{Version %s [\\SproutSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	# If $(LATEX) fails, touch an input so that 'make' won't think it is up-to-date next time.
 	rm -f sprout.aux sprout.bbl sprout.blg sprout.brf sprout.bcf
-	$(LATEX) protocol.tex || { touch incremental_merkle.pdf; exit 1; }
+	$(LATEX) protocol.tex || { touch incremental_merkle.png; exit 1; }
 	biber protocol
-	$(LATEX) protocol.tex || { touch incremental_merkle.pdf; exit 1; }
-	$(LATEX) protocol.tex || { touch incremental_merkle.pdf; exit 1; }
-	$(LATEX) protocol.tex || { touch incremental_merkle.pdf; exit 1; }
+	$(LATEX) protocol.tex || { touch incremental_merkle.png; exit 1; }
+	$(LATEX) protocol.tex || { touch incremental_merkle.png; exit 1; }
+	$(LATEX) protocol.tex || { touch incremental_merkle.png; exit 1; }
 
 .PHONY: nolatexmk-sapling
 nolatexmk-sapling:
 	printf '\\toggletrue{issapling}\n\\renewcommand{\\docversion}{Version %s [\\SaplingSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	# If $(LATEX) fails, touch an input so that 'make' won't think it is up-to-date next time.
 	rm -f sapling.aux sapling.bbl sapling.blg sapling.brf sapling.bcf
-	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.pdf; exit 1; }
+	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.png; exit 1; }
 	biber sapling
-	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.pdf; exit 1; }
-	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.pdf; exit 1; }
-	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.pdf; exit 1; }
+	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.png; exit 1; }
+	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.png; exit 1; }
+	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.png; exit 1; }
 
 .PHONY: nolatexmk-blossom
 nolatexmk-blossom:
 	printf '\\toggletrue{isblossom}\n\\renewcommand{\\docversion}{Version %s [\\BlossomSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	# If $(LATEX) fails, touch an input so that 'make' won't think it is up-to-date next time.
 	rm -f blossom.aux blossom.bbl blossom.blg blossom.brf blossom.bcf
-	$(LATEX) -jobname=blossom protocol.tex || { touch incremental_merkle.pdf; exit 1; }
+	$(LATEX) -jobname=blossom protocol.tex || { touch incremental_merkle.png; exit 1; }
 	biber sapling
-	$(LATEX) -jobname=blossom protocol.tex || { touch incremental_merkle.pdf; exit 1; }
-	$(LATEX) -jobname=blossom protocol.tex || { touch incremental_merkle.pdf; exit 1; }
-	$(LATEX) -jobname=blossom protocol.tex || { touch incremental_merkle.pdf; exit 1; }
+	$(LATEX) -jobname=blossom protocol.tex || { touch incremental_merkle.png; exit 1; }
+	$(LATEX) -jobname=blossom protocol.tex || { touch incremental_merkle.png; exit 1; }
+	$(LATEX) -jobname=blossom protocol.tex || { touch incremental_merkle.png; exit 1; }
 
 .PHONY: html
 html: sapling.pdf sprout.pdf blossom.pdf
