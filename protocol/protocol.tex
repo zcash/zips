@@ -1248,6 +1248,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\FounderAddressChangeInterval}{\mathsf{FounderAddressChangeInterval}}
 \newcommand{\FoundersFraction}{\mathsf{FoundersFraction}}
 \newcommand{\BlockHeight}{\mathsf{height}}
+\newcommand{\FounderAddressAdjustedHeight}{\mathsf{FounderAddressAdjustedHeight}}
+\newcommand{\FoundersRewardLastBlockHeight}{\mathsf{FoundersRewardLastBlockHeight}}
 \newcommand{\Halving}{\mathsf{Halving}}
 \newcommand{\FounderAddress}{\mathsf{FounderAddress}}
 \newcommand{\FounderAddressList}{\mathsf{FounderAddressList}}
@@ -9104,29 +9106,29 @@ and $\FoundersFraction$ are instantiated in \crossref{constants}.
   \item $\SlowStartShift \typecolon \Nat := \hfrac{\SlowStartInterval}{2}$
   \item $\SlowStartRate \typecolon \Nat := \hfrac{\MaxBlockSubsidy}{\SlowStartInterval}$
         \vspace{0.5ex}
-  \item $\Halving(\BlockHeight) := \notblossom{\floor{\hfrac{\BlockHeight - \SlowStartShift}{\PreBlossomHalvingInterval}}}
+  \item $\Halving(\BlockHeight \typecolon \Nat) := \notblossom{\floor{\hfrac{\BlockHeight - \SlowStartShift}{\PreBlossomHalvingInterval}}}
         \notbeforeblossom{\begin{cases}
           \floor{\hfrac{\BlockHeight - \SlowStartShift}{\PreBlossomHalvingInterval}},\hspace{1em}\blossom{\caseif \text{not } \IsBlossomActivated(\BlockHeight)} \\[1.4ex]
           \blossom{\floor{\hfrac{\BlossomActivationHeight - \SlowStartShift}{\PreBlossomHalvingInterval} + \hfrac{\BlockHeight - \BlossomActivationHeight}{\PostBlossomHalvingInterval}},}&\blossom{\caseotherwise}
         \end{cases}}$
         \vspace{0.5ex}
-  \item $\BlockSubsidy(\BlockHeight) := \begin{cases}
+  \item $\BlockSubsidy(\BlockHeight \typecolon \Nat) := \begin{cases}
           \SlowStartRate \mult \BlockHeight,&\caseif \BlockHeight < \hfrac{\SlowStartInterval}{2} \\[1.4ex]
           \SlowStartRate \mult (\BlockHeight + 1),&\caseif \hfrac{\SlowStartInterval}{2} \leq \BlockHeight \\[1.4ex]
                                                   &\text{ and } \BlockHeight < \SlowStartInterval \\[1.4ex]
-          \floor{\hfrac{\MaxBlockSubsidy}{2^{\Halving(\BlockHeight)}}},&\notblossom{\caseotherwise}\notbeforeblossom{\caseif \SlowStartInterval \leq \BlockHeight} \\
+          \floor{\hfrac{\MaxBlockSubsidy}{2^{\Halving(\BlockHeight)}}}\!\!,&\notblossom{\caseotherwise}\notbeforeblossom{\caseif \SlowStartInterval \leq \BlockHeight} \\
 \notbeforeblossom {
-                                                                       &\blossom{\text{ and not } \IsBlossomActivated(\BlockHeight}) \\[1.4ex]
-          \blossom{\floor{\hfrac{\MaxBlockSubsidy}{\BlossomPoWTargetSpacingRatio \mult 2^{\Halving(\BlockHeight)}}},}&\blossom{\caseotherwise}
+                                                                           &\blossom{\text{ and not } \IsBlossomActivated(\BlockHeight)} \\[1.4ex]
+          \blossom{\floor{\hfrac{\MaxBlockSubsidy}{\BlossomPoWTargetSpacingRatio \mult 2^{\Halving(\BlockHeight)}}}\!\!,}&\blossom{\caseotherwise}
 } %notbeforeblossom
         \end{cases}$
 
-  \item $\FoundersReward(\BlockHeight) := \begin{cases}
+  \item $\FoundersReward(\BlockHeight \typecolon \Nat) := \begin{cases}
           \BlockSubsidy(\BlockHeight) \mult \FoundersFraction,&\caseif \Halving(\BlockHeight) = 0 \\
           0,&\caseotherwise
         \end{cases}$
 
-  \item $\MinerSubsidy(\BlockHeight) := \BlockSubsidy(\BlockHeight) - \FoundersReward(\BlockHeight)$.
+  \item $\MinerSubsidy(\BlockHeight \typecolon \Nat) := \BlockSubsidy(\BlockHeight) - \FoundersReward(\BlockHeight)$.
 \end{formulae}
 
 \introsection
@@ -9211,38 +9213,53 @@ Each address representation in $\FounderAddressList$ denotes a \transparent
 P2SH multisig address.
 
 \introlist
-Let $\SlowStartShift$ be defined as in the previous section.
+Let $\SlowStartShift$ and $\Halving$ be defined as in the previous section.
 
 Define:
 
 \begin{formulae}
   \item $\FounderAddressChangeInterval := \ceiling{\hfrac{\SlowStartShift + \PreBlossomHalvingInterval}{\NumFounderAddresses}}$
-  \item $\FounderAddressIndex(\BlockHeight) := 1 + \floor{\hfrac{\BlockHeight}{\FounderAddressChangeInterval}}$.
+\blossom{
+  \item $\FounderAddressAdjustedHeight(\BlockHeight \typecolon \Nat) :=$
+        \vspace{-0.5ex}
+  \item \tab $\begin{cases}
+                \BlockHeight, &\caseif \BlockHeight < \BlossomActivationHeight, \\
+                \BlossomActivationHeight + \hfrac{\BlockHeight - \BlossomActivationHeight}{\BlossomPoWTargetSpacingRatio}, &\caseotherwise
+              \end{cases}$
+}
+  \item $\FounderAddressIndex(\BlockHeight \typecolon \Nat) := 1 + \floor{\hfrac{\blossom{\FounderAddressAdjustedHeight(}\BlockHeight\blossom{)}}{\FounderAddressChangeInterval}}$
+  \item $\FoundersRewardLastBlockHeight :=
+\notblossom{\SlowStartShift + \PreBlossomHalvingInterval - 1}
+\blossom{\maximum\Of{\setof{\BlockHeight \typecolon \Nat \suchthat \Halving(\BlockHeight) < 1}}}$\,.
 \end{formulae}
 
-Let $\RedeemScriptHash(\BlockHeight)$ be the standard redeem script hash, as defined in
+Let $\RedeemScriptHash(\BlockHeight \typecolon \Nat)$ be the standard redeem script hash, as defined in
 \cite{Bitcoin-Multisig}, for the P2SH multisig address with Base58Check form
 given by $\FounderAddressList_{\,\FounderAddressIndex(\BlockHeight)}$.
 
 \consensusrule{
-A \coinbaseTransaction for \block $\BlockHeight \in \range{1}{\SlowStartShift + \PreBlossomHalvingInterval - 1}$
+A \coinbaseTransaction for \blockHeight $\BlockHeight \in \range{1}{\FoundersRewardLastBlockHeight}$
 \MUST include at least one output that pays exactly $\FoundersReward(\BlockHeight)$ \zatoshi
 with a standard P2SH script of the form \ScriptOP{HASH160} \;$\RedeemScriptHash(\BlockHeight)$\; \ScriptOP{EQUAL}
 as its $\scriptPubKey$.
 }
 
 \begin{pnotes}
-  \item No \foundersReward is required to be paid for $\BlockHeight \geq$
-        \notblossom{$\SlowStartShift + \PreBlossomHalvingInterval$
-        (i.e.\ after the first halving)}\blossom{$\BlossomActivationHeight$},
-        or for $\BlockHeight = 0$ (i.e.\ the \genesisBlock).
+  \item No \foundersReward is required to be paid for $\BlockHeight > \FoundersRewardLastBlockHeight$
+        (i.e.\ after the first halving), or for $\BlockHeight = 0$ (i.e.\ the \genesisBlock).
   \item The \foundersReward addresses are not treated specially in any other way, and
         there can be other outputs to them, in \coinbaseTransactions or otherwise.
         In particular, it is valid for a \coinbaseTransaction with
-        $\BlockHeight \in \range{1}{\SlowStartShift + \PreBlossomHalvingInterval - 1}$ to have
+        $\BlockHeight \in \range{1}{\FoundersRewardLastBlockHeight}$ to have
         other outputs, possibly to the same address, that do not meet the criterion
         in the above consensus rule, as long as at least one output meets it.
+  \item The assertion $\FounderAddressIndex(\FoundersRewardLastBlockHeight) \leq \NumFounderAddresses$
+        holds, ensuring that the \foundersReward address index remains in range for the
+        whole period in which the \foundersReward is paid.
 \end{pnotes}
+
+\blossom{\todo{\Blossom is not intended to change the total \foundersReward or the effective period over
+which it is paid; ensure that this is the case.}}
 
 
 \subsection{Changes to the Script System} \label{scripts}
