@@ -1,0 +1,481 @@
+::
+
+  ZIP: 207
+  Title: Split Founders' Reward
+  Author: Jack Grigg <jack@z.cash>
+  Category: Consensus
+  Status: Withdrawn
+  Created: 2019-01-04
+  License: MIT
+
+
+Terminology
+===========
+
+The key words "MUST", "SHOULD", "SHOULD NOT", and "MAY" in this document are to be interpreted as described in
+RFC 2119. [#RFC2119]_
+
+
+Abstract
+========
+
+This proposal defines how the consensus rules are altered to split the original Founders' Reward across
+several recipient addresses per block instead of one, corresponding to the several funding streams contained
+within it.
+
+
+Motivation
+==========
+
+Since the launch of the Zcash network, the consensus rules have required that until the first block reward
+halving (at block 850,000), each block must send 20% of the block subsidy to a hard-coded transparent address.
+[#block-subsidy]_ This funding stream is referred to as the Founders' Reward.
+
+This stream of 2.5-ZEC outputs (the value after the mining slow-start was completed) can be split into several
+logical funding streams (for background, see [#continued-funding]_). Modifying the consensus rules to allocate
+the 2.5 ZEC across separate recipient addresses decouples these funding streams organizationally, legally, and
+operationally. It further reinforces transparency as to the structure of the original Founders' Reward.
+
+
+Specification
+=============
+
+Definitions
+-----------
+
+We use the following constants and functions defined in [#zip-0208]_:
+
+- ``BlossomActivationHeight``
+- ``PostBlossomHalvingInterval``
+- ``Halving(height)``
+
+We also define the following constants and functions:
+
+- ``SlowStartShift`` as-defined in [#block-subsidy]_.
+- ``HeightForHalving(halving)``: Smallest ``height`` such that ``Halving(height) = halving``
+
+Funding streams
+---------------
+
+A funding stream is defined by a block reward fraction (represented as a numerator and a denominator), a start
+height (inclusive), and an end height (exclusive).
+
+By defining the issuance as a proportion of the total block issuance, rather than absolute zatoshis, this ZIP
+dovetails with any changes to both block target times and issuance-per-block rates while maintaining an
+unchanged target-time-based issuance schedule. We anticipate such target-time / issuance rate changes in other
+ZIPs (for example, [#zip-0208]_).
+
+The value of a funding stream at a given block height is defined as::
+
+    FundingStream[FUND].Value(height) =
+        floor((
+            BlockReward(height) * FundingStream[FUND].ValueNumerator
+        ) / FundingStream[FUND].ValueDenominator)
+
+An active funding stream at a given block height is defined as a funding stream for which the block height is
+less than its end height, but not less than its start height.
+
+Each funding stream has an associated set of recipient addresses. Each address is used for at most 1/48th of a
+halving interval, creating a roughly-monthly sequence of funding periods. The address to be used for a given
+block height is defined as follows::
+
+    AddressChangeInterval = PostBlossomHalvingInterval / 48
+    AddressPeriod(height) =
+        floor((
+            height + PostBlossomHalvingInterval - HeightForHalving(1)
+        ) / AddressChangeInterval)
+    FundingStream[FUND].AddressIndex(height) =
+        AddressPeriod(height) - AddressPeriod(FundingStream[FUND].StartHeight)
+    Address(height) = FundingStream[FUND].Addresses[FundingStream[FUND].AddressIndex(height)]
+
+This has the property that all active funding streams change the address they are using on the same block
+height schedule, aligned to the height of the first halving so that 48 funding periods fit cleanly within a
+halving interval. This can be leveraged to simplify implementations, by batching the necessary outputs for
+each funding period.
+
+Below is a visual representation of how stream addresses align with funding periods:
+
+================================== ======== ======== ========
+          Example height           Stream A Stream B Stream C
+================================== ======== ======== ========
+     ``AddressChangeInterval - 2``    A0
+     ``AddressChangeInterval - 1``    A0
+     ``AddressChangeInterval``        A1       B0       C0
+     ``AddressChangeInterval + 1``    A1       B0       C0
+             ...
+   ``2*AddressChangeInterval - 2``    A1       B0       C0
+   ``2*AddressChangeInterval - 1``    A1       B0       C0
+   ``2*AddressChangeInterval``        A2                C1
+   ``2*AddressChangeInterval + 1``    A2                C1
+             ...
+``PostBlossomHalvingInterval - 2``    A2                C1
+``PostBlossomHalvingInterval - 1``    A2                C1
+``PostBlossomHalvingInterval``                          C2
+``PostBlossomHalvingInterval + 1``                      C2
+================================== ======== ======== ========
+
+Note that this is not intended to align with the end of a pre-Blossom Founders' Reward address period (as
+defined by ``FounderAddressChangeInterval`` in [#original-fr-consensus-rule]_). There will be a shortened
+Founders' Reward address period prior to Blossom activation.
+
+Consensus rules
+---------------
+
+Prior to activation of the Blossom network upgrade, the existing consensus rule for payment of the original
+Founders' Reward is enforced. [#original-fr-consensus-rule]_
+
+Once the Blossom network upgrade activates:
+
+- The existing consensus rule [#original-fr-consensus-rule]_ is no longer active.
+- The coinbase transaction in each block MUST contain at least one output per active funding stream that pays
+  the stream's value to the stream's recipient address for the block's height.
+
+Stream definitions
+------------------
+
+The consensus-defined funding streams described above each start at the Blossom activation height, and end at
+the first block reward halving. They are defined as follows:
+
+====== =============== ================= =========================== =======================
+Stream Value numerator Value denominator        Start height               End height
+====== =============== ================= =========================== =======================
+ FS 1         3                40        ``BlossomActivationHeight`` ``HeightForHalving(1)``
+ FS 2         1                25        ``BlossomActivationHeight`` ``HeightForHalving(1)``
+ FS 3         1                40        ``BlossomActivationHeight`` ``HeightForHalving(1)``
+ FS 4         1                50        ``BlossomActivationHeight`` ``HeightForHalving(1)``
+ FS 5         1                80        ``BlossomActivationHeight`` ``HeightForHalving(1)``
+ FS 6         1                80        ``BlossomActivationHeight`` ``HeightForHalving(1)``
+ FS 7         1               100        ``BlossomActivationHeight`` ``HeightForHalving(1)``
+ FS 8         1               200        ``BlossomActivationHeight`` ``HeightForHalving(1)``
+====== =============== ================= =========================== =======================
+
+- To-do: specify the correct values.
+
+The sum of the block reward fractions for the above funding streams is ``1/5``, equal to the original
+Founders' Reward (as-defined by ``FoundersFraction`` in [#protocol-constants]_).
+
+The sets of recipient addresses are defined as follows:
+
+.. code:: cpp
+
+    std::vector<std::string> FS_1_ADDRESSES = [
+        "tFS1INVALIDADDRESS00",
+        "tFS1INVALIDADDRESS01",
+        "tFS1INVALIDADDRESS02",
+        "tFS1INVALIDADDRESS03",
+        "tFS1INVALIDADDRESS04",
+        "tFS1INVALIDADDRESS05",
+        "tFS1INVALIDADDRESS06",
+        "tFS1INVALIDADDRESS07",
+        "tFS1INVALIDADDRESS08",
+        "tFS1INVALIDADDRESS09",
+        "tFS1INVALIDADDRESS10",
+        "tFS1INVALIDADDRESS11",
+    ];
+
+    std::vector<std::string> FS_2_ADDRESSES = [
+        "tFS2INVALIDADDRESS00",
+        "tFS2INVALIDADDRESS01",
+        "tFS2INVALIDADDRESS02",
+        "tFS2INVALIDADDRESS03",
+        "tFS2INVALIDADDRESS04",
+        "tFS2INVALIDADDRESS05",
+        "tFS2INVALIDADDRESS06",
+        "tFS2INVALIDADDRESS07",
+        "tFS2INVALIDADDRESS08",
+        "tFS2INVALIDADDRESS09",
+        "tFS2INVALIDADDRESS10",
+        "tFS2INVALIDADDRESS11",
+    ];
+
+    std::vector<std::string> FS_3_ADDRESSES = [
+        "tFS3INVALIDADDRESS00",
+        "tFS3INVALIDADDRESS01",
+        "tFS3INVALIDADDRESS02",
+        "tFS3INVALIDADDRESS03",
+        "tFS3INVALIDADDRESS04",
+        "tFS3INVALIDADDRESS05",
+        "tFS3INVALIDADDRESS06",
+        "tFS3INVALIDADDRESS07",
+        "tFS3INVALIDADDRESS08",
+        "tFS3INVALIDADDRESS09",
+        "tFS3INVALIDADDRESS10",
+        "tFS3INVALIDADDRESS11",
+    ];
+
+    std::vector<std::string> FS_4_ADDRESSES = [
+        "tFS4INVALIDADDRESS00",
+        "tFS4INVALIDADDRESS01",
+        "tFS4INVALIDADDRESS02",
+        "tFS4INVALIDADDRESS03",
+        "tFS4INVALIDADDRESS04",
+        "tFS4INVALIDADDRESS05",
+        "tFS4INVALIDADDRESS06",
+        "tFS4INVALIDADDRESS07",
+        "tFS4INVALIDADDRESS08",
+        "tFS4INVALIDADDRESS09",
+        "tFS4INVALIDADDRESS10",
+        "tFS4INVALIDADDRESS11",
+    ];
+
+    std::vector<std::string> FS_5_ADDRESSES = [
+        "tFS5INVALIDADDRESS00",
+        "tFS5INVALIDADDRESS01",
+        "tFS5INVALIDADDRESS02",
+        "tFS5INVALIDADDRESS03",
+        "tFS5INVALIDADDRESS04",
+        "tFS5INVALIDADDRESS05",
+        "tFS5INVALIDADDRESS06",
+        "tFS5INVALIDADDRESS07",
+        "tFS5INVALIDADDRESS08",
+        "tFS5INVALIDADDRESS09",
+        "tFS5INVALIDADDRESS10",
+        "tFS5INVALIDADDRESS11",
+    ];
+
+    std::vector<std::string> FS_6_ADDRESSES = [
+        "tFS6INVALIDADDRESS00",
+        "tFS6INVALIDADDRESS01",
+        "tFS6INVALIDADDRESS02",
+        "tFS6INVALIDADDRESS03",
+        "tFS6INVALIDADDRESS04",
+        "tFS6INVALIDADDRESS05",
+        "tFS6INVALIDADDRESS06",
+        "tFS6INVALIDADDRESS07",
+        "tFS6INVALIDADDRESS08",
+        "tFS6INVALIDADDRESS09",
+        "tFS6INVALIDADDRESS10",
+        "tFS6INVALIDADDRESS11",
+    ];
+
+    std::vector<std::string> FS_7_ADDRESSES = [
+        "tFS7INVALIDADDRESS00",
+        "tFS7INVALIDADDRESS01",
+        "tFS7INVALIDADDRESS02",
+        "tFS7INVALIDADDRESS03",
+        "tFS7INVALIDADDRESS04",
+        "tFS7INVALIDADDRESS05",
+        "tFS7INVALIDADDRESS06",
+        "tFS7INVALIDADDRESS07",
+        "tFS7INVALIDADDRESS08",
+        "tFS7INVALIDADDRESS09",
+        "tFS7INVALIDADDRESS10",
+        "tFS7INVALIDADDRESS11",
+    ];
+
+    std::vector<std::string> FS_8_ADDRESSES = [
+        "tFS8INVALIDADDRESS00",
+        "tFS8INVALIDADDRESS01",
+        "tFS8INVALIDADDRESS02",
+        "tFS8INVALIDADDRESS03",
+        "tFS8INVALIDADDRESS04",
+        "tFS8INVALIDADDRESS05",
+        "tFS8INVALIDADDRESS06",
+        "tFS8INVALIDADDRESS07",
+        "tFS8INVALIDADDRESS08",
+        "tFS8INVALIDADDRESS09",
+        "tFS8INVALIDADDRESS10",
+        "tFS8INVALIDADDRESS11",
+    ];
+
+- To-do: specify the correct sets of FR addresses.
+- To-do: require that the FR address sets are PGP-signed with appropriate keys.
+
+Example implementation
+----------------------
+
+.. code:: cpp
+
+    struct FundingPeriod {
+        std::vector<std::string> addresses,
+        uint64_t valueNumerator,
+        uint64_t valueDenominator,
+        int startHeight,
+        int endHeight,
+    };
+
+    enum FundingStream {
+        FS_1,
+        FS_2,
+        FS_3,
+        FS_4,
+        FS_5,
+        FS_6,
+        FS_7,
+        FS_8,
+        MAX_FUNDING_STREAMS,
+    };
+
+    struct Params {
+        ...
+        int nFundingPeriodLength;
+        FundingPeriod vFundingPeriods[MAX_FUNDING_STREAMS];
+        ...
+    }
+
+    void AddZIP207FundingStream(
+        Consensus::Params& params,
+        Consensus::FundingStream idx,
+        std::vector<std::string> addresses,
+        uint64_t valueNumerator,
+        uint64_t valueDenominator)
+    {
+        assert(valueNumerator < valueDenominator);
+        params.vFundingPeriods[idx].addresses = addresses;
+        params.vFundingPeriods[idx].valueNumerator = valueNumerator;
+        params.vFundingPeriods[idx].valueDenominator = valueDenominator;
+        params.vFundingPeriods[idx].startHeight =
+            params.vUpgrades[Consensus::UPGRADE_BLOSSOM].nActivationHeight;
+        params.vFundingPeriods[idx].endHeight = HeightForHalving(params, 1);
+        assert(params.vFundingPeriods[idx].startHeight < params.vFundingPeriods[idx].endHeight);
+    };
+
+    CMainParams() {
+        ...
+
+        consensus.nFundingPeriodLength = consensus.nSubsidyPostBlossomHalvingInterval / 48;
+
+        AddZIP207FundingStream(consensus, Consensus::FS_1, FS_1_ADDRESSES, 3, 40);
+        AddZIP207FundingStream(consensus, Consensus::FS_2, FS_2_ADDRESSES, 1, 25);
+        AddZIP207FundingStream(consensus, Consensus::FS_3, FS_3_ADDRESSES, 1, 40);
+        AddZIP207FundingStream(consensus, Consensus::FS_4, FS_4_ADDRESSES, 1, 50);
+        AddZIP207FundingStream(consensus, Consensus::FS_5, FS_5_ADDRESSES, 1, 80);
+        AddZIP207FundingStream(consensus, Consensus::FS_6, FS_6_ADDRESSES, 1, 80);
+        AddZIP207FundingStream(consensus, Consensus::FS_7, FS_7_ADDRESSES, 1, 100);
+        AddZIP207FundingStream(consensus, Consensus::FS_8, FS_8_ADDRESSES, 1, 200);
+
+        ...
+    }
+
+    CScript FundingStreamRecipientAddress(
+        int nHeight,
+        const Consensus::Params& params,
+        Consensus::FundingStream idx)
+    {
+        // Integer division is floor division in C++
+        auto curPeriod = (
+            nHeight + params.nSubsidyPostBlossomHalvingInterval - HeightForHalving(params, 1)
+        ) / params.nFundingPeriodLength;
+        auto startPeriod = (
+            params.vFundingPeriods[idx].startHeight
+                + params.nSubsidyPostBlossomHalvingInterval
+                - HeightForHalving(params, 1)
+        ) / params.nFundingPeriodLength;
+        auto addressIndex = curPeriod - startPeriod;
+        return params.vFundingPeriods[idx].addresses[addressIndex];
+    };
+
+    CAmount FundingStreamValue(
+        int nHeight,
+        const Consensus::Params& params,
+        Consensus::FundingStream idx)
+    {
+        // Integer division is floor division in C++
+        return CAmount((
+            GetBlockSubsidy(nHeight, params) * params.vFundingPeriods[idx].valueNumerator
+        ) / params.vFundingPeriods[idx].valueDenominator);
+    }
+
+    std::set<std::pair<CScript, CAmount>> GetActiveFundingStreams(
+        int nHeight,
+        const Consensus::Params& params)
+    {
+        std::set<std::pair<CScript, CAmount>> requiredStreams;
+        for (int idx = Consensus::FS_ZECC_EF; idx < Consensus::MAX_FUNDING_STREAMS; idx++) {
+            // Funding period is [startHeight, endHeight)
+            if (nHeight >= params.vFundingPeriods[idx].startHeight &&
+                nHeight < params.vFundingPeriods[idx].endHeight)
+            {
+                requiredStreams.insert(std::make_pair(
+                    FundingStreamRecipientAddress(nHeight, params, idx),
+                    FundingStreamValue(nHeight, params, idx));
+            }
+        }
+        return requiredStreams;
+    };
+
+    bool ContextualCheckBlock(...)
+    {
+        ...
+
+        if (NetworkUpgradeActive(nHeight, consensusParams, Consensus::UPGRADE_BLOSSOM)) {
+            // Coinbase transaction must include outputs corresponding to the consensus
+            // funding streams active at the current block height.
+            auto requiredStreams = GetActiveFundingStreams(nHeight, consensusParams);
+
+            for (const CTxOut& output : block.vtx[0].vout) {
+                for (auto it = requiredStreams.begin(); it != requiredStreams.end(); ++it) {
+                    if (output.scriptPubKey == it->first && output.nValue == it->second) {
+                        requiredStreams.erase(it);
+                        break;
+                    }
+                }
+            }
+
+            if (!requiredStreams.empty()) {
+                return state.DoS(100, error("%s: funding stream missing", __func__), REJECT_INVALID, "cb-funding-stream-missing");
+            }
+        } else {
+            // Coinbase transaction must include an output sending 20% of
+            // the block reward to a founders reward script, until the last founders
+            // reward block is reached, with exception of the genesis block.
+            // The last founders reward block is defined as the block just before the
+            // first subsidy halving block, which occurs at halving_interval + slow_start_shift
+            if ((nHeight > 0) && (nHeight <= consensusParams.GetLastFoundersRewardBlockHeight())) {
+                bool found = false;
+
+                for (const CTxOut& output : block.vtx[0].vout) {
+                    if (output.scriptPubKey == Params().GetFoundersRewardScriptAtHeight(nHeight)) {
+                        if (output.nValue == (GetBlockSubsidy(nHeight, consensusParams) / 5)) {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!found) {
+                    return state.DoS(100, error("%s: founders reward missing", __func__), REJECT_INVALID, "cb-no-founders-reward");
+                }
+            }
+        }
+
+        ...
+    }
+
+
+Deployment
+==========
+
+This proposal will be deployed with the Blossom network upgrade. [#zip-0XXX]_
+
+
+Backward compatibility
+======================
+
+This proposal intentionally creates what is known as a "bilateral consensus rule change". Use of this
+mechanism requires that all network participants upgrade their software to a compatible version within the
+upgrade window. Older software will treat post-upgrade blocks as invalid, and will follow any pre-upgrade
+branch that persists.
+
+This proposal is designed with the explicit requirement of not altering the overall issuance schedule (based
+on time), nor does it alter the proportion or timeline of the overall Founders' Reward. As a result, no users
+outside of the Zerocoin Electric Coin Company and Zcash Foundation should experience any UX or economic change
+outside of the upgrade due to this proposal itself.
+
+
+Reference Implementation
+========================
+
+TBC
+
+
+References
+==========
+
+.. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://tools.ietf.org/html/rfc2119>`_
+.. [#block-subsidy] `Section 7.7: Calculation of Block Subsidy and Founders' Reward. Zcash Protocol Specification, Version 2018.0-beta-33 or later [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
+.. [#continued-funding] `Continued Funding and Transparency <https://z.cash/blog/continued-funding-and-transparency>`_
+.. [#zip-0208] `ZIP 208: Shorter Block Target Spacing <https://github.com/zcash/zips/blob/master/zip-0208.rst>`_
+.. [#original-fr-consensus-rule] `Section 7.8: Payment of Founders' Reward. Zcash Protocol Specification, Version 2018.0-beta-33 or later [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
+.. [#protocol-constants] `Section 5.3: Constants. Zcash Protocol Specification, Version 2018.0-beta-33 or later [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
+.. [#zip-0XXX] `ZIP XXX: Blossom Network Upgrade <https://github.com/zcash/zips/blob/master/zip-0XXX.rst>`_
