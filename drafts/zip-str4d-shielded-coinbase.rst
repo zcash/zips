@@ -103,7 +103,7 @@ The ZIP does not require that all coinbase must be shielded immediately from act
 the network upgrade, so that miners and mining pools may gradually migrate from their
 existing transparent addresses to Sapling addresses. This also simplifies the consensus
 rules, because there are funding streams that target transparent addresses, and thus it
-remains necessary for the time being to support them. A future ZIP will require all
+remains necessary for the time being to support them. A future ZIP could require all
 coinbase to be shielded immediately.
 
 Enforcing coinbase maturity at the consensus level for Sapling outputs would incur
@@ -118,7 +118,7 @@ occurs that would cause a shielded coinbase output to disappear, it will also in
 every shielded transaction that uses an anchor descending from the tree that the shielded
 coinbase output had been appended to. That is, all economic activity would be rolled back
 in addition to the shielded coinbase output disappearing, so there is no reason to make
-shielded coinbase a special-case when the same behaviour occurs in regular shielded notes
+shielded coinbase a special case when the same behaviour occurs in regular shielded notes
 already. In the transparent coinbase case, only direct child transactions of the
 transparent coinbase would become invalid, and thus it would be possible to end up in a
 situation where a logical child transaction (for example, a mining pool paying out miners)
@@ -137,7 +137,7 @@ ad-hoc elsewhere in the coinbase transaction.
 Security and Privacy Considerations
 ===================================
 
-Sapling outputs in coinbase transactions are by design publicly-viewable, in contrast to
+Sapling outputs in coinbase transactions are by design publicly viewable, in contrast to
 Sapling outputs in normal transactions. This does not introduce any privacy regressions,
 because coinbase output values and recipient addresses have always been public
 information.
