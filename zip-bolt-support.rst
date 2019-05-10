@@ -43,16 +43,16 @@ Private payment channels as designed by the Bolt protocol require the following 
 (5) Ability to do absolute and relative time locks to support multi-hop payments.
 (6) Ability to validate Bolt-specific commitment opening message and closing signature:
 
-- check the validity of the commitment opening
-- check the validity of randomized/blinded signature on the wallet commitment in closure token
-- check the validity of revocation token signature in the event of a channel dispute by merchant
+- check the validity of the commitment opening.
+- check the validity of randomized/blinded signature on the wallet commitment in closure token.
+- check the validity of revocation token signature in the event of a channel dispute by merchant.
  
 (7) Ability to verify the transaction output such that:
 
-- if customer initiated closing, first output pays out to customer with a time lock (to allow merchant to dispute customer balance) and second output pays out to merchant immediately 
-- if merchant initiated closing, a single output that pays the merchant the full balance of the channel with a time lock that allows for customer dispute
+- if customer initiated closing, first output pays out to customer with a time lock (to allow merchant to dispute customer balance) and second output pays out to merchant immediately.
+- if merchant initiated closing, a single output that pays the merchant the full balance of the channel with a time lock that allows for customer dispute.
 
-**Channel Operation Assumptions.**
+**Channel Operation Assumptions**
  - Single-funded channel by customer with a minimum fee paid to the merchant.
  - Either the customer or the merchant can initiate channel closing.
  - If the customer initiates closing, then the merchant can dispute the closing transaction if they disagrees with the closure token in the closing transaction.
@@ -140,7 +140,7 @@ where ``serializedScript`` is as follows:
 	
 	2 <cust-pubkey> <merch-pubkey> 2 OP_CHECKMULTISIGVERIFY OP_DUP OP_HASH160 <hash-of-channel-token> OP_EQUALVERIFY OP_BOLT
 
-* ``bindingSig``: a signature that proves that (1) the total value spent by Spend transfers - Output transfers = value balance field.
+* ``bindingSig``: a signature proving that (1) the total value spent by Spend transfers - Output transfers = value balance field.
 
 The customer broadcasts the funding transaction and waits for the network to confirm the transaction. Once the transaction is confirmed, the customer completes its initial commitment transaction and provides the channel token to the merchant so he can create his own commitment transaction.
 
