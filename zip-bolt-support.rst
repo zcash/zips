@@ -43,16 +43,16 @@ Private payment channels as designed by the Bolt protocol require the following 
 (5) Ability to do absolute and relative time locks to support multi-hop payments.
 (6) Ability to validate Bolt-specific commitment opening message and closing signature:
 
-- check the validity of the commitment opening.
-- check the validity of randomized/blinded signature on the wallet commitment in closure token.
-- check the validity of revocation token signature in the event of a channel dispute by merchant.
+- check the validity of the commitment opening
+- check the validity of randomized/blinded signature on the wallet commitment in closure token
+- check the validity of revocation token signature in the event of a channel dispute by merchant
  
 (7) Ability to verify the transaction output such that:
 
-- if customer initiated closing, first output pays out to customer with a time lock (to allow merchant to dispute customer balance) and second output pays out to merchant immediately.
-- if merchant initiated closing, a single output that pays the merchant the full balance of the channel with a time lock that allows for customer dispute.
+- if customer initiated closing, first output pays out to customer with a time lock (to allow merchant to dispute customer balance) and second output pays out to merchant immediately 
+- if merchant initiated closing, a single output that pays the merchant the full balance of the channel with a time lock that allows for customer dispute
 
-**Channel Operation Assumptions**
+**Channel Operation Assumptions.**
  - Single-funded channel by customer with a minimum fee paid to the merchant.
  - Either the customer or the merchant can initiate channel closing.
  - If the customer initiates closing, then the merchant can dispute the closing transaction if they disagrees with the closure token in the closing transaction.
@@ -94,7 +94,7 @@ We assume the following specific features are present:
 
 * Mode 3 (for merchant dispute of customer closure token). This mode is used in a merchant closing transaction to dispute a customer's closure token. The opcode expects a merchant revocation token. It validates the revocation token with respect to the wallet pub key posted by the customer in the customer's closing transaction. If valid, the customer's closure token will be invalidated and the merchant's closing transaction will be deemed valid.
 
-**Privacy Limitations**: The aggregate balance of the channel will be revealed in the 2-of-2 multisig transparent address. Similarly, the final spliting of funds will be revealed to the network. However, for channel opening and closing, the identity of the participants remain hidden. Channel opening and closing will also be distinguishable on the network due to use of ``OP_BOLT`` opcodes.
+**Privacy Limitations**. The aggregate balance of the channel will be revealed in the 2-of-2 multisig transparent address. Similarly, the final spliting of funds will be revealed to the network. However, for channel opening and closing, the identity of the participants remain hidden. Channel opening and closing will also be distinguishable on the network due to use of ``OP_BOLT`` opcodes.
 
 2.1 Channel Opening
 -------------
@@ -104,7 +104,7 @@ The customer creates a funding transaction that spends ZEC from a shielded addre
 -------------
 The funding transaction is by default funded by only one participant, the customer.  
 
-This transaction has 2 shielded inputs (but can be up to some N) and 1 output to a P2SH address (to a 2-of-2 multi-sig address) with a the merchant public key. Note that the customer can specify as many shielded inputs to fund the channel sufficiently (limited only by the overall transaction size).
+This transaction has 2 shielded inputs (but can be up to some N) and 1 output to a P2SH address (to a 2-of-2 multi-sig address) with the merchant public key. Note that the customer can specify as many shielded inputs to fund the channel sufficiently (limited only by the overall transaction size).
 
 * ``lock_time``: 0
 * ``nExpiryHeight``: 0
@@ -119,7 +119,7 @@ This transaction has 2 shielded inputs (but can be up to some N) and 1 output to
   - ``zkproof``: zero-knowledge proof for the note
   - ``spendAuthSig``: signature authorizing the spend
   
-* ``vShieldedSpend[1]``: tx for merchant’s note commitment and nullifier for the coins (if dual-funded)
+* ``vShieldedSpend[1..N]``: additional tx for customer's note commitment and nullifier for the coins 
   
   - ``cv``: commitment for the input note
   - ``root``: root hash of note commitment tree at some block height
@@ -134,19 +134,21 @@ This transaction has 2 shielded inputs (but can be up to some N) and 1 output to
 
 To redeem this output, the redeeming transaction must present:
 
-	scriptSig: 0 <mode> <<channel-token> <closing-token> or <rev-token>> <cust-sig> <merch-sig> <serializedScript>, 
+	scriptSig: 0 <opbolt-mode> <<channel-token> <closing-token>> <cust-sig> <merch-sig> <serializedScript>,
 	
 where ``serializedScript`` is as follows: 
 	
 	2 <cust-pubkey> <merch-pubkey> 2 OP_CHECKMULTISIGVERIFY OP_DUP OP_HASH160 <hash-of-channel-token> OP_EQUALVERIFY OP_BOLT
 
-* ``bindingSig``: a signature proving that (1) the total value spent by Spend transfers - Output transfers = value balance field.
+* ``bindingSig``: a signature that proves that (1) the total value spent by Spend transfers - Output transfers = value balance field.
 
-The customer broadcasts the funding transaction and waits for the network to confirm the transaction. Once the transaction is confirmed, the customer completes its initial commitment transaction and provides the channel token to the merchant so he can create his own commitment transaction.
+The customer creates its initial commitment transaction _before_ the funding transaction is confirmed (since customer needs to know they can get their money back). Similarly, the merchant creates his initial commitment transaction _before_ the funding transaction is confirmed. Once both commitment transactions have been created, the customer broadcasts the funding transaction and waits for the network to confirm the transaction. After the transaction has been confirmed, the payment channel is established.
 
-2.3 Initial Wallet Commitment
+2.3 Commitment Transactions
 -------------
-The initial commitment transaction is generated by the customer during the channel establishment but is not broadcast to the network. The customer's commitment transaction (below) contains an output that can be spent immediately by the merchant or can be spent by the customer after a relative timeout (or a certain number of blocks). This approach allows the merchant to see the parent transaction and spend the output with a revocation token if the customer posted an outdated closure token.
+2.3.1 Customer commitment transaction
+----
+The customer commitment transaction is generated by the customer during the channel establishment but is not broadcast to the network. The customer's commitment transaction (below) contains two outputs: (1) an output that can be spent immediately by the merchant or (2) another output that can be spent by the customer after a relative timeout (or a certain number of blocks). This approach allows the merchant to see the parent transaction and spend the output with a revocation token if the customer posted an outdated closure token.
 
 The customer's commitment transaction is described below.
 
@@ -157,27 +159,38 @@ The customer's commitment transaction is described below.
     
    - ``txin[0]`` outpoint: references the funding transaction txid and output_index
    - ``txin[0]`` script bytes: 0
-   - ``txin[0]`` script sig: 0 <mode> <<channel-token> <closing-token> or <rev-token>> <cust-sig> <merch-sig> <2 <cust-pubkey> <merch-pubkey> 2 OP_CHECKMULTISIGVERIFY OP_DUP OP_HASH160 <hash-of-channel-token> OP_EQUALVERIFY OP_BOLT>
+   - ``txin[0]`` script sig: 0 <opbolt-mode> <<channel-token> <closing-token>> <cust-sig> <merch-sig> <2 <cust-pubkey> <merch-pubkey> 2 OP_CHECKMULTISIGVERIFY OP_DUP OP_HASH160 <hash-of-channel-token> OP_EQUALVERIFY OP_BOLT>
 
 * ``txout`` count: 2
 * ``txouts``: 
 
-  * ``to_customer``: a timelocked (using ``OP_CSV``) P2SH output sending funds back to the customer. So ``scriptPubKey`` is of the form ``0 <32-byte-hash>``.  
+  * ``to_customer``: a timelocked (using ``OP_CSV``) P2SH output sending funds back to the customer.  
       - ``amount``: balance paid back to customer
       - ``nSequence: <time-delay>``
-      - ``script sig: 1 <cust-sig> 0 <serializedScript>``
-      - ``serializedScript``:
-      
-		OP_IF		  
-	  	  OP_2 <revocation-pubkey> <merch-pubkey> OP_2
-		OP_ELSE
-		  <time-delay> OP_CSV OP_DROP <cust-pubkey>
-		OP_ENDIF
-		OP_CHECKSIGVERIFY
-		
+      - ``scriptPubKey: 0 <32-byte-hash>``
+      - ``scriptSig: (empty)``
+
   * ``to_merchant``: A P2PKH to merch-pubkey output (sending funds back to the merchant), i.e.
       * ``scriptPubKey``: ``0 <20-byte-key-hash of merch-pubkey>``
 
+To redeem the ``to_customer`` output, the customer presents a ``scriptSig`` with the customer signature after a time delay as follows:
+
+	``scriptSig: 1 <cust-sig> 0 <serializedScript>``
+	
+where the ``serializedScript`` is as follows
+      
+	``OP_IF``
+	  ``OP_2 <revocation-pubkey> <merch-pubkey> OP_2 CHECKMULTISIG``
+	``OP_ELSE``
+	  ``<time-delay> OP_CSV OP_DROP <cust-pubkey> OP_CHECKSIGVERIFY``
+	``OP_ENDIF``
+		
+In the event of a dispute, the merchant can redeem the ``to_customer`` by posting a transaction ``scriptSig`` as follows:
+
+	``scriptSig: <revocation-sig> <revocation-token> 1``
+
+2.3.2 Merchant commitment transaction
+----
 The merchant can create their own initial commitment transaction as follows.
 
 * ``version``: specify version number
@@ -187,7 +200,7 @@ The merchant can create their own initial commitment transaction as follows.
     
    - ``txin[0]`` outpoint: references the funding transaction txid and output_index
    - ``txin[0]`` script bytes: 0
-   - ``txin[0]`` script sig: 0 <mode> <<closing-token> <channel-token> or <rev-token>> <cust-sig> <merch-sig> <2 <cust-pubkey> <merch-pubkey> 2 OP_CHECKMULTISIGVERIFY OP_DUP OP_HASH160 <hash-of-channel-token> OP_EQUALVERIFY OP_BOLT>
+   - ``txin[0]`` script sig: 0 <opbolt-mode> <<closing-token> <channel-token>> <cust-sig> <merch-sig> <2 <cust-pubkey> <merch-pubkey> 2 OP_CHECKMULTISIGVERIFY OP_DUP OP_HASH160 <hash-of-channel-token> OP_EQUALVERIFY OP_BOLT>
 
 * ``txout`` count: 1
 * ``txouts``: 
@@ -298,7 +311,7 @@ The customer then creates a funding transaction that deposits ZEC to a 2-of-2 mu
 -------------
 The funding transaction is by default funded by only one participant, the customer. This transaction is a P2WSH SegWit transaction. Here is a high-level of what the funding transaction would look like:
 
-	witness: 0 <mode> <<channel-token> <closing token> or <rev-token>> <cust-sig> <merch-sig> <2 <cust-pubkey> <merch-pubkey> 2 OP_CHECKMULTISIGVERIFY OP_DUP OP_HASH160 <hash-of-channel-token> OP_EQUALVERIFY OP_BOLT>
+	witness: 0 <opbolt-mode> <<channel-token> <closing token>> <cust-sig> <merch-sig> <2 <cust-pubkey> <merch-pubkey> 2 OP_CHECKMULTISIGVERIFY OP_DUP OP_HASH160 <hash-of-channel-token> OP_EQUALVERIFY OP_BOLT>
 	
 	scriptSig: (empty)	
 	scriptPubKey: 0 <32-byte-hash>
@@ -319,7 +332,7 @@ This wallet commitement below is created first during channel initialization, bu
 
   - ``txin[0]`` outpoint: ``txid`` and ``outpoint_index`` of the funding transaction
   - ``txin[0]`` script bytes: 0
-  - ``txin[0]`` witness: ``0 <mode> <<channel-token> <closing token> or <rev-token>> <cust-sig> <merch-sig> <2 <cust_fund_pubkey> <merch_fund_pubkey> 2 OP_CHECKMULTISIGVERIFY OP_DUP OP_HASH160 <hash-of-channel-token> OP_EQUALVERIFY OP_BOLT>``
+  - ``txin[0]`` witness: ``0 <opbolt-mode> <<channel-token> <closing token> or <rev-token>> <cust-sig> <merch-sig> <2 <cust_fund_pubkey> <merch_fund_pubkey> 2 OP_CHECKMULTISIGVERIFY OP_DUP OP_HASH160 <hash-of-channel-token> OP_EQUALVERIFY OP_BOLT>``
 
 * ``txouts``: 
 * ``to_customer``: a timelocked (using ``OP_CSV``) version-0 P2WSH output sending funds back to the customer. So scriptPubKey is of the form ``0 <32-byte-hash>``. A customer node may create a transaction spending this output with:
@@ -357,7 +370,7 @@ The merchant can create their own initial commitment transaction as follows.
 
   - ``txin[0]`` outpoint: ``txid`` and ``outpoint_index`` of the funding transaction
   - ``txin[0]`` script bytes: 0
-  - ``txin[0]`` witness: ``0 <mode> <<channel-token> <closing token> or <rev-token>> <cust-sig> <merch-sig> <2 <cust_fund_pubkey> <merch_fund_pubkey> 2 OP_CHECKMULTISIGVERIFY OP_DUP OP_HASH160 <hash-of-channel-token> OP_EQUALVERIFY OP_BOLT>``
+  - ``txin[0]`` witness: ``0 <opbolt-mode> <<channel-token> <closing token> or <rev-token>> <cust-sig> <merch-sig> <2 <cust_fund_pubkey> <merch_fund_pubkey> 2 OP_CHECKMULTISIGVERIFY OP_DUP OP_HASH160 <hash-of-channel-token> OP_EQUALVERIFY OP_BOLT>``
 
 * ``txout`` count: 1
 * ``txouts``: 
