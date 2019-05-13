@@ -12,7 +12,7 @@ Current NU3 ZIPs for consideration
 
 This is the current list of ZIPs that could be included in the NU3 upgrade (around ~April 2020).
 
-- [Sapling Anchor Deduplication within Transactions](https://github.com/str4d/zips/blob/zip-str4d-sapling-anchor/drafts/zip-str4d-sapling-anchor.rst)
+- [Sapling Anchor Deduplication within Transactions](https://github.com/zcash/zips/blob/master/zip-0210.rst)
 - [Disabling Sprout outputs](https://github.com/daira/zips/blob/disable-sprout-outputs/drafts/zip-daira-disable-sprout-outputs.rst)
 - [Add Bolt support](https://github.com/boltlabs-inc/zips/blob/master/zip-bolt-support.rst)
 - [Shielded Coinbase](https://github.com/str4d/zips/blob/zip-str4d-shielded-coinbase/drafts/zip-str4d-shielded-coinbase.rst)
