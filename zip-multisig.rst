@@ -22,7 +22,7 @@ In this ZIP we describe an efficient protocol for threshold signing. The protoco
 to protect private signing keys by distributing them among several parties, who upon request
 can run the threshold protocol to generate a signature. The transaction will remain shielded but privacy will not hold between co-signers.  
 
- Motivation
+Motivation
 ==========
 
 Support for multisig transactions will level up the security available to Zcash users, and broaden the types of users who can safely take advantage of Zcash’s robust privacy while mitigating other threats to their funds.
