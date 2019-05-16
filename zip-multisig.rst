@@ -9,7 +9,7 @@
   License: MIT
 
 
- Terminology
+Terminology
 ===========
 
  The key words "MUST" and "MUST NOT" in this document are to be interpreted as described in RFC 2119.
