@@ -17,7 +17,7 @@ Terminology
 Abstract
 ========
 
-`SpendAuthSig` is a Schnorr based signature used in Sapling to sign transactions.
+RedJubjub is a Schnorr-based signature scheme used in Zcash to sign Sapling transactions.
 In this ZIP we describe an efficient protocol for threshold signing. The protocol can be used
 to protect private signing keys by distributing them among several parties, who upon request
 can run the threshold protocol to generate a signature. The transaction will remain shielded but privacy will not hold between co-signers.  
