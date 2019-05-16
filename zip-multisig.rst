@@ -14,7 +14,7 @@ Terminology
 
  The key words "MUST" and "MUST NOT" in this document are to be interpreted as described in RFC 2119.
 
- Abstract
+Abstract
 ========
 
 `SpendAuthSig` is a Schnorr based signature used in Sapling to sign transactions.
