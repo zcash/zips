@@ -27,7 +27,7 @@ Motivation
 
 Support for multisig transactions will level up the security available to Zcash users, and broaden the types of users who can safely take advantage of Zcash’s robust privacy while mitigating other threats to their funds.
 
- Specification
+Specification
 ==========
 We start by describing the two party case, followed by an extension to any number of parties and any threshold. We refer to the [paper](https://github.com/KZen-networks/paradise-city/tree/master/paper%5Bwip%5D) for the security proof of the schemes
 
