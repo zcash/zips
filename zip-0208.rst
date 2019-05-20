@@ -57,34 +57,37 @@ propagation time for a block remain small compared to the block target spacing.
 Specification
 =============
 
-The following constants are defined:
+The changes described in this section are to be made to [#latest-protocol]_.
 
-- PreBlossomPoWTargetSpacing := 150 seconds
-- PostBlossomPoWTargetSpacing := 75 seconds
+Throughout the specification, rename HalvingInterval to PreBlossomHalvingInterval,
+and rename PoWTargetSpacing to PreBlossomTargetSpacing. These constants retain
+their values from [#preblossom-protocol]_ of 840000 (blocks) and 150 (seconds)
+respectively.
+
+In section 2 (Notation), add BlossomActivationHeight and PostBlossomPoWTargetSpacing
+to the list of integer constants.
+
+In section 5.3 (Constants), define PostBlossomPoWTargetSpacing := 75 seconds.
 
 TODO: check that PostBlossomPoWTargetSpacing is reasonable.
 
-For a given network (production or test), BlossomActivationHeight is defined
-as the height at which Blossom activates on that network, as specified in
-[#zip-0206]_. We also define IsBlossomActivated(height) to return true if
-Blossom has activated at the given block height, otherwise false.
+For a given network (production or test), define BlossomActivationHeight as the height
+at which Blossom activates on that network, as specified in [#zip-0206]_.
 
-This specification assumes that IsBlossomActivated(height) returns false for
-height < SlowStartInterval.
+In section 7.6.3 (Difficulty adjustment), make the following changes:
+
+Define IsBlossomActivated(height) to return true if height ≥ BlossomActivationHeight,
+otherwise false.
+
+This specification assumes that BlossomActivationHeight ≥ SlowStartInterval.
 
 Define:
 
 - BlossomPoWTargetSpacingRatio := PreBlossomPoWTargetSpacing / PostBlossomPoWTargetSpacing
-- PreBlossomHalvingInterval := 840000
 - PostBlossomHalvingInterval := floor(PreBlossomHalvingInterval · BlossomPoWTargetSpacingRatio).
 
-Notes:
-
-- PreBlossomPoWTargetSpacing is equal to PoWTargetSpacing from [#preblossom-protocol]_.
-- PreBlossomHalvingInterval is equal to HalvingInterval from [#preblossom-protocol]_.
-
-In [#latest-protocol]_ section 7.6.3 (Difficulty adjustment), redefine
-PoWTargetSpacing as a function taking a height parameter, as follows:
+In the same section, redefine PoWTargetSpacing as a function taking a height parameter,
+as follows:
 
 - PoWTargetSpacing(height) :=
 
@@ -100,28 +103,47 @@ ActualTimespanDamped, ActualTimespanBounded, and Threshold as follows:
   are replaced with a function call passing the height parameter.
 
 In [#latest-protocol]_ section 7.7 (Calculation of Block Subsidy and Founders’
-Reward), redefine the BlockSubsidy and Halving functions as follows:
-
-- BlockSubsidy(height) :=
-
-  - SlowStartRate · height, if height < SlowStartInterval / 2
-  - SlowStartRate · (height + 1), if SlowStartInterval / 2 ≤ height < SlowStartInterval
-  - floor(MaxBlockSubsidy / 2\ :sup:`Halving(height)`\ ), if SlowStartInterval ≤ height and not IsBlossomActivated(height)
-  - floor(MaxBlockSubsidy / (BlossomPoWTargetSpacingRatio · 2\ :sup:`Halving(height)`\ )), otherwise
+Reward), redefine the Halving and BlockSubsidy functions as follows:
 
 - Halving(height) :=
 
   - floor((height - SlowStartShift) / PreBlossomHalvingInterval), if not IsBlossomActivated(height)
   - floor((BlossomActivationHeight - SlowStartShift) / PreBlossomHalvingInterval + (height - BlossomActivationHeight) / PostBlossomHalvingInterval), otherwise
 
-TODO: Halving(height) should first become 1 at a "nice" integer. Ideally:
+- BlockSubsidy(height) :=
 
-- (BlossomActivationHeight - SlowStartShift) / PreBlossomHalvingInterval + (height - BlossomActivationHeight) / PostBlossomHalvingInterval) should be exactly 1 for some "nice" height.
+  - SlowStartRate · height, if height < SlowStartInterval / 2
+  - SlowStartRate · (height + 1), if SlowStartInterval / 2 ≤ height and height < SlowStartInterval
+  - floor(MaxBlockSubsidy / 2\ :sup:`Halving(height)`\ ), if SlowStartInterval ≤ height and not IsBlossomActivated(height)
+  - floor(MaxBlockSubsidy / (BlossomPoWTargetSpacingRatio · 2\ :sup:`Halving(height)`\ )), otherwise
 
-TODO: Choose BlossomPoWTargetSpacingRatio such that:
+TODO: ideally, BlossomActivationHeight, PostBlossomHalvingInterval, and PostBlossomTargetSpacing should be chosen so that:
 
+- (BlossomActivationHeight - SlowStartShift) / PreBlossomHalvingInterval + (height - BlossomActivationHeight) / PostBlossomHalvingInterval)
+  is exactly 1 for some integer height.
 - MaxBlockSubsidy / (BlossomPoWTargetSpacingRatio · 2\ :sup:`Halving(height)`\ )
   is an integer for the next few periods.
+
+In [#latest-protocol]_ section 7.8 (Payment of Founders’ Reward), define:
+
+- FounderAddressAdjustedHeight(height) :=
+
+  - height, if not IsBlossomActivated(height)
+  - BlossomActivationHeight + floor((height - BlossomActivationHeight) / BlossomPoWTargetSpacingRatio), otherwise
+
+and in the definition of FounderAddressIndex, replace the use of height with FounderAddressAdjustedHeight(height).
+
+Also define:
+
+- FoundersRewardLastBlockHeight := max({ height ⦂ N | Halving(height) < 1 })
+
+Replace the first note in that section with:
+
+- No Founders’ Reward is required to be paid for height > FoundersRewardLastBlockHeight
+  (i.e. after the first halving), or for height = 0 (i.e. the genesis block).
+
+and in the second note, replace SlowStartShift + PreBlossomHalvingInterval - 1 with
+FoundersRewardLastBlockHeight.
 
 
 Effect on difficulty adjustment
@@ -135,9 +157,8 @@ spacing.
 
 The change in the effective value of PoWTargetSpacing will cause the block
 spacing to adjust to the new target, at the normal rate for a difficulty
-adjustment.
-
-TODO: simulate the response of difficulty adjustment at activation.
+adjustment. The results of simulations are consistent with this expected
+behaviour.
 
 
 Non-consensus node behaviour
