@@ -80,7 +80,7 @@ We assume the following specific features are present:
 (1) ``OP_CLTV`` - absolute lock time
 (2) ``OP_CSV`` - relative lock time
 (3) Can specify shielded inputs and outputs
-(4) 2-of-2 multi-sig transparent address support (via P2SH)
+(4) P2SH support - to build a 2-of-2 multi-sig style transaction
 (5) A non-SegWit approach that enables transaction non-malleability
 (6) ``OP_BOLT`` opcode: takes two arguments (the first byte represents the mode followed by a serialized token of hex encoded bytes) and outputs a ``True`` or ``False`` on the stack: 
 
@@ -184,14 +184,14 @@ To redeem the ``to_customer`` output, the customer presents a ``scriptSig`` with
 where the ``serializedScript`` is as follows
       
 	``OP_IF``
-	  ``<revocation-pubkey> 2 OP_BOLT``
+	  ``<revocation-pubkey> <merch-pubkey> 2 OP_BOLT``
 	``OP_ELSE``
 	  ``<time-delay> OP_CSV OP_DROP <cust-pubkey> OP_CHECKSIGVERIFY``
 	``OP_ENDIF``
 		
 In the event of a dispute, the merchant can redeem the ``to_customer`` by posting a transaction ``scriptSig`` as follows:
 
-	``<revocation-token> 1``
+	``<revocation-token> <merch-sig> 1``
 
 2.2.2 Merchant closing transaction
 ----
@@ -216,9 +216,9 @@ The merchant can create their own initial closing transaction as follows.
       - ``serializedScript``:
       
 		OP_IF
-	  	  <cust-pubkey> OP_CHECKSIGVERIFY 2 OP_BOLT
+	  	  <cust-pubkey> OP_CHECKSIGVERIFY 1 OP_BOLT
 		OP_ELSE
-		  <time-delay> OP_CSV OP_DROP <merchant-pubkey> OP_CHECKSIGVERIFY
+		  <time-delay> OP_CSV OP_DROP <merch-pubkey> OP_CHECKSIGVERIFY
 		OP_ENDIF
 
 After each payment on the channel, the customer obtains a closing token for the updated channel balance and provides the merchant a revocation token for the previous state along with the associated wallet public key (this invalidates the pub key). If the customer initiated closing, the merchant can use the revocation token to spend the funds of the channel if the customer posts an outdated closing transaction.
