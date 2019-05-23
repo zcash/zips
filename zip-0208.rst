@@ -1,0 +1,222 @@
+::
+
+  ZIP: 208
+  Title: Shorter Block Target Spacing
+  Author: Simon Liu <simon@z.cash>
+          Daira Hopwood <daira@z.cash>
+  Category: Consensus
+  Created: 2018-01-10
+  License: MIT
+
+
+Terminology
+===========
+
+The key words "MUST", "SHOULD", "SHOULD NOT", and "MAY" in this document are to
+be interpreted as described in RFC 2119. [#RFC2119]_
+
+The terms "block chain", "consensus rule change", "branch", and "network
+upgrade" are to be interpreted as defined in [#zip-0200]_.
+
+The term "block target spacing" means the time interval between blocks targeted
+by the difficulty adjustment algorithm in a given branch. It is normally
+measured in seconds. (This is also sometimes called the "target block time",
+but "block target spacing" is the term used in [#latest-protocol]_.)
+
+
+Abstract
+========
+
+This proposal specifies a change in the block target spacing, to take effect in
+the Blossom network upgrade [#zip-0206]_.
+
+The emission schedule of mined ZEC will be approximately the same in terms of
+time, but this requires the emission per block to be adjusted to take account
+of the changed block target spacing.
+
+
+Motivation
+==========
+
+The motivations for decreasing the block target spacing are:
+
+- Reduced latency for considering transactions to be sufficiently confirmed;
+- Greater throughput of transactions in unit time.
+
+The latter goal could alternatively be achieved by increasing the block size
+limit, but that would not also achieve the former goal.
+
+Note that, for a given security requirement (in terms of the expected cost
+distribution of a rollback attack), the number of confirmations needed
+increases more slowly than the decrease in block time, and so, up to a point,
+decreasing the block target spacing can provide a better trade-off between
+latency and security. This argument assumes that the verification and
+propagation time for a block remain small compared to the block target spacing.
+
+
+Specification
+=============
+
+The changes described in this section are to be made in [#latest-protocol]_,
+relative to the pre-Blossom specification in [#preblossom-protocol].
+
+Throughout the specification, rename HalvingInterval to PreBlossomHalvingInterval,
+and rename PoWTargetSpacing to PreBlossomTargetSpacing. These constants retain
+their values from [#preblossom-protocol]_ of 840000 (blocks) and 150 (seconds)
+respectively.
+
+In section 2 (Notation), add BlossomActivationHeight and PostBlossomPoWTargetSpacing
+to the list of integer constants.
+
+In section 5.3 (Constants), define PostBlossomPoWTargetSpacing := 75 seconds.
+
+TODO: check that PostBlossomPoWTargetSpacing is reasonable.
+
+For a given network (production or test), define BlossomActivationHeight as the height
+at which Blossom activates on that network, as specified in [#zip-0206]_.
+
+In section 7.6.3 (Difficulty adjustment), make the following changes:
+
+Define IsBlossomActivated(height) to return true if height ≥ BlossomActivationHeight,
+otherwise false.
+
+This specification assumes that BlossomActivationHeight ≥ SlowStartInterval.
+
+Define:
+
+- BlossomPoWTargetSpacingRatio := PreBlossomPoWTargetSpacing / PostBlossomPoWTargetSpacing
+- PostBlossomHalvingInterval := floor(PreBlossomHalvingInterval · BlossomPoWTargetSpacingRatio).
+
+In the same section, redefine PoWTargetSpacing as a function taking a height parameter,
+as follows:
+
+- PoWTargetSpacing(height) :=
+
+  - PreBlossomPoWTargetSpacing, if not IsBlossomActivated(height)
+  - PostBlossomPoWTargetSpacing, otherwise.
+
+Also redefine AveragingWindowTimespan, MinActualTimespan, MaxActualTimespan,
+ActualTimespanDamped, ActualTimespanBounded, and Threshold as follows:
+
+- add a height parameter to each of these functions that does not already
+  have one;
+- ensure that each reference to any of these values, or to PoWTargetSpacing,
+  are replaced with a function call passing the height parameter.
+
+In [#latest-protocol]_ section 7.7 (Calculation of Block Subsidy and Founders’
+Reward), redefine the Halving and BlockSubsidy functions as follows:
+
+- Halving(height) :=
+
+  - floor((height - SlowStartShift) / PreBlossomHalvingInterval), if not IsBlossomActivated(height)
+  - floor((BlossomActivationHeight - SlowStartShift) / PreBlossomHalvingInterval + (height - BlossomActivationHeight) / PostBlossomHalvingInterval), otherwise
+
+- BlockSubsidy(height) :=
+
+  - SlowStartRate · height, if height < SlowStartInterval / 2
+  - SlowStartRate · (height + 1), if SlowStartInterval / 2 ≤ height and height < SlowStartInterval
+  - floor(MaxBlockSubsidy / 2\ :sup:`Halving(height)`\ ), if SlowStartInterval ≤ height and not IsBlossomActivated(height)
+  - floor(MaxBlockSubsidy / (BlossomPoWTargetSpacingRatio · 2\ :sup:`Halving(height)`\ )), otherwise
+
+TODO: ideally, BlossomActivationHeight, PostBlossomHalvingInterval, and PostBlossomTargetSpacing should be chosen so that:
+
+- (BlossomActivationHeight - SlowStartShift) / PreBlossomHalvingInterval + (height - BlossomActivationHeight) / PostBlossomHalvingInterval)
+  is exactly 1 for some integer height.
+- MaxBlockSubsidy / (BlossomPoWTargetSpacingRatio · 2\ :sup:`Halving(height)`\ )
+  is an integer for the next few periods.
+
+In [#latest-protocol]_ section 7.8 (Payment of Founders’ Reward), define:
+
+- FounderAddressAdjustedHeight(height) :=
+
+  - height, if not IsBlossomActivated(height)
+  - BlossomActivationHeight + floor((height - BlossomActivationHeight) / BlossomPoWTargetSpacingRatio), otherwise
+
+and in the definition of FounderAddressIndex, replace the use of height with FounderAddressAdjustedHeight(height).
+
+Also define:
+
+- FoundersRewardLastBlockHeight := max({ height ⦂ N | Halving(height) < 1 })
+
+Replace the first note in that section with:
+
+- No Founders’ Reward is required to be paid for height > FoundersRewardLastBlockHeight
+  (i.e. after the first halving), or for height = 0 (i.e. the genesis block).
+
+and in the second note, replace SlowStartShift + PreBlossomHalvingInterval - 1 with
+FoundersRewardLastBlockHeight.
+
+
+Effect on difficulty adjustment
+-------------------------------
+
+The difficulty adjustment parameters PoWAveragingWindow and PoWMedianBlockSpan
+refer to numbers of blocks, but do *not* change at Blossom activation. This is
+because the amount of damping/averaging required is expected to be roughly the
+same, in terms of the number of blocks, after the change in block target
+spacing.
+
+The change in the effective value of PoWTargetSpacing will cause the block
+spacing to adjust to the new target, at the normal rate for a difficulty
+adjustment. The results of simulations are consistent with this expected
+behaviour.
+
+
+Non-consensus node behaviour
+----------------------------
+
+End-of-Service halt
+'''''''''''''''''''
+
+`zcashd` implements an "End-of-Service halt" behaviour that halts the node at a
+block height that corresponds approximately to a given time after release. This
+interval SHOULD be adjusted in releases where the End-of-Service halt time will
+follow Blossom activation.
+
+
+Default expiry delta
+''''''''''''''''''''
+
+When not overridden by the `-txexpirydelta` option, `zcashd` RPC calls that
+create transactions use a default value for the number of blocks after which a
+transaction will expire. The default in recent versions of `zcashd` is
+20 blocks, which at the pre-Blossom block target spacing corresponds to roughly
+50 minutes.
+
+This default SHOULD change to BlossomPoWTargetSpacingRatio · 20 blocks after
+Blossom activation, to maintain the approximate expiry time of 50 minutes.
+
+
+TODO: check for any other number-of-block constants.
+
+
+Deployment
+==========
+
+This proposal will be deployed with the Blossom network upgrade. [#zip-0206]_
+
+
+Backward compatibility
+======================
+
+This proposal intentionally creates what is known as a "bilateral consensus
+rule change". Use of this mechanism requires that all network participants
+upgrade their software to a compatible version within the upgrade window.
+Older software will treat post-upgrade blocks as invalid, and will follow any
+pre-upgrade branch that persists.
+
+
+Reference Implementation
+========================
+
+https://github.com/zcash/zcash/pull/xxxx
+
+
+References
+==========
+
+.. [#latest-protocol] `Zcash Protocol Specification, Version 2019.0.1 or later [Overwinter+Sapling+Blossom] <https://github.com/zcash/zips/blob/master/protocol/blossom.pdf>`_
+.. [#preblossom-protocol] `Zcash Protocol Specification, Version 2018.0-beta-37 (exactly) [Overwinter+Sapling] <https://github.com/zcash/zips/blob/9515d73aac0aea3494f77bcd634e1e4fbd744b97/protocol/protocol.pdf>`_
+.. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://tools.ietf.org/html/rfc2119>`_
+.. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <https://github.com/zcash/zips/blob/master/zip-0200.rst>`_
+.. [#zip-0206] `ZIP 206: Deployment of the Blossom Network Upgrade <https://github.com/zcash/zips/blob/master/zip-0206.rst>`_
