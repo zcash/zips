@@ -9,6 +9,9 @@ Build dependencies on Debian-based systems include, at least:
    apt-get install texlive texlive-science texlive-fonts-extra \
      texlive-generic-recommended texlive-bibtex-extra biber latexmk
 
+To use the targets described under "Optimizing PDF size", you will also
+need the `ghostscript` and `extractpdfmark` packages.
+
 
 Building
 --------
@@ -36,8 +39,8 @@ Manual intervention is still needed when there are LaTeX errors.
 Optimizing PDF size
 -------------------
 
-Optionally, you can use `Péter Szabó <https://github.com/pts>`_'s
-``pdfsizeopt`` program to optimize the size of the resulting PDF files.
+Optionally, you can use Ghostscript to optimize the size of the resulting
+PDF files.
 
 Use:
 

@@ -1,6 +1,16 @@
 LATEXMK=latexmk --halt-on-error -bibtex -pdf
 LATEX=pdflatex --halt-on-error
 
+# extractpdfmark is needed to produce optimized PDFs that preserve "named destinations"
+# (needed for external links into the file to work correctly).
+# <https://github.com/trueroad/extractpdfmark>
+EXTRACTPDFMARK=extractpdfmark
+
+# Options are documented at <http://web.mit.edu/ghostscript/www/Ps2pdf.htm>
+OPTIMIZER=gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/screen -dNOPAUSE -dBATCH \
+          -r450 -dDownsampleColorImages=false -dDownsampleGrayImages=false -dDownsampleMonoImages=false -dFastWebView=true \
+          -dSubsetFonts=true -dCompressPages=true
+
 sprout.pdf: protocol.tex zcash.bib incremental_merkle.png key_components.png
 	$(MAKE) sprout
 
@@ -118,39 +128,27 @@ clean:
               blossom.dvi blossom.pdf blossom.bbl blossom.blg blossom.brf     blossom.toc \
               blossom.aux blossom.out blossom.log blossom.bcf blossom.run.xml blossom.fls blossom.fdb_latexmk
 
-optimizer-installed.flag2:
-	rm -rf sam2p tif22pnm pdfsizeopt
-	# Nail down git commits to make backdooring somewhat harder.
-	git clone https://github.com/pts/sam2p.git
-	cd sam2p && git reset --hard cafd4b8910a56e4b0af833f943a2ae85c7bc0a4d && $(MAKE)
-	git clone https://github.com/pts/tif22pnm.git
-	cd tif22pnm && git reset --hard 22217c1a3ea355a899e9c7c79903488ca13d1dfe && $(MAKE)
-	git clone https://github.com/pts/pdfsizeopt.git
-	cd pdfsizeopt && git reset --hard 5a42db5bef4df1652adb3ef49a9d14bcb58442eb
-	touch optimizer-installed.flag2
-
-.PHONY: clean-optimizer
-clean-optimizer:
-	rm -rf sam2p tif22pnm pdfsizeopt optimizer-installed.flag*
-
 .PHONY: optsprout
-optsprout: optimizer-installed.flag2
+optsprout:
 	$(MAKE) auxsprout
-	PATH="${PATH}:$(CURDIR)/sam2p:$(CURDIR)/tif22pnm" pdfsizeopt/pdfsizeopt --v=40 --use-image-optimizer=sam2p \
-              --tmp-dir=aux aux/sprout.pdf sprout.pdf
+	$(EXTRACTPDFMARK) aux/sprout.pdf >aux/sprout-pdfmark.ps
+	$(OPTIMIZER) -sOutputFile=sprout.pdf aux/sprout.pdf aux/sprout-pdfmark.ps 2>/dev/null |awk '{printf "."}'
+	ls -l aux/sprout.pdf sprout.pdf
 
 .PHONY: optsapling
-optsapling: optimizer-installed.flag2
+optsapling:
 	$(MAKE) auxsapling
-	PATH="${PATH}:$(CURDIR)/sam2p:$(CURDIR)/tif22pnm" pdfsizeopt/pdfsizeopt --v=40 --use-image-optimizer=sam2p \
-              --tmp-dir=aux aux/sapling.pdf sapling.pdf
+	$(EXTRACTPDFMARK) aux/sapling.pdf >aux/sapling-pdfmark.ps
+	$(OPTIMIZER) -sOutputFile=sapling.pdf aux/sapling.pdf aux/sapling-pdfmark.ps 2>/dev/null |awk '{printf "."}'
+	ls -l aux/sapling.pdf sapling.pdf
 	cp -f sapling.pdf protocol.pdf
 
 .PHONY: optblossom
-optblossom: optimizer-installed.flag2
+optblossom:
 	$(MAKE) auxblossom
-	PATH="${PATH}:$(CURDIR)/sam2p:$(CURDIR)/tif22pnm" pdfsizeopt/pdfsizeopt --v=40 --use-image-optimizer=sam2p \
-              --tmp-dir=aux aux/blossom.pdf blossom.pdf
+	$(EXTRACTPDFMARK) aux/blossom.pdf >aux/blossom-pdfmark.ps
+	$(OPTIMIZER) -sOutputFile=blossom.pdf aux/blossom.pdf aux/blossom-pdfmark.ps 2>/dev/null |awk '{printf "."}'
+	ls -l aux/blossom.pdf blossom.pdf
 
 .PHONY: optimized
 optimized: optsapling optsprout optblossom
