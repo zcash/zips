@@ -1,4 +1,4 @@
-LATEXMK=latexmk --halt-on-error -bibtex -pdf
+LATEXMK=latexmk --halt-on-error -bibtex -pdf -logfilewarnings-
 LATEX=pdflatex --halt-on-error
 
 # extractpdfmark is needed to produce optimized PDFs that preserve "named destinations"
