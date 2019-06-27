@@ -1,3 +1,14 @@
+::
+
+  ZIP: XXX
+  Title: Standardized Memo Field Format
+  Owners: Jay Graber <jay@z.cash>
+  Status: Draft
+  Category: Standards
+  Created: 2017-02-08
+  License: MIT
+
+
 Abstract
 ========
 
