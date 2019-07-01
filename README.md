@@ -17,7 +17,7 @@ This is the current list of ZIPs that could be included in the NU3 upgrade (arou
 - [Add Bolt support](https://github.com/boltlabs-inc/zips/blob/master/zip-bolt-support.rst)
 - [Shielded Coinbase](https://github.com/str4d/zips/blob/zip-str4d-shielded-coinbase/zip-0213.rst)
 - [Enable Staked Polling from the Sapling Pool](https://github.com/acityinohio/zips/blob/sapling-polling/zip-draft.rst)
-- [Adding MMR Proofs to Block Headers, and their use in the FlyClient Protocol](https://github.com/therealyingtong/zips/blob/master/zip-0311.rst)
+- [Adding MMR Proofs to Block Headers, and their use in the FlyClient Protocol](https://github.com/therealyingtong/zips/blob/master/zip-0221.rst)
 - [Multisig](https://github.com/omershlo/zips/blob/multisig/zip-multisig.rst)
 - [Transfer Sapling Ephemeral Secret to Recipient in Note Plaintext](https://github.com/ebfull/zips/blob/unlinkable-addrs/zip-seanbowe-esktransfer.rst)
 
