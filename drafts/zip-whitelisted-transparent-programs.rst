@@ -1,0 +1,282 @@
+::
+
+  ZIP: XXX
+  Title: Whitelisted Transparent Programs
+  Owners: Jack Grigg <jack@electriccoin.co>
+  Credits: James Prestwich <james@summa.one>
+           Zaki Manian <zaki@manian.org>
+           Daira Hopwood <daira@electriccoin.co>
+           Sean Bowe <sean@electriccoin.co>
+           The BIP 141 authors
+  Status: Draft
+  Category: Consensus
+  Created: 2019-07-01
+  License: MIT
+
+
+Terminology
+===========
+
+The key words "MUST" and "MAY" in this document are to be interpreted as described in
+RFC 2119. [#RFC2119]_
+
+The term "network upgrade" in this document is to be interpreted as described in ZIP 200
+[#zip-0200]_.
+
+The term "Sapling" in this document is to be interpreted as described in ZIP 205
+[#zip-0205]_.
+
+Abstract
+========
+
+This proposal defines a modification to the consensus rules that enables whitelisted
+complex forms of transparent output predicates ("transparent programs") to be deployed
+in network upgrades, while ensuring that a transaction's ID is non-malleable if the
+transaction uses any transparent programs.
+
+
+Motivation
+==========
+
+Zcash transactions have three types of outputs: Sapling shielded outputs, Sprout shielded
+outputs, and transparent outputs. All three can by design be "encumbered" by a spending
+key - a user creating a transaction that spends the output must prove that they have
+access to the spending key controlling the output. For Sprout shielded outputs this was
+part of the zero-knowledge proof; for transparent and Sapling shielded outputs, the user
+creates a signature with the spending key.
+
+In some situations, more complex predicates are required. Zcash does not yet have any form
+of shielded programmability, and thus users rely on the script system inherited from
+Bitcoin to encumber transparent outputs. But even this is insufficient as-is for some
+desired use cases. In particular, the Bolt protocol [#zip-draft-bolt]_ requires a custom
+opcode, because the script system does not have the necessary primitives; this requires a
+change to the consensus rules.
+
+Additionally, some off-chain protocols require that transaction IDs be non-malleable in
+order to be secure. Zcash transaction IDs are currently malleable in several ways:
+
+- The ``scriptSig`` field of transparent inputs is not part of the data that is hashed for
+  signing (as the signature is placed in that field), but is part of the data that is
+  hashed to produce the transaction ID. An adversary can modify this field in a variety of
+  ways that do not functionally alter it, but change its binary representation. This is
+  the core transaction malleability problem that Bitcoin mitigated with their Segregated
+  Witness soft fork [#bip-0141]_ (for transactions that opt-in to SegWit-only inputs).
+
+- The Ed25519 signature ``joinSplitSig`` is malleable. The known sources of malleability
+  are:
+
+  - The y-coordinate of the R component of the signature is not required to be canonical.
+  - There are equivalent points for R because its order may be greater than the subgroup
+    order ``ell``.
+
+  These malleability sources correspond to the verification process in ``libsodium``. Note
+  that the public key ``joinSplitPubKey`` is also not required to be canonical, but this
+  is not a source of malleability because the public key is hashed as given in the
+  transaction when verifying the signature.
+
+- RedJubjub signatures, as currently enforced by the consensus rules, are malleable. This
+  is because the signature verification algorithm [#redjubjub]_ multiplies through by the
+  cofactor before the identity check (which ensures that the single and batch verification
+  algorithms agree on the set of valid signatures). An adversary can modify the signature
+  by adding a nonzero point of small order to R, leaving the signature valid but altering
+  its binary representation.
+
+  - TODO: Upon further investigation, it looks like RedJubjub is not actually malleable
+    for the above reason. We are analysing this and will update the proposal when we are
+    certain. It is also possible that Ed25519 might also be non-malleable for a similar
+    reason, but verifying this would require very careful inspection of libsodium; it is
+    simpler to just exclude them.
+
+Shielded programmability and a full transaction ID malleability fix would both require
+significant changes across the ecosystem. In the interim, we propose in this ZIP the
+simplest possible change to the consensus rules that addresses the above concerns with a
+minimal impact on the existing ecosystem.
+
+
+Conventions
+===========
+
+We use the following notation as defined in the Zcash protocol specification
+[#spec-notation]_, reproduced here for convenience:
+
+- length(*S*) means the length of (number of elements in) *S*.
+
+- { *a* .. *b* } means the set or type of integers from *a* through *b* inclusive.
+
+- *a* || *b* means the concatenation of sequences *a* then *b*.
+
+We reproduce the following conversion function from ZIP 32 [#zip-0032]_:
+
+- I2LEOSP\ :sub:`l`\ (*k*) is the byte sequence *S* of length *l*/8 representing in little-endian order the
+  integer *k* in range {0..2\ :sup:`l`\ -1}.
+
+We also define the following helper notation for scripts:
+
+- PUSHDATA(*S*) is a data push of the byte sequence *S* using the standard script data
+  push encoding:
+
+  - I2LEOSP\ :sub:`8`\ (length(*S*)) || *S* if length(*S*) < ``PUSHDATA1``.
+  - ``PUSHDATA1`` || I2LEOSP\ :sub:`8`\ (length(*S*)) || *S* if length(*S*) <= ``0xff``.
+  - ``PUSHDATA2`` || I2LEOSP\ :sub:`16`\ (length(*S*)) || *S* if length(*S*) <= ``0xffff``.
+  - ``PUSHDATA4`` || I2LEOSP\ :sub:`32`\ (length(*S*)) || *S* otherwise.
+
+
+Specification
+=============
+
+Transparent program
+-------------------
+
+A transparent program is defined by four properties:
+
+- A 1-byte program type.
+- A byte sequence ``predicate`` containing a prefix-free encoding describing the
+  predicate.
+- A non-malleable byte sequence ``witness`` containing a prefix-free encoding of evidence
+  satisfying the predicate.
+- A deterministic verification algorithm ``verify_program`` that takes as arguments
+  ``predicate``, ``witness``, and a context object providing deterministic public
+  information about the transaction as well as the block chain (up to and including the
+  block that the transaction is mined in). It returns ``true`` if the predicate is
+  satisfied, and ``false`` otherwise.
+
+ZIPs that define a new transparent program must completely specify all four of these
+properties.
+
+Program types ``{0xfd..0xff}`` are reserved for future extensions to this schema.
+
+The lengths of ``predicate`` and ``witness`` are not required to be constant length, but
+MUST be solely determined by the program type.
+
+Encoding in transactions
+------------------------
+
+A new script opcode ``PROGRAM`` is introduced that redefines the existing ``NOP10``
+opcode.
+
+To create an encumbered transparent output, its ``scriptPubKey`` is set to exactly the
+following:
+
+  PROGRAM PUSHDATA(type || predicate)
+
+When spending an encumbered transparent output, the ``scriptSig`` of the input is set to
+exactly the following:
+
+  PROGRAM PUSHDATA(type || witness)
+
+To a script parser unaware of the ``PROGRAM`` opcode, this results in the following stack,
+which would be interpreted as an "anyone can spend" output:
+
+  PUSHDATA(type || witness) PUSHDATA(type || predicate)
+
+TODO: Alternatively, we could enforce that the script fails-closed for old script
+interpreters, by requiring that ``scriptSig`` include a ``RETURN`` opcode.
+
+Consensus rules
+---------------
+
+Once the TODO network upgrade activates, the following new consensus rules are enforced:
+
+- The ``PROGRAM`` opcode MUST NOT be present anywhere in ``scriptPubKey`` or ``scriptSig``
+  except at the beginning.
+
+- If a transparent output's ``scriptPubKey`` begins with ``PROGRAM``, then the remaining
+  bytes MUST be exactly a single data push operation. The first byte of the pushed data
+  MUST be a whitelisted program type, and the data push length MUST equal
+  ``1 + length(predicate)``.
+
+- If a transparent input's ``scriptSig`` begins with ``PROGRAM``, then the remaining bytes
+  MUST be exactly a single data push operation. The first byte of the pushed data MUST be
+  a whitelisted program type, and the data push length MUST equal ``1 + length(witness)``.
+
+- If a transparent input's ``scriptSig`` contains a transparent program, then:
+
+  - The UTXO it is spending MUST contain a transparent program of the same type in its
+    ``scriptPubKey``.
+  - ``verify_program(predicate, witness, context)`` MUST return ``true``.
+
+- If any transparent output begins with ``PROGRAM``, then the transaction MUST be
+  non-malleable. Specifically:
+
+  - ``vin`` MUST NOT contain transparent inputs where ``scriptSig`` does not begin with
+    ``PROGRAM``.
+
+    - TODO: An alternative is to instead require that ``vin`` MUST be empty.
+
+  - ``vJoinSplit`` MUST be empty.
+
+  - The verification equation for RedJubjub signatures is altered to remove the cofactor
+    multiplication. Implementations MUST NOT use batch verification [#batch-verification]_
+    to verify RedJubjub signatures in transactions containing ``PROGRAM``.
+
+Rationale
+=========
+
+Placing the transparent program information into ``scriptPubKey`` and ``scriptSig`` via
+a new opcode enables this functionality without requiring a transaction format change.
+This greatly simplifies deployment, as no parsers need to be updated, and script
+verification engines that don't care about program inputs require minimal changes.
+Alternatives were considered where the transparent program information was attached to
+shielded spends and outputs, or to new program-specific transparent inputs and outputs;
+both of these were excluded because the implementation complexity cost was not worth the
+benefits, given that this ZIP is intended as a short-term transparent solution.
+
+The consensus rule permitting ``vin`` to contain transparent programs if any transparent
+output is encumbered, allows a transparent program to be funded by another transparent
+program, but not by any transparent address.
+
+The RedJubjub verification algorithm is only altered for transactions containing the
+``PROGRAM`` opcode for two reasons: it allows batch verification for non-program
+transactions, and if a security vulnerability were discovered in this change, programs can
+be disabled without affecting general Sapling transactions.
+
+
+Security and Privacy Considerations
+===================================
+
+This ZIP removes all sources of malleability that are currently present in the transaction
+format, for transactions containing a ``PROGRAM`` opcode. However, the ``predicate`` and
+``witness`` byte sequences are treated here as opaque, and ``witness`` is not part of any
+signed data (as it is stored in the ``scriptSig`` field). It is the responsibility of
+``verify_program`` to enforce the following:
+
+- ``witness`` MUST be non-malleable: any malleation MUST cause ``verify_program`` to
+  return ``false``.
+- The output of ``verify_program(predicate, witness, context)`` MUST be deterministic.
+
+ZIPs defining new program types MUST include a section explaining how any potential
+sources of malleability are handled.
+
+
+Reference Implementation
+========================
+
+TBD
+
+
+Acknowledgements
+================
+
+James Prestwich made the observation that the initial draft design could be simplified by
+using the ``scriptPubKey`` and ``scriptSig`` fields with a dedicated ``PROGRAM`` opcode.
+This in turn was influenced by BIP 141. The handler semantics of ``verify_program`` were
+suggested by Zaki Manian, drawing on the design of Cosmos. Daira Hopwood and Sean Bowe
+gave useful feedback on an early draft of this ZIP, and helped to analyse the various
+sources of transaction ID malleability.
+
+We would also like to thank the numerous other individuals who participated in discussions
+at Zcon1 that led to this ZIP.
+
+
+References
+==========
+
+.. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://tools.ietf.org/html/rfc2119>`_
+.. [#zip-0200] `ZIP 200: Network Upgrade Activation Mechanism <https://github.com/zcash/zips/blob/master/zip-0200.rst>`_
+.. [#zip-0205] `ZIP 205: Deployment of the Sapling Network Upgrade <https://github.com/zcash/zips/blob/master/zip-0205.rst>`_
+.. [#zip-draft-bolt] `Draft ZIP: Add support for Blind Off-chain Lightweight Transactions (Bolt) protocol <https://github.com/zcash/zips/pull/216>`_
+.. [#bip-0141] `BIP 141: Segregated Witness (Consensus layer) <https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki>`_
+.. [#redjubjub] `Section 5.4.6: RedDSA and RedJubjub. Zcash Protocol Specification, Version 2019.0.2 [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
+.. [#spec-notation] `Section 2: Notation. Zcash Protocol Specification, Version 2019.0.2 [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
+.. [#zip-0032] `ZIP 32: Shielded Hierarchical Deterministic Wallets <https://github.com/zcash/zips/blob/master/zip-0032.rst>`_
+.. [#batch-verification] `Section B.1: RedDSA batch verification. Zcash Protocol Specification, Version 2019.0.2 [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
