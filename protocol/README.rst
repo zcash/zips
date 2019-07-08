@@ -7,7 +7,7 @@ Build dependencies on Debian-based systems include, at least:
 .. code::
 
    apt-get install texlive texlive-science texlive-fonts-extra \
-     texlive-generic-recommended texlive-bibtex-extra biber latexmk
+     texlive-generic-recommended texlive-bibtex-extra biber latexmk perl
 
 To use the targets described under "Optimizing PDF size", you will also
 need the `ghostscript`, `extractpdfmark`, and `awk` packages.

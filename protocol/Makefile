@@ -93,6 +93,7 @@ nolatexmk-sprout:
 	biber sprout
 	$(LATEX) -jobname=sprout protocol.tex || { touch incremental_merkle.png; exit 1; }
 	$(LATEX) -jobname=sprout protocol.tex || { touch incremental_merkle.png; exit 1; }
+	sh mymakeindex.sh -o sprout.ind sprout.idx
 	$(LATEX) -jobname=sprout protocol.tex || { touch incremental_merkle.png; exit 1; }
 
 .PHONY: nolatexmk-sapling
@@ -104,6 +105,7 @@ nolatexmk-sapling:
 	biber sapling
 	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.png; exit 1; }
 	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.png; exit 1; }
+	sh mymakeindex.sh -o sapling.ind sapling.idx
 	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.png; exit 1; }
 
 .PHONY: nolatexmk-blossom
@@ -115,6 +117,7 @@ nolatexmk-blossom:
 	biber blossom
 	$(LATEX) -jobname=blossom protocol.tex || { touch incremental_merkle.png; exit 1; }
 	$(LATEX) -jobname=blossom protocol.tex || { touch incremental_merkle.png; exit 1; }
+	sh mymakeindex.sh -o blossom.ind blossom.idx
 	$(LATEX) -jobname=blossom protocol.tex || { touch incremental_merkle.png; exit 1; }
 
 .PHONY: html
@@ -129,10 +132,13 @@ clean:
 	rm -f aux/* html/* protocol.ver \
               sprout.dvi  sprout.pdf  sprout.bbl  sprout.blg  sprout.brf      sprout.toc \
               sprout.aux  sprout.out  sprout.log  sprout.bcf  sprout.run.xml  sprout.fls  sprout.fdb_latexmk \
+              sprout.idx  sprout.ilg  sprout.ind  sprout.ind.original \
               sapling.dvi sapling.pdf sapling.bbl sapling.blg sapling.brf     sapling.toc \
               sapling.aux sapling.out sapling.log sapling.bcf sapling.run.xml sapling.fls sapling.fdb_latexmk \
+              sapling.idx sapling.ilg sapling.ind sapling.ind.original \
               blossom.dvi blossom.pdf blossom.bbl blossom.blg blossom.brf     blossom.toc \
-              blossom.aux blossom.out blossom.log blossom.bcf blossom.run.xml blossom.fls blossom.fdb_latexmk
+              blossom.aux blossom.out blossom.log blossom.bcf blossom.run.xml blossom.fls blossom.fdb_latexmk \
+              blossom.idx blossom.ilg blossom.ind blossom.ind.original
 
 .PHONY: optsprout
 optsprout:
