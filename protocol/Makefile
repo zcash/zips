@@ -89,11 +89,11 @@ nolatexmk-sprout:
 	printf '\\renewcommand{\\docversion}{Version %s [\\SproutSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	# If $(LATEX) fails, touch an input so that 'make' won't think it is up-to-date next time.
 	rm -f sprout.aux sprout.bbl sprout.blg sprout.brf sprout.bcf
-	$(LATEX) protocol.tex || { touch incremental_merkle.png; exit 1; }
-	biber protocol
-	$(LATEX) protocol.tex || { touch incremental_merkle.png; exit 1; }
-	$(LATEX) protocol.tex || { touch incremental_merkle.png; exit 1; }
-	$(LATEX) protocol.tex || { touch incremental_merkle.png; exit 1; }
+	$(LATEX) -jobname=sprout protocol.tex || { touch incremental_merkle.png; exit 1; }
+	biber sprout
+	$(LATEX) -jobname=sprout protocol.tex || { touch incremental_merkle.png; exit 1; }
+	$(LATEX) -jobname=sprout protocol.tex || { touch incremental_merkle.png; exit 1; }
+	$(LATEX) -jobname=sprout protocol.tex || { touch incremental_merkle.png; exit 1; }
 
 .PHONY: nolatexmk-sapling
 nolatexmk-sapling:
@@ -112,7 +112,7 @@ nolatexmk-blossom:
 	# If $(LATEX) fails, touch an input so that 'make' won't think it is up-to-date next time.
 	rm -f blossom.aux blossom.bbl blossom.blg blossom.brf blossom.bcf
 	$(LATEX) -jobname=blossom protocol.tex || { touch incremental_merkle.png; exit 1; }
-	biber sapling
+	biber blossom
 	$(LATEX) -jobname=blossom protocol.tex || { touch incremental_merkle.png; exit 1; }
 	$(LATEX) -jobname=blossom protocol.tex || { touch incremental_merkle.png; exit 1; }
 	$(LATEX) -jobname=blossom protocol.tex || { touch incremental_merkle.png; exit 1; }
