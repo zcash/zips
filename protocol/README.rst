@@ -50,6 +50,15 @@ Use:
 * ``make optimized`` to make all optimized PDFs.
 
 
+Alternative TeX engines
+-----------------------
+
+There is experimental support for building the specification using LuaTeX
+or XeTeX; see the comments at the top of the `Makefile`. However, this will
+`currently produce poor output <https://github.com/zcash/zips/issues/249>`_.
+A warning is included below the Abstract to indicate this.
+
+
 Converting to HTML
 ------------------
 

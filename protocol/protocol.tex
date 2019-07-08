@@ -1,4 +1,24 @@
 \documentclass{article}
+\usepackage{ifxetex}
+\usepackage{ifluatex}
+
+% Dark magic. Woooooo.
+% <https://tex.stackexchange.com/a/488473/78411>
+\ifluatex
+\directlua{
+  luatexbase.add_to_callback("luaotfload.patch_font", function (fontdata)
+    local parameters = fontdata.parameters
+    if not parameters then return end
+    if not (parameters.x_height or parameters[5] or 0) == 0 then return end
+    if fontdata.characters and fontdata.characters[120] then
+      parameters.x_height = fontdata.characters[120].height
+    else
+      parameters.x_height = (parameters.ascender or 0)*0.4
+    end
+  end, "Fix x-height")
+}
+\fi
+
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{amsmath}
@@ -61,7 +81,11 @@
 % match its x height.
 % (This has the side effect of making all italic text into boxes, so
 % it won't linebreak, which has pluses and minuses.)
-\renewcommand{\emph}[1]{\hspace{0.15em}{\fontfamily{pnc}\selectfont\scalebox{1.02}[0.999]{\textit{#1}}}\hspace{0.02em}}
+%
+% XeTeX and LuaLaTeX require the \fontencoding{T1}:
+% <https://tex.stackexchange.com/a/426300/78411>
+%
+\renewcommand{\emph}[1]{\hspace{0.15em}{\fontencoding{T1}\fontfamily{pnc}\selectfont\scalebox{1.02}[0.999]{\textit{#1}}}\hspace{0.02em}}
 
 % While we're at it, let's match the tt x height to Quattrocento as well,
 % and compress it a little to save space in tables.
@@ -71,7 +95,8 @@
 \renewcommand{\mathtt}[1]{\scalebox{0.97}[1.07]{$\oldmathtt{#1}$}}
 
 % bold but not extended
-\newcommand{\textbnx}[1]{{\fontseries{b}\selectfont #1}}
+%\newcommand{\textbnx}[1]{{\fontseries{b}\selectfont #1}}
+\newcommand{\textbnx}[1]{\textbf{#1}}
 
 
 \crefformat{footnote}{#2\footnotemark[#1]#3}
@@ -101,7 +126,7 @@
 \renewcommand{\@pnumwidth}{2em}
 \makeatother
 
-\newcommand{\pagenumfont}{\fontfamily{pnc}\selectfont\rule[-.2\baselineskip]{0pt}{1.32\baselineskip}}
+\newcommand{\pagenumfont}{\fontencoding{T1}\fontfamily{pnc}\selectfont\rule[-.2\baselineskip]{0pt}{1.32\baselineskip}}
 \renewcommand{\cftsecpagefont}{\pagenumfont}
 \renewcommand{\cftsubsecpagefont}{\pagenumfont}
 \renewcommand{\cftsubsubsecpagefont}{\pagenumfont}
@@ -120,6 +145,7 @@
 % Use rubber lengths between paragraphs to improve default pagination.
 % <https://tex.stackexchange.com/questions/17178/vertical-spacing-pagination-and-ideal-results>
 \setlength{\parskip}{1.5ex plus 2pt minus 2pt}
+%\setlength{\parskip}{6.3pt plus 2pt minus 2pt}
 
 \widowpenalties 3 10000 1000 0
 
@@ -408,6 +434,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \definecolor{green}{RGB}{0,100,10}
 
 \newcommand{\vulncolor}{BrickRed}
+\newcommand{\setwarning}{\color{\warningcolor}}
+\newcommand{\warningcolor}{BrickRed}
 \newcommand{\changedcolor}{magenta}
 \newcommand{\setchanged}{\color{\changedcolor}}
 \newcommand{\changed}[1]{\texorpdfstring{{\setchanged{#1}}}{#1}}
@@ -1826,7 +1854,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 
 \notsprout{
 \begin{center}
-\hspace{0.6em}\includegraphics[scale=.1,interpolate]{jubjub}
+\hspace{0.6em}\includegraphics[scale=.1]{jubjub}
 \footnote{Jubjub bird image credit: Peter Newell 1902; Daira Hopwood 2018.}
 \end{center}
 \vspace{-6ex}
@@ -1859,6 +1887,19 @@ at launch, and after each of the upgrades codenamed \Overwinter, \Sapling, and
 
 \vspace{2.5ex}
 \noindent \textbf{Keywords:}~ \StrSubstitute[0]{\keywords}{,}{, }.
+
+\ifxetex
+\vspace{12pt}
+\noindent {\setwarning
+This document was built with Xe\TeX, which is \href{https://github.com/zcash/zips/issues/249}{not recommended}.
+In particular, vertical spacing will be too cramped due to incorrect metrics for the Quattrocento font.}
+\fi
+\ifluatex
+\vspace{12pt}
+\noindent {\setwarning
+This document was built with Lua\TeX, which is \href{https://github.com/zcash/zips/issues/249}{not recommended}.}
+\fi
+
 \end{abstract}
 
 \phantomsection
@@ -2338,8 +2379,8 @@ from it. Double lines indicate that the same component is used in multiple
 abstractions.
 
 \begin{center}
-\sprout{\includegraphics[scale=.7,interpolate]{key_components}}
-\sapling{\includegraphics[scale=.5,interpolate]{key_components_sapling}}
+\sprout{\includegraphics[scale=.7]{key_components}}
+\sapling{\includegraphics[scale=.5]{key_components_sapling}}
 \end{center}
 
 \sproutspecific{
@@ -2779,7 +2820,7 @@ for the whole \transaction to balance.
 
 \vspace{-2ex}
 \begin{center}
-\includegraphics[scale=.35,interpolate]{incremental_merkle}
+\includegraphics[scale=.35]{incremental_merkle}
 \end{center}
 \vspace{-2ex}
 %\sapling{\todo{The commitment indices in the above diagram should be zero-based to reflect the \notePosition{}.}}
@@ -9998,6 +10039,13 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
 \section{Change History}
 
 
+\subparagraph{2019.0.3}
+
+\begin{itemize}
+    \item Experimental support for building using Lua\TeX{} and Xe\TeX.
+\end{itemize}
+
+\introlist
 \subparagraph{2019.0.2}
 2019-06-18
 

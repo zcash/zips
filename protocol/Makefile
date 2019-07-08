@@ -1,4 +1,10 @@
-LATEXMK=latexmk --halt-on-error -bibtex -pdf -logfilewarnings-
+# Experimental; options are nothing (for traditional LaTeX), -lualatex, or -xelatex.
+# The nolatexmk-* targets ignore this setting.
+# On Debian, LuaLaTeX needs the texlive-luatex package, and XeLaTeX needs the texlive-xetex package.
+# Make sure to read <https://github.com/zcash/zips/issues/249>.
+ENGINE=
+
+LATEXMK=latexmk $(ENGINE) --halt-on-error -bibtex -pdf -logfilewarnings-
 LATEX=pdflatex --halt-on-error
 
 # extractpdfmark is needed to produce optimized PDFs that preserve "named destinations"
