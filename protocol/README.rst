@@ -10,7 +10,7 @@ Build dependencies on Debian-based systems include, at least:
      texlive-generic-recommended texlive-bibtex-extra biber latexmk
 
 To use the targets described under "Optimizing PDF size", you will also
-need the `ghostscript` and `extractpdfmark` packages.
+need the `ghostscript`, `extractpdfmark`, and `awk` packages.
 
 
 Building
@@ -49,12 +49,6 @@ Use:
 * ``make optsprout`` to make an optimized version of ``sprout.pdf``;
 * ``make optimized`` to make all optimized PDFs.
 
-This will probably only work on Linux. The first time one of these
-targets is run, it will automatically clone and build the necessary
-dependencies (pinned by ``git`` hash) from GitHub.
-
-This gives a size saving of about 40-50%.
-
 
 Converting to HTML
 ------------------
@@ -71,4 +65,6 @@ The results are placed in the ``html`` directory at ``html/sapling.html``,
 ``html/blossom.html``, and ``html/sprout.html``.
 
 See `<https://github.com/zcash/zips/issues/127>`_ for limitations of
-this conversion.
+this conversion. In particular, the resulting files are very large (over
+7 MiB for the Sapling spec), and external linking into the document does
+not work correctly.
