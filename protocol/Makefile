@@ -1,11 +1,14 @@
-# Experimental; options are nothing (for traditional LaTeX), -lualatex, or -xelatex.
-# The nolatexmk-* targets ignore this setting.
+# Experimental; options are pdflatex, lualatex, or xelatex.
 # On Debian, LuaLaTeX needs the texlive-luatex package, and XeLaTeX needs the texlive-xetex package.
 # Make sure to read <https://github.com/zcash/zips/issues/249>.
 ENGINE=
 
-LATEXMK=latexmk $(ENGINE) --halt-on-error -bibtex -pdf -logfilewarnings-
-LATEX=pdflatex --halt-on-error
+LATEXMKOPT_pdflatex=
+LATEXMKOPT_xelatex=-pdflatex=xelatex -dvi- -ps-
+LATEXMKOPT_lualatex=-pdflatex=lualatex -dvi- -ps-
+
+LATEXMK=latexmk $(LATEXMKOPT_$(ENGINE)) --halt-on-error -bibtex -pdf -logfilewarnings-
+LATEX=$(ENGINE) --halt-on-error
 
 # extractpdfmark is needed to produce optimized PDFs that preserve "named destinations"
 # (needed for external links into the file to work correctly).
@@ -107,6 +110,7 @@ nolatexmk-sapling:
 	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.png; exit 1; }
 	sh mymakeindex.sh -o sapling.ind sapling.idx
 	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.png; exit 1; }
+	cp -f sapling.pdf protocol.pdf
 
 .PHONY: nolatexmk-blossom
 nolatexmk-blossom:
@@ -164,3 +168,6 @@ optblossom:
 
 .PHONY: optimized
 optimized: optsapling optsprout optblossom
+
+.PHONY: all
+all: sapling sprout blossom

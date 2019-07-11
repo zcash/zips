@@ -9,9 +9,6 @@ Build dependencies on Debian-based systems include, at least:
    apt-get install texlive texlive-science texlive-fonts-extra \
      texlive-generic-recommended texlive-bibtex-extra biber latexmk perl
 
-To use the targets described under "Optimizing PDF size", you will also
-need the `ghostscript`, `extractpdfmark`, and `awk` packages.
-
 
 Building
 --------
@@ -25,10 +22,11 @@ Use:
 * ``make sprout`` to make a version of the specification that does not
   include Overwinter or Sapling.
 
-By default these use ``latexmk``, which does not work on all systems.
-Use ``make nolatexmk-sapling`` or ``make nolatexmk-sprout`` if you run into
-problems with ``latexmk``, but that is not the preferred way of building
-because it may not run ``pdflatex`` enough times.
+``make all`` is equivalent to ``make sapling blossom sprout``.
+
+By default these use ``latexmk``. If you have trouble getting ``latexmk`` to
+work, you can instead use ``make nolatexmk-sapling``, etc. That is not the
+preferred way of building because it may not run ``pdflatex`` enough times.
 
 There is also support for using the incremental (``-pvc``) mode of
 ``latexmk`` to automatically rebuild when changes in the source files are
@@ -39,10 +37,13 @@ Manual intervention is still needed when there are LaTeX errors.
 Optimizing PDF size
 -------------------
 
-Optionally, you can use Ghostscript to optimize the size of the resulting
-PDF files.
+Optionally, you can use Ghostscript to attempt to optimize the size of the
+resulting PDF files. Note that this is not recommended with recent versions
+of TeXLive that produce smaller PDFs in any case, since then it may increase
+the size. (Debian Buster includes TeXLive 2019.)
 
-Use:
+For this option you will need to ensure the `ghostscript`, `extractpdfmark`,
+and `awk` packages are installed. Then use:
 
 * ``make optsapling`` to make an optimized version of ``protocol.pdf``;
 * ``make optblossom`` to make an optimized version of ``blossom.pdf``;
