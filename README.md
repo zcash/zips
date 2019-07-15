@@ -21,6 +21,17 @@ This is the current list of ZIPs that could be included in the NU3 upgrade (arou
 - [Multisig](https://github.com/omershlo/zips/blob/multisig/zip-multisig.rst)
 - [Transfer Sapling Ephemeral Secret to Recipient in Note Plaintext](https://github.com/ebfull/zips/blob/unlinkable-addrs/zip-seanbowe-esktransfer.rst)
 
+Deadlines for NU4
+-----------------
+
+| Event  | Date |
+| ------------- | ------------- |
+| ZIP draft submission deadline | Aug 31, 2019  |
+| Feature selection done | October 31, 2019 |
+| Testnet beta code release | March 31, 2020 |
+| Testnet activation | May 31, 2020 |
+| Mainnet activation | October 2020 |
+
 License
 -------
 
