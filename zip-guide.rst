@@ -12,6 +12,18 @@
   License: {usually MIT}
 
 
+Don't Panic
+===========
+
+If this is your first time writing a ZIP, the structure and format may look
+intimidating. But really, it's just meant to reflect common-sense practice and
+some technical conventions. Feel free to start with a simple initial draft that
+gets ideas across, even if it doesn't quite follow this format. The community
+and ZIP editors will help you figure things out and get it into shape later.
+
+{Delete this section.}
+
+
 Terminology
 ===========
 
@@ -29,13 +41,6 @@ The terms below are to be interpreted as follows:
 
 Abstract
 ========
-
-*Don't Panic*. If this is your first time writing a ZIP, the structure and
-format may look intimidating. But really, it's just meant to reflect common-sense
-practice and some technical conventions. Feel free to start with a simple initial
-draft that gets ideas across, even if it doesn't quite follow this format.
-The community and ZIP editors will help you figure things out and get it into
-shape later.
 
 {Describe what this proposal does, typically in a few paragraphs.}
 
