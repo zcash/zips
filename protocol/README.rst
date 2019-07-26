@@ -34,23 +34,6 @@ detected: ``make pvcsapling``, ``make pvcblossom``, or ``make pvcsprout``.
 Manual intervention is still needed when there are LaTeX errors.
 
 
-Optimizing PDF size
--------------------
-
-Optionally, you can use Ghostscript to attempt to optimize the size of the
-resulting PDF files. Note that this is not recommended with recent versions
-of TeXLive that produce smaller PDFs in any case, since then it may increase
-the size. (Debian Buster includes TeXLive 2019.)
-
-For this option you will need to ensure the `ghostscript`, `extractpdfmark`,
-and `awk` packages are installed. Then use:
-
-* ``make optsapling`` to make an optimized version of ``protocol.pdf``;
-* ``make optblossom`` to make an optimized version of ``blossom.pdf``;
-* ``make optsprout`` to make an optimized version of ``sprout.pdf``;
-* ``make optimized`` to make all optimized PDFs.
-
-
 Alternative TeX engines
 -----------------------
 

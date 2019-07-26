@@ -10,16 +10,6 @@ LATEXMKOPT_lualatex=-pdflatex=lualatex -dvi- -ps-
 LATEXMK=latexmk $(LATEXMKOPT_$(ENGINE)) --halt-on-error -bibtex -pdf -logfilewarnings-
 LATEX=$(ENGINE) --halt-on-error
 
-# extractpdfmark is needed to produce optimized PDFs that preserve "named destinations"
-# (needed for external links into the file to work correctly).
-# <https://github.com/trueroad/extractpdfmark>
-EXTRACTPDFMARK=extractpdfmark
-
-# Options are documented at <http://web.mit.edu/ghostscript/www/Ps2pdf.htm>
-OPTIMIZER=gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/screen -dNOPAUSE -dBATCH \
-          -r450 -dDownsampleColorImages=false -dDownsampleGrayImages=false -dDownsampleMonoImages=false -dFastWebView=true \
-          -dSubsetFonts=true -dCompressPages=true
-
 sprout.pdf: protocol.tex zcash.bib incremental_merkle.png key_components.png
 	$(MAKE) sprout
 
@@ -143,31 +133,6 @@ clean:
               blossom.dvi blossom.pdf blossom.bbl blossom.blg blossom.brf     blossom.toc \
               blossom.aux blossom.out blossom.log blossom.bcf blossom.run.xml blossom.fls blossom.fdb_latexmk \
               blossom.idx blossom.ilg blossom.ind blossom.ind.original
-
-.PHONY: optsprout
-optsprout:
-	$(MAKE) auxsprout
-	$(EXTRACTPDFMARK) aux/sprout.pdf >aux/sprout-pdfmark.ps
-	$(OPTIMIZER) -sOutputFile=sprout.pdf aux/sprout.pdf aux/sprout-pdfmark.ps 2>/dev/null |awk '{printf "."}'
-	ls -l aux/sprout.pdf sprout.pdf
-
-.PHONY: optsapling
-optsapling:
-	$(MAKE) auxsapling
-	$(EXTRACTPDFMARK) aux/sapling.pdf >aux/sapling-pdfmark.ps
-	$(OPTIMIZER) -sOutputFile=sapling.pdf aux/sapling.pdf aux/sapling-pdfmark.ps 2>/dev/null |awk '{printf "."}'
-	ls -l aux/sapling.pdf sapling.pdf
-	cp -f sapling.pdf protocol.pdf
-
-.PHONY: optblossom
-optblossom:
-	$(MAKE) auxblossom
-	$(EXTRACTPDFMARK) aux/blossom.pdf >aux/blossom-pdfmark.ps
-	$(OPTIMIZER) -sOutputFile=blossom.pdf aux/blossom.pdf aux/blossom-pdfmark.ps 2>/dev/null |awk '{printf "."}'
-	ls -l aux/blossom.pdf blossom.pdf
-
-.PHONY: optimized
-optimized: optsapling optsprout optblossom
 
 .PHONY: all
 all: sapling sprout blossom
