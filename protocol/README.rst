@@ -41,23 +41,3 @@ There is experimental support for building the specification using LuaTeX
 or XeTeX; see the comments at the top of the `Makefile`. However, this will
 `currently produce poor output <https://github.com/zcash/zips/issues/249>`_.
 A warning is included below the Abstract to indicate this.
-
-
-Converting to HTML
-------------------
-
-To convert to HTML you will first need to install ``pdf2htmlEX``. On Debian:
-
-.. code::
-
-   apt-get install pdf2htmlex
-
-Then use ``make html`` (or ``make optimized html``) to convert all PDFs.
-
-The results are placed in the ``html`` directory at ``html/sapling.html``,
-``html/blossom.html``, and ``html/sprout.html``.
-
-See `<https://github.com/zcash/zips/issues/127>`_ for limitations of
-this conversion. In particular, the resulting files are very large (over
-7 MiB for the Sapling spec), and external linking into the document does
-not work correctly.

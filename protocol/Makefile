@@ -114,13 +114,6 @@ nolatexmk-blossom:
 	sh mymakeindex.sh -o blossom.ind blossom.idx
 	$(LATEX) -jobname=blossom protocol.tex || { touch incremental_merkle.png; exit 1; }
 
-.PHONY: html
-html: sapling.pdf sprout.pdf blossom.pdf
-	# Can't use --split-pages 1 because XHR doesn't work by default on local files in Chrome.
-	pdf2htmlEX --decompose-ligature 1 --font-size-multiplier 65 --fit-width 1000 --dest-dir html sprout.pdf
-	pdf2htmlEX --decompose-ligature 1 --font-size-multiplier 65 --fit-width 1000 --dest-dir html sapling.pdf
-	pdf2htmlEX --decompose-ligature 1 --font-size-multiplier 65 --fit-width 1000 --dest-dir html blossom.pdf
-
 .PHONY: clean
 clean:
 	rm -f aux/* html/* protocol.ver \
