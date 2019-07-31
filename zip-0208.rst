@@ -237,7 +237,7 @@ effectiveness of this mitigation.
 In any case, to estimate the "best equivalent proof of work" of a given block
 chain (measured in units of time), we take the total work of the chain as
 defined in [#latest-protocol]_ section 7.6.5, divide by the work of the
-current block, and multiply by the target block spacing of that block.
+block at the active tip, and multiply by the target block spacing of that block.
 
 It is not a requirement of the Zcash protocol that this fingerprinting
 mitigation is used; however, if it is used, then it SHOULD use the target
@@ -257,6 +257,70 @@ Block timeout
 
 The timeout for a requested block is calculated as the target block time,
 multiplied by 2 + (the number of queued validated headers)/2.
+
+
+Latency optimization when requesting blocks
+'''''''''''''''''''''''''''''''''''''''''''
+
+When ``zcashd`` sees an announced block that chains from headers that it does
+not already have, it will first ask for the headers, and then the block itself.
+A latency optimization is performed only if the chain is "nearly synced":
+
+    // First request the headers preceding the announced block. In the normal fully-synced
+    // case where a new block is announced that succeeds the current tip (no reorganization),
+    // there are no such headers.
+    // Secondly, and only when we are close to being synced, we request the announced block directly,
+    // to avoid an extra round-trip. Note that we must *first* ask for the headers, so by the
+    // time the block arrives, the header chain leading up to it is already validated. Not
+    // doing this will result in the received block being rejected as an orphan in case it is
+    // not a direct successor.
+
+The heuristic for "nearly synced" is that the timestamp of the block at the active tip
+is no more than 20 block times before the current "adjusted time". In ``zcashd`` this
+calculation uses the block target spacing as of the best known header. Around Blossom
+activation when the block target spacing changes, this could cause the heuristic to be
+based on the pre-Blossom block target spacing until the node has synced headers past the
+activation block, but this is not anticipated to cause any problem.
+
+
+Response to getblocks message when pruning
+''''''''''''''''''''''''''''''''''''''''''
+
+If pruning is enabled, when ``zcashd`` responds to an "getblocks" peer-to-peer message,
+it will only include blocks that it has on disk, and is likely to still have on disk
+an hour after responding to the message:
+
+    // If pruning, don't inv blocks unless we have on disk and are likely to still have
+    // for some reasonable time window (1 hour) that block relay might require.
+
+For each block, when estimating whether it will still be on disk after an hour, we
+take MIN_BLOCKS_TO_KEEP = 288 blocks, minus approximately the number of blocks expected
+in one hour at the target block spacing as of that block. Around Blossom activation,
+this might underestimate the number of blocks in the next hour, but given the value
+of MIN_BLOCKS_TO_KEEP, this is not anticipated to cause any problem.
+
+
+Other block-related constants
+'''''''''''''''''''''''''''''
+
+The following constants, measured in number of blocks, were reviewed and a
+decision was made not to change them::
+
+    /** The number of blocks within expiry height when a tx is considered to be expiring soon */
+    TX_EXPIRING_SOON_THRESHOLD = 3
+
+    /** Maximum reorg length we will accept before we shut down and alert the user. */
+    MAX_REORG_LENGTH = COINBASE_MATURITY - 1;
+
+    static const int COINBASE_MATURITY = 100;
+
+    /** Number of blocks that can be requested at any given time from a single peer. */
+    static const int MAX_BLOCKS_IN_TRANSIT_PER_PEER = 16;
+
+    static const unsigned int BLOCK_DOWNLOAD_WINDOW = 1024;
+
+    /** Block files containing a block-height within MIN_BLOCKS_TO_KEEP of chainActive.Tip() will not be pruned. */
+    static const unsigned int MIN_BLOCKS_TO_KEEP = 288;
 
 
 Deployment
