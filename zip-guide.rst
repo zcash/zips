@@ -7,7 +7,7 @@
   Credits: First Credited <optional email>
            ...
   Status: Draft
-  Category: {Consensus | Standards Track | Informational | Process}
+  Category: {Consensus | Standards Track | Network | RPC | Wallet | Informational | Process}
   Created: yyyy-mm-dd
   License: {usually MIT}
 
