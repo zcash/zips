@@ -2,6 +2,14 @@
 	pandoc -s -o $@ $<
 
 %.html: %.rst
-	pandoc -s -o $@ $<
+	$(eval TITLE=$(shell echo '$(basename $<)' | sed -r 's/zip-0{0,3}/ZIP /'): $(shell grep '^\s*Title: ' $< | sed 's|\s*Title: ||'))
+	pandoc --metadata pagetitle="$(TITLE)" -s -o $@ $<
+	sed -i 's|</head>|<link rel="stylesheet" href="css/zip-style.css"><link rel="stylesheet" href="assets/css/style.css"></head>|' $@
 
-default: $(addsuffix .html,$(basename $(wildcard *.rst)))
+
+all: $(addsuffix .html,$(basename $(wildcard zip-*.rst)))
+
+clean:
+	rm -f zip-*.html
+
+default: all
