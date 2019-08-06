@@ -117,9 +117,9 @@ reStructuredText, first install rst2html5::
   sudo apt-get install python-pip
   sudo pip install rst2html5
 
-and then run::
+Then, with ``zip-xxxx.rst`` in the root directory of a clone of this repo, run::
 
-  rst2html5 -v zip-xxxx.rst >zip-xxxx.html
+  make zip-xxxx.html
 
 and view ``zip-xxxx.html`` in a web browser.
 
