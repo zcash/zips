@@ -1,4 +1,7 @@
 %.md: %.rst
 	pandoc -s -o $@ $<
 
-default: $(addsuffix .md,$(basename $(wildcard *.rst)))
+%.html: %.rst
+	pandoc -s -o $@ $<
+
+default: $(addsuffix .html,$(basename $(wildcard *.rst)))
