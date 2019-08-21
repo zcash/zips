@@ -135,7 +135,7 @@ Transparent programs take as input a ``predicate``, ``witness``, and ``context``
 
 2. ``cust-close`` program. The purpose of this WTP is to allow the customer to initiate channel closure as specified in Section 1.3. The program is specified as follows:
 
-	a. ``predicate``: ``<<channel-token> || <wallet>> ``, where
+	a. ``predicate``: ``<<channel-token> || <wallet>>``, where
 	
 		1. ``<channel-token> = <<cust-pk> || <merch-pk> || <MERCH-PK>>``, and
 		2. ``<wallet> = <<wpk> || <balance-cust> || <balance-merch>>``.
