@@ -49,7 +49,6 @@ auxsapling:
 sapling:
 	$(MAKE) auxsapling
 	mv -f aux/sapling.pdf .
-	cp -f sapling.pdf protocol.pdf
 
 .PHONY: pvcsapling
 pvcsapling:
@@ -69,6 +68,7 @@ auxblossom:
 blossom:
 	$(MAKE) auxblossom
 	mv -f aux/blossom.pdf .
+	cp -f blossom.pdf protocol.pdf
 
 .PHONY: pvcblossom
 pvcblossom:
@@ -100,7 +100,6 @@ nolatexmk-sapling:
 	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.png; exit 1; }
 	sh mymakeindex.sh -o sapling.ind sapling.idx
 	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.png; exit 1; }
-	cp -f sapling.pdf protocol.pdf
 
 .PHONY: nolatexmk-blossom
 nolatexmk-blossom:
@@ -113,6 +112,7 @@ nolatexmk-blossom:
 	$(LATEX) -jobname=blossom protocol.tex || { touch incremental_merkle.png; exit 1; }
 	sh mymakeindex.sh -o blossom.ind blossom.idx
 	$(LATEX) -jobname=blossom protocol.tex || { touch incremental_merkle.png; exit 1; }
+	cp -f blossom.pdf protocol.pdf
 
 .PHONY: clean
 clean:
@@ -128,4 +128,4 @@ clean:
               blossom.idx blossom.ilg blossom.ind blossom.ind.original
 
 .PHONY: all
-all: sapling sprout blossom
+all: blossom sapling sprout
