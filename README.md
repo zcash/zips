@@ -7,10 +7,10 @@ Specifications and Zcash Improvement Proposals for the
 Participation in the Zcash project is subject to a
 [Code of Conduct](https://github.com/zcash/zcash/blob/master/code_of_conduct.md).
 
-Current NU3 ZIPs for consideration
-----------------------------------
+NU3 ZIPs for consideration
+--------------------------
 
-This is the current list of ZIPs that could be included in the NU3 upgrade (around ~April 2020).
+This is the list of ZIPs that were under consideration for the NU3 upgrade (around ~April 2020).
 
 - [Sapling Anchor Deduplication within Transactions](https://github.com/zcash/zips/blob/master/zip-0210.rst)
 - [Disabling Addition of New Value to the Sprout Value Pool](https://github.com/daira/zips/blob/disable-sprout-outputs/zip-0211.rst)
@@ -24,9 +24,9 @@ This is the current list of ZIPs that could be included in the NU3 upgrade (arou
 Deadlines for NU4
 -----------------
 
-| Event  | Date |
-| ------------- | ------------- |
-| ZIP draft submission deadline | Aug 31, 2019  |
+| Event | Date |
+|-------|------|
+| ZIP draft submission deadline | August 31, 2019 |
 | Feature selection done | October 31, 2019 |
 | Testnet beta code release | March 31, 2020 |
 | Testnet activation | May 31, 2020 |
