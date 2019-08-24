@@ -41,19 +41,21 @@ See [COPYING](COPYING) for more information or see http://opensource.org/license
 Index of ZIPs
 -------------
 
-* [ZIP 0: ZIP Process](zip-0000)
-* [ZIP 32: Shielded Hierarchical Deterministic Wallets](zip-0032)
-* [ZIP 143: Transaction Signature Verification for Overwinter](zip-0143)
-* [ZIP 200: Network Upgrade Mechanism](zip-0200)
-* [ZIP 201: Network Peer Management for Overwinter](zip-0201)
-* [ZIP 202: Version 3 Transaction Format for Overwinter](zip-0202)
-* [ZIP 203: Transaction Expiry](zip-0203)
-* [ZIP 205: Deployment of the Sapling Network Upgrade](zip-0205)
-* [ZIP 206: Deployment of the Blossom Network Upgrade](zip-0206)
-* [ZIP 207: Split Founders' Reward](zip-0207)
-* [ZIP 208: Shorter Block Target Spacing](zip-0208)
-* [ZIP 209: Prohibit Negative Shielded Value Pool](zip-0209)
-* [ZIP 210: Sapling Anchor Deduplication within Transactions](zip-0210)
-* [ZIP 243: Transaction Signature Verification for Sapling](zip-0243)
-* [ZIP 308: Sprout to Sapling Migration](zip-0308)
-* [ZIP guide: {Something Short and To the Point}](zip-guide)
+| ZIP | Title | Status |
+|-----|-------|--------|
+| 0 | [ZIP Process](zip-0000) | Active |
+| 32 | [Shielded Hierarchical Deterministic Wallets](zip-0032) | Final |
+| 143 | [Transaction Signature Verification for Overwinter](zip-0143) | Final |
+| 200 | [Network Upgrade Mechanism](zip-0200) | Final |
+| 201 | [Network Peer Management for Overwinter](zip-0201) | Final |
+| 202 | [Version 3 Transaction Format for Overwinter](zip-0202) | Final |
+| 203 | [Transaction Expiry](zip-0203) | Final |
+| 205 | [Deployment of the Sapling Network Upgrade](zip-0205) | Final |
+| 206 | [Deployment of the Blossom Network Upgrade](zip-0206) | Draft |
+| ~207~ | ~[Split Founders' Reward](zip-0207)~ | Withdrawn |
+| 208 | [Shorter Block Target Spacing](zip-0208) | Implemented |
+| 209 | [Prohibit Negative Shielded Value Pool](zip-0209) | Final |
+| 210 | [Sapling Anchor Deduplication within Transactions](zip-0210) | Draft |
+| 243 | [Transaction Signature Verification for Sapling](zip-0243) | Final |
+| 308 | [Sprout to Sapling Migration](zip-0308) | Final |
+| guide | [{Something Short and To the Point}](zip-guide) | Draft |
