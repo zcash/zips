@@ -14,6 +14,9 @@ LATEX=$(ENGINE) --halt-on-error --file-line-error
 #NOCRUFT=
 NOCRUFT=|awk '{gsub(/[({<][/][^ ]* ?/,"")}1'
 
+.PHONY: all
+all: blossom sapling sprout
+
 sprout.pdf: protocol.tex zcash.bib incremental_merkle.png key_components.png
 	$(MAKE) sprout
 
@@ -130,6 +133,3 @@ clean:
               blossom.dvi blossom.pdf blossom.bbl blossom.blg blossom.brf     blossom.toc \
               blossom.aux blossom.out blossom.log blossom.bcf blossom.run.xml blossom.fls blossom.fdb_latexmk \
               blossom.idx blossom.ilg blossom.ind blossom.ind.original
-
-.PHONY: all
-all: blossom sapling sprout
