@@ -59,28 +59,17 @@ Specification
 
 Funding mechanism of the Zcash Development Fund:
 
-- This feature MUST be hard-coded so that 20% of newly issued ZEC in the mining rewards
-associated with block generation are automatically directed to a set of transparent
-addresses of the Zcash Development Fund, each controlled jointly by the ECC, the ZF,
-and a Third Entity described below (2-of-3 multisig);
+- This feature MUST be hard-coded so that 20% of newly issued ZEC in the mining rewards associated with block generation are automatically directed to a set of transparent addresses of the Zcash Development Fund, each controlled jointly by the ECC, the ZF, and a Third Entity described below (2-of-3 multisig);
 
-- The previous requirement MUST be met between the first (year 2020, at block height
-840,000) and second (year 2024, at block height 1,680,000) halving. With the second
-halving, the Zcash protocol MUST automatically shift to a system whereby all subsequent
-mining rewards are earned by miners. The Zcash community MAY decide to change this in
-the future, but prescribing or suggesting such change is not part of the current proposal;
+- The previous requirement MUST be met between the first (year 2020, at block height 840,000) and second (year 2024, at block height 1,680,000) halving. With the second halving, the Zcash protocol MUST automatically shift to a system whereby all subsequent mining rewards are earned by miners. The Zcash community MAY decide to change this in the future, but prescribing or suggesting such change is not part of the current proposal;
 
-- The two previous requirements MUST hold regardless of the Network Upgrades or changes
-to mining or mining software introduced prior to second halving;
+- The two previous requirements MUST hold regardless of the Network Upgrades or changes to mining or mining software introduced prior to second halving;
 
-- The Zcash Development Fund MAY outlive the duration of its initial funding mechanism,
-either through a substantial appreciation in the price of ZEC, or by switching to
-alternative funding sources after the second halving in 2024.
+- The Zcash Development Fund MAY outlive the duration of its initial funding mechanism, either through a substantial appreciation in the price of ZEC, or by switching to alternative funding sources after the second halving in 2024.
 
 Governance rules of the Zcash Development Fund:
 
-- Funds accruing to the Zcash Development Fund MUST be used only for their intended purpose
-as defined in the Motivation section of this proposal;
+- Funds accruing to the Zcash Development Fund MUST be used only for their intended purpose as defined in the Motivation section of this proposal;
 
 - The set of transparent addresses of the Zcash Development Fund MUST be jointly controlled
 by the ECC, the ZF, and a third independent entity (“Third Entity”) still to be determined,
