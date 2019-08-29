@@ -5,7 +5,7 @@
   Owners: Mario Laul <mario@placeholder.vc>
           Chris Burniske <chris@placeholder.vc>
   Status: Draft
-  Discussion: `Zcash Forum <https://forum.zcashcommunity.com/t/placeholder-considerations-resources-governance-and-legitimacy-in-nu4/34045>`_
+  Discussion: Zcash Forum
   Category: Consensus
   Created: 2019-08-30
   License: MIT
@@ -94,20 +94,11 @@ Specification
   
   - Depending on the nature of the request, and especially the length of the funding period, funds MAY be disbursed in increments, based on concrete deliverables or various adoption and/or performance metrics.
 
-- Any decision to change the governance of the Zcash Development Fund as described in this
-proposal and in final detail by the ECC, the ZF, and the Third Entity, MUST involve the
-Zcash community at large, similar to the process around the issue described in the Motivation
-section of this proposal;
+- Any decision to change the governance of the Zcash Development Fund as described in this proposal and in final detail by the ECC, the ZF, and the Third Entity, MUST involve the Zcash community at large, similar to the process around the issue described in the Motivation section of this proposal;
 
-- In situations involving security threats, the ECC, the ZF, and/or the Third Entity MUST
-take all possible steps necessary to avoid any loss of funds and ensure that the Zcash
-Development Fund remains intact and available for its intended purpose as described above.
-However, these steps SHOULD NOT result in a situation whereby the requirements described
-in this proposal can no longer be met;
+- In situations involving security threats, the ECC, the ZF, and/or the Third Entity MUST take all possible steps necessary to avoid any loss of funds and ensure that the Zcash Development Fund remains intact and available for its intended purpose as described above. However, these steps SHOULD NOT result in a situation whereby the requirements described in this proposal can no longer be met;
 
-- All transfers from the Zcash Development Fund MUST be in full accordance with the
-requirements described in this proposal, and the official mission and values of
-the ZF. [#ABOUTZF]_
+- All transfers from the Zcash Development Fund MUST be in full accordance with the requirements described in this proposal, and the official mission and values of the ZF. [#ABOUTZF]_
 
 Rationale
 ============
@@ -116,99 +107,42 @@ To be completed.
 Motivation
 ========
 
-In October 2020, the Zcash network is scheduled to undergo its first block reward halving
-and fourth Network Upgrade (NU4). According to the current protocol specification, this
-is also when the 20% of newly issued ZEC included in the block reward known as the Founders’
-Reward (FR) expires so that all subsequent rewards can be claimed exclusively by miners.
+In October 2020, the Zcash network is scheduled to undergo its first block reward halving and fourth Network Upgrade (NU4). According to the current protocol specification, this is also when the 20% of newly issued ZEC included in the block reward known as the Founders’ Reward (FR) expires so that all subsequent rewards can be claimed exclusively by miners.
 
-Currently, the two organizations leading the development and maintenance of Zcash - the
-Electric Coin Company (ECC) and the Zcash Foundation (ZF) - are either directly or indirectly
-financially dependent on the FR. Once the FR funds run out and respective balance sheets are
-depleted, both organizations would have to secure alternative sources of funding to continue
-supporting Zcash. The same holds for any other group or entity that contributes or plans to
-contribute work beneficial for Zcash.
+Currently, the two organizations leading the development and maintenance of Zcash - the Electric Coin Company (ECC) and the Zcash Foundation (ZF) - are either directly or indirectly financially dependent on the FR. Once the FR funds run out and respective balance sheets are depleted, both organizations would have to secure alternative sources of funding to continue supporting Zcash. The same holds for any other group or entity that contributes or plans to contribute work beneficial for Zcash.
 
-To address this issue, the current proposal - originally described and discussed on the Zcash
-Forum [#FORUM2]_ - puts forward the creation of the Zcash Development Fund and describes its
-initial financing mechanism and fundamental rules of governance. The purpose of the latter
-is to effectively direct the Zcash Development Fund toward its intended purpose as described
-below, and to establish proper norms of accountability and transparency for its Recipients.
+To address this issue, the current proposal - originally described and discussed on the Zcash Forum [#FORUM]_ - puts forward the creation of the Zcash Development Fund and describes its initial financing mechanism and fundamental rules of governance. The purpose of the latter is to effectively direct the Zcash Development Fund toward its intended purpose as described below, and to establish proper norms of accountability and transparency for its Recipients.
 
-The implementation of this proposal would automatically direct 20% of newly issued ZEC in
-coinbase rewards between the first (year 2020, at block height 840,000) and second (year 2024,
-at block height 1,680,000) halving to the Zcash Development Fund. This allocation amounts to
-1.05 million, or 5%, of fully diluted ZEC. Combined with the FR of 2.1 million, or 10%, of
-fully diluted ZEC, this amounts to 3.15 million, or 15%, of fully diluted ZEC.
+The implementation of this proposal would automatically direct 20% of newly issued ZEC in coinbase rewards between the first (year 2020, at block height 840,000) and second (year 2024, at block height 1,680,000) halving to the Zcash Development Fund. This allocation amounts to 1.05 million, or 5%, of fully diluted ZEC. Combined with the FR of 2.1 million, or 10%, of fully diluted ZEC, this amounts to 3.15 million, or 15%, of fully diluted ZEC.
 
-There are two crucial differences between the FR and the Zcash Development Fund. First, the
-Zcash Development Fund would be directed exclusively toward technical and non-technical
-initiatives that contribute to the success of Zcash. And second, to ensure proper accountability
-and transparency, the handling of the funds in the Zcash Development Fund would be subject to
-much more explicit and inclusive rules of governance, as laid out in the Specification section
-of this proposal.
+There are two crucial differences between the FR and the Zcash Development Fund. First, the Zcash Development Fund would be directed exclusively toward technical and non-technical initiatives that contribute to the success of Zcash. And second, to ensure proper accountability and transparency, the handling of the funds in the Zcash Development Fund would be subject to much more explicit and inclusive rules of governance, as laid out in the Specification section of this proposal.
 
 This proposal aspires to achieve the following:
 
-- To guarantee sufficient financial resources for research, development, maintenance, and
-other types of technical work directly connected to the various software implementations of
-the Zcash protocol by world-class cryptographers and engineers, as well as non-technical
-initiatives (including design, marketing, events, regulatory outreach, education, governance,
-and any other form of business or community development) that contribute to the long-term
-success of the Zcash network. Funding such activities constitutes the intended purpose of
-the Zcash Development Fund;
+- To guarantee sufficient financial resources for research, development, maintenance, and other types of technical work directly connected to the various software implementations of the Zcash protocol by world-class cryptographers and engineers, as well as non-technical initiatives (including design, marketing, events, regulatory outreach, education, governance, and any other form of business or community development) that contribute to the long-term success of the Zcash network. Funding such activities constitutes the intended purpose of the Zcash Development Fund;
 
-- To ensure that funding for both technical and non-technical work on Zcash stays
-sufficiently independent from external entities (investors, donors, private companies, etc.)
-who could end up acquiring a disproportionately large influence over the network and its
-development, or jeopardize the sustainability of funding necessary for the success and
-stability of Zcash;
+- To ensure that funding for both technical and non-technical work on Zcash stays sufficiently independent from external entities (investors, donors, private companies, etc.) who could end up acquiring a disproportionately large influence over the network and its development, or jeopardize the sustainability of funding necessary for the success and stability of Zcash;
 
-- To establish the fundamental rules of governance and accountability regarding the use of
-funds in the Zcash Development Fund;
+- To establish the fundamental rules of governance and accountability regarding the use of funds in the Zcash Development Fund;
 
-- To increase the level of decentralization and community involvement in Zcash governance
-and resource allocation;
+- To increase the level of decentralization and community involvement in Zcash governance and resource allocation;
 
-- To encourage transparency and cooperation among different Zcash stakeholders and
-strengthen the community’s governance capabilities moving forward.
+- To encourage transparency and cooperation among different Zcash stakeholders and strengthen the community’s governance capabilities moving forward.
 
 Out of Scope
 ============
 
 This proposal does not address the following closely related issues:
 
-- Details of the decision-making process for supporting or rejecting this or other
-relevant proposals by the ECC, the ZF, or other Zcash stakeholders. That said, the
-authors of this proposal maintain that any decision by the ECC and the ZF on the
-issue described in the Motivation section above MUST be preceded by at least the
-following procedures for measuring community sentiment, listed in the August 6,
-2019 statement by the ZF [#ZFSTATEMENT1]_:
+- Details of the decision-making process for supporting or rejecting this or other relevant proposals by the ECC, the ZF, or other Zcash stakeholders. That said, the authors of this proposal maintain that any decision by the ECC and the ZF on the issue described in the Motivation section above MUST be preceded by at least the following procedures for measuring community sentiment, listed in the August 6, 2019 statement by the ZF [#ZFSTATEMENT]_:
 
-  - Reviving the Community Advisory Panel with an opportunity for new members of
-  the Zcash community to join. The Panel is expected to vote on all proposals that
-  meet the basic ZIP draft requirements [#ZIPGUIDE]_;
+  - Reviving the Community Advisory Panel with an opportunity for new members of the Zcash community to join. The Panel is expected to vote on all proposals that meet the basic ZIP draft requirements [#ZIPGUIDE]_;
   
-  - Miner signalling whereby mining pools can signal their support of specific
-  proposals using their ability to embed arbitrary messages in the mined blocks;
+  - Miner signalling whereby mining pools can signal their support of specific proposals using their ability to embed arbitrary messages in the mined blocks;
   
-  - Methods for measuring community sentiment MAY also include Zcash Forum user
-  signalling limited to accounts created before a certain date. Ideally, all  ZEC
-  holders would also be able to signal their support of specific proposals but, given
-  current technical limitations, this may not be feasible. The outcome of the two
-  procedures listed above, as well as any other that end up getting implemented for
-  the same purpose, SHOULD play a central role in determining the official position
-  of both the ECC and the  ZF on the issue described in the Motivation section of
-  this proposal.
+  - Methods for measuring community sentiment MAY also include Zcash Forum user signalling limited to accounts created before a certain date. Ideally, all  ZEC holders would also be able to signal their support of specific proposals but, given current technical limitations, this may not be feasible. The outcome of the two procedures listed above, as well as any other that end up getting implemented for the same purpose, SHOULD play a central role in determining the official position of both the ECC and the  ZF on the issue described in the Motivation section of this proposal.
 
-- Question of whether the ECC should reorganize itself into a non-profit, as suggested
-by the ZF in their August 6, 2019 statement. [#ZFSTATEMENT2]_ The current proposal
-neither prescribes nor excludes the option of the ECC becoming a non-profit. The
-authors consider the basic governance rules of the Zcash Development Fund outlined
-above sufficient to ensure transparency and accountability, regardless of whether
-the Applicant is a for-profit or a non-profit entity. According to the current proposal,
-funding from the Zcash Development Fund would be available to both for- and non-profit
-entities, thereby allowing for maximal flexibility in terms of the types of activities
-that can be funded.
+- Question of whether the ECC should reorganize itself into a non-profit, as suggested by the ZF in their August 6, 2019 statement. [#ZFSTATEMENT]_ The current proposal neither prescribes nor excludes the option of the ECC becoming a non-profit. The authors consider the basic governance rules of the Zcash Development Fund outlined above sufficient to ensure transparency and accountability, regardless of whether the Applicant is a for-profit or a non-profit entity. According to the current proposal, funding from the Zcash Development Fund would be available to both for- and non-profit entities, thereby allowing for maximal flexibility in terms of the types of activities that can be funded.
 
 Security Considerations
 ============
@@ -224,18 +158,11 @@ Discussion
 
 Recognized objections to this proposal include:
 
-- It is not in accordance with the current protocol specification and the initial
-promise of the creators of Zcash, according to which 100% of coinbase rewards will go
-to miners after the first halving. The main counter-argument that motivates the current
-proposal concerns the need to guarantee stable and sufficient funding for world-class
-cryptographers, engineers, and other professionals to continue contributing their time
-and effort to Zcash;
+- It is not in accordance with the current protocol specification and the initial promise of the creators of Zcash, according to which 100% of coinbase rewards will go to miners after the first halving. The main counter-argument that motivates the current proposal concerns the need to guarantee stable and sufficient funding for world-class cryptographers, engineers, and other professionals to continue contributing their time and effort to Zcash;
 
-- Objections concerning the various parameters of the Zcash Development Fund funding
-mechanism described above;
+- Objections concerning the various parameters of the Zcash Development Fund funding mechanism described above;
 
-- Objections concerning the governance rules of the Zcash Development Fund described
-above.
+- Objections concerning the governance rules of the Zcash Development Fund described above.
 
 References
 ==========
@@ -243,7 +170,6 @@ References
 .. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://tools.ietf.org/html/rfc2119>`_
 .. [#NUPIPELINE] `The Zcash Network Upgrade Pipeline <https://electriccoin.co/blog/the-zcash-network-upgrade-pipeline/>`_
 .. [#ABOUTZF] `About the Zcash Foundation <https://www.zfnd.org/about/>`_
-.. [#FORUM2] `Placeholder Considerations: Resources, Governance, and Legitimacy in NU4 <https://forum.zcashcommunity.com/t/placeholder-considerations-resources-governance-and-legitimacy-in-nu4/34045>`_
-.. [#ZFSTATEMENT1] `Zcash Foundation Guidance on Dev Fund Proposals <https://www.zfnd.org/blog/dev-fund-guidance-and-timeline/>`_
+.. [#FORUM] `Placeholder Considerations: Resources, Governance, and Legitimacy in NU4 <https://forum.zcashcommunity.com/t/placeholder-considerations-resources-governance-and-legitimacy-in-nu4/34045>`_
+.. [#ZFSTATEMENT] `Zcash Foundation Guidance on Dev Fund Proposals <https://www.zfnd.org/blog/dev-fund-guidance-and-timeline/>`_
 .. [#ZIPGUIDE] `ZIP Guide <https://github.com/zcash/zips/blob/master/zip-0000.rst>`_
-.. [#ZFSTATEMENT2] `Zcash Foundation Guidance on Dev Fund Proposals <https://www.zfnd.org/blog/dev-fund-guidance-and-timeline/>`_
