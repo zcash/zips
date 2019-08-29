@@ -14,34 +14,20 @@
 Terminology
 ===========
 
-The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to be interpreted
-as described in RFC 2119 [#RFC2119]_, both in terms of the technical specification and
-governance rules of the Zcash Development Fund.
+The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to be interpreted as described in RFC 2119 [#RFC2119]_, both in terms of the technical specification and governance rules of the Zcash Development Fund.
 
 The terms below are to be interpreted as follows:
 
 Mining
-  The action of processing transactions, regardless of whether it is done in a Proof-of-Work,
-  Proof-of-Stake, or Proof-of-Work/Proof-of-Stake hybrid system.
+  The action of processing transactions, regardless of whether it is done in a Proof-of-Work, Proof-of-Stake, or Proof-of-Work/Proof-of-Stake hybrid system.
 Mining software
   Mining pool software, local mining software, or staking software.
 Mining rewards / Block rewards
-  Transaction fees and coinbase rewards, i.e. fees paid for processing transactions and
-  the newly issued ZEC associated with block generation.
+  Transaction fees and coinbase rewards, i.e. fees paid for processing transactions and the newly issued ZEC associated with block generation.
 Network upgrade
-  Any planned change or set of changes to the Zcash software, introduced as part of the
-  standard Network Upgrade Pipeline [#NUPIPELINE]_ or otherwise.
+  Any planned change or set of changes to the Zcash software, introduced as part of the standard Network Upgrade Pipeline [#NUPIPELINE]_ or otherwise.
 Zcash Development Fund
-  A set of transparent addresses controlled jointly by the Electric Coin Company, the Zcash
-  Foundation, and a Third Entity to be determined. It is used to hold funds intended for
-  research, development, maintenance, and other types of technical work directly connected
-  to the various software implementations of the Zcash protocol, as well as non-technical
-  initiatives (including design, marketing, events, regulatory outreach, education,
-  governance, and any other form of business or community development) that contribute
-  to the long-term success of the Zcash network. In the context of this proposal, 20% of
-  Zcash coinbase rewards between 2020 and 2024 halvings are automatically directed to
-  the Zcash Development Fund, but this does not exclude other funding mechanisms, both
-  during and after the aforementioned period.
+  A set of transparent addresses controlled jointly by the Electric Coin Company, the Zcash Foundation, and a Third Entity to be determined. It is used to hold funds intended for research, development, maintenance, and other types of technical work directly connected to the various software implementations of the Zcash protocol, as well as non-technical initiatives (including design, marketing, events, regulatory outreach, education, governance, and any other form of business or community development) that contribute to the long-term success of the Zcash network. In the context of this proposal, 20% of Zcash coinbase rewards between 2020 and 2024 halvings are automatically directed to the Zcash Development Fund, but this does not exclude other funding mechanisms, both during and after the aforementioned period.
 Applicant
   Any individual, group, or entity that seeks funding from the Zcash Development Fund.
 Recipient
