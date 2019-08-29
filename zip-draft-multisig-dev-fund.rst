@@ -5,7 +5,7 @@
   Owners: Mario Laul <mario@placeholder.vc>
           Chris Burniske <chris@placeholder.vc>
   Status: Draft
-  Discussion: Zcash Forum [#FORUM1]_
+  Discussion: `Zcash Forum <https://forum.zcashcommunity.com/t/placeholder-considerations-resources-governance-and-legitimacy-in-nu4/34045>`_
   Category: Consensus
   Created: 2019-08-30
   License: MIT
@@ -240,7 +240,6 @@ above.
 References
 ==========
 
-.. [#FORUM1] `Placeholder Considerations: Resources, Governance, and Legitimacy in NU4 <https://forum.zcashcommunity.com/t/placeholder-considerations-resources-governance-and-legitimacy-in-nu4/34045>`_
 .. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://tools.ietf.org/html/rfc2119>`_
 .. [#NUPIPELINE] `The Zcash Network Upgrade Pipeline <https://electriccoin.co/blog/the-zcash-network-upgrade-pipeline/>`_
 .. [#ABOUTZF] `About the Zcash Foundation <https://www.zfnd.org/about/>`_
