@@ -1,3 +1,5 @@
+SHELL=/bin/bash -eo pipefail
+
 # Experimental; options are pdflatex, lualatex, or xelatex.
 # On Debian, LuaLaTeX needs the texlive-luatex package, and XeLaTeX needs the texlive-xetex package.
 # Make sure to read <https://github.com/zcash/zips/issues/249>.
@@ -7,8 +9,10 @@ LATEXMKOPT_pdflatex=
 LATEXMKOPT_xelatex=-pdflatex=xelatex -dvi- -ps-
 LATEXMKOPT_lualatex=-pdflatex=lualatex -dvi- -ps-
 
-LATEXMK=latexmk $(LATEXMKOPT_$(ENGINE)) --halt-on-error -bibtex -pdf -logfilewarnings-
-LATEX=$(ENGINE) --halt-on-error
+LATEXMK=max_print_line=10000 latexmk $(LATEXMKOPT_$(ENGINE)) --halt-on-error --file-line-error -bibtex -pdf -logfilewarnings- -e '$$max_repeat=8'
+LATEX=$(ENGINE) --halt-on-error --file-line-error
+#NOCRUFT=
+NOCRUFT=|awk '{gsub(/[({<][/][^ ]* ?/,"")}1'
 
 sprout.pdf: protocol.tex zcash.bib incremental_merkle.png key_components.png
 	$(MAKE) sprout
@@ -24,7 +28,7 @@ auxsprout:
 	printf '\\renewcommand{\\docversion}{Version %s [\\SproutSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/sprout.* aux/protocol.*
-	$(LATEXMK) -jobname=sprout -auxdir=aux -outdir=aux protocol
+	$(LATEXMK) -jobname=sprout -auxdir=aux -outdir=aux protocol $(NOCRUFT)
 
 .PHONY: sprout
 sprout:
@@ -36,14 +40,14 @@ pvcsprout:
 	printf '\\renewcommand{\\docversion}{Version %s [\\SproutSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/sprout.* aux/protocol.*
-	$(LATEXMK) -jobname=sprout -auxdir=aux -pvc protocol
+	$(LATEXMK) -jobname=sprout -auxdir=aux -pvc protocol $(NOCRUFT)
 
 .PHONY: auxsapling
 auxsapling:
 	printf '\\toggletrue{issapling}\n\\renewcommand{\\docversion}{Version %s [\\SaplingSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/sapling.*
-	$(LATEXMK) -jobname=sapling -auxdir=aux -outdir=aux protocol
+	$(LATEXMK) -jobname=sapling -auxdir=aux -outdir=aux protocol $(NOCRUFT)
 
 .PHONY: sapling
 sapling:
@@ -55,14 +59,14 @@ pvcsapling:
 	printf '\\toggletrue{issapling}\n\\renewcommand{\\docversion}{Version %s [\\SaplingSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/sapling.*
-	$(LATEXMK) -jobname=sapling -auxdir=aux -pvc protocol
+	$(LATEXMK) -jobname=sapling -auxdir=aux -pvc protocol $(NOCRUFT)
 
 .PHONY: auxblossom
 auxblossom:
 	printf '\\toggletrue{isblossom}\n\\renewcommand{\\docversion}{Version %s [\\BlossomSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/blossom.*
-	$(LATEXMK) -jobname=blossom -auxdir=aux -outdir=aux protocol
+	$(LATEXMK) -jobname=blossom -auxdir=aux -outdir=aux protocol $(NOCRUFT)
 
 .PHONY: blossom
 blossom:
@@ -75,7 +79,7 @@ pvcblossom:
 	printf '\\toggletrue{isblossom}\n\\renewcommand{\\docversion}{Version %s [\\BlossomSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/blossom.*
-	$(LATEXMK) -jobname=blossom -auxdir=aux -pvc protocol
+	$(LATEXMK) -jobname=blossom -auxdir=aux -pvc protocol $(NOCRUFT)
 
 .PHONY: nolatexmk-sprout
 nolatexmk-sprout:
