@@ -27,7 +27,7 @@ Mining rewards / Block rewards
 Network upgrade
   Any planned change or set of changes to the Zcash software, introduced as part of the standard Network Upgrade Pipeline [#NUPIPELINE]_ or otherwise.
 Zcash Development Fund
-  A set of transparent addresses controlled jointly by the Electric Coin Company, the Zcash Foundation, and a Third Entity to be determined. It is used to hold funds intended for research, development, maintenance, and other types of technical work directly connected to the various software implementations of the Zcash protocol, as well as non-technical initiatives (including design, marketing, events, regulatory outreach, education, governance, and any other form of business or community development) that contribute to the long-term success of the Zcash network. In the context of this proposal, 20% of Zcash coinbase rewards between 2020 and 2024 halvings are automatically directed to the Zcash Development Fund, but this does not exclude other funding mechanisms, both during and after the aforementioned period.
+  A set of addresses controlled jointly by the Electric Coin Company, the Zcash Foundation, and a Third Entity to be determined. These addresses are used to hold funds intended for research, development, maintenance, and other types of technical work directly connected to the various software implementations of the Zcash protocol, as well as non-technical initiatives (including design, marketing, events, regulatory outreach, education, governance, and any other form of business or community development) that contribute to the long-term success of the Zcash network. In the context of this proposal, 20% of Zcash coinbase rewards between 2020 and 2024 halvings are automatically directed to the Zcash Development Fund, but this does not exclude other funding mechanisms, both during and after the aforementioned period.
 Applicant
   Any individual, group, or entity that seeks funding from the Zcash Development Fund.
 Recipient
@@ -44,7 +44,7 @@ Specification
 
 **Funding mechanism of the Zcash Development Fund:**
 
-- This feature MUST be hard-coded so that 20% of newly issued ZEC in the mining rewards associated with block generation are automatically directed to a set of transparent addresses of the Zcash Development Fund, each controlled jointly by the ECC, the ZF, and a Third Entity described below (2-of-3 multisig);
+- This feature MUST be hard-coded so that 20% of newly issued ZEC in the mining rewards associated with block generation are automatically directed to a set of addresses of the Zcash Development Fund that allow for visibility into the movement of funds, each controlled jointly by the ECC, the ZF, and a Third Entity described below (2-of-3 multisig);
 
 - The previous requirement MUST be met between the first (year 2020, at block height 840,000) and second (year 2024, at block height 1,680,000) halving. With the second halving, the Zcash protocol MUST automatically shift to a system whereby all subsequent mining rewards are earned by miners. The Zcash community MAY decide to change this in the future, but prescribing or suggesting such change is not part of the current proposal;
 
@@ -56,7 +56,9 @@ Specification
 
 - Funds accruing to the Zcash Development Fund MUST be used only for their intended purpose as defined in the Motivation section of this proposal;
 
-- The set of transparent addresses of the Zcash Development Fund MUST be jointly controlled by the ECC, the ZF, and a third independent entity (“Third Entity”) still to be determined, and all transfers from the Zcash Development Fund MUST be officially and publicly confirmed by a majority decision among the ECC, the ZF, and the Third Entity (2-of-3 multisig). As such, each funding decision MUST be put on an officially documented vote which MUST NOT pass unless at least 2 of the 3 entities involved vote approvingly;
+- The set of addresses and their corresponding balances that constitute the Zcash Development Fund MUST be jointly controlled by the ECC, the ZF, and a third independent entity (“Third Entity”) still to be determined, and all transfers from the Zcash Development Fund MUST be officially and publicly confirmed by a majority decision among the ECC, the ZF, and the Third Entity (2-of-3 multisig). As such, each funding decision MUST be put on an officially documented vote which MUST NOT pass unless at least 2 of the 3 entities involved vote approvingly;
+
+- The addresses that constitute the Zcash Development Fund MUST allow for visibility into their corresponding balances and the movement of funds;
 
 - Prior to any movement of funds from the Zcash Development Fund, the ZF and the ECC MUST coordinate to establish the Third Entity that will be involved in the governance of the Zcash Development Fund. The process of determining the exact initial composition and rules of governance of the Third Entity MUST involve the Zcash community at large, similar to the process around the issue described in the Motivation section of this proposal;
 
