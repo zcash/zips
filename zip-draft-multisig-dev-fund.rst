@@ -50,8 +50,7 @@ Recipient
 Abstract
 ========
 
-This proposal puts forward the creation of the Zcash Development Fund and describes its
-financing mechanism and fundamental rules of governance.
+This proposal puts forward the creation of the Zcash Development Fund and describes its financing mechanism and fundamental rules of governance.
 
 
 Specification
