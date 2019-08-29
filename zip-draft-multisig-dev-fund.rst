@@ -42,7 +42,7 @@ This proposal puts forward the creation of the Zcash Development Fund and descri
 Specification
 ============
 
-Funding mechanism of the Zcash Development Fund:
+**Funding mechanism of the Zcash Development Fund:**
 
 - This feature MUST be hard-coded so that 20% of newly issued ZEC in the mining rewards associated with block generation are automatically directed to a set of transparent addresses of the Zcash Development Fund, each controlled jointly by the ECC, the ZF, and a Third Entity described below (2-of-3 multisig);
 
@@ -52,99 +52,47 @@ Funding mechanism of the Zcash Development Fund:
 
 - The Zcash Development Fund MAY outlive the duration of its initial funding mechanism, either through a substantial appreciation in the price of ZEC, or by switching to alternative funding sources after the second halving in 2024.
 
-Governance rules of the Zcash Development Fund:
+**Governance rules of the Zcash Development Fund:**
 
 - Funds accruing to the Zcash Development Fund MUST be used only for their intended purpose as defined in the Motivation section of this proposal;
 
-- The set of transparent addresses of the Zcash Development Fund MUST be jointly controlled
-by the ECC, the ZF, and a third independent entity (“Third Entity”) still to be determined,
-and all transfers from the Zcash Development Fund MUST be officially and publicly confirmed
-by a majority decision among the ECC, the ZF, and the Third Entity (2-of-3 multisig). As such,
-each funding decision MUST be put on an officially documented vote which MUST NOT pass
-unless at least 2 of the 3 entities involved vote approvingly;
+- The set of transparent addresses of the Zcash Development Fund MUST be jointly controlled by the ECC, the ZF, and a third independent entity (“Third Entity”) still to be determined, and all transfers from the Zcash Development Fund MUST be officially and publicly confirmed by a majority decision among the ECC, the ZF, and the Third Entity (2-of-3 multisig). As such, each funding decision MUST be put on an officially documented vote which MUST NOT pass unless at least 2 of the 3 entities involved vote approvingly;
 
-- Prior to any movement of funds from the Zcash Development Fund, the ZF and the ECC MUST
-coordinate to establish the Third Entity that will be involved in the governance of the
-Zcash Development Fund. The process of determining the exact initial composition and rules
-of governance of the Third Entity MUST involve the Zcash community at large, similar to the
-process around the issue described in the Motivation section of this proposal;
+- Prior to any movement of funds from the Zcash Development Fund, the ZF and the ECC MUST coordinate to establish the Third Entity that will be involved in the governance of the Zcash Development Fund. The process of determining the exact initial composition and rules of governance of the Third Entity MUST involve the Zcash community at large, similar to the process around the issue described in the Motivation section of this proposal;
 
 - The governance rules of the Third Entity MUST include the following:
 
-  - All decision-making and other governing processes of the Third Entity MUST be independent
-  of the ECC and the ZF, and MUST include measures that are necessary to avoid conflicts of
-  interest in relation to the ECC and the ZF;
+  - All decision-making and other governing processes of the Third Entity MUST be independent of the ECC and the ZF, and MUST include measures that are necessary to avoid conflicts of interest in relation to the ECC and the ZF;
   
-  - At creation, the Third Entity MUST include at least 5 individuals with independent previous
-  affiliations, each having a single vote in decisions relating to the Zcash Development Fund.
-  All such decisions MUST have majority support within the Third Entity to be approved;
+  - At creation, the Third Entity MUST include at least 5 individuals with independent previous affiliations, each having a single vote in decisions relating to the Zcash Development Fund. All such decisions MUST have majority support within the Third Entity to be approved;
   
-  - Once the Third Entity is established, it MAY decide to change its rules of governance,
-  but any such change MUST be preceded by the involvement of the Zcash community at large,
-  similar to the process around the issue described in the Motivation section of this proposal;
+  - Once the Third Entity is established, it MAY decide to change its rules of governance, but any such change MUST be preceded by the involvement of the Zcash community at large, similar to the process around the issue described in the Motivation section of this proposal;
   
-  - Once the Third Entity is established as a self-governing body, it SHOULD evolve toward
-  a system whereby ZEC holders have a direct role in determining the votes of the Third Entity
-  in Zcash Development Fund funding decisions, as well as decisions relating to the governance
-  of the Third Entity itself;
+  - Once the Third Entity is established as a self-governing body, it SHOULD evolve toward a system whereby ZEC holders have a direct role in determining the votes of the Third Entity in Zcash Development Fund funding decisions, as well as decisions relating to the governance of the Third Entity itself;
   
-  - Just as the ECC and the ZF, the Third Entity MAY apply for funding from the Zcash
-  Development Fund, should its governing body deem doing so appropriate.
+  - Just as the ECC and the ZF, the Third Entity MAY apply for funding from the Zcash Development Fund, should its governing body deem doing so appropriate.
 
-- Prior to any movement of funds from the Zcash Development Fund, the ECC, the ZF, and the
-Third Entity MUST specify, approve, and make public the final rules on applying for and
-receiving funding from the Zcash Development Fund, including the details of the decision-making
-process for approving or rejecting funding requests. These rules MUST apply equally to all
-Applicants, including the ECC, the ZF, and the Third Entity, and MUST include the following:
+- Prior to any movement of funds from the Zcash Development Fund, the ECC, the ZF, and the Third Entity MUST specify, approve, and make public the final rules on applying for and receiving funding from the Zcash Development Fund, including the details of the decision-making process for approving or rejecting funding requests. These rules MUST apply equally to all Applicants, including the ECC, the ZF, and the Third Entity, and MUST include the following:
 
-  - Funding from the Zcash Development Fund MUST be available not only to the ECC, the ZF,
-  and the Third Entity but also to other individuals, groups, or entities that have made
-  or have a proven ability to make useful technical and/or non-technical contributions to
-  Zcash as described in the Motivation section of this proposal;
+  - Funding from the Zcash Development Fund MUST be available not only to the ECC, the ZF, and the Third Entity but also to other individuals, groups, or entities that have made or have a proven ability to make useful technical and/or non-technical contributions to Zcash as described in the Motivation section of this proposal;
   
-  - To receive funding from the Zcash Development Fund, all Applicants MUST follow the rules
-  described in this proposal and in final detail by the ECC, the ZF, and the Third Entity;
+  - To receive funding from the Zcash Development Fund, all Applicants MUST follow the rules described in this proposal and in final detail by the ECC, the ZF, and the Third Entity;
   
-  - As part of their application, all Applicants MUST make public an overview of the
-  activities and associated costs for which they are seeking funds for;
+  - As part of their application, all Applicants MUST make public an overview of the activities and associated costs for which they are seeking funds for;
   
-  - Each funding decision MUST be preceded by a community review period of reasonable length
-  during which all Zcash stakeholders - should they wish to do so - can familiarize themselves
-  with the Applicant’s request and ask for clarifying questions, make suggestions, or raise
-  objections;
+  - Each funding decision MUST be preceded by a community review period of reasonable length during which all Zcash stakeholders - should they wish to do so - can familiarize themselves with the Applicant’s request and ask for clarifying questions, make suggestions, or raise objections;
   
-  - In case of substantial opposition among the broader Zcash community to approving a
-  particular Applicant’s request, the ECC, the ZF, and the Third Entity SHOULD NOT approve
-  it before considering ways to address the concerns raised by the community and change the
-  funding request accordingly;
+  - In case of substantial opposition among the broader Zcash community to approving a particular Applicant’s request, the ECC, the ZF, and the Third Entity SHOULD NOT approve it before considering ways to address the concerns raised by the community and change the funding request accordingly;
   
-  - Each funding decision MUST be accompanied by a joint public statement by the ECC, the ZF,
-  and the Third Entity (appropriately numbered and/or titled for easy referencing) which MUST
-  include the final outcome of the relevant vote, as well as the votes of the three entities
-  involved. As part of this statement, each of the three entities MUST provide an explicit
-  justification for why the Applicant’s funding request was approved or rejected by the
-  respective organization;
+  - Each funding decision MUST be accompanied by a joint public statement by the ECC, the ZF, and the Third Entity (appropriately numbered and/or titled for easy referencing) which MUST include the final outcome of the relevant vote, as well as the votes of the three entities involved. As part of this statement, each of the three entities MUST provide an explicit justification for why the Applicant’s funding request was approved or rejected by the respective organization;
   
-  - Zcash Development Fund votes and the accompanying justifications described in the previous
-  point MUST be archived and kept publicly available by the ZF so that all current and future
-  Zcash stakeholders can review the history of voting and resource allocation of the Zcash
-  Development Fund;
+  - Zcash Development Fund votes and the accompanying justifications described in the previous point MUST be archived and kept publicly available by the ZF so that all current and future Zcash stakeholders can review the history of voting and resource allocation of the Zcash Development Fund;
   
-  - The ECC, the ZF, and the Third Entity MAY approve funding requests on a rolling basis,
-  but at a minimum a vote MUST take place every 6 months that includes all funding requests
-  that have been submitted since the previous vote and meet the requirements set by this
-  proposal and in final detail by the ECC, the ZF, and the Third Entity;
+  - The ECC, the ZF, and the Third Entity MAY approve funding requests on a rolling basis, but at a minimum a vote MUST take place every 6 months that includes all funding requests that have been submitted since the previous vote and meet the requirements set by this proposal and in final detail by the ECC, the ZF, and the Third Entity;
   
-  - Recipients MUST publicize regular (at least every quarter) progress updates on their
-  activities funded from the Zcash Development Fund. In the case of short-term work (up to
-  3-5 months), a single progress report upon the completion of the project is sufficient.
-  Default reporting requirements MUST be specified by the ECC, the ZF, and the Third Entity
-  prior to any movement of funds from the Zcash Development Fund and additional requirements
-  MAY be introduced on an ad hoc basis;
+  - Recipients MUST publicize regular (at least every quarter) progress updates on their activities funded from the Zcash Development Fund. In the case of short-term work (up to 3-5 months), a single progress report upon the completion of the project is sufficient. Default reporting requirements MUST be specified by the ECC, the ZF, and the Third Entity prior to any movement of funds from the Zcash Development Fund and additional requirements MAY be introduced on an ad hoc basis;
   
-  - Depending on the nature of the request, and especially the length of the funding period,
-  funds MAY be disbursed in increments, based on concrete deliverables or various adoption
-  and/or performance metrics.
+  - Depending on the nature of the request, and especially the length of the funding period, funds MAY be disbursed in increments, based on concrete deliverables or various adoption and/or performance metrics.
 
 - Any decision to change the governance of the Zcash Development Fund as described in this
 proposal and in final detail by the ECC, the ZF, and the Third Entity, MUST involve the
