@@ -384,24 +384,50 @@ With each new block ``B_n``, we append a new MMR leaf node corresponding to bloc
 
 .. code-block:: python
 
-    def append(root: ZcashMMRNode, leaf: ZcashMMRNode) -> ZcashMMRNode:
-        '''Recursive function to append a new leaf node to an existing MMR'''
+    def get_peaks(node: ZcashMMRNode) -> List[ZcashMMRNode]:
+        peaks: List[ZcashMMRNode] = []
+
+        left_child = node.left_child
+        right_child = node.right_child
 
         # find the number of leaves in the subtree
-        n_leaves = root.latest_height - root.earliest_height + 1
+        left_leaves = left_child.latest_height - left_child.earliest_height + 1
+        right_leaves = right_child.latest_height - right_child.earliest_height + 1
 
-        # if the subtree under this root has power of 2 no. of leaves
-        # then we append the leaf to the current root
-        if !(n_leaves & (n_leaves - 1)):
-            new_subtree_root = make_parent(root, leaf)
-            return new_subtree_root
-
-        # otherwise, we append the leaf to the right subtree
-        # note that this recursive call will naturally merge balanced subtrees after it appends the leaf
+        if (left_leaves & (left_leaves - 1)) == 0:
+            peaks.append(left_child)
         else:
-            new_right_child = append(root.right_child, leaf);
-            new_subtree_root = make_parent(root.left_child, new_right_child)
-            return new_subtree_root
+            peaks.extend(get_peaks(left_child))
+
+        if (right_leaves & (right_leaves - 1)) == 0:
+            peaks.append(right_child)
+        else:
+            peaks.extend(get_peaks(right_child))
+
+        return peaks
+
+
+    def append(root: ZcashMMRNode, leaf: ZcashMMRNode) -> ZcashMMRNode:
+        '''Append a leaf to an existing tree, return the new tree root'''
+        # recursively find a list of peaks in the current tree
+        peaks: List[ZcashMMRNode] = get_peaks(root)
+        merged: List[ZcashMMRNode] = []
+
+        # Merge peaks from right to left. 
+        # This will produce a list of peaks in reverse order
+        current = leaf
+        for peak in peaks[::-1]:
+            current_leaves = current.latest_height - current.earliest_height + 1
+            peak_leaves = peak.latest_height - peak.earliest_height + 1
+
+            if current_leaves == peak_leaves:
+                current = make_parent(peak, current)
+            else:
+                merged.append(current)
+                current = peak
+
+        # finally, bag the merged peaks
+        return bag_peaks(merged[::-1])
 
 In case of a block reorg, we have to delete the latest (i.e. rightmost) MMR leaf nodes, up to the reorg length. This operation is ``O(log(k))`` where ``k`` is the number of leaves in the right subtree of the MMR root.
 
