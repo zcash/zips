@@ -46,7 +46,7 @@ Specification
 
 - This feature MUST be hard-coded so that 20% of newly issued ZEC in the mining rewards associated with block generation are automatically directed to a set of addresses of the Zcash Development Fund that allow for visibility into the movement of funds, each controlled jointly by the ECC, the ZF, and a Third Entity described below (2-of-3 multisig);
 
-- The previous requirement MUST be met between the first (year 2020, at block height 840,000) and second (year 2024, at block height 1,680,000) halving. With the second halving, the Zcash protocol MUST automatically shift to a system whereby all subsequent mining rewards are earned by miners. The Zcash community MAY decide to change this in the future, but prescribing or suggesting such change is not part of the current proposal;
+- The previous requirement MUST be met between the first (year 2020) and second (year 2024) halving. With the second halving, the Zcash protocol MUST, in the absence of further specification, automatically shift to a system whereby all subsequent mining rewards are earned by miners. The Zcash community MAY decide to change this in the future, but prescribing or suggesting such change is not part of the current proposal;
 
 - The two previous requirements MUST hold regardless of the Network Upgrades or changes to mining or mining software introduced prior to second halving;
 
