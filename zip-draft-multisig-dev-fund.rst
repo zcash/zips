@@ -107,7 +107,7 @@ Rationale
 To be completed.
 
 Motivation
-========
+==========
 
 In October 2020, the Zcash network is scheduled to undergo its first block reward halving and fourth Network Upgrade (NU4). According to the current protocol specification, this is also when the 20% of newly issued ZEC included in the block reward known as the Founders’ Reward (FR) expires so that all subsequent rewards can be claimed exclusively by miners.
 
