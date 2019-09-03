@@ -40,7 +40,7 @@ This proposal puts forward the creation of the Zcash Development Fund and descri
 
 
 Specification
-============
+=============
 
 **Funding mechanism of the Zcash Development Fund:**
 
