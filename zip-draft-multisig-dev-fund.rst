@@ -103,7 +103,7 @@ Specification
 - All transfers from the Zcash Development Fund MUST be in full accordance with the requirements described in this proposal, and the official mission and values of the ZF. [#ABOUTZF]_
 
 Rationale
-============
+=========
 To be completed.
 
 Motivation
