@@ -42,9 +42,12 @@ The terms below are to be interpreted as follows:
 Abstract
 ========
 
-{Describe what this proposal does, typically in a few paragraphs.}
+{Describe what this proposal does, typically in a few paragraphs.
 
-{Use links where applicable, e.g. [#protocol]_.}
+The Abstract should only provide a summary of the ZIP; the ZIP should remain
+complete without the Abstract.
+
+Use links where applicable, e.g. [#protocol]_.}
 
 
 Motivation
