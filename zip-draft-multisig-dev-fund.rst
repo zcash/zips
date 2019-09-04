@@ -174,4 +174,4 @@ References
 .. [#ABOUTZF] `About the Zcash Foundation <https://www.zfnd.org/about/>`_
 .. [#FORUM] `Placeholder Considerations: Resources, Governance, and Legitimacy in NU4 <https://forum.zcashcommunity.com/t/placeholder-considerations-resources-governance-and-legitimacy-in-nu4/34045>`_
 .. [#ZFSTATEMENT] `Zcash Foundation Guidance on Dev Fund Proposals <https://www.zfnd.org/blog/dev-fund-guidance-and-timeline/>`_
-.. [#ZIPGUIDE] `ZIP Guide <https://github.com/zcash/zips/blob/master/zip-0000.rst>`_
+.. [#ZIPGUIDE] `ZIP Guide <https://zips.z.cash/zip-guide>`_
