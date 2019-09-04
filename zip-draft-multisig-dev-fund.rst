@@ -156,7 +156,7 @@ Trade-offs between 2-of-2, 2-of-3, and 3-of-3.
 Internal security and key management practices within each of the governing entities.
 
 Discussion
-============
+==========
 
 Recognized objections to this proposal include:
 
