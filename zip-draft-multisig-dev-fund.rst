@@ -147,7 +147,7 @@ This proposal does not address the following closely related issues:
 - Question of whether the ECC should reorganize itself into a non-profit, as suggested by the ZF in their August 6, 2019 statement. [#ZFSTATEMENT]_ The current proposal neither prescribes nor excludes the option of the ECC becoming a non-profit. The authors consider the basic governance rules of the Zcash Development Fund outlined above sufficient to ensure transparency and accountability, regardless of whether the Applicant is a for-profit or a non-profit entity. According to the current proposal, funding from the Zcash Development Fund would be available to both for- and non-profit entities, thereby allowing for maximal flexibility in terms of the types of activities that can be funded.
 
 Security Considerations
-============
+=======================
 
 To be completed.
 
