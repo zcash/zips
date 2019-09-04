@@ -25,7 +25,7 @@ Mining software
 Mining rewards / Block rewards
   Transaction fees and coinbase rewards, i.e. fees paid for processing transactions and the newly issued ZEC associated with block generation.
 Network upgrade
-  Any planned change or set of changes to the Zcash software, introduced as part of the standard Network Upgrade Pipeline [#NUPIPELINE]_ or otherwise.
+  Any planned change or set of changes to the Zcash software, introduced as part of the standard Network Upgrade Pipeline [#NU-pipeline]_ or otherwise.
 Zcash Development Fund
   A set of addresses controlled jointly by the Electric Coin Company, the Zcash Foundation, and a Third Entity to be determined. These addresses are used to hold funds intended for research, development, maintenance, and other types of technical work directly connected to the various software implementations of the Zcash protocol, as well as non-technical initiatives (including design, marketing, events, regulatory outreach, education, governance, and any other form of business or community development) that contribute to the long-term success of the Zcash network. In the context of this proposal, 20% of Zcash coinbase rewards between 2020 and 2024 halvings are automatically directed to the Zcash Development Fund, but this does not exclude other funding mechanisms, both during and after the aforementioned period.
 Applicant
@@ -100,7 +100,7 @@ Specification
 
 - In situations involving security threats, the ECC, the ZF, and/or the Third Entity MUST take all possible steps necessary to avoid any loss of funds and ensure that the Zcash Development Fund remains intact and available for its intended purpose as described above. However, these steps SHOULD NOT result in a situation whereby the requirements described in this proposal can no longer be met;
 
-- All transfers from the Zcash Development Fund MUST be in full accordance with the requirements described in this proposal, and the official mission and values of the ZF. [#ABOUTZF]_
+- All transfers from the Zcash Development Fund MUST be in full accordance with the requirements described in this proposal, and the official mission and values of the ZF. [#about-ZF]_
 
 Rationale
 =========
@@ -113,7 +113,7 @@ In October 2020, the Zcash network is scheduled to undergo its first block rewar
 
 Currently, the two organizations leading the development and maintenance of Zcash - the Electric Coin Company (ECC) and the Zcash Foundation (ZF) - are either directly or indirectly financially dependent on the FR. Once the FR funds run out and respective balance sheets are depleted, both organizations would have to secure alternative sources of funding to continue supporting Zcash. The same holds for any other group or entity that contributes or plans to contribute work beneficial for Zcash.
 
-To address this issue, the current proposal - originally described and discussed on the Zcash Forum [#FORUM]_ - puts forward the creation of the Zcash Development Fund and describes its initial financing mechanism and fundamental rules of governance. The purpose of the latter is to effectively direct the Zcash Development Fund toward its intended purpose as described below, and to establish proper norms of accountability and transparency for its Recipients.
+To address this issue, the current proposal - originally described and discussed on the Zcash Forum [#forum]_ - puts forward the creation of the Zcash Development Fund and describes its initial financing mechanism and fundamental rules of governance. The purpose of the latter is to effectively direct the Zcash Development Fund toward its intended purpose as described below, and to establish proper norms of accountability and transparency for its Recipients.
 
 The implementation of this proposal would automatically direct 20% of newly issued ZEC in coinbase rewards between the first (year 2020) and second (year 2024) halving to the Zcash Development Fund. This allocation amounts to 1.05 million, or 5%, of fully diluted ZEC. Combined with the FR of 2.1 million, or 10%, of fully diluted ZEC, this amounts to 3.15 million, or 15%, of fully diluted ZEC.
 
@@ -136,15 +136,15 @@ Out of Scope
 
 This proposal does not address the following closely related issues:
 
-- Details of the decision-making process for supporting or rejecting this or other relevant proposals by the ECC, the ZF, or other Zcash stakeholders. That said, the authors of this proposal believe it to be desirable for any decision by the ECC and the ZF on the issue described in the Motivation section above to be preceded by at least the following procedures for measuring community sentiment, listed in the August 6, 2019 statement by the ZF [#ZFSTATEMENT]_:
+- Details of the decision-making process for supporting or rejecting this or other relevant proposals by the ECC, the ZF, or other Zcash stakeholders. That said, the authors of this proposal believe it to be desirable for any decision by the ECC and the ZF on the issue described in the Motivation section above to be preceded by at least the following procedures for measuring community sentiment, listed in the August 6, 2019 statement by the ZF [#ZF-statement]_:
 
-  - Reviving the Community Advisory Panel with an opportunity for new members of the Zcash community to join. The Panel is expected to vote on all proposals that meet the basic ZIP draft requirements [#ZIPGUIDE]_;
+  - Reviving the Community Advisory Panel with an opportunity for new members of the Zcash community to join. The Panel is expected to vote on all proposals that meet the basic ZIP draft requirements [#zip-guide]_;
   
   - Miner signalling whereby mining pools can signal their support of specific proposals using their ability to embed arbitrary messages in the mined blocks;
   
   - Methods for measuring community sentiment MAY also include Zcash Forum user signalling limited to accounts created before a certain date. Ideally, all  ZEC holders would also be able to signal their support of specific proposals but, given current technical limitations, this may not be feasible. The outcome of the two procedures listed above, as well as any other that end up getting implemented for the same purpose, should in our opinion play a central role in determining the official position of both the ECC and the  ZF on the issue described in the Motivation section of this proposal.
 
-- Question of whether the ECC should reorganize itself into a non-profit, as suggested by the ZF in their August 6, 2019 statement. [#ZFSTATEMENT]_ The current proposal neither prescribes nor excludes the option of the ECC becoming a non-profit. The authors consider the basic governance rules of the Zcash Development Fund outlined above sufficient to ensure transparency and accountability, regardless of whether the Applicant is a for-profit or a non-profit entity. According to the current proposal, funding from the Zcash Development Fund would be available to both for- and non-profit entities, thereby allowing for maximal flexibility in terms of the types of activities that can be funded.
+- Question of whether the ECC should reorganize itself into a non-profit, as suggested by the ZF in their August 6, 2019 statement. [#ZF-statement]_ The current proposal neither prescribes nor excludes the option of the ECC becoming a non-profit. The authors consider the basic governance rules of the Zcash Development Fund outlined above sufficient to ensure transparency and accountability, regardless of whether the Applicant is a for-profit or a non-profit entity. According to the current proposal, funding from the Zcash Development Fund would be available to both for- and non-profit entities, thereby allowing for maximal flexibility in terms of the types of activities that can be funded.
 
 Security Considerations
 =======================
@@ -170,8 +170,8 @@ References
 ==========
 
 .. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://tools.ietf.org/html/rfc2119>`_
-.. [#NUPIPELINE] `The Zcash Network Upgrade Pipeline <https://electriccoin.co/blog/the-zcash-network-upgrade-pipeline/>`_
-.. [#ABOUTZF] `About the Zcash Foundation <https://www.zfnd.org/about/>`_
-.. [#FORUM] `Placeholder Considerations: Resources, Governance, and Legitimacy in NU4 <https://forum.zcashcommunity.com/t/placeholder-considerations-resources-governance-and-legitimacy-in-nu4/34045>`_
-.. [#ZFSTATEMENT] `Zcash Foundation Guidance on Dev Fund Proposals <https://www.zfnd.org/blog/dev-fund-guidance-and-timeline/>`_
-.. [#ZIPGUIDE] `ZIP Guide <https://zips.z.cash/zip-guide>`_
+.. [#NU-pipeline] `The Zcash Network Upgrade Pipeline <https://electriccoin.co/blog/the-zcash-network-upgrade-pipeline/>`_
+.. [#about-ZF] `About the Zcash Foundation <https://www.zfnd.org/about/>`_
+.. [#forum] `Placeholder Considerations: Resources, Governance, and Legitimacy in NU4 <https://forum.zcashcommunity.com/t/placeholder-considerations-resources-governance-and-legitimacy-in-nu4/34045>`_
+.. [#ZF-statement] `Zcash Foundation Guidance on Dev Fund Proposals <https://www.zfnd.org/blog/dev-fund-guidance-and-timeline/>`_
+.. [#zip-guide] `ZIP Guide <https://zips.z.cash/zip-guide>`_
