@@ -1,18 +1,18 @@
-## 1 - Header
+:: 
 
-ZIP: unassigned.
-Title: Dev Fund Proposal -- 5 Entity Strategic Council Approach
-Owner: Avichal Garg (avichalgarg@electriccapital.com)
-ZIP Status: Draft
-Discussions-To: https://forum.zcashcommunity.com/t/dev-fund-proposal-5-entity-strategic-council-approach/34801/28
-Community Status: Request for comments
-Category: Process
-Created: 2019-08-28
-License: MIT  
+  ZIP: unassigned.
+  Title: Dev Fund Proposal -- 5 Entity Strategic Council Approach
+  Owner: Avichal Garg (avichalgarg@electriccapital.com)
+  ZIP Status: Draft
+  Discussions-To: https://forum.zcashcommunity.com/t/dev-fund-proposal-5-entity-strategic-council-approach/34801/28
+  Community Status: Request for comments
+  Category: Process
+  Created: 2019-08-28
+  License: MIT  
   
 
-## 2 - Terminology
-
+Terminology
+===============
 To understand this ZIP it is critical that people understand the right terminology so their requirements can be quickly checked.
 
 The key words “MUST”, “MUST NOT”, “REQUIRED”, “SHALL”, “SHALL NOT”, “SHOULD”, “SHOULD NOT”, “RECOMMENDED”, “MAY”, and "OPTIONAL"
@@ -24,18 +24,22 @@ Key terms:
 * Strategic Council - five person committee that determines how to allocate the Developer Fund. Held accountable to the community via regular elections.
 * Executing Entity - an individual, group, company, or other organization that receives funding from the Strategic Council. Responsible for excellent execution and held held accountable by the Strategic Council.
 
-## 3 - Out of Scope for this proposal
+Out of Scope for this proposal
+==================================
 * How to do 1 person = 1 vote (and perhaps we cannot or should not do this)
 * How to structure the Strategic Council legally, i.e. should it be a Swiss Foundation and what sorts of legally binding responsibilities do the Strategic Council members have?
 
-## 4 - Abstract
+Abstract
+==================================
 This proposal reserves 20% of newly minted coins in each block for a Developer Fund. A five-person Strategic Council would be elected by the community every two years. The Strategic Council would determine the high level strategy, goals, and metrics to evaluate progress for the ecosystem on a six-month cadence. The Strategic Council would be responsible for allocating funding to Executing Entities for the subsequent six months and summarizing the performance of Executing Entities in the prior six months. Executing Entities would submit proposals to the Strategic Council on a six-month cadence which include project plans, funding plans, and how they will measure success on a scale from 1-10. At the end of six months, Executing Entities will grade themselves and the Strategic Council will summarize what was accomplished with a target of 7/10 in every quarter on a roll up basis (a simple average of all of the outstanding projects for that six months).
 
-## 5 - Motivation
+Motivation
+==================================
 
 This is an attempt to put on my startup CEO hat and address the strategic and execution challenges I believe have held back Zcash from realizing its full potential.
 
-## 6 - Requirements
+Requirements
+==================================
 
 **Principles & Observations Based on My Experiences (aka Biases?)**
 
@@ -89,7 +93,8 @@ Thus, to build the network effects Zcash needs to succeed, we must answer 5 ques
 * Executors need to submit concrete plans, with clear goals and metrics, and be judged according to both whether or not the goals were reasonable and whether they accomplished those goals (ideally in a measurable way using metrics).
 * Execution is best measured by pre-defining success and failure criteria, prior to having been influenced by the challenges of the task at hand.
 
-## 7 - Specification
+Specification
+==================================
 
 *1. Who determines strategy?*
 
@@ -126,24 +131,24 @@ Thus, to build the network effects Zcash needs to succeed, we must answer 5 ques
 * The Strategic Council should target an average score of 7/10 for that six months across all Executors. If we score too high, we are not being ambitious enough in our goals. If we score too low, we were trying to do too much or had a fundamental misunderstanding of our goals.
 * Over time the Strategic Council decides who gets funds so under-performers will be culled. Thus Executors are held accountable by the board and the board is held accountable by the community.
 
-# Issues & Further Discussion
-
+Issues & Further Discussion
+==================================
 ### Raised objections, issues, and open questions:
 
 * How might we create a process to amending this process? We may want 4/5 of the Strategic Council to approve changes or 2/3 of ZEC holders to be able to amend the Strategic Council’s charter.
 * How do we recall or impeach the members of the Strategic Committee prior to the end of their term if necessary?
 * I’m sure there are many other points of ambiguity and improvements we could make. There may even be critical design flaws or failures in this system. Feedback is appreciated.
 
-## References / Background
-
+References / Background
+==================================
 * https://www.zfnd.org/blog/multisig-governance/ https://forum.zcashcommunity.com/t/placeholder-considerations-resources-governance-and-legitimacy-in-nu4/34045
 * https://electriccoin.co/blog/ecc-initial-assessment-of-community-proposals/
 * https://medium.com/@socrates1024/here-are-a-couple-of-points-on-framing-the-discussion-of-a-potential-new-dev-fund-in-zcash-c13bcbf4ed5b
 * https://www.grin-forum.org/t/solved-early-disappointments/3682
 * [www.electriccapital.com](http://www.electriccapital.com) (For disclosure of investments we’ve made)
 
-Changelog:
-
+Changelog
+==================================
 * 2019-08-27 initial draft - thanks to @jubos, @puntium, @zooko, @joshs, and Jack Gavigan for helping me more clearly articulating my ideas and helping get them formatted properly for a ZIP. These ideas are solely mine and were not influenced by any of these individuals.
 * 2019-08-28 updated to be in ZIP format
 * 2019-09-15 finally turned in to a pull request on github and incorporated feedback from @daira and @str4d
