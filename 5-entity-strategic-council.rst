@@ -19,7 +19,8 @@ The key words “MUST”, “MUST NOT”, “REQUIRED”, “SHALL”, “SHALL 
 
 Have special meaning and people should familiarize themselves with it. - https://tools.ietf.org/html/rfc2119
 
-Key terms:
+*Key terms*
+
 * Developer Fund - 20% of the mined ZEC in the four-year period from approximately October 2020 to October 2024 during which at most 5,250,000 ZEC will be minted.
 * Strategic Council - five person committee that determines how to allocate the Developer Fund. Held accountable to the community via regular elections.
 * Executing Entity - an individual, group, company, or other organization that receives funding from the Strategic Council. Responsible for excellent execution and held held accountable by the Strategic Council.
@@ -35,7 +36,6 @@ This proposal reserves 20% of newly minted coins in each block for a Developer F
 
 Motivation
 ==================================
-
 This is an attempt to put on my startup CEO hat and address the strategic and execution challenges I believe have held back Zcash from realizing its full potential.
 
 Requirements
@@ -133,7 +133,7 @@ Specification
 
 Issues & Further Discussion
 ==================================
-### Raised objections, issues, and open questions:
+*Raised objections, issues, and open questions:*
 
 * How might we create a process to amending this process? We may want 4/5 of the Strategic Council to approve changes or 2/3 of ZEC holders to be able to amend the Strategic Council’s charter.
 * How do we recall or impeach the members of the Strategic Committee prior to the end of their term if necessary?
