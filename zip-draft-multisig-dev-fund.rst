@@ -173,6 +173,8 @@ Recognized objections to this proposal include:
 
 - Objections concerning the governance rules of the Zcash Development Fund described above.
 
+- In its current form, the proposal does not provide a complete and final solution. Instead, it includes the requirement to spend additional time and effort on setting up the Third Entity and finalizing the governance rules of the Zcash Development Fund.
+
 References
 ==========
 
