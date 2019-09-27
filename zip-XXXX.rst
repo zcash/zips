@@ -48,3 +48,23 @@ fee, and thought about how the right structure might support work like ours.
 I believe the Zcash community has an opportunity to deploy a new incentive
 structure that will attract companies like ours to build and improve Zcash,
 leading to a more resilient network, stronger technology, and wider usage.
+
+The Zcash Narrative
+-------------------
+
+We're all here to build a robust, private, decentralized currency. But in the
+dev fee proposals I've seen so far, the idea of a Zcash narrative that
+distinguishes it from the competition is absent.
+
+One direction proposed in ZIP XYZ claims that Zcash is a hedge against Bitcoin's
+long-term privacy failure. Put simply, Zcash is "Bitcoin, but private".
+
+I believe that Zcash should aim higher. Only one coin has successfully made a
+store of value argument, which I like to call "worse is better". Don't upgrade
+the network -- stability is more important than solving today's problems.
+Bitcoin is chasing the Lindy effect, where worse is better, and that's great for
+Bitcoin. For the rest of us, though, better is better. Zcash *should be better*.
+
+Zcash is known for having the best tech in the space, built by one of the best
+team's in the space. We should lean in to that reputation, nurturing the best
+research and engineering talent to take Zcash to the next level.
