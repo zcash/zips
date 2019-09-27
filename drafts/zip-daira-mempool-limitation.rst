@@ -19,7 +19,7 @@ as described in RFC 2119. [#RFC2119]_
 Abstract
 ========
 
-This proposal specifies a change to the behaviour of zcashd nodes intended to
+This proposal specifies a change to the behaviour of ``zcashd`` nodes intended to
 mitigate denial-of-service from transaction flooding.
 
 
@@ -70,10 +70,10 @@ does not preclude changes in fee policy.
 Specification
 =============
 
-This specification describes the intended behaviour of zcashd nodes. Other node
+This specification describes the intended behaviour of ``zcashd`` nodes. Other node
 implementations MAY implement the same or similar behaviour, but this is not a
 requirement of the network protocol. Thus, RFC 2119 conformance keywords below are
-to be interpreted only as placing requirements on the zcashd implementation (and
+to be interpreted only as placing requirements on the ``zcashd`` implementation (and
 potentially other implementations that have adopted this specification in full).
 
 The mempool of a node holds a set of transactions. Each transaction has a *cost*,
@@ -187,7 +187,7 @@ attacker’s transactions cannot be relied on to expire.
 Deployment
 ==========
 
-This specification is proposed to be implemented in zcashd v2.1.0. It is
+This specification is proposed to be implemented in ``zcashd`` v2.1.0. It is
 independent of the Blossom network upgrade.
 
 
