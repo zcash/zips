@@ -76,13 +76,14 @@ requirement of the network protocol. Thus, RFC 2119 conformance keywords below a
 to be interpreted only as placing requirements on the zcashd implementation (and
 potentially other implementations that have adopted this specification in full).
 
-The mempool of a node holds a set of transactions. Each transaction has a cost,
+The mempool of a node holds a set of transactions. Each transaction has a *cost*,
 which is an integer defined as:
 
-  max(serialized transaction size in bytes, 4000) + fee_penalty
+  max(serialized transaction size in bytes, 4000)
 
-where ``fee_penalty`` is 16000 if the transaction pays a fee less than
-10000 zatoshi, otherwise 0.
+Each transaction also has an *eviction weight*, which is *cost* + *fee_penalty*,
+where *fee_penalty* is 16000 if the transaction pays a fee less than 10000 zatoshi,
+otherwise 0.
 
 Each node also MUST hold a FIFO queue RecentlyEvicted of pairs (txid, time), where
 the time indicates when the given txid was evicted. This SHOULD be empty on node
@@ -104,7 +105,7 @@ On receiving a transaction:
 
 EvictTransaction MUST do the following:
 
-* Select a random transaction to evict, weighted by cost.
+* Select a random transaction to evict, weighted by eviction weight.
 * Add the txid and the current time to RecentlyEvicted, dropping the oldest entry
   in RecentlyEvicted if necessary to keep it to at most 10000 entries.
 * Remove it from the mempool.
@@ -136,12 +137,17 @@ transparent transactions because of their size.
 The proposed eviction policy differs significantly from that of Bitcoin Core
 [#BitcoinCore-PR6722]_, which is primarily fee-based. This reflects differing
 philosophies about the motivation for fees and the level of fee that legitimate
-users can reasonably be expected to pay. The proposed cost function does involve
-a penalty for transactions with a fee lower than the standard (0.0001 ZEC) value,
-but since there is no further benefit to increasing the fee above the standard
-value, it creates no pressure toward escalating fees. For transactions up to
-4000 bytes, this penalty makes a transaction that pays less than the standard fee
-value five times as likely to be chosen for eviction.
+users can reasonably be expected to pay. The proposed eviction weight function
+does involve a penalty for transactions with a fee lower than the standard
+(0.0001 ZEC) value, but since there is no further benefit to increasing the fee
+above the standard value, it creates no pressure toward escalating fees. For
+transactions up to 4000 bytes, this penalty makes a transaction that pays less
+than the standard fee value five times as likely to be chosen for eviction.
+
+The fee penalty is not included in the cost that determines whether the mempool
+is considered full. This ensures that a DoS attacker does not have an incentive
+to pay less than the standard fee in order to cause the mempool to be considered
+full sooner.
 
 The default value of 80000000 for ``mempool.tx_cost_limit`` represents no more
 than 40 blocks’ worth of transactions in the worst case, which is the default
