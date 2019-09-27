@@ -87,7 +87,8 @@ otherwise 0.
 
 Each node also MUST hold a FIFO queue RecentlyEvicted of pairs (txid, time), where
 the time indicates when the given txid was evicted. This SHOULD be empty on node
-startup. The size of RecentlyEvicted MUST never exceed 10000 entries.
+startup. The size of RecentlyEvicted MUST never exceed ``eviction_memory_entries``
+entries, which is the constant 40000.
 
 There MUST be a configuration option ``mempool.tx_cost_limit``, which SHOULD default
 to 80000000.
@@ -107,7 +108,8 @@ EvictTransaction MUST do the following:
 
 * Select a random transaction to evict, weighted by eviction weight.
 * Add the txid and the current time to RecentlyEvicted, dropping the oldest entry
-  in RecentlyEvicted if necessary to keep it to at most 10000 entries.
+  in RecentlyEvicted if necessary to keep it to at most ``eviction_memory_entries``
+  entries.
 * Remove it from the mempool.
 
 Nodes SHOULD remove transactions from RecentlyEvicted that were evicted more than
@@ -151,8 +153,8 @@ full sooner.
 
 The default value of 80000000 for ``mempool.tx_cost_limit`` represents no more
 than 40 blocks’ worth of transactions in the worst case, which is the default
-expiration height after Blossom network upgrade [#zip-0208]_. It would serve no
-purpose to make it larger.
+expiration height after the Blossom network upgrade [#zip-0208]_. It would serve
+no purpose to make it larger.
 
 The ``mempool.tx_cost_limit`` is a per-node configurable parameter in order to
 provide flexibility for node operators to change it either in response to
@@ -160,17 +162,21 @@ attempted denial-of-service attacks, or if needed to handle spikes in transactio
 demand. It may also be useful for nodes running in memory-constrained environments
 to reduce this parameter.
 
-The limit of 100000 entries in RecentlyEvicted bounds the memory needed for this
-data structure. Since a txid is 32 bytes and a timestamp 8 bytes, 100000 entries
-can be stored in ~4 MB, which is small compared to other node memory usage (in
-particular, small compared to the maximum memory usage of the mempool itself under
-the default ``mempool.tx_cost_limit``). 100000 entries should be sufficient to
-mitigate any performance loss caused by re-accepting transactions that were 
-previously evicted. In particular, since a transaction has a minimum cost of 1000,
-and the default ``mempool.tx_cost_limit`` is 80000000, at most 80000 transactions
-can be in the mempool of a node using the default parameters. While the number of
-transactions “in flight” or across the mempools of all nodes in the network could
-exceed this number, we believe that is unlikely to be a problem in practice.
+The limit of ``eviction_memory_entries`` = 40000 entries in RecentlyEvicted bounds
+the memory needed for this data structure. Since a txid is 32 bytes and a
+timestamp 8 bytes, 40000 entries can be stored in ~1.6 MB, which is small compared
+to other node memory usage (in particular, small compared to the maximum memory
+usage of the mempool itself under the default ``mempool.tx_cost_limit``).
+``eviction_memory_entries`` entries should be sufficient to mitigate any
+performance loss caused by re-accepting transactions that were previously evicted.
+In particular, since a transaction has a minimum cost of 4000, and the default
+``mempool.tx_cost_limit`` is 80000000, at most 20000 transactions can be in the
+mempool of a node using the default parameters. While the number of transactions
+“in flight” or across the mempools of all nodes in the network could exceed this
+number, we believe that is unlikely to be a problem in practice.
+
+Note that the RecentlyEvicted queue is intended as a performance optimization
+under certain conditions, rather than as a DoS-mitigation measure in itself.
 
 The default expiry of 40 blocks after Blossom activation represents an expected
 time of 50 minutes. Therefore (even if some blocks are slow), most legitimate
