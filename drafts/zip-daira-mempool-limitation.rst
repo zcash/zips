@@ -106,7 +106,8 @@ On receiving a transaction:
 
 EvictTransaction MUST do the following:
 
-* Select a random transaction to evict, weighted by eviction weight.
+* Select a random transaction to evict, with probability in direct proportion to
+  eviction weight.
 * Add the txid and the current time to RecentlyEvicted, dropping the oldest entry
   in RecentlyEvicted if necessary to keep it to at most ``eviction_memory_entries``
   entries.
