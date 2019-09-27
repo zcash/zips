@@ -87,7 +87,7 @@ otherwise 0.
 
 Each node also MUST hold a FIFO queue RecentlyEvicted of pairs (txid, time), where
 the time indicates when the given txid was evicted. This SHOULD be empty on node
-startup. The size of RecentlyEvicted MUST never exceed ``eviction_memory_entries``
+startup. The size of RecentlyEvicted SHOULD never exceed ``eviction_memory_entries``
 entries, which is the constant 40000.
 
 There MUST be a configuration option ``mempool.tx_cost_limit``, which SHOULD default
