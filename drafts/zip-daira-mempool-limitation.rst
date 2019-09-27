@@ -187,7 +187,8 @@ attacker’s transactions cannot be relied on to expire.
 Deployment
 ==========
 
-This specification is proposed to be implemented in zcashd v2.1.0.
+This specification is proposed to be implemented in zcashd v2.1.0. It is
+independent of the Blossom network upgrade.
 
 
 Reference implementation
