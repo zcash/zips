@@ -144,7 +144,8 @@ does involve a penalty for transactions with a fee lower than the standard
 (0.0001 ZEC) value, but since there is no further benefit to increasing the fee
 above the standard value, it creates no pressure toward escalating fees. For
 transactions up to 4000 bytes, this penalty makes a transaction that pays less
-than the standard fee value five times as likely to be chosen for eviction.
+than the standard fee value five times as likely to be chosen for eviction
+(because 4000 + 16000 = 20000 = 4000 \* 5).
 
 The fee penalty is not included in the cost that determines whether the mempool
 is considered full. This ensures that a DoS attacker does not have an incentive
