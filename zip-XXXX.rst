@@ -142,3 +142,29 @@ well as both entities.
   regulatory risk.
 * Power between the two entites *hasn't* been decentralized. The ECC remains
   a unilateral power, as well as a single point of failure.
+
+The "crowding out" problem
+--------------------------
+
+The last issue arising from this scheme is the one I'm most incentivized to
+address.
+
+The Zcash ecosystem, as it exists today, has little incentive for outside
+developers to participate.
+
+Zcash development has a high learning curve.
+
+* The reference client is a fork of the Bitcoin reference implementation,
+  building on a decade of poorly written legacy code.
+* What Zcash brings to the table involves a greater understanding of applied
+  cryptography than most projects. SNARKs are often still referred to as "moon
+  math", after all.
+* As the recent network-level attack demonstrates, full-stack privacy is hard.
+
+Most outside developers need to see a clear path to longer-term funding before
+they can commit to the cost of that curve.
+
+Even those developers who already have the expertise to work on this system are
+frustrated by the lack of longer-term funding. For evidence, look at Parity's
+exit from Zcash after `zebrad` development, or Summa's struggles to work on
+Zcash.
