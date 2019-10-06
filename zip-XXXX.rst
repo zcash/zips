@@ -168,3 +168,132 @@ Even those developers who already have the expertise to work on this system are
 frustrated by the lack of longer-term funding. For evidence, look at Parity's
 exit from Zcash after `zebrad` development, or Summa's struggles to work on
 Zcash.
+
+Sustainably attracting talent to Zcash can increase innovation *and* ecosystem
+resilience.
+
+Moving Forward
+==============
+
+The below proposal is an effort to cleanly resolve the problems with Zcash's
+current governance, while
+* maintaining a balance of power between stakeholders
+* removing single points of failure / control
+* growing development and usage of Zcash
+* and supporting the best interests of miners, users, and developers *today*.
+
+Decentralizing development
+--------------------------
+
+A few proposals have suggested the introduction of a mysterious "third entity"
+to resolve disagreements between the Foundation and the ECC.
+
+I prefer a different approach, refocusing the role of the Foundation and making
+room for the ECC to innovate alongside outside developers.
+
+In this proposal, the Foundation shall support community development through
+running the forum and events, gathering community sentiment, managing short-term
+development grants, and conducting the diligence behind the assignment and
+disbursement of a development fee. This development fee shall be funded by 20%
+of the block reward, with as much as half of the fee burned each month based on
+market conditions.
+
+The Foundation shall receive 25% of the dev fee. If the volume-weighted average
+price of ZEC over the month means the foundation would receive greater than
+$500k that month, the foundation shall burn the remaining ZEC such that their
+max benefit is $500k that month.
+
+The remaining 75% of the dev fee shall be distributed between development teams
+working to maintain clients.
+
+* One third of the remaining fee (25% of the total) shall be reserved for the
+  role of the "principal developer", a developer with additional voice in Zcash
+  governance. The principal developer allocation shall be capped similarly to
+  the Foundation's at $500k per month based on a volume-weighted average price.
+* The remaining two thirds of the fee (50% of the total), called the "outside
+  development fee", shall be distributed between at least two developers,
+  chosen semi-annually by the Foundation. Unlike those of the Foundation and
+  principal developer, these allocations aren't limited by market conditions,
+  and don't carry a burn requirement.
+
+The role of dev fee recipients
+------------------------------
+
+Dev fee recipients are distinguished from grant recipients in the scope and
+timelines of their work, as well as the specificity of direction. The intent
+is to allow teams to focus on a core competency, while encouraging research and
+adjacent work.
+
+Dev fee recipients are chosen semi-annually by the Foundation based on their
+ability to move Zcash forward. Recipients will typically be development teams,
+though "full stack" teams that can communicate well with the community, expand
+Zcash usage, and widely share their work should be advantaged.
+
+Recipients shall submit quarterly plans to the Foundation and community for
+their efforts, as well as monthly progress updates.
+
+All work by funded by the dev fee will be open source, under licenses compatible
+with the existing Zcash clients.
+
+While dev fee recipients are not required to work exclusively on Zcash, they
+must guarantee they aren't obliged to the interests of competing projects.
+
+
+The role of the principal developer
+-----------------------------------
+
+The role of the principal developer is as a "first among equals" amongst the dev
+fee recipients.
+
+The principal developer shall make a number of guarantees.
+
+1. Zcash shall be their exclusive focus, submitting financials periodically to
+   the Foundation as assurance.
+2. They shall maintain a well-run board and employ a qualified CFO.
+3. In addition to the existing open-source requirements, they shall agree to
+   assign any trademarks or patents relevant to Zcash to the Foundation.
+
+In exchange, the principal developer is granted an indefinite dev fee allocation
+and a wide remit to pursue longer-term research relevant to Zcash.
+
+Minimum viable Foundation
+-------------------------
+
+To manage the dev fee and fulfill its community and diligence duties, the
+Foundation shall maintain a board of 5 independent members. Rather than the
+current structure in the current bylaws, the board will consist of
+
+* 3 seats voted on by the ZEC holders
+* 1 seat representing a newly created research advisory board, whose primary
+  role will be technical diligence of potential recipients of the dev fee
+* 1 seat for the "principal developer", a privileged recipient of the Zcash
+  dev fee acting as "first among equals" amongst a variety of dev fee recipients
+  building on Zcash
+
+Each board member shall be paid reasonably by the Foundation.
+
+Outside the seat for the principal developer, no board members shall have an
+ongoing commercial interest in any recipients of the dev fee.
+
+The ECC as the principal developer
+----------------------------------
+
+I propose that the ECC be considered as the initial principal developer,
+receiving an indefinite dev fee allocation in exchange for their exclusive
+focus on Zcash research and development, and assigning all patents and marks
+relevant to Zcash to the Foundation.
+
+I believe this arrangement is best for the Zcash ecosystem, and with proper
+management of funds, should satisfy the ongoing needs of the ECC.
+
+The dev call
+------------
+
+The Foundation shall organize a bi-weekly call for all dev fee recipients and
+other third party developers. The call will be live-streamed for community
+participation, though the speaking participants will be invite only. At a
+minimum, a single representative from each dev fee recipient should attend.
+
+The Foundation shall also maintain a simple chat solution for development of
+the protocol. While the chat logs should be publicly viewable, it need not be
+open to public participation.
