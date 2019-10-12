@@ -135,6 +135,7 @@ as they're organized today.
 
 This situation poses a number of problems for new and existing Zcash users, as
 well as both entities.
+
 * The threat of a central entity overriding (or being forced to override) the
   will of users undermines self-sovereignty.
 * The ECC and Foundation are both put at legal risk. As entangled entities,
@@ -177,6 +178,7 @@ Moving Forward
 
 The below proposal is an effort to cleanly resolve the problems with Zcash's
 current governance, while
+
 * maintaining a balance of power between stakeholders
 * removing single points of failure / control
 * growing development and usage of Zcash
