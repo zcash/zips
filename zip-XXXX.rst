@@ -231,14 +231,20 @@ ability to move Zcash forward. Recipients will typically be development teams,
 though "full stack" teams that can communicate well with the community, expand
 Zcash usage, and widely share their work should be advantaged.
 
-Recipients shall submit quarterly plans to the Foundation and community for
-their efforts, as well as monthly progress updates.
+Recipients shall submit quarterly plans to the community for their efforts, as
+well as monthly progress updates.
 
-All work by funded by the dev fee will be open source, under licenses compatible
+All work funded by the dev fee will be open source, under licenses compatible
 with the existing Zcash clients.
 
-While dev fee recipients are not required to work exclusively on Zcash, they
-must guarantee they aren't obliged to the interests of competing projects.
+Though the Foundation shall periodically judge the efficacy of dev fee
+recipients, deciding on and driving roadmaps for Zcash is the role of dev fee
+recipients, in partnership with the community. This role is neatly balanced by
+users running full nodes and miners, either of which can veto a network upgrade.
+
+While dev fee recipients are not required to work exclusively on Zcash,
+considering the nature of their work, recipients must guarantee they aren't
+obliged to the interests of competing projects.
 
 The role of the principal developer
 -----------------------------------
@@ -255,14 +261,15 @@ The principal developer shall make a number of guarantees.
    assign any trademarks or patents relevant to Zcash to the Foundation.
 
 In exchange, the principal developer is granted an indefinite dev fee allocation
-and a wide remit to pursue longer-term research relevant to Zcash.
+and a wide remit to pursue longer-term research relevant to Zcash, as well as
+a voice on the board of the Foundation.
 
 Minimum viable Foundation
 -------------------------
 
 To manage the dev fee and fulfill its community and diligence duties, the
 Foundation shall maintain a board of 5 independent members. Rather than the
-current structure in the current bylaws, the board will consist of
+structure in the current bylaws, the board will consist of
 
 * 1 seat voted on by the ZEC holders
 * 1 seat representing a newly created research advisory board, whose primary
