@@ -271,13 +271,15 @@ To manage the dev fee and fulfill its community and diligence duties, the
 Foundation shall maintain a board of 5 independent members. Rather than the
 structure in the current bylaws, the board will consist of
 
-* 1 seat voted on by the ZEC holders
+* 1 seat voted on by ZEC holders directly.
 * 1 seat representing a newly created research advisory board, whose primary
-  role will be technical diligence of potential recipients of the dev fee
+  role will be technical diligence of potential recipients of the dev fee.
 * 1 seat for the "principal developer", a privileged recipient of the Zcash
   dev fee acting as "first among equals" amongst a variety of dev fee recipients
-  building on Zcash
-* 2 seats elected by the board, as the entire board is currently selected
+  building on Zcash.
+* 2 seats elected by the board, as the board is currently selected according to
+  the bylaws. The board's discretion here means these could be selected via a
+  community election, or via the remaining 3 seats' direct vote.
 
 The Foundation requires a professional board. Board member selection should
 heavily favor candidates with existing formal public or private sector board
