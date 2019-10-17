@@ -1,6 +1,6 @@
 ::
 
-  ZIP: Unassigned
+  ZIP: 401
   Title: Addressing mempool denial-of-service
   Owners: Daira Hopwood <daira@electriccoin.co>
   Status: Draft
