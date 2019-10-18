@@ -16,18 +16,20 @@ Who am I?
 
 My name is Matt Luongo. I'm an entrepreneur who's been full-time in the crypto
 space since 2014, co-founding Fold, a Bitcoin payments company, and more
-recently Keep, a private computation startup built on Ethereum. I've built some
-`around Zcash <https://github.com/ethereum/EIPs/pull/2129>`_, and we've
-considered investing more heavily in Zcash development on our latest project.
+recently Keep, a private computation startup built on Ethereum. At Keep, we've
+done some `work around Zcash <https://github.com/ethereum/EIPs/pull/2129>`_,
+and our parent company, `Thesis <https://thesis.co>`, is considering investing
+more heavily in Zcash development for our latest project.
 
 I'm deeply interested in privacy tech. For me, privacy is about consent --
-consent to know my habits, beliefs, and preferences -- and I see privacy as
-the next frontier in our pursuit of an economy that respects individual choice.
+consent to share my habits, beliefs, and preferences -- and I see privacy as
+the inevitable next frontier in our pursuit of an economy that respects
+individual choice.
 
 My perspective is as the founder of a for-profit company focused on building
-self-sovereign technologyi who would like to develop on Zcash. We work in this
-space ideologically, but our work isn't free; attracting and growing talent
-requires funding.
+self-sovereign technology who wants to develop on Zcash. We work in this space
+ideologically, but our work isn't free; attracting and growing talent requires
+funding.
 
 If you're interested in more on my background, I've introduced myself more
 `properly on the forum
@@ -56,19 +58,22 @@ We're all here to build a robust, private, decentralized currency. But in the
 dev fee proposals I've seen so far, the idea of a Zcash narrative that
 distinguishes it from the competition is absent.
 
-One direction proposed in ZIP XYZ claims that Zcash is a hedge against Bitcoin's
+Of the slew of ZIPs addressing Zcash's future, there's only been one strong
+narrative case -- the idea that Zcash exists purely as a hedge against Bitcoin's
 long-term privacy failure. Put simply, Zcash is "Bitcoin, but private".
 
-I believe that Zcash should aim higher. Only one coin has successfully made a
+Zcash should aim higher. Bitcoin is the only coin that has successfully made a
 store of value argument, which I like to call "worse is better". Don't upgrade
-the network -- stability is more important than solving today's problems.
-Bitcoin is chasing the Lindy effect, where worse is better, and that's great for
-Bitcoin. For the rest of us, though, better is better. Zcash *should be better*.
+the network -- the argument goes -- stability is more important than solving
+today's problems.  Bitcoin is chasing the `Lindy
+effect<https://en.wikipedia.org/wiki/Lindy_effect>`, where worse is better, and
+the network becomes stronger every day it survives. That's great for Bitcoin.
+For the rest of us, though, better is better. Zcash *should be better*.
 
 Zcash is known for having the best tech in the space, built by one of the best
 team's in the space. We should lean in to that reputation, nurturing the best
-research and engineering talent to take Zcash to the next level, leveraging a
-Zcash dev fee as a differentiator to build the world's best private medium of
+research and engineering talent to take Zcash to the next level, and leveraging
+a Zcash dev fee as a differentiator to build the world's best private medium of
 exchange.
 
 Evolving Zcash Governance
@@ -77,7 +82,7 @@ Evolving Zcash Governance
 Principles of cryptocurrency governance
 ---------------------------------------
 
-Most proof-of-work chains today have three major governing roles
+Most proof-of-work chains today have three major governing roles:
 
 1. Miners validate and secure the chain. They do some work to earn a reward.
    Miners are the first owners of newly minted coins, and are an integral part
@@ -109,7 +114,7 @@ the chain.
 The state of play
 -----------------
 
-In Zcash, the addition of the Electic Coin Company (ECC) and the Zcash
+In Zcash, the addition of the Electric Coin Company (ECC) and the Zcash
 Foundation skew this balance.
 
 Both organizations are comprised of Zcash founders, developers, researchers, and
@@ -147,10 +152,7 @@ well as both entities.
 The "crowding out" problem
 --------------------------
 
-The last issue arising from this scheme is the one I'm most incentivized to
-address.
-
-The Zcash ecosystem, as it exists today, has little incentive for outside
+The Zcash ecosystem, as it exists today, leaves little incentive for outside
 developers to participate.
 
 Zcash development has a high learning curve.
@@ -170,8 +172,8 @@ frustrated by the lack of longer-term funding. For evidence, look at Parity's
 exit from Zcash after `zebrad` development, or Summa's struggles to work on
 Zcash.
 
-Sustainably attracting talent to Zcash can increase innovation *and* ecosystem
-resilience.
+Sustainably attracting talent to Zcash is critical to maintain innovation and
+build resilience.
 
 Moving Forward
 ==============
@@ -191,7 +193,7 @@ A few proposals have suggested the introduction of a mysterious "third entity"
 to resolve disagreements between the Foundation and the ECC.
 
 I prefer a different approach, refocusing the role of the Foundation and making
-room for the ECC to innovate alongside outside developers.
+room for the ECC to work with a robust developer ecosystem.
 
 In this proposal, the Foundation shall support community development through
 running the forum and events, gathering community sentiment, managing short-term
@@ -213,7 +215,7 @@ working to maintain clients.
   governance. The principal developer allocation shall be capped similarly to
   the Foundation's at $500k per month based on a volume-weighted average price.
 * The remaining two thirds of the fee (50% of the total), called the "outside
-  development fee", shall be distributed between at least two developers,
+  development fee", shall be distributed between at least two development teams,
   chosen semi-annually by the Foundation. Unlike those of the Foundation and
   principal developer, these allocations aren't limited by market conditions,
   and don't carry a burn requirement.
