@@ -235,13 +235,20 @@ In this proposal, the Foundation shall support community development through
 running the forum and events, gathering community sentiment, managing short-term
 development grants, and conducting the diligence behind the assignment and
 disbursement of a development fee. This development fee shall be funded by 20%
-of the block reward, with as much as half of the fee burned each month based on
-market conditions.
+of the block reward, with as much as half of the fee burned in case of
+extraordinary growth in the price of ZEC.
 
 The Foundation shall receive 25% of the dev fee. If the volume-weighted average
 price of ZEC over the month means the foundation would receive greater than
-$500k that month, the foundation shall burn the remaining ZEC such that their
-max benefit is $500k that month.
+$500k that month, the Foundation shall burn enough ZEC such that their max
+benefit is
+
+.. math::
+
+  MaxBenefit(RewardDollarAmount) = Max(500000, \sqrt{\frac{RewardDollarAmount/500000}})
+
+Capping the monthly upside of the Foundation will limit growth, while
+encouraging fiscal discipline.
 
 The remaining 75% of the dev fee shall be distributed between development teams
 working to maintain clients.
@@ -249,12 +256,12 @@ working to maintain clients.
 * One third of the remaining fee (25% of the total) shall be reserved for the
   role of the "principal developer", a developer with additional voice in Zcash
   governance. The principal developer allocation shall be capped similarly to
-  the Foundation's at $500k per month based on a volume-weighted average price.
+  the Foundation's, based on the monthly volume-weighted average price.
 * The remaining two thirds of the fee (50% of the total), called the "outside
   development fee", shall be distributed between at least two development teams,
   chosen semi-annually by the Foundation, coinciding with network upgrades.
   Unlike those of the Foundation and principal developer, these allocations
-  aren't limited by market conditions, and don't carry a burn requirement.
+  aren't affected by market conditions, and don't carry a burn requirement.
 
 Prior to each network upgrade, the Foundation shall recommend a list of
 addresses and a total number of ZEC per block each address is meant to receive
