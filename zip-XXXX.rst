@@ -252,9 +252,14 @@ working to maintain clients.
   the Foundation's at $500k per month based on a volume-weighted average price.
 * The remaining two thirds of the fee (50% of the total), called the "outside
   development fee", shall be distributed between at least two development teams,
-  chosen semi-annually by the Foundation. Unlike those of the Foundation and
-  principal developer, these allocations aren't limited by market conditions,
-  and don't carry a burn requirement.
+  chosen semi-annually by the Foundation, coinciding with network upgrades.
+  Unlike those of the Foundation and principal developer, these allocations
+  aren't limited by market conditions, and don't carry a burn requirement.
+
+Prior to each network upgrade, the Foundation shall recommend a list of
+addresses and a total number of ZEC per block each address is meant to receive
+from the dev fee. The recommendation will be "ratified" by the miners as the
+network upgrade activates.
 
 The role of dev fee recipients
 ------------------------------
