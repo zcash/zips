@@ -18,7 +18,7 @@ My name is Matt Luongo. I'm an entrepreneur who's been full-time in the crypto
 space since 2014, co-founding Fold, a Bitcoin payments company, and more
 recently Keep, a private computation startup built on Ethereum. At Keep, we've
 done some `work around Zcash <https://github.com/ethereum/EIPs/pull/2129>`_,
-and our parent company, `Thesis <https://thesis.co>`, is considering investing
+and our parent company, `Thesis <https://thesis.co>`_, is considering investing
 more heavily in Zcash development for our latest project.
 
 I'm deeply interested in privacy tech. For me, privacy is about consent --
@@ -51,7 +51,7 @@ I believe the Zcash community has an opportunity to deploy a new incentive
 structure that will attract companies like ours to build and improve Zcash,
 leading to a more resilient network, stronger technology, and wider usage.
 
-The Zcash Narrative
+The Zcash narrative
 -------------------
 
 We're all here to build a robust, private, decentralized currency. But in the
@@ -76,13 +76,11 @@ research and engineering talent to take Zcash to the next level, and leveraging
 a Zcash dev fee as a differentiator to build the world's best private medium of
 exchange.
 
-Evolving Zcash Governance
-=========================
-
 Principles of cryptocurrency governance
 ---------------------------------------
 
-Most proof-of-work chains today have three major governing roles:
+To understand Zcash governance, it's worth reviewing "default" cryptocurrency
+governance. Most proof-of-work chains today have three major governing roles:
 
 1. Miners validate and secure the chain. They do some work to earn a reward.
    Miners are the first owners of newly minted coins, and are an integral part
@@ -175,8 +173,46 @@ Zcash.
 Sustainably attracting talent to Zcash is critical to maintain innovation and
 build resilience.
 
-Moving Forward
-==============
+Requirements
+============
+
+The first requirement is a balanced governance structure. Developers should be
+rewarded, without rewarding governance capture.  What's best for the chain and
+ZEC holders should always come before commercial interests.
+
+The second, and secondary, requirement is funding Zcash development. While the
+chain shouldn't be run by a commercial entity, it will need to be supported by
+them.
+
+The third requirement is the support of a more resilient ecosystem by:
+
+1. Ending the "crowding out" problem by paying development teams to work on and
+   for Zcash.
+2. Building a dev fee management structure that's resilient to the loss,
+   capture, or compromise of the Zcash Foundation.
+3. Ensuring the ecosystem can survive the loss, capture, or compromise of the
+   ECC by encouraging developer diversity and strategic input.
+
+Finally, avoid introducing unnecessary additional entities into the governance
+process.
+
+Non-requirements
+================
+
+General on-chain governance is outside the scope of this proposal. On-chain
+governance is an exciting idea -- what if we had an impartial arbiter funding
+development?  My experience with on-chain governance to date, however, leads me
+to believe it's still a risky direction. Zcash should focus on what it's good at
+-- privacy -- and leave proving on-chain governance models to other projects.
+
+While this proposal attempts to outline a long-term structure for Zcash funding
+and governance, specifying the structure beyond the next 4 years is out of
+scope.  Much will have changed in 4 years. Perhaps this structure will be
+sufficient; perhaps we'll be battling the Third Crypto War, and need to go back
+to the drawing table.
+
+Specification
+=============
 
 The below proposal is an effort to cleanly resolve the problems with Zcash's
 current governance, while
