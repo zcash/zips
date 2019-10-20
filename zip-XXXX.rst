@@ -305,7 +305,11 @@ The principal developer shall make a number of guarantees.
 
 In exchange, the principal developer is granted an indefinite dev fee allocation
 and a wide remit to pursue longer-term research relevant to Zcash, as well as
-a voice on the board of the Foundation.
+a voice on the board of the Foundation. The principal developer will not be
+subject to semi-annual review, though it will submit the same plans required of
+other recipients. The principal developer will only be recommended for removal
+by the Foundation in extraordinary circumstances, including reneging on the
+above guarantees or extreme negligence.
 
 Minimum viable Foundation
 -------------------------
