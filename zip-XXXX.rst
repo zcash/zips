@@ -8,6 +8,19 @@
   Created: 2019-09-27
   License: MIT
 
+Abstract
+========
+
+This proposal describes a structure for Zcash governance, including funding and
+managing new Zcash development, decentralizing those development efforts, and
+resolving governance hangups between the Zcash Foundation and the Electric Coin
+Company.
+
+These goals are accomplished via a 20% dev fee, enacted in NU4, as much as half
+of which is burned in the case of a robust ZEC price. This fee will fund a
+diverse group of development teams to ensure Zcash maintains best-in-class
+research and engineering talent while growing a robust ecosystem.
+
 Motivation
 ==========
 
