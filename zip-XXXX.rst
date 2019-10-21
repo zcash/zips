@@ -380,3 +380,72 @@ minimum, a single representative from each dev fee recipient should attend.
 The Foundation shall also maintain a simple chat solution for development of
 the protocol. While the chat logs should be publicly viewable, it need not be
 open to public participation.
+
+Moving forward
+--------------
+
+I believe this proposal can form the basis for a new way forward for Zcash --
+a robust, decentralized ecosystem with fair governance. I also hope it can bring
+together the stakeholders in this discussion, and allow us to get back to why
+we're all here -- to protect the world's financial privacy.
+
+I look forward to feedback on GitHub and the Zcash forum.
+
+Disclosures
+===========
+
+In the interest of transparency, I'd like to make a few professional
+disclosures.
+
+I'm the largest shareholder of Thesis_, the parent company and studio behind
+Fold_ and Keep_. Thesis is a for-profit company that might benefit from this
+proposal as a dev fee recipient. While today I maintain exclusive control of
+Thesis, the company has taken outside investment in the past.
+
+As far as my financial interest in Zcash, I've held a small amount of ZEC since
+shortly after launch. I'm in the process of building my personal ZEC position,
+as well as a position at Thesis.
+
+.. _Thesis: https://thesis.co
+.. _Fold: https://foldapp.com
+.. _Keep: https://keep.network
+
+Acknowledgements
+================
+
+Thanks to my friends and colleagues Carolyn_, Laura_, Josh_, James_, Corbin_,
+and Antonio_ for early review of the text this proposal.
+
+.. _Carolyn: https://twitter.com/CReckhow
+.. _Laura: https://twitter.com/LauraWallendal
+.. _Josh: https://twitter.com/JoshSRosenblatt
+.. _James: https://twitter.com/_prestwich
+.. _Corbin: https://twitter.com/CorbinPon
+.. _Antonio: https://github.com/shadowfiend
+
+Thanks to my fellow dev fund ZIP authors, `Avichal Garg`_ at Electric Capital,
+`Antoinette Marie`_, `Josh Cincinnati, ED`_ at the Zcash Foundation,
+`Jacob Phillips`_ at Autonomous Partners, `Andrew Miller`_, `Chris Burniske`_,
+and the fellows at `Blocktown`_, each of whose ideas influenced this proposal.
+And of course, thanks to `Sonya Mann`_ and the Foundation for coordinating
+discussions around these different proposals.
+
+.. _Avichal Garg: https://forum.zcashcommunity.com/t/dev-fund-proposal-5-entity-strategic-council-approach/34801
+.. _Antoinette Marie: https://forum.zcashcommunity.com/t/zcash-dev-fund-results-based-financing-equity-proposal-amendment/35052/31
+.. _Josh Cincinnati, ED: https://forum.zcashcommunity.com/t/a-grand-compromise-synthesis-zip-proposal/34812
+.. _Jacob Phillips: https://forum.zcashcommunity.com/t/asp-founders-reward-positioning-support-for-avichal-garg-s-proposal-with-amendments/35184
+.. _Andrew Miller: https://forum.zcashcommunity.com/t/dev-fund-proposal-miner-directed-dev-fund-was-20-to-any-combination-of-ecc-zfnd-parity-or-burn/33864
+.. _Blocktown: https://forum.zcashcommunity.com/t/blocktown-development-fund-proposal-10-to-a-2-of-3-multisig-with-community-involved-third-entity/34782
+.. _Chris Burniske: https://twitter.com/cburniske
+.. _Sonya Mann: https://github.com/sonyamann
+
+Outside ongoing discussions in the forum and with other ZIP authors, I've spoken
+with a number of prominent community members while developing this proposal,
+though none were provided early access to the text of the proposal. I
+appreciated the thoughtful discussions with `Josh Cincinnati`_, `Zooko Wilcox`_,
+`Josh Swihart`_, `Ian Miers`_, and others.
+
+.. _Josh Cincinnati: https://twitter.com/acityinohio
+.. _Zooko Wilcox: https://twitter.com/zooko
+.. _Josh Swihart: https://twitter.com/jswihart
+.. _Ian Miers: https://twitter.com/secparam
