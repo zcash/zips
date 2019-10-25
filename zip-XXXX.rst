@@ -350,7 +350,7 @@ structure in the current bylaws, the board will consist of
 
 The Foundation requires a professional board. Board member selection should
 heavily favor candidates with existing formal public or private sector board
-experience. Each board member shall be paid reasonably by the Foundation.
+experience.
 
 Each board member should bring a unique network and set of skills to bear to
 increase the impact of the Foundation.
