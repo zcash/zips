@@ -258,7 +258,7 @@ benefit is
 
 .. math::
 
-  MaxBenefit(RewardDollarAmount) = Max(500000, \sqrt{\frac{RewardDollarAmount/500000}})
+  MaxBenefit(RewardDollarAmount) = Min(500000, 500000 * \sqrt{\frac{RewardDollarAmount/500000}})
 
 Capping the monthly upside of the Foundation will limit growth, while
 encouraging fiscal discipline.
