@@ -63,21 +63,21 @@ Index of ZIPs
 
   <embed><table>
     <tr> <th>ZIP</th> <th>Title</th> <th>Status</th> </tr>
-    <tr> <td>0</td> <td class="left"><a href="zip-0000">ZIP Process</a></td> <td>Active</td>
-    <tr> <td>32</td> <td class="left"><a href="zip-0032">Shielded Hierarchical Deterministic Wallets</a></td> <td>Final</td>
-    <tr> <td>143</td> <td class="left"><a href="zip-0143">Transaction Signature Verification for Overwinter</a></td> <td>Final</td>
-    <tr> <td>200</td> <td class="left"><a href="zip-0200">Network Upgrade Mechanism</a></td> <td>Final</td>
-    <tr> <td>201</td> <td class="left"><a href="zip-0201">Network Peer Management for Overwinter</a></td> <td>Final</td>
-    <tr> <td>202</td> <td class="left"><a href="zip-0202">Version 3 Transaction Format for Overwinter</a></td> <td>Final</td>
-    <tr> <td>203</td> <td class="left"><a href="zip-0203">Transaction Expiry</a></td> <td>Final</td>
-    <tr> <td>205</td> <td class="left"><a href="zip-0205">Deployment of the Sapling Network Upgrade</a></td> <td>Final</td>
-    <tr> <td>206</td> <td class="left"><a href="zip-0206">Deployment of the Blossom Network Upgrade</a></td> <td>Draft</td>
-    <tr> <td><strike>207</strike></td> <td class="left"><strike><a href="zip-0207">Split Founders' Reward</a></strike></td> <td>Withdrawn</td>
-    <tr> <td>208</td> <td class="left"><a href="zip-0208">Shorter Block Target Spacing</a></td> <td>Implemented</td>
-    <tr> <td>209</td> <td class="left"><a href="zip-0209">Prohibit Negative Shielded Value Pool</a></td> <td>Final</td>
-    <tr> <td>210</td> <td class="left"><a href="zip-0210">Sapling Anchor Deduplication within Transactions</a></td> <td>Draft</td>
-    <tr> <td>243</td> <td class="left"><a href="zip-0243">Transaction Signature Verification for Sapling</a></td> <td>Final</td>
-    <tr> <td>308</td> <td class="left"><a href="zip-0308">Sprout to Sapling Migration</a></td> <td>Final</td>
-    <tr> <td>401</td> <td class="left"><a href="zip-0401">Addressing mempool denial-of-service</a></td> <td>Final</td>
-    <tr> <td>guide</td> <td class="left"><a href="zip-guide">{Something Short and To the Point}</a></td> <td>Draft</td>
+    <tr> <td>0</td> <td class="left"><a href="zip-0000.rst">ZIP Process</a></td> <td>Active</td>
+    <tr> <td>32</td> <td class="left"><a href="zip-0032.rst">Shielded Hierarchical Deterministic Wallets</a></td> <td>Final</td>
+    <tr> <td>143</td> <td class="left"><a href="zip-0143.rst">Transaction Signature Verification for Overwinter</a></td> <td>Final</td>
+    <tr> <td>200</td> <td class="left"><a href="zip-0200.rst">Network Upgrade Mechanism</a></td> <td>Final</td>
+    <tr> <td>201</td> <td class="left"><a href="zip-0201.rst">Network Peer Management for Overwinter</a></td> <td>Final</td>
+    <tr> <td>202</td> <td class="left"><a href="zip-0202.rst">Version 3 Transaction Format for Overwinter</a></td> <td>Final</td>
+    <tr> <td>203</td> <td class="left"><a href="zip-0203.rst">Transaction Expiry</a></td> <td>Final</td>
+    <tr> <td>205</td> <td class="left"><a href="zip-0205.rst">Deployment of the Sapling Network Upgrade</a></td> <td>Final</td>
+    <tr> <td>206</td> <td class="left"><a href="zip-0206.rst">Deployment of the Blossom Network Upgrade</a></td> <td>Draft</td>
+    <tr> <td><strike>207</strike></td> <td class="left"><strike><a href="zip-0207.rst">Split Founders' Reward</a></strike></td> <td>Withdrawn</td>
+    <tr> <td>208</td> <td class="left"><a href="zip-0208.rst">Shorter Block Target Spacing</a></td> <td>Implemented</td>
+    <tr> <td>209</td> <td class="left"><a href="zip-0209.rst">Prohibit Negative Shielded Value Pool</a></td> <td>Final</td>
+    <tr> <td>210</td> <td class="left"><a href="zip-0210.rst">Sapling Anchor Deduplication within Transactions</a></td> <td>Draft</td>
+    <tr> <td>243</td> <td class="left"><a href="zip-0243.rst">Transaction Signature Verification for Sapling</a></td> <td>Final</td>
+    <tr> <td>308</td> <td class="left"><a href="zip-0308.rst">Sprout to Sapling Migration</a></td> <td>Final</td>
+    <tr> <td>401</td> <td class="left"><a href="zip-0401.rst">Addressing mempool denial-of-service</a></td> <td>Final</td>
+    <tr> <td>guide</td> <td class="left"><a href="zip-guide.rst">{Something Short and To the Point}</a></td> <td>Draft</td>
   </table></embed>
