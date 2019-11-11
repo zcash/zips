@@ -1,451 +1,386 @@
 ::
 
   ZIP: Unassigned
-  Title: Decentralize the Dev Fee
-  Owners: Matt Luongo <matt@thesis.co>
+  Title: Dev Fund to ECC + Zfnd + Major Grants
+  Owners: Eran Tromer <eran.tromer.org>
   Status: Draft
   Category: Process
-  Created: 2019-09-27
+  Created: 2019-11-10
   License: MIT
 
 Abstract
 ========
 
-This proposal describes a structure for Zcash governance, including funding and
-managing new Zcash development, decentralizing those development efforts, and
-resolving governance hangups between the Zcash Foundation and the Electric Coin
-Company.
+This proposal describes a structure for a the Zcash Development Fund, to be 
+enacted in Network Upgrade 4. This Dev Fund would consist of 20% of the block 
+rewards, split into 3 slices: 1/3 for the Electric Coin Company, 1/3 for Zcash 
+Foundation (for internal work and grants), and an 1/3 for additional "Major 
+Grants" administered by the Zcash Foundation (with extra community input and 
+scrutiny). Funding is capped at $700k/month per slice. Governance and 
+accountability are based on existing entities and legal mechanisms, and 
+increasingly decentralized governance is encouraged.
 
-These goals are accomplished via a 20% dev fee, enacted in NU4, as much as half
-of which is burned in the case of a robust ZEC price. This fee will fund a
-diverse group of development teams to ensure Zcash maintains best-in-class
-research and engineering talent while growing a robust ecosystem.
 
 Motivation
-==========
+============
 
-Who am I?
----------
+Starting at Zcash's first halving in October 2020, by default 100% of the block 
+rewards will be allocated to miners, and no further funds will be automatically 
+allocated to research, development and outreach. Consequently, no substantial 
+new funding may be available to existing teams dedicated to Zcash: the Electric 
+Coin Company (ECC), the Zcash Foundation (Zfnd), and the many entities funded by 
+the Zfnd grant program.
 
-My name is Matt Luongo. I'm an entrepreneur who's been full-time in the crypto
-space since 2014, co-founding Fold, a Bitcoin payments company, and more
-recently Keep, a private computation startup built on Ethereum. At Keep, we've
-done some `work around Zcash <https://github.com/ethereum/EIPs/pull/2129>`_,
-and our parent company, `Thesis <https://thesis.co>`_, is considering investing
-more heavily in Zcash development for our latest project.
+There is a need to strike a balance between incentivizing the security of the 
+consensus protocol (i.e., mining) versus other crucial aspects of the Zcash 
+security and functionality, such as development and outreach.
 
-I'm deeply interested in privacy tech. For me, privacy is about consent --
-consent to share my habits, beliefs, and preferences -- and I see privacy as
-the inevitable next frontier in our pursuit of an economy that respects
-individual choice.
+Furthermore, there is a need to balance the sustenance of ongoing work by the 
+current teams dedicated to Zcash, with encouraging decentralization and growth 
+of independent development teams.
 
-My perspective is as the founder of a for-profit company focused on building
-self-sovereign technology who wants to develop on Zcash. We work in this space
-ideologically, but our work isn't free; attracting and growing talent requires
-funding.
+Difference from Matt Luongo's proposal
+--------------------------------------
 
-If you're interested in more on my background, I've introduced myself more
-`properly on the forum
-<https://forum.zcashcommunity.com/t/introducing-matt-luongo-from-keep/34947>`_.
+This proposal is based on Matt Luongo's `Decentralizing the Dev Fee`_ proposal, 
+which has similar motivations. The major changes are as follows:
 
-What's this about?
-------------------
+* The Dev Fund slice intended for external recipients (beyond ECC, Zfnd and 
+  existing Zfnd grants) is changed from 1/2 to 1/3, and is permitted to be used to 
+  fund ECC if no alternatives present themselves, to mitigate unwarranted loss of 
+  existing capabilities.
+* For simplicity, the above slice is combined with the Foundation's existing
+  grant system; but is accompanied by explicit requirements to achieve its goals,
+  independent advisory input, and a Restricted Funds  mechanism to enforce these 
+  requirements.
+* The "easing function" and associated burning of coins are removed, in favor of
+  capping each slice at $700k/month funding target. Any excess is kept in a reserve,
+  from which it can be withdrawn only to maintain the funding target in the future.
+* Strengthened the transparency and accountability requirements, and harmonized
+  them across ECC, Zfnd and major grantees.
+* Removed Zfnd's supervisory role in determining the "principal developer", 
+  fixing it to be ECC (changing this would be sufficiently dramatic to merit a 
+  fork).
+* Removed the changes to the Zfnd board. These would have replaced 3 of Zfnd's 
+  board seats with: a representative of ECC (it is better to keep Zfnd independent), 
+  a new independent research advisory board (we currently have no mechanism to 
+  elect one) and direct vote of ZEC holders (we have no voting mechanism 
+  implemented, and this virtual member cannot be held to the requisite legal 
+  duties of directors).
+* Call for, and incentivize, development of decentralized voting and governance.
+* Clarity and brevity.
 
-Since Zcon1, I've been looking to fund work to build an Ethereum / Zcash bridge.
-I've spoken to the ECC, the Zcash Foundation, and a number of early Zcash
-community members on how best to move forward with this project, and in the
-process I've learned a lot about how the community works and dev governance has
-been structured thus far.
-
-Inevitably, I've become interested in the community's proposals for a new dev
-fee, and thought about how the right structure might support work like ours.
-
-I believe the Zcash community has an opportunity to deploy a new incentive
-structure that will attract companies like ours to build and improve Zcash,
-leading to a more resilient network, stronger technology, and wider usage.
-
-The Zcash narrative
--------------------
-
-We're all here to build a robust, private, decentralized currency. But in the
-dev fee proposals I've seen so far, the idea of a Zcash narrative that
-distinguishes it from the competition is absent.
-
-Of the slew of ZIPs addressing Zcash's future, there's only been one strong
-narrative case -- the idea that Zcash exists purely as a hedge against Bitcoin's
-long-term privacy failure. Put simply, Zcash is "Bitcoin, but private".
-
-Zcash should aim higher. Bitcoin is the only coin that has successfully made a
-store of value argument, which I like to call "worse is better". Don't upgrade
-the network -- the argument goes -- stability is more important than solving
-today's problems.  Bitcoin is chasing the `Lindy
-effect<https://en.wikipedia.org/wiki/Lindy_effect>`, where worse is better, and
-the network becomes stronger every day it survives. That's great for Bitcoin.
-For the rest of us, though, better is better. Zcash *should be better*.
-
-Zcash is known for having the best tech in the space, built by one of the best
-team's in the space. We should lean in to that reputation, nurturing the best
-research and engineering talent to take Zcash to the next level, and leveraging
-a Zcash dev fee as a differentiator to build the world's best private medium of
-exchange.
-
-Principles of cryptocurrency governance
----------------------------------------
-
-To understand Zcash governance, it's worth reviewing "default" cryptocurrency
-governance. Most proof-of-work chains today have three major governing roles:
-
-1. Miners validate and secure the chain. They do some work to earn a reward.
-   Miners are the first owners of newly minted coins, and are an integral part
-   of network upgrades.
-2. Users buy, hold, and spend the currency. In networks like Bitcoin, they also
-   run full nodes, strengthening network resilience by decentralizing
-   validation.
-3. Developers maintain clients to power and interact with the network. They
-   typically propose network upgrades.
-
-On a chain like Bitcoin, any of these roles can veto a network upgrade.
-
-1. Miners can veto activating a new fork by refusing to build off blocks using
-   new network rules, orphaning a minority effort. They can also attack any fork
-   attempt that doesn't change
-2. Users can veto a fork by refusing to update their full nodes, rejecting
-   blocks as invalid -- as demonstrated in the UASF fiasco resulting from the
-   SegWit2x attempt to force a Bitcoin hardfork. Users can also vote with their
-   dollars, acting as a fork resolution of last resort via market pressure.
-3. Developers can refuse to update client codebases to follow a fork. While this
-   might not seem like a strong veto, in practice that means any fork will need
-   at least one additional development team, or the agreement of existing client
-   software developers.
-
-These roles together form a balance of power that makes contentious forks
-difficult -- any change that a large swath of users disapproves of could split
-the chain.
-
-The state of play
------------------
-
-In Zcash, the addition of the Electric Coin Company (ECC) and the Zcash
-Foundation skew this balance.
-
-Both organizations are comprised of Zcash founders, developers, researchers, and
-privacy proponents who have driven this ecosystem forward and represent its
-values. Nevertheless, their mode of operation today skews a healthy balance of
-power in Zcash governance.
-
-The mechanisms of that skew are the Zcash trademark, held by the ECC, and
-primary client software development, now split between the ECC and the
-Foundation.
-
-In a disagreement between miners, users, and developers, the ECC has the
-unilateral option of enforcing the Zcash trademark, effectively allowing them
-to choose a winning fork against the will of users, miners, and other
-developers.
-
-While the Foundation's maintenance of the `zebrad` client would normally allow
-them to "soft veto" a network upgrade, they don't have a similar veto on the
-Zcash trademark enforcement.
-
-Compounding these issues, the Foundation and the ECC aren't arms-length entities
-as they're organized today.
-
-This situation poses a number of problems for new and existing Zcash users, as
-well as both entities.
-
-* The threat of a central entity overriding (or being forced to override) the
-  will of users undermines self-sovereignty.
-* The ECC and Foundation are both put at legal risk. As entangled entities,
-  they're remarkably similar to a single entity when trying to minimize
-  regulatory risk.
-* Power between the two entites *hasn't* been decentralized. The ECC remains
-  a unilateral power, as well as a single point of failure.
-
-The "crowding out" problem
---------------------------
-
-The Zcash ecosystem, as it exists today, leaves little incentive for outside
-developers to participate.
-
-Zcash development has a high learning curve.
-
-* The reference client is a fork of the Bitcoin reference implementation,
-  building on a decade of poorly written legacy code.
-* What Zcash brings to the table involves a greater understanding of applied
-  cryptography than most projects. SNARKs are often still referred to as "moon
-  math", after all.
-* As the recent network-level attack demonstrates, full-stack privacy is hard.
-
-Most outside developers need to see a clear path to longer-term funding before
-they can commit to the cost of that curve.
-
-Even those developers who already have the expertise to work on this system are
-frustrated by the lack of longer-term funding. For evidence, look at Parity's
-exit from Zcash after `zebrad` development, or Summa's struggles to work on
-Zcash.
-
-Sustainably attracting talent to Zcash is critical to maintain innovation and
-build resilience.
+.. _Decentralizing the Dev Fee: https://forum.zcashcommunity.com/t/decentralizing-the-dev-fee/35252
 
 Requirements
 ============
 
-The first requirement is a balanced governance structure. Developers should be
-rewarded, without rewarding governance capture.  What's best for the chain and
-ZEC holders should always come before commercial interests.
+The Dev Fund should encourage decentralization of the work and funding, by 
+supporting new teams dedicated to Zcash.
 
-The second, and secondary, requirement is funding Zcash development. While the
-chain shouldn't be run by a commercial entity, it will need to be supported by
-them.
+The Dev Fund should maintain the existing teams and capabilities in the Zcash 
+ecosystem, unless and until concrete opportunities arise to create even greater 
+value for the Zcash ecosystem.
 
-The third requirement is the support of a more resilient ecosystem by:
+There should not be any single entity which is a single point of failure, i.e., 
+whose capture or failure will effectively prevent effective use of the funds.
 
-1. Ending the "crowding out" problem by paying development teams to work on and
-   for Zcash.
-2. Building a dev fee management structure that's resilient to the loss,
-   capture, or compromise of the Zcash Foundation.
-3. Ensuring the ecosystem can survive the loss, capture, or compromise of the
-   ECC by encouraging developer diversity and strategic input.
+Major funding decisions should be based, to the extent feasible on inputs from 
+domain experts and pertinent stakeholders.
 
-Finally, avoid introducing unnecessary additional entities into the governance
-process.
+The Dev Fund mechanism should not modify the monetary emission curve (and in 
+particular, should not irrevocably burn coins).
+
+In case the value of ZEC jumps, the Dev Fund recipients should not be allowed
+to wastefully use excessive amounts of funds. Conversely, given market volatility
+and eventual halvings, it is desirable to create rainy-day reserves.
+
+The Dev Fund mechanism should not reduce users' financial privacy or security. 
+In particular, it should not cause them to expose their coin holdings, or to 
+maintain access to secret keys for much longer than they would otherwise. (This 
+rules out some form of voting, and of disbursing coins to past/future miners).
+
+The new Dev Fund system should fulfill the above goals for as long as feasible, 
+without requiring further changes at the consensus-code level. (This is because 
+such changes may become increasingly difficult to agree upon as the community 
+grows; and moreover, to the extent that consensus-code changes are agreed on in 
+the future, they will in any case override the current ZIP.)
+
+The new Dev Fund system should be simple to understand and realistic to 
+implement. In particular, it should not assume the creation of new mechanisms 
+(e.g., election systems) or entities (for governance or development) for its 
+execution; but it should strive to support and use these once they are built.
+
+Comply with legal, regulatory and taxation constraints in pertinent 
+jurisdictions.
 
 Non-requirements
 ================
 
-General on-chain governance is outside the scope of this proposal. On-chain
-governance is an exciting idea -- what if we had an impartial arbiter funding
-development?  My experience with on-chain governance to date, however, leads me
-to believe it's still a risky direction. Zcash should focus on what it's good at
--- privacy -- and leave proving on-chain governance models to other projects.
+General on-chain governance is outside the scope of this proposal.
 
-While this proposal attempts to outline a long-term structure for Zcash funding
-and governance, specifying the structure beyond the next 4 years is out of
-scope.  Much will have changed in 4 years. Perhaps this structure will be
-sufficient; perhaps we'll be battling the Third Crypto War, and need to go back
-to the drawing table.
+Rigorous voting mechanism (whether coin-weighted, holding-time-weighted or 
+one-person-one-vote) are outside the scope of this proposal, though there is 
+prescribed room for integrating them once available.
+
 
 Specification
 =============
 
-The below proposal is an effort to cleanly resolve the problems with Zcash's
-current governance, while
+Dev Fund allocation
+-------------------
 
-* maintaining a balance of power between stakeholders
-* removing single points of failure / control
-* growing development and usage of Zcash
-* and supporting the best interests of miners, users, and developers *today*.
+Starting at the first Zcash halving, and in perpetuity, 20% of the block rewards 
+will be allocated to a "Dev Fund" that consists of the following three slices:
 
-Decentralizing development
---------------------------
+* One third to the Electric Coin Company (denoted **ECC slice**)
+* One third the Zcash Foundation, for general use (denoted **Zfnd-GU slice**)
+* One third the Zcash Foundation, for major grants (denoted **Zfnd-MG slice**)
 
-A few proposals have suggested the introduction of a mysterious "third entity"
-to resolve disagreements between the Foundation and the ECC.
+Details below. The fund flow will be implemented at the consensus-rule layer, by 
+sending the corresponding ZEC to the designated address in each block.
 
-I prefer a different approach, refocusing the role of the Foundation and making
-room for the ECC to work with a robust developer ecosystem.
 
-In this proposal, the Foundation shall support community development through
-running the forum and events, gathering community sentiment, managing short-term
-development grants, and conducting the diligence behind the assignment and
-disbursement of a development fee. This development fee shall be funded by 20%
-of the block reward, with as much as half of the fee burned in case of
-extraordinary growth in the price of ZEC.
+ECC slice (Electric Coin Company)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The Foundation shall receive 25% of the dev fee. If the volume-weighted average
-price of ZEC over the month means the foundation would receive greater than
-$500k that month, the Foundation shall burn enough ZEC such that their max
-benefit is
+This slice of the Dev Fund will flow to ECC.
 
-.. math::
+ECC must undertake a firm obligation to use the Dev Fund only in support of the 
+Zcash cryptocurrency and its community.
 
-  MaxBenefit(RewardDollarAmount) = Min(500000, 500000 * \sqrt{\frac{RewardDollarAmount/500000}})
+In particular, ECC must commit to not distribute the Dev Fund proceeds to its 
+partners ("shareholders"), other than:
 
-Capping the monthly upside of the Foundation will limit growth, while
-encouraging fiscal discipline.
+1. In fair-market-value compensation for specific new work. 
+2. For covering pass-through tax obligations to partners caused by ECC's receipt 
+   of the Dev Fund.
 
-The remaining 75% of the dev fee shall be distributed between development teams
-working to maintain clients.
+(ECC is encouraged to transition to a corporate structure that would avoid the 
+latter taxes.)
 
-* One third of the remaining fee (25% of the total) shall be reserved for the
-  role of the "principal developer", a developer with additional voice in Zcash
-  governance. The principal developer allocation shall be capped similarly to
-  the Foundation's, based on the monthly volume-weighted average price.
-* The remaining two thirds of the fee (50% of the total), called the "outside
-  development fee", shall be distributed between at least two development teams,
-  chosen semi-annually by the Foundation, coinciding with network upgrades.
-  Unlike those of the Foundation and principal developer, these allocations
-  aren't affected by market conditions, and don't carry a burn requirement.
+This obligation must be made irrevocable within ECC's corporate governance 
+structure (i.e., its Operating Agreement), and backed by a contractual 
+obligation to the Zcash Foundation.
 
-Prior to each network upgrade, the Foundation shall recommend a list of
-addresses and a total number of ZEC per block each address is meant to receive
-from the dev fee. The recommendation will be "ratified" by the miners as the
-network upgrade activates.
 
-The role of dev fee recipients
-------------------------------
+Zfnd-GU slice (Zcash Foundation, for general use)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Dev fee recipients are distinguished from grant recipients in the scope and
-timelines of their work, as well as the specificity of direction. The intent
-is to allow teams to focus on a core competency, while encouraging research and
-adjacent work.
+This slice of the Dev Fund will flow to Zfnd, to be used at its discretion for 
+any purpose within its mandate to support Zcash and financial privacy, 
+including: development, education, support community communication on-line and 
+via events, gathering community sentiment, and external awarding grants for all 
+of the above.
 
-Dev fee recipients are chosen semi-annually by the Foundation based on their
-ability to move Zcash forward. Recipients will typically be development teams,
-though "full stack" teams that can communicate well with the community, expand
-Zcash usage, and widely share their work should be advantaged.
 
-Recipients shall submit quarterly plans to the community for their efforts, as
-well as monthly progress updates.
+Zfnd-MG slice (Zcash Foundation for major grants)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-All work funded by the dev fee will be open source, under licenses compatible
-with the existing Zcash clients.
+This slice of the Dev Fund is intended to semi-annually fund independent teams 
+entering the Zcash ecosystem, to perform development and other work for the 
+public good of Zcash ecosystem, to the extent that such teams are available and 
+effective. 
 
-Though the Foundation shall periodically judge the efficacy of dev fee
-recipients, deciding on and driving roadmaps for Zcash is the role of dev fee
-recipients, in partnership with the community. This role is neatly balanced by
-users running full nodes and miners, either of which can veto a network upgrade.
+The funds will be received and administered by Zfnd. Zfnd will disburse them as 
+"Major Grants", within the framework of Zfnd's grant program but subject to the 
+following additional constraints:
 
-While dev fee recipients are not required to work exclusively on Zcash,
-considering the nature of their work, recipients must guarantee they aren't
-obliged to the interests of competing projects.
+1. These funds may be only be used to issue Major Grants to external parties 
+   that are independent of Zfnd. They may not be used by Zfnd for its internal 
+   operations and direct expenses. 
 
-The role of the principal developer
------------------------------------
+2. Major Grants should support well-specified work proposed by the grantee, at 
+   reasonable market-rate costs, for approximately half a year, and no more than 
+   one year; additional funding would require explicit application for a new 
+   grant.
 
-The role of the principal developer is as a "first among equals" amongst the dev
-fee recipients.
+3. Major Grants may be issued to ECC only if no other parties are available and 
+   capable of performing the specified work with similar effectiveness and cost. 
+   (The intent is that eventually ECC will not receive Major Grants.)
 
-The principal developer shall make a number of guarantees.
+4. Priority will be given to Major Grants that bolster new teams with 
+   substantial (current or prospective) continual existence, and set them up for 
+   long-term success, subject to the usual grant award considerations (impact, 
+   ability, risks, team, cost-effectiveness, etc.).
 
-1. Zcash shall be their exclusive focus, submitting financials periodically to
-   the Foundation as assurance.
-2. They shall maintain a well-run board and employ a qualified CFO.
-3. In addition to the existing open-source requirements, they shall agree to
-   assign any trademarks or patents relevant to Zcash to the Foundation.
+5. Major Grants should specifically further the Zcash cryptocurrency and its
+   ecosystem; this is more restrictive than Zfnd's general mission of furthering
+   financial privacy.
 
-In exchange, the principal developer is granted an indefinite dev fee allocation
-and a wide remit to pursue longer-term research relevant to Zcash, as well as
-a voice on the board of the Foundation. The principal developer will not be
-subject to semi-annual review, though it will submit the same plans required of
-other recipients. The principal developer will only be recommended for removal
-by the Foundation in extraordinary circumstances, including reneging on the
-above guarantees or extreme negligence.
+6. Major Grants awarding is subject to individual approval by Zfnd's Board of 
+   Directors, by a majority excluding any members with a conflict of interest.
 
-Minimum viable Foundation
--------------------------
+7. Zfnd shall seek advisory input on its choice of Major Grant awards, by all 
+   effective and reasonable means (e.g., on-line discussion forums, the community 
+   Advisory Board, on-chain voting by holders and miners, and proactive 
+   consultation with experts). The Zfnd Board of Directors shall strive to follow 
+   this advisory input (within the confines of the Foundation's charter and 
+   duties). 
 
-To manage the dev fee and fulfill its community and diligence duties, the
-Foundation shall maintain a board of 5 independent members. Rather than the
-structure in the current bylaws, the board will consist of
+8. Zfnd shall strive to create an independent grant committee to evaluate and 
+   publicly recommend Major Grant proposals, based on the committee's expertise and 
+   the above inputs.
 
-* 1 seat voted on by ZEC holders directly.
-* 1 seat representing a newly created research advisory board, whose primary
-  role will be technical diligence of potential recipients of the dev fee.
-* 1 seat for the "principal developer", a privileged recipient of the Zcash
-  dev fee acting as "first among equals" amongst a variety of dev fee recipients
-  building on Zcash.
-* 2 seats elected by the board, as the board is currently selected according to
-  the bylaws. The board's discretion here means these could be selected via a
-  community election, or via the remaining 3 seats' direct vote.
+Zfnd shall recognize the Zfnd-MG slice of the Dev Fund as a Restricted Fund 
+donation under the above constraints (suitably formalized), and keep separate 
+accounting of its balance and usage under its Transparency and Accountability 
+obligations defined below.
 
-The Foundation requires a professional board. Board member selection should
-heavily favor candidates with existing formal public or private sector board
-experience.
+From grant proposers' side, proposals for such grants will be submitted through 
+Zfnd usual grant process, allowing for public discussion and public funding. It 
+is intended that small one-time grants will be funded by drawing on the Zfnd-GU 
+slice (where they also compete with other Zfnd activities), whereas large and 
+recurring grants will be funded from the dedicated Zfnd-MG slice. 
 
-Each board member should bring a unique network and set of skills to bear to
-increase the impact of the Foundation.
 
-Outside the seat for the principal developer, no board members shall have an
-ongoing commercial interest in any recipients of the dev fee.
+Direct-grant option
+'''''''''''''''''''
 
-The ECC as the principal developer
-----------------------------------
+It may be deemed better, operationally or legally, if the Major Grant funds are 
+not accepted and disbursed by Zfnd, but rather directly assigned to the 
+grantees. Thus, the following mechanism may be used in perpetuity, if agreed 
+upon by both ECC and Zfnd before NU4 activation:
 
-I propose that the ECC be considered as the initial principal developer,
-receiving an indefinite dev fee allocation in exchange for their exclusive
-focus on Zcash research and development, and assigning all patents and marks
-relevant to Zcash to the Foundation.
+Prior to each Network Upgrade, the Foundation shall publish a list of grantees' 
+addresses and the total number of Dev Fund ZEC per block they should receive. 
+ECC and Zfnd shall implement this list in any implementations of the Zcash 
+consensus rules they maintain. This decision will then be, effectively, ratified 
+by the miners as the network upgrade activates.
 
-I believe this arrangement is best for the Zcash ecosystem, and with proper
-management of funds, should satisfy the ongoing needs of the ECC.
 
-The dev call
-------------
+Funding Target and Volatility Reserve
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The Foundation shall organize a bi-weekly call for all dev fee recipients and
-other third party developers. The call will be live-streamed for community
-participation, though the speaking participants will be invite only. At a
-minimum, a single representative from each dev fee recipient should attend.
+Each Dev Fund slice has a Funding Target, initially US $700,000 for each slice. 
+At the end of each calendar month, the fair market value of the Dev Fund ZEC 
+received during that month will be computed, and the excess over the Funding 
+Target will be put into a dedicated Volatility Reserve account by the funds'
+recipient.
 
-The Foundation shall also maintain a simple chat solution for development of
-the protocol. While the chat logs should be publicly viewable, it need not be
-open to public participation.
+Funds may be withdrawn from the Volatility Reserve account only by that same 
+party, in months where the aforementioned monthly ZEC value falls short of the 
+Funding Target, and only to the extent needed to cover that shortfall.
 
-Moving forward
---------------
+The Volatility Reserve may be kept as ZEC, or sold and held as fiat currency or 
+low-risk liquid investments.
 
-I believe this proposal can form the basis for a new way forward for Zcash --
-a robust, decentralized ecosystem with fair governance. I also hope it can bring
-together the stakeholders in this discussion, and allow us to get back to why
-we're all here -- to protect the world's financial privacy.
+The Funding Target may be changed only by unanimous agreement of Zfnd, ECC and 
+the majority vote of a voting mechanism weighted by ZEC coin holding. (This is
+meant to encourage the creation of such a voting mechanism. Moreover, in case
+of excessive accumulation of reserves, the community can condition an increase
+of the Funding Target on the redirection of some of the reserves to a
+different entity, miners or an airdrop).
 
-I look forward to feedback on GitHub and the Zcash forum.
+Dev Fund ZEC that has been received, not placed in the Volatility Reserve, and 
+has not yet been used or disbursed, will be kept by the corresponding party (as 
+ZEC, or sold and invested) for later use under the terms of the corresponding 
+slice.
+
+Irrevocable obligations to the above must be made by the recipients (e.g., using 
+their Operating Agreements or by receiving the slice as Restricted Funds).
+
+
+
+Transparency and Accountability
+-------------------------------
+
+Obligations
+~~~~~~~~~~~
+
+ECC, Zfnd and Major Grant recipients (during and leading to their award period) 
+shall all accept the following obligations:
+
+Ongoing public reporting requirements:
+
+* Quarterly reports, detailing future plans, execution on previous plans, and 
+  finances (balances, and spending broken down by major categories).
+* Monthly developer calls, or a brief report, on recent and forthcoming tasks.
+  (Developer calls may be shared.)
+* Annual detailed review of the organization performance and future plans.
+* Annual audited financial report (IRS Form 990, or substantially similar
+  information).
+
+These reports may be either organization-wide, or restricted to the income, 
+expenses and work associated with the receipt of Dev Fund.
+
+It is expected that ECC, Zfnd and Major Grant recipient will be focused 
+primarily (in their attention and resources) on Zcash. Thus, they must promptly 
+disclose:
+
+* Any major activity they perform (even if not supported by the Dev Fund) that 
+  is not in the interest of the general Zcash ecosystem.
+* Any conflict of interest with the general success of the Zcash ecosystem
+
+ECC, Zfnd and grant recipients must promptly disclose any security of privacy 
+risks that may affect users of Zcash (by responsible disclosure under confidence 
+to the pertinent developers, where applicable).
+
+All substantial software whose development was funded by the Dev Fund should be 
+released under an Open Source license (as defined by the Open Source 
+Initiative), preferably the MIT license.
+
+
+Enforcement
+~~~~~~~~~~~
+
+For grant recipients, these conditions should be included in their contract with 
+Zfnd, such that substantial violation, not promptly remedied, will cause 
+forfeiture of their grant funds and their return to Zfnd.
+
+ECC and Zfnd will contractually commit to each other to fulfill these 
+conditions, and the prescribed use of funds, such that substantial violation, 
+not promptly remedied, will permit the other party to issue a modified version 
+of Zcash node software that removes the violating party's Dev Fund slice, and 
+use the Zcash trademark for this modified version. The slice's funds will be 
+reassigned to Zfnd-MG (whose integrity is legally protected by the Restricted Fund
+treatment).
+
+
+Future Community Governance
+===========================
+
+Decentralized community governance is desirable, yet difficult, and thus lies 
+outside this proposal scope, except for two places mentioned above:
+
+1. As advisory input to the `Zfnd-MG slice (Zcash Foundation for major grants)`_.
+   
+2. For changing the `Funding Target and Volatility Reserve`_ (which is an
+   incentive for ECC and Zfnd to *create* the voting mechanism).
+
+It is highly desirable to develop robust means to for community voting and 
+governance, and to integrate them into the Dev Fund disbursement process as well as 
+the accountability of the funded parties, before the 2nd Zcash halving in 2024. 
+ECC and Zfnd should place high priority on such development and its deployment.
+   
 
 Disclosures
 ===========
 
-In the interest of transparency, I'd like to make a few professional
-disclosures.
+The author is
 
-I'm the largest shareholder of Thesis_, the parent company and studio behind
-Fold_ and Keep_. Thesis is a for-profit company that might benefit from this
-proposal as a dev fee recipient. While today I maintain exclusive control of
-Thesis, the company has taken outside investment in the past.
+* a coauthor of the Zerocash_ academic paper underlying Zcash
+* a technical adviser to the Zcash Foundation
+* a founding scientist, a shareholder, and formerly a technical adviser to the
+  Electric Coin Company
+* an academic researcher and adviser to various other organizations
 
-As far as my financial interest in Zcash, I've held a small amount of ZEC since
-shortly after launch. I'm in the process of building my personal ZEC position,
-as well as a position at Thesis.
+This proposal is his private opinion and does not represent any of the above.
 
-.. _Thesis: https://thesis.co
-.. _Fold: https://foldapp.com
-.. _Keep: https://keep.network
+.. _Zerocash: https://eprint.iacr.org/2014/349
 
 Acknowledgements
 ================
 
-Thanks to my friends and colleagues Carolyn_, Laura_, Josh_, James_, Corbin_,
-and Antonio_ for early review of the text this proposal.
+This proposed is most closely based on the Matt Luongo `Decentralizing the Dev 
+Fee`_ proposal, with substantial changes and mixing in elements from 
+*@aristarchus*'s `20% split between the ECC and the Foundation`_ proposal, Josh 
+Cincinnati's `A Grand Compromise/Synthesis ZIP Proposal`_ proposal and
+extensive discussions in the `Zcash Community Forum`_. The author is grateful to 
+all of the above for their excellent ideas and many insightful discussions, and
+to Howard Loo and forum users *@aristarchus* and *@dontbeevil* for valuable
+initial comments on this proposal.
 
-.. _Carolyn: https://twitter.com/CReckhow
-.. _Laura: https://twitter.com/LauraWallendal
-.. _Josh: https://twitter.com/JoshSRosenblatt
-.. _James: https://twitter.com/_prestwich
-.. _Corbin: https://twitter.com/CorbinPon
-.. _Antonio: https://github.com/shadowfiend
-
-Thanks to my fellow dev fund ZIP authors, `Avichal Garg`_ at Electric Capital,
-`Antoinette Marie`_, `Josh Cincinnati, ED`_ at the Zcash Foundation,
-`Jacob Phillips`_ at Autonomous Partners, `Andrew Miller`_, `Chris Burniske`_,
-and the fellows at `Blocktown`_, each of whose ideas influenced this proposal.
-And of course, thanks to `Sonya Mann`_ and the Foundation for coordinating
-discussions around these different proposals.
-
-.. _Avichal Garg: https://forum.zcashcommunity.com/t/dev-fund-proposal-5-entity-strategic-council-approach/34801
-.. _Antoinette Marie: https://forum.zcashcommunity.com/t/zcash-dev-fund-results-based-financing-equity-proposal-amendment/35052/31
-.. _Josh Cincinnati, ED: https://forum.zcashcommunity.com/t/a-grand-compromise-synthesis-zip-proposal/34812
-.. _Jacob Phillips: https://forum.zcashcommunity.com/t/asp-founders-reward-positioning-support-for-avichal-garg-s-proposal-with-amendments/35184
-.. _Andrew Miller: https://forum.zcashcommunity.com/t/dev-fund-proposal-miner-directed-dev-fund-was-20-to-any-combination-of-ecc-zfnd-parity-or-burn/33864
-.. _Blocktown: https://forum.zcashcommunity.com/t/blocktown-development-fund-proposal-10-to-a-2-of-3-multisig-with-community-involved-third-entity/34782
-.. _Chris Burniske: https://twitter.com/cburniske
-.. _Sonya Mann: https://github.com/sonyamann
-
-Outside ongoing discussions in the forum and with other ZIP authors, I've spoken
-with a number of prominent community members while developing this proposal,
-though none were provided early access to the text of the proposal. I
-appreciated the thoughtful discussions with `Josh Cincinnati`_, `Zooko Wilcox`_,
-`Josh Swihart`_, `Ian Miers`_, and others.
-
-.. _Josh Cincinnati: https://twitter.com/acityinohio
-.. _Zooko Wilcox: https://twitter.com/zooko
-.. _Josh Swihart: https://twitter.com/jswihart
-.. _Ian Miers: https://twitter.com/secparam
+.. _20% split between the ECC and the Foundation: https://forum.zcashcommunity.com/t/dev-fund-proposal-20-split-between-the-ecc-and-the-foundation/33862
+.. _A Grand Compromise/Synthesis ZIP Proposal: https://forum.zcashcommunity.com/t/a-grand-compromise-synthesis-zip-proposal/34812
+.. _Zcash Community Forum: https://forum.zcashcommunity.com/
