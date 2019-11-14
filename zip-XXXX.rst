@@ -2,7 +2,7 @@
 
   ZIP: Unassigned
   Title: Dev Fund to ECC + Zfnd + Major Grants
-  Owners: Eran Tromer <eran.tromer.org>
+  Owners: Eran Tromer <eran@tromer.org>
   Status: Draft
   Category: Process
   Created: 2019-11-10
@@ -12,60 +12,63 @@ Abstract
 ========
 
 This proposal describes a structure for a the Zcash Development Fund, to be 
-enacted in Network Upgrade 4. This Dev Fund would consist of 20% of the block 
-rewards, split into 3 slices: 1/3 for the Electric Coin Company, 1/3 for Zcash 
-Foundation (for internal work and grants), and an 1/3 for additional "Major 
-Grants" administered by the Zcash Foundation (with extra community input and 
-scrutiny). Funding is capped at $700k/month per slice. Governance and 
-accountability are based on existing entities and legal mechanisms, and 
-increasingly decentralized governance is encouraged.
+enacted in Network Upgrade 4 and last for 4 years. This Dev Fund would consist 
+of 20% of the block rewards, split into 3 slices:
 
+* 1/3 for the Electric Coin Company
+* 1/3 for Zcash Foundation (for internal work and grants)
+* 1/3 for additional "Major Grants" for large-scale long-term projects (decided 
+  by the Zcash Foundation, with extra community input and scrutiny)
+
+Funding is capped at $700k/month per slice. Governance and accountability are 
+based on existing entities and legal mechanisms, and increasingly decentralized 
+governance is encouraged.
 
 Motivation
 ============
 
-Starting at Zcash's first halving in October 2020, by default 100% of the block 
-rewards will be allocated to miners, and no further funds will be automatically 
-allocated to research, development and outreach. Consequently, no substantial 
-new funding may be available to existing teams dedicated to Zcash: the Electric 
-Coin Company (ECC), the Zcash Foundation (Zfnd), and the many entities funded by 
+Starting at Zcash's first halving in October 2020, by default 100% of the block
+rewards will be allocated to miners, and no further funds will be automatically
+allocated to research, development and outreach. Consequently, no substantial
+new funding may be available to existing teams dedicated to Zcash: the Electric
+Coin Company (ECC), the Zcash Foundation (Zfnd), and the many entities funded by
 the Zfnd grant program.
 
-There is a need to strike a balance between incentivizing the security of the 
-consensus protocol (i.e., mining) versus other crucial aspects of the Zcash 
+There is a need to strike a balance between incentivizing the security of the
+consensus protocol (i.e., mining) versus other crucial aspects of the Zcash
 security and functionality, such as development and outreach.
 
-Furthermore, there is a need to balance the sustenance of ongoing work by the 
-current teams dedicated to Zcash, with encouraging decentralization and growth 
+Furthermore, there is a need to balance the sustenance of ongoing work by the
+current teams dedicated to Zcash, with encouraging decentralization and growth
 of independent development teams.
 
 Difference from Matt Luongo's proposal
 --------------------------------------
 
-This proposal is based on Matt Luongo's `Decentralizing the Dev Fee`_ proposal, 
+This proposal is based on Matt Luongo's `Decentralizing the Dev Fee`_ proposal,
 which has similar motivations. The major changes are as follows:
 
-* The Dev Fund slice intended for external recipients (beyond ECC, Zfnd and 
-  existing Zfnd grants) is changed from 1/2 to 1/3, and is permitted to be used to 
-  fund ECC if no alternatives present themselves, to mitigate unwarranted loss of 
+* The Dev Fund slice intended for external recipients (beyond ECC, Zfnd and
+  existing Zfnd grants) is changed from 1/2 to 1/3, and is permitted to be used to
+  fund ECC if no alternatives present themselves, to mitigate unwarranted loss of
   existing capabilities.
 * For simplicity, the above slice is combined with the Foundation's existing
   grant system; but is accompanied by explicit requirements to achieve its goals,
-  independent advisory input, and a Restricted Funds  mechanism to enforce these 
+  independent advisory input, and a Restricted Funds  mechanism to enforce these
   requirements.
 * The "easing function" and associated burning of coins are removed, in favor of
   capping each slice at $700k/month funding target. Any excess is kept in a reserve,
   from which it can be withdrawn only to maintain the funding target in the future.
 * Strengthened the transparency and accountability requirements, and harmonized
   them across ECC, Zfnd and major grantees.
-* Removed Zfnd's supervisory role in determining the "principal developer", 
-  fixing it to be ECC (changing this would be sufficiently dramatic to merit a 
+* Removed Zfnd's supervisory role in determining the "principal developer",
+  fixing it to be ECC (changing this would be sufficiently dramatic to merit a
   fork).
-* Removed the changes to the Zfnd board. These would have replaced 3 of Zfnd's 
-  board seats with: a representative of ECC (it is better to keep Zfnd independent), 
-  a new independent research advisory board (we currently have no mechanism to 
-  elect one) and direct vote of ZEC holders (we have no voting mechanism 
-  implemented, and this virtual member cannot be held to the requisite legal 
+* Removed the changes to the Zfnd board. These would have replaced 3 of Zfnd's
+  board seats with: a representative of ECC (it is better to keep Zfnd independent),
+  a new independent research advisory board (we currently have no mechanism to
+  elect one) and direct vote of ZEC holders (we have no voting mechanism
+  implemented, and this virtual member cannot be held to the requisite legal
   duties of directors).
 * Call for, and incentivize, development of decentralized voting and governance.
 * Clarity and brevity.
@@ -75,43 +78,37 @@ which has similar motivations. The major changes are as follows:
 Requirements
 ============
 
-The Dev Fund should encourage decentralization of the work and funding, by 
+The Dev Fund should encourage decentralization of the work and funding, by
 supporting new teams dedicated to Zcash.
 
-The Dev Fund should maintain the existing teams and capabilities in the Zcash 
-ecosystem, unless and until concrete opportunities arise to create even greater 
+The Dev Fund should maintain the existing teams and capabilities in the Zcash
+ecosystem, unless and until concrete opportunities arise to create even greater
 value for the Zcash ecosystem.
 
-There should not be any single entity which is a single point of failure, i.e., 
+There should not be any single entity which is a single point of failure, i.e.,
 whose capture or failure will effectively prevent effective use of the funds.
 
-Major funding decisions should be based, to the extent feasible on inputs from 
+Major funding decisions should be based, to the extent feasible on inputs from
 domain experts and pertinent stakeholders.
 
-The Dev Fund mechanism should not modify the monetary emission curve (and in 
+The Dev Fund mechanism should not modify the monetary emission curve (and in
 particular, should not irrevocably burn coins).
 
 In case the value of ZEC jumps, the Dev Fund recipients should not be allowed
 to wastefully use excessive amounts of funds. Conversely, given market volatility
 and eventual halvings, it is desirable to create rainy-day reserves.
 
-The Dev Fund mechanism should not reduce users' financial privacy or security. 
-In particular, it should not cause them to expose their coin holdings, or to 
-maintain access to secret keys for much longer than they would otherwise. (This 
+The Dev Fund mechanism should not reduce users' financial privacy or security.
+In particular, it should not cause them to expose their coin holdings, or to
+maintain access to secret keys for much longer than they would otherwise. (This
 rules out some form of voting, and of disbursing coins to past/future miners).
 
-The new Dev Fund system should fulfill the above goals for as long as feasible, 
-without requiring further changes at the consensus-code level. (This is because 
-such changes may become increasingly difficult to agree upon as the community 
-grows; and moreover, to the extent that consensus-code changes are agreed on in 
-the future, they will in any case override the current ZIP.)
-
-The new Dev Fund system should be simple to understand and realistic to 
-implement. In particular, it should not assume the creation of new mechanisms 
-(e.g., election systems) or entities (for governance or development) for its 
+The new Dev Fund system should be simple to understand and realistic to
+implement. In particular, it should not assume the creation of new mechanisms
+(e.g., election systems) or entities (for governance or development) for its
 execution; but it should strive to support and use these once they are built.
 
-Comply with legal, regulatory and taxation constraints in pertinent 
+Comply with legal, regulatory and taxation constraints in pertinent
 jurisdictions.
 
 Non-requirements
@@ -119,8 +116,8 @@ Non-requirements
 
 General on-chain governance is outside the scope of this proposal.
 
-Rigorous voting mechanism (whether coin-weighted, holding-time-weighted or 
-one-person-one-vote) are outside the scope of this proposal, though there is 
+Rigorous voting mechanism (whether coin-weighted, holding-time-weighted or
+one-person-one-vote) are outside the scope of this proposal, though there is
 prescribed room for integrating them once available.
 
 
@@ -130,15 +127,17 @@ Specification
 Dev Fund allocation
 -------------------
 
-Starting at the first Zcash halving, and in perpetuity, 20% of the block rewards 
-will be allocated to a "Dev Fund" that consists of the following three slices:
+Starting at the first Zcash halving in 2020, until the second halving in 2024, 
+20% of the block rewards will be allocated to a "Dev Fund" that consists of the 
+following three slices:
 
 * One third to the Electric Coin Company (denoted **ECC slice**)
 * One third the Zcash Foundation, for general use (denoted **Zfnd-GU slice**)
 * One third the Zcash Foundation, for major grants (denoted **Zfnd-MG slice**)
 
 Details below. The fund flow will be implemented at the consensus-rule layer, by 
-sending the corresponding ZEC to the designated address in each block.
+sending the corresponding ZEC to the designated address in each block. This Dev 
+Fund will end at the second halving (unless extended/modified by a future ZIP).
 
 
 ECC slice (Electric Coin Company)
@@ -146,80 +145,85 @@ ECC slice (Electric Coin Company)
 
 This slice of the Dev Fund will flow to ECC.
 
-ECC must undertake a firm obligation to use the Dev Fund only in support of the 
+ECC must undertake a firm obligation to use the Dev Fund only in support of the
 Zcash cryptocurrency and its community.
 
-In particular, ECC must commit to not distribute the Dev Fund proceeds to its 
+In particular, ECC must commit to not distribute the Dev Fund proceeds to its
 partners ("shareholders"), other than:
 
-1. In fair-market-value compensation for specific new work. 
-2. For covering pass-through tax obligations to partners caused by ECC's receipt 
+1. In fair-market-value compensation for specific new work.
+2. For covering pass-through tax obligations to partners caused by ECC's receipt
    of the Dev Fund.
 
-(ECC is encouraged to transition to a corporate structure that would avoid the 
+(ECC is encouraged to transition to a corporate structure that would avoid the
 latter taxes.)
 
-This obligation must be made irrevocable within ECC's corporate governance 
-structure (i.e., its Operating Agreement), and backed by a contractual 
+This obligation must be made irrevocable within ECC's corporate governance
+structure (i.e., its Operating Agreement), and backed by a contractual
 obligation to the Zcash Foundation.
 
 
 Zfnd-GU slice (Zcash Foundation, for general use)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This slice of the Dev Fund will flow to Zfnd, to be used at its discretion for 
-any purpose within its mandate to support Zcash and financial privacy, 
-including: development, education, support community communication on-line and 
-via events, gathering community sentiment, and external awarding grants for all 
+This slice of the Dev Fund will flow to Zfnd, to be used at its discretion for
+any purpose within its mandate to support Zcash and financial privacy,
+including: development, education, support community communication on-line and
+via events, gathering community sentiment, and external awarding grants for all
 of the above.
+
+Zfnd may award grants as profit-sharing contracts, in which case any resulting
+profits will be added to the Zfnd-GU slice (to fund its ongoing operations and
+any future grants).
 
 
 Zfnd-MG slice (Zcash Foundation for major grants)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This slice of the Dev Fund is intended to semi-annually fund independent teams 
-entering the Zcash ecosystem, to perform development and other work for the 
+This slice of the Dev Fund is intended to fund independent teams entering the 
+Zcash ecosystem, to perform major ongoing development (or other work) for the 
 public good of Zcash ecosystem, to the extent that such teams are available and 
 effective. 
 
-The funds will be received and administered by Zfnd. Zfnd will disburse them as 
-"Major Grants", within the framework of Zfnd's grant program but subject to the 
+The funds will be received and administered by Zfnd. Zfnd will disburse them as
+"Major Grants", within the framework of Zfnd's grant program but subject to the
 following additional constraints:
 
-1. These funds may be only be used to issue Major Grants to external parties 
-   that are independent of Zfnd. They may not be used by Zfnd for its internal 
-   operations and direct expenses. 
+1. These funds may be only be used to issue Major Grants to external parties
+   that are independent of Zfnd. They may not be used by Zfnd for its internal
+   operations and direct expenses.
 
 2. Major Grants should support well-specified work proposed by the grantee, at 
-   reasonable market-rate costs, for approximately half a year, and no more than 
-   one year; additional funding would require explicit application for a new 
-   grant.
+   reasonable market-rate costs. They can be of any duration, or ongoing without a 
+   duration limit, but have semiannual review points for continuation of funding.
 
-3. Major Grants may be issued to ECC only if no other parties are available and 
-   capable of performing the specified work with similar effectiveness and cost. 
+3. Major Grants may be issued to ECC only if no other parties are available and
+   capable of performing the specified work with similar effectiveness and cost.
    (The intent is that eventually ECC will not receive Major Grants.)
 
 4. Priority will be given to Major Grants that bolster new teams with 
    substantial (current or prospective) continual existence, and set them up for 
    long-term success, subject to the usual grant award considerations (impact, 
-   ability, risks, team, cost-effectiveness, etc.).
+   ability, risks, team, cost-effectiveness, etc.). Priority will be given Major 
+   Grants that support ecosystem growth by mentorship, coaching, technical 
+   resources, creating entrepreneurial opportunities, etc.
 
 5. Major Grants should specifically further the Zcash cryptocurrency and its
    ecosystem; this is more restrictive than Zfnd's general mission of furthering
    financial privacy.
 
-6. Major Grants awarding is subject to individual approval by Zfnd's Board of 
+6. Major Grants awarding is subject to individual approval by Zfnd's Board of
    Directors, by a majority excluding any members with a conflict of interest.
 
-7. Zfnd shall seek advisory input on its choice of Major Grant awards, by all 
-   effective and reasonable means (e.g., on-line discussion forums, the community 
-   Advisory Board, on-chain voting by holders and miners, and proactive 
-   consultation with experts). The Zfnd Board of Directors shall strive to follow 
-   this advisory input (within the confines of the Foundation's charter and 
-   duties). 
+7. Zfnd shall seek advisory input on its choice of Major Grant awards, by all
+   effective and reasonable means (e.g., on-line discussion forums, the community
+   Advisory Board, on-chain voting by holders and miners, and proactive
+   consultation with experts). The Zfnd Board of Directors shall strive to follow
+   this advisory input (within the confines of the Foundation's charter and
+   duties).
 
-8. Zfnd shall strive to create an independent grant committee to evaluate and 
-   publicly recommend Major Grant proposals, based on the committee's expertise and 
+8. Zfnd shall strive to create an independent grant committee to evaluate and
+   publicly recommend Major Grant proposals, based on the committee's expertise and
    the above inputs.
 
 Zfnd shall recognize the Zfnd-MG slice of the Dev Fund as a Restricted Fund 
@@ -230,56 +234,59 @@ obligations defined below.
 From grant proposers' side, proposals for such grants will be submitted through 
 Zfnd usual grant process, allowing for public discussion and public funding. It 
 is intended that small one-time grants will be funded by drawing on the Zfnd-GU 
-slice (where they also compete with other Zfnd activities), whereas large and 
-recurring grants will be funded from the dedicated Zfnd-MG slice. 
+slice (where they also compete with other Zfnd activities), whereas large 
+long-duration will be funded from the dedicated Zfnd-MG slice; though this is at 
+Zfnd's discretion.
+
+Zfnd shall strive to define target metrics and key performance indicators, and 
+utilize these in its funding decisions.
 
 
 Direct-grant option
 '''''''''''''''''''
 
-It may be deemed better, operationally or legally, if the Major Grant funds are 
-not accepted and disbursed by Zfnd, but rather directly assigned to the 
-grantees. Thus, the following mechanism may be used in perpetuity, if agreed 
+It may be deemed better, operationally or legally, if the Major Grant funds are
+not accepted and disbursed by Zfnd, but rather directly assigned to the
+grantees. Thus, the following mechanism may be used in perpetuity, if agreed
 upon by both ECC and Zfnd before NU4 activation:
 
-Prior to each Network Upgrade, the Foundation shall publish a list of grantees' 
-addresses and the total number of Dev Fund ZEC per block they should receive. 
-ECC and Zfnd shall implement this list in any implementations of the Zcash 
-consensus rules they maintain. This decision will then be, effectively, ratified 
+Prior to each Network Upgrade, the Foundation shall publish a list of grantees'
+addresses and the total number of Dev Fund ZEC per block they should receive.
+ECC and Zfnd shall implement this list in any implementations of the Zcash
+consensus rules they maintain. This decision will then be, effectively, ratified
 by the miners as the network upgrade activates.
 
 
 Funding Target and Volatility Reserve
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Each Dev Fund slice has a Funding Target, initially US $700,000 for each slice. 
-At the end of each calendar month, the fair market value of the Dev Fund ZEC 
-received during that month will be computed, and the excess over the Funding 
+Each Dev Fund slice has a Funding Target, initially US $700,000 for each slice.
+At the end of each calendar month, the fair market value of the Dev Fund ZEC
+received during that month will be computed, and the excess over the Funding
 Target will be put into a dedicated Volatility Reserve account by the funds'
 recipient.
 
-Funds may be withdrawn from the Volatility Reserve account only by that same 
-party, in months where the aforementioned monthly ZEC value falls short of the 
+Funds may be withdrawn from the Volatility Reserve account only by that same
+party, in months where the aforementioned monthly ZEC value falls short of the
 Funding Target, and only to the extent needed to cover that shortfall.
 
 The Volatility Reserve may be kept as ZEC, or sold and held as fiat currency or 
-low-risk liquid investments.
+investments (whose profits will remain in the Volatility Reserve).
 
-The Funding Target may be changed only by unanimous agreement of Zfnd, ECC and 
+The Funding Target may be changed only by unanimous agreement of Zfnd, ECC and
 the majority vote of a voting mechanism weighted by ZEC coin holding. (This is
 meant to encourage the creation of such a voting mechanism. Moreover, in case
 of excessive accumulation of reserves, the community can condition an increase
 of the Funding Target on the redirection of some of the reserves to a
 different entity, miners or an airdrop).
 
-Dev Fund ZEC that has been received, not placed in the Volatility Reserve, and 
-has not yet been used or disbursed, will be kept by the corresponding party (as 
-ZEC, or sold and invested) for later use under the terms of the corresponding 
+Dev Fund ZEC that has been received, not placed in the Volatility Reserve, and
+has not yet been used or disbursed, will be kept by the corresponding party (as
+ZEC, or sold and invested) for later use under the terms of the corresponding
 slice.
 
-Irrevocable obligations to the above must be made by the recipients (e.g., using 
+Irrevocable obligations to the above must be made by the recipients (e.g., using
 their Operating Agreements or by receiving the slice as Restricted Funds).
-
 
 
 Transparency and Accountability
@@ -288,12 +295,12 @@ Transparency and Accountability
 Obligations
 ~~~~~~~~~~~
 
-ECC, Zfnd and Major Grant recipients (during and leading to their award period) 
+ECC, Zfnd and Major Grant recipients (during and leading to their award period)
 shall all accept the following obligations:
 
 Ongoing public reporting requirements:
 
-* Quarterly reports, detailing future plans, execution on previous plans, and 
+* Quarterly reports, detailing future plans, execution on previous plans, and
   finances (balances, and spending broken down by major categories).
 * Monthly developer calls, or a brief report, on recent and forthcoming tasks.
   (Developer calls may be shared.)
@@ -301,38 +308,42 @@ Ongoing public reporting requirements:
 * Annual audited financial report (IRS Form 990, or substantially similar
   information).
 
-These reports may be either organization-wide, or restricted to the income, 
+These reports may be either organization-wide, or restricted to the income,
 expenses and work associated with the receipt of Dev Fund.
 
-It is expected that ECC, Zfnd and Major Grant recipient will be focused 
-primarily (in their attention and resources) on Zcash. Thus, they must promptly 
+It is expected that ECC, Zfnd and Major Grant recipient will be focused
+primarily (in their attention and resources) on Zcash. Thus, they must promptly
 disclose:
 
-* Any major activity they perform (even if not supported by the Dev Fund) that 
+* Any major activity they perform (even if not supported by the Dev Fund) that
   is not in the interest of the general Zcash ecosystem.
 * Any conflict of interest with the general success of the Zcash ecosystem
 
-ECC, Zfnd and grant recipients must promptly disclose any security of privacy 
-risks that may affect users of Zcash (by responsible disclosure under confidence 
+ECC, Zfnd and grant recipients must promptly disclose any security of privacy
+risks that may affect users of Zcash (by responsible disclosure under confidence
 to the pertinent developers, where applicable).
 
-All substantial software whose development was funded by the Dev Fund should be 
-released under an Open Source license (as defined by the Open Source 
+ECC's reports, and Zfnd's annual report on its non-grant operations, should be 
+at least as detailed as grant proposals/reports submitted by other funded 
+parties, and satisfy similar levels of public scrutiny.
+
+All substantial software whose development was funded by the Dev Fund should be
+released under an Open Source license (as defined by the Open Source
 Initiative), preferably the MIT license.
 
 
 Enforcement
 ~~~~~~~~~~~
 
-For grant recipients, these conditions should be included in their contract with 
-Zfnd, such that substantial violation, not promptly remedied, will cause 
+For grant recipients, these conditions should be included in their contract with
+Zfnd, such that substantial violation, not promptly remedied, will cause
 forfeiture of their grant funds and their return to Zfnd.
 
-ECC and Zfnd will contractually commit to each other to fulfill these 
-conditions, and the prescribed use of funds, such that substantial violation, 
-not promptly remedied, will permit the other party to issue a modified version 
-of Zcash node software that removes the violating party's Dev Fund slice, and 
-use the Zcash trademark for this modified version. The slice's funds will be 
+ECC and Zfnd will contractually commit to each other to fulfill these
+conditions, and the prescribed use of funds, such that substantial violation,
+not promptly remedied, will permit the other party to issue a modified version
+of Zcash node software that removes the violating party's Dev Fund slice, and
+use the Zcash trademark for this modified version. The slice's funds will be
 reassigned to Zfnd-MG (whose integrity is legally protected by the Restricted Fund
 treatment).
 
@@ -340,19 +351,38 @@ treatment).
 Future Community Governance
 ===========================
 
-Decentralized community governance is desirable, yet difficult, and thus lies 
-outside this proposal scope, except for two places mentioned above:
+Decentralized community governance is used in this proposal in the following places:
 
 1. As advisory input to the `Zfnd-MG slice (Zcash Foundation for major grants)`_.
-   
+
 2. For changing the `Funding Target and Volatility Reserve`_ (which is an
    incentive for ECC and Zfnd to *create* the voting mechanism).
 
-It is highly desirable to develop robust means to for community voting and 
-governance, and to integrate them into the Dev Fund disbursement process as well as 
-the accountability of the funded parties, before the 2nd Zcash halving in 2024. 
-ECC and Zfnd should place high priority on such development and its deployment.
-   
+3. In Zfnd's future board composition (see below).
+
+It is highly desirable to develop robust means of decentralized community voting 
+and governance, and to integrate them into all of the above processes, by the 
+end of 2021. ECC and Zfnd should place high priority on such development and its 
+deployment, in their activities and grant selection.
+
+
+Zfnd Board Composition
+======================
+
+Zfnd should formally integrate robust means of decentralized community voting 
+into its Board of Director elections, in a way that is consistent with Zfnd's 
+mission and values. Zfnd should lead the process for determining and 
+implementing this, legally and technically, by the end of 2021.
+
+Members of Zfnd's Board of Directors must not hold equity in ECC or have current 
+business or employment relationships with ECC.
+
+Grace period: members of the board who hold ECC equity (but do not have other 
+current relationships to ECC) may dispose of their equity, or quit the Board, by 
+1 March 2021. (The grace period is to allow for orderly replacement, and also to 
+allow time for ECC corporate reorganization related to Dev Fund receipt, which 
+may affect how disposition of equity would be executed.)
+
 
 Disclosures
 ===========
@@ -372,11 +402,11 @@ This proposal is his private opinion and does not represent any of the above.
 Acknowledgements
 ================
 
-This proposed is most closely based on the Matt Luongo `Decentralizing the Dev 
-Fee`_ proposal, with substantial changes and mixing in elements from 
-*@aristarchus*'s `20% split between the ECC and the Foundation`_ proposal, Josh 
+This proposed is most closely based on the Matt Luongo `Decentralizing the Dev
+Fee`_ proposal, with substantial changes and mixing in elements from
+*@aristarchus*'s `20% split between the ECC and the Foundation`_ proposal, Josh
 Cincinnati's `A Grand Compromise/Synthesis ZIP Proposal`_ proposal and
-extensive discussions in the `Zcash Community Forum`_. The author is grateful to 
+extensive discussions in the `Zcash Community Forum`_. The author is grateful to
 all of the above for their excellent ideas and many insightful discussions, and
 to Howard Loo and forum users *@aristarchus* and *@dontbeevil* for valuable
 initial comments on this proposal.
