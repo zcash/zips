@@ -435,9 +435,9 @@ and Antonio_ for early review of the text this proposal.
 Thanks to my fellow dev fund ZIP authors, `Avichal Garg`_ at Electric Capital,
 `Antoinette Marie`_, `Josh Cincinnati, ED`_ at the Zcash Foundation,
 `Jacob Phillips`_ at Autonomous Partners, `Andrew Miller`_, `Chris Burniske`_,
-and the fellows at `Blocktown`_, each of whose ideas influenced this proposal.
-And of course, thanks to `Sonya Mann`_ and the Foundation for coordinating
-discussions around these different proposals.
+`Eran Tromer`_, and the fellows at `Blocktown`_, each of whose ideas influenced
+this proposal.  And of course, thanks to `Sonya Mann`_ and the Foundation for
+coordinating discussions around these different proposals.
 
 .. _Avichal Garg: https://forum.zcashcommunity.com/t/dev-fund-proposal-5-entity-strategic-council-approach/34801
 .. _Antoinette Marie: https://forum.zcashcommunity.com/t/zcash-dev-fund-results-based-financing-equity-proposal-amendment/35052/31
@@ -446,6 +446,7 @@ discussions around these different proposals.
 .. _Andrew Miller: https://forum.zcashcommunity.com/t/dev-fund-proposal-miner-directed-dev-fund-was-20-to-any-combination-of-ecc-zfnd-parity-or-burn/33864
 .. _Blocktown: https://forum.zcashcommunity.com/t/blocktown-development-fund-proposal-10-to-a-2-of-3-multisig-with-community-involved-third-entity/34782
 .. _Chris Burniske: https://twitter.com/cburniske
+.. _Eran Tromer: https://forum.zcashcommunity.com/t/dev-fund-proposal-dev-fund-to-ecc-zfnd-major-grants/35364/15
 .. _Sonya Mann: https://github.com/sonyamann
 
 Outside ongoing discussions in the forum and with other ZIP authors, I've spoken
