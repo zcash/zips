@@ -15,10 +15,10 @@ This proposal describes a structure for a the Zcash Development Fund, to be
 enacted in Network Upgrade 4 and last for 4 years. This Dev Fund would consist 
 of 20% of the block rewards, split into 3 slices:
 
-* 1/3 for the Electric Coin Company
-* 1/3 for Zcash Foundation (for internal work and grants)
-* 1/3 for additional "Major Grants" for large-scale long-term projects (decided 
-  by the Zcash Foundation, with extra community input and scrutiny)
+* 35% for the Electric Coin Company
+* 25% for Zcash Foundation (for internal work and grants)
+* 40% for additional "Major Grants" for large-scale long-term projects (decided
+by the Zcash Foundation, with extra community input and scrutiny)
 
 Funding is capped at $700k/month per slice. Governance and accountability are 
 based on existing entities and legal mechanisms, and increasingly decentralized 
