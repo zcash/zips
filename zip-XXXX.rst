@@ -246,10 +246,10 @@ room for the ECC to work with a robust developer ecosystem.
 
 In this proposal, the Foundation shall support community development through
 running the forum and events, gathering community sentiment, managing short-term
-development grants, and conducting the diligence behind the assignment and
-disbursement of a development fee. This development fee shall be funded by 20%
-of the block reward, with as much as half of the fee burned in case of
-extraordinary growth in the price of ZEC.
+development grants, research and development, and conducting the diligence
+behind the assignment and disbursement of a development fee. This development
+fee shall be funded by 20% of the block reward, with as much as half of the fee
+burned in case of extraordinary growth in the price of ZEC.
 
 The Foundation shall receive 25% of the dev fee. If the volume-weighted average
 price of ZEC over the month means the foundation would receive greater than
