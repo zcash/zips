@@ -135,32 +135,28 @@ privacy proponents who have driven this ecosystem forward and represent its
 values. Nevertheless, their mode of operation today skews a healthy balance of
 power in Zcash governance.
 
-The mechanisms of that skew are the Zcash trademark, held by the ECC, and
-primary client software development, now split between the ECC and the
-Foundation.
+The mechanisms of that skew are the Zcash trademark, held jointly by the
+Foundation and the ECC, and primary client software development, now split
+between the ECC and the Foundation.
 
-In a disagreement between miners, users, and developers, the ECC has the
-unilateral option of enforcing the Zcash trademark, effectively allowing them
-to choose a winning fork against the will of users, miners, and other
-developers.
+In a disagreement between miners, users, and developers, the Foundation and ECC
+have the option of enforcing the Zcash trademark, effectively allowing them to
+choose a winning fork against the will of users, miners, and other developers.
 
-While the Foundation's maintenance of the `zebrad` client would normally allow
-them to "soft veto" a network upgrade, they don't have a similar veto on the
-Zcash trademark enforcement.
+In addition, the Foundation's sole maintenance of the `zebrad` client allows
+them to "soft veto" a network upgrade.
 
-Compounding these issues, the Foundation and the ECC aren't arms-length entities
-as they're organized today.
+Unfortunately, the Foundation and the ECC aren't organized as arms-length
+entities today.
 
 This situation poses a number of problems for new and existing Zcash users, as
 well as both entities.
 
-* The threat of a central entity overriding (or being forced to override) the
-  will of users undermines self-sovereignty.
+* The threat of two entangled entities overriding (or being forced to override)
+  the will of users undermines self-sovereignty.
 * The ECC and Foundation are both put at legal risk. As entangled entities,
   they're remarkably similar to a single entity when trying to minimize
   regulatory risk.
-* Power between the two entites *hasn't* been decentralized. The ECC remains
-  a unilateral power, as well as a single point of failure.
 
 The "crowding out" problem
 --------------------------
@@ -324,7 +320,7 @@ The principal developer shall make a number of guarantees.
    the Foundation as assurance.
 2. They shall maintain a well-run board and employ a qualified CFO.
 3. In addition to the existing open-source requirements, they shall agree to
-   assign any trademarks or patents relevant to Zcash to the Foundation.
+   assign any patents relevant to Zcash to the Foundation.
 
 In exchange, the principal developer is granted an indefinite minimum dev fee
 allocation of 20%, with a maximum allocation of 35% of the total fee, as
