@@ -88,7 +88,7 @@ value for the Zcash ecosystem.
 There should not be any single entity which is a single point of failure, i.e.,
 whose capture or failure will effectively prevent effective use of the funds.
 
-Major funding decisions should be based, to the extent feasible on inputs from
+Major funding decisions should be based, to the extent feasible, on inputs from
 domain experts and pertinent stakeholders.
 
 The Dev Fund mechanism should not modify the monetary emission curve (and in
@@ -101,7 +101,7 @@ and eventual halvings, it is desirable to create rainy-day reserves.
 The Dev Fund mechanism should not reduce users' financial privacy or security.
 In particular, it should not cause them to expose their coin holdings, or to
 maintain access to secret keys for much longer than they would otherwise. (This
-rules out some form of voting, and of disbursing coins to past/future miners).
+rules out some forms of voting, and of disbursing coins to past/future miners).
 
 The new Dev Fund system should be simple to understand and realistic to
 implement. In particular, it should not assume the creation of new mechanisms
@@ -158,9 +158,8 @@ partners ("shareholders"), other than:
 (ECC is encouraged to transition to a corporate structure that would avoid the
 latter taxes.)
 
-This obligation must be made irrevocable within ECC's corporate governance
-structure (i.e., its Operating Agreement), and backed by a contractual
-obligation to the Zcash Foundation.
+This obligation must be made irrevocable, e.g., within ECC's corporate
+governance structure (i.e., its Operating Agreement) or contractual obligations.
 
 
 Zfnd-GU slice (Zcash Foundation, for general use)
@@ -177,7 +176,7 @@ profits will be added to the Zfnd-GU slice (to fund its ongoing operations and
 any future grants).
 
 
-Zfnd-MG slice (Zcash Foundation for major grants)
+Zfnd-MG slice (Zcash Foundation, for major grants)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This slice of the Dev Fund is intended to fund independent teams entering the 
@@ -353,7 +352,7 @@ Future Community Governance
 
 Decentralized community governance is used in this proposal in the following places:
 
-1. As advisory input to the `Zfnd-MG slice (Zcash Foundation for major grants)`_.
+1. As advisory input to the `Zfnd-MG slice (Zcash Foundation, for major grants)`_.
 
 2. For changing the `Funding Target and Volatility Reserve`_ (which is an
    incentive for ECC and Zfnd to *create* the voting mechanism).
