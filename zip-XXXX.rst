@@ -49,27 +49,21 @@ This proposal is based on Matt Luongo's `Decentralizing the Dev Fee`_ proposal,
 which has similar motivations. The major changes are as follows:
 
 * The Dev Fund slice intended for external recipients (beyond ECC, Zfnd and
-  existing Zfnd grants) is changed from 1/2 to 1/3, and is permitted to be used to
-  fund ECC if no alternatives present themselves, to mitigate unwarranted loss of
-  existing capabilities.
+  existing Zfnd grants) may be used to fund ECC if no competitive alternatives
+  present themselves, to mitigate unwarranted loss of existing capabilities.
 * For simplicity, the above slice is combined with the Foundation's existing
   grant system; but is accompanied by explicit requirements to achieve its goals,
   independent advisory input, and a Restricted Funds  mechanism to enforce these
   requirements.
-* The "easing function" and associated burning of coins are removed, in favor of
-  capping each slice at $700k/month funding target. Any excess is kept in a reserve,
-  from which it can be withdrawn only to maintain the funding target in the future.
+* The "easing function" coin value cap is removed, in favor of capping each slice
+  at $700k/month funding target. Any excess is kept in a reserve, from which it
+  can be withdrawn only to maintain the funding target in the future.
 * Strengthened the transparency and accountability requirements, and harmonized
   them across ECC, Zfnd and major grantees.
 * Removed Zfnd's supervisory role in determining the "principal developer",
   fixing it to be ECC (changing this would be sufficiently dramatic to merit a
   fork).
-* Removed the changes to the Zfnd board. These would have replaced 3 of Zfnd's
-  board seats with: a representative of ECC (it is better to keep Zfnd independent),
-  a new independent research advisory board (we currently have no mechanism to
-  elect one) and direct vote of ZEC holders (we have no voting mechanism
-  implemented, and this virtual member cannot be held to the requisite legal
-  duties of directors).
+* Small differences in prescribed changes to the Zfnd board.
 * Call for, and incentivize, development of decentralized voting and governance.
 * Clarity and brevity.
 
