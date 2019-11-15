@@ -19,7 +19,7 @@ ZFnd
   Zcash Foundation, a US-based non-profit corporation
 Halvening
   a regularly-scheduled discontinuity where the rate of ZEC issuance halves, 
-  expected first in roughyl October 2020 then next in roughly October 2024
+  expected first in roughly October 2020 then next in roughly October 2024
 
 
 Abstract
