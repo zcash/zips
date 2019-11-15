@@ -111,9 +111,10 @@ On a chain like Bitcoin, any of these roles can veto a network upgrade.
    new network rules, orphaning a minority effort. They can also attack any fork
    attempt that doesn't change
 2. Users can veto a fork by refusing to update their full nodes, rejecting
-   blocks as invalid -- as demonstrated in the UASF fiasco resulting from the
-   SegWit2x attempt to force a Bitcoin hardfork. Users can also vote with their
-   dollars, acting as a fork resolution of last resort via market pressure.
+   blocks as invalid -- as demonstrated in the UASF movement successfully
+   countering the SegWit2x attempt to force a Bitcoin hardfork. Users can also
+   vote with their dollars, acting as a fork resolution of last resort via
+   market pressure.
 3. Developers can refuse to update client codebases to follow a fork. While this
    might not seem like a strong veto, in practice that means any fork will need
    at least one additional development team, or the agreement of existing client
