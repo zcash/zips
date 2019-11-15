@@ -16,9 +16,11 @@ managing new Zcash development, decentralizing those development efforts, and
 resolving governance hangups between the Zcash Foundation and the Electric Coin
 Company.
 
-These goals are accomplished via a 20% dev fee, enacted in NU4, This fee will
-fund a diverse group of development teams to ensure Zcash maintains
-best-in-class research and engineering talent while growing a robust ecosystem.
+These goals are accomplished via a 20% dev fee, enacted in NU4 and continue for
+one halving period. This fee will fund a diverse group of development teams to
+ensure Zcash maintains best-in-class research and engineering talent while
+growing a robust ecosystem, funding the Zcash Foundation with 25% and a newly
+established principal developer role with as much as 35%.
 
 Motivation
 ==========
@@ -269,13 +271,12 @@ encouraging fiscal discipline.
 The remaining 75% of the dev fee shall be distributed between development teams
 working to maintain clients.
 
-* One third of the remaining fee (25% of the total) shall be reserved for the
-  role of the "principal developer", a developer with additional voice in Zcash
-  governance. The principal developer allocation shall be capped similarly to
-  the Foundation's, based on the monthly volume-weighted average price.
-* The remaining two thirds of the fee (50% of the total), called the "outside
-  development fee", shall be distributed between at least two development teams,
-  chosen semi-annually by the Foundation, coinciding with network upgrades.
+* Up to 35% of the total fee  shall be reserved for the
+  role of the "principal developer", a developer with assured long-term
+  alignment with the project.
+* The remaining 40% of the fee, called the "outside development fee", shall be
+  distributed between at least two development teams, chosen semi-annually by
+  the Foundation, coinciding with network upgrades.
 
 Prior to each network upgrade, the Foundation shall recommend a list of
 addresses and a total number of ZEC per block each address is meant to receive
@@ -324,13 +325,15 @@ The principal developer shall make a number of guarantees.
 3. In addition to the existing open-source requirements, they shall agree to
    assign any trademarks or patents relevant to Zcash to the Foundation.
 
-In exchange, the principal developer is granted an indefinite dev fee allocation
-and a wide remit to pursue longer-term research relevant to Zcash, as well as
-a voice on the board of the Foundation. The principal developer will not be
-subject to semi-annual review, though it will submit the same plans required of
-other recipients. The principal developer will only be recommended for removal
-by the Foundation in extraordinary circumstances, including reneging on the
-above guarantees or extreme negligence.
+In exchange, the principal developer is granted an indefinite minimum dev fee
+allocation of 20%, with a maximum allocation of 35% of the total fee, as
+recommended annually by the Foundation.
+
+The principal developer will have a wide remit to pursue longer-term research
+relevant to Zcash, though it will submit the same plans required of other
+recipients. The principal developer will only be recommended for removal by the
+Foundation in extraordinary circumstances, including reneging on the above
+guarantees or extreme negligence.
 
 Minimum viable Foundation
 -------------------------
