@@ -19,7 +19,7 @@ index.html: README.rst
 	sed -i 's|</head>|<link rel="stylesheet" href="css/zip-style.css"><link rel="stylesheet" href="assets/css/style.css"></head>|' $@
 	sed -i 's|<a href="\([^":]*\).rst">|<a href="\1">|' $@
 
-README.rst: makeindex.sh README.template
+README.rst: makeindex.sh README.template $(filter-out README.rst,$(wildcard *.rst))
 	./makeindex.sh | cat README.template - >README.rst
 
 .PHONY: clean
