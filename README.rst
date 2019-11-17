@@ -82,5 +82,9 @@ Index of ZIPs
     <tr> <td>243</td> <td class="left"><a href="zip-0243.rst">Transaction Signature Verification for Sapling</a></td> <td>Final</td>
     <tr> <td>308</td> <td class="left"><a href="zip-0308.rst">Sprout to Sapling Migration</a></td> <td>Final</td>
     <tr> <td>401</td> <td class="left"><a href="zip-0401.rst">Addressing mempool denial-of-service</a></td> <td>Final</td>
+    <tr> <td>1001</td> <td class="left"><a href="zip-1001.rst">Keep the Block Distribution as Initially Defined — 90% to Miners</a></td> <td>Draft</td>
+    <tr> <td>1002</td> <td class="left"><a href="zip-1002.rst">Opt-in Donation Feature</a></td> <td>Draft</td>
+    <tr> <td>1007</td> <td class="left"><a href="zip-1007.rst">Enforce Development Fund Commitments with a Legal Charter</a></td> <td>Draft</td>
+    <tr> <td>1008</td> <td class="left"><a href="zip-1008.rst">Fund ECC for Two More Years</a></td> <td>Draft</td>
     <tr> <td>guide</td> <td class="left"><a href="zip-guide.rst">{Something Short and To the Point}</a></td> <td>Draft</td>
   </table></embed>
