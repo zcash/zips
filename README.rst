@@ -86,6 +86,7 @@ Index of ZIPs
     <tr> <td>1002</td> <td class="left"><a href="zip-1002.rst">Opt-in Donation Feature</a></td> <td>Draft</td>
     <tr> <td>1003</td> <td class="left"><a href="zip-1003.rst">20% Split Evenly Between the ECC and the Zcash Foundation, and a Voting System Mandate</a></td> <td>Draft</td>
     <tr> <td>1004</td> <td class="left"><a href="zip-1004.rst">Miner-Directed Dev Fund</a></td> <td>Draft</td>
+    <tr> <td>1005</td> <td class="left"><a href="zip-1005.rst">Zcash Community Funding System</a></td> <td>Draft</td>
     <tr> <td>1006</td> <td class="left"><a href="zip-1006.rst">Development Fund of 10% to a 2-of-3 Multisig with Community-Involved Third Entity</a></td> <td>Draft</td>
     <tr> <td>1007</td> <td class="left"><a href="zip-1007.rst">Enforce Development Fund Commitments with a Legal Charter</a></td> <td>Draft</td>
     <tr> <td>1008</td> <td class="left"><a href="zip-1008.rst">Fund ECC for Two More Years</a></td> <td>Draft</td>
