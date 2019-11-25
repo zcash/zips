@@ -3,7 +3,7 @@ SHELL=/bin/bash -eo pipefail
 # Experimental; options are pdflatex, lualatex, or xelatex.
 # On Debian, LuaLaTeX needs the texlive-luatex package, and XeLaTeX needs the texlive-xetex package.
 # Make sure to read <https://github.com/zcash/zips/issues/249>.
-ENGINE=
+ENGINE=pdflatex
 
 LATEXMKOPT_pdflatex=
 LATEXMKOPT_xelatex=-pdflatex=xelatex -dvi- -ps-
@@ -15,7 +15,7 @@ LATEX=$(ENGINE) --halt-on-error --file-line-error
 NOCRUFT=|awk '{gsub(/[({<][/][^ ]* ?/,"")}1'
 
 .PHONY: all
-all: blossom sapling sprout
+all: heartwood blossom sapling sprout
 
 sprout.pdf: protocol.tex zcash.bib incremental_merkle.png key_components.png
 	$(MAKE) sprout
@@ -25,6 +25,9 @@ sapling.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_saplin
 
 blossom.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
 	$(MAKE) blossom
+
+heartwood.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
+	$(MAKE) heartwood
 
 .PHONY: auxsprout
 auxsprout:
@@ -84,6 +87,25 @@ pvcblossom:
 	rm -f aux/blossom.*
 	$(LATEXMK) -jobname=blossom -auxdir=aux -pvc protocol $(NOCRUFT)
 
+.PHONY: auxheartwood
+auxheartwood:
+	printf '\\toggletrue{isheartwood}\n\\renewcommand{\\docversion}{Version %s [\\HeartwoodSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	mkdir -p aux
+	rm -f aux/heartwood.*
+	$(LATEXMK) -jobname=heartwood -auxdir=aux -outdir=aux protocol $(NOCRUFT)
+
+.PHONY: heartwood
+heartwood:
+	$(MAKE) auxheartwood
+	mv -f aux/heartwood.pdf .
+
+.PHONY: pvcheartwood
+pvcheartwood:
+	printf '\\toggletrue{isheartwood}\n\\renewcommand{\\docversion}{Version %s [\\HeartwoodSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	mkdir -p aux
+	rm -f aux/heartwood.*
+	$(LATEXMK) -jobname=heartwood -auxdir=aux -pvc protocol $(NOCRUFT)
+
 .PHONY: nolatexmk-sprout
 nolatexmk-sprout:
 	printf '\\renewcommand{\\docversion}{Version %s [\\SproutSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
@@ -121,15 +143,30 @@ nolatexmk-blossom:
 	$(LATEX) -jobname=blossom protocol.tex || { touch incremental_merkle.png; exit 1; }
 	cp -f blossom.pdf protocol.pdf
 
+.PHONY: nolatexmk-heartwood
+nolatexmk-heartwood:
+	printf '\\toggletrue{isheartwood}\n\\renewcommand{\\docversion}{Version %s [\\HeartwoodSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	# If $(LATEX) fails, touch an input so that 'make' won't think it is up-to-date next time.
+	rm -f heartwood.aux heartwood.bbl heartwood.blg heartwood.brf heartwood.bcf
+	$(LATEX) -jobname=heartwood protocol.tex || { touch incremental_merkle.png; exit 1; }
+	biber heartwood
+	$(LATEX) -jobname=heartwood protocol.tex || { touch incremental_merkle.png; exit 1; }
+	$(LATEX) -jobname=heartwood protocol.tex || { touch incremental_merkle.png; exit 1; }
+	sh mymakeindex.sh -o heartwood.ind heartwood.idx
+	$(LATEX) -jobname=heartwood protocol.tex || { touch incremental_merkle.png; exit 1; }
+
 .PHONY: clean
 clean:
-	rm -f aux/* html/* protocol.ver \
-              sprout.dvi  sprout.pdf  sprout.bbl  sprout.blg  sprout.brf      sprout.toc \
-              sprout.aux  sprout.out  sprout.log  sprout.bcf  sprout.run.xml  sprout.fls  sprout.fdb_latexmk \
-              sprout.idx  sprout.ilg  sprout.ind  sprout.ind.original \
-              sapling.dvi sapling.pdf sapling.bbl sapling.blg sapling.brf     sapling.toc \
-              sapling.aux sapling.out sapling.log sapling.bcf sapling.run.xml sapling.fls sapling.fdb_latexmk \
-              sapling.idx sapling.ilg sapling.ind sapling.ind.original \
-              blossom.dvi blossom.pdf blossom.bbl blossom.blg blossom.brf     blossom.toc \
-              blossom.aux blossom.out blossom.log blossom.bcf blossom.run.xml blossom.fls blossom.fdb_latexmk \
-              blossom.idx blossom.ilg blossom.ind blossom.ind.original
+	rm -f aux/* html/* protocol.ver protocol.pdf \
+              sprout.dvi    sprout.pdf    sprout.bbl    sprout.blg    sprout.brf        sprout.toc \
+              sprout.aux    sprout.out    sprout.log    sprout.bcf    sprout.run.xml    sprout.fls    sprout.fdb_latexmk \
+              sprout.idx    sprout.ilg    sprout.ind    sprout.ind.original \
+              sapling.dvi   sapling.pdf   sapling.bbl   sapling.blg   sapling.brf       sapling.toc \
+              sapling.aux   sapling.out   sapling.log   sapling.bcf   sapling.run.xml   sapling.fls   sapling.fdb_latexmk \
+              sapling.idx   sapling.ilg   sapling.ind   sapling.ind.original \
+              blossom.dvi   blossom.pdf   blossom.bbl   blossom.blg   blossom.brf       blossom.toc \
+              blossom.aux   blossom.out   blossom.log   blossom.bcf   blossom.run.xml   blossom.fls   blossom.fdb_latexmk \
+              blossom.idx   blossom.ilg   blossom.ind   blossom.ind.original \
+              heartwood.dvi heartwood.pdf heartwood.bbl heartwood.blg heartwood.brf     heartwood.toc \
+              heartwood.aux heartwood.out heartwood.log heartwood.bcf heartwood.run.xml heartwood.fls heartwood.fdb_latexmk \
+              heartwood.idx heartwood.ilg heartwood.ind heartwood.ind.original
