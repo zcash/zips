@@ -92,5 +92,6 @@ Index of ZIPs
     <tr> <td>1008</td> <td class="left"><a href="zip-1008.rst">Fund ECC for Two More Years</a></td> <td>Draft</td>
     <tr> <td>1009</td> <td class="left"><a href="zip-1009.rst">Five-Entity Strategic Council</a></td> <td>Draft</td>
     <tr> <td>1010</td> <td class="left"><a href="zip-1010.rst">Compromise Dev Fund Proposal With Diverse Funding Streams</a></td> <td>Draft</td>
+    <tr> <td>1011</td> <td class="left"><a href="zip-1011.rst">Decentralize the Dev Fee</a></td> <td>Draft</td>
     <tr> <td>guide</td> <td class="left"><a href="zip-guide.rst">{Something Short and To the Point}</a></td> <td>Draft</td>
   </table></embed>
