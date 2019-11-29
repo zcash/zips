@@ -138,5 +138,5 @@ References
 ==========
 
 .. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://tools.ietf.org/html/rfc2119>`_
-.. [#protocol] `Zcash Protocol Specification, Version {...} or later [Overwinter+Sapling+Blossom] <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
-.. [#zip-xxxx] `ZIP xxxx: Title <https://github.com/zcash/zips/blob/master/zip-xxxx.rst>`_
+.. [#protocol] `Zcash Protocol Specification, Version {...} or later [Overwinter+Sapling+Blossom] <protocol/protocol.pdf>`_
+.. [#zip-xxxx] `ZIP xxxx: Title <zip-xxxx.rst>`_
