@@ -29,7 +29,7 @@ Layer 2 protocols like Lightning enable scalable payments for Bitcoin but lack t
 Specification
 =============
 
-This specification details an initial approach to integrating the features of Bolt into Zcash in a future network upgrade and depends on the WTP ZIP [#wtp-programs]_ that introduces Whitelisted Transparent Programs (WTPs).
+This specification details an initial approach to integrating the features of Bolt into Zcash in a future network upgrade and depends on the WTP ZIP [#wtp-programs]_ that introduces Whitelisted Transparent Programs (WTPs). Our prototype implementation can be found here: [#BoltWTP]_.
 
 1. General requirements for Bolt protocol
 --------------------------
@@ -135,29 +135,30 @@ Transparent programs take as input a ``predicate``, ``witness``, and ``context``
 
 2. ``cust-close`` program. The purpose of this WTP is to allow the customer to initiate channel closure as specified in Section 1.3. The program is specified as follows:
 
-	a. ``predicate``: ``<<channel-token> || <wallet>>``, where
+	a. ``predicate``: ``<<channel-token> || <block-height> || <wallet>>``, where
 	
-		1. ``<channel-token> = <<cust-pk> || <merch-pk> || <MERCH-PK>>``, and
-		2. ``<wallet> = <<wpk> || <balance-cust> || <balance-merch>>``.
+		1. ``<channel-token> = <<cust-pk> || <merch-pk> || <MERCH-PK>>``,
+		2. ``<block_height>`` is the earliest block-height when balance can be spend, and
+		3. ``<wallet> = <<wpk> || <balance-cust> || <balance-merch>>``.
 	b. ``witness``: The witness is defined as one of the following, where the first byte is used to denote witness type:
 	
 		1. ``<<0x0> || <cust-sig>>``
 		2. ``<<0x1> || <merch-sig> || <address> || <revocation-token>>``
 	c. ``verify_program`` behaves as follows:
 	
-		1. If witness is of type ``0x0``, check that ``<cust-sig>`` is valid and a relative timeout has been met
-		2. If witness is of type ``0x1``, check that 1 output is created paying ``<balance-merch + balance-cust>`` to ``<address>``. Also check that ``<merch-sig>`` is a valid signature on ``<<address> || <revocation-token>>`` and that ``<revocation-token>`` contains a valid signature under ``<wpk>`` on ``<<wpk> || REVOKED>``.
+		1. If witness is of type ``0x0``, check that ``<cust-sig>`` is valid and ``<block-height>`` has been reached
+		2. If witness is of type ``0x1``, check that 1 output is created paying ``<balance-cust>`` to ``<address>``. Also check that ``<merch-sig>`` is a valid signature on ``<<address> || <revocation-token>>`` and that ``<revocation-token>`` contains a valid signature under ``<wpk>`` on ``<<wpk> || REVOKED>``.
 
 3. ``merch-close``. The purpose of this WTP is to allow a merchant to initiate channel closure as specified in Section 1.3. The program is specified as follows:
 
-	a. ``predicate``: ``<<channel-token> || <merch-close-address>>``.
+	a. ``predicate``: ``<<channel-token> || <block-height> || <merch-close-address>>``.
 	b. ``witness`` is defined as one of the following, where the first byte is used to denote witness type:
 	
 		1. ``<<0x0> || <merch-sig>>``
 		2. ``<<0x1> || <cust-sig> || <wallet> || <closing-token>>``, where ``<wallet> = <<wpk> || <balance-cust> || <balance-merch>>``.
 	c. ``verify_program`` behaves as follows:
 		
-			1. If witness is of type ``0x0``, check that ``<merch-sig>`` is valid and a relative timeout has been met
+			1. If witness is of type ``0x0``, check that ``<merch-sig>`` is valid and ``<block-height>`` has been reached
 			2. If witness is of type ``0x1``, check that 2 new outputs are created (unless one of the balances is zero), with the specified balances:
 			
 				+ one paying ``<balance-merch>`` to ``<merch-close-address>`` 
@@ -323,7 +324,7 @@ The customer and merchant can alternatively collaborate off-chain to create a mu
 Reference Implementation
 ========================
 
-TBD
+.. [#BoltWTP] _`Bolt WTP implementation for Zcash <https://github.com/boltlabs-inc/librustzcash>`
 
 References
 ==========
