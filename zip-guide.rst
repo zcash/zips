@@ -4,7 +4,7 @@
   Title: {Something Short and To the Point}
   Owners: First Owner <email>
           ...
-  Credits: First Credited <optional email>
+  Credits: First Credited
            ...
   Status: Draft
   Category: {Consensus | Standards Track | Network | RPC | Wallet | Informational | Process}
