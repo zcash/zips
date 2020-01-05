@@ -2,10 +2,15 @@
 # sudo apt-get install python-pip
 # sudo pip install rst2html5
 
-.PHONY: all
-all:
+.PHONY: all all-zips protocol
+all-zips:
 	$(MAKE) README.rst
 	$(MAKE) index.html $(addsuffix .html,$(filter-out README,$(basename $(wildcard *.rst))))
+
+all: all-zips protocol
+
+protocol:
+	$(MAKE) -C protocol
 
 index.html: README.rst
 	$(eval TITLE::=$(shell echo '$(basename $<)' | sed -r 's|zip-0{0,3}|ZIP |'): $(shell grep -E '^(\.\.)?\s*Title:' $< |sed 's|.*Title:\s*||'))
