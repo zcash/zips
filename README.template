@@ -12,44 +12,17 @@ Conduct <https://github.com/zcash/zcash/blob/master/code_of_conduct.md>`__.
 The ZIP process is documented in `ZIP 0 <zip-0000.rst>`__.
 
 
-NU3 ZIPs for consideration
---------------------------
+NU3 ZIPs
+--------
 
-This is the list of ZIPs that were under consideration for the NU3
+This is the list of ZIPs planned to be included in the NU3
 upgrade (around ~April 2020).
 
--  `Sapling Anchor Deduplication within
-   Transactions <https://github.com/zcash/zips/blob/master/zip-0210.rst>`__
--  `Disabling Addition of New Value to the Sprout Value
-   Pool <https://github.com/daira/zips/blob/disable-sprout-outputs/zip-0211.rst>`__
--  `Add Bolt
-   support <https://github.com/boltlabs-inc/zips/blob/master/zip-bolt-support.rst>`__
 -  `Shielded
    Coinbase <https://github.com/str4d/zips/blob/zip-str4d-shielded-coinbase/zip-0213.rst>`__
--  `Enable Staked Polling from the Sapling
-   Pool <https://github.com/acityinohio/zips/blob/sapling-polling/zip-draft.rst>`__
 -  `Adding MMR Proofs to Block Headers, and their use in the FlyClient
    Protocol <https://github.com/therealyingtong/zips/blob/master/zip-0221.rst>`__
--  `Multisig <https://github.com/omershlo/zips/blob/multisig/zip-multisig.rst>`__
--  `Transfer Sapling Ephemeral Secret to Recipient in Note
-   Plaintext <https://github.com/ebfull/zips/blob/unlinkable-addrs/zip-seanbowe-esktransfer.rst>`__
 
-Deadlines for NU4
------------------
-
-+-------------------------------+------------------+
-| Event                         | Date             |
-+===============================+==================+
-| ZIP draft submission deadline | August 31, 2019  |
-+-------------------------------+------------------+
-| Feature selection done        | October 31, 2019 |
-+-------------------------------+------------------+
-| Testnet beta code release     | March 31, 2020   |
-+-------------------------------+------------------+
-| Testnet activation            | May 31, 2020     |
-+-------------------------------+------------------+
-| Mainnet activation            | October 2020     |
-+-------------------------------+------------------+
 
 License
 -------
