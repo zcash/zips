@@ -89,6 +89,27 @@ Protocol States and Future Compatibility
 
 Zcash is likely to extend shielded functionality in the future in a manner of ways, potentially including even general purpose stateful extensions. If this ZIP is standardized, all such new functionality specifications MUST define appropriate semantics for the four `protocol lifecycle states` above.
 
+User Interface Interactions
+---------------------------
+
+This ZIP standardizes several user interface requirements:
+
+Addresses
+~~~~~~~~~
+
+Some major upgrades will require address format changes, and some will not. It is also possible a future pool may support multiple distinct address types due to different kinds of functionality. Therefore, user interfaces must account for managing funds across multiple pools for a single address.
+
+Migration
+~~~~~~~~~
+
+Because fund amounts must be transparently publicly revealed in transfers between pools by design, this can negatively impact user privacy. User interfaces should provide tools to help users migrate funds between pools as safely as possible.
+
+This ZIP requires that user interfaces support the [#zip-0308]_ migration design from any non-frozen pool to the active pool only. If the [#zip-0308]_ migration design is superceded, user interfaces MUST adopt the newer migration design upon the next major activation.
+
+.. admonition:: TODO
+
+   Introduce an improvement ZIP based on [#zip-0308]_ that is general between pools and thus compatible with this ZIP.
+
 Non-requirements
 ================
 
@@ -117,4 +138,4 @@ Consensus Node Support
 References
 ==========
 
-…
+.. [#zip-0308] `ZIP 308: Sprout to Sapling Migration <zip-0308.rst>`_
