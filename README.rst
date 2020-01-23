@@ -70,5 +70,5 @@ Index of ZIPs
     <tr> <td>1013</td> <td class="left"><a href="zip-1013.rst">Keep It Simple, Zcashers: 10% to ECC, 10% to ZF</a></td> <td>Draft</td>
     <tr> <td>1014</td> <td class="left"><a href="zip-1014.rst">Dev Fund to ECC + ZF + Major Grants</a></td> <td>Draft</td>
     <tr> <td>guide</td> <td class="left"><a href="zip-guide.rst">{Something Short and To the Point}</a></td> <td>Draft</td>
-    <tr> <td>regular-periodic-turnstyles</td> <td class="left"><a href="zip-regular-periodic-turnstyles.rst">Regular Periodic Turnstiles</a></td> <td>Draft</td>
+    <tr> <td>regular-periodic-turnstiles</td> <td class="left"><a href="zip-regular-periodic-turnstiles.rst">Regular Periodic Turnstiles</a></td> <td>Draft</td>
   </table></embed>
