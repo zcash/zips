@@ -40,8 +40,8 @@ Index of ZIPs
   <embed><table>
     <tr> <th>ZIP</th> <th>Title</th> <th>Status</th> </tr>
     <tr> <td>0</td> <td class="left"><a href="zip-0000.rst">   ZIP Process
-  </a></td> <td>   Active
-  </td>
+  </a></td> <td>   Active
+  </td>
     <tr> <td>32</td> <td class="left"><a href="zip-0032.rst">   Shielded Hierarchical Deterministic Wallets</a></td> <td>   Final</td>
     <tr> <td>143</td> <td class="left"><a href="zip-0143.rst">   Transaction Signature Verification for Overwinter</a></td> <td>   Final</td>
     <tr> <td>200</td> <td class="left"><a href="zip-0200.rst">   Network Upgrade Mechanism</a></td> <td>   Final</td>

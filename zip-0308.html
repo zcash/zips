@@ -8,8 +8,9 @@
     <section>
         <pre>ZIP: 308
 Title: Sprout to Sapling Migration
-Owners: Daira Hopwood &lt;daira@electriccoin.co&gt;
-        Eirik Ogilvie-Wigley &lt;eirik@electriccoin.co&gt;
+Owner: Daira Hopwood &lt;daira@electriccoin.co&gt;
+Original-Authors: Daira Hopwood
+                  Eirik Ogilvie-Wigley
 Status: Final
 Category: RPC/Wallet
 Created: 2018-11-27
@@ -74,8 +75,8 @@ License: MIT</pre>
                 <h3>Transaction schedule</h3>
                 <p>When migration is enabled, a node will send up to 5 transactions for inclusion in each block with height a multiple of 500 (that is, they are sent immediately after seeing a block with height 499, modulo 500). Up to the limit of 5, as many transactions are sent as are needed to migrate the remaining funds (possibly with a remainder less than 0.01 ZEC left unmigrated).</p>
                 <p>Nodes SHOULD NOT send migration transactions during initial block download, or if the timestamp of the triggering block (with height 499, modulo 500) is more than three hours in the past according to the node's adjusted local clock.</p>
-                <p>TODO: if we change the target block interval, 500 might need to be changed.</p>
-                <p>The migration transactions to be sent in a particular batch can take significant time to generate, and this time depends on the speed of the user's computer. If they were generated only after a block is seen at the target height minus 1, then this could leak information. Therefore, for target height N, implementations SHOULD start generating the transactions at around height N-5 (provided that block's timestamp is not more than three hours in the past). Each migration transaction SHOULD specify an anchor at height N-10 for each Sprout JoinSplit description.</p>
+                <p>Note: the 500-block interval has <em>not</em> been altered as a result of the halving of target block spacing to 75 seconds with the Blossom upgrade. <a id="id4" class="footnote_reference" href="#zip-0208">5</a></p>
+                <p>The migration transactions to be sent in a particular batch can take significant time to generate, and this time depends on the speed of the user's computer. If they were generated only after a block is seen at the target height minus 1, then this could leak information. Therefore, for target height N, implementations SHOULD start generating the transactions at around height N-5 (provided that block's timestamp is not more than three hours in the past). Each migration transaction SHOULD specify an anchor at height N-10 for each Sprout JoinSplit description (and therefore only notes created before this anchor are eligible for migration).</p>
                 <p>Open questions:</p>
                 <ul>
                     <li>does this reliably give sufficient time to generate the transactions?</li>
@@ -88,7 +89,7 @@ License: MIT</pre>
                         <li>less information about balances is leaked;</li>
                         <li>it is easier to finish in a reasonable length of time.</li>
                     </ul>
-                    <p>The choice of 500 blocks as the batch interval ensures that each batch occurs at a different time of day, which may help to mitigate problems with the availability of nodes being correlated with the local time-of-day.</p>
+                    <p>The choice of 500 blocks as the batch interval ensures that each batch occurs at a different time of day (both before and after the Blossom upgrade), which may help to mitigate problems with the availability of nodes being correlated with the local time-of-day.</p>
                     <p>Simulation shows that the migration process will typically complete reasonably quickly even if the amount to be migrated is large:</p>
                     <table>
                         <thead>
@@ -105,38 +106,39 @@ License: MIT</pre>
                         <tbody>
                             <tr>
                                 <td>1 ZEC</td>
-                                <td>1.01</td>
-                                <td>1.50</td>
-                                <td>2.33</td>
+                                <td>1.00</td>
+                                <td>1.46</td>
+                                <td>1.72</td>
                             </tr>
                             <tr>
                                 <td>10 ZEC</td>
-                                <td>1.65</td>
-                                <td>2.46</td>
-                                <td>3.45</td>
+                                <td>1.43</td>
+                                <td>1.95</td>
+                                <td>2.48</td>
                             </tr>
                             <tr>
                                 <td>100 ZEC</td>
-                                <td>2.54</td>
-                                <td>3.99</td>
-                                <td>5.83</td>
+                                <td>1.93</td>
+                                <td>2.69</td>
+                                <td>3.60</td>
                             </tr>
                             <tr>
                                 <td>1000 ZEC</td>
-                                <td>9.86</td>
-                                <td>12.52</td>
-                                <td>15.54</td>
+                                <td>5.66</td>
+                                <td>6.95</td>
+                                <td>8.47</td>
                             </tr>
                             <tr>
                                 <td>10000 ZEC</td>
-                                <td>89.23</td>
-                                <td>97.01</td>
-                                <td>105.05</td>
+                                <td>45.31</td>
+                                <td>49.16</td>
+                                <td>53.24</td>
                             </tr>
                         </tbody>
                     </table>
+                    <p>(The estimated times for larger amounts halved as a result of the target block spacing change in Blossom.)</p>
                     <p>The simulation also depends on the amounts sent as specified in the next section. It includes the time spent waiting for the first batch to be sent.</p>
-                    <p>The code used for this simulation is at <a id="id4" class="footnote_reference" href="#migration-simulator">5</a>.</p>
+                    <p>The code used for this simulation is at <a id="id5" class="footnote_reference" href="#migration-simulator">6</a>.</p>
                 </section>
             </section>
             <section id="how-much-to-send-in-each-transaction">
@@ -189,7 +191,7 @@ License: MIT</pre>
                 <pre>-migration=0/1</pre>
                 <p>The destination z-address can optionally be set by another option:</p>
                 <pre>-migrationdestaddress=&lt;zaddr&gt;</pre>
-                <p>If this option is not present then the migration destination address is the address for Sapling account 0, with the default diversifier <a id="id5" class="footnote_reference" href="#zip-0032">3</a>.</p>
+                <p>If this option is not present then the migration destination address is the address for Sapling account 0, with the default diversifier <a id="id6" class="footnote_reference" href="#zip-0032">3</a>.</p>
                 <p>The state variable can also be set for a running node using the following RPC method:</p>
                 <pre>z_setmigration true/false</pre>
                 <p>It is intentional that the only option associated with the migration is the destination z-address. Other options could potentially distinguish users.</p>
@@ -271,10 +273,18 @@ License: MIT</pre>
                     </tr>
                 </tbody>
             </table>
-            <table id="migration-simulator" class="footnote">
+            <table id="zip-0208" class="footnote">
                 <tbody>
                     <tr>
                         <th>5</th>
+                        <td><a href="zip-0208">ZIP 208: Shorter Block Target Spacing</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="migration-simulator" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>6</th>
                         <td><a href="https://github.com/daira/zcash-migration">Sprout -&gt; Sapling migration simulation</a></td>
                     </tr>
                 </tbody>
