@@ -15,7 +15,7 @@ protocol:
 index.html: README.rst
 	$(eval TITLE::=$(shell echo '$(basename $<)' | sed -r 's|zip-0{0,3}|ZIP |'): $(shell grep -E '^(\.\.)?\s*Title:' $< |sed 's|.*Title:\s*||'))
 	rst2html5 -v --title="$(TITLE)" $< >$@
-	sed -i 's|</head>|<link rel="stylesheet" href="assets/css/style.css"></head>|' $@
+	sed -i 's|</head>|<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="assets/css/style.css"></head>|' $@
 	sed -i 's|<a href="\([^":]*\).rst">|<a href="\1">|' $@
 
 %.html: %.rst
