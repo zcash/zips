@@ -15,14 +15,14 @@ protocol:
 index.html: README.rst
 	$(eval TITLE := $(shell echo '$(basename $<)' | sed -E 's|zip-0{0,3}|ZIP |'): $(shell grep -E '^(\.\.)?\s*Title:' $< |sed 's|.*Title:\s*||'))
 	rst2html5 -v --title="$(TITLE)" $< >$@
-	sed -i.sedbak 's|</head>|<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="assets/css/style.css"></head>|' $@
+	sed -i.sedbak 's|</head>|<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>|' $@
 	sed -i.sedbak 's|<a href="\([^":]*\).rst">|<a href="\1">|' $@
 	rm -f *.sedbak
 
 %.html: %.rst
 	$(eval TITLE := $(shell echo '$(basename $<)' | sed -E 's|zip-0{0,3}|ZIP |'): $(shell grep -E '^(\.\.)?\s*Title:' $< |sed 's|.*Title:\s*||'))
 	rst2html5 -v --title="$(TITLE)" $< >$@
-	sed -i.sedbak 's|</head>|<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="assets/css/style.css"></head>|' $@
+	sed -i.sedbak 's|</head>|<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>|' $@
 	sed -i.sedbak 's|<a href="\([^":]*\).rst">|<a href="\1">|' $@
 	rm -f *.sedbak
 
