@@ -3,11 +3,9 @@
   ZIP: 222
   Title: Transparent Zcash Extensions
   Owners: Jack Grigg <jack@electriccoin.co>
-  Credits: James Prestwich <james@summa.one>
-           Zaki Manian <zaki@manian.org>
+  Credits: Zaki Manian <zaki@manian.org>
            Daira Hopwood <daira@electriccoin.co>
            Sean Bowe <sean@electriccoin.co>
-           The BIP 141 authors
   Status: Draft
   Category: Consensus
   Created: 2019-07-01
@@ -87,10 +85,9 @@ order to be secure. Zcash transaction IDs are currently malleable in several way
     reason, but verifying this would require very careful inspection of libsodium; it is
     simpler to just exclude them.
 
-Shielded programmability and a full transaction ID malleability fix would both require
-significant changes across the ecosystem. In the interim, we propose in this ZIP the
-simplest possible change to the consensus rules that addresses the above concerns with a
-minimal impact on the existing ecosystem.
+Shielded programmability would require significant changes across the ecosystem. In the
+interim, we propose in this ZIP a transparent form of Zcash extensibility that could later
+be migrated to shielded programmability.
 
 
 Conventions
@@ -109,16 +106,6 @@ We reproduce the following conversion function from ZIP 32 [#zip-0032]_:
 
 - I2LEOSP\ :sub:`l`\ (*k*) is the byte sequence *S* of length *l*/8 representing in little-endian order the
   integer *k* in range {0..2\ :sup:`l`\ -1}.
-
-We also define the following helper notation for scripts:
-
-- PUSHDATA(*S*) is a data push of the byte sequence *S* using the standard script data
-  push encoding:
-
-  - I2LEOSP\ :sub:`8`\ (length(*S*)) || *S* if length(*S*) < ``PUSHDATA1``.
-  - ``PUSHDATA1`` || I2LEOSP\ :sub:`8`\ (length(*S*)) || *S* if length(*S*) <= ``0xff``.
-  - ``PUSHDATA2`` || I2LEOSP\ :sub:`16`\ (length(*S*)) || *S* if length(*S*) <= ``0xffff``.
-  - ``PUSHDATA4`` || I2LEOSP\ :sub:`32`\ (length(*S*)) || *S* otherwise.
 
 
 Specification
@@ -151,94 +138,47 @@ MUST be solely determined by the program type.
 Encoding in transactions
 ------------------------
 
-A new script opcode ``PROGRAM`` is introduced that redefines the existing ``NOP10``
-opcode.
+We define a new transaction format that is both non-malleable and contains two new fields:
 
-To create an encumbered transparent output, its ``scriptPubKey`` is set to exactly the
-following:
+- ``tze_outputs``: A list of pairs of:
 
-  PROGRAM PUSHDATA(type || predicate)
+  - The value being encumbered.
+  - The predicate that must be satisfied to spend the value.
 
-When spending an encumbered transparent output, the ``scriptSig`` of the input is set to
-exactly the following:
+- ``tze_inputs``: A list of pairs of:
 
-  PROGRAM PUSHDATA(type || witness)
+  - An outpoint referencing a prior predicate.
+  - A witness that satisfies it.
 
-To a script parser unaware of the ``PROGRAM`` opcode, this results in the following stack,
-which would be interpreted as an "anyone can spend" output:
+Non-malleability of the transaction format will be specified in a separate ZIP.
 
-  PUSHDATA(type || witness) PUSHDATA(type || predicate)
-
-TODO: Alternatively, we could enforce that the script fails-closed for old script
-interpreters, by requiring that ``scriptSig`` include a ``RETURN`` opcode.
+TODO: Finish encoding specification.
 
 Consensus rules
 ---------------
 
 Once the TODO network upgrade activates, the following new consensus rules are enforced:
 
-- The ``PROGRAM`` opcode MUST NOT be present anywhere in ``scriptPubKey`` or ``scriptSig``
-  except at the beginning.
+- For each ``(outpoint, witness)`` pair in ``tze_inputs``:
 
-- If a transparent output's ``scriptPubKey`` begins with ``PROGRAM``, then the remaining
-  bytes MUST be exactly a single data push operation. The first byte of the pushed data
-  MUST be a whitelisted program type, and the data push length MUST equal
-  ``1 + length(predicate)``.
-
-- If a transparent input's ``scriptSig`` begins with ``PROGRAM``, then the remaining bytes
-  MUST be exactly a single data push operation. The first byte of the pushed data MUST be
-  a whitelisted program type, and the data push length MUST equal ``1 + length(witness)``.
-
-- If a transparent input's ``scriptSig`` contains a transparent program, then:
-
-  - The UTXO it is spending MUST contain a transparent program of the same type in its
-    ``scriptPubKey``.
+  - ``outpoint`` MUST reference a predicate of the same type and mode in an already-mined
+    transaction.
   - ``verify_program(predicate, witness, context)`` MUST return ``true``.
-
-- If any transparent output begins with ``PROGRAM``, then the transaction MUST be
-  non-malleable. Specifically:
-
-  - ``vin`` MUST NOT contain transparent inputs where ``scriptSig`` does not begin with
-    ``PROGRAM``.
-
-    - TODO: An alternative is to instead require that ``vin`` MUST be empty.
-
-  - ``vJoinSplit`` MUST be empty.
-
-  - The verification equation for RedJubjub signatures is altered to remove the cofactor
-    multiplication. Implementations MUST NOT use batch verification [#batch-verification]_
-    to verify RedJubjub signatures in transactions containing ``PROGRAM``.
 
 Rationale
 =========
 
-Placing the transparent program information into ``scriptPubKey`` and ``scriptSig`` via
-a new opcode enables this functionality without requiring a transaction format change.
-This greatly simplifies deployment, as no parsers need to be updated, and script
-verification engines that don't care about program inputs require minimal changes.
-Alternatives were considered where the transparent program information was attached to
-shielded spends and outputs, or to new program-specific transparent inputs and outputs;
-both of these were excluded because the implementation complexity cost was not worth the
-benefits, given that this ZIP is intended as a short-term transparent solution.
-
-The consensus rule permitting ``vin`` to contain transparent programs if any transparent
-output is encumbered, allows a transparent program to be funded by another transparent
-program, but not by any transparent address.
-
-The RedJubjub verification algorithm is only altered for transactions containing the
-``PROGRAM`` opcode for two reasons: it allows batch verification for non-program
-transactions, and if a security vulnerability were discovered in this change, programs can
-be disabled without affecting general Sapling transactions.
+An earlier draft version of this ZIP stored the payloads inside transparent inputs and
+outputs. This coupled the extension logic too tightly to the transparent address logic,
+and was replaced with dedicated transaction fields.
 
 
 Security and Privacy Considerations
 ===================================
 
-This ZIP removes all sources of malleability that are currently present in the transaction
-format, for transactions containing a ``PROGRAM`` opcode. However, the ``predicate`` and
-``witness`` byte sequences are treated here as opaque, and ``witness`` is not part of any
-signed data (as it is stored in the ``scriptSig`` field). It is the responsibility of
-``verify_program`` to enforce the following:
+This ZIP assumes that the base transaction format is non-malleable. However, the
+``predicate`` and ``witness`` byte sequences are treated here as opaque. It is the
+responsibility of ``verify_program`` to enforce the following:
 
 - ``witness`` MUST be non-malleable: any malleation MUST cause ``verify_program`` to
   return ``false``.
@@ -257,15 +197,12 @@ TBD
 Acknowledgements
 ================
 
-James Prestwich made the observation that the initial draft design could be simplified by
-using the ``scriptPubKey`` and ``scriptSig`` fields with a dedicated ``PROGRAM`` opcode.
-This in turn was influenced by BIP 141. The handler semantics of ``verify_program`` were
-suggested by Zaki Manian, drawing on the design of Cosmos. Daira Hopwood and Sean Bowe
-gave useful feedback on an early draft of this ZIP, and helped to analyse the various
-sources of transaction ID malleability.
+The handler semantics of ``verify_program`` were suggested by Zaki Manian, drawing on the
+design of Cosmos. Daira Hopwood and Sean Bowe gave useful feedback on an early draft of
+this ZIP, and helped to analyse the various sources of transaction ID malleability.
 
 We would also like to thank the numerous other individuals who participated in discussions
-at Zcon1 that led to this ZIP.
+at Zcon1 that led to the earlier draft version of this ZIP.
 
 
 References
