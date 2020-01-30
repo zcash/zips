@@ -18,8 +18,7 @@ NU3 ZIPs
 This is the list of ZIPs planned to be included in the NU3
 upgrade (around ~April 2020).
 
--  `Shielded
-   Coinbase <https://github.com/str4d/zips/blob/zip-str4d-shielded-coinbase/zip-0213.rst>`__
+-  `Shielded Coinbase <zip-0213.rst>`__
 -  `Adding MMR Proofs to Block Headers, and their use in the FlyClient
    Protocol <https://github.com/therealyingtong/zips/blob/master/zip-0221.rst>`__
 
