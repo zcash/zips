@@ -48,7 +48,7 @@ Index of ZIPs
     <tr> <td>205</td> <td class="left"><a href="zip-0205.rst">Deployment of the Sapling Network Upgrade</a></td> <td>Final</td>
     <tr> <td>206</td> <td class="left"><a href="zip-0206.rst">Deployment of the Blossom Network Upgrade</a></td> <td>Final</td>
     <tr> <td><strike>207</strike></td> <td class="left"><strike><a href="zip-0207.rst">Split Founders' Reward</a></strike></td> <td>Withdrawn</td>
-    <tr> <td>208</td> <td class="left"><a href="zip-0208.rst">Shorter Block Target Spacing</a></td> <td>Implemented</td>
+    <tr> <td>208</td> <td class="left"><a href="zip-0208.rst">Shorter Block Target Spacing</a></td> <td>Final</td>
     <tr> <td>209</td> <td class="left"><a href="zip-0209.rst">Prohibit Negative Shielded Value Pool</a></td> <td>Final</td>
     <tr> <td>210</td> <td class="left"><a href="zip-0210.rst">Sapling Anchor Deduplication within Transactions</a></td> <td>Draft</td>
     <tr> <td>213</td> <td class="left"><a href="zip-0213.rst">Shielded Coinbase</a></td> <td>Draft</td>
