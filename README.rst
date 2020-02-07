@@ -9,6 +9,8 @@ cryptocurrency <https://z.cash/>`__.
 Participation in the Zcash project is subject to a `Code of
 Conduct <https://github.com/zcash/zcash/blob/master/code_of_conduct.md>`__.
 
+The Zcash protocol is documented in its `Protocol Specification <protocol/protocol.pdf>`__.
+
 The ZIP process is documented in `ZIP 0 <zip-0000.rst>`__.
 
 
