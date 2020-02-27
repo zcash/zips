@@ -43,7 +43,7 @@ Index of ZIPs
     <tr> <td>0</td> <td class="left"><a href="zip-0000.rst">ZIP Process</a></td> <td>Active</td>
     <tr> <td>32</td> <td class="left"><a href="zip-0032.rst">Shielded Hierarchical Deterministic Wallets</a></td> <td>Final</td>
     <tr> <td>143</td> <td class="left"><a href="zip-0143.rst">Transaction Signature Verification for Overwinter</a></td> <td>Final</td>
-    <tr> <td>173</td> <td class="left"><a href="zip-0173.rst">Bech32 Format</a></td> <td></td>
+    <tr> <td>173</td> <td class="left"><a href="zip-0173.rst">Bech32 Format</a></td> <td>Final</td>
     <tr> <td>200</td> <td class="left"><a href="zip-0200.rst">Network Upgrade Mechanism</a></td> <td>Final</td>
     <tr> <td>201</td> <td class="left"><a href="zip-0201.rst">Network Peer Management for Overwinter</a></td> <td>Final</td>
     <tr> <td>202</td> <td class="left"><a href="zip-0202.rst">Version 3 Transaction Format for Overwinter</a></td> <td>Final</td>
