@@ -57,19 +57,19 @@ Index of ZIPs
     <tr> <td>243</td> <td class="left"><a href="zip-0243.rst">Transaction Signature Verification for Sapling</a></td> <td>Final</td>
     <tr> <td>308</td> <td class="left"><a href="zip-0308.rst">Sprout to Sapling Migration</a></td> <td>Final</td>
     <tr> <td>401</td> <td class="left"><a href="zip-0401.rst">Addressing mempool denial-of-service</a></td> <td>Final</td>
-    <tr> <td>1001</td> <td class="left"><a href="zip-1001.rst">Keep the Block Distribution as Initially Defined — 90% to Miners</a></td> <td>Draft</td>
-    <tr> <td>1002</td> <td class="left"><a href="zip-1002.rst">Opt-in Donation Feature</a></td> <td>Draft</td>
-    <tr> <td>1003</td> <td class="left"><a href="zip-1003.rst">20% Split Evenly Between the ECC and the Zcash Foundation, and a Voting System Mandate</a></td> <td>Draft</td>
-    <tr> <td>1004</td> <td class="left"><a href="zip-1004.rst">Miner-Directed Dev Fund</a></td> <td>Draft</td>
-    <tr> <td>1005</td> <td class="left"><a href="zip-1005.rst">Zcash Community Funding System</a></td> <td>Draft</td>
-    <tr> <td>1006</td> <td class="left"><a href="zip-1006.rst">Development Fund of 10% to a 2-of-3 Multisig with Community-Involved Third Entity</a></td> <td>Draft</td>
-    <tr> <td>1007</td> <td class="left"><a href="zip-1007.rst">Enforce Development Fund Commitments with a Legal Charter</a></td> <td>Draft</td>
-    <tr> <td>1008</td> <td class="left"><a href="zip-1008.rst">Fund ECC for Two More Years</a></td> <td>Draft</td>
-    <tr> <td>1009</td> <td class="left"><a href="zip-1009.rst">Five-Entity Strategic Council</a></td> <td>Draft</td>
-    <tr> <td>1010</td> <td class="left"><a href="zip-1010.rst">Compromise Dev Fund Proposal With Diverse Funding Streams</a></td> <td>Draft</td>
-    <tr> <td>1011</td> <td class="left"><a href="zip-1011.rst">Decentralize the Dev Fee</a></td> <td>Draft</td>
-    <tr> <td>1012</td> <td class="left"><a href="zip-1012.rst">Dev Fund to ECC + ZF + Major Grants</a></td> <td>Draft</td>
-    <tr> <td>1013</td> <td class="left"><a href="zip-1013.rst">Keep It Simple, Zcashers: 10% to ECC, 10% to ZF</a></td> <td>Draft</td>
-    <tr> <td>1014</td> <td class="left"><a href="zip-1014.rst">Dev Fund to ECC + ZF + Major Grants</a></td> <td>Draft</td>
+    <tr> <td><strike>1001</strike></td> <td class="left"><strike><a href="zip-1001.rst">Keep the Block Distribution as Initially Defined — 90% to Miners</a></strike></td> <td>Obsolete</td>
+    <tr> <td><strike>1002</strike></td> <td class="left"><strike><a href="zip-1002.rst">Opt-in Donation Feature</a></strike></td> <td>Obsolete</td>
+    <tr> <td><strike>1003</strike></td> <td class="left"><strike><a href="zip-1003.rst">20% Split Evenly Between the ECC and the Zcash Foundation, and a Voting System Mandate</a></strike></td> <td>Obsolete</td>
+    <tr> <td><strike>1004</strike></td> <td class="left"><strike><a href="zip-1004.rst">Miner-Directed Dev Fund</a></strike></td> <td>Obsolete</td>
+    <tr> <td><strike>1005</strike></td> <td class="left"><strike><a href="zip-1005.rst">Zcash Community Funding System</a></strike></td> <td>Obsolete</td>
+    <tr> <td><strike>1006</strike></td> <td class="left"><strike><a href="zip-1006.rst">Development Fund of 10% to a 2-of-3 Multisig with Community-Involved Third Entity</a></strike></td> <td>Obsolete</td>
+    <tr> <td><strike>1007</strike></td> <td class="left"><strike><a href="zip-1007.rst">Enforce Development Fund Commitments with a Legal Charter</a></strike></td> <td>Obsolete</td>
+    <tr> <td><strike>1008</strike></td> <td class="left"><strike><a href="zip-1008.rst">Fund ECC for Two More Years</a></strike></td> <td>Obsolete</td>
+    <tr> <td><strike>1009</strike></td> <td class="left"><strike><a href="zip-1009.rst">Five-Entity Strategic Council</a></strike></td> <td>Obsolete</td>
+    <tr> <td><strike>1010</strike></td> <td class="left"><strike><a href="zip-1010.rst">Compromise Dev Fund Proposal With Diverse Funding Streams</a></strike></td> <td>Obsolete</td>
+    <tr> <td><strike>1011</strike></td> <td class="left"><strike><a href="zip-1011.rst">Decentralize the Dev Fee</a></strike></td> <td>Obsolete</td>
+    <tr> <td><strike>1012</strike></td> <td class="left"><strike><a href="zip-1012.rst">Dev Fund to ECC + ZF + Major Grants</a></strike></td> <td>Obsolete</td>
+    <tr> <td><strike>1013</strike></td> <td class="left"><strike><a href="zip-1013.rst">Keep It Simple, Zcashers: 10% to ECC, 10% to ZF</a></strike></td> <td>Obsolete</td>
+    <tr> <td>1014</td> <td class="left"><a href="zip-1014.rst">Establishing a Dev Fund for ECC, ZF, and Major Grants</a></td> <td>Proposed</td>
     <tr> <td>guide</td> <td class="left"><a href="zip-guide.rst">{Something Short and To the Point}</a></td> <td>Draft</td>
   </table></embed>
