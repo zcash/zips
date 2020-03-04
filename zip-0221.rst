@@ -333,16 +333,16 @@ Each MMR node is defined as follows:
   * ``nLatestHeight`` is inherited from the right child
   * serialized as ``CompactSize uint``
 
-11. ``nShieldedTxCount``
+11. ``nSaplingTxCount``
 
 - If the node is a leaf node
 
-  * ``nShieldedTxCount`` is the number of transactions in the leaf block where any of
-    ``vJoinSplit``, ``vShieldedSpend``, or `vShieldedOutput` is non-empty
+  * ``nSaplingTxCount`` is the number of transactions in the leaf block where either of
+    ``vShieldedSpend`` or `vShieldedOutput` is non-empty
 
 - If the node is an internal or root node
 
-  * ``nShieldedTxCount`` is the sum of the ``nShieldedTxCount`` field of both children
+  * ``nSaplingTxCount`` is the sum of the ``nSaplingTxCount`` field of both children
 
 - serialized as ``CompactSize uint``
 
@@ -381,7 +381,7 @@ Tree nodes and hashing (pseudocode)
         nSubTreeTotalWork: int  # total difficulty accumulated within each subtree
         nEarliestHeight: int
         nLatestHeight: int
-        nShieldedTxCount: int # number of shielded transactions in block
+        nSaplingTxCount: int # number of Sapling transactions in block
 
         @classmethod
         def from_block(Z, block: ZcashBlock) -> 'ZcashMMRNode':
@@ -399,7 +399,7 @@ Tree nodes and hashing (pseudocode)
                 nSubTreeTotalWork=calculate_work(block.nBits),
                 nEarliestHeight=block.height,
                 nLatestHeight=block.height,
-                nShieldedTxCount=block_shielded_tx_count)
+                nSaplingTxCount=block.sapling_tx_count)
 
         def serialize(self) -> bytes:
             '''serializes a node'''
@@ -414,7 +414,7 @@ Tree nodes and hashing (pseudocode)
                 + serialize_uint256(self.nSubTreeTotalWork)
                 + serialize_compact_uint(self.nEarliestHeight)
                 + serialize_compact_uint(self.nLatestHeight)
-                + serialize_compact_uint(self.nShieldedTxCount))
+                + serialize_compact_uint(self.nSaplingTxCount))
 
 
     def make_parent(
@@ -433,7 +433,7 @@ Tree nodes and hashing (pseudocode)
             nSubTreeTotalWork=left_child.nSubTreeTotalWork + right_child.nSubTreeTotalWork,
             nEarliestHeight=left_child.nEarliestHeight,
             nLatestHeight=right_child.nLatestHeight,
-            nShieldedTxCount=left_child.nShieldedTxCount + right_child.nShieldedTxCount)
+            nSaplingTxCount=left_child.nSaplingTxCount + right_child.nSaplingTxCount)
 
     def make_root_commitment(root: ZcashMMRNode) -> bytes:
         '''Makes the root commitment for a blockheader'''
@@ -573,7 +573,7 @@ Tree nodes
 ----------
 
 Nodes in the commitment tree are canonical and immutable. They are cheap to generate, as
-(with the exception of ``nShieldedTxCount``) all metadata is already generated during
+(with the exception of ``nSaplingTxCount``) all metadata is already generated during
 block construction and/or checked during block validation. Nodes are relatively compact in
 memory. Approximately 140,000 blocks have elapsed since Sapling activation. Assuming a 164
 byte commitment to each of these, we would have generated approximately 24 MB of
@@ -644,15 +644,26 @@ the proper serialization and commitment format for the nullifier vector.
     recent treestate to generate transactions, so it is acceptable to delay commitment by
     one block.
 
-- ``nShieldedTxCount``
+- ``nSaplingTxCount``
 
-  * By committing to the number of shielded transactions in blocks (and ranges of blocks),
+  * By committing to the number of Sapling transactions in blocks (and ranges of blocks),
     a light client may reliably learn whether a malicious server is witholding any
-    shielded transactions.
+    Sapling transactions.
   * In addition, this commitment allows light clients to avoid syncing header ranges that
-    do not contain shielded transactions. As the primary cost of a light client is
+    do not contain Sapling transactions. As the primary cost of a light client is
     transmission of equihash solution information in block headers, this optimization
     would significantly decrease the bandwidth requirements of light clients.
+  * An earlier draft of this ZIP committed to the number of shielded transactions,
+    counting both Sprout and Sapling. This commitment would not have been useful to light
+    clients that only support Sapling addresses; they would not be able to distinguish
+    between Sapling transactions being maliciously withheld, and Sprout transactions not
+    being requested.
+  * A commitment to the number of Sprout transactions in blocks was not included, because
+    Sprout addresses are effectively deprecated at this point, and will not be supported
+    by any light clients.
+  * If a future network upgrade introduced a new shielded pool, a new commitment to that
+    pool's transactions would be added, to similarly enable future light clients that do
+    not support Sapling addresses.
 
 Header Format Change
 --------------------
