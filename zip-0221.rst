@@ -535,35 +535,24 @@ in the right subtree of the MMR root.
         new_root = bag_peaks(peaks)
         return new_root
 
-Header modifications specification
-----------------------------------
+Block header semantics and consensus rules
+------------------------------------------
 
-This ZIP introduces a new header version. It is identical to the current v4 header
-[#zcashBlock]_, except for the following changes:
+The ``hashFinalSaplingRoot`` block header field (which was named ``hashReserved`` prior to
+the Sapling network upgrade) is renamed to ``hashLightClientRoot``, to reflect its usage
+by light clients.
 
-1. The version number is changed to `5`.
-2. ``hashFinalSaplingRoot`` is replaced by ``hashChainHistoryRoot``, as described above.
+Prior to activation of the Heartwood network upgrade, this existing consensus rule on
+block headers (adjusted for the renamed field) is enforced: [#block-header]_
 
-The new block header format is:
+    [Sapling onward] ``hashLightClientRoot`` MUST be LEBS2OSP<sub>256</sub>(rt) where rt
+    is the root of the Sapling note commitment tree for the final Sapling tree state of
+    this block.
 
-.. code-block:: C
+Once the Heartwood network upgrade activates, ``hashLightClientRoot`` MUST be set to the
+value of ``hashChainHistoryRoot`` as specified above.
 
-    class CBlockHeader
-    {
-    public:
-        // header
-        static const size_t HEADER_SIZE=4+32+32+32+4+4+32; // excluding Equihash solution
-        static const int32_t CURRENT_VERSION=5;
-        int32_t nVersion;
-        uint256 hashPrevBlock;
-        uint256 hashMerkleRoot;
-        uint256 hashChainHistoryRoot;
-        uint32_t nTime;
-        uint32_t nBits;
-        uint256 nNonce;
-        std::vector<unsigned char> nSolution;
-        ...
-    }
+The block header byte format and version are not altered by this ZIP.
 
 
 Rationale
@@ -668,17 +657,28 @@ the proper serialization and commitment format for the nullifier vector.
 Header Format Change
 --------------------
 
-Our primary goal was to minimize header changes. The version number is incremented to
-signify the change in field semantics. This is not strictly necessary. Old light client
-parsers will generally not reject the new header semantics and we expect full nodes to
-follow the network upgrade. It may be the case that mining related hardware or software
-has (unwisely) hardcoded the version to 4. In which case, we would recommend not changing
-the header version number.
+The primary goal of the original authors was to minimize header changes; in particular,
+they preferred not to introduce changes that could affect mining hardware or embedded
+software. Altering the block header format would require changes throughout the ecosystem,
+so we decided against adding ``hashChainHistoryRoot`` to the header as a new field.
 
-We considered adding ``hashChainHistoryRoot`` to the header as a new field. We decided
-against that, as it will inherently affect more of the ecosystem. As stated earlier, we
-would prefer not to introduce changes that could affect mining hardware or embedded
-software.
+ZIP 301 states that "[Miner client software] SHOULD alert the user upon receiving jobs
+containing block header versions they do not know about or support, and MUST ignore such
+jobs." [#zip-0301]_ As the only formally-defined block header version is 4, any header
+version change requires changes to miner client software in order for miners to handle new
+jobs from mining pools. We therefore do not alter the block version for this semantic
+change. This does not make block headers ambiguous to interpret, because blocks commit to
+their block height inside their coinbase transaction, [#bip-0034]_ and they are never
+handled in a standalone context (unlike transactions, which exist in the mempool outside
+of blocks).
+
+Replacing ``hashFinalSaplingRoot`` with ``hashChainHistoryRoot`` does introduce the
+theoretical possibility of an attack where a miner constructs a Sapling commitment tree
+update that results in the same 32-byte value as the MMR root. We don't consider this a
+realistic attack, both because the adversary would need to find a preimage over 32 layers
+of Pedersen hash, and because light clients already need to update their code to include
+the consensus branch ID for the Heartwood network upgrade, and can simultaneously make
+changes to not rely on the value of this header field being the Sapling tree root.
 
 We also considered putting ``hashChainHistoryRoot`` in the ``hashPrevBlock`` field as it
 commits to the entire chain history, but quickly realized it would require massive
@@ -751,3 +751,6 @@ References
 .. [#zip-0307] `ZIP 307: Light Client Protocol for Payment Detection <https://github.com/zcash/zips/pull/226>`_
 .. [#mimblewimble] `MimbleWimble Grin MMR implementation <https://github.com/mimblewimble/grin/blob/aedac483f5a116b91a8baf6acffd70e5f980b8cc/core/src/core/pmmr/pmmr.rs>`_
 .. [#FlyClient] `FlyClient protocol <https://eprint.iacr.org/2019/226.pdf>`_
+.. [#block-header] `Section 7.5: Block Header. Zcash Protocol Specification, Version 2020.1.1 [Overwinter+Sapling+Blossom] or later <https://zips.z.cash/protocol/protocol.pdf#blockheader>`_
+.. [#zip-0301] `ZIP 301: Zcash Stratum Protocol <https://github.com/zcash/zips/pull/78>`_
+.. [#bip-0034] `BIP 34: Block v2, Height in Coinbase <https://github.com/bitcoin/bips/blob/master/bip-0034.mediawiki>`_
