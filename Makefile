@@ -12,17 +12,19 @@ all: all-zips protocol
 protocol:
 	$(MAKE) -C protocol
 
+define PROCESSRST
+$(eval TITLE := $(shell echo '$(basename $<)' | sed -E 's|zip-0{0,3}|ZIP |'): $(shell grep -E '^(\.\.)?\s*Title:' $< |sed -E 's|.*Title:\s*||'))
+rst2html5 -v --title="$(TITLE)" $< >$@
+./edithtml.sh $@
+endef
+
 index.html: README.rst
-	$(eval TITLE := $(shell echo '$(basename $<)' | sed -E 's|zip-0{0,3}|ZIP |'): $(shell grep -E '^(\.\.)?\s*Title:' $< |sed -E 's|.*Title:\s*||'))
-	rst2html5 -v --title="$(TITLE)" $< >$@
-	./edithtml.sh $@
+	$(PROCESSRST)
 
 %.html: %.rst
-	$(eval TITLE := $(shell echo '$(basename $<)' | sed -E 's|zip-0{0,3}|ZIP |'): $(shell grep -E '^(\.\.)?\s*Title:' $< |sed -E 's|.*Title:\s*||'))
-	rst2html5 -v --title="$(TITLE)" $< >$@
-	./edithtml.sh $@
+	$(PROCESSRST)
 
-README.rst: makeindex.sh README.template $(filter-out README.rst,$(wildcard *.rst))
+README.rst: makeindex.sh README.template $(wildcard zip-*.rst)
 	./makeindex.sh | cat README.template - >README.rst
 
 .PHONY: clean
