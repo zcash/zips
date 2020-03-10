@@ -63,6 +63,7 @@ Index of ZIPs
     <tr> <td>209</td> <td class="left"><a href="zip-0209.rst">Prohibit Negative Shielded Value Pool</a></td> <td>Final</td>
     <tr> <td>210</td> <td class="left"><a href="zip-0210.rst">Sapling Anchor Deduplication within Transactions</a></td> <td>Draft</td>
     <tr> <td>213</td> <td class="left"><a href="zip-0213.rst">Shielded Coinbase</a></td> <td>Implemented (zcashd)</td>
+    <tr> <td>221</td> <td class="left"><a href="zip-0221.rst">FlyClient - Consensus-Layer Changes</a></td> <td>Proposed</td>
     <tr> <td>243</td> <td class="left"><a href="zip-0243.rst">Transaction Signature Verification for Sapling</a></td> <td>Final</td>
     <tr> <td>308</td> <td class="left"><a href="zip-0308.rst">Sprout to Sapling Migration</a></td> <td>Final</td>
     <tr> <td>401</td> <td class="left"><a href="zip-0401.rst">Addressing mempool denial-of-service</a></td> <td>Final</td>
