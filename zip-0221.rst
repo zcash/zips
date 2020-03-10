@@ -22,7 +22,7 @@ described in ZIP 200. [#zip-0200]_
 
 *Light client*
   A client that is not a full participant in the network of Zcash peers. It can send and
-  receive payments, but does not store or validate a copy of the blockchain.
+  receive payments, but does not store or validate a copy of the block chain.
 
 *High probability*
   An event occurs with high probability if it occurs with probability 1-O(1/2^λ), where λ
@@ -62,7 +62,7 @@ binary subtrees possible by joining any balanced sibling trees that are the same
 do this starting from the left to the right, adding a parent as soon as 2 children exist.
 This leaves us with three subtrees ("mountains") of altitudes 3, 1, and 0:
 
-.. code-block:: C
+.. code-block:: text
 
        /\
       /  \
@@ -72,7 +72,7 @@ This leaves us with three subtrees ("mountains") of altitudes 3, 1, and 0:
 Note that the first leftmost peak is always the highest. We can number this structure in
 the order by which nodes would be created, if the leaves were inserted from left to right:
 
-.. code-block:: C
+.. code-block:: text
 
     Altitude
 
@@ -89,10 +89,11 @@ the order by which nodes would be created, if the leaves were inserted from left
 
 and represent this numbering in a flat list:
 
-.. code-block:: python
-
-    Position    0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18
-    Altitude    0  0  1  0  0  1  2  0  0  1  0  0  1  2  3  0  0  1  0
++----------+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
+| Position |  0 |  1 |  2 |  3 |  4 |  5 |  6 |  7 |  8 |  9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 |
++----------+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
+| Altitude |  0 |  0 |  1 |  0 |  0 |  1 |  2 |  0 |  0 |  1 |  0 |  0 |  1 |  2 |  3 |  0 |  0 |  1 |  0 |
++----------+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
 
 This allows us to easily jump to the right sibling of a node by adding ``2^(h+1) - 1`` to
 its position, and its left child by subtracting ``2^h``.  This allows us to efficiently
@@ -101,13 +102,13 @@ find the subtree roots ("peaks") of the mountains.
 Once we have the positions of the mountain peaks, we "bag" them using the following
 algorithm:
 
-1. Generate a node connecting the 2 left-most peaks, forming a new peak
-2. Repeat 1. until we have a single peak
+1. Generate a node connecting the 2 left-most peaks, forming a new peak.
+2. Repeat 1. until we have a single peak.
 
 Note that the extra nodes generated during the bagging process do not follow the above
 rules for jumping between nodes.
 
-.. code-block:: C
+.. code-block:: text
 
     Altitude
 
@@ -140,34 +141,34 @@ Motivation
 MMR proofs are used in the FlyClient protocol to reduce the proof size needed for light
 clients to verify
 
-- the validity of a blockchain received from a full node, and
-- the inclusion of a block ``B`` in that chain, and
-- certain metadata of any block or range of blocks in that chain
+- the validity of a block chain received from a full node, and
+- the inclusion of a block :math:`B` in that chain, and
+- certain metadata of any block or range of blocks in that chain.
 
 The protocol requires that an MMR that commits to the inclusion of all blocks since the
-most recent network upgrade (``B_x, ..., B_(n-1))`` is formed for each block ``B_n``. The
-root ``M_n`` of the MMR MUST be included in the header of ``B_n``.
+most recent network upgrade :math:`(B_x, \ldots, B_{n-1})` is formed for each block :math:`B_n`.
+The root :math:`M_n` of the MMR MUST be included in the header of :math:`B_n`.
 
-(``x`` is the activation height of the most recent upgrade network upgrade)
+(:math:`x` is the activation height of the most recent upgrade network upgrade.)
 
 FlyClient reduces the number of block headers needed for light client verification of a
 valid chain, from linear (as in the current reference protocol) to logarithmic in
-blockchain length. This verification is correct with high probability. It also allows
+block chain length. This verification is correct with high probability. It also allows
 creation of subtree proofs, so light clients need only check blocks later than the most
 recently verified block index. Following that, verification of a transaction inclusion
 within that block follows the usual reference protocol [#zip-0307]_.
 
-A smaller proof size could enable the verification of Zcash SPV Proofs in blockchains such
-as Ethereum, enabling efficient cross-chain communication and pegs. It also reduces
-bandwidth and storage requirements for resource-limited clients like mobile or IoT
+A smaller proof size could enable the verification of Zcash SPV Proofs in block-chain
+protocols such as Ethereum, enabling efficient cross-chain communication and pegs. It also
+reduces bandwidth and storage requirements for resource-limited clients like mobile or IoT
 devices.
 
 
 Specification
 =============
 
-The leaves of the MMR at block ``B_n`` are hash commitments to the header data and
-metadata of each previous block ``B_x, ..., B_(n-1)``, where ``x`` is the block height of
+The leaves of the MMR at block :math:`B_n` are hash commitments to the header data and
+metadata of each previous block :math:`B_x, \ldots, B_{n-1}`, where :math:`x` is the block height of
 the most recent network upgrade. We extend the standard MMR to allow metadata to propagate
 upwards through the tree by either summing the metadata of both children, or inheriting
 the metadata of a specific child as necessary. This allows us to create efficient proofs
@@ -187,151 +188,132 @@ Each MMR node is defined as follows:
 
 1. ``hashSubtreeCommitment``
 
-- If the node is a leaf node, then ``hashSubtreeCommitment`` is the consensus-defined
-  block hash for the corresponding block.
+   Leaf node
+     The consensus-defined block hash for the corresponding block.
 
-  * This hash is encoded in internal byte order, and does NOT use the BLAKE2b-256
-    personalization string described above.
-  * For clarity, the ``hashSubtreeCommitment`` field of leaf ``n-1`` is *precisely equal*
-    to the ``hashPrevBlock`` field of header ``n``
+     * This hash is encoded in internal byte order, and does NOT use the BLAKE2b-256
+       personalization string described above.
+     * For clarity, the ``hashSubtreeCommitment`` field of leaf ``n-1`` is *precisely equal*
+       to the ``hashPrevBlock`` field of header ``n``.
 
-- If the node is an internal or root node
+   Internal or root node
+     * Both child nodes are serialized.
+     * ``hashSubtreeCommitment`` is the BLAKE2b-256 hash of ``left_child || right_child``.
+     * For clarity, this digest uses the BLAKE2b-256 personalization string described above.
 
-  * Both child nodes are serialized
-  * ``hashSubtreeCommitment`` is the BLAKE2b-256 hash of ``left_child || right_child``
-  * For clarity, this digest uses the BLAKE2b-256 personalization string described above.
-- serialized as ``char[32]``
+   Serialized as ``char[32]``.
 
 2. ``nEarliestTimestamp``
 
-- If the node is a leaf node
+   Leaf node
+     The header's timestamp.
 
-  * ``nEarliestTimestamp`` is the header's timestamp
+   Internal or root node
+     Inherited from the left child.
 
-- If the node is an internal or root node
-
-  * ``nEarliestTimestamp`` is inherited from the left child
-
-- serialized as ``nTime`` (``uint32``)
+   Serialized as ``nTime`` (``uint32``).
 
 3. ``nLatestTimestamp``
 
-- If the node is a leaf node
+   Leaf node
+     The header's timestamp.
 
-  * ``nLatestTimestamp`` is the header's timestamp
+   Internal or root node
+     Inherited from the right child.
 
-- If the node is an internal or root node
+   Note that due to timestamp consensus rules, ``nLatestTimestamp`` may be smaller than
+   ``nEarliestTimestamp`` in some subtrees. This may occur within subtrees smaller than
+   ``PoWMedianBlockSpan`` blocks.
 
-  * ``nLatestTimestamp`` is inherited from the right child
-
-- Note that due to timestamp consensus rules, ``nLatestTimestamp`` may be smaller than
-  ``nEarliestTimestamp`` in some subtrees. This may occur within subtrees smaller than
-  ``PoWMedianBlockSpan`` blocks.
-- serialized as ``nTime`` (``uint32``)
+   Serialized as ``nTime`` (``uint32``).
 
 4. ``nEarliestTarget``
 
-- If the node is a leaf node
+   Leaf node
+     The header's ``nBits`` field.
 
-  * ``nEarliestTarget`` is the header's ``nBits`` field
+   Internal or root node
+     Inherited from the left child.
 
-- If the node is an internal or root node
-
-  * ``nEarliestTarget`` is inherited from the left child
-
-- serialized as ``nBits`` (``uint32``)
+   Serialized as ``nBits`` (``uint32``).
 
 5. ``nLatestTarget``
 
-- If the node is a leaf node
+   Leaf node
+     The header's ``nBits`` field.
 
-  * ``nLatestTarget`` is the header's ``nBits`` field
+   Internal or root node
+     Inherited from the right child.
 
-- If the node is an internal or root node
-
-  * ``nLatestTarget`` is inherited from the right child
-
-- serialized as ``nBits`` (uint32)
+   Serialized as ``nBits`` (uint32).
 
 6. ``hashEarliestSaplingRoot``
 
-- If the node is a leaf node
+   Leaf node
+     Calculated as ``hashFinalSaplingRoot``, as implemented in Sapling.
 
-  * ``hashEarliestSaplingRoot`` is calculated as ``hashFinalSaplingRoot``, as implemented
-    in Sapling
+   Internal or root node
+     Inherited from the left child.
 
-- If the node is an internal or root node
-
-  * ``hashEarliestSaplingRoot`` is inherited from the left child
-
-- serialized as ``char[32]``
+   Serialized as ``char[32]``.
 
 7. ``hashLatestSaplingRoot``
 
-- If the node is a leaf node
+   Leaf node
+     Calculated as ``hashFinalSaplingRoot``, as implemented in Sapling.
 
-  * ``hashLatestSaplingRoot`` is calculated as ``hashFinalSaplingRoot``, as implemented in
-    Sapling
+   Internal or root node
+     Inherited from the right child.
 
-- If the node is an internal or root node
-
-  * ``hashLatestSaplingRoot`` is inherited from the right child
-
-- serialized as ``char[32]``
+   Serialized as ``char[32]``.
 
 8. ``nSubTreeTotalWork``
 
-- If the node is a leaf node
+   Leaf node
+     The protocol-defined work of the block:
+     :math:`\mathsf{floor}(2^{256} / (\mathsf{ToTarget(nBits)} + 1))`. [#block-work]_
 
-  * ``nSubTreeTotalWork`` is the protocol-defined work of the block:
-    `floor(2 ** 256 / (ToTarget(nBits) + 1))`. [#block-work]_
+   Internal or root node
+     The sum of the ``nSubTreeTotalWork`` fields of both children.
 
-- If the node is an internal or root node
+     Computations modulo :math:`2^{256}` are fine here; cumulative chain work is similarly
+     assumed elsewhere in the Zcash ecosystem to be at most :math:`2^{256}` (as inherited
+     from Bitcoin). The computed work factors are, on average, equal to the computational
+     efforts involved in the creation of the corresponding blocks, and an aggregate effort
+     of :math:`2^{256}` or more is infeasible in practice.
 
-  * ``nSubTreeTotalWork`` is the sum of the ``nSubTreeTotalWork`` fields of both children
-  * Computations modulo 2<sup>256</sup> are fine here; cumulative chain work is similarly
-    assumed elsewhere in the Zcash ecosystem to be at most 2<sup>256</sup> (as inherited
-    from Bitcoin). The computed work factors are, on average, equal to the computational
-    efforts involved in the creation of the corresponding blocks, and an aggregate effort
-    of 2<sup>256</sup> or more is infeasible in practice.
-
-- serialized as ``uint256``
+   Serialized as ``uint256``.
 
 9. ``nEarliestHeight``
 
-- If the node is a leaf node
+   Leaf node
+     The header's height.
 
-  * ``nEarliestHeight`` is the header's height
+   Internal or root node
+     Inherited from the left child.
 
-- If the node is an internal or root node
-
-  * ``nEarliestHeight`` is inherited from the left child
-
-- serialized as ``CompactSize uint``
+   Serialized as ``CompactSize uint``.
 
 10. ``nLatestHeight``
 
-- If the node is a leaf node
+    Leaf node
+      The header's height.
 
-  * ``nLatestHeight`` the header's height
+    Internal or root node
+      Inherited from the right child.
 
-- If the node is an internal or root node
-
-  * ``nLatestHeight`` is inherited from the right child
-  * serialized as ``CompactSize uint``
+    Serialized as ``CompactSize uint``.
 
 11. ``nSaplingTxCount``
 
-- If the node is a leaf node
+    Leaf node
+      The number of transactions in the leaf block where either of
+      ``vShieldedSpend`` or `vShieldedOutput` is non-empty.
 
-  * ``nSaplingTxCount`` is the number of transactions in the leaf block where either of
-    ``vShieldedSpend`` or `vShieldedOutput` is non-empty
+    Internal or root node
+      The sum of the ``nSaplingTxCount`` field of both children.
 
-- If the node is an internal or root node
-
-  * ``nSaplingTxCount`` is the sum of the ``nSaplingTxCount`` field of both children
-
-- serialized as ``CompactSize uint``
+    Serialized as ``CompactSize uint``.
 
 Each node, when serialized, is between 147 and 171 bytes long. The canonical serialized
 representation of a node is used whenever creating child commitments for future nodes.
@@ -354,8 +336,8 @@ Tree nodes and hashing (pseudocode)
 
     class ZcashMMRNode():
         # leaf nodes have no children
-        left_child: 'Optional[ZcashMMRNode]'
-        right_child: 'Optional[ZcashMMRNode]'
+        left_child: Optional[ZcashMMRNode]
+        right_child: Optional[ZcashMMRNode]
 
         # commitments
         hashSubtreeCommitment: bytes
@@ -371,7 +353,7 @@ Tree nodes and hashing (pseudocode)
         nSaplingTxCount: int # number of Sapling transactions in block
 
         @classmethod
-        def from_block(Z, block: ZcashBlock) -> 'ZcashMMRNode':
+        def from_block(Z, block: ZcashBlock) -> ZcashMMRNode:
             '''Create a leaf node from a block'''
             return Z(
                 left_child=None,
@@ -429,8 +411,8 @@ Tree nodes and hashing (pseudocode)
 Incremental push and pop (pseudocode)
 -------------------------------------
 
-With each new block ``B_n``, we append a new MMR leaf node corresponding to block
-``B_(n-1)``. The ``append`` operation is detailed below in pseudocode (adapted from
+With each new block :math:`B_n`, we append a new MMR leaf node corresponding to block
+:math:`B_{n-1}`. The ``append`` operation is detailed below in pseudocode (adapted from
 [#FlyClient]_):
 
 .. code-block:: python
@@ -489,7 +471,7 @@ With each new block ``B_n``, we append a new MMR leaf node corresponding to bloc
         return bag_peaks(merged[::-1])
 
 In case of a block reorg, we have to delete the latest (i.e. rightmost) MMR leaf nodes, up
-to the reorg length. This operation is ``O(log(k))`` where ``k`` is the number of leaves
+to the reorg length. This operation is :math:`O(\log(k))` where :math:`k` is the number of leaves
 in the right subtree of the MMR root.
 
 .. code-block:: python
@@ -532,9 +514,9 @@ by light clients.
 Prior to activation of the Heartwood network upgrade, this existing consensus rule on
 block headers (adjusted for the renamed field) is enforced: [#block-header]_
 
-    [Sapling onward] ``hashLightClientRoot`` MUST be LEBS2OSP<sub>256</sub>(rt) where rt
-    is the root of the Sapling note commitment tree for the final Sapling tree state of
-    this block.
+    [Sapling onward] ``hashLightClientRoot`` MUST be :math:`\mathsf{LEBS2OSP}_{256}(\mathsf{rt})`
+    where :math:`\mathsf{rt}` is the root of the Sapling note commitment tree for the final
+    Sapling tree state of this block.
 
 Once the Heartwood network upgrade activates, ``hashLightClientRoot`` MUST be set to the
 value of ``hashChainHistoryRoot`` as specified above.
@@ -609,7 +591,7 @@ the proper serialization and commitment format for the nullifier vector.
 
   * This commitment serves the same purpose as ``hashFinalSaplingRoot`` in current Sapling
     semantics.
-  * However, because the MMR tree commits to blocks ``B_x ... B_(n-1)``, the latest
+  * However, because the MMR tree commits to blocks :math:`B_x \ldots B_{n-1}`, the latest
     commitment will describe the final treestate of the previous block, rather than the
     current block.
   * Concretely: block 500 currently commits to the final treestate of block 500 in its
@@ -627,7 +609,7 @@ the proper serialization and commitment format for the nullifier vector.
     Sapling transactions.
   * In addition, this commitment allows light clients to avoid syncing header ranges that
     do not contain Sapling transactions. As the primary cost of a light client is
-    transmission of equihash solution information in block headers, this optimization
+    transmission of Equihash solution information in block headers, this optimization
     would significantly decrease the bandwidth requirements of light clients.
   * An earlier draft of this ZIP committed to the number of shielded transactions,
     counting both Sprout and Sapling. This commitment would not have been useful to light
@@ -651,7 +633,7 @@ so we decided against adding ``hashChainHistoryRoot`` to the header as a new fie
 
 ZIP 301 states that "[Miner client software] SHOULD alert the user upon receiving jobs
 containing block header versions they do not know about or support, and MUST ignore such
-jobs." [#zip-0301]_ As the only formally-defined block header version is 4, any header
+jobs." [#zip-0301]_ As the only formally defined block header version is 4, any header
 version change requires changes to miner client software in order for miners to handle new
 jobs from mining pools. We therefore do not alter the block version for this semantic
 change. This does not make block headers ambiguous to interpret, because blocks commit to
@@ -709,7 +691,7 @@ security analysis assumes adversary mining power is bounded by a known fraction 
 combined mining power of honest nodes, and cannot drop or tamper with messages between
 client and full nodes. It also assumes the client is connected to at least one full node
 and knows the genesis block. However, these security properties have not been examined
-closely in chain models with rapidly-adjusting difficulty.
+closely in chain models with rapidly adjusting difficulty.
 
 
 Additional Reading
