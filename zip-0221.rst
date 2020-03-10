@@ -95,9 +95,10 @@ and represent this numbering in a flat list:
 | Altitude |  0 |  0 |  1 |  0 |  0 |  1 |  2 |  0 |  0 |  1 |  0 |  0 |  1 |  2 |  3 |  0 |  0 |  1 |  0 |
 +----------+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
 
-This allows us to easily jump to the right sibling of a node by adding ``2^(h+1) - 1`` to
-its position, and its left child by subtracting ``2^h``.  This allows us to efficiently
-find the subtree roots ("peaks") of the mountains.
+Let :math:`h` be the altitude of a given node. We can easily jump to the node's right
+sibling (if it has one) by adding :math:`2^{h+1} - 1` to its position, and its left child
+(if it has one) by subtracting :math:`2^h`. This allows us to efficiently find the subtree
+roots ("peaks") of the mountains.
 
 Once we have the positions of the mountain peaks, we "bag" them using the following
 algorithm:
@@ -138,8 +139,8 @@ leafset, sparse Merkle trees, and Zcash's incremental note commitment trees).
 Motivation
 ==========
 
-MMR proofs are used in the FlyClient protocol to reduce the proof size needed for light
-clients to verify
+MMR proofs are used in the FlyClient protocol [#FlyClient]_, to reduce the proof size
+needed for light clients to verify:
 
 - the validity of a block chain received from a full node, and
 - the inclusion of a block :math:`B` in that chain, and
@@ -193,8 +194,10 @@ Each MMR node is defined as follows:
 
      * This hash is encoded in internal byte order, and does NOT use the BLAKE2b-256
        personalization string described above.
-     * For clarity, the ``hashSubtreeCommitment`` field of leaf ``n-1`` is *precisely equal*
-       to the ``hashPrevBlock`` field of header ``n``.
+     * For clarity, the ``hashSubtreeCommitment`` field of leaf :math:`n-1` is *precisely
+       equal* to the ``hashPrevBlock`` field in the header of the block at height
+       :math:`x+n`, where :math:`x` is the block height of the most recent network
+       upgrade.
 
    Internal or root node
      * Both child nodes are serialized.
@@ -227,7 +230,7 @@ Each MMR node is defined as follows:
 
    Serialized as ``nTime`` (``uint32``).
 
-4. ``nEarliestTarget``
+4. ``nEarliestTargetBits``
 
    Leaf node
      The header's ``nBits`` field.
@@ -237,7 +240,7 @@ Each MMR node is defined as follows:
 
    Serialized as ``nBits`` (``uint32``).
 
-5. ``nLatestTarget``
+5. ``nLatestTargetBits``
 
    Leaf node
      The header's ``nBits`` field.
@@ -343,8 +346,8 @@ Tree nodes and hashing (pseudocode)
         hashSubtreeCommitment: bytes
         nEarliestTimestamp: int
         nLatestTimestamp: int
-        nEarliestTarget: int
-        nLatestTarget: int
+        nEarliestTargetBits: int
+        nLatestTargetBits: int
         hashEarliestSaplingRoot: bytes # left child's sapling root
         hashLatestSaplingRoot: bytes # right child's sapling root
         nSubTreeTotalWork: int  # total difficulty accumulated within each subtree
@@ -361,8 +364,8 @@ Tree nodes and hashing (pseudocode)
                 hashSubtreeCommitment=block.header_hash,
                 nEarliestTimestamp=block.timestamp,
                 nLatestTimestamp=block.timestamp,
-                nEarliestTarget=block.nBits,
-                nLatestTarget=block.nBits,
+                nEarliestTargetBits=block.nBits,
+                nLatestTargetBits=block.nBits,
                 hashEarliestSaplingRoot=block.sapling_root,
                 hashLatestSaplingRoot=block.sapling_root,
                 nSubTreeTotalWork=calculate_work(block.nBits),
@@ -376,8 +379,8 @@ Tree nodes and hashing (pseudocode)
                 self.hashSubtreeCommitment
                 + serialize_uint32(self.nEarliestTimestamp)
                 + serialize_uint32(self.nLatestTimestamp)
-                + serialize_uint32(self.nEarliestTarget)
-                + serialize_uint32(self.nLatestTarget)
+                + serialize_uint32(self.nEarliestTargetBits)
+                + serialize_uint32(self.nLatestTargetBits)
                 + hashEarliestSaplingRoot
                 + hashLatestSaplingRoot
                 + serialize_uint256(self.nSubTreeTotalWork)
@@ -395,8 +398,8 @@ Tree nodes and hashing (pseudocode)
             hashSubtreeCommitment=H(left_child.serialize() + right_child.serialize()),
             nEarliestTimestamp=left_child.nEarliestTimestamp,
             nLatestTimestamp=right_child.nLatestTimestamp,
-            nEarliestTarget=left_child.nEarliestTarget,
-            nLatestTarget=right_child.nLatestTarget,
+            nEarliestTargetBits=left_child.nEarliestTargetBits,
+            nLatestTargetBits=right_child.nLatestTargetBits,
             hashEarliestSaplingRoot=left_child.sapling_root,
             hashLatestSaplingRoot=right_child.sapling_root,
             nSubTreeTotalWork=left_child.nSubTreeTotalWork + right_child.nSubTreeTotalWork,
@@ -422,6 +425,7 @@ With each new block :math:`B_n`, we append a new MMR leaf node corresponding to 
 
         # Get number of leaves.
         leaves = latest_height - (earliest_height - 1)
+        assert(leaves > 0)
 
         # Check if the number of leaves is a power of two.
         if (leaves & (leaves - 1)) == 0:
@@ -564,8 +568,8 @@ paper.
 
 - ``nEarliestTimestamp``
 - ``nLatestTimestamp``
-- ``nEarliestTarget``
-- ``nLatestTarget``
+- ``nEarliestTargetBits``
+- ``nLatestTargetBits``
 - ``nEarliestHeight``
 - ``nLatestHeight``
 - ``nSubTreeTotalWork``
@@ -697,7 +701,6 @@ closely in chain models with rapidly adjusting difficulty.
 Additional Reading
 ==================
 
-- `Bitcoin difficulty calculation <https://en.bitcoin.it/wiki/Difficulty>`_
 - `Flyclient enabled geth fork by FlyClient authors <https://github.com/mahdiz/flyeth>`_
 - `ECIP-1055: Succinct PoW Using Merkle Mountain Ranges <https://github.com/etclabscore/ECIPs/pull/11/files?short_path=44c106e#diff-44c106ea0ef54fab09596596934d3d15>`_
 - `Grin project MMR implementation in Rust <https://github.com/mimblewimble/grin/tree/milestone/2.0.0/core/src/core>`_
@@ -706,7 +709,7 @@ Additional Reading
 - `Mimblewimble MMR docs <https://github.com/mimblewimble/grin/blob/master/doc/mmr.md>`_
 - `MMR Python implementation <https://github.com/proofchains/python-proofmarshal/blob/master/proofmarshal/mmr.py>`_
 - `Tari MMR documentation <https://docs.rs/merklemountainrange/0.0.1/src/merklemountainrange/lib.rs.html#23-183>`_
-- `Zcash Protocol Specification, Version 2018.0-beta-37 [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
+- `Zcash Protocol Specification, Version 2020.1.1 [Overwinter+Sapling+Blossom] or later <https://zips.z.cash/protocol/protocol.pdf>`_
 - `opentimestamps-server Merkle Mountain Range documentation <https://github.com/opentimestamps/opentimestamps-server/blob/master/doc/merkle-mountain-range.md>`_
 
 
