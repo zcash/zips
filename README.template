@@ -6,12 +6,20 @@ zips
 Specifications and Zcash Improvement Proposals for the `Zcash
 cryptocurrency <https://z.cash/>`__.
 
+
+Contributing
+------------
+
 Participation in the Zcash project is subject to a `Code of
 Conduct <https://github.com/zcash/zcash/blob/master/code_of_conduct.md>`__.
 
 The Zcash protocol is documented in its `Protocol Specification <protocol/protocol.pdf>`__.
 
-The ZIP process is documented in `ZIP 0 <zip-0000.rst>`__.
+To start contributing, first read `ZIP 0 <zip-0000.rst>`__ which documents the ZIP process.
+Then clone `this repo <https://github.com/zcash/zips>`__ from GitHub, and start adding
+your draft ZIP with a filename matching ``draft-*.rst``. Use ``make`` to check that you
+are using correct `reStructuredText <https://docutils.sourceforge.io/rst.html>`__ syntax,
+and double-check the generated ``draft-*.html`` file before filing a Pull Request.
 
 
 NU3 ZIPs
