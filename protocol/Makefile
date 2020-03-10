@@ -14,8 +14,16 @@ LATEX=$(ENGINE) --halt-on-error --file-line-error
 #NOCRUFT=
 NOCRUFT=|awk '{gsub(/[({<][/][^ ]* ?/,"")}1'
 
-.PHONY: all
-all: heartwood blossom sapling sprout
+.PHONY: all-specs all
+all-specs: Makefile.uptodate
+	$(MAKE) heartwood.pdf blossom.pdf sapling.pdf sprout.pdf
+
+all: Makefile.uptodate
+	$(MAKE) heartwood blossom sapling sprout
+
+Makefile.uptodate: Makefile
+	$(MAKE) clean
+	touch Makefile.uptodate
 
 sprout.pdf: protocol.tex zcash.bib incremental_merkle.png key_components.png
 	$(MAKE) sprout

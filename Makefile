@@ -3,14 +3,18 @@
 # sudo pip install rst2html5
 
 .PHONY: all all-zips protocol
-all-zips:
+all-zips: Makefile.uptodate
 	$(MAKE) README.rst
 	$(MAKE) index.html $(addsuffix .html,$(filter-out README,$(basename $(wildcard *.rst))))
 
 all: all-zips protocol
 
-protocol:
+protocol: Makefile.uptodate
 	$(MAKE) -C protocol
+
+Makefile.uptodate: Makefile
+	$(MAKE) clean
+	touch Makefile.uptodate
 
 define PROCESSRST
 $(eval TITLE := $(shell echo '$(basename $<)' | sed -E 's|zip-0{0,3}|ZIP |'): $(shell grep -E '^(\.\.)?\s*Title:' $< |sed -E 's|.*Title:\s*||'))
