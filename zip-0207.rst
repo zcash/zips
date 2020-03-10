@@ -1,10 +1,11 @@
 ::
 
   ZIP: 207
-  Title: Split Founders' Reward
+  Title: Funding Streams
   Owners: Jack Grigg <str4d@electriccoin.co>
+          Daira Hopwood <daira@electriccoin.co>
   Category: Consensus
-  Status: Withdrawn
+  Status: Draft
   Created: 2019-01-04
   License: MIT
 
@@ -15,26 +16,59 @@ Terminology
 The key words "MUST", "SHOULD", "SHOULD NOT", and "MAY" in this document are
 to be interpreted as described in RFC 2119. [#RFC2119]_
 
+The terms "block subsidy" and "halving" in this document are to be interpreted
+as described in sections 3.9 and 7.7 of the Zcash Protocol Specification.
+[#protocol-subsidyconcepts]_ [#protocol-subsidies]_
+
+The terms below are to be interpreted as follows:
+
+${NU4}
+  Code-name for the fifth Zcash network upgrade, also known as Network Upgrade 4.
+Testnet
+  The Zcash test network, as defined in the Zcash Protocol Specification. [#protocol]_
+Mainnet
+  The Zcash production network, as defined in the Zcash Protocol Specification. [#protocol]_
+
 
 Abstract
 ========
 
-This Withdrawn proposal would have altered consensus rules to split the original Founders' Reward across
-several recipient addresses per block instead of one, corresponding to the several funding streams contained
-within it.
+This proposal specifies a mechanism to support funding streams, distributed
+from a portion of the block subsidy for a specified range of block heights.
+
+This is intended as a means of implementing the Zcash Development Fund,
+using the funding stream definitions specified in ZIP 214 [#zip-0214]_. It
+should be read in conjunction with ZIP 1014 [#zip-1014]_, which describes
+the high-level requirements for that fund.
 
 
 Motivation
 ==========
 
-Since the launch of the Zcash network, the consensus rules have required that until the first block reward
-halving (at block 850,000), each block must send 20% of the block subsidy to a hard-coded transparent address.
-[#block-subsidy]_ This funding stream is referred to as the Founders' Reward.
+Motivation for the Zcash Development Fund is considered in ZIP 1014 [#zip-1014]_.
 
-This stream of 2.5-ZEC outputs (the value after the mining slow-start was completed) can be split into several
-logical funding streams (for background, see [#continued-funding]_). Modifying the consensus rules to allocate
-the 2.5 ZEC across separate recipient addresses decouples these funding streams organizationally, legally, and
-operationally. It further reinforces transparency as to the structure of the original Founders' Reward.
+This ZIP 207 was originally proposed for the Blossom network upgrade, as a
+means of splitting the original Founders' Reward into several streams. It was
+then withdrawn when such splitting was judged to be unnecessary at the consensus
+level. Since the capabilities of the funding stream mechanism match the
+requirements for the Zcash Development Fund, the ZIP is being reintroduced
+for that purpose in order to reuse specification, analysis, and implementation
+effort.
+
+
+Requirements
+============
+
+The primary requirement of this ZIP is to provide a mechanism for specifying
+the funding streams that are used in ZIP 214 [#zip-0214] to implement the Zcash
+Development Fund. It should be sufficiently expressive to handle both the main
+three "slices" (ECC, ZF, and MG) defined in ZIP 1014 [#zip-1014]_, and also
+(with additional funding stream definitions) the "direct grant option" described
+in that ZIP.
+
+As for the original Founders' Reward, addresses for a given funding stream are
+changed on a roughly-monthly basis, so that keys that are not yet needed may be
+kept off-line as a security measure.
 
 
 Specification
@@ -43,42 +77,48 @@ Specification
 Definitions
 -----------
 
-We use the following constants and functions defined in [#zip-0208]_:
+We use the following constants and functions defined in [#protocol-constants]_,
+[#protocol-subsidies]_, and [#protocol-foundersreward]_:
 
 - ``BlossomActivationHeight``
 - ``PostBlossomHalvingInterval``
 - ``Halving(height)``
+- ``BlockSubsidy(height)``
+- ``RedeemScriptHash(height)``.
 
-We also define the following constants and functions:
+We also define the following function:
 
-- ``SlowStartShift`` as-defined in [#block-subsidy]_.
-- ``HeightForHalving(halving)``: Smallest ``height`` such that ``Halving(height) = halving``
+- ``HeightForHalving(halving)``: Smallest ``height`` such that
+  ``Halving(height) = halving``
+
 
 Funding streams
 ---------------
 
-A funding stream is defined by a block reward fraction (represented as a
+A funding stream is defined by a block subsidy fraction (represented as a
 numerator and a denominator), a start height (inclusive), and an end height
 (exclusive).
 
-By defining the issuance as a proportion of the total block issuance, rather
+By defining the issuance as a proportion of the total block subsidy, rather
 than absolute zatoshis, this ZIP dovetails with any changes to both block
-target times and issuance-per-block rates while maintaining an unchanged
-target-time-based issuance schedule. We anticipate such target-time / issuance
-rate changes in other ZIPs (for example, [#zip-0208]_).
+target spacing and issuance-per-block rates, while maintaining an unchanged
+target-time-based issuance schedule. Such a target-time / issuance rate change
+occurred at the Blossom network upgrade, for example. [#zip-0208]_
 
 The value of a funding stream at a given block height is defined as::
 
     FundingStream[FUND].Value(height) =
         floor((
-            BlockReward(height) * FundingStream[FUND].ValueNumerator
+            BlockSubsidy(height) * FundingStream[FUND].ValueNumerator
         ) / FundingStream[FUND].ValueDenominator)
 
 An active funding stream at a given block height is defined as a funding
 stream for which the block height is less than its end height, but not less
 than its start height.
 
-Each funding stream has an associated set of recipient addresses.
+Each funding stream has an associated sequence of recipient addresses,
+each of which MUST be either a transparent P2SH address or a Sapling address.
+
 Each address is used for at most 1/48th of a halving interval, creating a
 roughly-monthly sequence of funding periods. The address to be used for a
 given block height is defined as follows::
@@ -101,193 +141,59 @@ necessary outputs for each funding period.
 Below is a visual representation of how stream addresses align with funding
 periods:
 
-================================== ======== ======== ========
-          Example height           Stream A Stream B Stream C
-================================== ======== ======== ========
-     ``AddressChangeInterval - 2``    A0
-     ``AddressChangeInterval - 1``    A0
-     ``AddressChangeInterval``        A1       B0       C0
-     ``AddressChangeInterval + 1``    A1       B0       C0
-             \...
-   ``2*AddressChangeInterval - 2``    A1       B0       C0
-   ``2*AddressChangeInterval - 1``    A1       B0       C0
-   ``2*AddressChangeInterval``        A2                C1
-   ``2*AddressChangeInterval + 1``    A2                C1
-             \...
-``PostBlossomHalvingInterval - 2``    A2                C1
-``PostBlossomHalvingInterval - 1``    A2                C1
-``PostBlossomHalvingInterval``                          C2
-``PostBlossomHalvingInterval + 1``                      C2
-================================== ======== ======== ========
+  ================================== ======== ======== ========
+            Example height           Stream A Stream B Stream C
+  ================================== ======== ======== ========
+       ``AddressChangeInterval - 2``    A0
+       ``AddressChangeInterval - 1``    A0
+       ``AddressChangeInterval``        A1       B0       C0
+       ``AddressChangeInterval + 1``    A1       B0       C0
+                \...
+     ``2*AddressChangeInterval - 2``    A1       B0       C0
+     ``2*AddressChangeInterval - 1``    A1       B0       C0
+     ``2*AddressChangeInterval``        A2                C1
+     ``2*AddressChangeInterval + 1``    A2                C1
+                \...
+  ``PostBlossomHalvingInterval - 2``    A2                C1
+  ``PostBlossomHalvingInterval - 1``    A2                C1
+  ``PostBlossomHalvingInterval``                          C2
+  ``PostBlossomHalvingInterval + 1``                      C2
+  ================================== ======== ======== ========
 
-Note that this is not intended to align with the end of a pre-Blossom Founders' Reward address period (as
-defined by ``FounderAddressChangeInterval`` in [#original-fr-consensus-rule]_). There will be a shortened
-Founders' Reward address period prior to Blossom activation.
+On Mainnet, ${NU4} is planned to activate exactly at the point when the Founders'
+Reward expires, at block height 1046400. On Testnet, there will be a shortened
+Founders' Reward address period prior to ${NU4} activation.
+
 
 Consensus rules
 ---------------
 
-Prior to activation of the Blossom network upgrade, the existing consensus rule
-for payment of the original Founders' Reward is enforced. [#original-fr-consensus-rule]_
+Prior to activation of the ${NU4} network upgrade, the existing consensus rule
+for payment of the original Founders' Reward is enforced. [#protocol-foundersreward]_
 
-Once the Blossom network upgrade activates:
+Once the ${NU4} network upgrade activates:
 
-- The existing consensus rule [#original-fr-consensus-rule]_ is no longer
-  active.
+- The existing consensus rule [#protocol-foundersreward]_ is no longer active.
+  (This would be the case under the preexisting consensus rules for Mainnet, but
+  not for Testnet.)
+
 - The coinbase transaction in each block MUST contain at least one output per
-  active funding stream that pays the stream's value to the stream's recipient
-  address for the block's height.
+  active funding stream that pays the stream's value in the prescribed way to
+  the stream's recipient address for the block's height.
 
-Stream definitions
-------------------
+- The "prescribed way" to pay a transparent P2SH address is to use a standard
+  P2SH script of the form ``OP_HASH160 RedeemScriptHash(height) OP_EQUAL`` as
+  the ``scriptPubKey``.
 
-The consensus-defined funding streams described above each start at the Blossom activation height, and end at
-the first block reward halving. They are defined as follows:
+- The "prescribed way" to pay a Sapling address is as defined in [#zip-0213]_.
+  That is, all Sapling outputs in coinbase transactions (including, but not
+  limited to, outputs for funding streams) MUST have valid note commitments
+  when recovered using a 32-byte array of zeroes as the outgoing viewing key.
 
-====== =============== ================= =========================== =======================
-Stream Value numerator Value denominator        Start height               End height
-====== =============== ================= =========================== =======================
- FS 1         3                40        ``BlossomActivationHeight`` ``HeightForHalving(1)``
- FS 2         1                25        ``BlossomActivationHeight`` ``HeightForHalving(1)``
- FS 3         1                40        ``BlossomActivationHeight`` ``HeightForHalving(1)``
- FS 4         1                50        ``BlossomActivationHeight`` ``HeightForHalving(1)``
- FS 5         1                80        ``BlossomActivationHeight`` ``HeightForHalving(1)``
- FS 6         1                80        ``BlossomActivationHeight`` ``HeightForHalving(1)``
- FS 7         1               100        ``BlossomActivationHeight`` ``HeightForHalving(1)``
- FS 8         1               200        ``BlossomActivationHeight`` ``HeightForHalving(1)``
-====== =============== ================= =========================== =======================
+For the funding stream definitions to be activated at ${NU4}, see ZIP 214. [#zip-0214]_
+Funding stream definitions can be added, changed, or deleted in ZIPs associated
+with subsequent network upgrades, subject to the ZIP process. [#zip-0000]_
 
-- To-do: specify the correct values.
-
-The sum of the block reward fractions for the above funding streams is ``1/5``, equal to the original
-Founders' Reward (as-defined by ``FoundersFraction`` in [#protocol-constants]_).
-
-The sets of recipient addresses are defined as follows:
-
-.. code:: cpp
-
-    std::vector<std::string> FS_1_ADDRESSES = [
-        "tFS1INVALIDADDRESS00",
-        "tFS1INVALIDADDRESS01",
-        "tFS1INVALIDADDRESS02",
-        "tFS1INVALIDADDRESS03",
-        "tFS1INVALIDADDRESS04",
-        "tFS1INVALIDADDRESS05",
-        "tFS1INVALIDADDRESS06",
-        "tFS1INVALIDADDRESS07",
-        "tFS1INVALIDADDRESS08",
-        "tFS1INVALIDADDRESS09",
-        "tFS1INVALIDADDRESS10",
-        "tFS1INVALIDADDRESS11",
-    ];
-
-    std::vector<std::string> FS_2_ADDRESSES = [
-        "tFS2INVALIDADDRESS00",
-        "tFS2INVALIDADDRESS01",
-        "tFS2INVALIDADDRESS02",
-        "tFS2INVALIDADDRESS03",
-        "tFS2INVALIDADDRESS04",
-        "tFS2INVALIDADDRESS05",
-        "tFS2INVALIDADDRESS06",
-        "tFS2INVALIDADDRESS07",
-        "tFS2INVALIDADDRESS08",
-        "tFS2INVALIDADDRESS09",
-        "tFS2INVALIDADDRESS10",
-        "tFS2INVALIDADDRESS11",
-    ];
-
-    std::vector<std::string> FS_3_ADDRESSES = [
-        "tFS3INVALIDADDRESS00",
-        "tFS3INVALIDADDRESS01",
-        "tFS3INVALIDADDRESS02",
-        "tFS3INVALIDADDRESS03",
-        "tFS3INVALIDADDRESS04",
-        "tFS3INVALIDADDRESS05",
-        "tFS3INVALIDADDRESS06",
-        "tFS3INVALIDADDRESS07",
-        "tFS3INVALIDADDRESS08",
-        "tFS3INVALIDADDRESS09",
-        "tFS3INVALIDADDRESS10",
-        "tFS3INVALIDADDRESS11",
-    ];
-
-    std::vector<std::string> FS_4_ADDRESSES = [
-        "tFS4INVALIDADDRESS00",
-        "tFS4INVALIDADDRESS01",
-        "tFS4INVALIDADDRESS02",
-        "tFS4INVALIDADDRESS03",
-        "tFS4INVALIDADDRESS04",
-        "tFS4INVALIDADDRESS05",
-        "tFS4INVALIDADDRESS06",
-        "tFS4INVALIDADDRESS07",
-        "tFS4INVALIDADDRESS08",
-        "tFS4INVALIDADDRESS09",
-        "tFS4INVALIDADDRESS10",
-        "tFS4INVALIDADDRESS11",
-    ];
-
-    std::vector<std::string> FS_5_ADDRESSES = [
-        "tFS5INVALIDADDRESS00",
-        "tFS5INVALIDADDRESS01",
-        "tFS5INVALIDADDRESS02",
-        "tFS5INVALIDADDRESS03",
-        "tFS5INVALIDADDRESS04",
-        "tFS5INVALIDADDRESS05",
-        "tFS5INVALIDADDRESS06",
-        "tFS5INVALIDADDRESS07",
-        "tFS5INVALIDADDRESS08",
-        "tFS5INVALIDADDRESS09",
-        "tFS5INVALIDADDRESS10",
-        "tFS5INVALIDADDRESS11",
-    ];
-
-    std::vector<std::string> FS_6_ADDRESSES = [
-        "tFS6INVALIDADDRESS00",
-        "tFS6INVALIDADDRESS01",
-        "tFS6INVALIDADDRESS02",
-        "tFS6INVALIDADDRESS03",
-        "tFS6INVALIDADDRESS04",
-        "tFS6INVALIDADDRESS05",
-        "tFS6INVALIDADDRESS06",
-        "tFS6INVALIDADDRESS07",
-        "tFS6INVALIDADDRESS08",
-        "tFS6INVALIDADDRESS09",
-        "tFS6INVALIDADDRESS10",
-        "tFS6INVALIDADDRESS11",
-    ];
-
-    std::vector<std::string> FS_7_ADDRESSES = [
-        "tFS7INVALIDADDRESS00",
-        "tFS7INVALIDADDRESS01",
-        "tFS7INVALIDADDRESS02",
-        "tFS7INVALIDADDRESS03",
-        "tFS7INVALIDADDRESS04",
-        "tFS7INVALIDADDRESS05",
-        "tFS7INVALIDADDRESS06",
-        "tFS7INVALIDADDRESS07",
-        "tFS7INVALIDADDRESS08",
-        "tFS7INVALIDADDRESS09",
-        "tFS7INVALIDADDRESS10",
-        "tFS7INVALIDADDRESS11",
-    ];
-
-    std::vector<std::string> FS_8_ADDRESSES = [
-        "tFS8INVALIDADDRESS00",
-        "tFS8INVALIDADDRESS01",
-        "tFS8INVALIDADDRESS02",
-        "tFS8INVALIDADDRESS03",
-        "tFS8INVALIDADDRESS04",
-        "tFS8INVALIDADDRESS05",
-        "tFS8INVALIDADDRESS06",
-        "tFS8INVALIDADDRESS07",
-        "tFS8INVALIDADDRESS08",
-        "tFS8INVALIDADDRESS09",
-        "tFS8INVALIDADDRESS10",
-        "tFS8INVALIDADDRESS11",
-    ];
-
-- To-do: specify the correct sets of FR addresses.
-- To-do: require that the FR address sets are PGP-signed with appropriate keys.
 
 Example implementation
 ----------------------
@@ -303,14 +209,9 @@ Example implementation
     };
 
     enum FundingStream {
-        FS_1,
-        FS_2,
-        FS_3,
-        FS_4,
-        FS_5,
-        FS_6,
-        FS_7,
-        FS_8,
+        FS_ECC,
+        FS_ZF,
+        FS_MG,
         MAX_FUNDING_STREAMS,
     };
 
@@ -343,14 +244,9 @@ Example implementation
 
         consensus.nFundingPeriodLength = consensus.nSubsidyPostBlossomHalvingInterval / 48;
 
-        AddZIP207FundingStream(consensus, Consensus::FS_1, FS_1_ADDRESSES, 3, 40);
-        AddZIP207FundingStream(consensus, Consensus::FS_2, FS_2_ADDRESSES, 1, 25);
-        AddZIP207FundingStream(consensus, Consensus::FS_3, FS_3_ADDRESSES, 1, 40);
-        AddZIP207FundingStream(consensus, Consensus::FS_4, FS_4_ADDRESSES, 1, 50);
-        AddZIP207FundingStream(consensus, Consensus::FS_5, FS_5_ADDRESSES, 1, 80);
-        AddZIP207FundingStream(consensus, Consensus::FS_6, FS_6_ADDRESSES, 1, 80);
-        AddZIP207FundingStream(consensus, Consensus::FS_7, FS_7_ADDRESSES, 1, 100);
-        AddZIP207FundingStream(consensus, Consensus::FS_8, FS_8_ADDRESSES, 1, 200);
+        AddZIP207FundingStream(consensus, Consensus::FS_ECC, FS_ECC_ADDRESSES, 7, 100);
+        AddZIP207FundingStream(consensus, Consensus::FS_ZF,  FS_ZF_ADDRESSES,  5, 100);
+        AddZIP207FundingStream(consensus, Consensus::FS_MG,  FS_MG_ADDRESSES,  8, 100);
 
         ...
     }
@@ -406,7 +302,7 @@ Example implementation
     {
         ...
 
-        if (NetworkUpgradeActive(nHeight, consensusParams, Consensus::UPGRADE_BLOSSOM)) {
+        if (NetworkUpgradeActive(nHeight, consensusParams, Consensus::UPGRADE_NU4)) {
             // Coinbase transaction must include outputs corresponding to the consensus
             // funding streams active at the current block height.
             auto requiredStreams = GetActiveFundingStreams(nHeight, consensusParams);
@@ -421,14 +317,15 @@ Example implementation
             }
 
             if (!requiredStreams.empty()) {
-                return state.DoS(100, error("%s: funding stream missing", __func__), REJECT_INVALID, "cb-funding-stream-missing");
+                return state.DoS(100, error("%s: funding stream missing", __func__),
+                                 REJECT_INVALID, "cb-funding-stream-missing");
             }
         } else {
             // Coinbase transaction must include an output sending 20% of
-            // the block reward to a founders reward script, until the last founders
+            // the block subsidy to a Founders' Reward script, until the last founders
             // reward block is reached, with exception of the genesis block.
-            // The last founders reward block is defined as the block just before the
-            // first subsidy halving block, which occurs at halving_interval + slow_start_shift
+            // The last Founders' Reward block is defined as the block just before the
+            // first subsidy halving block.
             if ((nHeight > 0) && (nHeight <= consensusParams.GetLastFoundersRewardBlockHeight())) {
                 bool found = false;
 
@@ -442,7 +339,8 @@ Example implementation
                 }
 
                 if (!found) {
-                    return state.DoS(100, error("%s: founders reward missing", __func__), REJECT_INVALID, "cb-no-founders-reward");
+                    return state.DoS(100, error("%s: founders reward missing", __func__),
+                                     REJECT_INVALID, "cb-no-founders-reward");
                 }
             }
         }
@@ -454,7 +352,7 @@ Example implementation
 Deployment
 ==========
 
-This proposal was originally intended to be deployed with the Blossom network upgrade. [#zip-0206]_
+This proposal is intended to be deployed with ${NU4}. [#zip-0251]_
 
 
 Backward compatibility
@@ -465,23 +363,6 @@ rule change". Use of this mechanism requires that all network participants
 upgrade their software to a compatible version within the upgrade window.
 Older software will treat post-upgrade blocks as invalid, and will follow any
 pre-upgrade branch that persists.
-
-This proposal is designed with the explicit requirement of not altering the overall issuance schedule (based
-on time), nor does it alter the proportion or timeline of the overall Founders' Reward. As a result, no users
-outside of the Zerocoin Electric Coin Company and Zcash Foundation should experience any UX or economic change
-outside of the upgrade due to this proposal itself.
-
-
-Interactions with other ZIPs
-----------------------------
-
-[#zip-0208]_ (Shorter Block Target Spacing) specifies a change to the block target spacing. It is planned
-to take effect in the Blossom network upgrade [#zip-0206]_. This ZIP was originally written to take effect
-at the same time, but was Withdrawn from consideration for Blossom.
-
-ZIP 208 modifies the payment of the original Founders' Reward to take account of the block target spacing
-change. It does this by specifying a FounderAddressAdjustedHeight function and related changes, which would
-need to be revisited to take into account funding streams.
 
 
 Reference Implementation
@@ -494,9 +375,14 @@ References
 ==========
 
 .. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
-.. [#block-subsidy] `Section 7.7: Calculation of Block Subsidy and Founders' Reward. Zcash Protocol Specification, Version 2018.0-beta-33 or later [Overwinter+Sapling] <protocol/protocol.pdf>`_
-.. [#continued-funding] `Continued Funding and Transparency <https://electriccoin.co/blog/continued-funding-and-transparency/>`_
+.. [#protocol] `Zcash Protocol Specification, Version 2020.1.1 or later <protocol/protocol.pdf>`_
+.. [#protocol-subsidyconcepts] `Section 3.9: Block Subsidy and Founders' Reward. Zcash Protocol Specification, Version 2020.1.1 or later <protocol/protocol.pdf#subsidyconcepts>`_
+.. [#protocol-constants] `Section 5.3: Constants. Zcash Protocol Specification, Version 2020.1.1 or later <protocol/protocol.pdf#constants>`_
+.. [#protocol-subsidies] `Section 7.7: Calculation of Block Subsidy and Founders' Reward. Zcash Protocol Specification, Version 2020.1.1 or later <protocol/protocol.pdf#subsidies>`_
+.. [#protocol-foundersreward] `Section 7.8: Payment of Founders' Reward. Zcash Protocol Specification, Version 2020.1.1 or later <protocol/protocol.pdf#foundersreward>`_
+.. [#zip-0000] `ZIP 0: ZIP Process <zip-0000.rst>`_
 .. [#zip-0208] `ZIP 208: Shorter Block Target Spacing <zip-0208.rst>`_
-.. [#original-fr-consensus-rule] `Section 7.8: Payment of Founders' Reward. Zcash Protocol Specification, Version 2018.0-beta-33 or later [Overwinter+Sapling] <protocol/protocol.pdf>`_
-.. [#protocol-constants] `Section 5.3: Constants. Zcash Protocol Specification, Version 2018.0-beta-33 or later [Overwinter+Sapling] <protocol/protocol.pdf>`_
-.. [#zip-0206] `ZIP 206: Blossom Network Upgrade <zip-0206.rst>`_
+.. [#zip-0213] `ZIP 213: Shielded Coinbase <zip-0213.rst>`_
+.. [#zip-0214] `ZIP 214: Consensus rules for a Zcash Development Fund <zip-0214.rst>`_
+.. [#zip-0251] `ZIP 251: Deployment of the ${NU4} Network Upgrade <zip-0251.rst>`_
+.. [#zip-1014] `ZIP 1014: Establishing a Dev Fund for ECC, ZF, and Major Grants <zip-1014.rst>`_
