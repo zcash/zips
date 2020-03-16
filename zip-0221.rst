@@ -147,10 +147,10 @@ needed for light clients to verify:
 - certain metadata of any block or range of blocks in that chain.
 
 The protocol requires that an MMR that commits to the inclusion of all blocks since the
-most recent network upgrade :math:`(B_x, \ldots, B_{n-1})` is formed for each block :math:`B_n`.
+preceding network upgrade :math:`(B_x, \ldots, B_{n-1})` is formed for each block :math:`B_n`.
 The root :math:`M_n` of the MMR MUST be included in the header of :math:`B_n`.
 
-(:math:`x` is the activation height of the most recent upgrade network upgrade.)
+(:math:`x` is the activation height of the preceding network upgrade.)
 
 FlyClient reduces the number of block headers needed for light client verification of a
 valid chain, from linear (as in the current reference protocol) to logarithmic in
@@ -168,9 +168,15 @@ devices.
 Specification
 =============
 
-The leaves of the MMR at block :math:`B_n` are hash commitments to the header data and
-metadata of each previous block :math:`B_x, \ldots, B_{n-1}`, where :math:`x` is the block height of
-the most recent network upgrade. We extend the standard MMR to allow metadata to propagate
+For a block :math:`B_n` at height :math:`n > 0` in a given block chain, define the
+"preceding network upgrade height" :math:`x` of :math:`B_n` to be the last network
+upgrade activation height in the chain that is less than :math:`n`. (For this definion,
+block height :math:`0` is considered to be the height of a network upgrade activation.
+The preceding network upgrade height of the genesis block is undefined.)
+
+The leaves of the MMR at block :math:`B_n` are hash commitments to the header data
+and metadata of each previous block :math:`B_x, \ldots, B_{n-1}`, where :math:`x`
+is defined as above. We extend the standard MMR to allow metadata to propagate
 upwards through the tree by either summing the metadata of both children, or inheriting
 the metadata of a specific child as necessary. This allows us to create efficient proofs
 of selected properties of a range of blocks without transmitting the entire range of
@@ -194,10 +200,10 @@ Each MMR node is defined as follows:
 
      * This hash is encoded in internal byte order, and does NOT use the BLAKE2b-256
        personalization string described above.
-     * For clarity, the ``hashSubtreeCommitment`` field of leaf :math:`n-1` is *precisely
-       equal* to the ``hashPrevBlock`` field in the header of the block at height
-       :math:`x+n`, where :math:`x` is the block height of the most recent network
-       upgrade.
+     * For clarity, in a given consensus branch, the ``hashSubtreeCommitment`` field
+       of leaf :math:`n-1` is *precisely equal* to the ``hashPrevBlock`` field in the
+       header of the block at height :math:`x+n`, where :math:`x` is the network
+       upgrade activation height of that consensus branch.
 
    Internal or root node
      * Both child nodes are serialized.
@@ -528,6 +534,13 @@ block headers (adjusted for the renamed field) is enforced: [#block-header]_
 
 Once the Heartwood network upgrade activates, ``hashLightClientRoot`` MUST be set to the
 value of ``hashChainHistoryRoot`` as specified above.
+
+The above specification is not well-defined for the genesis block, since then :math:`n = 0`
+and there is no block :math:`B_{n-1}`. For the Zcash Mainnet and Testnet chains, this is not
+an issue because the Heartwood network upgrade is not active at genesis. In the case of this
+specification being adopted for a chain that starts with Heartwood active at genesis, the
+``hashLightClientRoot`` field of the genesis block for that chain MUST be set to all zero
+bytes.
 
 The block header byte format and version are not altered by this ZIP.
 
