@@ -28,10 +28,11 @@ Consensus rule change
   A change in the consensus rule set of the network, such that nodes that do not recognize the new rules will
   follow a different block chain.
 
-Branch
+Consensus branch
   A block chain with a common consensus rule set, where the first block in the chain is either the genesis
   block, or the child of a parent block created under an older set of consensus rules (i.e. the parent block
-  is a member of a different branch). By definition, every block belongs to at most one branch.
+  is a member of a different consensus branch). By definition, every block belongs to at most one consensus
+  branch.
 
 Network upgrade
   An intentional consensus rule change undertaken by the community in order to improve the network.
@@ -49,8 +50,9 @@ Motivation
 ==========
 
 Zcash is a *consensual currency*: nobody is ever going to force someone to use a specific software
-implementation or a specific branch of Zcash. [#consensual-currency]_ As such, different sub-communities will
-always have the freedom to choose different variants or branches which offer different design trade-offs.
+implementation or a specific consensus branch of Zcash. [#consensual-currency]_ As such, different
+sub-communities will always have the freedom to choose different variants or branches which offer different
+design trade-offs.
 
 The current Zcash software includes an *auto-senescence* feature, causing nodes running a particular version
 to automatically shut down approximately 16 weeks after that version was released (specifically, at the block
@@ -81,18 +83,19 @@ Specification
 
 The following constants are defined for every network upgrade:
 
-BRANCH_ID
+CONSENSUS_BRANCH_ID
   A globally-unique non-zero 32-bit identifier.
 
-  Implementations MAY use a value of zero in branch ID fields to indicate the absence of any upgrade (i.e.
-  that the Sprout consensus rules apply).
+  Implementations MAY use a value of zero in consensus branch ID fields to indicate the absence of any
+  upgrade (i.e. that the Sprout consensus rules apply).
 
 ACTIVATION_HEIGHT
   The non-zero block height at which the network upgrade rules will come into effect, and be enforced as part
   of the block chain consensus.
 
   For removal of ambiguity, the block at height ``ACTIVATION_HEIGHT - 1`` is subject to the pre-upgrade
-  consensus rules, and would be the last common block in the event of a persistent pre-upgrade branch.
+  consensus rules, and would be the last common block in the event of a persistent pre-upgrade consensus
+  branch.
 
   It MUST be greater than the value of ``DEPRECATION_HEIGHT`` in the last software version that will not
   contain support for the network upgrade. It SHOULD be chosen to be reached approximately three months after
@@ -104,11 +107,11 @@ ACTIVATION_HEIGHT
     A three-month window provides ample time for users to upgrade their nodes after auto-senescence, and
     re-integrate into the network prior to activation of the network upgrade.
 
-The relationship between ``BRANCH_ID`` and ``ACTIVATION_HEIGHT`` is many-to-one: it is possible for many
-distinct branches to descend from the same parent block (and thus have the same ``ACTIVATION_HEIGHT``), but a
-specific branch can only have one parent block. Concretely, this means that if the ``ACTIVATION_HEIGHT`` of a
-network upgrade is changed for any reason (e.g. security vulnerabilities or consensus bugs are discovered),
-the ``BRANCH_ID`` MUST also be changed.
+The relationship between ``CONSENSUS_BRANCH_ID`` and ``ACTIVATION_HEIGHT`` is many-to-one: it is possible
+for many distinct consensus branches to descend from the same parent block (and thus have the same
+``ACTIVATION_HEIGHT``), but a specific consensus branch can only have one parent block. Concretely, this
+means that if the ``ACTIVATION_HEIGHT`` of a network upgrade is changed for any reason (e.g. security
+vulnerabilities or consensus bugs are discovered), the ``CONSENSUS_BRANCH_ID`` MUST also be changed.
 
 Activation mechanism
 --------------------
@@ -140,7 +143,7 @@ network behavior or surrounding code that depends on it) MUST be gated by a bloc
 Block validation
 ````````````````
 Incoming blocks known to have a particular height (due to their parent chain being entirely known) MUST be
-validated under the consensus rules corresponding to the expected branch ID for that height.
+validated under the consensus rules corresponding to the expected consensus branch ID for that height.
 
 Incoming blocks with unknown heights (because at least one block header in their parent chain is unknown)
 MAY be cached, so that they can be reconsidered in the future after all their parents have been received.
@@ -154,19 +157,19 @@ chain is valid.
 Post-activation upgrading
 `````````````````````````
 If a user does not upgrade their node to a compatible software version before ``ACTIVATION_HEIGHT`` is
-reached, their node will follow any pre-upgrade branch that persists, and may download blocks that are
-incompatible with the post-upgrade branch. If the user subsequently upgrades their node to a compatible
-software version, the node will consider these blocks to be invalid, and if there are a significant number of
-invalid blocks it SHOULD shut down and alert the user of the issue.
+reached, their node will follow any pre-upgrade consensus branch that persists, and may download blocks that
+are incompatible with the post-upgrade consensus branch. If the user subsequently upgrades their node to a
+compatible software version, the node will consider these blocks to be invalid, and if there are a
+significant number of invalid blocks it SHOULD shut down and alert the user of the issue.
 
 Memory pool
 -----------
 
 While the current chain tip height is below ``ACTIVATION_HEIGHT``, nodes SHOULD NOT accept transactions that
-will only be valid on the post-upgrade branch.
+will only be valid on the post-upgrade consensus branch.
 
 When the current chain tip height reaches ``ACTIVATION_HEIGHT``, the node's local transaction memory pool
-SHOULD be cleared of transactions that will never be valid on the post-upgrade branch.
+SHOULD be cleared of transactions that will never be valid on the post-upgrade consensus branch.
 
 Two-way replay protection
 -------------------------
@@ -174,17 +177,17 @@ Two-way replay protection
 Before the Overwinter network upgrade, two-way replay protection is ensured by enforcing post-upgrade that the
 most significant bit of the transaction version is set to 1. [#zip-0202]_ From the perspective of old nodes,
 the transactions will have a negative version number, which is invalid under the old consensus rules.
-Enforcing this rule trivially makes old transactions invalid on the Overwinter branch.
+Enforcing this rule trivially makes old transactions invalid on the Overwinter consensus branch.
 
 After the Overwinter network upgrade, two-way replay protection is ensured by transaction signatures
-committing to a specific ``BRANCH_ID``. [#zip-0143]_
+committing to a specific ``CONSENSUS_BRANCH_ID``. [#zip-0143]_
 
 Wipe-out protection
 -------------------
 
 Nodes running upgrade-aware software versions will enforce the upgraded consensus rules from
-``ACTIVATION_HEIGHT``. The chain from that height will not reorganize to a pre-upgrade branch if any block in
-that branch would violate the new consensus rules.
+``ACTIVATION_HEIGHT``. The chain from that height will not reorganize to a pre-upgrade consensus branch if
+any block in that consensus branch would violate the new consensus rules.
 
 Care must be taken, however, to account for possible edge cases where the old and new consensus rules do not
 differ. For example, if the non-upgraded chain only contained empty blocks from ``ACTIVATION_HEIGHT``, and the
@@ -192,7 +195,7 @@ coinbase transactions were valid under both the old and new consensus rules, a w
 Overwinter network upgrade is not susceptible to this because all previous transaction versions will become
 invalid, meaning that the coinbase transactions must use the newer transaction version. More generally, this
 issue could be addressed in a future network upgrade by modifying the block header to include a commitment to
-the ``BRANCH_ID``.
+the ``CONSENSUS_BRANCH_ID``.
 
 
 Deployment
@@ -207,7 +210,7 @@ Backward compatibility
 This proposal intentionally creates what is known as a "bilateral consensus rule change". Use of this
 mechanism requires that all network participants upgrade their software to a compatible version within the
 upgrade window. Older software will treat post-upgrade blocks as invalid, and will follow any pre-upgrade
-branch that persists.
+consensus branch that persists.
 
 
 Reference Implementation
