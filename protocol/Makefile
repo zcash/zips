@@ -14,6 +14,9 @@ LATEX=$(ENGINE) --halt-on-error --file-line-error
 #NOCRUFT=
 NOCRUFT=|awk '{gsub(/[({<][/][^ ]* ?/,"")}1'
 
+# Use EXTRAOPT=-pvc for "continuous preview" mode. For example, "make auxblossom EXTRAOPT=-pvc".
+# In this case the updated .pdf will be in the aux/ directory.
+
 .PHONY: all-specs all
 all-specs: Makefile.uptodate
 	$(MAKE) heartwood.pdf blossom.pdf sapling.pdf sprout.pdf
@@ -42,45 +45,31 @@ auxsprout:
 	printf '\\renewcommand{\\docversion}{Version %s [\\SproutSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/sprout.* aux/protocol.*
-	$(LATEXMK) -jobname=sprout -auxdir=aux -outdir=aux protocol $(NOCRUFT)
+	$(LATEXMK) -jobname=sprout -auxdir=aux -outdir=aux $(EXTRAOPT) protocol $(NOCRUFT)
 
 .PHONY: sprout
 sprout:
 	$(MAKE) auxsprout
 	mv -f aux/sprout.pdf .
 
-.PHONY: pvcsprout
-pvcsprout:
-	printf '\\renewcommand{\\docversion}{Version %s [\\SproutSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
-	mkdir -p aux
-	rm -f aux/sprout.* aux/protocol.*
-	$(LATEXMK) -jobname=sprout -auxdir=aux -pvc protocol $(NOCRUFT)
-
 .PHONY: auxsapling
 auxsapling:
 	printf '\\toggletrue{issapling}\n\\renewcommand{\\docversion}{Version %s [\\SaplingSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/sapling.*
-	$(LATEXMK) -jobname=sapling -auxdir=aux -outdir=aux protocol $(NOCRUFT)
+	$(LATEXMK) -jobname=sapling -auxdir=aux -outdir=aux $(EXTRAOPT) protocol $(NOCRUFT)
 
 .PHONY: sapling
 sapling:
 	$(MAKE) auxsapling
 	mv -f aux/sapling.pdf .
 
-.PHONY: pvcsapling
-pvcsapling:
-	printf '\\toggletrue{issapling}\n\\renewcommand{\\docversion}{Version %s [\\SaplingSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
-	mkdir -p aux
-	rm -f aux/sapling.*
-	$(LATEXMK) -jobname=sapling -auxdir=aux -pvc protocol $(NOCRUFT)
-
 .PHONY: auxblossom
 auxblossom:
 	printf '\\toggletrue{isblossom}\n\\renewcommand{\\docversion}{Version %s [\\BlossomSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/blossom.*
-	$(LATEXMK) -jobname=blossom -auxdir=aux -outdir=aux protocol $(NOCRUFT)
+	$(LATEXMK) -jobname=blossom -auxdir=aux -outdir=aux $(EXTRAOPT) protocol $(NOCRUFT)
 
 .PHONY: blossom
 blossom:
@@ -88,31 +77,17 @@ blossom:
 	mv -f aux/blossom.pdf .
 	cp -f blossom.pdf protocol.pdf
 
-.PHONY: pvcblossom
-pvcblossom:
-	printf '\\toggletrue{isblossom}\n\\renewcommand{\\docversion}{Version %s [\\BlossomSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
-	mkdir -p aux
-	rm -f aux/blossom.*
-	$(LATEXMK) -jobname=blossom -auxdir=aux -pvc protocol $(NOCRUFT)
-
 .PHONY: auxheartwood
 auxheartwood:
 	printf '\\toggletrue{isheartwood}\n\\renewcommand{\\docversion}{Version %s [\\HeartwoodSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/heartwood.*
-	$(LATEXMK) -jobname=heartwood -auxdir=aux -outdir=aux protocol $(NOCRUFT)
+	$(LATEXMK) -jobname=heartwood -auxdir=aux -outdir=aux $(EXTRAOPT) protocol $(NOCRUFT)
 
 .PHONY: heartwood
 heartwood:
 	$(MAKE) auxheartwood
 	mv -f aux/heartwood.pdf .
-
-.PHONY: pvcheartwood
-pvcheartwood:
-	printf '\\toggletrue{isheartwood}\n\\renewcommand{\\docversion}{Version %s [\\HeartwoodSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
-	mkdir -p aux
-	rm -f aux/heartwood.*
-	$(LATEXMK) -jobname=heartwood -auxdir=aux -pvc protocol $(NOCRUFT)
 
 .PHONY: nolatexmk-sprout
 nolatexmk-sprout:
