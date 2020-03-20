@@ -11,8 +11,7 @@ LATEXMKOPT_lualatex=-pdflatex=lualatex -dvi- -ps-
 
 LATEXMK=max_print_line=10000 latexmk $(LATEXMKOPT_$(ENGINE)) --halt-on-error --file-line-error -bibtex -pdf -logfilewarnings- -e '$$max_repeat=8'
 LATEX=$(ENGINE) --halt-on-error --file-line-error
-#NOCRUFT=
-NOCRUFT=|awk '{gsub(/[({<][/][^ ]* ?/,"")}1'
+NOCRUFT?=|awk '{gsub(/[({<][/][^ ]* ?/,"")}1' |sed '/name{index:.*} has been referenced but does not exist, replaced by a fixed one/,+1 d'
 
 # Use EXTRAOPT=-pvc for "continuous preview" mode. For example, "make auxblossom EXTRAOPT=-pvc".
 # In this case the updated .pdf will be in the aux/ directory.
