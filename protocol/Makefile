@@ -74,7 +74,6 @@ auxblossom:
 blossom:
 	$(MAKE) auxblossom
 	mv -f aux/blossom.pdf .
-	cp -f blossom.pdf protocol.pdf
 
 .PHONY: auxheartwood
 auxheartwood:
@@ -87,6 +86,7 @@ auxheartwood:
 heartwood:
 	$(MAKE) auxheartwood
 	mv -f aux/heartwood.pdf .
+	cp -f heartwood.pdf protocol.pdf
 
 .PHONY: nolatexmk-sprout
 nolatexmk-sprout:
