@@ -18,10 +18,10 @@ NOCRUFT?=|awk '{gsub(/[({<][/][^ ]* ?/,"")}1' |sed '/name{index:.*} has been ref
 
 .PHONY: all-specs all
 all-specs: Makefile.uptodate
-	$(MAKE) heartwood.pdf blossom.pdf sapling.pdf sprout.pdf
+	$(MAKE) nufour.pdf heartwood.pdf blossom.pdf sapling.pdf sprout.pdf
 
 all: Makefile.uptodate
-	$(MAKE) heartwood blossom sapling sprout
+	$(MAKE) nufour heartwood blossom sapling sprout
 
 Makefile.uptodate: Makefile
 	$(MAKE) clean
@@ -38,6 +38,9 @@ blossom.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_saplin
 
 heartwood.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
 	$(MAKE) heartwood
+
+nufour.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
+	$(MAKE) nufour
 
 .PHONY: auxsprout
 auxsprout:
@@ -88,6 +91,18 @@ heartwood:
 	mv -f aux/heartwood.pdf .
 	cp -f heartwood.pdf protocol.pdf
 
+.PHONY: auxnufour
+auxnufour:
+	printf '\\toggletrue{isnufour}\n\\renewcommand{\\docversion}{Version %s [\\NufourSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	mkdir -p aux
+	rm -f aux/nufour.*
+	$(LATEXMK) -jobname=nufour -auxdir=aux -outdir=aux $(EXTRAOPT) protocol $(NOCRUFT)
+
+.PHONY: nufour
+nufour:
+	$(MAKE) auxnufour
+	mv -f aux/nufour.pdf .
+
 .PHONY: nolatexmk-sprout
 nolatexmk-sprout:
 	printf '\\renewcommand{\\docversion}{Version %s [\\SproutSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
@@ -136,6 +151,18 @@ nolatexmk-heartwood:
 	$(LATEX) -jobname=heartwood protocol.tex || { touch incremental_merkle.png; exit 1; }
 	sh mymakeindex.sh -o heartwood.ind heartwood.idx
 	$(LATEX) -jobname=heartwood protocol.tex || { touch incremental_merkle.png; exit 1; }
+
+.PHONY: nolatexmk-nufour
+nolatexmk-nufour:
+	printf '\\toggletrue{isnufour}\n\\renewcommand{\\docversion}{Version %s [\\NufourSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	# If $(LATEX) fails, touch an input so that 'make' won't think it is up-to-date next time.
+	rm -f nufour.aux nufour.bbl nufour.blg nufour.brf nufour.bcf
+	$(LATEX) -jobname=nufour protocol.tex || { touch incremental_merkle.png; exit 1; }
+	biber nufour
+	$(LATEX) -jobname=nufour protocol.tex || { touch incremental_merkle.png; exit 1; }
+	$(LATEX) -jobname=nufour protocol.tex || { touch incremental_merkle.png; exit 1; }
+	sh mymakeindex.sh -o nufour.ind nufour.idx
+	$(LATEX) -jobname=nufour protocol.tex || { touch incremental_merkle.png; exit 1; }
 
 .PHONY: clean
 clean:
