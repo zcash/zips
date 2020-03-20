@@ -1538,6 +1538,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\slowStartPeriod}{\term{slow-start period}}
 \newcommand{\halvingInterval}{\term{halving interval}}
 \newcommand{\utxoSet}{\term{unspent transaction output set}}
+\newcommand{\fundingStream}{\term{funding stream}}
 
 \newcommand{\BlossomActivationHeight}{\mathsf{BlossomActivationHeight}}
 \newcommand{\IsBlossomActivated}{\mathsf{IsBlossomActivated}}
@@ -1767,6 +1768,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\hashMerkleRoot}{\mathtt{hashMerkleRoot}}
 \newcommand{\hashReserved}{\mathtt{hashReserved}}
 \newcommand{\hashFinalSaplingRoot}{\mathtt{hashFinalSaplingRoot}}
+\newcommand{\hashLightClientRoot}{\mathtt{hashLightClientRoot}}
+\newcommand{\hashChainHistoryRoot}{\mathtt{hashChainHistoryRoot}}
 \newcommand{\nTimeField}{\mathtt{nTime}}
 \newcommand{\nTime}{\mathsf{nTime}}
 \newcommand{\nBitsField}{\mathtt{nBits}}
@@ -4721,6 +4724,10 @@ version 4 \transactions, is defined in \cite{ZIP-243}.}
 \blossomonward{The \sighash algorithm used after \Blossom activation is the same as
 for \Sapling, but using the \Blossom \consensusBranchID \hexint{2BB40E60} as defined in
 \cite{ZIP-206}.}
+
+\heartwoodonward{The \sighash algorithm used after \Heartwood activation is the same as
+for \Sapling, but using the \Heartwood \consensusBranchID \hexint{F5B9230B} as defined in
+\cite{ZIP-250}.}
 
 
 \lsubsection{Non-malleability\pSproutOrNothingText}{sproutnonmalleability}
@@ -8596,6 +8603,9 @@ then \Blossom then \Heartwood\notbeforenufour{ then \Nufour}, and for future upg
 \blossom{The specifications of the \Blossom upgrade are described in this document,
 \cite{ZIP-206}, and \cite{ZIP-208}.}
 
+\heartwood{The specifications of the \Heartwood upgrade are described in this document,
+\cite{ZIP-250}, \cite{ZIP-213}, and \cite{ZIP-221}.}
+
 \vspace{1ex}
 \introlist
 Each \networkUpgrade is introduced as a
@@ -8617,7 +8627,7 @@ of the peer-to-peer protocol. At the planned \activationHeight,
 nodes that support a given upgrade will disconnect from (and will not
 reconnect to) nodes with a protocol version lower than this
 minimum. \overwinter{See \cite{ZIP-201} for how this applies to the \Overwinter
-upgrade.}
+upgrade, for example.}
 
 This ensures that upgrade-supporting nodes transition cleanly
 from the old protocol to the new protocol. Nodes that do not
@@ -8748,7 +8758,7 @@ $\versionField \geq 4$ and $\nShieldedSpend + \nShieldedOutput > 0$.
         $100000$ bytes.}
   \presaplingitem{If $\versionField = 1$ or $\nJoinSplit = 0$, then \txInCount{} \MUSTNOT be $0$.}
   \saplingonwarditem{At least one of \txInCount, \nShieldedSpend, and \nJoinSplit{} \MUST be nonzero.}
-  \item A \transaction with one or more inputs from \coinbaseTransactions{} \MUST have no
+  \item A \transaction with one or more \transparent inputs from \coinbaseTransactions{} \MUST have no
         \transparent outputs (i.e.\ \txOutCount{} \MUST be $0$). Note that inputs from
         \coinbaseTransactions include \foundersReward outputs.
   \item If $\versionField \geq 2$ and $\nJoinSplit > 0$, then:
@@ -8768,16 +8778,24 @@ $\versionField \geq 4$ and $\nShieldedSpend + \nShieldedOutput > 0$.
         \end{itemize}}
   \saplingonwarditem{If $\versionField \geq 4$ and $\nShieldedSpend + \nShieldedOutput = 0$,
         then $\valueBalance$ \MUST be $0$.}
+\notheartwood{
   \item A \coinbaseTransaction{} \MUSTNOT have any
         \joinSplitDescriptions\sapling{, \spendDescriptions, or \outputDescriptions}.
-  \item A \transaction{} \MUSTNOT spend an output of a \coinbaseTransaction
-        (necessarily a \transparent output) from a \block less than 100 \blocks prior
-        to the spend. Note that outputs of \coinbaseTransactions include \foundersReward
-        outputs.
+}
+\notbeforeheartwood{
+  \item A \coinbaseTransaction{} \MUSTNOT have any
+        \joinSplitDescriptions\sapling{ or \spendDescriptions}.
+  \preheartwooditem{\sapling{A \coinbaseTransaction also \MUSTNOT have any \outputDescriptions.}}
+}
+  \item A \transaction{} \MUSTNOT spend a \transparent output of a \coinbaseTransaction
+        from a \block less than 100 \blocks prior to the spend. Note that \transparent outputs of
+        \coinbaseTransactions include \foundersReward outputs \nufour{and \transparent \fundingStream outputs}.
   \overwinteronwarditem{\nExpiryHeight{} \MUST be less than or equal to 499999999.}
   \overwinteronwarditem{If a \transaction is not a \coinbaseTransaction and its \nExpiryHeight{} field
         is nonzero, then it \MUSTNOT be mined at a \blockHeight greater than its \nExpiryHeight.}
   \saplingonwarditem{\valueBalance{} \MUST be in the range $\range{-\MAXMONEY}{\MAXMONEY}$.}
+  \heartwoodonwarditem{All \Sapling outputs in \coinbaseTransactions{} \MUST have valid \noteCommitments
+        when recovered using a sequence of $32$ zero bytes as the \outgoingViewingKey.}
   \item \todo{Other rules inherited from \Bitcoin.}
 \end{consensusrules}
 
@@ -8811,9 +8829,6 @@ each \spendDescription (\crossref{spendencoding}), and each \outputDescription (
         It is likely that an upgrade that changes the \transactionVersionNumber\overwinter{ or
         \versionGroupID} will also change the \transaction format, and software that parses
         \transactions{} \SHOULD take this into account.
-%\overwinter{
-%  \item \todo{Describe interpretation of \fOverwintered{} and \versionField{}.}
-%}
   \overwinteronwarditem{The purpose of \versionGroupID{} is to allow unambiguous parsing of
         \definingquotedterm{loose} \transactions, independent of the context of a \blockchain.
         Code that parses \transactions is likely to be reused between \defining{\blockchainBranches}
@@ -8823,6 +8838,12 @@ each \spendDescription (\crossref{spendencoding}), and each \outputDescription (
         \Bitcoin, where it is associated with support for \ScriptOP{CHECKSEQUENCEVERIFY}
         as specified in \cite{BIP-68}. \Zcash was forked from \Bitcoin v0.11.2
         and does not currently support BIP 68.
+\heartwood{
+  \item Prior to the \Heartwood{} \networkUpgrade, it was not possible for \coinbaseTransactions
+        to have \shielded outputs, and therefore the ``coinbase maturity'' rule and the requirement
+        to spend coinbase outputs only in \transactions with no \transparent outputs, applied to
+        \emph{all} coinbase outputs.
+}
 \end{pnotes}
 
 \introlist
@@ -9047,11 +9068,12 @@ merkle root is derived from the hashes of all \transactions included in this \bl
 ensuring that none of those \transactions can be modified without modifying the \header. \\ \hline
 
 $32$ & \sprout{$\hashReserved$}
-\notsprout{\Longunderstack[l]{$\hashReserved$ /\\ \sapling{$\hashFinalSaplingRoot$}}} &
+\notsprout{\Longunderstack[l]{$\hashReserved$ /\\ \sapling{$\hashFinalSaplingRoot$} \notbeforeheartwood{/}\\ \heartwood{$\hashLightClientRoot$} }} &
 \type{char[32]} &
 \presapling{A reserved field which should be ignored.}
-\saplingonward{The \merkleRoot $\LEBStoOSPOf{256}{\rt}$ of the \Sapling{}
-\noteCommitmentTree corresponding to the final \Sapling{} \treestate of this \block.} \\ \hline
+\saplingandblossom{The \merkleRoot $\LEBStoOSPOf{256}{\rt}$ of the \Sapling{}
+\noteCommitmentTree corresponding to the final \Sapling{} \treestate of this \block.}
+\heartwoodonward{The $\hashChainHistoryRoot$ of this \block.} \\ \hline
 
 $4$ & $\nTimeField$ & \type{uint32} & The \defining{\blockTimestamp} is a Unix epoch time (UTC)
 when the miner started hashing the \header (according to the miner). \\ \hline
@@ -9097,9 +9119,22 @@ preceding \blocks if there are fewer than $\PoWMedianBlockSpan$). The \medianTim
         $653606$ or greater on the test network, $\nTimeField$ \MUST be less than or equal to
         the \medianTimePast of that \block plus $90 \mult 60$ seconds.
   \item The size of a \block{} \MUST be less than or equal to $2000000$ bytes.
+\notheartwood{
   \saplingonwarditem{$\hashFinalSaplingRoot$ \MUST be $\LEBStoOSPOf{256}{\rt}$ where
         $\rt$ is the \merkleRoot of the \Sapling{} \noteCommitmentTree for the final
         \Sapling{} \treestate of this \block.}
+}
+\notbeforeheartwood{
+  \saplingandblossomitem{$\hashLightClientRoot$ \MUST be $\LEBStoOSPOf{256}{\rt}$ where
+        $\rt$ is the \merkleRoot of the \Sapling{} \noteCommitmentTree for the final
+        \Sapling{} \treestate of this \block.}
+  \heartwoodonwarditem{$\hashLightClientRoot$ \MUST be set to the value of $\hashChainHistoryRoot$
+        for this \block, as specified in \cite{ZIP-221}.}
+}
+  \item The \blockHeight{} \MUST be encoded as the first item in the \coinbaseTransaction's
+        $\scriptSig$, as specified in \cite{BIP-34}. The format of the height is
+        ``serialized CScript'' -- the first byte is the number of bytes in the number,
+        and the following bytes are the signed little-endian representation of the number.
   \item \todo{Other rules inherited from \Bitcoin.}
 \end{consensusrules}
 
@@ -9147,6 +9182,10 @@ rejected by this rule at a given point in time may later be accepted.
 }
 \blossom{
   \item There are no changes to the \blockVersionNumber or format for \Blossom.
+}
+\heartwood{
+  \item The $\hashFinalSaplingRoot$ field is renamed to $\hashLightClientRoot$, and
+        its semantics changed according to \cite{ZIP-221}.
 }
 \end{pnotes}
 
@@ -10310,6 +10349,9 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
 \historyentry{2020.1.2}{2020-03-20}
 
 \begin{itemize}
+\heartwood{
+    \item Add consensus rules for \Heartwood.
+}
     \item Remove ``pvc'' \Makefile targets.
     \item Make the \Heartwood specification the default.
     \item Add macros and \Makefile support for building the \Nufour specification.
