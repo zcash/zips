@@ -140,16 +140,4 @@ nolatexmk-heartwood:
 
 .PHONY: clean
 clean:
-	rm -f aux/* html/* protocol.ver protocol.pdf \
-              sprout.dvi    sprout.pdf    sprout.bbl    sprout.blg    sprout.brf        sprout.toc \
-              sprout.aux    sprout.out    sprout.log    sprout.bcf    sprout.run.xml    sprout.fls    sprout.fdb_latexmk \
-              sprout.idx    sprout.ilg    sprout.ind    sprout.ind.original \
-              sapling.dvi   sapling.pdf   sapling.bbl   sapling.blg   sapling.brf       sapling.toc \
-              sapling.aux   sapling.out   sapling.log   sapling.bcf   sapling.run.xml   sapling.fls   sapling.fdb_latexmk \
-              sapling.idx   sapling.ilg   sapling.ind   sapling.ind.original \
-              blossom.dvi   blossom.pdf   blossom.bbl   blossom.blg   blossom.brf       blossom.toc \
-              blossom.aux   blossom.out   blossom.log   blossom.bcf   blossom.run.xml   blossom.fls   blossom.fdb_latexmk \
-              blossom.idx   blossom.ilg   blossom.ind   blossom.ind.original \
-              heartwood.dvi heartwood.pdf heartwood.bbl heartwood.blg heartwood.brf     heartwood.toc \
-              heartwood.aux heartwood.out heartwood.log heartwood.bcf heartwood.run.xml heartwood.fls heartwood.fdb_latexmk \
-              heartwood.idx heartwood.ilg heartwood.ind heartwood.ind.original
+	rm -f aux/* html/* protocol.ver protocol.pdf
