@@ -334,11 +334,8 @@ License: MIT</pre>
                 <p>Once the MMR has been generated, we produce <code>hashChainHistoryRoot</code>, which we define as the BLAKE2b-256 digest of the serialization of the root node.</p>
             </section>
             <section id="tree-nodes-and-hashing-pseudocode"><h3><span class="section-heading">Tree nodes and hashing (pseudocode)</span><span class="section-anchor"> <a href="#tree-nodes-and-hashing-pseudocode"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
-                <pre data-language="python"><span class="n">CONSENSUS_BRANCH_ID</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">=</span> <span class="n">b</span><span class="s">&#39;&#39;</span>
-
-
-<span class="k">def</span> <span class="nf">H</span><span class="p">(</span><span class="n">msg</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
-    <span class="k">return</span> <span class="n">blake2b256</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">personalization</span><span class="o">=</span><span class="n">b</span><span class="s">&#39;ZcashHistory&#39;</span> <span class="o">+</span> <span class="n">CONSENSUS_BRANCH_ID</span><span class="p">)</span>
+                <pre data-language="python"><span class="k">def</span> <span class="nf">H</span><span class="p">(</span><span class="n">msg</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">consensusBranchId</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">blake2b256</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">personalization</span><span class="o">=</span><span class="n">b</span><span class="s">&#39;ZcashHistory&#39;</span> <span class="o">+</span> <span class="n">consensusBranchId</span><span class="p">)</span>
 
 <span class="k">class</span> <span class="nc">ZcashMMRNode</span><span class="p">():</span>
     <span class="c"># leaf nodes have no children</span>
@@ -358,6 +355,8 @@ License: MIT</pre>
     <span class="n">nLatestHeight</span><span class="p">:</span> <span class="nb">int</span>
     <span class="n">nSaplingTxCount</span><span class="p">:</span> <span class="nb">int</span> <span class="c"># number of Sapling transactions in block</span>
 
+    <span class="n">consensusBranchId</span><span class="p">:</span> <span class="nb">bytes</span>
+
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">from_block</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">block</span><span class="p">:</span> <span class="n">ZcashBlock</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ZcashMMRNode</span><span class="p">:</span>
         <span class="sd">&#39;&#39;&#39;Create a leaf node from a block&#39;&#39;&#39;</span>
@@ -374,7 +373,8 @@ License: MIT</pre>
             <span class="n">nSubTreeTotalWork</span><span class="o">=</span><span class="n">calculate_work</span><span class="p">(</span><span class="n">block</span><span class="o">.</span><span class="n">nBits</span><span class="p">),</span>
             <span class="n">nEarliestHeight</span><span class="o">=</span><span class="n">block</span><span class="o">.</span><span class="n">height</span><span class="p">,</span>
             <span class="n">nLatestHeight</span><span class="o">=</span><span class="n">block</span><span class="o">.</span><span class="n">height</span><span class="p">,</span>
-            <span class="n">nSaplingTxCount</span><span class="o">=</span><span class="n">block</span><span class="o">.</span><span class="n">sapling_tx_count</span><span class="p">)</span>
+            <span class="n">nSaplingTxCount</span><span class="o">=</span><span class="n">block</span><span class="o">.</span><span class="n">sapling_tx_count</span><span class="p">,</span>
+            <span class="n">consensusBranchId</span><span class="o">=</span><span class="n">block</span><span class="o">.</span><span class="n">consensusBranchId</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">serialize</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
         <span class="sd">&#39;&#39;&#39;serializes a node&#39;&#39;&#39;</span>
@@ -408,11 +408,12 @@ License: MIT</pre>
         <span class="n">nSubTreeTotalWork</span><span class="o">=</span><span class="n">left_child</span><span class="o">.</span><span class="n">nSubTreeTotalWork</span> <span class="o">+</span> <span class="n">right_child</span><span class="o">.</span><span class="n">nSubTreeTotalWork</span><span class="p">,</span>
         <span class="n">nEarliestHeight</span><span class="o">=</span><span class="n">left_child</span><span class="o">.</span><span class="n">nEarliestHeight</span><span class="p">,</span>
         <span class="n">nLatestHeight</span><span class="o">=</span><span class="n">right_child</span><span class="o">.</span><span class="n">nLatestHeight</span><span class="p">,</span>
-        <span class="n">nSaplingTxCount</span><span class="o">=</span><span class="n">left_child</span><span class="o">.</span><span class="n">nSaplingTxCount</span> <span class="o">+</span> <span class="n">right_child</span><span class="o">.</span><span class="n">nSaplingTxCount</span><span class="p">)</span>
+        <span class="n">nSaplingTxCount</span><span class="o">=</span><span class="n">left_child</span><span class="o">.</span><span class="n">nSaplingTxCount</span> <span class="o">+</span> <span class="n">right_child</span><span class="o">.</span><span class="n">nSaplingTxCount</span><span class="p">,</span>
+        <span class="n">consensusBranchId</span><span class="o">=</span><span class="n">left_child</span><span class="o">.</span><span class="n">consensusBranchId</span><span class="p">)</span>
 
 <span class="k">def</span> <span class="nf">make_root_commitment</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="n">ZcashMMRNode</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
     <span class="sd">&#39;&#39;&#39;Makes the root commitment for a blockheader&#39;&#39;&#39;</span>
-    <span class="k">return</span> <span class="n">H</span><span class="p">(</span><span class="n">root</span><span class="o">.</span><span class="n">serialize</span><span class="p">())</span></pre>
+    <span class="k">return</span> <span class="n">H</span><span class="p">(</span><span class="n">root</span><span class="o">.</span><span class="n">serialize</span><span class="p">(),</span> <span class="n">root</span><span class="o">.</span><span class="n">consensusBranchId</span><span class="p">)</span></pre>
             </section>
             <section id="incremental-push-and-pop-pseudocode"><h3><span class="section-heading">Incremental push and pop (pseudocode)</span><span class="section-anchor"> <a href="#incremental-push-and-pop-pseudocode"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>With each new block
@@ -586,10 +587,11 @@ License: MIT</pre>
             <p>Given the performance of BLAKE2b, we expect this validation cost to be negligible. However, it seems prudent to benchmark potential MMR implementations during the implementation process. Should the validation cost be higher than expected, there are several potential mitigations, e.g. holding recently seen nodes in memory after a reorg.</p>
             <p>Generally, header commitments have no impact on privacy. However, FlyClient has additional security and privacy implications. Because FlyClient is a motivating factor for this ZIP, it seems prudent to include a brief overview. A more in-depth security analysis of FlyClient should be performed before designing a FlyClient-based light client ecosystem for Zcash.</p>
             <p>FlyClient, like all light clients, requires a connection to a light client server. That server may collect information about client requests, and may use that information to attempt to deanonymize clients. However, because FlyClient proofs are non-interactive and publicly verifiable, they could be shared among many light clients after the initial server interaction.</p>
-            <p>FlyClient proofs are probabilistic. When properly constructed, there is negligible probability that a dishonest chain commitment will be accepted by the verifier. The security analysis assumes adversary mining power is bounded by a known fraction of combined mining power of honest nodes, and cannot drop or tamper with messages between client and full nodes. It also assumes the client is connected to at least one full node and knows the genesis block. However, these security properties have not been examined closely in chain models with rapidly adjusting difficulty.</p>
+            <p>FlyClient proofs are probabilistic. When properly constructed, there is negligible probability that a dishonest chain commitment will be accepted by the verifier. The security analysis assumes adversary mining power is bounded by a known fraction of combined mining power of honest nodes, and cannot drop or tamper with messages between client and full nodes. It also assumes the client is connected to at least one full node and knows the genesis block.</p>
+            <p>In addition, <a id="id13" class="footnote_reference" href="#flyclient">2</a> only analyses these security properties in chain models with slowly adjusting difficulty, such as Bitcoin. That paper leaves their analysis in chains with rapidly adjusting difficulty –such as Zcash or Ethereum– as an open problem, and states that the FlyClient protocol provides only heuristic security guarantees in that case. However, as mentioned in <a href="#flyclient-requirements-and-recommendations">FlyClient Requirements and Recommendations</a>, additional commitments allowing light clients to reason about application of the difficulty adjustment algorithm were added in discussion with an author of the FlyClient paper. The use of these fields has not been analysed in the academic security literature. It would be possible to update them in a future network upgrade if further security analysis were to find any deficiencies.</p>
         </section>
         <section id="deployment"><h2><span class="section-heading">Deployment</span><span class="section-anchor"> <a href="#deployment"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>This proposal will be deployed with the Heartwood network upgrade. <a id="id13" class="footnote_reference" href="#zip-0250">9</a></p>
+            <p>This proposal will be deployed with the Heartwood network upgrade. <a id="id14" class="footnote_reference" href="#zip-0250">9</a></p>
         </section>
         <section id="additional-reading"><h2><span class="section-heading">Additional Reading</span><span class="section-anchor"> <a href="#additional-reading"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <ul>

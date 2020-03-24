@@ -341,11 +341,8 @@ Tree nodes and hashing (pseudocode)
 
 .. code-block:: python
 
-    CONSENSUS_BRANCH_ID: bytes = b''
-
-
-    def H(msg: bytes) -> bytes:
-        return blake2b256(msg, personalization=b'ZcashHistory' + CONSENSUS_BRANCH_ID)
+    def H(msg: bytes, consensusBranchId: bytes) -> bytes:
+        return blake2b256(msg, personalization=b'ZcashHistory' + consensusBranchId)
 
     class ZcashMMRNode():
         # leaf nodes have no children
@@ -365,6 +362,8 @@ Tree nodes and hashing (pseudocode)
         nLatestHeight: int
         nSaplingTxCount: int # number of Sapling transactions in block
 
+        consensusBranchId: bytes
+
         @classmethod
         def from_block(Z, block: ZcashBlock) -> ZcashMMRNode:
             '''Create a leaf node from a block'''
@@ -381,7 +380,8 @@ Tree nodes and hashing (pseudocode)
                 nSubTreeTotalWork=calculate_work(block.nBits),
                 nEarliestHeight=block.height,
                 nLatestHeight=block.height,
-                nSaplingTxCount=block.sapling_tx_count)
+                nSaplingTxCount=block.sapling_tx_count,
+                consensusBranchId=block.consensusBranchId)
 
         def serialize(self) -> bytes:
             '''serializes a node'''
@@ -415,11 +415,12 @@ Tree nodes and hashing (pseudocode)
             nSubTreeTotalWork=left_child.nSubTreeTotalWork + right_child.nSubTreeTotalWork,
             nEarliestHeight=left_child.nEarliestHeight,
             nLatestHeight=right_child.nLatestHeight,
-            nSaplingTxCount=left_child.nSaplingTxCount + right_child.nSaplingTxCount)
+            nSaplingTxCount=left_child.nSaplingTxCount + right_child.nSaplingTxCount,
+            consensusBranchId=left_child.consensusBranchId)
 
     def make_root_commitment(root: ZcashMMRNode) -> bytes:
         '''Makes the root commitment for a blockheader'''
-        return H(root.serialize())
+        return H(root.serialize(), root.consensusBranchId)
 
 Incremental push and pop (pseudocode)
 -------------------------------------
@@ -711,8 +712,18 @@ probability that a dishonest chain commitment will be accepted by the verifier. 
 security analysis assumes adversary mining power is bounded by a known fraction of
 combined mining power of honest nodes, and cannot drop or tamper with messages between
 client and full nodes. It also assumes the client is connected to at least one full node
-and knows the genesis block. However, these security properties have not been examined
-closely in chain models with rapidly adjusting difficulty.
+and knows the genesis block.
+
+In addition, [#FlyClient]_ only analyses these security properties in chain models with
+slowly adjusting difficulty, such as Bitcoin. That paper leaves their analysis in chains
+with rapidly adjusting difficulty –such as Zcash or Ethereum– as an open problem, and
+states that the FlyClient protocol provides only heuristic security guarantees in that
+case. However, as mentioned in `FlyClient Requirements and Recommendations`_, additional
+commitments allowing light clients to reason about application of the difficulty adjustment
+algorithm were added in discussion with an author of the FlyClient paper. The use of these
+fields has not been analysed in the academic security literature. It would be possible to
+update them in a future network upgrade if further security analysis were to find any
+deficiencies.
 
 
 Deployment
