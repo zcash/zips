@@ -18,7 +18,7 @@ Category: Consensus
 Created: 2019-03-30
 License: MIT</pre>
         <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a href="#terminology"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>The key words "MUST", "SHOULD", and "MAY" in this document are to be interpreted as described in RFC 2119. <a id="id1" class="footnote_reference" href="#rfc2119">1</a></p>
+            <p>The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to be interpreted as described in RFC 2119. <a id="id1" class="footnote_reference" href="#rfc2119">1</a></p>
             <p>The terms "consensus branch", "epoch", and "network upgrade" in this document are to be interpreted as described in ZIP 200. <a id="id2" class="footnote_reference" href="#zip-0200">8</a></p>
             <dl>
                 <dt><em>Light client</em></dt>
@@ -510,7 +510,7 @@ License: MIT</pre>
             </section>
             <section id="block-header-semantics-and-consensus-rules"><h3><span class="section-heading">Block header semantics and consensus rules</span><span class="section-anchor"> <a href="#block-header-semantics-and-consensus-rules"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>The <code>hashFinalSaplingRoot</code> block header field (which was named <code>hashReserved</code> prior to the Sapling network upgrade) is renamed to <code>hashLightClientRoot</code>, to reflect its usage by light clients.</p>
-                <p>Prior to activation of the Heartwood network upgrade, this existing consensus rule on block headers (adjusted for the renamed field) is enforced: <a id="id10" class="footnote_reference" href="#block-header">4</a></p>
+                <p>Prior to activation of the network upgrade that deploys this ZIP, this existing consensus rule on block headers (adjusted for the renamed field) is enforced: <a id="id10" class="footnote_reference" href="#block-header">4</a></p>
                 <blockquote>
                     <p>[Sapling onward] <code>hashLightClientRoot</code> MUST be
                         <span class="math">\(\mathsf{LEBS2OSP}_{256}(\mathsf{rt})\)</span>
@@ -518,12 +518,8 @@ License: MIT</pre>
                         <span class="math">\(\mathsf{rt}\)</span>
                      is the root of the Sapling note commitment tree for the final Sapling tree state of this block.</p>
                 </blockquote>
-                <p>Once the Heartwood network upgrade activates, <code>hashLightClientRoot</code> MUST be set to the value of <code>hashChainHistoryRoot</code> as specified above.</p>
-                <p>The above specification is not well-defined for the genesis block, since then
-                    <span class="math">\(n = 0\)</span>
-                 and there is no block
-                    <span class="math">\(B_{n-1}\)</span>
-                . For the Zcash Mainnet and Testnet chains, this is not an issue because the Heartwood network upgrade is not active at genesis. In the case of this specification being adopted for a chain that starts with Heartwood active at genesis, the <code>hashLightClientRoot</code> field of the genesis block for that chain MUST be set to all zero bytes.</p>
+                <p>In the block that activates this ZIP, <code>hashLightClientRoot</code> MUST be set to all zero bytes. This MUST NOT be interpreted as a root hash.</p>
+                <p>In subsequent blocks, <code>hashLightClientRoot</code> MUST be set to the value of <code>hashChainHistoryRoot</code> as specified above.</p>
                 <p>The block header byte format and version are not altered by this ZIP.</p>
             </section>
         </section>
@@ -547,7 +543,7 @@ License: MIT</pre>
                 </section>
                 <section id="non-flyclient-commitments"><h4><span class="section-heading">Non-FlyClient Commitments</span><span class="section-anchor"> <a href="#non-flyclient-commitments"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h4>
                     <p>Additional metadata commitments were chosen primarily to improve light client security guarantees. We specified commitments where we could see an obvious security benefit, but there may be other useful metadata that we missed. We're interested in feedback and suggestions from the implementers of the current light client.</p>
-                    <p>We considered adding a commitment to the nullifier vector at each block. We would appreciate comments from light client teams on the utility of this commitment, as well as the proper serialization and commitment format for the nullifier vector.</p>
+                    <p>We considered adding a commitment to the nullifier vector at each block. We would appreciate comments from light client teams on the utility of this commitment, as well as the proper serialization and commitment format for the nullifier vector, for possible inclusion in a future upgrade.</p>
                     <ul>
                         <li><code>hashEarliestSaplingRoot</code>
                             <ul>
@@ -581,6 +577,11 @@ License: MIT</pre>
                 <p>ZIP 301 states that "[Miner client software] SHOULD alert the user upon receiving jobs containing block header versions they do not know about or support, and MUST ignore such jobs." <a id="id11" class="footnote_reference" href="#zip-0301">10</a> As the only formally defined block header version is 4, any header version change requires changes to miner client software in order for miners to handle new jobs from mining pools. We therefore do not alter the block version for this semantic change. This does not make block headers ambiguous to interpret, because blocks commit to their block height inside their coinbase transaction, <a id="id12" class="footnote_reference" href="#bip-0034">7</a> and they are never handled in a standalone context (unlike transactions, which exist in the mempool outside of blocks).</p>
                 <p>Replacing <code>hashFinalSaplingRoot</code> with <code>hashChainHistoryRoot</code> does introduce the theoretical possibility of an attack where a miner constructs a Sapling commitment tree update that results in the same 32-byte value as the MMR root. We don't consider this a realistic attack, both because the adversary would need to find a preimage over 32 layers of Pedersen hash, and because light clients already need to update their code to include the consensus branch ID for the Heartwood network upgrade, and can simultaneously make changes to not rely on the value of this header field being the Sapling tree root.</p>
                 <p>We also considered putting <code>hashChainHistoryRoot</code> in the <code>hashPrevBlock</code> field as it commits to the entire chain history, but quickly realized it would require massive refactoring of the existing code base and would negatively impact performance. Reorgs in particular are fragile, performance-critical, and rely on backwards iteration over the chain history. If a chain were to be designed from scratch there may be some efficient implementation that would join these commitments, but it is clearly not appropriate for Zcash as it exists.</p>
+                <p>The calculation of <code>hashChainHistoryRoot</code> is not well-defined for the genesis block, since then
+                    <span class="math">\(n = 0\)</span>
+                 and there is no block
+                    <span class="math">\(B_{n-1}\)</span>
+                . Also, in the case of chains that activate this ZIP after genesis (including Zcash Mainnet and Testnet), the <code>hashChainHistoryRoot</code> of the activation block would commit to the whole previous epoch if a special case were not made. It would be impractical to calculate this commitment all at once, and so we specify that <code>hashLightClientRoot</code> is set to all zero bytes for that block instead. The hash of the final Sapling note commitment tree root for the activation block will not be encoded in that block, but will be committed to one block later in the <code>hashLatestSaplingRoot</code> field of the MMR root commitment.</p>
             </section>
         </section>
         <section id="security-and-privacy-considerations"><h2><span class="section-heading">Security and Privacy Considerations</span><span class="section-anchor"> <a href="#security-and-privacy-considerations"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
@@ -592,7 +593,7 @@ License: MIT</pre>
             <p>In addition, <a id="id13" class="footnote_reference" href="#flyclient">2</a> only analyses these security properties in chain models with slowly adjusting difficulty, such as Bitcoin. That paper leaves their analysis in chains with rapidly adjusting difficulty –such as Zcash or Ethereum– as an open problem, and states that the FlyClient protocol provides only heuristic security guarantees in that case. However, as mentioned in <a href="#flyclient-requirements-and-recommendations">FlyClient Requirements and Recommendations</a>, additional commitments allowing light clients to reason about application of the difficulty adjustment algorithm were added in discussion with an author of the FlyClient paper. The use of these fields has not been analysed in the academic security literature. It would be possible to update them in a future network upgrade if further security analysis were to find any deficiencies.</p>
         </section>
         <section id="deployment"><h2><span class="section-heading">Deployment</span><span class="section-anchor"> <a href="#deployment"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>This proposal will be deployed with the Heartwood network upgrade. <a id="id14" class="footnote_reference" href="#zip-0250">9</a></p>
+            <p>On the Zcash Mainnet and Testnet, this proposal will be deployed with the Heartwood network upgrade. <a id="id14" class="footnote_reference" href="#zip-0250">9</a></p>
         </section>
         <section id="additional-reading"><h2><span class="section-heading">Additional Reading</span><span class="section-anchor"> <a href="#additional-reading"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <ul>
