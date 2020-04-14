@@ -17,15 +17,15 @@ NOCRUFT?=|awk '{gsub(/[({<][/][^ ]* ?/,"")}1' |sed '/name{index:.*} has been ref
 # In this case the updated .pdf will be in the aux/ directory.
 
 .PHONY: all-specs all
-all-specs: Makefile.uptodate
+all-specs: .Makefile.uptodate
 	$(MAKE) nufour.pdf heartwood.pdf blossom.pdf sapling.pdf sprout.pdf
 
-all: Makefile.uptodate
+all: .Makefile.uptodate
 	$(MAKE) nufour heartwood blossom sapling sprout
 
-Makefile.uptodate: Makefile
+.Makefile.uptodate: Makefile
 	$(MAKE) clean
-	touch Makefile.uptodate
+	touch .Makefile.uptodate
 
 sprout.pdf: protocol.tex zcash.bib incremental_merkle.png key_components.png
 	$(MAKE) sprout
