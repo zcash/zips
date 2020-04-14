@@ -14,4 +14,4 @@ RUN apt-get update \
 RUN pip install rst2html5
 
 WORKDIR "/zips"
-ENTRYPOINT ["make"]
+ENTRYPOINT ["make all"]
