@@ -4,6 +4,9 @@
 
 .PHONY: all all-zips protocol
 all-zips: .Makefile.uptodate
+	find . -name 'zip-*.rst' |sort >.zipfilelist.new
+	diff .zipfilelist.current .zipfilelist.new || cp -f .zipfilelist.new .zipfilelist.current
+	rm -f .zipfilelist.new
 	$(MAKE) README.rst
 	$(MAKE) index.html $(addsuffix .html,$(filter-out README,$(basename $(wildcard *.rst))))
 
@@ -28,9 +31,9 @@ index.html: README.rst
 %.html: %.rst
 	$(PROCESSRST)
 
-README.rst: makeindex.sh README.template $(wildcard zip-*.rst)
+README.rst: .zipfilelist.current makeindex.sh README.template $(wildcard zip-*.rst)
 	./makeindex.sh | cat README.template - >README.rst
 
 .PHONY: clean
 clean:
-	rm -f README.rst index.html $(addsuffix .html,$(basename $(wildcard *.rst)))
+	rm -f .zipfilelist.* README.rst index.html $(addsuffix .html,$(basename $(wildcard *.rst)))
