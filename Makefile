@@ -25,10 +25,10 @@ rst2html5 -v --title="$(TITLE)" $< >$@
 ./edithtml.sh $@
 endef
 
-index.html: README.rst
+index.html: README.rst edithtml.sh
 	$(PROCESSRST)
 
-%.html: %.rst
+%.html: %.rst edithtml.sh
 	$(PROCESSRST)
 
 README.rst: .zipfilelist.current makeindex.sh README.template $(wildcard zip-*.rst)
