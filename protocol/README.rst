@@ -15,23 +15,26 @@ Building
 
 Use:
 
-* ``make sapling`` to make the specification for the Overwinter and
-  Sapling upgrades (``protocol.pdf``);
-* ``make blossom`` to make the draft specification for the Blossom upgrade
+* ``make nufour`` to make the draft specification for NU4 (``nufour.pdf``);
+* ``make heartwood`` to make the specification for Heartwood (``protocol.pdf``);
+* ``make blossom`` to make the specification for the Blossom upgrade
   (``blossom.pdf``);
+* ``make sapling`` to make the specification for the Overwinter and
+  Sapling upgrades (``sapling.pdf``);
 * ``make sprout`` to make a version of the specification that does not
-  include Overwinter or Sapling.
+  include Overwinter or Sapling (``sprout.pdf``).
 
-``make all`` is equivalent to ``make sapling blossom sprout``.
+``make all`` is equivalent to ``make nufour heartwood blossom sapling sprout``.
 
 By default these use ``latexmk``. If you have trouble getting ``latexmk`` to
 work, you can instead use ``make nolatexmk-sapling``, etc. That is not the
 preferred way of building because it may not run ``pdflatex`` enough times.
 
-There is also support for using the incremental (``-pvc``) mode of
-``latexmk`` to automatically rebuild when changes in the source files are
-detected: ``make pvcsapling``, ``make pvcblossom``, or ``make pvcsprout``.
-Manual intervention is still needed when there are LaTeX errors.
+It is also possible to use the incremental (``-pvc``) mode of ``latexmk`` to
+automatically rebuild when changes in the source files are detected, by adding
+``EXTRAOPT=-pvc`` to the ``make`` command line. In this case the updated PDF
+files will be in the ``aux/`` directory. Manual intervention is still needed
+when there are LaTeX errors.
 
 
 Alternative TeX engines
