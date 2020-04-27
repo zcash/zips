@@ -1,0 +1,77 @@
+::
+
+  ZIP: XXX
+  Title: Fix Ed25519 validation rules
+  Owners: Henry de Valence <hdevalence@zfnd.org>
+  Original-Authors: Henry de Valence
+  Status: Active
+  Category: Consensus
+  Created: 2020-04-27
+  License: BSD-2-Clause
+
+
+Terminology
+===========
+
+The key words "MUST", "SHOULD", "SHOULD NOT", "MAY", "RECOMMENDED",
+"OPTIONAL", and "REQUIRED" in this document are to be interpreted as
+described in RFC 2119. [#RFC2119]_
+
+Abstract
+========
+
+Zcash uses Ed25519 signatures as part of Sprout transactions.  However, Ed25519
+does not clearly define criteria for signature validity, and RFC-conformant
+implementations need not agree on whether signatures are valid.  This is
+unacceptable for a consensus-critical application like Zcash.  Currently, Zcash
+inherits criteria for signature verification from an obsolete version of
+`libsodium`.  Instead, this ZIP clears the situation by explicitly defining the
+Ed25519 verification criteria and changing them to be compatible with batch
+verification.
+
+Motivation
+==========
+
+The lack of clear verification criteria for Ed25519 signatures poses a
+maintenance burden.  Zcash inherited precise validation criteria from a
+then-current version of `libsodium` (1.0.15).  However, `libsodium` never
+guaranteed stable validation criteria, and changed behavior in a later point
+release.  This forced `zcashd` to use an older version of the library before
+eventually patching a newer version to have consistent validation criteria.  An
+attempt was made to encode these criteria into the Zcash specification, but the
+specification did not match the `libsodium` behavior, and had to be updated.
+To be compatible, Zebra had to implement a special library, `ed25519-zebra` to
+provide Zcash-flavored Ed25519, attempting to match `libsodium` exactly.  And
+the initial attempt to implement `ed25519-zebra` was also incompatible, because
+it precisely matched the wrong compile-time configuration of `libsodium`.
+
+In addition, the validation criteria used by Zcash preclude the use of batch
+verification of Ed25519 signatures.  While signature verification is not the
+primary bottleneck for Zcash, it would be nice to be able to batch-verify
+signatures, as is the case for RedJubJub.
+
+Specification
+=============
+
+After activation of this ZIP, the `JoinSplitSig` validation rules are changed to the following:
+
+- `R` MUST be the encoding of a point on the Edwards form of Curve25519 (non-canonical encodings are allowed, as now);
+- `s` MUST represent an integer less than `l`;
+- The group equation `[8][s]B = [8]R + [8][k]A` MUST be satisfied, where `k` and `A` are as defined in RFC 8032 §5.1.7.
+
+The language about `ExcludedPointEncodings` in §5.4.5 of the Zcash specification is deleted.
+
+Rationale
+=========
+
+This change simplifies the Ed25519 validation logic and reduces future
+maintenance burden.  It also allows the use of batch verification.  Because
+multiplication by the cofactor admits more solutions to the verification
+equation, not fewer, it is compatible with all existing Ed25519 signatures on
+the chain.  
+
+Security and Privacy Considerations
+===================================
+
+This change has no effect on honestly-generated signatures.
+
