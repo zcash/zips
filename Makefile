@@ -1,6 +1,6 @@
 # Dependencies:
-# sudo apt-get install python-pip
-# sudo pip install rst2html5
+# sudo apt-get install python3-pip
+# sudo pip3 install rst2html5
 
 .PHONY: all all-zips protocol
 all-zips: .Makefile.uptodate
