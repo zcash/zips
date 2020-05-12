@@ -20,7 +20,7 @@ protocol: .Makefile.uptodate
 	touch .Makefile.uptodate
 
 define PROCESSRST
-$(eval TITLE := $(shell echo '$(basename $<)' | sed -E 's|zip-0{0,3}|ZIP |'): $(shell grep -E '^(\.\.)?\s*Title:' $< |sed -E 's|.*Title:\s*||'))
+$(eval TITLE := $(shell echo '$(basename $<)' | sed -E 's|zip-0{0,3}|ZIP |;s|draft-|Draft |')$(shell grep -E '^(\.\.)?\s*Title: ' $< |sed -E 's|.*Title||'))
 rst2html5 -v --title="$(TITLE)" $< >$@
 ./edithtml.sh $@
 endef
