@@ -37,7 +37,7 @@ License
 
 Unless otherwise stated in this repository’s individual files, the
 contents of this repository are released under the terms of the MIT
-license. See `COPYING <COPYING.rst>`__ for more information or see
+license. See `COPYING <COPYING>`__ for more information or see
 https://opensource.org/licenses/MIT .
 
 Index of ZIPs
@@ -66,7 +66,7 @@ Index of ZIPs
     <tr> <td>221</td> <td class="left"><a href="zip-0221.rst">FlyClient - Consensus-Layer Changes</a></td> <td>Proposed</td>
     <tr> <td>243</td> <td class="left"><a href="zip-0243.rst">Transaction Signature Verification for Sapling</a></td> <td>Final</td>
     <tr> <td>250</td> <td class="left"><a href="zip-0250.rst">Deployment of the Heartwood Network Upgrade</a></td> <td>Draft</td>
-    <tr> <td>251</td> <td class="left"><a href="zip-0251.rst">Deployment of the ${NU4} Network Upgrade</a></td> <td>Draft</td>
+    <tr> <td>251</td> <td class="left"><a href="zip-0251.rst">Deployment of the Canopy Network Upgrade</a></td> <td>Draft</td>
     <tr> <td>308</td> <td class="left"><a href="zip-0308.rst">Sprout to Sapling Migration</a></td> <td>Final</td>
     <tr> <td>310</td> <td class="left"><a href="zip-0310.rst">Security Properties of Sapling Viewing Keys</a></td> <td>Draft</td>
     <tr> <td>401</td> <td class="left"><a href="zip-0401.rst">Addressing mempool denial-of-service</a></td> <td>Final</td>
