@@ -54,7 +54,7 @@ License
 
 Unless otherwise stated in this repository’s individual files, the
 contents of this repository are released under the terms of the MIT
-license. See `COPYING <COPYING>`__ for more information or see
+license. See `COPYING <COPYING.rst>`__ for more information or see
 https://opensource.org/licenses/MIT .
 
 Index of ZIPs
