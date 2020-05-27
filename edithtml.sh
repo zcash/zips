@@ -1,12 +1,17 @@
-#!/bin/bash
+#!/bin/sh
 
-if [ "$1" != "--rst" -o $# -ne 2 ] && [ "$1" != "--md" -o $# -ne 3 ]; then
+if ! ( ( [ "x$1" = "x--rst" ] && [ $# -eq 2 ] ) || ( [ "x$1" = "x--md" ] && [ $# -eq 3 ] ) ); then
     echo "Usage: edithtml.sh --rst <htmlfile>"
     echo "   or: edithtml.sh --md <htmlfile> <title>"
     exit
 fi
 
-if [ "$1" == "--rst" ]; then
+if ! [ -f "$2" ]; then
+    echo File not found: "$2"
+    exit
+fi
+
+if [ "x$1" = "x--rst" ]; then
     sed -i.sedbak 's|</head>|<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>|' $2
     sed -i.sedbak 's|http://cdn.mathjax.org/mathjax/latest/MathJax.js|https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js|' $2
 else
