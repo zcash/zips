@@ -18,10 +18,10 @@ NOCRUFT?=|awk '{gsub(/[({<][/][^ ]* ?/,"")}1' |sed '/name{index:.*} has been ref
 
 .PHONY: all-specs all
 all-specs: .Makefile.uptodate
-	$(MAKE) nufour.pdf heartwood.pdf blossom.pdf sapling.pdf sprout.pdf
+	$(MAKE) canopy.pdf heartwood.pdf blossom.pdf sapling.pdf sprout.pdf
 
 all: .Makefile.uptodate
-	$(MAKE) nufour heartwood blossom sapling sprout
+	$(MAKE) canopy heartwood blossom sapling sprout
 
 .Makefile.uptodate: Makefile
 	$(MAKE) clean
@@ -39,8 +39,8 @@ blossom.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_saplin
 heartwood.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
 	$(MAKE) heartwood
 
-nufour.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
-	$(MAKE) nufour
+canopy.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
+	$(MAKE) canopy
 
 .PHONY: auxsprout
 auxsprout:
@@ -91,17 +91,17 @@ heartwood:
 	mv -f aux/heartwood.pdf .
 	cp -f heartwood.pdf protocol.pdf
 
-.PHONY: auxnufour
-auxnufour:
-	printf '\\toggletrue{isnufour}\n\\renewcommand{\\docversion}{Version %s [\\NufourSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+.PHONY: auxcanopy
+auxcanopy:
+	printf '\\toggletrue{iscanopy}\n\\renewcommand{\\docversion}{Version %s [\\CanopySpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
-	rm -f aux/nufour.*
-	$(LATEXMK) -jobname=nufour -auxdir=aux -outdir=aux $(EXTRAOPT) protocol $(NOCRUFT)
+	rm -f aux/canopy.*
+	$(LATEXMK) -jobname=canopy -auxdir=aux -outdir=aux $(EXTRAOPT) protocol $(NOCRUFT)
 
-.PHONY: nufour
-nufour:
-	$(MAKE) auxnufour
-	mv -f aux/nufour.pdf .
+.PHONY: canopy
+canopy:
+	$(MAKE) auxcanopy
+	mv -f aux/canopy.pdf .
 
 .PHONY: nolatexmk-sprout
 nolatexmk-sprout:
@@ -152,18 +152,18 @@ nolatexmk-heartwood:
 	sh mymakeindex.sh -o heartwood.ind heartwood.idx
 	$(LATEX) -jobname=heartwood protocol.tex || { touch incremental_merkle.png; exit 1; }
 
-.PHONY: nolatexmk-nufour
-nolatexmk-nufour:
-	printf '\\toggletrue{isnufour}\n\\renewcommand{\\docversion}{Version %s [\\NufourSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+.PHONY: nolatexmk-canopy
+nolatexmk-canopy:
+	printf '\\toggletrue{iscanopy}\n\\renewcommand{\\docversion}{Version %s [\\CanopySpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	# If $(LATEX) fails, touch an input so that 'make' won't think it is up-to-date next time.
-	rm -f nufour.aux nufour.bbl nufour.blg nufour.brf nufour.bcf
-	$(LATEX) -jobname=nufour protocol.tex || { touch incremental_merkle.png; exit 1; }
-	biber nufour
-	$(LATEX) -jobname=nufour protocol.tex || { touch incremental_merkle.png; exit 1; }
-	$(LATEX) -jobname=nufour protocol.tex || { touch incremental_merkle.png; exit 1; }
-	sh mymakeindex.sh -o nufour.ind nufour.idx
-	$(LATEX) -jobname=nufour protocol.tex || { touch incremental_merkle.png; exit 1; }
+	rm -f canopy.aux canopy.bbl canopy.blg canopy.brf canopy.bcf
+	$(LATEX) -jobname=canopy protocol.tex || { touch incremental_merkle.png; exit 1; }
+	biber canopy
+	$(LATEX) -jobname=canopy protocol.tex || { touch incremental_merkle.png; exit 1; }
+	$(LATEX) -jobname=canopy protocol.tex || { touch incremental_merkle.png; exit 1; }
+	sh mymakeindex.sh -o canopy.ind canopy.idx
+	$(LATEX) -jobname=canopy protocol.tex || { touch incremental_merkle.png; exit 1; }
 
 .PHONY: clean
 clean:
-	rm -f aux/* html/* protocol.ver protocol.pdf
+	rm -f aux/* html/* protocol.ver protocol.pdf canopy.pdf heartwood.pdf blossom.pdf sapling.pdf sprout.pdf
