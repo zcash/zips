@@ -81,9 +81,9 @@ Index of ZIPs
     <tr> <td>211</td> <td class="left"><a href="zip-0211.rst">Disabling Addition of New Value to the Sprout Value Pool</a></td> <td>Proposed</td>
     <tr> <td>213</td> <td class="left"><a href="zip-0213.rst">Shielded Coinbase</a></td> <td>Implemented (zcashd)</td>
     <tr> <td>214</td> <td class="left"><a href="zip-0214.rst">Consensus rules for a Zcash Development Fund</a></td> <td>Proposed</td>
-    <tr> <td>221</td> <td class="left"><a href="zip-0221.rst">FlyClient - Consensus-Layer Changes</a></td> <td>Proposed</td>
+    <tr> <td>221</td> <td class="left"><a href="zip-0221.rst">FlyClient - Consensus-Layer Changes</a></td> <td>Implemented (zcashd)</td>
     <tr> <td>243</td> <td class="left"><a href="zip-0243.rst">Transaction Signature Verification for Sapling</a></td> <td>Final</td>
-    <tr> <td>250</td> <td class="left"><a href="zip-0250.rst">Deployment of the Heartwood Network Upgrade</a></td> <td>Proposed</td>
+    <tr> <td>250</td> <td class="left"><a href="zip-0250.rst">Deployment of the Heartwood Network Upgrade</a></td> <td>Implemented (zcashd)</td>
     <tr> <td>251</td> <td class="left"><a href="zip-0251.rst">Deployment of the Canopy Network Upgrade</a></td> <td>Proposed</td>
     <tr> <td>308</td> <td class="left"><a href="zip-0308.rst">Sprout to Sapling Migration</a></td> <td>Final</td>
     <tr> <td>310</td> <td class="left"><a href="zip-0310.rst">Security Properties of Sapling Viewing Keys</a></td> <td>Draft</td>
