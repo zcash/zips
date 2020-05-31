@@ -12,9 +12,11 @@
 Terminology
 ===========
 
-The key words "MUST" and "MUST NOT" in this document are to be interpreted as described in RFC 2119.
+The key words "MUST" and "MUST NOT" in this document are to be interpreted as
+described in RFC 2119. [#RFC2119]_
 
-The function ``ToScalar`` is defined as in Section 4.4.2 of the Zcash Protocol Specification. [#protocol]_
+The function :math:`\mathsf{ToScalar}` is defined as in Section 4.4.2 of the
+Zcash Protocol Specification. [#protocol]_
 
 Abstract
 ========
@@ -33,95 +35,104 @@ number of distinct and unlinkable payment addresses. This feature allows users
 to maintain many payment addresses without paying additional overhead during
 blockchain scanning.
 
-The feature works by allowing payment addresses to become a tuple (``pk_d``,
-``d``) of a public key ``pk_d`` and 88-bit diversifier ``d`` such that ``pk_d =
-[ivk] GH(d)`` for some incoming viewing key ``ivk``. The hash function ``GH(d)``
-maps from a diversifier to prime order elements of the Jubjub elliptic curve. It
-is possible for a user to choose many ``d`` to create several distinct and
-unlinkable payment addresses of this form.
+The feature works by allowing payment addresses to become a tuple
+:math:`(\mathsf{pk_d}, \mathsf{d})` of a public key :math:`\mathsf{pk_d}` and
+:math:`88`-bit diversifier :math:`\mathsf{d}` such that
+:math:`\mathsf{pk_d} = [\mathsf{ivk}] GH(\mathsf{d})` for some incoming viewing key
+:math:`\mathsf{ivk}`. The hash function :math:`GH(\mathsf{d})` maps from a
+diversifier to prime order elements of the Jubjub elliptic curve. It
+is possible for a user to choose many :math:`\mathsf{d}` to create several
+distinct and unlinkable payment addresses of this form.
 
-In order to make a payment to a Sapling address, an ephemeral secret ``esk`` is
-sampled by the sender and an ephemeral public key ``epk = [esk] GH(d)`` is
-included in the Output description. Then, a shared Diffie-Hellman secret is
-computed by the sender as ``[esk] [8] pk_d``. The recipient can recover this
-shared secret without knowledge of the particular ``d`` by computing ``[ivk] [8]
-epk``. This shared secret is then used as part of Note decryption.
+In order to make a payment to a Sapling address, an ephemeral secret
+:math:`\mathsf{esk}` is sampled by the sender and an ephemeral public key
+:math:`\mathsf{epk} = [\mathsf{esk}] GH(\mathsf{d})` is included in the
+Output description. Then, a shared Diffie-Hellman secret is computed by the
+sender as :math:`[\mathsf{esk}] [8] \mathsf{pk_d}`. The recipient can recover
+this shared secret without knowledge of the particular :math:`\mathsf{d}` by
+computing :math:`[\mathsf{ivk}] [8] \mathsf{epk}`. This shared secret is then
+used as part of note decryption.
 
-Naively, the recipient cannot know which ``(pk_d, d)`` was used to compute the
-shared secret, but the sender is asked to include the ``d`` within the note
-plaintext to reconstruct the Note. However, if the recipient has more than one
-known addresses, an attacker could use a different payment address to perform
-secret exchange and, by observing the behavior of the recipient, link the two
-diversified addresses together. (This attacker strategy was discovered by Brian
-Warner earlier in the design of the Sapling protocol.)
+Naively, the recipient cannot know which :math:`(\mathsf{pk_d}, \mathsf{d})`
+was used to compute the shared secret, but the sender is asked to include the
+:math:`\mathsf{d}` within the note plaintext to reconstruct the note. However,
+if the recipient has more than one known address, an attacker could use a
+different payment address to perform secret exchange and, by observing the
+behavior of the recipient, link the two diversified addresses together. (This
+attacker strategy was discovered by Brian Warner earlier in the design of the
+Sapling protocol.)
 
 In order to prevent this attack, the protocol currently forces the sender to
-prove knowledge of the discrete logarithm of ``epk`` with respect to the ``g_d =
-GH(d)`` included within the Note commitment. This ``g_d`` is determined by ``d``
-and recomputed during Note decryption, and so the recipient will either be
+prove knowledge of the discrete logarithm of :math:`\mathsf{epk}` with respect
+to the :math:`\mathsf{g_d} = GH(\mathsf{d})` included within the note
+commitment. This :math:`\mathsf{g_d}` is determined by :math:`\mathsf{d}`
+and recomputed during note decryption, and so the recipient will either be
 unable to decrypt the note or the sender will be unable to perform the attack.
 
 However, this check occurs as part of the zero-knowledge proof statement and so
 relies on the soundness of the underlying zk-SNARK in Sapling, and therefore it
 relies on relatively strong cryptographic assumptions and a trusted setup. It
-would be preferable to force the sender to transfer ``esk`` within the Note
-plaintext so that, during note decryption, the recipient can check that ``epk =
-[esk] g_d`` (for the expected ``g_d``) and ignore the payment as invalid
+would be preferable to force the sender to transfer sufficient information in
+the note plaintext to allow deriving :math:`\mathsf{esk}`, so that, during note
+decryption, the recipient can check that :math:`\mathsf{epk} = [\mathsf{esk}] \mathsf{g_d}`
+(for the expected :math:`\mathsf{g_d}`) and ignore the payment as invalid
 otherwise. This forms a line of defense in the case that soundness of the
 zk-SNARK does not hold.
 
-Merely sending ``esk`` to the recipient in the Note plaintext would require us
-to enlarge the note plaintext, but also would compromise the proof of IND-CCA2
-security for in-band secret distribution. We avoid both of these concerns by
-using a key derivation to obtain both ``esk`` and ``rcm``.
+Merely sending :math:`\mathsf{esk}` to the recipient in the note plaintext would
+require us to enlarge the note plaintext, but also would compromise the proof
+of IND-CCA2 security for in-band secret distribution. We avoid both of these
+concerns by using a key derivation to obtain both :math:`\mathsf{esk}` and
+:math:`\mathsf{rcm}`.
 
 Specification
 =============
 
 Pseudo random functions (PRFs) are defined in section 4.2.1 of the Zcash
-Protocol Specification. [#abstractprfs]_ We will be adapting ``PRF^expand`` for
-the purposes of this ZIP. This function is keyed by a 256-bit key ``sk`` and
-takes an arbitrary length byte sequence as input, returning a 64-byte sequence
-as output.
+Protocol Specification [#abstractprfs]_. We will be adapting
+:math:`\mathsf{PRF^{expand}}` for the purposes of this ZIP. This function is
+keyed by a 256-bit key :math:`\mathsf{sk}` and takes an arbitrary length byte
+sequence as input, returning a :math:`64`-byte sequence as output.
 
 Changes to Sapling Note plaintexts
 ----------------------------------
 
 Note plaintext encodings are specified in section 5.5 of the Zcash Protocol
-Specification. [#notept]_ Currently, the encoding of a Sapling note plaintext
-requires that the first byte take the form ``0x01``, indicating the version of
-the note plaintext. In addition, a 256-bit ``rcm`` field exists within the note
-plaintext and encoding.
+Specification [#notept]_. Currently, the encoding of a Sapling note plaintext
+requires that the first byte take the form :math:`\textbf{0x01}`, indicating
+the version of the note plaintext. In addition, a :math:`256`-bit
+:math:`\mathsf{rcm}` field exists within the note plaintext and encoding.
 
 Following the activation of this ZIP, the first byte of the encoding MUST take
-the form ``0x02`` (representing the new note plaintext version) and the field
-``rcm`` of the encoding will be renamed to ``rseed``. This field ``rseed`` of
-the Sapling note plaintext will no longer take the type of
-`NoteCommit^Sapling.Trapdoor` but will instead be a 32-byte sequence. The
-requirement that ``rseed`` (previously, ``rcm``) be a scalar of the Jubjub
-elliptic curve, when interpreted as a little endian integer, is removed from the
-decryption of note plaintexts as described in sections 4.17.2 and 4.17.3 of the
-Zcash Protocol Specification. [#saplingdecryptivk]_ [#saplingdecryptovk]_
+the form :math:`\textbf{0x02}` (representing the new note plaintext version)
+and the field :math:`\mathsf{rcm}` of the encoding will be renamed to
+:math:`\mathsf{rseed}`. This field :math:`\mathsf{rseed}` of the Sapling note
+plaintext will no longer take the type of :math:`\mathsf{NoteCommit^{Sapling}.Trapdoor}`
+but will instead be a :math:`32`-byte sequence. The requirement that
+:math:`\mathsf{rseed}` (previously, :math:`\mathsf{rcm}`) be a scalar of the
+Jubjub elliptic curve, when interpreted as a little endian integer, is removed
+from the decryption of note plaintexts as described in sections 4.17.2 and 4.17.3
+of the Zcash Protocol Specification. [#saplingdecryptivk]_ [#saplingdecryptovk]_
 
 Changes to the process of sending Sapling notes
 -----------------------------------------------
 
 The process of sending notes in Sapling is described in section 4.6.2 of the
-Zcash Protocol Specification. [#saplingsend]_ During this process, the sender
-samples ``rcm^new`` uniformly at random. In addition, the process of encrypting
-a note is described in section 4.17.1 of the Zcash Protocol Specification.
-[#saplingencrypt]_ During this process, the sender also samples the ephemeral
-private key ``esk`` uniformly at random.
+Zcash Protocol Specification [#saplingsend]_. During this process, the sender
+samples :math:`\mathsf{rcm^{new}}` uniformly at random. In addition, the
+process of encrypting a note is described in section 4.17.1 of the Zcash Protocol
+Specification [#saplingencrypt]_. During this process, the sender also samples
+the ephemeral private key :math:`\mathsf{esk}` uniformly at random.
 
-After the activation of this ZIP, the sender will sample a uniformly random
-32-byte sequence ``rseed``. The note plaintext will take ``rseed`` in place of
-``rcm^new``.
+After the activation of this ZIP, the sender will instead sample a uniformly
+random :math:`32`-byte sequence :math:`\mathsf{rseed}`. The note plaintext will
+take :math:`\mathsf{rseed}` in place of :math:`\mathsf{rcm^{new}}`.
 
-``rcm^new`` is then computed by the sender as the output of
-``ToScalar(PRF^expand_rseed([4]))``.
+:math:`\mathsf{rcm^{new}}` is then computed by the sender as the output of
+:math:`\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([4]))`.
 
-``esk`` is also computed by the sender as the output of
-``ToScalar(PRF^expand_rseed([5]))``.
+:math:`\mathsf{esk}` is also computed by the sender as the output of
+:math:`\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([5]))`.
 
 Changes to the process of receiving Sapling notes
 -------------------------------------------------
@@ -130,12 +141,15 @@ The process of receiving notes in Sapling is described in sections 4.17.2 and
 4.17.3 of the Zcash Protocol Specification. [#saplingdecryptivk]_
 [#saplingdecryptovk]_
 
-After the activation of this ZIP, the note plaintext contains a field ``rseed``
-that is a 32-byte sequence rather than a scalar value ``rcm``. The recipient,
-during decryption and in any later contexts, will interpret the value ``rcm`` as
-the output of ``ToScalar(PRF^expand_rseed([4]))``. Further, the recipient MUST
-compute ``esk`` as ``ToScalar(PRF^expand_rseed([5]))`` and check that ``epk =
-[esk] g_d`` and fail decryption if this check is not satisfied.
+After the activation of this ZIP, the note plaintext contains a field
+:math:`\mathsf{rseed}` that is a :math:`32`-byte sequence rather than a
+scalar value :math:`\mathsf{rcm}`. The recipient, during decryption and in
+any later contexts, will interpret the value :math:`\mathsf{rcm}` as the
+output of :math:`\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([4]))`.
+Further, the recipient MUST compute :math:`\mathsf{esk}` as
+:math:`\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([5]))` and check
+that :math:`\mathsf{epk} = [\mathsf{esk}] \mathsf{g_d}` and fail decryption
+if this check is not satisfied.
 
 Rationale
 =========
@@ -150,15 +164,16 @@ Acting differently here would be confusing for users that have previously been
 told that "privacy does not depend on zk-SNARK soundness" or similar claims.
 
 It is possible for us to infringe on the length of the ``memo`` field and ask
-the sender to provide ``esk`` within the existing note plaintext without
-modifying the transaction format, but this would harm users that have come to
-expect a 512-byte memo field to be available to them. Changes to the memo field
-length should be considered in a broader context than changes made for
-cryptographic purposes.
+the sender to provide :math:`\mathsf{esk}` within the existing note plaintext
+without modifying the transaction format, but this would harm users who have
+come to expect a :math:`512`-byte memo field to be available to them. Changes
+to the memo field length should be considered in a broader context than changes
+made for cryptographic purposes.
 
-It is possible to transmit a signature of knowledge of a correct ``esk`` rather
-than ``esk`` itself, but this appears to be an unnecessary complication and is
-likely slower than just supplying ``esk``.
+It is possible to transmit a signature of knowledge of a correct
+:math:`\mathsf{esk}` rather than :math:`\mathsf{esk}` itself, but this appears
+to be an unnecessary complication and is likely slower than just supplying
+:math:`\mathsf{esk}`.
 
 Security and Privacy Considerations
 ===================================
@@ -169,13 +184,13 @@ assumption of the zk-SNARK. It is already assumed that the adversary cannot
 defeat the EC-DDH assumption of the Jubjub elliptic curve, for it could perform
 a linkability attack trivially in that case.
 
-In the naive case where the protocol is modified so that ``esk`` is supplied
-directly to the recipient (rather than derived through ``rseed``) this would
-lead to an instance of key-dependent encryption, which is difficult or perhaps
-impossible to prove secure using existing security notions. Our approach of
-using a key derivation, which ultimately queries an oracle, allows a proof for
-IND-CCA2 security to be written by reprogramming the oracle to return bogus keys
-when necessary.
+In the naive case where the protocol is modified so that :math:`\mathsf{esk}`
+is supplied directly to the recipient (rather than derived through
+:math:`\mathsf{rseed}`) this would lead to an instance of key-dependent
+encryption, which is difficult or perhaps impossible to prove secure using
+existing security notions. Our approach of using a key derivation, which
+ultimately queries an oracle, allows a proof for IND-CCA2 security to be
+written by reprogramming the oracle to return bogus keys when necessary.
 
 Reference Implementation
 ========================
@@ -190,6 +205,8 @@ knowledge assumption was made by Sean Bowe and Zooko Wilcox.
 
 References
 ==========
+
+.. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://tools.ietf.org/html/rfc2119>`_
 .. [#protocol] `Zcash Protocol Specification, Version 2020.1.4 [Overwinter+Sapling+Blossom+Heartwood] or later <https://zips.z.cash/protocol/protocol.pdf>`_
 .. [#saplingencrypt] `Section 4.17.1: Encryption (Sapling). Zcash Protocol Specification, Version 2020.1.4 [Overwinter+Sapling+Blossom+Heartwood] or later <https://zips.z.cash/protocol/protocol.pdf#saplingencrypt>`_
 .. [#abstractprfs] `Section 4.1.2: Pseudo Random Functions. Zcash Protocol Specification, Version 2020.1.4 [Overwinter+Sapling+Blossom+Heartwood] or later <https://zips.z.cash/protocol/protocol.pdf#abstractprfs>`_
