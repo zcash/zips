@@ -74,7 +74,8 @@ Design Considerations
 ---------------------
 The payment disclosure does not prove that the party presenting the payment disclosure is the sender.
 
-[TODO: Example?] To prevent a man-in-the-middle attack, the recipient could pose an interactive challenge involving some out-of-band secret which only the sender would pass successfully.
+To prevent a man-in-the-middle attack, the recipient could pose an interactive challenge involving some out-of-band secret which only the sender would pass successfully.
+It's also possible, rather than an interactive challenge, to make the disclosure dependent on data such as a refund address. This would prevent an attack where the payment disclosure is replayed with a claim that the refund should be to another address.
 
 A non-interactive solution is also possible:
 
