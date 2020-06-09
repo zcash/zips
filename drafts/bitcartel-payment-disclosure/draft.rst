@@ -169,7 +169,7 @@ Valid field is true if all the following conditions hold:
 - outputindex is within range [0..1]
 - paymentaddress is a valid shielded address for the network we are on
 - value is within range [0..MAX_MONEY]
-- message is within constraints (TODO: currently there are no constrainst defined, such as number of characters, allowed characters)
+- message is within constraints (TODO: currently there are no constraints defined, such as number of characters, allowed characters)
 - signature is valid for all of the above fields
 - commitment derived from the deciphered note matches the commitment in the blockchain
 
@@ -180,7 +180,7 @@ Otherwise an error field is returned explaining why the payment disclosure is in
     {
     valid : false,
     ...
-    error : "The payment disclosuse is invalid because..."
+    error : "The payment disclosure is invalid because..."
     }
 
 
