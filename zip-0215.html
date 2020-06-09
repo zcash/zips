@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ZIP 215: Explicitly define Ed25519 validation rules</title>
+    <title>ZIP 215: Explicitly Defining and Modifying Ed25519 Validation Rules</title>
     <meta charset="utf-8" />
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js?config=TeX-AMS-MML_HTMLorMML"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
 <body>
     <section>
         <pre>ZIP: 215
-Title: Explicitly define Ed25519 validation rules
+Title: Explicitly Defining and Modifying Ed25519 Validation Rules
 Owners: Henry de Valence &lt;hdevalence@zfnd.org&gt;
 Status: Proposed
 Category: Consensus
@@ -18,11 +18,11 @@ License: BSD-2-Clause</pre>
             <p>The key words "MUST" and "MUST NOT" in this document is to be interpreted as described in RFC 2119. <a id="id1" class="footnote_reference" href="#rfc2119">1</a></p>
         </section>
         <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a href="#abstract"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>Zcash uses Ed25519 signatures as part of Sprout transactions. However, Ed25519 does not clearly define criteria for signature validity, and implementations conformant to RFC 8032 <a id="id2" class="footnote_reference" href="#rfc8032">2</a> need not agree on whether signatures are valid. This is unacceptable for a consensus-critical application like Zcash. Currently, Zcash inherits criteria for signature verification from an obsolete version of <cite>libsodium</cite>. Instead, this ZIP settles the situation by explicitly defining the Ed25519 verification criteria and changing them to be compatible with batch verification.</p>
+            <p>Zcash uses Ed25519 signatures as part of Sprout transactions. However, Ed25519 does not clearly define criteria for signature validity, and implementations conformant to RFC 8032 <a id="id2" class="footnote_reference" href="#rfc8032">2</a> need not agree on whether signatures are valid. This is unacceptable for a consensus-critical application like Zcash. Currently, Zcash inherits criteria for signature validation from an obsolete version of <cite>libsodium</cite>. Instead, this ZIP settles the situation by explicitly defining the Ed25519 validation criteria and changing them to be compatible with batch validation.</p>
         </section>
         <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a href="#motivation"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>The lack of clear verification criteria for Ed25519 signatures poses a maintenance burden. The initial implementation of Zcash consensus in <cite>zcashd</cite> inherited validation criteria from a then-current version of <cite>libsodium</cite> (1.0.15). Due to <a href="https://github.com/zcash/zcash/issues/2872#issuecomment-576911471">a bug in libsodium</a>, this was different from the intended criteria documented in the Zcash protocol specification <a id="id3" class="footnote_reference" href="#protocol">3</a> (before the specification was changed to match <cite>libsodium</cite> 1.0.15 in specification version 2020.1.2). Also, <cite>libsodium</cite> never guaranteed stable validation criteria, and changed behavior in a later point release. This forced <cite>zcashd</cite> to use an older version of the library before eventually patching a newer version to have consistent validation criteria. To be compatible, Zebra had to implement a special library, <cite>ed25519-zebra</cite> to provide Zcash-flavored Ed25519, attempting to match <cite>libsodium</cite> 1.0.15 exactly. And the initial attempt to implement <cite>ed25519-zebra</cite> was also incompatible, because it precisely matched the wrong compile-time configuration of <cite>libsodium</cite>.</p>
-            <p>In addition, the validation criteria used by Zcash preclude the use of batch verification of Ed25519 signatures. While signature verification is not the primary bottleneck for Zcash, it would be nice to be able to batch-verify signatures, as is the case for RedJubJub.</p>
+            <p>The lack of clear validation criteria for Ed25519 signatures poses a maintenance burden. The initial implementation of Zcash consensus in <cite>zcashd</cite> inherited validation criteria from a then-current version of <cite>libsodium</cite> (1.0.15). Due to <a href="https://github.com/zcash/zcash/issues/2872#issuecomment-576911471">a bug in libsodium</a>, this was different from the intended criteria documented in the Zcash protocol specification <a id="id3" class="footnote_reference" href="#protocol">3</a> (before the specification was changed to match <cite>libsodium</cite> 1.0.15 in specification version 2020.1.2). Also, <cite>libsodium</cite> never guaranteed stable validation criteria, and changed behavior in a later point release. This forced <cite>zcashd</cite> to use an older version of the library before eventually patching a newer version to have consistent validation criteria. To be compatible, Zebra had to implement a special library, <cite>ed25519-zebra</cite> to provide Zcash-flavored Ed25519, attempting to match <cite>libsodium</cite> 1.0.15 exactly. And the initial attempt to implement <cite>ed25519-zebra</cite> was also incompatible, because it precisely matched the wrong compile-time configuration of <cite>libsodium</cite>.</p>
+            <p>In addition, the validation criteria used by Zcash preclude the use of batch validation of Ed25519 signatures. While signature validation is not the primary bottleneck for Zcash, it would be nice to be able to batch-validate signatures, as is the case for RedJubjub.</p>
         </section>
         <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a href="#specification"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <p>After activation of this ZIP, the
@@ -65,13 +65,13 @@ License: BSD-2-Clause</pre>
             -coordinate of the points may be unreduced modulo
                 <span class="math">\(2^{255}-19\)</span>
             .</p>
-            <p>Note: the alternate verification equation
+            <p>Note: the alternate validation equation
                 <span class="math">\([S]B = R + [k]A\)</span>
             , allowed by RFC 8032, MUST NOT be used.</p>
         </section>
         <section id="rationale"><h2><span class="section-heading">Rationale</span><span class="section-anchor"> <a href="#rationale"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>This change simplifies the Ed25519 validation logic and reduces future maintenance burden. Because multiplication by the cofactor admits more solutions to the verification equation, not fewer, it is compatible with all existing Ed25519 signatures on the chain.</p>
-            <p>It also allows the use of batch verification, which requires multiplication by the cofactor in the verification equation.</p>
+            <p>This change simplifies the Ed25519 validation logic and reduces future maintenance burden. Because multiplication by the cofactor admits more solutions to the validation equation, not fewer, it is compatible with all existing Ed25519 signatures on the chain.</p>
+            <p>It also allows the use of batch validation, which requires multiplication by the cofactor in the validation equation.</p>
         </section>
         <section id="security-and-privacy-considerations"><h2><span class="section-heading">Security and Privacy Considerations</span><span class="section-anchor"> <a href="#security-and-privacy-considerations"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <p>This change has no effect on honestly-generated signatures. Unlike the current validation rules, it makes it possible for a user to generate weak signing keys or to generate signing keys with nonzero torsion component and submit them to the blockchain. However, doing so provides them with no advantage, only compromise to their own security. Moreover, these cases are not a failure mode of any deployed implementation.</p>

@@ -66,7 +66,7 @@ Index of ZIPs
     <tr> <th>ZIP</th> <th>Title</th> <th>Status</th> </tr>
     <tr> <td>0</td> <td class="left"><a href="zip-0000.rst">ZIP Process</a></td> <td>Active</td>
     <tr> <td>32</td> <td class="left"><a href="zip-0032.rst">Shielded Hierarchical Deterministic Wallets</a></td> <td>Final</td>
-    <tr> <td>143</td> <td class="left"><a href="zip-0143.rst">Transaction Signature Verification for Overwinter</a></td> <td>Final</td>
+    <tr> <td>143</td> <td class="left"><a href="zip-0143.rst">Transaction Signature Validation for Overwinter</a></td> <td>Final</td>
     <tr> <td>173</td> <td class="left"><a href="zip-0173.rst">Bech32 Format</a></td> <td>Final</td>
     <tr> <td>200</td> <td class="left"><a href="zip-0200.rst">Network Upgrade Mechanism</a></td> <td>Final</td>
     <tr> <td>201</td> <td class="left"><a href="zip-0201.rst">Network Peer Management for Overwinter</a></td> <td>Final</td>
@@ -82,9 +82,9 @@ Index of ZIPs
     <tr> <td>212</td> <td class="left"><a href="zip-0212.rst">Allow Recipient to Derive Sapling Ephemeral Secret from Note Plaintext</a></td> <td>Proposed</td>
     <tr> <td>213</td> <td class="left"><a href="zip-0213.rst">Shielded Coinbase</a></td> <td>Implemented (zcashd)</td>
     <tr> <td>214</td> <td class="left"><a href="zip-0214.rst">Consensus rules for a Zcash Development Fund</a></td> <td>Proposed</td>
-    <tr> <td>215</td> <td class="left"><a href="zip-0215.rst">Explicitly define Ed25519 validation rules</a></td> <td>Proposed</td>
+    <tr> <td>215</td> <td class="left"><a href="zip-0215.rst">Explicitly Defining and Modifying Ed25519 Validation Rules</a></td> <td>Proposed</td>
     <tr> <td>221</td> <td class="left"><a href="zip-0221.rst">FlyClient - Consensus-Layer Changes</a></td> <td>Implemented (zcashd)</td>
-    <tr> <td>243</td> <td class="left"><a href="zip-0243.rst">Transaction Signature Verification for Sapling</a></td> <td>Final</td>
+    <tr> <td>243</td> <td class="left"><a href="zip-0243.rst">Transaction Signature Validation for Sapling</a></td> <td>Final</td>
     <tr> <td>250</td> <td class="left"><a href="zip-0250.rst">Deployment of the Heartwood Network Upgrade</a></td> <td>Implemented (zcashd)</td>
     <tr> <td>251</td> <td class="left"><a href="zip-0251.rst">Deployment of the Canopy Network Upgrade</a></td> <td>Proposed</td>
     <tr> <td>308</td> <td class="left"><a href="zip-0308.rst">Sprout to Sapling Migration</a></td> <td>Final</td>

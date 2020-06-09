@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ZIP 143: Transaction Signature Verification for Overwinter</title>
+    <title>ZIP 143: Transaction Signature Validation for Overwinter</title>
     <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
 <body>
     <section>
         <pre>ZIP: 143
-Title: Transaction Signature Verification for Overwinter
+Title: Transaction Signature Validation for Overwinter
 Owners: Jack Grigg &lt;str4d@electriccoin.co&gt;
         Daira Hopwood &lt;daira@electriccoin.co&gt;
 Credits: Johnson Lau
@@ -23,13 +23,13 @@ License: MIT</pre>
             <p>The term "Overwinter" in this document is to be interpreted as described in ZIP 201. <a id="id3" class="footnote_reference" href="#zip-0201">11</a></p>
         </section>
         <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a href="#abstract"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>This proposal defines a new transaction digest algorithm for signature verification from the Overwinter network upgrade, in order to minimize redundant data hashing in verification, and to cover the input value by the signature.</p>
+            <p>This proposal defines a new transaction digest algorithm for signature validation from the Overwinter network upgrade, in order to minimize redundant data hashing in validation, and to cover the input value by the signature.</p>
         </section>
         <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a href="#motivation"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>There are 4 ECDSA signature verification codes in the original Zcash script system: <code>CHECKSIG</code>, <code>CHECKSIGVERIFY</code>, <code>CHECKMULTISIG</code>, <code>CHECKMULTISIGVERIFY</code> ("sigops"). According to the sighash type (<code>ALL</code>, <code>NONE</code>, or <code>SINGLE</code>, possibly modified by <code>ANYONECANPAY</code>), a transaction digest is generated with a double SHA256 of a serialized subset of the transaction, and the signature is verified against this digest with a given public key. The detailed procedure is described in a Bitcoin Wiki article. <a id="id4" class="footnote_reference" href="#wiki-checksig">2</a> The transaction digest is additionally used for the JoinSplit signature (solely with sighash type <code>ALL</code>). <a id="id5" class="footnote_reference" href="#zcash-protocol">3</a></p>
+            <p>There are 4 ECDSA signature validation operations in the original Zcash script system: <code>CHECKSIG</code>, <code>CHECKSIGVERIFY</code>, <code>CHECKMULTISIG</code>, <code>CHECKMULTISIGVERIFY</code> ("sigops"). According to the sighash type (<code>ALL</code>, <code>NONE</code>, or <code>SINGLE</code>, possibly modified by <code>ANYONECANPAY</code>), a transaction digest is generated with a double SHA256 of a serialized subset of the transaction, and the signature is validated against this digest with a given public key. The detailed procedure is described in a Bitcoin Wiki article. <a id="id4" class="footnote_reference" href="#wiki-checksig">2</a> The transaction digest is additionally used for the JoinSplit signature (solely with sighash type <code>ALL</code>). <a id="id5" class="footnote_reference" href="#zcash-protocol">3</a></p>
             <p>Unfortunately, there are at least 2 weaknesses in the original SignatureHash transaction digest algorithm:</p>
             <ul>
-                <li>For the verification of each signature, the amount of data hashing is proportional to the size of the transaction. Therefore, data hashing grows in O(n<sup>2</sup>) as the number of sigops in a transaction increases. While a 1 MB block would normally take 2 seconds to verify with an average computer in 2015, a 1MB transaction with 5569 sigops may take 25 seconds to verify. This could be fixed by optimizing the digest algorithm by introducing some reusable "midstate", so the time complexity becomes O(n). <a id="id6" class="footnote_reference" href="#quadratic">4</a></li>
+                <li>For the validation of each signature, the amount of data hashing is proportional to the size of the transaction. Therefore, data hashing grows in O(n<sup>2</sup>) as the number of sigops in a transaction increases. While a 1 MB block would normally take 2 seconds to validate with an average computer in 2015, a 1MB transaction with 5569 sigops may take 25 seconds to validate. This could be fixed by optimizing the digest algorithm by introducing some reusable "midstate", so the time complexity becomes O(n). <a id="id6" class="footnote_reference" href="#quadratic">4</a></li>
                 <li>The algorithm does not involve the value being spent by the input. This is usually not a problem for online network nodes as they could request for the specified transaction to acquire the output value. For an offline transaction signing device ("cold wallet"), however, the lack of knowledge of input amount makes it impossible to calculate the exact amount being spent and the transaction fee. To cope with this problem a cold wallet must also acquire the full transaction being spent, which could be a big obstacle in the implementation of a lightweight, air-gapped wallet. By including the input value of part of the transaction digest, a cold wallet may safely sign a transaction by learning the value from an untrusted source. In the case that a wrong value is provided and signed, the signature would be invalid and no funds would be lost. <a id="id7" class="footnote_reference" href="#offline-wallets">5</a></li>
             </ul>
             <p>Deploying the aforementioned fixes in the original script system is not a simple task.</p>
@@ -126,7 +126,7 @@ License: MIT</pre>
                 </section>
             </section>
             <section id="notes"><h3><span class="section-heading">Notes</span><span class="section-anchor"> <a href="#notes"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
-                <p>The <code>hashPrevouts</code>, <code>hashSequence</code>, <code>hashOutputs</code>, and <code>hashJoinSplits</code> calculated in an earlier verification can be reused in other inputs of the same transaction, so that the time complexity of the whole hashing process reduces from O(n<sup>2</sup>) to O(n).</p>
+                <p>The <code>hashPrevouts</code>, <code>hashSequence</code>, <code>hashOutputs</code>, and <code>hashJoinSplits</code> calculated in an earlier validation can be reused in other inputs of the same transaction, so that the time complexity of the whole hashing process reduces from O(n<sup>2</sup>) to O(n).</p>
                 <p>Refer to the reference implementation, reproduced below, for the precise algorithm:</p>
                 <pre data-language="cpp"><span class="k">const</span> <span class="kt">unsigned</span> <span class="kt">char</span> <span class="n">ZCASH_PREVOUTS_HASH_PERSONALIZATION</span><span class="p">[</span><span class="mi">16</span><span class="p">]</span> <span class="o">=</span>
     <span class="p">{</span><span class="sc">&#39;Z&#39;</span><span class="p">,</span><span class="sc">&#39;c&#39;</span><span class="p">,</span><span class="sc">&#39;a&#39;</span><span class="p">,</span><span class="sc">&#39;s&#39;</span><span class="p">,</span><span class="sc">&#39;h&#39;</span><span class="p">,</span><span class="sc">&#39;P&#39;</span><span class="p">,</span><span class="sc">&#39;r&#39;</span><span class="p">,</span><span class="sc">&#39;e&#39;</span><span class="p">,</span><span class="sc">&#39;v&#39;</span><span class="p">,</span><span class="sc">&#39;o&#39;</span><span class="p">,</span><span class="sc">&#39;u&#39;</span><span class="p">,</span><span class="sc">&#39;t&#39;</span><span class="p">,</span><span class="sc">&#39;H&#39;</span><span class="p">,</span><span class="sc">&#39;a&#39;</span><span class="p">,</span><span class="sc">&#39;s&#39;</span><span class="p">,</span><span class="sc">&#39;h&#39;</span><span class="p">};</span>
