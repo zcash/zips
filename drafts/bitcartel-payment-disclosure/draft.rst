@@ -77,13 +77,6 @@ The payment disclosure does not prove that the party presenting the payment disc
 To prevent a man-in-the-middle attack, the recipient could pose an interactive challenge involving some out-of-band secret which only the sender would pass successfully.
 It's also possible, rather than an interactive challenge, to make the disclosure dependent on data such as a refund address. This would prevent an attack where the payment disclosure is replayed with a claim that the refund should be to another address.
 
-A non-interactive solution is also possible:
-
-#. The sender includes data, such as a refund address, in the memo field of a payment to a shielded address.  The memo field is non-malleable as it is part of the data signed by the sender when creating JoinSplitSig [PROTOCOL] §4.1.6 Signatures.  Currently, the public key to verify the signature is stored in the blockchain along with the transaction.
-#. When presenting the payment disclosure to a recepient, the sender signs the payment disclosure with the JoinSplitSig private key which only they would know.  The JoinSplitSig key pair is ephemeral and normally discarded but the method described in this ZIP will retain the private portion.  The recipient can then use the public key to verify the signed disclosure.
-
-Using the JoinSplitSig key pair in this way also means that a sender can make payments without having to first provide a refund address or other details at the time of the original payment.  If at a later date the sender and recipient need to confirm the payment, the sender can sign and send any data required to the recipient, who can in turn verify it.
-
 
 Known Issues
 ------------
