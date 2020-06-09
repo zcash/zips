@@ -16,7 +16,7 @@ Payment Disclosure
 Abstract
 --------
 
-This ZIP describes a method of proving that a payment was sent to a shielded address.  In the typical case, this means enabling a sender to present a proof that they transferred funds to a recipient's shielded address.  The method described will be compatible with the Zcash Protocol [PROTOCOL] deployed at the launch of the Zcash network.
+This ZIP describes a method of proving that a payment was sent to a shielded address.  In the typical case, this means enabling a sender to present a proof that they transferred funds to a recipient's shielded address.  The method described will be compatible with the Zcash Protocol [#protocol]_ deployed at the launch of the Zcash network. See zcash issues `2036 <https://github.com/zcash/zcash/issues/2036>`_ and `737 <https://github.com/zcash/zcash/issues/737>`_ for context.
 
 This document follows the common conventions defined for ZIPs in [ZIP-1].
 
@@ -106,9 +106,9 @@ When creating a shielded transaction, for each JoinSplit output, a data structur
 - transaction id
 - index [0..len-1] of JoinSplit in array of JoinSplits contained in transaction
 - index [0..1] of JoinSplit output
-- recipient's payment address is a shielded address ``(a_pk, pk_enc)`` [PROTOCOL] §3.1 Payment Addresses and Keys
-- ephemeral private key ``esk`` used to encrypt the note [PROTOCOL] §4.10.1 Generate a new KA (public, private) key pair ``(epk, esk)``.
-- JoinSplitSig private key used to sign the JoinSplit transaction ``joinSplitPrivKey`` [PROTOCOL] §4.4 Sending Notes
+- recipient's payment address is a shielded address ``(a_pk, pk_enc)`` [#protocol]_ §3.1 Payment Addresses and Keys
+- ephemeral private key ``esk`` used to encrypt the note [#protocol]_ §4.10.1 Generate a new KA (public, private) key pair ``(epk, esk)``.
+- JoinSplitSig private key used to sign the JoinSplit transaction ``joinSplitPrivKey`` [#protocol]_ §4.4 Sending Notes
 
 The payment disclosure data should be persisted to disk or a database so it can be retrieved later.
 
@@ -345,7 +345,6 @@ TODO: Add bad prefix error message here
 
 
 References
-----------
-| https://github.com/zcash/zcash/issues/2036
-| https://github.com/Electric-Coin-Company/zecc-private/wiki/Engineering-meeting-notes
-| https://github.com/zcash/zcash/issues/737
+==========
+
+.. [#protocol] `Zcash Protocol Specification, Version 2020.1.5 or later <protocol/protocol.pdf>`_
