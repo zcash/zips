@@ -9,9 +9,6 @@
   Created: 2017-02-22
   License: MIT
 
-==================
-Payment Disclosure
-==================
 
 Abstract
 --------
