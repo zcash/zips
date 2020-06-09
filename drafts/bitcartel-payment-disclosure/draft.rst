@@ -311,7 +311,7 @@ To validate a payment disclosure, perform the following steps:
 1. Deserialize the raw hex string into a ``PaymentDisclosure`` object
 2. Retrieve the ``joinSplitPubKey`` for the transaction and verify the payment disclosure signature ``payloadSig``.
 3. Retrieve the note ciphertext from the blockchain for ``txid``, ``js``, ``n``.
-4. Use the ``esk`` to decrypt the ciphertext into plain text
+4. Use the ``esk`` to decrypt the ciphertext into plain text, where `decrypt` is the same operation defined in [#protocol]_ §4.16.2 Decryption (Sprout).
 5. Derive commitment from plain text and check it matches commitment in blockchain
 6. Return JSON output as described above in the specification. 
 
