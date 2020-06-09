@@ -94,7 +94,7 @@ A proposal to prevent information leakage of change addresses is currently under
 
 Note that an independent third party cannot know for sure that the sender and recipient are not colluding to hide value transfer.  JoinSplits have two inputs and two outputs.  The recipient may identify their receiving address for one output, but not disclose the fact that the other output also belongs to them.  Also, the sender and recipient could collude to transfer value in a different JoinSplit without disclosing it.
 
-When a shielded transaction is created sucessfully and accepted into the local mempool with ``z_sendmany`` or ``z_shieldcoinbase``, the payment disclosure database is updated with information necessary to create a payment disclosure.  However, the transaction itself may never be mined and confirmed in the blockchain, rendering the database entry itself redundant and available for purging at a later date e.g. garbage collection. 
+When a shielded transaction is created successfully and accepted into the local mempool with ``z_sendmany`` or ``z_shieldcoinbase``, the payment disclosure database is updated with information necessary to create a payment disclosure.  However, the transaction itself may never be mined and confirmed in the blockchain, rendering the database entry itself redundant and available for purging at a later date e.g. garbage collection. 
 
 .. [KDFT] https://github.com/zcash/zcash/issues/2102
 
