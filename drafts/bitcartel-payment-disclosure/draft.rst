@@ -1,8 +1,13 @@
-| Title: Payment Disclosure
-| ZIP: 00? (DRAFT)
-| Replaces: n/a
-| Superseded-by: n/a
-| Editor: Simon Liu <simon@z.cash>
+::
+
+  ZIP: 303
+  Title: Payment Disclosure
+  Owners: Deirdre Connolly <deirdre@zfnd.org>
+  Original-Author: Simon Liu
+  Status: Implemented (zcashd)
+  Category: Informational
+  Created: 2017-02-22
+  License: MIT
 
 ==================
 Payment Disclosure
