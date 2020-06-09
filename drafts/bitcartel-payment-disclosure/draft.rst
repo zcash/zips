@@ -18,10 +18,6 @@ Abstract
 
 This ZIP describes a method of proving that a payment was sent to a shielded address.  In the typical case, this means enabling a sender to present a proof that they transferred funds to a recipient's shielded address.  The method described will be compatible with the Zcash Protocol [#protocol]_ deployed at the launch of the Zcash network. See zcash issues `2036 <https://github.com/zcash/zcash/issues/2036>`_ and `737 <https://github.com/zcash/zcash/issues/737>`_ for context.
 
-This document follows the common conventions defined for ZIPs in [ZIP-1].
-
-.. [PROTOCOL] Zcash Protocol Specification: https://github.com/zcash/zips/blob/master/protocol/protocol.pdf
-.. [ZIP-1] https://github.com/zcash/zips/blob/master/zips/0001.rst
 
 Copyright Notice
 ----------------
