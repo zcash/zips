@@ -10388,6 +10388,7 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
           since libsodium~v1.0.15 does not do so.
 \canopy{
     \item Incorporate \EdSpecific changes for \Canopy from \cite{ZIP-215}.
+    \item Add Appendix \crossref{ed25519batchvalidate}.
 }
     \item Consistently use ``validating'' for signatures and ``verifying'' for proofs.
 \sapling{
@@ -13371,6 +13372,62 @@ the cost of batched verification is therefore
 } %pnote
 
 } %notsprout
+
+
+\canopy{
+\lsubsection{\EdSpecificText{} batch validation}{ed25519batchvalidate}
+
+The reference validation algorithm for \EdSpecific signatures is defined in \crossref{concreteed25519}.
+
+\canopyonward{Implementations \MAY alternatively use the optimized procedure described in this section to perform
+faster validation of a batch of signatures, i.e.\ to determine whether all signatures in a batch are valid.
+The correctness of this procedure is dependent on the \EdSpecific validation changes made for the \Canopy
+network upgrade in \cite{ZIP-215} (in particular the change to use the cofactor variant of the validation equation).
+The input is a sequence of $N$ \defining{\sigBatchEntries}, each of which is a
+(\validatingKey, message, signature) triple.}
+
+All conversions between \EdSpecific points, byte sequences, and integers used in this section are as
+specified in \cite{BDLSY2012}.
+
+\vspace{2ex}
+Let $\ell$ and $\EdDSABase$ be as defined in \crossref{concreteed25519}.
+
+Define $\EdSpecificBatchEntry := \EdSpecificPublic \times \EdSpecificMessage \times \EdSpecificSignature$.
+
+\introsection
+Define $\EdSpecificBatchValidate \typecolon (\Entry{\barerange{0}{N-1}} \typecolon \typeexp{\EdSpecificBatchEntry}{N})
+                                            \rightarrow \bit$ as:
+\begin{algorithm}
+  \item For each $j \in \range{0}{N-1}$:
+  \item \tab Let $(\EdDSASigA{j}, M_j, \sigma_j) = \Entry{j}$.
+  \item \tab Let $\EdDSAReprR{j}$ be the first $32$ bytes of $\sigma_j$, and
+             let $\EdDSAReprS{j}$ be the remaining $32$ bytes.
+  \item \tab Let $\EdDSASigR{j}$ be the point corresponding to $\EdDSAReprR{j}$ (or $\bot$ if invalid), and
+             let $\EdDSASigS{j}$ be the integer corresponding to $\EdDSAReprS{j}$.
+  \item \tab Let $\EdDSAReprA{j}$ be the byte sequence representation of $\EdDSASigA{j}$.
+  \item \tab Let $\EdDSASigc{j}$ be the integer corresponding to $\EdSpecificHash(\EdDSAReprR{j} \bconcat \EdDSAReprA{j} \bconcat M_j)$.
+        \vspace{1ex}
+  \item \tab Choose random $z_j \typecolon \GFstar{\ell} \leftarrowR \range{1}{2^{128}-1}$.
+  \item \blank
+  \item Return $1$ if
+        \vspace{1ex}
+        \begin{itemize}
+          \item for all $j \in \range{0}{N-1}$, $\EdDSASigR{j} \neq \bot$; and
+          \item $\scalarmult{8}{\Big(\Bigscalarmult{\ssum{j=0}{N-1}{(z_j \mult \EdDSASigS{j})
+                                                                    \pmod{\ell}}}{\EdDSABase} +
+                                     \ssum{j=0}{N-1}{\big(\scalarmult{z_j}{\EdDSASigR{j}} +
+                                                          \scalarmult{z_j \mult \EdDSASigc{j}
+                                                                      \pmod{\ell}}{\EdDSASigA{j}}\big)}\!\Big)}
+                = \Zero_{\EdSpecificAlg}$,
+        \end{itemize}
+        \vspace{-1ex}
+        otherwise $0$.
+\end{algorithm}
+
+The $z_j$ values \MUST be chosen independently of the \sigBatchEntries.
+
+The performance benefits of this approach are the same as for \crossref{reddsabatchvalidate}.
+} %canopy
 
 
 \notsprout{
