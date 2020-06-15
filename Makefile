@@ -1,5 +1,5 @@
 # Dependencies:
-# sudo apt-get install python3-pip pandoc
+# sudo apt-get install python3-pip pandoc perl sed
 # sudo pip3 install rst2html5
 
 .PHONY: all all-zips protocol
