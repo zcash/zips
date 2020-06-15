@@ -674,6 +674,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\xKeyPrivacy}{\termx{key privacy}}
 \newcommand{\keyPrivate}{\termandindex{key\hyp private}{key privacy}}
 \newcommand{\xKeyPrivate}{\termandindex{Key\hyp private}{key privacy}}
+\newcommand{\ephemeralPublicKey}{\term{ephemeral public key}}
+\newcommand{\ephemeralPrivateKey}{\term{ephemeral private key}}
 
 \newcommand{\note}{\term{note}}
 \newcommand{\notes}{\terms{note}}
@@ -928,6 +930,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\humanReadablePart}{\term{Human-Readable Part}}
 \newcommand{\notePlaintext}{\term{note plaintext}}
 \newcommand{\notePlaintexts}{\terms{note plaintext}}
+\newcommand{\notePlaintextLeadByte}{\term{note plaintext lead byte}}
 \newcommand{\noteCiphertext}{\termandindex{transmitted note ciphertext}{transmitted note ciphertext (Sapling)}}
 \newcommand{\noteCiphertexts}{\termandindex{transmitted note ciphertexts}{transmitted note ciphertext (Sapling)}}
 \newcommand{\notesCiphertext}{\termandindex{transmitted notes ciphertext}{transmitted notes ciphertext (Sprout)}}
@@ -1201,8 +1204,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\PtoSHAddressTestnetSecondByte}{\hexint{BA}}
 \newcommand{\PtoPKHAddressTestnetLeadByte}{\hexint{1D}}
 \newcommand{\PtoPKHAddressTestnetSecondByte}{\hexint{25}}
-\newcommand{\NotePlaintextLeadByteSprout}{\hexint{00}}
-\newcommand{\NotePlaintextLeadByteSapling}{\hexint{01}}
+\newcommand{\NotePlaintextLeadByte}{\mathsf{leadByte}}
 \newcommand{\AuthPublic}{\mathsf{a_{pk}}}
 \newcommand{\AuthPrivate}{\mathsf{a_{sk}}}
 \newcommand{\AuthPrivateSup}[1]{\mathsf{a^\mathrm{#1}_{sk}}}
@@ -1409,13 +1411,16 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\NoteTypeSapling}{\mathsf{Note^{Sapling}}}
 \newcommand{\NotePlaintext}[1]{\mathbf{np}_{#1}}
 \newcommand{\OutPlaintext}{\mathbf{op}}
-\newcommand{\NoteCommitRand}{\mathsf{\sprout{r}\notsprout{rcm}}}
+\newcommand{\NoteSeedBytes}{\mathsf{rseed}}
+\newcommand{\NoteSeedBytesType}{\byteseq{32}}
+\newcommand{\NoteCommitRand}{\mathsf{rcm}}
 \newcommand{\NoteCommitRandRepr}{{\NoteCommitRand\Repr}}
 \newcommand{\NoteCommitRandBytes}{\bytes{\NoteCommitRand}}
-\newcommand{\NoteCommitRandBytesType}{\byteseq{32}}
 \newcommand{\NoteCommitRandLength}{\mathsf{\ell_{\NoteCommitRand}}}
 \newcommand{\NoteCommitRandOld}[1]{\NoteCommitRand^\mathsf{old}_{#1}}
 \newcommand{\NoteCommitRandNew}[1]{\NoteCommitRand^\mathsf{new}_{#1}}
+\newcommand{\NoteCommitRandOrSeedBytes}{\notcanopy{\NoteCommitRand}\canopy{\NoteSeedBytes}}
+\newcommand{\NoteCommitRandBytesOrSeedBytes}{\notcanopy{\NoteCommitRandBytes}\canopy{\NoteSeedBytes}}
 \newcommand{\NoteAddressRand}{\mathsf{\uprho}}
 \newcommand{\NoteAddressRandRepr}{{\NoteAddressRand\Repr}}
 \newcommand{\NoteAddressRandOld}[1]{\NoteAddressRand^\mathsf{old}_{#1}}
@@ -1475,6 +1480,9 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 
 \newcommand{\BlossomActivationHeight}{\mathsf{BlossomActivationHeight}}
 \newcommand{\IsBlossomActivated}{\mathsf{IsBlossomActivated}}
+\newcommand{\CanopyActivationHeight}{\mathsf{CanopyActivationHeight}}
+\newcommand{\ZIPTwoOneTwoGracePeriod}{\mathsf{ZIP212GracePeriod}}
+
 \newcommand{\PoWLimit}{\mathsf{PoWLimit}}
 \newcommand{\PoWAveragingWindow}{\mathsf{PoWAveragingWindow}}
 \newcommand{\PoWMedianBlockSpan}{\mathsf{PoWMedianBlockSpan}}
@@ -2537,9 +2545,10 @@ The following integer constants will be instantiated in \crossref{constants}:
     $\NoteCommitRandLength$, \changed{$\RandomSeedLength$,} $\AuthPrivateLength$,
     \changed{$\NoteAddressPreRandLength$,}\sapling{ $\SpendingKeyLength$, $\DiversifierLength$,
     $\InViewingKeyLength$, $\OutViewingKeyLength$, $\ScalarLength$,}
-    $\MAXMONEY$,\blossom{ $\BlossomActivationHeight$,} $\SlowStartInterval$, $\PreBlossomHalvingInterval$,
-    $\MaxBlockSubsidy$, $\NumFounderAddresses$, $\PoWLimit$, $\PoWAveragingWindow$, $\PoWMedianBlockSpan$,
-    $\PoWDampingFactor$, \notblossom{and }$\PreBlossomPoWTargetSpacing$\blossom{, and $\PostBlossomPoWTargetSpacing$}.
+    $\MAXMONEY$,\blossom{ $\BlossomActivationHeight$,}\canopy{ $\CanopyActivationHeight$, $\ZIPTwoOneTwoGracePeriod$}
+    $\SlowStartInterval$, $\PreBlossomHalvingInterval$, $\MaxBlockSubsidy$, $\NumFounderAddresses$,
+    $\PoWLimit$, $\PoWAveragingWindow$, $\PoWMedianBlockSpan$, $\PoWDampingFactor$,
+    \notblossom{and }$\PreBlossomPoWTargetSpacing$\blossom{, and $\PostBlossomPoWTargetSpacing$}.
   \end{flushleft}
 \end{formulae}
 
@@ -2814,19 +2823,24 @@ The \notePlaintext in each \outputDescription is encrypted to the
 \introlist
 Each \Sapling{} \defining{\notePlaintext} (denoted $\NotePlaintext{}$) consists of
 
-\vspace{-1ex}
 \begin{formulae}
-  \item $(\Diversifier \typecolon \DiversifierType, \Value \typecolon \ValueType,
-          \NoteCommitRandBytes \typecolon \NoteCommitSaplingTrapdoorBytes, \Memo \typecolon \MemoType)$.
+  \item $(\NotePlaintextLeadByte \typecolon \setof{\hexint{01}\canopy{, \hexint{02}}},
+          \Diversifier \typecolon \DiversifierType, \Value \typecolon \ValueType,
+          \NoteCommitRandBytesOrSeedBytes \typecolon \NoteSeedBytesType, \Memo \typecolon \MemoType)$
 \end{formulae}
+
+The fields \notcanopy{$\Diversifier$, $\Value$, and $\NoteCommitRandBytes$}\canopy{$\Diversifier$ and $\Value$}
+are as defined in \crossref{notes}.
+
+\canopy{
+The field $\NoteSeedBytes$ is described in \crossref{saplingsend}.
+} %canopy
 } %saplingonward
 
 \changed{
 $\Memo$ represents a $\MemoByteLength$-byte \defining{\memo} associated with this \note.
 The usage of the \memo is by agreement between the sender and recipient of the \note.
 }
-
-Other fields are as defined in \crossref{notes}.
 
 Encodings are given in \crossref{notept}.
 The result of encryption forms part of a \noteOrNotesCiphertext.
@@ -3328,7 +3342,7 @@ The inputs to the \keyDerivationFunction differ between the \Sprout and
 
 $\KDFSprout$ takes as input an output index in $\setofNew$, the
 value $\hSig$, the shared Diffie-Hellman secret $\DHSecret{}$,
-the ephemeral \publicKey $\EphemeralPublic$, and the recipient's
+the \ephemeralPublicKey $\EphemeralPublic$, and the recipient's
 public \transmissionKey $\TransmitPublic$. It is suitable for use
 with $\KASprout$ and derives keys for $\SymEncrypt{}$.
 
@@ -3339,7 +3353,7 @@ with $\KASprout$ and derives keys for $\SymEncrypt{}$.
 
 \sapling{
 $\KDFSapling$ takes as input the shared Diffie-Hellman secret $\DHSecret{}$ and
-the ephemeral \publicKey $\EphemeralPublic$. (It does not have inputs taking the
+the \ephemeralPublicKey $\EphemeralPublic$. (It does not have inputs taking the
 place of the output index, $\hSig$, or $\TransmitPublic$.) It is suitable for use
 with $\KASapling$ and derives keys for $\SymEncrypt{}$.
 
@@ -4330,7 +4344,7 @@ where
         a ciphertext component for the encrypted output \note;
   \item $\OutCiphertext{} \typecolon \Ciphertext$ is a ciphertext component that allows the holder of
         a \fullViewingKey to recover the recipient \diversifiedTransmissionKey $\DiversifiedTransmitPublic$
-        and the ephemeral \privateKey $\EphemeralPrivate$ (and therefore the entire \notePlaintext);
+        and the \ephemeralPrivateKey $\EphemeralPrivate$ (and therefore the entire \notePlaintext);
   \item $\ProofOutput \typecolon \OutputProof$ is a \zkSNARKProof with \primaryInput
         $(\cv, \cmU, \EphemeralPublic)$ for the \outputStatement defined in \crossref{outputstatement}.
 \end{itemize}
@@ -4429,6 +4443,15 @@ this payment. This may be one of:
 \pnote{Choosing $\OutViewingKey = \bot$ is useful if the sender prefers to obtain
 forward secrecy of the payment information with respect to compromise of its own secrets.}
 
+\canopy{
+\vspace{2ex}
+Let $\CanopyActivationHeight$ be as defined in \crossref{constants}.
+
+Let $\NotePlaintextLeadByte$ be the \notePlaintextLeadByte\notcanopy{, i.e.\ \hexint{01}}.
+This \MUST be $\hexint{01}$ if for the next \block, $\BlockHeight < \CanopyActivationHeight$, or $\hexint{02}$
+if $\BlockHeight \geq \CanopyActivationHeight$.
+}
+
 \introlist
 \vspace{2ex}
 For each \outputDescription, the sender selects a value $\ValueNew{} \typecolon \range{0}{\MAXMONEY}$
@@ -4436,7 +4459,7 @@ and a destination \Sapling{} \paymentAddress $(\Diversifier, \DiversifiedTransmi
 performs the following steps:
 
 \vspace{0.5ex}
-\begin{itemize}
+\begin{algorithm}
   \item Check that $\DiversifiedTransmitPublic$ is of type $\KASaplingPublicPrimeOrder$, i.e.\ it
         is a valid \ctEdwardsCurve point on the \jubjubCurve (as defined in \crossref{jubjub})
         not equal to $\ZeroJ$, and $\scalarmult{\ParamJ{r}}{\DiversifiedTransmitPublic} = \ZeroJ$.
@@ -4444,13 +4467,21 @@ performs the following steps:
   \item Calculate $\DiversifiedTransmitBase = \DiversifyHash(\Diversifier)$
         and check that $\DiversifiedTransmitBase \neq \bot$.
 
-  \item Choose independent uniformly random \commitmentTrapdoors:
+  \item Choose a uniformly random \commitmentTrapdoor $\ValueCommitRandNew{} \leftarrowR \ValueCommitGenTrapdoor()$.
 
-        \begin{tabular}{@{\hskip 2em}r@{\;}l}
-          $\ValueCommitRandNew{}$ &$\leftarrowR \ValueCommitGenTrapdoor()$ \\
-          $\NoteCommitRandNew{}$ &$\leftarrowR \NoteCommitSaplingGenTrapdoor()$
-        \end{tabular}
-
+\canopy{
+  \item If $\NotePlaintextLeadByte = \hexint{01}$:
+}
+  \item \canopy{\tab} Choose a uniformly random \ephemeralPrivateKey $\EphemeralPrivate \leftarrowR \KASaplingPrivate \setminus \setof{0}$.
+  \item \canopy{\tab} Choose a uniformly random \commitmentTrapdoor $\NoteCommitRand \leftarrowR \NoteCommitSaplingGenTrapdoor()$.
+  \item \canopy{\tab} Set $\canopy{\NoteSeedBytes :=} \NoteCommitRandBytes := \LEBStoOSPOf{256}{\ItoLEBSP{256}(\NoteCommitRandNew{})\kern-0.12em}$.
+\canopy{
+  \item else:
+  \item \tab Choose uniformly random $\NoteSeedBytes \leftarrowR \NoteSeedBytesType$.
+  \item \tab Derive $\EphemeralPrivate = \ToScalar\big(\PRFexpand{\NoteSeedBytes}(\hexarray{04})\kern-0.1em\big)$.
+  \item \tab Derive $\NoteCommitRandBytes = \ToScalar\big(\PRFexpand{\NoteSeedBytes}(\hexarray{05})\kern-0.11em\big)$.
+  \item \blank
+}
   \item Calculate
 
         \begin{tabular}{@{\hskip 2em}r@{\;}l}
@@ -4460,8 +4491,7 @@ performs the following steps:
                                                                    \ValueNew{})$
         \end{tabular}
 
-  \item Let $\NotePlaintext{} = (\Diversifier, \ValueNew{}, \NoteCommitRandBytes, \Memo)$, where
-        $\NoteCommitRandBytes = \LEBStoOSPOf{256}{\ItoLEBSP{256}(\NoteCommitRandNew{})\kern-0.12em}$.
+  \item Let $\NotePlaintext{} = (\NotePlaintextLeadByte, \Diversifier, \ValueNew{}, \NoteCommitRandBytesOrSeedBytes, \Memo)$.
 
   \item Encrypt $\NotePlaintext{}$ to the recipient
         \diversifiedTransmissionKey $\DiversifiedTransmitPublic$ with
@@ -4469,12 +4499,13 @@ performs the following steps:
         \outgoingViewingKey $\OutViewingKey$, giving the \noteCiphertext
         $(\EphemeralPublic, \TransmitCiphertext{}, \OutCiphertext)$.
         This procedure is described in \crossref{saplingencrypt}; it also uses
-        $\cvNew{}$ and $\cmNew{}$ to derive the \outgoingCipherKey.
+        $\cvNew{}$ and $\cmNew{}$ to derive the \outgoingCipherKey, and takes
+        $\EphemeralPrivate$ as an input.
 
   \item Generate a proof $\ProofOutput$ for the \outputStatement in \crossref{outputstatement}.
 
   \item Return $(\cvNew{}, \cmNew{}, \EphemeralPublic, \TransmitCiphertext{}, \OutCiphertext, \ProofOutput)$.
-\end{itemize}
+\end{algorithm}
 
 In order to minimize information leakage, the sender \SHOULD randomize the order
 of \outputDescriptions in a \transaction. Other considerations relating to
@@ -5347,7 +5378,7 @@ To transmit these secrets securely to a recipient
 possession of the associated \incomingViewingKey $\InViewingKey$ is used to
 reconstruct the original \note\changed{ and \memo}.
 
-A single ephemeral \publicKey is shared between encryptions of the $\NNew$
+A single \ephemeralPublicKey is shared between encryptions of the $\NNew$
 \shieldedOutputs in a \joinSplitDescription. All of the resulting ciphertexts
 are combined to form a \notesCiphertext.
 
@@ -5482,7 +5513,7 @@ possession of the associated \incomingViewingKey $\InViewingKey$ is used to
 reconstruct the original \note and \memo.
 
 Unlike in a \Sprout{} \joinSplitDescription, each \Sapling{} \shieldedOutput
-is encrypted by a fresh ephemeral \publicKey.
+is encrypted by a fresh \ephemeralPublicKey.
 
 \vspace{0.5ex}
 \introlist
@@ -5510,14 +5541,15 @@ and let $\DiversifiedTransmitBaseNew \typecolon \KASaplingPublicPrimeOrder$ be t
 \diversifiedBase computed as $\DiversifyHash(\Diversifier)$.
 
 Since \Sapling{} \note encryption is used only in the context of \crossref{saplingsend}, we may assume that
-$\DiversifiedTransmitBaseNew$ has already been calculated and is not $\bot$.
+$\DiversifiedTransmitBaseNew$ has already been calculated and is not $\bot$. Also, the \ephemeralPrivateKey
+$\EphemeralPrivate$ has been chosen.
 
 Let $\OutViewingKey \typecolon \maybe{\OutViewingKeyType}$ be as described in \crossref{saplingsend},
 i.e.\ the \outgoingViewingKey of the \paymentAddress from which the \note is being spent, or an
 \outgoingViewingKey associated with a \cite{ZIP-32} account, or $\bot$.
 
-\introsection
-Let $\NotePlaintext{} = (\Diversifier, \Value, \NoteCommitRandBytes, \Memo)$ be the \Sapling{} \notePlaintext.
+Let $\NotePlaintext{} = (\NotePlaintextLeadByte, \Diversifier, \Value, \NoteCommitRandBytesOrSeedBytes, \Memo)$
+be the \Sapling{} \notePlaintext.
 
 $\NotePlaintext{}$ is encoded as defined in \crossref{notept}.
 
@@ -5529,10 +5561,9 @@ Let $\cvNew{}$ be the \valueCommitment for the new \note, and let $\cmNew{}$ be 
 \vspace{1ex}
 Then to encrypt:
 \begin{algorithm}
-\vspace{-1ex}
-  \item choose a uniformly random ephemeral \privateKey $\EphemeralPrivate \leftarrowR \KASaplingPrivate \setminus \setof{0}$
-  \item let $\EphemeralPublic = \KASaplingDerivePublic(\EphemeralPrivate, \DiversifiedTransmitBaseNew)$
+\vspace{-0.5ex}
   \item let $\TransmitPlaintext{}$ be the \rawEncoding of $\NotePlaintext{}$
+  \item let $\EphemeralPublic = \KASaplingDerivePublic(\EphemeralPrivate, \DiversifiedTransmitBaseNew)$
   \item let $\DHSecret{} = \KASaplingAgree(\EphemeralPrivate, \DiversifiedTransmitPublicNew)$
   \item let $\TransmitKey{} = \KDFSapling(\DHSecret{}, \EphemeralPublic)$
   \item let $\TransmitCiphertext{} = \SymEncrypt{\TransmitKey{}}(\TransmitPlaintext{})$
@@ -5573,6 +5604,12 @@ Let $(\EphemeralPublic, \TransmitCiphertext{}, \OutCiphertext)$ be the \noteCiph
 \outputDescription{}. Let $\cmuField$ be that field of the \outputDescription (encoding the
 $u$-coordinate of the \noteCommitment).
 
+\canopy{
+Let the constant $\CanopyActivationHeight$ be as defined in \crossref{constants}.
+
+Let $\BlockHeight$ be the \blockHeight of the \block containing this \transaction.
+} %canopy
+
 \introlist
 The recipient will attempt to decrypt the $\EphemeralPublic$ and $\TransmitCiphertext{}$
 components of the \noteCiphertext as follows:
@@ -5583,12 +5620,29 @@ components of the \noteCiphertext as follows:
   \item let $\TransmitPlaintext{} = \SymDecrypt{\TransmitKey{}}(\TransmitCiphertext{})$
 \vspace{-0.25ex}
   \item if $\TransmitPlaintext{} = \bot$, return $\bot$
+  \item let $\NotePlaintextLeadByte$ be the first byte of $\TransmitPlaintext{}$
+  \precanopyitem{if $\NotePlaintextLeadByte \neq \hexint{01}$, return $\bot$}
+  \precanopyitem{extract $\NotePlaintext{} = (\Diversifier \typecolon \DiversifierType, \Value \typecolon \ValueType,
+\NoteCommitRandBytes \typecolon \NoteCommitSaplingTrapdoorBytes, \Memo \typecolon \MemoType)$ from $\TransmitPlaintext{}$}
+  \canopyonwarditem{if $\BlockHeight < \CanopyActivationHeight + \ZIPTwoOneTwoGracePeriod \text{ and } \NotePlaintextLeadByte \not\in \setof{\hexint{01}, \hexint{02}}$, return $\bot$}
+  \canopyonwarditem{if $\BlockHeight \geq \CanopyActivationHeight + \ZIPTwoOneTwoGracePeriod \text{ and } \NotePlaintextLeadByte \neq \hexint{02}$, return $\bot$}
 \vspace{-0.25ex}
-  \item extract $\NotePlaintext{} = (\Diversifier \typecolon \DiversifierType, \Value \typecolon \ValueType,
-\NoteCommitRandBytes \typecolon \NoteCommitSaplingTrapdoorBytes, \Memo \typecolon \MemoType)$ from $\TransmitPlaintext{}$
+  \canopyonwarditem{extract $\NotePlaintext{} = (\Diversifier \typecolon \DiversifierType, \Value \typecolon \ValueType,
+\NoteSeedBytes \typecolon \NoteSeedBytesType, \Memo \typecolon \MemoType)$ from $\TransmitPlaintext{}$}
+  \canopyonwarditem{let $\NoteCommitRandBytes = \begin{cases}
+                      \NoteSeedBytes,&\caseif \NotePlaintextLeadByte = \hexint{01} \\
+                      \ToScalar\big(\PRFexpand{\NoteSeedBytes}(\hexarray{05})\kern-0.11em\big),&\caseotherwise
+                    \end{cases}$}
   \item let $\NoteCommitRand = \LEOStoIPOf{256}{\NoteCommitRandBytes}$
         and $\DiversifiedTransmitBase = \DiversifyHash(\Diversifier)$
   \item if $\NoteCommitRand \geq \ParamJ{r}$ or $\DiversifiedTransmitBase = \bot$, return $\bot$
+  \canopyonwarditem{if $\NotePlaintextLeadByte \neq \hexint{01}$:}
+\canopy{
+  \item \tab $\EphemeralPrivate = \ToScalar\big(\PRFexpand{\NoteSeedBytes}(\hexarray{04})\kern-0.11em\big)$
+  \item \tab if $\KASaplingDerivePublic(\EphemeralPrivate, \DiversifiedTransmitBase) \neq \EphemeralPublic$,
+        return $\bot$
+  \item \blank
+}
   \item let $\DiversifiedTransmitPublic = \KASaplingDerivePublic(\InViewingKey, \DiversifiedTransmitBase)$
   \item let $\cmU' = \ExtractJ\big(\NoteCommitSapling{\NoteCommitRandNew{}}(\reprJ\Of{\DiversifiedTransmitBase},
                                                                             \reprJ\Of{\DiversifiedTransmitPublic},
@@ -5612,6 +5666,14 @@ A \note can change from being unspent to spent as a node's view of the
 can cause a node to switch to a different \bestValidBlockChain that does not
 contain the \transaction in which a \note was output.
 } %pnote
+
+\vspace{-2ex}
+\nnote{
+Normally only \noteCiphertexts of \transactions in \blocks need to be decrypted.
+A client \MAY attempt to decrypt a \noteCiphertext of a \transaction in the \mempool,
+using the next \blockHeight for $\BlockHeight$. However, in that case it \MUSTNOT assume that
+the \transaction will be mined and \MUST treat the decrypted information as provisional.
+} %nnote
 } %sapling
 
 
@@ -5650,9 +5712,21 @@ The \outgoingViewingKey holder will attempt to decrypt the \noteCiphertext as fo
   \item let $\TransmitPlaintext{} = \SymDecrypt{\TransmitKey{}}(\TransmitCiphertext{})$
 \vspace{-0.25ex}
   \item if $\TransmitPlaintext{} = \bot$, return $\bot$
+  \item let $\NotePlaintextLeadByte$ be the first byte of $\TransmitPlaintext{}$
+  \precanopyitem{if $\NotePlaintextLeadByte \neq \hexint{01}$, return $\bot$}
+  \precanopyitem{extract $\NotePlaintext{} = (\Diversifier \typecolon \DiversifierType, \Value \typecolon \ValueType,
+\NoteCommitRandBytes \typecolon \NoteCommitSaplingTrapdoorBytes, \Memo \typecolon \MemoType)$ from $\TransmitPlaintext{}$}
+  \canopyonwarditem{if $\BlockHeight < \CanopyActivationHeight + 32256 \text{ and } \NotePlaintextLeadByte \not\in \setof{\hexint{01}, \hexint{02}}$, return $\bot$}
+  \canopyonwarditem{if $\BlockHeight \geq \CanopyActivationHeight + 32256 \text{ and } \NotePlaintextLeadByte \neq \hexint{02}$, return $\bot$}
 \vspace{-0.25ex}
-  \item extract $\NotePlaintext{} = (\Diversifier \typecolon \DiversifierType, \Value \typecolon \ValueType,
-\NoteCommitRandBytes \typecolon \NoteCommitSaplingTrapdoorBytes, \Memo \typecolon \MemoType)$ from $\TransmitPlaintext{}$
+  \canopyonwarditem{extract $\NotePlaintext{} = (\Diversifier \typecolon \DiversifierType, \Value \typecolon \ValueType,
+\NoteSeedBytes \typecolon \NoteSeedBytesType, \Memo \typecolon \MemoType)$ from $\TransmitPlaintext{}$}
+  \canopyonwarditem{let $\EphemeralPrivate' = \ToScalar\big(\PRFexpand{\NoteSeedBytes}(\hexarray{04})\kern-0.11em\big)$}
+  \canopyonwarditem{if $\EphemeralPrivate' \neq \EphemeralPrivate$, return $\bot$}
+  \canopyonwarditem{let $\NoteCommitRandBytes = \begin{cases}
+                      \NoteSeedBytes,&\caseif \NotePlaintextLeadByte = \hexint{01} \\
+                      \ToScalar\big(\PRFexpand{\NoteSeedBytes}(\hexarray{05})\kern-0.11em\big),&\caseotherwise
+                    \end{cases}$}
   \item let $\NoteCommitRand = \LEOStoIPOf{256}{\NoteCommitRandBytes}$
         and $\DiversifiedTransmitBase = \DiversifyHash(\Diversifier)$
   \item if $\NoteCommitRand \geq \ParamJ{r}$ or $\DiversifiedTransmitBase = \bot$, return $\bot$
@@ -5669,6 +5743,15 @@ The \outgoingViewingKey holder will attempt to decrypt the \noteCiphertext as fo
 \pnote{For a valid \transaction it must be the case that
 $\ephemeralKey = \LEBStoOSP{\ellJ}\big(\reprJ\Of{\EphemeralPublic}\kern-0.15em\big)$.}
 
+\canopyonwardnnote{From the step ``let $\NotePlaintextLeadByte$ be the first byte of $\TransmitPlaintext{}$''
+onward, this procedure differs from that in \crossref{saplingdecryptivk} only in two ways:
+\begin{itemize}
+  \item in this procedure, the ephemeral \privateKey $\EphemeralPrivate'$ derived from $\NoteSeedBytes$
+        is checked to be identical to that obtained from $\OutPlaintext$.
+  \item in this procedure, $\DiversifiedTransmitPublic$ is obtained from $\OutPlaintext$
+        rather than being derived as $\KASaplingDerivePublic(\InViewingKey, \DiversifiedTransmitBase)$.
+\end{itemize}
+} %canopyonwardnnote
 
 \lsubsection{Block Chain Scanning\pSproutOrNothingText}{sproutscan}
 
@@ -5894,6 +5977,13 @@ Define:
           584000,&\squash\text{for the test network}
         \end{cases}$
 } %blossom
+\canopy{
+  \item $\CanopyActivationHeight \typecolon \Nat := \begin{cases}
+          1046400,&\squash\text{for the production network} \\
+          \todo{},&\squash\text{for the test network}
+        \end{cases}$
+  \item $\ZIPTwoOneTwoGracePeriod \typecolon \Nat := 32256$
+} %canopy
   \item $\SlowStartInterval \typecolon \Nat := 20000$
   \item $\PreBlossomHalvingInterval \typecolon \Nat := 840000$
   \item $\MaxBlockSubsidy \typecolon \Nat := 1.25 \smult 10^9$ (\zatoshi)
@@ -8082,8 +8172,9 @@ The \notePlaintext in each \outputDescription is encrypted to the
 \diversifiedTransmissionKey $\DiversifiedTransmitPublic$.
 Each \Sapling{} \notePlaintext (denoted $\NotePlaintext{}$) consists of:
 \begin{formulae}
-  \item $(\Diversifier \typecolon \DiversifierType, \Value \typecolon \ValueType,
-\NoteCommitRand \typecolon \NoteCommitSaplingOutput, \Memo \typecolon \MemoType)$
+  \item $(\NotePlaintextLeadByte \typecolon \setof{\hexint{01}\canopy{, \hexint{02}}},
+          \Diversifier \typecolon \DiversifierType, \Value \typecolon \ValueType,
+          \NoteCommitRandBytesOrSeedBytes \typecolon \NoteSeedBytesType, \Memo \typecolon \MemoType)$
 \end{formulae}
 }
 
@@ -8118,7 +8209,7 @@ The encoding of a \SproutOrNothing{} \notePlaintext consists of:
 \begin{equation*}
 \begin{bytefield}[bitwidth=0.029em]{1672}
 \changed{
-    \sbitbox{180}{$8$-bit $\NotePlaintextLeadByteSprout$}
+    \sbitbox{180}{$8$-bit $\hexint{00}$}
   &}\sbitbox{180}{$64$-bit $\Value$} &
     \sbitbox{256}{$256$-bit $\NoteAddressRand$} &
     \sbitbox{256}{\changed{$256$}-bit $\NoteCommitRand$} &
@@ -8128,7 +8219,7 @@ The encoding of a \SproutOrNothing{} \notePlaintext consists of:
 
 \begin{itemize}
 \changed{
-    \item A byte, $\NotePlaintextLeadByteSprout$, indicating this version of the
+    \item A byte, $\hexint{00}$, indicating this version of the
           encoding of a \SproutOrNothing{} \notePlaintext.
 }
     \item $8$ bytes specifying $\Value$.
@@ -8139,27 +8230,27 @@ The encoding of a \SproutOrNothing{} \notePlaintext consists of:
 }
 \end{itemize}
 
-
 \sapling{
 \introlist
 The encoding of a \Sapling{} \notePlaintext consists of:
 \vspace{1ex}
 \begin{equation*}
 \begin{bytefield}[bitwidth=0.029em]{1672}
-    \sbitbox{180}{$8$-bit $\NotePlaintextLeadByteSapling$}
+    \sbitbox{180}{$8$-bit $\NotePlaintextLeadByte$}
     \sbitbox{240}{$88$-bit $\Diversifier$}
     \sbitbox{180}{$64$-bit $\Value$}
-    \sbitbox{256}{$256$-bit $\NoteCommitRand$}
+    \sbitbox{256}{$256$-bit $\NoteCommitRandBytesOrSeedBytes$}
     \sbitbox{800}{$\Memo$ ($\MemoByteLength$ bytes)}
 \end{bytefield}
 \end{equation*}
 
 \begin{itemize}
-    \item A byte, $\NotePlaintextLeadByteSapling$, indicating this version of the
-          encoding of a \Sapling{} \notePlaintext.
+    \item A byte\notcanopy{, $\hexint{01}$,} indicating this version of the
+          encoding of a \Sapling{} \notePlaintext. \canopy{This will be $\hexint{01}$ before
+          activation of the \Canopy network upgrade, and $\hexint{02}$ afterward.}
     \item $11$ bytes specifying $\Diversifier$.
     \item $8$ bytes specifying $\Value$.
-    \item $32$ bytes specifying $\NoteCommitRand$.
+    \item $32$ bytes specifying $\NoteCommitRandBytesOrSeedBytes$.
     \item $\MemoByteLength$ bytes specifying $\Memo$.
 \end{itemize}
 } %sapling
@@ -10166,7 +10257,7 @@ The motivations for this change were as follows:
         \privateKeys\sapling{ (or explicit cofactor multiplication and point
         validation for \Sapling)}.
   \item Unlike the DHAES/DHIES proposal on which it is based \cite{ABR1999}, ECIES
-        does not require a representation of the sender's ephemeral \publicKey
+        does not require a representation of the sender's \ephemeralPublicKey
         to be included in the input to the KDF, which may impair the security
         properties of the scheme. (The Std 1363a-2004 version of ECIES \cite{IEEE2004}
         has a ``DHAES mode'' that allows this, but the representation of the key
@@ -10378,9 +10469,12 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
 \intropart
 \lsection{Change History}{changehistory}
 
-\historyentry{2020.1.6}{2020-06-15}
+\historyentry{2020.1.6}{2020-06-17}
 
 \begin{itemize}
+\canopy{
+    \item Incorporate changes to \Sapling{} \note encryption from \cite{ZIP-212}.
+}
     \item Correct an error in the specification of \EdSpecific \validatingKeys:
           they should not have been specified to be checked against $\ExcludedPointEncodings$,
           since libsodium~v1.0.15 does not do so.
