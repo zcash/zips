@@ -1,11 +1,12 @@
 ::
 
-  ZIP: XXX
+  ZIP: 307
   Title: Light Client Protocol for Payment Detection
   Authors: George Tankersley <gtank@z.cash>
            Jack Grigg <jack@z.cash>
   Credits: Matthew Green <mgreen@z.cash>
   Category: Standards Track
+  Status: Draft
   Created: 2018-09-17
   License: MIT
 
@@ -68,8 +69,7 @@ deriving from the the same wallet.
 
 In particular, the underlying Zcash node / proxy combination is assumed to be "honest but
 curious" and is trusted to provide a correct view of the current best chain state and to
-faithfully transmit queries and responses. Methods for weakening this assumption are
-discussed in appendix FOO.
+faithfully transmit queries and responses.
 
 This ZIP does not address how to spend notes privately.
 
@@ -91,7 +91,7 @@ A **compact block** is a packaging of ONLY the data from a block needed to:
 3. Update your witnesses to generate new Sapling spend proofs.
 
 A compact block and its component compact transactions are encoded on the wire using the
-following Protocol Buffers [XXX] format:
+following Protocol Buffers [#protocolbuffers] format:
 
 .. code:: proto
 
@@ -136,7 +136,7 @@ Output Compression
 ------------------
 
 In the normal Zcash protocol, the output ciphertext consists of the AEAD encrypted form of
-a *note plaintext* [Note]:
+a *note plaintext* [#protocol-notept]_:
 
 +------------+----------+----------+-------------+-----------------------------------+
 | 8-bit 0x01 | 88-bit d | 64-bit v | 256-bit rcm | memo (512 bytes) + tag (16 bytes) |
@@ -170,7 +170,7 @@ and spendable.
 Spend Compression
 -----------------
 
-Recall that a full Sapling Spend description is 384 bytes long [Spend]:
+Recall that a full Sapling Spend description is 384 bytes long [#protocol-spendencoding]:
 
 +-------+--------------+-----------+
 | Bytes | Name         | Type      |
@@ -257,7 +257,7 @@ Scanning for relevant transactions
 For every ``CompactOutput`` in the ``CompactBlock``, the light client can trial-decrypt it
 against a set of Sapling incoming viewing keys. The procedure for trial-decrypting a
 ``CompactOutput`` (*cmu*, *epk*, *ciphertext*) with an incoming viewing key *ivk* is a
-slight deviation from the standard decryption process [#sapling-ivk-decryption]_:
+slight deviation from the standard decryption process [#protocol-saplingdecryptivk]_:
 
 - let sharedSecret = KA\ :sup:`Sapling`\ .Agree(*ivk*, *epk*)
 - let K\ :sup:`enc` = KDF\ :sup:`Sapling`\ (sharedSecret, *epk*)
@@ -274,11 +274,11 @@ Creating and updating note witnesses
 As ``CompactBlocks`` are received in height order, and the transactions within them have
 their order preserved, the *cmu* values in each ``CompactOutput`` can be sequentially
 appended to an incremental Merkle tree of depth 32 in order to maintain a local copy of
-the Sapling note commitment tree. [#sapling-commitment-tree]_ This can then be used to
+the Sapling note commitment tree. [#protocol-merkletree]_ This can then be used to
 create incremental witnesses for each unspent note the light client is tracking.
 [#incremental-witness]_ An incremental witness updated to height ``X`` corresponds to a
 Merkle path from the note to the Sapling commitment tree anchor for block ``X``.
-[#sapling-merkle-path]_
+[#protocol-merklepath]_
 
 Let ``tree`` be the Sapling note commitment tree at height ``X-1``, and ``note_witnesses``
 be the incremental witnesses for unspent notes detected up to height ``X-1``. When the
@@ -341,13 +341,15 @@ validation. If a txid is used in a ``GetTransaction`` call, the returned transac
 SHOULD be checked against the corresponding ``CompactOutputs``, in addition to verifying
 the transaction signatures.
 
-[**TODO:** Do we want the next paragraph here?]
+Potential extensions
+````````````````````
 
 A trivial extension (with corresponding bandwidth cost) would be to transmit empty
 ``CompactTxs`` corresponding to transactions that do not contain Sapling spends or
 outputs. A more complex extension would send the inner nodes within the transaction
 trees corresponding to non-Sapling-relevant subtrees; this would require strictly less
-bandwidth that the trivial extension.
+bandwidth that the trivial extension. These extensions are not currently defined.
+
 
 Client-server interaction
 -------------------------
@@ -571,10 +573,6 @@ uninteresting transactions as well, and SHOULD download all transactions in any 
 which a single full transaction is fetched (interesting or otherwise). It MUST convey to
 the user that fetching full transactions will reduce their privacy.
 
-Appendix FOO
-============
-
-You can require the proxy to give you all the block headers to validate.
 
 Reference Implementation
 ========================
@@ -582,31 +580,17 @@ Reference Implementation
 This proposal is supported by a set of libraries and reference code made available by the
 Zcash Company.
 
-[NOTE: 2018-09-17 WE HAVE NOT YET FINISHED OR RELEASED THESE.]
 
 References
 ==========
 
 .. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://tools.ietf.org/html/rfc2119>`_
-
-[ZEC] Zcash Protocol Spec
-
-[bipXXX] define a light client
-
-[XXX] protobufs
-
-[Note] [ZEC] Section 5.5
-
-[Spend] [ZEC] Section 7.x
-
-[Output] [ZEC] Section 7.x
-
-.. [#sapling-ivk-decryption] `Section 4.17.2: Decryption using an Incoming Viewing Key (Sapling). Zcash Protocol Specification, Version 2018.0-beta-31 or later [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
-
-.. [#sapling-commitment-tree] `Section 3.7: Note Commitment Trees. Zcash Protocol Specification, Version 2018.0-beta-32 or later [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
-
+.. [#protocol-merkletree] `Section 3.7: Note Commitment Trees. Zcash Protocol Specification, Version 2020.1.6 <protocol/protocol.pdf#merkletree>`_
+.. [#protocol-merklepath] `Section 4.8: Merkle Path Validity. Zcash Protocol Specification, Version 2020.1.6 <protocol/protocol.pdf#merklepath>`_
+.. [#protocol-saplingdecryptivk] `Section 4.17.2: Decryption using an Incoming Viewing Key (Sapling). Zcash Protocol Specification, Version 2020.1.6 <protocol/protocol.pdfsaplingdecryptivk>`_
+.. [#protocol-notept] `Section 5.5: Encodings of Note Plaintexts and Memo Fields. Zcash Protocol Specification, Version 2020.1.6 <protocol/protocol.pdf#notept>`_
+.. [#protocol-spendencoding] `Section 7.3: Encoding of Spend Descriptions. Zcash Protocol Specification, Version 2020.1.6 <protocol/protocol.pdf#spendencoding>`_
+.. [#protocol-outputencoding] `Section 7.4: Encoding of Output Descriptions. Zcash Protocol Specification, Version 2020.1.6 <protocol/protocol.pdf#outputencoding>`_
+.. [#protocolbuffers] `Protocol Buffers. <https://developers.google.com/protocol-buffers/>`_
 .. [#incremental-witness] `TODO`
-
-.. [#sapling-merkle-path] `Section 4.8: Merkle path validity. Zcash Protocol Specification, Version 2018.0-beta-32 or later [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
-
 .. [#spv-clients] `TODO`
