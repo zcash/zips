@@ -3,7 +3,11 @@
   ZIP: 301
   Title: Zcash Stratum Protocol
   Owner: Jack Grigg <str4d@electriccoin.co>
-  Credits: Daira Hopwood
+  Credits: 5a1t
+           Daira Hopwood
+           Marek Palatinus (slush) and colleagues
+           Jelle Bourdeaud'hui (razakal)
+           ocminer
   Status: Informational
   Category: Ecosystem
   Created: 2016-09-23
@@ -65,7 +69,7 @@ appear elsewhere in a request or response. Client and server implementations MAY
 assume that once they read a LF character, the current message has been
 completely received.
 
-Per [JSON-RPC-1.0]_, there is no requirement for the ``id`` property in requests
+Per [#JSON-RPC-1.0]_, there is no requirement for the ``id`` property in requests
 and responses to be unique; only that servers MUST set ``id`` in their responses
 equal to that in the request they are responding to (or ``null`` for
 notifications). However, it is RECOMMENDED that clients use unique ids for their
@@ -80,7 +84,7 @@ Error Objects
 
 The [#JSON-RPC-1.0]_ specification allows for error objects in responses, but
 does not specify their format. The original Stratum protocol uses the following
-format for error responses [Slushpool-Stratum]_:
+format for error responses [#Slushpool-Stratum]_:
 
     {"id": ##, "result": null, "error": [*ERROR_CODE*, "*ERROR_MESSAGE*", *TRACEBACK*]} ``\n``
 
@@ -107,7 +111,7 @@ as an array:
   single sentence.
 
 ``TRACEBACK``
-  Additional information for debugging errors. Format is server-specific.
+  Additional information for debugging errors. The format is server-specific.
 
   Miners MAY attempt to parse the field for displaying to the user, and SHOULD
   fall back to rendering it as a JSON string.
@@ -117,7 +121,7 @@ as an array:
 Miners SHOULD display a human-readable message to the user. This message can be
 derived from either ``ERROR_CODE`` or ``ERROR_MESSAGE``, or both. An example of
 using ``ERROR_CODE`` over ``ERROR_MESSAGE`` might be that the miner UI offers
-localisation.
+localization.
 
 Protocol Flow
 ~~~~~~~~~~~~~
@@ -137,11 +141,11 @@ Nonce Parts
 ~~~~~~~~~~~
 
 In Bitcoin, blocks contain two nonces: the 4-byte block header nonce, and an
-extra nonce in the coinbase transaction [Bitcoin-Block]_. The original Stratum
+extra nonce in the coinbase transaction [#Bitcoin-Block]_. The original Stratum
 protocol splits this extra nonce into two parts: one set by the server (used
 for splitting the search space amongst connected miners), and the other iterated
-by the miner [Slushpool-Stratum]_. The nonce in Zcash's block header is 32 bytes
-long [Zcash-Block]_, and thus can serve both purposes simultaneously.
+by the miner [#Slushpool-Stratum]_. The nonce in Zcash's block header is 32 bytes
+long [#protocol-blockheader]_, and thus can serve both purposes simultaneously.
 
 We define two nonce parts:
 
@@ -154,16 +158,10 @@ We define two nonce parts:
   In hex, ``lenHex(NONCE_2) = 64 - lenHex(NONCE_1)``, and both lengths are even.
 
 The nonce in the block header is the concatenation of ``NONCE_1`` and
-``NONCE_2`` in hex. This means that miner using bignum representations of nonce
+``NONCE_2`` in hex. This means that a miner using bignum representations of nonce
 MUST increment by ``1 << len(NONCE_1)`` to avoid altering ``NONCE_1`` (because
-the encoding of nonce in the block header is little endian, in line with the
-other 32-byte fields [Bitcoin-Block]_ [Zcash-Block]_).
-
-.. [Zcash-Block] Daira Hopwood, Sean Bowe, Taylor Hornby, Nathan Wilcox.
-  "Block Headers". In: *Zcash Protocol Specification*.
-  Version 2016.0-beta-1.5, Section 6.3. September 22, 2016.
-  URL: https://github.com/zcash/zips/blob/master/protocol/protocol.pdf
-  (visited on 2016-09-24).
+the encoding of the nonce in the block header is little endian, in line with the
+other 32-byte fields [#Bitcoin-Block]_ [#protocol-blockheader]_).
 
 Session Resuming
 ~~~~~~~~~~~~~~~~
@@ -210,7 +208,7 @@ Request:
   The id for a previous session that the miner wants to resume (e.g. after a
   temporary network disconnection) (see `Session Resuming`_).
 
-  MAY be ``null`` indicating that the miner wants to start a new session.
+  This MAY be ``null`` indicating that the miner wants to start a new session.
 
 ``CONNECT_HOST`` (str)
   The host that the miner is connecting to (from the server URL).
@@ -255,11 +253,11 @@ Response:
     {"id": 2, "result": *AUTHORIZED*, "error": *ERROR*} ``\n``
 
 ``AUTHORIZED`` (bool)
-  MUST be ``true`` if authorization succeeded. Per [JSON-RPC-1.0]_, MUST be
+  This MUST be ``true`` if authorization succeeded. Per [#JSON-RPC-1.0]_, it MUST be
   ``null`` if there was an error.
 
 ``ERROR`` (obj)
-  An error object. MUST be ``null`` if authorization succeeded.
+  An error object. This MUST be ``null`` if authorization succeeded.
 
   If authorization failed, the server MUST provide an error object describing
   the reason. See `Error Objects`_ for the object format.
@@ -276,7 +274,7 @@ Server message:
   next time this message is sent). The miner compares proposed block hashes with
   this target as a 256-bit big-endian integer, and valid blocks MUST NOT have
   hashes larger than (above) the current target (in accordance with the Zcash
-  network consensus rules [Zcash-Target]_).
+  network consensus rules [#protocol-difficulty]_).
 
   Miners SHOULD NOT submit work above this target. Miners SHOULD validate their
   solutions before submission (to avoid both unnecessary network traffic and
@@ -290,12 +288,6 @@ When displaying the current target in the UI to users, miners MAY convert the
 target to an integer difficulty as used in Bitcoin miners. When doing so, miners
 SHOULD use ``powLimit`` (as defined in ``src/chainparams.cpp``) as the basis for
 conversion.
-
-.. [Zcash-Target] Daira Hopwood, Sean Bowe, Taylor Hornby, Nathan Wilcox.
-  "Difficulty filter". In: *Zcash Protocol Specification*.
-  Version 2016.0-beta-1.5, Section 6.4.2. September 22, 2016.
-  URL: https://github.com/zcash/zips/blob/master/protocol/protocol.pdf
-  (visited on 2016-09-24).
 
 ``mining.notify()``
 -------------------
@@ -368,28 +360,23 @@ Request:
 
 ``EQUIHASH_SOLUTION`` (hex)
   The Equihash solution, encoded as in a block header (including the compactSize
-  at the beginning in canonical form [Bitcoin-CompactSize]_).
+  at the beginning in canonical form [#Bitcoin-CompactSize]_).
 
 Result:
 
     {"id": 4, "result": *ACCEPTED*, "error": *ERROR*} ``\n``
 
 ``ACCEPTED`` (bool)
-  MUST be ``true`` if the submission was accepted. Per [JSON-RPC-1.0]_, MUST be
-  ``null`` if there was an error.
+  This MUST be ``true`` if the submission was accepted. Per [#JSON-RPC-1.0]_, it
+  MUST be ``null`` if there was an error.
 
 ``ERROR`` (obj)
-  An error object. Per [JSON-RPC-1.0]_, MUST be ``null`` if the submission was
-  accepted without error.
+  An error object. Per [#JSON-RPC-1.0]_, this MUST be ``null`` if the submission
+  was accepted without error.
 
   If the submission was not accepted, the server MUST provide an error object
   describing the reason for not accepting the submission. See `Error Objects`_
   for the object format.
-
-.. [Bitcoin-CompactSize] Bitcoin Wiki. "Variable length integer".
-  In: *Protocol documentation*. Last updated: 2016-09-18.
-  URL: https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
-  (visited on 2016-09-28).
 
 ``client.reconnect()``
 ----------------------
@@ -479,9 +466,7 @@ Why does ``mining.submit`` include ``WORKER_NAME``?
 Reference Implementation
 ========================
 
-- `str4d's standalone miner`_
-
-.. _`str4d's standalone miner`: https://github.com/str4d/zcash/tree/standalone-miner
+- `str4d's standalone miner <https://github.com/str4d/zcash/tree/standalone-miner>`_
 
 
 Acknowledgements
@@ -491,7 +476,7 @@ Thanks to:
 
 - 5a1t for the initial brainstorming session.
 
-- Daira Hopwood for her input on API selection and design.
+- Daira Hopwood for hir input on API selection and design.
 
 - Marek Palatinus (slush) and his colleagues for their refinements, suggestions, and
   robust discussion.
@@ -504,9 +489,12 @@ References
 ==========
 
 .. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
+.. [#protocol-blockheader] `Section 7.3: Block Headers. Zcash Protocol Specification, Version 2020.1.6 <protocol/protocol.pdf#blockheader>`_
+.. [#protocol-difficulty] `Section 7.6.2: Difficulty filter. Zcash Protocol Specification, Version 2020.1.6 <protocol/protocol.pdf#difficulty>`_
 .. [#Slushpool-Stratum] `Stratum Mining Protocol. Slush Pool <https://slushpool.com/help/stratum-protocol/>`_
 .. [#Bitcointalk-Stratum] `Stratum protocol documentation. Bitcoin Forum <https://bitcointalk.org/index.php?topic=557866.0>`_
 .. [#P2Pool] `P2Pool. Bitcoin Wiki <https://en.bitcoin.it/wiki/P2Pool>`_
 .. [#Bitcoin-Block] `Block Headers - Bitcoin Developer Reference. <https://developer.bitcoin.org/reference/block_chain.html#block-headers>`_
+.. [#Bitcoin-CompactSize] `Variable length integer. Bitcoin Wiki <https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer>`_
 .. [#JSON-RPC-1.0] `JSON-RPC 1.0 Specification (2005). <https://www.jsonrpc.org/specification_v1>`_
 .. [#JSON-RPC-2.0] `JSON-RPC 2.0 Specification. The JSON-RPC Working Group. <http://www.jsonrpc.org/specification>`_
