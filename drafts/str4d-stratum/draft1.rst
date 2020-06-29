@@ -1,23 +1,38 @@
+::
+
+  ZIP: 301
+  Title: Zcash Stratum Protocol
+  Owner: Jack Grigg <str4d@electriccoin.co>
+  Credits: Daira Hopwood
+  Status: Informational
+  Category: Ecosystem
+  Created: 2016-09-23
+  License: MIT
+
+
+Terminology
+===========
+
+The key words "MUST", "MUST NOT", "SHOULD", "MAY", and "RECOMMENDED" in this
+document are to be interpreted as described in RFC 2119. [#RFC2119]_
+
+
 Abstract
 ========
 
 This ZIP describes the Zcash variant of the Stratum protocol, used by miners to
 communicate with mining pool servers.
 
-This document follows the common conventions defined for ZIPs in [ZIP-1]_.
-
-.. [ZIP-1] https://github.com/zcash/zips/blob/master/zips/0001.rst
-
 
 Motivation
 ==========
 
 Many existing cryptocurrency miners and pools use the original Stratum protocol
-[Slushpool-Stratum]_ [Bitcointalk-Stratum]_ for communication, in situations
+[#Slushpool-Stratum]_ [#Bitcointalk-Stratum]_ for communication, in situations
 where the miner does not require any control over what they mine (for example, a
-miner connected to a local [P2Pool]_ node). However, the protocol is very
+miner connected to a local [#P2Pool]_ node). However, the protocol is very
 specific to Bitcoin, in that it makes assumptions about the block header format,
-and the available nonce space [Bitcoin-Block]_. Zcash has made changes that
+and the available nonce space [#Bitcoin-Block]_. Zcash has made changes that
 invalidate these assumptions.
 
 Having a formal specification for a Zcash-compatible Stratum-style mining
@@ -25,22 +40,11 @@ protocol means that existing pool operators and miner authors can quickly and
 easily migrate their frameworks to the Zcash network, with no ambiguity about
 interoperability.
 
-.. [Slushpool-Stratum] Slush Pool. *Stratum Mining Protocol*.
-  URL: https://slushpool.com/help/#!/manual/stratum-protocol
-  (visited on 2016-09-24)
-.. [Bitcointalk-Stratum] -ck, ed. *Stratum protocol documentation*. Bitcoin Forum.
-  URL: https://bitcointalk.org/index.php?topic=557866.0 (visited on 2016-09-24)
-.. [P2Pool] Bitcoin Wiki. *P2Pool*. URL: https://en.bitcoin.it/wiki/P2Pool
-  (visited on 2016-09-24).
-.. [Bitcoin-Block] Block Headers - Bitcoin Developer Reference.
-  URL: https://bitcoin.org/en/developer-reference#block-headers
-  (visited on 2016-09-24).
-
 
 Specification
 =============
 
-The Stratum protocol is an instance of [JSON-RPC-1.0]_. The miner is a JSON-RPC
+The Stratum protocol is an instance of [#JSON-RPC-1.0]_. The miner is a JSON-RPC
 client, and the Stratum server is a JSON-RPC server. The miner starts a session
 by opening a standard TCP connection to the server, which is then used for
 two-way line-based communication:
@@ -71,13 +75,10 @@ In the protocol messages below, ``(content)`` indicates that ``content`` is
 optional. Variable names are indicated in *EMPHASIS*. All other characters are
 part of the protocol message.
 
-.. [JSON-RPC-1.0] JSON-RPC.org. *JSON-RPC 1.0 Specifications*.
-  URL: http://json-rpc.org/wiki/specification (visited on 2016-09-24).
-
 Error Objects
 ~~~~~~~~~~~~~
 
-The [JSON-RPC-1.0]_ specification allows for error objects in responses, but
+The [#JSON-RPC-1.0]_ specification allows for error objects in responses, but
 does not specify their format. The original Stratum protocol uses the following
 format for error responses [Slushpool-Stratum]_:
 
@@ -91,7 +92,7 @@ as an array:
 ``ERROR_CODE`` (int)
   Indicates the type of error that occurred.
 
-  The error codes are to be interpreted as described in [JSON-RPC-2.0]_.
+  The error codes are to be interpreted as described in [#JSON-RPC-2.0]_.
   The following application error codes are defined:
 
   - 20 - Other/Unknown
@@ -117,10 +118,6 @@ Miners SHOULD display a human-readable message to the user. This message can be
 derived from either ``ERROR_CODE`` or ``ERROR_MESSAGE``, or both. An example of
 using ``ERROR_CODE`` over ``ERROR_MESSAGE`` might be that the miner UI offers
 localisation.
-
-.. [JSON-RPC-2.0] The JSON-RPC Working Group. *JSON-RPC 2.0 Specification*.
-  Last updated: 2013-01-04.
-  URL: http://www.jsonrpc.org/specification (visited on 2016-09-25).
 
 Protocol Flow
 ~~~~~~~~~~~~~
@@ -251,7 +248,7 @@ Request:
   The worker name.
 
 ``WORKER_PASSWORD`` (str)
-  The worker name.
+  The worker password.
 
 Response:
 
@@ -502,10 +499,13 @@ Thanks to:
 - Jelle Bourdeaud'hui (razakal) and ocminer for their help with testing and
   finding implementation bugs in the specification.
 
-This ZIP was edited by Daira Hopwood.
-
 
 References
 ==========
 
-.. Citations will be moved down here when rendered.
+.. [#Slushpool-Stratum] `Stratum Mining Protocol. Slush Pool <https://slushpool.com/help/stratum-protocol/>`_
+.. [#Bitcointalk-Stratum] `Stratum protocol documentation. Bitcoin Forum <https://bitcointalk.org/index.php?topic=557866.0>`_
+.. [#P2Pool] `P2Pool. Bitcoin Wiki <https://en.bitcoin.it/wiki/P2Pool>`_
+.. [#Bitcoin-Block] `Block Headers - Bitcoin Developer Reference. <https://developer.bitcoin.org/reference/block_chain.html#block-headers>`_
+.. [#JSON-RPC-1.0] `JSON-RPC 1.0 Specification (2005). <https://www.jsonrpc.org/specification_v1>`_
+.. [#JSON-RPC-2.0] `JSON-RPC 2.0 Specification. The JSON-RPC Working Group. <http://www.jsonrpc.org/specification>`_
