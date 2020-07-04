@@ -1043,7 +1043,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\bconcat}{\mathop{\kern 0.05em||}}
 \newcommand{\listcomp}[1]{\overlap{0.06em}{\ensuremath{[}}~{#1}~\overlap{0.06em}{\ensuremath{]}}}
 \newcommand{\fun}[2]{{#1} \mapsto {#2}}
-\newcommand{\exclusivefun}[3]{{#1} \mapsto_{\neq\kern 0.05em{#3}\!} {#2}}
+\newcommand{\exclusivefun}[3]{{#1} \mapsto_{\not\in\kern 0.05em{#3}\!} {#2}}
 \newcommand{\first}{\mathsf{first}}
 \newcommand{\for}{\text{ for }}
 \newcommand{\from}{\text{ from }}
@@ -2396,9 +2396,9 @@ $\fun{x \typecolon T}{e_x \typecolon U}$ means the function of type $T \rightarr
 mapping formal parameter $x$ to $e_x$ (an expression depending on~$x$).
 The types $T$ and $U$ are always explicit.
 
-$\exclusivefun{x \typecolon T}{e_x \typecolon U}{y}$ means
-$\fun{x \typecolon T}{e_x \typecolon U \union \setof{y}}$ restricted to the domain
-$\setof{x \typecolon T \suchthat e_x \neq y}$ and range $U$.
+$\exclusivefun{x \typecolon T}{e_x \typecolon U}{V}$ means
+$\fun{x \typecolon T}{e_x \typecolon U \union V}$ restricted to the domain
+$\setof{x \typecolon T \suchthat e_x \not\in V}$ and range $U$.
 
 $\powerset{T}$ means the powerset of $T$.
 }
@@ -7833,13 +7833,28 @@ Define $\ItoLEBSP{} \typecolon (\ell \typecolon \Nat) \times \binaryrange{\ell} 
 as in \crossref{endian}.
 
 Define $\reprJ \typecolon \GroupJ \rightarrow \ReprJ$ such
-that $\reprJ\Of{u, \varv} = \ItoLEBSPOf{256}{\varv + 2^{255} \smult \tilde{u}}$, where
+that $\reprJ\Of{u, \varv} = \ItoLEBSP{256}\big(\varv + 2^{255} \smult \tilde{u}\big)$, where
 $\tilde{u} = u \bmod 2$.
 
 \vspace{-1ex}
-Let $\abstJ \typecolon \ReprJ \rightarrow \maybe{\GroupJ}$
-be the left inverse of $\reprJ$ such that if $S$ is not in the range of
-$\reprJ$, then $\abstJ\Of{S} = \bot$.
+Define $\abstJ \typecolon \ReprJ \rightarrow \maybe{\GroupJ}$ as follows:
+\begin{formulae}
+  \item if $\ParamJ{a} - \ParamJ{d} \smult \varv^2 = 0$, return $\bot$.
+  \item let $u = \optsqrt{\hfrac{1 - \varv^2}{\ParamJ{a} - \ParamJ{d} \mult \varv^2}}$.
+  \item if $u = \bot$, return $\bot$.
+  \item if $u \bmod 2 = \tilde{u}$ then return $(u, \varv)$ else return $(\ParamJ{q} - u, \varv)$.
+\end{formulae}
+
+\pnote{
+In earlier versions of this specification, $\abstJ$ was defined as the left inverse
+of $\reprJ$ such that if $S$ is not in the range of $\reprJ$, then $\abstJ\Of{S} = \bot$.
+This differs from the specification above:
+\begin{itemize}
+  \item Previously, $\abstJ\Of{\ItoLEBSP{256}\big(2^{255} + 1\big)\!}$ and $\abstJ\Of{\ItoLEBSP{256}\big(2^{255} - 1\big)\!}$ were defined as $\bot$.
+  \item In the current specification, $\abstJ\Of{\ItoLEBSP{256}\big(2^{255} + 1\big)\!} = \abstJ\big(\ItoLEBSPOf{256}{1}\kern-0.27em\big) = (0, 1) = \ZeroJ$,
+        and also $\abstJ\Of{\ItoLEBSP{256}\big(2^{255} - 1\big)\!} = \abstJ\big(\ItoLEBSPOf{256}{-1}\kern-0.27em\big) = (0, -1) = -\ZeroJ$.
+\end{itemize}
+}
 
 Define $\SubgroupJ$ as the order-$\ParamJ{r}$ subgroup of $\GroupJ$. Note that this includes $\ZeroJ$.
 For the set of points of order $\ParamJ{r}$ (which excludes $\ZeroJ$), we write $\SubgroupJstar$.
@@ -7970,17 +7985,17 @@ The hash $\GroupJHash{\URS}(D, M) \typecolon \SubgroupJstar$ is calculated as fo
         $\vphantom{a^b}\BlakeTwos{256}$ in the security analysis.
 
         $\exclusivefun{\HashOutput \typecolon \byteseq{32}}
-          {\abstJ\Of{\LEOStoBSP{256}(\HashOutput)\kern-0.12em} \typecolon \GroupJ}{\bot}$
+          {\abstJ\big(\LEOStoBSP{256}(\HashOutput)\kern-0.12em\big) \typecolon \GroupJ}{\setof{\bot,\, \ZeroJ, -\ZeroJ}}$
         is injective, and both it and its inverse are efficiently computable.
 
         $\exclusivefun{P \typecolon \GroupJ}
-          {\scalarmult{\ParamJ{h}}{P} \typecolon \SubgroupJstar}{\ZeroJ}$
+          {\scalarmult{\ParamJ{h}}{P} \typecolon \SubgroupJstar}{\setof{\ZeroJ}}$
         is exactly $\ParamJ{h}$-to-$1$, and both it and its inverse relation are efficiently computable.
 
         It follows that when $\fun{\big(D \typecolon \byteseq{8}, M \typecolon \byteseqs\big)}
           {\BlakeTwosOf{256}{D,\, \URS \bconcat\, M}\! \typecolon \byteseq{32}}$
         is modelled as a random oracle, $\exclusivefun{\big(D \typecolon \byteseq{8}, M \typecolon \byteseqs\big)}
-          {\GroupJHash{\URS}\big(D, M\big) \typecolon \SubgroupJstar}{\bot}$ also acts as a random oracle.
+          {\GroupJHash{\URS}\big(D, M\big) \typecolon \SubgroupJstar}{\setof{\bot}}$ also acts as a random oracle.
 \end{pnotes}
 
 \vspace{0.5ex}
@@ -10485,6 +10500,17 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
 
 \intropart
 \lsection{Change History}{changehistory}
+
+\historyentry{2020.1.8}{2020-07-04}
+
+\begin{itemize}
+\sapling{
+    \item Change the specification of $\abstJ$ in \crossref{jubjub} to match the implementation.
+    \item Repair the argument for $\GroupJHash{\URS}$ being usable as a random oracle, which
+          previously depended on $\abstJ$ being injective.
+}
+\end{itemize}
+
 
 \historyentry{2020.1.7}{2020-06-26}
 
