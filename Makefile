@@ -2,7 +2,7 @@
 # sudo apt-get install python3-pip pandoc perl sed
 # sudo pip3 install rst2html5
 
-.PHONY: all all-zips release protocol
+.PHONY: all all-zips release protocol discard
 all-zips: .Makefile.uptodate
 	find . -name 'zip-*.rst' -o -name 'zip-*.md' |sort >.zipfilelist.new
 	diff .zipfilelist.current .zipfilelist.new || cp -f .zipfilelist.new .zipfilelist.current
@@ -17,6 +17,9 @@ release:
 
 protocol:
 	$(MAKE) -C protocol
+
+discard:
+	git checkout -- '*.html' 'protocol/*.pdf'
 
 .Makefile.uptodate: Makefile
 	$(MAKE) clean
