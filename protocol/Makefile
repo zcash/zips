@@ -16,12 +16,23 @@ NOCRUFT?=|perl -pe 's|[{\<\(]\/[^ ]* ?||g;s|^.* has been referenced but does not
 # Use EXTRAOPT=-pvc for "continuous preview" mode. For example, "make auxblossom EXTRAOPT=-pvc".
 # In this case the updated .pdf will be in the aux/ directory.
 
-.PHONY: all-specs all
+.PHONY: all all-specs release
+all: .Makefile.uptodate
+	$(MAKE) canopy heartwood blossom sapling sprout
+
 all-specs: .Makefile.uptodate
 	$(MAKE) canopy.pdf heartwood.pdf blossom.pdf sapling.pdf sprout.pdf
 
-all: .Makefile.uptodate
-	$(MAKE) canopy heartwood blossom sapling sprout
+release:
+ifeq ($(shell git tag --points-at HEAD |wc -l),0)
+	echo "Set a tag at HEAD first."
+else
+	$(eval TAG := $(shell git tag --points-at HEAD))
+	$(MAKE) clean all
+	git commit -m "Regenerate PDFs." *.pdf
+	git tag "v$(TAG)"
+	git push --tags origin HEAD:master
+endif
 
 .Makefile.uptodate: Makefile
 	$(MAKE) clean
