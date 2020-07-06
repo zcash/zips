@@ -1583,6 +1583,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 
 \newcommand{\EdSpecific}{\termsf{Ed25519}}
 \newcommand{\EdSpecificAlg}{\mathsf{Ed25519}}
+\newcommand{\GroupEdSpecific}{\mathsf{Ed25519}}
 \newcommand{\EdSpecificText}{\texorpdfstring{$\EdSpecificAlg$}{Ed25519}}
 \newcommand{\EdDSASigR}[1]{R_{#1}}
 \newcommand{\EdDSASigS}[1]{S_{#1}}
@@ -1600,6 +1601,9 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\EdSpecificBatchValidate}{\EdSpecificAlg\mathsf{.BatchValidate}}
 \newcommand{\EdSpecificBatchEntry}{\EdSpecificAlg\mathsf{.BatchEntry}}
 \newcommand{\ExcludedPointEncodings}{\mathsf{ExcludedPointEncodings}}
+\newcommand{\reprBytesEdSpecific}{\reprBytes_{\GroupEdSpecific}}
+\newcommand{\abstBytesEdSpecific}{\abstBytes_{\GroupEdSpecific}}
+\newcommand{\ReprEdSpecificBytes}{\byteseq{32}}
 
 \newcommand{\JoinSplitSig}{\mathsf{JoinSplitSig}}
 \newcommand{\JoinSplitSigPublic}{\JoinSplitSig\mathsf{.Public}}
@@ -1944,6 +1948,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 
 \newcommand{\repr}{\mathsf{repr}}
 \newcommand{\abst}{\mathsf{abst}}
+\newcommand{\reprBytes}{\mathsf{reprBytes}}
+\newcommand{\abstBytes}{\mathsf{abstBytes}}
 \newcommand{\xP}{{x_{\hspace{-0.12em}P}}}
 \newcommand{\yP}{{y_{\hspace{-0.03em}P}}}
 
@@ -7095,9 +7101,45 @@ $\hexarray{da,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,
 } \\
 $\}$.
 
-Let $\ell = 2^{252} + 27742317777372353535851937790883648493$ (the order of the \EdSpecific
-curve's prime-order subgroup), and let $\EdDSABase$ be the base point given in \cite{BDLSY2012}.
+Let $p = 2^{255} - 19$.
 
+Let $a = -1$.
+
+Let $d = -121665/121666 \pmod{p}$.
+
+Let $\ell = 2^{252} + 27742317777372353535851937790883648493$ (the order of the \EdSpecific
+curve's prime-order subgroup).
+
+Let $\EdDSABase$ be the base point given in \cite{BDLSY2012}.
+
+Define $\ItoLEBSP{}$, $\LEBStoOSP{}$, $\LEOStoBSP{}$, and $\LEBStoIP{}$ as in \crossref{endian}.
+
+Define $\reprBytesEdSpecific \typecolon \GroupEdSpecific \rightarrow \ReprEdSpecificBytes$ such
+that $\reprBytesEdSpecific\Of{x, y} = \LEBStoOSP{256}\Of{\ItoLEBSP{256}\big(y + 2^{255} \smult \tilde{x}\big)\!}$\kern0.05em, where
+$\tilde{x} = x \bmod 2$.
+
+Define $\abstBytesEdSpecific \typecolon \ReprEdSpecificBytes \rightarrow \maybe{\GroupEdSpecific}$ such that
+$\abstBytesEdSpecific\Of{\bytes{P}}$ is computed as follows:
+\begin{formulae}
+  \item let ${y\Repr} \typecolon \bitseq{255}$ be the first $255$ bits of $\LEOStoBSPOf{256}{\bytes{P}}$ and let $\tilde{x} \typecolon \bit$ be the last bit.
+  \item let $y \typecolon \GF{p} = \LEBStoIPOf{255}{y\Repr} \pmod{p}$.
+  \item if $a - d \smult y^2 = 0$, return $\bot$.
+  \item let $x = \optsqrt{\hfrac{1 - y^2}{a - d \smult y^2}}$.
+  \item if $x = \bot$, return $\bot$.
+  \item if $x \bmod 2 = \tilde{x}$ then return $(x, y)$ else return $(p - x, y)$.
+\end{formulae}
+
+\pnote{This definition of point decoding differs from that of \cite[section 5.1.2]{RFC-8032}.
+The latter does not allow $\{$ \\
+\scalebox{0.615}[0.7]{
+\begin{tabular}{@{\hspace{1.5em}}l@{}}
+$\hexarray{01,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,80},$ \\
+$\hexarray{ec,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff,ff}$
+\end{tabular}
+} \\
+$\}$ as encodings for $(0, 1)$ and $(0, -1)$ respectively.}
+
+\vspace{2ex}
 \EdSpecific is defined as in \cite{BDLSY2012}, using $\EdSpecificHash$ as the internal \hashFunction,
 with the additional requirements below. A valid \EdSpecific \validatingKey is defined as a sequence of
 $32$ bytes encoding a point on the \EdSpecific curve.
@@ -8965,8 +9007,8 @@ $\versionField \geq 4$ and $\nShieldedSpend + \nShieldedOutput > 0$.
         \coinbaseTransactions include \foundersReward outputs.
   \item If $\versionField \geq 2$ and $\nJoinSplit > 0$, then:
         \begin{itemize}
-          \item \joinSplitPubKey{} \MUST represent a valid \EdSpecific \validatingKey
-                encoding (\crossref{concretejssig}).
+          \item \joinSplitPubKey{} \MUST represent a valid encoding (as specified in \crossref{concretejssig}) of
+                an \EdSpecific \validatingKey.
           \item \joinSplitSig{} \MUST represent a valid signature under \joinSplitPubKey{} of
                 $\dataToBeSigned$, as defined in \crossref{sproutnonmalleability}.
         \end{itemize}
@@ -10562,6 +10604,7 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
 \begin{itemize}
     \item Add \crossref{networks}.
     \item Acknowledge Jane Lusby and Teor.
+    \item Precisely specify the encoding and decoding of \EdSpecific points.
 \sapling{
     \item Correct an error introduced in 2020.1.8; ``$-\ZeroJ$'' was incorrectly used when
           the point $(0, -1)$ on \Jubjub was meant.
@@ -10670,7 +10713,7 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
 
 \begin{itemize}
     \item The implementation of \Sprout \EdSpecific signature validation
-          in \zcashd differed from what was specified in \crossref{concretejssig}.
+          in \zcashd differed from what was specified in \crossref{concreteed25519}.
           The specification has been changed to match the implementation.
 \heartwood{
     \item Add consensus rules for \Heartwood.
