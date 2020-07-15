@@ -29,7 +29,7 @@ Specification
 =============
 
 Zcash stores wallet information in a Berkeley database(BDB) commonly known as wallet.dat. 
-The main purpose of this is the persistence of public and private keys the user created and the ability to recover the state after a node restart. This file also allows the migration of user information from one node to another by moving the database to the corresponding new datadir assuming both zcashd instances are running the same or similar version. Additional features like encryption, recovery, etc are also implemented.
+The main purpose of this is the persistence of public and private keys the user created and the ability to recover the wallet state after a node restart. This file also allows the migration of user information from one node to another by moving the database to the corresponding new datadir assuming both zcashd instances are running the same or similar version. Additional features like encryption, recovery, etc are also implemented.
 
 The current database is a key-value store where keys and values can have multiple data types in binary format. The first data found in a database key is always the property name, the rest of the key is generally used to identify a record, for example::
 
@@ -38,12 +38,12 @@ The current database is a key-value store where keys and values can have multipl
   | zkey | pubkey | privkey |
   ---------------------------
   
-Here ``zkey`` is the property name located at the first position of the database key, the public key is also part of the database key and it is located in the second position of it, the private key is saved in the database value column at the first position. More examples opf this can be found at [#ZIP400Attempt]_.
+Here ``zkey`` is the property name located at the first position of the database key; the public key is also part of the database key, and it is located in the second position; the private key is saved in the database value column at the first position. More examples of this can be found at [#ZIP400Attempt]_.
 
 Schema
 ------
 
-According to Zcash v3.0.0-rc1 the following key-values can be found, the property names in **bold** means only 1 of this type can exist in the entire database while the others can be found duplicated. Keys and Values columns of the table contains the types the stored data is representing. Included also there are the variable names hoping it will add some clarity to what the stored data is representing.
+According to Zcash v3.0.0-rc1 the following key-values can be found: the property names in **bold** mean only one instance of this type can exist in the entire database, while the others can have multiple instances. Keys and Values columns of the table contain the types that the stored data is representing. Included also there are the variable names hoping it will add some clarity to what the stored data is representing.
 
 .. csv-table::
    :header: "Name", "Description", "Keys", "Values"
@@ -88,31 +88,33 @@ According to Zcash v3.0.0-rc1 the following key-values can be found, the propert
 Functionality
 -------------
 
-When a zcashd node built with wallet support is started for the first time, a new database is created. By default the node will automatically execute wallet actions that will be saved in the database at the first flush time.
+When a zcashd node built with wallet support is started for the first time, a 
+new wallet database is created. By default the node will automatically execute 
+wallet actions that will be saved in the database at the first flush time.
 
 The following flow will happen when a node with wallet support is started for the first time:
 
-* ``DEFAULT_KEYPOOL_SIZE`` (100 by default) keys will be added to the pool and by this, the wallet will save 100 records with ``pool`` as property name(first value of database key).
+* ``DEFAULT_KEYPOOL_SIZE`` (100 by default) keys will be added to the pool, creating 100 records with ``pool`` as property name (first value of database key).
 * Also 100 ``key`` properties will be added.
 * 100 ``keymeta``.
 * Wallet will create a default transparent key to receive, this will be also added as ``key``, ``pool`` and ``keymeta`` properties.
 * This default key is also added as a ``defaultkey`` property. 
 * The last action created an entry in the address book that is reflected in the database by the ``name``  and ``purpose`` properties.
 * If the wallet is created with HD support, it will have additional properties ``hdseed`` and ``hdchain`` that will be saved.
-* ``version``, ``minversion``, ``witnesscachesize`` and ``bestblock`` properties are added. This are settings and state information, the ``bestblock`` property is a good example of the database being populated that is happening without any user interaction but it will just update as the best block in the current chain changes.
+* ``version``, ``minversion``, ``witnesscachesize`` and ``bestblock`` properties are added. These are settings and state information: the ``bestblock`` property is a good example of the database being populated that is happening without any user interaction, but it will just update as the best block of the current chain changes.
 
 At any time after the database is created new properties can be added as the wallet users do actions. For example, if the user creates a new sapling address with the rpc command ``getznewaddress()`` then new records with properties `sapzkey` and `sapzkeymeta` will be added to the database.
 
-Database changes do not happen immediately but their are flushed in its own thread by ``ThreadFlushWalletDB()`` function periodically to avoid overhead. The internal counter ``nWalletDBUpdated`` is increased each time a new write operation to the database is done, this is compared with the last flush in order to commit new stuff.
+In zcashd, database changes do not happen immediately but they are flushed in its own thread by ``ThreadFlushWalletDB()`` function periodically to avoid overhead. The internal counter ``nWalletDBUpdated`` is increased each time a new write operation to the database is done, this is compared with the last flush in order to commit new stuff.
 
-When the node goes down for whatever reason the information in the database will persist in the disk, the next time the node start, the software will detect the database file, read from there and add the values into memory structures that will guarantee wallet functionality.
+When the node goes down for whatever reason the information in the wallet database SHOULD persist in the disk; the next time the node starts, the software will detect the database file, read from there and add the values into memory structures that will guarantee wallet functionality.
 
 Transactions
 ^^^^^^^^^^^^
 
-The database wallet will not save all the transactions that are happening in the blockchain however it will save all transactions where wallet keys are involved. This is needed for example to get balances, in order to do this the wallet must have all the transactions related to a key to compute the final value of coin available in the derived address.
+The wallet database will not save all the transactions that are happening in the blockchain however it will save all transactions where wallet keys are involved. This is needed for example to get balances. Therefore the wallet must have all the transactions related to a key to compute the final value of coin available in the derived address.
 
-The ``tx`` property will hold this transactions related data with the hash as the key and the full transaction as the value.
+The ``tx`` property will hold the transaction-related data with the transaction hash as the key and the full transaction as the value.
 
 Wallet state and transaction reordering
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -134,17 +136,13 @@ There is a small class ``CWalletScanState`` that will hold some information abou
         vector<uint256> vWalletUpgrade;
     };
 
-If transaction order has changed(orphan blocks, others) then ``fAnyUnordered`` will be true and the wallet code will rescan all transaction again. Transactions may change their order by several reasons, this is handled by wallet code but needs to be reflected by database code as well thus the rescan. 
+If transaction order has changed (orphan blocks, others) then ``fAnyUnordered`` will be true and the wallet code will rescan all transaction again. Transactions may change their order by several reasons, this is handled by wallet code but needs to be reflected by database code as well thus the rescan. 
 
-Memory Cleanup
-^^^^^^^^^^^^^^
-
-After reading or writing from/to the database the implementation must clean the memory in case it was a private key. Implementation may free the memory after reading or writing anything from/to the database.
 
 Wallet Recovery
 ^^^^^^^^^^^^^^^
 
-Database file can be corrupted for whatever reason. The zcashd support a command line option to try to recover from this situation(``-salvagewallet``). When this flag is on function ``Recover()`` will run.
+The wallet database file may become corrupted. Zcashd supports a command line option to try to recover from this situation(``-salvagewallet``). When this flag is on function ``Recover()`` will run.
 
 The recovery procedure is as follows:
 
@@ -161,7 +159,6 @@ Wallet Encryption
 
 Encryption will not be discussed in this document in detail as it is expected for the algorithm to change in the future according to the Wallet format ZIP issue: [#ZIP400Issue]_.
 
-Encryption of the keys is done by the ``CCrypter`` class where the ``mkey`` property from the database is used as a ``CMasterKey`` class.
 
 For a deeper understanding of the current encryption mechanism please refer to [#CrypterCode]_
 
