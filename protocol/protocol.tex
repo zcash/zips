@@ -10789,6 +10789,11 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
 \begin{itemize}
     \item Include \bigShaHash in \crossref{concretesha}.
     \item Add a reference to \cite{BCCGLRT2014} in \crossref{abstractzk}.
+\canopy{
+    \item Use $\abstBytesEdSpecific$ and $\reprBytesEdSpecific$ for conversions in
+          \crossref{ed25519batchvalidate}, and fix a missing requirement that
+          $\EdDSASigS{j} < \ell$ for all signatures.
+}
 \end{itemize}
 
 
@@ -13864,6 +13869,7 @@ the cost of batched verification is therefore
 
 The reference validation algorithm for \EdSpecific signatures is defined in \crossref{concreteed25519}.
 
+\vspace{1ex}
 \canopyonward{Implementations \MAY alternatively use the optimized procedure described in this section to perform
 faster validation of a batch of signatures, i.e.\ to determine whether all signatures in a batch are valid.
 The correctness of this procedure is dependent on the \EdSpecific validation changes made for the \Canopy
@@ -13871,11 +13877,12 @@ network upgrade in \cite{ZIP-215} (in particular the change to use the cofactor 
 The input is a sequence of $N$ \defining{\sigBatchEntries}, each of which is a
 (\validatingKey, message, signature) triple.}
 
-All conversions between \EdSpecific points, byte sequences, and integers used in this section are as
-specified in \cite{BDLSY2012}.
-
 \vspace{2ex}
-Let $\ell$ and $\EdDSABase$ be as defined in \crossref{concreteed25519}.
+Let $\ell$, $\EdDSABase$, $\abstBytesEdSpecific$, and $\reprBytesEdSpecific$ be as defined in \crossref{concreteed25519}.
+
+Let $\LEOStoIP{}$ be as defined in \crossref{endian}.
+
+\bigShaHash is defined in \crossref{concretesha}.
 
 Define $\EdSpecificBatchEntry := \EdSpecificPublic \times \EdSpecificMessage \times \EdSpecificSignature$.
 
@@ -13887,19 +13894,19 @@ Define $\EdSpecificBatchValidate \typecolon (\Entry{\barerange{0}{N-1}} \typecol
   \item \tab Let $(\EdDSASigA{j}, M_j, \sigma_j) = \Entry{j}$.
   \item \tab Let $\EdDSAReprR{j}$ be the first $32$ bytes of $\sigma_j$, and
              let $\EdDSAReprS{j}$ be the remaining $32$ bytes.
-  \item \tab Let $\EdDSASigR{j}$ be the point corresponding to $\EdDSAReprR{j}$ (or $\bot$ if invalid), and
-             let $\EdDSASigS{j}$ be the integer corresponding to $\EdDSAReprS{j}$.
-  \item \tab Let $\EdDSAReprA{j}$ be the byte sequence representation of $\EdDSASigA{j}$.
-  \item \tab Let $\EdDSASigc{j}$ be the integer corresponding to $\EdSpecificHash(\EdDSAReprR{j} \bconcat \EdDSAReprA{j} \bconcat M_j)$.
+  \item \tab Let $\EdDSASigR{j} = \abstBytesEdSpecific(\EdDSAReprR{j})$, and
+             let $\EdDSASigS{j} = \LEOStoIP{256}(\EdDSAReprS{j})$.
+  \item \tab Let $\EdDSAReprA{j} = \reprBytesEdSpecific(\EdDSASigA{j})$.
+  \item \tab Let $\EdDSASigc{j} = \LEOStoIP{512}\big(\BigSHAFull(\EdDSAReprR{j} \bconcat \EdDSAReprA{j} \bconcat M_j)\kern-0.12em\big)$.
         \vspace{1ex}
   \item \tab Choose random $z_j \typecolon \GFstar{\ell} \leftarrowR \range{1}{2^{128}-1}$.
   \item \blank
   \item Return $1$ if
         \vspace{1ex}
         \begin{itemize}
-          \item for all $j \in \range{0}{N-1}$, $\EdDSASigR{j} \neq \bot$; and
-          \item $\scalarmult{8}{\Big(-\!\Bigscalarmult{\ssum{j=0}{N-1}{(z_j \mult \EdDSASigS{j})
-                                                                       \pmod{\ell}}}{\EdDSABase} +
+          \item for all $j \in \range{0}{N-1}$, $\EdDSASigR{j} \neq \bot$ and $\EdDSASigS{j} < \ell$; and
+          \item $\scalarmult{8}{\Big(\!-\kern-0.2em\Bigscalarmult{\ssum{j=0}{N-1}{(z_j \mult \EdDSASigS{j})
+                                                                                  \pmod{\ell}}}{\EdDSABase} +
                                      \ssum{j=0}{N-1}{\scalarmult{z_j}{\EdDSASigR{j}}} +
                                      \ssum{j=0}{N-1}{\scalarmult{z_j \mult \EdDSASigc{j}
                                                                       \pmod{\ell}}{\EdDSASigA{j}}}\!\Big)}
