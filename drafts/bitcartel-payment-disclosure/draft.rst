@@ -18,6 +18,7 @@ This ZIP describes a method of proving that a payment was sent to a shielded add
 
 Motivation
 ----------
+
 Payment disclosure is useful in a number of situations, for example:
 
 * A sender may need to prove that their payment was sent and received by a recipient.  For example, a customer paid too much for an item and would like to claim a refund from the vendor.
@@ -41,15 +42,19 @@ shielded --> transparent
 shielded --> shielded
   The sender, recipient and amount are unknown.  Payment disclosure required.
 
-Design Overview
----------------
+
+Requirements
+------------
 
 Allow the sender to automatically or optionally create a payment disclosure when creating a transaction involving shielded addresses.
 
 The sender or a third party can present this payment disclosure to the recipient to prove that funds were sent to their address.
 
+The mechanism should support both payments involving either the Sprout or Sapling protocols.
+
 Example
--------
+'''''''
+
 A group of coworkers go out for dinner and decide to split the bill.  The restaurant only accepts physical cash.  Alice ends up paying the entire bill as her coworkers have no cash on them.
 
 The next day Bob sends 1 ZEC to Alice's shielded address for his share of the bill.  Other coworkers do the same.  A week later Alice remembers that she is owed money so she checks her shielded address.  Alice sees that the balance is less than what it should be, so she asks her coworkers to confirm their payments.
@@ -61,6 +66,7 @@ Charlie attempts to retrieve the payment disclosure but can't find one.  Charlie
 
 Design Considerations
 ---------------------
+
 The payment disclosure does not prove that the party presenting the payment disclosure is the sender.
 
 To prevent a man-in-the-middle attack, the recipient could pose an interactive challenge involving some out-of-band secret which only the sender would pass successfully.
@@ -69,15 +75,16 @@ It's also possible, rather than an interactive challenge, to make the disclosure
 
 Known Issues
 ------------
-Both plaintext outputs of a joinsplit are currently encrypted with symmetric keys derived from the same ephemeral secret key, as discussed here: https://github.com/zcash/zcash/issues/558#issuecomment-167819936
 
-This means that a payment disclosure that includes the ephemeral secret key intended to decipher the note ciphertext belonging to a particular joinsplit output, creates a privacy leak by also deciphering the other joinsplit output and revealing its contents (amount, payment address and memo field).
+Both plaintext outputs of a Sprout JoinSplit are currently encrypted with symmetric keys derived from the same ephemeral secret key, as discussed here: https://github.com/zcash/zcash/issues/558#issuecomment-167819936
+
+This means that a payment disclosure that includes the ephemeral secret key intended to decipher the note ciphertext belonging to a particular JoinSplit output, creates a privacy leak by also deciphering the other JoinSplit output and revealing its contents (amount, payment address and memo field).
 
 Note the current implementation of the ``z_sendmany`` RPC call:
 
-- When sending from a transparent address to shielded addresses, each shielded address will occupy one output of a joinsplit.  Thus a payment address to a different recipient could be revealed.
+- When sending from a transparent address to shielded addresses, each shielded address will occupy one output of a JoinSplit.  Thus a payment address to a different recipient could be revealed.
 
-- When sending involves chained joinsplits, for each joinsplit, one output is for payment to a recipient's address, while the other output is used as change back to the sender.  Thus the change address will be revealed, which is the sender's own shielded address.
+- When sending involves chained JoinSplits, for each JoinSplit, one output is for payment to a recipient's address, while the other output is used as change back to the sender.  Thus the change address will be revealed, which is the sender's own shielded address.
 
 A proposal to prevent information leakage of change addresses is currently under development [KDFT].  TODO: Does this block ZIP approval?
 
@@ -90,14 +97,72 @@ When a shielded transaction is created successfully and accepted into the local 
 
 Specification
 -------------
-When creating a shielded transaction, for each JoinSplit output, a data structure is created to record the following fields:
+
+When creating a transaction with one or more JoinSplit outputs, for each such output, a data structure is created to record the following fields:
 
 - transaction id
-- index [0..len-1] of JoinSplit in array of JoinSplits contained in transaction
-- index [0..1] of JoinSplit output
+- index [0..len-1] of the JoinSplit description in the ``vJoinSplit`` field of the transaction
+- index [0..1] of the recipient output within that JoinSplit description
 - recipient's payment address is a shielded address ``(a_pk, pk_enc)`` [#protocol]_ §3.1 Payment Addresses and Keys
 - ephemeral private key ``esk`` used to encrypt the note [#protocol]_ §4.10.1 Generate a new KA (public, private) key pair ``(epk, esk)``.
 - JoinSplitSig private key used to sign the JoinSplit transaction ``joinSplitPrivKey`` [#protocol]_ §4.4 Sending Notes
+
+When creating a transaction with one or more Sapling outputs, for each such output, a data structure is created to record:
+
+- transaction id
+- list of Output description indices [0..outlen-1]:
+- corresponding ocks
+- list of Spend description indices [0..inlen-1]
+
+- corresponding Spend descriptions:
+  - any (d, pk_d) s.t. pk_d = [ivk] GH(d) -> ivk -> (ak, nk)
+  - a ZIP 304 signature:
+    - nf
+    - (rk is implied)
+    - zkproof
+    - spendAuthSig
+
+What the prover needs:
+  have ask, α
+  pick fresh nsk
+  \alpha from original tx
+  derive (ak, nk) from (ask, nsk)
+  derive ivk = CRH^ivk(ak, nk)
+  pick a fresh d
+  derive g_d = GH(d), pk_d = [ivk] g_d
+  create a proof like ZIP 304:
+
+  - Let :math:`cm = \mathsf{NoteCommit}^\mathsf{Sapling}_0(\mathsf{repr}_\mathbb{J}(g_d), \mathsf{repr}_\mathbb{J}(pk_d), 1)`.
+
+  - Let :math:`rt` be the root of a Merkle tree with depth
+    :math:`\mathsf{MerkleDepth}^\mathsf{Sapling}` and hashing function
+    :math:`\mathsf{MerkleCRH}^\mathsf{Sapling}`, containing :math:`cm` at position 0, and
+    :math:`\mathsf{Uncommitted}^\mathsf{Sapling}` at all other positions.
+
+  - Let :math:`path` be the Merkle path from position 0 to :math:`rt`. [#merkle-path]_
+
+  - Let :math:`cv = \mathsf{ValueCommit}_0(1)`.
+
+    - This is a constant and may be pre-computed.
+
+  - Let :math:`nf = \mathsf{PRF}^\mathsf{nfSapling}_{\mathsf{repr}_\mathbb{J}(nk)}(\mathsf{repr}_\mathbb{J}(\mathsf{MixingPedersenHash}(cm, 0)))`.
+
+  - Let :math:`zkproof` be a Sapling spend proof with primary input :math:`(rt, cv, nf, rk)`
+    and auxiliary input :math:`(path, 0, g_d, pk_d, 1, 0, cm, 0, α, ak, nsk)`.
+    [#spend-statement]_
+
+  - Let :math:`rsk = \mathsf{SpendAuthSig.RandomizePrivate}(α, ask)`.
+
+  - Let :math:`coinType` be the 4-byte little-endian encoding of the coin type in its index
+    form, not its hardened form (i.e. 133 for mainnet Zcash).
+
+  - Let :math:`digest = \mathsf{BLAKE2b}\text{-}\mathsf{256}(\texttt{"ZIP304Signed"}\,||\,coinType, zkproof\,||\,msg)`.
+
+  - Let :math:`spendAuthSig = \mathsf{SpendAuthSig.Sign}(rsk, digest)`.
+
+- Return :math:`(d, pk_d, nf, zkproof, spendAuthSig)`.
+
+
 
 The payment disclosure data should be persisted to disk or a database so it can be retrieved later.
 
@@ -323,7 +388,7 @@ TODO: Add bad prefix error message here
 - "No information available about transaction"
 - "Transaction has not been confirmed yet"
 - "Transaction is not a shielded transaction"
-- "Payment disclosure refers to an invalid joinsplit index"
+- "Payment disclosure refers to an invalid JoinSplit index"
 - "Payment disclosure refers to an invalid output index"
 - "Payment disclosure refers to an unknown version"
 - "Payment disclosure signature does not match transaction signature"
