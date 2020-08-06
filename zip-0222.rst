@@ -106,7 +106,7 @@ The following three values are made available to the extension (in addition to `
 - A numeric ``mode``.
 - A byte sequence ``precondition`` containing an encoding of the precondition that is
   prefix-free within this ``(type, mode)``.
-- A non-malleable byte sequence ``witness`` containing an encoding of evidence
+- A byte sequence ``witness`` containing an encoding of evidence
   purporting to satisfy the precondition that is prefix-free within this ``(type, mode)``.
 
 The extension must implement:
@@ -115,27 +115,28 @@ The extension must implement:
   ``precondition``, ``witness``, and a context object providing deterministic public
   information about the transaction as well as the block chain (up to and including the
   block that the transaction is mined in). It returns ``true`` if the precondition is
-  satisfied, and ``false`` otherwise. 
+  satisfied in that context, and ``false`` otherwise. 
 - An extension MAY request that arbitrary public information about the
   transaction and block chain be included in the context object provided to it;
   these requirements MUST be satisfied by a caller integrating the extension at
-  the integration point. Implmentations may restrict the information provided to
-  that which may be provided in an efficient manner.
+  the integration point. Extensions SHOULD restrict the information requested to
+  that which may be provided by node implementations in an efficient manner.
 
 ZIPs that define a new transparent extension MUST completely specify the structure of all 
-three of the specified values for each defined mode, as well as the behavior of tze_verify
+three of the specified values for each defined mode, as well as the behavior of ``tze_verify``
 and any contextual information required.
 
 The lengths of ``precondition`` and ``witness`` are not required to be constant length, but
 MUST be solely determined by the pair ``(type, mode)``.
 
-Introduction of TZEs produces a new transparent unspent outpoint set, such that indexes
-into this set of outpoints may be referred to by TZE inpoints in spending transactions.
+The introduction of TZEs by this ZIP produces a new transparent unspent outpoint set,
+distinct from the UTXO set, such that indices into this set of outpoints may be referred
+to by TZE inpoints in spending transactions.
 
 Encoding in transactions
 ------------------------
 
-We define a new transaction format that is non-malleable and contains two new fields:
+We define a new transaction format that contains two new fields:
 
 - ``tze_outputs``: A list of pairs of:
 
@@ -147,7 +148,10 @@ We define a new transaction format that is non-malleable and contains two new fi
   - An outpoint referencing a prior precondition.
   - A witness that satisfies it.
 
-Non-malleability of the transaction format will be specified in a separate ZIP.
+The transaction format is required to be non-malleable, in the sense that any
+change to the effects of the transaction will change its transaction ID, but
+any valid change to a ``witness`` inside ``tze_inputs`` will not change the
+transaction ID. This will be specified in a separate ZIP.
 
 A new version <TBD> transaction format and corresponding version group
 identifier <TBD> will be introduced in the hard-fork network upgrade that
@@ -181,8 +185,8 @@ types is as with Bitcoin.
 ====================== ==================================== =====================
 Field                  Description                          Type           
 ====================== ==================================== =====================
-``tze_id``             extension ``type``                   ``uint64``    
-``tze_mode``           extension ``mode``                   ``uint64``
+``tze_id``             extension ``type``                   ``compactSize``
+``tze_mode``           extension ``mode``                   ``compactSize``
 ``tze_data_len``       length of precondition/witness data  ``compactSize``
 ``tze_data``           serialized precondition/witness data ``witness_len`` bytes
 ====================== ==================================== =====================
@@ -211,7 +215,7 @@ Field                  Description                          Type
 Consensus rules
 ---------------
 
-Once the TODO network upgrade activates, the following new consensus rules are enforced:
+Once this ZIP becomes active, the following new consensus rules are enforced:
 
 - For each ``(outpoint, witness)`` pair in ``tze_inputs``:
 
@@ -232,8 +236,8 @@ Once the TODO network upgrade activates, the following new consensus rules are e
   - nonempty shielded outputs
   - nonempty ``tze_outputs``
 
-- All ``amount`` field values of ``tze_output`` records MUST be nonnegative and less than
-  MAX_MONEY.
+- All ``amount`` field values of ``tze_output`` records MUST be nonnegative and not greater
+  than ``MAX_MONEY``.
 
 - The sum of amounts associated with all transparent, shielded, and TZE outputs within 
   a transaction MUST NOT exceed the sum of the amounts associated with transaction inputs.
@@ -262,7 +266,7 @@ An earlier draft version of this ZIP stored the payloads inside transparent inpu
 outputs. Although this had the advantage of not requiring a transaction format change,
 the consensus rules were significantly more complicated, and the design coupled the
 extension logic too tightly to the transparent address logic. Instead, this ZIP uses
-dedicated transaction fields.
+dedicated transaction fields, and a separate unspent output set.
 
 
 Security and Privacy Considerations
@@ -272,7 +276,7 @@ This ZIP assumes that the base transaction format is non-malleable. However, the
 ``precondition`` and ``witness`` byte sequences are treated here as opaque. It is the
 responsibility of ``tze_verify`` to enforce the following:
 
-- ``witness`` MUST be non-malleable: any malleation MUST cause ``tze_verify`` to
+- ``precondition`` MUST be non-malleable: any malleation MUST cause ``tze_verify`` to
   return ``false``.
 - The output of ``tze_verify(mode, precondition, witness, context)`` MUST be deterministic.
 
