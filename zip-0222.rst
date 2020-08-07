@@ -109,18 +109,18 @@ The following three values are made available to the extension (in addition to `
 - A byte sequence ``witness`` containing an encoding of evidence
   purporting to satisfy the precondition that is prefix-free within this ``(type, mode)``.
 
-The extension must implement:
+The extension MUST implement A deterministic verification algorithm
+``tze_verify`` that takes as arguments ``mode``, ``precondition``, ``witness``,
+and a context object providing deterministic public information about the
+transaction as well as the block chain (up to and including the block that the
+transaction is mined in). It returns ``true`` if the precondition is satisfied
+in that context, and ``false`` otherwise. 
 
-- A deterministic verification algorithm ``tze_verify`` that takes as arguments ``mode``,
-  ``precondition``, ``witness``, and a context object providing deterministic public
-  information about the transaction as well as the block chain (up to and including the
-  block that the transaction is mined in). It returns ``true`` if the precondition is
-  satisfied in that context, and ``false`` otherwise. 
-- An extension MAY request that arbitrary public information about the
-  transaction and block chain be included in the context object provided to it;
-  these requirements MUST be satisfied by a caller integrating the extension at
-  the integration point. Extensions SHOULD restrict the information requested to
-  that which may be provided by node implementations in an efficient manner.
+An extension MAY request that arbitrary public information about the
+transaction and block chain be included in the context object provided to it;
+these requirements MUST be satisfied by a caller integrating the extension at
+the integration point. Extensions SHOULD restrict the information requested to
+that which may be provided by node implementations in an efficient manner.
 
 ZIPs that define a new transparent extension MUST completely specify the structure of all 
 three of the specified values for each defined mode, as well as the behavior of ``tze_verify``
@@ -239,8 +239,9 @@ Once this ZIP becomes active, the following new consensus rules are enforced:
 - All ``amount`` field values of ``tze_output`` records MUST be nonnegative and not greater
   than ``MAX_MONEY``.
 
-- The sum of amounts associated with all transparent, shielded, and TZE outputs within 
-  a transaction MUST NOT exceed the sum of the amounts associated with transaction inputs.
+- The sum of amounts associated with all transparent ouputs and TZE outputs within 
+  a transaction MUST NOT exceed the sum of the amounts associated with transaction inputs
+  plus the sapling ``valueBalance`` amount.
 
 Changes to signatures over transaction digests
 ----------------------------------------------
@@ -259,8 +260,11 @@ to go through a regular address in between. This restriction might be relaxed in
 ZIPs for specific combinations of ``(type, mode)`` pairs that have been analyzed for
 cross-protocol attacks, but we opt here for a fail-safe default behaviour.
 
-- TODO: Maybe also disallow regular (transparent, Sprout, and Sapling) spends/outputs in
-  transactions that have TZE inputs and outputs?
+Transactions with TZE inputs which do not contain TZE outputs are not subject
+to single-extension or single-mode restrictions; likewise, transactions which
+contain TZE outputs without any TZE inputs may produce TZE outputs for multiple
+extension-type/mode pairs as the potential for cross-protocol attacks in this
+situation is negligible.
 
 An earlier draft version of this ZIP stored the payloads inside transparent inputs and
 outputs. Although this had the advantage of not requiring a transaction format change,
