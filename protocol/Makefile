@@ -100,7 +100,6 @@ auxheartwood:
 heartwood:
 	$(MAKE) auxheartwood
 	mv -f aux/heartwood.pdf .
-	cp -f heartwood.pdf protocol.pdf
 
 .PHONY: auxcanopy
 auxcanopy:
@@ -113,6 +112,7 @@ auxcanopy:
 canopy:
 	$(MAKE) auxcanopy
 	mv -f aux/canopy.pdf .
+	cp -f canopy.pdf protocol.pdf
 
 .PHONY: nolatexmk-sprout
 nolatexmk-sprout:
