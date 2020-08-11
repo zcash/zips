@@ -12,11 +12,12 @@
 Terminology
 ===========
 
-The key words "MUST" and "MUST NOT" in this document are to be interpreted as
-described in RFC 2119. [#RFC2119]_
+The key words "MUST", "MUST NOT", "SHOULD NOT", and "MAY" in this document are
+to be interpreted as described in RFC 2119. [#RFC2119]_
 
 The function :math:`\mathsf{ToScalar}` is defined as in Section 4.4.2 of the
 Zcash Protocol Specification. [#protocol]_
+
 
 Abstract
 ========
@@ -25,6 +26,7 @@ This ZIP proposes a new note plaintext format for Sapling Outputs in
 transactions. The new format allows recipients to check the well-formedness of
 the ephemeral Diffie-Hellman key in the Output to avoid an assumption on
 zk-SNARK soundness for preventing diversified address linkability.
+
 
 Motivation
 ==========
@@ -85,6 +87,7 @@ of IND-CCA2 security for in-band secret distribution. We avoid both of these
 concerns by using a key derivation to obtain both :math:`\mathsf{esk}` and
 :math:`\mathsf{rcm}`.
 
+
 Specification
 =============
 
@@ -103,16 +106,20 @@ requires that the first byte take the form :math:`\textbf{0x01}`, indicating
 the version of the note plaintext. In addition, a :math:`256`-bit
 :math:`\mathsf{rcm}` field exists within the note plaintext and encoding.
 
-Following the activation of this ZIP, the first byte of the encoding MUST take
-the form :math:`\textbf{0x02}` (representing the new note plaintext version)
-and the field :math:`\mathsf{rcm}` of the encoding will be renamed to
-:math:`\mathsf{rseed}`. This field :math:`\mathsf{rseed}` of the Sapling note
-plaintext will no longer take the type of :math:`\mathsf{NoteCommit^{Sapling}.Trapdoor}`
-but will instead be a :math:`32`-byte sequence. The requirement that
-:math:`\mathsf{rseed}` (previously, :math:`\mathsf{rcm}`) be a scalar of the
-Jubjub elliptic curve, when interpreted as a little endian integer, is removed
-from the description of note plaintexts in sections 4.17.2 and 4.17.3 of the
-Zcash Protocol Specification. [#saplingdecryptivk]_ [#saplingdecryptovk]_
+Following the activation of this ZIP, senders of Sapling notes MUST use
+the following new note plaintext format:
+
+* The first byte of the encoding MUST take the form :math:`\textbf{0x02}`
+  (representing the new note plaintext version).
+* The field :math:`\mathsf{rcm}` of the encoding is renamed to
+  :math:`\mathsf{rseed}`. This field :math:`\mathsf{rseed}` of the Sapling note
+  plaintext no longer takes the type of :math:`\mathsf{NoteCommit^{Sapling}.Trapdoor}`
+  but instead is a :math:`32`-byte sequence.
+
+The requirement that :math:`\mathsf{rseed}` (previously, :math:`\mathsf{rcm}`)
+be a scalar of the Jubjub elliptic curve, when interpreted as a little endian
+integer, is removed from the description of note plaintexts in sections 4.17.2
+and 4.17.3 of the Zcash Protocol Specification. [#saplingdecryptivk]_ [#saplingdecryptovk]_
 
 Changes to the process of sending Sapling notes
 -----------------------------------------------
@@ -124,14 +131,14 @@ process of encrypting a note is described in section 4.17.1 of the Zcash Protoco
 Specification [#saplingencrypt]_. During this process, the sender also samples
 the ephemeral private key :math:`\mathsf{esk}` uniformly at random.
 
-After the activation of this ZIP, the sender will instead sample a uniformly
-random :math:`32`-byte sequence :math:`\mathsf{rseed}`. The note plaintext will
-take :math:`\mathsf{rseed}` in place of :math:`\mathsf{rcm^{new}}`.
+After the activation of this ZIP, the sender MUST instead sample a uniformly
+random :math:`32`-byte sequence :math:`\mathsf{rseed}`. The note plaintext takes
+:math:`\mathsf{rseed}` in place of :math:`\mathsf{rcm^{new}}`.
 
-:math:`\mathsf{rcm^{new}}` is then computed by the sender as the output of
+:math:`\mathsf{rcm^{new}}` MUST be computed by the sender as the output of
 :math:`\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([4]))`.
 
-:math:`\mathsf{esk}` is also computed by the sender as the output of
+:math:`\mathsf{esk}` MUST be computed by the sender as the output of
 :math:`\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([5]))`.
 
 Changes to the process of receiving Sapling notes
@@ -141,17 +148,45 @@ The process of receiving notes in Sapling is described in sections 4.17.2 and
 4.17.3 of the Zcash Protocol Specification. [#saplingdecryptivk]_
 [#saplingdecryptovk]_
 
-After the activation of this ZIP, the note plaintext contains a field
-:math:`\mathsf{rseed}` that is a :math:`32`-byte sequence rather than a
-scalar value :math:`\mathsf{rcm}`. The recipient, during decryption and in
-any later contexts, will interpret the value :math:`\mathsf{rcm}` as the
-output of :math:`\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([4]))`.
+There is a "grace period" of 32256 blocks starting from the block at which this
+ZIP activates, during which note plaintexts with lead byte 0x01 MUST still be
+accepted.
+
+Let ActivationHeight be the activation height of this ZIP, and let
+GracePeriodEndHeight be ActivationHeight + 32256.
+
+The height of a transaction in a mined block is defined as the height of that
+block. An implementation MAY also decrypt mempool transactions, in which case
+the height used is the height of the next block at the time of the check.
+An implementation SHOULD NOT attempt to decrypt mempool transactions without
+having obtained a best-effort view of the current block chain height.
+
+When the recipient of a note (either using an incoming viewing key or a full
+viewing key) is able to decrypt a note plaintext, it performs the following
+check on the plaintext lead byte, based on the height of the containing
+transaction:
+
+* If the height is less than ActivationHeight, then only 0x01 is accepted as
+  the plaintext lead byte.
+* If the height is at least ActivationHeight and less than GracePeriodEndHeight,
+  then either 0x01 or 0x02 is accepted as the plaintext lead byte.
+* If the height is at least GracePeriodEndHeight, then only 0x02 is accepted
+  as the plaintext lead byte.
+
+If the plaintext lead byte is not accepted then the note MUST be discarded.
+However, if an implementation decrypted the note from a mempool transaction and
+it was accepted at that time, but it is later mined in a block after the end of
+the grace period, then it MAY be retained.
+
+A note plaintext with lead byte 0x02 contains a field :math:`\mathsf{rseed}`
+that is a :math:`32`-byte sequence rather than a scalar value :math:`\mathsf{rcm}`.
+The recipient, during decryption and in any later contexts, will interpret the
+value :math:`\mathsf{rcm}` as the output of
+:math:`\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([4]))`.
 Further, the recipient MUST compute :math:`\mathsf{esk}` as
 :math:`\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([5]))` and check
 that :math:`\mathsf{epk} = [\mathsf{esk}] \mathsf{g_d}` and fail decryption
 if this check is not satisfied.
-
-TODO: grace period.
 
 Consensus rule change for coinbase transactions
 -----------------------------------------------
@@ -188,7 +223,17 @@ It is possible to transmit a signature of knowledge of a correct
 to be an unnecessary complication and is likely slower than just supplying
 :math:`\mathsf{esk}`.
 
-TODO: rationale for grace period.
+The grace period is intended to mitigate loss-of-funds risk due to non-
+conformant sending wallet implementations. The intention is that during the
+grace period (of about 4 weeks), it will be possible to identify wallets that
+are still sending plaintexts according to the old specification, and cajole
+their developers to make the required updates. For the avoidance of doubt,
+such wallets are nonconformant because it is a "MUST" requirement to
+*immediately* switch to sending note plaintexts with lead byte 0x02 (and the
+other changes in this specification) at the upgrade. Note that nodes will
+clear their mempools when the upgrade activates, which will clear all
+plaintexts with lead byte 0x01 that were sent conformantly and not mined
+before the upgrade.
 
 
 Security and Privacy Considerations

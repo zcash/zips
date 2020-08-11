@@ -15,7 +15,7 @@ Category: Consensus
 Created: 2019-03-31
 License: MIT</pre>
         <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>The key words "MUST" and "MUST NOT" in this document are to be interpreted as described in RFC 2119. <a id="id1" class="footnote_reference" href="#rfc2119">1</a></p>
+            <p>The key words "MUST", "MUST NOT", "SHOULD NOT", and "MAY" in this document are to be interpreted as described in RFC 2119. <a id="id1" class="footnote_reference" href="#rfc2119">1</a></p>
             <p>The function
                 <span class="math">\(\mathsf{ToScalar}\)</span>
              is defined as in Section 4.4.2 of the Zcash Protocol Specification. <a id="id2" class="footnote_reference" href="#protocol">2</a></p>
@@ -98,19 +98,24 @@ License: MIT</pre>
                 -bit
                     <span class="math">\(\mathsf{rcm}\)</span>
                  field exists within the note plaintext and encoding.</p>
-                <p>Following the activation of this ZIP, the first byte of the encoding MUST take the form
-                    <span class="math">\(\textbf{0x02}\)</span>
-                 (representing the new note plaintext version) and the field
-                    <span class="math">\(\mathsf{rcm}\)</span>
-                 of the encoding will be renamed to
-                    <span class="math">\(\mathsf{rseed}\)</span>
-                . This field
-                    <span class="math">\(\mathsf{rseed}\)</span>
-                 of the Sapling note plaintext will no longer take the type of
-                    <span class="math">\(\mathsf{NoteCommit^{Sapling}.Trapdoor}\)</span>
-                 but will instead be a
-                    <span class="math">\(32\)</span>
-                -byte sequence. The requirement that
+                <p>Following the activation of this ZIP, senders of Sapling notes MUST use the following new note plaintext format:</p>
+                <ul>
+                    <li>The first byte of the encoding MUST take the form
+                        <span class="math">\(\textbf{0x02}\)</span>
+                     (representing the new note plaintext version).</li>
+                    <li>The field
+                        <span class="math">\(\mathsf{rcm}\)</span>
+                     of the encoding is renamed to
+                        <span class="math">\(\mathsf{rseed}\)</span>
+                    . This field
+                        <span class="math">\(\mathsf{rseed}\)</span>
+                     of the Sapling note plaintext no longer takes the type of
+                        <span class="math">\(\mathsf{NoteCommit^{Sapling}.Trapdoor}\)</span>
+                     but instead is a
+                        <span class="math">\(32\)</span>
+                    -byte sequence.</li>
+                </ul>
+                <p>The requirement that
                     <span class="math">\(\mathsf{rseed}\)</span>
                  (previously,
                     <span class="math">\(\mathsf{rcm}\)</span>
@@ -122,29 +127,39 @@ License: MIT</pre>
                  uniformly at random. In addition, the process of encrypting a note is described in section 4.17.1 of the Zcash Protocol Specification <a id="id8" class="footnote_reference" href="#saplingencrypt">3</a>. During this process, the sender also samples the ephemeral private key
                     <span class="math">\(\mathsf{esk}\)</span>
                  uniformly at random.</p>
-                <p>After the activation of this ZIP, the sender will instead sample a uniformly random
+                <p>After the activation of this ZIP, the sender MUST instead sample a uniformly random
                     <span class="math">\(32\)</span>
                 -byte sequence
                     <span class="math">\(\mathsf{rseed}\)</span>
-                . The note plaintext will take
+                . The note plaintext takes
                     <span class="math">\(\mathsf{rseed}\)</span>
                  in place of
                     <span class="math">\(\mathsf{rcm^{new}}\)</span>
                 .</p>
                 <p>
                     <span class="math">\(\mathsf{rcm^{new}}\)</span>
-                 is then computed by the sender as the output of
+                 MUST be computed by the sender as the output of
                     <span class="math">\(\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([4]))\)</span>
                 .</p>
                 <p>
                     <span class="math">\(\mathsf{esk}\)</span>
-                 is also computed by the sender as the output of
+                 MUST be computed by the sender as the output of
                     <span class="math">\(\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([5]))\)</span>
                 .</p>
             </section>
             <section id="changes-to-the-process-of-receiving-sapling-notes"><h3><span class="section-heading">Changes to the process of receiving Sapling notes</span><span class="section-anchor"> <a rel="bookmark" href="#changes-to-the-process-of-receiving-sapling-notes"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>The process of receiving notes in Sapling is described in sections 4.17.2 and 4.17.3 of the Zcash Protocol Specification. <a id="id9" class="footnote_reference" href="#saplingdecryptivk">6</a> <a id="id10" class="footnote_reference" href="#saplingdecryptovk">7</a></p>
-                <p>After the activation of this ZIP, the note plaintext contains a field
+                <p>There is a "grace period" of 32256 blocks starting from the block at which this ZIP activates, during which note plaintexts with lead byte 0x01 MUST still be accepted.</p>
+                <p>Let ActivationHeight be the activation height of this ZIP, and let GracePeriodEndHeight be ActivationHeight + 32256.</p>
+                <p>The height of a transaction in a mined block is defined as the height of that block. An implementation MAY also decrypt mempool transactions, in which case the height used is the height of the next block at the time of the check. An implementation SHOULD NOT attempt to decrypt mempool transactions without having obtained a best-effort view of the current block chain height.</p>
+                <p>When the recipient of a note (either using an incoming viewing key or a full viewing key) is able to decrypt a note plaintext, it performs the following check on the plaintext lead byte, based on the height of the containing transaction:</p>
+                <ul>
+                    <li>If the height is less than ActivationHeight, then only 0x01 is accepted as the plaintext lead byte.</li>
+                    <li>If the height is at least ActivationHeight and less than GracePeriodEndHeight, then either 0x01 or 0x02 is accepted as the plaintext lead byte.</li>
+                    <li>If the height is at least GracePeriodEndHeight, then only 0x02 is accepted as the plaintext lead byte.</li>
+                </ul>
+                <p>If the plaintext lead byte is not accepted then the note MUST be discarded. However, if an implementation decrypted the note from a mempool transaction and it was accepted at that time, but it is later mined in a block after the end of the grace period, then it MAY be retained.</p>
+                <p>A note plaintext with lead byte 0x02 contains a field
                     <span class="math">\(\mathsf{rseed}\)</span>
                  that is a
                     <span class="math">\(32\)</span>
@@ -161,7 +176,6 @@ License: MIT</pre>
                  and check that
                     <span class="math">\(\mathsf{epk} = [\mathsf{esk}] \mathsf{g_d}\)</span>
                  and fail decryption if this check is not satisfied.</p>
-                <p>TODO: grace period.</p>
             </section>
             <section id="consensus-rule-change-for-coinbase-transactions"><h3><span class="section-heading">Consensus rule change for coinbase transactions</span><span class="section-anchor"> <a rel="bookmark" href="#consensus-rule-change-for-coinbase-transactions"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>After the activation of this ZIP, any Sapling output of a coinbase transaction that is decrypted to a note plaintext as specified in <a id="id11" class="footnote_reference" href="#zip-0213">10</a>, MUST have note plaintext lead byte equal to 0x02.</p>
@@ -182,7 +196,7 @@ License: MIT</pre>
              itself, but this appears to be an unnecessary complication and is likely slower than just supplying
                 <span class="math">\(\mathsf{esk}\)</span>
             .</p>
-            <p>TODO: rationale for grace period.</p>
+            <p>The grace period is intended to mitigate loss-of-funds risk due to non- conformant sending wallet implementations. The intention is that during the grace period (of about 4 weeks), it will be possible to identify wallets that are still sending plaintexts according to the old specification, and cajole their developers to make the required updates. For the avoidance of doubt, such wallets are nonconformant because it is a "MUST" requirement to <em>immediately</em> switch to sending note plaintexts with lead byte 0x02 (and the other changes in this specification) at the upgrade. Note that nodes will clear their mempools when the upgrade activates, which will clear all plaintexts with lead byte 0x01 that were sent conformantly and not mined before the upgrade.</p>
         </section>
         <section id="security-and-privacy-considerations"><h2><span class="section-heading">Security and Privacy Considerations</span><span class="section-anchor"> <a rel="bookmark" href="#security-and-privacy-considerations"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <p>The changes made in this proposal prevent an interactive attack that could link together diversified addresses by only breaking the knowledge soundness assumption of the zk-SNARK. It is already assumed that the adversary cannot defeat the EC-DDH assumption of the Jubjub elliptic curve, for it could perform a linkability attack trivially in that case.</p>
