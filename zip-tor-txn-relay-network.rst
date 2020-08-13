@@ -50,6 +50,7 @@ Design Goals
 TODO: refine this section to be more precise/complete.
 
 - Protect linkage between wallets and the transactions they originate.
+- Providers don't learn anything about the recipient addresses, amounts, memos, or change in a relayed transaction except for the single output amount & memo used to pay for the service.
 - Opt-in for wallets.
 - Feasible for mobile light clients.
 - Auxillary protocol requiring no changes to the Zcash P2P protocol or consensus rules.
