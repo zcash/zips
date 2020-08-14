@@ -76,8 +76,8 @@ Specification
 - A Wallet observes all registrations with the `Wishing Well Viewing Key` and maintains them into a list.
 - The wallet `deduplicates` the list as follows:
     - Remove any registration that's not `active`.
-    - Where the same `Sapling Address` appears multiple times, remove all but the most recent entry.
-    - Where the same `Tor Hidden Service` appears multiple times, remove all but the most recent entry.
+    - Where the same `Sapling Address` appears multiple times, remove all but the earliest entry (with the lowest block height).
+    - Where the same `Tor Hidden Service` appears multiple times, remove all but the earliest entry.
 - When a Wallet intends to send a shielded transfer, it:
     - Selects a uniformly random entry in the `deduplicated list`. Wallets must use uniform random selection and not rely on local information such as how reliable a provider is.
     - Includes a Sapling Shielded Output to the given Sapling Address transferring at least `Relay Fee` ZEC. The memo field must be empty and is reserved.
