@@ -92,6 +92,7 @@ Index of ZIPs
     <tr> <td>307</td> <td class="left"><a href="zip-0307.rst">Light Client Protocol for Payment Detection</a></td> <td>Draft</td>
     <tr> <td>308</td> <td class="left"><a href="zip-0308.rst">Sprout to Sapling Migration</a></td> <td>Final</td>
     <tr> <td>310</td> <td class="left"><a href="zip-0310.rst">Security Properties of Sapling Viewing Keys</a></td> <td>Draft</td>
+    <tr> <td>400</td> <td class="left"><a href="zip-0400.rst">Wallet.dat format</a></td> <td>Draft</td>
     <tr> <td>401</td> <td class="left"><a href="zip-0401.rst">Addressing mempool denial-of-service</a></td> <td>Final</td>
     <tr> <td><strike>1001</strike></td> <td class="left"><strike><a href="zip-1001.rst">Keep the Block Distribution as Initially Defined — 90% to Miners</a></strike></td> <td>Obsolete</td>
     <tr> <td><strike>1002</strike></td> <td class="left"><strike><a href="zip-1002.rst">Opt-in Donation Feature</a></strike></td> <td>Obsolete</td>
