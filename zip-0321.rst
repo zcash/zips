@@ -1,0 +1,144 @@
+::
+
+  ZIP: 321
+  Title: Payment Request URIs
+  Owners: Kris Nuttycombe (kris@electriccoin.co) 
+          Daira Hopwood (daira@electriccoin.co)
+  Status: Draft
+  Category: Wallet 
+  Created: 2020-08-28
+  License: MIT
+
+
+Terminology
+===========
+
+The key words "MUST", "MUST NOT", "SHOULD", "RECOMMENDED", and "MAY" in this
+document are to be interpreted as described in RFC 2119. [#RFC2119]_
+
+The terms below are to be interpreted as follows:
+
+payment
+  A transfer of funds implemented by a shielded or transparent output of 
+  a single Zcash transaction.  
+
+
+Abstract
+========
+
+This ZIP proposes a standard format for payment request URIs. Wallets that 
+recognize this format enable users to construct payments simply by
+clicking links on webpages or scanning QR codes.
+
+
+Motivation
+==========
+
+In order for a robust transactional ecosystem to evolve for Zcash, it is
+necessary for vendors to be able to issue requests for payment. At present, the
+best option available is to manually specify a payment address, a payment
+amount, and potentially memo field content. Of these three components, existing
+wallets only provide functionality for reading payment addresses in a
+semi-automated fashion. It is then necessary for the user to manually enter
+payment amounts and any associated memo information, which is tedious and may
+be error prone, particularly if a payment is intended for multiple recipients
+or the memo field information contains structured data that must be faithfully
+reproduced. 
+
+This ZIP seeks to eliminate these issues by proposing a standard format which
+wallet vendors may support so that human intervention is required only for
+approval, not creation, of such a payment transaction.
+
+In Bitcoin, two different standards exist which permit vendors to issue payment
+requests which are understood by wallets: BIP-0021 and BIP-0070.  BIP-0021
+provides a URI format which can be interpreted by a wallet to construct simple,
+single-recipient transactions while BIP-0070 uses a protobuf-based protocol
+which permits payment requests to specify the creation of transactions of
+arbitrary complexity.
+
+The format proposed in this ZIP seeks a middle ground between these approaches:
+to provide a URI-based format which supports both the trivial use case and
+the slightly-more-complex situation where a payment may be intended for
+multiple recipients. 
+
+Requirements
+============
+
+The format must be a valid URI.
+
+The format must permit the representaion of one or more (payment address, amount, 
+memo) tuples.
+
+Non-requirements
+================
+
+{This section is entirely optional. If it is present, it describes issues that
+the proposal is *not* attempting to address, that someone might otherwise think
+it does or should.}
+
+
+Specification
+=============
+
+URI Syntax:
+
+  zcashurn        = "zcash:" ( zcashaddress [ "?" zcashparams ] / "?" zcashparams )
+  zcashaddress    = *base58
+  zcashparams     = zcashparam [ "&" zcashparams ]
+  zcashparam      = [ addrparam / amountparam / messageparam / labelparam / reqparam / otherparam ]
+  NONZERO         = %x31-39
+  DIGIT           = %x30-39
+  paramindex      = "-" NONZERO *DIGIT
+  addrparam       = "address" [paramindex] "=" zcashaddress
+  amountparam     = "amount"  [paramindex] "=" *DIGIT [ "." *DIGIT ]
+  labelparam      = "label"   [paramindex] "=" *qchar
+  messageparam    = "message" [paramindex] "=" *qchar
+  paramname       = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
+  reqparam        = "req-" paramname [ "=" *qchar ]
+  otherparam      = paramname [ "=" *qchar ]
+  qchar           = unreserved / pct-encoded / allowed-delims / ":" / "@"
+  allowed-delims  = "!" / "$" / "'" / "(" / ")" / "*" / "+" / "," / ";"
+
+Here, "unreserved" and "pct-encoded" are as defined in RFC 3986. "base58" is
+defined as in [#base58check]_
+   
+A ZIP-321 URI represents a request for the construction of a transaction having
+one or more *payments*. In the case that only a single payment is being
+requested, the recipient address MAY be included in the ``hier-part`` component
+of the RFC 3986 URI; otherwise, multiple recipient addresses can be specified
+using ``addrparam`` parameters with different indices. 
+
+Addresses, amounts, labels, and messages sharing the same ``paramindex`` are
+interpreted to be associated with the same payment for the purposes of payment
+construction. Parameters with an empty ``paramindex`` are associated with a
+payment to the address with empty ``paramindex``.
+
+A URI of the form ``zcash:<address>?...`` MUST be considered equivalent to a
+URI of the form ``zcash:?address=<address>&...`` where ``<address>`` is an
+instance of ``zcashaddress``.
+
+If there are any non-address parameters having a given ``paramindex``, then 
+the URI MUST contain an address parameter having that ``paramindex``.
+
+Forward compatibility
+---------------------
+
+Variables which are prefixed with a ``req-`` are considered required. If a
+parser does not recognize any variables which are prefixed with ``req-``, it
+MUST consider the entire URI invalid. Any other variables that are not
+recognized, but that are not prefixed with a ``req-``, SHOULD be ignored.
+
+Backward compatibility
+----------------------
+
+As this ZIP is written, several clients already implement a ``zcash:`` URI
+scheme similar to this one, however usually without the additional ``req-``
+prefix requirement. Thus, it is RECOMMENDED that additional variables prefixed
+with ``req-`` not be used in a mission-critical way until a grace period of 6
+months from the finalization of this ZIP has passed in order to allow client
+developers to release new versions, and users of old clients to upgrade.
+
+References
+==========
+
+.. [#base58check] `Base58Check encoding <https://en.bitcoin.it/wiki/Base58Check_encoding>`_
