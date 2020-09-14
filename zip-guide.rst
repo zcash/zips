@@ -10,6 +10,7 @@
   Category: {Consensus | Standards Track | Network | RPC | Wallet | Informational | Process}
   Created: yyyy-mm-dd
   License: {usually MIT}
+  Pull-Request: <https://github.com/zcash/zips/pull/253>
 
 
 Don't Panic
