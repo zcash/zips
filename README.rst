@@ -39,14 +39,18 @@ Use ``make`` to check that you are using correct
 and double-check the generated ``draft-*.html`` file before filing a Pull Request.
 
 
-Heartwood ZIPs
---------------
+Canopy ZIPs
+-----------
 
-This is the list of ZIPs included in Heartwood (Network Upgrade 3), due to activate on
-mainnet in mid-July 2020:
+This is the list of ZIPs included in Canopy (Network Upgrade 4), due to activate on
+mainnet in mid-November 2020:
 
-- `ZIP 213: Shielded Coinbase <zip-0213.rst>`__
-- `ZIP 221: FlyClient - Consensus-Layer Changes <zip-0221.rst>`__
+- `ZIP 207: Funding Streams <zip-0207.rst>`__
+- `ZIP 211: Disabling Addition of New Value to the Sprout Value Pool <zip-0211.rst>`__
+- `ZIP 212: Allow Recipient to Derive Sapling Ephemeral Secret from Note Plaintext <zip-0212.rst>`__
+- `ZIP 214: Consensus rules for a Zcash Development Fund <zip-0214.rst>`__
+- `ZIP 215: Explicitly Defining and Modifying Ed25519 Validation Rules <zip-0215.rst>`__
+- `ZIP 251: Deployment of the Canopy Network Upgrade <zip-0251.rst>`__
 
 
 License
