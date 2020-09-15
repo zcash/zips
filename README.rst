@@ -98,6 +98,7 @@ Index of ZIPs
     <tr> <td>250</td> <td class="left"><a href="zip-0250.rst">Deployment of the Heartwood Network Upgrade</a></td> <td>Final</td>
     <tr> <td>251</td> <td class="left"><a href="zip-0251.rst">Deployment of the Canopy Network Upgrade</a></td> <td>Implemented (zcashd)</td>
     <tr> <td><span class="reserved">252</span></td> <td class="left"><a class="reserved" href="zip-0252.rst">Deployment of the NU5 Network Upgrade</a></td> <td>Reserved</td>
+    <tr> <td>300</td> <td class="left"><a href="zip-0300.rst">Cross-chain Atomic Transactions</a></td> <td>Proposed</td>
     <tr> <td>301</td> <td class="left"><a href="zip-0301.rst">Zcash Stratum Protocol</a></td> <td>Final</td>
     <tr> <td><span class="reserved">302</span></td> <td class="left"><a class="reserved" href="zip-0302.rst">Standardized Memo Field Format</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">303</span></td> <td class="left"><a class="reserved" href="zip-0303.rst">Sprout Payment Disclosure</a></td> <td>Reserved</td>
