@@ -92,6 +92,7 @@ Index of ZIPs
     <tr> <td>213</td> <td class="left"><a href="zip-0213.rst">Shielded Coinbase</a></td> <td>Final</td>
     <tr> <td>214</td> <td class="left"><a href="zip-0214.rst">Consensus rules for a Zcash Development Fund</a></td> <td>Implemented (zcashd)</td>
     <tr> <td>215</td> <td class="left"><a href="zip-0215.rst">Explicitly Defining and Modifying Ed25519 Validation Rules</a></td> <td>Implemented (zcashd)</td>
+    <tr> <td><span class="reserved">216</span></td> <td class="left"><a class="reserved" href="zip-0216.rst">Require Canonical Point Encodings</a></td> <td>Reserved</td>
     <tr> <td>221</td> <td class="left"><a href="zip-0221.rst">FlyClient - Consensus-Layer Changes</a></td> <td>Final</td>
     <tr> <td>243</td> <td class="left"><a href="zip-0243.rst">Transaction Signature Validation for Sapling</a></td> <td>Final</td>
     <tr> <td><span class="reserved">244</span></td> <td class="left"><a class="reserved" href="zip-0244.rst">Transaction Signature Validation for Transparent Zcash Extensions</a></td> <td>Reserved</td>
@@ -107,6 +108,7 @@ Index of ZIPs
     <tr> <td><span class="reserved">306</span></td> <td class="left"><a class="reserved" href="zip-0306.rst">Security Considerations for Anchor Selection</a></td> <td>Reserved</td>
     <tr> <td>307</td> <td class="left"><a href="zip-0307.rst">Light Client Protocol for Payment Detection</a></td> <td>Draft</td>
     <tr> <td>308</td> <td class="left"><a href="zip-0308.rst">Sprout to Sapling Migration</a></td> <td>Final</td>
+    <tr> <td><span class="reserved">309</span></td> <td class="left"><a class="reserved" href="zip-0309.rst">Blind Off-chain Lightweight Transactions (BOLT)</a></td> <td>Reserved</td>
     <tr> <td>310</td> <td class="left"><a href="zip-0310.rst">Security Properties of Sapling Viewing Keys</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">311</span></td> <td class="left"><a class="reserved" href="zip-0311.rst">Sapling Payment Disclosure</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">312</span></td> <td class="left"><a class="reserved" href="zip-0312.rst">Shielded Multisignatures using FROST</a></td> <td>Reserved</td>
