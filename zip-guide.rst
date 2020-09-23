@@ -10,6 +10,7 @@
   Category: {Consensus | Standards Track | Network | RPC | Wallet | Informational | Process}
   Created: yyyy-mm-dd
   License: {usually MIT}
+  Pull-Request: <https://github.com/zcash/zips/pull/253>
 
 
 Don't Panic
@@ -117,8 +118,8 @@ Valid reStructuredText
 This is optional before publishing a PR, but to check whether a document is valid
 reStructuredText, first install rst2html5::
 
-  sudo apt-get install python-pip
-  sudo pip install rst2html5
+  sudo apt-get install python3-pip
+  sudo pip3 install rst2html5
 
 Then, with ``zip-xxxx.rst`` in the root directory of a clone of this repo, run::
 
@@ -138,5 +139,5 @@ References
 ==========
 
 .. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
-.. [#protocol] `Zcash Protocol Specification, Version {...} or later [Overwinter+Sapling+Blossom] <protocol/protocol.pdf>`_
+.. [#protocol] `Zcash Protocol Specification, Version {...} or later <protocol/protocol.pdf>`_
 .. [#zip-xxxx] `ZIP xxxx: Title <zip-xxxx.rst>`_

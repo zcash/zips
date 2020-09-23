@@ -28,8 +28,10 @@ ifeq ($(shell git tag --points-at HEAD |wc -l),0)
 	echo "Set a tag at HEAD first."
 else
 	$(eval TAG := $(shell git tag --points-at HEAD))
+	if [[ "$(shell git rev-parse --abbrev-ref HEAD)" != "master" ]]; then echo "Not on master."; exit 1; fi
 	$(MAKE) clean all
 	git commit -m "Regenerate PDFs." *.pdf
+	if [[ "$(shell git diff HEAD |wc -l)" != "0" ]]; then echo "The working tree is not clean."; exit 1; fi
 	git tag "v$(TAG)"
 	git push --tags origin HEAD:master
 endif

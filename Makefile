@@ -8,7 +8,7 @@ all-zips: .Makefile.uptodate
 	diff .zipfilelist.current .zipfilelist.new || cp -f .zipfilelist.new .zipfilelist.current
 	rm -f .zipfilelist.new
 	$(MAKE) README.rst
-	$(MAKE) index.html $(addsuffix .html,$(filter-out README,$(basename $(wildcard *.rst) $(wildcard *.md))))
+	$(MAKE) index.html $(addsuffix .html,$(filter-out README,$(basename $(sort $(wildcard *.rst) $(wildcard *.md)))))
 
 all: all-zips protocol
 
@@ -46,9 +46,9 @@ index.html: README.rst edithtml.sh
 %.html: %.md edithtml.sh
 	$(PROCESSMD)
 
-README.rst: .zipfilelist.current makeindex.sh README.template $(wildcard zip-*.rst) $(wildcard zip-*.md)
+README.rst: .zipfilelist.current makeindex.sh README.template $(sort $(wildcard zip-*.rst) $(wildcard zip-*.md))
 	./makeindex.sh | cat README.template - >README.rst
 
 .PHONY: clean
 clean:
-	rm -f .zipfilelist.* README.rst index.html $(addsuffix .html,$(basename $(wildcard *.rst) $(wildcard *.md)))
+	rm -f .zipfilelist.* README.rst index.html $(addsuffix .html,$(basename $(sort $(wildcard *.rst) $(wildcard *.md))))

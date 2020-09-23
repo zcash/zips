@@ -2,7 +2,6 @@
 \usepackage{ifxetex}
 \usepackage{ifluatex}
 
-% Dark magic. Woooooo.
 % <https://tex.stackexchange.com/a/488473/78411>
 \ifluatex
 \directlua{
@@ -1473,6 +1472,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\snOld}[1]{\mathsf{sn}^\mathsf{old}_{#1}}
 \newcommand{\nf}{\mathsf{nf}}
 \newcommand{\nfOld}[1]{\nf^\mathsf{old}_{#1}}
+\newcommand{\nfOldRepr}[1]{{\MakeRepr{\nf}{\mathsf{old}}}_{#1}}
 \newcommand{\Memo}{\mathsf{memo}}
 \newcommand{\MemoByteLength}{512}
 \newcommand{\MemoType}{\byteseq{\MemoByteLength}}
@@ -3305,7 +3305,14 @@ $\PRFock{}       $&$\typecolon\; \OutViewingKeyType $&$\times\; \ReprJBytes \tim
 $\PRFnfSapling{} $&$\typecolon\; \SubgroupReprJ     $&$\times\; \ReprJ $& &$\rightarrow \PRFOutputNfSapling $
 \end{tabular}
 
-$\PRFexpand{}$ is used in \crossref{saplingkeycomponents}.
+$\PRFexpand{}$ is used in the following places:
+\begin{itemize}
+  \item \crossref{saplingkeycomponents}, with inputs $[0]$, $[1]$, $[2]$, and $[3, i \typecolon \byte]$;
+  \item in the processes of sending and receiving \Sapling \notes
+        (see \crossref{saplingsend} and \crossref{saplinginband}), with inputs $[4]$ and $[5]$;
+  \item in \cite{ZIP-32}, with inputs $[0]$, $[1]$, $[2]$ (intentionally matching \shortcrossref{saplingkeycomponents}),
+        and $[t \typecolon \range{16}{22}]$.
+\end{itemize}
 
 $\PRFock{}$ is used in \crossref{saplinginband}.
 
@@ -5312,7 +5319,7 @@ A valid instance of a \defining{\spendStatement}, $\ProofSpend$, assures that gi
 \begin{formulae}
   \item $\oparen\rt \typecolon \MerkleHashSapling,\\
          \hparen\cvOld{} \typecolon \ValueCommitOutput,\\
-         \hparen\nfOld{} \typecolon \bitseq{\PRFOutputLengthNfSapling},\\
+         \hparen\nfOld{} \typecolon \PRFOutputNfSapling,\\
          \hparen\AuthSignRandomizedPublic \typecolon \SpendAuthSigPublic\cparen$,
 \end{formulae}
 
@@ -9111,6 +9118,10 @@ $\versionField \geq 4$ and $\nShieldedSpend + \nShieldedOutput > 0$.
         \end{itemize}}
   \saplingonwarditem{If $\versionField \geq 4$ and $\nShieldedSpend + \nShieldedOutput = 0$,
         then $\valueBalance$ \MUST be $0$.}
+  \item The total amount of \transparentOutputs from a \coinbaseTransaction,\heartwood{ minus
+        the amount of the $\valueBalance$ field if present,} \MUSTNOT be greater than the
+        amount of \minerSubsidy plus the total amount of \transactionFees paid by \transactions
+        in this \block.
 \notheartwood{
   \item A \coinbaseTransaction{} \MUSTNOT have any
         \joinSplitDescriptions\sapling{, \spendDescriptions, or \outputDescriptions}.
@@ -9175,6 +9186,11 @@ each \spendDescription (\crossref{spendencoding}), and each \outputDescription (
         \Bitcoin, where it is associated with support for \ScriptOP{CHECKSEQUENCEVERIFY}
         as specified in \cite{BIP-68}. \Zcash was forked from \Bitcoin v0.11.2
         and does not currently support BIP 68.
+  \saplingonwarditem{As a consequence of \coinbaseTransactions having no
+        \spendDescriptions\notheartwood{ or \outputDescriptions}, the $\valueBalance$ field of a
+        \coinbaseTransaction must have a\heartwood{ negative or} zero value.
+        \heartwood{The negative case can only occur after \Heartwood activation, for \transactions
+        with \cite{ZIP-213} \shieldedOutputs.}}
 \heartwood{
   \item Prior to the \Heartwood{} \networkUpgrade, it was not possible for \coinbaseTransactions
         to have \shielded outputs, and therefore the ``coinbase maturity'' rule and the requirement
@@ -9312,8 +9328,7 @@ $\LEBStoOSPOf{256}{\reprJ\Of{\cv}}$. \\ \hline
 $32$ & $\anchorField$ & \type{char[32]} & A \merkleRoot of the \Sapling{} \noteCommitmentTree
 at some \blockHeight in the past, $\LEBStoOSPOf{256}{\rt}$. \\ \hline
 
-$32$ & $\nullifierField$ & \type{char[32]} & The \nullifier of the input \note,
-$\LEBStoOSPOf{256}{\nf}$. \\ \hline
+$32$ & $\nullifierField$ & \type{char[32]} & The \nullifier of the input \note, $\nf$. \\ \hline
 
 $32$ & $\rkField$ & \type{char[32]} & The randomized \validatingKey for $\spendAuthSig$,
 $\LEBStoOSPOf{256}{\reprJ\Of{\AuthSignRandomizedPublic}\kern 0.05em}$. \\ \hline
@@ -10830,12 +10845,16 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
 \lsection{Change History}{changehistory}
 
 
-\historyentry{2020.1.14}{}
+\historyentry{2020.1.14}{2020-08-19}
 \begin{itemize}
-    \item No changes to \Sprout.
+    \item The consensus rule that a \coinbaseTransaction must not spend more than is
+          available from the \blockSubsidy and \transactionFees, was not explicitly stated.
+          (This rule was correctly implemented in \zcashd.)
 \sapling{
+    \item Fix a type error in the output of $\PRFnfSapling{}$; a \Sapling \nullifier is a
+          sequence of $32$ bytes, not a bit sequence.
     \item Correct an off-by-one in an expression used in the definition of $c$ in
-          \crossref{concretepedersencommit} (this does not change the value of $c$).
+          \crossref{concretepedersenhash} (this does not change the value of $c$).
 } %sapling
 \end{itemize}
 
@@ -11145,7 +11164,7 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
     \item Ensure that this document builds correctly and without missing
           characters on recent versions of \TeX Live.
     \item Update the \Makefile to use Ghostscript for PDF optimization.
-    \item Ensure that hyperlinks are preserved, and available as "Destination names"
+    \item Ensure that hyperlinks are preserved, and available as ``Destination names''
           in URL fragments and links from other PDF documents.
 \end{itemize}
 
@@ -13488,17 +13507,20 @@ The primary input is
 \begin{formulae}
   \item $\oparen\rt \typecolon \MerkleHashSapling,\\
          \hparen\cvOld{} \typecolon \ValueCommitOutput,\\
-         \hparen\nfOld{} \typecolon \bitseq{\PRFOutputLengthNfSapling},\\
+         \hparen\nfOld{} \typecolon \PRFOutputNfSapling,\\
          \hparen\AuthSignRandomizedPublic \typecolon \SpendAuthSigPublic\cparen$,
 \end{formulae}
 which is encoded as $8$ $\GF{\ParamS{r}}$ elements (starting with the fixed element $1$ required by \Groth):
 \begin{formulae}
   \item $[1, \Selectu(\AuthSignRandomizedPublic), \Selectv(\AuthSignRandomizedPublic),
           \Selectu(\cvOld{}), \Selectv(\cvOld{}), \LEBStoIPOf{\MerkleHashLengthSapling}{\rt},
-          \LEBStoIP{254}\big(\nfOld{\barerange{0}{253}}\big), \LEBStoIP{2}\big(\nfOld{\barerange{254}{255}}\big)]$
+          \LEBStoIP{254}\big(\nfOldRepr{\!\barerange{0}{253}}\big), \LEBStoIP{2}\big(\nfOldRepr{\!\barerange{254}{255}}\big)]$
 \end{formulae}
+\vspace{-2ex}
+where $\nfOldRepr{} = \LEOStoBSP{\PRFOutputLengthNfSapling}(\nfOld{})$.
 
 \introlist
+\vspace{1ex}
 The auxiliary input is
 \vspace{1ex}
 \begin{formulae}
@@ -13652,7 +13674,8 @@ $\dagger$ This is implemented by taking the output of $\BlakeTwos{256}$ as a bit
 significant $5$~bits, not by converting to an integer and back to a bit sequence as literally specified.
 
 \pnote{The implementation represents $\AuthSignRandomizerRepr$, $\AuthProvePrivateRepr$, $\InViewingKeyRepr$,
-$\NoteCommitRandRepr$, $\ValueCommitRandRepr$, and $\vOldRepr$ as bit sequences rather than integers.}
+$\NoteCommitRandRepr$, $\ValueCommitRandRepr$, and $\vOldRepr$ as bit sequences rather than integers. It
+represents $\nf$ as a bit sequence rather than a byte sequence.}
 
 
 \introsection
