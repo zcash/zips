@@ -113,14 +113,17 @@ using ``addrparam`` parameters with different indices.
 Addresses, amounts, labels, and messages sharing the same ``paramindex`` are
 interpreted to be associated with the same payment for the purposes of payment
 construction. Parameters with an empty ``paramindex`` are associated with a
-payment to the address with empty ``paramindex``.
+payment to the address with empty ``paramindex``. Note that a ``paramindex`` of
+``.0`` is distinct from an empty ``paramindex``. A ``paramindex`` MUST NOT have
+leading zero(s).
 
 A URI of the form ``zcash:<address>?...`` MUST be considered equivalent to a
 URI of the form ``zcash:?address=<address>&...`` where ``<address>`` is an
 instance of ``zcashaddress``.
 
 If there are any non-address parameters having a given ``paramindex``, then 
-the URI MUST contain an address parameter having that ``paramindex``.
+the URI MUST contain an address parameter having that ``paramindex``. There
+MUST NOT be more than one occurrence of a given parameter and ``paramindex``.
 
 Productions of the form ``1*x`` indicate one or more successive instances of the
 production ``x``. Productions of the form ``<n>*<m>x`` indicate at least `<n>` and
@@ -139,7 +142,7 @@ For example,
  * ``amount=50.00`` or ``amount=50`` or ``amount=050`` is treated as 50 ZEC;
  * ``amount=0.5`` or ``amount=00.500`` is treated as 0.5 ZEC; and
  * ``amount=50,000.00`` or ``amount=50,00`` or ``amount=50.`` or ``amount=.5``
-   are invalid.
+   or ``amount=0.123456789`` are invalid.
 
 Query Keys
 ----------
@@ -151,7 +154,9 @@ address
    Zcash address string (shielded or transparent)
 
 memo
-   Contents for the Zcash shielded memo field. MUST not exceed 512 bytes.
+   Contents for the Zcash shielded memo field, encoded as base64 without
+   ``=`` padding. The decoded memo contents MUST NOT exceed 512 bytes, and
+   if shorter, will be filled with trailing zeros to 512 bytes.
    Parsers MUST consider the entire URI invalid if the address associated with
    the same ``paramindex`` is not a valid shielded address.
 
@@ -184,14 +189,22 @@ Invalid Examples
 
   zcash:?amount=3491405.05201255&address.1=ztestsapling10yy2ex5dcqkclhc7z7yrnjq2z6feyjad56ptwlfgmy77dmaqqrl9gyhprdx59qgmsnyfska2kez&amount.1=5740296.87793245
 
-An invalid payment request; this is missing a payment address for the 0th payment index..
+An invalid payment request; this is missing a payment address with empty ``paramindex``.
 
 .. code-block:: 
 
   zcash:?address=tmEZhbWHTpdKMw5it8YDspUXSMGQyFwovpU&amount=1&address=ztestsapling10yy2ex5dcqkclhc7z7yrnjq2z6feyjad56ptwlfgmy77dmaqqrl9gyhprdx59qgmsnyfska2kez&amount.1=2
   zcash:?address.1=tmEZhbWHTpdKMw5it8YDspUXSMGQyFwovpU&amount=1&address.0=ztestsapling10yy2ex5dcqkclhc7z7yrnjq2z6feyjad56ptwlfgmy77dmaqqrl9gyhprdx59qgmsnyfska2kez&amount.1=2
 
-Invalid payment requests; this contains more than one value for the 0th and 1st payment addresses, respectively.
+Invalid payment requests; the fields ``amount.1=2`` and ``amount=1``, respectively,
+have no corresponding ``address`` with the same ``paramindex``.
+
+.. code-block:: 
+
+  zcash:?amount=1.234&amount=2.345&address=tmEZhbWHTpdKMw5it8YDspUXSMGQyFwovpU
+  zcash:?amount.0=1.234&amount.0=2.345&address.0=tmEZhbWHTpdKMw5it8YDspUXSMGQyFwovpU
+
+Invalid payment requests; the ``amount`` or ``amount.0`` parameter is repeated.
 
 Forward compatibility
 ---------------------
