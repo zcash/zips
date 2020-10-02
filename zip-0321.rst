@@ -63,6 +63,7 @@ to provide a URI-based format which supports both the trivial use case and
 the slightly-more-complex situation where a payment may be intended for
 multiple recipients.
 
+
 Requirements
 ============
 
@@ -70,6 +71,7 @@ The format must be a valid URI.
 
 The format must permit the representation of one or more (payment address, amount,
 memo) tuples.
+
 
 Specification
 =============
@@ -86,7 +88,7 @@ URI Syntax:
   zcashparam      = [ addrparam / amountparam / memoparam / messageparam / labelparam / reqparam / otherparam ]
   NONZERO         = %x31-39
   DIGIT           = %x30-39
-  paramindex      = "." NONZERO *DIGIT
+  paramindex      = "." NONZERO 0*3DIGIT
   addrparam       = "address" [ paramindex ] "=" zcashaddress
   amountparam     = "amount"  [ paramindex ] "=" 1*DIGIT [ "." 1*8DIGIT ]
   labelparam      = "label"   [ paramindex ] "=" *qchar
@@ -106,7 +108,7 @@ as ``-`` and ``_`` respectively.)
 
 A ZIP-321 URI represents a request for the construction of a transaction having
 one or more *payments*. In the case that only a single payment is being
-requested, the recipient address MAY be included in the ``hier-part`` component
+requested, the recipient address SHOULD be included in the ``hier-part`` component
 of the RFC 3986 URI; otherwise, multiple recipient addresses can be specified
 using ``addrparam`` parameters with different indices.
 
@@ -115,6 +117,10 @@ Addresses, amounts, labels, and messages sharing the same ``paramindex``
 the same payment for the purposes of payment construction. A ``paramindex``
 MUST NOT have leading zero(s).  There is no significance to the ordering of
 parameters, and ``paramindex`` values need not be sequential.
+
+Due to fundamental restrictions on transaction construction described in
+[#saplingoutputs]_, there may be no more than 2109 distinct payments requested 
+by a single ZIP-321 URI.
 
 A URI of the form ``zcash:<address>?...`` MUST be considered equivalent to a
 URI of the form ``zcash:?address=<address>&...`` where ``<address>`` is an
@@ -127,6 +133,10 @@ MUST NOT be more than one occurrence of a given parameter and ``paramindex``.
 Productions of the form ``1*x`` indicate one or more successive instances of the
 production ``x``. Productions of the form ``<n>*<m>x`` indicate at least `<n>` and
 at most `<m>` instances of production ``x``.
+
+Note that this grammar does not allow percent encoding outside the productions
+that use ``qchar``, i.e. the values of label, message, ``reqparam``, and
+``otherparam`` parameters.
 
 Transfer amount
 ---------------
@@ -144,6 +154,9 @@ For example,
  * ``amount=0.5`` or ``amount=00.500`` is treated as 0.5 ZEC; and
  * ``amount=50,000.00`` or ``amount=50,00`` or ``amount=50.`` or ``amount=.5``
    or ``amount=0.123456789`` are invalid.
+
+The amount MUST NOT be greater than 21000000 ZEC (in general, monetary amounts
+in Zcash cannot be greater than this value).
 
 Query Keys
 ----------
@@ -215,6 +228,15 @@ forbidden in ``paramindex``.
 
 Also invalid; duplicate ``amount=`` or ``amount.1=`` fields
 
+::
+
+  zcash:tmEZhbWHTpdKMw5it8YDspUXSMGQyFwovpU?amount=1%30
+  zcash:tmEZhbWHTpdKMw5it8YDspUXSMGQyFwovpU?%61mount=1
+  zcash:%74mEZhbWHTpdKMw5it8YDspUXSMGQyFwovpU?amount=1
+
+Invalid; percent encoding is only allowed in ``qchar`` productions, which do
+not include addresses, amounts, or parameter names.
+
 Forward compatibility
 ---------------------
 
@@ -229,10 +251,16 @@ Backward compatibility
 As this ZIP is written, several clients already implement a ``zcash:`` URI
 scheme similar to this one, however usually without the additional ``req-``
 prefix requirement or the facility to specify multiple payments using
-``paramindex``. Thus, it is RECOMMENDED that these features not be used in
-a mission-critical way until a grace period of 6 months from the finalization
-of this ZIP has passed, in order to allow client developers to release new
-versions, and users of old clients to upgrade.
+``paramindex``. These implementations also generally do not support URIs,
+even with a single payment, where the address is specified as an ``address=``
+query parameter rather than in the ``hier-part`` of the URI. They may also
+not support the ``memo`` parameter, or may not treat it as base64url-encoded.
+
+Thus, it is RECOMMENDED that these features not be used in a mission-critical
+way until a grace period of 6 months from the finalization of this ZIP has
+passed, in order to allow client developers to release new versions, and users
+of old clients to upgrade.
+
 
 References
 ==========
@@ -244,3 +272,4 @@ References
 .. [#bip-0070] `BIP 70: Payment Protocol <https://github.com/bitcoin/bips/blob/master/bip-0070.mediawiki>`_
 .. [#base58check] `Base58Check encoding <https://en.bitcoin.it/wiki/Base58Check_encoding>`_
 .. [#base64url] `RFC 4648 section 5: Base64 Encoding with URL and Filename Safe Alphabet <https://tools.ietf.org/html/rfc4648#section-5>`_
+.. [#saplingoutputs] `Restrictions on number of outputs in Zcash transactions <https://zips.z.cash/protocol/protocol.pdf#saplingbalance>`_
