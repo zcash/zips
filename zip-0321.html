@@ -22,17 +22,19 @@ License: MIT</pre>
             <p>The terms below are to be interpreted as follows:</p>
             <dl>
                 <dt>payment</dt>
-                <dd>A transfer of funds implemented by a shielded or transparent output of a single Zcash transaction.</dd>
+                <dd>A transfer of funds implemented by a shielded or transparent output of a Zcash transaction.</dd>
+                <dt>payment request</dt>
+                <dd>A request for a wallet to construct a single Zcash transaction containing one or more payments.</dd>
             </dl>
         </section>
         <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>This ZIP proposes a standard format for payment request URIs. Wallets that recognize this format enable users to construct payments simply by clicking links on webpages or scanning QR codes.</p>
+            <p>This ZIP proposes a standard format for payment request URIs. Wallets that recognize this format enable users to construct transactions simply by clicking links on webpages or scanning QR codes.</p>
         </section>
         <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <p>In order for a robust transactional ecosystem to evolve for Zcash, it is necessary for vendors to be able to issue requests for payment. At present, the best option available is to manually specify a payment address, a payment amount, and potentially memo field content. Of these three components, existing wallets only provide functionality for reading payment addresses in a semi-automated fashion. It is then necessary for the user to manually enter payment amounts and any associated memo information, which is tedious and may be error-prone, particularly if a payment is intended for multiple recipients or the memo field information contains structured data that must be faithfully reproduced.</p>
-            <p>This ZIP seeks to eliminate these issues by proposing a standard format that wallet vendors may support so that human intervention is required only for approval, not creation, of such a payment transaction.</p>
-            <p>In Bitcoin, two different standards exist to permit vendors to issue payment requests that are understood by wallets: BIP-0021 <a id="id3" class="footnote_reference" href="#bip-0021">5</a> and BIP-0070 <a id="id4" class="footnote_reference" href="#bip-0070">6</a>. BIP-0021 provides a URI format that can be interpreted by a wallet to construct simple, single-recipient transactions; while BIP-0070 uses a protobuf-based protocol that permits payment requests to specify the creation of transactions of arbitrary complexity.</p>
-            <p>The format proposed in this ZIP seeks a middle ground between these approaches: to provide a URI-based format which supports both the trivial use case and the slightly-more-complex situation where a payment may be intended for multiple recipients.</p>
+            <p>This ZIP seeks to eliminate these issues by proposing a standard format that wallet vendors may support so that human intervention is required only for approval, not creation, of such a transaction.</p>
+            <p>In Bitcoin, two different standards exist to permit vendors to issue payment requests that are understood by wallets: BIP-0021 <a id="id3" class="footnote_reference" href="#bip-0021">5</a> and BIP-0070 <a id="id4" class="footnote_reference" href="#bip-0070">6</a>. BIP-0021 provides a URI format that can be interpreted by a wallet to construct simple, single-recipient transactions; BIP-0070 uses a protobuf-based protocol that permits requests for transactions of arbitrary complexity.</p>
+            <p>The format proposed in this ZIP seeks a middle ground between these approaches: to provide a URI-based format which supports both the trivial use case and the slightly-more-complex situation where a transaction may include payments to multiple recipients.</p>
         </section>
         <section id="requirements"><h2><span class="section-heading">Requirements</span><span class="section-anchor"> <a rel="bookmark" href="#requirements"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <p>The format must be a valid URI.</p>
@@ -74,7 +76,7 @@ License: MIT</pre>
                     <li>a Zcash Sapling address, using Bech32 <a id="id11" class="footnote_reference" href="#zip-0173">8</a> as defined in <a id="id12" class="footnote_reference" href="#protocol-saplingpaymentaddrencoding">13</a>.</li>
                 </ul>
                 <p>New address formats may be added in future. If the context of whether the payment URI is intended for Testnet or Mainnet is available, then each address SHOULD be checked to be for the correct network.</p>
-                <p>Sprout addresses MUST NOT be supported in payment requests. The rationale for this is that transfers to Sprout addresses will, at activation of the Canopy network upgrade, be restricted by ZIP 211 <a id="id13" class="footnote_reference" href="#zip-0211">9</a>; and it cannot generally be expected that senders will have funds available in the Sprout pool with which to satisfy requests for payment to a Sprout address.</p>
+                <p>Sprout addresses MUST NOT be supported in payment requests. The rationale for this is that transfers to Sprout addresses will, at activation of the Canopy network upgrade, be restricted by ZIP 211 <a id="id13" class="footnote_reference" href="#zip-0211">9</a>; it cannot generally be expected that senders will have funds available in the Sprout pool with which to satisfy requests for payment to a Sprout address.</p>
             </section>
             <section id="transfer-amount"><h3><span class="section-heading">Transfer amount</span><span class="section-anchor"> <a rel="bookmark" href="#transfer-amount"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>If an amount is provided, it MUST be specified in decimal ZEC. If a decimal fraction is present then a period (<cite>.</cite>) MUST be used as the separating character to separate the whole number from the decimal fraction, and both the whole number and the decimal fraction MUST be nonempty. No other separators (such as commas for grouping or thousands) are permitted. Leading zeros in the whole number or trailing zeros in the decimal fraction are ignored. There MUST NOT be more than 8 digits in the decimal fraction.</p>
@@ -93,13 +95,13 @@ License: MIT</pre>
             <section id="query-keys"><h3><span class="section-heading">Query Keys</span><span class="section-anchor"> <a rel="bookmark" href="#query-keys"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <dl>
                     <dt>label</dt>
-                    <dd>Label for an address (e.g. name of receiver)</dd>
+                    <dd>Label for an address (e.g. name of receiver). If a label is present at a <code>paramindex</code>, a client rendering a payment for inspection by the user SHOULD display this label (if possible) as well as the associated address. If the label is displayed, it MUST be identifiable as distinct from the address.</dd>
                     <dt>address</dt>
                     <dd>Zcash address string (shielded or transparent)</dd>
                     <dt>memo</dt>
                     <dd>Contents for the Zcash shielded memo field, encoded as base64url without <code>=</code> padding. The decoded memo contents MUST NOT exceed 512 bytes, and if shorter, will be filled with trailing zeros to 512 bytes. Parsers MUST consider the entire URI invalid if the address associated with the same <code>paramindex</code> is not a valid shielded address.</dd>
                     <dt>message</dt>
-                    <dd>Message that clients can display for the purpose of presenting descriptive information about the transaction to the user.</dd>
+                    <dd>Message that clients can display for the purpose of presenting descriptive information about the payment at the associated <code>paramindex</code> to the user.</dd>
                 </dl>
             </section>
             <section id="examples"><h3><span class="section-heading">Examples</span><span class="section-anchor"> <a rel="bookmark" href="#examples"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
