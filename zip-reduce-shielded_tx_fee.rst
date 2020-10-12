@@ -90,7 +90,7 @@ Security and privacy considerations
 
 Unique transaction fees can cause linkability within transactions,
 hence this change must be accepted by majority, if not all popular
-shielded transaction software providers before announcing the change
+shielded transaction software providers before announcing the change.
 
 
 ZIP Editors
