@@ -62,7 +62,7 @@ new information to users who might use Zcash for e-commerce
 and app interactions that might result in several transactions each day.
 
 Privacy must not cost a premium. The cost of 10 shielded transactions
-buys 1GB of mobile data `in India today <https://www.cable.co.uk/mobiles/worldwide-data-pricing/>`__
+buys 1GB of mobile data `in India today <https://www.cable.co.uk/mobiles/worldwide-data-pricing/>`.
 
 Zcash users must be able to do more with their ZEC balance
 than worry about paying the premium for shielded transactions.
@@ -114,4 +114,3 @@ References
 .. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
 .. [#zooko-1] `Zooko tweet on reducing tx fees <https://twitter.com/zooko/status/1295032258282156034?s=20>`_
 .. [#zooko-2] `Zooko tweet on sharing tx fee with wallet developer <https://twitter.com/zooko/status/1295032621294956545?s=20>`_
-
