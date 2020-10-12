@@ -23,7 +23,7 @@ described in RFC 2119. [#RFC2119]_
 
 The term "default transaction fee" in this document is in reference
 to Z to Z transaction fee paid to miners on the Zcash network
-for the work on includning the shielded transaction in a block.
+for the work on including the shielded transaction in a block.
 
 
 Abstract
