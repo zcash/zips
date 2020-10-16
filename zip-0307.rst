@@ -92,7 +92,7 @@ A **compact block** is a packaging of ONLY the data from a block needed to:
 3. Update your witnesses to generate new Sapling spend proofs.
 
 A compact block and its component compact transactions are encoded on the wire using the
-following Protocol Buffers [#protocolbuffers] format:
+following Protocol Buffers [#protocolbuffers]_ format:
 
 .. code:: proto
 
@@ -139,9 +139,9 @@ Output Compression
 In the normal Zcash protocol, the output ciphertext consists of the AEAD encrypted form of
 a *note plaintext* [#protocol-notept]_:
 
-+------------+----------+----------+-------------+-----------------------------------+
-| 8-bit 0x01 | 88-bit d | 64-bit v | 256-bit rcm | memo (512 bytes) + tag (16 bytes) |
-+------------+----------+----------+-------------+-----------------------------------+
++------------+----------+----------+---------------+-----------------------------------+
+| 8-bit 0x01 | 88-bit d | 64-bit v | 256-bit rseed | memo (512 bytes) + tag (16 bytes) |
++------------+----------+----------+---------------+-----------------------------------+
 
 A recipient detects their transactions by trial-decrypting this ciphertext. On a full node
 that has the entire block chain, the primary cost is computational. For light clients
@@ -171,7 +171,7 @@ and spendable.
 Spend Compression
 -----------------
 
-Recall that a full Sapling Spend description is 384 bytes long [#protocol-spendencoding]:
+Recall that a full Sapling Spend description is 384 bytes long [#protocol-spendencoding]_:
 
 +-------+--------------+-----------+
 | Bytes | Name         | Type      |
@@ -252,8 +252,8 @@ server here without loss of generality.
 Local processing
 ----------------
 
-Given a ``CompactBlock`` received in height-sequential order from a proxy server, a light
-client can process it in four ways:
+Given a ``CompactBlock`` at block height :math:`\mathsf{height}` received in height-sequential
+order from a proxy server, a light client can process it in four ways:
 
 Scanning for relevant transactions
 ``````````````````````````````````
@@ -261,19 +261,28 @@ For every ``CompactOutput`` in the ``CompactBlock``, the light client can trial-
 against a set of Sapling incoming viewing keys. The procedure for trial-decrypting a
 ``CompactOutput`` :math:`(\mathtt{cmu}, \mathsf{epk}, \mathsf{ciphertext})` with an incoming
 viewing key :math:`\mathsf{ivk}` is a slight deviation from the standard decryption process
-[#protocol-saplingdecryptivk]_:
+[#protocol-saplingdecryptivk]_ (all constants and algorithms are as defined there):
 
 - let :math:`\mathsf{sharedSecret} = \mathsf{KA^{Sapling}.Agree}(\mathsf{ivk}, \mathsf{epk})`
 - let :math:`K^{\mathsf{enc}} = \mathsf{KDF^{Sapling}}(\mathsf{sharedSecret}, \mathsf{epk})`
 - let :math:`P^{\mathsf{enc}} = \mathsf{ChaCha20.Decrypt}_{K^{\mathsf{enc}}}(\mathsf{ciphertext})`
-- extract :math:`\mathbf{np} = (\mathsf{d}, \mathsf{v}, \mathsf{rcm})` from :math:`P^{\mathsf{enc}}`
-- let :math:`\mathsf{rcm} = \mathsf{LEOS2IP}_{256}(\mathsf{rcm})` and :math:`\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})`
+- extract :math:`\mathbf{np} = (\mathsf{leadByte}, \mathsf{d}, \mathsf{v}, \mathsf{rseed})` from :math:`P^{\mathsf{enc}}`
+- [Pre-Canopy] if :math:`\mathsf{leadByte} \neq 0x01`, return :math:`\bot`
+- [Pre-Canopy] let :math:`\mathsf{\underline{rcm}} = \mathsf{rseed}`
+- [Canopy onward] if :math:`\mathsf{height} < \mathsf{CanopyActivationHeight} + \mathsf{ZIP212GracePeriod}` and :math:`\mathsf{leadByte} \not\in \{ \mathtt{0x01}, \mathtt{0x02} \}`, return :math:`\bot`
+- [Canopy onward] if :math:`\mathsf{height} < \mathsf{CanopyActivationHeight} + \mathsf{ZIP212GracePeriod}` and :math:`\mathsf{leadByte} \neq \mathtt{0x02}`, return :math:`\bot`
+- [Canopy onward] let :math:`\mathsf{\underline{rcm}} = \begin{cases}\mathsf{rseed}, &\text{if } \mathsf{leadByte} = \mathtt{0x01} \\ \mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([5])), &\text{otherwise}\end{cases}`
+- let :math:`\mathsf{rcm} = \mathsf{LEOS2IP}_{256}(\mathsf{\underline{rcm}})` and :math:`\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})`
 - if :math:`\mathsf{rcm} \geq r_{\mathbb{J}}` or :math:`\mathsf{g_d} = \bot`, return :math:`\bot`
 - let :math:`\mathsf{pk_d} = \mathsf{KA^{Sapling}.DerivePublic}(\mathsf{ivk}, \mathsf{g_d})`
 - let :math:`\mathsf{cm}_u' = \mathsf{Extract}_{\mathbb{J}^{(r)}}(\mathsf{NoteCommit^{Sapling}_{rcm}}(\mathsf{repr}_{\mathbb{J}}(\mathsf{g_d}), \mathsf{repr}_{\mathbb{J}}(\mathsf{pk_d}), \mathsf{v}))`.
-- if :math:`\mathsf{LEBS2OSP}_{256}(\mathsf{cm}_u') \neq \mathtt{cmu}`, return :math:`\bot`, else return :math:`\mathbf{np}`.
+- if :math:`\mathsf{LEBS2OSP}_{256}(\mathsf{cm}_u') \neq \mathtt{cmu}`, return :math:`\bot`
+- [Canopy onward] if :math:`\mathsf{leadByte} \neq \mathtt{0x01}`:
 
-TODO: update this for ZIP 212 [#zip-0212]_.
+  * :math:`\mathsf{esk} = \mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([4]))`
+  * if :math:`\mathsf{KA^{Sapling}.DerivePublic}(\mathsf{esk}, \mathsf{g_d}) \neq \mathsf{epk}`, return :math:`\bot`
+
+- return :math:`\mathbf{np}`.
 
 Creating and updating note witnesses
 ````````````````````````````````````
@@ -596,14 +605,14 @@ Electric Coin Company.
 References
 ==========
 
-.. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://tools.ietf.org/html/rfc2119>`_
-.. [#protocol-merkletree] `Section 3.7: Note Commitment Trees. Zcash Protocol Specification, Version 2020.1.6 <protocol/protocol.pdf#merkletree>`_
-.. [#protocol-merklepath] `Section 4.8: Merkle Path Validity. Zcash Protocol Specification, Version 2020.1.6 <protocol/protocol.pdf#merklepath>`_
-.. [#protocol-saplingdecryptivk] `Section 4.17.2: Decryption using an Incoming Viewing Key (Sapling). Zcash Protocol Specification, Version 2020.1.6 <protocol/protocol.pdf#saplingdecryptivk>`_
-.. [#protocol-notept] `Section 5.5: Encodings of Note Plaintexts and Memo Fields. Zcash Protocol Specification, Version 2020.1.6 <protocol/protocol.pdf#notept>`_
-.. [#protocol-spendencoding] `Section 7.3: Encoding of Spend Descriptions. Zcash Protocol Specification, Version 2020.1.6 <protocol/protocol.pdf#spendencoding>`_
-.. [#protocol-outputencoding] `Section 7.4: Encoding of Output Descriptions. Zcash Protocol Specification, Version 2020.1.6 <protocol/protocol.pdf#outputencoding>`_
+.. [#RFC2119] `RFC 2119: Key words for use in RFCs to Indicate Requirement Levels <https://tools.ietf.org/html/rfc2119>`_
+.. [#protocol-merkletree] `Section 3.7: Note Commitment Trees. Zcash Protocol Specification, Version 2020.1.14 or later <protocol/protocol.pdf#merkletree>`_
+.. [#protocol-merklepath] `Section 4.8: Merkle Path Validity. Zcash Protocol Specification, Version 2020.1.14 or later <protocol/protocol.pdf#merklepath>`_
+.. [#protocol-saplingdecryptivk] `Section 4.17.2: Decryption using an Incoming Viewing Key (Sapling). Zcash Protocol Specification, Version 2020.1.14 or later <protocol/protocol.pdf#saplingdecryptivk>`_
+.. [#protocol-notept] `Section 5.5: Encodings of Note Plaintexts and Memo Fields. Zcash Protocol Specification, Version 2020.1.14 or later <protocol/protocol.pdf#notept>`_
+.. [#protocol-spendencoding] `Section 7.3: Encoding of Spend Descriptions. Zcash Protocol Specification, Version 2020.1.14 or later <protocol/protocol.pdf#spendencoding>`_
+.. [#protocol-outputencoding] `Section 7.4: Encoding of Output Descriptions. Zcash Protocol Specification, Version 2020.1.14 or later <protocol/protocol.pdf#outputencoding>`_
 .. [#zip-0212] `ZIP 212: Allow Recipient to Derive Sapling Ephemeral Secret from Note Plaintext <zip-0212.rst>`_
-.. [#protocolbuffers] `Protocol Buffers. <https://developers.google.com/protocol-buffers/>`_
-.. [#incremental-witness] `TODO`
-.. [#spv-clients] `TODO`
+.. [#protocolbuffers] `Protocol Buffers documentation <https://developers.google.com/protocol-buffers/>`_
+.. [#incremental-witness] `zcash_primitives Rust crate — merkle_tree.rs <https://github.com/zcash/librustzcash/blob/master/zcash_primitives/src/merkle_tree.rs>`_
+.. [#spv-clients] `Bitcoin Wiki: Scalability — Simplified payment verification <https://en.bitcoin.it/wiki/Scalability#Simplified_payment_verification>`_

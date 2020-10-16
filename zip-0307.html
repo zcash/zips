@@ -56,7 +56,7 @@ License: MIT</pre>
                 <li>Detect a spend of your shielded Sapling notes</li>
                 <li>Update your witnesses to generate new Sapling spend proofs.</li>
             </ol>
-            <p>A compact block and its component compact transactions are encoded on the wire using the following Protocol Buffers [#protocolbuffers] format:</p>
+            <p>A compact block and its component compact transactions are encoded on the wire using the following Protocol Buffers <a id="id2" class="footnote_reference" href="#protocolbuffers">9</a> format:</p>
             <pre data-language="proto"><span class="kd">message</span> <span class="nc">BlockID</span> <span class="p">{</span>
      <span class="kt">uint64</span> <span class="na">blockHeight</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
      <span class="kt">bytes</span> <span class="na">blockHash</span> <span class="o">=</span> <span class="mi">2</span><span class="p">;</span>
@@ -96,7 +96,7 @@ License: MIT</pre>
                             <td>8-bit 0x01</td>
                             <td>88-bit d</td>
                             <td>64-bit v</td>
-                            <td>256-bit rcm</td>
+                            <td>256-bit rseed</td>
                             <td>memo (512 bytes) + tag (16 bytes)</td>
                         </tr>
                     </tbody>
@@ -107,7 +107,7 @@ License: MIT</pre>
                 <p>Since the note commitment is sent outside the ciphertext and is authenticated by the binding signature over the entire transaction, it serves as an adequate check on the validity of the decrypted plaintext (assuming you trust the entity assembling transactions). We therefore recalculate the note commitment from the decrypted plaintext. If the recalculated commitment matches the one in the output, we accept the note as valid and spendable.</p>
             </section>
             <section id="spend-compression"><h3><span class="section-heading">Spend Compression</span><span class="section-anchor"> <a rel="bookmark" href="#spend-compression"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
-                <p>Recall that a full Sapling Spend description is 384 bytes long [#protocol-spendencoding]:</p>
+                <p>Recall that a full Sapling Spend description is 384 bytes long <a id="id4" class="footnote_reference" href="#protocol-spendencoding">6</a>:</p>
                 <table>
                     <thead>
                         <tr>
@@ -193,13 +193,15 @@ License: MIT</pre>
         <section id="client-operation"><h2><span class="section-heading">Client operation</span><span class="section-anchor"> <a rel="bookmark" href="#client-operation"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <p>Light clients obtain compact blocks from one or more proxy servers, which they then process locally to update their view of the block chain. We consider only a single proxy server here without loss of generality.</p>
             <section id="local-processing"><h3><span class="section-heading">Local processing</span><span class="section-anchor"> <a rel="bookmark" href="#local-processing"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
-                <p>Given a <code>CompactBlock</code> received in height-sequential order from a proxy server, a light client can process it in four ways:</p>
+                <p>Given a <code>CompactBlock</code> at block height
+                    <span class="math">\(\mathsf{height}\)</span>
+                 received in height-sequential order from a proxy server, a light client can process it in four ways:</p>
                 <section id="scanning-for-relevant-transactions"><h4><span class="section-heading">Scanning for relevant transactions</span><span class="section-anchor"> <a rel="bookmark" href="#scanning-for-relevant-transactions"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h4>
                     <p>For every <code>CompactOutput</code> in the <code>CompactBlock</code>, the light client can trial-decrypt it against a set of Sapling incoming viewing keys. The procedure for trial-decrypting a <code>CompactOutput</code>
                         <span class="math">\((\mathtt{cmu}, \mathsf{epk}, \mathsf{ciphertext})\)</span>
                      with an incoming viewing key
                         <span class="math">\(\mathsf{ivk}\)</span>
-                     is a slight deviation from the standard decryption process <a id="id3" class="footnote_reference" href="#protocol-saplingdecryptivk">4</a>:</p>
+                     is a slight deviation from the standard decryption process <a id="id5" class="footnote_reference" href="#protocol-saplingdecryptivk">4</a> (all constants and algorithms are as defined there):</p>
                     <ul>
                         <li>let
                             <span class="math">\(\mathsf{sharedSecret} = \mathsf{KA^{Sapling}.Agree}(\mathsf{ivk}, \mathsf{epk})\)</span>
@@ -211,12 +213,37 @@ License: MIT</pre>
                             <span class="math">\(P^{\mathsf{enc}} = \mathsf{ChaCha20.Decrypt}_{K^{\mathsf{enc}}}(\mathsf{ciphertext})\)</span>
                         </li>
                         <li>extract
-                            <span class="math">\(\mathbf{np} = (\mathsf{d}, \mathsf{v}, \mathsf{rcm})\)</span>
+                            <span class="math">\(\mathbf{np} = (\mathsf{leadByte}, \mathsf{d}, \mathsf{v}, \mathsf{rseed})\)</span>
                          from
                             <span class="math">\(P^{\mathsf{enc}}\)</span>
                         </li>
+                        <li>[Pre-Canopy] if
+                            <span class="math">\(\mathsf{leadByte} \neq 0x01\)</span>
+                        , return
+                            <span class="math">\(\bot\)</span>
+                        </li>
+                        <li>[Pre-Canopy] let
+                            <span class="math">\(\mathsf{\underline{rcm}} = \mathsf{rseed}\)</span>
+                        </li>
+                        <li>[Canopy onward] if
+                            <span class="math">\(\mathsf{height} &lt; \mathsf{CanopyActivationHeight} + \mathsf{ZIP212GracePeriod}\)</span>
+                         and
+                            <span class="math">\(\mathsf{leadByte} \not\in \{ \mathtt{0x01}, \mathtt{0x02} \}\)</span>
+                        , return
+                            <span class="math">\(\bot\)</span>
+                        </li>
+                        <li>[Canopy onward] if
+                            <span class="math">\(\mathsf{height} &lt; \mathsf{CanopyActivationHeight} + \mathsf{ZIP212GracePeriod}\)</span>
+                         and
+                            <span class="math">\(\mathsf{leadByte} \neq \mathtt{0x02}\)</span>
+                        , return
+                            <span class="math">\(\bot\)</span>
+                        </li>
+                        <li>[Canopy onward] let
+                            <span class="math">\(\mathsf{\underline{rcm}} = \begin{cases}\mathsf{rseed}, &amp;\text{if } \mathsf{leadByte} = \mathtt{0x01} \\ \mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([5])), &amp;\text{otherwise}\end{cases}\)</span>
+                        </li>
                         <li>let
-                            <span class="math">\(\mathsf{rcm} = \mathsf{LEOS2IP}_{256}(\mathsf{rcm})\)</span>
+                            <span class="math">\(\mathsf{rcm} = \mathsf{LEOS2IP}_{256}(\mathsf{\underline{rcm}})\)</span>
                          and
                             <span class="math">\(\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})\)</span>
                         </li>
@@ -237,14 +264,28 @@ License: MIT</pre>
                             <span class="math">\(\mathsf{LEBS2OSP}_{256}(\mathsf{cm}_u') \neq \mathtt{cmu}\)</span>
                         , return
                             <span class="math">\(\bot\)</span>
-                        , else return
+                        </li>
+                        <li>[Canopy onward] if
+                            <span class="math">\(\mathsf{leadByte} \neq \mathtt{0x01}\)</span>
+                        :
+                            <ul>
+                                <li>
+                                    <span class="math">\(\mathsf{esk} = \mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([4]))\)</span>
+                                </li>
+                                <li>if
+                                    <span class="math">\(\mathsf{KA^{Sapling}.DerivePublic}(\mathsf{esk}, \mathsf{g_d}) \neq \mathsf{epk}\)</span>
+                                , return
+                                    <span class="math">\(\bot\)</span>
+                                </li>
+                            </ul>
+                        </li>
+                        <li>return
                             <span class="math">\(\mathbf{np}\)</span>
                         .</li>
                     </ul>
-                    <p>TODO: update this for ZIP 212 <a id="id4" class="footnote_reference" href="#zip-0212">8</a>.</p>
                 </section>
                 <section id="creating-and-updating-note-witnesses"><h4><span class="section-heading">Creating and updating note witnesses</span><span class="section-anchor"> <a rel="bookmark" href="#creating-and-updating-note-witnesses"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h4>
-                    <p>As <code>CompactBlocks</code> are received in height order, and the transactions within them have their order preserved, the <em>cmu</em> values in each <code>CompactOutput</code> can be sequentially appended to an incremental Merkle tree of depth 32 in order to maintain a local copy of the Sapling note commitment tree. <a id="id5" class="footnote_reference" href="#protocol-merkletree">2</a> This can then be used to create incremental witnesses for each unspent note the light client is tracking. <a id="id6" class="footnote_reference" href="#incremental-witness">10</a> An incremental witness updated to height <code>X</code> corresponds to a Merkle path from the note to the Sapling commitment tree anchor for block <code>X</code>. <a id="id7" class="footnote_reference" href="#protocol-merklepath">3</a></p>
+                    <p>As <code>CompactBlocks</code> are received in height order, and the transactions within them have their order preserved, the <em>cmu</em> values in each <code>CompactOutput</code> can be sequentially appended to an incremental Merkle tree of depth 32 in order to maintain a local copy of the Sapling note commitment tree. <a id="id6" class="footnote_reference" href="#protocol-merkletree">2</a> This can then be used to create incremental witnesses for each unspent note the light client is tracking. <a id="id7" class="footnote_reference" href="#incremental-witness">10</a> An incremental witness updated to height <code>X</code> corresponds to a Merkle path from the note to the Sapling commitment tree anchor for block <code>X</code>. <a id="id8" class="footnote_reference" href="#protocol-merklepath">3</a></p>
                     <p>Let <code>tree</code> be the Sapling note commitment tree at height <code>X-1</code>, and <code>note_witnesses</code> be the incremental witnesses for unspent notes detected up to height <code>X-1</code>. When the <code>CompactBlock</code> at height <code>X</code> is received:</p>
                     <ul>
                         <li>For each <code>CompactTx</code> in <code>CompactBlock</code>:
@@ -270,7 +311,7 @@ License: MIT</pre>
                 </section>
                 <section id="block-header-validation"><h4><span class="section-heading">Block header validation</span><span class="section-anchor"> <a rel="bookmark" href="#block-header-validation"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h4>
                     <p><em>This section describes a proposed enhancement that has been only partially implemented: currently only</em> <code>prevHash</code> <em>is checked.</em></p>
-                    <p>If the <code>CompactBlock</code> for height <code>X</code> contains a block header, the light client can validate it in a similar way to SPV clients <a id="id8" class="footnote_reference" href="#spv-clients">11</a> by performing the following checks:</p>
+                    <p>If the <code>CompactBlock</code> for height <code>X</code> contains a block header, the light client can validate it in a similar way to SPV clients <a id="id9" class="footnote_reference" href="#spv-clients">11</a> by performing the following checks:</p>
                     <ul>
                         <li><code>version &gt;= MIN_BLOCK_VERSION</code></li>
                         <li><code>prevHash == prevBlock.id.blockHash</code> where <code>prevBlock</code> is the previous <code>CompactBlock</code> received (at height <code>X-1</code>).</li>
@@ -478,7 +519,7 @@ License: MIT</pre>
                 <tbody>
                     <tr>
                         <th>1</th>
-                        <td><a href="https://tools.ietf.org/html/rfc2119">Key words for use in RFCs to Indicate Requirement Levels</a></td>
+                        <td><a href="https://tools.ietf.org/html/rfc2119">RFC 2119: Key words for use in RFCs to Indicate Requirement Levels</a></td>
                     </tr>
                 </tbody>
             </table>
@@ -486,7 +527,7 @@ License: MIT</pre>
                 <tbody>
                     <tr>
                         <th>2</th>
-                        <td><a href="protocol/protocol.pdf#merkletree">Section 3.7: Note Commitment Trees. Zcash Protocol Specification, Version 2020.1.6</a></td>
+                        <td><a href="protocol/protocol.pdf#merkletree">Section 3.7: Note Commitment Trees. Zcash Protocol Specification, Version 2020.1.14 or later</a></td>
                     </tr>
                 </tbody>
             </table>
@@ -494,7 +535,7 @@ License: MIT</pre>
                 <tbody>
                     <tr>
                         <th>3</th>
-                        <td><a href="protocol/protocol.pdf#merklepath">Section 4.8: Merkle Path Validity. Zcash Protocol Specification, Version 2020.1.6</a></td>
+                        <td><a href="protocol/protocol.pdf#merklepath">Section 4.8: Merkle Path Validity. Zcash Protocol Specification, Version 2020.1.14 or later</a></td>
                     </tr>
                 </tbody>
             </table>
@@ -502,7 +543,7 @@ License: MIT</pre>
                 <tbody>
                     <tr>
                         <th>4</th>
-                        <td><a href="protocol/protocol.pdf#saplingdecryptivk">Section 4.17.2: Decryption using an Incoming Viewing Key (Sapling). Zcash Protocol Specification, Version 2020.1.6</a></td>
+                        <td><a href="protocol/protocol.pdf#saplingdecryptivk">Section 4.17.2: Decryption using an Incoming Viewing Key (Sapling). Zcash Protocol Specification, Version 2020.1.14 or later</a></td>
                     </tr>
                 </tbody>
             </table>
@@ -510,7 +551,7 @@ License: MIT</pre>
                 <tbody>
                     <tr>
                         <th>5</th>
-                        <td><a href="protocol/protocol.pdf#notept">Section 5.5: Encodings of Note Plaintexts and Memo Fields. Zcash Protocol Specification, Version 2020.1.6</a></td>
+                        <td><a href="protocol/protocol.pdf#notept">Section 5.5: Encodings of Note Plaintexts and Memo Fields. Zcash Protocol Specification, Version 2020.1.14 or later</a></td>
                     </tr>
                 </tbody>
             </table>
@@ -518,7 +559,7 @@ License: MIT</pre>
                 <tbody>
                     <tr>
                         <th>6</th>
-                        <td><a href="protocol/protocol.pdf#spendencoding">Section 7.3: Encoding of Spend Descriptions. Zcash Protocol Specification, Version 2020.1.6</a></td>
+                        <td><a href="protocol/protocol.pdf#spendencoding">Section 7.3: Encoding of Spend Descriptions. Zcash Protocol Specification, Version 2020.1.14 or later</a></td>
                     </tr>
                 </tbody>
             </table>
@@ -526,7 +567,7 @@ License: MIT</pre>
                 <tbody>
                     <tr>
                         <th>7</th>
-                        <td><a href="protocol/protocol.pdf#outputencoding">Section 7.4: Encoding of Output Descriptions. Zcash Protocol Specification, Version 2020.1.6</a></td>
+                        <td><a href="protocol/protocol.pdf#outputencoding">Section 7.4: Encoding of Output Descriptions. Zcash Protocol Specification, Version 2020.1.14 or later</a></td>
                     </tr>
                 </tbody>
             </table>
@@ -542,7 +583,7 @@ License: MIT</pre>
                 <tbody>
                     <tr>
                         <th>9</th>
-                        <td><a href="https://developers.google.com/protocol-buffers/">Protocol Buffers.</a></td>
+                        <td><a href="https://developers.google.com/protocol-buffers/">Protocol Buffers documentation</a></td>
                     </tr>
                 </tbody>
             </table>
@@ -550,7 +591,7 @@ License: MIT</pre>
                 <tbody>
                     <tr>
                         <th>10</th>
-                        <td><cite>TODO</cite></td>
+                        <td><a href="https://github.com/zcash/librustzcash/blob/master/zcash_primitives/src/merkle_tree.rs">zcash_primitives Rust crate — merkle_tree.rs</a></td>
                     </tr>
                 </tbody>
             </table>
@@ -558,7 +599,7 @@ License: MIT</pre>
                 <tbody>
                     <tr>
                         <th>11</th>
-                        <td><cite>TODO</cite></td>
+                        <td><a href="https://en.bitcoin.it/wiki/Scalability#Simplified_payment_verification">Bitcoin Wiki: Scalability — Simplified payment verification</a></td>
                     </tr>
                 </tbody>
             </table>
