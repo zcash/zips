@@ -1,10 +1,10 @@
 ::
 
-  ZIP: XXX
+  ZIP: 313
   Title: Reduce default Shielded Transaction fee to 1000 zats
   Owners: Aditya Bharadwaj <nighthawk24@gmail.com>
   Original-Author: Aditya Bharadwaj
-  Status: Draft
+  Status: Active
   Community Status: Request for comments : https://forum.zcashcommunity.com/t/zip-reduce-default-shielded-transaction-fee-to-1000-zats/37566
   Category: Consensus
   Created: 2020-10-11
@@ -21,18 +21,18 @@ described in RFC 2119. [#RFC2119]_
 "Z" refers to shielded address.
 "T" refers to transparent address.
 
-The term "default transaction fee" in this document is in reference
-to Z to Z transaction fee paid to miners on the Zcash network
-for the work on including the shielded transaction in a block.
+The term "default transaction fee" or "conventional transaction fee"
+in this document is in reference to Z to Z transaction fee paid
+to miners on the Zcash network for the work on including
+the shielded transaction in a block.
 
 
 Abstract
 ========
 
-The goal of this ZIP is to discuss ideas around fee reduction,
-collect feedback from wallet developers, miners & Zcash users
+The goal of this ZIP is to gather wallet developers, miners & Zcash users
 for consensus on reducing the default transaction fees and
-get the Zcash default transaction fee reduced from 10,000 zats
+to get the Zcash default transaction fee reduced from 10,000 zats
 to 1000 zats.
 
 With reduced fees, it will be cheaper to transact on the Zcash network,
@@ -71,18 +71,15 @@ than worry about paying the premium for shielded transactions.
 Requirements for consensus
 -------------------------
 
-The change to the default transaction fees must be undertaken sooner
+The change to the conventional transaction fees must be undertaken sooner
 as it gets difficult to gain consensus with the growth in the network
-of wallets, exchanges, miners and other parties involved.
+of wallets, exchanges, miners and third parties involved.
 
 The following parties need to be part of the consensus:
 
-* The technical aspects of a lower default fee need to be evaluated.
-* A guarantee from mining groups is required to include the lowered
-default fee transactions in the next block.
-* Wallet developers need to update the software to use the new fee.
-* Zcash documentation and community outreach must be undertaken to
-make the change known.
+* A guarantee from mining groups is required to include the lowered default fee transactions in the next block.
+* Wallet developers need to provide commitment to update the software to use the new fee.
+* Zcash documentation and community outreach must be undertaken to make the change known.
 
 
 Security and privacy considerations
@@ -91,6 +88,26 @@ Security and privacy considerations
 Unique transaction fees can cause linkability within transactions,
 hence this change must be accepted by majority, if not all popular
 shielded transaction software providers before announcing the change.
+
+Varying/unique fees are bad for privacy, for the short term before blocks get full,
+it’s fine for everyone to use a constant fee. [#nathan-1]_
+
+Long term, the issue of fees needs to be re-visited as the blocks start getting consistently full.
+And the possibility of a DoS scenario becomes critical in nature. New ZIP with flexible fees [#ian-1]_
+along with scaling solutions need to be evaluated and applied.
+
+
+Activation
+============
+
+* The recommended fee of 0.00001 ot 1000 zats must be activated at block 1046400 to coincide with the `Canopy upgrade. <https://z.cash/upgrade/canopy/>`
+* With a grace period of ~4 weeks (block 1080000) to upgrade to the reduced default transaction fee for zcashd and core clients used by exchanges & service providers.
+
+
+UX Guidance
+============
+
+Wallets must prevent users from altering the fee for shielded transactions.
 
 
 ZIP Editors
@@ -112,5 +129,7 @@ References
 ==========
 
 .. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
+.. [#nathan-1] `Conventional Shielded Fees <https://forum.zcashcommunity.com/t/zip-reduce-default-shielded-transaction-fee-to-1000-zats/37566/40>`_
+.. [#ian-1] `Mechanism for fee suggester/oracle <https://forum.zcashcommunity.com/t/zip-reduce-default-shielded-transaction-fee-to-1000-zats/37566/31>`_
 .. [#zooko-1] `Zooko tweet on reducing tx fees <https://twitter.com/zooko/status/1295032258282156034?s=20>`_
 .. [#zooko-2] `Zooko tweet on sharing tx fee with wallet developer <https://twitter.com/zooko/status/1295032621294956545?s=20>`_
