@@ -93,6 +93,7 @@ Index of ZIPs
     <tr> <td>214</td> <td class="left"><a href="zip-0214.rst">Consensus rules for a Zcash Development Fund</a></td> <td>Implemented (zcashd)</td>
     <tr> <td>215</td> <td class="left"><a href="zip-0215.rst">Explicitly Defining and Modifying Ed25519 Validation Rules</a></td> <td>Implemented (zcashd)</td>
     <tr> <td><span class="reserved">216</span></td> <td class="left"><a class="reserved" href="zip-0216.rst">Require Canonical Point Encodings</a></td> <td>Reserved</td>
+    <tr> <td><span class="reserved">217</span></td> <td class="left"><a class="reserved" href="zip-0217.rst">Aggregate Signatures</a></td> <td>Reserved</td>
     <tr> <td>221</td> <td class="left"><a href="zip-0221.rst">FlyClient - Consensus-Layer Changes</a></td> <td>Final</td>
     <tr> <td>222</td> <td class="left"><a href="zip-0222.rst">Transparent Zcash Extensions</a></td> <td>Draft</td>
     <tr> <td>243</td> <td class="left"><a href="zip-0243.rst">Transaction Signature Validation for Sapling</a></td> <td>Final</td>
@@ -113,6 +114,7 @@ Index of ZIPs
     <tr> <td>310</td> <td class="left"><a href="zip-0310.rst">Security Properties of Sapling Viewing Keys</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">311</span></td> <td class="left"><a class="reserved" href="zip-0311.rst">Sapling Payment Disclosure</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">312</span></td> <td class="left"><a class="reserved" href="zip-0312.rst">Shielded Multisignatures using FROST</a></td> <td>Reserved</td>
+    <tr> <td><span class="reserved">313</span></td> <td class="left"><a class="reserved" href="zip-0313.rst">Reduce Default Transaction Fee</a></td> <td>Reserved</td>
     <tr> <td>321</td> <td class="left"><a href="zip-0321.rst">Payment Request URIs</a></td> <td>Proposed</td>
     <tr> <td><span class="reserved">339</span></td> <td class="left"><a class="reserved" href="zip-0339.rst">Wallet Recovery Words</a></td> <td>Reserved</td>
     <tr> <td>400</td> <td class="left"><a href="zip-0400.rst">Wallet.dat format</a></td> <td>Draft</td>
