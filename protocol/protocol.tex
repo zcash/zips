@@ -3461,7 +3461,7 @@ place of the output index, $\hSig$, or $\TransmitPublic$.) It is suitable for us
 with $\KASapling$ and derives keys for $\SymEncrypt{}$.
 
 \begin{formulae}
-  \item $\KDFSapling \typecolon \KASaplingSharedSecret \times \KASaplingPublic \rightarrow \Keyspace$
+  \item $\KDFSapling \typecolon \KASaplingSharedSecret \times \byteseq{\ellJ/8} \rightarrow \Keyspace$
 \end{formulae}
 } %sapling
 
@@ -5672,15 +5672,18 @@ Then to encrypt:
 \vspace{-0.5ex}
   \item let $\TransmitPlaintext{}$ be the \rawEncoding of $\NotePlaintext{}$
   \item let $\EphemeralPublic = \KASaplingDerivePublic(\EphemeralPrivate, \DiversifiedTransmitBase)$
+        \vspace{0.3ex}
+  \item let $\ephemeralKey = \LEBStoOSPOf{\ellJ}{\reprJ\Of{\EphemeralPublic}\kern 0.03em}$
+        \vspace{-0.5ex}
   \item let $\DHSecret{} = \KASaplingAgree(\EphemeralPrivate, \DiversifiedTransmitPublic)$
-  \item let $\TransmitKey{} = \KDFSapling(\DHSecret{}, \EphemeralPublic)$
+  \item let $\TransmitKey{} = \KDFSapling(\DHSecret{}, \ephemeralKey)$
   \item let $\TransmitCiphertext{} = \SymEncrypt{\TransmitKey{}}(\TransmitPlaintext{})$
   \item if $\OutViewingKey = \bot$:
   \item \tab choose random $\OutCipherKey \leftarrowR \Keyspace$ and $\OutPlaintext \leftarrowR \byteseq{(\ellJ + 256)/8}$
   \item else:
   \item \tab let $\cvField = \LEBStoOSP{\ellJ}\big(\reprJ(\cv)\kern-0.12em\big)$
   \item \tab let $\cmuField = \LEBStoOSP{256}\big(\ExtractJ(\cm)\kern-0.12em\big)$
-  \item \tab let $\ephemeralKey = \LEBStoOSPOf{\ellJ}{\reprJ\Of{\EphemeralPublic}\kern 0.03em}$
+        \vspace{-0.5ex}
   \item \tab let $\OutCipherKey = \PRFock{\OutViewingKey}(\cvField, \cmuField, \ephemeralKey)$
         \vspace{0.5ex}
   \item \tab let $\OutPlaintext = \LEBStoOSPOf{\ellJ + 256}{\reprJ(\DiversifiedTransmitPublic) \,\bconcat\, \ItoLEBSPOf{256}{\EphemeralPrivate}\kern-0.12em}$
@@ -5688,7 +5691,7 @@ Then to encrypt:
   \item let $\OutCiphertext = \SymEncrypt{\OutCipherKey}(\OutPlaintext)$
 \end{algorithm}
 
-The resulting \defining{\noteCiphertext} is $(\EphemeralPublic, \TransmitCiphertext{}, \OutCiphertext)$.
+The resulting \defining{\noteCiphertext} is $(\ephemeralKey, \TransmitCiphertext{}, \OutCiphertext)$.
 
 \pnote{
 It is technically possible to replace $\TransmitCiphertext{}$ for a given \note
@@ -5708,7 +5711,7 @@ received out-of-band, which are not addressed in this document.
 Let $\InViewingKey \typecolon \InViewingKeyTypeSapling$ be the recipient's \incomingViewingKey,
 as specified in \crossref{saplingkeycomponents}.
 
-Let $(\EphemeralPublic, \TransmitCiphertext{}, \OutCiphertext)$ be the \noteCiphertext from the
+Let $(\ephemeralKey, \TransmitCiphertext{}, \OutCiphertext)$ be the \noteCiphertext from the
 \outputDescription{}. Let $\cmuField$ be that field of the \outputDescription (encoding the
 $u$-coordinate of the \noteCommitment).
 
@@ -5719,12 +5722,14 @@ Let $\BlockHeight$ be the \blockHeight of the \block containing this \transactio
 } %canopy
 
 \introlist
-The recipient will attempt to decrypt the $\EphemeralPublic$ and $\TransmitCiphertext{}$
+The recipient will attempt to decrypt the $\ephemeralKey$ and $\TransmitCiphertext{}$
 components of the \noteCiphertext as follows:
 \begin{algorithm}
 \vspace{-0.5ex}
+  \item let $\EphemeralPublic = \abstJ\Of{\ephemeralKey}$
+  \item if $\EphemeralPublic = \bot$, return $\bot$
   \item let $\DHSecret{} = \KASaplingAgree(\InViewingKey, \EphemeralPublic)$
-  \item let $\TransmitKey{} = \KDFSapling(\DHSecret{}, \EphemeralPublic)$
+  \item let $\TransmitKey{} = \KDFSapling(\DHSecret{}, \ephemeralKey)$
   \item let $\TransmitPlaintext{} = \SymDecrypt{\TransmitKey{}}(\TransmitCiphertext{})$
 \vspace{-0.25ex}
   \item if $\TransmitPlaintext{} = \bot$, return $\bot$
@@ -5743,45 +5748,44 @@ from $\TransmitPlaintext{}$
   \item let $\NoteCommitRand = \LEOStoIPOf{256}{\NoteCommitRandBytes}$
         and $\DiversifiedTransmitBase = \DiversifyHash(\Diversifier)$
   \item if $\NoteCommitRand \geq \ParamJ{r}$ or $\DiversifiedTransmitBase = \bot$, return $\bot$
+  \canopyonwarditem{if $\NotePlaintextLeadByte \neq \hexint{01}$:}
+\canopy{
+  \item \tab $\EphemeralPrivate = \ToScalar\big(\PRFexpand{\NoteSeedBytes}([4])\kern-0.11em\big)$
+  \item \tab if $\reprJ\big(\KASaplingDerivePublic(\EphemeralPrivate, \DiversifiedTransmitBase)\kern-0.12em\big) \neq \ephemeralKey$,
+        return $\bot$
+  \item \blank
+}
   \item let $\DiversifiedTransmitPublic = \KASaplingDerivePublic(\InViewingKey, \DiversifiedTransmitBase)$
   \item let $\cmU' = \ExtractJ\big(\NoteCommitSapling{\NoteCommitRand}(\reprJ\Of{\DiversifiedTransmitBase},
                                                                        \reprJ\Of{\DiversifiedTransmitPublic},
                                                                        \Value)\kern-0.12em\big)$.
   \item if $\LEBStoOSPOf{256}{\cmU'} \neq \cmuField$, return $\bot$
-  \canopyonwarditem{if $\NotePlaintextLeadByte \neq \hexint{01}$:}
-\canopy{
-  \item \tab $\EphemeralPrivate = \ToScalar\big(\PRFexpand{\NoteSeedBytes}([4])\kern-0.11em\big)$
-  \item \tab if $\KASaplingDerivePublic(\EphemeralPrivate, \DiversifiedTransmitBase) \neq \EphemeralPublic$,
-        return $\bot$
-  \item \blank
-}
   \item return $\NotePlaintext{}$.
 \end{algorithm}
 
-\vspace{-0.5ex}
-A received \Sapling{} \note is necessarily a \positionedNote, and so its
-$\NoteAddressRand$ value can immediately be calculated as described in
-\crossref{commitmentsandnullifiers}.
+\begin{pnotes}
+  \item As explained in the note in \crossref{jubjub}, $\abstJ$ accepts non-canonical compressed encodings
+        of \jubjubCurve points (specifically, point encodings with $\tilde{u} = 1$ and $v = 0$).
+        Therefore, an implementation \MUST use the original $\ephemeralKey$ field as encoded in the
+        \transaction as input to $\KDFSapling$\canopy{, and (if \Canopy is active and
+        $\NotePlaintextLeadByte \neq \hexint{01}$) in the comparison against
+        $\reprJ\big(\KASaplingDerivePublic(\EphemeralPrivate, \DiversifiedTransmitBase)\kern-0.12em\big)$}.
+  \item Normally only \noteCiphertexts of \transactions in \blocks need to be decrypted. In that case,
+        any received \Sapling{} \note is necessarily a \positionedNote, and so its $\NoteAddressRand$
+        value can immediately be calculated as described in \crossref{commitmentsandnullifiers}.
+        To test whether a \Sapling{} \note is unspent in a particular \blockChain also requires
+        the \nullifierDerivingKey $\AuthProvePublicRepr$; the coin is unspent if and only if
+        $\nf = \PRFnfSapling{\AuthProvePublicRepr}\big(\reprJ(\NoteAddressRand)\kern-0.15em\big)$ is
+        not in the \nullifierSet for that \blockChain.
+  \item A \note can change from being unspent to spent as a node's view of the \bestValidBlockChain is
+        extended by new \transactions. Also, \blockChainReorganizations can cause a node to switch to
+        a different \bestValidBlockChain that does not contain the \transaction in which a \note was output.
+  \item A client \MAY attempt to decrypt a \noteCiphertext of a \transaction in the \mempool\canopy{,
+        using the next \blockHeight for $\BlockHeight$}. However, in that case it \MUSTNOT assume that
+        the \transaction will be mined and \MUST treat the decrypted information as provisional. It
+        will not be able to calculate the $\NoteAddressRand$ value.
+\end{pnotes}
 
-To test whether a \Sapling{} \note is unspent in a particular \blockChain also requires
-the \nullifierDerivingKey $\AuthProvePublicRepr$; the coin is unspent if and only if
-$\nf = \PRFnfSapling{\AuthProvePublicRepr}\big(\reprJ(\NoteAddressRand)\kern-0.15em\big)$ is not in the
-\nullifierSet for that \blockChain.
-
-\pnote{
-A \note can change from being unspent to spent as a node's view of the
-\bestValidBlockChain is extended by new \transactions. Also, \blockChainReorganizations
-can cause a node to switch to a different \bestValidBlockChain that does not
-contain the \transaction in which a \note was output.
-} %pnote
-
-\vspace{-2ex}
-\nnote{
-Normally only \noteCiphertexts of \transactions in \blocks need to be decrypted.
-A client \MAY attempt to decrypt a \noteCiphertext of a \transaction in the \mempool\canopy{,
-using the next \blockHeight for $\BlockHeight$}. However, in that case it \MUSTNOT assume that
-the \transaction will be mined and \MUST treat the decrypted information as provisional.
-} %nnote
 } %sapling
 
 
@@ -5794,10 +5798,9 @@ in \crossref{saplingkeycomponents}, that is to be used for decryption.
 (If $\OutViewingKey = \bot$ was used for encryption, the payment is not decryptable by
 this method.)
 
-Let $(\EphemeralPublic, \TransmitCiphertext{}, \OutCiphertext)$ be the \noteCiphertext,
-and let $\cvField$, $\cmuField$, and $\ephemeralKey$ be those
-fields of the \outputDescription (encoding the \valueCommitment, the $u$-coordinate
-of the \noteCommitment, and $\EphemeralPublic$).
+Let $(\ephemeralKey, \TransmitCiphertext{}, \OutCiphertext)$ be the \noteCiphertext,
+and let $\cvField$ and $\cmuField$ be those fields of the \outputDescription (encoding the
+\valueCommitment and the $u$-coordinate of the \noteCommitment).
 
 \introsection
 \vspace{0.5ex}
@@ -5814,9 +5817,9 @@ The \outgoingViewingKey holder will attempt to decrypt the \noteCiphertext as fo
         \EphemeralPrivateBytes \typecolon \EphemeralPrivateBytesType)$ from $\OutPlaintext$
   \item let $\EphemeralPrivate = \LEOStoIPOf{256}{\EphemeralPrivateBytes}$
         and $\DiversifiedTransmitPublic = \abstJ\Of{\DiversifiedTransmitPublicRepr}$
-  \item if $\EphemeralPrivate \geq \ParamJ{r}$ or $\DiversifiedTransmitPublic \notin \KASaplingPublicPrimeSubgroup$, return $\bot$
+  \item if $\EphemeralPrivate \geq \ParamJ{r}$, return $\bot$
   \item let $\DHSecret{} = \KASaplingAgree(\EphemeralPrivate, \DiversifiedTransmitPublic)$
-  \item let $\TransmitKey{} = \KDFSapling(\DHSecret{}, \EphemeralPublic)$
+  \item let $\TransmitKey{} = \KDFSapling(\DHSecret{}, \ephemeralKey)$
   \item let $\TransmitPlaintext{} = \SymDecrypt{\TransmitKey{}}(\TransmitCiphertext{})$
 \vspace{-0.25ex}
   \item if $\TransmitPlaintext{} = \bot$, return $\bot$
@@ -5840,18 +5843,29 @@ from $\TransmitPlaintext{}$
                                                                        \reprJ\Of{\DiversifiedTransmitPublic},
                                                                        \Value)\kern-0.12em\big)$
   \item if $\LEBStoOSPOf{256}{\cmU'} \neq \cmuField$, return $\bot$
-  \item if $\KASaplingDerivePublic(\EphemeralPrivate, \DiversifiedTransmitBase) \neq \EphemeralPublic$,
+  \item if $\reprJ\big(\KASaplingDerivePublic(\EphemeralPrivate, \DiversifiedTransmitBase)\kern-0.12em\big) \neq \ephemeralKey$,
         return $\bot$
   \item return $\NotePlaintext{}$.
 \end{algorithm}
 
-\vspace{-0.5ex}
-\pnote{For a valid \transaction it must be the case that
-$\ephemeralKey = \LEBStoOSP{\ellJ}\big(\reprJ\Of{\EphemeralPublic}\kern-0.15em\big)$.}
+\begin{pnotes}
+  \item As explained in the note in \crossref{jubjub}, $\abstJ$ accepts non-canonical compressed encodings
+        of \jubjubCurve points (specifically, point encodings with $\tilde{u} = 1$ and $v = 0$).
+        Therefore, an implementation \MUST use the original $\ephemeralKey$ field as encoded in the
+        \transaction as input to $\PRFock{}$ and $\KDFSapling$, and in the comparison against
+        $\reprJ\big(\KASaplingDerivePublic(\EphemeralPrivate, \DiversifiedTransmitBase)\kern-0.12em\big)$.
+        \vspace{-0.5ex}
+  \item $\DiversifiedTransmitPublicRepr$ can also be non-canonical. The decoded point
+        $\DiversifiedTransmitPublic$ is \emph{not} checked to be in the subgroup $\SubgroupJ$.
+  \item The comments in \crossref{saplingdecryptivk} concerning calculation of $\NoteAddressRand$, detection
+        of spent \notes, and decryption of \noteCiphertexts for \transactions in the \mempool also apply to
+        \notes decrypted by this procedure.
+\end{pnotes}
 
 \vspace{-1ex}
 \nnote{Implementors should pay close attention to the similarities and differences between this procedure
 and that in \crossref{saplingdecryptivk}. \canopy{In particular:
+\vspace{1ex}
 \begin{itemize}
   \item in this procedure, the ephemeral \privateKey $\EphemeralPrivate'$ derived from $\NoteSeedBytes$
         is checked to be identical to that obtained from $\OutPlaintext$ (when $\NotePlaintextLeadByte \neq \hexint{01}$);
@@ -5864,13 +5878,6 @@ and that in \crossref{saplingdecryptivk}. \canopy{In particular:
 } %canopy
 } %nnote
 
-\vspace{-2ex}
-\nnote{
-Normally only \noteCiphertexts of \transactions in \blocks need to be decrypted.
-A client \MAY attempt to decrypt a \noteCiphertext of a \transaction in the \mempool\canopy{,
-using the next \blockHeight for $\BlockHeight$}. However, in that case it \MUSTNOT assume that
-the \transaction will be mined and \MUST treat the decrypted information as provisional.
-} %nnote
 } %sapling
 
 \lsubsection{Block Chain Scanning\pSproutOrNothingText}{sproutscan}
@@ -7117,7 +7124,7 @@ Define $\KASaplingAgree(\sk, P) := \scalarmult{\ParamJ{h} \mult \sk}{P}$.
 \setsapling
 \begin{bytefield}[bitwidth=0.07em]{544}
     \sbitbox{256}{$\LEBStoOSPOf{256}{\reprJ\Of{\DHSecret{}}\kern 0.02em}$} &
-    \sbitbox{256}{$\LEBStoOSPOf{256}{\reprJ\Of{\EphemeralPublic}\kern 0.02em}$}
+    \sbitbox{256}{$\LEBStoOSPOf{256}{\ephemeralKey}$}
 \end{bytefield}
 \end{lrbox}
 
@@ -7132,7 +7139,7 @@ It is instantiated using $\BlakeTwob{256}$ as follows:
 
 \vspace{-0.5ex}
 \begin{formulae}
-  \item $\KDFSapling(\DHSecret{}, \EphemeralPublic) :=
+  \item $\KDFSapling(\DHSecret{}, \ephemeralKey) :=
            \BlakeTwobOf{256}{\ascii{Zcash\_SaplingKDF}, \kdfinput}$.
 \end{formulae}
 \vspace{-2.5ex}
@@ -10851,6 +10858,20 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
 
 \historyentry{2020.1.15}{}
 \begin{itemize}
+\sapling{
+    \item Correct the \Sapling \note decryption algorithms:
+          \begin{itemize}
+            \item $\ephemeralKey$ is kept as a byte sequence rather than immediately converted to a
+                  curve point; this matters because of non-canonical encoding.
+            \item The representation of $\DiversifiedTransmitPublic$ in a \notePlaintext may also be
+                  non-canonical and need not be in the prime subgroup.
+            \item Move checking of $\cmU$ in decryption with $\InViewingKey$ to the end of the
+                  algorithm, to more closely match the implementation.
+            \item The note about decryption of outputs in \mempool{} \transactions should have been
+                  normative.
+          \end{itemize}
+          \vspace{-1.5ex}
+} %sapling
     \item Remove a statement that the language consisting of key and address encoding
           possibilities is prefix-free. (The human-readable forms are prefix-free but the
           raw encodings are not; for example, the \rawEncoding of a \Sapling \spendingKey
