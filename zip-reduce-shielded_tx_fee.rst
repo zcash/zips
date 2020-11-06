@@ -90,7 +90,7 @@ hence this change must be accepted by majority, if not all popular
 shielded transaction software providers before announcing the change.
 
 Varying/unique fees are bad for privacy, for the short term before blocks get full,
-it’s fine for everyone to use a constant fee. [#nathan-1]_
+it’s fine for everyone to use a constant fee, as long as that is enough to compensate miners for including the transaction. [#nathan-1]_
 
 Long term, the issue of fees needs to be re-visited in separate future proposals as the blocks start getting consistently full.
 And the possibility of a DoS scenario becomes critical in nature. New ZIP with flexible fees [#ian-1]_
