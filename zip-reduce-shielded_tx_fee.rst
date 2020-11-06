@@ -85,7 +85,7 @@ The following parties need to be part of the consensus:
 Security and privacy considerations
 -----------
 
-Unique transaction fees can cause linkability within transactions,
+Unique transaction fees may reveal specific users or wallets or wallet versions which reduces privacy for those specific users and the rest of the network.
 hence this change must be accepted by majority, if not all popular
 shielded transaction software providers before announcing the change.
 
