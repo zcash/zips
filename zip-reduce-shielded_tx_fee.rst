@@ -116,10 +116,10 @@ UX Guidance
 Wallets must prevent users from altering the fee for shielded transactions.
 
 
-ZIP Editors
+ZIP Owners
 -----------
 
-The current ZIP Editor is Aditya Bharadwaj, representing the Nighthawk Wallet.
+The current ZIP Owner is Aditya Bharadwaj, representing the Nighthawk Wallet.
 Additional Editors will be selected by consensus among the current Editors.
 
 
