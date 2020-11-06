@@ -93,8 +93,20 @@ Varying/unique fees are bad for privacy, for the short term before blocks get fu
 it’s fine for everyone to use a constant fee, as long as that is enough to compensate miners for including the transaction. [#nathan-1]_
 
 Long term, the issue of fees needs to be re-visited in separate future proposals as the blocks start getting consistently full.
-And the possibility of a DoS scenario becomes critical in nature. New ZIP with flexible fees [#ian-1]_
-along with scaling solutions need to be evaluated and applied.
+New ZIPs with flexible fees, such as [#ian-1]_, along with scaling solutions need to be evaluated and applied.
+
+Denial Of Service Vulnerability
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A transaction-rate-based denial of service attack occurs when an attacker generates enough transactions over a window of time to prevent legitimate transactions from being mined, or to hinder syncing blocks for full nodes or miners.
+
+There are two primary protections to this kind of attack in Zcash: the block size limit, and variable transaction fees. The block size limit ensures that full nodes and miners can sync blocks even if they are completely full. However it does not protect users sending legitimate transactions to have their transactions confirmed in a timely manner.
+
+Variable fees can mitigate this kind of denial of service because in there are more transactions available than can fit into a single block, a miner is assumed to choose the transactions that pay the highest fees. If legitimate wallets increase their fees during this condition, the attacker must also increase the fees of their transactions. This imposes a growing and ongoing cost to the attacker which limits the time window they can continue the attack.
+
+This proposal does not alter how fees are paid from transactions to miners. However, it does require wallets to use a fixed flat fee. Therefore during a transaction rate DoS attack, legitimate fees may not rise, so an attacker can extend an attacker for a longer window for the same cost.
+
+This ZIP does not address this concern. A future ZIP should address this issue for shielded wallets.
 
 
 Activation
