@@ -92,7 +92,7 @@ shielded transaction software providers before announcing the change.
 Varying/unique fees are bad for privacy, for the short term before blocks get full,
 it’s fine for everyone to use a constant fee. [#nathan-1]_
 
-Long term, the issue of fees needs to be re-visited as the blocks start getting consistently full.
+Long term, the issue of fees needs to be re-visited in separate future proposals as the blocks start getting consistently full.
 And the possibility of a DoS scenario becomes critical in nature. New ZIP with flexible fees [#ian-1]_
 along with scaling solutions need to be evaluated and applied.
 
