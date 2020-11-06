@@ -85,9 +85,9 @@ Index of ZIPs
     <tr> <td>206</td> <td class="left"><a href="zip-0206.rst">Deployment of the Blossom Network Upgrade</a></td> <td>Final</td>
     <tr> <td>207</td> <td class="left"><a href="zip-0207.rst">Funding Streams</a></td> <td>Implemented (zcashd)</td>
     <tr> <td>208</td> <td class="left"><a href="zip-0208.rst">Shorter Block Target Spacing</a></td> <td>Final</td>
-    <tr> <td>209</td> <td class="left"><a href="zip-0209.rst">Prohibit Negative Shielded Value Pool Balances</a></td> <td>Final</td>
+    <tr> <td>209</td> <td class="left"><a href="zip-0209.rst">Prohibit Negative Shielded Chain Value Pool Balances</a></td> <td>Final</td>
     <tr> <td>210</td> <td class="left"><a href="zip-0210.rst">Sapling Anchor Deduplication within Transactions</a></td> <td>Draft</td>
-    <tr> <td>211</td> <td class="left"><a href="zip-0211.rst">Disabling Addition of New Value to the Sprout Value Pool</a></td> <td>Implemented (zcashd)</td>
+    <tr> <td>211</td> <td class="left"><a href="zip-0211.rst">Disabling Addition of New Value to the Sprout Chain Value Pool</a></td> <td>Implemented (zcashd)</td>
     <tr> <td>212</td> <td class="left"><a href="zip-0212.rst">Allow Recipient to Derive Sapling Ephemeral Secret from Note Plaintext</a></td> <td>Implemented (zcashd)</td>
     <tr> <td>213</td> <td class="left"><a href="zip-0213.rst">Shielded Coinbase</a></td> <td>Final</td>
     <tr> <td>214</td> <td class="left"><a href="zip-0214.rst">Consensus rules for a Zcash Development Fund</a></td> <td>Implemented (zcashd)</td>
