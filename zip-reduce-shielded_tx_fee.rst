@@ -100,8 +100,14 @@ along with scaling solutions need to be evaluated and applied.
 Activation
 ============
 
-* The recommended fee of 0.00001 or 1000 zats must be activated at block 1046400 to coincide with the `Canopy upgrade. <https://z.cash/upgrade/canopy/>`
+* The recommended fee of 0.00001 or 1000 zats must start activation at block 1046400 to coincide with the `Canopy upgrade. <https://z.cash/upgrade/canopy/>`
 * With a grace period of ~4 weeks (block 1080000) to upgrade to the reduced default transaction fee for zcashd and core clients used by exchanges & service providers.
+
+
+Support
+============
+
+Zbay, Zecwallet Suite(Zecwallet Lite for Desktop/iOS/Android & Zecwallet FullNode) and Nighthawk Wallet Android & iOS have agreed to implement the reduced fees.
 
 
 UX Guidance
