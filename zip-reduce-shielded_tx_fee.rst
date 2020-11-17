@@ -143,7 +143,7 @@ ZIP Comments
 
 Comments from the community on the ZIP should occur on the Zcash
 Community Forum and the comment fields of the pull requests in
-any open ZIPs. Editors will use these sources to judge rough consensus.
+any open ZIPs. Owners will use these sources to judge rough consensus.
 
 
 References
