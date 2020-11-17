@@ -112,8 +112,8 @@ This ZIP does not address this concern. A future ZIP should address this issue f
 Activation
 ============
 
-* The recommended fee of 0.00001 or 1000 zats must start activation at block 1046400 to coincide with the `Canopy upgrade. <https://z.cash/upgrade/canopy/>`
-* With a grace period of ~4 weeks (block 1080000) to upgrade to the reduced default transaction fee for zcashd and core clients used by exchanges & service providers.
+* The new default fee of 0.00001 or 1000 zats must start activation at block 1,080,000
+* With a grace period of ~4 weeks (block 1,120,000) to upgrade to the reduced default transaction fee for zcashd and core clients used by exchanges & service providers.
 
 
 Support
