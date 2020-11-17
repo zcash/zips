@@ -126,6 +126,7 @@ UX Guidance
 ============
 
 Wallets must prevent users from altering the fee for shielded transactions.
+Additionally, all wallet developers and operators should monitor the Zcash network for rapid growth in transaction rates. As we tend toward fuller blocks, we should proactively address the issue of growing mempool in a separate follow up ZIP.
 
 
 ZIP Owners
