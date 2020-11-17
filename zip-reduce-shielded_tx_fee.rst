@@ -132,7 +132,7 @@ ZIP Owners
 -----------
 
 The current ZIP Owner is Aditya Bharadwaj, representing the Nighthawk Wallet.
-Additional Editors will be selected by consensus among the current Editors.
+Additional Owners will be selected by consensus among the current Owners.
 <span class="x x-first x-last">Acknowledgements</span>
 ~~~~~~~~~~~~~~~
 
