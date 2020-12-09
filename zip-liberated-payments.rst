@@ -34,7 +34,7 @@ Abstract
 
 This proposal defines a mechanism for sending a Zcash payment encapsulated in a URI string. This enables sending Zcash funds over any secure channel, such as via a messaging app, even if the recipient does not yet have Zcash software installed and does not have a Zcash payment address. This is implemented by having the URI convey the secret spending key of an ephemeral Zcash “wallet address”, to which the funds have been transferred. Anyone who learns the URI can accept this payment, by a “finalization” process which uses the key given in the URI to transfer the encapsulated funds to their own wallet. After the payment is finalized, via a suitable on-chain transaction by the recipient, it becomes irrevocable.
 
-The proposal specifies the syntax and semantics of Payment-Encapsulating URIs, the workflow of generating and handling them, and requisite infrastructure.
+The proposal specifies the syntax and semantics of URI-Encapsulated Payments, the workflow of generating and handling them, and requisite infrastructure.
 
 At its core, a URI encapsulated payment communicates the existence of a transaction (specifically a note committing to an amount of funds) to a receiving client.  The URI encodes the amount of the payment and a key used to derive all necessary randomness for note construction including the address and secret key needed to spend it.
 
