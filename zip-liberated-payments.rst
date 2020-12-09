@@ -85,7 +85,7 @@ This proposal’s specification of Payment-Encapsulating URIs, and the intended 
 
 * The on-chain footprint of payments that use this mechanism should be indistinguishable from normal fully-shielded transactions (except, possibly, for the statistics of the number of shielded inputs and outputs).
 
-* Don’t lose funds, even if wallets crash.
+* Don’t lose funds, even if wallets crash, or everything but the sending wallet master secret is lost.
 
 Non-requirements
 ================
