@@ -36,7 +36,7 @@ This proposal defines a mechanism for sending a Zcash payment encapsulated in a 
 
 The proposal specifies the syntax and semantics of Payment-Encapsulating URIs, the workflow of generating and handling them, and requisite infrastructure.
 
-At its core, a URI encapsulated payment communicates the existence of a transaction (specifically a note committing to an amount of funds) to a receiving client.  The URI encode contains the amount of the payment and a key used to derive all necessary randomness for note construction including the address and secret key needed to spend it.
+At its core, a URI encapsulated payment communicates the existence of a transaction (specifically a note committing to an amount of funds) to a receiving client.  The URI encodes the amount of the payment and a key used to derive all necessary randomness for note construction including the address and secret key needed to spend it.
 
 Usage Story
 -----------
@@ -406,5 +406,4 @@ Publication Blockers
 ====================
 * Register all domains mentioned in this draft (``withzcash.com``, ``testzcash.com``).
 * Clean up semantics.
-
 
