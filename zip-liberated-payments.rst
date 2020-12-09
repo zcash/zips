@@ -41,7 +41,7 @@ At its core, a URI encapsulated payment communicates the existence of a transact
 Usage Story
 -----------
 
-Alice wants to send a 1.23 ZEC payment to Bob. She generates a fresh ephemeral spending key and sends 1.2301 ZEC to it. This transaction is submitted to the network and mined. Meanwhile, Alice constructs a URI containing the ephemeral spending key and appropriate metadata, and sends it to Bob over an end-to-end encrypted channel such as Signal or WhatsApp.
+Alice wants to send a 1.23 ZEC payment to Bob. She generates a fresh ephemeral spending key and sends 1.23001 ZEC to it. This transaction is submitted to the network and mined. Meanwhile, Alice constructs a URI containing the ephemeral spending key and appropriate metadata, and sends it to Bob over an end-to-end encrypted channel such as Signal or WhatsApp.
 
 Bob receives a message, which looks as follows:
 
@@ -406,4 +406,3 @@ Publication Blockers
 ====================
 * Register all domains mentioned in this draft (``withzcash.com``, ``testzcash.com``).
 * Clean up semantics.
-
