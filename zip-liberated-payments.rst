@@ -51,7 +51,7 @@ Bob receives a message, which looks as follows:
 https://pay.withzcash.com:65536/v1#amount=1.23&desc=Payment+for+foo&key=...
     If you do not yet have a Zcash wallet app, see: https://z.cash/wallets
 
-Bob clicks the link. His Zcash mobile wallet app (which is already installed and has configured itself as a handler for URLs of that form) shows up, and tells Bob that a payment of 1.23 ZEC awaits him. The wallet app confirms the existence of the pertinent transactions on the blockchain, and then offers to finalize the payment. Bob clicks the “Finalize” button, and his wallet app generates a transaction moving the money to his own address (using the extra 0.0001 ZEC he has received to pay the transaction fee). When this transaction is confirmed on-chain, Alice’s and Bob’s wallets both indicate that the payment is finalized, and thus Bob can send the funds to other parties.
+Bob clicks the link. His Zcash mobile wallet app (which is already installed and has configured itself as a handler for URLs of that form) shows up, and tells Bob that a payment of 1.23 ZEC awaits him. The wallet app confirms the existence of the pertinent transactions on the blockchain, and then offers to finalize the payment. Bob clicks the “Finalize” button, and his wallet app generates a transaction moving the money to his own address (using the extra 0.00001 ZEC he has received to pay the transaction fee). When this transaction is confirmed on-chain, Alice’s and Bob’s wallets both indicate that the payment is finalized, and thus Bob can send the funds to other parties.
 
 
 Motivation
