@@ -79,7 +79,7 @@ This proposal’s specification of Payment-Encapsulating URIs, and the intended 
 
 * The URIs and protocol should minimize the likelihood of inadvertent misuse, and in particular the risks discussed in “Security Considerations” below.
 
-* The protocol must not leak any information (sender identity, recipient identity, amount, description) to third parties, other than inevitable metadata about the existence of a transaction, the inevitable network communication around sending/receipts of transactions, whatever leakage is induced by the communication channel used to transmit the URI, and whatever is voluntarily shared by the parties.
+* The protocol must not leak any information (sender identity, recipient identity, amount, description) to third parties, other than inevitable metadata about the existence of a transaction, the inevitable network communication around sending/receipt of transactions, whatever leakage is induced by the communication channel used to transmit the URI, and whatever is voluntarily shared by the parties.
 
 * The URIs should allow for future modifications and expansion of the format, without risk of ambiguous parsing.
 
