@@ -2,7 +2,262 @@
 
   ZIP: 311
   Title: Sapling Payment Disclosure
-  Owners: Deirdre Connolly <deirdre@zfnd.org>
-  Status: Reserved
+  Owners: Jack Grigg <jack@electriccoin.co>
+  Status: Draft
   Category: Standards / RPC / Wallet
   Discussions-To: <https://github.com/zcash/zips/issues/387>
+
+
+Abstract
+========
+
+This ZIP describes a mechanism and format for disclosing information about Sapling spends
+and outputs within a transaction. In the typical case, this means enabling a sender to
+present a proof that they transferred funds to a recipient's Sapling address.
+
+
+Motivation
+==========
+
+Payment disclosure is useful in a number of situations, for example:
+
+- A sender may need to prove that their payment was sent and received by a recipient.
+- A third party needs to verify that a payment between sender and recipient was executed
+  successfully.
+
+When a transaction involves only transparent addresses, the sender and recipient can verify payment by examining the blockchain.  A third party can also perform this verification if they know the transparent addresses of the involved parties.
+
+However, if the transaction involves shielded addresses, the blockchain by itself does not contain enough information to allow a record of the payment to be reconstructed and verified.
+
+Let us examine the types of transaction that might occur and when a method of payment disclosure would be useful:
+
+transparent --> transparent
+  The source, destination and amount are visible on the public blockchain. Payment
+  disclosure is not required to view the transaction.
+
+transparent --> shielded
+  The destination address and amount sent to that address cannot be confirmed. Payment
+  disclosure is required.
+
+shielded --> transparent
+  The recipient can see the amount received at their destination address, but cannot
+  identify the sender. Requires either an interactive payment disclosure, or a
+  non-interactive payment disclosure that reveals the sender's address.
+
+shielded --> shielded
+  The sender, recipient and amount are unknown. Payment disclosure required.
+
+
+Use cases
+=========
+
+Managing contributions for an event
+-----------------------------------
+Alice runs an event on behalf of Bob and Carol, who both agree to split the cost equally.
+Alice receives a single payment for half the amount, and wants proof of who it came from
+(so she knows which person to follow up with for the remaining amount). Carol can provide
+a payment disclosure that reveals:
+
+- The correct amount was sent to the Alice's recipient address in the given transaction.
+- Carol was the sender of that transaction (more precisely, Carol controls the spend
+  authority used in that transaction).
+
+and does not reveal:
+
+- Carol's payment address.
+- Any of Carol's other diversified payment addresses.
+- Any of Carol's other transactions.
+
+Donation drive
+--------------
+
+Diana is a well-known individual with a public Sapling payment address (for receiving
+donations). She runs a matching donation drive to the non-profit Totally Legit Bunnies,
+and wants to prove to her followers that she correctly matched their dontations. Diana
+can create a payment disclosure, and post it to her social media account, that reveals:
+
+- The correct amount was sent to the Totally Legit Bunnies' recipient address in the
+  given transaction.
+- The sender of the transaction is the payment address that is associated with Diana.
+
+and does not reveal:
+
+- Any of Diana's other diversified payment addresses.
+- Any of Diana's other transactions.
+
+Merchant dispute
+----------------
+
+Edward goes to CoinCafe to buy a sandwich, and sends funds from his Sapling address to
+CoinCafe's transparent address. They can see a payment has been made, but claim that they
+have not received a payment from Edward. He can create a payment disclosure that reveals:
+
+- Edward was the sender of the given transaction.
+
+and does not reveal:
+
+- Edward's payment address.
+- Any of Edward's other diversified payment addresses.
+- Any of Edward's other transactions.
+
+Shielded withdrawals from an exchange
+-------------------------------------
+
+CorpBux is an exchange with a transparent hot wallet, and enables customers to withdraw
+their funds to Sapling addresses. They can create a payment disclosure, that they can give
+to their customers, that reveals:
+
+- The correct amount was sent to the customer's recipient address in the given transaction.
+- CorpBux was the sender of the given transaction.
+
+
+Requirements
+============
+
+- The payment disclosure may disclose the contents of zero or more Sapling outputs within
+  a single transaction. (Zero outputs is useful for t2z transactions.)
+- Payment disclosures are non-malleable, and can only be created by a sender of the
+  transaction.
+- A payment disclosure may be tied to a challenge, creating an interactive proof.
+- Senders with a Sapling address may choose to provably reveal that address as part of the
+  payment disclosure.
+- Senders are not required to remember any ephemeral data from the creation of a transaction
+  in order to produce a payment disclosure for that transaction. (Performance may be
+  improved if they do cache witness data for spent notes.)
+
+
+Specification
+=============
+
+Payment disclosure data structure
+---------------------------------
+
+A payment disclosure has the following fields:
+
+- `txid`: Transaction id for the given transaction `tx`.
+
+- `msg`: A message field, which could contain a challenge value from the party to whom
+  the payment disclosure is directed.
+
+- `sapling_outputs`: A vector of the Sapling Outputs that we are disclosing
+  [0..tx.shieldedOutputs.len()]
+
+  - `index`: An index into `tx.shieldedOutputs`.
+  - `ock`: The outgoing cipher key that allows this output to be recovered.
+
+- `sapling_spends`: A vector of the Sapling Spends for which we are proving spend authority
+  [0..tx.shieldedSpends.len()]
+
+  - `index`: An index into `tx.shieldedSpends`.
+  - `cv`
+  - `rk`
+  - `zkproof_spend`
+  - [Optional] A payment address proof:
+    - Any `(d, pk_d)` such that `pk_d = [ivk] GH(d)`
+    - `nullifier_addr`
+    - `zkproof_addr`
+  - `spendAuthSig`
+
+- `transparent_inputs`: A vector of the transparent inputs for which we are proving spend
+  authority [0..tx.vin.len()]
+
+  - `index`: An index into `tx.vin`.
+  - `sig`: A BIP 322 signature.
+
+    - TODO: `zcashd` currently only supports the legacy format defined in BIP 322. We may
+      want to backport full BIP 322 support before having transparent input support in
+      this ZIP, to ensure it does what we need.
+    - TODO: BIP 322 specifies consensus rule checks as part of the signature verification
+      process. We will likely need to migrate it over to an equivalent ZIP that specifies
+      these for Zcash (which has a different set of script validation consensus rules).
+
+Creating a payment disclosure
+-----------------------------
+
+The inputs to a payment disclosure are:
+
+- The transaction.
+- The SLIP-44 [#slip-0044]_ coin type.
+- The message :math:`msg` to be included (which may be empty).
+- A vector of `(output_index, ock)` tuples.
+- A vector of tuples of:
+
+  - A Sapling spend index.
+  - Its corresponding expanded spending key :math:`(\mathsf{ask}, \mathsf{nsk}, \mathsf{ovk})`.
+  - (Optional) An associated payment address :math:`(\mathsf{d}, \mathsf{pk_d})`.
+
+- A vector of tuples of:
+
+  - `index`: An index into `tx.vin`.
+  - The inputs to a BIP 322 signature (excluding `message_data`).
+
+The payment disclosure is created as follows:
+
+- For each Sapling spend index:
+
+  - Create a Sapling spend proof for the note that was spent in `tx.shieldedSpends[index]`,
+    using the same anchor, to obtain `(cv, rk, zkproof_spend)` as well as the random α
+    that was generated internally.
+
+  - [Optional] If an associated payment address was provided for this spend index, create
+    a ZIP 304 signature proof for that payment address, using α and `rk` from the
+    previous step. We obtain `(nullifier_addr, zkproof_addr)` from this step.
+
+- For each transparent input index:
+
+  - TODO: Prepare BIP 322 signature inputs.
+
+- Construct an unsigned payment disclosure from the disclosed Sapling outputs, and the
+  above data for the Sapling spends and transparent inputs.
+
+- For each Sapling spend index:
+
+  - Let :math:`\mathsf{rsk} = \mathsf{SpendAuthSig.RandomizePrivate}(α, \mathsf{ask})`.
+
+  - Let :math:`coinType` be the 4-byte little-endian encoding of the coin type in its
+    index form, not its hardened form (i.e. 133 for mainnet Zcash).
+
+  - Let :math:`digest = \mathsf{BLAKE2b}\text{-}\mathsf{256}(\texttt{"ZIP311Signed"}\,||\,coinType, payment_disclosure_digest)`.
+
+  - Let :math:`spendAuthSig = \mathsf{SpendAuthSig.Sign}(\mathsf{rsk}, digest)`.
+
+- For each transparent input index:
+
+  - TODO: Create a BIP 322 signature.
+
+- Return the payment disclosure.
+
+Verifying a payment disclosure
+------------------------------
+
+UIs displaying a payment disclosure MUST support three levels of assurance in a payment disclosure:
+
+- Level 1: The payment disclosure contains valid `ock`s that disclose the specified outputs in the specified transaction.
+  - Full Sapling note decryption MUST succeed for all specified outputs. More precisely, all specified outputs MUST have valid note commitments when recovered using the specified corresponding `ock` via the process in Section 4.17.3.
+  - A payment disclosure that only satisfies level 1 may have been:
+    - modified to be a subset of some other payment disclosure; or
+    - merged with another level 1 payment disclosure for the same transaction; or
+    - extracted from a level 2+ payment disclosure.
+- Level 2: In addition to level 1, the payment disclosure has been created by one or more of the senders of the original transaction.
+
+- Level 3: In addition to level 2, one or more of the proven spend authorities is bound to a
+
+Random notes below here
+
+
+Rationale
+=========
+
+If a sender elects, at transaction creation time, to use an `ovk` of :math:`\bot` for a
+specific Sapling output, then they are unable to subsequently create a payment disclosure
+that discloses that output. This maintains the semantics of `ovk`, in that the sender
+explicitly chose to lose the capability to recover that output.
+
+Payment disclosures that prove Sapling spend authority are not required to reveal a
+sender address. This is because it is impossible: we can "prove" the transaction came from
+any of the diversified addresses linked to the spending key. Fundamentally, the "sender"
+of a transaction is anyone who has access to the corresponding spend authority; in the
+case of Sapling, a spend authority corresponds to multiple diversified addresses. In
+situations where a sender address is already known to the verifier of the payment
+disclosure, it may still be useful to have the option of linking the payment disclosure to
+that address.
