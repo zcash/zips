@@ -31,26 +31,24 @@ By “applink” we mean a platform mechanism for triggering local applications 
 
 Abstract
 ========
+This proposal specifies a mechanism for sending Zcash payments via any unmodified (secure) messaging service, e.g., Signal or WhatsApp. The sender need not know the recipient's address and the recipient need not have a Zcash wallet already installed.
+ Payments occur via an ordinary textual message containing a URI. The URI encodes  the secret spending key of an ephemeral Zcash “wallet address”, to which the funds have been transferred. Anyone who learns the URI can accept this payment, by a “finalization” process which uses the key given in the URI to transfer the encapsulated funds to their own wallet. After that transfer is finalized, via a suitable on-chain transaction by the recipient,  the payment becomes irrevocable.
 
-This proposal defines a mechanism for sending a Zcash payment encapsulated in a URI string. This enables sending Zcash funds over any secure channel, such as via a messaging app, even if the recipient does not yet have Zcash software installed and does not have a Zcash payment address. This is implemented by having the URI convey the secret spending key of an ephemeral Zcash “wallet address”, to which the funds have been transferred. Anyone who learns the URI can accept this payment, by a “finalization” process which uses the key given in the URI to transfer the encapsulated funds to their own wallet. After the payment is finalized, via a suitable on-chain transaction by the recipient, it becomes irrevocable.
+The proposal specifies the syntax and semantics of Payment-Encapsulating URIs, the workflow of generating and handling them, and requisite infrastructure.
 
-The proposal specifies the syntax and semantics of URI-Encapsulated Payments, the workflow of generating and handling them, and requisite infrastructure.
-
-At its core, a URI encapsulated payment communicates the existence of a transaction (specifically a note committing to an amount of funds) to a receiving client.  The URI encodes the amount of the payment and a key used to derive all necessary randomness for note construction including the address and secret key needed to spend it.
 
 Usage Story
 -----------
 
-Alice wants to send a 1.23 ZEC payment to Bob. She generates a fresh ephemeral spending key and sends 1.23001 ZEC to it. This transaction is submitted to the network and mined. Meanwhile, Alice constructs a URI containing the ephemeral spending key and appropriate metadata, and sends it to Bob over an end-to-end encrypted channel such as Signal or WhatsApp.
+Alice wants to send a 1.23 ZEC payment to Bob. She doesn’t have Bob’s Zcash address (and Bob may not even have a wallet or have heard fo Zcash!i). However, she does have some end-to-end encrypted channel to Bob on a secure messaging app, such as Signal or WhatsApp. She instructs her own Zcash wallet to send 1.23 ZEC on that channel. Her wallet then automatically generates a new ephemeral Zcash address and sends 1.23001 ZEC to this address. It then constructs a payment URI containing the secret key corresponding to the ephemeral address, and sends it to Bob via the secure messaging app.
 
-Bob receives a message, which looks as follows:
+Bob receives the message, which looks as follows:
 
     This message contains a Zcash payment.
     Click the following link to view it and receive the funds using your Zcash wallet app: 
     
     https://pay.withzcash.com:65536/v1#amount=1.23&desc=Payment+for+foo&key=...
-    
-    If you do not yet have a Zcash wallet app, see: https://z.cash/wallets
+    If you do not yet have a Zcash wallet, see: https://z.cash/wallets
 
 Bob clicks the link. His Zcash mobile wallet app (which is already installed and has configured itself as a handler for URLs of that form) shows up, and tells Bob that a payment of 1.23 ZEC awaits him. The wallet app confirms the existence of the pertinent transactions on the blockchain, and then offers to finalize the payment. Bob clicks the “Finalize” button, and his wallet app generates a transaction moving the money to his own address (using the extra 0.00001 ZEC he has received to pay the transaction fee). When this transaction is confirmed on-chain, Alice’s and Bob’s wallets both indicate that the payment is finalized, and thus Bob can send the funds to other parties.
 
@@ -64,17 +62,21 @@ Consequently, all functionality related to contact discovery and secure-channel 
 
 Moreover, funds can be sent to users who have not yet installed wallet software and who do not yet have a payment address. The recipient can collect the funds at any later time by installing suitable software.
 
+Additionally, the proposal greatly improves the scalability of Zcash. If a recipient only receives URI payments, they need not scan the blockchain or delegate their view keys to a third party to do so. 
+
+Finally, this avoids the fat-finger problem of sending funds to the wrong address. The user sends funds via a known contact on, e.g., WhatsApp, who they have a relationship with or at least can confirm the recipient’s identity. Moreover, even once funds are sent via a URI, they can be recovered if the other party does not claim them.
+
 The proposal is complementary to ZIP 321 [#zip321]_, which will standardize *Payment Request URIs* using which the payment *recipient* can convey their persistent payment address to the *sender*, for subsequent fund transfers (to be done using the normal on-chain mechanism rather than the encapsulated payments described in the current proposal).
 
 
 Requirements
 ============
 
-This proposal’s specification of Payment-Encapsulating URIs, and the intended protocols for using them, is meant to fulfill the following requirements:
+This proposal’s specification of URI-Encapsulated Payments, and the intended protocols for using them, is meant to fulfill the following requirements:
 
 * The protocol must not require the sender of a payment to stay online until the recipient receives the URI (let alone finalizes the payment).
 
-* The URIs should be short, for convenient rendering and to maximize compatibility with length-limited messaging platforms.
+* For convenient rendering, URIs should be short; this also maximizes compatibility with length-limited messaging platforms.
 
 * It must not be feasible for someone who has not seen the URI (or has compromised a party who has) to collect the funds.
 
@@ -87,6 +89,7 @@ This proposal’s specification of Payment-Encapsulating URIs, and the intended 
 * The on-chain footprint of payments that use this mechanism should be indistinguishable from normal fully-shielded transactions (except, possibly, for the statistics of the number of shielded inputs and outputs).
 
 * Don’t lose funds, even if wallets crash, or everything but the sending wallet master secret is lost.
+
 
 Non-requirements
 ================
@@ -120,7 +123,7 @@ Fragment parameters: these attribute-value pairs, in this order, separated by ``
    If a decimal fraction is present then a period (.) MUST be used as the separating character to separate the whole number from the decimal fraction, and both the whole number and the decimal fraction MUST be nonempty. No other separators (such as commas for grouping or thousands) are permitted. Leading zeros in the whole number or trailing zeros in the decimal fraction are ignored. There MUST NOT be more than 8 digits in the decimal fraction.
 * ``desc=...`` where the attribute is a human-readable string associated with the payment. MAY be present.
    If present, it MUST be encoded as “textual data consisting of characters from the Universal Character Set” as specified in RFC 3986 section 2.5. 
-* ``key=``is a 128 bit random number encoded with Bech32 as specified in Section 5.6.9 of the Zcash Protocol Specification [#protocol]_). MUST be present.
+* ``key=``is a 256-bit random number encoded with Bech32 as specified in Section 5.6.9 of the Zcash Protocol Specification [#protocol]_). MUST be present.
 
 
 Semantics
@@ -128,12 +131,16 @@ Semantics
 
 The values of ``key’’ and ``amount`` deterministically imply a unique *payment note* corresponding to this URI, which is a Zcash Sapling note that carries the given amount and is spendable by a Sapling spending key derived from ``key`. The derivation of this note is done by the following procedure:
 *DerivePaymentNote(key,amount)*:
-    Derive the master extended spending key *(ask, nsk, ovk, dk, c)* according to ZIP 32 [#zip32]_ `Sapling master key generation`_, with *key* as *sk_m*.
-    Fix the diversified d = XXX.
-    Derive *rcm = PRF^expand(sk_m || [0x11])* as specified in [#protocol]_ Section 5.4.2.
-    Derive *pk_d* from *ask* and *nsk* as specified in [#protocol]_ Section 4.2.2.
-    Define the corresponding *payment note* as *n = (d, pk_d, amount, rcm)*  (see [#protocol]_ Section 3.2).
-    Define the corresponding a *payment note commitment* as *cm = NoteCommit^Sapling_rcm (repr_J (dk),repr_J (pk_d ), value)* as specified in [#protocol]_ Section 5.4.7.2.
+    Derive *pk_d* from *key* via the process defined in [#protocol]_ Section 4.2.2 (setting *sk = key*.
+    Fix the diversified d = DefaultDiversifier(key).
+    Derive *rseed = PRF^expand(sk_m || [0xFIXME])* as specified in [#protocol]_ Section 5.4.2.
+    Define the corresponding *payment note* as *n = (d, pk_d, amount, rseed)*  (see [#protocol]_ Section 3.2 (https://zips.z.cash/protocol/protocol.pdf#notes)).
+
+TODO: Possible alternate way to derive `pk_d` and `rseed` from `key`:
+Use PRF^expand on key with to-be-defined domain separation to obtain 64 bytes. Split this into two 32-byte values.
+First 32-byte value is sk; derive pk_d from this as in the spec.
+Second 32-byte value is rseed.
+Could also mix in other parts of the URI (amount, desc) to bind them here, without interfering with the existing key derivation process in the spec.
 
 Construct a shielded zcash transaction containing that note as an output.
 
@@ -141,17 +148,21 @@ The payment note SHOULD be unspent at the time it is intended to be received by 
 
 Clients MAY generate and send the URI before the transaction is built, sent, or confirmed.
 
-The ``amount`` parameter MUST match the total amount of ZEC in the payment note plus the standard transaction fee for fully-shielded transactions (currently 0.0001 ZEC).
+The ``amount`` parameter MUST match the total amount of ZEC in the payment note plus the standard transaction fee for fully-shielded transactions (currently 0.00001 ZEC).
 
-There MUST NOT exist any other notes on the blockchain, beyond the payment note derived from the Payment URI, that are addressed to a payment address derived from ``key``. Such notes MAY be generated within an implementation (e.g., as speculative pre-generation) but MUST NOT be broadcast for mining. 
+There MUST NOT exist any other notes on the blockchain, or broadcast to the node network, beyond the payment note derived from the Payment URI, that are addressed to any payment address derived from ``key`` (with any diversifier). Such notes MAY be generated within an implementation (e.g., as speculative pre-generation with various note values) but MUST NOT be broadcast for mining. 
+
+Wallet software MUST NOT expose the ephemeral payment address corresponding to a payment URI (which helps to ensure the prior paragraph).
 
 The ``desc`` parameter MAY convey a human-readable description of the payment, entered manually by the user or generated by the application in any reasonable manner.
 
-The encrypted memo fields in the output description containing the payment note commitment MUST be either empty (all-zero), or identical to the ``desc`` parameter (padded with zeros). 
+The encrypted memo fields in the output description containing the payment note commitment SHOULD be either empty (all-zero), or identical to the ``desc`` parameter (padded with zeros). 
+
+The payment associated with an URI is not deemed “received” by the recipient until they execute a “finalization” process (see section FOO).
 
 When conveying payment to users, the sender’s and recipient’s wallet software MAY convey the description encoded in the ``desc`` parameter.
 
-The recipient’s wallet software SHOULD convey to the user that the ``amount`` and ``desc`` values are merely a claim made by the party who sent the URI, and may be tentative, inaccurate or malicious.
+The recipient’s wallet software SHOULD convey to the user that the ``desc`` value is merely a claim made by the party who sent the URI, and may be tentative, inaccurate or malicious.
 
 In particular, the recipient’s wallet software SHOULD convey to the user that the amount of ZEC they can successfully transfer to their wallet may be different than that given by the ``amount`` parameter, and may change (possibly to zero), until the finalization process has been completed.
 
@@ -184,27 +195,6 @@ A separate “testnet whitelist” MUST be maintained by the owner of the ``test
 Wallets apps MAY support just one type of payments (ZEC or TAZ), and if they support both then they MUST keep separate accounting and must clearly distinguish the type when payments or balances are conveyed to users.
 
 
-Rationale for URI Format
-------------------------
-
-The URI format ``https://pay.withzcash.com:65536/v1#...``  was chosen to allow automatic triggering of wallet software on mobile devices, using the platform’s applink_ mechanism, while minimizing the risk of payment information being intercepted by third parties. The latter is prevented by a defense in depth, where any of the following suffices to prevent the payment information from being exposed over the network:
-* The ``pay.withzcash.com`` domain should not resolve.
-* A valid TLS certificate for ``pay.withzcash.com`` should not exist..
-* The port number ``65536`` is not valid for the TCPv4, TCPv6 or UDP protocols. Empirically, the common behavior in browsers and messaging apps, when following HTTPS links with port number port number 65536, is to render an empty or `about:blank` page rather than a DNS error; a network fetch is not triggered. (This may change if a network proxy protocol is used, but SOCKS5 also cannot represent port 65536.)
-* The contents of the fragment identifier are specified by HTTP as being resolved locally, rather than sent over the network (but see the caveat about active JavaScript attacks below).
-
-The downside is that if the user follows the link prior to installing a suitable wallet app, they get a weird-looking DNS error or a blank page. Also, the URL looks weird due to the port number.
-
-Several alternatives were considered, but found to have inferior usability and/or security ramifications:
-
-1.  ``https://pay.withzcash.com/v1#...``: similar to above, but without the port number, and backed by a DNS record, TLS certificate and web server for ``pay.withzcash.com`` that serves an informative HTML page (e.g., “Please install a wallet to receive this payment”). This still allows handling by wallet apps using an applink_ mechanism, and provides a friendlier fallback in case the user follows the link prior to installing a suitable app. However, it creates a security risk. If the web server serving that web page is compromised, or impersonated using an DNS+TLS attack, then the attacker can capture they payment parameters and steal the funds. (Note that the sensitive information is in the fragment following the ``#``, which is not sent in an HTTP GET request; but the malicious server can serve JavaScript code which retrieves the fragment.)
-
-2. ``zcash-data:payment/v1?amount=1.23&desc=Payment+for+foo&key=...&seedcmu=...``: a custom URI scheme, such as ``zcash-data``. This still allows for triggering application action (e.g., using Mobile Deep Links). However, on most platorms, *any* app installed on the device is able to register to handle links from (almost) any custom URI scheme. If the request is received by a rogue party, then the funds could be stolen. Even if received by an honest operator, funds could be stolen if they are compromised. Also, custom URI schemes are not linkified when displayed in some messaging apps.
-
-   Note the use of the ``zcash-data`` URI scheme, rather than the more elegant ``zcash``, because URIs of the form ``zcash:address?...`` are already used to specify Zcash addresses and payment requests in ZIP 321 [#zip321]_, by analogy to the ``bitcoin`` URIs of BIP 21. An alternative is to use ``zcash:v1/payment?...``; legacy software may parse this as a payment request to the address ``v1``, which is invalid. Another alternative is to use ``zcash-payment:v1?...``, which is appealing in terms of length and readability, but may be gratuitous pollution of the URI scheme namespace.
-
-Another option, which can be added to any of the above, is to add a confirmation code outside the URI that needs to be manually entered by the user into the wallet app, so that merely intercepting the URI link would not suffice. This does not seem to significantly reduce risk in the scenarios considered, and so deemed to not justify the reduced usability.
-
 
 Lifecycle Specification
 =======================
@@ -214,6 +204,17 @@ The lifecycle of a Payment-Encapsulating URI consists of several stages, which i
 Generating the notes and URI
 ----------------------------
 The sender’s Zcash wallet app creates an ephemeral spending key, sends ZEC funds to the payment addressed derived from that key, and creates a Payment-Encapsulating URI that contains this ephemeral spending key and the newly-generated note commitments.
+
+ 
+Ephemeral key derivation
+````````````````````````
+The ephemeral keys within payment URIs are derived deterministically from the same seed as the main wallet. This ensures that if a wallet is recovered from backup, sent-but-unfinalized payments can be reclaimed.
+
+The derivation mechanism is as follows:
+Use a ZIP 32 derivation pathway to obtain a child extended spending key from path m_Sapling/zip_number'/coin_type'/payment_index'
+Implementations need to remember which payment_index values they have used (in range 0..2^31), and not reuse them.
+TODO: fill in zip_number once one is assigned.
+Compute `key = BLAKE2b-256(extended spending key, personal=’Zcash_PaymentURI’)`
 
 URI Transmission
 ----------------
@@ -236,7 +237,7 @@ Payment Rendering and Blockchain Lookup
 ---------------------------------------
 The recipient’s Zcash wallet app SHOULD present the payment amount and MAY present the description, as conveyed in the URI, along with an indication of the tentative nature of this information.
 
-In parallel, the wallet app SHOULD retrieve the relevant transactions from the Zcash blockchain, by looking up the transactionnote commitments given by the ``seedcmu`` parameter (this MAY use an efficient index, perhaps assisted by a server), and check whether:
+In parallel, the wallet app SHOULD retrieve the relevant transactions from the Zcash blockchain, by looking up the transaction given by the ``cmu`` parameter (this MAY use an efficient index, perhaps assisted by a server), and check whether:
 * such transactions are indeed present on the blockchain
 * the notes are unspent
 * the notes can be spent using an ephemeral spending keys given by the ``key`` parameter.
@@ -267,14 +268,34 @@ Payment Cancellation
 --------------------
 At any time prior to the payment being finalized, the sender is capable of cancelling the payment, by themselves finalizing the payment into their own wallet (thereby “clawing back” the funds). If the wallet has not yet sent, for inclusion in the blockchain, any of the transactions associated with the ephemeral spending key, then cancellation can also be done by discarding these transactions or aborting their generation. The sender’s wallet app SHOULD offer this feature, and in this case, MUST appropriately handle the race condition where the recipient initiated finalization concurrently.
 
+Cancellation requires the sender to know the ephemeral spending key. If the sender has lost this state, it can be recovered deterministically (see `Recovery From Wallet Crash`_, below).
 
 Status View
-------------
-
+-----------
 Wallet apps SHOULD let the user view the status of all payments they have generated, as well as all inbound payment (i.e., Payment-Encapsulating URIs that have been sent to the app, e.g., by invocation from messaging apps). The status includes the available metadata, and the payment’s current state. When pertinent, the wallet app SHOULD offer the ability to finalize any *Pending* inbound payment, and MAY offer the ability to cancel any outbound payment.
 
 Wallet apps SHOULD actively alert the user (e.g., via status notifications) if a payment that they sent has not been finalized within a reasonable time period (e.g., 1 week), and offer to cancel the payment.
 
+
+Recovery From Wallet Crash
+--------------------------
+When recovering from a backed-up wallet phrase, wallet implementations already need to scan the entire chain (from the wallet’s birthday) to find transactions that were received by or sent from the wallet. Simultaneously with this, the wallet may recover state about previously-created payment URIs, and regain access to non-finalized funds.
+
+We define a “gap limit” N, similar to the “address gap limit” in BIP 44. If a wallet implementation observes N sequentially-derived payment URIs that have no corresponding on-chain note, they may safely expect that no payment URIs beyond that point have ever been derived.
+
+Given that both the derivation of a payment URI and the action of “filling” it with a note are performed by the same entity (and in most cases sequentially), it is unlikely that there would be a significantly large gap in payment URI usage. As a balance between the cost of scanning multiple *ivk*s, and the likelihood of missing on-chain funds due to out-of-order payment URI generation, we specify a standard gap limit of N = 3.
+
+The process for determining the position of this gap during wallet recovery is as follows:
+Derive the first N payment URI keys.
+Derive the N *ivk*s corresponding to these keys via the process defined in [#protocol]_ Section 4.2.2 (setting *sk = key*).
+Scan the chain for spent nullifiers (for the wallet’s own notes, or any payment URI notes it currently knows about). This is part of the normal chain-scanning process for wallets.
+When a nullifier is detected as spent, trial-decrypt every output of the corresponding transaction with the current set of payment URI *ivk*s. If a note is detected:
+Store the note details along with the corresponding payment URI (which can be derived from the note).
+Add the note’s nullifier to the set of wallet nullifiers (to enable discovery of funded payment URIs that the sender has recalled).
+Drop the *ivk* from the set of current payment URI *ivk*s.
+Derive the next *ivk* in line, and add it to the set.
+
+For this recovery process to succeed, wallet implementations MUST fund payment URIs with a Sapling spending key in the wallet. Alternatively, wallet implementations MAY include the set of payment URI *ivk*s within the set of *ivk*s they are using for normal chain scanning, but this will slow down the recovery process by a factor of 4 (for a gap limit of N = 3, and a wallet with one Sapling account).
 
 Security Considerations
 =======================
@@ -308,58 +329,36 @@ Security Considerations
 
 * Usage of Payment-Encapsulating URIs may train users to, generally, click on other types of URI/URL links sent in other messaging contexts. Malicious links sent via unauthenticated messaging channels (e.g., emails and SMS texts) are a common attack vector, used for exploiting vulnerabilities in the apps triggered to handle these links. Even though the fault for vulnerabilities lies with those other apps, and even though this ZIP uses deep link URIs in the way intended, there are none the less these negative externalities to encouraging such use.
 
-* 
 
 Design Decisions and Rationale
 ==============================
 
-See `Rationale for URI Format`_ above. Moreover:
-
-1. The metadata (amount and description) is provided within the URI. An alternative would be to encode the description in the encrypted memo fields of the associated shielded transactions, and compute the amount from those transactions. However, in that case the metadata would not be available for presentation to the user until the transactions have been retrieved from the blockchain.
-
-2. We support multiple spending keys and multiple notes in one URI, because these payments may be speculatively generated and mined before the payment amount is determined (to allow payments with no latency). For example, the sending wallets may pre-generate transactions for powers-of-2 amounts, and then include only a subset of them in the URI, totalling to the desired amount.
-
-3. We do not include the sender or receiver’s identity in the URI, because the sending wallet many not know the name of who it is sending to (or even from). Moreover there is the risk that fraudulent sender/recipient information could be used. If necessitated by circumstances (e.g., the `Travel Rule`_), claimed sender and recipient identity can be included in ``desc`` parameter.
-
-
-Open Questions
-==============
-
-Ephemeral Key Derivation
+Rationale for URI Format
 ------------------------
-Specify how the ephemeral spending keys can be derived from a seed a la ZIP 32, so that if a wallet is recovered from backup, sent-but-unfinalized payments can be reclaimed.
-This requires a deterministic key-derivation mechanism, and means to find payments that can be recovered given just the wallet seed and the blockchain ledger.
 
-Sketch:
-Use a ZIP 32 derivation pathway to obtain a child extended spending key from path m_Sapling/zip_number'/coin_type'/payment_index'
-Implementations need to remember which payment_index values they have used (in range 0..2^31), and not reuse them.
-Convert the child ExtSK into a “URI seed” (e.g. hash the entire key), and provide that to the recipient.
-The intent of this step is to shorten the value that goes into the URI, while keeping it linked to the sender’s backed-up wallet seed for recovery purposes.
-The length of this URI seed can be “short” (e.g. 128 bits instead of 256) given that funds are not intended to be stored long-term underneath this secret (one of the sender or recipient is expected to scrape funds back into a long-term address)
-Use PRF^expand on the URI seed with to-be-defined domain separation to obtain 64 bytes. Split this into two 32-byte values.
-First 32-byte value is sk_m; derive spending key from this as in the spec / ZIP 32.
-Second 32-byte value is the root for deriving randomness following ZIP 212.
+The URI format ``https://pay.withzcash.com:65536/v1#...``  was chosen to allow automatic triggering of wallet software on mobile devices, using the platform’s applink_ mechanism, while minimizing the risk of payment information being intercepted by third parties. The latter is prevented by a defense in depth, where any of the following suffices to prevent the payment information from being exposed over the network:
+* The ``pay.withzcash.com`` domain should not resolve.
+* A valid TLS certificate for ``pay.withzcash.com`` should not exist..
+* The port number ``65536`` is not valid for the TCPv4, TCPv6 or UDP protocols. Empirically, the common behavior in browsers and messaging apps, when following HTTPS links with port number port number 65536, is to render an empty or `about:blank` page rather than a DNS error; a network fetch is not triggered. (This may change if a network proxy protocol is used, but SOCKS5 also cannot represent port 65536.)
+* The contents of the fragment identifier are specified by HTTP as being resolved locally, rather than sent over the network (but see the caveat about active JavaScript attacks below).
 
+The downside is that if the user follows the link prior to installing a suitable wallet app, they get a weird-looking DNS error or a blank page. Also, the URL looks weird due to the port number.
 
-URI Usability
--------------
-The URI could  be changed in several ways due to usability concerns:
+Several alternatives were considered, but found to have inferior usability and/or security ramifications:
 
-1. It may be desirable to prevent the ``amount`` and ``desc`` parameters from being human readable. This is to discourage people from just looking at the URI, seeing the numbers and text, and mistakenly thinking this is already a confirmation of successful receipt (without going through the finalization process). 
+1.  ``https://pay.withzcash.com/v1#...``: similar to above, but without the port number, and backed by a DNS record, TLS certificate and web server for ``pay.withzcash.com`` that serves an informative HTML page (e.g., “Please install a wallet to receive this payment”). This still allows handling by wallet apps using an applink_ mechanism, and provides a friendlier fallback in case the user follows the link prior to installing a suitable app. However, it creates a security risk. If the web server serving that web page is compromised, or impersonated using an DNS+TLS attack, then the attacker can capture they payment parameters and steal the funds. (Note that the sensitive information is in the fragment following the ``#``, which is not sent in an HTTP GET request; but the malicious server can serve JavaScript code which retrieves the fragment.)
 
-2. Perhaps the URI should be contain the phrase “password” early on (e.g., ``zcash-data:/payment/v1/password=``, as a cue that this string must be kept secret. (Note that technically nothing here is a password in the usual sense of the term.)
+2. ``zcash-data:payment/v1?amount=1.23&desc=Payment+for+foo&key=...``: a custom URI scheme, such as ``zcash-data``. This still allows for triggering application action (e.g., using Mobile Deep Links). However, on most platorms, *any* app installed on the device is able to register to handle links from (almost) any custom URI scheme. If the request is received by a rogue party, then the funds could be stolen. Even if received by an honest operator, funds could be stolen if they are compromised. Also, custom URI schemes are not linkified when displayed in some messaging apps.
 
-3. Perhaps we should actually use BIP 39 words as an actual password. So you could memorize it or read it over the phone. The BIP 39 words can be embedded in the URI itself (which is highly unusual):
-   ``zcash-data:payment/v1/password=witch+collapse+practice+feed+shame+open+despair+creek+road+again+ice+least``
-   or
-   ``zcash-data:payment/v1/password=WitchCollapsePracticeFeedShameOpenDespairCreekRoadAgainIceLeast``
-   This provides an additional cue that the URI contains a sensitive password (for users who are accustomed to BIP 39 style word lists; to others the Base 64 encoding may be more evocative of a password). Moreover, users may discover the fact that they can manually send these words to recipients, in writing or verbally, as a way to send money without a textual messaging service.   
-   Alternatively, the BIP 39 words can be used as an alternative syntax for the encapsulation, without the confusing-to-humans URI syntax (but generating this alternative syntax this may complicate the UI).
+   Note the use of the ``zcash-data`` URI scheme, rather than the more elegant ``zcash``, because URIs of the form ``zcash:address?...`` are already used to specify Zcash addresses and payment requests in ZIP 321 [#zip321]_, by analogy to the ``bitcoin`` URIs of BIP 21. An alternative is to use ``zcash:v1/payment?...``; legacy software may parse this as a payment request to the address ``v1``, which is invalid. Another alternative is to use ``zcash-payment:v1?...``, which is appealing in terms of length and readability, but may be gratuitous pollution of the URI scheme namespace.
 
+Another option, which can be added to any of the above, is to add a confirmation code outside the URI that needs to be manually entered by the user into the wallet app, so that merely intercepting the URI link would not suffice. This does not seem to significantly reduce risk in the scenarios considered, and so deemed to not justify the reduced usability.
 
 Identifying Notes
 -----------------
 The recipient’s wallet needs to identify the notes related to the payment (and the on-chain transactions that contain them), in order to verify their validity and then (during the finalization process) spend them. 
+
+**The following is out of date, and reflects an earlier design choice (“0”), while we have transitioned to a different choice (“4”). To be revised.**
 
 In the above description, we explicitly list the notes involved in the payment (which are easily mapped to the transactions containing them, using a suitable index). This results in long URIs when multiple notes are involved (e.g., when using the aforementioned “powers-of-2 amounts” technique).
 
@@ -377,7 +376,38 @@ Instead, we can have the nodes be implicitly identified by the spending key (or 
 
 4. Have the URI include a seed and the amount of the (single) output note. Let the seed determine not only the spending key, but also all randomness involved in the generation of the note. Thus, the recipient can deterministically derive the note commitment from the seed and amount, and look it up to find the relevant transaction. This requires the recipient (or the server assisting them) to maintain an index mapping note commitments (of output descriptors that are the first in their transaction) to the transaction that contains them. Additional notes can be included in the same transaction.
 
+Additional rationale
+--------------------
 
+1. The metadata (amount and description) is provided within the URI. An alternative would be to encode the description in the encrypted memo fields of the associated shielded transactions, and compute the amount from those transactions. However, in that case the metadata would not be available for presentation to the user until the transactions have been retrieved from the blockchain.
+
+2. We support multiple spending keys and multiple notes in one URI, because these payments may be speculatively generated and mined before the payment amount is determined (to allow payments with no latency). For example, the sending wallets may pre-generate transactions for powers-of-2 amounts, and then include only a subset of them in the URI, totalling to the desired amount.
+
+3. We do not include the sender or receiver’s identity in the URI, because the sending wallet many not know the name of who it is sending to (or even from). Moreover there is the risk that fraudulent sender/recipient information could be used. If necessitated by circumstances (e.g., the `Travel Rule`_), claimed sender and recipient identity can be included in ``desc`` parameter.
+
+
+Open Questions
+==============
+
+Note retrieval: 
+Ideally: a lightweight wallet can receive the funds with the assistance of a more powerful node, with minimal information leakage to that node (e.g., using simple lookups queries that can be implemented via Private Information Retrieval). The open question is how to do this given that most practical PIR are for retrieving an index out of an array, not a key from a key value standpoint. 
+
+
+
+URI Usability
+-------------
+The URI could  be changed in several ways due to usability concerns:
+
+1. It may be desirable to prevent the ``amount`` and ``desc`` parameters from being human readable. This is to discourage people from just looking at the URI, seeing the numbers and text, and mistakenly thinking this is already a confirmation of successful receipt (without going through the finalization process). 
+
+2. Perhaps the URI should be contain the phrase “password” early on (e.g., ``zcash-data:/payment/v1/password=``, as a cue that this string must be kept secret. (Note that technically nothing here is a password in the usual sense of the term.)
+
+3. Perhaps we should actually use BIP 39 words as an actual password. So you could memorize it or read it over the phone. The BIP 39 words can be embedded in the URI itself (which is highly unusual):
+   ``zcash-data:payment/v1/password=witch+collapse+practice+feed+shame+open+despair+creek+road+again+ice+least``
+   or
+   ``zcash-data:payment/v1/password=WitchCollapsePracticeFeedShameOpenDespairCreekRoadAgainIceLeast``
+   This provides an additional cue that the URI contains a sensitive password (for users who are accustomed to BIP 39 style word lists; to others the Base 64 encoding may be more evocative of a password). Moreover, users may discover the fact that they can manually send these words to recipients, in writing or verbally, as a way to send money without a textual messaging service.   
+   Alternatively, the BIP 39 words can be used as an alternative syntax for the encapsulation, without the confusing-to-humans URI syntax (but generating this alternative syntax this may complicate the UI).
 
 
 Other Questions
@@ -405,5 +435,5 @@ References
 
 Publication Blockers
 ====================
-* Register all domains mentioned in this draft (``withzcash.com``, ``testzcash.com``).
 * Clean up semantics.
+
