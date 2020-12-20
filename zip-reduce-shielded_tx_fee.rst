@@ -45,7 +45,7 @@ Security and Programmable Money aspects of the Zcash chain.
 
 
 Motivation
-============
+==========
 
 The default transaction fee presently is 0.0001 ZEC or 10,000 zats.
 With ZEC market price of $100, a user can send 10,000 transactions
