@@ -20,10 +20,10 @@ described in RFC 2119. [#RFC2119]_
 "Z" refers to shielded address.
 "T" refers to transparent address.
 
-The term "default transaction fee" or "conventional transaction fee"
-in this document is in reference to Z to Z transaction fee paid
-to miners on the Zcash network for the work on including
-the shielded transaction in a block.
+The term "conventional transaction fee" in this document is in reference
+to the value of a transaction fee that is conventionally used by wallets,
+and that a user can reasonably expect miners on the Zcash network to accept
+for including a transaction in a block.
 
 
 Abstract
