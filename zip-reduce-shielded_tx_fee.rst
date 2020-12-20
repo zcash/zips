@@ -38,11 +38,6 @@ In addition, this specification harmonizes transaction fees between different
 kinds of transaction (involving shielded addresses, transparent addresses, or
 both), as proposed in [#ecosystem-wide-tx-fee]_.
 
-With reduced fees, it will be cheaper to transact on the Zcash network,
-while also inviting novel use cases for privacy
-preserving applications that would benefit from the Privacy,
-Security and Programmable Money aspects of the Zcash chain.
-
 
 Motivation
 ==========
