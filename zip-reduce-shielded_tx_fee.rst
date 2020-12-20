@@ -30,9 +30,13 @@ Abstract
 ========
 
 The goal of this ZIP is to gather wallet developers, miners & Zcash users
-for consensus on reducing the default transaction fees and
-to get the Zcash default transaction fee reduced from 10,000 zats
-to 1000 zats.
+for social consensus on reducing the conventional transaction fees and
+to get the Zcash conventional transaction fee reduced from 10,000 zatoshis
+to 1,000 zatoshis.
+
+In addition, this specification harmonizes transaction fees between different
+kinds of transaction (involving shielded addresses, transparent addresses, or
+both), as proposed in [#ecosystem-wide-tx-fee]_.
 
 With reduced fees, it will be cheaper to transact on the Zcash network,
 while also inviting novel use cases for privacy
