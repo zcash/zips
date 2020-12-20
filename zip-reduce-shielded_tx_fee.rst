@@ -5,7 +5,7 @@
   Owners: Aditya Bharadwaj <nighthawk24@gmail.com>
   Status: Active
   Community Status: Request for comments : https://forum.zcashcommunity.com/t/zip-reduce-default-shielded-transaction-fee-to-1000-zats/37566
-  Category: Consensus
+  Category: Wallet
   Created: 2020-10-11
   License: MIT
 
