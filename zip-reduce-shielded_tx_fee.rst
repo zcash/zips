@@ -1,7 +1,7 @@
 ::
 
   ZIP: 313
-  Title: Reduce default Shielded Transaction fee to 1000 zats
+  Title: Reduce Default Transaction Fee to 1000 zatoshis
   Owners: Aditya Bharadwaj <nighthawk24@gmail.com>
   Original-Author: Aditya Bharadwaj
   Status: Active
