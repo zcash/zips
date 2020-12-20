@@ -3,7 +3,7 @@
   ZIP: 313
   Title: Reduce Default Transaction Fee to 1000 zatoshis
   Owners: Aditya Bharadwaj <nighthawk24@gmail.com>
-  Status: Active
+  Status: Proposed
   Community Status: Request for comments : https://forum.zcashcommunity.com/t/zip-reduce-default-shielded-transaction-fee-to-1000-zats/37566
   Category: Wallet
   Created: 2020-10-11
