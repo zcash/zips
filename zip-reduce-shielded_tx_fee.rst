@@ -149,6 +149,6 @@ References
 
 .. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
 .. [#nathan-1] `Conventional Shielded Fees <https://forum.zcashcommunity.com/t/zip-reduce-default-shielded-transaction-fee-to-1000-zats/37566/40>`_
-.. [#ian-1] `Mechanism for fee suggester/oracle <https://forum.zcashcommunity.com/t/zip-reduce-default-shielded-transaction-fee-to-1000-zats/37566/31>`_
+.. [#ian-1] `Ian Miers. Mechanism for fee suggester/oracle <https://forum.zcashcommunity.com/t/zip-reduce-default-shielded-transaction-fee-to-1000-zats/37566/31>`_
 .. [#zooko-1] `Zooko Wilcox. Tweet on reducing tx fees <https://twitter.com/zooko/status/1295032258282156034?s=20>`_
 .. [#zooko-2] `Zooko Wilcox. Tweet on sharing tx fee with wallet developer <https://twitter.com/zooko/status/1295032621294956545?s=20>`_
