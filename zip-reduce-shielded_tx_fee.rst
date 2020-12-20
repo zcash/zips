@@ -42,10 +42,10 @@ both), as proposed in [#ecosystem-wide-tx-fee]_.
 Motivation
 ==========
 
-The default transaction fee presently is 0.0001 ZEC or 10,000 zats.
-With ZEC market price of $100, a user can send 10,000 transactions
-for 1 ZEC, that turns out to 1 cent per transaction and it rises
-with the increase in the price of ZEC.
+The default transaction fee presently is 0.0001 ZEC or 10,000 zatoshis.
+At a ZEC market price of USD 100, for example, a user can send 10,000
+transactions for 1 ZEC. This works out to 1 U.S. cent per transaction and
+it rises with any increase in the price of ZEC.
 
 With increase in light wallet adoptions on mobile clients, many users
 will be new to the Zcash eco-system. And the fact that the
