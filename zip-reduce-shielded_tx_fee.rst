@@ -17,9 +17,6 @@ The key words "MUST", "SHOULD", "SHOULD NOT", "MAY", "RECOMMENDED",
 "OPTIONAL", and "REQUIRED" in this document are to be interpreted as
 described in RFC 2119. [#RFC2119]_
 
-"Z" refers to shielded address.
-"T" refers to transparent address.
-
 The term "conventional transaction fee" in this document is in reference
 to the value of a transaction fee that is conventionally used by wallets,
 and that a user can reasonably expect miners on the Zcash network to accept
@@ -67,7 +64,7 @@ aspects of the Zcash chain.
 The harmonization of fees between different kinds of transaction can be
 expected to improve usability, consistency, and predictability.
 
-Requirements for consensus
+Requirements for adoption
 -------------------------
 
 The change to the conventional transaction fees should be undertaken soon
