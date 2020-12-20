@@ -2,7 +2,7 @@
 
   ZIP: 313
   Title: Reduce Default Transaction Fee to 1000 zatoshis
-  Owners: Aditya Bharadwaj <nighthawk24@gmail.com>
+  Owners: Aditya Bharadwaj <nighthawkwallet@protonmail.com>
   Status: Proposed
   Community Status: Request for comments : https://forum.zcashcommunity.com/t/zip-reduce-default-shielded-transaction-fee-to-1000-zats/37566
   Category: Wallet
@@ -13,8 +13,7 @@
 Terminology
 ===========
 
-The key words "MUST", "SHOULD", "SHOULD NOT", "MAY", "RECOMMENDED",
-"OPTIONAL", and "REQUIRED" in this document are to be interpreted as
+The key words "MUST" and "SHOULD" in this document are to be interpreted as
 described in RFC 2119. [#RFC2119]_
 
 The term "conventional transaction fee" in this document is in reference
@@ -144,6 +143,7 @@ Acknowledgements
 ================
 
 Thanks to Nathan Wilcox for suggesting improvements to the denial of service section.
+Thanks to Daira Hopwood for reviewing and fixing the wording in this ZIP.
 
 
 References
