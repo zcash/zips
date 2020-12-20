@@ -136,14 +136,6 @@ Additional Owners will be selected by consensus among the current Owners.
 
 Thanks to Nate Wilcox for improve the Denial of Service section.
 
-ZIP Comments
-============
-
-Comments from the community on the ZIP should occur on the Zcash
-Community Forum and the comment fields of the pull requests in
-any open ZIPs. Owners will use these sources to judge rough consensus.
-
-
 References
 ==========
 
