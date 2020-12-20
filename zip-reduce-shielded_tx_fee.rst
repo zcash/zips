@@ -59,6 +59,13 @@ buys 1GB of mobile data `in India today <https://www.cable.co.uk/mobiles/worldwi
 Zcash users must be able to do more with their ZEC balance
 than worry about paying the premium for shielded transactions.
 
+With reduced fees, it will be cheaper to transact on the Zcash network,
+while also inviting novel use cases for privacy-preserving applications
+that would benefit from the privacy, security, and programmable money
+aspects of the Zcash chain.
+
+The harmonization of fees between different kinds of transaction can be
+expected to improve usability, consistency, and predictability.
 
 Requirements for consensus
 -------------------------
