@@ -44,12 +44,6 @@ preserving applications that would benefit from the Privacy,
 Security and Programmable Money aspects of the Zcash chain.
 
 
-Out of Scope for this Proposal
-============
-
-Discussion around transaction fees for T to T, T to Z or Z to T.
-
-
 Motivation
 ============
 
