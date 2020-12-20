@@ -72,7 +72,7 @@ of wallets, exchanges, miners and third parties involved.
 
 The following parties need to be part of the consensus:
 
-* A guarantee from mining groups is required to include the lowered default fee transactions in the next block.
+* Support from mining groups is required to include the lowered default fee transactions in the next block.
 * Wallet developers need to provide commitment to update the software to use the new fee.
 * Zcash documentation and community outreach must be undertaken to make the change known.
 
