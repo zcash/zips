@@ -116,7 +116,7 @@ Index of ZIPs
     <tr> <td>310</td> <td class="left"><a href="zip-0310.rst">Security Properties of Sapling Viewing Keys</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">311</span></td> <td class="left"><a class="reserved" href="zip-0311.rst">Sapling Payment Disclosure</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">312</span></td> <td class="left"><a class="reserved" href="zip-0312.rst">Shielded Multisignatures using FROST</a></td> <td>Reserved</td>
-    <tr> <td><span class="reserved">313</span></td> <td class="left"><a class="reserved" href="zip-0313.rst">Reduce Default Transaction Fee</a></td> <td>Reserved</td>
+    <tr> <td>313</td> <td class="left"><a href="zip-0313.rst">Reduce Conventional Transaction Fee to 1000 zatoshis</a></td> <td>Active</td>
     <tr> <td>321</td> <td class="left"><a href="zip-0321.rst">Payment Request URIs</a></td> <td>Proposed</td>
     <tr> <td><span class="reserved">339</span></td> <td class="left"><a class="reserved" href="zip-0339.rst">Wallet Recovery Words</a></td> <td>Reserved</td>
     <tr> <td>400</td> <td class="left"><a href="zip-0400.rst">Wallet.dat format</a></td> <td>Draft</td>
