@@ -1,9 +1,10 @@
 ::
 
   ZIP: 309
-  Title: Add support for Blind Off-chain Lightweight Transactions (Bolt) protocol
-  Authors: J. Ayo Akinyele <ayo@boltlabs.io>
-           Colleen Swanson <swan@boltlabs.io>
+  Title: Add support for zk-Channels protocol
+  Authors: J. Ayo Akinyele <ayo@zk-Channelslabs.io>
+           Colleen Swanson <swan@zk-Channelslabs.io>
+           Raphael Toledo <contat@raphael-toledo.com>
   Credits: Ian Miers <imiers@z.cash>
            Matthew Green <mgreen@z.cash>
   Category: Informational
@@ -19,93 +20,188 @@ The key words "MUST" and "MUST NOT" in this document are to be interpreted as de
 Abstract
 ========
 
-This proposal specifies three possible approaches for integrating the Blind Off-chain Lightweight Transaction (Bolt) protocol [#bolt-paper]_ into Zcash.
+This proposal specifies three possible approaches for integrating the zk-Channels protocol [#zk-Channels-paper]_ into Zcash.
 
 Motivation
 ==========
 
-Layer 2 protocols like Lightning enable scalable payments for Bitcoin but lack the mechanisms to provide strong privacy guarantees on the payment network. Zcash offers private transactions but currently lacks features that would enable a Lightning-style payment channel. This proposal specifies an integration of the Bolt privacy-preserving payment channel protocol on top of Zcash [#bolt-paper]_.
+Layer 2 protocols like Lightning enable scalable payments for Bitcoin but lack the mechanisms to provide strong privacy guarantees on the payment network. Zcash offers private transactions but currently lacks features that would enable a Lightning-style payment channel. This proposal specifies an integration of the zkChannel privacy-preserving payment channel protocol on top of Zcash [#zk-Channels-paper]_.
 
-BOLT high level Overview
+zk-Channels high level Overview
 ========================
 
-BOLT enables two parties, a customer and a merchant, to open an assymetric anonymous payment channel where only the customer may initiate channel opening and payments. While the channel opening and closure are broadcast on-chain, making the channel's participants at most pseudonymous, the payments are done directly between the customer and merchant offchain in an anonymous and unlinkable fashion.
+zk-Channels enables two parties, a customer and a merchant, to open an assymetric anonymous payment channel where only the customer may initiate channel opening and payments. While the channel opening and closure are broadcast on-chain, making the channel's participants at most pseudonymous, the payments are done directly between the customer and merchant offchain in an anonymous and unlinkable fashion.
 
-The channel opening can be split in three phases: initialisation, activation and unlink.
- 1. in the initialisation phase, the customer and merchant set up the channel id ``<channel-id>`` and exchange,
-  a. their initial contributions to the channel, called resp. customer and merchant's balances, as well as a revocation lock and nonce for the current state ; ``<channel-state>_0 = < <channel-id>, <channel-nonce>_0, <revocation-lock>_0, <balance-merch>_0, <balance-cust>_0 >``
-  b. information to close the channel, using signatures on this initial channel state;
-  c. information to mutually fund the channel, potentially with the help of multi-signature.
- 2. in the activation phase, the merchant,
-  a. ensures that the channel has been properly funded;
-  b. sends to the client a payment token to allow the customer to transfer funds.
- 3. the unlink phase goal is to unlink the channel opening with futher payments by performing a first unlinkable payment with null amount.
+The channel opening can be split in three phases: initialisation, activation and unlink:
 
-The off-chain payments is also split in three phases: setup, update state, and unmask. For a payment of ``<epsilon>``, we have,
- 1. in the setup phase,
-  a. the customer generates a new channel state privately, corresponding to the customer and merchant new balances, a state nonce and revocation lock:``<channel-state>_{i+1} = (<channel-id>, <channel-nonce>_{i+1}, <revocation-lock>_{i+1}, <balance-merch>_{i+1}, <balance-cust>_{i+1})`` with ``<balance-merch>_{i+1}=<balance-merch>_i + <epsilon>``, ``<balance-cust>_{i+1}=<balance-cust>_i - <epsilon>``, ``<revocation-lock> = HASH(<revocation-secret>)``);
-  b. the customer then sends to the merchant the current channel state nonce ``<channel-nonce>_i`` as well as the amount to transfer <epsilon>;
-  c. the merchant checks the nonce has not been spent before, to prevent double spent, and if so either accept or reject the new payment.
- 2. in the update state,
-  a. the customer shares to the merchant commitments on the new channel state ``<channel-state>_{i+1}``, new close authorization message ``<channel-state>_{i+1}`` and the current revocation lock ``<revocation-lock>_i`` as well as a blind version of the current state payment token ``<pay-token>_i`` and a non-interactive zero-knowledge proof of knowledge that the commited new state is well formed w.r.t. the current state and the new payment, the channel has sufficient fund, the commited close authorization message is well formed, the current state contains the opening of the commited revocation lock as well as the current nonce, and the blind payment token is valid on the current state.
-  b. the merchant verifies the proof is valid, if so he adds the current nonce to the set of spent nonce otherwise aborts.
- 3. in the unmask phase,
-  a. the merchant blindly signs the new close authorization message and sends it to the customer;
-  b. the customer unblinds and verifies the signature is valid. If so, he sends the current revocation lock and secret;
-  c. the merchant verifies the revocation was not spent, to prevent double spending, and the secret corresponds to the lock. If so, he blindly sign the new channel state and sends it to the customer;
-  d. the customer unblinds and verifies the signature is valid. If so, he sets it as the new payment token.
+  (1) in the initialisation phase, the customer and merchant set up the channel by agreeing on initial balances and auxiliary information.
+  (2) in the activation phase, the merchant ensures that the channel has been properly funded and sends to the client a payment token to allow the customer to transfer funds.
+  (3) the unlink phase goal is to unlink the channel opening with futher payments by performing a first unlinkable payment with null amount.
+
+The off-chain payments is also split in three phases: setup, update state, and unmask.
+
+  (1) in the setup phase, the customer generates a new channel state privately and sends to the customer a payment request. The merchant checks checks this is not a double spend, and if so either accept or reject the new payment.
+  (2) in the update state phase, the customer and merchant participate in a zk-protocol where the merchant agrees on the new payment, by signing blindy on the new channel state, while revoking the current state.
+  (3) in the unmask phase, the customer and merchant gets the payment and revocation token to close the zk-channel onchain.
 
 The channel can be closed in three different ways:
- - unilaterally by the merchant. In that case, the merchant uses the closing information exchanged in the channel initialisation to broadcast an expiry transaction onchain; the total amount is time-locked.
-  a. during the time lock, the customer can broadcast a customer close which nullify the expiry transaction;
-  b. after the time lock, the merchant can claim the funds.
- - unilaterally by the customer. In that case, the customer uses the close authorization message received in a update state phase to broadcase a customer close transaction onchain; the merchant balance is sent directly to the merchant while the customer balance is time-locked.
-  a. during the time lock, the customer balance can be disputed by the merchant, in case the customer closed on an outdated state, by revealing the revocation secret. In that case, all funds go to the merchant;
-  b. after the time lock, the customer can claim the funds.
- - mutually. In that case, the customer and merchant exchange information to generate a multisig transaction closing the channel.
+  - unilaterally by the merchant. In that case, the merchant uses the closing information exchanged in the channel initialisation to broadcast an expiry transaction onchain; the total amount is time-locked.
+
+    a. during the time lock, the customer can broadcast a customer close which nullify the expiry transaction;
+    b. after the time lock, the merchant can claim the funds.
+
+  - unilaterally by the customer. In that case, the customer uses the close authorization message received in a update state phase to broadcase a customer close transaction onchain; the merchant balance is sent directly to the merchant while the customer balance is time-locked.
+
+    a. during the time lock, the customer balance can be disputed by the merchant, in case the customer closed on an outdated state, by revealing the revocation secret. In that case, all funds go to the merchant;
+    b. after the time lock, the customer can claim the funds.
+
+  - mutually. In that case, the customer and merchant exchange information to generate a multisig transaction closing the channel.
+
+1. General requirements for zk-Channels protocol
+------------------------------------------------
+
+zk-Channels private payment channels require the following capabilities to provide anonymity properties for users on a payment network:
+
+  (1) Ability to create a escrow transaction such that the transaction inputs are anonymous.
+  (2) Ability to escrow funds to a multi-signature style address via non-malleable transactions.
+  (3) Ability to specify relative time locks for commitment transactions to support unilateral channel closing.
+  (4) Ability to validate zk-Channels-specific opening and closing transactions:
+
+    - check the validity of randomized/blinded signature on the channel state in closing token
+    - check the validity of revocation lock in the event of a channel dispute by merchant
+
+  (5) Ability to enforce a transaction flow thanks to Transparent ZCash Extensions [#zip-0222]
+
+  (6) Ability to verify transaction outputs using WTPs such that:
+
+    - if customer-initiated closing, one output pays out to customer with a time lock (to allow merchant to dispute customer balance) and one output pays out to merchant immediately
+    - if merchant-initiated closing, a single output pays the merchant the full balance of the channel with a time lock that allows for customer dispute
+
+**Channel Operation Assumptions.**
+  - Channels funded by the customer alone and dual-funded channels are both supported.
+  - Either the customer or the merchant can initiate channel closing.
+  - If the customer initiates closing, then the merchant can dispute the closing transaction if they disagrees with the closing token in the closing transaction.
+  - If the merchant initiates closing, the merchant posts a transaction claiming all the funds in the channel for themselves with a timelock. This gives the customer the opportunity to post their own valid closing transaction with the current channel balances. If the customer posts their own closing transaction, the merchant has an additional opportunity to dispute if necessary.
+
+1.1 Customer and Merchant Signing Keys
+--------------------------------------
+
+The customer and the merchant both have key pairs from a suitable signature scheme to send and receive transactions. e.g. ECDSA or RedDSA signature key pairs. These are denoted as: ``<cust-pk>, <cust-sk>`` and ``<merch-pk>, <merch-sk>``, respectively, where ``pk`` stands for "public key" and ``sk`` stands for the corresponding "secret key".
+
+The merchant must be able to issue blind signatures, for instance Pointcheval-Sanders blind signature, so they have an additional keypair; this keypair is denoted as:
+``<MERCH-PK>, <MERCH-SK>``.
+
+The customer key pair is specific to the channel and must not be reused. The merchant key pair is long term and should be used for all customer channels. 
+
+1.2 Channel states
+------------------
+
+zk-Channels relies on the concept of *states*. When the customer initiates a payment, they query the merchant to accept a new state while revoking the current one.
+
+The only zk-channel's invariants are the channel identifier ``<cid>``, and its participants' public keys. A channel state consists of:
+
+  - the channel id: ``<cid>``;
+  - the customer's public keys: ``<cust-pk>`` (defined in 1.1);
+  - the merchant's public keys: `` <merch-pk>, <MERCH-PK>`` (defined in 1.1);
+  - the customer's balance: ``<cust-balance>``, also called ``<initial-cust-balance>`` for the channel opening;
+  - the merchant's balance: ``<merch-balance>``, also called ``<initial-merch-balance>`` for the channel opening;
+  - the revocation lock: ``<rl>``, also called ``<initial-rl>`` for the channel opening, which is instantiated as a hash lock, ``<rl> = SHA256(<rs>)`` where ``<rs>`` is the revocation secret.
+
+The revocation lock is needed by the merchant to dispute a customer close on an outdated state.
 
 
-Specification
-=============
-TODO
-Add  list of what we need
-- possibility for tze_verify to check output addresses of a transaction
-- ...
+1.3 Opening a channel: Overview
+-------------------------------
+To open a channel, the customer and merchant exchange key information and set the channel identifier ``<cid>``. 
 
-Examples
-========
+They agree on their respective initial balances ``<initial-cust-balance>`` and ``<initial-merch-balance>``, and may negotiate a claiming delay ``<delay>``.
 
-A.1 Escrow transaction
+The customer picks an inital revocation lock ``<initial-rl>``.
+
+The customer and merchant escrow the necessary funds in a funding transaction, denoted ``escrow-tx``.
+
+As such, the escrow transaction presents:
+
+  - an opening channel state `` <initial-state> = <cid>, <cust-pk>, <merch-pk>, <MERCH-PK>, <initial-cust-balance>, <initial-merch-balance>, <initial-rl>``;
+  - potentially additional information such as a delay <delay>.
+
+1.4 Closing a channel: Overview
+-------------------------------
+A customer should be able to unilaterally close the channel by posting a ``cust-close-tx`` transaction. This transaction presents:
+
+  -  a closing channel state `` <state> = <cid>, <cust-pk>, <merch-pk>, <MERCH-PK>, <cust-balance>, <merch-balance>, <rl>``;
+  - a unblinded signature from the merchant on the channel state: ``<merch-sig>`` such that ``PS_sig.Verify(<MERCH-PK>, <state>, <merch-sig>) = 1``.
+
+If the transaction is validated and mined, <merch-balance> is sent to the merchant and <cust-balance> is locked for a delay <delay> during which the merchant can dispute the channel closing thanks to a ``dispute-tx`` transaction, and after which the customer can claim it thanks to a ``cust-claim-tx`` transaction.
+
+
+The merchant can dispute a customer close by posting a ``dispute-tx`` transaction. This transaction presents:
+
+  - a revocation secret ``<rs>`` such that for the revocation lock ``<rl>`` posted in ``cust-close-tx`` we have `` <rl> = SHA256(<rs>)``.
+
+If the transaction is validated and mined, the total balance (<cust-balance> + <merch-balance>) is sent to the merchant.
+
+
+A merchant should be able to unilaterally close the channel by posting a closing transaction ``expiry-tx``. This transaction presents:
+
+  - a signature from the customer on the initial state: ``<cust-sig>`` such that `` RedDSA_sig.Verify(<cust-pk>, <initial-state>, <cust-sig>) = 1``.
+
+If the transaction is validated and mined, the total balance is locked for a delay <delay> during which the customer can overwrite the spend with a ``cust-close-tx`` transaction, and after which the merchant can claim it thanks to a ``merch-claim-tx`` transaction.
+
+
+The customer and merchant may also negotiate off-chain to form a *mutual close transaction*, ``mutual-close-tx``. This transaction presents:
+
+  - a truncated closing channel state ``<state>`` without the revocation lock and the merchant's blind signature public key;
+  - two signatures from the customer ``<cust-sig>`` and the merchant ``<merch-sig>`` on this truncated state such that `` RedDSA_sig.Verify(<cust-pk>, <state>, <cust-sig>) = 1`` and `` RedDSA_sig.Verify(<MERCH-PK>, <state>, <merch-sig>) = 1``.
+
+If the transaction is validated and mined, the balance <cust-balance> is sent to the customer and the balance <merch-balance> is sent to the merchant.
+
+
+2 zkChannel transactions
+------------------------
+We present in this section the individual transactions for opening and closing a zk-Channel as well as disputing and claiming funds of a zkChannel.
+
+For simplicity, we describe the minimal information needed to understand the workflow, that is we show only the relevant part of the verify_tze functions and do not detail more than necessary the transaction structure.
+
+2.1 Escrow transaction
+----------------------
+We present here the escrow transaction ``escrow-tx``:
 
 ...
-tx_in_count = i_m+i_j
-tx_in = < [merchant input addresses]_{i_m}, [customer input addresses]_{i_c}>
-tx_out_count = j_m+j_c
-tx_out = < [merchant output addresses]_{j_m}, [customer output addresses]_{j_c}>
+tx_in_count = 2
+tx_in = [<cust-input>, <merch-input>]
+tx_out_count = 0
+tx_out = []
 tze_in_count = 0
 tze_in = []
 tze_out_count = 1
-tze_out = <escrow-out>
-lock_time = 0 // not used
+tze_out = [<escrow-out>]
+lock_time = 0
 ...
 
+with <cust-input> being a transparent address comprising an amount of <initial-cust-balance>.
+
+with <merch-input> being a transparent address comprising an amount of <initial-merch-balance>.
+
 with <escrow-out>:
-- amount = <merch-balance>_0 + <cust-balance>_0
+- amount = <initial-merch-balance> + <initial-cust-balance>
 - precondition =
- - tze_id = <bolt_tze_id>
+ - tze_id = <zk-Channels-tze-id>
  - tze_mode = <escrow-mode>
  - tze_data_payload_len = 2*len(pk) + len(cid) + 32 + 2*64 
- - tze_data_payload = <pk_C> || <pk_M> || <cid> || <rl>_0 || <merch-balance>_0 || <cust-balance>_0 // potentially adding <n_0> for reconciliation
+ - tze_data_payload = <cid> || <cust-pk> || <merch-pk> || <MERCH-PK> || <initial-rl> || <initial-cust-balance> || <initial-merch-balance> 
 
-An escrow transaction can either be spent by a mutual close, merchant expiry or customer close.
+An escrow transaction can either be spent by a mutual close, merchant expiry or customer close transaction.
 
-A.2 Mutual close
+2.1 Mutual close
+----------------
+We present here the mutual close transaction ``mutual-close-tx``:
 
 ...
 tx_in_count = 0
 tx_in = []
 tx_out_count = 2
-tx_out = <merch-output>, <cust-output>
+tx_out = [<cust-output>, <merch-output>]
 tze_in_count = 1
 tze_in = <escrow-in>
 tze_out_count = 0
@@ -114,28 +210,40 @@ lock_time = 0 // not used
 ...
 
 with <escrow-in>:
-- prevout_hash =  <escrow-tx-id>
-- prevout_in = 0 // there is only 1 tze in this example
+- prevout_hash =  <escrow-tx>
+- prevout_in = 0
 - witness =
- - tze_id = <bolt_tze_id>
- - tze_mode = <escrow-mode> // we need to keep the same mode
+ - tze_id = <zk-Channels-tze-id>
+ - tze_mode = <escrow-mode>
  - tze_data_payload_len = 
- - tze_data_payload = <mutual-close-tag> || <signature_C> || <signature_M> || <merch-balance>_m || <cust-balance>_m // potentially adding <n_0> for reconciliation
+ - tze_data_payload = <cid> || <cust-pk> || <merch-pk> || <cust-balance> || <merch-balance> || <cust-sig> || <merch-sig>
 
-The tze_verify functions works as follows:
-- if witness[0] = <mutual-close-tag>
-  - <msg> = <pk_C> || <pk_M> || <cid> || <rl>_0 || <merch-balance>_0 || <cust-balance>_0 || <merch-balance>_m || <cust-balance>_m
-  - if Verify(<pk_C>, <msg>, <signature_C>) = 0
+We describe here the part of tze_verify function defined on <zk-Channels-tze-id> type and mode <escrow-mode> relative to a mutual close. 
+
+- if mutual-close TODO
+  // Define variables
+  - init-cid || init-cust-pk || init-merch-pk || init-MERCH-PK || init-rl || init-cust-balance || init-merch-balance = precondition
+  - cid || cust-pk || merch-pk || cust-balance || merch-balance || cust-sig || merch-sig = witness 
+  - msg = cid || merch-balance || cust-balance
+  // Verify variables consistency
+  - if init-cid != cid:
+    - Return False
+  - if init-cust-pk != cust-pk:
+    - Return False
+  // Verify signatures
+  - if Verify(<cust-pk>, <msg>, <cust-sig>) = 0
    - Return False
-  - if Verify(<pk_M>, <msg>, <signature_M>) = 0
+  - if Verify(<merch-pk>, <msg>, <merch-sig>) = 0
    - Return False
-  - if <merch-output>.amount != <merch-balance>_m OR <merch-output>.owner != <pk_M>:
+  // Verify transaction correctness
+  - if context.mutual-close.sender != <cust-pk> AND context.mutual-close-tx.sender != <merch-pk>:
+    - Return False
+  - if <cust-output>.amount != <cust-balance> OR <cust-output>.owner != <pk_C>:
    - Return False
-  - if <cust-output>.amount != <cust-balance>_m  OR <cust-output>.owner != <pk_C>:
+  - if <merch-output>.amount != <merch-balance> OR <merch-output>.owner != <pk_M>:
    - Return False
   - Return True
 
-Note: in case of more than one input and output, we need to add in the tze_data_payload the addresses' index. if we want to split the balances, the tze_verificatoin must check that the sum of the split merch balances equal the mutual agreed merchant balance, and reciprocally for the customer's.
 
 A.3 Merchant close
 
@@ -156,7 +264,7 @@ with <escrow-in>
 - prevout_hash = <escrow-tx-id>
 - prevout_in = 0 // there is only 1 tze in this example
 - witness =
-  - tze_id = <bolt_tze_id>
+  - tze_id = <zk-Channels_tze_id>
   - tze_mode = <escrow-mode> // we need to keep the same mode
   - tze_data_payload_len =
   - tze_data_payload = <expiry-signature_C> // potentially adding <delay> if channel specific
@@ -164,7 +272,7 @@ with <escrow-in>
 with <merch-close-out>
 - amount = <merch-balance>_0 + <cust-balance>_0
 - precondition =
-  - tze_id = <bolt_tze_id>
+  - tze_id = <zk-Channels_tze_id>
   - tze_mode = <merch-close-mode>
   - tze_data_payload_len =
   - tze_data_payload = <pk_C> || <pk_M> || <cid> || <rl>_0 || <merch-balance>_0 || <cust-balance>_0 // potentially adding <n_0> for reconciliation
@@ -211,7 +319,7 @@ with <merch-close-in>
 - prevout_hash = <merch-close-tx-id>
 - prevout_in = 0 // there is only 1 tze in this example
 - witness =
-  - tze_id = <bolt_tze_id>
+  - tze_id = <zk-Channels_tze_id>
   - tze_mode = <merch-close-mode> // we need to keep the same mode
   - tze_data_payload_len =
   - tze_data_payload =  <merch-claim-tag> // potentially adding <delay> if channel specific
@@ -244,7 +352,7 @@ with <escrow-in>:
 - prevout_hash =  <escrow-tx-id>
 - prevout_in = 0 // there is only 1 tze in this example
 - witness =
- - tze_id = <bolt_tze_id>
+ - tze_id = <zk-Channels_tze_id>
  - tze_mode = <escrow-mode> // we need to keep the same mode
  - tze_data_payload_len = 
  - tze_data_payload =  <signature_M> || <cid> || <rl>_i || <merch-balance>_i || <cust-balance>_i // potentially adding <n_i> for reconciliation
@@ -253,7 +361,7 @@ with <merch-close-in>:
 - prevout_hash =  <escrow-tx-id>
 - prevout_in = 0 // there is only 1 tze in this example
 - witness =
-  - tze_id = <bolt_tze_id>
+  - tze_id = <zk-Channels_tze_id>
   - tze_mode = <merch-close-mode> // we need to keep the same mode
   - tze_data_payload_len =
   - tze_data_payload = <signature_M> || <cid> || <rl>_i || <merch-balance>_i || <cust-balance>_i // potentially adding <n_i> for reconciliation
@@ -261,7 +369,7 @@ with <merch-close-in>:
 with <cust-close-out>:
 - amount = <cust-balance>_i
 - precondition =
- - tze_id = <bolt_tze_id>
+ - tze_id = <zk-Channels_tze_id>
  - tze_mode = <cust-close-mode> // change of mode for cust close
  - tze_data_payload_len =  
  - tze_data_payload = <pk_C> || <pk_M> || <cid> || <rl>_i || <cust-balance>_i // potentially adding <n_i> for reconciliation, as well as <delay> if channel specific
@@ -313,7 +421,7 @@ with <cust-close-in>
 - prevout_hash = <cust-close-tx-id>
 - prevout_in = 0 // there is only 1 tze in this example
 - witness =
-  - tze_id = <bolt_tze_id>
+  - tze_id = <zk-Channels_tze_id>
   - tze_mode = <cust-close-mode> // we need to keep the same mode
   - tze_data_payload_len =
   - tze_data_payload = <cust-claim-tag> // potentially adding <delay> if 
@@ -348,7 +456,7 @@ with <cust-close-in>
 - prevout_hash = <cust-close-tx-id>
 - prevout_in = 0 // there is only 1 tze in this example
 - witness =
-  - tze_id = <bolt_tze_id>
+  - tze_id = <zk-Channels_tze_id>
   - tze_mode = <cust-close-mode> // we need to keep the same mode
   - tze_data_payload_len =
   - tze_data_payload =  <merch-dispute-tag> || <rs>_i
@@ -475,3 +583,12 @@ B.3 Merchant close
    - if <escrow-id>.precondition.tze_data_payload[<cust-balance>_i] != <cust-close-out>.precondition.tze_data_payload[<cust-balance>_i]:
     - Return False
    - Return True
+
+.. [#BoltWTP] _`Bolt WTP implementation for Zcash <https://github.com/boltlabs-inc/librustzcash>`
+
+References
+==========
+
+.. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://tools.ietf.org/html/rfc2119>`_
+.. [#bolt-paper]  `Bolt: Anonymous Payment Channels for Decentralized Currencies <https://eprint.iacr.org/2016/701>`_
+.. [#zip-0222]  `ZIP 222: Transparent Zcash Extensions (Draft) <https://github.com/zcash/zips/pull/248>`_
