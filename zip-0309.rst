@@ -275,7 +275,7 @@ We describe here the part of tze_verify function defined on <zkChannels-type> ty
 
 
   - // *Verify transaction correctness*
-  - if sender(context.mutual-close) != cust-pk AND sender(context.mutual-close-tx) != merch-pk:
+  - if sender(context.mutual-close-tx) != cust-pk AND sender(context.mutual-close-tx) != merch-pk:
 
     - Return False
 
@@ -373,7 +373,7 @@ The tze_verify functions works as follows:
     - Return False
 
   - // *Verify transaction correctness*
-  - if sender(context.expiry-tx) != merch-pk:
+  - if sender(context.merch-close-tx) != merch-pk:
 
     - Return False
 
@@ -431,7 +431,7 @@ We describe here the part of tze_verify function defined on <zk-Channels-tze-id>
     - Return False
 
   - // *Check transaction correctness*
-  - if sender != merch-pk:
+  - if sender(context.merch-claim-tx) != merch-pk:
 
     - Return False
 
@@ -471,7 +471,7 @@ With,
     - tze_id = <zkChannels-type>
     - tze_mode = <escrow-mode> 
     - tze_data_payload_len = 
-    - tze_data_payload =  <cid> || <cust-pk> || <merch-pk> || <MERCH-PK> || <rl>|| <merch-balance>|| <cust-balance> || <merch-sig>
+    - tze_data_payload =  <cid> || <cust-pk> || <merch-pk> || <MERCH-PK> || <rl> || <cust-balance> || <merch-balance> || <merch-sig>
 
 - <expiry-in>:
 
@@ -482,7 +482,7 @@ With,
     - tze_id = <zkChannels-type>
     - tze_mode = <expiry-mode>
     - tze_data_payload_len =
-    - tze_data_payload = <cid> || <cust-pk> || <merch-pk> || <MERCH-PK> || <rl>|| <merch-balance>|| <cust-balance> || <merch-sig>
+    - tze_data_payload = <cid> || <cust-pk> || <merch-pk> || <MERCH-PK> || <rl> || <cust-balance> || <merch-balance> || <merch-sig>
 
 - <merch-output> being a transaprent address comprising an amount of <merch-balance>;
 - <cust-close-out>:
@@ -493,34 +493,72 @@ With,
     - tze_id = <zkChannels-type>
     - tze_mode = <cust-close-mode> 
     - tze_data_payload_len =  
-    - tze_data_payload = <cid> || <cust-pk> || <merch-pk> || <MERCH-PK> || <rl>|| <cust-balance>
+    - tze_data_payload = <cid> || <cust-pk> || <merch-pk> || <rl>|| <cust-balance>
 
 
-The tze_verify functions works as follows:
-- if <cust-close-out>.precondition.mode = <cust-close-mode>
-  // Standard check (add delay if channel specific)
-  - if sender != <cust-pk>:
+We describe here the part of tze_verify function defined on <zkChannels-type> type and mode <escrow-mode> or <expiry-mode> relative to a customer close.
+
+**tze_verify(zkChannels-type, escrow-mode OR expiry-mode, precondition, witness)**
+
+- ...
+- if context.cust-close-out.precondition.mode = CUST-CLOSE_MODE:
+
+  - // *Define variables*
+  - init-cid || init-cust-pk || init-merch-pk (|| init-MERCH-PK || init-rl || init-cust-balance || init-merch-balance) = precondition
+  - cid-wtn || cust-pk-wtn || merch-pk-wtn || MERCH-PK || rl-wtn || cust-balance-wtn || merch-balance || merch-sig = witness
+  - cid || cust-pk || merch-pk || rl || cust-balance  = context.cust-close-out.precondition.tze_data_payload
+  - msg = cid || cust-pk || merch-pk || MERCH-PK || rl-wtn || cust-balance-wtn || merch-balance
+
+  - // *Verify variables consistency* 
+  - if init-cid != cid-wtn OR init-cid != cid:
+
     - Return False
-  - <msg> = <cust-pk> || <merch-pk> || <cid> || <rl>|| <merch-balance>|| <cust-balance>_i
-  - if Verify(<merch-pk>, <msg>, <signature_M>) = 0
+
+  - if init-cust-pk != cust-pk-wtn OR init-cust-pk != cust-pk:
+
     - Return False
-  // Check that amounts and receiver are correct
-  - if <merch-output>.amount != <merch-balance>OR <merch-output>.owner != <merch-pk>:
+
+  - if init-merch-pk != merch-pk-wtn OR init-merch-pk != merch-pk:
+
     - Return False
-  - if <cust-close-out>.amount != <cust-balance>OR <cust-close-out>.owner != <cust-pk> OR <rl>NOT IN <cust-close-out>.precondition:
+
+  - if init-MERCH-PK != MERCH-PK-wtn:
+
     - Return False
-  // Check that information is transferred correctly from tze_in to tze_out
-  - if <escrow-tx>.tze_in[prevout_in].precondition.tze_data_payload[<cid>] != <cust-close-out>.precondition.tze_data_payload[<cid>]:
+
+  - if rl-wtn != rl:
+
     - Return False
- - if <escrow-tx>.tze_in[prevout_in].precondition.tze_data_payload[<cust-pk>] != <cust-close-out>.precondition.tze_data_payload[<cust-pk>]:
+
+  - if cust-balance-wtn != cust-balance:
+
     - Return False
-  - if <escrow-tx>.tze_in[prevout_in].precondition.tze_data_payload[<merch-pk>] != <cust-close-out>.precondition.tze_data_payload[<merch-pk>]:
+
+  - // * Verify the signature*
+  - if Verify(MRECH-PK, msg, merch-sig) != 1
+
     - Return False
-  - if <escrow-in>.precondition.tze_data_payload[<rl>_i] != <cust-close-out>.precondition.tze_data_payload[<rl>_i]:
+
+  - // *Verify transaction correctness*
+
+  - if sender(context.cust-close-tx) != <cust-pk>:
+
     - Return False
-  - if <escrow>.precondition.tze_data_payload[<cust-balance>_i] != <cust-close-out>.precondition.tze_data_payload[<cust-balance>_i]:
+
+  - if owner(context.cust-close-tx.merch-output) != merch-pk:
+
     - Return False
+
+  - if amount(context.cust-close-tx.merch-output) != merch-balance:
+
+    - Return False
+
+  - if context.cust-close-tx.cust-close-out.precondition.amount != cust-balance:
+
+    - Return False
+
   - Return True
+- ...
 
 A.6 Customer claim
 
