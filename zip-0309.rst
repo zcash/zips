@@ -72,7 +72,7 @@ zk-Channels private payment channels require the following capabilities to provi
   b. check the validity of revocation lock in the event of a channel dispute by merchant.
 
 5. Ability to enforce a transaction flow thanks to Transparent ZCash Extensions [#zip-0222]
-6. Ability to verify transaction outputs using WTPs such that:
+6. Ability to verify transaction outputs using ZTEs such that:
 
   a. if customer-initiated closing, one output pays out to customer with a time lock (to allow merchant to dispute customer balance) and one output pays out to merchant immediately;
   b. if merchant-initiated closing, a single output pays the merchant the full balance of the channel with a time lock that allows for customer dispute.
@@ -83,15 +83,26 @@ zk-Channels private payment channels require the following capabilities to provi
   - If the customer initiates closing, then the merchant can dispute the closing transaction if they disagrees with the closing token in the closing transaction.
   - If the merchant initiates closing, the merchant posts a transaction claiming all the funds in the channel for themselves with a timelock. This gives the customer the opportunity to post their own valid closing transaction with the current channel balances. If the customer posts their own closing transaction, the merchant has an additional opportunity to dispute if necessary.
 
+1.1 TZEs requirement for zk-Channels protocol
+---------------------------------------------
+
+1. Ability to check the sender of the current transaction;
+2. Ability to check the owner of an address;
+3. Ability to check the amount of an address;
+4. Ability to check the current block height;
+5. Ability to check information about a transaction of an input TZE address;
+6. Ability to verify Pointcheval-Sanders signatures on specific messages;
+7. Ability to assert a hash lock result;
+
 2.1 Algorithms and variables
---------------------------
+----------------------------
 
 2.1 Customer and Merchant Signing Keys
 
-The customer and the merchant both have key pairs from a suitable signature scheme to send and receive transactions. e.g. ECDSA or RedDSA signature key pairs. These are denoted as: ``<cust-pk>, <cust-sk>`` and ``<merch-pk>, <merch-sk>``, respectively, where ``pk`` stands for "public key" and ``sk`` stands for the corresponding "secret key".
+The customer and the merchant both have key pairs from a suitable signature scheme to send and receive transactions. e.g. ECDSA or RedDSA signature key pairs. These are denoted as: ``<cust-pk>``, ``<cust-sk>`` and ``<merch-pk>``, ``<merch-sk>``, respectively, where ``pk`` stands for "public key" and ``sk`` stands for the corresponding "secret key".
 
-The merchant must be able to issue blind signatures, for instance Pointcheval-Sanders blind signature, so they have an additional keypair; this keypair is denoted as:
-``<MERCH-PK>, <MERCH-SK>``.
+The merchant must be able to issue blind signatures, for instance Pointcheval-Sanders (PS) blind signature, so they have an additional keypair; this keypair is denoted as:
+``<MERCH-PK>``, ``<MERCH-SK>``.
 
 The customer key pair is specific to the channel and must not be reused. The merchant key pair is long term and should be used for all customer channels. 
 
@@ -148,7 +159,7 @@ If the transaction is validated and mined, the total balance (<cust-balance> + <
 
 A merchant should be able to unilaterally close the channel by posting a closing transaction ``expiry-tx``. This transaction presents:
 
-- a signature from the customer on the initial state: ``<cust-sig>`` such that ``RedDSA_sig.Verify(<cust-pk>, <initial-state>, <cust-sig>) = 1``.
+- a signature from the customer on the initial state: ``<cust-sig>`` such that ``Verify(<cust-pk>, <initial-state>, <cust-sig>) = 1``.
 
 If the transaction is validated and mined, the total balance is locked for a delay <delay> during which the customer can overwrite the spend with a ``cust-close-tx`` transaction, and after which the merchant can claim it thanks to a ``merch-claim-tx`` transaction.
 
@@ -156,7 +167,7 @@ If the transaction is validated and mined, the total balance is locked for a del
 The customer and merchant may also negotiate off-chain to form a *mutual close transaction*, ``mutual-close-tx``. This transaction presents:
 
 - a truncated closing channel state ``<state>`` without the revocation lock and the merchant's blind signature public key;
-- two signatures from the customer ``<cust-sig>`` and the merchant ``<merch-sig>`` on this truncated state such that ``RedDSA_sig.Verify(<cust-pk>, <state>, <cust-sig>) = 1`` and ``RedDSA_sig.Verify(<MERCH-PK>, <state>, <merch-sig>) = 1``.
+- two signatures from the customer ``<cust-sig>`` and the merchant ``<merch-sig>`` on this truncated state such that ``Verify(<cust-pk>, <state>, <cust-sig>) = 1`` and ``Verify(<MERCH-PK>, <state>, <merch-sig>) = 1``.
 
 If the transaction is validated and mined, the balance <cust-balance> is sent to the customer and the balance <merch-balance> is sent to the merchant.
 
@@ -678,7 +689,7 @@ We describe here the part of tze_verify function defined on <zkChannels-type> ty
   - merch-disp-tag || rs = witness
 
   - // *Check Hash lock*
-  - if rl != Hash(rs):
+  - if rl != SHA256(rs):
 
     - Return False
 
@@ -868,7 +879,7 @@ TZE_VERIFY functions
   - merch-disp-tag || rs = witness
 
   - // *Check Hash lock*
-  - if rl != Hash(rs):
+  - if rl != SHA256(rs):
 
     - Return False
 
