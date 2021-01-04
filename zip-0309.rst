@@ -430,7 +430,7 @@ We describe here the part of tze_verify function defined on <zkChannels-type> ty
 **tze_verify(zkChannels-type, expiry-mode, precondition, witness)**
 
 - ...
-- if context.expiry-in.witness.tze_data_payload = MERCH-CLAIM-TAG:
+- if context.expiry-in.witness.tze_data_payload[0] = MERCH-CLAIM-TAG:
 
   - // *Check delay*
   - if context.block-height < merch-close-tx.context.block-height + DELAY:
@@ -512,10 +512,10 @@ We describe here the part of tze_verify function defined on <zkChannels-type> ty
 **tze_verify(zkChannels-type, escrow-mode OR expiry-mode, precondition, witness)**
 
 - ...
-- if context.cust-close-out.precondition.mode = CUST-CLOSE-MODE:
+- if context.cust-close-out.precondition.mode = CUST-CLOSE-MODE :
 
   - // *Define variables*
-  - init-cid || init-cust-pk || init-merch-pk (|| init-MERCH-PK || init-rl || init-cust-balance || init-merch-balance) = precondition
+  - init-cid || init-cust-pk || init-merch-pk || init-MERCH-PK (|| init-rl || init-cust-balance || init-merch-balance) = precondition
   - cid-wtn || cust-pk-wtn || merch-pk-wtn || MERCH-PK || rl-wtn || cust-balance-wtn || merch-balance || merch-sig = witness
   - cid || cust-pk || merch-pk || rl || cust-balance  = context.cust-close-out.precondition.tze_data_payload
   - msg = cid || cust-pk || merch-pk || MERCH-PK || rl-wtn || cust-balance-wtn || merch-balance
@@ -735,11 +735,11 @@ TZE_VERIFY functions
 
     - Return False
 
-  - if amount(context.tx_out[0]) != cust-balance OR owner(context.tx_out[0]) != cust-pk:
+  - if amount(context.tx.tx_out[0]) != cust-balance OR owner(context.tx.tx_out[0]) != cust-pk:
 
     - Return False
 
-  - if amount(context.tx_out[1]) != merch-balance OR owner(context.tx_[1]) != merch-pk:
+  - if amount(context.tx.tx_out[1]) != merch-balance OR owner(context.tx.tx_out[1]) != merch-pk:
 
     - Return False
 
@@ -749,7 +749,7 @@ TZE_VERIFY functions
 
   - // *Define variables*
   - cid-wtn || cust-pk-wtn || merch-pk-wtn || MERCH-PK-wtn || cust-sig = witness
-  - cid || cust-pk || merch-pk || MERCH-PK = context.tze_out[0].precondition.tze_data_payload
+  - cid || cust-pk || merch-pk || MERCH-PK = context.tx.tze_out[0].precondition.tze_data_payload
   - msg = cid || cust-pk || merch-pk || MERCH-PK
 
   - // *Verify variables consistency* 
@@ -784,7 +784,7 @@ TZE_VERIFY functions
 
   - // *Define variables*
   - cid-wtn || cust-pk-wtn || merch-pk-wtn || MERCH-PK || rl-wtn || cust-balance-wtn || merch-balance || merch-sig = witness
-  - cid || cust-pk || merch-pk || rl || cust-balance  = context.cust-close-out.precondition.tze_data_payload
+  - cid || cust-pk || merch-pk || rl || cust-balance  = context.tx.tze_out[0].precondition.tze_data_payload
   - msg = cid || cust-pk || merch-pk || MERCH-PK || rl-wtn || cust-balance-wtn || merch-balance
 
   - // *Verify variables consistency* 
@@ -843,11 +843,128 @@ TZE_VERIFY functions
 2 Customer close
 ----------------
 
+**tze_verify(zkChannels-type, cust-close-mode, precondition, witness):**
 
+- cid || cust-pk || merch-pk || rl || cust-balance  = precondition
+- if witness.tze_data_payload[0] = CUST-CLAIM-TAG:
+
+  - cust-close-tx = find_transaction(tx.tze_in[0].prevout_hash)
+
+  - // *Check delay*
+  - if context.block-height < context.cust-close-tx.block-height + DELAY:
+
+    - Return False
+
+  - // *Check transaction correctness*
+  - if sender(context.tx) != cust-pk:
+
+    - Return False
+
+  - Return True
+
+- if witness.tze_data_payload[0] = MERCH-DISP-TAG:
+
+  - // *Define variables*
+  - merch-disp-tag || rs = witness
+
+  - // *Check Hash lock*
+  - if rl != Hash(rs):
+
+    - Return False
+
+  - // *Check transaction correctness*
+  - if sender(context.tx) != merch-pk:
+
+    - Return False
+
+  - Return True
+
+- Return False
 
 
 3 Merchant close
 ----------------
+
+**tze_verify(zkChannels-type, merch-close-mode, precondition, witness):**
+
+- if context.tx.tx_out_count == 1 if witness.tze_data_payload[0] == MERCH-CLAIM-TAG:
+
+  - merch-close-tx = find_transaction(tx.tze_in[0].prevout_hash)
+
+  - // *Check delay*
+  - if context.block-height < merch-close-tx.block-height + DELAY:
+
+    - Return False
+
+  - // *Check transaction correctness*
+  - if sender(context.tx) != merch-pk:
+
+    - Return False
+
+  - Return True
+- if context.tx.tze_out_count == 1  AND context.tx.tx_out_count == 1 AND context.tx.tze_out[0].precondition.mode == CUST-CLOSE-MODE:
+
+  - // *Define variables*
+  - init-cid || init-cust-pk || init-merch-pk || init-MERCH-PK = precondition
+  - cid-wtn || cust-pk-wtn || merch-pk-wtn || MERCH-PK || rl-wtn || cust-balance-wtn || merch-balance || merch-sig = witness
+  - cid || cust-pk || merch-pk || rl || cust-balance  = context.tx.tze_out[0].precondition.tze_data_payload
+  - msg = cid || cust-pk || merch-pk || MERCH-PK || rl-wtn || cust-balance-wtn || merch-balance
+
+  - // *Verify variables consistency* 
+  - if init-cid != cid-wtn OR init-cid != cid:
+
+    - Return False
+
+  - if init-cust-pk != cust-pk-wtn OR init-cust-pk != cust-pk:
+
+    - Return False
+
+  - if init-merch-pk != merch-pk-wtn OR init-merch-pk != merch-pk:
+
+    - Return False
+
+  - if init-MERCH-PK != MERCH-PK-wtn:
+
+    - Return False
+
+  - if rl-wtn != rl:
+
+    - Return False
+
+  - if cust-balance-wtn != cust-balance:
+
+    - Return False
+
+  - // *Verify the signature*
+  - if PS_sig.Verify(MERCH-PK, msg, merch-sig) != 1:
+
+    - Return False
+
+  - // *Verify transaction correctness*
+
+  - if sender(context.tx) != cust-pk:
+
+    - Return False
+
+  - if owner(context.tx.tx_out[0]) != merch-pk:
+
+    - Return False
+
+  - if amount(context.tx.tx_out[0]) != merch-balance:
+
+    - Return False
+
+  - if context.tx.tze_out[0].precondition.amount != cust-balance:
+
+    - Return False
+
+  - Return True
+
+- Return False
+
+
+
+
 
 
 .. [#BoltWTP] _`Bolt WTP implementation for Zcash <https://github.com/boltlabs-inc/librustzcash>`
