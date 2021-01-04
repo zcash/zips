@@ -193,7 +193,7 @@ With,
   - amount = <initial-merch-balance> + <initial-cust-balance>
   - precondition =
 
-    - tze_id = <zk-Channels-tze-id>
+    - tze_id = <zk-Channels-type>
     - tze_mode = <escrow-mode>
     - tze_data_payload_len = 
     - tze_data_payload = <cid> || <cust-pk> || <merch-pk> || <MERCH-PK> || <initial-rl> || <initial-cust-balance> || <initial-merch-balance>
@@ -229,7 +229,7 @@ With,
     - prevout_in = 0
     - witness :
 
-      - tze_id = <zk-Channels-tze-id>
+      - tze_id = <zkChannels-type>
       - tze_mode = <escrow-mode>
       - tze_data_payload_len = 
       - tze_data_payload = <cid> || <cust-pk> || <merch-pk> || <cust-balance> || <merch-balance> || <cust-sig> || <merch-sig>
@@ -237,9 +237,9 @@ With,
   - <cust-output> being a transparent address comprising an amount of <cust-balance>;
   - <merch-output> being a transparent address comprising an amount of <merch-balance>.
 
-We describe here the part of tze_verify function defined on <zk-Channels-tze-id> type and mode <escrow-mode> relative to a mutual close. 
+We describe here the part of tze_verify function defined on <zkChannels-type> type and mode <escrow-mode> relative to a mutual close. 
 
-**tze_verify(zk-Channels-tze-id, escrow-mode, precondition, witness):**
+**tze_verify(zkChannels-type, escrow-mode, precondition, witness):**
 
 - ...
 - if mutual-close TODO
@@ -322,7 +322,7 @@ With,
 
   - witness:
 
-    - tze_id = <zk-Channels-tze-id>
+    - tze_id = <zkChannels-type>
     - tze_mode = <escrow-mode>
     - tze_data_payload_len =
     - tze_data_payload = <cid> || <cust-pk> || <merch-pk> || <MERCH-PK> || <cust-sig>
@@ -332,14 +332,14 @@ With,
   - amount = <merch-balance> + <cust-balance>
   - precondition:
 
-    - tze_id = <zk-Channels-tze-id>
+    - tze_id = <zkChannels-type>
     - tze_mode = <expiry-mode>
     - tze_data_payload_len =
     - tze_data_payload = <cid> || <cust-pk> || <merch-pk> || <MERCH-PK>
 
 The tze_verify functions works as follows:
 
-**tze_verify(zk-Channels-tze-id, escrow-mode, precondition, witness):**
+**tze_verify(zkChannels-type, escrow-mode, precondition, witness):**
 
 - ...
 - if context.expiry-out.precondition.mode == MERCH-CLOSE:
@@ -403,23 +403,36 @@ lock_time     0
 =============================================
 
 With,
-- <expiry-in>
-- prevout_hash = <merch-close-tx-id>
-- prevout_in = 0 // there is only 1 tze in this example
-- witness =
-  - tze_id = <zk-Channels-tze-id>
-  - tze_mode = <expiry-mode> // we need to keep the same mode
-  - tze_data_payload_len =
-  - tze_data_payload =  <merch-claim-tag> // potentially adding <delay> if channel specific
+- <expiry-in>:
+
+  - prevout_hash = merch-close-tx
+  - prevout_in = 0
+  - witness:
+
+    - tze_id = <zkChannels-type>
+    - tze_mode = <expiry-mode>
+    - tze_data_payload_len =
+    - tze_data_payload =  <merch-claim-tag>
+
+  - <merch-claim> being a transparent address comprising an amount of <cust-balance>+<merch-balance>.
 
 
-The tze_verify functions works as follows:
-- if <expiry-in>.witness.tze_data_payload = <merch-claim-tag>
-   // Standard check (add delay if channel specific)
-  - if sender != <merch-pk>:
+We describe here the part of tze_verify function defined on <zk-Channels-tze-id> type and mode <escrow-mode> relative to a mutual close.
+
+**tze_verify(zkChannels-type, expiry-mode, precondition, witness)**
+
+- if context.expiry-in.witness.tze_data_payload = MERCH-CLAIM-TAG:
+
+  - // * Check delay *
+  - if context.block-height < merch-close-tx.context.block-height + DELAY:
+
     - Return False
-  - if context.<block-height> < <merch-close-tx-id>.<context>.<block-height> + DELAY // replace with channel specific delay if needs be
+
+  - // Check transaction correctness
+  - if sender != merch-pk:
+
     - Return False
+    
   - Return True
 
 A.5 Customer close
@@ -437,19 +450,19 @@ lock_time = 0 // not used
 ...
 
 with <escrow-in>:
-- prevout_hash =  <escrow-tx-id>
+- prevout_hash =  <escrow-tx>
 - prevout_in = 0 // there is only 1 tze in this example
 - witness =
- - tze_id = <zk-Channels-tze-id>
+ - tze_id = <zkChannels-type>
  - tze_mode = <escrow-mode> // we need to keep the same mode
  - tze_data_payload_len = 
  - tze_data_payload =  <signature_M> || <cid> || <rl>_i || <merch-balance>_i || <cust-balance>_i // potentially adding <n_i> for reconciliation
 
 with <expiry-in>:
-- prevout_hash =  <escrow-tx-id>
+- prevout_hash =  <escrow-tx>
 - prevout_in = 0 // there is only 1 tze in this example
 - witness =
-  - tze_id = <zk-Channels-tze-id>
+  - tze_id = <zkChannels-type>
   - tze_mode = <expiry-mode> // we need to keep the same mode
   - tze_data_payload_len =
   - tze_data_payload = <signature_M> || <cid> || <rl>_i || <merch-balance>_i || <cust-balance>_i // potentially adding <n_i> for reconciliation
@@ -457,7 +470,7 @@ with <expiry-in>:
 with <cust-close-out>:
 - amount = <cust-balance>_i
 - precondition =
- - tze_id = <zk-Channels-tze-id>
+ - tze_id = <zkChannels-type>
  - tze_mode = <cust-close-mode> // change of mode for cust close
  - tze_data_payload_len =  
  - tze_data_payload = <cust-pk> || <merch-pk> || <cid> || <rl>_i || <cust-balance>_i // potentially adding <n_i> for reconciliation, as well as <delay> if channel specific
@@ -477,21 +490,21 @@ The tze_verify functions works as follows:
   - if <cust-close-out>.amount != <cust-balance>_i OR <cust-close-out>.owner != <cust-pk> OR <rl>_i NOT IN <cust-close-out>.precondition:
     - Return False
   // Check that information is transferred correctly from tze_in to tze_out
-  - if <escrow-tx-id>.tze_in[prevout_in].precondition.tze_data_payload[<cid>] != <cust-close-out>.precondition.tze_data_payload[<cid>]:
+  - if <escrow-tx>.tze_in[prevout_in].precondition.tze_data_payload[<cid>] != <cust-close-out>.precondition.tze_data_payload[<cid>]:
     - Return False
- - if <escrow-tx-id>.tze_in[prevout_in].precondition.tze_data_payload[<cust-pk>] != <cust-close-out>.precondition.tze_data_payload[<cust-pk>]:
+ - if <escrow-tx>.tze_in[prevout_in].precondition.tze_data_payload[<cust-pk>] != <cust-close-out>.precondition.tze_data_payload[<cust-pk>]:
     - Return False
-  - if <escrow-tx-id>.tze_in[prevout_in].precondition.tze_data_payload[<merch-pk>] != <cust-close-out>.precondition.tze_data_payload[<merch-pk>]:
+  - if <escrow-tx>.tze_in[prevout_in].precondition.tze_data_payload[<merch-pk>] != <cust-close-out>.precondition.tze_data_payload[<merch-pk>]:
     - Return False
   - if <escrow-in>.precondition.tze_data_payload[<rl>_i] != <cust-close-out>.precondition.tze_data_payload[<rl>_i]:
     - Return False
-  - if <escrow-id>.precondition.tze_data_payload[<cust-balance>_i] != <cust-close-out>.precondition.tze_data_payload[<cust-balance>_i]:
+  - if <escrow>.precondition.tze_data_payload[<cust-balance>_i] != <cust-close-out>.precondition.tze_data_payload[<cust-balance>_i]:
     - Return False
   - Return True
 
 A.6 Customer claim
 
-Customer claim transaction <cust-claim-tx-id>
+Customer claim transaction <cust-claim-tx>
 ...
 tx_in_count = 0
 tx_in = []
@@ -506,10 +519,10 @@ lock_time =  0
 
 
 with <cust-close-in>
-- prevout_hash = <cust-close-tx-id>
+- prevout_hash = <cust-close-tx>
 - prevout_in = 0 // there is only 1 tze in this example
 - witness =
-  - tze_id = <zk-Channels-tze-id>
+  - tze_id = <zkChannels-type>
   - tze_mode = <cust-close-mode> // we need to keep the same mode
   - tze_data_payload_len =
   - tze_data_payload = <cust-claim-tag> // potentially adding <delay> if 
@@ -520,13 +533,13 @@ The tze_verify functions works as follows:
 // Standard check (add delay if channel specific)
   - if sender != <cust-pk>:
     - Return False
-  - if context.<block-height> < <cust-close-tx-id>.<context>.<block-height> + DELAY // replace with channel specific delay if needs be
+  - if context.<block-height> < <cust-close-tx>.<context>.<block-height> + DELAY // replace with channel specific delay if needs be
     - Return False
   - Return True
 
 A.7 Merchant dispute
 
-Customer claim transaction <cust-claim-tx-id>
+Customer claim transaction <cust-claim-tx>
 ...
 tx_in_count = 0
 tx_in = []
@@ -541,10 +554,10 @@ lock_time =  0
 
 
 with <cust-close-in>
-- prevout_hash = <cust-close-tx-id>
+- prevout_hash = <cust-close-tx>
 - prevout_in = 0 // there is only 1 tze in this example
 - witness =
-  - tze_id = <zk-Channels-tze-id>
+  - tze_id = <zkChannels-type>
   - tze_mode = <cust-close-mode> // we need to keep the same mode
   - tze_data_payload_len =
   - tze_data_payload =  <merch-dispute-tag> || <rs>_i
@@ -554,7 +567,7 @@ The tze_verify functions works as follows:
   // Standard check (add delay if channel specific)
   - if sender != <merch-pk>:
     - Return False
-  - if <cust-close-tx-id>.pprecondition.tze_data_payload[prevout_in].<rl>_i != HASH(<cust-close-in>.witness.tze_data_payload.<rs>_i)
+  - if <cust-close-tx>.pprecondition.tze_data_payload[prevout_in].<rl>_i != HASH(<cust-close-in>.witness.tze_data_payload.<rs>_i)
     - Return False
   - Return True
 
@@ -570,17 +583,17 @@ B.1 Escrow
    - if Verify(<merch-pk>, <msg>, <expiry-signature_C>) = 0
     - Return False
    // Check that information is transferred correctly from tze_in to tze_out
-   - if <escrow-tx-id>.tze_in[prevout_in].precondition.tze_data_payload[<cid>] != <expiry-out>.precondition.tze_data_payload[<cid>]:
+   - if <escrow-tx>.tze_in[prevout_in].precondition.tze_data_payload[<cid>] != <expiry-out>.precondition.tze_data_payload[<cid>]:
     - Return False
-   - if <escrow-tx-id>.tze_in[prevout_in].precondition.tze_data_payload[<cust-pk>] != <expiry-out>.precondition.tze_data_payload[<cust-pk>]:
+   - if <escrow-tx>.tze_in[prevout_in].precondition.tze_data_payload[<cust-pk>] != <expiry-out>.precondition.tze_data_payload[<cust-pk>]:
     - Return False
-   - if <escrow-tx-id>.tze_in[prevout_in].precondition.tze_data_payload[<merch-pk>] != <expiry-out>.precondition.tze_data_payload[<merch-pk>]:
+   - if <escrow-tx>.tze_in[prevout_in].precondition.tze_data_payload[<merch-pk>] != <expiry-out>.precondition.tze_data_payload[<merch-pk>]:
     - Return False
-   - if <escrow-tx-id>.tze_in[prevout_in].precondition.tze_data_payload[<rl>] != <expiry-out>.precondition.tze_data_payload[<rl>]:
+   - if <escrow-tx>.tze_in[prevout_in].precondition.tze_data_payload[<rl>] != <expiry-out>.precondition.tze_data_payload[<rl>]:
     - Return False
-   - if <escrow-tx-id>.tze_in[prevout_in].precondition.tze_data_payload[<cust-balance>] != <expiry-out>.precondition.tze_data_payload[<cust-balance>]:
+   - if <escrow-tx>.tze_in[prevout_in].precondition.tze_data_payload[<cust-balance>] != <expiry-out>.precondition.tze_data_payload[<cust-balance>]:
     - Return False
-   - if <escrow-tx-id>.tze_in[prevout_in].precondition.tze_data_payload[<merch-balance>] != <expiry-out>.precondition.tze_data_payload[<merch-balance>]:
+   - if <escrow-tx>.tze_in[prevout_in].precondition.tze_data_payload[<merch-balance>] != <expiry-out>.precondition.tze_data_payload[<merch-balance>]:
     - Return False
   - Return True
 - if <cust-close-out>.precondition.mode = <cust-close-mode>
@@ -596,15 +609,15 @@ B.1 Escrow
    - if <cust-close-out>.amount != <cust-balance>_i OR <cust-close-out>.owner != <cust-pk> OR <rl>_i NOT IN <cust-close-out>.precondition:
     - Return False
    // Check that information is transferred correctly from tze_in to tze_out
-   - if <escrow-tx-id>.tze_in[prevout_in].precondition.tze_data_payload[<cid>] != <cust-close-out>.precondition.tze_data_payload[<cid>]:
+   - if <escrow-tx>.tze_in[prevout_in].precondition.tze_data_payload[<cid>] != <cust-close-out>.precondition.tze_data_payload[<cid>]:
     - Return False
-   - if <escrow-tx-id>.tze_in[prevout_in].precondition.tze_data_payload[<cust-pk>] != <cust-close-out>.precondition.tze_data_payload[<cust-pk>]:
+   - if <escrow-tx>.tze_in[prevout_in].precondition.tze_data_payload[<cust-pk>] != <cust-close-out>.precondition.tze_data_payload[<cust-pk>]:
     - Return False
-   - if <escrow-tx-id>.tze_in[prevout_in].precondition.tze_data_payload[<merch-pk>] != <cust-close-out>.precondition.tze_data_payload[<merch-pk>]:
+   - if <escrow-tx>.tze_in[prevout_in].precondition.tze_data_payload[<merch-pk>] != <cust-close-out>.precondition.tze_data_payload[<merch-pk>]:
     - Return False
    - if <escrow-in>.precondition.tze_data_payload[<rl>_i] != <cust-close-out>.precondition.tze_data_payload[<rl>_i]:
     - Return False
-   - if <escrow-id>.precondition.tze_data_payload[<cust-balance>_i] != <cust-close-out>.precondition.tze_data_payload[<cust-balance>_i]:
+   - if <escrow>.precondition.tze_data_payload[<cust-balance>_i] != <cust-close-out>.precondition.tze_data_payload[<cust-balance>_i]:
     - Return False
   - Return True
 - if witness[0] = <mutual-close-tag>
@@ -626,14 +639,14 @@ B.2 Customer close
    // Standard check (add delay if channel specific)
    - if sender != <cust-pk>:
     - Return False
-   - if context.<block-height> < <cust-close-tx-id>.<context>.<block-height>   DELAY // replace with channel specific delay if needs be
+   - if context.<block-height> < <cust-close-tx>.<context>.<block-height>   DELAY // replace with channel specific delay if needs be
     - Return False
    - Return True
 - if <cust-close-in>.witness.tze_data_payload[0] = <merch-dispute-tag>
    // Standard check (add delay if channel specific)
    - if sender != <merch-pk>:
     - Return False
-   - if <cust-close-tx-id>.pprecondition.tze_data_payload[prevout_in].<rl>_i != HASH(<cust-close-in>.witness.tze_data_payload.<rs>_i)
+   - if <cust-close-tx>.pprecondition.tze_data_payload[prevout_in].<rl>_i != HASH(<cust-close-in>.witness.tze_data_payload.<rs>_i)
     - Return False
    - Return True
 - Return False
@@ -644,7 +657,7 @@ B.3 Merchant close
    // Standard check (add delay if channel specific)
    - if sender != <merch-pk>:
     - Return False
-   - if context.<block-height> < <merch-close-tx-id>.<context>.<block-height>   DELAY // replace with channel specific delay if needs be
+   - if context.<block-height> < <merch-close-tx>.<context>.<block-height>   DELAY // replace with channel specific delay if needs be
     - Return False
    - Return True
 - if <cust-close-out>.precondition.mode = <cust-close-mode>
@@ -660,15 +673,15 @@ B.3 Merchant close
    - if <cust-close-out>.amount != <cust-balance>_i OR <cust-close-out>.owner != <cust-pk> OR <rl>_i NOT IN <cust-close-out>.precondition:
     - Return False
    // Check that information is transferred correctly from tze_in to tze_out
-   - if <escrow-tx-id>.tze_in[prevout_in].precondition.tze_data_payload[<cid>] != <cust-close-out>.precondition.tze_data_payload[<cid>]:
+   - if <escrow-tx>.tze_in[prevout_in].precondition.tze_data_payload[<cid>] != <cust-close-out>.precondition.tze_data_payload[<cid>]:
     - Return False
-   - if <escrow-tx-id>.tze_in[prevout_in].precondition.tze_data_payload[<cust-pk>] != <cust-close-out>.precondition.tze_data_payload[<cust-pk>]:
+   - if <escrow-tx>.tze_in[prevout_in].precondition.tze_data_payload[<cust-pk>] != <cust-close-out>.precondition.tze_data_payload[<cust-pk>]:
     - Return False
-   - if <escrow-tx-id>.tze_in[prevout_in].precondition.tze_data_payload[<merch-pk>] != <cust-close-out>.precondition.tze_data_payload[<merch-pk>]:
+   - if <escrow-tx>.tze_in[prevout_in].precondition.tze_data_payload[<merch-pk>] != <cust-close-out>.precondition.tze_data_payload[<merch-pk>]:
     - Return False
    - if <escrow-in>.precondition.tze_data_payload[<rl>_i] != <cust-close-out>.precondition.tze_data_payload[<rl>_i]:
     - Return False
-   - if <escrow-id>.precondition.tze_data_payload[<cust-balance>_i] != <cust-close-out>.precondition.tze_data_payload[<cust-balance>_i]:
+   - if <escrow>.precondition.tze_data_payload[<cust-balance>_i] != <cust-close-out>.precondition.tze_data_payload[<cust-balance>_i]:
     - Return False
    - Return True
 
