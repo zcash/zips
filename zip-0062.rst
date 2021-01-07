@@ -10,41 +10,43 @@
   License: {usually MIT}
   Pull-Request: <>
 
+===========
 Terminology
 ===========
 
-{Edit this to reflect the key words that are actually used.}
-The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to
-be interpreted as described in RFC 2119. [#RFC2119]_
+The key words "MUST" and "MUST NOT" in this document are to be interpreted as described in RFC 2119. [#RFC2119]_
 
-The terms below are to be interpreted as follows:
+The terms "consensus branch", "epoch", and "network upgrade" in this document are to be interpreted as
+described in ZIP 200. [#zip-0200]_
 
-{Term to be defined}
-  {Definition.}
-{Another term}
-  {Definition.}
-
-
+========
 Abstract
 ========
 
-{Describe what this proposal does, typically in a few paragraphs.
+This proposal defines a new transaction digest algorithm for the <TBD> network upgrade
+onward, in order to introduce non-malleable transaction identifiers that commit to
+all effecting data of transactions.
 
-The Abstract should only provide a summary of the ZIP; the ZIP should remain
-complete without the Abstract.
+This proposal also defines a new transaction digest algorithm for signature validation,
+which shares all available structure produced during the construction of transaction 
+identifiers, in order to minimize redundant data hashing in validation.
 
-Use links where applicable, e.g. [#protocol]_.}
+This proposal als defines new semantics for the ``hashLightClientRoot`` field of the
+block header, to enable additional commitments to be represented in this hash and to
+provide a mechanism for future extensibility of the set of commitments represented.
 
-
+==========
 Motivation
 ==========
 
 In all cases, but particularly in order to support the use of transactions in
 higher-level protocols, any modification of the transaction that has not been
 explicitly permitted (such as via anyone-can-spend inputs) should invalidate
-attestations to spend authority or to the included outputs.
+attestations to spend authority or to the included outputs. Following the activation
+of this proposed change, transaction identifiers will be stable irrespective of 
+any possible malleation of witness data. 
 
-
+============
 Requirements
 ============
 
@@ -70,17 +72,20 @@ Requirements
 - It should be possible in the future to upgrade the protocol in such a fashion
   that only non-malleable transactions are accepted.
 
-- Avoid performance regressions.
+- It should be possible to use the transaction id unmodified as the value that
+  is used to produce a signature hash in the case that the transaction contains
+  no transparent inputs, or in the case that the ``SIGHASH_ALL`` flag is used. 
 
-
+=========
 Prior Art
 =========
 
+- https://zips.z.cash/zip-0143
 - https://github.com/bitcoin/bips/blob/master/bip-0062.mediawiki
 - https://bitcoinclassic.com/devel/Flexible%20Transactions.html
 - SegWit
 
-
+================
 Non-requirements
 ================
 
@@ -88,59 +93,259 @@ In order to support backwards-compatibility with parts of the ecosystem that
 have not yet upgraded to the non-malleable transaction format, it is not an
 initial requirement that all transactions be non-malleable.
 
-
+=============
 Specification
 =============
 
-- Create a new transaction format that supports non-malleability. The feature of
-  non-malleability and other features requiring changes to the transaction format
-  will only be supported for the non-malleable version, although the protocol
-  will remain backwards-compatible with the existing transaction format in the case
-  that no new features are used within a transaction.
+A new transaction digest algorithm is defined that constructs the identifier for
+a transaction from a tree of hashes. The overall structure of the hash is as follows:
 
+top_digest
+├── header_digest
+├── transparent_digest
+│   ├── prevouts_digest
+│   ├── sequence_digest
+│   └── outputs_digest
+├── tze_digest
+│   ├── tzein_digest
+│   └── tzeout_digest
+├── sprout_digest
+└── sapling_digest
+    ├── sapling_spends_digest
+    │   ├── sapling_spends_compact_digest
+    │   └── sapling_spends_noncompact_digest
+    ├── sapling_outputs_digest
+    │   ├── sapling_outputs_compact_digest
+    │   ├── sapling_outputs_memos_digest
+    │   └── sapling_outputs_noncompact_digest
+    └── valueBalanceLE
 
+Each node written as ``snake_case`` in this tree is a BLAKE2b-256 hash of its 
+children, initialized with a personalization string specific to that branch 
+of the tree. Nodes that are not themselves digests are written in ``camelCase``. 
 
-Example subheading
-------------------
+-------
+Digests
+-------
 
-{At least while the ZIP is in Draft, we encourage writing open questions and TODOs.}
+All digests are personalized BLAKE2b-256 hashes. In cases where no elements are
+available for hashing (for example, if there are no TZE inputs) the resulting hash
+will be over just the personalization string, providing domain separation even for
+empty data fields.
 
-Open questions
-''''''''''''''
+Digest definitions
+==================
 
-* What happens if a full node can't parse the fandangle as a doohicky?
+``top_digest``
+--------------
+A BLAKE2b-256 hash of the following values ::
 
-TODO: define byte encoding for the Jabberwock.
+   * ``header_digest`` (32-byte hash output)
+   * ``transparent_digest`` (32-byte hash output)
+   * ``tze_digest (32-byte hash output)
+   * ``sprout_digest (32-byte hash output)
+   * ``sapling_digest (32-byte hash output)
 
-{Feel free to copy from other ZIPs doing similar things, e.g. defining RPC calls,
-consensus rules, etc.}
+The personalization field of this hash is set to::
 
-Valid reStructuredText
-----------------------
+  "ZcTxIdHeaderHash"
 
-This is optional before publishing a PR, but to check whether a document is valid
-reStructuredText, first install rst2html5::
+1: ``transparent_digest``
+`````````````````````````
+A BLAKE2b-256 hash of the following values ::
 
-  sudo apt-get install python3-pip
-  sudo pip3 install rst2html5
+* 1a. ``prevouts_digest`` (32-byte hash)
+* 1b. ``sequence_digest`` (32-byte hash)
+* 1c. ``outputs_digest``  (32-byte hash)
 
-Then, with ``zip-xxxx.rst`` in the root directory of a clone of this repo, run::
+The personalization field of this hash is set to::
 
-  make zip-xxxx.html
+  "ZcTxIdTranspHash"
 
-and view ``zip-xxxx.html`` in a web browser.
+1a: ``prevouts_digest``
+'''''''''''''''''''''''
+A BLAKE2b-256 hash of the *transaction serialized form* of all ``outpoint``
+field values of transparent inputs to the transaction.
 
+The personalization field of this hash is set to::
+
+  "ZcTxIdPrevoutHsh"
+
+1b: ``sequence_digest``
+'''''''''''''''''''''''
+A BLAKE2b-256 hash of the *32-bit little-endian representation* of all ``nSequence``
+field values of transparent inputs to the transaction.
+
+The personalization field of this hash is set to::
+
+  "ZcTxIdSequencHsh"
+
+1c: ``outputs_digest``
+''''''''''''''''''''''
+A BLAKE2b-256 hash of the *transaction serialized form* of all transparent outputs 
+belonging to the transaction.
+
+The personalization field of this hash is set to::
+
+  "ZcTxIdOutputsHsh"
+
+2: ``tze_digest``
+`````````````````
+A BLAKE2b-256 hash of the following values ::
+
+   * 2a. ``tzein_digest`` (32-byte hash)
+   * 2b. ``tzeout_digest`` (32-byte hash)
+
+The personalization field of this hash is set to::
+
+  "ZcTxIdTZE___Hash"
+
+2a: ``tzein_digest``
+'''''''''''''''''''''''
+A BLAKE2b-256 hash of all TZE inputs to the transaction, excluding witness data.
+For each TZE input, the following values are appended to this hash::
+
+   * 2a.i. the *transaction serialized form* of the CompactSize representation
+     of the TZE extension id for the input.
+   * 2a.i. the *transaction serialized form* of the CompactSize representation
+     of the TZE mode for the input.
+
+The personalization field of this hash is set to::
+
+  "ZcTxIdTzeInsHash"
+
+2a: ``tzeout_digest``
+'''''''''''''''''''''''
+A BLAKE2b-256 hash of the *transaction serialized form* of all TZE outputs 
+belonging to the transaction.
+
+The personalization field of this hash is set to::
+
+  "ZcTxIdTzeOutHash"
+
+3: ``sprout_digest``
+`````````````````````````
+A BLAKE2b-256 hash of the *transaction serialized form* of all Sprout ``JoinSplit`` 
+components of the transaction followed by the *transaction_serialized_form* of the
+``joinSplitPubKey`` value. This is equivalent to the internal hash that is specified
+by ZIP-0143 over the Sprout data, with the distinction that the unmodified hash finalized
+immediately after initialization with the personalization string is used in the case
+that no ``JoinSplit`` components exist, rather than the ``uint256`` of ``0x0000...0000``.
+
+The personalization field of this hash is set to::
+
+  "ZTxIdJSplitsHash"
+
+4: ``sapling_digest``
+`````````````````````
+The digest of Sapling components is composed of two subtrees which are organized to 
+permit easy interoperability with the ``CompactBlock`` representation of Sapling data
+specified by the ZIP-307 Light Client Protocol.
+
+This digest is a BLAKE2b-256 hash of the following values ::
+
+   * 4a. ``sapling_spends_digest`` (32-byte hash)
+   * 4b. ``sapling_outputs_digest`` (32-byte hash)
+   * 4c. ``valueBalanceLE`` (64-bit signed little-endian)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdSaplingHash"
+
+4a: ``sapling_spends_digest``
+''''''''''''''''''''''''''''''
+This digest is a BLAKE2b-256 hash of the following values ::
+
+   * 4a.i.   ``sapling_spends_compact_digest`` (32-byte hash)
+   * 4b.ii.  ``sapling_spends_noncompact_digest`` (32-byte hash)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdSSpendsHash"
+
+4a.i: ``sapling_spends_compact_digest``
+........................................
+A BLAKE2b-256 hash of the *transaction serialized form* of all nullifier field
+values of Sapling shielded spends belonging to the transaction.
+
+The personalization field of this hash is set to::
+
+  "ZTxIdSSpendCHash"
+
+4a.ii: ``sapling_spends_noncompact_digest``
+............................................
+A BLAKE2b-256 hash of the non-nullifier information for all Sapling shielded spends
+belonging to the transaction. For each spend, the following elements are included
+in the hash:: 
+
+   * 4a.ii.1 ``cv``      (*transaction serialized form* bytes)
+   * 4a.ii.2 ``anchor``  (*transaction serialized form* bytes)
+   * 4a.ii.3 ``rk``      (*transaction serialized form* bytes)
+   * 4a.ii.4 ``zkproof`` (*transaction serialized form* bytes)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdSSpendNHash"
+
+4b: ``sapling_outputs_digest``
+'''''''''''''''''''''''''''''''
+This digest is a BLAKE2b-256 hash of the following values ::
+
+   * 4a.i.   ``sapling_outputs_compact_digest`` (32-byte hash)
+   * 4b.ii.  ``sapling_outputs_memos_digest`` (32-byte hash)
+   * 4b.iii. ``sapling_outputs_noncompact_digest`` (32-byte hash)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdSOutputHash"
+
+4b.i: ``sapling_outputs_compact_digest``
+.........................................
+A BLAKE2b-256 hash of the subset of Sapling output information included in the 
+ZIP-307 ``CompactBlock`` format for all Sapling shielded outputs
+belonging to the transaction. For each output, the following elements are included
+in the hash:: 
+
+   * 4b.i.1 ``cmu``                (*transaction serialized form* bytes)
+   * 4b.i.2 ``ephemeral_key``      (*transaction serialized form* bytes)
+   * 4b.i.3 ``enc_ciphertext[..52] (First 52 bytes of *transaction serialized form*
+
+The personalization field of this hash is set to::
+
+  "ZTxIdSOutC__Hash"
+
+4a.ii: ``sapling_outputs_memos_digest``
+........................................
+A BLAKE2b-256 hash of the subset of Sapling shielded memo field data for all Sapling 
+shielded outputs belonging to the transaction. For each output, the following elements 
+are included in the hash:: 
+
+   * 4b.ii.1 ``enc_ciphertext[52..564] (contents of the encrypted memo field)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdSOutM__Hash"
+
+4a.iii: ``sapling_outputs_noncompact_digest``
+..............................................
+A BLAKE2b-256 hash of the remaining subset of Sapling output information **not** included
+in the ZIP-307 ``CompactBlock`` format, for all Sapling shielded outputs belonging to the
+transaction. For each output, the following elements are included in the hash:: 
+
+   * 4b.iii.1 ``cv``                    (*transaction serialized form* bytes)
+   * 4b.iii.2 ``enc_ciphertext[564..]`` (post-memo suffix of *transaction serialized form*)
+   * 4b.iii.3 ``out_ciphertext``        (*transaction serialized form* bytes)
+   * 4b.iii.4 ``zkproof``               (*transaction serialized form* bytes)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdSOutN__Hash"
 
 Reference implementation
 ========================
 
-{This section is entirely optional; if present, it usually gives links to zcashd or
-zebrad PRs.}
-
+- https://github.com/zcash/librustzcash/pull/319/files
 
 References
 ==========
 
-.. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
-.. [#protocol] `Zcash Protocol Specification, Version {...} or later <protocol/protocol.pdf>`_
-.. [#zip-xxxx] `ZIP xxxx: Title <zip-xxxx.rst>`_
