@@ -97,10 +97,24 @@ initial requirement that all transactions be non-malleable.
 Specification
 =============
 
+
+
+-------
+Digests
+-------
+
+All digests are personalized BLAKE2b-256 hashes. In cases where no elements are
+available for hashing (for example, if there are no TZE inputs) the resulting hash
+will be over just the personalization string, providing domain separation even for
+empty data fields.
+
+TxId Digest
+===========
+
 A new transaction digest algorithm is defined that constructs the identifier for
 a transaction from a tree of hashes. The overall structure of the hash is as follows:
 
-top_digest
+txid_digest
 ├── header_digest
 ├── transparent_digest
 │   ├── prevouts_digest
@@ -124,19 +138,7 @@ Each node written as ``snake_case`` in this tree is a BLAKE2b-256 hash of its
 children, initialized with a personalization string specific to that branch 
 of the tree. Nodes that are not themselves digests are written in ``camelCase``. 
 
--------
-Digests
--------
-
-All digests are personalized BLAKE2b-256 hashes. In cases where no elements are
-available for hashing (for example, if there are no TZE inputs) the resulting hash
-will be over just the personalization string, providing domain separation even for
-empty data fields.
-
-Digest definitions
-==================
-
-``top_digest``
+``txid_digest``
 --------------
 A BLAKE2b-256 hash of the following values ::
 
@@ -341,11 +343,85 @@ The personalization field of this hash is set to::
 
   "ZTxIdSOutN__Hash"
 
+Witness Digest
+==============
+
+A new transaction digest algorithm is defined that constructs a digest which commits
+to the authorizing data of a transaction from a tree of BLAKE2b-256 hashes. 
+The overall structure of the hash is as follows:
+
+auth_digest
+├── transparent_scripts_digest
+├── tze_witnesses_digest
+├── sprout_sigs_digest
+└── sapling_sigs_digest
+
+Each node written as ``snake_case`` in this tree is a BLAKE2b-256 hash of authorizing
+data of the transaction.
+
+``auth_digest``
+--------------
+A BLAKE2b-256 hash of the following values ::
+
+   * ``transparent_scripts_digest`` (32-byte hash output)
+   * ``tze_witnesses_digest (32-byte hash output)
+   * ``sprout_sigs_digest (32-byte hash output)
+   * ``sapling_sigs_digest (32-byte hash output)
+
+The personalization field of this hash is set to::
+
+  "ZTxAuth_____Hash"
+
+1: ``transparent_scripts_digest``
+`````````````````````````````````
+A BLAKE2b-256 hash of the *transaction serialized form* of the Bitcoin script associated 
+with each transparent input belonging to the transaction.
+
+The personalization field of this hash is set to::
+
+  "ZTxAuthTransHash"
+
+2: ``tze_witnesses_digest``
+```````````````````````````
+A BLAKE2b-256 hash of the *transaction serialized form* of the witness data associated
+with each TZE input belonging to the transaction.
+
+The personalization field of this hash is set to::
+
+  "ZTxAuthTZE__Hash"
+
+3: ``sprout_sigs_digest``
+```````````````````````````
+A BLAKE2b-256 hash of the *transaction serialized form* of the joinsplit signature
+belonging to the transaction.
+
+The personalization field of this hash is set to::
+
+  "ZTxAuthSprouHash"
+
+3: ``sapling_sigs_digest``
+```````````````````````````
+A BLAKE2b-256 hash of the *transaction serialized form* of the sapling signature
+of each Sapling spend description belonging to the transaction, followed by the
+*transaction serialized form* of the binding signature.
+
+The personalization field of this hash is set to::
+
+  "ZTxAuthSapliHash"
+
+--------------------
+Block Header Changes
+--------------------
+
+// TODO: Need @str4d's help here.
+
+========================
 Reference implementation
 ========================
 
 - https://github.com/zcash/librustzcash/pull/319/files
 
+==========
 References
 ==========
 
