@@ -101,6 +101,7 @@ Index of ZIPs
     <tr> <td><span class="reserved">224</span></td> <td class="left"><a class="reserved" href="zip-0224.rst">Pollard (provisional name) Shielded Protocol</a></td> <td>Reserved</td>
     <tr> <td>243</td> <td class="left"><a href="zip-0243.rst">Transaction Signature Validation for Sapling</a></td> <td>Final</td>
     <tr> <td><span class="reserved">244</span></td> <td class="left"><a class="reserved" href="zip-0244.rst">Transaction Signature Validation for Transparent Zcash Extensions</a></td> <td>Reserved</td>
+    <tr> <td><span class="reserved">245</span></td> <td class="left"><a class="reserved" href="zip-0245.rst">Transaction Non-Malleability</a></td> <td>Reserved</td>
     <tr> <td>250</td> <td class="left"><a href="zip-0250.rst">Deployment of the Heartwood Network Upgrade</a></td> <td>Final</td>
     <tr> <td>251</td> <td class="left"><a href="zip-0251.rst">Deployment of the Canopy Network Upgrade</a></td> <td>Implemented (zcashd)</td>
     <tr> <td><span class="reserved">252</span></td> <td class="left"><a class="reserved" href="zip-0252.rst">Deployment of the NU5 Network Upgrade</a></td> <td>Reserved</td>
