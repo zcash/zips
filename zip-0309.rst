@@ -710,7 +710,11 @@ TZE_VERIFY function
 
   - Return False
 
+- msg = TODO // hash of tx without witnesses
+
 - if mode == 0: // *escrow mode*
+
+  - init-cid || init-merch-pk || init-merch-ps-pk || init-cust-pk = precondition
 
   - if context.tx.tze_out_count == 1:
 
@@ -721,39 +725,82 @@ TZE_VERIFY function
     
         - Return False
 
+      - merch-ps-sig || cust-sig = witness
+      - cid || merch-pk || cust-pk || rev-lock = context.tx.tze_out[0].precondition.tze_data_payload
+      - merch-balance = context.tx.tx_out[0].value
+      - cust-balance = context.tx.tze_out[0].amount
+      - state = cid || cust-pk || rev-lock || cust-balance || merch-balance
+
+      - if init-cid != cid OR init-merch-pk != merch-pk OR init-cust-pk != cust-pk:
+
+        - Return False
+
+      - if Verify(cust-pk, msg, cust-sig) != 1 OR PS_sig.Verify(merch-ps-pk, state, merch-ps-sig) != 1:
+
+        - Return False
+
+      - if context.tx.tx_out[0] == merch-balance || <ZCash P2PKH version bytes (0x1C || 0xB8 for mainnet)> || Hash_160(merch-pk)
+
+         - Return True
+
     - if context.tx.tze_out[0].precondition.tze_mode == 2: // *This is an expiry transaction*
-    
+
       - // *Check the transaction's structure*
       - if context.tx.tx_out_count != 0:
     
         - Return False
 
-    - else:
+      - merch-sig = witness
+      - cid || merch-pk || merch-ps-pk || cust-pk = context.tx.tze_out[0].precondition.tze_data_payload
 
-      - Return False
+      - if init-cid != cid OR init-merch-pk != merch-pk OR init-merch-ps-pk != merch-ps-pk OR init-cust-pk != cust-pk:
 
-  - else:
+        - Return False
 
-    - Return False
+      - if Verify(merch-pk, msg, merch-sig) == 1:
+
+        - Return True
+
+    - if context.tx.tze_out_count == 0 AND if context.tx.tx_out_count == 2: // *This is a mutual close transaction*
+
+      - merch-sig || cust-sig = witness
+
+      - if Verify(init-merch-pk, msg, merch-sig) == 1 AND Verify(init-cust-pk, msg, cust-sig) == 1:
+
+        - Return True
+
 
 - else if mode == 1: // *close mode*
+
+  - cid, merch-pk, cust-pk, rev-lock = precondition
+  - sig, (rev-secret) = witness
 
   - if context.tx.tx_out.count == 1:
 
     - // *Check the transaction's structure*
     - if context.tx.tze_out_count != 0:
 
-      Return False
+      - Return False
 
-    - // *This is a merchant claim transaction*
+    - if Verify(cust-pk, msg, sig) == 1: // *This is a customer claim transaction*
 
-    - // *This is a dispute transaction*
+      - expiry-height = find_block_height(context.tx.tze_input[0].prevout_hash) // TODO
+      - if context.block-height >= expiry-height + DELAY:
 
-  - else:
+        - Return True
 
-    - Return False
+
+    - if Verify(merch-pk, msg, sig) == 1:// *This is a dispute transaction*
+
+      - if rev-lock == SHA256(rev-secret):
+
+        - Return True
+
+
 
 - else if mode == 2: // *expiry mode*
+
+  - init-cid || init-merch-pk || init-merch-ps-pk || init-cust-pk = precondition
 
   - if context.tx.tze_out_count == 1: // *This is a close transaction*
 
@@ -762,22 +809,37 @@ TZE_VERIFY function
 
       - Return False
 
+    - merch-ps-sig || cust-sig = witness
+    - cid || merch-pk || cust-pk || rev-lock = context.tx.tze_out[0].precondition.tze_data_payload
+    - merch-balance = context.tx.tx_out[0].value
+    - cust-balance = context.tx.tze_out[0].amount
+    - state = cid || cust-pk || rev-lock || cust-balance || merch-balance
+
+    - if init-cid != cid OR init-merch-pk != merch-pk OR init-cust-pk != cust-pk:
+
+      - Return False
+
+    - if Verify(cust-pk, msg, cust-sig) != 1 OR PS_sig.Verify(merch-ps-pk, state, merch-ps-sig) != 1:
+
+      - Return False
+
+     - if context.tx.tx_out[0] == merch-balance || <ZCash P2PKH version bytes (0x1C || 0xB8 for mainnet)> || Hash_160(merch-pk)
+
+       - Return True
+
   - else if context.tx.tx_out_count == 1: // *This is a merchant claim transaction*
 
-  - else:
+    - sig = witness
 
-    - Return False
+    - if Verify(merch-pk, msg, sig) == 1:
 
-- else if context.tx.tx_out_count == 2: // *This is a mutual close transaction*
+      - expiry-height = find_block_height(context.tx.tze_input[0].prevout_hash) // TODO
+      - if context.block-height >= expiry-height + DELAY:
 
-  - // *Check the transaction's structure*
-  - if context.tx.tze_out_count != 0:
+        - Return True
 
-    - Return False
 
-- else:
-
-  - Return False
+- Return False
 
 
 References
