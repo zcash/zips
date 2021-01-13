@@ -1,9 +1,133 @@
 ::
 
   ZIP: 245
-  Title: Transaction Non-Malleability
-  Owners: Daira Hopwood <daira@electriccoin.co>
-          Kris Nuttycombe <kris@electriccoin.co>
+  Title: Transaction Identifier Digests & Signature Validation for Transparent Zcash Extensions
+  Owners: Kris Nuttycombe <kris@electriccoin.co>
   Status: Reserved
   Category: Consensus
-  Discussions-To: <https://github.com/zcash/zips/issues/411>
+  Discussions-To: <https://github.com/zcash/zips/issues/384>
+
+Terminology
+===========
+
+The key words "MUST" and "MUST NOT" in this document are to be interpreted as described in RFC 2119. [#RFC2119]_
+
+The terms "consensus branch", "epoch", and "network upgrade" in this document are to be interpreted as
+described in ZIP 200. [#zip-0200]_
+
+Abstract
+========
+
+This proposal defines changes to ZIP 244 [#zip-0244]_ transaction id and signature digest 
+algorithms to accommodate the inclusion of transparent Zcash extensions (TZEs) 
+as defined in ZIP 222 [#zip-0222]_. 
+
+Specification
+=============
+
+TxId Digest
+-----------
+
+The tree of hashes defined by ZIP 244 [#zip-0244]_ is re-structured to include a new
+branch for TZE hashes. The ``tze_digest`` branch is the only new addition to the
+tree; ``header_digest``, ``transparent_digest``, ``sprout_digest``, and ``sapling_digest``
+are as in ZIP 244.
+
+txid_digest
+├── header_digest
+├── transparent_digest
+├── tze_digest
+│   ├── tzein_digest
+│   └── tzeout_digest
+├── sprout_digest
+└── sapling_digest
+
+``txid_digest``
+```````````````
+The top hash of the ``txid_digest`` tree is modified from the ZIP 244 structure
+to be a BLAKE2b-256 hash of the following values ::
+
+   * ``header_digest`` (32-byte hash output)
+   * ``transparent_digest`` (32-byte hash output)
+   * ``tze_digest (32-byte hash output)
+   * ``sprout_digest (32-byte hash output)
+   * ``sapling_digest (32-byte hash output)
+
+The personalization field of this hash is unmodified from ZIP 244.
+ 
+2: ``tze_digest``
+'''''''''''''''''
+A BLAKE2b-256 hash of the following values ::
+
+   * 2a. ``tzein_digest`` (32-byte hash)
+   * 2b. ``tzeout_digest`` (32-byte hash)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdTZE____Hash"
+
+2a: ``tzein_digest``
+....................
+A BLAKE2b-256 hash of all TZE inputs to the transaction, excluding witness data.
+For each TZE input, the following values are appended to this hash::
+
+   * 2a.i. the field encoding of the CompactSize representation
+     of the TZE extension id for the input.
+   * 2a.i. the field encoding of the CompactSize representation
+     of the TZE mode for the input.
+
+The personalization field of this hash is set to::
+
+  "ZTxIdTZEIns_Hash"
+
+2a: ``tzeout_digest``
+.....................
+A BLAKE2b-256 hash of the field encoding of all TZE outputs 
+belonging to the transaction.
+
+The personalization field of this hash is set to::
+
+  "ZTxIdTzeOutsHash"
+
+Witness Digest
+--------------
+
+The tree of hashes defined by ZIP 244 [#zip-0244]_ is re-structured to include a new
+branch for TZE hashes. The ``tze_digest`` branch is the only new addition to the
+tree; ``transparent_digest``, ``sprout_digest``, and ``sapling_digest``
+are as in ZIP 244.
+
+auth_digest
+├── transparent_scripts_digest
+├── tze_witnesses_digest
+├── sprout_sigs_digest
+└── sapling_sigs_digest
+
+``auth_digest``
+```````````````
+The top hash of the ``auth_digest`` tree is modified from the ZIP 244 structure
+to be a BLAKE2b-256 hash of the following values ::
+
+   * ``transparent_scripts_digest`` (32-byte hash output)
+   * ``tze_witnesses_digest (32-byte hash output)
+   * ``sprout_sigs_digest (32-byte hash output)
+   * ``sapling_sigs_digest (32-byte hash output)
+
+The personalization field of this hash is unmodified from ZIP 244.
+
+2: ``tze_witnesses_digest``
+```````````````````````````
+A BLAKE2b-256 hash of the field encoding of the witness data associated
+with each TZE input belonging to the transaction.
+
+The personalization field of this hash is set to::
+
+  "ZTxAuthTZE__Hash"
+
+Reference implementation
+========================
+
+- https://github.com/zcash/librustzcash/pull/319/files
+
+References
+==========
