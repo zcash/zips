@@ -31,7 +31,7 @@ This proposal also defines a new transaction digest algorithm for signature vali
 which shares all available structure produced during the construction of transaction 
 identifiers, in order to minimize redundant data hashing in validation.
 
-This proposal also defines new semantics for the ``hashLightClientRoot`` field of the
+This proposal also defines a new name and semantics for the ``hashLightClientRoot`` field of the
 block header, to enable additional commitments to be represented in this hash and to
 provide a mechanism for future extensibility of the set of commitments represented.
 
@@ -371,10 +371,10 @@ S.2: ``transparent_digest``
 `````````````````````````
 If we are producing a hash for the signature over a transparent input,
 the value of the digest produced here depends upon the value of a ``hash_type``
-flag as in ZIP 143 [#zip-0143]_ and BIP 143 [#bip-0143]_.
+flag as in ZIP 143 [#zip-0143]_.
 
 The construction of each component below depends upon the values of the 
-hash_type flag bits. Each component will be described separately
+``hash_type`` flag bits. Each component will be described separately
 
 This digest is a BLAKE2b-256 hash of the following values ::
 
@@ -392,53 +392,54 @@ S.2a: ``prevouts_digest``
 This is a BLAKE2b-256 hash initialized with the personalization field value 
 "ZTxIdPrevoutHash". 
 
-If the ``SIGHASH_ANYONECANPAY`` flag is set::
-
-   * the hash is immediately finalized, without being updated with any
-     additional data
-
-otherwise::
+If the ``SIGHASH_ANYONECANPAY`` flag is not set::
 
    * identical to the value of ``prevouts_digest`` as specified for the
      transaction identifier in section T.2a.
+
+otherwise::
+
+   * the hash is immediately finalized, without being updated with any
+     additional data
 
 S.2b: ``sequence_digest``
 '''''''''''''''''''''''
 This is a BLAKE2b-256 hash initialized with the personalization field value 
 "ZTxIdSequencHash". 
 
-If any of the ``SIGHASH_ANYONECANPAY``, ``SIGHASH_SINGLE``, or ``SIGHASH_NONE`` flags are
+If none of the ``SIGHASH_ANYONECANPAY``, ``SIGHASH_SINGLE``, or ``SIGHASH_NONE`` flags are
 set::
-
-   * the hash is immediately finalized, without being updated with any
-     additional data
-
-otherwise::
 
    * identical to the value of ``sequence_digest`` as specified for the
      transaction identifier in section T.2b.
+
+otherwise::
+
+   * the hash is immediately finalized, without being updated with any
+     additional data
 
 S.2c: ``outputs_digest``
 '''''''''''''''''''''''
 This is a BLAKE2b-256 hash initialized with the personalization field value 
 "ZTxIdOutputsHash". 
 
-If the ``SIGHASH_SINGLE`` flag is set and the signature hash is being computed for a
-transparent input::
+If none of the ``SIGHASH_SINGLE`` or ``SIGHASH_NONE`` flags are set::
 
-   * the hash is updated with the field encoding of the ``prevout`` field value 
-     of the input, then finalized
+   * identical to the value of ``outputs_digest`` as specified for the
+     transaction identifier in section T.2c.
+
+If the ``SIGHASH_SINGLE`` flag is set and the signature hash is being computed for 
+the transparent input at a particular index, and a transparent output appears in
+the transaction at that index::
+
+   * the hash is updated with the transaction serialized form of the 
+     transparent output at that index, and finalized.
 
 If the ``SIGHASH_SINGLE`` flag is set and the signature is being computed for
 a shielded input, or if the ``SIGHASH_NONE`` flag is set::
 
    * the hash is immediately finalized, without being updated with any
      additional data
-
-otherwise::
-
-   * identical to the value of ``outputs_digest`` as specified for the
-     transaction identifier in section T.2c.
 
 S.2d: ``txin_sig_digest``
 '''''''''''''''''''''''''
@@ -566,6 +567,21 @@ of the following elements::
 
    * ``hashLightClientRoot`` as described in ZIP 221 [#zip-0221]_
    * ``hashAuthDataRoot`` 
+   * ``terminator`` [0u8;32]
+
+This representation treats the ``hashBlockCommitments`` value as a linked
+list of hashes terminated by arbitrary data. In the case of protocol upgrades
+where additional commitments need to be included in the block header, it is
+possible to replace this terminator with the hash of a newly defined structure
+which ends in a similar terminator. Fully validating nodes MUST always use the
+entire structure defined by the latest activated protocol version that they 
+support. 
+
+The linked structure of this hash is intended to provide extensibility for 
+use by light clients which may be connected to a third-party server that supports
+a later protocol version. Such a third party SHOULD provide a value that can
+be used instead of the all-zeros terminator to permit the light client to 
+perform validation of the parts of the structure it needs. 
 
 
 ========================
@@ -579,10 +595,9 @@ References
 ==========
 
 .. [#RFC2119] `RFC 2119: Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
-.. [#zip-0200] `ZIP 200: Network Upgrade Activation Mechanism <https://zips.z.cash/zip-0200>`_
-.. [#zip-0221] `ZIP 221: FlyClient - Consensus Layer Changes <https://zips.z.cash/zip-0221>`_
-.. [#zip-0076] `ZIP 76: Transaction Signature Validation before Overwinter <https://zips.z.cash/zip-0076>`_
-.. [#zip-0143] `ZIP 143: Transaction Signature Validation for Overwinter <https://zips.z.cash/zip-0143>`_
-.. [#bip-0143] `Transaction Signature Verification for Version 0 Witness Program <https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki>`_
-.. [#zip-0307] `ZIP 307: Light Client Protocol for Payment Detection <https://zips.z.cash/zip-0307>`_
+.. [#zip-0200] `ZIP 200: Network Upgrade Activation Mechanism <zip-0200.rst>`_
+.. [#zip-0221] `ZIP 221: FlyClient - Consensus Layer Changes <zip-0221.rst>`_
+.. [#zip-0076] `ZIP 76: Transaction Signature Validation before Overwinter <zip-0076.rst>`_
+.. [#zip-0143] `ZIP 143: Transaction Signature Validation for Overwinter <zip-0143.rst>`_
+.. [#zip-0307] `ZIP 307: Light Client Protocol for Payment Detection <zip-0307.rst>`_
 
