@@ -27,6 +27,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/411">https://g
         </section>
         <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <p>In all cases, but particularly in order to support the use of transactions in higher-level protocols, any modification of the transaction that has not been explicitly permitted (such as via anyone-can-spend inputs) should invalidate attestations to spend authority or to the included outputs. Following the activation of this proposed change, transaction identifiers will be stable irrespective of any possible malleation of "witness data" such as proofs and transaction signatures.</p>
+            <p>In addition, by specifying a transaction identifier and signature algorithm that is decoupled from the serialized format of the transaction as a whole, this change makes it so that the wire format of transactions is no longer consensus-critical.</p>
         </section>
         <section id="requirements"><h2><span class="section-heading">Requirements</span><span class="section-anchor"> <a rel="bookmark" href="#requirements"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <ul>
@@ -72,7 +73,9 @@ T.3: sprout_digest       (32-byte hash output)
 T.4: sapling_digest      (32-byte hash output)</pre>
                         <p>The personalization field of this hash is set to:</p>
                         <pre>"ZcashTxHash_" || CONSENSUS_BRANCH_ID</pre>
+                        <p><code>ZcashTxHash_</code> has 1 underscore character.</p>
                         <p>As in ZIP 143 <a id="id5" class="footnote_reference" href="#zip-0143">5</a>, CONSENSUS_BRANCH_ID is the 4-byte little-endian encoding of the consensus branch ID for the epoch of the block containing the transaction. Domain separation of the transaction id hash across parallel consensus branches provides replay protection: transactions targeted for one consensus branch will not have the same transaction identifier on other consensus branches.</p>
+                        <p>This signature hash personalization prefix has been changed to reflect the new role of this hash (relative to <code>ZcashSigHash</code> as specified in ZIP 143) as a transaction identifier rather than a commitment that is exclusively used for signature purposes. The previous computation of the transaction identifier was a SHA256d hash of the serialized transaction contents, and was not personalized.</p>
                         <section id="t-1-header-digest"><h6><span class="section-heading">T.1: header_digest</span><span class="section-anchor"> <a rel="bookmark" href="#t-1-header-digest"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h6>
                             <p>A BLAKE2b-256 hash of the following values</p>
                             <pre>T.1a: version             (4-byte little-endian version identifier including overwinter flag)
@@ -140,7 +143,7 @@ T.4a.ii: sapling_spends_noncompact_digest (32-byte hash)</pre>
                                     <pre>"ZTxIdSSpendCHash"</pre>
                                 </section>
                                 <section id="t-4a-ii-sapling-spends-noncompact-digest"><h8><span class="section-heading">T.4a.ii: sapling_spends_noncompact_digest</span><span class="section-anchor"> <a rel="bookmark" href="#t-4a-ii-sapling-spends-noncompact-digest"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h8>
-                                    <p>A BLAKE2b-256 hash of the non-nullifier information for all Sapling shielded spends belonging to the transaction, excluding zkproof data. For each spend, the following elements are included in the hash:</p>
+                                    <p>A BLAKE2b-256 hash of the non-nullifier information for all Sapling shielded spends belonging to the transaction, excluding both zkproof data and spend authorization signature(s). For each spend, the following elements are included in the hash:</p>
                                     <pre>T.4a.ii.1: cv     (field encoding bytes)
 T.4a.ii.2: anchor (field encoding bytes)
 T.4a.ii.3: rk     (field encoding bytes)</pre>
@@ -161,13 +164,13 @@ T.4b.iii: sapling_outputs_noncompact_digest (32-byte hash)</pre>
 T.4b.i.2: ephemeral_key        (field encoding bytes)
 T.4b.i.3: enc_ciphertext[..52] (First 52 bytes of field encoding)</pre>
                                     <p>The personalization field of this hash is set to:</p>
-                                    <pre>"ZTxIdSOutC__Hash"</pre>
+                                    <pre>"ZTxIdSOutC__Hash" (2 underscore characters)</pre>
                                 </section>
                                 <section id="t-4a-ii-sapling-outputs-memos-digest"><h8><span class="section-heading">T.4a.ii: sapling_outputs_memos_digest</span><span class="section-anchor"> <a rel="bookmark" href="#t-4a-ii-sapling-outputs-memos-digest"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h8>
                                     <p>A BLAKE2b-256 hash of the subset of Sapling shielded memo field data for all Sapling shielded outputs belonging to the transaction. For each output, the following elements are included in the hash:</p>
                                     <pre>T.4b.ii.1: enc_ciphertext[52..564] (contents of the encrypted memo field)</pre>
                                     <p>The personalization field of this hash is set to:</p>
-                                    <pre>"ZTxIdSOutM__Hash"</pre>
+                                    <pre>"ZTxIdSOutM__Hash" (2 underscore characters)</pre>
                                 </section>
                                 <section id="t-4a-iii-sapling-outputs-noncompact-digest"><h8><span class="section-heading">T.4a.iii: sapling_outputs_noncompact_digest</span><span class="section-anchor"> <a rel="bookmark" href="#t-4a-iii-sapling-outputs-noncompact-digest"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h8>
                                     <p>A BLAKE2b-256 hash of the remaining subset of Sapling output information <strong>not</strong> included in the ZIP 307 <a id="id8" class="footnote_reference" href="#zip-0307">6</a> <code>CompactBlock</code> format, excluding zkproof data, for all Sapling shielded outputs belonging to the transaction. For each output, the following elements are included in the hash:</p>
@@ -197,7 +200,8 @@ S.3: sprout_digest      (32-byte hash output)
 S.4: sapling_digest     (32-byte hash output)</pre>
                         <p>The personalization field of this hash is set to:</p>
                         <pre>"ZcashTxHash_" || CONSENSUS_BRANCH_ID</pre>
-                        <p>This value must have the same personalization as the top hash of the transaction identifier digest tree, in order to make it possible to sign the transaction id in the case that there are no transparent inputs.</p>
+                        <p><code>ZcashTxHash_</code> has 1 underscore character.</p>
+                        <p>This value has the same personalization as the top hash of the transaction identifier digest tree, so that what is being signed in the case that there are no transparent inputs is just the transaction id.</p>
                         <section id="s-1-header-digest"><h6><span class="section-heading">S.1: header_digest</span><span class="section-anchor"> <a rel="bookmark" href="#s-1-header-digest"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h6>
                             <p>Identical to that specified for the transaction identifier.</p>
                         </section>
@@ -212,7 +216,7 @@ S.2d: txin_sig_digest (32-byte hash)</pre>
                             <p>The personalization field of this hash is set to:</p>
                             <pre>"ZTxIdTranspaHash"</pre>
                             <section id="s-2a-prevouts-digest"><h7><span class="section-heading">S.2a: prevouts_digest</span><span class="section-anchor"> <a rel="bookmark" href="#s-2a-prevouts-digest"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h7>
-                                <p>This is a BLAKE2b-256 hash initialized with the personalization field value "ZTxIdPrevoutHash".</p>
+                                <p>This is a BLAKE2b-256 hash initialized with the personalization field value <code>ZTxIdPrevoutHash</code>.</p>
                                 <p>If the <code>SIGHASH_ANYONECANPAY</code> flag is not set:</p>
                                 <pre>identical to the value of ``prevouts_digest`` as specified for the
 transaction identifier in section T.2a.</pre>
@@ -221,8 +225,8 @@ transaction identifier in section T.2a.</pre>
 additional data</pre>
                             </section>
                             <section id="s-2b-sequence-digest"><h7><span class="section-heading">S.2b: sequence_digest</span><span class="section-anchor"> <a rel="bookmark" href="#s-2b-sequence-digest"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h7>
-                                <p>This is a BLAKE2b-256 hash initialized with the personalization field value "ZTxIdSequencHash".</p>
-                                <p>If none of the <code>SIGHASH_ANYONECANPAY</code>, <code>SIGHASH_SINGLE</code>, or <code>SIGHASH_NONE</code> flags are set:</p>
+                                <p>This is a BLAKE2b-256 hash initialized with the personalization field value <code>ZTxIdSequencHash</code>.</p>
+                                <p>If the <code>SIGHASH_ANYONECANPAY</code> flag is not set, and the sighash type is neither <code>SIGHASH_SINGLE</code> nor <code>SIGHASH_NONE</code>:</p>
                                 <pre>identical to the value of ``sequence_digest`` as specified for the
 transaction identifier in section T.2b.</pre>
                                 <p>otherwise:</p>
@@ -230,19 +234,19 @@ transaction identifier in section T.2b.</pre>
 additional data</pre>
                             </section>
                             <section id="s-2c-outputs-digest"><h7><span class="section-heading">S.2c: outputs_digest</span><span class="section-anchor"> <a rel="bookmark" href="#s-2c-outputs-digest"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h7>
-                                <p>This is a BLAKE2b-256 hash initialized with the personalization field value "ZTxIdOutputsHash".</p>
-                                <p>If none of the <code>SIGHASH_SINGLE</code> or <code>SIGHASH_NONE</code> flags are set:</p>
+                                <p>This is a BLAKE2b-256 hash initialized with the personalization field value <code>ZTxIdOutputsHash</code>.</p>
+                                <p>If the sighash type is neither <code>SIGHASH_SINGLE</code> nor <code>SIGHASH_NONE</code>:</p>
                                 <pre>identical to the value of ``outputs_digest`` as specified for the
 transaction identifier in section T.2c.</pre>
-                                <p>If the <code>SIGHASH_SINGLE</code> flag is set and the signature hash is being computed for the transparent input at a particular index, and a transparent output appears in the transaction at that index:</p>
+                                <p>If the sighash type is <code>SIGHASH_SINGLE</code> and the signature hash is being computed for the transparent input at a particular index, and a transparent output appears in the transaction at that index:</p>
                                 <pre>the hash is updated with the transaction serialized form of the
 transparent output at that index, and finalized.</pre>
-                                <p>If the <code>SIGHASH_SINGLE</code> flag is set and the signature is being computed for a shielded input, or if the <code>SIGHASH_NONE</code> flag is set:</p>
+                                <p>If the sighash type is <code>SIGHASH_SINGLE</code> and the signature is being computed for a shielded input, or if the sighash type is <code>SIGHASH_NONE</code>:</p>
                                 <pre>the hash is immediately finalized, without being updated with any
 additional data</pre>
                             </section>
                             <section id="s-2d-txin-sig-digest"><h7><span class="section-heading">S.2d: txin_sig_digest</span><span class="section-anchor"> <a rel="bookmark" href="#s-2d-txin-sig-digest"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h7>
-                                <p>This is a BLAKE2b-256 hash initialized with the personalization field value "Zcash___TxInHash" (3 underscores).</p>
+                                <p>This is a BLAKE2b-256 hash initialized with the personalization field value <code>Zcash___TxInHash</code> (3 underscores).</p>
                                 <p>If the signature hash is being computed for a transparent input, the hash is updated with the following properties of that input:</p>
                                 <pre>S.2d.i:   prevout     (field encoding)
 S.2d.ii:  script_code (field encoding)
@@ -275,6 +279,7 @@ A2: sprout_auth_digest         (32-byte hash output)
 A3: sapling_auth_digest        (32-byte hash output)</pre>
                         <p>The personalization field of this hash is set to:</p>
                         <pre>"ZTxAuthHash_" || CONSENSUS_BRANCH_ID</pre>
+                        <p><code>ZTxAuthHash_</code> has 1 underscore character.</p>
                         <section id="a-1-transparent-scripts-digest"><h6><span class="section-heading">A.1: transparent_scripts_digest</span><span class="section-anchor"> <a rel="bookmark" href="#a-1-transparent-scripts-digest"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h6>
                             <p>A BLAKE2b-256 hash of the field encoding of the Bitcoin script associated with each transparent input belonging to the transaction.</p>
                             <p>The personalization field of this hash is set to:</p>
@@ -289,15 +294,15 @@ A.2b: joinsplit_sig    (field encoding bytes)</pre>
                             <pre>"ZTxAuthSprouHash"</pre>
                         </section>
                         <section id="a-3-sapling-auth-digest"><h6><span class="section-heading">A.3: sapling_auth_digest</span><span class="section-anchor"> <a rel="bookmark" href="#a-3-sapling-auth-digest"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h6>
-                            <p>A BLAKE2b-256 hash of the field encoding of the Sapling <code>zkproof</code> and <code>spend_auth_sig</code> values of each Sapling spend description belonging to the transaction, followed by the field encoding of the <code>zkproof</code> field of each Sapling output belonging to the transaction, followed by the field encoding of the binding signature</p>
-                            <pre>A.3a: spend_zkproofs_sigs  (see subsection A.3a)
-A.3b: output_zkproofs      (field encoding bytes)
-A.3c: binding_sig          (field encoding bytes)</pre>
+                            <p>A BLAKE2b-256 hash of the field encoding of the Sapling <code>zkproof</code> and <code>spend_auth_sig</code> values of each Sapling spend description belonging to the transaction, followed by the field encoding of the <code>zkproof</code> field of each Sapling output belonging to the transaction, followed by the field encoding of the binding signature:</p>
+                            <pre>A.3a: spend_zkproofs_and_sigs  (see subsection A.3a)
+A.3b: output_zkproofs          (field encoding bytes)
+A.3c: binding_sig              (field encoding bytes)</pre>
                             <p>The personalization field of this hash is set to:</p>
                             <pre>"ZTxAuthSapliHash"</pre>
-                            <section id="a-3a-spend-zkproofs-sigs"><h7><span class="section-heading">A.3a: spend_zkproofs_sigs</span><span class="section-anchor"> <a rel="bookmark" href="#a-3a-spend-zkproofs-sigs"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h7>
+                            <section id="a-3a-spend-zkproofs-and-sigs"><h7><span class="section-heading">A.3a: spend_zkproofs_and_sigs</span><span class="section-anchor"> <a rel="bookmark" href="#a-3a-spend-zkproofs-and-sigs"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h7>
                                 <p>For each <code>SpendDescription</code> belonging to the transaction, the following elements are added to the <code>A.3</code> hash:</p>
-                                <pre>A.3a.i:  zkproof           ([u8; 192])
+                                <pre>A.3a.i:  zkproof           (field encoding bytes)
 A.3a.ii: spend_auth_sig    (field encoding bytes)</pre>
                             </section>
                         </section>
@@ -306,7 +311,7 @@ A.3a.ii: spend_auth_sig    (field encoding bytes)</pre>
             </section>
             <section id="block-header-changes"><h3><span class="section-heading">Block Header Changes</span><span class="section-anchor"> <a rel="bookmark" href="#block-header-changes"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>The nonmalleable transaction identifier specified by this ZIP will be used in the place of the current malleable transaction identifier within the Merkel tree committed to by the <code>hashMerkleRoot</code> value. However, this change now means that <code>hashMerkleRoot</code> is not sufficient to fully commit to the transaction data, including witnesses, that appear within the block.</p>
-                <p>As a consequence, we now need to add a new commitment to the block header. This commitment will be the root of a Merkle tree that has parallel structure to the tree committed to by <code>hashMerkleRoot</code> (a path through this merkle tree to a transaction identifies the same transaction as that path reaches in the tree rooted at <code>hashMerkleRoot</code>) but where the leaves are hashes produced according to the <cite>Authorizing Data Commitment</cite> part of this specification.</p>
+                <p>As a consequence, we now need to add a new commitment to the block header. This commitment will be the root of a Merkle tree that has parallel structure to the tree committed to by <code>hashMerkleRoot</code> (a path through this Merkle tree to a transaction identifies the same transaction as that path reaches in the tree rooted at <code>hashMerkleRoot</code>), but where the leaves are hashes produced according to the <cite>Authorizing Data Commitment</cite> part of this specification.</p>
                 <p>This new commitment is named <code>hashAuthDataRoot</code> and is the root of a left-dense binary merkle tree of transaction authorizing data commitments. Empty internal nodes and leaves in the merkle tree (nodes without children) have the "null" hash value <code>[0u8; 32]</code>. Hashes in this tree are BLAKE2b-256 hashes personalized by the string <code>"ZcashAuthDatHash"</code>.</p>
                 <p>Changing the block header format to allow space for an additional commitment is somewhat invasive. Instead, the name and meaning of the <code>hashLightClientRoot</code> field, described in ZIP 221 <a id="id12" class="footnote_reference" href="#zip-0221">3</a>, is changed.</p>
                 <p><code>hashLightClientRoot</code> is renamed to <code>hashBlockCommitments</code>. The value of this hash is the BLAKE2b-256 hash personalized by the string <code>"ZcashBlockCommit"</code> of the following elements:</p>
