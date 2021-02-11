@@ -2,7 +2,118 @@
 
   ZIP: 216
   Title: Require Canonical Point Encodings
-  Owners: Daira Hopwood <daira@electriccoin.co>
-  Status: Reserved
+  Owners: Jack Grigg <jack@electriccoin.co>
+          Daira Hopwood <daira@electriccoin.co>
+  Status: Draft
   Category: Consensus
+  Created: 2021-02-11
+  License: BSD-2-Clause
   Discussions-To: <https://github.com/zcash/zips/issues/400>
+
+
+Terminology
+===========
+
+The key words "MUST" and "MUST NOT" in this document is to be interpreted as described
+in RFC 2119. [#RFC2119]_
+
+
+Abstract
+========
+
+This ZIP fixes an oversight in the implementation of the Sapling consensus rules, by
+correctly rejecting all non-canonical representations of Jubjub points.
+
+
+Motivation
+==========
+
+The Sapling specification was written with the intent that all values were strongly-typed
+with canonical representations. This has significant advantages for security analysis,
+because it allows the protocol to be modelled with just the abstract types.
+
+The intention of the Jubjub implementation (both in the [jubjub]_ crate and its prior
+implementations) was to ensure that only canonical point encodings would be accepted by
+the decoding logic. However, an oversight in the implementation allowed an edge case to
+slip through: for each point on the curve where the $u$ coordinate is zero, there are two
+encodings that will be accepted:
+
+```rust
+// Fix the sign of `u` if necessary
+let flip_sign = Choice::from((u.to_bytes()[0] ^ sign) & 1);
+let u_negated = -u;
+let final_u = Fq::conditional_select(&u, &u_negated, flip_sign);
+```
+
+This code accepts either sign bit, because `u_negated == u`.
+
+There are two such points on the Jubjub curve:
+
+- `(0, -1)`, which is a point of order two, and thus rejected by the implementation
+  anywhere that a prime-order subgroup point is specified.
+- `(0, 1)`, which is the identity, and thus is an element of the prime-order subgroup.
+
+The non-canonical identity creates a consensus issue because unlike other non-canonical
+points that are rejected, a non-canonical identity that is decoded and then encoded, does
+not produce the original encoding. For example, if a non-canonical encoding appeared in a
+transaction field, then node implementations that store points internally as abstract
+curve points, and used those to derive transaction IDs, would derive different IDs than
+nodes which store transactions as bytes (such as `zcashd`).
+
+
+Specification
+=============
+
+TODO: Define a non-canonical Jubjub point encoding.
+
+When this ZIP activates, all places within the Sapling consensus protocol where Jubjub
+points occur MUST reject non-canonical Jubjub point encodings.
+
+- Sapling addresses:
+  - `pk_d`
+- Sapling Spend description:
+  - `cv`
+  - `rk`
+  - The `R` component of the `spendAuthSig` RedDSA signature.
+- Sapling Output description:
+  - `cv`
+  - `ephemeralKey`
+- The `R` component of the `bindingSigSapling` RedDSA signature.
+
+Rationale
+=========
+
+Zcash previously had a similar issue with non-canonical representations of points in
+Ed25519 public keys and signatures. In that case, given the prevalence of Ed25519
+signatures in the wider ecosystem, the decision was made in ZIP 215 [#zip-0215]_ (which
+activated with the Canopy network upgrade [#zip-0251]_) to allow non-canonical
+representations of points.
+
+Here, we are motivated instead to reject these non-canonical points:
+
+- The chance of the identity occuring anywhere within Sapling transactions from
+  implementations following the standard protocol is cryptographically negligible.
+- This re-enables the aforementioned simpler security analysis of the Sapling protocol.
+- The Jubjub curve has a vastly-smaller scope of usage than Curve25519.
+
+
+Security and Privacy Considerations
+===================================
+
+This ZIP eliminates a potential source of consensus divergence between differing full node
+implementations. At the time of writing (February 2021), no such divergence exists for any
+production implementation of Zcash, but the alpha-stage `zebrad` node implementation would
+be susceptible to this issue.
+
+
+Deployment
+==========
+
+TBD
+
+
+References
+==========
+
+.. [#protocol-jubjub] `Zcash Protocol Specification, Version 2020.1.15. Section 5.4.8.3: Jubjub <protocol/protocol.pdf#jubjub>`_
+.. [#zip-0215] `ZIP 215: Explicitly Defining and Modifying Ed25519 Validation Rules <zip-0215.rst>`_
