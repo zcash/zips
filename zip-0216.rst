@@ -22,21 +22,21 @@ Abstract
 ========
 
 This ZIP fixes an oversight in the implementation of the Sapling consensus rules, by
-correctly rejecting all non-canonical representations of Jubjub points.
+rejecting all non-canonical representations of Jubjub points.
 
 
 Motivation
 ==========
 
 The Sapling specification was written with the intent that all values, including Jubjub
-points, are strongly-typed with canonical representations. [#protocol-jubjub]_ This has
+points, are strongly typed with canonical representations. [#protocol-jubjub]_ This has
 significant advantages for security analysis, because it allows the protocol to be
 modelled with just the abstract types.
 
 The intention of the Jubjub implementation (both in the `jubjub` crate [#jubjub-crate]_
 and its prior implementations) was to ensure that only canonical point encodings would be
 accepted by the decoding logic. However, an oversight in the implementation allowed an
-edge case to slip through: for each point on the curve where the $u$ coordinate is zero,
+edge case to slip through: for each point on the curve where the $u$-coordinate is zero,
 there are two encodings that will be accepted:
 
 ```rust
@@ -48,18 +48,18 @@ let final_u = Fq::conditional_select(&u, &u_negated, flip_sign);
 
 This code accepts either sign bit, because `u_negated == u`.
 
-There are two such points on the Jubjub curve:
+There are two points on the Jubjub curve with $u$-coordinate zero:
 
 - `(0, -1)`, which is a point of order two, and thus rejected by the implementation
   anywhere that a prime-order subgroup point is specified.
 - `(0, 1)`, which is the identity, and thus is an element of the prime-order subgroup.
 
-The non-canonical identity creates a consensus issue because unlike other non-canonical
-points that are rejected, a non-canonical identity that is decoded and then encoded, does
-not produce the original encoding. For example, if a non-canonical encoding appeared in a
-transaction field, then node implementations that store points internally as abstract
-curve points, and used those to derive transaction IDs, would derive different IDs than
-nodes which store transactions as bytes (such as `zcashd`).
+The non-canonical identity encoding creates a consensus issue because unlike other
+non-canonical points that are rejected, a non-canonical identity encoding that is decoded
+and then encoded, does not produce the original encoding. For example, if a non-canonical
+encoding appeared in a transaction field, then node implementations that store points
+internally as abstract curve points, and used those to derive transaction IDs, would
+derive different IDs than nodes which store transactions as bytes (such as `zcashd`).
 
 
 Specification
@@ -67,11 +67,14 @@ Specification
 
 TODO: Define a non-canonical Jubjub point encoding.
 
-When this ZIP activates, all places within the Sapling consensus protocol where Jubjub
-points occur MUST reject non-canonical Jubjub point encodings.
+When this ZIP activates, the following places within the Sapling consensus protocol
+where Jubjub points occur MUST reject non-canonical Jubjub point encodings. (This
+is all of the places where Jubjub points occur in compressed representations.)
 
 - Sapling addresses:
   - `pk_d`
+- Full viewing keys and extended full viewing keys:
+  - `ak`
 - Sapling Spend description:
   - `cv`
   - `rk`
@@ -80,6 +83,7 @@ points occur MUST reject non-canonical Jubjub point encodings.
   - `cv`
   - `ephemeralKey`
 - The `R` component of the `bindingSigSapling` RedDSA signature.
+TODO: specify when addresses, full viewing keys, and note plaintexts are checked.
 
 Rationale
 =========
@@ -90,12 +94,14 @@ signatures in the wider ecosystem, the decision was made in ZIP 215 [#zip-0215]_
 activated with the Canopy network upgrade [#zip-0251]_) to allow non-canonical
 representations of points.
 
-Here, we are motivated instead to reject these non-canonical points:
+In Sapling, we are motivated instead to reject these non-canonical points:
 
-- The chance of the identity occuring anywhere within Sapling transactions from
-  implementations following the standard protocol is cryptographically negligible.
+- The chance of the identity occurring anywhere within the Sapling components of
+  transactions from implementations following the standard protocol is cryptographically
+  negligible.
 - This re-enables the aforementioned simpler security analysis of the Sapling protocol.
-- The Jubjub curve has a vastly-smaller scope of usage than Curve25519.
+- The Jubjub curve has a vastly-smaller scope of usage in the general cryptographic
+  ecosystem than Curve25519 and Ed25519.
 
 
 Security and Privacy Considerations
@@ -110,7 +116,7 @@ be susceptible to this issue.
 Deployment
 ==========
 
-TBD
+This ZIP is proposed to activate with Network Upgrade 5.
 
 
 References
@@ -118,5 +124,5 @@ References
 
 .. [#RFC2119] `RFC 2119: Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
 .. [#protocol-jubjub] `Zcash Protocol Specification, Version 2020.1.15. Section 5.4.8.3: Jubjub <protocol/protocol.pdf#jubjub>`_
-.. [#jubjub-crate] `jubjub <https://crates.io/crates/jubjub>`_
+.. [#jubjub-crate] `jubjub Rust crate <https://crates.io/crates/jubjub>`_
 .. [#zip-0215] `ZIP 215: Explicitly Defining and Modifying Ed25519 Validation Rules <zip-0215.rst>`_
