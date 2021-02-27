@@ -29,10 +29,15 @@ Abstract
 This proposal defines a mechanism for extending hierarchical deterministic wallets, as decribed in BIP 32
 [#bip-0032]_, to support Zcash's shielded addresses.
 
-The specification has three parts. The first part defines a system for deriving a tree of Sapling key
-components from a single seed. The second part defines an equivalent, but independent, system for Sprout key
-components (which have a different internal construction). The third part shows how to use these trees in the
-context of existing BIP 44 [#bip-0044]_ wallets.
+The initial parts of the specification define (mostly) equivalent, but independent, systems for deriving a
+tree of key components from a single seed, for the following shielded pools (which have different internal
+key structures):
+
+- Sapling
+- Sprout (for compatibility, effectively unused)
+- Orchard
+
+The last part shows how to use these trees in the context of existing BIP 44 [#bip-0044]_ wallets.
 
 This specification complements the existing use by some Zcash wallets of BIP 32 and BIP 44 for transparent
 Zcash addresses, and is not intended to deprecate that usage (privacy risks of using transparent addresses
@@ -63,7 +68,7 @@ shielded addresses, it is desirable to have a standard mechanism for deriving th
 Conventions
 ===========
 
-Most of the notation and functions used in this ZIP are defined in the Sapling protocol specification
+Most of the notation and functions used in this ZIP are defined in the Zcash protocol specification
 [#protocol]_. They are reproduced here for convenience:
 
 - :math:`\mathsf{truncate}_k(S)` means the sequence formed from the first :math:`k` elements of :math:`S`.
@@ -113,8 +118,8 @@ We also define the following conversion function:
   little-endian order the integer :math:`k` in range :math:`\{ 0\,.\!. 2^\ell - 1 \}`. It is the reverse
   operation of :math:`\mathsf{LEOS2IP}_\ell(S)`.
 
-Implementors should note that this ZIP is consistently little-endian (in keeping with the Sapling
-specification), which is the opposite of BIP 32.
+Implementors should note that this ZIP is consistently little-endian (in keeping with the Sapling and Orchard
+specifications), which is the opposite of BIP 32.
 
 We adapt the path notation of BIP 32 [#bip-0032]_ to describe shielded HD paths, using prime marks (:math:`'`) to
 indicate hardened derivation (:math:`i' = i + 2^{31}`) as in BIP 44 [#bip-0044]_:
@@ -238,8 +243,8 @@ in [#protocol-saplingkeycomponents]_.
   - :math:`\mathsf{dk}_i  = \mathsf{truncate}_{32}(\mathsf{PRF^{expand}}(I_L, [\texttt{0x16}]`:math:`||\,\mathsf{dk}_{par}))`
   - :math:`\mathsf{c}_i   = I_R`.
 
-Diversifier derivation
-----------------------
+Sapling diversifier derivation
+------------------------------
 
 The 88-bit diversifiers for a Sapling extended key are derived from its diversifier key :math:`\mathsf{dk}`.
 To prevent the diversifier leaking how many diversified addresses have already been generated for an account,
@@ -309,6 +314,64 @@ Sprout child key derivation
 - Use :math:`I_R` as the child chain code :math:`\mathsf{c}_i`.
 
 
+Specification: Orchard key derivation
+=====================================
+
+The derivation mechanism for Sapling addresses specified above incurs significant complexity to support
+non-hardened derivation. In the several years since Sapling was deployed, we have seen no use cases for
+non-hardened derivation appear. With that in mind, we define Orchard key derivation very similarly to
+Sprout above: only hardened derivation is supported.
+
+Orchard extended keys
+---------------------
+
+We represent an Orchard extended spending key as :math:`(\mathsf{sk, c}),` where :math:`\mathsf{sk}`
+is the normal Orchard spending key (opaque 32 bytes), and :math:`\mathsf{c}` is the chain code.
+
+Orchard master key generation
+-----------------------------
+
+Let :math:`S` be a seed byte sequence of a chosen length, which MUST be at least 32 and at most 252 bytes.
+
+- Calculate :math:`I = \mathsf{BLAKE2b}\text{-}\mathsf{512}(\texttt{“ZcashIP32Orchard”}, S)`.
+- Split :math:`I` into two 32-byte sequences, :math:`I_L` and :math:`I_R`.
+- Use :math:`I_L` as the master spending key :math:`\mathsf{sk}_m`.
+- Use :math:`I_R` as the master chain code :math:`\mathsf{c}_m`.
+
+Orchard child key derivation
+----------------------------
+
+:math:`\mathsf{CDKsk}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i)`:math:`\rightarrow (\mathsf{sk}_{i}, \mathsf{c}_i)`
+
+- Check whether :math:`i \geq 2^{31}` (whether the child is a hardened key).
+
+  - If so (hardened child): let
+    :math:`I = \mathsf{PRF^{expand}}(\mathsf{c}_{par}, [\texttt{0x81}]\,||\,\mathsf{sk}_{par}\,||\,\mathsf{I2LEOSP}_{32}(i))`.
+  - If not (normal child): return failure.
+
+- Split :math:`I` into two 32-byte sequences, :math:`I_L` and :math:`I_R`.
+- Use :math:`I_L` as the child spending key :math:`\mathsf{sk}_{i}`.
+- Use :math:`I_R` as the child chain code :math:`\mathsf{c}_i`.
+
+Orchard diversifier derivation
+------------------------------
+
+As with Sapling, we define a mechanism for deterministically deriving a sequence of diversifiers, without
+leaking how many diversified addresses have already been generated for an account. Given an Orchard extended
+spending key :math:`(\mathsf{sk}_i, \mathsf{c}_i)`:
+
+- Let :math:`\mathsf{fvk}_i` be the raw encoding of the Orchard full viewing key for :math:`\mathsf{sk}_i`
+  (as specified in TODO).
+- :math:`\mathsf{dk}_i = \mathsf{truncate}_{32}(\mathsf{PRF^{expand}}(\mathsf{fvk}_i, [\texttt{0x82}]))`.
+- Let :math:`j` be the index of the desired diversifier, in the range :math:`0\,.\!. 2^{88} - 1`.
+- :math:`d_{i,j} = \mathsf{FF1}\text{-}\mathsf{AES256.Encrypt}(\mathsf{dk}_i, \texttt{“”}, \mathsf{I2LEBSP}_{88}(j))`.
+
+Note that unlike Sapling, all Orchard diversifiers are valid, and thus all possible values of :math:`j` yield
+valid diversifiers.
+
+The default diversifier for :math:`(\mathsf{sk}_i, \mathsf{c}_i)` is defined to be :math:`d_{i,0}.`
+
+
 Specification: Wallet usage
 ===========================
 
@@ -319,8 +382,8 @@ altered the design where it makes sense to leverage features of shielded address
 Key path levels
 ---------------
 
-Both Sprout and Sapling key paths have the following three path levels at the top, all of which use hardened
-derivation:
+Sprout, Sapling, and Orchard key paths have the following three path levels at the top, all of which use
+hardened derivation:
 
 - :math:`purpose`: a constant set to :math:`32'` (or :math:`\texttt{0x80000020}`) following the BIP 43
   recommendation. It indicates that the subtree of this node is used according to this specification.
@@ -333,8 +396,8 @@ derivation:
 - :math:`account`: numbered from index :math:`0` in sequentially increasing manner. Defined as in
   BIP 44 [#bip-0044]_.
 
-Unlike BIP 44, neither Sprout nor Sapling have a :math:`change` path level. The use of change addresses in
-Bitcoin is a (failed) attempt to increase the difficulty of tracking users on the transaction graph, by
+Unlike BIP 44, none of the shielded key paths have a :math:`change` path level. The use of change addresses
+in Bitcoin is a (failed) attempt to increase the difficulty of tracking users on the transaction graph, by
 segregating external and internal address usage. Shielded addresses are never publicly visible in
 transactions, which means that sending change back to the originating address is indistinguishable from
 using a change address.
@@ -373,6 +436,27 @@ Wallets implementing Sprout ZIP 32 derivation MUST support the following path:
 
 * :math:`m_\mathsf{Sprout} / purpose' / coin\_type' / account' / address\_index`.
 
+Orchard key path
+----------------
+
+Orchard supports diversified addresses with the same spending authority (like Sapling). A group of such
+addresses shares the same full viewing key and incoming viewing key, and so creating as many unlinkable
+addresses as needed does not increase the cost of scanning the block chain for relevant transactions.
+
+The above key path levels include an account identifier, which in all user interfaces is represented as a
+"bucket of funds" under the control of a single spending authority. Therefore, wallets implementing Orchard
+ZIP 32 derivation MUST support the following path for any account in range :math:`\{ 0\,.\!. 2^{31} - 1 \}`:
+
+* :math:`m_\mathsf{Orchard} / purpose' / coin\_type' / account'`.
+
+Furthermore, wallets MUST support generating the default payment address (corresponding to the default
+diversifier for Orchard) for any account they support. They MAY also support generating a stream of payment
+addresses for a given account, if they wish to maintain the user experience of giving a unique address to
+each recipient.
+
+Note that a given account can have a maximum of :math:`2^{88}` payment addresses (unlike Sapling, all Orchard
+diversifiers are valid).
+
 
 Specification: Fingerprints and Tags
 ====================================
@@ -404,6 +488,20 @@ It MAY be used to uniquely identify a particular Sprout payment address.
 A "Sprout address tag" is the first 4 bytes of the corresponding Sprout address fingerprint. It is
 intended for optimizing performance of address lookups, and MUST NOT be assumed to uniquely identify
 a particular address.
+
+Orchard Full Viewing Key Fingerprints and Tags
+----------------------------------------------
+
+An "Orchard full viewing key fingerprint" of a full viewing key with raw encoding :math:`FVK` (as specified
+in TODO) is given by:
+
+* :math:`\mathsf{BLAKE2b}\text{-}\mathsf{256}(\texttt{“ZcashOrchardFVFP”}, FVK)`.
+
+It MAY be used to uniquely identify a particular Orchard full viewing key.
+
+An "Orchard full viewing key tag" is the first 4 bytes of the corresponding Orchard full viewing key
+fingerprint. It is intended for optimizing performance of key lookups, and MUST NOT be assumed to
+uniquely identify a particular key.
 
 Seed Fingerprints
 -----------------
@@ -474,6 +572,24 @@ When encoded as Bech32, the Human-Readable Part is ``zxsprout`` for the producti
 network, or ``zxtestsprout`` for the test network. Sprout extended spending keys
 are encoded using Bech32 even though other Sprout keys and addresses are encoded
 using Base58Check.
+
+Orchard extended spending keys
+------------------------------
+
+An Orchard extended spending key :math:`(\mathsf{sk, c})`, at depth :math:`depth`, with parent full viewing
+key tag :math:`parent\_fvk\_tag` and child number :math:`i`, is represented as a byte sequence:
+
+* :math:`\mathsf{I2LEOSP}_{8}(depth)\,||\,parent\_fvk\_tag\,||\,\mathsf{I2LEOSP}_{32}(i)\,||\,\mathsf{c}\,||\,\mathsf{sk}`.
+
+For the master extended spending key, :math:`depth` is :math:`0`, :math:`parent\_fvk\_tag` is
+4 zero bytes, and :math:`i` is :math:`0`.
+
+When encoded as Bech32, the Human-Readable Part is ``secret-orchard-extsk-main``
+for the production network, or ``secret-orchard-extsk-test`` for the test network.
+
+We define this encoding for completeness, however given that it includes the capability to derive child
+spending keys, we expect that most wallets will only expose the regular Orchard spending key encoding to
+users (TODO: reference).
 
 
 Test Vectors
