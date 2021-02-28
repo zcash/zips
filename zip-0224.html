@@ -24,10 +24,20 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
             <p>This document proposes the Orchard shielded protocol, which defines a new shielded pool with spending keys and payment addresses that are amenable to future scalability improvements.</p>
         </section>
         <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>TBD</p>
+            <p>Zcash currently has two active shielded protocols and associated shielded pools:</p>
+            <ul>
+                <li>The Sprout shielded protocol (based on the Zerocash paper with improvements and security fixes <a id="id2" class="footnote_reference" href="#zerocash-differences">2</a>), which as of February 2021 is a "closing" shielded pool into which no new ZEC can be sent.</li>
+                <li>The Sapling shielded protocol, which consisted of numerous improvements to functionality and improved performance by orders of magnitude, and as of Feburary 2021 is the "active" shielded pool.</li>
+            </ul>
+            <p>Both of these shielded protocols suffer from two issues:</p>
+            <ul>
+                <li>Neither Sprout nor Sapling are compatible with known efficient scalability techniques. Recursive zero-knowledge proofs (where a proof verifies an earlier instance of itself along with new state) that are suitable for deployment in a block chain like Zcash require a cycle of elliptic curves. The Sprout protocol does not use elliptic curves and thus is an inherently inefficient protocol to implement inside a circuit, while the Sapling protocol uses curves for which there is no known way to construct an efficient curve cycle (or path to one).</li>
+                <li>The Sprout and Sapling circuits are implemented using a proving system (Groth16) that requires a "trusted setup": the circuit parameters are a Structured Reference String (SRS) with hidden structure, that if known could be used to create fake proofs and thus counterfeit funds. The parameters are in practice generated using a multiparty computation (MPC), where as long as at least one participant was honest and not compromised, the hidden structure is unrecoverable. The MPCs themselves have improved over the years (Zcash had 6 participants in the Sprout MPC, and around 90 per round in the Sapling MPC two years later <a id="id3" class="footnote_reference" href="#zcash-paramgen">3</a>), but it remains the case that generating these parameters is a point of risk within the protocol. For example, the original proving system used for the Sprout circuit (BCTV14) had a bug that made the Sprout shielded protocol vulnerable to counterfeiting, <a id="id4" class="footnote_reference" href="#bctv14-vuln">4</a> which needed to be resolved by changing the proving system and running a new MPC.</li>
+            </ul>
+            <p>We are thus motivated to deploy a new shielded protocol designed around a curve cycle, using a proving system that is both amenable to recursion and does not require an SRS.</p>
         </section>
         <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>The Orchard protocol MUST be implemented as specified in the Zcash Protocol Specification <a id="id2" class="footnote_reference" href="#orchard-spec">2</a>.</p>
+            <p>The Orchard protocol MUST be implemented as specified in the Zcash Protocol Specification <a id="id5" class="footnote_reference" href="#orchard-spec">5</a>.</p>
             <p>Given that the Orchard protocol largely follows the design of the Sapling protocol, we provide here a list of differences, with references to their normative specifications and associated design rationale.</p>
             <section id="curves"><h3><span class="section-heading">Curves</span><span class="section-anchor"> <a rel="bookmark" href="#curves"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>The Orchard protocol uses the Pallas / Vesta curve cycle, in place of BLS12-381 and its embedded curve Jubjub:</p>
@@ -37,14 +47,14 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
                 </ul>
                 <p>We use the "simplified SWU" algorithm to define an infallible
                     <span class="math">\(\mathsf{GroupHash}\)</span>
-                , instead of the fallible BLAKE2s-based mechanism used for Sapling. It is intended to follow (version 10 of) the IETF hash-to-curve Internet Draft <a id="id3" class="footnote_reference" href="#ietf-hash-to-curve">27</a> (but the protocol specification takes precedence in the case of any discrepancy).</p>
+                , instead of the fallible BLAKE2s-based mechanism used for Sapling. It is intended to follow (version 10 of) the IETF hash-to-curve Internet Draft <a id="id6" class="footnote_reference" href="#ietf-hash-to-curve">30</a> (but the protocol specification takes precedence in the case of any discrepancy).</p>
                 <p>The presence of the curve cycle is an explicit design choice. This ZIP only uses half of the cycle (Pallas being an embedded curve of Vesta); the full cycle is expected to be leveraged by future ZIPs.</p>
                 <ul>
-                    <li>Curve specifications: <a id="id4" class="footnote_reference" href="#spec-pasta">11</a></li>
+                    <li>Curve specifications: <a id="id7" class="footnote_reference" href="#spec-pasta">14</a></li>
                     <li>
                         <span class="math">\(\mathsf{GroupHash}\)</span>
-                    : <a id="id5" class="footnote_reference" href="#spec-pasta-grouphash">12</a></li>
-                    <li>Supporting evidence: <a id="id6" class="footnote_reference" href="#pasta-evidence">28</a></li>
+                    : <a id="id8" class="footnote_reference" href="#spec-pasta-grouphash">15</a></li>
+                    <li>Supporting evidence: <a id="id9" class="footnote_reference" href="#pasta-evidence">31</a></li>
                 </ul>
             </section>
             <section id="proving-system"><h3><span class="section-heading">Proving system</span><span class="section-anchor"> <a rel="bookmark" href="#proving-system"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
@@ -52,31 +62,31 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
                 <p>This ZIP does not make use of Halo 2's support for recursive proofs, but this is expected to be leveraged by future ZIPs.</p>
                 <ul>
                     <li>Halo 2 protocol description: TODO</li>
-                    <li>UltraPLONK Arithmetization: <a id="id7" class="footnote_reference" href="#concepts-upa">17</a></li>
-                    <li>Halo 2 explanation and design rationale: <a id="id8" class="footnote_reference" href="#design-halo2">18</a></li>
+                    <li>UltraPLONK Arithmetization: <a id="id10" class="footnote_reference" href="#concepts-upa">20</a></li>
+                    <li>Halo 2 explanation and design rationale: <a id="id11" class="footnote_reference" href="#design-halo2">21</a></li>
                 </ul>
             </section>
             <section id="circuit"><h3><span class="section-heading">Circuit</span><span class="section-anchor"> <a rel="bookmark" href="#circuit"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>Orchard uses a single circuit for both spends and outputs, similar to Sprout. An "action" contains both a single (possibly dummy) note being spent, and a single (possibly dummy) note being created.</p>
                 <p>An Orchard transaction contains a "bundle" of actions, and a single Halo 2 proof that covers all of the actions in the bundle.</p>
                 <ul>
-                    <li>Action description: <a id="id9" class="footnote_reference" href="#spec-actions">5</a></li>
-                    <li>Circuit statement: <a id="id10" class="footnote_reference" href="#spec-action-statement">6</a></li>
-                    <li>Design rationale: <a id="id11" class="footnote_reference" href="#design-actions">20</a></li>
+                    <li>Action description: <a id="id12" class="footnote_reference" href="#spec-actions">8</a></li>
+                    <li>Circuit statement: <a id="id13" class="footnote_reference" href="#spec-action-statement">9</a></li>
+                    <li>Design rationale: <a id="id14" class="footnote_reference" href="#design-actions">23</a></li>
                 </ul>
             </section>
             <section id="commitments"><h3><span class="section-heading">Commitments</span><span class="section-anchor"> <a rel="bookmark" href="#commitments"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>The Orchard protocol has equivalent commitment schemes to Sapling. For non-homomorphic commitments, Orchard uses the UPA-efficient Sinsemilla in place of Bowe--Hopwood Pedersen hashes.</p>
                 <ul>
-                    <li>Sinsemilla hash function: <a id="id12" class="footnote_reference" href="#spec-sinsemilla-hash">8</a></li>
-                    <li>Sinsemilla commitments: <a id="id13" class="footnote_reference" href="#spec-sinsemilla-comm">10</a></li>
-                    <li>Design rationale: <a id="id14" class="footnote_reference" href="#design-commitments">21</a></li>
+                    <li>Sinsemilla hash function: <a id="id15" class="footnote_reference" href="#spec-sinsemilla-hash">11</a></li>
+                    <li>Sinsemilla commitments: <a id="id16" class="footnote_reference" href="#spec-sinsemilla-comm">13</a></li>
+                    <li>Design rationale: <a id="id17" class="footnote_reference" href="#design-commitments">24</a></li>
                 </ul>
             </section>
             <section id="commitment-tree"><h3><span class="section-heading">Commitment tree</span><span class="section-anchor"> <a rel="bookmark" href="#commitment-tree"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>Orchard uses an identical commitment tree structure to Sapling, except that we instantiate it with Sinsemilla instead of a Bowe-Hopwood Pedersen hash.</p>
                 <ul>
-                    <li>Design rationale and considered alternatives: <a id="id15" class="footnote_reference" href="#design-tree">22</a></li>
+                    <li>Design rationale and considered alternatives: <a id="id18" class="footnote_reference" href="#design-tree">25</a></li>
                 </ul>
             </section>
             <section id="keys-and-addresses"><h3><span class="section-heading">Keys and addresses</span><span class="section-anchor"> <a rel="bookmark" href="#keys-and-addresses"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
@@ -98,11 +108,11 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
                 <p>Keys and addresses are encoded using Bech32. Orchard addresses used with the Zcash mainnet have the prefix "zo" (compared to "zc" for Sprout and "zs" for Sapling).</p>
                 <p>Orchard keys may be derived in a hierarchical deterministic (HD) manner. We do not adapt the Sapling HD mechanism from ZIP 32 to Orchard; instead, we define a hardened-only derivation mechanism (similar to Sprout).</p>
                 <ul>
-                    <li>Key components diagram: <a id="id16" class="footnote_reference" href="#spec-addrs-keys">3</a></li>
-                    <li>Key components specification: <a id="id17" class="footnote_reference" href="#spec-keys">7</a></li>
-                    <li>Encodings and HRPs: <a id="id18" class="footnote_reference" href="#spec-encoding-addr">13</a> <a id="id19" class="footnote_reference" href="#spec-encoding-ivk">14</a> <a id="id20" class="footnote_reference" href="#spec-encoding-fvk">15</a> <a id="id21" class="footnote_reference" href="#spec-encoding-sk">16</a></li>
-                    <li>HD key derivation specification: <a id="id22" class="footnote_reference" href="#zip-0032">24</a></li>
-                    <li>Design rationale: <a id="id23" class="footnote_reference" href="#design-keys">19</a></li>
+                    <li>Key components diagram: <a id="id19" class="footnote_reference" href="#spec-addrs-keys">6</a></li>
+                    <li>Key components specification: <a id="id20" class="footnote_reference" href="#spec-keys">10</a></li>
+                    <li>Encodings and HRPs: <a id="id21" class="footnote_reference" href="#spec-encoding-addr">16</a> <a id="id22" class="footnote_reference" href="#spec-encoding-ivk">17</a> <a id="id23" class="footnote_reference" href="#spec-encoding-fvk">18</a> <a id="id24" class="footnote_reference" href="#spec-encoding-sk">19</a></li>
+                    <li>HD key derivation specification: <a id="id25" class="footnote_reference" href="#zip-0032">27</a></li>
+                    <li>Design rationale: <a id="id26" class="footnote_reference" href="#design-keys">22</a></li>
                 </ul>
             </section>
             <section id="notes"><h3><span class="section-heading">Notes</span><span class="section-anchor"> <a rel="bookmark" href="#notes"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
@@ -113,9 +123,9 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
                     <span class="math">\(\psi\)</span>
                  and
                     <span class="math">\(\mathsf{rcm}\)</span>
-                 are derived from a random seed (as with Sapling after ZIP 212 <a id="id24" class="footnote_reference" href="#zip-0212">25</a>).</p>
+                 are derived from a random seed (as with Sapling after ZIP 212 <a id="id27" class="footnote_reference" href="#zip-0212">28</a>).</p>
                 <ul>
-                    <li>Orchard notes: <a id="id25" class="footnote_reference" href="#spec-notes">4</a></li>
+                    <li>Orchard notes: <a id="id28" class="footnote_reference" href="#spec-notes">7</a></li>
                 </ul>
             </section>
             <section id="nullifiers"><h3><span class="section-heading">Nullifiers</span><span class="section-anchor"> <a rel="bookmark" href="#nullifiers"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
@@ -130,13 +140,13 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
                  is a fixed independent base.</p>
                 <ul>
                     <li>Poseidon: TODO</li>
-                    <li>Design rationale and considered alternatives: <a id="id26" class="footnote_reference" href="#design-nullifiers">23</a></li>
+                    <li>Design rationale and considered alternatives: <a id="id29" class="footnote_reference" href="#design-nullifiers">26</a></li>
                 </ul>
             </section>
             <section id="signatures"><h3><span class="section-heading">Signatures</span><span class="section-anchor"> <a rel="bookmark" href="#signatures"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>Orchard uses RedPallas (RedDSA instantiated with the Pallas curve) as its signature scheme in place of Sapling's RedJubjub (RedDSA instantiated with the Jubjub curve).</p>
                 <ul>
-                    <li>RedPallas: <a id="id27" class="footnote_reference" href="#spec-redpallas">9</a></li>
+                    <li>RedPallas: <a id="id30" class="footnote_reference" href="#spec-redpallas">12</a></li>
                 </ul>
             </section>
         </section>
@@ -156,7 +166,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
                  field, combined with the consensus checks that each pool's balance cannot be negative, together enforce that any potential counterfeiting bugs in the Orchard protocol or implementation are contained within the Orchard pool, and similarly any potential counterfeiting bugs in existing shielded pools cannot cause inflation of the Orchard pool.</li>
                 <li>Spending funds residing in the Orchard pool to a non-Orchard address will reveal the value of the transaction. This is a necessary side-effect of the transparent turnstile, but can be mitigated by migrating the majority of shielded activity to the Orchard pool and making these transactions a minority. Wallets should convey within their transaction creation UX that amounts are revealed in these situations.
                     <ul>
-                        <li>Wallets should take steps to migrate their user bases to store funds uniformly within the Orchard pool. Best practices for wallet handling of multiple pools will be covered in a subsequent ZIP. <a id="id28" class="footnote_reference" href="#zip-0315">26</a></li>
+                        <li>Wallets should take steps to migrate their user bases to store funds uniformly within the Orchard pool. Best practices for wallet handling of multiple pools will be covered in a subsequent ZIP. <a id="id31" class="footnote_reference" href="#zip-0315">29</a></li>
                     </ul>
                 </li>
             </ul>
@@ -184,10 +194,34 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
                     </tr>
                 </tbody>
             </table>
-            <table id="orchard-spec" class="footnote">
+            <table id="zerocash-differences" class="footnote">
                 <tbody>
                     <tr>
                         <th>2</th>
+                        <td><a href="https://zips.z.cash/protocol/protocol.pdf#differences">Zcash Protocol Specification, Version 2021.1.16. Section 8: Differences from the Zerocash paper</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zcash-paramgen" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>3</th>
+                        <td><a href="https://z.cash/technology/paramgen/">Parameter Generation</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bctv14-vuln" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>4</th>
+                        <td><a href="https://electriccoin.co/blog/zcash-counterfeiting-vulnerability-successfully-remediated/">Zcash Counterfeiting Vulnerability Successfully Remediated</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="orchard-spec" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>5</th>
                         <td><a href="https://raw.githubusercontent.com/daira/zips/orchard-circuit/protocol/orchard.pdf">Zcash Protocol Specification, Version 2021.1.16-gc8c7dd [Orchard proposal]</a></td>
                     </tr>
                 </tbody>
@@ -195,7 +229,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
             <table id="spec-addrs-keys" class="footnote">
                 <tbody>
                     <tr>
-                        <th>3</th>
+                        <th>6</th>
                         <td><a href="https://raw.githubusercontent.com/daira/zips/orchard-circuit/protocol/orchard.pdf#addressesandkeys">Zcash Protocol Specification, Version 2021.1.16-gc8c7dd [Orchard proposal]. Section 3.1: Payment Addresses and Keys</a></td>
                     </tr>
                 </tbody>
@@ -203,7 +237,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
             <table id="spec-notes" class="footnote">
                 <tbody>
                     <tr>
-                        <th>4</th>
+                        <th>7</th>
                         <td><a href="https://raw.githubusercontent.com/daira/zips/orchard-circuit/protocol/orchard.pdf#notes">Zcash Protocol Specification, Version 2021.1.16-gc8c7dd [Orchard proposal]. Section 3.2: Notes</a></td>
                     </tr>
                 </tbody>
@@ -211,7 +245,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
             <table id="spec-actions" class="footnote">
                 <tbody>
                     <tr>
-                        <th>5</th>
+                        <th>8</th>
                         <td><a href="https://raw.githubusercontent.com/daira/zips/orchard-circuit/protocol/orchard.pdf#actions">Zcash Protocol Specification, Version 2021.1.16-gc8c7dd [Orchard proposal]. Section 3.7: Action Transfers and their Descriptions</a></td>
                     </tr>
                 </tbody>
@@ -219,7 +253,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
             <table id="spec-action-statement" class="footnote">
                 <tbody>
                     <tr>
-                        <th>6</th>
+                        <th>9</th>
                         <td><a href="https://raw.githubusercontent.com/daira/zips/orchard-circuit/protocol/orchard.pdf#actionstatement">Zcash Protocol Specification, Version 2021.1.16-gc8c7dd [Orchard proposal]. 4.17.4: Action Statement (Orchard)</a></td>
                     </tr>
                 </tbody>
@@ -227,7 +261,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
             <table id="spec-keys" class="footnote">
                 <tbody>
                     <tr>
-                        <th>7</th>
+                        <th>10</th>
                         <td><a href="https://raw.githubusercontent.com/daira/zips/orchard-circuit/protocol/orchard.pdf#orchardkeycomponents">Zcash Protocol Specification, Version 2021.1.16-gc8c7dd [Orchard proposal]. Section 4.2.3: Orchard Key Components</a></td>
                     </tr>
                 </tbody>
@@ -235,7 +269,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
             <table id="spec-sinsemilla-hash" class="footnote">
                 <tbody>
                     <tr>
-                        <th>8</th>
+                        <th>11</th>
                         <td><a href="https://raw.githubusercontent.com/daira/zips/orchard-circuit/protocol/orchard.pdf#concretesinsemillahash">Zcash Protocol Specification, Version 2021.1.16-gc8c7dd [Orchard proposal]. Section 5.4.1.9: Sinsemilla Hash Function</a></td>
                     </tr>
                 </tbody>
@@ -243,7 +277,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
             <table id="spec-redpallas" class="footnote">
                 <tbody>
                     <tr>
-                        <th>9</th>
+                        <th>12</th>
                         <td><a href="https://raw.githubusercontent.com/daira/zips/orchard-circuit/protocol/orchard.pdf#concretereddsa">Zcash Protocol Specification, Version 2021.1.16-gc8c7dd [Orchard proposal]. Section 5.4.6: RedDSA, RedJubjub, and RedPallas</a></td>
                     </tr>
                 </tbody>
@@ -251,7 +285,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
             <table id="spec-sinsemilla-comm" class="footnote">
                 <tbody>
                     <tr>
-                        <th>10</th>
+                        <th>13</th>
                         <td><a href="https://raw.githubusercontent.com/daira/zips/orchard-circuit/protocol/orchard.pdf#concretesinsemillacommit">Zcash Protocol Specification, Version 2021.1.16-gc8c7dd [Orchard proposal]. Section 5.4.7.4: Sinsemilla commitments</a></td>
                     </tr>
                 </tbody>
@@ -259,7 +293,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
             <table id="spec-pasta" class="footnote">
                 <tbody>
                     <tr>
-                        <th>11</th>
+                        <th>14</th>
                         <td><a href="https://raw.githubusercontent.com/daira/zips/orchard-circuit/protocol/orchard.pdf#pallasandvesta">Zcash Protocol Specification, Version 2021.1.16-gc8c7dd [Orchard proposal]. Section 5.4.8.6: Pallas and Vesta</a></td>
                     </tr>
                 </tbody>
@@ -267,7 +301,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
             <table id="spec-pasta-grouphash" class="footnote">
                 <tbody>
                     <tr>
-                        <th>12</th>
+                        <th>15</th>
                         <td><a href="https://raw.githubusercontent.com/daira/zips/orchard-circuit/protocol/orchard.pdf#concretegrouphashpallasandvesta">Zcash Protocol Specification, Version 2021.1.16-gc8c7dd [Orchard proposal]. Section 5.4.8.8: Group Hash into Pallas and Vesta</a></td>
                     </tr>
                 </tbody>
@@ -275,7 +309,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
             <table id="spec-encoding-addr" class="footnote">
                 <tbody>
                     <tr>
-                        <th>13</th>
+                        <th>16</th>
                         <td><a href="https://raw.githubusercontent.com/daira/zips/orchard-circuit/protocol/orchard.pdf#orchardpaymentaddrencoding">Zcash Protocol Specification, Version 2021.1.16-gc8c7dd [Orchard proposal]. Section 5.6.5: Orchard Payment Address</a></td>
                     </tr>
                 </tbody>
@@ -283,7 +317,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
             <table id="spec-encoding-ivk" class="footnote">
                 <tbody>
                     <tr>
-                        <th>14</th>
+                        <th>17</th>
                         <td><a href="https://raw.githubusercontent.com/daira/zips/orchard-circuit/protocol/orchard.pdf#orchardinviewingkeyencoding">Zcash Protocol Specification, Version 2021.1.16-gc8c7dd [Orchard proposal]. Section 5.6.8: Orchard Incoming Viewing Keys</a></td>
                     </tr>
                 </tbody>
@@ -291,7 +325,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
             <table id="spec-encoding-fvk" class="footnote">
                 <tbody>
                     <tr>
-                        <th>15</th>
+                        <th>18</th>
                         <td>TODO</td>
                     </tr>
                 </tbody>
@@ -299,7 +333,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
             <table id="spec-encoding-sk" class="footnote">
                 <tbody>
                     <tr>
-                        <th>16</th>
+                        <th>19</th>
                         <td>TODO</td>
                     </tr>
                 </tbody>
@@ -307,7 +341,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
             <table id="concepts-upa" class="footnote">
                 <tbody>
                     <tr>
-                        <th>17</th>
+                        <th>20</th>
                         <td><a href="https://zcash.github.io/halo2/concepts/arithmetization.html">The halo2 Book: 1.2 UltraPLONK Arithmetization</a></td>
                     </tr>
                 </tbody>
@@ -315,7 +349,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
             <table id="design-halo2" class="footnote">
                 <tbody>
                     <tr>
-                        <th>18</th>
+                        <th>21</th>
                         <td><a href="https://zcash.github.io/halo2/design/proving-system.html">The halo2 Book: 3.1. Proving system</a></td>
                     </tr>
                 </tbody>
@@ -323,7 +357,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
             <table id="design-keys" class="footnote">
                 <tbody>
                     <tr>
-                        <th>19</th>
+                        <th>22</th>
                         <td><a href="https://zcash.github.io/orchard/design/keys.html">The Orchard Book: 3.1. Keys and addresses</a></td>
                     </tr>
                 </tbody>
@@ -331,7 +365,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
             <table id="design-actions" class="footnote">
                 <tbody>
                     <tr>
-                        <th>20</th>
+                        <th>23</th>
                         <td><a href="https://zcash.github.io/orchard/design/actions.html">The Orchard Book: 3.2. Actions</a></td>
                     </tr>
                 </tbody>
@@ -339,7 +373,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
             <table id="design-commitments" class="footnote">
                 <tbody>
                     <tr>
-                        <th>21</th>
+                        <th>24</th>
                         <td><a href="https://zcash.github.io/orchard/design/commitments.html">The Orchard Book: 3.3. Commitments</a></td>
                     </tr>
                 </tbody>
@@ -347,7 +381,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
             <table id="design-tree" class="footnote">
                 <tbody>
                     <tr>
-                        <th>22</th>
+                        <th>25</th>
                         <td><a href="https://zcash.github.io/orchard/design/commitment-tree.html">The Orchard Book: 3.4. Commitment tree</a></td>
                     </tr>
                 </tbody>
@@ -355,7 +389,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
             <table id="design-nullifiers" class="footnote">
                 <tbody>
                     <tr>
-                        <th>23</th>
+                        <th>26</th>
                         <td><a href="https://zcash.github.io/orchard/design/nullifiers.html">The Orchard Book: 3.5. Nullifiers</a></td>
                     </tr>
                 </tbody>
@@ -363,7 +397,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
             <table id="zip-0032" class="footnote">
                 <tbody>
                     <tr>
-                        <th>24</th>
+                        <th>27</th>
                         <td><a href="zip-0032">ZIP 32: Shielded Hierarchical Deterministic Wallets</a></td>
                     </tr>
                 </tbody>
@@ -371,7 +405,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
             <table id="zip-0212" class="footnote">
                 <tbody>
                     <tr>
-                        <th>25</th>
+                        <th>28</th>
                         <td><a href="zip-0212">ZIP 212: Allow Recipient to Derive Sapling Ephemeral Secret from Note Plaintext</a></td>
                     </tr>
                 </tbody>
@@ -379,7 +413,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
             <table id="zip-0315" class="footnote">
                 <tbody>
                     <tr>
-                        <th>26</th>
+                        <th>29</th>
                         <td><a href="zip-0315">ZIP 315: Best Practices for Wallet Handling of Multiple Pools</a></td>
                     </tr>
                 </tbody>
@@ -387,7 +421,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
             <table id="ietf-hash-to-curve" class="footnote">
                 <tbody>
                     <tr>
-                        <th>27</th>
+                        <th>30</th>
                         <td><a href="https://www.ietf.org/archive/id/draft-irtf-cfrg-hash-to-curve-10.html">draft-irtf-cfrg-hash-to-curve-10: Hashing to Elliptic Curves</a></td>
                     </tr>
                 </tbody>
@@ -395,7 +429,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/435">https://g
             <table id="pasta-evidence" class="footnote">
                 <tbody>
                     <tr>
-                        <th>28</th>
+                        <th>31</th>
                         <td><a href="https://github.com/zcash/pasta">Pallas/Vesta supporting evidence</a></td>
                     </tr>
                 </tbody>

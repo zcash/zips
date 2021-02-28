@@ -29,7 +29,40 @@ improvements.
 Motivation
 ==========
 
-TBD
+Zcash currently has two active shielded protocols and associated shielded pools:
+
+- The Sprout shielded protocol (based on the Zerocash paper with improvements and security
+  fixes [#zerocash-differences]_), which as of February 2021 is a "closing" shielded pool
+  into which no new ZEC can be sent.
+- The Sapling shielded protocol, which consisted of numerous improvements to functionality
+  and improved performance by orders of magnitude, and as of Feburary 2021 is the "active"
+  shielded pool.
+
+Both of these shielded protocols suffer from two issues:
+
+- Neither Sprout nor Sapling are compatible with known efficient scalability techniques.
+  Recursive zero-knowledge proofs (where a proof verifies an earlier instance of itself
+  along with new state) that are suitable for deployment in a block chain like Zcash
+  require a cycle of elliptic curves. The Sprout protocol does not use elliptic curves
+  and thus is an inherently inefficient protocol to implement inside a circuit, while the
+  Sapling protocol uses curves for which there is no known way to construct an efficient
+  curve cycle (or path to one).
+
+- The Sprout and Sapling circuits are implemented using a proving system (Groth16) that
+  requires a "trusted setup": the circuit parameters are a Structured Reference String
+  (SRS) with hidden structure, that if known could be used to create fake proofs and
+  thus counterfeit funds. The parameters are in practice generated using a multiparty
+  computation (MPC), where as long as at least one participant was honest and not
+  compromised, the hidden structure is unrecoverable. The MPCs themselves have improved
+  over the years (Zcash had 6 participants in the Sprout MPC, and around 90 per round in
+  the Sapling MPC two years later [#zcash-paramgen]_), but it remains the case that
+  generating these parameters is a point of risk within the protocol. For example, the
+  original proving system used for the Sprout circuit (BCTV14) had a bug that made the
+  Sprout shielded protocol vulnerable to counterfeiting, [#bctv14-vuln]_ which needed to
+  be resolved by changing the proving system and running a new MPC.
+
+We are thus motivated to deploy a new shielded protocol designed around a curve cycle,
+using a proving system that is both amenable to recursion and does not require an SRS.
 
 
 Specification
@@ -241,6 +274,9 @@ References
 ==========
 
 .. [#RFC2119] `RFC 2119: Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
+.. [#zerocash-differences] `Zcash Protocol Specification, Version 2021.1.16. Section 8: Differences from the Zerocash paper <https://zips.z.cash/protocol/protocol.pdf#differences>`_
+.. [#zcash-paramgen] `Parameter Generation <https://z.cash/technology/paramgen/>`_
+.. [#bctv14-vuln] `Zcash Counterfeiting Vulnerability Successfully Remediated <https://electriccoin.co/blog/zcash-counterfeiting-vulnerability-successfully-remediated/>`_
 .. [#orchard-spec] `Zcash Protocol Specification, Version 2021.1.16-gc8c7dd [Orchard proposal] <https://raw.githubusercontent.com/daira/zips/orchard-circuit/protocol/orchard.pdf>`_
 .. [#spec-addrs-keys] `Zcash Protocol Specification, Version 2021.1.16-gc8c7dd [Orchard proposal]. Section 3.1: Payment Addresses and Keys <https://raw.githubusercontent.com/daira/zips/orchard-circuit/protocol/orchard.pdf#addressesandkeys>`_
 .. [#spec-notes] `Zcash Protocol Specification, Version 2021.1.16-gc8c7dd [Orchard proposal]. Section 3.2: Notes <https://raw.githubusercontent.com/daira/zips/orchard-circuit/protocol/orchard.pdf#notes>`_
