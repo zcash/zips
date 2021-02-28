@@ -92,7 +92,7 @@ Index of ZIPs
     <tr> <td>213</td> <td class="left"><a href="zip-0213.rst">Shielded Coinbase</a></td> <td>Final</td>
     <tr> <td>214</td> <td class="left"><a href="zip-0214.rst">Consensus rules for a Zcash Development Fund</a></td> <td>Implemented (zcashd)</td>
     <tr> <td>215</td> <td class="left"><a href="zip-0215.rst">Explicitly Defining and Modifying Ed25519 Validation Rules</a></td> <td>Implemented (zcashd)</td>
-    <tr> <td><span class="reserved">216</span></td> <td class="left"><a class="reserved" href="zip-0216.rst">Require Canonical Point Encodings</a></td> <td>Reserved</td>
+    <tr> <td>216</td> <td class="left"><a href="zip-0216.rst">Require Canonical Jubjub Point Encodings</a></td> <td>Proposed</td>
     <tr> <td><span class="reserved">217</span></td> <td class="left"><a class="reserved" href="zip-0217.rst">Aggregate Signatures</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">218</span></td> <td class="left"><a class="reserved" href="zip-0218.rst">User-Defined Assets and Wrapped Assets</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">219</span></td> <td class="left"><a class="reserved" href="zip-0219.rst">Disabling Addition of New Value to the Sapling Chain Value Pool</a></td> <td>Reserved</td>
