@@ -29,8 +29,9 @@ new transaction format defines well-bounded regions of the serialized form for t
 each of the existing pools of funds, and adds and describes a new region containing
 Orchard-specific elements.
 
-This ZIP also defines the modifications to the computation of the values **TxId Digest**, 
-**Signature Digest**, and **Authorizing Data Commitment** defined by ZIP 244 [#zip-0244]_.
+This ZIP also depends upon and defines modifications to the computation of the values
+**TxId Digest**, **Signature Digest**, and **Authorizing Data Commitment** defined by ZIP
+244 [#zip-0244]_.
 
 Motivation
 ==========
@@ -114,18 +115,24 @@ Transaction Format
 +-----------------------------+--------------------------+--------------------------------------+------------------------------------------------------------+
 |``varies``                   |``nSaplingSpends``        |``compactSize``                       |Number of Sapling Spend Descriptions in vSaplingSpends      |
 +-----------------------------+--------------------------+--------------------------------------+------------------------------------------------------------+
-|``varies``                   |``vSaplingSpends``        |``SaplingSpend[nSaplingSpends]``      |A sequence of Sapling Spend Descriptions, encoded per       |
+|``128 * nSaplingSpends``     |``vSaplingSpends``        |``SaplingSpendNU5[nSaplingSpends]``   |A sequence of Sapling Spend Descriptions, encoded per       |
 |                             |                          |                                      |protocol §7.3 "Spend Description Encoding and Consensus"    |
 +-----------------------------+--------------------------+--------------------------------------+------------------------------------------------------------+
 |``varies``                   |``nSaplingOutputs``       |``compactSize``                       |Number of Sapling Output Decriptions in vSaplingOutputs     |
 +-----------------------------+--------------------------+--------------------------------------+------------------------------------------------------------+
-|``varies``                   |``vSaplingOutputs``       |``SaplingOutput[nSaplingOutputs]``    |A sequence of Sapling Output Descriptions, encoded per      |
+|``756 * nSaplingOutputs``    |``vSaplingOutputs``       |``SaplingOutputNU5[nSaplingOutputs]`` |A sequence of Sapling Output Descriptions, encoded per      |
 |                             |                          |                                      |protocol §7.4 "Output Description Encoding and Consensus"   |
 +-----------------------------+--------------------------+--------------------------------------+------------------------------------------------------------+
 |``8``                        |``valueBalanceSapling``   |``int64``                             |The net value of Sapling spends minus outputs               |
 +-----------------------------+--------------------------+--------------------------------------+------------------------------------------------------------+
 |``32``                       |``anchorSapling``         |``byte[32]``                          |A root of the Sapling note commitment tree                  |
 |                             |                          |                                      |at some block height in the past                            |
++-----------------------------+--------------------------+--------------------------------------+------------------------------------------------------------+
+|``192 * nSaplingSpends``     |``zkproofsSaplingSpend``  |``byte[192 * nSaplingSpends]``        |Encodings of the zk-SNARK proofs for each SaplingSpend      |
++-----------------------------+--------------------------+--------------------------------------+------------------------------------------------------------+
+|``64 * nSaplingSpends``      |``spendAuthSigsSapling``  |``byte[64 * nSaplingSpends]``         |Authorizing signatures for each SaplingSpend                |
++-----------------------------+--------------------------+--------------------------------------+------------------------------------------------------------+
+|``192 * nSaplingOutputs``    |``zkproofsSaplingOutput`` |``byte[192 * nSaplingOutputs]``       |Encodings of the zk-SNARK proofs for each SaplingOutput     |
 +-----------------------------+--------------------------+--------------------------------------+------------------------------------------------------------+
 |``64``                       |``bindingSigSapling``     |``byte[64]``                          |A Sapling binding signature on the SIGHASH transaction hash |
 +-----------------------------+--------------------------+--------------------------------------+------------------------------------------------------------+
@@ -159,13 +166,66 @@ Transaction Format
 
 * The joinSplitPubKey and joinSplitSig fields are present if and only if nJoinSplit > 0.
 
+* The elements of ``zkproofsSaplingSpend`` and ``spendAuthSigsSapling`` have a 1:1
+  correspondence to the elements of ``vSaplingSpends`` and must be ordered such that
+  the proof or signature at a given index corresponds to the ``SaplingSpendNU5`` at
+  the same index.
+
+* The elements of ``zkproofsSaplingOutput`` have a 1:1 correspondence to the elements of
+  ``vSaplingOutputs`` and must be ordered such that the proof at a given index corresponds
+  to the ``SaplingOutputNU5`` at the same index.
+
 * The elements of ``zkProofsOrchard`` and ``spendAuthSigsOrchard`` have a 1:1
   correspondence to the elements of ``vOrchardActions`` and must be ordered such that
   the proof or signature at a given index corresponds to the ``OrchardAction`` at
   the same index.
 
-The encodings of ``tx_in``, ``tx_out``, ``JSDescriptionGroth16``, ``SaplingSpend``, and ``SaplingOutput``
-are as in NU4 [#protocol_nu4]_. The encoding of ``OrchardAction`` is described below.
+The encodings of ``tx_in``, ``tx_out``, and ``JSDescriptionGroth16``, are as in NU4
+[#protocol_nu4]_. The encodings of ``SaplingSpendNU5``, ``SaplingOutputNU5`` and
+``OrchardAction`` are described below. The encoding of Sapling spends and outputs has
+changed relative to prior versions in order to better separate data that describe
+the effects of the transaction from the proofs of and commitments to those effects, 
+and for symmetry with this separation the Orchard-related section of the transaction
+format.
+
+Sapling Spend Description
+--------------------------
+
++-----------------------------+--------------------------+--------------------------------------+------------------------------------------------------------+
+| Bytes                       | Name                     | Data Type                            | Description                                                |
++=============================+==========================+======================================+============================================================+
+|``32``                       |``cv``                    |``byte[32]``                          |A value commitment to the net value of the input note.      |
++-----------------------------+--------------------------+--------------------------------------+------------------------------------------------------------+
+|``32``                       |``nullifier``             |``byte[32]``                          |The nullifier of the input note.                            |
++-----------------------------+--------------------------+--------------------------------------+------------------------------------------------------------+
+|``32``                       |``rk``                    |``byte[32]``                          |The randomized validating key for the element of            |
+|                             |                          |                                      |spendAuthSigsSapling corresponding to this spend.           |
++-----------------------------+--------------------------+--------------------------------------+------------------------------------------------------------+
+
+The encodings of each of these elements are defined in § 7.3 ‘Spend Description Encoding
+and Consensus’ of version 2021.1.16 of the Zcash Protocol Specification [#protocol_nu5]_.
+
+Sapling Output Description
+--------------------------
+
++-----------------------------+--------------------------+--------------------------------------+------------------------------------------------------------+
+| Bytes                       | Name                     | Data Type                            | Description                                                |
++=============================+==========================+======================================+============================================================+
+|``32``                       |``cv``                    |``byte[32]``                          |A value commitment to the net value of the output note.     |
++-----------------------------+--------------------------+--------------------------------------+------------------------------------------------------------+
+|``32``                       |``cmu``                   |``byte[32]``                          |The u-coordinate of the note commitment for the output note |
++-----------------------------+--------------------------+--------------------------------------+------------------------------------------------------------+
+|``32``                       |``ephemeralKey``          |``byte[32]``                          |An encoding of an ephemeral Jubjub public key               |
++-----------------------------+--------------------------+--------------------------------------+------------------------------------------------------------+
+|``580``                      |``encCiphertext``         |``byte[580]``                         |The encrypted contents of the note plaintext.               |
++-----------------------------+--------------------------+--------------------------------------+------------------------------------------------------------+
+|``80``                       |``outCiphertext``         |``byte[580]``                         |The encrypted contents of the byte string created by        |
+|                             |                          |                                      |concatenation of the transmission key with the ephemeral    |
+|                             |                          |                                      |secret key.                                                 |
++-----------------------------+--------------------------+--------------------------------------+------------------------------------------------------------+
+
+The encodings of each of these elements are defined in § 7.4 ‘Output Description Encoding
+and Consensus’ of version 2021.1.16 of the Zcash Protocol Specification [#protocol_nu5]_.
 
 Orchard Action Description
 --------------------------
@@ -181,7 +241,7 @@ Orchard Action Description
 |``32``                       |``rk``                    |``byte[32]``                          |The randomized validating key for the element of            |
 |                             |                          |                                      |spendAuthSigsOrchard corresponding to this action.          |
 +-----------------------------+--------------------------+--------------------------------------+------------------------------------------------------------+
-|``32``                       |``cmu``                   |``byte[32]``                          |The u-coordinate of the note commitment for the output note |
+|``32``                       |``cmx``                   |``byte[32]``                          |The x-coordinate of the note commitment for the output note |
 +-----------------------------+--------------------------+--------------------------------------+------------------------------------------------------------+
 |``32``                       |``ephemeralKey``          |``byte[32]``                          |An encoding of an ephemeral Pallas public key               |
 +-----------------------------+--------------------------+--------------------------------------+------------------------------------------------------------+
@@ -248,7 +308,7 @@ actions belonging to the transaction. For each action, the following elements ar
 in the hash::
 
    T.5b.i  : nullifier            (field encoding bytes)
-   T.5b.ii : cmu                  (field encoding bytes)
+   T.5b.ii : cmx                  (field encoding bytes)
    T.5b.iii: ephemeralKey         (field encoding bytes)
    T.5b.iv : encCiphertext[..52]  (First 52 bytes of field encoding)
 
@@ -321,7 +381,7 @@ Authorizing Data Commitment
 
 The tree of hashes defined by ZIP 244 [#zip-0244]_ for authorizing data commitments is
 re-structured to include a new branch for Orchard actions. The ``orchard_digest`` branch 
-is the only new addition to the tree; ``transparent_digest``, ``sprout_digest``, and
+is the only new addition to the tree; ``transparent_digest``, and ``sprout_digest``
 ``sapling_digest`` are as in ZIP 244::
 
    auth_digest
