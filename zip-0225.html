@@ -13,15 +13,572 @@ Owners: Daira Hopwood &lt;daira@electriccoin.co&gt;
         Sean Bowe &lt;sean@electriccoin.co&gt;
         Kris Nuttycombe &lt;kris@electriccoin.co&gt;
         Ying Tong Lai &lt;yingtong@electriccoin.co&gt;
-Status: Reserved
+Status: Proposed
 Category: Consensus
 Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/440">https://github.com/zcash/zips/issues/440</a>&gt;</pre>
-        <p>This ZIP number is reserved. Prelininary technical content related to the version 5 format is currently in:</p>
-        <ul>
-            <li>the <a href="https://raw.githubusercontent.com/daira/zips/orchard-circuit/protocol/orchard.pdf#txnencodingandconsensus">draft Orchard protocol specification</a>;</li>
-            <li>the <a href="https://zcash.github.io/orchard/design.html">Orchard Book</a>;</li>
-            <li><a href="zip-0244">ZIP 244</a>.</li>
-        </ul>
+        <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The key words "MUST" and "MAY" in this document are to be interpreted as described in RFC 2119. <a id="id1" class="footnote_reference" href="#rfc2119">1</a></p>
+        </section>
+        <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This proposal defines an update to the Zcash peer-to-peer transaction format to include support for data elements required to support the Orchard protocol <a id="id2" class="footnote_reference" href="#protocol-orchard">2</a>. The new transaction format defines well-bounded regions of the serialized form to serve each of the existing pools of funds, and adds and describes a new region containing Orchard-specific elements.</p>
+            <p>This ZIP also depends upon and defines modifications to the computation of the values <strong>TxId Digest</strong>, <strong>Signature Digest</strong>, and <strong>Authorizing Data Commitment</strong> defined by ZIP 244 <a id="id3" class="footnote_reference" href="#zip-0244">6</a>.</p>
+        </section>
+        <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The new Orchard shielded pool requires serialized data elements that are distinct from any previous Zcash transaction. In addition, with the activation of ZIP 244, the serialized transaction format will no longer be consensus-critical. It makes sense at this point to define a format that can readily accommodate future extension in a systematic fashion, where elements required for support for a given pool are kept separate.</p>
+        </section>
+        <section id="requirements"><h2><span class="section-heading">Requirements</span><span class="section-anchor"> <a rel="bookmark" href="#requirements"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The new format must fully support the Orchard protocol.</p>
+            <p>The new format should lend itself to future extension or pruning to add or remove value pools.</p>
+            <p>The computation of the non-malleable transaction identifier hash must include all newly incorporated elements except those that attest to transaction validity.</p>
+            <p>The computation of the commitment to authorizing data for a transaction must include all newly incorporated elements that attest to transaction validity.</p>
+        </section>
+        <section id="non-requirements"><h2><span class="section-heading">Non-requirements</span><span class="section-anchor"> <a rel="bookmark" href="#non-requirements"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>More general forms of extensibility, such as definining a key/value format that allows for parsers that are unaware of some components, are not required.</p>
+        </section>
+        <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The Zcash transaction format for transaction version 5 is as follows:</p>
+            <section id="transaction-format"><h3><span class="section-heading">Transaction Format</span><span class="section-anchor"> <a rel="bookmark" href="#transaction-format"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Bytes</th>
+                            <th>Name</th>
+                            <th>Data Type</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="4"><strong>Common Transaction Fields</strong></td>
+                        </tr>
+                        <tr>
+                            <td><code>4</code></td>
+                            <td><code>header</code></td>
+                            <td><code>uint32</code></td>
+                            <td>
+                                <dl>
+                                    <dt>Contains:</dt>
+                                    <dd>
+                                        <ul>
+                                            <li><code>fOverwintered</code> flag (bit 31, always set)</li>
+                                            <li><code>version</code> (bits 30 .. 0) – transaction version.</li>
+                                        </ul>
+                                    </dd>
+                                </dl>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><code>4</code></td>
+                            <td><code>nVersionGroupId</code></td>
+                            <td><code>uint32</code></td>
+                            <td>Version group ID (nonzero).</td>
+                        </tr>
+                        <tr>
+                            <td><code>4</code></td>
+                            <td><code>lock_time</code></td>
+                            <td><code>uint32</code></td>
+                            <td>Unix-epoch UTC time or block height, encoded as in Bitcoin.</td>
+                        </tr>
+                        <tr>
+                            <td><code>4</code></td>
+                            <td><code>nExpiryHeight</code></td>
+                            <td><code>uint32</code></td>
+                            <td>A block height in the range {1 .. 499999999} after which the transaction will expire, or 0 to disable expiry. [ZIP-203]</td>
+                        </tr>
+                        <tr>
+                            <td colspan="4"><strong>Transparent Transaction Fields</strong></td>
+                        </tr>
+                        <tr>
+                            <td><code>varies</code></td>
+                            <td><code>tx_in_count</code></td>
+                            <td><code>compactSize</code></td>
+                            <td>Number of transparent inputs in <code>tx_in</code>.</td>
+                        </tr>
+                        <tr>
+                            <td><code>varies</code></td>
+                            <td><code>tx_in</code></td>
+                            <td><code>tx_in</code></td>
+                            <td>Transparent inputs, encoded as in Bitcoin.</td>
+                        </tr>
+                        <tr>
+                            <td><code>varies</code></td>
+                            <td><code>tx_out_count</code></td>
+                            <td><code>compactSize</code></td>
+                            <td>Number of transparent outputs in <code>tx_out</code>.</td>
+                        </tr>
+                        <tr>
+                            <td><code>varies</code></td>
+                            <td><code>tx_out</code></td>
+                            <td><code>tx_out</code></td>
+                            <td>Transparent outputs, encoded as in Bitcoin.</td>
+                        </tr>
+                        <tr>
+                            <td colspan="4"><strong>Sprout Transaction Fields</strong></td>
+                        </tr>
+                        <tr>
+                            <td><code>varies</code></td>
+                            <td><code>nJoinSplit</code></td>
+                            <td><code>compactSize</code></td>
+                            <td>The number of JoinSplit descriptions in <code>vJoinSplit</code>.</td>
+                        </tr>
+                        <tr>
+                            <td><code>1698 * nJoinSplit</code></td>
+                            <td><code>vJoinSplit</code></td>
+                            <td><code>JSDescriptionGroth16[nJoinSplit]</code></td>
+                            <td>A sequence of JoinSplit descrptions using Groth16 proofs, encoded per §7.2 ‘JoinSplit Description Encoding and Consensus’.</td>
+                        </tr>
+                        <tr>
+                            <td><code>32</code></td>
+                            <td><code>joinSplitPubKey</code></td>
+                            <td><code>byte[32]</code></td>
+                            <td>An encoding of a JoinSplitSig public validating key.</td>
+                        </tr>
+                        <tr>
+                            <td><code>64</code></td>
+                            <td><code>joinSplitSig</code></td>
+                            <td><code>byte[64]</code></td>
+                            <td>A signature on a prefix of the transaction encoding, to be verfied using joinSplitPubKey as specified in §4.11 ‘Non-malleability (Sprout)’.</td>
+                        </tr>
+                        <tr>
+                            <td colspan="4"><strong>Sapling Transaction Fields</strong></td>
+                        </tr>
+                        <tr>
+                            <td><code>varies</code></td>
+                            <td><code>nSpendsSapling</code></td>
+                            <td><code>compactSize</code></td>
+                            <td>Number of Sapling Spend descriptions in <code>vSpendsSapling</code>.</td>
+                        </tr>
+                        <tr>
+                            <td><code>128 * nSpendsSapling</code></td>
+                            <td><code>vSpendsSapling</code></td>
+                            <td><code>SpendDescriptionV5[nSpendsSapling]</code></td>
+                            <td>A sequence of Sapling Spend descriptions, encoded per protocol §7.3 ‘Spend Description Encoding and Consensus’.</td>
+                        </tr>
+                        <tr>
+                            <td><code>varies</code></td>
+                            <td><code>nOutputsSapling</code></td>
+                            <td><code>compactSize</code></td>
+                            <td>Number of Sapling Output Decriptions in <code>vOutputsSapling</code>.</td>
+                        </tr>
+                        <tr>
+                            <td><code>756 * nOutputsSapling</code></td>
+                            <td><code>vOutputsSapling</code></td>
+                            <td><code>OutputDescriptionV5[nOutputsSapling]</code></td>
+                            <td>A sequence of Sapling Output descriptions, encoded per protocol §7.4 ‘Output Description Encoding and Consensus’.</td>
+                        </tr>
+                        <tr>
+                            <td><code>8</code></td>
+                            <td><code>valueBalanceSapling</code></td>
+                            <td><code>int64</code></td>
+                            <td>The net value of Sapling Spends minus Outputs</td>
+                        </tr>
+                        <tr>
+                            <td><code>32</code></td>
+                            <td><code>anchorSapling</code></td>
+                            <td><code>byte[32]</code></td>
+                            <td>A root of the Sapling note commitment tree at some block height in the past.</td>
+                        </tr>
+                        <tr>
+                            <td><code>192 * nSpendsSapling</code></td>
+                            <td><code>vSpendProofsSapling</code></td>
+                            <td><code>byte[192 * nSpendsSapling]</code></td>
+                            <td>Encodings of the zk-SNARK proofs for each Sapling Spend.</td>
+                        </tr>
+                        <tr>
+                            <td><code>64 * nSpendsSapling</code></td>
+                            <td><code>vSpendAuthSigsSapling</code></td>
+                            <td><code>byte[64 * nSpendsSapling]</code></td>
+                            <td>Authorizing signatures for each Sapling Spend.</td>
+                        </tr>
+                        <tr>
+                            <td><code>192 * nOutputsSapling</code></td>
+                            <td><code>vOutputProofsSapling</code></td>
+                            <td><code>byte[192 * nOutputsSapling]</code></td>
+                            <td>Encodings of the zk-SNARK proofs for each Sapling Output.</td>
+                        </tr>
+                        <tr>
+                            <td><code>64</code></td>
+                            <td><code>bindingSigSapling</code></td>
+                            <td><code>byte[64]</code></td>
+                            <td>A Sapling binding signature on the SIGHASH transaction hash.</td>
+                        </tr>
+                        <tr>
+                            <td colspan="4"><strong>Orchard Transaction Fields</strong></td>
+                        </tr>
+                        <tr>
+                            <td><code>varies</code></td>
+                            <td><code>nActionsOrchard</code></td>
+                            <td><code>compactSize</code></td>
+                            <td>The number of Orchard Action descriptions in <code>vActionsOrchard</code>.</td>
+                        </tr>
+                        <tr>
+                            <td><code>884 * nActionsOrchard</code></td>
+                            <td><code>vActionsOrchard</code></td>
+                            <td><code>OrchardAction[nActionsOrchard]</code></td>
+                            <td>A sequence of Orchard Action descriptions, encoded per §7.5 ‘Action Description Encoding and Consensus’.</td>
+                        </tr>
+                        <tr>
+                            <td><code>1</code></td>
+                            <td><code>flagsOrchard</code></td>
+                            <td><code>byte</code></td>
+                            <td>
+                                <dl>
+                                    <dt>An 8-bit value representing a set of flags. Ordered from LSB to MSB:</dt>
+                                    <dd>
+                                        <ul>
+                                            <li><code>spendsEnabledOrchard</code></li>
+                                            <li><code>outputsEnabledOrchard</code></li>
+                                            <li>The remaining bits are set to <code>0</code>.</li>
+                                        </ul>
+                                    </dd>
+                                </dl>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><code>8</code></td>
+                            <td><code>valueBalanceOrchard</code></td>
+                            <td><code>int64</code></td>
+                            <td>The net value of Orchard spends minus outputs.</td>
+                        </tr>
+                        <tr>
+                            <td><code>32</code></td>
+                            <td><code>anchorOrchard</code></td>
+                            <td><code>byte[32]</code></td>
+                            <td>A root of the Orchard note commitment tree at some block height in the past.</td>
+                        </tr>
+                        <tr>
+                            <td><code>varies</code></td>
+                            <td><code>sizeProofsOrchard</code></td>
+                            <td><code>compactSize</code></td>
+                            <td>Length in bytes of <code>proofsOrchard</code>.</td>
+                        </tr>
+                        <tr>
+                            <td><code>sizeProofsOrchard</code></td>
+                            <td><code>proofsOrchard</code></td>
+                            <td><code>byte[sizeProofsOrchard]</code></td>
+                            <td>Encoding of aggregated zk-SNARK proofs for Orchard Actions.</td>
+                        </tr>
+                        <tr>
+                            <td><code>64 * nActionsOrchard</code></td>
+                            <td><code>vSpendAuthSigsOrchard</code></td>
+                            <td><code>byte[64 * nActionsOrchard]</code></td>
+                            <td>Authorizing signatures for each Orchard Action.</td>
+                        </tr>
+                        <tr>
+                            <td><code>64</code></td>
+                            <td><code>bindingSigOrchard</code></td>
+                            <td><code>byte[64]</code></td>
+                            <td>An Orchard binding signature on the SIGHASH transaction hash.</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <ul>
+                    <li>The <code>valueBalanceSapling</code>, <code>anchorSapling</code>, and <code>bindingSigSapling</code> fields are present if and only if <code>nSpendsSapling + nOutputsSapling &gt; 0</code>. If <code>valueBalanceSapling</code> is not present, then <code>valueBalanceSapling</code> is defined to be 0.</li>
+                    <li>The <code>valueBalanceOrchard</code>, <code>anchorOrchard</code>, and <code>bindingSigOrchard</code> fields are present if and only if <code>nActionsOrchard &gt; 0</code>. If <code>valueBalanceOrchard</code> is not present, then <code>valueBalanceOrchard</code> is defined to be 0.</li>
+                    <li>The <code>joinSplitPubKey</code> and <code>joinSplitSig</code> fields are present if and only if <code>nJoinSplit &gt; 0</code>.</li>
+                    <li>The elements of <code>vSpendProofsSapling</code> and <code>vSpendAuthSigsSapling</code> have a 1:1 correspondence to the elements of <code>vSpendsSapling</code> and MUST be ordered such that the proof or signature at a given index corresponds to the <code>SpendDescriptionV5</code> at the same index.</li>
+                    <li>The elements of <code>vOutputProofsSapling</code> have a 1:1 correspondence to the elements of <code>vOutputsSapling</code> and MUST be ordered such that the proof at a given index corresponds to the <code>OutputDescriptionV5</code> at the same index.</li>
+                    <li>The proofs aggregated in <code>proofsOrchard</code>, and the elements of <code>vSpendAuthSigsOrchard</code>, each have a 1:1 correspondence to the elements of <code>vActionsOrchard</code> and MUST be ordered such that the proof or signature at a given index corresponds to the <code>OrchardAction</code> at the same index.</li>
+                    <li>For coinbase transactions, the <code>spendsEnabledOrchard</code> bit MUST be set to <code>0</code>.</li>
+                </ul>
+                <p>The encodings of <code>tx_in</code>, <code>tx_out</code>, and <code>JSDescriptionGroth16</code>, are as in a version 4 transaction (i.e. unchanged from Canopy). The encodings of <code>SpendDescriptionV5</code>, <code>OutputDescriptionV5</code> and <code>OrchardAction</code> are described below. The encoding of Sapling Spends and Outputs has changed relative to prior versions in order to better separate data that describe the effects of the transaction from the proofs of and commitments to those effects, and for symmetry with this separation in the Orchard-related parts of the transaction format.</p>
+            </section>
+            <section id="sapling-spend-description-spenddescriptionv5"><h3><span class="section-heading">Sapling Spend Description (<code>SpendDescriptionV5</code>)</span><span class="section-anchor"> <a rel="bookmark" href="#sapling-spend-description-spenddescriptionv5"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Bytes</th>
+                            <th>Name</th>
+                            <th>Data Type</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>32</code></td>
+                            <td><code>cv</code></td>
+                            <td><code>byte[32]</code></td>
+                            <td>A value commitment to the net value of the input note.</td>
+                        </tr>
+                        <tr>
+                            <td><code>32</code></td>
+                            <td><code>nullifier</code></td>
+                            <td><code>byte[32]</code></td>
+                            <td>The nullifier of the input note.</td>
+                        </tr>
+                        <tr>
+                            <td><code>32</code></td>
+                            <td><code>rk</code></td>
+                            <td><code>byte[32]</code></td>
+                            <td>The randomized validating key for the element of spendAuthSigsSapling corresponding to this Spend.</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p>The encodings of each of these elements are defined in §7.3 ‘Spend Description Encoding and Consensus’ of the Zcash Protocol Specification <a id="id4" class="footnote_reference" href="#protocol-spenddesc">3</a>.</p>
+            </section>
+            <section id="sapling-output-description-outputdescriptionv5"><h3><span class="section-heading">Sapling Output Description (<code>OutputDescriptionV5</code>)</span><span class="section-anchor"> <a rel="bookmark" href="#sapling-output-description-outputdescriptionv5"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Bytes</th>
+                            <th>Name</th>
+                            <th>Data Type</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>32</code></td>
+                            <td><code>cv</code></td>
+                            <td><code>byte[32]</code></td>
+                            <td>A value commitment to the net value of the output note.</td>
+                        </tr>
+                        <tr>
+                            <td><code>32</code></td>
+                            <td><code>cmu</code></td>
+                            <td><code>byte[32]</code></td>
+                            <td>The u-coordinate of the note commitment for the output note.</td>
+                        </tr>
+                        <tr>
+                            <td><code>32</code></td>
+                            <td><code>ephemeralKey</code></td>
+                            <td><code>byte[32]</code></td>
+                            <td>An encoding of an ephemeral Jubjub public key.</td>
+                        </tr>
+                        <tr>
+                            <td><code>580</code></td>
+                            <td><code>encCiphertext</code></td>
+                            <td><code>byte[580]</code></td>
+                            <td>The encrypted contents of the note plaintext.</td>
+                        </tr>
+                        <tr>
+                            <td><code>80</code></td>
+                            <td><code>outCiphertext</code></td>
+                            <td><code>byte[580]</code></td>
+                            <td>The encrypted contents of the byte string created by concatenation of the transmission key with the ephemeral secret key.</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p>The encodings of each of these elements are defined in §7.4 ‘Output Description Encoding and Consensus’ of the Zcash Protocol Specification <a id="id5" class="footnote_reference" href="#protocol-outputdesc">4</a>.</p>
+            </section>
+            <section id="orchard-action-description-orchardaction"><h3><span class="section-heading">Orchard Action Description (<code>OrchardAction</code>)</span><span class="section-anchor"> <a rel="bookmark" href="#orchard-action-description-orchardaction"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Bytes</th>
+                            <th>Name</th>
+                            <th>Data Type</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>32</code></td>
+                            <td><code>cv</code></td>
+                            <td><code>byte[32]</code></td>
+                            <td>A value commitment to the net value of the input note minus the output note.</td>
+                        </tr>
+                        <tr>
+                            <td><code>32</code></td>
+                            <td><code>nullifier</code></td>
+                            <td><code>byte[32]</code></td>
+                            <td>The nullifier of the input note.</td>
+                        </tr>
+                        <tr>
+                            <td><code>32</code></td>
+                            <td><code>rk</code></td>
+                            <td><code>byte[32]</code></td>
+                            <td>The randomized validating key for the element of spendAuthSigsOrchard corresponding to this Action.</td>
+                        </tr>
+                        <tr>
+                            <td><code>32</code></td>
+                            <td><code>cmx</code></td>
+                            <td><code>byte[32]</code></td>
+                            <td>The x-coordinate of the note commitment for the output note.</td>
+                        </tr>
+                        <tr>
+                            <td><code>32</code></td>
+                            <td><code>ephemeralKey</code></td>
+                            <td><code>byte[32]</code></td>
+                            <td>An encoding of an ephemeral Pallas public key</td>
+                        </tr>
+                        <tr>
+                            <td><code>580</code></td>
+                            <td><code>encCiphertext</code></td>
+                            <td><code>byte[580]</code></td>
+                            <td>The encrypted contents of the note plaintext.</td>
+                        </tr>
+                        <tr>
+                            <td><code>80</code></td>
+                            <td><code>outCiphertext</code></td>
+                            <td><code>byte[580]</code></td>
+                            <td>The encrypted contents of the byte string created by concatenation of the transmission key with the ephemeral secret key.</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p>The encodings of each of these elements are defined in §7.5 ‘Action Description Encoding and Consensus’ of the Zcash Protocol Specification <a id="id6" class="footnote_reference" href="#protocol-actiondesc">5</a>.</p>
+            </section>
+            <section id="modifications-to-zip-244"><h3><span class="section-heading">Modifications to ZIP 244</span><span class="section-anchor"> <a rel="bookmark" href="#modifications-to-zip-244"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <section id="txid-digest"><h4><span class="section-heading">TxId Digest</span><span class="section-anchor"> <a rel="bookmark" href="#txid-digest"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>The tree of hashes defined by ZIP 244 <a id="id7" class="footnote_reference" href="#zip-0244">6</a> is re-structured to include a new branch for Orchard hashes. The <code>orchard_digest</code> branch is the only new addition to the tree; <code>header_digest</code>, <code>transparent_digest</code>, <code>sprout_digest</code>, and <code>sapling_digest</code> are as in ZIP 244:</p>
+                    <pre>txid_digest
+├── header_digest
+├── transparent_digest
+├── sprout_digest
+├── sapling_digest
+└── orchard_digest</pre>
+                    <section id="id8"><h5><span class="section-heading">txid_digest</span><span class="section-anchor"> <a rel="bookmark" href="#id8"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>The top hash of the <code>txid_digest</code> tree is modified from the ZIP 244 structure to be a BLAKE2b-256 hash of the following values</p>
+                        <pre>T.1: header_digest      (32-byte hash output)
+T.2: transparent_digest (32-byte hash output)
+T.3: sprout_digest      (32-byte hash output)
+T.4: sapling_digest     (32-byte hash output)
+T.5: orchard_digest     (32-byte hash output)</pre>
+                        <p>The personalization field of this hash is unmodified from ZIP 244.</p>
+                    </section>
+                    <section id="orchard-digest"><h5><span class="section-heading">2: <code>orchard_digest</code></span><span class="section-anchor"> <a rel="bookmark" href="#orchard-digest"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>A BLAKE2b-256 hash of the following values</p>
+                        <pre>T.5c: anchorOrchard                       (32 bytes)
+T.5b: orchard_actions_compact_digest      (32-byte hash output)
+T.5c: orchard_actions_memos_digest        (32-byte hash output)
+T.5d: orchard_actions_noncompact_digest   (32-byte hash output)
+T.5e: valueBalanceOrchard                 (64-bit signed little-endian)</pre>
+                        <p>The personalization field of this hash is set to:</p>
+                        <pre>"ZTxIdOrchardHash"</pre>
+                    </section>
+                    <section id="t-5b-orchard-actions-compact-digest"><h5><span class="section-heading">T.5b: orchard_actions_compact_digest</span><span class="section-anchor"> <a rel="bookmark" href="#t-5b-orchard-actions-compact-digest"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>A BLAKE2b-256 hash of the subset of Orchard Action information intended to be included in an updated version of the ZIP-307 <a id="id9" class="footnote_reference" href="#zip-0307">7</a> <code>CompactBlock</code> format for all Orchard Actions belonging to the transaction. For each Action, the following elements are included in the hash:</p>
+                        <pre>T.5b.i  : nullifier            (field encoding bytes)
+T.5b.ii : cmx                  (field encoding bytes)
+T.5b.iii: ephemeralKey         (field encoding bytes)
+T.5b.iv : encCiphertext[..52]  (First 52 bytes of field encoding)</pre>
+                        <p>The personalization field of this hash is set to:</p>
+                        <pre>"ZTxIdOrcOutCHash"</pre>
+                    </section>
+                    <section id="t-5c-orchard-actions-memos-digest"><h5><span class="section-heading">T.5c: orchard_actions_memos_digest</span><span class="section-anchor"> <a rel="bookmark" href="#t-5c-orchard-actions-memos-digest"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>A BLAKE2b-256 hash of the subset of Orchard shielded memo field data for all Orchard Actions belonging to the transaction. For each Action, the following elements are included in the hash:</p>
+                        <pre>T.5c.i: encCiphertext[52..564] (contents of the encrypted memo field)</pre>
+                        <p>The personalization field of this hash is set to:</p>
+                        <pre>"ZTxIdOrcOutMHash"</pre>
+                    </section>
+                    <section id="t-5d-orchard-actions-noncompact-digest"><h5><span class="section-heading">T.5d: orchard_actions_noncompact_digest</span><span class="section-anchor"> <a rel="bookmark" href="#t-5d-orchard-actions-noncompact-digest"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>A BLAKE2b-256 hash of the remaining subset of Orchard Action information <strong>not</strong> intended for inclusion in an updated version of the the ZIP 307 <a id="id10" class="footnote_reference" href="#zip-0307">7</a> <code>CompactBlock</code> format, for all Orchard Actions belonging to the transaction. For each Action, the following elements are included in the hash:</p>
+                        <pre>T.5d.i  : cv                    (field encoding bytes)
+T.5d.ii : rk                    (field encoding bytes)
+T.5d.iii: encCiphertext[564..]  (post-memo suffix of field encoding)
+T.5d.iv : outCiphertext         (field encoding bytes)</pre>
+                        <p>The personalization field of this hash is set to:</p>
+                        <pre>"ZTxIdOrcOutNHash"</pre>
+                    </section>
+                </section>
+                <section id="signature-digest"><h4><span class="section-heading">Signature Digest</span><span class="section-anchor"> <a rel="bookmark" href="#signature-digest"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>The signature digest creation algorithm defined by ZIP 244 <a id="id11" class="footnote_reference" href="#zip-0244">6</a> is modified to include a new branch for Orchard hashes. The <code>orchard_digest</code> branch is the only new addition to the tree; <code>header_digest</code>, <code>transparent_digest</code>, <code>sprout_digest</code>, and <code>sapling_digest</code> are as in ZIP 244:</p>
+                    <pre>signature_digest
+├── header_digest
+├── transparent_digest
+├── sprout_digest
+├── sapling_digest
+└── orchard_digest</pre>
+                    <section id="id12"><h5><span class="section-heading">signature_digest</span><span class="section-anchor"> <a rel="bookmark" href="#id12"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>A BLAKE2b-256 hash of the following values</p>
+                        <pre>S.1: header_digest      (32-byte hash output)
+S.2: transparent_digest (32-byte hash output)
+S.3: sprout_digest      (32-byte hash output)
+S.4: sapling_digest     (32-byte hash output)
+S.5: orchard_digest     (32-byte hash output)</pre>
+                        <p>The personalization field of this hash is unmodified from ZIP 244</p>
+                    </section>
+                    <section id="s-5-orchard-digest"><h5><span class="section-heading">S.5: orchard_digest</span><span class="section-anchor"> <a rel="bookmark" href="#s-5-orchard-digest"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>Identical to that specified for the transaction identifier.</p>
+                    </section>
+                </section>
+                <section id="authorizing-data-commitment"><h4><span class="section-heading">Authorizing Data Commitment</span><span class="section-anchor"> <a rel="bookmark" href="#authorizing-data-commitment"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>The tree of hashes defined by ZIP 244 <a id="id13" class="footnote_reference" href="#zip-0244">6</a> for authorizing data commitments is re-structured to include a new branch for Orchard Actions. The <code>orchard_digest</code> branch is the only new addition to the tree; <code>transparent_digest</code>, and <code>sprout_digest</code> <code>sapling_digest</code> are as in ZIP 244:</p>
+                    <pre>auth_digest
+├── transparent_scripts_digest
+├── sprout_auth_digest
+├── sapling_auth_digest
+└── orchard_auth_digest</pre>
+                    <section id="auth-digest"><h5><span class="section-heading">auth_digest</span><span class="section-anchor"> <a rel="bookmark" href="#auth-digest"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>The tree of hashes defined by ZIP 244 <a id="id14" class="footnote_reference" href="#zip-0244">6</a> for authorizing data commitments is re-structured to include a new branch for Orchard authorizing data. The <code>orchard_auth_digest</code> branch is the only new addition to the tree; <code>transparent_auth_digest</code>, <code>sprout_auth_digest</code>, and <code>sapling_auth_digest</code> are as in ZIP 244:</p>
+                        <pre>A.1: transparent_scripts_digest (32-byte hash output)
+A.2: sprout_auth_digest         (32-byte hash output)
+A.3: sapling_auth_digest        (32-byte hash output)
+A.4: orchard_auth_digest        (32-byte hash output)</pre>
+                        <p>The personalization field of this hash is unmodified from ZIP 244.</p>
+                    </section>
+                    <section id="a-4-orchard-auth-digest"><h5><span class="section-heading">A.4: orchard_auth_digest</span><span class="section-anchor"> <a rel="bookmark" href="#a-4-orchard-auth-digest"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>A BLAKE2b-256 hash of the field encoding of the <code>zkProofsOrchard</code>, <code>spendAuthSigsOrchard</code>, and <code>bindingSigOrchard</code> fields of the transaction:</p>
+                        <pre>A.4a: zkproofsOrchard          (field encoding bytes)
+A.4b: spendAuthSigsOrchard     (field encoding bytes)
+A.4c: bindingSigOrchard        (field encoding bytes)</pre>
+                        <p>The personalization field of this hash is set to:</p>
+                        <pre>"ZTxAuthOrchaHash"</pre>
+                    </section>
+                </section>
+            </section>
+        </section>
+        <section id="reference-implementation"><h2><span class="section-heading">Reference implementation</span><span class="section-anchor"> <a rel="bookmark" href="#reference-implementation"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>TBD</p>
+        </section>
+        <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <table id="rfc2119" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>1</th>
+                        <td><a href="https://www.rfc-editor.org/rfc/rfc2119.html">RFC 2119: Key words for use in RFCs to Indicate Requirement Levels</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-orchard" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>2</th>
+                        <td><a href="protocol/nu5.pdf">Zcash Protocol Specification, Version 2021.1.17 or later</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-spenddesc" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>3</th>
+                        <td><a href="protocol/nu5.pdf#spenddesc">Zcash Protocol Specification, Version 2021.1.17 or later. Section 4.4: Spend Descriptions</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-outputdesc" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>4</th>
+                        <td><a href="protocol/nu5.pdf#outputdesc">Zcash Protocol Specification, Version 2021.1.17 or later. Section 4.5: Output Descriptions</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-actiondesc" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>5</th>
+                        <td><a href="protocol/nu5.pdf#actiondesc">Zcash Protocol Specification, Version 2021.1.17 or later. Section 4.6: Action Descriptions</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0244" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>6</th>
+                        <td><a href="zip-0244">ZIP 244: Transaction Identifier Non-Malleability</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0307" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>7</th>
+                        <td><a href="zip-0307">ZIP 307: Light Client Protocol for Payment Detection</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
     </section>
 </body>
 </html>
