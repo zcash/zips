@@ -98,7 +98,7 @@ Index of ZIPs
     <tr> <td><span class="reserved">219</span></td> <td class="left"><a class="reserved" href="zip-0219.rst">Disabling Addition of New Value to the Sapling Chain Value Pool</a></td> <td>Reserved</td>
     <tr> <td>221</td> <td class="left"><a href="zip-0221.rst">FlyClient - Consensus-Layer Changes</a></td> <td>Final</td>
     <tr> <td>222</td> <td class="left"><a href="zip-0222.rst">Transparent Zcash Extensions</a></td> <td>Draft</td>
-    <tr> <td><span class="reserved">224</span></td> <td class="left"><a class="reserved" href="zip-0224.rst">Orchard Shielded Protocol</a></td> <td>Reserved</td>
+    <tr> <td>224</td> <td class="left"><a href="zip-0224.rst">Orchard Shielded Protocol</a></td> <td>Proposed</td>
     <tr> <td>225</td> <td class="left"><a href="zip-0225.rst">Version 5 Transaction Format</a></td> <td>Proposed</td>
     <tr> <td>243</td> <td class="left"><a href="zip-0243.rst">Transaction Signature Validation for Sapling</a></td> <td>Final</td>
     <tr> <td>244</td> <td class="left"><a href="zip-0244.rst">Transaction Identifier Non-Malleability</a></td> <td>Proposed</td>
