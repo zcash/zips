@@ -2,7 +2,189 @@
 
   ZIP: 252
   Title: Deployment of the NU5 Network Upgrade
-  Owners: Daira Hopwood <daira@electriccoin.co>
-  Status: Reserved
+  Owners: teor <teor@zfnd.org>
+          Daira Hopwood <daira@electriccoin.co>
+  Status: Proposed
   Category: Consensus / Network
-  Discussions-To: <https://github.com/zcash/zips/issues/397>
+  Created: 2021-02-23
+  License: MIT
+
+
+Terminology
+===========
+
+The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to be
+interpreted as described in RFC 2119. [#RFC2119]_
+
+The term "network upgrade" in this document is to be interpreted as described in
+ZIP 200. [#zip-0200]_
+
+The terms "Testnet" and "Mainnet" are to be interpreted as described in
+section 3.11 of the Zcash Protocol Specification [#protocol-networks]_.
+
+**TODO: Choose code name**
+The code-name for the sixth Zcash network upgrade has not been chosen yet.
+
+
+Abstract
+========
+
+This proposal defines the deployment of the NU5 network upgrade.
+
+
+Specification
+=============
+
+NU5 deployment
+-----------------
+
+**TODO: Select/Confirm ZIPs**
+
+The primary sources of information about NU5 consensus protocol changes are:
+
+- The Zcash Protocol Specification [#protocol]_
+- ZIP 200: Network Upgrade Mechanism [#zip-0200]_
+- ZIP 216: Require Canonical Point Encodings [#zip-0216]_ *proposed*
+- ZIP 224: Orchard Shielded Protocol [#zip-0224]_ *proposed*
+- ZIP 225: Version 5 Transaction Format [#zip-0225]_ *proposed*
+- ZIP 244: Transaction Identifier Non-Malleability [#zip-0244]_ *proposed*
+- The Orchard Book [#orchard-book]_
+
+The network handshake and peer management mechanisms defined in ZIP 201 [#zip-0201]_
+also apply to this upgrade.
+
+
+The following network upgrade constants [#zip-0200]_ are defined for the NU5
+upgrade:
+
+CONSENSUS_BRANCH_ID
+  ``0xF919A198``
+
+
+ACTIVATION_HEIGHT (NU5)
+  Testnet: TODO
+
+  Mainnet: TODO
+
+
+MIN_NETWORK_PROTOCOL_VERSION (NU5)
+  Testnet: 170014
+
+  Mainnet: 170015
+
+
+For each network (testnet and mainnet), nodes compatible with NU5 activation
+on that network MUST advertise a network protocol version that is greater than
+or equal to that network's MIN_NETWORK_PROTOCOL_VERSION (NU5).
+
+For each network, pre-NU5 nodes are defined as nodes advertising a protocol
+version less than that network's MIN_NETWORK_PROTOCOL_VERSION (NU5).
+
+Once NU5 activates on testnet or mainnet, NU5 nodes SHOULD take steps to:
+
+- reject new connections from pre-NU5 nodes on that network;
+- disconnect any existing connections to pre-NU5 nodes on that network.
+
+
+Backward compatibility
+======================
+
+Prior to the network upgrade activating on each network, NU5 and pre-NU5
+nodes are compatible and can connect to each other.
+
+Once the network upgrades, even though pre-NU5 nodes can still accept the
+numerically larger protocol version used by NU5 as being valid, NU5 nodes
+will always disconnect peers using lower protocol versions.
+
+Unlike Blossom, Heartwood, and Canopy, and like Overwinter and Sapling, NU5
+defines a new transaction version. NU5 transactions are therefore in the new
+v5 format specified by [#zip-0225]_. Therefore, pre-NU5 transactions are
+structurally invalid after NU5 activation: they can not be parsed correctly
+by pre-NU5 nodes.
+
+
+Support in zcashd
+=================
+
+**TODO: Update as needed**
+
+Support for NU5 on testnet will be implemented in ``zcashd`` version 4.4.0, which
+will advertise protocol version 170014. Support for NU5 on mainnet will be implemented
+in ``zcashd`` version 5.0.0, which will advertise protocol version 170015.
+
+
+Backward compatibility in zcashd
+--------------------------------
+
+The minimum peer protocol version that NU5-compatible ``zcashd`` nodes will connect to
+is 170002.
+
+
+NU5 deployment for zcashd
+--------------------------------
+
+For each network, approximately 1.5 days (defined in terms of
+block height) before the corresponding NU5 activation height, nodes compatible
+with NU5 activation on that network will change the behaviour of their peer
+connection logic in order to prefer pre-NU5 peers on that network for eviction
+from the set of peer connections::
+
+    /**
+     * The period before a network upgrade activates, where connections to upgrading peers are preferred (in blocks).
+     * This was three days for upgrades up to and including Blossom, and is 1.5 days from Heartwood onward.
+     */
+    static const int NETWORK_UPGRADE_PEER_PREFERENCE_BLOCK_PERIOD = 1728;
+
+The implementation is similar to that for Overwinter which was described in
+[#zip-0201]_.
+
+However, NU5 nodes will have a preference for connecting to other NU5 nodes, so
+pre-NU5 nodes will gradually be disconnected in the run up to activation.
+
+Support in Zebra
+================
+
+**TODO: Update as needed**
+
+Support for NU5 on testnet will be implemented in Zebra version 1.0.0, which
+will advertise protocol version 170014. Support for NU5 on mainnet will be implemented
+in Zebra version 2.0.0, which will advertise protocol version 170015.
+
+
+Backward compatibility in Zebra
+-------------------------------
+
+The minimum peer protocol version that NU5-compatible Zebra nodes will connect to
+is 170002. However, Zebra will immediately disconnect from nodes with a protocol
+version less than:
+
+- 170012 on testnet, or
+- 170013 on mainnet.
+
+NU5 deployment for Zebra
+------------------------
+
+For each network, at the corresponding NU5 activation height, nodes compatible
+with NU5 activation on that network will close any new connections with pre-NU5
+peers.
+
+Since Zebra maintains a reasonably strict internal request-response protocol,
+pre-NU5 nodes will gradually be disconnected after activation. (Nodes are
+temporarily disconnected if they send gossip or chain sync hints outside the
+strict request-response sequence that Zebra expects.)
+
+
+References
+==========
+
+.. [#RFC2119] `RFC 2119: Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
+.. [#protocol] `Zcash Protocol Specification, Version 2021.1.17 or later <protocol/nu5.pdf>`_
+.. [#protocol-networks] `Zcash Protocol Specification, Version 2021.1.17. Section 3.11: Mainnet and Testnet <protocol/nu5.pdf#networks>`_
+.. [#protocol-txnencodingandconsensus] `Zcash Protocol Specification, Version 2021.1.17. Section 7.1: Transaction Encoding and Consensus <protocol/nu5.pdf#txnencodingandconsensus>`_
+.. [#zip-0200] `ZIP 200: Network Upgrade Activation Mechanism <zip-0200.rst>`_
+.. [#zip-0201] `ZIP 201: Network Peer Management for Overwinter <zip-0201.rst>`_
+.. [#zip-0216] `ZIP 216: Require Canonical Point Encodings <zip-0216.rst>`_
+.. [#zip-0224] `ZIP 224: Orchard Shielded Protocol <zip-0224.rst>`_
+.. [#zip-0225] `ZIP 225: Version 5 Transaction Format <zip-0225.rst>`_
+.. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`_
+.. [#orchard-book] `The Orchard Book <https://zcash.github.io/orchard/>`_
