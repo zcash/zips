@@ -91,12 +91,14 @@ The following syntax specification uses ABNF [#RFC5234]_.
 
   zcashurn        = "zcash:" ( zcashaddress [ "?" zcashparams ] / "?" zcashparams )
   zcashaddress    = 1*( ALPHA / DIGIT )
+  zcashaddresses  = zcashaddress [ ";" zcashaddresses ]
   zcashparams     = zcashparam [ "&" zcashparams ]
   zcashparam      = [ addrparam / amountparam / memoparam / messageparam / labelparam / reqparam / otherparam ]
   NONZERO         = %x31-39
   DIGIT           = %x30-39
   paramindex      = "." NONZERO 0*3DIGIT
   addrparam       = "address" [ paramindex ] "=" zcashaddress
+  addrsparam      = "addresses" [ paramindex ] "=" zcashaddresses
   amountparam     = "amount"  [ paramindex ] "=" 1*DIGIT [ "." 1*8DIGIT ]
   labelparam      = "label"   [ paramindex ] "=" *qchar
   memoparam       = "memo"    [ paramindex ] "=" *base64url
@@ -145,17 +147,20 @@ A URI of the form ``zcash:<address>?...`` MUST be considered equivalent to a
 URI of the form ``zcash:?address=<address>&...`` where ``<address>`` is an
 instance of ``zcashaddress``.
 
-If there are any non-address parameters having a given ``paramindex``, then
-the URI MUST contain an address parameter having that ``paramindex``. There
-MUST NOT be more than one occurrence of a given parameter and ``paramindex``.
+If there are any non-address parameters having a given ``paramindex``, then the URI MUST
+contain an ``address`` parameter and/or an ``addressess`` parameter having that
+``paramindex``. There MUST NOT be more than one occurrence of a given parameter and
+``paramindex``.
 
 Implementations SHOULD check that each instance of ``zcashaddress`` is a valid
-string encoding of either:
+string encoding of one of the following **address types**:
 
 * a Zcash transparent address, using Base58Check [#base58check]_ as defined
   in [#protocol-transparentaddrencoding]_; or
 * a Zcash Sapling address, using Bech32 [#zip-0173]_ as defined in
   [#protocol-saplingpaymentaddrencoding]_.
+* a Zcash Orchard address, using Bech32 [#zip-0173]_ as defined in
+  [#protocol-orchardpaymentaddrencoding]_.
 
 New address formats may be added in future. If the context of whether the
 payment URI is intended for Testnet or Mainnet is available, then each address
@@ -166,6 +171,22 @@ this is that transfers to Sprout addresses will, at activation of the Canopy
 network upgrade, be restricted by ZIP 211 [#zip-0211]_; it cannot generally
 be expected that senders will have funds available in the Sprout pool with which
 to satisfy requests for payment to a Sprout address.
+
+An instance of ``zcashaddresses`` represents a bundle of addresses to which a payment may
+be sent. By providing a bundle of addresses, the requestor can ensure that the payer has
+been provided with an address that the payer's wallet can recognize, even if that wallet
+has not yet been updated to support newly released protocol versions.  Implementations
+SHOULD select the address from the bundle that is associated with the most recent Zcash
+protocol version that they support. Each such bundle of addresses MUST be associated with
+only a single recipient; for separate recipients, distinct payments within the request can
+be used instead. A bundle of addresses MUST NOT contain more than one address of each
+address type.
+
+If an ``addresses`` parameter appears at a given ``paramindex`` and an ``address``
+parameter appears at the same index, the value of the ``address`` parameter at that index
+MUST also be a member of the ``addresses`` bundle. It is RECOMMENDED that the value of
+such an ``address`` parameter, if present, be associated with the oldest protocol version
+that the recipient supports. 
 
 Transfer amount
 ---------------
@@ -309,4 +330,5 @@ References
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2020.1.15. Section 3.11: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
 .. [#protocol-saplingbalance] `Zcash Protocol Specification, Version 2020.1.15. Section 4.12: Balance and Binding Signature (Sapling) <protocol/protocol.pdf#saplingbalance>`_
 .. [#protocol-transparentaddrencoding] `Zcash Protocol Specification, Version 2020.1.15. Section 5.6.1: Transparent Addresses <protocol/protocol.pdf#transparentaddrencoding>`_
-.. [#protocol-saplingpaymentaddrencoding] `Zcash Protocol Specification, Version 2020.1.15. Section 5.6.4: Sapling Payment Addresses <protocol/protocol.pdf#saplingpaymentaddrencoding>`_
+.. [#protocol-saplingpaymentaddrencoding] `Zcash Protocol Specification, Version 2020.1.16. Section 5.6.3.1: Sapling Payment Addresses <protocol/protocol.pdf#saplingpaymentaddrencoding>`_
+.. [#protocol-orchardpaymentaddrencoding] `Zcash Protocol Specification, Version 2020.1.16. Section 5.6.4.1: Orchard Payment Addresses <protocol/protocol.pdf#orchardpaymentaddrencoding>`_
