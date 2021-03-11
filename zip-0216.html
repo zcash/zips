@@ -48,7 +48,8 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/400">https://g
                 <span class="math">\(1\)</span>
             .</p>
             <p>This creates a consensus issue because (unlike other non-canonical point encodings that are rejected) either of the above encodings can be decoded, and then re-encoded to a <em>different</em> encoding. For example, if a non-canonical encoding appeared in a transaction field, then node implementations that store points internally as abstract curve points, and used those to derive transaction IDs, would derive different IDs than nodes which store transactions as bytes (such as <cite>zcashd</cite>).</p>
-            <p>This issue is not known to cause any security vulnerability, beyond the risk of consensus incompatibility. Adjustments to the protocol specification were made in versions 2020.1.8, 2020.1.9, 2020.1.15, and 2021.1.17 to match the <cite>zcashd</cite> implementation. (The fact that this required 4 specification revisions to get right, conclusively demonstrates the problem.)</p>
+            <p>This issue is not known to cause any security vulnerability, beyond the risk of consensus incompatibility. In fact, for some of the fields that would otherwise be affected, the issue does not occur because there are already consensus rules that prohibit small-order points, and this incidentally prohibits non-canonical encodings.</p>
+            <p>Adjustments to the protocol specification were made in versions 2020.1.8, 2020.1.9, 2020.1.15, and 2021.1.17 to match the <cite>zcashd</cite> implementation. (The fact that this required 4 specification revisions to get right, conclusively demonstrates the problem.)</p>
         </section>
         <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <p>Let
@@ -80,12 +81,6 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/400">https://g
             <p>In Sapling Spend descriptions <a id="id6" class="footnote_reference" href="#protocol-spenddesc">3</a>:</p>
             <blockquote>
                 <ul>
-                    <li>
-                        <span class="math">\(\mathtt{cv}\)</span>
-                    </li>
-                    <li>
-                        <span class="math">\(\mathtt{rk}\)</span>
-                    </li>
                     <li>the
                         <span class="math">\(\underline{R}\)</span>
                      component (i.e. the first
@@ -95,18 +90,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/400">https://g
                      RedDSA signature.</li>
                 </ul>
             </blockquote>
-            <p>In Sapling Output descriptions <a id="id7" class="footnote_reference" href="#protocol-outputdesc">4</a>:</p>
-            <blockquote>
-                <ul>
-                    <li>
-                        <span class="math">\(\mathtt{cv}\)</span>
-                    </li>
-                    <li>
-                        <span class="math">\(\mathtt{ephemeralKey}\)</span>
-                    .</li>
-                </ul>
-            </blockquote>
-            <p>In transactions <a id="id8" class="footnote_reference" href="#protocol-txnencodingandconsensus">10</a>:</p>
+            <p>In transactions <a id="id7" class="footnote_reference" href="#protocol-txnencodingandconsensus">10</a>:</p>
             <blockquote>
                 <ul>
                     <li>the
@@ -120,7 +104,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/400">https://g
             </blockquote>
             <p>In the plaintext obtained by decrypting the
                 <span class="math">\(\mathsf{C^{out}}\)</span>
-             field of a Sapling transmitted note ciphertext <a id="id9" class="footnote_reference" href="#protocol-decryptovk">5</a>:</p>
+             field of a Sapling transmitted note ciphertext <a id="id8" class="footnote_reference" href="#protocol-decryptovk">5</a>:</p>
             <blockquote>
                 <ul>
                     <li>
@@ -130,7 +114,32 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/400">https://g
             </blockquote>
             <p>(This affects decryption of
                 <span class="math">\(\mathsf{C^{out}}\)</span>
-             in all cases, but is consensus-critical only in the case of a shielded coinbase output. <a id="id10" class="footnote_reference" href="#protocol-txnencodingandconsensus">10</a>)</p>
+             in all cases, but is consensus-critical only in the case of a shielded coinbase output. <a id="id9" class="footnote_reference" href="#protocol-txnencodingandconsensus">10</a>)</p>
+            <p>There are some additional fields in the consensus protocol that encode Jubjub points, but where non-canonical encodings MUST already be rejected as a side-effect of existing consensus rules.</p>
+            <p>In Sapling Spend descriptions:</p>
+            <blockquote>
+                <ul>
+                    <li>
+                        <span class="math">\(\mathtt{cv}\)</span>
+                    </li>
+                    <li>
+                        <span class="math">\(\mathtt{rk}\)</span>
+                    </li>
+                </ul>
+            </blockquote>
+            <p>In Sapling Output descriptions <a id="id10" class="footnote_reference" href="#protocol-outputdesc">4</a>:</p>
+            <blockquote>
+                <ul>
+                    <li>
+                        <span class="math">\(\mathtt{cv}\)</span>
+                    </li>
+                    <li>
+                        <span class="math">\(\mathtt{ephemeralKey}\)</span>
+                    .</li>
+                </ul>
+            </blockquote>
+            <p>These fields cannot by consensus contain small-order points. All of the points with non-canonical encodings are small-order.</p>
+            <p>Implementations MAY choose to reject non-canonical encodings of the above four fields early in decoding of a transaction. This eliminates the risk that parts of the transaction could be re-serialized from their internal representation to a different byte sequence than in the original transaction, e.g. when calculating transaction IDs.</p>
             <p>In addition, Sapling addresses and full viewing keys MUST be considered invalid when imported if they contain non-canonical Jubjub point encodings, or encodings of points that are not in the prime-order subgroup
                 <span class="math">\(\mathbb{J}^{(r)}\)</span>
             . These requirements MAY be enforced in advance of NU5 activation.</p>
