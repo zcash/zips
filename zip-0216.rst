@@ -67,10 +67,13 @@ and used those to derive transaction IDs, would derive different IDs than nodes 
 store transactions as bytes (such as `zcashd`).
 
 This issue is not known to cause any security vulnerability, beyond the risk of
-consensus incompatibility. Adjustments to the protocol specification were made in
-versions 2020.1.8, 2020.1.9, 2020.1.15, and 2021.1.17 to match the `zcashd` implementation.
-(The fact that this required 4 specification revisions to get right, conclusively
-demonstrates the problem.)
+consensus incompatibility. In fact, for some of the fields that would otherwise be
+affected, the issue does not occur because there are already consensus rules that
+prohibit small-order points, and this incidentally prohibits non-canonical encodings.
+
+Adjustments to the protocol specification were made in versions 2020.1.8, 2020.1.9,
+2020.1.15, and 2021.1.17 to match the `zcashd` implementation. (The fact that this
+required 4 specification revisions to get right, conclusively demonstrates the problem.)
 
 
 Specification
@@ -95,15 +98,8 @@ where Jubjub points occur MUST reject non-canonical Jubjub point encodings.
 
 In Sapling Spend descriptions [#protocol-spenddesc]_:
 
-  - :math:`\mathtt{cv}`
-  - :math:`\mathtt{rk}`
   - the :math:`\underline{R}` component (i.e. the first :math:`32` bytes) of the
     :math:`\mathtt{spendAuthSig}` RedDSA signature.
-
-In Sapling Output descriptions [#protocol-outputdesc]_:
-
-  - :math:`\mathtt{cv}`
-  - :math:`\mathtt{ephemeralKey}`.
 
 In transactions [#protocol-txnencodingandconsensus]_:
 
@@ -119,6 +115,28 @@ Sapling transmitted note ciphertext [#protocol-decryptovk]_:
 consensus-critical only in the case of a shielded coinbase output.
 [#protocol-txnencodingandconsensus]_)
 
+There are some additional fields in the consensus protocol that encode Jubjub points,
+but where non-canonical encodings MUST already be rejected as a side-effect of
+existing consensus rules.
+
+In Sapling Spend descriptions:
+
+  - :math:`\mathtt{cv}`
+  - :math:`\mathtt{rk}`
+
+In Sapling Output descriptions [#protocol-outputdesc]_:
+
+  - :math:`\mathtt{cv}`
+  - :math:`\mathtt{ephemeralKey}`.
+
+These fields cannot by consensus contain small-order points. All of the points
+with non-canonical encodings are small-order.
+
+Implementations MAY choose to reject non-canonical encodings of the above four
+fields early in decoding of a transaction. This eliminates the risk that parts
+of the transaction could be re-serialized from their internal representation to a
+different byte sequence than in the original transaction, e.g. when calculating
+transaction IDs.
 
 In addition, Sapling addresses and full viewing keys MUST be considered invalid when
 imported if they contain non-canonical Jubjub point encodings, or encodings of points
