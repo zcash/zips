@@ -454,6 +454,12 @@
 \DeclareFontShape{U}{bskma}{m}{n}{<->bskma10}{}
 \DeclareMathSymbol{\binampersand}{\mathbin}{bskadd}{"EE}
 
+% We just want one fivedots symbol from MnSymbol.
+\DeclareSymbolFont{MnSyC}{U}{MnSymbolC}{m}{n}
+\DeclareFontFamily{U}{MnSymbolC}{}
+\DeclareFontShape{U}{MnSymbolC}{m}{n}{<->MnSymbolC10}{}
+\DeclareMathSymbol{\fivedots}{\mathbin}{MnSyC}{15}
+
 % $v$ is too close to $u$.
 % <https://tex.stackexchange.com/questions/130569/sharp-or-angled-v-in-math-mode-varv>
 \DeclareSymbolFont{matha}{OML}{txmi}{m}{it}
@@ -1253,6 +1259,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\grpzero}{\Zero_{\subgrpplus}}
 \newcommand{\grpminus}{\bigboxminus{1.8ex}\,}
 \newcommand{\grpneg}{\bigboxminus{1.8ex}}
+\newcommand{\incompleteadd}{\,\fivedots\,}
 \newcommand{\vartimes}{\bigvartimes{1.8ex}}
 \newcommand{\band}{\binampersand}
 \newcommand{\bor}{\lor}
@@ -1862,6 +1869,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\vOutputProofsSapling}{\mathtt{vOutputProofsSapling}}
 \newcommand{\nActionsOrchard}{\mathtt{nActionsOrchard}}
 \newcommand{\vActionsOrchard}{\mathtt{vActionsOrchard}}
+\newcommand{\flagsOrchard}{\mathtt{flagsOrchard}}
 \newcommand{\sizeProofsOrchard}{\mathtt{sizeProofsOrchard}}
 \newcommand{\proofsOrchard}{\mathtt{proofsOrchard}}
 \newcommand{\vSpendAuthSigsOrchard}{\mathtt{vSpendAuthSigsOrchard}}
@@ -8029,6 +8037,7 @@ Let $k := 10$.
 Let $c$ be the largest integer such that $2^n \leq \hfrac{\ParamP{r}-1}{2}$,
 i.e.\ $c := 253$.
 
+\introlist
 Define $\SinsemillaGenInit \typecolon \byteseqs \rightarrow \GroupPstar$ and
 $\SinsemillaGenBase \typecolon \binaryrange{k} \rightarrow \GroupPstar$ by:
 
@@ -8037,6 +8046,21 @@ $\SinsemillaGenBase \typecolon \binaryrange{k} \rightarrow \GroupPstar$ by:
   $\SinsemillaGenBase(j)$ &$:= \GroupPHash\!\big(\ascii{z.cash:SinsemillaS}, \LEBStoOSPOf{32}{\ItoLEBSPOf{32}{j}}\kern-0.25em\big)$.
 \end{tabular}
 
+\vspace{1ex}
+\introlist
+Define $\incompleteadd \typecolon \GroupP \times \GroupP \rightarrow \maybe{\GroupP}$ as incomplete addition on the \Pallas curve:
+
+\begin{tabular}{@{\hskip 1.5em}r@{\;}l@{\;}l@{\;}l}
+  $\ZeroP$ &$\incompleteadd$ &$\ZeroP$   &$= \bot$ \\
+  $\ZeroP$ &$\incompleteadd$ &$(x', y')$ &$= \bot$ \\
+  $(x, y)$ &$\incompleteadd$ &$\ZeroP$   &$= \bot$ \\
+  $(x, y)$ &$\incompleteadd$ &$(x', y')$ &$= \begin{cases}
+                                               \bot,              &\caseif x = x' \\
+                                               (x, y) + (x', y'), &\caseotherwise\text{.}
+                                             \end{cases}$
+\end{tabular}
+
+\introlist
 Define $\SinsemillaHashToPoint(D \typecolon \byteseqs, M \typecolon \bitseq{\range{0}{k \mult c}}) \rightarrow \GroupP$ as follows:
 
 \begin{algorithm}
@@ -8046,7 +8070,8 @@ Define $\SinsemillaHashToPoint(D \typecolon \byteseqs, M \typecolon \bitseq{\ran
         each of length $k$ bits, so that $M' = \concatbits(M_\barerange{1}{n})$.
   \item let mutable $\Acc := \SinsemillaGenInit(D)$
   \item for $i$ from $1$ up to $n$:
-  \item \tab set $\Acc := \scalarmult{2}{\Acc} + \SinsemillaGenBase(\LEBStoIP{k}(M_i))$
+        \vspace{-1ex}
+  \item \tab set $\Acc := \Big(\Acc \incompleteadd \SinsemillaGenBase\big(\LEBStoIP{k}(M_i)\kern-0.1em\big)\kern-0.15em\Big) \incompleteadd \Acc$
   \item \blank
   \item return $\Acc$.
 \end{algorithm}
@@ -8059,7 +8084,7 @@ Finally, define $\SinsemillaHash \typecolon \byteseqs \times \bitseq{\range{0}{k
   \item $\SinsemillaHash(D, M) := \ExtractP\big(\SinsemillaHashToPoint\Of{D, M}\kern-0.1em\big)$.
 \end{formulae}
 
-See \todo{...} for rationale and efficient circuit implementation of these functions.
+See \cite[section TODO ``Sinsemilla'']{Zcash-Orchard} for rationale and efficient circuit implementation of these functions.
 
 \securityrequirement{
 $\SinsemillaHash$ and $\SinsemillaHashToPoint$ are required to be \collisionResistant
@@ -8100,7 +8125,7 @@ $\SinsemillaHashToPoint$ could return $\ZeroP$.}
 } %orchard
 
 
-%\orchard{
+\orchard{
 \introlist
 \lsubsubsubsection{\PoseidonHashText{} Function}{poseidonhash}
 
@@ -8165,7 +8190,7 @@ is specified as:
         on the \Pallas curve, even if the $\Poseidon$-based PRF were distinguishable from
         an ideal PRF.
 \end{nnotes}
-%} %orchard
+} %orchard
 
 
 \introlist
@@ -9300,7 +9325,7 @@ instantiated as follows using $\SinsemillaCommitAlg$:
 \begin{formulae}
   \item $\CommitIvk{\CommitIvkRand}(\AuthSignPublicX, \NullifierKey) :=
            \SinsemillaShortCommit{\NoteCommitRand}\left(\ascii{z.cash:Orchard-CommitIvk},
-             \ItoLEBSP{\ScalarLength{Orchard}}(\AuthSignPublicRepr) \bconcat \ItoLEBSP{\ScalarLength{Orchard}}\NullifierKeyRepr\right)$
+             \ItoLEBSP{\ScalarLength{Orchard}}(\AuthSignPublicRepr) \bconcat \ItoLEBSP{\ScalarLength{Orchard}}\NullifierKeyRepr\right) \mod{\ParamP{r}}$
   \item $\CommitIvkGenTrapdoor()$ generates the uniform distribution on $\GF{\ParamP{r}}$.
 \end{formulae}
 
@@ -10492,7 +10517,9 @@ for example), and requirements specific to Bitcoin's Segwit addresses.}
 
 
 \introsection
-\lsubsubsection{Transparent Addresses}{transparentaddrencoding}
+\lsubsubsection{Transparent Encodings}{transparentencodings}
+
+\lsubsubsubsection{Transparent Addresses}{transparentaddrencoding}
 
 \defining{\xTransparentAddresses} are either P2SH (Pay to Script Hash) addresses \cite{BIP-13}
 or P2PKH (Pay to Public Key Hash) addresses \cite{Bitcoin-P2PKH}.
@@ -10553,13 +10580,15 @@ The \rawEncoding of a P2PKH address consists of:
 \end{pnotes}
 
 
-\lsubsubsection{Transparent Private Keys}{transparentkeyencoding}
+\lsubsubsubsection{Transparent Private Keys}{transparentkeyencoding}
 
 These are encoded in the same way as in \Bitcoin \cite{Bitcoin-Base58},
 for both \Mainnet and \Testnet.
 
 
-\lsubsubsection{\SproutText{} Payment Addresses}{sproutpaymentaddrencoding}
+\lsubsubsection{\SproutText{} Encodings}{sproutencodings}
+
+\lsubsubsubsection{\SproutText{} Payment Addresses}{sproutpaymentaddrencoding}
 
 Let $\KA{Sprout}$ be as defined in \crossref{concretesproutkeyagreement}.
 
@@ -10602,91 +10631,10 @@ For addresses on \Mainnet, the lead bytes and encoded length
 cause the first two characters of the Base58Check encoding to be fixed as
 \ascii{zc}. For \Testnet, the first two characters are fixed as
 \ascii{zt}.
-}
+} %pnote
 
 
-\sapling{
-\lsubsubsection{\SaplingText{} Payment Addresses}{saplingpaymentaddrencoding}
-
-Let $\KA{Sapling}$ be as defined in \crossref{concretesaplingkeyagreement}.
-
-A \Sapling{} \defining{\paymentAddress} consists of $\Diversifier \typecolon \DiversifierType$
-and $\DiversifiedTransmitPublic \typecolon \KAPublicPrimeSubgroup{Sapling}$.
-
-$\DiversifiedTransmitPublic$ is an encoding of a $\KA{Sapling}$ \publicKey of type
-$\KAPublicPrimeSubgroup{Sapling}$, for use with the encryption scheme defined in
-\crossref{saplinginband}. $\Diversifier$~is a sequence of $11$ bytes.
-These components are derived as described in \crossref{saplingkeycomponents}.
-
-\introlist
-The \rawEncoding of a \Sapling \paymentAddress consists of:
-\vspace{1ex}
-\begin{equation*}
-\begin{bytefield}[bitwidth=0.07em]{344}
-    \sbitbox{120}{$\LEBStoOSPOf{88}{\Diversifier}$}
-    \sbitbox{256}{$\LEBStoOSPOf{256}{\reprJ\Of{\DiversifiedTransmitPublic}\kern 0.05em}$}
-\end{bytefield}
-\end{equation*}
-
-\begin{itemize}
-  \item $11$ bytes specifying $\Diversifier$.
-  \item $32$ bytes specifying the \ctEdwardsCompressedEncoding of
-        $\DiversifiedTransmitPublic$ (see \crossref{jubjub}).
-\end{itemize}
-
-When decoding the representation of $\DiversifiedTransmitPublic$, the address \MUST be
-considered invalid if $\abstJ$ returns $\bot$ or if the resulting $\DiversifiedTransmitPublic$
-is not in the prime-order subgroup $\SubgroupJ$.
-
-\vspace{-2ex}
-\nnote{\zcashd currently (as of version 3.1.0) does not fully conform to this requirement on
-address validation when importing \paymentAddresses.}
-
-\vspace{1ex}
-For addresses on \Mainnet, the \defining{\humanReadablePart} (as defined in \cite{ZIP-173}) is \ascii{zs}.
-For addresses on \Testnet, the \humanReadablePart is \ascii{ztestsapling}.
-} %sapling
-
-
-\orchard{
-\lsubsubsection{\OrchardText{} Payment Addresses}{orchardpaymentaddrencoding}
-
-Let $\KA{Orchard}$ be as defined in \crossref{concreteorchardkeyagreement}.
-
-An \Orchard{} \defining{\paymentAddress} consists of $\Diversifier \typecolon \DiversifierType$
-and $\DiversifiedTransmitPublic \typecolon \KAPublic{Orchard}$.
-
-$\DiversifiedTransmitPublic$ is an encoding of a $\KA{Orchard}$ \publicKey of type
-$\KAPublic{Orchard}$, for use with the encryption scheme defined in \crossref{saplingandorchardinband}.
-$\Diversifier$~is a sequence of $11$ bytes. These components are derived as described in
-\crossref{orchardkeycomponents}.
-
-\introlist
-The \rawEncoding of an \Orchard \paymentAddress consists of:
-\vspace{1ex}
-\begin{equation*}
-\begin{bytefield}[bitwidth=0.07em]{344}
-    \sbitbox{120}{$\LEBStoOSPOf{88}{\Diversifier}$}
-    \sbitbox{256}{$\LEBStoOSPOf{256}{\reprP\Of{\DiversifiedTransmitPublic}\kern 0.05em}$}
-\end{bytefield}
-\end{equation*}
-
-\begin{itemize}
-  \item $11$ bytes specifying $\Diversifier$.
-  \item $32$ bytes specifying the \swCompressedEncoding of
-        $\DiversifiedTransmitPublic$ (see \crossref{pallasandvesta}).
-\end{itemize}
-
-When decoding the representation of $\DiversifiedTransmitPublic$, the address \MUST be
-considered invalid if $\abstP$ returns $\bot$.
-
-\vspace{1ex}
-For addresses on \Mainnet, the \defining{\humanReadablePart} (as defined in \cite{ZIP-173}) is \ascii{zo}.
-For addresses on \Testnet, the \humanReadablePart is \ascii{ztestorchard}.
-} %orchard
-
-
-\lsubsubsection{\SproutText{} Incoming Viewing Keys}{sproutinviewingkeyencoding}
+\lsubsubsubsection{\SproutText{} Incoming Viewing Keys}{sproutinviewingkeyencoding}
 
 \changed{
 Let $\KA{Sprout}$ be as defined in \crossref{concretesproutkeyagreement}.
@@ -10741,158 +10689,7 @@ cause the first four characters of the Base58Check encoding to be fixed as
 \ascii{ZiVt}.}} %changed
 
 
-\sapling{
-\lsubsubsection{\SaplingText{} Incoming Viewing Keys}{saplinginviewingkeyencoding}
-
-Let $\KA{Sapling}$ be as defined in \crossref{concretesaplingkeyagreement}.
-
-Let $\InViewingKeyLength{Sapling}$ be as defined in \crossref{constants}.
-
-A \Sapling{} \defining{\incomingViewingKey} consists of $\InViewingKey \typecolon \InViewingKeyTypeSapling$.
-
-$\InViewingKey$ is a $\KAPrivate{Sapling}$ key (restricted to $\InViewingKeyLength{Sapling}$ bits),
-derived as described in \crossref{saplingkeycomponents}.
-It is used with the encryption scheme defined in \crossref{saplinginband}.
-
-\introlist
-The \rawEncoding of a \Sapling \incomingViewingKey consists of:
-\vspace{1ex}
-\begin{equation*}
-\begin{bytefield}[bitwidth=0.07em]{256}
-    \sbitbox{256}{$256$-bit $\InViewingKey$}
-\end{bytefield}
-\end{equation*}
-
-\vspace{-1ex}
-\begin{itemize}
-  \item $32$ bytes (little-endian) specifying $\InViewingKey$, padded with zeros in the most
-        significant bits.
-\end{itemize}
-
-$\InViewingKey$ \MUST be in the range $\InViewingKeyTypeSapling$ as specified
-in \crossref{saplingkeycomponents}. That is, a decoded \incomingViewingKey \MUST be
-considered invalid if $\InViewingKey$ is not in this range.
-
-For \incomingViewingKeys on \Mainnet, the \humanReadablePart is \ascii{zivks}.
-For \incomingViewingKeys on \Testnet, the \humanReadablePart is \ascii{zivktestsapling}.
-} %sapling
-
-
-\orchard{
-\lsubsubsection{\OrchardText{} Incoming Viewing Keys}{orchardinviewingkeyencoding}
-
-Let $\KA{Orchard}$ be as defined in \crossref{concreteorchardkeyagreement}.
-
-An \Orchard{} \defining{\incomingViewingKey} consists of $\InViewingKey \typecolon \InViewingKeyTypeOrchard$.
-
-$\InViewingKey$ is a $\KAPrivate{Orchard}$ key (restricted to the range $\range{0}{\ParamP{q}-1}$),
-derived as described in \crossref{orchardkeycomponents}.
-It is used with the encryption scheme defined in \crossref{saplingandorchardinband}.
-
-\introlist
-The \rawEncoding of an \Orchard \incomingViewingKey consists of:
-\vspace{1ex}
-\begin{equation*}
-\begin{bytefield}[bitwidth=0.07em]{256}
-    \sbitbox{256}{$256$-bit $\InViewingKey$}
-\end{bytefield}
-\end{equation*}
-
-\vspace{-1ex}
-\begin{itemize}
-  \item $32$ bytes (little-endian) specifying $\InViewingKey$, padded with zeros in the most
-        significant bits.
-\end{itemize}
-
-$\InViewingKey$ \MUST be in the range $\InViewingKeyTypeOrchard$ as specified
-in \crossref{orchardkeycomponents}. That is, a decoded \incomingViewingKey \MUST be
-considered invalid if $\InViewingKey$ is not in this range.
-
-For \incomingViewingKeys on \Mainnet, the \humanReadablePart is \ascii{zivko}.
-For \incomingViewingKeys on \Testnet, the \humanReadablePart is \ascii{zivktestorchard}.
-} %orchard
-
-
-\sapling{
-\lsubsubsection{\SaplingText{} Full Viewing Keys}{saplingfullviewingkeyencoding}
-
-Let $\KA{Sapling}$ be as defined in \crossref{concretesaplingkeyagreement}.
-
-A \Sapling{} \defining{\fullViewingKey} consists of $\AuthSignPublic \typecolon \SubgroupJstar$,
-$\NullifierKey \typecolon \SubgroupJ$, and $\OutViewingKey \typecolon \byteseq{\OutViewingKeyLength/8}$.
-
-$\AuthSignPublic$ and $\NullifierKey$ are points on the \jubjubCurve
-(see \crossref{jubjub}). They are derived as described in \crossref{saplingkeycomponents}.
-
-\introlist
-The \rawEncoding of a \Sapling \fullViewingKey consists of:
-\vspace{1ex}
-\begin{equation*}
-\begin{bytefield}[bitwidth=0.05em]{512}
-    \sbitbox{256}{$\LEBStoOSPOf{256}{\reprJ\Of{\AuthSignPublic}\kern 0.05em}$}
-    \sbitbox{256}{$\LEBStoOSPOf{256}{\reprJ\Of{\NullifierKey}\kern 0.05em}$}
-    \sbitbox{256}{$32$-byte $\OutViewingKey$}
-\end{bytefield}
-\end{equation*}
-
-\vspace{-1ex}
-\begin{itemize}
-  \item $32$ bytes specifying the \ctEdwardsCompressedEncoding of $\AuthSignPublic$
-        (see \crossref{jubjub}).
-  \item $32$ bytes specifying the \ctEdwardsCompressedEncoding of $\NullifierKey$.
-  \item $32$ bytes specifying the \outgoingViewingKey $\OutViewingKey$.
-\end{itemize}
-
-When decoding this representation, the key \MUST be considered invalid if $\abstJ$ returns $\bot$
-for either $\AuthSignPublic$ or $\NullifierKey$, or if $\AuthSignPublic \notin \SubgroupJstar$,
-or if $\NullifierKey \notin \SubgroupJ$.
-
-For \incomingViewingKeys on \Mainnet, the \humanReadablePart is \ascii{zviews}.
-For \incomingViewingKeys on \Testnet, the \humanReadablePart is \ascii{zviewtestsapling}.
-}
-
-
-\sapling{
-\lsubsubsection{\OrchardText{} Full Viewing Keys}{orchardfullviewingkeyencoding}
-
-Let $\KA{Orchard}$ be as defined in \crossref{concreteorchardkeyagreement}.
-
-An \Orchard{} \defining{\fullViewingKey} consists of $\AuthSignPublic \typecolon \GroupPstar$,
-$\NullifierKey \typecolon \NullifierKeyTypeOrchard$, and $\OutViewingKey \typecolon \byteseq{\OutViewingKeyLength/8}$.
-
-$\AuthSignPublic$ and $\NullifierKey$ are points on the \jubjubCurve
-(see \crossref{jubjub}). They are derived as described in \crossref{saplingkeycomponents}.
-
-\introlist
-The \rawEncoding of a \Sapling \fullViewingKey consists of:
-\vspace{1ex}
-\begin{equation*}
-\begin{bytefield}[bitwidth=0.05em]{512}
-    \sbitbox{256}{$\LEBStoOSPOf{256}{\reprJ\Of{\AuthSignPublic}\kern 0.05em}$}
-    \sbitbox{256}{$\LEBStoOSPOf{256}{\reprJ\Of{\NullifierKey}\kern 0.05em}$}
-    \sbitbox{256}{$32$-byte $\OutViewingKey$}
-\end{bytefield}
-\end{equation*}
-
-\vspace{-1ex}
-\begin{itemize}
-  \item $32$ bytes specifying the \ctEdwardsCompressedEncoding of $\AuthSignPublic$
-        (see \crossref{jubjub}).
-  \item $32$ bytes specifying the \ctEdwardsCompressedEncoding of $\NullifierKey$.
-  \item $32$ bytes specifying the \outgoingViewingKey $\OutViewingKey$.
-\end{itemize}
-
-When decoding this representation, the key \MUST be considered invalid if $\abstJ$ returns $\bot$
-for either $\AuthSignPublic$ or $\NullifierKey$, or if $\AuthSignPublic \notin \SubgroupJstar$,
-or if $\NullifierKey \notin \SubgroupJ$.
-
-For \incomingViewingKeys on \Mainnet, the \humanReadablePart is \ascii{zviews}.
-For \incomingViewingKeys on \Testnet, the \humanReadablePart is \ascii{zviewtestsapling}.
-}
-
-
-\introsection
-\lsubsubsection{\SproutText{} Spending Keys}{sproutspendingkeyencoding}
+\lsubsubsubsection{\SproutText{} Spending Keys}{sproutspendingkeyencoding}
 
 A \Sprout{} \defining{\spendingKey} consists of $\AuthPrivate$, which is a sequence of
 \changed{$252$} bits (see \crossref{sproutkeycomponents}).
@@ -10941,7 +10738,128 @@ The zero padding occupies the most significant 4 bits of the third byte.
 
 
 \sapling{
-\lsubsubsection{\SaplingText{} Spending Keys}{saplingspendingkeyencoding}
+\lsubsubsection{\SaplingText{} Encodings}{saplingencodings}
+
+\lsubsubsubsection{\SaplingText{} Payment Addresses}{saplingpaymentaddrencoding}
+
+Let $\KA{Sapling}$ be as defined in \crossref{concretesaplingkeyagreement}.
+
+A \Sapling{} \defining{\paymentAddress} consists of $\Diversifier \typecolon \DiversifierType$
+and $\DiversifiedTransmitPublic \typecolon \KAPublicPrimeSubgroup{Sapling}$.
+
+$\DiversifiedTransmitPublic$ is an encoding of a $\KA{Sapling}$ \publicKey of type
+$\KAPublicPrimeSubgroup{Sapling}$, for use with the encryption scheme defined in
+\crossref{saplinginband}. $\Diversifier$~is a sequence of $11$ bytes.
+These components are derived as described in \crossref{saplingkeycomponents}.
+
+\introlist
+The \rawEncoding of a \Sapling \paymentAddress consists of:
+\vspace{1ex}
+\begin{equation*}
+\begin{bytefield}[bitwidth=0.07em]{344}
+    \sbitbox{120}{$\LEBStoOSPOf{88}{\Diversifier}$}
+    \sbitbox{256}{$\LEBStoOSPOf{256}{\reprJ\Of{\DiversifiedTransmitPublic}\kern 0.05em}$}
+\end{bytefield}
+\end{equation*}
+
+\begin{itemize}
+  \item $11$ bytes specifying $\Diversifier$.
+  \item $32$ bytes specifying the \ctEdwardsCompressedEncoding of
+        $\DiversifiedTransmitPublic$ (see \crossref{jubjub}).
+\end{itemize}
+
+When decoding the representation of $\DiversifiedTransmitPublic$, the address \MUST be
+considered invalid if $\abstJ$ returns $\bot$ or if the resulting $\DiversifiedTransmitPublic$
+is not in the prime-order subgroup $\SubgroupJ$.
+
+\vspace{-2ex}
+\nnote{\zcashd currently (as of version 3.1.0) does not fully conform to this requirement on
+address validation when importing \paymentAddresses.}
+
+\vspace{1ex}
+For addresses on \Mainnet, the \defining{\humanReadablePart} (as defined in \cite{ZIP-173}) is \ascii{zs}.
+For addresses on \Testnet, the \humanReadablePart is \ascii{ztestsapling}.
+} %sapling
+
+
+\sapling{
+\lsubsubsubsection{\SaplingText{} Incoming Viewing Keys}{saplinginviewingkeyencoding}
+
+Let $\KA{Sapling}$ be as defined in \crossref{concretesaplingkeyagreement}.
+
+Let $\InViewingKeyLength{Sapling}$ be as defined in \crossref{constants}.
+
+A \Sapling{} \defining{\incomingViewingKey} consists of $\InViewingKey \typecolon \InViewingKeyTypeSapling$.
+
+$\InViewingKey$ is a $\KAPrivate{Sapling}$ key (restricted to $\InViewingKeyLength{Sapling}$ bits),
+derived as described in \crossref{saplingkeycomponents}.
+It is used with the encryption scheme defined in \crossref{saplinginband}.
+
+\introlist
+The \rawEncoding of a \Sapling \incomingViewingKey consists of:
+\vspace{1ex}
+\begin{equation*}
+\begin{bytefield}[bitwidth=0.07em]{256}
+    \sbitbox{256}{$256$-bit $\InViewingKey$}
+\end{bytefield}
+\end{equation*}
+
+\vspace{-1ex}
+\begin{itemize}
+  \item $32$ bytes (little-endian) specifying $\InViewingKey$, padded with zeros in the most
+        significant bits.
+\end{itemize}
+
+$\InViewingKey$ \MUST be in the range $\InViewingKeyTypeSapling$ as specified
+in \crossref{saplingkeycomponents}. That is, a decoded \incomingViewingKey \MUST be
+considered invalid if $\InViewingKey$ is not in this range.
+
+For \incomingViewingKeys on \Mainnet, the \humanReadablePart is \ascii{zivks}.
+For \incomingViewingKeys on \Testnet, the \humanReadablePart is \ascii{zivktestsapling}.
+} %sapling
+
+
+\sapling{
+\lsubsubsubsection{\SaplingText{} Full Viewing Keys}{saplingfullviewingkeyencoding}
+
+Let $\KA{Sapling}$ be as defined in \crossref{concretesaplingkeyagreement}.
+
+A \Sapling{} \defining{\fullViewingKey} consists of $\AuthSignPublic \typecolon \SubgroupJstar$,
+$\NullifierKey \typecolon \SubgroupJ$, and $\OutViewingKey \typecolon \byteseq{\OutViewingKeyLength/8}$.
+
+$\AuthSignPublic$ and $\NullifierKey$ are points on the \jubjubCurve
+(see \crossref{jubjub}). They are derived as described in \crossref{saplingkeycomponents}.
+
+\introlist
+The \rawEncoding of a \Sapling \fullViewingKey consists of:
+\vspace{1ex}
+\begin{equation*}
+\begin{bytefield}[bitwidth=0.05em]{512}
+    \sbitbox{256}{$\LEBStoOSPOf{256}{\reprJ\Of{\AuthSignPublic}\kern 0.05em}$}
+    \sbitbox{256}{$\LEBStoOSPOf{256}{\reprJ\Of{\NullifierKey}\kern 0.05em}$}
+    \sbitbox{256}{$32$-byte $\OutViewingKey$}
+\end{bytefield}
+\end{equation*}
+
+\vspace{-1ex}
+\begin{itemize}
+  \item $32$ bytes specifying the \ctEdwardsCompressedEncoding of $\AuthSignPublic$
+        (see \crossref{jubjub}).
+  \item $32$ bytes specifying the \ctEdwardsCompressedEncoding of $\NullifierKey$.
+  \item $32$ bytes specifying the \outgoingViewingKey $\OutViewingKey$.
+\end{itemize}
+
+When decoding this representation, the key \MUST be considered invalid if $\abstJ$ returns $\bot$
+for either $\AuthSignPublic$ or $\NullifierKey$, or if $\AuthSignPublic \notin \SubgroupJstar$,
+or if $\NullifierKey \notin \SubgroupJ$.
+
+For \incomingViewingKeys on \Mainnet, the \humanReadablePart is \ascii{zviews}.
+For \incomingViewingKeys on \Testnet, the \humanReadablePart is \ascii{zviewtestsapling}.
+} %sapling
+
+
+\sapling{
+\lsubsubsubsection{\SaplingText{} Spending Keys}{saplingspendingkeyencoding}
 
 A \Sapling{} \defining{\spendingKey} consists of $\SpendingKey \typecolon \SpendingKeyType$
 (see \crossref{saplingkeycomponents}).
@@ -10961,7 +10879,144 @@ The \rawEncoding of a \Sapling \spendingKey consists of:
 
 For \spendingKeys on \Mainnet, the \humanReadablePart is \ascii{secret-spending-key-main}.
 For \spendingKeys on \Testnet, the \humanReadablePart is \ascii{secret-spending-key-test}.
-}
+} %sapling
+
+
+\orchard{
+\lsubsubsection{\OrchardText{} Encodings}{orchardencodings}
+
+\lsubsubsubsection{\OrchardText{} Payment Addresses}{orchardpaymentaddrencoding}
+
+Let $\KA{Orchard}$ be as defined in \crossref{concreteorchardkeyagreement}.
+
+An \Orchard{} \defining{\paymentAddress} consists of $\Diversifier \typecolon \DiversifierType$
+and $\DiversifiedTransmitPublic \typecolon \KAPublic{Orchard}$.
+
+$\DiversifiedTransmitPublic$ is an encoding of a $\KA{Orchard}$ \publicKey of type
+$\KAPublic{Orchard}$, for use with the encryption scheme defined in \crossref{saplingandorchardinband}.
+$\Diversifier$~is a sequence of $11$ bytes. These components are derived as described in
+\crossref{orchardkeycomponents}.
+
+\introlist
+The \rawEncoding of an \Orchard \paymentAddress consists of:
+\vspace{1ex}
+\begin{equation*}
+\begin{bytefield}[bitwidth=0.07em]{344}
+    \sbitbox{120}{$\LEBStoOSPOf{88}{\Diversifier}$}
+    \sbitbox{256}{$\LEBStoOSPOf{256}{\reprP\Of{\DiversifiedTransmitPublic}\kern 0.05em}$}
+\end{bytefield}
+\end{equation*}
+
+\begin{itemize}
+  \item $11$ bytes specifying $\Diversifier$.
+  \item $32$ bytes specifying the \swCompressedEncoding of
+        $\DiversifiedTransmitPublic$ (see \crossref{pallasandvesta}).
+\end{itemize}
+
+When decoding the representation of $\DiversifiedTransmitPublic$, the address \MUST be
+considered invalid if $\abstP$ returns $\bot$.
+
+\vspace{1ex}
+For addresses on \Mainnet, the \defining{\humanReadablePart} (as defined in \cite{ZIP-173}) is \ascii{zo}.
+For addresses on \Testnet, the \humanReadablePart is \ascii{ztestorchard}.
+} %orchard
+
+
+\orchard{
+\lsubsubsubsection{\OrchardText{} Incoming Viewing Keys}{orchardinviewingkeyencoding}
+
+Let $\KA{Orchard}$ be as defined in \crossref{concreteorchardkeyagreement}.
+
+An \Orchard{} \defining{\incomingViewingKey} consists of $\InViewingKey \typecolon \InViewingKeyTypeOrchard$.
+
+$\InViewingKey$ is a $\KAPrivate{Orchard}$ key (restricted to the range $\range{0}{\ParamP{q}-1}$),
+derived as described in \crossref{orchardkeycomponents}.
+It is used with the encryption scheme defined in \crossref{saplingandorchardinband}.
+
+\introlist
+The \rawEncoding of an \Orchard \incomingViewingKey consists of:
+\vspace{1ex}
+\begin{equation*}
+\begin{bytefield}[bitwidth=0.07em]{256}
+    \sbitbox{256}{$256$-bit $\InViewingKey$}
+\end{bytefield}
+\end{equation*}
+
+\vspace{-1ex}
+\begin{itemize}
+  \item $32$ bytes (little-endian) specifying $\InViewingKey$, padded with zeros in the most
+        significant bits.
+\end{itemize}
+
+$\InViewingKey$ \MUST be in the range $\InViewingKeyTypeOrchard$ as specified
+in \crossref{orchardkeycomponents}. That is, a decoded \incomingViewingKey \MUST be
+considered invalid if $\InViewingKey$ is not in this range.
+
+For \incomingViewingKeys on \Mainnet, the \humanReadablePart is \ascii{zivko}.
+For \incomingViewingKeys on \Testnet, the \humanReadablePart is \ascii{zivktestorchard}.
+} %orchard
+
+
+\orchard{
+\lsubsubsubsection{\OrchardText{} Full Viewing Keys}{orchardfullviewingkeyencoding}
+
+Let $\KA{Orchard}$ be as defined in \crossref{concreteorchardkeyagreement}.
+
+An \Orchard{} \defining{\fullViewingKey} consists of $\AuthSignPublic \typecolon \GroupPstar$
+and $\NullifierKey \typecolon \NullifierKeyTypeOrchard$.
+
+$\AuthSignPublic$ and $\NullifierKey$ are points on the \pallasCurve (see
+\crossref{pallasandvesta}). $\NullifierKey$ is a field element in $\GF{\ParamP{q}}$.
+They are derived as described in \crossref{orchardkeycomponents}.
+
+\introlist
+The \rawEncoding of an \Orchard \fullViewingKey consists of:
+\vspace{1ex}
+\begin{equation*}
+\begin{bytefield}[bitwidth=0.05em]{512}
+    \sbitbox{256}{$\LEBStoOSPOf{256}{\reprP\Of{\AuthSignPublic}\kern 0.05em}$}
+    \sbitbox{256}{$\LEBStoOSPOf{256}{\ItoLEBSPOf{256}{\NullifierKey}\kern 0.05em}$}
+\end{bytefield}
+\end{equation*}
+
+\vspace{-1ex}
+\begin{itemize}
+  \item $32$ bytes specifying the \swCompressedEncoding of $\AuthSignPublic$
+        (see \crossref{pallasandvesta}).
+  \item $32$ bytes specifying the $\NullifierKey$.
+\end{itemize}
+
+When decoding this representation, the key \MUST be considered invalid if $\abstP$ returns $\bot$
+for $\AuthSignPublic$, or if $\AuthSignPublic = \ZeroP$, or if $\NullifierKey$ is not a canonically
+encoded field element.
+
+For \incomingViewingKeys on \Mainnet, the \humanReadablePart is \ascii{zviewo}.
+For \incomingViewingKeys on \Testnet, the \humanReadablePart is \ascii{zviewtestorchard}.
+} %orchard
+
+
+\orchard{
+\lsubsubsubsection{\OrchardText{} Spending Keys}{orchardspendingkeyencoding}
+
+An \Orchard{} \defining{\spendingKey} consists of $\SpendingKey \typecolon \SpendingKeyType$
+(see \crossref{saplingkeycomponents}).
+
+\introlist
+The \rawEncoding of an \Orchard \spendingKey consists of:
+\vspace{1ex}
+\begin{equation*}
+\begin{bytefield}[bitwidth=0.07em]{256}
+    \sbitbox{256}{$\LEBStoOSPOf{256}{\SpendingKey}$}
+\end{bytefield}
+\end{equation*}
+
+\begin{itemize}
+    \item $32$ bytes specifying $\SpendingKey$.
+\end{itemize}
+
+For \spendingKeys on \Mainnet, the \humanReadablePart is \ascii{secret-orchard-sk-main}.
+For \spendingKeys on \Testnet, the \humanReadablePart is \ascii{secret-orchard-sk-test}.
+} %orchard
 
 
 \introlist
@@ -11221,14 +11276,14 @@ Note that the \valueBalance{Sapling} field is always present for these \transact
 } %sapling
 \sprout{\vspace{3ex}}
 
-%\orchard{
+\orchard{
 \introlist
 The \Zcash{} \defining{\transaction} format for \transactionVersion 5 is as follows
 (this should be read in the context of consensus rules later in the section):
 
-\vspace{-1ex}
+\vspace{-2ex}
 \begin{center}
-%\scalebox{0.8}{
+\scalebox{0.78}{
 \notsprout{\renewcommand{\arraystretch}{1.3}}
 \hbadness=10000
 \begin{tabularx}{1.21\textwidth}{|c|c|l|p{10em}|L|}
@@ -11289,42 +11344,45 @@ The net value of \Sapling{} spends minus outputs. \\ \hline
 $\geq 5\;\mathsection$ & $32$ & $\anchorField{Sapling}$ & \type{byte[32]} &
 A \merkleRoot of the \Sapling \noteCommitmentTree at some \blockHeight in the past, $\LEBStoOSP{256}\big(\rt{Sapling}\big)$. \\ \hline
 
-%$\geq 5$ & \Longunderstack{$192 \mult$ \\$\!\nSpendsSapling\!$} & $\vSpendProofsSapling$ & \type{byte[$192 \mult \nSpendsSapling$]} &
-%Encodings of the \zkSNARKProofs for each \Sapling \spendDescription. \\ \hline
+$\geq 5$ & \Longunderstack{$192 \mult$ \\$\!\nSpendsSapling\!$} & $\vSpendProofsSapling$ & \type{byte[$192 \mult \nSpendsSapling$]} &
+Encodings of the \zkSNARKProofs for each \Sapling \spendDescription. \\ \hline
 
-%$\geq 5$ & \Longunderstack{$64 \mult$ \\$\!\nSpendsSapling\!$} & $\vSpendAuthSigsSapling$ & \type{byte[$64 \mult \nSpendsSapling$]} &
-%Authorizing signatures for each \Sapling \outputDescription. \\ \hline
+$\geq 5$ & \Longunderstack{$64 \mult$ \\$\!\nSpendsSapling\!$} & $\vSpendAuthSigsSapling$ & \type{byte[$64 \mult \nSpendsSapling$]} &
+Authorizing signatures for each \Sapling \outputDescription. \\ \hline
 
-%$\geq 5$ & \Longunderstack{$192 \mult$ \\$\!\nOutputsSapling\!$} & $\vOutputProofsSapling$ & \type{byte[$192 \mult \nOutputsSapling$]} &
-%Encodings of the \zkSNARKProofs for each \Sapling \outputDescription. \\ \hline
+$\geq 5$ & \Longunderstack{$192 \mult$ \\$\!\nOutputsSapling\!$} & $\vOutputProofsSapling$ & \type{byte[$192 \mult \nOutputsSapling$]} &
+Encodings of the \zkSNARKProofs for each \Sapling \outputDescription. \\ \hline
 
-%$\geq 5\;\mathsection$ & $64$ & $\bindingSig{Sapling}$ & \type{byte[64]} &
-%A \saplingBindingSignature on the \sighashTxHash, to be verified as specified in \crossref{concretebindingsig}. \\ \hline
+$\geq 5\;\mathsection$ & $64$ & $\bindingSig{Sapling}$ & \type{byte[64]} &
+A \saplingBindingSignature on the \sighashTxHash, to be verified as specified in \crossref{concretebindingsig}. \\ \hline
 
-%$\geq 5$ & \Varies &\setorchard $\nActionsOrchard\!$ & \type{compactSize} &
-%The number of \actionDescriptions in $\vActionsOrchard$. \\ \hline
+$\geq 5$ & \Varies &\setorchard $\nActionsOrchard\!$ & \type{compactSize} &
+The number of \actionDescriptions in $\vActionsOrchard$. \\ \hline
 
-%$\geq 5$ & \Longunderstack{$884 \mult$ \\$\!\nActionsOrchard\!$} & $\vActionsOrchard\!$ & \type{ActionDescription} \type{[$\nActionsOrchard$]} &
-%A sequence of \actionDescriptions{}, encoded per \crossref{actionencodingandconsensus}. \\ \hline
+$\geq 5$ & \Longunderstack{$884 \mult$ \\$\!\nActionsOrchard\!$} & $\vActionsOrchard$ & \type{ActionDescription} \type{[$\nActionsOrchard$]} &
+A sequence of \actionDescriptions{}, encoded per \crossref{actionencodingandconsensus}. \\ \hline
 
-%$\geq 5\;\mathsection$ & $8$ & $\valueBalance{Orchard}\!$ & \type{int64} &
-%The net value of \Orchard{} spends minus outputs. \\ \hline
+$\geq 5\;\mathsection$ & $8$ & $\flagsOrchard$ & \type{byte} &
+\todo{...} \\ \hline
 
-%$\geq 5\;\mathsection$ & $32$ & $\anchorField{Orchard}$ & \type{byte[32]} &
-%A \merkleRoot of the \Orchard \noteCommitmentTree at some \blockHeight in the past, $\LEBStoOSP{256}\big(\rt{Orchard}\big)$. \\ \hline
+$\geq 5\;\mathsection$ & $8$ & $\valueBalance{Orchard}\!$ & \type{int64} &
+The net value of \Orchard{} spends minus outputs. \\ \hline
 
-%$\geq 5\; & \Varies & $\nProofsOrchard$ & \type{compactSize} & The length of the aggregated \zkSNARKProof
-%$\ProofAction$ (see \crossref{halo2}). \\ \hline
+$\geq 5\;\mathsection$ & $32$ & $\anchorField{Orchard}$ & \type{byte[32]} &
+A \merkleRoot of the \Orchard \noteCommitmentTree at some \blockHeight in the past, $\LEBStoOSP{256}\big(\rt{Orchard}\big)$. \\ \hline
 
-%$\geq 5\; & $2208$ & $\vProofsOrchard$ & \type{byte[2208]} & An encoding of the aggregated \zkSNARKProof
-%$\ProofAction$ (see \crossref{halo2}). \\ \hline
+$\geq 5\;\mathsection$ & \Varies & $\sizeProofsOrchard$ & \type{compactSize} & The length of the aggregated \zkSNARKProof
+$\ProofAction$. \\ \hline
 
-%$\geq 5\;\mathsection$ & $64$ & $\bindingSig{Orchard}$ & \type{byte[64]} &
-%An \orchardBindingSignature on the \sighashTxHash, to be verified as specified in \crossref{concretebindingsig}. \\ \hline
+$\geq 5\;\mathsection$ & $2208$ & $\proofsOrchard$ & \type{byte[2208]} & An encoding of the aggregated \zkSNARKProof
+$\ProofAction$ (see \crossref{halo2}). \\ \hline
+
+$\geq 5\;\mathsection$ & $64$ & $\bindingSig{Orchard}$ & \type{byte[64]} &
+An \orchardBindingSignature on the \sighashTxHash, to be verified as specified in \crossref{concretebindingsig}. \\ \hline
 
 \end{tabularx}
 \renewcommand{\arraystretch}{\defaultarraystretch}
-%} %scalebox
+} %scalebox
 \end{center}
 
 \vspace{-2ex}
@@ -11342,7 +11400,7 @@ If \valueBalance{Orchard} is not present, then $\vBalance{Orchard}$ is defined t
 \end{tabularx}
 
 Note that several fields are reordered relative to prior \transactionVersions.
-%} %orchard
+} %orchard
 
 \begin{consensusrules}
   \item The \defining{\transactionVersionNumber} \MUST be greater than or equal to $1$.
