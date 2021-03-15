@@ -18,10 +18,10 @@ NOCRUFT?=|perl -pe 's|[{\<\(]\/[^ ]* ?||g;s|^.* has been referenced but does not
 
 .PHONY: all all-specs release
 all: .Makefile.uptodate
-	$(MAKE) orchard canopy heartwood blossom sapling sprout
+	$(MAKE) nu5 canopy heartwood blossom sapling sprout
 
 all-specs: .Makefile.uptodate
-	$(MAKE) orchard.pdf canopy.pdf heartwood.pdf blossom.pdf sapling.pdf sprout.pdf
+	$(MAKE) nu5.pdf canopy.pdf heartwood.pdf blossom.pdf sapling.pdf sprout.pdf
 
 release:
 ifeq ($(shell git tag --points-at HEAD |wc -l),0)
@@ -56,8 +56,8 @@ heartwood.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapl
 canopy.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
 	$(MAKE) canopy
 
-orchard.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
-	$(MAKE) orchard
+nu5.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
+	$(MAKE) nu5
 
 .PHONY: auxsprout
 auxsprout:
@@ -120,17 +120,17 @@ canopy:
 	mv -f aux/canopy.pdf .
 	cp -f canopy.pdf protocol.pdf
 
-.PHONY: auxorchard
-auxorchard:
-	printf '\\toggletrue{isorchard}\n\\renewcommand{\\docversion}{Version %s [\\OrchardSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+.PHONY: auxnu5
+auxnu5:
+	printf '\\toggletrue{isnufive}\n\\renewcommand{\\docversion}{Version %s [\\NUFiveSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
-	rm -f aux/orchard.*
-	$(LATEXMK) -jobname=orchard -auxdir=aux -outdir=aux $(EXTRAOPT) protocol $(NOCRUFT)
+	rm -f aux/nu5.*
+	$(LATEXMK) -jobname=nu5 -auxdir=aux -outdir=aux $(EXTRAOPT) protocol $(NOCRUFT)
 
-.PHONY: orchard
-orchard:
-	$(MAKE) auxorchard
-	mv -f aux/orchard.pdf .
+.PHONY: nu5
+nu5:
+	$(MAKE) auxnu5
+	mv -f aux/nu5.pdf .
 
 .PHONY: nolatexmk-sprout
 nolatexmk-sprout:
@@ -193,18 +193,18 @@ nolatexmk-canopy:
 	sh mymakeindex.sh -o canopy.ind canopy.idx
 	$(LATEX) -jobname=canopy protocol.tex || { touch incremental_merkle.png; exit 1; }
 
-.PHONY: nolatexmk-orchard
-nolatexmk-orchard:
-	printf '\\toggletrue{isorchard}\n\\renewcommand{\\docversion}{Version %s [\\OrchardSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+.PHONY: nolatexmk-nu5
+nolatexmk-nu5:
+	printf '\\toggletrue{isnufive}\n\\renewcommand{\\docversion}{Version %s [\\NUFiveSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	# If $(LATEX) fails, touch an input so that 'make' won't think it is up-to-date next time.
-	rm -f orchard.aux orchard.bbl orchard.blg orchard.brf orchard.bcf
-	$(LATEX) -jobname=orchard protocol.tex || { touch incremental_merkle.png; exit 1; }
-	biber orchard
-	$(LATEX) -jobname=orchard protocol.tex || { touch incremental_merkle.png; exit 1; }
-	$(LATEX) -jobname=orchard protocol.tex || { touch incremental_merkle.png; exit 1; }
-	sh mymakeindex.sh -o orchard.ind orchard.idx
-	$(LATEX) -jobname=orchard protocol.tex || { touch incremental_merkle.png; exit 1; }
+	rm -f nu5.aux nu5.bbl nu5.blg nu5.brf nu5.bcf
+	$(LATEX) -jobname=nu5 protocol.tex || { touch incremental_merkle.png; exit 1; }
+	biber nu5
+	$(LATEX) -jobname=nu5 protocol.tex || { touch incremental_merkle.png; exit 1; }
+	$(LATEX) -jobname=nu5 protocol.tex || { touch incremental_merkle.png; exit 1; }
+	sh mymakeindex.sh -o nu5.ind nu5.idx
+	$(LATEX) -jobname=nu5 protocol.tex || { touch incremental_merkle.png; exit 1; }
 
 .PHONY: clean
 clean:
-	rm -f aux/* html/* protocol.ver protocol.pdf orchard.pdf canopy.pdf heartwood.pdf blossom.pdf sapling.pdf sprout.pdf
+	rm -f aux/* html/* protocol.ver protocol.pdf nu5.pdf canopy.pdf heartwood.pdf blossom.pdf sapling.pdf sprout.pdf
