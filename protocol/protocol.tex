@@ -3225,18 +3225,13 @@ $\NoteTuple{} = (\Diversifier, \DiversifiedTransmitPublic, \Value, \NoteUniqueRa
 \begin{formulae}
   \item $\DiversifiedTransmitBase := \DiversifyHash{Orchard}(\Diversifier)$
         \vspace{-1ex}
-  \item $\NoteCommitment{Orchard}(\NoteTuple{}) := \begin{cases}
-          \bot, &\caseif \DiversifiedTransmitBase = \ZeroP \\
+  \item $\NoteCommitment{Orchard}(\NoteTuple{}) :=
           \NoteCommit{Orchard}{\NoteCommitRand}(\reprP\Of{\DiversifiedTransmitBase},
                                                 \reprP\Of{\DiversifiedTransmitPublic},
-                                                \Value, \NoteUniqueRand, \NoteNullifierRand), &\caseotherwise.
-        \end{cases}$
+                                                \Value, \NoteUniqueRand, \NoteNullifierRand)$
 \end{formulae}
 \vspace{-2.5ex}
 where $\NoteCommitAlg{Orchard}$ is instantiated in \crossref{concretesinsemillacommit}.
-
-The case that $\DiversifyHash{Orchard}(\Diversifier)$ returns $\ZeroP$ occurs with
-negligible probability.
 
 Unlike in \Sapling, the definition of an \Orchard \note includes the
 $\NoteUniqueRand$ field; the \note's position in the \noteCommitmentTree does
@@ -3750,7 +3745,7 @@ in the \spendStatement to confirm use of the correct $\NoteUniqueRand$ value as 
 input to \nullifier derivation. It is instantiated in \crossref{concretemixinghash}.
 
 $\DiversifyHash{Sapling} \typecolon \DiversifierType \rightarrow \maybe{\SubgroupJstar}$\nufive{ and
-$\DiversifyHash{Orchard} \typecolon \DiversifierType \rightarrow \maybe{\GroupPstar}$}\notnufive{ is a
+$\DiversifyHash{Orchard} \typecolon \DiversifierType \rightarrow \GroupPstar$}\notnufive{ is a
 \hashFunction}\nufive{ are \hashFunctions} instantiated in \crossref{concretediversifyhash},
 satisfying the Unlinkability security property described in that section. \notnufive{It is}\nufive{They are}
 used to derive a \diversifiedBase from a \diversifier, which is specified in
@@ -5012,9 +5007,6 @@ Then calculate the \defining{\diversifiedTransmissionKey} $\DiversifiedTransmitP
   \item $\DiversifiedTransmitPublic := \KADerivePublic{Orchard}(\InViewingKey, \DiversifiedTransmitBase)$.
 \end{formulae}
 
-If $\DiversifiedTransmitBase = \ZeroP$, discard this \diversifierIndex (this occurs
-with negligible probability).
-
 \vspace{-1ex}
 The resulting \diversifiedPaymentAddress is
 $(\Diversifier \typecolon \DiversifierType, \DiversifiedTransmitPublic \typecolon \KAPublic{Orchard})$.
@@ -5556,8 +5548,7 @@ and then performs the following steps:
 \begin{algorithm}
   \item Check that $\DiversifiedTransmitPublic$ is of type $\KAPublic{Orchard}$, i.e.\ it
         \MUST be a valid \swCurve point on the \pallasCurve (as defined in \crossref{pallasandvesta}).
-  \item Calculate $\DiversifiedTransmitBase = \DiversifyHash{Orchard}(\Diversifier)$
-        and check that $\DiversifiedTransmitBase \neq \bot$.
+  \item Calculate $\DiversifiedTransmitBase = \DiversifyHash{Orchard}(\Diversifier)$.
   \item Choose a uniformly random \commitmentTrapdoor $\ValueCommitRand \leftarrowR \ValueCommitGenTrapdoor{Orchard}()$.
   \item Choose uniformly random $\NoteSeedBytes \leftarrowR \NoteSeedBytesType$.
   \item Derive $\EphemeralPrivate = \ToScalar{Orchard}\big(\PRFexpand{\NoteSeedBytes}([4])\kern-0.1em\big)$.
@@ -7244,7 +7235,7 @@ from $\TransmitPlaintext{}$
                     \end{cases}$}
   \item let $\NoteCommitRand = \LEOStoIPOf{256}{\NoteCommitRandBytes}$
         and $\DiversifiedTransmitBase = \DiversifyHash{}(\Diversifier)$
-  \item if $\NoteCommitRand \geq \ParamG{r}$ or $\DiversifiedTransmitBase = \bot$, return $\bot$
+  \item if $\NoteCommitRand \geq \ParamG{r}$ or\notbeforenufive{ (for \Sapling)} $\DiversifiedTransmitBase = \bot$, return $\bot$
   \canopyonwarditem{if $\NotePlaintextLeadByte \neq \hexint{01}$:}
 \canopy{
   \item \tab $\EphemeralPrivate = \ToScalar{}\big(\PRFexpand{\NoteSeedBytes}([4])\kern-0.11em\big)$
@@ -7360,11 +7351,11 @@ from $\TransmitPlaintext{}$
                     \end{cases}$}
   \item let $\NoteCommitRand = \LEOStoIPOf{256}{\NoteCommitRandBytes}$
         and $\DiversifiedTransmitBase = \DiversifyHash{}(\Diversifier)$
-  \item if $\NoteCommitRand \geq \ParamG{r}$ or $\DiversifiedTransmitBase = \bot$, return $\bot$
+  \item if $\NoteCommitRand \geq \ParamG{r}$, return $\bot$
 \notbeforenufive{
   \item for \Sapling:
 }
-  \item \notbeforenufive{\tab} if $\DiversifiedTransmitPublic \not\in \SubgroupJ$, return $\bot$
+  \item \notbeforenufive{\tab} if $\DiversifiedTransmitBase = \bot$ or $\DiversifiedTransmitPublic \not\in \SubgroupJ$, return $\bot$
   \item \notbeforenufive{\tab} let $\cmstar' = \ExtractJ{}\big(\NoteCommit{Sapling}{\NoteCommitRand}(\reprJ\Of{\DiversifiedTransmitBase},
                                                                                     \reprJ\Of{\DiversifiedTransmitPublic},
                                                                                     \Value)\kern-0.1em\big)$.
@@ -7397,8 +7388,8 @@ from $\TransmitPlaintext{}$
   \nufiveonwarditem{This procedure returns $\bot$ if $\DiversifiedTransmitPublicRepr$ is \nonCanonicalPoint
         (which can only occur for \Sapling \notes), as specified in \cite{ZIP-216}.}
   \item A previous version of this specification did not have the requirement for the decoded point
-        $\DiversifiedTransmitPublic$ of a \Sapling \note to be in the subgroup $\SubgroupJ$ (i.e.\ the line
-        ``if $\DiversifiedTransmitPublic \not\in \SubgroupJ$, return $\bot$``). That did not match the
+        $\DiversifiedTransmitPublic$ of a \Sapling \note to be in the subgroup $\SubgroupJ$ (i.e.\ the condition
+        ``if ... $\DiversifiedTransmitPublic \not\in \SubgroupJ$, return $\bot$``). That did not match the
         implementation in \zcashd, which does require $\DiversifiedTransmitPublic$ to be in the subgroup.
         The specification has been changed to match \zcashd.
   \item The comments in \crossref{decryptivk} concerning calculation of $\NoteUniqueRand$, detection
@@ -8048,8 +8039,9 @@ Define
 \vspace{-1ex}
 \begin{formulae}
   \item $\DiversifyHash{Orchard}(\Diversifier) := \begin{cases}
-                                                    \bot, &\caseif P = \ZeroP \\
-                                                    P,    &\caseotherwise
+                                                    \GroupPHash(\ascii{z.cash:Orchard-gd}, \ascii{}),
+                                                       &\caseif P = \ZeroP \\
+                                                    P, &\caseotherwise
                                                   \end{cases}$
 \end{formulae}
 \vspace{-2ex}
@@ -13858,6 +13850,7 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
 \nufive{
     \item Update the consensus rules that prevent trivial transactions (with no inputs or outputs)
           to take into account \actionTransfers in the v5 \transaction format.
+    \item Make $\DiversifyHash{Orchard}$ total, by replacing an output of $\ZeroP$ with another base.
 } %nufive
 \notnufive{
     \item No changes before \NUFive.
