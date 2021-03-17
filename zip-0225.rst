@@ -100,19 +100,6 @@ Transaction Format
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 |``varies``                   |``tx_out``                |``tx_out``                              |Transparent outputs, encoded as in Bitcoin.                          |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
-| **Sprout Transaction Fields**                                                                                                                                         |
-+-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
-|``varies``                   |``nJoinSplit``            |``compactSize``                         |The number of JoinSplit descriptions in ``vJoinSplit``.              |
-+-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
-|``1698 * nJoinSplit``        |``vJoinSplit``            |``JSDescriptionGroth16[nJoinSplit]``    |A sequence of JoinSplit descrptions using Groth16 proofs,            |
-|                             |                          |                                        |encoded per §7.2 ‘JoinSplit Description Encoding and Consensus’.     |
-+-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
-|``32``                       |``joinSplitPubKey``       |``byte[32]``                            |An encoding of a JoinSplitSig public validating key.                 |
-+-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
-|``64``                       |``joinSplitSig``          |``byte[64]``                            |A signature on a prefix of the transaction encoding,                 |
-|                             |                          |                                        |to be verfied using joinSplitPubKey as specified in §4.11            |
-|                             |                          |                                        |‘Non-malleability (Sprout)’.                                         |
-+-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 | **Sapling Transaction Fields**                                                                                                                                        |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 |``varies``                   |``nSpendsSapling``        |``compactSize``                         |Number of Sapling Spend descriptions in ``vSpendsSapling``.          |
@@ -173,9 +160,6 @@ Transaction Format
   present if and only if ``nActionsOrchard > 0``. If ``valueBalanceOrchard`` is not
   present, then ``valueBalanceOrchard`` is defined to be 0.
 
-* The ``joinSplitPubKey`` and ``joinSplitSig`` fields are present if and only if
-  ``nJoinSplit > 0``.
-
 * The elements of ``vSpendProofsSapling`` and ``vSpendAuthSigsSapling`` have a 1:1
   correspondence to the elements of ``vSpendsSapling`` and MUST be ordered such that the
   proof or signature at a given index corresponds to the ``SpendDescriptionV5`` at the
@@ -192,13 +176,12 @@ Transaction Format
 
 * For coinbase transactions, the ``spendsEnabledOrchard`` bit MUST be set to ``0``.
 
-The encodings of ``tx_in``, ``tx_out``, and ``JSDescriptionGroth16``, are as in a
-version 4 transaction (i.e. unchanged from Canopy). The encodings of ``SpendDescriptionV5``,
-``OutputDescriptionV5`` and ``OrchardAction`` are described below. The encoding of Sapling
-Spends and Outputs has changed relative to prior versions in order to better separate data
-that describe the effects of the transaction from the proofs of and commitments to those
-effects, and for symmetry with this separation in the Orchard-related parts of the
-transaction format.
+The encodings of ``tx_in``, and ``tx_out`` are as in a version 4 transaction (i.e.
+unchanged from Canopy). The encodings of ``SpendDescriptionV5``, ``OutputDescriptionV5``
+and ``OrchardAction`` are described below. The encoding of Sapling Spends and Outputs has
+changed relative to prior versions in order to better separate data that describe the
+effects of the transaction from the proofs of and commitments to those effects, and for
+symmetry with this separation in the Orchard-related parts of the transaction format.
 
 Sapling Spend Description (``SpendDescriptionV5``)
 --------------------------------------------------
@@ -281,7 +264,6 @@ are as in ZIP 244::
    txid_digest
    ├── header_digest
    ├── transparent_digest
-   ├── sprout_digest
    ├── sapling_digest
    └── orchard_digest
 
@@ -293,9 +275,8 @@ to be a BLAKE2b-256 hash of the following values ::
 
    T.1: header_digest      (32-byte hash output)
    T.2: transparent_digest (32-byte hash output)
-   T.3: sprout_digest      (32-byte hash output)
-   T.4: sapling_digest     (32-byte hash output)
-   T.5: orchard_digest     (32-byte hash output)
+   T.3: sapling_digest     (32-byte hash output)
+   T.4: orchard_digest     (32-byte hash output)
 
 The personalization field of this hash is unmodified from ZIP 244.
  
@@ -304,17 +285,17 @@ The personalization field of this hash is unmodified from ZIP 244.
 
 A BLAKE2b-256 hash of the following values ::
 
-   T.5c: anchorOrchard                       (32 bytes)
-   T.5b: orchard_actions_compact_digest      (32-byte hash output)
-   T.5c: orchard_actions_memos_digest        (32-byte hash output)
-   T.5d: orchard_actions_noncompact_digest   (32-byte hash output)
-   T.5e: valueBalanceOrchard                 (64-bit signed little-endian)
+   T.4c: anchorOrchard                       (32 bytes)
+   T.4b: orchard_actions_compact_digest      (32-byte hash output)
+   T.4c: orchard_actions_memos_digest        (32-byte hash output)
+   T.4d: orchard_actions_noncompact_digest   (32-byte hash output)
+   T.4e: valueBalanceOrchard                 (64-bit signed little-endian)
 
 The personalization field of this hash is set to::
 
   "ZTxIdOrchardHash" 
 
-T.5b: orchard_actions_compact_digest
+T.4b: orchard_actions_compact_digest
 """"""""""""""""""""""""""""""""""""
 
 A BLAKE2b-256 hash of the subset of Orchard Action information intended to be included in
@@ -322,29 +303,29 @@ an updated version of the ZIP-307 [#zip-0307]_ ``CompactBlock`` format for all O
 Actions belonging to the transaction. For each Action, the following elements are included
 in the hash::
 
-   T.5b.i  : nullifier            (field encoding bytes)
-   T.5b.ii : cmx                  (field encoding bytes)
-   T.5b.iii: ephemeralKey         (field encoding bytes)
-   T.5b.iv : encCiphertext[..52]  (First 52 bytes of field encoding)
+   T.4b.i  : nullifier            (field encoding bytes)
+   T.4b.ii : cmx                  (field encoding bytes)
+   T.4b.iii: ephemeralKey         (field encoding bytes)
+   T.4b.iv : encCiphertext[..52]  (First 52 bytes of field encoding)
 
 The personalization field of this hash is set to::
 
   "ZTxIdOrcOutCHash"
 
-T.5c: orchard_actions_memos_digest
+T.4c: orchard_actions_memos_digest
 """"""""""""""""""""""""""""""""""
 
 A BLAKE2b-256 hash of the subset of Orchard shielded memo field data for all Orchard
 Actions belonging to the transaction. For each Action, the following elements are included
 in the hash::
 
-   T.5c.i: encCiphertext[52..564] (contents of the encrypted memo field)
+   T.4c.i: encCiphertext[52..564] (contents of the encrypted memo field)
 
 The personalization field of this hash is set to::
 
   "ZTxIdOrcOutMHash"
 
-T.5d: orchard_actions_noncompact_digest
+T.4d: orchard_actions_noncompact_digest
 """""""""""""""""""""""""""""""""""""""
 
 A BLAKE2b-256 hash of the remaining subset of Orchard Action information **not** intended
@@ -352,10 +333,10 @@ for inclusion in an updated version of the the ZIP 307 [#zip-0307]_ ``CompactBlo
 format, for all Orchard Actions belonging to the transaction. For each Action,
 the following elements are included in the hash::
 
-   T.5d.i  : cv                    (field encoding bytes)
-   T.5d.ii : rk                    (field encoding bytes)
-   T.5d.iii: encCiphertext[564..]  (post-memo suffix of field encoding)
-   T.5d.iv : outCiphertext         (field encoding bytes)
+   T.4d.i  : cv                    (field encoding bytes)
+   T.4d.ii : rk                    (field encoding bytes)
+   T.4d.iii: encCiphertext[464..]  (post-memo suffix of field encoding)
+   T.4d.iv : outCiphertext         (field encoding bytes)
 
 The personalization field of this hash is set to::
 
@@ -383,13 +364,12 @@ A BLAKE2b-256 hash of the following values ::
 
    S.1: header_digest      (32-byte hash output)
    S.2: transparent_digest (32-byte hash output)
-   S.3: sprout_digest      (32-byte hash output)
-   S.4: sapling_digest     (32-byte hash output)
-   S.5: orchard_digest     (32-byte hash output)
+   S.3: sapling_digest     (32-byte hash output)
+   S.4: orchard_digest     (32-byte hash output)
 
 The personalization field of this hash is unmodified from ZIP 244
 
-S.5: orchard_digest
+S.4: orchard_digest
 """""""""""""""""""
 
 Identical to that specified for the transaction identifier.
@@ -441,23 +421,48 @@ The personalization field of this hash is set to::
 Alternatives
 ============
 
-A possible modification to this proposal is to entirely remove the Sprout-related fields
-``nJoinSplit``, ``vJoinSplit``, ``joinSplitPubKey``, and ``joinSplitSig`` from the V5
-transaction format. While this would effectively prohibit migration transactions that
-directly move funds from the Sprout pool to the Orchard pool, Sprout -> Transparent and
-Sprout -> Sapling migration transactions would still be supported when using the V4 transaction
-format. This proposal is appealing from the perspective that it would reduce the
-complexity of the NU5 upgrade in the following ways::
+The original version of ZIP-225 included Sprout-related fields ``nJoinSplit``, 
+``vJoinSplit``, ``joinSplitPubKey``, and ``joinSplitSig`` in the V5
+transaction format. The Electric Coin Company and Zcash Foundation teams have
+elected to remove these fields from the V5 transaction format as part of the 
+continuing process of deprecation of the Sprout shielded pool. As a consequence
+of these fields being removed::
 
-* V5 parsing and serialization code would not need to take these fields into account.
+* This effectively prohibits migration transactions that would directly move funds from
+  the Sprout pool to the Orchard pool. Sprout -> Transparent and Sprout -> Sapling
+  migration transactions will still be supported when using the V4 transaction format. 
+
+Removing these fields reduces the complexity of the NU5 upgrade in the following ways::
+
+* V5 parsing and serialization code does not need to take these fields into account.
 * ZIP 244 [#zip_0244]_ transaction identifier, signature hash, and authorizing
-  data commitment computations could be simplified to exclude consideration of 
+  data commitment computations are simplified by excluding consideration of 
   these fields.
 
-This change would mean that in the future, removing the support for the V4 transaction
-format would also effectively end support for Sprout transactions on the zcash network,
-though it might be possible to restore limited support for migration via a future ZIP 222
-[#zip_0222] extension or by other means not yet determined.
+Having removed these fields means that that in the future, removing the support for the V4
+transaction format will also effectively end support for Sprout transactions on the zcash
+network, though it might be possible to restore limited support for migration via a future
+ZIP 222 [#zip_0222] extension or by other means not yet determined.
+
+The original definitions for the transaction fields that have been removed are::
+
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+| **Sprout Transaction Fields**                                                                                                                                         |
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+|``varies``                   |``nJoinSplit``            |``compactSize``                         |The number of JoinSplit descriptions in ``vJoinSplit``.              |
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+|``1698 * nJoinSplit``        |``vJoinSplit``            |``JSDescriptionGroth16[nJoinSplit]``    |A sequence of JoinSplit descrptions using Groth16 proofs,            |
+|                             |                          |                                        |encoded per §7.2 ‘JoinSplit Description Encoding and Consensus’.     |
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+|``32``                       |``joinSplitPubKey``       |``byte[32]``                            |An encoding of a JoinSplitSig public validating key.                 |
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+|``64``                       |``joinSplitSig``          |``byte[64]``                            |A signature on a prefix of the transaction encoding,                 |
+|                             |                          |                                        |to be verfied using joinSplitPubKey as specified in §4.11            |
+|                             |                          |                                        |‘Non-malleability (Sprout)’.                                         |
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+
+* The ``joinSplitPubKey`` and ``joinSplitSig`` fields were specified to be
+  present if and only if ``nJoinSplit > 0``.
 
 Reference implementation
 ========================
