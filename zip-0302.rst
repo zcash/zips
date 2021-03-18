@@ -13,7 +13,7 @@
 Abstract
 ========
 
-This ZIP describes a proposed specification for a standardized format for displaying content within the encrypted memo field of shielded transactions.
+This ZIP describes a proposed specification for a standardized format for clients who wish to transmit or receive content within the encrypted memo field of shielded transactions.
 
 Motivation
 ==========
@@ -35,21 +35,32 @@ for the encoding of a memo field:
 
 This ZIP refines the specification of the third case.
 
-+ If the first byte (byte 0)'s value is 0xF4 or smaller, then the reader MUST:
+The following specification constrains a party, called the "reader", that interprets
+the contents of a memo. It does not define consensus requirements.
+
++ If the first byte (byte 0) has a value of 0xF4 or smaller, then the reader MUST:
      + strip any trailing zero bytes
-     + decode it as UTF-8 (replacing any incorrect UTF-8-encoded byte sequences with the replacement character U+FFFD), and display it to the user as a human-readable string.
-+ If byte 0's value is 0xF5, then the reader MUST:
+     + decode it as a UTF-8 string (if decoding fails then report an error).
++ If the first byte has a value of 0xF5, then the reader MUST:
      + Interpret the next few bytes (1 to 9 of them) as a 64-bit unsigned variable-length integer [#Bitcoin-CompactSize]_, and use it as an arbitrary application-defined "type" field.
      + Interpret the next bytes (1 to 2 of them) as a 16-bit unsigned ULEB, and use it as the length field. (The length can be at most 510 bytes due to the overall memo length, and that is why the length field can only be 1 or 2 bytes.)
      + If 1 + the number bytes used for the type field + the number of bytes used for the length field + the length > 512 then error out, i.e. do not do any further processing of the memo, and do not return any information about the memo to the caller other than the fact that it was incorrectly formatted.
-     + Inspect the padding after the end of the indicated length, and if it contains anything other than bytes of value 0x00 then error out.
+     + Inspect the padding after the end of the indicated length, and if it
+       contains anything other than bytes of value 0x00 then report an error.
      + Return to the caller a 3-tuple of the following data:
            + the type — an integer in :math:`[0...2^{64})`
            + the length — an integer in :math:`[0...510)`
            + a byte string of that length which contains the payload
-+ If byte 0's value is 0xF6, then the user supplied no memo, and the encrypted memo field should be assumed to be empty.
-+ If byte 0's value is between 0xF7 and 0xFE inclusive on both ends, then this memo is from the future, because first byte of 0xF7–0xFE are reserved for future specifications of this protocol.
-+ If byte 0's value is 0xFF then the reader should not make any other assumption about the memo. If you want to put data into a memo field that doesn't use the type-length-value scheme above, then put 0xFF as the first byte, and then do whatever you want with the remaining 511 bytes.
++ If the first byte has a value of 0xF6, then the user supplied no memo, and the
+  encrypted memo field is to be treated as empty.
++ If the first byte has a value between 0xF7 and 0xFE inclusive, then this memo
+  is from the future, because first byte values of 0xF7–0xFE are reserved for
+  future specifications of this protocol.
++ If the first byte has a value of 0xFF then the reader should not make any
+  other assumption about the memo. In order to put data into a memo field
+  that does not use the type-length-value scheme above, the value of the
+  first byte SHOULD be set to 0xFF; the remaining 511 bytes are then
+  unconstrained.
 
 See issue `#1849`_ for further discussion.
 
