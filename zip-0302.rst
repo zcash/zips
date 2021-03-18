@@ -13,14 +13,19 @@
 Abstract
 ========
 
-This ZIP describes a proposed specification for a standardized format for clients who wish to transmit or receive content within the encrypted memo field of shielded transactions.
+This ZIP describes a proposed specification for a standardized format for clients who wish
+to transmit or receive content within the encrypted memo field of shielded transactions.
 
 Motivation
 ==========
 
-A well-defined standard for formatting content within the encrypted memo field would help expand the use cases by providing a structure for different types of data. Users and third-party services could benefit from a standardized formatting convention that defines the type and length of the data contained within.
+A well-defined standard for formatting content within the encrypted memo field would help
+expand the use cases by providing a structure for different types of data. Users and
+third-party services could benefit from a standardized formatting convention that defines
+the type and length of the data contained within.
 
-A proposed common use case could be a standard encoding for sender’s preferred return address.
+A proposed common use case could be a standard encoding for sender’s preferred return
+address.
 
 Specification
 ===============
@@ -30,63 +35,82 @@ for the encoding of a memo field:
 
 * a UTF-8 human-readable string [#Unicode]_, padded by appending zero bytes; or
 * the byte ``0xF6`` followed by 511 ``0x00`` bytes, indicating "no memo"; or
-* any other sequence of 512 bytes starting with a byte value ``0xF5`` or greater
-  (which is therefore not a valid UTF-8 string), as specified in ZIP 302.
+* any other sequence of 512 bytes starting with a byte value ``0xF5`` or greater (which is
+  therefore not a valid UTF-8 string), as specified in ZIP 302.
 
 This ZIP refines the specification of the third case.
 
-The following specification constrains a party, called the "reader", that interprets
-the contents of a memo. It does not define consensus requirements.
+The following specification constrains a party, called the "reader", that interprets the
+contents of a memo. It does not define consensus requirements.
 
 + If the first byte (byte 0) has a value of 0xF4 or smaller, then the reader MUST:
      + strip any trailing zero bytes
      + decode it as a UTF-8 string (if decoding fails then report an error).
+
 + If the first byte has a value of 0xF5, then the reader MUST:
-     + Interpret the next few bytes (1 to 9 of them) as a 64-bit unsigned variable-length integer [#Bitcoin-CompactSize]_, and use it as an arbitrary application-defined "type" field.
-     + Interpret the next bytes (1 to 2 of them) as a 16-bit unsigned ULEB, and use it as the length field. (The length can be at most 510 bytes due to the overall memo length, and that is why the length field can only be 1 or 2 bytes.)
-     + If 1 + the number bytes used for the type field + the number of bytes used for the length field + the length > 512 then error out, i.e. do not do any further processing of the memo, and do not return any information about the memo to the caller other than the fact that it was incorrectly formatted.
+     + Interpret the next few bytes (1 to 9 of them) as a 64-bit unsigned variable-length
+       integer [#Bitcoin-CompactSize]_, and use it as an arbitrary application-defined
+       "type" field.
+     + Interpret the next bytes (1 to 2 of them) as a 16-bit unsigned ULEB, and use it as
+       the length field. (The length can be at most 510 bytes due to the overall memo
+       length, and that is why the length field can only be 1 or 2 bytes.)
+     + If 1 + the number bytes used for the type field + the number of bytes used for the
+       length field + the length > 512 then error out, i.e. do not do any further
+       processing of the memo, and do not return any information about the memo to the
+       caller other than the fact that it was incorrectly formatted.
      + Inspect the padding after the end of the indicated length, and if it
        contains anything other than bytes of value 0x00 then report an error.
      + Return to the caller a 3-tuple of the following data:
            + the type — an integer in :math:`[0...2^{64})`
            + the length — an integer in :math:`[0...510)`
            + a byte string of that length which contains the payload
-+ If the first byte has a value of 0xF6, then the user supplied no memo, and the
-  encrypted memo field is to be treated as empty.
-+ If the first byte has a value between 0xF7 and 0xFE inclusive, then this memo
-  is from the future, because first byte values of 0xF7–0xFE are reserved for
-  future specifications of this protocol.
-+ If the first byte has a value of 0xFF then the reader should not make any
-  other assumption about the memo. In order to put data into a memo field
-  that does not use the type-length-value scheme above, the value of the
-  first byte SHOULD be set to 0xFF; the remaining 511 bytes are then
-  unconstrained.
+
++ If the first byte has a value of 0xF6, then the user supplied no memo, and the encrypted
+  memo field is to be treated as empty.
+
++ If the first byte has a value between 0xF7 and 0xFE inclusive, then this memo is from
+  the future, because first byte values of 0xF7–0xFE are reserved for future
+  specifications of this protocol.
+
++ If the first byte has a value of 0xFF then the reader should not make any other
+  assumption about the memo. In order to put data into a memo field that does not use the
+  type-length-value scheme above, the value of the first byte SHOULD be set to 0xFF; the
+  remaining 511 bytes are then unconstrained.
 
 See issue `#1849`_ for further discussion.
-
-.. _`#1849`: https://github.com/zcash/zcash/issues/1849
 
 Rationale
 ===========
 
-The new protocol specification is an improvement over the current memo field content specification that was in the protocol spec up to version 2020.1.0, which stated:
+The new protocol specification is an improvement over the current memo field content
+specification that was in the protocol spec up to version 2020.1.0, which stated:
 
-    The usage of the memo field is by agreement between the sender and recipient of the note. The memo field SHOULD be encoded either as:
+    The usage of the memo field is by agreement between the sender and recipient of the
+    note. The memo field SHOULD be encoded either as:
 
-    • a UTF-8 human-readable string [Unicode], padded by appending zero bytes; or
-    • an arbitrary sequence of 512 bytes starting with a byte value of 0xF5 or greater, which is therefore not a valid UTF-8 string.
+    + a UTF-8 human-readable string [Unicode], padded by appending zero bytes; or
+    + an arbitrary sequence of 512 bytes starting with a byte value of 0xF5 or greater,
+      which is therefore not a valid UTF-8 string.
 
-    In the former case, wallet software is expected to strip any trailing zero bytes and then display the resulting UTF-8 string to the recipient user, where applicable. Incorrect UTF-8-encoded byte sequences should be displayed as replacement characters (U+FFFD).
+    In the former case, wallet software is expected to strip any trailing zero bytes and
+    then display the resulting UTF-8 string to the recipient user, where applicable.
+    Incorrect UTF-8-encoded byte sequences should be displayed as replacement characters
+    (U+FFFD).
 
-    In the latter case, the contents of the memo field SHOULD NOT be displayed. A start byte of 0xF5 is reserved for use by automated software by private agreement. A start byte of 0xF6 or greater is reserved for use in future Zcash protocol extensions.
+    In the latter case, the contents of the memo field SHOULD NOT be displayed. A start
+    byte of 0xF5 is reserved for use by automated software by private agreement. A start
+    byte of 0xF6 or greater is reserved for use in future Zcash protocol extensions.
 
 
 Backwards Compatibility
 ===========================
 
-Encrypted memo field contents sent without the standardized format proposed here will be interpreted according to the specification set out in older versions of the protocol spec.
+Encrypted memo field contents sent without the standardized format proposed here will be
+interpreted according to the specification set out in older versions of the protocol spec.
 
 References
 ==========
 
 .. [#Bitcoin-CompactSize] `Variable length integer. Bitcoin Wiki <https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer>`_
+.. _`#1849`: https://github.com/zcash/zcash/issues/1849
+
