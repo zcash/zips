@@ -18,10 +18,10 @@ NOCRUFT?=|perl -pe 's|[{\<\(]\/[^ ]* ?||g;s|^.* has been referenced but does not
 
 .PHONY: all all-specs release
 all: .Makefile.uptodate
-	$(MAKE) nu5 canopy heartwood blossom sapling sprout
+	$(MAKE) nu5 canopy heartwood blossom sapling
 
 all-specs: .Makefile.uptodate
-	$(MAKE) nu5.pdf canopy.pdf heartwood.pdf blossom.pdf sapling.pdf sprout.pdf
+	$(MAKE) nu5.pdf canopy.pdf heartwood.pdf blossom.pdf sapling.pdf
 
 release:
 ifeq ($(shell git tag --points-at HEAD |wc -l),0)
@@ -41,9 +41,6 @@ endif
 	$(MAKE) clean
 	touch .Makefile.uptodate
 
-sprout.pdf: protocol.tex zcash.bib incremental_merkle.png key_components.png
-	$(MAKE) sprout
-
 sapling.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
 	$(MAKE) sapling
 
@@ -58,18 +55,6 @@ canopy.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling
 
 nu5.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
 	$(MAKE) nu5
-
-.PHONY: auxsprout
-auxsprout:
-	printf '\\renewcommand{\\docversion}{Version %s [\\SproutSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
-	mkdir -p aux
-	rm -f aux/sprout.* aux/protocol.*
-	$(LATEXMK) -jobname=sprout -auxdir=aux -outdir=aux $(EXTRAOPT) protocol $(NOCRUFT)
-
-.PHONY: sprout
-sprout:
-	$(MAKE) auxsprout
-	mv -f aux/sprout.pdf .
 
 .PHONY: auxsapling
 auxsapling:
@@ -131,18 +116,6 @@ auxnu5:
 nu5:
 	$(MAKE) auxnu5
 	mv -f aux/nu5.pdf .
-
-.PHONY: nolatexmk-sprout
-nolatexmk-sprout:
-	printf '\\renewcommand{\\docversion}{Version %s [\\SproutSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
-	# If $(LATEX) fails, touch an input so that 'make' won't think it is up-to-date next time.
-	rm -f sprout.aux sprout.bbl sprout.blg sprout.brf sprout.bcf
-	$(LATEX) -jobname=sprout protocol.tex || { touch incremental_merkle.png; exit 1; }
-	biber sprout
-	$(LATEX) -jobname=sprout protocol.tex || { touch incremental_merkle.png; exit 1; }
-	$(LATEX) -jobname=sprout protocol.tex || { touch incremental_merkle.png; exit 1; }
-	sh mymakeindex.sh -o sprout.ind sprout.idx
-	$(LATEX) -jobname=sprout protocol.tex || { touch incremental_merkle.png; exit 1; }
 
 .PHONY: nolatexmk-sapling
 nolatexmk-sapling:
@@ -207,4 +180,4 @@ nolatexmk-nu5:
 
 .PHONY: clean
 clean:
-	rm -f aux/* html/* protocol.ver protocol.pdf nu5.pdf canopy.pdf heartwood.pdf blossom.pdf sapling.pdf sprout.pdf
+	rm -f aux/* html/* protocol.ver protocol.pdf nu5.pdf canopy.pdf heartwood.pdf blossom.pdf sapling.pdf
