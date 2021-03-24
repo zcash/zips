@@ -108,7 +108,7 @@ Index of ZIPs
     <tr> <td>252</td> <td class="left"><a href="zip-0252.rst">Deployment of the NU5 Network Upgrade</a></td> <td>Proposed</td>
     <tr> <td>300</td> <td class="left"><a href="zip-0300.rst">Cross-chain Atomic Transactions</a></td> <td>Proposed</td>
     <tr> <td>301</td> <td class="left"><a href="zip-0301.rst">Zcash Stratum Protocol</a></td> <td>Final</td>
-    <tr> <td><span class="reserved">302</span></td> <td class="left"><a class="reserved" href="zip-0302.rst">Standardized Memo Field Format</a></td> <td>Reserved</td>
+    <tr> <td>302</td> <td class="left"><a href="zip-0302.rst">Standardized Memo Field Format</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">303</span></td> <td class="left"><a class="reserved" href="zip-0303.rst">Sprout Payment Disclosure</a></td> <td>Reserved</td>
     <tr> <td>304</td> <td class="left"><a href="zip-0304.rst">Sapling Address Signatures</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">305</span></td> <td class="left"><a class="reserved" href="zip-0305.rst">Best Practices for Hardware Wallets supporting Sapling</a></td> <td>Reserved</td>
