@@ -2180,6 +2180,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\IsoConstP}[1]{\mathcal{C}^{\GroupP}_{#1}}
 
 \newcommand{\ExtractP}{\Extract_{\GroupP}}
+\newcommand{\ExtractPbot}{\Extract^{\kern-0.03em\scalebox{0.65}{$\bot$}}_{\GroupP}}
 \newcommand{\GroupPHash}{\GroupHash^{\GroupP}}
 \newcommand{\GroupPHashInput}{\GroupPHash{}\mathsf{.Input}}
 \newcommand{\GroupPHashURSType}{\GroupPHash{}\mathsf{.URSType}}
@@ -3156,6 +3157,9 @@ $\NoteTuple{} = (\Diversifier, \DiversifiedTransmitPublic, \Value, \NoteUniqueRa
 \end{formulae}
 \vspace{-2.5ex}
 where $\NoteCommitAlg{Orchard}$ is instantiated in \crossref{concretesinsemillacommit}.
+
+If $\NoteCommitAlg{Orchard}$ returns $\bot$ (which happens with insignificant probability),
+the \note is invalid and should be recreated with a different $\NoteSeedBytes$.
 
 Unlike in \Sapling, the definition of an \Orchard \note includes the
 $\NoteUniqueRand$ field; the \note's position in the \noteCommitmentTree does
@@ -4269,11 +4273,11 @@ Let $\GroupP$, $\GroupPx$, $\ellP$, $\ParamP{q}$, and $\ParamP{r}$ be as defined
 Define:
 \begin{formulae}
   \item $\NoteCommitTrapdoor{Orchard} := \binaryrange{\ScalarLength{Orchard}}$ and
-        $\NoteCommitOutput{Orchard} := \GroupP$;
+        $\NoteCommitOutput{Orchard} := \maybe{\GroupP}$;
   \item $\ValueCommitTrapdoor{Orchard} := \binaryrange{\ScalarLength{Orchard}}$ and
         $\ValueCommitOutput{Orchard} := \GroupP$.
   \item $\CommitIvkTrapdoor := \binaryrange{\ScalarLength{Orchard}}$ and
-        $\CommitIvkOutput := \InViewingKeyTypeOrchard$.
+        $\CommitIvkOutput := \maybe{\InViewingKeyTypeOrchard}$.
 \end{formulae}
 
 \introlist
@@ -4285,6 +4289,9 @@ Define:
   $\ValueCommitAlg{Orchard} $&$\typecolon\; \ValueCommitTrapdoor{Orchard} \times \ValueCommitTypeOrchard $&$\rightarrow \ValueCommitOutput{Orchard}$ \\
   $\CommitIvkAlg            $&$\typecolon\; \CommitIvkTrapdoor \times \GroupPx \times \NullifierKeyTypeOrchard $&$\rightarrow \CommitIvkOutput$
 \end{tabular}
+
+\vspace{-1ex}
+\nnote{$\NoteCommitAlg{Orchard}$ and $\CommitIvkAlg$ can return $\bot$ with insignificant probability.}
 
 $\NoteCommitAlg{Orchard}$ and $\CommitIvkAlg$ are instantiated in \crossref{concreteorchardnotecommit}.
 $\ValueCommitAlg{Orchard}$ is instantiated in \crossref{concretevaluecommit}.
@@ -4837,6 +4844,7 @@ as follows:
   \item \blank
   \item let $\AuthSignPublic = \ExtractP(\AuthSignPublicPoint)$
   \item let $\InViewingKey = \CommitIvk{\CommitIvkRand}\big(\AuthSignPublic, \NullifierKey\big)$
+  \item if $\InViewingKey = \bot$, discard this key and repeat with a new $\SpendingKey$.
   \item let $K = \ItoLEBSPOf{\SpendingKeyLength}{\CommitIvkRand}$
         \vspace{-0.2ex}
   \item let $R = \PRFexpand{K}\big([\hexint{82}] \bconcat \ItoLEOSPOf{256}{\AuthSignPublic} \bconcat \ItoLEOSPOf{256}{\NullifierKey}\kern-0.25em\big)$
@@ -5447,6 +5455,7 @@ and then performs the following steps:
                                                          \reprP\Of{\DiversifiedTransmitPublic},
                                                          \Value, \NoteUniqueRand, \NoteNullifierRand)$.
         \vspace{0.25ex}
+  \item If $\cm = \bot$, return $\bot$.
   \item Let $\NotePlaintext{} = (\NotePlaintextLeadByte, \Diversifier, \Value, \NoteSeedBytes, \Memo)$.
         \vspace{0.25ex}
   \item Encrypt $\NotePlaintext{}$ to the recipient
@@ -5614,6 +5623,7 @@ constructed as follows:
   \item Let $\cm = \NoteCommit{Orchard}{\NoteCommitRand}\big(\reprP\Of{\DiversifiedTransmitBase},
                                                              \reprP\Of{\DiversifiedTransmitPublic},
                                                              \Value, \NoteUniqueRand, \NoteNullifierRand\big)$.
+  \item If $\cm = \bot$, return $\bot$.
   \item Let $\nf = \DeriveNullifier{\NullifierKey}(\NoteUniqueRand, \NoteNullifierRand, \cm)$.
   \item Construct a \dummy \merklePath $\TreePath{}$ for use in the
         \auxiliaryInput to the \spendStatement (this will not be checked, because $\Value = 0$).
@@ -6684,6 +6694,9 @@ Let $\SpendAuthSig{Orchard}$ be as defined in \crossref{concretespendauthsig}.
 Let $\GroupP$, $\GroupPstar$, $\GroupPx$, $\reprP$, $\ParamP{q}$, and $\ParamP{r}$ be as defined in \crossref{pallasandvesta}.
 
 \vspace{-0.25ex}
+Let $\ExtractP$ and $\ExtractPbot$ be as defined in \crossref{concreteextractorpallas}.
+
+\vspace{-0.25ex}
 Let $\DeriveNullifierAlg$ be as defined in \crossref{commitmentsandnullifiers}.
 
 \intropart
@@ -6732,11 +6745,11 @@ such that the following conditions hold:
 
 \introlist
 \snarkcondition{Old note commitment integrity}{actionoldnotecommitmentintegrity}
-$\cmOld{} = \NoteCommit{Orchard}{\NoteCommitRandOld{}}(\reprP\big(\DiversifiedTransmitBaseOld\big),
-                                                       \reprP\big(\DiversifiedTransmitPublicOld),
-                                                       \vOld{},
-                                                       \NoteUniqueRandOld{},
-                                                       \NoteNullifierRandOld)$.
+$\NoteCommit{Orchard}{\NoteCommitRandOld{}}(\reprP\big(\DiversifiedTransmitBaseOld\big),
+                                            \reprP\big(\DiversifiedTransmitPublicOld),
+                                            \vOld{},
+                                            \NoteUniqueRandOld{},
+                                            \NoteNullifierRandOld) \in \setof{\cmOld{}, \bot}$.
 
 \vspace{-0.5ex}
 \snarkcondition{Merkle path validity}{actionmerklepathvalidity}
@@ -6754,17 +6767,15 @@ $\nfOld{} = \DeriveNullifier{\NullifierKey}(\NoteUniqueRandOld{}, \NoteNullifier
 $\AuthSignRandomizedPublic = \SpendAuthSigRandomizePublic{Orchard}(\AuthSignRandomizer, \AuthSignPublicPoint)$.
 
 \snarkcondition{Diversified address integrity}{actionaddressintegrity}
-$\DiversifiedTransmitPublicOld = \scalarmult{\InViewingKey}{\DiversifiedTransmitBaseOld}$ where
+$\InViewingKey = \bot$ or $\DiversifiedTransmitPublicOld = \scalarmult{\InViewingKey}{\DiversifiedTransmitBaseOld}$ where
 $\InViewingKey = \CommitIvk{\CommitIvkRandom}\big(\ExtractP(\AuthSignPublicPoint), \NullifierKey\big)$.
 
 \snarkcondition{New note commitment integrity}{actionnewnotecommitmentintegrity}
-$\cmX = \ExtractP\big(\NoteCommit{Orchard}{\NoteCommitRandNew{}}(\DiversifiedTransmitBaseNewRepr,
-                                                                 \DiversifiedTransmitPublicNewRepr,
-                                                                 \vNew{},
-                                                                 \NoteUniqueRandNew{},
-                                                                 \NoteNullifierRandNew)\kern-0.12em\big)$,
-
-\vspace{-1.5ex}
+$\ExtractPbot\big(\NoteCommit{Orchard}{\NoteCommitRandNew{}}(\DiversifiedTransmitBaseNewRepr,
+                                                             \DiversifiedTransmitPublicNewRepr,
+                                                             \vNew{},
+                                                             \NoteUniqueRandNew{},
+                                                             \NoteNullifierRandNew)\kern-0.1em\big) \in \setof{\cmX, \bot}$,
 where $\NoteUniqueRandNew{} = \nfOld{}$.
 
 \vspace{-0.5ex}
@@ -6811,6 +6822,16 @@ For details of the form and encoding of \actionStatement proofs, see \crossref{h
         to prove knowledge of $\EphemeralPrivate$, because the potential attack this originally addressed
         for \Sapling is prevented by checks added at \Canopy activation in \cite{ZIP-212} (which are
         required after the end of the ZIP 212 grace period).
+  \item If $\NoteCommitAlg{Orchard}$ returns $\bot$ for the old or new \note, then the corresponding
+        \textbf{note commitment integrity} check is satisfied. Similarly, if $\CommitIvkAlg$ returns $\bot$, then
+        the \textbf{diversified address integrity} check is satisfied. This models the fact that the implemented circuit
+        uses incomplete point addition to compute $\SinsemillaHashToPoint$. If an exceptional case were to occur,
+        the prover could arbitrarily choose the intermediate $\lambda$ value in an addition, which must be
+        assumed to allow them to control the output. (The formal output of $\SinsemillaHashToPoint$
+        is $\bot$ in such a case, while the output computed by the circuit would be nondeterministic.)
+        But as proven in \theoremref{thmsinsemillaex}, these exceptional cases allow immediately
+        finding a nontrivial discrete logarithm. If the Discrete Logarithm Problem is hard on the
+        \pallasCurve, then finding such a case is infeasible.
 \end{nnotes}
 } %nufive
 
@@ -7821,7 +7842,11 @@ $\MerkleCRH{Orchard} \typecolon \MerkleLayer{Orchard} \times \MerkleHash{Orchard
   \item where $l = \ItoLEBSP{10}\big(\MerkleDepth{Orchard} - 1 - \mathsf{layer}\big)$.
 \end{formulae}
 
-\securityrequirement{$\SinsemillaHash$ must be \collisionResistant\!.}
+\begin{securityrequirements}
+  \item $\SinsemillaHash$ must be \collisionResistant, when restricted to non-$\bot$ inputs.
+  \item It must be infeasible to find inputs $(\mathsf{layer}, \mathsf{left} \neq \bot, \mathsf{right} \neq \bot)$
+        such that $\SinsemillaHash(\mathsf{layer}, \mathsf{left}, \mathsf{right}) = \bot$.
+\end{securityrequirements}
 
 \pnote{The prefix $l$ provides domain separation between inputs at different layers of the
 \noteCommitmentTree.}
@@ -8239,7 +8264,7 @@ Let $\GroupP$, $\ZeroP$, $\ParamP{q}$, $\ParamP{r}$, and $\ParamP{b}$ be as defi
 \crossref{pallasandvesta}.
 
 \vspace{-0.25ex}
-Let $\ExtractP \typecolon \GroupP \rightarrow \MerkleHash{Orchard}$ be as
+Let $\ExtractPbot \typecolon \GroupP \rightarrow \MerkleHash{Orchard}$ be as
 defined in \crossref{concreteextractorpallas}.
 
 \vspace{-0.25ex}
@@ -8271,10 +8296,13 @@ $\SinsemillaGenBase \typecolon \binaryrange{k} \rightarrow \GroupPstar$ by:
 
 \vspace{1ex}
 \introlist
-Define $\incompleteadd \typecolon \GroupP \times \GroupP \rightarrow \maybe{\GroupP}$ as incomplete addition on the \Pallas curve:
+Define $\incompleteadd \typecolon \maybe{\GroupP} \times \maybe{\GroupP} \rightarrow \maybe{\GroupP}$ as incomplete addition on the \Pallas curve:
 
 \vspace{-1ex}
 \begin{tabular}{@{\hskip 1.5em}r@{\;}l@{\;}l@{\;}l}
+  $\bot$   &$\incompleteadd$ &$\bot$     &$= \bot$ \\[-0.6ex]
+  $\bot$   &$\incompleteadd$ &$P$        &$= \bot$ \\[-0.6ex]
+  $P$      &$\incompleteadd$ &$\bot$     &$= \bot$ \\[-0.6ex]
   $\ZeroP$ &$\incompleteadd$ &$\ZeroP$   &$= \bot$ \\[-0.3ex]
   $\ZeroP$ &$\incompleteadd$ &$(x', y')$ &$= \bot$ \\[-0.6ex]
   $(x, y)$ &$\incompleteadd$ &$\ZeroP$   &$= \bot$ \\[-0.3ex]
@@ -8303,17 +8331,19 @@ Define $\SinsemillaHashToPoint(D \typecolon \byteseqs, M \typecolon \bitseq{\ran
 
 \introlist
 \vspace{-1ex}
-Finally, define $\SinsemillaHash \typecolon \byteseqs \times \bitseq{\range{0}{k \mult c}} \rightarrow \MerkleHash{Orchard}$ by:
+Finally, define $\SinsemillaHash \typecolon \byteseqs \times \bitseq{\range{0}{k \mult c}} \rightarrow \maybe{\MerkleHash{Orchard}}$ by:
 
 \begin{formulae}
-  \item $\SinsemillaHash(D, M) := \ExtractP\big(\SinsemillaHashToPoint\Of{D, M}\kern-0.1em\big)$.
+  \item $\SinsemillaHash(D, M) := \ExtractPbot\big(\SinsemillaHashToPoint\Of{D, M}\kern-0.1em\big)$.
 \end{formulae}
 
-See \cite[section TODO ``Sinsemilla'']{Zcash-Orchard} for rationale and efficient circuit implementation of these functions.
+See \cite[section ``Sinsemilla'']{Zcash-Orchard} for rationale and efficient circuit implementation of these functions.
 
+\vspace{-1.5ex}
 \securityrequirement{
 $\SinsemillaHash$ and $\SinsemillaHashToPoint$ are required to be \collisionResistant
-between inputs of fixed length, for a given personalization input $D$.
+between inputs of fixed length, for a given personalization input $D$. It must also be
+infeasible to find inputs $(D, M)$ such that $\SinsemillaHashToPoint(D, M) = \bot$.
 No other security properties commonly associated with \hashFunctions are needed.
 } %securityrequirement
 
@@ -8346,6 +8376,44 @@ to show security of the $\SinsemillaShortCommitAlg$ \commitmentScheme defined in
 \nullifier derivation defined in \crossref{commitmentsandnullifiers} against
 Faerie Gold attacks, as described in \crossref{faeriegold}.
 } %nnote
+
+\theoremlabel{thmsinsemillaex}
+\begin{theorem}[A $\bot$ output from $\SinsemillaHashToPoint$ yields a nontrivial discrete logarithm]\end{theorem}
+
+\begin{proof}
+For convenience of reference, we repeat the algorithm for $\SinsemillaHashToPoint$ in terms
+of the message pieces $m \typecolon \typeexp{\binaryrange{k}}{n}$, with indexing of the
+intermediate values of $\Acc$:
+
+\begin{formulae}
+  \item let $\Acc_0 \leftarrow \SinsemillaGenInit(D)$
+  \item for $i$ from $1$ up to $n$:
+        \vspace{-0.5ex}
+  \item \tab set $\Acc_i \leftarrow \big(\Acc_{i-1} \incompleteadd \SinsemillaGenBase(m_i)\kern-0.1em\big) \incompleteadd \Acc_{i-1}$
+  \item \blank
+  \item return $\Acc_n$.
+\end{formulae}
+
+We have an exceptional case if and only if $\Acc_i = \pm\, \SinsemillaGenBase(m_i)$ or $\Acc_i + \SinsemillaGenBase(m_i) = \pm\, \Acc_i$.
+(Since none of $\SinsemillaGenInit(D)$ or $\big\{\SinsemillaGenBase(j) \suchthat j \in \range{0}{2^k - 1}\kern-0.1em\big\}$ are $\ZeroP$,
+no intermediate results can be $\ZeroP$ unless one of the preceding conditions occurs.)
+
+If $\Acc_i + \SinsemillaGenBase(m_i) = \Acc_i$, then we have $\SinsemillaGenBase(m_i) = \ZeroP$
+contrary to assumption. So exceptional cases occur only if $\scalarmult{\alpha}{\Acc_i} + \SinsemillaGenBase(m_i) = \ZeroP$
+for some $i \in \range{0}{n}$ and some $\alpha \in \setof{-1, 1, 2}$.
+
+\vspace{0.5ex}
+$\Acc_i$ has a representation $\scalarmult{2^i}{\SinsemillaGenInit(D)} + \ssum{j=0}{i-1} \left(\scalarmult{x_{j+1}}{\SinsemillaGenBase(j)}\kern-0.1em\right)$
+for some $x \typecolon \typeexp{\GF{\ParamP{r}}}{i}$.
+So given $m$ that results in an exceptional case, the nontrivial discrete logarithm relation
+$\scalarmult{\alpha \mult 2^i}{\SinsemillaGenInit(D)} + \ssum{j=0}{i-1} \left(\scalarmult{\alpha \mult x_{j+1}}{\SinsemillaGenBase(j)}\kern-0.1em\right) + \SinsemillaGenBase(i) = \ZeroP$
+is easily computable from $m$. The coefficients in this representation do not overflow since
+$|\alpha \mult 2^i| \leq \ParamP{r}-1$, for all $i < n$ and $\alpha \in \setof{-1, 1, 2}$.
+\end{proof}
+
+Since by assumption it is hard to find a nontrivial discrete logarithm relation,
+we can argue that it is safe to use incomplete additions when computing Sinsemilla
+inside a circuit.
 } %nufive
 
 
@@ -9573,22 +9641,37 @@ which is equivalent to:
 Let $\BaseLength{Orchard}$ be as defined in \crossref{constants}.
 
 \vspace{-0.25ex}
-Let $\ExtractP$ be as defined in \crossref{concreteextractorpallas}.
+Let $\GroupP$ and $\ParamP{r}$ be as defined in \crossref{pallasandvesta}.
+
+\vspace{-0.25ex}
+Let $\ExtractPbot$ be as defined in \crossref{concreteextractorpallas}.
+
+\vspace{-0.25ex}
+Let $\SinsemillaHashToPoint$ and $\incompleteadd$ be as defined in \crossref{concretesinsemillahash}.
 
 \vspace{1ex}
-\crossref{concretesinsemillahash} defines a \xSinsemillaHash construction.
-We construct \defining{\xSinsemillaCommitments} by reusing that construction,
-and adding a randomized point on the \pallasCurve (see \crossref{pallasandvesta}):
+We construct \defining{\xSinsemillaCommitments} by reusing the \xSinsemillaHash construction,
+and adding (using incomplete addition) a randomized point on the \pallasCurve (see
+\crossref{pallasandvesta}):
 
 \begin{formulae}
   \item $\SinsemillaCommit{r}(D, M) :=
-           \SinsemillaHashToPoint(D \bconcat \ascii{-M}, M) + \scalarmult{r}{\GroupPHash\Of{D \bconcat \ascii{-r}, \ascii{}}}$
+           \SinsemillaHashToPoint(D \bconcat \ascii{-M}, M) \incompleteadd \scalarmult{r}{\GroupPHash\Of{D \bconcat \ascii{-r}, \ascii{}}}$
   \item $\SinsemillaShortCommit{r}(D, M) :=
-           \ExtractP\big(\SinsemillaCommit{r}(D, M)\kern-0.1em\big)$.
+           \ExtractPbot\big(\SinsemillaCommit{r}(D, M)\kern-0.1em\big)$.
 \end{formulae}
 
 \vspace{-1ex}
 See \cite[section TODO]{Zcash-Orchard} for rationale and efficient circuit implementation of this function.
+
+\vspace{1ex}
+The probability of the incomplete addition returning $\bot$ is insignificant (and
+such a case would yield a nontrivial discrete logarithm relation unless $r = 0$).
+
+$\SinsemillaCommitAlg$ is statistically hiding because the output distribution is statistically
+indistinguishable from a random point in $\GroupPstar$, given that $r$ is a uniformly random scalar
+on $[0, q)$. It follows that $\SinsemillaShortCommitAlg$ is also statistically hiding, since hiding
+cannot be affected by applying any fixed function to the \emph{output} of $\SinsemillaCommitAlg$.
 
 \vspace{0.5ex}
 The \commitmentScheme $\NoteCommitAlg{Orchard}$ specified in \crossref{abstractcommit} is
@@ -9608,7 +9691,7 @@ instantiated as follows using $\SinsemillaCommitAlg$:
 \end{formulae}
 
 The \commitmentScheme $\CommitIvkAlg$ specified in \crossref{abstractcommit} is
-instantiated as follows using $\SinsemillaCommitAlg$:
+instantiated as follows using $\SinsemillaShortCommitAlg$:
 
 \begin{formulae}
   \item $\CommitIvk{\CommitIvkRand}(\AuthSignPublic, \NullifierKey) :=
@@ -9623,18 +9706,15 @@ instantiated as follows using $\SinsemillaCommitAlg$:
 \begin{securityrequirements}
   \item $\SinsemillaCommitAlg$ and $\SinsemillaShortCommitAlg$, and hence
         $\NoteCommitAlg{Orchard}$ and $\CommitIvkAlg$, must be computationally binding
-        and at least computationally hiding \commitmentSchemes.
+        and at least computationally hiding \commitmentSchemes. They are in fact unconditionally
+        hiding \commitmentSchemes provided that no $\bot$ output is observed.
 \end{securityrequirements}
 
 \vspace{-1ex}
-(They are in fact unconditionally hiding \commitmentSchemes.)
-
-\begin{pnotes}
-  \item $\MerkleCRH{Orchard}$ is also defined in terms of $\SinsemillaHashToPoint$
-        (see \crossref{merklecrh}).
-  \item The arguments to $\NoteCommitAlg{Orchard}$ are the same order as their encodings in
-        the input to $\SinsemillaCommit{}$; this is different to $\NoteCommitAlg{Sapling}$.
-\end{pnotes}
+\pnote{
+The arguments to $\NoteCommitAlg{Orchard}$ are the same order as their encodings in
+the input to $\SinsemillaCommit{}$; this is different to $\NoteCommitAlg{Sapling}$.
+} %pnote
 
 \introlist
 \theoremlabel{thmuncommittedorchard}
@@ -9643,12 +9723,12 @@ instantiated as follows using $\SinsemillaCommitAlg$:
 \begin{proof}
 $\Uncommitted{Orchard}$ is defined as $\ItoLEBSPOf{\MerkleHashLength{Orchard}}{2}$.
 By injectivity of $\ItoLEBSP{\MerkleHashLength{Orchard}}$ and definitions of
-$\ExtractP$, $\SinsemillaShortCommitAlg$, and $\NoteCommitAlg{Orchard}$,
+$\ExtractPbot$, $\SinsemillaShortCommitAlg$, and $\NoteCommitAlg{Orchard}$,
 $\ItoLEBSPOf{\MerkleHashLength{Orchard}}{2}$ can be in the range of $\NoteCommitAlg{Orchard}$
 only if there exist $\NoteCommitRand \typecolon \NoteCommitTrapdoor{Orchard}$,
 $D \typecolon \byteseqs$, and $M \typecolon \bitseq{\smash{\PosInt}}$ such that
-$\ExtractP\big(\SinsemillaCommit{\NoteCommitRand}(D, M)\kern-0.1em\big) = 2$.
-$\ExtractP\big(\SinsemillaHashToPoint(D, M)\kern-0.1em\big)$ can only be $0$ or the
+$\ExtractPbot\big(\SinsemillaCommit{\NoteCommitRand}(D, M)\kern-0.1em\big) = 2$.
+$\ExtractPbot\big(\SinsemillaHashToPoint(D, M)\kern-0.1em\big)$ can only be $0$ or the
 \affineSW $x$-coordinate of a point in $\GroupP$.
 But $0 \neq 2 \pmod{\ParamP{q}}$, and there are no points in $\GroupP$ with
 \affineSW $x$-coordinate $2 \pmod{\ParamP{q}}$, since $2^3 + \ParamP{b} = 13$
@@ -9658,8 +9738,9 @@ is not square in $\GF{\ParamP{q}}$.
 \vspace{-2ex}
 \nnote{There are also no points in $\GroupP$ with \affineSW $x$-coordinate $0 \pmod{\ParamP{q}}$.
 We do not choose $\Uncommitted{Orchard} = \ItoLEBSPOf{\MerkleHashLength{Orchard}}{0}$ because we
-define $\ExtractP\Of{\ZeroP} = 0$, and it is technically possible (with negligible probability)
-that $\SinsemillaHashToPoint$ could return $\ZeroP$.}
+define $\ExtractPbot\Of{\ZeroP} = 0$. Although $\SinsemillaCommitAlg{}$ cannot return $\ZeroP$
+(the incomplete addition would return $\bot$ instead), it would arguably be confusing to rely on
+that.}
 } %nufive
 
 
@@ -10297,8 +10378,17 @@ Define $\ExtractP \typecolon \GroupP \rightarrow \GroupPx$ such that
 
 \vspace{-1ex}
 \begin{formulae}
-  \item $\ExtractP\big(\ZeroP\big) = 0$
-  \item $\ExtractP\big((x, y)\big) = x$.
+  \item $\ExtractP\big(\ZeroP\big) = \bot$
+  \item $\ExtractP\big((x, y)\big) = x \bmod \ParamP{q}$.
+\end{formulae}
+
+\vspace{-1ex}
+We also define $\ExtractPbot \typecolon \maybe{\GroupP} \rightarrow \maybe{\GroupPx}$ such that
+
+\vspace{-1ex}
+\begin{formulae}
+  \item $\ExtractPbot\big(\bot\big) = 0$
+  \item $\ExtractPbot\big(P \typecolon \GroupP\big) = \ExtractP(P)$.
 \end{formulae}
 
 \vspace{-2ex}
@@ -13723,6 +13813,10 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
           \begin{itemize}
             \item Fix typos.
             \item Correct the definition of $c$ in \crossref{concretesinsemillahash}.
+            \item Propagate $\bot$ intermediate results to the output of Sinsemilla primitives.
+            \item Change the output types of $\NoteCommitAlg{Orchard}$ and $\CommitIvkAlg$ to
+                  reflect that these can return $\bot$, and change the \actionStatement to be
+                  satisfied if they do.
           \end{itemize}
     \item Correct the description of $\lengthField$ in \crossref{unifiedpaymentaddrencoding}.
     \item Correct the type signature of $\DiversifyHash{Orchard}$ in \crossref{abstracthashes}.
