@@ -2303,6 +2303,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\SinsemillaCommit}[1]{\SinsemillaCommitAlg_{#1}}
 \newcommand{\SinsemillaShortCommitAlg}{\mathsf{SinsemillaShortCommit}}
 \newcommand{\SinsemillaShortCommit}[1]{\SinsemillaShortCommitAlg_{#1}}
+\newcommand{\pad}{\mathsf{pad}}
+\newcommand{\Mpadded}{M^{\mathsf{padded}}}
 
 % Consensus rules
 
@@ -8329,17 +8331,26 @@ Define $\incompleteadd \typecolon \maybe{\GroupP} \times \maybe{\GroupP} \righta
 
 \introlist
 \vspace{1ex}
-Define $\SinsemillaHashToPoint(D \typecolon \byteseqs, M \typecolon \bitseq{\range{0}{k \mult c}}) \rightarrow \GroupP$ as follows:
-
+Define $\pad(n \typecolon \range{0}{c}, M \typecolon \bitseq{\range{n \mult (k-1) + 1}{n \mult k}}) \rightarrow \typeexp{\binaryrange{k}}{n}$ as follows:
+\vspace{-1ex}
 \begin{algorithm}
-  \item pad $M$ to a multiple of $k$ bits by appending zero bits, giving $M'$.
-  \item let $n \typecolon \range{0}{c} = \ceiling{\hfrac{\length(M')}{k}\kern-0.1em}$
-  \item split $M'$ into $n$ \defining{\pieces} $M_\barerange{1}{n}$,
-        each of length $k$ bits, so that $M' = \concatbits(M_\barerange{1}{n})$.
+  \item pad $M$ to $n \mult k$ bits, giving $\Mpadded$.
+        \vspace{-0.25ex}
+  \item split $\Mpadded$ into $n$ \defining{\pieces} $\Mpadded_{\barerange{1}{n}}$,
+        each of length $k$ bits, so that $\Mpadded = \concatbits(\Mpadded_{\barerange{1}{n}})$.
+  \item return $\listcomp{\LEBStoIP{k}(\Mpadded_i) \for i \from 1 \upto n}$.
+\end{algorithm}
+
+Define $\SinsemillaHashToPoint(D \typecolon \byteseqs, M \typecolon \bitseq{\range{0}{k \mult c}}) \rightarrow \maybe{\GroupP}$ as follows:
+\vspace{-1ex}
+\begin{algorithm}
+  \item let $n \typecolon \range{0}{c} = \ceiling{\hfrac{\length(M)}{k}\kern-0.1em}$
+        \vspace{-0.5ex}
+  \item let $m = \pad_n(M)$
   \item let mutable $\Acc \leftarrow \SinsemillaGenInit(D)$
   \item for $i$ from $1$ up to $n$:
         \vspace{-0.5ex}
-  \item \tab set $\Acc \leftarrow \Big(\Acc \incompleteadd \SinsemillaGenBase\big(\LEBStoIP{k}(M_i)\kern-0.1em\big)\kern-0.15em\Big) \incompleteadd \Acc$
+  \item \tab set $\Acc \leftarrow \big(\Acc \incompleteadd \SinsemillaGenBase(m_i)\kern-0.1em\big) \incompleteadd \Acc$
   \item \blank
   \item return $\Acc$.
 \end{algorithm}
@@ -8370,26 +8381,98 @@ No other security properties commonly associated with \hashFunctions are needed.
         iteration of the loop can be precomputed, if $D$ is known in advance.
 \end{nnotes}
 
-\todo{Security proof}
+\vspace{-3ex}
+\lsubsubsubsubsection{Security argument}{sinsemillasecurity}
 
-\introlist
-\theoremlabel{thmshortsinsemillacr}
-\begin{theorem}[Collision resistance of generalized $\SinsemillaHash$]
+\vspace{-2.5ex}
+We show a correspondence between Sinsemilla and a vector Pedersen hash, which allows using the
+security argument from \cite{BGG1995} to show that collision-resistance can be tightly reduced
+to the discrete logarithm problem in $\mathbb{P}$.
 
-Consider ... We show that ...
+\vspace{1ex}
+Define $\delta(a, b) = \begin{cases}
+                         0, &\caseif a \neq b \\
+                         1, &\caseif a = b\text{.}
+                       \end{cases}$
+
+\vspace{-2ex}
+\theoremlabel{lemmasinsemillaonetoone}
+\begin{lemma}[An injectivity property for Sinsemilla]
+
+Let $n \typecolon \range{0}{c}$, and consider a sequence of message pieces $m \typecolon \typeexp{\binaryrange{k}}{n}$.
+Collect the scalars by which each generator $\SinsemillaGenBase(j)$ is multiplied in the
+algorithm for $\SinsemillaHashToPoint$:
+
+Define $x(m) = \biglistcomp{\vsum{i=1}{n} \big(2^{n-i} \mult \delta(m_i, j)\kern-0.1em\big) \pmod{\ParamP{r}} \for j \from 0 \upto 2^k - 1}$.
+
+The mapping $m \typecolon \typeexp{\binaryrange{k}}{n} \mapsto x(m) \typecolon \typeexp{\GF{\ParamP{r}}}{2^k} $ is injective.
+\end{lemma}
+
+\begin{proof}
+There is an injective mapping from $m$ to the matrix of bits with $2^k$ columns and $n$ rows, such
+that the bit at ($1$-based) column $j+1$ and row $i$ is set if and only if $m_i = j$. Then the binary representations
+of the elements of $x(m)$ are given by the columns of this matrix, and they do not overflow
+due to the requirement that $2^n \leq 2^c \leq \frac{\ParamP{r}-1}{2}$. The claim follows. $\qed$
+\end{proof}
+
+\theoremlabel{thmsinsemillacr}
+\begin{theorem}[Collision resistance of\, $\SinsemillaHash$ and\, $\SinsemillaHashToPoint$]
+
+Let $D \typecolon \byteseqs$ be a personalization input, and let $\ell \typecolon \range{0}{k \mult c}$.
+Finding a collision $M, M' \typecolon \bitseq{\ell}$ with $M \neq M'$ such that
+$\SinsemillaHashToPoint(D, M) = \SinsemillaHashToPoint(D, M')$ efficiently yields a nontrivial
+discrete logarithm relation, and similarly for $\SinsemillaHash(D, M) = \SinsemillaHash(D, M')$.
 \end{theorem}
 
 \begin{proof}
-...
+Without loss of generality we can restrict to the case where $\ell$ is a multiple of $k$:
+since $\pad_n$ is injective on inputs of a given bit length, \collisionResistance for
+$\ell = n \mult k$ bits implies \collisionResistance for each length that pads to $n \mult k$ bits.
+
+Since $\ell \in \range{0}{k \mult c}$ we have $n \in \range{0}{c}$. Then:
+\vspace{-1ex}
+\begin{formulae}
+  \item $\SinsemillaHashToPoint(M) = \scalarmult{2^n}{\SinsemillaGenInit(D)} + \vsum{j=0}{2^k - 1} \scalarmult{x(m)_{j+1}}{\SinsemillaGenBase(j)}$,\, where $m = \pad_n(M)$.
+\end{formulae}
+\vspace{-1ex}
+(The $j+1$ is just because sequence indices are $1$-based.)
+
+This is a Pedersen vector hash of the $x(m)$ elements, with a fixed offset $\scalarmult{2^n}{Q}$.
+The fixed offset does not affect \collisionResistance in this context. (See below for why
+it cannot be eliminated for $\SinsemillaHash$ or $\SinsemillaCommitAlg$, or when using incomplete
+addition.) It follows that the \collisionResistance of $\SinsemillaHash$ can be tightly reduced,
+via the proof in \cite[Appendix A]{BGG1995}, to the discrete logarithm problem over $\GroupP$.
+
+Note that \cite{BGG1995} requires for their main scheme that the scalars are nonzero, which
+is not necessarily the case in our context. However, their proof in Appendix A does not depend
+on this, given that $n$ is fixed. The restriction that scalars are nonzero appears to have
+been motivated by wanting to support variable-length messages and incremental hashing, which
+we do not.
+
+Now we consider $\SinsemillaHash$. We want to prove that if we can find two messages $M$
+and $M'$ such that $\ExtractPbot\big(\SinsemillaHash(M)\kern-0.1em\big) =
+\ExtractPbot\big(\SinsemillaHash(M')\kern-0.1em\big)$ then we can find a discrete logarithm.
+So either $\SinsemillaHash(M) = \SinsemillaHash(M')$ (in which case use the original Pedersen
+hash proof) or $\SinsemillaHash(M) = -\SinsemillaHash(M')$. In the latter case, let
+$m = \pad_n(M)$ and $m' = \pad_n(M')$, then we have
+
+\begin{tabular}{@{\hskip 1.5em}r@{\;}l}
+$    \scalarmult{2^n}{\SinsemillaGenInit(D)} + \vsum{j=0}{{2^k}-1} \scalarmult{x(m)_{j+1}}{\SinsemillaGenBase(j)} = $&$ -\kern-0.1em\left(\scalarmult{2^n}{\SinsemillaGenInit(D)} + \vsum{j'=0}{{2^k}-1} \scalarmult{x(m')_{j'+1}}{\SinsemillaGenBase(j')}\kern-0.1em\right)$ \\
+$\scalarmult{2^{n+1}}{\SinsemillaGenInit(D)} + \vsum{j=0}{{2^k}-1} \scalarmult{x(m)_{j+1} + x(m')_{j+1}}{\SinsemillaGenBase(j)} = $&$ 0$
+\end{tabular}
+
+Because the coefficients $\!\!\pmod{q}$ are not all zero, this is a nontrivial discrete logarithm
+relation between independent bases.
 \end{proof}
 
+\vspace{-4ex}
 \nnote{
-The above theorem covers the case where additional terms may be added to the
-$\SinsemillaHashToPoint$ output before applying $\ExtractP$. This is needed
-to show security of the $\SinsemillaShortCommitAlg$ \commitmentScheme defined in
-\crossref{concretesinsemillacommit}. It is also needed to show security of the
-\nullifier derivation defined in \crossref{commitmentsandnullifiers} against
-Faerie Gold attacks, as described in \crossref{faeriegold}.
+The above theorem easily extends to the case where additional scalar multiplication terms with
+independent bases may be added to the $\SinsemillaHashToPoint$ output before applying $\ExtractPbot$.
+This is needed to show security of the $\SinsemillaShortCommitAlg$ \commitmentScheme defined in
+\crossref{concretesinsemillacommit}. It is also needed to show security of \nullifier derivation
+defined in \crossref{commitmentsandnullifiers} against Faerie Gold attacks, as described in
+\crossref{faeriegold}.
 } %nnote
 
 \theoremlabel{thmsinsemillaex}
@@ -9682,6 +9765,11 @@ See \cite[section TODO]{Zcash-Orchard} for rationale and efficient circuit imple
 \vspace{1ex}
 The probability of the incomplete addition returning $\bot$ is insignificant (and
 such a case would yield a nontrivial discrete logarithm relation unless $r = 0$).
+The binding property of $\SinsemillaCommitAlg$ follows from \collisionResistance of
+$\SinsemillaHashToPoint$ proven in \theoremref{thmsinsemillacr}, given that
+$\GroupPHash\Of{D \bconcat \ascii{-r}, \ascii{}}$ is independent of any of the bases
+used in $\SinsemillaHashToPoint$. The binding property of $\SinsemillaShortCommitAlg$ can
+be proven by a similar argument to that used for $\SinsemillaHash$.
 
 $\SinsemillaCommitAlg$ is statistically hiding because the output distribution is statistically
 indistinguishable from a random point in $\GroupPstar$, given that $r$ is a uniformly random scalar
@@ -13825,6 +13913,7 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
           Charlie O'Keefe, David Campbell, Elena Giralt, Francisco Gindre, Joseph Van~Geffen, Josh Swihart,
           Kevin Gorham, Larry Ruane, Marshall Gaucher, and Ryan Taylor to the acknowledgements.
 \nufive{
+    \item Add proof of \collisionResistance for Sinsemilla.
     \item Correct some interim findings of the NCC specification audit:
           \begin{itemize}
             \item Fix typos.
