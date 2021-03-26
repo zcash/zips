@@ -6982,8 +6982,10 @@ is defined as follows:
                                       \NoteCommitRand_i \typecolon \NoteCommitTrapdoor{Sprout},
                                       \Memo_i \typecolon \MemoType)$ from $\TransmitPlaintext{i}$
         \vspace{-0.4ex}
-  \item if $\NotePlaintextLeadByte_i \neq \hexint{00}$ or $\NoteCommitment{Sprout}((\AuthPublic, \Value_i, \NoteUniqueRand_i,
-          \NoteCommitRand_i)) \neq \cm_i$, return $\bot$, else return $\NotePlaintext{i}$.
+  \item let $\NoteTuple{i} = (\AuthPublic, \Value_i, \NoteUniqueRand_i, \NoteCommitRand_i)$
+        \vspace{-0.4ex}
+  \item if $\NotePlaintextLeadByte_i \neq \hexint{00}$ or $\NoteCommitment{Sprout}(\NoteTuple{i}) \neq \cm_i$, return $\bot$
+  \item return $(\NoteTuple{i}, \Memo_i)$.
 \end{formulae}
 
 \introlist
@@ -7057,7 +7059,9 @@ For both encryption and decryption,
         instantiated in \crossref{notes};
         \vspace{-0.25ex}
   \item let $\ToScalar{}$ be $\ToScalar{Sapling}$ defined in \crossref{saplingkeycomponents}\nufive{ or
-        $\ToScalar{Orchard}$ defined in \crossref{orchardkeycomponents}}.
+        $\ToScalar{Orchard}$ defined in \crossref{orchardkeycomponents}};
+        \vspace{-0.25ex}
+  \item $\LEBStoOSP{}$, $\LEOStoIP{}$, $\ItoLEBSP{}$, and $\ItoLEOSP{}$ are defined in \crossref{endian}.
 \end{itemize}
 } %sapling
 
@@ -7201,9 +7205,7 @@ from $\TransmitPlaintext{}$
 } %canopy
   \item let $\DiversifiedTransmitPublic = \KADerivePublic{}(\InViewingKey, \DiversifiedTransmitBase)$
         \vspace{-0.25ex}
-  \item \notbeforenufive{for \Sapling,} let $\cmstar' = \ExtractJ{}\big(\NoteCommit{Sapling}{\NoteCommitRand}(\reprJ\Of{\DiversifiedTransmitBase},
-                                                                                             \reprJ\Of{\DiversifiedTransmitPublic},
-                                                                                             \Value)\kern-0.1em\big)$.
+  \item \notbeforenufive{for \Sapling,} let $\NoteTuple{} = (\Diversifier, \DiversifiedTransmitPublic, \Value, \NoteCommitRand)$
 \nufive{
   \item for \Orchard:
         \vspace{-0.3ex}
@@ -7211,20 +7213,25 @@ from $\TransmitPlaintext{}$
         \vspace{-0.6ex}
   \item \tab let $\NoteUniqueRand$ be equal to $\nfOld{}$ from the same \actionDescription.
         \vspace{-0.2ex}
-  \item \tab let $\cmstar' = \ExtractP\big(\NoteCommit{Orchard}{\NoteCommitRand}(\reprP\Of{\DiversifiedTransmitBase},
-                                                                                 \reprP\Of{\DiversifiedTransmitPublic},
-                                                                                 \Value,
-                                                                                 \NoteUniqueRand,
-                                                                                 \NoteNullifierRand)\kern-0.1em\big)$
+  \item \tab let $\NoteTuple{} = (\Diversifier, \DiversifiedTransmitPublic, \Value, \NoteUniqueRand, \NoteNullifierRand, \NoteCommitRand)$
   \item \blank
 } %nufive
-  \item if $\LEBStoOSPOf{256}{\cmstar'} \neq \cmstarField$, return $\bot$
-\vspace{-0.25ex}
-  \item return $\NotePlaintext{}$.
+  \item let $\cmstar' = \NoteCommitment{}\Of{\NoteTuple{}}$
+        \vspace{-0.2ex}
+\nufive{
+  \item if (for \Orchard) $\cmstar' = \bot$, return $\bot$
+        \vspace{-0.2ex}
+} %nufive
+  \item if $\ItoLEOSP{256}\big(\ExtractG{}(\cmstar')\kern-0.1em\big) \neq \cmstarField$, return $\bot$
+        \vspace{-1ex}
+  \item return $(\NoteTuple{}, \Memo)$.
 \end{algorithm}
 
 \vspace{-1.5ex}
 \begin{pnotes}
+        \vspace{-0.5ex}
+  \item $\DiversifiedTransmitBase$ has already been computed when applying $\NoteCommitment{}$, and need
+        not be computed again.
         \vspace{-0.5ex}
   \item For \Sapling, as explained in the note in \crossref{jubjub}, $\abstJ$ accepts \nonCanonicalPoint
         compressed encodings of \jubjubCurve points. Therefore, an implementation \MUST use the original
@@ -7248,8 +7255,7 @@ from $\TransmitPlaintext{}$
         \vspace{-0.5ex}
   \item A client \MAY attempt to decrypt a \noteCiphertextSapling of a \transaction in the \mempool\canopy{,
         using the next \blockHeight for $\BlockHeight$}. However, in that case it \MUSTNOT assume that
-        the \transaction will be mined and \MUST treat the decrypted information as provisional. It
-        will not be able to calculate the $\NoteUniqueRand$ value.
+        the \transaction will be mined and \MUST treat the decrypted information as provisional, and private.
 \end{pnotes}
 } %sapling
 
@@ -7323,14 +7329,8 @@ from $\TransmitPlaintext{}$
   \item let $\NoteCommitRand = \LEOStoIPOf{256}{\NoteCommitRandBytes}$
         and $\DiversifiedTransmitBase = \DiversifyHash{}(\Diversifier)$
         \vspace{-0.6ex}
-  \item if $\NoteCommitRand \geq \ParamG{r}$, return $\bot$
-\notbeforenufive{
-  \item for \Sapling:
-}
-  \item \notbeforenufive{\tab} if $\DiversifiedTransmitBase = \bot$ or $\DiversifiedTransmitPublic \not\in \SubgroupJ$, return $\bot$
-  \item \notbeforenufive{\tab} let $\cmstar' = \ExtractJ{}\big(\NoteCommit{Sapling}{\NoteCommitRand}(\reprJ\Of{\DiversifiedTransmitBase},
-                                                                                    \reprJ\Of{\DiversifiedTransmitPublic},
-                                                                                    \Value)\kern-0.1em\big)$.
+  \item if $\NoteCommitRand \geq \ParamG{r}$ or\notbeforenufive{ (for \Sapling)} $\DiversifiedTransmitBase = \bot$ or $\DiversifiedTransmitPublic \not\in \SubgroupJ$, return $\bot$
+  \item \notbeforenufive{for \Sapling,} let $\NoteTuple{} = (\Diversifier, \DiversifiedTransmitPublic, \Value, \NoteCommitRand)$
 \nufive{
   \item for \Orchard:
         \vspace{-0.4ex}
@@ -7338,23 +7338,35 @@ from $\TransmitPlaintext{}$
         \vspace{-0.75ex}
   \item \tab let $\NoteUniqueRand$ be equal to $\nfOld{}$ from the same \actionDescription.
         \vspace{-0.4ex}
-  \item \tab let $\cmstar' = \ExtractP\big(\NoteCommit{Orchard}{\NoteCommitRand}(\reprP\Of{\DiversifiedTransmitBase},
-                                                                                 \reprP\Of{\DiversifiedTransmitPublic},
-                                                                                 \Value,
-                                                                                 \NoteUniqueRand,
-                                                                                 \NoteNullifierRand)\kern-0.1em\big)$
+  \item \tab let $\NoteTuple{} = (\Diversifier, \DiversifiedTransmitPublic, \Value, \NoteUniqueRand, \NoteNullifierRand, \NoteCommitRand)$
   \item \vspace{-3.5ex}
 } %nufive
-  \item if $\LEBStoOSPOf{256}{\cmstar'} \neq \cmstarField$, return $\bot$
+  \item let $\cmstar' = \NoteCommitment{}\Of{\NoteTuple{}}$
+        \vspace{-0.4ex}
+\nufive{
+  \item if (for \Orchard) $\cmstar' = \bot$, return $\bot$
+        \vspace{-0.4ex}
+} %nufive
+  \item if $\ItoLEOSP{256}\big(\ExtractG{}(\cmstar')\kern-0.1em\big) \neq \cmstarField$, return $\bot$
         \vspace{-1ex}
   \item if $\reprG{}\big(\KADerivePublic{}(\EphemeralPrivate, \DiversifiedTransmitBase)\kern-0.12em\big) \neq \ephemeralKey$,
         return $\bot$
         \vspace{-0.4ex}
-  \item return $\NotePlaintext{}$.
+  \item return $(\NoteTuple{}, \Memo)$.
 \end{algorithm}
 
 \vspace{-2ex}
 \begin{pnotes}
+        \vspace{-0.75ex}
+  \item $\DiversifiedTransmitBase$ has already been computed when applying $\NoteCommitment{}$, and need
+        not be computed again.
+        \notnufive{\introlist}
+        \vspace{-0.5ex}
+  \item A previous version of this specification did not have the requirement for the decoded point
+        $\DiversifiedTransmitPublic$ of a \Sapling \note to be in the subgroup
+        \smash{$\SubgroupJ$ (i.e.\ ``if ... $\DiversifiedTransmitPublic \not\in \SubgroupJ$}, return $\bot$'').
+        That did not match the implementation in \zcashd.
+        \notbeforenufive{\introlist}
         \vspace{-0.5ex}
   \item As explained in the note in \crossref{jubjub}, $\abstJ$ accepts \nonCanonicalPoint
         compressed encodings of \jubjubCurve points. Therefore, an implementation \MUST use the original
@@ -7369,11 +7381,6 @@ from $\TransmitPlaintext{}$
   \nufiveonwarditem{This procedure returns $\bot$ if $\DiversifiedTransmitPublicRepr$ is \nonCanonicalPoint
         (which can only occur for \Sapling \notes), as specified in \cite{ZIP-216}.}
         \vspace{-0.5ex}
-  \item A previous version of this specification did not have the requirement for the decoded point
-        $\DiversifiedTransmitPublic$ of a \Sapling \note to be in the subgroup $\SubgroupJ$ (i.e.\ the condition
-        ``if ... $\DiversifiedTransmitPublic \not\in \SubgroupJ$, return $\bot$``). That did not match the
-        implementation in \zcashd, which does require $\DiversifiedTransmitPublic$ to be in the subgroup.
-        The specification has been changed to match \zcashd.
   \item The comments in \crossref{decryptivk} concerning calculation of $\NoteUniqueRand$, detection
         of spent \notes, and decryption of \noteCiphertextsSapling for \transactions in the \mempool also apply to
         \notes decrypted by this procedure.
@@ -7438,10 +7445,7 @@ to obtain each \note sent to the corresponding \shieldedPaymentAddress, its \mem
   \item \tab \tab \tab Attempt to decrypt the \notesCiphertextSprout component
                        $(\EphemeralPublic, \TransmitCiphertext{i})$ using $\InViewingKey$ with the
                        \vspace{-1.2ex}
-  \item \tab \tab \tab algorithm in \crossref{sproutdecrypt}. If this succeeds giving $\NotePlaintext{}$:
-  \item \tab \tab \tab \tab Extract $\NoteTuple{}$ and $\Memo \typecolon \MemoType$ from $\NotePlaintext{}$
-                            (taking the $\AuthPublic$ field of the \note to be $\AuthPublic$ from
-                            $\InViewingKey$).
+  \item \tab \tab \tab algorithm in \crossref{sproutdecrypt}. If this succeeds with $(\NoteTuple{}, \Memo)$:
   \item \tab \tab \tab \tab Add $(\NoteTuple{}, \Memo)$ to $\ReceivedSet$.
   \item \tab \tab \tab \tab Calculate the nullifier $\nf$ of $\NoteTuple{}$ using $\AuthPrivate$
                             as described in \crossref{notes}.
@@ -7459,47 +7463,50 @@ to obtain each \note sent to the corresponding \shieldedPaymentAddress, its \mem
 \sapling{
 \extralabel{saplingscan}{\lsubsection{Block Chain Scanning (\SaplingAndOrchardText)}{scan}}
 
-\nufive{\todo{generalize for \Orchard}}
-
-In \Sapling, \blockChain scanning requires only the $\NullifierKey$ and $\InViewingKey$
+In \SaplingAndOrchard, \blockChain scanning requires only the $\NullifierKey$ and $\InViewingKey$
 key components, rather than a \spendingKey as in \Sprout.
 
 Typically, these components are derived from a \fullViewingKey as described in
-\crossref{saplingkeycomponents}.
+\crossref{saplingkeycomponents}\nufive{ or \crossref{orchardkeycomponents}}.
 
 \vspace{1ex}
 Let $\PRFOutputLengthNfSapling$ be as defined in \crossref{constants}.
 
-Let $\NoteType{Sapling}$ be as defined in \crossref{notes}.
+\nufive{
+Let $\ParamP{q}$ be as defined in \crossref{pallasandvesta}.
+} %nufive
 
-Let $\KA{Sapling}$ be as defined in \crossref{concretesaplingkeyagreement}.
+Let $\NoteType{}$ be $\NoteType{Sapling}$\nufive{ or $\NoteType{Orchard}$} as defined in \crossref{notes}.
+
+Let $\KA{}$ be\notbeforenufive{ either} $\KA{Sapling}$ as defined in \crossref{concretesaplingkeyagreement}\nufive{, or
+$\KA{Orchard}$ as defined in \crossref{concreteorchardkeyagreement}}.
+
+Let $\NullifierType$ be $\PRFOutputNfSapling$\notbeforenufive{ for \Sapling}\nufive{, or $\GF{\ParamP{q}}$ for \Orchard}.
 
 \introsection
 \vspace{1ex}
-The following algorithm can be used, given the \blockChain and
-$(\NullifierKey \typecolon \SubgroupJ, \InViewingKey \typecolon \InViewingKeyTypeSapling)$,
-to obtain each \note sent to the corresponding \shieldedPaymentAddress, its \memo field,
-and its final status (spent or unspent).
+The following algorithm can be used, given the \blockChain and $(\NullifierKey, \InViewingKey)$,
+to obtain each \note sent to the corresponding \shieldedPaymentAddress, its \memo, and its final
+status (spent or unspent).
 
 \begin{algorithm}
-  \item let mutable $\ReceivedSet \typecolon \powerset{\NoteType{Sapling} \times \MemoType} \leftarrow \setof{}$
-  \item let mutable $\SpentSet \typecolon \powerset{\NoteType{Sapling}} \leftarrow \setof{}$
-  \item let mutable $\NullifierMap \typecolon \PRFOutputNfSapling \rightarrow \NoteType{Sapling} \leftarrow$ the empty mapping
+  \item let mutable $\ReceivedSet \typecolon \powerset{\NoteType{} \times \MemoType} \leftarrow \setof{}$
+  \item let mutable $\SpentSet \typecolon \powerset{\NoteType{}} \leftarrow \setof{}$
         \vspace{0.2ex}
+  \item let mutable $\NullifierMap \typecolon (\NullifierType \rightarrow \NoteType{}) \leftarrow$ the empty mapping
         \vspace{1ex}
   \item for each \transaction $\tx$:
-  \item \tab for each \outputDescription in $\tx$ with \notePosition $\NotePosition$:
+  \item \tab for each \outputDescription\nufive{ or \actionDescription} in $\tx$:
   \item \tab \tab Attempt to decrypt the \noteCiphertextSapling components
                   $\EphemeralPublic$ and $\TransmitCiphertext{}$ using $\InViewingKey$ with the algorithm\vspace{-1.2ex}%
-  \item \tab \tab in \crossref{decryptivk}. If this succeeds giving $\NotePlaintext{}$:
-  \item \tab \tab \tab Extract $\NoteTuple{}$ and $\Memo \typecolon \MemoType$ from $\NotePlaintext{}$
-  \item \tab \tab \tab Add $(\NoteTuple{}, \Memo)$ to $\ReceivedSet$
+  \item \tab \tab \crossref{decryptivk}. If this succeeds \notbeforenufive{\vspace{-1.2ex}\item \tab \tab }with $(\NoteTuple{}, \Memo)$:
+  \item \tab \tab \tab Add $(\NoteTuple{}, \Memo)$ to $\ReceivedSet$.
   \item \tab \tab \tab Calculate the nullifier $\nf$ of $\NoteTuple{}$ using $\NullifierKey$
-                       and $\NotePosition$ as described in \crossref{notes}.
+                       as described in \crossref{notes}. (This also requires $\NotePosition$\vspace{-1.2ex}
+  \item \tab \tab \tab from the \outputDescription\notbeforenufive{ for \Sapling \notes}.)
   \item \tab \tab \tab Add the mapping $\nf \rightarrow \NoteTuple{}$ to $\NullifierMap$.
   \item \blank
-  \item \tab for each \spendDescription in $\tx$:
-  \item \tab \tab let $\nf$ be the \nullifier of the \spendDescription
+  \item \tab for each \nullifier $\nf$ of a \spendDescription\nufive{ or \actionDescription} in $\tx$:
   \item \tab \tab if $\nf$ is present in $\NullifierMap$, add $\NullifierMap(\nf)$ to $\SpentSet$
   \item \blank
   \item return $(\ReceivedSet, \SpentSet)$.
@@ -14011,6 +14018,10 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
                   between the protocol specification and \cite{ZIP-225}.
             \item Make the naming of $\enableSpends$ and $\enableOutputs$ consistent.
           \end{itemize}
+    \item Change the specifications of \note decryption in \crossref{sproutinband} and
+          \crossref{saplingandorchardinband} to return the \note and \memo, rather than
+          a \notePlaintext.
+    \item Generalize the specification of \blockChain scanning in \crossref{scan} to support \Orchard.
     \item Update the $\hashFinalSaplingRoot$/$\hashLightClientRoot$/$\hashBlockCommitments$ field for
           \NUFive.
     \item Update specification of $\Poseidon$.
