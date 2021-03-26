@@ -1611,6 +1611,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\NoteCommitRandOrSeedBytes}{\notcanopy{\NoteCommitRand}\canopy{\NoteSeedBytes}}
 \newcommand{\NoteCommitRandBytesOrSeedBytes}{\notcanopy{\NoteCommitRandBytes}\canopy{\NoteSeedBytes}}
 \newcommand{\NoteUniqueRand}{\mathsf{\uprho}}
+\newcommand{\NoteUniqueRandPoint}{\NoteUniqueRand^{\GroupP}}
 \newcommand{\NoteUniqueRandRepr}{{\NoteUniqueRand\Repr}}
 \newcommand{\NoteUniqueRandOld}[1]{\NoteUniqueRand^\mathsf{old}_{#1}}
 \newcommand{\NoteUniqueRandNew}[1]{\NoteUniqueRand^\mathsf{new}_{#1}}
@@ -4330,7 +4331,7 @@ A \defining{\representedGroup} $\GroupG{}$ consists of:
   \item a bit-length parameter $\ellG{} \typecolon \Nat$;
   \item a representation function \smash{$\reprG{} \typecolon \GroupG{} \rightarrow \bitseq{\ellG{}}$}
         and an abstraction function \smash{$\abstG{} \typecolon \bitseq{\ellG{}} \rightarrow \maybe{\GroupG{}}$},
-        such that $\abstG{}$ is the left inverse of $\reprG{}$, i.e. for all $P \in \GroupG{}$,
+        such that $\abstG{}$ is a left inverse of $\reprG{}$, i.e. for all $P \in \GroupG{}$,
         $\abstG{}\big(\reprG{}(P)\kern-0.1em\big) = P$.
 \end{itemize}
 
@@ -4727,7 +4728,8 @@ For each \spendingKey, there is also a \defining{\defaultDiversifiedPaymentAddre
 with a ``random-looking'' \diversifier. This allows an implementation that does not expose
 diversified addresses as a user-visible feature, to use a default address that
 cannot be distinguished (without knowledge of the \spendingKey) from one with a random
-\diversifier as above.
+\diversifier as above. Note however that the \zcashd wallet picks \diversifiers as in
+\cite{ZIP-32}, rather than using this procedure.
 
 \introlist
 Let $\first \typecolon (\byte \rightarrow \maybe{T}) \rightarrow \maybe{T}$
@@ -4787,8 +4789,6 @@ if this happens, discard the key and repeat with a different $\SpendingKey$.
                    {\reprJ\big(\scalarmult{\AuthProvePrivate}{\AuthProveBaseSapling}} \typecolon \SubgroupReprJ\big)$
         is bijective, the distribution of $\reprJ\Of{\NullifierKey}$ will be computationally
         indistinguishable from uniform on $\SubgroupReprJ$ (the keyspace of $\PRFnf{Sapling}{}$).
-  \item The \zcashd wallet picks \diversifiers as in \cite{ZIP-32}, rather than using the default
-        \diversifier specified above.
 \end{nnotes}
 \vspace{-2ex}
 } %sapling
@@ -4893,26 +4893,27 @@ The resulting \diversifiedPaymentAddress is
 $(\Diversifier \typecolon \DiversifierType, \DiversifiedTransmitPublic \typecolon \KAPublic{Orchard})$.
 
 \vspace{1ex}
-For each \spendingKey, there is also a \defining{\defaultDiversifiedPaymentAddress}
-with a ``random-looking'' \diversifier, which is derived as specified in \cite{ZIP-32}.
+The \diversifiedPaymentAddress with \diversifierIndex $0$ is called the \defining{\defaultDiversifiedPaymentAddress}.
 
 \vspace{1ex}
 \begin{pnotes}
   \item The protocol does not prevent using the \diversifier $\Diversifier$ to produce
-        \quotedtermnoindex{vanity} addresses that start with a meaningful string when
-        encoded in \Bech (see \crossref{orchardpaymentaddrencoding}).
+        \quotedtermnoindex{vanity} addresses that start with or contain meaningful
+        strings when encoded in \Bechm (see \crossref{unifiedpaymentaddrencoding}).
         Users and writers of software that generates addresses should be aware that
         this provides weaker privacy properties than a randomly chosen \diversifier,
         since a vanity address can obviously be distinguished, and might leak more
         information than intended as to who created it.
-  \item Similarly, address generators \MAY encode information in the \diversifier
-        that can be recovered by the recipient of a payment to determine which
-        \diversifiedPaymentAddress was used. It is \RECOMMENDED that such \diversifiers
-        be randomly chosen unique values used to index into a database, rather than
-        directly encoding the needed data.
+  \item Address generators \MAY encode information in the \diversifierIndex
+        that can be recovered by the recipient of a payment, given the \diversifierKey.
 \end{pnotes}
 
-\todo{Security analysis of the uses of $\ToScalar{Orchard}$ and $\ToBase{Orchard}$.}
+\vspace{-2ex}
+\nnote{
+The uses of $\ToScalar{Orchard}$ and $\ToBase{Orchard}$ produce output that is
+uniform on $\GF{\ParamP{r}}$ and $\GF{\ParamP{q}}$ respectively when applied to random
+input, by a similar argument to that used in \crossref{saplingkeycomponents}.
+} %nnote
 } %nufive
 
 
@@ -5337,18 +5338,16 @@ with one or more \outputDescriptions.
 
 Let $\ValueCommitAlg{Sapling}$ and $\NoteCommitAlg{Sapling}$ be as specified in \crossref{abstractcommit}.
 
-\vspace{-0.5ex}
+\vspace{-0.25ex}
 Let $\KA{Sapling}$ be as specified in \crossref{abstractkeyagreement}.
 
-\vspace{-0.5ex}
+\vspace{-0.25ex}
 Let $\DiversifyHash{Sapling}$ be as specified in \crossref{abstracthashes}.
 
-\vspace{-0.5ex}
+\vspace{-0.25ex}
 Let $\ToScalar{Sapling}$ be as specified in \crossref{saplingkeycomponents}.
 
 Let $\reprJ$ and $\ParamJ{r}$ be as defined in \crossref{jubjub}.
-
-Let $\ItoLEOSP{}$ be as defined in \crossref{endian}.
 
 \vspace{1ex}
 \introlist
@@ -5430,57 +5429,67 @@ The encoded \transaction is submitted to the peer-to-peer network.
 
 
 \nufive{
+\vspace{-1ex}
 \introlist
 \lsubsubsection{Sending Notes (\OrchardText)}{orchardsend}
 
+\vspace{-1ex}
 In order to send \Orchard \shielded value, the sender constructs a \transaction
 with one or more \actionDescriptions. This section describes how to produce the
 output-related fields of an \actionDescription.
 
-\vspace{1ex}
+\vspace{0.5ex}
 Let $\ValueCommitAlg{Orchard}$ and $\NoteCommitAlg{Orchard}$ be as specified in \crossref{abstractcommit}.
 
+\vspace{-0.25ex}
 Let $\PRFexpand{}$ be as specified in \crossref{abstractprfs}.
 
+\vspace{-0.25ex}
 Let $\KA{Orchard}$ be as specified in \crossref{abstractkeyagreement}.
 
+\vspace{-0.25ex}
 Let $\DiversifyHash{Orchard}$ be as specified in \crossref{abstracthashes}.
 
+\vspace{-0.25ex}
 Let $\ToScalar{Orchard}$ and $\ToBase{Orchard}$ be as specified in \crossref{orchardkeycomponents}.
 
+\vspace{-0.25ex}
 Let $\reprP$ and $\ParamP{r}$ be as defined in \crossref{pallasandvesta}.
 
-Let $\ItoLEOSP{}$ be as defined in \crossref{endian}.
+Let $\ExtractPbot$ be as defined in \crossref{concreteextractorpallas}.
 
-\vspace{1ex}
+\vspace{0.5ex}
 Let $\OutViewingKey$ be an \Orchard \outgoingViewingKey that is intended to be able to decrypt
 this payment. The considerations for choosing \outgoingViewingKeys are as described for \Sapling
 in \crossref{saplingsend}.
 
 Let $\NotePlaintextLeadByte$ be the \notePlaintextLeadByte, which \MUST be $\hexint{02}$.
 
-\introlist
+\vspace{0.5ex}
 For each \actionDescription, the sender selects a value $\Value \typecolon \range{0}{\MAXMONEY}$
-and a destination \Orchard \shieldedPaymentAddress $(\Diversifier, \DiversifiedTransmitPublic)$,
-and then performs the following steps:
+and a destination \Orchard \shieldedPaymentAddress $(\Diversifier, \DiversifiedTransmitPublic)$, and
+performs the following steps:
 
 \begin{algorithm}
+        \vspace{-0.25ex}
   \item Check that $\DiversifiedTransmitPublic$ is of type $\KAPublic{Orchard}$, i.e.\ it
         \MUST be a valid \swCurve point on the \pallasCurve (as defined in \crossref{pallasandvesta}).
   \item Calculate $\DiversifiedTransmitBase = \DiversifyHash{Orchard}(\Diversifier)$.
-  \item Choose a uniformly random \commitmentTrapdoor $\ValueCommitRand \leftarrowR \ValueCommitGenTrapdoor{Orchard}()$.
         \vspace{-0.25ex}
+  \item Choose a uniformly random \commitmentTrapdoor $\ValueCommitRand \leftarrowR \ValueCommitGenTrapdoor{Orchard}()$.
   \item Choose uniformly random $\NoteSeedBytes \leftarrowR \NoteSeedBytesType$.
   \item Derive $\EphemeralPrivate = \ToScalar{Orchard}\big(\PRFexpand{\NoteSeedBytes}([4])\kern-0.1em\big)$.
   \item Derive $\NoteCommitRand = \ToScalar{Orchard}\big(\PRFexpand{\NoteSeedBytes}([5])\kern-0.11em\big)$.
   \item Derive $\NoteNullifierRand = \ToBase{Orchard}\big(\PRFexpand{\NoteSeedBytes}([9])\kern-0.09em\big)$.
   \item Let $\NoteUniqueRand$ be equal to $\nfOld{}$ from the same \actionDescription.
-  \item Let $\cv = \ValueCommit{Orchard}{\ValueCommitRand}(\Value)$.
-  \item Let $\cm = \NoteCommit{Orchard}{\NoteCommitRand}(\reprP\Of{\DiversifiedTransmitBase},
-                                                         \reprP\Of{\DiversifiedTransmitPublic},
-                                                         \Value, \NoteUniqueRand, \NoteNullifierRand)$.
-        \vspace{0.25ex}
-  \item If $\cm = \bot$, return $\bot$.
+  \item Let $\cvNet{}$ be the \valueCommitment to the value of the input \note minus the value $\Value$
+        of the output \note for this \actionTransfer, using $\ValueCommitRand$, as described in \crossref{orchardbalance}.
+        \vspace{-0.25ex}
+  \item Let $\cmX = \ExtractPbot\big(\NoteCommit{Orchard}{\NoteCommitRand}(\reprP\Of{\DiversifiedTransmitBase},
+                                                                           \reprP\Of{\DiversifiedTransmitPublic},
+                                                                           \Value, \NoteUniqueRand, \NoteNullifierRand)\kern-0.1em\big)$.
+        \vspace{0.2ex}
+  \item If $\cmX = \bot$, return $\bot$.
   \item Let $\NotePlaintext{} = (\NotePlaintextLeadByte, \Diversifier, \Value, \NoteSeedBytes, \Memo)$.
         \vspace{0.25ex}
   \item Encrypt $\NotePlaintext{}$ to the recipient
@@ -5488,11 +5497,12 @@ and then performs the following steps:
         \diversifiedBase $\DiversifiedTransmitBase$, and to the
         \outgoingViewingKey $\OutViewingKey$, giving the \noteCiphertextOrchard
         $(\EphemeralPublic, \TransmitCiphertext{}, \OutCiphertext)$.
-        This procedure is described in \crossref{saplingandorchardencrypt}; it also uses
-        $\cvField$ and $\cmxField$ to derive $\OutCipherKey$, and takes
+        This procedure is described in \crossref{saplingandorchardencrypt}; it uses
+        $\cvNet{}$ and $\cmX$ to derive $\OutCipherKey$, and takes
         $\EphemeralPrivate$ as input.
-  \item Generate a proof $\Proof{}$ for the \actionStatement in \crossref{actionstatement}.
-  \item Return $(\cv, \cm, \EphemeralPublic, \TransmitCiphertext{}, \OutCiphertext, \Proof{})$.
+  \item Fill in the spending side of the \actionTransfer (\crossref{spendauthsig}),
+        and generate a proof $\Proof{}$ for the \actionStatement in \crossref{actionstatement}.
+  \item Return $(\cv, \cmX, \EphemeralPublic, \TransmitCiphertext{}, \OutCiphertext, \Proof{})$.
 \end{algorithm}
 
 \vspace{-1ex}
@@ -5643,7 +5653,8 @@ constructed as follows:
   \item Choose uniformly random $\NoteSeedBytes \leftarrowR \NoteSeedBytesType$.
   \item Derive $\NoteCommitRand = \ToScalar{Orchard}\big(\PRFexpand{\NoteSeedBytes}([5])\kern-0.11em\big)$.
   \item Derive $\NoteNullifierRand = \ToBase{Orchard}\big(\PRFexpand{\NoteSeedBytes}([9])\kern-0.09em\big)$.
-  \item Let $\NoteUniqueRand$ be equal to $\nfOld{}$ from the same \actionDescription.
+  \item Choose uniformly random $\NoteUniqueRandPoint \leftarrowR \GroupP$.
+  \item Let $\NoteUniqueRand = \ExtractP(\NoteUniqueRandPoint)$.
   \item Let $\cv = \ValueCommit{Orchard}{\ValueCommitRand}(\Value)$.
   \item Let $\cm = \NoteCommit{Orchard}{\NoteCommitRand}\big(\reprP\Of{\DiversifiedTransmitBase},
                                                              \reprP\Of{\DiversifiedTransmitPublic},
@@ -6280,24 +6291,27 @@ both.}
 Knowledge of the \spendingKey could have been proven directly in the \spendStatement\nufive{ or
 \actionStatement}, similar to the check in \crossref{sproutspendauthority} that is part of the
 \joinSplitStatement. The motivation for a separate signature is to allow devices that are limited in
-memory and computational capacity, such as hardware wallets, to authorize a \Sapling shielded Spend.
-Typically such devices cannot create, and may not be able to verify, \zkSNARKProofs for
-a \statement of the size needed using the \BCTV or \Groth proving systems.
+memory and computational capacity, such as hardware wallets, to authorize a \SaplingOrOrchard
+shielded Spend. Typically such devices cannot create, and may not be able to verify, \zkSNARKProofs
+for a \statement of the size needed using the \BCTV\notnufive{ or \Groth}\notbeforenufive{,
+\Groth\nufive{, or \HaloTwo}} proving systems.
 
 \vspace{1ex}
-The \validatingKey of the signature must be revealed in the \spendDescription so that
-the signature can be checked by validators. To ensure that the \validatingKey cannot
-be linked to the \shieldedPaymentAddress or \spendingKey from which the \note was spent, we
-use a \rerandomizableSignatureScheme. The \spendStatement proves that this \validatingKey
-is a re-randomization of the \defining{\spendAuthAddressKey} $\AuthSignPublic$ with a \randomizer
-known to the signer. The \defining{\spendAuthSignature} is over the \sighashTxHash, so that it cannot be
-replayed in other \transactions.
+The \validatingKey of the signature must be revealed in the \spendDescription so that the
+signature can be checked by validators. To ensure that the \validatingKey cannot be linked
+to the \shieldedPaymentAddress or \spendingKey from which the \note was spent, we use a
+\rerandomizableSignatureScheme. The \spendStatement\nufive{ or \actionStatement} proves that
+this \validatingKey is a re-randomization of the \defining{\spendAuthAddressKey} $\AuthSignPublic$
+with a \randomizer known to the signer. The \defining{\spendAuthSignature} is over the
+\sighashTxHash, so that it cannot be replayed in other \transactions.
 
 \vspace{2ex}
-Let $\SigHash$ be the \sighashTxHash as defined in \cite{ZIP-243}, not associated with an input,
-using the \sighashType $\SIGHASHALL$.
+Let $\SigHash$ be the \sighashTxHash as defined in \cite{ZIP-243}\nufive{ or as defined in
+\cite{ZIP-244} modified by \cite{ZIP-225}}, not associated with an input, using the
+\sighashType $\SIGHASHALL$.
 
-Let $\AuthSignPrivate$ be the \defining{\spendAuthPrivateKey} as defined in \crossref{saplingkeycomponents}.
+Let $\AuthSignPrivate$ be the \defining{\spendAuthPrivateKey} as defined in
+\crossref{saplingkeycomponents}\nufive{ or in \crossref{orchardkeycomponents}}.
 
 \notbeforenufive{
 Let $\SpendAuthSig{}$ be $\SpendAuthSig{Sapling}$\nufive{ or $\SpendAuthSig{Orchard}$ as applicable}.
@@ -6305,7 +6319,8 @@ Let $\SpendAuthSig{}$ be $\SpendAuthSig{Sapling}$\nufive{ or $\SpendAuthSig{Orch
 
 \introsection
 \vspace{2ex}
-For each \spendDescription, the signer chooses a fresh \defining{\spendAuthRandomizer} $\AuthSignRandomizer$:
+For each \spendDescription\nufive{ or \actionDescription}, the signer chooses a fresh
+\defining{\spendAuthRandomizer} $\AuthSignRandomizer$:
 
 \begin{enumerate}
   \item Choose $\AuthSignRandomizer \leftarrowR \SpendAuthSigGenRandom{\maybeSapling}()$.
@@ -6384,10 +6399,16 @@ $\NoteUniqueRandRepr = \reprJ(\NoteUniqueRand)$.
 \nufive{
 The derivation of \nullifiers for \Orchard \notes is a little more complicated.
 
+Let $\GroupP$ and $\ParamP{q}$ be as defined in \crossref{pallasandvesta}.
+
+Let $\ExtractP$ be as defined in \crossref{concreteextractorpallas}.
+
+Let $\GroupPHash$ be as defined in \crossref{concretegrouphashpallasandvesta}.
+
 Define $\NullifierBaseOrchard := \GroupPHash\Of{\ascii{z.cash:Orchard}, \ascii{K}}\,$.
 
 To avoid repetition, we define a function $\DeriveNullifierAlg \typecolon
-\NullifierKeyTypeOrchard \times \NoteUniqueRandTypeOrchard \times \NoteNullifierRandType \times \GroupP$
+\NullifierKeyTypeOrchard \times \NoteUniqueRandTypeOrchard \times \NoteNullifierRandType \times \GroupP \rightarrow \GF{\ParamP{q}}$
 as follows:
 
 \begin{formulae}
@@ -7015,9 +7036,10 @@ engineering rationale behind this encryption scheme.
 \extralabel{saplinginband}{\lsubsection{In-band secret distribution (\SaplingAndOrchardText)}{saplingandorchardinband}}
 
 \vspace{-1ex}
-In \SaplingAndOrchard, the secrets that need to be transmitted to a recipient of funds
-in order for them to later spend, are $\Diversifier$, $\Value$, and $\NoteCommitRand$.
-A \memo (\crossref{noteptconcept}) is also transmitted.
+In \SaplingAndOrchard, the secrets that need to be transmitted to a recipient
+of a \note so that they can later spend it, are $\Diversifier$, $\Value$, and
+$\NoteCommitRand$\canopy{ or $\NoteSeedBytes$}. A \memo (\crossref{noteptconcept})
+is also transmitted.
 
 To transmit these secrets securely to a recipient \emph{without} requiring
 an out-of-band communication channel, the \diversifiedTransmissionKey
@@ -7025,8 +7047,7 @@ $\DiversifiedTransmitPublic$ is used to encrypt them. The recipient's
 possession of the associated \incomingViewingKey $\InViewingKey$ is used to
 reconstruct the original \note and \memo.
 
-Unlike in a \Sprout \joinSplitDescription, each \SaplingOrOrchard \shieldedOutput
-is encrypted by a fresh \ephemeralPublicKey.
+Unlike in \Sprout, each \SaplingOrOrchard \shieldedOutput is encrypted by a fresh \ephemeralPublicKey.
 
 \vspace{0.5ex}
 \introlist
@@ -7088,12 +7109,12 @@ spent, or an \outgoingViewingKey associated with a \cite{ZIP-32} account, or $\b
 
 Let $\NotePlaintext{} = (\NotePlaintextLeadByte, \Diversifier, \Value, \NoteCommitRandBytesOrSeedBytes, \Memo)$
 be the \SaplingOrOrchard \notePlaintext.
-
 $\NotePlaintext{}$ is encoded as defined in \crossref{notept}.
 
-Let $\cv$ be the \valueCommitment for the new \note, and let $\cm$ be the \noteCommitment.
-(These are needed to derive the \defining{\outgoingCipherKey} $\OutCipherKey$ in order to produce the
-\defining{\outgoingCiphertext} $\OutCiphertext$.)
+Let $\cv$ be the \valueCommitment for the \outputDescription\nufive{ or \actionDescription (for \Orchard,
+this also depends on the value of the \note being spent)}, and let $\cm$ be the \noteCommitment.
+These are needed to derive the \defining{\outgoingCipherKey} $\OutCipherKey$ in order to produce the
+\defining{\outgoingCiphertext} $\OutCiphertext$.
 
 \introlist
 \vspace{1ex}
@@ -7159,6 +7180,7 @@ $u$-coordinate\nufive{ or $x$-coordinate} of the \noteCommitment, i.e.\ $\Extrac
 \vspace{-0.25ex}
 Let the constant $\CanopyActivationHeight$ be as defined in \crossref{constants}.
 
+\vspace{-0.25ex}
 Let $\BlockHeight$ be the \blockHeight of the \block containing this \transaction.
 } %canopy
 
@@ -7760,7 +7782,7 @@ $\BlakeTwobGeneric$ is used to instantiate $\hSigCRH$, $\EquihashGen{}$,
 and $\KDF{Sprout}$.
 \overwinter{From \Overwinter onward, it is used to compute \sighashTxHashes
 as specified in \cite{ZIP-143}\sapling{, or as in \cite{ZIP-243} after
-\Sapling activation}.}
+\Sapling activation}\nufive{, or as in \cite{ZIP-244} for version 5 \transactions}.}
 \sapling{For \Sapling, it is also used to instantiate $\PRFexpand{}$,
 $\PRFock{Sapling}{}$, $\KDF{Sapling}$, and in the $\RedJubjub$ \signatureScheme
 which instantiates $\SpendAuthSig{Sapling}$ and $\BindingSig{Sapling}$.}
@@ -9680,7 +9702,9 @@ The windowed Pedersen commitments defined in the preceding section are
 highly efficient, but they do not support the homomorphic property we
 need when instantiating $\ValueCommitAlg{}$.
 
-For more details on the use of this property, see \crossref{saplingbalance}\nufive{, \crossref{orchardbalance},} and \crossref{spendsandoutputs}.
+For more details on the use of this property, see \crossref{saplingbalance}\nufive{ and \crossref{orchardbalance}}.
+
+Useful background is given in \crossref{spendsandoutputs}\nufive{ and \crossref{actions}}.
 
 \defining{In order to support this property, we also define \homomorphicPedersenCommitments for \Sapling:}
 
@@ -10339,13 +10363,6 @@ $\ExtractJ$ is injective on $\SubgroupJ$.
 \lsubsubsubsection{Group Hash into \JubjubText}{concretegrouphashjubjub}
 
 \vspace{-1ex}
-Let $\GroupJHashInput := \byteseq{8} \times \byteseqs$, and
-let $\GroupJHashURSType := \byteseq{64}$.
-
-(The input element with type $\byteseq{8}$ is intended to act as a
-``personalization'' parameter to distinguish uses of the \groupHash for
-different purposes.)
-
 Let $\URS$ be the MPC randomness beacon defined in \crossref{beacon}.
 
 \vspace{-0.25ex}
@@ -10356,6 +10373,13 @@ Let $\LEOStoIP{}$ be as defined in \crossref{endian}.
 
 \vspace{-0.25ex}
 Let $\SubgroupJ$, $\SubgroupJstar$, and $\abstJ$ be as defined in \crossref{jubjub}.
+
+Let $\GroupJHashInput := \byteseq{8} \times \byteseqs$, and
+let $\GroupJHashURSType := \byteseq{64}$.
+
+(The input element with type $\byteseq{8}$ is intended to act as a
+``personalization'' parameter to distinguish uses of the \groupHash for
+different purposes.)
 
 Let $D \typecolon \byteseq{8}$ be an $8$-byte domain separator, and
 let $M \typecolon \byteseqs$ be the hash input.
@@ -11073,12 +11097,11 @@ instead of \BaseFiftyEightCheck.
 \nnote{ZIP 173 is similar to \Bitcoin's BIP 173, except for dropping the limit of
 90 characters on an encoded \Bech string (which does not hold for \Sapling viewing keys,
 for example), and requirements specific to Bitcoin's Segwit addresses.}
-} %sapling
 
 \nufive{
 \vspace{1ex}
-\Orchard introduces a new address format called a \unifiedPaymentAddress. This can
-encode an \Orchard address, but also a \Sapling address, a \transparentAddress,
+\Orchard introduces a new address format called a \defining{\unifiedPaymentAddress}.
+This can encode an \Orchard address, but also a \Sapling address, a \transparentAddress,
 and potentially future address formats, all in the same \unifiedPaymentAddress.
 It is \RECOMMENDED to use \unifiedPaymentAddresses for all new applications, unless
 compatibility with software that only accepts previous address formats is required.
@@ -11767,8 +11790,10 @@ A fifth upgrade, called \defining{\Canopy}, activated on \Mainnet on 18~November
 at \blockHeight $1046400$ (coinciding with the first \blockSubsidy \halving)
 \cite{Zcash-Canopy} \cite{ZIP-251}.
 
+\nufive{
 This draft specification describes a set of changes codenamed \NUFive, which are
 proposed to activate in a future \networkUpgrade.
+} %nufive
 
 This section summarizes the strategy for upgrading from \Sprout to subsequent versions
 of the protocol (\Overwinter, \Sapling, \Blossom, \Heartwood, and \Canopy), and for
@@ -12256,11 +12281,6 @@ The changes relative to \Bitcoin version 1 \transactions as described in \cite{B
         a corresponding standard rule but no consensus rule.
 \end{itemize}
 
-\preoverwinter{
-Software that creates \transactions \SHOULD use version 1 for \transactions with no
-\joinSplitDescriptions.
-}
-
 \introsection
 \extralabel{joinsplitencoding}{\lsubsection{JoinSplit Description Encoding and Consensus}{joinsplitencodingandconsensus}}
 
@@ -12333,8 +12353,15 @@ Let $\LEBStoOSP{}{}$ be as defined in \crossref{endian}.
 Let $\reprJ$ and $\ParamJ{q}$ be as defined in \crossref{jubjub}.
 
 \vspace{-0.5ex}
+Let $\spendAuthSig$ be the \spendAuthSignature for this \spendTransfer, and let $\ProofSpend$ be the
+\zkSNARKProof of the corresponding \spendStatement. In a version 4 \transaction these are encoded in
+the $\spendAuthSigField$ field and $\zkproof$ field respectively of the \spendDescription.\nufive{ In
+a version 5 \transaction, \spendAuthSignatures in $\vSpendAuthSigs{Sapling}$ and proofs in
+$\vSpendProofsSapling$ are in one-to-one correspondence with \spendDescriptions in $\vSpendsSapling$.}
+
+\introsection
 An abstract \spendDescription, as described in \crossref{spendsandoutputs}, is encoded in
-a \transaction as an instance of a \type{SpendDescription} type as follows:
+a \transaction as an instance of a \type{SpendDescriptionV4}\nufive{ or \type{SpendDecriptionV5}} type:
 
 \vspace{-1.5ex}
 \begin{center}
@@ -12354,7 +12381,7 @@ $32$ & $\nullifierField$ & \type{byte[32]} &
 The \nullifier of the input \note, $\nf$. \\ \hline
 
 $32$ & $\rkField$ & \type{byte[32]} &
-The randomized \validatingKey for $\spendAuthSigField$, $\LEBStoOSPOf{256}{\reprJ\Of{\AuthSignRandomizedPublic}\kern 0.05em}$. \\ \hline
+The randomized \validatingKey for $\spendAuthSig$, $\LEBStoOSPOf{256}{\reprJ\Of{\AuthSignRandomizedPublic}\kern 0.05em}$. \\ \hline
 
 $192\nufive{\;\dagger}$ & $\zkproof$ & \type{byte[192]} &
 An encoding of the \zkSNARKProof $\ProofSpend$ (see \crossref{groth}). \\ \hline
@@ -12386,9 +12413,13 @@ Let $\LEBStoOSP{}{}$ be as defined in \crossref{endian}.
 \vspace{-0.5ex}
 Let $\reprJ$ and $\ParamJ{q}$ be as in \crossref{jubjub}, and $\ExtractJ$ as in \crossref{concreteextractorjubjub}.
 
+Let $\ProofOutput$ be the \zkSNARKProof of the \outputStatement for this \outputStatement. In a version 4
+\transaction this is encoded in the $\zkproof$ field of the \spendDescription.\nufive{ In a v5 \transaction,
+proofs in $\vOutputProofsSapling$ are in one-to-one correspondence with \outputDescriptions in $\vOutputsSapling$.}
+
 \vspace{-0.5ex}
 An abstract \outputDescription, described in \crossref{spendsandoutputs}, is encoded in
-a \transaction as an instance of an \type{OutputDescription} type as follows:
+a \transaction as an instance of an \type{OutputDescriptionV4}\nufive{ or \type{OutputDecriptionV5}} type:
 
 \vspace{-2.5ex}
 \begin{center}
@@ -12444,6 +12475,12 @@ Let $\LEBStoOSP{}{}$ be as defined in \crossref{endian}.
 Let $\reprP$ and $\ParamP{q}$ be as defined in \crossref{pallasandvesta}.
 
 \vspace{-0.5ex}
+Let $\spendAuthSig$ be the \spendAuthSignature for this \actionTransfer from $\vSpendAuthSigs{Orchard}$,
+and let $\ProofAction$ be the \zkSNARKProof of the corresponding \actionStatement. \xSpendAuthSignatures
+in the $\vSpendAuthSigs{Orchard}$ field of a version 5 \transaction and aggregated proofs in the
+$\proofsOrchard$ field are in one-to-one correspondence with \actionDescriptions in $\vActionsOrchard$.
+
+\vspace{0.5ex}
 An abstract \actionDescription, as described in \crossref{actions}, is encoded in
 a \transaction as an instance of an \type{ActionDescription} type:
 
@@ -12460,7 +12497,7 @@ minus the output \note, $\LEBStoOSP{256}\big(\reprP\Of{\cv}\kern-0.1em\big)$. \\
 
 $32$ & $\nullifierField$ & \type{byte[32]} & The \nullifier of the input \note, $\nf$. \\ \hline
 
-$32$ & $\rkField$ & \type{byte[32]} & The randomized \validatingKey for $\spendAuthSigField$,
+$32$ & $\rkField$ & \type{byte[32]} & The randomized \validatingKey for $\spendAuthSig$,
 $\LEBStoOSP{256}\big(\reprP\Of{\AuthSignRandomizedPublic}\kern-0.1em\big)$. \\ \hline
 
 $32$ & $\cmxField$ & \type{byte[32]} & The $x$-coordinate of the \noteCommitment for the output \note,
@@ -13974,7 +14011,7 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
 \lsection{Change History}{changehistory}
 
 
-\historyentry{2021.1.20}{2021-03-23}
+\historyentry{2021.1.20}{2021-03-25}
 \begin{itemize}
     \item Credit Eirik Ogilvie-Wigley as a designer of the Zcash protocol. Add Andre Serrano, Brad Miller,
           Charlie O'Keefe, David Campbell, Elena Giralt, Francisco Gindre, Joseph Van~Geffen, Josh Swihart,
@@ -14030,6 +14067,7 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
     \item Correct the description of $\lengthField$ in \crossref{unifiedpaymentaddrencoding}.
     \item Correct the type signature of $\DiversifyHash{Orchard}$ in \crossref{abstracthashes}.
     \item Various rationale updates for \NUFive.
+    \item Other fixes to the \Orchard specification, including generation of \dummyNotes and output \notes.
 } %nufive
 \sapling{
     \item Describe the recommended way to encode a \Sapling\nufive{ or unified} \paymentAddress
