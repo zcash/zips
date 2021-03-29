@@ -171,7 +171,7 @@ License: MIT</pre>
             <p>(
                 <span class="math">\(x\)</span>
              is the activation height of the preceding network upgrade.)</p>
-            <p>FlyClient reduces the number of block headers needed for light client verification of a valid chain, from linear (as in the current reference protocol) to logarithmic in block chain length. This verification is correct with high probability. It also allows creation of subtree proofs, so light clients need only check blocks later than the most recently verified block index. Following that, verification of a transaction inclusion within that block follows the usual reference protocol <a id="id6" class="footnote_reference" href="#zip-0307">11</a>.</p>
+            <p>FlyClient reduces the number of block headers needed for light client verification of a valid chain, from linear (as in the current reference protocol) to logarithmic in block chain length. This verification is correct with high probability. It also allows creation of subtree proofs, so light clients need only check blocks later than the most recently verified block index. Following that, verification of a transaction inclusion within that block follows the usual reference protocol <a id="id6" class="footnote_reference" href="#zip-0307">13</a>.</p>
             <p>A smaller proof size could enable the verification of Zcash SPV Proofs in block-chain protocols such as Ethereum, enabling efficient cross-chain communication and pegs. It also reduces bandwidth and storage requirements for resource-limited clients like mobile or IoT devices.</p>
         </section>
         <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
@@ -329,11 +329,54 @@ License: MIT</pre>
                         </dl>
                         <p>Serialized as <code>CompactSize uint</code>.</p>
                     </li>
+                    <li>[NU5 onward] <code>hashEarliestOrchardRoot</code></li>
                 </ol>
-                <p>Each node, when serialized, is between 147 and 171 bytes long. The canonical serialized representation of a node is used whenever creating child commitments for future nodes. Other than the metadata commitments, the MMR tree's construction is standard.</p>
+                <blockquote>
+                    <dl>
+                        <dt>Leaf node</dt>
+                        <dd>Calculated as the note commitment root of the final Orchard treestate (similar to <code>hashEarliestSaplingRoot</code> in Sapling).</dd>
+                        <dt>Internal or root node</dt>
+                        <dd>Inherited from the left child.</dd>
+                    </dl>
+                    <p>Serialized as <code>char[32]</code>.</p>
+                </blockquote>
+                <ol start="13" type="1">
+                    <li>[NU5 onward] <code>hashLatestOrchardRoot</code></li>
+                </ol>
+                <div>
+                    <h1>System Message: INFO/1 (zip-0221.rst line 169)</h1>
+                    <p>Enumerated list start value not ordinal-1: "13" (ordinal 13)</p>
+                </div>
+                <blockquote>
+                    <dl>
+                        <dt>Leaf node</dt>
+                        <dd>Calculated as the note commitment root of the final Orchard treestate (similar to <code>hashLatestSaplingRoot</code> in Sapling).</dd>
+                        <dt>Internal or root node</dt>
+                        <dd>Inherited from the right child.</dd>
+                    </dl>
+                    <p>Serialized as <code>char[32]</code>.</p>
+                </blockquote>
+                <ol start="14" type="1">
+                    <li>[NU5 onward] <code>nOrchardTxCount</code>
+                        <dl>
+                            <dt>Leaf node</dt>
+                            <dd>The number of transactions in the leaf block where <code>vActionsOrchard</code> is non-empty.</dd>
+                            <dt>Internal or root node</dt>
+                            <dd>The sum of the <code>nOrchardTxCount</code> field of both children.</dd>
+                        </dl>
+                        <p>Serialized as <code>CompactSize uint</code>.</p>
+                    </li>
+                </ol>
+                <div>
+                    <h1>System Message: INFO/1 (zip-0221.rst line 169)</h1>
+                    <p>Enumerated list start value not ordinal-1: "14" (ordinal 14)</p>
+                </div>
+                <p>The fields marked "[NU5 onward]" are omitted before NU5 activation <a id="id9" class="footnote_reference" href="#zip-0252">11</a>.</p>
+                <p>Each node, when serialized, is between 147 and 171 bytes long (between 212 and 244 bytes after NU5 activation). The canonical serialized representation of a node is used whenever creating child commitments for future nodes. Other than the metadata commitments, the MMR tree's construction is standard.</p>
                 <p>Once the MMR has been generated, we produce <code>hashChainHistoryRoot</code>, which we define as the BLAKE2b-256 digest of the serialization of the root node.</p>
             </section>
             <section id="tree-nodes-and-hashing-pseudocode"><h3><span class="section-heading">Tree nodes and hashing (pseudocode)</span><span class="section-anchor"> <a rel="bookmark" href="#tree-nodes-and-hashing-pseudocode"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Note that this pseudocode reflects the specification prior to NU5 activation.</p>
                 <pre data-language="python"><span class="k">def</span> <span class="nf">H</span><span class="p">(</span><span class="n">msg</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">consensusBranchId</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
     <span class="k">return</span> <span class="n">blake2b256</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">personalization</span><span class="o">=</span><span class="n">b</span><span class="s">&#39;ZcashHistory&#39;</span> <span class="o">+</span> <span class="n">consensusBranchId</span><span class="p">)</span>
 
@@ -421,7 +464,7 @@ License: MIT</pre>
                     <span class="math">\(B_n\)</span>
                 , we append a new MMR leaf node corresponding to block
                     <span class="math">\(B_{n-1}\)</span>
-                . The <code>append</code> operation is detailed below in pseudocode (adapted from <a id="id9" class="footnote_reference" href="#flyclient">2</a>):</p>
+                . The <code>append</code> operation is detailed below in pseudocode (adapted from <a id="id10" class="footnote_reference" href="#flyclient">2</a>):</p>
                 <pre data-language="python"><span class="k">def</span> <span class="nf">get_peaks</span><span class="p">(</span><span class="n">node</span><span class="p">:</span> <span class="n">ZcashMMRNode</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">ZcashMMRNode</span><span class="p">]:</span>
     <span class="n">peaks</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">ZcashMMRNode</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
 
@@ -509,8 +552,9 @@ License: MIT</pre>
     <span class="k">return</span> <span class="n">new_root</span></pre>
             </section>
             <section id="block-header-semantics-and-consensus-rules"><h3><span class="section-heading">Block header semantics and consensus rules</span><span class="section-anchor"> <a rel="bookmark" href="#block-header-semantics-and-consensus-rules"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>The following specification is accurate before NU5 activation. See <a id="id11" class="footnote_reference" href="#zip-0244">9</a> for header field changes in NU5.</p>
                 <p>The <code>hashFinalSaplingRoot</code> block header field (which was named <code>hashReserved</code> prior to the Sapling network upgrade) is renamed to <code>hashLightClientRoot</code>, to reflect its usage by light clients.</p>
-                <p>Prior to activation of the network upgrade that deploys this ZIP, this existing consensus rule on block headers (adjusted for the renamed field) is enforced: <a id="id10" class="footnote_reference" href="#protocol-blockheader">4</a></p>
+                <p>Prior to activation of the network upgrade that deploys this ZIP, this existing consensus rule on block headers (adjusted for the renamed field) is enforced: <a id="id12" class="footnote_reference" href="#protocol-blockheader">4</a></p>
                 <blockquote>
                     <p>[Sapling onward] <code>hashLightClientRoot</code> MUST be
                         <span class="math">\(\mathsf{LEBS2OSP}_{256}(\mathsf{rt})\)</span>
@@ -525,8 +569,9 @@ License: MIT</pre>
         </section>
         <section id="rationale"><h2><span class="section-heading">Rationale</span><span class="section-anchor"> <a rel="bookmark" href="#rationale"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <section id="tree-nodes"><h3><span class="section-heading">Tree nodes</span><span class="section-anchor"> <a rel="bookmark" href="#tree-nodes"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
-                <p>Nodes in the commitment tree are canonical and immutable. They are cheap to generate, as (with the exception of <code>nSaplingTxCount</code>) all metadata is already generated during block construction and/or checked during block validation. Nodes are relatively compact in memory. Approximately 140,000 blocks have elapsed since Sapling activation. Assuming a 164 byte commitment to each of these, we would have generated approximately 24 MB of additional storage cost for the set of leaf nodes (and an additional ~24 MB for storage of intermediate nodes).</p>
-                <p><code>hashSubtreeCommitment</code> forms the strucuture of the commitment tree. Other metadata commitments were chosen to serve specific purposes. Variable-length commitments are placed last, so that most metadata in a node can be directly indexed. We considered using fixed-length commitments here, but opted for variable-length, in order to marginally reduce the memory requirements for managing and updating the commitment trees.</p>
+                <p>Nodes in the commitment tree are canonical and immutable. They are cheap to generate, as (with the exception of <code>nSaplingTxCount</code> and <code>nOrchardTxCount</code>) all metadata is already generated during block construction and/or checked during block validation. Nodes are relatively compact in memory. As of the original publication of this ZIP, approximately 140,000 blocks had elapsed since Sapling activation. Assuming a 164-byte commitment to each of these, we would have generated approximately 24 MB of additional storage cost for the set of leaf nodes (and an additional ~24 MB for storage of intermediate nodes).</p>
+                <p><code>hashSubtreeCommitment</code> forms the strucuture of the commitment tree. Other metadata commitments were chosen to serve specific purposes. Originally variable-length commitments were placed last, so that most metadata in a node could be directly indexed. We considered using fixed-length commitments here, but opted for variable-length, in order to marginally reduce the memory requirements for managing and updating the commitment trees.</p>
+                <p>Open issue: currently Orchard fields are placed last; should they be placed between the existing fields? See <a href="https://github.com/zcash/zips/issues/476">zcash/zips#476</a>.</p>
                 <p>In leaf nodes, some information is repeated. We chose to do this so that leaf nodes could be treated identically to internal and root nodes for all algorithms and (de)serializers. Leaf nodes are easily identifiable, as they will show proof of work in the <code>hashSubtreeCommitment</code> field (which commits to the block hash for leaf nodes), and their block range (calculated as <code>nLatestHeight</code> - (<code>nEarliestHeight</code> - 1)) will be precisely 1.</p>
                 <p>Personalized BLAKE2b-256 was selected to match existing Zcash conventions. Adding the consensus branch ID to the hash personalization string ensures that valid nodes from one consensus branch cannot be used to make false statements about parallel consensus branches.</p>
                 <section id="flyclient-requirements-and-recommendations"><h4><span class="section-heading">FlyClient Requirements and Recommendations</span><span class="section-anchor"> <a rel="bookmark" href="#flyclient-requirements-and-recommendations"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h4>
@@ -569,12 +614,17 @@ License: MIT</pre>
                                 <li>If a future network upgrade introduced a new shielded pool, a new commitment to that pool's transactions would be added, to similarly enable future light clients that do not support Sapling addresses.</li>
                             </ul>
                         </li>
+                        <li><code>hashEarliestOrchardRoot</code>, <code>hashLatestOrchardRoot</code>, and <code>nOrchardTxCount</code>
+                            <ul>
+                                <li>These are included with the same rationale as for Sapling.</li>
+                            </ul>
+                        </li>
                     </ul>
                 </section>
             </section>
             <section id="header-format-change"><h3><span class="section-heading">Header Format Change</span><span class="section-anchor"> <a rel="bookmark" href="#header-format-change"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>The primary goal of the original authors was to minimize header changes; in particular, they preferred not to introduce changes that could affect mining hardware or embedded software. Altering the block header format would require changes throughout the ecosystem, so we decided against adding <code>hashChainHistoryRoot</code> to the header as a new field.</p>
-                <p>ZIP 301 states that "[Miner client software] SHOULD alert the user upon receiving jobs containing block header versions they do not know about or support, and MUST ignore such jobs." <a id="id11" class="footnote_reference" href="#zip-0301">10</a> As the only formally defined block header version is 4, any header version change requires changes to miner client software in order for miners to handle new jobs from mining pools. We therefore do not alter the block version for this semantic change. This does not make block headers ambiguous to interpret, because blocks commit to their block height inside their coinbase transaction, <a id="id12" class="footnote_reference" href="#bip-0034">7</a> and they are never handled in a standalone context (unlike transactions, which exist in the mempool outside of blocks).</p>
+                <p>ZIP 301 states that "[Miner client software] SHOULD alert the user upon receiving jobs containing block header versions they do not know about or support, and MUST ignore such jobs." <a id="id13" class="footnote_reference" href="#zip-0301">12</a> As the only formally defined block header version is 4, any header version change requires changes to miner client software in order for miners to handle new jobs from mining pools. We therefore do not alter the block version for this semantic change. This does not make block headers ambiguous to interpret, because blocks commit to their block height inside their coinbase transaction, <a id="id14" class="footnote_reference" href="#bip-0034">7</a> and they are never handled in a standalone context (unlike transactions, which exist in the mempool outside of blocks).</p>
                 <p>Replacing <code>hashFinalSaplingRoot</code> with <code>hashChainHistoryRoot</code> does introduce the theoretical possibility of an attack where a miner constructs a Sapling commitment tree update that results in the same 32-byte value as the MMR root. We don't consider this a realistic attack, both because the adversary would need to find a preimage over 32 layers of Pedersen hash, and because light clients already need to update their code to include the consensus branch ID for the Heartwood network upgrade, and can simultaneously make changes to not rely on the value of this header field being the Sapling tree root.</p>
                 <p>We also considered putting <code>hashChainHistoryRoot</code> in the <code>hashPrevBlock</code> field as it commits to the entire chain history, but quickly realized it would require massive refactoring of the existing code base and would negatively impact performance. Reorgs in particular are fragile, performance-critical, and rely on backwards iteration over the chain history. If a chain were to be designed from scratch there may be some efficient implementation that would join these commitments, but it is clearly not appropriate for Zcash as it exists.</p>
                 <p>The calculation of <code>hashChainHistoryRoot</code> is not well-defined for the genesis block, since then
@@ -590,10 +640,11 @@ License: MIT</pre>
             <p>Generally, header commitments have no impact on privacy. However, FlyClient has additional security and privacy implications. Because FlyClient is a motivating factor for this ZIP, it seems prudent to include a brief overview. A more in-depth security analysis of FlyClient should be performed before designing a FlyClient-based light client ecosystem for Zcash.</p>
             <p>FlyClient, like all light clients, requires a connection to a light client server. That server may collect information about client requests, and may use that information to attempt to deanonymize clients. However, because FlyClient proofs are non-interactive and publicly verifiable, they could be shared among many light clients after the initial server interaction.</p>
             <p>FlyClient proofs are probabilistic. When properly constructed, there is negligible probability that a dishonest chain commitment will be accepted by the verifier. The security analysis assumes adversary mining power is bounded by a known fraction of combined mining power of honest nodes, and cannot drop or tamper with messages between client and full nodes. It also assumes the client is connected to at least one full node and knows the genesis block.</p>
-            <p>In addition, <a id="id13" class="footnote_reference" href="#flyclient">2</a> only analyses these security properties in chain models with slowly adjusting difficulty, such as Bitcoin. That paper leaves their analysis in chains with rapidly adjusting difficulty –such as Zcash or Ethereum– as an open problem, and states that the FlyClient protocol provides only heuristic security guarantees in that case. However, as mentioned in <a href="#flyclient-requirements-and-recommendations">FlyClient Requirements and Recommendations</a>, additional commitments allowing light clients to reason about application of the difficulty adjustment algorithm were added in discussion with an author of the FlyClient paper. The use of these fields has not been analysed in the academic security literature. It would be possible to update them in a future network upgrade if further security analysis were to find any deficiencies.</p>
+            <p>In addition, <a id="id15" class="footnote_reference" href="#flyclient">2</a> only analyses these security properties in chain models with slowly adjusting difficulty, such as Bitcoin. That paper leaves their analysis in chains with rapidly adjusting difficulty –such as Zcash or Ethereum– as an open problem, and states that the FlyClient protocol provides only heuristic security guarantees in that case. However, as mentioned in <a href="#flyclient-requirements-and-recommendations">FlyClient Requirements and Recommendations</a>, additional commitments allowing light clients to reason about application of the difficulty adjustment algorithm were added in discussion with an author of the FlyClient paper. The use of these fields has not been analysed in the academic security literature. It would be possible to update them in a future network upgrade if further security analysis were to find any deficiencies.</p>
         </section>
         <section id="deployment"><h2><span class="section-heading">Deployment</span><span class="section-anchor"> <a rel="bookmark" href="#deployment"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>On the Zcash Mainnet and Testnet, this proposal will be deployed with the Heartwood network upgrade. <a id="id14" class="footnote_reference" href="#zip-0250">9</a></p>
+            <p>On the Zcash Mainnet and Testnet, this proposal will be deployed with the Heartwood network upgrade. <a id="id16" class="footnote_reference" href="#zip-0250">10</a></p>
+            <p>Additional fields are added on activation of the NU5 network upgrade <a id="id17" class="footnote_reference" href="#zip-0252">11</a>, to support the new Orchard shielded protocol.</p>
         </section>
         <section id="additional-reading"><h2><span class="section-heading">Additional Reading</span><span class="section-anchor"> <a rel="bookmark" href="#additional-reading"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <ul>
@@ -674,18 +725,34 @@ License: MIT</pre>
                     </tr>
                 </tbody>
             </table>
-            <table id="zip-0250" class="footnote">
+            <table id="zip-0244" class="footnote">
                 <tbody>
                     <tr>
                         <th>9</th>
+                        <td><a href="zip-0244">ZIP 244: Transaction Identifier Non-Malleability</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0250" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>10</th>
                         <td><a href="zip-0250">ZIP 250: Deployment of the Heartwood Network Upgrade</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0252" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>11</th>
+                        <td><a href="zip-0252">ZIP 252: Deployment of the NU5 Network Upgrade</a></td>
                     </tr>
                 </tbody>
             </table>
             <table id="zip-0301" class="footnote">
                 <tbody>
                     <tr>
-                        <th>10</th>
+                        <th>12</th>
                         <td><a href="https://github.com/zcash/zips/pull/78">ZIP 301: Zcash Stratum Protocol</a></td>
                     </tr>
                 </tbody>
@@ -693,7 +760,7 @@ License: MIT</pre>
             <table id="zip-0307" class="footnote">
                 <tbody>
                     <tr>
-                        <th>11</th>
+                        <th>13</th>
                         <td><a href="https://github.com/zcash/zips/pull/226">ZIP 307: Light Client Protocol for Payment Detection</a></td>
                     </tr>
                 </tbody>
