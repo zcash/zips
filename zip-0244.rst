@@ -27,7 +27,7 @@ field, as specified in section 7.1 of the Zcash protocol specification
 Abstract
 ========
 
-This proposal defines a new transaction digest algorithm for the <TBD> network upgrade
+This proposal defines a new transaction digest algorithm for the NU5 network upgrade
 onward, in order to introduce non-malleable transaction identifiers that commit to
 all transaction data except for attestations to transaction validity.
 
@@ -53,7 +53,7 @@ signatures.
 
 In addition, by specifying a transaction identifier and signature algorithm
 that is decoupled from the serialized format of the transaction as a whole,
-this change makes it so that the wire format of transactions is no longer 
+this change makes it so that the wire format of transactions is no longer
 consensus-critical.
 
 ============
@@ -84,8 +84,7 @@ Requirements
 
 - It should be possible to use the transaction id unmodified as the value that
   is used to produce a signature hash in the case that the transaction contains
-  no transparent inputs, or in the case that only the ``SIGHASH_ALL`` flag is
-  used.
+  no transparent inputs.
 
 
 ================
@@ -95,6 +94,10 @@ Non-requirements
 In order to support backwards-compatibility with parts of the ecosystem that
 have not yet upgraded to the non-malleable transaction format, it is not an
 initial requirement that all transactions be non-malleable.
+
+It is not required that legacy (Sapling V4 and earlier) transaction formats
+support construction of non-malleable transaction identifiers, even though
+they may continue to be accepted by the network after the NU5 upgrade.
 
 =============
 Specification
@@ -124,7 +127,6 @@ below::
     │   ├── prevouts_digest
     │   ├── sequence_digest
     │   └── outputs_digest
-    ├── sprout_digest
     └── sapling_digest
         ├── sapling_spends_digest
         │   ├── sapling_spends_compact_digest
@@ -146,8 +148,7 @@ A BLAKE2b-256 hash of the following values ::
 
    T.1: header_digest       (32-byte hash output)
    T.2: transparent_digest  (32-byte hash output)
-   T.3: sprout_digest       (32-byte hash output)
-   T.4: sapling_digest      (32-byte hash output)
+   T.3: sapling_digest      (32-byte hash output)
 
 The personalization field of this hash is set to::
 
@@ -220,27 +221,7 @@ The personalization field of this hash is set to::
 
   "ZTxIdOutputsHash"
 
-T.3: sprout_digest
-``````````````````
-A BLAKE2b-256 hash of the non-authorizing components of Sprout ``JSDescription`` values
-belonging to the transaction. For each ``JSDescription``, the following elements are
-appended to the hash ::
-
-   T.3a: vpub_old       (8-byte signed little-endian)
-   T.3b: vpub_new       (8-byte signed little-endian)
-   T.3c: anchor         (32 bytes)
-   T.3d: nullifiers     (2 x 32 bytes)
-   T.3e: commitments    (2 x 32 bytes)
-   T.3f: ephemeral_key  (32 bytes)
-   T.3g: random_seed    (32 bytes)
-   T.3h: macs           (2 x 32 bytes)
-   T.3i: ciphertexts    (2 x 601 bytes)
-
-The personalization field of this hash is set to::
-
-  "ZTxIdJSplitsHash"
-
-T.4: sapling_digest
+T.3: sapling_digest
 ```````````````````
 The digest of Sapling components is composed of two subtrees which are organized to
 permit easy interoperability with the ``CompactBlock`` representation of Sapling data
@@ -248,26 +229,26 @@ specified by the ZIP 307 Light Client Protocol [#zip-0307]_.
 
 This digest is a BLAKE2b-256 hash of the following values ::
 
-   T.4a: sapling_spends_digest  (32-byte hash)
-   T.4b: sapling_outputs_digest (32-byte hash)
-   T.4c: valueBalance           (64-bit signed little-endian)
+   T.3a: sapling_spends_digest  (32-byte hash)
+   T.3b: sapling_outputs_digest (32-byte hash)
+   T.3c: valueBalance           (64-bit signed little-endian)
 
 The personalization field of this hash is set to::
 
   "ZTxIdSaplingHash"
 
-T.4a: sapling_spends_digest
+T.3a: sapling_spends_digest
 '''''''''''''''''''''''''''
 This digest is a BLAKE2b-256 hash of the following values ::
 
-   T.4a.i:  sapling_spends_compact_digest    (32-byte hash)
-   T.4a.ii: sapling_spends_noncompact_digest (32-byte hash)
+   T.3a.i:  sapling_spends_compact_digest    (32-byte hash)
+   T.3a.ii: sapling_spends_noncompact_digest (32-byte hash)
 
 The personalization field of this hash is set to::
 
   "ZTxIdSSpendsHash"
 
-T.4a.i: sapling_spends_compact_digest
+T.3a.i: sapling_spends_compact_digest
 .....................................
 A BLAKE2b-256 hash of the field encoding of all ``nullifier`` field
 values of Sapling shielded spends belonging to the transaction.
@@ -276,69 +257,69 @@ The personalization field of this hash is set to::
 
   "ZTxIdSSpendCHash"
 
-T.4a.ii: sapling_spends_noncompact_digest
+T.3a.ii: sapling_spends_noncompact_digest
 .........................................
 A BLAKE2b-256 hash of the non-nullifier information for all Sapling shielded spends
 belonging to the transaction, excluding both zkproof data and spend authorization
 signature(s). For each spend, the following elements are included in the hash::
 
-   T.4a.ii.1: cv     (field encoding bytes)
-   T.4a.ii.2: anchor (field encoding bytes)
-   T.4a.ii.3: rk     (field encoding bytes)
+   T.3a.ii.1: cv     (field encoding bytes)
+   T.3a.ii.2: anchor (field encoding bytes)
+   T.3a.ii.3: rk     (field encoding bytes)
 
 The personalization field of this hash is set to::
 
   "ZTxIdSSpendNHash"
 
-T.4b: sapling_outputs_digest
+T.3b: sapling_outputs_digest
 ''''''''''''''''''''''''''''
 This digest is a BLAKE2b-256 hash of the following values ::
 
-   T.4a.i:   sapling_outputs_compact_digest    (32-byte hash)
-   T.4b.ii:  sapling_outputs_memos_digest      (32-byte hash)
-   T.4b.iii: sapling_outputs_noncompact_digest (32-byte hash)
+   T.3b.i:   sapling_outputs_compact_digest    (32-byte hash)
+   T.3b.ii:  sapling_outputs_memos_digest      (32-byte hash)
+   T.3b.iii: sapling_outputs_noncompact_digest (32-byte hash)
 
 The personalization field of this hash is set to::
 
   "ZTxIdSOutputHash"
 
-T.4b.i: sapling_outputs_compact_digest
+T.3b.i: sapling_outputs_compact_digest
 ......................................
 A BLAKE2b-256 hash of the subset of Sapling output information included in the
 ZIP-307 [#zip-0307]_ ``CompactBlock`` format for all Sapling shielded outputs
 belonging to the transaction. For each output, the following elements are included
 in the hash::
 
-   T.4b.i.1: cmu                  (field encoding bytes)
-   T.4b.i.2: ephemeral_key        (field encoding bytes)
-   T.4b.i.3: enc_ciphertext[..52] (First 52 bytes of field encoding)
+   T.3b.i.1: cmu                  (field encoding bytes)
+   T.3b.i.2: ephemeral_key        (field encoding bytes)
+   T.3b.i.3: enc_ciphertext[..52] (First 52 bytes of field encoding)
 
 The personalization field of this hash is set to::
 
   "ZTxIdSOutC__Hash" (2 underscore characters)
 
-T.4a.ii: sapling_outputs_memos_digest
+T.3b.ii: sapling_outputs_memos_digest
 .....................................
 A BLAKE2b-256 hash of the subset of Sapling shielded memo field data for all Sapling
 shielded outputs belonging to the transaction. For each output, the following elements
 are included in the hash::
 
-   T.4b.ii.1: enc_ciphertext[52..564] (contents of the encrypted memo field)
+   T.3b.ii.1: enc_ciphertext[52..564] (contents of the encrypted memo field)
 
 The personalization field of this hash is set to::
 
   "ZTxIdSOutM__Hash" (2 underscore characters)
 
-T.4a.iii: sapling_outputs_noncompact_digest
+T.3b.iii: sapling_outputs_noncompact_digest
 ...........................................
 A BLAKE2b-256 hash of the remaining subset of Sapling output information **not** included
 in the ZIP 307 [#zip-0307]_ ``CompactBlock`` format, excluding zkproof data, for all
 Sapling shielded outputs belonging to the transaction. For each output, the following
 elements are included in the hash::
 
-   T.4b.iii.1: cv                    (field encoding bytes)
-   T.4b.iii.2: enc_ciphertext[564..] (post-memo suffix of field encoding)
-   T.4b.iii.3: out_ciphertext        (field encoding bytes)
+   T.3b.iii.1: cv                    (field encoding bytes)
+   T.3b.iii.2: enc_ciphertext[564..] (post-memo suffix of field encoding)
+   T.3b.iii.3: out_ciphertext        (field encoding bytes)
 
 The personalization field of this hash is set to::
 
@@ -360,7 +341,6 @@ described in detail below::
     signature_digest
     ├── header_digest
     ├── transparent_sig_digest
-    ├── sprout_digest
     └── sapling_digest
 
 signature_digest
@@ -369,8 +349,7 @@ A BLAKE2b-256 hash of the following values ::
 
    S.1: header_digest          (32-byte hash output)
    S.2: transparent_sig_digest (32-byte hash output)
-   S.3: sprout_digest          (32-byte hash output)
-   S.4: sapling_digest         (32-byte hash output)
+   S.3: sapling_digest         (32-byte hash output)
 
 The personalization field of this hash is set to::
 
@@ -478,11 +457,7 @@ otherwise::
    the hash is immediately finalized, without being updated with any
    additional data
 
-S.3: sprout_digest
-``````````````````
-Identical to that specified for the transaction identifier.
-
-S.4: sapling_digest
+S.3: sapling_digest
 ```````````````````
 Identical to that specified for the transaction identifier.
 
@@ -495,7 +470,6 @@ The overall structure of the hash is as follows::
 
     auth_digest
     ├── transparent_scripts_digest
-    ├── sprout_auth_digest
     └── sapling_auth_digest
 
 Each node written as ``snake_case`` in this tree is a BLAKE2b-256 hash of authorizing
@@ -509,8 +483,7 @@ auth_digest
 A BLAKE2b-256 hash of the following values ::
 
    A1: transparent_scripts_digest (32-byte hash output)
-   A2: sprout_auth_digest         (32-byte hash output)
-   A3: sapling_auth_digest        (32-byte hash output)
+   A2: sapling_auth_digest        (32-byte hash output)
 
 The personalization field of this hash is set to::
 
@@ -527,21 +500,7 @@ The personalization field of this hash is set to::
 
   "ZTxAuthTransHash"
 
-A.2: sprout_auth_digest
-```````````````````````
-A BLAKE2b-256 hash of the field encoding of the ``zkproof`` values of each
-``JSDescription`` belonging to the transaction, followed by the
-``joinsplit_pubkey`` and ``joinsplit_sig``::
-
-   A.2a: zkproofs         (field encoding bytes)
-   A.2b: joinsplit_pubkey (field encoding bytes)
-   A.2b: joinsplit_sig    (field encoding bytes)
-
-The personalization field of this hash is set to::
-
-  "ZTxAuthSprouHash"
-
-A.3: sapling_auth_digest
+A.2: sapling_auth_digest
 ````````````````````````
 A BLAKE2b-256 hash of the field encoding of the Sapling ``zkproof`` value of each Sapling
 Spend Description, followed by the field encoding of the ``spend_auth_sig`` value of each
@@ -549,10 +508,10 @@ Sapling Spend Description belonging to the transaction, followed by the field en
 the ``zkproof`` field of each Sapling Output Description belonging to the transaction,
 followed by the field encoding of the binding signature::
 
-   A.3a: spend_zkproofs           (field encoding bytes)
-   A.3b: spend_auth_sigs          (field encoding bytes)
-   A.3c: output_zkproofs          (field encoding bytes)
-   A.3d: binding_sig              (field encoding bytes)
+   A.2a: spend_zkproofs           (field encoding bytes)
+   A.2b: spend_auth_sigs          (field encoding bytes)
+   A.2c: output_zkproofs          (field encoding bytes)
+   A.2d: binding_sig              (field encoding bytes)
 
 The personalization field of this hash is set to::
 
