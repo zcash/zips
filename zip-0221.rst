@@ -321,16 +321,53 @@ Each MMR node is defined as follows:
 
     Leaf node
       The number of transactions in the leaf block where either of
-      ``vShieldedSpend`` or ``vShieldedOutput`` is non-empty.
+      ``vSpendsSapling`` or ``vOutputsSapling`` is non-empty.
 
     Internal or root node
       The sum of the ``nSaplingTxCount`` field of both children.
 
     Serialized as ``CompactSize uint``.
 
-Each node, when serialized, is between 147 and 171 bytes long. The canonical serialized
-representation of a node is used whenever creating child commitments for future nodes.
-Other than the metadata commitments, the MMR tree's construction is standard.
+12. [NU5 onward] ``hashEarliestOrchardRoot``
+
+   Leaf node
+     Calculated as the note commitment root of the final Orchard treestate
+     (similar to ``hashEarliestSaplingRoot`` in Sapling).
+
+   Internal or root node
+     Inherited from the left child.
+
+   Serialized as ``char[32]``.
+
+13. [NU5 onward] ``hashLatestOrchardRoot``
+
+   Leaf node
+     Calculated as the note commitment root of the final Orchard treestate
+     (similar to ``hashLatestSaplingRoot`` in Sapling).
+
+   Internal or root node
+     Inherited from the right child.
+
+   Serialized as ``char[32]``.
+
+14. [NU5 onward] ``nOrchardTxCount``
+
+    Leaf node
+      The number of transactions in the leaf block where ``vActionsOrchard``
+      is non-empty.
+
+    Internal or root node
+      The sum of the ``nOrchardTxCount`` field of both children.
+
+    Serialized as ``CompactSize uint``.
+
+
+The fields marked "[NU5 onward]" are omitted before NU5 activation [#zip-0252]_.
+
+Each node, when serialized, is between 147 and 171 bytes long (between 212 and 244 bytes
+after NU5 activation). The canonical serialized representation of a node is used whenever
+creating child commitments for future nodes. Other than the metadata commitments, the
+MMR tree's construction is standard.
 
 Once the MMR has been generated, we produce ``hashChainHistoryRoot``, which we define as
 the BLAKE2b-256 digest of the serialization of the root node.
@@ -338,6 +375,8 @@ the BLAKE2b-256 digest of the serialization of the root node.
 
 Tree nodes and hashing (pseudocode)
 -----------------------------------
+
+Note that this pseudocode reflects the specification prior to NU5 activation.
 
 .. code-block:: python
 
@@ -523,6 +562,9 @@ in the right subtree of the MMR root.
 Block header semantics and consensus rules
 ------------------------------------------
 
+The following specification is accurate before NU5 activation. See [#zip-0244]_ for header
+field changes in NU5.
+
 The ``hashFinalSaplingRoot`` block header field (which was named ``hashReserved`` prior to
 the Sapling network upgrade) is renamed to ``hashLightClientRoot``, to reflect its usage
 by light clients.
@@ -550,18 +592,21 @@ Tree nodes
 ----------
 
 Nodes in the commitment tree are canonical and immutable. They are cheap to generate, as
-(with the exception of ``nSaplingTxCount``) all metadata is already generated during
-block construction and/or checked during block validation. Nodes are relatively compact in
-memory. Approximately 140,000 blocks have elapsed since Sapling activation. Assuming a 164
-byte commitment to each of these, we would have generated approximately 24 MB of
-additional storage cost for the set of leaf nodes (and an additional ~24 MB for storage of
-intermediate nodes).
+(with the exception of ``nSaplingTxCount`` and ``nOrchardTxCount``) all metadata is already
+generated during block construction and/or checked during block validation. Nodes are
+relatively compact in memory. As of the original publication of this ZIP, approximately
+140,000 blocks had elapsed since Sapling activation. Assuming a 164-byte commitment to
+each of these, we would have generated approximately 24 MB of additional storage cost for
+the set of leaf nodes (and an additional ~24 MB for storage of intermediate nodes).
 
 ``hashSubtreeCommitment`` forms the strucuture of the commitment tree. Other metadata
-commitments were chosen to serve specific purposes. Variable-length commitments are placed
-last, so that most metadata in a node can be directly indexed. We considered using
-fixed-length commitments here, but opted for variable-length, in order to marginally
+commitments were chosen to serve specific purposes. Originally variable-length commitments
+were placed last, so that most metadata in a node could be directly indexed. We considered
+using fixed-length commitments here, but opted for variable-length, in order to marginally
 reduce the memory requirements for managing and updating the commitment trees.
+
+Orchard fields are placed last, in order to avoid complicating existing uses of the other
+fields.
 
 In leaf nodes, some information is repeated. We chose to do this so that leaf nodes could
 be treated identically to internal and root nodes for all algorithms and (de)serializers.
@@ -642,6 +687,11 @@ inclusion in a future upgrade.
   * If a future network upgrade introduced a new shielded pool, a new commitment to that
     pool's transactions would be added, to similarly enable future light clients that do
     not support Sapling addresses.
+
+- ``hashEarliestOrchardRoot``, ``hashLatestOrchardRoot``, and ``nOrchardTxCount``
+
+  * These are included with the same rationale as for Sapling.
+
 
 Header Format Change
 --------------------
@@ -740,6 +790,9 @@ Deployment
 On the Zcash Mainnet and Testnet, this proposal will be deployed with the Heartwood
 network upgrade. [#zip-0250]_
 
+Additional fields are added on activation of the NU5 network upgrade [#zip-0252]_,
+to support the new Orchard shielded protocol.
+
 
 Additional Reading
 ==================
@@ -767,6 +820,8 @@ References
 .. [#mimblewimble] `MimbleWimble Grin MMR implementation <https://github.com/mimblewimble/grin/blob/aedac483f5a116b91a8baf6acffd70e5f980b8cc/core/src/core/pmmr/pmmr.rs>`_
 .. [#bip-0034] `BIP 34: Block v2, Height in Coinbase <https://github.com/bitcoin/bips/blob/master/bip-0034.mediawiki>`_
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
+.. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`_
 .. [#zip-0250] `ZIP 250: Deployment of the Heartwood Network Upgrade <zip-0250.rst>`_
+.. [#zip-0252] `ZIP 252: Deployment of the NU5 Network Upgrade <zip-0252.rst>`_
 .. [#zip-0301] `ZIP 301: Zcash Stratum Protocol <https://github.com/zcash/zips/pull/78>`_
 .. [#zip-0307] `ZIP 307: Light Client Protocol for Payment Detection <https://github.com/zcash/zips/pull/226>`_
