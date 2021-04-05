@@ -32,7 +32,6 @@ else
 	$(MAKE) clean all
 	git add *.pdf
 	git commit -m "Regenerate PDFs." *.pdf
-	if [[ "$(shell git diff HEAD |wc -l)" != "0" ]]; then echo "The working tree is not clean."; exit 1; fi
 	git tag "v$(TAG)"
 	git push --tags origin HEAD:master
 endif
