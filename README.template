@@ -42,8 +42,8 @@ and double-check the generated ``draft-*.html`` file before filing a Pull Reques
 Canopy ZIPs
 -----------
 
-This is the list of ZIPs included in Canopy (Network Upgrade 4), due to activate on
-mainnet in mid-November 2020:
+This is the list of ZIPs that were included in `Canopy (Network Upgrade 4) <https://z.cash/upgrade/canopy/>`_,
+which activated on mainnet on November 18, 2020.
 
 - `ZIP 207: Funding Streams <zip-0207.rst>`__
 - `ZIP 211: Disabling Addition of New Value to the Sprout Value Pool <zip-0211.rst>`__
