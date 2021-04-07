@@ -71,7 +71,6 @@ Index of ZIPs
     <tr> <td>0</td> <td class="left"><a href="zip-0000.rst">ZIP Process</a></td> <td>Active</td>
     <tr> <td><span class="reserved">1</span></td> <td class="left"><a class="reserved" href="zip-0001.rst">Network Upgrade Policy and Scheduling</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">2</span></td> <td class="left"><a class="reserved" href="zip-0002.rst">Design Considerations for Network Upgrades</a></td> <td>Reserved</td>
-    <tr> <td><span class="reserved">22</span></td> <td class="left"><a class="reserved" href="zip-0022.rst">Specification of getblocktemplate for Zcash</a></td> <td>Reserved</td>
     <tr> <td>32</td> <td class="left"><a href="zip-0032.rst">Shielded Hierarchical Deterministic Wallets</a></td> <td>Final</td>
     <tr> <td><span class="reserved">76</span></td> <td class="left"><a class="reserved" href="zip-0076.rst">Transaction Signature Validation before Overwinter</a></td> <td>Reserved</td>
     <tr> <td>143</td> <td class="left"><a href="zip-0143.rst">Transaction Signature Validation for Overwinter</a></td> <td>Final</td>
@@ -120,7 +119,12 @@ Index of ZIPs
     <tr> <td><span class="reserved">311</span></td> <td class="left"><a class="reserved" href="zip-0311.rst">Sapling Payment Disclosure</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">312</span></td> <td class="left"><a class="reserved" href="zip-0312.rst">Shielded Multisignatures using FROST</a></td> <td>Reserved</td>
     <tr> <td>313</td> <td class="left"><a href="zip-0313.rst">Reduce Conventional Transaction Fee to 1000 zatoshis</a></td> <td>Active</td>
+    <tr> <td><span class="reserved">314</span></td> <td class="left"><a class="reserved" href="zip-0314.rst">Privacy upgrades to the Zcash light client protocol</a></td> <td>Reserved</td>
+    <tr> <td><span class="reserved">315</span></td> <td class="left"><a class="reserved" href="zip-0315.rst">Best Practices for Wallet Handling of Multiple Pools</a></td> <td>Reserved</td>
+    <tr> <td><span class="reserved">316</span></td> <td class="left"><a class="reserved" href="zip-0316.rst">Unified Addresses</a></td> <td>Reserved</td>
     <tr> <td>321</td> <td class="left"><a href="zip-0321.rst">Payment Request URIs</a></td> <td>Proposed</td>
+    <tr> <td><span class="reserved">322</span></td> <td class="left"><a class="reserved" href="zip-0322.rst">Generic Signed Message Format</a></td> <td>Reserved</td>
+    <tr> <td><span class="reserved">323</span></td> <td class="left"><a class="reserved" href="zip-0323.rst">Specification of getblocktemplate for Zcash</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">339</span></td> <td class="left"><a class="reserved" href="zip-0339.rst">Wallet Recovery Words</a></td> <td>Reserved</td>
     <tr> <td>400</td> <td class="left"><a href="zip-0400.rst">Wallet.dat format</a></td> <td>Draft</td>
     <tr> <td>401</td> <td class="left"><a href="zip-0401.rst">Addressing mempool denial-of-service</a></td> <td>Final</td>
