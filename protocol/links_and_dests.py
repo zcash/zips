@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 try:
     from PyPDF2 import PdfFileReader
@@ -6,6 +7,9 @@ except ImportError:
     print("Please install the PyPDF2 library using `pip3 install PyPDF2`.\n")
     raise
 
+from urllib.request import urlopen, Request
+from urllib.error import URLError
+from os.path import basename
 from collections import deque
 import sys
 
@@ -13,47 +17,81 @@ def get_links_and_destinations(f):
     # Based on <https://stackoverflow.com/a/5978161/393146>
     pdf = PdfFileReader(f)
 
-    links = deque()
-    dests = deque()
-    errors = deque()
-
+    links = set()
     for pg in range(pdf.getNumPages()):
         obj = pdf.getPage(pg).getObject()
 
         for annotation in obj.get('/Annots', []):
             uri = annotation.getObject().get('/A', {}).get('/URI', None)
             if uri is not None and uri not in links:
-                links.append(uri)
+                links.add(uri)
 
     dests = pdf.getNamedDestinations()
 
-    for l in links:
-        if not l.startswith("https:"):
-            errors.append("Insecure or unrecognized protocol in link: " + l)
-
-        if l.startswith("https://zips.z.cash/protocol/"):
-            fragment = l.partition("#")[2]
-            if fragment and fragment not in dests:
-                errors.append("Missing link target: " + l)
-
-    return (links, dests, errors)
+    return (links, dests)
 
 
 def main(args):
     if len(args) < 2:
-        print("Usage: ./links_and_dests.py <file.pdf>")
+        print("Usage: ./links_and_dests.py [--check] [--print-dests] <file.pdf>")
         return 1
 
-    with open(args[1], 'rb') as f:
-        (links, dests, errors) = get_links_and_destinations(f)
+    check = '--check' in args[1:]
+    print_dests = '--print-dests' in args[1:]
+    paths = [arg for arg in args[1:] if not arg.startswith('--')]
+
+    all_links = {}  # url -> pdf_paths
+    all_dests = {}  # url -> dests
+
+    for pdf_path in paths:
+        with open(pdf_path, 'rb') as f:
+            (links, dests) = get_links_and_destinations(f)
+
+        for l in links:
+            refs = all_links.get(l, None)
+            if refs is None:
+                all_links[l] = refs = deque()
+            refs.append(pdf_path)
+
+        all_dests["https://zips.z.cash/protocol/" + basename(pdf_path)] = dests
+
+    errors = deque()
 
     print("Links:")
-    for l in links:
-        print(l)
+    for (l, p) in sorted(all_links.items()):
+        print(l, end=" ")
+        sys.stdout.flush()
+        what = "%s (occurs in %s)" % (l, " and ".join(p)) if len(paths) > 1 else l
+        status = ""
 
-    print("\nDestinations:")
-    for d in dests:
-        print(d)
+        if not l.startswith("https:"):
+            errors.append("Insecure or unrecognized protocol in link: " + what)
+            status = "❌"
+        else:
+            (url, _, fragment) = l.partition("#")
+            if url in all_dests:
+                if fragment and fragment not in all_dests[url]:
+                    errors.append("Missing link target: " + what)
+                    status = "❌"
+                else:
+                    status = "✓"
+            elif check:
+                try:
+                    headers = {"User-Agent": "Mozilla/5.0"}
+                    res = urlopen(Request(url=l, headers=headers))
+                    res.read()
+                    status = "✓"
+                except URLError as e:
+                    errors.append("Could not open link: %s due to %r" % (what, e))
+                    status = "❌"
+
+        print(status)
+
+    if print_dests:
+        for dests in all_dests:
+            print("\nDestinations for %s:" % (dests,))
+            for d in dests:
+                print(d)
 
     if errors:
         print("\nErrors:")

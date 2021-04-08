@@ -36,6 +36,10 @@ else
 	git push --tags origin HEAD:master
 endif
 
+.PHONY: linkcheck
+linkcheck:
+	./links_and_dests.py --check nu5.pdf protocol.pdf heartwood.pdf blossom.pdf sapling.pdf
+
 .Makefile.uptodate: Makefile
 	$(MAKE) clean
 	touch .Makefile.uptodate
