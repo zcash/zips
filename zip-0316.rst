@@ -27,17 +27,26 @@ The terms below are to be interpreted as follows:
 Recipient
   A wallet or other software that can receive transfers of assets (such
   as ZEC) or in the future potentially other transaction-based state changes.
+Producer
+  A wallet or other software that can create an Address (normally also a
+  Recipient).
 Sender
   A wallet or other software that can send transfers of assets, or other
-  future consensus state side-effects.
+  consensus state side-effects defined in future.
 Receiver
   The necessary information to transfer an asset to a Recipient that generated
   that Receiver using a specific Transfer Protocol. Each Receiver is associated
   unambiguously with a specific Receiver Type, identified by an integer Typecode.
+Receiver Encoding
+  An encoding of a Receiver as a byte sequence.
 Legacy Address (or LA)
-  A transparent, Sprout, or Sapling Address.
+  A Transparent, Sprout, or Sapling Address.
 Unified Address (or UA)
   A Unified Address combines multiple Receivers.
+Unified Full Viewing Key (or UFVK)
+  A Unified Full Viewing Key combines multiple Full Viewing Keys.
+Unified Incoming Viewing Key (or UIVK)
+  A Unified Incoming Viewing Key combines multiple Incoming Viewing Keys.
 Address
   Either a Legacy Address or a Unified Address.
 Transfer Protocol
@@ -56,7 +65,7 @@ Address Encoding
 Abstract
 ========
 
-This proposal defines Unified Addresses, which bundle together Zcash addresses
+This proposal defines Unified Addresses, which bundle together Zcash Addresses
 of different types in a way that can be presented as a single Address Encoding.
 It also defines Unified Viewing Keys, which perform a similar function for
 Zcash viewing keys.
@@ -66,7 +75,7 @@ Motivation
 ==========
 
 Up to and including the Canopy network upgrade, Zcash supported the following
-payment address types:
+Payment Address types:
 
 * Transparent Addresses (P2PKH and P2SH)
 * Sprout Addresses
@@ -76,20 +85,20 @@ Each of these has its own Address Encodings, as a string and as a QR code.
 (Since the QR code is derivable from the string encoding, for many purposes
 it suffices to consider the string encoding.)
 
-The Orchard proposal [#zip-0224]_ adds a new address type, Orchard Addresses.
+The Orchard proposal [#zip-0224]_ adds a new Address type, Orchard Addresses.
 
-The difficulty with defining new Address Encodings for each address type, is
+The difficulty with defining new Address Encodings for each Address type, is
 that end-users are forced to be aware of the various types, and in particular
 which types are supported by a given Sender or Recipient. In order to make
 sure that transfers are completed successfully, users may be forced to
-explicitly generate addresses of different types and re-distribute encodings
+explicitly generate Addresses of different types and re-distribute encodings
 of them, which adds significant friction and cognitive overhead to
 understanding and using Zcash.
 
 The goals for a Unified Address standard are as follows:
 
 - Simplify coordination between Recipients and Senders by removing complexity
-  from negotiating address types.
+  from negotiating Address types.
 - Provide a “bridging mechanism” to allow shielded wallets to successfully
   interact with conformant Transparent-Only wallets.
 - Allow older conformant wallets to interact seamlessly with newer wallets.
@@ -100,6 +109,8 @@ The goals for a Unified Address standard are as follows:
   shielding and/or migrating user funds.
 - Allow wallets to potentially develop new transfer mechanisms without
   underlying protocol changes.
+- Support abstractions corresponding to a Unified Address that provide the
+  functionality of Full Viewing Keys and Incoming Viewing Keys.
 - Provide forward compatibility that is standard for all wallets across a
   range of potential future features. Some examples might include Layer 2
   features, cross-chain interoperability and bridging, and decentralized
@@ -124,16 +135,16 @@ only supports a subset of payment methods for receiving and/or sending.
 Despite having some similar characteristics, the Unified Address standard is
 orthogonal to Payment Request URIs [#zip-0321]_ and similar schemes, and the
 Unified Address format is likely to be incorporated into such schemes as a new
-address type.
+Address type.
 
 Concepts
 --------
 
 Wallets follow a model *Interaction Flow* as follows:
 
-1. A Recipient *generates* an Address.
-2. The Recipient wallet *encodes* the Address.
-3. The Recipient wallet or human user *distributes* this Address Encoding,
+1. A Producer *generates* an Address.
+2. The Producer *encodes* the Address.
+3. The Producer wallet or human user *distributes* this Address Encoding,
    This ZIP leaves distribution mechanisms out of scope.
 4. A Sender wallet or user *imports* the Address Encoding through any of
    a variety of mechanisms (QR Code scanning, Payment URIs, cut-and-paste,
@@ -141,14 +152,15 @@ Wallets follow a model *Interaction Flow* as follows:
 5. A Sender wallet *decodes* the Address Encoding and performs validity
    checks.
 6. (Perhaps later in time) the Sender wallet executes a transfer of ZEC
-   (or other assets or future protocol state changes) to the Address.
+   (or other assets or protocol state changes) to the Address.
 
 Encodings of the same Address may be distributed zero or more times through
-different means. Zero or more Senders may import addresses. Zero or more of
+different means. Zero or more Senders may import Addresses. Zero or more of
 those may execute a Transfer. A single Sender may execute multiple Transfers
 over time from a single import.
 
-[TODO: examples]
+Steps 1 to 5 inclusive also apply to Interaction Flows for Unified Full Viewing
+Keys and Unified Incoming Viewing Keys.
 
 Addresses
 ---------
@@ -157,7 +169,7 @@ A Unified Address (or UA for short) combines one or more Receivers.
 
 When new Transport Protocols are introduced to the Zcash protocol after
 Unified Addresses are standardized, those should introduce new Receiver Types
-but *not* different address types outside of the UA standard. There needs
+but *not* different Address types outside of the UA standard. There needs
 to be a compelling reason to deviate from the standard, since the benefits
 of UA come precisely from their applicability across all new protocol
 upgrades.
@@ -166,7 +178,8 @@ Receivers
 ---------
 
 Every Wallet must properly *parse* a Unified Address containing unrecognized
-Receiver Types.
+Receiver Types; and similarly for Unified Full Viewing Keys and Unified
+Incoming Viewing Keys.
 
 A Wallet may process unrecognized Receiver Types by indicating to the user
 their presence or similar information for usability or diagnostic purposes.
@@ -181,8 +194,9 @@ The string encoding is resilient against typos, transcription errors,
 cut-and-paste errors, unanticipated truncation, or other anticipated
 UX hazards.
 
-There is a well-defined encoding of a Unified Address as a QR Code,
-which produces QR codes that are reasonably compact and robust.
+There is a well-defined encoding of a Unified Address (or UFVK or UIVK)
+as a QR Code, which produces QR codes that are reasonably compact and
+robust.
 
 There is a well-defined transformation between the QR Code and string
 encodings in either direction.
@@ -199,8 +213,8 @@ unrecognized Receiver Types well enough to ignore them.
 Transfers
 ---------
 
-When executing a Transfer the Sender selects a transfer method via a
-Selection process.
+When executing a Transfer the Sender selects a Receiver via a Selection
+process.
 
 Given a valid UA, Selection must treat any unrecognized Receiver as
 though it were absent.
@@ -217,42 +231,50 @@ though it were absent.
   shielded support without re-acquiring counterparty UAs. If they are
   re-acquired, the user flow and usability will be minimally disrupted.
 
+Viewing Keys
+------------
+
+A Unified Full Viewing Key (resp. Unified Incoming Viewing Key) can be
+used in a similar way to a Full Viewing Key (resp. Incoming Viewing Key)
+as described in the Zcash Protocol Specification [#protocol-nu5]_.
+
+Transparent Addresses do not have separate corresponding viewing keys,
+but the address itself can effectively be used as a viewing key.
+Therefore, a UFVK or UIVK should be able to include a Transparent Address.
+
+A wallet should support deriving a Unified Address from a UFVK, by
+deriving a Receiver from each Full Viewing Key in the UFVK. Any
+Transparent Address in the UFVK is left as-is.
+
+It is not possible to derive a Unified Address from a Unified Incoming
+Viewing Key.
+
+
 Open Issues and Known Concerns
 ------------------------------
 
-FIXME: We have a few of these I [Nathan] will add in future edits.
+TODO: We have a few of these that will be added in future edits.
 This is especially true of privacy impacts of transparent or cross-pool
 transactions and the associated UX issues.
-
-
-Non-requirements
-================
-
-...
 
 
 Specification
 =============
 
-Definitions
------------
+Encoding of Unified Addresses
+-----------------------------
 
-
-
-Encoding of Unified Payment Addresses
--------------------------------------
-
-Rather than defining a Bech32 string encoding of Orchard shielded
-payment addresses, we instead define a Unified Address format that
+Rather than defining a Bech32 string encoding of Orchard Shielded
+Payment Addresses, we instead define a Unified Address format that
 is able to encode a set of Receivers of different types. This enables
 the consumer of a Unified Address (i.e. the Sender) to choose the
 Receiver of the best type it supports, providing a better user
 experience as new Receiver Types are added in the future.
 
-Assume that we are given a set of one or more raw encodings of
-Receivers of distinct types. That is, the set may optionally
-contain one Receiver of each of the Receiver Types in the following
-fixed Priority List:
+Assume that we are given a set of one or more Receiver Encodings
+for distinct types. That is, the set may optionally contain one
+Receiver of each of the Receiver Types in the following fixed
+Priority List:
 
 * Typecode :math:`\mathtt{0x03}` — an Orchard raw address as defined
   in [#protocol-orchardpaymentaddrencoding]_;
@@ -260,72 +282,85 @@ fixed Priority List:
 * Typecode :math:`\mathtt{0x02}` — a Sapling raw address as defined
   in [#protocol-saplingpaymentaddrencoding]_;
 
-* Typecode :math:`\mathtt{0x01}` — a transparent P2SH address, *or*
-  Typecode :math:`\mathtt{0x00}` — a transparent P2PKH address.
+* Typecode :math:`\mathtt{0x01}` — a Transparent P2SH address, *or*
+  Typecode :math:`\mathtt{0x00}` — a Transparent P2PKH address.
 
-We say that a Receiver Type is “better” than another when it appears
+We say that a Receiver Type is “preferred” over another when it appears
 earlier in this Priority List.
 
 A Unified Address MUST contain at least one shielded Receiver
 (Typecodes :math:`\geq \mathtt{0x02}`).
 
 The Sender of a payment to a Unified Address MUST use the Receiver
-of the best Receiver Type that it supports from the set.
+of the most preferred Receiver Type that it supports from the set.
 
 For example, consider a wallet that supports sending funds to Orchard
-Receivers and does not support sending to any better Receiver Type. If
-that wallet is given a UA that includes an Orchard Receiver and possibly
-other Receivers, it MUST send to the Orchard Receiver.
+Receivers, and does not support sending to any Receiver Type that is
+preferred over Orchard. If that wallet is given a UA that includes an
+Orchard Receiver and possibly other Receivers, it MUST send to the
+Orchard Receiver.
 
 The raw encoding of a Unified Address is a concatenation of
 :math:`(\mathtt{typecode}, \mathtt{length}, \mathtt{addr})` encodings
 of the consituent Receivers:
 
 * :math:`\mathtt{typecode} : \mathtt{byte}` — the Typecode from the
-  above list;
+  above Priority List;
 
 * :math:`\mathtt{length} : \mathtt{byte}` — the length in bytes of
   :math:`\mathtt{addr}`;
 
-* :math:`\mathtt{addr} : \mathtt{byte[length]}` —
-  the raw encoding of a shielded payment address, or the :math:`160`-bit
-  script hash of a P2SH address [#P2SH]_, or the :math:`160`-bit
-  validating key hash of a P2PKH address [#P2PKH]_.
+* :math:`\mathtt{addr} : \mathtt{byte[length]}` — the Receiver Encoding.
 
-The result of the concatenation is then encoded with Bech32m
-[#bip-0350]_, ignoring any length restrictions. This is chosen over
-Bech32 in order to better handle variable-length inputs.
+A Receiver Encoding is the raw encoding of a Shielded Payment Address,
+or the :math:`160`-bit script hash of a P2SH address [#P2SH]_, or the
+:math:`160`-bit validating key hash of a P2PKH address [#P2PKH]_.
 
-For unified payment addresses on Mainnet, the Human-Readable Part (as
-defined in [#bip-0350]_) is “``u``”. For unified payment addresses
-on Testnet, the Human-Readable Part is “``utest``”.
+We append 16 zero bytes to the concatenated encodings, and then apply
+the :math:`\mathsf{F4Jumble}` algorithm as described in `Address Hardening`_.
+The output is then encoded with Bech32m [#bip-0350]_, ignoring any
+length restrictions. This is chosen over Bech32 in order to better
+handle variable-length inputs.
+
+To decode a Unified Address Encoding, a Sender MUST use the following
+procedure:
+
+* Decode using Bech32m, rejecting any address with an incorrect checksum.
+* Apply :math:`\mathsf{F4Jumble}^{-1}` (this can also reject if the input
+  is not in the correct range of lengths).
+* If the result ends in 16 zero bytes, remove them; otherwise reject.
+* Parse the result as a raw encoding as described above, rejecting any
+  address that does not parse correctly.
+
+For Unified Addresses on Mainnet, the Human-Readable Part (as defined
+in [#bip-0350]_) is “``u``”. For Unified Addresses on Testnet, the
+Human-Readable Part is “``utest``”.
 
 Notes:
 
 * The :math:`\mathtt{length}` field is always encoded as a single
   byte, *not* as a :math:`\mathtt{compactSize}`.
 
-* For transparent addresses, the :math:`\mathtt{addr}` field does not
-  include the first two bytes of a raw encoding.
+* For Transparent Addresses, the Receiver Encoding does not include
+  the first two bytes of a raw encoding.
 
-* There is intentionally no Typecode defined for a Sprout shielded
-  payment address. Since it is no longer possible (since activation
+* There is intentionally no Typecode defined for a Sprout Shielded
+  Payment Address. Since it is no longer possible (since activation
   of ZIP 211 in the Canopy network upgrade [#zip-0211]_) to send
   funds into the Sprout chain value pool, this would not be generally
   useful.
 
-* Consumers MUST ignore constituent addresses with Typecodes they do
+* Senders MUST ignore constituent Addresses with Typecodes they do
   not recognize.
 
-* Consumers MUST reject unified payment addresses in which the same
-  Typecode appears more than once, or that include both P2SH and
-  P2PKH transparent addresses, or that contain only a transparent
-  address.
+* Senders MUST reject Unified Addresses in which the same Typecode
+  appears more than once, or that include both P2SH and P2PKH
+  Transparent Addresses, or that contain only a Transparent Address.
 
-* Producers SHOULD order the constituent addresses in the same order
-  as the list of address types above. However, consumers MUST NOT
-  assume this ordering, and it does not affect which address should
-  be used by a consumer.
+* Producers SHOULD order the constituent Addresses in the same order
+  as in the Priority List above. However, Senders MUST NOT assume
+  this ordering, and it does not affect which Address should be used
+  by a Sender.
 
 * There MUST NOT be additional bytes at the end of the raw encoding
   that cannot be interpreted as specified above.
@@ -333,6 +368,22 @@ Notes:
 * A wallet MAY allow its user(s) to configure which Receiver Types
   it can send to. It MUST NOT allow the user(s) to change the order
   of the Priority List used to choose the Receiver Type.
+
+
+Encoding of Unified Full/Incoming Viewing Keys
+----------------------------------------------
+
+Unified Full or Incoming Viewing Keys are encoded analogously to
+Unified Addresses. The same Priority List and the same Typecodes are
+used. For Shielded Addresses, the encoding used in place of the
+:math:`\mathtt{addr}` field is the raw encoding of the Full Viewing
+Key or Incoming Viewing Key.
+
+Transparent Addresses do not have separate corresponding viewing keys,
+but the address itself can effectively be used as a viewing key.
+Therefore, a UFVK or UIVK MAY include a Transparent Address, which
+is encoded using the same Typecode and Receiver Encoding as in a
+Unified Address.
 
 
 Address hardening
@@ -345,20 +396,20 @@ Security goal (**near second preimage resistance**):
   Address that:
 
   a) has a string encoding matching that of *one of* the input
-     addresses on some subset of characters (for concreteness, consider
+     Addresses on some subset of characters (for concreteness, consider
      the first :math:`n` and last :math:`m` characters, up to some bound
      on :math:`n+m`);
   b) is controlled by the adversary (for concreteness, the adversary
      knows *at least one* of the private keys of the constituent
-     addresses).
+     Addresses).
 
 Security goal (**nonmalleability**):
 
 * In this variant, part b) above is replaced by the meaning of the new
-  address being “usefully” different than the address it is based on, even
+  Address being “usefully” different than the Address it is based on, even
   though the adversary does not know any of the private keys. For example,
-  if it were possible to delete a shielded constituent address from a UA
-  leaving only a transparent address, that would be a significant malleability
+  if it were possible to delete a shielded constituent Address from a UA
+  leaving only a Transparent Address, that would be a significant malleability
   attack.
 
 Discussion
@@ -367,7 +418,7 @@ Discussion
 There is a generic brute force attack against near second preimage
 resistance. The adversary generates UAs at random with known keys, until
 one has an encoding that partially collides with one of the :math:`q` target
-addresses. It may be possible to improve on this attack by making use of
+Addresses. It may be possible to improve on this attack by making use of
 properties of checksums, etc.
 
 The generic attack puts an upper bound on the achievable security: if it
@@ -376,14 +427,14 @@ set is :math:`c`, then the generic attack costs :math:`\sim \frac{w \cdot
 c^{n+m}}{q}`.
 
 There is also a generic brute force attack against nonmalleability. The
-adversary modifies the target address slightly and computes the corresponding
+adversary modifies the target Address slightly and computes the corresponding
 decoding, then repeats until the decoding is valid and also useful to the
-adversary (e.g. it would lead to the Sender using a transparent address).
+adversary (e.g. it would lead to the Sender using a Transparent Address).
 With :math:`w` defined as above, the cost is :math:`w/p` where :math:`p` is
 the probability that a random decoding is of the required form.
 
-Proposed solution
-'''''''''''''''''
+Solution
+''''''''
 
 We use an unkeyed 4-round Feistel construction to approximate a random
 permutation. (As explained below, 3 rounds would not be sufficient.)
@@ -429,17 +480,19 @@ the same until :math:`\ell_M` is larger than :math:`128` bytes.)
 Usage for Unified Addresses
 '''''''''''''''''''''''''''
 
-The producer of a unified address appends 16 zero bytes to the encoding of
-the sequence of (Typecode, length, addr), then applies :math:`\mathsf{F4Jumble}`
+In order to prevent the generic attack against nonmalleability, there
+needs to be some redundancy in the encoding. Therefore, the Producer of
+a Unified Address appends 16 zero bytes to the encoding of the sequence
+of (Typecode, length, addr), then applies :math:`\mathsf{F4Jumble}`
 before encoding the result with Bech32m.
 
-The consumer rejects any Bech32m-decoded byte sequence that is less than
+The Sender rejects any Bech32m-decoded byte sequence that is less than
 22 bytes or greater than 16448 bytes; otherwise it applies
 :math:`\mathsf{F4Jumble}^{-1}`. It rejects any result that does not end
 in 16 zero bytes, before stripping these 16 bytes and parsing the result.
 
-(22 bytes is the minimum size of a valid encoded address sequence,
-corresponding to just a transparent address, and 16448 bytes is the largest
+(22 bytes is the minimum size of a valid encoded Address sequence,
+corresponding to just a Transparent Address, and 16448 bytes is the largest
 input/output size supported by :math:`\mathsf{F4Jumble}`.)
 
 Heuristic analysis
@@ -481,23 +534,22 @@ A 4-round Feistel thwarts this and similar attacks. Defining :math:`x` and
 * if :math:`x' \neq x` and :math:`y' \neq y`, all four pieces are
   randomized.
 
-Note that the size of each piece is at least 11 bytes. TODO: analyze
-whether this is sufficient when using 4 rounds.
+Note that the size of each piece is at least 11 bytes.
 
 It would be possible to make an attack more expensive by making the work
-done by an address producer more expensive. (This wouldn't necessarily
-have to increase the work done by the consumer.) However, given that
-addresses may need to be produced on constrained computing platforms, this
-was not considered to be beneficial overall.
+done by a Producer more expensive. (This wouldn't necessarily have to
+increase the work done by the Sender.) However, given that Unified Addresses
+may need to be produced on constrained computing platforms, this was not
+considered to be beneficial overall.
 
 Efficiency
 ''''''''''
 
 The cost is dominated by 4 BLAKE2b compressions for :math:`\ell_M \leq 128`
-bytes. A UA containing a transparent address, a Sapling address, and an
-Orchard address, would have :math:`\ell_M = 112` bytes. The restriction
-to a single address with a given Typecode (and at most one transparent
-address) means that  this is also the maximum length as of NU5 activation.
+bytes. A UA containing a Transparent Address, a Sapling Address, and an
+Orchard Address, would have :math:`\ell_M = 112` bytes. The restriction
+to a single Address with a given Typecode (and at most one Transparent
+Address) means that this is also the maximum length as of NU5 activation.
 
 For longer UAs (when other Typecodes are added), the cost increases to 6
 BLAKE2b compressions for :math:`128 < \ell_M \leq 192`, and 10 BLAKE2b
@@ -530,12 +582,11 @@ LIONESS: https://www.cl.cam.ac.uk/~rja14/Papers/bear-lion.pdf
 
 * LIONESS is a similarly structured 4-round unbalanced Feistel cipher.
 
-Open questions
---------------
-
 
 Reference implementation
 ========================
+
+TODO.
 
 
 Acknowledgements
