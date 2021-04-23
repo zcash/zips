@@ -39,18 +39,20 @@ Use ``make`` to check that you are using correct
 and double-check the generated ``draft-*.html`` file before filing a Pull Request.
 
 
-Canopy ZIPs
------------
+NU5 ZIPs
+--------
 
-This is the list of ZIPs that were included in `Canopy (Network Upgrade 4) <https://z.cash/upgrade/canopy/>`_,
-which activated on mainnet on November 18, 2020.
+This is the list of ZIPs relevant to the proposed NU5 Upgrade, which
+is planned to activate on Mainnet at the beginning of October 2021:
 
-- `ZIP 207: Funding Streams <zip-0207.rst>`__
-- `ZIP 211: Disabling Addition of New Value to the Sprout Value Pool <zip-0211.rst>`__
-- `ZIP 212: Allow Recipient to Derive Sapling Ephemeral Secret from Note Plaintext <zip-0212.rst>`__
-- `ZIP 214: Consensus rules for a Zcash Development Fund <zip-0214.rst>`__
-- `ZIP 215: Explicitly Defining and Modifying Ed25519 Validation Rules <zip-0215.rst>`__
-- `ZIP 251: Deployment of the Canopy Network Upgrade <zip-0251.rst>`__
+- `ZIP 32: Shielded Hierarchical Deterministic Wallets <zip-0032.rst>`__ (updated)
+- `ZIP 216: Require Canonical Jubjub Point Encodings <zip-0216.rst>`__
+- `ZIP 221: FlyClient - Consensus-Layer Changes <zip-0221.rst>`__ (updated)
+- `ZIP 224: Orchard Shielded Protocol <zip-0224.rst>`__
+- `ZIP 225: Version 5 Transaction Format <zip-0225.rst>`__
+- `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`__
+- `ZIP 252: Deployment of the NU5 Network Upgrade <zip-0252.rst>`__
+- `ZIP 316: Unified Addresses <zip-0316.rst>`__
 
 
 License
