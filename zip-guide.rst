@@ -139,6 +139,6 @@ References
 ==========
 
 .. [#RFC2119] `RFC 2119: Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
-.. [#protocol] `Zcash Protocol Specification, Version 2020.1.15 or later <protocol/protocol.pdf>`_
-.. [#protocol-introduction] `Zcash Protocol Specification, Version 2020.1.15. Section 1: Introduction <protocol/protocol.pdf#introduction>`_
+.. [#protocol] `Zcash Protocol Specification, Version 2020.1.24 or later <protocol/protocol.pdf>`_
+.. [#protocol-introduction] `Zcash Protocol Specification, Version 2020.1.24. Section 1: Introduction <protocol/protocol.pdf#introduction>`_
 .. [#zip-xxxx] `ZIP xxxx: Title <zip-xxxx.rst>`_
