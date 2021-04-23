@@ -116,16 +116,16 @@ Valid reStructuredText
 ----------------------
 
 This is optional before publishing a PR, but to check whether a document is valid
-reStructuredText, first install rst2html5::
+reStructuredText, first install ``rst2html5``. E.g. on Debian-based distros::
 
-  sudo apt-get install python3-pip
+  sudo apt-get install python3-pip pandoc perl sed
   sudo pip3 install rst2html5
 
 Then, with ``zip-xxxx.rst`` in the root directory of a clone of this repo, run::
 
   make zip-xxxx.html
 
-and view ``zip-xxxx.html`` in a web browser.
+(or just ``make``) and view ``zip-xxxx.html`` in a web browser.
 
 
 Reference implementation
