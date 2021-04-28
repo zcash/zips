@@ -1619,6 +1619,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\NoteUniqueRand}{\mathsf{\uprho}}
 \newcommand{\NoteUniqueRandPoint}{\NoteUniqueRand^{\GroupP}}
 \newcommand{\NoteUniqueRandRepr}{{\NoteUniqueRand\Repr}}
+\newcommand{\NoteUniqueRandBytes}{\bytes{\NoteUniqueRand}}
+\newcommand{\NoteUniqueRandBytesOpt}{\NoteUniqueRandBytes^\mathsf{opt}}
 \newcommand{\NoteUniqueRandOld}[1]{\NoteUniqueRand^\mathsf{old}_{#1}}
 \newcommand{\NoteUniqueRandNew}[1]{\NoteUniqueRand^\mathsf{new}_{#1}}
 \newcommand{\NoteUniqueRandTypeOrchard}{\GF{\ParamP{q}}}
@@ -3763,8 +3765,8 @@ $\PRFexpand{}$ is used in the following places:
 } %notnufive
 \notbeforenufive{
   \item in the processes of sending (\crossref{saplingsend}\nufive{ and \crossref{orchardsend}}) and of receiving
-        (\crossref{saplingandorchardinband}) \notes, with inputs $[4]$ and $[5]$\nufive{, and for \Orchard also
-        $[9]$};
+        (\crossref{saplingandorchardinband}) \notes, with inputs $[4]$ and $[5]$\nufive{, and for \Orchard
+        $[t] \bconcat \NoteUniqueRandBytes$ with $t \in \setof{4, 5, 9}$};
 } %notbeforenufive
   \item in \cite{ZIP-32}, with inputs $[0]$, $[1]$, $[2]$ (intentionally matching \shortcrossref{saplingkeycomponents}),
         $[t \typecolon \range{16}{22}]$,\notnufive{ and} $[\hexint{80}]$\nufive{, and $[\hexint{81}]$}.
@@ -5523,6 +5525,8 @@ Let $\reprP$, $\ParamP{r}$, and the \pallasCurve be as defined in \crossref{pall
 
 Let $\ExtractPbot$ be as defined in \crossref{concreteextractorpallas}.
 
+Let $\ItoLEOSP{}$ be as defined in \crossref{endian}.
+
 \vspace{0.5ex}
 Let $\OutViewingKey$ be an \Orchard \outgoingViewingKey that is intended to be able to decrypt
 this payment. The considerations for choosing \outgoingViewingKeys are as described for \Sapling
@@ -5544,10 +5548,10 @@ performs the following steps:
   \item Choose a uniformly random \commitmentTrapdoor $\ValueCommitRand \leftarrowR \ValueCommitGenTrapdoor{Orchard}()$.
         \vspace{-0.25ex}
   \item Choose uniformly random $\NoteSeedBytes \leftarrowR \NoteSeedBytesType$.
-  \item Derive $\EphemeralPrivate = \ToScalar{Orchard}\big(\PRFexpand{\NoteSeedBytes}([4])\kern-0.1em\big)$.
-  \item Derive $\NoteCommitRand = \ToScalar{Orchard}\big(\PRFexpand{\NoteSeedBytes}([5])\kern-0.11em\big)$.
-  \item Derive $\NoteNullifierRand = \ToBase{Orchard}\big(\PRFexpand{\NoteSeedBytes}([9])\kern-0.09em\big)$.
-  \item Let $\NoteUniqueRand$ be equal to $\nfOld{}$ from the same \actionDescription.
+  \item Let $\NoteUniqueRand = \nfOld{}$ from the same \actionDescription, and let $\NoteUniqueRandBytes = \ItoLEOSPOf{256}{\NoteUniqueRand}$.
+  \item Derive $\EphemeralPrivate = \ToScalar{Orchard}\big(\PRFexpand{\NoteSeedBytes}([4] \bconcat \NoteUniqueRandBytes)\kern-0.1em\big)$.
+  \item Derive $\NoteCommitRand = \ToScalar{Orchard}\big(\PRFexpand{\NoteSeedBytes}([5] \bconcat \NoteUniqueRandBytes)\kern-0.11em\big)$.
+  \item Derive $\NoteNullifierRand = \ToBase{Orchard}\big(\PRFexpand{\NoteSeedBytes}([9] \bconcat \NoteUniqueRandBytes)\kern-0.09em\big)$.
   \item Let $\cvNet{}$ be the \valueCommitment to the value of the input \note minus the value $\Value$
         of the output \note for this \actionTransfer, using $\ValueCommitRand$, as described in \crossref{orchardbalance}.
         \vspace{-0.25ex}
@@ -5580,13 +5584,6 @@ In order to minimize information leakage, the sender \SHOULD randomize the order
 \actionDescriptions in a \transaction. Other considerations relating to information
 leakage from the structure of \transactions are beyond the scope of this specification.
 The encoded \transaction is submitted to the peer-to-peer network.
-
-\vspace{-2.5ex}
-\nnote{
-The inputs $[4]$ and $[5]$ are used as inputs to $\PRFexpand{}$ in both \Sapling and
-\Orchard shielded protocols. Since a fresh $\NoteSeedBytes$ is generated for each \note,
-this should have no negative effect on security.
-} %nnote
 } %nufive
 
 
@@ -5733,6 +5730,8 @@ Let $\DeriveNullifierAlg$ be as defined in \crossref{commitmentsandnullifiers}.
 
 Let $\NoteCommitAlg{Orchard}$ be as defined in \crossref{abstractcommit}.
 
+Let $\ItoLEOSP{}$ be as defined in \crossref{endian}.
+
 \introlist
 \vspace{0.5ex}
 The spend-related fields of an \actionDescription for a \dummy \Orchard input \note are
@@ -5745,10 +5744,10 @@ constructed as follows:
   \item Let $\Value = 0$.
   \item Choose uniformly random $\ValueCommitRand \leftarrowR \ValueCommitGenTrapdoor{Orchard}()$.
   \item Choose uniformly random $\NoteSeedBytes \leftarrowR \NoteSeedBytesType$.
-  \item Derive $\NoteCommitRand = \ToScalar{Orchard}\big(\PRFexpand{\NoteSeedBytes}([5])\kern-0.11em\big)$.
-  \item Derive $\NoteNullifierRand = \ToBase{Orchard}\big(\PRFexpand{\NoteSeedBytes}([9])\kern-0.09em\big)$.
   \item Choose uniformly random $\NoteUniqueRandPoint \leftarrowR \GroupP$.
-  \item Let $\NoteUniqueRand = \ExtractP(\NoteUniqueRandPoint)$.
+  \item Let $\NoteUniqueRand = \ExtractP(\NoteUniqueRandPoint)$ and $\NoteUniqueRandBytes = \ItoLEOSPOf{256}{\NoteUniqueRand}$.
+  \item Derive $\NoteCommitRand = \ToScalar{Orchard}\big(\PRFexpand{\NoteSeedBytes}([5] \bconcat \NoteUniqueRandBytes)\kern-0.1em\big)$.
+  \item Derive $\NoteNullifierRand = \ToBase{Orchard}\big(\PRFexpand{\NoteSeedBytes}([9] \bconcat \NoteUniqueRandBytes)\kern-0.1em\big)$.
   \item Let $\cv = \ValueCommit{Orchard}{\ValueCommitRand}(\Value)$.
   \item Let $\cm = \NoteCommit{Orchard}{\NoteCommitRand}\big(\reprP\Of{\DiversifiedTransmitBase},
                                                              \reprP\Of{\DiversifiedTransmitPublic},
@@ -7308,9 +7307,14 @@ from $\TransmitPlaintext{}$
   \canopyonwarditem{if $\BlockHeight < \CanopyActivationHeight + \ZIPTwoOneTwoGracePeriod \text{ and } \NotePlaintextLeadByte \not\in \setof{\hexint{01}, \hexint{02}}$, return $\bot$}
   \canopyonwarditem{if $\BlockHeight \geq \CanopyActivationHeight + \ZIPTwoOneTwoGracePeriod \text{ and } \NotePlaintextLeadByte \neq \hexint{02}$, return $\bot$}
         \vspace{-0.5ex}
+\nufive{
+  \item for \Orchard, let $\NoteUniqueRand = \nfOld{}$ from the same \actionDescription and
+        let $\NoteUniqueRandBytesOpt = \ItoLEOSPOf{256}{\NoteUniqueRand}$;
+        otherwise let $\NoteUniqueRandBytesOpt = [\hairspace]$\!\!
+} %nufive
   \canopyonwarditem{let $\NoteCommitRandBytes = \begin{cases}
                       \NoteSeedBytes,&\caseif \NotePlaintextLeadByte = \hexint{01} \\
-                      \ToScalar{}\big(\PRFexpand{\NoteSeedBytes}([5])\kern-0.11em\big),&\caseotherwise
+                      \ToScalar{}\big(\PRFexpand{\NoteSeedBytes}([5]\nufive{\, \bconcat \NoteUniqueRandBytesOpt})\kern-0.11em\big),&\caseotherwise
                     \end{cases}$}
   \item let $\NoteCommitRand = \LEOStoIPOf{256}{\NoteCommitRandBytes}$
         and $\DiversifiedTransmitBase = \DiversifyHash{}(\Diversifier)$
@@ -7318,7 +7322,7 @@ from $\TransmitPlaintext{}$
   \canopyonwarditem{if $\NotePlaintextLeadByte \neq \hexint{01}$:}
 \canopy{
         \vspace{-0.2ex}
-  \item \tab $\EphemeralPrivate = \ToScalar{}\big(\PRFexpand{\NoteSeedBytes}([4])\kern-0.11em\big)$
+  \item \tab $\EphemeralPrivate = \ToScalar{}\big(\PRFexpand{\NoteSeedBytes}([4]\nufive{\, \bconcat \NoteUniqueRandBytesOpt})\kern-0.11em\big)$
         \vspace{-0.2ex}
   \item \tab if $\reprG{}\big(\KADerivePublic{}(\EphemeralPrivate, \DiversifiedTransmitBase)\kern-0.12em\big) \neq \ephemeralKey$,
         return $\bot$
@@ -7330,9 +7334,7 @@ from $\TransmitPlaintext{}$
 \nufive{
   \item for \Orchard:
         \vspace{-0.3ex}
-  \item \tab let $\NoteNullifierRand = \ToBase{Orchard}\big(\PRFexpand{\NoteSeedBytes}([9])\kern-0.1em\big)$
-        \vspace{-0.6ex}
-  \item \tab let $\NoteUniqueRand$ be equal to $\nfOld{}$ from the same \actionDescription.
+  \item \tab let $\NoteNullifierRand = \ToBase{Orchard}\big(\PRFexpand{\NoteSeedBytes}([9] \bconcat \NoteUniqueRandBytesOpt)\kern-0.1em\big)$
         \vspace{-0.2ex}
   \item \tab let $\NoteTuple{} = (\Diversifier, \DiversifiedTransmitPublic, \Value, \NoteUniqueRand, \NoteNullifierRand, \NoteCommitRand)$
   \item \blank
@@ -7441,11 +7443,16 @@ from $\TransmitPlaintext{}$
   \canopyonwarditem{if $\BlockHeight < \CanopyActivationHeight + \ZIPTwoOneTwoGracePeriod \text{ and } \NotePlaintextLeadByte \not\in \setof{\hexint{01}, \hexint{02}}$, return $\bot$}
   \canopyonwarditem{if $\BlockHeight \geq \CanopyActivationHeight + \ZIPTwoOneTwoGracePeriod \text{ and } \NotePlaintextLeadByte \neq \hexint{02}$, return $\bot$}
         \vspace{-0.4ex}
-  \canopyonwarditem{if $\NotePlaintextLeadByte \neq \hexint{01}$ and $\ToScalar{}\big(\PRFexpand{\NoteSeedBytes}([4])\kern-0.11em\big) \neq \EphemeralPrivate$, return $\bot$}
+\nufive{
+  \item for \Orchard, let $\NoteUniqueRand = \nfOld{}$ from the same \actionDescription and
+        let $\NoteUniqueRandBytesOpt = \ItoLEOSPOf{256}{\NoteUniqueRand}$;
+        otherwise let $\NoteUniqueRandBytesOpt = [\hairspace]$\!\!
+} %nufive
+  \canopyonwarditem{if $\NotePlaintextLeadByte \neq \hexint{01}$ and $\ToScalar{}\big(\PRFexpand{\NoteSeedBytes}([4]\nufive{\, \bconcat \NoteUniqueRandBytesOpt})\kern-0.11em\big) \neq \EphemeralPrivate$, return $\bot$}
         \vspace{-0.4ex}
   \canopyonwarditem{let $\NoteCommitRandBytes = \begin{cases}
                       \NoteSeedBytes,&\caseif \NotePlaintextLeadByte = \hexint{01} \\
-                      \ToScalar{}\big(\PRFexpand{\NoteSeedBytes}([5])\kern-0.11em\big),&\caseotherwise
+                      \ToScalar{}\big(\PRFexpand{\NoteSeedBytes}([5]\nufive{\, \bconcat \NoteUniqueRandBytesOpt})\kern-0.11em\big),&\caseotherwise
                     \end{cases}$}
   \item let $\NoteCommitRand = \LEOStoIPOf{256}{\NoteCommitRandBytes}$
         and $\DiversifiedTransmitBase = \DiversifyHash{}(\Diversifier)$
@@ -7455,9 +7462,7 @@ from $\TransmitPlaintext{}$
 \nufive{
   \item for \Orchard:
         \vspace{-0.4ex}
-  \item \tab let $\NoteNullifierRand = \ToBase{Orchard}\big(\PRFexpand{\NoteSeedBytes}([9])\kern-0.1em\big)$
-        \vspace{-0.75ex}
-  \item \tab let $\NoteUniqueRand$ be equal to $\nfOld{}$ from the same \actionDescription.
+  \item \tab let $\NoteNullifierRand = \ToBase{Orchard}\big(\PRFexpand{\NoteSeedBytes}([9] \bconcat \NoteUniqueRandBytesOpt)\kern-0.1em\big)$
         \vspace{-0.4ex}
   \item \tab let $\NoteTuple{} = (\Diversifier, \DiversifiedTransmitPublic, \Value, \NoteUniqueRand, \NoteNullifierRand, \NoteCommitRand)$
   \item \vspace{-3.5ex}
@@ -14228,6 +14233,17 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
 
 \intropart
 \lsection{Change History}{changehistory}
+
+
+\historyentry{2021.2.0}{}
+\begin{itemize}
+\nufive{
+    \item Include $\NoteUniqueRand$ as an input to the derivation of
+          $\NoteNullifierRand$, $\EphemeralPrivate$, and $\NoteCommitRand$ in \Orchard.
+          This was originally intended and as described in \cite[Section 3.5 Nullifiers]{Zcash-Orchard}.
+} %nufive
+    \item No changes before \NUFive.
+\end{itemize}
 
 
 \historyentry{2021.1.24}{2021-04-23}
