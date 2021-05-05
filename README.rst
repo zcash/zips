@@ -95,8 +95,8 @@ Index of ZIPs
     <tr> <td>215</td> <td class="left"><a href="zip-0215.rst">Explicitly Defining and Modifying Ed25519 Validation Rules</a></td> <td>Implemented (zcashd)</td>
     <tr> <td>216</td> <td class="left"><a href="zip-0216.rst">Require Canonical Jubjub Point Encodings</a></td> <td>Proposed</td>
     <tr> <td><span class="reserved">217</span></td> <td class="left"><a class="reserved" href="zip-0217.rst">Aggregate Signatures</a></td> <td>Reserved</td>
-    <tr> <td><span class="reserved">218</span></td> <td class="left"><a class="reserved" href="zip-0218.rst">User-Defined Assets and Wrapped Assets</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">219</span></td> <td class="left"><a class="reserved" href="zip-0219.rst">Disabling Addition of New Value to the Sapling Chain Value Pool</a></td> <td>Reserved</td>
+    <tr> <td><span class="reserved">220</span></td> <td class="left"><a class="reserved" href="zip-0220.rst">Zcash Shielded Assets</a></td> <td>Reserved</td>
     <tr> <td>221</td> <td class="left"><a href="zip-0221.rst">FlyClient - Consensus-Layer Changes</a></td> <td>Final</td>
     <tr> <td>222</td> <td class="left"><a href="zip-0222.rst">Transparent Zcash Extensions</a></td> <td>Draft</td>
     <tr> <td>224</td> <td class="left"><a href="zip-0224.rst">Orchard Shielded Protocol</a></td> <td>Proposed</td>
