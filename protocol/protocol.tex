@@ -1031,6 +1031,10 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\shieldedPaymentAddresses}{\termes{shielded payment address}}
 \newcommand{\unifiedPaymentAddress}{\term{unified payment address}}
 \newcommand{\unifiedPaymentAddresses}{\termes{unified payment address}}
+\newcommand{\unifiedIncomingViewingKey}{\term{unified incoming viewing key}}
+\newcommand{\unifiedIncomingViewingKeys}{\terms{unified incoming viewing key}}
+\newcommand{\unifiedFullViewingKey}{\term{unified full viewing key}}
+\newcommand{\unifiedFullViewingKeys}{\terms{unified full viewing key}}
 \newcommand{\Bech}{\term{Bech32}}
 \newcommand{\Bechm}{\term{Bech32m}}
 \newcommand{\BaseFiftyEightCheck}{\term{Base58Check}}
@@ -11687,79 +11691,50 @@ For \spendingKeys on \Testnet, the \humanReadablePart is \ascii{secret-spending-
 \nufive{
 \lsubsubsection{Unified and \OrchardText{} Encodings}{orchardencodings}
 
-\lsubsubsubsection{Unified Payment Addresses}{unifiedpaymentaddrencoding}
+\vspace{-1ex}
+\extralabel{unifiedpaymentaddrencoding}{\lsubsubsubsection{Unified Payment Addresses and Viewing Keys}{unifiedencodings}}
 
 \vspace{-1ex}
-Rather than defining a \Bech string encoding of \Orchard \shieldedPaymentAddresses, we instead define
-a \unifiedPaymentAddress format that is able to encode a set of \paymentAddresses of different
-types. This enables the consumer of an address to choose the best address type it supports,
+Rather than defining a \Bech string encoding of \Orchard \shieldedPaymentAddresses, we instead define,
+in \cite{ZIP-316}, a \unifiedPaymentAddress format that is able to encode a set of \paymentAddresses
+of different types. This enables the consumer of an address to choose the best address type it supports,
 providing a better user experience as new formats are added in the future.
 
-\introlist
-Assume that we are given a set of one or more \rawEncodings of \paymentAddresses of distinct
-types. That is, the set may optionally contain one of each of the \paymentAddress types
-in the following list:
+Similarly, \unifiedIncomingViewingKeys and \unifiedFullViewingKeys are defined to encode sets of
+\incomingViewingKeys and \fullViewingKeys respectively.
 
-\vspace{0.5ex}
+Since \cite{ZIP-316} includes a full specification of encoding, decoding, and other processing of
+\unifiedPaymentAddresses, \unifiedIncomingViewingKeys, and \unifiedFullViewingKeys, we give only a
+summary here.
+
+\introlist
+A \unifiedPaymentAddress includes zero or one address of each type in the following Priority List:
+
 \begin{itemize}
   \item typecode $\hexint{03}$ -- \crossref{orchardpaymentaddrencoding};
   \item typecode $\hexint{02}$ -- \crossref{saplingpaymentaddrencoding};
   \item typecode $\hexint{01}$ -- \transparent P2SH address, \emph{or} typecode $\hexint{00}$ -- \transparent P2PKH address.
 \end{itemize}
 
-\vspace{-1.5ex}
-A \unifiedPaymentAddress \MUST contain at least one \shieldedPaymentAddress (typecodes $\geq \hexint{02})$.
+\vspace{-2ex}
+with the restrictions that there \MUST be at least one \shieldedPaymentAddress (typecodes $\geq \hexint{02})$,
+and that both P2SH and P2PKH cannot be present.
 
-\vspace{0.5ex}
-The intended semantics is that the consumer of a \unifiedPaymentAddress \SHOULD take the
-``best'' address type that it supports from the set, i.e.\ the first in the
-above list. For example, if the \unifiedPaymentAddress includes an \Orchard address, and
-the consumer supports sending funds to \Orchard addresses, and no more recent address
-format has been defined at the time of use, then the \Orchard address \SHOULD be used.
+When sending a payment, the consumer of a \unifiedPaymentAddress \MUST use the most preferred address
+type that it supports from the set, i.e.\ the first in the above list. See \cite{ZIP-316} for additional
+requirements, and for discussion of \unifiedIncomingViewingKeys and \unifiedFullViewingKeys.
 
-The raw encoding of a \unifiedPaymentAddress is a concatenation of
-$(\typecodeField, \lengthField, \addrField)$ encodings of the consituent addresses:
+Note that there is intentionally no typecode defined for a \Sprout \shieldedPaymentAddress
+(or \Sprout viewing keys).
+Since it is no longer possible (since activation of \cite{ZIP-211} in the \Canopy \networkUpgrade)
+to send funds into the \Sprout \chainValuePool, this would not be generally useful.
 
-\begin{itemize}
-  \item $\typecodeField \typecolon \byte$ -- the typecode from the above list;
-  \item $\lengthField \typecolon \byte$ -- the length in bytes of $\addrField$;
-        \vspace{-0.5ex}
-  \item $\addrField \typecolon \byteseq{\text{\scriptsize\lengthField}}$ -- the raw encoding
-        of a \shieldedPaymentAddress, or the $160$-bit script hash of a P2SH address
-        \cite{Bitcoin-P2SH}, or the $160$-bit \validatingKey hash of a P2PKH address
-        \cite{Bitcoin-P2PKH}.
-\end{itemize}
+The format uses \Bechm \cite{BIP-350} (ignoring any length restrictions) for the checksum
+algorithm and string encoding. This is chosen over \Bech in order for the checksum to better
+handle variable-length inputs.
 
-\vspace{-1ex}
-The result of the concatenation is then encoded with \Bechm \cite{BIP-350}, ignoring any
-length restrictions. This is chosen over \Bech in order to better handle variable-length inputs.
-
-\vspace{1ex}
-For \unifiedPaymentAddresses on \Mainnet, the \defining{\humanReadablePart} (as defined in
-\cite{ZIP-173}) is \ascii{u}. For \unifiedPaymentAddresses on \Testnet, the \humanReadablePart
-is \ascii{utest}.
-
-\vspace{1ex}
-\begin{pnotes}
-  \item The $\lengthField$ field is always encoded as a single byte, \emph{not} as a
-        \type{compactSize}.
-  \item For \transparentAddresses, the $\addrField$ field does not include the first
-        two bytes of a \rawEncoding.
-  \item There is intentionally no typecode defined for a \Sprout \shieldedPaymentAddress.
-        Since it is no longer possible (since activation of \cite{ZIP-211} in the
-        \Canopy \networkUpgrade) to send funds into the \Sprout \chainValuePool,
-        this would not be generally useful.
-  \item Consumers \MUST ignore constituent addresses with typecodes they do not
-        recognize.
-  \item Consumers \MUST reject \unifiedPaymentAddresses in which the same typecode
-        appears more than once, or that include both P2SH and P2PKH \transparentAddresses,
-        or that contain only a \transparentAddress.
-  \item Producers \SHOULD order the constituent addresses in the same order as the
-        list of address types above. However, consumers \MUSTNOT assume this ordering,
-        and it does not affect which address should be used by a consumer.
-  \item There \MUSTNOT be additional bytes at the end of the encoding that cannot be
-        interpreted as specified above.\!
-\end{pnotes}
+A ``jumbling'' algorithm is used in order to mitigate address replacement attacks given that
+a user might only check part of the address. See \cite{ZIP-316} for full details.
 } %nufive
 
 
@@ -11801,13 +11776,13 @@ When decoding the representation of $\DiversifiedTransmitPublic$, the address \M
 considered invalid if $\abstP$ returns $\bot$ or $\ZeroP$.
 
 There is no \Bech encoding defined for an individual \Orchard \shieldedPaymentAddress;
-instead use a \unifiedPaymentAddress as defined in \crossref{unifiedpaymentaddrencoding}.
+instead use a \unifiedPaymentAddress as defined in \cite{ZIP-316}.
 } %nufive
 
 
 \nufive{
 \vspace{-1ex}
-\lsubsubsubsection{\OrchardText{} Incoming Viewing Keys}{orchardinviewingkeyencoding}
+\lsubsubsubsection{\OrchardText{} Raw Incoming Viewing Keys}{orchardinviewingkeyencoding}
 
 \vspace{-1ex}
 Let $\KA{Orchard}$ be as defined in \crossref{concreteorchardkeyagreement}.
@@ -11840,14 +11815,14 @@ $\InViewingKey$ \MUST be in the range $\InViewingKeyTypeOrchard$ as specified
 in \crossref{orchardkeycomponents}. That is, a decoded \incomingViewingKey \MUST be
 considered invalid if $\InViewingKey$ is not in this range.
 
-For \incomingViewingKeys on \Mainnet, the \humanReadablePart is \ascii{zivko}.
-For \incomingViewingKeys on \Testnet, the \humanReadablePart is \ascii{zivktestorchard}.
+There is no \Bech encoding defined for an individual \Orchard \incomingViewingKey;
+instead use a \unifiedIncomingViewingKey as defined in \cite{ZIP-316}.
 } %nufive
 
 
 \nufive{
 \vspace{-1ex}
-\lsubsubsubsection{\OrchardText{} Full Viewing Keys}{orchardfullviewingkeyencoding}
+\lsubsubsubsection{\OrchardText{} Raw Full Viewing Keys}{orchardfullviewingkeyencoding}
 
 \vspace{-1ex}
 Let $\KA{Orchard}$ be as defined in \crossref{concreteorchardkeyagreement}.
@@ -11889,8 +11864,8 @@ When decoding this representation, the key \MUST be considered invalid if $\Auth
 $\NullifierKey$, or $\CommitIvkRandom$ are not canonically encoded elements of their respective
 fields, or if $\AuthSignPublic \not\in \GroupPx$.
 
-For \incomingViewingKeys on \Mainnet, the \humanReadablePart is \ascii{zviewo}.
-For \incomingViewingKeys on \Testnet, the \humanReadablePart is \ascii{zviewtestorchard}.
+There is no \Bech encoding defined for an individual \Orchard \fullViewingKey;
+instead use a \unifiedFullViewingKey as defined in \cite{ZIP-316}.
 } %nufive
 
 
@@ -14266,6 +14241,8 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
     \item Include $\NoteUniqueRand$ as an input to the derivation of
           $\NoteNullifierRand$, $\EphemeralPrivate$, and $\NoteCommitRand$ in \Orchard.
           This was originally intended and as described in \cite[Section 3.5 Nullifiers]{Zcash-Orchard}.
+    \item Delegate to \cite{ZIP-316} for the specification of \unifiedPaymentAddresses,
+          \unifiedIncomingViewingKeys, and \unifiedFullViewingKeys (\crossref{unifiedencodings}).
     \item Specify that \diversifierIndices for \Orchard \paymentAddresses should be chosen
           uniquely, not randomly.
     \item Vanity \diversifiers are not an issue for \Orchard given that it does not have its own
@@ -14411,7 +14388,7 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
     \item Update specification of $\Poseidon$.
     \item Fix errors in \Orchard due to cut-and-paste from \Sapling.
     \item Add references to \cite{Zcash-halo2}.
-    \item Correct the description of $\lengthField$ in \crossref{unifiedpaymentaddrencoding}.
+    \item Correct the description of $\lengthField$ in \crossref{unifiedencodings}.
     \item Correct the type signature of $\DiversifyHash{Orchard}$ in \crossref{abstracthashes}.
     \item Various rationale updates for \NUFive.
     \item Other fixes to the \Orchard specification, including generation of \dummyNotes and output \notes.
