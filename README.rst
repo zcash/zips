@@ -52,7 +52,7 @@ is planned to activate on Mainnet at the beginning of October 2021:
 - `ZIP 225: Version 5 Transaction Format <zip-0225.rst>`__
 - `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`__
 - `ZIP 252: Deployment of the NU5 Network Upgrade <zip-0252.rst>`__
-- `ZIP 316: Unified Addresses <zip-0316.rst>`__
+- `ZIP 316: Unified Addresses and Unified Viewing Keys <zip-0316.rst>`__
 
 
 License
@@ -129,7 +129,7 @@ Index of ZIPs
     <tr> <td><span class="reserved">323</span></td> <td class="left"><a class="reserved" href="zip-0323.rst">Specification of getblocktemplate for Zcash</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">339</span></td> <td class="left"><a class="reserved" href="zip-0339.rst">Wallet Recovery Words</a></td> <td>Reserved</td>
     <tr> <td>400</td> <td class="left"><a href="zip-0400.rst">Wallet.dat format</a></td> <td>Draft</td>
-    <tr> <td>401</td> <td class="left"><a href="zip-0401.rst">Addressing mempool denial-of-service</a></td> <td>Final</td>
+    <tr> <td>401</td> <td class="left"><a href="zip-0401.rst">Addressing Mempool Denial-of-Service</a></td> <td>Final</td>
     <tr> <td><span class="reserved">402</span></td> <td class="left"><a class="reserved" href="zip-0402.rst">New Wallet Database Format</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">403</span></td> <td class="left"><a class="reserved" href="zip-0403.rst">Verification Behaviour of zcashd</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">416</span></td> <td class="left"><a class="reserved" href="zip-0416.rst">RPC support for Unified Addresses in zcashd</a></td> <td>Reserved</td>
