@@ -50,6 +50,7 @@ is planned to activate on Mainnet at the beginning of October 2021:
 - `ZIP 221: FlyClient - Consensus-Layer Changes <zip-0221.rst>`__ (updated)
 - `ZIP 224: Orchard Shielded Protocol <zip-0224.rst>`__
 - `ZIP 225: Version 5 Transaction Format <zip-0225.rst>`__
+- `ZIP 239: Relay of Version 5 Transactions <zip-0239.rst>`__
 - `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`__
 - `ZIP 252: Deployment of the NU5 Network Upgrade <zip-0252.rst>`__
 - `ZIP 316: Unified Addresses and Unified Viewing Keys <zip-0316.rst>`__
@@ -101,6 +102,7 @@ Index of ZIPs
     <tr> <td>222</td> <td class="left"><a href="zip-0222.rst">Transparent Zcash Extensions</a></td> <td>Draft</td>
     <tr> <td>224</td> <td class="left"><a href="zip-0224.rst">Orchard Shielded Protocol</a></td> <td>Proposed</td>
     <tr> <td>225</td> <td class="left"><a href="zip-0225.rst">Version 5 Transaction Format</a></td> <td>Proposed</td>
+    <tr> <td>239</td> <td class="left"><a href="zip-0239.rst">Relay of Version 5 Transactions</a></td> <td>Proposed</td>
     <tr> <td>243</td> <td class="left"><a href="zip-0243.rst">Transaction Signature Validation for Sapling</a></td> <td>Final</td>
     <tr> <td>244</td> <td class="left"><a href="zip-0244.rst">Transaction Identifier Non-Malleability</a></td> <td>Proposed</td>
     <tr> <td>245</td> <td class="left"><a href="zip-0245.rst">Transaction Identifier Digests & Signature Validation for Transparent Zcash Extensions</a></td> <td>Draft</td>
