@@ -28,12 +28,19 @@ The term "txid" means a transaction identifier, computed as a SHA-256d hash of
 the transaction data for v4 and earlier transactions, or as specified in [#zip-0244]_
 for v5 and later transactions.
 
+The term "authorizing data commitment" (denoted ``auth_digest``), defined only for v5
+and later transactions, is to be interpreted as described in [#zip-0244]_.
+
+The term "witnessed transaction identifier" ("wtxid"), defined only for v5 and later
+transactions, is a 64-byte value given by concatenating the txid and the authorizing
+data commitment of the transaction.
+
 
 Abstract
 ========
 
 This ZIP describes changes to the Zcash peer-to-peer protocol to support transaction
-relay based on a transaction's authorizing digest as well as its txid.
+relay based on a transaction's authorizing data commitment as well as its txid.
 
 
 Motivation
@@ -49,8 +56,8 @@ the encoding of which is the same in block data and in the peer-to-peer protocol
 
 For v5 transactions, a new transaction digest algorithm is defined that constructs
 the txid from a tree of hashes, which include only effecting data [#zip-0244]_.
-Witness data is committed to by a separate "authorizing digest". Unlike previous
-transaction versions, the format of serialized v5 transaction data is not
+Witness data is committed to by a separate "authorizing data commitment". Unlike
+previous transaction versions, the format of serialized v5 transaction data is not
 consensus-critical.
 
 Not committing to the witness data in v5 transaction announcements would create
@@ -66,39 +73,42 @@ version of the transaction as well.
 This inefficiency was present in Bitcoin for almost 3 years after activation of its
 Segwit upgrade [#bip-0141]_, until the adoption of BIP 339 [#bip-0339]_. The latter
 BIP specifies a way to use the Segwit "wtxid" (which commits to both effecting and
-witness data) in place of the txid when announcing and fetching transactions. In Zcash,
-the analogous identifier is the pair (txid, auth_digest).
+witness data) in place of the txid when announcing and fetching transactions.
+In Zcash, the analogous identifier is also called the wtxid, but it encodes the pair
+(txid, auth_digest).
 
-This ZIP is modelled after BIP 339: it adds a ``MSG_TXV5`` inv type to the
-peer-to-peer protocol, analogous to BIP 339's ``MSG_WTX`` inv type, that announces
-transactions by their (txid, auth_digest) pair. It does not introduce any equivalent
-of BIP 339's ``wtxidrelay`` message, since that is not needed for compatibility given
-that Zcash full nodes are required to support ``MSG_TXV5`` based on the negotiated
-peer protocol version (see `Deployment`_).
+This ZIP is modelled after BIP 339: it adds a ``MSG_WTX`` inv type to the peer-to-peer
+protocol, analogous to BIP 339's ``MSG_WTX`` inv type, that announces transactions by
+their wtxid. Note that the encoding and length of a Zcash wtxid is different to that
+of a Bitcoin wtxid.
+
+This ZIP does not introduce any equivalent of BIP 339's ``wtxidrelay`` message,
+since that is not needed for compatibility given that Zcash full nodes are required to
+support ``MSG_WTX`` based on the negotiated peer protocol version (see `Deployment`_).
 
 
 Specification
 =============
 
-A new inv type ``MSG_TXV5`` (0x00000005) is added, for use in both ``inv`` messages
-and ``getdata`` requests, indicating that the hash being referenced is the 64-byte
-value ``txid`` || ``auth_digest``. This inv type MUST be used when announcing v5
-transactions. The ``txid`` and ``auth_digest`` are as defined in [#zip-0244]_.
+A new inv type ``MSG_WTX`` (0x00000005) is added, for use in both ``inv`` messages
+and ``getdata`` requests, indicating that the hash being referenced is the wtxid
+(i.e. the 64-byte value ``txid`` || ``auth_digest``). This inv type MUST be used
+when announcing v5 transactions. The ``txid`` and ``auth_digest`` are as defined in
+[#zip-0244]_.
 
 In the case of ``getdata`` requests, the format of a v5 transaction obtained by a
-``MSG_TXV5`` inv type is as given in the Zcash protocol specification.
+``MSG_WTX`` inv type is as given in the Zcash protocol specification.
 [#protocol-txnencodingandconsensus]_
 
-An ``inv`` or ``getdata`` message MUST NOT use the ``MSG_TXV5`` inv type for v4
+An ``inv`` or ``getdata`` message MUST NOT use the ``MSG_WTX`` inv type for v4
 or earlier transactions, or on peer connections that have not negotiated at least
 the peer protocol version specified in `Deployment`_.
 
-Note that the name ``MSG_TXV5`` does not imply that this inv type will not be used
-for future transaction versions after v5. Since such versions are not currently
-consensus-valid, this is left unspecified. New inv types might be added for future
-transaction versions, but only as needed.
+Note that ``MSG_WTX`` might also be used for future transaction versions after v5.
+Since such versions are not currently consensus-valid, this is left unspecified
+for now.
 
-``MSG_TX`` and ``MSG_TXV5`` entries may be mixed in arbitrary order in an ``inv``
+``MSG_TX`` and ``MSG_WTX`` entries may be mixed in arbitrary order in an ``inv``
 message or a ``getdata`` message. Since these entry types are of different lengths
 (36 bytes or 68 bytes respectively including the 4-byte type field), this implies
 that the size of the message is not determined by its initial ``count`` field, and
@@ -107,8 +117,8 @@ has to be determined by parsing the whole message.
 **Open issue:**
 
 * Should we redefine ``inv`` and ``getdata`` to segregate ``MSG_TX``
-  and ``MSG_TXV5``, making these messages simpler / more efficient to parse?
-  This could be done by adding new ``inv5`` and ``getdata5`` messages.
+  and ``MSG_WTX``, making these messages simpler / more efficient to parse?
+  This could be done by adding new ``invw`` and ``getdataw`` messages.
   See [#p2p-inv]_ and [#p2p-getdata]_ for how ``inv`` and ``getdata``
   respectively are currently defined in Bitcoin.
 
@@ -127,18 +137,18 @@ mempool when reaching the block before that upgrade's activation block. Before t
 point, the node will not accept transactions into its mempool that are invalid
 according to the pre-upgrade consensus protocol (so, in this case, it would not
 accept v5 transactions). This means that a correctly functioning node will not
-use the ``MSG_TXV5`` inv type until it has received the block preceding the NU5
+use the ``MSG_WTX`` inv type until it has received the block preceding the NU5
 network upgrade.
 
 Nevertheless, it is possible for a node to receive an ``inv`` or ``getdata`` message
-with a ``MSG_TXV5`` inv type, on a peer connection that has negotiated protocol
+with a ``MSG_WTX`` inv type, on a peer connection that has negotiated protocol
 version 170014 or later, before NU5 has activated. The node MUST handle this case
 in the same way that it would after NU5 activation when it has no v5 transactions
-to relay. Receiving a ``MSG_TXV5`` inv type on a peer connection that has negotiated
+to relay. Receiving a ``MSG_WTX`` inv type on a peer connection that has negotiated
 a protocol version before 170014, on the other hand, SHOULD be treated as a protocol
 error.
 
-As the ``MSG_TXV5`` inv type is only enabled between peers that both support it,
+As the ``MSG_WTX`` inv type is only enabled between peers that both support it,
 older clients remain fully compatible and interoperable before NU5 activates, or on
 a chain in which it does not activate.
 
