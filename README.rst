@@ -82,7 +82,7 @@ Index of ZIPs
     <tr> <td>201</td> <td class="left"><a href="zip-0201.rst">Network Peer Management for Overwinter</a></td> <td>Final</td>
     <tr> <td>202</td> <td class="left"><a href="zip-0202.rst">Version 3 Transaction Format for Overwinter</a></td> <td>Final</td>
     <tr> <td>203</td> <td class="left"><a href="zip-0203.rst">Transaction Expiry</a></td> <td>Final</td>
-    <tr> <td><span class="reserved">204</span></td> <td class="left"><a class="reserved" href="zip-0204.rst">P2P Network Protocol Differences from Bitcoin</a></td> <td>Reserved</td>
+    <tr> <td><span class="reserved">204</span></td> <td class="left"><a class="reserved" href="zip-0204.rst">Zcash P2P Network Protocol</a></td> <td>Reserved</td>
     <tr> <td>205</td> <td class="left"><a href="zip-0205.rst">Deployment of the Sapling Network Upgrade</a></td> <td>Final</td>
     <tr> <td>206</td> <td class="left"><a href="zip-0206.rst">Deployment of the Blossom Network Upgrade</a></td> <td>Final</td>
     <tr> <td>207</td> <td class="left"><a href="zip-0207.rst">Funding Streams</a></td> <td>Implemented (zcashd)</td>
