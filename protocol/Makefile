@@ -38,7 +38,7 @@ endif
 
 .PHONY: linkcheck
 linkcheck:
-	./links_and_dests.py --check nu5.pdf protocol.pdf heartwood.pdf blossom.pdf sapling.pdf
+	./links_and_dests.py --check protocol.pdf canopy.pdf heartwood.pdf blossom.pdf sapling.pdf
 
 .Makefile.uptodate: Makefile
 	$(MAKE) clean
@@ -106,7 +106,6 @@ auxcanopy:
 canopy:
 	$(MAKE) auxcanopy
 	mv -f aux/canopy.pdf .
-	cp -f canopy.pdf protocol.pdf
 
 .PHONY: auxnu5
 auxnu5:
@@ -119,6 +118,7 @@ auxnu5:
 nu5:
 	$(MAKE) auxnu5
 	mv -f aux/nu5.pdf .
+	cp -f nu5.pdf protocol.pdf
 
 .PHONY: nolatexmk-sapling
 nolatexmk-sapling:
