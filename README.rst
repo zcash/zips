@@ -125,7 +125,7 @@ Index of ZIPs
     <tr> <td>313</td> <td class="left"><a href="zip-0313.rst">Reduce Conventional Transaction Fee to 1000 zatoshis</a></td> <td>Active</td>
     <tr> <td><span class="reserved">314</span></td> <td class="left"><a class="reserved" href="zip-0314.rst">Privacy upgrades to the Zcash light client protocol</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">315</span></td> <td class="left"><a class="reserved" href="zip-0315.rst">Best Practices for Wallet Handling of Multiple Pools</a></td> <td>Reserved</td>
-    <tr> <td>316</td> <td class="left"><a href="zip-0316.rst">Unified Addresses</a></td> <td>Proposed</td>
+    <tr> <td>316</td> <td class="left"><a href="zip-0316.rst">Unified Addresses and Unified Viewing Keys</a></td> <td>Proposed</td>
     <tr> <td>321</td> <td class="left"><a href="zip-0321.rst">Payment Request URIs</a></td> <td>Proposed</td>
     <tr> <td><span class="reserved">322</span></td> <td class="left"><a class="reserved" href="zip-0322.rst">Generic Signed Message Format</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">323</span></td> <td class="left"><a class="reserved" href="zip-0323.rst">Specification of getblocktemplate for Zcash</a></td> <td>Reserved</td>
