@@ -590,7 +590,7 @@ Authorizing Data Commitment
 
 A new transaction digest algorithm is defined that constructs a digest which commits
 to the authorizing data of a transaction from a tree of BLAKE2b-256 hashes.
-The overall structure of the hash is as follows::
+For v5 transactions, the overall structure of the hash is as follows::
 
     auth_digest
     ├── transparent_scripts_digest
@@ -599,6 +599,10 @@ The overall structure of the hash is as follows::
 
 Each node written as ``snake_case`` in this tree is a BLAKE2b-256 hash of authorizing
 data of the transaction.
+
+For transaction versions before v5, a placeholder value consisting of 32 bytes of
+``0xFF`` is used in place of the authorizing data commitment. This is only used in
+the tree committed to by ``hashAuthDataRoot``, as defined in `Block Header Changes`_.
 
 The pair (Transaction Identifier, Auth Commitment) constitutes a commitment to all the
 data of a serialized transaction that may be included in a block.
@@ -683,18 +687,20 @@ change now means that ``hashMerkleRoot`` is not sufficient to fully commit
 to the transaction data, including witnesses, that appear within the block.
 
 As a consequence, we now need to add a new commitment to the block header.
-This commitment will be the root of a Merkle tree that has parallel structure
-to the tree committed to by ``hashMerkleRoot`` (a path through this Merkle
-tree to a transaction identifies the same transaction as that path reaches
-in the tree rooted at ``hashMerkleRoot``), but where the leaves are hashes
-produced according to the `Authorizing Data Commitment` part of this
-specification.
+This commitment will be the root of a Merkle tree having leaves that are
+transaction authorizing data commitments, produced according to the
+`Authorizing Data Commitment`_ part of this specification. The insertion
+order for this Merkle tree MUST be identical to the insertion order of
+transaction identifiers into the Merkle tree that is used to construct
+``hashMerkleRoot``, such that a path through this Merkle tree to a
+transaction identifies the same transaction as that path reaches in the tree
+rooted at ``hashMerkleRoot``.
 
-This new commitment is named ``hashAuthDataRoot`` and is the root of a left-dense
-binary Merkle tree of transaction authorizing data commitments. Empty internal nodes
-and leaves in the Merkle tree (nodes without children) have the "null" hash value
-``[0u8; 32]``. Hashes in this tree are BLAKE2b-256 hashes personalized by the string
-``"ZcashAuthDatHash"``.
+This new commitment is named ``hashAuthDataRoot`` and is the root of a
+binary Merkle tree of transaction authorizing data commitments having height
+``ceil(log2(tx_count))``, padded with leaves having the "null" hash value
+``[0u8; 32]`` . Hashes in this tree are BLAKE2b-256 hashes personalized by
+the string ``"ZcashAuthDatHash"``.
 
 Changing the block header format to allow space for an additional
 commitment is somewhat invasive. Instead, the name and meaning of the
