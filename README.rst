@@ -46,6 +46,7 @@ This is the list of ZIPs relevant to the proposed NU5 Upgrade, which
 is planned to activate on Mainnet at the beginning of October 2021:
 
 - `ZIP 32: Shielded Hierarchical Deterministic Wallets <zip-0032.rst>`__ (updated)
+- `ZIP 209: Prohibit Negative Shielded Chain Value Pool Balances <zip-0209.rst>`__ (updated)
 - `ZIP 216: Require Canonical Jubjub Point Encodings <zip-0216.rst>`__
 - `ZIP 221: FlyClient - Consensus-Layer Changes <zip-0221.rst>`__ (updated)
 - `ZIP 224: Orchard Shielded Protocol <zip-0224.rst>`__
