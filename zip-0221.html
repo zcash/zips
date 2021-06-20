@@ -362,7 +362,6 @@ License: MIT</pre>
                 <p>Once the MMR has been generated, we produce <code>hashChainHistoryRoot</code>, which we define as the BLAKE2b-256 digest of the serialization of the root node.</p>
             </section>
             <section id="tree-nodes-and-hashing-pseudocode"><h3><span class="section-heading">Tree nodes and hashing (pseudocode)</span><span class="section-anchor"> <a rel="bookmark" href="#tree-nodes-and-hashing-pseudocode"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
-                <p>Note that this pseudocode reflects the specification prior to NU5 activation.</p>
                 <pre data-language="python"><span class="k">def</span> <span class="nf">H</span><span class="p">(</span><span class="n">msg</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">consensusBranchId</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
     <span class="k">return</span> <span class="n">blake2b256</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">personalization</span><span class="o">=</span><span class="sa">b</span><span class="s1">&#39;ZcashHistory&#39;</span> <span class="o">+</span> <span class="n">consensusBranchId</span><span class="p">)</span>
 
@@ -377,12 +376,16 @@ License: MIT</pre>
     <span class="n">nLatestTimestamp</span><span class="p">:</span> <span class="nb">int</span>
     <span class="n">nEarliestTargetBits</span><span class="p">:</span> <span class="nb">int</span>
     <span class="n">nLatestTargetBits</span><span class="p">:</span> <span class="nb">int</span>
-    <span class="n">hashEarliestSaplingRoot</span><span class="p">:</span> <span class="nb">bytes</span> <span class="c1"># left child&#39;s sapling root</span>
-    <span class="n">hashLatestSaplingRoot</span><span class="p">:</span> <span class="nb">bytes</span> <span class="c1"># right child&#39;s sapling root</span>
+    <span class="n">hashEarliestSaplingRoot</span><span class="p">:</span> <span class="nb">bytes</span> <span class="c1"># left child&#39;s Sapling root</span>
+    <span class="n">hashLatestSaplingRoot</span><span class="p">:</span> <span class="nb">bytes</span> <span class="c1"># right child&#39;s Sapling root</span>
     <span class="n">nSubTreeTotalWork</span><span class="p">:</span> <span class="nb">int</span>  <span class="c1"># total difficulty accumulated within each subtree</span>
     <span class="n">nEarliestHeight</span><span class="p">:</span> <span class="nb">int</span>
     <span class="n">nLatestHeight</span><span class="p">:</span> <span class="nb">int</span>
     <span class="n">nSaplingTxCount</span><span class="p">:</span> <span class="nb">int</span> <span class="c1"># number of Sapling transactions in block</span>
+    <span class="c1"># NU5 only.</span>
+    <span class="n">hashEarliestOrchardRoot</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bytes</span><span class="p">]</span> <span class="c1"># left child&#39;s Orchard root</span>
+    <span class="n">hashLatestOrchardRoot</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bytes</span><span class="p">]</span> <span class="c1"># right child&#39;s Orchard root</span>
+    <span class="n">nSaplingTxCount</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="c1"># number of Orchard transactions in block</span>
 
     <span class="n">consensusBranchId</span><span class="p">:</span> <span class="nb">bytes</span>
 
@@ -403,12 +406,14 @@ License: MIT</pre>
             <span class="n">nEarliestHeight</span><span class="o">=</span><span class="n">block</span><span class="o">.</span><span class="n">height</span><span class="p">,</span>
             <span class="n">nLatestHeight</span><span class="o">=</span><span class="n">block</span><span class="o">.</span><span class="n">height</span><span class="p">,</span>
             <span class="n">nSaplingTxCount</span><span class="o">=</span><span class="n">block</span><span class="o">.</span><span class="n">sapling_tx_count</span><span class="p">,</span>
+            <span class="n">hashEarliestOrchardRoot</span><span class="o">=</span><span class="n">block</span><span class="o">.</span><span class="n">orchard_root</span><span class="p">,</span>
+            <span class="n">hashLatestOrchardRoot</span><span class="o">=</span><span class="n">block</span><span class="o">.</span><span class="n">orchard_root</span><span class="p">,</span>
+            <span class="n">nOrchardTxCount</span><span class="o">=</span><span class="n">block</span><span class="o">.</span><span class="n">orchard_tx_count</span><span class="p">,</span>
             <span class="n">consensusBranchId</span><span class="o">=</span><span class="n">block</span><span class="o">.</span><span class="n">consensusBranchId</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">serialize</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
         <span class="sd">&#39;&#39;&#39;serializes a node&#39;&#39;&#39;</span>
-        <span class="k">return</span> <span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">hashSubtreeCommitment</span>
+        <span class="n">buf</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hashSubtreeCommitment</span>
             <span class="o">+</span> <span class="n">serialize_uint32</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nEarliestTimestamp</span><span class="p">)</span>
             <span class="o">+</span> <span class="n">serialize_uint32</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nLatestTimestamp</span><span class="p">)</span>
             <span class="o">+</span> <span class="n">serialize_uint32</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nEarliestTargetBits</span><span class="p">)</span>
@@ -419,6 +424,11 @@ License: MIT</pre>
             <span class="o">+</span> <span class="n">serialize_compact_uint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nEarliestHeight</span><span class="p">)</span>
             <span class="o">+</span> <span class="n">serialize_compact_uint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nLatestHeight</span><span class="p">)</span>
             <span class="o">+</span> <span class="n">serialize_compact_uint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nSaplingTxCount</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">hashEarliestOrchardRoot</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">buf</span> <span class="o">+=</span> <span class="p">(</span><span class="n">hashEarliestOrchardRoot</span>
+                <span class="o">+</span> <span class="n">hashLatestOrchardRoot</span>
+                <span class="o">+</span> <span class="n">serialize_compact_uint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nOrchardTxCount</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">buf</span>
 
 
 <span class="k">def</span> <span class="nf">make_parent</span><span class="p">(</span>
@@ -439,6 +449,11 @@ License: MIT</pre>
         <span class="n">nEarliestHeight</span><span class="o">=</span><span class="n">left_child</span><span class="o">.</span><span class="n">nEarliestHeight</span><span class="p">,</span>
         <span class="n">nLatestHeight</span><span class="o">=</span><span class="n">right_child</span><span class="o">.</span><span class="n">nLatestHeight</span><span class="p">,</span>
         <span class="n">nSaplingTxCount</span><span class="o">=</span><span class="n">left_child</span><span class="o">.</span><span class="n">nSaplingTxCount</span> <span class="o">+</span> <span class="n">right_child</span><span class="o">.</span><span class="n">nSaplingTxCount</span><span class="p">,</span>
+        <span class="n">hashEarliestOrchardRoot</span><span class="o">=</span><span class="n">left_child</span><span class="o">.</span><span class="n">orchard_root</span><span class="p">,</span>
+        <span class="n">hashLatestOrchardRoot</span><span class="o">=</span><span class="n">right_child</span><span class="o">.</span><span class="n">orchard_root</span><span class="p">,</span>
+        <span class="n">nOrchardTxCount</span><span class="o">=</span><span class="p">(</span><span class="n">left_child</span><span class="o">.</span><span class="n">nOrchardTxCount</span> <span class="o">+</span> <span class="n">right_child</span><span class="o">.</span><span class="n">nOrchardTxCount</span>
+                         <span class="k">if</span> <span class="n">left_child</span><span class="o">.</span><span class="n">nOrchardTxCount</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">right_child</span><span class="o">.</span><span class="n">nOrchardTxCount</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+                         <span class="k">else</span> <span class="bp">None</span><span class="p">),</span>
         <span class="n">consensusBranchId</span><span class="o">=</span><span class="n">left_child</span><span class="o">.</span><span class="n">consensusBranchId</span><span class="p">)</span>
 
 <span class="k">def</span> <span class="nf">make_root_commitment</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="n">ZcashMMRNode</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
@@ -556,7 +571,7 @@ License: MIT</pre>
         <section id="rationale"><h2><span class="section-heading">Rationale</span><span class="section-anchor"> <a rel="bookmark" href="#rationale"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <section id="tree-nodes"><h3><span class="section-heading">Tree nodes</span><span class="section-anchor"> <a rel="bookmark" href="#tree-nodes"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>Nodes in the commitment tree are canonical and immutable. They are cheap to generate, as (with the exception of <code>nSaplingTxCount</code> and <code>nOrchardTxCount</code>) all metadata is already generated during block construction and/or checked during block validation. Nodes are relatively compact in memory. As of the original publication of this ZIP, approximately 140,000 blocks had elapsed since Sapling activation. Assuming a 164-byte commitment to each of these, we would have generated approximately 24 MB of additional storage cost for the set of leaf nodes (and an additional ~24 MB for storage of intermediate nodes).</p>
-                <p><code>hashSubtreeCommitment</code> forms the strucuture of the commitment tree. Other metadata commitments were chosen to serve specific purposes. Originally variable-length commitments were placed last, so that most metadata in a node could be directly indexed. We considered using fixed-length commitments here, but opted for variable-length, in order to marginally reduce the memory requirements for managing and updating the commitment trees.</p>
+                <p><code>hashSubtreeCommitment</code> forms the structure of the commitment tree. Other metadata commitments were chosen to serve specific purposes. Originally variable-length commitments were placed last, so that most metadata in a node could be directly indexed. We considered using fixed-length commitments here, but opted for variable-length, in order to marginally reduce the memory requirements for managing and updating the commitment trees.</p>
                 <p>Orchard fields are placed last, in order to avoid complicating existing uses of the other fields.</p>
                 <p>In leaf nodes, some information is repeated. We chose to do this so that leaf nodes could be treated identically to internal and root nodes for all algorithms and (de)serializers. Leaf nodes are easily identifiable, as they will show proof of work in the <code>hashSubtreeCommitment</code> field (which commits to the block hash for leaf nodes), and their block range (calculated as <code>nLatestHeight</code> - (<code>nEarliestHeight</code> - 1)) will be precisely 1.</p>
                 <p>Personalized BLAKE2b-256 was selected to match existing Zcash conventions. Adding the consensus branch ID to the hash personalization string ensures that valid nodes from one consensus branch cannot be used to make false statements about parallel consensus branches.</p>
