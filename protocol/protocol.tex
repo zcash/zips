@@ -978,6 +978,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\medianTimePast}{\term{median-time-past}}
 \newcommand{\transaction}{\term{transaction}}
 \newcommand{\transactions}{\terms{transaction}}
+\newcommand{\transactionID}{\term{transaction ID}}
+\newcommand{\transactionIDs}{\terms{transaction ID}}
 \newcommand{\transactionFee}{\term{transaction fee}}
 \newcommand{\transactionFees}{\terms{transaction fee}}
 \newcommand{\transactionVersion}{\termandindex{transaction version}{transaction version number}}
@@ -2363,6 +2365,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\preoverwinteritem}[1]{\item \preoverwinter{#1}}
 \newcommand{\overwinteronlyitem}[1]{\overwinter{\item {[\Overwinter only, \sapling{pre-\Sapling}]}\, {#1}}}
 \newcommand{\overwinteronwarditem}[1]{\overwinter{\item {[\Overwinter onward]}\, {#1}}}
+\newcommand{\overwinterprenufiveitem}[1]{\overwinter{\item \overwinterprenufive{#1}}}
 \newcommand{\sproutspecificitem}[1]{\item \sproutspecific{#1}}
 
 \newcommand{\prenufive}[1]{\notbeforenufive{\nufive{[Pre-\NUFive\!]\,}} {#1}}
@@ -2380,6 +2383,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\preoverwinter}[1]{\overwinter{[Pre-\Overwinter\!]\,} {#1}}
 \newcommand{\overwinteronly}[1]{\overwinter{[\Overwinter only, \sapling{pre-\Sapling}]\, {#1}}}
 \newcommand{\overwinteronward}[1]{\overwinter{[\Overwinter onward]\, {#1}}}
+\newcommand{\overwinterprenufive}[1]{\overwinter{[\Overwinter \notnufive{onward}\notbeforenufive{ to \Canopy inclusive, \nufive{pre-\NUFive}}]\, {#1}}}
 \newcommand{\sproutspecific}[1]{[\Sprout\!]\, {#1}}
 
 \newcommand{\securityrequirement}[1]{\needspace{4ex}\vspace{2ex}\callout{}{Security requirement:}{#1}}
@@ -3299,8 +3303,9 @@ of one or more valid \blocks consistent with consensus rules, is called a
 Each \block in a \defining{\blockChain} has a \defining{\blockHeight}. The \blockHeight
 of the \defining{\genesisBlock} is $0$, and the \blockHeight of each subsequent \block
 in the \blockChain increments by $1$. Implementations \MUST support \blockHeights in the
-range $\binaryrange{31}$, and \SHOULD support \blockHeights in the range $\binaryrange{63}$.
-\footnote{\zcashd currently only supports \blockHeights in the range $\binaryrange{31}$.}
+range $\binaryrange{31}$. \nufive{As of \NUFive, there is a consensus rule that all
+\coinbaseTransactions MUST have the $\nExpiryHeight$ field set to the \blockHeight, and
+this limits the maximum \blockHeight to $2^{32} - 1$, absent future consensus changes.}
 
 In order to choose the \defining{\bestValidBlockChain} in its view of the
 overall \block tree, a node sums the work, as defined in \crossref{workdef}, of
@@ -12209,7 +12214,7 @@ $\barerange{1}{4}$ & \Varies & $\txOut$ & $\txOut$ & \xTransparent outputs, enco
 $\barerange{1}{4}$ & $4$ & $\lockTime$ & \type{uint32} & Unix-epoch UTC time or \blockHeight, encoded as in \Bitcoin.\! \\ \hline
 
 \setoverwinter $\barerange{3}{4}$ &\setoverwinter $4$ &\setoverwinter $\nExpiryHeight$ &\overwintertype{uint32} &\setoverwinter
-A \blockHeight in the range $\range{1}{499999999}$ after which the \transaction will expire, or $0$ to disable expiry.
+A \blockHeight after which the \transaction will expire, or $0$ to disable expiry.
 \smash{\cite{ZIP-203}} \\ \hline
 
 \setsapling $4$ &\setsapling $8$ &\setsapling $\valueBalance{Sapling}\!$ &\saplingtype{int64} &\setsapling
@@ -12303,7 +12308,7 @@ The \Zcash{} \defining{\transaction} format for \transactionVersion 5 is as foll
 & $4$ & $\lockTime$ & \type{uint32} & Unix-epoch UTC time or \blockHeight, encoded as in \Bitcoin\rlap{.} \\ \hline
 
 & $4$ & $\nExpiryHeight$ & \type{uint32} &
-A \blockHeight in the range $\range{1}{499999999}$ after which the \transaction will expire, or $0$ to disable expiry.
+A \blockHeight after which the \transaction will expire, or $0$ to disable expiry.
 \smash{\cite{ZIP-203}}\! \\
 \hhline{|=====|}
 
@@ -12491,9 +12496,11 @@ Several fields are reordered and/or renamed relative to prior versions.}} %scale
         \coinbaseTransactions include \foundersReward outputs \canopy{and \transparent \fundingStream outputs}.
   \item A \transaction \MUSTNOT spend an output of the \genesisBlock \coinbaseTransaction. (There is one
         such zero-valued output, on each of \Testnet and \Mainnet.)
-  \overwinteronwarditem{\nExpiryHeight{} \MUST be less than or equal to 499999999.}
+  \overwinterprenufiveitem{\nExpiryHeight{} \MUST be less than or equal to $499999999$.}
+  \nufiveonwarditem{\nExpiryHeight{} \MUST be less than or equal to $499999999$ for non-coinbase \transactions.}
   \overwinteronwarditem{If a \transaction is not a \coinbaseTransaction and its \nExpiryHeight{} field
         is nonzero, then it \MUSTNOT be mined at a \blockHeight greater than its \nExpiryHeight.}
+  \nufiveonwarditem{The \nExpiryHeight{} field of a \coinbaseTransaction \MUST be equal to its \blockHeight.}
   \saplingonwarditem{\valueBalance{Sapling} \MUST be in the range $\range{-\MAXMONEY}{\MAXMONEY}$.}
   \nufiveonwarditem{\valueBalance{Orchard} \MUST be in the range $\range{-\MAXMONEY}{\MAXMONEY}$ for version
         5 \transactions.}
@@ -12578,6 +12585,18 @@ each \spendDescription\, (\crossref{spendencodingandconsensus}),\,\notnufive{ an
         be less than $2^{16}$, is technically redundant because a \transaction that could violate this
         rule would not fit within the $2$ MB \block size limit. It is included in order to simplify
         the security argument for balance preservation.}
+  \nufiveonwarditem{The rule that from \NUFive activation, the \nExpiryHeight field of a \coinbaseTransaction
+        MUST be equal to the \blockHeight, is needed to maintain the property that all \transactions have
+        unique \transactionIDs. All non-coinbase \transactions necessarily have some effecting data that
+        is unique across all \transactions in a \validBlockChain: either a \txIn{} referring to a previous
+        unique \txOut, or a \spendDescription or \actionDescription referring to a unique \nullifier.
+        However, \coinbaseTransactions do not necessarily have any such unique \emph{effecting} data; the
+        \blockHeight encoded in the coinbase script is unique in a \validBlockChain, but for v5 \transactions,
+        it is not included in the \transactionID hash specified by \cite{ZIP-244}. Requiring \nExpiryHeight{}
+        to be set to the \blockHeight ensures that the effecting data that contributes to the \transactionID
+        is unique, even for v5 \coinbaseTransactions. In order to avoid the \blockHeight being limited to
+        $499999999$, we also remove that bound on \nExpiryHeight{} for \coinbaseTransactions. For consistency,
+        these changes apply to \emph{all}\! \coinbaseTransactions, not just v5 \coinbaseTransactions.}
 \end{pnotes}
 
 \introlist
@@ -14390,6 +14409,13 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
 \historyentry{2021.2.6}{}
 \begin{itemize}
 \nufive{
+    \item Require that from \NUFive activation, the \nExpiryHeight field of a \coinbaseTransaction
+          is set to the \blockHeight. This is needed to maintain the property that all \transactions
+          have unique \transactionIDs, as explained in a note in \crossref{txnencodingandconsensus}.
+          In order to avoid the \blockHeight being limited to $499999999$, we also remove that bound
+          on \nExpiryHeight{} for \coinbaseTransactions.
+    \item Remove the recommendation to support $63$-bit \blockHeights in \crossref{blockchain}
+          (since it is incompatible with the above consensus rule for coinbase \nExpiryHeight).
     \item Ensure that the \merkleLayer number is passed to $\MerkleCRH{}$ in \crossref{merklepath}.
     \item Refine the key components diagram in \crossref{addressesandkeys} to show that \Orchard
           \incomingViewingKeys include both $\DiversifierKey$ and $\InViewingKey$.
