@@ -46,6 +46,7 @@ This is the list of ZIPs relevant to the proposed NU5 Upgrade, which
 is planned to activate on Mainnet at the beginning of October 2021:
 
 - `ZIP 32: Shielded Hierarchical Deterministic Wallets <zip-0032.rst>`__ (updated)
+- `ZIP 203: Transaction Expiry <zip-0203.rst>`__ (updated)
 - `ZIP 209: Prohibit Negative Shielded Chain Value Pool Balances <zip-0209.rst>`__ (updated)
 - `ZIP 212: Allow Recipient to Derive Ephemeral Secret from Note Plaintext <zip-0212.rst>`__ (updated)
 - `ZIP 213: Shielded Coinbase <zip-0213.rst>`__ (updated)
