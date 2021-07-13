@@ -317,11 +317,12 @@ A Receiver Encoding is the raw encoding of a Shielded Payment Address,
 or the :math:`160`-bit script hash of a P2SH address [#P2SH]_, or the
 :math:`160`-bit validating key hash of a P2PKH address [#P2PKH]_.
 
-We append 16 zero bytes to the concatenated encodings, and then apply
-the :math:`\mathsf{F4Jumble}` algorithm as described in `Address Hardening`_.
-The output is then encoded with Bech32m [#bip-0350]_, ignoring any
-length restrictions. This is chosen over Bech32 in order to better
-handle variable-length inputs.
+Let ``padding`` be the Human-Readable Part of the Unified Address in
+US-ASCII, padded to 16 bytes with zero bytes. We append ``padding`` to
+the concatenated encodings, and then apply the :math:`\mathsf{F4Jumble}`
+algorithm as described in `Address Hardening`_. The output is then encoded
+with Bech32m [#bip-0350]_, ignoring any length restrictions. This is chosen
+over Bech32 in order to better handle variable-length inputs.
 
 To decode a Unified Address Encoding, a Consumer MUST use the following
 procedure:
@@ -329,7 +330,9 @@ procedure:
 * Decode using Bech32m, rejecting any address with an incorrect checksum.
 * Apply :math:`\mathsf{F4Jumble}^{-1}` (this can also reject if the input
   is not in the correct range of lengths).
-* If the result ends in 16 zero bytes, remove them; otherwise reject.
+* Let ``padding`` be the Human-Readable Part, padded to 16 bytes as for
+  encoding. If the result ends in ``padding``, remove these 16 bytes;
+  otherwise reject.
 * Parse the result as a raw encoding as described above, rejecting the
   entire Unified Address if it does not parse correctly.
 
@@ -513,14 +516,15 @@ Usage for Unified Addresses, UFVKs, and UIVKs
 
 In order to prevent the generic attack against nonmalleability, there
 needs to be some redundancy in the encoding. Therefore, the Producer of
-a Unified Address, UFVK, or UIVK appends 16 zero bytes to the raw encoding,
-then applies :math:`\mathsf{F4Jumble}` before encoding the result with
-Bech32m.
+a Unified Address, UFVK, or UIVK appends the HRP, padded to 16 bytes with
+zero bytes, to the raw encoding, then applies :math:`\mathsf{F4Jumble}`
+before encoding the result with Bech32m.
 
 The Consumer rejects any Bech32m-decoded byte sequence that is less than
 48 bytes or greater than 16448 bytes; otherwise it applies
 :math:`\mathsf{F4Jumble}^{-1}`. It rejects any result that does not end
-in 16 zero bytes, before stripping these 16 bytes and parsing the result.
+in the expected padding, before stripping these 16 bytes and parsing the
+result.
 
 (48 bytes is the minimum size of a valid UA, UFVK, or UIVK raw encoding
 plus 16 zero bytes, corresponding to a single Sapling Incoming Viewing Key.
@@ -573,6 +577,10 @@ done by a Producer more expensive. (This wouldn't necessarily have to
 increase the work done by the Consumer.) However, given that Unified Addresses
 may need to be produced on constrained computing platforms, this was not
 considered to be beneficial overall.
+
+The padding contains the HRP so that the HRP has the same protection against
+malleation as the rest of the address. This may help against cross-network
+attacks, or attacks that confuse addresses with viewing keys.
 
 Efficiency
 ''''''''''
