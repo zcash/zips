@@ -81,6 +81,7 @@ Index of ZIPs
     <tr> <td>32</td> <td class="left"><a href="zip-0032.rst">Shielded Hierarchical Deterministic Wallets</a></td> <td>Final</td>
     <tr> <td><span class="reserved">76</span></td> <td class="left"><a class="reserved" href="zip-0076.rst">Transaction Signature Validation before Overwinter</a></td> <td>Reserved</td>
     <tr> <td>143</td> <td class="left"><a href="zip-0143.rst">Transaction Signature Validation for Overwinter</a></td> <td>Final</td>
+    <tr> <td>155</td> <td class="left"><a href="zip-0155.rst">addrv2 message</a></td> <td>Proposed</td>
     <tr> <td>173</td> <td class="left"><a href="zip-0173.rst">Bech32 Format</a></td> <td>Final</td>
     <tr> <td>200</td> <td class="left"><a href="zip-0200.rst">Network Upgrade Mechanism</a></td> <td>Final</td>
     <tr> <td>201</td> <td class="left"><a href="zip-0201.rst">Network Peer Management for Overwinter</a></td> <td>Final</td>
