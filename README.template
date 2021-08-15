@@ -43,7 +43,7 @@ NU5 ZIPs
 --------
 
 This is the list of ZIPs relevant to the proposed NU5 Upgrade, which
-is planned to activate on Mainnet at the beginning of October 2021:
+is planned to activate on Mainnet in mid-to-late November 2021:
 
 - `ZIP 32: Shielded Hierarchical Deterministic Wallets <zip-0032.rst>`__ (updated)
 - `ZIP 203: Transaction Expiry <zip-0203.rst>`__ (updated)
