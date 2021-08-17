@@ -27,12 +27,15 @@ section 3.11 of the Zcash Protocol Specification [#protocol-networks]_.
 
 "P2P network" means the Zcash peer-to-peer network.
 
+``uint8``, ``uint16``, and ``uint32`` denote unsigned integer data types of the
+corresponding length (8, 16, or 32 bits respectively).
+
 
 Abstract
 ========
 
 This document proposes a new P2P message to gossip longer node addresses over the
-P2P network. This is required to support new-generation Onion addresses, I2P, and
+P2P network. This is required to support new-generation onion addresses, I2P, and
 potentially other networks that have longer endpoint addresses than fit in the 128
 bits of the current ``addr`` message.
 
@@ -40,11 +43,11 @@ bits of the current ``addr`` message.
 Motivation
 ==========
 
-Tor v3 hidden services are part of the stable release of Tor since version 0.3.2.9.
-They have various advantages compared to the old hidden services, among which better
+Tor v3 onion services are part of the stable release of Tor since version 0.3.2.9.
+They have various advantages compared to the old v2 onion services, among which better
 encryption and privacy [#Tor-rendezvous-v3]_. These services have 256-bit addresses
-and thus do not fit in the existing ``addr`` message, which encapsulates onion
-addresses in OnionCat IPv6 addresses.
+and thus do not fit in the existing ``addr`` message (unchanged from Bitcoin
+[#Bitcoin-addr-message]_), which encapsulates onion addresses in OnionCat IPv6 addresses.
 
 Other transport-layer protocols such as I2P have always used longer addresses. This
 change would make it possible to gossip such addresses over the P2P network, so that
@@ -54,12 +57,12 @@ other peers can connect to them.
 Specification
 =============
 
-The ``addrv2`` message is defined as a message where ``pchCommand == "addrv2"``.
-It is  serialized in the standard encoding for P2P messages. Its format is similar
-to the  current ``addr`` message format described in [#Bitcoin-addr-message]_, with
-the difference that the fixed 16-byte IP address is replaced by a network ID and a
-variable-length address, and the services format has been changed to
-[#Bitcoin-CompactSize]_.
+The ``addrv2`` message is defined as a message where the ``command`` field is
+(NUL-padded) ``"addrv2"``. It is serialized in the standard encoding for P2P messages.
+Its format is similar to the current ``addr`` message format described in
+[#Bitcoin-addr-message]_, with the difference that the fixed 16-byte IP address is
+replaced by a network ID and a variable-length address, and the services format
+has been changed to [#Bitcoin-CompactSize]_.
 
 This means that the message contains a serialized vector of the following structure:
 
@@ -86,7 +89,7 @@ One message can contain up to 1,000 addresses. Clients MUST reject messages with
 more addresses.
 
 Field ``addr`` has a variable length, with a maximum of 512 bytes (4096 bits). Clients
-SHOULD reject messages with longer addresses, irrespective of the network ID.
+MUST reject messages with a longer ``addr`` field, irrespective of the network ID.
 
 The list of reserved network IDs is as follows:
 
@@ -97,7 +100,7 @@ The list of reserved network IDs is as follows:
   +------------+-------------+------------------------+-----------------------------------------+
   | ``0x02``   | ``IPV6``    | 16                     | IPv6 address (globally routed internet) |
   +------------+-------------+------------------------+-----------------------------------------+
-  | ``0x04``   | ``TORV3``   | 32                     | Tor v3 hidden service address           |
+  | ``0x04``   | ``TORV3``   | 32                     | Tor v3 onion service address            |
   +------------+-------------+------------------------+-----------------------------------------+
   | ``0x05``   | ``I2P``     | 32                     | I2P overlay network address             |
   +------------+-------------+------------------------+-----------------------------------------+
@@ -105,9 +108,8 @@ The list of reserved network IDs is as follows:
   +------------+-------------+------------------------+-----------------------------------------+
 
 Network ID ``0x03`` is intentionally not assigned. In BIP 155 [#bip-0155]_ it was
-assigned to Tor v2 hidden service addresses, but those addresses are no longer
-supported by the latest Tor client code, and MUST NOT be used once this ZIP is
-deployed.
+assigned to Tor v2 onion addresses, but those addresses are no longer supported
+by the latest Tor client code, and MUST NOT be used once this ZIP is deployed.
 
 Clients SHOULD gossip addresses from all known networks even if they are currently
 not connected to some of them. That could help multi-homed nodes and make it more
@@ -115,8 +117,6 @@ difficult for an observer to tell which networks a node is connected to.
 
 Clients MUST NOT gossip addresses from unknown networks, because they have no means
 to validate those addresses and so can be tricked to gossip invalid addresses.
-
-Further network ID numbers MUST be reserved in a new ZIP.
 
 Clients MUST reject messages that contain addresses that have a different length
 than specified in this table for a specific network ID, as these are meaningless.
@@ -133,19 +133,19 @@ Tor v3 address encoding
 According to the spec [#Tor-rendezvous-v3]_, version 3 ``.onion`` addresses are
 encoded as follows::
 
-  onion_address = base32(PUBKEY | CHECKSUM | VERSION) + ".onion"
-  CHECKSUM = H(".onion checksum" | PUBKEY | VERSION)[:2]
+  onion_address = base32(PUBKEY || CHECKSUM || VERSION) + ".onion"
+  CHECKSUM = H(".onion checksum" || PUBKEY || VERSION)[:2]  // first 2 bytes
 
 where:
 
-* ``PUBKEY`` is the 32 bytes Ed25519 master pubkey of the hidden service;
-* ``VERSION`` is a one byte version field (default value ``0x03``);
+* ``PUBKEY`` is the 32-byte Ed25519 master pubkey of the onion service;
+* ``VERSION`` is a one-byte version field (default value ``0x03``);
 * ``".onion"`` and ``".onion checksum"`` are constant strings;
 * ``CHECKSUM`` is truncated to two bytes before inserting it in ``onion_address``;
-* ``H()`` is the SHA3-256 cryptographic hash function.
+* ``H()`` is the SHA3-256 cryptographic hash function. [#NIST-SHA3]_
 
 Tor v3 addresses MUST be sent with the ``TORV3`` network ID, with the 32-byte
-``PUBKEY`` part in the address field. As ``VERSION`` will always be '\x03' in the
+``PUBKEY`` part in the ``addr`` field. As ``VERSION`` will always be 0x03 in the
 case of v3 addresses, this is enough to reconstruct the onion address.
 
 I2P address encoding
@@ -154,7 +154,7 @@ I2P address encoding
 Like Tor, I2P naming uses a base32-encoded address format [#I2P-naming]_.
 
 I2P uses 52 characters (256 bits) to represent the full SHA-256 hash, followed by
-``.b32.i2p``.
+``.b32.i2p``. The base32 encoding does not include ``"="`` padding characters.
 
 I2P addresses MUST be sent with the ``I2P`` network ID, with the decoded SHA-256 hash
 as address field.
@@ -164,6 +164,7 @@ Cjdns address encoding
 
 Cjdns addresses are simply IPv6 addresses in the ``fc00::/8`` range
 [#Cjdns-whitepaper]_. They MUST be sent with the ``CJDNS`` network ID.
+They are encoded in network byte order (big endian) as for the ``IPV6`` network ID.
 
 Deployment
 ----------
@@ -186,7 +187,7 @@ Rationale
 This ZIP is closely based on BIP 155 [#bip-0155]_, with the following changes:
 
 * Deployment: support for the ``addrv2`` message is signalled by advertising a
-  peer-to-peer protocol version of 170015 or higher, not by sending a ``sendaddrv2``
+  peer protocol version of 170015 or higher, not by sending a ``sendaddrv2``
   message. This is motivated by a desire to avoid an exponential explosion in the
   space of possible feature configurations in a given peer-to-peer connection. In
   Zcash, unlike Bitcoin, the space of such configurations is effectively constant no
@@ -198,9 +199,8 @@ This ZIP is closely based on BIP 155 [#bip-0155]_, with the following changes:
   Bitcoin peer-to-peer protocol, for example the ``MSG_WTX`` inv type defined in
   ZIP 239 [#zip-0239]_, have taken the same approach to signalling.
 
-* No Network ID for Tor v2 hidden service addresses: the Tor network is expected to
-  have removed support for these addresses in the timeframe for deployment of this
-  ZIP.
+* No Network ID for Tor v2 onion addresses: the Tor network is expected to have
+  removed support for these addresses in the timeframe for deployment of this ZIP.
 
 * Clients MUST, rather than SHOULD, reject ``addrv2`` messages with more than 1,000
   addresses. Making this a consistent requirement promotes interoperability.
@@ -242,5 +242,6 @@ References
 .. [#Bitcoin-addr-message] `Protocol documentation: addr. Bitcoin Wiki <https://en.bitcoin.it/wiki/Protocol_documentation#addr>`_
 .. [#Bitcoin-CompactSize] `Variable length integer. Bitcoin Wiki <https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer>`_
 .. [#Tor-rendezvous-v3] `Tor Rendezvous Specification - Version 3 <https://gitweb.torproject.org/torspec.git/tree/rend-spec-v3.txt>`_
+.. [#NIST-SHA3] `NIST FIPS 202 - SHA-3 Standard: Permutation-Based Hash and Extendable-Output Functions <https://csrc.nist.gov/publications/detail/fips/202/final>`_
 .. [#I2P-naming] `I2P: Naming and address book <https://geti2p.net/en/docs/naming#base32>`_
 .. [#Cjdns-whitepaper] `Cjdns whitepaper: Pulling It All Together <https://github.com/cjdelisle/cjdns/blob/f909b960709a4e06730ddd4d221e5df38164dbb6/doc/Whitepaper.md#pulling-it-all-together>`_
