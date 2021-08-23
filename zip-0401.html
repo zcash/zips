@@ -21,7 +21,7 @@ License: MIT</pre>
         </section>
         <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <p>Adoption of this proposal would increase robustness of Zcash nodes against denial-of-service attack, in particular attacks that attempt to exhaust node memory.</p>
-            <p>Bitcoin Core added size limitation for the mempool in version 0.12 <a id="id2" class="footnote_reference" href="#bitcoincore-pr6722">4</a>, defaulting to 300 MB. This was after Zcash forked from Bitcoin Core.</p>
+            <p>Bitcoin Core added size limitation for the mempool in version 0.12 <a id="id2" class="footnote_reference" href="#bitcoincore-pr6722">6</a>, defaulting to 300 MB. This was after Zcash forked from Bitcoin Core.</p>
         </section>
         <section id="requirements"><h2><span class="section-heading">Requirements</span><span class="section-anchor"> <a rel="bookmark" href="#requirements"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <p>The memory usage of a node’s mempool should be bounded.</p>
@@ -39,8 +39,9 @@ License: MIT</pre>
             <blockquote>
                 <p>max(serialized transaction size in bytes, 4000)</p>
             </blockquote>
-            <p>Each transaction also has an <em>eviction weight</em>, which is <em>cost</em> + <em>low_fee_penalty</em>, where <em>low_fee_penalty</em> is 16000 if the transaction pays a fee less than the conventional fee, otherwise 0. The conventional fee is currently defined as 1000 zatoshis <a id="id4" class="footnote_reference" href="#zip-0313">3</a>.</p>
-            <p>Each node also MUST hold a FIFO queue RecentlyEvicted of pairs (txid, time), where the time indicates when the given txid was evicted. This SHOULD be empty on node startup. The size of RecentlyEvicted SHOULD never exceed <code>eviction_memory_entries</code> entries, which is the constant 40000.</p>
+            <p>Each transaction also has an <em>eviction weight</em>, which is <em>cost</em> + <em>low_fee_penalty</em>, where <em>low_fee_penalty</em> is 16000 if the transaction pays a fee less than the conventional fee, otherwise 0. The conventional fee is currently defined as 1000 zatoshis <a id="id4" class="footnote_reference" href="#zip-0313">5</a>.</p>
+            <p>Each node also MUST hold a FIFO queue RecentlyEvicted of pairs (txid, time), where the time indicates when the transaction with the given txid was evicted. After activation of NU5 <a id="id5" class="footnote_reference" href="#zip-0252">4</a>, the wtxid <a id="id6" class="footnote_reference" href="#zip-0239">3</a> rather than the txid is used to identify version 5 or later transactions.</p>
+            <p>The RecentlyEvicted queue SHOULD be empty on node startup. The size of RecentlyEvicted SHOULD never exceed <code>eviction_memory_entries</code> entries, which is the constant 40000.</p>
             <p>There MUST be a configuration option <code>mempooltxcostlimit</code>, which SHOULD default to 80000000.</p>
             <p>There MUST be a configuration option <code>mempoolevictionmemoryminutes</code>, which SHOULD default to 60.</p>
             <p>On receiving a transaction:</p>
@@ -59,9 +60,9 @@ License: MIT</pre>
         <section id="rationale"><h2><span class="section-heading">Rationale</span><span class="section-anchor"> <a rel="bookmark" href="#rationale"><img width="24" height="24" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <p>The accounting for transaction size should include some overhead per transaction, to reflect the cost to the network of processing them (proof and signature verification; networking overheads; size of in-memory data structures). The implication of not including overhead is that a denial-of-service attacker would be likely to use minimum-size transactions so that more of them would fit in a block, increasing the unaccounted-for overhead. A possible counterargument would be that the complexity of accounting for this overhead is unwarranted given that the format of a transaction already imposes a minimum size. However, the proposed cost function is almost as simple as using transaction size directly.</p>
             <p>The threshold 4000 for the cost function is chosen so that the size in bytes of a typical fully shielded Sapling transaction (with, say, 2 shielded outputs and up to 5 shielded inputs) will fall below the threshold. This has the effect of ensuring that such transactions are not evicted preferentially to typical transparent transactions because of their size.</p>
-            <p>The proposed eviction policy differs significantly from that of Bitcoin Core <a id="id5" class="footnote_reference" href="#bitcoincore-pr6722">4</a>, which is primarily fee-based. This reflects differing philosophies about the motivation for fees and the level of fee that legitimate users can reasonably be expected to pay. The proposed eviction weight function does involve a penalty for transactions with a fee lower than the standard (0.0001 ZEC) value, but since there is no further benefit to increasing the fee above the standard value, it creates no pressure toward escalating fees. For transactions up to 4000 bytes, this penalty makes a transaction that pays less than the standard fee value five times as likely to be chosen for eviction (because 4000 + 16000 = 20000 = 4000 * 5).</p>
+            <p>The proposed eviction policy differs significantly from that of Bitcoin Core <a id="id7" class="footnote_reference" href="#bitcoincore-pr6722">6</a>, which is primarily fee-based. This reflects differing philosophies about the motivation for fees and the level of fee that legitimate users can reasonably be expected to pay. The proposed eviction weight function does involve a penalty for transactions with a fee lower than the standard (0.0001 ZEC) value, but since there is no further benefit to increasing the fee above the standard value, it creates no pressure toward escalating fees. For transactions up to 4000 bytes, this penalty makes a transaction that pays less than the standard fee value five times as likely to be chosen for eviction (because 4000 + 16000 = 20000 = 4000 * 5).</p>
             <p>The fee penalty is not included in the cost that determines whether the mempool is considered full. This ensures that a DoS attacker does not have an incentive to pay less than the standard fee in order to cause the mempool to be considered full sooner.</p>
-            <p>The default value of 80000000 for <code>mempooltxcostlimit</code> represents no more than 40 blocks’ worth of transactions in the worst case, which is the default expiration height after the Blossom network upgrade <a id="id6" class="footnote_reference" href="#zip-0208">2</a>. It would serve no purpose to make it larger.</p>
+            <p>The default value of 80000000 for <code>mempooltxcostlimit</code> represents no more than 40 blocks’ worth of transactions in the worst case, which is the default expiration height after the Blossom network upgrade <a id="id8" class="footnote_reference" href="#zip-0208">2</a>. It would serve no purpose to make it larger.</p>
             <p>The <code>mempooltxcostlimit</code> is a per-node configurable parameter in order to provide flexibility for node operators to change it either in response to attempted denial-of-service attacks, or if needed to handle spikes in transaction demand. It may also be useful for nodes running in memory-constrained environments to reduce this parameter.</p>
             <p>The limit of <code>eviction_memory_entries</code> = 40000 entries in RecentlyEvicted bounds the memory needed for this data structure. Since a txid is 32 bytes and a timestamp 8 bytes, 40000 entries can be stored in ~1.6 MB, which is small compared to other node memory usage (in particular, small compared to the maximum memory usage of the mempool itself under the default <code>mempooltxcostlimit</code>). <code>eviction_memory_entries</code> entries should be sufficient to mitigate any performance loss caused by re-accepting transactions that were previously evicted. In particular, since a transaction has a minimum cost of 4000, and the default <code>mempooltxcostlimit</code> is 80000000, at most 20000 transactions can be in the mempool of a node using the default parameters. While the number of transactions “in flight” or across the mempools of all nodes in the network could exceed this number, we believe that is unlikely to be a problem in practice.</p>
             <p>Note that the RecentlyEvicted queue is intended as a performance optimization under certain conditions, rather than as a DoS-mitigation measure in itself.</p>
@@ -93,10 +94,26 @@ License: MIT</pre>
                     </tr>
                 </tbody>
             </table>
-            <table id="zip-0313" class="footnote">
+            <table id="zip-0239" class="footnote">
                 <tbody>
                     <tr>
                         <th>3</th>
+                        <td><a href="zip-0239">ZIP 239: Relay of Version 5 Transactions</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0252" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>4</th>
+                        <td><a href="zip-0252">ZIP 252: Deployment of the NU5 Network Upgrade</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0313" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>5</th>
                         <td><a href="zip-0313">ZIP 313: Reduce Conventional Transaction Fee to 1000 zatoshis</a></td>
                     </tr>
                 </tbody>
@@ -104,7 +121,7 @@ License: MIT</pre>
             <table id="bitcoincore-pr6722" class="footnote">
                 <tbody>
                     <tr>
-                        <th>4</th>
+                        <th>6</th>
                         <td><a href="https://github.com/bitcoin/bitcoin/pull/6722">Bitcoin Core PR 6722: Limit mempool by throwing away the cheapest txn and setting min relay fee to it</a></td>
                     </tr>
                 </tbody>
