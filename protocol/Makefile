@@ -16,7 +16,7 @@ NOCRUFT?=|perl -pe 's|[{\<\(]\/[^ ]* ?||g;s|^.* has been referenced but does not
 # Use EXTRAOPT=-pvc for "continuous preview" mode. For example, "make auxblossom EXTRAOPT=-pvc".
 # In this case the updated .pdf will be in the aux/ directory.
 
-.PHONY: all all-specs release
+.PHONY: all all-specs release discard
 all: .Makefile.uptodate
 	$(MAKE) nu5 canopy heartwood blossom sapling
 
@@ -36,8 +36,11 @@ else
 	git push --tags origin HEAD:master
 endif
 
+discard:
+	git checkout -- '*.pdf'
+
 .PHONY: linkcheck
-linkcheck:
+linkcheck: protocol.pdf canopy.pdf heartwood.pdf blossom.pdf sapling.pdf
 	./links_and_dests.py --check protocol.pdf canopy.pdf heartwood.pdf blossom.pdf sapling.pdf
 
 .Makefile.uptodate: Makefile
