@@ -10,13 +10,19 @@ all-zips: .Makefile.uptodate
 	$(MAKE) README.rst
 	$(MAKE) index.html $(addsuffix .html,$(filter-out README,$(basename $(sort $(wildcard *.rst) $(wildcard *.md)))))
 
-all: all-zips protocol
+all: all-zips protocol guide
 
 release:
 	$(MAKE) -C protocol release
 
 protocol:
 	$(MAKE) -C protocol
+
+guide: mdbook-available
+	mdbook build $@
+
+mdbook-available:
+	@which mdbook > /dev/null || { echo 'Could not find mdbook, required for `make guide`.'; exit 1; }
 
 discard:
 	git checkout -- '*.html' 'protocol/*.pdf'
@@ -49,6 +55,6 @@ index.html: README.rst edithtml.sh
 README.rst: .zipfilelist.current makeindex.sh README.template $(sort $(wildcard zip-*.rst) $(wildcard zip-*.md))
 	./makeindex.sh | cat README.template - >README.rst
 
-.PHONY: clean
+.PHONY: clean guide mdbook-available
 clean:
 	rm -f .zipfilelist.* README.rst index.html $(addsuffix .html,$(basename $(sort $(wildcard *.rst) $(wildcard *.md))))
