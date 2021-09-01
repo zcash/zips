@@ -7,7 +7,7 @@ except ImportError:
     print("Please install the PyPDF2 library using `pip3 install PyPDF2`.\n")
     raise
 
-from urllib.request import urlopen, Request
+from urllib.request import build_opener, HTTPCookieProcessor, Request
 from urllib.error import URLError
 from os.path import basename
 from collections import deque
@@ -78,8 +78,15 @@ def main(args):
             elif check:
                 try:
                     headers = {"User-Agent": "Mozilla/5.0"}
-                    res = urlopen(Request(url=l, headers=headers))
-                    res.read()
+                    # Some DOI links (i.e. to https://doi.org/) redirect to link.springer.com
+                    # in a way that requires cookies (booo!). We allow this for DOI links,
+                    # but for all other links we simulate a client that never sets cookies.
+                    if l.startswith("https://doi.org/"):
+                        opener = build_opener(HTTPCookieProcessor())
+                    else:
+                        opener = build_opener()
+                    response = opener.open(Request(url=l, headers=headers))
+                    response.read()
                     status = "✓"
                 except URLError as e:
                     errors.append("Could not open link: %s due to %r" % (what, e))
