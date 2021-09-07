@@ -14,7 +14,7 @@ RUN apt-get update \
         texlive \
         texlive-science \
         texlive-fonts-extra \
-        texlive-generic-recommended \
+        texlive-plain-generic \
         texlive-bibtex-extra
 
 RUN pip3 install rst2html5
