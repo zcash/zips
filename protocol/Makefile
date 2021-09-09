@@ -39,10 +39,6 @@ endif
 discard:
 	git checkout -- '*.pdf'
 
-.PHONY: linkcheck
-linkcheck: protocol.pdf canopy.pdf heartwood.pdf blossom.pdf sapling.pdf
-	./links_and_dests.py --check protocol.pdf canopy.pdf heartwood.pdf blossom.pdf sapling.pdf
-
 .Makefile.uptodate: Makefile
 	$(MAKE) clean
 	touch .Makefile.uptodate
