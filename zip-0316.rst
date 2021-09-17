@@ -44,8 +44,10 @@ Receiver
 Receiver Encoding
   An encoding of a Receiver as a byte sequence.
 Viewing Key
-  The necessary information to view information about a payments to an Address,
-  or (in the case of a Full Viewing Key) from an Address.
+  The necessary information to view information about payments to an Address,
+  or (in the case of a Full Viewing Key) from an Address. An Incoming Viewing
+  Key can be derived from a Full Viewing Key, and an Address can be derived
+  from an Incoming Viewing Key.
 Viewing Key Encoding
   An encoding of a Viewing Key as a byte sequence.
 Legacy Address
@@ -260,16 +262,15 @@ A Unified Full Viewing Key (resp. Unified Incoming Viewing Key) can be
 used in a similar way to a Full Viewing Key (resp. Incoming Viewing Key)
 as described in the Zcash Protocol Specification [#protocol-nu5]_.
 
-Transparent Addresses do not have separate corresponding viewing keys,
-but the address itself can effectively be used as a viewing key.
-Therefore, a UFVK or UIVK should be able to include a Transparent Address.
+For a Transparent P2PKH Address that is derived according to BIP 32
+[#bip-0032]_ and BIP 44 [#bip-0044]_, the nearest equivalent to a
+Full Viewing Key or Incoming Viewing Key for a given BIP 44 account
+is an extended public key, as defined in the section “Extended keys”
+of BIP 32. Therefore, UFVKs and UIVKs should be able to include such
+extended public keys.
 
-A wallet should support deriving a Unified Address from a UFVK, by
-deriving a Receiver from each Full Viewing Key in the UFVK. Any
-Transparent Address in the UFVK is left as-is.
-
-It is not possible to derive a Unified Address from a Unified Incoming
-Viewing Key.
+A wallet should support deriving a UIVK from a UFVK, and a Unified
+Address from a UIVK.
 
 
 Open Issues and Known Concerns
@@ -338,8 +339,8 @@ or the :math:`160\!`-bit script hash of a P2SH address [#P2SH]_, or the
 Let ``padding`` be the Human-Readable Part of the Unified Address in
 US-ASCII, padded to 16 bytes with zero bytes. We append ``padding`` to
 the concatenated encodings, and then apply the :math:`\mathsf{F4Jumble}`
-algorithm as described in `Address Hardening`_. The output is then encoded
-with Bech32m [#bip-0350]_, ignoring any length restrictions. This is chosen
+algorithm as described in `Jumbling`_. The output is then encoded with
+Bech32m [#bip-0350]_, ignoring any length restrictions. This is chosen
 over Bech32 in order to better handle variable-length inputs.
 
 To decode a Unified Address Encoding, a Consumer MUST use the following
@@ -368,21 +369,44 @@ Encoding of Unified Full/Incoming Viewing Keys
 
 Unified Full or Incoming Viewing Keys are encoded and decoded
 analogously to Unified Addresses. A Consumer MUST use the decoding
-procedure from the previous section. The same Priority List and the
-same Typecodes are used. The Priority List only applies to situations
-in which a Consumer needs to choose a particular Receiver.
+procedure from the previous section. For Viewing Keys, a Consumer
+will normally take the union of information provided by all contained
+Receivers, and therefore the Priority List defined in the previous
+section is not used.
 
-For Shielded Addresses, the encoding used in place of the
-:math:`\mathtt{addr}` field is the raw encoding of the Full Viewing Key
-or Incoming Viewing Key.
+For each UFVK Type or UIVK Type currently defined in this specification,
+the same Typecode is used as for the corresponding Receiver Type in a
+Unified Address. Additional UFVK Types and UIVK Types MAY be defined in
+future, and these will not necessarily use the same Typecode as the
+corresponding Unified Address.
 
-Transparent Addresses do not have separate corresponding viewing keys,
-but the address itself can effectively be used as a viewing key.
-Therefore, a UFVK or UIVK MAY include a Transparent Address, which
-is encoded using the same Typecode and Receiver Encoding as in a
-Unified Address.
+The following UFVK or UIVK Encodings are used in place of the
+:math:`\mathtt{addr}` field:
 
-The Human-Readable Parts (as defined in [#bip-0350]) of Unified Viewing
+* An Orchard UFVK or UIVK Encoding, with Typecode :math:`\mathtt{0x03},`
+  is the raw encoding of the Full Viewing Key or Incoming Viewing Key
+  respectively.
+
+* A Sapling UFVK Encoding, with Typecode :math:`\mathtt{0x02},` is
+  the encoding of a Sapling Extended Full Viewing Key defined in
+  [#zip-0032-sapling-extfvk]_.
+
+* A Sapling UIVK Encoding, also with Typecode :math:`\mathtt{0x02},`
+  is an encoding of :math:`(\mathsf{dk}, \mathsf{ivk})` given by
+  :math:`\mathsf{I2LEOSP}_{88}(\mathsf{dk})\,||\,\mathsf{I2LEOSP}_{256}(\mathsf{ivk}).`
+
+* There is no defined way to represent a viewing key for a Transparent
+  P2SH Address in a UFVK or UIVK. The Typecode :math:`\mathtt{0x01}`
+  MUST not be included in a UFVK or UIVK by Producers, and MUST be
+  treated as unrecognized by Consumers.
+
+* For Transparent P2PKH Addresses that are derived according to BIP 32
+  [#bip-0032]_ and BIP 44 [#bip-0044]_, the UFVK and UIVK Encodings
+  have Typecode :math:`\mathtt{0x00}.` These encodings are identical
+  and are the serialization of an extended public key, defined in the
+  section “Serialization format” of BIP 32 [#bip-0032-serialization-format]_.
+
+The Human-Readable Parts (as defined in [#bip-0350]_) of Unified Viewing
 Keys are defined as follows:
 
 * “``uivk``” for Unified Incoming Viewing Keys on Mainnet;
@@ -405,6 +429,9 @@ Requirements for both Unified Addresses and Unified Viewing Keys
   existing Receiver Encodings and Viewing Key Encodings are all less
   than 256 bytes and so could use a one-byte length field, encodings
   for experimental types may be longer.)
+
+* Each Receiver, UFVK, or UIVK SHOULD represent an Address or
+  Viewing Key at the ZIP 32 or BIP 44 Account level.
 
 * For Transparent Addresses, the Receiver Encoding does not include
   the first two bytes of a raw encoding.
@@ -453,8 +480,44 @@ either standardized in a ZIP (and allocated a Typecode outside this
 reserved range) or discontinued.
 
 
-Address hardening
------------------
+Deriving a UIVK from a UFVK
+---------------------------
+
+Each UIVK Encoding can straightforwardly be derived from the
+corresponding UFVK Encoding, without changing the Typecode. In the
+case of a Transparent P2PKH UFVK Encoding, the UIVK Encoding is the
+same.
+
+
+Deriving a Unified Address from a UIVK
+--------------------------------------
+
+To derive a Unified Address from a UIVK we need to choose a diversifier
+index, which MUST be valid for all of the Viewing Key Types in the
+UIVK. That is,
+
+* A Sapling diversifier index MUST generate a valid diversifier as
+  defined in ZIP 32 section “Sapling diversifier derivation”
+  [#zip-0032-sapling-diversifier-derivation]_.
+* A Transparent diversifier index MUST be in the range :math:`0` to
+  :math:`2^{31}` inclusive.
+
+There are no additional constraints on an Orchard diversifier index.
+
+In the case of deriving a Transparent P2PKH Receiver from a Transparent
+P2PKH UIVK, the diversifier index is used as a BIP 44 child key index
+at the Index level to derive the address. As is usual for derivations
+below the BIP 44 Account level, non-hardened (public) derivation
+[#bip-0032-public-to-public]_ MUST be used, with the Change element
+of the path being 0, and the Index element of the path being the
+diversifier index [#bip-0044-path-index]_. That is, the BIP 44 path of
+the Transparent P2PKH Receiver MUST be:
+
+* :math:`m / 44' / \mathit{coin\_type\kern0.05em'} / \mathit{account\kern0.1em'} / 0 / \mathit{diversifier\_index}.`
+
+
+Jumbling
+---------
 
 Security goal (**near second preimage resistance**):
 
@@ -696,9 +759,16 @@ References
 .. [#protocol-saplingpaymentaddrencoding] `Zcash Protocol Specification, Version 2020.2.14 [NU5 proposal]. Section 5.6.3.1: Sapling Payment Addresses <protocol/protocol.pdf#saplingpaymentaddrencoding>`_
 .. [#protocol-orchardpaymentaddrencoding] `Zcash Protocol Specification, Version 2020.2.14 [NU5 proposal]. Section 5.6.4.2: Orchard Raw Payment Addresses <protocol/protocol.pdf#orchardpaymentaddrencoding>`_
 .. [#zip-0000] `ZIP 0: ZIP Process <zip-0000.rst>`_
+.. [#zip-0032-sapling-extfvk] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling extended full viewing keys <zip-0032#sapling-extended-full-viewing-keys>`_
+.. [#zip-0032-sapling-diversifier-derivation] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling diversifier derivation <zip-0032#sapling-diversifier-derivation>`_
 .. [#zip-0211] `ZIP 211: Disabling Addition of New Value to the Sprout Chain Value Pool <zip-0211.rst>`_
 .. [#zip-0224] `ZIP 224: Orchard Shielded Protocol <zip-0224.rst>`_
 .. [#zip-0321] `ZIP 321: Payment Request URIs <zip-0321.rst>`_
+.. [#bip-0032] `BIP 32: Hierarchical Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki>`_
+.. [#bip-0032-serialization-format] `BIP 32: Hierarchical Deterministic Wallets — Serialization Format <https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#Serialization_format>`_
+.. [#bip-0032-public-to-public] `BIP 32: Hierarchical Deterministic Wallets — Child key derivation (CKD) functions: Public parent key → public child key <https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#public-parent-key--public-child-key>`_
+.. [#bip-0044] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>`_
+.. [#bip-0044-path-index] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets — Path levels: Index <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#index>`_
 .. [#bip-0350] `BIP 350: Bech32m format for v1+ witness addresses <https://github.com/bitcoin/bips/blob/master/bip-0350.mediawiki>`_
 .. [#P2PKH] `Transactions: P2PKH Script Validation — Bitcoin Developer Guide <https://developer.bitcoin.org/devguide/transactions.html#p2pkh-script-validation>`_
 .. [#P2SH] `Transactions: P2SH Scripts — Bitcoin Developer Guide <https://developer.bitcoin.org/devguide/transactions.html#pay-to-script-hash-p2sh>`_
