@@ -244,6 +244,15 @@ though it were absent.
   shielded support without re-acquiring counterparty UAs. If they are
   re-acquired, the user flow and usability will be minimally disrupted.
 
+Experimental Usage
+------------------
+
+Unified Addresses and Unified Viewing Keys must be able to include
+Receivers and Viewing Keys of experimental types, possibly alongside
+non-experimental ones. These experimental Receivers or Viewing Keys
+must be used only by wallets whose users have explicitly opted into
+the corresponding experiment.
+
 Viewing Keys
 ------------
 
@@ -314,10 +323,10 @@ The raw encoding of a Unified Address is a concatenation of
 :math:`(\mathtt{typecode}, \mathtt{length}, \mathtt{addr})` encodings
 of the consituent Receivers:
 
-* :math:`\mathtt{typecode} : \mathtt{byte}` — the Typecode from the
+* :math:`\mathtt{typecode} : \mathtt{compactSize}` — the Typecode from the
   above Priority List;
 
-* :math:`\mathtt{length} : \mathtt{byte}` — the length in bytes of
+* :math:`\mathtt{length} : \mathtt{compactSize}` — the length in bytes of
   :math:`\mathtt{addr}`;
 
 * :math:`\mathtt{addr} : \mathtt{byte[length]}` — the Receiver Encoding.
@@ -391,8 +400,11 @@ Requirements for both Unified Addresses and Unified Viewing Keys
   P2SH and P2PKH transparent-only address formats suffice for this
   purpose and are already supported by the existing ecosystem.
 
-* The :math:`\mathtt{length}` field is always encoded as a single
-  byte, *not* as a :math:`\mathtt{compactSize}`.
+* The :math:`\mathtt{length}` field is encoded as a
+  :math:`\mathtt{compactSize}.` [#Bitcoin-CompactSize]_ (Although
+  existing Receiver Encodings and Viewing Key Encodings are all less
+  than 256 bytes and so could use a one-byte length field, encodings
+  for experimental types may be longer.)
 
 * For Transparent Addresses, the Receiver Encoding does not include
   the first two bytes of a raw encoding.
@@ -423,6 +435,21 @@ Requirements for both Unified Addresses and Unified Viewing Keys
 
 * There MUST NOT be additional bytes at the end of the raw encoding
   that cannot be interpreted as specified above.
+
+
+Adding new types
+----------------
+
+It is intended that new Receiver Types and Viewing Key Types SHOULD be
+introduced either by a modification to this ZIP or by a new ZIP, in accordance
+with the ZIP Process [#zip-0000]_.
+
+Experimental types MAY be added using the reserved Typecodes 0xFFFA to 0xFFFF
+inclusive. This provides for six simultaneous experiments, which can be
+referred to as experiments A to F. This should be sufficient because
+experiments are expected to be reasonably short-term, and should otherwise
+be either standardized in a ZIP (and allocated a Typecode outside this
+reserved range) or discontinued.
 
 
 Address hardening
@@ -483,7 +510,7 @@ length :math:`\ell_H` bytes. Let :math:`G_i` be a XOF (a hash function with
 extendable output length) based on :math:`H`, personalized by :math:`i`.
 
 Given input :math:`M` of length :math:`\ell_M` bytes such that
-:math:`48 \leq \ell_M \leq 16448`, define :math:`\mathsf{F4Jumble}(M)`
+:math:`48 \leq \ell_M \leq 4194368,` define :math:`\mathsf{F4Jumble}(M)`
 by:
 
 * let :math:`\ell_L = \mathsf{min}(\ell_H, \mathsf{floor}(\ell_M/2))`
@@ -501,14 +528,14 @@ way for a Feistel construction, by observing that :math:`r = p \oplus q` implies
 The first argument to BLAKE2b below is the personalization.
 
 We instantiate :math:`H_i(u)` by
-:math:`\mathsf{BLAKE2b‐}(8\ell_L)(\texttt{“UA_F4Jumble_H_”} \,||\,`
-:math:`[i, 0], u)`.
+:math:`\mathsf{BLAKE2b‐}(8\ell_L)(\texttt{“UA_F4Jumble_H”} \,||\,`
+:math:`[i, 0, 0], u).`
 
 We instantiate :math:`G_i(u)` as the first :math:`\ell_R` bytes of the
 concatenation of
-:math:`[\mathsf{BLAKE2b‐}512(\texttt{“UA_F4Jumble_G_”} \,||\,`
-:math:`[i, j], u) \text{ for } j \text{ from } 0 \text{ up to}`
-:math:`\mathsf{ceiling}(\ell_R/\ell_H)-1]`.
+:math:`[\mathsf{BLAKE2b‐}512(\texttt{“UA_F4Jumble_G”} \,||\, [i] \,||\,`
+:math:`\mathsf{I2LEOSP}_{16}(j), u) \text{ for } j \text{ from}`
+:math:`0 \text{ up to } \mathsf{ceiling}(\ell_R/\ell_H)-1].`
 
 .. figure:: zip-0316-f4.png
     :width: 372px
@@ -530,14 +557,14 @@ zero bytes, to the raw encoding, then applies :math:`\mathsf{F4Jumble}`
 before encoding the result with Bech32m.
 
 The Consumer rejects any Bech32m-decoded byte sequence that is less than
-48 bytes or greater than 16448 bytes; otherwise it applies
-:math:`\mathsf{F4Jumble}^{-1}`. It rejects any result that does not end
+48 bytes or greater than 4194368 bytes; otherwise it applies
+:math:`\mathsf{F4Jumble}^{-1}.` It rejects any result that does not end
 in the expected padding, before stripping these 16 bytes and parsing the
 result.
 
 (48 bytes is the minimum size of a valid UA, UFVK, or UIVK raw encoding
 plus 16 zero bytes, corresponding to a single Sapling Incoming Viewing Key.
-16448 bytes is the largest input/output size supported by :math:`\mathsf{F4Jumble}`.)
+4194368 bytes is the largest input/output size supported by :math:`\mathsf{F4Jumble}.`)
 
 Heuristic analysis
 ''''''''''''''''''
@@ -601,14 +628,26 @@ to a single Address with a given Typecode (and at most one Transparent
 Address) means that this is also the maximum length as of NU5 activation.
 
 For longer UAs (when other Typecodes are added), the cost increases to 6
-BLAKE2b compressions for :math:`128 < \ell_M \leq 192`, and 10 BLAKE2b
-compressions for :math:`192 < \ell_M \leq 256`, for example. The maximum
-cost for which the algorithm is defined would be 768 BLAKE2b compressions
-at :math:`\ell_M = 16448` bytes. We will almost certainly never add enough
-Typecodes to reach that, and we might want to define a smaller limit.
+BLAKE2b compressions for :math:`128 < \ell_M \leq 192,` and 10 BLAKE2b
+compressions for :math:`192 < \ell_M \leq 256,` for example. The maximum
+cost for which the algorithm is defined would be 196608 BLAKE2b compressions
+at :math:`\ell_M = 4194368` bytes.
 
-The memory usage, for a memory-optimized implementation, is roughly
-:math:`\ell_M` bytes plus the size of a BLAKE2b hash state.
+A naïve implementation of the :math:`F4Jumble^{-1}` function would require
+roughly :math:`\ell_M` bytes plus the size of a BLAKE2b hash state. However,
+it is possible to reduce this by streaming the :math:`d` part of the jumbled
+encoding from a less memory-constrained device. After the first pass of
+:math:`d`, the implementation is able to compute :math:`y`; after the second
+pass it is able to compute :math:`a`; and the third allows it to compute
+and incrementally parse :math:`b.` The maximum memory usage during this
+process would be 128 bytes (for the cached :math:`c` or :math:`y`), plus two
+BLAKE2b hash states.
+
+Since this streaming implementation of :math:`F4Jumble^{-1}` is quite
+complicated, we do not require all Consumers to support it. If a Consumer
+implementation cannot support UAs / UVKs up to the maximum length, it MUST
+nevertheless support UAs / UVKs with :math:`\ell_M` of at least 256 bytes.
+
 
 Dependencies
 ''''''''''''
@@ -640,20 +679,22 @@ Acknowledgements
 ================
 
 The authors would like to thank Benjamin Winston, Zooko Wilcox, Francisco Gindre,
-Marshall Gaucher, Joseph Van Geffen, Brad Miller, Deirdre Connolly, and Teor for
-discussions on the subject of Unified Addresses.
+Marshall Gaucher, Joseph Van Geffen, Brad Miller, Deirdre Connolly, Teor, and
+Eran Tromer for discussions on the subject of Unified Addresses.
 
 
 References
 ==========
 
 .. [#RFC2119] `RFC 2119: Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
-.. [#protocol-nu5] `Zcash Protocol Specification, Version 2020.1.24 or later [NU5 proposal] <protocol/nu5.pdf>`_
-.. [#protocol-saplingpaymentaddrencoding] `Zcash Protocol Specification, Version 2020.1.24 [NU5 proposal]. Section 5.6.3.1: Sapling Payment Addresses <protocol/nu5.pdf#saplingpaymentaddrencoding>`_
-.. [#protocol-orchardpaymentaddrencoding] `Zcash Protocol Specification, Version 2020.1.24 [NU5 proposal]. Section 5.6.4.2: Orchard Raw Payment Addresses <protocol/nu5.pdf#orchardpaymentaddrencoding>`_
+.. [#protocol-nu5] `Zcash Protocol Specification, Version 2020.2.14 or later [NU5 proposal] <protocol/protocol.pdf>`_
+.. [#protocol-saplingpaymentaddrencoding] `Zcash Protocol Specification, Version 2020.2.14 [NU5 proposal]. Section 5.6.3.1: Sapling Payment Addresses <protocol/protocol.pdf#saplingpaymentaddrencoding>`_
+.. [#protocol-orchardpaymentaddrencoding] `Zcash Protocol Specification, Version 2020.2.14 [NU5 proposal]. Section 5.6.4.2: Orchard Raw Payment Addresses <protocol/protocol.pdf#orchardpaymentaddrencoding>`_
+.. [#zip-0000] `ZIP 0: ZIP Process <zip-0000.rst>`_
 .. [#zip-0211] `ZIP 211: Disabling Addition of New Value to the Sprout Chain Value Pool <zip-0211.rst>`_
 .. [#zip-0224] `ZIP 224: Orchard Shielded Protocol <zip-0224.rst>`_
 .. [#zip-0321] `ZIP 321: Payment Request URIs <zip-0321.rst>`_
 .. [#bip-0350] `BIP 350: Bech32m format for v1+ witness addresses <https://github.com/bitcoin/bips/blob/master/bip-0350.mediawiki>`_
 .. [#P2PKH] `Transactions: P2PKH Script Validation — Bitcoin Developer Guide <https://developer.bitcoin.org/devguide/transactions.html#p2pkh-script-validation>`_
 .. [#P2SH] `Transactions: P2SH Scripts — Bitcoin Developer Guide <https://developer.bitcoin.org/devguide/transactions.html#pay-to-script-hash-p2sh>`_
+.. [#Bitcoin-CompactSize] `Variable length integer. Bitcoin Wiki <https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer>`_
