@@ -7041,7 +7041,7 @@ the prover knows an \auxiliaryInput:
          \hparen\NoteUniqueRandOld{} \typecolon \NoteUniqueRandTypeOrchard,\\
          \hparen\NoteNullifierRandOld \typecolon \NoteNullifierRandType,\vspace{-0.2ex}\\
          \hparen\NoteCommitRandOld{} \typecolon \binaryrange{\ScalarLength{Orchard}},\\
-         \hparen\cmOld{} \typecolon \GroupPstar,\vspace{-0.6ex}\\
+         \hparen\cmOld{} \typecolon \GroupP,\vspace{-0.6ex}\\
          \hparen\AuthSignRandomizer \typecolon \binaryrange{\ScalarLength{Orchard}},\vspace{0.2ex}\\
          \hparen\AuthSignPublicPoint \typecolon \GroupPstar,\\
          \hparen\NullifierKey \typecolon \NullifierKeyTypeOrchard,\\
@@ -10153,36 +10153,41 @@ Let $\GroupP$ and $\ParamP{r}$ be as defined in \crossref{pallasandvesta}.
 Let $\ExtractPbot$ be as defined in \crossref{concreteextractorpallas}.
 
 \vspace{-0.25ex}
-Let $\SinsemillaHashToPoint$ and $\incompleteadd$ be as defined in \crossref{concretesinsemillahash}.
+Let $\SinsemillaHashToPoint$ be as defined in \crossref{concretesinsemillahash}.
 
 \vspace{1ex}
 We construct \defining{\xSinsemillaCommitments} by reusing the \xSinsemillaHash construction,
-and adding (using incomplete addition) a randomized point on the \pallasCurve (see
-\crossref{pallasandvesta}):
+and adding a randomized point on the \pallasCurve (see \crossref{pallasandvesta}):
 
 \begin{formulae}
-  \item $\SinsemillaCommit{r}(D, M) :=
-           \SinsemillaHashToPoint(D \bconcat \ascii{-M}, M) \incompleteadd \scalarmult{r}{\GroupPHash\Of{D \bconcat \ascii{-r}, \ascii{}}}$
+  \item $\SinsemillaCommit{r}(D, M) := \begin{cases}
+           M' + \scalarmult{r}{\GroupPHash\Of{D \bconcat \ascii{-r}, \ascii{}}}\,,&\caseif M' \neq \bot \\
+           \bot,&\caseotherwise
+        \end{cases}$ \\
+        where $M' = \SinsemillaHashToPoint(D \bconcat \ascii{-M}, M)$.
   \item $\SinsemillaShortCommit{r}(D, M) :=
            \ExtractPbot\big(\SinsemillaCommit{r}(D, M)\kern-0.1em\big)$.
 \end{formulae}
 
 \vspace{-1ex}
-See \cite[section TODO]{Zcash-Orchard} for rationale and efficient circuit implementation of this function.
+See \cite[section 3.7.1.2]{Zcash-Orchard} for rationale and efficient circuit
+implementation of this function.
 
 \vspace{1ex}
-The probability of the incomplete addition returning $\bot$ is insignificant (and
-such a case would yield a nontrivial discrete logarithm relation unless $r = 0$).
+The probability of $\SinsemillaHashToPoint$ returning $\bot$ is insignificant
+(and would yield a nontrivial discrete logarithm relation).
 The \binding property of $\SinsemillaCommitAlg$ follows from \collisionResistance of
 $\SinsemillaHashToPoint$ proven in \theoremref{thmsinsemillacr}, given that
 $\GroupPHash\Of{D \bconcat \ascii{-r}, \ascii{}}$ is independent of any of the bases
 used in $\SinsemillaHashToPoint$. The \binding property of $\SinsemillaShortCommitAlg$ can
 be proven by a similar argument to that used for $\SinsemillaHash$.
 
-$\SinsemillaCommitAlg$ is statistically \hiding because the output distribution is statistically
-indistinguishable from a random point in $\GroupPstar$, given that $r$ is a uniformly random scalar
-on $[0, q)$. It follows that $\SinsemillaShortCommitAlg$ is also statistically \hiding, since \hiding
-cannot be affected by applying any fixed function to the \emph{output} of $\SinsemillaCommitAlg$.
+Provided that $\SinsemillaHashToPoint$ does not return $\bot$, $\SinsemillaCommitAlg$ is
+perfectly \hiding because the output distribution is perfectly indistinguishable from a
+random point in $\GroupP$, given that $r$ is a uniformly random scalar on $[0, q)$.
+It follows that $\SinsemillaShortCommitAlg$ is also perfectly \hiding under the same
+condition, since \hiding cannot be affected by applying any fixed function to the
+\emph{output} of $\SinsemillaCommitAlg$.
 
 \vspace{0.5ex}
 The \commitmentScheme $\NoteCommitAlg{Orchard}$ specified in \crossref{abstractcommit} is
@@ -10238,20 +10243,28 @@ $2$ can be in the range of $\NoteCommitAlg{Orchard}$ only if there exist
 $\NoteCommitRand \typecolon \NoteCommitTrapdoor{Orchard}$,
 $D \typecolon \byteseqs$, and $M \typecolon \bitseq{\smash{\PosInt}}$ such that
 $\ExtractPbot\big(\SinsemillaCommit{\NoteCommitRand}(D, M)\kern-0.1em\big) = 2$.
-$\ExtractPbot\big(\SinsemillaHashToPoint(D, M)\kern-0.1em\big)$ can only be $0$ or the
-\affineSW $x$-coordinate of a point in $\GroupP$.
+$\ExtractPbot\big(\SinsemillaCommit{\NoteCommitRand}(D, M)\kern-0.1em\big)$ can
+only be $\bot$ or $0$ or the \affineSW $x$-coordinate of a point in $\GroupP$.
 But $0 \neq 2 \pmod{\ParamP{q}}$, and there are no points in $\GroupP$ with
 \affineSW $x$-coordinate $2 \pmod{\ParamP{q}}$, since $2^3 + \ParamP{b} = 13$
 is not square in $\GF{\ParamP{q}}$.
 \end{proof}
 
-\vspace{-2ex}
-\nnote{There are also no points in $\GroupP$ with \affineSW $x$-coordinate
-$0 \pmod{\ParamP{q}}$, as shown in a note at \crossref{concreteextractorpallas}.
-We do not choose $\Uncommitted{Orchard} = 0$ because $\MerkleCRH{Orchard}$ returns $0$
-in exceptional cases. Although the \merkleHashes of \merkleLeafNodes are separated from
-the \merkleHashes at other \merkleLayers by the $\layerInput$ input to $\MerkleCRH{Orchard}$,
-it would arguably be confusing to rely on that.}
+\begin{nnotes}
+  \item Although the given theorem is correct for the definition of
+        $\NoteCommitAlg{Orchard}$ in this specification, the implementation in the
+        \actionCircuit constrains the result to an unspecified set of values when an
+        input results in an exceptional case for any incomplete addition. If this
+        occurs then it yields a nontrivial discrete logarithm relation for the
+        \pallasCurve, as proven in \theoremref{thmsinsemillaex}. We can therefore
+        assume that it is infeasible to find such inputs with nonnegligible probability.
+  \item There are also no points in $\GroupP$ with \affineSW $x$-coordinate
+        $0 \pmod{\ParamP{q}}$, as shown in a note at \crossref{concreteextractorpallas}.
+        We do not choose $\Uncommitted{Orchard} = 0$ because $\MerkleCRH{Orchard}$
+        returns $0$ in exceptional cases. Although the \merkleHashes of \merkleLeafNodes
+        are separated from the \merkleHashes at other \merkleLayers by the $\layerInput$
+        input to $\MerkleCRH{Orchard}$, it would arguably be confusing to rely on that.
+\end{nnotes}
 } %nufive
 
 
@@ -14503,6 +14516,10 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
 \historyentry{2021.2.16}{}
 \begin{itemize}
 \nufive{
+    \item Use complete addition in $\SinsemillaCommitAlg$.
+    \item Correct the proof of \theoremref{thmuncommittedorchard}.
+    \item Change the type of $\cmOld{}$ in \Orchard to $\GroupP$ rather than $\GroupPstar$,
+          i.e.\ allow the identity point.
     \item Change the type of $\rt{Orchard}$ from $\GroupPx$ to $\range{0}{\ParamP{q}-1}$.
           This reflects the existing \zcashd implementation; also checking
           $\rt{Orchard} \in \GroupPx$ would require a square root and is unnecessary.
