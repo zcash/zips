@@ -384,6 +384,10 @@ valid diversifiers.
 
 The default diversifier for :math:`(\mathsf{sk}_i, \mathsf{c}_i)` is defined to be :math:`d_{i,0}.`
 
+Although the diversifier *key* is derived from the full viewing key which is at the Account level, the
+resulting diversified addresses are derived from the key at the non-change child of that level, as described
+in `Orchard key path`_ below.
+
 
 Specification: Wallet usage
 ===========================
@@ -409,11 +413,18 @@ hardened derivation:
 - :math:`account`: numbered from index :math:`0` in sequentially increasing manner. Defined as in
   BIP 44 [#bip-0044]_.
 
-Unlike BIP 44, none of the shielded key paths have a :math:`change` path level. The use of change addresses
-in Bitcoin is a (failed) attempt to increase the difficulty of tracking users on the transaction graph, by
-segregating external and internal address usage. Shielded addresses are never publicly visible in
-transactions, which means that sending change back to the originating address is indistinguishable from
-using a change address.
+In BIP 44, there is also a :math:`change` unhardened path level as a child of :math:`account`. This
+level is not present in the Sprout and Sapling key paths. It *is* present in Orchard, but as a hardened
+path level.
+
+The use of change addresses in Bitcoin is a (failed) attempt to increase the difficulty of tracking users
+on the transaction graph, by segregating external and internal address usage. For Sprout and Sapling, it
+was reasoned that shielded addresses are never publicly visible in transactions, and so sending change
+back to the originating address would be indistinguishable from using a change address. However, this
+reasoning does not apply if we give out incoming viewing keys, and so for Orchard the :math:`change`
+level has been reintroduced. This ensures that an Orchard incoming viewing key will only be able to view
+incoming payments, not incoming change, which was deemed to be more useful for anticipated applications
+of incoming viewing keys (such as a merchant terminal or a charity donation address).
 
 Sapling key path
 ----------------
@@ -455,20 +466,27 @@ Wallets implementing Sprout ZIP 32 derivation MUST support the following path:
 Orchard key path
 ----------------
 
-Orchard supports diversified addresses with the same spending authority (like Sapling). A group of such
-addresses shares the same full viewing key and incoming viewing key, and so creating as many unlinkable
-addresses as needed does not increase the cost of scanning the block chain for relevant transactions.
+Orchard supports diversified addresses with the same spending authority (like Sapling). Unlike Sapling and
+Sprout, we reintroduce the :math:`change'` level of the key path, so that the spending authorities generated
+for incoming payments and for change are distinct. The motivation for this distinction is to allow giving
+out an incoming viewing key that is only able to see incoming payments, and not incoming change.
 
-The above key path levels include an account identifier, which in all user interfaces is represented as a
-"bucket of funds" under the control of a single spending authority. Therefore, wallets implementing Orchard
-ZIP 32 derivation MUST support the following path for any account in range :math:`\{ 0\,.\!. 2^{31} - 1 \}`:
+A group of diversified addresses with the same spending authority shares the same full viewing key and incoming
+viewing key, and so creating as many unlinkable addresses as needed does not increase the cost of scanning
+the block chain for relevant transactions.
 
-* :math:`m_\mathsf{Orchard} / purpose' / coin\_type' / account'`.
+The key path levels include an account identifier, which in all user interfaces should be represented as
+a "bucket of funds" under the control of a single spending authority. Wallets implementing Orchard ZIP 32
+derivation MUST support the following two paths for any account in range :math:`\{ 0\,.\!. 2^{31} - 1 \}`:
 
-Furthermore, wallets MUST support generating the default payment address (corresponding to the default
-diversifier for Orchard) for any account they support. They MAY also support generating a stream of
-diversified payment addresses for a given account, if they wish to enable users to give a unique address to
-each recipient.
+* :math:`m_\mathsf{Orchard} / purpose' / coin\_type' / account' / 0'` (for incoming payments);
+* :math:`m_\mathsf{Orchard} / purpose' / coin\_type' / account' / 1'` (for change).
+
+Furthermore, wallets MUST support generating a default payment address and a default change address (each
+corresponding to the default diversifier for Orchard) for any account they support. They MAY also support
+generating a stream of diversified payment addresses (based on the non-change key path) for a given account,
+if they wish to enable users to give a unique address to each recipient. A single address using the default
+diversifier SHOULD be used for change.
 
 Note that a given account can have a maximum of :math:`2^{88}` payment addresses (unlike Sapling, all Orchard
 diversifiers are valid).
