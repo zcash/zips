@@ -140,7 +140,7 @@ Index of ZIPs
     <tr> <td>401</td> <td class="left"><a href="zip-0401.rst">Addressing Mempool Denial-of-Service</a></td> <td>Final</td>
     <tr> <td><span class="reserved">402</span></td> <td class="left"><a class="reserved" href="zip-0402.rst">New Wallet Database Format</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">403</span></td> <td class="left"><a class="reserved" href="zip-0403.rst">Verification Behaviour of zcashd</a></td> <td>Reserved</td>
-    <tr> <td><span class="reserved">416</span></td> <td class="left"><a class="reserved" href="zip-0416.rst">RPC support for Unified Addresses in zcashd</a></td> <td>Reserved</td>
+    <tr> <td><span class="reserved">416</span></td> <td class="left"><a class="reserved" href="zip-0416.rst">Support for Unified Addresses in zcashd</a></td> <td>Reserved</td>
     <tr> <td><strike>1001</strike></td> <td class="left"><strike><a href="zip-1001.rst">Keep the Block Distribution as Initially Defined — 90% to Miners</a></strike></td> <td>Obsolete</td>
     <tr> <td><strike>1002</strike></td> <td class="left"><strike><a href="zip-1002.rst">Opt-in Donation Feature</a></strike></td> <td>Obsolete</td>
     <tr> <td><strike>1003</strike></td> <td class="left"><strike><a href="zip-1003.rst">20% Split Evenly Between the ECC and the Zcash Foundation, and a Voting System Mandate</a></strike></td> <td>Obsolete</td>
