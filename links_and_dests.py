@@ -62,6 +62,10 @@ def get_links_and_destinations_from_html(f):
 
     for link in soup.find_all(id=True):
         dests.add(link['id'])
+        # GitHub's rendering of .mediawiki files puts 'id="user-content-<ANCHOR>"' in the source
+        # and dynamically creates a corresponding link #<ANCHOR>.
+        if link['id'].startswith("user-content-"):
+            dests.add(link['id'][13:])
 
     internal.difference_update(['#' + d for d in dests])  # ignore internal links satisfied by a dest
     links.update(internal)
@@ -180,7 +184,7 @@ def main(args):
                 if content is not None:
                     if fragment:
                         if dests is None:
-                            if content_type == 'text/html':
+                            if content_type in ('text/html', 'application/xhtml+xml'):
                                 (_, dests) = get_links_and_destinations_from_html(BytesIO(content))
                             elif content_type == 'application/pdf':
                                 (_, dests) = get_links_and_destinations_from_pdf(BytesIO(content))
