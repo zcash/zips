@@ -50,14 +50,21 @@ Viewing Key
   from an Incoming Viewing Key.
 Viewing Key Encoding
   An encoding of a Viewing Key as a byte sequence.
+Metadata Encoding
+  An encoding of metadata that is not a Receiver or Viewing Key, but may affect
+  the interpretation of the overall Unified Address/Viewing Key.
+Item
+  An Receiver Encoding, Viewing Key Encoding, or Metadata Encoding.
 Legacy Address
   A Transparent, Sprout, or Sapling Address.
 Unified Address (or UA)
-  A Unified Address combines multiple Receivers.
+  A Unified Address combines multiple Receiver (and optionally Metadata) items.
 Unified Full Viewing Key (or UFVK)
-  A Unified Full Viewing Key combines multiple Full Viewing Keys.
+  A Unified Full Viewing Key combines multiple Full Viewing Key (and optionally
+  Metadata) items.
 Unified Incoming Viewing Key (or UIVK)
-  A Unified Incoming Viewing Key combines multiple Incoming Viewing Keys.
+  A Unified Incoming Viewing Key combines multiple Incoming Viewing Key (and
+  optionally Metadata) items.
 Unified Viewing Key
   Either a Unified Full Viewing Key or a Unified Incoming Viewing Key.
 Address
@@ -131,6 +138,8 @@ The goals for a Unified Address standard are as follows:
   range of potential future features. Some examples might include Layer 2
   features, cross-chain interoperability and bridging, and decentralized
   exchange.
+- Allow for Metadata items to be included in Unified Addresses/Viewing Keys
+  in order to provide future extensibility.
 - The standard should work well for Zcash today and upcoming potential
   upgrades, and also anticipate even broader use cases down the road such
   as cross-chain functionality.
@@ -194,13 +203,11 @@ upgrades.
 Receivers
 ---------
 
-Every Wallet must properly *parse* a Unified Address containing unrecognized
-Receiver Types; and similarly for Unified Viewing Keys containing unrecognized
-Viewing Key Types.
+Every Wallet must properly *parse* a Unified Address or Unified Viewing
+Key containing unrecognized Items.
 
-A Wallet may process unrecognized Receiver Types or Viewing Key Types by
-indicating to the user their presence or similar information for usability or
-diagnostic purposes.
+A Wallet may process unrecognized Items by indicating to the user their
+presence or similar information for usability or diagnostic purposes.
 
 Transport Encoding
 ------------------
@@ -234,8 +241,8 @@ Transfers
 When executing a Transfer the Sender selects a Receiver via a Selection
 process.
 
-Given a valid UA, Selection must treat any unrecognized Receiver as
-though it were absent.
+Given a valid UA, Selection must treat any unrecognized Item as though
+it were absent.
 
 - This property is crucial for forward compatibility to ensure users
   who upgrade to newer protocols / UAs don't lose the ability to smoothly
@@ -310,8 +317,14 @@ Priority List:
 * Typecode :math:`\mathtt{0x01}` — a Transparent P2SH address, *or*
   Typecode :math:`\mathtt{0x00}` — a Transparent P2PKH address.
 
+If, and only if, the user of a Producer or Consumer wallet explicitly
+opts into an experiment as described in `Experimental Usage`_, the
+specification of the experiment MAY include additions to the above
+Priority List (such additions SHOULD maintain the intent of preferring
+more recent shielded protocols).
+
 We say that a Receiver Type is “preferred” over another when it appears
-earlier in this Priority List.
+earlier in this Priority List (as potentially modified by experiments).
 
 The Sender of a payment to a Unified Address MUST use the Receiver
 of the most preferred Receiver Type that it supports from the set.
@@ -324,7 +337,7 @@ Orchard Receiver.
 
 The raw encoding of a Unified Address is a concatenation of
 :math:`(\mathtt{typecode}, \mathtt{length}, \mathtt{addr})` encodings
-of the consituent Receivers:
+of the consituent Receivers, in ascending order of Typecode:
 
 * :math:`\mathtt{typecode} : \mathtt{compactSize}` — the Typecode from the
   above Priority List;
@@ -366,7 +379,8 @@ Human-Readable Part is “``utest``”.
 
 A wallet MAY allow its user(s) to configure which Receiver Types it
 can send to. It MUST NOT allow the user(s) to change the order of the
-Priority List used to choose the Receiver Type.
+Priority List used to choose the Receiver Type, except by opting into
+experiments.
 
 
 Encoding of Unified Full/Incoming Viewing Keys
@@ -502,6 +516,24 @@ view all transactions to and from the address, while an IVK is intended
 to give access only to view incoming payments (as opposed to change).
 
 
+Metadata Items
+--------------
+
+Typecodes :math:`\mathtt{0xE0}` to :math:`\mathtt{0xFC}` inclusive
+are reserved to indicate Metadata Items other than Receivers or
+Viewing Keys. These items MAY affect the overall interpretation of
+the UA / UVK (for example, by specifying an expiration date).
+
+Since Metadata Items are not Receivers, they MUST NOT be selected by
+a Sender when choosing a Receiver to send to, and since they are not
+Viewing Keys, they MUST NOT provide additional authority to view
+information about transactions.
+
+Currently no Metadata Types are defined. New Metadata Types SHOULD be
+introduced either by a modification to this ZIP or by a new ZIP, in
+accordance with the ZIP Process [#zip-0000]_.
+
+
 Deriving a UIVK from a UFVK
 ---------------------------
 
@@ -517,7 +549,14 @@ The following derivations are applied to each component FVK:
   is obtained by deriving the child key with non-hardened index :math:`0`
   as described in [#bip-0032-public-to-public]_.
 
+* `Metadata Items`_ MUST be retained as-is.
+
 In each case, the Typecode remains the same as in the FVK.
+
+Non-Metadata Items that are unrecognized by a given Consumer, or that
+are specified in experiments that the user has not opted into (see
+`Experimental Usage`_), MUST be dropped when deriving a UIVK from a
+UFVK.
 
 
 Deriving a Unified Address from a UIVK
@@ -530,20 +569,39 @@ UIVK. That is,
 * A Sapling diversifier index MUST generate a valid diversifier as
   defined in ZIP 32 section “Sapling diversifier derivation”
   [#zip-0032-sapling-diversifier-derivation]_.
+
 * A Transparent diversifier index MUST be in the range :math:`0` to
   :math:`2^{31} - 1` inclusive.
 
-There are no additional constraints on an Orchard diversifier index.
+* There are no additional constraints on an Orchard diversifier index.
 
-In the case of deriving a Transparent P2PKH Receiver from a Transparent
-P2PKH IVK, the diversifier index is used as a BIP 44 child key index
-at the Index level [#bip-0044-path-index]_ to derive the address. As is
-usual for derivations below the BIP 44 Account level, non-hardened
-(public) derivation [#bip-0032-public-to-public]_ MUST be used. The IVK
-is assumed to correspond to the extended public key for the non-change
-element of the path. That is, if the UIVK was constructed correctly then
-the BIP 44 path of the Transparent P2PKH Receiver will be
-:math:`m / 44' / \mathit{coin\_type\kern0.05em'} / \mathit{account\kern0.1em'} / 0 / \mathit{diversifier\_index}.`
+The following derivations are applied to each component IVK using the
+diversifier index:
+
+* For a Sapling IVK, the corresponding Sapling Receiver is obtained as
+  specified in [#protocol-saplingkeycomponents]_.
+
+* For an Orchard IVK, the corresponding Orchard Receiver is obtained as
+  specified in [#protocol-orchardkeycomponents]_.
+
+* For a Transparent P2PKH IVK, the diversifier index is used as a
+  BIP 44 child key index at the Index level [#bip-0044-path-index]_
+  to derive the corresponding Transparant P2PKH Receiver. As is usual
+  for derivations below the BIP 44 Account level, non-hardened (public)
+  derivation [#bip-0032-public-to-public]_ MUST be used. The IVK is
+  assumed to correspond to the extended public key for the non-change
+  element of the path. That is, if the UIVK was constructed correctly
+  then the BIP 44 path of the Transparent P2PKH Receiver will be
+  :math:`m / 44' / \mathit{coin\_type\kern0.05em'} / \mathit{account\kern0.1em'} / 0 / \mathit{diversifier\_index}.`
+
+* `Metadata Items`_ MUST be retained as-is.
+
+In each case, the Typecode remains the same as in the IVK.
+
+Non-Metadata Items that are unrecognized by a given Consumer, or that
+are specified in experiments that the user has not opted into (see
+`Experimental Usage`_), MUST be dropped when deriving a Receiver from
+a UIVK.
 
 
 Jumbling
