@@ -555,6 +555,53 @@ introduced either by a modification to this ZIP or by a new ZIP, in
 accordance with the ZIP Process [#zip-0000]_.
 
 
+Deriving Internal Keys
+----------------------
+
+In addition to external addresses suitable for giving out to Senders,
+a wallet typically requires addresses for internal operations such as
+change and auto-shielding.
+
+We desire the following properties for viewing authority of both
+shielded and transparent key trees:
+
+- A holder of an FVK can derive external and internal IVKs, and
+  external and internal :math:`\mathsf{ovk}` components.
+
+- A holder of the external IVK cannot derive the internal IVK, or
+  any of the :math:`\mathsf{ovk}` components.
+
+- A holder of the external :math:`\mathsf{ovk}` component cannot derive
+  the internal :math:`\mathsf{ovk}` component, or any of the IVKs.
+
+For shielded keys, these properties are achieved by the one-wayness of
+:math:`\mathsf{PRF^{expand}}` and of :math:`\mathsf{CRH^{ivk}}` or
+:math:`\mathsf{Commit^{ivk}}` (for Sapling and Orchard respectively).
+Derivation of an internal shielded FVK from an external shielded FVK
+is specified in the
+"Sapling internal key derivation" [#zip-0032-sapling-internal-key-derivation]_ and
+"Orchard internal key derivation" [#zip-0032-orchard-internal-key-derivation]_
+sections of ZIP 32.
+
+To satisfy the above properties for transparent (P2PKH) keys, we derive
+the external and internal :math:`\mathsf{ovk}` components from the
+transparent FVK :math:`(\mathsf{c}, \mathsf{pk})` (described in
+`Encoding of Unified Full/Incoming Viewing Keys`_) as follows:
+
+- Let :math:`I_\mathsf{ovk} = \mathsf{PRF^{expand}}_{\mathsf{LEOS2BSP}_{256}(\mathsf{c})}\big([\mathtt{0xd0}] \,||\, \mathsf{ser_P}(\mathsf{pk})\big)`
+  where :math:`\mathsf{ser_P}(pk)` is :math:`33` bytes, as specified in [#bip-0032-serialization-format]_.
+- Let :math:`\mathsf{ovk_{external}}` be the first :math:`32` bytes of
+  :math:`I_\mathsf{ovk}` and let :math:`\mathsf{ovk_{internal}}` be the
+  remaining :math:`32` bytes of :math:`I_\mathsf{ovk}`.
+
+Since an external P2PKH FVK encodes the chain code and public key at the
+Account level, we can derive both external and internal child keys from
+it, as described in BIP 44 [#bip-0044-path-change]_. It is possible to
+derive an internal P2PKH FVK from the external P2PKH FVK (i.e. its parent)
+without having the external spending key, because child derivation at the
+Change level is non-hardened.
+
+
 Deriving a UIVK from a UFVK
 ---------------------------
 
@@ -605,12 +652,12 @@ diversifier index:
 
 * For a Transparent P2PKH IVK, the diversifier index is used as a
   BIP 44 child key index at the Index level [#bip-0044-path-index]_
-  to derive the corresponding Transparant P2PKH Receiver. As is usual
+  to derive the corresponding Transparent P2PKH Receiver. As is usual
   for derivations below the BIP 44 Account level, non-hardened (public)
   derivation [#bip-0032-public-to-public]_ MUST be used. The IVK is
-  assumed to correspond to the extended public key for the non-change
-  element of the path. That is, if the UIVK was constructed correctly
-  then the BIP 44 path of the Transparent P2PKH Receiver will be
+  assumed to correspond to the extended public key for the external
+  (non-change) element of the path. That is, if the UIVK was constructed
+  correctly then the BIP 44 path of the Transparent P2PKH Receiver will be
   :math:`m / 44' / \mathit{coin\_type\kern0.05em'} / \mathit{account\kern0.1em'} / 0 / \mathit{diversifier\_index}.`
 
 In each case, the Typecode remains the same as in the IVK.
@@ -883,7 +930,9 @@ References
 .. [#zip-0032-sapling-helper-functions] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling helper functions <zip-0032#sapling-helper-functions>`_
 .. [#zip-0032-sapling-extfvk] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling extended full viewing keys <zip-0032#sapling-extended-full-viewing-keys>`_
 .. [#zip-0032-sapling-diversifier-derivation] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling diversifier derivation <zip-0032#sapling-diversifier-derivation>`_
+.. [#zip-0032-sapling-internal-key-derivation] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling internal key derivation <zip-0032#sapling-internal-key-derivation>`_
 .. [#zip-0032-orchard-child-key-derivation] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Orchard child key derivation <zip-0032#orchard-child-key-derivation>`_
+.. [#zip-0032-orchard-internal-key-derivation] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Orchard internal key derivation <zip-0032#orchard-internal-key-derivation>`_
 .. [#zip-0032-sapling-key-path] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling key path <zip-0032#sapling-key-path>`_
 .. [#zip-0032-orchard-key-path] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Orchard key path <zip-0032#orchard-key-path>`_
 .. [#zip-0211] `ZIP 211: Disabling Addition of New Value to the Sprout Chain Value Pool <zip-0211.rst>`_
@@ -893,6 +942,7 @@ References
 .. [#bip-0032-serialization-format] `BIP 32: Hierarchical Deterministic Wallets — Serialization Format <https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#serialization-format>`_
 .. [#bip-0032-public-to-public] `BIP 32: Hierarchical Deterministic Wallets — Child key derivation (CKD) functions: Public parent key → public child key <https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#public-parent-key--public-child-key>`_
 .. [#bip-0044] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>`_
+.. [#bip-0044-path-change] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets — Path levels: Change <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#change>`_
 .. [#bip-0044-path-index] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets — Path levels: Index <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#index>`_
 .. [#bip-0350] `BIP 350: Bech32m format for v1+ witness addresses <https://github.com/bitcoin/bips/blob/master/bip-0350.mediawiki>`_
 .. [#P2PKH] `Transactions: P2PKH Script Validation — Bitcoin Developer Guide <https://developer.bitcoin.org/devguide/transactions.html#p2pkh-script-validation>`_
