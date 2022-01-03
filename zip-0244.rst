@@ -490,11 +490,7 @@ Identical to that specified for the transaction identifier.
 
 S.2: transparent_sig_digest
 ```````````````````````````
-If we are producing a hash for the signature over a Sapling Spend or an Orchard Action,
-the value of ``transparent_sig_digest`` is identical to the value specified in section
-`T.2 <#t-2-transparent-digest>`_.
-
-If we are producing a hash for signature over a transparent input, the value of
+In the case that transparent inputs or outputs are present, the value of
 ``transparent_sig_digest`` depends upon the value of a ``hash_type`` flag as in ZIP 143
 [#zip-0143]_.
 
@@ -513,6 +509,11 @@ This digest is a BLAKE2b-256 hash of the following values ::
 The personalization field of this hash is set to::
 
    "ZTxIdTranspaHash"
+
+In the case that the transaction has no transparent components,
+``transparent_sig_digest`` is ::
+
+  BLAKE2b-256("ZTxIdTranspaHash", [])
 
 S.2a: prevouts_sig_digest
 '''''''''''''''''''''''''
@@ -595,9 +596,10 @@ otherwise::
 
 S.2f: txin_sig_digest
 '''''''''''''''''''''
-This is a BLAKE2b-256 hash of the following properties of the transparent input being
-signed, initialized with the personalization field value ``Zcash___TxInHash`` (3
-underscores)::
+If we are producing a hash for the signature over a transparent input, the value
+of ``txin_sig_digest`` is a BLAKE2b-256 hash of the following properties of the
+transparent input being signed, initialized with the personalization field value
+``Zcash___TxInHash`` (3 underscores)::
 
    S.2f.i:   prevout     (field encoding)
    S.2f.ii:  script_code (field encoding)
@@ -608,6 +610,11 @@ Note: ``value`` is defined in the consensus rules to be a nonnegative value <=
 ``MAX_MONEY``, but all existing implementations parse this value as signed and
 enforce the nonnegative constraint as a consensus check. It is defined as signed
 here for consistency with those existing implementations.
+
+If we are producing a hash for the signature over a Sapling Spend or an Orchard
+Action, ``txin_sig_digest`` is::
+
+  BLAKE2b-256("Zcash___TxInHash", [])
 
 S.3: sapling_digest
 ```````````````````
@@ -771,6 +778,12 @@ The block header byte format and version are not altered by this ZIP.
 Rationale
 =========
 
+In S.2, we use the same personalization strings for fields that have matching
+fields in T.2, in order to facilitate reuse of their digests. In particular, the
+"no transparent inputs or outputs" case of S.2 is identical to the equivalent
+case in T.2; thus for purely-shielded transactions, ``signature_digest`` is
+equal to ``txid_digest``.
+
 Several changes in this ZIP (relative to ZIP 243 [#zip-0243]_) were made to
 align with BIP 341 [#bip-0341]_:
 
@@ -785,6 +798,13 @@ align with BIP 341 [#bip-0341]_:
 - The semantics of ``sequence_sig_digest`` were changed, to commit to ``nSequence``
   even if ``SIGHASH_SINGLE`` or ``SIGHASH_NONE`` is set. The rationale for this
   change is inherited from BIP 341 [#bip-0341-nSequence]_.
+
+Signatures over Sapling Spends or Orchard Actions commit to the same data as for
+transparent inputs, in order to ensure that they commit to all transparent input
+values. Without this commitment, there is a similar difficulty in the case where
+a hardware wallet is only signing shielded inputs, in a transaction that also
+contains transparent inputs from a malicious other party (where that party lies
+about their coins' values).
 
 ========================
 Reference implementation
