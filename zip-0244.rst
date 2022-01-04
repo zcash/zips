@@ -491,20 +491,20 @@ Identical to that specified for the transaction identifier.
 S.2: transparent_sig_digest
 ```````````````````````````
 In the case that transparent inputs or outputs are present, the value of
-``transparent_sig_digest`` depends upon the value of a ``hash_type`` flag as in ZIP 143
-[#zip-0143]_.
+``transparent_sig_digest`` depends upon the value of a ``hash_type`` flag.
 
 The construction of each component below depends upon the values of the
-``hash_type`` flag bits. Each component will be described separately
+``hash_type`` flag bits. Each component will be described separately.
 
 This digest is a BLAKE2b-256 hash of the following values ::
 
-   S.2a: prevouts_sig_digest     (32-byte hash)
-   S.2b: amounts_sig_digest      (32-byte hash)
-   S.2c: script_codes_sig_digest (32-byte hash)
-   S.2d: sequence_sig_digest     (32-byte hash)
-   S.2e: outputs_sig_digest      (32-byte hash)
-   S.2f: txin_sig_digest         (32-byte hash)
+   S.2a: hash_type               (1 byte)
+   S.2b: prevouts_sig_digest     (32-byte hash)
+   S.2c: amounts_sig_digest      (32-byte hash)
+   S.2d: script_codes_sig_digest (32-byte hash)
+   S.2e: sequence_sig_digest     (32-byte hash)
+   S.2f: outputs_sig_digest      (32-byte hash)
+   S.2g: txin_sig_digest         (32-byte hash)
 
 The personalization field of this hash is set to::
 
@@ -515,7 +515,22 @@ In the case that the transaction has no transparent components,
 
   BLAKE2b-256("ZTxIdTranspaHash", [])
 
-S.2a: prevouts_sig_digest
+S.2a: hash_type
+'''''''''''''''
+This is an 8-bit unsigned value. The ``SIGHASH`` encodings from the legacy
+script system are reused: one of ``SIGHASH_ALL``, ``SIGHASH_NONE``, and
+``SIGHASH_SINGLE``, with or without the ``SIGHASH_ANYONECANPAY`` flag. The
+following restrictions apply, which cause validation failure if violated:
+
+- Using any undefined ``hash_type`` (not 0x01, 0x02, 0x03, 0x81, 0x82, or 0x83).
+- Using ``SIGHASH_SINGLE`` without a "corresponding output" (an output with the
+  same index as the input being verified).
+
+If we are producing a hash for the signature over a Sapling Spend or an Orchard
+Action, ``hash_type`` is set to ``SIGHASH_ALL``, and is not encoded anywhere in
+the transaction's authorizing data.
+
+S.2b: prevouts_sig_digest
 '''''''''''''''''''''''''
 This is a BLAKE2b-256 hash initialized with the personalization field value
 ``ZTxIdPrevoutHash``.
@@ -529,7 +544,7 @@ otherwise::
 
    BLAKE2b-256(``ZTxIdPrevoutHash``, [])
 
-S.2b: amounts_sig_digest
+S.2c: amounts_sig_digest
 ''''''''''''''''''''''''
 If the ``SIGHASH_ANYONECANPAY`` flag is not set, the value of
 ``amounts_sig_digest`` is a BLAKE2b-256 hash of the concatenation of the 8-byte
@@ -544,7 +559,7 @@ If the ``SIGHASH_ANYONECANPAY`` flag is set, ``amounts_sig_digest`` is::
 
   BLAKE2b-256("ZTxTrAmountsHash", [])
 
-S.2c: script_codes_sig_digest
+S.2d: script_codes_sig_digest
 '''''''''''''''''''''''''''''
 If the ``SIGHASH_ANYONECANPAY`` flag is not set, the value of
 ``script_codes_sig_digest`` is a BLAKE2b-256 hash of the concatenation of the
@@ -559,7 +574,7 @@ If the ``SIGHASH_ANYONECANPAY`` flag is set, ``script_codes_sig_digest`` is::
 
   BLAKE2b-256("ZTxTrScriptsHash", [])
 
-S.2d: sequence_sig_digest
+S.2e: sequence_sig_digest
 '''''''''''''''''''''''''
 This is a BLAKE2b-256 hash initialized with the personalization field value
 ``ZTxIdSequencHash``.
@@ -573,7 +588,7 @@ otherwise::
 
    BLAKE2b-256(``ZTxIdSequencHash``, [])
 
-S.2e: outputs_sig_digest
+S.2f: outputs_sig_digest
 ''''''''''''''''''''''''
 This is a BLAKE2b-256 hash initialized with the personalization field value
 ``ZTxIdOutputsHash``.
@@ -594,17 +609,17 @@ otherwise::
 
    BLAKE2b-256(``ZTxIdOutputsHash``, [])
 
-S.2f: txin_sig_digest
+S.2g: txin_sig_digest
 '''''''''''''''''''''
 If we are producing a hash for the signature over a transparent input, the value
 of ``txin_sig_digest`` is a BLAKE2b-256 hash of the following properties of the
 transparent input being signed, initialized with the personalization field value
 ``Zcash___TxInHash`` (3 underscores)::
 
-   S.2f.i:   prevout     (field encoding)
-   S.2f.ii:  script_code (field encoding)
-   S.2f.iii: value       (8-byte signed little-endian)
-   S.2f.iv:  nSequence   (4-byte unsigned little-endian)
+   S.2g.i:   prevout     (field encoding)
+   S.2g.ii:  script_code (field encoding)
+   S.2g.iii: value       (8-byte signed little-endian)
+   S.2g.iv:  nSequence   (4-byte unsigned little-endian)
 
 Note: ``value`` is defined in the consensus rules to be a nonnegative value <=
 ``MAX_MONEY``, but all existing implementations parse this value as signed and
@@ -787,6 +802,13 @@ equal to ``txid_digest``.
 Several changes in this ZIP (relative to ZIP 243 [#zip-0243]_) were made to
 align with BIP 341 [#bip-0341]_:
 
+- The ``hash_type`` field is now restricted via a new consensus rule to be one
+  of a specific set of sighash type encodings. The rationale for this change is
+  inherited from BIP 341 [#bip-0341-hash_type]_.
+
+  - Note however that we do not define ``SIGHASH_DEFAULT``, as it is equivalent
+    to ``SIGHASH_ALL``, and we prefer the encodings to be canonical.
+
 - Two new commitments (``amounts_sig_digest`` and ``script_codes_sig_digest``)
   were added, to address difficulties in the case of a hardware wallet signing
   transparent inputs. ``script_codes_sig_digest`` helps the hardware wallet to
@@ -798,6 +820,11 @@ align with BIP 341 [#bip-0341]_:
 - The semantics of ``sequence_sig_digest`` were changed, to commit to ``nSequence``
   even if ``SIGHASH_SINGLE`` or ``SIGHASH_NONE`` is set. The rationale for this
   change is inherited from BIP 341 [#bip-0341-nSequence]_.
+- The semantics of ``outputs_sig_digest`` were changed, via a new consensus rule
+  that rejects transparent inputs for which ``SIGHASH_SINGLE`` is set without a
+  corresponding transparent output at the same index. BIP 341 does not give a
+  rationale for this change, but without it these inputs were effectively using
+  ``SIGHASH_NONE``, which is silently misleading.
 
 Signatures over Sapling Spends or Orchard Actions commit to the same data as for
 transparent inputs, in order to ensure that they commit to all transparent input
@@ -825,6 +852,7 @@ References
 .. [#zip-0243] `ZIP 243: Transaction Signature Validation for Sapling <zip-0243.rst>`_
 .. [#zip-0307] `ZIP 307: Light Client Protocol for Payment Detection <zip-0307.rst>`_
 .. [#bip-0341] `BIP 341: Taproot: SegWit version 1 spending rules <https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki>`_
+.. [#bip-0341-hash_type] `Why reject unknown hash_type values? <https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki#cite_note-12>`_
 .. [#bip-0341-scriptPubKey] `Why does the signature message commit to the scriptPubKey? <https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki#cite_note-16>`_
 .. [#bip-0341-amount] `Why does the signature message commit to the amounts of all transaction inputs? <https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki#cite_note-17>`_
 .. [#bip-0341-nSequence] `Why does the signature message commit to all input nSequence if SIGHASH_SINGLE or SIGHASH_NONE are set? <https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki#cite_note-18>`_
