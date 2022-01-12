@@ -319,11 +319,15 @@ index</pre>
                             </section>
                             <section id="s-2g-txin-sig-digest"><h7><span class="section-heading">S.2g: txin_sig_digest</span><span class="section-anchor"> <a rel="bookmark" href="#s-2g-txin-sig-digest"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h7>
                                 <p>If we are producing a hash for the signature over a transparent input, the value of <code>txin_sig_digest</code> is a BLAKE2b-256 hash of the following properties of the transparent input being signed, initialized with the personalization field value <code>Zcash___TxInHash</code> (3 underscores):</p>
-                                <pre>S.2g.i:   prevout     (field encoding)
-S.2g.ii:  value       (8-byte signed little-endian)
-S.2g.iii: script_code (field encoding)
-S.2g.iv:  nSequence   (4-byte unsigned little-endian)</pre>
-                                <p>Note: <code>value</code> is defined in the consensus rules to be a nonnegative value &lt;= <code>MAX_MONEY</code>, but all existing implementations parse this value as signed and enforce the nonnegative constraint as a consensus check. It is defined as signed here for consistency with those existing implementations.</p>
+                                <pre>S.2g.i:   prevout      (field encoding)
+S.2g.ii:  value        (8-byte signed little-endian)
+S.2g.iii: scriptPubKey (field encoding)
+S.2g.iv:  nSequence    (4-byte unsigned little-endian)</pre>
+                                <p>Notes:</p>
+                                <ul>
+                                    <li><code>value</code> is defined in the consensus rules to be a nonnegative value &lt;= <code>MAX_MONEY</code>, but all existing implementations parse this value as signed and enforce the nonnegative constraint as a consensus check. It is defined as signed here for consistency with those existing implementations.</li>
+                                    <li><code>scriptPubKey</code> is the field encoding (including a leading <code>CompactSize</code>) of the <code>pk_script</code> field <a id="id16" class="footnote_reference" href="#bdr-txout">14</a> for the coin spent by the transparent input. For P2SH coins, this differs from the <code>redeemScript</code> committed to in ZIP 243 <a id="id17" class="footnote_reference" href="#zip-0243">7</a>.</li>
+                                </ul>
                                 <p>If we are producing a hash for the signature over a Sapling Spend or an Orchard Action, <code>txin_sig_digest</code> is:</p>
                                 <pre>BLAKE2b-256("Zcash___TxInHash", [])</pre>
                             </section>
@@ -394,7 +398,7 @@ A.3c: bindingSigOrchard        (field encoding bytes)</pre>
                  is well-defined because
                     <span class="math">\(\mathsf{tx\_count} &gt; 0\)</span>
                 , due to the coinbase transaction in each block. Non-leaf hashes in this tree are BLAKE2b-256 hashes personalized by the string <code>"ZcashAuthDatHash"</code>.</p>
-                <p>Changing the block header format to allow space for an additional commitment is somewhat invasive. Instead, the name and meaning of the <code>hashLightClientRoot</code> field, described in ZIP 221 <a id="id16" class="footnote_reference" href="#zip-0221">4</a>, is changed.</p>
+                <p>Changing the block header format to allow space for an additional commitment is somewhat invasive. Instead, the name and meaning of the <code>hashLightClientRoot</code> field, described in ZIP 221 <a id="id18" class="footnote_reference" href="#zip-0221">4</a>, is changed.</p>
                 <p><code>hashLightClientRoot</code> is renamed to <code>hashBlockCommitments</code>. The value of this hash is the BLAKE2b-256 hash personalized by the string <code>"ZcashBlockCommit"</code> of the following elements:</p>
                 <pre>hashLightClientRoot (as described in ZIP 221)
 hashAuthDataRoot    (as described below)
@@ -407,16 +411,22 @@ terminator          [0u8;32]</pre>
         </section>
         <section id="rationale"><h2><span class="section-heading">Rationale</span><span class="section-anchor"> <a rel="bookmark" href="#rationale"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <p>In S.2, we use the same personalization strings for fields that have matching fields in T.2, in order to facilitate reuse of their digests. In particular, the "no transparent inputs or outputs" case of S.2 is identical to the equivalent case in T.2; thus for fully shielded transactions, <code>signature_digest</code> is equal to <code>txid_digest</code>.</p>
-            <p>Several changes in this ZIP (relative to ZIP 243 <a id="id17" class="footnote_reference" href="#zip-0243">7</a>) were made to align with BIP 341 <a id="id18" class="footnote_reference" href="#bip-0341">9</a>:</p>
+            <p>Several changes in this ZIP (relative to ZIP 243 <a id="id19" class="footnote_reference" href="#zip-0243">7</a>) were made to align with BIP 341 <a id="id20" class="footnote_reference" href="#bip-0341">9</a>:</p>
             <ul>
-                <li>The <code>hash_type</code> field is now restricted via a new consensus rule to be one of a specific set of sighash type encodings. The rationale for this change is inherited from BIP 341 <a id="id19" class="footnote_reference" href="#bip-0341-hash-type">10</a>.
+                <li>The <code>hash_type</code> field is now restricted via a new consensus rule to be one of a specific set of sighash type encodings. The rationale for this change is inherited from BIP 341 <a id="id21" class="footnote_reference" href="#bip-0341-hash-type">10</a>.
                     <ul>
                         <li>Note however that we do not define <code>SIGHASH_DEFAULT</code>, as it is equivalent to <code>SIGHASH_ALL</code>, and we prefer the encodings to be canonical.</li>
                     </ul>
                 </li>
-                <li>Two new commitments (<code>amounts_sig_digest</code> and <code>scriptpubkeys_sig_digest</code>) were added, to address difficulties in the case of a hardware wallet signing transparent inputs. <code>scriptpubkeys_sig_digest</code> helps the hardware wallet to determine the subset of inputs belonging to it <a id="id20" class="footnote_reference" href="#bip-0341-scriptpubkey">11</a>. <code>amounts_sig_digest</code> prevents the transaction creator from lying to the hardware wallet about the transaction fee <a id="id21" class="footnote_reference" href="#bip-0341-amount">12</a>. Without these commitments, the hardware wallet would need to be sent every transaction containing an outpoint referenced in the transaction being signed.</li>
-                <li>The semantics of <code>sequence_sig_digest</code> were changed, to commit to <code>nSequence</code> even if <code>SIGHASH_SINGLE</code> or <code>SIGHASH_NONE</code> is set. The rationale for this change is inherited from BIP 341 <a id="id22" class="footnote_reference" href="#bip-0341-nsequence">13</a>.</li>
+                <li>Two new commitments (<code>amounts_sig_digest</code> and <code>scriptpubkeys_sig_digest</code>) were added, to address difficulties in the case of a hardware wallet signing transparent inputs. <code>scriptpubkeys_sig_digest</code> helps the hardware wallet to determine the subset of inputs belonging to it <a id="id22" class="footnote_reference" href="#bip-0341-scriptpubkey">11</a>. <code>amounts_sig_digest</code> prevents the transaction creator from lying to the hardware wallet about the transaction fee <a id="id23" class="footnote_reference" href="#bip-0341-amount">12</a>. Without these commitments, the hardware wallet would need to be sent every transaction containing an outpoint referenced in the transaction being signed.</li>
+                <li>The semantics of <code>sequence_sig_digest</code> were changed, to commit to <code>nSequence</code> even if <code>SIGHASH_SINGLE</code> or <code>SIGHASH_NONE</code> is set. The rationale for this change is inherited from BIP 341 <a id="id24" class="footnote_reference" href="#bip-0341-nsequence">13</a>.</li>
                 <li>The semantics of <code>outputs_sig_digest</code> were changed, via a new consensus rule that rejects transparent inputs for which <code>SIGHASH_SINGLE</code> is set without a corresponding transparent output at the same index. BIP 341 does not give a rationale for this change, but without it these inputs were effectively using <code>SIGHASH_NONE</code>, which is silently misleading.</li>
+                <li>The semantics of <code>txin_sig_digest</code> were changed, to always commit to the <code>scriptPubKey</code> field of the transparent coin being spent, instead of the script actually being executed at the time <code>signature_digest</code> is calculated.
+                    <ul>
+                        <li>This ensures that the signature commits to the entire committed script. In Taproot, this makes it possible to prove to a hardware wallet what (unused) execution paths exist <a id="id25" class="footnote_reference" href="#bip-0341-scriptpubkey">11</a>. Alternate execution paths don't exist for P2PKH (where the executed script is <code>scriptPubKey</code>) or P2SH (where <code>scriptPubKey</code> is fully executed prior to <code>redeemScript</code>).</li>
+                        <li>For P2SH, this means we commit to the Hash160 digest of <code>redeemScript</code> instead of the actual script. Note that the Bitcoin P2SH design depends entirely on Hash160 being preimage resistant, because otherwise anyone would be able to spend someone else's P2SH UTXO using a preimage. We do need to ensure that there is no collision attack; this holds because even if an adversary could find a Hash160 collision, this would only enable them to alter the input's <code>scriptSig</code> field. Doing so doesn't alter the effecting data of the transaction, which by definition means the transaction has the same effect under consensus (spends the same inputs and produces the same outputs).</li>
+                    </ul>
+                </li>
             </ul>
             <p>Signatures over Sapling Spends or Orchard Actions commit to the same data as for transparent inputs, in order to ensure that they commit to all transparent input values. Without this commitment, there is a similar difficulty in the case where a hardware wallet is only signing shielded inputs, in a transaction that also contains transparent inputs from a malicious other party (where that party lies about their coins' values).</p>
         </section>

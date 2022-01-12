@@ -619,15 +619,21 @@ of ``txin_sig_digest`` is a BLAKE2b-256 hash of the following properties of the
 transparent input being signed, initialized with the personalization field value
 ``Zcash___TxInHash`` (3 underscores)::
 
-   S.2g.i:   prevout     (field encoding)
-   S.2g.ii:  value       (8-byte signed little-endian)
-   S.2g.iii: script_code (field encoding)
-   S.2g.iv:  nSequence   (4-byte unsigned little-endian)
+   S.2g.i:   prevout      (field encoding)
+   S.2g.ii:  value        (8-byte signed little-endian)
+   S.2g.iii: scriptPubKey (field encoding)
+   S.2g.iv:  nSequence    (4-byte unsigned little-endian)
 
-Note: ``value`` is defined in the consensus rules to be a nonnegative value <=
-``MAX_MONEY``, but all existing implementations parse this value as signed and
-enforce the nonnegative constraint as a consensus check. It is defined as signed
-here for consistency with those existing implementations.
+Notes:
+
+- ``value`` is defined in the consensus rules to be a nonnegative value <=
+  ``MAX_MONEY``, but all existing implementations parse this value as signed and
+  enforce the nonnegative constraint as a consensus check. It is defined as
+  signed here for consistency with those existing implementations.
+- ``scriptPubKey`` is the field encoding (including a leading ``CompactSize``)
+  of the ``pk_script`` field [#bdr-txout]_ for the coin spent by the transparent
+  input. For P2SH coins, this differs from the ``redeemScript`` committed to in
+  ZIP 243 [#zip-0243]_.
 
 If we are producing a hash for the signature over a Sapling Spend or an Orchard
 Action, ``txin_sig_digest`` is::
@@ -828,6 +834,25 @@ align with BIP 341 [#bip-0341]_:
   corresponding transparent output at the same index. BIP 341 does not give a
   rationale for this change, but without it these inputs were effectively using
   ``SIGHASH_NONE``, which is silently misleading.
+- The semantics of ``txin_sig_digest`` were changed, to always commit to the
+  ``scriptPubKey`` field of the transparent coin being spent, instead of the
+  script actually being executed at the time ``signature_digest`` is calculated.
+
+  - This ensures that the signature commits to the entire committed script. In
+    Taproot, this makes it possible to prove to a hardware wallet what (unused)
+    execution paths exist [#bip-0341-scriptPubKey]_. Alternate execution paths
+    don't exist for P2PKH (where the executed script is ``scriptPubKey``) or
+    P2SH (where ``scriptPubKey`` is fully executed prior to ``redeemScript``).
+  - For P2SH, this means we commit to the Hash160 digest of ``redeemScript``
+    instead of the actual script. Note that the Bitcoin P2SH design depends
+    entirely on Hash160 being preimage resistant, because otherwise anyone would
+    be able to spend someone else's P2SH UTXO using a preimage. We do need to
+    ensure that there is no collision attack; this holds because even if an
+    adversary could find a Hash160 collision, this would only enable them to
+    alter the input's ``scriptSig`` field. Doing so doesn't alter the effecting
+    data of the transaction, which by definition means the transaction has the
+    same effect under consensus (spends the same inputs and produces the same
+    outputs).
 
 Signatures over Sapling Spends or Orchard Actions commit to the same data as for
 transparent inputs, in order to ensure that they commit to all transparent input
