@@ -105,8 +105,9 @@ Payment Address types:
 * Sapling Addresses
 
 Each of these has its own Address Encodings, as a string and as a QR code.
-(Since the QR code is derivable from the string encoding, for many purposes
-it suffices to consider the string encoding.)
+(Since the QR code is derivable from the string encoding as described in
+[#protocol-addressandkeyencoding]_, for many purposes it suffices to consider
+the string encoding.)
 
 The Orchard proposal [#zip-0224]_ adds a new Address type, Orchard Addresses.
 
@@ -158,9 +159,9 @@ Importantly, any wallet can support Unified Addresses, even when that wallet
 only supports a subset of payment methods for receiving and/or sending.
 
 Despite having some similar characteristics, the Unified Address standard is
-orthogonal to Payment Request URIs [#zip-0321]_ and similar schemes, and the
-Unified Address format is likely to be incorporated into such schemes as a new
-Address type.
+orthogonal to Payment Request URIs [#zip-0321]_ and similar schemes. Since
+Payment Requests encode addresses as alphanumeric strings, no change to
+ZIP 321 is required in order to use Unified Addresses in Payment Requests.
 
 Concepts
 --------
@@ -459,12 +460,12 @@ and this should be taken into account in the design of such Items.
 Requirements for both Unified Addresses and Unified Viewing Keys
 ----------------------------------------------------------------
 
-* A Unified Address or Unified Viewing Key MUST NOT contain only
-  transparent P2SH or P2PKH addresses (Typecodes :math:`\mathtt{0x00}`
-  and :math:`\mathtt{0x01}`). The rationale is that the existing
-  P2SH and P2PKH transparent-only address formats, and the existing
-  P2PKH extended public key format, suffice for this purpose and are
-  already supported by the existing ecosystem.
+* A Unified Address or Unified Viewing Key MUST contain at least one
+  shielded item (Typecodes :math:`\mathtt{0x02}` and :math:`\mathtt{0x03}`).
+  The rationale is that the existing P2SH and P2PKH transparent-only
+  address formats, and the existing P2PKH extended public key format,
+  suffice for representing transparent items and are already supported
+  by the existing ecosystem.
 
 * The :math:`\mathtt{typecode}` and :math:`\mathtt{length}` fields are
   encoded as :math:`\mathtt{compactSize}.` [#Bitcoin-CompactSize]_
@@ -554,6 +555,53 @@ introduced either by a modification to this ZIP or by a new ZIP, in
 accordance with the ZIP Process [#zip-0000]_.
 
 
+Deriving Internal Keys
+----------------------
+
+In addition to external addresses suitable for giving out to Senders,
+a wallet typically requires addresses for internal operations such as
+change and auto-shielding.
+
+We desire the following properties for viewing authority of both
+shielded and transparent key trees:
+
+- A holder of an FVK can derive external and internal IVKs, and
+  external and internal :math:`\mathsf{ovk}` components.
+
+- A holder of the external IVK cannot derive the internal IVK, or
+  any of the :math:`\mathsf{ovk}` components.
+
+- A holder of the external :math:`\mathsf{ovk}` component cannot derive
+  the internal :math:`\mathsf{ovk}` component, or any of the IVKs.
+
+For shielded keys, these properties are achieved by the one-wayness of
+:math:`\mathsf{PRF^{expand}}` and of :math:`\mathsf{CRH^{ivk}}` or
+:math:`\mathsf{Commit^{ivk}}` (for Sapling and Orchard respectively).
+Derivation of an internal shielded FVK from an external shielded FVK
+is specified in the
+"Sapling internal key derivation" [#zip-0032-sapling-internal-key-derivation]_ and
+"Orchard internal key derivation" [#zip-0032-orchard-internal-key-derivation]_
+sections of ZIP 32.
+
+To satisfy the above properties for transparent (P2PKH) keys, we derive
+the external and internal :math:`\mathsf{ovk}` components from the
+transparent FVK :math:`(\mathsf{c}, \mathsf{pk})` (described in
+`Encoding of Unified Full/Incoming Viewing Keys`_) as follows:
+
+- Let :math:`I_\mathsf{ovk} = \mathsf{PRF^{expand}}_{\mathsf{LEOS2BSP}_{256}(\mathsf{c})}\big([\mathtt{0xd0}] \,||\, \mathsf{ser_P}(\mathsf{pk})\big)`
+  where :math:`\mathsf{ser_P}(pk)` is :math:`33` bytes, as specified in [#bip-0032-serialization-format]_.
+- Let :math:`\mathsf{ovk_{external}}` be the first :math:`32` bytes of
+  :math:`I_\mathsf{ovk}` and let :math:`\mathsf{ovk_{internal}}` be the
+  remaining :math:`32` bytes of :math:`I_\mathsf{ovk}`.
+
+Since an external P2PKH FVK encodes the chain code and public key at the
+Account level, we can derive both external and internal child keys from
+it, as described in BIP 44 [#bip-0044-path-change]_. It is possible to
+derive an internal P2PKH FVK from the external P2PKH FVK (i.e. its parent)
+without having the external spending key, because child derivation at the
+Change level is non-hardened.
+
+
 Deriving a UIVK from a UFVK
 ---------------------------
 
@@ -604,12 +652,12 @@ diversifier index:
 
 * For a Transparent P2PKH IVK, the diversifier index is used as a
   BIP 44 child key index at the Index level [#bip-0044-path-index]_
-  to derive the corresponding Transparant P2PKH Receiver. As is usual
+  to derive the corresponding Transparent P2PKH Receiver. As is usual
   for derivations below the BIP 44 Account level, non-hardened (public)
   derivation [#bip-0032-public-to-public]_ MUST be used. The IVK is
-  assumed to correspond to the extended public key for the non-change
-  element of the path. That is, if the UIVK was constructed correctly
-  then the BIP 44 path of the Transparent P2PKH Receiver will be
+  assumed to correspond to the extended public key for the external
+  (non-change) element of the path. That is, if the UIVK was constructed
+  correctly then the BIP 44 path of the Transparent P2PKH Receiver will be
   :math:`m / 44' / \mathit{coin\_type\kern0.05em'} / \mathit{account\kern0.1em'} / 0 / \mathit{diversifier\_index}.`
 
 In each case, the Typecode remains the same as in the IVK.
@@ -618,6 +666,59 @@ Items (including Metadata Items) that are unrecognized by a given
 Consumer, or that are specified in experiments that the user has not
 opted into (see `Experimental Usage`_), MUST be dropped when deriving
 a Receiver from a UIVK.
+
+
+Usage of Outgoing Viewing Keys
+------------------------------
+
+When a Sender constructs a transaction that creates Sapling or
+Orchard notes, it uses an outgoing viewing key, as described in
+[#protocol-saplingsend]_ and [#protocol-orchardsend]_, to encrypt
+an outgoing ciphertext. Decryption with the outgoing viewing key
+allows recovering the sent note plaintext, including destination
+address, amount, and memo. The intention is that this outgoing
+viewing key should be associated with the source of the funds.
+
+However, the specification of which outgoing viewing key should
+be used is left somewhat open in [#protocol-saplingsend]_ and
+[#protocol-orchardsend]_; in particular, it was unclear whether
+transfers should be considered as being sent from an address, or
+from a ZIP 32 account [#zip-0032-key-path-levels]_. The adoption
+of multiple shielded protocols that support outgoing viewing keys
+(i.e. Sapling and Orchard) further complicates this question,
+since from NU5 activation, nothing at the consensus level
+prevents a wallet from spending both Sapling and Orchard notes
+in the same transaction. (Recommendations about wallet usage of
+multiple pools will be given in ZIP 315 [#zip-0315]_.)
+
+Here we refine the protocol specification in order to allow more
+precise determination of viewing authority for UFVKs.
+
+A Sender will attempt to determine a "sending Account" for each
+transfer. The preferred approach is for the API used to perform
+a transfer to directly specify a sending Account. Otherwise, if
+the Sender can ascertain that all funds used in the transfer are
+from addresses associated with some Account, then it SHOULD treat
+that as the sending Account. If not, then the sending Account is
+undetermined.
+
+The Sender also determines a "sending protocol" —one of
+"transparent", "Sapling", or "Orchard"— corresponding to the
+most preferred Receiver Type (as given in `Encoding of Unified Addresses`_)
+of any funds sent in the transaction.
+
+If the sending Account has been determined, then the Sender
+SHOULD use the external or internal :math:`\mathsf{ovk}`
+(according to the type of transfer), as specified by the
+sending protocol, of the full viewing key for that Account
+(i.e. at the ZIP 32 Account level).
+
+If the sending Account is undetermined, then the Sender SHOULD
+choose one of the addresses from which funds are being sent
+(for example, the first one specified), and then use the
+external or internal :math:`\mathsf{ovk}` (according to the
+type of transfer), as specified by the sending protocol, of
+the full viewing key for that address.
 
 
 Jumbling
@@ -869,28 +970,36 @@ References
 ==========
 
 .. [#RFC2119] `RFC 2119: Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
-.. [#protocol-nu5] `Zcash Protocol Specification, Version 2020.2.16 or later [NU5 proposal] <protocol/protocol.pdf>`_
-.. [#protocol-notation] `Zcash Protocol Specification, Version 2020.2.16. Section 2: Notation <protocol/protocol.pdf#notation>`_
-.. [#protocol-saplingkeycomponents] `Zcash Protocol Specification, Version 2020.2.16. Section 4.2.2: Sapling Key Components <protocol/protocol.pdf#saplingkeycomponents>`_
-.. [#protocol-orchardkeycomponents] `Zcash Protocol Specification, Version 2020.2.16. Section 4.2.3: Orchard Key Components <protocol/protocol.pdf#orchardkeycomponents>`_
-.. [#protocol-saplingpaymentaddrencoding] `Zcash Protocol Specification, Version 2020.2.16. Section 5.6.3.1: Sapling Payment Addresses <protocol/protocol.pdf#saplingpaymentaddrencoding>`_
-.. [#protocol-orchardpaymentaddrencoding] `Zcash Protocol Specification, Version 2020.2.16. Section 5.6.4.2: Orchard Raw Payment Addresses <protocol/protocol.pdf#orchardpaymentaddrencoding>`_
-.. [#protocol-orchardinviewingkeyencoding] `Zcash Protocol Specification, Version 2020.2.16. Section 5.6.4.3: Orchard Raw Incoming Viewing Keys <protocol/protocol.pdf#orchardinviewingkeyencoding>`_
-.. [#protocol-orchardfullviewingkeyencoding] `Zcash Protocol Specification, Version 2020.2.16. Section 5.6.4.4: Orchard Raw Full Viewing Keys <protocol/protocol.pdf#orchardfullviewingkeyencoding>`_
+.. [#protocol-nu5] `Zcash Protocol Specification, Version 2022.2.19 or later [NU5 proposal] <protocol/protocol.pdf>`_
+.. [#protocol-notation] `Zcash Protocol Specification, Version 2022.2.19. Section 2: Notation <protocol/protocol.pdf#notation>`_
+.. [#protocol-saplingkeycomponents] `Zcash Protocol Specification, Version 2022.2.19. Section 4.2.2: Sapling Key Components <protocol/protocol.pdf#saplingkeycomponents>`_
+.. [#protocol-orchardkeycomponents] `Zcash Protocol Specification, Version 2022.2.19. Section 4.2.3: Orchard Key Components <protocol/protocol.pdf#orchardkeycomponents>`_
+.. [#protocol-saplingsend] `Zcash Protocol Specification, Version 2022.2.19. Section 4.7.2: Sending Notes (Sapling) <protocol/protocol.pdf#saplingsend>`_
+.. [#protocol-orchardsend] `Zcash Protocol Specification, Version 2022.2.19. Section 4.7.3: Sending Notes (Orchard) <protocol/protocol.pdf#orchardsend>`_
+.. [#protocol-addressandkeyencoding] `Zcash Protocol Specification, Version 2022.2.19. Section 5.6: Encodings of Addresses and Keys <protocol/protocol.pdf#addressandkeyencoding>`_
+.. [#protocol-saplingpaymentaddrencoding] `Zcash Protocol Specification, Version 2022.2.19. Section 5.6.3.1: Sapling Payment Addresses <protocol/protocol.pdf#saplingpaymentaddrencoding>`_
+.. [#protocol-orchardpaymentaddrencoding] `Zcash Protocol Specification, Version 2022.2.19. Section 5.6.4.2: Orchard Raw Payment Addresses <protocol/protocol.pdf#orchardpaymentaddrencoding>`_
+.. [#protocol-orchardinviewingkeyencoding] `Zcash Protocol Specification, Version 2022.2.19. Section 5.6.4.3: Orchard Raw Incoming Viewing Keys <protocol/protocol.pdf#orchardinviewingkeyencoding>`_
+.. [#protocol-orchardfullviewingkeyencoding] `Zcash Protocol Specification, Version 2022.2.19. Section 5.6.4.4: Orchard Raw Full Viewing Keys <protocol/protocol.pdf#orchardfullviewingkeyencoding>`_
 .. [#zip-0000] `ZIP 0: ZIP Process <zip-0000.rst>`_
 .. [#zip-0032-sapling-helper-functions] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling helper functions <zip-0032#sapling-helper-functions>`_
 .. [#zip-0032-sapling-extfvk] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling extended full viewing keys <zip-0032#sapling-extended-full-viewing-keys>`_
 .. [#zip-0032-sapling-diversifier-derivation] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling diversifier derivation <zip-0032#sapling-diversifier-derivation>`_
+.. [#zip-0032-sapling-internal-key-derivation] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling internal key derivation <zip-0032#sapling-internal-key-derivation>`_
 .. [#zip-0032-orchard-child-key-derivation] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Orchard child key derivation <zip-0032#orchard-child-key-derivation>`_
+.. [#zip-0032-orchard-internal-key-derivation] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Orchard internal key derivation <zip-0032#orchard-internal-key-derivation>`_
+.. [#zip-0032-key-path-levels] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Key path levels <zip-0032#key-path-levels>`_
 .. [#zip-0032-sapling-key-path] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling key path <zip-0032#sapling-key-path>`_
 .. [#zip-0032-orchard-key-path] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Orchard key path <zip-0032#orchard-key-path>`_
 .. [#zip-0211] `ZIP 211: Disabling Addition of New Value to the Sprout Chain Value Pool <zip-0211.rst>`_
 .. [#zip-0224] `ZIP 224: Orchard Shielded Protocol <zip-0224.rst>`_
+.. [#zip-0315] `ZIP 315: Best Practices for Wallet Handling of Multiple Pools <zip-0315.rst>`_
 .. [#zip-0321] `ZIP 321: Payment Request URIs <zip-0321.rst>`_
 .. [#bip-0032] `BIP 32: Hierarchical Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki>`_
 .. [#bip-0032-serialization-format] `BIP 32: Hierarchical Deterministic Wallets — Serialization Format <https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#serialization-format>`_
 .. [#bip-0032-public-to-public] `BIP 32: Hierarchical Deterministic Wallets — Child key derivation (CKD) functions: Public parent key → public child key <https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#public-parent-key--public-child-key>`_
 .. [#bip-0044] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>`_
+.. [#bip-0044-path-change] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets — Path levels: Change <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#change>`_
 .. [#bip-0044-path-index] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets — Path levels: Index <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#index>`_
 .. [#bip-0350] `BIP 350: Bech32m format for v1+ witness addresses <https://github.com/bitcoin/bips/blob/master/bip-0350.mediawiki>`_
 .. [#P2PKH] `Transactions: P2PKH Script Validation — Bitcoin Developer Guide <https://developer.bitcoin.org/devguide/transactions.html#p2pkh-script-validation>`_
