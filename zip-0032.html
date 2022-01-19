@@ -11,7 +11,10 @@
 Title: Shielded Hierarchical Deterministic Wallets
 Owners: Jack Grigg &lt;str4d@electriccoin.co&gt;
         Daira Hopwood &lt;daira@electriccoin.co&gt;
-Credits: Pieter Wuille
+Credits: Sean Bowe
+         Kris Nuttycombe
+         Ying Tong Lai
+         Pieter Wuille
          Marek Palatinus
          Pavol Rusnak
 Status: Final
@@ -23,9 +26,9 @@ License: MIT</pre>
         </p>
         <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <p>The key words "MUST", "MUST NOT", and "MAY" in this document are to be interpreted as described in RFC 2119. <a id="id1" class="footnote_reference" href="#rfc2119">1</a></p>
-            <p>"Jubjub" refers to the elliptic curve defined in <a id="id2" class="footnote_reference" href="#protocol-jubjub">13</a>.</p>
+            <p>"Jubjub" refers to the elliptic curve defined in <a id="id2" class="footnote_reference" href="#protocol-jubjub">15</a>.</p>
             <p>A "chain code" is a cryptovalue that is needed, in addition to a spending key, in order to derive descendant keys and addresses of that key.</p>
-            <p>The terms "Testnet" and "Mainnet" are to be interpreted as described in section 3.12 of the Zcash Protocol Specification <a id="id3" class="footnote_reference" href="#protocol-networks">9</a>.</p>
+            <p>The terms "Testnet" and "Mainnet" are to be interpreted as described in section 3.12 of the Zcash Protocol Specification <a id="id3" class="footnote_reference" href="#protocol-networks">10</a>.</p>
         </section>
         <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <p>This proposal defines a mechanism for extending hierarchical deterministic wallets, as decribed in BIP 32 <a id="id4" class="footnote_reference" href="#bip-0032">2</a>, to support Zcash's shielded addresses.</p>
@@ -49,7 +52,7 @@ License: MIT</pre>
             <p>At present, no such equivalent exists for Zcash's shielded addresses. This is of particular concern for hardware wallets; all currently-marketed devices only store a seed internally, and have trained their users to only backup that seed. Given that the Sapling upgrade will make it feasible to use hardware wallets with shielded addresses, it is desirable to have a standard mechanism for deriving them.</p>
         </section>
         <section id="conventions"><h2><span class="section-heading">Conventions</span><span class="section-anchor"> <a rel="bookmark" href="#conventions"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>Most of the notation and functions used in this ZIP are defined in the Zcash protocol specification <a id="id9" class="footnote_reference" href="#protocol">8</a>. They are reproduced here for convenience:</p>
+            <p>Most of the notation and functions used in this ZIP are defined in the Zcash protocol specification <a id="id9" class="footnote_reference" href="#protocol">9</a>. They are reproduced here for convenience:</p>
             <ul>
                 <li>
                     <span class="math">\(\mathsf{truncate}_k(S)\)</span>
@@ -101,7 +104,7 @@ License: MIT</pre>
                     <span class="math">\(\mathsf{repr}_\mathbb{J}(P)\)</span>
                  is the representation of the Jubjub elliptic curve point
                     <span class="math">\(P\)</span>
-                 as a bit sequence, defined in <a id="id10" class="footnote_reference" href="#protocol-jubjub">13</a>.</li>
+                 as a bit sequence, defined in <a id="id10" class="footnote_reference" href="#protocol-jubjub">15</a>.</li>
                 <li>
                     <span class="math">\(\mathsf{BLAKE2b}\text{-}\mathsf{256}(p, x)\)</span>
                  refers to unkeyed BLAKE2b-256 in sequential mode, with an output digest length of 32 bytes, 16-byte personalization string
@@ -125,18 +128,25 @@ License: MIT</pre>
                     <span class="math">\(r_\mathbb{J}\)</span>
                  is the order of the Jubjub large prime subgroup.</li>
                 <li>
-                    <span class="math">\(\mathsf{ToScalar}(x) :=\)</span>
+                    <span class="math">\(r_\mathbb{P}\)</span>
+                 is the order of the Pallas curve.</li>
+                <li>
+                    <span class="math">\(\mathsf{ToScalar^{Sapling}}(x) :=\)</span>
                     <span class="math">\(\mathsf{LEOS2IP}_{512}(x) \pmod{r_\mathbb{J}}\)</span>
                 .</li>
                 <li>
-                    <span class="math">\(\mathsf{DiversifyHash}(d)\)</span>
+                    <span class="math">\(\mathsf{ToScalar^{Orchard}}(x) :=\)</span>
+                    <span class="math">\(\mathsf{LEOS2IP}_{512}(x) \pmod{r_\mathbb{P}}\)</span>
+                .</li>
+                <li>
+                    <span class="math">\(\mathsf{DiversifyHash^{Sapling}}(d)\)</span>
                  maps a diversifier
                     <span class="math">\(d\)</span>
                  to a base point on the Jubjub elliptic curve, or to
                     <span class="math">\(\bot\)</span>
-                 if the diversifier is invalid. It is instantiated in <a id="id11" class="footnote_reference" href="#protocol-concretediversifyhash">11</a>.</li>
+                 if the diversifier is invalid. It is instantiated in <a id="id11" class="footnote_reference" href="#protocol-concretediversifyhash">13</a>.</li>
             </ul>
-            <p>The following algorithm standardized in <a id="id12" class="footnote_reference" href="#nist-sp-800-38g">20</a> is used:</p>
+            <p>The following algorithm standardized in <a id="id12" class="footnote_reference" href="#nist-sp-800-38g">22</a> is used:</p>
             <ul>
                 <li>
                     <span class="math">\(\mathsf{FF1}\text{-}\mathsf{AES256.Encrypt}(key, tweak, x)\)</span>
@@ -264,13 +274,13 @@ License: MIT</pre>
                         <span class="math">\(\mathsf{nsk}_m\)</span>
                     , and
                         <span class="math">\(\mathsf{ovk}_m\)</span>
-                     via the standard Sapling derivation <a id="id15" class="footnote_reference" href="#protocol-saplingkeycomponents">10</a>:
+                     via the standard Sapling derivation <a id="id15" class="footnote_reference" href="#protocol-saplingkeycomponents">11</a>:
                         <ul>
                             <li>
-                                <span class="math">\(\mathsf{ask}_m = \mathsf{ToScalar}(\mathsf{PRF^{expand}}(\mathsf{sk}_m, [\texttt{0x00}]))\)</span>
+                                <span class="math">\(\mathsf{ask}_m = \mathsf{ToScalar^{Sapling}}(\mathsf{PRF^{expand}}(\mathsf{sk}_m, [\texttt{0x00}]))\)</span>
                             </li>
                             <li>
-                                <span class="math">\(\mathsf{nsk}_m = \mathsf{ToScalar}(\mathsf{PRF^{expand}}(\mathsf{sk}_m, [\texttt{0x01}]))\)</span>
+                                <span class="math">\(\mathsf{nsk}_m = \mathsf{ToScalar^{Sapling}}(\mathsf{PRF^{expand}}(\mathsf{sk}_m, [\texttt{0x01}]))\)</span>
                             </li>
                             <li>
                                 <span class="math">\(\mathsf{ovk}_m = \mathsf{truncate}_{32}(\mathsf{PRF^{expand}}(\mathsf{sk}_m, [\texttt{0x02}]))\)</span>
@@ -320,7 +330,7 @@ License: MIT</pre>
                                     <span class="math">\((\mathsf{nk}_{par}, \mathsf{ak}_{par}, \mathsf{ovk}_{par})\)</span>
                                  is the full viewing key derived from
                                     <span class="math">\((\mathsf{ask}_{par}, \mathsf{nsk}_{par}, \mathsf{ovk}_{par})\)</span>
-                                 as described in <a id="id16" class="footnote_reference" href="#protocol-saplingkeycomponents">10</a>.</li>
+                                 as described in <a id="id16" class="footnote_reference" href="#protocol-saplingkeycomponents">11</a>.</li>
                             </ul>
                         </li>
                         <li>Split
@@ -331,10 +341,10 @@ License: MIT</pre>
                             <span class="math">\(I_R\)</span>
                         .</li>
                         <li>Let
-                            <span class="math">\(I_\mathsf{ask} = \mathsf{ToScalar}(\mathsf{PRF^{expand}}(I_L, [\texttt{0x13}]))\)</span>
+                            <span class="math">\(I_\mathsf{ask} = \mathsf{ToScalar^{Sapling}}(\mathsf{PRF^{expand}}(I_L, [\texttt{0x13}]))\)</span>
                         .</li>
                         <li>Let
-                            <span class="math">\(I_\mathsf{nsk} = \mathsf{ToScalar}(\mathsf{PRF^{expand}}(I_L, [\texttt{0x14}]))\)</span>
+                            <span class="math">\(I_\mathsf{nsk} = \mathsf{ToScalar^{Sapling}}(\mathsf{PRF^{expand}}(I_L, [\texttt{0x14}]))\)</span>
                         .</li>
                         <li>Return:
                             <ul>
@@ -361,10 +371,10 @@ License: MIT</pre>
                 </section>
                 <section id="deriving-a-child-extended-full-viewing-key"><h4><span class="section-heading">Deriving a child extended full viewing key</span><span class="section-anchor"> <a rel="bookmark" href="#deriving-a-child-extended-full-viewing-key"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
                     <p>Let
-                        <span class="math">\(\mathcal{G}\)</span>
-                     be as defined in <a id="id17" class="footnote_reference" href="#protocol-concretespendauthsig">12</a> and let
-                        <span class="math">\(\mathcal{H}\)</span>
-                     be as defined in <a id="id18" class="footnote_reference" href="#protocol-saplingkeycomponents">10</a>.</p>
+                        <span class="math">\(\mathcal{G}^\mathsf{Sapling}\)</span>
+                     be as defined in <a id="id17" class="footnote_reference" href="#protocol-concretespendauthsig">14</a> and let
+                        <span class="math">\(\mathcal{H}^\mathsf{Sapling}\)</span>
+                     be as defined in <a id="id18" class="footnote_reference" href="#protocol-saplingkeycomponents">11</a>.</p>
                     <p>
                         <span class="math">\(\mathsf{CDKfvk}((\mathsf{ak}_{par}, \mathsf{nk}_{par}, \mathsf{ovk}_{par}, \mathsf{dk}_{par}, \mathsf{c}_{par}), i)\)</span>
                         <span class="math">\(\rightarrow (\mathsf{ak}_{i}, \mathsf{nk}_{i}, \mathsf{ovk}_{i}, \mathsf{dk}_{i}, \mathsf{c}_{i})\)</span>
@@ -390,18 +400,18 @@ License: MIT</pre>
                             <span class="math">\(I_R\)</span>
                         .</li>
                         <li>Let
-                            <span class="math">\(I_\mathsf{ask} = \mathsf{ToScalar}(\mathsf{PRF^{expand}}(I_L, [\texttt{0x13}]))\)</span>
+                            <span class="math">\(I_\mathsf{ask} = \mathsf{ToScalar^{Sapling}}(\mathsf{PRF^{expand}}(I_L, [\texttt{0x13}]))\)</span>
                         .</li>
                         <li>Let
-                            <span class="math">\(I_\mathsf{nsk} = \mathsf{ToScalar}(\mathsf{PRF^{expand}}(I_L, [\texttt{0x14}]))\)</span>
+                            <span class="math">\(I_\mathsf{nsk} = \mathsf{ToScalar^{Sapling}}(\mathsf{PRF^{expand}}(I_L, [\texttt{0x14}]))\)</span>
                         .</li>
                         <li>Return:
                             <ul>
                                 <li>
-                                    <span class="math">\(\mathsf{ak}_i  = [I_\mathsf{ask}]\,\mathcal{G} + \mathsf{ak}_{par}\)</span>
+                                    <span class="math">\(\mathsf{ak}_i  = [I_\mathsf{ask}]\,\mathcal{G}^\mathsf{Sapling} + \mathsf{ak}_{par}\)</span>
                                 </li>
                                 <li>
-                                    <span class="math">\(\mathsf{nk}_i  = [I_\mathsf{nsk}]\,\mathcal{H} + \mathsf{nk}_{par}\)</span>
+                                    <span class="math">\(\mathsf{nk}_i  = [I_\mathsf{nsk}]\,\mathcal{H}^\mathsf{Sapling} + \mathsf{nk}_{par}\)</span>
                                 </li>
                                 <li>
                                     <span class="math">\(\mathsf{ovk}_i = \mathsf{truncate}_{32}(\mathsf{PRF^{expand}}(I_L, [\texttt{0x15}]\)</span>
@@ -417,6 +427,91 @@ License: MIT</pre>
                             </ul>
                         </li>
                     </ul>
+                </section>
+            </section>
+            <section id="sapling-internal-key-derivation"><h3><span class="section-heading">Sapling internal key derivation</span><span class="section-anchor"> <a rel="bookmark" href="#sapling-internal-key-derivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>The above derivation mechanisms produce external addresses suitable for giving out to senders. We also want to be able to produce another address derived from a given external address, for use by wallets for internal operations such as change and auto-shielding. Unlike BIP 44 that allows deriving a stream of external and internal addresses in the same hierarchical derivation tree <a id="id19" class="footnote_reference" href="#bip-0044">5</a>, for any external full viewing key we only need to be able to derive a single internal full viewing key that has viewing authority for just internal transfers. We also need to be able to derive the corresponding internal spending key if we have the external spending key.</p>
+                <section id="deriving-a-sapling-internal-spending-key"><h4><span class="section-heading">Deriving a Sapling internal spending key</span><span class="section-anchor"> <a rel="bookmark" href="#deriving-a-sapling-internal-spending-key"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Let
+                        <span class="math">\((\mathsf{ask}, \mathsf{nsk}, \mathsf{ovk}, \mathsf{dk})\)</span>
+                     be the external spending key.</p>
+                    <ul>
+                        <li>Derive the corresponding
+                            <span class="math">\(\mathsf{ak}\)</span>
+                         and
+                            <span class="math">\(\mathsf{nk}\)</span>
+                         as specified in <a id="id20" class="footnote_reference" href="#protocol-saplingkeycomponents">11</a>.</li>
+                        <li>Let
+                            <span class="math">\(I = \textsf{BLAKE2b-256}(\texttt{"Zcash_SaplingInt"}, \mathsf{EncodeExtFVKParts}(\mathsf{ak}, \mathsf{nk}, \mathsf{ovk}, \mathsf{dk}))\)</span>
+                        .</li>
+                        <li>Let
+                            <span class="math">\(I_\mathsf{nsk} = \mathsf{ToScalar^{Sapling}}(\mathsf{PRF^{expand}}(I, [\mathtt{0x17}]))\)</span>
+                        .</li>
+                        <li>Let
+                            <span class="math">\(R = \mathsf{PRF^{expand}}(I, [\mathtt{0x18}])\)</span>
+                        .</li>
+                        <li>Let
+                            <span class="math">\(\mathsf{nsk_{internal}} = (I_\mathsf{nsk} + \mathsf{nsk}) \pmod{r_\mathbb{J}}\)</span>
+                        .</li>
+                        <li>Split
+                            <span class="math">\(R\)</span>
+                         into two 32-byte sequences,
+                            <span class="math">\(\mathsf{dk_{internal}}\)</span>
+                         and
+                            <span class="math">\(\mathsf{ovk_{internal}}\)</span>
+                        .</li>
+                        <li>Return the internal spending key as
+                            <span class="math">\((\mathsf{ask}, \mathsf{nsk_{internal}}, \mathsf{ovk_{internal}}, \mathsf{dk_{internal}})\)</span>
+                        .</li>
+                    </ul>
+                </section>
+                <section id="deriving-a-sapling-internal-full-viewing-key"><h4><span class="section-heading">Deriving a Sapling internal full viewing key</span><span class="section-anchor"> <a rel="bookmark" href="#deriving-a-sapling-internal-full-viewing-key"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Let
+                        <span class="math">\(\mathcal{H}^\mathsf{Sapling}\)</span>
+                     be as defined in <a id="id21" class="footnote_reference" href="#protocol-saplingkeycomponents">11</a>.</p>
+                    <p>Let
+                        <span class="math">\((\mathsf{ak}, \mathsf{nk}, \mathsf{ovk}, \mathsf{dk})\)</span>
+                     be the external full viewing key.</p>
+                    <ul>
+                        <li>Let
+                            <span class="math">\(I = \textsf{BLAKE2b-256}(\texttt{"Zcash_SaplingInt"}, \mathsf{EncodeExtFVKParts}(\mathsf{ak}, \mathsf{nk}, \mathsf{ovk}, \mathsf{dk}))\)</span>
+                        .</li>
+                        <li>Let
+                            <span class="math">\(I_\mathsf{nsk} = \mathsf{ToScalar^{Sapling}}(\mathsf{PRF^{expand}}(I, [\mathtt{0x17}]))\)</span>
+                        .</li>
+                        <li>Let
+                            <span class="math">\(R = \mathsf{PRF^{expand}}(I, [\mathtt{0x18}])\)</span>
+                        .</li>
+                        <li>Let
+                            <span class="math">\(\mathsf{nk_{internal}} = [I_\mathsf{nsk}] \mathcal{H}^\mathsf{Sapling} + \mathsf{nk}\)</span>
+                        .</li>
+                        <li>Split
+                            <span class="math">\(R\)</span>
+                         into two 32-byte sequences,
+                            <span class="math">\(\mathsf{dk_{internal}}\)</span>
+                         and
+                            <span class="math">\(\mathsf{ovk_{internal}}\)</span>
+                        .</li>
+                        <li>Return the internal full viewing key as
+                            <span class="math">\((\mathsf{ak}, \mathsf{nk_{internal}}, \mathsf{ovk_{internal}}, \mathsf{dk_{internal}})\)</span>
+                        .</li>
+                    </ul>
+                    <p>This design uses the same technique as non-hardened derivation to obtain a full viewing key with the same spend authority (the private key corresponding to
+                        <span class="math">\(\mathsf{ak}\)</span>
+                    ) as the original, but viewing authority only for internal transfers.</p>
+                    <p>The values of
+                        <span class="math">\(I\)</span>
+                    ,
+                        <span class="math">\(I_\mathsf{nsk}\)</span>
+                    , and
+                        <span class="math">\(R\)</span>
+                     are the same between deriving a full viewing key, and deriving the corresponding spending key. Both of these derivations are shown in the following diagram:</p>
+                    <figure class="align-center" align="center">
+                        <img width="900px" src="zip-0032-sapling-internal-key-derivation.png" />
+                        <figcaption>Diagram of Sapling internal key derivation</figcaption>
+                    </figure>
+                    <p>(For simplicity, the proof authorizing key is not shown.)</p>
+                    <p>This method of deriving internal keys is applied to external keys that are children of the Account level. It was implemented in <cite>zcashd</cite> as part of support for ZIP 316 <a id="id22" class="footnote_reference" href="#zip-0316">8</a>.</p>
                 </section>
             </section>
             <section id="sapling-diversifier-derivation"><h3><span class="section-heading">Sapling diversifier derivation</span><span class="section-anchor"> <a rel="bookmark" href="#sapling-diversifier-derivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
@@ -436,7 +531,7 @@ License: MIT</pre>
                 <p>A valid diversifier
                     <span class="math">\(d_j\)</span>
                  is one for which
-                    <span class="math">\(\mathsf{DiversifyHash}(d_j) \neq \bot\)</span>
+                    <span class="math">\(\mathsf{DiversifyHash^{Sapling}}(d_j) \neq \bot\)</span>
                 . For a given
                     <span class="math">\(\mathsf{dk}\)</span>
                 , approximately half of the possible values of
@@ -466,7 +561,7 @@ License: MIT</pre>
                     <span class="math">\(\mathsf{EncodeASK}(\mathsf{a_{sk}})\)</span>
                  be the 32-byte encoding of
                     <span class="math">\(\mathsf{a_{sk}}\)</span>
-                 in the raw encoding of a Sprout spending key (excluding lead bytes) as specified in <a id="id19" class="footnote_reference" href="#protocol-sproutspendingkeyencoding">15</a>.</p>
+                 in the raw encoding of a Sprout spending key (excluding lead bytes) as specified in <a id="id23" class="footnote_reference" href="#protocol-sproutspendingkeyencoding">17</a>.</p>
                 <p>Let
                     <span class="math">\(\mathsf{DecodeASK}(ASK)\)</span>
                  be the result of clearing the 4 most significant bits of the first byte of
@@ -538,6 +633,7 @@ License: MIT</pre>
                         <span class="math">\(\mathsf{c}_i\)</span>
                     .</li>
                 </ul>
+                <p>There is no support for internal key derivation for Sprout.</p>
             </section>
         </section>
         <section id="specification-orchard-key-derivation"><h2><span class="section-heading">Specification: Orchard key derivation</span><span class="section-anchor"> <a rel="bookmark" href="#specification-orchard-key-derivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
@@ -618,6 +714,41 @@ License: MIT</pre>
                     .</li>
                 </ul>
             </section>
+            <section id="orchard-internal-key-derivation"><h3><span class="section-heading">Orchard internal key derivation</span><span class="section-anchor"> <a rel="bookmark" href="#orchard-internal-key-derivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>As in the case of Sapling, for a given external address, we want to produce another address for use by wallets for internal operations such as change and auto-shielding. That is, for any external full viewing key we need to be able to derive a single internal full viewing key that has viewing authority for just internal transfers. We also need to be able to derive the corresponding internal spending key if we have the external spending key.</p>
+                <p>Let
+                    <span class="math">\(\mathsf{ask}\)</span>
+                 be the spend authorizing key if available, and let
+                    <span class="math">\((\mathsf{ak}, \mathsf{nk}, \mathsf{rivk})\)</span>
+                 be the corresponding external full viewing key, obtained as specified in <a id="id24" class="footnote_reference" href="#protocol-orchardkeycomponents">12</a>.</p>
+                <ul>
+                    <li>Let
+                        <span class="math">\(K = \mathsf{I2LEBSP}_{256}(\mathsf{rivk})\)</span>
+                    .</li>
+                    <li>Let
+                        <span class="math">\(\mathsf{rivk_{internal}} = \mathsf{ToScalar^{Orchard}}(\mathsf{PRF^{expand}}(K, [\mathtt{0x83}] \,||\, \mathsf{I2LEOSP_{256}}(\mathsf{ak}) \,||\, \mathsf{I2LEOSP_{256}}(\mathsf{nk}))\)</span>
+                    .</li>
+                </ul>
+                <p>Then the expanded internal spending key is
+                    <span class="math">\((\mathsf{ask}, \mathsf{nk}, \mathsf{rivk_{internal}})\)</span>
+                , and the internal full viewing key is
+                    <span class="math">\((\mathsf{ak}, \mathsf{nk}, \mathsf{rivk_{internal}})\)</span>
+                .</p>
+                <p>Unlike <a href="#sapling-internal-key-derivation">Sapling internal key derivation</a>, we do not base this internal key derivation procedure on non-hardened derivation, which is not defined for Orchard. We can obtain the desired separation of viewing authority by modifying only the
+                    <span class="math">\(\mathsf{rivk_{internal}}\)</span>
+                 field relative to the external full viewing key, which results in different
+                    <span class="math">\(\mathsf{dk_{internal}}\)</span>
+                ,
+                    <span class="math">\(\mathsf{ivk_{internal}}\)</span>
+                 and
+                    <span class="math">\(\mathsf{ovk_{internal}}\)</span>
+                 fields being derived, as specified in <a id="id25" class="footnote_reference" href="#protocol-orchardkeycomponents">12</a> and shown in the following diagram:</p>
+                <figure class="align-center" align="center">
+                    <img width="720px" src="zip-0032-orchard-internal-key-derivation.png" />
+                    <figcaption>Diagram of Orchard internal key derivation, also showing derivation from the parent extended spending key</figcaption>
+                </figure>
+                <p>This method of deriving internal keys is applied to external keys that are children of the Account level. It was implemented in <cite>zcashd</cite> as part of support for ZIP 316 <a id="id26" class="footnote_reference" href="#zip-0316">8</a>.</p>
+            </section>
             <section id="orchard-diversifier-derivation"><h3><span class="section-heading">Orchard diversifier derivation</span><span class="section-anchor"> <a rel="bookmark" href="#orchard-diversifier-derivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>As with Sapling, we define a mechanism for deterministically deriving a sequence of diversifiers, without leaking how many diversified addresses have already been generated for an account. Unlike Sapling, we do so by deriving a diversifier key directly from the full viewing key, instead of as part of the extended spending key. This means that the full viewing key provides the capability to determine the position of a diversifier within the sequence, which matches the capabilities of a Sapling extended full viewing key but simplifies the key structure.</p>
                 <p>Given an Orchard extended spending key
@@ -630,12 +761,12 @@ License: MIT</pre>
                         <span class="math">\(\mathsf{sk}_i\)</span>
                     .</li>
                     <li>Let
-                        <span class="math">\(\mathsf{K} = \mathsf{I2LEBSP}_{256}(\mathsf{rivk})\)</span>
+                        <span class="math">\(K = \mathsf{I2LEBSP}_{256}(\mathsf{rivk})\)</span>
                      and let
-                        <span class="math">\(\mathsf{B} = \mathsf{repr}_{\mathbb{P}}(\mathsf{ak})\,||\,\mathsf{I2LEBSP}_{256}(\mathsf{nk})\)</span>
+                        <span class="math">\(B = \mathsf{repr}_{\mathbb{P}}(\mathsf{ak})\,||\,\mathsf{I2LEBSP}_{256}(\mathsf{nk})\)</span>
                     .</li>
                     <li>
-                        <span class="math">\(\mathsf{dk}_i = \mathsf{truncate}_{32}(\mathsf{PRF^{expand}}(\mathsf{K}, [\texttt{0x82}]\,||\,\mathsf{LEBS2OSP}_{512}(\mathsf{B})))\)</span>
+                        <span class="math">\(\mathsf{dk}_i = \mathsf{truncate}_{32}(\mathsf{PRF^{expand}}(K, [\texttt{0x82}]\,||\,\mathsf{LEBS2OSP}_{512}(B)))\)</span>
                     .</li>
                     <li>Let
                         <span class="math">\(j\)</span>
@@ -657,7 +788,7 @@ License: MIT</pre>
             </section>
         </section>
         <section id="specification-wallet-usage"><h2><span class="section-heading">Specification: Wallet usage</span><span class="section-anchor"> <a rel="bookmark" href="#specification-wallet-usage"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>Existing Zcash-supporting HD wallets all use BIP 44 <a id="id20" class="footnote_reference" href="#bip-0044">5</a> to organize their derived keys. In order to more easily mesh with existing user experiences, we broadly follow BIP 44's design here. However, we have altered the design where it makes sense to leverage features of shielded addresses.</p>
+            <p>Existing Zcash-supporting HD wallets all use BIP 44 <a id="id27" class="footnote_reference" href="#bip-0044">5</a> to organize their derived keys. In order to more easily mesh with existing user experiences, we broadly follow BIP 44's design here. However, we have altered the design where it makes sense to leverage features of shielded addresses.</p>
             <section id="key-path-levels"><h3><span class="section-heading">Key path levels</span><span class="section-anchor"> <a rel="bookmark" href="#key-path-levels"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>Sprout, Sapling, and Orchard key paths have the following three path levels at the top, all of which use hardened derivation:</p>
                 <ul>
@@ -670,7 +801,7 @@ License: MIT</pre>
                     ) following the BIP 43 recommendation. It indicates that the subtree of this node is used according to this specification.</li>
                     <li>
                         <span class="math">\(coin\_type\)</span>
-                    : a constant identifying the cryptocurrency that this subtree's keys are used with. For compatibility with existing BIP 44 implementations, we use the same constants as defined in SLIP 44 <a id="id21" class="footnote_reference" href="#slip-0044">6</a>. Note that in keeping with that document, all cryptocurrency testnets share
+                    : a constant identifying the cryptocurrency that this subtree's keys are used with. For compatibility with existing BIP 44 implementations, we use the same constants as defined in SLIP 44 <a id="id28" class="footnote_reference" href="#slip-0044">6</a>. Note that in keeping with that document, all cryptocurrency testnets share
                         <span class="math">\(coin\_type\)</span>
                      index
                         <span class="math">\(1\)</span>
@@ -679,7 +810,7 @@ License: MIT</pre>
                         <span class="math">\(account\)</span>
                     : numbered from index
                         <span class="math">\(0\)</span>
-                     in sequentially increasing manner. Defined as in BIP 44 <a id="id22" class="footnote_reference" href="#bip-0044">5</a>.</li>
+                     in sequentially increasing manner. Defined as in BIP 44 <a id="id29" class="footnote_reference" href="#bip-0044">5</a>.</li>
                 </ul>
                 <p>Unlike BIP 44, none of the shielded key paths have a
                     <span class="math">\(change\)</span>
@@ -701,7 +832,7 @@ License: MIT</pre>
                  payment addresses, because each diversifier has around a 50% chance of being invalid.</p>
                 <p>If in certain circumstances a wallet needs to derive independent spend authorities within a single account, they MAY additionally support a non-hardened
                     <span class="math">\(address\_index\)</span>
-                 path level as in <a id="id23" class="footnote_reference" href="#bip-0044">5</a>:</p>
+                 path level as in <a id="id30" class="footnote_reference" href="#bip-0044">5</a>:</p>
                 <ul>
                     <li>
                         <span class="math">\(m_\mathsf{Sapling} / purpose' / coin\_type' / account' / address\_index\)</span>
@@ -741,7 +872,7 @@ License: MIT</pre>
             <section id="sapling-full-viewing-key-fingerprints-and-tags"><h3><span class="section-heading">Sapling Full Viewing Key Fingerprints and Tags</span><span class="section-anchor"> <a rel="bookmark" href="#sapling-full-viewing-key-fingerprints-and-tags"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>A "Sapling full viewing key fingerprint" of a full viewing key with raw encoding
                     <span class="math">\(\mathit{FVK}\)</span>
-                 (as specified in <a id="id24" class="footnote_reference" href="#protocol-saplingfullviewingkeyencoding">16</a>) is given by:</p>
+                 (as specified in <a id="id31" class="footnote_reference" href="#protocol-saplingfullviewingkeyencoding">18</a>) is given by:</p>
                 <ul>
                     <li>
                         <span class="math">\(\mathsf{BLAKE2b}\text{-}\mathsf{256}(\texttt{“ZcashSaplingFVFP”}, \mathit{FVK})\)</span>
@@ -753,7 +884,7 @@ License: MIT</pre>
             <section id="sprout-address-fingerprints-and-tags"><h3><span class="section-heading">Sprout Address Fingerprints and Tags</span><span class="section-anchor"> <a rel="bookmark" href="#sprout-address-fingerprints-and-tags"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>A "Sprout address fingerprint" of a Sprout payment address with raw encoding
                     <span class="math">\(\mathit{ADDR}\)</span>
-                 (as specified in <a id="id25" class="footnote_reference" href="#protocol-sproutpaymentaddrencoding">14</a>, including the lead bytes) is given by:</p>
+                 (as specified in <a id="id32" class="footnote_reference" href="#protocol-sproutpaymentaddrencoding">16</a>, including the lead bytes) is given by:</p>
                 <ul>
                     <li>
                         <span class="math">\(\mathsf{BLAKE2b}\text{-}\mathsf{256}(\texttt{“Zcash_Sprout_AFP”}, \mathit{ADDR})\)</span>
@@ -765,7 +896,7 @@ License: MIT</pre>
             <section id="orchard-full-viewing-key-fingerprints-and-tags"><h3><span class="section-heading">Orchard Full Viewing Key Fingerprints and Tags</span><span class="section-anchor"> <a rel="bookmark" href="#orchard-full-viewing-key-fingerprints-and-tags"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>An "Orchard full viewing key fingerprint" of a full viewing key with raw encoding
                     <span class="math">\(\mathit{FVK}\)</span>
-                 (as specified in <a id="id26" class="footnote_reference" href="#protocol-orchardfullviewingkeyencoding">18</a>) is given by:</p>
+                 (as specified in <a id="id33" class="footnote_reference" href="#protocol-orchardfullviewingkeyencoding">20</a>) is given by:</p>
                 <ul>
                     <li>
                         <span class="math">\(\mathsf{BLAKE2b}\text{-}\mathsf{256}(\texttt{“ZcashOrchardFVFP”}, \mathit{FVK})\)</span>
@@ -790,7 +921,7 @@ License: MIT</pre>
             </section>
         </section>
         <section id="specification-key-encodings"><h2><span class="section-heading">Specification: Key Encodings</span><span class="section-anchor"> <a rel="bookmark" href="#specification-key-encodings"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>The following encodings are analogous to the <code>xprv</code> and <code>xpub</code> encodings defined in BIP 32 for transparent keys and addresses. Each key type has a raw representation and a Bech32 <a id="id27" class="footnote_reference" href="#bip-0173">7</a> encoding.</p>
+            <p>The following encodings are analogous to the <code>xprv</code> and <code>xpub</code> encodings defined in BIP 32 for transparent keys and addresses. Each key type has a raw representation and a Bech32 <a id="id34" class="footnote_reference" href="#bip-0173">7</a> encoding.</p>
             <section id="sapling-extended-spending-keys"><h3><span class="section-heading">Sapling extended spending keys</span><span class="section-anchor"> <a rel="bookmark" href="#sapling-extended-spending-keys"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>A Sapling extended spending key
                     <span class="math">\((\mathsf{ask, nsk, ovk, dk, c})\)</span>
@@ -914,7 +1045,7 @@ License: MIT</pre>
                     <span class="math">\(0\)</span>
                 .</p>
                 <p>When encoded as Bech32, the Human-Readable Part is <code>secret-orchard-extsk-main</code> for Mainnet, or <code>secret-orchard-extsk-test</code> for Testnet.</p>
-                <p>We define this encoding for completeness, however given that it includes the capability to derive child spending keys, we expect that most wallets will only expose the regular Orchard spending key encoding to users <a id="id28" class="footnote_reference" href="#protocol-orchardspendingkeyencoding">19</a>.</p>
+                <p>We define this encoding for completeness, however given that it includes the capability to derive child spending keys, we expect that most wallets will only expose the regular Orchard spending key encoding to users <a id="id35" class="footnote_reference" href="#protocol-orchardspendingkeyencoding">21</a>.</p>
             </section>
         </section>
         <section id="test-vectors"><h2><span class="section-heading">Test Vectors</span><span class="section-anchor"> <a rel="bookmark" href="#test-vectors"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
@@ -985,106 +1116,122 @@ License: MIT</pre>
                     </tr>
                 </tbody>
             </table>
-            <table id="protocol" class="footnote">
+            <table id="zip-0316" class="footnote">
                 <tbody>
                     <tr>
                         <th>8</th>
-                        <td><a href="protocol/protocol.pdf">Zcash Protocol Specification, Version 2021.2.16 or later [NU5 proposal]</a></td>
+                        <td><a href="zip-0316">ZIP 316: Unified Addresses and Unified Viewing Keys</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>9</th>
+                        <td><a href="protocol/protocol.pdf">Zcash Protocol Specification, Version 2022.2.19 or later [NU5 proposal]</a></td>
                     </tr>
                 </tbody>
             </table>
             <table id="protocol-networks" class="footnote">
                 <tbody>
                     <tr>
-                        <th>9</th>
-                        <td><a href="protocol/protocol.pdf#networks">Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 3.12: Mainnet and Testnet</a></td>
+                        <th>10</th>
+                        <td><a href="protocol/protocol.pdf#networks">Zcash Protocol Specification, Version 2022.2.19. Section 3.12: Mainnet and Testnet</a></td>
                     </tr>
                 </tbody>
             </table>
             <table id="protocol-saplingkeycomponents" class="footnote">
                 <tbody>
                     <tr>
-                        <th>10</th>
-                        <td><a href="protocol/protocol.pdf#saplingkeycomponents">Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 4.2.2: Sapling Key Components</a></td>
+                        <th>11</th>
+                        <td><a href="protocol/protocol.pdf#saplingkeycomponents">Zcash Protocol Specification, Version 2022.2.19. Section 4.2.2: Sapling Key Components</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-orchardkeycomponents" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>12</th>
+                        <td><a href="protocol/protocol.pdf#orchardkeycomponents">Zcash Protocol Specification, Version 2022.2.19. Section 4.2.3: Orchard Key Components</a></td>
                     </tr>
                 </tbody>
             </table>
             <table id="protocol-concretediversifyhash" class="footnote">
                 <tbody>
                     <tr>
-                        <th>11</th>
-                        <td><a href="protocol/protocol.pdf#concretediversifyhash">Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.4.1.6: DiversifyHash^Sapling and DiversifyHash^Orchard Hash Functions</a></td>
+                        <th>13</th>
+                        <td><a href="protocol/protocol.pdf#concretediversifyhash">Zcash Protocol Specification, Version 2022.2.19. Section 5.4.1.6: DiversifyHash^Sapling and DiversifyHash^Orchard Hash Functions</a></td>
                     </tr>
                 </tbody>
             </table>
             <table id="protocol-concretespendauthsig" class="footnote">
                 <tbody>
                     <tr>
-                        <th>12</th>
-                        <td><a href="protocol/protocol.pdf#concretespendauthsig">Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.4.6.1: Spend Authorization Signature</a></td>
+                        <th>14</th>
+                        <td><a href="protocol/protocol.pdf#concretespendauthsig">Zcash Protocol Specification, Version 2022.2.19. Section 5.4.6.1: Spend Authorization Signature</a></td>
                     </tr>
                 </tbody>
             </table>
             <table id="protocol-jubjub" class="footnote">
                 <tbody>
                     <tr>
-                        <th>13</th>
-                        <td><a href="protocol/protocol.pdf#jubjub">Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.4.9.3: Jubjub</a></td>
+                        <th>15</th>
+                        <td><a href="protocol/protocol.pdf#jubjub">Zcash Protocol Specification, Version 2022.2.19. Section 5.4.9.3: Jubjub</a></td>
                     </tr>
                 </tbody>
             </table>
             <table id="protocol-sproutpaymentaddrencoding" class="footnote">
                 <tbody>
                     <tr>
-                        <th>14</th>
-                        <td><a href="protocol/protocol.pdf#sproutpaymentaddrencoding">Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.6.2.1: Sprout Payment Addresses</a></td>
+                        <th>16</th>
+                        <td><a href="protocol/protocol.pdf#sproutpaymentaddrencoding">Zcash Protocol Specification, Version 2022.2.19. Section 5.6.2.1: Sprout Payment Addresses</a></td>
                     </tr>
                 </tbody>
             </table>
             <table id="protocol-sproutspendingkeyencoding" class="footnote">
                 <tbody>
                     <tr>
-                        <th>15</th>
-                        <td><a href="protocol/protocol.pdf#sproutspendingkeyencoding">Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.6.2.3: Sprout Spending Keys</a></td>
+                        <th>17</th>
+                        <td><a href="protocol/protocol.pdf#sproutspendingkeyencoding">Zcash Protocol Specification, Version 2022.2.19. Section 5.6.2.3: Sprout Spending Keys</a></td>
                     </tr>
                 </tbody>
             </table>
             <table id="protocol-saplingfullviewingkeyencoding" class="footnote">
                 <tbody>
                     <tr>
-                        <th>16</th>
-                        <td><a href="protocol/protocol.pdf#saplingfullviewingkeyencoding">Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.6.3.3: Sapling Full Viewing Keys</a></td>
+                        <th>18</th>
+                        <td><a href="protocol/protocol.pdf#saplingfullviewingkeyencoding">Zcash Protocol Specification, Version 2022.2.19. Section 5.6.3.3: Sapling Full Viewing Keys</a></td>
                     </tr>
                 </tbody>
             </table>
             <table id="protocol-saplingspendingkeyencoding" class="footnote">
                 <tbody>
                     <tr>
-                        <th>17</th>
-                        <td><a href="protocol/protocol.pdf#saplingspendingkeyencoding">Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.6.3.4: Sapling Spending Keys</a></td>
+                        <th>19</th>
+                        <td><a href="protocol/protocol.pdf#saplingspendingkeyencoding">Zcash Protocol Specification, Version 2022.2.19. Section 5.6.3.4: Sapling Spending Keys</a></td>
                     </tr>
                 </tbody>
             </table>
             <table id="protocol-orchardfullviewingkeyencoding" class="footnote">
                 <tbody>
                     <tr>
-                        <th>18</th>
-                        <td><a href="protocol/protocol.pdf#orchardfullviewingkeyencoding">Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.6.4.4: Orchard Raw Full Viewing Keys</a></td>
+                        <th>20</th>
+                        <td><a href="protocol/protocol.pdf#orchardfullviewingkeyencoding">Zcash Protocol Specification, Version 2022.2.19. Section 5.6.4.4: Orchard Raw Full Viewing Keys</a></td>
                     </tr>
                 </tbody>
             </table>
             <table id="protocol-orchardspendingkeyencoding" class="footnote">
                 <tbody>
                     <tr>
-                        <th>19</th>
-                        <td><a href="protocol/protocol.pdf#orchardspendingkeyencoding">Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.6.4.5: Orchard Spending Keys</a></td>
+                        <th>21</th>
+                        <td><a href="protocol/protocol.pdf#orchardspendingkeyencoding">Zcash Protocol Specification, Version 2022.2.19. Section 5.6.4.5: Orchard Spending Keys</a></td>
                     </tr>
                 </tbody>
             </table>
             <table id="nist-sp-800-38g" class="footnote">
                 <tbody>
                     <tr>
-                        <th>20</th>
+                        <th>22</th>
                         <td><a href="https://dx.doi.org/10.6028/NIST.SP.800-38G">NIST Special Publication 800-38G — Recommendation for Block Cipher Modes of Operation: Methods for Format-Preserving Encryption</a></td>
                     </tr>
                 </tbody>
