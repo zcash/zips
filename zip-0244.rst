@@ -490,8 +490,13 @@ Identical to that specified for the transaction identifier.
 
 S.2: transparent_sig_digest
 ```````````````````````````
-In the case that transparent inputs or outputs are present, the value of
-``transparent_sig_digest`` depends upon the value of a ``hash_type`` flag.
+If we are producing a hash for either a coinbase transaction, or a non-coinbase
+transaction that has no transparent inputs, the value of ``transparent_sig_digest``
+is identical to the value specified in section `T.2 <#t-2-transparent-digest>`_.
+
+If we are producing a hash for a non-coinbase transaction that has transparent
+inputs, the value of ``transparent_sig_digest`` depends upon the value of a
+``hash_type`` flag, as follows.
 
 The construction of each component below depends upon the values of the
 ``hash_type`` flag bits. Each component will be described separately.
@@ -509,11 +514,6 @@ This digest is a BLAKE2b-256 hash of the following values ::
 The personalization field of this hash is set to::
 
    "ZTxIdTranspaHash"
-
-In the case that the transaction has no transparent inputs or outputs,
-``transparent_sig_digest`` is ::
-
-  BLAKE2b-256("ZTxIdTranspaHash", [])
 
 S.2a: hash_type
 '''''''''''''''
@@ -854,12 +854,22 @@ align with BIP 341 [#bip-0341]_:
     same effect under consensus (spends the same inputs and produces the same
     outputs).
 
-Signatures over Sapling Spends or Orchard Actions commit to the same data as for
-transparent inputs, in order to ensure that they commit to all transparent input
-values. Without this commitment, there is a similar difficulty in the case where
-a hardware wallet is only signing shielded inputs, in a transaction that also
-contains transparent inputs from a malicious other party (where that party lies
-about their coins' values).
+Signatures over Sapling Spends or Orchard Actions, in transactions containing
+transparent inputs, commit to the same data that the transparent inputs do,
+including all of the transparent input values. Without this commitment, there
+would be a similar difficulty for a hardware wallet in the case where it is
+only signing shielded inputs, when the transaction also contains transparent
+inputs from a malicious other party, because that party could lie about their
+coins' values.
+
+By contrast, binding signatures for shielded coinbase transactions continue to
+be over the transaction ID, as for non-coinbase transactions without transparent
+inputs. This is necessary because coinbase transactions have a single "dummy"
+transparent input element that has no corresponding previous output to commit
+to. It is also sufficient because the data in that transparent input either is
+already bound elsewhere (namely the block height, placed in ``expiry_height``
+from NU5 activation), or does not need to be bound to the shielded outputs
+(e.g. miner-identifying information).
 
 ========================
 Reference implementation
