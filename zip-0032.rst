@@ -43,8 +43,11 @@ tree of key components from a single seed, for the following shielded pools (whi
 key structures):
 
 - Sapling
-- Sprout (for compatibility, effectively unused)
 - Orchard
+
+Previous versions of this document also defined a similar derivation system for the Sprout shielded pool.
+This has been removed since it was never used, and is unlikely to be used given that `zcashd` no longer
+generates Sprout addresses (and neither `Zebra` nor the mobile SDKs have ever done so).
 
 The last part shows how to use these trees in the context of existing BIP 44 [#bip-0044]_ wallets.
 
@@ -137,7 +140,6 @@ specifications), which is the opposite of BIP 32.
 We adapt the path notation of BIP 32 [#bip-0032]_ to describe shielded HD paths, using prime marks (:math:`'`) to
 indicate hardened derivation (:math:`i' = i + 2^{31}`) as in BIP 44 [#bip-0044]_:
 
-- :math:`\mathsf{CDKsk}(\mathsf{CDKsk}(\mathsf{CDKsk}(m_\mathsf{Sprout}, a'), b), c)` is written as :math:`m_\mathsf{Sprout} / a' / b / c`
 - :math:`\mathsf{CDKfvk}(\mathsf{CDKfvk}(\mathsf{CDKfvk}(m_\mathsf{Sapling}, a), b), c)` is written as :math:`m_\mathsf{Sapling} / a / b / c`.
 
 
@@ -335,66 +337,12 @@ The default diversifier for a Sapling extended key is defined to be :math:`d_j`,
 least nonnegative integer yielding a valid diversifier.
 
 
-Specification: Sprout key derivation
-====================================
-
-For completeness, we define a system for deriving a tree of Sprout key components. It is unlikely that this
-will garner much usage once Sapling activates, but is presented for those users who may require it.
-
-Sprout extended keys
---------------------
-
-Due to the way Sprout keys are constructed and used, it is not possible to derive incoming viewing keys or
-payment addresses in parallel with spending keys. Nor is it possible to implement non-hardened derivation.
-We therefore only define and derive Sprout extended spending keys.
-
-We represent a Sprout extended spending key as :math:`(\mathsf{a_{sk}, c})`, where :math:`\mathsf{a_{sk}}`
-is the normal Sprout spending key, and :math:`\mathsf{c}` is the chain code.
-
-Sprout helper functions
------------------------
-
-Let :math:`\mathsf{EncodeASK}(\mathsf{a_{sk}})` be the 32-byte encoding of :math:`\mathsf{a_{sk}}` in the
-raw encoding of a Sprout spending key (excluding lead bytes) as specified in [#protocol-sproutspendingkeyencoding]_.
-
-Let :math:`\mathsf{DecodeASK}(ASK)` be the result of clearing the 4 most significant bits of the first byte
-of :math:`ASK`, and decoding the 32-byte result according to the inverse of :math:`\mathsf{EncodeASK}`.
-
-Sprout master key generation
-----------------------------
-
-Let :math:`S` be a seed byte sequence of a chosen length, which MUST be at least 32 and at most 252 bytes.
-
-- Calculate :math:`I = \mathsf{BLAKE2b}\text{-}\mathsf{512}(\texttt{“ZcashIP32_Sprout”}, S)`.
-- Split :math:`I` into two 32-byte sequences, :math:`I_L` and :math:`I_R`.
-- Use :math:`\mathsf{DecodeASK}(I_L)` as the master spending key :math:`\mathsf{a}_{\mathsf{sk},m}`.
-- Use :math:`I_R` as the master chain code :math:`\mathsf{c}_m`.
-
-Sprout child key derivation
----------------------------
-
-:math:`\mathsf{CDKsk}((\mathsf{a}_{\mathsf{sk},par}, \mathsf{c}_{par}), i)`:math:`\rightarrow (\mathsf{a}_{\mathsf{sk},i}, \mathsf{c}_i)`
-
-- Check whether :math:`i \geq 2^{31}` (whether the child is a hardened key).
-
-  - If so (hardened child): let
-    :math:`I = \mathsf{PRF^{expand}}(\mathsf{c}_{par}, [\texttt{0x80}]`:math:`||\,\mathsf{EncodeASK}(\mathsf{a}_{\mathsf{sk},par})`:math:`||\,\mathsf{I2LEOSP}_{32}(i))`.
-  - If not (normal child): return failure.
-
-- Split :math:`I` into two 32-byte sequences, :math:`I_L` and :math:`I_R`.
-- Use :math:`\mathsf{DecodeASK}(I_L)` as the child spending key :math:`\mathsf{a}_{\mathsf{sk},i}`.
-- Use :math:`I_R` as the child chain code :math:`\mathsf{c}_i`.
-
-There is no support for internal key derivation for Sprout.
-
-
 Specification: Orchard key derivation
 =====================================
 
 The derivation mechanism for Sapling addresses specified above incurs significant complexity to support
 non-hardened derivation. In the several years since Sapling was deployed, we have seen no use cases for
-non-hardened derivation appear. With that in mind, we define Orchard key derivation very similarly to
-Sprout above: only hardened derivation is supported.
+non-hardened derivation appear. With that in mind, we only support hardened key derivation for Orchard.
 
 Orchard extended keys
 ---------------------
@@ -500,8 +448,8 @@ altered the design where it makes sense to leverage features of shielded address
 Key path levels
 ---------------
 
-Sprout, Sapling, and Orchard key paths have the following three path levels at the top, all of which use
-hardened derivation:
+Sapling and Orchard key paths have the following three path levels at the top, all of which use hardened
+derivation:
 
 - :math:`purpose`: a constant set to :math:`32'` (or :math:`\texttt{0x80000020}`) following the BIP 43
   recommendation. It indicates that the subtree of this node is used according to this specification.
@@ -550,13 +498,6 @@ they MAY additionally support a non-hardened :math:`address\_index` path level a
 `zcashd` version 4.6.0 and later uses this to derive "legacy" Sapling addresses from a mnemonic seed phrase
 under account :math:`\mathtt{0x7FFFFFFF}`, using hardened derivation for :math:`address\_index`.
 
-Sprout key path
----------------
-
-Wallets implementing Sprout ZIP 32 derivation MUST support the following path:
-
-* :math:`m_\mathsf{Sprout} / purpose' / coin\_type' / account' / address\_index`.
-
 Orchard key path
 ----------------
 
@@ -595,20 +536,6 @@ It MAY be used to uniquely identify a particular Sapling full viewing key.
 A "Sapling full viewing key tag" is the first 4 bytes of the corresponding Sapling full viewing key
 fingerprint. It is intended for optimizing performance of key lookups, and MUST NOT be assumed to
 uniquely identify a particular key.
-
-Sprout Address Fingerprints and Tags
-------------------------------------
-
-A "Sprout address fingerprint" of a Sprout payment address with raw encoding :math:`\mathit{ADDR}` (as specified in
-[#protocol-sproutpaymentaddrencoding]_, including the lead bytes) is given by:
-
-* :math:`\mathsf{BLAKE2b}\text{-}\mathsf{256}(\texttt{“Zcash_Sprout_AFP”}, \mathit{ADDR})`.
-
-It MAY be used to uniquely identify a particular Sprout payment address.
-
-A "Sprout address tag" is the first 4 bytes of the corresponding Sprout address fingerprint. It is
-intended for optimizing performance of address lookups, and MUST NOT be assumed to uniquely identify
-a particular address.
 
 Orchard Full Viewing Key Fingerprints and Tags
 ----------------------------------------------
@@ -677,23 +604,6 @@ is 4 zero bytes, and :math:`i` is :math:`0`.
 When encoded as Bech32, the Human-Readable Part is ``zxviews`` for the production
 network, or ``zxviewtestsapling`` for the test network.
 
-Sprout extended spending keys
------------------------------
-
-A Sprout extended spending key :math:`(\mathsf{a_{sk}, c})`, at depth :math:`depth`, with
-parent address tag :math:`parent\_addr\_tag` and child number :math:`i`, is represented as a
-byte sequence:
-
-* :math:`\mathsf{I2LEOSP}_{8}(depth)`:math:`||\,parent\_addr\_tag`:math:`||\,\mathsf{I2LEOSP}_{32}(i)`:math:`||\,\mathsf{c}`:math:`||\,\mathsf{EncodeASK}(\mathsf{a_{sk}})`.
-
-For the master extended spending key, :math:`depth` is :math:`0`, :math:`parent\_addr\_tag`
-is 4 zero bytes, and :math:`i` is :math:`0`.
-
-When encoded as Bech32, the Human-Readable Part is ``zxsprout`` for the production
-network, or ``zxtestsprout`` for the test network. Sprout extended spending keys
-are encoded using Bech32 even though other Sprout keys and addresses are encoded
-using Base58Check.
-
 Orchard extended spending keys
 ------------------------------
 
@@ -711,6 +621,25 @@ for Mainnet, or ``secret-orchard-extsk-test`` for Testnet.
 We define this encoding for completeness, however given that it includes the capability to derive child
 spending keys, we expect that most wallets will only expose the regular Orchard spending key encoding to
 users [#protocol-orchardspendingkeyencoding]_.
+
+
+Values reserved due to previous specification for Sprout
+========================================================
+
+The following values were previously used in the specification of hierarchical derivation
+for Sprout, and therefore SHOULD NOT be used in future Zcash-related specifications:
+
+* the BLAKE2b-256 personalizations
+
+  * :math:`\texttt{“ZcashIP32_Sprout”}`, formerly specified for derivation of the master
+    key of the Sprout tree;
+  * :math:`\texttt{“Zcash_Sprout_AFP”}`, formerly specified for generation of Sprout
+    address fingerprints;
+
+* the :math:`\mathsf{PRF^{expand}}` prefix :math:`\texttt{0x80}`, formerly specified for
+  Sprout child key derivation;
+* the Bech32 Human-Readable Parts ``zxsprout`` and ``zxtestsprout``, formerly specified for
+  Sprout extended spending keys on Mainnet and Testnet respectively.
 
 
 Test Vectors
