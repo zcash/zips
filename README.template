@@ -6,7 +6,7 @@ What are ZIPs?
 
 Zcash Improvement Proposals (ZIPs) are the way to:
 
-* propose new features for the the `Zcash cryptocurrency <https://z.cash/>`__ and their rationale,
+* propose new features for the `Zcash cryptocurrency <https://z.cash/>`__ and their rationale,
 * specify the implementation details of the feature,
 * collect community input on the proposal, and
 * document design decisions.
