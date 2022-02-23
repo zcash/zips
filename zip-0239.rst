@@ -15,8 +15,8 @@
 Terminology
 ===========
 
-The key words "MUST", "MUST NOT", and "SHOULD" in this document are to be interpreted
-as described in RFC 2119. [#RFC2119]_
+The key words "MUST", "MUST NOT", "SHOULD", "SHOULD NOT", and "RECOMMENDED" in this
+document are to be interpreted as described in RFC 2119. [#RFC2119]_
 
 The term "network upgrade" in this document is to be interpreted as described in
 ZIP 200. [#zip-0200]_
@@ -133,16 +133,39 @@ use the ``MSG_WTX`` inv type until it has received the block preceding the NU5
 network upgrade.
 
 Nevertheless, it is possible for a node to receive an ``inv`` or ``getdata`` message
-with a ``MSG_WTX`` inv type, on a peer connection that has negotiated protocol
-version 170014 or later, before NU5 has activated. The node MUST handle this case
-in the same way that it would after NU5 activation when it has no v5 transactions
-to relay. Receiving a ``MSG_WTX`` inv type on a peer connection that has negotiated
-a protocol version before 170014, on the other hand, SHOULD be treated as a protocol
-error.
+containing an inventory entry of type ``MSG_WTX``, on a peer connection that has
+negotiated protocol version 170014 or later, before NU5 has activated. In this case,
+the node MUST NOT advertise, fetch, or provide v5 transactions.
+
+Note that the behaviour of a node receiving an ``inv`` or ``getdata`` message with
+one or more inventory entries of an unrecognized type was previously unspecified.
+The behaviour of `zcashd` in such a case was to assume that the length of each
+inventory entry is 36 bytes (including the type field), regardless of the type.
+This would result in misparsing the ``inv`` or ``getdata`` message if the length of
+the corresponding inventory entry were not 36 bytes.
+
+The RECOMMENDED behaviour is to parse the ``inv`` or ``getdata`` message completely,
+and reject the message if it contains any inventory entries of an unrecognized type.
+For a ``getdata`` message, the set of recognized inventory types, and corresponding
+entry lengths including the type field, is:
+
+- ``MSG_TX`` (36 bytes);
+- ``MSG_BLOCK`` (36 bytes);
+- ``MSG_FILTERED_BLOCK`` (36 bytes);
+- [provided version 170014 or later has been negotiated] ``MSG_WTX`` (68 bytes).
+
+For an ``inv`` message, the set of recognized inventory types is the same, but the
+``MSG_FILTERED_BLOCK`` type has no useful purpose. Senders of ``inv`` messages
+SHOULD NOT include ``MSG_FILTERED_BLOCK`` entries. In order to allow using the same
+parser for the two message types, a node receiving a ``MSG_FILTERED_BLOCK`` entry
+in an ``inv`` message SHOULD ignore it.
 
 As the ``MSG_WTX`` inv type is only enabled between peers that both support it,
 older clients remain fully compatible and interoperable before NU5 activates, or on
 a chain in which it does not activate.
+
+Further information on how `zcashd` handles data propagation in the peer-to-peer
+network is given in [#zcashd-propagation]_.
 
 
 Rationale
@@ -177,3 +200,4 @@ References
 .. [#bip-0339] `BIP 339: WTXID-based transaction relay <https://github.com/bitcoin/bips/blob/master/bip-0339.mediawiki>`_
 .. [#p2p-inv] `Bitcoin Developer Reference: P2P Network — Inv <https://developer.bitcoin.org/reference/p2p_networking.html#inv>`_
 .. [#p2p-getdata] `Bitcoin Developer Reference: P2P Network — GetData <https://developer.bitcoin.org/reference/p2p_networking.html#getdata>`_
+.. [#zcashd-propagation] `zcashd book: P2P data propagation <https://zcash.github.io/zcash/design/p2p-data-propagation.html>`_

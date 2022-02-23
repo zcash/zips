@@ -17,7 +17,7 @@ License: MIT
 Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/515">https://github.com/zcash/zips/issues/515</a>&gt;
 Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/516">https://github.com/zcash/zips/pull/516</a>&gt;</pre>
         <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>The key words "MUST", "MUST NOT", and "SHOULD" in this document are to be interpreted as described in RFC 2119. <a id="id1" class="footnote_reference" href="#rfc2119">1</a></p>
+            <p>The key words "MUST", "MUST NOT", "SHOULD", "SHOULD NOT", and "RECOMMENDED" in this document are to be interpreted as described in RFC 2119. <a id="id1" class="footnote_reference" href="#rfc2119">1</a></p>
             <p>The term "network upgrade" in this document is to be interpreted as described in ZIP 200. <a id="id2" class="footnote_reference" href="#zip-0200">4</a></p>
             <p>The terms "Testnet" and "Mainnet" are to be interpreted as described in section 3.12 of the Zcash Protocol Specification <a id="id3" class="footnote_reference" href="#protocol-networks">2</a>.</p>
             <p>The term "txid" means a transaction identifier, computed as a SHA-256d hash of the transaction data for v4 and earlier transactions, or as specified in <a id="id4" class="footnote_reference" href="#zip-0244">6</a> for v5 and later transactions.</p>
@@ -46,16 +46,26 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/516">https://githu
                 <p>This ZIP is assumed to be deployed in advance of the network upgrade that introduces v5 transactions, i.e. NU5.</p>
                 <p>The peer protocol version that enables support for this specification is defined to be 170014 (on both Testnet and Mainnet). This is in advance of the minimum protocol version that signals support for NU5 on Testnet, which is 170015. <a id="id13" class="footnote_reference" href="#zip-0252">7</a></p>
                 <p>As specified in <a id="id14" class="footnote_reference" href="#zip-0200">4</a>, a node that supports a network upgrade will clear its mempool when reaching the block before that upgrade's activation block. Before this point, the node will not accept transactions into its mempool that are invalid according to the pre-upgrade consensus protocol (so, in this case, it would not accept v5 transactions). This means that a correctly functioning node will not use the <code>MSG_WTX</code> inv type until it has received the block preceding the NU5 network upgrade.</p>
-                <p>Nevertheless, it is possible for a node to receive an <code>inv</code> or <code>getdata</code> message with a <code>MSG_WTX</code> inv type, on a peer connection that has negotiated protocol version 170014 or later, before NU5 has activated. The node MUST handle this case in the same way that it would after NU5 activation when it has no v5 transactions to relay. Receiving a <code>MSG_WTX</code> inv type on a peer connection that has negotiated a protocol version before 170014, on the other hand, SHOULD be treated as a protocol error.</p>
+                <p>Nevertheless, it is possible for a node to receive an <code>inv</code> or <code>getdata</code> message containing an inventory entry of type <code>MSG_WTX</code>, on a peer connection that has negotiated protocol version 170014 or later, before NU5 has activated. The node MUST handle this case in the same way that it would after NU5 activation when it has no v5 transactions to relay.</p>
+                <p>Note that the behaviour of a node receiving an <code>inv</code> or <code>getdata</code> message with one or more inventory entries of an unrecognized type was previously unspecified. The behaviour of <cite>zcashd</cite> in such a case was to assume that the length of each inventory entry is 36 bytes (including the type field), regardless of the type. This would result in misparsing the <code>inv</code> or <code>getdata</code> message if the length of the corresponding inventory entry were not 36 bytes.</p>
+                <p>The RECOMMENDED behaviour is to parse the <code>inv</code> or <code>getdata</code> message completely, and reject the message if it contains any inventory entries of an unrecognized type. For a <code>getdata</code> message, the set of recognized inventory types, and corresponding entry lengths including the type field, is:</p>
+                <ul>
+                    <li><code>MSG_TX</code> (36 bytes);</li>
+                    <li><code>MSG_BLOCK</code> (36 bytes);</li>
+                    <li><code>MSG_FILTERED_BLOCK</code> (36 bytes);</li>
+                    <li>[provided version 170014 or later has been negotiated] <code>MSG_WTX</code> (68 bytes).</li>
+                </ul>
+                <p>For an <code>inv</code> message, the set of recognized inventory types is the same, but the <code>MSG_FILTERED_BLOCK</code> type has no useful purpose. Senders of <code>inv</code> messages SHOULD NOT include <code>MSG_FILTERED_BLOCK</code> entries. In order to allow using the same parser for the two message types, a node receiving a <code>MSG_FILTERED_BLOCK</code> entry in an <code>inv</code> message SHOULD ignore it.</p>
                 <p>As the <code>MSG_WTX</code> inv type is only enabled between peers that both support it, older clients remain fully compatible and interoperable before NU5 activates, or on a chain in which it does not activate.</p>
+                <p>Further information on how <cite>zcashd</cite> handles data propagation in the peer-to-peer network is given in <a id="id15" class="footnote_reference" href="#zcashd-propagation">12</a>.</p>
             </section>
         </section>
         <section id="rationale"><h2><span class="section-heading">Rationale</span><span class="section-anchor"> <a rel="bookmark" href="#rationale"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>A previous draft of this ZIP left as an open question whether to redefine <code>inv</code> and <code>getdata</code> to segregate <code>MSG_TX</code> and <code>MSG_WTX</code>. This could potentially have made these messages simpler or more efficient to parse, by avoiding variable-length entries in the message data. (See <a id="id15" class="footnote_reference" href="#p2p-inv">10</a> and <a id="id16" class="footnote_reference" href="#p2p-getdata">11</a> for how <code>inv</code> and <code>getdata</code> respectively are currently defined in Bitcoin.)</p>
+            <p>A previous draft of this ZIP left as an open question whether to redefine <code>inv</code> and <code>getdata</code> to segregate <code>MSG_TX</code> and <code>MSG_WTX</code>. This could potentially have made these messages simpler or more efficient to parse, by avoiding variable-length entries in the message data. (See <a id="id16" class="footnote_reference" href="#p2p-inv">10</a> and <a id="id17" class="footnote_reference" href="#p2p-getdata">11</a> for how <code>inv</code> and <code>getdata</code> respectively are currently defined in Bitcoin.)</p>
             <p>This option was rejected because the current specification is simple enough.</p>
         </section>
         <section id="acknowledgements"><h2><span class="section-heading">Acknowledgements</span><span class="section-anchor"> <a rel="bookmark" href="#acknowledgements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>This ZIP is partly based on BIP 339, written by Suhas Daftuar. <a id="id17" class="footnote_reference" href="#bip-0339">9</a></p>
+            <p>This ZIP is partly based on BIP 339, written by Suhas Daftuar. <a id="id18" class="footnote_reference" href="#bip-0339">9</a></p>
         </section>
         <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <table id="rfc2119" class="footnote">
@@ -143,6 +153,14 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/516">https://githu
                     <tr>
                         <th>11</th>
                         <td><a href="https://developer.bitcoin.org/reference/p2p_networking.html#getdata">Bitcoin Developer Reference: P2P Network — GetData</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zcashd-propagation" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>12</th>
+                        <td><a href="https://zcash.github.io/zcash/design/p2p-data-propagation.html">zcashd book: P2P data propagation</a></td>
                     </tr>
                 </tbody>
             </table>
