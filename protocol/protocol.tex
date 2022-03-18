@@ -1562,6 +1562,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\CommitIvkGenTrapdoor}{\CommitIvkAlg\mathsf{.GenTrapdoor}}
 \newcommand{\CommitIvkInput}{\CommitIvkAlg\mathsf{.Input}}
 \newcommand{\CommitIvkOutput}{\CommitIvkAlg\mathsf{.Output}}
+\newcommand{\CommitIvkOutputType}{\maybe{\range{0}{\ParamP{q}-1}}}
 \newcommand{\DeriveNullifierAlg}{\mathsf{DeriveNullifier}}
 \newcommand{\DeriveNullifier}[1]{\DeriveNullifierAlg_{#1}}
 
@@ -4468,7 +4469,7 @@ Define:
   \item $\ValueCommitTrapdoor{Orchard} := \binaryrange{\ScalarLength{Orchard}}$ and
         $\ValueCommitOutput{Orchard} := \GroupP$.
   \item $\CommitIvkTrapdoor := \binaryrange{\ScalarLength{Orchard}}$ and
-        $\CommitIvkOutput := \maybe{\InViewingKeyTypeOrchard}$.
+        $\CommitIvkOutput := \CommitIvkOutputType$.
 \end{formulae}
 
 \introlist
@@ -4481,8 +4482,13 @@ Define:
   $\CommitIvkAlg            $&$\typecolon\; \CommitIvkTrapdoor \times \AuthSignPublicTypeOrchard \times \NullifierKeyTypeOrchard $&$\rightarrow \CommitIvkOutput$
 \end{tabular}
 
-\vspace{-1ex}
-\nnote{$\NoteCommitAlg{Orchard}$ and $\CommitIvkAlg$ can return $\bot$ with insignificant probability.}
+\begin{pnotes}
+  \item $\NoteCommitAlg{Orchard}$ and $\CommitIvkAlg$ can return $\bot$ (with insignificant probability).
+  \item $\CommitIvkAlg$ can return $0$ (with insignificant probability) even though that is not a valid
+        $\KA{Orchard}$ \privateKey. The use of $\CommitIvkAlg$ to obtain an \Orchard \incomingViewingKey
+        in \crossref{orchardkeycomponents} explicitly accounts for the $0$ and $\bot$ cases.
+        Use of $\CommitIvkAlg$ in the \actionCircuit does not require special handling of the $0$ case.
+\end{pnotes}
 
 $\NoteCommitAlg{Orchard}$ and $\CommitIvkAlg$ are instantiated in \crossref{concreteorchardnotecommit}.
 $\ValueCommitAlg{Orchard}$ is instantiated in \crossref{concretevaluecommit}.
@@ -5042,7 +5048,7 @@ as follows:
         \vspace{-0.2ex}
   \item let $\InViewingKey = \CommitIvk{\CommitIvkRand}\big(\AuthSignPublic, \NullifierKey\big)$
         \vspace{-0.2ex}
-  \item if $\InViewingKey = \bot$, discard this key and repeat with a new $\SpendingKey$.
+  \item if $\InViewingKey \in \setof{0, \bot}$, discard this key and repeat with a new $\SpendingKey$.
         \vspace{-0.2ex}
   \item let $K = \ItoLEBSPOf{\SpendingKeyLength}{\CommitIvkRand}$
         \vspace{-0.2ex}
@@ -14581,6 +14587,19 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
 
 \historyentry{2022.3.0}{}
 \begin{itemize}
+\nufive{
+    \item Correct a type error in the usage of $\CommitIvkAlg$: the output type
+          $\CommitIvkOutput$ includes $0$, but the type of \incomingViewingKeys
+          should not include $0$ because $\KAPrivate{Orchard}$ does not. This is
+          now handled by explicitly rejecting $0$ as output from $\CommitIvkAlg$
+          when generating $\InViewingKey$ in \crossref{orchardkeycomponents}.
+          An encoding of $\InViewingKey$ as $0$ is also rejected in
+          \crossref{orchardinviewingkeyencoding} when parsing an \incomingViewingKey.
+          The \actionCircuit needed no changes because $\DiversifiedTransmitPublic$
+          already could not be $\ZeroP$, and therefore the
+          \snarkref{Diversified address integrity}{actionaddressintegrity}
+          condition fails when $\InViewingKey = 0$.
+} %nufive
     \item In \crossref{blockchain}, define what a \settled \networkUpgrade is,
           specify requirements for checkpointing, and allow nodes to impose
           a limitation on rollback depth.
