@@ -1,6 +1,6 @@
 # Zcash Design Guide
 
-This folder contains an mdbook instance of design-related toipcs for Zcash that are outside the scope of the protocol specification or ZIPs.
+This folder contains an mdbook instance of design-related topics for Zcash that are outside the scope of the protocol specification or ZIPs.
 
 ## Rendering
 
