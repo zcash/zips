@@ -17,6 +17,6 @@ The standard means of rendering this folder is to install `mdbook` via `cargo`.
 
 ### Integration into ZIPs Repo
 
-This folder has a target in the root `/Makefile` to provie a `make design` target for rendering. This make target is part of the `all` target.
+This folder has a target in the root `/Makefile` to provide a `make design` target for rendering. This make target is part of the `all` target.
 
 The rendered directory is `design/book` and this path is in `.gitignore`. This deviates from the approach with ZIPs and protocol spec where the rendered output is tracked in `git`.
