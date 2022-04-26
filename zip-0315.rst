@@ -4,6 +4,225 @@
   Title: Best Practices for Wallet Handling of Multiple Pools
   Owners: Daira Emma Hopwood <daira@electriccoin.co>
           Jack Grigg <jack@electriccoin.co>
-  Status: Reserved
+  Status: Proposed
   Category: Wallet
   Discussions-To: <https://github.com/zcash/zips/issues/447>
+  Pull-Request: <https://github.com/zcash/zips/issues/>
+
+
+Terminology
+===========
+
+The key words "MUST", "SHOULD", "SHOULD NOT", and "MAY" in this document are to be
+interpreted as described in RFC 2119. [#RFC2119]_
+
+The terms below are to be interpreted as follows:
+
+Auto-shielding
+    The process of automatically transferring transparent funds to the most recent
+    shielded pool on receipt.
+
+Auto-migration
+    The process of automatically transferring shielded funds from older pools to the
+    most preferred (usually the most recent) pool on receipt.
+
+TODO: add definitions of opportunistic shielding and migration.
+
+TODO: "confirmed", "partially confirmed"
+
+
+Motivation
+==========
+
+The aim of this ZIP is to provide wallet developers with a set of best practices by
+which they can minimize the leakage of information when constructing transactions.
+
+This includes best practices for:
+
+* how to handle interactions between the ZIP 32 key tree and Unified Addresses;
+* when to use external or internal keys/addresses;
+* sharing addresses and viewing keys;
+* sending and receiving funds;
+* migrating funds between pools.
+
+
+Requirements
+============
+
+User consent
+------------
+
+The guiding principle of these requirements is that users must explicitly consent
+to each instance of information being revealed by the wallet.
+
+As is true for consent in general, a user may give blanket consent to reveal a
+particular kind of information, and must always be able to revoke consent to
+reveal such information in the future. The specifications below describe some
+situations in which blanket consent may be inappropriate.
+
+
+Reporting of balances
+---------------------
+
+Wallets MUST report at least separate shielded and transparent balance.
+
+If auto-shielding or auto-migration is off, then wallets SHOULD report separate
+balances for each shielded pool and for transparent balance.
+
+If the wallet never supports a given pool, it can obviously omit balances for that
+pool.
+
+If auto-shielding is on, transparent funds should be reported in "balance unavailable
+to spend".
+
+Wallets SHOULD separately report the balances of funds that are immediately
+spendable, and any remaining funds that are expected from unconfirmed or
+partially confirmed transfers.
+
+TODO: make this more precise in terms of the following categories:
+
+* Funds at rest (not involved in any not-fully-confirmed transfer)
+* Outgoing funds to an external source (might come back if the tx doesn't go through)
+* Incoming funds from an external source
+* Funds we are sending to ourself.
+
+
+Linkability of transactions or addresses
+----------------------------------------
+
+
+
+Network-layer privacy
+---------------------
+
+
+Viewing keys
+------------
+
+What they are supposed to reveal; see ZIP 310 for Sapling (needs updating for
+Orchard). https://github.com/zcash/zips/issues/606
+
+
+
+Allowed transfers
+-----------------
+
+* Sprout -> transparent or Sapling
+* Sapling -> transparent or Sapling or Orchard
+* Orchard -> transparent or Sapling or Orchard
+* if auto-shielding is off:
+  *  transparent -> transparent or Sapling or Orchard
+* if auto-shielding is on:
+  *  transparent -> internal Orchard or Sapling
+
+Note: wallets MAY further restrict the set of transfers they perform.
+
+
+Auto-shielding
+--------------
+
+Wallets SHOULD NOT spend funds from a transparent address to an external address,
+unless the user gives explicit consent for this on a per-transaction basis.
+
+In order to support this policy, wallets SHOULD implement a system of auto-shielding
+with the following characteristics.
+
+
+If auto-shielding functionality is available in a wallet, then users MUST be able
+to explicitly consent to one of the following possibilities:
+
+* auto-shielding is always on;
+* auto-shielding is always off;
+* the user specifies a policy...
+
+Auto-shielding MUST be one of:
+
+* "must opt in or out" (zcashd will do this -- i.e. refuse to start unless the option
+  is configured), or
+* always on.
+
+
+Auto-migration
+--------------
+
+
+Information leakage for transfers between pools
+-----------------------------------------------
+
+
+If no auto-migration, if you can satisfy a transfer request to Sapling from your
+Sapling funds, do so.
+
+The user's consent is needed to reveal amounts. Therefore, there should be
+per-transaction opt-in for any amount-revealing transfer.
+
+* there may be a compatibility issue for amount-revealing cross-pool txns that were
+  previously allowed without opt-in
+
+Don't automatically combine funds across pools to satisfy a transfer (since that
+could reveal the total funds in some pool).
+
+In order to maintain the integrity of IVK guarantees, wallets should not generate
+unified addresses that contain internal receivers, nor expose internal receivers
+(such as those used for auto-shielding and change outputs) in any way.
+
+Open questions:
+
+* should there be an auto-migration option from Sapling to Orchard?
+
+# str4d notes
+
+If we want to have both automatic and opportunistic shielding, and keep the two
+indistinguishable, then we can't auto-shield when the transparent balance reaches
+some threshold (otherwise opportunistic would either never be used, or would be
+identifiable when it uses the balance below the threshold).
+
+Instead, a proposition: we define a distribution of "time since last payment to the
+address" from which we sample the time at which the auto-shielding transaction will
+be created. This distribution is weighted by the balance in the address, so as more
+funds accrue, the auto-shielding transaction is more likely to be created.
+
+- It ensures that all funds will eventually be auto-shielded, while preventing
+  fee-dusting attacks (where dust is sent in order to repeatedly consume fees from
+  the wallet), as the auto-shielding transaction is not directly triggered by payment
+  receipt.
+
+- If the user makes a shielding transaction in the meantime, we opportunistically
+  shield, without it being clearly not an auto-shielding transaction.
+
+- If a wallet is offline for a long time, then it would likely auto-shield as soon as
+  it finishes syncing. This maybe isn't enough to reveal that the wallet came online,
+  except that it _might_ result in auto-shielding transactions for multiple
+  transparent addresses being created at the same time. So we might want to
+  special-case this?
+
+Properties we want from auto-shielding:
+
+- Auto-shielding transactions MUST NOT shield from multiple transparent receivers in
+  the same transaction.
+  - Doing so would trivially link diversified UAs containing transparent receivers.
+
+Properties we want from auto-migration:
+
+- Receipt of a shielded payment MUST NOT trigger any on-chain behaviour (as that
+  reveals transaction linkability).
+
+Both auto-shielding and auto-migration are time-triggered actions, not
+receipt-triggered actions. An auto-shielding or auto-migration transaction MUST NOT
+be created as a direct result of a payment being received.
+
+Both of these are opportunistic: if the user's wallet is making a transaction in
+which one of these actions would occur anyway, then the wallet takes the opportunity
+to migrate as much as it would do if it were generating an autoshielding transaction.
+This both saves on a transaction, and removes the need for any kind of transparent
+change address within UAs.
+
+TODO: what pool should change go to?
+
+* Proposal: the most recent pool already involved in the transaction.
+
+
+References
+==========
+
+.. [#RFC2119] `RFC 2119: Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
