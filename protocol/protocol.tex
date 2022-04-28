@@ -1454,6 +1454,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 
 % Sapling and Orchard
 
+\newcommand{\Internal}[1]{{#1}_{\mathsf{internal}}}
 \newcommand{\SpendingKey}{\mathsf{sk}}
 \newcommand{\SpendingKeyLength}{\mathsf{\ell_{\SpendingKey}}}
 \newcommand{\SpendingKeyType}{\bitseq{\SpendingKeyLength}}
@@ -1492,6 +1493,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\DiversifierKeyType}{\byteseq{\DiversifierKeyLength/8}}
 \newcommand{\DiversifierIndex}{\mathsf{index}}
 \newcommand{\FVK}{\mathsf{FVK}}
+\newcommand{\DeriveInternalFVKOrchard}{\mathsf{DeriveInternalFVK^{Orchard}}}
 \newcommand{\DiversifiedTransmitBase}{\mathsf{g_d}}
 \newcommand{\DiversifiedTransmitBaseRepr}{\mathsf{g\Repr_d}}
 \newcommand{\DiversifiedTransmitBaseOld}{\mathsf{g^{old}_d}}
@@ -5005,6 +5007,9 @@ Let $\GroupPHash$ be as defined in \crossref{concretegrouphashpallasandvesta}.
 \vspace{-0.25ex}
 Let $\PRFexpand{}$ and $\PRFock{Orchard}{}$ be as defined in \crossref{concreteprfs}.
 
+\vspace{-0.5ex}
+Let $\DeriveInternalFVKOrchard$ be as defined in \cite[Orchard internal key derivation]{ZIP-32}.
+
 \vspace{-0.25ex}
 Let $\PRPd{} \typecolon \DiversifierKeyType \times \DiversifierType \rightarrow \DiversifierType$
 be as defined in \crossref{concreteprps}.
@@ -5043,8 +5048,8 @@ the \nullifierDerivingKey $\NullifierKey \typecolon \NullifierKeyTypeOrchard$,
 the \commitIvkRandomness $\CommitIvkRand \typecolon \CommitIvkRandType$,
 the \diversifierKey $\DiversifierKey \typecolon \DiversifierKeyType$,
 the $\KA{Orchard}$ \privateKey $\InViewingKey \typecolon \InViewingKeyTypeOrchard$,
-and the \outgoingViewingKey $\OutViewingKey \typecolon \OutViewingKeyType$ are derived
-as follows:
+the \outgoingViewingKey $\OutViewingKey \typecolon \OutViewingKeyType$, and corresponding
+``internal'' keys are derived as follows:
 
 \begin{algorithm}
   \item let mutable $\AuthSignPrivate \leftarrow \ToScalar{Orchard}\big(\PRFexpand{\SpendingKey}([6])\kern-0.1em\big)$
@@ -5073,7 +5078,23 @@ as follows:
         \vspace{-0.2ex}
   \item let $\DiversifierKey$ be the first $\DiversifierKeyLength/8$ bytes of $R$ and
         let $\OutViewingKey$ be the remaining $\OutViewingKeyLength/8$ bytes of $R$.
+        \vspace{-0.4ex}
+  \item let $(\Internal{\AuthSignPublic}, \Internal{\NullifierKey}, \Internal{\CommitIvkRand}) = \DeriveInternalFVKOrchard(\AuthSignPublic, \NullifierKey, \CommitIvkRand)$
+        \vspace{-0.3ex}
+  \item let $\Internal{\InViewingKey} = \CommitIvk{\Internal{\CommitIvkRand}}\big(\Internal{\AuthSignPublic}, \Internal{\NullifierKey}\big)$
+        \vspace{-0.2ex}
+  \item if $\Internal{\InViewingKey} \in \setof{0, \bot}$, discard this key and repeat with a new $\SpendingKey$.
+        \vspace{-0.2ex}
+  \item let $\Internal{K} = \ItoLEBSPOf{\SpendingKeyLength}{\Internal{\CommitIvkRand}}$
+        \vspace{-0.5ex}
+  \item let $\Internal{R} = \PRFexpand{\Internal{K}}\big([\hexint{82}] \bconcat \ItoLEOSPOf{256}{\Internal{\AuthSignPublic}} \bconcat \ItoLEOSPOf{256}{\Internal{\NullifierKey}}\kern-0.25em\big)$
+        \vspace{-0.2ex}
+  \item let $\Internal{\DiversifierKey}$ be the first $\DiversifierKeyLength/8$ bytes of $\Internal{R}$ and
+        let $\Internal{\OutViewingKey}$ be the remaining $\OutViewingKeyLength/8$ bytes of $\Internal{R}$.
 \end{algorithm}
+
+\introlist
+\pnote{$\Internal{\AuthSignPublic} = \AuthSignPublic$ and $\Internal{\NullifierKey} = \NullifierKey$.}
 
 As explained in \crossref{addressesandkeys}, \Orchard allows the efficient
 creation of multiple \diversifiedPaymentAddresses with the same \spendingAuthority.
@@ -12094,7 +12115,9 @@ The \rawEncoding of an \Orchard \fullViewingKey consists of:
 \vspace{-1ex}
 When decoding this representation, the key \MUST be considered invalid if $\AuthSignPublic$,
 $\NullifierKey$, or $\CommitIvkRand$ are not canonically encoded elements of their respective
-fields, or if $\AuthSignPublic$ is not a valid \Pallas $x$-coordinate.
+fields, or if $\AuthSignPublic$ is not a valid \Pallas $x$-coordinate, or if either the
+external or internal \incomingViewingKeys derived as specified in \crossref{orchardkeycomponents}
+are $0$ or $\bot$.
 
 There is no \BechOptm encoding defined for an individual \Orchard \fullViewingKey;
 instead use a \unifiedFullViewingKey as defined in \cite{ZIP-316}.
@@ -14617,6 +14640,12 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
 \historyentry{2022.3.1}{}
 \begin{itemize}
 \nufive{
+    \item In \crossref{orchardkeycomponents}, do not allow construction of \Orchard
+          \spendingKeys such that the corresponding internal \incomingViewingKey is $0$
+          or $\bot$. (This was already specified for the external \incomingViewingKey.)
+          Similarly in \crossref{orchardfullviewingkeyencoding}, do not consider a
+          decoded key valid if either its external or internal \incomingViewingKey
+          would be $0$ or $\bot$.
     \item Clarify how to determine which table in \crossref{txnencoding} to use for
           \transaction parsing, depending on the $\effectiveVersion$ as determined by
           the $\headerField$ field.
