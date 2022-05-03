@@ -167,8 +167,6 @@ TODO: make this more precise in terms of the following categories:
 * Funds we are sending to ourself.
 
 
-
-
 Rationale
 '''''''''
 
@@ -310,6 +308,54 @@ change address within UAs.
 TODO: what pool should change go to?
 
 * Proposal: the most recent pool already involved in the transaction.
+
+Wallet Recovery
+---------------
+
+In the case where we are recovering a wallet from a backed-up mnemonic phrase,
+and not from a wallet.dat, we don't have enough information to figure out what
+receiver types the user originally used when deriving each UA under an account.
+We have a similar issue if someone exports a UFVK, derives an address from it,
+and has a payment sent to the address: zcashd will detect the payment, but has
+no way to figure out what address it should display in the UI. A wallet could
+store this information in the memo field of change outputs, but that adds a
+bunch of coordination to the problem, and assumes ongoing on-chain state
+storage.
+
+- If the receiver matches an address that the wallet knows was derived via
+  z_getaddressforaccount, show that UA as expected (matching the receiver
+  types the user selected).
+- If the receiver matches a UFVK in the wallet, and we are looking it up
+  because we detected a received note in some block, show the UA with the
+  default receiver types that zcashd was using as of that block height
+  (ideally the earliest block height we detect), and cache this for future
+  usage.
+- For zcashd's current policy of "best and second-best shielded pools, plus
+  transparent pool", that would mean Orchard, Sapling, and transparent for
+  current block heights.
+- For each release of a wallet, the wallet should specify a set of receiver
+  types and an associated range of block heights during which the wallet
+  will, by default, generate unified addresses using that set of receiver
+  types.
+- For zcashd we know how the policy evolves because each zcashd release has
+  an approximate relase height and EoS height that defines the window.
+- Subsequent releases of a wallet should not retroactively change their
+  policies for previously defined block height ranges.
+- If the receiver type for a note received at a given type is not a member
+  of the set of receiver types expected for the range of block heights, the
+  policy corresponding to the nearest block height range that includes that
+  receiver type should be used.
+- If the receiver matches a UFVK in the wallet, and we have no information
+  about when this receiver may have been first used, show the UA
+  corresponding to the most recent receiver types policy that includes the
+  receiver's type.
+- As part of this, we're also going to change the "Sapling receiver to
+  UfvkId" logic to trial-decrypt after trying internal map, so that we will
+  detect all receivers linked to UFVKs in the wallet, not just receivers in
+  addresses generated via z_getaddressforaccount. The internal map lookup
+  is then just an optimisation (and a future refactor to have Orchard do
+  the same is possible, but for now we will only trial-decrypt so we don't
+  need to refactor to access the Rust wallet).
 
 
 References
