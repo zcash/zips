@@ -42,8 +42,7 @@ and double-check the generated ``draft-*.html`` file before filing a Pull Reques
 NU5 ZIPs
 --------
 
-This is the list of ZIPs relevant to the proposed NU5 Upgrade, which
-is planned to activate on Mainnet in January 2022:
+This is the list of ZIPs relevant to the NU5 Upgrade, which `activated on 31st May 2022 <https://z.cash/upgrade/nu5/>`__:
 
 - `ZIP 32: Shielded Hierarchical Deterministic Wallets <zip-0032.rst>`__ (updated)
 - `ZIP 203: Transaction Expiry <zip-0203.rst>`__ (updated)
