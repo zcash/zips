@@ -90,15 +90,15 @@ Index of ZIPs
     <tr> <td><span class="reserved">204</span></td> <td class="left"><a class="reserved" href="zip-0204.rst">Zcash P2P Network Protocol</a></td> <td>Reserved</td>
     <tr> <td>205</td> <td class="left"><a href="zip-0205.rst">Deployment of the Sapling Network Upgrade</a></td> <td>Final</td>
     <tr> <td>206</td> <td class="left"><a href="zip-0206.rst">Deployment of the Blossom Network Upgrade</a></td> <td>Final</td>
-    <tr> <td>207</td> <td class="left"><a href="zip-0207.rst">Funding Streams</a></td> <td>Implemented (zcashd)</td>
+    <tr> <td>207</td> <td class="left"><a href="zip-0207.rst">Funding Streams</a></td> <td>Final</td>
     <tr> <td>208</td> <td class="left"><a href="zip-0208.rst">Shorter Block Target Spacing</a></td> <td>Final</td>
     <tr> <td>209</td> <td class="left"><a href="zip-0209.rst">Prohibit Negative Shielded Chain Value Pool Balances</a></td> <td>Final</td>
     <tr> <td><strike>210</strike></td> <td class="left"><strike><a href="zip-0210.rst">Sapling Anchor Deduplication within Transactions</a></strike></td> <td>Withdrawn</td>
-    <tr> <td>211</td> <td class="left"><a href="zip-0211.rst">Disabling Addition of New Value to the Sprout Chain Value Pool</a></td> <td>Implemented (zcashd)</td>
+    <tr> <td>211</td> <td class="left"><a href="zip-0211.rst">Disabling Addition of New Value to the Sprout Chain Value Pool</a></td> <td>Final</td>
     <tr> <td>212</td> <td class="left"><a href="zip-0212.rst">Allow Recipient to Derive Ephemeral Secret from Note Plaintext</a></td> <td>Final</td>
     <tr> <td>213</td> <td class="left"><a href="zip-0213.rst">Shielded Coinbase</a></td> <td>Final</td>
-    <tr> <td>214</td> <td class="left"><a href="zip-0214.rst">Consensus rules for a Zcash Development Fund</a></td> <td>Implemented (zcashd)</td>
-    <tr> <td>215</td> <td class="left"><a href="zip-0215.rst">Explicitly Defining and Modifying Ed25519 Validation Rules</a></td> <td>Implemented (zcashd)</td>
+    <tr> <td>214</td> <td class="left"><a href="zip-0214.rst">Consensus rules for a Zcash Development Fund</a></td> <td>Final</td>
+    <tr> <td>215</td> <td class="left"><a href="zip-0215.rst">Explicitly Defining and Modifying Ed25519 Validation Rules</a></td> <td>Final</td>
     <tr> <td>216</td> <td class="left"><a href="zip-0216.rst">Require Canonical Jubjub Point Encodings</a></td> <td>Final</td>
     <tr> <td><span class="reserved">217</span></td> <td class="left"><a class="reserved" href="zip-0217.rst">Aggregate Signatures</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">219</span></td> <td class="left"><a class="reserved" href="zip-0219.rst">Disabling Addition of New Value to the Sapling Chain Value Pool</a></td> <td>Reserved</td>
@@ -114,7 +114,7 @@ Index of ZIPs
     <tr> <td>244</td> <td class="left"><a href="zip-0244.rst">Transaction Identifier Non-Malleability</a></td> <td>Final</td>
     <tr> <td>245</td> <td class="left"><a href="zip-0245.rst">Transaction Identifier Digests & Signature Validation for Transparent Zcash Extensions</a></td> <td>Draft</td>
     <tr> <td>250</td> <td class="left"><a href="zip-0250.rst">Deployment of the Heartwood Network Upgrade</a></td> <td>Final</td>
-    <tr> <td>251</td> <td class="left"><a href="zip-0251.rst">Deployment of the Canopy Network Upgrade</a></td> <td>Implemented (zcashd)</td>
+    <tr> <td>251</td> <td class="left"><a href="zip-0251.rst">Deployment of the Canopy Network Upgrade</a></td> <td>Final</td>
     <tr> <td>252</td> <td class="left"><a href="zip-0252.rst">Deployment of the NU5 Network Upgrade</a></td> <td>Final</td>
     <tr> <td>300</td> <td class="left"><a href="zip-0300.rst">Cross-chain Atomic Transactions</a></td> <td>Proposed</td>
     <tr> <td>301</td> <td class="left"><a href="zip-0301.rst">Zcash Stratum Protocol</a></td> <td>Final</td>
