@@ -50,7 +50,8 @@ README.rst: .zipfilelist.current makeindex.sh README.template $(sort $(wildcard 
 	./makeindex.sh | cat README.template - >README.rst
 
 .PHONY: linkcheck
-linkcheck: protocol/protocol.pdf protocol/canopy.pdf protocol/heartwood.pdf protocol/blossom.pdf protocol/sapling.pdf
+linkcheck: all-zips
+	$(MAKE) -C protocol all-specs
 	./links_and_dests.py --check $(filter-out $(wildcard draft-*.html),$(wildcard *.html)) protocol/protocol.pdf protocol/canopy.pdf protocol/heartwood.pdf protocol/blossom.pdf protocol/sapling.pdf
 
 .PHONY: clean
