@@ -26,9 +26,21 @@ Auto-migration
     The process of automatically transferring shielded funds from older pools to the
     most preferred (usually the most recent) pool on receipt.
 
-TODO: add definitions of opportunistic shielding and migration.
+Opportunistic shielding
+    TODO
 
-TODO: "confirmed", "partially confirmed"
+Opportunistic migration
+    TODO
+
+Confirmed
+    TODO
+
+Partially confirmed
+    TODO
+
+Transaction output (TXO)
+    An output (transparent TXO or note) of a transaction on the consensus block chain
+    or in the mempool visible to a wallet.
 
 
 Motivation
@@ -55,11 +67,42 @@ User consent
 The guiding principle of these requirements is that users must explicitly consent
 to each instance of information being revealed by the wallet.
 
-As is true for consent in general, a user may give blanket consent to reveal a
-particular kind of information, and must always be able to revoke consent to
-reveal such information in the future. The specifications below describe some
-situations in which blanket consent may be inappropriate.
+A wallet typically reveals some information in the process of creating a transaction.
+Which information is revealed depends on the configured wallet privacy policy.
+A user may give blanket consent to reveal a particular kind of information, and
+must also be able to change the configured wallet privacy policy to avoid the
+wallet creating new privacy leaks of a given type.
 
+The specifications below describe some situations in which blanket consent may be
+inappropriate.
+
+Some varieties of consent may not be revocable, for example if a user chooses to
+share some of their keys.
+
+
+Prompt accessibility of funds
+-----------------------------
+
+Wallets need to take account of two concerns:
+
+* enabling funds to be spent as quickly as possible to reduce latency;
+* waiting for long enough before spending TXOs to ensure that the spendable
+  balance is not overestimated, and so can be trusted by the user.
+
+To enable this we define two kinds of TXOs:
+
+* An untrusted TXO is a TXO received from a party that may try to double-spend.
+* A trusted TXO is a TXO received from a party where the wallet trusts a
+  double-spend not to occur, e.g. TXOs created by the wallet's internal TXO
+  handling.
+
+Wallets can then require that untrusted TXOs need more confirmations before
+they become spendable than trusted TXOs. This provides an improved trade-off
+between latency on the one hand, and reliability and safety on the other.
+
+
+Specification
+=============
 
 Long-term storage of funds
 --------------------------
@@ -71,49 +114,37 @@ The remainder of this specification assumes a wallet that follows this
 recommendation, except where explicitly noted.
 
 
-Trusted and untrusted notes
----------------------------
-
-Wallets need to take account of two concerns:
-
-* enabling funds to be spent as quickly as possible to reduce latency;
-* waiting for long enough before spending notes to ensure that the spendable
-  balance is not overestimated, and so can be trusted by the user.
-
-To enable this we define two kinds of notes:
-
-* An untrusted note is a note received from a party that may try to double-spend.
-* A trusted note is a note received from a party where the wallet trusts a
-  double-spend not to occur, e.g. notes created by the wallet's internal note
-  handling.
-
-Wallets can then require that untrusted notes need more confirmations before
-they become spendable than trusted notes. This provides an improved trade-off
-between latency on the one hand, and reliability and safety on the other.
-
-Wallets MAY enable users to mark specific external transactions as trusted,
-allowing their received notes to be spent more quickly.
+Trusted and untrusted TXOs
+--------------------------
 
 A wallet SHOULD have a policy that is clearly communicated to the user for
-the number of confirmations needed to spend untrusted and trusted notes
+the number of confirmations needed to spend untrusted and trusted TXOs
 respectively. The following confirmation policy is RECOMMENDED:
 
-* 10 confirmations, for untrusted notes;
-* 3 confirmations, for trusted notes.
+* 10 confirmations, for untrusted TXOs;
+* 3 confirmations, for trusted TXOs.
 
-A note is *confirmed spendable* if and only if the wallet has its spending
+Wallets MAY enable users to mark specific external transactions as trusted,
+allowing their received TXOs to be treated as trusted TXOs even if they
+do not have the required number of confirmations.
+
+
+Categories of TXOs according to spendability
+--------------------------------------------
+
+A TXO is *confirmed spendable* if and only if the wallet has its spending
 key, and:
 
-* it is a trusted note that has at least the required confirmations for trusted
-  notes; or
-* it is an untrusted note that has at least the required confirmations for
-  untrusted notes.
+* it is a trusted TXO that has at least the required confirmations for trusted
+  TXOs; or
+* it is an untrusted TXO that has at least the required confirmations for
+  untrusted TXOs.
 
-A note is *unconfirmed spendable* if and only if the wallet has its spending
+A TXO is *unconfirmed spendable* if and only if the wallet has its spending
 key, and it is not confirmed spendable.
 
-A note is *watch-only* if and only if the wallet has its full viewing key
-but not its spending key.
+A TXO is *watch-only* if and only if the wallet has its full viewing key
+(or address in the case of a transparent TXO) but not its spending key.
 
 
 Reporting of balances
@@ -122,17 +153,43 @@ Reporting of balances
 Wallets SHOULD report:
 
 * Spendable balance.
-* Pending funds, *or* total (spendable + pending) balance.
+* Pending balance, *or* total balance.
 
 These are calculated as follows:
 
-* The spendable balance is the sum of values of confirmed spendable notes.
-* The pending ...
+* The spendable balance is the sum of values of confirmed spendable TXOs.
+* The pending balance is the sum of values of unconfirmed spendable TXOs.
+* The total balance is the spendable balance plus the pending balance.
 
-Incoming transactions (each with # confirmations, amount)
 
-Sent transactions (each with # confirmations, how long until expiry, amount)
+Reporting of transactions
+-------------------------
 
+If a transaction contains both spendable and watch-only TXOs, its spendable
+and watch-only incoming balances MUST be reported separately.
+
+Incoming transactions
+'''''''''''''''''''''
+
+A transaction is incoming if it contains unconfirmed TXOs. Incoming
+transactions SHOULD be reported with their number of confirmations and
+their balances as described in `Reporting of balances`_.
+
+Sent transactions
+'''''''''''''''''
+
+A transaction is sent if it was either:
+* created by the wallet, or
+* detected using the wallet's outgoing viewing keys, or
+* detected as having been sent from one of the wallet's watch-only addresses.
+
+Sent transactions SHOULD be reported with their number of confirmations,
+how long until they expire, and their balances as described in `Reporting of balances`_.
+
+
+
+Auto-shielding
+--------------
 
 If they use auto-shielding, then any transparent balance should be treated as
 pending.
@@ -140,6 +197,7 @@ pending.
 For wallets that allow long-term storage of transparent funds, they SHOULD also
 show spendable transparent and pending (or total) transparent according to the
 same policy.
+
 
 Unedited
 --------
