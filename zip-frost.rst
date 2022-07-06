@@ -162,18 +162,18 @@ Authorization Signatures as specified in [#protocol]_.
 - Hash (`H`): BLAKE2b-512 [#BLAKE]_ (BLAKE2b with 512-bit output and 16-byte personalization string),
   and Nh = 64.
 
-  - H1(m): Implemented by computing BLAKE2b-512("FROST_RedJubjubRh", m), interpreting
+  - H1(m): Implemented by computing BLAKE2b-512("FROST_RedJubjubR", m), interpreting
     the 64 bytes as a little-endian integer, and reducing the resulting integer
     modulo L = 6554484396890773809930967563523245729705921265872317281365359162392183254199.
     [TODO: what context string to use?]
   - H2(m): LEOS2IP_{ℓ_H}(H(m)) (mod G.Order())
-    / Implemented by computing BLAKE2b-512("Zcash_RedJubjubH ", m), interpreting
+    / Implemented by computing BLAKE2b-512("Zcash_RedJubjubH", m), interpreting
     the 64 bytes as a little-endian integer, and reducing the resulting integer
     modulo L = 6554484396890773809930967563523245729705921265872317281365359162392183254199.
     [TODO: use original expression or expand the definitions as above?]
   - H3(m): Implemented by computing BLAKE2b-512("FROST_RedJubjubDi", m)
     [TODO: what context string to use?]
-  - H4(m): Implemented by computing BLAKE2b-512("FROST_RedJubjubNo", m), interpreting
+  - H4(m): Implemented by computing BLAKE2b-512("FROST_RedJubjubN", m), interpreting
     the 64 bytes as a little-endian integer, and reducing the resulting integer
     modulo L = 6554484396890773809930967563523245729705921265872317281365359162392183254199.
     [TODO: what context string to use?]
@@ -209,18 +209,18 @@ Authorization Signatures as specified in [#protocol]_.
 - Hash (`H`): BLAKE2b-512 [#BLAKE]_ (BLAKE2b with 512-bit output and 16-byte personalization string),
   and Nh = 64.
 
-  - H1(m): Implemented by computing BLAKE2b-512("FROST_RedPallasRh", m), interpreting
+  - H1(m): Implemented by computing BLAKE2b-512("FROST_RedPallasR", m), interpreting
     the 64 bytes as a little-endian integer, and reducing the resulting integer
     modulo L = 0x40000000000000000000000000000000224698fc0994a8dd8c46eb2100000001.
     [TODO: what context string to use?]
   - H2(m): LEOS2IP_{ℓ_H}(H(m)) (mod G.Order())
-    / Implemented by computing BLAKE2b-512("Zcash_RedPallasH ", m), interpreting
+    / Implemented by computing BLAKE2b-512("Zcash_RedPallasH", m), interpreting
     the 64 bytes as a little-endian integer, and reducing the resulting integer
     modulo L = 0x40000000000000000000000000000000224698fc0994a8dd8c46eb2100000001.
     [TODO: use original expression or expand the definitions as above?]
-  - H1(m): Implemented by computing BLAKE2b-512("FROST_RedPallasDi", m).
+  - H1(m): Implemented by computing BLAKE2b-512("FROST_RedPallasD", m).
     [TODO: what context string to use?]
-  - H4(m): Implemented by computing BLAKE2b-512("FROST_RedPallasNo", m), interpreting
+  - H4(m): Implemented by computing BLAKE2b-512("FROST_RedPallasN", m), interpreting
     the 64 bytes as a little-endian integer, and reducing the resulting integer
     modulo L = 0x40000000000000000000000000000000224698fc0994a8dd8c46eb2100000001.
     [TODO: what context string to use?]
