@@ -2,8 +2,8 @@
 
   ZIP: Unassigned {numbers are assigned by ZIP editors}
   Title: FROST for Spend Authorization Signatures
-  Owners: Chelsea Komlo <ckomlo@uwaterloo.ca>
-          Conrado Gouvea <conrado@zfnd.org>
+  Owners: Conrado Gouvea <conrado@zfnd.org>
+          Chelsea Komlo <ckomlo@uwaterloo.ca>
           Deirdre Connolly <deirdre@zfnd.org>
   Credits: First Credited
            ...
@@ -59,7 +59,7 @@ Requirements
   as Sapling or Orchard spend authorization signatures.
 - (Must keep same security requirements from the spec?)
 - (Randomizer security requirements?)
-
+- The party that generates alpha should also be the party that has access to the witness for the proof.
 
 Non-requirements
 ================
