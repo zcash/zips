@@ -183,7 +183,7 @@ computation of the binding factor. It is specified as the following: ::
 
   def sign(identifier, sk_i, group_public_key, nonce_i, msg, commitment_list, randomizer):
     # Compute the randomized group public key
-    randomized_group_public_key = randomizer * group_public_key
+    randomized_group_public_key = group_public_key + G * randomizer
 
     # Encode the commitment list
     encoded_commitments = encode_group_commitment_list(commitment_list)
@@ -282,7 +282,7 @@ The `aggregate` function is changed to incorporate the randomizer as follows: ::
   - randomized_group_public_key, the randomized group public key
 
   def aggregate(group_commitment, sig_shares, group_public_key, challenge, randomizer):
-    randomized_group_public_key = randomizer * group_public_key
+    randomized_group_public_key = group_public_key + G * randomizer
     z = 0
     for z_i in sig_shares:
       z = z + z_i
