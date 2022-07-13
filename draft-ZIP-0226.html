@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Draft ZIP-0226: Transfer and Burn of Zcash Shielded Assets</title>
+    <meta charset="utf-8" />
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+    <section>
+        <pre>ZIP: 226
+Title: Transfer and Burn of Zcash Shielded Assets
+Owners: Daniel Benarroch &lt;daniel@qed-it.com&gt;
+        Pablo Kogan &lt;pablo@qed-it.com&gt;
+        Aurelien Nicolas &lt;aurel@qed-it.com&gt;
+Credits: Daira Hopwood
+         Jack Grigg
+         Shahaf Nacshon
+         Vivek Arte
+Status: Draft
+Category: Consensus
+Created: 2022-05-01
+License: MIT
+Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/618">https://github.com/zcash/zips/issues/618</a>&gt;</pre>
+        <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The key word "MUST" in this document is to be interpreted as described in RFC 2119 <a id="id1" class="footnote_reference" href="#rfc2119">1</a>.</p>
+            <p>The term "network upgrade" in this document is to be interpreted as described in ZIP 200 <a id="id2" class="footnote_reference" href="#zip-0200">2</a>.</p>
+            <p>The term "Orchard" in this document is to be interpreted as described in ZIP 224 <a id="id3" class="footnote_reference" href="#zip-0224">3</a>.</p>
+            <p>We define the following additional terms:</p>
+            <ul>
+                <li>Asset: A type of note that can be transferred on the Zcash block chain. ZEC is the default (and currently the only defined) asset for the Zcash mainnet.</li>
+                <li>Zcash Shielded Asset: an asset with issuance defined on the Zcash block chain, and, for now, belonging to the Orchard anonymity pool.</li>
+                <li>Wrapped Asset: a ZSA asset with native issuance defined outside the Zcash block chain.</li>
+            </ul>
+        </section>
+        <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>ZIP 226 and ZIP 227 propose in conjunction the Zcash Shielded Assets (ZSA) protocol, which is an extension of the Orchard protocol that enables the creation, transfer and burn of custom assets on the Zcash chain. The creation of such assets is defined in ZIP 227 <a id="id4" class="footnote_reference" href="#zip-0227">5</a>. The transfer and burn of such assets is defined in ZIP 226 <a id="id5" class="footnote_reference" href="#zip-0226">4</a>.</p>
+        </section>
+        <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The current Orchard protocol does not support custom assets, which is an important aspect for the proper evolution of the Zcash ecosystem. Enabling multi-asset support on the Zcash chain will open the door for a host of applications and enhance the ecosystem with application developers and asset custody institutions for issuance and bridging purposes.</p>
+        </section>
+        <section id="overview"><h2><span class="section-heading">Overview</span><span class="section-anchor"> <a rel="bookmark" href="#overview"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>In order to be able to represent different asset types in Orchard, one needs to define a new data field that uniquely represents the <em>type</em> of the asset in question, which we call
+                <span class="math">\(\mathsf{type}\)</span>
+            .</p>
+            <p>The type will be used to enforce the balance of an action description <a id="id6" class="footnote_reference" href="#protocol-actions">6</a> is preserved across assets (see the Orchard Binding Signature <a id="id7" class="footnote_reference" href="#protocol-binding">7</a> , and by extension of an Orchard transaction. Mainly, the sum of all the
+                <span class="math">\(\mathsf{value^{net}}\)</span>
+            , as
+                <span class="math">\(\mathsf{value^{old}-value^{new}}\)</span>
+            , derived from each action description, must be balanced only <strong>with respect to the same asset type</strong>. This is specially important since we will allow different action descriptions to transfer notes of different asset types, where the overall balance is checked without revealing which assets (or how many different types) are being transferred.</p>
+            <p>As was initially proposed by Jack Grigg and Daira Hopwood <a id="id8" class="problematic" href="#id21">[#initial-zsa-issue]_</a>, we propose to make this happen by changing the value base point,
+                <span class="math">\(\mathcal{V}^{\mathsf{Orchard}}\)</span>
+            , in the Homomorphic Pedersen Commitment that generates the value commitment,
+                <span class="math">\(\mathsf{cv^{net}}\)</span>
+            , of the <em>net value</em> in an Orchard Action.</p>
+            <p>Because in a single transaction all value commitments are balanced, there must be as many different value base points as there are asset types in the transaction. We propose to make the
+                <span class="math">\(\mathsf{type}\)</span>
+             identifier an auxiliary input to the proof, represented already as a point in the Pallas curve. The circuit then should check that the same
+                <span class="math">\(\mathsf{type}\)</span>
+             is used in the old note commitment, in the new note commitment <strong>and</strong> in the value commitment as the base point of the value. This ensures that (1) the input and output notes are of the same type, and (2) that only actions with the same asset type identifier will balance out in the binding and balance signature.</p>
+            <p>In order to ensure the security of the transfers, and as we will explain below, we are replacing input dummy notes for custom assets, as we need to enforce that the type of the output note of that split action is the output of a PRF.</p>
+            <p>Finally, in this ZIP we also describe the <em>burn</em> mechanism, which is a direct extension of the transfer mechanism. The burn process uses a similar mechanism than what is used in Orchard to unshield ZEC, by using the
+                <span class="math">\(\mathsf{valueBalance}\)</span>
+             of the asset in question. Burning assets is useful for many purposes, including bridging of wrapped assets and removing supply of native assets.</p>
+        </section>
+        <section id="orchard-protocol-changes"><h2><span class="section-heading">Orchard Protocol Changes</span><span class="section-anchor"> <a rel="bookmark" href="#orchard-protocol-changes"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>Most of the protocol is kept the same as the Orchard protocol released with NU5, except the following that will be deployed to mainnet in subsequent network upgrades.</p>
+            <section id="asset-types"><h3><span class="section-heading">Asset Types</span><span class="section-anchor"> <a rel="bookmark" href="#asset-types"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>In the OSA protocol, we include a new variable, the asset type identifier,
+                    <span class="math">\(\mathsf{type}\)</span>
+                , which is generated as a 32-byte string during issuance (as described in the Issuance ZIP <a id="id9" class="footnote_reference" href="#zip-0227">5</a>). The
+                    <span class="math">\(\mathsf{type}\)</span>
+                 will then be publicly hashed into the corresponding group, in this case the Pallas curve, by using the
+                    <span class="math">\(\mathsf{GroupHash}\)</span>
+                 function. In fact, every ZSA note will contain the group element representation of the asset type identifier. This will enable a much more elegant and simple version of the circuit, as we will see.</p>
+                <p>We denote the string as
+                    <span class="math">\(\mathsf{type}\)</span>
+                 and we denote the equivalent group representation as
+                    <span class="math">\(\mathsf{type}_{\mathbb{G}}\)</span>
+                 when mapped into a specific group,
+                    <span class="math">\(\mathbb{G}\)</span>
+                . Note that the type of the ZEC asset will be kept as the original value base-point,
+                    <span class="math">\(\mathcal{V}^\mathsf{Orchard}\)</span>
+                </p>
+                <p>In future network and protocol upgrades, the same asset type string can be carried on, with potentially a mapping into a different curve or group. In that case, the turnstile should know how to transform the asset type from one group to another one.</p>
+            </section>
+            <section id="note-structure-commitment"><h3><span class="section-heading">Note Structure &amp; Commitment</span><span class="section-anchor"> <a rel="bookmark" href="#note-structure-commitment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>First, we need to adapt the components that define the assets, i.e.: <em>notes</em>. A ZSA note differs from an Orchard note by including the type of asset,
+                    <span class="math">\(\mathsf{type}_\mathbb{P}\)</span>
+                . So an ZSA note looks like:</p>
+                <p>
+                    <span class="math">\((\mathsf{g_d, pk_d, v, \rho, \psi, type}_{\mathbb{P}})\)</span>
+                </p>
+                <p>Where
+                    <span class="math">\(\mathsf{type}_\mathbb{P}\)</span>
+                 is the unique random group element that identifies each asset in the Pallas curve <a id="id10" class="footnote_reference" href="#protocol-pallasandvesta">8</a>, <a id="id11" class="footnote_reference" href="#pasta-evidence">9</a> of the Orchard protocol.</p>
+                <p>In this case, the note commitment,
+                    <span class="math">\(\mathsf{NoteCommit^{ZSA}_{rcm}}\)</span>
+                , will differ from
+                    <span class="math">\(\mathsf{NoteCommit^{Orchard}_{rcm}}\)</span>
+                 in that for non-ZEC assets, the type will be added as an input to the commitment computation. As we will see, the recursive structure of the Sinsemilla-base commitment <a id="id12" class="footnote_reference" href="#protocol-concretesinsemillacommit">10</a> allows us to add the type as a final recursive step, and hence keep a single instance of the hash function in the circuit for the note commitment verification.</p>
+                <p>Since the commitment output is still indistinguishable with the original Orchard ZEC note commitments, by definition of the Sinsemilla hash, ZSA note commitments will be added to the same Merkle Commitment Tree. In essence, we have</p>
+                <p>
+                    <span class="math">\(\mathsf{NoteCommit^{ZSA}_{rcm}(repr_{\mathbb{P}}(g_d), repr_{\mathbb{P}}(pk_d), v, \rho, \psi, type_\mathbb{P})} \in \{\mathsf{cm},\bot\}\)</span>
+                </p>
+                <p>The nullifier is generated in the same manner as in the Orchard protocol.</p>
+            </section>
+            <section id="value-commitment"><h3><span class="section-heading">Value Commitment</span><span class="section-anchor"> <a rel="bookmark" href="#value-commitment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>The Orchard Protocol uses a Sinsemilla-based Homomorphic Pedersen Commitment <a id="id13" class="footnote_reference" href="#protocol-concretevaluecommit">11</a> which is instantiated as</p>
+                <p>
+                    <span class="math">\(\mathsf{cv^{net}:=ValueCommit^{Orchard}_{rcv}(v^{net})}:= \mathsf{[v^{net}]}\mathcal{V}^{\mathsf{Orchard}}+[\mathsf{rcv}]\mathcal{R}^{\mathsf{Orchard}}\)</span>
+                </p>
+                <p>Where
+                    <span class="math">\(\mathsf{v^{net} = v^{old} - v^{new}}\)</span>
+                 and</p>
+                <p>
+                    <span class="math">\(\mathcal{V}^{\mathsf{Orchard}}:=\mathsf{GroupHash^{\mathbb{P}}}(\texttt{"z.cash:Orchard-cv", "v")}\)</span>
+                </p>
+                <p>
+                    <span class="math">\(\mathcal{R}^{\mathsf{Orchard}}:=\mathsf{GroupHash^{\mathbb{P}}}(\texttt{"z.cash:Orchard-cv", "r")}\)</span>
+                </p>
+                <p>In the case of the Orchard protocol, we see that the base points
+                    <span class="math">\(\mathcal{V}^{\mathsf{Orchard}}\)</span>
+                 and
+                    <span class="math">\(\mathcal{R}^{\mathsf{Orchard}}\)</span>
+                 are fixed for every value commitment, as the values represent the amount of ZEC being transferred.</p>
+                <p>In the case of the ZSA protocol, the value of different asset types in a given transaction will be committed using a <strong>different value base point</strong>. This enables the final balance of the transaction to be securely computed, such that each asset type is balanced independently, as the assets are not meant to be fungible. The value commitment then becomes</p>
+                <p>
+                    <span class="math">\(\mathsf{cv^{net}:=ValueCommit^{ZSA}_{rcv}(v^{net}_{type},\mathcal{V}^{\mathsf{ZSA}}_{\mathsf{type}})}:= \mathsf{[v^{net}_{type}]}\mathcal{V}^{\mathsf{ZSA}}_{\mathsf{type}}+[\mathsf{rcv}]\mathcal{R}^{\mathsf{Orchard}}\)</span>
+                </p>
+                <p>where
+                    <span class="math">\(\mathsf{v^{net}_{type}} = \mathsf{v^{old}_{type} - v^{new}_{type}}\)</span>
+                 such that
+                    <span class="math">\(\mathsf{v^*_{type}}\)</span>
+                 is the value of the note of type
+                    <span class="math">\(\mathsf{type}\)</span>
+                , and</p>
+                <p>
+                    <span class="math">\(\mathcal{V}^{\mathsf{ZSA}}_{\mathsf{type}}:=\mathsf{type_\mathbb{P}}= \mathsf{GroupHash^{\mathbb{P}}}\texttt{("z.cash:Orchard-cv",type\_params)}\)</span>
+                </p>
+                <p>
+                    <span class="math">\(\mathcal{R}^{\mathsf{Orchard}}:=\mathsf{GroupHash^{\mathbb{P}}}\texttt{("z.cash:Orchard-cv", "r")}\)</span>
+                </p>
+                <p>Where
+                    <span class="math">\(\mathcal{V}^{\mathsf{ZSA}}_{\mathsf{ZEC}} =\mathcal{V}^{\mathsf{Orchard}}\)</span>
+                .</p>
+            </section>
+            <section id="value-balance-verification"><h3><span class="section-heading">Value Balance Verification</span><span class="section-anchor"> <a rel="bookmark" href="#value-balance-verification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>In order to verify the balance of the different assets, verifier performs exactly the same the process as for the Orchard protocol <a id="id14" class="footnote_reference" href="#protocol-binding">7</a>. The main reason is because no custom assets can be unshielded, so all custom assets are contained within the shielded ZSA pool. This means that the net balance of the input and output values is zero, with only one type of value balance published, that of ZEC,
+                    <span class="math">\(\mathsf{v^{balanceOrchard}}\)</span>
+                , so no net amount of any type will be revealed, and neither the nnumber of types in the transaction. The only exception to this is in the case that an asset is <em>burnt</em>, as we will see below.</p>
+                <p>For a total of
+                    <span class="math">\(m\)</span>
+                 actions in a transfer, the prover can still sign the <cite>SIGHASH</cite> of the transaction using the binding signature key</p>
+                <p>
+                    <span class="math">\(\mathsf{bsk} = \sum_{\mathsf{ \forall i\in \{1,...,m\}}} \mathsf{rcv_{i}}\)</span>
+                </p>
+                <p>Then we have that the verifier computes</p>
+                <p>
+                    <span class="math">\(\mathsf{bvk = (\sum cv_i^{net})}  - \mathsf{ ValueCommit_0^{Orchard}(v^{balanceOrchard})} = \sum \mathsf{rcv_{i}^{net}}\mathcal{R}^{\mathsf{Orchard}}\)</span>
+                </p>
+                <p>And uses it to verify the binding signature, as described in §4.14 of the Zcash Specification <a id="id15" class="footnote_reference" href="#protocol-binding">7</a>, by verifying the <cite>bindingSignature</cite> on the <cite>SIGHASH</cite> message.</p>
+                <p>As in the Orchard protocol, the binding signature verification key,
+                    <span class="math">\(\mathsf{bvk}\)</span>
+                , will only be valid (and hence verify the signature correctly, as long as all the value commitments (and corresponding value balances) are equal to zero. In contrast, in this protocol, the value commitments only cancel out <strong>per asset type</strong>, as the Pedersen commitments add up homomorphically only with respect to the same value base point.</p>
+            </section>
+            <section id="split-notes"><h3><span class="section-heading">Split Notes</span><span class="section-anchor"> <a rel="bookmark" href="#split-notes"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>One of the key functionalities in a UTXO based protocol is the fact that input notes are usually split in two (or more) output notes, as in most cases, not all the value in a single note is sent to a single output. This is called a 1-to-many (Orchard) transaction. In order to cope with this today, the input note of the second (third and more) Action (which we call split notes and split Actions respectively) is a <em>dummy spend note</em> <a id="id16" class="footnote_reference" href="#protocol-dummynotes">12</a>. Basically, the input note is “faked” inside of the proof in order to hide which action contains the <em>real</em> spend note.</p>
+                <p>This, however, brings some issues when it comes to adding multiple asset types, as the output note of the split Actions <em>cannot</em> be of <em>any</em> asset type, it must be enforced to be an actual output of a GroupHash computation (in fact we want it to be of the same type as the original input note, but the binding signature takes care that the proper balancing is performed). If not, then the prover could essentially input a multiple (or linear combination of) an existing type, with the goal to attack the network by overflowing the ZEC value balance and hence counterfeiting ZEC funds.</p>
+                <p>In order to prevent this, we make some modifications to the circuit. Specifically we remove the dummy note functionality for custom assets and we enforce that <em>every</em> input note to an ZSA Action must be proven to exist in the set of note commitments in the Merkle Tree. We then enforce this real note to be “unspendable” in the sense that its value will be zeroed in split Actions and the nullifier will be randomized, making the note not spendable in the specific Action. Then, the proof itself ensures that the output note is of the same type as the input note. In the circuit, the split note functionality will be activated by a boolean private input to the proof.</p>
+                <p>Note that this is enough to create a chain of induction that ensures that all output notes of a transfer are actual outputs of a GroupHash, preventing any malleability attacks, as they originate in the Issuance protocol, which is publicly verified. Furthermore, we do not care about whether the note is owned by the sender, or whether it was nullified before. Wallets and other clients have a choice to make to ensure the asset type is the preserved for the output note of a split Action, for the value balance verification:</p>
+                <ol type="1">
+                    <li>The split input note could be the same note as the original (non-split) Action,</li>
+                    <li>The split input note could be a different unspent note of the same type (note that the note will not actually be spent)</li>
+                    <li>The split input note could be an already spent note of the same type (note that by zeroing the value in the circuit, we prevent double spending)</li>
+                </ol>
+                <p>The specific circuit changes are presented below.</p>
+            </section>
+        </section>
+        <section id="circuit-statement"><h2><span class="section-heading">Circuit Statement</span><span class="section-anchor"> <a rel="bookmark" href="#circuit-statement"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The advantage of the design described above, with respect to the circuit statement, is that every <em>ZSA Action statement</em> is kept closely similar to the Orchard Action statement <a id="id17" class="footnote_reference" href="#protocol-actionstatement">13</a>, except for a few additions that ensure the security of the asset type system.</p>
+            <p><strong>Asset Type Equality:</strong> the following constraints must be added to ensure that the input and output note are of the same type:</p>
+            <ul>
+                <li>The asset type,
+                    <span class="math">\(\mathsf{type_\mathbb{P}}\)</span>
+                , for the note is witnessed once, as an auxiliary input.</li>
+                <li>The witnessed asset type,
+                    <span class="math">\(\mathsf{type_\mathbb{P}}\)</span>
+                , is added to the old note commitment input.</li>
+                <li>The witnessed asset type,
+                    <span class="math">\(\mathsf{type_\mathbb{P}}\)</span>
+                , is added to the new note commitment input.</li>
+            </ul>
+            <p><strong>Correct Value Commitment Type:</strong> the following constraints must be added to ensure that the value commitment is computed using the witnessed type, as represented in the notes</p>
+            <ul>
+                <li>The fixed-base multiplication constraints between the value and the value base point of the value commitment,:math:<cite>mathsf{cv}</cite>, is replaced with a variable-base multiplication between the two</li>
+                <li>The witness to the value base-point is the auxiliary input
+                    <span class="math">\(\mathsf{type}_\mathbb{P}\)</span>
+                .</li>
+            </ul>
+            <p><strong>Enforce Secure Type for Split Actions:</strong> the following constraints must be added to prevent senders from malling with the asset type for the output note in the consequent actions of the split:</p>
+            <ul>
+                <li>
+                    <dl>
+                        <dt>The Value Commitment Integrity should be changed</dt>
+                        <dd>
+                            <ul>
+                                <li>Replace the input note value by a generic value, <cite>v'</cite>, as
+                                    <span class="math">\(\mathsf{cv^net} = \mathsf{ValueCommit_rcv^OrchardType(v’ - v^new, type}_\mathbb{P})\)</span>
+                                </li>
+                            </ul>
+                        </dd>
+                    </dl>
+                </li>
+                <li>
+                    <dl>
+                        <dt>Add a boolean “split” variable as an auxiliary witness. This variable is to be activated <cite>split = 1</cite> if the Action in question is a split and <cite>split = 0</cite> if the Action is actually spending an input note:</dt>
+                        <dd>
+                            <ul>
+                                <li>If <cite>split = 1</cite> then set <cite>v' = 0</cite> otherwise <cite>v'=v^old</cite> from the auxiliary input</li>
+                            </ul>
+                        </dd>
+                    </dl>
+                </li>
+                <li>
+                    <dl>
+                        <dt>The Merkle Path Validity should check the existance of the note commitment as usual (and not like with dummy notes):</dt>
+                        <dd>
+                            <ul>
+                                <li>Check that (path, pos) is a valid Merkle path of depth
+                                    <span class="math">\(\mathsf{MerkleDepth^Orchard}\)</span>
+                                , from
+                                    <span class="math">\(\mathsf{cm^old}\)</span>
+                                 to the anchor
+                                    <span class="math">\(\mathsf{rt^Orchard}\)</span>
+                                .</li>
+                            </ul>
+                        </dd>
+                    </dl>
+                </li>
+                <li>
+                    <dl>
+                        <dt>The Nullifier Integrity will be changed to prevent the identification of notes</dt>
+                        <dd>
+                            <ul>
+                                <li>Replace the
+                                    <span class="math">\(\psi_{old}\)</span>
+                                 value with a generic
+                                    <span class="math">\(\psi'\)</span>
+                                 as
+                                    <span class="math">\(\mathsf{nf_old = DeriveNullifier_nk}(\rho^\mathsf{old}, \psi', \mathsf{cm^old})\)</span>
+                                </li>
+                                <li>if <cite>split = 1</cite> set
+                                    <span class="math">\(\psi' = \mathsf{randomSample}\)</span>
+                                , otherwise set
+                                    <span class="math">\(\psi' = \psi^{old}\)</span>
+                                </li>
+                            </ul>
+                        </dd>
+                    </dl>
+                </li>
+            </ul>
+            <p><strong>Enabling Backwards Compatibility with ZEC Notes:</strong> the following constraints must be added to enable backwards compatibility with the Orchard ZEC notes.</p>
+            <p>The old note commitment is computed using a “rolling-aggregate” sinsemilla commitment. This means that the commitment is computed by adding new chunks or windows to the accumulated value. This method will be used in order to maintain a single commitment instance for the old note commitment, that will be used both for Orchard ZEC notes and for ZSA notes. The original Orchard ZEC notes will be conserved and not actually be converted into ZSA notes, as we will always need to compute them.</p>
+            <ul>
+                <li>
+                    <dl>
+                        <dt>The input note in the old note commitment integrity must either include a type (ZSA note) or not (ZEC-Orchard note)</dt>
+                        <dd>
+                            <ul>
+                                <li>
+                                    <dl>
+                                        <dt>If the type auxiliary input is set
+                                            <span class="math">\(\mathsf{type}_\mathbb{P}\)</span>
+                                         =
+                                            <span class="math">\(\mathcal{V}^\mathsf{Orchard}\)</span>
+                                        </dt>
+                                        <dd>
+                                            <ul>
+                                                <li>NoteCommitment has a “compatibility” path that computes the note commitment as in plain Orchard (i.e.: without including the type)</li>
+                                                <li>This path also uses the original domain separator for ZEC note commitment</li>
+                                            </ul>
+                                        </dd>
+                                    </dl>
+                                </li>
+                                <li>
+                                    <dl>
+                                        <dt>Else,</dt>
+                                        <dd>
+                                            <ul>
+                                                <li>The NoteCommitment adds the type,
+                                                    <span class="math">\(\mathsf{type}_\mathbb{P}\)</span>
+                                                , as a final “chunk” of the Sinsemilla commitment</li>
+                                                <li>The NoteCommitment uses a different domain separator for ZSA note commitment</li>
+                                            </ul>
+                                        </dd>
+                                    </dl>
+                                </li>
+                            </ul>
+                        </dd>
+                    </dl>
+                </li>
+            </ul>
+            <section id="backward-compatibility"><h3><span class="section-heading">Backward Compatibility</span><span class="section-anchor"> <a rel="bookmark" href="#backward-compatibility"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>In order to have a "clean" backwards compatibility with the ZEC notes, we have designed the circuit to support both ZEC and ZSA notes. As we specify above, there are three main reasons we can do this: - The input notes with a type denote the ZSA custom assets, generating a note commitment that includes the type; whereas the notes without a type, denote the ZEC notes, and generate a note commitment that does not include the type, in order to maintain the referencability to the Merkle tree - The value commitment is abstracted to allow for the value base-point as a variable private input to the proof - The ZEC-based actions will still include dummy input notes, whereas the ZSA-based actions will include split input notes</p>
+            </section>
+        </section>
+        <section id="burn-mechanism"><h2><span class="section-heading">Burn Mechanism</span><span class="section-anchor"> <a rel="bookmark" href="#burn-mechanism"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The burn mechanism may be needed for off-boarding the wrapped assets from the chain, or enabling advanced tokenomics on native tokens. It is part of the Issuance/Burn protocol, but given that it can be seen as an extension of the Transfer protocol, we add it here for readability.</p>
+            <p>In essence, the burn mechanism is a transparent / revealing extension to the transfer protocol that enables a specific amount of any asset type to be sent into “oblivion”. Our burn mechanism does NOT send assets to a non-spendable address, it simply reduces the total number of assets in circulation at the consensus level. It is enforced at the consensus level, by using an extension of the value balance mechanism used for ZEC assets.</p>
+            <p>First, contrary to the strict transfer transaction, we allow the sender to include a
+                <span class="math">\(\mathsf{valueBalvalueBalance_{type}}\)</span>
+             variable for every asset type that is being burnt. As we will show in the transaction structure, this is separate from the regular
+                <span class="math">\(\mathsf{valueBalance^Orchard}\)</span>
+             that is the default transparent value for the ZEC asset.</p>
+            <p>For every custom asset that is burnt, we add to the <cite>assetBurn</cite> vector the tuple
+                <span class="math">\((\mathsf{valueBalance_{type}, type}_\mathbb{P})\)</span>
+             such that the validator of the transaction can compute the value commitment with the corresponding value base point of that asset. This ensures that the values are all balanced out with respect to the asset types in the transfer.</p>
+            <p>
+                <span class="math">\(\mathsf{assetBurn = [(v^{type}, type_\mathbb{P})}| \forall \mathsf{type}_\mathbb{P}  \textit{ s.t.}\mathsf{v^{type}\neq 0}]\)</span>
+            </p>
+            <p>The value balances for each asset type in <cite>assetBurn</cite> represents the amount of that asset type that is being burnt. In the case of ZEC, the value balance represents either the transaction fee, or the amount of ZEC changing anonymity pools (to Sapling or Transparent).</p>
+            <p>Finally, the validator needs to verify the Balance and Binding Signature by adding the value balances for all assets, as committed using their respective types as the value base point of the Pedersen Commitment. This is done as follows</p>
+            <p>
+                <span class="math">\(\mathsf{bvk = (\sum cv_i^{net})}  - \mathsf{ ValueCommit_0^{Orchard}(v^{balanceOrchard})} - \sum_{\forall \mathsf{type}\textit{ s.t. }\mathsf{v^{type}\neq 0}} \mathsf{Value Commit_0^{ZSA}(v^{type}type_\mathbb{P}) } = \sum \mathsf{rcv_{i,j}^{net}}\mathcal{R}^{\mathsf{Orchard}}\)</span>
+            </p>
+            <p>In the case that the balance of all the action values related to a specific asset will be zero, there will be no value added to the vector. This way, the number of assets, nor their types will be revealed, except in the case that an asset is burnt.</p>
+            <p><strong>Note:</strong> Even if this mechanism allows having transparent ↔ shielded asset transfers in theory, the transparent protocol will not be changed with this ZIP to adapt to a multiple asset structure. This means that unless future consensus rules changes do allow it, the unshielding is not not be possible for custom assets.</p>
+        </section>
+        <section id="zsa-transaction-structure"><h2><span class="section-heading">ZSA Transaction Structure</span><span class="section-anchor"> <a rel="bookmark" href="#zsa-transaction-structure"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>Similar to NU5 transaction structure, with the following modifications to the Orchard bundle, as defined in <a id="id18" class="footnote_reference" href="#protocol-transactionstructure">14</a>:</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Bytes</th>
+                        <th>Name</th>
+                        <th>Data Type</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>newActionSize * nActionsZSA</td>
+                        <td>vActionsZSA</td>
+                        <td>ActionDescription[nActionOrchard]</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>varies</td>
+                        <td>nAssetBurn</td>
+                        <td>compactSize</td>
+                        <td>number of assets burnt</td>
+                    </tr>
+                    <tr>
+                        <td>40*nAssetBurn</td>
+                        <td>vAssetBurn</td>
+                        <td>bytes[40][nAssetBurn]</td>
+                        <td>32 bytes asset type_t, 8 bytes of valueBalance</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section id="other-considerations"><h2><span class="section-heading">Other Considerations</span><span class="section-anchor"> <a rel="bookmark" href="#other-considerations"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <section id="transaction-fees"><h3><span class="section-heading">Transaction Fees</span><span class="section-anchor"> <a rel="bookmark" href="#transaction-fees"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>In order to maintain the ZEC economic incentive, the first version of the fees mechanism will be exactly the same as the current Orchard protocol and will always be paid in ZEC denomination. The ECC and GMU team produced a study on fees market on Zcash <a id="id19" class="footnote_reference" href="#fees-study-gmu">15</a></p>
+            </section>
+            <section id="security-and-privacy"><h3><span class="section-heading">Security and Privacy</span><span class="section-anchor"> <a rel="bookmark" href="#security-and-privacy"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <ul>
+                    <li>Even if the Orchard protocol and ZSA protocol do not share the same anonymity pool (nodes can keep track of the notes that where published with different transaction structures), the migration from one to the other is done automatically and seamlessly. The Orchard bundle will be replaced by the ZSA bundle and all ZEC notes will be fully spendable with the new transaction structure.</li>
+                    <li>When including new assets we would like to maintain the amount and types of assets private, which is achieved with the design</li>
+                    <li>We prevent the "roadblock" attack on the asset type by ensuring the output notes receive a type of an asset that exists on the global state</li>
+                </ul>
+            </section>
+        </section>
+        <section id="test-vectors"><h2><span class="section-heading">Test Vectors</span><span class="section-anchor"> <a rel="bookmark" href="#test-vectors"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <ul>
+                <li>LINK TBD</li>
+            </ul>
+        </section>
+        <section id="reference-implementation"><h2><span class="section-heading">Reference Implementation</span><span class="section-anchor"> <a rel="bookmark" href="#reference-implementation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <ul>
+                <li>LINK TBD</li>
+                <li>LINK TBD</li>
+            </ul>
+        </section>
+        <section id="deployment"><h2><span class="section-heading">Deployment</span><span class="section-anchor"> <a rel="bookmark" href="#deployment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This ZIP is proposed to activate with Network Upgrade 6.</p>
+        </section>
+        <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <table id="rfc2119" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>1</th>
+                        <td><a href="https://www.rfc-editor.org/rfc/rfc2119.html">RFC 2119: Key words for use in RFCs to Indicate Requirement Levels</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0200" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>2</th>
+                        <td><a href="zip-0200.html">ZIP 200: Network Upgrade Mechanism</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0224" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>3</th>
+                        <td><a href="zip-0224.html">ZIP 224: Orchard</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0226" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>4</th>
+                        <td><a href="zip-0226.html">ZIP 226: Transfer and Burn of Zcash Shielded Assets</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0227" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>5</th>
+                        <td><a href="zip-0227.html">ZIP 227: Issuance of Zcash Shielded Assets</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-actions" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>6</th>
+                        <td><a href="protocol/protocol.pdf#actions">Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 3.7: Action Transfers and their Descriptions</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-binding" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>7</th>
+                        <td><a href="protocol/protocol.pdf#actions">Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 4.14: Balance and Binding Signature (Orchard)</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-pallasandvesta" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>8</th>
+                        <td><a href="protocol/protocol.pdf#pallasandvesta">Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.4.9.6: Pallas and Vesta</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="pasta-evidence" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>9</th>
+                        <td><a href="https://github.com/zcash/pasta">Pallas/Vesta supporting evidence</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-concretesinsemillacommit" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>10</th>
+                        <td><a href="protocol/protocol.pdf#concretesinsemillacommit">Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.4.8.4: Sinsemilla commitments</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-concretevaluecommit" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>11</th>
+                        <td><a href="protocol/protocol.pdf#concretevaluecommit">Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.4.8.3: Homomorphic Pedersen commitments (Sapling and Orchard)</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-dummynotes" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>12</th>
+                        <td><a href="protocol/protocol.pdf#">Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 4.8.3: Dummy Notes (Orchard)</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-actionstatement" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>13</th>
+                        <td><a href="protocol/protocol.pdf#actionstatement">Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 4.17.4: Action Statement (Orchard)</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-transactionstructure" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>14</th>
+                        <td><a href="protocol/protocol.pdf#">Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 7.1: Transaction Encoding and Consensus (Transaction Version 5)</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="fees-study-gmu" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>15</th>
+                        <td><a href="https://electriccoin.co/wp-content/uploads/2022/05/A-Study-of-Decentralized-Markets-on-the-Zcash-Blockchain.pdf">A Study of Decentralized Markets on the Zcash Blockchain</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </section>
+    <section class="system-messages">
+        <h1>Docutils System Messages</h1>
+        <div id="id20">
+            <h1>System Message: ERROR/3 (draft-ZIP-0226.rst line 52)</h1>
+            <p>Too many autonumbered footnote references: only 0 corresponding footnotes available.</p>
+        </div>
+        <div id="id21">
+            <h1>System Message: ERROR/3 (draft-ZIP-0226.rst line 52) <a href="#id8">id8</a></h1>
+            <p>Unknown target name: "initial-zsa-issue".</p>
+        </div>
+    </section>
+</body>
+</html>

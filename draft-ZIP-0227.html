@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Draft ZIP-0227: Issuance of Zcash Shielded Assets</title>
+    <meta charset="utf-8" />
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+    <section>
+        <pre>ZIP: 227
+Title: Issuance of Zcash Shielded Assets
+Owners: Daniel Benarroch &lt;daniel@qed-it.com&gt;
+        Pablo Kogan &lt;pablo@qed-it.com&gt;
+        Aurelien Nicolas &lt;aurel@qed-it.com&gt;
+Credits: Daira Hopwood
+         Jack Grigg
+         Shahaf Nacshon
+         Vivek Arte
+Status: Draft
+Category: Consensus
+Created: 2022-05-01
+License: MIT
+Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/618">https://github.com/zcash/zips/issues/618</a>&gt;</pre>
+        <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The key word "MUST" in this document is to be interpreted as described in RFC 2119 <a id="id1" class="footnote_reference" href="#rfc2119">1</a>.</p>
+            <p>The term "network upgrade" in this document is to be interpreted as described in ZIP 200 <a id="id2" class="footnote_reference" href="#zip-0200">2</a>.</p>
+            <p>The term "Orchard" in this document is to be interpreted as described in ZIP 224 <a id="id3" class="footnote_reference" href="#zip-0224">3</a>.</p>
+            <p>We define the following additional terms:</p>
+            <ul>
+                <li>Asset: A type of note that can be transferred on the Zcash block chain. ZEC is the default (and currently the only defined) asset for the Zcash mainnet.</li>
+                <li>Zcash Shielded Asset: an asset with issuance defined on the Zcash block chain, and, for now, belonging to the Orchard anonymity pool.</li>
+                <li>Wrapped Asset: a ZSA asset with native issuance defined outside the Zcash block chain.</li>
+            </ul>
+        </section>
+        <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>ZIP 226 <a id="id4" class="footnote_reference" href="#zip-0226">4</a> and ZIP 227 <a id="id5" class="footnote_reference" href="#zip-0227">5</a> propose in conjunction the Zcash Shielded Assets (ZSA) protocol, which is an extension of the Orchard protocol that enables the creation, transfer and burn of custom assets on the Zcash chain. The creation of such assets is defined in ZIP 227 <a id="id6" class="footnote_reference" href="#zip-0227">5</a>. The transfer and burn of such assets is defined in ZIP 226 <a id="id7" class="footnote_reference" href="#zip-0226">4</a>.</p>
+        </section>
+        <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The current Orchard protocol does not support custom assets, which is an important aspect for the proper evolution of the Zcash ecosystem. Enabling multi-asset support on the Zcash chain will open the door for a host of applications and enhance the ecosystem with application developers and asset custody institutions for issuance and bridging purposes.</p>
+        </section>
+        <section id="overview-rationale"><h2><span class="section-heading">Overview &amp; Rationale</span><span class="section-anchor"> <a rel="bookmark" href="#overview-rationale"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This ZIP specifies the issuance mechanism of the Zcash Shielded Assets (ZSA) protocol and must work conjunction with ZIP 226 <a id="id8" class="footnote_reference" href="#zip-0226">4</a>, as the issuance mechanism is only valid for the ZSA transfer protocol, as it produces notes that can only be transferred under ZSA.</p>
+            <p>In short, we are going to enable only <em>transparent</em> issuance, since we believe that as a first step, transparency is important to properly test the applications that will be most used in the Zcash ecosystem, while enabling tracking of supply of assets. In essence, any user of the blockchain can issue new asset types, yet only a single issuer (a set of keys) can issue that specific asset type, as the asset identifiers are tied to the issuer keys.</p>
+            <p>We have designed the protocol such that at the time of issuance, the issuer can already allocate all the tokens to the corresponding owners by creating the corresponding (shielded) output notes to the corresponding addresses. As is implied, the issuance mechanism is itself transparent, but the allocation is totally private. Furthermore, in a single issuance transaction, the issuer can create multiple asset types (and allocate all of those too). Finally, a key component of our design is the <cite>finiteIssuance</cite> boolean that defines whether a specific asset type can have more tokens issued or not.</p>
+            <p>The issuance mechanism is broad enough for issuers to either create native assets on Zcash (i.e.: assets that originate on the Zcash blockchain), as well as for institutions to create bridges from other chains and import wrapped assets. In fact, the protocol described below enables, what we hope will be a useful set of, applications:</p>
+            <ul>
+                <li>By setting the <cite>finiteIssuance = 1</cite> from the first issuance instance of that asset type, the issuer is in essence creating a one-time issuance transaction. This is useful when the max supply is capped from the beginning and the distribution is known in advance. All tokens are issued at once and distributed as needed.</li>
+                <li>When the <cite>finiteIssuance = 0</cite>, the issuer can keep creating tokens of that type (in a transparent manner). The boolean value can be changed with any new issuance transaction, and could be set to <cite>1</cite> either when the issuer keys have been compromised, and hence stopping all issuances of that asset type (the boolean cannot be reversed), or whenever the issuer decides that the max supply has been reached.</li>
+                <li>Note that this mechanism can be used with the burning process to control and affect the supply of any custom asset.</li>
+            </ul>
+        </section>
+        <section id="asset-identifier-generation"><h2><span class="section-heading">Asset Identifier Generation</span><span class="section-anchor"> <a rel="bookmark" href="#asset-identifier-generation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>For every new asset, there must be a new and unique identifier of the asset. Our design decision is not to have a chosen name for the asset type, but to delegate it to an off-chain mapping, as this would imply a land-grab “war”. From this asset identifier, which is a global byte string (valid across all Zcash protocols), we derive the specific type used within the notes, as defined by the specific protocol (e.g.: for now Orchard-style, using Pallas curve)</p>
+            <p>The main requirement for the asset identifier is for it to be collision-free, as two different issuers should not be able to issue the same asset type. As such we need the asset identifier to be:</p>
+            <ul>
+                <li>pseudorandom</li>
+                <li>deterministic</li>
+                <li>dependent on the issuer ID</li>
+            </ul>
+            <p>We define the asset identifier <cite>assetID</cite> (represented as a string) as</p>
+            <p>
+                <span class="math">\(\mathsf{assetID := GroupHash^{\mathbb{P}}}\mathsf{(issuerID || assetDesc)}\)</span>
+            </p>
+            <p>where</p>
+            <ul>
+                <li><cite>assetDesc</cite> is the asset description, which includes any information pertaining to the issuance.</li>
+                <li><cite>issuerID</cite> is the public key of the issuer, used to verify the signature on the transaction and is defined as <cite>ik</cite> (issuer key or issuer verification key):</li>
+            </ul>
+            <p>
+                <span class="math">\(\mathsf{ik := SpendAuthSig^{Orchard}.DerivePublic(isk)}\)</span>
+            </p>
+            <p>which uses the same signature as the spend authorization signature, where <cite>isk</cite> is the issuer secret key. The verification key is derived from <cite>isk</cite>. In order to differentiate the <cite>isk</cite> and <cite>ik</cite> keys from the actual spend authorization key, we derive another branch of keys from the main spending key <cite>sk</cite> as such:</p>
+            <p>
+                <span class="math">\(\mathsf{isk := ToScalar^{Orchard}(︀ PRF^{expand}_{sk} ([10])}\)</span>
+            </p>
+            <p>This allows the issuer to use the same wallet it usually uses to transfer assets, while keeping a disconnect from the other keys. It provides further anonymity and the ability to delegate issuance of an asset (or in the future, generate a multi-signature protocol) while the rest of the keys in the wallet safe.</p>
+            <p>Then we let <cite>issuanceInfo := (assetID, finiteSupply)</cite>, where</p>
+            <ul>
+                <li><cite>assetID</cite> is as defined above.</li>
+                <li>
+                    <dl>
+                        <dt><cite>finiteSupply</cite> is a boolean variable that defines whether this issuance transaction of the specific asset type is the final issuance of tokens or not. Once <cite>finiteSupply</cite> is set, it cannot be unset. This allows expanding the functionality of the issuance mechanism:</dt>
+                        <dd>
+                            <ul>
+                                <li>Provides <cite>assetID</cite> revocation in case of compromise (issue last issuance with 0 token value)</li>
+                                <li>Supports NFT issuance (where the first issuance with value of 1 is also the last)</li>
+                            </ul>
+                        </dd>
+                    </dl>
+                </li>
+            </ul>
+        </section>
+        <section id="issuance-protocol"><h2><span class="section-heading">Issuance Protocol</span><span class="section-anchor"> <a rel="bookmark" href="#issuance-protocol"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The issuance protocol allows for a single issuance to be sent to many receivers, as the issuerID does not have to match the address ownership of the notes output. Furthermore, every transaction can contain many issuance instances. The design presented in this ZIP enables several use cases for issuance of shielded assets.</p>
+            <ul>
+                <li>The issuer knows in advance the receivers of the issued asset.</li>
+                <li>The asset is of non-fungible type, where each asset type can be made part of a single “series”</li>
+                <li>The supply of the asset is limited or not</li>
+                <li>The assets can be wrapped versions of assets in other chains (as long as there is a bridge that supports it)</li>
+            </ul>
+            <p>The protocol is as follows:</p>
+            <ul>
+                <li>
+                    <dl>
+                        <dt>For each asset type issued, generate a sequence of output notes, each with the following fields:</dt>
+                        <dd>
+                            <ul>
+                                <li>ZSA output note
+                                    <span class="math">\(\mathsf{ note =(d, pkd, v, \rho, \psi, \mathsf{type}_\mathbb{P}, rcm)}\)</span>
+                                , where
+                                    <span class="math">\(\mathsf{type}_\mathbb{P} := \mathsf{GroupHash^{\mathbb{P}}}\mathsf{(assetID)}\)</span>
+                                </li>
+                            </ul>
+                        </dd>
+                    </dl>
+                </li>
+                <li>Generate commitment of the note. <cite>cm</cite> as</li>
+            </ul>
+            <p>
+                <span class="math">\(cm = \mathsf{NoteCommit^{ZSA}_{rcm}}(\mathsf{repr\mathbb{_P}(g_d)}, \mathsf{repr\mathbb{_P}(pk_d)}, v, \rho, \psi,\mathsf{type}_\mathbb{P})\)</span>
+            </p>
+            <ul>
+                <li>Sign the issuance note with the <cite>issuerID</cite> as the signing key, using RedPallas as its signature scheme, on the <cite>SIGHASH</cite> of the transaction. Note that the <cite>SIGHASH</cite> will change as we include a new bundle in the Zcash transaction to enable this issuance mechanism on chain.</li>
+            </ul>
+            <section id="consensus-changes"><h3><span class="section-heading">Consensus Changes</span><span class="section-anchor"> <a rel="bookmark" href="#consensus-changes"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Issuance requires the following additions to the global state:</p>
+                <p>First, Zcash clients must keep a mapping <cite>issuanceSupplyInfos</cite> from <cite>assetID</cite> to <cite>issuanceSupplyInfo := (totalSupply, finiteSupply)</cite>.</p>
+                <p><strong>Consensus rules</strong></p>
+                <p>For each issuance instance,</p>
+                <ul>
+                    <li>Check that <cite>assetID</cite> is properly constructed,</li>
+                    <li>Check that each commitment <cite>cm</cite> is properly constructed from each “output” note,</li>
+                    <li>Check that the issuance instance has a valid signature based on the <cite>issuerID</cite>,</li>
+                    <li>Check that
+                        <span class="math">\(\mathsf{type}_\mathbb{P}\)</span>
+                     is properly projected into the correct curve from <cite>assetID</cite>. That is, that
+                        <span class="math">\(\mathsf{type}_\mathbb{P} :=  \mathsf{GroupHash^{\mathbb{P}}}\mathsf{(assetID)}\)</span>
+                    </li>
+                    <li>If <cite>issuanceSupplyInfo[assetID].finiteSupply`is true, reject. Otherwise, set `issuanceSupplyInfo[assetID].finiteSupply = finiteSupply</cite> .</li>
+                    <li>Add the sum of all the values in all output notes per <cite>assetID</cite> to <cite>issuanceSupplyInfo[assetID].totalSupply</cite></li>
+                    <li>After verification, add note commitment to the merkle tree.</li>
+                </ul>
+            </section>
+        </section>
+        <section id="other-considerations"><h2><span class="section-heading">Other Considerations</span><span class="section-anchor"> <a rel="bookmark" href="#other-considerations"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <section id="fee-structures"><h3><span class="section-heading">Fee Structures</span><span class="section-anchor"> <a rel="bookmark" href="#fee-structures"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>The fee mechanism described in this ZIP may be replaced by a future “Fee Mechanism” ZIP proposal. However, we do need to have some basic fees for the Issuance protocol, as it differs from the usual transfer mechanism in that it adds a whole new structure to the transaction bundle, it adds a new global structure for validators to keep in memory and in turn it adds new consensus rules that are independent of previous structures.</p>
+                <p>There are two main factors that will affect the fee mechanism:</p>
+                <ul>
+                    <li>The transaction size, which may take a big part of the block</li>
+                    <li>The computational power needed to verify and mine the transaction</li>
+                </ul>
+                <p>There is a single parameter that defines both, as there is no privacy or ZKP involved at this stage - the number of output notes in the issuance bundle:</p>
+                <ul>
+                    <li>it trivially defines the bundle size</li>
+                    <li>it defines the computational power as the validator must compute as many note commitments as there are output notes</li>
+                </ul>
+            </section>
+        </section>
+        <section id="test-vectors"><h2><span class="section-heading">Test Vectors</span><span class="section-anchor"> <a rel="bookmark" href="#test-vectors"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <ul>
+                <li>LINK TBD</li>
+            </ul>
+        </section>
+        <section id="reference-implementation"><h2><span class="section-heading">Reference Implementation</span><span class="section-anchor"> <a rel="bookmark" href="#reference-implementation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <ul>
+                <li>LINK TBD</li>
+                <li>LINK TBD</li>
+            </ul>
+        </section>
+        <section id="deployment"><h2><span class="section-heading">Deployment</span><span class="section-anchor"> <a rel="bookmark" href="#deployment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This ZIP is proposed to activate with Network Upgrade 6.</p>
+        </section>
+        <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <table id="rfc2119" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>1</th>
+                        <td><a href="https://www.rfc-editor.org/rfc/rfc2119.html">RFC 2119: Key words for use in RFCs to Indicate Requirement Levels</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0200" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>2</th>
+                        <td><a href="zip-0200.html">ZIP 200: Network Upgrade Mechanism</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0224" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>3</th>
+                        <td><a href="zip-0224.html">ZIP 224: Orchard</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0226" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>4</th>
+                        <td><a href="zip-0226.html">ZIP 226: Transfer and Burn of Zcash Shielded Assets</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0227" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>5</th>
+                        <td><a href="zip-0227.html">ZIP 227: Issuance of Zcash Shielded Assets</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </section>
+</body>
+</html>
