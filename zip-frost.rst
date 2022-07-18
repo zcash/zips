@@ -245,7 +245,7 @@ as follows: ::
   def verify_signature_share(identifier, PK_i, comm_i, sig_share_i, commitment_list,
                              group_public_key, msg, randomizer):
     # Compute the randomized group public key
-    randomized_group_public_key = randomizer * group_public_key
+    randomized_group_public_key = group_public_key + G * randomizer
 
     # Encode the commitment list
     encoded_commitments = encode_group_commitment_list(commitment_list)
