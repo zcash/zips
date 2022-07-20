@@ -344,7 +344,7 @@ FROST(Pallas, BLAKE2b-512)
 '''''''''''''''''''''''''''''
 
 This ciphersuite uses Pallas for the Group and BLAKE2b-512 for the Hash function `H`
-meant to produce signatures indistinguishable from RedPallas Sapling Spend
+meant to produce signatures indistinguishable from RedPallas Orchard Spend
 Authorization Signatures as specified in [#protocol-concretespendauthsig]_.
 
 - Group: Pallas [#protocol-pallasandvesta]_
