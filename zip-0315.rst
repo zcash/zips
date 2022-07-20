@@ -116,12 +116,15 @@ Long-term storage of funds
 It is RECOMMENDED that wallets only hold funds as shielded in the long-term;
 that is, if a wallet supports receiving transparent funds (or supports
 importing a seed from another wallet that may have done so), then it SHOULD
-either auto-shield or opportunistically shield such funds.
+either auto-shield or opportunistically shield such funds by default.
 
 Following this recommendation improves both collective privacy and the user's
 individual privacy, by maximizing the size of the note anonymity set over time.
+
 The remainder of this specification assumes a wallet that follows the above
 recommendation, except where explicitly noted.
+
+A wallet MAY allow users to disable auto-shielding.
 
 
 Trusted and untrusted TXOs
@@ -143,19 +146,25 @@ respectively. The following confirmation policy is RECOMMENDED:
 Categories of TXOs according to spendability
 --------------------------------------------
 
-A TXO is *confirmed spendable* if and only if the wallet has its spending
-key, and:
+A TXO is *confirmed spendable*, relative to a given block chain state,
+if and only if all of the following are true in that state:
 
-* it is a trusted TXO that has at least the required confirmations for trusted
-  TXOs; or
-* it is an untrusted TXO that has at least the required confirmations for
-  untrusted TXOs.
+* the wallet is synchronized; and
+* the TXO is unspent; and
+* the wallet has the TXO's spending key; and
+* either auto-shielding is disabled or the TXO is shielded; and
+* the TXO is trusted and has at least the required confirmations for
+  trusted TXOs, or it is untrusted and has at least the required
+  confirmations for untrusted TXOs.
 
-A TXO is *unconfirmed spendable* if and only if the wallet has its spending
-key, and it is not confirmed spendable.
+A TXO is *unconfirmed spendable*, relative to a given block chain state,
+if and only if it is unspent, the wallet has its spending key, and it is
+not confirmed spendable.
 
 A TXO is *watch-only* if and only if the wallet has its full viewing key
 (or address in the case of a transparent TXO) but not its spending key.
+
+A wallet MUST NOT attempt to spend a TXO that is not confirmed spendable.
 
 
 Reporting of balances
@@ -172,8 +181,39 @@ These are calculated as follows:
 * The pending balance is the sum of values of unconfirmed spendable TXOs.
 * The total balance is the spendable balance plus the pending balance.
 
-TODO: report separate shielded and transparent balance?
+Note: the definition of "confirmed spendable" above ensures that:
 
+* if auto-shielding is enabled, transparent funds will be reported in
+  the pending or total balance, but not in the spendable balance;
+* if the wallet is not synchronized, the spendable balance will be
+  zero.
+
+If auto-shielding is disabled, the wallet MAY report shielded and
+transparent balances separately. If it does so, it MUST make clear
+whether each reported balance corresponds to a spendable, pending, or
+total subset of funds.
+
+TODO: refine this in terms of the following categories:
+
+* Funds at rest (not involved in any not-fully-confirmed transfer).
+* Outgoing funds to an external source (might come back if the tx
+  doesn't go through).
+* Incoming funds from an external source.
+* Funds we are sending to ourself.
+
+Rationale for reporting of balances
+'''''''''''''''''''''''''''''''''''
+
+If auto-shielding is disabled, then separate shielded and transparent
+balances (and potentially, for expert users, separate shielded balances
+per pool) can constitute useful information. If auto-shielding is enabled
+then the wallet can and will automatically spend transparent TXOs in
+order to shield them, and so transparent TXOs need to be presented as
+pending, not as part of the balance spendable by the user.
+
+TODO: The specification of balance reporting is intended to give the user
+visibility into the operation of auto-shielding, opportunistic shielding,
+and pool migration/usage. (Does the spec satisfy this?)
 
 Reporting of transactions
 -------------------------
@@ -200,18 +240,6 @@ Sent transactions SHOULD be reported with their number of confirmations,
 how long until they expire, and their balances as described in `Reporting of balances`_.
 
 
-
-Auto-shielding
---------------
-
-If they use auto-shielding, then any transparent balance should be treated as
-pending.
-
-For wallets that allow long-term storage of transparent funds, they SHOULD also
-show spendable transparent and pending (or total) transparent according to the
-same policy.
-
-
 Transaction creation
 --------------------
 
@@ -222,36 +250,10 @@ TODO: choose anchors at the trusted confirmation depth. This avoids leaking info
 about whether or not we spent trusted notes.
 
 
-Unedited
---------
+Rationale for anchor selection
+''''''''''''''''''''''''''''''
 
-If auto-shielding or auto-migration is off, then wallets MAY report separate
-balances for each shielded pool and for transparent balance.
-
-If the wallet never supports a given pool, it can obviously omit balances for that
-pool.
-
-If auto-shielding is on, transparent funds should be reported in "balance unavailable
-to spend".
-
-Wallets SHOULD separately report the balances of funds that are immediately
-spendable, and any remaining funds that are expected from unconfirmed or
-partially confirmed transfers.
-
-TODO: make this more precise in terms of the following categories:
-
-* Funds at rest (not involved in any not-fully-confirmed transfer)
-* Outgoing funds to an external source (might come back if the tx doesn't go through)
-* Incoming funds from an external source
-* Funds we are sending to ourself.
-
-
-Rationale
-'''''''''
-
-The specification of balance reporting is intended to give the user visibility
-into the operation of auto-shielding, opportunistic shielding, and pool migration/usage.
-
+TODO
 
 
 Linkability of transactions or addresses
@@ -403,7 +405,7 @@ bunch of coordination to the problem, and assumes ongoing on-chain state
 storage.
 
 - If the receiver matches an address that the wallet knows was derived via
-  z_getaddressforaccount, show that UA as expected (matching the receiver
+  ``z_getaddressforaccount``, show that UA as expected (matching the receiver
   types the user selected).
 - If the receiver matches a UFVK in the wallet, and we are looking it up
   because we detected a received note in some block, show the UA with the
