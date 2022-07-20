@@ -171,7 +171,8 @@ The `sign` function is changed to receive `randomizer` and incorporate it into t
 computation of the binding factor. It is specified as the following: ::
 
   Inputs:
-  - identifier, Identifier i of the signer. Note identifier will never equal 0.
+  - identifier, Identifier i of the signer.
+    Note: identifier will never equal 0.
   - sk_i, Signer secret key share, a Scalar.
   - group_public_key, public key corresponding to the group signing key,
     an Element in G.
