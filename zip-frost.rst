@@ -96,7 +96,8 @@ With those considerations in mind, the threat model considered in this ZIP is:
   the unlinkability property). A rogue Coordinator will be able to break
   unlinkability and privacy, but should not be able to create signed transactions
   without the approval of `MIN_SIGNERS` participants, as specified in FROST.
-- All key share holders are also trusted with the privacy of the transaction.
+- All key share holders are also trusted with the privacy and of the transaction,
+  thus a rogue key share holder will be able to break its privacy and unlinkability.
   A future specification may support a scenario where individual key share
   holders are not trusted with it.
 
