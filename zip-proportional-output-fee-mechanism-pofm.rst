@@ -65,7 +65,7 @@ Requirements for consensus
 -------------------------
 
 Wallet developers must update the fees to the proposed formula by Madars and 
-Kris Nuttycomb [#madars-1]_
+Kris Nuttycombe [#madars-1]_
 
 min_fee = base_fee * max(0, #inputs + #outputs - 4)
 
