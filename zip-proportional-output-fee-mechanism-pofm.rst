@@ -61,11 +61,11 @@ This has resulted in high output transactions with 1,100 outputs costing the sam
 transactions with 2 outputs.
 
 
-Requirements for gathering consensus
+Requirements for consensus
 -------------------------
 
-Wallet developers must update the fees to the proposed formula by Madars Virza and 
-Kris Nuttycomb [#madars-1]_
+Wallet developers must update the fees to the proposed formula by Madars and 
+Kris Nuttycombe [#madars-1]_
 
 min_fee = base_fee * max(0, #inputs + #outputs - 4)
 
