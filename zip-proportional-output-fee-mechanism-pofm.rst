@@ -3,9 +3,9 @@
   ZIP: XXX
   Title: Proportional Output Fee Mechanism (POFM)
   Owners: Aditya Bharadwaj <nighthawk24@gmail.com>
-  Credits: Madars Vizra, Kris Nuttycombe
+  Credits: Madars Virza, Kris Nuttycombe
   Status: Draft
-  Community Status: Request for comments : 
+  Community Status: Request for comments : https://forum.zcashcommunity.com/t/zip-proportional-output-fee-mechanism-pofm/42808
   Category: Wallet
   Created: 2022-08-15
   License: MIT
@@ -67,7 +67,7 @@ Requirements for consensus
 Wallet developers must update the fees to the proposed formula by Madars and 
 Kris Nuttycomb [#madars-1]_
 
-min_fee = 0.00001 + 0.00001 * max(0, #nullifiers + #shielded outputs - 4)
+min_fee = base_fee * max(0, #inputs + #outputs - 4)
 
 The change to the conventional transaction fees must be undertaken soon
 as the Zcash network has been under heavy load with high-output transactions while 
@@ -149,7 +149,7 @@ Specification
 =============
 
 Wallets implementing this specification will use a conventional fee in the form of 
-min_fee = 0.00001 + 0.00001 * max(0, #nullifiers + #shielded outputs - 4) 
+min_fee = base_fee * max(0, #inputs + #outputs - 4) 
 starting from block 180,000.
 
 
@@ -185,7 +185,7 @@ The developers of the following wallets intend to implement the updated fee mech
 Acknowledgements
 ================
 
-Thanks to Madars Vizra for suggesting the fee mechanism. And Kris Nuttycombe to 
+Thanks to Madars Virza for suggesting the fee mechanism. And Kris Nuttycombe to 
 suggest optimization.
 
 .. [#madars-1] `Madars concrete soft-fork proposal <https://forum.zcashcommunity.com/t/zip-reduce-default-shielded-transaction-fee-to-1000-zats/37566/89?u=aiyadt>`_
