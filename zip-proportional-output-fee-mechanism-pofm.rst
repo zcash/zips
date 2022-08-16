@@ -3,7 +3,8 @@
   ZIP: 317
   Title: Proportional Output Fee Mechanism (POFM)
   Owners: Aditya Bharadwaj <nighthawk24@gmail.com>
-  Credits: Madars Virza, Kris Nuttycombe
+  Credits: Madars Virza
+           Kris Nuttycombe
   Status: Draft
   Community Status: Request for comments : https://forum.zcashcommunity.com/t/zip-proportional-output-fee-mechanism-pofm/42808
   Category: Wallet
