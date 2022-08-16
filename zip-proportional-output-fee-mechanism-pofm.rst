@@ -1,6 +1,6 @@
 ::
 
-  ZIP: XXX
+  ZIP: 317
   Title: Proportional Output Fee Mechanism (POFM)
   Owners: Aditya Bharadwaj <nighthawk24@gmail.com>
   Credits: Madars Virza, Kris Nuttycombe
