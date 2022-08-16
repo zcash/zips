@@ -41,12 +41,6 @@ including transactions with a high number of inputs or outputs, while still allo
 low fees for regular shielded transaction use cases.
 
 
-Out of Scope for this Proposal
-============
-
-Discussion around transaction fees for T to T.
-
-
 Motivation
 ============
 
