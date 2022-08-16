@@ -37,8 +37,8 @@ The goal of this ZIP is to change the conventional transaction fees for
 Shielded transactions and get buy-in from wallet developers, miners & Zcash users.
 
 With an updated transaction fee formula, miners will be compensated fairly for
-including transactions with a high number of outputs, while still allowing low fees 
-for regular shielded transaction use cases.
+including transactions with a high number of inputs or outputs, while still allowing
+low fees for regular shielded transaction use cases.
 
 
 Out of Scope for this Proposal
