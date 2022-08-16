@@ -174,15 +174,29 @@ specifies a *low\_fee\_penalty* that is added to the "eviction weight" if the
 transaction pays a fee less than the proposed increase with POFM.
 
 
-Support
-=======
+Endorsements
+============
 
-The developers of the following wallets intend to implement the updated fee mechanism:
+the following entities/groups/indiviudals expressed their support for the updated fee mechanism:
 
-* Zecwallet Suite (Zecwallet Lite for Desktop/iOS/Android & Zecwallet FullNode);
-* Nighthawk Wallet for Android & iOS;
-* ECC Mobile SDKs for iOS & Android
-* zcashd built-in wallet 
+
+*Developer Groups or Sole OSS contributors*
+
+* Zecwallet Suite (Zecwallet Lite for Desktop/iOS/Android & Zecwallet FullNode)
+* Nighthawk Wallet for Android & iOS
+
+
+*Other Endorsements*
+
+* Jane Doe jane.doe@xxx.yyy
+* Pseudo Dude ps@zzz.aaa
+
+To express and request your support to be added to this ZIP please comment below indicating
+- (group) name/pseudonym
+- affiliation
+- contact
+
+or, conversely e-mail the same details to the Owner of the ZIP
 
 
 Acknowledgements
