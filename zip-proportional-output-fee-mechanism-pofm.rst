@@ -6,10 +6,11 @@
   Credits: Madars Virza
            Kris Nuttycombe
   Status: Draft
-  Community Status: Request for comments : https://forum.zcashcommunity.com/t/zip-proportional-output-fee-mechanism-pofm/42808
   Category: Wallet
   Created: 2022-08-15
   License: MIT
+  Discussions-To: <https://forum.zcashcommunity.com/t/zip-proportional-output-fee-mechanism-pofm/42808>
+  Pull-Request: <https://github.com/zcash/zips/pull/631>
 
 
 Terminology
