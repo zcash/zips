@@ -106,7 +106,14 @@ The following parties need to be part of the consensus:
   the new fee.
 * Zcash documentation and community outreach must be undertaken to make the
   change known.
-
+* Changes to librustzcash crates to:
+  * expose minimum recommended fee for a given number of recipients
+  * implement default fee equation and corresponding unit tests
+  * integration of such mechanism to Transaction Builder APIs
+* adopt `librustzcash` changes to mobile SDK repos:
+  * ZcashLightClientKit
+  * zcash-light-client-ffi
+  * zcash-android-wallet-sdk
 
 Security and privacy considerations
 -----------------------------------
