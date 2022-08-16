@@ -30,6 +30,8 @@ The term "default transaction fee" in this document is in reference
 to Z to Z, T to Z & Z to T transaction fee paid to miners on the Zcash network
 for the work on including the shielded transaction in a block.
 
+The terms "Mainnet, "Testnet", and "zatoshi" in this document are defined as in [#protocol-networks]_.
+
 
 Abstract
 ========
