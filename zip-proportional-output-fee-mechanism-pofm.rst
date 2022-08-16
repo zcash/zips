@@ -188,14 +188,12 @@ transaction pays a fee less than the proposed increase with POFM.
 Endorsements
 ============
 
-the following entities/groups/indiviudals expressed their support for the updated fee mechanism:
-
+The following entities/groups/indiviudals expressed their support for the updated fee mechanism:
 
 *Developer Groups or Sole OSS contributors*
 
 * Zecwallet Suite (Zecwallet Lite for Desktop/iOS/Android & Zecwallet FullNode)
 * Nighthawk Wallet for Android & iOS
-
 
 *Other Endorsements*
 
