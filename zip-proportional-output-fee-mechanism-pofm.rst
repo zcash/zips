@@ -188,7 +188,15 @@ The developers of the following wallets intend to implement the updated fee mech
 Acknowledgements
 ================
 
-Thanks to Madars Virza for suggesting the fee mechanism. And Kris Nuttycombe to 
-suggest optimization.
+Thanks to Madars Virza for initially proposing a the fee mechanism similar to that
+proposed in this ZIP [#madars-1], and to Kris Nuttycombe for suggested improvements.
 
-.. [#madars-1] `Madars concrete soft-fork proposal <https://forum.zcashcommunity.com/t/zip-reduce-default-shielded-transaction-fee-to-1000-zats/37566/89?u=aiyadt>`_
+
+References
+==========
+
+.. [#RFC2119] `RFC 2119: Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
+.. [#protocol-networks] `Zcash Protocol Specification, Version 2022.3.5. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
+.. [#madars-1] `Madars concrete soft-fork proposal <https://forum.zcashcommunity.com/t/zip-reduce-default-shielded-transaction-fee-to-1000-zats/37566/89>`_
+.. [#zip-0313] `ZIP 313: Reduce Conventional Transaction Fee to 1000 zatoshis <zip-0313.rst>`_
+.. [#zip-0401] `ZIP 401: Addressing Mempool Denial-of-Service <zip-0401.rst>`_
