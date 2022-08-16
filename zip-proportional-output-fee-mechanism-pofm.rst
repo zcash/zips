@@ -43,6 +43,10 @@ With an updated transaction fee formula, miners will be compensated fairly for
 including transactions with a high number of inputs or outputs, while still allowing
 low fees for regular shielded transaction use cases.
 
+Once the new fee policy is enforced, this will additionally increase the cost of creating
+transactions that collectively have many inputs or outputs, discouraging usage patterns
+that cause either intentional or unintentional denial of service.
+
 
 Motivation
 ============
