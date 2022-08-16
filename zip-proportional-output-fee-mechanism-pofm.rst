@@ -154,7 +154,7 @@ Specification
 
 Wallets implementing this specification will use a conventional fee in the form of 
 min_fee = base_fee * max(0, #inputs + #outputs - 4) 
-starting from block 180,000.
+starting from block 1,800,000.
 
 
 Transaction relaying
