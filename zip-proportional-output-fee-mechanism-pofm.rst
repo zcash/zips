@@ -68,7 +68,7 @@ Requirements for gathering consensus
 Wallet developers SHOULD update the fees to the proposed formula by Madars and 
 Kris Nuttycombe [#madars-1]_
 
-min_fee = base_fee * max(0, #inputs + #outputs - 4)
+min_fee = base_fee * max(1, #inputs + #outputs - 4)
 
 Where #inputs and #outputs also take into account transparent inputs and outputs. 
 Otherwise, the fee structure (if not otherwise changed) will preferentially encourage 
@@ -154,7 +154,7 @@ Specification
 =============
 
 Wallets implementing this specification will use a conventional fee in the form of 
-min_fee = base_fee * max(0, #inputs + #outputs - 4) 
+min_fee = base_fee * max(1, #inputs + #outputs - 4) 
 starting from block 1,800,000.
 
 
