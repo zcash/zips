@@ -51,7 +51,7 @@ Motivation
 ============
 
 In light of recent network activity, it is time to review and update the 
-standard 1,000 zats transaction fees set in ZIP-313.
+standard 1,000 zatoshi transaction fees set in ZIP 313 [#zip-0313]_.
 
 
 The conventional transaction fee presently is 0.00001 ZEC or 1,000 zats per
