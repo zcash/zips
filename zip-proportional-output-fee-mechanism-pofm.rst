@@ -64,7 +64,7 @@ transactions with 2 outputs.
 
 
 Requirements for gathering consensus
--------------------------
+------------------------------------
 
 Wallet developers SHOULD update the fees to the proposed formula by Madars and 
 Kris Nuttycombe [#madars-1]_
