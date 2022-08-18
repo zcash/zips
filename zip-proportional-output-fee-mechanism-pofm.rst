@@ -56,7 +56,7 @@ standard 1,000 zatoshi transaction fees set in ZIP 313 [#zip-0313]_.
 
 
 The conventional transaction fee presently is 0.00001 ZEC or 1,000 zats per
-ZIP-313, that allowed exploration of novel use cases of the Zcash blockchain.
+ZIP 313, that allowed exploration of novel use cases of the Zcash blockchain.
 The Zcash network has operated for almost 2 years of 1,000 zats fee per shielded 
 transaction without consideration for the total number of inputs and outputs in the transaction.
 This has resulted in high output transactions with 1,100 outputs costing the same as 
