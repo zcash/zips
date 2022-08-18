@@ -162,7 +162,9 @@ Specification
 =============
 
 Wallets implementing this specification will use a conventional fee in the form of 
-min_fee = base_fee * max(1, #inputs + #outputs - 4) 
+base_fee = ...
+marginal_fee = ...
+min_fee = base_fee + marginal_fee * max(0, #inputs + #outputs - 4)
 starting from block 1,800,000 for Mainnet, or immediately on implementing this
 ZIP for Testnet.
 
