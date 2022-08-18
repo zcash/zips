@@ -5,6 +5,8 @@
   Owners: Aditya Bharadwaj <nighthawk24@gmail.com>
   Credits: Madars Virza
            Kris Nuttycombe
+           Daira Hopwood
+           Jack Grigg
   Status: Draft
   Category: Wallet
   Created: 2022-08-15
@@ -54,7 +56,6 @@ Motivation
 In light of recent network activity, it is time to review and update the 
 standard 1,000 zatoshi transaction fees set in ZIP 313 [#zip-0313]_.
 
-
 The conventional transaction fee presently is 0.00001 ZEC or 1,000 zats per
 ZIP 313, that allowed exploration of novel use cases of the Zcash blockchain.
 The Zcash network has operated for almost 2 years of 1,000 zats fee per shielded 
@@ -66,10 +67,8 @@ transactions with 2 outputs.
 Requirements for gathering consensus
 ------------------------------------
 
-Wallet developers SHOULD update the fees to the proposed formula by Madars and 
-Kris Nuttycombe [#madars-1]_
-
-min_fee = base_fee * max(1, #inputs + #outputs - 3)
+Wallet developers SHOULD update the fees to the proposed formula under Specification section
+by Madars Virza and Kris Nuttycombe [#madars-1]_ 
 
 Where #inputs and #outputs also take into account transparent inputs and outputs. 
 Otherwise, the fee structure (if not otherwise changed) will preferentially encourage 
