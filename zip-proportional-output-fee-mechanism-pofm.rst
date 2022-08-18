@@ -7,6 +7,7 @@
            Kris Nuttycombe
            Daira Hopwood
            Jack Grigg
+           Francisco Gindre
   Status: Draft
   Category: Wallet
   Created: 2022-08-15
