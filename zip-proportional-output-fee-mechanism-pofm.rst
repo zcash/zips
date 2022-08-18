@@ -49,7 +49,7 @@ that cause either intentional or unintentional denial of service.
 
 
 Motivation
-============
+==========
 
 In light of recent network activity, it is time to review and update the 
 standard 1,000 zatoshi transaction fees set in ZIP 313 [#zip-0313]_.
