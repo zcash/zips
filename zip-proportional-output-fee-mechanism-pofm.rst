@@ -211,8 +211,9 @@ or, conversely e-mail the same details to the Owner of the ZIP
 Acknowledgements
 ================
 
-Thanks to Madars Virza for initially proposing a the fee mechanism similar to that
-proposed in this ZIP [#madars-1], and to Kris Nuttycombe for suggested improvements.
+Thanks to Madars Virza for initially proposing a fee mechanism similar to that
+proposed in this ZIP [#madars-1], and to Kris Nuttycombe, Jack Grigg, and Daira
+Hopwood for suggested improvements.
 
 
 References
