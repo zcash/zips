@@ -69,7 +69,7 @@ Requirements for gathering consensus
 Wallet developers SHOULD update the fees to the proposed formula by Madars and 
 Kris Nuttycombe [#madars-1]_
 
-min_fee = base_fee * max(1, #inputs + #outputs - 4)
+min_fee = base_fee * max(1, #inputs + #outputs - 3)
 
 Where #inputs and #outputs also take into account transparent inputs and outputs. 
 Otherwise, the fee structure (if not otherwise changed) will preferentially encourage 
@@ -115,8 +115,27 @@ The following parties need to be part of the consensus:
   * zcash-light-client-ffi
   * zcash-android-wallet-sdk
 
-Security and privacy considerations
------------------------------------
+
+Specification
+=============
+
+Wallets implementing this specification will use a conventional fee in the form of 
+base_fee and marginal_fee.
+
+The proposal would end up selecting one of:
+* base_fee = 1000, marginal_fee = 250 in @nuttycom's proposal.
+* base_fee = 1000, marginal_fee = 1000 in @madars' proposal.
+* base_fee = 10000, marginal_fee = 2500 in @daira's proposal.
+* base_fee = 1000, marginal_fee = 1000 for Shielded, Shielding and De-shielding
+transactions, and base_fee = 10000, marginal_fee = 10000 for Transparent transactions 
+per @nighthawk24's proposal.
+
+And calculated per the following forumla:
+min_fee = base_fee + marginal_fee * max(0, #inputs + #outputs - 3)
+
+
+Security and Privacy considerations
+=============
 
 Unique transaction fees may reveal specific users or wallets or wallet versions,
 which would reduce privacy for those specific users and the rest of the network.
@@ -158,17 +177,6 @@ Wallet developers and operators should monitor the Zcash network for rapid
 growth in transaction rates.
 
 
-Specification
-=============
-
-Wallets implementing this specification will use a conventional fee in the form of 
-base_fee = ...
-marginal_fee = ...
-min_fee = base_fee + marginal_fee * max(0, #inputs + #outputs - 4)
-starting from block 1,800,000 for Mainnet, or immediately on implementing this
-ZIP for Testnet.
-
-
 Transaction relaying
 --------------------
 
@@ -185,6 +193,12 @@ Mempool size limiting
 zcashd limits the size of the mempool as described in [#zip-0401]_. This
 specifies a *low\_fee\_penalty* that is added to the "eviction weight" if the
 transaction pays a fee less than the `min_fee` specified by this ZIP.
+
+
+Deployment
+=============
+The height for coordinating deployment is block 1,800,000 for Mainnet, or immediately on 
+implementing this ZIP for Testnet.
 
 
 Endorsements
