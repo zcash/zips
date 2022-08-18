@@ -36,8 +36,8 @@ The terms "Mainnet, "Testnet", and "zatoshi" in this document are defined as in 
 Abstract
 ========
 
-The goal of this ZIP is to change the conventional transaction fees for
-Shielded transactions and get buy-in from wallet developers, miners & Zcash users.
+The goal of this ZIP is to change the conventional fees for transactions
+and get buy-in from wallet developers, miners and Zcash users.
 
 With an updated transaction fee formula, miners will be compensated fairly for
 including transactions with a high number of inputs or outputs, while still allowing
