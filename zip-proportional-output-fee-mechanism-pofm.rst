@@ -73,7 +73,7 @@ min_fee = base_fee * max(1, #inputs + #outputs - 4)
 
 Where #inputs and #outputs also take into account transparent inputs and outputs. 
 Otherwise, the fee structure (if not otherwise changed) will preferentially encourage 
-usage of the transparent part of the chain.
+usage of the transparent part of the protocol.
 
 The change to the conventional transaction fees must be undertaken soon
 as the Zcash network has been under heavy load with high-output transactions while 
