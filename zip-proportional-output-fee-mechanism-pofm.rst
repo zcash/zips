@@ -131,7 +131,9 @@ transactions, and base_fee = 10000, marginal_fee = 10000 for Transparent transac
 per @nighthawk24's proposal.
 
 And calculated per the following forumla:
-min_fee = base_fee + marginal_fee * max(0, #inputs + #outputs - 3)
+min_fee = base_fee + marginal_fee * max(0, inputs + outputs - grace_window_size)
+
+where grace_window_size = 4
 
 
 Security and Privacy considerations
