@@ -79,7 +79,7 @@ shielded transaction:
 - The zero-knowledge proof for the transaction is created with the randomizer
   as an auxiliary (secret) input, among others.
 
-When employing re-randomized FROST as specified in this ZIP, the goal is to
+When employing re-randomizable FROST as specified in this ZIP, the goal is to
 split the spend authorization private key :math:`\mathsf{ask}` among multiple
 possible signers. This means that the proof generation will still be generated
 by a single participant, likely the one that created the transaction in the first
@@ -123,8 +123,8 @@ The types Scalar, Element, and G are defined in #[frost-primeordergroup]_, as we
 as the notation for elliptic-curve arithmetic, which uses the additive notation.
 
 
-Re-randomized FROST
--------------------
+Re-randomizable FROST
+---------------------
 
 To add re-randomization to FROST, follow the specification [#FROST]_ with the
 following modifications.
@@ -158,7 +158,7 @@ A new helper function is defined, which computes :math:`\mathsf{RedDSA.GenRandom
 
   def randomizer_generate():
     randomizer_input = random_bytes(64)
-    return H2(randomizer_input)
+    return H3(randomizer_input)
 
 
 Binding Factor Computation
@@ -168,18 +168,27 @@ The `compute_binding_factor` function is changed to receive the `randomizer`
 as follows: ::
 
   Inputs:
-  - encoded_commitment_list, an encoded commitment list (as computed
-    by encode_group_commitment_list)
+  - commitment_list = [(i, hiding_nonce_commitment_i, binding_nonce_commitment_i), ...],
+    a list of commitments issued by each signer, where each element in the list
+    indicates the signer identifier i and their two commitment Element values
+    (hiding_nonce_commitment_i, binding_nonce_commitment_i). This list MUST be sorted
+    in ascending order by signer identifier.
   - msg, the message to be signed.
   - randomizer, the randomizer Scalar.
 
-  Outputs: A Scalar representing the binding factor
+  Outputs: A list of (identifier, Scalar) tuples representing the binding factors.
 
-  def compute_binding_factor(encoded_commitment_list, msg, randomizer):
-    msg_hash = H3(msg)
-    rho_input = encoded_commitment_list || msg_hash || G.SerializeScalar(randomizer)
-    binding_factor = H1(rho_input)
-    return binding_factor
+  def compute_binding_factors(commitment_list, msg, randomizer):
+    msg_hash = H4(msg)
+    encoded_commitment_hash = H5(encode_group_commitment_list(commitment_list))
+    rho_input_prefix = msg_hash || encoded_commitment_hash || G.SerializeScalar(randomizer)
+
+    binding_factor_list = []
+    for (identifier, hiding_nonce_commitment, binding_nonce_commitment) in commitment_list:
+      rho_input = rho_input_prefix || encode_uint16(identifier)
+      binding_factor = H1(rho_input)
+      binding_factor_list.append((identifier, binding_factor))
+    return binding_factor_list
 
 
 Round One - Commitment
@@ -206,8 +215,7 @@ The `sign` function is changed to receive `randomizer` and incorporate it into t
 computation of the binding factor. It is specified as the following: ::
 
   Inputs:
-  - identifier, Identifier i of the signer.
-    Note: FROST spec requires that identifier will never equal 0.
+  - identifier, Identifier i of the signer. Note identifier will never equal 0.
   - sk_i, Signer secret key share, a Scalar.
   - group_public_key, public key corresponding to the group signing key,
     an Element in G.
@@ -228,18 +236,16 @@ computation of the binding factor. It is specified as the following: ::
     # Compute the randomized group public key
     randomized_group_public_key = group_public_key + G * randomizer
 
-    # Encode the commitment list
-    encoded_commitments = encode_group_commitment_list(commitment_list)
-
-    # Compute the binding factor
-    binding_factor = compute_binding_factor(encoded_commitments, msg, randomizer)
+    # Compute the binding factor(s)
+    binding_factor_list = compute_binding_factors(commitment_list, msg)
+    binding_factor = binding_factor_for_participant(binding_factor_list, identifier, randomizer)
 
     # Compute the group commitment
-    group_commitment = compute_group_commitment(commitment_list, binding_factor)
+    group_commitment = compute_group_commitment(commitment_list, binding_factor_list)
 
     # Compute Lagrange coefficient
     participant_list = participants_from_commitment_list(commitment_list)
-    lambda_i = derive_lagrange_coefficient(identifier, participant_list)
+    lambda_i = derive_lagrange_coefficient(Scalar(identifier), participant_list)
 
     # Compute the per-message challenge
     challenge = compute_challenge(group_commitment, randomized_group_public_key, msg)
@@ -258,8 +264,7 @@ The `verify_signature_share` is changed to incorporate the randomizer,
 as follows: ::
 
   Inputs:
-  - identifier, Identifier i of the signer.
-    Note: identifier will never equal 0.
+  - identifier, Identifier i of the signer. Note: identifier MUST never equal 0.
   - PK_i, the public key for the ith signer, where PK_i = G.ScalarBaseMult(sk_i),
     an Element in G
   - comm_i, pair of Element values in G (hiding_nonce_commitment, binding_nonce_commitment)
@@ -284,29 +289,27 @@ as follows: ::
     # Compute the randomized group public key
     randomized_group_public_key = group_public_key + G * randomizer
 
-    # Encode the commitment list
-    encoded_commitments = encode_group_commitment_list(commitment_list)
-
-    # Compute the binding factor
-    binding_factor = compute_binding_factor(encoded_commitments, msg, randomizer)
+    # Compute the binding factors
+    binding_factor_list = compute_binding_factors(commitment_list, msg, randomizer)
+    binding_factor = binding_factor_for_participant(binding_factor_list, identifier)
 
     # Compute the group commitment
-    group_commitment = compute_group_commitment(commitment_list, binding_factor)
+    group_commitment = compute_group_commitment(commitment_list, binding_factor_list)
 
     # Compute the commitment share
     (hiding_nonce_commitment, binding_nonce_commitment) = comm_i
-    comm_share = hiding_nonce_commitment + (binding_nonce_commitment * binding_factor)
+    comm_share = hiding_nonce_commitment + G.ScalarMult(binding_nonce_commitment, binding_factor)
 
     # Compute the challenge
     challenge = compute_challenge(group_commitment, randomized_group_public_key, msg)
 
     # Compute Lagrange coefficient
     participant_list = participants_from_commitment_list(commitment_list)
-    lambda_i = derive_lagrange_coefficient(identifier, participant_list)
+    lambda_i = derive_lagrange_coefficient(Scalar(identifier), participant_list)
 
     # Compute relation values
     l = G.ScalarBaseMult(sig_share_i)
-    r = comm_share + ((challenge * lambda_i) * PK_i)
+    r = comm_share + G.ScalarMult(PK_i, challenge * lambda_i)
 
     return l == r
 
@@ -315,8 +318,7 @@ The `aggregate` function is changed to incorporate the randomizer as follows: ::
   Inputs:
   - group_commitment, the group commitment returned by compute_group_commitment,
     an Element in G.
-  - sig_shares, a set of signature shares z_i, Scalar values, for each signer
-    that participated in Round One,
+  - sig_shares, a set of signature shares z_i, Scalar values, for each signer,
     of length NUM_SIGNERS, where MIN_SIGNERS <= NUM_SIGNERS <= MAX_SIGNERS.
   - group_public_key, public key corresponding to the group signing key,
   - challenge, the challenge returned by compute_challenge, a Scalar.
@@ -348,8 +350,8 @@ Authorization Signatures as specified in [#protocol-concretespendauthsig]_.
 
   - Order: 6554484396890773809930967563523245729705921265872317281365359162392183254199 (see [#protocol-jubjub]_)
   - Identity: as defined in [#protocol-jubjub]_
-  - RandomScalar: Implemented by generating a random 64-byte string and invoking
-    DeserializeScalar on the result
+  - RandomScalar(): Implemented by returning a uniformly random Scalar in the range \[0, `G.Order()` - 1\].
+    Refer to {{frost-randomscalar}} for implementation guidance.
   - RandomNonZeroScalar: Implemented by generating a random 32-byte string that
     is not equal to the all-zero string and invoking DeserializeScalar on the result.
   - SerializeElement(P): Implemented as :math:`\mathsf{repr}_\mathbb{J}(P)` as defined in [#protocol-jubjub]_
@@ -359,7 +361,7 @@ Authorization Signatures as specified in [#protocol-concretespendauthsig]_.
     of the Scalar value.
   - DeserializeScalar: Implemented by attempting to deserialize a Scalar from a
     little-endian 32-byte string. This function can fail if the input does not represent a Scalar
-    in the range \[0, G.Order() - 1\].
+    in the range \[0, `G.Order()` - 1\].
 
 - Hash (`H`): BLAKE2b-512 [#BLAKE]_ (BLAKE2b with 512-bit output and 16-byte personalization string),
   and Nh = 64.
@@ -372,10 +374,11 @@ Authorization Signatures as specified in [#protocol-concretespendauthsig]_.
     modulo L = 6554484396890773809930967563523245729705921265872317281365359162392183254199.
     (This is equivalent to :math:`\mathsf{H}^\circledast(m)`, as defined in
     [#protocol-concretereddsa]_ parametrized with [#protocol-jubjub]_.)
-  - H3(m): Implemented by computing BLAKE2b-512("FROST_RedJubjubD", m)
-  - H4(m): Implemented by computing BLAKE2b-512("FROST_RedJubjubN", m), interpreting
+  - H3(m): Implemented by computing BLAKE2b-512("FROST_RedJubjubN", m), interpreting
     the 64 bytes as a little-endian integer, and reducing the resulting integer
     modulo L = 6554484396890773809930967563523245729705921265872317281365359162392183254199.
+  - H4(m): Implemented by computing BLAKE2b-512("FROST_RedJubjubM", m)
+  - H5(m): Implemented by computing BLAKE2b-512("FROST_RedJubjubC", m)
 
 
 FROST(Pallas, BLAKE2b-512)
@@ -389,8 +392,8 @@ Authorization Signatures as specified in [#protocol-concretespendauthsig]_.
 
   - Order: 0x40000000000000000000000000000000224698fc0994a8dd8c46eb2100000001 (see [#protocol-pallasandvesta]_)
   - Identity: as defined in [#protocol-pallasandvesta]_
-  - RandomScalar: Implemented by generating a random 64-byte string and invoking
-    DeserializeScalar on the result
+  - RandomScalar(): Implemented by returning a uniformly random Scalar in the range \[0, `G.Order()` - 1\].
+    Refer to {{frost-randomscalar}} for implementation guidance.
   - RandomNonZeroScalar: Implemented by generating a random 32-byte string that
     is not equal to the all-zero string and invoking DeserializeScalar on the result.
   - SerializeElement(P): Implemented as :math:`\mathsf{repr}_\mathbb{P}(P)` as defined in [#protocol-pallasandvesta]_
@@ -400,7 +403,7 @@ Authorization Signatures as specified in [#protocol-concretespendauthsig]_.
     of the Scalar value.
   - DeserializeScalar: Implemented by attempting to deserialize a Scalar from a
     little-endian 32-byte string. This function can fail if the input does not represent a Scalar
-    in the range \[0, G.Order() - 1\].
+    in the range \[0, `G.Order()` - 1\].
 
 - Hash (`H`): BLAKE2b-512 [#BLAKE]_ (BLAKE2b with 512-bit output and 16-byte personalization string),
   and Nh = 64.
@@ -413,10 +416,11 @@ Authorization Signatures as specified in [#protocol-concretespendauthsig]_.
     modulo L = 0x40000000000000000000000000000000224698fc0994a8dd8c46eb2100000001.
     (This is equivalent to :math:`\mathsf{H}^\circledast(m)`, as defined in
     [#protocol-concretereddsa]_ parametrized with [#protocol-pallasandvesta]_.)
-  - H3(m): Implemented by computing BLAKE2b-512("FROST_RedPallasD", m).
-  - H4(m): Implemented by computing BLAKE2b-512("FROST_RedPallasN", m), interpreting
+  - H3(m): Implemented by computing BLAKE2b-512("FROST_RedPallasN", m), interpreting
     the 64 bytes as a little-endian integer, and reducing the resulting integer
     modulo L = 0x40000000000000000000000000000000224698fc0994a8dd8c46eb2100000001.
+  - H4(m): Implemented by computing BLAKE2b-512("FROST_RedPallasM", m).
+  - H5(m): Implemented by computing BLAKE2b-512("FROST_RedPallasC", m).
 
 
 Reference implementation
@@ -430,11 +434,12 @@ References
 
 .. [#BLAKE] `BLAKE2: simpler, smaller, fast as MD5 <https://blake2.net/#sp>`_
 .. [#RFC2119] `RFC 2119: Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
-.. [#FROST] `Draft RFC: Two-Round Threshold Schnorr Signatures with FROST <https://www.ietf.org/archive/id/draft-irtf-cfrg-frost-05.html>`_
-.. [#frost-protocol] `Draft RFC: Two-Round Threshold Schnorr Signatures with FROST. Section 5: Two-Round FROST Signing Protocol <https://www.ietf.org/archive/id/draft-irtf-cfrg-frost-05.html#section-5>`_
-.. [#frost-removingcoordinator] `Draft RFC: Two-Round Threshold Schnorr Signatures with FROST. Section 7.3: Removing the Coordinator Role <https://www.ietf.org/archive/id/draft-irtf-cfrg-frost-05.html#section-7.3>`_
-.. [#frost-primeordergroup] `Draft RFC: Two-Round Threshold Schnorr Signatures with FROST. Section 3.1: Prime-Order Group <https://www.ietf.org/archive/id/draft-irtf-cfrg-frost-05.html#section-3.1>`_
-.. [#frost-tdkg] `Draft RFC: Two-Round Threshold Schnorr Signatures with FROST. Appendix B: Trusted Dealer Key Generation <https://www.ietf.org/archive/id/draft-irtf-cfrg-frost-05.html#appendix-B>`_
+.. [#FROST] `Draft RFC: Two-Round Threshold Schnorr Signatures with FROST <https://www.ietf.org/archive/id/draft-irtf-cfrg-frost-08.html>`_
+.. [#frost-protocol] `Draft RFC: Two-Round Threshold Schnorr Signatures with FROST. Section 5: Two-Round FROST Signing Protocol <https://www.ietf.org/archive/id/draft-irtf-cfrg-frost-08.html#section-5>`_
+.. [#frost-removingcoordinator] `Draft RFC: Two-Round Threshold Schnorr Signatures with FROST. Section 7.3: Removing the Coordinator Role <https://www.ietf.org/archive/id/draft-irtf-cfrg-frost-08.html#section-7.3>`_
+.. [#frost-primeordergroup] `Draft RFC: Two-Round Threshold Schnorr Signatures with FROST. Section 3.1: Prime-Order Group <https://www.ietf.org/archive/id/draft-irtf-cfrg-frost-08.html#section-3.1>`_
+.. [#frost-tdkg] `Draft RFC: Two-Round Threshold Schnorr Signatures with FROST. Appendix B: Trusted Dealer Key Generation <https://www.ietf.org/archive/id/draft-irtf-cfrg-frost-08.html#appendix-B>`_
+.. [#frost-randomscalar] `Draft RFC: Two-Round Threshold Schnorr Signatures with FROST. Appendix C: Random Scalar Generation <https://www.ietf.org/archive/id/draft-irtf-cfrg-frost-08.html#appendix-C>`_
 .. [#protocol-concretereddsa] `Zcash Protocol Specification, Version 2022.3.4 [NU5]. Section 5.4.7: RedDSA, RedJubjub, and RedPallas <https://protocol/protocol.pdf#concretereddsa>`_
 .. [#protocol-concretespendauthsig] `Zcash Protocol Specification, Version 2022.3.4 [NU5]. Section 5.4.7.1: Spend Authorization Signature (Sapling and Orchard) <protocol/protocol.pdf#concretespendauthsig>`_
 .. [#protocol-spendauthsig] `Zcash Protocol Specification, Version 2022.3.4 [NU5]. Section 4.15: Spend Authorization Signature (Sapling and Orchard) <protocol/protocol.pdf#spendauthsig>`_
