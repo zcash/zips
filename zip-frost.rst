@@ -164,7 +164,7 @@ A new helper function is defined, which computes :math:`\mathsf{RedDSA.GenRandom
 Binding Factor Computation
 ''''''''''''''''''''''''''
 
-The `compute_binding_factor` function is changed to receive the `randomizer`
+The `compute_binding_factor` function is changed to receive the `randomizer_point`
 as follows: ::
 
   Inputs:
@@ -174,14 +174,14 @@ as follows: ::
     (hiding_nonce_commitment_i, binding_nonce_commitment_i). This list MUST be sorted
     in ascending order by signer identifier.
   - msg, the message to be signed.
-  - randomizer, the randomizer Scalar.
+  - randomizer_point, an element in G.
 
   Outputs: A list of (identifier, Scalar) tuples representing the binding factors.
 
-  def compute_binding_factors(commitment_list, msg, randomizer):
+  def compute_binding_factors(commitment_list, msg, randomizer_point):
     msg_hash = H4(msg)
     encoded_commitment_hash = H5(encode_group_commitment_list(commitment_list))
-    rho_input_prefix = msg_hash || encoded_commitment_hash || G.SerializeScalar(randomizer)
+    rho_input_prefix = msg_hash || encoded_commitment_hash || G.SerializeElement(randomizer_point)
 
     binding_factor_list = []
     for (identifier, hiding_nonce_commitment, binding_nonce_commitment) in commitment_list:
@@ -207,7 +207,8 @@ Round Two - Signature Share Generation
 ''''''''''''''''''''''''''''''''''''''
 
 In Round Two, the Coordinator generates a random scalar `randomizer` by calling
-`randomizer_generate` and sends it to each signer, over a confidential and authenticated channel,
+`randomizer_generate`. Then it computes `randomizer_point = G.ScalarBaseMult(randomizer)`
+and sends it to each signer, over a confidential and authenticated channel,
 along with the message and the set of signing commitments. (Note that this differs
 from regular FROST which just requires an authenticated channel.)
 
@@ -228,17 +229,17 @@ computation of the binding factor. It is specified as the following: ::
     Each element in the list indicates the signer identifier j and their two commitment
     Element values (hiding_nonce_commitment_j, binding_nonce_commitment_j).
     This list MUST be sorted in ascending order by signer identifier.
-  - randomizer, the randomizer Scalar.
+  - randomizer_point, an element in G (sent by the Coordinator).
 
   Outputs: a Scalar value representing the signature share
 
-  def sign(identifier, sk_i, group_public_key, nonce_i, msg, commitment_list, randomizer):
+  def sign(identifier, sk_i, group_public_key, nonce_i, msg, commitment_list, randomizer_point):
     # Compute the randomized group public key
-    randomized_group_public_key = group_public_key + G * randomizer
+    randomized_group_public_key = group_public_key + randomizer_point
 
     # Compute the binding factor(s)
-    binding_factor_list = compute_binding_factors(commitment_list, msg)
-    binding_factor = binding_factor_for_participant(binding_factor_list, identifier, randomizer)
+    binding_factor_list = compute_binding_factors(commitment_list, msg, randomizer_point)
+    binding_factor = binding_factor_for_participant(binding_factor_list, identifier)
 
     # Compute the group commitment
     group_commitment = compute_group_commitment(commitment_list, binding_factor_list)
@@ -260,7 +261,7 @@ computation of the binding factor. It is specified as the following: ::
 Signature Share Verification and Aggregation
 ''''''''''''''''''''''''''''''''''''''''''''
 
-The `verify_signature_share` is changed to incorporate the randomizer,
+The `verify_signature_share` is changed to incorporate the randomizer point,
 as follows: ::
 
   Inputs:
@@ -280,17 +281,17 @@ as follows: ::
   - group_public_key, public key corresponding to the group signing key,
     an Element in G.
   - msg, the message to be signed.
-  - randomizer, the randomizer Scalar.
+  - randomizer_point, an element in G.
 
   Outputs: True if the signature share is valid, and False otherwise.
 
   def verify_signature_share(identifier, PK_i, comm_i, sig_share_i, commitment_list,
-                             group_public_key, msg, randomizer):
+                             group_public_key, msg, randomizer_point):
     # Compute the randomized group public key
-    randomized_group_public_key = group_public_key + G * randomizer
+    randomized_group_public_key = group_public_key + randomizer_point
 
     # Compute the binding factors
-    binding_factor_list = compute_binding_factors(commitment_list, msg, randomizer)
+    binding_factor_list = compute_binding_factors(commitment_list, msg, randomizer_point)
     binding_factor = binding_factor_for_participant(binding_factor_list, identifier)
 
     # Compute the group commitment
