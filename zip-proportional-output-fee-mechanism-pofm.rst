@@ -9,7 +9,8 @@
            Jack Grigg
            Francisco Gindre
   Status: Draft
-  Category: Wallet
+  Category: Standards / Wallet
+  Obsoletes: ZIP 313
   Created: 2022-08-15
   License: MIT
   Discussions-To: <https://forum.zcashcommunity.com/t/zip-proportional-output-fee-mechanism-pofm/42808>
