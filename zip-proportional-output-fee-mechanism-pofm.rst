@@ -193,7 +193,7 @@ or denial-of-service mitigation.
 Mempool size limiting
 ---------------------
 
-zcashd limits the size of the mempool as described in [#zip-0401]_. This
+zcashd and Zebra limit the size of the mempool as described in [#zip-0401]_. This
 specifies a *low\_fee\_penalty* that is added to the "eviction weight" if the
 transaction pays a fee less than the `min_fee` specified by this ZIP.
 
