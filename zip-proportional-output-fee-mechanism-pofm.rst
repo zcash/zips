@@ -110,6 +110,7 @@ The following parties need to be part of the consensus:
   * expose minimum recommended fee for a given number of recipients
   * implement default fee equation and corresponding unit tests
   * integration of such mechanism to Transaction Builder APIs
+* Changes to the Zebra mempool's conventional fee calculation
 * adopt `librustzcash` changes to mobile SDK repos:
   * ZcashLightClientKit
   * zcash-light-client-ffi
