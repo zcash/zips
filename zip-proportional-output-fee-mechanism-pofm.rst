@@ -189,7 +189,7 @@ Possible alternatives for the parameters:
 Security and Privacy considerations
 =============
 
-Unique transaction fees may reveal specific users or wallets or wallet versions,
+Non-standard transaction fees may reveal specific users or wallets or wallet versions,
 which would reduce privacy for those specific users and the rest of the network.
 Hence this change should be accepted by a majority of shielded transaction
 software providers before deploying the change.
