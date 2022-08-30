@@ -121,21 +121,69 @@ The following parties need to be part of the consensus:
 Specification
 =============
 
-Wallets implementing this specification will use a conventional fee in the form of 
-base_fee and marginal_fee.
+This specification defines three parameters that are used to calculate the
+conventional fee:
 
-The proposal would end up selecting one of:
+=================== ============================
+Parameter           Units
+=================== ============================
+`base_fee`          zatoshis
+`marginal_fee`      zatoshis per input or output
+`grace_window_size` inputs or outputs
+=================== ============================
+
+Wallets implementing this specification SHOULD use a conventional fee
+calculated in zatoshis per the following formula::
+
+    base_fee + marginal_fee * max(0, inputs + outputs - grace_window_size)
+
+The parameters are set to the following values:
+* `base_fee = TODO`;
+* `marginal_fee = TODO`;
+* `grace_window_size = 4`.
+
+It is not a consensus requirement that fees follow this formula; however,
+wallets SHOULD use this fee to reduce information leakage in transactions
+unless overridden by the user.
+
+Transaction relaying
+--------------------
+
+zcashd, zebrad, and potentially other node implementations, implement
+fee-based restrictions on relaying of mempool transactions. Nodes that
+normally relay transactions are expected to do so for transactions that pay
+at least the conventional fee, unless there are other reasons not to do so
+for robustness or denial-of-service mitigation.
+
+Mempool size limiting
+---------------------
+
+zcashd and zebrad limit the size of the mempool as described in [#zip-0401]_.
+This specifies a *low\_fee\_penalty* that is added to the "eviction weight"
+if the transaction pays a fee less than the conventional transaction fee.
+This threshold is modified to use the new conventional fee formula.
+
+Block production
+----------------
+
+Miners, mining pools, and other block producers, select transactions for
+inclusion in blocks using a variety of criteria. Where the criteria
+previously used the conventional transaction fee defined in ZIP 313 to
+decide on transaction inclusion, it is expected to instead use the formula
+specified in this ZIP.
+
+Open Issues
+-----------
+
+> TODO: Remove this section once a decision is made.
+
+Possible alternatives for the parameters:
 * base_fee = 1000, marginal_fee = 250 in @nuttycom's proposal.
 * base_fee = 1000, marginal_fee = 1000 in @madars' proposal.
 * base_fee = 10000, marginal_fee = 2500 in @daira's proposal.
 * base_fee = 1000, marginal_fee = 1000 for Shielded, Shielding and De-shielding
-transactions, and base_fee = 10000, marginal_fee = 10000 for Transparent transactions 
-per @nighthawk24's proposal.
-
-And calculated per the following forumla:
-min_fee = base_fee + marginal_fee * max(0, inputs + outputs - grace_window_size)
-
-where grace_window_size = 4
+  transactions, and base_fee = 10000, marginal_fee = 10000 for Transparent transactions 
+  per @nighthawk24's proposal.
 
 
 Security and Privacy considerations
