@@ -6,8 +6,17 @@ Build dependencies on Debian-based systems include, at least:
 
 .. code::
 
-   apt-get install texlive texlive-science texlive-fonts-extra \
-     texlive-generic-recommended texlive-bibtex-extra biber latexmk perl awk
+   apt install python3-pip pandoc perl sed perl \
+     texlive texlive-science texlive-fonts-extra texlive-bibtex-extra biber latexmk
+
+Prior to Bullseye you may also need the ``awk`` and ``texlive-generic-recommended``
+packages.
+
+For link checking, you will also need the following Python packages:
+
+.. code::
+
+   pip3 install rst2html5 certifi PyPDF2
 
 
 Building
@@ -23,8 +32,10 @@ Use:
   Sapling upgrades (``sapling.pdf``);
 * ``make sprout`` to make a version of the specification that does not
   include Overwinter or Sapling (``sprout.pdf``).
+* ``make linkcheck`` (in the root of the repo) to build everything and also
+  perform link checking. This will access the network.
 
-``make all`` is equivalent to ``make nufour heartwood blossom sapling sprout``.
+``make all`` is equivalent to ``make nu5 canopy heartwood blossom sapling``.
 
 By default these use ``latexmk``. If you have trouble getting ``latexmk`` to
 work, you can instead use ``make nolatexmk-sapling``, etc. That is not the
