@@ -92,8 +92,9 @@ Prompt accessibility of funds
 Wallets need to take account of two concerns:
 
 * enabling funds to be spent as quickly as possible to reduce latency;
-* waiting for long enough before spending TXOs to ensure that the spendable
-  balance is not overestimated, and so can be trusted by the user.
+* waiting for long enough before spending TXOs to ensure that the
+  confirmed-spendable balance is not overestimated, and so can be trusted
+  by the user.
 
 To enable this we define two kinds of TXOs:
 
@@ -142,29 +143,51 @@ respectively. The following confirmation policy is RECOMMENDED:
 * 10 confirmations, for untrusted TXOs;
 * 3 confirmations, for trusted TXOs.
 
+Rationale for the given numbers of confirmations
+''''''''''''''''''''''''''''''''''''''''''''''''
+
+The rationale for choosing three confirmations for trusted TXOs is that
+empirically, reorgs are usually less than three blocks.
+
+The consequences of attempting to spend an untrusted note in the case of a
+rollback may be less severe than attempting to spend a trusted note. The value
+received from a trusted note should always be recoverable, whereas recovering
+value received from an untrusted note may require the user to request that
+funds are re-sent.
+
 
 Categories of TXOs according to spendability
 --------------------------------------------
 
-A TXO is *confirmed spendable*, relative to a given block chain state,
+A TXO is *spendable*, relative to a given block chain and wallet state,
 if and only if all of the following are true in that state:
 
+* the TXO is unspent;
+* the TXO is not committed to be spent in another transaction created
+  by this wallet; and
+* the wallet has the TXO's spending key.
+
+A TXO is *confirmed-spendable*, relative to a given block chain and
+wallet state, if and only if all of the following are true in that state:
+
 * the wallet is synchronized; and
-* the TXO is unspent; and
-* the wallet has the TXO's spending key; and
+* the TXO is spendable; and
 * either auto-shielding is disabled or the TXO is shielded; and
 * the TXO is trusted and has at least the required confirmations for
   trusted TXOs, or it is untrusted and has at least the required
   confirmations for untrusted TXOs.
 
-A TXO is *unconfirmed spendable*, relative to a given block chain state,
-if and only if it is unspent, the wallet has its spending key, and it is
-not confirmed spendable.
+A TXO is *unconfirmed-spendable*, relative to a given block chain and
+wallet state, if and only if the TXO is spendable but is not
+confirmed-spendable in that state.
 
 A TXO is *watch-only* if and only if the wallet has its full viewing key
 (or address in the case of a transparent TXO) but not its spending key.
 
-A wallet MUST NOT attempt to spend a TXO that is not confirmed spendable.
+A wallet MUST NOT attempt to spend a TXO that is not confirmed-spendable.
+
+Note: the definition of a TXO includes outputs in mempool transactions
+that are unconflicted from the perspective of the wallet.
 
 
 Reporting of balances
@@ -172,34 +195,29 @@ Reporting of balances
 
 Wallets SHOULD report:
 
-* Spendable balance.
+* Confirmed-spendable balance.
 * Pending balance, *or* total balance.
 
 These are calculated as follows:
 
-* The spendable balance is the sum of values of confirmed spendable TXOs.
-* The pending balance is the sum of values of unconfirmed spendable TXOs.
-* The total balance is the spendable balance plus the pending balance.
+* The confirmed-spendable balance is the sum of values of
+  confirmed-spendable TXOs.
+* The pending balance is the sum of values of unconfirmed-spendable TXOs.
+* The total balance is the confirmed-spendable balance plus the pending
+  balance.
 
-Note: the definition of "confirmed spendable" above ensures that:
+Note: the definition of "confirmed-spendable" above ensures that:
 
 * if auto-shielding is enabled, transparent funds will be reported in
-  the pending or total balance, but not in the spendable balance;
-* if the wallet is not synchronized, the spendable balance will be
-  zero.
+  the pending or total balance, but not in the confirmed-spendable
+  balance;
+* if the wallet is not synchronized, the confirmed-spendable balance
+  will be zero.
 
 If auto-shielding is disabled, the wallet MAY report shielded and
 transparent balances separately. If it does so, it MUST make clear
-whether each reported balance corresponds to a spendable, pending, or
-total subset of funds.
-
-TODO: refine this in terms of the following categories:
-
-* Funds at rest (not involved in any not-fully-confirmed transfer).
-* Outgoing funds to an external source (might come back if the tx
-  doesn't go through).
-* Incoming funds from an external source.
-* Funds we are sending to ourself.
+whether each reported balance corresponds to a confirmed-spendable,
+pending, or total subset of funds.
 
 Rationale for reporting of balances
 '''''''''''''''''''''''''''''''''''
@@ -224,9 +242,9 @@ and watch-only incoming balances MUST be reported separately.
 Incoming transactions
 '''''''''''''''''''''
 
-A transaction is incoming if it contains unconfirmed TXOs. Incoming
-transactions SHOULD be reported with their number of confirmations and
-their balances as described in `Reporting of balances`_.
+A transaction is incoming if it contains unconfirmed-spendable TXOs.
+Incoming transactions SHOULD be reported with their number of confirmations
+and their balances as described in `Reporting of balances`_.
 
 Sent transactions
 '''''''''''''''''
@@ -237,7 +255,8 @@ A transaction is sent if it was either:
 * detected as having been sent from one of the wallet's watch-only addresses.
 
 Sent transactions SHOULD be reported with their number of confirmations,
-how long until they expire, and their balances as described in `Reporting of balances`_.
+how long until they expire, and their balances as described in
+`Reporting of balances`_.
 
 
 Transaction creation
@@ -246,14 +265,40 @@ Transaction creation
 Anchor selection
 ''''''''''''''''
 
-TODO: choose anchors at the trusted confirmation depth. This avoids leaking information
-about whether or not we spent trusted notes.
+A wallet SHOULD choose an anchor a number of blocks back from the head of the
+chain equal to the trusted confirmation depth. That is, if the current block
+is at height H, the anchor SHOULD reflect the final treestate of the block at
+height H-3.
 
 
 Rationale for anchor selection
 ''''''''''''''''''''''''''''''
 
-TODO
+* If the chain rolls back past the block at which the anchor is chosen, then
+  the anchor and the transaction will be invalidated. This is undesirable both
+  for reliability, and because the nullifiers of spent notes will have been
+  revealed, linking this transaction to any future transactions that spend those
+  notes.
+* On the other hand, it is undesirable to choose an anchor too many blocks back,
+  because that prevents more recently received notes from being spent.
+* Using a fixed anchor depth (as opposed to a different depth depending on whether
+  or not we are spending trusted notes) avoids leaking information about whether
+  or not we spent trusted notes.
+
+
+Note selection
+''''''''''''''
+
+TODO: consider what we should do when nullifiers are revealed in a transaction
+that is then invalidated. Should those notes be prioritized to be spent soon,
+or should they be used in a note management tx?
+
+
+Expiration height
+'''''''''''''''''
+
+A wallet SHOULD create transactions using the default expiration height of 40 blocks
+from the current height, as specified in [#zip-0203]_.
 
 
 Linkability of transactions or addresses
@@ -452,3 +497,4 @@ References
 ==========
 
 .. [#RFC2119] `RFC 2119: Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
+.. [#zip-0203] `ZIP 203: Transaction Expiry <zip-0203.rst>`_
