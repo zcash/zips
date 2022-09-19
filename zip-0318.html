@@ -9,12 +9,159 @@
         <pre>ZIP: 318
 Title: Associated Payload Encryption
 Owners: Kris Nuttycombe &lt;kris@electriccoin.co&gt;
-        Daira Hopwood &lt;daira@electriccoin.co&gt;
-Status: Reserved
+        Daira Emma Hopwood &lt;daira@electriccoin.co&gt;
+Status: Draft
 Category: Standards Track
 Created: 2022-09-19
 License: MIT
 Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/633">https://github.com/zcash/zips/issues/633</a>&gt;</pre>
+        <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to be interpreted as described in RFC 2119. <a id="footnote-reference-1" class="footnote_reference" href="#rfc2119">1</a></p>
+        </section>
+        <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This specificiation provides the ability to encrypt an arbitrary payload, such that it may be decrypted by both the recipient of a particular Zcash note and the holder of an OVK that can decrypt that note, if any such OVK exists.</p>
+        </section>
+        <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>{Why is this proposal needed?</p>
+            <p>This is one of the most important sections of the ZIP, and should be detailed and comprehensive. It shouldn't include any of the actual specification -- don't put conformance requirements in this section.</p>
+            <p>Explain the status quo, why the status quo is in need of improvement, and if applicable, the history of how this area has changed. Then describe <em>at a high level</em> why this proposed solution addresses the perceived issues. It is ok if this is somewhat redundant with the abstract, but here you can go into a lot more detail.}</p>
+        </section>
+        <section id="requirements"><h2><span class="section-heading">Requirements</span><span class="section-anchor"> <a rel="bookmark" href="#requirements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>{Describe design constraints on, or goals for the solution -- typically one paragraph for each constraint or goal. Again, don't actually specify anything here; this section is primarily for use as a consistency check that what is specified meets the requirements.}</p>
+        </section>
+        <section id="non-requirements"><h2><span class="section-heading">Non-requirements</span><span class="section-anchor"> <a rel="bookmark" href="#non-requirements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>{This section is entirely optional. If it is present, it describes issues that the proposal is <em>not</em> attempting to address, that someone might otherwise think it does or should.}</p>
+        </section>
+        <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <section id="associated-payload-encryption"><h3><span class="section-heading">Associated Payload Encryption</span><span class="section-anchor"> <a rel="bookmark" href="#associated-payload-encryption"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Let <code>personalization</code> be a 16-byte personalization string starting with the 8 bytes <code>ZcashSAK</code> when encrypting to the recipient of a Sapling note, or the 8 bytes <code>ZcashOAK</code> when encrypting to the recipient of an Orchard note.</p>
+                <p>TODO</p>
+            </section>
+            <section id="aead-xchacha20-poly1305"><h3><span class="section-heading">AEAD_XChaCha20_Poly1305</span><span class="section-anchor"> <a rel="bookmark" href="#aead-xchacha20-poly1305"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>AEAD_XChaCha20_Poly1305 is an Authenticated Encryption with Associated Data (AEAD) scheme similar to the IETF_CHACHA20_POLY1305 scheme already used in Zcash for note encryption.</p>
+                <p>AEAD_XChaCha20_Poly1305 implementations exist in WireGuard <a id="footnote-reference-2" class="footnote_reference" href="#wireguard">5</a>, libsodium <a id="footnote-reference-3" class="footnote_reference" href="#libsodium">6</a>, Tink <a id="footnote-reference-4" class="footnote_reference" href="#tink">7</a>, and Go's crypto/chacha20poly1305 library <a id="footnote-reference-5" class="footnote_reference" href="#gocrypto">8</a>.</p>
+                <p>Note that the construction we're building upon uses the IETF's ChaCha20 (96-bit nonce), not Bernstein's ChaCha20 (64-bit nonce).</p>
+                <p>The eXtended-nonce ChaCha cipher construction (XChaCha) allows for AEAD_XChaCha20_Poly1305 to accept a 192-bit nonce with similar guarantees to IETF_CHACHA20_POLY1305 <a id="footnote-reference-6" class="footnote_reference" href="#rfc8439">2</a>, except with a much lower risk of insecurity due to nonce collisions.</p>
+                <p>The algorithm for AEAD_XChaCha20_Poly1305 uses an intermediate function HChaCha20.</p>
+            </section>
+            <section id="hchacha20"><h3><span class="section-heading">HChaCha20</span><span class="section-anchor"> <a rel="bookmark" href="#hchacha20"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p><em>HChaCha20</em> is an intermediary step towards XChaCha20 based on the construction and security proof used to create XSalsa20 <a id="footnote-reference-7" class="footnote_reference" href="#bernstein2011">4</a>, an extended-nonce Salsa20 variant.</p>
+                <p>HChaCha20 is initialized the same way as the ChaCha cipher, except that HChaCha20 uses a 128-bit nonce and has no counter. Instead, the block counter is replaced by the first 32 bits of the nonce.</p>
+                <p>Consider the two figures below, where each non-whitespace character represents one nibble of information about the ChaCha states (all numbers little-endian):</p>
+                <pre>       cccccccc  cccccccc  cccccccc  cccccccc
+       kkkkkkkk  kkkkkkkk  kkkkkkkk  kkkkkkkk
+       kkkkkkkk  kkkkkkkk  kkkkkkkk  kkkkkkkk
+       bbbbbbbb  nnnnnnnn  nnnnnnnn  nnnnnnnn
+
+ChaCha20 State: c=constant k=key b=blockcount n=nonce
+
+
+       cccccccc  cccccccc  cccccccc  cccccccc
+       kkkkkkkk  kkkkkkkk  kkkkkkkk  kkkkkkkk
+       kkkkkkkk  kkkkkkkk  kkkkkkkk  kkkkkkkk
+       nnnnnnnn  nnnnnnnn  nnnnnnnn  nnnnnnnn
+
+      HChaCha20 State: c=constant k=key n=nonce</pre>
+                <p>After initialization, proceed through the ChaCha rounds as usual.</p>
+                <p>Once the 20 ChaCha rounds have been completed, the first 128 bits and last 128 bits of the ChaCha state (both little-endian) are concatenated, and this 256-bit subkey is returned.</p>
+            </section>
+            <section id="aead-construction"><h3><span class="section-heading">AEAD construction</span><span class="section-anchor"> <a rel="bookmark" href="#aead-construction"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>AEAD_XChaCha20_Poly1305 can be constructed from HChaCha20 and an existing IETF_CHACHA20_POLY1305 implementation, as follows:</p>
+                <ol type="1">
+                    <li>Calculate a subkey from the first 16 bytes of the nonce and the key, using HChaCha20.</li>
+                    <li>Use the subkey and remaining 8 bytes of the nonce (prefixed by 4 zero bytes) with IETF_CHACHA20_POLY1305 from <a id="footnote-reference-8" class="footnote_reference" href="#rfc8439">2</a>.</li>
+                </ol>
+                <section id="aead-xchacha20-poly1305-pseudocode"><h4><span class="section-heading">AEAD_XChaCha20_Poly1305 Pseudocode</span><span class="section-anchor"> <a rel="bookmark" href="#aead-xchacha20-poly1305-pseudocode"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <pre>xchacha20_encrypt(key, nonce, plaintext, blk_ctr = 0):
+  subkey = hchacha20(key, nonce[0:15])
+  chacha20_nonce = [0, 0, 0, 0] + nonce[16:23]
+
+  return aead_chacha20_poly1305(subkey, chacha20_nonce, plaintext, blk_ctr)</pre>
+                    <p>Note that, in this AEAD mode, the initial block counter is set to 1 instead of 0, since the first block is used to derive the one-time Poly1305 key.</p>
+                </section>
+            </section>
+            <section id="test-vectors"><h3><span class="section-heading">Test Vectors</span><span class="section-anchor"> <a rel="bookmark" href="#test-vectors"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <section id="poly1305-key-generation-test-vector"><h4><span class="section-heading">Poly1305 Key Generation Test Vector</span><span class="section-anchor"> <a rel="bookmark" href="#poly1305-key-generation-test-vector"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Key: 80 81 82 83 84 85 86 87 88 89 8a 8b 8c 8d 8e 8f 90 91 92 93 94 95 96 97 98 99 9a 9b 9c 9d 9e 9f</p>
+                    <p>Nonce: 00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 14 15 16 17</p>
+                    <p>The XChaCha state setup with key, nonce, and block counter zero: TODO</p>
+                    <p>The XChaCha state after 20 rounds: TODO</p>
+                    <p>Output bytes: TODO</p>
+                    <p>That output is also the 32-byte one-time key used for Poly1305.</p>
+                </section>
+            </section>
+        </section>
+        <section id="reference-implementation"><h2><span class="section-heading">Reference implementation</span><span class="section-anchor"> <a rel="bookmark" href="#reference-implementation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <ul>
+                <li><a href="https://github.com/zcash/librustzcash/pull/643">https://github.com/zcash/librustzcash/pull/643</a></li>
+            </ul>
+        </section>
+        <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <table id="rfc2119" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>1</th>
+                        <td><a href="https://www.rfc-editor.org/rfc/rfc2119.html">RFC 2119: Key words for use in RFCs to Indicate Requirement Levels</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="rfc8439" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>2</th>
+                        <td><a href="https://www.rfc-editor.org/rfc/rfc8439.html">RFC 8439: ChaCha20 and Poly1305 for IETF Protocols</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>3</th>
+                        <td><a href="protocol/protocol.pdf">Zcash Protocol Specification, Version 2020.1.24 or later</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bernstein2011" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>4</th>
+                        <td><a href="https://cr.yp.to/snuffle/xsalsa-20110204.pdf">Extending the Salsa20 nonce. Daniel Bernstein, February 4th 2011</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="wireguard" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>5</th>
+                        <td><a href="https://www.wireguard.com/protocol/">WireGuard - Protocol &amp; Cryptography</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="libsodium" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>6</th>
+                        <td><a href="https://doc.libsodium.org/secret-key_cryptography/aead#xchacha20-poly1305">libsodium - AEAD constructions</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="tink" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>7</th>
+                        <td><a href="https://developers.google.com/tink/aead">Tink - Authenticated Encryption with Associated Data</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="gocrypto" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>8</th>
+                        <td><a href="https://pkg.go.dev/golang.org/x/crypto/chacha20poly1305#NewX">Go crypto/chacha20poly1305</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
     </section>
 </body>
 </html>

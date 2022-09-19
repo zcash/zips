@@ -3,9 +3,198 @@
   ZIP: 318
   Title: Associated Payload Encryption
   Owners: Kris Nuttycombe <kris@electriccoin.co>
-          Daira Hopwood <daira@electriccoin.co>
-  Status: Reserved
+          Daira Emma Hopwood <daira@electriccoin.co>
+  Status: Draft
   Category: Standards Track
   Created: 2022-09-19
   License: MIT
   Discussions-To: <https://github.com/zcash/zips/issues/633>
+
+
+Terminology
+===========
+
+The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to
+be interpreted as described in RFC 2119. [#RFC2119]_
+
+
+Abstract
+========
+
+This specificiation provides the ability to encrypt an arbitrary payload, such
+that it may be decrypted by both the recipient of a particular Zcash note and
+the holder of an OVK that can decrypt that note, if any such OVK exists.
+
+
+Motivation
+==========
+
+{Why is this proposal needed?
+
+This is one of the most important sections of the ZIP, and should be detailed
+and comprehensive. It shouldn't include any of the actual specification --
+don't put conformance requirements in this section.
+
+Explain the status quo, why the status quo is in need of improvement,
+and if applicable, the history of how this area has changed. Then describe
+*at a high level* why this proposed solution addresses the perceived issues.
+It is ok if this is somewhat redundant with the abstract, but here you can
+go into a lot more detail.}
+
+
+Requirements
+============
+
+{Describe design constraints on, or goals for the solution -- typically one
+paragraph for each constraint or goal. Again, don't actually specify anything
+here; this section is primarily for use as a consistency check that what is
+specified meets the requirements.}
+
+
+Non-requirements
+================
+
+{This section is entirely optional. If it is present, it describes issues that
+the proposal is *not* attempting to address, that someone might otherwise think
+it does or should.}
+
+
+Specification
+=============
+
+Associated Payload Encryption
+-----------------------------
+
+Let ``personalization`` be a 16-byte personalization string starting with the
+8 bytes ``ZcashSAK`` when encrypting to the recipient of a Sapling note, or the
+8 bytes ``ZcashOAK`` when encrypting to the recipient of an Orchard note.
+
+TODO
+
+
+AEAD_XChaCha20_Poly1305
+-----------------------
+
+AEAD_XChaCha20_Poly1305 is an Authenticated Encryption with Associated Data
+(AEAD) scheme similar to the IETF_CHACHA20_POLY1305 scheme already used in
+Zcash for note encryption.
+
+AEAD_XChaCha20_Poly1305 implementations exist in WireGuard [#WireGuard]_,
+libsodium [#libsodium]_, Tink [#Tink]_, and Go's crypto/chacha20poly1305
+library [#GoCrypto]_.
+
+Note that the construction we're building upon uses the IETF's ChaCha20
+(96-bit nonce), not Bernstein's ChaCha20 (64-bit nonce).
+
+The eXtended-nonce ChaCha cipher construction (XChaCha) allows for
+AEAD_XChaCha20_Poly1305 to accept a 192-bit nonce with similar guarantees
+to IETF_CHACHA20_POLY1305 [#RFC8439]_, except with a much lower risk of
+insecurity due to nonce collisions.
+
+The algorithm for AEAD_XChaCha20_Poly1305 uses an intermediate function
+HChaCha20.
+
+HChaCha20
+---------
+
+*HChaCha20* is an intermediary step towards XChaCha20 based on the
+construction and security proof used to create XSalsa20 [#Bernstein2011]_,
+an extended-nonce Salsa20 variant.
+
+HChaCha20 is initialized the same way as the ChaCha cipher, except
+that HChaCha20 uses a 128-bit nonce and has no counter. Instead, the
+block counter is replaced by the first 32 bits of the nonce.
+
+Consider the two figures below, where each non-whitespace character
+represents one nibble of information about the ChaCha states (all
+numbers little-endian)::
+
+               cccccccc  cccccccc  cccccccc  cccccccc
+               kkkkkkkk  kkkkkkkk  kkkkkkkk  kkkkkkkk
+               kkkkkkkk  kkkkkkkk  kkkkkkkk  kkkkkkkk
+               bbbbbbbb  nnnnnnnn  nnnnnnnn  nnnnnnnn
+
+        ChaCha20 State: c=constant k=key b=blockcount n=nonce
+
+
+               cccccccc  cccccccc  cccccccc  cccccccc
+               kkkkkkkk  kkkkkkkk  kkkkkkkk  kkkkkkkk
+               kkkkkkkk  kkkkkkkk  kkkkkkkk  kkkkkkkk
+               nnnnnnnn  nnnnnnnn  nnnnnnnn  nnnnnnnn
+
+              HChaCha20 State: c=constant k=key n=nonce
+
+After initialization, proceed through the ChaCha rounds as usual.
+
+Once the 20 ChaCha rounds have been completed, the first 128 bits and
+last 128 bits of the ChaCha state (both little-endian) are concatenated,
+and this 256-bit subkey is returned.
+
+AEAD construction
+-----------------
+
+AEAD_XChaCha20_Poly1305 can be constructed from HChaCha20 and an existing
+IETF_CHACHA20_POLY1305 implementation, as follows:
+
+1. Calculate a subkey from the first 16 bytes of the nonce and the key,
+   using HChaCha20.
+2. Use the subkey and remaining 8 bytes of the nonce (prefixed by 4 zero
+   bytes) with IETF_CHACHA20_POLY1305 from [#RFC8439]_.
+
+AEAD_XChaCha20_Poly1305 Pseudocode
+''''''''''''''''''''''''''''''''''
+
+::
+
+   xchacha20_encrypt(key, nonce, plaintext, blk_ctr = 0):
+     subkey = hchacha20(key, nonce[0:15])
+     chacha20_nonce = [0, 0, 0, 0] + nonce[16:23]
+
+     return aead_chacha20_poly1305(subkey, chacha20_nonce, plaintext, blk_ctr)
+
+Note that, in this AEAD mode, the initial block counter is set to 1
+instead of 0, since the first block is used to derive the one-time
+Poly1305 key.
+
+
+Test Vectors
+------------
+
+Poly1305 Key Generation Test Vector
+'''''''''''''''''''''''''''''''''''
+
+Key:
+80 81 82 83 84 85 86 87 88 89 8a 8b 8c 8d 8e 8f 90 91 92 93 94 95 96 97 98 99 9a 9b 9c 9d 9e 9f
+
+Nonce:
+00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 14 15 16 17
+
+The XChaCha state setup with key, nonce, and block counter zero:
+TODO
+
+The XChaCha state after 20 rounds:
+TODO
+
+Output bytes:
+TODO
+
+That output is also the 32-byte one-time key used for Poly1305.
+
+
+Reference implementation
+========================
+
+* https://github.com/zcash/librustzcash/pull/643
+
+
+References
+==========
+
+.. [#RFC2119] `RFC 2119: Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
+.. [#RFC8439] `RFC 8439: ChaCha20 and Poly1305 for IETF Protocols <https://www.rfc-editor.org/rfc/rfc8439.html>`_
+.. [#protocol] `Zcash Protocol Specification, Version 2020.1.24 or later <protocol/protocol.pdf>`_
+.. [#Bernstein2011] `Extending the Salsa20 nonce. Daniel Bernstein, February 4th 2011 <https://cr.yp.to/snuffle/xsalsa-20110204.pdf>`_
+.. [#WireGuard] `WireGuard - Protocol & Cryptography <https://www.wireguard.com/protocol/>`_
+.. [#libsodium] `libsodium - AEAD constructions <https://doc.libsodium.org/secret-key_cryptography/aead#xchacha20-poly1305>`_
+.. [#Tink] `Tink - Authenticated Encryption with Associated Data <https://developers.google.com/tink/aead>`_
+.. [#GoCrypto] `Go crypto/chacha20poly1305 <https://pkg.go.dev/golang.org/x/crypto/chacha20poly1305#NewX>`_
