@@ -133,6 +133,7 @@ Index of ZIPs
     <tr> <td><span class="reserved">314</span></td> <td class="left"><a class="reserved" href="zip-0314.rst">Privacy upgrades to the Zcash light client protocol</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">315</span></td> <td class="left"><a class="reserved" href="zip-0315.rst">Best Practices for Wallet Handling of Multiple Pools</a></td> <td>Reserved</td>
     <tr> <td>316</td> <td class="left"><a href="zip-0316.rst">Unified Addresses and Unified Viewing Keys</a></td> <td>Final</td>
+    <tr> <td><span class="reserved">317</span></td> <td class="left"><a class="reserved" href="zip-0317.rst">Proportional Transfer Fee Mechanism</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">318</span></td> <td class="left"><a class="reserved" href="zip-0318.rst">Associated Payload Encryption</a></td> <td>Reserved</td>
     <tr> <td>321</td> <td class="left"><a href="zip-0321.rst">Payment Request URIs</a></td> <td>Proposed</td>
     <tr> <td><span class="reserved">322</span></td> <td class="left"><a class="reserved" href="zip-0322.rst">Generic Signed Message Format</a></td> <td>Reserved</td>
