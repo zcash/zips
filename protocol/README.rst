@@ -16,7 +16,7 @@ For link checking, you will also need the following Python packages:
 
 .. code::
 
-   pip3 install rst2html5 certifi PyPDF2
+   pip3 install docutils==0.19 rst2html5 certifi PyPDF2
 
 
 Building

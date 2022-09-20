@@ -1,3 +1,5 @@
+# Dependencies: see zip-guide.rst and protocol/README.rst
+
 SHELL=/bin/bash -eo pipefail
 
 # Experimental; options are pdflatex, lualatex, or xelatex.

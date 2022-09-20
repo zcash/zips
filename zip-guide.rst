@@ -119,7 +119,7 @@ This is optional before publishing a PR, but to check whether a document is vali
 reStructuredText, first install ``rst2html5``. E.g. on Debian-based distros::
 
   sudo apt install python3-pip pandoc perl sed
-  sudo pip3 install rst2html5
+  pip3 install docutils==0.19 rst2html5
 
 Then, with ``zip-xxxx.rst`` in the root directory of a clone of this repo, run::
 
