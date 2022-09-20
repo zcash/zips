@@ -1,7 +1,7 @@
 ::
 
   ZIP: 317
-  Title: Proportional Output Fee Mechanism (POFM)
+  Title: Proportional Transfer Fee Mechanism
   Owners: Aditya Bharadwaj <nighthawk24@gmail.com>
   Credits: Madars Virza
            Kris Nuttycombe
@@ -187,7 +187,7 @@ Possible alternatives for the parameters:
 
 
 Security and Privacy considerations
-=============
+===================================
 
 Non-standard transaction fees may reveal specific users or wallets or wallet versions,
 which would reduce privacy for those specific users and the rest of the network.
@@ -248,7 +248,8 @@ transaction pays a fee less than the `min_fee` specified by this ZIP.
 
 
 Deployment
-=============
+==========
+
 The height for coordinating deployment is block 1,800,000 for Mainnet, or immediately on 
 implementing this ZIP for Testnet.
 
@@ -280,8 +281,8 @@ Acknowledgements
 ================
 
 Thanks to Madars Virza for initially proposing a fee mechanism similar to that
-proposed in this ZIP [#madars-1], and to Kris Nuttycombe, Jack Grigg, and Daira
-Hopwood for suggested improvements.
+proposed in this ZIP [#madars-1], and to Kris Nuttycombe, Jack Grigg, Daira Hopwood,
+and Francisco Gindre for suggested improvements.
 
 
 References
