@@ -135,6 +135,7 @@ Index of ZIPs
     <tr> <td>316</td> <td class="left"><a href="zip-0316.rst">Unified Addresses and Unified Viewing Keys</a></td> <td>Final</td>
     <tr> <td><span class="reserved">317</span></td> <td class="left"><a class="reserved" href="zip-0317.rst">Proportional Transfer Fee Mechanism</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">318</span></td> <td class="left"><a class="reserved" href="zip-0318.rst">Associated Payload Encryption</a></td> <td>Reserved</td>
+    <tr> <td><span class="reserved">319</span></td> <td class="left"><a class="reserved" href="zip-0319.rst">Options for Shielded Pool Retirement</a></td> <td>Reserved</td>
     <tr> <td>321</td> <td class="left"><a href="zip-0321.rst">Payment Request URIs</a></td> <td>Proposed</td>
     <tr> <td><span class="reserved">322</span></td> <td class="left"><a class="reserved" href="zip-0322.rst">Generic Signed Message Format</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">323</span></td> <td class="left"><a class="reserved" href="zip-0323.rst">Specification of getblocktemplate for Zcash</a></td> <td>Reserved</td>
