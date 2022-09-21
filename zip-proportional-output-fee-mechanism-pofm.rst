@@ -20,21 +20,16 @@
 Terminology
 ===========
 
-The key words "MUST", "SHOULD", "SHOULD NOT", "MAY", "RECOMMENDED",
-"OPTIONAL", and "REQUIRED" in this document are to be interpreted as
-described in RFC 2119. [#RFC2119]_
+The key word "SHOULD" in this document is to be interpreted as described in
+RFC 2119. [#RFC2119]_
 
-"Z" refers to shielded address.
-"T" refers to transparent address.
+The term "conventional transaction fee" in this document is in reference
+to the value of a transaction fee that is conventionally used by wallets,
+and that a user can reasonably expect miners on the Zcash network to accept
+for including a transaction in a block.
 
-"POFM" refers to the proposed change in conventional fee as described in 
-this ZIP.
-
-The term "default transaction fee" in this document is in reference
-to Z to Z, T to Z & Z to T transaction fee paid to miners on the Zcash network
-for the work on including the shielded transaction in a block.
-
-The terms "Mainnet, "Testnet", and "zatoshi" in this document are defined as in [#protocol-networks]_.
+The terms "Mainnet, "Testnet", and "zatoshi" in this document are defined
+as in [#protocol-networks]_.
 
 
 Abstract
@@ -43,79 +38,39 @@ Abstract
 The goal of this ZIP is to change the conventional fees for transactions
 and get buy-in from wallet developers, miners and Zcash users.
 
-With an updated transaction fee formula, miners will be compensated fairly for
-including transactions with a high number of inputs or outputs, while still allowing
-low fees for regular shielded transaction use cases.
-
-Once the new fee policy is enforced, this will additionally increase the cost of creating
-transactions that collectively have many inputs or outputs, discouraging usage patterns
-that cause either intentional or unintentional denial of service.
-
 
 Motivation
 ==========
 
-In light of recent network activity, it is time to review and update the 
-standard 1,000 zatoshi transaction fees set in ZIP 313 [#zip-0313]_.
+In light of recent network activity, it is time to review and update the
+standard 1,000 zatoshi transaction fee set in ZIP 313 [#zip-0313]_.
 
-The conventional transaction fee presently is 0.00001 ZEC or 1,000 zats per
-ZIP 313, that allowed exploration of novel use cases of the Zcash blockchain.
-The Zcash network has operated for almost 2 years at a conventional 1,000 zats fee per
-shielded transaction, without consideration for the total number of inputs and outputs in the transaction.
-This has resulted in high output transactions with 1,100 outputs costing the same as 
-transactions with 2 outputs.
+The conventional transaction fee presently is 0.00001 ZEC or 1,000 zatoshis, as
+specified in ZIP 313. This allowed exploration of novel use cases of the Zcash
+blockchain. The Zcash network has operated for almost 2 years at a conventional
+transaction fee of 1,000 zatoshis, without consideration for the total number
+of inputs and outputs in each transaction. Under this conventional fee, some
+usage of the chain has been characterized by high-output transactions with
+1,100 outputs paying the same conventional fee as a transaction with 2 outputs.
 
-
-Requirements for gathering consensus
-------------------------------------
-
-Wallet developers SHOULD update the fees to the proposed formula under Specification section
-by Madars Virza and Kris Nuttycombe [#madars-1]_ 
-
-Where #inputs and #outputs also take into account transparent inputs and outputs. 
-Otherwise, the fee structure (if not otherwise changed) will preferentially encourage 
-usage of the transparent part of the protocol.
-
-The change to the conventional transaction fees must be undertaken soon
-as the Zcash network has been under heavy load with high-output transactions while 
-regular shielded transactions with 2 outputs are affected when relying on current 
-light wallet infrastructure.
-
-The following parties need to be part of the consensus:
-
-* The technical aspects of a changing conventional fee based on outputs 
-need to be evaluated.
-* A guarantee from mining groups is required to include the updated POFM 
-transactions in the next block.
-* Wallet developers need to update the software to use the new fee.
-* Zcash documentation and community outreach must be undertaken to
-make the change known.
+The objective of the new fee policy, once it is enforced, is for fees paid by
+transactions to fairly reflect the processing costs that they impose on various
+participants in the network. This will tend to discourage usage patterns that
+cause either intentional or unintentional denial of service, while still
+allowing low fees for regular transaction use cases.
 
 
-Requirements for adoption
--------------------------
+Requirements
+============
 
-The change to the conventional transaction fees should be undertaken soon
-as it gets difficult to gain consensus with the growth in the network
-of wallets, exchanges, miners, and third parties involved.
-
-The following parties need to be part of the consensus:
-
-* Support from mining groups is required to include the updated conventional
-  fee transactions in the next block.
-* Wallet developers need to provide a commitment to update the software to use
-  the new fee.
-* Zcash documentation and community outreach must be undertaken to make the
-  change known.
-* Changes to librustzcash crates to:
-  * expose minimum recommended fee for a given number of recipients
-  * implement default fee equation and corresponding unit tests
-  * integration of such mechanism to Transaction Builder APIs
-* Changes to the Zebra mempool's conventional fee calculation
-* adopt `librustzcash` changes to mobile SDK repos:
-  * ZcashLightClientKit
-  * zcash-light-client-ffi
-  * zcash-android-wallet-sdk
+* The conventional fee formula should not favour or discriminate against any
+  of the Orchard, Sapling, or transparent protocols.
+* The fee for a transaction should scale linearly with the number of inputs
+  and/or outputs.
+* Users should not be penalised for using a small number of dummy inputs
+  and/or outputs to reduce information leakage.
+* Users should be able to redeem a small number of UTXOs or notes with value
+  below the marginal fee per input.
 
 
 Specification
@@ -127,7 +82,6 @@ conventional fee:
 =================== ============================
 Parameter           Units
 =================== ============================
-`base_fee`          zatoshis
 `marginal_fee`      zatoshis per input or output
 `grace_window_size` inputs or outputs
 =================== ============================
@@ -135,16 +89,18 @@ Parameter           Units
 Wallets implementing this specification SHOULD use a conventional fee
 calculated in zatoshis per the following formula::
 
-    base_fee + marginal_fee * max(0, inputs + outputs - grace_window_size)
+    marginal_fee * max(grace_window_size, inputs + outputs)
 
 The parameters are set to the following values:
-* `base_fee = TODO`;
 * `marginal_fee = TODO`;
 * `grace_window_size = 4`.
 
+An Orchard action is counted as one input and one output.
+A Sprout JoinSplit is counted as two inputs and two outputs.
+
 It is not a consensus requirement that fees follow this formula; however,
-wallets SHOULD use this fee to reduce information leakage in transactions
-unless overridden by the user.
+wallets SHOULD create transactions that pay this fee, in order to reduce
+information leakage, unless overridden by the user.
 
 Transaction relaying
 --------------------
@@ -152,8 +108,8 @@ Transaction relaying
 zcashd, zebrad, and potentially other node implementations, implement
 fee-based restrictions on relaying of mempool transactions. Nodes that
 normally relay transactions are expected to do so for transactions that pay
-at least the conventional fee, unless there are other reasons not to do so
-for robustness or denial-of-service mitigation.
+at least the conventional fee as specified in this ZIP, unless there are
+other reasons not to do so for robustness or denial-of-service mitigation.
 
 Mempool size limiting
 ---------------------
@@ -178,29 +134,63 @@ Open Issues
 > TODO: Remove this section once a decision is made.
 
 Possible alternatives for the parameters:
-* base_fee = 1000, marginal_fee = 250 in @nuttycom's proposal.
-* base_fee = 1000, marginal_fee = 1000 in @madars' proposal.
-* base_fee = 10000, marginal_fee = 2500 in @daira's proposal.
-* base_fee = 1000, marginal_fee = 1000 for Shielded, Shielding and De-shielding
-  transactions, and base_fee = 10000, marginal_fee = 10000 for Transparent transactions 
-  per @nighthawk24's proposal.
+
+* marginal_fee = 250 in @nuttycom's proposal.
+* marginal_fee = 1000 adapted from @madars' proposal.
+* marginal_fee = 2500 in @daira's proposal.
+* marginal_fee = 1000 for Shielded, Shielding and De-shielding
+  transactions, and marginal_fee = 10000 for Transparent transactions
+  adapted from @nighthawk24's proposal.
+
+(In @madars' and @nighthawk24's original proposals, there was an additional
+`base_fee` parameter that caused the relationship between fee and number
+of inputs/outputs to be non-proportional above the `grace_window_size`. This
+is no longer expressible with the formula specified above.)
+
+Logical actions
+'''''''''''''''
+
+The currently proposed formula may disadvantage Orchard transactions, as a
+result of an Orchard Action combining an input and an output. This means that
+Orchard effectively requires padding of either inputs or outputs to ensure that
+the number of inputs and outputs are the same. Usage of Sapling and transparent
+protocols does not require this padding, and so this could effectively
+discriminate against Orchard.
+
+An alternative formula, instead of using `inputs + outputs`, uses a concept
+of "logical actions", computed as follows::
+
+  logical_actions = max(transparent_inputs, transparent_outputs) +
+                    2*sprout_joinsplits +
+                    max(sapling_inputs, sapling_outputs) +
+                    orchard_actions
+
+The conventional fee formula would then be::
+
+    marginal_fee * max(grace_actions, logical_actions)
+
+Possible alternatives for the parameters in this alternative:
+
+* grace_actions = 2.
+* marginal_fee = 500 adapted from @nuttycom's proposal.
+* marginal_fee = 2000 adapted from @madars' proposal.
+* marginal_fee = 5000 adapted from @daira's proposal.
 
 
 Security and Privacy considerations
 ===================================
 
-Non-standard transaction fees may reveal specific users or wallets or wallet versions,
-which would reduce privacy for those specific users and the rest of the network.
-Hence this change should be accepted by a majority of shielded transaction
-software providers before deploying the change.
+Non-standard transaction fees may reveal specific users or wallets or wallet
+versions, which would reduce privacy for those specific users and the rest
+of the network. However, the advantage of faster deployment argued against
+synchronizing the change in wallet behaviour at a specific block height.
 
 Long term, the issue of fees needs to be re-visited in separate future
-proposals as the blocks start getting consistently full. New ZIPs with 
+proposals as the blocks start getting consistently full. New ZIPs with
 scaling solutions, will need to be evaluated and applied.
 
-
 Denial of Service Vulnerability
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------------
 
 A transaction-rate-based denial of service attack occurs when an attacker
 generates enough transactions over a window of time to prevent legitimate
@@ -229,52 +219,38 @@ Wallet developers and operators should monitor the Zcash network for rapid
 growth in transaction rates.
 
 
-Transaction relaying
---------------------
-
-zcashd, and potentially other node implementations, implement fee-based
-restrictions on relaying of mempool transactions. Nodes that normally relay
-transactions are expected to do so for transactions that pay at least the
-conventional fee, unless there are other reasons not to do so for robustness
-or denial-of-service mitigation.
-
-
-Mempool size limiting
----------------------
-
-zcashd and Zebra limit the size of the mempool as described in [#zip-0401]_. This
-specifies a *low\_fee\_penalty* that is added to the "eviction weight" if the
-transaction pays a fee less than the `min_fee` specified by this ZIP.
-
-
 Deployment
 ==========
 
-The height for coordinating deployment is block 1,800,000 for Mainnet, or immediately on 
-implementing this ZIP for Testnet.
+Wallets can deploy these changes immediately. Nodes can deploy restrictions
+to their policies for relaying, mempool acceptance and eviction, and/or
+mining once a sufficient proportion of wallets in the ecosystem are observed
+to be paying at least the updated conventional transaction fee.
 
 
 Endorsements
 ============
 
-The following entities/groups/indiviudals expressed their support for the updated fee mechanism:
+The following entities/groups/indiviudals expressed their support for the
+updated fee mechanism:
 
 *Developer Groups or Sole OSS contributors*
 
 * Zecwallet Suite (Zecwallet Lite for Desktop/iOS/Android & Zecwallet FullNode)
 * Nighthawk Wallet for Android & iOS
 
-*Other Endorsements*
+To express and request your support to be added to this ZIP please comment
+below indicating:
 
-* Jane Doe jane.doe@xxx.yyy
-* Pseudo Dude ps@zzz.aaa
+* (group) name/pseudonym
+* affiliation
+* contact
 
-To express and request your support to be added to this ZIP please comment below indicating
-- (group) name/pseudonym
-- affiliation
-- contact
+or, conversely e-mail the same details to the Owner of the ZIP.
 
-or, conversely e-mail the same details to the Owner of the ZIP
+> TODO: Endorsements may depend on specific parameter choices. The ZIP
+> Editors should ensure that the endorsements are accurate before merging
+> this ZIP.
 
 
 Acknowledgements
@@ -282,14 +258,14 @@ Acknowledgements
 
 Thanks to Madars Virza for initially proposing a fee mechanism similar to that
 proposed in this ZIP [#madars-1], and to Kris Nuttycombe, Jack Grigg, Daira Hopwood,
-and Francisco Gindre for suggested improvements.
+Francisco Gindre, Greg Pfeil, and Teor for suggested improvements.
 
 
 References
 ==========
 
 .. [#RFC2119] `RFC 2119: Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
-.. [#protocol-networks] `Zcash Protocol Specification, Version 2022.3.5. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
+.. [#protocol-networks] `Zcash Protocol Specification, Version 2022.3.8. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
 .. [#madars-1] `Madars concrete soft-fork proposal <https://forum.zcashcommunity.com/t/zip-reduce-default-shielded-transaction-fee-to-1000-zats/37566/89>`_
 .. [#zip-0313] `ZIP 313: Reduce Conventional Transaction Fee to 1000 zatoshis <zip-0313.rst>`_
 .. [#zip-0401] `ZIP 401: Addressing Mempool Denial-of-Service <zip-0401.rst>`_
