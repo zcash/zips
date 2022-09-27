@@ -231,7 +231,7 @@ to be paying at least the updated conventional transaction fee.
 Endorsements
 ============
 
-The following entities/groups/indiviudals expressed their support for the
+The following entities/groups/individuals expressed their support for the
 updated fee mechanism:
 
 *Developer Groups or Sole OSS contributors*
@@ -257,7 +257,7 @@ Acknowledgements
 ================
 
 Thanks to Madars Virza for initially proposing a fee mechanism similar to that
-proposed in this ZIP [#madars-1], and to Kris Nuttycombe, Jack Grigg, Daira Hopwood,
+proposed in this ZIP [#madars-1]_, and to Kris Nuttycombe, Jack Grigg, Daira Hopwood,
 Francisco Gindre, Greg Pfeil, and Teor for suggested improvements.
 
 
