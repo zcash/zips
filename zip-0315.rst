@@ -60,7 +60,7 @@ This ZIP covers best practices for:
 * how to handle interactions between the ZIP 32 key tree and Unified Addresses;
 * when to use external or internal keys/addresses;
 * sharing addresses and viewing keys;
-* sending and receiving funds;
+* sending and receiving funds (including fee selection);
 * migrating funds between pools.
 
 
@@ -262,6 +262,118 @@ how long until they expire, and their balances as described in
 Transaction creation
 --------------------
 
+Obtaining user consent for information leakage
+''''''''''''''''''''''''''''''''''''''''''''''
+
+Motivation
+~~~~~~~~~~
+
+The privacy provided by a Zcash transaction depends on the information leaked
+in the creation of that transaction and the process of it being broadcast for
+inclusion in the block chain.
+
+The requirements in this section are intended to minimize the leakage of such
+information where possible, and to ensure that the user is informed of any
+remaining information that would be leaked, and consents to such leakage.
+
+The list below describes the kinds of information that might be leaked. After
+a candidate transaction has been created and prior to it being revealed
+outside a trusted path to the user, the wallet user interface SHOULD obtain
+the user's consent for all of the leaked information.
+
+Assumption: There is always a transaction confirmation step for transactions
+that send funds out of the wallet.
+
+
+Kinds of information leakage
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* Transaction version (v4 or v5, as of NU5)
+
+SHOULD use v5 (unless you're spending Sprout funds).
+
+* Lock time (rarely used; may be a distinguisher if it is)
+
+SHOULD be zero.
+
+* Expiry height and anchor position
+
+See `Anchor selection`_ below.
+
+These give information about what block height the creator was synced to, and
+some policy information.
+
+* Transparent inputs and outputs
+
+See `Linkability of transactions or addresses`_.
+
+* Public value balances
+
+  * Together with the transparent inputs and outputs, these determine the fee
+    and the amount being transferred between pools.
+  * The fee is dependent on policy, but for a given policy we attempt to make
+    it only depend on other already-leaked metadata.
+
+SHOULD try to create fully shielded transactions where possible.
+
+Open question: Are we going to describe the policy that zcashd uses?
+
+
+* Numbers of JoinSplits, Spends, Outputs, and Actions
+
+  * This could correlate with other information under certain circumstances.
+    For example in a “dusting attack”, the adversary sends a victim lots of
+    small-valued notes (or notes with strategically chosen values),
+    increasing the probability that the victim’s transactions will have a
+    larger number of spends than other transactions (or an identifiable
+    number of spends). There are note management strategies that can mitigate
+    this, but they have not been implemented yet.
+
+* Which spends of given notes are repeated across transactions
+
+  * This may happen because a previous transaction expired and the user is
+    trying to spend some of the same notes.
+
+* Whether the transaction is coinbase
+
+* For coinbase transactions, the amounts / destination addresses / memos of
+  shielded outputs
+
+* Orchard flags (enableSpends/enableOutputs)
+
+  * Under normal circumstances these only depend on whether the transaction
+    is coinbase.
+
+
+Linkability of transactions or addresses
+''''''''''''''''''''''''''''''''''''''''
+
+Motivation
+~~~~~~~~~~
+
+We want to support creating unlinkable addresses, in order that a user can
+give different addresses to different counterparties, in such a way that the
+counterparties (even if they collude) cannot tell that the addresses were
+provided by the same or distinct users.
+
+If multiple UTXOs are received at the same transparent address, it is safe
+to shield them all in the same transaction, because that is not leaking
+additional information.
+
+UTXOs received on different transparent receivers SHOULD NOT be shielded
+in the same transaction. Ideally, when they are shielded in separate
+transactions, this should be done in such a way that the timing of those
+transactions is not linkable.
+
+When spending transparent UTXOs, they should only be sent to an internal
+shielded receiver belonging to the wallet.
+
+A wallet MUST NOT send funds to a transparent address unless all of the
+source funds come from shielded pools, and this SHOULD be a single shielded
+pool.
+
+We want to minimize pool crossing.
+
 Anchor selection
 ''''''''''''''''
 
@@ -301,8 +413,14 @@ A wallet SHOULD create transactions using the default expiration height of
 40 blocks from the current height, as specified in [#zip-0203]_.
 
 
-Linkability of transactions or addresses
-----------------------------------------
+Open question
+'''''''''''''
+
+How should wallet developers time transactions to avoid linkability?
+
+* when we roll addresses with transparent components, we have to consider
+  how that could allow linking of shielded components
+
 
 TODO: dusting attack mitigation
 
