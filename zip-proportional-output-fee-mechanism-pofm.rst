@@ -67,9 +67,11 @@ Requirements
   of the Orchard, Sapling, or transparent protocols.
 * The fee for a transaction should scale linearly with the number of inputs
   and/or outputs.
-* Users should not be penalised for using a small number of dummy inputs
-  and/or outputs to reduce information leakage.
-* Users should be able to redeem a small number of UTXOs or notes with value
+* Users should not be penalised for sending transactions constructed
+  with padding of inputs and outputs to reduce information leakage.
+  (The default policy employed by zcashd and the mobile SDKs pads to
+  two inputs and outputs for each shielded pool used by the transaction).
+* Users should be able to spend a small number of UTXOs or notes with value
   below the marginal fee per input.
 
 
@@ -89,14 +91,16 @@ Parameter           Units
 Wallets implementing this specification SHOULD use a conventional fee
 calculated in zatoshis per the following formula::
 
-    marginal_fee * max(grace_window_size, inputs + outputs)
+    logical_actions = max(transparent_inputs, transparent_outputs) +
+                      2*sprout_joinsplits +
+                      max(sapling_inputs, sapling_outputs) +
+                      orchard_actions
+
+    conventional_fee = marginal_fee * max(grace_actions, logical_actions)
 
 The parameters are set to the following values:
-* `marginal_fee = TODO`;
-* `grace_window_size = 4`.
-
-An Orchard action is counted as one input and one output.
-A Sprout JoinSplit is counted as two inputs and two outputs.
+* `marginal_fee = 5000`;
+* `grace_window_size = 2`.
 
 It is not a consensus requirement that fees follow this formula; however,
 wallets SHOULD create transactions that pay this fee, in order to reduce
@@ -147,34 +151,16 @@ Possible alternatives for the parameters:
 of inputs/outputs to be non-proportional above the `grace_window_size`. This
 is no longer expressible with the formula specified above.)
 
-Logical actions
-'''''''''''''''
+Rationale for logical actions
+'''''''''''''''''''''''''''''
 
-The currently proposed formula may disadvantage Orchard transactions, as a
-result of an Orchard Action combining an input and an output. This means that
-Orchard effectively requires padding of either inputs or outputs to ensure that
-the number of inputs and outputs are the same. Usage of Sapling and transparent
-protocols does not require this padding, and so this could effectively
-discriminate against Orchard.
-
-An alternative formula, instead of using `inputs + outputs`, uses a concept
-of "logical actions", computed as follows::
-
-  logical_actions = max(transparent_inputs, transparent_outputs) +
-                    2*sprout_joinsplits +
-                    max(sapling_inputs, sapling_outputs) +
-                    orchard_actions
-
-The conventional fee formula would then be::
-
-    marginal_fee * max(grace_actions, logical_actions)
-
-Possible alternatives for the parameters in this alternative:
-
-* grace_actions = 2.
-* marginal_fee = 500 adapted from @nuttycom's proposal.
-* marginal_fee = 2000 adapted from @madars' proposal.
-* marginal_fee = 5000 adapted from @daira's proposal.
+A previous proposal used `inputs + outputs` instead of logical actions.
+This would have disadvantages Orchard transactions, as a result of an
+Orchard Action combining an input and an output. The effect of this
+combining is that Orchard requires padding of either inputs or outputs
+to ensure that the number of inputs and outputs are the same. Usage of
+Sapling and transparent protocols does not require this padding, and
+so this could have effectively discriminated against Orchard.
 
 
 Security and Privacy considerations
