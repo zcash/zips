@@ -229,7 +229,8 @@ immediately.
 Nodes can deploy restrictions to their policies for relaying, mempool
 acceptance, and/or mining once a sufficient proportion of wallets in the
 ecosystem are observed to be paying at least the updated conventional
-transaction fee.
+transaction fee. Node developers SHOULD coordinate on deployment
+schedule.
 
 
 Endorsements
