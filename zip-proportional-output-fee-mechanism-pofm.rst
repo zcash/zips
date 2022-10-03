@@ -222,8 +222,8 @@ growth in transaction rates.
 Deployment
 ==========
 
-Wallets can deploy these changes immediately. Nodes can deploy the change
-to the *low\_fee\_penalty* threshold described in `Mempool size limiting`_
+Wallets SHOULD deploy these changes immediately. Nodes SHOULD deploy the
+change to the *low\_fee\_penalty* threshold described in `Mempool size limiting`_
 immediately.
 
 Nodes can deploy restrictions to their policies for relaying, mempool
