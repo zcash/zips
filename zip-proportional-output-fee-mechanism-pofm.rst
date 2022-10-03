@@ -222,10 +222,14 @@ growth in transaction rates.
 Deployment
 ==========
 
-Wallets can deploy these changes immediately. Nodes can deploy restrictions
-to their policies for relaying, mempool acceptance and eviction, and/or
-mining once a sufficient proportion of wallets in the ecosystem are observed
-to be paying at least the updated conventional transaction fee.
+Wallets can deploy these changes immediately. Nodes can deploy the change
+to the *low\_fee\_penalty* threshold described in `Mempool size limiting`_
+immediately.
+
+Nodes can deploy restrictions to their policies for relaying, mempool
+acceptance, and/or mining once a sufficient proportion of wallets in the
+ecosystem are observed to be paying at least the updated conventional
+transaction fee.
 
 
 Endorsements
