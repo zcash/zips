@@ -1,6 +1,4 @@
-# Dependencies:
-# sudo apt-get install python3-pip pandoc perl sed
-# sudo pip3 install rst2html5
+# Dependencies: see zip-guide.rst and protocol/README.rst
 
 .PHONY: all all-zips release protocol discard
 all-zips: .Makefile.uptodate
