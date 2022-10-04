@@ -81,12 +81,12 @@ Specification
 This specification defines three parameters that are used to calculate the
 conventional fee:
 
-=================== ============================
+=================== ==============================================
 Parameter           Units
-=================== ============================
-`marginal_fee`      zatoshis per input or output
-`grace_window_size` inputs or outputs
-=================== ============================
+=================== ==============================================
+`marginal_fee`      zatoshis per logical action (as defined below)
+`grace_window_size` logical actions
+=================== ==============================================
 
 Wallets implementing this specification SHOULD use a conventional fee
 calculated in zatoshis per the following formula::
@@ -153,6 +153,11 @@ is no longer expressible with the formula specified above.)
 
 Rationale for logical actions
 '''''''''''''''''''''''''''''
+
+The intention is to make the fee paid for a transaction depend on its
+impact on the network, without discriminating between different protocols
+(Orchard, Sapling, or transparent). The impact on the network depends on
+the numbers of inputs and outputs.
 
 A previous proposal used `inputs + outputs` instead of logical actions.
 This would have disadvantages Orchard transactions, as a result of an
