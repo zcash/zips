@@ -78,33 +78,105 @@ Requirements
 Specification
 =============
 
-This specification defines three parameters that are used to calculate the
+Fee calculation
+---------------
+
+This specification defines two parameters that are used to calculate the
 conventional fee:
 
-=================== ==============================================
-Parameter           Units
-=================== ==============================================
-`marginal_fee`      zatoshis per logical action (as defined below)
-`grace_window_size` logical actions
-=================== ==============================================
+====================== ==============================================
+Parameter              Units
+====================== ==============================================
+:math:`marginal\_fee`  zatoshis per logical action (as defined below)
+:math:`grace\_actions` logical actions
+====================== ==============================================
 
 Wallets implementing this specification SHOULD use a conventional fee
-calculated in zatoshis per the following formula::
+calculated in zatoshis per the following formula:
 
-    logical_actions = max(transparent_inputs, transparent_outputs) +
-                      2*sprout_joinsplits +
-                      max(sapling_inputs, sapling_outputs) +
-                      orchard_actions
+.. math::
 
-    conventional_fee = marginal_fee * max(grace_actions, logical_actions)
+   \begin{array}{rcl}
+     logical\_actions  &=& \max(transparent\_inputs, transparent\_outputs) \;+ \\
+                       & & 2 \cdot sprout\_joinsplits \;+ \\
+                       & & \max(sapling\_inputs, sapling\_outputs) \;+ \\
+                       & & orchard\_actions \\
+     conventional\_fee &=& marginal\_fee \cdot \max(grace\_actions, logical\_actions)
+   \end{array}
 
 The parameters are set to the following values:
-* `marginal_fee = 5000`;
-* `grace_window_size = 2`.
+
+* :math:`marginal\_fee = 5000`;
+* :math:`grace\_actions = 2`.
 
 It is not a consensus requirement that fees follow this formula; however,
 wallets SHOULD create transactions that pay this fee, in order to reduce
 information leakage, unless overridden by the user.
+
+Rationale for logical actions
+'''''''''''''''''''''''''''''
+
+The intention is to make the fee paid for a transaction depend on its
+impact on the network, without discriminating between different protocols
+(Orchard, Sapling, or transparent). The impact on the network depends on
+the numbers of inputs and outputs.
+
+A previous proposal used :math:`inputs + outputs` instead of logical actions.
+This would have disadvantages Orchard transactions, as a result of an
+Orchard Action combining an input and an output. The effect of this
+combining is that Orchard requires padding of either inputs or outputs
+to ensure that the number of inputs and outputs are the same. Usage of
+Sapling and transparent protocols does not require this padding, and
+so this could have effectively discriminated against Orchard.
+
+Rationale for the chosen parameters
+'''''''''''''''''''''''''''''''''''
+
+Grace Actions
+~~~~~~~~~~~~~
+
+**Why not just charge per-action, without a grace window?**
+
+* This ensures that there is no penalty to padding a 1-action
+  transaction to a 2-action transaction. Such padding is desirable
+  to reduce information leakage from input and output arity, and
+  is the standard approach used by `zcashd` and the mobile SDK
+  transaction builder.
+* Without a grace window, an input with value below the marginal
+  fee would never be worth including in the resulting transaction.
+  With a grace window, an input with value below :math:`marginal\_fee`
+  *is* worth including, if a second input is available that covers
+  both the primary output amount and the conventional transaction
+  fee.
+
+**Why a grace window of 2?**
+
+A 1-in, 2-out (or 2-action) transaction is the smallest possible
+transaction that permits both an output to a recipient, and a
+change output. However, as stated above, `zcashd` and the mobile
+SDK transaction builder will pad the number of inputs to at least 2.
+
+Let :math:`min\_actions` be the minimum number of logical actions
+that can be used to execute economically relevant transactions that
+produce change. Due to the aforementioned padding, :math:`min\_actions = 2`.
+
+Having a grace window size greater than :math:`min\_actions` would
+increase the cost to create such a minimal transaction. If the
+cost for a minimal transaction is bounded above by :math:`B`, then
+possible choices of :math:`marginal\_fee` are bounded above by
+:math:`B / max(min\_actions, grace\_actions)`. Therefore, the
+optimal choice of :math:`grace\_actions` to maximize the cost of
+denial-of-service attacks that use many logical actions, without
+imposing an undue penalty on minimal transactions, is
+:math:`grace\_actions = min\_actions = 2`.
+
+Marginal Fee
+~~~~~~~~~~~~
+
+This returns the conventional fee for a minimal transaction (as
+described above) to the original conventional fee of 10000 zatoshis
+specified in [#zip-0313]_, and imposes a non-trivial cost for
+potential denial-of-service attacks.
 
 Transaction relaying
 --------------------
@@ -119,7 +191,7 @@ Mempool size limiting
 ---------------------
 
 zcashd and zebrad limit the size of the mempool as described in [#zip-0401]_.
-This specifies a *low\_fee\_penalty* that is added to the "eviction weight"
+This specifies a :math:`low\_fee\_penalty` that is added to the "eviction weight"
 if the transaction pays a fee less than the conventional transaction fee.
 This threshold is modified to use the new conventional fee formula.
 
@@ -132,10 +204,57 @@ previously used the conventional transaction fee defined in ZIP 313 to
 decide on transaction inclusion, it is expected to instead use the formula
 specified in this ZIP.
 
-Open Issues
------------
 
-> TODO: Remove this section once a decision is made.
+Security and Privacy considerations
+===================================
+
+Non-standard transaction fees may reveal specific users or wallets or wallet
+versions, which would reduce privacy for those specific users and the rest
+of the network. However, the advantage of faster deployment argued against
+synchronizing the change in wallet behaviour at a specific block height.
+
+Long term, the issue of fees needs to be revisited in separate future
+proposals as the blocks start getting consistently full. Wallet developers
+and operators should monitor the Zcash network for rapid growth in
+transaction rates, and consider further changes to fee selection and/or
+other scaling solutions if necessary.
+
+Denial of Service
+-----------------
+
+A transaction-rate-based denial of service attack occurs when an attacker
+generates enough transactions over a window of time to prevent legitimate
+transactions from being mined, or to hinder syncing blocks for full nodes
+or miners.
+
+There are two primary protections to this kind of attack in Zcash: the
+block size limit, and transaction fees. The block size limit ensures that
+full nodes and miners can keep up with the blockchain even if blocks are
+completely full. However, users sending legitimate transactions may not
+have their transactions confirmed in a timely manner.
+
+This proposal does not alter how fees are paid from transactions to miners.
+
+
+Deployment
+==========
+
+Wallets SHOULD deploy these changes immediately. Nodes SHOULD deploy the
+change to the :math:`low\_fee\_penalty` threshold described in
+`Mempool size limiting`_ immediately.
+
+Nodes can deploy restrictions to their policies for relaying, mempool
+acceptance, and/or mining once a sufficient proportion of wallets in the
+ecosystem are observed to be paying at least the updated conventional
+transaction fee. Node developers SHOULD coordinate on deployment
+schedule.
+
+
+
+Considered Alternatives
+=======================
+
+This section describes alternative proposals that have not been adopted.
 
 Possible alternatives for the parameters:
 
@@ -151,77 +270,6 @@ Possible alternatives for the parameters:
 of inputs/outputs to be non-proportional above the `grace_window_size`. This
 is no longer expressible with the formula specified above.)
 
-Rationale for logical actions
-'''''''''''''''''''''''''''''
-
-The intention is to make the fee paid for a transaction depend on its
-impact on the network, without discriminating between different protocols
-(Orchard, Sapling, or transparent). The impact on the network depends on
-the numbers of inputs and outputs.
-
-A previous proposal used `inputs + outputs` instead of logical actions.
-This would have disadvantages Orchard transactions, as a result of an
-Orchard Action combining an input and an output. The effect of this
-combining is that Orchard requires padding of either inputs or outputs
-to ensure that the number of inputs and outputs are the same. Usage of
-Sapling and transparent protocols does not require this padding, and
-so this could have effectively discriminated against Orchard.
-
-
-Security and Privacy considerations
-===================================
-
-Non-standard transaction fees may reveal specific users or wallets or wallet
-versions, which would reduce privacy for those specific users and the rest
-of the network. However, the advantage of faster deployment argued against
-synchronizing the change in wallet behaviour at a specific block height.
-
-Long term, the issue of fees needs to be re-visited in separate future
-proposals as the blocks start getting consistently full. New ZIPs with
-scaling solutions, will need to be evaluated and applied.
-
-Denial of Service Vulnerability
--------------------------------
-
-A transaction-rate-based denial of service attack occurs when an attacker
-generates enough transactions over a window of time to prevent legitimate
-transactions from being mined, or to hinder syncing blocks for full nodes
-or miners.
-
-There are two primary protections to this kind of attack in Zcash: the
-block size limit, and transaction fees. The block size limit ensures that
-full nodes and miners can keep up with the blockchain even if blocks are
-completely full. However, users sending legitimate transactions may not
-have their transactions confirmed in a timely manner.
-
-Variable fees could mitigate this kind of denial of service: if there are
-more transactions available than can fit into a single block, then a miner
-will typically choose the transactions that pay the highest fees. If
-legitimate wallets were to increase their fees during this condition, the
-attacker would also increase the fees of their transactions. It is
-sometimes argued that this would impose a cost to the attacker that would
-limit the time window for which they can continue the attack. However, there
-is little evidence that the actual costs involved would be a sufficient
-disincentive.
-
-This proposal does not alter how fees are paid from transactions to miners.
-
-Wallet developers and operators should monitor the Zcash network for rapid
-growth in transaction rates.
-
-
-Deployment
-==========
-
-Wallets SHOULD deploy these changes immediately. Nodes SHOULD deploy the
-change to the *low\_fee\_penalty* threshold described in `Mempool size limiting`_
-immediately.
-
-Nodes can deploy restrictions to their policies for relaying, mempool
-acceptance, and/or mining once a sufficient proportion of wallets in the
-ecosystem are observed to be paying at least the updated conventional
-transaction fee. Node developers SHOULD coordinate on deployment
-schedule.
 
 
 Endorsements
