@@ -78,18 +78,26 @@ Requirements
 Specification
 =============
 
+Notation
+--------
+
+Let :math:`\mathsf{max}(a, b)` be the greater of :math:`a` and :math:`b`.
+Let :math:`\mathsf{ceiling}(x)` be the smallest integer :math:`\geq x`.
+
 Fee calculation
 ---------------
 
-This specification defines two parameters that are used to calculate the
+This specification defines several parameters that are used to calculate the
 conventional fee:
 
-====================== ==============================================
-Parameter              Units
-====================== ==============================================
-:math:`marginal\_fee`  zatoshis per logical action (as defined below)
-:math:`grace\_actions` logical actions
-====================== ==============================================
+===================================== ==============================================
+Parameter                             Units
+===================================== ==============================================
+:math:`marginal\_fee`                 zatoshis per logical action (as defined below)
+:math:`grace\_actions`                logical actions
+:math:`p2pkh\_standard\_input\_size`  bytes
+:math:`p2pkh\_standard\_output\_size` bytes
+===================================== ==============================================
 
 Wallets implementing this specification SHOULD use a conventional fee
 calculated in zatoshis per the following formula:
@@ -97,17 +105,34 @@ calculated in zatoshis per the following formula:
 .. math::
 
    \begin{array}{rcl}
-     logical\_actions  &=& \max(transparent\_inputs, transparent\_outputs) \;+ \\
-                       & & 2 \cdot sprout\_joinsplits \;+ \\
-                       & & \max(sapling\_inputs, sapling\_outputs) \;+ \\
-                       & & orchard\_actions \\
-     conventional\_fee &=& marginal\_fee \cdot \max(grace\_actions, logical\_actions)
+     logical\_actions  &=& \mathsf{max}\big(\mathsf{ceiling}\big(\frac{tx\_in\_total\_size}{p2pkh\_standard\_input\_size}\big),
+                                            \mathsf{ceiling}\big(\frac{tx\_out\_total\_size}{p2pkh\_standard\_output\_size}\big)\big) \;+ \\
+                       & & 2 \cdot nJoinSplits \;+ \\
+                       & & \mathsf{max}(nSpendsSapling, nOutputsSapling) \;+ \\
+                       & & nActionsOrchard \\
+     conventional\_fee &=& marginal\_fee \cdot \mathsf{max}(grace\_actions, logical\_actions)
    \end{array}
+
+The inputs to this formula are taken from transaction fields defined in the Zcash protocol
+specification [#protocol-txnencoding]:
+
+============================ ====== ===========================================
+Input                        Units  Description
+============================ ====== ===========================================
+:math:`tx\_in\_total\_size`  bytes  total size in bytes of the ``tx_in`` field
+:math:`tx\_out\_total\_size` bytes  total size in bytes of the ``tx_out`` field
+:math:`nJoinSplit`           number the number of Sprout JoinSplits
+:math:`nSpendsSapling`       number the number of Sapling spends
+:math:`nOutputsSapling`      number the number of Sapling outputs
+:math:`nActionsOrchard`      number the number of Orchard actions
+============================ ====== ===========================================
 
 The parameters are set to the following values:
 
 * :math:`marginal\_fee = 5000`;
-* :math:`grace\_actions = 2`.
+* :math:`grace\_actions = 2`;
+* :math:`p2pkh\_standard\_input\_size = TODO` bytes;
+* :math:`p2pkh\_standard\_output\_size = TODO` bytes.
 
 It is not a consensus requirement that fees follow this formula; however,
 wallets SHOULD create transactions that pay this fee, in order to reduce
@@ -273,7 +298,6 @@ of inputs/outputs to be non-proportional above the `grace_window_size`. This
 is no longer expressible with the formula specified above.)
 
 
-
 Endorsements
 ============
 
@@ -312,6 +336,7 @@ References
 
 .. [#RFC2119] `RFC 2119: Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2022.3.8. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
+.. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2022.3.8. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
 .. [#madars-1] `Madars concrete soft-fork proposal <https://forum.zcashcommunity.com/t/zip-reduce-default-shielded-transaction-fee-to-1000-zats/37566/89>`_
 .. [#zip-0313] `ZIP 313: Reduce Conventional Transaction Fee to 1000 zatoshis <zip-0313.rst>`_
 .. [#zip-0401] `ZIP 401: Addressing Mempool Denial-of-Service <zip-0401.rst>`_
