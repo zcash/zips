@@ -20,8 +20,8 @@
 Terminology
 ===========
 
-The key word "SHOULD" in this document is to be interpreted as described in
-RFC 2119. [#RFC2119]_
+The key words "SHOULD" and "SHOULD NOT" in this document are to be interpreted
+as described in RFC 2119. [#RFC2119]_
 
 The term "conventional transaction fee" in this document is in reference
 to the value of a transaction fee that is conventionally used by wallets,
@@ -36,7 +36,8 @@ Abstract
 ========
 
 The goal of this ZIP is to change the conventional fees for transactions
-and get buy-in from wallet developers, miners, and Zcash users.
+by making them dependent on the number of inputs and outputs in a transaction,
+and to get buy-in for this change from wallet developers, miners and Zcash users.
 
 
 Motivation
@@ -78,18 +79,26 @@ Requirements
 Specification
 =============
 
+Notation
+--------
+
+Let :math:`\mathsf{max}(a, b)` be the greater of :math:`a` and :math:`b`.
+Let :math:`\mathsf{ceiling}(x)` be the smallest integer :math:`\geq x`.
+
 Fee calculation
 ---------------
 
-This specification defines two parameters that are used to calculate the
+This specification defines several parameters that are used to calculate the
 conventional fee:
 
-====================== ==============================================
-Parameter              Units
-====================== ==============================================
-:math:`marginal\_fee`  zatoshis per logical action (as defined below)
-:math:`grace\_actions` logical actions
-====================== ==============================================
+===================================== ==============================================
+Parameter                             Units
+===================================== ==============================================
+:math:`marginal\_fee`                 zatoshis per logical action (as defined below)
+:math:`grace\_actions`                logical actions
+:math:`p2pkh\_standard\_input\_size`  bytes
+:math:`p2pkh\_standard\_output\_size` bytes
+===================================== ==============================================
 
 Wallets implementing this specification SHOULD use a conventional fee
 calculated in zatoshis per the following formula:
@@ -97,17 +106,34 @@ calculated in zatoshis per the following formula:
 .. math::
 
    \begin{array}{rcl}
-     logical\_actions  &=& \max(transparent\_inputs, transparent\_outputs) \;+ \\
-                       & & 2 \cdot sprout\_joinsplits \;+ \\
-                       & & \max(sapling\_inputs, sapling\_outputs) \;+ \\
-                       & & orchard\_actions \\
-     conventional\_fee &=& marginal\_fee \cdot \max(grace\_actions, logical\_actions)
+     logical\_actions  &=& \mathsf{max}\big(\mathsf{ceiling}\big(\frac{tx\_in\_total\_size}{p2pkh\_standard\_input\_size}\big),
+                                            \mathsf{ceiling}\big(\frac{tx\_out\_total\_size}{p2pkh\_standard\_output\_size}\big)\big) \;+ \\
+                       & & 2 \cdot nJoinSplit \;+ \\
+                       & & \mathsf{max}(nSpendsSapling, nOutputsSapling) \;+ \\
+                       & & nActionsOrchard \\
+     conventional\_fee &=& marginal\_fee \cdot \mathsf{max}(grace\_actions, logical\_actions)
    \end{array}
+
+The inputs to this formula are taken from transaction fields defined in the Zcash protocol
+specification [#protocol-txnencoding]_:
+
+============================ ====== ===========================================
+Input                        Units  Description
+============================ ====== ===========================================
+:math:`tx\_in\_total\_size`  bytes  total size in bytes of the ``tx_in`` field
+:math:`tx\_out\_total\_size` bytes  total size in bytes of the ``tx_out`` field
+:math:`nJoinSplit`           number the number of Sprout JoinSplits
+:math:`nSpendsSapling`       number the number of Sapling spends
+:math:`nOutputsSapling`      number the number of Sapling outputs
+:math:`nActionsOrchard`      number the number of Orchard actions
+============================ ====== ===========================================
 
 The parameters are set to the following values:
 
 * :math:`marginal\_fee = 5000`;
-* :math:`grace\_actions = 2`.
+* :math:`grace\_actions = 2`;
+* :math:`p2pkh\_standard\_input\_size = 150` bytes;
+* :math:`p2pkh\_standard\_output\_size = 34` bytes.
 
 It is not a consensus requirement that fees follow this formula; however,
 wallets SHOULD create transactions that pay this fee, in order to reduce
@@ -172,6 +198,42 @@ ensures that a denial-of-service adversary does not gain a
 significant per-logical-action cost advantage by using transactions
 with a smaller or larger number of logical actions.
 
+Transparent Contribution
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+The specified formula calculates the contribution of transparent inputs
+and outputs based on their total size relative to a typical input or
+output. Another considered approach was to calculate this contribution
+simply as :math:`\mathsf{max}(transparent\_inputs, transparent\_outputs)`.
+However, this would allow a denial-of-service adversary to create
+transactions with transparent components containing arbitrarily large
+scripts.
+
+The chosen values for :math:`p2pkh\_standard\_input\_size` and
+:math:`p2pkh\_standard\_output\_size` are based on the maximum encoded
+length for P2PKH inputs and outputs, as follows:
+
+* :math:`p2pkh\_standard\_input\_size`
+
+  * outpoint: 36 bytes
+  * script: 110 bytes
+
+    * 1 (overall length) + 1 (signature length) + 72 (signature) + 1 (sighash type) + 1 (pubkey length) + 33 (pubkey) + 1 (margin)
+
+  * sequence: 4 bytes
+
+* :math:`p2pkh\_standard\_output\_size`
+
+  * value: 8 bytes
+  * script: 26 bytes
+
+    * 1 (script length) + 25 (P2PKH script)
+
+P2SH outputs are smaller than P2PKH outputs, but P2SH inputs
+may be larger than P2PKH inputs. For example a 2-of-3 multisig
+input is around 70% larger, and is counted as such when computing
+the number of logical actions.
+
 Marginal Fee
 ~~~~~~~~~~~~
 
@@ -205,6 +267,12 @@ inclusion in blocks using a variety of criteria. Where the criteria
 previously used the conventional transaction fee defined in ZIP 313 to
 decide on transaction inclusion, it is expected to instead use the formula
 specified in this ZIP.
+
+Miners have an incentive to make this change because:
+
+* it will tend to increase the fees they are due;
+* fees will act as a damping factor on the time needed to process blocks,
+  and therefore on orphan rate.
 
 
 Security and Privacy considerations
@@ -245,12 +313,15 @@ Wallets SHOULD deploy these changes immediately. Nodes SHOULD deploy the
 change to the :math:`low\_fee\_penalty` threshold described in
 `Mempool size limiting`_ immediately.
 
-Nodes can deploy restrictions to their policies for relaying, mempool
-acceptance, and/or mining once a sufficient proportion of wallets in the
-ecosystem are observed to be paying at least the updated conventional
-transaction fee. Node developers SHOULD coordinate on deployment
-schedule.
+Miners can deploy restrictions to their policies for transaction inclusion,
+once a sufficient proportion of transactions in the ecosystem are observed
+to be paying at least the updated conventional transaction fee.
 
+Node developers SHOULD coordinate on schedules for deploying restrictions
+to their policies for transaction mempool acceptance and peer-to-peer
+relaying. These policy changes SHOULD NOT be deployed before the changes
+to transaction inclusion policy by miners described in the preceding
+paragraph.
 
 
 Considered Alternatives
@@ -258,10 +329,14 @@ Considered Alternatives
 
 This section describes alternative proposals that have not been adopted.
 
+In previous iterations of this specification, the marginal fee was multiplied
+by the sum of inputs and outputs. This means that the alternatives given
+below are roughly half of what they would be under the current formula.
+
 Possible alternatives for the parameters:
 
 * marginal_fee = 250 in @nuttycom's proposal.
-* marginal_fee = 1000 adapted from @madars' proposal.
+* marginal_fee = 1000 adapted from @madars' proposal [#madars-1]_.
 * marginal_fee = 2500 in @daira's proposal.
 * marginal_fee = 1000 for Shielded, Shielding and De-shielding
   transactions, and marginal_fee = 10000 for Transparent transactions
@@ -273,7 +348,6 @@ of inputs/outputs to be non-proportional above the `grace_window_size`. This
 is no longer expressible with the formula specified above.)
 
 
-
 Endorsements
 ============
 
@@ -282,8 +356,9 @@ updated fee mechanism:
 
 *Developer Groups or Sole OSS contributors*
 
-* Zecwallet Suite (Zecwallet Lite for Desktop/iOS/Android & Zecwallet FullNode)
-* Nighthawk Wallet for Android & iOS
+..
+  * Zecwallet Suite (Zecwallet Lite for Desktop/iOS/Android & Zecwallet FullNode)
+  * Nighthawk Wallet for Android & iOS
 
 To express and request your support to be added to this ZIP please comment
 below indicating:
@@ -294,9 +369,9 @@ below indicating:
 
 or, conversely e-mail the same details to the Owner of the ZIP.
 
-> TODO: Endorsements may depend on specific parameter choices. The ZIP
-> Editors should ensure that the endorsements are accurate before merging
-> this ZIP.
+TODO: Endorsements may depend on specific parameter choices. The ZIP
+Editors should ensure that the endorsements are accurate before marking
+this ZIP as Active.
 
 
 Acknowledgements
@@ -312,6 +387,7 @@ References
 
 .. [#RFC2119] `RFC 2119: Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2022.3.8. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
+.. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2022.3.8. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
 .. [#madars-1] `Madars concrete soft-fork proposal <https://forum.zcashcommunity.com/t/zip-reduce-default-shielded-transaction-fee-to-1000-zats/37566/89>`_
 .. [#zip-0313] `ZIP 313: Reduce Conventional Transaction Fee to 1000 zatoshis <zip-0313.rst>`_
 .. [#zip-0401] `ZIP 401: Addressing Mempool Denial-of-Service <zip-0401.rst>`_
