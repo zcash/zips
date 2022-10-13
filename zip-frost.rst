@@ -169,23 +169,23 @@ as follows: ::
 
   Inputs:
   - commitment_list = [(i, hiding_nonce_commitment_i, binding_nonce_commitment_i), ...],
-    a list of commitments issued by each signer, where each element in the list
-    indicates the signer identifier i and their two commitment Element values
+    a list of commitments issued by each participant, where each element in the list
+    indicates the participant identifier i and their two commitment Element values
     (hiding_nonce_commitment_i, binding_nonce_commitment_i). This list MUST be sorted
-    in ascending order by signer identifier.
+    in ascending order by participant identifier.
   - msg, the message to be signed.
   - randomizer_point, an element in G.
 
   Outputs: A list of (identifier, Scalar) tuples representing the binding factors.
 
-  def compute_binding_factors(commitment_list, msg, randomizer_point):
+  def compute_binding_factors(commitment_list, msg):
     msg_hash = H4(msg)
     encoded_commitment_hash = H5(encode_group_commitment_list(commitment_list))
-    rho_input_prefix = msg_hash || encoded_commitment_hash || G.SerializeElement(randomizer_point)
+    rho_input_prefix = msg_hash || encoded_commitment_hash
 
     binding_factor_list = []
     for (identifier, hiding_nonce_commitment, binding_nonce_commitment) in commitment_list:
-      rho_input = rho_input_prefix || encode_uint16(identifier)
+      rho_input = rho_input_prefix || G.SerializeScalar(identifier)
       binding_factor = H1(rho_input)
       binding_factor_list.append((identifier, binding_factor))
     return binding_factor_list
@@ -216,7 +216,7 @@ The `sign` function is changed to receive `randomizer` and incorporate it into t
 computation of the binding factor. It is specified as the following: ::
 
   Inputs:
-  - identifier, Identifier i of the signer. Note identifier will never equal 0.
+  - identifier, Identifier i of the participant. Note identifier will never equal 0.
   - sk_i, Signer secret key share, a Scalar.
   - group_public_key, public key corresponding to the group signing key,
     an Element in G.
@@ -225,15 +225,15 @@ computation of the binding factor. It is specified as the following: ::
   - msg, the message to be signed (sent by the Coordinator).
   - commitment_list =
       [(j, hiding_nonce_commitment_j, binding_nonce_commitment_j), ...], a
-    list of commitments issued in Round 1 by each signer and sent by the Coordinator.
-    Each element in the list indicates the signer identifier j and their two commitment
+    list of commitments issued in Round 1 by each participant and sent by the Coordinator.
+    Each element in the list indicates the participant identifier j and their two commitment
     Element values (hiding_nonce_commitment_j, binding_nonce_commitment_j).
-    This list MUST be sorted in ascending order by signer identifier.
+    This list MUST be sorted in ascending order by participant identifier.
   - randomizer_point, an element in G (sent by the Coordinator).
 
   Outputs: a Scalar value representing the signature share
 
-  def sign(identifier, sk_i, group_public_key, nonce_i, msg, commitment_list, randomizer_point):
+  def sign(identifier, sk_i, group_public_key, nonce_i, msg, commitment_list):
     # Compute the randomized group public key
     randomized_group_public_key = group_public_key + randomizer_point
 
@@ -246,7 +246,7 @@ computation of the binding factor. It is specified as the following: ::
 
     # Compute Lagrange coefficient
     participant_list = participants_from_commitment_list(commitment_list)
-    lambda_i = derive_lagrange_coefficient(Scalar(identifier), participant_list)
+    lambda_i = derive_lagrange_coefficient(identifier, participant_list)
 
     # Compute the per-message challenge
     challenge = compute_challenge(group_commitment, randomized_group_public_key, msg)
@@ -265,19 +265,19 @@ The `verify_signature_share` is changed to incorporate the randomizer point,
 as follows: ::
 
   Inputs:
-  - identifier, Identifier i of the signer. Note: identifier MUST never equal 0.
-  - PK_i, the public key for the ith signer, where PK_i = G.ScalarBaseMult(sk_i),
+  - identifier, Identifier i of the participant. Note: identifier MUST never equal 0.
+  - PK_i, the public key for the ith participant, where PK_i = G.ScalarBaseMult(sk_i),
     an Element in G
   - comm_i, pair of Element values in G (hiding_nonce_commitment, binding_nonce_commitment)
-    generated in round one from the ith signer.
+    generated in round one from the ith participant.
   - sig_share_i, a Scalar value indicating the signature share as produced in
-    round two from the ith signer.
+    round two from the ith participant.
   - commitment_list =
       [(j, hiding_nonce_commitment_j, binding_nonce_commitment_j), ...], a
-    list of commitments issued in Round 1 by each signer, where each element
-    in the list indicates the signer identifier j and their two commitment
+    list of commitments issued in Round 1 by each participant, where each element
+    in the list indicates the participant identifier j and their two commitment
     Element values (hiding_nonce_commitment_j, binding_nonce_commitment_j).
-    This list MUST be sorted in ascending order by signer identifier.
+    This list MUST be sorted in ascending order by participant identifier.
   - group_public_key, public key corresponding to the group signing key,
     an Element in G.
   - msg, the message to be signed.
@@ -306,7 +306,7 @@ as follows: ::
 
     # Compute Lagrange coefficient
     participant_list = participants_from_commitment_list(commitment_list)
-    lambda_i = derive_lagrange_coefficient(Scalar(identifier), participant_list)
+    lambda_i = derive_lagrange_coefficient(identifier, participant_list)
 
     # Compute relation values
     l = G.ScalarBaseMult(sig_share_i)
@@ -319,8 +319,8 @@ The `aggregate` function is changed to incorporate the randomizer as follows: ::
   Inputs:
   - group_commitment, the group commitment returned by compute_group_commitment,
     an Element in G.
-  - sig_shares, a set of signature shares z_i, Scalar values, for each signer,
-    of length NUM_SIGNERS, where MIN_SIGNERS <= NUM_SIGNERS <= MAX_SIGNERS.
+  - sig_shares, a set of signature shares z_i, Scalar values, for each participant,
+    of length NUM_PARTICIPANTS, where MIN_PARTICIPANTS <= NUM_PARTICIPANTS <= MAX_PARTICIPANTS.
   - group_public_key, public key corresponding to the group signing key,
   - challenge, the challenge returned by compute_challenge, a Scalar.
   - randomizer, the randomizer Scalar.
@@ -353,11 +353,10 @@ Authorization Signatures as specified in [#protocol-concretespendauthsig]_.
   - Identity: as defined in [#protocol-jubjub]_
   - RandomScalar(): Implemented by returning a uniformly random Scalar in the range \[0, `G.Order()` - 1\].
     Refer to {{frost-randomscalar}} for implementation guidance.
-  - RandomNonZeroScalar: Implemented by generating a random 32-byte string that
-    is not equal to the all-zero string and invoking DeserializeScalar on the result.
   - SerializeElement(P): Implemented as :math:`\mathsf{repr}_\mathbb{J}(P)` as defined in [#protocol-jubjub]_
   - DeserializeElement(P): Implemented as :math:`\mathsf{abst}_\mathbb{J}(P)` as defined in [#protocol-jubjub]_,
-    failing if :math:`\bot` is returned.
+    failing if :math:`\bot` is returned. Additionally, this function validates that the resulting
+    element is not the group identity element.
   - SerializeScalar: Implemented by outputting the little-endian 32-byte encoding
     of the Scalar value.
   - DeserializeScalar: Implemented by attempting to deserialize a Scalar from a
@@ -395,11 +394,10 @@ Authorization Signatures as specified in [#protocol-concretespendauthsig]_.
   - Identity: as defined in [#protocol-pallasandvesta]_
   - RandomScalar(): Implemented by returning a uniformly random Scalar in the range \[0, `G.Order()` - 1\].
     Refer to {{frost-randomscalar}} for implementation guidance.
-  - RandomNonZeroScalar: Implemented by generating a random 32-byte string that
-    is not equal to the all-zero string and invoking DeserializeScalar on the result.
   - SerializeElement(P): Implemented as :math:`\mathsf{repr}_\mathbb{P}(P)` as defined in [#protocol-pallasandvesta]_
   - DeserializeElement(P): Implemented as :math:`\mathsf{abst}_\mathbb{P}(P)` as defined in [#protocol-pallasandvesta]_,
-    failing if :math:`\bot` is returned.
+    failing if :math:`\bot` is returned. Additionally, this function validates that the resulting
+    element is not the group identity element.
   - SerializeScalar: Implemented by outputting the little-endian 32-byte encoding
     of the Scalar value.
   - DeserializeScalar: Implemented by attempting to deserialize a Scalar from a
