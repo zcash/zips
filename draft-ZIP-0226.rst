@@ -44,7 +44,7 @@ in ZIP 227 [#zip-0227]_. The transfer and burn of such assets is defined in ZIP 
 Motivation
 ==========
 
-The current Orchard protocol does not support custom assets, which is an important aspect for the proper evolution of the Zcash ecosystem. Enabling multi-asset support on the Zcash chain will open the door for a host of applications and enhance the ecosystem with application developers and asset custody institutions for issuance and bridging purposes.
+The current Orchard protocol does not support custom assets. Enabling multi-asset support on the Zcash chain will open the door for a host of applications and enhance the ecosystem with application developers and asset custody institutions for issuance and bridging purposes.
 
 Overview
 ========
