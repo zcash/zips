@@ -48,7 +48,7 @@ The current Orchard protocol does not support custom assets. Enabling multi-asse
 
 Overview
 ========
-In order to be able to represent different asset types in Orchard, one needs to define a new data field that uniquely represents the *type* of the asset in question, which we call :math:`\mathsf{type}`.
+In order to be able to represent different Asset types in Orchard, we need to define a new data field that uniquely represents the *type* of the Asset in question, which we call :math:`\mathsf{type}`.
 
 The type will be used to enforce the balance of an action description [#protocol-actions]_ is preserved across assets (see the Orchard Binding Signature [#protocol-binding]_ , and by extension of an Orchard transaction. Mainly, the sum of all the :math:`\mathsf{value^{net}}`, as :math:`\mathsf{value^{old}-value^{new}}`, derived from each action description, must be balanced only **with respect to the same asset type**. This is specially important since we will allow different action descriptions to transfer notes of different asset types, where the overall balance is checked without revealing which assets (or how many different types) are being transferred.
 
