@@ -27,7 +27,10 @@ The term "Orchard" in this document is to be interpreted as described in ZIP 224
 
 We define the following additional terms:
 
-- Asset: A type of note that can be transferred on the Zcash block chain. ZEC is the default (and currently the only defined) asset for the Zcash mainnet.
+- Asset: A type of note that can be transferred on the Zcash block chain.
+
+  - ZEC is the default (and currently the only defined) asset for the Zcash mainnet.
+
 - Zcash Shielded Asset: an asset with issuance defined on the Zcash block chain, and, for now, belonging to the Orchard anonymity pool.
 - Wrapped Asset: a ZSA asset with native issuance defined outside the Zcash block chain.
 
