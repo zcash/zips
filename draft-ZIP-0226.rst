@@ -38,7 +38,7 @@ Abstract
 ========
 
 ZIP 226 and ZIP 227 propose in conjunction the Zcash Shielded Assets (ZSA) protocol, which is an extension of the
-Orchard protocol that enables the creation, transfer and burn of custom assets on the Zcash chain. The creation of such assets is defined
+Orchard protocol that enables the creation, transfer, and burn of custom assets on the Zcash chain. The creation of such assets is defined
 in ZIP 227 [#zip-0227]_. The transfer and burn of such assets is defined in ZIP 226 [#zip-0226]_.
 
 Motivation
