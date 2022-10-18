@@ -32,7 +32,7 @@ We define the following additional terms:
   - ZEC is the default (and currently the only defined) asset for the Zcash mainnet.
 
 - Zcash Shielded Asset: an Asset with issuance defined on the Zcash block chain, and, for now, belonging to the Orchard shielded pool.
-- Wrapped Asset: a ZSA asset with native issuance defined outside the Zcash block chain.
+- Wrapped Asset: a Zcash Shielded Asset with native issuance defined outside the Zcash block chain.
 
 Abstract
 ========
