@@ -178,7 +178,7 @@ as follows: ::
 
   Outputs: A list of (identifier, Scalar) tuples representing the binding factors.
 
-  def compute_binding_factors(commitment_list, msg):
+  def compute_binding_factors(commitment_list, msg, randomizer_point):
     msg_hash = H4(msg)
     encoded_commitment_hash = H5(encode_group_commitment_list(commitment_list))
     rho_input_prefix = msg_hash || encoded_commitment_hash
@@ -212,8 +212,8 @@ and sends it to each signer, over a confidential and authenticated channel,
 along with the message and the set of signing commitments. (Note that this differs
 from regular FROST which just requires an authenticated channel.)
 
-The `sign` function is changed to receive `randomizer` and incorporate it into the
-computation of the binding factor. It is specified as the following: ::
+The `sign` function is changed to receive `randomizer_point` and incorporate it
+into the computation of the binding factor. It is specified as the following: ::
 
   Inputs:
   - identifier, Identifier i of the participant. Note identifier will never equal 0.
