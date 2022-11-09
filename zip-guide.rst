@@ -130,7 +130,7 @@ Comparison of ZIPs to RFCs
 --------------------------
 
 Like RFCs, ZIPs are precise technical documents that SHOULD give enough
-implementation to implement part of a Zcash-related protocol or follow a
+implementation information to implement part of a Zcash-related protocol or follow a
 Zcash-related process.
 
 ZIPs are different from RFCs in the following ways:
