@@ -23,7 +23,7 @@ License: MIT
 Discussions-To: &lt;<a href="https://forum.zcashcommunity.com/t/zip-proportional-output-fee-mechanism-pofm/42808">https://forum.zcashcommunity.com/t/zip-proportional-output-fee-mechanism-pofm/42808</a>&gt;
 Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://github.com/zcash/zips/pull/631</a>&gt;</pre>
         <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>The key words "SHOULD" and "SHOULD NOT" in this document are to be interpreted as described in RFC 2119. <a id="footnote-reference-1" class="footnote_reference" href="#rfc2119">1</a></p>
+            <p>The key words "SHOULD", "SHOULD NOT", and "RECOMMENDED" in this document are to be interpreted as described in RFC 2119. <a id="footnote-reference-1" class="footnote_reference" href="#rfc2119">1</a></p>
             <p>The term "conventional transaction fee" in this document is in reference to the value of a transaction fee that is conventionally used by wallets, and that a user can reasonably expect miners on the Zcash network to accept for including a transaction in a block.</p>
             <p>The terms "Mainnet, "Testnet", and "zatoshi" in this document are defined as in <a id="footnote-reference-2" class="footnote_reference" href="#protocol-networks">2</a>.</p>
         </section>
@@ -260,12 +260,85 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
                  that is added to the "eviction weight" if the transaction pays a fee less than the conventional transaction fee. This threshold is modified to use the new conventional fee formula.</p>
             </section>
             <section id="block-production"><h3><span class="section-heading">Block production</span><span class="section-anchor"> <a rel="bookmark" href="#block-production"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
-                <p>Miners, mining pools, and other block producers, select transactions for inclusion in blocks using a variety of criteria. Where the criteria previously used the conventional transaction fee defined in ZIP 313 to decide on transaction inclusion, it is expected to instead use the formula specified in this ZIP.</p>
-                <p>Miners have an incentive to make this change because:</p>
-                <ul>
-                    <li>it will tend to increase the fees they are due;</li>
-                    <li>fees will act as a damping factor on the time needed to process blocks, and therefore on orphan rate.</li>
-                </ul>
+                <p>Miners, mining pools, and other block producers, select transactions for inclusion in blocks using a variety of criteria. The algorithm in the following section is planned to be implemented by <cite>zcashd</cite> and <cite>zebrad</cite>.</p>
+                <section id="recommended-algorithm-for-block-template-construction"><h4><span class="section-heading">Recommended algorithm for block template construction</span><span class="section-anchor"> <a rel="bookmark" href="#recommended-algorithm-for-block-template-construction"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Define a constant
+                        <span class="math">\(weight\_cap = 4\)</span>
+                    .</p>
+                    <p>Let
+                        <span class="math">\(conventional\_fee(tx)\)</span>
+                     be the conventional fee for transaction
+                        <span class="math">\(tx\)</span>
+                     calculated according to the section <a href="#fee-calculation">Fee calculation</a>.</p>
+                    <p>The following algorithm is RECOMMENDED for constructing block templates from a set of transactions in a node's mempool:</p>
+                    <ol type="1">
+                        <li>For each transaction
+                            <span class="math">\(tx\)</span>
+                         in the mempool, calculate
+                            <span class="math">\(tx.\!weight = \mathsf{min}\!\left(\frac{tx.fee}{conventional\_fee(tx)}, weight\_cap\right)\!\)</span>
+                        .</li>
+                        <li>Repeat while there is any mempool transaction that pays at least the conventional fee and fits in the block:
+                            <ol type="a">
+                                <li>Pick one of those transactions at random with probability in direct proportion to its weight, and add it to the block.</li>
+                            </ol>
+                        </li>
+                        <li>Let
+                            <span class="math">\(N\)</span>
+                         be the number of remaining transactions with
+                            <span class="math">\(tx.\!weight &lt; 1\!\)</span>
+                        . Calculate their sum of weights, call this
+                            <span class="math">\(remaining\_weight\!\)</span>
+                        .</li>
+                        <li>Calculate
+                            <span class="math">\(size\_target = size\_of\_block\_so\_far + \mathsf{floor}\!\left(remaining\_block\_size \cdot \mathsf{min}\big(1.0, \frac{remaining\_weight}{N}\big)\!\right)\!\)</span>
+                        .</li>
+                        <li>Repeat:
+                            <ol type="a">
+                                <li>Pick a transaction with probability in direct proportion to its weight and add it to the block. If that transaction would exceed the
+                                    <span class="math">\(size\_target\!\)</span>
+                                , stop without adding it.</li>
+                            </ol>
+                        </li>
+                    </ol>
+                    <p>Note: it is sufficient to use floating point arithmetic to calculate the argument to
+                        <span class="math">\(\mathsf{floor}\)</span>
+                     when computing
+                        <span class="math">\(size\_target\!\)</span>
+                    , since there is no consensus requirement for this to be exactly the same between implementations.</p>
+                </section>
+                <section id="rationale-for-block-template-construction-algorithm"><h4><span class="section-heading">Rationale for block template construction algorithm</span><span class="section-anchor"> <a rel="bookmark" href="#rationale-for-block-template-construction-algorithm"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <ul>
+                        <li>Regardless of how full the mempool is (according to the ZIP 401 <a id="footnote-reference-7" class="footnote_reference" href="#zip-0401">6</a> cost limiting), a denial-of-service adversary can only fill a block if
+                            <span class="math">\(\frac{remaining\_weight}{N}\)</span>
+                         is nearly
+                            <span class="math">\(1\!\)</span>
+                        , i.e. if the remaining transactions are paying nearly the conventional fee on average. This is exactly what we want, because then the selected transactions in step 5 will each tend to be paying nearly the conventional fee. (It's possible that some low-fee transactions will get in, but the adversary can't include too many of them because it would pull the average down.)</li>
+                        <li>The weighting in step 2 does not create a situation where the adversary gains a significant advantage over other users by paying more than the conventional fee, for two reasons:
+                            <ol type="1">
+                                <li>The weight cap limits the relative probability of picking a given transaction to be at most
+                                    <span class="math">\(weight\_cap\)</span>
+                                 times greater than a transaction that pays exactly the conventional fee.</li>
+                                <li>Compare the case where the adversary pays
+                                    <span class="math">\(c\)</span>
+                                 times the conventional fee for one transaction, to that where they pay the conventional fee for
+                                    <span class="math">\(c\)</span>
+                                 transactions. In the former case they are more likely to get <em>each</em> transaction into the block relative to competing transactions from other users, <em>but</em> those transactions take up less block space. (The adversary's block space usage relative to fee is optimized by using only Orchard Actions in either case, so they take up
+                                    <span class="math">\(c\)</span>
+                                 times less space.) This is not what the attacker wants; they get a transaction into the block only at the expense of leaving more block space for the other users' transactions.</li>
+                            </ol>
+                        </li>
+                        <li>The rationale for choosing
+                            <span class="math">\(weight\_cap = 4\)</span>
+                         is as a compromise between not allowing any prioritization of transactions relative to those that pay the conventional fee, and allowing arbitrary prioritization based on ability to pay.</li>
+                    </ul>
+                </section>
+                <section id="incentive-compatibility-for-miners"><h4><span class="section-heading">Incentive compatibility for miners</span><span class="section-anchor"> <a rel="bookmark" href="#incentive-compatibility-for-miners"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Miners have an incentive to make this change because:</p>
+                    <ul>
+                        <li>it will tend to increase the fees they are due;</li>
+                        <li>fees will act as a damping factor on the time needed to process blocks, and therefore on orphan rate.</li>
+                    </ul>
+                </section>
             </section>
         </section>
         <section id="security-and-privacy-considerations"><h2><span class="section-heading">Security and Privacy considerations</span><span class="section-anchor"> <a rel="bookmark" href="#security-and-privacy-considerations"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
@@ -290,7 +363,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
             <p>Possible alternatives for the parameters:</p>
             <ul>
                 <li>marginal_fee = 250 in @nuttycom's proposal.</li>
-                <li>marginal_fee = 1000 adapted from @madars' proposal <a id="footnote-reference-7" class="footnote_reference" href="#madars-1">4</a>.</li>
+                <li>marginal_fee = 1000 adapted from @madars' proposal <a id="footnote-reference-8" class="footnote_reference" href="#madars-1">4</a>.</li>
                 <li>marginal_fee = 2500 in @daira's proposal.</li>
                 <li>marginal_fee = 1000 for Shielded, Shielding and De-shielding transactions, and marginal_fee = 10000 for Transparent transactions adapted from @nighthawk24's proposal.</li>
             </ul>
@@ -311,7 +384,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
             <p>TODO: Endorsements may depend on specific parameter choices. The ZIP Editors should ensure that the endorsements are accurate before marking this ZIP as Active.</p>
         </section>
         <section id="acknowledgements"><h2><span class="section-heading">Acknowledgements</span><span class="section-anchor"> <a rel="bookmark" href="#acknowledgements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>Thanks to Madars Virza for initially proposing a fee mechanism similar to that proposed in this ZIP <a id="footnote-reference-8" class="footnote_reference" href="#madars-1">4</a>, and to Kris Nuttycombe, Jack Grigg, Daira Hopwood, Francisco Gindre, Greg Pfeil, and Teor for suggested improvements.</p>
+            <p>Thanks to Madars Virza for initially proposing a fee mechanism similar to that proposed in this ZIP <a id="footnote-reference-9" class="footnote_reference" href="#madars-1">4</a>, and to Kris Nuttycombe, Jack Grigg, Daira Hopwood, Francisco Gindre, Greg Pfeil, and Teor for suggested improvements.</p>
         </section>
         <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <table id="rfc2119" class="footnote">
