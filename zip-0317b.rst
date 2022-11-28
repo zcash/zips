@@ -1,0 +1,161 @@
+::
+
+  ZIP: 0317b
+  Title: ZSA Extension Proportional Fee Mechanism
+  Owners: Daniel Benarroch <daniel@qed-it.com>
+          Pablo Kogan <pablo@qed-it.com>
+          Jonathan Rouach <jon@qed-it.com>
+  Credits: Daira Hopwood
+           Jack Grigg
+           Aditya Bharadwaj
+  Status: Draft
+  Category: Standards / Wallet
+  Created: 2022-11-25
+  License: MIT
+  Discussions-To: <>
+
+
+Terminology
+===========
+
+The key words "SHOULD", "SHOULD NOT", and "RECOMMENDED" in this document
+are to be interpreted as described in RFC 2119. [#RFC2119]_
+
+The term "conventional transaction fee" in this document is in reference
+to the value of a transaction fee that is conventionally used by wallets,
+and that a user can reasonably expect miners on the Zcash network to accept
+for including a transaction in a block.
+
+We define the following additional terms:
+
+- The term "network upgrade" in this document is to be interpreted as described in ZIP 200 [#zip-0200]_.
+- The term "Orchard" in this document is to be interpreted as described in ZIP 224 [#zip-0224]_.
+- The term "ZSA" in this document is to be interpreted as described in ZIP 226 [#zip-0226]_.
+- The term "Issuance" and "Issuance Action" in this document are to be interpreted as described in ZIP 227 [#zip-0227]_.
+- The term "Proportional Fee" in this document is to be interpreted as described in ZIP 317 [#zip-0317]_
+- Issuance Fee: is the specific fixed fee that has to be paid to the network for every given issuance action
+
+Abstract
+========
+
+This ZIP aims at defining explicitly the fee mechanism associated with the Zcash Shielded Assets protocol (ZSA) as described in ZIP 226 [#zip-0226]_ and ZIP 227 [#zip-0227]_. We will be basing this ZIP as an extension of the latest fee-related ZIP, ZIP 317 [#zip-0317]_.
+
+Motivation
+==========
+
+As the Zcash blockchain moves towards the Proportional Transfer Fee Mechanism proposed ZIP 317 [#zip-0317]_, transactions that use the ZSA protocol must adapt to this mechanism and include fees consistent with ZIP 317 [#zip-0317]_. 
+
+In this ZIP we propose an adaptation of ZIP 317 [#zip-0317]_ as it applies to ZSA transfer transactions and explore ZSA-specific considerations such as fees for asset issuance.
+
+Specifically, the ZSA transfer and burn mechanism should follow the same fee mechanism in order to not discriminate between transfer bundle types. When it comes to Issuance of ZSA, however, we believe that there should be a preventative incentive that will stop users from flooding the chain with useless asset identifiers.
+
+There are two main factors that will affect the fee mechanism:
+
+- The transaction size, which may take a big part of the block
+- The computational power needed to verify and mine the transaction
+
+In the case of Issuance, the latter is not so relevant as the computational power needed to verify the bundle is not large. The transaction size, however, can be an issue as the number of output notes can be large. Furthermore, as defined in ZIP 227 [#zip-0227]_, there is a new struct in the global state that needs to be maintained as part of the consensus, which motivates further the addition of an Issuance-specific fee.
+
+Requirements
+============
+
+* The conventional fee formula should not favour or discriminate against any
+  of the Orchard, Sapling, or transparent protocols.
+* The fee for a transaction should scale linearly with the number of inputs
+  and/or outputs.
+* Users should be discouraged from creating new “garbage” custom assets
+* Users should not be penalised for sending transactions constructed
+  with padding of inputs and outputs to reduce information leakage.
+  (The default policy employed by zcashd and the mobile SDKs pads to
+  two inputs and two outputs for each shielded pool used by the transaction).
+* Users should be able to spend a small number of UTXOs or notes with value
+  below the marginal fee per input.
+
+
+Specification
+=============
+
+The specification of this ZIP is based on the Proportional Transfer Fee Mechanism ZIP 317 [#zip-0317]_. We expand on how this mechanism will be affected by the replacement of the ZSA protocol for the Orchard protocol.
+
+Issuance Action Fee
+-------------------
+
+As reasoned above, we propose a fee for each issuance action, `issuance_fee`, in order to prevent users from issuing "garbage" assets and to incentivize miners to maintain a more complex blockchain state.
+The proposed fee mechanism is that for each new asset type (i.e.: for each issuance action), the issuer will pay a fixed fee for the action itself, of `0.01 ZEC` or `1,000,000 ZATS`, and a proportional fee for each output note generated for that asset (which is kept in line with the proportional fee mechanism from ZIP 317 [#zip-0317]_).
+
+ZSA Fee calculation
+-------------------
+
+The overall `conventional_fee` for a transaction is calculated as the sum of the `issuance_fee` and the `transfer_fee`:
+As in ZIP 317 [#zip-0317]_, this specification defines several parameters that are used to calculate the
+conventional fee:
+
+===================================== ===============================================
+Parameter                             Units
+===================================== ===============================================
+:math:`marginal\_fee`                 zatoshis per logical action (as defined below)
+:math:`issusnce\_fee`                 zatoshis per issuance action (as defined below)
+:math:`grace\_actions`                logical actions
+:math:`p2pkh\_standard\_input\_size`  bytes
+:math:`p2pkh\_standard\_output\_size` bytes
+===================================== ===============================================
+
+Wallets implementing this specification SHOULD use a conventional fee
+calculated in zatoshis per the following formula:
+
+.. math::
+
+   \begin{array}{rcl}
+     logical\_actions  &=& \mathsf{max}\big(\mathsf{ceiling}\big(\frac{tx\_in\_total\_size}{p2pkh\_standard\_input\_size}\big),
+                                            \mathsf{ceiling}\big(\frac{tx\_out\_total\_size}{p2pkh\_standard\_output\_size}\big)\big) \;+ \\
+                       & & 2 \cdot nJoinSplit \;+ \\
+                       & & \mathsf{max}(nSpendsSapling, nOutputsSapling) \;+ \\
+                       & & nActionsZsaTransfer \;+ \\
+                       & & nTotalOutputsZsaIssuance \\
+     conventional\_fee &=& marginal\_fee \cdot \mathsf{max}(grace\_actions, logical\_actions) \;+ \\
+                       & & issuance\_fee \cdot nActionsIssuance
+   \end{array}
+
+The inputs to this formula are taken from transaction fields defined in the Zcash protocol
+specification [#protocol-txnencoding]_:
+
+================================ ====== ========================================================================
+Input                            Units  Description
+================================ ====== ========================================================================
+:math:`tx\_in\_total\_size`      bytes  total size in bytes of the ``tx_in`` field
+:math:`tx\_out\_total\_size`     bytes  total size in bytes of the ``tx_out`` field
+:math:`nJoinSplit`               number the number of Sprout JoinSplits
+:math:`nSpendsSapling`           number the number of Sapling spends
+:math:`nOutputsSapling`          number the number of Sapling outputs
+:math:`nActionsZsaTransfer`      number the number of ZSA transfer actions
+:math:`nTotalOutputsZsaIssuance` number the total number of ZSA issuance outputs (added across issuance actions)
+:math:`nActionsZsaIssuance`      number the number of ZSA issuance actions
+================================ ====== ========================================================================
+
+The parameters are set to the following values:
+
+* :math:`marginal\_fee = 5000`;
+* :math:`issuance\_fee = 1000000`;
+* :math:`grace\_actions = 2`;
+* :math:`p2pkh\_standard\_input\_size = 150` bytes;
+* :math:`p2pkh\_standard\_output\_size = 34` bytes.
+
+It is not a consensus requirement that fees follow this formula; however,
+wallets SHOULD create transactions that pay this fee, in order to reduce
+information leakage, unless overridden by the user.
+
+
+Other Considerations
+================
+
+We also briefly considered, and propose to reject, the opportunity for a new type of fee, denominated in the ZSA token itself. In the context of transparent transactions, this type of fee  allows to “tap into” the value of the transactions for the benefit of the miners. However when transactions are shielded, any design that lifts value from the transaction would also leak information about it. Another consideration against ZSA-denominated fees is to maintain the ZEC as the primary token for the Zcash blockchain, similar to how ETH is needed for ERC20 transactions to the benefit of the Ethereum ecosystem.
+
+References
+==========
+
+.. [#RFC2119] `RFC 2119: Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
+.. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.html>`_
+.. [#zip-0224] `ZIP 224: Orchard <zip-0224.html>`_
+.. [#zip-0226] `ZIP 226: Transfer and Burn of Zcash Shielded Assets <zip-0226.html>`_
+.. [#zip-0227] `ZIP 227: Issuance of Zcash Shielded Assets <zip-0227.html>`_
+.. [#zip-0317] `ZIP 317: Proportional Transfer Fee Mechanism <zip-0317.html>`_
