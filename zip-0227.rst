@@ -1,8 +1,214 @@
 ::
 
-  ZIP: 226
-  Title: Zcash Shielded Assets - Issuance
-  Owners: Daniel Bennaroch
-  Status: Reserved
+  ZIP: 227
+  Title: Issuance of Zcash Shielded Assets
+  Owners: Daniel Benarroch <daniel@qed-it.com>
+          Pablo Kogan <pablo@qed-it.com>
+          Aurelien Nicolas <aurel@qed-it.com>
+  Credits: Daira Hopwood
+           Jack Grigg
+           Shahaf Nacshon
+           Vivek Arte
+  Status: Draft
   Category: Consensus
+  Created: 2022-05-01
+  License: MIT
   Discussions-To: <https://github.com/zcash/zips/issues/618>
+
+
+
+TODO
+=====
+- [x] change all issuerID to issuanceValidatingKey
+- [x] add definition of IssuanceAction & IssuanceBundle
+- [ ] Add a section on the security model of the shielded assets
+- [ ] review definitions of assets / zsa
+- [ ] finish going through math derivation of assets
+
+Terminology
+===========
+
+The key word "MUST" in this document is to be interpreted as described in RFC 2119 [#RFC2119]_.
+
+The term "network upgrade" in this document is to be interpreted as described in ZIP 200 [#zip-0200]_.
+
+The term "Orchard" in this document is to be interpreted as described in ZIP 224 [#zip-0224]_.
+
+We define the following additional terms:
+
+- Custom Asset: A type of note that can be transferred on the Zcash block chain. ZEC is the default (and currently the only defined) asset for the Zcash mainnet. Different custom assets are defined and differentiated by their identifier (`asset_id`).
+- Zcash Shielded Asset: an asset with issuance defined on the Zcash block chain, and, with this ZIP, belonging to the Orchard anonymity pool.
+- Wrapped Asset: a ZSA asset with native issuance defined outside the Zcash block chain.
+- Issuance Action: an instance of a single issuance of a Zcash Shielded Asset. It defines the issuance of a single asset identifier.
+- Issuance Bundle: the bundle in the transaction that contains all the issuance actions of that transaction.
+
+Abstract
+========
+
+ZIP 226 [#zip-0226]_ and ZIP 227 [#zip-0227]_ propose in conjunction the Zcash Shielded Assets (ZSA) protocol, which is an extension of the Orchard protocol that enables the creation, transfer and burn of custom assets on the Zcash chain. The creation of such assets is defined in ZIP 227 [#zip-0227]_. The transfer and burn of such assets is defined in ZIP 226 [#zip-0226]_.
+
+Motivation
+==========
+
+The current Orchard protocol does not support custom assets. Enabling multi-asset support on the Zcash chain will open the door for a host of applications and enhance the ecosystem with application developers and asset custody institutions for issuance and
+bridging purposes.
+
+Overview & Rationale
+====================
+
+This ZIP specifies the issuance mechanism of the Zcash Shielded Assets (ZSA) protocol and must work in conjunction with ZIP 226 [#zip-0226]_, as the issuance mechanism is only valid for the ZSA transfer protocol, as it produces notes that can only be transferred under ZSA.
+
+In short, this ZIP enables only *transparent* issuance, since as a first step, transparency is important to properly test the applications that will be most used in the Zcash ecosystem, while enabling tracking of supply of assets. In essence, any user of the blockchain can issue new asset types, yet only a single issuer (a set of keys) can issue that specific asset type, as the asset identifiers are tied to the issuer keys.
+
+We have designed the protocol such that at the time of issuance, the issuer can already allocate all the tokens to the corresponding owners by creating the corresponding (shielded) output notes to the corresponding addresses. As is implied, the issuance mechanism is itself transparent, but the allocation is totally private. Furthermore, in a single issuance transaction, the issuer can create multiple custom assets. Finally, a key component of our design is the `finiteIssuance` boolean that defines whether a specific custom asset can have further tokens issued or not.
+
+The issuance mechanism is broad enough for issuers to either create native assets on Zcash (i.e.: assets that originate on the Zcash blockchain), as well as for institutions to create bridges from other chains and import wrapped assets. In fact, the protocol described below enables, what we hope will be a useful set of, applications. The design decision is not to have a chosen name to describe the custom asset, but to delegate it to an off-chain mapping, as this would imply a land-grab “war”.
+
+
+Issuance keys
+=============
+
+There are two keys relevant to the Issuer:
+
+1. The `issuanceAuthorizingKey`, denoted as `isk`, is the key that is used to sign the issuance transaction. This key is used to authorize the issuance of a specific asset type, and is only used by the issuer.
+
+2. The `issuanceValidatingKey`, denoted as `ik`, is the key that is used to validate the issuance transaction. This key is used to validate the issuance of a specific asset type, and is used by all blockchain users (specifically the asset owners) to associate the asset in question with the issuer.
+
+The two keys are derived in an analogous manner to the `spendAuthorizingKey` and `spendValidatingKey` keys, as described in ZIP 32 [#zip-0032]_. Specifically, we derive 
+
+- The `issuanceAuthorizingKey` is derived directly from the `spendingKey`, `sk`, as a private signature key:
+
+:math:`\mathsf{isk := ToScalar^{Orchard}(︀ PRF^{expand}_{sk} ([10])}`
+
+- The `issuanceValidatingKey` is derived from the `issuanceAuthorizingKey`, `isk`, as a public verification key:
+
+:math:`\mathsf{ik := SpendAuthSig^{Orchard}.DerivePublic(isk)}`
+
+This allows the issuer to use the same wallet it usually uses to transfer assets, while keeping a disconnect from the other keys. It provides further anonymity and the ability to delegate issuance of an asset (or in the future, generate a multi-signature protocol) while keeping the rest of the keys in the wallet safe.
+
+Asset Identifier Generation
+===========================
+
+For every new asset, there must be a new and unique identifier of the asset. Every asset is defined by the asset description, `asset_desc`, which is a global byte string (valid across all -future- Zcash protocols), of 256 bytes in size. From this asset descritpion, we derive the specific asset identifier, `AssetId`, used within the notes, as defined by the specific protocol (e.g.: for now Orchard-style, using Pallas curve).
+
+The main requirement for the asset identifier is for it to be collision-free, as two different issuers MUST not be able to issue the same asset type. One way to achieve this is to make the identifier dependent on the issuer keys, as the issuer keys are unique to each issuer. We achieve this by deriving the asset identifier, `asset_id` as follows:
+
+:math:`\mathsf{asset_id := GroupHash^{\mathbb{P}}}\mathsf{(ik || asset_desc)}`
+
+where
+
+- `asset_desc` is the asset description, a UTF-8 encoded string of up to 512 bytes, which includes any information pertaining to the issuance. the asset description  
+- `issuanceValidatingKey` is the public key of the issuer, used to verify the signature on the transaction and is defined as `ik` (issuer key or issuer verification key):
+
+
+Then we let `issuanceInfo := (assetID, finiteSupply)`, where 
+
+- `assetID` is as defined above.
+- `finiteSupply` is a boolean variable that defines whether this issuance transaction of the specific asset type is the final issuance of tokens or not. Once `finiteSupply` is set, it cannot be unset. This allows expanding the functionality of the issuance mechanism:
+    - Provides `assetID` revocation in case of compromise (issue last issuance with 0 token value)
+    - Supports NFT issuance (where the first issuance with value of 1 is also the last)
+
+
+Issuance Protocol
+=================
+
+The issuance protocol allows for a single issuance to be sent to many receivers, as the issuanceValidatingKey does not have to match the address ownership of the notes output. Furthermore, every transaction can contain many issuance instances. The design presented in this ZIP enables several use cases for issuance of shielded assets.
+
+- The issuer knows in advance the receivers of the issued asset.
+- The asset is of non-fungible type, where each asset type can be made part of a single “series”
+- The supply of the asset is limited or not
+- The assets can be wrapped versions of assets in other chains (as long as there is a bridge that supports it)
+
+TODO: define IssueBundle as
+- ik
+- actions: 
+- authorization: signature of the SIGHASH using the IssuanceSignatureKey
+
+TODO: define IssueAction as
+- asset_desc
+- notes 
+- finalize boolean
+
+
+The protocol is as follows:
+
+- For each asset type issued, generate a sequence of output notes, each with the following fields:
+    - ZSA output note :math:`\mathsf{ note =(d, pkd, v, \rho, \psi, \mathsf{type}_\mathbb{P}, rcm)}`, where :math:`\mathsf{type}_\mathbb{P} := \mathsf{GroupHash^{\mathbb{P}}}\mathsf{(assetID)}`
+- Generate commitment of the note. `cm` as
+
+NOTE that the commitment is not included in the IssuanceAction, but a computation done by the validators of the chain.
+
+:math:`cm = \mathsf{NoteCommit^{ZSA}_{rcm}}(\mathsf{repr\mathbb{_P}(g_d)}, \mathsf{repr\mathbb{_P}(pk_d)}, v, \rho, \psi,\mathsf{type}_\mathbb{P})`
+
+- Sign the issuance note with the `issuanceValidatingKey` as the signing key, using RedPallas as its signature scheme, on the `SIGHASH` of the transaction. Note that the `SIGHASH` will change as we include a new bundle in the Zcash transaction to enable this issuance mechanism on chain.
+
+
+Consensus Changes
+-----------------
+
+Issuance requires the following additions to the global state: 
+- `previously_finalized`, a set of `asset_id` that have been finalized (i.e.: the `finalize` flag has been set to `1`).
+
+**Consensus rules**
+
+For the IssueBudnele,
+- Verify the signature on SIGHASH is valid, based on VerifySig.IssueAuthorization(ik, SIGHASH)
+
+For each IssueAction in a loop,
+
+- check that asset_desc is properly constructed (not too short and not exceeding 512 bytes)
+- retrieve asset_id from first note and check that `asset_id` is properly constructed from asset_desc and ik, by checking the GroupHash of (ik, asset_desc)
+- check that the `asset_id` does not exist in the `previously_finalized` set
+- check that every note in the`IssueAction`` contains the same asset_id, and also that every note is properly constructed as `note = (recipient, value, note(asset, rho, rseed)`
+- If all of the above checks pass, do the following
+
+- For each note, compute the `noteCommitment` and
+- add `noteCommitment` to the Merkle tree of note commitments.
+
+
+Example applications
+--------------------
+
+- By setting the `finiteIssuance = 1` from the first issuance instance of that asset type, the issuer is in essence creating a one-time issuance transaction. This is useful when the max supply is capped from the beginning and the distribution is known in advance. All tokens are issued at once and distributed as needed.
+- When the `finiteIssuance = 0`, the issuer can keep creating tokens of that type (in a transparent manner). The boolean value can be changed with any new issuance transaction, and could be set to `1` either when the issuer keys have been compromised, and hence stopping all issuances of that asset type (the boolean cannot be reversed), or whenever the issuer decides that the max supply has been reached.
+- Note that this mechanism can be used with the burning process to control and affect the supply of any custom asset.
+
+Other Considerations
+====================
+
+Implementing Zcash clients
+--------------------------
+
+It is recommended that Zcash clients keep a mapping `issuanceSupplyInfos` from `asset_id` to `issuanceSupplyInfo := (totalSupply, finalize)` in order to properly keep track of the total supply for different asset types. This will be implemented in the Zcashd client.
+
+Fee Structures
+--------------
+
+The fee mechanism described in this ZIP will follow the mechanism described in ZIP 317b [#zip-0317b]_.
+
+Test Vectors
+============
+
+- LINK TBD
+
+Reference Implementation
+========================
+
+- LINK TBD
+- LINK TBD
+
+Deployment
+==========
+
+This ZIP is proposed to activate with Network Upgrade 6.
+
+References
+==========
+
+.. [#RFC2119] `RFC 2119: Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
+.. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.html>`_
+.. [#zip-0224] `ZIP 224: Orchard <zip-0224.html>`_
+.. [#zip-0226] `ZIP 226: Transfer and Burn of Zcash Shielded Assets <zip-0226.html>`_
+.. [#zip-0227] `ZIP 227: Issuance of Zcash Shielded Assets <zip-0227.html>`_
+.. [#zip-0317b] `ZIP 317b: ZSA Extension Proportional Fee Mechanism <zip-0317b.html>`_
+.. [#zip-0032] `ZIP 32: Shielded Hierarchical Deterministic Wallets <zip-0032.html>`_
