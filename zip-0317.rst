@@ -262,75 +262,81 @@ following section is planned to be implemented by `zcashd` and `zebrad`.
 Recommended algorithm for block template construction
 '''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-Define a constant :math:`weight\_cap = 4`.
+Define constants :math:`weight\_ratio\_cap = 4` and
+:math:`block\_unpaid\_action\_limit = 50\!`.
 
 Let :math:`conventional\_fee(tx)` be the conventional fee for transaction
 :math:`tx` calculated according to the section `Fee calculation`_.
+
+Let :math:`unpaid\_actions(tx) = \mathsf{max}\!\left(0,\, \mathsf{max}(grace\_actions,\, tx.\!logical\_actions) - \mathsf{floor}\!\left(\frac{tx.fee}{marginal\_fee}\right)\right)\!`.
+
+Let :math:`block\_unpaid\_actions(block) = \sum_{tx \,\in\, block}\, unpaid\_actions(tx)`.
 
 The following algorithm is RECOMMENDED for constructing block templates
 from a set of transactions in a node's mempool:
 
 1. For each transaction :math:`tx` in the mempool, calculate
-   :math:`tx.\!weight = \mathsf{min}\!\left(\frac{tx.fee}{conventional\_fee(tx)}, weight\_cap\right)\!`.
+   :math:`tx.\!weight\_ratio = \mathsf{min}\!\left(\frac{tx.fee}{conventional\_fee(tx)},\, weight\_ratio\_cap\right)\!`
+   and add the transaction to the set of candidate transactions.
 
-2. Repeat while there is any mempool transaction that pays at least the
-   conventional fee, is within the block sigop limit [#sigop-limit]_, and
-   fits in the block:
+2. Repeat while there is any candidate transaction that pays at least the
+   conventional fee:
 
    a. Pick one of those transactions at random with probability in direct
-      proportion to its weight, and add it to the block.
+      proportion to its weight ratio, and remove it from the set of candidate
+      transactions. Let :math:`B` be the block template with this transaction
+      included.
+   b. If :math:`B` would be within the block size limit and block sigop
+      limit [#sigop-limit]_, add the transaction to the block template.
 
-3. Let :math:`N` be the number of remaining transactions with :math:`tx.\!weight < 1\!`.
-   Calculate their sum of weights, call this :math:`remaining\_weight\!`.
+3. Repeat while there is any candidate transaction:
 
-4. Calculate :math:`size\_target = size\_of\_block\_so\_far + \mathsf{floor}\!\left(remaining\_block\_size \cdot \mathsf{min}\big(1.0, \frac{remaining\_weight}{N}\big)\!\right)\!`.
-
-5. Repeat:
-
-   a. Pick a transaction with probability in direct proportion to its
-      weight and add it to the block. If that transaction would exceed
-      the :math:`size\_target\!` or the block sigop limit [#sigop-limit]_,
-      stop without adding it.
-
-Note: it is sufficient to use floating point arithmetic to calculate
-the argument to :math:`\mathsf{floor}` when computing :math:`size\_target\!`,
-since there is no consensus requirement for this to be exactly the same
-between implementations.
+   a. Pick one of those transactions at random with probability in direct
+      proportion to its weight ratio, and remove it from the set of candidate
+      transactions. Let :math:`B` be the block template with this transaction
+      included.
+   b. If :math:`B` would be within the block size limit and block sigop
+      limit [#sigop-limit]_ and :math:`block\_unpaid\_actions(B) \leq block\_unpaid\_action\_limit\!`,
+      add the transaction to the block template.
 
 Rationale for block template construction algorithm
 '''''''''''''''''''''''''''''''''''''''''''''''''''
 
-* Regardless of how full the mempool is (according to the ZIP 401 [#zip-0401]_
-  cost limiting), a denial-of-service adversary can only fill a block if
-  :math:`\frac{remaining\_weight}{N}` is nearly :math:`1\!`, i.e. if the remaining
-  transactions are paying nearly the conventional fee on average. This is
-  exactly what we want, because then the selected transactions in step 5 will
-  each tend to be paying nearly the conventional fee. (It's possible that some
-  low-fee transactions will get in, but the adversary can't include too many of
-  them because it would pull the average down.)
+It is likely that not all wallets will immediately update to pay the
+(generally higher) fees specified by this ZIP. In order to be able to deploy
+this block template algorithm more quickly while still giving transactions
+created by such wallets a reasonable chance of being mined, we allow a
+limited number of "unpaid" logical actions in each block. Roughly speaking,
+if a transaction falls short of paying the conventional transaction fee by
+:math:`k` times the marginal fee, we count that as :math:`k` unpaid logical
+actions.
 
-* The weighting in step 2 does not create a situation where the adversary gains
-  a significant advantage over other users by paying more than the conventional
-  fee, for two reasons:
+Regardless of how full the mempool is (according to the ZIP 401 [#zip-0401]_
+cost limiting), and regardless of what strategy a denial-of-service adversary
+may use, the number of unpaid logical actions in each block is always limited
+to at most :math:`block\_unpaid\_action\_limit\!`.
 
-  1. The weight cap limits the relative probability of picking a given transaction
-     to be at most :math:`weight\_cap` times greater than a transaction that pays
-     exactly the conventional fee.
+The weighting in step 2 does not create a situation where the adversary gains
+a significant advantage over other users by paying more than the conventional
+fee, for two reasons:
 
-  2. Compare the case where the adversary pays :math:`c` times the conventional
-     fee for one transaction, to that where they pay the conventional fee for
-     :math:`c` transactions. In the former case they are more likely to get *each*
-     transaction into the block relative to competing transactions from other users,
-     *but* those transactions take up less block space. (The adversary's block space
-     usage relative to fee is optimized by using only Orchard Actions in either
-     case, so they take up :math:`c` times less space.) This is not what the
-     attacker wants; they get a transaction into the block only at the expense of
-     leaving more block space for the other users' transactions.
+1. The weight ratio cap limits the relative probability of picking a given
+   transaction to be at most :math:`weight\_ratio\_cap` times greater than a
+   transaction that pays exactly the conventional fee.
 
-* The rationale for choosing :math:`weight\_cap = 4` is as a compromise between
-  not allowing any prioritization of transactions relative to those that pay
-  the conventional fee, and allowing arbitrary prioritization based on ability
-  to pay.
+2. Compare the case where the adversary pays :math:`c` times the conventional
+   fee for one transaction, to that where they pay the conventional fee for
+   :math:`c` transactions. In the former case they are more likely to get *each*
+   transaction into the block relative to competing transactions from other users,
+   *but* those transactions take up less block space, all else (e.g. choice of
+   input or output types) being equal. This is not what the attacker wants;
+   they get a transaction into the block only at the expense of leaving more
+   block space for the other users' transactions.
+
+The rationale for choosing :math:`weight\_ratio\_cap = 4` is as a compromise
+between not allowing any prioritization of transactions relative to those that
+pay the conventional fee, and allowing arbitrary prioritization based on ability
+to pay.
 
 Incentive compatibility for miners
 ''''''''''''''''''''''''''''''''''
@@ -380,14 +386,14 @@ Wallets SHOULD deploy these changes immediately. Nodes SHOULD deploy the
 change to the :math:`low\_fee\_penalty` threshold described in
 `Mempool size limiting`_ immediately.
 
-Miners can deploy restrictions to their policies for transaction inclusion,
-once a sufficient proportion of transactions in the ecosystem are observed
-to be paying at least the updated conventional transaction fee.
+Nodes supporting block template construction SHOULD deploy the new
+`Recommended algorithm for block template construction`_ immediately,
+and miners SHOULD use nodes that have been upgraded to this algorithm.
 
 Node developers SHOULD coordinate on schedules for deploying restrictions
 to their policies for transaction mempool acceptance and peer-to-peer
 relaying. These policy changes SHOULD NOT be deployed before the changes
-to transaction inclusion policy by miners described in the preceding
+to block template construction for miners described in the preceding
 paragraph.
 
 
@@ -402,17 +408,17 @@ below are roughly half of what they would be under the current formula.
 
 Possible alternatives for the parameters:
 
-* marginal_fee = 250 in @nuttycom's proposal.
-* marginal_fee = 1000 adapted from @madars' proposal [#madars-1]_.
-* marginal_fee = 2500 in @daira's proposal.
-* marginal_fee = 1000 for Shielded, Shielding and De-shielding
-  transactions, and marginal_fee = 10000 for Transparent transactions
+* :math:`marginal\_fee = 250` in @nuttycom's proposal.
+* :math:`marginal\_fee = 1000` adapted from @madars' proposal [#madars-1]_.
+* :math:`marginal\_fee = 2500` in @daira's proposal.
+* :math:`marginal\_fee = 1000` for Shielded, Shielding and De-shielding
+  transactions, and :math:`marginal\_fee = 10000` for Transparent transactions
   adapted from @nighthawk24's proposal.
 
 (In @madars' and @nighthawk24's original proposals, there was an additional
-`base_fee` parameter that caused the relationship between fee and number
-of inputs/outputs to be non-proportional above the `grace_window_size`. This
-is no longer expressible with the formula specified above.)
+:math:`base\_fee` parameter that caused the relationship between fee and number
+of inputs/outputs to be non-proportional above the :math:`grace\_actions`
+threshold. This is no longer expressible with the formula specified above.)
 
 
 Endorsements
@@ -445,8 +451,10 @@ Acknowledgements
 ================
 
 Thanks to Madars Virza for initially proposing a fee mechanism similar to that
-proposed in this ZIP [#madars-1]_, and to Kris Nuttycombe, Jack Grigg, Daira Hopwood,
-Francisco Gindre, Greg Pfeil, and Teor for suggested improvements.
+proposed in this ZIP [#madars-1]_, and for finding a potential weakness in an
+earlier version of the block template construction algorithm. Thanks also to
+Kris Nuttycombe, Jack Grigg, Daira Hopwood, Francisco Gindre, Greg Pfeil, Teor,
+and Deirdre Connolly for reviews and suggested improvements.
 
 
 References
