@@ -38,8 +38,8 @@ Opportunistic migration
     transaction.
 
 Transaction output (TXO)
-    An output (transparent TXO or note) of a transaction on the consensus block chain
-    or in the mempool visible to a wallet.
+    An output (transparent coin or shielded note) of a transaction on the consensus
+    block chain or in the mempool visible to a wallet.
 
 
 Motivation
@@ -59,7 +59,7 @@ that they have enough information to assess the consequences of their economic a
 This ZIP covers best practices for:
 
 * what information to display to the user about transactions and balances;
-* how to handle interactions between the ZIP 32 key tree and Unified Addresses;
+* how to handle interactions between the ZIP 32 [#zip-0032]_ key tree and Unified Addresses [#zip-0316]_;
 * when to use external or internal keys/addresses;
 * sharing addresses and viewing keys;
 * sending and receiving funds (including fee selection);
@@ -94,16 +94,17 @@ Prompt accessibility of funds
 Wallets need to take account of two concerns:
 
 * enabling funds to be spent as quickly as possible to reduce latency;
-* waiting for long enough before spending TXOs to ensure that the
+* waiting long enough before spending TXOs to ensure that the
   confirmed-spendable balance is not overestimated, and so can be trusted
   by the user.
 
 To enable this we define two kinds of TXOs:
 
-* An untrusted TXO is a TXO received from a party that may try to double-spend.
 * A trusted TXO is a TXO received from a party where the wallet trusts a
   double-spend not to occur, e.g. TXOs created by the wallet's internal TXO
   handling.
+* An untrusted TXO is a TXO received by the wallet that is not trusted.
+
 
 Wallets can then require that untrusted TXOs need more confirmations before
 they become spendable than trusted TXOs. This provides an improved trade-off
@@ -116,9 +117,9 @@ Specification
 Long-term storage of funds
 --------------------------
 
-It is RECOMMENDED that wallets only hold funds as shielded in the long-term;
+It is RECOMMENDED that wallets only hold funds as shielded in the long term;
 that is, if a wallet supports receiving transparent funds (or supports
-importing a seed from another wallet that may have done so), then it SHOULD
+importing a seed from another wallet that might have done so), then it SHOULD
 either auto-shield or opportunistically shield such funds by default.
 
 Following this recommendation improves both collective privacy and the user's
@@ -151,11 +152,11 @@ Rationale for the given numbers of confirmations
 The rationale for choosing three confirmations for trusted TXOs is that
 empirically, reorgs are usually less than three blocks.
 
-The consequences of attempting to spend an untrusted note in the case of a
-rollback may be less severe than attempting to spend a trusted note. The value
-received from a trusted note should always be recoverable, whereas recovering
-value received from an untrusted note may require the user to request that
-funds are re-sent.
+The consequences of attempting to spend a trusted TXO may be less severe in the
+case of a rollback than the consequences of attempting to spend an untrusted TXO.
+The value received from a trusted TXO should always be recoverable, whereas
+recovering value received from an untrusted TXO may require the user to request
+that funds are re-sent.
 
 
 Categories of TXOs according to spendability
@@ -167,7 +168,7 @@ if and only if all of the following are true in that state:
 * the TXO is unspent;
 * the TXO is not committed to be spent in another transaction created
   by this wallet; and
-* the wallet has the TXO's spending key.
+* the wallet has the TXO's spending key (for whatever protocol the TXO uses).
 
 A TXO is *confirmed-spendable*, relative to a given block chain and
 wallet state, if and only if all of the following are true in that state:
@@ -253,12 +254,16 @@ Sent transactions
 
 A transaction is sent if it was either:
 * created by the wallet, or
-* detected using the wallet's outgoing viewing keys, or
-* detected as having been sent from one of the wallet's watch-only addresses.
+* detected by using the wallet's outgoing viewing keys to decrypt
+  Sapling or Orchard outputs, or
+* detected as spending a note that was at some time held by the
+  wallet by recognizing that note's nullifier, or
+* detected as spending a transparent TXO associated with one of
+  the wallet's addresses (including watch-only addresses).
 
 Sent transactions SHOULD be reported with their number of confirmations,
-how long until they expire, and their balances as described in
-`Reporting of balances`_.
+how long until they expire (if they are unmined and have an expiry
+height), and their balances as described in `Reporting of balances`_.
 
 
 Transaction creation
@@ -331,10 +336,10 @@ Open question: Are we going to describe the policy that zcashd uses?
     number of spends). There are note management strategies that can mitigate
     this, but they have not been implemented yet.
 
-* Which spends of given notes are repeated across transactions
+* Which spends of given TXOs are repeated across transactions
 
   * This may happen because a previous transaction expired and the user is
-    trying to spend some of the same notes.
+    trying to spend some of the same TXOs.
 
 * Whether the transaction is coinbase
 
@@ -367,7 +372,7 @@ in the same transaction. Ideally, when they are shielded in separate
 transactions, this should be done in such a way that the timing of those
 transactions is not linkable.
 
-When spending transparent UTXOs, they should only be sent to an internal
+When spending transparent UTXOs, they SHOULD only be sent to an internal
 shielded receiver belonging to the wallet.
 
 A wallet MUST NOT send funds to a transparent address unless all of the
@@ -390,14 +395,16 @@ Rationale for anchor selection
 
 * If the chain rolls back past the block at which the anchor is chosen, then
   the anchor and the transaction will be invalidated. This is undesirable
-  both for reliability, and because the nullifiers of spent notes will have
-  been revealed, linking this transaction to any future transactions that
-  spend those notes.
+  both for reliability, and because the nullifiers of spent shielded notes
+  will have been revealed, linking this transaction to any future transactions
+  that spend those notes.
 * On the other hand, it is undesirable to choose an anchor too many blocks
-  back, because that prevents more recently received notes from being spent.
+  back, because that prevents more recently received shielded notes from
+  being spent.
 * Using a fixed anchor depth (as opposed to a different depth depending on
-  whether or not we are spending trusted notes) avoids leaking information
-  about whether or not we spent trusted notes.
+  whether or not we are spending trusted shielded notes) avoids leaking
+  information about whether or not the shielded notes we spent were
+  trusted.
 
 
 Note selection
@@ -488,14 +495,16 @@ Information leakage for transfers between pools
 If no auto-migration, if you can satisfy a transfer request to Sapling from your
 Sapling funds, do so.
 
-The user's consent is needed to reveal amounts. Therefore, there should be
-per-transaction opt-in for any amount-revealing transfer.
+The user's consent is needed to reveal amounts publically (as opposed
+to revealing them to the holder of a viewing key authorized to see that
+amount). Therefore, there should be per-transaction opt-in for any
+transfer that publically reveals amounts on chain.
 
 * there may be a compatibility issue for amount-revealing cross-pool txns that were
   previously allowed without opt-in
 
-Don't automatically combine funds across pools to satisfy a transfer (since that
-could reveal the total funds in some pool).
+Wallets MUST NOT automatically combine funds across pools to satisfy a transfer
+(since that could reveal the total funds the user holds in some pool).
 
 In order to maintain the integrity of IVK guarantees, wallets should not generate
 unified addresses that contain internal receivers, nor expose internal receivers
