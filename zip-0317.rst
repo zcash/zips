@@ -272,36 +272,40 @@ Define constants :math:`weight\_ratio\_cap = 4` and
 Let :math:`conventional\_fee(tx)` be the conventional fee for transaction
 :math:`tx` calculated according to the section `Fee calculation`_.
 
-Let :math:`unpaid\_actions(tx) = \mathsf{max}\!\left(0,\, \mathsf{max}(grace\_actions,\, tx.\!logical\_actions) - \mathsf{floor}\!\left(\frac{tx.fee}{marginal\_fee}\right)\right)\!`.
+Let :math:`unpaid\_actions(tx) = \begin{cases}\mathsf{max}\!\left(0,\, \mathsf{max}(grace\_actions,\, tx.\!logical\_actions) - \mathsf{floor}\!\left(\frac{tx.fee}{marginal\_fee}\right)\right),&\textsf{if }tx\textsf{ is a non-coinbase transaction} \\ 0,&\textsf{if }tx\textsf{ is a coinbase transaction.}\end{cases}`
 
 Let :math:`block\_unpaid\_actions(block) = \sum_{tx \,\in\, block}\, unpaid\_actions(tx)`.
 
-The following algorithm is RECOMMENDED for constructing block templates
+The following algorithm is RECOMMENDED for constructing a block template
 from a set of transactions in a node's mempool:
 
-1. For each transaction :math:`tx` in the mempool, calculate
+1. Set the block template :math:`T` to include only the coinbase transaction.
+
+2. For each transaction :math:`tx` in the mempool, calculate
    :math:`tx.\!weight\_ratio = \mathsf{min}\!\left(\frac{\mathsf{max}(1,\, tx.fee)}{conventional\_fee(tx)},\, weight\_ratio\_cap\right)\!`
    and add the transaction to the set of candidate transactions.
 
-2. Repeat while there is any candidate transaction that pays at least the
+3. Repeat while there is any candidate transaction that pays at least the
    conventional fee:
 
    a. Pick one of those transactions at random with probability in direct
-      proportion to its :math:`weight\_ratio`, and remove it from the set of
-      candidate transactions. Let :math:`B` be the block template with this
-      transaction included.
+      proportion to its :math:`weight\_ratio\!`, and remove it from the set of
+      candidate transactions. Let :math:`B` be the block template :math:`T`
+      with this transaction included.
    b. If :math:`B` would be within the block size limit and block sigop
-      limit [#sigop-limit]_, add the transaction to the block template.
+      limit [#sigop-limit]_, set :math:`T := B\!`.
 
-3. Repeat while there is any candidate transaction:
+4. Repeat while there is any candidate transaction:
 
    a. Pick one of those transactions at random with probability in direct
-      proportion to its :math:`weight\_ratio`, and remove it from the set of
-      candidate transactions. Let :math:`B` be the block template with this
-      transaction included.
+      proportion to its :math:`weight\_ratio\!`, and remove it from the set of
+      candidate transactions. Let :math:`B` be the block template :math:`T`
+      with this transaction included.
    b. If :math:`B` would be within the block size limit and block sigop
       limit [#sigop-limit]_ and :math:`block\_unpaid\_actions(B) \leq block\_unpaid\_action\_limit\!`,
-      add the transaction to the block template.
+      set :math:`T := B\!`.
+
+5. Return :math:`T\!`.
 
 Rationale for block template construction algorithm
 '''''''''''''''''''''''''''''''''''''''''''''''''''
