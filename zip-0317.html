@@ -10,9 +10,9 @@
         <pre>ZIP: 317
 Title: Proportional Transfer Fee Mechanism
 Owners: Aditya Bharadwaj &lt;nighthawk24@gmail.com&gt;
+        Daira Hopwood &lt;daira@electriccoin.co&gt;
 Credits: Madars Virza
          Kris Nuttycombe
-         Daira Hopwood
          Jack Grigg
          Francisco Gindre
 Status: Draft
@@ -251,6 +251,9 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
             </section>
             <section id="transaction-relaying"><h3><span class="section-heading">Transaction relaying</span><span class="section-anchor"> <a rel="bookmark" href="#transaction-relaying"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>zcashd, zebrad, and potentially other node implementations, implement fee-based restrictions on relaying of mempool transactions. Nodes that normally relay transactions are expected to do so for transactions that pay at least the conventional fee as specified in this ZIP, unless there are other reasons not to do so for robustness or denial-of-service mitigation.</p>
+                <p>If a transaction has more than
+                    <span class="math">\(block\_unpaid\_action\_limit\)</span>
+                 "unpaid actions" as defined by the <a href="#recommended-algorithm-for-block-template-construction">Recommended algorithm for block template construction</a>, it will never be mined by that algorithm. Nodes MAY drop these transactions.</p>
             </section>
             <section id="mempool-size-limiting"><h3><span class="section-heading">Mempool size limiting</span><span class="section-anchor"> <a rel="bookmark" href="#mempool-size-limiting"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>zcashd and zebrad limit the size of the mempool as described in <a id="footnote-reference-6" class="footnote_reference" href="#zip-0401">7</a>. This specifies a
@@ -260,75 +263,105 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
             <section id="block-production"><h3><span class="section-heading">Block production</span><span class="section-anchor"> <a rel="bookmark" href="#block-production"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>Miners, mining pools, and other block producers, select transactions for inclusion in blocks using a variety of criteria. The algorithm in the following section is planned to be implemented by <cite>zcashd</cite> and <cite>zebrad</cite>.</p>
                 <section id="recommended-algorithm-for-block-template-construction"><h4><span class="section-heading">Recommended algorithm for block template construction</span><span class="section-anchor"> <a rel="bookmark" href="#recommended-algorithm-for-block-template-construction"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
-                    <p>Define a constant
-                        <span class="math">\(weight\_cap = 4\)</span>
+                    <p>Define constants
+                        <span class="math">\(weight\_ratio\_cap = 4\)</span>
+                     and
+                        <span class="math">\(block\_unpaid\_action\_limit = 50\!\)</span>
                     .</p>
                     <p>Let
                         <span class="math">\(conventional\_fee(tx)\)</span>
                      be the conventional fee for transaction
                         <span class="math">\(tx\)</span>
                      calculated according to the section <a href="#fee-calculation">Fee calculation</a>.</p>
-                    <p>The following algorithm is RECOMMENDED for constructing block templates from a set of transactions in a node's mempool:</p>
+                    <p>Let
+                        <span class="math">\(unpaid\_actions(tx) = \begin{cases}\mathsf{max}\!\left(0,\, \mathsf{max}(grace\_actions,\, tx.\!logical\_actions) - \mathsf{floor}\!\left(\frac{tx.fee}{marginal\_fee}\right)\right),&amp;\textsf{if }tx\textsf{ is a non-coinbase transaction} \\ 0,&amp;\textsf{if }tx\textsf{ is a coinbase transaction.}\end{cases}\)</span>
+                    </p>
+                    <p>Let
+                        <span class="math">\(block\_unpaid\_actions(block) = \sum_{tx \,\in\, block}\, unpaid\_actions(tx)\)</span>
+                    .</p>
+                    <p>The following algorithm is RECOMMENDED for constructing a block template from a set of transactions in a node's mempool:</p>
                     <ol type="1">
+                        <li>Set the block template
+                            <span class="math">\(T\)</span>
+                         to include only the coinbase transaction.</li>
                         <li>For each transaction
                             <span class="math">\(tx\)</span>
                          in the mempool, calculate
-                            <span class="math">\(tx.\!weight = \mathsf{min}\!\left(\frac{tx.fee}{conventional\_fee(tx)}, weight\_cap\right)\!\)</span>
-                        .</li>
-                        <li>Repeat while there is any mempool transaction that pays at least the conventional fee, is within the block sigop limit <a id="footnote-reference-7" class="footnote_reference" href="#sigop-limit">4</a>, and fits in the block:
+                            <span class="math">\(tx.\!weight\_ratio = \mathsf{min}\!\left(\frac{\mathsf{max}(1,\, tx.fee)}{conventional\_fee(tx)},\, weight\_ratio\_cap\right)\!\)</span>
+                         and add the transaction to the set of candidate transactions.</li>
+                        <li>Repeat while there is any candidate transaction that pays at least the conventional fee:
                             <ol type="a">
-                                <li>Pick one of those transactions at random with probability in direct proportion to its weight, and add it to the block.</li>
+                                <li>Pick one of those transactions at random with probability in direct proportion to its
+                                    <span class="math">\(weight\_ratio\!\)</span>
+                                , and remove it from the set of candidate transactions. Let
+                                    <span class="math">\(B\)</span>
+                                 be the block template
+                                    <span class="math">\(T\)</span>
+                                 with this transaction included.</li>
+                                <li>If
+                                    <span class="math">\(B\)</span>
+                                 would be within the block size limit and block sigop limit <a id="footnote-reference-7" class="footnote_reference" href="#sigop-limit">4</a>, set
+                                    <span class="math">\(T := B\!\)</span>
+                                .</li>
                             </ol>
                         </li>
-                        <li>Let
-                            <span class="math">\(N\)</span>
-                         be the number of remaining transactions with
-                            <span class="math">\(tx.\!weight &lt; 1\!\)</span>
-                        . Calculate their sum of weights, call this
-                            <span class="math">\(remaining\_weight\!\)</span>
-                        .</li>
-                        <li>Calculate
-                            <span class="math">\(size\_target = size\_of\_block\_so\_far + \mathsf{floor}\!\left(remaining\_block\_size \cdot \mathsf{min}\big(1.0, \frac{remaining\_weight}{N}\big)\!\right)\!\)</span>
-                        .</li>
-                        <li>Repeat:
+                        <li>Repeat while there is any candidate transaction:
                             <ol type="a">
-                                <li>Pick a transaction with probability in direct proportion to its weight and add it to the block. If that transaction would exceed the
-                                    <span class="math">\(size\_target\!\)</span>
-                                 or the block sigop limit <a id="footnote-reference-8" class="footnote_reference" href="#sigop-limit">4</a>, stop without adding it.</li>
+                                <li>Pick one of those transactions at random with probability in direct proportion to its
+                                    <span class="math">\(weight\_ratio\!\)</span>
+                                , and remove it from the set of candidate transactions. Let
+                                    <span class="math">\(B\)</span>
+                                 be the block template
+                                    <span class="math">\(T\)</span>
+                                 with this transaction included.</li>
+                                <li>If
+                                    <span class="math">\(B\)</span>
+                                 would be within the block size limit and block sigop limit <a id="footnote-reference-8" class="footnote_reference" href="#sigop-limit">4</a> and
+                                    <span class="math">\(block\_unpaid\_actions(B) \leq block\_unpaid\_action\_limit\!\)</span>
+                                , set
+                                    <span class="math">\(T := B\!\)</span>
+                                .</li>
                             </ol>
                         </li>
+                        <li>Return
+                            <span class="math">\(T\!\)</span>
+                        .</li>
                     </ol>
-                    <p>Note: it is sufficient to use floating point arithmetic to calculate the argument to
-                        <span class="math">\(\mathsf{floor}\)</span>
-                     when computing
-                        <span class="math">\(size\_target\!\)</span>
-                    , since there is no consensus requirement for this to be exactly the same between implementations.</p>
                 </section>
                 <section id="rationale-for-block-template-construction-algorithm"><h4><span class="section-heading">Rationale for block template construction algorithm</span><span class="section-anchor"> <a rel="bookmark" href="#rationale-for-block-template-construction-algorithm"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
-                    <ul>
-                        <li>Regardless of how full the mempool is (according to the ZIP 401 <a id="footnote-reference-9" class="footnote_reference" href="#zip-0401">7</a> cost limiting), a denial-of-service adversary can only fill a block if
-                            <span class="math">\(\frac{remaining\_weight}{N}\)</span>
-                         is nearly
-                            <span class="math">\(1\!\)</span>
-                        , i.e. if the remaining transactions are paying nearly the conventional fee on average. This is exactly what we want, because then the selected transactions in step 5 will each tend to be paying nearly the conventional fee. (It's possible that some low-fee transactions will get in, but the adversary can't include too many of them because it would pull the average down.)</li>
-                        <li>The weighting in step 2 does not create a situation where the adversary gains a significant advantage over other users by paying more than the conventional fee, for two reasons:
-                            <ol type="1">
-                                <li>The weight cap limits the relative probability of picking a given transaction to be at most
-                                    <span class="math">\(weight\_cap\)</span>
-                                 times greater than a transaction that pays exactly the conventional fee.</li>
-                                <li>Compare the case where the adversary pays
-                                    <span class="math">\(c\)</span>
-                                 times the conventional fee for one transaction, to that where they pay the conventional fee for
-                                    <span class="math">\(c\)</span>
-                                 transactions. In the former case they are more likely to get <em>each</em> transaction into the block relative to competing transactions from other users, <em>but</em> those transactions take up less block space. (The adversary's block space usage relative to fee is optimized by using only Orchard Actions in either case, so they take up
-                                    <span class="math">\(c\)</span>
-                                 times less space.) This is not what the attacker wants; they get a transaction into the block only at the expense of leaving more block space for the other users' transactions.</li>
-                            </ol>
-                        </li>
-                        <li>The rationale for choosing
-                            <span class="math">\(weight\_cap = 4\)</span>
-                         is as a compromise between not allowing any prioritization of transactions relative to those that pay the conventional fee, and allowing arbitrary prioritization based on ability to pay.</li>
-                    </ul>
+                    <p>It is likely that not all wallets will immediately update to pay the (generally higher) fees specified by this ZIP. In order to be able to deploy this block template algorithm more quickly while still giving transactions created by such wallets a reasonable chance of being mined, we allow a limited number of "unpaid" logical actions in each block. Roughly speaking, if a transaction falls short of paying the conventional transaction fee by
+                        <span class="math">\(k\)</span>
+                     times the marginal fee, we count that as
+                        <span class="math">\(k\)</span>
+                     unpaid logical actions.</p>
+                    <p>Regardless of how full the mempool is (according to the ZIP 401 <a id="footnote-reference-9" class="footnote_reference" href="#zip-0401">7</a> cost limiting), and regardless of what strategy a denial-of-service adversary may use, the number of unpaid logical actions in each block is always limited to at most
+                        <span class="math">\(block\_unpaid\_action\_limit\!\)</span>
+                    .</p>
+                    <p>The weighting in step 2 does not create a situation where the adversary gains a significant advantage over other users by paying more than the conventional fee, for two reasons:</p>
+                    <ol type="1">
+                        <li>The weight ratio cap limits the relative probability of picking a given transaction to be at most
+                            <span class="math">\(weight\_ratio\_cap\)</span>
+                         times greater than a transaction that pays exactly the conventional fee.</li>
+                        <li>Compare the case where the adversary pays
+                            <span class="math">\(c\)</span>
+                         times the conventional fee for one transaction, to that where they pay the conventional fee for
+                            <span class="math">\(c\)</span>
+                         transactions. In the former case they are more likely to get <em>each</em> transaction into the block relative to competing transactions from other users, <em>but</em> those transactions take up less block space, all else (e.g. choice of input or output types) being equal. This is not what the attacker wants; they get a transaction into the block only at the expense of leaving more block space for the other users' transactions.</li>
+                    </ol>
+                    <p>The rationale for choosing
+                        <span class="math">\(weight\_ratio\_cap = 4\)</span>
+                     is as a compromise between not allowing any prioritization of transactions relative to those that pay the conventional fee, and allowing arbitrary prioritization based on ability to pay.</p>
+                    <p>Calculating
+                        <span class="math">\(tx.\!weight\_ratio\)</span>
+                     in terms of
+                        <span class="math">\(\mathsf{max}(1,\, tx.\!fee)\)</span>
+                     rather than just
+                        <span class="math">\(tx.\!fee\)</span>
+                     avoids needing to define "with probability in direct proportion to its
+                        <span class="math">\(weight\_ratio\!\)</span>
+                    " for the case where all remaining candidate transactions would have
+                        <span class="math">\(weight\_ratio = 0\!\)</span>
+                    .</p>
                 </section>
                 <section id="incentive-compatibility-for-miners"><h4><span class="section-heading">Incentive compatibility for miners</span><span class="section-anchor"> <a rel="bookmark" href="#incentive-compatibility-for-miners"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
                     <p>Miners have an incentive to make this change because:</p>
@@ -352,20 +385,34 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
             <p>Wallets SHOULD deploy these changes immediately. Nodes SHOULD deploy the change to the
                 <span class="math">\(low\_fee\_penalty\)</span>
              threshold described in <a href="#mempool-size-limiting">Mempool size limiting</a> immediately.</p>
-            <p>Miners can deploy restrictions to their policies for transaction inclusion, once a sufficient proportion of transactions in the ecosystem are observed to be paying at least the updated conventional transaction fee.</p>
-            <p>Node developers SHOULD coordinate on schedules for deploying restrictions to their policies for transaction mempool acceptance and peer-to-peer relaying. These policy changes SHOULD NOT be deployed before the changes to transaction inclusion policy by miners described in the preceding paragraph.</p>
+            <p>Nodes supporting block template construction SHOULD deploy the new <a href="#recommended-algorithm-for-block-template-construction">Recommended algorithm for block template construction</a> immediately, and miners SHOULD use nodes that have been upgraded to this algorithm.</p>
+            <p>Node developers SHOULD coordinate on schedules for deploying restrictions to their policies for transaction mempool acceptance and peer-to-peer relaying. These policy changes SHOULD NOT be deployed before the changes to block template construction for miners described in the preceding paragraph.</p>
         </section>
         <section id="considered-alternatives"><h2><span class="section-heading">Considered Alternatives</span><span class="section-anchor"> <a rel="bookmark" href="#considered-alternatives"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <p>This section describes alternative proposals that have not been adopted.</p>
             <p>In previous iterations of this specification, the marginal fee was multiplied by the sum of inputs and outputs. This means that the alternatives given below are roughly half of what they would be under the current formula.</p>
             <p>Possible alternatives for the parameters:</p>
             <ul>
-                <li>marginal_fee = 250 in @nuttycom's proposal.</li>
-                <li>marginal_fee = 1000 adapted from @madars' proposal <a id="footnote-reference-10" class="footnote_reference" href="#madars-1">5</a>.</li>
-                <li>marginal_fee = 2500 in @daira's proposal.</li>
-                <li>marginal_fee = 1000 for Shielded, Shielding and De-shielding transactions, and marginal_fee = 10000 for Transparent transactions adapted from @nighthawk24's proposal.</li>
+                <li>
+                    <span class="math">\(marginal\_fee = 250\)</span>
+                 in @nuttycom's proposal.</li>
+                <li>
+                    <span class="math">\(marginal\_fee = 1000\)</span>
+                 adapted from @madars' proposal <a id="footnote-reference-10" class="footnote_reference" href="#madars-1">5</a>.</li>
+                <li>
+                    <span class="math">\(marginal\_fee = 2500\)</span>
+                 in @daira's proposal.</li>
+                <li>
+                    <span class="math">\(marginal\_fee = 1000\)</span>
+                 for Shielded, Shielding and De-shielding transactions, and
+                    <span class="math">\(marginal\_fee = 10000\)</span>
+                 for Transparent transactions adapted from @nighthawk24's proposal.</li>
             </ul>
-            <p>(In @madars' and @nighthawk24's original proposals, there was an additional <cite>base_fee</cite> parameter that caused the relationship between fee and number of inputs/outputs to be non-proportional above the <cite>grace_window_size</cite>. This is no longer expressible with the formula specified above.)</p>
+            <p>(In @madars' and @nighthawk24's original proposals, there was an additional
+                <span class="math">\(base\_fee\)</span>
+             parameter that caused the relationship between fee and number of inputs/outputs to be non-proportional above the
+                <span class="math">\(grace\_actions\)</span>
+             threshold. This is no longer expressible with the formula specified above.)</p>
         </section>
         <section id="endorsements"><h2><span class="section-heading">Endorsements</span><span class="section-anchor"> <a rel="bookmark" href="#endorsements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <p>The following entities/groups/individuals expressed their support for the updated fee mechanism:</p>
@@ -382,7 +429,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
             <p>TODO: Endorsements may depend on specific parameter choices. The ZIP Editors should ensure that the endorsements are accurate before marking this ZIP as Active.</p>
         </section>
         <section id="acknowledgements"><h2><span class="section-heading">Acknowledgements</span><span class="section-anchor"> <a rel="bookmark" href="#acknowledgements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>Thanks to Madars Virza for initially proposing a fee mechanism similar to that proposed in this ZIP <a id="footnote-reference-11" class="footnote_reference" href="#madars-1">5</a>, and to Kris Nuttycombe, Jack Grigg, Daira Hopwood, Francisco Gindre, Greg Pfeil, and Teor for suggested improvements.</p>
+            <p>Thanks to Madars Virza for initially proposing a fee mechanism similar to that proposed in this ZIP <a id="footnote-reference-11" class="footnote_reference" href="#madars-1">5</a>, and for finding a potential weakness in an earlier version of the block template construction algorithm. Thanks also to Kris Nuttycombe, Jack Grigg, Francisco Gindre, Greg Pfeil, Teor, and Deirdre Connolly for reviews and suggested improvements.</p>
         </section>
         <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <table id="rfc2119" class="footnote">
