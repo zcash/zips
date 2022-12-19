@@ -71,7 +71,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/618">https://g
         <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <p>Most of the protocol is kept the same as the Orchard protocol released with NU5, except for the following.</p>
             <section id="asset-identifiers"><h3><span class="section-heading">Asset Identifiers</span><span class="section-anchor"> <a rel="bookmark" href="#asset-identifiers"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
-                <p>For every new asset, there must be a new and unique identifier of the asset. Every asset is defined by the asset description, <cite>asset_desc</cite>, which is a global byte string (valid across all -future- Zcash protocols). From this asset descritpion, the specific asset identifier,
+                <p>For every new asset, there must be a new and unique identifier of the asset. Every asset is defined by the asset description, <cite>asset_desc</cite>, which is a global byte string (valid across all -future- Zcash protocols). From this asset description, the specific asset identifier,
                     <span class="math">\(\mathsf{AssetId}\)</span>
                 , is derived with a <cite>GroupHash</cite> and used within the output notes, as defined by the specific protocol (e.g.: for now Orchard-style, using Pallas curve).</p>
                 <p>This
@@ -136,7 +136,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/618">https://g
                  is the value of the note of identifier
                     <span class="math">\(\mathsf{AssetId}\)</span>
                 , and</p>
-                <p id="valuebase">
+                <p id="value-base">
                     <span class="math">\(\mathcal{V}^{\mathsf{OrchardZSA}}_{\mathsf{AssetId}}:=\mathsf{AssetId}= \mathsf{GroupHash^{\mathbb{P}}}\texttt{("z.cash:Orchard-cv", "a" || ik || \mathsf{asset_desc})}\)</span>
                 </p>
                 <p>
@@ -149,7 +149,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/618">https://g
             <section id="value-balance-verification"><h3><span class="section-heading">Value Balance Verification</span><span class="section-anchor"> <a rel="bookmark" href="#value-balance-verification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>In order to verify the balance of the different assets, verifier performs exactly the same the process as for the Orchard protocol <a id="footnote-reference-13" class="footnote_reference" href="#protocol-binding">7</a>. The main reason is because no custom assets can be unshielded, so all custom assets are contained within the shielded ZSA pool. This means that the net balance of the input and output values is zero, with only one asset identifier of value balance published, that of ZEC,
                     <span class="math">\(\mathsf{v^{balanceOrchard}}\)</span>
-                , so no net amount of any asset identifier will be revealed, and neither the nnumber of asset identifiers in the transaction. The only exception to this is in the case that an asset is <em>burnt</em>, as we will see below in <a href="#burnmechanism">burnmechanism</a>.</p>
+                , so no net amount of any asset identifier will be revealed, and neither the nnumber of asset identifiers in the transaction. The only exception to this is in the case that an asset is <em>burnt</em>, as we will see below in the <a href="#burn-mechanism">burn mechanism</a>.</p>
                 <p>For a total of
                     <span class="math">\(n\)</span>
                  actions in a transfer, the prover can still sign the <cite>SIGHASH</cite> of the transaction using the binding signature key</p>
@@ -166,7 +166,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/618">https://g
                 , will only be valid (and hence verify the signature correctly), as long as the committed values sum to zero. In contrast, in this protocol, the committed values only sum to zero <strong>per Asset identifier</strong>, as the Pedersen commitments add up homomorphically only with respect to the same value base point.</p>
             </section>
             <section id="split-notes"><h3><span class="section-heading">Split Notes</span><span class="section-anchor"> <a rel="bookmark" href="#split-notes"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
-                <p>One of the key functionalities in a UTXO-based protocol is the fact that input notes are usually split in two (or more) output notes, as in most cases, not all the value in a single note is sent to a single output. This requires a 1-to-many (Orchard) transaction. However, because each Action represents and input and an output, the resulting transaction must have multiple inputs. In order to cope with this today, the Actions that have not been assigned input notes are instead given <em>dummy spend notes</em> <a id="footnote-reference-15" class="footnote_reference" href="#protocol-dummynotes">12</a>, which we call split Actions and split notes respectively. Basically, the input note is “faked” inside of the proof in order to hide which Action contains the <em>real</em> spend note.</p>
+                <p>One of the key functionalities in a UTXO-based protocol is the fact that input notes are usually split in two (or more) output notes, as in most cases, not all the value in a single note is sent to a single output. This requires a 1-to-many (Orchard) transaction. However, because each Action represents an input and an output, the resulting transaction must have multiple inputs. In order to cope with this today, the Actions that have not been assigned input notes are instead given <em>dummy spend notes</em> <a id="footnote-reference-15" class="footnote_reference" href="#protocol-dummynotes">12</a>, which we call split Actions and split notes respectively. Basically, the input note is “faked” inside of the proof in order to hide which Action contains the <em>real</em> spend note.</p>
                 <p>This, however, brings some issues when it comes to adding multiple asset identifiers, as the output note of the split Actions <em>cannot</em> be of <em>any</em> asset identifier, it must be enforced to be an actual output of a GroupHash computation (in fact we want it to be of the same identifier as the original input note, but the binding signature takes care that the proper balancing is performed). If not, then the prover could essentially input a multiple (or linear combination of) an existing identifier, with the goal to attack the network by overflowing the ZEC value balance and hence counterfeiting ZEC funds.</p>
                 <p>In order to prevent this, we make some modifications to the circuit. Specifically we remove the dummy note functionality for custom assets and we enforce that <em>every</em> input note to an ZSA Action must be proven to exist in the set of note commitments in the Merkle Tree. We then enforce this real note to be “unspendable” in the sense that its value will be zeroed in split Actions and the nullifier will be randomized, making the note not spendable in the specific Action. Then, the proof itself ensures that the output note is of the same identifier as the input note. In the circuit, the split note functionality will be activated by a boolean private input to the proof.</p>
                 <p>Note that this is enough to create a chain of induction that ensures that all output notes of a transfer are actual outputs of a GroupHash, preventing any malleability attacks, as they originate in the Issuance protocol, which is publicly verified. Furthermore, we do not care about whether the note is owned by the sender, or whether it was nullified before. Wallets and other clients have a choice to make to ensure the asset identifier is the preserved for the output note of a split Action, for the value balance verification:</p>
@@ -194,8 +194,10 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/618">https://g
             </ul>
             <p><strong>Correct Value Commitment:</strong> the following constraints must be added to ensure that the value commitment is computed using the witnessed identifier, as represented in the notes</p>
             <ul>
-                <li>The fixed-base multiplication constraints between the value and the value base point of the value commitment,:math:<cite>mathsf{cv}</cite>, is replaced with a variable-base multiplication between the two</li>
-                <li>The witness to the value base-point, as defined in <a href="#valuebase">valuebase</a> is the auxiliary input
+                <li>The fixed-base multiplication constraints between the value and the value base point of the value commitment,
+                    <span class="math">\(\mathsf{cv}\)</span>
+                , is replaced with a variable-base multiplication between the two.</li>
+                <li>The witness to the value base-point, as defined in the <a href="#value-base">value base</a> equation is the auxiliary input
                     <span class="math">\(\mathsf{AssetId}\)</span>
                 .</li>
             </ul>
@@ -306,12 +308,11 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/618">https://g
                 <p>In order to have a "clean" backwards compatibility with the ZEC notes, we have designed the circuit to support both ZEC and ZSA notes. As we specify above, there are three main reasons we can do this: - The input notes with an asset identifer denote the ZSA custom assets, generating a note commitment that includes the asset identifer; whereas the notes without an identifier, denote the ZEC notes, and generate a note commitment that does not include the asset identifier, in order to maintain the referencability to the Merkle tree - The value commitment is abstracted to allow for the value base-point as a variable private input to the proof - The ZEC-based actions will still include dummy input notes, whereas the ZSA-based actions will include split input notes</p>
             </section>
         </section>
-        <a id="burnmechanism"></a>
         <section id="burn-mechanism"><h2><span class="section-heading">Burn Mechanism</span><span class="section-anchor"> <a rel="bookmark" href="#burn-mechanism"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <p>The burn mechanism may be needed for off-boarding the wrapped assets from the chain, or enabling advanced tokenomics on native tokens. It is part of the Issuance/Burn protocol, but given that it can be seen as an extension of the Transfer protocol, we add it here for readability.</p>
             <p>In essence, the burn mechanism is a transparent / revealing extension to the transfer protocol that enables a specific amount of any asset identifier to be sent into “oblivion”. Our burn mechanism does NOT send assets to a non-spendable address, it simply reduces the total number of assets in circulation at the consensus level. It is enforced at the consensus level, by using an extension of the value balance mechanism used for ZEC assets.</p>
             <p>First, contrary to the strict transfer transaction, we allow the sender to include a
-                <span class="math">\(\mathsf{valueBalvalueBalance_{AssetId}}\)</span>
+                <span class="math">\(\mathsf{valueBalance_{AssetId}}\)</span>
              variable for every asset identifier that is being burnt. As we will show in the transaction structure, this is separate from the regular
                 <span class="math">\(\mathsf{valueBalance^Orchard}\)</span>
              that is the default transparent value for the ZEC asset.</p>
