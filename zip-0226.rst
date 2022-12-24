@@ -28,7 +28,7 @@ We define the following additional terms:
 
 - Asset: A type of note that can be transferred on the Zcash block chain, identified by the :math:`\mathsf{AssetId}` parameter.
 
-  - ZEC is the default (and currently the only defined) asset for the Zcash mainnet.
+  - ZEC is the default (and currently the only defined) Asset for the Zcash mainnet.
 
 - Zcash Shielded Asset: an Asset with issuance defined on the Zcash block chain, and, for now, belonging to the Orchard shielded pool.
 - Wrapped Asset: a Zcash Shielded Asset with native issuance defined outside the Zcash block chain.
@@ -40,27 +40,27 @@ Abstract
 ========
 
 ZIP 226 and ZIP 227 propose in conjunction the Zcash Shielded Assets (ZSA) protocol, which is an extension of the
-Orchard protocol that enables the creation, transfer, and burn of custom assets on the Zcash chain. The creation of such assets is defined
-in ZIP 227 [#zip-0227]_. The transfer and burn of such assets is defined in ZIP 226 [#zip-0226]_.
+Orchard protocol that enables the creation, transfer, and burn of custom Assets on the Zcash chain. The creation of such Assets is defined
+in ZIP 227 [#zip-0227]_. The transfer and burn of such Assets is defined in ZIP 226 [#zip-0226]_.
 
 Motivation
 ==========
 
-The current Orchard protocol does not support custom assets. Enabling multi-asset support on the Zcash chain will open the door for a host of applications, and enhance the ecosystem with application developers and asset custody institutions for issuance and bridging purposes.
+The current Orchard protocol does not support custom Assets. Enabling multi-asset support on the Zcash chain will open the door for a host of applications, and enhance the ecosystem with application developers and Asset custody institutions for issuance and bridging purposes.
 
 Overview
 ========
 In order to be able to represent different Asset identifiers in Orchard, we need to define a new data field that uniquely represents the identifier of the Asset in question, which we call :math:`\mathsf{AssetId}`.
 
-The asset identifier will be used to enforce the balance of an Action Description [#protocol-actions]_ is preserved across Assets (see the Orchard Binding Signature [#protocol-binding]_), and by extension the balance of an Orchard transaction. That is, the sum of all the :math:`\mathsf{value^{net}}` from each Action Description, computed as :math:`\mathsf{value^{old}-value^{new}}`, must be balanced **only with respect to the same Asset identifier**. This is specially important since we will allow different Action Descriptions to transfer notes of different Asset identifiers, where the overall balance is checked without revealing which Assets (or how many different identifiers) are being transferred.
+The Asset identifier will be used to enforce the balance of an Action Description [#protocol-actions]_ is preserved across Assets (see the Orchard Binding Signature [#protocol-binding]_), and by extension the balance of an Orchard transaction. That is, the sum of all the :math:`\mathsf{value^{net}}` from each Action Description, computed as :math:`\mathsf{value^{old}-value^{new}}`, must be balanced **only with respect to the same Asset identifier**. This is specially important since we will allow different Action Descriptions to transfer notes of different Asset identifiers, where the overall balance is checked without revealing which Assets (or how many different identifiers) are being transferred.
 
 As was initially proposed by Jack Grigg and Daira Hopwood [#initial-zsa-issue]_, we propose to make this happen by changing the value base point, :math:`\mathcal{V}^{\mathsf{Orchard}}`, in the Homomorphic Pedersen Commitment that generates the value commitment, :math:`\mathsf{cv^{net}}`, of the *net value* in an Orchard Action.
 
-Because in a single transaction all value commitments are balanced, there must be as many different value base points as there are asset identifiers in the transaction. We propose to make the :math:`\mathsf{AssetId}` identifier an auxiliary input to the proof, represented already as a point in the Pallas curve. The circuit then should check that the same :math:`\mathsf{AssetId}` is used in the old note commitment, in the new note commitment **and** in the value commitment as the base point of the value. This ensures that (1) the input and output notes are of the same :math:`\mathsf{AssetId}`, and (2) that only actions with the same asset identifier will balance out in the binding and balance signature.
+Because in a single transaction all value commitments are balanced, there must be as many different value base points as there are Asset identifiers in the transaction. We propose to make the :math:`\mathsf{AssetId}` identifier an auxiliary input to the proof for each Action, represented already as a point on the Pallas curve. The circuit then should check that the same :math:`\mathsf{AssetId}` is used in the old note commitment, in the new note commitment **and** as the base point :math:`\mathcal{V}^\mathsf{Orchard}` in the value commitment. This ensures (1) that the input and output notes are of the same :math:`\mathsf{AssetId}`, and (2) that only actions with the same Asset identifier will balance out in the binding and balance signatures.
 
-In order to ensure the security of the transfers, and as we will explain below, we are replacing input dummy notes for custom assets, as we need to enforce that the :math:`\mathsf{AssetId}` of the output note of that split action is the output of a PRF.
+In order to ensure the security of the transfers, and as we will explain below, we are redefining input dummy notes for custom Assets, as we need to enforce that the :math:`\mathsf{AssetId}` of the output note of that split Action is the output of a PRF.
 
-Finally, in this ZIP we also describe the *burn* mechanism, which is a direct extension of the transfer mechanism. The burn process uses a similar mechanism than what is used in Orchard to unshield ZEC, by using the :math:`\mathsf{valueBalance}` of the asset in question. Burning assets is useful for many purposes, including bridging of wrapped assets and removing supply of native assets.
+Finally, in this ZIP we also describe the *burn* mechanism, which is a direct extension of the transfer mechanism. The burn process uses a similar mechanism to what is used in Orchard to unshield ZEC, by using the :math:`\mathsf{valueBalance}` of the Asset in question. Burning Assets is useful for many purposes, including bridging of Wrapped Assets and removing supply of Native Assets.
 
 Specification
 =============
@@ -70,28 +70,28 @@ Most of the protocol is kept the same as the Orchard protocol released with NU5,
 Asset Identifiers
 -----------------
 
-For every new asset, there must be a new and unique identifier of the asset. Every asset is defined by the asset description, :math:`\mathsf{asset\_desc}`, which is a global byte string (valid across all -future- Zcash protocols). From this asset description, the specific asset identifier, :math:`\mathsf{AssetId}`, is derived with a `GroupHash` and used within the output notes, as defined by the specific protocol (e.g.: for now Orchard-style, using Pallas curve).
+For every new Asset, there must be a new and unique identifier of the Asset. Every Asset is defined by the *Asset description*, :math:`\mathsf{asset\_desc}`, which is a global byte string (valid across all -future- Zcash protocols). From this Asset description the specific Asset identifier, :math:`\mathsf{AssetId}`, is derived with a `GroupHash` and used within the output notes, as defined by the specific protocol (e.g.: for now Orchard-style, using Pallas curve).
 
-This :math:`\mathsf{AssetId}` will be the base point of the value commitment for the specific custom asset. Note that the :math:`\mathsf{AssetId}` of the ZEC asset will be kept as the original value base-point, :math:`\mathcal{V}^\mathsf{Orchard}`.
+This :math:`\mathsf{AssetId}` will be the base point of the value commitment for the specific custom Asset. Note that the :math:`\mathsf{AssetId}` of the ZEC Asset will be kept as the original value base point, :math:`\mathcal{V}^\mathsf{Orchard}`.
 
-In future network and protocol upgrades, the same asset description string can be carried on, with potentially a mapping into a different curve or group. In that case, the turnstile should know how to transform the asset identifier, :math:`\mathsf{AssetId}`, from one group to another one.
+In future network and protocol upgrades, the same Asset description string can be carried on, with potentially a mapping into a different shielded protocol. In that case, the turnstile should know how to transform the Asset identifier, :math:`\mathsf{AssetId}`, from one shielded protocol to another.
 
 Note Structure & Commitment
 ---------------------------
 
-First, we need to adapt the components that define the assets, i.e.: *notes*. A ZSA note differs from an Orchard note by including the identifier of asset, :math:`\mathsf{AssetId}`. So an ZSA note looks like:
+First, we need to adapt the components that define the Assets, i.e.: *notes*. A ZSA note differs from an Orchard note by including the identifier of the Asset, :math:`\mathsf{AssetId}`. So a ZSA note looks like:
 
 
 :math:`(\mathsf{g_d, pk_d, v, \rho, \psi, AssetId})`
 
 
-Where :math:`\mathsf{AssetId}` is the unique random group element that identifies each asset in the Pallas curve [#protocol-pallasandvesta]_, [#pasta-evidence]_ of the Orchard protocol. 
+Where :math:`\mathsf{AssetId}` is the unique random element of the Pallas group [#protocol-pallasandvesta]_ that identifies each Asset in the Orchard protocol. 
 
-In this case, the instance of the note commitment scheme, :math:`\mathsf{NoteCommit^{OrchardZSA}_{rcm}}`, will differ from :math:`\mathsf{NoteCommit^{Orchard}_{rcm}}` in that for non-ZEC assets, the asset identifier will be added as an input to the commitment computation. As we will see, the recursive structure of the Sinsemilla-base commitment [#protocol-concretesinsemillacommit]_ allows us to add the asset identifier as a final recursive step, and hence keep a single instance of the Sinsemilla hash function in the circuit for the note commitment verification.
+In this case, the instance of the note commitment scheme, :math:`\mathsf{NoteCommit^{OrchardZSA}_{rcm}}`, will differ from :math:`\mathsf{NoteCommit^{Orchard}_{rcm}}` in that for non-ZEC Assets, the Asset identifier will be added as an input to the commitment computation. As we will see, the nested structure of the Sinsemilla-based commitment [#protocol-concretesinsemillacommit]_ allows us to add the Asset identifier as a final recursive step, and hence keep a single instance of the Sinsemilla hash function in the circuit for the note commitment verification.
 
-Since the commitment output is still indistinguishable with the original Orchard ZEC note commitments, by definition of the Sinsemilla hash, ZSA note commitments will be added to the same Merkle Commitment Tree. In essence, we have
+The commitment output is still indistinguishable from the original Orchard ZEC note commitments, by definition of the Sinsemilla hash. ZSA note commitments will therefore be added to the same Orchard Note Commitment Tree. In essence, we have
 
-:math:`\mathsf{NoteCommit^{OrchardZSA}_{rcm}(repr_{\mathbb{P}}(g_d), repr_{\mathbb{P}}(pk_d), v, \rho, \psi, AssetId)} \in \{\mathsf{cm},\bot\}`
+:math:`\mathsf{NoteCommit^{OrchardZSA}_{rcm}(repr_{\mathbb{P}}(g_d), repr_{\mathbb{P}}(pk_d), v, \rho, \psi, AssetId)} \in \mathsf{NoteCommit^{Orchard}.Output} \cup \{\bot\}`
 
 The nullifier is generated in the same manner as in the Orchard protocol.
 
@@ -112,7 +112,7 @@ In the case of the Orchard protocol, we see that the base points :math:`\mathcal
 :math:`\mathcal{R}^{\mathsf{Orchard}}` are fixed for every value commitment, as the values represent the amount of ZEC
 being transferred.
 
-In the case of the ZSA protocol, the value of different asset identifiers in a given transaction will be committed using a **different value base point**. This enables the final balance of the transaction to be securely computed, such that each asset identifier is balanced independently, as the assets are not meant to be fungible. The value commitment then becomes
+In the case of the ZSA protocol, the value of different Asset identifiers in a given transaction will be committed using a **different value base point**. This enables the final balance of the transaction to be securely computed, such that each Asset identifier is balanced independently, as Assets with different identifiers are not meant to be mutually fungible. The value commitment then becomes
 
 :math:`\mathsf{cv^{net}:=ValueCommit^{OrchardZSA}_{rcv}(v^{net}_{AssetId},\mathcal{V}^{\mathsf{OrchardZSA}}_{\mathsf{AssetId}})}:= \mathsf{[v^{net}_{AssetId}]}\mathcal{V}^{\mathsf{OrchardZSA}}_{\mathsf{AssetId}}+[\mathsf{rcv}]\mathcal{R}^{\mathsf{Orchard}}`
 
@@ -120,7 +120,7 @@ where :math:`\mathsf{v^{net}_{AssetId}} = \mathsf{v^{old}_{AssetId} - v^{new}_{A
 
 .. _`value base`:
 
-:math:`\mathcal{V}^{\mathsf{OrchardZSA}}_{\mathsf{AssetId}}:=\mathsf{AssetId}= \mathsf{GroupHash^{\mathbb{P}}}\texttt{("z.cash:Orchard-cv", "a" || ik || \mathsf{asset_desc})}`
+:math:`\mathcal{V}^{\mathsf{OrchardZSA}}_{\mathsf{AssetId}}:=\mathsf{AssetId}= \mathsf{GroupHash^{\mathbb{P}}}\texttt{("z.cash:Orchard-cv", "a" || } \mathsf{ik} \texttt{ || } \mathsf{asset\_desc} \texttt{)}`
 
 :math:`\mathcal{R}^{\mathsf{Orchard}}:=\mathsf{GroupHash^{\mathbb{P}}}\texttt{("z.cash:Orchard-cv", "r")}`
 
@@ -129,9 +129,9 @@ Where :math:`\mathcal{V}^{\mathsf{OrchardZSA}}_{\mathsf{ZEC}} =\mathcal{V}^{\mat
 Value Balance Verification
 --------------------------
 
-In order to verify the balance of the different assets, verifier performs exactly the same the process as for the Orchard protocol [#protocol-binding]_. The main reason why no changes to this process are needed is that no custom assets can be unshielded, so all custom assets are contained within the shielded ZSA pool. This means that the net balance of the input and output values is zero, with only one asset identifier of value balance published, that of ZEC, :math:`\mathsf{v^{balanceOrchard}}`. No net amount of any other asset identifier will be revealed, and the number of asset identifiers in the transaction is also hidden. The only exception to this is in the case that an asset is *burnt*, as we will see below in the `burn mechanism`_.
+In order to verify the balance of the different Assets, the verifier MUST perform exactly the same process as for the Orchard protocol [#protocol-binding]_. The main reason why no changes to this process are needed is that no custom Assets can be unshielded, so all custom Assets are contained within the shielded pool. This means that the net balance of the input and output values is zero, with only one Asset identifier of value balance published, that of ZEC, :math:`\mathsf{v^{balanceOrchard}}`. No net amount of any other Asset identifier will be revealed, and the number of Asset identifiers in the transaction is also hidden. The only exception to this is in the case that an Asset is *burnt*, as we will see below in the `burn mechanism`_.
 
-For a total of :math:`n` actions in a transfer, the prover can still sign the `SIGHASH` of the transaction using the binding signature key
+For a total of :math:`n` Actions in a transfer, the prover MUST still sign the `SIGHASH` of the transaction using the binding signature key
 
 :math:`\mathsf{bsk} = \sum_{\mathsf{ \forall i\in \{1,...,n\}}} \mathsf{rcv_{i}}`
 
@@ -150,7 +150,7 @@ One of the key functionalities in a UTXO-based protocol is the fact that input n
 
 This, however, brings some issues when it comes to adding multiple Asset identifiers, as the output note of the split Actions *cannot* be of *any* Asset identifier, it must be enforced to be an actual output of a GroupHash computation (in fact we want it to be of the same identifier as the original input note, but the binding signature takes care that the proper balancing is performed). If not, then the prover could essentially input a multiple (or linear combination) of an existing identifier, with the goal to attack the network by overflowing the ZEC value balance and hence counterfeiting ZEC funds.
 
-In order to prevent this, we make some modifications to the circuit. Specifically we remove the dummy note functionality for custom assets and we enforce that *every* input note to an ZSA Action must be proven to exist in the set of note commitments in the Merkle Tree. We then enforce this real note to be “unspendable” in the sense that its value
+In order to prevent this, we make some modifications to the circuit. Specifically we remove the dummy note functionality for custom Assets and we enforce that *every* input note to an ZSA Action must be proven to exist in the set of note commitments in the note commitment tree. We then enforce this real note to be “unspendable” in the sense that its value
 will be zeroed in split Actions and the nullifier will be randomized, making the note not spendable in the specific Action. Then, the proof itself ensures that the output note is of the same identifier as the input note. In the circuit, the split note functionality will be activated by a boolean private input to the proof.
 
 This creates a chain of induction that ensures that the value base points of all output notes of a transfer are actual outputs of a GroupHash, as they originate in the Issuance protocol which is publicly verified. If this were not done then it would be possible to violate balance, for example by using a value base point derived from those of other Assets.
@@ -159,7 +159,7 @@ Note that we do not care about whether the note identified by a Split Input is o
 
 Wallets and other clients have a choice to make to ensure the Asset type is preserved for the output note of a Split Action:
 
-1. The Split Input note could be another note of the same asset identifier that is being spent by this transaction (but not by this Split Input). 
+1. The Split Input note could be another note of the same Asset identifier that is being spent by this transaction (but not by this Split Input). 
 2. The Split Input note could be a different unspent note of the same :math:`\mathsf{AssetId}` (note that the note will not actually be spent).
 3. The Split Input note could be an already spent note of the same :math:`\mathsf{AssetId}` (note that by zeroing the value in the circuit, we prevent double spending).
 
@@ -168,38 +168,38 @@ The specific circuit changes are presented below.
 Circuit Statement
 =================
 
-The advantage of the design described above, with respect to the circuit statement, is that every *ZSA Action statement* is kept closely similar to the Orchard Action statement [#protocol-actionstatement]_, except for a few additions that ensure the security of the asset identifier system.
+The advantage of the design described above, with respect to the circuit statement, is that every *ZSA Action statement* is kept closely similar to the Orchard Action statement [#protocol-actionstatement]_, except for a few additions that ensure the security of the Asset identifier system.
 
-**Asset Identifier Equality:** the following constraints must be added to ensure that the input and output note are of the
-same :math:`\mathsf{AssetId}`:
+**Asset Identifier Equality:** the following constraints must be added to ensure that 
+the input and output note are of the same :math:`\mathsf{AssetId}`:
 
-- The asset identifier, :math:`\mathsf{AssetId}`, for the note is witnessed once, as an auxiliary input.
-- The witnessed asset identifier, :math:`\mathsf{AssetId}`, is added to the old note commitment input.
-- The witnessed asset identifier, :math:`\mathsf{AssetId}`, is added to the new note commitment input.
+- The Asset identifier, :math:`\mathsf{AssetId}`, for the note is witnessed once, as an auxiliary input.
+- The witnessed Asset identifier, :math:`\mathsf{AssetId}`, is added to the old note commitment input.
+- The witnessed Asset identifier, :math:`\mathsf{AssetId}`, is added to the new note commitment input.
 
-**Correct Value Commitment:** the following constraints must be added to ensure that the value commitment is computed using the witnessed identifier, as represented in the notes
+**Correct Value Commitment:** the following constraints must be added to ensure that the value commitment is computed using the witnessed Asset identifier, as represented in the notes:
 
 - The fixed-base multiplication constraints between the value and the value base point of the value commitment, :math:`\mathsf{cv}`, is replaced with a variable-base multiplication between the two.
 - The witness to the value base point, as defined in the `value base`_ equation is the auxiliary input :math:`\mathsf{AssetId}`.
 
-**Enforce Secure Identifier for Split Actions:** the following constraints must be added to prevent senders from changing the asset identifier for the output note in a Split Action:
+**Enforce Secure Identifier for Split Actions:** the following constraints must be added to prevent senders from changing the Asset identifier for the output note in a Split Action:
 
 - The Value Commitment Integrity should be changed
     - Replace the input note value by a generic value, `v'`, as :math:`\mathsf{cv^net} = \mathsf{ValueCommit_rcv^OrchardZSA(v’ - v^new, AssetId)}`
 - Add a boolean ``split`` variable as an auxiliary witness. This variable is to be activated ``split = 1`` if the Action in question is a split and ``split = 0`` if the Action is actually spending an input note:
-    - If ``split = 1`` then set `v' = 0` otherwise `v'=v^old` from the auxiliary input
-- The Merkle Path Validity should check the existance of the note commitment as usual (and not like with dummy notes):
+    - If ``split = 1`` then set `v' = 0` otherwise `v'=v^old` from the auxiliary input.
+- The Merkle Path Validity should check the existence of the note commitment as usual (and not like with dummy notes):
     - Check that (path, pos) is a valid Merkle path of depth :math:`\mathsf{MerkleDepth^Orchard}`, from :math:`\mathsf{cm^old}` to the anchor :math:`\mathsf{rt^Orchard}`.
 - The Nullifier Integrity will be changed to prevent the identification of notes
     - Replace the :math:`\psi_{old}` value with a generic :math:`\psi'` as :math:`\mathsf{nf_old = DeriveNullifier_nk}(\rho^\mathsf{old}, \psi', \mathsf{cm^old})`
-    - if ``split = 1`` set :math:`\psi' = \mathsf{randomSample}`, otherwise set :math:`\psi' = \psi^{old}`
+    - if :math:`split = 0` then constrain :math:`\psi' = \psi^{old}`. (Otherwise :math:`\psi'` should be sampled randomly.) 
 
 **Enabling Backwards Compatibility with ZEC Notes:** the following constraints must be added to enable backwards compatibility with the Orchard ZEC notes.
 
-The old note commitment is computed using a “rolling-aggregate” sinsemilla commitment. This means that the commitment is computed by adding new chunks or windows to the accumulated value. This method will be used in order to maintain a single commitment instance for the old note commitment, that will be used both for Orchard ZEC notes and for ZSA notes. The original Orchard ZEC notes will be conserved and not actually be converted into ZSA notes, as we will always need to compute them.
+The old note commitment is computed using a “rolling-aggregate” Sinsemilla commitment. This means that the commitment is computed by adding new chunks or windows to the accumulated value. This method will be used in order to maintain a single commitment instance for the old note commitment, that will be used both for Orchard ZEC notes and for ZSA notes. The original Orchard ZEC notes will be conserved and not actually be converted into ZSA notes, as we will always need to compute them.
 
-- The input note in the old note commitment integrity must either include an asset identifier (ZSA note) or not (ZEC-Orchard note)
-    - If the asset identifier auxiliary input is set :math:`\mathsf{AssetId}` = :math:`\mathcal{V}^\mathsf{Orchard}`
+- The input note in the old note commitment integrity must either include an Asset identifier (ZSA note) or not (ZEC-Orchard note)
+    - If the Asset identifier auxiliary input is set :math:`\mathsf{AssetId}` = :math:`\mathcal{V}^\mathsf{Orchard}`
         - NoteCommitment has a “compatibility” path that computes the note commitment as in plain Orchard (i.e.: without including the identifier)
         - This path also uses the original domain separator for ZEC note commitment
     - Else, 
@@ -211,33 +211,33 @@ Backward Compatibility
 ----------------------
 
 In order to have a "clean" backwards compatibility with the ZEC notes, we have designed the circuit to support both ZEC and ZSA notes. As we specify above, there are three main reasons we can do this:
-- The input notes with an asset identifer denote the ZSA custom assets, generating a note commitment that includes the asset identifer; whereas the notes without an identifier, denote the ZEC notes, and generate a note commitment that does not include the asset identifier, in order to maintain the referencability to the Merkle tree
+- The input notes with an Asset identifer denote the ZSA custom Assets, generating a note commitment that includes the Asset identifer; whereas the notes without an identifier, denote the ZEC notes, and generate a note commitment that does not include the Asset identifier, in order to maintain the referencability to the Merkle tree
 - The value commitment is abstracted to allow for the value base-point as a variable private input to the proof
 - The ZEC-based actions will still include dummy input notes, whereas the ZSA-based actions will include split input notes
 
 
 Burn Mechanism
 ==============
-The burn mechanism may be needed for off-boarding the wrapped assets from the chain, or enabling advanced tokenomics on native tokens. It is part of the Issuance/Burn protocol, but given that it can be seen as an extension of the Transfer protocol, we add it here for readability.
+The burn mechanism may be needed for off-boarding the Wrapped Assets from the chain, or enabling advanced tokenomics on native tokens. It is part of the Issuance/Burn protocol, but given that it can be seen as an extension of the Transfer protocol, we add it here for readability.
 
-In essence, the burn mechanism is a transparent / revealing extension to the transfer protocol that enables a specific amount of any asset identifier to be sent into “oblivion”. Our burn mechanism does NOT send assets to a non-spendable address, it simply reduces the total number of assets in circulation at the consensus level. It is enforced at the consensus level, by using an extension of the value balance mechanism used for ZEC assets.
+In essence, the burn mechanism is a transparent / revealing extension to the transfer protocol that enables a specific amount of any Asset identifier to be sent into “oblivion”. Our burn mechanism does NOT send Assets to a non-spendable address, it simply reduces the total number of units of a given Asset in circulation at the consensus level. It is enforced at the consensus level, by using an extension of the value balance mechanism used for ZEC Assets.
 
-First, contrary to the strict transfer transaction, we allow the sender to include a :math:`\mathsf{valueBalance_{AssetId}}` variable for every asset identifier that is being burnt. As we will show in the transaction structure, this is separate from the regular :math:`\mathsf{valueBalance^Orchard}` that is the default transparent value for the ZEC asset.
+First, contrary to the strict transfer transaction, we allow the sender to include a :math:`\mathsf{valueBalance_{AssetId}}` variable for every Asset identifier that is being burnt. As we will show in the transaction structure, this is separate from the regular :math:`\mathsf{valueBalance^Orchard}` that is the default transparent value for the ZEC Asset.
 
-For every custom asset that is burnt, we add to the `assetBurn` vector the tuple :math:`(\mathsf{valueBalance_{AssetId}, AssetId})` such that the validator of the transaction can compute the value commitment with the corresponding value base point of that asset. This ensures that the values are all balanced out with respect to the asset identifiers in the transfer.
+For every custom Asset that is burnt, we add to the `assetBurn` vector the tuple :math:`(\mathsf{valueBalance_{AssetId}, AssetId})` such that the validator of the transaction can compute the value commitment with the corresponding value base point of that Asset. This ensures that the values are all balanced out with respect to the Asset identifiers in the transfer.
 
 
 :math:`\mathsf{assetBurn = [(v^{AssetId}, AssetId)}| \forall \mathsf{AssetId}  \textit{ s.t.}\mathsf{v^{AssetId}\neq 0}]`
 
-The value balances for each asset identifier in `assetBurn` represents the amount of that asset identifier that is being burnt. In the case of ZEC, the value balance represents either the transaction fee, or the amount of ZEC changing anonymity pools (to Sapling or Transparent).
+The value balances for each Asset identifier in `assetBurn` represents the amount of that Asset identifier that is being burnt. In the case of ZEC, the value balance represents either the transaction fee, or the amount of ZEC changing anonymity pools (to Sapling or Transparent).
 
-Finally, the validator needs to verify the Balance and Binding Signature by adding the value balances for all assets, as committed using their respective :math:`\mathsf{AssetId}` as the value base point of the Pedersen Commitment. This is done as follows
+Finally, the validator needs to verify the Balance and Binding Signature by adding the value balances for all Assets, as committed using their respective :math:`\mathsf{AssetId}` as the value base point of the Pedersen Commitment. This is done as follows
 
 :math:`\mathsf{bvk = (\sum cv_i^{net})}  - \mathsf{ ValueCommit_0^{Orchard}(v^{balanceOrchard})} - \sum_{\forall \mathsf{AssetId}\textit{ s.t. }\mathsf{v^{AssetId}\neq 0}} \mathsf{ValueCommit_0^{ORchardZSA}(v^{AssetId}, AssetId) } = \sum \mathsf{rcv_{i,j}^{net}}\mathcal{R}^{\mathsf{Orchard}}`
 
-In the case that the balance of all the action values related to a specific asset will be zero, there will be no value added to the vector. This way, the number of assets, nor their identifiers will be revealed, except in the case that an asset is burnt.
+In the case that the balance of all the action values related to a specific Asset will be zero, there will be no value added to the vector. This way, the number of Assets, nor their identifiers will be revealed, except in the case that an Asset is burnt.
 
-**Note:** Even if this mechanism allows having transparent ↔  shielded asset transfers in theory, the transparent protocol will not be changed with this ZIP to adapt to a multiple asset structure. This means that unless future consensus rules changes do allow it, the unshielding is not not be possible for custom assets.
+**Note:** Even if this mechanism allows having transparent ↔ shielded Asset transfers in theory, the transparent protocol will not be changed with this ZIP to adapt to a multiple Asset structure. This means that unless future consensus rules changes do allow it, unshielding will not be possible for custom Assets.
 
 ZSA Transaction Structure
 =========================
@@ -246,9 +246,9 @@ Similar to version 5 transaction format, with the following modifications to the
 +-----------------+-------------+-----------------------------------+-------------------------+
 | Bytes           | Name        | Data Type                         | Description             |
 +=================+=============+===================================+=========================+
-| varies          | nAssetBurn  | compactSize                       | number of assets burnt  |
+| varies          | nAssetBurn  | compactSize                       | number of Assets burnt  |
 +-----------------+-------------+-----------------------------------+-------------------------+
-| 40*nAssetBurn   | vAssetBurn  | bytes[40][nAssetBurn]             | 32 bytes asset type_t,  |
+| 40*nAssetBurn   | vAssetBurn  | bytes[40][nAssetBurn]             | 32 bytes Asset type_t,  |
 |                 |             |                                   | 8 bytes of valueBalance |
 +-----------------+-------------+-----------------------------------+-------------------------+
 
@@ -266,8 +266,8 @@ Security and Privacy
 --------------------
 
 - Even if the Orchard protocol and ZSA protocol do not share the same anonymity pool (nodes can keep track of the notes that where published with different transaction structures), the migration from one to the other is done automatically and seamlessly. The Orchard bundle will be replaced by the ZSA bundle and all ZEC notes will be fully spendable with the new transaction structure.
-- When including new assets we would like to maintain the amount and identifiers of assets private, which is achieved with the design
-- We prevent the "roadblock" attack on the asset identifer by ensuring the output notes receive an asset identifier that exists on the global state
+- When including new Assets we would like to maintain the amount and identifiers of Assets private, which is achieved with the design
+- We prevent the "roadblock" attack on the Asset identifer by ensuring the output notes receive an Asset identifier that exists on the global state
 
 Deplopyment
 -----------
