@@ -40,7 +40,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/618">https://g
         <section id="use-cases"><h2><span class="section-heading">Use Cases</span><span class="section-anchor"> <a rel="bookmark" href="#use-cases"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <p>The design presented in this ZIP enables issuance of shielded Assets in various modes:</p>
             <ul>
-                <li>The issuer knows in advance the receivers of the issued Asset.</li>
+                <li>The issuer may or may not know the receivers of the issued Asset in advance.</li>
                 <li>The Asset can be of non-fungible type, where each Asset type can be made part of a single “series”.</li>
                 <li>The supply of the Asset can be limited in advance or not.</li>
                 <li>The Asset can be a wrapped version of an Asset issued by another chain (as long as there is a bridge that supports transfer of that Asset between chains).</li>
@@ -155,7 +155,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/618">https://g
                                 <span class="math">\(\mathsf{asset\_desc}\)</span>
                             </td>
                             <td>byte</td>
-                            <td>Uni-code encoded string of varied size, up to 512 bytes</td>
+                            <td>UTF-8 encoded string of varied size, up to 512 bytes</td>
                         </tr>
                         <tr>
                             <td>Varies</td>
@@ -282,7 +282,7 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/618">https://g
                         <ul>
                             <li>issuing a last set of tokens of that specific
                                 <span class="math">\(\mathsf{AssetId}\)</span>
-                            , while at the same time setting <code>finalize = 1</code>, or by</li>
+                            , during which <code>finalize = 1</code>, or by</li>
                             <li>issuing a transaction with a single note in the issuance action pertaining to that
                                 <span class="math">\(\mathsf{AssetId}\)</span>
                             , where the note will contain a <code>value = 0</code>. This can be used for application-specific purposes (NFT collections) or for security purposes to revoke the Asset issuance (see Security and Privacy Considerations).</li>
@@ -361,7 +361,7 @@ T.2: issuerVerificationKey   (field encoding bytes)</pre>
                     <p>A byte encoding of Issue Action information for all Issue Actions belonging to the transaction. For each Action, the following elements are included in the hash:</p>
                     <pre>T.1a: notes                   (field encoding bytes)
 T.1b: assetDescription        (field encoding bytes)
-T.1c: isFinalized             (1 byte)</pre>
+T.1c: isFinalized             (1 bit)</pre>
                     <section id="t-1a-notes"><h5><span class="section-heading">T.1a: notes</span><span class="section-anchor"> <a rel="bookmark" href="#t-1a-notes"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
                         <p>A byte encoding of Note information for all Notes belonging to the Action. For each Note, the following elements are included in the hash:</p>
                         <pre>T.1a.1: recipient                    (field encoding bytes)
@@ -389,11 +389,11 @@ T.1a.5: rseed                        (field encoding bytes)</pre>
                         <p>UTF-8 encoding of the Asset description string.</p>
                     </section>
                     <section id="t-1c-isfinalized"><h5><span class="section-heading">T.1c: isFinalized</span><span class="section-anchor"> <a rel="bookmark" href="#t-1c-isfinalized"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
-                        <p>1-byte representation of a boolean flag that is set to 'true' if the Asset type was finalized in this action and 'false' otherwise. 'True' is represented as 1, 'false' as 0.</p>
+                        <p>1-bit representation of a boolean flag that is set to 'true' if the Asset type was finalized in this action and 'false' otherwise. 'True' is represented as 1, 'false' as 0.</p>
                     </section>
                 </section>
                 <section id="t-2-issuerverificationkey"><h4><span class="section-heading">T.2 issuerVerificationKey</span><span class="section-anchor"> <a rel="bookmark" href="#t-2-issuerverificationkey"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
-                    <p>A byte encoding of issuer verification key for the bundle as defined in [Zcash Protocol Spec § 4.2.3: Orchard Key Components].</p>
+                    <p>A byte encoding of issuer validating key for the bundle as defined in [Zcash Protocol Spec § 4.2.3: Orchard Key Components].</p>
                 </section>
             </section>
         </section>
@@ -401,10 +401,10 @@ T.1a.5: rseed                        (field encoding bytes)</pre>
             <p><strong>Issuer Key or AssetId Compromise</strong></p>
             <p>The design of this protocol does not allow for a rotation of the issuer validating key, that would allow for replacing the key of a specific Asset (see Future Work). In case of compromise, the following actions are recommended:</p>
             <ul>
-                <li>If an Asset identifier is compromised (and not the issuer verification key), the <code>finalize</code> boolean for that Asset should be set to <cite>0</cite> and a new
+                <li>If an Asset identifier is compromised (and not the issuer validating key), the <code>finalize</code> boolean for that Asset should be set to <cite>0</cite> and a new
                     <span class="math">\(\mathsf{AssetId}\)</span>
                  generated instead.</li>
-                <li>If an issuer verification key is compromised, the <code>finalize</code> boolean for all the Assets issued with that key should be set to <cite>0</cite> and the issuer should change to a new spending key altogether (for the purpose of issuance), and issue new Assets, each with a new
+                <li>If an issuer validating key is compromised, the <code>finalize</code> boolean for all the Assets issued with that key should be set to <cite>0</cite> and the issuer should change to a new issuance authorizing key, and issue new Assets, each with a new
                     <span class="math">\(\mathsf{AssetId}\)</span>
                 .</li>
             </ul>
@@ -412,7 +412,7 @@ T.1a.5: rseed                        (field encoding bytes)</pre>
         </section>
         <section id="other-considerations"><h2><span class="section-heading">Other Considerations</span><span class="section-anchor"> <a rel="bookmark" href="#other-considerations"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <section id="implementing-zcash-nodes"><h3><span class="section-heading">Implementing Zcash Nodes</span><span class="section-anchor"> <a rel="bookmark" href="#implementing-zcash-nodes"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
-                <p>Although not enforced in the global state, it is recommended that Zcash full validators keep track of the total supply of Assets as a mutable mapping <cite>issuanceSupplyInfoMap</cite> from
+                <p>Although not enforced in the global state, it is RECOMMENDED that Zcash full validators keep track of the total supply of Assets as a mutable mapping <cite>issuanceSupplyInfoMap</cite> from
                     <span class="math">\(\mathsf{AssetId}\)</span>
                  to
                     <span class="math">\(\mathsf{issuanceSupplyInfoMap := (totalSupply, finalize)}\)</span>

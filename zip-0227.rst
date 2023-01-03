@@ -45,7 +45,7 @@ Use Cases
 
 The design presented in this ZIP enables issuance of shielded Assets in various modes:
 
-- The issuer knows in advance the receivers of the issued Asset.
+- The issuer may or may not know the receivers of the issued Asset in advance.
 - The Asset can be of non-fungible type, where each Asset type can be made part of a single “series”.
 - The supply of the Asset can be limited in advance or not.
 - The Asset can be a wrapped version of an Asset issued by another chain (as long as there is a bridge that supports transfer of that Asset between chains).
@@ -141,7 +141,7 @@ Once ``finalize`` is set to 1, it cannot be unset. For Assets whose ``finalize =
 ================= =============================== ========================== ========================================================================
 Size              Name                            Data Type                  Description
 ================= =============================== ========================== ========================================================================
-Varies            :math:`\mathsf{asset\_desc}`    byte                       Uni-code encoded string of varied size, up to 512 bytes
+Varies            :math:`\mathsf{asset\_desc}`    byte                       UTF-8 encoded string of varied size, up to 512 bytes
 Varies            nNotes                          compactSize                The number of notes in the issuance action
 noteSize * nNotes vNotes                          Note[nNotes]               A sequence of note descriptions within the issuance action
 1 bit             ``finalize``                    boolean                    The boolean that determines the finality of the issuance of that Asset
@@ -209,7 +209,7 @@ Issuers can wrap Assets defined in other chains and issue them at once in a sing
 
 - Issuers can also stop the existing supply production of any Asset associated to their issuer keys. This could be done by
 
-    - issuing a last set of tokens of that specific :math:`\mathsf{AssetId}`, while at the same time setting ``finalize = 1``, or by
+    - issuing a last set of tokens of that specific :math:`\mathsf{AssetId}`, during which ``finalize = 1``, or by
     - issuing a transaction with a single note in the issuance action pertaining to that :math:`\mathsf{AssetId}`, where the note will contain a ``value = 0``. This can be used for application-specific purposes (NFT collections) or for security purposes to revoke the Asset issuance (see Security and Privacy Considerations).
 
 - Furthermore, NFT issuance is enabled by issuing in a single bundle several issuance actions, where each :math:`\mathsf{AssetId}` corresponds to ``value = 1`` at the fundamental unit level. Issuers and users should make sure that ``finalize = 1`` for each of the actions in this scenario.
@@ -274,7 +274,7 @@ A byte encoding of Issue Action information for all Issue Actions belonging to t
 
    T.1a: notes                   (field encoding bytes)
    T.1b: assetDescription        (field encoding bytes)
-   T.1c: isFinalized             (1 byte)
+   T.1c: isFinalized             (1 bit)
 
 
 T.1a: notes
@@ -314,12 +314,12 @@ UTF-8 encoding of the Asset description string.
 
 T.1c: isFinalized
 '''''''''''''''''
-1-byte representation of a boolean flag that is set to 'true' if the Asset type was finalized in this action and 'false' otherwise. 'True' is represented as 1, 'false' as 0.
+1-bit representation of a boolean flag that is set to 'true' if the Asset type was finalized in this action and 'false' otherwise. 'True' is represented as 1, 'false' as 0.
 
 
 T.2 issuerVerificationKey
 `````````````````````````
-A byte encoding of issuer verification key for the bundle as defined in [Zcash Protocol Spec § 4.2.3: Orchard Key Components].
+A byte encoding of issuer validating key for the bundle as defined in [Zcash Protocol Spec § 4.2.3: Orchard Key Components].
 
 
 Security and Privacy Considerations
@@ -329,8 +329,8 @@ Security and Privacy Considerations
 
 The design of this protocol does not allow for a rotation of the issuer validating key, that would allow for replacing the key of a specific Asset (see Future Work). In case of compromise, the following actions are recommended:
 
-- If an Asset identifier is compromised (and not the issuer verification key), the ``finalize`` boolean for that Asset should be set to `0` and a new :math:`\mathsf{AssetId}` generated instead.
-- If an issuer verification key is compromised, the ``finalize`` boolean for all the Assets issued with that key should be set to `0` and the issuer should change to a new spending key altogether (for the purpose of issuance), and issue new Assets, each with a new :math:`\mathsf{AssetId}`.
+- If an Asset identifier is compromised (and not the issuer validating key), the ``finalize`` boolean for that Asset should be set to `0` and a new :math:`\mathsf{AssetId}` generated instead.
+- If an issuer validating key is compromised, the ``finalize`` boolean for all the Assets issued with that key should be set to `0` and the issuer should change to a new issuance authorizing key, and issue new Assets, each with a new :math:`\mathsf{AssetId}`.
 
 **Bridging Assets**
 For bridging purposes, the secure method of off-boarding Assets is to burn an Asset with the burning mechanism in ZIP 226 [#zip-0226]_. Users should be aware of issuers that demand the Assets be sent to a specific address on the Zcash chain to be redeemed elsewhere, as this may not reflect the real reserve value of the specific Wrapped Asset.
@@ -341,7 +341,7 @@ Other Considerations
 Implementing Zcash Nodes
 ------------------------
 
-Although not enforced in the global state, it is recommended that Zcash full validators keep track of the total supply of Assets as a mutable mapping `issuanceSupplyInfoMap` from :math:`\mathsf{AssetId}` to :math:`\mathsf{issuanceSupplyInfoMap := (totalSupply, finalize)}` in order to properly keep track of the total supply for different Asset types. This is useful for wallets and other applications that need to keep track of the total supply of Assets.
+Although not enforced in the global state, it is RECOMMENDED that Zcash full validators keep track of the total supply of Assets as a mutable mapping `issuanceSupplyInfoMap` from :math:`\mathsf{AssetId}` to :math:`\mathsf{issuanceSupplyInfoMap := (totalSupply, finalize)}` in order to properly keep track of the total supply for different Asset types. This is useful for wallets and other applications that need to keep track of the total supply of Assets.
 
 Fee Structures
 --------------
