@@ -5,12 +5,11 @@
   Owners: Conrado Gouvea <conrado@zfnd.org>
           Chelsea Komlo <ckomlo@uwaterloo.ca>
           Deirdre Connolly <deirdre@zfnd.org>
-  Credits: First Credited
-           ...
   Status: Draft
   Category: Wallet
   Created: 2022-08-dd
-  License: {usually MIT}
+  License: MIT
+  Discussions-To: <https://github.com/zcash/zips/issues/382>
   Pull-Request: <https://github.com/zcash/zips/pull/TODO>
 
 
