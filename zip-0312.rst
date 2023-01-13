@@ -99,8 +99,6 @@ With those considerations in mind, the threat model considered in this ZIP is:
   without the approval of `MIN_SIGNERS` participants, as specified in FROST.
 - All key share holders are also trusted with the privacy of the transaction,
   thus a rogue key share holder will be able to break its privacy and unlinkability.
-  A future specification may support a scenario where individual key share
-  holders are not trusted with it.
 
 
 Non-requirements
@@ -120,8 +118,12 @@ Specification
 Algorithms in this section are specified using Python pseudo-code, in the same
 fashion as the FROST specification [#FROST]_.
 
-The types Scalar, Element, and G are defined in #[frost-primeordergroup]_, as well
-as the notation for elliptic-curve arithmetic, which uses the additive notation.
+The types Scalar, Element, and G are defined in #[frost-primeordergroup]_, as
+well as the notation for elliptic-curve arithmetic, which uses the additive
+notation. Note that this notation differs from that used in the Zcash Protocol
+Specification. For example, `G.ScalarMult(P, k)` is used for scalar
+multiplication, where the protocol spec would use :math:`[k] P` with the group
+implied by :math:`P`.
 
 
 Re-randomizable FROST
@@ -138,9 +140,9 @@ While key generation is out of scope for this ZIP and the FROST spec [#FROST]_,
 it needs to be consistent with FROST, see [#frost-tdkg]_ for guidance. The
 spend authorization private key :math:`\mathsf{ask}` [#protocol-spendauthsig]_
 is the particular key that must be used in the context of this ZIP. Note that
-while Sapling allows creating it directly, in Orchard it is always derived
-from the spending key :math:`\mathsf{ask}`. This means that a trusted
-dealer key generation process might be required as detailed in [#frost-tdkg]_.
+the :math:`\mathsf{ask}` is usually derived from the spending key :math:`\mathsf{sk}`,
+though that is not required. Doing so might require a trusted dealer key generation
+process as detailed in [#frost-tdkg]_ (as opposed to distributed key generation).
 
 
 Randomizer Generation
@@ -183,7 +185,7 @@ as follows: ::
   def compute_binding_factors(commitment_list, msg, randomizer_point):
     msg_hash = H4(msg)
     encoded_commitment_hash = H5(encode_group_commitment_list(commitment_list))
-    rho_input_prefix = msg_hash || encoded_commitment_hash
+    rho_input_prefix = msg_hash || encoded_commitment_hash || G.SerializeElement(randomizer_point)
 
     binding_factor_list = []
     for (identifier, hiding_nonce_commitment, binding_nonce_commitment) in commitment_list:
@@ -213,6 +215,16 @@ In Round Two, the Coordinator generates a random scalar `randomizer` by calling
 and sends it to each signer, over a confidential and authenticated channel,
 along with the message and the set of signing commitments. (Note that this differs
 from regular FROST which just requires an authenticated channel.)
+
+In Zcash, the message that needs to be signed is actually the SIGHASH
+transaction hash, which is does not convey enough information for the signers to
+decide if they want to authorize the transaction or not. Therefore, in practice,
+more data is needed to be sent from the Coordinator to the signers, possibly the
+transaction itself, openings of value commitments, decryption of note
+ciphertexts, etc.; and the signers must check that the given SIGHASH matches the
+data sent from the Coordinator, or compute the SIGHASH themselves from that
+data. However, the specific mechanism for that process is outside the scope of
+this ZIP.
 
 The `sign` function is changed to receive `randomizer_point` and incorporate it
 into the computation of the binding factor. It is specified as the following: ::
@@ -284,14 +296,17 @@ The `aggregate` function is changed to incorporate the randomizer as follows: ::
   - randomized_group_public_key, the randomized group public key
 
   def aggregate(commitment_list, msg, sig_shares, group_public_key, randomizer):
+    # Compute the randomized group public key
+    randomizer_point = G.ScalarBaseMult(randomizer)
+    randomized_group_public_key = group_public_key + randomizer_point
+
     # Compute the binding factors
-    binding_factor_list = compute_binding_factors(commitment_list, msg)
+    binding_factor_list = compute_binding_factors(commitment_list, msg, randomizer_point)
 
     # Compute the group commitment
     group_commitment = compute_group_commitment(commitment_list, binding_factor_list)
 
     # Compute the challenge
-    randomized_group_public_key = group_public_key + G * randomizer
     challenge = compute_challenge(group_commitment, randomized_group_public_key, msg)
 
     # Compute aggregated signature
@@ -367,16 +382,18 @@ This ciphersuite uses Jubjub for the Group and BLAKE2b-512 for the Hash function
 meant to produce signatures indistinguishable from RedJubjub Sapling Spend
 Authorization Signatures as specified in [#protocol-concretespendauthsig]_.
 
-- Group: Jubjub [#protocol-jubjub]_
+- Group: Jubjub [#protocol-jubjub]_ with base point :math:``\mathcal{G}^{\mathsf{Sapling}}`
+  as defined in [#protocol-concretespendauthsig]_.
 
-  - Order: 6554484396890773809930967563523245729705921265872317281365359162392183254199 (see [#protocol-jubjub]_)
-  - Identity: as defined in [#protocol-jubjub]_
+  - Order: :math:`r_\mathbb{J}` as defined in [#protocol-jubjub]_.
+  - Identity: as defined in [#protocol-jubjub]_.
   - RandomScalar(): Implemented by returning a uniformly random Scalar in the range
     \[0, `G.Order()` - 1\]. Refer to {{frost-randomscalar}} for implementation guidance.
   - SerializeElement(P): Implemented as :math:`\mathsf{repr}_\mathbb{J}(P)` as defined in [#protocol-jubjub]_
   - DeserializeElement(P): Implemented as :math:`\mathsf{abst}_\mathbb{J}(P)` as defined in [#protocol-jubjub]_,
-    failing if :math:`\bot` is returned. Additionally, this function validates that the resulting
-    element is not the group identity element, returning an error if the check fails.
+    returning an error if :math:`\bot` is returned. Additionally, this function
+    validates that the resulting element is not the group identity element,
+    returning an error if the check fails.
   - SerializeScalar: Implemented by outputting the little-endian 32-byte encoding
     of the Scalar value.
   - DeserializeScalar: Implemented by attempting to deserialize a Scalar from a
@@ -391,14 +408,14 @@ Authorization Signatures as specified in [#protocol-concretespendauthsig]_.
     modulo `G.Order()`.
   - H2(m): Implemented by computing BLAKE2b-512("Zcash_RedJubjubH", m), interpreting
     the 64 bytes as a little-endian integer, and reducing the resulting integer
-    modulo L = 6554484396890773809930967563523245729705921265872317281365359162392183254199.
-    (This is equivalent to :math:`\mathsf{H}^\circledast(m)`, as defined in
-    [#protocol-concretereddsa]_ parametrized with [#protocol-jubjub]_.)
+    modulo `G.Order()`.
+    (This is equivalent to :math:`\mathsf{H}^\circledast(m)`, as defined by
+    the :math:`\mathsf{RedJubjub}` scheme instantiated in [#protocol-concretereddsa]_.)
   - H3(m): Implemented by computing BLAKE2b-512("FROST_RedJubjubN", m), interpreting
     the 64 bytes as a little-endian integer, and reducing the resulting integer
-    modulo L = 6554484396890773809930967563523245729705921265872317281365359162392183254199.
-  - H4(m): Implemented by computing BLAKE2b-512("FROST_RedJubjubM", m)
-  - H5(m): Implemented by computing BLAKE2b-512("FROST_RedJubjubC", m)
+    modulo `G.Order()`.
+  - H4(m): Implemented by computing BLAKE2b-512("FROST_RedJubjubM", m).
+  - H5(m): Implemented by computing BLAKE2b-512("FROST_RedJubjubC", m).
 
 
 FROST(Pallas, BLAKE2b-512)
@@ -408,13 +425,14 @@ This ciphersuite uses Pallas for the Group and BLAKE2b-512 for the Hash function
 meant to produce signatures indistinguishable from RedPallas Orchard Spend
 Authorization Signatures as specified in [#protocol-concretespendauthsig]_.
 
-- Group: Pallas [#protocol-pallasandvesta]_
+- Group: Pallas [#protocol-pallasandvesta]_ with base point :math:``\mathcal{G}^{\mathsf{Orchard}}`
+  as defined in [#protocol-concretespendauthsig]_.
 
-  - Order: 0x40000000000000000000000000000000224698fc0994a8dd8c46eb2100000001 (see [#protocol-pallasandvesta]_)
-  - Identity: as defined in [#protocol-pallasandvesta]_
+  - Order: :math:`r_\mathbb{P}` as defined in [#protocol-pallasandvesta]_.
+  - Identity: as defined in [#protocol-pallasandvesta]_.
   - RandomScalar(): Implemented by returning a uniformly random Scalar in the range
     \[0, `G.Order()` - 1\]. Refer to {{frost-randomscalar}} for implementation guidance.
-  - SerializeElement(P): Implemented as :math:`\mathsf{repr}_\mathbb{P}(P)` as defined in [#protocol-pallasandvesta]_
+  - SerializeElement(P): Implemented as :math:`\mathsf{repr}_\mathbb{P}(P)` as defined in [#protocol-pallasandvesta]_.
   - DeserializeElement(P): Implemented as :math:`\mathsf{abst}_\mathbb{P}(P)` as defined in [#protocol-pallasandvesta]_,
     failing if :math:`\bot` is returned. Additionally, this function validates that the resulting
     element is not the group identity element, returning an error if the check fails.
@@ -429,15 +447,15 @@ Authorization Signatures as specified in [#protocol-concretespendauthsig]_.
 
   - H1(m): Implemented by computing BLAKE2b-512("FROST_RedPallasR", m), interpreting
     the 64 bytes as a little-endian integer, and reducing the resulting integer
-    modulo L = 0x40000000000000000000000000000000224698fc0994a8dd8c46eb2100000001.
+    modulo `G.Order()`.
   - H2(m): Implemented by computing BLAKE2b-512("Zcash_RedPallasH", m), interpreting
     the 64 bytes as a little-endian integer, and reducing the resulting integer
-    modulo L = 0x40000000000000000000000000000000224698fc0994a8dd8c46eb2100000001.
-    (This is equivalent to :math:`\mathsf{H}^\circledast(m)`, as defined in
-    [#protocol-concretereddsa]_ parametrized with [#protocol-pallasandvesta]_.)
+    modulo `G.Order()`.
+    (This is equivalent to :math:`\mathsf{H}^\circledast(m)`, as defined by
+    the :math:`\mathsf{RedPallas}` scheme instantiated in [#protocol-concretereddsa]_.)
   - H3(m): Implemented by computing BLAKE2b-512("FROST_RedPallasN", m), interpreting
     the 64 bytes as a little-endian integer, and reducing the resulting integer
-    modulo L = 0x40000000000000000000000000000000224698fc0994a8dd8c46eb2100000001.
+    modulo `G.Order()`.
   - H4(m): Implemented by computing BLAKE2b-512("FROST_RedPallasM", m).
   - H5(m): Implemented by computing BLAKE2b-512("FROST_RedPallasC", m).
 
