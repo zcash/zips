@@ -79,12 +79,7 @@ The proposed upgrade to the ZSA protocol will also need to define a fee structur
 
 Specifically, the ZSA Transfer and Burn mechanism should follow the same fee mechanism in order to not discriminate between transfer bundle types. When it comes to Issuance of ZSA, however, we believe that there should be a disincentive that will stop users from flooding the chain with useless asset identifiers.
 
-The two main factors that will affect the fee mechanism are:
-
-- The transaction size, which may take a big part of the block.
-- The computational power needed to verify and mine the transaction.
-
-In the case of Issuance, the latter is not so relevant as the computational power needed to verify the bundle is not large. The transaction size, however, can be an issue as the number of output notes can be large. Furthermore, as defined in ZIP 227 [#zip-0227]_, there is an additional data structure in the global state that needs to be maintained as part of the consensus, which motivates further the addition of an Issuance-specific fee.
+In the case of Issuance, the computational power needed to verify the bundle is not large. The transaction size, however, can be an issue as the number of output notes can be large. Furthermore, as defined in ZIP 227 [#zip-0227]_, there is an additional data structure in the global state that needs to be maintained as part of the consensus. This motivates further the addition of an Issuance-specific fee.
 
 
 Requirements
@@ -101,6 +96,7 @@ Requirements
 * Users should be able to spend a small number of UTXOs or notes with value
   below the marginal fee per input.
 * Post the upgrade to the ZSA protocol, users should be discouraged from issuing new “garbage” custom Assets.
+* Post the upgrade to the ZSA protocol, users should be discouraged from finalizing Assets frivolously.
 
 
 
@@ -302,6 +298,7 @@ In addition to the parameters defined in the `Fee calculation`_ section, the ZSA
 Parameter                                 Value         Units
 ===================================== =============== ===============================================
 :math:`issuance\_fee`                 :math:`1000000` zatoshis per issuance action (as defined below)
+:math:`finalize\_fee`                 :math:`1000000` zatoshis per issuance action (as defined below)
 ===================================== =============== ===============================================
 
 Wallets implementing this specification SHOULD use a conventional fee
@@ -310,35 +307,31 @@ calculated in zatoshis per the following formula:
 .. math::
 
    \begin{array}{rcl}
-     logical\_actions  &=& \mathsf{max}\big(\mathsf{ceiling}\big(\frac{tx\_in\_total\_size}{p2pkh\_standard\_input\_size}\big),
-                                            \mathsf{ceiling}\big(\frac{tx\_out\_total\_size}{p2pkh\_standard\_output\_size}\big)\big) \;+ \\
-                       & & 2 \cdot nJoinSplit \;+ \\
-                       & & \mathsf{max}(nSpendsSapling, nOutputsSapling) \;+ \\
+     zsa\_logical\_actions  &=& logical\_actions \;- \\
+                       & & nActionsOrchard \;+ \\
                        & & nActionsZsaTransfer \;+ \\
                        & & nTotalOutputsZsaIssuance \\
-     conventional\_fee &=& marginal\_fee \cdot \mathsf{max}(grace\_actions, logical\_actions) \;+ \\
-                       & & issuance\_fee \cdot nIssueActions
+     zsa\_conventional\_fee &=& marginal\_fee \cdot \mathsf{max}(grace\_actions, zsa\_logical\_actions) \;+ \\
+                       & & issuance\_fee \cdot nIssueActions \;+ \\
+                       & & finalize\_fee \cdot nFinalizeActions
    \end{array}
 
 The inputs to this formula are taken from transaction fields defined in the Zcash protocol
-specification [#protocol-txnencoding]_:
+specification [#protocol-txnencoding]_. They are defined in the `Fee calculation`_ section above, with additional definitions in the table below:
 
 ================================ ====== ========================================================================
 Input                            Units  Description
 ================================ ====== ========================================================================
-:math:`tx\_in\_total\_size`      bytes  total size in bytes of the ``tx_in`` field
-:math:`tx\_out\_total\_size`     bytes  total size in bytes of the ``tx_out`` field
-:math:`nJoinSplit`               number the number of Sprout JoinSplits
-:math:`nSpendsSapling`           number the number of Sapling spends
-:math:`nOutputsSapling`          number the number of Sapling outputs
 :math:`nActionsZsaTransfer`      number the number of ZSA transfer actions
 :math:`nTotalOutputsZsaIssuance` number the total number of ZSA issuance outputs (added across issuance actions)
 :math:`nIssueActions`            number the number of ZSA issuance actions
+:math:`nFinalizeActions`         number the number of ZSA issuance actions that set the ``finalize`` flag
 ================================ ====== ========================================================================
 
 It is not a consensus requirement that fees follow this formula; however,
 wallets SHOULD create transactions that pay this fee, in order to reduce
 information leakage, unless overridden by the user.
+
 
 Transaction relaying
 --------------------
@@ -628,12 +621,13 @@ of inputs/outputs to be non-proportional above the :math:`grace\_actions`
 threshold. This is no longer expressible with the formula specified above.)
 
 ZSA Fee Considerations
-----------------------
+======================
 
-One alternative proposal for the ZSA fee mechanism that was not adopted was to adopt a new type of fee, denominated in the custom Asset being issued or transferred.
+We choose to maintain the native ZEC Asset as the primary token for the Zcash blockchain, similar to how ETH is needed for ERC20 transactions to the benefit of the Ethereum ecosystem.
+
+An alternative proposal for the ZSA fee mechanism that was not adopted was to adopt a new type of fee, denominated in the custom Asset being issued or transferred.
 In the context of transparent transactions, such a fee  allows to “tap into” the value of the transactions for the benefit of the miners. 
-However when transactions are shielded, any design that lifts value from the transaction would also leak information about it. Another consideration against ZSA-denominated fees is to maintain the ZEC as the primary token for the Zcash blockchain, similar to how ETH is needed for ERC20 transactions to the benefit of the Ethereum ecosystem.
-
+However when transactions are shielded, any design that lifts value from the transaction would also leak information about it.
 
 Endorsements
 ============
