@@ -47,12 +47,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
             <p>The objective of the new fee policy, once it is enforced, is for fees paid by transactions to fairly reflect the processing costs that their inputs and outputs impose on various participants in the network. This will tend to discourage usage patterns that cause either intentional or unintentional denial of service, while still allowing low fees for regular transaction use cases.</p>
             <p>The proposed upgrade to the ZSA protocol will also need to define a fee structure consistent with the above objectives. This involves adaptation for the transfer protocol <a id="footnote-reference-8" class="footnote_reference" href="#zip-0226">6</a>, as well as additional considerations for the issuance protocol <a id="footnote-reference-9" class="footnote_reference" href="#zip-0227">7</a> such as fees for asset issuance.</p>
             <p>Specifically, the ZSA Transfer and Burn mechanism should follow the same fee mechanism in order to not discriminate between transfer bundle types. When it comes to Issuance of ZSA, however, we believe that there should be a disincentive that will stop users from flooding the chain with useless asset identifiers.</p>
-            <p>The two main factors that will affect the fee mechanism are:</p>
-            <ul>
-                <li>The transaction size, which may take a big part of the block.</li>
-                <li>The computational power needed to verify and mine the transaction.</li>
-            </ul>
-            <p>In the case of Issuance, the latter is not so relevant as the computational power needed to verify the bundle is not large. The transaction size, however, can be an issue as the number of output notes can be large. Furthermore, as defined in ZIP 227 <a id="footnote-reference-10" class="footnote_reference" href="#zip-0227">7</a>, there is an additional data structure in the global state that needs to be maintained as part of the consensus, which motivates further the addition of an Issuance-specific fee.</p>
+            <p>In the case of Issuance, the computational power needed to verify the bundle is not large. The transaction size, however, can be an issue as the number of output notes can be large. Furthermore, as defined in ZIP 227 <a id="footnote-reference-10" class="footnote_reference" href="#zip-0227">7</a>, there is an additional data structure in the global state that needs to be maintained as part of the consensus. This motivates further the addition of an Issuance-specific fee.</p>
         </section>
         <section id="requirements"><h2><span class="section-heading">Requirements</span><span class="section-anchor"> <a rel="bookmark" href="#requirements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <ul>
@@ -61,6 +56,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
                 <li>Users should not be penalised for sending transactions constructed with padding of inputs and outputs to reduce information leakage. (The default policy employed by zcashd and the mobile SDKs pads to two inputs and two outputs for each shielded pool used by the transaction).</li>
                 <li>Users should be able to spend a small number of UTXOs or notes with value below the marginal fee per input.</li>
                 <li>Post the upgrade to the ZSA protocol, users should be discouraged from issuing new “garbage” custom Assets.</li>
+                <li>Post the upgrade to the ZSA protocol, users should be discouraged from finalizing Assets frivolously.</li>
             </ul>
         </section>
         <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
@@ -309,20 +305,28 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
                             </td>
                             <td>zatoshis per issuance action (as defined below)</td>
                         </tr>
+                        <tr>
+                            <td>
+                                <span class="math">\(finalize\_fee\)</span>
+                            </td>
+                            <td>
+                                <span class="math">\(1000000\)</span>
+                            </td>
+                            <td>zatoshis per issuance action (as defined below)</td>
+                        </tr>
                     </tbody>
                 </table>
                 <p>Wallets implementing this specification SHOULD use a conventional fee calculated in zatoshis per the following formula:</p>
                 <div class="math">\(\begin{array}{rcl}
-  logical\_actions  &amp;=&amp; \mathsf{max}\big(\mathsf{ceiling}\big(\frac{tx\_in\_total\_size}{p2pkh\_standard\_input\_size}\big),
-                                         \mathsf{ceiling}\big(\frac{tx\_out\_total\_size}{p2pkh\_standard\_output\_size}\big)\big) \;+ \\
-                    &amp; &amp; 2 \cdot nJoinSplit \;+ \\
-                    &amp; &amp; \mathsf{max}(nSpendsSapling, nOutputsSapling) \;+ \\
+  zsa\_logical\_actions  &amp;=&amp; logical\_actions \;- \\
+                    &amp; &amp; nActionsOrchard \;+ \\
                     &amp; &amp; nActionsZsaTransfer \;+ \\
                     &amp; &amp; nTotalOutputsZsaIssuance \\
-  conventional\_fee &amp;=&amp; marginal\_fee \cdot \mathsf{max}(grace\_actions, logical\_actions) \;+ \\
-                    &amp; &amp; issuance\_fee \cdot nIssueActions
+  zsa\_conventional\_fee &amp;=&amp; marginal\_fee \cdot \mathsf{max}(grace\_actions, zsa\_logical\_actions) \;+ \\
+                    &amp; &amp; issuance\_fee \cdot nIssueActions \;+ \\
+                    &amp; &amp; finalize\_fee \cdot nFinalizeActions
 \end{array}\)</div>
-                <p>The inputs to this formula are taken from transaction fields defined in the Zcash protocol specification <a id="footnote-reference-13" class="footnote_reference" href="#protocol-txnencoding">3</a>:</p>
+                <p>The inputs to this formula are taken from transaction fields defined in the Zcash protocol specification <a id="footnote-reference-13" class="footnote_reference" href="#protocol-txnencoding">3</a>. They are defined in the <a href="#fee-calculation">Fee calculation</a> section above, with additional definitions in the table below:</p>
                 <table>
                     <thead>
                         <tr>
@@ -332,41 +336,6 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td>
-                                <span class="math">\(tx\_in\_total\_size\)</span>
-                            </td>
-                            <td>bytes</td>
-                            <td>total size in bytes of the <code>tx_in</code> field</td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <span class="math">\(tx\_out\_total\_size\)</span>
-                            </td>
-                            <td>bytes</td>
-                            <td>total size in bytes of the <code>tx_out</code> field</td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <span class="math">\(nJoinSplit\)</span>
-                            </td>
-                            <td>number</td>
-                            <td>the number of Sprout JoinSplits</td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <span class="math">\(nSpendsSapling\)</span>
-                            </td>
-                            <td>number</td>
-                            <td>the number of Sapling spends</td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <span class="math">\(nOutputsSapling\)</span>
-                            </td>
-                            <td>number</td>
-                            <td>the number of Sapling outputs</td>
-                        </tr>
                         <tr>
                             <td>
                                 <span class="math">\(nActionsZsaTransfer\)</span>
@@ -387,6 +356,13 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
                             </td>
                             <td>number</td>
                             <td>the number of ZSA issuance actions</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <span class="math">\(nFinalizeActions\)</span>
+                            </td>
+                            <td>number</td>
+                            <td>the number of ZSA issuance actions that set the <code>finalize</code> flag</td>
                         </tr>
                     </tbody>
                 </table>
@@ -613,9 +589,10 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
              parameter that caused the relationship between fee and number of inputs/outputs to be non-proportional above the
                 <span class="math">\(grace\_actions\)</span>
              threshold. This is no longer expressible with the formula specified above.)</p>
-            <section id="zsa-fee-considerations"><h3><span class="section-heading">ZSA Fee Considerations</span><span class="section-anchor"> <a rel="bookmark" href="#zsa-fee-considerations"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
-                <p>One alternative proposal for the ZSA fee mechanism that was not adopted was to adopt a new type of fee, denominated in the custom Asset being issued or transferred. In the context of transparent transactions, such a fee allows to “tap into” the value of the transactions for the benefit of the miners. However when transactions are shielded, any design that lifts value from the transaction would also leak information about it. Another consideration against ZSA-denominated fees is to maintain the ZEC as the primary token for the Zcash blockchain, similar to how ETH is needed for ERC20 transactions to the benefit of the Ethereum ecosystem.</p>
-            </section>
+        </section>
+        <section id="zsa-fee-considerations"><h2><span class="section-heading">ZSA Fee Considerations</span><span class="section-anchor"> <a rel="bookmark" href="#zsa-fee-considerations"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>We choose to maintain the native ZEC Asset as the primary token for the Zcash blockchain, similar to how ETH is needed for ERC20 transactions to the benefit of the Ethereum ecosystem.</p>
+            <p>An alternative proposal for the ZSA fee mechanism that was not adopted was to adopt a new type of fee, denominated in the custom Asset being issued or transferred. In the context of transparent transactions, such a fee allows to “tap into” the value of the transactions for the benefit of the miners. However when transactions are shielded, any design that lifts value from the transaction would also leak information about it.</p>
         </section>
         <section id="endorsements"><h2><span class="section-heading">Endorsements</span><span class="section-anchor"> <a rel="bookmark" href="#endorsements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <p>The following entities and developers of the listed software expressed their support for the updated fee mechanism:</p>
