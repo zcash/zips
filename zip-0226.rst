@@ -65,7 +65,7 @@ As was initially proposed by Jack Grigg and Daira Hopwood [#initial-zsa-issue]_ 
 
 Because in a single transaction all value commitments are balanced, there must be as many different value base points as there are Asset identifiers in the transaction. We propose to make the :math:`\mathsf{AssetId}` identifier an auxiliary input to the proof for each Action statement [#protocol-actionstatement]_, represented already as a point on the Pallas curve. The circuit then should check that the same :math:`\mathsf{AssetId}` is used in the old note commitment and the new note commitment [#protocol-concretesinsemillacommit]_, **and** as the base point :math:`\mathcal{V}^\mathsf{Orchard}` in the value commitment [#protocol-concretevaluecommit]_. This ensures (1) that the input and output notes are of the same :math:`\mathsf{AssetId}`, and (2) that only actions with the same Asset identifier will balance out in the binding and balance signatures.
 
-In order to ensure the security of the transfers, and as we will explain below, we are redefining input dummy notes [#protocol-dummynotes]_ for custom Assets, as we need to enforce that the :math:`\mathsf{AssetId}` of the output note of that split Action is the output of a PRF.
+In order to ensure the security of the transfers, and as we will explain below, we are redefining input dummy notes [#protocol-dummynotes]_ for Custom Assets, as we need to enforce that the :math:`\mathsf{AssetId}` of the output note of that split Action is the output of a valid :math:`\mathsf{AssetIdHash}` computation defined in ZIP 227 [#zip-0227]_.
 
 Finally, in this ZIP we also describe the *burn* mechanism, which is a direct extension of the transfer mechanism. The burn process uses a similar mechanism to what is used in Orchard to unshield ZEC, by using the :math:`\mathsf{valueBalance}` of the Asset in question. Burning Assets is useful for many purposes, including bridging of Wrapped Assets and removing supply of Assets.
 
@@ -77,7 +77,7 @@ Most of the protocol is kept the same as the Orchard protocol released with NU5,
 Asset Identifiers
 -----------------
 
-For every new Asset, there must be a new and unique identifier of the Asset. Every Asset is defined by the *Asset description*, :math:`\mathsf{asset\_desc}`, which is a global byte string (scoped across all future versions of Zcash). From this Asset description the specific Asset identifier, :math:`\mathsf{AssetId}`, is derived with a `GroupHash` and used within the output notes, as defined by the specific protocol (e.g.: for now Orchard-style, using Pallas curve).
+For every new Asset, there must be a new and unique identifier of the Asset. Every Asset is defined by the *Asset description*, :math:`\mathsf{asset\_desc}`, which is a global byte string (scoped across all future versions of Zcash). From this Asset description the specific Asset identifier, :math:`\mathsf{AssetId}`, is derived as defined in ZIP 227 [#zip-0227]_.
 
 This :math:`\mathsf{AssetId}` will be the base point of the value commitment for the specific custom Asset. Note that the :math:`\mathsf{AssetId}` of the ZEC Asset will be kept as the original value base point, :math:`\mathcal{V}^\mathsf{Orchard}`.
 
@@ -92,7 +92,7 @@ Let :math:`\mathsf{Note^{OrchardZSA}}` be the type of a ZSA note, i.e.
 A ZSA note differs from an Orchard note [#protocol-notes]_ by additionally including the identifier of the Asset, :math:`\mathsf{AssetId}`. So a ZSA note is a tuple :math:`(\mathsf{g_d, pk_d, v, \rho, \psi, AssetId})`,
 where 
 
-- :math:`\mathsf{AssetId} : \mathbb{P*}` is the unique random element of the Pallas group [#protocol-pallasandvesta]_ that identifies each Asset in the Orchard protocol. The byte representation of the Asset identifier is defined as :math:`\mathsf{assetID} : \mathbb{B}^{\mathbb{Y}[32]} := \mathsf{repr}_{\mathbb{P}}(\mathsf{AssetId})`.
+- :math:`\mathsf{AssetId} : \mathbb{P*}` is the unique random element of the Pallas group [#protocol-pallasandvesta]_ that identifies each Asset in the Orchard protocol, as . The byte representation of the Asset identifier is defined as :math:`\mathsf{assetID} : \mathbb{B}^{\mathbb{Y}[32]} := \mathsf{repr}_{\mathbb{P}}(\mathsf{AssetId})`.
 
 In this case, the instance of the note commitment scheme, :math:`\mathsf{NoteCommit^{OrchardZSA}_{rcm}}`, will differ from :math:`\mathsf{NoteCommit^{Orchard}_{rcm}}` in that for Custom Assets, the Asset identifier will be added as an input to the commitment computation. As we will see, the nested structure of the Sinsemilla-based commitment [#protocol-concretesinsemillacommit]_ allows us to add the Asset identifier as a final recursive step, and hence keep a single instance of the Sinsemilla hash function in the circuit for the note commitment verification.
 
@@ -100,27 +100,17 @@ The commitment output is still indistinguishable from the original Orchard ZEC n
 
 .. math:: \mathsf{NoteCommit^{OrchardZSA}_{rcm}(repr_{\mathbb{P}}(g_d), repr_{\mathbb{P}}(pk_d), v, \rho, \psi, AssetId)} \in \mathsf{NoteCommit^{Orchard}.Output}
 
-The nullifier is generated in the same manner as in the Orchard protocol.
+The nullifier is generated in the same manner as in the Orchard protocol [#protocol-commitmentsandnullifiers]_.
 
-The ZSA note plaintext also includes the Asset identifier in addition to the components in the Orchard note plaintext.
+The ZSA note plaintext also includes the Asset identifier in addition to the components in the Orchard note plaintext [#protocol-notept]_.
 It consists of 
 
-:math:`(\mathsf{leadByte} : \mathbb{B}^{\mathbb{Y}}, \mathsf{d} : \mathbb{B}^{[l_{\mathsf{d}}]}, \mathsf{v} : \{0 .. 2^{l_{\mathsf{value}}} - 1\}, \mathsf{rseed} : \mathbb{B}^{\mathbb{Y}[32]}, \mathsf{assetID} : \mathbb{B}^{\mathbb{Y}[32]}, \mathsf{memo} : \mathbb{B}^{\mathbb{Y}[512]})`
+.. math:: (\mathsf{leadByte} : \mathbb{B}^{\mathbb{Y}}, \mathsf{d} : \mathbb{B}^{[l_{\mathsf{d}}]}, \mathsf{v} : \{0 .. 2^{l_{\mathsf{value}}} - 1\}, \mathsf{rseed} : \mathbb{B}^{\mathbb{Y}[32]}, \mathsf{assetID} : \mathbb{B}^{\mathbb{Y}[32]}, \mathsf{memo} : \mathbb{B}^{\mathbb{Y}[512]})
 
 Value Commitment
 ----------------
 
-The Orchard Protocol uses a Homomorphic Pedersen Commitment [#protocol-concretevaluecommit]_ to perform the value commitment, which is instantiated as
-
-.. math:: \mathsf{cv^{net}:=ValueCommit^{Orchard}_{rcv}(v^{net})}:= \mathsf{[v^{net}]}\mathcal{V}^{\mathsf{Orchard}}+[\mathsf{rcv}]\mathcal{R}^{\mathsf{Orchard}}
-
-where :math:`\mathsf{v^{net} = v^{old} - v^{new}}`;
-:math:`\mathcal{V}^{\mathsf{Orchard}}:=\mathsf{GroupHash^{\mathbb{P}}}(\texttt{"z.cash:Orchard-cv", "v")}`; and 
-:math:`\mathcal{R}^{\mathsf{Orchard}}:=\mathsf{GroupHash^{\mathbb{P}}}(\texttt{"z.cash:Orchard-cv", "r")}`.
-
-In the case of the Orchard protocol, we see that the base points :math:`\mathcal{V}^{\mathsf{Orchard}}` and
-:math:`\mathcal{R}^{\mathsf{Orchard}}` are fixed for every value commitment, as the values represent the amount of ZEC
-being transferred.
+The Orchard Protocol uses a Homomorphic Pedersen Commitment [#protocol-concretevaluecommit]_ to perform the value commitment, with fixed base points :math:`\mathcal{V}^{\mathsf{Orchard}}` and :math:`\mathcal{R}^{\mathsf{Orchard}}` as the values represent the amount of ZEC being transferred.
 
 In the case of the ZSA protocol, the value of different Asset identifiers in a given transaction will be committed using a **different value base point**. This enables the final balance of the transaction to be securely computed, such that each Asset identifier is balanced independently, as Assets with different identifiers are not meant to be mutually fungible. The value commitment then becomes
 
@@ -132,14 +122,14 @@ where :math:`\mathsf{v^{net}_{AssetId}} = \mathsf{v^{old}_{AssetId} - v^{new}_{A
 
 :math:`\mathcal{V}^{\mathsf{OrchardZSA}}_{\mathsf{AssetId}}:=\mathsf{AssetId}`, where the Asset identifier :math:`\mathsf{AssetId}` is computed as defined in ZIP 227 [#zip-0227]_, and
 
-:math:`\mathcal{R}^{\mathsf{Orchard}}:=\mathsf{GroupHash^{\mathbb{P}}}\texttt{("z.cash:Orchard-cv", "r")}`.
+:math:`\mathcal{R}^{\mathsf{Orchard}}:=\mathsf{GroupHash^{\mathbb{P}}}\texttt{("z.cash:Orchard-cv", "r")}`, as in the Orchard protocol.
 
 We define :math:`\mathcal{V}^{\mathsf{OrchardZSA}}_{\mathsf{ZEC}} :=\mathcal{V}^{\mathsf{Orchard}}` so that the value commitment for ZEC notes is computed identically to the Orchard protocol deployed in NU5 [#zip-0224]_.
 
 Value Balance Verification
 --------------------------
 
-In order to verify the balance of the different Assets, the verifier MUST perform exactly the same process as for the Orchard protocol [#protocol-binding]_. The main reason why no changes to this process are needed is that no custom Assets can be unshielded, so all custom Assets are contained within the shielded pool. This means that the net balance of the input and output values is zero, with only one Asset identifier of value balance published, that of ZEC, :math:`\mathsf{v^{balanceOrchard}}`. No net amount of any other Asset identifier will be revealed, and the number of Asset identifiers in the transaction is also hidden. The only exception to this is in the case that an Asset is *burnt*, as we will see below in the `burn mechanism`_.
+In order to verify the balance of the different Assets, the verifier MUST perform exactly the same process as for the Orchard protocol [#protocol-binding]_. 
 
 For a total of :math:`n` Actions in a transfer, the prover MUST still sign the `SIGHASH` of the transaction using the binding signature key
 :math:`\mathsf{bsk} = \sum_{\mathsf{ \forall i\in \{1,...,n\}}} \mathsf{rcv_{i}}`.
@@ -148,9 +138,15 @@ Then the verifier MUST compute
 
 .. math:: \mathsf{bvk = (\sum cv_i^{net})}  - \mathsf{ ValueCommit_0^{Orchard}(v^{balanceOrchard})} = \sum \mathsf{rcv_{i}^{net}}\mathcal{R}^{\mathsf{Orchard}}
 
-and use it to verify the `bindingSignature` on the `SIGHASH` message, as described in §4.14 of the Zcash Specification [#protocol-binding]_.
+and use it to verify the `bindingSignature` on the `SIGHASH` message.
+
+Rationale for Value Balance Verification
+''''''''''''''''''''''''''''''''''''''''
+
+The main reason why no changes to the Orchard process are needed is that no Custom Assets can be unshielded, so all custom Assets are contained within the shielded pool. This means that the net balance of the input and output values is zero, with only one Asset identifier of value balance published, that of ZEC, :math:`\mathsf{v^{balanceOrchard}}`. No net amount of any other Asset identifier will be revealed, and the number of Asset identifiers in the transaction is also hidden. The only exception to this is in the case that an Asset is *burnt*, as we will see below in the `burn mechanism`_.
 
 As in the Orchard protocol, the binding signature verification key, :math:`\mathsf{bvk}`, will only be valid (and hence verify the signature correctly), as long as the committed values sum to zero. In contrast, in this protocol, the committed values only sum to zero **per Asset identifier**, as the Pedersen commitments add up homomorphically only with respect to the same value base point.
+
 
 Split Notes
 -----------
@@ -304,8 +300,10 @@ References
 .. [#zip-0226] `ZIP 226: Transfer and Burn of Zcash Shielded Assets <zip-0226.html>`_
 .. [#zip-0227] `ZIP 227: Issuance of Zcash Shielded Assets <zip-0227.html>`_
 .. [#protocol-notes] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 3.2: Notes <protocol/protocol.pdf#notes>`_
+.. [#protocol-notept] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.5: Encodings of Note Plaintexts and Memo Fields <protocol/protocol.pdf#notept>`_
 .. [#protocol-actions] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 3.7: Action Transfers and their Descriptions <protocol/protocol.pdf#actions>`_
-.. [#protocol-binding] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 4.14: Balance and Binding Signature (Orchard) <protocol/protocol.pdf#>`_
+.. [#protocol-binding] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 4.14: Balance and Binding Signature (Orchard) <protocol/protocol.pdf#orchardbalance>`_
+.. [#protocol-commitmentsandnullifiers] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 4.16: Note Commitments and Nullifiers <protocol/protocol.pdf#commitmentsandnullifiers>`_
 .. [#protocol-pallasandvesta] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.4.9.6: Pallas and Vesta <protocol/protocol.pdf#pallasandvesta>`_
 .. [#pasta-evidence] `Pallas/Vesta supporting evidence <https://github.com/zcash/pasta>`_
 .. [#protocol-concretesinsemillahash] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.4.1.9: Sinsemilla hash function <protocol/protocol.pdf#concretesinsemillahash>`_
