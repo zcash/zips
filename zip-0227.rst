@@ -106,17 +106,21 @@ Asset Identifier
 
 For every new Asset, there must be a new and unique Asset Identifier. We define this to be a globally unique pair :math:`(\mathsf{ik}, \mathsf{asset\_desc})`, where :math:`\mathsf{ik}` is the issuance key and :math:`\mathsf{asset\_desc}` is a byte string.
 
-A given Asset Identifier is used across all Zcash protocols that support ZSAs -- that is, the Orchard-based ZSA protocol and potentially future Zcash shielded protocols. For this Asset Identifier, we derive a specific Asset Base within each such shielded protocol (for example :math:`\mathsf{AssetBase}^{\mathsf{Orchard}}_{\mathsf{AssetId}}` for the Orchard-based ZSA protocol), using the applicable hash-to-curve algorithm. This Asset Base is included in shielded notes.
+A given Asset Identifier is used across all Zcash protocols that support ZSAs -- that is, the Orchard-based ZSA protocol and potentially future Zcash shielded protocols. For this Asset Identifier, we derive an Asset Digest, :math:`\mathsf{AssetDigest}`, which is simply is a :math:`\mathsf{BLAKE2b-512}` hash of the Asset Identifier.
+From the Asset Digest, we derive a specific Asset Base within each such shielded protocol (for example :math:`\mathsf{AssetBase}^{\mathsf{Orchard}}_{\mathsf{AssetId}}` for the Orchard-based ZSA protocol), using the applicable hash-to-curve algorithm. This Asset Base is included in shielded notes.
 
 Let 
 
 - :math:`\mathsf{asset\_desc}` be the asset description, a UTF-8 encoded string of up to 512 bytes, which includes any information pertaining to the issuance.
 - :math:`\mathsf{ik}` be the issuance validating key of the issuer, a public key used to verify the signature on the issuance transaction's SIGHASH.
 
-Define :math:`\mathsf{AssetBase^{Protocol}_{\mathsf{AssetId}}} := \mathsf{ZSAValueBase^{Protocol}}(\mathsf{EncodeAssetId}(\mathsf{AssetId}))`,
+Define :math:`\mathsf{AssetDigest_{\mathsf{AssetId}}} := \mathsf{BLAKE2b\text{-}512}(\mathsf{EncodeAssetId}(\mathsf{AssetId}))`,
 where
 
 - :math:`\mathsf{EncodeAssetId}(\mathsf{AssetId}) = \mathsf{EncodeAssetId}(\mathsf{ik}, \mathsf{asset\_desc}) := [0x00, \mathsf{length}(\mathsf{ik})] || \mathsf{ik} || \mathsf{asset\_desc}\!`.
+
+Define :math:`\mathsf{AssetBase^{Protocol}_{\mathsf{AssetId}}} := \mathsf{ZSAValueBase^{Protocol}}(\mathsf{AssetDigest}_{\mathsf{AssetId}})`,
+where
 
 In the case of Orchard, we define :math:`\mathsf{ZSAValueBase^{Orchard}}(\mathsf{asset\_id}) := \mathsf{GroupHash}^\mathbb{P}(\texttt{"z.cash:OrchardZSA"}, \mathsf{asset\_id})`
 where :math:`\mathsf{GroupHash}^\mathbb{P}` is defined as in [#protocol-concretegrouphashpallasandvesta]_.
@@ -177,7 +181,8 @@ The issuer program performs the following operations
 For all actions `IssueAction`:
 
 - encode :math:`\mathsf{asset\_desc}` as 512 byte-string.
-- compute :math:`\mathsf{AssetBase^{Protocol}} := \mathsf{ZSAValueBase^{Protocol}}(\mathsf{EncodeAssetId}(\mathsf{ik}, \mathsf{asset\_desc}))`
+- compute :math:`\mathsf{AssetDigest} := \mathsf{BLAKE2b\text{-}512}(\mathsf{EncodeAssetId}(\mathsf{ik}, \mathsf{asset\_desc}))`
+- compute :math:`\mathsf{AssetBase^{Protocol}} := \mathsf{ZSAValueBase^{Protocol}}(\mathsf{AssetDigest})`
 - set the ``finalize`` boolean as desired (if more more issuance actions are to be created for this Asset Identifier, set ``finalize = 0``, otherwise set ``finalize = 1``)
 - For each recipient :math:`i`:
 
@@ -299,7 +304,7 @@ Note value encoded as little-endian 8-byte representation of u64 raw value.
 
 T.1a.3: asset
 .............
-Asset ID encoded as 32-byte representation of Pallas point.
+Asset Base encoded as 32-byte representation of Pallas point.
 
 T.1a.4: rho
 ...........
