@@ -96,11 +96,21 @@ where
 
 - :math:`\mathsf{AssetBase}^{\mathsf{Orchard}} : \mathbb{P*}` is the unique element of the Pallas group [#protocol-pallasandvesta]_ that identifies each Asset in the Orchard protocol, defined as the Asset Base in ZIP 227 [#zip-0227]_. The byte representation of the Asset Base is defined as :math:`\mathsf{asset\_base} : \mathbb{B}^{\mathbb{Y}[32]} := \mathsf{repr}_{\mathbb{P}}(\mathsf{AssetBase}^{\mathsf{Orchard}})`.
 
-In this case, the instance of the note commitment scheme, :math:`\mathsf{NoteCommit^{OrchardZSA}_{rcm}}`, will differ from :math:`\mathsf{NoteCommit^{Orchard}_{rcm}}` in that for Custom Assets, the Asset Base will be added as an input to the commitment computation. As we will see, the nested structure of the Sinsemilla-based commitment [#protocol-concretesinsemillacommit]_ allows us to add the Asset Base as a final recursive step, and hence keep a single instance of the Sinsemilla hash function in the circuit for the note commitment verification.
+Specifically, we define the note commitment scheme :math:`\mathsf{NoteCommit^{OrchardZSA}_{rcm}}` as follows:
 
-The commitment output is still indistinguishable from the original Orchard ZEC note commitments, by definition of the Sinsemilla hash function [#protocol-concretesinsemillahash]_. ZSA note commitments will therefore be added to the same Orchard Note Commitment Tree. In essence, we have:
+.. math:: \mathsf{NoteCommit}^{\mathsf{OrchardZSA}} : \mathsf{NoteCommit}^{\mathsf{Orchard}}.\mathsf{Trapdoor} \times \mathbb{B}^{[l_{\mathbb{P}}]} \times \mathbb{B}^{[l_{\mathbb{P}}]} \times \{0 .. 2^{l_{\mathsf{value}}} - 1\} \times \mathbb{F}_{q_{\mathbb{P}}} \times \mathbb{F}_{q_{\mathbb{P}}} \times \mathbb{P*} \to \mathsf{NoteCommit}^{\mathsf{Orchard}}.\mathsf{Output}
 
-.. math:: \mathsf{NoteCommit^{OrchardZSA}_{rcm}(repr_{\mathbb{P}}(g_d), repr_{\mathbb{P}}(pk_d), v, \rho, \psi, \mathsf{AssetBase}^{\mathsf{Orchard}})} \in \mathsf{NoteCommit^{Orchard}.Output}
+where :math:`\mathbb{P}, l_{\mathbb{P}}, q_{\mathbb{P}}` are as defined for the Pallas curve [#protocol-pallasandvesta]_, and :math:`\mathsf{NoteCommit}^{\mathsf{Orchard}}.\mathsf{Trapdoor}, \mathsf{Orchard}.\mathsf{Output}` are as defined in the Zcash protocol specification [#protocol-abstractcommit]_.
+This note commitment scheme is instantiated using the Sinsemilla Commitment [#protocol-concretesinsemillacommit]_ as follows:
+
+.. math:: \begin{align} 
+    \mathsf{NoteCommit^{OrchardZSA}_{rcm}(g_{d}*, pk_{d}*, v, \rho, \psi, \mathsf{AssetBase}^{\mathsf{Orchard}})}
+    :=\begin{cases} 
+    \mathsf{NoteCommit^{Orchard}_{rcm}(g_{d}*, pk_{d}*, v, \rho, \psi)}, &\text{if } \mathsf{AssetBase}^{\mathsf{Orchard}} = \mathcal{V}^{\mathsf{Orchard}} \\ 
+    \mathsf{SinsemillaCommit}_{\mathsf{rcm}}( \texttt{"z.cash:ZSA-NoteCommit"},
+    \mathsf{g_{d}*}\; \| \; \mathsf{pk_{d}*}\; \| \; \mathsf{I2LEBSP_{64}(v)}\; \| \; \mathsf{I2LEBSP}_{l^{\mathsf{Orchard}}_{\mathsf{base}}}(\rho)\; \| \; \mathsf{I2LEBSP}_{l^{\mathsf{Orchard}}_{\mathsf{base}}}(\psi)\; \| \; \mathsf{repr}_{\mathbb{P}}(\mathsf{AssetBase}^{\mathsf{Orchard}})) &\text{otherwise}
+    \end{cases}
+    \end{align}
 
 The nullifier is generated in the same manner as in the Orchard protocol [#protocol-commitmentsandnullifiers]_.
 
@@ -108,6 +118,20 @@ The ZSA note plaintext also includes the Asset Base in addition to the component
 It consists of 
 
 .. math:: (\mathsf{leadByte} : \mathbb{B}^{\mathbb{Y}}, \mathsf{d} : \mathbb{B}^{[l_{\mathsf{d}}]}, \mathsf{v} : \{0 .. 2^{l_{\mathsf{value}}} - 1\}, \mathsf{rseed} : \mathbb{B}^{\mathbb{Y}[32]}, \mathsf{asset\_base} : \mathbb{B}^{\mathbb{Y}[32]}, \mathsf{memo} : \mathbb{B}^{\mathbb{Y}[512]})
+
+Rationale for Note Commitment
+'''''''''''''''''''''''''''''
+
+In the ZSA protocol, the instance of the note commitment scheme, :math:`\mathsf{NoteCommit^{OrchardZSA}_{rcm}}`, differs from the Orchard note commitment :math:`\mathsf{NoteCommit^{Orchard}_{rcm}}` in that for Custom Assets, the Asset Base will be added as an input to the commitment computation. 
+In the case where the Asset is the ZEC Asset, the commitment is computed identically to the Orchard note commitment, without making use of the ZEC Asset Base as an input. 
+As we will see, the nested structure of the Sinsemilla-based commitment [#protocol-concretesinsemillacommit]_ allows us to add the Asset Base as a final recursive step, and hence keep a single instance of the Sinsemilla hash function in the circuit for the note commitment verification.
+
+The note commitment output is still indistinguishable from the original Orchard ZEC note commitments, by definition of the Sinsemilla hash function [#protocol-concretesinsemillahash]_. ZSA note commitments will therefore be added to the same Orchard Note Commitment Tree. In essence, we have:
+
+.. math:: \mathsf{NoteCommit^{OrchardZSA}_{rcm}(repr_{\mathbb{P}}(g_d), repr_{\mathbb{P}}(pk_d), v, \rho, \psi, \mathsf{AssetBase}^{\mathsf{Orchard}})} \in \mathsf{NoteCommit^{Orchard}.Output}
+
+
+
 
 Value Commitment
 ----------------
@@ -308,6 +332,7 @@ References
 .. [#protocol-notes] `Zcash Protocol Specification, Version 2022.3.8. Section 3.2: Notes <protocol/protocol.pdf#notes>`_
 .. [#protocol-notept] `Zcash Protocol Specification, Version 2022.3.8. Section 5.5: Encodings of Note Plaintexts and Memo Fields <protocol/protocol.pdf#notept>`_
 .. [#protocol-actions] `Zcash Protocol Specification, Version 2022.3.8. Section 3.7: Action Transfers and their Descriptions <protocol/protocol.pdf#actions>`_
+.. [#protocol-abstractcommit] `Zcash Protocol Specification, Version 2022.3.8. Section 4.1.8: Commitment <protocol/protocol.pdf#abstractcommit>`_
 .. [#protocol-binding] `Zcash Protocol Specification, Version 2022.3.8. Section 4.14: Balance and Binding Signature (Orchard) <protocol/protocol.pdf#orchardbalance>`_
 .. [#protocol-commitmentsandnullifiers] `Zcash Protocol Specification, Version 2022.3.8. Section 4.16: Note Commitments and Nullifiers <protocol/protocol.pdf#commitmentsandnullifiers>`_
 .. [#protocol-pallasandvesta] `Zcash Protocol Specification, Version 2022.3.8. Section 5.4.9.6: Pallas and Vesta <protocol/protocol.pdf#pallasandvesta>`_
