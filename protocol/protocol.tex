@@ -1041,6 +1041,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\mempool}{\term{mempool}}
 \newcommand{\treestate}{\term{treestate}}
 \newcommand{\treestates}{\terms{treestate}}
+\newcommand{\xTreestates}{\termxs{treestate}}
 \newcommand{\nullifier}{\term{nullifier}}
 \newcommand{\nullifiers}{\terms{nullifier}}
 \newcommand{\xNullifier}{\termx{nullifier}}
@@ -1654,6 +1655,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\NoteCommitRandOrSeedBytes}{\notcanopy{\NoteCommitRand}\canopy{\NoteSeedBytes}}
 \newcommand{\NoteCommitRandBytesOrSeedBytes}{\notcanopy{\NoteCommitRandBytes}\canopy{\NoteSeedBytes}}
 \newcommand{\NoteUniqueRand}{\mathsf{\uprho}}
+\newcommand{\NoteUniqueRandText}{\texorpdfstring{$\NoteUniqueRand$}{ρ}}
 \newcommand{\NoteUniqueRandPoint}{\NoteUniqueRand^{\GroupP}}
 \newcommand{\NoteUniqueRandRepr}{{\NoteUniqueRand\Repr}}
 \newcommand{\NoteUniqueRandBytes}{\bytes{\NoteUniqueRand}}
@@ -3165,12 +3167,83 @@ Let $\NoteType{Orchard}$ be the type of an \Orchard \note, i.e.
 \end{formulae}
 } %nufive
 
-Creation of new \notes is described in \crossref{send}. When \notes are sent,
-only a commitment (see \crossref{abstractcommit}) to the above values is disclosed
-publically, and added to a data structure called the \noteCommitmentTree.
+\vspace{2ex}
+Creation of new \notes is described in \crossref{send}.
+
+\lsubsubsection{Note Plaintexts and Memo Fields}{noteptconcept}
+
+Transmitted \notes are stored on the \blockChain in encrypted form, together with
+a representation of the \noteCommitment $\cm$ described in \crossref{notecommitmentconcept}.
+
+A \notePlaintext also includes a $\MemoByteLength$-byte \defining{\memo} associated
+with this \note. The usage of the \memo is by agreement between the sender and recipient
+of the \note. \RECOMMENDED non-consensus constraints on the \memo contents are specified
+in \cite{ZIP-302}.
+
+For \Sprout, the \notePlaintexts in each \joinSplitDescription are encrypted to the respective
+\transmissionKeys $\TransmitPublicNew{\allNew}$, as specified in \crossref{sproutsend}.
+
+\introlist
+Each \Sprout{} \defining{\notePlaintext} (denoted $\NotePlaintext{}$) consists of
+
+\vspace{-0.5ex}
+\begin{formulae}
+  \item $(\NotePlaintextLeadByte \typecolon \byte,
+          \Value \typecolon \ValueType, \NoteUniqueRand \typecolon \PRFOutputSprout,
+          \NoteCommitRand \typecolon \NoteCommitTrapdoor{Sprout}, \Memo \typecolon \MemoType)$.
+\end{formulae}
+
+\vspace{-1ex}
+The field $\NotePlaintextLeadByte$ is always $\hexint{00}$ for \Sprout. The fields $\Value$,
+$\NoteUniqueRand$, and $\NoteCommitRand$ are as defined in \crossref{notes}.
+
+\vspace{1.5ex}
+\saplingonward{
+For \Sapling\nufive{ and \Orchard}, the \notePlaintext in each \outputDescription\nufive{ or \actionDescription}
+is encrypted to the \diversifiedPaymentAddress $(\Diversifier, \DiversifiedTransmitPublic\kern-0.08em)$,
+as specified in \crossref{saplingsend}\nufive{ or \crossref{orchardsend}}.
+
+\introlist
+Each \SaplingOrOrchard{} \defining{\notePlaintext} (denoted $\NotePlaintext{}$) consists of
+
+\begin{formulae}
+  \item $(\NotePlaintextLeadByte \typecolon \byte,
+          \Diversifier \typecolon \DiversifierType, \Value \typecolon \ValueType,
+          \NoteCommitRandBytesOrSeedBytes \typecolon \NoteSeedBytesType, \Memo \typecolon \MemoType)$
+\end{formulae}
+
+\vspace{-1ex}
+The field $\NotePlaintextLeadByte$ indicates the version of the encoding of a \SaplingOrOrchard
+\notePlaintext. For \Sapling it is $\hexint{01}$ before activation of the \Canopy
+\networkUpgrade\canopy{ and $\hexint{02}$ afterward, as specified in \cite{ZIP-212}}.
+\nufive{For \Orchard \notePlaintexts it is always $\hexint{02}$.}
+
+The fields \notcanopy{$\Diversifier$, $\Value$, and $\NoteCommitRandBytes$}\notbeforecanopy{$\Diversifier$ and $\Value$}
+are as defined in \crossref{notes}.
+
+\canopy{
+The use of the field $\NoteSeedBytes$ is described in \cite{ZIP-212}.
+} %canopy
+} %saplingonward
+
+\vspace{1.5ex}
+Encodings are given in \crossref{noteptencoding}.
+The result of encryption forms part of a \noteOrNotesCiphertext.
+For further details, see \crossref{sproutinband}\sapling{ and \crossref{saplingandorchardinband}}.
+
+\lsubsubsection{Note Commitments}{notecommitmentconcept}
+
+When a \note is created as an output of a \transaction, only a commitment (see
+\crossref{abstractcommit}) to the \note contents is disclosed publically in the associated
+\joinSplitDescription\sapling{ or \outputDescription}\nufive{ or \actionDescription}. If the
+\transaction is entered into the \blockChain, each such \noteCommitment is appended to the
+\noteCommitmentTree of the associated \treestate.
 This allows the value and recipient to be kept private, while the commitment is
 used by the \zkSNARKProof when the \note is spent, to check that it exists
 on the \blockChain.
+
+\xTreestates are described in \crossref{transactions}, and \noteCommitmentTrees are described
+in \crossref{notecommitmenttrees}.
 
 \vspace{2ex}
 \introlist
@@ -3206,14 +3279,16 @@ $\NoteTuple{} = (\Diversifier, \DiversifiedTransmitPublic, \Value, \NoteCommitRa
 where $\NoteCommitAlg{Sapling}$ is instantiated in \crossref{concretewindowedcommit}.
 
 Notice that the above definition of a \Sapling \note does not have a
-$\NoteUniqueRand$ field. There is in fact a $\NoteUniqueRand$ value associated
+$\NoteUniqueRand$ component. There is in fact a $\NoteUniqueRand$ value associated
 with each \Sapling \note, but this can only be computed once its position in the
-\noteCommitmentTree is known (see \crossref{transactions} and \crossref{merkletree}).
-We refer to the combination of a \note and its \notePosition $\NotePosition$, as a
-\positionedNote.
+\noteCommitmentTree (see \crossref{transactions}) is known. We refer to the combination
+of a \note and its \notePosition $\NotePosition$, as a \defining{\positionedNote}.
 
-For a \positionedNote, we can compute the value
-$\NoteUniqueRand$ as described in \crossref{commitmentsandnullifiers}.
+For a \positionedNote, we can compute the value $\NoteUniqueRand$ as described in
+\crossref{rhoandnullifiers}.
+
+A \Sapling \noteCommitment is represented in an \outputDescription by the $u$-coordinate
+of a \Jubjub curve point, as specified in \crossref{outputdesc}.
 } %sapling
 
 \nufive{
@@ -3239,85 +3314,53 @@ If $\NoteCommitAlg{Orchard}$ returns $\bot$ (which happens with insignificant pr
 the \note is invalid and should be recreated with a different $\NoteSeedBytes$.
 
 Unlike in \Sapling, the definition of an \Orchard \note includes the
-$\NoteUniqueRand$ field; the \note's position in the \noteCommitmentTree does
+$\NoteUniqueRand$ component; the \note's position in the \noteCommitmentTree does
 not need to be known in order to compute this value.
+
+An \Orchard \noteCommitment is represented in an \actionDescription by the $x$-coordinate
+of a \Pallas curve point, as specified in \crossref{actiondesc}.
 } %nufive
 
-\vspace{1.5ex}
-The \nullifier of a \note is denoted $\nf$.
+\lsubsubsection{Nullifiers}{nullifierconcept}
 
-A \nullifier for a \Sprout \note is derived from the $\NoteUniqueRand$ value and
+The \nullifier for a \note, denoted $\nf$, is a value unique to the \note that is used
+to prevent double-spends. When a \transaction that contains one or more
+\joinSplitDescriptions\sapling{ or \spendDescriptions}\nufive{ or \actionDescriptions} is
+entered into the \blockChain, all of the \defining{\nullifiers} for \notes spent by that
+\transaction are added to the \nullifierSet of the associated \treestate. A \transaction
+is not valid if it would have added a \nullifier to the \nullifierSet that already exists
+in the set.
+
+\xTreestates are described in \crossref{transactions}, and \nullifierSets are described
+in \crossref{nullifierset}.
+
+\vspace{1.5ex}
+In more detail, when a \note is spent, the spender creates a zero-knowledge proof that
+it knows $(\NoteUniqueRand, \AuthPrivate)$\sapling{ or $(\NoteUniqueRand, \AuthSignPublic,
+\AuthProvePrivate)$}\nufive{ or $(\NoteUniqueRand, \AuthSignPublic, \NullifierKey)$},
+consistent with the publically disclosed \nullifier and some previously committed
+\noteCommitment.
+
+Because each \note can have only a single \nullifier, and the same \nullifier value
+cannot appear more than once in a \validBlockChain, double-spending is prevented.
+
+\vspace{1.5ex}
+The \nullifier for a \Sprout \note is derived from the $\NoteUniqueRand$ value and
 the recipient's \spendingKey $\AuthPrivate$.
 
 \sapling{
-A \nullifier for a \Sapling \note is derived from the $\NoteUniqueRand$ value and
+The \nullifier for a \Sapling \note is derived from the $\NoteUniqueRand$ value and
 the recipient's \nullifierDerivingKey $\NullifierKey$.
 }
 
 \nufive{
-A \nullifier for an \Orchard \note is derived from the $\NoteUniqueRand$ and
+The \nullifier for an \Orchard \note is derived from the $\NoteUniqueRand$ and
 $\NoteNullifierRand$ values, the recipient's \nullifierDerivingKey $\NullifierKey$,
 and the \noteCommitment.
 }
 
 The \nullifier computation uses a \pseudoRandomFunction (see \crossref{abstractprfs}),
-as described in \crossref{commitmentsandnullifiers}.
-
-\vspace{1.5ex}
-A \note is spent by proving knowledge of
-$(\NoteUniqueRand, \AuthPrivate)$\sapling{ or $(\NoteUniqueRand, \AuthSignPublic,
-\AuthProvePrivate)$}\nufive{ or $(\NoteUniqueRand, \AuthSignPublic, \NullifierKey)$}
-in zero knowledge while publically disclosing the \note's \nullifier $\nf$,
-allowing $\nf$ to be used to prevent double-spending. \sapling{For \SaplingAndOrchard,
-a \spendAuthSignature is also required, in order to demonstrate knowledge of
-$\AuthSignPrivate$.}
-
-
-\lsubsubsection{Note Plaintexts and Memo Fields}{noteptconcept}
-
-Transmitted \notes are stored on the \blockChain in encrypted form, together with
-a representation of the \noteCommitment $\cm$.
-
-The \notePlaintexts in each \joinSplitDescription are encrypted to the
-respective \transmissionKeys $\TransmitPublicNew{\allNew}$.
-
-\introlist
-Each \Sprout{} \defining{\notePlaintext} (denoted $\NotePlaintext{}$) consists of
-
-\vspace{-1ex}
-\begin{formulae}
-  \item $(\NotePlaintextLeadByte \typecolon \byte,
-          \Value \typecolon \ValueType, \NoteUniqueRand \typecolon \PRFOutputSprout,
-          \NoteCommitRand \typecolon \NoteCommitTrapdoor{Sprout}, \Memo \typecolon \MemoType)$.
-\end{formulae}
-
-\saplingonward{
-The \notePlaintext in each \outputDescription\nufive{ or \actionDescription} is encrypted to the
-\diversifiedPaymentAddress $(\Diversifier, \DiversifiedTransmitPublic)$.
-
-\introlist
-Each \SaplingOrOrchard{} \defining{\notePlaintext} (denoted $\NotePlaintext{}$) consists of
-
-\begin{formulae}
-  \item $(\NotePlaintextLeadByte \typecolon \byte,
-          \Diversifier \typecolon \DiversifierType, \Value \typecolon \ValueType,
-          \NoteCommitRandBytesOrSeedBytes \typecolon \NoteSeedBytesType, \Memo \typecolon \MemoType)$
-\end{formulae}
-
-The fields \notcanopy{$\Diversifier$, $\Value$, and $\NoteCommitRandBytes$}\notbeforecanopy{$\Diversifier$ and $\Value$}
-are as defined in \crossref{notes}.
-
-\canopy{
-The field $\NoteSeedBytes$ is described in \crossref{saplingsend}.
-} %canopy
-} %saplingonward
-
-$\Memo$ represents a $\MemoByteLength$-byte \defining{\memo} associated with this \note.
-The usage of the \memo is by agreement between the sender and recipient of the \note.
-
-Encodings are given in \crossref{notept}.
-The result of encryption forms part of a \noteOrNotesCiphertext.
-For further details, see \crossref{sproutinband}\sapling{ and \crossref{saplingandorchardinband}}.
+as described in \crossref{rhoandnullifiers}.
 
 
 \lsubsection{The Block Chain}{blockchain}
@@ -3400,7 +3443,7 @@ for \Sprout\sapling{ and for \Sapling}\nufive{ and for \Orchard}. \sapling{Each}
 \treestate consists of:
 
 \begin{itemize}
-  \item a \noteCommitmentTree (\crossref{merkletree});
+  \item a \noteCommitmentTree (\crossref{notecommitmenttrees});
   \item a \nullifierSet (\crossref{nullifierset}).
 \end{itemize}
 
@@ -3488,7 +3531,7 @@ is not a consensus rule since it cannot be checked directly; it is enforced by t
 
 
 \sapling{
-\vspace{-3ex}
+\vspace{-1ex}
 \lsubsection{Spend Transfers, Output Transfers, and their Descriptions}{spendsandoutputs}
 
 \vspace{-1ex}
@@ -3527,7 +3570,7 @@ each other, potentially increasing opportunities for precomputation.
 
 A \spendDescription specifies an \anchor, which refers to the output \Sapling \treestate
 of a previous \block. It also reveals a \nullifier, which allows detection of double-spends
-as described in \crossref{nullifierset}.
+as described in \crossref{nullifierconcept}.
 
 \vspace{-2ex}
 \nnote{
@@ -3578,9 +3621,9 @@ The fields of an \actionDescription are essentially a merger of the fields of a
 \spendDescription and an \outputDescription, but with only a single \valueCommitment.
 Also, the \zkSNARKProof is encoded outside the \actionDescription, in order to more
 easily take advantage of space and performance optimizations in the \HaloTwo proof system
-(\crossref{halo2}) that apply when multiple proofs are aggregated. An \actionDescription
-does not include an \anchor, because that is encoded once in the $\anchorField{Orchard}$
-field of the \transaction{}.
+(\crossref{halo2}) that apply when multiple proofs are aggregated. Each \actionDescription
+does not encode a separate \anchor field, because that is encoded once in the
+$\anchorField{Orchard}$ field of the \transaction{}.
 
 \vspace{-1ex}
 \nnote{
@@ -3599,7 +3642,7 @@ the same \transaction.
 
 
 \introsection
-\lsubsection{Note Commitment Trees}{merkletree}
+\extralabel{merkletree}{\lsubsection{Note Commitment Trees}{notecommitmenttrees}}
 
 Let $\MerkleHashLength{Sprout}$, $\MerkleDepth{Sprout}$\sapling{, $\MerkleHashLength{Sapling}$,\notnufive{ and }
 $\MerkleDepth{Sapling}$}\nufive{, $\MerkleHashLength{Orchard}$, and $\MerkleDepth{Orchard}$} be as
@@ -3850,7 +3893,7 @@ in the \spendStatement (\crossref{spendstatement}) to confirm use of the correct
 keys for the \note being spent. It is instantiated in \crossref{concretecrhivk}.
 
 $\MixingPedersenHash \typecolon \GroupJ \times \range{0}{\ParamJ{r}-1}
-\rightarrow \GroupJ$ is a \hashFunction used in \crossref{commitmentsandnullifiers}
+\rightarrow \GroupJ$ is a \hashFunction used in \crossref{rhoandnullifiers}
 to derive the unique $\NoteUniqueRand$ value for a \Sapling \note. It is also used
 in the \spendStatement to confirm use of the correct $\NoteUniqueRand$ value as an
 input to \nullifier derivation. It is instantiated in \crossref{concretemixinghash}.
@@ -5926,7 +5969,7 @@ Let $\ToScalar{Orchard}$ and $\ToBase{Orchard}$ be as specified in \crossref{orc
 Let $\reprP$ and $\ParamP{r}$ be as defined in \crossref{pallasandvesta}.
 
 \vspace{-0.25ex}
-Let $\DeriveNullifierAlg$ be as defined in \crossref{commitmentsandnullifiers}.
+Let $\DeriveNullifierAlg$ be as defined in \crossref{rhoandnullifiers}.
 
 \vspace{-0.25ex}
 Let $\NoteCommitAlg{Orchard}$ be as defined in \crossref{abstractcommit}.
@@ -6686,43 +6729,36 @@ and decrypt incoming \notes. However, the other party will not obtain \spendingA
 
 
 \intropart
-\lsubsection{Note Commitments and Nullifiers}{commitmentsandnullifiers}
-
-A \transaction that contains one or more
-\joinSplitDescriptions\sapling{ or \spendDescriptions}\nufive{ or \actionDescriptions}, when entered
-into the \blockChain, appends to the \noteCommitmentTree with all constituent
-\noteCommitments.
-
-All of the constituent \defining{\nullifiers} are also entered into the
-\nullifierSet of the associated \treestate. A \transaction is not valid if it
-would have added a \nullifier to the \nullifierSet that already exists in the set
-(see \crossref{nullifierset}).
+\extralabel{commitmentsandnullifiers}{\lsubsection{Computing \NoteUniqueRandText{} values and Nullifiers}{rhoandnullifiers}}
 
 \vspace{1ex}
-In \Sprout, each \note has a $\NoteUniqueRand$ component.
+In \Sprout\nufive{ and \Orchard}, each \note has a $\NoteUniqueRand$ component, defined as
+part of the \note.
 
 \sapling{
 \vspace{1ex}
 \introlist
-In \Sapling, each \defining{\positionedNote} has an associated $\NoteUniqueRand$ value which
-is computed from its \noteCommitment $\cm$ and \notePosition $\NotePosition$
-as follows:
+In \Sapling, each \positionedNote (as defined in \crossref{notecommitmentconcept}) has an associated
+$\NoteUniqueRand$ value, which is computed from its \noteCommitment $\cm$ and \notePosition
+$\NotePosition$ as follows:
 
 \begin{formulae}
   \item $\NoteUniqueRand := \MixingPedersenHash(\cm, \NotePosition)$.
 \end{formulae}
 
+\vspace{-1ex}
 $\MixingPedersenHash$ is defined in \crossref{concretemixinghash}.
 } %sapling
 
-\vspace{1ex}
+\vspace{2ex}
 \introlist
 Let $\PRFnf{Sprout}{}$\sapling{ and $\PRFnf{Sapling}{}$}\nufive{ and $\PRFnf{Orchard}{}$}
 be as instantiated in \crossref{concreteprfs}.
 
 \vspace{1ex}
-For a \Sprout \note, the \nullifier is derived as $\PRFnf{Sprout}{\AuthPrivate}(\NoteUniqueRand)$,
-where $\AuthPrivate$ is the \spendingKey associated with the \note.
+For a \Sprout \note, the \nullifier (see \crossref{nullifierconcept}) is derived as
+$\PRFnf{Sprout}{\AuthPrivate}(\NoteUniqueRand)$, where $\AuthPrivate$ is the \spendingKey
+associated with the \note.
 
 \vspace{1ex}
 \sapling{
@@ -7091,7 +7127,7 @@ Let $\GroupP$, $\GroupPstar$, $\reprP$, $\ParamP{q}$, and $\ParamP{r}$ be as def
 Let $\Selectx$, $\Selecty$, $\ExtractP$, and $\ExtractPbot$ be as defined in \crossref{concreteextractorpallas}.
 
 \vspace{-0.25ex}
-Let $\DeriveNullifierAlg$ be as defined in \crossref{commitmentsandnullifiers}.
+Let $\DeriveNullifierAlg$ be as defined in \crossref{rhoandnullifiers}.
 
 \intropart
 \vspace{0.5ex}
@@ -7306,8 +7342,7 @@ Let $\TransmitPublicSub{\allNew}$ be the \transmissionKeys
 for the intended recipient addresses of each new \note.
 
 \vspace{-0.5ex}
-Let $\NotePlaintext{\allNew}$ be \Sprout \notePlaintexts
-defined in \crossref{notept}.
+Let $\NotePlaintext{\allNew}$ be \Sprout \notePlaintexts defined in \crossref{noteptconcept}.
 
 \introlist
 \vspace{0.5ex}
@@ -7455,7 +7490,7 @@ For both encryption and decryption,
         $\DiversifyHash{Orchard}$ in the same section};
         \vspace{-0.25ex}
   \item let $\NoteCommitment{}$ be $\NoteCommitment{Sapling}$\nufive{ or $\NoteCommitment{Orchard}$}
-        instantiated in \crossref{notes};
+        defined in \crossref{notecommitmentconcept};
         \vspace{-0.25ex}
   \item let $\ToScalar{}$ be $\ToScalar{Sapling}$ defined in \crossref{saplingkeycomponents}\nufive{ or
         $\ToScalar{Orchard}$ defined in \crossref{orchardkeycomponents}};
@@ -7488,7 +7523,7 @@ spent, or an \outgoingViewingKey associated with a \cite{ZIP-32} account, or $\b
 Let $\NotePlaintext{} = (\NotePlaintextLeadByte, \Diversifier, \Value, \NoteCommitRandBytesOrSeedBytes, \Memo)$
 be the \SaplingOrOrchard \notePlaintext.\notnufive{
 
-} $\NotePlaintext{}$ is encoded as defined in \crossref{notept}.
+} $\NotePlaintext{}$ is encoded as defined in \crossref{noteptencoding}.
 
 Let $\cv$ be the \valueCommitment for the \outputDescription\nufive{ or \actionDescription (for \Orchard,
 this also depends on the value of the \note being spent)}, and let $\cm$ be the \noteCommitment.
@@ -7633,10 +7668,10 @@ from $\TransmitPlaintext{}$
         \vspace{-0.5ex}
   \item Normally only \noteCiphertextsSapling of \transactions in \blocks need to be decrypted. In that case,
         any received \Sapling \note is necessarily a \positionedNote, so its $\NoteUniqueRand$
-        value can immediately be calculated per \crossref{commitmentsandnullifiers}.
+        value can immediately be calculated per \crossref{rhoandnullifiers}.
         To test whether a \SaplingOrOrchard \note is unspent in a particular \blockChain also requires
         the \nullifierDerivingKey $\NullifierKey$; the coin is unspent if and only if the \nullifier
-        computed as in \shortcrossref{commitmentsandnullifiers} is not in the \nullifierSet for
+        computed as in \shortcrossref{rhoandnullifiers} is not in the \nullifierSet for
         that \blockChain.
         \vspace{-0.5ex}
   \item A \note can change from being unspent to spent as a node's view of the \bestValidBlockChain is
@@ -7847,8 +7882,8 @@ to obtain each \note sent to the corresponding \shieldedPaymentAddress, its \mem
                        \vspace{-1ex}
   \item \tab \tab \tab algorithm in \crossref{sproutdecrypt}. If this succeeds with $(\NoteTuple{}, \Memo)$:
   \item \tab \tab \tab \tab Add $(\NoteTuple{}, \Memo)$ to $\ReceivedSet$.
-  \item \tab \tab \tab \tab Calculate the nullifier $\nf$ of $\NoteTuple{}$ using $\AuthPrivate$
-                            as described in \crossref{notes}.
+  \item \tab \tab \tab \tab Calculate the \nullifier $\nf$ of $\NoteTuple{}$ using $\AuthPrivate$
+                            as in \crossref{rhoandnullifiers}.
   \item \tab \tab \tab \tab Add the mapping $\nf \rightarrow \NoteTuple{}$ to $\NullifierMap$.
   \item \vspace{-3.5ex}
   \item \tab \tab let $\nf_{\allOld}$ be the \nullifiers of the \joinSplitDescription
@@ -7897,9 +7932,9 @@ status (spent or unspent).
                   $\EphemeralPublic$ and $\TransmitCiphertext{}$ using $\InViewingKey$ with the algorithm\vspace{-1ex}%
   \item \tab \tab \crossref{decryptivk}. If this succeeds \notbeforenufive{\vspace{-1ex}\item \tab \tab }with $(\NoteTuple{}, \Memo)$:
   \item \tab \tab \tab Add $(\NoteTuple{}, \Memo)$ to $\ReceivedSet$.
-  \item \tab \tab \tab Calculate the nullifier $\nf$ of $\NoteTuple{}$ using $\NullifierKey$
-                       as described in \crossref{notes}. (This also requires $\NotePosition$\vspace{-1ex}
-  \item \tab \tab \tab from the \outputDescription\notbeforenufive{ for \Sapling \notes}.)
+  \item \tab \tab \tab Calculate the \nullifier $\nf$ of $\NoteTuple{}$ using $\NullifierKey$ as in \crossref{rhoandnullifiers}.
+                       \vspace{-1ex}
+  \item \tab \tab \tab (This also requires $\NotePosition$ from the \outputDescription\notbeforenufive{ for \Sapling \notes}.)
   \item \tab \tab \tab Add the mapping $\nf \rightarrow \NoteTuple{}$ to $\NullifierMap$.
   \item \blank
   \item \tab for each \nullifier $\nf$ of a \spendDescription\nufive{ or \actionDescription} in $\tx$:
@@ -8665,7 +8700,7 @@ Because $\ExtractJ$ is injective, it follows that $\PedersenHash$ is equally
 
 \vspace{-1ex}
 A mixing \xPedersenHash is used to compute $\NoteUniqueRand$ from
-$\cm$ and $\NotePosition$ in \crossref{commitmentsandnullifiers}. It takes as
+$\cm$ and $\NotePosition$ in \crossref{rhoandnullifiers}. It takes as
 input a \xPedersenCommitment $P$, and hashes it with another input $x$.
 
 Define $\NotePositionBaseSapling := \FindGroupJHash\Of{\ascii{Zcash\_J\_}, \ascii{}}$.
@@ -8916,7 +8951,7 @@ this is a nontrivial discrete logarithm relation between independent bases.
         independent bases may be added to the $\SinsemillaHashToPoint$ output before applying $\ExtractPbot$.
         This is needed to show security of the $\SinsemillaShortCommitAlg$ \commitmentScheme defined in
         \crossref{concretesinsemillacommit}. It is also needed to show security of \nullifier derivation
-        defined in \crossref{commitmentsandnullifiers} against Faerie Gold attacks, as described in
+        defined in \crossref{rhoandnullifiers} against Faerie Gold attacks, as described in
         \crossref{faeriegold}.
         \vspace{-0.25ex}
   \item Assuming that $\GroupGHash$ acts as a \randomOracle, it can also be proven that $\SinsemillaHashToPoint$
@@ -11469,41 +11504,11 @@ For \Orchard \actionDescriptions in version 5 \transactions, \Zcash uses \zkSNAR
 
 
 \vspace{1ex}
-\lsubsection{Encodings of Note Plaintexts and Memo Fields}{notept}
+\extralabel{notept}{\lsubsection{Encodings of Note Plaintexts and Memo Fields}{noteptencoding}}
 
 As explained in \crossref{noteptconcept}, transmitted \notes are stored on
-the \blockChain in encrypted form.
-
-% FIXME duplication with {noteptconcept}.
-
-\introlist
-The \notePlaintexts in a \joinSplitDescription are encrypted to the
-respective \transmissionKeys $\TransmitPublicNew{\allNew}$.
-Each \Sprout \notePlaintext (denoted $\NotePlaintext{}$) consists of:
-\begin{formulae}
-  \item $(\NotePlaintextLeadByte \typecolon \byte,
-          \Value \typecolon \ValueType, \NoteUniqueRand \typecolon \PRFOutputSprout,
-          \NoteCommitRand \typecolon \NoteCommitOutput{Sprout}, \Memo \typecolon \MemoType)$
-\end{formulae}
-
-\saplingonward{
-The \notePlaintext in each \outputDescription\nufive{ or \actionDescription} is encrypted
-to the \diversifiedTransmissionKey $\DiversifiedTransmitPublic$.
-Each \SaplingOrOrchard \notePlaintext (denoted $\NotePlaintext{}$) consists of:
-\begin{formulae}
-  \item $(\NotePlaintextLeadByte \typecolon \byte,
-          \Diversifier \typecolon \DiversifierType, \Value \typecolon \ValueType,
-          \NoteCommitRandBytesOrSeedBytes \typecolon \NoteSeedBytesType, \Memo \typecolon \MemoType)$
-\end{formulae}
-}
-
-$\Memo$ is a $\MemoByteLength$-byte \memo associated with this \note.
-
-\introlist
-The usage of the \memo is by agreement between the sender and recipient of the \note.
-Non-consensus constraints on the \memo contents are specified in \cite{ZIP-302}.
-
-Other fields are as defined in \crossref{notes}.
+the \blockChain in encrypted form. The components and usage of \notePlaintexts,
+and which keys they are encrypted to, are defined in that section.
 
 \vspace{1ex}
 \introlist
@@ -11543,10 +11548,8 @@ The encoding of a \SaplingOrOrchard \notePlaintext consists of:
 \end{equation*}
 
 \begin{itemize}
-    \item A byte\notcanopy{, $\hexint{01}$,} indicating this version of the encoding of
-          a \SaplingOrOrchard \notePlaintext. \canopy{This will be $\hexint{01}$ before
-          activation of the \Canopy \networkUpgrade, and $\hexint{02}$ afterward\nufive{;
-          in particular, it will always be $\hexint{02}$ for \Orchard \notePlaintexts}.}
+    \item A byte, $\hexint{01}$\canopy{ or $\hexint{02}$} as specified in \crossref{noteptconcept},
+          indicating this version of the encoding of a \SaplingOrOrchard \notePlaintext.
     \item $11$ bytes specifying $\Diversifier$.
     \item $8$ bytes specifying $\Value$.
     \item $32$ bytes specifying $\NoteCommitRandBytesOrSeedBytes$.
@@ -13943,7 +13946,7 @@ include \Zcash-specific fields in the hash \cite{ZIP-76}.
 
 \Zcash adds a \memo sent from the creator of a \joinSplitDescription to
 the recipient of each output \note. This feature is described in
-more detail in \crossref{notept}.
+more detail in \crossref{noteptconcept}.
 
 
 \introlist
@@ -14147,7 +14150,7 @@ In \Orchard, the \nullifier is computed using a construction that combines
 elliptic curve cryptography and the $\Poseidon$-based $\PRFnf{Orchard}{}$
 in a way that, for privacy, aims to provide defence in depth against potential
 weaknesses in either (see \cite[Section 3.5 Nullifiers]{Zcash-Orchard} and
-\crossref{commitmentsandnullifiers}).
+\crossref{rhoandnullifiers}).
 
 Resistance to Faerie Gold attacks, on the other hand, depends entirely on hardness
 of the \xDiscreteLogarithmProblem. The $\NoteUniqueRand$ value of a \note created
@@ -14671,6 +14674,14 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
           which would have been sufficient for the security argument against this class of attacks,
           but the chosen fix is more direct.)
 } %sapling
+    \item Rename the section ``Note Commitments and Nullifiers'' to \crossref{rhoandnullifiers},
+          to more accurately reflect its contents.
+    \item Split some of the content of the section ``Notes'' into subsections \crossref{notecommitmentconcept}
+          and \crossref{nullifierconcept}. Make the descriptions of how \noteCommitments and
+          \nullifiers are used more precise and explicit, and add forward references where
+          helpful.
+    \item Remove redundancy in the definition of \notePlaintexts between \crossref{noteptconcept}
+          and \crossref{noteptencoding}.
 \end{itemize}
 
 
@@ -14952,7 +14963,7 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
 
 \historyentry{2021.2.13}{2021-07-29}
 \begin{itemize}
-    \item Add consensus rules in \crossref{merkletree} that a \block \MUSTNOT add
+    \item Add consensus rules in \crossref{notecommitmenttrees} that a \block \MUSTNOT add
           \noteCommitments that exceed the capacity of any of the \Sprout\sapling{ or
           \Sapling}\nufive{ or \Orchard} \noteCommitmentTrees.
 \end{itemize}
@@ -15087,7 +15098,7 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
           \incomingViewingKeys include both $\DiversifierKey$ and $\InViewingKey$.
     \item Clarify that the $\range{-\MAXMONEY}{\MAXMONEY}$ range restriction applies to both
           \valueBalance{Sapling} and \valueBalance{Orchard}.
-    \item Update \crossref{notept} for \Orchard.
+    \item Update \crossref{noteptencoding} for \Orchard.
     \item Add \cite{ZIP-203}, \cite{ZIP-212}, and \cite{ZIP-213} to the list of ZIPs updated for \NUFive.
 } %nufive
     \item Give cross-references to \crossref{notation} where $\optsqrt{\,\paramdot\,}$ and
@@ -15254,7 +15265,7 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
     \item When creating \Orchard \notes, repeat with another $\NoteSeedBytes$ if $\cm$ is $\bot$.
     \item Add a note in \crossref{orchardkeycomponents} about non-uniformity of $\InViewingKey$.
     \item Fix a typo: ``Decription'' to ``Description''.
-    \item Add \actionDescriptions to the introduction of \crossref{commitmentsandnullifiers}.
+    \item Add \actionDescriptions to the introduction of \crossref{rhoandnullifiers}.
     \item Use a different footnote symbol for each \Sapling field cardinality rule in v5 \transactions.
 } %nufive
     \item Fix some URLs in references.
@@ -15404,7 +15415,7 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
           instead of $[10]$.
     \item Correct a note about the range of the Merkle hash inputs in \crossref{actionstatement}.
     \item Correct the validity condition for $\AuthSignPublic$ in \crossref{orchardfullviewingkeyencoding}.
-    \item Add a definition for $\NullifierBaseOrchard$ in \crossref{commitmentsandnullifiers}.
+    \item Add a definition for $\NullifierBaseOrchard$ in \crossref{rhoandnullifiers}.
     \item Correct the number of full and partial rounds for $\Poseidon$.
     \item Add a note explaining the origin of the $2^{65}$ constant in the definition of
           $\PoseidonHash$.
@@ -15607,7 +15618,7 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
     \item Repair the argument for $\GroupJHash{\URS}$ being usable as a \randomOracle, which
           previously depended on $\abstJ$ being injective.
     \item In $\RedDSA$ verification, clarify that $\RedDSAReprR{}$ used as part of the input to
-          $\RedDSAHashToScalar$ must be exactly as encoded in the signature.
+          $\RedDSAHashToScalar$ \MUST be exactly as encoded in the signature.
 } %sapling
 \canopy{
     \item Specify that \shieldedOutputs of \coinbaseTransactions \MUST use v2 \notePlaintexts after
@@ -16586,7 +16597,7 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
 \historyentry{2017.0-beta-2.3}{2017-02-12}
 
 \begin{itemize}
-    \item Specify the security requirements on the \shaCompress function in order
+    \item Specify the security requirements on the \shaCompress function, in order
           for the scheme in \crossref{concretesproutnotecommit} to be a secure commitment.
     \item Specify $\GroupG{2}$ more precisely.
     \item Explain the use of interstitial \treestates in chained \joinSplitTransfers.
@@ -17893,7 +17904,7 @@ In particular,
 \lsubsubsubsection{Mixing Pedersen hash}{cctmixinghash}
 
 A mixing \xPedersenHash is used to compute $\NoteUniqueRand$ from
-$\cm$ and $\NotePosition$ in \crossref{commitmentsandnullifiers}. It takes as
+$\cm$ and $\NotePosition$ in \crossref{rhoandnullifiers}. It takes as
 input a \xPedersenCommitment $P$, and hashes it with another input $x$.
 
 Let $\NotePositionBaseSapling$ be as defined in \crossref{concretemixinghash}.
