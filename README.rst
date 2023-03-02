@@ -107,8 +107,8 @@ Index of ZIPs
     <tr> <td>222</td> <td class="left"><a href="zip-0222.rst">Transparent Zcash Extensions</a></td> <td>Draft</td>
     <tr> <td>224</td> <td class="left"><a href="zip-0224.rst">Orchard Shielded Protocol</a></td> <td>Final</td>
     <tr> <td>225</td> <td class="left"><a href="zip-0225.rst">Version 5 Transaction Format</a></td> <td>Final</td>
-    <tr> <td><span class="reserved">226</span></td> <td class="left"><a class="reserved" href="zip-0226.rst">Zcash Shielded Assets - Transfers and Burns</a></td> <td>Reserved</td>
-    <tr> <td><span class="reserved">227</span></td> <td class="left"><a class="reserved" href="zip-0227.rst">Zcash Shielded Assets - Issuance</a></td> <td>Reserved</td>
+    <tr> <td><span class="reserved">226</span></td> <td class="left"><a class="reserved" href="zip-0226.rst">Transfer and Burn of Zcash Shielded Assets</a></td> <td>Reserved</td>
+    <tr> <td><span class="reserved">227</span></td> <td class="left"><a class="reserved" href="zip-0227.rst">Issuance of Zcash Shielded Assets</a></td> <td>Reserved</td>
     <tr> <td>239</td> <td class="left"><a href="zip-0239.rst">Relay of Version 5 Transactions</a></td> <td>Final</td>
     <tr> <td>243</td> <td class="left"><a href="zip-0243.rst">Transaction Signature Validation for Sapling</a></td> <td>Final</td>
     <tr> <td>244</td> <td class="left"><a href="zip-0244.rst">Transaction Identifier Non-Malleability</a></td> <td>Final</td>
