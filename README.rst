@@ -139,6 +139,7 @@ Index of ZIPs
     <tr> <td>321</td> <td class="left"><a href="zip-0321.rst">Payment Request URIs</a></td> <td>Proposed</td>
     <tr> <td><span class="reserved">322</span></td> <td class="left"><a class="reserved" href="zip-0322.rst">Generic Signed Message Format</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">323</span></td> <td class="left"><a class="reserved" href="zip-0323.rst">Specification of getblocktemplate for Zcash</a></td> <td>Reserved</td>
+    <tr> <td><span class="reserved">332</span></td> <td class="left"><a class="reserved" href="zip-0332.rst">Wallet Recovery from zcashd HD Seeds</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">339</span></td> <td class="left"><a class="reserved" href="zip-0339.rst">Wallet Recovery Words</a></td> <td>Reserved</td>
     <tr> <td>400</td> <td class="left"><a href="zip-0400.rst">Wallet.dat format</a></td> <td>Draft</td>
     <tr> <td>401</td> <td class="left"><a href="zip-0401.rst">Addressing Mempool Denial-of-Service</a></td> <td>Active</td>
