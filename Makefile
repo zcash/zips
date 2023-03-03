@@ -17,7 +17,7 @@ protocol:
 	$(MAKE) -C protocol
 
 discard:
-	git checkout -- '*.html' 'protocol/*.pdf'
+	git checkout -- '*.html' 'README.rst' 'protocol/*.pdf'
 
 .Makefile.uptodate: Makefile
 	$(MAKE) clean
