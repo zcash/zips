@@ -169,6 +169,7 @@ Issuance Action Description
 
 An issuance action, `IssueAction`, is the instance of issuing a specific custom Asset, and contains the following fields:
 
+- :math:`\mathsf{assetDescSize}`: the size of the Asset description, a number between :math:`0` and :math:`512`, stored in two bytes.
 - :math:`\mathsf{asset\_desc}`: the Asset description, a UTF-8 encoded string of up to 512 bytes
 - `notes`: an array containing the unencrypted output notes of the recipients of the Asset, of type `Note`
 - ``finalize``: a boolean that defines whether the issuance of that specific custom Asset is finalized or not
@@ -178,7 +179,8 @@ An asset's :math:`\mathsf{AssetId}` is added to the :math:`\mathsf{previously\_f
 ================= =============================== ========================== ===========================================================================================
 Size              Name                            Data Type                  Description
 ================= =============================== ========================== ===========================================================================================
-Varies            :math:`\mathsf{asset\_desc}`    byte                       UTF-8 encoded string of varied size, up to 512 bytes
+2 bytes           :math:`\mathsf{assetDescSize}`  byte                       The length of the :math:`\mathsf{asset\_desc}` string in bytes
+Varies            :math:`\mathsf{asset\_desc}`    byte                       UTF-8 encoded string, of size :math:`\mathsf{assetDescSize}` bytes
 Varies            nNotes                          compactSize                The number of notes in the issuance action
 noteSize * nNotes vNotes                          Note[nNotes]               A sequence of note descriptions within the issuance action
 1 byte            ``flagsIssuance``               byte                       An 8-bit value with the ``finalize`` boolean value as the LSB, and the other bits set to 0.
@@ -193,7 +195,7 @@ An issuance bundle, `IssueBundle`, is the aggregate of all the issuance-related 
 
 - :math:`\mathsf{ik}`: the issuance validating key, that allows the validators to verify that the :math:`\mathsf{AssetId}` is properly associated with the issuer.
 - `actions`: an array of issuance actions, of type `IssueAction`.
-- `authorization`: the signature of the transaction SIGHASH, signed by the issuance authorizing key, :math:`\mathsf{isk}`, that validates the issuance .
+- `issueAuthSig`: the signature of the transaction SIGHASH, signed by the issuance authorizing key, :math:`\mathsf{isk}`, that validates the issuance .
 
 The issuance bundle is then added within the transaction format as a new bundle. That is, issuance requires the addition of the following information to the transaction format [#protocol-transactionstructure]_.
 
@@ -203,7 +205,7 @@ Bytes              Name               Data Type                  Description
 Varies  nIssueActions        compactSize                The number of issuance actions in the bundle
 Varies  vIssueActions        IssueAction[nIssueActions] A sequence of issuance actions descriptions
 32      :math:`\mathsf{ik}`  byte[32]                   The issuance validating key of the issuer, used to validate the signature
-64      authorization        byte[64]                   The signature of the transaction SIGHASH, signed by the issuer
+64      issueAuthSig         byte[64]                   The signature of the transaction SIGHASH, signed by the issuer
 ======= ==================== ========================== =========================================================================
 
 Issuance Protocol
@@ -237,11 +239,12 @@ Consensus Rule Changes
 
 For the IssueBundle:
 
-- Verify the RedPallas-based issuance authorization signature on `SIGHASH`, `authorization`, is verified by invoking `authorization.VerifySig(ik, SIGHASH)`
+- Verify the RedPallas-based issuance authorization signature on `SIGHASH`, `issueAuthSig`, is verified by invoking `issueAuthSig.VerifySig(ik, SIGHASH)`
 
 For each `IssueAction` in `IssueBundle`:
 
-- check that :math:`\mathsf{asset\_desc}` is a string with `0 < byte size <= 512`.
+- check that :math:`0 < \mathsf{assetDescSize} <= 512`.
+- check that :math:`\mathsf{asset\_desc}` is a string of length :math:`\mathsf{assetDescSize}` bytes.
 - retrieve :math:`\mathsf{AssetBase}` from the first note in the sequence and check that :math:`\mathsf{AssetBase}` is derived from the issuance validating key :math:`\mathsf{ik}` and :math:`\mathsf{asset\_desc}` as described in the `Asset Identifier`_ section.
 - check that the :math:`\mathsf{AssetId}` does not exist in the ``previously_finalized`` set in the global state.
 - check that every note in the `IssueAction` contains the same :math:`\mathsf{AssetBase}` and is properly constructed as :math:`note = (\mathsf{g_d, pk_d, v, \rho, \psi, AssetBase})`.
