@@ -175,14 +175,14 @@ An issuance action, `IssueAction`, is the instance of issuing a specific custom 
 
 An asset's :math:`\mathsf{AssetId}` is added to the :math:`\mathsf{previously\_finalized}` set after a block that contains any issuance transaction for that asset with ``finalize = 1``. It then cannot be removed from this set. For Assets with :math:`\mathsf{AssetId} \in \mathsf{previously\_finalized}`, no further tokens can be issued, so as seen below, the validators will reject the transaction. For Assets with :math:`\mathsf{AssetId} \not\in \mathsf{previously\_finalized}`, new issuance actions can be issued in future transactions. These must use the same Asset description, :math:`\mathsf{asset\_desc}`, and can either maintain ``finalize = 0`` or change it to ``finalize = 1``, denoting that this custom Asset cannot be issued after the containing block.
   
-================= =============================== ========================== ========================================================================
+================= =============================== ========================== ===========================================================================================
 Size              Name                            Data Type                  Description
-================= =============================== ========================== ========================================================================
+================= =============================== ========================== ===========================================================================================
 Varies            :math:`\mathsf{asset\_desc}`    byte                       UTF-8 encoded string of varied size, up to 512 bytes
 Varies            nNotes                          compactSize                The number of notes in the issuance action
 noteSize * nNotes vNotes                          Note[nNotes]               A sequence of note descriptions within the issuance action
-1 bit             ``finalize``                    boolean                    The boolean that determines the finality of the issuance of that Asset
-================= =============================== ========================== ========================================================================
+1 byte            ``flagsIssuance``               byte                       An 8-bit value with the ``finalize`` boolean value as the LSB, and the other bits set to 0.
+================= =============================== ========================== ===========================================================================================
 
 We note that the output note commitment of the recipient's notes are not included in the actual transaction, but when added to the global state of the chain, they will be added to the `NoteCommitmentTree` as a shielded note. This prevents future usage of the note from being linked to the issuance transaction, as the nullifier key is not known to the validators and chain observers.
 
@@ -291,11 +291,14 @@ Concrete Applications
 
 TxId Digest
 ===========
-A new issuance transaction digest algorithm is defined that constructs the identifier for an issuance transaction. Each branch of the tree of hashes will correspond to a specific subset of transaction data. The overall structure of the hash is as follows; each name referenced here will be described in detail below::
+
+As in ZIP 244 [#zip-0244]_, the digests are all personalized BLAKE2b-256 hashes, and in cases where no elements are available for hashing, a personalized hash of the empty byte array is used.
+
+A new issuance transaction digest algorithm is defined that constructs the identifier for an issuance transaction. Each branch of the tree of hashes will correspond to a specific subset of issuance transaction data. The overall structure of the hash is as follows; each name referenced here will be described in detail below::
 
     issuance_txid_digest
-    ├── issueActions
-    └── issuerVerificationKey
+    ├── issue_actions_digest
+    └── issuanceValidatingKey
 
 In the specification below, nodes of the tree are presented in depth-first order.
 
@@ -303,25 +306,32 @@ issuance_txid_digest
 --------------------
 A BLAKE2b-256 hash of the following values ::
 
-   T.1: issueActions            (field encoding bytes)
-   T.2: issuerVerificationKey   (field encoding bytes)
+   T.1: issue_actions_digest    (32-byte hash output)
+   T.2: issuanceValidatingKey   (32 bytes)
 
 The personalization field of this hash is set to::
 
-  "ZTxIdOrcZSAIssue"
+  "ZTxIdSAIssueHash"
 
-T.1 issueActions
-````````````````
-A byte encoding of Issue Action information for all Issue Actions belonging to the transaction. For each Action, the following elements are included in the hash::
+In case the transaction has no issuance components, ''issue_actions_digest'' is::
+    
+    BLAKE2b-256("ZTxIdSAIssueHash", [])
 
-   T.1a: notes                   (field encoding bytes)
+T.1: issue_actions_digest
+`````````````````````````
+A BLAKE2b-256 hash of Issue Action information for all Issuance Actions belonging to the transaction. For each Action, the following elements are included in the hash::
+
+   T.1a: notes_digest            (32-byte hash output)
    T.1b: assetDescription        (field encoding bytes)
-   T.1c: isFinalized             (1 bit)
+   T.1c: flagsIssuance           (1 byte)
 
+The personalization field of this hash is set to::
 
-T.1a: notes
-'''''''''''
-A byte encoding of Note information for all Notes belonging to the Action. For each Note, the following elements are included in the hash::
+  "ZTxIdIssActHash"
+
+T.1a: notes_digest
+''''''''''''''''''
+A BLAKE2b-256 hash of Note information for all Notes belonging to the Issuance Action. For each Note, the following elements are included in the hash::
 
    T.1a.1: recipient                    (field encoding bytes)
    T.1a.2: value                        (field encoding bytes)
@@ -329,10 +339,13 @@ A byte encoding of Note information for all Notes belonging to the Action. For e
    T.1a.4: rho                          (field encoding bytes)
    T.1a.5: rseed                        (field encoding bytes)
 
+The personalization field of this hash is set to::
+
+  "ZTxIdIANoteHash"
 
 T.1a.1: recipient
 .................
-Raw Address encoded as specified in [Zcash Protocol Spec § 5.6.4.2: Orchard Raw Payment Addresses].
+This is the raw encoding of an Orchard shielded payment address as defined in the protocol specification [#protocol-orchardpaymentaddrencoding]_.
 
 T.1a.2: value
 .............
@@ -354,14 +367,17 @@ T.1b: assetDescription
 ''''''''''''''''''''''
 UTF-8 encoding of the Asset description string.
 
-T.1c: isFinalized
-'''''''''''''''''
-1-bit representation of a boolean flag that is set to 'true' if the Asset Identifier was finalized in this action and 'false' otherwise. 'True' is represented as 1, 'false' as 0.
+T.1c: flagsIssuance
+'''''''''''''''''''
+An 8-bit value representing a set of flags. Ordered from LSB to MSB:
+
+- ``finalize``
+- The remaining bits are set to `0`.
 
 
-T.2 issuerVerificationKey
-`````````````````````````
-A byte encoding of issuer validating key for the bundle as defined in [Zcash Protocol Spec § 4.2.3: Orchard Key Components].
+T.2: issuanceValidatingKey
+``````````````````````````
+A byte encoding of issuance validating key for the bundle as defined in the `Issuance Key Derivation`_ section.
 
 
 Security and Privacy Considerations
@@ -419,7 +435,8 @@ References
 .. [#zip-0226] `ZIP 226: Transfer and Burn of Zcash Shielded Assets <zip-0226.html>`_
 .. [#zip-0226-notestructure] `ZIP 226: Transfer and Burn of Zcash Shielded Assets - Note Structure & Commitment <zip-0226.html#note-structure-commitment>`_
 .. [#zip-0227] `ZIP 227: Issuance of Zcash Shielded Assets <zip-0227.html>`_
-.. [#zip-0317b] `ZIP 317: Proportional Fee Mechanism <https://deploy-preview-6--zcash-zips-qedit.netlify.app/zip-0317>`_
+.. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.html>`_
+.. [#zip-0317b] `ZIP 317b: ZSA Extension Proportional Fee Mechanism <zip-0317b.html>`_
 .. [#zip-0032] `ZIP 32: Shielded Hierarchical Deterministic Wallets <zip-0032.html>`_
 .. [#zip-0032-orchard-master] `ZIP 32: Shielded Hierarchical Deterministic Wallets - Orchard master key generation <zip-0032.html#orchard-master-key-generation>`_
 .. [#zip-0316] `ZIP 316: Unified Addresses and Unified Viewing Keys <zip-0316.html>`_
@@ -428,4 +445,5 @@ References
 .. [#protocol-orchardkeycomponents] `Zcash Protocol Specification, Version 2022.3.8. Section 4.2.3: Orchard Key Components <protocol/protocol.pdf#orchardkeycomponents>`_
 .. [#protocol-spendauthsig] `Zcash Protocol Specification, Version 2022.3.8. Section 4.15: Spend Authorization Signature (Sapling and Orchard) <protocol/protocol.pdf#spendauthsig>`_
 .. [#protocol-concretespendauthsig] `Zcash Protocol Specification, Version 2022.3.8. Section 5.4.7.1: Spend Authorization Signature (Sapling and Orchard) <protocol/protocol.pdf#concretespendauthsig>`_
+.. [#protocol-orchardpaymentaddrencoding] `Zcash Protocol Specification, Version 2022.3.8. Section 5.6.4.2: Orchard Raw Payment Addresses <protocol/protocol.pdf#orchardpaymentaddrencoding>`_
 .. [#protocol-transactionstructure] `Zcash Protocol Specification, Version 2022.3.8. Section 7.1: Transaction Encoding and Consensus (Transaction Version 5)  <protocol/protocol.pdf#>`_
