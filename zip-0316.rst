@@ -43,20 +43,20 @@ Receiver
   The necessary information to transfer an asset to a Recipient that generated
   that Receiver using a specific Transfer Protocol. Each Receiver is associated
   unambiguously with a specific Receiver Type, identified by an integer Typecode.
-Receiver Encoding
+Receiver Item
   An encoding of a Receiver as a byte sequence.
 Viewing Key
   The necessary information to view information about payments to an Address,
   or (in the case of a Full Viewing Key) from an Address. An Incoming Viewing
   Key can be derived from a Full Viewing Key, and an Address can be derived
   from an Incoming Viewing Key.
-Viewing Key Encoding
+Viewing Key Item
   An encoding of a Viewing Key as a byte sequence.
-Metadata Encoding
+Metadata Item
   An encoding of metadata that is not a Receiver or Viewing Key, but may affect
   the interpretation of the overall Unified Address/Viewing Key.
 Item
-  An Receiver Encoding, Viewing Key Encoding, or Metadata Encoding.
+  An Receiver Item, Viewing Key Item, or Metadata Item.
 Legacy Address
   A Transparent, Sprout, or Sapling Address.
 Unified Address (or UA)
@@ -86,12 +86,20 @@ Unified QR Encoding
   An encoding of a UA/UVK as a QR code, intended for display and transfer
   by Zcash end-users in situations where usability advantages of a 2D bar
   code may be relevant.
+Unified Raw Encoding
+  An encoding of a UA/UVK as a byte sequence, intended *only* for internal
+  use by Zcash-related software. Unified Raw Encodings MUST NOT be exposed
+  to end-users, since they lack resilience and nonmalleability properties
+  necessary for that purpose.
 Address Encoding
-  The externally visible encoding of an Address (e.g. as a string of
-  characters or a QR code).
+  An externally visible encoding of an Address.
 
 Notation for sequences, conversions, and arithmetic operations follows the
 Zcash protocol specification [#protocol-notation]_.
+
+The notation :math:`\mathtt{X}[i\,..\!=j]`, where :math:`\mathtt{X}` is a byte
+sequence, means the subsequence of bytes of :math:`\mathtt{X}` at zero-based
+indices :math:`i` to :math:`j` inclusive.
 
 
 Abstract
@@ -195,8 +203,8 @@ different means. Zero or more Consumers may import Addresses. Zero or more of
 those (that are Senders) may execute a Transfer. A single Sender may execute
 multiple Transfers over time from a single import.
 
-Steps 1 to 5 inclusive also apply to Interaction Flows for Unified Full Viewing
-Keys and Unified Incoming Viewing Keys.
+Steps 1 to 5 inclusive also apply to Interaction Flows for Full Viewing Keys
+and Incoming Viewing Keys.
 
 Addresses
 ---------
@@ -219,8 +227,11 @@ Unified Viewing Key containing unrecognized Items.
 A wallet may process unrecognized Items by indicating to the user their
 presence or similar information for usability or diagnostic purposes.
 
-Transport Encoding
-------------------
+Unified Addresses and Unified Viewing Keys must support sufficiently many
+Receiver Types to allow for reasonable future expansion.
+
+Transport Encodings
+-------------------
 
 The Unified String Encoding is “opaque” to human readers: it does *not*
 allow visual identification of which Receivers or Receiver Types are
@@ -229,21 +240,33 @@ present.
 The Unified String Encoding is resilient against typos, transcription
 errors, cut-and-paste errors, truncation, or other likely UX hazards.
 
+The Unified String Encoding is resistant, as far as reasonably possible,
+to “malleability attacks” that attempt to substitute a visually similar
+string representing a different valid Address in order to lure a user
+into sending funds to the wrong Address. In particular, as long as a user
+checks sufficiently many characters of a given Unified String Encoding
+(say, at least 20 characters) against the corresponding characters of
+a known-good reference Unified String Encoding, that check should be
+sufficient to give them confidence that a malleability attack would be
+infeasible: either they have an invalid Address Encoding, or one
+identical to the reference.
+
 There is a well-defined Unified QR Encoding of a Unified Address (or
 UFVK or UIVK) as a QR code, which produces QR codes that are reasonably
 compact and robust.
 
-There is a well-defined transformation between the Unified QR Encoding
-and Unified String Encoding of a given UA/UVK in either direction.
+There is a well-defined Unified Raw Encoding of a UA/UVK which is a
+compact byte sequence, without excessive encoding overhead. Since
+the Unified Raw Encoding is intended to only be used internally to
+Zcash-related software or transmitted over reliable channels, it need
+not have the resilience and nonmalleability properties described above.
+
+There are well-defined transformations between the Unified QR Encoding,
+Unified String Encoding, and Unified Raw Encoding of a given UA/UVK in
+any direction.
 
 The Unified String Encoding fits into ZIP-321 Payment URIs [#zip-0321]_
 and general URIs without introducing parse ambiguities.
-
-The encoding must support sufficiently many Recipient Types to allow
-for reasonable future expansion.
-
-The encoding must allow all wallets to safely and correctly parse out
-unrecognized Receiver Types well enough to ignore them.
 
 Transfers
 ---------
@@ -303,9 +326,6 @@ associated UX issues, will be addressed in ZIP 315 (in preparation).
 Specification
 =============
 
-Encoding of Unified Addresses
------------------------------
-
 Rather than defining a Bech32 string encoding of Orchard Shielded
 Payment Addresses, we instead define a Unified Address format that
 is able to encode a set of Receivers of different types. This enables
@@ -313,7 +333,59 @@ the Consumer of a Unified Address to choose the Receiver of the best
 type it supports, providing a better user experience as new Receiver
 Types are added in the future.
 
-Assume that we are given a set of one or more Receiver Encodings
+Similarly, a Unified Full Viewing Key or Unified Incoming Viewing Key
+provides the corresponding visibility into transactions that may use
+addresses of different types. Typically these will be the addresses
+for each pool derived from an Account as defined in [#zip-0032-specification-wallet-usage]_.
+(It is not possible for a UVK to include viewing keys for multiple
+addresses of the same type.)
+
+When a string encoding of a Unified Address or Unified Viewing Key is
+shown to a user, it MUST be encoded using the Unified String Encoding
+defined in `String Encodings of Unified Addresses and Unified Viewing Keys`_.
+The main reason for this is to satisfy the requirements concerning
+resilience to user error and resistance to malleability attacks, as
+described in `Transport Encodings`_.
+
+In cases where Unified Addresses or Unified Viewing Keys are not
+shown directly to users but need to be encoded as machine-readable
+data, the Unified Raw Encoding MAY be used instead of the
+Unified String Encoding. This has the advantage of reducing the
+space requirement, and may also reduce computational costs and
+implementation complexity.
+
+A Unified Raw Encoding has no resilience to data corruption and
+transcription errors, or resistance to malleability attacks, and
+therefore MUST NOT be used in situations where these properties are
+required. For clarity, this includes *all* situations where Address
+Encodings are exposed directly to end-users.
+
+
+Encoding Prefixes
+-----------------
+
+The following HRPs (Human-Readable Parts as defined in [#bip-0350]_)
+and Lead Bytes are defined to tag particular Unified Address or
+Viewing Key types on a specific network.
+
+======================================== ============= =========
+Meaning                                  HRP           Lead Byte
+======================================== ============= =========
+Unified Addresses on Mainnet             ``u``         0
+Unified Addresses on Testnet             ``utest``     1
+Unified Incoming Viewing Keys on Mainnet ``uivk``      2
+Unified Incoming Viewing Keys on Testnet ``uivktest``  3
+Unified Full Viewing Keys on Mainnet     ``uview``     4
+Unified Full Viewing Keys on Testnet     ``uviewtest`` 5
+======================================== ============= =========
+
+Their usage is defined in the following sections.
+
+
+Raw Encoding of Unified Addresses
+---------------------------------
+
+Assume that we are given a set of one or more Receiver Items
 for distinct types. That is, the set may optionally contain one
 Receiver of each of the Receiver Types in the following fixed
 Priority List:
@@ -345,9 +417,13 @@ preferred over Orchard. If that wallet is given a UA that includes an
 Orchard Receiver and possibly other Receivers, it MUST send to the
 Orchard Receiver.
 
-The raw encoding of a Unified Address is a concatenation of
-:math:`(\mathtt{typecode}, \mathtt{length}, \mathtt{addr})` encodings
-of the consituent Receivers, in ascending order of Typecode:
+A Binary HRP is a single length byte :math:`\mathtt{hrp\_len}` from
+0 to 16 inclusive, followed by :math:`\mathtt{hrp\_len}` bytes of a
+US-ASCII-encoded HRP.
+
+The Unified Raw Encoding of a Unified Address is a Binary HRP followed by a
+concatenation of :math:`(\mathtt{typecode}, \mathtt{length}, \mathtt{addr})`
+encodings of the constituent Receivers, in ascending order of Typecode:
 
 * :math:`\mathtt{typecode} : \mathtt{compactSize}` — the Typecode from the
   above Priority List;
@@ -355,43 +431,16 @@ of the consituent Receivers, in ascending order of Typecode:
 * :math:`\mathtt{length} : \mathtt{compactSize}` — the length in bytes of
   :math:`\mathtt{addr};`
 
-* :math:`\mathtt{addr} : \mathtt{byte[length]}` — the Receiver Encoding.
+* :math:`\mathtt{addr} : \mathtt{byte[length]}` — the Receiver Item.
 
 The values of the :math:`\mathtt{typecode}` and :math:`\mathtt{length}`
 fields MUST be less than or equal to :math:`\mathtt{0x2000000}.`
 (The limitation on the total length of encodings described below imposes
 a smaller limit for :math:`\mathtt{length}` in practice.)
 
-A Receiver Encoding is the raw encoding of a Shielded Payment Address,
+A Receiver Item is the raw encoding of a Shielded Payment Address,
 or the :math:`160\!`-bit script hash of a P2SH address [#P2SH]_, or the
 :math:`160\!`-bit validating key hash of a P2PKH address [#P2PKH]_.
-
-Let ``padding`` be the Human-Readable Part of the Unified Address in
-US-ASCII, padded to 16 bytes with zero bytes. We append ``padding`` to
-the concatenated encodings, and then apply the :math:`\mathsf{F4Jumble}`
-algorithm as described in `Jumbling`_. (In order for the limitation on
-the :math:`\mathsf{F4Jumble}` input size to be met, the total length of
-encodings MUST be at most :math:`\ell^\mathsf{MAX}_M - 16` bytes, where
-:math:`\ell^\mathsf{MAX}_M` is defined in `Jumbling`_.)
-The output is then encoded with Bech32m [#bip-0350]_, ignoring any length
-restrictions. This is chosen over Bech32 in order to better handle
-variable-length inputs.
-
-To decode a Unified Address Encoding, a Consumer MUST use the following
-procedure:
-
-* Decode using Bech32m, rejecting any address with an incorrect checksum.
-* Apply :math:`\mathsf{F4Jumble}^{-1}` (this can also reject if the input
-  is not in the correct range of lengths).
-* Let ``padding`` be the Human-Readable Part, padded to 16 bytes as for
-  encoding. If the result ends in ``padding``, remove these 16 bytes;
-  otherwise reject.
-* Parse the result as a raw encoding as described above, rejecting the
-  entire Unified Address if it does not parse correctly.
-
-For Unified Addresses on Mainnet, the Human-Readable Part (as defined
-in [#bip-0350]_) is “``u``”. For Unified Addresses on Testnet, the
-Human-Readable Part is “``utest``”.
 
 A wallet MAY allow its user(s) to configure which Receiver Types it
 can send to. It MUST NOT allow the user(s) to change the order of the
@@ -399,12 +448,11 @@ Priority List used to choose the Receiver Type, except by opting into
 experiments.
 
 
-Encoding of Unified Full/Incoming Viewing Keys
-----------------------------------------------
+Raw Encoding of Unified Full/Incoming Viewing Keys
+--------------------------------------------------
 
 Unified Full or Incoming Viewing Keys are encoded and decoded
-analogously to Unified Addresses. A Consumer MUST use the decoding
-procedure from the previous section. For Viewing Keys, a Consumer
+analogously to Unified Addresses. For Viewing Keys, a Consumer
 will normally take the union of information provided by all contained
 Receivers, and therefore the Priority List defined in the previous
 section is not used.
@@ -415,21 +463,21 @@ Unified Address. Additional FVK Types and IVK Types MAY be defined in
 future, and these will not necessarily use the same Typecode as the
 corresponding Unified Address.
 
-The following FVK or IVK Encodings are used in place of the
+The following FVK or IVK Items are used in place of the
 :math:`\mathtt{addr}` field:
 
-* An Orchard FVK or IVK Encoding, with Typecode :math:`\mathtt{0x03},` is
+* An Orchard FVK or IVK Item, with Typecode :math:`\mathtt{0x03},` is
   is the raw encoding of the Orchard Full Viewing Key or Orchard Incoming
   Viewing Key respectively.
 
-* A Sapling FVK Encoding, with Typecode :math:`\mathtt{0x02},` is the
+* A Sapling FVK Item, with Typecode :math:`\mathtt{0x02},` is the
   encoding of :math:`(\mathsf{ak}, \mathsf{nk}, \mathsf{ovk}, \mathsf{dk})`
   given by :math:`\mathsf{EncodeExtFVKParts}(\mathsf{ak}, \mathsf{nk}, \mathsf{ovk}, \mathsf{dk})`,
   where :math:`\mathsf{EncodeExtFVKParts}` is defined in [#zip-0032-sapling-helper-functions]_.
   This SHOULD be derived from the Extended Full Viewing Key at the Account
   level of the ZIP 32 hierarchy.
 
-* A Sapling IVK Encoding, also with Typecode :math:`\mathtt{0x02},`
+* A Sapling IVK Item, also with Typecode :math:`\mathtt{0x02},`
   is an encoding of :math:`(\mathsf{dk}, \mathsf{ivk})` given by
   :math:`\mathsf{I2LEOSP}_{88}(\mathsf{dk})\,||\,\mathsf{I2LEOSP}_{256}(\mathsf{ivk}).`
 
@@ -440,7 +488,7 @@ The following FVK or IVK Encodings are used in place of the
   treated as unrecognized by Consumers.
 
 * For Transparent P2PKH Addresses that are derived according to BIP 32
-  [#bip-0032]_ and BIP 44 [#bip-0044]_, the FVK and IVK Encodings have
+  [#bip-0032]_ and BIP 44 [#bip-0044]_, the FVK and IVK Items have
   Typecode :math:`\mathtt{0x00}.` Both of these are encodings of the
   chain code and public key :math:`(\mathsf{c}, \mathsf{pk})` given by
   :math:`\mathsf{c}\,||\,\mathsf{ser_P}(\mathsf{pk})`. (This is the
@@ -450,14 +498,6 @@ The following FVK or IVK Encodings are used in place of the
   :math:`m / 44' / coin\_type' / account'`, while the IVK uses the
   external (non-change) child key at the Change level, i.e. at path
   :math:`m / 44' / coin\_type' / account' / 0`.
-
-The Human-Readable Parts (as defined in [#bip-0350]_) of Unified Viewing
-Keys are defined as follows:
-
-* “``uivk``” for Unified Incoming Viewing Keys on Mainnet;
-* “``uivktest``” for Unified Incoming Viewing Keys on Testnet;
-* “``uview``” for Unified Full Viewing Keys on Mainnet;
-* “``uviewtest``” for Unified Full Viewing Keys on Testnet.
 
 Rationale for address derivation
 ''''''''''''''''''''''''''''''''
@@ -472,6 +512,68 @@ Note that it may be difficult to retain this property for Metadata Items,
 and this should be taken into account in the design of such Items.
 
 
+String Encodings of Unified Addresses and Unified Viewing Keys
+--------------------------------------------------------------
+
+A Unified String Encoding for a UA/UIVK is obtained by constructing
+the corresponding Unified Raw Encoding as defined in previous sections,
+and then converting it to a Unified String Encoding as follows.
+
+Let :math:`\ell^\mathsf{MAX}_M` be as defined in `Jumbling`_.
+
+1. Parse and strip the Binary HRP from the start of the Unified Raw Encoding
+   :math:`\mathtt{R}`, as follows:
+
+   * If :math:`\mathsf{length}(\mathtt{R}) = 0\!`, reject.
+
+   * Let :math:`\mathtt{hrp\_len} = \mathtt{R}[0]\!`.
+     If :math:`\mathtt{hrp\_len} > 16`
+     or :math:`\mathtt{hrp\_len} > \mathsf{length}(\mathtt{R}) - 1`
+     or :math:`\mathsf{length}(\mathtt{R}) - 1 - \mathtt{hrp\_len} > \ell^\mathsf{MAX}_M - 16\!`, reject.
+
+   * Let :math:`\mathtt{hrp} = \mathtt{R}[1\;..\!=\mathtt{hrp\_len}]\!`.
+
+   * Let :math:`\mathtt{raw\_items} = \mathtt{R}[1 + \mathtt{hrp\_len}\;..\!=\mathsf{length}(\mathtt{R}) - 1]`
+     (i.e. the remainder of the Unified Raw Encoding after the Binary HRP).
+
+2. Let :math:`\mathtt{padded\_hrp}` be :math:`\mathtt{hrp}` padded to
+   16 bytes with zero bytes.
+3. Apply the :math:`\mathsf{F4Jumble}` algorithm described in
+   `Jumbling`_ to :math:`\mathtt{raw\_items} \,||\, \mathtt{padded\_hrp}\!`.
+4. Encode the output with Bech32m [#bip-0350]_, ignoring any length
+   restrictions.
+
+Any equivalent procedure MAY be used, for example, a Producer MAY
+construct :math:`\mathtt{padded\_hrp}` and :math:`\mathtt{raw\_items}`
+directly rather than explicitly obtaining them from a Unified Raw Encoding.
+
+The check that :math:`\mathsf{length}(\mathtt{R}) - 1 - \mathtt{hrp\_len} > \ell^\mathsf{MAX}_M - 16`
+in step 1 ensures that :math:`\mathtt{raw\_items} \,||\, \mathtt{padded\_hrp}`
+never exceeds the :math:`\mathsf{F4Jumble}` input size limitation in step 3.
+
+Bech32m is chosen over Bech32 in order to better handle variable-length
+inputs.
+
+To decode a Unified String Encoding, a Consumer MUST use the following
+procedure:
+
+1. Decode using Bech32m, rejecting any address with an incorrect checksum.
+   This yields HRP and data fields. If the HRP is not recognised or not
+   supported (for example, a Testnet HRP for a Consumer that only supports
+   Mainnet), reject.
+2. Let :math:`\mathtt{expected\_padded\_hrp}` be the US-ASCII-encoded HRP,
+   padded to 16 bytes with zero bytes.
+3. Apply :math:`\mathsf{F4Jumble}^{-1}` to the payload (this can also
+   reject if the input is not in the correct range of lengths).
+4. If the output ends in :math:`\mathtt{expected\_padded\_hrp}`, remove
+   these 16 bytes; otherwise reject.
+5. Parse the result as :math:`\mathtt{raw\_items}` described above,
+   rejecting the entire Unified Address if it does not parse correctly.
+
+The Human-Readable Parts of Unified Addresses and Unified Viewing Keys
+are defined as given in `Encoding Prefixes`_.
+
+
 Requirements for both Unified Addresses and Unified Viewing Keys
 ----------------------------------------------------------------
 
@@ -484,7 +586,7 @@ Requirements for both Unified Addresses and Unified Viewing Keys
 
 * The :math:`\mathtt{typecode}` and :math:`\mathtt{length}` fields are
   encoded as :math:`\mathtt{compactSize}.` [#Bitcoin-CompactSize]_
-  (Although existing Receiver Encodings and Viewing Key Encodings are
+  (Although existing Receiver Items and Viewing Key Items are
   all less than 256 bytes and so could use a one-byte length field,
   encodings for experimental types may be longer.)
 
@@ -492,7 +594,7 @@ Requirements for both Unified Addresses and Unified Viewing Keys
   SHOULD represent an Address or Viewing Key for the same account (as
   used in the ZIP 32 or BIP 44 Account level).
 
-* For Transparent Addresses, the Receiver Encoding does not include
+* For Transparent Addresses, the Receiver Item does not include
   the first two bytes of a raw encoding.
 
 * There is intentionally no Typecode defined for a Sprout Shielded
@@ -510,9 +612,9 @@ Requirements for both Unified Addresses and Unified Viewing Keys
   Address.
 
 * Consumers MUST reject Unified Addresses/Viewing Keys in which *any*
-  constituent Item does not meet the validation requirements of its
-  encoding, as specified in this ZIP and the Zcash Protocol Specification
-  [#protocol-nu5]_.
+  constituent Item that the Consumer recognizes does not meet the
+  validation requirements of its encoding, as specified in this ZIP
+  and the Zcash Protocol Specification [#protocol-nu5]_.
 
 * Consumers MUST reject Unified Addresses/Viewing Keys in which the
   constituent Items are not ordered in ascending Typecode order. Note
@@ -617,7 +719,7 @@ sections of ZIP 32.
 To satisfy the above properties for transparent (P2PKH) keys, we derive
 the external and internal :math:`\mathsf{ovk}` components from the
 transparent FVK :math:`(\mathsf{c}, \mathsf{pk})` (described in
-`Encoding of Unified Full/Incoming Viewing Keys`_) as follows:
+`Raw Encoding of Unified Full/Incoming Viewing Keys`_) as follows:
 
 - Let :math:`I_\mathsf{ovk} = \mathsf{PRF^{expand}}_{\mathsf{LEOS2BSP}_{256}(\mathsf{c})}\big([\mathtt{0xd0}] \,||\, \mathsf{ser_P}(\mathsf{pk})\big)`
   where :math:`\mathsf{ser_P}(pk)` is :math:`33` bytes, as specified in [#bip-0032-serialization-format]_.
@@ -735,7 +837,7 @@ undetermined.
 
 The Sender also determines a "preferred sending protocol" —one of
 "transparent", "Sapling", or "Orchard"— corresponding to the
-most preferred Receiver Type (as given in `Encoding of Unified Addresses`_)
+most preferred Receiver Type (as given in `Raw Encoding of Unified Addresses`_)
 of any funds sent in the transaction.
 
 If the sending Account has been determined, then the Sender
@@ -982,6 +1084,41 @@ Related work
 similarly structured 4-round unbalanced Feistel cipher.
 
 
+QR Encodings of Unified Addresses and Unified Viewing Keys
+----------------------------------------------------------
+
+The Unified QR Encoding of a UA or UVK is as specified in
+[#protocol-addressandkeyencoding]_; that is, the QR code representation
+of its Unified String Encoding converted to uppercase, using the
+Alphanumeric mode specified in sections 7.3.4 and 7.4.4 of [#iso-qr-codes]_.
+
+A Consumer MAY support parsing multiple kinds of address and/or viewing
+key from a QR code, in which case it SHOULD use the HRP to provisionally
+recognize (subject to further validation) potential address or viewing key
+types.
+
+When a Consumer recognizes the content of a QR code as a potential
+Unified String Encoding, it SHOULD NOT present the resulting content to
+the user as representing an address, without first checking that it is
+a valid Unified String Encoding by attempting to decode it.
+
+A Producer MUST NOT generate a QR Encoding directly from a
+Unified Raw Encoding (using the QR "Byte mode" defined in [#iso-qr-codes]_
+section 7.3.5, or otherwise).
+
+Rationale for not using Byte mode
+'''''''''''''''''''''''''''''''''
+
+A QR code using the Unified Raw Encoding in Byte mode could be slightly
+smaller, however we believe this choice would be likely to cause
+interoperability problems. It also would not satisfy the requirement
+that the Unified Raw Encoding not be shown to users, since it is common
+for software that supports QR codes to try to decode the content and
+present it as a string. (Clause 6.1 b) 3) of [#iso-qr-codes]_ specifies
+that the default interpretation of byte data is as an ISO-8859-1 text
+string.)
+
+
 Reference implementation
 ========================
 
@@ -1037,3 +1174,4 @@ References
 .. [#P2PKH] `Transactions: P2PKH Script Validation — Bitcoin Developer Guide <https://developer.bitcoin.org/devguide/transactions.html#p2pkh-script-validation>`_
 .. [#P2SH] `Transactions: P2SH Scripts — Bitcoin Developer Guide <https://developer.bitcoin.org/devguide/transactions.html#pay-to-script-hash-p2sh>`_
 .. [#Bitcoin-CompactSize] `Variable length integer. Bitcoin Wiki <https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer>`_
+.. [#iso-qr-codes] `ISO/IEC. International Standard ISO/IEC 18004:2015(E): Information Technology – Automatic identification and data capture techniques – QR Code bar code symbology specification. Third edition. February 1, 2015. <https://raw.githubusercontent.com/yansikeim/QR-Code/master/ISO%20IEC%2018004%202015%20Standard.pdf>`_
