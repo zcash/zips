@@ -6,9 +6,10 @@
 #
 # This outputs a single JSON object. Each key is the basename of a
 # `zip-*.rst` file, and value is a JSON object containing the ZIP metadata
-# fields. Multi-line metadata values are translated to JSON strings with
-# newlines represented as literal `\n` sequences and leading whitespace
-# removed from continuation lines.
+# fields.
+#
+# The ZIP metadata values are strings for single-line values, or JSON
+# arrays of strings for each line in a multi-line value.
 #
 # # Input Format:
 #
@@ -23,8 +24,9 @@
 #
 # Integration testing:
 #
-# Run this script and pipe the output to `jq` to verify it is valid
-# JSON. It should produce no stderr output and have a 0 exit status.
+# Run `./extract-metadata.sh  | jq > /dev/null` and verify there's no
+# stderr and it has a 0 exit status. This indicates the script completed
+# successfully and the result is valid JSON.
 
 set -euo pipefail
 
@@ -43,9 +45,11 @@ do
   < "$ziprst" \
     sed -n '/^ /p; /^[A-Za-z]/q' | \
     tr '\n' '|' | \
-    sed 's/^  //; s/|  /|/g; s/|  */\\n/g' | \
+    sed 's/^  //; s/|  /|/g; s/|  */", "/g' | \
     tr '|' '\n' | \
-    sed 's/^\([^:]*\): *\(.*\)$/"\1": "\2",/g; s/^/    /; $s/,$//'
+    sed 's/^\([^:]*\): *\(.*\)$/"\1": ["\2"],/g; s/^/    /; $s/,$//' | \
+    sed '/\[".*", ".*\]/s/\["/[\n      "/g' | \
+    sed 's/", "/",\n      "/g; s/^      \(".*"\)\(\],*\)/      \1\n    \2/; s/: \[\("[^"]*"\)\]/: \1/'
   echo -n "  }"
 done
 echo '}'
