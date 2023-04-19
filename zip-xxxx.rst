@@ -6,8 +6,9 @@
           Jack Grigg <jack@electriccoin.co>
           Sean Bowe <sean@electriccoin.co>
           Kris Nuttycombe <kris@electriccoin.co>
-          Ying Tong Lai <yingtong@electriccoin.co>
+          Greg Pfeil <greg@electriccoin.co>
           Deirdre Connolly <deirdre@zfnd.org>
+  Credits: Ying Tong Lai
   Status: DRAFT
   Category: Consensus
   Created: 2023-04-18
