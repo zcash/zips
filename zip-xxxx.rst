@@ -274,8 +274,7 @@ and Consensus’ of the Zcash Protocol Specification [#protocol-actiondesc]_.
 Reference implementation
 ========================
 
-* https://github.com/zcash/zcash/pull/5202 (in `zcashd`)
-* https://github.com/zcash/librustzcash/pull/375 (in `librustzcash`)
+TODO
 
 
 References
