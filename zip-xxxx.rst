@@ -43,10 +43,10 @@ Motivation
 ==========
 
 The new Orchard shielded pool requires serialized data elements that are distinct from
-any previous Zcash transaction. In addition, with the activation of ZIP 244, the
-serialized transaction format will no longer be consensus-critical. It makes sense at this
-point to define a format that can readily accommodate future extension in a systematic
-fashion, where elements required for support for a given pool are kept separate.
+any previous Zcash transaction. Since ZIP 244 was activated in NU5, the
+v5 and later serialized transaction formats are not consensus-critical. 
+Thus, this ZIP defines format that can easily accommodate future extensions,
+where elements or a given pool are kept separate.
 
 
 Requirements
