@@ -1,6 +1,6 @@
 ::
 
-  ZIP: XXXX
+  ZIP: 230
   Title: Version 6 Transaction Format
   Owners: Daira Emma Hopwood <daira@electriccoin.co>
           Jack Grigg <jack@electriccoin.co>
