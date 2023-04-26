@@ -29,9 +29,7 @@ The character § is used when referring to sections of the Zcash Protocol Specif
 Abstract
 ========
 
-This proposal defines an update to the Zcash peer-to-peer transaction format to
-include support for data elements required to support Zcash Shielded Assets,
-initially specified to support the Orchard shielded pool [#protocol]_.  The
+This proposal defines a new Zcash peer-to-peer transaction format, which includes data that supports Zcash Shielded Assets on the Orchard shielded pool [#protocol]_.  The
 new transaction format defines well-bounded regions of the serialized form to
 serve each of the existing pools of funds, and adds and describes a new elements
 containing ZSA-specific elements.
