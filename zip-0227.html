@@ -22,7 +22,7 @@ Category: Consensus
 Created: 2022-05-01
 License: MIT
 Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/618">https://github.com/zcash/zips/issues/618</a>&gt;
-Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/676">https://github.com/zcash/zips/pull/676</a>&gt;</pre>
+Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/680">https://github.com/zcash/zips/pull/680</a>&gt;</pre>
         <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <p>The key word "MUST" in this document is to be interpreted as described in RFC 2119 <a id="footnote-reference-1" class="footnote_reference" href="#rfc2119">1</a>.</p>
             <p>The term "network upgrade" in this document is to be interpreted as described in ZIP 200 <a id="footnote-reference-2" class="footnote_reference" href="#zip-0200">2</a>.</p>
@@ -56,7 +56,6 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/676">https://githu
             <ul>
                 <li>Any user of the Zcash block chain can issue custom Assets on chain.</li>
                 <li>The issuance mechanism should enable public tracking of the supply of the Assets on the Zcash block chain.</li>
-                <li>At the time of issuance, the issuer should be able to allocate all the Assets to the corresponding owners by creating the corresponding (shielded) output notes to the respective addresses. This allows for allocation to be totally private even though the issuance mechanism is itself transparent.</li>
                 <li>Issuing or changing the attributes of a specific Asset should require cryptographic authorization.</li>
                 <li>The Asset identification should be unique (among all shielded pools) and different issuer public keys should not be able to generate the same Asset Identifier.</li>
                 <li>An issuer should be able to issue different Assets in the same transaction. In other words, in a single "issuance bundle", the issuer should be able publish many "issuance actions", potentially creating multiple Custom Assets.</li>
@@ -105,7 +104,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/676">https://githu
                     <p>Let
                         <span class="math">\(S\)</span>
                      be a seed byte sequence of a chosen length, which MUST be at least 32 and at most 252 bytes. We define the master extended issuance key
-                        <span class="math">\(m_{\mathsf{Issuance}} := \mathsf{MasterKeyGen}(\texttt{"ZIP32ZSAIssuance"}, S)\)</span>
+                        <span class="math">\(m_{\mathsf{Issuance}} := \mathsf{MasterKeyGen}(\texttt{"ZIP32ZSAIssue_V1"}, S)\)</span>
                     .</p>
                     <p>As in ZIP 32 for Orchard <a id="footnote-reference-16" class="footnote_reference" href="#zip-0032-orchard-child-key-derivation">11</a>, we only use hardened child key derivation for the issuance master key. We reuse the
                         <span class="math">\(\mathsf{CDKsk}\)</span>
@@ -173,7 +172,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/676">https://githu
             <ul>
                 <li>
                     <span class="math">\(\mathsf{asset\_desc}\)</span>
-                 be the asset description, a UTF-8 encoded string of up to 512 bytes, which includes any information pertaining to the issuance.</li>
+                 be the asset description, which includes any information pertaining to the issuance, and is a byte sequence of up to 512 bytes which SHOULD be a well-formed UTF-8 code unit sequence according to Unicode 15.0.0 or later.</li>
                 <li>
                     <span class="math">\(\mathsf{ik}\)</span>
                  be the issuance validating key of the issuer, a public key used to verify the signature on the issuance transaction's SIGHASH.</li>
@@ -223,7 +222,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/676">https://githu
                     , stored in two bytes.</li>
                     <li>
                         <span class="math">\(\mathsf{asset\_desc}\)</span>
-                    : the Asset description, a UTF-8 encoded string of up to 512 bytes</li>
+                    : the Asset description, a byte string of up to 512 bytes as defined in the <a href="#specification-asset-identifier">Specification: Asset Identifier</a> section.</li>
                     <li><cite>notes</cite>: an array containing the unencrypted output notes of the recipients of the Asset, of type <cite>Note</cite></li>
                     <li><code>finalize</code>: a boolean that defines whether the issuance of that specific custom Asset is finalized or not</li>
                 </ul>
@@ -338,7 +337,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/676">https://githu
                             <td>64</td>
                             <td>issueAuthSig</td>
                             <td>byte[64]</td>
-                            <td>The signature of the transaction SIGHASH, signed by the issuer</td>
+                            <td>The signature of the transaction SIGHASH, signed by the issuer, validated as in <a href="#issuance-authorization-signature-scheme">Issuance Authorization Signature Scheme</a></td>
                         </tr>
                     </tbody>
                 </table>
@@ -433,6 +432,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/676">https://githu
                 <li>If <code>finalize = 1</code>, add
                     <span class="math">\(\mathsf{AssetId}\)</span>
                  to the <code>previously_finalized</code> set immediately after the block in which this transaction occurs.</li>
+                <li>(Replay Protection) If issue bundle is present, the fees MUST be greater than zero.</li>
             </ul>
         </section>
         <section id="rationale"><h2><span class="section-heading">Rationale</span><span class="section-anchor"> <a rel="bookmark" href="#rationale"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
@@ -451,6 +451,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/676">https://githu
                     </ul>
                 </li>
                 <li>We require a check whether the <code>finalize</code> flag only has been set in a previous block rather than a previous transaction in the same block. In other words, we only update the <code>previously_finalized</code> set at the block boundary. This is in keeping with the current property which allows for a miner to reorder transactions in a block without changing the meaning, which we aim to preserve.</li>
+                <li>We require non-zero fees in the presence of an issue bundle, in order to preclude the possibility of a transaction containing only an issue bundle. If a transaction includes only an issue bundle, the <code>SIGHASH</code> would be computed solely based on the issue bundle. A duplicate bundle would have the same <code>SIGHASH</code>, potentially allowing for a replay attack.</li>
             </ul>
             <section id="concrete-applications"><h3><span class="section-heading">Concrete Applications</span><span class="section-anchor"> <a rel="bookmark" href="#concrete-applications"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p><strong>Asset Features</strong></p>
@@ -526,7 +527,7 @@ T.1a.5: rseed                        (field encoding bytes)</pre>
                         </section>
                     </section>
                     <section id="t-1b-assetdescription"><h5><span class="section-heading">T.1b: assetDescription</span><span class="section-anchor"> <a rel="bookmark" href="#t-1b-assetdescription"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
-                        <p>UTF-8 encoding of the Asset description string.</p>
+                        <p>The Asset description byte string.</p>
                     </section>
                     <section id="t-1c-flagsissuance"><h5><span class="section-heading">T.1c: flagsIssuance</span><span class="section-anchor"> <a rel="bookmark" href="#t-1c-flagsissuance"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
                         <p>An 8-bit value representing a set of flags. Ordered from LSB to MSB:</p>
