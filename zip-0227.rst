@@ -15,7 +15,7 @@
   Created: 2022-05-01
   License: MIT
   Discussions-To: <https://github.com/zcash/zips/issues/618>
-  Pull-Request: <https://github.com/zcash/zips/pull/676>
+  Pull-Request: <https://github.com/zcash/zips/pull/680>
  
 Terminology
 ===========
@@ -65,7 +65,6 @@ Requirements
 
 - Any user of the Zcash block chain can issue custom Assets on chain.
 - The issuance mechanism should enable public tracking of the supply of the Assets on the Zcash block chain.
-- At the time of issuance, the issuer should be able to allocate all the Assets to the corresponding owners by creating the corresponding (shielded) output notes to the respective addresses. This allows for allocation to be totally private even though the issuance mechanism is itself transparent.
 - Issuing or changing the attributes of a specific Asset should require cryptographic authorization.
 - The Asset identification should be unique (among all shielded pools) and different issuer public keys should not be able to generate the same Asset Identifier.
 - An issuer should be able to issue different Assets in the same transaction. In other words, in a single "issuance bundle", the issuer should be able publish many "issuance actions", potentially creating multiple Custom Assets.
@@ -110,7 +109,7 @@ Issuance master key derivation for hierarchical deterministic wallets
 The issuance master key is derived using the Orchard master key derivation procedure defined in ZIP 32 [#zip-0032-orchard-master]_. We reuse the functions defined there in what follows in this section.
 
 Let :math:`S` be a seed byte sequence of a chosen length, which MUST be at least 32 and at most 252 bytes.
-We define the master extended issuance key :math:`m_{\mathsf{Issuance}} := \mathsf{MasterKeyGen}(\texttt{"ZIP32ZSAIssuance"}, S)`.
+We define the master extended issuance key :math:`m_{\mathsf{Issuance}} := \mathsf{MasterKeyGen}(\texttt{"ZIP32ZSAIssue_V1"}, S)`.
 
 As in ZIP 32 for Orchard [#zip-0032-orchard-child-key-derivation]_, we only use hardened child key derivation for the issuance master key. 
 We reuse the :math:`\mathsf{CDKsk}` function for Orchard child key derivation from ZIP 32.
@@ -148,7 +147,7 @@ From the Asset Digest, we derive a specific Asset Base within each such shielded
 
 Let 
 
-- :math:`\mathsf{asset\_desc}` be the asset description, a UTF-8 encoded string of up to 512 bytes, which includes any information pertaining to the issuance.
+- :math:`\mathsf{asset\_desc}` be the asset description, which includes any information pertaining to the issuance, and is a byte sequence of up to 512 bytes which SHOULD be a well-formed UTF-8 code unit sequence according to Unicode 15.0.0 or later.
 - :math:`\mathsf{ik}` be the issuance validating key of the issuer, a public key used to verify the signature on the issuance transaction's SIGHASH.
 
 Define :math:`\mathsf{AssetDigest_{\mathsf{AssetId}}} := \textsf{BLAKE2b-512}(\texttt{"ZSA-Asset-Digest"},\; \mathsf{EncodeAssetId}(\mathsf{AssetId}))`,
@@ -189,7 +188,7 @@ Issuance Action Description
 An issuance action, `IssueAction`, is the instance of issuing a specific custom Asset, and contains the following fields:
 
 - :math:`\mathsf{assetDescSize}`: the size of the Asset description, a number between :math:`0` and :math:`512`, stored in two bytes.
-- :math:`\mathsf{asset\_desc}`: the Asset description, a UTF-8 encoded string of up to 512 bytes
+- :math:`\mathsf{asset\_desc}`: the Asset description, a byte string of up to 512 bytes as defined in the `Specification: Asset Identifier`_ section.
 - `notes`: an array containing the unencrypted output notes of the recipients of the Asset, of type `Note`
 - ``finalize``: a boolean that defines whether the issuance of that specific custom Asset is finalized or not
 
@@ -218,14 +217,14 @@ An issuance bundle, `IssueBundle`, is the aggregate of all the issuance-related 
 
 The issuance bundle is then added within the transaction format as a new bundle. That is, issuance requires the addition of the following information to the transaction format [#protocol-transactionstructure]_.
 
-======= ==================== ========================== =========================================================================
+======= ==================== ========================== ==========================================================================================================================
 Bytes              Name               Data Type                  Description
-======= ==================== ========================== =========================================================================
+======= ==================== ========================== ==========================================================================================================================
 Varies  nIssueActions        compactSize                The number of issuance actions in the bundle
 Varies  vIssueActions        IssueAction[nIssueActions] A sequence of issuance actions descriptions
 32      :math:`\mathsf{ik}`  byte[32]                   The issuance validating key of the issuer, used to validate the signature
-64      issueAuthSig         byte[64]                   The signature of the transaction SIGHASH, signed by the issuer
-======= ==================== ========================== =========================================================================
+64      issueAuthSig         byte[64]                   The signature of the transaction SIGHASH, signed by the issuer, validated as in `Issuance Authorization Signature Scheme`_
+======= ==================== ========================== ==========================================================================================================================
 
 Issuance Protocol
 -----------------
@@ -273,6 +272,8 @@ If all of the above checks pass, do the following:
 - For each note, compute the note commitment as :math:`\mathsf{cm} = \mathsf{NoteCommit^{OrchardZSA}_{rcm}(repr_{\mathbb{P}}(g_d), repr_{\mathbb{P}}(pk_d), v, \rho, \psi, AssetBase)}` as defined in the Note Structure and Commitment section of ZIP 226 [#zip-0226-notestructure]_ and
 - add :math:`\mathsf{cm}` to the Merkle tree of note commitments, `NoteCommitmentTree`.
 - If ``finalize = 1``, add :math:`\mathsf{AssetId}` to the ``previously_finalized`` set immediately after the block in which this transaction occurs.
+- (Replay Protection) If issue bundle is present, the fees MUST be greater than zero.
+
 
 
 Rationale
@@ -289,6 +290,7 @@ The following is a list of rationale for different decisions made in the proposa
     - information to be committed by the issuer, though not enforceable by the protocol.
 
 - We require a check whether the ``finalize`` flag only has been set in a previous block rather than a previous transaction in the same block. In other words, we only update the ``previously_finalized`` set at the block boundary. This is in keeping with the current property which allows for a miner to reorder transactions in a block without changing the meaning, which we aim to preserve.
+- We require non-zero fees in the presence of an issue bundle, in order to preclude the possibility of a transaction containing only an issue bundle. If a transaction includes only an issue bundle, the ``SIGHASH`` would be computed solely based on the issue bundle. A duplicate bundle would have the same ``SIGHASH``, potentially allowing for a replay attack. 
 
 Concrete Applications
 ---------------------
@@ -387,7 +389,7 @@ The ZIP 212 32-byte seed randomness for a note.
 
 T.1b: assetDescription
 ''''''''''''''''''''''
-UTF-8 encoding of the Asset description string.
+The Asset description byte string.
 
 T.1c: flagsIssuance
 '''''''''''''''''''
