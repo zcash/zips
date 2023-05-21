@@ -37,7 +37,7 @@ Use ``make`` to check that you are using correct
 `reStructuredText <https://docutils.sourceforge.io/rst.html>`__ or
 `Markdown <https://pandoc.org/MANUAL.html#pandocs-markdown>`__ syntax,
 and double-check the generated ``draft-*.html`` file before filing a Pull Request.
-
+See `here <protocol/README.rst>`__ for the project dependencies.
 
 NU5 ZIPs
 --------
