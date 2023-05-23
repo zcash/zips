@@ -15,7 +15,7 @@ Credits: Madars Virza
          Kris Nuttycombe
          Jack Grigg
          Francisco Gindre
-Status: Draft
+Status: Active
 Category: Standards / Wallet
 Obsoletes: ZIP 313
 Created: 2022-08-15
@@ -263,7 +263,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
                 <p>zcashd, zebrad, and potentially other node implementations, implement fee-based restrictions on relaying of mempool transactions. Nodes that normally relay transactions are expected to do so for transactions that pay at least the conventional fee as specified in this ZIP, unless there are other reasons not to do so for robustness or denial-of-service mitigation.</p>
                 <p>If a transaction has more than
                     <span class="math">\(block\_unpaid\_action\_limit\)</span>
-                 "unpaid actions" as defined by the <a href="#recommended-algorithm-for-block-template-construction">Recommended algorithm for block template construction</a>, it will never be mined by that algorithm. Nodes MAY drop these transactions.</p>
+                 "unpaid actions" as defined by the <a href="#recommended-algorithm-for-block-template-construction">Recommended algorithm for block template construction</a>, it will never be mined by that algorithm. Nodes MAY drop these transactions, or transactions with more unpaid actions than a configurable limit (see the <a href="#deployment">Deployment</a> section for actual behaviour of node implementations).</p>
             </section>
             <section id="mempool-size-limiting"><h3><span class="section-heading">Mempool size limiting</span><span class="section-anchor"> <a rel="bookmark" href="#mempool-size-limiting"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>zcashd and zebrad limit the size of the mempool as described in <a id="footnote-reference-6" class="footnote_reference" href="#zip-0401">7</a>. This specifies a
@@ -398,6 +398,59 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
              threshold described in <a href="#mempool-size-limiting">Mempool size limiting</a> immediately.</p>
             <p>Nodes supporting block template construction SHOULD deploy the new <a href="#recommended-algorithm-for-block-template-construction">Recommended algorithm for block template construction</a> immediately, and miners SHOULD use nodes that have been upgraded to this algorithm.</p>
             <p>Node developers SHOULD coordinate on schedules for deploying restrictions to their policies for transaction mempool acceptance and peer-to-peer relaying. These policy changes SHOULD NOT be deployed before the changes to block template construction for miners described in the preceding paragraph.</p>
+            <section id="deployment-in-zcashd"><h3><span class="section-heading">Deployment in zcashd</span><span class="section-anchor"> <a rel="bookmark" href="#deployment-in-zcashd"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p><cite>zcashd</cite> v5.5.0 implemented use of ZIP 317 fees by default for its internal wallet in the following PRs:</p>
+                <ul>
+                    <li><a href="https://github.com/zcash/zcash/pull/6527">https://github.com/zcash/zcash/pull/6527</a> (fee computation)</li>
+                    <li><a href="https://github.com/zcash/zcash/pull/6524">https://github.com/zcash/zcash/pull/6524</a> (main implementation)</li>
+                    <li><a href="https://github.com/zcash/zcash/pull/6559">https://github.com/zcash/zcash/pull/6559</a> (follow-up to #6524)</li>
+                    <li><a href="https://github.com/zcash/zcash/pull/6568">https://github.com/zcash/zcash/pull/6568</a> (for <code>z_shieldcoinbase</code>)</li>
+                    <li><a href="https://github.com/zcash/zcash/pull/6576">https://github.com/zcash/zcash/pull/6576</a> (follow-up to #6568)</li>
+                    <li><a href="https://github.com/zcash/zcash/pull/6569">https://github.com/zcash/zcash/pull/6569</a> (for <code>z_mergetoaddress</code>)</li>
+                </ul>
+                <p><cite>zcashd</cite> v5.5.0 implemented the <a href="#recommended-algorithm-for-block-template-construction">Recommended algorithm for block template construction</a> in:</p>
+                <ul>
+                    <li><a href="https://github.com/zcash/zcash/pull/6460">https://github.com/zcash/zcash/pull/6460</a> (preparation)</li>
+                    <li><a href="https://github.com/zcash/zcash/pull/6607">https://github.com/zcash/zcash/pull/6607</a> (follow-up to #6460)</li>
+                    <li><a href="https://github.com/zcash/zcash/pull/6527">https://github.com/zcash/zcash/pull/6527</a> (fee computation)</li>
+                    <li><a href="https://github.com/zcash/zcash/pull/6564">https://github.com/zcash/zcash/pull/6564</a> (block template construction)</li>
+                </ul>
+                <p>The value used for
+                    <span class="math">\(block\_unpaid\_action\_limit\)</span>
+                 by <cite>zcashd</cite> can be overridden using the <code>-blockunpaidactionlimit</code> configuration parameter.</p>
+                <p><cite>zcashd</cite> v5.5.0 also implemented the change to <a href="#mempool-size-limiting">Mempool size limiting</a> to use the ZIP 317 fee for the low fee penalty threshold, in:</p>
+                <ul>
+                    <li><a href="https://github.com/zcash/zcash/pull/6564">https://github.com/zcash/zcash/pull/6564</a></li>
+                </ul>
+                <p>As described in section <a href="#transaction-relaying">Transaction relaying</a>, nodes MAY drop transactions with more unpaid actions than a given limit. From <cite>zcashd</cite> v5.6.0, this is controlled by the <code>-txunpaidactionlimit</code> configuration option, which defaults to 50 unpaid actions (the same default as <code>-blockunpaidactionlimit</code>). This behaviour is implemented in:</p>
+                <ul>
+                    <li><a href="https://github.com/zcash/zcash/pull/6646">https://github.com/zcash/zcash/pull/6646</a></li>
+                </ul>
+                <p>Note that <cite>zcashd</cite> also requires transactions to pay at least a "relay threshold" fee. As part of the ZIP 317 work, this rule was simplified for <cite>zcashd</cite> v5.5.0:</p>
+                <ul>
+                    <li><a href="https://github.com/zcash/zcash/pull/6542/files#diff-34d21af3c614ea3cee120df276c9c4ae95053830d7f1d3deaf009a4625409ad2">https://github.com/zcash/zcash/pull/6542/files#diff-34d21af3c614ea3cee120df276c9c4ae95053830d7f1d3deaf009a4625409ad2</a></li>
+                </ul>
+            </section>
+            <section id="deployment-in-zebra"><h3><span class="section-heading">Deployment in zebra</span><span class="section-anchor"> <a rel="bookmark" href="#deployment-in-zebra"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p><cite>zebra</cite> does not provide a wallet, and so does not need to calculate ZIP 317 fees in order to construct transactions.</p>
+                <p><cite>zebra</cite> v1.0.0-rc.3 implemented the current <a href="#recommended-algorithm-for-block-template-construction">Recommended algorithm for block template construction</a> in:</p>
+                <ul>
+                    <li><a href="https://github.com/ZcashFoundation/zebra/pull/5724">https://github.com/ZcashFoundation/zebra/pull/5724</a></li>
+                    <li><a href="https://github.com/ZcashFoundation/zebra/pull/5776">https://github.com/ZcashFoundation/zebra/pull/5776</a> (algorithm update)</li>
+                </ul>
+                <p><cite>zebra</cite> v1.0.0-rc.2 had implemented an earlier version of this algorithm. The value used for
+                    <span class="math">\(block\_unpaid\_action\_limit\)</span>
+                 in <cite>zebra</cite> is not configurable.</p>
+                <p><cite>zebra</cite> v1.0.0-rc.2 implemented the change to <a href="#mempool-size-limiting">Mempool size limiting</a> in:</p>
+                <ul>
+                    <li><a href="https://github.com/ZcashFoundation/zebra/pull/5703">https://github.com/ZcashFoundation/zebra/pull/5703</a></li>
+                </ul>
+                <p><cite>zebra</cite> v1.0.0-rc.8 implemented <a href="#transaction-relaying">Transaction relaying</a> changes in:</p>
+                <ul>
+                    <li><a href="https://github.com/ZcashFoundation/zebra/pull/6556">https://github.com/ZcashFoundation/zebra/pull/6556</a></li>
+                </ul>
+                <p><cite>zebra</cite> uses a similar relay threshold rule to <cite>zcashd</cite>, but additionally enforces a minimum fee of 100 zatoshis (this differs from <cite>zcashd</cite> only for valid transactions of less than 1000 bytes, assuming that <cite>zcashd</cite> uses its default value for <code>-minrelaytxfee</code>).</p>
+            </section>
         </section>
         <section id="considered-alternatives"><h2><span class="section-heading">Considered Alternatives</span><span class="section-anchor"> <a rel="bookmark" href="#considered-alternatives"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <p>This section describes alternative proposals that have not been adopted.</p>
@@ -426,18 +479,13 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
              threshold. This is no longer expressible with the formula specified above.)</p>
         </section>
         <section id="endorsements"><h2><span class="section-heading">Endorsements</span><span class="section-anchor"> <a rel="bookmark" href="#endorsements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>The following entities/groups/individuals expressed their support for the updated fee mechanism:</p>
-            <p><em>Developer Groups or Sole OSS contributors</em></p>
-            <!-- * Zecwallet Suite (Zecwallet Lite for Desktop/iOS/Android &amp; Zecwallet FullNode)
-* Nighthawk Wallet for Android &amp; iOS -->
-            <p>To express and request your support to be added to this ZIP please comment below indicating:</p>
+            <p>The following entities and developers of the listed software expressed their support for the updated fee mechanism:</p>
             <ul>
-                <li>(group) name/pseudonym</li>
-                <li>affiliation</li>
-                <li>contact</li>
+                <li>Zecwallet Suite (Zecwallet Lite for Desktop/iOS/Android &amp; Zecwallet FullNode)</li>
+                <li>Nighthawk Wallet for Android &amp; iOS</li>
+                <li>Electric Coin Company</li>
+                <li>Zcash Foundation</li>
             </ul>
-            <p>or, conversely e-mail the same details to the Owner of the ZIP.</p>
-            <p>TODO: Endorsements may depend on specific parameter choices. The ZIP Editors should ensure that the endorsements are accurate before marking this ZIP as Active.</p>
         </section>
         <section id="acknowledgements"><h2><span class="section-heading">Acknowledgements</span><span class="section-anchor"> <a rel="bookmark" href="#acknowledgements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <p>Thanks to Madars Virza for initially proposing a fee mechanism similar to that proposed in this ZIP <a id="footnote-reference-11" class="footnote_reference" href="#madars-1">5</a>, and for finding a potential weakness in an earlier version of the block template construction algorithm. Thanks also to Kris Nuttycombe, Jack Grigg, Francisco Gindre, Greg Pfeil, Teor, and Deirdre Connolly for reviews and suggested improvements.</p>
