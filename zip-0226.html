@@ -122,7 +122,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/680">https://githu
                 <ul>
                     <li>
                         <span class="math">\(\mathsf{AssetBase}^{\mathsf{Orchard}} : \mathbb{P}*\)</span>
-                     is the unique element of the Pallas group <a id="footnote-reference-19" class="footnote_reference" href="#protocol-pallasandvesta">15</a> that identifies each Asset in the Orchard protocol, defined as the Asset Base in ZIP 227 <a id="footnote-reference-20" class="footnote_reference" href="#zip-0227">6</a>. The byte representation of the Asset Base is defined as
+                     is the unique element of the Pallas group <a id="footnote-reference-19" class="footnote_reference" href="#protocol-pallasandvesta">15</a> that identifies each Asset in the Orchard protocol, defined as the Asset Base in ZIP 227 <a id="footnote-reference-20" class="footnote_reference" href="#zip-0227">6</a>, a valid non-bottom group element that is not the identity. The byte representation of the Asset Base is defined as
                         <span class="math">\(\mathsf{asset\_base} : \mathbb{B}^{[\ell_{\mathbb{P}}]} := \mathsf{repr}_{\mathbb{P}}(\mathsf{AssetBase}^{\mathsf{Orchard}})\)</span>
                     .</li>
                 </ul>
@@ -168,7 +168,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/680">https://githu
                      in that for Custom Assets, the Asset Base will be added as an input to the commitment computation. In the case where the Asset is the ZEC Asset, the commitment is computed identically to the Orchard note commitment, without making use of the ZEC Asset Base as an input. As we will see, the nested structure of the Sinsemilla-based commitment <a id="footnote-reference-29" class="footnote_reference" href="#protocol-concretesinsemillacommit">18</a> allows us to add the Asset Base as a final recursive step, and hence keep a single instance of the Sinsemilla hash function in the circuit for the note commitment verification.</p>
                     <p>The note commitment output is still indistinguishable from the original Orchard ZEC note commitments, by definition of the Sinsemilla hash function <a id="footnote-reference-30" class="footnote_reference" href="#protocol-concretesinsemillahash">17</a>. ZSA note commitments will therefore be added to the same Orchard Note Commitment Tree. In essence, we have:</p>
                     <div class="math">\(\mathsf{NoteCommit^{OrchardZSA}_{rcm}(repr_{\mathbb{P}}(g_d), repr_{\mathbb{P}}(pk_d), v, \rho, \psi, \mathsf{AssetBase}^{\mathsf{Orchard}})} \in \mathsf{NoteCommit^{Orchard}.Output}\)</div>
-                    <p>This definition can be viewed as a hypernym of the Orchard note commitment, and will allow maintaining a single commitment instance for the note commitment, which will be used both for pre-ZSA Orchard and ZSA notes.</p>
+                    <p>This definition can be viewed as a generalization of the Orchard note commitment, and will allow maintaining a single commitment instance for the note commitment, which will be used both for pre-ZSA Orchard and ZSA notes.</p>
                 </section>
             </section>
             <section id="value-commitment"><h3><span class="section-heading">Value Commitment</span><span class="section-anchor"> <a rel="bookmark" href="#value-commitment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
@@ -264,7 +264,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/680">https://githu
                     </ul>
                 </section>
                 <section id="value-commitment-correctness"><h4><span class="section-heading">Value Commitment Correctness</span><span class="section-anchor"> <a rel="bookmark" href="#value-commitment-correctness"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
-                    <p>The following constraints must be added to ensure that the value commitment is computed using the witnessed Asset Base, as represented in the notes:</p>
+                    <p>The following constraints must be added to ensure that the value commitment is computed using the witnessed Asset Base:</p>
                     <ul>
                         <li>The fixed-base multiplication constraints between the value and the value base point of the value commitment,
                             <span class="math">\(\mathsf{cv}\)</span>
@@ -275,11 +275,11 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/680">https://githu
                     </ul>
                 </section>
                 <section id="asset-identifier-consistency-for-split-actions"><h4><span class="section-heading">Asset Identifier Consistency for Split Actions</span><span class="section-anchor"> <a rel="bookmark" href="#asset-identifier-consistency-for-split-actions"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
-                    <p>The following constraints must be added to prevent senders from changing the Asset Base for the output note in a Split Action:</p>
+                    <p>Senders must not be able to change the Asset Base for the output note in a Split Action. We do this via the following constraints:</p>
                     <ul>
                         <li>
                             <dl>
-                                <dt>The Value Commitment Integrity should be changed</dt>
+                                <dt>The Value Commitment Integrity should be changed:</dt>
                                 <dd>
                                     <ul>
                                         <li>Replace the input note value by a generic value,
@@ -296,11 +296,18 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/680">https://githu
                                 <dt>Add a boolean <code>split_flag</code> variable as an auxiliary witness. This variable is to be activated <code>split_flag = 1</code> if the Action in question has a Split Input and <code>split_flag = 0</code> if the Action is actually spending an input note:</dt>
                                 <dd>
                                     <ul>
-                                        <li>If <code>split_flag = 1</code> then set
+                                        <li>If
+                                            <span class="math">\(\texttt{split_flag} = 1\)</span>
+                                         then constrain
                                             <span class="math">\(\mathsf{v}' = 0\)</span>
-                                         otherwise
+                                         otherwise constrain
                                             <span class="math">\(\mathsf{v}'=\mathsf{v^{old}}\)</span>
                                          from the auxiliary input.</li>
+                                        <li>If
+                                            <span class="math">\(\texttt{split_flag} = 1\)</span>
+                                         then constrain
+                                            <span class="math">\(\mathsf{v^{old}} \neq 0\)</span>
+                                        .</li>
                                     </ul>
                                 </dd>
                             </dl>
@@ -339,7 +346,9 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/680">https://githu
                                             <span class="math">\(\psi' = \psi^{old}\)</span>
                                         . (Otherwise
                                             <span class="math">\(\psi'\)</span>
-                                         should be sampled randomly.)</li>
+                                         should be sampled uniformly at random on
+                                            <span class="math">\(\mathbb{F}_{q_{\mathbb{P}}}\)</span>
+                                        .)</li>
                                     </ul>
                                 </dd>
                             </dl>
@@ -376,7 +385,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/680">https://githu
                 <ol type="1">
                     <li>We require that
                         <span class="math">\(\forall (\mathsf{AssetBase},\mathsf{v^{AssetBase}}) \in \mathsf{assetBurn}\ ,\ \mathsf{AssetBase} \neq \mathcal{V}^{\mathsf{Orchard}}\)</span>
-                    . That is, Native Assets are not allowed to be burnt.</li>
+                    . That is, ZEC or TAZ is not allowed to be burnt.</li>
                     <li>We require that for every
                         <span class="math">\(\forall (\mathsf{AssetBase},\mathsf{v^{AssetBase}}) \in \mathsf{assetBurn}\ ,\ \mathsf{v^{AssetBase}} \neq 0\)</span>
                     .</li>

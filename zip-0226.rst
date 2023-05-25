@@ -102,7 +102,7 @@ Let :math:`\mathsf{Note^{OrchardZSA}}` be the type of a ZSA note, i.e.
 A ZSA note differs from an Orchard note [#protocol-notes]_ by additionally including the Asset Base, :math:`\mathsf{AssetBase}^{\mathsf{Orchard}}`. So a ZSA note is a tuple :math:`(\mathsf{g_d, pk_d, v, \rho, \psi, \mathsf{AssetBase}^{\mathsf{Orchard}}})`,
 where 
 
-- :math:`\mathsf{AssetBase}^{\mathsf{Orchard}} : \mathbb{P}*` is the unique element of the Pallas group [#protocol-pallasandvesta]_ that identifies each Asset in the Orchard protocol, defined as the Asset Base in ZIP 227 [#zip-0227]_. The byte representation of the Asset Base is defined as :math:`\mathsf{asset\_base} : \mathbb{B}^{[\ell_{\mathbb{P}}]} := \mathsf{repr}_{\mathbb{P}}(\mathsf{AssetBase}^{\mathsf{Orchard}})`.
+- :math:`\mathsf{AssetBase}^{\mathsf{Orchard}} : \mathbb{P}*` is the unique element of the Pallas group [#protocol-pallasandvesta]_ that identifies each Asset in the Orchard protocol, defined as the Asset Base in ZIP 227 [#zip-0227]_, a valid non-bottom group element that is not the identity. The byte representation of the Asset Base is defined as :math:`\mathsf{asset\_base} : \mathbb{B}^{[\ell_{\mathbb{P}}]} := \mathsf{repr}_{\mathbb{P}}(\mathsf{AssetBase}^{\mathsf{Orchard}})`.
 
 Specifically, we define the note commitment scheme :math:`\mathsf{NoteCommit^{OrchardZSA}_{rcm}}` as follows:
 
@@ -233,7 +233,7 @@ Circuit Statement
 Every *ZSA Action statement* is closely similar to the Orchard Action statement [#protocol-actionstatement]_, except for a few additions that ensure the security of the Asset Identifier system. We detail these changes below.
 
 Asset Base Equality
-'''''''''''''''''''''''''
+'''''''''''''''''''
 
 The following constraints must be added to ensure that the input and output note are of the same :math:`\mathsf{AssetBase}`:
 
@@ -244,7 +244,7 @@ The following constraints must be added to ensure that the input and output note
 Value Commitment Correctness
 ''''''''''''''''''''''''''''
 
-The following constraints must be added to ensure that the value commitment is computed using the witnessed Asset Base, as represented in the notes:
+The following constraints must be added to ensure that the value commitment is computed using the witnessed Asset Base:
 
 - The fixed-base multiplication constraints between the value and the value base point of the value commitment, :math:`\mathsf{cv}`, is replaced with a variable-base multiplication between the two.
 - The witness to the value base point (as defined in the `asset base`_ equation) is the auxiliary input :math:`\mathsf{AssetBase}^{\mathsf{Orchard}}_{\mathsf{AssetId}}`.
@@ -252,12 +252,13 @@ The following constraints must be added to ensure that the value commitment is c
 Asset Identifier Consistency for Split Actions
 ''''''''''''''''''''''''''''''''''''''''''''''
 
-The following constraints must be added to prevent senders from changing the Asset Base for the output note in a Split Action:
+Senders must not be able to change the Asset Base for the output note in a Split Action. We do this via the following constraints:
 
-- The Value Commitment Integrity should be changed
+- The Value Commitment Integrity should be changed:
     - Replace the input note value by a generic value, :math:`\mathsf{v}'`, as :math:`\mathsf{cv^{net}} = \mathsf{ValueCommit_rcv^{OrchardZSA}(v’ - v^new, \mathsf{AssetBase}^{\mathsf{Orchard}}_{\mathsf{AssetId}})}`
 - Add a boolean ``split_flag`` variable as an auxiliary witness. This variable is to be activated ``split_flag = 1`` if the Action in question has a Split Input and ``split_flag = 0`` if the Action is actually spending an input note:
-    - If ``split_flag = 1`` then set :math:`\mathsf{v}' = 0` otherwise :math:`\mathsf{v}'=\mathsf{v^{old}}` from the auxiliary input.
+    - If :math:`\texttt{split_flag} = 1` then constrain :math:`\mathsf{v}' = 0` otherwise constrain :math:`\mathsf{v}'=\mathsf{v^{old}}` from the auxiliary input.
+    - If :math:`\texttt{split_flag} = 1` then constrain :math:`\mathsf{v^{old}} \neq 0`.
 - The Merkle Path Validity should check the existence of the note commitment as usual (and not like with dummy notes):
     - Check that (path, pos) is a valid Merkle path of depth :math:`\mathsf{MerkleDepth^Orchard}`, from :math:`\mathsf{cm^{old}}` to the anchor :math:`\mathsf{rt^{Orchard}}`.
 - The Nullifier Integrity will be changed to prevent the identification of notes
