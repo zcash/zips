@@ -8,7 +8,7 @@
            Kris Nuttycombe
            Jack Grigg
            Francisco Gindre
-  Status: Draft
+  Status: Active
   Category: Standards / Wallet
   Obsoletes: ZIP 313
   Created: 2022-08-15
@@ -252,7 +252,9 @@ other reasons not to do so for robustness or denial-of-service mitigation.
 
 If a transaction has more than :math:`block\_unpaid\_action\_limit` "unpaid actions"
 as defined by the `Recommended algorithm for block template construction`_,
-it will never be mined by that algorithm. Nodes MAY drop these transactions.
+it will never be mined by that algorithm. Nodes MAY drop these transactions,
+or transactions with more unpaid actions than a configurable limit (see the
+`Deployment`_ section for actual behaviour of node implementations).
 
 Mempool size limiting
 ---------------------
@@ -423,6 +425,80 @@ relaying. These policy changes SHOULD NOT be deployed before the changes
 to block template construction for miners described in the preceding
 paragraph.
 
+Deployment in zcashd
+--------------------
+
+`zcashd` v5.5.0 implemented use of ZIP 317 fees by default for its
+internal wallet in the following PRs:
+
+* https://github.com/zcash/zcash/pull/6527 (fee computation)
+* https://github.com/zcash/zcash/pull/6524 (main implementation)
+* https://github.com/zcash/zcash/pull/6559 (follow-up to #6524)
+* https://github.com/zcash/zcash/pull/6568 (for ``z_shieldcoinbase``)
+* https://github.com/zcash/zcash/pull/6576 (follow-up to #6568)
+* https://github.com/zcash/zcash/pull/6569 (for ``z_mergetoaddress``)
+
+`zcashd` v5.5.0 implemented the `Recommended algorithm for block template construction`_
+in:
+
+* https://github.com/zcash/zcash/pull/6460 (preparation)
+* https://github.com/zcash/zcash/pull/6607 (follow-up to #6460)
+* https://github.com/zcash/zcash/pull/6527 (fee computation)
+* https://github.com/zcash/zcash/pull/6564 (block template construction)
+
+The value used for :math:`block\_unpaid\_action\_limit` by `zcashd`
+can be overridden using the ``-blockunpaidactionlimit`` configuration
+parameter.
+
+`zcashd` v5.5.0 also implemented the change to `Mempool size limiting`_
+to use the ZIP 317 fee for the low fee penalty threshold, in:
+
+* https://github.com/zcash/zcash/pull/6564
+
+As described in section `Transaction relaying`_, nodes MAY drop
+transactions with more unpaid actions than a given limit. From
+`zcashd` v5.6.0, this is controlled by the ``-txunpaidactionlimit``
+configuration option, which defaults to 50 unpaid actions (the
+same default as ``-blockunpaidactionlimit``). This behaviour is
+implemented in:
+
+* https://github.com/zcash/zcash/pull/6646
+
+Note that `zcashd` also requires transactions to pay at least a
+"relay threshold" fee. As part of the ZIP 317 work, this rule was
+simplified for `zcashd` v5.5.0:
+
+* https://github.com/zcash/zcash/pull/6542/files#diff-34d21af3c614ea3cee120df276c9c4ae95053830d7f1d3deaf009a4625409ad2
+
+Deployment in zebra
+-------------------
+
+`zebra` does not provide a wallet, and so does not need to calculate
+ZIP 317 fees in order to construct transactions.
+
+`zebra` v1.0.0-rc.3 implemented the current `Recommended algorithm for
+block template construction`_ in:
+
+* https://github.com/ZcashFoundation/zebra/pull/5724
+* https://github.com/ZcashFoundation/zebra/pull/5776 (algorithm update)
+
+`zebra` v1.0.0-rc.2 had implemented an earlier version of this algorithm.
+The value used for :math:`block\_unpaid\_action\_limit` in `zebra` is not
+configurable.
+
+`zebra` v1.0.0-rc.2 implemented the change to `Mempool size limiting`_ in:
+
+* https://github.com/ZcashFoundation/zebra/pull/5703
+
+`zebra` v1.0.0-rc.8 implemented `Transaction relaying`_ changes in:
+
+* https://github.com/ZcashFoundation/zebra/pull/6556
+
+`zebra` uses a similar relay threshold rule to `zcashd`, but additionally
+enforces a minimum fee of 100 zatoshis (this differs from `zcashd` only for
+valid transactions of less than 1000 bytes, assuming that `zcashd` uses its
+default value for ``-minrelaytxfee``).
+
 
 Considered Alternatives
 =======================
@@ -451,27 +527,13 @@ threshold. This is no longer expressible with the formula specified above.)
 Endorsements
 ============
 
-The following entities/groups/individuals expressed their support for the
-updated fee mechanism:
+The following entities and developers of the listed software expressed their
+support for the updated fee mechanism:
 
-*Developer Groups or Sole OSS contributors*
-
-..
-  * Zecwallet Suite (Zecwallet Lite for Desktop/iOS/Android & Zecwallet FullNode)
-  * Nighthawk Wallet for Android & iOS
-
-To express and request your support to be added to this ZIP please comment
-below indicating:
-
-* (group) name/pseudonym
-* affiliation
-* contact
-
-or, conversely e-mail the same details to the Owner of the ZIP.
-
-TODO: Endorsements may depend on specific parameter choices. The ZIP
-Editors should ensure that the endorsements are accurate before marking
-this ZIP as Active.
+* Zecwallet Suite (Zecwallet Lite for Desktop/iOS/Android & Zecwallet FullNode)
+* Nighthawk Wallet for Android & iOS
+* Electric Coin Company
+* Zcash Foundation
 
 
 Acknowledgements
