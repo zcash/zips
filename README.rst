@@ -107,8 +107,8 @@ Index of ZIPs
     <tr> <td>222</td> <td class="left"><a href="zip-0222.rst">Transparent Zcash Extensions</a></td> <td>Draft</td>
     <tr> <td>224</td> <td class="left"><a href="zip-0224.rst">Orchard Shielded Protocol</a></td> <td>Final</td>
     <tr> <td>225</td> <td class="left"><a href="zip-0225.rst">Version 5 Transaction Format</a></td> <td>Final</td>
-    <tr> <td><span class="reserved">226</span></td> <td class="left"><a class="reserved" href="zip-0226.rst">Zcash Shielded Assets - Transfers and Burns</a></td> <td>Reserved</td>
-    <tr> <td><span class="reserved">227</span></td> <td class="left"><a class="reserved" href="zip-0227.rst">Zcash Shielded Assets - Issuance</a></td> <td>Reserved</td>
+    <tr> <td><span class="reserved">226</span></td> <td class="left"><a class="reserved" href="zip-0226.rst">Transfer and Burn of Zcash Shielded Assets</a></td> <td>Reserved</td>
+    <tr> <td><span class="reserved">227</span></td> <td class="left"><a class="reserved" href="zip-0227.rst">Issuance of Zcash Shielded Assets</a></td> <td>Reserved</td>
     <tr> <td>239</td> <td class="left"><a href="zip-0239.rst">Relay of Version 5 Transactions</a></td> <td>Final</td>
     <tr> <td>243</td> <td class="left"><a href="zip-0243.rst">Transaction Signature Validation for Sapling</a></td> <td>Final</td>
     <tr> <td>244</td> <td class="left"><a href="zip-0244.rst">Transaction Identifier Non-Malleability</a></td> <td>Final</td>
@@ -133,12 +133,16 @@ Index of ZIPs
     <tr> <td><span class="reserved">314</span></td> <td class="left"><a class="reserved" href="zip-0314.rst">Privacy upgrades to the Zcash light client protocol</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">315</span></td> <td class="left"><a class="reserved" href="zip-0315.rst">Best Practices for Wallet Handling of Multiple Pools</a></td> <td>Reserved</td>
     <tr> <td>316</td> <td class="left"><a href="zip-0316.rst">Unified Addresses and Unified Viewing Keys</a></td> <td>Final</td>
+    <tr> <td>317</td> <td class="left"><a href="zip-0317.rst">Proportional Transfer Fee Mechanism</a></td> <td>Active</td>
+    <tr> <td><span class="reserved">318</span></td> <td class="left"><a class="reserved" href="zip-0318.rst">Associated Payload Encryption</a></td> <td>Reserved</td>
+    <tr> <td><span class="reserved">319</span></td> <td class="left"><a class="reserved" href="zip-0319.rst">Options for Shielded Pool Retirement</a></td> <td>Reserved</td>
     <tr> <td>321</td> <td class="left"><a href="zip-0321.rst">Payment Request URIs</a></td> <td>Proposed</td>
     <tr> <td><span class="reserved">322</span></td> <td class="left"><a class="reserved" href="zip-0322.rst">Generic Signed Message Format</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">323</span></td> <td class="left"><a class="reserved" href="zip-0323.rst">Specification of getblocktemplate for Zcash</a></td> <td>Reserved</td>
+    <tr> <td><span class="reserved">332</span></td> <td class="left"><a class="reserved" href="zip-0332.rst">Wallet Recovery from zcashd HD Seeds</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">339</span></td> <td class="left"><a class="reserved" href="zip-0339.rst">Wallet Recovery Words</a></td> <td>Reserved</td>
     <tr> <td>400</td> <td class="left"><a href="zip-0400.rst">Wallet.dat format</a></td> <td>Draft</td>
-    <tr> <td>401</td> <td class="left"><a href="zip-0401.rst">Addressing Mempool Denial-of-Service</a></td> <td>Final</td>
+    <tr> <td>401</td> <td class="left"><a href="zip-0401.rst">Addressing Mempool Denial-of-Service</a></td> <td>Active</td>
     <tr> <td><span class="reserved">402</span></td> <td class="left"><a class="reserved" href="zip-0402.rst">New Wallet Database Format</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">403</span></td> <td class="left"><a class="reserved" href="zip-0403.rst">Verification Behaviour of zcashd</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">416</span></td> <td class="left"><a class="reserved" href="zip-0416.rst">Support for Unified Addresses in zcashd</a></td> <td>Reserved</td>
