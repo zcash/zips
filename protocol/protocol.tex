@@ -720,6 +720,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\zatoshi}{\term{zatoshi}}
 \newcommand{\zcashd}{\termsf{zcashd}}
 \newcommand{\zebra}{\termsf{zebra}}
+\newcommand{\librustzcash}{\termsf{librustzcash}}
 \newcommand{\BitcoinCore}{\termandindexx{\textsf{Bitcoin\kern0.2em Core}}{Bitcoin Core}}
 \newcommand{\Makefile}{\texttt{Makefile}\xspace}
 
@@ -7777,7 +7778,7 @@ from $\TransmitPlaintext{}$
   \item let $\NoteCommitRand = \LEOStoIPOf{256}{\NoteCommitRandBytes}$
         and $\DiversifiedTransmitBase = \DiversifyHash{}(\Diversifier)$
         \vspace{-0.4ex}
-  \item if $\NoteCommitRand \geq \ParamG{r}$ or\notbeforenufive{ (for \Sapling)} $\DiversifiedTransmitBase = \bot$ or $\DiversifiedTransmitPublic \not\in \SubgroupJ$, return $\bot$
+  \item if $\NoteCommitRand \geq \ParamG{r}$ or\notbeforenufive{ (for \Sapling)} $\DiversifiedTransmitBase = \bot$ or $\DiversifiedTransmitPublic \not\in \SubgroupJstar$ (see note below), return $\bot$
   \item \notbeforenufive{for \Sapling,} let $\NoteTuple{} = (\Diversifier, \DiversifiedTransmitPublic, \Value, \NoteCommitRand)$
         \vspace{-0.2ex}
 \nufive{
@@ -7807,21 +7808,41 @@ from $\TransmitPlaintext{}$
         \notnufive{\introlist}
         \vspace{-0.5ex}
   \item A previous version of this specification did not have the requirement for the decoded point
-        $\DiversifiedTransmitPublic$ of a \Sapling \note to be in the subgroup
-        \smash{$\SubgroupJ$ (i.e.\ ``if ... $\DiversifiedTransmitPublic \not\in \SubgroupJ$}, return $\bot$'').
-        That did not match the implementation in \zcashd.\!\introlist\vspace{-0.5ex}
+        $\DiversifiedTransmitPublic$ of a \Sapling \note to be in the set of prime-order points
+        \smash{$\SubgroupJstar$ (i.e.\ ``if ... $\DiversifiedTransmitPublic \not\in \SubgroupJstar$}, return $\bot$'').
+        That did not match the implementation in \zcashd. In fact the history is a little more
+        complicated. The current specification matches the implementation in \librustzcash as of
+        \cite{librustzcash-109}, which has been used in \zcashd since \zcashdref{v2.1.2}. However, there
+        was another implementation of \Sapling note decryption used in \zcashd for consensus checks,
+        specifically the check that a \shielded coinbase output decrypts successfully with the zero
+        $\OutViewingKey$. This was corrected to enforce the same restriction on the decrypted
+        $\DiversifiedTransmitPublic$ in \zcashdref{v5.5.0}, originally set to activate in a soft fork
+        at \blockHeight 2121200 on both \Mainnet and \Testnet \cite{zcashd-6459}. (On \Testnet this
+        height was in the past as of the \textsf{zcashd v5.5.0} release, and so the change would have
+        been immediately enforced on upgrade.) Since the soft fork was observed to be retrospectively
+        valid after that height, the implementation was simplified in \cite{zcashd-6725} to use the
+        \librustzcash implementation in all cases, which reflects the specification above. \zebra always
+        used the \librustzcash implementation.
+        \vspace{-0.5ex}
   \item As explained in the note in \crossref{jubjub}, $\abstJ$ accepts \nonCanonicalPoint
         compressed encodings of \jubjubCurve points. Therefore, an implementation \MUST use the original
         $\ephemeralKey$ field as encoded in the \transaction as input to $\PRFock{}{}$ and $\KDF{Sapling}$,
         and in the comparison against
         $\reprG{}\big(\KADerivePublic{Sapling}(\EphemeralPrivate, \DiversifiedTransmitBase)\kern-0.12em\big)$\rlap{.}\nufive{\; For
         consistency this is also what is specified for \Orchard.}\vspace{-0.6ex}
-  \prenufiveitem{$\DiversifiedTransmitPublicRepr$ can also be \nonCanonicalPoint. Since $\bot$ is returned
-        if $\DiversifiedTransmitBase \not\in \SubgroupJ$, the only accepted \nonCanonicalPoint encoding for
-        $\DiversifiedTransmitPublicRepr$ of a \Sapling \note is $\ItoLEBSP{256}\big(2^{255} + 1\big)$.}
+  \item For \Sapling \outgoingCiphertexts, $\DiversifiedTransmitPublicRepr$ could also be \nonCanonicalPoint.
+        After \NUFive activation, the above algorithm explicitly returns $\bot$ if
+        $\reprP\big(\DiversifiedTransmitPublic\big) \neq \DiversifiedTransmitPublicRepr$. However,
+        this is technically redundant with the later check that returns $\bot$ if
+        $\DiversifiedTransmitPublic \not\in \smash{\SubgroupJstar}$, because only small-order \jubjubCurve
+        points have \nonCanonicalPoint encodings. This check is enforced retrospectively for consensus
+        by current \zcashd and \zebra versions, and for wallet rescanning by current \zcashd.
+        Versions of \zcashd prior to \cite{zcashd-6725} could however
+        have accepted \notes for which the \outgoingCiphertext contains either a canonical or
+        a \nonCanonicalPoint encoding of $\ZeroJ$ for $\DiversifiedTransmitPublic$.
         \vspace{-0.5ex}
-  \nufiveonwarditem{This procedure returns $\bot$ if $\DiversifiedTransmitPublicRepr$ is \nonCanonicalPoint
-        (which can only occur for \Sapling \notes), as specified in \cite{ZIP-216}.}
+  \nufiveonwarditem{For \Orchard \outgoingCiphertexts, it is not possible for
+        $\DiversifiedTransmitPublicRepr$ to be \nonCanonicalPoint.}
         \vspace{-0.5ex}
   \item The comments in \crossref{decryptivk} concerning calculation of $\NoteUniqueRand$, detection
         of spent \notes, and decryption of \noteCiphertextsSapling for \transactions in the \mempool also apply to
