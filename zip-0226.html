@@ -195,14 +195,17 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/680">https://githu
                 </section>
             </section>
             <section id="value-balance-verification"><h3><span class="section-heading">Value Balance Verification</span><span class="section-anchor"> <a rel="bookmark" href="#value-balance-verification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
-                <p>In order to verify the balance of the different Assets, the verifier MUST perform exactly the same process as for the Orchard protocol <a id="footnote-reference-38" class="footnote_reference" href="#protocol-binding">17</a>.</p>
+                <p>In order to verify the balance of the different Assets, the verifier MUST perform a similar process as for the Orchard protocol <a id="footnote-reference-38" class="footnote_reference" href="#protocol-binding">17</a>, with an additional term for the <a href="#burn-mechanism">burn mechanism</a>.</p>
                 <p>For a total of
                     <span class="math">\(n\)</span>
                  Actions in a transfer, the prover MUST still sign the SIGHASH transaction hash using the binding signature key
                     <span class="math">\(\mathsf{bsk} = \sum_{i=1}^{n} \mathsf{rcv}_{i}\)</span>
                 .</p>
                 <p>The verifier MUST compute</p>
-                <div class="math">\(\mathsf{bvk} =(\sum_{i=1}^{n}  \mathsf{cv^{net}}_{i})  - \mathsf{ValueCommit_0^{OrchardZSA}(v^{balanceOrchard}, \mathcal{V}^{\mathsf{Orchard}})}\)</div>
+                <div class="math">\(\mathsf{bvk} =(\sum_{i=1}^{n}  \mathsf{cv^{net}}_{i})  - \mathsf{ValueCommit_0^{OrchardZSA}(v^{balanceOrchard}, \mathcal{V}^{\mathsf{Orchard}})} - \mathsf{bvk}^{\mathsf{assetBurn}}\)</div>
+                <p>where
+                    <span class="math">\(\mathsf{bvk}^{\mathsf{assetBurn}}\)</span>
+                 is defined in the <a href="#burn-mechanism">burn mechanism</a> section.</p>
                 <p>After computing
                     <span class="math">\(\mathsf{bvk}\)</span>
                 , the verifier MUST use it to verify the binding signature on the SIGHASH transaction hash.</p>
@@ -405,9 +408,9 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/680">https://githu
             <p>The burn mechanism is a transparent extension to the transfer protocol that enables a specific amount of any Asset Identifier to be "destroyed". The burn mechanism does NOT send Assets to a non-spendable address, it simply reduces the total number of units of a given Custom Asset in circulation at the consensus level. It is enforced at the consensus level, by using an extension of the value balance mechanism used for ZEC Assets.</p>
             <p>The sender includes a
                 <span class="math">\(\mathsf{v^{AssetBase}}\)</span>
-             variable for every Asset Identifier that is being burnt. As we will show in the <a href="#zsa-transaction-structure">ZSA Transaction Structure</a>, this is separate from the regular
+             variable for every Asset Identifier that is being burnt. This represents the amount of that Asset that is being burnt. As we will show in the <a href="#zsa-transaction-structure">ZSA Transaction Structure</a>, this is separate from the regular
                 <span class="math">\(\mathsf{valueBalance^Orchard}\)</span>
-             that is the default transparent value for the ZEC Asset.</p>
+             that is the default transparent value for the ZEC Asset, and represents either the transaction fee, or the amount of ZEC changing pools (eg: to Sapling or Transparent).</p>
             <p>For every Custom Asset that is burnt, we add to the
                 <span class="math">\(\mathsf{assetBurn}\)</span>
              vector the tuple
@@ -419,18 +422,9 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/680">https://githu
              the cardinality of the
                 <span class="math">\(\mathsf{assetBurn}\)</span>
              set.</p>
-            <p>The value balances for each Asset Identifier in
-                <span class="math">\(\mathsf{assetBurn}\)</span>
-             represents the amount of that Asset that is being burnt. In the case of ZEC, the value balance represents either the transaction fee, or the amount of ZEC changing pools (eg: to Sapling or Transparent).</p>
-            <p>The validator needs to verify the Balance and Binding Signature by adding the value balances for all Assets, as committed using their respective
-                <span class="math">\(\mathsf{AssetBase}\)</span>
-             as the value base point of the Pedersen Commitment.</p>
-            <p>This is done as follows:</p>
-            <div class="math">\(\mathsf{bvk} = (\sum_{i=1}^{n} \mathsf{cv^{net}}_{i})  - \mathsf{ValueCommit_0^{OrchardZSA}}(\mathsf{v^{balanceOrchard}}, \mathcal{V}^{\mathsf{Orchard}}) - \sum_{k=1}^{L} \mathsf{ValueCommit_0^{OrchardZSA}}(\mathsf{v}_{k}, \mathsf{AssetBase}_{k})\)</div>
-            <p>After computing
-                <span class="math">\(\mathsf{bvk}\)</span>
-            , the verifier MUST use it to verify the binding signature on the SIGHASH transaction hash.</p>
-            <p>In the case that the balance of all the Action values related to a specific Asset will be zero, there will be no value added to the vector. This way, neither the number of Assets nor their Asset Identifiers will be revealed, except in the case that an Asset is burnt.</p>
+            <p>We then define</p>
+            <div class="math">\(\mathsf{bvk}^{\mathsf{assetBurn}} = \sum_{k=1}^{L} \mathsf{ValueCommit_0^{OrchardZSA}}(\mathsf{v}_{k}, \mathsf{AssetBase}_{k})\)</div>
+            <p>The validator uses this definition and verifies the Balance and Binding Signature as described in the <a href="#value-balance-verification">Value Balance Verification</a> section.</p>
             <section id="burn-mechanism-consensus-rules"><h3><span class="section-heading">Burn Mechanism Consensus Rules</span><span class="section-anchor"> <a rel="bookmark" href="#burn-mechanism-consensus-rules"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <ol type="1">
                     <li>We require that
@@ -467,6 +461,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/680">https://githu
                      and the
                         <span class="math">\(\mathsf{v}_k\)</span>
                      values, across base points (i.e. Asset Base).</p>
+                    <p>Note that in the case that the balance of all the Action values related to a specific Asset will be zero, there will be no value added to the vector. This way, neither the number of Assets nor their Asset Identifiers will be revealed, except in the case that an Asset is burnt.</p>
                 </section>
             </section>
         </section>
