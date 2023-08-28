@@ -1,0 +1,169 @@
+```
+ZIP: 
+Title: Smooth Out The Block Subsidy Issuance
+Owners: Jason McGee <jason@shieldedlabs.com>
+        Mark Henderson <mark@equilibrium.co>
+        Tomek Piotrowski <tomek@eiger.co>
+        Mariusz Pilarek <mariusz@eiger.co>
+Original-Authors: Nathan Wilcox
+Credits: Nathan Wilcox
+         Mark Henderson
+         Jason McGee
+Status: Draft
+Category: Consensus
+Created: 2023-08-23
+License: BSD-2-Clause
+```
+
+# Terminology
+
+The key words “MUST”, “SHOULD”, “SHOULD NOT”, “MAY”, “RECOMMENDED”, “OPTIONAL”,
+and “REQUIRED” in this document are to be interpreted as described in RFC 2119. [1]
+
+"Network upgrade" - to be interpreted as described in ZIP 200. [2]
+
+“Block Subsidy” - the algorithmic issuance of ZEC on block creation – part of
+the consensus rules. Split between the miner and the Dev Fund. Also known as Block Reward.
+
+“Issuance” - The method by which unmined or unissued ZEC is converted to ZEC available
+to users of the network
+
+“We” - the ZIP authors, owners listed in the above front matter
+
+“`AVAILABLE_SUBSIDIES(h)`” is the total ZEC available to pay out Block Subsidies from at
+block height `h`, ie. “not yet mined ZEC at h”.
+
+“`BLOCK_SUBSIDY_FRACTION`” = 41 / 100,000,000 or `0.00000041`
+
+# Abstract
+
+This ZIP proposes a change to how nodes calculate the block subsidy.
+
+Instead of following a step function around the four-year halving cycle inherited
+from Bitcoin, we propose a slow exponential “smoothing” of the curve. The new issuance
+scheme would approximate the current 4 year cycle, and results in the last
+zatoshi being spent in around 113 years.
+
+# Motivation
+
+Zcash’s economic model is inherited from Bitcoin and includes the concept of a halving
+mechanism to regulate the issuance of new coins. This approach, though foundational, invites
+a reevaluation amid Zcash’s ongoing evolution. As the network matures, the need to address
+potential future challenges and ensure a sustained and stable economic ecosystem becomes
+apparent. The transition to a smoothed emissions curve offers an opportunity to adjust the network's
+issuance dynamics while maintaining the supply cap of 21,000,000 coins. By doing so, Zcash
+endeavors to optimize its economic framework, accommodating changing circumstances while
+maintaining predictability and stability in rewards distribution.
+
+This proposal outlines a solution to address challenges associated with the existing block
+subsidy issuance mechanism in the Zcash network. The primary goal of this proposal is to
+introduce a more predictable and stable issuance of ZEC by smoothing out the issuance
+curve while preserving the supply cap. It's important to note that this proposal does
+not seek to alter the fundamental aspects of Zcash's issuance policy. The average block
+subsidy size over time will remain the same and the funds for block subsidies will last
+a similar amount of time. Instead, it focuses solely on enhancing the predictability
+and consistency of the block subsidy issuance process.
+
+Smoothing the emissions curve helps ensure that the network remains economically
+viable and stable as it transitions from a traditional issuance mechanism to one
+that maintains a sustainable and predictable issuance of rewards over time. It
+prevents abrupt changes in the rate of newly issued coins, which could lead to
+disruptions in the network's economic model and potentially impact its security
+and sustainability. A smoother emissions curve allows for a more gradual and controlled
+transition, providing ZEC stakeholders and participants with a clear understanding of
+how rewards will be distributed over time.
+
+
+
+# Specification
+
+Smoothing the issuance curve is possible using an exponential decay formula that
+satisfies the following requirements:
+
+## Requirements
+
+1. Block subsidies MUST be weakly decreasing
+2. Block subsidies SHOULD approximate a continuous function
+3. When `AVAILABLE_SUBSIDIES(h) > 0` then block subsidies for block `h`
+MUST always be `> 0`, preventing a final “unmined” zatoshi
+4. For any 4 year period, all paid out block subsidies MUST equal approximately
+half of `AVAILABLE_SUBSIDIES` at the beginning of that 4 year period
+5. This functionality MUST be introduced as part of a network upgrade
+
+The above requirements assume no deflationary action, i.e. that no ZEC is added
+to `AVAILABLE_SUBSIDIES`. They are referenced below as **Rn**.
+
+## Solution
+
+Given the block height `h` define a function **S**, such that:
+
+**S(h)** = Block subsidy for a given `h`, that satisfies above requirements.
+
+Please note that
+
+`AVAILABLE_SUBSIDIES(h+1) = AVAILABLE_SUBSIDIES(h) - S(h)` assuming no deflationary action.
+
+An exponential decay function **S** satisfies **R1** and **R2** above:
+
+`S(h) = BLOCK_SUBSIDY_FRACTION * AVAILABLE_SUBSIDIES(h)`
+
+Finally, to satisfy **R3** above we need to always round up to at least 1 Zatoshi
+if `AVAILABLE_SUBSIDIES(h) > 0`:
+
+`S(h) = ROUND_UP(BLOCK_SUBSIDY_FRACTION * AVAILABLE_SUBSIDIES(h))`
+
+# Rationale
+
+## `BLOCK_SUBSIDY_FRACTION`
+
+That value of `41 / 100_000_000` was selected so that it satisfies the equation:
+
+`(1 - BLOCK_SUBSIDY_FRACTION)^NUMBER_OF_BLOCKS_IN_4_YEARS ~ ½`
+
+Meaning after a period of 4 years around half of `AVAILABLE_SUBSIDIES` will be paid out
+as block subsidies, thus satisfying **R4**.
+
+
+## Other Notes
+
+The suggested implementation avoids using float numbers. Rust and C++ will both round
+the result of the final division up, satisfying **R3** above.
+
+# Appendix: Simulation
+
+We encourage readers to run the following Rust code, which simulates block subsidies.
+According to this simulation, assuming no deflationary action, block subsidies would
+last for approximately 113 years:
+
+## Rust Code
+
+```rust
+fn main() {
+    // approximate available subsidies in August of 2023
+    let mut available_subsidies: i64 = 4671731 * 100_000_000;
+    let mut block: u32 = 0;
+
+    while available_subsidies > 0 { 
+        let block_subsidy = (available_subsidies * 41 + 99_999_999) / 100_000_000;
+        available_subsidies -= block_subsidy;
+
+        println!(
+            "{} ({} years): {}({} ZEC) {}({} ZEC)",
+            block,                             // current block
+            block / 420_768,                   // ~ current year
+            block_subsidy,                     // block subsidy in zatoshis
+            block_subsidy / 100_000_000,       // block subsidy in ZEC
+            available_subsidies,               // available subsidies in zatoshis
+            available_subsidies / 100_000_000  // available subsidies in ZEC
+        );
+
+        block += 1;
+    }   
+}
+```
+
+Last line of output of the above program is:
+
+`47699804 (113 years): 1(0 ZEC) 0(0 ZEC)`
+
+Note the addition of 99,999,999 before division to force rounding up of non-zero values.
