@@ -92,11 +92,6 @@ The state is a single 64 bit integer (representing units of `zatoshi`) at any gi
 
 where Unclaimed(height) is the portion of the block subsidy that is unclaimed for the block at the given height. 
 
-### `ZSF_BALANCE` Requirements
-
-- The value of `ZSF_BALANCE` SHOULD equal `0` for all blocks prior to the activation height `H`. 
-- The above described formula `TOTAL ZEC TO EXIST (MAX_MONEY) - CLAIMED BLOCK SUBSIDIES OF PAST BLOCKS + SUM OF ALL ZSF DEPOSITS FROM PAST TRANSACTIONS` MUST hold for all future blocks.
-
 ## `ZSF_DEPOSIT`
 
 Each transaction can dedicate some of its excess funds to the ZSF, and the remainder becomes the miner fee, with any excess miner fee/reward going to the ZSF
