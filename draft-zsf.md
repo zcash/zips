@@ -103,7 +103,6 @@ This formula holds for all blocks.
 
 - The value of `ZSF_BALANCE` SHOULD equal `0` for all blocks prior to the activation height `H`. 
 - The above described formula `TOTAL ZEC TO EXIST (MAX_MONEY) - CLAIMED BLOCK SUBSIDIES OF PAST BLOCKS + SUM OF ALL ZSF DEPOSITS FROM PAST TRANSACTIONS` MUST hold for all future blocks.
-- Future protocol changes MUST NOT reduce or redistribute the funds in the ZSF, and they may not increase the payout rate to a reasonable approximation beyond the four year half-life constraint.
 
 ## `ZSF_DEPOSIT`
 
