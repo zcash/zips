@@ -96,7 +96,7 @@ where Unclaimed(height) is the portion of the block subsidy that is unclaimed fo
 
 Each transaction can dedicate some of its excess funds to the ZSF, and the remainder becomes the miner fee, with any excess miner fee/reward going to the ZSF
 
-This is achieved by adding a new field to all transactions:
+This is achieved by adding a new field to the common transaction fields [#zip-0225-transaction-format]:
 
 - `ZSF_DEPOSIT : u64 [zatoshi]`
 
