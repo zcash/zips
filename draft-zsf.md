@@ -88,9 +88,9 @@ Consensus nodes are then required to track new per-block state:
 
 The state is a single 64 bit integer (representing units of `zatoshi`) at any given block height, ``H``, representing the Sustainability Fund balance at that height, ``H``. The `ZSF_BALANCE` can be calculated using the following formula:
 
-`TOTAL ZEC TO EXIST (MAX_MONEY) - CLAIMED BLOCK SUBSIDIES OF PAST BLOCKS + SUM OF ALL ZSF DEPOSITS FROM PAST TRANSACTIONS`
+`ZsfBalanceAfter(height) = MAX_MONEY + sum_{h = 0}^{height} (ZsfDeposit(height) + Unclaimed(height) - BlockSubsidy(height))`
 
-This formula holds for all blocks.
+where Unclaimed(height) is the portion of the block subsidy that is unclaimed for the block at the given height. 
 
 ### `ZSF_BALANCE` Requirements
 
