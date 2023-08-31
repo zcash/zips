@@ -38,12 +38,14 @@ This ZIP describes the motivation, the necessary changes for, and the implementa
 
 The changes in this ZIP are ultimately minimal, only requiring for the node to track state in the form of a `ZSF_BALANCE`, and for a new transaction field to be added, called `ZSF_DEPOSIT`. While wallet developer would be encouraged to add the `ZSF_DEPOSIT` field to their UIs, no changes or new behavior are absolutely required for developers or ZEC holders.
 
+This ZIP does not change the current ZEC issuance schedule. Any additional amounts paid into the sustainability fund are reserved for use in future ZIPs.
+
 # Motivation
 
 The Zcash network's operation and development relies fundamentally on the block reward system inherited from Bitcoin. This system currently looks sometihng like this:
 
 - At Every New Block:
-    - Miner rewarded via unissued ZEC
+    - Miner and funding streams rewarded a constant amount via unissued ZEC (this constant amount halves at specified heights)
     - Transaction fees `(inputs - outputs)`
 
 The Zcash Sustainability Fund is a proposed replacement to that payout mechanism, with the relevant parts in *bold* below:
@@ -51,7 +53,7 @@ The Zcash Sustainability Fund is a proposed replacement to that payout mechanism
 - **Unmined ZEC is now accounted for as `ZSF_BALANCE`**
 - **Transaction includes optional contributions to ZSF via a `ZSF_DEPOSIT` field**
 - Thus, at Every New Block:
-    - Miner still rewarded **from `ZSF_BALANCE`**
+    - Miner and funding streams rewarded the same constant amount, **but from `ZSF_BALANCE`** (this constant amount still halves at specified heights)
     - Transaction fees `(inputs - outputs)`, **including the `ZF_DEPOSIT` amount**
 
 This design gives similar clarity and algorithmic control benefits, while also allowing other sources of funds for Block Rewards in addition to newly issued ZEC, via ZSF Deposits.
