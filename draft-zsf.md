@@ -117,11 +117,9 @@ The `ZSF_BALANCE[H]` for a block at height `H` can be calculated given a value o
 
 It is safe and consistent to treat older transactions using pre-Sustainability Fund formats as if they have this field implicitly present with a value of 0 where that simplifies designs or implementations.
 
-Note: this field is not generally considered an "output" because it differs from other outputs in several significant ways:
+#### Consensus Rule Changes
 
-- All `ZSF_DEPOSIT` fields contribute to a single global balance rather than a user-specific output state,
-- Consensus validation can account for this field by updating `ZSF_BALANCE[H]` and do not need to track any transaction field specific state after this accounting in contrast to e.g. UTXOs which must be tracked until spent.
-- This field does not contribute to the transaction graph of senders or recipients whether transparent or protected by cryptography.
+- Transparent inputs to a transaction insert value into a transparent transaction value pool associated with the transaction. Transparent outputs **and sustainability fund deposits** remove value from this pool.
 
 ### `ZSF_DEPOSIT` Requirements
 
