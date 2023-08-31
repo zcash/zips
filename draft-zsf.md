@@ -85,7 +85,7 @@ Please note that a **network upgrade is required** for this work to be fully imp
 
 ## `ZSF_BALANCE`
 
-Upon activation at height `H`, the ZEC issuance mechanism is permanently suspended, the value of `ZSF_BALANCE[H]` is set to the remainder of unissued ZEC. This must be done before the `Block Rewards Payout Rule` is enforced for the block at height `H`. **This is not a pre-mine.** This is simply a re-accounting of unissued ZEC that comes with the benefit of other possible sources of funding.
+The ZEC issuance mechanism is re-defined to remove funds from `ZSF_BALANCE`, which is initially set to `MAX_MONEY` at the genesis block.
 
 Consensus nodes are then required to track new per-block state:
 
