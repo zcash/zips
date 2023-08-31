@@ -60,7 +60,6 @@ This design gives similar clarity and algorithmic control benefits, while also a
 
 For example, an end-user wallet application could have an option to contribute a portion of a transaction to the ZSF, which would be included in a `ZSF_DEPOSIT` field in the transaction, to be taken into account by the Zcash nodes.
 
-This ZIP is explicitly agnostic as to the recipients of block rewards so that acceptance or adoption of the Sustainability Fund does not introduce or bundle reallocation decisions with the primary proposal.
 
 This quite simple alternation has -- in our opinion -- a multitude of benefits:
 
