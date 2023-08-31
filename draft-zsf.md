@@ -102,7 +102,10 @@ This is achieved by adding a new field to all transactions:
 
 The `ZSF_BALANCE[H]` for a block at height `H` can be calculated given a value of `ZSF_BALANCE[H-1]` and the set of transactions contained in that block. First, the `ZSF_DEPOSIT[H]` is calculated based solely on `ZSF_BALANCE[H-1]`. This is subtracted from the previous block's balance to be distributed as part of the block reward. Second, the sum of all the `ZSF_DEPOSIT` fields of all transactions in the block is added to the balance.
 
-It is safe and consistent to treat older transactions using pre-Sustainability Fund formats as if they have this field implicitly present with a value of 0 where that simplifies designs or implementations.
+
+### Non-Coinbase Transactions
+
+If the `ZSF_DEPOSIT` field is not present in an older transaction version, it is defined to be zero for non-coinbase transactions.
 
 #### Consensus Rule Changes
 
