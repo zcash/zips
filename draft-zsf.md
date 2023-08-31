@@ -97,7 +97,7 @@ The state is a single 64 bit integer (representing units of `zatoshi`) at any gi
 
 `TOTAL ZEC TO EXIST (MAX_MONEY) - CLAIMED BLOCK SUBSIDIES OF PAST BLOCKS + SUM OF ALL ZSF DEPOSITS FROM PAST TRANSACTIONS`
 
-This formula holds for all future blocks. It is safe and semantically consistent to consider all blocks prior to the activation height to have a value of `0` in this field. This is not required by this proposal but may be convenient in designs or implementations.
+This formula holds for all blocks.
 
 ### `ZSF_BALANCE` Requirements
 
