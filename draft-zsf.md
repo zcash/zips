@@ -98,7 +98,7 @@ Each transaction can dedicate some of its excess funds to the ZSF, and the remai
 
 This is achieved by adding a new field to the common transaction fields [#zip-0225-transaction-format]:
 
-- `ZSF_DEPOSIT : u64 [zatoshi]`
+- `zsfDeposit : u64 [zatoshi]`
 
 The `ZSF_BALANCE[H]` for a block at height `H` can be calculated given a value of `ZSF_BALANCE[H-1]` and the set of transactions contained in that block. First, the `ZSF_DEPOSIT[H]` is calculated based solely on `ZSF_BALANCE[H-1]`. This is subtracted from the previous block's balance to be distributed as part of the block reward. Second, the sum of all the `ZSF_DEPOSIT` fields of all transactions in the block is added to the balance.
 
