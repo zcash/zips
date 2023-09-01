@@ -42,11 +42,11 @@ This ZIP does not change the current ZEC issuance schedule. Any additional amoun
 
 # Motivation
 
-The Zcash network's operation and development relies fundamentally on the block reward system inherited from Bitcoin. This system currently looks sometihng like this:
+The Zcash network's operation and development relies fundamentally on the block reward system inherited from Bitcoin. This system currently looks like this:
 
 - At Every New Block:
-    - Miner and funding streams rewarded a constant amount via unissued ZEC (this constant amount halves at specified heights)
-    - Transaction fees `(inputs - outputs)`
+    - Miner and funding streams are rewarded a constant amount via unissued ZEC (this constant amount halves at specified heights)
+    - Miner is rewarded via Transaction fees `(inputs - outputs)`
 
 The Zcash Sustainability Fund is a proposed replacement to that payout mechanism, with the relevant parts in *bold* below:
 
@@ -54,7 +54,7 @@ The Zcash Sustainability Fund is a proposed replacement to that payout mechanism
 - **Transaction includes optional contributions to ZSF via a `ZSF_DEPOSIT` field**
 - Thus, at Every New Block:
     - Miner and funding streams rewarded the same constant amount, **but from `ZSF_BALANCE`** (this constant amount still halves at specified heights)
-    - Transaction fees `(inputs - outputs)`, **including the `ZF_DEPOSIT` amount**
+    - Miner is rewarded via Transaction fees `(inputs - outputs)`, **including the `ZSF_DEPOSIT` amount**
 
 This design gives similar clarity and algorithmic control benefits, while also allowing other sources of funds for Block Rewards in addition to newly issued ZEC, via ZSF Deposits.
 
@@ -88,14 +88,15 @@ Consensus nodes are then required to track new per-block state:
 The state is a single 64 bit integer (representing units of `zatoshi`) at any given block height, ``H``, representing the Sustainability Fund balance at that height, ``H``. The `ZSF_BALANCE` can be calculated using the following formula:
 
 `ZsfBalanceAfter(height) = MAX_MONEY + sum_{h = 0}^{height} (ZsfDeposit(height) + Unclaimed(height) - BlockSubsidy(height))`
+where `Unclaimed(height)` is the portion of the block subsidy that is unclaimed for the block at the given height. 
+
 The block at height `H` commits to `ZsfBalanceAfter(H)` as part of a new block commitment in the block header, at the end of the `hashBlockCommitments` chain in [ZIP-244](https://zips.z.cash/zip-0244#block-header-changes).
 
 TODO ZIP editors: consider introducing a chain state commitment hash tree. (When we get closer to the network upgrade, we will have a better idea what commitments that network upgrade needs.)
-where Unclaimed(height) is the portion of the block subsidy that is unclaimed for the block at the given height. 
 
 ## Deposits into the Sustainability Fund
 
-Sustainability fund deposits can be made via a new `zsfDeposit` field. This can be done by:
+Sustainability fund deposits can be made via the new `zsfDeposit` field. This can be done by:
 - ZEC fund holders, in non-coinbase transactions;
 - Zcash miners, in coinbase transactions.
 
@@ -135,9 +136,11 @@ If the `ZSF_DEPOSIT` field is not present in a coinbase transaction with an olde
 #### Consensus Rule Changes
 
 -  The remaining value in the transparent transaction value pool of a coinbase transaction is **deposited in the sustainability fund**.
+
 ### `ZSF_DEPOSIT` Requirements
 
-- ZIP 225 [3] MUST be updated to include `ZSF_DEPOSIT`. ZIP 244 MAY be updated as well.
+- ZIP 230 [3] must be updated to include `ZSF_DEPOSIT`.
+- ZIP 244 [4] must be updated as well to include `ZSF_DEPOSIT`.
 
 # Rationale
 
@@ -168,4 +171,6 @@ The `ZsfBalanceAfter` node state commitment will be included in the `hashBlockCo
 
 **[2]: [ZIP 200: Network Upgrade Mechanism](https://zips.z.cash/zip-0200)**
 
-**[3]: [ZIP 225: Version 5 Transaction Format](https://zips.z.cash/zip-0225)**
+**[3]: [ZIP 230: v6 transactions, including ZSAs](https://github.com/zcash/zips/pull/687)**
+
+**[4]: [ZIP 244: Transaction Identifier Non-Malleability](https://zips.z.cash/zip-0244)**
