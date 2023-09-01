@@ -93,7 +93,19 @@ The block at height `H` commits to `ZsfBalanceAfter(H)` as part of a new block c
 TODO ZIP editors: consider introducing a chain state commitment hash tree. (When we get closer to the network upgrade, we will have a better idea what commitments that network upgrade needs.)
 where Unclaimed(height) is the portion of the block subsidy that is unclaimed for the block at the given height. 
 
-## `ZSF_DEPOSIT`
+## Deposits into the Sustainability Fund
+
+Sustainability fund deposits can be made via a new `zsfDeposit` field. This can be done by:
+- ZEC fund holders, in non-coinbase transactions;
+- Zcash miners, in coinbase transactions.
+
+In transaction versions without this new field:
+- unclaimed miner fees and rewards in **coinbase transactions** are re-defined as deposits into the sustainability fund, and
+- there are no sustainability fund deposits from non-coinbase transactions.
+
+Note: older transaction versions can continue to be supported after a network upgrade. For example, NU5 supports both v4 and v5 transaction formats, for both coinbase and non-coinbase transactions.
+
+### `zsfDeposit` fields in transactions
 
 Each transaction can dedicate some of its excess funds to the ZSF, and the remainder becomes the miner fee, with any excess miner fee/reward going to the ZSF
 
