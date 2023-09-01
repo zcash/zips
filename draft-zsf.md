@@ -113,7 +113,6 @@ If the `ZSF_DEPOSIT` field is not present in an older transaction version, it is
 ### `ZSF_DEPOSIT` Requirements
 
 - ZIP 225 [3] MUST be updated to include `ZSF_DEPOSIT`. ZIP 244 MAY be updated as well.
-- Separate programming language implementations (C++, Rust, etc) MUST guarantee that the calculations described above are consistent
 
 # Rationale
 
