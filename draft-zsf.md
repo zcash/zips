@@ -110,6 +110,17 @@ If the `ZSF_DEPOSIT` field is not present in an older transaction version, it is
 
 - Transparent inputs to a transaction insert value into a transparent transaction value pool associated with the transaction. Transparent outputs **and sustainability fund deposits** remove value from this pool.
 
+### Coinbase Transactions
+
+Any excess miner fee/reward is sent to the ZSF.
+
+In new blocks, this deposit is tracked via the `ZSF_DEPOSIT` field in coinbase transactions. 
+
+If the `ZSF_DEPOSIT` field is not present in a coinbase transaction with an older transaction version, it is defined as the value of any unspent miner fee and miner reward. This re-defines these previously unspendable funds as ZSF deposits.
+
+#### Consensus Rule Changes
+
+-  The remaining value in the transparent transaction value pool of a coinbase transaction is **deposited in the sustainability fund**.
 ### `ZSF_DEPOSIT` Requirements
 
 - ZIP 225 [3] MUST be updated to include `ZSF_DEPOSIT`. ZIP 244 MAY be updated as well.
