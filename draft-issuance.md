@@ -93,7 +93,7 @@ half of `AVAILABLE_SUBSIDIES` at the beginning of that 4 year period
 The above requirements assume no deflationary action, i.e. that no ZEC is added
 to `AVAILABLE_SUBSIDIES`. They are referenced below as **Rn**.
 
-## Solution
+## Issuance Calculation
 
 Given the block height `h` define a function **S**, such that:
 
