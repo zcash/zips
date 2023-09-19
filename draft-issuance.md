@@ -42,7 +42,7 @@ This ZIP proposes a change to how nodes calculate the block subsidy.
 Instead of following a step function around the four-year halving cycle inherited
 from Bitcoin, we propose a slow exponential “smoothing” of the curve. The new issuance
 scheme would approximate the current 4 year cycle, and results in the last
-zatoshi being spent in around 113 years.
+zatoshi being issued in around 114 years.
 
 # Motivation
 
