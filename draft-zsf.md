@@ -54,7 +54,7 @@ The Zcash Sustainability Fund is a proposed replacement to that payout mechanism
 - **Transaction includes optional contributions to ZSF via a `ZSF_DEPOSIT` field**
 - Thus, at Every New Block:
     - Miner and funding streams rewarded the same constant amount, **but from `ZSF_BALANCE`** (this constant amount still halves at specified heights)
-    - Miner is rewarded via Transaction fees `(inputs - outputs)`, **including the `ZSF_DEPOSIT` amount**
+    - Miner is rewarded via Transaction fees `(inputs - outputs)`, **where `outputs` includes the `ZSF_DEPOSIT` amount**
 
 This design gives similar clarity and algorithmic control benefits, while also allowing other sources of funds for Block Rewards in addition to newly issued ZEC, via ZSF Deposits.
 
