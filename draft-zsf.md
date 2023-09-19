@@ -6,11 +6,7 @@ Owners: Jason McGee <jason@shieldedlabs.com>
         Tomek Piotrowski <tomek@eiger.co>
         Mariusz Pilarek <mariusz@eiger.co>
 Original-Authors: Nathan Wilcox
-Credits: Nathan Wilcox
-         Mark Henderson
-         Jason McGee
-         Tomek Piotrowski
-         Mariusz Pilarek
+Credits:
 Status: Draft
 Category: Ecosystem
 Created: 2023-08-
