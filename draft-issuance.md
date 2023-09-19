@@ -60,7 +60,7 @@ subsidy issuance mechanism in the Zcash network. The primary goal of this propos
 introduce a more predictable and stable issuance of ZEC by smoothing out the issuance
 curve while preserving the supply cap. It's important to note that this proposal does
 not seek to alter the fundamental aspects of Zcash's issuance policy. The average block
-subsidy size over time will remain the same and the funds for block subsidies will last
+subsidy amount over time will remain the same and the funds for block subsidies will last
 a similar amount of time. Instead, it focuses solely on enhancing the predictability
 and consistency of the block subsidy issuance process.
 
