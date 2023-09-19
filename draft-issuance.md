@@ -30,10 +30,14 @@ to users of the network
 
 “We” - the ZIP authors, owners listed in the above front matter
 
-“`AVAILABLE_SUBSIDIES(h)`” is the total ZEC available to pay out Block Subsidies from at
-block height `h`, ie. “not yet mined ZEC at h”.
+“`ZSF_BALANCE(h)`” is the total ZEC available in the Zcash Sustainability Fund (ZSF),
+described in ZIP #TODO#. This is used to pay out Block Subsidies from at block height
+`h`, ie. “not yet mined ZEC at h”.
 
 “`BLOCK_SUBSIDY_FRACTION`” = 41 / 100,000,000 or `0.00000041`
+
+"`ZsfBalanceAfter(h)`" is the total ZEC available in the ZSF _after_ the calculation
+involving the `BLOCK_SUBSIDY_FRACTION` is applied.
 
 # Abstract
 
@@ -84,14 +88,14 @@ satisfies the following requirements:
 
 1. Block subsidies MUST be weakly decreasing
 2. Block subsidies SHOULD approximate a continuous function
-3. When `AVAILABLE_SUBSIDIES(h) > 0` then block subsidies for block `h`
+3. When `ZSF_BALANCE(h) > 0` then block subsidies for block `h`
 MUST always be `> 0`, preventing a final “unmined” zatoshi
 4. For any 4 year period, all paid out block subsidies MUST equal approximately
-half of `AVAILABLE_SUBSIDIES` at the beginning of that 4 year period
+half of `ZSF_BALANCE` at the beginning of that 4 year period
 5. This functionality MUST be introduced as part of a network upgrade
 
 The above requirements assume no deflationary action, i.e. that no ZEC is added
-to `AVAILABLE_SUBSIDIES`. They are referenced below as **Rn**.
+to `ZSF_BALANCE`. They are referenced below as **Rn**.
 
 ## Issuance Calculation
 
