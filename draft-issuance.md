@@ -84,7 +84,7 @@ how rewards will be distributed over time.
 Smoothing the issuance curve is possible using an exponential decay formula that
 satisfies the following requirements:
 
-## Requirements
+## Issuance Goals
 
 1. Block subsidies MUST be weakly decreasing
 2. Block subsidies SHOULD approximate a continuous function
