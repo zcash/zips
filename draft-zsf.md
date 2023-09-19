@@ -60,8 +60,7 @@ This design gives similar clarity and algorithmic control benefits, while also a
 
 For example, an end-user wallet application could have an option to contribute a portion of a transaction to the ZSF, which would be included in a `ZSF_DEPOSIT` field in the transaction, to be taken into account by the Zcash nodes.
 
-
-This quite simple alternation has -- in our opinion -- a multitude of benefits:
+This quite simple alteration has -- in our opinion -- a multitude of benefits:
 
 1. **Long Term Consensus Sustainability:** This mechanism supports long-term consensus sustainability by addressing concerns about the sustainability of the network design shared by Bitcoin-like systems through the establishment of deposits into the Sustainability Fund to augment block rewards, ensuring long-term sustainability as the issuance rate of Zcash drops and newly issued ZEC decreases over time.
 2. **Benefits to ZEC Holders:** Deposits to the ZSF slow down the payout of ZEC, temporarily reducing its available supply, benefiting current holders of unencumbered active ZEC in proportion to their holdings without requiring them to opt into any scheme, introducing extra risk, active oversight, or accounting complexity.
