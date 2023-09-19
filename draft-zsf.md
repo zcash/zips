@@ -34,7 +34,7 @@ issuance of ZEC to every block's creator -- part of the consensus rules.
 
 # Abstract 
 
-This ZIP describes the motivation, the necessary changes for, and the implementation specifications for the Zcash Sustainability Fund (ZSF). The ZSF is a proposed alteration to the block rewards system and accounting of unmined ZEC that allows for other sources of funding besides unissued ZEC. This new mechanism for deposits -- that new applications or protocol designs can use to strengthen the long-term sustainability of the network  -- will likely be an important step for future economic upgrades, such as a transition to Proof of Stake or Zcash Shielded Assets, and other potential protocol fees and user applications.
+This ZIP describes the motivation, the necessary changes for, and the implementation specifications for the Zcash Sustainability Fund (ZSF). The ZSF is a proposed alteration to the block rewards system and accounting of unmined ZEC that allows for other sources of funding besides unissued ZEC. This new mechanism for deposits -- that new applications or protocol designs can use to strengthen the long-term sustainability of the network -- will likely be an important step for future economic upgrades, such as a transition to Proof of Stake or Zcash Shielded Assets, and other potential protocol fees and user applications.
 
 The changes in this ZIP are ultimately minimal, only requiring for the node to track state in the form of a `ZSF_BALANCE`, and for a new transaction field to be added, called `ZSF_DEPOSIT`. While wallet developer would be encouraged to add the `ZSF_DEPOSIT` field to their UIs, no changes or new behavior are absolutely required for developers or ZEC holders.
 
