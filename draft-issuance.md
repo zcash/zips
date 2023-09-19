@@ -30,14 +30,11 @@ to users of the network
 
 “We” - the ZIP authors, owners listed in the above front matter
 
-“`ZSF_BALANCE(h)`” is the total ZEC available in the Zcash Sustainability Fund (ZSF),
-described in ZIP #TODO#. This is used to pay out Block Subsidies from at block height
-`h`, ie. “not yet mined ZEC at h”.
+“`ZsfBalanceAfter(h)`” is the total ZEC available in the Zcash Sustainability Fund (ZSF) after the transactions
+in block `h`, described in ZIP #TODO reference#. The Sustainability Fund is used to pay out Block Subsidies
+from unmined ZEC, and other fund deposits.
 
 “`BLOCK_SUBSIDY_FRACTION`” = 41 / 100,000,000 or `0.00000041`
-
-"`ZsfBalanceAfter(h)`" is the total ZEC available in the ZSF _after_ the calculation
-involving the `BLOCK_SUBSIDY_FRACTION` is applied.
 
 # Abstract
 
