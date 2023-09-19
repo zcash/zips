@@ -74,8 +74,6 @@ The two modifications are:
 1. The re-accounting of unmined ZEC as a node state field called `ZSF_BALANCE`
 2. The addition of a transaction field called `ZSF_DEPOSIT`
 
-Please note that a **network upgrade is required** for this work to be fully implemented.
-
 ## `ZSF_BALANCE`
 
 The ZEC issuance mechanism is re-defined to remove funds from `ZSF_BALANCE`, which is initially set to `MAX_MONEY` at the genesis block.
