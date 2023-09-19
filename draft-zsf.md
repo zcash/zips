@@ -160,6 +160,7 @@ An explicit value distinguishes the ZEC destined to Sustainability Fund deposits
 This ZIP is proposed to activate with Network Upgrade (TODO ZIP editors).
 
 The `ZsfBalanceAfter` node state commitment will be included in the `hashBlockCommitments` chain starting with the network upgrade activation block.
+
 # References
 
 **[1]: [Key words for use in RFCs to Indicate Requirement Levels](https://www.rfc-editor.org/rfc/rfc2119.html)**
