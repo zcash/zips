@@ -112,12 +112,12 @@ if `ZsfBalanceAfter(h - 1) > 0`:
 
 ## `BLOCK_SUBSIDY_FRACTION`
 
-That value of `41 / 100_000_000` was selected so that it satisfies the equation:
+The value `41 / 100_000_000` satisfies the approximation:
 
-`(1 - BLOCK_SUBSIDY_FRACTION)^NUMBER_OF_BLOCKS_IN_4_YEARS ~ ½`
+`(1 - BLOCK_SUBSIDY_FRACTION)^NUMBER_OF_BLOCKS_IN_4_YEARS ≈ 0.5`
 
-Meaning after a period of 4 years around half of `AVAILABLE_SUBSIDIES` will be paid out
-as block subsidies, thus satisfying **R4**.
+Meaning after a period of 4 years around half of `ZSF_BALANCE` will be paid out
+as block subsidies, thus satisfying **G4**.
 
 
 ## Other Notes
