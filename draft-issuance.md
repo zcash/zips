@@ -87,7 +87,7 @@ satisfies the following requirements:
 ## Issuance Goals
 
 1. Block subsidies MUST be weakly decreasing
-2. Block subsidies SHOULD approximate a continuous function
+2. Block subsidies approximate a continuous function
 3. When `ZSF_BALANCE(h) > 0` then block subsidies for block `h`
 MUST always be `> 0`, preventing a final “unmined” zatoshi
 4. For any 4 year period, all paid out block subsidies MUST equal approximately
