@@ -19,8 +19,7 @@ The key words "MUST", "SHOULD", "SHOULD NOT", "MAY", "RECOMMENDED", "OPTIONAL", 
 
 The term "network upgrade" in this document is to be interpreted as described in ZIP 200. [2]
 
-The term "Block Rewards" refers to the algorithmic
-issuance of ZEC to every block's creator -- part of the consensus rules.
+"Block Subsidy” - the algorithmic issuance of ZEC on block creation – part of the consensus rules. Split between the miner and the Dev Fund. Also known as Block Reward.
 
 "Issuance" - The method by which unmined or unissued ZEC is converted to ZEC available to users of the network
 
