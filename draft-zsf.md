@@ -6,11 +6,7 @@ Owners: Jason McGee <jason@shieldedlabs.com>
         Tomek Piotrowski <tomek@eiger.co>
         Mariusz Pilarek <mariusz@eiger.co>
 Original-Authors: Nathan Wilcox
-Credits: Nathan Wilcox
-         Mark Henderson
-         Jason McGee
-         Tomek Piotrowski
-         Mariusz Pilarek
+Credits:
 Status: Draft
 Category: Ecosystem
 Created: 2023-08-
@@ -34,7 +30,7 @@ issuance of ZEC to every block's creator -- part of the consensus rules.
 
 # Abstract 
 
-This ZIP describes the motivation, the necessary changes for, and the implementation specifications for the Zcash Sustainability Fund (ZSF). The ZSF is a proposed alteration to the block rewards system and accounting of unmined ZEC that allows for other sources of funding besides unissued ZEC. This new mechanism for deposits -- that new applications or protocol designs can use to strengthen the long-term sustainability of the network  -- will likely be an important step for future economic upgrades, such as a transition to Proof of Stake or Zcash Shielded Assets, and other potential protocol fees and user applications.
+This ZIP describes the motivation, the necessary changes for, and the implementation specifications for the Zcash Sustainability Fund (ZSF). The ZSF is a proposed alteration to the block rewards system and accounting of unmined ZEC that allows for other sources of funding besides unissued ZEC. This new mechanism for deposits -- that new applications or protocol designs can use to strengthen the long-term sustainability of the network -- will likely be an important step for future economic upgrades, such as a transition to Proof of Stake or Zcash Shielded Assets, and other potential protocol fees and user applications.
 
 The changes in this ZIP are ultimately minimal, only requiring for the node to track state in the form of a `ZSF_BALANCE`, and for a new transaction field to be added, called `ZSF_DEPOSIT`. While wallet developer would be encouraged to add the `ZSF_DEPOSIT` field to their UIs, no changes or new behavior are absolutely required for developers or ZEC holders.
 
@@ -54,14 +50,11 @@ The Zcash Sustainability Fund is a proposed replacement to that payout mechanism
 - **Transaction includes optional contributions to ZSF via a `ZSF_DEPOSIT` field**
 - Thus, at Every New Block:
     - Miner and funding streams rewarded the same constant amount, **but from `ZSF_BALANCE`** (this constant amount still halves at specified heights)
-    - Miner is rewarded via Transaction fees `(inputs - outputs)`, **including the `ZSF_DEPOSIT` amount**
-
-This design gives similar clarity and algorithmic control benefits, while also allowing other sources of funds for Block Rewards in addition to newly issued ZEC, via ZSF Deposits.
+    - Miner is rewarded via Transaction fees `(inputs - outputs)`, **where `outputs` includes the `ZSF_DEPOSIT` amount**
 
 For example, an end-user wallet application could have an option to contribute a portion of a transaction to the ZSF, which would be included in a `ZSF_DEPOSIT` field in the transaction, to be taken into account by the Zcash nodes.
 
-
-This quite simple alternation has -- in our opinion -- a multitude of benefits:
+This quite simple alteration has -- in our opinion -- a multitude of benefits:
 
 1. **Long Term Consensus Sustainability:** This mechanism supports long-term consensus sustainability by addressing concerns about the sustainability of the network design shared by Bitcoin-like systems through the establishment of deposits into the Sustainability Fund to augment block rewards, ensuring long-term sustainability as the issuance rate of Zcash drops and newly issued ZEC decreases over time.
 2. **Benefits to ZEC Holders:** Deposits to the ZSF slow down the payout of ZEC, temporarily reducing its available supply, benefiting current holders of unencumbered active ZEC in proportion to their holdings without requiring them to opt into any scheme, introducing extra risk, active oversight, or accounting complexity.
@@ -75,8 +68,6 @@ The two modifications are:
 1. The re-accounting of unmined ZEC as a node state field called `ZSF_BALANCE`
 2. The addition of a transaction field called `ZSF_DEPOSIT`
 
-Please note that a **network upgrade is required** for this work to be fully implemented.
-
 ## `ZSF_BALANCE`
 
 The ZEC issuance mechanism is re-defined to remove funds from `ZSF_BALANCE`, which is initially set to `MAX_MONEY` at the genesis block.
@@ -88,7 +79,7 @@ Consensus nodes are then required to track new per-block state:
 The state is a single 64 bit integer (representing units of `zatoshi`) at any given block height, ``H``, representing the Sustainability Fund balance at that height, ``H``. The `ZSF_BALANCE` can be calculated using the following formula:
 
 `ZsfBalanceAfter(height) = MAX_MONEY + sum_{h = 0}^{height} (ZsfDeposit(height) + Unclaimed(height) - BlockSubsidy(height))`
-where `Unclaimed(height)` is the portion of the block subsidy that is unclaimed for the block at the given height. 
+where `Unclaimed(height)` is the portion of the block subsidy and miner fees that are unclaimed for the block at the given height. 
 
 The block at height `H` commits to `ZsfBalanceAfter(H)` as part of a new block commitment in the block header, at the end of the `hashBlockCommitments` chain in [ZIP-244](https://zips.z.cash/zip-0244#block-header-changes).
 
@@ -165,6 +156,7 @@ An explicit value distinguishes the ZEC destined to Sustainability Fund deposits
 This ZIP is proposed to activate with Network Upgrade (TODO ZIP editors).
 
 The `ZsfBalanceAfter` node state commitment will be included in the `hashBlockCommitments` chain starting with the network upgrade activation block.
+
 # References
 
 **[1]: [Key words for use in RFCs to Indicate Requirement Levels](https://www.rfc-editor.org/rfc/rfc2119.html)**
