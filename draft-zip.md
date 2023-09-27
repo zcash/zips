@@ -41,24 +41,24 @@ Implementing this change allows the ZSF to accrue value earlier. By ensuring a c
 
 # Motivation
 
-While ZIP-XXX (Establishing the Zcash Sustainability Fund) describes a method by which funds can be added to the Zcash Sustainability Fund by a voluntary `ZSF_DEPOSIT` transaction field. The default value of this field is zero and it is left up to the app and wallet implementers to make use of it.
+While ZIP-XXX (Establishing the Zcash Sustainability Fund) describes a method by which funds can be added to the Zcash Sustainability Fund by a voluntary `ZSF_DEPOSIT` transaction field. The default value of this field is zero and it is left up to the app, wallet, and mining software implementers to make use of it.
 
 This ZIP takes a much more explicit and non-optional approach, mandating at the protocol level that 50% of transaction fees be deposited into the ZSF As noted above, implementing this change allows the ZSF to accrue value earlier and contribute to future network sustainability.
 
-This system currently looks something like this:
+If ZIPs ### and ### are accepted, the system looks something like this:
 
 At Every New Block:
-- `ZSF_DEPOSIT` amount is deposited into the `ZSF_BALANCE_AFTER[h]`
-- Miner rewards come from `ZSF_BALANCE_AFTER[h]`
+- `ZSF_DEPOSIT` amount is deposited into the ZSF
+- Block rewards come from the ZSF
 - Transaction fees (inputs - outputs) paid to miner
 
 After the features described in this ZIP are activated (changed parts in bold):
 
 At Every New Block:
-- `ZSF_DEPOSIT` amount is deposited into the `ZSF_BALANCE_AFTER[h]`
-- Miner rewarded from `ZSF_BALANCE_AFTER[h]`
-- 50% of transaction fees (inputs - outputs) paid to miner
-- 50% of transaction fees deposited into `ZSF_BALANCE_AFTER[h]`
+- `ZSF_DEPOSIT` amount is deposited into the ZSF
+- Block rewards come from the ZSF
+- **50% of transaction fees (inputs - outputs) paid to miner**
+- **50% of transaction fees deposited into the ZSF**
 
 This has a multitude of benefits:
 
@@ -76,8 +76,18 @@ Please note that a network upgrade is required for this work to be fully impleme
 
 ## Transaction fee routing requirements
 
-- For each transaction, 50% of the total fee MUST be paid to the `ZSF_BALANCE_AFTER[h]`
-- The minimum of the 50% fee MUST equal 1 zatoshi or more.
+- For each transaction, 50% of the total fee MUST be paid to the ZSF
+- Any fractions are rounded in favour of the miner _TODO ZIP owners: decide if you want rounding to favour the ZSF here_
+
+### Consensus Rule Changes
+
+The coinbase transaction at block height `height` MUST have a  `zsfDeposit(height)` that is greater than or equal to `floor(TransactionFees(height)) / 2)`, where `TransactionFees(height)` is the sum of the the remaining value in the transparent transaction value pool of the non-coinbase transactions in the block at `height`.
+
+_TODO ZIP owners: if you want rounding to favour the ZSF, use ceiling here_
+
+TODO ZIP Editors:
+- work out how to deal with pre-v6 transactions which don't have the zsfDeposit() field. For example, by requiring the remaining value in the transparent transaction value pool of a coinbase transaction to be greater than or equal to 50% of the fee
+- consider imposing this requirement on v6 transactions instead of an explicit ZSF_DEPOSIT field requirement
 
 # Rationale
 
