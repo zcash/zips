@@ -88,8 +88,6 @@ satisfies the following requirements:
 TODO daira: add a requirement that makes the initial total issuance match the previous total issuance  
 5. This functionality MUST be introduced as part of a network upgrade
 
-The above requirements assume no deflationary action, i.e. that no ZEC is added
-to `ZSF_BALANCE`. They are referenced below as **Rn**.
 
 ## Issuance Calculation
 
