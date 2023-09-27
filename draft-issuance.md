@@ -22,9 +22,9 @@ and “REQUIRED” in this document are to be interpreted as described in RFC 21
 
 "Network upgrade" - to be interpreted as described in ZIP 200. [2]
 
-“Block Subsidy” - to be interpreted as described in ZIP TBD [3]
+“Block Subsidy” - to be interpreted as described in the Zcash Protocol Specification (TODO ZIP Editors: link from comment).
 
-“Issuance” - to be interpreted as described in ZIP TBD [3]
+“Issuance” - the sum of Block Subsidies over time. (TODO ZIP Editors: work out if this definition is correct or can be removed).
 
 “We” - the ZIP authors, owners listed in the above front matter
 
