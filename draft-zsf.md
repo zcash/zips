@@ -79,7 +79,7 @@ Consensus nodes are then required to track new per-block state:
 The state is a single 64 bit integer (representing units of `zatoshi`) at any given block height, ``H``, representing the Sustainability Fund balance at that height, ``H``. The `ZSF_BALANCE` can be calculated using the following formula:
 
 `ZsfBalanceAfter(height) = MAX_MONEY + sum_{h = 0}^{height} (ZsfDeposit(height) + Unclaimed(height) - BlockSubsidy(height))`
-where `Unclaimed(height)` is the portion of the block subsidy that is unclaimed for the block at the given height. 
+where `Unclaimed(height)` is the portion of the block subsidy and miner fees that are unclaimed for the block at the given height. 
 
 The block at height `H` commits to `ZsfBalanceAfter(H)` as part of a new block commitment in the block header, at the end of the `hashBlockCommitments` chain in [ZIP-244](https://zips.z.cash/zip-0244#block-header-changes).
 
