@@ -45,20 +45,20 @@ While ZIP-XXX (Establishing the Zcash Sustainability Fund) describes a method by
 
 This ZIP takes a much more explicit and non-optional approach, mandating at the protocol level that 50% of transaction fees be deposited into the ZSF As noted above, implementing this change allows the ZSF to accrue value earlier and contribute to future network sustainability.
 
-This system currently looks something like this:
+If ZIPs ### and ### are accepted, the system looks something like this:
 
 At Every New Block:
-- `ZSF_DEPOSIT` amount is deposited into the `ZSF_BALANCE_AFTER[h]`
-- Miner rewards come from `ZSF_BALANCE_AFTER[h]`
+- `ZSF_DEPOSIT` amount is deposited into the ZSF
+- Block rewards come from the ZSF
 - Transaction fees (inputs - outputs) paid to miner
 
 After the features described in this ZIP are activated (changed parts in bold):
 
 At Every New Block:
-- `ZSF_DEPOSIT` amount is deposited into the `ZSF_BALANCE_AFTER[h]`
-- Miner rewarded from `ZSF_BALANCE_AFTER[h]`
-- 50% of transaction fees (inputs - outputs) paid to miner
-- 50% of transaction fees deposited into `ZSF_BALANCE_AFTER[h]`
+- `ZSF_DEPOSIT` amount is deposited into the ZSF
+- Block rewards come from the ZSF
+- **50% of transaction fees (inputs - outputs) paid to miner**
+- **50% of transaction fees deposited into the ZSF**
 
 This has a multitude of benefits:
 
