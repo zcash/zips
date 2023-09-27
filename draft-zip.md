@@ -19,9 +19,9 @@ The key words “MUST”, “SHOULD”, “SHOULD NOT”, “MAY”, “RECOMMEN
 
 The term “network upgrade” in this document is to be interpreted as described in ZIP 200. [2]
 
-The term “Block Rewards” refers to the algorithmic issuance of ZEC to every block’s creator – part of the consensus rules.
+The term “Block Rewards” in this document is to be interpreted as described in ZIP TBD [3]
 
-“Issuance” - The method by which unmined or unissued ZEC is converted to ZEC available to users of the network
+The term “Issuance” in this document is to be interpreted as described in ZIP TBD [3]
 
 “We” - the ZIP authors, owners listed in the above front matter
 
@@ -100,4 +100,8 @@ In the future, other ZIPs may be written to fund the ZSF in various ways, includ
 
 # References
 
-TBD
+[1] RFC-2119: https://datatracker.ietf.org/doc/html/rfc2119
+
+[2] ZIP 200: https://zips.z.cash/zip-0200
+
+[3] ZIP TBD: The Zcash Sustainability Fund ZIP (Placeholder)
