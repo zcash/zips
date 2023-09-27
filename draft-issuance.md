@@ -89,6 +89,8 @@ TODO daira: add a requirement that makes the initial total issuance match the pr
 5. This functionality MUST be introduced as part of a network upgrade
 
 
+# Specification
+
 ## Issuance Calculation
 
 Given the block height `h` define a function **S**, such that:
