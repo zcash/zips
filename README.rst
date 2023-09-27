@@ -129,7 +129,7 @@ Index of ZIPs
     <tr> <td>310</td> <td class="left"><a href="zip-0310.rst">Security Properties of Sapling Viewing Keys</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">311</span></td> <td class="left"><a class="reserved" href="zip-0311.rst">Sapling Payment Disclosure</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">312</span></td> <td class="left"><a class="reserved" href="zip-0312.rst">Shielded Multisignatures using FROST</a></td> <td>Reserved</td>
-    <tr> <td>313</td> <td class="left"><a href="zip-0313.rst">Reduce Conventional Transaction Fee to 1000 zatoshis</a></td> <td>Active</td>
+    <tr> <td><strike>313</strike></td> <td class="left"><strike><a href="zip-0313.rst">Reduce Conventional Transaction Fee to 1000 zatoshis</a></strike></td> <td>Obsolete</td>
     <tr> <td><span class="reserved">314</span></td> <td class="left"><a class="reserved" href="zip-0314.rst">Privacy upgrades to the Zcash light client protocol</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">315</span></td> <td class="left"><a class="reserved" href="zip-0315.rst">Best Practices for Wallet Handling of Multiple Pools</a></td> <td>Reserved</td>
     <tr> <td>316</td> <td class="left"><a href="zip-0316.rst">Unified Addresses and Unified Viewing Keys</a></td> <td>Final</td>
