@@ -70,7 +70,7 @@ This has a multitude of benefits:
 # Specification
 
 This ZIP only proposes a single modification to the transaction fees:
-1. Keep the current destination of 10% of the fees untouched, but route 50% of the fees back to `ZSF_BALANCE_AFTER[h]`
+1. Keep the current destination of 50% of the fees untouched, but route 50% of the fees back to `ZSF_BALANCE_AFTER[h]`
 
 Please note that a network upgrade is required for this work to be fully implemented.
 
