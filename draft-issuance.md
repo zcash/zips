@@ -74,19 +74,18 @@ how rewards will be distributed over time.
 
 
 
-# Specification
+# Requirements
 
 Smoothing the issuance curve is possible using an exponential decay formula that
 satisfies the following requirements:
 
-## Issuance Goals
+## Issuance Requirements
 
-1. Block subsidies are monotonically decreasing, as long as `ZsfBalanceAfter(h)` is monotonically decreasing
+1. The issuance can be summarised into a reasonably simple explanation
 2. Block subsidies approximate a continuous function
-3. When `ZSF_BALANCE(h) > 0` then block subsidies for block `h`
-MUST always be `> 0`, preventing a final “unmined” zatoshi
-4. For any 4 year period, all paid out block subsidies MUST equal approximately
-half of `ZSF_BALANCE` at the beginning of that 4 year period
+3. If there are funds in the ZSF, then the block subsidy must be non-zero, preventing any final “unmined” zatoshis
+4. For any 4 year period, all paid out block subsidies are approximately equal to half of the ZSF at the beginning of that 4 year period, if there are no deposits into the ZSF during those 4 years
+TODO daira: add a requirement that makes the initial total issuance match the previous total issuance  
 5. This functionality MUST be introduced as part of a network upgrade
 
 The above requirements assume no deflationary action, i.e. that no ZEC is added
