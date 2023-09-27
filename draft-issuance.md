@@ -22,11 +22,9 @@ and “REQUIRED” in this document are to be interpreted as described in RFC 21
 
 "Network upgrade" - to be interpreted as described in ZIP 200. [2]
 
-“Block Subsidy” - the algorithmic issuance of ZEC on block creation – part of
-the consensus rules. Split between the miner and the Dev Fund. Also known as Block Reward.
+“Block Subsidy” - to be interpreted as described in ZIP TBD [3]
 
-“Issuance” - The method by which unmined or unissued ZEC is converted to ZEC available
-to users of the network
+“Issuance” - to be interpreted as described in ZIP TBD [3]
 
 “We” - the ZIP authors, owners listed in the above front matter
 
@@ -35,6 +33,8 @@ in block `h`, described in ZIP #TODO reference#. The Sustainability Fund is used
 from unmined ZEC, and other fund deposits.
 
 “`BLOCK_SUBSIDY_FRACTION`” = 41 / 100,000,000 or `0.00000041`
+
+"`NUMBER_OF_BLOCKS_IN_4_YEARS`" = `(365.25 * 24 * 60 * 60/75 * 4)`, or `1_683_072`
 
 # Abstract
 
@@ -49,7 +49,7 @@ zatoshi being issued in around 114 years.
 
 Zcash’s economic model is inherited from Bitcoin and includes the concept of a halving
 mechanism to regulate the issuance of new coins. This approach, though foundational, invites
-a reevaluation amid Zcash’s ongoing evolution. As the network matures, the need to address
+ a reevaluation amid Zcash’s ongoing evolution. As the network matures, the need to address
 potential future challenges and ensure a sustained and stable economic ecosystem becomes
 apparent. The transition to a smoothed emissions curve offers an opportunity to adjust the network's
 issuance dynamics while maintaining the supply cap of 21,000,000 coins. By doing so, Zcash
@@ -164,3 +164,12 @@ Last line of output of the above program is:
 `47699804 (113 years): 1(0 ZEC) 0(0 ZEC)`
 
 Note the addition of 99,999,999 before division to force rounding up of non-zero values.
+
+
+# References
+
+[1] RFC-2119: https://datatracker.ietf.org/doc/html/rfc2119
+
+[2] ZIP-200: https://zips.z.cash/zip-0200
+
+[3] ZIP-XXX: Placeholder for the ZSF ZIP
