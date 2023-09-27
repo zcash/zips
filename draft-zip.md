@@ -41,7 +41,7 @@ Implementing this change allows the ZSF to accrue value earlier. By ensuring a c
 
 # Motivation
 
-While ZIP-XXX (Establishing the Zcash Sustainability Fund) describes a method by which funds can be added to the Zcash Sustainability Fund by a voluntary `ZSF_DEPOSIT` transaction field. The default value of this field is zero and it is left up to the app and wallet implementers to make use of it.
+While ZIP-XXX (Establishing the Zcash Sustainability Fund) describes a method by which funds can be added to the Zcash Sustainability Fund by a voluntary `ZSF_DEPOSIT` transaction field. The default value of this field is zero and it is left up to the app, wallet, and mining software implementers to make use of it.
 
 This ZIP takes a much more explicit and non-optional approach, mandating at the protocol level that 50% of transaction fees be deposited into the ZSF As noted above, implementing this change allows the ZSF to accrue value earlier and contribute to future network sustainability.
 
