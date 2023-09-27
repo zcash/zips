@@ -27,7 +27,7 @@ and “REQUIRED” in this document are to be interpreted as described in RFC 21
 “Issuance” - the sum of Block Subsidies over time. (TODO ZIP Editors: work out if this definition is correct or can be removed).
 
 “`ZsfBalanceAfter(h)`” is the total ZEC available in the Zcash Sustainability Fund (ZSF) after the transactions
-in block `h`, described in ZIP #TODO reference#. The Sustainability Fund is used to pay out Block Subsidies
+in block `h`, described in ZIP draft-zsf.md. In this ZIP, the Sustainability Fund is used to pay out Block Subsidies
 from unmined ZEC, and other fund deposits.
 
 “`BLOCK_SUBSIDY_FRACTION`” = 41 / 100,000,000 or `0.00000041`
