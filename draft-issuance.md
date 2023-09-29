@@ -28,9 +28,6 @@ and “REQUIRED” in this document are to be interpreted as described in RFC 21
 in block `h`, described in ZIP draft-zsf.md. In this ZIP, the Sustainability Fund is used to pay out Block Subsidies
 from unmined ZEC, and other fund deposits.
 
-“`BLOCK_SUBSIDY_FRACTION`” = 41 / 100,000,000 or `0.00000041`
-
-"`NUMBER_OF_BLOCKS_IN_4_YEARS`" = `(365.25 * 24 * 60 * 60/75 * 4)`, or `1_683_072`
 
 # Abstract
 
@@ -88,6 +85,14 @@ TODO daira: add a requirement that makes the initial total issuance match the pr
 
 
 # Specification
+
+## Constants
+
+Define constants:
+
+“`BLOCK_SUBSIDY_FRACTION`” = 41 / 100,000,000 or `0.00000041`
+
+"`NUMBER_OF_BLOCKS_IN_4_YEARS`" = `(365.25 * 24 * 60 * 60/75 * 4)`, or `1_683_072`
 
 ## Issuance Calculation
 
