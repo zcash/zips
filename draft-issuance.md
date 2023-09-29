@@ -6,9 +6,7 @@ Owners: Jason McGee <jason@shieldedlabs.com>
         Tomek Piotrowski <tomek@eiger.co>
         Mariusz Pilarek <mariusz@eiger.co>
 Original-Authors: Nathan Wilcox
-Credits: Nathan Wilcox
-         Mark Henderson
-         Jason McGee
+Credits:
 Status: Draft
 Category: Consensus
 Created: 2023-08-23
