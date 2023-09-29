@@ -96,9 +96,9 @@ Define constants:
 
 ## Issuance Calculation
 
-Given the block height `h` define a function **S**, such that:
+Given the block height `h` define a function **BlockSubsidy(h)**, such that:
 
-**S(h)** = Block subsidy for a given `h`, that satisfies above requirements.
+**BlockSubsidy(h)** = Block subsidy for a given `h`, that satisfies above requirements.
 
 Using an exponential decay function for **BlockSubsidy** satisfies **G1** and **G2** above:
 
