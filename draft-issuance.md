@@ -86,8 +86,7 @@ Using an exponential decay function for **BlockSubsidy** satisfies requirements 
 
 `BlockSubsidy(h) = BLOCK_SUBSIDY_FRACTION * ZsfBalanceAfter(h - 1)`
 
-Finally, to satisfy **R3** above we need to always round up to at least 1 Zatoshi
-if `ZsfBalanceAfter(h - 1) > 0`:
+Finally, to satisfy **R3** above we always round up to the next zatoshi.
 
 `BlockSubsidy(h) = ceiling(BLOCK_SUBSIDY_FRACTION * ZsfBalanceAfter(h - 1))`
 
