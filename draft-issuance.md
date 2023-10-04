@@ -28,6 +28,8 @@ and “REQUIRED” in this document are to be interpreted as described in RFC 21
 in block `h`, described in ZIP draft-zsf.md. In this ZIP, the Sustainability Fund is used to pay out Block Subsidies
 from unmined ZEC, and other fund deposits.
 
+Let `PostBlossomHalvingInterval` be as defined in [#protocol-diffadjustment]_.
+
 
 # Abstract
 
