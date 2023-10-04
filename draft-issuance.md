@@ -74,8 +74,6 @@ Define constants:
 
 “`BLOCK_SUBSIDY_FRACTION`” = 41 / 100,000,000 or `0.00000041`
 
-"`NUMBER_OF_BLOCKS_IN_4_YEARS`" = `(365.25 * 24 * 60 * 60/75 * 4)`, or `1_683_072`
-
 ## Issuance Calculation
 
 Given the block height `h` define a function **BlockSubsidy(h)**, such that:
