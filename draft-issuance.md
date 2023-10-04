@@ -83,11 +83,11 @@ Given the block height `h` define a function **BlockSubsidy(h)**, such that:
 
 **BlockSubsidy(h)** = Block subsidy for a given `h`, that satisfies above requirements.
 
-Using an exponential decay function for **BlockSubsidy** satisfies **G1** and **G2** above:
+Using an exponential decay function for **BlockSubsidy** satisfies requirements **R1** and **R2** above:
 
 `BlockSubsidy(h) = BLOCK_SUBSIDY_FRACTION * ZsfBalanceAfter(h - 1)`
 
-Finally, to satisfy **G3** above we need to always round up to at least 1 Zatoshi
+Finally, to satisfy **R3** above we need to always round up to at least 1 Zatoshi
 if `ZsfBalanceAfter(h - 1) > 0`:
 
 `BlockSubsidy(h) = ceiling(BLOCK_SUBSIDY_FRACTION * ZsfBalanceAfter(h - 1))`
