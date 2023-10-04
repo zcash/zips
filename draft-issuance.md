@@ -44,7 +44,13 @@ The current Zcash economic model, inherited from Bitcoin, includes a halving mec
 
 To address this, we propose smoothing out the issuance curve of ZEC, ensuring a more consistent and predictable rate of coin issuance, while still preserving the overall supply cap of 21,000,000 coins. This modification does not seek to change the core aspects of Zcash's issuance policy. Instead, it solely aims to enhance predictability and avoid sudden changes. By making this shift, the average block subsidy over time will remain consistent, and the funds for block subsidies will be available for a similar duration.
 
-In summary, by introducing a smoother emissions curve, Zcash seeks to maintain its economic viability, provide clarity on reward distribution, and enhance its stability as the network evolves.
+Additionally, the current Bitcoin-style issuance does not take into account the current balance of `ZsfBalanceAfter(h)` where the new smoothed issuance curve would. If the issuance curve were to never be implemeneted, this creates the risk of funds never being disbursed after they are deposited back into the ZSF. Rather than adding complexity, the smoothed model satisfies this requirement with a simpler implementation.
+
+In summary, by introducing a smoother emissions curve, we:
+- maintain the economic viability of Zcash
+- provide clarity on reward distribution
+- take into account deposits into the ZSF
+- enhance Zcash's stability as the network evolves.
 
 # Requirements
 
