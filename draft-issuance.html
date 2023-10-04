@@ -19,20 +19,19 @@ and “REQUIRED” in this document are to be interpreted as described in RFC 21
 <p>“<code>ZsfBalanceAfter(h)</code>” is the total ZEC available in the Zcash Sustainability Fund (ZSF) after the transactions
 in block <code>h</code>, described in ZIP draft-zsf.md. In this ZIP, the Sustainability Fund is used to pay out Block Subsidies
 from unmined ZEC, and other fund deposits.</p>
+<p>Let <code>PostBlossomHalvingInterval</code> be as defined in [#protocol-diffadjustment]_.</p>
 <h1>Abstract</h1>
 <p>This ZIP proposes a change to how nodes calculate the block subsidy.</p>
 <p>Instead of following a step function around the 4-year halving intervals inherited
 from Bitcoin, we propose a slow exponential “smoothing” of the curve. The new issuance
-scheme would approximate the current issuance over 4-year intervals, and results in the last
-zatoshi being issued in around 114 years.</p>
+scheme would approximate the current issuance over 4-year intervals.</p>
 <h1>Motivation</h1>
 <p>The current Zcash economic model, inherited from Bitcoin, includes a halving mechanism which dictates the issuance of new coins. While this has been foundational, halvings can lead to abrupt changes in the rate of new coins being introduced to the market. Such sudden shifts can potentially disrupt the network's economic model, potentially impacting its security and stability.</p>
 <p>To address this, we propose smoothing out the issuance curve of ZEC, ensuring a more consistent and predictable rate of coin issuance, while still preserving the overall supply cap of 21,000,000 coins. This modification does not seek to change the core aspects of Zcash's issuance policy. Instead, it solely aims to enhance predictability and avoid sudden changes. By making this shift, the average block subsidy over time will remain consistent, and the funds for block subsidies will be available for a similar duration.</p>
-<p>Additionally, the current Bitcoin-style issuance does not take into account the current balance of <code>ZsfBalanceAfter(h)</code> where the new smoothed issuance curve would. If the issuance curve were to never be implemeneted, this creates the risk of funds never being disbursed after they are deposited back into the ZSF. Rather than adding complexity, the smoothed model satisfies this requirement with a simpler implementation.</p>
+<p>Additionally, the current Bitcoin-style issuance does not take into account the current balance of <code>ZsfBalanceAfter(h)</code>. If [#draft-zsf]_ were to activate without a change to the issuance mechanism, then some funds would never be disbursed after they are deposited back into the ZSF.</p>
 <p>In summary, by introducing a smoother emissions curve, we:
 - maintain the economic viability of Zcash
-- provide clarity on reward distribution
-- take into account deposits into the ZSF
+- provide clarity on distribution of deposits into the ZSF
 - enhance Zcash's stability as the network evolves.</p>
 <h1>Requirements</h1>
 <p>Smoothing the issuance curve is possible using an exponential decay formula that
@@ -50,19 +49,18 @@ TODO daira: add a requirement that makes the initial total issuance match the pr
 <h2>Constants</h2>
 <p>Define constants:</p>
 <p>“<code>BLOCK_SUBSIDY_FRACTION</code>” = 41 / 100,000,000 or <code>0.00000041</code></p>
-<p>"<code>NUMBER_OF_BLOCKS_IN_4_YEARS</code>" = <code>(365.25 * 24 * 60 * 60/75 * 4)</code>, or <code>1_683_072</code></p>
 <h2>Issuance Calculation</h2>
 <p>Given the block height <code>h</code> define a function <strong>BlockSubsidy(h)</strong>, such that:</p>
 <p><strong>BlockSubsidy(h)</strong> = Block subsidy for a given <code>h</code>, that satisfies above requirements.</p>
 <p>Using an exponential decay function for <strong>BlockSubsidy</strong> satisfies requirements <strong>R1</strong> and <strong>R2</strong> above:</p>
 <p><code>BlockSubsidy(h) = BLOCK_SUBSIDY_FRACTION * ZsfBalanceAfter(h - 1)</code></p>
-<p>Finally, to satisfy <strong>R3</strong> above we need to always round up to at least 1 Zatoshi
-if <code>ZsfBalanceAfter(h - 1) &gt; 0</code>:</p>
+<p>Finally, to satisfy <strong>R3</strong> above we always round up to the next zatoshi.</p>
 <p><code>BlockSubsidy(h) = ceiling(BLOCK_SUBSIDY_FRACTION * ZsfBalanceAfter(h - 1))</code></p>
 <h1>Rationale</h1>
 <h2><code>BLOCK_SUBSIDY_FRACTION</code></h2>
+<p>Let <code>IntendedZSFFractionRemainingAfterFourYears</code> = 0.5.</p>
 <p>The value <code>41 / 100_000_000</code> satisfies the approximation:</p>
-<p><code>(1 - BLOCK_SUBSIDY_FRACTION)^NUMBER_OF_BLOCKS_IN_4_YEARS ≈ 0.5</code></p>
+<p><code>(1 - BLOCK_SUBSIDY_FRACTION)^PostBlossomHalvingInterval ≈ IntendedZSFFractionRemainingAfterFourYears</code></p>
 <p>Meaning after a period of 4 years around half of <code>ZSF_BALANCE</code> will be paid out
 as block subsidies, thus satisfying <strong>R4</strong>.</p>
 <h2>Visualization of the Smoothed Curve</h2>

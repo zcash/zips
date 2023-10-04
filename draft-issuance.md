@@ -49,8 +49,7 @@ Additionally, the current Bitcoin-style issuance does not take into account the 
 
 In summary, by introducing a smoother emissions curve, we:
 - maintain the economic viability of Zcash
-- provide clarity on reward distribution
-- take into account deposits into the ZSF
+- provide clarity on distribution of deposits into the ZSF
 - enhance Zcash's stability as the network evolves.
 
 # Requirements
