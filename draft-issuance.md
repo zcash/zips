@@ -107,7 +107,7 @@ as block subsidies, thus satisfying **R4**.
 
 The following graph, taken from the ECC blog post, illustrates the smoothed curve. Note that depending on when the network upgrade takes place the disbursement may temporarily _increase_.
 
-![./draft-zip-smoothed-issuance-curve.png](A graph showing a comparison of the halving-based step function vs the smoothed curve)
+![A graph showing a comparison of the halving-based step function vs the smoothed curve](./draft-zip-smoothed-issuance-curve.png)
 
 ## Other Notes
 
