@@ -101,8 +101,13 @@ The value `41 / 100_000_000` satisfies the approximation:
 `(1 - BLOCK_SUBSIDY_FRACTION)^NUMBER_OF_BLOCKS_IN_4_YEARS ≈ 0.5`
 
 Meaning after a period of 4 years around half of `ZSF_BALANCE` will be paid out
-as block subsidies, thus satisfying **G4**.
+as block subsidies, thus satisfying **R4**.
 
+## Visualization of the Smoothed Curve
+
+The following graph, taken from the ECC blog post, illustrates the smoothed curve. Note that depending on when the network upgrade takes place the disbursement may temporarily _increase_.
+
+![./draft-zip-smoothed-issuance-curve.png](A graph showing a comparison of the halving-based step function vs the smoothed curve)
 
 ## Other Notes
 
