@@ -75,7 +75,11 @@ Define constants:
 
 “`BLOCK_SUBSIDY_FRACTION`” = 41 / 100,000,000 or `0.00000041`
 
+"`DEPLOYMENT_BLOCK_HEIGHT`" = 2726400
+
 ## Issuance Calculation
+
+At the `DEPLOYMENT_BLOCK_HEIGHT`, nodes should switch from the current issuance calculation, to the following:
 
 Given the block height `h` define a function **BlockSubsidy(h)**, such that:
 
@@ -88,6 +92,8 @@ Using an exponential decay function for **BlockSubsidy** satisfies requirements 
 Finally, to satisfy **R3** above we always round up to the next zatoshi.
 
 `BlockSubsidy(h) = ceiling(BLOCK_SUBSIDY_FRACTION * ZsfBalanceAfter(h - 1))`
+
+## Deployment
 
 # Rationale
 
@@ -102,11 +108,19 @@ The value `41 / 100_000_000` satisfies the approximation:
 Meaning after a period of 4 years around half of `ZSF_BALANCE` will be paid out
 as block subsidies, thus satisfying **R4**.
 
+## `DEPLOYMENT_BLOCK_HEIGHT`
+
+The deployment should happen at the next halving, which is block `2726400`.
+
+Since there is a planned halving at this point, there will already be a significant "shock" caused by the drop in issuance caused by the halving. This reduces surprise and thus increases security. Also, due to the nature of the smoothed curve having a portion of the curve above the respective step function line at times, this will maximally _reduce_ the issuance shock at the `TARGET_BLOCK_HEIGHT`.
+
 ## Visualization of the Smoothed Curve
 
 The following graph, taken from the ECC blog post, illustrates the smoothed curve. Note that depending on when the network upgrade takes place the disbursement may temporarily _increase_.
 
 ![A graph showing a comparison of the halving-based step function vs the smoothed curve](./draft-zip-smoothed-issuance-curve.png)
+
+[TODO: We should update this graph now showing the deployment at `2726400`]
 
 ## Other Notes
 
