@@ -87,8 +87,6 @@ TODO ZIP Editors:
 
 We believe that is ultimately a very minor change to the protocol, and quite simple in terms of implementation overhead. Additionally – and at the time of this writing – transaction fees are so small that 60% will likely not have a major impact.
 
-TODO: Security
-
 If transaction fees were to increase, future ZIPs can be written to change the 60%/40% split. Finding the optimal fee split may require an iterative approach involving adjustments based on real-world data and network dynamics.
 
 In the future, other ZIPs may be written to fund the ZSF in various ways, including but not limited to:
@@ -97,6 +95,10 @@ In the future, other ZIPs may be written to fund the ZSF in various ways, includ
 - “Storage fees” for any future data availability
 - Cross-chain bridge usage / Cross-chain messaging
 - Note sorting micro-transactional fees
+
+## Future Implications
+
+Looking into the future, there may come a time when the transaction fees become greater than the block reward issuance. At that time we may need to reconsider the 60/40 split. However, this will likely not be the case for the next 8-10 years due to forcasts based on issuance models and network traffic.
 
 # References
 
