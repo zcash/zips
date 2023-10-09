@@ -61,7 +61,7 @@ This has a multitude of benefits:
 1. **Network Sustainability**: This mechanism involves temporarily reducing the supply of ZEC similar to asset burning in Ethereum’s EIP-1559, but with potential long-term sustainability benefits as the redistribution of deposits contributes to issuance rewards and network development, making it an attractive option for current and future Zcash users.
 2. **Ecosystem Benefits of Longer Time Horizons**: A reliable and long-term functioning Zcash blockchain allows users to make secure long-term plans, leading to a sustainable and virtuous adoption cycle, rather than being influenced by short-term trends.
 3. **Incentivizing Transaction Inclusion**: By providing a 40% share of transaction fees to miners, this ZIP maintains incentives for miners to prioritize including transactions in their blocks. This helps ensure the efficient processing of transactions and supports a robust and responsive network.
-4. **Future-Proofing the Network**: Diverting transaction fees into the `ZSF_BALANCE_AFTER[h]` is a forward-looking approach that prepares the Zcash network for future challenges and opportunities. It establishes a financial buffer that can be instrumental in addressing unforeseen issues and seizing strategic advantages as the Zcash ecosystem evolves.
+4. **Future-Proofing the Network**: Diverting transaction fees into the ZSF is a forward-looking approach that prepares the Zcash network for future challenges and opportunities. It establishes a financial buffer that can be instrumental in addressing unforeseen issues and seizing strategic advantages as the Zcash ecosystem evolves.
 
 # Specification
 
