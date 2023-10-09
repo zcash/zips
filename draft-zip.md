@@ -29,7 +29,7 @@ The term “Issuance” in this document is to be interpreted as described in ZI
 
 # Abstract
 
-This ZIP proposes a modification to transaction fees, diverting 60% of transaction fees back into the `ZSF_BALANCE_AFTER[h]`, while  the destination of the remaining 40% is unchanged and goes to the block miner,. This proposal effectively “unmints” a portion of transaction fees, contributing to a deflationary effect and offering long-term support for the Zcash network.
+This ZIP proposes a modification to transaction fees, diverting 60% of transaction fees back into the `ZSF_BALANCE_AFTER[h]`, while  the destination of the remaining 40% is unchanged and goes to the block miner. This proposal effectively “unmints” a portion of transaction fees, contributing to a deflationary effect and offering long-term support for the Zcash network.
 
 This ZIP attempts to establish a symbiotic relationship between miner incentives and sustained network growth. It achieves this by splitting transaction fees: 40% goes directly to miners, incentivizing them to include transactions, while the remaining 60% is deposited into the  `ZSF_BALANCE_AFTER[h]`. This approach mitigates a "bootstrapping problem", a problem that arises when 100% of transaction fees go to the ZSF and miners are not incentivized to include transactions in block. This ZIP navigates this problem by ensuring miners continue to receive direct rewards for including transactions, while still contributing to the ZSF.
 
