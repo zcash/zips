@@ -66,7 +66,7 @@ This has a multitude of benefits:
 # Specification
 
 This ZIP only proposes a single modification to the transaction fees:
-1. Keep the current destination of 40% of the fees untouched, but route 60% of the fees back to `ZSF_BALANCE_AFTER[h]`
+1. Keep the current destination of 40% of the fees untouched, but route 60% of the fees back to the ZSF
 
 ## Transaction fee routing requirements
 
