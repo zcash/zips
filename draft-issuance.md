@@ -112,7 +112,7 @@ as block subsidies, thus satisfying **R4**.
 
 The deployment should happen at the next halving, which is block `2726400`.
 
-Since there is a planned halving at this point, there will already be a significant "shock" caused by the drop in issuance caused by the halving. This reduces surprise and thus increases security. Also, due to the nature of the smoothed curve having a portion of the curve above the respective step function line at times, this will maximally _reduce_ the issuance shock at the `TARGET_BLOCK_HEIGHT`.
+Since there is a planned halving at this point, there will already be a significant "shock" caused by the drop in issuance caused by the halving. This reduces surprise and thus increases security. Also, due to the nature of the smoothed curve having a portion of the curve above the respective step function line at times, this will maximally _reduce_ the issuance shock at the `DEPLOYMENT_BLOCK_HEIGHT`.
 
 ## Visualization of the Smoothed Curve
 
