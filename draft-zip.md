@@ -71,7 +71,7 @@ This ZIP only proposes a single modification to the transaction fees:
 ## Transaction fee routing requirements
 
 - For each transaction, 60% of the total fee MUST be paid to the ZSF
-- Any fractions are rounded in favour of the miner _TODO ZIP owners: decide if you want rounding to favour the ZSF here_
+- Any fractions are rounded in favour of the miner
 
 ### Consensus Rule Changes
 
