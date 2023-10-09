@@ -75,7 +75,7 @@ This ZIP only proposes a single modification to the transaction fees:
 
 ### Consensus Rule Changes
 
-The coinbase transaction at block height `height` MUST have a  `zsfDeposit(height)` that is greater than or equal to `floor(TransactionFees(height)) / 2)`, where `TransactionFees(height)` is the sum of the the remaining value in the transparent transaction value pool of the non-coinbase transactions in the block at `height`.
+The coinbase transaction at block height `height` MUST have a `zsfDeposit` that is greater than or equal to `floor((TransactionFees(height) * 6) / 10)`, where `TransactionFees(height)` is the sum of the the remaining value in the transparent transaction value pool of the non-coinbase transactions in the block at `height`.
 
 _TODO ZIP owners: if you want rounding to favour the ZSF, use ceiling here_
 
