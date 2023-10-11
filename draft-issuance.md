@@ -71,11 +71,15 @@ TODO daira: add a requirement that makes the initial total issuance match the pr
 
 # Specification
 
+## Goals
+
+We want to decrease the short-term impact of the deployment of this ZIP on block reward recipients, and minimise the potential reputational risk to Zcash of changing the block reward amount.
+
 ## Constants
 
 Define constants:
 
-“`BLOCK_SUBSIDY_FRACTION`” = 41 / 100,000,000 or `0.00000041`
+“`BLOCK_SUBSIDY_FRACTION`” = 4126 / 100,000,000 or `0.0000004126`
 
 "`DEPLOYMENT_BLOCK_HEIGHT`" = 2726400
 
@@ -97,18 +101,22 @@ Finally, to satisfy **R3** above we always round up to the next zatoshi.
 
 ## Deployment
 
+TBD
+
 # Rationale
 
 ## `BLOCK_SUBSIDY_FRACTION`
 
 Let `IntendedZSFFractionRemainingAfterFourYears` = 0.5.
 
-The value `41 / 100_000_000` satisfies the approximation:
+The value `4126 / 100_000_000` satisfies the approximation within +0.002%:
 
 `(1 - BLOCK_SUBSIDY_FRACTION)^PostBlossomHalvingInterval ≈ IntendedZSFFractionRemainingAfterFourYears`
 
 Meaning after a period of 4 years around half of `ZSF_BALANCE` will be paid out
 as block subsidies, thus satisfying **R4**.
+
+TODO for ZIP owners: How many ZEC per day?
 
 ## `DEPLOYMENT_BLOCK_HEIGHT`
 
@@ -143,7 +151,7 @@ fn main() {
     let mut available_subsidies: i64 = 4671731 * 100_000_000;
     let mut block: u32 = 0;
 
-    while available_subsidies > 0 { 
+    while available_subsidies > 0 {
         let block_subsidy = (available_subsidies * 41 + 99_999_999) / 100_000_000;
         available_subsidies -= block_subsidy;
 
@@ -158,7 +166,7 @@ fn main() {
         );
 
         block += 1;
-    }   
+    }
 }
 ```
 
