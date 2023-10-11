@@ -41,7 +41,7 @@ scheme would approximate the current issuance over 4-year intervals.
 
 # Motivation
 
-The current Zcash economic model, inherited from Bitcoin, includes a halving mechanism which dictates the issuance of new coins. While this has been foundational, halvings can lead to abrupt changes in the rate of new coins being introduced to the market. Such sudden shifts can potentially disrupt the network's economic model, potentially impacting its security and stability.
+The current Zcash economic model, inherited from Bitcoin, includes a halving mechanism which dictates the issuance of new coins. While this has been foundational, halvings can lead to abrupt changes in the rate of new coins being introduced to the market. Such sudden shifts can potentially disrupt the network's economic model, potentially impacting its security and stability. Furthermore, the halvings schedule is fixed and does not provide any way to "recycle" funds into future issuance.
 
 To address this, we propose smoothing out the issuance curve of ZEC, ensuring a more consistent and predictable rate of coin issuance, while still preserving the overall supply cap of 21,000,000 coins. This modification does not seek to change the core aspects of Zcash's issuance policy. Instead, it solely aims to enhance predictability and avoid sudden changes. By making this shift, the average block subsidy over time will remain consistent, and the funds for block subsidies will be available for a similar duration.
 
