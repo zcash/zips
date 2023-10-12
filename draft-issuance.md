@@ -79,7 +79,7 @@ We want to decrease the short-term impact of the deployment of this ZIP on block
 
 Define constants:
 
-“`BLOCK_SUBSIDY_FRACTION`” = 4126 / 100,000,000 or `0.0000004126`
+“`BLOCK_SUBSIDY_FRACTION`” = 4126 / 10,000,000,000 or `0.0000004126`
 
 "`DEPLOYMENT_BLOCK_HEIGHT`" = 2726400
 
@@ -109,7 +109,7 @@ TBD
 
 Let `IntendedZSFFractionRemainingAfterFourYears` = 0.5.
 
-The value `4126 / 100_000_000` satisfies the approximation within +0.002%:
+The value `4126 / 10_000_000_000` satisfies the approximation within +0.002%:
 
 `(1 - BLOCK_SUBSIDY_FRACTION)^PostBlossomHalvingInterval ≈ IntendedZSFFractionRemainingAfterFourYears`
 
@@ -131,11 +131,6 @@ The following graph, taken from the ECC blog post, illustrates the smoothed curv
 ![A graph showing a comparison of the halving-based step function vs the smoothed curve](./draft-zip-smoothed-issuance-curve.png)
 
 [TODO: We should update this graph now showing the deployment at `2726400`]
-
-## Other Notes
-
-The suggested implementation avoids using float numbers. Rust and C++ will both round
-the result of the final division up, satisfying **R3** above.
 
 # Appendix: Simulation
 
