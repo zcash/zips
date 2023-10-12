@@ -146,35 +146,49 @@ last for approximately 113 years:
 ## Rust Code
 
 ```rust
+const BLOCKS_PER_YEAR: u32 = 420_768;
+const ZATOSHIS_PER_ZEC: i64 = 100_000_000;
+// predicted ZEC supply at the next halving (block 2726400)
+const INITIAL_SUPPLY: i64 = 1_574_963_454_129_680;
+const MAX_MONEY: i64 = 21_000_000;
+const INITIAL_SUBSIDIES: i64 = MAX_MONEY * ZATOSHIS_PER_ZEC - INITIAL_SUPPLY;
+
+const BLOCK_SUBSIDY_NUMERATOR: i64 = 4126;
+const BLOCK_SUBSIDY_DENOMINATOR: i64 = 10_000_000_000;
+
 fn main() {
-    // approximate available subsidies in August of 2023
-    let mut available_subsidies: i64 = 4671731 * 100_000_000;
+    let mut available_subsidies: i64 = INITIAL_SUBSIDIES;
     let mut block: u32 = 0;
 
     while available_subsidies > 0 {
-        let block_subsidy = (available_subsidies * 41 + 99_999_999) / 100_000_000;
+        let block_subsidy = (available_subsidies * BLOCK_SUBSIDY_NUMERATOR
+            + (BLOCK_SUBSIDY_DENOMINATOR - 1))
+            / BLOCK_SUBSIDY_DENOMINATOR;
         available_subsidies -= block_subsidy;
 
         println!(
-            "{} ({} years): {}({} ZEC) {}({} ZEC)",
-            block,                             // current block
-            block / 420_768,                   // ~ current year
-            block_subsidy,                     // block subsidy in zatoshis
-            block_subsidy / 100_000_000,       // block subsidy in ZEC
-            available_subsidies,               // available subsidies in zatoshis
-            available_subsidies / 100_000_000  // available subsidies in ZEC
+            "Block {} (~{:.2} years): Subsidy: {} (~{} ZEC), ZSF: {} (~{} ZEC)",
+            block,                                  // current block
+            block as f64 / BLOCKS_PER_YEAR as f64,  // ~ current year
+            block_subsidy,                          // block subsidy in zatoshis
+            block_subsidy / ZATOSHIS_PER_ZEC,       // block subsidy in ZEC
+            available_subsidies,                    // available subsidies in zatoshis
+            available_subsidies / ZATOSHIS_PER_ZEC  // available subsidies in ZEC
         );
 
         block += 1;
     }
 }
+
 ```
 
 Last line of output of the above program is:
 
-`47699804 (113 years): 1(0 ZEC) 0(0 ZEC)`
+`Block 47917869 (~113.88 years): Subsidy: 1 (~0 ZEC), ZSF: 0 (~0 ZEC)`
 
-Note the addition of 99,999,999 before division to force rounding up of non-zero values.
+Meaning that subsidies will last for 47917869 blocks after the next halving, which is approximately 113 years.
+
+Note the addition of `BLOCK_SUBSIDY_DENOMINATOR-1` before division to force rounding up of non-zero values.
 
 
 # References
