@@ -126,65 +126,35 @@ Since there is a planned halving at this point, there will already be a signific
 
 ## Visualization of the Smoothed Curve
 
-The following graph, taken from the ECC blog post, illustrates the smoothed curve. Note that depending on when the network upgrade takes place the disbursement may temporarily _increase_.
+The following graph illustrates compares issuance for the current halving-based step function vs the smoothed curve.
 
-![A graph showing a comparison of the halving-based step function vs the smoothed curve](./draft-zip-smoothed-issuance-curve.png)
+![A graph showing a comparison of the halving-based step function vs the smoothed curve](./zsf_block_subsidy.png)
 
-[TODO: We should update this graph now showing the deployment at `2726400`]
+The graph below shows the balance of the ZSF assuming smooth issuance is implemented.
+
+![A graph showing the balance of the ZSF assuming smooth issuance is implemented](./zsf_balance.png)
+
 
 # Appendix: Simulation
 
-We encourage readers to run the following Rust code, which simulates block subsidies.
-According to this simulation, assuming no deflationary action, block subsidies would
-last for approximately 113 years:
-
-## Rust Code
-
-```rust
-const BLOCKS_PER_YEAR: u32 = 420_768;
-const ZATOSHIS_PER_ZEC: i64 = 100_000_000;
-// predicted ZEC supply at the next halving (block 2726400)
-const INITIAL_SUPPLY: i64 = 1_574_963_454_129_680;
-const MAX_MONEY: i64 = 21_000_000;
-const INITIAL_SUBSIDIES: i64 = MAX_MONEY * ZATOSHIS_PER_ZEC - INITIAL_SUPPLY;
-
-const BLOCK_SUBSIDY_NUMERATOR: i64 = 4126;
-const BLOCK_SUBSIDY_DENOMINATOR: i64 = 10_000_000_000;
-
-fn main() {
-    let mut available_subsidies: i64 = INITIAL_SUBSIDIES;
-    let mut block: u32 = 0;
-
-    while available_subsidies > 0 {
-        let block_subsidy = (available_subsidies * BLOCK_SUBSIDY_NUMERATOR
-            + (BLOCK_SUBSIDY_DENOMINATOR - 1))
-            / BLOCK_SUBSIDY_DENOMINATOR;
-        available_subsidies -= block_subsidy;
-
-        println!(
-            "Block {} (~{:.2} years): Subsidy: {} (~{} ZEC), ZSF: {} (~{} ZEC)",
-            block,                                  // current block
-            block as f64 / BLOCKS_PER_YEAR as f64,  // ~ current year
-            block_subsidy,                          // block subsidy in zatoshis
-            block_subsidy / ZATOSHIS_PER_ZEC,       // block subsidy in ZEC
-            available_subsidies,                    // available subsidies in zatoshis
-            available_subsidies / ZATOSHIS_PER_ZEC  // available subsidies in ZEC
-        );
-
-        block += 1;
-    }
-}
+The [ZSF simulator](https://github.com/eigerco/zsf-simulator) allows us to simulate the effects of this ZIP on the ZSF balance and the block subsidy, as well as generate plots like the one above. It's output:
 
 ```
+Last block is 47917869 in ~113.88 years
+```
 
-Last line of output of the above program is:
+indicates that, assuming no ZEC is ever deposited to the ZSF, its balance will be depleted after 113.88 years, and the block subsidy will be 0 ZEC after that point.
 
-`Block 47917869 (~113.88 years): Subsidy: 1 (~0 ZEC), ZSF: 0 (~0 ZEC)`
+This fragment of the output 
 
-Meaning that subsidies will last for 47917869 blocks after the next halving, which is approximately 113 years.
+```
+Halving  1 at block  1680000:
+  ZSF subsidies:    262523884819889 (~2625238 ZEC)
+  legacy subsidies: 262500000000000 (~2625000 ZEC) (1.56250000 ZEC per block)
+  difference:           23884819889 (~    238 ZEC), ZSF/legacy: 1.0001
+```
 
-Note the addition of `BLOCK_SUBSIDY_DENOMINATOR-1` before division to force rounding up of non-zero values.
-
+shows that the difference between the smoothed out and the current issuance schemes is 238 ZEC after 1680000 blocks (aroound 4 years).
 
 # References
 
