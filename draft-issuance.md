@@ -137,7 +137,7 @@ The graph below shows the balance of the ZSF assuming smooth issuance is impleme
 
 # Appendix: Simulation
 
-The [ZSF simulator](https://github.com/eigerco/zsf-simulator) allows us to simulate the effects of this ZIP on the ZSF balance and the block subsidy, as well as generate plots like the one above. It's output:
+The [ZSF simulator](https://github.com/eigerco/zsf-simulator) allows us to simulate the effects of this ZIP on the ZSF balance and the block subsidy, as well as generate plots like the ones above. Its output:
 
 ```
 Last block is 47917869 in ~113.88 years
