@@ -85,7 +85,7 @@ TODO ZIP Editors:
 
 We believe that is ultimately a very minor change to the protocol, and quite simple in terms of implementation overhead. Additionally – and at the time of this writing – transaction fees are so small that 60% will likely not have a major impact.
 
-If transaction fees were to increase, future ZIPs can be written to change the 60%/40% split. Finding the optimal fee split may require an iterative approach involving adjustments based on real-world data and network dynamics.
+If transaction fees were to increase, future ZIPs can be written to change the 60%/40% split. Finding the optimal fee split may require an iterative approach involving adjustments based on real-world data and network dynamics. However, before the issuance reaches 0, these kinds of 0-issuance security issues are much less severe.
 
 In the future, other ZIPs may be written to fund the ZSF in various ways, including but not limited to:
 - ZSA fees
