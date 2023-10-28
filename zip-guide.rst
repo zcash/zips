@@ -30,7 +30,8 @@ Terminology
 
 {Edit this to reflect the key words that are actually used.}
 The key words "MUST", "REQUIRED", "MUST NOT", "SHOULD", and "MAY" in this
-document are to be interpreted as described in RFC 2119. [#RFC2119]_
+document are to be interpreted as described in BCP 14 [#BCP14]_ when, and
+only when, they appear in all capitals.
 
 {Avoid duplicating definitions from other ZIPs. Instead use wording like this:}
 
@@ -217,7 +218,7 @@ zebrad PRs.}
 References
 ==========
 
-.. [#RFC2119] `RFC 2119: Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
 .. [#protocol] `Zcash Protocol Specification, Version 2022.3.8 or later <protocol/protocol.pdf>`_
 .. [#protocol-introduction] `Zcash Protocol Specification, Version 2022.3.8. Section 1: Introduction <protocol/protocol.pdf#introduction>`_
 .. [#protocol-blockchain] `Zcash Protocol Specification, Version 2022.3.8. Section 3.3: The Block Chain <protocol/protocol.pdf#blockchain>`_
