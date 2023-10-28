@@ -8,7 +8,8 @@ from collections import deque
 import sys
 from time import sleep
 import ssl
-from io import BytesIO
+from io import BytesIO, StringIO
+import json
 
 try:
     from bs4 import BeautifulSoup
@@ -52,13 +53,23 @@ def get_links_and_destinations_from_html(f):
     dests = set()
 
     soup = BeautifulSoup(f.read(), "html5lib")
+
+    # First try to find this: <script type="application/json" data-target="react-app.embeddedData">
+    # If it exists, its content is some JSON that we need to parse to get the real content.
+    for script in soup.find_all('script'):
+        if script.get('data-target') == "react-app.embeddedData":
+            content = json.loads(script.string).get('payload', {}).get('blob', {}).get('richText')
+            if content is not None:
+                (links, dests) = get_links_and_destinations_from_html(StringIO(content))
+                break
+
     for link in soup.find_all('a'):
         if link.has_attr('href'):
-           url = link['href']
-           (internal if url.startswith('#') else links).add(url)
+            url = link['href']
+            (internal if url.startswith('#') else links).add(url)
 
         if link.has_attr('name'):
-           dests.add(link['name'])
+            dests.add(link['name'])
 
     for link in soup.find_all(id=True):
         dests.add(link['id'])
