@@ -54,13 +54,13 @@ These terms are formally defined in ZIP 227 [#zip-0227]_.
 
 The Asset Identifier (via means of the Asset Digest and Asset Base) will be used to enforce that the balance of an Action Description [#protocol-actions]_ is preserved across Assets (see the Orchard Binding Signature [#protocol-binding]_), and by extension the balance of an Orchard transaction. That is, the sum of all the :math:`\mathsf{value^{net}}` from each Action Description, computed as :math:`\mathsf{value^{old}-value^{new}}`, must be balanced **only with respect to the same Asset Identifier**. This is especially important since we will allow different Action Descriptions to transfer notes of different Asset Identifiers, where the overall balance is checked without revealing which (or how many distinct) Assets are being transferred.
 
-As was initially proposed by Jack Grigg and Daira Hopwood [#initial-zsa-issue]_ [#generalized-value-commitments]_, we propose to make this happen by changing the value base point, :math:`\mathcal{V}^{\mathsf{Orchard}}`, in the Homomorphic Pedersen Commitment that derives the value commitment, :math:`\mathsf{cv^{net}}`, of the *net value* in an Orchard Action.
+As was initially proposed by Jack Grigg and Daira Emma Hopwood [#initial-zsa-issue]_ [#generalized-value-commitments]_, we propose to make this happen by changing the value base point, :math:`\mathcal{V}^{\mathsf{Orchard}}`, in the Homomorphic Pedersen Commitment that derives the value commitment, :math:`\mathsf{cv^{net}}`, of the *net value* in an Orchard Action.
 
 Because in a single transaction all value commitments are balanced, there must be as many different value base points as there are Asset Identifiers for a given shielded protocol used in a transaction. We propose to make the Asset Base an auxiliary input to the proof for each Action statement [#protocol-actionstatement]_, represented already as a point on the Pallas curve. The circuit then should check that the same Asset Base is used in the old note commitment and the new note commitment [#protocol-concretesinsemillacommit]_, **and** as the base point in the value commitment [#protocol-concretevaluecommit]_. This ensures (1) that the input and output notes are of the same Asset Base, and (2) that only Actions with the same Asset Base will balance out in the Orchard binding signature.
 
 In order to ensure the security of the transfers, and as we will explain below, we are redefining input dummy notes [#protocol-dummynotes]_ for Custom Assets, as we need to enforce that the :math:`\mathsf{AssetBase}` of the output note of that Split Action is the output of a valid :math:`\mathsf{ZSAValueBase}` computation defined in ZIP 227 [#zip-0227]_.
 
-We include the ability to pause the ZSA functionality, via a :math:`\mathsf{enableZSA}` boolean flag. When this flag is set to false, it is not possible to perform transactions involving Custom Assets (the circuit will fail).
+We include the ability to pause the ZSA functionality, via a :math:`\mathsf{enableZSA}` boolean flag. When this flag is set to false, it is not possible to perform transactions involving Custom Assets (the Action statement as modified for ZSAs will not be satisfied).
 
 Finally, in this ZIP we also describe the *burn* mechanism, which is a direct extension of the transfer mechanism. The burn process uses a similar mechanism to what is used in Orchard to unshield ZEC, by using the :math:`\mathsf{valueBalance}` of the Asset in question. Burning Assets is useful for many purposes, including bridging of Wrapped Assets and removing supply of Assets.
 
@@ -85,20 +85,20 @@ Note Structure & Commitment
 ---------------------------
 
 Let :math:`\mathsf{Note^{OrchardZSA}}` be the type of a ZSA note, i.e. 
-:math:`\mathsf{Note^{OrchardZSA}} := \mathsf{Note^{Orchard}} \times \mathbb{P}*`.
+:math:`\mathsf{Note^{OrchardZSA}} := \mathsf{Note^{Orchard}} \times \mathbb{P}^*`.
 
 An Orchard ZSA note differs from an Orchard note [#protocol-notes]_ by additionally including the Asset Base, :math:`\mathsf{AssetBase}`. So a ZSA note is a tuple :math:`(\mathsf{g_d, pk_d, v, \rho, \psi, \mathsf{AssetBase}})`,
 where 
 
-- :math:`\mathsf{AssetBase} : \mathbb{P}*` is the unique element of the Pallas group [#protocol-pallasandvesta]_ that identifies each Asset in the Orchard protocol, defined as the Asset Base in ZIP 227 [#zip-0227]_, a valid non-bottom group element that is not the identity. The byte representation of the Asset Base is defined as :math:`\mathsf{asset\_base} : \mathbb{B}^{[\ell_{\mathbb{P}}]} := \mathsf{repr}_{\mathbb{P}}(\mathsf{AssetBase})`.
+- :math:`\mathsf{AssetBase} : \mathbb{P}^*` is the unique element of the Pallas group [#protocol-pallasandvesta]_ that identifies each Asset in the Orchard protocol, defined as the Asset Base in ZIP 227 [#zip-0227]_, a valid group element that is not the identity and is not :math:`\bot`. The byte representation of the Asset Base is defined as :math:`\mathsf{asset\_base} : \mathbb{B}^{[\ell_{\mathbb{P}}]} := \mathsf{repr}_{\mathbb{P}}(\mathsf{AssetBase})`.
 
 Note that the above assumes a canonical encoding, which is true for the Pallas group, but may not hold for future shielded protocols.
 
 We define the note commitment scheme :math:`\mathsf{NoteCommit^{OrchardZSA}_{rcm}}` as follows:
 
-.. math:: \mathsf{NoteCommit}^{\mathsf{OrchardZSA}} : \mathsf{NoteCommit}^{\mathsf{Orchard}}.\mathsf{Trapdoor} \times \mathbb{B}^{[\ell_{\mathbb{P}}]} \times \mathbb{B}^{[\ell_{\mathbb{P}}]} \times \{0 .. 2^{\ell_{\mathsf{value}}} - 1\} \times \mathbb{F}_{q_{\mathbb{P}}} \times \mathbb{F}_{q_{\mathbb{P}}} \times \mathbb{P}* \to \mathsf{NoteCommit}^{\mathsf{Orchard}}.\mathsf{Output}
+.. math:: \mathsf{NoteCommit}^{\mathsf{OrchardZSA}} : \mathsf{NoteCommit}^{\mathsf{Orchard}}.\mathsf{Trapdoor} \times \mathbb{B}^{[\ell_{\mathbb{P}}]} \times \mathbb{B}^{[\ell_{\mathbb{P}}]} \times \{0 .. 2^{\ell_{\mathsf{value}}} - 1\} \times \mathbb{F}_{q_{\mathbb{P}}} \times \mathbb{F}_{q_{\mathbb{P}}} \times \mathbb{P}^* \to \mathsf{NoteCommit}^{\mathsf{Orchard}}.\mathsf{Output}
 
-where :math:`\mathbb{P}, \ell_{\mathbb{P}}, q_{\mathbb{P}}` are as defined for the Pallas curve [#protocol-pallasandvesta]_, and :math:`\mathsf{NoteCommit}^{\mathsf{Orchard}}.\mathsf{Trapdoor}, \mathsf{Orchard}.\mathsf{Output}` are as defined in the Zcash protocol specification [#protocol-abstractcommit]_.
+where :math:`\mathbb{P}, \ell_{\mathbb{P}}, q_{\mathbb{P}}` are as defined for the Pallas curve [#protocol-pallasandvesta]_, and where :math:`\mathsf{NoteCommit}^{\mathsf{Orchard}}.\mathsf{Trapdoor}` and :math:`\mathsf{Orchard}.\mathsf{Output}` are as defined in the Zcash protocol specification [#protocol-abstractcommit]_.
 This note commitment scheme is instantiated using the Sinsemilla Commitment [#protocol-concretesinsemillacommit]_ as follows:
 
 .. math:: \begin{align} 
@@ -113,7 +113,7 @@ where:
     
 .. math:: \begin{align}
     \mathsf{cm}_{\mathsf{ZSA}} :=&\ \mathsf{SinsemillaHashToPoint}( \texttt{"z.cash:ZSA-NoteCommit-M"}, \\
-    &\ \ \ \mathsf{g_{d}*}\; \| \; \mathsf{pk_{d}*}\; \| \; \mathsf{I2LEBSP_{64}(v)}\; \| \; \mathsf{I2LEBSP}_{\ell^{\mathsf{Orchard}}_{\mathsf{base}}}(\rho)\; \| \; \mathsf{I2LEBSP}_{\ell^{\mathsf{Orchard}}_{\mathsf{base}}}(\psi)\; \| \; \mathsf{asset\_base}) \\
+    &\ \ \ \mathsf{g_{d}*} \,||\, \mathsf{pk_{d}*} \,||\, \mathsf{I2LEBSP_{64}(v)} \,||\, \mathsf{I2LEBSP}_{\ell^{\mathsf{Orchard}}_{\mathsf{base}}}(\rho) \,||\, \mathsf{I2LEBSP}_{\ell^{\mathsf{Orchard}}_{\mathsf{base}}}(\psi) \,||\, \mathsf{asset\_base}) \\
     &\ + [\mathsf{rcm}] \mathsf{GroupHash}^{\mathbb{P}}(\texttt{"z.cash:Orchard-NoteCommit-r"},\texttt{""})
     \end{align}
 
@@ -169,7 +169,7 @@ Burn Mechanism
 The burn mechanism is a transparent extension to the transfer protocol that enables a specific amount of any Asset Identifier to be "destroyed". The burn mechanism does NOT send Assets to a non-spendable address, it simply reduces the total number of units of a given Custom Asset in circulation at the consensus level. It is enforced at the consensus level, by using an extension of the value balance mechanism used for ZEC Assets.
 Burning makes it globally provable that a given amount of an Asset has been destroyed.
 
-The sender includes a :math:`\mathsf{v_{AssetId}}` variable for every Asset Identifier that is being burnt, which represents the amount of that Asset being burnt. As described in the `Orchard-ZSA Transaction Structure`_, this is separate from the regular :math:`\mathsf{valueBalance^Orchard}` that is the default transparent value for the ZEC Asset, and represents either the transaction fee, or the amount of ZEC changing pools (eg: to Sapling or Transparent).
+The sender includes a :math:`\mathsf{v_{AssetId}}` variable for every Asset Identifier that is being burnt, which represents the amount of that Asset being burnt. As described in the `Orchard-ZSA Transaction Structure`_, this is separate from the regular :math:`\mathsf{valueBalance^Orchard}` that is the default transparent value for the ZEC Asset, and represents either the transaction fee, or the amount of ZEC changing pools (e.g. to Sapling or Transparent).
 
 For every Custom Asset that is burnt, we add to the :math:`\mathsf{assetBurn}` vector the tuple :math:`(\mathsf{AssetBase}_{\mathsf{AssetId}},\mathsf{v_{AssetId}})` such that the validator of the transaction can compute the value commitment with the corresponding value base point of that Asset. This ensures that the values are all balanced out with respect to the Asset Identifiers in the transfer.
 
@@ -241,7 +241,7 @@ Wallets and other clients have to choose from the following to ensure the Asset 
 2. The Split Input note could be a different unspent note containing the same Asset Base (note that the note will not actually be spent).
 3. The Split Input note could be an already spent note containing the same Asset Base (note that by zeroing the value in the circuit, we prevent double spending).
 
-For Split Notes, the nullifier is generated as follows
+For Split Notes, the nullifier is generated as follows:
 
 .. math:: \mathsf{nf_{old}} = \mathsf{Extract}_{\mathbb{P}} ([(\mathsf{PRF^{nfOrchard}_{nk}} (\rho^{\mathsf{old}}) + \psi') \bmod q_{\mathbb{P}}] \mathcal{K}^\mathsf{Orchard} + \mathsf{cm^{old}} + \mathcal{L}^\mathsf{Orchard})
 
