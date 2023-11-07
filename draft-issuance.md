@@ -39,6 +39,8 @@ Instead of following a step function around the 4-year halving intervals inherit
 from Bitcoin, we propose a slow exponential “smoothing” of the curve. The new issuance
 scheme would approximate the current issuance over 4-year intervals.
 
+This ZIP depends on the ZIP introducing the Zcash Sustainability Fund (ZIP-XXX).
+
 # Motivation
 
 The current Zcash economic model, inherited from Bitcoin, includes a halving mechanism which dictates the issuance of new coins. While this has been foundational, halvings can lead to abrupt changes in the rate of new coins being introduced to the market. Such sudden shifts can potentially disrupt the network's economic model, potentially impacting its security and stability. Furthermore, the halvings schedule is fixed and does not provide any way to "recycle" funds into future issuance.
