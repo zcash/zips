@@ -80,6 +80,7 @@ The coinbase transaction at block height `height` MUST have a `zsfDeposit` that 
 TODO ZIP Editors:
 - work out how to deal with pre-v6 transactions which don't have the zsfDeposit() field. For example, by requiring the remaining value in the transparent transaction value pool of a coinbase transaction to be greater than or equal to 60% of the fee
 - consider imposing this requirement on v6 transactions instead of an explicit `ZSF_DEPOSIT` field requirement
+- work out the necessary protocol spec changes.
 
 # Rationale
 
