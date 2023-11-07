@@ -159,9 +159,9 @@ This fragment of the output
 
 ```
 Halving  1 at block  1680000:
-  ZSF subsidies:    262523884819889 (~2625238 ZEC)
-  legacy subsidies: 262500000000000 (~2625000 ZEC) (1.56250000 ZEC per block)
-  difference:           23884819889 (~    238 ZEC), ZSF/legacy: 1.0001
+  ZSF subsidies:    262523884819889 (~ 2625238.848 ZEC,        1.563 ZEC per block)
+  legacy subsidies: 262500000000000 (~ 2625000.000 ZEC,        1.562 ZEC per block)
+  difference:           23884819889 (~         238 ZEC),         ZSF/legacy: 1.0001
 ```
 
 shows that the difference between the smoothed out and the current issuance schemes is 238 ZEC after 1680000 blocks (aroound 4 years).
