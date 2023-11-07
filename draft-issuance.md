@@ -116,6 +116,12 @@ The value `4126 / 10_000_000_000` satisfies the approximation within +0.002%:
 Meaning after a period of 4 years around half of `ZSF_BALANCE` will be paid out
 as block subsidies, thus satisfying **R4**.
 
+The largest possible amount in the ZSF is MAX_MONEY, in the theoretically possible case that all issued funds are deposited back into the ZSF. If this happened, the largest interim sum in the block subsidy calculation would be MAX_MONEY * 4126 + 10000000000.
+
+This uses 62.91 bits, which is just under the 63 bit limit for signed 64-bit integer amount types.
+
+The numerator could be brought closer to the limit by using a larger denominator, but the difference in the amount issued would be very small. So we chose a power-of-10 denominator for simplicity.
+
 TODO for ZIP owners: How many ZEC per day?
 
 ## `DEPLOYMENT_BLOCK_HEIGHT`
