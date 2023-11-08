@@ -35,6 +35,8 @@ This ZIP attempts to establish a symbiotic relationship between miner incentives
 
 Implementing this change allows the ZSF to accrue value earlier. By ensuring a consistent source of funding, the ZSF contributes to bolstering the Zcash network’s long-term security and sustainability.
 
+This ZIP depends on the ZIP introducing the Zcash Sustainability Fund (ZIP-XXX).
+
 # Motivation
 
 While ZIP-XXX (Establishing the Zcash Sustainability Fund) describes a method by which funds can be added to the Zcash Sustainability Fund by a voluntary `ZSF_DEPOSIT` transaction field. The default value of this field is zero and it is left up to the app, wallet, and mining software implementers to make use of it.
