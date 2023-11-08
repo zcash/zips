@@ -72,7 +72,7 @@ This ZIP only proposes a single modification to the transaction fees:
 
 ## Transaction fee routing requirements
 
-- For each transaction, 60% of the total fee MUST be paid to the ZSF
+- For each transaction, 60% of the total fee are be paid to the ZSF
 - Any fractions are rounded in favour of the miner
 
 ### Consensus Rule Changes
