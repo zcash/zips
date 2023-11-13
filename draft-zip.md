@@ -90,7 +90,7 @@ The implementation of this ZIP MUST be deployed at the same time or after the Zc
 
 # Rationale
 
-We believe that is ultimately a very minor change to the protocol, and quite simple in terms of implementation overhead. Additionally – and at the time of this writing – transaction fees are so small that 60% will likely not have a major impact.
+We believe that the change made by this ZIP is ultimately a very minor change to the protocol, and quite simple in terms of implementation overhead. Additionally – and at the time of this writing – transaction fees are so small that 60% will likely not have a major impact.
 
 If transaction fees were to increase, future ZIPs can be written to change the 60%/40% split. Finding the optimal fee split may require an iterative approach involving adjustments based on real-world data and network dynamics.
 
