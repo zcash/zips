@@ -103,7 +103,7 @@ Finally, to satisfy **R3** above we always round up to the next zatoshi.
 
 ## Deployment
 
-The implementation of this ZIP MUST be deployed at the same time or after the Zcash Sustainability Fund is established.
+The implementation of this ZIP MUST be deployed at the same time or after the Zcash Sustainability Fund is established (ZIP-XXX).
 
 TBD
 
