@@ -75,7 +75,7 @@ This ZIP only proposes a single modification to the transaction fees:
 - For each transaction, 60% of the total fee are be paid to the ZSF
 - Any fractions are rounded in favour of the miner
 
-### Consensus Rule Changes
+## Consensus Rule Changes
 
 The coinbase transaction at block height `height` MUST have a `zsfDeposit` that is greater than or equal to `floor((TransactionFees(height) * 6) / 10)`, where `TransactionFees(height)` is the sum of the the remaining value in the transparent transaction value pool of the non-coinbase transactions in the block at `height`.
 
