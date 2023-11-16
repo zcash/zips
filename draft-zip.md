@@ -84,7 +84,7 @@ TODO ZIP Editors:
 
 # Deployment
 
-The implementation of this ZIP MUST be deployed at the same time or after the Zcash Sustainability Fund is established.
+The implementation of this ZIP MUST be deployed at the same time or after the Zcash Sustainability Fund (ZIP-XXX), and subsidy smoothing  (ZIP-YYY).
 
 # Rationale
 
