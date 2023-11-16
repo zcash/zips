@@ -35,7 +35,7 @@ This ZIP attempts to establish a symbiotic relationship between miner incentives
 
 Implementing this change allows the ZSF to accrue value earlier. By ensuring a consistent source of funding, the ZSF contributes to bolstering the Zcash network’s long-term security and sustainability.
 
-This ZIP depends on the ZIP introducing the Zcash Sustainability Fund (ZIP-XXX).
+This ZIP depends on the ZIP introducing the Zcash Sustainability Fund (ZIP-XXX). This ZIP does not by itself introduce any use for the fees added to the ZSF. This could be introduced via subsidy smoothing (ZIP-YYY), or some other mechanism.
 
 # Motivation
 
