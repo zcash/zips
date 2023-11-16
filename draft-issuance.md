@@ -68,7 +68,6 @@ satisfies the following requirements:
 3. If there are funds in the ZSF, then the block subsidy must be non-zero, preventing any final “unmined” zatoshis
 4. For any 4 year period, all paid out block subsidies are approximately equal to half of the ZSF at the beginning of that 4 year period, if there are no deposits into the ZSF during those 4 years
 TODO daira: add a requirement that makes the initial total issuance match the previous total issuance  
-5. This functionality MUST be introduced as part of a network upgrade
 
 
 # Specification
