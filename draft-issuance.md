@@ -51,11 +51,6 @@ However, we anticipate schemes proposed in [#draft-zsf]_ where the amount of fun
 
 Additionally, the current Bitcoin-style issuance does not take into account the current balance of `ZsfBalanceAfter(h)`. If [#draft-zsf]_ were to activate without a change to the issuance mechanism, then some funds would never be disbursed after they are deposited back into the ZSF.
 
-In summary, by introducing a smoother emissions curve, we:
-- maintain the economic viability of Zcash
-- provide predictability of the issuance rate, allowing only miniscule changes over short time ranges
-- enhance Zcash's stability as the network evolves.
-
 # Requirements
 
 Smoothing the issuance curve is possible using an exponential decay formula that
