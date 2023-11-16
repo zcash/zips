@@ -100,12 +100,6 @@ Finally, to satisfy **R3** above we always round up to the next zatoshi.
 
 `BlockSubsidy(h) = ceiling(BLOCK_SUBSIDY_FRACTION * ZsfBalanceAfter(h - 1))`
 
-## Deployment
-
-The implementation of this ZIP MUST be deployed at the same time or after the Zcash Sustainability Fund is established (ZIP-XXX).
-
-TBD
-
 # Rationale
 
 ## `BLOCK_SUBSIDY_FRACTION`
@@ -143,6 +137,9 @@ The graph below shows the balance of the ZSF assuming smooth issuance is impleme
 
 ![A graph showing the balance of the ZSF assuming smooth issuance is implemented](./zsf_balance.png)
 
+# Deployment
+
+The implementation of this ZIP MUST be deployed at the same time or after the Zcash Sustainability Fund is established (ZIP-XXX).
 
 # Appendix: Simulation
 
