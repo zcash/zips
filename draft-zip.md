@@ -65,15 +65,13 @@ This has a multitude of benefits:
 3. **Incentivizing Transaction Inclusion**: By providing a 40% share of transaction fees to miners, this ZIP maintains incentives for miners to prioritize including transactions in their blocks. This helps ensure the efficient processing of transactions and supports a robust and responsive network.
 4. **Future-Proofing the Network**: Diverting transaction fees into the ZSF is a forward-looking approach that prepares the Zcash network for future challenges and opportunities. It establishes a financial buffer that can be instrumental in addressing unforeseen issues and seizing strategic advantages as the Zcash ecosystem evolves.
 
+# Requirements
+
+- For each block, at least 60% (rounded down) of the total fees are be paid to the ZSF.
+- No restrictions are placed on the destination of the remaining proportion of fees.
+- Any fractions are rounded in favour of the miner.
+
 # Specification
-
-This ZIP only proposes a single modification to the transaction fees:
-1. Keep the current destination of 40% of the fees untouched, but route 60% of the fees back to the ZSF
-
-## Transaction fee routing requirements
-
-- For each transaction, 60% of the total fee are be paid to the ZSF
-- Any fractions are rounded in favour of the miner
 
 ## Consensus Rule Changes
 
