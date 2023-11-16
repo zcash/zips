@@ -82,7 +82,7 @@ TODO ZIP Editors:
 - consider imposing this requirement on v6 transactions instead of an explicit `ZSF_DEPOSIT` field requirement
 - work out the necessary protocol spec changes.
 
-## Deployment
+# Deployment
 
 The implementation of this ZIP MUST be deployed at the same time or after the Zcash Sustainability Fund is established.
 
