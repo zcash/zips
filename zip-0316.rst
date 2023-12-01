@@ -90,6 +90,9 @@ Unified QR Encoding
 Address Encoding
   The externally visible encoding of an Address (e.g. as a string of
   characters or a QR code).
+Unix Epoch Time
+  An integer representing a UTC time in seconds relative to the Unix Epoch
+  of 1970-01-01T00:00:00Z.
 
 Notation for sequences, conversions, and arithmetic operations follows the
 Zcash protocol specification [#protocol-notation]_.
@@ -305,7 +308,7 @@ Revision History
 
 .. _`Revision 1`:
 
-* Revision 1: `MUST-understand typecodes`_
+* Revision 1: `MUST-understand typecodes`_ and `Address Expiration Metadata`_
 
 Specification
 =============
@@ -623,10 +626,64 @@ a Sender when choosing a Receiver to send to, and since they are not
 Viewing Keys, they MUST NOT provide additional authority to view
 information about transactions.
 
-Currently no Metadata Types are defined. New Metadata Types SHOULD be
-introduced either by a modification to this ZIP or by a new ZIP, in
-accordance with the ZIP Process [#zip-0000]_.
+Address Expiration Metadata
+---------------------------
 
+As of `Revision 1`_, typecodes :math:`\mathtt{0xE0}` and
+:math:`\mathtt{0xE1}` are reserved for address expiry metadata.
+
+The value of a :math:`\mathtt{0xE0}` item MUST be an unsigned 32-bit integer in
+little-endian order specifying the Address Expiry Height, a block height of the
+Zcash chain associated with the UA/UVK. A Unified Address containing metadata
+typecode :math:`\mathtt{0xE0}` MUST be considered expired when the height of
+the Zcash chain is greater than this value.
+
+The value of a :math:`\mathtt{0xE1}` item MUST be an unsigned 64-bit integer in
+little-endian order specifying a Unix Epoch Time, hereafter referred to as the
+Address Expiry Time. A Unified Address containing metadata typecode
+:math:`\mathtt{0xE1}` MUST be considered expired when the current time is
+after the Address Expiry Time.
+
+A Sender that supports `Revision 1`_ of this specification MUST set
+a non-zero ``nExpiryHeight`` field in transactions that it creates. If the
+``nExpiryHeight`` normally constructed by the Sender would be greater than the
+Address Expiry Height, then the transaction MUST NOT be sent. If only an
+Address Expiry Time is specified, then the Sender MUST choose a value for
+``nExpiryHeight`` such that the transaction will expire no more than 24 hours
+after the current time.
+
+If wallet user attempts to send to an expired address, the error presented to
+the user by the wallet SHOULD include a suggestion that the user should
+attempt to obtain a currently-valid address for the intended recipient.
+
+When deriving from a UFVK or UIVK containing typecodes :math:`\mathtt{0xE0}`
+and/or :math:`\mathtt{0xE1}`, these Metadata Items MUST be retained unmodified
+in the output.
+
+Rationale
+'''''''''
+
+The intent of this specification is that Consumers of Unified Addresses MUST
+NOT send to expired addresses. If only an Address Expiry Time is specified, a
+transaction to the associated address could be mined after the Address Expiry
+Time within a 24-hour window.
+
+The reason that the transaction MUST NOT be sent when its nExpiryHeight as
+normally constructed is greater than the Address Expiry Height is to avoid
+unnecessary information leakage in that field about which address was used as
+the destination. If a sender were to instead use the expiry height to directly
+set nExpiryHeight field, this would leak the expiry information of the
+destination address, which may then be identifiable.
+
+When honoring an Address Expiry Time, the reason that a sender must choose a
+``nExpiryHeight`` that is expected to occur within 24 hours of the time of
+transaction construction is to ensure that the expiry time is respected to
+within a day; since block times are not exact and computer clocks often
+disagree, an Address Expiry Time is advisory and not a hard bound. Setting an
+expiry height as specified ensures that the expiry time will be at least
+loosely respected, and it is of course both permissible and perhaps advisable
+to set this bound more tightly. A common expiry delta used by many wallets
+is 40 blocks from the current chain tip.
 
 Deriving Internal Keys
 ----------------------
