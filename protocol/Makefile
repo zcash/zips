@@ -20,10 +20,10 @@ NOCRUFT?=|perl -pe 's|[{\<\(]\/[^ ]* ?||g;s|^.* has been referenced but does not
 
 .PHONY: all all-specs release discard
 all: .Makefile.uptodate
-	$(MAKE) nu5 canopy heartwood blossom sapling
+	$(MAKE) nu6 nu5 canopy heartwood blossom sapling
 
 all-specs: .Makefile.uptodate
-	$(MAKE) nu5.pdf canopy.pdf heartwood.pdf blossom.pdf sapling.pdf
+	$(MAKE) nu6.pdf nu5.pdf canopy.pdf heartwood.pdf blossom.pdf sapling.pdf
 
 release:
 ifeq ($(shell git tag --points-at HEAD |wc -l),0)
@@ -59,6 +59,9 @@ canopy.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling
 
 nu5.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
 	$(MAKE) nu5
+
+nu6.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
+	$(MAKE) nu6
 
 .PHONY: auxsapling
 auxsapling:
@@ -126,6 +129,20 @@ nu5:
 	mv -f aux/nu5.pdf .
 	cp -f nu5.pdf protocol.pdf
 
+.PHONY: auxnu6
+auxnu6:
+	printf '\\toggletrue{isnusix}\n\\renewcommand{\\docversion}{Version %s [\\NUSixSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	mkdir -p aux
+	rm -f aux/nu6.*
+	cp mymakeindex.sh aux
+	$(LATEXMK) -jobname=nu6 -auxdir=aux -outdir=aux $(EXTRAOPT) protocol $(NOCRUFT)
+
+.PHONY: nu6
+nu6:
+	$(MAKE) auxnu6
+	mv -f aux/nu6.pdf .
+	cp -f nu6.pdf protocol.pdf
+
 .PHONY: nolatexmk-sapling
 nolatexmk-sapling:
 	printf '\\toggletrue{issapling}\n\\renewcommand{\\docversion}{Version %s [\\SaplingSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
@@ -187,6 +204,18 @@ nolatexmk-nu5:
 	sh mymakeindex.sh -o nu5.ind nu5.idx
 	$(LATEX) -jobname=nu5 protocol.tex || { touch incremental_merkle.png; exit 1; }
 
+.PHONY: nolatexmk-nu6
+nolatexmk-nu6:
+	printf '\\toggletrue{isnusix}\n\\renewcommand{\\docversion}{Version %s [\\NUSixSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	# If $(LATEX) fails, touch an input so that 'make' won't think it is up-to-date next time.
+	rm -f nu6.aux nu6.bbl nu6.blg nu6.brf nu6.bcf
+	$(LATEX) -jobname=nu6 protocol.tex || { touch incremental_merkle.png; exit 1; }
+	biber nu6
+	$(LATEX) -jobname=nu6 protocol.tex || { touch incremental_merkle.png; exit 1; }
+	$(LATEX) -jobname=nu6 protocol.tex || { touch incremental_merkle.png; exit 1; }
+	sh mymakeindex.sh -o nu6.ind nu6.idx
+	$(LATEX) -jobname=nu6 protocol.tex || { touch incremental_merkle.png; exit 1; }
+
 .PHONY: clean
 clean:
-	rm -f aux/* html/* protocol.ver protocol.pdf nu5.pdf canopy.pdf heartwood.pdf blossom.pdf sapling.pdf
+	rm -f aux/* html/* protocol.ver protocol.pdf nu6.pdf nu5.pdf canopy.pdf heartwood.pdf blossom.pdf sapling.pdf
