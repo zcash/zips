@@ -99,6 +99,11 @@ In the future, other ZIPs may be written to fund the ZSF in various ways, includ
 - Cross-chain bridge usage / Cross-chain messaging
 - Note sorting micro-transactional fees
 
+## Estimated impact on miners
+
+Over 105,120 blocks starting at block 2216606, there were 344,647 transactions. The total fees paid to miners, assuming the ZIP-317 regime, would be 347.81 ZEC. 105,120 blocks is approximately 3 months of blocks.
+Extrapolating to a year, we would expect 1,391.24 ZEC in fees paid to miners. If 60% of these fees were diverted to the ZSF, that would be 834.74 ZEC per year. [4]
+
 ## Future Implications
 
 Looking into the future, there may come a time when the transaction fees become greater than the block reward issuance. At that time we may need to reconsider the 60/40 split. However, this will likely not be the case for the next 8-10 years due to forcasts based on issuance models and network traffic.
@@ -110,3 +115,5 @@ Looking into the future, there may come a time when the transaction fees become 
 [2] ZIP 200: https://zips.z.cash/zip-0200
 
 [3] ZIP TBD: The Zcash Sustainability Fund ZIP (Placeholder)
+
+[4] https://github.com/eigerco/zsf-fee-estimator
