@@ -92,7 +92,7 @@ If transaction fees were to increase, future ZIPs can be written to change the 6
 
 In the future, other ZIPs may be written to fund the ZSF in various ways, including but not limited to:
 - ZSA fees
-- dApp-specific fees and donations
+- fees and donations specific to decentralized applications
 - “Storage fees” for any future data availability
 - Cross-chain bridge usage / Cross-chain messaging
 - Note sorting micro-transactional fees
