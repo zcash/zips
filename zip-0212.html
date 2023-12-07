@@ -86,7 +86,7 @@ License: MIT</pre>
              was used to compute the shared secret, but the sender is asked to include the
                 <span class="math">\(\mathsf{d}\)</span>
              within the note plaintext to reconstruct the note. However, if the recipient has more than one known address, an attacker could use a different payment address to perform secret exchange and, by observing the behavior of the recipient, link the two diversified addresses together. (This attacker strategy was discovered by Brian Warner earlier in the design of the Sapling protocol.)</p>
-            <p>In order to prevent this attack, before activation of this ZIP the protocol forced the sender to prove knowledge of the discrete logarithm of
+            <p>In order to prevent this attack before activation of this ZIP, the protocol forced the sender to prove knowledge of the discrete logarithm of
                 <span class="math">\(\mathsf{epk}\)</span>
              with respect to the
                 <span class="math">\(\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})\)</span>
@@ -113,7 +113,16 @@ License: MIT</pre>
             .</p>
         </section>
         <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>The specification in this ZIP is intended to be aligned with version 2021.2.16 or later of the Zcash Protocol Specification <a id="footnote-reference-9" class="footnote_reference" href="#protocol">2</a>.</p>
+            <aside class="note">
+                <p>The specification in this ZIP is intended to be aligned with version 2023.4.0 or later of the Zcash Protocol Specification <a id="footnote-reference-9" class="footnote_reference" href="#protocol">2</a>, and with the deployed implementations in <code>librustzcash</code> and the <code>orchard</code> crate.</p>
+                <p>Please note that prior versions of the protocol specification (2022.3.8 and earlier) were inconsistent with this ZIP regarding the domain separators for
+                    <span class="math">\(\mathsf{PRF^{expand}}\)</span>
+                 used to derive
+                    <span class="math">\(\mathsf{rcm}\)</span>
+                 and
+                    <span class="math">\(\mathsf{esk}\!\)</span>
+                . The protocol specification diverged from the deployed implementations for Sapling, and this ZIP previously (before December 2023) diverged from the deployed implementations for Orchard.</p>
+            </aside>
             <p>Pseudo random functions (PRFs) are defined in section 4.1.2 of the Zcash Protocol Specification <a id="footnote-reference-10" class="footnote_reference" href="#protocol-abstractprfs">3</a>. We will be adapting
                 <span class="math">\(\mathsf{PRF^{expand}}\)</span>
              for the purposes of this ZIP. This function is keyed by a 256-bit key
@@ -169,19 +178,51 @@ License: MIT</pre>
                 <ul>
                     <li>
                         <span class="math">\(\mathsf{rcm^{new}}\)</span>
-                     MUST be computed by the sender as the output of
-                        <span class="math">\(\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([4]))\)</span>
+                     MUST be derived as the output of
+                        <span class="math">\(\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([4]))\!\)</span>
                     .</li>
                     <li>
                         <span class="math">\(\mathsf{esk}\)</span>
-                     MUST be computed by the sender as the output of
-                        <span class="math">\(\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([5]))\)</span>
+                     MUST be derived as the output of
+                        <span class="math">\(\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([5]))\!\)</span>
                     .</li>
                 </ul>
-                <p>For Orchard, an encoding of ρ is appended to these PRF inputs, as specified in section 4.7.3 of the Zcash Protocol Specification <a id="footnote-reference-15" class="footnote_reference" href="#protocol-orchardsend">8</a>.</p>
+                <p>For Orchard:</p>
+                <ul>
+                    <li>
+                        <span class="math">\(\mathsf{rcm^{new}}\)</span>
+                     MUST be derived as the output of
+                        <span class="math">\(\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([5] \,||\, \underline{\text{ρ}}))\!\)</span>
+                    .</li>
+                    <li>
+                        <span class="math">\(\mathsf{esk}\)</span>
+                     MUST be derived as the output of
+                        <span class="math">\(\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([4] \,||\, \underline{\text{ρ}}))\!\)</span>
+                    .</li>
+                    <li>
+                        <span class="math">\(\text{φ}\)</span>
+                     MUST be derived as the output of
+                        <span class="math">\(\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([9] \,||\, \underline{\text{ρ}}))\!\)</span>
+                    .</li>
+                </ul>
+                <p>where
+                    <span class="math">\(\underline{\text{ρ}} = \mathsf{I2LEOSP}_{256}(\mathsf{nf^{old}}\)</span>
+                 from the same Action description
+                    <span class="math">\(\!)\!\)</span>
+                .</p>
+                <aside class="note">
+                    <p>The domain separators
+                        <span class="math">\([4]\)</span>
+                     and
+                        <span class="math">\([5]\)</span>
+                     used in the input to
+                        <span class="math">\(\mathsf{PRF^{expand}_{rseed}}\)</span>
+                     are swapped for Orchard relative to Sapling. This was due to an oversight and there is no good reason for it.</p>
+                    <p>The specified domain separators were corrected to match the deployed implementations in <code>librustzcash</code> and the <code>orchard</code> crate in version 2023.4.0 of the Zcash Protocol Specification, and in this ZIP from December 2023.</p>
+                </aside>
             </section>
             <section id="changes-to-the-process-of-receiving-sapling-or-orchard-notes"><h3><span class="section-heading">Changes to the process of receiving Sapling or Orchard notes</span><span class="section-anchor"> <a rel="bookmark" href="#changes-to-the-process-of-receiving-sapling-or-orchard-notes"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
-                <p>The process of receiving notes in Sapling is described in sections 4.19.2 and 4.19.3 of the Zcash Protocol Specification. <a id="footnote-reference-16" class="footnote_reference" href="#protocol-decryptivk">10</a> <a id="footnote-reference-17" class="footnote_reference" href="#protocol-decryptovk">11</a></p>
+                <p>The process of receiving notes in Sapling is described in sections 4.19.2 and 4.19.3 of the Zcash Protocol Specification. <a id="footnote-reference-15" class="footnote_reference" href="#protocol-decryptivk">10</a> <a id="footnote-reference-16" class="footnote_reference" href="#protocol-decryptovk">11</a></p>
                 <p>There is a "grace period" of 32256 blocks starting from the block at which this ZIP activates, during which note plaintexts with lead byte
                     <span class="math">\(\mathtt{0x01}\)</span>
                  MUST still be accepted.</p>
@@ -207,27 +248,25 @@ License: MIT</pre>
                  contains a field
                     <span class="math">\(\mathsf{rseed}\)</span>
                  that is a
-                    <span class="math">\(32\)</span>
+                    <span class="math">\(32\!\)</span>
                 -byte sequence rather than a scalar value
+                    <span class="math">\(\mathsf{rcm}\!\)</span>
+                . The recipient, during decryption and in any later contexts, will derive
                     <span class="math">\(\mathsf{rcm}\)</span>
-                . The recipient, during decryption and in any later contexts, will interpret the value
-                    <span class="math">\(\mathsf{rcm}\)</span>
-                 as the output of
-                    <span class="math">\(\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([4]))\)</span>
-                 in the case of Sapling. Further, the recipient MUST compute
+                 using
+                    <span class="math">\(\mathsf{PRF^{expand}_{rseed}}\)</span>
+                 in the same way as the sender, as described in <a href="#changes-to-the-process-of-sending-sapling-or-orchard-notes">Changes to the process of sending Sapling or Orchard notes</a>. Further, the recipient MUST derive
                     <span class="math">\(\mathsf{esk}\)</span>
-                 as
-                    <span class="math">\(\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([5]))\)</span>
-                 in the case of Sapling, and check that
-                    <span class="math">\(\mathsf{epk} = [\mathsf{esk}]\, \mathsf{g_d}\)</span>
-                , failing decryption if this check is not satisfied. For Orchard, an encoding of ρ is appended to the PRF inputs, as for encryption.</p>
+                 as described in that section and check that
+                    <span class="math">\(\mathsf{epk} = [\mathsf{esk}]\, \mathsf{g_d}\!\)</span>
+                , failing decryption if this check is not satisfied.</p>
             </section>
             <section id="consensus-rule-change-for-coinbase-transactions"><h3><span class="section-heading">Consensus rule change for coinbase transactions</span><span class="section-anchor"> <a rel="bookmark" href="#consensus-rule-change-for-coinbase-transactions"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
-                <p>After the activation of this ZIP, any Sapling output of a coinbase transaction that is decrypted to a note plaintext as specified in <a id="footnote-reference-18" class="footnote_reference" href="#zip-0213">17</a>, MUST have note plaintext lead byte equal to
+                <p>After the activation of this ZIP, any Sapling output of a coinbase transaction that is decrypted to a note plaintext as specified in <a id="footnote-reference-17" class="footnote_reference" href="#zip-0213">17</a>, MUST have note plaintext lead byte equal to
                     <span class="math">\(\mathtt{0x02}\)</span>
                 .</p>
-                <p>This applies even during the “grace period”, and also applies to funding stream outputs <a id="footnote-reference-19" class="footnote_reference" href="#zip-0207">16</a> sent to shielded payment addresses, if there are any.</p>
-                <p>Since NU5 activates after the end of the grace period <a id="footnote-reference-20" class="footnote_reference" href="#zip-0252">19</a>, Orchard outputs will always require a note plaintext lead byte equal to
+                <p>This applies even during the “grace period”, and also applies to funding stream outputs <a id="footnote-reference-18" class="footnote_reference" href="#zip-0207">16</a> sent to shielded payment addresses, if there are any.</p>
+                <p>Since NU5 activates after the end of the grace period <a id="footnote-reference-19" class="footnote_reference" href="#zip-0252">19</a>, Orchard outputs will always require a note plaintext lead byte equal to
                     <span class="math">\(\mathtt{0x02}\)</span>
                 .</p>
             </section>
@@ -253,7 +292,7 @@ License: MIT</pre>
              that were sent conformantly and not mined before the upgrade.</p>
             <p>Historical note: in practice some note plaintexts with lead byte
                 <span class="math">\(\mathtt{0x01}\)</span>
-             were non-conformantly sent even after the end of the specified grace period. ZecWallet extended its implementation of the grace period by a further 161280 blocks (approximately 20 weeks) in order to allow for recovery of these funds <a id="footnote-reference-21" class="footnote_reference" href="#zecwallet-grace-extension">20</a>.</p>
+             were non-conformantly sent even after the end of the specified grace period. ZecWallet extended its implementation of the grace period by a further 161280 blocks (approximately 20 weeks) in order to allow for recovery of these funds <a id="footnote-reference-20" class="footnote_reference" href="#zecwallet-grace-extension">20</a>.</p>
         </section>
         <section id="security-and-privacy-considerations"><h2><span class="section-heading">Security and Privacy Considerations</span><span class="section-anchor"> <a rel="bookmark" href="#security-and-privacy-considerations"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <p>The changes made in this proposal prevent an interactive attack that could link together diversified addresses by only breaking the knowledge soundness assumption of the zk-SNARK. It is already assumed that the adversary cannot defeat the EC-DDH assumption of the Jubjub (or Pallas) elliptic curve, for it could perform a linkability attack trivially in that case.</p>
@@ -264,7 +303,7 @@ License: MIT</pre>
             ) this would lead to an instance of key-dependent encryption, which is difficult or perhaps impossible to prove secure using existing security notions. Our approach of using a key derivation, which ultimately queries an oracle, allows a proof for IND-CCA2 security to be written by reprogramming the oracle to return bogus keys when necessary.</p>
         </section>
         <section id="deployment"><h2><span class="section-heading">Deployment</span><span class="section-anchor"> <a rel="bookmark" href="#deployment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>This proposal will be deployed with the Canopy network upgrade. <a id="footnote-reference-22" class="footnote_reference" href="#zip-0251">18</a></p>
+            <p>This proposal will be deployed with the Canopy network upgrade. <a id="footnote-reference-21" class="footnote_reference" href="#zip-0251">18</a></p>
         </section>
         <section id="reference-implementation"><h2><span class="section-heading">Reference Implementation</span><span class="section-anchor"> <a rel="bookmark" href="#reference-implementation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <p>In zcashd:</p>
@@ -292,7 +331,7 @@ License: MIT</pre>
                 <tbody>
                     <tr>
                         <th>2</th>
-                        <td><a href="protocol/protocol.pdf">Zcash Protocol Specification, Version 2021.2.16 or later</a></td>
+                        <td><a href="protocol/protocol.pdf">Zcash Protocol Specification, Version 2023.4.0 or later</a></td>
                     </tr>
                 </tbody>
             </table>
@@ -300,7 +339,7 @@ License: MIT</pre>
                 <tbody>
                     <tr>
                         <th>3</th>
-                        <td><a href="protocol/protocol.pdf#abstractprfs">Zcash Protocol Specification, Version 2021.2.16. Section 4.1.2: Pseudo Random Functions</a></td>
+                        <td><a href="protocol/protocol.pdf#abstractprfs">Zcash Protocol Specification, Version 2023.4.0. Section 4.1.2: Pseudo Random Functions</a></td>
                     </tr>
                 </tbody>
             </table>
@@ -308,7 +347,7 @@ License: MIT</pre>
                 <tbody>
                     <tr>
                         <th>4</th>
-                        <td><a href="protocol/protocol.pdf#abstractcommit">Zcash Protocol Specification, Version 2021.2.16. Section 4.1.8: Commitment</a></td>
+                        <td><a href="protocol/protocol.pdf#abstractcommit">Zcash Protocol Specification, Version 2023.4.0. Section 4.1.8: Commitment</a></td>
                     </tr>
                 </tbody>
             </table>
@@ -316,7 +355,7 @@ License: MIT</pre>
                 <tbody>
                     <tr>
                         <th>5</th>
-                        <td><a href="protocol/protocol.pdf#saplingkeycomponents">Zcash Protocol Specification, Version 2021.2.16. Section 4.2.2: Sapling Key Components</a></td>
+                        <td><a href="protocol/protocol.pdf#saplingkeycomponents">Zcash Protocol Specification, Version 2023.4.0. Section 4.2.2: Sapling Key Components</a></td>
                     </tr>
                 </tbody>
             </table>
@@ -324,7 +363,7 @@ License: MIT</pre>
                 <tbody>
                     <tr>
                         <th>6</th>
-                        <td><a href="protocol/protocol.pdf#orchardkeycomponents">Zcash Protocol Specification, Version 2021.2.16. Section 4.2.3: Orchard Key Components</a></td>
+                        <td><a href="protocol/protocol.pdf#orchardkeycomponents">Zcash Protocol Specification, Version 2023.4.0. Section 4.2.3: Orchard Key Components</a></td>
                     </tr>
                 </tbody>
             </table>
@@ -332,7 +371,7 @@ License: MIT</pre>
                 <tbody>
                     <tr>
                         <th>7</th>
-                        <td><a href="protocol/protocol.pdf#saplingsend">Zcash Protocol Specification, Version 2021.2.16. Section 4.7.2: Sending Notes (Sapling)</a></td>
+                        <td><a href="protocol/protocol.pdf#saplingsend">Zcash Protocol Specification, Version 2023.4.0. Section 4.7.2: Sending Notes (Sapling)</a></td>
                     </tr>
                 </tbody>
             </table>
@@ -340,7 +379,7 @@ License: MIT</pre>
                 <tbody>
                     <tr>
                         <th>8</th>
-                        <td><a href="protocol/protocol.pdf#orchardsend">Zcash Protocol Specification, Version 2021.2.16. Section 4.7.3: Sending Notes (Orchard)</a></td>
+                        <td><a href="protocol/protocol.pdf#orchardsend">Zcash Protocol Specification, Version 2023.4.0. Section 4.7.3: Sending Notes (Orchard)</a></td>
                     </tr>
                 </tbody>
             </table>
@@ -348,7 +387,7 @@ License: MIT</pre>
                 <tbody>
                     <tr>
                         <th>9</th>
-                        <td><a href="protocol/protocol.pdf#saplingandorchardencrypt">Zcash Protocol Specification, Version 2021.2.16. Section 4.19.1: Encryption (Sapling and Orchard)</a></td>
+                        <td><a href="protocol/protocol.pdf#saplingandorchardencrypt">Zcash Protocol Specification, Version 2023.4.0. Section 4.19.1: Encryption (Sapling and Orchard)</a></td>
                     </tr>
                 </tbody>
             </table>
@@ -356,7 +395,7 @@ License: MIT</pre>
                 <tbody>
                     <tr>
                         <th>10</th>
-                        <td><a href="protocol/protocol.pdf#decryptivk">Zcash Protocol Specification, Version 2021.2.16. Section 4.19.2: Decryption using an Incoming Viewing Key (Sapling and Orchard)</a></td>
+                        <td><a href="protocol/protocol.pdf#decryptivk">Zcash Protocol Specification, Version 2023.4.0. Section 4.19.2: Decryption using an Incoming Viewing Key (Sapling and Orchard)</a></td>
                     </tr>
                 </tbody>
             </table>
@@ -364,7 +403,7 @@ License: MIT</pre>
                 <tbody>
                     <tr>
                         <th>11</th>
-                        <td><a href="protocol/protocol.pdf#decryptovk">Zcash Protocol Specification, Version 2021.2.16. Section 4.19.3: Decryption using a Full Viewing Key (Sapling and Orchard)</a></td>
+                        <td><a href="protocol/protocol.pdf#decryptovk">Zcash Protocol Specification, Version 2023.4.0. Section 4.19.3: Decryption using a Full Viewing Key (Sapling and Orchard)</a></td>
                     </tr>
                 </tbody>
             </table>
@@ -372,7 +411,7 @@ License: MIT</pre>
                 <tbody>
                     <tr>
                         <th>12</th>
-                        <td><a href="protocol/protocol.pdf#concretediversifyhash">Zcash Protocol Specification, Version 2021.2.16. Section 5.4.1.6: DiversifyHash^Sapling and DiversifyHash^Orchard Hash Functions</a></td>
+                        <td><a href="protocol/protocol.pdf#concretediversifyhash">Zcash Protocol Specification, Version 2023.4.0. Section 5.4.1.6: DiversifyHash^Sapling and DiversifyHash^Orchard Hash Functions</a></td>
                     </tr>
                 </tbody>
             </table>
@@ -380,7 +419,7 @@ License: MIT</pre>
                 <tbody>
                     <tr>
                         <th>13</th>
-                        <td><a href="protocol/protocol.pdf#concretesaplingkeyagreement">Zcash Protocol Specification, Version 2021.2.16. Section 5.4.5.3 Sapling Key Agreement</a></td>
+                        <td><a href="protocol/protocol.pdf#concretesaplingkeyagreement">Zcash Protocol Specification, Version 2023.4.0. Section 5.4.5.3 Sapling Key Agreement</a></td>
                     </tr>
                 </tbody>
             </table>
@@ -388,7 +427,7 @@ License: MIT</pre>
                 <tbody>
                     <tr>
                         <th>14</th>
-                        <td><a href="protocol/protocol.pdf#concreteorchardkeyagreement">Zcash Protocol Specification, Version 2021.2.16. Section 5.4.5.5 Orchard Key Agreement</a></td>
+                        <td><a href="protocol/protocol.pdf#concreteorchardkeyagreement">Zcash Protocol Specification, Version 2023.4.0. Section 5.4.5.5 Orchard Key Agreement</a></td>
                     </tr>
                 </tbody>
             </table>
@@ -396,7 +435,7 @@ License: MIT</pre>
                 <tbody>
                     <tr>
                         <th>15</th>
-                        <td><a href="protocol/protocol.pdf#notept">Zcash Protocol Specification, Version 2021.2.16. Section 5.5: Encodings of Note Plaintexts and Memo Fields</a></td>
+                        <td><a href="protocol/protocol.pdf#notept">Zcash Protocol Specification, Version 2023.4.0. Section 5.5: Encodings of Note Plaintexts and Memo Fields</a></td>
                     </tr>
                 </tbody>
             </table>

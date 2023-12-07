@@ -82,7 +82,7 @@ behavior of the recipient, link the two diversified addresses together. (This
 attacker strategy was discovered by Brian Warner earlier in the design of the
 Sapling protocol.)
 
-In order to prevent this attack, before activation of this ZIP the protocol
+In order to prevent this attack before activation of this ZIP, the protocol
 forced the sender to prove knowledge of the discrete logarithm of
 :math:`\mathsf{epk}` with respect to the
 :math:`\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})` included within the
@@ -113,8 +113,19 @@ concerns by using a key derivation to obtain both :math:`\mathsf{esk}` and
 Specification
 =============
 
-The specification in this ZIP is intended to be aligned with version 2021.2.16
-or later of the Zcash Protocol Specification [#protocol]_.
+.. note::
+    The specification in this ZIP is intended to be aligned with version
+    2023.4.0 or later of the Zcash Protocol Specification [#protocol]_,
+    and with the deployed implementations in ``librustzcash`` and the
+    ``orchard`` crate.
+
+    Please note that prior versions of the protocol specification
+    (2022.3.8 and earlier) were inconsistent with this ZIP regarding the
+    domain separators for :math:`\mathsf{PRF^{expand}}` used to derive
+    :math:`\mathsf{rcm}` and :math:`\mathsf{esk}\!`. The protocol
+    specification diverged from the deployed implementations for Sapling,
+    and this ZIP previously (before December 2023) diverged from the
+    deployed implementations for Orchard.
 
 Pseudo random functions (PRFs) are defined in section 4.1.2 of the Zcash
 Protocol Specification [#protocol-abstractprfs]_. We will be adapting
@@ -164,13 +175,31 @@ random :math:`32`-byte sequence :math:`\mathsf{rseed}`. The note plaintext takes
 
 For Sapling:
 
-* :math:`\mathsf{rcm^{new}}` MUST be computed by the sender as the output of
-  :math:`\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([4]))`.
-* :math:`\mathsf{esk}` MUST be computed by the sender as the output of
-  :math:`\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([5]))`.
+* :math:`\mathsf{rcm^{new}}` MUST be derived as the output of
+  :math:`\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([4]))\!`.
+* :math:`\mathsf{esk}` MUST be derived as the output of
+  :math:`\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([5]))\!`.
 
-For Orchard, an encoding of ρ is appended to these PRF inputs, as specified in
-section 4.7.3 of the Zcash Protocol Specification [#protocol-orchardsend]_.
+For Orchard:
+
+* :math:`\mathsf{rcm^{new}}` MUST be derived as the output of
+  :math:`\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([5] \,||\, \underline{\text{ρ}}))\!`.
+* :math:`\mathsf{esk}` MUST be derived as the output of
+  :math:`\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([4] \,||\, \underline{\text{ρ}}))\!`.
+* :math:`\text{φ}` MUST be derived as the output of
+  :math:`\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([9] \,||\, \underline{\text{ρ}}))\!`.
+
+where :math:`\underline{\text{ρ}} = \mathsf{I2LEOSP}_{256}(\mathsf{nf^{old}}` from the same Action description :math:`\!)\!`.
+
+.. note::
+    The domain separators :math:`[4]` and :math:`[5]` used in the input to
+    :math:`\mathsf{PRF^{expand}_{rseed}}` are swapped for Orchard relative to
+    Sapling. This was due to an oversight and there is no good reason for it.
+
+    The specified domain separators were corrected to match the deployed
+    implementations in ``librustzcash`` and the ``orchard`` crate in
+    version 2023.4.0 of the Zcash Protocol Specification, and in this ZIP
+    from December 2023.
 
 Changes to the process of receiving Sapling or Orchard notes
 ------------------------------------------------------------
@@ -211,15 +240,13 @@ it was accepted at that time, but it is later mined in a block after the end of
 the grace period, then it MAY be retained.
 
 A note plaintext with lead byte :math:`\mathtt{0x02}` contains a field
-:math:`\mathsf{rseed}` that is a :math:`32`-byte sequence rather than a scalar
-value :math:`\mathsf{rcm}`. The recipient, during decryption and in any later
-contexts, will interpret the value :math:`\mathsf{rcm}` as the output of
-:math:`\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([4]))` in the case of
-Sapling. Further, the recipient MUST compute :math:`\mathsf{esk}` as
-:math:`\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([5]))` in the case of
-Sapling, and check that :math:`\mathsf{epk} = [\mathsf{esk}]\, \mathsf{g_d}`,
-failing decryption if this check is not satisfied. For Orchard, an encoding of ρ
-is appended to the PRF inputs, as for encryption.
+:math:`\mathsf{rseed}` that is a :math:`32\!`-byte sequence rather than a scalar
+value :math:`\mathsf{rcm}\!`. The recipient, during decryption and in any later
+contexts, will derive :math:`\mathsf{rcm}` using :math:`\mathsf{PRF^{expand}_{rseed}}`
+in the same way as the sender, as described in `Changes to the process of sending Sapling or Orchard notes`_.
+Further, the recipient MUST derive :math:`\mathsf{esk}` as described in that
+section and check that :math:`\mathsf{epk} = [\mathsf{esk}]\, \mathsf{g_d}\!`,
+failing decryption if this check is not satisfied.
 
 Consensus rule change for coinbase transactions
 -----------------------------------------------
@@ -326,20 +353,20 @@ References
 ==========
 
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
-.. [#protocol] `Zcash Protocol Specification, Version 2021.2.16 or later <protocol/protocol.pdf>`_
-.. [#protocol-abstractprfs] `Zcash Protocol Specification, Version 2021.2.16. Section 4.1.2: Pseudo Random Functions <protocol/protocol.pdf#abstractprfs>`_
-.. [#protocol-abstractcommit] `Zcash Protocol Specification, Version 2021.2.16. Section 4.1.8: Commitment <protocol/protocol.pdf#abstractcommit>`_
-.. [#protocol-saplingkeycomponents] `Zcash Protocol Specification, Version 2021.2.16. Section 4.2.2: Sapling Key Components <protocol/protocol.pdf#saplingkeycomponents>`_
-.. [#protocol-orchardkeycomponents] `Zcash Protocol Specification, Version 2021.2.16. Section 4.2.3: Orchard Key Components <protocol/protocol.pdf#orchardkeycomponents>`_
-.. [#protocol-saplingsend] `Zcash Protocol Specification, Version 2021.2.16. Section 4.7.2: Sending Notes (Sapling) <protocol/protocol.pdf#saplingsend>`_
-.. [#protocol-orchardsend] `Zcash Protocol Specification, Version 2021.2.16. Section 4.7.3: Sending Notes (Orchard) <protocol/protocol.pdf#orchardsend>`_
-.. [#protocol-saplingandorchardencrypt] `Zcash Protocol Specification, Version 2021.2.16. Section 4.19.1: Encryption (Sapling and Orchard) <protocol/protocol.pdf#saplingandorchardencrypt>`_
-.. [#protocol-decryptivk] `Zcash Protocol Specification, Version 2021.2.16. Section 4.19.2: Decryption using an Incoming Viewing Key (Sapling and Orchard) <protocol/protocol.pdf#decryptivk>`_
-.. [#protocol-decryptovk] `Zcash Protocol Specification, Version 2021.2.16. Section 4.19.3: Decryption using a Full Viewing Key (Sapling and Orchard) <protocol/protocol.pdf#decryptovk>`_
-.. [#protocol-concretediversifyhash] `Zcash Protocol Specification, Version 2021.2.16. Section 5.4.1.6: DiversifyHash^Sapling and DiversifyHash^Orchard Hash Functions <protocol/protocol.pdf#concretediversifyhash>`_
-.. [#protocol-concretesaplingkeyagreement] `Zcash Protocol Specification, Version 2021.2.16. Section 5.4.5.3 Sapling Key Agreement <protocol/protocol.pdf#concretesaplingkeyagreement>`_
-.. [#protocol-concreteorchardkeyagreement] `Zcash Protocol Specification, Version 2021.2.16. Section 5.4.5.5 Orchard Key Agreement <protocol/protocol.pdf#concreteorchardkeyagreement>`_
-.. [#protocol-notept] `Zcash Protocol Specification, Version 2021.2.16. Section 5.5: Encodings of Note Plaintexts and Memo Fields <protocol/protocol.pdf#notept>`_
+.. [#protocol] `Zcash Protocol Specification, Version 2023.4.0 or later <protocol/protocol.pdf>`_
+.. [#protocol-abstractprfs] `Zcash Protocol Specification, Version 2023.4.0. Section 4.1.2: Pseudo Random Functions <protocol/protocol.pdf#abstractprfs>`_
+.. [#protocol-abstractcommit] `Zcash Protocol Specification, Version 2023.4.0. Section 4.1.8: Commitment <protocol/protocol.pdf#abstractcommit>`_
+.. [#protocol-saplingkeycomponents] `Zcash Protocol Specification, Version 2023.4.0. Section 4.2.2: Sapling Key Components <protocol/protocol.pdf#saplingkeycomponents>`_
+.. [#protocol-orchardkeycomponents] `Zcash Protocol Specification, Version 2023.4.0. Section 4.2.3: Orchard Key Components <protocol/protocol.pdf#orchardkeycomponents>`_
+.. [#protocol-saplingsend] `Zcash Protocol Specification, Version 2023.4.0. Section 4.7.2: Sending Notes (Sapling) <protocol/protocol.pdf#saplingsend>`_
+.. [#protocol-orchardsend] `Zcash Protocol Specification, Version 2023.4.0. Section 4.7.3: Sending Notes (Orchard) <protocol/protocol.pdf#orchardsend>`_
+.. [#protocol-saplingandorchardencrypt] `Zcash Protocol Specification, Version 2023.4.0. Section 4.19.1: Encryption (Sapling and Orchard) <protocol/protocol.pdf#saplingandorchardencrypt>`_
+.. [#protocol-decryptivk] `Zcash Protocol Specification, Version 2023.4.0. Section 4.19.2: Decryption using an Incoming Viewing Key (Sapling and Orchard) <protocol/protocol.pdf#decryptivk>`_
+.. [#protocol-decryptovk] `Zcash Protocol Specification, Version 2023.4.0. Section 4.19.3: Decryption using a Full Viewing Key (Sapling and Orchard) <protocol/protocol.pdf#decryptovk>`_
+.. [#protocol-concretediversifyhash] `Zcash Protocol Specification, Version 2023.4.0. Section 5.4.1.6: DiversifyHash^Sapling and DiversifyHash^Orchard Hash Functions <protocol/protocol.pdf#concretediversifyhash>`_
+.. [#protocol-concretesaplingkeyagreement] `Zcash Protocol Specification, Version 2023.4.0. Section 5.4.5.3 Sapling Key Agreement <protocol/protocol.pdf#concretesaplingkeyagreement>`_
+.. [#protocol-concreteorchardkeyagreement] `Zcash Protocol Specification, Version 2023.4.0. Section 5.4.5.5 Orchard Key Agreement <protocol/protocol.pdf#concreteorchardkeyagreement>`_
+.. [#protocol-notept] `Zcash Protocol Specification, Version 2023.4.0. Section 5.5: Encodings of Note Plaintexts and Memo Fields <protocol/protocol.pdf#notept>`_
 .. [#zip-0207] `ZIP 207: Split Founders' Reward <zip-0207.rst>`_
 .. [#zip-0213] `ZIP 213: Shielded Coinbase <zip-0213.rst>`_
 .. [#zip-0251] `ZIP 251: Deployment of the Canopy Network Upgrade <zip-0251.rst>`_
