@@ -25,8 +25,6 @@ The term “Issuance” in this document is to be interpreted as described in ZI
 
 “We” - the ZIP authors, owners listed in the above front matter
 
-“`ZSF_BALANCE_AFTER[h]`” is balance of the Zcash Sustainability Fund as defined in ZIP ###
-
 # Abstract
 
 This ZIP proposes a modification to transaction fees, diverting 60% of transaction fees back into the the ZSF, while  the destination of the remaining 40% is unchanged and goes to the block miner. This proposal effectively “unmints” a portion of transaction fees, contributing to a deflationary effect and offering long-term support for the Zcash network.
