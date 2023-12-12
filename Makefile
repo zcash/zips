@@ -1,7 +1,7 @@
 # Dependencies: see zip-guide.rst and protocol/README.rst
 
 .PHONY: all all-zips release protocol discard
-all-zips: .Makefile.uptodate
+all-zips: .Makefile.uptodate zip-metadata.json
 	find . -name 'zip-*.rst' -o -name 'zip-*.md' |sort >.zipfilelist.new
 	diff .zipfilelist.current .zipfilelist.new || cp -f .zipfilelist.new .zipfilelist.current
 	rm -f .zipfilelist.new
@@ -9,6 +9,9 @@ all-zips: .Makefile.uptodate
 	$(MAKE) index.html $(addsuffix .html,$(filter-out README,$(basename $(sort $(wildcard *.rst) $(wildcard *.md)))))
 
 all: all-zips protocol
+
+zip-metadata.json: zip-*.rst
+	./extract-metadata.sh > $@
 
 release:
 	$(MAKE) -C protocol release
