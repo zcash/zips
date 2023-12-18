@@ -99,8 +99,9 @@ In the future, other ZIPs may be written to fund the ZSF in various ways, includ
 
 ## Estimated impact on miners
 
-Over 105,120 blocks starting at block 2216606, there were 344,647 transactions with an average of 20.18 logical actions (see ZIP-317 [4]). The total fees paid to miners, assuming the ZIP-317 regime, would be 336.50 ZEC.
-105,120 blocks is approximately 3 months of blocks. Extrapolating to a year, we would expect 1,346.00 ZEC in fees paid to miners. If 60% of these fees were diverted to the ZSF, that would be 807.60 ZEC per year. [5]
+Over 100,000 blocks starting at block 2235515, there were 316130 transactions. 60608 of them are categorized as 'sandblasting' transactions. The remaining transaction have an average of 5.46 logical actions (see ZIP-317 [4]).
+The total fees paid to miners from those transactions, assuming the ZIP-317 regime, would be 87.86 ZEC. 100,000 blocks is approximately 3 months of blocks. Extrapolating to a year, we would expect 351.44 ZEC in fees paid to miners over a year.
+If 60% of these fees were diverted to the ZSF, that would be 210.864 ZEC per year. [5]
 
 ## Future Implications
 
