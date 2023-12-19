@@ -1,6 +1,6 @@
 # Dependencies: see zip-guide.rst and protocol/README.rst
 
-.PHONY: all all-zips release protocol discard
+.PHONY: all all-zips tag-release protocol discard
 all-zips: .Makefile.uptodate
 	find . -name 'zip-*.rst' -o -name 'zip-*.md' |sort >.zipfilelist.new
 	diff .zipfilelist.current .zipfilelist.new || cp -f .zipfilelist.new .zipfilelist.current
@@ -10,8 +10,8 @@ all-zips: .Makefile.uptodate
 
 all: all-zips protocol
 
-release:
-	$(MAKE) -C protocol release
+tag-release:
+	$(MAKE) -C protocol tag-release
 
 protocol:
 	$(MAKE) -C protocol
