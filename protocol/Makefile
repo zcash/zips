@@ -25,17 +25,17 @@ all: .Makefile.uptodate
 all-specs: .Makefile.uptodate
 	$(MAKE) nu5.pdf canopy.pdf heartwood.pdf blossom.pdf sapling.pdf
 
-release:
+tag-release:
 ifeq ($(shell git tag --points-at HEAD |wc -l),0)
 	echo "Set a tag at HEAD first."
 else
 	$(eval TAG := $(shell git tag --points-at HEAD))
-	if [[ "$(shell git rev-parse --abbrev-ref HEAD)" != "main" ]]; then echo "Not on main."; exit 1; fi
+	git fetch origin
+	git merge-base --is-ancestor origin/main HEAD || (echo "The current branch is dirty and/or not up-to-date with origin's main branch."; false)
 	$(MAKE) clean all
 	git add *.pdf
 	git commit -m "Regenerate PDFs." *.pdf
 	git tag "v$(TAG)"
-	git push --tags origin HEAD:main
 endif
 
 discard:
