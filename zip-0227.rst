@@ -138,6 +138,11 @@ We use the notation of ZIP 32 [#zip-0032-orchard-key-path]_ for shielded HD path
 
 From the generated :math:`(\mathsf{sk}, \mathsf{c})`, we set the issuance authorizing key to be :math:`\mathsf{isk} := \mathsf{sk}`.
 
+Rationale for Issuance authorizing key generation
+'''''''''''''''''''''''''''''''''''''''''''''''''
+The issuance authorizing key structure is independent of the original key tree, but derived in an analogous manner (via ZIP 32). This is in order to keep the issuance details and the Asset Identifiers consistent across multiple shielded pools.
+
+
 Derivation of issuance validating key
 `````````````````````````````````````
 
@@ -205,15 +210,17 @@ The relations between the Asset Identifier, Asset Digest, and Asset Base are sho
     :align: center
     :figclass: align-center
 
-    Diagram relating the Asset Identifier, Asset Digest, and Asset Base in the ZSA Protocol
+    Diagram relating the Asset Identifier, Asset Digest, and Asset Base in the Orchard-ZSA Protocol
 
 
-**Note:** To keep notations light and concise, we may omit :math:`\mathsf{AssetId}` (resp. :math:`\mathsf{Protocol}`) in the subscript (resp. superscript) when the Asset Identifier (resp. Protocol) is clear from the context.
+**Note:** To keep notations light and concise, we may omit :math:`\mathsf{AssetId}` in the subscript when the Asset Identifier is clear from the context.
 
-Wallets MUST NOT display just the :math:`\mathsf{asset\_desc}` string to their users as the name of the Asset. Some possible alternatives include:
+The Asset Base is the unique identifier of the Asset in the Orchard-ZSA Protocol.
+Wallets MUST NOT display just the :math:`\mathsf{asset\_desc}` string to their users as the name of the Asset.
+If the :math:`\mathsf{asset\_desc}` string is not a well-formed UTF-8 code unit sequence, the wallet MUST provide a warning that the Asset description cannot be parsed as a UTF-8 encoded string, and SHOULD use the byte string as is in their method for displaying the Asset description.
 
-- Wallets could allow clients to provide an additional configuration file that stores a one-to-one mapping of names to Asset Identifiers via a petname system. This allows clients to rename the Assets in a way they find useful. Default versions of this file with well-known Assets listed can be made available online as a starting point for clients.
-- The Asset Digest could be used as a more compact bytestring to uniquely determine an Asset, and wallets could support clients scanning QR codes to load Asset information into their wallets.
+Wallets could allow clients to provide an additional configuration file that stores a one-to-one mapping of names to Asset Bases via an auxiliary naming system. This allows clients to rename the Assets in a way they find useful. Default versions of this file with well-known Assets listed can be made available online as a starting point for clients.
+
 
 Specification: Global Issuance State
 ====================================
@@ -233,30 +240,12 @@ An issuance action, ``IssueAction``, is the instance of issuing a specific Custo
 
 - :math:`\mathsf{assetDescSize}`: the size of the Asset description, a number between :math:`0` and :math:`512`, stored in two bytes.
 - :math:`\mathsf{asset\_desc}`: the Asset description, a byte string of up to 512 bytes as defined in the `Specification: Asset Identifier`_ section.
-- ``vNotes``: an array of ``Note`` containing the unencrypted output notes of the recipients of the Asset.
+- ``vNotes``: an array of ``Note`` [#zip-0226-notestructure] containing the unencrypted output notes of the recipients of the Asset.
 - ``flagsIssuance``: a byte that stores the :math:`\mathsf{finalize}` boolean that defines whether the issuance of that specific Custom Asset is finalized or not.
 
 An asset's :math:`\mathsf{AssetDigest}` is added to the :math:`\mathsf{previously\_finalized}` set after a block that contains any issuance transaction for that asset with :math:`\mathsf{finalize} = 1`. It then cannot be removed from this set. For Assets with :math:`\mathsf{AssetDigest} \in \mathsf{previously\_finalized}`, no further tokens can be issued, so as seen below, the validators will reject the transaction. For Assets with :math:`\mathsf{AssetDigest} \not\in \mathsf{previously\_finalized}`, new issuance actions can be issued in future transactions. These must use the same Asset description, :math:`\mathsf{asset\_desc}`, and can either maintain :math:`\mathsf{finalize} = 0` or change it to :math:`\mathsf{finalize} = 1`, denoting that this Custom Asset cannot be issued after the containing block.
 
-
-+-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
-| Bytes                       | Name                     | Data Type                                 | Description                                                         |
-+=============================+==========================+===========================================+=====================================================================+
-|``2``                        |``assetDescSize``         |``byte``                                   |The length of the :math:`\mathsf{asset\_desc}` string in bytes.      |
-+-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
-|``assetDescSize``            |``asset_desc``            |``byte[assetDescSize]``                    |A byte sequence of length ``assetDescSize`` bytes which SHOULD be a  |
-|                             |                          |                                           |well-formed UTF-8 code unit sequence according to Unicode 15.0.0     |
-|                             |                          |                                           |or later.                                                            |
-+-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
-|``varies``                   |``nNotes``                |``compactSize``                            |The number of notes in the issuance action.                          |
-+-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
-|``noteSize * nNotes``        |``vNotes``                |``Note[nNotes]``                           |A sequence of note descriptions within the issuance action,          |
-|                             |                          |                                           |where ``noteSize`` is the size, in bytes, of a Note.                 |
-+-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
-|``1``                        |``flagsIssuance``         |``byte``                                   |An 8-bit value representing a set of flags. Ordered from LSB to MSB: |
-|                             |                          |                                           | * :math:`\mathsf{finalize}`                                         |
-|                             |                          |                                           | * The remaining bits are set to ``0``.                              |
-+-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
+The detailed description of the fields in an Issue Action Description is provided in ZIP 230 [#zip-0230]_.
 
 We note that the output note commitment of the recipient's notes are not included in the actual transaction, but when added to the global state of the chain, they will be added to the note commitment tree as a shielded note.
 This prevents future usage of the note from being linked to the issuance transaction, as the nullifier key is not known to the validators and chain observers.
@@ -272,21 +261,8 @@ It contains the following fields:
 - ``vIssueActions``: an array of issuance actions, of type ``IssueAction``.
 - :math:`\mathsf{issueAuthSig}`: the signature of the transaction SIGHASH, signed by the issuance authorizing key, :math:`\mathsf{isk}`, that validates the issuance .
 
-The issuance bundle is then added within the transaction format as a new bundle. That is, issuance requires the addition of the following information to the transaction format [#protocol-transactionstructure]_.
+The issuance bundle is then added within the transaction format as a new bundle. The details of the information added to the transaction format are in ZIP 230 [#zip-0230]_.
 
-+------------------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------------+
-| Bytes                              | Name                     | Data Type                                 | Description                                                               |
-+====================================+==========================+===========================================+===========================================================================+
-|``varies``                          |``nIssueActions``         |``compactSize``                            |The number of issuance actions in the bundle.                              |
-+------------------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------------+
-|``IssueActionSize * nIssueActions`` |``vIssueActions``         |``IssueAction[nIssueActions]``             |A sequence of issuance action descriptions, where IssueActionSize is       |
-|                                    |                          |                                           |the size, in bytes, of an IssueAction description.                         |
-+------------------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------------+
-|``32``                              |``ik``                    |``byte[32]``                               |The issuance validating key of the issuer, used to validate the signature. |
-+------------------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------------+
-|``64``                              |``issueAuthSig``          |``byte[64]``                               |The signature of the transaction SIGHASH, signed by the issuer,            |
-|                                    |                          |                                           |validated as in `Issuance Authorization Signature Scheme`_.                |
-+------------------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------------+
 
 Issuance Protocol
 -----------------
@@ -324,11 +300,9 @@ For the ``IssueBundle``:
 For each ``IssueAction`` in ``IssueBundle``:
 
 - check that :math:`0 < \mathtt{assetDescSize} <= 512`.
-- check that :math:`\mathsf{asset\_desc}` is a string of length :math:`\mathtt{assetDescSize}` bytes.
-
 - retrieve :math:`\mathsf{AssetBase}` from the first note in the sequence and check that :math:`\mathsf{AssetBase}` is derived from the issuance validating key :math:`\mathsf{ik}` and :math:`\mathsf{asset\_desc}` as described in the `Specification: Asset Identifier`_ section.
 - check that the :math:`\mathsf{AssetDigest}` does not exist in the :math:`\mathsf{previously\_finalized}` set in the global state.
-- check that every note in the ``IssueAction`` contains the same :math:`\mathsf{AssetBase}` and is properly constructed as :math:`\mathsf{note} = (\mathsf{g_d, pk_d, v, \rho, rseed, AssetBase})`.
+- check that every note in the ``IssueAction`` contains the same :math:`\mathsf{AssetBase}` and is an Orchard-ZSA Note [#zip-0226-notestructure]_.
 
 If all of the above checks pass, do the following:
 
@@ -337,13 +311,18 @@ If all of the above checks pass, do the following:
 - If :math:`\mathsf{finalize} = 1`, add :math:`\mathsf{AssetDigest}` to the :math:`\mathsf{previously\_finalized}` set immediately after the block in which this transaction occurs.
 - (Replay Protection) If issue bundle is present, the fees MUST be greater than zero.
 
+Rationale for non-zero fees when an Issue Bundle is included
+------------------------------------------------------------
+We require non-zero fees in the presence of an issue bundle, in order to preclude the possibility of a replay attack. 
+The replay attack can happen if a transaction containing only an issue bundle with no fees: in particular, if a transaction includes only an issue bundle, the SIGHASH transaction hash would be computed solely based on the issue bundle. 
+A duplicate bundle would have the same SIGHASH transaction hash, potentially allowing for a replay attack.
+
 
 
 Rationale
 =========
 The following is a list of rationale for different decisions made in the proposal:
 
-- The issuance key structure is independent of the original key tree, but derived in an analogous manner (via ZIP 32). This is in order to keep the issuance details and the Asset Identifiers consistent across multiple shielded pools.
 - The design decision is not to have a chosen name to describe the Custom Asset, but to delegate it to an off-chain mapping, as this would imply a land-grab “war”.
 - The :math:`\mathsf{asset\_desc}` is a general byte string in order to allow for a wide range of information type to be included that may be associated with the Assets. Some are:
 
@@ -352,8 +331,7 @@ The following is a list of rationale for different decisions made in the proposa
     - bridging information for Wrapped Assets (chain of origin, issuer name, etc)
     - information to be committed by the issuer, though not enforceable by the protocol.
 
-- We require a check whether the :math:`\mathsf{finalize}` flag only has been set in a previous block rather than a previous transaction in the same block. In other words, we only update the :math:`\mathsf{previously\_finalized}`` set at the block boundary. This is in keeping with the current property which allows for a miner to reorder transactions in a block without changing the meaning, which we aim to preserve.
-- We require non-zero fees in the presence of an issue bundle, in order to preclude the possibility of a transaction containing only an issue bundle. If a transaction includes only an issue bundle, the SIGHASH transaction hash would be computed solely based on the issue bundle. A duplicate bundle would have the same SIGHASH transaction hash, potentially allowing for a replay attack.
+- We require a check whether the :math:`\mathsf{finalize}` flag only has been set in a previous block rather than a previous transaction in the same block. In other words, we only update the :math:`\mathsf{previously\_finalized}` set at the block boundary. This is in keeping with the current property which allows for a miner to reorder transactions in a block without changing the meaning, which we aim to preserve.
 
 Concrete Applications
 ---------------------
@@ -600,6 +578,7 @@ References
 .. [#zip-0226] `ZIP 226: Transfer and Burn of Zcash Shielded Assets <zip-0226.html>`_
 .. [#zip-0226-notestructure] `ZIP 226: Transfer and Burn of Zcash Shielded Assets - Note Structure & Commitment <zip-0226.html#note-structure-commitment>`_
 .. [#zip-0226-txiddigest] `ZIP 226: Transfer and Burn of Zcash Shielded Assets - TxId Digest <zip-0226.html#txid-digest>`_
+.. [#zip-0230] `ZIP 230: Version 6 Transaction Format <zip-0230.html>`_
 .. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.html>`_
 .. [#zip-0244-sigdigest] `ZIP 244: Transaction Identifier Non-Malleability: Signature Digest <zip-0244.html#signature-digest>`_
 .. [#zip-0244-authcommitment] `ZIP 244: Transaction Identifier Non-Malleability: Authorizing Data Commitment <zip-0244.html#authorizing-data-commitment>`_
