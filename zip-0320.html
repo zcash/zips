@@ -3,6 +3,7 @@
 <head>
     <title>ZIP 320: Defining an Address Type to which funds can only be sent from Transparent Addresses</title>
     <meta charset="utf-8" />
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js?config=TeX-AMS-MML_HTMLorMML"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
 <body>
     <section>
@@ -11,9 +12,195 @@ Title: Defining an Address Type to which funds can only be sent from Transparent
 Owners: Daira Emma Hopwood &lt;daira@electriccoin.co&gt;
         Kris Nuttycombe &lt;kris@nutty.land&gt;
 Credits: Hanh
-Status: Reserved
+Status: Draft
 Category: Standards / Wallet
 Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/757">https://github.com/zcash/zips/issues/757</a>&gt;</pre>
+        <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to be interpreted as described in BCP 14 <a id="footnote-reference-1" class="footnote_reference" href="#bcp14">1</a> when, and only when, they appear in all capitals.</p>
+            <p>The terms below are to be interpreted as follows:</p>
+        </section>
+        <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This ZIP defines a new encoding for transparent Zcash addresses. Wallets must ensure that no shielded notes are spent in transactions that send to a transparent address encoded in the specified fashion.</p>
+            <p>This ZIP is presently in Draft status, and defines two alternate encodings</p>
+        </section>
+        <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The Binance cryptocurrency exchange requires that funds sent to their deposit addresses come from source addresses that are readily identifiable using on-chain information, such that if necessary funds may be rejected by sending them back to the source address(es). This ZIP is intended to standardize a transparent address encoding that is only usable by wallets that understand and will respect this constraint.</p>
+        </section>
+        <section id="requirements"><h2><span class="section-heading">Requirements</span><span class="section-anchor"> <a rel="bookmark" href="#requirements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <ol type="1">
+                <li>An entity wishing to receive funds from exclusively transparent sources must be able to generate a receiving address such that only transparent funds will be spent in transactions sent to this address.</li>
+                <li>Wallets that have not been upgraded to recognize the new address format cannot mistake the address for another address type or inadvertently send shielded funds the address.</li>
+                <li>No changes to recipient infrastructure beyond changes to address encoding and decoding should be required as a consequence of this ZIP.</li>
+            </ol>
+        </section>
+        <section id="specification-alternative-1"><h2><span class="section-heading">Specification (Alternative 1)</span><span class="section-anchor"> <a rel="bookmark" href="#specification-alternative-1"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <section id="tex-addresses"><h3><span class="section-heading">TEX Addresses</span><span class="section-anchor"> <a rel="bookmark" href="#tex-addresses"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>A TEX Address is a <code>bech32m</code> reencoding of a transparent Zcash P2PKH address <a id="footnote-reference-2" class="footnote_reference" href="#protocol-taddr">5</a></p>
+            </section>
+            <section id="motivations-for-alternative-1"><h3><span class="section-heading">Motivations for Alternative 1</span><span class="section-anchor"> <a rel="bookmark" href="#motivations-for-alternative-1"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>The TEX Address is the simplest-possible approach to creating a new address type that indicates that only transparent sources of funds should be used.</p>
+            </section>
+            <section id="detailed-specification-alternative-1"><h3><span class="section-heading">Detailed Specification (Alternative 1)</span><span class="section-anchor"> <a rel="bookmark" href="#detailed-specification-alternative-1"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>A TEX address may be produced from a mainnet Zcash P2PKH Address by executing the following steps:</p>
+                <ol type="1">
+                    <li>Decode the address to a byte array using the <code>base58check</code> decoding algorithm.</li>
+                    <li>Remove the two-byte address prefix from the resulting byte array. These bytes should be equal to
+                        <span class="math">\(\mathtt{[0x1C, 0xB8]}\)</span>
+                    . The remainder of the byte array (the <strong>validating key hash</strong>) should have a length of 20 bytes.</li>
+                    <li>Reencode the 20-byte <strong>validating key hash</strong> using the <code>bech32m</code> encoding as defined in <a id="footnote-reference-3" class="footnote_reference" href="#bip-0350">6</a> with the human-readable prefix (HRP) <code>'tex'</code>.</li>
+                </ol>
+                <p>For testnet addresses, the lead bytes of a P2PKH address are
+                    <span class="math">\(\mathtt{[0x1C, 0xB8]}\)</span>
+                 and the <code>'textest'</code> HRP should be used when reencoding.</p>
+            </section>
+            <section id="reference-implementation-alternative-1"><h3><span class="section-heading">Reference Implementation (Alternative 1)</span><span class="section-anchor"> <a rel="bookmark" href="#reference-implementation-alternative-1"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <!-- code-block: javascript
+import bs58check from 'bs58check'
+import {bech32m} from 'bech32'
+// From t1 to tex
+var b58decoded = bs58check.decode('t1VmmGiyjVNeCjxDZzg7vZmd99WyzVby9yC')
+console.assert(b58decoded[0] == 28 &amp;&amp; b58decoded[1] == 184, 'Invalid address prefix');
+var pkh = b58decoded.slice(2)
+var tex = bech32m.encode('tex', bech32m.toWords(pkh))
+console.log(tex)
+// From tex to t1
+var bech32decoded = bech32m.decode('tex1s2rt77ggv6q989lr49rkgzmh5slsksa9khdgte')
+console.assert(bech32decoded.prefix == 'tex', 'Invalid address prefix')
+var pkh2 = Uint8Array.from(bech32m.fromWords(bech32decoded.words))
+var t1 = bs58check.encode(Buffer.concat([Uint8Array.from([28, 184]), pkh2]))
+console.log(t1) -->
+            </section>
+        </section>
+        <section id="specification-alternative-2"><h2><span class="section-heading">Specification (Alternative 2)</span><span class="section-anchor"> <a rel="bookmark" href="#specification-alternative-2"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <section id="traceable-unified-addresses"><h3><span class="section-heading">Traceable Unified Addresses</span><span class="section-anchor"> <a rel="bookmark" href="#traceable-unified-addresses"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>A Traceable Unified Address is a reencoding of a transparent Zcash address into a Unified Address <a id="footnote-reference-4" class="footnote_reference" href="#zip-0316-unified-addresses">2</a>.</p>
+            </section>
+            <section id="motivations-for-alternative-2"><h3><span class="section-heading">Motivations for Alternative 2</span><span class="section-anchor"> <a rel="bookmark" href="#motivations-for-alternative-2"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Traceable Unified Addresses fit into the existing Zcash Unified Address ecosystem. As such, wallets that support Unified Addresses will be able to parse (but not necessarily send to) a Traceable Unified Address. Even in the case that Traceable Receivers are not understood by the sending wallet, a Unified Address-supporting wallet will be able to automatically provide good error messages for their users to indicate that the wallet needs to be updated to understand these addresses.</p>
+                <p>In addition, by integrating with the Unified Address framework, it becomes possible for the addresses being generated to include extra metadata, in particular, metadata items such as an Address Expiry Height or Address Expiry Date <a id="footnote-reference-5" class="footnote_reference" href="#zip-0316-address-expiry">4</a> may be included. For exchange use cases such as Binance's, it is useful to ensure that an address provided to a user has a limited utility life, such that after expiration the user must obtain a new address in order to be able to continue to send funds.</p>
+            </section>
+            <section id="detailed-specification-alternative-2"><h3><span class="section-heading">Detailed Specification (Alternative 2)</span><span class="section-anchor"> <a rel="bookmark" href="#detailed-specification-alternative-2"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Upon activation of this ZIP, the section <cite>Encoding of Unified Addresses</cite> of ZIP 316 <a id="footnote-reference-6" class="footnote_reference" href="#zip-0316-unified-addresses">2</a> will be modified to define a new Traceable Receiver Type having typecode
+                    <span class="math">\(\mathtt{0x04}\)</span>
+                , the value of which must be the 20-byte <strong>validating key hash</strong> of a Zcash P2PKH Address as defined in <a id="footnote-reference-7" class="footnote_reference" href="#protocol-taddr">5</a>.</p>
+                <p>The "Requirements for both Unified Addresses and Unified Viewing Keys" section of ZIP 316 <a id="footnote-reference-8" class="footnote_reference" href="#zip-0316-unified-requirements">3</a> will be modified as follows:</p>
+                <pre>A Unified Address or Unified Viewing Key MUST contain at least one
+shielded Item (Typecodes :math:`\mathtt{0x02}` and :math:`\mathtt{0x03}`).
+The rationale is that the existing P2SH and P2PKH transparent-only
+address formats, and the existing P2PKH extended public key format,
+suffice for representing transparent Items and are already supported
+by the existing ecosystem.</pre>
+                <p>will be replaced by:</p>
+                <pre>A Unified Address MUST contain at least one Receiver, plus any number
+of Metadata Items. The selection of Receivers is further restricted
+such that a Unified Address MUST **either** contain at least one shielded
+Receiver (Typecodes :math:`\mathtt{0x02}` and :math:`\mathtt{0x03}`), OR
+MUST contain **only** a Traceable Address Receiver (Typecode
+:math:`\mathtt{0x04}`).
+
+A Unified Viewing Key MUST contain at least one shielded Item (Typecodes
+:math:`\mathtt{0x02}` and :math:`\mathtt{0x03}`).</pre>
+                <p>A Traceable Unified Address is produced from a mainnet Zcash P2PKH address by executing the following steps:</p>
+                <ol type="1">
+                    <li>Decode the address to a byte array using the <code>base58check</code> decoding algorithm.</li>
+                    <li>Remove the two-byte address prefix from the resulting byte array. These bytes should be equal to
+                        <span class="math">\(\mathtt{[0x1C, 0xB8]}\)</span>
+                    . The remainder of the byte array (the <strong>validating key hash</strong>) should have a length of 20 bytes.</li>
+                    <li>Construct a new Unified Address using a single Traceable Receiver
+                        <span class="math">\(\mathtt{0x04}\)</span>
+                     with the 20-byte <strong>validating_key_hash</strong> as its value. In addition, metadata items such as an Address Expiry Height or Address Expiry Date <a id="footnote-reference-9" class="footnote_reference" href="#zip-0316-address-expiry">4</a> may be included.</li>
+                </ol>
+            </section>
+            <section id="reference-implementation-alternative-2"><h3><span class="section-heading">Reference Implementation (Alternative 2)</span><span class="section-anchor"> <a rel="bookmark" href="#reference-implementation-alternative-2"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Javascript library <cite>zcash_address_wasm</cite>:</p>
+                <!-- code-block: javascript
+import { to_traceable_address } from 'zcash_address_wasm'
+var traceable_addr = to_traceable_address('t1VmmGiyjVNeCjxDZzg7vZmd99WyzVby9yC', Date.now()) -->
+                <p>Rust:</p>
+                <!-- code-block: rust
+use zcash_address::{
+    unified::{self, Encoding},
+    Network, ToAddress, TryFromAddress, ZcashAddress,
+};
+struct TraceableReceiver {
+    net: Network,
+    data: [u8; 20],
+}
+impl TraceableReceiver {
+    fn to_address(&amp;self, expiry_time: u64) -&gt; ZcashAddress {
+        let traceable_addr = unified::Address::try_from_items(vec![
+            unified::Receiver::Unknown {
+                typecode: 0x04,
+                data: self.data.to_vec(),
+            },
+            unified::Receiver::Unknown {
+                typecode: 0xE0,
+                data: expiry_time.to_le_bytes().to_vec(),
+            },
+        ])
+        .expect("We know that this produces a valid address.");
+        ZcashAddress::from_unified(self.net, traceable_addr)
+    }
+}
+impl TryFromAddress for TraceableReceiver {
+    type Error = unified::ParseError;
+    fn try_from_transparent_p2pkh(
+        net: Network,
+        data: [u8; 20],
+    ) -&gt; Result&lt;Self, zcash_address::ConversionError&lt;Self::Error&gt;&gt; {
+        Ok(TraceableReceiver { net, data })
+    }
+} -->
+                <table id="bcp14" class="footnote">
+                    <tbody>
+                        <tr>
+                            <th>1</th>
+                            <td><a href="https://www.rfc-editor.org/info/bcp14">Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"</a></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <table id="zip-0316-unified-addresses" class="footnote">
+                    <tbody>
+                        <tr>
+                            <th>2</th>
+                            <td><a href="zip-0316#encoding-of-unified-addresses">ZIP 316: Unified Addresses</a></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <table id="zip-0316-unified-requirements" class="footnote">
+                    <tbody>
+                        <tr>
+                            <th>3</th>
+                            <td><a href="zip-0316#requirements-for-both-unified-addresses-and-unified-viewing-keys">ZIP 316: Requirements for both Unified Addresses and Unified Viewing Keys</a></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <table id="zip-0316-address-expiry" class="footnote">
+                    <tbody>
+                        <tr>
+                            <th>4</th>
+                            <td><a href="zip-0316#address-expiration-metadata">ZIP 316:</a></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <table id="protocol-taddr" class="footnote">
+                    <tbody>
+                        <tr>
+                            <th>5</th>
+                            <td><a href="protocol/protocol.pdf#transparentaddrencoding">Zcash Protocol Specification, Version 2023.4.0. Section 5.6.1.1 Transparent Addresses</a></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <table id="bip-0350" class="footnote">
+                    <tbody>
+                        <tr>
+                            <th>6</th>
+                            <td><a href="https://github.com/bitcoin/bips/blob/master/bip-0350.mediawiki">BIP 350: Bech32m format for v1+ witness addresses</a></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+        </section>
     </section>
 </body>
 </html>
