@@ -21,6 +21,20 @@ appear in all capitals.
 
 The terms below are to be interpreted as follows:
 
+Recipient
+  A wallet or other software that can receive transfers of assets (such
+  as ZEC) or in the future potentially other transaction-based state changes.
+Producer
+  A wallet or other software that can create an Address (in which case it is
+  normally also a Recipient) or a Viewing Key.
+Consumer
+  A wallet or other software that can make use of an Address or Viewing Key
+  that it is given.
+Sender
+  A wallet or other software that can send transfers of assets, or other
+  consensus state side-effects defined in future. Senders are a subset of
+  Consumers.
+  
 Abstract
 ========
 
@@ -28,8 +42,26 @@ This ZIP defines a new encoding for transparent Zcash addresses. Wallets must
 ensure that no shielded notes are spent in transactions that send to a
 transparent address encoded in the specified fashion.
 
-This ZIP is presently in Draft status, and defines two alternate encodings
-for consideration.
+This ZIP is presently in Draft status, and defines two alternate encodings for
+consideration. Analysis of the benefits and drawbacks of each of the proposed
+alternatives is presented at the end of this document.
+
+Background
+==========
+
+In November of 2023, the Zcash community received notice from the Binance
+cryptocurrency exchange that Zcash was at risk of being delisted from the
+exchange unless the community could provide a mechanism by which Binance could
+refuse deposits from shielded addresses and return them to the depositor. This
+issue was raised and discussed at length in the Zcash Community forum
+[#binance-delisting]_.
+
+In the course of that discussion thread, wallet developer and community member
+@hanh [#hanh-profile]_ suggested a wallet-oriented approach [#hanh-suggestion]_
+that involved defining a new encoding for Zcash transparent P2PKH addresses. A
+Consumer of such an address, whether it be a wallet or an exchange, could
+recognize this encoding as a directive that the wallet should only spend
+transparent funds when creating an output to that address.
 
 Motivation
 ==========
@@ -37,24 +69,29 @@ Motivation
 The Binance cryptocurrency exchange requires that funds sent to their deposit
 addresses come from source addresses that are readily identifiable using
 on-chain information, such that if necessary funds may be rejected by sending
-them back to the source address(es). This ZIP is intended to standardize 
-a transparent address encoding that is only usable by wallets that understand
-and will respect this constraint.
+them back to the source address(es). This ZIP is intended to standardize a
+transparent address encoding that is not yet understood by preexisting
+Consumers, in order to prevent inadvertent shielded spends when sending to such
+addresses. Then, Consumers that upgrade to support the new encoding will do so
+with the understanding that they must respect the restrictions on sources of
+funds described in this ZIP.
 
 Requirements
 ============
 
-1. An entity wishing to receive funds from exclusively transparent sources
+1. A Recipient wishing to receive funds from exclusively transparent sources
    must be able to generate a receiving address such that only transparent
    funds will be spent in transactions with an output to this address.
-2. Wallets that have not been upgraded to recognize the new address format
-   cannot mistake the address for another address type or inadvertently
-   send shielded funds to the address.
-3. No changes to recipient infrastructure beyond changes to address encoding
+2. Wallets and other Consumers that have not been upgraded to recognize the new
+   address format cannot mistake the address for another address type or
+   inadvertently send shielded funds to the address.
+3. No changes to Recipient infrastructure beyond changes to address encoding
    and decoding should be required as a consequence of this ZIP.
 
-Specification (Alternative 1)
-=============================
+Alternative 1
+=============
+
+This alternative was suggested by @hanh in [#hanh-suggestion]_.
 
 TEX Addresses
 -------------
@@ -68,8 +105,8 @@ Motivations for Alternative 1
 The TEX Address is the simplest possible approach to creating a new address
 type that indicates that only transparent sources of funds should be used.
 
-Detailed Specification (Alternative 1)
---------------------------------------
+Specification (Alternative 1)
+-----------------------------
 
 A TEX address is produced from a mainnet Zcash P2PKH Address by executing the
 following steps:
@@ -87,8 +124,8 @@ For testnet addresses, the required lead bytes of a P2PKH address in step 2
 are :math:`\mathtt{[0x1C, 0xB8]}`, and the ``"textest"`` HRP is used when
 reencoding in step 3.
 
-Wallets sending to a TEX address MUST ensure that only transparent UTXOs are
-spent in the creation of a transaction.
+Wallets and other Senders sending to a TEX address MUST ensure that only
+transparent UTXOs are spent in the creation of a transaction.
 
 Reference Implementation (Alternative 1)
 ----------------------------------------
@@ -114,8 +151,8 @@ Reference Implementation (Alternative 1)
    var t1 = bs58check.encode(Buffer.concat([Uint8Array.from([0x1C, 0xB8]), pkh2]))
    console.log(t1)
 
-Specification (Alternative 2)
-=============================
+Alternative 2
+=============
 
 Traceable Unified Addresses
 ---------------------------
@@ -127,12 +164,14 @@ Motivations for Alternative 2
 -----------------------------
 
 Traceable Unified Addresses fit into the existing Zcash Unified Address
-ecosystem. As such, wallets that support Unified Addresses will be able to
-parse (but not necessarily send to) a Traceable Unified Address. Even in the
-case that Traceable Receivers are not understood by the sending wallet, a
-Unified Address-supporting wallet will be able to automatically provide good
-error messages for their users to indicate that the wallet needs to be updated
-to understand these addresses.
+ecosystem. Existing Consumers that support Unified Addresses will automatically
+be able to recognize a Traceable Unified Address as a valid Zcash address, but
+will not be able to send to that address unless they update their code to
+understand the new Receiver Typecode defined in this ZIP. Even in the case that
+Traceable Receivers are not understood by the sending wallet, a Unified
+Address-supporting wallet will be able to automatically provide good error
+messages for their users to indicate that the wallet needs to be updated to
+understand and send to these addresses.
 
 In addition, by integrating with the Unified Address framework, it becomes
 possible for the addresses being generated to include extra metadata, in
@@ -140,10 +179,11 @@ particular, metadata items such as an Address Expiry Height or Address Expiry
 Date [#zip-0316-address-expiry]_ may be included. For exchange use cases such
 as Binance's, it is useful to ensure that an address provided to a user has a
 limited utility life, such that after expiration the user must obtain a new
-address in order to be able to continue to send funds.
+address in order to be able to continue to send funds
+[#binance-address-expiry]_.
 
-Detailed Specification (Alternative 2)
---------------------------------------
+Specification (Alternative 2)
+-----------------------------
 
 Upon activation of this ZIP, the section `Encoding of Unified Addresses` of ZIP
 316 [#zip-0316-unified-addresses]_ will be modified to define a new
@@ -177,18 +217,19 @@ will be replaced by::
 A Traceable Unified Address is produced from a mainnet Zcash P2PKH address by
 executing the following steps:
 
-1. Decode the address to a byte array using the Base58Check decoding
-   algorithm [#Base58Check]_.
-2. Remove the two-byte address prefix from the resulting byte array. These
-   bytes should be equal to :math:`\mathtt{[0x1C, 0xB8]}`. The remainder of the
-   byte array (the **validating key hash**) should have a length of 20 bytes.
+1. Decode the address to a byte array using the Base58Check decoding algorithm
+   [#Base58Check]_.
+2. If the length of the resulting byte sequence is not 22 bytes or if its
+   two-byte address prefix is not :math:`\mathtt{[0x1C, 0xB8]}`, return an
+   error. Otherwise, let the **validating key hash** be the remaining 20 bytes
+   of the array after removing the two-byte address prefix.
 3. Construct a new Unified Address using a single Traceable Receiver
-   :math:`\mathtt{0x04}` with the 20-byte **validating_key_hash** as
-   its value. In addition, metadata items such as an Address Expiry Height
-   or Address Expiry Date [#zip-0316-address-expiry]_ MAY be included.
+   :math:`\mathtt{0x04}` with the 20-byte **validating_key_hash** as its value.
+   In addition, metadata items such as an Address Expiry Height or Address
+   Expiry Date [#zip-0316-address-expiry]_ MAY be included.
 
-Wallets sending to a Traceable Unified Address MUST ensure that only
-transparent UTXOs are spent in the creation of a transaction.
+Wallets and other Senders sending to a Traceable Unified Address MUST ensure
+that only transparent UTXOs are spent in the creation of a transaction.
 
 Reference Implementation (Alternative 2)
 ----------------------------------------
@@ -246,10 +287,68 @@ Rust:
         }
     }
 
+Analysis of Alternative 1
+=========================
+
+Pros to Alternative 1
+---------------------
+
+- The reencoding from Zcash P2PKH addresses is extremely straightforward and
+  relies only upon widely available encoding libraries.
+
+Cons to Alternative 1
+---------------------
+
+- Creation of a new fully-distinct address type further fragments the Zcash
+  address ecosystem. Avoiding such fragmentation and providing smooth upgrade
+  paths and good error messages to users is exactly the problem that Unifed
+  Addresses [#zip-0316-unified-addresses]_ were intended to avoid.
+- The TEX address type does not provide any mechanism for address expiration.
+  One of the questions Binance has asked has been what to do about users who
+  have stored their existing transparent deposit address in their wallets, or
+  as a withdrawal address for other exchanges or services. This is a
+  challenging problem to mitigate now because address expiration was not
+  previously implemented. We should not further compound this problem by
+  defining a new distinct address type that does not provide a mechanism for
+  address expiry.
+
+Analysis of Alternative 2
+=========================
+
+Pros To Alternative 2
+---------------------
+
+- By integrating with the Unified Address framework, Consumers of Traceable
+  Addresses that have not yet been upgraded to recognize these addresses can
+  automatically be prompted to upgrade their wallets or services to understand
+  the unrecognized receiver typecode.
+- It is possible to include address expiration metadata in a Traceable Address,
+  which can help to mitigate problems related to stored addresses in the
+  future.
+- Regardless of which proposal is adopted, the Zcash Community will need to
+  work with exchanges other than Binance to update their address parsing logic
+  to understand the new address format. By encouraging Consumers such as
+  exchanges to adopt parsing for Unified addresses, this proposal furthers
+  the original goal of Unified Addresses to reduce fragmentation in the address
+  ecosystem.
+
+Cons to Alternative 2
+---------------------
+
+- Unified Address encoding is slightly more complex than the proposed TEX address
+  encoding, and requires use of the F4Jumble encoding algorithm [#F4Jumble]_. 
+  However, this can be readily mitigated by providing a purpose-built library for
+  Traceable Address encoding to Producers.
+
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#binance-delisting] `Zcash Community Forum thread "Important: Potential Binance Delisting" <https://forum.zcashcommunity.com/t/important-potential-binance-delisting/45954>`_
+.. [#hanh-profile] 'Zcash Community Forum user @hanh <https://forum.zcashcommunity.com/u/hanh/summary>'_
+.. [#hanh-suggestion] 'Ywallet developer @hanh's proposal <https://forum.zcashcommunity.com/t/important-potential-binance-delisting/45954/112>'_
 .. [#zip-0316-unified-addresses] `ZIP 316: Unified Addresses <zip-0316#encoding-of-unified-addresses>`_
 .. [#zip-0316-unified-requirements] `ZIP 316: Requirements for both Unified Addresses and Unified Viewing Keys <zip-0316#requirements-for-both-unified-addresses-and-unified-viewing-keys>`_
 .. [#zip-0316-address-expiry] `ZIP 316: <zip-0316#address-expiration-metadata>`_
 .. [#protocol-transparentaddrencoding] `Zcash Protocol Specification, Version 2023.4.0. Section 5.6.1.1 Transparent Addresses <protocol/protocol.pdf#transparentaddrencoding>`_
+.. [#binance-address-expiry] `Zcash Community Forum post describing motivations for address expiry <https://forum.zcashcommunity.com/t/unified-address-expiration/46564/6>`_
 .. [#Base58Check] `Base58Check encoding — Bitcoin Wiki <https://en.bitcoin.it/wiki/Base58Check_encoding>`_
+.. [#F4Jumble] `ZIP 316: F4Jumble encoding <zip-0316#jumbling>`_
 .. [#bip-0350] `BIP 350: Bech32m format for v1+ witness addresses <https://github.com/bitcoin/bips/blob/master/bip-0350.mediawiki>`_
