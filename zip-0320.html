@@ -137,57 +137,31 @@ A Unified Viewing Key MUST contain at least one shielded Item (Typecodes
             </section>
             <section id="reference-implementation-alternative-2"><h3><span class="section-heading">Reference Implementation (Alternative 2)</span><span class="section-anchor"> <a rel="bookmark" href="#reference-implementation-alternative-2"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>Javascript using <cite>zcash_address_wasm</cite> <a id="footnote-reference-17" class="footnote_reference" href="#zcash-address-wasm">13</a>:</p>
-                <pre>import init, { to_traceable_address } from 'zcash_address_wasm';
+                <pre>import init, { to_traceable_address, traceable_to_p2pkh, addr_expiry_time } from 'zcash_address_wasm';
 init().then(() =&gt; {
-   var t_address = "t1VmmGiyjVNeCjxDZzg7vZmd99WyzVby9yC";
+  var t_address = "t1VmmGiyjVNeCjxDZzg7vZmd99WyzVby9yC";
+  console.log("original p2pkh address: " + t_address);
 
-   // Create a deposit address that is valid for 30 days
-   var expiry_time = new Date();
-   expiry_time.setDate(expiry_time.getDate() + 30);
-   var expiry_unix_seconds = BigInt(Math.floor(expiry_time.getTime() / 1000));
+  var expiry_time = new Date();
+  expiry_time.setDate(expiry_time.getDate() + 30);
+  var expiry_unix_seconds = BigInt(Math.floor(expiry_time.getTime() / 1000));
 
-   var traceable_address = to_traceable_address(t_address, expiry_unix_seconds);
-   console.log(traceable_address);
+  var traceable_address = to_traceable_address(t_address, expiry_unix_seconds);
+  console.log("traceable address: " + traceable_address);
+
+  var p2pkh_addr = traceable_to_p2pkh(traceable_address);
+  console.log("decoded p2pkh address: " + p2pkh_addr);
+
+  var expiry = addr_expiry_time(traceable_address);
+  if (expiry !== null) {
+      console.log("expiry time: " + new Date(Number(expiry) * 1000).toString());
+  }
 });</pre>
-                <p>Rust:</p>
-                <pre>use zcash_address::{
-    unified::{self, Encoding},
-    Network, ToAddress, TryFromAddress, ZcashAddress,
-};
-
-struct TraceableReceiver {
-    net: Network,
-    data: [u8; 20],
-}
-
-impl TraceableReceiver {
-    fn to_address(&amp;self, expiry_time: u64) -&gt; ZcashAddress {
-        let traceable_addr = unified::Address::try_from_items(vec![
-            unified::Receiver::Unknown {
-                typecode: 0x04,
-                data: self.data.to_vec(),
-            },
-            unified::Receiver::Unknown {
-                typecode: 0xE0,
-                data: expiry_time.to_le_bytes().to_vec(),
-            },
-        ])
-        .expect("We know that this produces a valid address.");
-
-        ZcashAddress::from_unified(self.net, traceable_addr)
-    }
-}
-
-impl TryFromAddress for TraceableReceiver {
-    type Error = unified::ParseError;
-
-    fn try_from_transparent_p2pkh(
-        net: Network,
-        data: [u8; 20],
-    ) -&gt; Result&lt;Self, zcash_address::ConversionError&lt;Self::Error&gt;&gt; {
-        Ok(TraceableReceiver { net, data })
-    }
-}</pre>
+                <p>Example output:</p>
+                <pre>original p2pkh address: t1VmmGiyjVNeCjxDZzg7vZmd99WyzVby9yC
+traceable address: u1p3temdfuxr6vcfr2z3n5weh652rg0hv7q44c652y3su77d0pyktt47am3tng7uxxtk553hhka75r6cvfs5j
+decoded p2pkh address: t1VmmGiyjVNeCjxDZzg7vZmd99WyzVby9yC
+expiry time: Mon Feb 12 2024 18:14:18 GMT-0700 (Mountain Standard Time)</pre>
             </section>
         </section>
         <section id="analysis-of-alternative-1"><h2><span class="section-heading">Analysis of Alternative 1</span><span class="section-anchor"> <a rel="bookmark" href="#analysis-of-alternative-1"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
