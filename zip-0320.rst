@@ -157,21 +157,17 @@ address into a Unified Address [#zip-0316-unified-addresses]_.
 Motivations for Alternative 2
 -----------------------------
 
-Traceable Unified Addresses fit into the existing Zcash Unified Address
-ecosystem. Existing Consumers that support Unified Addresses will automatically
-be able to recognize a Traceable Unified Address as a valid Zcash address, but
-will not be able to send to that address unless they update their code to
-understand the new Receiver Typecode defined in this ZIP. Even in the case that
-Traceable P2PKH Receivers are not understood by the sending wallet, a Unified
-Address-supporting wallet will be able to automatically provide good error
-messages for their users to indicate that the wallet needs to be updated to
-understand and send to these addresses.
+Traceable Unified Addresses fit into the Zcash Unified Address ecosystem
+defined by ZIP 316, Revision 1 [#zip-0316-revision-1]_. Existing Consumers of
+Unified Addresses will not be able to send to these address unless they update
+their code to understand the new MUST-understand Metadata Typecode defined in
+this ZIP. 
 
-In addition, by integrating with the Unified Address framework, it becomes
-possible for the addresses being generated to include extra metadata; in
-particular, metadata items such as an Address Expiry Height or Address Expiry
-Date [#zip-0316-address-expiry]_ may be included. For exchange use cases such
-as Binance's, it is useful to ensure that an address provided to a user has a
+By integrating with the Unified Address framework, it becomes possible for the
+addresses being generated to include extra metadata; in particular, metadata
+items such as an Address Expiry Height or Address Expiry Date
+[#zip-0316-address-expiry]_ may be included. For exchange use cases such as
+Binance's, it is useful to ensure that an address provided to a user has a
 limited utility life, such that after expiration the user must obtain a new
 address in order to be able to continue to send funds
 [#binance-address-expiry]_.
@@ -179,11 +175,14 @@ address in order to be able to continue to send funds
 Specification (Alternative 2)
 -----------------------------
 
-Upon activation of this ZIP, the section `Encoding of Unified Addresses` of ZIP
-316 [#zip-0316-unified-addresses]_ will be modified to define a new Traceable
-P2PKH Receiver Type having Typecode :math:`\mathtt{0x04}`, the value of which
-MUST be the 20-byte **validating key hash** of a Zcash P2PKH Address as defined
-in [#protocol-transparentaddrencoding]_.
+Upon activation of this ZIP, the section `Metadata Items` of ZIP 316
+[#zip-0316-metadata-items]_ will be modified to define a new MUST-understand
+Metadata Item type: Source Restriction Metadata, having Typecode
+:math:`\mathtt{0xE2}`, the value of which must be a single byte:
+
+* :math:`\mathtt{0x00}` - Transparent Source Only
+
+Additional Source Restriction Metadata values may be defined in the future.
 
 The "Requirements for both Unified Addresses and Unified Viewing Keys" section
 of ZIP 316 [#zip-0316-unified-requirements]_ will be modified as follows — the
@@ -203,12 +202,19 @@ will be replaced by:
   such that a Unified Address MUST **either**:
 
   * contain at least one shielded Receiver (Typecodes :math:`\mathtt{0x02}`
-    and :math:`\mathtt{0x03}`), and no Traceable P2PKH Receiver (Typecode
-    :math:`\mathtt{0x04}`); **or**
-  * contain **only** a Traceable P2PKH Receiver (Typecode :math:`\mathtt{0x04}`).
+    and :math:`\mathtt{0x03}`), and **no** Source Restriction Metadata Item
+    having value :math:`\mathtt{0x00}`; **or**
+  * contain **both** a Transparent Receiver (Typecode :math:`\mathtt{0x00}` or
+    Typecode :math:`\mathtt{0x01}`) **and** a Source Restriction Metadata Item
+    (Typecode :math:`\mathtt{0xE2}`) having value :math:`\mathtt{0x00}`, and
+    **no other** Receivers.
 
   A Unified Viewing Key MUST contain at least one shielded Item (Typecodes
   :math:`\mathtt{0x02}` and :math:`\mathtt{0x03}`). 
+
+In the following, the “``u+``” Human Readable Part of Revision 1 Unified
+Addresses is a placeholder value, pending the finalization of Revision 1 
+[#zip-0316-revision-1]_.
 
 A Traceable Unified Address is produced from a Mainnet Zcash P2PKH address by
 executing the following steps:
@@ -219,20 +225,25 @@ executing the following steps:
    two-byte address prefix is not :math:`[\mathtt{0x1C}, \mathtt{0xB8}]`,
    return an error. Otherwise, let the **validating key hash** be the remaining
    20 bytes of the array after removing the two-byte address prefix.
-3. Construct a new Unified Address using a single Traceable P2PKH Receiver
-   :math:`\mathtt{0x04}` with the 20-byte **validating key hash** as its value.
-   In addition, metadata items such as an Address Expiry Height or Address
-   Expiry Date [#zip-0316-address-expiry]_ MAY be included.
+3. Construct a new Revision 1 Unified Address using a single P2PKH Receiver
+   :math:`\mathtt{0x04}` with the 20-byte **validating key hash** as its value,
+   and a Source Restriction Metadata Item (Typecode :math:`\mathtt{0xE2}`)
+   having value :math:`\mathtt{0x00}` (Transparent Source Only). In addition,
+   metadata items such as an Address Expiry Height or Address Expiry Date
+   [#zip-0316-address-expiry]_ MAY be included.
+4. Encode the Unified Address using the “``u+``” Human Readable Part as
+   specified for Revision 1 of ZIP 316 [#zip-0316-unified-addresses]_.
 
 For Testnet addresses, the required lead bytes of a P2PKH address in step 2
 are :math:`[\mathtt{0x1D}, \mathtt{0x25}]`.
 
-The HRP of the resulting Unified Address is the same as for any other Unified
-Address on the relevant network as specified in [#zip-0316-unified-addresses]_,
-i.e. ``"u"`` for Mainnet and ``"utest"`` for Testnet.
+The HRP of the resulting Unified Address is the same as for any other Revision 1
+Unified Address on the relevant network as specified in [#zip-0316-revision-1]_,
+i.e. ``"u+"`` for Mainnet and ``"u+test"`` for Testnet.
 
-Wallets and other Senders sending to a Traceable P2PKH Receiver MUST ensure
-that only transparent UTXOs are spent in the creation of a transaction.
+Wallets and other Senders MUST ensure that only transparent UTXOs are spent in
+the creation of a transaction to any Unified Address containing a Source
+Restriction Metadata Item having value :math:`\mathtt{0x00}`.
 
 Reference Implementation (Alternative 2)
 ----------------------------------------
@@ -304,10 +315,10 @@ Analysis of Alternative 2
 Pros To Alternative 2
 ---------------------
 
-- By integrating with the Unified Address framework, Consumers of Traceable
+- By integrating with the Unified Address framework, Consumers of Revision 1
   Unified Addresses that have not yet been upgraded to recognize these
   addresses can automatically be prompted to upgrade their wallets or services
-  to understand the unrecognized Receiver Typecode.
+  to understand the unrecognized MUST-understand Metadata Typecode.
 - It is possible to include address expiration metadata in a Traceable Unified
   Address, which can help to mitigate problems related to stored addresses in
   the future.
@@ -339,6 +350,10 @@ Pros To Alternative 2
 Cons to Alternative 2
 ---------------------
 
+- Existing wallets and other Consumers of Revision 0 Unified Addresses will
+  regard the new address type as entirely invalid, and will not automatically
+  prompt their users that they need to upgrade in order to send to this type of
+  address.
 - Unified Address encoding is slightly more complex than the proposed TEX
   address encoding, and requires use of the F4Jumble encoding algorithm
   [#F4Jumble]_. However, this can be readily mitigated by providing a
@@ -355,8 +370,10 @@ References
 .. [#hanh-suggestion] `Ywallet developer @hanh's proposal <https://forum.zcashcommunity.com/t/important-potential-binance-delisting/45954/112>`_
 .. [#zip-0316-terminology] `ZIP 316: Unified Addresses and Unified Viewing Keys — Terminology <zip-0316#terminology>`_
 .. [#zip-0316-unified-addresses] `ZIP 316: Unified Addresses and Unified Viewing Keys — Encoding of Unified Addresses <zip-0316#encoding-of-unified-addresses>`_
+.. [#zip-0316-revision-1] `ZIP 316: Unified Addresses and Unified Viewing Keys — Revision 1 <https://github.com/zcash/zips/pull/765>`_
 .. [#zip-0316-unified-requirements] `ZIP 316: Unified Addresses and Unified Viewing Keys — Requirements for both Unified Addresses and Unified Viewing Keys <zip-0316#requirements-for-both-unified-addresses-and-unified-viewing-keys>`_
 .. [#zip-0316-address-expiry] `ZIP 316: Unified Addresses and Unified Viewing Keys — Address Expiration Metadata <zip-0316#address-expiration-metadata>`_
+.. [#zip-0316-metadata-items] `ZIP 316: Unified Addresses and Unified Viewing Keys — Metadata Items <zip-0316#metadata-items>`_
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2023.4.0. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
 .. [#protocol-transparentaddrencoding] `Zcash Protocol Specification, Version 2023.4.0. Section 5.6.1.1 Transparent Addresses <protocol/protocol.pdf#transparentaddrencoding>`_
 .. [#binance-address-expiry] `Zcash Community Forum post describing motivations for address expiry <https://forum.zcashcommunity.com/t/unified-address-expiration/46564/6>`_
