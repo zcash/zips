@@ -21,7 +21,7 @@
 Terminology
 ===========
 
-The key word "MUST" in this document is to be interpreted as described in RFC 2119 [#RFC2119]_.
+The key word "MUST" in this document is to be interpreted as described in BCP 14 [#BCP14]_ when, and only when, it appears in all capitals.
 
 The term "network upgrade" in this document is to be interpreted as described in ZIP 200 [#zip-0200]_.
 
@@ -52,13 +52,12 @@ In order to be able to represent different Assets, we need to define a data fiel
 This Asset Identifier maps to an Asset Base :math:`\mathsf{AssetBase}` that is stored in Orchard-based ZSA notes.
 These terms are formally defined in ZIP 227 [#zip-0227]_.
 
-The Asset Identifier (via means of the Asset Digest and Asset Base) will be used to enforce that the balance of an Action Description [#protocol-actions]_ is preserved across Assets (see the Orchard Binding Signature [#protocol-binding]_), and by extension the balance of an Orchard transaction. That is, the sum of all the :math:`\mathsf{value^{net}}` from each Action Description, computed as :math:`\mathsf{value^{old}-value^{new}}`, must be balanced **only with respect to the same Asset Identifier**. This is especially important since we will allow different Action Descriptions to transfer notes of different Asset Identifiers, where the overall balance is checked without revealing which (or how many distinct) Assets are being transferred.
+The Asset Identifier (via means of the Asset Digest and Asset Base) will be used to enforce that the balance of an Action Description [#protocol-actions]_ [#protocol-actionencodingandconsensus]_ is preserved across Assets (see the Orchard Binding Signature [#protocol-orchardbalance]_), and by extension the balance of an Orchard transaction. That is, the sum of all the :math:`\mathsf{value^{net}}` from each Action Description, computed as :math:`\mathsf{value^{old}-value^{new}}`, must be balanced **only with respect to the same Asset Identifier**. This is especially important since we will allow different Action Descriptions to transfer notes of different Asset Identifiers, where the overall balance is checked without revealing which (or how many distinct) Assets are being transferred.
 
 As was initially proposed by Jack Grigg and Daira-Emma Hopwood [#initial-zsa-issue]_ [#generalized-value-commitments]_, we propose to make this happen by changing the value base point, :math:`\mathcal{V}^{\mathsf{Orchard}}`, in the Homomorphic Pedersen Commitment that derives the value commitment, :math:`\mathsf{cv^{net}}`, of the *net value* in an Orchard Action.
 
-Because in a single transaction all value commitments are balanced, there must be as many different value base points as there are Asset Identifiers for a given shielded protocol used in a transaction. We propose to make the Asset Base an auxiliary input to the proof for each Action statement [#protocol-actionstatement]_, represented already as a point on the Pallas curve. The circuit then should check that the same Asset Base is used in the old note commitment and the new note commitment [#protocol-concretesinsemillacommit]_, **and** as the base point in the value commitment [#protocol-concretevaluecommit]_. This ensures (1) that the input and output notes are of the same Asset Base, and (2) that only Actions with the same Asset Base will balance out in the Orchard binding signature.
+Because in a single transaction all value commitments are balanced, there must be as many different value base points as there are Asset Identifiers for a given shielded protocol used in a transaction. We propose to make the Asset Base an auxiliary input to the proof for each Action statement [#protocol-actionstatement]_, represented already as a point on the Pallas curve. The circuit then should check that the same Asset Base is used in the old note commitment and the new note commitment [#protocol-concretesinsemillacommit]_, **and** as the base point in the value commitment [#protocol-concretehomomorphiccommit]_. This ensures (1) that the input and output notes are of the same Asset Base, and (2) that only Actions with the same Asset Base will balance out in the Orchard binding signature.
 
-In order to ensure the security of the transfers, and as we will explain below, we are redefining input dummy notes [#protocol-dummynotes]_ for Custom Assets, as we need to enforce that the :math:`\mathsf{AssetBase}` of the output note of that Split Action is the output of a valid :math:`\mathsf{ZSAValueBase}` computation defined in ZIP 227 [#zip-0227]_.
 
 We include the ability to pause the ZSA functionality, via a :math:`\mathsf{enableZSA}` boolean flag. When this flag is set to false, it is not possible to perform transactions involving Custom Assets (the Action statement as modified for ZSAs will not be satisfied).
 
@@ -159,7 +158,7 @@ For ZEC, we define :math:`\mathsf{AssetBase}_{\mathsf{AssetId}} :=\mathcal{V}^{\
 Rationale for Value Commitment
 ``````````````````````````````
 
-The Orchard Protocol uses a Homomorphic Pedersen Commitment [#protocol-concretevaluecommit]_ to perform the value commitment, with fixed base points :math:`\mathcal{V}^{\mathsf{Orchard}}` and :math:`\mathcal{R}^{\mathsf{Orchard}}` as the values represent the amount of ZEC being transferred.
+The Orchard Protocol uses a Homomorphic Pedersen Commitment [#protocol-concretehomomorphiccommit]_ to perform the value commitment, with fixed base points :math:`\mathcal{V}^{\mathsf{Orchard}}` and :math:`\mathcal{R}^{\mathsf{Orchard}}` as the values represent the amount of ZEC being transferred.
 
 The use of different value base points for different Assets enables the final balance of the transaction to be securely computed, such that each Asset Identifier is balanced independently, which is required as different Assets are not meant to be mutually fungible.
 
@@ -189,7 +188,7 @@ Additional Consensus Rules
 Value Balance Verification
 --------------------------
 
-In order to verify the balance of the different Assets, the verifier MUST perform a similar process as for the Orchard protocol [#protocol-binding]_, with the addition of the burn information.
+In order to verify the balance of the different Assets, the verifier MUST perform a similar process as for the Orchard protocol [#protocol-orchardbalance]_, with the addition of the burn information.
 
 For a total of :math:`n` Actions in a transfer, the prover MUST still sign the SIGHASH transaction hash using the binding signature key
 :math:`\mathsf{bsk} = \sum_{i=1}^{n} \mathsf{rcv}_{i}`.
@@ -211,7 +210,7 @@ The right hand side of the value balance verification equation can be expanded t
 
 .. math:: ((\sum_{i \in S_{\mathsf{ZEC}}} \mathsf{cv^{net}}_{i}) + (\sum_{j \in S_{\mathsf{CA}}} \mathsf{cv^{net}}_{j})) - ([\mathsf{v^{balanceOrchard}}]\mathcal{V}^{\mathsf{Orchard}} + [0]\mathcal{R}^{\mathsf{Orchard}}) - (\sum_{(\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{assetBurn}} [\mathsf{v}]\mathsf{AssetBase} + [0]\mathcal{R}^{\mathsf{Orchard}})
 
-This equation contains the balance check of the Orchard protocol [#protocol-binding]_.
+This equation contains the balance check of the Orchard protocol [#protocol-orchardbalance]_.
 With ZSA, transfer Actions for Custom Assets must also be balanced across Asset Bases.
 All Custom Assets are contained within the shielded pool, and cannot be unshielded via a regular transfer.
 Custom Assets can be burnt, the mechanism for which reveals the amount and identifier of the Asset being burnt, within the :math:`\mathsf{assetBurn}` set.
@@ -250,7 +249,7 @@ where :math:`\psi'` is sampled uniformly at random on :math:`\mathbb{F}_{q_{\mat
 Rationale for Split Notes
 `````````````````````````
 
-In the Orchard protocol, since each Action represents an input and an output, the transaction that wants to send one input to multiple outputs must have multiple inputs. The Orchard protocol gives *dummy spend notes* [#protocol-dummynotes]_ to the Actions that have not been assigned input notes.
+In the Orchard protocol, since each Action represents an input and an output, the transaction that wants to send one input to multiple outputs must have multiple inputs. The Orchard protocol gives *dummy spend notes* [#protocol-orcharddummynotes]_ to the Actions that have not been assigned input notes.
 
 The Orchard technique requires modification for the ZSA protocol with multiple Asset Identifiers, as the output note of the split Actions *cannot* contain *any* Asset Base. We must enforce it to be an actual output of a GroupHash computation (in fact, we want it to be of the same Asset Base as the original input note, but the binding signature takes care that the proper balancing is performed). Without this enforcement the prover could input a multiple (or linear combination) of an existing Asset Base, and thereby attack the network by overflowing the ZEC value balance and hence counterfeiting ZEC funds.
 
@@ -453,37 +452,34 @@ Reference Implementation
 References
 ==========
 
-.. [#RFC2119] `RFC 2119: Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.html>`_
 .. [#zip-0209] `ZIP 209: Prohibit Negative Shielded Chain Value Pool Balances <zip-0209.html>`_
 .. [#zip-0224] `ZIP 224: Orchard <zip-0224.html>`_
-.. [#zip-0226] `ZIP 226: Transfer and Burn of Zcash Shielded Assets <zip-0226.html>`_
 .. [#zip-0227] `ZIP 227: Issuance of Zcash Shielded Assets <zip-0227.html>`_
-.. [#zip-0230] `ZIP 230: Version 6 Transaction Format <https://github.com/QED-it/zips/pull/36>`_
 .. [#zip-0227-assetidentifier] `ZIP 227: Issuance of Zcash Shielded Assets: Specification: Asset Identifier <zip-0227.html#specification-asset-identifier>`_
 .. [#zip-0227-txiddigest] `ZIP 227: Issuance of Zcash Shielded Assets: TxId Digest - Issuance <zip-0227.html#txid-digest-issuance>`_
 .. [#zip-0227-sigdigest] `ZIP 227: Issuance of Zcash Shielded Assets: Signature Digest <zip-0227.html#signature-digest>`_
 .. [#zip-0227-authcommitment] `ZIP 227: Issuance of Zcash Shielded Assets: Authorizing Data Commitment <zip-0227.html#authorizing-data-commitment>`_
+.. [#zip-0230] `ZIP 230: Version 6 Transaction Format <https://github.com/QED-it/zips/pull/36>`_
 .. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.html>`_
 .. [#zip-0307] `ZIP 307: Light Client Protocol for Payment Detection <zip-0307.rst>`_
-.. [#protocol-notes] `Zcash Protocol Specification, Version 2022.3.8. Section 3.2: Notes <protocol/protocol.pdf#notes>`_
-.. [#protocol-notept] `Zcash Protocol Specification, Version 2022.3.8. Section 5.5: Encodings of Note Plaintexts and Memo Fields <protocol/protocol.pdf#notept>`_
-.. [#protocol-actions] `Zcash Protocol Specification, Version 2022.3.8. Section 3.7: Action Transfers and their Descriptions <protocol/protocol.pdf#actions>`_
-.. [#protocol-abstractcommit] `Zcash Protocol Specification, Version 2022.3.8. Section 4.1.8: Commitment <protocol/protocol.pdf#abstractcommit>`_
-.. [#protocol-binding] `Zcash Protocol Specification, Version 2022.3.8. Section 4.14: Balance and Binding Signature (Orchard) <protocol/protocol.pdf#orchardbalance>`_
-.. [#protocol-commitmentsandnullifiers] `Zcash Protocol Specification, Version 2022.3.8. Section 4.16: Note Commitments and Nullifiers <protocol/protocol.pdf#commitmentsandnullifiers>`_
-.. [#protocol-endian] `Zcash Protocol Specification, Version 2022.3.8. Section 5.1: Integers, Bit Sequences, and Endianness <protocol/protocol.pdf#endian>`_
-.. [#protocol-constants] `Zcash Protocol Specification, Version 2022.3.8. Section 5.3: Constants <protocol/protocol.pdf#constants>`_
-.. [#protocol-pallasandvesta] `Zcash Protocol Specification, Version 2022.3.8. Section 5.4.9.6: Pallas and Vesta <protocol/protocol.pdf#pallasandvesta>`_
-.. [#pasta-evidence] `Pallas/Vesta supporting evidence <https://github.com/zcash/pasta>`_
-.. [#protocol-concretesinsemillahash] `Zcash Protocol Specification, Version 2022.3.8. Section 5.4.1.9: Sinsemilla hash function <protocol/protocol.pdf#concretesinsemillahash>`_
-.. [#protocol-concretesinsemillacommit] `Zcash Protocol Specification, Version 2022.3.8. Section 5.4.8.4: Sinsemilla commitments <protocol/protocol.pdf#concretesinsemillacommit>`_
-.. [#protocol-concretevaluecommit] `Zcash Protocol Specification, Version 2022.3.8. Section 5.4.8.3: Homomorphic Pedersen commitments (Sapling and Orchard) <protocol/protocol.pdf#concretevaluecommit>`_
-.. [#protocol-dummynotes] `Zcash Protocol Specification, Version 2022.3.8. Section 4.8.3: Dummy Notes (Orchard) <protocol/protocol.pdf#>`_
-.. [#protocol-actionstatement] `Zcash Protocol Specification, Version 2022.3.8. Section 4.17.4: Action Statement (Orchard) <protocol/protocol.pdf#actionstatement>`_
-.. [#protocol-transactionstructure] `Zcash Protocol Specification, Version 2022.3.8. Section 7.1: Transaction Encoding and Consensus (Transaction Version 5)  <protocol/protocol.pdf#txnencodingandconsensus>`_
-.. [#protocol-actionencodingandconsensus] `Zcash Protocol Specification, Version 2022.3.8. Section 7.5: Action Description Encoding and Consensus  <protocol/protocol.pdf#actionencodingandconsensus>`_
+.. [#zip-0317b] `ZIP 317: Proportional Transfer Fee Mechanism - Pull Request #667 for ZSA Protocol ZIPs <https://github.com/zcash/zips/pull/667>`_
+.. [#protocol-notes] `Zcash Protocol Specification, Version 2023.4.0. Section 3.2: Notes <protocol/protocol.pdf#notes>`_
+.. [#protocol-actions] `Zcash Protocol Specification, Version 2023.4.0. Section 3.7: Action Transfers and their Descriptions <protocol/protocol.pdf#actions>`_
+.. [#protocol-abstractcommit] `Zcash Protocol Specification, Version 2023.4.0. Section 4.1.8: Commitment <protocol/protocol.pdf#abstractcommit>`_
+.. [#protocol-orcharddummynotes] `Zcash Protocol Specification, Version 2023.4.0. Section 4.8.3: Dummy Notes (Orchard) <protocol/protocol.pdf#orcharddummynotes>`_
+.. [#protocol-orchardbalance] `Zcash Protocol Specification, Version 2023.4.0. Section 4.14: Balance and Binding Signature (Orchard) <protocol/protocol.pdf#orchardbalance>`_
+.. [#protocol-commitmentsandnullifiers] `Zcash Protocol Specification, Version 2023.4.0. Section 4.16: Note Commitments and Nullifiers <protocol/protocol.pdf#commitmentsandnullifiers>`_
+.. [#protocol-actionstatement] `Zcash Protocol Specification, Version 2023.4.0. Section 4.17.4: Action Statement (Orchard) <protocol/protocol.pdf#actionstatement>`_
+.. [#protocol-endian] `Zcash Protocol Specification, Version 2023.4.0. Section 5.1: Integers, Bit Sequences, and Endianness <protocol/protocol.pdf#endian>`_
+.. [#protocol-constants] `Zcash Protocol Specification, Version 2023.4.0. Section 5.3: Constants <protocol/protocol.pdf#constants>`_
+.. [#protocol-concretesinsemillahash] `Zcash Protocol Specification, Version 2023.4.0. Section 5.4.1.9: Sinsemilla hash function <protocol/protocol.pdf#concretesinsemillahash>`_
+.. [#protocol-concretehomomorphiccommit] `Zcash Protocol Specification, Version 2023.4.0. Section 5.4.8.3: Homomorphic Pedersen commitments (Sapling and Orchard) <protocol/protocol.pdf#concretehomomorphiccommit>`_
+.. [#protocol-concretesinsemillacommit] `Zcash Protocol Specification, Version 2023.4.0. Section 5.4.8.4: Sinsemilla commitments <protocol/protocol.pdf#concretesinsemillacommit>`_
+.. [#protocol-pallasandvesta] `Zcash Protocol Specification, Version 2023.4.0. Section 5.4.9.6: Pallas and Vesta <protocol/protocol.pdf#pallasandvesta>`_
+.. [#protocol-notept] `Zcash Protocol Specification, Version 2023.4.0. Section 5.5: Encodings of Note Plaintexts and Memo Fields <protocol/protocol.pdf#notept>`_
+.. [#protocol-actionencodingandconsensus] `Zcash Protocol Specification, Version 2023.4.0. Section 7.5: Action Description Encoding and Consensus  <protocol/protocol.pdf#actionencodingandconsensus>`_
 .. [#initial-zsa-issue] `User-Defined Assets and Wrapped Assets <https://github.com/str4d/zips/blob/zip-udas/drafts/zip-user-defined-assets.rst>`_
 .. [#generalized-value-commitments] `Comment on Generalized Value Commitments <https://github.com/zcash/zcash/issues/2277#issuecomment-321106819>`_
-.. [#zip-0317b] `ZIP 317: Proportional Transfer Fee Mechanism - Pull Request #667 for ZSA Protocol ZIPs <https://github.com/zcash/zips/pull/667>`_
 .. [#circuit-modifications] `Modifications to the Orchard circuit for the ZSA Protocol <https://docs.google.com/document/d/1DzXBqZl_l3aIs_gcelw3OuZz2OVMnYk6Xe_1lBsTji8/edit?usp=sharing>`_
