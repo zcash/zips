@@ -2,12 +2,539 @@
 
   ZIP: 228
   Title: Asset Swaps for Zcash Shielded Assets
-  Owners: Pablo Kogan <pablo@qed-it.com>
+  Owners: Antoine Rondelet <antoine@qed-it.com>
+          Pablo Kogan <pablo@qed-it.com>
           Vivek Arte <vivek@qed-it.com>
           Daira-Emma Hopwood <daira-emma@electriccoin.co>
           Jack Grigg <str4d@electriccoin.co>
-  Credits: Daniel Benarroch
-           Aurelien Nicolas
-  Status: Reserved
+  Credits: 
+  Status: Draft
+  Created: TBD
+  License: MIT
   Category: Consensus
   Discussions-To: <https://github.com/zcash/zips/issues/776>
+  Pull-Request: <https://github.com/zcash/zips/pull/780>
+
+Terminology
+===========
+
+The key word "MUST" in this document is to be interpreted as described in RFC 2119 [#RFC2119]_.
+
+The term "network upgrade" in this document is to be interpreted as described in ZIP 200 [#zip-0200]_.
+
+The terms "Orchard" and "Action" in this document are to be interpreted as described in ZIP 224 [#zip-0224]_.
+
+The terms "Asset", "Custom Asset" and "Asset Base” in this document are to be interpreted as described in ZIP 227 [#zip-0227]_.
+
+We define the following additional terms:
+
+- Swap: the exchange of a quantity (q) of asset A for a quantity (q') of asset B.
+- Swap Order: a Swap Order (or Order) is a unilateral intent to exchange a quantity (q) of asset A for a quantity (q') of asset B. See `Specification: Swap Orders`_ for more details. In this document, Swap Orders are abbreviated SO, and we use subscripts to differentiate between them, for example, :math:`\mathsf{SO}_i`, :math:`\mathsf{SO}_j` and so on.
+- Matching: we say that two Orders match, when the “bid” of one Order is the “offer” of the other Order. The process of Matching Orders together consists of grouping Orders into pairs that match. See `CLOB and Matching Policies`_ for more details.
+- Swap Bundle: a Swap Bundle (or Bundle) is the association of two matching Swap Orders, i.e. a Bundle is the result of the Matching operation. Swap Bundles represent the execution of Swap Orders by the Matcher, to be sent to the blockchain for settlement. See `Action Groups and Swap Bundle`_ for more information.
+- Action Group: an Action Group is a group of Actions (as defined in [#zip-0224]_) which share the same tuple :math:`(\mathsf{rt}, \mathsf{enableSpends}, \mathsf{enableOutputs}, \mathsf{enableZSA})`. In this ZIP, we denote the above shared tuple by "Orchard Commons". See `Action Groups and Swap Bundle`_ for more information.
+
+Abstract
+========
+
+This ZIP introduces Asset Swaps for Zcash Shielded Assets (ZSA). It builds on top of ZIP 227 [#zip-0227]_ and ZIP 226 [#zip-0226]_. ZSA Swaps simplify the process of trading assets within the Zcash ecosystem, and lower the reliance on centralized exchanges for trading.
+
+Motivation
+==========
+
+ZIP 227 and ZIP 226 equip Zcash with the ability to issue, transfer, and burn Custom Assets, enabling multi-asset support on the Zcash chain. This support opens the door for applications like asset swaps, which allow users to trade assets on Zcash without using centralized exchanges. Importantly, ZSA Swaps will allow users to keep full custody of their funds while trading their assets. In light of the number of “DeFi/smart contract hacks” and bankrupt exchanges which mismanaged user funds (e.g. FTX), providing users with a secure and privacy-preserving way to trade, while staying in control of their funds, is a tremendous improvement on the status quo in the realm of (privacy preserving) cryptocurrencies. Assets Swaps for ZSA is another milestone that would unleash a myriad of use cases on the Zcash ecosystem.
+
+Overview
+========
+
+The proposed protocol allows trading parties in a peer-to-peer setting to send (and/or receive) Swap Orders via off-chain communication. If the Orders of the parties match, they can be included together in Swap Bundles and then settled on the Zcash blockchain (that is, the Assets under consideration are exchanged between the trading parties).
+
+.. figure:: zip-0228-images/zip-0228-matcher-p2p.png
+    :width: 1000px
+    :align: center
+    :figclass: align-center
+
+    The P2P setting, where two traders swap Assets between themselves.
+
+
+A key challenge is that Swap Orders that match may contain Actions and Zero Knowledge Proofs generated using different blockchain states and roots of note commitment trees.
+In the current (NU5) protocol, each transaction contains a set of Actions and Proofs generated using a single anchor/Merkle root, and there is no way to combine independently generated halo2 proofs into a single combined proof.
+
+To enable combining Actions and Proofs from different blockchain states, the concept of an Action Group is introduced in this ZIP. An Action Group groups together Actions and Proofs generated using a common commitment tree root.
+Action Groups replace Actions in the Zcash transaction format. This allows for creating a single Zcash transaction from different sets of Actions and Proofs generated using different anchors and blockchain states.
+This Action Groups-based transaction structure enables a wide range of use-cases to be built on Zcash, such as: P2P ZSA Swaps, Zcash transaction relays or ZSA Swaps via a centralized Matcher - to name a few (More details are under the `Matchers`_ heading in the `Other Considerations`_ section of this ZIP).
+
+Specification: Protocol Changes
+===============================
+
+The protocol is largely the same as that in the Orchard-ZSA Protocol described in ZIP 226 [#zip-0226]_ and ZIP 227 [#zip-0227]_. The changes to the protocol are described in this section. 
+The specification of the structure of Swap Orders (that are sent off-chain) is provided in the next section, `Specification: Swap Orders`_.
+
+Action Groups and Swap Bundle 
+-----------------------------
+
+The transaction format is modified to group Actions [#protocol-actions]_ into **Action Groups** characterized by anchors and ``flagsOrchard``. Specifically, the Orchard-ZSA transaction fields [#zip-0230-transaction-format]_ are modified as in the table below:
+This is the Swap Bundle, and it is pictorially represented in the figure below.
+
++-----------------------------+--------------------------+--------------------------------------------------+---------------------------------------------------------------------+
+| Bytes                       | Name                     | Data Type                                        | Description                                                         |
++=============================+==========================+==================================================+=====================================================================+
+|``varies``                   |``nActionGroupsOrchard``  |``compactSize``                                   |The number of Action Group descriptions in ``vActionGroupsOrchard``. |  
++-----------------------------+--------------------------+--------------------------------------------------+---------------------------------------------------------------------+
+|``varies``                   |``vActionGroupsOrchard``  |``ActionGroupDescription[nActionGroupsOrchard]``  |A sequence of Action Group descriptions, encoded as per the          |  
+|                             |                          |                                                  |`Action Group Description Encoding`_.                                |  
++-----------------------------+--------------------------+--------------------------------------------------+---------------------------------------------------------------------+
+|``8``                        |``valueBalanceOrchard``   |``int64``                                         |The net value of Orchard spends minus outputs.                       |
++-----------------------------+--------------------------+--------------------------------------------------+---------------------------------------------------------------------+
+|``64``                       |``bindingSigOrchard``     |``bytes[64]``                                     |An Orchard binding signature on the SIGHASH transaction hash.        |  
++-----------------------------+--------------------------+--------------------------------------------------+---------------------------------------------------------------------+
+
+Action Group Description Encoding
+`````````````````````````````````
+The ``ActionGroupDescription`` data type contains the following fields:
+
++------------------------------------+--------------------------+--------------------------------------------------+---------------------------------------------------------------------+
+| Bytes                              | Name                     | Data Type                                        | Description                                                         |
++====================================+==========================+==================================================+=====================================================================+
+|``varies``                          |``preAuthActionGroup``    |``ActionGroupDescriptionPreAuth``                 |The pre-authorization Action Group description, without authorizing  |  
+|                                    |                          |                                                  |signatures.                                                          |  
++------------------------------------+--------------------------+--------------------------------------------------+---------------------------------------------------------------------+
+|``64 *                              |``vSpendAuthSigsOrchard`` |``bytes[64][preAuthActionGroup.nActionsOrchard]`` |Authorizing signatures for the inclusion of each Action of the       |  
+|preAuthActionGroup.nActionsOrchard``|                          |                                                  |Action Group in a transaction.                                       |  
+|                                    |                          |                                                  |See `Spend Authorization Signature Changes`_ for details.            |  
++------------------------------------+--------------------------+--------------------------------------------------+---------------------------------------------------------------------+
+
+The pre-authorization Action Group description data type, ``ActionGroupDescriptionPreAuth``, contains the following fields:
+
++-----------------------------+--------------------------+--------------------------------------------------+---------------------------------------------------------------------+
+| Bytes                       | Name                     | Data Type                                        | Description                                                         |
++=============================+==========================+==================================================+=====================================================================+
+|``varies``                   |``nActionsOrchard``       |``compactSize``                                   |The number of Action descriptions in ``vActionsOrchard``.            |  
++-----------------------------+--------------------------+--------------------------------------------------+---------------------------------------------------------------------+
+|``852 * nActionsOrchard``    |``vActionsOrchard``       |``OrchardZSAAction[nActionsOrchard]``             |A sequence of ZSA Swap Action descriptions in the Action Group.      |  
++-----------------------------+--------------------------+--------------------------------------------------+---------------------------------------------------------------------+
+|``1``                        |``flagsOrchard``          |``byte``                                          |As defined in Section 7.1 of the Protocol                            |  
+|                             |                          |                                                  |Specification [#protocol-txnencoding]_.                              |  
++-----------------------------+--------------------------+--------------------------------------------------+---------------------------------------------------------------------+
+|``32``                       |``anchorOrchard``         |``bytes[32]``                                     |As defined in Section 7.1 of the Protocol                            |  
+|                             |                          |                                                  |Specification [#protocol-txnencoding]_.                              |  
++-----------------------------+--------------------------+--------------------------------------------------+---------------------------------------------------------------------+
+|``varies``                   |``sizeProofsOrchard``     |``compactSize``                                   |As defined in Section 7.1 of the Protocol                            |  
+|                             |                          |                                                  |Specification [#protocol-txnencoding]_.                              |  
++-----------------------------+--------------------------+--------------------------------------------------+---------------------------------------------------------------------+
+|``sizeProofsOrchard``        |``proofsOrchard``         |``bytes[sizeProofsOrchard]``                      |The aggregated zk-SNARK proof for all Actions in the Action Group.   |  
++-----------------------------+--------------------------+--------------------------------------------------+---------------------------------------------------------------------+
+|``4``                        |``timeLimit``             |``uint32``                                        |The block number (in the future) after which the Actions of the      |  
+|                             |                          |                                                  |Action Group become invalid and should be rejected by consensus.     |  
++-----------------------------+--------------------------+--------------------------------------------------+---------------------------------------------------------------------+
+
+.. figure:: zip-0228-images/zip-0228-swap-bundle.png
+    :width: 1000px
+    :align: center
+    :figclass: align-center
+
+    An example Zcash transaction with a Swap Bundle (simplified, for reference only).
+
+Spend Authorization Signature Changes
+-------------------------------------
+
+The spend authorization signature is computed in the manner specified in Section 4.15 of the protocol specification [#protocol-spendauthsig]_, except that the signature is generated over the Action Group Hash, :math:`\mathsf{AGHash}`, which is defined to be
+:math:`\mathsf{AGHash} := \mathsf{BLAKE2b}\texttt{-}\mathsf{256}(\texttt{"ZcashActionGroup"}, \mathsf{preAuthActionGroup})`.
+
+This change ensures that no changes are required in the Action Statement to be proved.
+
+SIGHASH Computation Changes
+---------------------------
+
+The addition of Action Groups to the Zcash transaction as another level of abstraction requires a change in the way transactions are hashed to compute the SIGHASH in ZIP 244, specifically in the ``orchard_digest`` section [#zip-0244-orchard-digest]_.
+We update the structure of the ``orchard_digest`` component of the SIGHASH as follows::
+
+    orchard_digest
+    ├── orchard_action_groups_digest
+    │   ├── orchard_actions_compact_digest
+    │   ├── orchard_actions_memos_digest
+    │   ├── orchard_actions_noncompact_digest
+    │   ├── flagsOrchard
+    │   ├── anchorOrchard
+    │   └── timeLimit
+    └── valueBalanceOrchard
+
+T.4: orchard_digest
+```````````````````
+In the case that Orchard actions are present in the transaction, this digest is
+a BLAKE2b-256 hash of the following values ::
+
+    T.4a: orchard_action_groups_digest   (32-byte hash output)
+    T.4b: valueBalanceOrchard            (64-bit signed little-endian)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdOrchardHash"
+
+In the case that the transaction has no Orchard actions, ``orchard_digest`` is ::
+
+    BLAKE2b-256("ZTxIdOrchardHash", [])
+
+T.4a: orchard_action_groups_digest
+''''''''''''''''''''''''''''''''''
+
+A BLAKE2b-256 hash of the subset of Orchard Action Groups information for all Orchard Action Groups belonging to the transaction.
+For each Action Group, the following elements are included in the hash::
+
+    T.4a.i  : orchard_actions_compact_digest      (32-byte hash output)
+    T.4a.ii : orchard_actions_memos_digest        (32-byte hash output)
+    T.4a.iii: orchard_actions_noncompact_digest   (32-byte hash output)
+    T.4a.iv : flagsOrchard                        (1 byte)
+    T.4a.v  : anchorOrchard                       (32 bytes)
+    T.4a.vi : timeLimit                           (4 bytes)
+
+The content of T.4a.i, T.4a.ii, and T.4a.iii are the same as T.4a, T.4b, and T.4c of the ``txid_digest`` defined in ZIP 244 [#zip-0244-orchard-digest]_, over the Actions in the Action Group, and therefore are not expanded on for the sake of brevity.
+
+The personalization field of this hash is set to::
+
+  "ZTxIdOrcActGHash"
+
+In the case that the transaction has no Action Groups, ``orchard_action_groups_digest`` is ::
+
+    BLAKE2b-256("ZTxIdOrcActGHash", [])
+
+Binding Signature Changes
+-------------------------
+
+The binding signature is generated using the Orchard Binding Signature scheme, by signing the SIGHASH, computed as described in the `SIGHASH Computation Changes`_ section, using the signing key :math:`\mathsf{bsk}` computed as described below.
+
+The party performing the matching has some Swap Orders :math:`\mathsf{SO}_i`, each of which contains a :math:`\mathsf{bsk}_i`.
+The party generates the :math:`\mathsf{bsk}` for the binding signature by summing up the :math:`\mathsf{bsk}_i` values of the Swap Orders that are matched into the Swap Bundle. 
+For example, if Swap Orders :math:`\mathsf{SO}_i` and :math:`\mathsf{SO}_j` are matched, then the :math:`\mathsf{bsk} = \mathsf{bsk}_i + \mathsf{bsk}_j`.
+The consensus check remains the same, using these updated values.
+
+Consensus Rule Changes
+----------------------
+
+The transaction verification becomes a nested loop, iterating over all Action Groups and verifying the Actions they contain. 
+Each spend authorization signature MUST be a valid :math:`\mathsf{SpendAuthSig^{Orchard}}` signature over :math:`\mathsf{AGHash}` using :math:`\mathsf{rk}` as the validating key. (That is, the signature is over :math:`\mathsf{AGHash}` instead of :math:`\mathsf{SigHash}`.)
+The time limit also needs to be checked during verification. 
+Specifically, the consensus rule becomes (if any checks fail, the transaction MUST be rejected):
+
+    - for all AG in ActionGroups do:
+
+        - check that AG.timeLimit <= current block height 
+        - for (i = 0; i < AG.nActionsOrchard; i++):
+
+            - check the result of ZKAction.Verify on the proof AG.proofsOrchard[i]
+            - hash[i] = BLAKE2b-256("ZcashActionGroup", vActionGroupsOrchard[i].preAuthActionGroup)
+            - check SpendAuthSig.Validate(AG.vActionsOrchard[i].rk, hash[i], AG.vSpendAuthSigsOrchard[i])
+
+
+Rationale for Protocol Changes
+------------------------------
+
+We cover here the reasons for the different design choices in different sections. 
+
+Rationale for Action Groups
+```````````````````````````
+
+In the current Zcash protocol (NU5), the anchor is not included in the Action Description, and is only included once in the entire transaction.
+When bundling together two Orders whose Actions are generated by two traders, it is possible that these two traders may use different anchors :math:`\mathsf{rt}^{\mathsf{Orchard}}` (among others) to generate the ZK proofs in their Orders.
+As a result, to create Swap Bundles from matched Swap Orders, it is necessary to provide the anchors of both Swap Orders in the transaction for nodes to be able to verify the transaction completely on-chain.
+
+The Action Groups abstraction achieves the same function as including the tuple (Merkle Root (:math:`\mathsf{rt}`), ``enableSpend``, ``enableOutputs``) to each Action object - but more efficiently. 
+It reduces information duplication within the transaction object, and thus is more bandwidth efficient.
+
+
+Rationale for Time Limit
+````````````````````````
+
+Adding a ``timeLimit`` parameter to the Action Group object (or to the Action object) allows senders of Orders to set some expiry parameters on their orders to avoid granting trading counterparties an indefinite option on their trade intents. 
+In fact, if an order (e.g. “BUY 1 A1 for 100 A2”, i.e. “Proposed: 100 A2, Desired: 1 A1") cannot expire, it may stay on the Matcher's order book for a very long time. 
+This could provide the rest of the market with a great trading opportunity if the market value of A2 doubles to 1 A1 for 50 A2. 
+In this case, whoever sends a matching order “BUY 100 A2 for 1 A1”, i.e. “Proposed 1 A1, Desired: 100 A2") could match the old “1 A1 for 100 A2" order and pocket A2 at a discount from the current market value, at the expense of the traders who saw their orders stuck on the Matcher's order book for this extended period of time.
+Setting a time limit for the Swap Orders helps alleviate this issue and provides a protection to the senders of Swap Orders.
+
+The ``timeLimit`` is an integer that represents the max block height in which a given Action Group can be included on the chain.
+As such, the time limit truly represents the settlement time limit, not the execution time limit.
+This distinction is important because in our example, execution is happening offchain on the Matcher and settlement happens on the chain (i.e. introducing the Matcher to create bundles and match SO's together adds a step to the lifecycle of the trade and decouples execution and settlement, which otherwise happen at the same time, on-chain). 
+So, if we want the time limit to be part of the validity checks of a transaction on Zcash, we have to treat the time limit as a settlement parameter rather than an execution one.
+As a result, it is plausible that the party performing the matching and sending it for settlement will not match orders having a time limit that is near enough that it might not get settled on time due to the expected delay between the matching and the inclusion within a block.
+
+Rationale for Spend Authorization Signature Changes
+```````````````````````````````````````````````````
+
+In the current (NU5) Zcash protocol, each Action includes a Spend Authorization Signature [#protocol-spendauthsig]_ that binds a specific spend instruction to a specific transaction and prevents replay attacks.
+However, in the context of Asset Swaps, there are two problems that prevent this mechanism from being carried over unchanged.
+
+- The SIGHASH represents a hash over a full consensus-compliant transaction object. Since a Swap Order is a trade intent to be used by the party performing the matching to form a valid bundle/transaction, the sender of the Swap Order cannot compute a SIGHASH as per ZIP244. This trader doesn't know all the transaction fields in advance, as they are set when the full bundle transaction is formed and sent to the chain.
+- The ``timeLimit`` parameter is a new addition to the protocol, and is therefore not included in the existing SIGHASH. Swap Orders need to be made non-malleable in order to ensure that the party performing the matching cannot change the time limit unilaterally.
+
+To make sure the time limit isn't malleable, we have the Order sender sign the Order content (i.e. the Action Group of the Order). 
+Thus, the sender “seals” the time limit within the Action Group, with the signature verification key being derived in the circuit. 
+This effectively links the time limit parameter to the Actions proof.
+A party trying to tweak the time limit of received orders while matching orders will then need to generate a new proof for the Actions in the Order, which isn't possible without knowing the full witness.
+
+This approach is natural and aligns with the goal of the protocol.
+Signing together all the contents of the Order prevents the "terms" of the Order from being modified.
+This ensures that the party performing the matching and settlement is only given the authority to match the Order with other Orders to create a valid transaction, and does not get custody of the Assets in the Order.
+
+Rationale for SIGHASH Computation Changes
+`````````````````````````````````````````
+
+The protocol specified in this ZIP makes certain changes to the transaction format, such as using the Action Groups level of abstraction, and adding a new ``timeLimit`` field. 
+The computation of SIGHASH is updated so as to capture all these changes into the hash, so as to bind all the parts of a transaction and make it non-malleable.
+
+Rationale for Binding Signature Changes
+```````````````````````````````````````
+
+One way in which a malicious matcher could exploit the protocol would be to break the atomicity of Swap Orders by only forming bundles with the Fee Actions of a Swap Order. 
+In this case, the matcher would relay on chain the “fee paying instructions” without executing the actual trade.
+
+By including :math:`\mathsf{bsk}` values in each Swap Order, and building the trasnaction :math:`\mathsf{bsk}` from these values as described in the `Binding Signature Changes`_ section, we prevent this malicious behavior.
+To be able to spend a subset of the Actions in a Swap Order, the matcher would have to be able to extract the individual :math:`\mathsf{rcv}` values of specific commitments used in the Order's Actions. 
+Given that :math:`\mathsf{bsk}` is a modular addition of random field elements, extracting specific values without additional context isn't possible. 
+Hence, :math:`\mathsf{bsk}` “binds together" the commitments of all Actions in the Order, preventing selective extraction of specific Actions in a Swap Order by a malicious matcher.
+
+Specification: Swap Orders
+==========================
+
+We specify here the structure of a Swap Order. Note that this is not a change to the Zcash protocol specification since these Swap Orders are exchanged off-chain.
+
++-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
+| Bytes                       | Name                     | Data Type                                 | Description                                                         |
++=============================+==========================+===========================================+=====================================================================+
+|``40``                       |``ProposedInput``         |``SwapIO``                                 |The input of the Swap Order.                                         |  
++-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
+|``40``                       |``DesiredOutput``         |``SwapIO``                                 |The output of the Swap Order.                                        |  
++-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
+|``32``                       |``bsk``                   |``byte[32]``                               |The binding signature key, corresponding to the sum of all the       |  
+|                             |                          |                                           |:math:`\mathsf{rcv}` values of commitments in the Order.             |  
++-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
+|``varies``                   |``SwapActionGroup``       |``ActionGroupDescription``                 |The description of the Action Group corresponding to the desired     |  
+|                             |                          |                                           |Swap operation. It must contain at least two Actions, the Swap       |  
+|                             |                          |                                           |Action and the Fee Action.                                           |  
++-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
+
+The ``SwapIO`` data type is used to represent the input and output of a Swap Order.
+
++-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
+| Bytes                       | Name                     | Data Type                                 | Description                                                         |
++=============================+==========================+===========================================+=====================================================================+
+|``32``                       |``asset_base``            |``byte[32]``                               |The Asset Base [#zip-0227-assetbase]_ of the input/output of the     |  
+|                             |                          |                                           |Swap Order.                                                          |  
++-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
+|``8``                        |``qty``                   |``uint64``                                 |The quantity of the Asset represented by ``asset_base`` proposed in  |  
+|                             |                          |                                           |the Swap Order.                                                      |  
++-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
+
+Rationale for Swap Orders
+-------------------------
+
+In a Swap Order, senders only manipulate their funds. 
+This means that senders of Orders spend their notes (input) denominated in an Asset :math:`\mathsf{A}_1` and create a note for themself, to receive the desired amount of another Asset :math:`\mathsf{A}_2`.
+
+To support a CLOB like trading environment, the Order senders do not know in advance with whom their orders will be matched, so they do not know, in advance, who is the recipient of the funds they offer to swap. 
+As such, they cannot create notes for a recipient other than themself. 
+To form an Order, the sender must generate Actions with output notes and associated commitments, that use their own diversifier :math:`\mathsf{d}` and diversified transmission key :math:`\mathsf{pk_d}` [#protocol-notes]_.
+
+Each Order can be seen as an “invalid" ZSA transaction to oneself, which is unbalanced w.r.t each ZSA AssetBase. 
+Each Order only “becomes valid” in the context of a Swap Bundle, whose overall value is balanced across Asset Bases (i.e. the two Orders balance each other).
+
+Furthermore, each Order contains a specific Action that pays "matching fees" to the party performing the matching. 
+This Action, paying fees, in ZEC, to the matcher, is generated using the matcher's details to generate output notes, since we assume, generally, that the matcher is known by all trading parties.
+In the P2P case the matcher is simply the second party out of the two (See the `Fees`_ section for more details).
+
+ZIP 226 [#zip-0226]_, that this ZIP builds on, introduces changes to the NU5 circuit to include support for different Assets. 
+The structure there requires that the input and output notes of the OrchardZSA Action must have the same asset base.
+This ZIP continues with the same idea, i.e. the manipulation of a single Asset Base per Action.
+Therefore, Swap Orders are expected to generally have at least three Actions:
+
+- One Action for the Proposed Asset.
+- One Action for the Desired Asset.
+- One Action for the fees (:math:`\mathsf{ZEC}`).
+
+Security and Privacy Considerations
+===================================
+
+Protection against Replay attacks
+---------------------------------
+
+We consider whether our change from signing the SIGHASH in the spend authorization signature to signing the Action Group Hash opens any possibilities of replay attacks.
+
+This is prevented by the use of the updated SIGHASH in the binding signature. 
+If an adversary tries to extract an Action Group and associated Spend Authorization Signature from a transaction on the network to replay it within another transaction - which would potentially be detrimental to the matcher as it could make their bundle invalid (if the replayed Action Group gets included first on-chain) - the adversary will also need to be able to generate a binding signature on their replayed transaction, which is not possible without knowing the :math:`\mathsf{bsk}` associated with the Action Group being replayed.
+The :math:`\mathsf{bsk}` is sent within the Swap Order, which is assumed to be communicated over a secure channel off-chain between the parties. 
+This precludes the possibility of replay attacks. 
+
+Non-Malleability of the Time Limit
+----------------------------------
+
+We protect against the malleation of the time limit field by a malicious matching party (in order to take advantage of the "free option" that it could obtain by extending the validity of an Order) by including the time limit inside the Action Group Hash that is signed using the Spend Authorization Signature (see more details in `Rationale for Time Limit`_).
+The security of the Spend Authorization Signature and the collision resistance of the BLAKE2b-256 hash then ensures that the time limit remains the same as the one mandated by the creator of the Swap Order.
+
+Other Considerations
+====================
+
+Fees
+----
+
+The primary goal of a fee mechanism is twofold: 
+
+- It should disincentivize malicious users from flooding the network with spam Swap offers that are unlikely to be matched.
+- It should incentivize the party performing the matching to perform the additional work required to match orders and bundle them together.
+
+For the matching to be economically viable, the fees captured by the matcher to create the bundle must at least be higher than the fees needed to settle the bundle on the chain.
+
+The proposed changes to the transaction structure and the consensus checks also require a change in the fees paid to miners.
+
+- The use of Action Groups adds information to the transaction object, and adds more bytes to the blockchain state. This needs to be paid for by network users in general.
+- Transaction validation by miners will also require additional computation. This should be paid by transaction senders.
+
+We note a few considerations about the computational overhead:
+
+- Action Groups limit the amount of proof aggregation. As of now, proof aggregation is carried out “on the fly during the proof generation” - so if a transaction has N Action Groups, it will have N aggregated proofs to verify. This means that if a user generates a Zcash transaction with N Action Groups each containing one Action, then proofs will not be aggregated at all, which not only increases the number of bytes added on the chain but also slows down the verification of the proofs in the transaction.
+- Action Groups are not just “wrappers/namespaces for Actions”, they are data structures coming with new fields such as time_limit that require additional checks on the transaction validation steps.
+- The spend authorization signature is not generated (and verified) using the SIGHASH, this means that all Action Groups must be hashed independently for these signatures to be verified. For a transaction containing N Action Groups, this requires N calls to the hash function to verify all signatures. This contrasts with Orchard's current verification which only needs to generate SIGHASH once to verify the spend authorization signatures and the binding signature.
+
+There are also other questions about fee capture. Is it acceptable if the fees are paid in the Assets being swapped? Should it be paid by both parties involved in the Swap?
+We believe that fees should be paid in ZEC. 
+This helps alleviate concerns about other Assets piggy-backing on the Zcash network without providing value to holders of ZEC.
+Even beyond that, taking fees in the traded assets exposes the Matcher to all traded assets. 
+This may pose regulatory issues for the Matcher (e.g. if specific assets are deemed illegal in specific jurisdictions). 
+The effect of this may be the re-creation of mechanisms of central exchanges, where only a specific list of assets are accepted for trading by matchers (similar to the “asset listing” approach of centralized exchanges).
+
+
+Matchers
+--------
+
+The Swap protocol has been described above for the peer-to-peer setting between parties. However, it also supports other use cases such as transaction relays and centralized matching services.
+This is achieved via Matchers, who are entities (or a network of entities) that run an Order Matching process. This Matching process (i.e. instance of computer program) carries out the Matching operation on a set of received Orders. The Matcher produces Bundles from Orders and then sends them on-chain for settlement. Some supported possibilities are sketched in the figures below.
+
+.. figure:: zip-0228-images/zip-0228-matcher-scenario-1.png
+    :width: 600px
+    :align: center
+    :figclass: align-center
+
+    Scenario 1: The order matching process is run on a single machine (i.e the Matcher is one machine used by User A and User B to swap).
+
+.. figure:: zip-0228-images/zip-0228-matcher-scenario-2.png
+    :width: 600px
+    :align: center
+    :figclass: align-center
+
+    Scenario 2: The order matching process is run via multiple machines (they could be connected on a network).
+
+High-level logic for Order Matching
+```````````````````````````````````
+
+The Order Matching is an off-chain procedure, and therefore is out of scope for this ZIP. The logic followed will be Matcher-dependent, but we assume that it follows the three high-level steps described below. 
+We also assume the Matcher gets paid a fee (paid in ZEC) for its service, and that Orders are matched perfectly (that is, there is no partial fulfilment of a Swap Order).
+
+Receive the Swap Order and Perform Order Matching
+'''''''''''''''''''''''''''''''''''''''''''''''''
+
+The Matcher must be able to receive incoming Swap Orders from traders willing to use it to Swap ZSAs. We assume that a Matcher is discoverable by market participant (e.g. it has a website), that traders can send Orders to the Matcher (e.g. using a secure 1-to-1 communication channel) and that a Matcher defines its own logic to process the received Swap Orders. Examples of such logic are:
+
+- A set of validity checks to run on the received Swap Orders, e.g. to prevent DoS attacks (See `Denial-of-Service (DoS) Prevention`_). If the verification of a Swap Order fails, the Swap Order gets rejected.
+- A set of operations to manage the valid Swap Orders waiting to be matched. This could include, for instance, a set of data structures and operations to manage a mempool/Central Limit Order Book (CLOB), following a chosen ordering policy (See, `CLOB and Matching Policies`_ for more details), etc.
+
+Create Swap Bundles and Settle
+''''''''''''''''''''''''''''''
+
+This step performs a set of operations, which from a set of matched Orders (see the previous step) builds a Swap Bundle to be sent on-chain as a Zcash transaction for settlement.
+
+CLOB and Matching Policies
+--------------------------
+
+The Matcher-based trading protocol for ZSA is primarily modeled after Central Limit Order Book (CLOB)-based execution [#clob]_. The Matcher is assumed to receive Swap Orders, add and order them in a data structure and match them when their terms align.
+Generally, sorting in a CLOB is made according to: 1st prices and 2nd the time at which an order is received by the Matcher.
+
+We can identify different ways to “consume” the CLOB, i.e., match Swap Orders together:
+
+- Match on exact same quantities for proposed and desired assets. The check is: (:math:`\mathsf{SO}_i.\mathsf{qty}(A_1) = \mathsf{SO}_j.\mathsf{qty}(A_2)` & :math:`\mathsf{SO}_i.\mathsf{qty}(A_2) = \mathsf{SO}_j.\mathsf{qty}(A_1))`
+- Match on same price (with possibly different quantities). The check is: :math:`\mathsf{SO}_i.\mathsf{price}(A_1) = \mathsf{SO}_j.\mathsf{price}(A_1)`
+- Match on price window (e.g., pass a “slippage parameter”, :math:`\epsilon`). The check is: :math:`\mathsf{SO}_i.\mathsf{price}(A_1) = \mathsf{SO}_j.\mathsf{price}(A_1) \pm \epsilon`
+
+Each of these policies have pros and cons and suggest different trading environments. 
+For instance, Policy 2 and Policy 3 may allow `Partial Fills`_ for Swap Orders, while Policy 1 does not. 
+Selecting an appropriate matching policy is key, as it heavily influences the trading experience on the system. 
+Opting for a rigid policy may either lead to a poorly used protocol (users staying on existing trading venues) or may force users to interact with the protocol in a way that harms and compromises their on-chain privacy (e.g., carrying out funds consolidation on chain to trade via the Matcher, leaking lots of information in the process). 
+As such, designing a protocol with flexibility in mind is key to minimize information leakage, but it is also fundamental for liquidity consolidation on the system. 
+
+
+Partial Fills
+-------------
+
+In this ZIP, we assumed that orders were matched perfectly.
+In practice though, modern CLOBs offer partial fills to their users, allowing trades with matching prices to be matched even if quantities don't align perfectly.
+Offering partial fills without making strong assumptions on the Matcher (e.g. “The Matcher is a market maker that takes the other side of each trade”) or on the availability of traders (e.g. “Traders stay online and stay connected to the Matcher to split their orders on-demand”) is hard.
+This is particularly at odds with the protocol in this ZIP, since the Matcher is non-custodian and thus only manipulates commitments and notes, which are generated before the matching occurs: traders commit to values, which may need to be changed - in the future - to align with the matching operation of the Matcher (done at a subsequent time).
+
+Some of the proposals to allow for this are:
+
+- The use of standard denomination for orders.
+- The inclusion of a special flag “partialFill = true” to flag to the Matcher that the trader is willing to stay online to split orders on demand.\
+- Existence of a third party Market Maker providing liquidity to the many ZSA pairs traded on the system.
+
+All of these proposals have their pros and cons, and warrant further study and discussion.
+
+Fairness
+--------
+
+It is important to provide a good execution for both sides of a Swap. 
+As such, one side should not have an advantage against the other. 
+Every trading party must be able to withdraw their trading intent (i.e., cancel their orders).
+The main considerations here are:
+
+- Provide a mechanism for time-limiting Swaps to reduce freezing up of Assets due to their being locked up in Swaps that have not been completed, and to align with dynamically changing “exchange rates” between different Assets.
+- Consider repercussions of, and possible mitigations for, the “free option” that becomes available to the party that performs the last step of the protocol. That is, it is possible for that party to abort the protocol at this last step if the Swap is no longer beneficial for it.
+
+Denial-of-Service (DoS) Prevention
+----------------------------------
+
+The implementation of a fee mechanism is not enough to provide DOS prevention. 
+In fact, the presence of a fee in a Swap Order doesn't ensure this fee is payable. 
+A trader, Alice, can promise to pay 1000 ZEC, but this promise has no value unless it can be verified. The same applies to fees. 
+The Matcher must be able to carry out quick validity checks on Swap Orders to assess their probability to form valid Swap Bundles when matched. 
+This includes, verifying the ability for traders to pay the fees they must pay as part of the protocol. 
+These checks are probabilistic (the state of the blockchain can change in the meantime), but provide some guarantees to the Matcher that it will be paid for its services.
+
+Some helpful checks in this regard will be:
+
+- Verifying the nullifiers: “Does the order spend notes that have already been spent?” (This might require querying the chain.)
+- Verifying the ZKPs: “Does the order contain valid Actions?”
+- Verifying the :math:`\mathsf{rcv}` values and other extra data attached to the Swap Order.
+- Verifying the time limit: “Has the order expired?”
+- Verifying the fee payment: “Can the Order pay the promised fee?”
+
+
+Test Vectors
+============
+
+- LINK TBD
+
+Reference Implementation
+========================
+
+- LINK TBD
+- LINK TBD
+
+Deployment
+==========
+
+This ZIP is proposed to activate in a future Network Upgrade.
+
+
+References
+==========
+
+.. [#RFC2119] `RFC 2119: Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
+.. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.html>`_
+.. [#zip-0224] `ZIP 224: Orchard <zip-0224.html>`_
+.. [#zip-0226] `ZIP 226: Transfer and Burn of Zcash Shielded Assets <zip-0226.html>`_
+.. [#zip-0227] `ZIP 227: Issuance of Zcash Shielded Assets <zip-0227.html>`_
+.. [#zip-0227-assetbase] `ZIP 227: Issuance of Zcash Shielded Assets - Specification: Asset Identifier <zip-0227.html#specification-asset-identifier>`_
+.. [#zip-0230-transaction-format] `ZIP 230: Version 6 Transaction Format - Transaction Format <zip-0230.html#transaction-format>`_
+.. [#zip-0244-orchard-digest] `ZIP 244: Transaction Identifier Non-Malleability: T4. orchard_digest <zip-0244.html#t-4-orchard-digest>`_
+.. [#protocol-notes] `Zcash Protocol Specification, Version 2023.4.0. Section 3.2: Notes <protocol/protocol.pdf#notes>`_
+.. [#protocol-actions] `Zcash Protocol Specification, Version 2023.4.0. Section 3.7: Action Transfers and their Descriptions <protocol/protocol.pdf#actions>`_
+.. [#protocol-spendauthsig] `Zcash Protocol Specification, Version 2023.4.0. Section 4.15: Spend Authorization Signatures (Sapling and Orchard) <protocol/protocol.pdf#spendauthsig>`_
+.. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2023.4.0. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
+.. [#clob] `Central Limit Order Book Definition - Risk.net <https://www.risk.net/definition/central-limit-order-book-clob>`_
