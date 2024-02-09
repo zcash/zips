@@ -13,12 +13,13 @@
   Pull-Request: <https://github.com/zcash/zips/pull/760>
                 <https://github.com/zcash/zips/pull/766>
 
+
 Terminology
 ===========
 
-The key words "MUST", "SHOULD", and "MAY" in this document are to be
-interpreted as described in BCP 14 [#BCP14]_ when, and only when, they appear
-in all capitals.
+The key words "MUST", "SHOULD", "NOT RECOMMENDED", and "MAY" in this document
+are to be interpreted as described in BCP 14 [#BCP14]_ when, and only when,
+they appear in all capitals.
 
 The terms "Recipient", "Producer", "Consumer", "Sender", "Receiver", "Item",
 "Metadata Item", "Typecode", "Address", "Unified Address" (UA), "Unified
@@ -187,21 +188,9 @@ Additional Source Restriction Metadata values can be defined in the future,
 but a Consumer that does not recognise the value MUST reject the entire
 UA/UVK as invalid.
 
-The "Requirements for both Unified Addresses and Unified Viewing Keys" section
-of ZIP 316 [#zip-0316-unified-requirements]_ will be modified as follows — the
-text:
-
-  A Unified Address or Unified Viewing Key MUST contain at least one
-  shielded Item (Typecodes :math:`\mathtt{0x02}` and :math:`\mathtt{0x03}`).
-  The rationale is that the existing P2SH and P2PKH transparent-only
-  address formats, and the existing P2PKH extended public key format,
-  suffice for representing transparent Items and are already supported
-  by the existing ecosystem.
-
-will be replaced by:
-
-  A Unified Address MUST contain at least one Receiver and any number
-  of Metadata Items.
+Wallets and other Senders MUST ensure that only transparent UTXOs are spent in
+the creation of a transaction to any Unified Address containing a Source
+Restriction Metadata Item having value :math:`\mathtt{0x00}`.
 
 A Traceable Unified Address is produced from a Mainnet Zcash P2PKH address by
 executing the following steps:
@@ -219,7 +208,7 @@ executing the following steps:
    metadata items such as an Address Expiry Height or Address Expiry Date
    [#zip-0316-address-expiry]_ MAY be included.
 4. Encode the Unified Address using the “``ur``” Human Readable Part as
-   specified for Revision 1 of ZIP 316 [#zip-0316-unified-addresses]_.
+   specified for Revision 1 of ZIP 316 [#zip-0316-revision-1]_.
 
 For Testnet addresses, the required lead bytes of a P2PKH address in step 2
 are :math:`[\mathtt{0x1D}, \mathtt{0x25}]`.
@@ -228,13 +217,33 @@ The HRP of the resulting Unified Address is the same as for any other Revision 1
 Unified Address on the relevant network as specified in [#zip-0316-revision-1]_,
 i.e. ``"ur"`` for Mainnet and ``"urtest"`` for Testnet.
 
-Wallets and other Senders MUST ensure that only transparent UTXOs are spent in
-the creation of a transaction to any Unified Address containing a Source
-Restriction Metadata Item having value :math:`\mathtt{0x00}`.
-
 Any Source Restriction Metadata Item MUST be preserved with the same value
 when deriving a UIVK from a UFVK, or a UA from a UIVK. It has no other effect
 on the meaning of the UFVK or UIVK.
+
+Note that it is possible for a Unified Address to include shielded Receivers
+and also Source Restriction Metadata with value Transparent Source Only. The
+semantics of such UAs are well defined: they require a shielding transaction
+that only spends transparent UTXOs when sending to a shielded Receiver, and
+the priority order of Receivers defined by ZIP 316 is unaffected. However,
+this combination of requirements might result in wallet interoperability
+issues, and so producing such UAs is NOT RECOMMENDED.
+
+Dependencies on Revision 1 of ZIP 316
+'''''''''''''''''''''''''''''''''''''
+
+This specification depends upon the following changes made for Revision 1 of
+ZIP 316 [#zip-0316-revision-1]_:
+
+* A Revision 1 UA/UVK is *not* required to include a shielded Item. This is
+  necessary for a Traceable Unified Address containing only a P2PKH Receiver
+  to be valid. (It also has other independent motivations, as explained in
+  [#zip-0316-drop-shielded-restriction]_.)
+* The change to the HRPs for Revision 1 UAs implies that a Sender implementing
+  the Revision 0 specification will not recognize the UA as valid, which is
+  necessary because it may not understand the Source Restriction Metadata.
+* A Consumer of a Revision 1 UIVK or UFVK is required to retain the Source
+  Restriction Metadata when deriving a UA or UIVK respectively.
 
 Reference Implementation (Alternative 2)
 ----------------------------------------
@@ -290,7 +299,7 @@ Cons to Alternative 1
 - Creation of a new fully distinct address type further fragments the Zcash
   address ecosystem. Avoiding such fragmentation and providing smooth upgrade
   paths and good error messages to users is exactly the problem that Unified
-  Addresses [#zip-0316-unified-addresses]_ were intended to avoid.
+  Addresses [#zip-0316-motivation]_ were intended to avoid.
 - The TEX address type does not provide any mechanism for address expiration.
   One of the questions Binance has asked has been what to do about users who
   have stored their existing transparent deposit address in their wallets, or
@@ -356,11 +365,13 @@ References
 .. [#hanh-profile] `Zcash Community Forum user @hanh <https://forum.zcashcommunity.com/u/hanh/summary>`_
 .. [#hanh-suggestion] `Ywallet developer @hanh's proposal <https://forum.zcashcommunity.com/t/important-potential-binance-delisting/45954/112>`_
 .. [#zip-0316-terminology] `ZIP 316: Unified Addresses and Unified Viewing Keys — Terminology <zip-0316#terminology>`_
+.. [#zip-0316-motivation] `ZIP 316: Unified Addresses and Unified Viewing Keys — Motivation <zip-0316#motivation>`_
+.. [#zip-0316-revision-1] `ZIP 316: Unified Addresses and Unified Viewing Keys — Revision 1 <zip-0316#revision-1>`_
 .. [#zip-0316-unified-addresses] `ZIP 316: Unified Addresses and Unified Viewing Keys — Encoding of Unified Addresses <zip-0316#encoding-of-unified-addresses>`_
-.. [#zip-0316-revision-1] `ZIP 316: Unified Addresses and Unified Viewing Keys — Revision 1 <https://github.com/zcash/zips/pull/765>`_
 .. [#zip-0316-unified-requirements] `ZIP 316: Unified Addresses and Unified Viewing Keys — Requirements for both Unified Addresses and Unified Viewing Keys <zip-0316#requirements-for-both-unified-addresses-and-unified-viewing-keys>`_
-.. [#zip-0316-address-expiry] `ZIP 316: Unified Addresses and Unified Viewing Keys — Address Expiration Metadata <zip-0316#address-expiration-metadata>`_
+.. [#zip-0316-drop-shielded-restriction] `ZIP 316: Unified Addresses and Unified Viewing Keys — Rationale for dropping the "at least one shielded Item" restriction <zip-0316#rationale-for-dropping-the-at-least-one-shielded-item-restriction>`_
 .. [#zip-0316-metadata-items] `ZIP 316: Unified Addresses and Unified Viewing Keys — Metadata Items <zip-0316#metadata-items>`_
+.. [#zip-0316-address-expiry] `ZIP 316: Unified Addresses and Unified Viewing Keys — Address Expiration Metadata <zip-0316#address-expiration-metadata>`_
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2023.4.0. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
 .. [#protocol-transparentaddrencoding] `Zcash Protocol Specification, Version 2023.4.0. Section 5.6.1.1 Transparent Addresses <protocol/protocol.pdf#transparentaddrencoding>`_
 .. [#binance-address-expiry] `Zcash Community Forum post describing motivations for address expiry <https://forum.zcashcommunity.com/t/unified-address-expiration/46564/6>`_
