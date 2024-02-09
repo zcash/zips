@@ -37,7 +37,7 @@ Use ``make`` to check that you are using correct
 `reStructuredText <https://docutils.sourceforge.io/rst.html>`__ or
 `Markdown <https://pandoc.org/MANUAL.html#pandocs-markdown>`__ syntax,
 and double-check the generated ``draft-*.html`` file before filing a Pull Request.
-
+See `here <protocol/README.rst>`__ for the project dependencies.
 
 NU5 ZIPs
 --------
@@ -107,10 +107,10 @@ Index of ZIPs
     <tr> <td>222</td> <td class="left"><a href="zip-0222.rst">Transparent Zcash Extensions</a></td> <td>Draft</td>
     <tr> <td>224</td> <td class="left"><a href="zip-0224.rst">Orchard Shielded Protocol</a></td> <td>Final</td>
     <tr> <td>225</td> <td class="left"><a href="zip-0225.rst">Version 5 Transaction Format</a></td> <td>Final</td>
-    <tr> <td><span class="reserved">226</span></td> <td class="left"><a class="reserved" href="zip-0226.rst">Transfer and Burn of Zcash Shielded Assets</a></td> <td>Reserved</td>
-    <tr> <td><span class="reserved">227</span></td> <td class="left"><a class="reserved" href="zip-0227.rst">Issuance of Zcash Shielded Assets</a></td> <td>Reserved</td>
+    <tr> <td>226</td> <td class="left"><a href="zip-0226.rst">Transfer and Burn of Zcash Shielded Assets</a></td> <td>Draft</td>
+    <tr> <td>227</td> <td class="left"><a href="zip-0227.rst">Issuance of Zcash Shielded Assets</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">228</span></td> <td class="left"><a class="reserved" href="zip-0228.rst">Asset Swaps for Zcash Shielded Assets</a></td> <td>Reserved</td>
-    <tr> <td><span class="reserved">230</span></td> <td class="left"><a class="reserved" href="zip-0230.rst">Version 6 Transaction Format</a></td> <td>Reserved</td>
+    <tr> <td>230</td> <td class="left"><a href="zip-0230.rst">Version 6 Transaction Format</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">231</span></td> <td class="left"><a class="reserved" href="zip-0231.rst">Decouple Memos from Transaction Outputs</a></td> <td>Reserved</td>
     <tr> <td>239</td> <td class="left"><a href="zip-0239.rst">Relay of Version 5 Transactions</a></td> <td>Final</td>
     <tr> <td>243</td> <td class="left"><a href="zip-0243.rst">Transaction Signature Validation for Sapling</a></td> <td>Final</td>
