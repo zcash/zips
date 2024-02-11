@@ -137,9 +137,9 @@ EOL / EOS caused by continency or a third party
 Programmed obsolescense
 '''''''''''''''''''''''
 
-Programmed Obsolescense is imposed by hardware and software manufacturers may unilaterally 
-force users of otherwise perfectly operational products to cease to use them by crippling, 
-limiting or entirely disabling their capabilities, leaving the users with no choice than
+Programmed Obsolescense is imposed by hardware and software manufacturers. They may 
+unilaterally force users of otherwise perfectly operational products to cease to use them 
+by limiting or entirely disabling their capabilities, leaving the users with no other choice than
 acquiring a newer version or migrating to a different product. 
 
 Example: 
@@ -158,96 +158,85 @@ as ceasing to provide support to certain subset of their whole userbase. Maintai
 be aware of their jurisdictional risks and act accordingly to provided support over possible
 imposed EOS/EOL scenario.
 
+Example: 
+
+Country A forbids the use of cryptocurrency. "SomeWallet" is a very popular mobile crypto wallet
+in country A. Developers of "SomeWallet" are informed that their application won't be available
+on official distribution platforms (like App Store or Google Play) for the region of Country A
+from date YYYY-mm-dd onwards. Developers of "SomeWallet" have to follow this ZIP's practices to
+treat this event as a Partial EOS/EOL event. 
+
+
+Best Practices for handling EOS/EOL events on wallet applications
+-----------------------------------------------------------------
+
+Anticipating to the event
+`````````````````````````
+"Unhappy" paths are better than absense of a path. Wallet developers SHOULD consider that eventually,
+users will have to move out from their application. Either by their own choice or by force, users of
+a Zcash wallet will have to go through the process of ceasing to use this application in favor of 
+another one. It could also be the case that users stay within the same application but switch to a 
+different device. **Building these use cases** into the Business as Usual (BAU) use cases, will give
+developers a better understanding of what will eventually be needed in the case of having to enforce an
+EOS/EOL event. 
+
+Maintain an cccurate inventory or mind-map of the User Data that the application handles
+`````````````````````````````````````````````````````````````````````````````````````````
+
+Wallet maintainters SHOULD account for the kind of information that is locally stored on the user's device. 
+Although a great amount of information could be restored and/or derived from the blockchain with the 
+help of the user's private and public keys, maintainters SHOULD keep a record of which information
+can be restored from the blockchain and which one is product of regular use and interaction and would
+still be relevant for the user when an EOS/EOL event forces users to move to another version or wallet
+application. 
+
+Example of recoverable information:
+
+- On-chain information that can be recreated with user's viewing keys.
+
+Example of potentially non-recoverable information:
+- A local address book that the wallet maintained for the user.
+- local user-preferences of the user like, default currency conversion, locale, account pet-names, 
+- imported viewing keys not related to the user's seed phrase.
+- internal datastructures that the wallet application uses to enhance the User Experience
+
+Educate the user on the information that can or can't be backed up or exported from the wallet
+`````````````````````````````````````````````````````````````````````````````````````````````
+TODO
+
+Use familiar building blocks
+````````````````````````````
+Wallet maintainers SHOULD reuse the same UI and UX components that the user is familiar with from 
+everyday usage to handle EOS/EOL events. Additional UI elements MAY be used to convey a sense of 
+urgency, call user's attention or stress out critical aspects that cannot be ignored by the user.
+
+Example: 
+If the maintainers determine that to handle an EOS/EOL event, the user should backup its keys and 
+later restore it into another application or a subsequent version of the current application, the
+application should reuse an existing backup flow (if available) that the user is already familiar
+with or that it could remembrance from when it first signed into the application. 
+
+
+Support Offline / disconnected types of use modes
+`````````````````````````````````````````````````
+TODO
+
+Tombstone Releases
+``````````````````
+TODO
+
 
 
 Open questions and TODOs
-------------------------
+========================
 
 - Shall the ZIP recommend that EOS/EOL features be bundled in and hidden from the public
 regardless?
 - [TODO] EOS/EOL type flow chart 
 - [TODO] Add References
-
-Comparison of ZIPs to RFCs
---------------------------
-
-Like RFCs, ZIPs are precise technical documents that SHOULD give enough
-implementation information to implement part of a Zcash-related protocol or follow a
-Zcash-related process.
-
-ZIPs are different from RFCs in the following ways:
-
-* Many (but not all) ZIPs are "living documents"; they are updated in-place as
-  the relevant areas of the protocol or process change. Unlike in the RFC process,
-  making a change in an area described by a published ZIP does not *necessarily*
-  require creating a new ZIP, although that is an option if the change is extensive
-  enough to warrant it.
-* The expected structure of a ZIP is more constrained than an RFC. For example,
-  the Specification section is REQUIRED, and all of the conformance requirements
-  MUST go in that section. The ZIP editors will help you to ensure that things
-  go in the right sections.
-* Security considerations SHOULD be spread throughout the text, in the places
-  where they are most relevant.
-
-Using mathematical notation
----------------------------
-
-Embedded :math:`\LaTeX` is allowed and encouraged in ZIPs. The syntax for inline
-math is "``:math:`latex code```" in reStructuredText or "``$latex code$``" in
-Markdown. The rendered HTML will use KaTeX [#katex]_, which only supports a subset
-of :math:`\LaTeX\!`, so you will need to double-check that the rendering is as
-intended.
-
-In general the conventions in the Zcash protocol specification SHOULD be followed.
-If you find this difficult, don't worry too much about it in initial drafts; the
-ZIP editors will catch any inconsistencies in review.
-
-Notes and warnings
-------------------
-
-.. note::
-    "``.. note::``" in reStructuredText, or "``:::info``" (terminated by
-    "``:::``") in Markdown, can be used for an aside from the main text.
-
-    The rendering of notes is colourful and may be distracting, so they should
-    only be used for important points.
-
-.. warning::
-    "``.. warning::``" in reStructuredText, or "``:::warning``" (terminated by
-    "``:::``") in Markdown, can be used for warnings.
-
-    Warnings should be used very sparingly — for example to signal that a
-    entire specification, or part of it, may be inapplicable or could cause
-    significant interoperability or security problems. In most cases, a "MUST"
-    or "SHOULD" conformance requirement is more appropriate.
-
-Valid reStructuredText
-----------------------
-
-This is optional before publishing a PR, but to check whether a document is valid
-reStructuredText, first install ``rst2html5``. E.g. on Debian-based distros::
-
-  sudo apt install python3-pip pandoc perl sed
-  pip3 install docutils==0.19 rst2html5
-
-Then, with ``zip-xxxx.rst`` in the root directory of a clone of this repo, run::
-
-  make zip-xxxx.html
-
-(or just ``make``) and view ``zip-xxxx.html`` in a web browser.
-
-Conventions for references
---------------------------
-
-For references to the Zcash protocol specification, prefer to link to a section
-anchor, and name the reference as ``[#protocol-<anchor>]``. This makes it more likely
-that the link will remain valid if sections are renumbered or if content is moved.
-The anchors in the protocol specification can be displayed by clicking on a section
-heading in most PDF viewers. References to particular sections should be versioned,
-even though the link will point to the most recent stable version.
-
-Do not include the "``https://zips.z.cash/``" part of URLs to ZIPs or the protocol spec.
-
+- [TODO] Provide offline modes
+- [TODO] Tombstone Releases
+- [TODO] User education on restorable or ephemeral information
 
 Reference implementation
 ========================
