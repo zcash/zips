@@ -51,8 +51,8 @@ Motivation
 ==========
 
 Cryptocurrency peer-to-peer networks are designed to be long-lived decentralized systems
-that should tolerate the pass of time. While it is expected that the network implementing 
-these decentralized protocols live indefinitely, wallet applications might be subject to
+that should tolerate the pass of time. While it is considered that the network implementing 
+these decentralized protocols would live indefinitely, wallet applications might be subject to
 shorter lifecycles. There are many reasons for them to reach a point in time where they will
 longer able to keep functioning. Whatever the reason might be, this document considers that 
 the result for end-users is indistinct: they will not be able to carry on their usual activities
@@ -60,61 +60,19 @@ on the application once the EOL/EOS day comes. To that end, this ZIP will discus
 sunsetting end-user applications gracefully by anticipating the moment as an invariant of any
 product's lifecycle. 
 
-Scope of an EOS/EOL event
--------------------------
-
-The breath of an application userbase and ecosystem may vary depending of the number of Operating
-Systems, Platforms and/or architectures it supports. 
-
-Complete EOS/EOL for 100% of the userbase
-'''''''''''''''''''''''''''''''''''''''''
-It might be the case that the whole product ceases to exist for all cases, which would be the more 
-drastic scenario for an end-user application. After EOL/EOS no user will be able to use the application
-as normally.
-
-Partial EOS/EOL for a portion of the userbase
-'''''''''''''''''''''''''''''''''''''''''''''
-A subset of the userbase becomes unsupported. For example, a range of versions for a given target OS
-will become unsupported at a given date (regardless the reason). Maintainers MUST scope and assess 
-the impact on their userbase to determine if there is a portion of which that will not be able to 
-continue to use their application with their current host device. If it is the case that 1 to N users 
-would eventually be unable to continue operating the application as usual after the EOS/EOL date, 
-Maintainers MUST treat those users as if they were going through "Complete EOS/EOL for 100% of the
-userbase". 
-
-The subsections below illustrate some of the scenarios that were taken into consideration when
-creating this ZIP. We grouped them into two broad categories: "Initiated by Maintainers" or 
-"Caused by Contigency or third party". 
-
-
-EOL / EOS initiated by Maintainer(s)
-------------------------------------
-
-Programmed obsolescense
-'''''''''''''''''''''''
-
-Programmed Obsolescense is imposed by hardware and software manufacturers may unilaterally 
-force users of otherwise perfectly operational products to cease to use them by crippling, 
-limiting or entirely disabling their capabilities, leaving the users with no choice than
-acquiring a newer version or migrating to a different product.
-
-Sanctions, Embargo, Ban, Closure or Prosecution
-'''''''''''''''''''''''''''''''''''''''''''''''
-
-Wallet Maintainers might be based in jurisdictions subject to geopolitical Sanctions, Embargos
-and be threatened or forced to cease their operations. Maintainers might also be legally bound
-to cease and desist of their operations because of regulations on their jurisdictions, as well
-as ceasing to provide support to certain subset of their whole userbase. 
-
-
 
 Requirements
 ============
 
-{Describe design constraints on, or goals for the solution -- typically one
-paragraph for each constraint or goal. Again, don't actually specify anything
-here; this section is primarily for use as a consistency check that what is
-specified meets the requirements.}
+This document aims to ensure the ability for user to exercise complete sovereign self-
+custody of their keys and funds related to them. Although it will refer specifically to 
+non-custodian wallets (or similar applications that handle Zcash keys), it can also apply to
+custodian applications reaching EOS/EOL. The goal of this ZIP is to ensure that the user is in 
+control of its funds (or access to them) at all times, and that they can be provided ways to
+keep that access beyond a specific product EOS/EOL in a "hassle-free" and user-friendly way.
+Maintainers SHOULD always be eagerly looking to provide well-tested, dependable and mission
+critical use cases that produce an application feature that can be made available to users in 
+the case of an EOS/EOL scenario.
 
 
 Non-requirements
@@ -130,36 +88,85 @@ delivering the application into production.
 Specification
 =============
 
-{Replace this entire section.}
+What is an EOS/EOL event?
+-------------------------
+End of Life / End of Service: refers to a point in time where the wallet
+software will no longer be actively maintained or developed, therefore its
+operation cannot be guaranteed anymore or terminated indefinitely.
 
-The Specification section describes what should change, using precise language and
-conformance key words. Anything that is *required in order to implement the ZIP*
-(or follow its process, in the case of a Process ZIP) should be in this section.
 
-Avoid overspecification! Also avoid underspecification. Specification is hard.
-Don't be afraid to ask for help.
+Scope of an EOS/EOL event
+-------------------------
 
-Feel free to copy from other ZIPs doing similar things, e.g. defining RPC calls,
-consensus rules, etc.
+The breath of an application userbase and ecosystem may vary depending of the number of Operating
+Systems, Platforms and/or architectures it supports. 
 
-ZIPs MUST take into account differences between the Zcash Mainnet and Testnet
-[#protocol-networks]_ where applicable. A consensus ZIP MUST be able to be deployed
-on both Mainnet and Testnet.
+Complete EOS/EOL for 100% of the userbase
+'''''''''''''''''''''''''''''''''''''''''
+It might be the case that the whole product ceases to exist for all application versions on all target
+Operating Systems or Platforms. This would be the more  drastic scenario for an end-user application. 
+After EOL/EOS no user will be able to use the application as normally.
 
-Unless the specification is particularly simple, you will need to organise it under
-subheadings.
+Partial EOS/EOL for a portion of the userbase
+'''''''''''''''''''''''''''''''''''''''''''''
+A subset of the userbase becomes unsupported. For example, a range of versions for a given target OS
+will become unsupported at a given date (regardless the reason). Maintainers MUST scope and assess 
+the impact on their userbase to determine if there is a portion of which that will not be able to 
+continue to use their application with their current host device. If it is the case that 1 to N users 
+would eventually be unable to continue operating the application as usual after the EOS/EOL date, 
+Maintainers MUST treat those users as if they were going through "Complete EOS/EOL for 100% of the
+userbase". 
 
-Example subheading
-------------------
+The subsections below illustrate some of the scenarios that were taken into consideration when
+creating this ZIP. We grouped them into two broad categories: "Initiated by Maintainers" or 
+"caused by Contigency or third party". 
 
-At least while the ZIP is in Draft, we encourage writing open questions and TODOs.
 
-Open questions
-''''''''''''''
+EOL / EOS initiated by Maintainer(s)
+------------------------------------
 
-* What happens if a full validator can't parse the fandangle as a doohicky?
+Unilateral End of Support
+'''''''''''''''''''''''''
+Maintainers will no longer continue to provide support to all or some of the aplications versions.
+Casting a complete or a partial EOS/EOL event onto their userbase. 
 
-TODO: define byte encoding for the Jabberwock.
+
+EOL / EOS caused by continency or a third party
+-----------------------------------------------
+
+Programmed obsolescense
+'''''''''''''''''''''''
+
+Programmed Obsolescense is imposed by hardware and software manufacturers may unilaterally 
+force users of otherwise perfectly operational products to cease to use them by crippling, 
+limiting or entirely disabling their capabilities, leaving the users with no choice than
+acquiring a newer version or migrating to a different product. 
+
+Example: 
+After 19 Sep 2017, iOS 10 users won't be able to get any updates for their OS. Maintainers 
+might be not able to provide updates to their applications either. They decide to end support
+for iOS 10. Users whose devices can't upgrade will have to be treated as EOS/EOL'd users. 
+
+
+Sanctions, Embargo, Ban, Closure or Prosecution
+'''''''''''''''''''''''''''''''''''''''''''''''
+
+Wallet Maintainers might be based in jurisdictions subject to geopolitical Sanctions, Embargos
+and be threatened or forced to cease their operations. Maintainers might also be legally bound
+to cease and desist of their operations because of regulations on their jurisdictions, as well
+as ceasing to provide support to certain subset of their whole userbase. Maintainers SHOULD
+be aware of their jurisdictional risks and act accordingly to provided support over possible
+imposed EOS/EOL scenario.
+
+
+
+Open questions and TODOs
+------------------------
+
+- Shall the ZIP recommend that EOS/EOL features be bundled in and hidden from the public
+regardless?
+- [TODO] EOS/EOL type flow chart 
+- [TODO] Add References
 
 Comparison of ZIPs to RFCs
 --------------------------
