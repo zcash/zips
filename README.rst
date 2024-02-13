@@ -135,7 +135,7 @@ Index of ZIPs
     <tr> <td><strike>313</strike></td> <td class="left"><strike><a href="zip-0313.rst">Reduce Conventional Transaction Fee to 1000 zatoshis</a></strike></td> <td>Obsolete</td>
     <tr> <td><span class="reserved">314</span></td> <td class="left"><a class="reserved" href="zip-0314.rst">Privacy upgrades to the Zcash light client protocol</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">315</span></td> <td class="left"><a class="reserved" href="zip-0315.rst">Best Practices for Wallet Handling of Multiple Pools</a></td> <td>Reserved</td>
-    <tr> <td>316</td> <td class="left"><a href="zip-0316.rst">Unified Addresses and Unified Viewing Keys</a></td> <td>Final</td>
+    <tr> <td>316</td> <td class="left"><a href="zip-0316.rst">Unified Addresses and Unified Viewing Keys</a></td> <td>Revision 0: Final, Revision 1: Proposed</td>
     <tr> <td>317</td> <td class="left"><a href="zip-0317.rst">Proportional Transfer Fee Mechanism</a></td> <td>Active</td>
     <tr> <td><span class="reserved">318</span></td> <td class="left"><a class="reserved" href="zip-0318.rst">Associated Payload Encryption</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">319</span></td> <td class="left"><a class="reserved" href="zip-0319.rst">Options for Shielded Pool Retirement</a></td> <td>Reserved</td>
