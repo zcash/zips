@@ -211,29 +211,6 @@ A separate “testnet whitelist” MUST be maintained by the owner of the ``test
 Wallets apps MAY support just one type of payments (ZEC or TAZ), and if they support both then they MUST keep separate accounting and must clearly distinguish the type when payments or balances are conveyed to users.
 
 
-Rationale for URI Format
-------------------------
-
-The URI format ``https://pay.withzcash.com:65536/v1#...``  was chosen to allow automatic triggering of wallet software on mobile devices, using the platform's applink_ mechanism, while minimizing the risk of payment information being intercepted by third parties. The latter is prevented by a defense in depth, where any of the following suffices to prevent the payment information from being exposed over the network:
-
-* The ``pay.withzcash.com`` domain should not resolve.
-* A valid TLS certificate for ``pay.withzcash.com`` should not exist..
-* The port number ``65536`` is not valid for the TCPv4, TCPv6 or UDP protocols. Empirically, the common behavior in browsers and messaging apps, when following HTTPS links with port number port number 65536, is to render an empty or ``about:blank`` page rather than a DNS error; a network fetch is not triggered. (This may change if a network proxy protocol is used, but SOCKS5 also cannot represent port 65536.)
-* The contents of the fragment identifier are specified by HTTP as being resolved locally, rather than sent over the network (but see the caveat about active JavaScript attacks below).
-
-The downside is that if the user follows the link prior to installing a suitable wallet app, they get a weird-looking DNS error or a blank page. Also, the URL looks weird due to the port number.
-
-Several alternatives were considered, but found to have inferior usability and/or security ramifications:
-
-1.  ``https://pay.withzcash.com/v1#...``: similar to above, but without the port number, and backed by a DNS record, TLS certificate and web server for ``pay.withzcash.com`` that serves an informative HTML page (e.g., “Please install a wallet to receive this payment”). This still allows handling by wallet apps using an applink_ mechanism, and provides a friendlier fallback in case the user follows the link prior to installing a suitable app. However, it creates a security risk. If the web server serving that web page is compromised, or impersonated using an DNS+TLS attack, then the attacker can capture they payment parameters and steal the funds. (Note that the sensitive information is in the fragment following the ``#``, which is not sent in an HTTP GET request; but the malicious server can serve JavaScript code which retrieves the fragment.)
-
-2. ``zcash-data:payment/v1?amount=1.23&desc=Payment+for+foo&key=...``: a custom URI scheme, such as ``zcash-data``. This still allows for triggering application action (e.g., using Mobile Deep Links). However, on most platorms, *any* app installed on the device is able to register to handle links from (almost) any custom URI scheme. If the request is received by a rogue party, then the funds could be stolen. Even if received by an honest operator, funds could be stolen if they are compromised. Also, custom URI schemes are not linkified when displayed in some messaging apps.
-
-   Note the use of the ``zcash-data`` URI scheme, rather than the more elegant ``zcash``, because URIs of the form ``zcash:address?...`` are already used to specify Zcash addresses and payment requests in ZIP 321 [#zip-0321]_, by analogy to the ``bitcoin`` URIs of BIP 21. An alternative is to use ``zcash:v1/payment?...``; legacy software may parse this as a payment request to the address ``v1``, which is invalid. Another alternative is to use ``zcash-payment:v1?...``, which is appealing in terms of length and readability, but may be gratuitous pollution of the URI scheme namespace.
-
-Another option, which can be added to any of the above, is to add a confirmation code outside the URI that needs to be manually entered by the user into the wallet app, so that merely intercepting the URI link would not suffice. This does not seem to significantly reduce risk in the scenarios considered, and so deemed to not justify the reduced usability.
-
-
 Lifecycle Specification
 =======================
 
@@ -378,7 +355,52 @@ Security Considerations
 Design Decisions and Rationale
 ==============================
 
-See `Rationale for URI Format`_ above. Moreover:
+Rationale for URI Format
+------------------------
+
+The URI format ``https://pay.withzcash.com:65536/v1#...``  was chosen to allow automatic triggering of wallet software on mobile devices, using the platform's applink_ mechanism, while minimizing the risk of payment information being intercepted by third parties. The latter is prevented by a defense in depth, where any of the following suffices to prevent the payment information from being exposed over the network:
+
+* The ``pay.withzcash.com`` domain should not resolve.
+* A valid TLS certificate for ``pay.withzcash.com`` should not exist..
+* The port number ``65536`` is not valid for the TCPv4, TCPv6 or UDP protocols. Empirically, the common behavior in browsers and messaging apps, when following HTTPS links with port number port number 65536, is to render an empty or ``about:blank`` page rather than a DNS error; a network fetch is not triggered. (This may change if a network proxy protocol is used, but SOCKS5 also cannot represent port 65536.)
+* The contents of the fragment identifier are specified by HTTP as being resolved locally, rather than sent over the network (but see the caveat about active JavaScript attacks below).
+
+The downside is that if the user follows the link prior to installing a suitable wallet app, they get a weird-looking DNS error or a blank page. Also, the URL looks weird due to the port number.
+
+Several alternatives were considered, but found to have inferior usability and/or security ramifications:
+
+1.  ``https://pay.withzcash.com/v1#...``: similar to above, but without the port number, and backed by a DNS record, TLS certificate and web server for ``pay.withzcash.com`` that serves an informative HTML page (e.g., “Please install a wallet to receive this payment”). This still allows handling by wallet apps using an applink_ mechanism, and provides a friendlier fallback in case the user follows the link prior to installing a suitable app. However, it creates a security risk. If the web server serving that web page is compromised, or impersonated using an DNS+TLS attack, then the attacker can capture they payment parameters and steal the funds. (Note that the sensitive information is in the fragment following the ``#``, which is not sent in an HTTP GET request; but the malicious server can serve JavaScript code which retrieves the fragment.)
+
+2. ``zcash-data:payment/v1?amount=1.23&desc=Payment+for+foo&key=...``: a custom URI scheme, such as ``zcash-data``. This still allows for triggering application action (e.g., using Mobile Deep Links). However, on most platorms, *any* app installed on the device is able to register to handle links from (almost) any custom URI scheme. If the request is received by a rogue party, then the funds could be stolen. Even if received by an honest operator, funds could be stolen if they are compromised. Also, custom URI schemes are not linkified when displayed in some messaging apps.
+
+   Note the use of the ``zcash-data`` URI scheme, rather than the more elegant ``zcash``, because URIs of the form ``zcash:address?...`` are already used to specify Zcash addresses and payment requests in ZIP 321 [#zip-0321]_, by analogy to the ``bitcoin`` URIs of BIP 21. An alternative is to use ``zcash:v1/payment?...``; legacy software may parse this as a payment request to the address ``v1``, which is invalid. Another alternative is to use ``zcash-payment:v1?...``, which is appealing in terms of length and readability, but may be gratuitous pollution of the URI scheme namespace.
+
+Another option, which can be added to any of the above, is to add a confirmation code outside the URI that needs to be manually entered by the user into the wallet app, so that merely intercepting the URI link would not suffice. This does not seem to significantly reduce risk in the scenarios considered, and so deemed to not justify the reduced usability.
+
+Identifying Notes
+-----------------
+The recipient's wallet needs to identify the notes related to the payment (and the on-chain transactions that contain them), in order to verify their validity and then (during the finalization process) spend them.
+
+**The following is out of date, and reflects an earlier design choice (“0”), while we have transitioned to a different choice (“4”). To be revised.**
+
+In the above description, we explicitly list the notes involved in the payment (which are easily mapped to the transactions containing them, using a suitable index). This results in long URIs when multiple notes are involved (e.g., when using the aforementioned “powers-of-2 amounts” technique).
+
+Instead, we can have the nodes be implicitly identified by the spending key (or similar) included in the URI. This can make URI shorter, thus less scary and less likely to run into length limits (consider SMS). The following alternatives are feasible:
+
+0. Explicitly list the note commitments within the URI.
+
+1. Include only the spending key(s) in the URI, and have the recipient scan the blockchain using the existing mechanism (trial decryption of the encrypted memo field). This is very slow, and risks denial-of-service attacks. Would be faster in the nominal case if the scanning is done backwards (newest block first), or if told by the sender when the transactions were mined; but scanning the whole chain for nonexistent transactions (perhaps induced by a DoS) would still take very long.
+
+2. Derive a tag from a seed included in the URI, and put this tag within the encrypted memo field of the output descriptors in the associated transactions. Put the tag plaintext within the space reserved for the memo field ciphertext (breaking the AEAD abstraction). The recipient's wallet (or the service assisting it) would maintain an index of such tags, and efficiently look up the tags derived from the URI.
+   The tags are publicly-visible and thus may leak information on the payment amount (e.g., when using the powers-of-2 pre-generation technique).
+
+3. Similarly to the above, but place the tag in an additional zero-value output descriptor added to each pertinent transaction. The recipient can recompute this note commitment and use that as the identifier, to be looked up in an index in order to locate the transaction.
+   Here too, the tags are publicly-visible and thus may leak information on the payment amount (e.g., when using the powers-of-2 pre-generation technique).
+
+4. Have the URI include a seed and the amount of the (single) output note. Let the seed determine not only the spending key, but also all randomness involved in the generation of the note. Thus, the recipient can deterministically derive the note commitment from the seed and amount, and look it up to find the relevant transaction. This requires the recipient (or the server assisting them) to maintain an index mapping note commitments (of output descriptors that are the first in their transaction) to the transaction that contains them. Additional notes can be included in the same transaction.
+
+Additional rationale
+--------------------
 
 1. The metadata (amount and description) is provided within the URI. An alternative would be to encode the description in the encrypted memo fields of the associated shielded transactions, and compute the amount from those transactions. However, in that case the metadata would not be available for presentation to the user until the transactions have been retrieved from the blockchain.
 
@@ -412,31 +434,6 @@ The URI could  be changed in several ways due to usability concerns:
 Note retrieval
 --------------
 Ideally: a lightweight wallet can receive the funds with the assistance of a more powerful node, with minimal information leakage to that node (e.g., using simple lookups queries that can be implemented via Private Information Retrieval). The open question is how to do this given that most practical PIR are for retrieving an index out of an array, not a key from a key value standpoint.
-
-Identifying Notes
------------------
-The recipient's wallet needs to identify the notes related to the payment (and the on-chain transactions that contain them), in order to verify their validity and then (during the finalization process) spend them.
-
-**The following is out of date, and reflects an earlier design choice (“0”), while we have transitioned to a different choice (“4”). To be revised.**
-
-In the above description, we explicitly list the notes involved in the payment (which are easily mapped to the transactions containing them, using a suitable index). This results in long URIs when multiple notes are involved (e.g., when using the aforementioned “powers-of-2 amounts” technique).
-
-Instead, we can have the nodes be implicitly identified by the spending key (or similar) included in the URI. This can make URI shorter, thus less scary and less likely to run into length limits (consider SMS). The following alternatives are feasible:
-
-0. Explicitly list the note commitments within the URI.
-
-1. Include only the spending key(s) in the URI, and have the recipient scan the blockchain using the existing mechanism (trial decryption of the encrypted memo field). This is very slow, and risks denial-of-service attacks. Would be faster in the nominal case if the scanning is done backwards (newest block first), or if told by the sender when the transactions were mined; but scanning the whole chain for nonexistent transactions (perhaps induced by a DoS) would still take very long.
-
-2. Derive a tag from a seed included in the URI, and put this tag within the encrypted memo field of the output descriptors in the associated transactions. Put the tag plaintext within the space reserved for the memo field ciphertext (breaking the AEAD abstraction). The recipient's wallet (or the service assisting it) would maintain an index of such tags, and efficiently look up the tags derived from the URI.
-   The tags are publicly-visible and thus may leak information on the payment amount (e.g., when using the powers-of-2 pre-generation technique).
-
-3. Similarly to the above, but place the tag in an additional zero-value output descriptor added to each pertinent transaction. The recipient can recompute this note commitment and use that as the identifier, to be looked up in an index in order to locate the transaction.
-   Here too, the tags are publicly-visible and thus may leak information on the payment amount (e.g., when using the powers-of-2 pre-generation technique).
-
-4. Have the URI include a seed and the amount of the (single) output note. Let the seed determine not only the spending key, but also all randomness involved in the generation of the note. Thus, the recipient can deterministically derive the note commitment from the seed and amount, and look it up to find the relevant transaction. This requires the recipient (or the server assisting them) to maintain an index mapping note commitments (of output descriptors that are the first in their transaction) to the transaction that contains them. Additional notes can be included in the same transaction.
-
-
-
 
 Other Questions
 ---------------
