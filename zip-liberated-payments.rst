@@ -2,20 +2,24 @@
 
   ZIP: XXXX
   Title: URI-Encapsulated Payments
-  Owners: Ian Miers <imichaelmiers@gmail.com>
-          Eran Tromer <eran@tromer.org>
+  Owners: Jack Grigg <jack@electriccoin.co>
+          Daira-Emma Hopwood <daira-emma@electriccoin.co>
+          Kris Nuttycombe <kris@electriccoin.co>
+  Original-Authors: Ian Miers
+                    Eran Tromer
+                    Jack Grigg
+                    Kevin Gorham
+                    Daira-Emma Hopwood
   Credits: Sean Bowe
            Deirdre Connolly
-           Kevin Gorham
-           Jack Grigg
-           Daira Hopwood
            Linda Naeun Lee
            George Tankersley
            Henry de Valence
   Status: Draft
-  Category: Standards Track
+  Category: Standards / Wallet
   Created: 2019-07-17
   License: MIT
+
 
 Terminology
 ===========
