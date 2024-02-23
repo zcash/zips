@@ -20,13 +20,17 @@
 Terminology
 ===========
 
-The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to be 
-interpreted as described in RFC 2119. [#RFC2119]_
+The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to be
+interpreted as described in BCP 14 [#BCP14]_ when, and only when, they appear in all
+capitals.
 
 Zcash protocol terms are as defined in the Zcash Protocol Specification. [#protocol]_
 
 .. _applink:
-By “applink” we mean a platform mechanism for triggering local applications using HTTP links, such as `App Links`_ on Android, `Universal Links`_ on iOS, or `App URI handlers`_ on Windows.
+
+By “applink” we mean a platform mechanism for triggering local applications using
+HTTPS links, such as App Links [#app-links]_ on Android, Universal Links [#universal-links]_
+on iOS, or App URI handlers [#app-uri-handlers]_ on Windows.
 
 
 Abstract
@@ -68,7 +72,7 @@ Additionally, the proposal greatly improves the scalability of Zcash. If a recip
 
 Finally, this avoids the fat-finger problem of sending funds to the wrong address. The user sends funds via a known contact on, e.g., WhatsApp, who they have a relationship with or at least can confirm the recipient's identity. Moreover, even once funds are sent via a URI, they can be recovered if the other party does not claim them.
 
-The proposal is complementary to ZIP 321 [#zip321]_, which will standardize *Payment Request URIs* using which the payment *recipient* can convey their persistent payment address to the *sender*, for subsequent fund transfers (to be done using the normal on-chain mechanism rather than the encapsulated payments described in the current proposal).
+The proposal is complementary to ZIP 321 [#zip-0321]_, which will standardize *Payment Request URIs* using which the payment *recipient* can convey their persistent payment address to the *sender*, for subsequent fund transfers (to be done using the normal on-chain mechanism rather than the encapsulated payments described in the current proposal).
 
 
 Requirements
@@ -221,7 +225,7 @@ Several alternatives were considered, but found to have inferior usability and/o
 
 2. ``zcash-data:payment/v1?amount=1.23&desc=Payment+for+foo&key=...``: a custom URI scheme, such as ``zcash-data``. This still allows for triggering application action (e.g., using Mobile Deep Links). However, on most platorms, *any* app installed on the device is able to register to handle links from (almost) any custom URI scheme. If the request is received by a rogue party, then the funds could be stolen. Even if received by an honest operator, funds could be stolen if they are compromised. Also, custom URI schemes are not linkified when displayed in some messaging apps.
 
-   Note the use of the ``zcash-data`` URI scheme, rather than the more elegant ``zcash``, because URIs of the form ``zcash:address?...`` are already used to specify Zcash addresses and payment requests in ZIP 321 [#zip321]_, by analogy to the ``bitcoin`` URIs of BIP 21. An alternative is to use ``zcash:v1/payment?...``; legacy software may parse this as a payment request to the address ``v1``, which is invalid. Another alternative is to use ``zcash-payment:v1?...``, which is appealing in terms of length and readability, but may be gratuitous pollution of the URI scheme namespace.
+   Note the use of the ``zcash-data`` URI scheme, rather than the more elegant ``zcash``, because URIs of the form ``zcash:address?...`` are already used to specify Zcash addresses and payment requests in ZIP 321 [#zip-0321]_, by analogy to the ``bitcoin`` URIs of BIP 21. An alternative is to use ``zcash:v1/payment?...``; legacy software may parse this as a payment request to the address ``v1``, which is invalid. Another alternative is to use ``zcash-payment:v1?...``, which is appealing in terms of length and readability, but may be gratuitous pollution of the URI scheme namespace.
 
 Another option, which can be added to any of the above, is to add a confirmation code outside the URI that needs to be manually entered by the user into the wallet app, so that merely intercepting the URI link would not suffice. This does not seem to significantly reduce risk in the scenarios considered, and so deemed to not justify the reduced usability.
 
@@ -352,7 +356,7 @@ Security Considerations
 
 * Users may not understand that URI-Encapsulated Payments are for one-time use, and attempt to use the same URI for multiple people or payments, resulting in race conditions on who receives the funds.
 
-* Users may confuse URI-Encapsulated Payments (as specified in the current ZIP) with Payment Request URIs of the form ``zcash:payment-address?amount=...``. (The latter are a de facto standard, and will be specified in the forthcoming ZIP 321 [#zip321issue]_). Normally these serve different workflows, and work in opposing directions (send vs. receive of funds), and thus ought to not arise in ambiguous context. Wallet apps should take care to not create or send a Payment-Encapsulating URI (which is for *sending* funds) in a context where the user may be intending to *receive* funds.
+* Users may confuse URI-Encapsulated Payments (as specified in the current ZIP) with Payment Request URIs of the form ``zcash:payment-address?amount=...`` as specified in ZIP 321 [#zip-0321]_. Normally these serve different workflows, and work in opposing directions (send vs. receive of funds), and thus ought to not arise in ambiguous context. Wallet apps should take care to not create or send a Payment-Encapsulating URI (which is for *sending* funds) in a context where the user may be intending to *receive* funds.
 
 * Users may attempt to use a Payment-Encapsulating URI as a “cold wallet”, e.g., by writing the URI on paper and putting it in a safe. This is dangerous. The spending key is known to the sending wallet at the time when the URI is produced, and possibly also at other times (e.g., if there are storage remnants, or if deterministic derivation is used; see “Ephemeral key derivation” below). Thus, an adversary who compromises the sending wallet may drain the cold wallet.
 
@@ -376,7 +380,7 @@ See `Rationale for URI Format`_ above. Moreover:
 
 2. We support multiple spending keys and multiple notes in one URI, because these payments may be speculatively generated and mined before the payment amount is determined (to allow payments with no latency). For example, the sending wallets may pre-generate transactions for powers-of-2 amounts, and then include only a subset of them in the URI, totalling to the desired amount.
 
-3. We do not include the sender or receiver's identity in the URI, because the sending wallet many not know the name of who it is sending to (or even from). Moreover there is the risk that fraudulent sender/recipient information could be used. If necessitated by circumstances (e.g., the `Travel Rule`_), claimed sender and recipient identity can be included in ``desc`` parameter.
+3. We do not include the sender or receiver's identity in the URI, because the sending wallet many not know the name of who it is sending to (or even from). Moreover there is the risk that fraudulent sender/recipient information could be used. If necessitated by circumstances (e.g., the FinCEN "Travel Rule" [#fincen-travel-rule]_), claimed sender and recipient identity can be included in ``desc`` parameter.
 
 
 Open Questions
@@ -440,17 +444,14 @@ Consider the behavior in case a chain reorgs invalidates a sent payment. Should 
 References
 ==========
 
-.. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://tools.ietf.org/html/rfc2119>`_
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
 .. [#RFC3986] `Uniform Resource Identifier (URI): Generic Syntax <https://tools.ietf.org/html/rfc3986>`_
-.. [#protocol] `Zcash Protocol Specification, Version 2019.0.3 or later [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
-.. [#zip321] `ZIP 321: Payment Request URIs
- <https://zips.z.cash/zip-0321>`_
-
-.. _Sapling master key generation: https://zips.z.cash/zip-0032#sapling-master-key-generation
-.. _App Links: https://developer.android.com/training/app-links
-.. _Universal Links: _https://developer.apple.com/documentation/uikit/inter-process_communication/allowing_apps_and_websites_to_link_to_your_content
-.. _App URI handlers: https://docs.microsoft.com/en-us/windows/uwp/launch-resume/web-to-app-linking
-.. _Travel Rule: https://www.fincen.gov/sites/default/files/2019-05/FinCEN%20Guidance%20CVC%20FINAL%20508.pdf
+.. [#protocol] `Zcash Protocol Specification, Version 2023.4.0 or later <protocol/protocol.pdf>`_
+.. [#zip-0321] `ZIP 321: Payment Request URIs <zip-0321.rst>`_
+.. [#app-links] `Android Developer Guides: Handling Android App Links <https://developer.android.com/training/app-links>`_
+.. [#universal-links] `Apple Xcode Documentation: Allowing apps and websites to link to your content <https://developer.apple.com/documentation/uikit/inter-process_communication/allowing_apps_and_websites_to_link_to_your_content>`_
+.. [#app-uri-handlers] `Microsoft Universal Windows Platform Documentation: Enable apps for websites using app URI handlers <https://docs.microsoft.com/en-us/windows/uwp/launch-resume/web-to-app-linking>`_
+.. [#fincen-travel-rule] `FinCEN Guidance FIN-2019-G001. May 9, 2019. Application of FinCEN’s Regulations to Certain Business Models Involving Convertible Virtual Currencies <https://www.fincen.gov/sites/default/files/2019-05/FinCEN%20Guidance%20CVC%20FINAL%20508.pdf>`_
 
 
 Publication Blockers
