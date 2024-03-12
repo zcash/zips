@@ -8,7 +8,7 @@ Owners: Jason McGee <jason@shieldedlabs.com>
 Original-Authors: Nathan Wilcox
 Credits:
 Status: Draft
-Category: Ecosystem
+Category: Consensus / Ecosystem
 Created: 2023-08-16
 License: BSD-2-Clause
 ```
