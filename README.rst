@@ -165,4 +165,5 @@ Index of ZIPs
     <tr> <td><strike>1013</strike></td> <td class="left"><strike><a href="zip-1013.rst">Keep It Simple, Zcashers: 10% to ECC, 10% to ZF</a></strike></td> <td>Obsolete</td>
     <tr> <td>1014</td> <td class="left"><a href="zip-1014.rst">Establishing a Dev Fund for ECC, ZF, and Major Grants</a></td> <td>Active</td>
     <tr> <td>guide</td> <td class="left"><a href="zip-guide.rst">{Something Short and To the Point}</a></td> <td>Draft</td>
+    <tr> <td>regular-periodic-turnstiles</td> <td class="left"><a href="zip-regular-periodic-turnstiles.rst">Regular Periodic Turnstiles</a></td> <td>Draft</td>
   </table></embed>
