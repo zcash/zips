@@ -1,7 +1,7 @@
 FROM debian:latest
 
-RUN apt-get update \
-        && apt-get install -y \
+RUN apt-get update
+RUN apt-get install -y \
         gawk \
         perl \
         sed \
@@ -17,7 +17,10 @@ RUN apt-get update \
         texlive-plain-generic \
         texlive-bibtex-extra
 
-RUN pip3 install rst2html5
+RUN rm /usr/lib/python3.11/EXTERNALLY-MANAGED
+RUN pip install rst2html5
+
+ENV PATH=${PATH}:/root/.local/bin
 
 WORKDIR "/zips"
 ENTRYPOINT ["make", "all"]
