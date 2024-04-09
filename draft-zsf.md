@@ -33,7 +33,7 @@ This ZIP describes the motivation, the necessary changes for, and the implementa
 
 The changes in this ZIP are ultimately minimal, only requiring for the node to track state in the form of a `ZSF_BALANCE`, and for a new transaction field to be added, called `ZSF_DEPOSIT`. While wallet developer would be encouraged to add the `ZSF_DEPOSIT` field to their UIs, no changes or new behavior are absolutely required for developers or ZEC holders.
 
-This ZIP does not change the current ZEC issuance schedule. Any additional amounts paid into the sustainability fund are reserved for use in future ZIPs.
+This ZIP does not change the current ZEC block subsidy issuance schedule. Any additional amounts paid into the sustainability fund are reserved for use in future ZIPs.
 
 # Motivation
 
