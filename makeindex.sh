@@ -20,4 +20,24 @@ for zipfile in $(cat .zipfilelist.current); do
     echo "    <tr> <td>`basename $(basename $zipfile .rst) .md | sed -E 's@zip-0{0,3}@@'`</td> <td class=\"left\"><a href=\"`echo $zipfile`\">`grep '^\s*Title:' $zipfile | sed -E 's@\s*Title:\s*@@'`</a></td> <td>`grep '^\s*Status:' $zipfile | sed -E 's@\s*Status:\s*@@'`</td>"
   fi
 done
+cat <<EndOfBlock
+  </table></embed>
+
+Drafts without assigned ZIP numbers
+-----------------------------------
+
+These are works-in-progress, and may never be assigned ZIP numbers if their
+ideas become obsoleted or abandoned. Do not assume that these drafts will exist
+in perpetuity; instead assume that they will either move to a numbered ZIP, or
+be deleted.
+
+.. raw:: html
+
+  <embed><table>
+    <tr> <th>Title</th> </tr>
+EndOfBlock
+for draftfile in $(find . -name 'draft-*.rst' -o -name 'draft-*.md' | sort); do
+  echo Adding $draftfile to index. >/dev/stderr
+  echo "    <tr> <td class=\"left\"><a href=\"`echo $draftfile`\">`grep '^\s*Title:' $draftfile | sed -E 's@\s*Title:\s*@@'`</a></td>"
+done
 echo "  </table></embed>"
