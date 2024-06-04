@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZIP 340</title>
+    <meta charset="utf-8" />
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<h1 id="coin-voting">Coin Voting</h1>
+<p>This ZIP describes a mechanism for the organization of coin-weighted
+election.</p>
+<h2 id="use-case">Use Case</h2>
+<p>A person or organization, referred as the Election Board (EB) decides
+to request the opinion of the zcash holders (ZH) on a particular topic.
+The EB defines the parameters of the referendum: - when it starts
+(snapshot height) and stops (closing height) - An optional lockdown
+period before it closes - the question asked - the criteria for
+aggregating the votes</p>
+<p>They publically ask the ZH to participate by sending them ballots.
+They verify and tally the votes following the aggregation method
+(typicall linear, but it could be quadratic or something else). Then
+they publish the outcome.</p>
+<p>The final result of the election is a list of valid ballots that
+have: - a value in ZEC - a message</p>
+<p>The content of the message depends on the type of referendum. The
+acceptable options should be defined by EB. For example, for a yes/no
+question, it could simply be a value of 0 or 1.</p>
+<p>The EB could decide to accept write-in votes too. The format of the
+message is not part of this ZIP.</p>
+<p>The value of the ballot MUST be an amount of ZEC that the ZH can
+spend at the snapshot height.</p>
+<p>The ZH is not obligated to vote with all the ZEC that they have. But
+it MUST be impossible to use the same coins to vote twice on the same
+election.</p>
+<p>It MUST be possible to use the same ZEC on DIFFERENT elections.</p>
+<p><strong>See Privacy section on important caveats regarding concurrent
+voting.</strong></p>
+<h2 id="other-uses-cases">Other Uses Cases</h2>
+<h3 id="airdrop">Airdrop</h3>
+<p>This ZIP can be used to perform air-drops. An organization that wants
+to give their tokens/coins based on an amount of ZEC can organize an
+election. The ballots contain the ZH’s address where they want to
+receive the airdrop.</p>
+<h3 id="proof-of-balance">Proof of Balance</h3>
+<p>In this case, the ZH sends an empty message because the ballot value
+is all that matters.</p>
+<h1 id="requirements">Requirements</h1>
+<h2 id="participants-actors">Participants / Actors</h2>
+<h3 id="election-board">Election Board</h3>
+<p>The Election Board (EB) is the entity in charge of organizing the
+election (E). - The EB MUST have a website secured by https that clearly
+reflects their identity. - They MUST make their announcements through
+their website. - The EB SHOULD have a forum for election related
+discussions - The EB MUST set the election parameters described in a
+later section - The EB MUST publish the election parameters on their
+website - The election parameters are immutable. If the EB wants to make
+a modification, another election MUST be created</p>
+<h3 id="voter-zh">Voter (ZH)</h3>
+<p>Anyone who has <em>spending authority</em> of ZEC (either transparent
+or shielded) can participate.</p>
+<ul>
+<li>Ballots MUST have a ZEC value</li>
+<li>Ballots MUST have a message in the format defined by the
+Election</li>
+<li>Ballots MUST include a proof of spending authority for the amount
+specified, valid at the snapshot height</li>
+<li>Ballots MUST not prevent the ZH from spending the coins in a
+transaction</li>
+<li>Coins spent before the snapshot height MUST not be eligible for
+voting</li>
+<li>Voting MUST not disclose information that would allow someone to use
+the coins themselves (in a transaction or an election)</li>
+<li>Ballots MUST follow the format specified in the section Ballot</li>
+<li>ZEC held in transparent t3 addresses CANNOT be used. They introduce
+most complexity and are not used much</li>
+</ul>
+<p>Notes: - Having coins on an exchange such as Binance, Bitfinex, etc.
+does not allow you to vote because the coins are under their custody -
+The EB MAY set special rules for the election. For example, there MAY be
+a fee for casting a vote or a minimum ZEC requirement</p>
+<h2 id="privacy">Privacy</h2>
+<div class="danger">
+<p>If the coins used for voting for a given election are not moved
+before voting for another election, it is possible to link the
+votes.</p>
+</div>
+<ol type="1">
+<li>Transparent inputs are in clear</li>
+<li>Shielded inputs reveal their nullifier</li>
+</ol>
+<p>The total value is also revealed since it is the weight of the
+vote.</p>
+<p>To mitigate this issue, the user SHOULD be offered to move their
+coins after a vote. However, if multiple elections are carried out
+concurrently with similar snapshot heights, it will be impossible for a
+Voter to participate in both without linking their votes.</p>
+<p>A possible solution is suggested in <a
+href="https://hackmd.io/ujald5ElTMumppM7juk2WA?both">Air drops,
+Proof-of-Balance, and Stake-weighted Polling</a></p>
+<p>Alternatively, homomorphic encryption could be used in order to tally
+the votes without decrypting them individually. However, this would be
+less flexible than the above.</p>
+<h2 id="workflow">Workflow</h2>
+<p>The election E is carried in several sequential phases.</p>
+<ol type="1">
+<li>The EB publishes the E parameters and advertise the E</li>
+<li>Each V prepares his/her ballot and send it to the EB</li>
+<li>The EB returns a receipt to the V</li>
+<li>The E enters a lockdown period</li>
+<li>The E closes and the results are published</li>
+</ol>
+<pre class="mermaid"><code>sequenceDiagram
+    EB-&gt;&gt;Public: Publish Election
+    Note over V,EB: When snapshot height reached
+    loop every Voter, concurrently
+    V-&gt;&gt;EB: Ballot
+    EB--&gt;&gt;V: Receipt
+    end
+
+    Note over V,EB: When lockdown height reached
+    EB-&gt;&gt;Public: List of Ballot ID
+    Note over V,EB: When expiration height reached
+    loop every Voter, concurrently
+    V-&gt;&gt;EB: Ballot Decryption Key
+    end
+    EB-&gt;&gt;Public: Publish Decrypted Ballots, E results</code></pre>
+<h2 id="ballots">Ballots</h2>
+<p>The message part of a Ballot is encrypted with the V key. The
+decryption key is sent to the EB after the lockdown period. The EB
+validates the ballot coin value and returns a receipt. The Receipt
+contains a signature from the EB.</p>
+<h2 id="lockdown-period-ballot-list-commitment">Lockdown Period / Ballot
+List commitment</h2>
+<p>The lockdown period is optional but RECOMMENDED.</p>
+<p>It gives time for the Voters to check that their ballot is recorded
+by the EB publicly and that no additional ballots are added after their
+opening.</p>
+<p>If a V does not see their ballot on the list, they MUST contact the
+EB and resolve the dispute. Their receipt has the EB signature and
+proves the integrity of the ballot. Failure to recognize a valid ballot
+is a serious breach of trust.</p>
+<h2 id="counting">Counting</h2>
+<p>After the lockdown period, V MUST send their decryption key to the
+EB.</p>
+<p>EB decrypts the vote and updates the tally.</p>
+<p>Finally EB publishes the results for everyone to see.</p>
+<p>The encrypted ballots and their decryption keys are published for
+verification.</p>
+<h2 id="verification">Verification</h2>
+<ul>
+<li>Check that the ballot hashes correspond to the ballot published</li>
+<li>For each ballot,</li>
+</ul>
+<ol type="1">
+<li>Check the validity of the signatures and the zkps</li>
+<li>Compute the coin value</li>
+<li>Decrypt the vote</li>
+<li>Tally the vote weighted by the coin value</li>
+</ol>
+<h1 id="specifications">Specifications</h1>
+<p>The communication uses binary messages in protobuf format.</p>
+<h2 id="eb">EB</h2>
+<ul>
+<li>URL:
+<ul>
+<li>MUST be https</li>
+<li>MUST identify the organization</li>
+</ul></li>
+<li>Name
+<ul>
+<li>MUST be unique to organization</li>
+</ul></li>
+<li>start_height</li>
+<li>snapshot height</li>
+<li>lockdown height</li>
+<li>closing height</li>
+<li>the EB public key</li>
+</ul>
+<p>Example:</p>
+<pre class="toml="><code>url = &quot;https://election.methyl.cc&quot;
+name = &quot;Test Election 2024&quot;
+start_height = 2397000
+snapshot_height = 2462430
+lockdown_height = 2460000
+closing_height = 2460000
+msg_size = 64
+public= &quot;788ff50468e2c095d97f8249e27eef3afe8a07712988a475583eb89494d64abe&quot;
+cmx_root = &quot;063121a1fed23f154e18d9dfc70a13867f295207fd3c59d0e3f86615b857d332&quot;
+nf_root = &quot;5341fe36634580cdf8862a106dab2cf7bd39f67d171a2877995babb435a5ee0e&quot;</code></pre>
+<p>Only notes received and unspent between the start_height and the
+snapshot height are eligible.</p>
+<p>The start_height defaults to the Sapling activation height.</p>
+<p>In addition, the EB MUST define a message in protobuf format. The
+message MUST have a fixed size.</p>
+<p><code>public</code> is defined in the section Message Encryption</p>
+<p>Example:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode proto"><code class="sourceCode protobuf"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">message</span> BallotContent {</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    uint8 candidate = <span class="dv">1</span>;</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<p>From the E definition, the E domain is calculated as</p>
+<p><code>domain = Blake2b-256(b"Zcash_WCV_domain", E)</code></p>
+<p>The E domain is included in the ballot and ensures that ballots
+cannot be replayed.</p>
+<h2 id="ballot">Ballot</h2>
+<pre class="protobuf="><code>syntax = &quot;proto3&quot;;
+package proof_balance;
+// Protobuf does not support fixed size arrays
+// This type MUST be 32 byte-long
+message b256 {
+    bytes b = 1;
+}
+
+// A ballot is made of 2 parts, 
+// the data part is non malleable and is used to calculate the sighash
+// the witness part has the signatures and the zkp
+message Ballot {
+    BallotData data = 1;
+    Witness witness = 2;
+}
+
+message Header {
+    uint32 version = 1; // version = 1
+    b256 domain = 2; // Election Domain
+}
+
+message BallotData {
+    Header header = 1;
+    TransparentData tdata = 2; // transparent inputs
+    ShieldedData zdata = 3; // sapling inputs
+    ShieldedData odata = 4; // orchard inputs
+    EncMessage enc_message = 5; // encrypted vote
+}
+
+message EncMessage {
+    bytes epk = 1;
+    bytes data = 2;
+    bytes tag = 3;
+}
+
+message Witness {
+    TransparentWitness twitness = 1; // transparent sigs
+    SaplingWitness zwitness = 2; // sapling sigs &amp; zkp
+    OrchardWitness owitness = 3; // orchard sigs &amp; zkp
+}
+
+// Transparent Input, i.e UTXO
+message TxIn {
+    b256 txid = 1;    // prev txout
+    uint32 vout = 2;  // index of the output
+}
+
+message TransparentData {
+    repeated TxIn txin = 1;
+}
+
+// See section 7.3 and 7.5 of [protocol doc]
+message Spend {
+    b256 commitment_value = 1;
+    b256 nullifier = 2;
+    b256 rk = 3;
+}
+
+message ShieldedData {
+    // b256 anchor = 1; // MUST be the anchor at snapshot height
+    repeated Spend spends = 2;
+    uint64 valuebalance = 3;
+}
+
+message Signature {
+    bytes b = 1; // 64 bytes, r, s
+}
+
+message TransparentProof {
+    b256 pk = 1;
+    Signature signature = 2;
+}
+
+message TransparentWitness {
+    repeated TransparentProof proofs = 1;
+}
+
+message SaplingSpendProof {
+    bytes zkproof = 1; // 192 bytes
+    Signature signature = 2;
+}
+
+message SaplingWitness {
+    repeated SaplingSpendProof proofs = 1;
+    Signature binding_signature = 2;
+}
+
+message OrchardWitness {
+    repeated Signature signatures = 1;
+    bytes zkproof = 2; // 2720 + 2272 * nOrchard
+    Signature binding_signature = 3;
+}
+
+message ElectionId {
+    string name = 1;
+}
+
+message ElectionInfo {
+    string url = 1;
+    string name = 2;
+    uint32 start_height = 3;
+    uint32 snapshot_height = 4;
+    uint32 lockdown_height = 5;
+    uint32 closing_height = 6;
+    string pk = 7;
+    uint32 msg_size = 8;
+    bytes cmx_root = 9;
+    bytes nf_root = 10;
+}
+
+message ProofDomain {
+    bytes domain = 1;
+}
+
+message Proof {
+    bytes cv = 1;
+    bytes nullifier = 2;
+    bytes rk = 3;
+    bytes proof = 4;
+}
+</code></pre>
+<h3 id="ballot-hash-sighash">Ballot Hash / Sighash</h3>
+<p>For the signatures, the sighash is the blake2b-256 hash of the
+serialization of the ballot data (in protobuf 3) with personalization
+string <code>Zcash_WCV___Hash</code>.</p>
+<p><code>hash = Blake2b-256("Zcash_WCVSigHash", BallotData)</code>.</p>
+<h2 id="message-encryption">Message Encryption</h2>
+<p>The EB MUST sign the ballot sighash with a ed25519 signing key and
+return a receipt as a bech32m encoded signature with hrp
+<code>pob-receipt-</code></p>
+<p>The Voter MUST add a message in the format specified by the EB. The
+message is encrypted into EncMessage. - epk is a 32 byte public key on
+x25519 - the Voter reveals his own ed25519 signing key after the vote
+closes - the EB converts the key to a x25519 secret key - the EB uses DH
+to calculate a shared key KA - SymKey = Blake2b-256(KA,
+perso=“Zcash_ProofBlnce”) - SymKey is used with Chacha20-Poly1305 to
+decrypt the message - The tag MUST match the decrypted tag</p>
+<p>Rationale: This design allows the use of ed25519 SSH keys for both
+Voter and EB.</p>
+<div class="warning">
+<p>The Voter SHOULD not reuse the signing key!</p>
+</div>
+<h1 id="poc">POC</h1>
+<p>The POC is for a modified version specific to Orchard that uses
+nullifiers scoped by elections.</p>
+<h2 id="pollelection-setup">Poll/Election Setup</h2>
+<p>The EB (Election Board) generates an openssh ed25519 signing key</p>
+<pre class="bash="><code>openssl genpkey -algorithm ed25519 -out poller.pem</code></pre>
+<div class="info">
+<p>The key MAY be reused. It is used for signing ballot receipts. It is
+RECOMMENDED to use a different key per election.</p>
+</div>
+<p>The EB chooses a event properties</p>
+<pre class="toml="><code>url = &quot;https://election.methyl.cc&quot;
+name = &quot;Test Election 2024&quot;
+start_height = 2397000
+snapshot_height = 2462430
+lockdown_height = 2460000
+closing_height = 2460000
+msg_size = 64
+public= &quot;788ff50468e2c095d97f8249e27eef3afe8a07712988a475583eb89494d64abe&quot;
+cmx_root = &quot;063121a1fed23f154e18d9dfc70a13867f295207fd3c59d0e3f86615b857d332&quot;
+nf_root = &quot;5341fe36634580cdf8862a106dab2cf7bd39f67d171a2877995babb435a5ee0e&quot;</code></pre>
+<p>The public key MUST match the EB signing key.</p>
+<p>The <code>cmx_root</code> and <code>nf_root</code> are OPTIONAL but
+if present MUST match the hashes calculated by building the reference
+data.</p>
+<div class="info">
+<p>If the snapshot height is not in the past, it is impossible to
+calculate the tree roots.</p>
+</div>
+<p>The EB publishes the <code>election.toml</code> file so that voters
+can download it.</p>
+<h2 id="voter-send-their-ballots">Voter Send their Ballots</h2>
+<p>Once the snapshot height is reached and before the lockdown height,
+voters can submit their vote.</p>
+<p>They have to follow the steps: - generate an openssh ed25519 key; -
+download block data for the range from start height to snapshot height;
+- build reference data, i.e. cmx and nf Merkle trees; - copy their
+wallet file <code>zec.db</code> from Ywallet. The vote does not have to
+use this wallet app as long as it has the note data: - d, pkd, - v, -
+rseed, - <span class="math inline"><em>ρ</em></span>, <span
+class="math inline"><em>ψ</em></span> - note position - create the proof
+with a ballot message; - submit the ballot to the EB; - wait until the
+election reaches the closing height.</p>
+<pre><code>&gt;&gt; load-identity voter.pem
+c76a89174ed64479c5f567b955ce27ce998568e72a044de80b0ebe748d826b3c
+&gt;&gt; download https://lwd1.zcash-infra.com:9067
+&gt;&gt; build-reference-data
+Root cmxs: 5de18172c1c9d2a526a9c73067e75dfbe1ac4e774e1bfec9a31ee178db98a635
+Root nfs: 12d4776996da7929255bccfcb21c99853d840c4008da547b113c4c857eec3d29
+&gt;&gt; create-proof pob.bin 1 &quot;Vote for BOB!&quot;
+5c70068567d0b8d52e4dcfc395a67dc83fd6bdf9c65a835b41d2bfeb776480fb
+cmx anchor: 5de18172c1c9d2a526a9c73067e75dfbe1ac4e774e1bfec9a31ee178db98a635
+nf  anchor: 12d4776996da7929255bccfcb21c99853d840c4008da547b113c4c857eec3d29</code></pre>
+<h2 id="eb-collects-votes">EB Collects Votes</h2>
+<p>The EB collects votes and verifies the validity of the ZKP, spending
+signatures and binding signature. It also checks that the root hashes
+match and that the nullifiers are not used.</p>
+<p>If everything is fine, the EB returns a receipt that is a signature
+on the sighash of the ballot.</p>
+<pre><code>&gt;&gt; load-identity poller.pem
+3f8a41af400aa0197594a7b5c2e21bb6307753840a8513b28b816aad43fb30c0
+&gt;&gt; init-db
+&gt;&gt; verify-proof pob.bin
+ZK Proof verified!
+Spending Signature verified!
+Binding Signature verified!
+Verified 0.05000000 ZEC
+Receipt: pob-receipt-1djsvezm3wep2ganwd4upzawxsgz60hq2e86cqkv4djmusut4fjzzvzu2ut5z3uda4eedvff6anlmzz3k48d7ugxsrs0gxfn36nscvqqzn4js8</code></pre>
+<p>At this point, the ballot is verified and its amount can be accounted
+for but the vote payload is not revealed.</p>
+<div class="info">
+<p>The EB publishes the ballot hashes and receipts on their website.</p>
+</div>
+<h2 id="opening-votes">Opening Votes</h2>
+<p>Voters uploads their signing key to the EB.</p>
+<pre><code>&gt;&gt; load-identity voter.pem
+c76a89174ed64479c5f567b955ce27ce998568e72a044de80b0ebe748d826b3c
+&gt;&gt; open-proof pob.bin
+5c70068567d0b8d52e4dcfc395a67dc83fd6bdf9c65a835b41d2bfeb776480fb
+Decrypted message: Vote for BOB!</code></pre>
+<div class="info">
+<p>The EB counts the votes and publishes the results</p>
+</div>
+<h2 id="audit">Audit</h2>
+<div class="info">
+<p>The EB publishes all ballots and their opening keys for verification
+by auditors.</p>
+</div>
+</body>
+</html>
