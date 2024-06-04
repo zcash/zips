@@ -340,6 +340,14 @@ The Human-Readable Parts of Unified Viewing Keys are defined as:
 * *prefix* || “``view``” for Unified Full Viewing Keys on Mainnet;
 * *prefix* || “``viewtest``” for Unified Full Viewing Keys on Testnet.
 
+While support for Revision 1 UAs/UVKs is still being rolled out across
+the Zcash ecosystem, a Producer can maximize interoperability by
+generating a Revision 0 UA/UVK in cases where the conditions on its
+use are met (i.e. there are no MUST-understand Metadata Items, and at
+least one shielded item). At some point when Revision 1 UA/UVKs are
+widely supported, this will be unnecessary and it will be sufficient
+to always produce Revision 1 UA/UVKs.
+
 
 Encoding of Unified Addresses
 -----------------------------
@@ -1100,16 +1108,50 @@ zero bytes, to the raw encoding, then applies :math:`\mathsf{F4Jumble}`
 before encoding the result with Bech32m.
 
 The Consumer rejects any Bech32m-decoded byte sequence that is less than
-48 bytes or greater than :math:`\ell^\mathsf{MAX}_M` bytes; otherwise it
+38 bytes or greater than :math:`\ell^\mathsf{MAX}_M` bytes; otherwise it
 applies :math:`\mathsf{F4Jumble}^{-1}.` It rejects any result that does
 not end in the expected 16-byte padding, before stripping these 16 bytes
 and parsing the result.
 
-(48 bytes allows for the minimum size of a shielded UA, UFVK, or UIVK Item
-encoding to be 32 bytes, taking into account 16 bytes of padding. Although
-there is currently no shielded Item encoding that short, it is plausible
-that one might be added in future. :math:`\ell^\mathsf{MAX}_M` bytes is
-the largest input/output size supported by :math:`\mathsf{F4Jumble}.`)
+Rationale for length restrictions
+'''''''''''''''''''''''''''''''''
+
+.. raw:: html
+
+   <details>
+   <summary>Click to show/hide</summary>
+
+A minimum input length to :math:`\mathsf{F4Jumble}^{-1}` of 38 bytes
+allows for the minimum size of a UA/UVK Item encoding to be 22 bytes
+including the typecode and length, taking into account 16 bytes of padding.
+This allows for a UA containing only a Transparent P2PKH Receiver:
+
+* Transparent P2PKH Receiver Item:
+
+  * 1-byte typecode
+  * 1-byte encoding of length
+  * 20-byte transparent address hash
+
+:math:`\ell^\mathsf{MAX}_M` bytes is the largest input/output size
+supported by :math:`\mathsf{F4Jumble}.`
+
+Allowing only a Transparent P2PKH Receiver is consistent with dropping
+the requirement to have at least one shielded Item in Revision 1 UA/UVKs
+(`see rationale <#rationale-for-dropping-the-at-least-one-shielded-item-restriction>`_).
+
+Note that Revision 0 of this ZIP specified a minimum input length to
+:math:`\mathsf{F4Jumble}^{-1}` of 48 bytes. Since there were no sets
+of UA/UVK Item Encodings valid in Revision 0 to which a byte sequence
+(after removal of the 16-byte padding) of length between 22 and 31 bytes
+inclusive could be parsed, the difference between the 38 and 48-byte
+restrictions is not observable, other than potentially affecting which
+error is reported. A Consumer supporting Revision 1 of this specification
+MAY therefore apply either the 48-byte or 38-byte minimum to Revision 0
+UA/UVKs.
+
+.. raw:: html
+
+   </details>
 
 Heuristic analysis
 ''''''''''''''''''
@@ -1151,7 +1193,7 @@ A 4-round Feistel thwarts this and similar attacks. Defining :math:`x` and
 * if :math:`x' \neq x` and :math:`y' \neq y,` all four pieces are
   randomized.
 
-Note that the size of each piece is at least 24 bytes.
+Note that the size of each piece is at least 19 bytes.
 
 It would be possible to make an attack more expensive by making the work
 done by a Producer more expensive. (This wouldn't necessarily have to
