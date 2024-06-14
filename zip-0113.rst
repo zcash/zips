@@ -1,0 +1,122 @@
+::
+
+  ZIP: 113
+  Title: Median Time Past as endpoint for lock-time calculations
+  Author: Daira Hopwood <daira@electriccoin.co>
+  Credits: Thomas Kerin <me@thomaskerin.io>
+           Mark Friedenbach <mark@friedenbach.org>
+           Gregory Maxwell
+  Category: Consensus
+  Status: Draft
+  Created: 2019-06-07
+  License: MIT
+
+
+Terminology
+===========
+
+The key words "MUST" and "MAY" in this document are to be interpreted as described in
+RFC 2119. [#RFC2119]_
+
+
+Abstract
+========
+
+This ZIP is a proposal to redefine the semantics used in determining a time-locked
+transaction's eligibility for inclusion in a block. The median of the last PoWMedianBlockSpan
+(11) blocks is used instead of the block's timestamp, ensuring that it increases
+monotonically with each block.
+
+
+Motivation
+==========
+
+At present, transactions are excluded from inclusion in a block if the present time or block
+height is less than or equal to that specified in the locktime. Since the consensus rules
+do not mandate strict ordering of block timestamps, this has the unfortunate outcome of
+creating a perverse incentive for miners to lie about the time of their blocks in order to
+collect more fees by including transactions that by wall clock determination have not yet
+matured.
+
+This ZIP proposes comparing the locktime against the median of the past PoWMedianBlockSpan
+blocks' timestamps, rather than the timestamp of the block including the transaction.
+Existing consensus rules guarantee this value to monotonically advance, thereby removing
+the capability for miners to claim more transaction fees by lying about the timestamps of
+their block.
+
+This proposal seeks to ensure reliable behaviour in locktime calculations as required by
+[#bip-0065]_ (CHECKLOCKTIMEVERIFY) and matching the behavior of [#zip-0112]_ (CHECKSEQUENCEVERIFY).
+This also matches the use of Median Time Past in difficulty adjustment as specified in
+section 7.6.3 of [#protocol]_.
+
+
+Specification
+=============
+
+Let PoWMedianBlockSpan be as defined in [#protocol]_ section 5.3, and let the median
+function be as defined in [#protocol]_ section 7.6.3.
+
+The Median Time Past of a block is specified as the median of the timestamps of the
+prior PoWMedianBlockSpan blocks, as calculated by MedianTime(height) in [#protocol]_
+section 7.6.3.
+
+The values for transaction locktime remain unchanged. The difference is only in the
+calculation determining whether a transaction can be included. After activation of
+this ZIP, lock-time constraints of a transaction MUST be checked according to the
+Median Time Past of the transaction's block.
+
+[FIXME make this a proper specification, independent of the zcashd implementation.]
+
+Lock-time constraints are checked by the consensus method ``IsFinalTx()``. This method
+takes the block time as one parameter. This ZIP proposes that after activation calls to
+``IsFinalTx()`` within consensus code use the return value of ``GetMedianTimePast(pindexPrev)``
+instead.
+
+The new rule applies to all transactions, including the coinbase transaction.
+
+
+Reference Implementation
+========================
+
+This will be based on `Bitcoin PR 6566 <https://github.com/bitcoin/bitcoin/pull/6566>`_.
+
+
+Acknowledgements
+================
+
+This ZIP is based on BIP 113, authored by Thomas Kerin and Mark Friedenbach.
+
+Mark Friedenbach designed and authored the reference implementation for Bitcoin.
+
+Gregory Maxwell came up with the original idea, in #bitcoin-wizards on
+`2013-07-16 <https://download.wpsoftware.net/bitcoin/wizards/2013/07/13-07-16.log>`_ and
+`2013-07-17 <https://download.wpsoftware.net/bitcoin/wizards/2013/07/13-07-17.log>`_.
+
+
+Deployment
+==========
+
+At the time of writing it has not been decided which network upgrade (if any) will implement this
+proposal.
+
+This ZIP is designed to be deployed simultaneously with [#zip-0068]_ and [#zip-0112]_.
+
+
+Compatibility
+=============
+
+At the post-Blossom block target spacing of 75 seconds, transactions generated using time-based
+lock-time will take approximately 7.5 minutes longer to confirm than would be expected under the
+old rules. This is not known to introduce any compatibility concerns with existing protocols.
+This delay is less than in Bitcoin due to the faster block target spacing in Zcash.
+
+
+References
+==========
+
+.. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://tools.ietf.org/html/rfc2119>`_
+.. [#protocol] `Zcash Protocol Specification, Version 2019.0.1 or later [Overwinter+Sapling+Blossom] <https://github.com/zcash/zips/blob/master/protocol/blossom.pdf>`_
+.. [#bip-0065] `BIP 65: OP_CHECKLOCKTIMEVERIFY <https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki>`_
+.. [#zip-0068] `ZIP 68: Consensus-enforced transaction replacement signaled via sequence numbers <https://github.com/daira/zips/blob/op-csv/zip-0068.rst>`_
+.. [#zip-0112] `ZIP 112: CHECKSEQUENCEVERIFY <https://github.com/daira/zips/blob/op-csv/zip-0112.rst>`_
+
