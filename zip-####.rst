@@ -1,11 +1,12 @@
 ::
 
-  ZIP: 1014
-  Title: Establishing a Dev Fund for ECC, ZF, and Major Grants
-  Owners: Andrew Miller <socrates1024@gmail.com>
+  ZIP: ####
+  Title: Manufacturing Consent; Re-Establishing a Dev Fund for ECC, ZF, ZCG, Qedit, FPF, and ZecHub
+  Owner: Noam Chom <noamchom1967@gmail.com>
+  ZIP-1014 Owners: Andrew Miller <socrates1024@gmail.com>
           Zooko Wilcox <zooko@electriccoin.co>
-  Original-Authors: Eran Tromer
-  Credits: Matt Luongo
+  ZIP-1014 Original-Authors: Eran Tromer
+  ZIP-1014 Credits: Matt Luongo
            @aristarchus
            @dontbeevil
            Daira Emma Hopwood
@@ -14,10 +15,10 @@
            Andrew Miller
   Status: Active
   Category: Consensus Process
-  Created: 2019-11-10
+  Created: 2024-06-25
   License: MIT
-  Discussions-To: <https://forum.zcashcommunity.com/t/community-sentiment-polling-results-nu4-and-draft-zip-1014/35560>
-  Pull-Request: <https://github.com/zcash/zips/pull/308>
+  Discussions-To: <https://forum.zcashcommunity.com/t/manufacturing-consent-noamchoms-nu6-block-reward-proposal/47155>
+  Pull-Request: TBD
 
 
 Terminology
@@ -50,37 +51,72 @@ Code (Title 26 of the U.S. Code). [#section501c3]_
 "Community Advisory Panel" refers to the panel of community members assembled
 by the Zcash Foundation and described at [#zf-community]_.
 
+"Zcash Community Grants", also called "ZCG", refers to grants program
+(formerly known as ZOMG) that funds independent teams entering the Zcash ecosystem, 
+to perform major ongoing development (or other work) 
+for the public good of the Zcash ecosystem.
+<https://zcashcommunitygrants.org/>
+
+"Financial Privacy Fund", also called "FPF" refers to the start-up non-profit
+organization incorporated and based in the Cayman Islands.
+<https://www.financialprivacyfoundation.org/>
+
+"Qedit" refers to the company founded in 2016 by a world-class team of 
+accomplished tech entrepreneurs, researchers, and developers; 
+QEDIT has emerged as a global leader in the field of Zero-Knowledge Proofs.
+<https://qed-it.com/about-us/>
+
+"ZecHub" refers to the team of content creators who have supported Zcash
+through a series of ZCG approved grants.
+<https://forum.zcashcommunity.com/t/zechub-an-education-hub-for-zcash-2024-continued/47947>
+
 The terms "Testnet" and "Mainnet" are to be interpreted as described in
 section 3.12 of the Zcash Protocol Specification [#protocol-networks]_.
+
+The term "ZSA" is to be interpreted as "Zcash Shielded Assets" the protocol
+feature enhancement (and subsequent application layer, legal, maintenance 
+efforts, et al) on-going by Qedit, et al.
+<https://forum.zcashcommunity.com/t/grant-update-zcash-shielded-assets-monthly-updates/41153>
 
 
 Abstract
 ========
 
 This proposal describes a structure for the Zcash Development Fund, to be
-enacted in Network Upgrade 4 and last for 4 years. This Dev Fund would consist
-of 20% of the block subsidies, split into 3 slices:
+enacted in Network Upgrade 5 and last for 4 years. This Dev Fund would consist
+of 15% of the block subsidies, as the following allocations:
 
-* 35% for the Bootstrap Project (the parent of the Electric Coin Company);
-* 25% for Zcash Foundation (for internal work and grants);
-* 40% for additional "Major Grants" for large-scale long-term projects
-  (administered by the Zcash Foundation, with extra community input and
-  scrutiny).
+* 5% for the Zcash Foundation (for internal work and grants);
+* 4% for the Bootstrap Project (the parent of the Electric Coin Company) for the 1st year only; 
+and contingent upon an ecosystem mandated "non-direct funding model" for the future;
+* 4% for Zcash Community Grants for continuation of their current activities as-is;
+* 2% for Qedit in support of their ZSA activities, and other Zcash protocol support;
+
+Following the first year, when ECC will no longer receive their 4% allocation, 
+those block subsidies will be distributed as 1% to ZCG, 1% to ZecHub, 1% to FPF,
+and 1% to ZF.
 
 Governance and accountability are based on existing entities and legal mechanisms,
-and increasingly decentralized governance is encouraged.
+and increasingly decentralized governance is encouraged.  This proposal mandates 
+the ecosystem to design and deploy a "non-direct funding model" as generally
+recommended in Josh Swihart's proposal.
+<https://forum.zcashcommunity.com/t/zcash-funding-bloc-a-dev-fund-proposal-from-josh-at-ecc/47187>
+
+Block subsidies will be administered through two organizations:
+1. Zcash Foundation  (for ECC, ZCG)
+2. Financial Privacy Fund (for Qedit, ZecHub)
 
 
 Motivation
 ==========
 
-Starting at Zcash's first halving in October 2020, by default 100% of the block
+Continuing at Zcash's second halving in November 2024, by default 100% of the block
 subsidies will be allocated to miners, and no further funds will be automatically
-allocated to any other entities. Consequently, no substantial new funding
+allocated to any other entities. Consequently, no new funding
 may be available to existing teams dedicated to furthering charitable,
 educational, or scientific purposes, such as research, development, and outreach:
-the Electric Coin Company (ECC), the Zcash Foundation (ZF), and the many
-entities funded by the ZF grant program.
+the Electric Coin Company (ECC), the Zcash Foundation (ZF), the ZCG, and the many
+entities funded by the ZF and ZCG grant programs.
 
 There is a need to strike a balance between incentivizing the security of the
 consensus protocol (i.e., mining) versus crucial charitable, educational, and/or
@@ -91,9 +127,14 @@ current teams dedicated to Zcash, with encouraging decentralization and growth
 of independent development teams.
 
 For these reasons, the Zcash Community desires to allocate and
-contribute a slice of the block subsidies otherwise allocated to
+contribute a portion of the block subsidies otherwise allocated to
 miners as a donation to support charitable, educational, and
 scientific activities within the meaning of Section 501(c)(3).
+
+This proposal also introduces the benefit of a non-USA based entity (FPF) as 
+the administer of block subsidies to two organizations that are also 
+non-USA based (Qedit and ZecHub). USA based regulatory risk continues to
+(negatively) impact the Zcash project, which has been predominantly based in the USA.
 
 
 Requirements
@@ -130,8 +171,8 @@ implement. In particular, it should not assume the creation of new mechanisms
 (e.g., election systems) or entities (for governance or development) for its
 execution; but it should strive to support and use these once they are built.
 
-Comply with legal, regulatory, and taxation constraints in pertinent
-jurisdictions.
+New Dev Fund recipients should comply with legal, regulatory, and taxation
+constraints in pertinent jurisdictions.
 
 
 Non-requirements
@@ -140,9 +181,10 @@ Non-requirements
 General on-chain governance is outside the scope of this proposal.
 
 Rigorous voting mechanisms (whether coin-weighted, holding-time-weighted or
-one-person-one-vote) are outside the scope of this proposal, though there is
-prescribed room for integrating them once available.
-
+one-person-one-vote) are outside the scope of this proposal, however this 
+proposal does mandate the undertaking of the project to build a "non-direct
+funding model" as generally described:
+<https://forum.zcashcommunity.com/t/zcash-funding-bloc-a-dev-fund-proposal-from-josh-at-ecc/47187>
 
 Specification
 =============
@@ -155,62 +197,77 @@ SHOULD be applied to the Zcash Testnet for testing purposes.
 Dev Fund allocation
 -------------------
 
-Starting at the first Zcash halving in 2020, until the second halving in 2024,
-20% of the block subsidy of each block SHALL be allocated to a "Dev Fund" that
-consists of the following three slices:
+Starting at the second Zcash halving in 2024, until the third halving in 2028,
+15% of the block subsidy of each block SHALL be allocated to a "Dev Fund" that
+consists of the following allocations:
 
-* 35% for the Bootstrap Project (denoted **BP slice**);
-* 25% for the Zcash Foundation, for general use (denoted **ZF slice**);
-* 40% for additional "Major Grants" for large-scale long-term projects
-  (denoted **MG slice**).
+* 5% for the Zcash Foundation (for internal work and grants);
+* 4% for the Bootstrap Project (the parent of the Electric Coin Company) for the 1st year only; 
+and contingent upon an ecosystem mandated "non-direct funding model" for the future;
+* 4% for Zcash Community Grants for continuation of their current activities as-is;
+* 2% for Qedit in support of their ZSA activities, and other Zcash protocol support;
 
-The slices are described in more detail below. The fund flow will be implemented
+Following the first year, when ECC will no longer receive their 4% allocation, 
+those block subsidies will be distributed as 1% to ZCG, 1% to ZecHub, 1% to FPF,
+and 1% to ZF.
+
+This proposal mandates the ecosystem to design and deploy a "non-direct funding model"
+as generally recommended in Josh Swihart's proposal.
+<https://forum.zcashcommunity.com/t/zcash-funding-bloc-a-dev-fund-proposal-from-josh-at-ecc/47187>
+
+"Dev Fund" block subsidies will be administered through two organizations:
+1. Zcash Foundation  (for ECC, ZCG)
+2. Financial Privacy Fund (for Qedit, ZecHub)
+
+The allocations are described in more detail below. The fund flow will be implemented
 at the consensus-rule layer, by sending the corresponding ZEC to the designated
-address(es) for each block. This Dev Fund will end at the second halving (unless
+address(es) for each block. This Dev Fund will end at the third halving (unless
 extended/modified by a future ZIP).
 
 
-BP slice (Bootstrap Project)
+BP allocation (Bootstrap Project)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This slice of the Dev Fund will flow as charitable contributions from
+These funds SHALL be received and administered by ZF.
+
+This allocation of the Dev Fund will flow as charitable contributions from
 the Zcash Community to the Bootstrap Project, the newly formed parent
 organization to the Electric Coin Company. The Bootstrap Project is organized
 for exempt educational, charitable, and scientific purposes in
 compliance with Section 501(c)(3), including but not
 limited to furthering education, information, resources, advocacy,
 support, community, and research relating to cryptocurrency and
-privacy, including Zcash. This slice will be used at the discretion of
+privacy, including Zcash. This allocation will be used at the discretion of
 the Bootstrap Project for any purpose within its mandate to support financial
 privacy and the Zcash platform as permitted under Section 501(c)(3). The
-BP slice will be treated as a charitable contribution from the
+BP allocation will be treated as a charitable contribution from the
 Community to support these educational, charitable, and scientific
 purposes.
 
 
-ZF slice (Zcash Foundation's general use)
+ZF allocation (Zcash Foundation's general use)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This slice of the Dev Fund will flow as charitable contributions from
+This allocation of the Dev Fund will flow as charitable contributions from
 the Zcash Community to ZF, to be used at its discretion for any
 purpose within its mandate to support financial privacy and the Zcash
 platform, including: development, education, supporting community
 communication online and via events, gathering community sentiment,
 and awarding external grants for all of the above, subject to the
-requirements of Section 501(c)(3). The ZF slice will be
+requirements of Section 501(c)(3). The ZF allocation will be
 treated as a charitable contribution from the Community to support
 these educational, charitable, and scientific purposes.
 
 
-MG slice (Major Grants)
+Zcash Community Grants (ZCG)
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-This slice of the Dev Fund is intended to fund independent teams entering the
-Zcash ecosystem, to perform major ongoing development (or other work) for the
+This allocation of the Dev Fund is intended to fund independent teams entering the
+Zcash ecosystem, to perform major and minor ongoing development (or other work) for the
 public good of the Zcash ecosystem, to the extent that such teams are available
 and effective.
 
-The funds SHALL be received and administered by ZF. ZF MUST disburse them for
+These funds SHALL be received and administered by ZF. ZF MUST disburse them for
 "Major Grants" and expenses reasonably related to the administration of Major 
 Grants, but subject to the following additional constraints:
 
@@ -260,7 +317,7 @@ Grants, but subject to the following additional constraints:
    to operate the Community Advisory Panel and SHOULD work toward making it more
    representative and independent (more on that below).
    
-8. From 1st January 2022, a portion of the MG Slice shall be allocated to a 
+8. From 1st January 2022, a portion of the MG allocation shall be allocated to a 
    Discretionary Budget, which may be disbursed for expenses reasonably related 
    to the administration of Major Grants. The amount of funds allocated to the 
    Discretionary Budget SHALL be decided by the ZF's Community Advisory Panel or 
@@ -287,7 +344,7 @@ Grants, but subject to the following additional constraints:
    judges them to violate U.S. law or the ZF's reporting requirements and other 
    (current or future) obligations under U.S. IRS 501(c)(3).
 
-ZF SHALL recognize the MG slice of the Dev Fund as a Restricted Fund
+ZF SHALL recognize the MG allocation of the Dev Fund as a Restricted Fund
 donation under the above constraints (suitably formalized), and keep separate
 accounting of its balance and usage under its `Transparency and Accountability`_
 obligations defined below.
@@ -297,20 +354,25 @@ and the Major Grant Review Committee SHOULD utilize these in its funding
 decisions.
 
 
-Direct-grant option
-'''''''''''''''''''
+Qedit
+~~~~~~~~~~~~~~~~~~~~~~~
 
-It may be deemed better, operationally or legally, if the Major Grant funds
-are not accepted and disbursed by ZF, but rather directly assigned to the
-grantees. Thus, the following mechanism MAY be used in perpetuity for some
-or all grantees, if agreed upon by both ECC and ZF before Network Upgrade 4
-(Canopy) activation:
+These funds SHALL be received and administered by FPF.
 
-Prior to each network upgrade, the Foundation SHALL publish a list of
-grantees' addresses and the total number of Dev Fund ZEC per block they
-should receive. ECC and ZF SHALL implement this list in any implementations
-of the Zcash consensus rules they maintain. This decision will then be,
-effectively, ratified by the miners as the network upgrade activates.
+This allocation of the Dev Fund will flow as charitable contributions from
+the Zcash Community to Qedit, for the purposes of supporting their ongoing
+activities related to Zcash Shielded Assets, and related protocol/ application/ 
+legal/ and other efforts.
+
+ZecHub
+~~~~~~~~~~~~~~~~~~~~~~~
+
+These funds SHALL be received and administered by FPF.
+
+This allocation of the Dev Fund will flow as charitable contributions from
+the Zcash Community to ZecHub, for the purposes of continuing their 
+ongoing content contributions, community organizing, et al within the
+Zcash ecosystem.
 
 
 Transparency and Accountability
@@ -319,8 +381,7 @@ Transparency and Accountability
 Obligations
 ~~~~~~~~~~~
 
-BP, ECC, ZF, and Major Grant recipients (during and leading to their award
-period) SHALL all accept the obligations in this section.
+BP, ECC, ZF, ZCG, Qedit, FPF and ZecHub are recommended to accept the obligations in this section.
 
 Ongoing public reporting requirements:
 
@@ -336,7 +397,7 @@ expenses, and work associated with the receipt of Dev Fund.
 As BP is the parent organization of ECC it is expected they may publish
 joint reports.
 
-It is expected that ECC, ZF, and Major Grant recipients will be focused
+It is expected that ECC, ZF, and ZCG will be focused
 primarily (in their attention and resources) on Zcash. Thus, they MUST
 promptly disclose:
 
@@ -367,8 +428,8 @@ forfeiture of their grant funds and their return to ZF.
 BP, ECC, and ZF MUST contractually commit to each other to fulfill these
 conditions, and the prescribed use of funds, such that substantial violation,
 not promptly remedied, will permit the other party to issue a modified version
-of Zcash node software that removes the violating party's Dev Fund slice, and
-use the Zcash trademark for this modified version. The slice's funds will be
+of Zcash node software that removes the violating party's Dev Fund allocation, and
+use the Zcash trademark for this modified version. The allocation's funds will be
 reassigned to MG (whose integrity is legally protected by the Restricted
 Fund treatment).
 
@@ -376,14 +437,10 @@ Fund treatment).
 Future Community Governance
 ---------------------------
 
-Decentralized community governance is used in this proposal via the Community
-Panel as input into the Major Grant Review Committee which governs the
-`MG slice (Major Grants)`_.
-
 It is highly desirable to develop robust means of decentralized community
-voting and governance –either by expanding the Community Advisory Panel or a
+voting and governance –either by expanding the Zcash Community Advisory Panel or a
 successor mechanism– and to integrate them into this process by the end of
-2021. BP, ECC, and ZF SHOULD place high priority on such development and its
+2025. BP, ECC, ZCG, and ZF SHOULD place high priority on such development and its
 deployment, in their activities and grant selection.
 
 
@@ -396,7 +453,7 @@ grace period described below.
 
 Grace period: members of the ZF board who hold ECC equity (but do not have other
 current relationships to ECC) may dispose of their equity, or quit the Board,
-by 1 November 2021. (The grace period is to allow for orderly replacement, and
+by 21 November 2024. (The grace period is to allow for orderly replacement, and
 also to allow time for ECC corporate reorganization related to Dev Fund
 receipt, which may affect how disposition of equity would be executed.)
 
@@ -407,24 +464,14 @@ successor mechanism) as advisory input for future board elections.
 Acknowledgements
 ================
 
-This proposal is a limited modification of Eran Tromer's ZIP 1012 [#zip-1012]_
-by the Zcash Foundation, the ECC, further modified by feedback from the
-community and the results of the `latest Helios poll`_.
+This proposal is a modification of ZIP 1014 [#zip-1014]_
+and a modification from the original "Manufacturing Consent" proposal 
+as described in the Zcash Forum, in response to observable Zcash
+community sentiment.
 
-Eran's proposal is most closely based on the Matt Luongo 'Decentralize the
-Dev Fee' proposal (ZIP 1011) [#zip-1011]_. Relative to ZIP 1011 there are
-substantial changes and mixing in of elements from *@aristarchus*'s
-'20% Split Evenly Between the ECC and the Zcash Foundation' (ZIP 1003)
-[#zip-1003]_, Josh Cincinnati's 'Compromise Dev Fund Proposal With Diverse
-Funding Streams' (ZIP 1010) [#zip-1010]_, and extensive discussions in the
-`Zcash Community Forum`_.
-
-The authors are grateful to all of the above for their excellent ideas and
-any insightful discussions, and to forum users *@aristarchus*
-and *@dontbeevil* for valuable initial comments on ZIP 1012.
+The author is grateful to everyone in the Zcash ecosystem.
 
 .. _Zcash Community Forum: https://forum.zcashcommunity.com/
-.. _latest Helios poll: https://vote.heliosvoting.org/helios/elections/43b9bec8-39a1-11ea-914c-b6e34ffa859a/view
 
 
 References
@@ -439,6 +486,6 @@ References
 .. [#zip-1003] `ZIP 1003: 20% Split Evenly Between the ECC and the Zcash Foundation, and a Voting System Mandate <zip-1003.rst>`_
 .. [#zip-1010] `ZIP 1010: Compromise Dev Fund Proposal With Diverse Funding Streams <zip-1010.rst>`_
 .. [#zip-1011] `ZIP 1011: Decentralize the Dev Fee <zip-1011.rst>`_
-.. [#zip-1012] `ZIP 1012: Dev Fund to ECC + ZF + Major Grants <zip-1012.rst>`_
+.. [#zip-1014] `ZIP 1012: Dev Fund to ECC + ZF + Major Grants <zip-1014.rst>`_
 .. [#zf-community] `ZF Community Advisory Panel <https://www.zfnd.org/governance/community-advisory-panel/>`_
 .. [#section501c3] `U.S. Code, Title 26, Section 501(c)(3) <https://www.law.cornell.edu/uscode/text/26/501>`_
