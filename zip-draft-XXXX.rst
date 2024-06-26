@@ -156,10 +156,51 @@ Requirements
 Non-requirements
 ================
 
-{This section is entirely optional. If it is present, it describes issues that
-the proposal is *not* attempting to address, that someone might otherwise think
-it does or should.}
+This ZIP specifically addresses the creation of an in-protocol "lockbox" for
+accumulating a portion of the Zcash block reward post-November 2024 halving.
+The following aspects are explicitly deferred to future ZIPs and are not
+covered by this proposal:
 
+1. **Disbursement Mechanism**: The exact method for disbursing the accumulated
+   funds from the lockbox is not defined in this ZIP. The design,
+   implementation, and governance of the disbursement mechanism will be
+   addressed in a future ZIP. This includes specifics on how funds will be
+   allocated, the voting or decision-making process, and the structure of the
+   decentralized mechanism (such as a DAO).
+
+2. **Specific Allocation Percentages**: While this ZIP proposes the allocation
+   of |percentage| of the block reward to the lockbox, it does not prescribe
+   the detailed percentages for various funding categories or the specific
+   amounts that will be distributed to different projects or entities.
+
+3. **Regulatory Compliance Details**: The proposal outlines the potential to
+   reduce regulatory risks by avoiding direct funding of US-based
+   organizations, but it does not detail specific regulatory compliance
+   strategies. Future ZIPs will need to address how the disbursement mechanism
+   complies with applicable laws and regulations.
+
+4. **Technical Implementation**: The technical specifics of how the lockbox
+   will be integrated into the Zcash protocol, including any necessary changes
+   to the codebase and the precise methods for ensuring security and
+   transparency, are not covered in this ZIP. These details will be provided in
+   subsequent proposals and technical documentation.
+
+5. **Taxation Strategy**: Although the potential for improved tax efficiency is
+   mentioned, this ZIP does not provide a detailed strategy for managing tax
+   liabilities. Future ZIPs will explore the implications of tax compliance and
+   the best methods for handling taxable events related to the disbursement of
+   funds.
+
+6. **Impact Assessment**: The long-term impact of reallocating a portion of the
+   block reward to the lockbox on the Zcash ecosystem, including its effect on
+   miners, developers, and the broader community, is not analyzed in this ZIP.
+   Subsequent proposals will need to evaluate the outcomes and make necessary
+   adjustments based on real-world feedback and data.
+
+By focusing on the establishment of the lockbox, this ZIP aims to lay the
+groundwork for a more decentralized and efficient funding mechanism. The
+deferred issues will be crucial in shaping the final implementation and
+ensuring the proposed system's success and sustainability.
 
 Specification
 =============
