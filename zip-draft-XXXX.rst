@@ -35,15 +35,29 @@ only when, they appear in all capitals.
 ..   {Definition.}
 
 
+.. |percentage| replace:: 50%
+
+
+
 Abstract
 ========
 
-{Describe what this proposal does, typically in a few paragraphs.
+This ZIP proposes the allocation of |percentage| of the Zcash block reward,
+post-November 2024 halving, to a decentralized "lockbox." Currently, 80% of the
+block reward goes to miners, while 20% is distributed among the Major Grants
+Fund, Electric Coin Company (ECC), and the Zcash Foundation (ZF). If no changes
+are made, this 20% dev fund will expire, resulting in the entire block reward
+going to miners, leaving no block-reward funds for essential protocol
+development, security, marketing, or legal expenses.
 
-The Abstract should only provide a summary of the ZIP; the ZIP should remain
-complete without the Abstract.
-
-Use links where applicable, e.g. [#protocol]_ [#protocol-introduction]_.}
+The proposed lockbox addresses significant issues observed with [#zip-1014]_,
+such as regulatory risks, inefficiencies in funding organizations instead of
+projects, tax compliance inefficiencies, and centralization. By disbursing
+funds through a decentralized mechanism, resembling a DAO, this ZIP aims to
+ensure community involvement and efficient, project-specific funding. This
+approach is intended to improve regulatory compliance, reduce inefficiencies,
+simplify tax compliance, and enhance the decentralization of Zcash's funding
+structure.
 
 
 Motivation
@@ -204,7 +218,10 @@ zebrad PRs.}
 References
 ==========
 
-.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to
+    Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs
+    Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#zip-1014] `ZIP 1014: Dev Fund Proposal and Governance <zip-1014.rst>`_
 .. [#protocol] `Zcash Protocol Specification, Version 2022.3.8 or later <protocol/protocol.pdf>`_
 .. [#protocol-introduction] `Zcash Protocol Specification, Version 2022.3.8. Section 1: Introduction <protocol/protocol.pdf#introduction>`_
 .. [#protocol-blockchain] `Zcash Protocol Specification, Version 2022.3.8. Section 3.3: The Block Chain <protocol/protocol.pdf#blockchain>`_
