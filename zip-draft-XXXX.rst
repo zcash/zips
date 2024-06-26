@@ -46,20 +46,19 @@ Abstract
 This ZIP proposes the allocation of |percentage| of the Zcash block reward,
 post-November 2024 halving, to a decentralized "lockbox." Currently, 80% of the
 block reward goes to miners, while 20% is distributed among the Major Grants
-Fund, Electric Coin Company (ECC), and the Zcash Foundation (ZF). If no changes
-are made, this 20% dev fund will expire, resulting in the entire block reward
-going to miners, leaving no block-reward funds for essential protocol
+Fund (ZCG), Electric Coin Company (ECC), and the Zcash Foundation (ZF). If no
+changes are made, this 20% dev fund will expire, resulting in the entire block
+reward going to miners, leaving no block-reward funds for essential protocol
 development, security, marketing, or legal expenses.
 
 The proposed lockbox addresses significant issues observed with [#zip-1014]_,
 such as regulatory risks, inefficiencies in funding organizations instead of
-projects, tax compliance inefficiencies, and centralization. By disbursing
-funds through a decentralized mechanism, resembling a DAO, this ZIP aims to
-ensure community involvement and efficient, project-specific funding. This
-approach is intended to improve regulatory compliance, reduce inefficiencies,
-simplify tax compliance, and enhance the decentralization of Zcash's funding
-structure.
-
+projects, tax compliance inefficiencies, and centralization. While the exact
+disbursement mechanism for the lockbox funds is yet to be determined, the goal
+is to employ a decentralized mechanism resembling a DAO, ensuring community
+involvement and efficient, project-specific funding. This approach is intended
+to improve regulatory compliance, reduce inefficiencies, simplify tax compliance,
+and enhance the decentralization of Zcash's funding structure.
 
 Motivation
 ==========
@@ -82,22 +81,26 @@ changes are made. This expiration poses several significant issues:
    excess funds while specific projects may not receive adequate resources. A
    more granular approach, funding projects directly, would be more efficient.
 
-3. **Tax Compliance Complications**: The current model introduces tax
-   inefficiencies, as 501(c)(3) organizations must treat received block rewards
-   as income, leading to significant tax liabilities. This requires selling
-   some of the block rewards to cover these taxes, which is financially
-   inefficient.
-
-4. **Centralization Concerns**: The existing funding model centralizes
+3. **Centralization Concerns**: The existing funding model centralizes
    decision-making power within a few organizations, which contradicts the
    decentralized ethos of blockchain technology. Traditional organizational
    structures with boards and executives introduce a single point of failure
    and limit community involvement in funding decisions.
 
-5. **Community Involvement**: The current system provides minimal formal input
+4. **Community Involvement**: The current system provides minimal formal input
    from the community regarding what projects should be funded. This lack of
    community involvement can lead to misalignment between funded projects and
    community priorities.
+
+5. **Tax Inefficiency**: While 501(c)(3) organizations do not
+   immediately pay taxes on received block rewards, the need to convert rewards
+   to USD for operational expenses triggers tax liabilities for. This often
+   requires immediate liquidation of some block rewards, which is financially
+   inefficient. The proposed lockbox mechanism has the potential to defer
+   taxable events until the liquidation of funds by recipients, allowing for
+   greater flexibility and efficiency in handling tax liabilities. This
+   deferred approach could reduce the need for immediate liquidation and
+   improve overall use of the block reward resources.
 
 Given these issues, this ZIP proposes the creation of a decentralized "lockbox"
 to which |percentage| of the Zcash block reward will be allocated post-November
@@ -108,9 +111,9 @@ decentralized mechanism resembling a DAO. This new approach aims to:
 - Improve funding efficiency by allocating resources directly to projects
   rather than organizations.
 - Simplify tax compliance by allowing recipients to handle tax liabilities
-  according to their circumstances. - Enhance decentralization by distributing
-  decision-making power and ensuring community involvement in funding
-  decisions.
+  according to their circumstances.
+- Enhance decentralization by distributing decision-making power and ensuring
+  community involvement in funding decisions.
 
 By addressing these issues, this proposal aims to ensure sustainable,
 efficient, and decentralized funding for essential activities within the Zcash
