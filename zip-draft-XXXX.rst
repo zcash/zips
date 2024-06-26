@@ -44,7 +44,7 @@ Abstract
 ========
 
 This ZIP proposes the allocation of |percentage| of the Zcash block reward,
-post-November 2024 halving, to a decentralized "lockbox." Currently, 80% of the
+post-November 2024 halving, to an in-protocol "lockbox." Currently, 80% of the
 block reward goes to miners, while 20% is distributed among the Major Grants
 Fund (ZCG), Electric Coin Company (ECC), and the Zcash Foundation (ZF). If no
 changes are made, this 20% dev fund will expire, resulting in the entire block
