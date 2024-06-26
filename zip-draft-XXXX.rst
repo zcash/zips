@@ -63,18 +63,57 @@ structure.
 Motivation
 ==========
 
-{Why is this proposal needed?
+As of now, the Zcash block reward is allocated with 80% going to miners, and
+the remaining 20% distributed among the Major Grants Fund (8%), Electric Coin
+Company (ECC) (7%), and the Zcash Foundation (ZF) (5%). This funding structure
+supports various essential activities such as protocol development, security,
+marketing, and legal expenses. However, this model will expire in November
+2024, leading to the entire block reward being allocated to miners if no
+changes are made. This expiration poses several significant issues:
 
-This is one of the most important sections of the ZIP, and should be detailed
-and comprehensive. It shouldn't include any of the actual specification --
-don't put conformance requirements in this section.
+1. **Regulatory Risks**: The current model, as observed with ZIP-1014, involves
+   direct funding of US-based organizations. This can potentially attract
+   regulatory scrutiny from entities such as the SEC, posing legal risks to the
+   Zcash ecosystem.
 
-Explain the status quo, why the status quo is in need of improvement,
-and if applicable, the history of how this area has changed. Then describe
-*at a high level* why this proposed solution addresses the perceived issues.
-It is ok if this is somewhat redundant with the abstract, but here you can
-go into a lot more detail.}
+2. **Funding Inefficiencies**: Directly funding organizations rather than
+   specific projects leads to inefficiencies. Organizations may accumulate
+   excess funds while specific projects may not receive adequate resources. A
+   more granular approach, funding projects directly, would be more efficient.
 
+3. **Tax Compliance Complications**: The current model introduces tax
+   inefficiencies, as 501(c)(3) organizations must treat received block rewards
+   as income, leading to significant tax liabilities. This requires selling
+   some of the block rewards to cover these taxes, which is financially
+   inefficient.
+
+4. **Centralization Concerns**: The existing funding model centralizes
+   decision-making power within a few organizations, which contradicts the
+   decentralized ethos of blockchain technology. Traditional organizational
+   structures with boards and executives introduce a single point of failure
+   and limit community involvement in funding decisions.
+
+5. **Community Involvement**: The current system provides minimal formal input
+   from the community regarding what projects should be funded. This lack of
+   community involvement can lead to misalignment between funded projects and
+   community priorities.
+
+Given these issues, this ZIP proposes the creation of a decentralized "lockbox"
+to which |percentage| of the Zcash block reward will be allocated post-November
+2024 halving. The funds in this lockbox will only be disbursed through a
+decentralized mechanism resembling a DAO. This new approach aims to:
+
+- Reduce regulatory risks by avoiding direct funding of specific organizations.
+- Improve funding efficiency by allocating resources directly to projects
+  rather than organizations.
+- Simplify tax compliance by allowing recipients to handle tax liabilities
+  according to their circumstances. - Enhance decentralization by distributing
+  decision-making power and ensuring community involvement in funding
+  decisions.
+
+By addressing these issues, this proposal aims to ensure sustainable,
+efficient, and decentralized funding for essential activities within the Zcash
+ecosystem.
 
 Requirements
 ============
