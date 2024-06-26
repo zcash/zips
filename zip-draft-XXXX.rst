@@ -205,123 +205,63 @@ ensuring the proposed system's success and sustainability.
 Specification
 =============
 
-{Replace this entire section.}
+This section describes the consensus rules and protocol changes required to
+implement the proposed in-protocol lockbox for deferred development fund
+allocation. The specification outlines the creation, management, and
+integration of the lockbox within the Zcash protocol.
 
-The Specification section describes what should change, using precise language and
-conformance key words. Anything that is *required in order to implement the ZIP*
-(or follow its process, in the case of a Process ZIP) should be in this section.
+Deferred Development Fund Chain Value Pool Balance
+--------------------------------------------------
 
-Avoid overspecification! Also avoid underspecification. Specification is hard.
-Don't be afraid to ask for help.
+A new deferred development fund chain value pool balance will be created. This
+balance will be initialized to zero at the NU6 activation block.
 
-Feel free to copy from other ZIPs doing similar things, e.g. defining RPC calls,
-consensus rules, etc.
+Coinbase Transaction Adjustments
+--------------------------------
 
-ZIPs MUST take into account differences between the Zcash Mainnet and Testnet
-[#protocol-networks]_ where applicable. A consensus ZIP MUST be able to be deployed
-on both Mainnet and Testnet.
+For coinbase transactions, a specified proportion of the block subsidy will be
+added to the deferred development fund chain value pool balance and subtracted
+from the transparent transaction value pool. The exact proportions
+(numerator/denominator) of the block subsidy allocated to the deferred
+development fund must be defined to ensure the correct allocation at every
+block.
 
-Unless the specification is particularly simple, you will need to organise it under
-subheadings.
+Proportion Specification
+------------------------
 
-Example subheading
-------------------
+The proportions of the block subsidy allocated to the deferred development fund
+and any existing funding streams must add up to the intended total at every
+block. Before NU6 activation, the actual percentage allocated to the deferred
+development fund will be zero. After NU6 activation, this percentage will be
+set according to the proposal.
 
-At least while the ZIP is in Draft, we encourage writing open questions and TODOs.
+Backwards Compatibility
+-----------------------
 
-Open questions
-''''''''''''''
+Full validators can implement the reserve consensus rules without NU gating.
+Prior to NU6 activation, the percentage allocated to the reserve pool can be
+set to zero or be defined as an empty set, similar to existing funding streams.
 
-* What happens if a full validator can't parse the fandangle as a doohicky?
+Redefinition of Miner Subsidy
+------------------------------
 
-TODO: define byte encoding for the Jabberwock.
+The miner subsidy will be redefined to account for the deferred development
+fund.
 
-Comparison of ZIPs to RFCs
---------------------------
-
-Like RFCs, ZIPs are precise technical documents that SHOULD give enough
-implementation information to implement part of a Zcash-related protocol or follow a
-Zcash-related process.
-
-ZIPs are different from RFCs in the following ways:
-
-* Many (but not all) ZIPs are "living documents"; they are updated in-place as
-  the relevant areas of the protocol or process change. Unlike in the RFC process,
-  making a change in an area described by a published ZIP does not *necessarily*
-  require creating a new ZIP, although that is an option if the change is extensive
-  enough to warrant it.
-* The expected structure of a ZIP is more constrained than an RFC. For example,
-  the Specification section is REQUIRED, and all of the conformance requirements
-  MUST go in that section. The ZIP editors will help you to ensure that things
-  go in the right sections.
-* Security considerations SHOULD be spread throughout the text, in the places
-  where they are most relevant.
-
-Using mathematical notation
----------------------------
-
-Embedded :math:`\LaTeX` is allowed and encouraged in ZIPs. The syntax for inline
-math is "``:math:`latex code```" in reStructuredText or "``$latex code$``" in
-Markdown. The rendered HTML will use KaTeX [#katex]_, which only supports a subset
-of :math:`\LaTeX\!`, so you will need to double-check that the rendering is as
-intended.
-
-In general the conventions in the Zcash protocol specification SHOULD be followed.
-If you find this difficult, don't worry too much about it in initial drafts; the
-ZIP editors will catch any inconsistencies in review.
-
-Notes and warnings
-------------------
-
-.. note::
-    "``.. note::``" in reStructuredText, or "``:::info``" (terminated by
-    "``:::``") in Markdown, can be used for an aside from the main text.
-
-    The rendering of notes is colourful and may be distracting, so they should
-    only be used for important points.
-
-.. warning::
-    "``.. warning::``" in reStructuredText, or "``:::warning``" (terminated by
-    "``:::``") in Markdown, can be used for warnings.
-
-    Warnings should be used very sparingly — for example to signal that a
-    entire specification, or part of it, may be inapplicable or could cause
-    significant interoperability or security problems. In most cases, a "MUST"
-    or "SHOULD" conformance requirement is more appropriate.
-
-Valid reStructuredText
+Reserve Pool Mechanism
 ----------------------
 
-This is optional before publishing a PR, but to check whether a document is valid
-reStructuredText, first install ``rst2html5``. E.g. on Debian-based distros::
+The reserve pool will be a container for the issued supply, distinct from
+existing pools. It will not be subdivided into individually spendable notes or
+coins. The lockbox mechanism ensures that funds are accumulated and securely
+stored until a future ZIP defines the disbursement mechanism.
 
-  sudo apt install python3-pip pandoc perl sed
-  pip3 install docutils==0.19 rst2html5
+Security and Integrity
+----------------------
 
-Then, with ``zip-xxxx.rst`` in the root directory of a clone of this repo, run::
-
-  make zip-xxxx.html
-
-(or just ``make``) and view ``zip-xxxx.html`` in a web browser.
-
-Conventions for references
---------------------------
-
-For references to the Zcash protocol specification, prefer to link to a section
-anchor, and name the reference as ``[#protocol-<anchor>]``. This makes it more likely
-that the link will remain valid if sections are renumbered or if content is moved.
-The anchors in the protocol specification can be displayed by clicking on a section
-heading in most PDF viewers. References to particular sections should be versioned,
-even though the link will point to the most recent stable version.
-
-Do not include the "``https://zips.z.cash/``" part of URLs to ZIPs or the protocol spec.
-
-
-Reference implementation
-========================
-
-{This section is entirely optional; if present, it usually gives links to zcashd or
-zebrad PRs.}
+Robust security measures must be implemented to protect the deferred
+development fund from unauthorized access or misuse. The integrity of the
+lockbox and its interaction with the Zcash protocol must be ensured.
 
 
 References
@@ -331,9 +271,3 @@ References
     Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs
     Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
 .. [#zip-1014] `ZIP 1014: Dev Fund Proposal and Governance <zip-1014.rst>`_
-.. [#protocol] `Zcash Protocol Specification, Version 2022.3.8 or later <protocol/protocol.pdf>`_
-.. [#protocol-introduction] `Zcash Protocol Specification, Version 2022.3.8. Section 1: Introduction <protocol/protocol.pdf#introduction>`_
-.. [#protocol-blockchain] `Zcash Protocol Specification, Version 2022.3.8. Section 3.3: The Block Chain <protocol/protocol.pdf#blockchain>`_
-.. [#protocol-networks] `Zcash Protocol Specification, Version 2022.3.8. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
-.. [#katex] `KaTeX - The fastest math typesetting library for the web <https://katex.org/>`_
-.. [#zip-0000] `ZIP 0: ZIP Process <zip-0000.rst>`_
