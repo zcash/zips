@@ -4,7 +4,9 @@
   Title: Lockbox for Decentralized Grants Allocation
   Owners: Skylar Saveland <skylar@free2z.com>
           Jason McGee <>
-  Credits:
+  Credits: @daira
+           @str4d
+           @nuttycom
   Status: Draft
   Category: Consensus
   Created: 2024-06-26
@@ -36,7 +38,6 @@ only when, they appear in all capitals.
 
 
 .. |percentage| replace:: 50%
-
 
 
 Abstract
@@ -118,10 +119,44 @@ ecosystem.
 Requirements
 ============
 
-{Describe design constraints on, or goals for the solution -- typically one
-paragraph for each constraint or goal. Again, don't actually specify anything
-here; this section is primarily for use as a consistency check that what is
-specified meets the requirements.}
+1. **Decentralized Funding Mechanism**: The new funding model must implement a
+   decentralized mechanism for disbursing funds. This mechanism should resemble
+   a DAO, ensuring that the community has a direct say in funding decisions.
+   This is crucial to avoid centralization and ensure transparency and fairness
+   in the allocation of resources.
+
+2. **Regulatory Compliance**: The proposed funding model must be designed to
+   minimize regulatory risks. This involves avoiding direct funding of US-based
+   organizations to prevent potential scrutiny from regulatory bodies such as
+   the SEC. The mechanism should comply with applicable laws and regulations to
+   ensure the long-term sustainability of the funding model.
+
+3. **Efficiency in Funding Allocation**: The new model should focus on funding
+   specific projects rather than organizations. This approach aims to ensure
+   that resources are utilized efficiently and that projects receive the
+   necessary support without accumulating excess funds in organizations.
+
+4. **Simplified Tax Compliance**: The funding mechanism must simplify tax
+   compliance for recipients. This can be achieved by deferring tax liabilities
+   to the recipients, allowing them to handle taxes according to their
+   circumstances, thus avoiding the need for organizations to sell block
+   rewards to cover taxes.
+
+5. **Community Involvement**: The funding model must enhance community
+   involvement in decision-making processes. This includes mechanisms for the
+   community to propose, discuss, and vote on projects that should receive
+   funding. Ensuring broad community participation is key to aligning funded
+   projects with the community's priorities.
+
+6. **Security of Funds**: The mechanism for storing and disbursing funds must
+   be secure. This includes protecting against key compromise, ensuring the
+   integrity of the decentralized voting/signature mechanism, and implementing
+   robust security measures to prevent unauthorized access or misuse of funds.
+
+7. **Flexibility and Adaptability**: The new funding model should be flexible
+   and adaptable to changing circumstances. This involves creating a system
+   that can evolve based on feedback and new developments in the Zcash
+   ecosystem, ensuring it remains relevant and effective over time.
 
 
 Non-requirements
