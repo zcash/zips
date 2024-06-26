@@ -53,11 +53,11 @@ development, security, marketing, or legal expenses.
 
 The proposed lockbox addresses significant issues observed with [#zip-1014]_,
 such as regulatory risks, inefficiencies in funding organizations instead of
-projects, tax compliance inefficiencies, and centralization. While the exact
-disbursement mechanism for the lockbox funds is yet to be determined, the goal
-is to employ a decentralized mechanism resembling a DAO, ensuring community
-involvement and efficient, project-specific funding. This approach is intended
-to improve regulatory compliance, reduce inefficiencies, simplify tax compliance,
+projects, and centralization. While the exact disbursement mechanism for the
+lockbox funds is yet to be determined and will be addressed in a future ZIP,
+the goal is to employ a decentralized mechanism resembling a DAO, ensuring
+community involvement and efficient, project-specific funding. This approach is
+intended to potentially improve regulatory compliance, reduce inefficiencies,
 and enhance the decentralization of Zcash's funding structure.
 
 Motivation
@@ -92,27 +92,22 @@ changes are made. This expiration poses several significant issues:
    community involvement can lead to misalignment between funded projects and
    community priorities.
 
-5. **Tax Inefficiency**: While 501(c)(3) organizations do not
-   immediately pay taxes on received block rewards, the need to convert rewards
-   to USD for operational expenses triggers tax liabilities for. This often
-   requires immediate liquidation of some block rewards, which is financially
-   inefficient. The proposed lockbox mechanism has the potential to defer
-   taxable events until the liquidation of funds by recipients, allowing for
-   greater flexibility and efficiency in handling tax liabilities. This
-   deferred approach could reduce the need for immediate liquidation and
-   improve overall use of the block reward resources.
+5. **Potential Tax Efficiency**: By potentially deferring taxable events until
+   the liquidation of funds by recipients, the proposed lockbox mechanism could
+   allow for more flexibility in handling tax liabilities. This approach could
+   reduce the need for immediate liquidation and improve the overall use of
+   block reward resources compared to directly funding US-based organizations
+   with a USD bottom line.
 
 Given these issues, this ZIP proposes the creation of a decentralized "lockbox"
 to which |percentage| of the Zcash block reward will be allocated post-November
-2024 halving. The funds in this lockbox will only be disbursed through a
-decentralized mechanism resembling a DAO. This new approach aims to:
+2024 halving. The exact disbursement mechanism for the lockbox funds will be
+determined in a future ZIP, but the goal is to ensure:
 
-- Reduce regulatory risks by avoiding direct funding of specific organizations.
-- Improve funding efficiency by allocating resources directly to projects
+- Reduced regulatory risks by avoiding direct funding of specific organizations.
+- Improved funding efficiency by allocating resources directly to projects
   rather than organizations.
-- Simplify tax compliance by allowing recipients to handle tax liabilities
-  according to their circumstances.
-- Enhance decentralization by distributing decision-making power and ensuring
+- Enhanced decentralization by distributing decision-making power and ensuring
   community involvement in funding decisions.
 
 By addressing these issues, this proposal aims to ensure sustainable,
@@ -122,44 +117,40 @@ ecosystem.
 Requirements
 ============
 
-1. **Decentralized Funding Mechanism**: The new funding model must implement a
-   decentralized mechanism for disbursing funds. This mechanism should resemble
-   a DAO, ensuring that the community has a direct say in funding decisions.
-   This is crucial to avoid centralization and ensure transparency and fairness
-   in the allocation of resources.
+1. **In-Protocol Lockbox Creation**: The ZIP must define the creation of an
+   in-protocol lockbox where |percentage| of the Zcash block reward will be
+   allocated post-November 2024 halving. This lockbox will securely store funds
+   until a disbursement mechanism is established in a future ZIP.
 
-2. **Regulatory Compliance**: The proposed funding model must be designed to
-   minimize regulatory risks. This involves avoiding direct funding of US-based
-   organizations to prevent potential scrutiny from regulatory bodies such as
-   the SEC. The mechanism should comply with applicable laws and regulations to
-   ensure the long-term sustainability of the funding model.
+2. **Decentralization Goal**: The lockbox must be designed with the goal of
+   future decentralization in mind. While the disbursement mechanism will be
+   defined later, the lockbox should support the principles of decentralization
+   to ensure future community involvement and project-specific funding.
 
-3. **Efficiency in Funding Allocation**: The new model should focus on funding
-   specific projects rather than organizations. This approach aims to ensure
-   that resources are utilized efficiently and that projects receive the
-   necessary support without accumulating excess funds in organizations.
+3. **Regulatory Considerations**: The creation of the lockbox should minimize
+   regulatory risks by avoiding direct funding of specific organizations. The
+   design should ensure compliance with applicable laws and regulations to
+   support the long-term sustainability of the funding model.
 
-4. **Simplified Tax Compliance**: The funding mechanism must simplify tax
-   compliance for recipients. This can be achieved by deferring tax liabilities
-   to the recipients, allowing them to handle taxes according to their
-   circumstances, thus avoiding the need for organizations to sell block
-   rewards to cover taxes.
+4. **Efficient Allocation Preparation**: The lockbox must be prepared to
+   allocate resources efficiently once the disbursement mechanism is defined.
+   This includes ensuring that funds are readily available for future projects
+   and not tied up in organizational overhead.
 
-5. **Community Involvement**: The funding model must enhance community
-   involvement in decision-making processes. This includes mechanisms for the
-   community to propose, discuss, and vote on projects that should receive
-   funding. Ensuring broad community participation is key to aligning funded
-   projects with the community's priorities.
+5. **Potential Tax Efficiency**: The lockbox should be designed with the
+   potential to defer taxable events until the liquidation of funds by
+   recipients, allowing for more flexibility in handling tax liabilities
+   compared to direct funding of US-based organizations.
 
-6. **Security of Funds**: The mechanism for storing and disbursing funds must
-   be secure. This includes protecting against key compromise, ensuring the
-   integrity of the decentralized voting/signature mechanism, and implementing
-   robust security measures to prevent unauthorized access or misuse of funds.
+6. **Security of Funds**: The lockbox must implement robust security measures
+   to protect against unauthorized access or misuse of funds. This includes
+   ensuring the integrity of the future decentralized voting/signature
+   mechanism.
 
-7. **Flexibility and Adaptability**: The new funding model should be flexible
-   and adaptable to changing circumstances. This involves creating a system
-   that can evolve based on feedback and new developments in the Zcash
-   ecosystem, ensuring it remains relevant and effective over time.
+7. **Future Adaptability**: The lockbox design should be flexible and adaptable
+   to accommodate the disbursement mechanism defined in a future ZIP. This
+   ensures that the system can evolve based on feedback and new developments in
+   the Zcash ecosystem.
 
 
 Non-requirements
