@@ -9,43 +9,30 @@
   Category: Consensus
   Created: 2024-06-26
   License: MIT
-  Pull-Request: <https://github.com/zcash/zips/pull/253>
-
-
-Don't Panic
-===========
-
-If this is your first time writing a ZIP, the structure and format may look
-intimidating. But really, it's just meant to reflect common-sense practice and
-some technical conventions. Feel free to start with a simple initial draft that
-gets ideas across, even if it doesn't quite follow this format. The community
-and ZIP editors will help you figure things out and get it into shape later.
-
-{Delete this section.}
+  Pull-Request: <https://github.com/zcash/zips/pull/858>
 
 
 Terminology
 ===========
 
-{Edit this to reflect the key words that are actually used.}
 The key words "MUST", "REQUIRED", "MUST NOT", "SHOULD", and "MAY" in this
 document are to be interpreted as described in BCP 14 [#BCP14]_ when, and
 only when, they appear in all capitals.
 
-{Avoid duplicating definitions from other ZIPs. Instead use wording like this:}
+.. {Avoid duplicating definitions from other ZIPs. Instead use wording like this:}
 
-The terms "Mainnet" and "Testnet" in this document are to be interpreted as
-defined in the Zcash protocol specification [#protocol-networks]_.
+.. The terms "Mainnet" and "Testnet" in this document are to be interpreted as
+.. defined in the Zcash protocol specification [#protocol-networks]_.
 
-The term "full validator" in this document is to be interpreted as defined in
-the Zcash protocol specification [#protocol-blockchain]_.
+.. The term "full validator" in this document is to be interpreted as defined in
+.. the Zcash protocol specification [#protocol-blockchain]_.
 
-The terms below are to be interpreted as follows:
+.. The terms below are to be interpreted as follows:
 
-{Term to be defined}
-  {Definition.}
-{Another term}
-  {Definition.}
+.. {Term to be defined}
+..   {Definition.}
+.. {Another term}
+..   {Definition.}
 
 
 Abstract
