@@ -69,46 +69,51 @@ Company (ECC) (7%), and the Zcash Foundation (ZF) (5%). This funding structure
 supports various essential activities such as protocol development, security,
 marketing, and legal expenses. However, this model will expire in November
 2024, leading to the entire block reward being allocated to miners if no
-changes are made. This expiration poses several significant issues:
+changes are made.
 
-1. **Regulatory Risks**: The current model, as observed with ZIP-1014, involves
-   direct funding of US-based organizations. This can potentially attract
-   regulatory scrutiny from entities such as the SEC, posing legal risks to the
-   Zcash ecosystem.
+It is crucial to set aside a portion of the block reward for development,
+security, legal, and marketing purposes. However, the current direct funding
+mechanism has several significant issues:
 
-2. **Funding Inefficiencies**: Directly funding organizations rather than
-   specific projects leads to inefficiencies. Organizations may accumulate
-   excess funds while specific projects may not receive adequate resources. A
-   more granular approach, funding projects directly, would be more efficient.
+1. **Regulatory Risks**: The current model involves direct funding of US-based
+   organizations, which can potentially attract regulatory scrutiny from
+   entities such as the SEC, posing legal risks to the Zcash ecosystem.
 
-3. **Centralization Concerns**: The existing funding model centralizes
-   decision-making power within a few organizations, which contradicts the
-   decentralized ethos of blockchain technology. Traditional organizational
-   structures with boards and executives introduce a single point of failure
-   and limit community involvement in funding decisions.
+2. **Funding Inefficiencies**: The current model directly funds organizations
+   rather than specific projects, leading to inefficiencies. Organizations may
+   sell the received ZEC for USD to cover expenses, which can potentially drive
+   down the price of ZEC. Furthermore, if organizations are guaranteed funds
+   regardless of performance, there is little incentive to achieve key
+   performance indicators (KPIs) or align with community sentiment. This can
+   result in inefficiencies and misallocation of funds. Additionally, US
+   corporations tend to prioritize their USD balance sheet, creating a
+   disconnect from the Zcash ecosystem's needs and goals.
+
+3. **Centralization Concerns**: The current model centralizes decision-making
+   power within a few organizations, contradicting the decentralized ethos of
+   blockchain technology. Traditional organizational structures with boards and
+   executives introduce a single point of failure and limit community
+   involvement in funding decisions.
 
 4. **Community Involvement**: The current system provides minimal formal input
-   from the community regarding what projects should be funded. This lack of
-   community involvement can lead to misalignment between funded projects and
-   community priorities.
-
-5. **Potential Tax Efficiency**: By potentially deferring taxable events until
-   the liquidation of funds by recipients, the proposed lockbox mechanism could
-   allow for more flexibility in handling tax liabilities. This approach could
-   reduce the need for immediate liquidation and improve the overall use of
-   block reward resources compared to directly funding US-based organizations
-   with a USD bottom line.
+   from the community regarding what projects should be funded, leading to a
+   misalignment between funded projects and community priorities.
 
 Given these issues, this ZIP proposes the creation of a decentralized "lockbox"
 to which |percentage| of the Zcash block reward will be allocated post-November
 2024 halving. The exact disbursement mechanism for the lockbox funds will be
 determined in a future ZIP, but the goal is to ensure:
 
-- Reduced regulatory risks by avoiding direct funding of specific organizations.
+- Reduced regulatory risks by avoiding direct funding of specific
+  organizations.
 - Improved funding efficiency by allocating resources directly to projects
   rather than organizations.
 - Enhanced decentralization by distributing decision-making power and ensuring
   community involvement in funding decisions.
+- Potential tax efficiency by deferring taxable events until the liquidation of
+  funds by recipients, allowing for more flexibility in handling tax
+  liabilities and reducing the need for immediate liquidation compared to
+  directly funding US-based organizations with a USD bottom line.
 
 By addressing these issues, this proposal aims to ensure sustainable,
 efficient, and decentralized funding for essential activities within the Zcash
