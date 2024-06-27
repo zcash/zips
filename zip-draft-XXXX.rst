@@ -221,10 +221,11 @@ Coinbase Transaction Adjustments
 
 For coinbase transactions, a specified proportion of the block subsidy will be
 added to the deferred development fund chain value pool balance and subtracted
-from the transparent transaction value pool. The exact proportions
-(numerator/denominator) of the block subsidy allocated to the deferred
-development fund must be defined to ensure the correct allocation at every
-block.
+from the transparent transaction value pool. This subtraction will occur after
+block reward value is logically added to the transparent value pool. The exact
+proportions (numerator/denominator) of the block subsidy allocated to the
+deferred development fund must be defined to ensure the correct allocation at
+every block.
 
 Proportion Specification
 ------------------------
@@ -232,8 +233,8 @@ Proportion Specification
 The proportions of the block subsidy allocated to the deferred development fund
 and any existing funding streams must add up to the intended total at every
 block. Before NU6 activation, the actual percentage allocated to the deferred
-development fund will be zero. After NU6 activation, this percentage will be
-set according to the proposal.
+development fund will be zero. After NU6 activation, |percentage| of the block
+reward will be allocated to the deferred development fund.
 
 Backwards Compatibility
 -----------------------
@@ -241,6 +242,10 @@ Backwards Compatibility
 Full validators can implement the reserve consensus rules without NU gating.
 Prior to NU6 activation, the percentage allocated to the reserve pool can be
 set to zero or be defined as an empty set, similar to existing funding streams.
+Additionally, another implementation option would be to define a new type of
+funding stream that directs the value to the in-protocol development fund
+instead of constructing a UTXO. This approach allows for flexibility in
+handling the allocation and ensures compatibility with existing mechanisms.
 
 Redefinition of Miner Subsidy
 ------------------------------
