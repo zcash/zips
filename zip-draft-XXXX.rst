@@ -213,7 +213,7 @@ integration of the lockbox within the Zcash protocol.
 Deferred Development Fund Chain Value Pool Balance
 --------------------------------------------------
 
-A new deferred development fund chain value pool balance will be created. This
+A new development fund value pool balance, denominated in zatoshis, will be created. This
 balance will be initialized to zero at the NU6 activation block.
 
 Coinbase Transaction Adjustments
