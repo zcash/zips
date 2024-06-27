@@ -273,6 +273,12 @@ Robust security measures must be implemented to protect the deferred
 development fund from unauthorized access or misuse. The integrity of the
 lockbox and its interaction with the Zcash protocol must be ensured.
 
+Duration
+--------
+
+The deferred development fund will be active post-November 2024 halving.
+|percentage| of the block reward will be allocated to the lockbox until
+modified or disabled by a future ZIP.
 
 References
 ==========
