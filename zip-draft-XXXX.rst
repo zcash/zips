@@ -18,8 +18,8 @@ Terminology
 ===========
 
 The key words "MUST", "REQUIRED", "MUST NOT", "SHOULD", and "MAY" in this
-document are to be interpreted as described in BCP 14 [#BCP14]_ when, and
-only when, they appear in all capitals.
+document are to be interpreted as described in BCP 14 [#BCP14]_ when, and only
+when, they appear in all capitals.
 
 .. {Avoid duplicating definitions from other ZIPs. Instead use wording like this:}
 
@@ -218,8 +218,8 @@ integration of the lockbox within the Zcash protocol.
 Deferred Development Fund Chain Value Pool Balance
 --------------------------------------------------
 
-A new development fund value pool balance, denominated in zatoshis, will be created. This
-balance will be initialized to zero at the NU6 activation block.
+A new development fund value pool balance, denominated in zatoshis, will be
+created. This balance will be initialized to zero at the NU6 activation block.
 
 Coinbase Transaction Adjustments
 --------------------------------
