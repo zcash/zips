@@ -102,9 +102,19 @@ the ecosystem to design and deploy a "non-direct funding model" as generally
 recommended in Josh Swihart's proposal.
 <https://forum.zcashcommunity.com/t/zcash-funding-bloc-a-dev-fund-proposal-from-josh-at-ecc/47187>
 
+Upon creation/ activation of a "non-direct funding model" this ZIP should be 
+reconsider by the Zcash ecosystem, to determine if it's ongoing direct block subsidies are 
+a preference. Discussions/ solications/ sentiment gathering from the Zcash
+ecosystem should be initiated ~6 months in advance of the presumed
+activation of a "non-direct funding model", such that the Zcash ecosystem
+preference can be expediently realized.
+
 Block subsidies will be administered through two organizations:
-1. Zcash Foundation  (for ECC, ZCG)
-2. Financial Privacy Fund (for Qedit, ZecHub)
+1. Zcash Foundation  (**for ECC, ZCG)
+2. Financial Privacy Fund (**for Qedit, ZecHub)
+
+**ZF and FPF adminstration details, costs, et al are currently under debate**
+<https://forum.zcashcommunity.com/t/proposal-zcg-under-fpf/48113/11>
 
 
 Motivation
