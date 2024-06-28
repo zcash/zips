@@ -83,7 +83,7 @@ Abstract
 ========
 
 This proposal describes a structure for the Zcash Development Fund, to be
-enacted in Network Upgrade 5 and last for 4 years. This Dev Fund would consist
+enacted in Network Upgrade 6 and last for 4 years. This Dev Fund would consist
 of 15% of the block subsidies, as the following allocations:
 
 * 5% for the Zcash Foundation (for internal work and grants);
