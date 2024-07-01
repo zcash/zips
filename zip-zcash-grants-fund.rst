@@ -36,6 +36,9 @@ corporation of that name.
 "Zcash Foundation", also called "ZF", refers to the 501(c)(3) nonprofit
 corporation of that name.
 
+"Financial Privacy Foundation", also called "FPF", refer to the independent
+Cayman Islands-Incorporated non-profit organization of that name.
+
 "Section 501(c)(3)" refers to that section of the U.S. Internal Revenue
 Code (Title 26 of the U.S. Code). [#section501c3]_
 
