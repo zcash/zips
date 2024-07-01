@@ -343,7 +343,7 @@ For Zcash Community Grants recipients, these conditions SHOULD be included in th
 with {ZCG Administration}, such that substantial violation, not promptly remedied, will cause
 forfeiture of their grant funds and their return to {ZCG Administration}.
 
-{ZCG Adminisration} and FPF MUST contractually commit to each other to fulfill these
+{ZCG Administration} and FPF MUST contractually commit to each other to fulfill these
 conditions, and the prescribed use of funds, such that substantial violation,
 not promptly remedied, will permit the other parties to issue a modified version
 of Zcash node software that removes the violating party's Grants Fund slice, and
