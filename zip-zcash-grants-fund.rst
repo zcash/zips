@@ -62,8 +62,6 @@ and increasingly decentralized governance is encouraged.
 Motivation
 ==========
 
-## Motivation
-
 Starting at Zcash's second halving in November 2024, the development fund will end, directing 100% of the block
 subsidies to miners, resulting in no automatic funding for other entities. This change risks depriving
 existing and new teams of essential funding. Establishing ongoing funding through grants ensures that
