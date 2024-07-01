@@ -1,7 +1,7 @@
 ::
 
   ZIP: 
-  Title: Zcash Grants Fund - ZCG & ZecHub
+  Title: Zcash Grants Fund - ZCG
   Owners: Matthew Green (@gguy)
   Original-Authors: Matthew Green (@gguy)
   Status: Draft
@@ -54,13 +54,11 @@ Abstract
 
 This proposal describes a structure for the Zcash Grants Fund, to be
 enacted in Network Upgrade 6 and lasting for 2 years. This Grants Fund would consist
-of 20% of the block subsidies, split into 2 slices:
-* 5% to ZecHub for funding bounties focused on education and onboarding new users to the Zcash ecosystem;
-* 95% to "Zcash Community Grants" for funding grants that support projects and initiatives aligned with Zcash's mission (denoted ZCG slice).
+of 20% of the block subsidies soley allocated to "Zcash Community Grants" for funding
+grants that support projects and initiatives aligned with Zcash's mission (denoted ZCG).
 
 Governance and accountability are based on existing entities and legal mechanisms,
 and increasingly decentralized governance is encouraged.
-
 
 Motivation
 ==========
@@ -141,68 +139,20 @@ SHOULD be applied to the Zcash Testnet for testing purposes.
 Dev Fund allocation
 -------------------
 
-Starting at the second Zcash halving in 2024, until {length},
+Starting at the second Zcash halving in 2024, for 2 years,
 20% of the block subsidy of each block SHALL be allocated to a "Grants Fund" that
-consists of the following two slices:
+will be 100% allocated to "Zcash Community Grants" for funding grants that support projects
+and initiatives aligned with Zcash's mission.
 
-* 5% to ZecHub for funding bounties focused on education and onboarding new users to the Zcash ecosystem;
-* 95% to "Zcash Community Grants" for funding grants that support projects and initiatives aligned with Zcash's mission (denoted ZCG slice).
-
-The slices are described in more detail below. The fund flow will be implemented
+The fund flow will be implemented
 at the consensus-rule layer, by sending the corresponding ZEC to the designated
-address(es) for each block. This Dev Fund will end at the second halving (unless
+address(es) for each block. This Dev Fund will end 2 years after the second halving (unless
 extended/modified by a future ZIP).
-
-
-ZecHub
-~~~~~~
-
-This slice of the Zcash Grants Fund is dedicated to ZecHub, which is designed to play
-a pivotal role in education and user onboarding within the Zcash ecosystem. ZecHub
-aims to expand decentralized governance models and increase the utility of ZEC across
-various chains. As a collaborative platform, ZecHub will engage the community in
-creating, validating, and promoting open-source educational content that supports the
-Zcash ecosystem. Upholding its core values, ZecHub asserts that privacy is a
-fundamental human right, education should be open-source and accessible globally,
-and community members have the right to earn ZEC privately. This allocation to ZecHub
-will fund bounties that focus on these educational and developmental efforts, thereby
-fostering a robust and inclusive community within the Zcash network.
-
-The funds SHALL be received and administered by FPF. FPF MUST disburse them for
-bounties and expenses reasonably related to the administration of bounties, but
-subject to the following additional constraints:
-
-1. These funds MUST primarily be used to issue bounties to external parties
-   that are independent of FPF. They can also be used to fund other initiatives such
-   as community support personnel and public goods projects that benefit Zcash, and
-   to pay for expenses reasonably related to the administration of ZecHub. They MUST NOT
-   be used by FPF for its internal operations and direct expenses not related to the
-   administration of ZecHub.
-
-2. ZecHub bounties SHOULD support work at reasonable market-rate costs.
-   They can be of any duration or ongoing without a duration limit. Bounties of
-   indefinite duration SHOULD have semiannual review points for continuation of funding.
-
-3. Bounties SHOULD be restricted to furthering the Zcash cryptocurrency and
-   its ecosystem (which is more specific than furthering financial privacy in
-   general).
-
-4. Bounty awards are subject to approval by ZecHub DAO.
-
-5. The ZecHub DAO's funding decisions will be final, requiring
-   no further approval, but are subject to veto if FPF
-   judges them to violate laws or if FPF reporting requirements and other
-   (current or future) obligations.
-
-FPF SHALL recognize the ZCG slice of the Grants Fund as a Restricted Fund
-donation under the above constraints (suitably formalized), and keep separate
-accounting of its balance and usage under its `Transparency and Accountability`_
-obligations defined below.
 
 Zcash Community Grants (ZCG)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This slice of the Zcash Grants Fund is intended to fund independent teams entering the
+The Zcash Grants Fund is intended to fund independent teams entering the
 Zcash ecosystem, to perform major ongoing development (or other work) that
 benefits the public good within the Zcash ecosystem, to the extent that such
 teams are available and effective. The Zcash Community Grants (ZCG) Committee is
@@ -266,7 +216,7 @@ grants and expenses reasonably related to the administration of grants, but subj
    This works out to be a total of 175hours of compensation per month which is roughly the equivalent of a 
    signle full time position.
    
-8. a portion of the ZCG Slice shall be allocated to a
+8. A portion of the funds shall be allocated to a
    Discretionary Budget, which may be disbursed for expenses reasonably related
    to the administration of Zcash Community Grants. The amount of funds allocated to the
    Discretionary Budget SHALL be decided by the ZF's Community Advisory Panel or
@@ -295,7 +245,7 @@ grants and expenses reasonably related to the administration of grants, but subj
    administered by the {ZCG Adminisration}. The compensation rate and hours for committee members SHALL be determined by
    the ZF’s Community Advisory Panel or successor process.
 
-{ZCG Administration} SHALL recognize the ZCG slice of the Grants Fund as a Restricted Fund
+{ZCG Administration} SHALL recognize the ZCG allocation of the Grants Fund as a Restricted Fund
 donation under the above constraints (suitably formalized), and keep separate
 accounting of its balance and usage under its `Transparency and Accountability`_
 obligations defined below.
@@ -307,7 +257,7 @@ Transparency and Accountability
 Obligations
 ~~~~~~~~~~~
 
-ZCG and ZecHub (during and leading to their award
+ZCG (during and leading to their award
 period) SHALL all accept the obligations in this section.
 
 Ongoing public reporting requirements:
@@ -330,7 +280,7 @@ promptly disclose:
   is not in the interest of the general Zcash ecosystem.
 * Any conflict of interest with the general success of the Zcash ecosystem.
 
-Zcash Community Grants and ZecHub MUST promptly disclose any security or privacy
+Zcash Community Grants MUST promptly disclose any security or privacy
 risks that may affect users of Zcash (by responsible disclosure under
 confidence to the pertinent developers, where applicable).
 
@@ -346,11 +296,11 @@ For Zcash Community Grants recipients, these conditions SHOULD be included in th
 with {ZCG Administration}, such that substantial violation, not promptly remedied, will cause
 forfeiture of their grant funds and their return to {ZCG Administration}.
 
-{ZCG Administration} and FPF MUST contractually commit to each other to fulfill these
+{ZCG Administration} MUST contractually commit to each other to fulfill these
 conditions, and the prescribed use of funds, such that substantial violation,
 not promptly remedied, will permit the other parties to issue a modified version
-of Zcash node software that removes the violating party's Grants Fund slice, and
-use the Zcash trademark for this modified version. The slice's funds will be
+of Zcash node software that removes the violating party's Grants Fund, and
+use the Zcash trademark for this modified version. The funds will be
 unallocated until ZF’s Community Advisory Panel or successor process is able to decide on a new allocation.
 
 
