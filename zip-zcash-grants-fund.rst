@@ -1,7 +1,7 @@
 ::
 
   ZIP: 
-  Title: Zcash Grants Fund
+  Title: Zcash Grants Fund - ZCG & ZecHub
   Owners: Matthew Green (@gguy)
   Original-Authors: Matthew Green (@gguy)
   Status: Draft
@@ -53,10 +53,10 @@ Abstract
 ========
 
 This proposal describes a structure for the Zcash Grants Fund, to be
-enacted in Network Upgrade 6 and lasting for {length} years. This Grants Fund would consist
+enacted in Network Upgrade 6 and lasting for 2 years. This Grants Fund would consist
 of 20% of the block subsidies, split into 2 slices:
-* {percent(0-20%)} to ZecHub for funding bounties focused on education and onboarding new users to the Zcash ecosystem;
-* {percent(80-100%)} to "Zcash Community Grants" for funding grants that support projects and initiatives aligned with Zcash's mission (denoted ZCG slice).
+* 5% to ZecHub for funding bounties focused on education and onboarding new users to the Zcash ecosystem;
+* 95% to "Zcash Community Grants" for funding grants that support projects and initiatives aligned with Zcash's mission (denoted ZCG slice).
 
 Governance and accountability are based on existing entities and legal mechanisms,
 and increasingly decentralized governance is encouraged.
@@ -81,7 +81,7 @@ independent development teams.
 
 For these reasons, the Zcash Community proposes transitioning the Zcash
 Development Fund to a Zcash Grants Fund. This fund will allocate a portion of
-the block subsidies, which would otherwise go to miners, as grants to support
+the block subsidies, which would otherwise go to miners, as grants and bounties to support
 charitable, educational, and scientific activities within the meaning of
 Section 501(c)(3). This approach will ensure continuous funding through a
 structured grant application process, fostering the ongoing development and
@@ -145,8 +145,8 @@ Starting at the second Zcash halving in 2024, until {length},
 20% of the block subsidy of each block SHALL be allocated to a "Grants Fund" that
 consists of the following two slices:
 
-* {percent(0-20%)} to ZecHub for funding bounties focused on education and onboarding new users to the Zcash ecosystem;
-* {percent(80-100%)} to "Zcash Community Grants" for funding grants that support projects and initiatives aligned with Zcash's mission (denoted ZCG slice).
+* 5% to ZecHub for funding bounties focused on education and onboarding new users to the Zcash ecosystem;
+* 95% to "Zcash Community Grants" for funding grants that support projects and initiatives aligned with Zcash's mission (denoted ZCG slice).
 
 The slices are described in more detail below. The fund flow will be implemented
 at the consensus-rule layer, by sending the corresponding ZEC to the designated
