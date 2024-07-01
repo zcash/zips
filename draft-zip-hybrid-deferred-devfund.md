@@ -35,10 +35,6 @@ The terms "block subsidy" and "halving" in this document are to be interpreted a
 
 The terms "Testnet" and "Mainnet" are to be interpreted as described in section 3.12 of the Zcash Protocol Specification
 
-Useful ZIPs to reference:
-* [ZIP 214](https://zips.z.cash/zip-0214) (funding streams for the current dev fund)
-* [ZIP 1014](https://zips.z.cash/zip-1014) (process issues for the current dev fund)
-* [ZIP 207](https://zips.z.cash/zip-0207) (how funding streams work)
 
 ## Abstract
 
