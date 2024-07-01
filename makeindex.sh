@@ -20,8 +20,11 @@ for zipfile in $(cat .zipfilelist.current); do
     echo "    <tr> <td>`basename $(basename $zipfile .rst) .md | sed -E 's@zip-0{0,3}@@'`</td> <td class=\"left\"><a href=\"`echo $zipfile`\">`grep '^\s*Title:' $zipfile | sed -E 's@\s*Title:\s*@@'`</a></td> <td>`grep '^\s*Status:' $zipfile | sed -E 's@\s*Status:\s*@@'`</td>"
   fi
 done
-cat <<EndOfBlock
-  </table></embed>
+echo "  </table></embed>"
+
+if [ $(wc -c <.draftfilelist.current) -gt 1 ]
+then
+  cat <<EndOfDraftHeader
 
 Drafts without assigned ZIP numbers
 -----------------------------------
@@ -35,9 +38,10 @@ be deleted.
 
   <embed><table>
     <tr> <th>Title</th> </tr>
-EndOfBlock
-for draftfile in $(find . -name 'draft-*.rst' -o -name 'draft-*.md' | sort); do
-  echo Adding $draftfile to index. >/dev/stderr
-  echo "    <tr> <td class=\"left\"><a href=\"`echo $draftfile`\">`grep '^\s*Title:' $draftfile | sed -E 's@\s*Title:\s*@@'`</a></td>"
-done
-echo "  </table></embed>"
+EndOfDraftHeader
+  for draftfile in $(cat .draftfilelist.current); do
+    echo Adding $draftfile to index of drafts. >/dev/stderr
+    echo "    <tr> <td class=\"left\"><a href=\"`echo $draftfile`\">`grep '^\s*Title:' $draftfile | sed -E 's@\s*Title:\s*@@'`</a></td>"
+  done
+  echo "  </table></embed>"
+fi
