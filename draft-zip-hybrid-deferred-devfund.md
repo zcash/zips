@@ -23,8 +23,6 @@ The terms "Mainnet" and "Testnet" in this document are to be interpreted as defi
 
 The term "full validator" in this document is to be interpreted as defined in the Zcash protocol specification [#protocol-blockchain]_.
 
-The terms below are to be interpreted as follows:
-
 The term "network upgrade" in this document is to be interpreted as described in ZIP 200 6 and the Zcash Trademark Donation and License Agreement (4 or successor agreement).
 
 The terms "block subsidy" and "halving" in this document are to be interpreted as described in sections 3.10 and 7.8 of the Zcash Protocol Specification. 2
