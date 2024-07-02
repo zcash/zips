@@ -150,6 +150,12 @@ execution; but it should strive to support and use these once they are built.
 The Dev Fund should comply with legal, regulatory, and taxation constraints in 
 pertinent jurisdictions.
 
+This ZIP recognizes there is strong community support for a non-direct funding 
+model. As such, BP, ECC and ZF MUST collaborate with the Zcash community to 
+research and explore the establishment of a non-direct funding model. The 
+research should consider potential designs as well as possible legal and 
+regulatory risks.
+
 
 Non-requirements
 ================
