@@ -230,7 +230,7 @@ ZCG slice (Zcash Community Grants)
 This slice of the Dev Fund is intended to fund independent teams entering the
 Zcash ecosystem, to perform major ongoing development (or other work) for the
 public good of the Zcash ecosystem, to the extent that such teams are 
-Available and effective.
+available and effective.
 
 The funds SHALL be received and administered by FPF. FPF MUST disburse them 
 for "Zcash Community Grants" and expenses reasonably related to the 
