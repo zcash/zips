@@ -8,7 +8,7 @@
     Credits: Daira Emma Hopwood, Gguy
     Status: Draft
     Category: Consensus | Process
-    Created: 2014-06-25
+    Created: 2024-06-25
     License: MIT
     Pull-Request: <https://github.com/zcash/zips/pull/???>
 
