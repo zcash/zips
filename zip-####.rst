@@ -142,7 +142,7 @@ miners as a donation to support charitable, educational, and
 scientific activities within the meaning of Section 501(c)(3).
 
 This proposal also introduces the benefit of a non-USA based entity (FPF) as 
-the administer of block subsidies to two organizations that are also 
+the administrator for block subsidies to two organizations that are also 
 non-USA based (Qedit and ZecHub). USA based regulatory risk continues to
 (negatively) impact the Zcash project, which has been predominantly based in the USA.
 
