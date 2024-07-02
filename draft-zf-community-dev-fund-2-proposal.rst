@@ -45,7 +45,8 @@ nonprofit corporation of that name.
 nonprofit corporation of that name.
 
 "Financial Privacy Foundation", also called "FPF", refers to the Cayman 
-Islands-incorporated foundation company limited by guarantee of that name.
+Islands-incorporated non-profit foundation company limited by guarantee of 
+that name.
 
 "Section 501(c)(3)" refers to that section of the U.S. Internal Revenue Code 
 (Title 26 of the U.S. Code). [#section501c3]_
