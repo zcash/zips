@@ -306,7 +306,8 @@ additional constraints:
    include, without limitation the following:
   
    * Paying for operational management and administration services that 
-     support the purpose of the Zcash Community Grants program.
+     support the purpose of the Zcash Community Grants program, including
+     administration services provided by FPF.
    * Paying third party vendors for services related to domain name
      registration, or the design, website hosting and administration of
      websites for the Zcash Community Grants Committee.
