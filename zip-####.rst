@@ -176,13 +176,13 @@ cause them to maintain access to secret keys for much longer than they would
 otherwise. (This rules out some forms of voting, and of disbursing coins to
 past/future miners.)
 
-The new Dev Fund system should be simple to understand and realistic to
+The Dev Fund system should be simple to understand and realistic to
 implement. In particular, it should not assume the creation of new mechanisms
 (e.g., election systems) or entities (for governance or development) for its
 execution; but it should strive to support and use these once they are built.
 
-New Dev Fund recipients should comply with legal, regulatory, and taxation
-constraints in pertinent jurisdictions.
+Dev Fund recipients should comply with legal, regulatory, and taxation
+constraints in their pertinent jurisdiction(s).
 
 
 Non-requirements
