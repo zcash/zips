@@ -120,7 +120,7 @@ Block subsidies will be administered through two organizations:
 Motivation
 ==========
 
-Continuing at Zcash's second halving in November 2024, by default 100% of the block
+As of Zcash's second halving in November 2024, by default 100% of the block
 subsidies will be allocated to miners, and no further funds will be automatically
 allocated to any other entities. Consequently, no new funding
 may be available to existing teams dedicated to furthering charitable,
