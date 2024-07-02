@@ -218,12 +218,6 @@ existing pools. It will not be subdivided into individually spendable notes or
 coins. The lockbox mechanism ensures that funds are accumulated and securely
 stored until a future ZIP defines the disbursement mechanism.
 
-<u>Security and Integrity</u>
-
-Robust security measures must be implemented to protect the deferred
-development fund from unauthorized access or misuse. The integrity of the
-lockbox and its interaction with the Zcash protocol must be ensured.
-
 ### Zcash Community Grants (ZCG)
 
 This slice of the Dev Fund is intended to fund independent teams entering the
