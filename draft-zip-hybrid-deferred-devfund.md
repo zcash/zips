@@ -4,7 +4,8 @@
     Title: Hybrid Deferred Development Fund
     Owners: Jason McGee <aquietinvestor@gmail.com>
             Skylar Saveland <skylar@free2z.com>
-    Credits: Daira Emma Hopwood, Peacemonger, Gguy
+            Peacemonger < >
+    Credits: Daira Emma Hopwood, Gguy
     Status: Draft
     Category: Consensus | Process
     Created: 2014-06-25
@@ -197,7 +198,7 @@ every block.
 The proportions of the block subsidy allocated to the deferred development fund
 and any existing funding streams must add up to the intended total at every
 block. Before NU6 activation, the actual percentage allocated to the deferred
-development fund will be zero. After NU6 activation, |percentage| of the block
+development fund will be zero. After NU6 activation, 12% of the block
 reward will be allocated to the deferred development fund.
 
 <u>Reserve Pool Mechanism</u>
