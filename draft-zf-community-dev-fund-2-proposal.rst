@@ -257,7 +257,8 @@ additional constraints:
 2. Zcash Community Grants SHOULD support well-specified work proposed by the 
    grantee, at reasonable market-rate costs. They can be of any duration or 
    ongoing without a duration limit. Grants of indefinite duration SHOULD be 
-   reviewed periodically (on a schedule appropriate for the value and 
+   reviewed periodically (on a schedule that the Zcash Community Grants
+   Committee considers appropriate for the value and 
    complexity of the grant) for continuation of funding.
 
 3. Priority SHOULD be given to Zcash Community Grants that bolster teams with 
