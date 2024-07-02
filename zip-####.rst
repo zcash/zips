@@ -87,8 +87,7 @@ enacted in Network Upgrade 6 and last for 4 years. This Dev Fund would consist
 of 15% of the block subsidies, as the following allocations:
 
 * 5% for the Zcash Foundation (for internal work and grants);
-* 4% for the Bootstrap Project (the parent of the Electric Coin Company) for the 1st year only; 
-and contingent upon an ecosystem mandated "non-direct funding model" for the future;
+* 4% for the Bootstrap Project (the parent of the Electric Coin Company) for the 1st year only;
 * 4% for Zcash Community Grants for continuation of their current activities as-is;
 * 2% for Qedit in support of their ZSA activities, and other Zcash protocol support;
 
@@ -103,8 +102,9 @@ recommended in Josh Swihart's proposal.
 <https://forum.zcashcommunity.com/t/zcash-funding-bloc-a-dev-fund-proposal-from-josh-at-ecc/47187>
 
 Upon creation/ activation of a "non-direct funding model" this ZIP should be 
-reconsider by the Zcash ecosystem, to determine if it's ongoing direct block subsidies are 
-a preference. Discussions/ solications/ sentiment gathering from the Zcash
+reconsider (potentially terminated) by the Zcash ecosystem, to determine 
+if its ongoing direct block subsidies are preferred for continuation.
+Discussions/ solications/ sentiment gathering from the Zcash
 ecosystem should be initiated ~6 months in advance of the presumed
 activation of a "non-direct funding model", such that the Zcash ecosystem
 preference can be expediently realized.
@@ -213,7 +213,6 @@ consists of the following allocations:
 
 * 5% for the Zcash Foundation (for internal work and grants);
 * 4% for the Bootstrap Project (the parent of the Electric Coin Company) for the 1st year only; 
-and contingent upon an ecosystem mandated "non-direct funding model" for the future;
 * 4% for Zcash Community Grants for continuation of their current activities as-is;
 * 2% for Qedit in support of their ZSA activities, and other Zcash protocol support;
 
