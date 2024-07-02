@@ -225,7 +225,7 @@ educational, charitable, and scientific purposes.
 
 
 ZCG slice (Zcash Community Grants)
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This slice of the Dev Fund is intended to fund independent teams entering the
 Zcash ecosystem, to perform major ongoing development (or other work) for the
