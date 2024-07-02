@@ -115,7 +115,7 @@ The primary motivations for this hybrid structure are:
 ## Requirements
 
 **In-Protocol Lockbox Creation**: The ZIP must define the creation of an
-in-protocol lockbox where 20% of the Zcash block reward will be allocated
+in-protocol lockbox where a percentage of the Zcash block reward will be allocated
 post-November 2024 halving. This lockbox will securely store funds until a
 disbursement mechanism is established in a future ZIP.
 
