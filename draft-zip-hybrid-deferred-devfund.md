@@ -201,16 +201,6 @@ block. Before NU6 activation, the actual percentage allocated to the deferred
 development fund will be zero. After NU6 activation, |percentage| of the block
 reward will be allocated to the deferred development fund.
 
-<u>Backwards Compatibility</u>
-
-Full validators can implement the reserve consensus rules without NU gating.
-Prior to NU6 activation, the percentage allocated to the reserve pool can be
-set to zero or be defined as an empty set, similar to existing funding streams.
-Additionally, another implementation option would be to define a new type of
-funding stream that directs the value to the in-protocol development fund
-instead of constructing a UTXO. This approach allows for flexibility in
-handling the allocation and ensures compatibility with existing mechanisms.
-
 <u>Reserve Pool Mechanism</u>
 
 The reserve pool will be a container for the issued supply, distinct from
