@@ -2,16 +2,16 @@
 
   ZIP: Unassigned
   Title: Lockbox for Decentralized Grants Allocation
-  Owners: Skylar Saveland <skylar@free2z.com>
-          Jason McGee <>
+  Owners: Kris Nuttycombe <kris@nutty.land>
+  Original-Authors: Skylar Saveland <skylar@free2z.com>
+                    Jason McGee <>
   Credits: @daira
            @str4d
-           @nuttycom
   Status: Draft
   Category: Consensus
   Created: 2024-06-26
   License: MIT
-  Pull-Request: <https://github.com/zcash/zips/pull/858>
+  Pull-Request: <https://github.com/zcash/zips/pull/866>
 
 
 Terminology
@@ -37,7 +37,7 @@ when, they appear in all capitals.
 ..   {Definition.}
 
 
-.. |percentage| replace:: 50%
+.. |percentage| replace:: 20%
 
 
 Abstract
