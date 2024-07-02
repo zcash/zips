@@ -285,7 +285,6 @@ additional constraints:
    Committee.  "Association" here means: having a financial interest, 
    full-time employment, being an officer, being a director, or having an 
    immediate family relationship with any of the above. 
-
    
 8. A portion of the ZCG Slice shall be allocated to a Discretionary Budget, 
    which may be disbursed for expenses reasonably related to the 
