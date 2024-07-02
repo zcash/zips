@@ -173,9 +173,7 @@ The Zcash Development Fund SHALL be enacted in Network Upgrade 6 and last for 2
 years. The Dev Fund would consist of 20% of the block subsidies, split into 2
 slices:
 
-* 60% to a deferred Dev Fund “lockbox,” which will be allocated in the future
-  once consensus is reached on fund allocation or a new non-direct funding
-  model is established and implemented.
+* 60% to a deferred Dev Fund “lockbox”.
 * 40% to Zcash Community Grants to fund independent teams in the Zcash ecosystem.
 
 ### Deferred Dev Fund Lockbox
