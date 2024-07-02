@@ -1,0 +1,163 @@
+::
+
+  ZIP: XXX
+  Title: Blocks should balance exactly
+  Owners: Daira-Emma Hopwood <daira-emma@electriccoin.co>
+  Status: Draft
+  Category: Consensus
+  Created: 2024-07-02
+  License: MIT
+  Discussions-To: <https://github.com/zcash/zips/issues/864>
+
+
+Terminology
+===========
+
+The key word "MUST" in this document is to be interpreted as described in BCP 14
+[#BCP14]_ when, and only when, it appears in all capitals.
+
+The term "network upgrade" in this document is to be interpreted as described in
+ZIP 200. [#zip-0200]_
+
+The terms "Testnet" and "Mainnet" are to be interpreted as described in section
+3.12 of the Zcash Protocol Specification. [#protocol-networks]_
+
+The character § is used when referring to sections of the Zcash Protocol Specification
+[#protocol]_.
+
+
+Abstract
+========
+
+In the current Zcash protocol, the miner of a coinbase transaction is permitted to
+claim up to and including the total amount of fees from other transactions in the
+block, but is not required to claim the full amount.
+
+This proposal would require the full amount of fees to be collected in coinbase
+transactions.
+
+
+Motivation
+==========
+
+The current semantics of coinbase transactions creates a potential for miners to
+miscalculate the total amount of fees in a block. If they claim a higher amount than
+the actual total fees, the block will be invalid, but if they claim a lower amount,
+the excess is effectively burnt. As a consequence, the effective ZEC issuance can
+fall short of the amount calculated from the intended issuance curve.
+
+This unnecessarily complicates the question of how much ZEC has been issued: if it
+is defined as not including the amounts that were left unclaimed by miners, then it
+is difficult to calculate, and cannot be predicted exactly in advance for any given
+block height. Alternatively if it is defined to include those amounts, then that
+introduces potentially confusing discrepancies between different definitions of
+issuance or total supply.
+
+
+Requirements
+============
+
+The consensus rule change specified in this ZIP must:
+
+* allow issuance to be predicted exactly in advance, starting from the point at
+  which it activates;
+* preclude errors by miners in computing the total fees for transactions in the
+  mined block;
+* be deployable in the NU6 network upgrade, which is not expected to define a new
+  transaction version.
+
+
+Non-requirements
+================
+
+Since this ZIP is intended to activate in a network upgrade that is not expected
+to support a new transaction version, it cannot resolve the issue that the amounts
+of fees are implicit in non-coinbase transactions. That issue results in various
+potential security difficulties and the potential for users' wallets to inadvertently
+overpay the fee, but solving that would require an explicit "fee" field.
+
+(It would technically be possible to encode the fee as a transparent output, but
+that would be a more disruptive change than is desirable, since other consensus
+rules would have to change in order to prevent this output from being spent, and
+since existing consumers of the transaction format could misinterpret such outputs.)
+
+This consensus change is not intended to prevent other methods of provably removing
+ZEC from the circulating supply, such as sending it to an address for which it
+would be demonstrably infeasible to find the spending key.
+
+
+Specification
+=============
+
+From the activation block of this ZIP onward, coinbase transactions MUST claim all
+of the available fees in their block. More specifically, the following paragraph
+and consensus rule in § 3.4 "Transactions and Treestates" of the Zcash Protocol
+Specification [#protocol-transactions]_:
+
+  Transparent inputs to a transaction insert value into a transparent transaction
+  value pool associated with the transaction, and transparent outputs remove value
+  from this pool. As in Bitcoin, the remaining value in the transparent transaction
+  value pool of a non-coinbase transaction is available to miners as a fee. The
+  remaining value in the transparent transaction value pool of a coinbase transaction
+  is destroyed.
+
+  **Consensus rule:** The remaining value in the transparent transaction value pool
+  MUST be nonnegative.
+
+is modified to become:
+
+  Transparent inputs to a transaction insert value into a transparent transaction
+  value pool associated with the transaction, and transparent outputs remove value
+  from this pool. The effect of Sapling Spends and Outputs, and of Orchard Actions
+  on the transaction value pool are specified in § 4.13 and § 4.14 respectively.
+
+  As in Bitcoin, the remaining value in the transparent transaction value pool of
+  a non-coinbase transaction is available to miners as a fee. That is, the sum of
+  those values for non-coinbase transactions in each block is treated as an implicit
+  input to the transaction value balance of the block's coinbase transaction.
+
+  The remaining value in the transparent transaction value pool of coinbase transactions
+  in blocks prior to NU-X is destroyed. From activation of NU-X, this remaining value
+  is required to be zero; that is, all of the available fees MUST be consumed by
+  outputs of the coinbase transaction.
+
+  **Consensus rules:**
+
+  * The remaining value in the transparent transaction value pool of a non-coinbase
+    transaction MUST be nonnegative.
+  * [Pre-NU-X] The remaining value in the transparent transaction value pool of a
+    coinbase transaction MUST be nonnegative.
+  * [NU-X onward] The remaining value in the transparent transaction value pool of
+    a coinbase transaction MUST be zero.
+
+where "NU-X" is to be replaced by the designation of the network upgrade in which
+this ZIP will be activated.
+
+Note that the differences in the first two paragraphs of the above replacement text
+are clarifications of the protocol, rather than consensus changes. Those could be
+made independently of this ZIP.
+
+This change applies identically to Mainnet and Testnet.
+
+
+Deployment
+==========
+
+Subject to community agreement, this ZIP is proposed to be deployed with NU6. [#zip-0253]_
+
+
+Reference implementation
+========================
+
+TODO
+
+
+References
+==========
+
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#protocol] `Zcash Protocol Specification, Version 2023.4.0 or later <protocol/protocol.pdf>`_
+.. [#protocol-transactions] `Zcash Protocol Specification, Version 2023.4.0. Section 3.4: Transactions and Treestates <protocol/protocol.pdf#transactions>`_
+.. [#protocol-networks] `Zcash Protocol Specification, Version 2023.4.0. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
+.. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
+.. [#zip-0253] `ZIP 253: Deployment of the NU6 Network Upgrade <zip-0253.rst>`_
