@@ -3,6 +3,8 @@
   ZIP: XXX
   Title: Blocks should balance exactly
   Owners: Daira-Emma Hopwood <daira-emma@electriccoin.co>
+  Credits: Jack Grigg
+           Kris Nuttycombe
   Status: Draft
   Category: Consensus
   Created: 2024-07-02
@@ -150,6 +152,13 @@ Reference implementation
 ========================
 
 TODO
+
+
+Acknowledgements
+================
+
+The author would like to thank Jack Grigg and Kris Nuttycombe for discussions leading
+to the submission of this ZIP.
 
 
 References
