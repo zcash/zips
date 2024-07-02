@@ -212,7 +212,7 @@ Community to support these educational, charitable, and scientific purposes.
 
 
 ZF slice (Zcash Foundation)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This slice of the Dev Fund will flow as charitable contributions from the 
 Zcash Community to ZF, to be used at its discretion for any purpose within its 
