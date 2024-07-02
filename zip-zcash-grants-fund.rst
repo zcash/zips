@@ -160,14 +160,14 @@ given the discretion to allocate funds to a diverse range of projects that
 advance the usability, security, privacy, and adoption of Zcash, including
 community programs, dedicated resources, and other projects of varying sizes.
 
-The funds SHALL be received and administered by {ZCG Administration}. {ZCG Administration} MUST disburse them for
+The funds SHALL be received and administered by FPF. FPF MUST disburse them for
 grants and expenses reasonably related to the administration of grants, but subject to the following additional constraints:
 
 1. These funds MUST primarily be used to issue grants to external parties
-   that are independent of {ZCG Administration}. They can also be used to fund other initiatives such
+   that are independent of FPF. They can also be used to fund other initiatives such
    as community support personnel and public goods projects that benefit Zcash, and
    to pay for expenses reasonably related to the administration of Zcash Community
-   Grants. They MUST NOT be used by {ZCG Administration} for its internal operations and direct
+   Grants. They MUST NOT be used by FPF for its internal operations and direct
    expenses not related to administration of Zcash Community Grants.
 
 2. Zcash Community Grants SHOULD support well-specified work proposed by the grantee,
@@ -194,9 +194,9 @@ grants and expenses reasonably related to the administration of grants, but subj
    ensure continuity within the Committee.
 
 6. The Zcash Community Grants Committee's funding decisions will be final, requiring
-   no further approval, but are subject to veto if {ZCG Administration}
-   judges them to violate laws or if {ZCG Administraion} reporting requirements and other
-   (current or future) obligations under U.S. IRS 501(c)(3).
+   no further approval, but are subject to veto if FPF
+   judges them to violate laws or if FPF reporting requirements and other
+   (current or future) obligations.
 
 7. Zcash Community Grants Committee members SHALL have a one-year term and MAY sit
    for reelection. The Zcash Community Grants Committee is subject to the same
@@ -242,10 +242,10 @@ grants and expenses reasonably related to the administration of grants, but subj
    SHALL be limited to the hours needed to successfully perform their positions
    and MUST align with the scope and responsibilities of their roles. The
    allocation and distribution of compensation to committee members SHALL be
-   administered by the {ZCG Adminisration}. The compensation rate and hours for committee members SHALL be determined by
+   administered by FPF. The compensation rate and hours for committee members SHALL be determined by
    the ZF’s Community Advisory Panel or successor process.
 
-{ZCG Administration} SHALL recognize the ZCG allocation of the Grants Fund as a Restricted Fund
+FPF SHALL recognize the ZCG allocation of the Grants Fund as a Restricted Fund
 donation under the above constraints (suitably formalized), and keep separate
 accounting of its balance and usage under its `Transparency and Accountability`_
 obligations defined below.
@@ -293,10 +293,10 @@ Enforcement
 ~~~~~~~~~~~
 
 For Zcash Community Grants recipients, these conditions SHOULD be included in their contract
-with {ZCG Administration}, such that substantial violation, not promptly remedied, will cause
-forfeiture of their grant funds and their return to {ZCG Administration}.
+with FPF, such that substantial violation, not promptly remedied, will cause
+forfeiture of their grant funds and their return to FPF.
 
-{ZCG Administration} MUST contractually commit to each other to fulfill these
+FPF MUST contractually commit to each other to fulfill these
 conditions, and the prescribed use of funds, such that substantial violation,
 not promptly remedied, will permit the other parties to issue a modified version
 of Zcash node software that removes the violating party's Grants Fund, and
