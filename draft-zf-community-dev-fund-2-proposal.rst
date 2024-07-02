@@ -242,8 +242,10 @@ additional constraints:
    under the FPF umbrella, and to pay for expenses reasonably related to 
    the administration of Zcash Community Grants. They MUST NOT be used by FPF 
    for its internal operations and direct expenses not related to 
-   administration of Zcash Community Grants. Additionally, BP, ECC, and ZF are
-   ineligible to receive Major Grants.
+   administration of Zcash Community Grants. Additionally, BP and ECC are 
+   ineligible to receive Zcash Community Grants while BP is receiving a slice
+   of the Dev Fund, and ZF is ineligible to receive Zcash Community Grants 
+   while ZF is receiving a slice of the Dev Fund. 
 
 2. Zcash Community Grants SHOULD support well-specified work proposed by the 
    grantee, at reasonable market-rate costs. They can be of any duration or 
