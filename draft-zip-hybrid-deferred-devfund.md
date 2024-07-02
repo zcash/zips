@@ -48,7 +48,7 @@ The terms "Testnet" and "Mainnet" are to be interpreted as described in section
 ## Abstract
 
 This proposal describes a structure for the Zcash Hybrid Deferred Development
-Fund, to be enacted in Network Upgrade 6 and last for 2 years. This Dev Fund
+Fund, to be enacted in Network Upgrade 6 and last for 1 year. This Dev Fund
 would consist of 20% of the block subsidies, split into 2 slices:
 
 * 60% to a Deferred Dev Fund “lockbox,” which will be allocated in the future
@@ -170,8 +170,8 @@ applied to the Zcash Testnet for testing purposes.
 
 ### Hybrid Deferred Dev Fund Allocation
 
-The Zcash Development Fund SHALL be enacted in Network Upgrade 6 and last for 2
-years. The Dev Fund would consist of 20% of the block subsidies, split into 2
+The Zcash Development Fund SHALL be enacted in Network Upgrade 6 and last for 1
+year. The Dev Fund would consist of 20% of the block subsidies, split into 2
 slices:
 
 * 60% to a deferred Dev Fund “lockbox”.
