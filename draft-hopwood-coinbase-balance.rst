@@ -32,21 +32,22 @@ Abstract
 ========
 
 In the current Zcash protocol, the miner of a coinbase transaction is permitted to
-claim up to and including the total amount of fees from other transactions in the
-block, but is not required to claim the full amount.
+claim up to and including the total amount of miner subsidy plus fees from other
+transactions in the block, but is not required to claim the full amount.
 
-This proposal would require the full amount of fees to be collected in coinbase
-transactions.
+This proposal would require the full amount of miner subsidy and fees to be
+collected in coinbase transactions.
 
 
 Motivation
 ==========
 
 The current semantics of coinbase transactions creates a potential for miners to
-miscalculate the total amount of fees in a block. If they claim a higher amount than
-the actual total fees, the block will be invalid, but if they claim a lower amount,
-the excess is effectively burnt. As a consequence, the effective ZEC issuance can
-fall short of the amount calculated from the intended issuance curve.
+miscalculate the total amount of miner subsidy plus fees in a block. If they claim
+a higher amount than the actual miner subsidy plus total fees, the block will be
+invalid, but if they claim a lower amount, the excess is effectively burnt. As a
+consequence, the effective ZEC issuance can fall short of the amount calculated
+from the intended issuance curve.
 
 This unnecessarily complicates the question of how much ZEC has been issued: if it
 is defined as not including the amounts that were left unclaimed by miners, then it
@@ -63,8 +64,8 @@ The consensus rule change specified in this ZIP must:
 
 * allow issuance to be predicted exactly in advance, starting from the point at
   which it activates;
-* preclude errors by miners in computing the total fees for transactions in the
-  mined block;
+* preclude errors by miners in computing the total miner subsidy plus fees for
+  transactions in the mined block;
 * be deployable in the NU6 network upgrade, which is not expected to define a new
   transaction version.
 
@@ -92,9 +93,9 @@ Specification
 =============
 
 From the activation block of this ZIP onward, coinbase transactions MUST claim all
-of the available fees in their block. More specifically, the following paragraph
-and consensus rule in § 3.4 "Transactions and Treestates" of the Zcash Protocol
-Specification [#protocol-transactions]_:
+of the available miner subsidy plus fees in their block. More specifically, the
+following paragraph and consensus rule in § 3.4 "Transactions and Treestates" of
+the Zcash Protocol Specification [#protocol-transactions]_:
 
   Transparent inputs to a transaction insert value into a transparent transaction
   value pool associated with the transaction, and transparent outputs remove value
@@ -116,11 +117,12 @@ is modified to become:
   As in Bitcoin, the remaining value in the transparent transaction value pool of
   a non-coinbase transaction is available to miners as a fee. That is, the sum of
   those values for non-coinbase transactions in each block is treated as an implicit
-  input to the transaction value balance of the block's coinbase transaction.
+  input to the transaction value balance of the block's coinbase transaction (in
+  addition to the implicit input created by issuance).
 
   The remaining value in the transparent transaction value pool of coinbase transactions
   in blocks prior to NU-X is destroyed. From activation of NU-X, this remaining value
-  is required to be zero; that is, all of the available fees MUST be consumed by
+  is required to be zero; that is, all of the available balance MUST be consumed by
   outputs of the coinbase transaction.
 
   **Consensus rules:**
