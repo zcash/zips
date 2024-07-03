@@ -98,8 +98,7 @@ and 1% to ZF.
 Governance and accountability are based on existing entities and legal mechanisms,
 and increasingly decentralized governance is encouraged.  This proposal mandates 
 the ecosystem to design and deploy a "non-direct funding model" as generally
-recommended in Josh Swihart's proposal.
-<https://forum.zcashcommunity.com/t/zcash-funding-bloc-a-dev-fund-proposal-from-josh-at-ecc/47187>
+recommended in Josh Swihart's proposal. [#draft-swihart]_
 
 Upon creation/ activation of a "non-direct funding model" this ZIP should be 
 reconsidered (potentially terminated) by the Zcash ecosystem, to determine 
@@ -114,7 +113,7 @@ Block subsidies will be administered through two organizations:
 2. Financial Privacy Fund (**for Qedit, ZecHub)
 
 **ZF and FPF adminstration of block subsidy details, costs, et al are currently under debate**
-<https://forum.zcashcommunity.com/t/proposal-zcg-under-fpf/48113/11>
+[#zf-fpf-admin-details]_
 
 
 Motivation
@@ -193,8 +192,7 @@ General on-chain governance is outside the scope of this proposal.
 Rigorous voting mechanisms (whether coin-weighted, holding-time-weighted or
 one-person-one-vote) are outside the scope of this proposal, however this 
 proposal does mandate the undertaking of the project to build a "non-direct
-funding model" as generally described:
-<https://forum.zcashcommunity.com/t/zcash-funding-bloc-a-dev-fund-proposal-from-josh-at-ecc/47187>
+funding model" as generally described in [#draft-swihart]_.
 
 Specification
 =============
@@ -221,15 +219,14 @@ those block subsidies will be distributed as 1% to ZCG, 1% to ZecHub, 1% to FPF,
 and 1% to ZF.
 
 This proposal mandates the ecosystem to design and deploy a "non-direct funding model"
-as generally recommended in Josh Swihart's proposal.
-<https://forum.zcashcommunity.com/t/zcash-funding-bloc-a-dev-fund-proposal-from-josh-at-ecc/47187>
+as generally recommended in Josh Swihart's proposal [#draft-swihart]_.
 
 "Dev Fund" block subsidies will be administered through two organizations:
 1. Zcash Foundation  (**for ECC, ZCG)
 2. Financial Privacy Fund (**for Qedit, ZecHub)
 
 **ZF and FPF adminstration of block subsidy details, costs, et al are currently under debate**
-<https://forum.zcashcommunity.com/t/proposal-zcg-under-fpf/48113/11>
+[#zf-fpf-admin-details]_
 
 The allocations are described in more detail below. The fund flow will be implemented
 at the consensus-rule layer, by sending the corresponding ZEC to the designated
@@ -280,7 +277,7 @@ public good of the Zcash ecosystem, to the extent that such teams are available
 and effective.
 
 **These funds SHALL be received and administered by ZF (or FPF, pending TBD outcomes
-of FPF proposal: <https://forum.zcashcommunity.com/t/proposal-zcg-under-fpf/48113/11>). 
+of FPF proposal: [#zf-fpf-admin-details]_).
 ZF MUST disburse them for "Major Grants" and expenses reasonably related to
 the administration of Major Grants, but subject to the following additional constraints:
 
@@ -484,8 +481,6 @@ community sentiment.
 
 The author is grateful to everyone in the Zcash ecosystem.
 
-.. _Zcash Community Forum: https://forum.zcashcommunity.com/
-
 
 References
 ==========
@@ -502,3 +497,5 @@ References
 .. [#zip-1014] `ZIP 1012: Dev Fund to ECC + ZF + Major Grants <zip-1014.rst>`_
 .. [#zf-community] `ZF Community Advisory Panel <https://www.zfnd.org/governance/community-advisory-panel/>`_
 .. [#section501c3] `U.S. Code, Title 26, Section 501(c)(3) <https://www.law.cornell.edu/uscode/text/26/501>`_
+.. [#draft-swihart] `Zcash Funding Bloc : A Dev Fund Proposal from Josh at ECC <https://forum.zcashcommunity.com/t/zcash-funding-bloc-a-dev-fund-proposal-from-josh-at-ecc/47187>`_
+.. [#zf-fpf-admin-details] `Proposal: ZCG under FPF <https://forum.zcashcommunity.com/t/proposal-zcg-under-fpf/48113/11>`_
