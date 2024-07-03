@@ -313,7 +313,7 @@ subject to the following additional constraints:
     from the FPF Board, but are subject to veto if the FPF judges
     them to violate laws or FPF reporting requirements and other
     (current or future) obligations.
-    
+
 FPF SHALL recognize the ZCG slice of the Dev Fund as a Restricted Fund
 donation under the above constraints (suitably formalized), and keep separate
 accounting of its balance and usage under its Transparency and Accountability
