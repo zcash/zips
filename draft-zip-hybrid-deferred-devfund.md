@@ -230,12 +230,12 @@ subject to the following additional constraints:
    administration of the ZCG program. They MUST NOT be used by FPF for
    its internal operations and direct expenses not related to the
    administration of grants or the grants program.
-   
+
 2. ZCG SHOULD support well-specified work proposed by the grantee, at
    reasonable market-rate costs. They can be of any duration or ongoing without
    a duration limit. Grants of indefinite duration SHOULD have semiannual
    review points for continuation of funding.
-   
+
 3. Priority SHOULD be given to major grants that bolster teams with substantial
    (current or prospective) continual existence, and set them up for long-term
    success, subject to the usual grant award considerations (impact, ability,
