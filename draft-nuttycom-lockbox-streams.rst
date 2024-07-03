@@ -1,0 +1,117 @@
+::
+
+  ZIP: Unassigned
+  Title: Lockbox for Decentralized Grants Allocation
+  Owners: Kris Nuttycombe <kris@nutty.land>
+  Original-Authors: Skylar Saveland <skylar@free2z.com>
+  Credits: Daira-Emma Hopwood <daira-emma@electriccoin.co>
+           Jack Grigg <jack@electriccoin.co>
+  Status: Draft
+  Category: Consensus
+  Created: 2024-07-02
+  License: MIT
+  Pull-Request: <https://github.com/zcash/zips/pull/>
+
+Terminology
+===========
+
+The key words "MUST", "REQUIRED", "MUST NOT", "SHOULD", and "MAY" in this
+document are to be interpreted as described in BCP 14 [#BCP14]_ when, and only
+when, they appear in all capitals.
+
+Abstract
+========
+
+This ZIP specifies a change to the Zcash consensus protocol to define a pool
+of issued Zcash value to be used to fund future development efforts within the
+Zcash ecosystem.
+
+This ZIP builds upon the funding stream mechanism defined in ZIP 207
+[#zip-0207]_. It defines a new "DEFERRED_POOL" funding stream type such that
+portions of the block reward sent to a stream of this type are deposited
+directly into the deferred funding pool instead of being sent to a recipient
+address. Other ways of adding to the pool, such as allowing for direct deposits
+or fee value currently allocated to miners may be defined in the future.
+
+Motivation
+==========
+
+In accordance with ZIP 1014, [#zip-1014]_ the Zcash block reward is allocated
+with 80% going to miners, and the remaining 20% distributed among the Major
+Grants Fund (8%), Electric Coin Company (ECC) (7%), and the Zcash Foundation
+(ZF) (5%). This funding structure supports various essential activities such as
+protocol development, security, marketing, and legal expenses. However, this
+model will expire in November 2024, leading to the entire block reward being
+allocated to miners if no changes are made.
+
+Several draft ZIPs under consideration for replacing the existing direct
+allocation of block rewards suggest that part of the block reward be directed
+to a reserve, the distribution of which is to be determined via a future ZIP.
+This ZIP is intended to provide a common mechanism that can be used to
+implement these various proposals.
+
+Requirements
+============
+
+The Zcash protocol will maintain a new Deferred chain pool value balance
+:math:`\mathsf{PoolValue}_{Deferred}` for the deferred funding pool, in much
+the same fashion as it maintains chain pool value balances for the transparent,
+Sprout, Sapling, and Orchard pools.
+
+The funding stream mechanism defined in ZIP 207 [#zip-0207]_ is modified such
+that a funding stream may deposit funds into the deferred pool.
+
+Specification
+=============
+
+Deferred Development Fund Chain Value Pool Balance
+--------------------------------------------------
+
+Full node implementations MUST track an additional
+:math:`\mathsf{PoolValue}_{Deferred}` chain value pool balance, in addition to
+the Sprout, Sapling, and Orchard chain value pool balances. This balance is
+set to zero prior to the activation of Network Upgrade 6.
+
+ZIP 207 [#zip-0207]_ is modified as follows:
+
+In the section **Funding streams** [#zip-0207-funding-streams]_, instead of:
+
+    Each funding stream has an associated sequence of recipient addresses,
+    each of which MUST be either a transparent P2SH address or a Sapling address.
+
+it will be modified to read:
+
+    Each funding stream has an associated sequence of recipients, each of which
+    MUST be either a transparent P2SH address, a Sapling address, or the identifier
+    `DEFERRED_POOL`.
+
+In the section **Consensus rules** [#zip-0207-consensus-rules]_, the following
+will be added:
+
+    The "prescribed way" to pay to the `DEFERRED_POOL` is to add
+    :math:`\mathsf{FundingStream[FUND].Value}(\mathsf{height})` to
+    :math:`\mathsf{PoolValue}_{Deferred}`.
+
+The protocol specification is modified to define the "total issued supply" such
+that the total issued supply as of a given height is given by the function:
+
+.. math::
+
+    \begin{array}{ll}
+    \mathsf{IssuedSupply}(\mathsf{height}) := &\!\!\!\!\mathsf{PoolValue}_{Transparent}(\mathsf{height}) \\
+    &+\;\; \mathsf{PoolValue}_{Sprout}(\mathsf{height}) \\
+    &+\,\; \mathsf{PoolValue}_{Sapling}(\mathsf{height}) \\
+    &+\,\; \mathsf{PoolValue}_{Orchard}(\mathsf{height}) \\
+    &+\,\; \mathsf{PoolValue}_{Deferred}(\mathsf{height})
+    \end{array}
+
+References
+==========
+
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to
+    Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs
+    Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#zip-1014] `ZIP 1014: Establishing a Dev Fund for ECC, ZF, and Major Grants <zip-1014.rst>`_
+.. [#zip-0207] `ZIP 207: Funding Streams <zip-0207.rst>`_
+.. [#zip-0207-funding-streams] `ZIP 207: Funding Streams. Section: Funding streams <zip-0207.rst#funding-streams>`_
+.. [#zip-0207-consensus-rules] `ZIP 207: Funding Streams. Section: Consensus rules <zip-0207.rst#consensus-rules>`_
