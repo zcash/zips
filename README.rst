@@ -162,5 +162,6 @@ be deleted.
 
   <embed><table>
     <tr> <th>Title</th> </tr>
-    <tr> <td class="left"><a href="draft-nuttycom-lockbox-streams.rst">Lockbox for Decentralized Grants Allocation</a></td>
+    <tr> <td class="left"><a href="draft-nuttycom-funding-allocation.rst">Allocation of Block Rewards for Decentralized Development Funding</a></td>
+    <tr> <td class="left"><a href="draft-nuttycom-lockbox-streams.rst">Lockbox Funding Streams</a></td>
   </table></embed>
