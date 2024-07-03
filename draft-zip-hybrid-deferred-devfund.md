@@ -370,7 +370,7 @@ released under an Open Source license (as defined by the Open Source Initiative
 
 **Enforcement**
 
-ZF or FPF MUST contractually commit to fulfill these obligations on behalf of
+FPF MUST contractually commit to fulfill these obligations on behalf of
 ZCG, and the prescribed use of funds, such that substantial violation, not
 promptly remedied, will result in a modified version of Zcash node software
 that removes ZCG’s Dev Fund slice and allocates it to the Deferred Dev Fund
