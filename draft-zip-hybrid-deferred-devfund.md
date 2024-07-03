@@ -4,7 +4,7 @@
     Title: Hybrid Deferred Development Fund
     Owners: Jason McGee <aquietinvestor@gmail.com>
             Skylar Saveland <skylar@free2z.com>
-            Peacemonger < >
+            Peacemonger <usezcash@proton.me>
             Gguy <babygguy@gmail.com
     Credits: Daira Emma Hopwood, Str4d, Kris Nuttycomb
     Status: Draft
