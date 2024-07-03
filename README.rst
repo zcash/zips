@@ -163,4 +163,5 @@ be deleted.
   <embed><table>
     <tr> <th>Title</th> </tr>
     <tr> <td class="left"><a href="draft-nuttycom-lockbox-streams.rst">Lockbox for Decentralized Grants Allocation</a></td>
+    <tr> <td class="left"><a href="draft-zf-community-dev-fund-2-proposal.rst">Establishing a Hybrid Dev Fund for ZF, ZCG and a Dev Fund Reserve</a></td>
   </table></embed>
