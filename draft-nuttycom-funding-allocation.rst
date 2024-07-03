@@ -40,11 +40,11 @@ Abstract
 ========
 
 This ZIP proposes several options for the allocation of a percentage of the
-Zcash block reward, post-November 2024 halving, to an in-protocol "lockbox."
-Currently, 80% of the block reward goes to miners, while 20% is distributed
+Zcash block subsidy, post-November 2024 halving, to an in-protocol "lockbox."
+Currently, 80% of the block subsidy goes to miners, while 20% is distributed
 among the Major Grants Fund (ZCG), Electric Coin Company (ECC), and the Zcash
 Foundation (ZF). If no changes are made, this 20% dev fund will expire,
-resulting in the entire block reward going to miners, leaving no block-reward
+resulting in the entire block subsidy going to miners, leaving no block-subsidy
 funds for essential protocol development, security, marketing, or legal
 expenses.
 
@@ -142,7 +142,7 @@ covered by this proposal:
    complies with applicable laws and regulations.
 
 3. **Impact Assessment**: The long-term impact of reallocating a portion of the
-   block reward to the lockbox on the Zcash ecosystem, including its effect on
+   block subsidy to the lockbox on the Zcash ecosystem, including its effect on
    miners, developers, and the broader community, is not analyzed in this ZIP.
    Subsequent proposals will need to evaluate the outcomes and make necessary
    adjustments based on real-world feedback and data.
@@ -152,7 +152,7 @@ Specification
 
 The following alternatives all depend upon the Lockbox Funding Streams proposal
 [#zip-lockbox-funding-streams]_ for storage of funds into a deferred value
-pool. 
+pool.
 
 Some of the alternatives described below do not specify a termination height
 for the funding streams they propose. In these cases, the termination height
@@ -167,7 +167,7 @@ Alternative 1
 
 Proposed by Skylar Saveland
 
-* 50% of the block subsidy is to be distributed to the lockbox. 
+* 50% of the block subsidy is to be distributed to the lockbox.
 
 As of block height 2726400, and continuing until modified by a future ZIP, the
 complete set of funding streams will be::
@@ -181,17 +181,22 @@ complete set of funding streams will be::
 Motivations for Alternative 1
 '''''''''''''''''''''''''''''
 
-<TBD>
+This alternative proposes a substantially larger slice of the block subsidy
+than is currently allocated for development funding, in order to provide 
+a long-term source of funding for protocol improvements. It is intended that
+a future mechanism put in place for the disbursement of these funds to only
+release funds from the pool in relatively small increments and with a bounded
+upper value, to ensure that funding remains available for years to come.
 
 Alternative 2
 -------------
 
 Proposed by Jason McGee
 
-* 12% of the block subsidy is to be distributed to the lockbox. 
+* 12% of the block subsidy is to be distributed to the lockbox.
 * 8% of the block subsidy is to be distributed to the Financial Privacy
   Foundation (FPF), for the express use of the Zcash Community Grants Committee
-  (ZCG) to fund independent teams in the Zcash ecosystem. 
+  (ZCG) to fund independent teams in the Zcash ecosystem.
 
 As of block height 2726400, and continuing for one year, the complete set of
 funding streams will be::
@@ -226,7 +231,7 @@ Alternative 3
 
 Proposed by Kris Nuttycombe
 
-* 20% of the block subsidy is to be distributed to the lockbox. 
+* 20% of the block subsidy is to be distributed to the lockbox.
 
 As of block height 2726400, and continuing for two years, the complete set of
 funding streams will be::
@@ -243,6 +248,33 @@ Motivations for Alternative 3
 This alternative is presented as the simplest allocation of block rewards
 to a lockbox for future disbursement that is consistent with results of
 community polling.
+
+Alternative 4
+-------------
+
+Proposed by NoamChom (Zcash forum)
+
+* 17% of the block subsidy is to be distributed to the lockbox.
+* 8% of the block subsidy is to be distributed to the Financial Privacy
+  Foundation (FPF), for the express use of the Zcash Community Grants Committee
+  (ZCG) to fund independent teams in the Zcash ecosystem.
+
+As of block height 2726400, and continuing for four years, the complete set of
+funding streams will be::
+
+  ================= =========== ============= ============== ============
+        Stream       Numerator   Denominator   Start height   End height
+  ================= =========== ============= ============== ============
+  ``FS_DEFERRED``       17           100          2726400      4406400
+  ``FS_FPF_ZCG``         8           100          2726400      4406400
+  ================= =========== ============= ============== ============
+
+Motivations for Alternative 4
+'''''''''''''''''''''''''''''
+
+This alternative proposes a slightly larger slice of the block subsidy than is
+currently allocated for development funding, in order to better provide for the
+needs of the Zcash community.
 
 References
 ==========
