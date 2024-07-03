@@ -457,3 +457,4 @@ References
     Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs
     Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
 .. [#zip-1014] `ZIP 1014: Dev Fund Proposal and Governance <zip-1014.rst>`_
+.. [#zip-lockbox-funding-streams] `Lockbox Funding Streams <https://zips.z.cash/draft-nuttycom-lockbox-streams>`_
