@@ -48,6 +48,10 @@ nonprofit corporation of that name.
 Islands-incorporated non-profit foundation company limited by guarantee of 
 that name.
 
+"Autonomous Entities" refers to committees, DAOs, teams or other groups to 
+which FPF provides operations, administrative, and financial management 
+support. 
+
 "Section 501(c)(3)" refers to that section of the U.S. Internal Revenue Code 
 (Title 26 of the U.S. Code). [#section501c3]_
 
@@ -149,12 +153,6 @@ execution; but it should strive to support and use these once they are built.
 
 The Dev Fund should comply with legal, regulatory, and taxation constraints in 
 pertinent jurisdictions.
-
-This ZIP recognizes there is strong community support for a non-direct funding 
-model. As such, BP, ECC and ZF MUST collaborate with the Zcash community to 
-research and explore the establishment of a non-direct funding model. The 
-research should consider potential designs as well as possible legal and 
-regulatory risks.
 
 
 Non-requirements
@@ -425,6 +423,12 @@ different mechanism for ecosystem development funding.
 BP, ECC, ZF and FPF SHOULD facilitate the amendment or replacement of the Dev 
 Fund if there is sufficient community support for doing so. 
 
+This ZIP recognizes there is strong community support for a non-direct funding 
+model. As such, BP, ECC and ZF MUST collaborate with the Zcash community to 
+research and explore the establishment of a non-direct funding model. The 
+research should consider potential designs as well as possible legal and 
+regulatory risks.
+
 
 Future Community Governance
 ---------------------------
@@ -443,7 +447,7 @@ ZF Board Composition
 --------------------
 
 Members of ZF's Board of Directors MUST NOT hold equity in ECC or have current 
-business or employment relationships with ECC.
+business or employment relationships with ECC or BP.
 
 The Zcash Foundation SHOULD endeavor to use the Zcash Community Advisory Panel 
 (or successor mechanism) as advisory input for future board elections.
@@ -453,7 +457,7 @@ FPF Board Composition
 --------------------
 
 Members of FPF's Board of Directors MUST NOT hold equity in ECC or have current 
-business or employment relationships with ECC. 
+business or employment relationships with ECC or BP. 
 
 
 Acknowledgements
