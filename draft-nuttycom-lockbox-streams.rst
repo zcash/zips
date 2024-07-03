@@ -68,13 +68,13 @@ Deferred Development Fund Chain Value Pool Balance
 --------------------------------------------------
 
 Full node implementations MUST track an additional
-:math:`\mathsf{PoolValue}_{Deferred}` chain value pool balance", in addition to
+:math:`\mathsf{PoolValue}_{Deferred}` chain value pool balance, in addition to
 the Sprout, Sapling, and Orchard chain value pool balances. This balance is
 set to zero prior to the activation of Network Upgrade 6.
 
 ZIP 207 [#zip-0207]_ is modified as follows:
 
-In the section **Funding Streams** [#zip-0207-funding-streams]_, instead of:
+In the section **Funding streams** [#zip-0207-funding-streams]_, instead of:
 
     Each funding stream has an associated sequence of recipient addresses,
     each of which MUST be either a transparent P2SH address or a Sapling address.
@@ -85,7 +85,7 @@ it will be modified to read:
     MUST be either a transparent P2SH address, a Sapling address, or the identifier
     `DEFERRED_POOL`.
 
-In the section **Consensus Rules** [#zip-0207-consensus-rules]_, the following
+In the section **Consensus rules** [#zip-0207-consensus-rules]_, the following
 will be added:
 
     The "prescribed way" to pay to the `DEFERRED_POOL` is to add
@@ -113,5 +113,5 @@ References
     Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
 .. [#zip-1014] `ZIP 1014: Establishing a Dev Fund for ECC, ZF, and Major Grants <zip-1014.rst>`_
 .. [#zip-0207] `ZIP 207: Funding Streams <zip-0207.rst>`_
-.. [#zip-0207-funding-strams] `ZIP 207: Funding Streams <zip-0207.rst#funding-streams>`_
-.. [#zip-0207-consensus-rules] `ZIP 207: Funding Streams <zip-0207.rst#consensus-rules>`_
+.. [#zip-0207-funding-streams] `ZIP 207: Funding Streams. Section: Funding streams <zip-0207.rst#funding-streams>`_
+.. [#zip-0207-consensus-rules] `ZIP 207: Funding Streams. Section: Consensus rules <zip-0207.rst#consensus-rules>`_
