@@ -312,6 +312,7 @@ FPF SHALL recognize the ZCG slice of the Dev Fund as a Restricted Fund
 donation under the above constraints (suitably formalized), and keep separate
 accounting of its balance and usage under its Transparency and Accountability
 obligations defined below.
+
 FPF SHALL strive to define target metrics and key performance indicators,
 and the ZCG Committee SHOULD utilize these in its funding decisions.
 
