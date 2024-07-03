@@ -224,15 +224,18 @@ The funds SHALL be received and administered by the
 Financial Privacy Foundation (FPF). FPF MUST disburse them for grants and
 expenses reasonably related to the administration of the ZCG program, but
 subject to the following additional constraints:
+
 1. These funds MUST only be used to issue grants to external parties that are
    independent of FPF, and to pay for expenses reasonably related to the
    administration of the ZCG program. They MUST NOT be used by FPF for
    its internal operations and direct expenses not related to the
    administration of grants or the grants program.
+   
 2. ZCG SHOULD support well-specified work proposed by the grantee, at
    reasonable market-rate costs. They can be of any duration or ongoing without
    a duration limit. Grants of indefinite duration SHOULD have semiannual
    review points for continuation of funding.
+   
 3. Priority SHOULD be given to major grants that bolster teams with substantial
    (current or prospective) continual existence, and set them up for long-term
    success, subject to the usual grant award considerations (impact, ability,
@@ -241,17 +244,21 @@ subject to the following additional constraints:
    coaching, technical resources, creating entrepreneurial opportunities, etc.
    If one proposal substantially duplicates another’s plans, priority SHOULD be
    given to the originator of the plans.
+
 4. The ZCG committee SHOULD be restricted to funding projects that further the
    Zcash cryptocurrency and its ecosystem (which is more specific than
    furthering financial privacy in general) as permitted by FPF
    and any relevant jurisdictional requirements.
+
 5. ZCG awards are subject to approval by a five-seat ZCG Committee. The ZCG
    Committee SHALL be selected by the ZF’s Community Advisory Panel or a
    successor process (e.g. as established by FPF). Elections SHALL be staggered
    to ensure continuity within the Committee.
+
 6. The ZCG Committee’s funding decisions will be final, requiring no approval
    from the FPF Board, but are subject to veto if the FPF judges them to
    violate any relevant laws or other (current or future) obligations.
+
 7. ZCG Committee members SHALL have a one-year term and MAY sit for reelection.
    The ZCG Committee is subject to the same conflict of interest policy that
    governs the FPF Board of Directors (i.e. they MUST recuse themselves when
@@ -266,6 +273,7 @@ subject to the following additional constraints:
    representative and independent (more on that below). Similarly, FPF should
    also endeavor to establish its own means of collecting community sentiment
    for the purpose of administering ZCG elections.
+
 8. A portion of the ZCG Slice shall be allocated to a Discretionary Budget,
    which may be disbursed for expenses reasonably related to the administration
    of the ZCG program. The amount of funds allocated to the Discretionary
@@ -273,17 +281,24 @@ subject to the following additional constraints:
    process. Any disbursement of funds from the Discretionary Budget MUST be
    approved by the ZCG Committee. Expenses related to the administration of the
    ZCG program include, without limitation the following:
+   
     * Paying third party vendors for services related to domain name
       registration, or the design, website hosting and administration of
       websites for the ZCG Committee.
+
     * Paying independent consultants to develop requests for proposals that
       align with the ZCG program.
+
     * Paying independent consultants for expert review of grant applications.
+
     * Paying for sales and marketing services to promote the ZCG program.
+
     * Paying third party consultants to undertake activities that support the
       purpose of the ZCG program.
+      
     * Reimbursement to members of the ZCG Committee for reasonable travel
       expenses, including transportation, hotel and meals allowance.
+
 9. A portion of the Discretionary Budget MAY be allocated to provide reasonable
    compensation to members of the ZCG Committee. Committee member compensation
    SHALL be limited to the hours needed to successfully perform their positions
@@ -292,6 +307,7 @@ subject to the following additional constraints:
    administered by the FPF. The compensation rate and hours for committee
    members SHALL be determined by the ZF’s Community Advisory Panel or
    successor process.
+
 10. The ZCG Committee’s decisions relating to the allocation and disbursement
     of funds from the Discretionary Budget will be final, requiring no approval
     from the FPF Board, but are subject to veto if the FPF judges
@@ -304,18 +320,23 @@ accounting of its balance and usage under its Transparency and Accountability
 obligations defined below.
 FPF SHALL strive to define target metrics and key performance indicators,
 and the ZCG Committee SHOULD utilize these in its funding decisions.
+
 **Direct Grant Option**
+
 It may be deemed better, operationally or legally, if ZCG funds are not
 accepted and disbursed by FPF, but rather directly assigned to the
 grantees. Thus, the following mechanism MAY be used in perpetuity for some or
 all grantees:
+
 Prior to each network upgrade, based on the ZCG Committee’s recommendation, the
 FPF SHALL publish a list of grantees’ addresses and the total number of
 Dev Fund ZEC per block they should receive. ECC and ZF SHALL implement this
 list in any implementations of the Zcash consensus rules they maintain. This
 decision will then be, effectively, ratified by the miners as the network
 upgrade activates.
+
 **Furthering Decentralization**
+
 FPF SHALL conduct periodic reviews of the
 organizational structure, performance, and effectiveness of the ZCG program and
 committee, taking into consideration the input and recommendations of the ZCG
@@ -330,10 +351,10 @@ community-driven, transparent, and responsive to the evolving needs of the
 Zcash community and ecosystem. In order to promote geographic decentralization,
 the new organization SHOULD establish its domicile outside of the United
 States.
+
 **Transparency and Accountability**
 
 FPF accept the following obligations in this section on behalf of ZCG:
-
 * Publication of the ZCG Dashboard, providing a snapshot of ZCG’s current
   financials and any disbursements made to grantees.
 * Bi-weekly meeting minutes documenting the decisions made by the ZCG committee
