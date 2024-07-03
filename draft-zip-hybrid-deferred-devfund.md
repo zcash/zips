@@ -338,6 +338,7 @@ Committee. As part of these periodic reviews, FPF MUST commit to
 exploring the possibility of transitioning ZCG into an independent organization
 if it is economically viable and it aligns with the interests of the Zcash
 ecosystem and prevailing community sentiment.
+
 In any transition toward independence, priority SHALL be given to maintaining
 or enhancing the decentralization of the Zcash ecosystem. The newly formed
 independent organization MUST ensure that decision-making processes remain
