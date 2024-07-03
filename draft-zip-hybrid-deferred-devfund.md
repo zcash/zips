@@ -5,7 +5,8 @@
     Owners: Jason McGee <aquietinvestor@gmail.com>
             Skylar Saveland <skylar@free2z.com>
             Peacemonger < >
-    Credits: Daira Emma Hopwood, Gguy
+            Gguy <babygguy@gmail.com
+    Credits: Daira Emma Hopwood, Str4d, Kris Nuttycomb
     Status: Draft
     Category: Consensus | Process
     Created: 2024-06-25
