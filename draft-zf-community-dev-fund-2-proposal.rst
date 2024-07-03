@@ -459,7 +459,7 @@ The Zcash Foundation SHOULD endeavor to use the Zcash Community Advisory Panel
 
 
 FPF Board Composition
---------------------
+---------------------
 
 Members of FPF's Board of Directors MUST NOT hold equity in ECC or have current 
 business or employment relationships with ECC or BP. 
