@@ -1,7 +1,7 @@
 ::
 
-  ZIP: XXXX
-  Title: Dev Fund for ECC, ZF and Zcash Community Grants
+  ZIP: Unassigned
+  Title: Establishing a Hybrid Dev Fund for ZF, ZCG and a Dev Fund Reserve
   Owners: Jack Gavigan <jack@zfnd.org>
   Credits: Eran Tromer
            Andrew Miller
@@ -55,34 +55,37 @@ support.
 "Section 501(c)(3)" refers to that section of the U.S. Internal Revenue Code 
 (Title 26 of the U.S. Code). [#section501c3]_
 
-"Zcash Community Advisory Panel" refers to the panel of community members 
-assembled by the Zcash Foundation and described at [#zcap]_.
+"Zcash Community Advisory Panel", also called "ZCAP", refers to the panel of 
+community members assembled by the Zcash Foundation and described at [#zcap]_.
 
 The terms "Testnet" and "Mainnet" are to be interpreted as described in 
 section 3.12 of the Zcash Protocol Specification [#protocol-networks]_.
+
+“Lockbox” refers to a deferred funding pool of issued Zcash value as described 
+in [Kris Nuttycomb’s draft “Lockbox for Decentralized Grants Allocation” 
+(see https://github.com/zcash/zips/pull/867)].
+
+“Dev Fund Reserve”, also called “DFR”, refers to the funds that are to be 
+stored in the Lockbox as a result of the changes described in this ZIP. 
 
 
 Abstract
 ========
 
 This proposal describes a structure for a new Zcash Development Fund (“Dev 
-Fund 2.0”), to be enacted in Network Upgrade 6 and last for 2 years. This 
-Dev Fund would consist of 20% of the block subsidies. 
+Fund”), to be enacted in Network Upgrade 6 and last for 2 years. This Dev 
+Fund shall consist of 20% of the block subsidies. 
 
-During the first year, the Dev Fund will be split into 3 slices:
+The Dev Fund shall be split into 3 slices:
 
-* 28% for the Bootstrap Project (the parent of the Electric Coin Company);
 * 32% for Zcash Foundation;
 * 40% for "Zcash Community Grants", intended to fund large-scale long-term 
   Projects (administered by the Financial Privacy Foundation, with extra
   community input and scrutiny).
+* 28% for a Dev Fund Reserve, to be stored in a Lockbox. 
 
-During the second year, the Dev Fund will be split into 2 slices: 
-
-* 32% for Zcash Foundation;
-* 68% for "Zcash Community Grants" intended to fund  large-scale long-term 
-  projects (administered by the Financial Privacy Foundation, with extra 
-  community input and scrutiny).
+The Lockbox will securely store funds until a disbursement mechanism is 
+established in a future ZIP.
 
 Governance and accountability are based on existing entities and legal 
 mechanisms, and increasingly decentralized governance is encouraged.
@@ -115,11 +118,21 @@ support charitable, educational, and scientific activities within the meaning
 of Section 501(c)(3) of Title 26 of the United States Code, and the Cayman 
 Islands’ Foundation Companies Law, 2017.
 
+The Zcash Community also supports the concept of a non-direct funding model, 
+and desires to allocate a slice of the block subsidies otherwise allocated 
+to miners to a Lockbox, with the expectation that those funds will be 
+distributed under a non-direct funding model, which may be implemented in a 
+future network upgrade. 
+
+For these reasons, the Zcash Community wishes to establish a Hybrid 
+Development Fund after the second halving in November 2024, and apportion it 
+among ZF, ZCG, and a Dev Fund Reserve to be held in a Lockbox.
+
 
 Requirements
 ============
 
-The Dev Fund should encourage decentralization of the work and funding, by 
+The Dev Fund should encourage decentralization of the Zcash ecosystem, by 
 supporting new teams dedicated to Zcash.
 
 The Dev Fund should maintain the existing teams and capabilities in the Zcash 
@@ -154,6 +167,17 @@ execution; but it should strive to support and use these once they are built.
 The Dev Fund should comply with legal, regulatory, and taxation constraints in 
 pertinent jurisdictions.
 
+The Lockbox must be prepared to allocate resources efficiently once the 
+disbursement mechanism is defined. This includes ensuring that funds are 
+readily available for future projects and not tied up in organizational 
+overhead. 
+
+The Lockbox must implement robust security measures to protect against 
+unauthorized access or misuse of funds. It must not be possible to disburse 
+funds from the Lockbox until the Zcash Community reaches consensus on the 
+design of a disbursement mechanism that is defined in a ZIP and implemented as 
+part of a future Network Upgrade. 
+
 
 Non-requirements
 ================
@@ -163,6 +187,9 @@ General on-chain governance is outside the scope of this proposal.
 Rigorous voting mechanisms (whether coin-weighted, holding-time-weighted or 
 one-person-one-vote) are outside the scope of this proposal, though there is 
 prescribed room for integrating them once available.
+
+The mechanism by which funds held in the Dev Fund Reserve Lockbox are to be 
+distributed is outside the scope of this proposal. 
 
 
 Specification
@@ -176,44 +203,20 @@ applied to the Zcash Testnet for testing purposes.
 Dev Fund allocation
 -------------------
 
-Starting at the second Zcash halving in 2024, until block height 3146400 
-(which is expected to occur approximately one year after the second Zcash 
-halving), 20% of the block subsidy of each block SHALL be allocated to a "Dev 
-Fund" that consists of the following three slices:
+Starting at the second Zcash halving in 2024, until block height 3566400 
+(which is expected to occur approximately two years after the second Zcash 
+halving), 20% of the block subsidy of each block SHALL be allocated to a Dev 
+Fund that consists of the following three slices:
 
-* 28% for the Bootstrap Project (denoted **BP slice**);
 * 32% for the Zcash Foundation (denoted **ZF slice**);
 * 40% for the Financial Privacy Foundation, for "Zcash Community Grants" for
-  large-scale long-term projects (denoted **ZCG slice**).
-
-Subsequently, starting at block height 3146400, 20% of the block subsidy of 
-each block SHALL be allocated to a "Dev Fund" that consists of the following 
-two slices:
-
-* 32% for the Zcash Foundation (denoted **ZF slice**);
-* 68% for the Financial Privacy Foundation, for "Zcash Community Grants" for
-  large-scale long-term projects (denoted **ZCG slice**).
+  large-scale long-term projects (denoted **ZCG slice**);
+* 28% for the Dev Fund Reserve (denoted **DFR slice**).
 
 The slices are described in more detail below. The fund flow will be 
 implemented at the consensus-rule layer, by sending the corresponding ZEC to 
 the designated address(es) for each block. This Dev Fund will end at block 
 height 3566400 (unless extended/modified by a future ZIP).
-
-
-BP slice (Bootstrap Project)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-This slice of the Dev Fund will flow as charitable contributions from the 
-Zcash Community to the Bootstrap Project, the newly formed parent organization 
-to the Electric Coin Company. The Bootstrap Project is organized for exempt 
-educational, charitable, and scientific purposes in compliance with Section 
-501(c)(3), including but not limited to furthering education, information, 
-resources, advocacy, support, community, and research relating to 
-cryptocurrency and privacy, including Zcash. This slice will be used at the 
-discretion of the Bootstrap Project for any purpose within its mandate to 
-support financial privacy and the Zcash platform as permitted under Section 
-501(c)(3). The BP slice will be treated as a charitable contribution from the 
-Community to support these educational, charitable, and scientific purposes.
 
 
 ZF slice (Zcash Foundation)
@@ -247,17 +250,16 @@ additional constraints:
    under the FPF umbrella, and to pay for expenses reasonably related to 
    the administration of Zcash Community Grants. They MUST NOT be used by FPF 
    for its internal operations and direct expenses not related to 
-   administration of Zcash Community Grants. Additionally, BP and ECC are 
-   ineligible to receive Zcash Community Grants while BP is receiving a slice
-   of the Dev Fund, and ZF is ineligible to receive Zcash Community Grants 
-   while ZF is receiving a slice of the Dev Fund. 
+   administration of Zcash Community Grants. Additionally, ZF is ineligible to 
+   receive Zcash Community Grants while ZF is receiving a slice of the Dev 
+   Fund. 
 
 2. Zcash Community Grants SHOULD support well-specified work proposed by the 
    grantee, at reasonable market-rate costs. They can be of any duration or 
    ongoing without a duration limit. Grants of indefinite duration SHOULD be 
    reviewed periodically (on a schedule that the Zcash Community Grants
-   Committee considers appropriate for the value and 
-   complexity of the grant) for continuation of funding.
+   Committee considers appropriate for the value and complexity of the grant) 
+   for continuation of funding.
 
 3. Priority SHOULD be given to Zcash Community Grants that bolster teams with 
    substantial (current or prospective) continual existence, and set them up 
@@ -324,7 +326,7 @@ additional constraints:
    and disbursement of funds from the Discretionary Budget will be final, 
    requiring no approval from the FPF Board, but are subject to veto if FPF 
    judges them to violate Cayman law or the FPF's reporting requirements and 
-   other (current or future) obligations under Cayman law.
+   other (current or future) obligations under Cayman Islands law.
 
 
 9. A portion of the Discretionary Budget MAY be allocated to provide 
@@ -346,14 +348,22 @@ formalized), and keep separate accounting of its balance and usage under its
 `Transparency and Accountability`_ obligations defined below.
 
 
+DFR slice (Dev Fund Reserve)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This slice of the Dev Fund is to be stored in a Lockbox until such time as the  
+Zcash Community reaches consensus on the design of a disbursement mechanism 
+that is defined in a ZIP and implemented as part of a future Network Upgrade. 
+
+
 Transparency and Accountability
 -------------------------------
 
 Obligations
 ~~~~~~~~~~~
 
-BP, ECC, ZF, FPF and Zcash Community Grant recipients (during and leading to 
-their award period) SHALL all accept the obligations in this section.
+ZF, FPF and Zcash Community Grant recipients (during and leading to their award 
+period) SHALL all accept the obligations in this section.
 
 Ongoing public reporting requirements:
 
@@ -366,10 +376,9 @@ Ongoing public reporting requirements:
   information).
 
 These reports may be either organization-wide, or restricted to the income, 
-expenses, and work associated with the receipt of Dev Fund. As BP is the 
-parent organization of ECC it is expected they may publish joint reports.
+expenses, and work associated with the receipt of Dev Fund. 
 
-It is expected that ECC, ZF, FPF and Zcash Community Grant recipients will be 
+It is expected that ZF, FPF and Zcash Community Grant recipients will be 
 focused primarily (in their attention and resources) on Zcash. Thus, they MUST
 promptly disclose:
 
@@ -381,10 +390,9 @@ BP, ECC, ZF, FPF and grant recipients MUST promptly disclose any security or
 privacy risks that may affect users of Zcash (by responsible disclosure under 
 confidence to the pertinent developers, where applicable).
 
-BP's reports, ECC's reports, and ZF's annual report on its non-grant 
-operations, SHOULD be at least as detailed as grant proposals/reports 
-submitted by other funded parties, and satisfy similar levels of public 
-scrutiny.
+ZF's and FPF's annual reports on its non-grant operations, SHOULD be at least 
+as detailed as grant proposals/reports submitted by other funded parties, and 
+satisfy similar levels of public scrutiny.
 
 All substantial software whose development was funded by the Dev Fund SHOULD 
 be released under an Open Source license (as defined by the Open Source 
@@ -400,13 +408,12 @@ For grant recipients, these conditions SHOULD be included in their contract
 with FPF, such that substantial violation, not promptly remedied, will cause 
 forfeiture of their grant funds and their return to FPF.
 
-BP, ECC, ZF and FPF MUST contractually commit to each other to fulfill these 
-conditions, and the prescribed use of funds, such that substantial violation, 
-not promptly remedied, will permit the other parties to issue a modified 
-version of Zcash node software that removes the violating party's Dev Fund 
-slice, and use the Zcash trademark for this modified version. The slice's funds 
-will be reassigned to ZCG (whose integrity is legally protected by the 
-Restricted Fund treatment).
+ZF and FPF MUST contractually commit to each other to fulfill these conditions, 
+and the prescribed use of funds, such that substantial violation, not promptly 
+remedied, will permit the other parties to issue a modified version of Zcash 
+node software that removes the violating party's Dev Fund slice, and use the 
+Zcash trademark for this modified version. The slice's funds will be reassigned 
+to ZCG (whose integrity is legally protected by the Restricted Fund treatment).
 
 
 Amendments and Replacement of the Dev Fund
@@ -420,14 +427,13 @@ support of the Zcash community.
 Nothing in this ZIP is intended to preclude replacement of the Dev Fund with a 
 different mechanism for ecosystem development funding. 
 
-BP, ECC, ZF and FPF SHOULD facilitate the amendment or replacement of the Dev 
-Fund if there is sufficient community support for doing so. 
+ZF and FPF SHOULD facilitate the amendment or replacement of the Dev Fund if 
+there is sufficient community support for doing so. 
 
 This ZIP recognizes there is strong community support for a non-direct funding 
-model. As such, BP, ECC and ZF MUST collaborate with the Zcash community to 
-research and explore the establishment of a non-direct funding model. The 
-research should consider potential designs as well as possible legal and 
-regulatory risks.
+model. As such, ZF MUST collaborate with the Zcash community to research and 
+explore the establishment of a non-direct funding model. The research should 
+consider potential designs as well as possible legal and regulatory risks.
 
 
 Future Community Governance
@@ -439,8 +445,8 @@ which governs the `ZCG slice (Zcash Community Grants)`_.
 
 It is highly desirable to develop robust means of decentralized community
 voting and governance, either by expanding the Zcash Community Advisory Panel 
-or a successor mechanism. BP, ECC, FPF and ZCG SHOULD place high priority on 
-such development and its deployment, in their activities and grant selection.
+or a successor mechanism. ZF, FPF and ZCG SHOULD place high priority on such 
+development and its deployment, in their activities and grant selection.
 
 
 ZF Board Composition
@@ -464,7 +470,8 @@ Acknowledgements
 ================
 
 This proposal is a modification of ZIP 1014 [#zip-1014]_ by the Zcash Foundation based on 
-feedback and suggestions from the community. 
+feedback and suggestions from the community, and incorporating elements of draft ZIPs by 
+community members Jason McGee and Skylar. 
 
 ZIP 1014 is a limited modification of Eran Tromer's ZIP 1012 [#zip-1012]_
 by the Zcash 
