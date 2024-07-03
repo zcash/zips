@@ -254,7 +254,7 @@ subject to the following additional constraints:
    violate any relevant laws or other (current or future) obligations.
 7. ZCG Committee members SHALL have a one-year term and MAY sit for reelection.
    The ZCG Committee is subject to the same conflict of interest policy that
-   governs the ZF Board of Directors (i.e. they MUST recuse themselves when
+   governs the FPF Board of Directors (i.e. they MUST recuse themselves when
    voting on proposals where they have a financial interest). At most one
    person with association with the BP/ECC, at most one person with
    association with the ZF, and at most one person with association with FPF
