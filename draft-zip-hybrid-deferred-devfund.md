@@ -350,7 +350,7 @@ States.
 
 **Transparency and Accountability**
 
-FPF accept the following obligations in this section on behalf of ZCG:
+FPF MUST accept the following obligations in this section on behalf of ZCG:
 * Publication of the ZCG Dashboard, providing a snapshot of ZCG’s current
   financials and any disbursements made to grantees.
 * Bi-weekly meeting minutes documenting the decisions made by the ZCG committee
