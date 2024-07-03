@@ -335,7 +335,7 @@ upgrade activates.
 
 **Furthering Decentralization**
 
-ZF or FPF SHALL conduct periodic (e.g. semiannual or annual) reviews of the
+ZF or FPF SHALL conduct periodic reviews of the
 organizational structure, performance, and effectiveness of the ZCG program and
 committee, taking into consideration the input and recommendations of the ZCG
 Committee. As part of these periodic reviews, ZF or FPF MUST commit to
