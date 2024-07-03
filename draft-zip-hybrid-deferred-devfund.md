@@ -228,8 +228,7 @@ subject to the following additional constraints:
    independent of ZF or FPF, and to pay for expenses reasonably related to the
    administration of the ZCG program. They MUST NOT be used by ZF or FPF for
    its internal operations and direct expenses not related to the
-   administration of grants or the grants program. Additionally, BP, ECC, and
-   ZF are ineligible to receive grant funding from the ZCG program.
+   administration of grants or the grants program.
 
 2. ZCG SHOULD support well-specified work proposed by the grantee, at
    reasonable market-rate costs. They can be of any duration or ongoing without
