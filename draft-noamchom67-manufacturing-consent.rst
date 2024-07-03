@@ -112,6 +112,7 @@ activation of a "non-direct funding model", such that the Zcash ecosystem
 preference can be expediently realized.
 
 Block subsidies will be administered through two organizations:
+
 1. Zcash Foundation  (✳️ for ECC, ZCG)
 2. Financial Privacy Fund (✳️ for Qedit, ZecHub)
 
@@ -225,6 +226,7 @@ This proposal mandates the ecosystem to design and deploy a "non-direct funding 
 as generally recommended in Josh Swihart's proposal [#draft-swihart]_.
 
 "Dev Fund" block subsidies will be administered through two organizations:
+
 1. Zcash Foundation  (✳️ for ECC, ZCG)
 2. Financial Privacy Fund (✳️ for Qedit, ZecHub)
 
@@ -238,7 +240,7 @@ extended/modified by a future ZIP).
 
 
 BP allocation (Bootstrap Project)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ✳️ These funds SHALL be received and administered by ZF.
 
@@ -258,7 +260,7 @@ purposes.
 
 
 ZF allocation (Zcash Foundation's general use)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This allocation of the Dev Fund will flow as charitable contributions from
 the Zcash Community to ZF, to be used at its discretion for any
@@ -272,7 +274,7 @@ these educational, charitable, and scientific purposes.
 
 
 Zcash Community Grants (ZCG)
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This allocation of the Dev Fund is intended to fund independent teams entering the
 Zcash ecosystem, to perform major and minor ongoing development (or other work) for the
@@ -368,7 +370,7 @@ decisions.
 
 
 Qedit
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~
 
 ✳️ These funds SHALL be received and administered by FPF.
 
@@ -378,7 +380,7 @@ activities related to Zcash Shielded Assets, and related protocol/ application/
 legal/ and other efforts.
 
 ZecHub
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~
 
 ✳️ These funds SHALL be received and administered by FPF.
 
