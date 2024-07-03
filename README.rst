@@ -149,3 +149,18 @@ Index of ZIPs
     <tr> <td>guide-markdown</td> <td class="left"><a href="zip-guide-markdown.md">{Something Short and To the Point}</a></td> <td>Draft</td>
     <tr> <td>guide</td> <td class="left"><a href="zip-guide.rst">{Something Short and To the Point}</a></td> <td>Draft</td>
   </table></embed>
+
+Drafts without assigned ZIP numbers
+-----------------------------------
+
+These are works-in-progress, and may never be assigned ZIP numbers if their
+ideas become obsoleted or abandoned. Do not assume that these drafts will exist
+in perpetuity; instead assume that they will either move to a numbered ZIP, or
+be deleted.
+
+.. raw:: html
+
+  <embed><table>
+    <tr> <th>Title</th> </tr>
+    <tr> <td class="left"><a href="draft-nuttycom-lockbox-streams.rst">Lockbox for Decentralized Grants Allocation</a></td>
+  </table></embed>

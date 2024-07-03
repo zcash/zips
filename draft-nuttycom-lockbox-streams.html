@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Draft nuttycom-lockbox-streams: Lockbox for Decentralized Grants Allocation</title>
+    <meta charset="utf-8" />
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+    <section>
+        <pre>ZIP: Unassigned
+Title: Lockbox for Decentralized Grants Allocation
+Owners: Kris Nuttycombe &lt;kris@nutty.land&gt;
+Original-Authors: Skylar Saveland &lt;skylar@free2z.com&gt;
+Credits: Daira-Emma Hopwood &lt;daira-emma@electriccoin.co&gt;
+         Jack Grigg &lt;jack@electriccoin.co&gt;
+Status: Draft
+Category: Consensus
+Created: 2024-07-02
+License: MIT
+Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/">https://github.com/zcash/zips/pull/</a>&gt;</pre>
+        <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The key words "MUST", "REQUIRED", "MUST NOT", "SHOULD", and "MAY" in this document are to be interpreted as described in BCP 14 <a id="footnote-reference-1" class="footnote_reference" href="#bcp14">1</a> when, and only when, they appear in all capitals.</p>
+        </section>
+        <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This ZIP specifies a change to the Zcash consensus protocol to define a pool of issued Zcash value to be used to fund future development efforts within the Zcash ecosystem.</p>
+            <p>This ZIP builds upon the funding stream mechanism defined in ZIP 207 <a id="footnote-reference-2" class="footnote_reference" href="#zip-0207">3</a>. It defines a new "DEFERRED_POOL" funding stream type such that portions of the block reward sent to a stream of this type are deposited directly into the deferred funding pool instead of being sent to a recipient address. Other ways of adding to the pool, such as allowing for direct deposits or fee value currently allocated to miners may be defined in the future.</p>
+        </section>
+        <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>In accordance with ZIP 1014, <a id="footnote-reference-3" class="footnote_reference" href="#zip-1014">2</a> the Zcash block reward is allocated with 80% going to miners, and the remaining 20% distributed among the Major Grants Fund (8%), Electric Coin Company (ECC) (7%), and the Zcash Foundation (ZF) (5%). This funding structure supports various essential activities such as protocol development, security, marketing, and legal expenses. However, this model will expire in November 2024, leading to the entire block reward being allocated to miners if no changes are made.</p>
+            <p>Several draft ZIPs under consideration for replacing the existing direct allocation of block rewards suggest that part of the block reward be directed to a reserve, the distribution of which is to be determined via a future ZIP. This ZIP is intended to provide a common mechanism that can be used to implement these various proposals.</p>
+        </section>
+        <section id="requirements"><h2><span class="section-heading">Requirements</span><span class="section-anchor"> <a rel="bookmark" href="#requirements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The Zcash protocol will maintain a new Deferred chain pool value balance
+                <span class="math">\(\mathsf{PoolValue}_{Deferred}\)</span>
+             for the deferred funding pool, in much the same fashion as it maintains chain pool value balances for the transparent, Sprout, Sapling, and Orchard pools.</p>
+            <p>The funding stream mechanism defined in ZIP 207 <a id="footnote-reference-4" class="footnote_reference" href="#zip-0207">3</a> is modified such that a funding stream may deposit funds into the deferred pool.</p>
+        </section>
+        <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <section id="deferred-development-fund-chain-value-pool-balance"><h3><span class="section-heading">Deferred Development Fund Chain Value Pool Balance</span><span class="section-anchor"> <a rel="bookmark" href="#deferred-development-fund-chain-value-pool-balance"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Full node implementations MUST track an additional
+                    <span class="math">\(\mathsf{PoolValue}_{Deferred}\)</span>
+                 chain value pool balance, in addition to the Sprout, Sapling, and Orchard chain value pool balances. This balance is set to zero prior to the activation of Network Upgrade 6.</p>
+                <p>ZIP 207 <a id="footnote-reference-5" class="footnote_reference" href="#zip-0207">3</a> is modified as follows:</p>
+                <p>In the section <strong>Funding streams</strong> <a id="footnote-reference-6" class="footnote_reference" href="#zip-0207-funding-streams">4</a>, instead of:</p>
+                <blockquote>
+                    <p>Each funding stream has an associated sequence of recipient addresses, each of which MUST be either a transparent P2SH address or a Sapling address.</p>
+                </blockquote>
+                <p>it will be modified to read:</p>
+                <blockquote>
+                    <p>Each funding stream has an associated sequence of recipients, each of which MUST be either a transparent P2SH address, a Sapling address, or the identifier <cite>DEFERRED_POOL</cite>.</p>
+                </blockquote>
+                <p>In the section <strong>Consensus rules</strong> <a id="footnote-reference-7" class="footnote_reference" href="#zip-0207-consensus-rules">5</a>, the following will be added:</p>
+                <blockquote>
+                    <p>The "prescribed way" to pay to the <cite>DEFERRED_POOL</cite> is to add
+                        <span class="math">\(\mathsf{FundingStream[FUND].Value}(\mathsf{height})\)</span>
+                     to
+                        <span class="math">\(\mathsf{PoolValue}_{Deferred}\)</span>
+                    .</p>
+                </blockquote>
+                <p>The protocol specification is modified to define the "total issued supply" such that the total issued supply as of a given height is given by the function:</p>
+                <div class="math">\(\begin{array}{ll}
+\mathsf{IssuedSupply}(\mathsf{height}) := &amp;\!\!\!\!\mathsf{PoolValue}_{Transparent}(\mathsf{height}) \\
+&amp;+\;\; \mathsf{PoolValue}_{Sprout}(\mathsf{height}) \\
+&amp;+\,\; \mathsf{PoolValue}_{Sapling}(\mathsf{height}) \\
+&amp;+\,\; \mathsf{PoolValue}_{Orchard}(\mathsf{height}) \\
+&amp;+\,\; \mathsf{PoolValue}_{Deferred}(\mathsf{height})
+\end{array}\)</div>
+            </section>
+        </section>
+        <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <table id="bcp14" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>1</th>
+                        <td><a href="https://www.rfc-editor.org/info/bcp14">Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-1014" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>2</th>
+                        <td><a href="zip-1014">ZIP 1014: Establishing a Dev Fund for ECC, ZF, and Major Grants</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0207" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>3</th>
+                        <td><a href="zip-0207">ZIP 207: Funding Streams</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0207-funding-streams" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>4</th>
+                        <td><a href="zip-0207#funding-streams">ZIP 207: Funding Streams. Section: Funding streams</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0207-consensus-rules" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>5</th>
+                        <td><a href="zip-0207#consensus-rules">ZIP 207: Funding Streams. Section: Consensus rules</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </section>
+</body>
+</html>
