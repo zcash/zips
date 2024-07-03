@@ -281,21 +281,15 @@ subject to the following additional constraints:
    process. Any disbursement of funds from the Discretionary Budget MUST be
    approved by the ZCG Committee. Expenses related to the administration of the
    ZCG program include, without limitation the following:
-   
     * Paying third party vendors for services related to domain name
       registration, or the design, website hosting and administration of
       websites for the ZCG Committee.
-
     * Paying independent consultants to develop requests for proposals that
       align with the ZCG program.
-
     * Paying independent consultants for expert review of grant applications.
-
     * Paying for sales and marketing services to promote the ZCG program.
-
     * Paying third party consultants to undertake activities that support the
       purpose of the ZCG program.
-      
     * Reimbursement to members of the ZCG Committee for reasonable travel
       expenses, including transportation, hotel and meals allowance.
 
