@@ -331,6 +331,7 @@ Zcash community and ecosystem. In order to promote geographic decentralization,
 the new organization SHOULD establish its domicile outside of the United
 States.
 **Transparency and Accountability**
+
 FPF accept the following obligations in this section on behalf of ZCG:
 
 * Publication of the ZCG Dashboard, providing a snapshot of ZCG’s current
