@@ -84,6 +84,11 @@ Community Grants.
 
 The primary motivations for this hybrid structure are:
 
+* **Moving Towards a Non-Direct Funding Model**: There is strong community
+  support for a non-direct Dev Fund funding model.  Allocating funds to a
+  Hybrid Deferred Dev Fund Lockbox gives the community time to research and
+  implement such a model while continuing to fund grant recipients.
+  
 * **Avoiding immediate miner allocation**: Without the Hybrid Deferred Dev
   Fund, the expiration of the current dev fund would result in the entire block
   reward going to miners, requiring a future network upgrade to redirect funds
@@ -107,11 +112,6 @@ The primary motivations for this hybrid structure are:
   lockbox, would disproportionally impact grant recipients. This hybrid
   approach promotes decentralization and the growth of independent development
   teams.
-
-* **Moving Towards a Non-Direct Funding Model**: There is strong community
-  support for a non-direct Dev Fund funding model.  Allocating funds to a
-  Hybrid Deferred Dev Fund Lockbox gives the community time to research and
-  implement such a model while continuing to fund grant recipients.
 
 
 ## Requirements
