@@ -78,6 +78,9 @@ feature enhancement (and subsequent application layer, legal, maintenance
 efforts, et al) on-going by Qedit, et al.
 <https://forum.zcashcommunity.com/t/grant-update-zcash-shielded-assets-monthly-updates/41153>
 
+✳️ is used to denote elements of the process part of the ZIP that are still
+to-be-determined.
+
 
 Abstract
 ========
@@ -109,10 +112,10 @@ activation of a "non-direct funding model", such that the Zcash ecosystem
 preference can be expediently realized.
 
 Block subsidies will be administered through two organizations:
-1. Zcash Foundation  (**for ECC, ZCG)
-2. Financial Privacy Fund (**for Qedit, ZecHub)
+1. Zcash Foundation  (✳️ for ECC, ZCG)
+2. Financial Privacy Fund (✳️ for Qedit, ZecHub)
 
-**ZF and FPF adminstration of block subsidy details, costs, et al are currently under debate**
+✳️ **ZF and FPF adminstration of block subsidy details, costs, et al are currently under debate**
 [#zf-fpf-admin-details]_
 
 
@@ -222,10 +225,10 @@ This proposal mandates the ecosystem to design and deploy a "non-direct funding 
 as generally recommended in Josh Swihart's proposal [#draft-swihart]_.
 
 "Dev Fund" block subsidies will be administered through two organizations:
-1. Zcash Foundation  (**for ECC, ZCG)
-2. Financial Privacy Fund (**for Qedit, ZecHub)
+1. Zcash Foundation  (✳️ for ECC, ZCG)
+2. Financial Privacy Fund (✳️ for Qedit, ZecHub)
 
-**ZF and FPF adminstration of block subsidy details, costs, et al are currently under debate**
+✳️ **ZF and FPF adminstration of block subsidy details, costs, et al are currently under debate**
 [#zf-fpf-admin-details]_
 
 The allocations are described in more detail below. The fund flow will be implemented
@@ -237,7 +240,7 @@ extended/modified by a future ZIP).
 BP allocation (Bootstrap Project)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**These funds SHALL be received and administered by ZF.
+✳️ These funds SHALL be received and administered by ZF.
 
 This allocation of the Dev Fund will flow as charitable contributions from
 the Zcash Community to the Bootstrap Project, the newly formed parent
@@ -276,7 +279,7 @@ Zcash ecosystem, to perform major and minor ongoing development (or other work) 
 public good of the Zcash ecosystem, to the extent that such teams are available
 and effective.
 
-**These funds SHALL be received and administered by ZF (or FPF, pending TBD outcomes
+✳️ These funds SHALL be received and administered by ZF (or FPF, pending TBD outcomes
 of FPF proposal: [#zf-fpf-admin-details]_).
 ZF MUST disburse them for "Major Grants" and expenses reasonably related to
 the administration of Major Grants, but subject to the following additional constraints:
@@ -367,7 +370,7 @@ decisions.
 Qedit
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-**These funds SHALL be received and administered by FPF.
+✳️ These funds SHALL be received and administered by FPF.
 
 This allocation of the Dev Fund will flow as charitable contributions from
 the Zcash Community to Qedit, for the purposes of supporting their ongoing
@@ -377,7 +380,7 @@ legal/ and other efforts.
 ZecHub
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-**These funds SHALL be received and administered by FPF.
+✳️ These funds SHALL be received and administered by FPF.
 
 This allocation of the Dev Fund will flow as charitable contributions from
 the Zcash Community to ZecHub, for the purposes of continuing their 
