@@ -157,8 +157,7 @@ covered by this proposal:
    allocated, the voting or decision-making process, and the structure of the
    decentralized mechanism (such as a DAO).
 
-2. **Specific Allocation Percentages**: While this ZIP proposes the allocation
-   of |percentage| of the block reward to the lockbox, it does not prescribe
+2. **Specific Allocation Percentages**: This ZIP does not prescribe
    the detailed percentages for various funding categories or the specific
    amounts that will be distributed to different projects or entities.
 
