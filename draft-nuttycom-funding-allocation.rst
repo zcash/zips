@@ -171,12 +171,168 @@ complete set of funding streams will be::
 Motivations for Alternative 1
 '''''''''''''''''''''''''''''
 
-This alternative proposes a substantially larger slice of the block subsidy
-than is currently allocated for development funding, in order to provide 
-a long-term source of funding for protocol improvements. It is intended that
-a future mechanism put in place for the disbursement of these funds to only
-release funds from the pool in relatively small increments and with a bounded
-upper value, to ensure that funding remains available for years to come.
+This alternative proposes allocating a significantly larger portion of the block
+subsidy to development funding than is currently allocated, aiming to establish
+a long-term source of funding for protocol improvements. The disbursement of
+these funds will be governed by a mechanism to be determined by the community
+in the future, ensuring that the funds are released under agreed-upon constraints
+to maintain availability for years to come.
+
+The proposed lockbox funding model for Zcash's post-NU6 halving period allocates
+50% of the block reward to a deferred reserve, or "lockbox," designated for
+future decentralized grants funding. This approach is designed to address several
+critical motivations:
+
+.. Note: some of these are similar to the general motivations.
+
+1. **Regulatory Compliance**:
+
+   - **Reduction of Regulatory Risks**: Direct funding to legal entities poses
+     significant regulatory risks. Allocating funds to a decentralized lockbox
+     mitigates these risks by avoiding direct funding of any specific
+     organizations. This alternative represents the strongest regulatory
+     posture, as it reduces the likelihood of legal challenges associated with
+     funding centralized entities directly.
+
+   - **Potential Minimization of KYC Requirements**: The current funding
+     mechanism involves 100% KYC for recipients, which can be detrimental to
+     security, privacy, resilience, and participation. A sufficiently
+     decentralized disbursement mechanism could reduce the need for recipients
+     to undergo KYC with a controlling entity. This would preserve privacy and
+     encourage broader participation from developers and contributors who value
+     anonymity and privacy. By shifting from direct funding of specific legal
+     entities to a decentralized funding model, we create a more secure,
+     private, and resilient ecosystem. This potential future difference
+     enhances the robustness of the Zcash network by fostering a diverse and
+     engaged community without the constraints of centralized direct funding.
+
+2. **Ensuring Sustainable Development Funding**:
+
+   - **Need for Continuous Funding**: Zcash has numerous ongoing and future
+     projects essential for its ecosystem's growth and security. Without a
+     change, the expiration of the devfund will result in 100% of the block
+     reward going to miners, jeopardizing funding for development. The proposed
+     50% lockbox allocation ensures that funds are directed towards sustaining
+     and improving the Zcash ecosystem through a wide array of initiatives.
+     These include protocol development, new features, security audits, legal
+     support, marketing, ZSAs (Zcash Shielded Assets), stablecoins,
+     programmability, transitioning to a modern Rust codebase, wallets,
+     integrations with third-party services, improved node software, block
+     explorers, supporting ambassadors, and educational initiatives like
+     ZecHub.
+
+   - **Balanced Incentives for Network and Protocol Security**: While miners
+     have been essential in providing network security through hashpower,
+     allocating 100% of the block reward to mining alone overlooks the crucial
+     need for development, innovation, and protocol security. By investing in
+     these priorities, we enhance the long-term health and value of the
+     protocol, which ultimately benefits miners. A well-maintained and
+     innovative protocol increases the overall value of the network, making
+     miners' rewards more valuable. This balanced approach aligns the interests
+     of miners with the broader community, ensuring sustainable growth and
+     security for Zcash.
+
+3. **Efficiency, Accountability, and Decentralization**:
+
+   - **Reduction of Inefficiencies**: Traditional funding models often involve
+     significant corporate overhead and centralized decision-making, leading to
+     inefficiencies. The prior model provided two 501(c)(3) organizations with
+     constant funding for four years, which reduced accountability and allowed
+     for potential misalignment with the community's evolving priorities. By
+     funding projects directly rather than organizations, we can allocate
+     resources more efficiently, ensuring that funds are used for tangible
+     development rather than administrative costs. This approach minimizes the
+     influence of corporate executives, whose decisions have sometimes failed
+     to address critical issues promptly.
+
+   - **Increased Accountability**: A presumed grants-only mechanism, to be
+     defined in a future ZIP, would necessitate continuous accountability and
+     progress for continuous funding. Unlike the prior model, where
+     organizations received guaranteed funding regardless of performance, a
+     grants-based approach would require projects to demonstrate ongoing
+     success and alignment with community goals to secure funding. This
+     continuous evaluation fosters a more responsive and responsible allocation
+     of resources, ensuring that funds are directed towards initiatives that
+     provide the most value to the Zcash ecosystem. By increasing
+     accountability, this model promotes a culture of excellence and
+     innovation, driving sustained improvements and advancements in the
+     protocol.
+
+   - **Promotion of Decentralization**: The proposed non-direct funding model
+     stores deferred funds for future use, with the specifics of the
+     disbursement mechanism to be determined by a future ZIP. This could allow
+     the community to have a greater influence over funding decisions, aligning
+     more closely with the ethos of the Zcash project. By decentralizing the
+     allocation process, this approach has the potential to foster innovation
+     and community involvement, ensuring that development priorities are more
+     reflective of the community's needs and desires, promoting a more open,
+     transparent, and resilient ecosystem.
+
+4. **Incentives for Development and Collaboration**:
+
+   - **Creating a Strong Incentive to Implement the Disbursement Mechanism**:
+     Allocating 50% of the block reward to the lockbox indefinitely creates
+     a powerful incentive for the community to work together to implement the
+     disbursement mechanism without delay. Knowing that there is a substantial
+     amount of funds available, stakeholders will be motivated to develop and
+     agree on an effective, decentralized method for distributing these funds.
+
+   - **Incentivizing Continuous Improvements**: The accumulation of a large
+     stored fortune within the lockbox incentivizes continuous improvements
+     to the Zcash protocol and ecosystem. Developers, contributors, and
+     community members will be driven to propose and execute projects that
+     enhance the network, knowing that successful initiatives have the
+     potential to receive funding. This model fosters a culture of ongoing
+     innovation and development, ensuring that Zcash remains at the forefront
+     of blockchain technology.
+
+   - **Aligning Long-Term Interests**: By tying a significant portion of the
+     block reward to future decentralized grants funding, the model aligns
+     the long-term interests of all stakeholders. Miners, developers, and
+     community members alike have a vested interest in maintaining and
+     improving the Zcash network, as the value and success of their efforts
+     are directly linked to the availability and effective use of the lockbox
+     funds. This alignment of incentives ensures that the collective efforts
+     of the community are focused on the sustainable growth and advancement
+     of the Zcash ecosystem.
+
+Guidance on Future Requirements for Alternative 1
+'''''''''''''''''''''''''''''''''''''''''''''''''
+
+To support the motivations outlined, the following guidance is proposed for
+Alternative 1. Future ZIP(s) will define the disbursement mechanism. These
+are suggestions to achieve the outlined motivations that should be considered
+in those future ZIP(s):
+
+1. **Cap on Grants**: Grants should be capped to prevent any single project
+   from depleting the lockbox funds rapidly. This ensures long-term
+   availability of funds for various projects. Additionally, capping grants
+   necessitates more granular definitions of work, goals, milestones, KPIs, and
+   achievements, requiring that work be confirmed and approved in smaller, more
+   manageable increments.
+
+2. **Decentralized Disbursement Mechanism**: The disbursement mechanism should
+   be sufficiently decentralized to ensure the regulatory motivations are
+   fulfilled. A decentralized mechanism could reduce the need for recipients to
+   undergo KYC with a controlling party, preserving privacy and aligning with
+   the ethos of the Zcash project.
+
+3. **Governance and Accountability**: The governance structure for the
+   disbursement mechanism should be open and accountable, with decisions made
+   through community consensus or decentralized voting processes to maintain
+   trust and accountability. This approach will help ensure that the allocation
+   of funds is fair and aligned with the community's evolving priorities.
+
+4. **Periodic Review and Adjustment**: There should be provisions for periodic
+   review and adjustment of the funding mechanism to address any emerging
+   issues or inefficiencies and to adapt to the evolving needs of the Zcash
+   ecosystem. This could include the ability to add or remove participants as
+   necessary. Regular assessments will help keep the funding model responsive
+   and effective, ensuring it continues to meet the community's goals.
+
+By addressing these motivations and providing this guidance, Alternative 1 aims
+to provide a robust, sustainable, and decentralized funding model that aligns
+with the principles and long-term goals of the Zcash community.
 
 Alternative 2: Hybrid Deferred Dev Fund: Transitioning to a Non-Direct Funding Model
 ------------------------------------------------------------------------------------
