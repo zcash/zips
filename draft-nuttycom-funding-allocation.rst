@@ -26,7 +26,7 @@ Abstract
 This ZIP proposes several options for the allocation of a percentage of the
 Zcash block subsidy, post-November 2024 halving, to an in-protocol "lockbox."
 The "lockbox" will be a separate pool of issued funds tracked by the protocol,
-as described in ZIP <TBD>: Lockbox for Decentralized Grants Allocation
+as described in ZIP <TBD>: Lockbox Funding Streams
 [#zip-lockbox-funding-streams]_. No disbursement mechanism is currently defined
 for this "lockbox"; the Zcash community will need to decide upon and specify a
 suitable decentralized mechanism for permitting withdrawals from this lockbox
