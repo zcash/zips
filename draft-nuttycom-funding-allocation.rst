@@ -7,6 +7,7 @@
   Original-Authors: Skylar Saveland <skylar@free2z.com>
   Credits: Daira-Emma Hopwood
            Jack Grigg
+           @Peacemonger (Zcash Forum)
   Status: Draft
   Category: Consensus
   Created: 2024-07-03
@@ -47,10 +48,14 @@ Motivation
 
 Starting at Zcash's second halving in November 2024, by default 100% of the
 block subsidies will be allocated to miners, and no further funds will be
-automatically allocated to any other entities. Consequently, no substantial new
-funding may be available to existing teams dedicated to furthering charitable,
-educational, or scientific purposes, such as research, development, and
-outreach.
+automatically allocated to any other entities. Consequently, unless the
+community takes action to approve new block-reward based funding, existing
+teams dedicated to development or outreach or furthering charitable,
+educational, or scientific purposes will likely need to seek other sources of
+funding; failure to obtain such funding would likely impair their ability to
+continue serving the Zcash ecosystem. Setting aside a portion of the block
+subsidy to fund development will help ensure that both existing teams and
+new contributors can obtain funding in the future.
 
 It is important to balance the incentives for securing the consensus protocol
 through mining with funding crucial charitable, educational, and scientific
@@ -160,7 +165,7 @@ complete set of funding streams will be::
   ================= =========== ============= ============== ============
         Stream       Numerator   Denominator   Start height   End height
   ================= =========== ============= ============== ============
-  ``FS_DEFERRED``       50           100          2726400     u32::MAX
+  ``FS_DEFERRED``       50           100          2726400      u32::MAX
   ================= =========== ============= ============== ============
 
 Motivations for Alternative 1
@@ -207,9 +212,10 @@ Motivations for Alternative 2
   approach promotes decentralization and the growth of independent development
   teams.
 
-* **Mitigating Regulatory Risks**: By minimizing direct funding of US-based
-  organizations, the lockbox helps to reduce potential regulatory scrutiny and
-  legal risks.
+* **Mitigating Regulatory Risks**: The Financial Privacy Foundation (FPF) is a
+  non-profit organization incorporated and based in the Cayman Islands. By
+  minimizing direct funding of US-based organizations, this proposal helps to
+  reduce potential regulatory scrutiny and legal risks.
 
 Alternative 3: Lockbox For Decentralized Grants Allocation (20% option)
 -----------------------------------------------------------------------
