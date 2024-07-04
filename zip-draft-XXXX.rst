@@ -217,11 +217,8 @@ every block.
 Proportion Specification
 ------------------------
 
-The proportions of the block subsidy allocated to the deferred development fund
-and any existing funding streams must add up to the intended total at every
-block. Before NU6 activation, the actual percentage allocated to the deferred
-development fund will be zero. After NU6 activation, |percentage| of the block
-reward will be allocated to the deferred development fund.
+After NU6 activation, |percentage| of the block reward will be allocated to the
+deferred development fund.
 
 Redefinition of Miner Subsidy
 ------------------------------
