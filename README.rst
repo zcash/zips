@@ -162,6 +162,9 @@ be deleted.
 
   <embed><table>
     <tr> <th>Title</th> </tr>
-    <tr> <td class="left"><a href="draft-nuttycom-funding-allocation.rst">Allocation of Block Rewards for Decentralized Development Funding</a></td>
+    <tr> <td class="left"><a href="draft-hopwood-coinbase-balance.rst">Blocks should balance exactly</a></td>
+    <tr> <td class="left"><a href="draft-noamchom67-manufacturing-consent.rst">Manufacturing Consent; Re-Establishing a Dev Fund for ECC, ZF, ZCG, Qedit, FPF, and ZecHub</a></td>
+    <tr> <td class="left"><a href="draft-nuttycom-funding-allocation.rst">Block Reward Allocation for Non-Direct Development Funding</a></td>
     <tr> <td class="left"><a href="draft-nuttycom-lockbox-streams.rst">Lockbox Funding Streams</a></td>
+    <tr> <td class="left"><a href="draft-zf-community-dev-fund-2-proposal.rst">Establishing a Hybrid Dev Fund for ZF, ZCG and a Dev Fund Reserve</a></td>
   </table></embed>
