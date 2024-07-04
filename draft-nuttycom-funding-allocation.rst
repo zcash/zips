@@ -25,12 +25,13 @@ Abstract
 
 This ZIP proposes several options for the allocation of a percentage of the
 Zcash block subsidy, post-November 2024 halving, to an in-protocol "lockbox."
-Currently, 80% of the block subsidy goes to miners, while 20% is distributed
-among the Major Grants Fund (ZCG), Electric Coin Company (ECC), and the Zcash
-Foundation (ZF). If no changes are made, this 20% dev fund will expire,
-resulting in the entire block subsidy going to miners, leaving no block-subsidy
-funds for essential protocol development, security, marketing, or legal
-expenses.
+The "lockbox" will be a separate pool of issued funds tracked by the protocol,
+as described in ZIP <TBD>: Lockbox for Decentralized Grants Allocation
+[#zip-lockbox-funding-streams]_. No disbursement mechanism is currently defined
+for this "lockbox"; the Zcash community will need to decide upon and specify a
+suitable decentralized mechanism for permitting withdrawals from this lockbox
+in a future ZIP in order to make these funds available for funding grants to
+ecosystem participants.
 
 The proposed lockbox addresses significant issues observed with [#zip-1014]_,
 such as regulatory risks, inefficiencies in funding organizations instead of
