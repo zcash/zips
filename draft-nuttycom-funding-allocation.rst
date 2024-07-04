@@ -33,11 +33,11 @@ suitable decentralized mechanism for permitting withdrawals from this lockbox
 in a future ZIP in order to make these funds available for funding grants to
 ecosystem participants.
 
-The proposed lockbox addresses significant issues observed with [#zip-1014]_,
-such as regulatory risks, inefficiencies in funding organizations instead of
-projects, and centralization. While the exact disbursement mechanism for the
-lockbox funds is yet to be determined and will be addressed in a future ZIP,
-the goal is to employ a decentralized mechanism that ensures community
+The proposed lockbox addresses significant issues observed with ZIP 1014
+[#zip-1014]_, such as regulatory risks, inefficiencies in funding organizations
+instead of projects, and centralization. While the exact disbursement mechanism
+for the lockbox funds is yet to be determined and will be addressed in a future
+ZIP, the goal is to employ a decentralized mechanism that ensures community
 involvement and efficient, project-specific funding. This approach is intended
 to potentially improve regulatory compliance, reduce inefficiencies, and
 enhance the decentralization of Zcash's funding structure.
