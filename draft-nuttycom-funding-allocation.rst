@@ -178,8 +178,8 @@ a future mechanism put in place for the disbursement of these funds to only
 release funds from the pool in relatively small increments and with a bounded
 upper value, to ensure that funding remains available for years to come.
 
-Alternative 2: Hybrid Deferred Dev Fund
----------------------------------------
+Alternative 2: Hybrid Deferred Dev Fund: Transitioning to a Non-Direct Funding Model
+------------------------------------------------------------------------------------
 
 Proposed by Jason McGee, Peacemonger, GGuy
 
