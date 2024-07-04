@@ -1,7 +1,7 @@
 ::
 
   ZIP: Unassigned
-  Title: Allocation of Block Rewards for Decentralized Development Funding
+  Title: Block Reward Allocation for Non-Direct Development Funding
   Owners: Kris Nuttycombe <kris@nutty.land>
           Jason McGee <aquietinvestor@gmail.com>
   Original-Authors: Skylar Saveland <skylar@free2z.com>
@@ -19,22 +19,6 @@ Terminology
 The key words "MUST", "REQUIRED", "MUST NOT", "SHOULD", and "MAY" in this
 document are to be interpreted as described in BCP 14 [#BCP14]_ when, and only
 when, they appear in all capitals.
-
-.. {Avoid duplicating definitions from other ZIPs. Instead use wording like this:}
-
-.. The terms "Mainnet" and "Testnet" in this document are to be interpreted as
-.. defined in the Zcash protocol specification [#protocol-networks]_.
-
-.. The term "full validator" in this document is to be interpreted as defined in
-.. the Zcash protocol specification [#protocol-blockchain]_.
-
-.. The terms below are to be interpreted as follows:
-
-.. {Term to be defined}
-..   {Definition.}
-.. {Another term}
-..   {Definition.}
-
 
 Abstract
 ========
@@ -162,8 +146,8 @@ these streams to be terminated.
 Alternatives
 ============
 
-Alternative 1
--------------
+Alternative 1: Lockbox For Decentralized Grants Allocation (perpetual 50% option)
+---------------------------------------------------------------------------------
 
 Proposed by Skylar Saveland
 
@@ -188,10 +172,10 @@ a future mechanism put in place for the disbursement of these funds to only
 release funds from the pool in relatively small increments and with a bounded
 upper value, to ensure that funding remains available for years to come.
 
-Alternative 2
--------------
+Alternative 2: Hybrid Deferred Dev Fund
+---------------------------------------
 
-Proposed by Jason McGee
+Proposed by Jason McGee, Peacemonger, GGuy
 
 * 12% of the block subsidy is to be distributed to the lockbox.
 * 8% of the block subsidy is to be distributed to the Financial Privacy
@@ -226,8 +210,8 @@ Motivations for Alternative 2
   organizations, the lockbox helps to reduce potential regulatory scrutiny and
   legal risks.
 
-Alternative 3
--------------
+Alternative 3: Lockbox For Decentralized Grants Allocation (20% option)
+-----------------------------------------------------------------------
 
 Proposed by Kris Nuttycombe
 
@@ -249,8 +233,8 @@ This alternative is presented as the simplest allocation of block rewards
 to a lockbox for future disbursement that is consistent with results of
 community polling.
 
-Alternative 4
--------------
+Alternative 4: Masters Of The Universe
+--------------------------------------
 
 Proposed by NoamChom (Zcash forum)
 
