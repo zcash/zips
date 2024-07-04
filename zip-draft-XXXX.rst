@@ -99,22 +99,6 @@ mechanism has several significant issues:
    from the community regarding what projects should be funded, leading to a
    misalignment between funded projects and community priorities.
 
-Given these issues, this ZIP proposes the creation of a decentralized "lockbox"
-to which |percentage| of the Zcash block reward will be allocated post-November
-2024 halving. The exact disbursement mechanism for the lockbox funds will be
-determined in a future ZIP, but the goal is to ensure:
-
-- Reduced regulatory risks by avoiding direct funding of specific
-  organizations.
-- Improved funding efficiency by allocating resources directly to projects
-  rather than organizations.
-- Enhanced decentralization by distributing decision-making power and ensuring
-  community involvement in funding decisions.
-- Potential tax efficiency by deferring taxable events until the liquidation of
-  funds by recipients, allowing for more flexibility in handling tax
-  liabilities and reducing the need for immediate liquidation compared to
-  directly funding US-based organizations with a USD bottom line.
-
 By addressing these issues, this proposal aims to ensure sustainable,
 efficient, and decentralized funding for essential activities within the Zcash
 ecosystem.
