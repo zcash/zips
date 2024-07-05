@@ -304,12 +304,13 @@ Alternative 1. Future ZIP(s) will define the disbursement mechanism. These
 are suggestions to achieve the outlined motivations that should be considered
 in those future ZIP(s):
 
-1. **Cap on Grants**: Grants should be capped to prevent any single project
-   from depleting the lockbox funds rapidly. This ensures long-term
-   availability of funds for various projects. Additionally, capping grants
-   necessitates more granular definitions of work, goals, milestones, KPIs, and
-   achievements, requiring that work be confirmed and approved in smaller, more
-   manageable increments.
+1. **Cap on Grants**: Grants should be capped to promote more granular
+   accountability and incremental goal-setting. This approach ensures that
+   projects are required to define their work, goals, milestones, KPIs, and
+   achievements in smaller, more manageable increments. Even if a single
+   project is utilizing significant funds quickly, the cap ensures that
+   progress is continuously evaluated and approved based on tangible results
+   and alignment with community priorities.
 
 2. **Decentralized Disbursement Mechanism**: The disbursement mechanism should
    be sufficiently decentralized to ensure the regulatory motivations are
