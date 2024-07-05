@@ -300,9 +300,10 @@ Guidance on Future Requirements for Alternative 1
 '''''''''''''''''''''''''''''''''''''''''''''''''
 
 To support the motivations outlined, the following guidance is proposed for
-Alternative 1. Future ZIP(s) will define the disbursement mechanism. These
-are suggestions to achieve the outlined motivations that should be considered
-in those future ZIP(s):
+Alternative 1. Future ZIP(s) will define the disbursement mechanism. These are
+suggestions to achieve the outlined motivations and should be considered in
+those future ZIP(s). It is important to note that these are ideas and guidance,
+not hard, enforceable requirements:
 
 1. **Cap on Grants**: Grants should be capped to promote more granular
    accountability and incremental goal-setting. This approach ensures that
