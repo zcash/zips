@@ -514,6 +514,7 @@ subject to the following additional constraints:
    process. Any disbursement of funds from the Discretionary Budget MUST be
    approved by the ZCG Committee. Expenses related to the administration of the
    ZCG program include, without limitation the following:
+
     * Paying third party vendors for services related to domain name
       registration, or the design, website hosting and administration of
       websites for the ZCG Committee.
@@ -572,6 +573,7 @@ Transparency and Accountability
 -------------------------------
 
 FPF MUST accept the following obligations in this section on behalf of ZCG:
+
 * Publication of the ZCG Dashboard, providing a snapshot of ZCG’s current
   financials and any disbursements made to grantees.
 * Bi-weekly meeting minutes documenting the decisions made by the ZCG committee
