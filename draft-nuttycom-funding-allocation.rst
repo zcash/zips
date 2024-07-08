@@ -28,7 +28,7 @@ This ZIP proposes several options for the allocation of a percentage of the
 Zcash block subsidy, post-November 2024 halving, to an in-protocol "lockbox."
 The "lockbox" will be a separate pool of issued funds tracked by the protocol,
 as described in ZIP <TBD>: Lockbox Funding Streams
-[#zip-lockbox-funding-streams]_. No disbursement mechanism is currently defined
+[#draft-nuttycom-lockbox-streams]_. No disbursement mechanism is currently defined
 for this "lockbox"; the Zcash community will need to decide upon and specify a
 suitable decentralized mechanism for permitting withdrawals from this lockbox
 in a future ZIP in order to make these funds available for funding grants to
@@ -105,7 +105,7 @@ Requirements
 ============
 
 1. **In-Protocol Lockbox**: The alternatives presented in this ZIP depend upon
-   the Lockbox Funding Streams proposal [#zip-lockbox-funding-streams]_.
+   the Lockbox Funding Streams proposal [#draft-nuttycom-lockbox-streams]_.
 
 2. **Regulatory Considerations**: The allocation of funds should minimize
    regulatory risks by avoiding direct funding of specific organizations. The
@@ -141,7 +141,7 @@ Specification
 =============
 
 The following alternatives all depend upon the Lockbox Funding Streams proposal
-[#zip-lockbox-funding-streams]_ for storage of funds into a deferred value
+[#draft-nuttycom-lockbox-streams]_ for storage of funds into a deferred value
 pool.
 
 Some of the alternatives described below do not specify a termination height
@@ -606,4 +606,4 @@ References
     Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs
     Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
 .. [#zip-1014] `ZIP 1014: Dev Fund Proposal and Governance <zip-1014.rst>`_
-.. [#zip-lockbox-funding-streams] `Lockbox Funding Streams <https://zips.z.cash/draft-nuttycom-lockbox-streams>`_
+.. [#draft-nuttycom-lockbox-streams] `Draft ZIP: Lockbox Funding Streams <draft-nuttycom-lockbox-streams.rst>`_
