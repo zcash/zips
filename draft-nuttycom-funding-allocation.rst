@@ -35,7 +35,7 @@ in a future ZIP in order to make these funds available for funding grants to
 ecosystem participants.
 
 The proposed lockbox addresses significant issues observed with ZIP 1014
-[#zip-1014]_, such as regulatory risks, inefficiencies in funding organizations
+[#zip-1014]_, such as regulatory risks, inefficiencies due to funding of organizations
 instead of projects, and centralization. While the exact disbursement mechanism
 for the lockbox funds is yet to be determined and will be addressed in a future
 ZIP, the goal is to employ a decentralized mechanism that ensures community
@@ -85,7 +85,7 @@ funds. The alternatives presented here are intended to address the following:
 3. **Centralization Concerns**: The current model centralizes decision-making
    power within a few organizations, contradicting the decentralized ethos of
    blockchain technology. Traditional organizational structures with boards and
-   executives introduce a single point of failure and limit community
+   executives introduce single points of failure and limit community
    involvement in funding decisions.
 
 4. **Community Involvement**: The current system provides minimal formal input
@@ -109,7 +109,7 @@ Requirements
 
 2. **Regulatory Considerations**: The allocation of funds should minimize
    regulatory risks by avoiding direct funding of specific organizations. The
-   design should ensure compliance with applicable laws and regulations to
+   design should enable and encourage compliance with applicable laws and regulations to
    support the long-term sustainability of the funding model.
 
 Non-requirements
@@ -146,7 +146,7 @@ pool.
 
 Some of the alternatives described below do not specify a termination height
 for the funding streams they propose. In these cases, the termination height
-is set to `u32::MAX_VALUE`. A future network upgrade that alters the
+is given as "no end height". A future network upgrade that alters the
 maximum possible block height MUST also alter these termination heights.
 
 Alternatives
