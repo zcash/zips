@@ -425,6 +425,20 @@ This alternative proposes a slightly larger slice of the block subsidy than is
 currently allocated for development funding, in order to better provide for the
 needs of the Zcash community.
 
+
+Revisitation Requirement for Alternative 4
+''''''''''''''''''''''''''''''''''''''''''
+
+The terms for this Alternative should be revisited by the Zcash ecosystem upon
+creation/ activation of a "non-direct funding model" (NDFM). At that completion
+of an NDFM which accessess the lockbox funds, this ZIP should be reconsidered
+(potentially terminated) by the Zcash ecosystem, to determine if its ongoing
+direct block subsidies are preferred for continuation. Discussions / solications
+/ sentiment gathering from the Zcash ecosystem should be initiated ~6 months in
+advance of the presumed activation of a "non-direct funding model", such that
+the Zcash ecosystem preference can be expediently realized.
+
+
 Requirements related to direct streams for the Financial Privacy Foundation
 ===========================================================================
 
