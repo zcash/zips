@@ -587,7 +587,7 @@ under confidence to the pertinent developers, where applicable).
 
 All substantial software whose development was funded by the Dev Fund SHOULD be
 released under an Open Source license (as defined by the Open Source Initiative
-5), preferably the MIT license.
+[#osd]_), preferably the MIT license.
 
 Enforcement
 -----------
@@ -604,5 +604,6 @@ References
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to
     Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs
     Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#osd] `The Open Source Definition <https://opensource.org/osd>`_
 .. [#zip-1014] `ZIP 1014: Dev Fund Proposal and Governance <zip-1014.rst>`_
 .. [#draft-nuttycom-lockbox-streams] `Draft ZIP: Lockbox Funding Streams <draft-nuttycom-lockbox-streams.rst>`_
