@@ -549,21 +549,6 @@ obligations defined below.
 FPF SHALL strive to define target metrics and key performance indicators,
 and the ZCG Committee SHOULD utilize these in its funding decisions.
 
-Direct Grant Option
--------------------
-
-It may be deemed better, operationally or legally, if ZCG funds are not
-accepted and disbursed by FPF, but rather directly assigned to the
-grantees. Thus, the following mechanism MAY be used in perpetuity for some or
-all grantees:
-
-Prior to each network upgrade, based on the ZCG Committee’s recommendation, the
-FPF SHALL publish a list of grantees’ addresses and the total number of
-Dev Fund ZEC per block they should receive. ECC and ZF SHALL implement this
-list in any implementations of the Zcash consensus rules they maintain. This
-decision will then be, effectively, ratified by the miners as the network
-upgrade activates.
-
 Furthering Decentralization
 ---------------------------
 
