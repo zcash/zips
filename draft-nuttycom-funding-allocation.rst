@@ -146,8 +146,8 @@ pool.
 
 Some of the alternatives described below do not specify a termination height
 for the funding streams they propose. In these cases, the termination height
-is set to `u32::MAX_VALUE`. A future network upgrade is required in order for
-these streams to be terminated.
+is set to `u32::MAX_VALUE`. A future network upgrade that alters the
+maximum possible block height MUST also alter these termination heights.
 
 Alternatives
 ============
