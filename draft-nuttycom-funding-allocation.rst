@@ -115,7 +115,7 @@ Requirements
 Non-requirements
 ================
 
-The following consideratiosn are explicitly deferred to future ZIPs and are not
+The following considerations are explicitly deferred to future ZIPs and are not
 covered by this proposal:
 
 1. **Disbursement Mechanism**: The exact method for disbursing the accumulated
