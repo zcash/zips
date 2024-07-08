@@ -1,9 +1,8 @@
 ::
 
   ZIP: Unassigned
-  Title: Lockbox for Decentralized Grants Allocation
+  Title: Lockbox Funding Streams
   Owners: Kris Nuttycombe <kris@nutty.land>
-  Original-Authors: Skylar Saveland <skylar@free2z.com>
   Credits: Daira-Emma Hopwood <daira-emma@electriccoin.co>
            Jack Grigg <jack@electriccoin.co>
   Status: Draft
