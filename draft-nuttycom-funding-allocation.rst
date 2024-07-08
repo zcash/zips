@@ -160,13 +160,13 @@ Proposed by Skylar Saveland
 * 50% of the block subsidy is to be distributed to the lockbox.
 
 As of block height 2726400, and continuing until modified by a future ZIP, the
-complete set of funding streams will be::
+complete set of funding streams will be:
 
-  ================= =========== ============= ============== ============
-        Stream       Numerator   Denominator   Start height   End height
-  ================= =========== ============= ============== ============
-  ``FS_DEFERRED``       50           100          2726400      u32::MAX
-  ================= =========== ============= ============== ============
+================= =========== ============= ============== ============
+      Stream       Numerator   Denominator   Start height   End height
+================= =========== ============= ============== ============
+``FS_DEFERRED``       50           100          2726400      u32::MAX
+================= =========== ============= ============== ============
 
 Motivations for Alternative 1
 '''''''''''''''''''''''''''''
@@ -347,14 +347,14 @@ Proposed by Jason McGee, Peacemonger, GGuy
   (ZCG) to fund independent teams in the Zcash ecosystem.
 
 As of block height 2726400, and continuing for one year, the complete set of
-funding streams will be::
+funding streams will be:
 
-  ================= =========== ============= ============== ============
-        Stream       Numerator   Denominator   Start height   End height
-  ================= =========== ============= ============== ============
-  ``FS_DEFERRED``       12           100          2726400      3146400
-  ``FS_FPF_ZCG``         8           100          2726400      3146400
-  ================= =========== ============= ============== ============
+================= =========== ============= ============== ============
+      Stream       Numerator   Denominator   Start height   End height
+================= =========== ============= ============== ============
+``FS_DEFERRED``       12           100          2726400      3146400
+``FS_FPF_ZCG``         8           100          2726400      3146400
+================= =========== ============= ============== ============
 
 Motivations for Alternative 2
 '''''''''''''''''''''''''''''
@@ -383,13 +383,13 @@ Proposed by Kris Nuttycombe
 * 20% of the block subsidy is to be distributed to the lockbox.
 
 As of block height 2726400, and continuing for two years, the complete set of
-funding streams will be::
+funding streams will be:
 
-  ================= =========== ============= ============== ============
-        Stream       Numerator   Denominator   Start height   End height
-  ================= =========== ============= ============== ============
-  ``FS_DEFERRED``       20           100          2726400      3566400
-  ================= =========== ============= ============== ============
+================= =========== ============= ============== ============
+      Stream       Numerator   Denominator   Start height   End height
+================= =========== ============= ============== ============
+``FS_DEFERRED``       20           100          2726400      3566400
+================= =========== ============= ============== ============
 
 Motivations for Alternative 3
 '''''''''''''''''''''''''''''
@@ -409,14 +409,14 @@ Proposed by NoamChom (Zcash forum)
   (ZCG) to fund independent teams in the Zcash ecosystem.
 
 As of block height 2726400, and continuing for four years, the complete set of
-funding streams will be::
+funding streams will be:
 
-  ================= =========== ============= ============== ============
-        Stream       Numerator   Denominator   Start height   End height
-  ================= =========== ============= ============== ============
-  ``FS_DEFERRED``       17           100          2726400      4406400
-  ``FS_FPF_ZCG``         8           100          2726400      4406400
-  ================= =========== ============= ============== ============
+================= =========== ============= ============== ============
+      Stream       Numerator   Denominator   Start height   End height
+================= =========== ============= ============== ============
+``FS_DEFERRED``       17           100          2726400      4406400
+``FS_FPF_ZCG``         8           100          2726400      4406400
+================= =========== ============= ============== ============
 
 Motivations for Alternative 4
 '''''''''''''''''''''''''''''
