@@ -447,108 +447,113 @@ The following requirements apply to Alternative 2 and Alternative 4:
 The stream allocated to Zcash Community Grants (ZCG) is intended to fund
 independent teams entering the Zcash ecosystem, to perform major ongoing
 development (or other work) for the public good of the Zcash ecosystem, to the
-extent that such teams are available and effective. The ZCG Committee is given
-the discretion to allocate funds not only to major grants, but also to a
-diverse range of projects that advance the usability, security, privacy, and
-adoption of Zcash, including community programs, dedicated resources, and other
-projects of varying sizes.
+extent that such teams are available and effective.
 
-The funds SHALL be received and administered by the
-Financial Privacy Foundation (FPF). FPF MUST disburse them for grants and
-expenses reasonably related to the administration of the ZCG program, but
+The funds SHALL be received and administered by the Financial Privacy Foundation
+(FPF). FPF MUST disburse them for "Zcash Community Grants" and expenses
+reasonably related to the administration of Zcash Community Grants, but
 subject to the following additional constraints:
 
-1. These funds MUST only be used to issue grants to external parties that are
-   independent of FPF, and to pay for expenses reasonably related to the
-   administration of the ZCG program. They MUST NOT be used by FPF for
+1. These funds MUST only be used to issue Zcash Community Grants to external
+   parties that are independent of FPF or to Autonomous Entities that operate
+   under the FPF umbrella, and to pay for expenses reasonably related to the
+   administration of Zcash Community Grants. They MUST NOT be used by FPF for
    its internal operations and direct expenses not related to the
-   administration of grants or the grants program.
+   administration of Zcash Community Grants.
 
-2. ZCG SHOULD support well-specified work proposed by the grantee, at
+2. Zcash Community Grants SHOULD support well-specified work proposed by the grantee, at
    reasonable market-rate costs. They can be of any duration or ongoing without
-   a duration limit. Grants of indefinite duration SHOULD have semiannual
-   review points for continuation of funding.
+   a duration limit. Grants of indefinite duration SHOULD be reviewed
+   periodically (on a schedule that the Zcash Community Grants Committee
+   considers appropriate for the value and complexity of the grant) for
+   continuation of funding.
 
-3. Priority SHOULD be given to major grants that bolster teams with substantial
+3. Priority SHOULD be given to Zcash Community Grants that bolster teams with substantial
    (current or prospective) continual existence, and set them up for long-term
    success, subject to the usual grant award considerations (impact, ability,
-   risks, team, cost-effectiveness, etc.). Priority SHOULD be given to major
+   risks, team, cost-effectiveness, etc.). Priority SHOULD be given to
    grants that support ecosystem growth, for example through mentorship,
    coaching, technical resources, creating entrepreneurial opportunities, etc.
    If one proposal substantially duplicates another’s plans, priority SHOULD be
    given to the originator of the plans.
 
-4. The ZCG committee SHOULD be restricted to funding projects that further the
+4. Zcash Community Grants SHOULD be restricted to furthering the
    Zcash cryptocurrency and its ecosystem (which is more specific than
-   furthering financial privacy in general) as permitted by FPF
-   and any relevant jurisdictional requirements.
+   furthering financial privacy in general).
 
-5. ZCG awards are subject to approval by a five-seat ZCG Committee. The ZCG
-   Committee SHALL be selected by the ZF’s Community Advisory Panel or a
-   successor process (e.g. as established by FPF). Elections SHALL be staggered
-   to ensure continuity within the Committee.
+5. Zcash Community Grants awards are subject to approval by a five-seat Zcash
+   Community Grants Committee. The Zcash Community Grants Committee SHALL be
+   selected by the ZF's Zcash Community Advisory Panel (ZCAP) or successor
+   process.
 
-6. The ZCG Committee’s funding decisions will be final, requiring no approval
+6. The Zcash Community Grants Committee's funding decisions will be final,
+   requiring no approval
    from the FPF Board, but are subject to veto if the FPF judges them to
-   violate any relevant laws or other (current or future) obligations.
+   violate Cayman law or the FPF's reporting requirements and other (current or
+   future) obligations under the Cayman Islands’ Companies Act (2023 Revision)
+   and Foundation Companies Law, 2017.
 
-7. ZCG Committee members SHALL have a one-year term and MAY sit for reelection.
-   The ZCG Committee is subject to the same conflict of interest policy that
+7. Zcash Community Grants Committee members SHALL have a one-year
+   term and MAY sit for reelection. The Zcash Community Grants
+   Committee is subject to the same conflict of interest policy that
    governs the FPF Board of Directors (i.e. they MUST recuse themselves when
    voting on proposals where they have a financial interest). At most one
    person with association with the BP/ECC, at most one person with
    association with the ZF, and at most one person with association with FPF
-   are allowed to sit on the ZCG Committee.
+   are allowed to sit on the Zcash Community Grants Committee.
    “Association” here means: having a financial interest, full-time employment,
    being an officer, being a director, or having an immediate family
-   relationship with any of the above. The ZF SHALL continue to operate the
-   Community Advisory Panel and SHOULD work toward making it more
-   representative and independent (more on that below). Similarly, FPF should
-   also endeavor to establish its own means of collecting community sentiment
-   for the purpose of administering ZCG elections.
+   relationship with any of the above.
 
 8. A portion of the ZCG Slice shall be allocated to a Discretionary Budget,
    which may be disbursed for expenses reasonably related to the administration
-   of the ZCG program. The amount of funds allocated to the Discretionary
-   Budget SHALL be decided by the ZF’s Community Advisory Panel or successor
+   of Zcash Community Grants. The amount of funds allocated to the Discretionary
+   Budget SHALL be decided by the ZF’s Zcash Community Advisory Panel or successor
    process. Any disbursement of funds from the Discretionary Budget MUST be
-   approved by the ZCG Committee. Expenses related to the administration of the
-   ZCG program include, without limitation the following:
+   approved by the Zcash Community Grants Committee. Expenses related to the
+   administration of Zcash Community Grants include, without limitation the
+   following:
 
+    * Paying for operational management and administration services that
+      support the purpose of the Zcash Community Grants program, including
+      administration services provided by FPF.
     * Paying third party vendors for services related to domain name
       registration, or the design, website hosting and administration of
-      websites for the ZCG Committee.
+      websites for the Zcash Community Grants Committee.
     * Paying independent consultants to develop requests for proposals that
-      align with the ZCG program.
+      align with the Zcash Community Grants program.
     * Paying independent consultants for expert review of grant applications.
-    * Paying for sales and marketing services to promote the ZCG program.
+    * Paying for sales and marketing services to promote the Zcash Community
+      Grants program.
     * Paying third party consultants to undertake activities that support the
-      purpose of the ZCG program.
-    * Reimbursement to members of the ZCG Committee for reasonable travel
+      purpose of the Zcash Community Grants program.
+    * Reimbursement to members of the Zcash Community Grants Committee for reasonable travel
       expenses, including transportation, hotel and meals allowance.
 
+   The Zcash Community Grants Committee's decisions relating to the allocation
+   and disbursement of funds from the Discretionary Budget will be final,
+   requiring no approval from the FPF Board, but are subject to veto if FPF
+   judges them to violate Cayman law or the FPF's reporting requirements and
+   other (current or future) obligations under Cayman Islands law.
+
 9. A portion of the Discretionary Budget MAY be allocated to provide reasonable
-   compensation to members of the ZCG Committee. Committee member compensation
-   SHALL be limited to the hours needed to successfully perform their positions
-   and MUST align with the scope and responsibilities of their roles. The
+   compensation to members of the Zcash Community Grants Committee.
+   The time for which each Committee member is compensated SHALL be
+   limited to the hours needed to successfully perform their positions,
+   up to a maximum of 15 hours in each month, and MUST align with the
+   scope and responsibilities of that member's role. The compensation
+   rate for each Committee member SHALL be $115 per hour (and therefore
+   the maximum compensation for a Committee member is $1725 per month). The
    allocation and distribution of compensation to committee members SHALL be
-   administered by the FPF. The compensation rate and hours for committee
-   members SHALL be determined by the ZF’s Community Advisory Panel or
+   administered by FPF. Changes to the hours or rate SHALL be
+   determined by the ZF’s Zcash Community Advisory Panel or
    successor process.
 
-10. The ZCG Committee’s decisions relating to the allocation and disbursement
-    of funds from the Discretionary Budget will be final, requiring no approval
-    from the FPF Board, but are subject to veto if the FPF judges
-    them to violate laws or FPF reporting requirements and other
-    (current or future) obligations.
-
-FPF SHALL recognize the ZCG slice of the Dev Fund as a Restricted Fund
-donation under the above constraints (suitably formalized), and keep separate
-accounting of its balance and usage under its Transparency and Accountability
-obligations defined below.
-
-FPF SHALL strive to define target metrics and key performance indicators,
-and the ZCG Committee SHOULD utilize these in its funding decisions.
+As part of the contractual commitment specified under the `Enforcement`_ section
+below, FPF SHALL be contractually required to recognize the ZCG slice of the Dev
+Fund as a Restricted Fund donation under the above constraints (suitably
+formalized), and keep separate accounting of its balance and usage under its
+`Transparency and Accountability`_ obligations defined below.
 
 Furthering Decentralization
 ---------------------------
@@ -590,6 +595,11 @@ under confidence to the pertinent developers, where applicable).
 All substantial software whose development was funded by the Dev Fund SHOULD be
 released under an Open Source license (as defined by the Open Source Initiative
 [#osd]_), preferably the MIT license.
+
+The ZF SHALL continue to operate the Zcash Community Advisory Panel and SHOULD
+work toward making it more representative and independent (more on that below).
+Similarly, FPF should also endeavor to establish its own means of collecting
+community sentiment for the purpose of administering ZCG elections.
 
 Enforcement
 -----------
