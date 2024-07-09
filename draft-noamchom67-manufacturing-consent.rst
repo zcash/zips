@@ -57,7 +57,7 @@ to perform major ongoing development (or other work)
 for the public good of the Zcash ecosystem.
 <https://zcashcommunitygrants.org/>
 
-"Financial Privacy Fund", also called "FPF" refers to the start-up non-profit
+"Financial Privacy Foundation", also called "FPF" refers to the start-up non-profit
 organization incorporated and based in the Cayman Islands.
 <https://www.financialprivacyfoundation.org/>
 
@@ -114,7 +114,7 @@ preference can be expediently realized.
 Block subsidies will be administered through two organizations:
 
 1. Zcash Foundation  (✳️ for ECC, ZCG)
-2. Financial Privacy Fund (✳️ for Qedit, ZecHub)
+2. Financial Privacy Foundation (✳️ for Qedit, ZecHub)
 
 ✳️ **ZF and FPF adminstration of block subsidy details, costs, et al are currently under debate**
 [#zf-fpf-admin-details]_
@@ -228,7 +228,7 @@ as generally recommended in Josh Swihart's proposal [#draft-swihart]_.
 "Dev Fund" block subsidies will be administered through two organizations:
 
 1. Zcash Foundation  (✳️ for ECC, ZCG)
-2. Financial Privacy Fund (✳️ for Qedit, ZecHub)
+2. Financial Privacy Foundation (✳️ for Qedit, ZecHub)
 
 ✳️ **ZF and FPF adminstration of block subsidy details, costs, et al are currently under debate**
 [#zf-fpf-admin-details]_
