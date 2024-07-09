@@ -398,8 +398,8 @@ This alternative is presented as the simplest allocation of block rewards
 to a lockbox for future disbursement that is consistent with results of
 community polling.
 
-Alternative 4: Masters Of The Universe
---------------------------------------
+Alternative 4: Masters Of The Universe?
+---------------------------------------
 
 Proposed by NoamChom (Zcash forum)
 
