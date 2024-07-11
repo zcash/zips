@@ -57,7 +57,7 @@ This quite simple alteration has -- in our opinion -- a multitude of benefits:
 
 1. **Long Term Consensus Sustainability:** This mechanism supports long-term consensus sustainability by addressing concerns about the sustainability of the network design shared by Bitcoin-like systems through the establishment of deposits into the Sustainability Fund to augment block rewards, ensuring long-term sustainability as the issuance rate of Zcash drops and newly issued ZEC decreases over time.
 2. **Benefits to ZEC Holders:** Deposits to the ZSF slow down the payout of ZEC, temporarily reducing its available supply, benefiting current holders of unencumbered active ZEC in proportion to their holdings without requiring them to opt into any scheme, introducing extra risk, active oversight, or accounting complexity.
-3. **Recovery of "Soft-Burned" Funds:** In some instances, such as miners not claim all available rewards, some ZEC goes unaccounted for though not formally burned. This proposal would recover it through the `ZSF_BALANCE` mechanism described below.
+3. **Recovery of "Soft-Burned" Funds:** In some instances, such as miners not claiming all available rewards, some ZEC goes unaccounted for, though not formally burned. This proposal would recover it through the `ZSF_BALANCE` mechanism described below.
 
 # Specification
 
