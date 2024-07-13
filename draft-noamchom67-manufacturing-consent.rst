@@ -3,16 +3,7 @@
   ZIP: ####
   Title: Manufacturing Consent; Re-Establishing a Dev Fund for ECC, ZF, ZCG, Qedit, FPF, and ZecHub
   Owner: Noam Chom <noamchom1967@gmail.com>
-  ZIP-1014 Owners: Andrew Miller <socrates1024@gmail.com>
-          Zooko Wilcox <zooko@electriccoin.co>
-  ZIP-1014 Original-Authors: Eran Tromer
-  ZIP-1014 Credits: Matt Luongo
-           @aristarchus
-           @dontbeevil
-           Daira Emma Hopwood
-           George Tankersley
-           Josh Cincinnati
-           Andrew Miller
+  Credits: The ZIP-1014 Authors
   Status: Active
   Category: Consensus Process
   Created: 2024-06-25
