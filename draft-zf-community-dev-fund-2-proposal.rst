@@ -5,7 +5,6 @@
   Owners: Jack Gavigan <jack@zfnd.org>
   Credits: Eran Tromer
            Andrew Miller
-           Zooko Wilcox
            Matt Luongo
            @aristarchus
            @dontbeevil
