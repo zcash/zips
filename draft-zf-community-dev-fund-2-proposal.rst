@@ -3,14 +3,7 @@
   ZIP: Unassigned
   Title: Establishing a Hybrid Dev Fund for ZF, ZCG and a Dev Fund Reserve
   Owners: Jack Gavigan <jack@zfnd.org>
-  Credits: Eran Tromer
-           Andrew Miller
-           Matt Luongo
-           @aristarchus
-           @dontbeevil
-           Daira Emma Hopwood
-           George Tankersley
-           Josh Cincinnati
+  Credits: The ZIP 1014 Authors
   Status: Draft
   Category: Consensus Process
   Created: 2024-07-01
