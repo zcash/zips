@@ -2,14 +2,14 @@
 
 .PHONY: all all-zips tag-release protocol discard
 all-zips: .Makefile.uptodate
-	echo "$(sort $(wildcard zip-*.rst) $(wildcard zip-*.md))" >.zipfilelist.new
+	echo "$(patsubst zips/%,%,$(sort $(wildcard zips/zip-*.rst) $(wildcard zips/zip-*.md)))" >.zipfilelist.new
 	diff .zipfilelist.current .zipfilelist.new || cp -f .zipfilelist.new .zipfilelist.current
 	rm -f .zipfilelist.new
-	echo "$(sort $(wildcard draft-*.rst) $(wildcard draft-*.md))" >.draftfilelist.new
+	echo "$(patsubst zips/%,%,$(sort $(wildcard zips/draft-*.rst) $(wildcard zips/draft-*.md)))" >.draftfilelist.new
 	diff .draftfilelist.current .draftfilelist.new || cp -f .draftfilelist.new .draftfilelist.current
 	rm -f .draftfilelist.new
 	$(MAKE) README.rst
-	$(MAKE) rendered/index.html $(addprefix rendered/,$(addsuffix .html,$(filter-out README,$(basename $(sort $(wildcard *.rst) $(wildcard *.md))))))
+	$(MAKE) rendered/index.html $(addprefix rendered/,$(addsuffix .html,$(basename $(patsubst zips/%,%,$(sort $(wildcard zips/*.rst) $(wildcard zips/*.md))))))
 
 all: all-zips protocol
 
@@ -27,13 +27,13 @@ discard:
 	touch .Makefile.uptodate
 
 define PROCESSRST
-$(eval TITLE := $(shell echo '$(basename $<)' | sed -E 's|zip-0{0,3}|ZIP |;s|draft-|Draft |')$(shell grep -E '^(\.\.)?\s*Title: ' $< |sed -E 's|.*Title||'))
+$(eval TITLE := $(shell echo '$(patsubst zips/%,%,$(basename $<))' | sed -E 's|zip-0{0,3}|ZIP |;s|draft-|Draft |')$(shell grep -E '^(\.\.)?\s*Title: ' $< |sed -E 's|.*Title||'))
 rst2html5 -v --title="$(TITLE)" $< >$@
 ./edithtml.sh --rst $@
 endef
 
 define PROCESSMD
-$(eval TITLE := $(shell echo '$(basename $<)' | sed -E 's|zip-0{0,3}|ZIP |;s|draft-|Draft |')$(shell grep -E '^(\.\.)?\s*Title: ' $< |sed -E 's|.*Title||'))
+$(eval TITLE := $(shell echo '$(patsubst zips/%,%,$(basename $<))' | sed -E 's|zip-0{0,3}|ZIP |;s|draft-|Draft |')$(shell grep -E '^(\.\.)?\s*Title: ' $< |sed -E 's|.*Title||'))
 pandoc --from=markdown --to=html $< --output=$@
 ./edithtml.sh --md $@ "${TITLE}"
 endef
@@ -41,13 +41,13 @@ endef
 rendered/index.html: README.rst edithtml.sh
 	$(PROCESSRST)
 
-rendered/%.html: %.rst edithtml.sh
+rendered/%.html: zips/%.rst edithtml.sh
 	$(PROCESSRST)
 
-rendered/%.html: %.md edithtml.sh
+rendered/%.html: zips/%.md edithtml.sh
 	$(PROCESSMD)
 
-README.rst: .zipfilelist.current .draftfilelist.current makeindex.sh README.template $(wildcard zip-*.rst) $(wildcard zip-*.md) $(wildcard draft-*.rst) $(wildcard draft-*.md)
+README.rst: .zipfilelist.current .draftfilelist.current makeindex.sh README.template $(wildcard zips/zip-*.rst) $(wildcard zips/zip-*.md) $(wildcard zips/draft-*.rst) $(wildcard zips/draft-*.md)
 	./makeindex.sh | cat README.template - >README.rst
 
 .PHONY: linkcheck
@@ -57,4 +57,4 @@ linkcheck: all-zips
 
 .PHONY: clean
 clean:
-	rm -f .zipfilelist.* README.rst rendered/index.html $(addprefix rendered/,$(addsuffix .html,$(basename $(sort $(wildcard *.rst) $(wildcard *.md)))))
+	rm -f .zipfilelist.* README.rst rendered/index.html $(addprefix rendered/,$(addsuffix .html,$(basename $(patsubst zips/%,%,$(sort $(wildcard zips/*.rst) $(wildcard zips/*.md))))))
