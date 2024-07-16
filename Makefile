@@ -9,7 +9,7 @@ all-zips: .Makefile.uptodate
 	diff .draftfilelist.current .draftfilelist.new || cp -f .draftfilelist.new .draftfilelist.current
 	rm -f .draftfilelist.new
 	$(MAKE) README.rst
-	$(MAKE) index.html $(addsuffix .html,$(filter-out README,$(basename $(sort $(wildcard *.rst) $(wildcard *.md)))))
+	$(MAKE) rendered/index.html $(addprefix rendered/,$(addsuffix .html,$(filter-out README,$(basename $(sort $(wildcard *.rst) $(wildcard *.md))))))
 
 all: all-zips protocol
 
@@ -20,7 +20,7 @@ protocol:
 	$(MAKE) -C protocol
 
 discard:
-	git checkout -- '*.html' 'README.rst' 'protocol/*.pdf'
+	git checkout -- 'rendered/*.html' 'README.rst' 'rendered/protocol/*.pdf'
 
 .Makefile.uptodate: Makefile edithtml.sh
 	$(MAKE) clean
@@ -38,13 +38,13 @@ pandoc --from=markdown --to=html $< --output=$@
 ./edithtml.sh --md $@ "${TITLE}"
 endef
 
-index.html: README.rst edithtml.sh
+rendered/index.html: README.rst edithtml.sh
 	$(PROCESSRST)
 
-%.html: %.rst edithtml.sh
+rendered/%.html: %.rst edithtml.sh
 	$(PROCESSRST)
 
-%.html: %.md edithtml.sh
+rendered/%.html: %.md edithtml.sh
 	$(PROCESSMD)
 
 README.rst: .zipfilelist.current .draftfilelist.current makeindex.sh README.template $(wildcard zip-*.rst) $(wildcard zip-*.md) $(wildcard draft-*.rst) $(wildcard draft-*.md)
@@ -53,8 +53,8 @@ README.rst: .zipfilelist.current .draftfilelist.current makeindex.sh README.temp
 .PHONY: linkcheck
 linkcheck: all-zips
 	$(MAKE) -C protocol all-specs
-	./links_and_dests.py --check $(filter-out $(wildcard draft-*.html),$(wildcard *.html)) protocol/protocol.pdf protocol/canopy.pdf protocol/heartwood.pdf protocol/blossom.pdf protocol/sapling.pdf
+	./links_and_dests.py --check $(filter-out $(wildcard rendered/draft-*.html),$(wildcard rendered/*.html)) rendered/protocol/protocol.pdf rendered/protocol/canopy.pdf rendered/protocol/heartwood.pdf rendered/protocol/blossom.pdf rendered/protocol/sapling.pdf
 
 .PHONY: clean
 clean:
-	rm -f .zipfilelist.* README.rst index.html $(addsuffix .html,$(basename $(sort $(wildcard *.rst) $(wildcard *.md))))
+	rm -f .zipfilelist.* README.rst rendered/index.html $(addprefix rendered/,$(addsuffix .html,$(basename $(sort $(wildcard *.rst) $(wildcard *.md)))))

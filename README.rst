@@ -26,7 +26,7 @@ to talk about your idea.
 Participation in the Zcash project is subject to a `Code of
 Conduct <https://github.com/zcash/zcash/blob/master/code_of_conduct.md>`__.
 
-The Zcash protocol is documented in its `Protocol Specification <protocol/protocol.pdf>`__.
+The Zcash protocol is documented in its `Protocol Specification <rendered/protocol/protocol.pdf>`__.
 
 To start contributing, first read `ZIP 0 <zip-0000.rst>`__ which documents the ZIP process.
 Then clone `this repo <https://github.com/zcash/zips>`__ from GitHub, and start adding
@@ -36,7 +36,7 @@ For example, if using reStructuredText, use a filename matching ``draft-*.rst``.
 Use ``make`` to check that you are using correct
 `reStructuredText <https://docutils.sourceforge.io/rst.html>`__ or
 `Markdown <https://pandoc.org/MANUAL.html#pandocs-markdown>`__ syntax,
-and double-check the generated ``draft-*.html`` file before filing a Pull Request.
+and double-check the generated ``rendered/draft-*.html`` file before filing a Pull Request.
 See `here <protocol/README.rst>`__ for the project dependencies.
 
 
