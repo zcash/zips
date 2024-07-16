@@ -11,6 +11,7 @@ Index of ZIPs
     <tr> <th>ZIP</th> <th>Title</th> <th>Status</th> </tr>
 EndOfHeader
 for zipfile in $(cat .zipfilelist.current); do
+  zipfile=zips/$zipfile
   echo Adding $zipfile to index. >/dev/stderr
   if grep -E '^\s*Status:\s*Reserved' $zipfile >/dev/null; then
     echo "    <tr> <td><span class=\"reserved\">`basename $(basename $zipfile .rst) .md | sed -E 's@zip-0{0,3}@@'`</span></td> <td class=\"left\"><a class=\"reserved\" href=\"`echo $zipfile`\">`grep '^\s*Title:' $zipfile | sed -E 's@\s*Title:\s*@@'`</a></td> <td>`grep '^\s*Status:' $zipfile | sed -E 's@\s*Status:\s*@@'`</td>"
@@ -40,6 +41,7 @@ be deleted.
     <tr> <th>Title</th> </tr>
 EndOfDraftHeader
   for draftfile in $(cat .draftfilelist.current); do
+    draftfile=zips/$draftfile
     echo Adding $draftfile to index of drafts. >/dev/stderr
     echo "    <tr> <td class=\"left\"><a href=\"`echo $draftfile`\">`grep '^\s*Title:' $draftfile | sed -E 's@\s*Title:\s*@@'`</a></td>"
   done
