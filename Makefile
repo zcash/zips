@@ -1,25 +1,28 @@
 # Dependencies: see zip-guide.rst and protocol/README.rst
 
-.PHONY: all all-zips release protocol discard
+.PHONY: all all-zips tag-release protocol discard
 all-zips: .Makefile.uptodate
-	find . -name 'zip-*.rst' -o -name 'zip-*.md' |sort >.zipfilelist.new
+	echo "$(sort $(wildcard zip-*.rst) $(wildcard zip-*.md))" >.zipfilelist.new
 	diff .zipfilelist.current .zipfilelist.new || cp -f .zipfilelist.new .zipfilelist.current
 	rm -f .zipfilelist.new
+	echo "$(sort $(wildcard draft-*.rst) $(wildcard draft-*.md))" >.draftfilelist.new
+	diff .draftfilelist.current .draftfilelist.new || cp -f .draftfilelist.new .draftfilelist.current
+	rm -f .draftfilelist.new
 	$(MAKE) README.rst
 	$(MAKE) index.html $(addsuffix .html,$(filter-out README,$(basename $(sort $(wildcard *.rst) $(wildcard *.md)))))
 
 all: all-zips protocol
 
-release:
-	$(MAKE) -C protocol release
+tag-release:
+	$(MAKE) -C protocol tag-release
 
 protocol:
 	$(MAKE) -C protocol
 
 discard:
-	git checkout -- '*.html' 'protocol/*.pdf'
+	git checkout -- '*.html' 'README.rst' 'protocol/*.pdf'
 
-.Makefile.uptodate: Makefile
+.Makefile.uptodate: Makefile edithtml.sh
 	$(MAKE) clean
 	touch .Makefile.uptodate
 
@@ -44,7 +47,7 @@ index.html: README.rst edithtml.sh
 %.html: %.md edithtml.sh
 	$(PROCESSMD)
 
-README.rst: .zipfilelist.current makeindex.sh README.template $(sort $(wildcard zip-*.rst) $(wildcard zip-*.md))
+README.rst: .zipfilelist.current .draftfilelist.current makeindex.sh README.template $(wildcard zip-*.rst) $(wildcard zip-*.md) $(wildcard draft-*.rst) $(wildcard draft-*.md)
 	./makeindex.sh | cat README.template - >README.rst
 
 .PHONY: linkcheck

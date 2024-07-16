@@ -8,7 +8,9 @@ from collections import deque
 import sys
 from time import sleep
 import ssl
-from io import BytesIO
+from io import BytesIO, StringIO
+import json
+import re
 
 try:
     from bs4 import BeautifulSoup
@@ -21,6 +23,9 @@ except ImportError:
 if [int(v) for v in certifi.__version__.split('.')] < [2021, 5, 30]:
     print("Please upgrade certifi using `pip install --upgrade certifi`.\n")
     sys.exit(1)
+
+GITHUB_LINE_FRAGMENT = re.compile('L[0-9]+')
+
 
 def get_links_and_destinations_from_pdf(f):
     try:
@@ -52,13 +57,23 @@ def get_links_and_destinations_from_html(f):
     dests = set()
 
     soup = BeautifulSoup(f.read(), "html5lib")
+
+    # First try to find this: <script type="application/json" data-target="react-app.embeddedData">
+    # If it exists, its content is some JSON that we need to parse to get the real content.
+    for script in soup.find_all('script'):
+        if script.get('data-target') == "react-app.embeddedData":
+            content = json.loads(script.string).get('payload', {}).get('blob', {}).get('richText')
+            if content is not None:
+                (links, dests) = get_links_and_destinations_from_html(StringIO(content))
+                break
+
     for link in soup.find_all('a'):
         if link.has_attr('href'):
-           url = link['href']
-           (internal if url.startswith('#') else links).add(url)
+            url = link['href']
+            (internal if url.startswith('#') else links).add(url)
 
         if link.has_attr('name'):
-           dests.add(link['name'])
+            dests.add(link['name'])
 
     for link in soup.find_all(id=True):
         dests.add(link['id'])
@@ -193,8 +208,13 @@ def main(args):
                             print("(link target not checked)", end=" ")
                             status = "✓"
                         elif fragment not in dests:
-                            errors.append("Missing link target: " + what)
-                            status = "❌"
+                            # Filter out known false positive GitHub fragments that we can't check.
+                            if last_url.startswith("https://github.com/") and (fragment.startswith('diff-') or GITHUB_LINE_FRAGMENT.match(fragment) is not None):
+                                print("(link target not checked)", end=" ")
+                                status = "✓"
+                            else:
+                                errors.append("Missing link target: " + what)
+                                status = "❌"
                         else:
                             status = "✓"
                     else:

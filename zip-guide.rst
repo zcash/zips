@@ -30,7 +30,8 @@ Terminology
 
 {Edit this to reflect the key words that are actually used.}
 The key words "MUST", "REQUIRED", "MUST NOT", "SHOULD", and "MAY" in this
-document are to be interpreted as described in RFC 2119. [#RFC2119]_
+document are to be interpreted as described in BCP 14 [#BCP14]_ when, and
+only when, they appear in all capitals.
 
 {Avoid duplicating definitions from other ZIPs. Instead use wording like this:}
 
@@ -131,7 +132,7 @@ Comparison of ZIPs to RFCs
 
 Like RFCs, ZIPs are precise technical documents that SHOULD give enough
 implementation information to implement part of a Zcash-related protocol or follow a
-Zcash-related process.
+Zcash-related process [#zip-0000]_.
 
 ZIPs are different from RFCs in the following ways:
 
@@ -160,23 +161,69 @@ In general the conventions in the Zcash protocol specification SHOULD be followe
 If you find this difficult, don't worry too much about it in initial drafts; the
 ZIP editors will catch any inconsistencies in review.
 
-Valid reStructuredText
-----------------------
+Notes and warnings
+------------------
+
+.. note::
+    "``.. note::``" in reStructuredText, or "``:::info``" (terminated by
+    "``:::``") in Markdown, can be used for an aside from the main text.
+
+    The rendering of notes is colourful and may be distracting, so they should
+    only be used for important points.
+
+.. warning::
+    "``.. warning::``" in reStructuredText, or "``:::warning``" (terminated by
+    "``:::``") in Markdown, can be used for warnings.
+
+    Warnings should be used very sparingly — for example to signal that a
+    entire specification, or part of it, may be inapplicable or could cause
+    significant interoperability or security problems. In most cases, a "MUST"
+    or "SHOULD" conformance requirement is more appropriate.
+
+Valid markup
+------------
 
 This is optional before publishing a PR, but to check whether a document is valid
-reStructuredText, first install ``rst2html5``. E.g. on Debian-based distros::
+reStructuredText or Markdown, first install ``rst2html5`` and ``pandoc``. E.g. on
+Debian-based distros::
 
   sudo apt install python3-pip pandoc perl sed
   pip3 install docutils==0.19 rst2html5
 
-Then, with ``zip-xxxx.rst`` in the root directory of a clone of this repo, run::
+Then, with ``draft-myzip.rst`` or ``draft-myzip.md`` in the root directory of a
+clone of this repo, run::
 
-  make zip-xxxx.html
+  make draft-myzip.html
 
-(or just ``make``) and view ``zip-xxxx.html`` in a web browser.
+(or just "``make``") and view ``draft-myzip.html`` in a web browser.
 
-Conventions for references
---------------------------
+Citations and references
+------------------------
+
+Each reference should be given a short name, e.g. "snark" [#snark]_. The syntax to cite
+that reference is "``[#snark]_``" in reStructuredText, or "``[^snark]``" in Markdown.
+
+The corresponding entry in the `References`_ section should look like this in
+reStructuredText::
+
+  .. [#snark] `The Hunting of the Snark <https://www.gutenberg.org/files/29888/29888-h/29888-h.htm>`_. Lewis Carroll, with illustrations by Henry Holiday. MacMillan and Co. London. March 29, 1876.
+
+or like this in Markdown::
+
+  [^snark] [The Hunting of the Snark](https://www.gutenberg.org/files/29888/29888-h/29888-h.htm). Lewis Carroll, with illustrations by Henry Holiday. MacMillan and Co. London. March 29, 1876.
+
+Note that each entry must be on a single line regardless of how long that makes the
+line. In Markdown there must be a blank line between entries.
+
+The current rendering of a Markdown ZIP reorders the references according to
+their first use; the rendering of a reStructuredText ZIP keeps them in the same
+order as in the References section.
+
+To link to another section of the same ZIP, use "```Section title`_``" in reStructuredText,
+or "``[Section title]``" in Markdown.
+
+Citing the Zcash protocol specification
+---------------------------------------
 
 For references to the Zcash protocol specification, prefer to link to a section
 anchor, and name the reference as ``[#protocol-<anchor>]``. This makes it more likely
@@ -198,10 +245,11 @@ zebrad PRs.}
 References
 ==========
 
-.. [#RFC2119] `RFC 2119: Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
 .. [#protocol] `Zcash Protocol Specification, Version 2022.3.8 or later <protocol/protocol.pdf>`_
 .. [#protocol-introduction] `Zcash Protocol Specification, Version 2022.3.8. Section 1: Introduction <protocol/protocol.pdf#introduction>`_
 .. [#protocol-blockchain] `Zcash Protocol Specification, Version 2022.3.8. Section 3.3: The Block Chain <protocol/protocol.pdf#blockchain>`_
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2022.3.8. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
 .. [#katex] `KaTeX - The fastest math typesetting library for the web <https://katex.org/>`_
 .. [#zip-0000] `ZIP 0: ZIP Process <zip-0000.rst>`_
+.. [#snark] `The Hunting of the Snark <https://www.gutenberg.org/files/29888/29888-h/29888-h.htm>`_. Lewis Carroll, with illustrations by Henry Holiday. MacMillan and Co. London. March 29, 1876.

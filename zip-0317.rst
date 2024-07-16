@@ -3,12 +3,12 @@
   ZIP: 317
   Title: Proportional Transfer Fee Mechanism
   Owners: Aditya Bharadwaj <nighthawk24@gmail.com>
-          Daira Hopwood <daira@electriccoin.co>
+          Daira-Emma Hopwood <daira-emma@electriccoin.co>
   Credits: Madars Virza
            Kris Nuttycombe
            Jack Grigg
            Francisco Gindre
-  Status: Draft
+  Status: Active
   Category: Standards / Wallet
   Obsoletes: ZIP 313
   Created: 2022-08-15
@@ -21,14 +21,15 @@ Terminology
 ===========
 
 The key words "SHOULD", "SHOULD NOT", "RECOMMENDED", and "MAY" in this document
-are to be interpreted as described in RFC 2119. [#RFC2119]_
+are to be interpreted as described in BCP 14 [#BCP14]_ when, and only when, they
+appear in all capitals.
 
 The term "conventional transaction fee" in this document is in reference
 to the value of a transaction fee that is conventionally used by wallets,
 and that a user can reasonably expect miners on the Zcash network to accept
 for including a transaction in a block.
 
-The terms "Mainnet, "Testnet", and "zatoshi" in this document are defined
+The terms "Mainnet", "Testnet", and "zatoshi" in this document are defined
 as in [#protocol-networks]_.
 
 
@@ -112,12 +113,18 @@ calculated in zatoshis per the following formula:
 .. math::
 
    \begin{array}{rcl}
-     logical\_actions  &=& \mathsf{max}\big(\mathsf{ceiling}\big(\frac{tx\_in\_total\_size}{p2pkh\_standard\_input\_size}\big),
-                                            \mathsf{ceiling}\big(\frac{tx\_out\_total\_size}{p2pkh\_standard\_output\_size}\big)\big) \;+ \\
-                       & & 2 \cdot nJoinSplit \;+ \\
-                       & & \mathsf{max}(nSpendsSapling, nOutputsSapling) \;+ \\
-                       & & nActionsOrchard \\
-     conventional\_fee &=& marginal\_fee \cdot \mathsf{max}(grace\_actions, logical\_actions)
+     contribution_{\,\mathsf{Transparent}} &=&
+         \mathsf{max}\big(\mathsf{ceiling}\big(\frac{tx\_in\_total\_size}{p2pkh\_standard\_input\_size}\big),\,
+                          \mathsf{ceiling}\big(\frac{tx\_out\_total\_size}{p2pkh\_standard\_output\_size}\big)\big) \\
+     contribution_{\,\rlap{\mathsf{Sprout}}\phantom{\mathsf{Transparent}}}  &=& 2 \cdot nJoinSplit \\
+     contribution_{\,\rlap{\mathsf{Sapling}}\phantom{\mathsf{Transparent}}} &=& \mathsf{max}(nSpendsSapling,\, nOutputsSapling) \\
+     contribution_{\,\rlap{\mathsf{Orchard}}\phantom{\mathsf{Transparent}}} &=& nActionsOrchard \\
+     \\
+     logical\_actions  &=& contribution_{\,\mathsf{Transparent}} +
+                           contribution_{\,\mathsf{Sprout}} +
+                           contribution_{\,\mathsf{Sapling}} +
+                           contribution_{\,\mathsf{Orchard}} \\
+     conventional\_fee &=& marginal\_fee \cdot \mathsf{max}(grace\_actions,\, logical\_actions)
    \end{array}
 
 The inputs to this formula are taken from transaction fields defined in the Zcash protocol
@@ -141,6 +148,11 @@ information leakage, unless overridden by the user.
 Rationale for logical actions
 '''''''''''''''''''''''''''''
 
+.. raw:: html
+
+   <details>
+   <summary>Click to show/hide</summary>
+
 The intention is to make the fee paid for a transaction depend on its
 impact on the network, without discriminating between different protocols
 (Orchard, Sapling, or transparent). The impact on the network depends on
@@ -154,8 +166,17 @@ to ensure that the number of inputs and outputs are the same. Usage of
 Sapling and transparent protocols does not require this padding, and
 so this could have effectively discriminated against Orchard.
 
+.. raw:: html
+
+   </details>
+
 Rationale for the chosen parameters
 '''''''''''''''''''''''''''''''''''
+
+.. raw:: html
+
+   <details>
+   <summary>Click to show/hide</summary>
 
 Grace Actions
 ~~~~~~~~~~~~~
@@ -241,6 +262,10 @@ described above) to the original conventional fee of 10000 zatoshis
 specified in [#zip-0313]_, and imposes a non-trivial cost for
 potential denial-of-service attacks.
 
+.. raw:: html
+
+   </details>
+
 Transaction relaying
 --------------------
 
@@ -252,7 +277,9 @@ other reasons not to do so for robustness or denial-of-service mitigation.
 
 If a transaction has more than :math:`block\_unpaid\_action\_limit` "unpaid actions"
 as defined by the `Recommended algorithm for block template construction`_,
-it will never be mined by that algorithm. Nodes MAY drop these transactions.
+it will never be mined by that algorithm. Nodes MAY drop these transactions,
+or transactions with more unpaid actions than a configurable limit (see the
+`Deployment`_ section for actual behaviour of node implementations).
 
 Mempool size limiting
 ---------------------
@@ -423,6 +450,80 @@ relaying. These policy changes SHOULD NOT be deployed before the changes
 to block template construction for miners described in the preceding
 paragraph.
 
+Deployment in zcashd
+--------------------
+
+`zcashd` v5.5.0 implemented use of ZIP 317 fees by default for its
+internal wallet in the following PRs:
+
+* https://github.com/zcash/zcash/pull/6527 (fee computation)
+* https://github.com/zcash/zcash/pull/6524 (main implementation)
+* https://github.com/zcash/zcash/pull/6559 (follow-up to #6524)
+* https://github.com/zcash/zcash/pull/6568 (for ``z_shieldcoinbase``)
+* https://github.com/zcash/zcash/pull/6576 (follow-up to #6568)
+* https://github.com/zcash/zcash/pull/6569 (for ``z_mergetoaddress``)
+
+`zcashd` v5.5.0 implemented the `Recommended algorithm for block template construction`_
+in:
+
+* https://github.com/zcash/zcash/pull/6460 (preparation)
+* https://github.com/zcash/zcash/pull/6607 (follow-up to #6460)
+* https://github.com/zcash/zcash/pull/6527 (fee computation)
+* https://github.com/zcash/zcash/pull/6564 (block template construction)
+
+The value used for :math:`block\_unpaid\_action\_limit` by `zcashd`
+can be overridden using the ``-blockunpaidactionlimit`` configuration
+parameter.
+
+`zcashd` v5.5.0 also implemented the change to `Mempool size limiting`_
+to use the ZIP 317 fee for the low fee penalty threshold, in:
+
+* https://github.com/zcash/zcash/pull/6564
+
+As described in section `Transaction relaying`_, nodes MAY drop
+transactions with more unpaid actions than a given limit. From
+`zcashd` v5.6.0, this is controlled by the ``-txunpaidactionlimit``
+configuration option, which defaults to 50 unpaid actions (the
+same default as ``-blockunpaidactionlimit``). This behaviour is
+implemented in:
+
+* https://github.com/zcash/zcash/pull/6646
+
+Note that `zcashd` also requires transactions to pay at least a
+"relay threshold" fee. As part of the ZIP 317 work, this rule was
+simplified for `zcashd` v5.5.0:
+
+* https://github.com/zcash/zcash/pull/6542/files#diff-34d21af3c614ea3cee120df276c9c4ae95053830d7f1d3deaf009a4625409ad2
+
+Deployment in zebra
+-------------------
+
+`zebra` does not provide a wallet, and so does not need to calculate
+ZIP 317 fees in order to construct transactions.
+
+`zebra` v1.0.0-rc.3 implemented the current `Recommended algorithm for
+block template construction`_ in:
+
+* https://github.com/ZcashFoundation/zebra/pull/5724
+* https://github.com/ZcashFoundation/zebra/pull/5776 (algorithm update)
+
+`zebra` v1.0.0-rc.2 had implemented an earlier version of this algorithm.
+The value used for :math:`block\_unpaid\_action\_limit` in `zebra` is not
+configurable.
+
+`zebra` v1.0.0-rc.2 implemented the change to `Mempool size limiting`_ in:
+
+* https://github.com/ZcashFoundation/zebra/pull/5703
+
+`zebra` v1.0.0-rc.8 implemented `Transaction relaying`_ changes in:
+
+* https://github.com/ZcashFoundation/zebra/pull/6556
+
+`zebra` uses a similar relay threshold rule to `zcashd`, but additionally
+enforces a minimum fee of 100 zatoshis (this differs from `zcashd` only for
+valid transactions of less than 1000 bytes, assuming that `zcashd` uses its
+default value for ``-minrelaytxfee``).
+
 
 Considered Alternatives
 =======================
@@ -451,27 +552,13 @@ threshold. This is no longer expressible with the formula specified above.)
 Endorsements
 ============
 
-The following entities/groups/individuals expressed their support for the
-updated fee mechanism:
+The following entities and developers of the listed software expressed their
+support for the updated fee mechanism:
 
-*Developer Groups or Sole OSS contributors*
-
-..
-  * Zecwallet Suite (Zecwallet Lite for Desktop/iOS/Android & Zecwallet FullNode)
-  * Nighthawk Wallet for Android & iOS
-
-To express and request your support to be added to this ZIP please comment
-below indicating:
-
-* (group) name/pseudonym
-* affiliation
-* contact
-
-or, conversely e-mail the same details to the Owner of the ZIP.
-
-TODO: Endorsements may depend on specific parameter choices. The ZIP
-Editors should ensure that the endorsements are accurate before marking
-this ZIP as Active.
+* Zecwallet Suite (Zecwallet Lite for Desktop/iOS/Android & Zecwallet FullNode)
+* Nighthawk Wallet for Android & iOS
+* Electric Coin Company
+* Zcash Foundation
 
 
 Acknowledgements
@@ -487,7 +574,7 @@ Deirdre Connolly for reviews and suggested improvements.
 References
 ==========
 
-.. [#RFC2119] `RFC 2119: Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2022.3.8. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
 .. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2022.3.8. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
 .. [#sigop-limit] `zcash/zips issue #568 - Document block transparent sigops limit consensus rule <https://github.com/zcash/zips/issues/568>`_
