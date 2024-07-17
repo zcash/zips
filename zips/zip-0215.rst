@@ -1,0 +1,119 @@
+::
+
+  ZIP: 215
+  Title: Explicitly Defining and Modifying Ed25519 Validation Rules
+  Owners: Henry de Valence <hdevalence@zfnd.org>
+  Status: Final
+  Category: Consensus
+  Created: 2020-04-27
+  License: BSD-2-Clause
+
+
+Terminology
+===========
+
+The key words "MUST" and "MUST NOT" in this document is to be interpreted as described
+in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
+
+
+Abstract
+========
+
+Zcash uses Ed25519 signatures as part of Sprout transactions.  However, Ed25519
+does not clearly define criteria for signature validity, and implementations conformant 
+to RFC 8032 [#RFC8032]_ need not agree on whether signatures are valid.  This is
+unacceptable for a consensus-critical application like Zcash.  Currently, Zcash
+inherits criteria for signature validity from an obsolete version of
+`libsodium`.  Instead, this ZIP settles the situation by explicitly defining the
+Ed25519 validity criteria and changing them to be compatible with batch
+validation.
+
+
+Motivation
+==========
+
+The lack of clear validity criteria for Ed25519 signatures poses a
+maintenance burden.  The initial implementation of Zcash consensus in `zcashd`
+inherited validity criteria from a then-current version of `libsodium` (1.0.15).
+Due to `a bug in libsodium <https://github.com/zcash/zcash/issues/2872#issuecomment-576911471>`_,
+this was different from the intended criteria documented in the Zcash protocol
+specification [#protocol-2020.1.1]_ (before the specification was changed to match
+`libsodium` 1.0.15 in specification version 2020.1.2). Also, `libsodium` never
+guaranteed stable validity criteria, and changed behavior in a later point
+release. This forced `zcashd` to use an older version of the library before
+eventually patching a newer version to have consistent validity criteria.
+To be compatible, Zebra had to implement a special library, `ed25519-zebra` to
+provide Zcash-flavored Ed25519, attempting to match `libsodium` 1.0.15 exactly.  And
+the initial attempt to implement `ed25519-zebra` was also incompatible, because
+it precisely matched the wrong compile-time configuration of `libsodium`.
+
+In addition, the validity criteria used by Zcash preclude the use of batch
+validation of Ed25519 signatures.  While signature validation is not the
+primary bottleneck for Zcash, it would be nice to be able to batch-validate
+signatures, as is the case for RedJubjub.
+
+
+Specification
+=============
+
+After activation of this ZIP, the :math:`\mathsf{JoinSplitSig}` validation rules
+in [#protocol-concreteed25519]_ are changed to the following:
+
+- :math:`\underline{A}` and :math:`\underline{R}` MUST be encodings of points
+  :math:`A` and :math:`R` respectively on the complete twisted Edwards curve Ed25519;
+- :math:`\underline{S}` MUST represent an integer :math:`S` less than :math:`\ell`;
+- The group equation :math:`[8][S]B = [8]R + [8][k]A` MUST be satisfied, where
+  :math:`k` and :math:`B` are defined as in RFC 8032 sections §5.1.7 and §5.1
+  respectively. [#RFC8032]_
+
+The language about :math:`\mathsf{ExcludedPointEncodings}` in §5.4.5 of the Zcash
+specification [#protocol-concreteed25519]_ no longer applies.
+
+It is *not* required that :math:`\underline{A}` and :math:`\underline{R}`
+are canonical encodings; in other words, the integer encoding the
+:math:`y`-coordinate of the points may be unreduced modulo :math:`2^{255}-19`.
+
+Note: the alternate validation equation :math:`[S]B = R + [k]A`, allowed
+by RFC 8032, MUST NOT be used.
+
+
+Rationale
+=========
+
+This change simplifies the Ed25519 validation logic and reduces future
+maintenance burden.  Because multiplication by the cofactor admits more
+solutions to the validation equation, not fewer, it is compatible with all
+existing Ed25519 signatures on the chain.  
+
+It also allows the use of batch validation, which requires multiplication
+by the cofactor in the validation equation.
+
+
+Security and Privacy Considerations
+===================================
+
+This change has no effect on honestly-generated signatures.  Unlike the current
+validation rules, it makes it possible for a user to generate weak signing keys
+or to generate signing keys with nonzero torsion component and submit them to
+the blockchain.  However, doing so provides them with no advantage, only
+compromise to their own security.  Moreover, these cases are not a failure mode
+of any deployed implementation.
+
+
+Deployment
+==========
+
+This is intended to be deployed with the Canopy Network Upgrade [#zip-0251]_,
+which is scheduled to activate on Mainnet [#protocol-networks]_ at block height
+1046400.
+
+
+References
+==========
+
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#RFC8032] `RFC 8032: Edwards-Curve Digital Signature Algorithm (EdDSA) <https://www.rfc-editor.org/rfc/rfc8032.html>`_
+.. [#protocol-2020.1.1] `Zcash Protocol Specification, Version 2020.1.1 <https://github.com/zcash/zips/blob/v2020.1.1/protocol/protocol.pdf>`_
+.. [#protocol-networks] `Zcash Protocol Specification, Version 2021.2.16. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
+.. [#protocol-concreteed25519] `Zcash Protocol Specification, Version 2021.2.16. Section 5.4.6: Ed25519 <protocol/protocol.pdf#concreteed25519>`_
+.. [#zip-0251] `ZIP 251: Deployment of the Canopy Network Upgrade <zip-0251.rst>`_

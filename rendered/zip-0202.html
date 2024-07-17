@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZIP 202: Version 3 Transaction Format for Overwinter</title>
+    <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+    <section>
+        <pre>ZIP: 202
+Title: Version 3 Transaction Format for Overwinter
+Owners: Daira-Emma Hopwood &lt;daira-emma@electriccoin.co&gt;
+Original-Authors: Simon Liu
+Status: Final
+Category: Consensus
+Created: 2018-01-10
+License: MIT</pre>
+        <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The key words "MUST", "MUST NOT", and "MAY" in this document are to be interpreted as described in BCP 14 <a id="footnote-reference-1" class="footnote_reference" href="#bcp14">1</a> when, and only when, they appear in all capitals.</p>
+            <p>The terms "consensus branch", "network upgrade", and "consensus rule change" in this document are to be interpreted as described in ZIP 200. <a id="footnote-reference-2" class="footnote_reference" href="#zip-0200">3</a></p>
+            <p>The term "Overwinter" in this document is to be interpreted as described in ZIP 201. <a id="footnote-reference-3" class="footnote_reference" href="#zip-0201">4</a></p>
+        </section>
+        <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This proposal defines a new transaction format required for Network Upgrade Mechanism <a id="footnote-reference-4" class="footnote_reference" href="#zip-0200">3</a> and Transaction Expiry <a id="footnote-reference-5" class="footnote_reference" href="#zip-0203">5</a>.</p>
+        </section>
+        <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>Zcash launched with support for upstream Bitcoin version 1 transactions and defined a new version 2 transaction format which added fields required for shielded transactions.</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Version</th>
+                        <th>Field</th>
+                        <th>Description</th>
+                        <th>Type</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>&gt;= 1</td>
+                        <td><code>version</code></td>
+                        <td>positive value</td>
+                        <td><code>int32</code></td>
+                    </tr>
+                    <tr>
+                        <td>&gt;= 1</td>
+                        <td><code>tx_in_count</code></td>
+                        <td>variable-length integer</td>
+                        <td><code>compactSize</code></td>
+                    </tr>
+                    <tr>
+                        <td>&gt;= 1</td>
+                        <td><code>tx_in</code></td>
+                        <td>list of inputs</td>
+                        <td><code>vector</code></td>
+                    </tr>
+                    <tr>
+                        <td>&gt;= 1</td>
+                        <td><code>tx_out_count</code></td>
+                        <td>variable-length integer</td>
+                        <td><code>compactSize</code></td>
+                    </tr>
+                    <tr>
+                        <td>&gt;= 1</td>
+                        <td><code>tx_out</code></td>
+                        <td>list of outputs</td>
+                        <td><code>vector</code></td>
+                    </tr>
+                    <tr>
+                        <td>&gt;= 1</td>
+                        <td><code>lock_time</code></td>
+                        <td>block height or timestamp</td>
+                        <td><code>uint32</code></td>
+                    </tr>
+                    <tr>
+                        <td>&gt;= 2</td>
+                        <td><code>nJoinSplit</code></td>
+                        <td>variable-length integer</td>
+                        <td><code>compactSize</code></td>
+                    </tr>
+                    <tr>
+                        <td>&gt;= 2</td>
+                        <td><code>vJoinSplit</code></td>
+                        <td>list of joinsplits</td>
+                        <td><code>vector</code></td>
+                    </tr>
+                    <tr>
+                        <td>&gt;= 2</td>
+                        <td><code>joinSplitPubKey</code></td>
+                        <td>joinsplit_sig public key</td>
+                        <td>32 bytes</td>
+                    </tr>
+                    <tr>
+                        <td>&gt;= 2</td>
+                        <td><code>joinSplitSig</code></td>
+                        <td>signature</td>
+                        <td>64 bytes</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>A new transaction format is required to:</p>
+            <ul>
+                <li>support safe network upgrades as specified in Network Upgrade Mechanism <a id="footnote-reference-6" class="footnote_reference" href="#zip-0200">3</a>;</li>
+                <li>provide replay protection between pre-Overwinter and Overwinter consensus branches during upgrades;</li>
+                <li>provide replay protection between different consensus branches post-Overwinter;</li>
+                <li>enable a consensus branch to support multiple transaction version formats;</li>
+                <li>ensure transaction formats are parsed uniquely across parallel consensus branches;</li>
+                <li>support transaction expiry <a id="footnote-reference-7" class="footnote_reference" href="#zip-0203">5</a>.</li>
+            </ul>
+        </section>
+        <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <section id="transaction-format-version-3"><h3><span class="section-heading">Transaction format version 3</span><span class="section-anchor"> <a rel="bookmark" href="#transaction-format-version-3"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>A new version 3 transaction format will be introduced for Overwinter.</p>
+                <p>The version 3 format differs from the version 2 format in the following ways:</p>
+                <ul>
+                    <li>header (first four bytes, little-endian encoded)
+                        <ul>
+                            <li><code>fOverwintered</code> flag : bit 31, must be set</li>
+                            <li><code>nVersion</code> : bits 30-0, positive integer</li>
+                        </ul>
+                    </li>
+                    <li><code>nVersionGroupId</code></li>
+                    <li><code>nExpiryHeight</code></li>
+                </ul>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Version</th>
+                            <th>Field</th>
+                            <th>Description</th>
+                            <th>Type</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>&gt;= 3</td>
+                            <td>header</td>
+                            <td>
+                                <p>contains:</p>
+                                <ul>
+                                    <li><code>fOverwintered</code> flag (bit 31, always set)</li>
+                                    <li><code>nVersion</code> (bits 30-0)</li>
+                                </ul>
+                            </td>
+                            <td><code>uint32</code></td>
+                        </tr>
+                        <tr>
+                            <td>&gt;= 3</td>
+                            <td><code>nVersionGroupId</code></td>
+                            <td>version group ID (not zero)</td>
+                            <td><code>uint32</code></td>
+                        </tr>
+                        <tr>
+                            <td>&gt;= 1</td>
+                            <td><code>tx_in_count</code></td>
+                            <td>variable-length integer</td>
+                            <td><code>compactSize</code></td>
+                        </tr>
+                        <tr>
+                            <td>&gt;= 1</td>
+                            <td><code>tx_in</code></td>
+                            <td>list of inputs</td>
+                            <td><code>vector</code></td>
+                        </tr>
+                        <tr>
+                            <td>&gt;= 1</td>
+                            <td><code>tx_out_count</code></td>
+                            <td>variable-length integer</td>
+                            <td><code>compactSize</code></td>
+                        </tr>
+                        <tr>
+                            <td>&gt;= 1</td>
+                            <td><code>tx_out</code></td>
+                            <td>list of outputs</td>
+                            <td><code>vector</code></td>
+                        </tr>
+                        <tr>
+                            <td>&gt;= 1</td>
+                            <td><code>lock_time</code></td>
+                            <td>block height or timestamp</td>
+                            <td><code>uint32</code></td>
+                        </tr>
+                        <tr>
+                            <td>&gt;= 3</td>
+                            <td><code>expiryHeight</code></td>
+                            <td>block height</td>
+                            <td><code>uint32</code></td>
+                        </tr>
+                        <tr>
+                            <td>&gt;= 2</td>
+                            <td><code>nJoinSplit</code></td>
+                            <td>variable-length integer</td>
+                            <td><code>compactSize</code></td>
+                        </tr>
+                        <tr>
+                            <td>&gt;= 2</td>
+                            <td><code>vJoinSplit</code></td>
+                            <td>list of joinsplits</td>
+                            <td><code>vector</code></td>
+                        </tr>
+                        <tr>
+                            <td>&gt;= 2</td>
+                            <td><code>joinSplitPubKey</code></td>
+                            <td>joinsplit_sig public key</td>
+                            <td>32 bytes</td>
+                        </tr>
+                        <tr>
+                            <td>&gt;= 2</td>
+                            <td><code>joinSplitSig</code></td>
+                            <td>signature</td>
+                            <td>64 bytes</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+            <section id="header-field"><h3><span class="section-heading">Header Field</span><span class="section-anchor"> <a rel="bookmark" href="#header-field"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>The first four bytes of pre-Overwinter and Overwinter transactions are little-endian encoded.</p>
+                <p>Version 1 transaction (txid <a href="https://blockchair.com/zcash/transaction/5c6ba844e1ca1c8083cd53e29971bd82f1f9eea1f86c1763a22dd4ca183ae061">5c6ba844e1ca1c8083cd53e29971bd82f1f9eea1f86c1763a22dd4ca183ae061</a>)</p>
+                <ul>
+                    <li>begins with little-endian byte sequence [0x01, 0x00, 0x00, 0x00];</li>
+                    <li>deserialized as 32-bit signed integer with decimal value of 1.</li>
+                </ul>
+                <p>Version 2 transaction (txid <a href="https://blockchair.com/zcash/transaction/4435bf8064e74f01262cb1725fd9b53e600fa285950163fd961bed3a64260d8b">4435bf8064e74f01262cb1725fd9b53e600fa285950163fd961bed3a64260d8b</a>)</p>
+                <ul>
+                    <li>begins with little-endian byte sequence [0x02, 0x00, 0x00, 0x00];</li>
+                    <li>deserialized as 32-bit signed integer with decimal value of 2.</li>
+                </ul>
+                <p>Transaction parsers for versions of Zcash prior to Overwinter, and for most other Bitcoin forks, require the transaction version number to be positive.</p>
+                <p>With the version 3 transaction format, the first four bytes of a serialized transaction, the 32-bit header, are made up of two fields as shown in the table above:</p>
+                <ul>
+                    <li>1-bit <code>fOverwintered</code> flag, must be set;</li>
+                    <li>31-bit unsigned int for the version.</li>
+                </ul>
+                <p>Pre-Overwinter parsers will deserialize these four bytes as a 32-bit signed integer. With two's complement integers, the most significant bit indicates whether an integer is positive or negative. With the Overwinter flag set, the transaction version will be negative, resulting in pre-Overwinter parsers rejecting the transaction as invalid. This provides transaction replay protection between pre-Overwinter and Overwinter software.</p>
+                <p>Consider the following example of a serialized version 3 transaction.</p>
+                <p>Pre-Overwinter parser:</p>
+                <ul>
+                    <li>data begins with little-endian byte sequence: [0x03, 0x00, 0x00, 0x80];</li>
+                    <li>deserialized as 32-bit signed integer.
+                        <ul>
+                            <li>with hexadecimal value of 0x80000003 (most significant bit is set);</li>
+                            <li>decimal value of -2147483645.</li>
+                        </ul>
+                    </li>
+                </ul>
+                <p>Legacy parsers will expect the version to be a positive value, such as 1 or 2, and will thus reject the Overwinter transaction as invalid.</p>
+                <p>Overwinter parser:</p>
+                <ul>
+                    <li>data begins with little-endian byte sequence: [0x03, 0x00, 0x00, 0x80];</li>
+                    <li>deserialized as 32-bit unsigned integer
+                        <ul>
+                            <li>with binary value of 0b10000000000000000000000000000011;</li>
+                        </ul>
+                    </li>
+                    <li>the 32-bits are decomposed into two fields:
+                        <ul>
+                            <li><code>fOverwintered</code> flag (bit 31) as a boolean, expected to be set;</li>
+                            <li>version (bits 30 - bit 0) as an unsigned integer, expected to have a decimal value of 3.</li>
+                        </ul>
+                    </li>
+                </ul>
+                <p>Overwinter parsers will accept the transaction as valid as the most significant bit of the header has been set. By masking off (unsetting) the most significant bit, the parser can retrieve the transaction version number:</p>
+                <pre>0x80000003 &amp; 0x7FFFFFFF = 0x00000003 = 3</pre>
+            </section>
+            <section id="version-group-id"><h3><span class="section-heading">Version Group ID</span><span class="section-anchor"> <a rel="bookmark" href="#version-group-id"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>The version group ID is a non-zero, random and unique identifier, of type <code>uint32</code>, assigned to a transaction format version, or a group of soft-forking transaction format versions. The version group ID helps nodes disambiguate between consensus branches using the same version number.</p>
+                <p>That is, it prevents a client on one branch of the network from attempting to parse transactions intended for another consensus branch, in the situation where the transactions share the same format version number but are actually specified differently. For example, Zcash and a clone of Zcash might both define their own custom v3 transaction formats, but each will have its own unique version group ID, so that they can reject v3 transactions with unknown version group IDs.</p>
+                <p>The combination of transaction version and version group ID, <code>nVersion || nVersionGroupId</code>, uniquely defines the transaction format, thus enabling parsers to reject transactions from outside the client's chain which cannot be parsed.</p>
+                <p>By convention, it is expected that when introducing a new transaction version requiring a network upgrade, a new unique version group ID will be assigned to that transaction version.</p>
+                <p>However, if a new transaction version can be correctly parsed according to the format of a preceding version (that is, it only restricts the format, or defines fields that were previously reserved and which old parsers can safely ignore), then the same version group ID MAY be re-used.</p>
+            </section>
+            <section id="expiry-height"><h3><span class="section-heading">Expiry Height</span><span class="section-anchor"> <a rel="bookmark" href="#expiry-height"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>The expiry height field, as defined in the Transaction Expiry ZIP <a id="footnote-reference-8" class="footnote_reference" href="#zip-0203">5</a>, stores the block height after which a transaction can no longer be mined.</p>
+            </section>
+            <section id="transaction-validation"><h3><span class="section-heading">Transaction Validation</span><span class="section-anchor"> <a rel="bookmark" href="#transaction-validation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>A valid Overwinter transaction intended for Zcash MUST have:</p>
+                <ul>
+                    <li>version number 3; and</li>
+                    <li>version group ID 0x03C48270; and</li>
+                    <li><code>fOverwintered</code> flag set.</li>
+                </ul>
+                <p>Overwinter validators MUST reject transactions for violating consensus rules if:</p>
+                <ul>
+                    <li>the <code>fOverwintered</code> flag is not set; or</li>
+                    <li>the version group ID is unknown; or</li>
+                    <li>the version number is unknown.</li>
+                </ul>
+                <p>Validation of version 3 transactions MUST use the signature validation process detailed in the Transaction Signature Validation for Overwinter ZIP <a id="footnote-reference-9" class="footnote_reference" href="#zip-0143">2</a>.</p>
+            </section>
+        </section>
+        <section id="implementation"><h2><span class="section-heading">Implementation</span><span class="section-anchor"> <a rel="bookmark" href="#implementation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The comments and code samples in this section apply to the reference C++ implementation of Zcash. Other implementations may vary.</p>
+            <section id="transaction-version"><h3><span class="section-heading">Transaction Version</span><span class="section-anchor"> <a rel="bookmark" href="#transaction-version"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Transaction version remains a positive value. The main Zcash chain will follow convention and continue to order transaction versions in an ascending order.</p>
+                <p>Tests can continue to check for the existence of forwards-compatible transaction fields by checking the transaction version using comparison operators:</p>
+                <pre>if (tx.nVersion &gt;= 2) {
+    for (int js = 0; js &lt; joinsplits; js++) {
+        ...
+    }
+}</pre>
+                <p>When (de)serializing v3 transactions, the version group ID must also be checked in case the transaction is intended for a consensus branch which has a different format for its version 3 transaction:</p>
+                <pre>if (tx.nVersion == 3 &amp;&amp; tx.nVersionGroupId == OVERWINTER_VERSION_GROUP_ID) {
+    auto expiryHeight = tx.nExpiryHeight;
+}</pre>
+                <p>Tests can continue to set the version to zero as an error condition:</p>
+                <pre>mtx.nVersion = 0</pre>
+            </section>
+            <section id="overwinter-validation"><h3><span class="section-heading">Overwinter Validation</span><span class="section-anchor"> <a rel="bookmark" href="#overwinter-validation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>To test if the format of an Overwinter transaction is v3 or not:</p>
+                <pre>if (tx.fOverwintered &amp;&amp; tx.nVersion == 3) {
+    // Valid v3 format transaction
+}</pre>
+                <p>This only tests that the format of the transaction matches the v3 specification described above.</p>
+                <p>To test if the format of an Overwinter transaction is both v3 and the transaction itself is intended for the client's chain:</p>
+                <pre>if (tx.fOverwintered &amp;&amp;
+    tx.nVersionGroupId == OVERWINTER_VERSION_GROUP_ID) &amp;&amp;
+    tx.nVersion == 3) {
+    // Valid v3 format transaction intended for this client's chain
+}</pre>
+                <p>It is expected that this test involving <code>nVersionGroupId</code> is only required when a transaction is being constructed or deserialized e.g. when an external transaction enters the system.</p>
+                <p>However, it's possible that a clone of Zcash is using the same version group ID and passes the conditional.</p>
+                <p>Ultimately, a client can determine if a transaction is truly intended for the client's chain or not by following the signature validation process detailed in the Transaction Signature Validation for Overwinter ZIP <a id="footnote-reference-10" class="footnote_reference" href="#zip-0143">2</a>.</p>
+            </section>
+        </section>
+        <section id="deployment"><h2><span class="section-heading">Deployment</span><span class="section-anchor"> <a rel="bookmark" href="#deployment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This proposal will be deployed with the Overwinter network upgrade. The activation block height proposal is in <a id="footnote-reference-11" class="footnote_reference" href="#zip-0201">4</a>.</p>
+        </section>
+        <section id="backwards-compatibility"><h2><span class="section-heading">Backwards compatibility</span><span class="section-anchor"> <a rel="bookmark" href="#backwards-compatibility"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This proposal intentionally creates what is known as a "bilateral consensus rule change" <a id="footnote-reference-12" class="footnote_reference" href="#zip-0200">3</a> between pre-Overwinter software and Overwinter-compatible software. Use of this new transaction format requires that all network participants upgrade their software to a compatible version within the upgrade window. Pre-Overwinter software will treat Overwinter transactions as invalid.</p>
+            <p>Once Overwinter has activated, Overwinter-compatible software will reject version 1 and version 2 transactions, and will only accept transactions based upon supported transaction version numbers and recognized version group IDs.</p>
+        </section>
+        <section id="reference-implementation"><h2><span class="section-heading">Reference Implementation</span><span class="section-anchor"> <a rel="bookmark" href="#reference-implementation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p><a href="https://github.com/zcash/zcash/pull/2925">https://github.com/zcash/zcash/pull/2925</a></p>
+        </section>
+        <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <table id="bcp14" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>1</th>
+                        <td><a href="https://www.rfc-editor.org/info/bcp14">Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0143" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>2</th>
+                        <td><a href="zip-0143">ZIP 143: Transaction Signature Validation for Overwinter</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0200" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>3</th>
+                        <td><a href="zip-0200">ZIP 200: Network Upgrade Mechanism</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0201" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>4</th>
+                        <td><a href="zip-0201">ZIP 201: Network Handshaking for Overwinter</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0203" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>5</th>
+                        <td><a href="zip-0203">ZIP 203: Transaction Expiry</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </section>
+</body>
+</html>

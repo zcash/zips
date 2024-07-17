@@ -1,0 +1,204 @@
+::
+
+  ZIP: 239
+  Title: Relay of Version 5 Transactions
+  Owners: Daira-Emma Hopwood <daira-emma@electriccoin.co>
+          Jack Grigg <jack@electriccoin.co>
+  Status: Final
+  Category: Network
+  Created: 2021-05-29
+  License: MIT
+  Discussions-To: <https://github.com/zcash/zips/issues/515>
+  Pull-Request: <https://github.com/zcash/zips/pull/516>
+
+
+Terminology
+===========
+
+The key words "MUST", "MUST NOT", "SHOULD", "SHOULD NOT", and "RECOMMENDED" in this
+document are to be interpreted as described in BCP 14 [#BCP14]_ when, and only when,
+they appear in all capitals.
+
+The term "network upgrade" in this document is to be interpreted as described in
+ZIP 200. [#zip-0200]_
+
+The terms "Testnet" and "Mainnet" are to be interpreted as described in
+section 3.12 of the Zcash Protocol Specification [#protocol-networks]_.
+
+The term "txid" means a transaction identifier, computed as a SHA-256d hash of
+the transaction data for v4 and earlier transactions, or as specified in [#zip-0244]_
+for v5 and later transactions.
+
+The term "authorizing data commitment" (denoted ``auth_digest``), defined only for v5
+and later transactions, is to be interpreted as described in [#zip-0244]_.
+
+The term "witnessed transaction identifier" ("wtxid"), defined only for v5 and later
+transactions, is a 64-byte value given by concatenating the txid and the authorizing
+data commitment of the transaction.
+
+
+Abstract
+========
+
+This ZIP describes changes to the Zcash peer-to-peer protocol to support transaction
+relay based on a transaction's authorizing data commitment as well as its txid.
+
+
+Motivation
+==========
+
+Historically, as in Bitcoin, the ``inv`` and ``getdata`` messages sent on the Zcash
+peer-to-peer network to announce or request transactions have referred to those
+transactions by txid.
+
+Prior to the introduction of v5 transactions [#zip-0225]_ in the NU5 network upgrade
+[#zip-0252]_, a txid was always defined as the SHA-256d hash of the transaction data,
+the encoding of which is the same in block data and in the peer-to-peer protocol.
+
+For v5 transactions, a new transaction digest algorithm is defined that constructs
+the txid from a tree of hashes, which include only effecting data [#zip-0244]_.
+Witness data is committed to by a separate "authorizing data commitment". Unlike
+previous transaction versions, the format of serialized v5 transaction data is not
+consensus-critical.
+
+Not committing to the witness data in v5 transaction announcements would create
+inefficiencies: because a v5 transaction's witness can be malleated without altering
+the txid, a node in receipt of a v5 transaction that the node does not accept would
+generally still have to download that same transaction when announced by other peers.
+This is because the alternative — of not downloading a v5 transaction with a given
+txid after rejecting a previous transaction with that txid — would allow a third
+party to interfere with transaction relay by malleating a transaction's witness and
+announcing the resulting invalid transaction to nodes, preventing relay of the valid
+version of the transaction as well.
+
+This inefficiency was present in Bitcoin for almost 3 years after activation of its
+Segwit upgrade [#bip-0141]_, until the adoption of BIP 339 [#bip-0339]_. The latter
+BIP specifies a way to use the Segwit "wtxid" (which commits to both effecting and
+witness data) in place of the txid when announcing and fetching transactions.
+In Zcash, the analogous identifier is also called the wtxid, but it encodes the pair
+(txid, auth_digest).
+
+This ZIP is modelled after BIP 339: it adds a ``MSG_WTX`` inv type to the peer-to-peer
+protocol, analogous to BIP 339's ``MSG_WTX`` inv type, that announces transactions by
+their wtxid. Note that the encoding and length of a Zcash wtxid is different to that
+of a Bitcoin wtxid.
+
+This ZIP does not introduce any equivalent of BIP 339's ``wtxidrelay`` message,
+since that is not needed for compatibility given that Zcash full nodes are required to
+support ``MSG_WTX`` based on the negotiated peer protocol version (see `Deployment`_).
+
+
+Specification
+=============
+
+A new inv type ``MSG_WTX`` (0x00000005) is added, for use in both ``inv`` messages
+and ``getdata`` requests, indicating that the hash being referenced is the wtxid
+(i.e. the 64-byte value ``txid`` || ``auth_digest``). This inv type MUST be used
+when announcing v5 transactions. The ``txid`` and ``auth_digest`` are as defined in
+[#zip-0244]_.
+
+In the case of ``getdata`` requests, the format of a v5 transaction obtained by a
+``MSG_WTX`` inv type is as given in the Zcash protocol specification.
+[#protocol-txnencoding]_
+
+An ``inv`` or ``getdata`` message MUST NOT use the ``MSG_WTX`` inv type for v4
+or earlier transactions, or on peer connections that have not negotiated at least
+the peer protocol version specified in `Deployment`_.
+
+Note that ``MSG_WTX`` might also be used for future transaction versions after v5.
+Since such versions are not currently consensus-valid, this is left unspecified
+for now.
+
+``MSG_TX`` and ``MSG_WTX`` entries may be mixed in arbitrary order in an ``inv``
+message or a ``getdata`` message. Since these entry types are of different lengths
+(36 bytes or 68 bytes respectively including the 4-byte type field), this implies
+that the size of the message is not determined by its initial ``count`` field, and
+has to be determined by parsing the whole message.
+
+Deployment
+----------
+
+This ZIP is assumed to be deployed in advance of the network upgrade that introduces
+v5 transactions, i.e. NU5.
+
+The peer protocol version that enables support for this specification is defined to
+be 170014 (on both Testnet and Mainnet). This is in advance of the minimum protocol
+version that signals support for NU5 on Testnet. [#zip-0252]_
+
+As specified in [#zip-0200]_, a node that supports a network upgrade will clear its
+mempool when reaching the block before that upgrade's activation block. Before this
+point, the node will not accept transactions into its mempool that are invalid
+according to the pre-upgrade consensus protocol (so, in this case, it would not
+accept v5 transactions). This means that a correctly functioning node will not
+use the ``MSG_WTX`` inv type until it has received the block preceding the NU5
+network upgrade.
+
+Nevertheless, it is possible for a node to receive an ``inv`` or ``getdata`` message
+containing an inventory entry of type ``MSG_WTX``, on a peer connection that has
+negotiated protocol version 170014 or later, before NU5 has activated. In this case,
+the node MUST NOT advertise, fetch, or provide v5 transactions.
+
+Note that the behaviour of a node receiving an ``inv`` or ``getdata`` message with
+one or more inventory entries of an unrecognized type was previously unspecified.
+The behaviour of `zcashd` in such a case was to assume that the length of each
+inventory entry is 36 bytes (including the type field), regardless of the type.
+This would result in misparsing the ``inv`` or ``getdata`` message if the length of
+the corresponding inventory entry were not 36 bytes.
+
+The RECOMMENDED behaviour is to parse the ``inv`` or ``getdata`` message completely,
+and reject the message if it contains any inventory entries of an unrecognized type.
+For a ``getdata`` message, the set of recognized inventory types, and corresponding
+entry lengths including the type field, is:
+
+- ``MSG_TX`` (36 bytes);
+- ``MSG_BLOCK`` (36 bytes);
+- ``MSG_FILTERED_BLOCK`` (36 bytes);
+- [provided version 170014 or later has been negotiated] ``MSG_WTX`` (68 bytes).
+
+For an ``inv`` message, the set of recognized inventory types is the same, but the
+``MSG_FILTERED_BLOCK`` type has no useful purpose. Senders of ``inv`` messages
+SHOULD NOT include ``MSG_FILTERED_BLOCK`` entries. In order to allow using the same
+parser for the two message types, a node receiving a ``MSG_FILTERED_BLOCK`` entry
+in an ``inv`` message SHOULD ignore it.
+
+As the ``MSG_WTX`` inv type is only enabled between peers that both support it,
+older clients remain fully compatible and interoperable before NU5 activates, or on
+a chain in which it does not activate.
+
+Further information on how `zcashd` handles data propagation in the peer-to-peer
+network is given in [#zcashd-propagation]_.
+
+
+Rationale
+=========
+
+A previous draft of this ZIP left as an open question whether to redefine ``inv`` and
+``getdata`` to segregate ``MSG_TX`` and ``MSG_WTX``. This could potentially have made
+these messages simpler or more efficient to parse, by avoiding variable-length entries
+in the message data. (See [#p2p-inv]_ and [#p2p-getdata]_ for how ``inv`` and ``getdata``
+respectively are currently defined in Bitcoin.)
+
+This option was rejected because the current specification is simple enough.
+
+
+Acknowledgements
+================
+
+This ZIP is partly based on BIP 339, written by Suhas Daftuar. [#bip-0339]_
+
+
+References
+==========
+
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#protocol-networks] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 3.12 Mainnet and Testnet <protocol/protocol.pdf#networks>`_
+.. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
+.. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
+.. [#zip-0225] `ZIP 225: Version 5 Transaction Format <zip-0225.rst>`_
+.. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`_
+.. [#zip-0252] `ZIP 252: Deployment of the NU5 Network Upgrade <zip-0252.rst>`_
+.. [#bip-0141] `BIP 141: Segregated Witness (Consensus layer) <https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki>`_
+.. [#bip-0339] `BIP 339: WTXID-based transaction relay <https://github.com/bitcoin/bips/blob/master/bip-0339.mediawiki>`_
+.. [#p2p-inv] `Bitcoin Developer Reference: P2P Network — Inv <https://developer.bitcoin.org/reference/p2p_networking.html#inv>`_
+.. [#p2p-getdata] `Bitcoin Developer Reference: P2P Network — GetData <https://developer.bitcoin.org/reference/p2p_networking.html#getdata>`_
+.. [#zcashd-propagation] `zcashd book: P2P data propagation <https://zcash.github.io/zcash/design/p2p-data-propagation.html>`_

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZIP 210: Sapling Anchor Deduplication within Transactions</title>
+    <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+    <section>
+        <pre>ZIP: 210
+Title: Sapling Anchor Deduplication within Transactions
+Owners: Jack Grigg &lt;str4d@electriccoin.co&gt;
+Status: Withdrawn
+Category: Consensus
+Created: 2019-03-27
+License: MIT</pre>
+        <section id="status"><h2><span class="section-heading">Status</span><span class="section-anchor"> <a rel="bookmark" href="#status"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This ZIP has been withdrawn because a similar change has been incorporated into the ZIP 225 proposal for a version 5 transaction format. <a id="footnote-reference-1" class="footnote_reference" href="#zip-0225">5</a></p>
+        </section>
+        <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The key words "MUST" and "MAY" in this document are to be interpreted as described in BCP 14 <a id="footnote-reference-2" class="footnote_reference" href="#bcp14">1</a> when, and only when, they appear in all capitals.</p>
+            <p>The term "network upgrade" in this document is to be interpreted as described in ZIP 200 <a id="footnote-reference-3" class="footnote_reference" href="#zip-0200">3</a>.</p>
+            <p>The term "Sapling" in this document is to be interpreted as described in ZIP 205 <a id="footnote-reference-4" class="footnote_reference" href="#zip-0205">4</a>.</p>
+        </section>
+        <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This proposal defines a modification to the transaction format whereby a single Sapling anchor is used for all Sapling spends. This change removes a potential implementation fingerprint, and reduces the size of Sapling transactions within the block chain.</p>
+        </section>
+        <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The Sapling network upgrade <a id="footnote-reference-5" class="footnote_reference" href="#zip-0205">4</a> introduced new shielded inputs (spends) and outputs. Each spend proves the existence of the note being spent by including the anchor of a Merkle tree that contains the note's commitment, and proving in zero knowledge the existence of a path from the commitment to the anchor (a witness). Valid anchors correspond to the state of the Sapling commitment tree after each block in the chain.</p>
+            <p>The choice of anchor leaks information about the note being spent, namely that the note was created no later than the anchor's block height. This is an unavoidable outcome of the Zcash design, and the least information it is possible to leak about a note being spent. However, the Sapling v4 transaction format <a id="footnote-reference-6" class="footnote_reference" href="#protocol-txnencoding">2</a> includes a separate anchor for each Sapling spend, and thus it is possible to leak additional information by using different anchors for different notes. The anchor selection choices could also be used as a fingerprint to identify transactions created by particular wallet implementations, reducing the privacy set.</p>
+            <p>Modifying the transaction format to have a single Sapling anchor field, instead of one field per Sapling spend, removes the ability (within the new transaction format version) to create transactions with this fingerprint. It also reduces the size of the transaction, costing 32 bytes per transaction instead of 32 bytes per spend.</p>
+        </section>
+        <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>A new transaction format is defined, identical to the Sapling v4 transaction format except for two changes:</p>
+            <ul>
+                <li>The <code>anchor</code> field in <code>SpendDescription</code> is removed.</li>
+                <li>A new field <code>saplingAnchor</code> is placed between <code>vShieldedOutput</code> and <code>vJoinSplit</code>, if and only if <code>vShieldedSpend</code> is not empty.</li>
+            </ul>
+            <p>Consensus rules that previously applied to individual <code>anchor</code> entries MUST be applied to <code>saplingAnchor</code>.</p>
+            <p>TODO: If this is the only ZIP updating the transaction format in a NU, specify the full transaction format here. Otherwise, reference the new transaction format when specified.</p>
+            <p>Implementations that support older transaction formats MAY copy <code>saplingAnchor</code> into each spend's in-memory representation during parsing to reduce code duplication, and MUST ensure that these per-spend in-memory anchors are all identical prior to serialization.</p>
+        </section>
+        <section id="rationale"><h2><span class="section-heading">Rationale</span><span class="section-anchor"> <a rel="bookmark" href="#rationale"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>Placing the <code>saplingAnchor</code> field after <code>vShieldedOutput</code> means that it can be conditionally included (saving space when there are no Sapling spends), while ensuring that the transaction can still be parsed unambiguously.</p>
+            <p>Requiring all Sapling spends to use the same anchor removes a possible performance optimisation in certain classes of (particularly light) wallets, where witnesses for older notes are only updated periodically instead of every block. This optimisation is exactly the kind of behaviour that can be used as a fingerprint in the v4 transaction format, and that we are choosing to prevent with this proposal.</p>
+        </section>
+        <section id="security-and-privacy-considerations"><h2><span class="section-heading">Security and Privacy Considerations</span><span class="section-anchor"> <a rel="bookmark" href="#security-and-privacy-considerations"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This proposal eliminates a possible avenue for distinguishing transactions based on the client implementation that created them.</p>
+        </section>
+        <section id="reference-implementation"><h2><span class="section-heading">Reference Implementation</span><span class="section-anchor"> <a rel="bookmark" href="#reference-implementation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>TBD</p>
+        </section>
+        <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <table id="bcp14" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>1</th>
+                        <td><a href="https://www.rfc-editor.org/info/bcp14">Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-txnencoding" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>2</th>
+                        <td><a href="protocol/protocol.pdf#txnencoding">Zcash Protocol Specification, Version 2021.2.16. Section 7.1: Transaction Encoding and Consensus</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0200" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>3</th>
+                        <td><a href="zip-0200">ZIP 200: Network Upgrade Mechanism</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0205" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>4</th>
+                        <td><a href="zip-0205">ZIP 205: Deployment of the Sapling Network Upgrade</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0225" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>5</th>
+                        <td><a href="zip-0225">ZIP 225: Version 5 Transaction Format</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </section>
+</body>
+</html>

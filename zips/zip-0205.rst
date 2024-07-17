@@ -1,0 +1,154 @@
+::
+
+  ZIP: 205
+  Title: Deployment of the Sapling Network Upgrade
+  Owners: Daira-Emma Hopwood <daira-emma@electriccoin.co>
+  Credits: Simon Liu
+  Status: Final
+  Category: Consensus / Network
+  Created: 2018-10-08
+  License: MIT
+
+
+Terminology
+===========
+
+The key words "MUST" and "SHOULD" in this document are to be interpreted as
+described in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
+
+The terms "consensus branch" and "network upgrade" in this document are to be
+interpreted as described in ZIP 200. [#zip-0200]_
+
+The terms "Testnet" and "Mainnet" are to be interpreted as described in
+section 3.12 of the Zcash Protocol Specification [#protocol-networks]_.
+
+The terms below are to be interpreted as follows:
+
+Sapling
+  Code-name for the second Zcash network upgrade, also known as Network Upgrade 1.
+
+
+Abstract
+========
+
+This proposal defines the deployment of the Sapling network upgrade. In addition, 
+it describes a hard fork that occurred on Testnet to allow "minimum-difficulty"
+blocks.
+
+
+Specification
+=============
+
+Sapling deployment
+------------------
+
+The primary sources of information about Sapling consensus protocol changes are:
+
+- The Zcash Protocol Specification [#protocol]_.
+- Transaction Signature Validation for Sapling [#zip-0243]_.
+- Network Upgrade Mechanism [#zip-0200]_.
+
+The network handshake and peer management mechanisms defined in [#zip-0201]_ also 
+apply to this upgrade.
+
+
+The following network upgrade constants [#zip-0200]_ are defined for the Sapling 
+upgrade:
+
+CONSENSUS_BRANCH_ID
+  ``0x76b809bb``
+
+ACTIVATION_HEIGHT (Sapling)
+  Testnet: 280000
+
+  Mainnet: 419200
+
+
+On Testnet, Sapling had activated prior to this height, but that consensus branch
+was rolled back. A subsequent hard fork occurred on Testnet, changing the
+difficulty algorithm to accept "minimum-difficulty" blocks under certain
+conditions starting at block height 299188.
+
+On both Mainnet and Testnet, Sapling-compatible nodes MUST advertise protocol
+version 170007 or later. The minimum peer protocol version that Sapling-compatible
+nodes will connect to, remains 170002.
+
+Pre-Sapling nodes are defined as nodes advertising a protocol version less than 
+170007.
+
+Approximately three days (defined in terms of block height) before the Sapling 
+activation height, Sapling-compatible nodes will change the behaviour of their peer 
+connection logic in order to prefer pre-Sapling peers for eviction from the set of 
+peer connections.
+
+::
+
+    /** The period before a network upgrade activates, where connections to upgrading peers are preferred (in blocks). */
+    static const int NETWORK_UPGRADE_PEER_PREFERENCE_BLOCK_PERIOD = 24 * 24 * 3;
+
+The implementation is similar to that for Overwinter which was described in
+[#zip-0201]_.
+
+Once Sapling activates on Testnet or Mainnet, Sapling nodes SHOULD take steps to:
+
+- reject new connections from pre-Sapling nodes;
+- disconnect any existing connections to pre-Sapling nodes.
+
+
+Change to difficulty adjustment on Testnet
+------------------------------------------
+
+Section 7.6.3 of the Zcash Protocol Specification [#protocol-diffadjustment]_
+describes the algorithm used to adjust the difficulty of a block (defined in terms
+of a "target threshold") based on the ``nTime`` and ``nBits`` fields of preceding
+blocks.
+
+This algorithm changed on Testnet, starting from block 299188, to allow
+"minimum-difficulty" blocks. If the block time of a block from this height onward 
+is greater than 15 minutes after that of the preceding block, then the block is a
+minimum-difficulty block. In that case its ``nBits`` field MUST be set to
+ToCompact(PoWLimit), where PoWLimit is the value defined for Testnet in section 5.3
+of the Zcash Protocol Specification [#protocol-constants]_, and ToCompact is as
+defined in section 7.7.4 of that specification [#protocol-nbits]_.
+
+Note: a previous revision of this ZIP incorrectly said that only the target
+threshold of minimum-difficulty blocks is affected. In fact the ``nBits`` field
+is modified as well, and this affects difficulty adjustment for subsequent blocks.
+
+This change does not affect Mainnet.
+
+
+Backward compatibility
+======================
+
+Prior to the network upgrade activating, Sapling and pre-Sapling nodes are
+compatible and can connect to each other. However, Sapling nodes will have a
+preference for connecting to other Sapling nodes, so pre-Sapling nodes will
+gradually be disconnected in the run up to activation.
+
+Once the network upgrades, even though pre-Sapling nodes can still accept the
+numerically larger protocol version used by Sapling as being valid, Sapling nodes
+will always disconnect peers using lower protocol versions.
+
+
+Support in zcashd
+=================
+
+Support for Sapling consensus rules was implemented in zcashd version 2.0.0.
+The majority of support for RPC calls and persistence of Sapling z-addresses
+was implemented in version 2.0.1. Both of these versions advertise protocol
+version 170007.
+
+
+References
+==========
+
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#protocol] `Zcash Protocol Specification, Version 2021.2.16 or later <protocol/protocol.pdf>`_
+.. [#protocol-networks] `Zcash Protocol Specification, Version 2021.2.16. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
+.. [#protocol-constants] `Zcash Protocol Specification, Version 2021.2.16. Section 5.3: Constants <protocol/protocol.pdf#constants>`_
+.. [#protocol-diffadjustment] `Zcash Protocol Specification, Version 2021.2.16. Section 7.7.3: Difficulty adjustment <protocol/protocol.pdf#diffadjustment>`_
+.. [#protocol-nbits] `Zcash Protocol Specification, Version 2021.2.16. Section 7.7.4: nBits conversion <protocol/protocol.pdf#nbits>`_
+.. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
+.. [#zip-0201] `ZIP 201: Network Peer Management for Overwinter <zip-0201.rst>`_
+.. [#zip-0243] `ZIP 243: Transaction Signature Validation for Sapling <zip-0243.rst>`_

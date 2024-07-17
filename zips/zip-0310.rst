@@ -1,0 +1,258 @@
+::
+
+  ZIP: 310
+  Title: Security Properties of Sapling Viewing Keys
+  Owners: Daira-Emma Hopwood <daira-emma@electriccoin.co>
+          Jack Grigg <jack@electriccoin.co>
+  Status: Draft
+  Category: Informational
+  Created: 2020-03-09
+  License: MIT
+
+
+Terminology
+===========
+
+Sapling FVK
+    A Sapling full viewing key as described in [#protocol]_, or a Sapling
+    extended full viewing key as described in [#zip-0032]_.
+GUARANTEED
+    Information that can be learned by the holder of a Sapling FVK, and
+    ensured to be correct by the Sapling protocol, given the cryptographic
+    assumptions underlying that protocol.
+UNVERIFIED
+    Information that can be learned by the holder of a Sapling FVK, but
+    that is not guaranteed to be correct.
+UNDEFINED
+    The Sapling protocol does not define whether or not this information is
+    accessible.
+UNREVEALED
+    Information that is not revealed as a consequence of holding a Sapling
+    FVK.
+
+Abstract
+========
+
+This ZIP documents what information an entity learns when they are given
+one or more Sapling viewing keys, and what guarantees they have about this
+information.
+
+
+Motivation
+==========
+
+Shielded addresses allow for network participants to send and receive while
+revealing as little information on the public block chain as possible.
+However, there are circumstances in which it is desirable to explicitly
+reveal some of this information to a third party, such as during auditing
+or for splitting authority between multiple parties or devices.
+
+It is important that a party that is relying on the information made visible
+by a viewing key, understands what that information conveys and what
+assumptions they can make when relying on it.
+
+
+Security Properties
+===================
+
+Alice has a spending key that she has been using for receiving and sending ZEC.
+She generates a Sapling FVK and gives it to Ian. What can Ian learn with the
+Sapling FVK, and what guarantees does he have about the things he learns?
+(Note for below: IVK and OVK are derived from FVK.)
+
+If Ian is given some diversified payment address:
+
+* [GUARANTEED] He can determine whether the IVK derived from FVK corresponds
+  to the address.
+* [UNVERIFIED] He cannot reliably determine whether the OVK derived from FVK
+  corresponds to the address.
+
+  * That is, Ian could have been given an alleged FVK that is “correct” for a
+    particular address, but with an arbitrary OVK that corresponds to some
+    other address, or no address, or a well-known OVK (e.g. all-zeros which is
+    used for funding streams / coinbase outputs).
+
+If Ian is given two diversified payment addresses:
+
+* [GUARANTEED] He can determine whether or not both of these addresses are
+  linked to the given FVK, and if so, that they are linked to each other.
+
+
+What Ian learns about a single transaction
+------------------------------------------
+
+If Ian detects a new transaction (defined as a transaction that Ian had no
+prior knowledge about) solely by decrypting one of its Output descriptions
+with Alice’s IVK, then he learns:
+
+* [GUARANTEED] Whether Alice is a recipient of the payment (by verifying the
+  note commitment against the encrypted contents).
+
+  * [GUARANTEED] If so, to which of Alice’s diversified payment addresses the
+    payment was sent.
+  * [UNDEFINED] Whether Alice is an explicit recipient, or just receiving
+    change or making a movement between “accounts” (the protocol does not
+    distinguish between Bob sending Alice funds, and Alice moving funds
+    between different addresses).
+
+* [GUARANTEED] A new, unspent note that Alice is able to spend.
+* [GUARANTEED] The nullifier with which to detect the new note being spent,
+  once this transaction is mined in a block.
+
+  * This is a way in which Sapling viewing keys differ from Sprout; you do not
+    learn this information for Sprout viewing keys.
+
+* [UNVERIFIED] The memo field contents, which might identify the sender.
+
+  * If the memo contained explicit sender authentication / proof-of-spending-key,
+    then Ian gains a guarantee; FVK does not require this.
+
+If Ian detects a new transaction by observing a nullifier for one of Alice’s
+unspent known notes, then he learns:
+
+* [GUARANTEED] Alice is a sender.
+* [GUARANTEED] Whether Alice is the sole sender, or has collaborated to create
+  the transaction (if there are other Spend descriptions with unknown
+  nullifiers).
+* [UNREVEALED] The identities of the other senders (as in this context Ian only
+  has Alice’s FVK).
+* [UNDEFINED] The recipient(s).
+
+  * Nothing in the transaction enforces that outputs are encrypted to either the
+    address of the note that is committed to, or any value known to the sender.
+
+* [UNDEFINED] Whether Alice receives any funds in the transaction.
+
+  * The protocol does not distinguish between Alice sending all funds to a
+    third party, and moving funds to a different address that she controls.
+
+If Ian can decrypt an output in the same transaction with Alice’s IVK, then he
+additionally learns:
+
+* [GUARANTEED] Alice receives change from the transaction (by the definition
+  that “change” is funds that you receive in a transaction where you also spend
+  funds).
+
+If Ian can decrypt an output in the same transaction with Alice’s OVK (which
+he will be able to do if Alice follows standard protocol), then he additionally
+learns:
+
+* [GUARANTEED] The recipient’s diversified payment address (by verifying the
+  note commitment).
+* [GUARANTEED] The amount sent to the recipient.
+* [GUARANTEED] The memo that the recipient will receive by decrypting the
+  output.
+* [UNREVEALED] The nullifier with which the recipient would spend the note (as
+  Ian does not have the recipient’s FVK).
+
+If Ian detects a new transaction solely by decrypting one of its Output
+descriptions with Alice’s OVK (and not via any of the nullifiers in its Spend
+descriptions), then he learns:
+
+* [GUARANTEED] The sender had knowledge of Alice’s OVK (negligible probability
+  of random chance, as OVK is 256 bits).
+* [UNVERIFIED] Alice might be the sender.
+* [UNVERIFIED] This is a non-standard transaction. There may be a bug in the
+  wallet generating transactions, or the transaction might be generated as an
+  out-of-band transaction.
+
+  * The behaviour of the zcashd wallet is to use the OVK corresponding to the
+    first address (i.e. first call to the transaction builder) being spent
+    from.
+
+
+What Ian learns about balances
+------------------------------
+
+This section concerns what Ian learns contextually across multiple
+transactions.
+
+We define a “tally” to be the abstraction of balance corresponding to an FVK.
+This corresponds to exactly one expanded spending key. (Balances cannot
+accurately be modelled as being associated with a diversified address, since
+there are multiple diversified addresses associated with an FVK.)
+
+The balance of a tally after a particular block is defined as the sum of note
+values that are spendable, according to the Sapling protocol, using the
+extended spending key associated with the tally, in a block chain that extends
+from that block.
+
+Ian can attempt to keep track of a given tally’s balance as of a given block.
+This would be done as follows:
+
+* Scan the chain from Sapling activation up to and including the specified
+  block, collecting all of the Sapling spends and Sapling outputs up to and
+  including that block that are relevant to the FVK, as specified in section
+  4.19 of the Protocol Specification [#protocol-saplingscan]_. This produces
+  a ReceivedSet of notes that were received by that tally, and a SpentSet of
+  notes that were spent from it.
+
+* Compute the balance as the sum of the values of all notes appearing in
+  ReceivedSet but not in SpentSet.
+
+The following inaccuracies may occur in balance accounting:
+
+* An incoming payment to the tally may not be detected, if the sender
+  transmitted it and the recipient accepted it “out of band”, without
+  following the Sapling protocol.
+* If an incoming payment is not detected for the above reason, and the note
+  is later spent, then that spend will also not be detected by the process
+  in section 4.19.
+
+The combination of the above inaccuracies can cause a tally’s computed
+balance to be lower than its actual balance. They cannot cause a tally’s
+computed balance to be higher than its actual balance. That is:
+
+* [GUARANTEED] Ian learns a lower bound on the balance of the tally.
+* [UNVERIFIED] If Alice followed the Sapling protocol when receiving funds
+  to addresses associated with the tally, then Ian learns the exact balance
+  of the tally.
+
+It should be noted that since “out-of-band” payments require cooperation
+between the sender and recipient in not following the Sapling protocol, the
+sender and recipient could instead have agreed to use a different tally.
+
+
+What Ian learns about the ecosystem
+-----------------------------------
+
+Assume Ian now has access to a set S of FVKs. Without loss of generality we
+will treat these as belonging to independent entities.
+
+Ian runs the transaction and balance scanning protocols described in previous
+sections, in parallel for all FVKs in S.
+
+In addition to information learned from each individual FVK, Ian can infer:
+
+* [GUARANTEED] When any member of the set sends funds to any other member of
+  the set via any standard transaction.
+
+  * [UNDEFINED] Ian may not learn about out-of-band transactions, but this has
+    a similar effect to transactions between entities with FVKs not in the set.
+
+* [GUARANTEED] Any common recipients (with payment addresses that are not
+  controlled by any members of the set) that have received funds from two or
+  more members of the set via standard transactions.
+
+  * [UNVERIFIED] Any common recipients that have received funds from two or
+    more members of the set via non-standard transactions where OVKs from the
+    set members were used to encrypt recipient outputs.
+  * [UNDEFINED] Ian might not see the full set of common recipients, if members
+    of the set cooperate with recipients to create out-of-band transactions.
+
+* [GUARANTEED] Any subsets of set members that cooperatively spend funds (for
+  which Ian has knowledge of the individual spends) within the same
+  transaction.
+
+  * [UNDEFINED] Ian may learn about cooperative spends involving members of the
+    set by detecting the use of multiple OVKs from set members within a single
+    transaction, even if the transactions are not made according to the Sapling
+    protocol.
+
+
+References
+==========
+
+.. [#protocol] `Zcash Protocol Specification, Version 2020.1.15 or later <protocol/protocol.pdf>`_
+.. [#protocol-saplingscan] `Zcash Protocol Specification, Version 2020.1.15. Section 4.19: Block Chain Scanning (Sapling) <protocol/protocol.pdf#saplingscan>`_
+.. [#zip-0032] `ZIP 32: Shielded Hierarchical Deterministic Wallets <zip-0032.rst>`_
