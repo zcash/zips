@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZIP 205: Deployment of the Sapling Network Upgrade</title>
+    <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+    <section>
+        <pre>ZIP: 205
+Title: Deployment of the Sapling Network Upgrade
+Owners: Daira-Emma Hopwood &lt;daira-emma@electriccoin.co&gt;
+Credits: Simon Liu
+Status: Final
+Category: Consensus / Network
+Created: 2018-10-08
+License: MIT</pre>
+        <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The key words "MUST" and "SHOULD" in this document are to be interpreted as described in BCP 14 <a id="footnote-reference-1" class="footnote_reference" href="#bcp14">1</a> when, and only when, they appear in all capitals.</p>
+            <p>The terms "consensus branch" and "network upgrade" in this document are to be interpreted as described in ZIP 200. <a id="footnote-reference-2" class="footnote_reference" href="#zip-0200">7</a></p>
+            <p>The terms "Testnet" and "Mainnet" are to be interpreted as described in section 3.12 of the Zcash Protocol Specification <a id="footnote-reference-3" class="footnote_reference" href="#protocol-networks">3</a>.</p>
+            <p>The terms below are to be interpreted as follows:</p>
+            <dl>
+                <dt>Sapling</dt>
+                <dd>Code-name for the second Zcash network upgrade, also known as Network Upgrade 1.</dd>
+            </dl>
+        </section>
+        <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This proposal defines the deployment of the Sapling network upgrade. In addition, it describes a hard fork that occurred on Testnet to allow "minimum-difficulty" blocks.</p>
+        </section>
+        <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <section id="sapling-deployment"><h3><span class="section-heading">Sapling deployment</span><span class="section-anchor"> <a rel="bookmark" href="#sapling-deployment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>The primary sources of information about Sapling consensus protocol changes are:</p>
+                <ul>
+                    <li>The Zcash Protocol Specification <a id="footnote-reference-4" class="footnote_reference" href="#protocol">2</a>.</li>
+                    <li>Transaction Signature Validation for Sapling <a id="footnote-reference-5" class="footnote_reference" href="#zip-0243">9</a>.</li>
+                    <li>Network Upgrade Mechanism <a id="footnote-reference-6" class="footnote_reference" href="#zip-0200">7</a>.</li>
+                </ul>
+                <p>The network handshake and peer management mechanisms defined in <a id="footnote-reference-7" class="footnote_reference" href="#zip-0201">8</a> also apply to this upgrade.</p>
+                <p>The following network upgrade constants <a id="footnote-reference-8" class="footnote_reference" href="#zip-0200">7</a> are defined for the Sapling upgrade:</p>
+                <dl>
+                    <dt>CONSENSUS_BRANCH_ID</dt>
+                    <dd><code>0x76b809bb</code></dd>
+                    <dt>ACTIVATION_HEIGHT (Sapling)</dt>
+                    <dd>
+                        <p>Testnet: 280000</p>
+                        <p>Mainnet: 419200</p>
+                    </dd>
+                </dl>
+                <p>On Testnet, Sapling had activated prior to this height, but that consensus branch was rolled back. A subsequent hard fork occurred on Testnet, changing the difficulty algorithm to accept "minimum-difficulty" blocks under certain conditions starting at block height 299188.</p>
+                <p>On both Mainnet and Testnet, Sapling-compatible nodes MUST advertise protocol version 170007 or later. The minimum peer protocol version that Sapling-compatible nodes will connect to, remains 170002.</p>
+                <p>Pre-Sapling nodes are defined as nodes advertising a protocol version less than 170007.</p>
+                <p>Approximately three days (defined in terms of block height) before the Sapling activation height, Sapling-compatible nodes will change the behaviour of their peer connection logic in order to prefer pre-Sapling peers for eviction from the set of peer connections.</p>
+                <pre>/** The period before a network upgrade activates, where connections to upgrading peers are preferred (in blocks). */
+static const int NETWORK_UPGRADE_PEER_PREFERENCE_BLOCK_PERIOD = 24 * 24 * 3;</pre>
+                <p>The implementation is similar to that for Overwinter which was described in <a id="footnote-reference-9" class="footnote_reference" href="#zip-0201">8</a>.</p>
+                <p>Once Sapling activates on Testnet or Mainnet, Sapling nodes SHOULD take steps to:</p>
+                <ul>
+                    <li>reject new connections from pre-Sapling nodes;</li>
+                    <li>disconnect any existing connections to pre-Sapling nodes.</li>
+                </ul>
+            </section>
+            <section id="change-to-difficulty-adjustment-on-testnet"><h3><span class="section-heading">Change to difficulty adjustment on Testnet</span><span class="section-anchor"> <a rel="bookmark" href="#change-to-difficulty-adjustment-on-testnet"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Section 7.6.3 of the Zcash Protocol Specification <a id="footnote-reference-10" class="footnote_reference" href="#protocol-diffadjustment">5</a> describes the algorithm used to adjust the difficulty of a block (defined in terms of a "target threshold") based on the <code>nTime</code> and <code>nBits</code> fields of preceding blocks.</p>
+                <p>This algorithm changed on Testnet, starting from block 299188, to allow "minimum-difficulty" blocks. If the block time of a block from this height onward is greater than 15 minutes after that of the preceding block, then the block is a minimum-difficulty block. In that case its <code>nBits</code> field MUST be set to ToCompact(PoWLimit), where PoWLimit is the value defined for Testnet in section 5.3 of the Zcash Protocol Specification <a id="footnote-reference-11" class="footnote_reference" href="#protocol-constants">4</a>, and ToCompact is as defined in section 7.7.4 of that specification <a id="footnote-reference-12" class="footnote_reference" href="#protocol-nbits">6</a>.</p>
+                <p>Note: a previous revision of this ZIP incorrectly said that only the target threshold of minimum-difficulty blocks is affected. In fact the <code>nBits</code> field is modified as well, and this affects difficulty adjustment for subsequent blocks.</p>
+                <p>This change does not affect Mainnet.</p>
+            </section>
+        </section>
+        <section id="backward-compatibility"><h2><span class="section-heading">Backward compatibility</span><span class="section-anchor"> <a rel="bookmark" href="#backward-compatibility"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>Prior to the network upgrade activating, Sapling and pre-Sapling nodes are compatible and can connect to each other. However, Sapling nodes will have a preference for connecting to other Sapling nodes, so pre-Sapling nodes will gradually be disconnected in the run up to activation.</p>
+            <p>Once the network upgrades, even though pre-Sapling nodes can still accept the numerically larger protocol version used by Sapling as being valid, Sapling nodes will always disconnect peers using lower protocol versions.</p>
+        </section>
+        <section id="support-in-zcashd"><h2><span class="section-heading">Support in zcashd</span><span class="section-anchor"> <a rel="bookmark" href="#support-in-zcashd"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>Support for Sapling consensus rules was implemented in zcashd version 2.0.0. The majority of support for RPC calls and persistence of Sapling z-addresses was implemented in version 2.0.1. Both of these versions advertise protocol version 170007.</p>
+        </section>
+        <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <table id="bcp14" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>1</th>
+                        <td><a href="https://www.rfc-editor.org/info/bcp14">Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>2</th>
+                        <td><a href="protocol/protocol.pdf">Zcash Protocol Specification, Version 2021.2.16 or later</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-networks" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>3</th>
+                        <td><a href="protocol/protocol.pdf#networks">Zcash Protocol Specification, Version 2021.2.16. Section 3.12: Mainnet and Testnet</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-constants" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>4</th>
+                        <td><a href="protocol/protocol.pdf#constants">Zcash Protocol Specification, Version 2021.2.16. Section 5.3: Constants</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-diffadjustment" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>5</th>
+                        <td><a href="protocol/protocol.pdf#diffadjustment">Zcash Protocol Specification, Version 2021.2.16. Section 7.7.3: Difficulty adjustment</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-nbits" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>6</th>
+                        <td><a href="protocol/protocol.pdf#nbits">Zcash Protocol Specification, Version 2021.2.16. Section 7.7.4: nBits conversion</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0200" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>7</th>
+                        <td><a href="zip-0200">ZIP 200: Network Upgrade Mechanism</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0201" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>8</th>
+                        <td><a href="zip-0201">ZIP 201: Network Peer Management for Overwinter</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0243" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>9</th>
+                        <td><a href="zip-0243">ZIP 243: Transaction Signature Validation for Sapling</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </section>
+</body>
+</html>

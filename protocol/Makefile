@@ -1,83 +1,132 @@
-LATEXMK=latexmk --halt-on-error -bibtex -pdf
-LATEX=pdflatex --halt-on-error
+# Dependencies: see zip-guide.rst and protocol/README.rst
 
-sprout.pdf: protocol.tex zcash.bib incremental_merkle.png key_components.png
-	$(MAKE) sprout
+SHELL=/bin/bash -eo pipefail
 
-sapling.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
+# Experimental; options are pdflatex, lualatex, or xelatex.
+# On Debian, LuaLaTeX needs the texlive-luatex package, and XeLaTeX needs the texlive-xetex package.
+# Make sure to read <https://github.com/zcash/zips/issues/249>.
+ENGINE=pdflatex
+
+LATEXMKOPT_pdflatex=
+LATEXMKOPT_xelatex=-pdflatex=xelatex -dvi- -ps-
+LATEXMKOPT_lualatex=-pdflatex=lualatex -dvi- -ps-
+
+LATEXMK=max_print_line=10000 latexmk $(LATEXMKOPT_$(ENGINE)) --halt-on-error --file-line-error -bibtex -pdf -logfilewarnings- -e '$$max_repeat=8'
+LATEX=$(ENGINE) --halt-on-error --file-line-error
+NOCRUFT?=|perl -pe 's|[{\<\(]\/[^ ]* ?||g;s|^.* has been referenced but does not exist.*||g;s|^\n||g'
+
+PDFDIR=../rendered/protocol
+
+# Use EXTRAOPT=-pvc for "continuous preview" mode. For example, "make auxblossom EXTRAOPT=-pvc".
+# In this case the updated .pdf will be in the aux/ directory.
+
+.PHONY: all all-specs release discard
+all: .Makefile.uptodate
+	$(MAKE) nu5 canopy heartwood blossom sapling
+
+all-specs: .Makefile.uptodate
+	$(MAKE) $(PDFDIR)/nu5.pdf $(PDFDIR)/canopy.pdf $(PDFDIR)/heartwood.pdf $(PDFDIR)/blossom.pdf $(PDFDIR)/sapling.pdf
+
+tag-release:
+ifeq ($(shell git tag --points-at HEAD |wc -l),0)
+	echo "Set a tag at HEAD first."
+else
+	$(eval TAG := $(shell git tag --points-at HEAD))
+	git fetch origin
+	git merge-base --is-ancestor origin/main HEAD || (echo "The current branch is dirty and/or not up-to-date with origin's main branch."; false)
+	$(MAKE) clean all
+	git add $(PDFDIR)/*.pdf
+	git commit -m "Regenerate PDFs." $(PDFDIR)/*.pdf
+	git tag "v$(TAG)"
+endif
+
+discard:
+	git checkout -- "$(PDFDIR)/*.pdf"
+
+.Makefile.uptodate: Makefile
+	$(MAKE) clean
+	touch .Makefile.uptodate
+
+$(PDFDIR)/sapling.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
 	$(MAKE) sapling
 
-blossom.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
+$(PDFDIR)/blossom.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
 	$(MAKE) blossom
 
-.PHONY: auxsprout
-auxsprout:
-	printf '\\renewcommand{\\docversion}{Version %s [\\SproutSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
-	mkdir -p aux
-	rm -f aux/sprout.* aux/protocol.*
-	$(LATEXMK) -jobname=sprout -auxdir=aux -outdir=aux protocol
+$(PDFDIR)/heartwood.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
+	$(MAKE) heartwood
 
-.PHONY: sprout
-sprout:
-	$(MAKE) auxsprout
-	mv -f aux/sprout.pdf .
+$(PDFDIR)/canopy.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
+	$(MAKE) canopy
 
-.PHONY: pvcsprout
-pvcsprout:
-	printf '\\renewcommand{\\docversion}{Version %s [\\SproutSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
-	mkdir -p aux
-	rm -f aux/sprout.* aux/protocol.*
-	$(LATEXMK) -jobname=sprout -auxdir=aux -pvc protocol
+$(PDFDIR)/nu5.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
+	$(MAKE) nu5
 
 .PHONY: auxsapling
 auxsapling:
 	printf '\\toggletrue{issapling}\n\\renewcommand{\\docversion}{Version %s [\\SaplingSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/sapling.*
-	$(LATEXMK) -jobname=sapling -auxdir=aux -outdir=aux protocol
+	cp mymakeindex.sh aux
+	$(LATEXMK) -jobname=sapling -auxdir=aux -outdir=aux $(EXTRAOPT) protocol $(NOCRUFT)
 
 .PHONY: sapling
 sapling:
 	$(MAKE) auxsapling
-	mv -f aux/sapling.pdf .
-	cp -f sapling.pdf protocol.pdf
-
-.PHONY: pvcsapling
-pvcsapling:
-	printf '\\toggletrue{issapling}\n\\renewcommand{\\docversion}{Version %s [\\SaplingSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
-	mkdir -p aux
-	rm -f aux/sapling.*
-	$(LATEXMK) -jobname=sapling -auxdir=aux -pvc protocol
+	mv -f aux/sapling.pdf $(PDFDIR)
 
 .PHONY: auxblossom
 auxblossom:
 	printf '\\toggletrue{isblossom}\n\\renewcommand{\\docversion}{Version %s [\\BlossomSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/blossom.*
-	$(LATEXMK) -jobname=blossom -auxdir=aux -outdir=aux protocol
+	cp mymakeindex.sh aux
+	$(LATEXMK) -jobname=blossom -auxdir=aux -outdir=aux $(EXTRAOPT) protocol $(NOCRUFT)
 
 .PHONY: blossom
 blossom:
 	$(MAKE) auxblossom
-	mv -f aux/blossom.pdf .
+	mv -f aux/blossom.pdf $(PDFDIR)
 
-.PHONY: pvcblossom
-pvcblossom:
-	printf '\\toggletrue{isblossom}\n\\renewcommand{\\docversion}{Version %s [\\BlossomSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+.PHONY: auxheartwood
+auxheartwood:
+	printf '\\toggletrue{isheartwood}\n\\renewcommand{\\docversion}{Version %s [\\HeartwoodSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
-	rm -f aux/blossom.*
-	$(LATEXMK) -jobname=blossom -auxdir=aux -pvc protocol
+	rm -f aux/heartwood.*
+	cp mymakeindex.sh aux
+	$(LATEXMK) -jobname=heartwood -auxdir=aux -outdir=aux $(EXTRAOPT) protocol $(NOCRUFT)
 
-.PHONY: nolatexmk-sprout
-nolatexmk-sprout:
-	printf '\\renewcommand{\\docversion}{Version %s [\\SproutSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
-	# If $(LATEX) fails, touch an input so that 'make' won't think it is up-to-date next time.
-	rm -f sprout.aux sprout.bbl sprout.blg sprout.brf sprout.bcf
-	$(LATEX) protocol.tex || { touch incremental_merkle.png; exit 1; }
-	biber protocol
-	$(LATEX) protocol.tex || { touch incremental_merkle.png; exit 1; }
-	$(LATEX) protocol.tex || { touch incremental_merkle.png; exit 1; }
-	$(LATEX) protocol.tex || { touch incremental_merkle.png; exit 1; }
+.PHONY: heartwood
+heartwood:
+	$(MAKE) auxheartwood
+	mv -f aux/heartwood.pdf $(PDFDIR)
+
+.PHONY: auxcanopy
+auxcanopy:
+	printf '\\toggletrue{iscanopy}\n\\renewcommand{\\docversion}{Version %s [\\CanopySpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	mkdir -p aux
+	rm -f aux/canopy.*
+	cp mymakeindex.sh aux
+	$(LATEXMK) -jobname=canopy -auxdir=aux -outdir=aux $(EXTRAOPT) protocol $(NOCRUFT)
+
+.PHONY: canopy
+canopy:
+	$(MAKE) auxcanopy
+	mv -f aux/canopy.pdf $(PDFDIR)
+
+.PHONY: auxnu5
+auxnu5:
+	printf '\\toggletrue{isnufive}\n\\renewcommand{\\docversion}{Version %s [\\NUFiveSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	mkdir -p aux
+	rm -f aux/nu5.*
+	cp mymakeindex.sh aux
+	$(LATEXMK) -jobname=nu5 -auxdir=aux -outdir=aux $(EXTRAOPT) protocol $(NOCRUFT)
+
+.PHONY: nu5
+nu5:
+	$(MAKE) auxnu5
+	mv -f aux/nu5.pdf $(PDFDIR)
+	cp -f $(PDFDIR)/nu5.pdf $(PDFDIR)/protocol.pdf
 
 .PHONY: nolatexmk-sapling
 nolatexmk-sapling:
@@ -88,6 +137,7 @@ nolatexmk-sapling:
 	biber sapling
 	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.png; exit 1; }
 	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.png; exit 1; }
+	sh mymakeindex.sh -o sapling.ind sapling.idx
 	$(LATEX) -jobname=sapling protocol.tex || { touch incremental_merkle.png; exit 1; }
 
 .PHONY: nolatexmk-blossom
@@ -96,61 +146,49 @@ nolatexmk-blossom:
 	# If $(LATEX) fails, touch an input so that 'make' won't think it is up-to-date next time.
 	rm -f blossom.aux blossom.bbl blossom.blg blossom.brf blossom.bcf
 	$(LATEX) -jobname=blossom protocol.tex || { touch incremental_merkle.png; exit 1; }
-	biber sapling
+	biber blossom
 	$(LATEX) -jobname=blossom protocol.tex || { touch incremental_merkle.png; exit 1; }
 	$(LATEX) -jobname=blossom protocol.tex || { touch incremental_merkle.png; exit 1; }
+	sh mymakeindex.sh -o blossom.ind blossom.idx
 	$(LATEX) -jobname=blossom protocol.tex || { touch incremental_merkle.png; exit 1; }
+	cp -f blossom.pdf protocol.pdf
 
-.PHONY: html
-html: sapling.pdf sprout.pdf blossom.pdf
-	# Can't use --split-pages 1 because XHR doesn't work by default on local files in Chrome.
-	pdf2htmlEX --decompose-ligature 1 --font-size-multiplier 65 --fit-width 1000 --dest-dir html sprout.pdf
-	pdf2htmlEX --decompose-ligature 1 --font-size-multiplier 65 --fit-width 1000 --dest-dir html sapling.pdf
-	pdf2htmlEX --decompose-ligature 1 --font-size-multiplier 65 --fit-width 1000 --dest-dir html blossom.pdf
+.PHONY: nolatexmk-heartwood
+nolatexmk-heartwood:
+	printf '\\toggletrue{isheartwood}\n\\renewcommand{\\docversion}{Version %s [\\HeartwoodSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	# If $(LATEX) fails, touch an input so that 'make' won't think it is up-to-date next time.
+	rm -f heartwood.aux heartwood.bbl heartwood.blg heartwood.brf heartwood.bcf
+	$(LATEX) -jobname=heartwood protocol.tex || { touch incremental_merkle.png; exit 1; }
+	biber heartwood
+	$(LATEX) -jobname=heartwood protocol.tex || { touch incremental_merkle.png; exit 1; }
+	$(LATEX) -jobname=heartwood protocol.tex || { touch incremental_merkle.png; exit 1; }
+	sh mymakeindex.sh -o heartwood.ind heartwood.idx
+	$(LATEX) -jobname=heartwood protocol.tex || { touch incremental_merkle.png; exit 1; }
+
+.PHONY: nolatexmk-canopy
+nolatexmk-canopy:
+	printf '\\toggletrue{iscanopy}\n\\renewcommand{\\docversion}{Version %s [\\CanopySpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	# If $(LATEX) fails, touch an input so that 'make' won't think it is up-to-date next time.
+	rm -f canopy.aux canopy.bbl canopy.blg canopy.brf canopy.bcf
+	$(LATEX) -jobname=canopy protocol.tex || { touch incremental_merkle.png; exit 1; }
+	biber canopy
+	$(LATEX) -jobname=canopy protocol.tex || { touch incremental_merkle.png; exit 1; }
+	$(LATEX) -jobname=canopy protocol.tex || { touch incremental_merkle.png; exit 1; }
+	sh mymakeindex.sh -o canopy.ind canopy.idx
+	$(LATEX) -jobname=canopy protocol.tex || { touch incremental_merkle.png; exit 1; }
+
+.PHONY: nolatexmk-nu5
+nolatexmk-nu5:
+	printf '\\toggletrue{isnufive}\n\\renewcommand{\\docversion}{Version %s [\\NUFiveSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	# If $(LATEX) fails, touch an input so that 'make' won't think it is up-to-date next time.
+	rm -f nu5.aux nu5.bbl nu5.blg nu5.brf nu5.bcf
+	$(LATEX) -jobname=nu5 protocol.tex || { touch incremental_merkle.png; exit 1; }
+	biber nu5
+	$(LATEX) -jobname=nu5 protocol.tex || { touch incremental_merkle.png; exit 1; }
+	$(LATEX) -jobname=nu5 protocol.tex || { touch incremental_merkle.png; exit 1; }
+	sh mymakeindex.sh -o nu5.ind nu5.idx
+	$(LATEX) -jobname=nu5 protocol.tex || { touch incremental_merkle.png; exit 1; }
 
 .PHONY: clean
 clean:
-	rm -f aux/* html/* protocol.ver \
-              sprout.dvi  sprout.pdf  sprout.bbl  sprout.blg  sprout.brf      sprout.toc \
-              sprout.aux  sprout.out  sprout.log  sprout.bcf  sprout.run.xml  sprout.fls  sprout.fdb_latexmk \
-              sapling.dvi sapling.pdf sapling.bbl sapling.blg sapling.brf     sapling.toc \
-              sapling.aux sapling.out sapling.log sapling.bcf sapling.run.xml sapling.fls sapling.fdb_latexmk \
-              blossom.dvi blossom.pdf blossom.bbl blossom.blg blossom.brf     blossom.toc \
-              blossom.aux blossom.out blossom.log blossom.bcf blossom.run.xml blossom.fls blossom.fdb_latexmk
-
-optimizer-installed.flag2:
-	rm -rf sam2p tif22pnm pdfsizeopt
-	# Nail down git commits to make backdooring somewhat harder.
-	git clone https://github.com/pts/sam2p.git
-	cd sam2p && git reset --hard cafd4b8910a56e4b0af833f943a2ae85c7bc0a4d && $(MAKE)
-	git clone https://github.com/pts/tif22pnm.git
-	cd tif22pnm && git reset --hard 22217c1a3ea355a899e9c7c79903488ca13d1dfe && $(MAKE)
-	git clone https://github.com/pts/pdfsizeopt.git
-	cd pdfsizeopt && git reset --hard 5a42db5bef4df1652adb3ef49a9d14bcb58442eb
-	touch optimizer-installed.flag2
-
-.PHONY: clean-optimizer
-clean-optimizer:
-	rm -rf sam2p tif22pnm pdfsizeopt optimizer-installed.flag*
-
-.PHONY: optsprout
-optsprout: optimizer-installed.flag2
-	$(MAKE) auxsprout
-	PATH="${PATH}:$(CURDIR)/sam2p:$(CURDIR)/tif22pnm" pdfsizeopt/pdfsizeopt --v=40 --use-image-optimizer=sam2p \
-              --tmp-dir=aux aux/sprout.pdf sprout.pdf
-
-.PHONY: optsapling
-optsapling: optimizer-installed.flag2
-	$(MAKE) auxsapling
-	PATH="${PATH}:$(CURDIR)/sam2p:$(CURDIR)/tif22pnm" pdfsizeopt/pdfsizeopt --v=40 --use-image-optimizer=sam2p \
-              --tmp-dir=aux aux/sapling.pdf sapling.pdf
-	cp -f sapling.pdf protocol.pdf
-
-.PHONY: optblossom
-optblossom: optimizer-installed.flag2
-	$(MAKE) auxblossom
-	PATH="${PATH}:$(CURDIR)/sam2p:$(CURDIR)/tif22pnm" pdfsizeopt/pdfsizeopt --v=40 --use-image-optimizer=sam2p \
-              --tmp-dir=aux aux/blossom.pdf blossom.pdf
-
-.PHONY: optimized
-optimized: optsapling optsprout optblossom
+	rm -f aux/* html/* protocol.ver $(PDFDIR)/protocol.pdf $(PDFDIR)/nu5.pdf $(PDFDIR)/canopy.pdf $(PDFDIR)/heartwood.pdf $(PDFDIR)/blossom.pdf $(PDFDIR)/sapling.pdf

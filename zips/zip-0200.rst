@@ -1,0 +1,233 @@
+::
+
+  ZIP: 200
+  Title: Network Upgrade Mechanism
+  Owners: Jack Grigg <str4d@electriccoin.co>
+  Status: Final
+  Category: Consensus
+  Created: 2018-01-08
+  License: MIT
+
+
+Terminology
+===========
+
+The key words "MUST", "SHOULD", "SHOULD NOT", and "MAY" in this document are to be interpreted as
+described in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
+
+The terms below are to be interpreted as follows:
+
+Block chain
+  A sequence of blocks starting at the genesis block, where the header of each block refers to the previous
+  block in the sequence.
+
+Consensus rule set
+  A set of validation rules that determine which block chains are considered valid.
+
+Consensus rule change
+  A change in the consensus rule set of the network, such that nodes that do not recognize the new rules will
+  follow a different block chain.
+
+Consensus branch
+  A block chain with a common consensus rule set, where the first block in the chain is either the genesis
+  block, or the child of a parent block created under an older set of consensus rules (i.e. the parent block
+  is a member of a different consensus branch). By definition, every block belongs to at most one consensus
+  branch.
+
+Network upgrade
+  An intentional consensus rule change undertaken by the community in order to improve the network.
+
+
+Abstract
+========
+
+This proposal defines a mechanism for coordinating upgrades of the Zcash network, in order to remove ambiguity
+about when network upgrades will activate, provide defined periods in which users should upgrade their local
+software, and minimize the risks to both the upgrading network and any users opting out of the changes.
+
+
+Motivation
+==========
+
+Zcash is a *consensual currency*: nobody is ever going to force someone to use a specific software
+implementation or a specific consensus branch of Zcash. [#consensual-currency]_ As such, different
+sub-communities will always have the freedom to choose different variants or branches which offer different
+design trade-offs.
+
+The current Zcash software includes an *End-of-Service halt* feature, causing nodes running a particular version
+to automatically shut down approximately 16 weeks after that version was released (specifically, at the block
+height ``DEPRECATION_HEIGHT`` defined in the source code for that version). This was implemented for several
+reasons: [#release-lifecycle]_
+
+- It gives the same systemic advantage of removing old software as auto-upgrade behavior.
+
+- It requires users to individually choose one of the following options:
+
+  - Upgrade to a more recent software release from the main network.
+
+  - Upgrade to an alternative release.
+
+  - Modify their node in order to keep running the older software.
+
+Developers can rely on this cadence for coordinating network upgrades. Once the last pre-upgrade software
+version has been deprecated, they can reasonably assume that all node operators on the network either support
+the upgraded rules, or have explicitly chosen not to follow them.
+
+However, this behaviour is not sufficient for performing network upgrades. A globally-understood on-chain
+activation mechanism is necessary so that nodes can unambiguously know at what point the changes from an
+upgrade come into effect (and can enforce consensus rule changes, for example).
+
+
+Specification
+=============
+
+The following constants are defined for every network upgrade:
+
+CONSENSUS_BRANCH_ID
+  A globally-unique non-zero 32-bit identifier.
+
+  Implementations MAY use a value of zero in consensus branch ID fields to indicate the absence of any
+  upgrade (i.e. that the Sprout consensus rules apply).
+
+ACTIVATION_HEIGHT
+  The non-zero block height at which the network upgrade rules will come into effect, and be enforced as part
+  of the block chain consensus.
+
+  For removal of ambiguity, the block at height ``ACTIVATION_HEIGHT - 1`` is subject to the pre-upgrade
+  consensus rules, and would be the last common block in the event of a persistent pre-upgrade consensus
+  branch.
+
+  It MUST be greater than the value of ``DEPRECATION_HEIGHT`` in the last software version that will not
+  contain support for the network upgrade. It SHOULD be chosen to be reached approximately three months after
+  the first software version containing support for the network upgrade is released, for the following reason:
+
+  - As of the time of writing (the 1.0.15 release), the release cycle is six weeks long, and nodes undergo
+    End-of-Service halt 16 weeks after release. Thus, if version ``X`` contains support for a network upgrade,
+    version ``X-1`` will be deprecated 10 weeks after the release of version ``X``, which is about 2.3 months.
+    A three-month window provides ample time for users to upgrade their nodes after End-of-Service halt, and
+    re-integrate into the network prior to activation of the network upgrade.
+
+The relationship between ``CONSENSUS_BRANCH_ID`` and ``ACTIVATION_HEIGHT`` is many-to-one: it is possible
+for many distinct consensus branches to descend from the same parent block (and thus have the same
+``ACTIVATION_HEIGHT``), but a specific consensus branch can only have one parent block. Concretely, this
+means that if the ``ACTIVATION_HEIGHT`` of a network upgrade is changed for any reason (e.g. security
+vulnerabilities or consensus bugs are discovered), the ``CONSENSUS_BRANCH_ID`` MUST also be changed.
+
+Activation mechanism
+--------------------
+
+The Zcash block chain is broken into "epochs" of block height intervals
+``[ACTIVATION_HEIGHT_N, ACTIVATION_HEIGHT_{N+1})`` (i.e. including ``ACTIVATION_HEIGHT_N`` and excluding
+``ACTIVATION_HEIGHT_{N+1}``), on which consensus rule sets are defined.
+
+When a consensus rule depends on activation of a particular upgrade, its implementation (and that of any
+network behavior or surrounding code that depends on it) MUST be gated by a block height check. For example:
+
+.. code:: cpp
+
+  if (CurrentEpoch(chainActive.Height(), Params().GetConsensus()) == Consensus::UPGRADE_OVERWINTER) {
+      // Overwinter-specific logic
+  } else {
+      // Non-Overwinter logic
+  }
+
+  // ...
+
+  if (NetworkUpgradeActive(pindex->nHeight, Params().GetConsensus(), Consensus::UPGRADE_OVERWINTER)) {
+      // Overwinter consensus rules applied to block
+  } else {
+      // Pre-Overwinter consensus rules applied to block
+  }
+
+
+Block validation
+````````````````
+Incoming blocks known to have a particular height (due to their parent chain being entirely known) MUST be
+validated under the consensus rules corresponding to the expected consensus branch ID for that height.
+
+Incoming blocks with unknown heights (because at least one block header in their parent chain is unknown)
+MAY be cached, so that they can be reconsidered in the future after all their parents have been received.
+
+Chain reorganization
+````````````````````
+It is possible for a reorganization to occur that rolls back from after the activation height, to before that
+height. This can be handled in the same way as any regular chain orphaning or reorganization, as long as the
+new chain is valid.
+
+Post-activation upgrading
+`````````````````````````
+If a user does not upgrade their node to a compatible software version before ``ACTIVATION_HEIGHT`` is
+reached, and the node continues running (which could normally only occur if the End-of-Service halt were
+bypassed), then the node will follow any pre-upgrade consensus branch that persists. In this case it may
+download blocks that are incompatible with the post-upgrade consensus branch. If the user subsequently
+upgrades their node to a compatible software version, the node will consider these blocks to be invalid,
+and if there are a significant number of invalid blocks it SHOULD shut down and alert the user of the issue.
+
+Memory pool
+-----------
+
+While the current chain tip height is below ``ACTIVATION_HEIGHT``, nodes SHOULD NOT accept transactions that
+will only be valid on the post-upgrade consensus branch.
+
+When the current chain tip height reaches ``ACTIVATION_HEIGHT``, the node's local transaction memory pool
+SHOULD be cleared of transactions that will never be valid on the post-upgrade consensus branch.
+
+Two-way replay protection
+-------------------------
+
+Before the Overwinter network upgrade, two-way replay protection is ensured by enforcing post-upgrade that the
+most significant bit of the transaction version is set to 1. [#zip-0202]_ From the perspective of old nodes,
+the transactions will have a negative version number, which is invalid under the old consensus rules.
+Enforcing this rule trivially makes old transactions invalid on the Overwinter consensus branch.
+
+After the Overwinter network upgrade, two-way replay protection is ensured by transaction signatures
+committing to a specific ``CONSENSUS_BRANCH_ID``. [#zip-0143]_
+
+Wipe-out protection
+-------------------
+
+Nodes running upgrade-aware software versions will enforce the upgraded consensus rules from
+``ACTIVATION_HEIGHT``. The chain from that height will not reorganize to a pre-upgrade consensus branch if
+any block in that consensus branch would violate the new consensus rules.
+
+Care must be taken, however, to account for possible edge cases where the old and new consensus rules do not
+differ. For example, if the non-upgraded chain only contained empty blocks from ``ACTIVATION_HEIGHT``, and the
+coinbase transactions were valid under both the old and new consensus rules, a wipe-out could occur. The
+Overwinter network upgrade is not susceptible to this because all previous transaction versions will become
+invalid, meaning that the coinbase transactions must use the newer transaction version. More generally, this
+issue could be addressed in a future network upgrade by modifying the block header to include a commitment to
+the ``CONSENSUS_BRANCH_ID``.
+
+
+Deployment
+==========
+
+This proposal will be deployed with the Overwinter network upgrade. [#zip-0201]_
+
+
+Backward compatibility
+======================
+
+This proposal intentionally creates what is known as a "bilateral consensus rule change". Use of this
+mechanism requires that all network participants upgrade their software to a compatible version within the
+upgrade window. Older software will treat post-upgrade blocks as invalid, and will follow any pre-upgrade
+consensus branch that persists.
+
+
+Reference Implementation
+========================
+
+https://github.com/zcash/zcash/pull/2898
+
+
+References
+==========
+
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#consensual-currency] `Consensual Currency. Electric Coin Company blog <https://electriccoin.co/blog/consensual-currency/>`_
+.. [#release-lifecycle]
+   - `Release Cycle and Lifetimes. Electric Coin Company blog <https://electriccoin.co/blog/release-cycle-and-lifetimes/>`_
+   - `Release Cycle Update. Electric Coin Company blog <https://electriccoin.co/blog/release-cycle-update/>`_
+.. [#zip-0143] `ZIP 143: Transaction Signature Validation for Overwinter <zip-0143.rst>`_
+.. [#zip-0201] `ZIP 201: Network Peer Management for Overwinter <zip-0201.rst>`_
+.. [#zip-0202] `ZIP 202: Version 3 Transaction Format for Overwinter <zip-0202.rst>`_

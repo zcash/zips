@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZIP 200: Network Upgrade Mechanism</title>
+    <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+    <section>
+        <pre>ZIP: 200
+Title: Network Upgrade Mechanism
+Owners: Jack Grigg &lt;str4d@electriccoin.co&gt;
+Status: Final
+Category: Consensus
+Created: 2018-01-08
+License: MIT</pre>
+        <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The key words "MUST", "SHOULD", "SHOULD NOT", and "MAY" in this document are to be interpreted as described in BCP 14 <a id="footnote-reference-1" class="footnote_reference" href="#bcp14">1</a> when, and only when, they appear in all capitals.</p>
+            <p>The terms below are to be interpreted as follows:</p>
+            <dl>
+                <dt>Block chain</dt>
+                <dd>A sequence of blocks starting at the genesis block, where the header of each block refers to the previous block in the sequence.</dd>
+                <dt>Consensus rule set</dt>
+                <dd>A set of validation rules that determine which block chains are considered valid.</dd>
+                <dt>Consensus rule change</dt>
+                <dd>A change in the consensus rule set of the network, such that nodes that do not recognize the new rules will follow a different block chain.</dd>
+                <dt>Consensus branch</dt>
+                <dd>A block chain with a common consensus rule set, where the first block in the chain is either the genesis block, or the child of a parent block created under an older set of consensus rules (i.e. the parent block is a member of a different consensus branch). By definition, every block belongs to at most one consensus branch.</dd>
+                <dt>Network upgrade</dt>
+                <dd>An intentional consensus rule change undertaken by the community in order to improve the network.</dd>
+            </dl>
+        </section>
+        <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This proposal defines a mechanism for coordinating upgrades of the Zcash network, in order to remove ambiguity about when network upgrades will activate, provide defined periods in which users should upgrade their local software, and minimize the risks to both the upgrading network and any users opting out of the changes.</p>
+        </section>
+        <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>Zcash is a <em>consensual currency</em>: nobody is ever going to force someone to use a specific software implementation or a specific consensus branch of Zcash. <a id="footnote-reference-2" class="footnote_reference" href="#consensual-currency">2</a> As such, different sub-communities will always have the freedom to choose different variants or branches which offer different design trade-offs.</p>
+            <p>The current Zcash software includes an <em>End-of-Service halt</em> feature, causing nodes running a particular version to automatically shut down approximately 16 weeks after that version was released (specifically, at the block height <code>DEPRECATION_HEIGHT</code> defined in the source code for that version). This was implemented for several reasons: <a id="footnote-reference-3" class="footnote_reference" href="#release-lifecycle">3</a></p>
+            <ul>
+                <li>It gives the same systemic advantage of removing old software as auto-upgrade behavior.</li>
+                <li>It requires users to individually choose one of the following options:
+                    <ul>
+                        <li>Upgrade to a more recent software release from the main network.</li>
+                        <li>Upgrade to an alternative release.</li>
+                        <li>Modify their node in order to keep running the older software.</li>
+                    </ul>
+                </li>
+            </ul>
+            <p>Developers can rely on this cadence for coordinating network upgrades. Once the last pre-upgrade software version has been deprecated, they can reasonably assume that all node operators on the network either support the upgraded rules, or have explicitly chosen not to follow them.</p>
+            <p>However, this behaviour is not sufficient for performing network upgrades. A globally-understood on-chain activation mechanism is necessary so that nodes can unambiguously know at what point the changes from an upgrade come into effect (and can enforce consensus rule changes, for example).</p>
+        </section>
+        <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The following constants are defined for every network upgrade:</p>
+            <dl>
+                <dt>CONSENSUS_BRANCH_ID</dt>
+                <dd>
+                    <p>A globally-unique non-zero 32-bit identifier.</p>
+                    <p>Implementations MAY use a value of zero in consensus branch ID fields to indicate the absence of any upgrade (i.e. that the Sprout consensus rules apply).</p>
+                </dd>
+                <dt>ACTIVATION_HEIGHT</dt>
+                <dd>
+                    <p>The non-zero block height at which the network upgrade rules will come into effect, and be enforced as part of the block chain consensus.</p>
+                    <p>For removal of ambiguity, the block at height <code>ACTIVATION_HEIGHT - 1</code> is subject to the pre-upgrade consensus rules, and would be the last common block in the event of a persistent pre-upgrade consensus branch.</p>
+                    <p>It MUST be greater than the value of <code>DEPRECATION_HEIGHT</code> in the last software version that will not contain support for the network upgrade. It SHOULD be chosen to be reached approximately three months after the first software version containing support for the network upgrade is released, for the following reason:</p>
+                    <ul>
+                        <li>As of the time of writing (the 1.0.15 release), the release cycle is six weeks long, and nodes undergo End-of-Service halt 16 weeks after release. Thus, if version <code>X</code> contains support for a network upgrade, version <code>X-1</code> will be deprecated 10 weeks after the release of version <code>X</code>, which is about 2.3 months. A three-month window provides ample time for users to upgrade their nodes after End-of-Service halt, and re-integrate into the network prior to activation of the network upgrade.</li>
+                    </ul>
+                </dd>
+            </dl>
+            <p>The relationship between <code>CONSENSUS_BRANCH_ID</code> and <code>ACTIVATION_HEIGHT</code> is many-to-one: it is possible for many distinct consensus branches to descend from the same parent block (and thus have the same <code>ACTIVATION_HEIGHT</code>), but a specific consensus branch can only have one parent block. Concretely, this means that if the <code>ACTIVATION_HEIGHT</code> of a network upgrade is changed for any reason (e.g. security vulnerabilities or consensus bugs are discovered), the <code>CONSENSUS_BRANCH_ID</code> MUST also be changed.</p>
+            <section id="activation-mechanism"><h3><span class="section-heading">Activation mechanism</span><span class="section-anchor"> <a rel="bookmark" href="#activation-mechanism"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>The Zcash block chain is broken into "epochs" of block height intervals <code>[ACTIVATION_HEIGHT_N, ACTIVATION_HEIGHT_{N+1})</code> (i.e. including <code>ACTIVATION_HEIGHT_N</code> and excluding <code>ACTIVATION_HEIGHT_{N+1}</code>), on which consensus rule sets are defined.</p>
+                <p>When a consensus rule depends on activation of a particular upgrade, its implementation (and that of any network behavior or surrounding code that depends on it) MUST be gated by a block height check. For example:</p>
+                <pre data-language="cpp"><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">CurrentEpoch</span><span class="p">(</span><span class="n">chainActive</span><span class="p">.</span><span class="n">Height</span><span class="p">(),</span><span class="w"> </span><span class="n">Params</span><span class="p">().</span><span class="n">GetConsensus</span><span class="p">())</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">Consensus</span><span class="o">::</span><span class="n">UPGRADE_OVERWINTER</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Overwinter-specific logic</span>
+<span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Non-Overwinter logic</span>
+<span class="p">}</span>
+
+<span class="c1">// ...</span>
+
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">NetworkUpgradeActive</span><span class="p">(</span><span class="n">pindex</span><span class="o">-&gt;</span><span class="n">nHeight</span><span class="p">,</span><span class="w"> </span><span class="n">Params</span><span class="p">().</span><span class="n">GetConsensus</span><span class="p">(),</span><span class="w"> </span><span class="n">Consensus</span><span class="o">::</span><span class="n">UPGRADE_OVERWINTER</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Overwinter consensus rules applied to block</span>
+<span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Pre-Overwinter consensus rules applied to block</span>
+<span class="p">}</span></pre>
+                <section id="block-validation"><h4><span class="section-heading">Block validation</span><span class="section-anchor"> <a rel="bookmark" href="#block-validation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Incoming blocks known to have a particular height (due to their parent chain being entirely known) MUST be validated under the consensus rules corresponding to the expected consensus branch ID for that height.</p>
+                    <p>Incoming blocks with unknown heights (because at least one block header in their parent chain is unknown) MAY be cached, so that they can be reconsidered in the future after all their parents have been received.</p>
+                </section>
+                <section id="chain-reorganization"><h4><span class="section-heading">Chain reorganization</span><span class="section-anchor"> <a rel="bookmark" href="#chain-reorganization"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>It is possible for a reorganization to occur that rolls back from after the activation height, to before that height. This can be handled in the same way as any regular chain orphaning or reorganization, as long as the new chain is valid.</p>
+                </section>
+                <section id="post-activation-upgrading"><h4><span class="section-heading">Post-activation upgrading</span><span class="section-anchor"> <a rel="bookmark" href="#post-activation-upgrading"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>If a user does not upgrade their node to a compatible software version before <code>ACTIVATION_HEIGHT</code> is reached, and the node continues running (which could normally only occur if the End-of-Service halt were bypassed), then the node will follow any pre-upgrade consensus branch that persists. In this case it may download blocks that are incompatible with the post-upgrade consensus branch. If the user subsequently upgrades their node to a compatible software version, the node will consider these blocks to be invalid, and if there are a significant number of invalid blocks it SHOULD shut down and alert the user of the issue.</p>
+                </section>
+            </section>
+            <section id="memory-pool"><h3><span class="section-heading">Memory pool</span><span class="section-anchor"> <a rel="bookmark" href="#memory-pool"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>While the current chain tip height is below <code>ACTIVATION_HEIGHT</code>, nodes SHOULD NOT accept transactions that will only be valid on the post-upgrade consensus branch.</p>
+                <p>When the current chain tip height reaches <code>ACTIVATION_HEIGHT</code>, the node's local transaction memory pool SHOULD be cleared of transactions that will never be valid on the post-upgrade consensus branch.</p>
+            </section>
+            <section id="two-way-replay-protection"><h3><span class="section-heading">Two-way replay protection</span><span class="section-anchor"> <a rel="bookmark" href="#two-way-replay-protection"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Before the Overwinter network upgrade, two-way replay protection is ensured by enforcing post-upgrade that the most significant bit of the transaction version is set to 1. <a id="footnote-reference-4" class="footnote_reference" href="#zip-0202">6</a> From the perspective of old nodes, the transactions will have a negative version number, which is invalid under the old consensus rules. Enforcing this rule trivially makes old transactions invalid on the Overwinter consensus branch.</p>
+                <p>After the Overwinter network upgrade, two-way replay protection is ensured by transaction signatures committing to a specific <code>CONSENSUS_BRANCH_ID</code>. <a id="footnote-reference-5" class="footnote_reference" href="#zip-0143">4</a></p>
+            </section>
+            <section id="wipe-out-protection"><h3><span class="section-heading">Wipe-out protection</span><span class="section-anchor"> <a rel="bookmark" href="#wipe-out-protection"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Nodes running upgrade-aware software versions will enforce the upgraded consensus rules from <code>ACTIVATION_HEIGHT</code>. The chain from that height will not reorganize to a pre-upgrade consensus branch if any block in that consensus branch would violate the new consensus rules.</p>
+                <p>Care must be taken, however, to account for possible edge cases where the old and new consensus rules do not differ. For example, if the non-upgraded chain only contained empty blocks from <code>ACTIVATION_HEIGHT</code>, and the coinbase transactions were valid under both the old and new consensus rules, a wipe-out could occur. The Overwinter network upgrade is not susceptible to this because all previous transaction versions will become invalid, meaning that the coinbase transactions must use the newer transaction version. More generally, this issue could be addressed in a future network upgrade by modifying the block header to include a commitment to the <code>CONSENSUS_BRANCH_ID</code>.</p>
+            </section>
+        </section>
+        <section id="deployment"><h2><span class="section-heading">Deployment</span><span class="section-anchor"> <a rel="bookmark" href="#deployment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This proposal will be deployed with the Overwinter network upgrade. <a id="footnote-reference-6" class="footnote_reference" href="#zip-0201">5</a></p>
+        </section>
+        <section id="backward-compatibility"><h2><span class="section-heading">Backward compatibility</span><span class="section-anchor"> <a rel="bookmark" href="#backward-compatibility"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This proposal intentionally creates what is known as a "bilateral consensus rule change". Use of this mechanism requires that all network participants upgrade their software to a compatible version within the upgrade window. Older software will treat post-upgrade blocks as invalid, and will follow any pre-upgrade consensus branch that persists.</p>
+        </section>
+        <section id="reference-implementation"><h2><span class="section-heading">Reference Implementation</span><span class="section-anchor"> <a rel="bookmark" href="#reference-implementation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p><a href="https://github.com/zcash/zcash/pull/2898">https://github.com/zcash/zcash/pull/2898</a></p>
+        </section>
+        <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <table id="bcp14" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>1</th>
+                        <td><a href="https://www.rfc-editor.org/info/bcp14">Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="consensual-currency" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>2</th>
+                        <td><a href="https://electriccoin.co/blog/consensual-currency/">Consensual Currency. Electric Coin Company blog</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="release-lifecycle" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>3</th>
+                        <td>
+                            <ul>
+                                <li><a href="https://electriccoin.co/blog/release-cycle-and-lifetimes/">Release Cycle and Lifetimes. Electric Coin Company blog</a></li>
+                                <li><a href="https://electriccoin.co/blog/release-cycle-update/">Release Cycle Update. Electric Coin Company blog</a></li>
+                            </ul>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0143" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>4</th>
+                        <td><a href="zip-0143">ZIP 143: Transaction Signature Validation for Overwinter</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0201" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>5</th>
+                        <td><a href="zip-0201">ZIP 201: Network Peer Management for Overwinter</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0202" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>6</th>
+                        <td><a href="zip-0202">ZIP 202: Version 3 Transaction Format for Overwinter</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </section>
+</body>
+</html>

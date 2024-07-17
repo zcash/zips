@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZIP 301: Zcash Stratum Protocol</title>
+    <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+    <section>
+        <pre>ZIP: 301
+Title: Zcash Stratum Protocol
+Owners: Jack Grigg &lt;str4d@electriccoin.co&gt;
+Credits: 5a1t
+         Daira-Emma Hopwood
+         Marek Palatinus (slush) and colleagues
+         Jelle Bourdeaud'hui (razakal)
+         ocminer
+Status: Final
+Category: Standards / Ecosystem
+Created: 2016-09-23
+License: MIT</pre>
+        <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The key words "MUST", "MUST NOT", "SHOULD", "MAY", and "RECOMMENDED" in this document are to be interpreted as described in BCP 14 <a id="footnote-reference-1" class="footnote_reference" href="#bcp14">1</a> when, and only when, they appear in all capitals.</p>
+        </section>
+        <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This ZIP describes the Zcash variant of the Stratum protocol, used by miners to communicate with mining pool servers.</p>
+        </section>
+        <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>Many existing cryptocurrency miners and pools use the original Stratum protocol <a id="footnote-reference-2" class="footnote_reference" href="#slushpool-stratum">4</a> <a id="footnote-reference-3" class="footnote_reference" href="#bitcointalk-stratum">5</a> for communication, in situations where the miner does not require any control over what they mine (for example, a miner connected to a local <a id="footnote-reference-4" class="footnote_reference" href="#p2pool">6</a> node). However, the protocol is very specific to Bitcoin, in that it makes assumptions about the block header format, and the available nonce space <a id="footnote-reference-5" class="footnote_reference" href="#bitcoin-block">7</a>. Zcash has made changes that invalidate these assumptions.</p>
+            <p>Having a formal specification for a Zcash-compatible Stratum-style mining protocol means that existing pool operators and miner authors can quickly and easily migrate their frameworks to the Zcash network, with no ambiguity about interoperability.</p>
+        </section>
+        <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The Stratum protocol is an instance of <a id="footnote-reference-6" class="footnote_reference" href="#json-rpc-1-0">9</a>. The miner is a JSON-RPC client, and the Stratum server is a JSON-RPC server. The miner starts a session by opening a standard TCP connection to the server, which is then used for two-way line-based communication:</p>
+            <ul>
+                <li>The miner can send requests to the server.</li>
+                <li>The server can respond to requests.</li>
+                <li>The server can send notifications to the client.</li>
+            </ul>
+            <p>All communication for a particular session happens through a single connection, which is kept open for the duration of the session. If the connection is broken or either party disconnects, the active session is ended. Servers MAY support session resuming; this is negotiated between the client and server during initial setup (see <a href="#session-resuming">Session Resuming</a>).</p>
+            <p>Each request or response is a JSON string, terminated by an ASCII LF character (denoted in the rest of this specification by <code>\n</code>). The LF character MUST NOT appear elsewhere in a request or response. Client and server implementations MAY assume that once they read a LF character, the current message has been completely received.</p>
+            <p>Per <a id="footnote-reference-7" class="footnote_reference" href="#json-rpc-1-0">9</a>, there is no requirement for the <code>id</code> property in requests and responses to be unique; only that servers MUST set <code>id</code> in their responses equal to that in the request they are responding to (or <code>null</code> for notifications). However, it is RECOMMENDED that clients use unique ids for their requests, to simplify their response parsing.</p>
+            <p>In the protocol messages below, <code>(content)</code> indicates that <code>content</code> is optional. Variable names are indicated in <em>EMPHASIS</em>. All other characters are part of the protocol message.</p>
+            <section id="error-objects"><h3><span class="section-heading">Error Objects</span><span class="section-anchor"> <a rel="bookmark" href="#error-objects"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>The <a id="footnote-reference-8" class="footnote_reference" href="#json-rpc-1-0">9</a> specification allows for error objects in responses, but does not specify their format. The original Stratum protocol uses the following format for error responses <a id="footnote-reference-9" class="footnote_reference" href="#slushpool-stratum">4</a>:</p>
+                <blockquote>
+                    <p>{"id": ##, "result": null, "error": [<em>ERROR_CODE</em>, "<em>ERROR_MESSAGE</em>", <em>TRACEBACK</em>]} <code>\n</code></p>
+                </blockquote>
+                <p>For compatibility, this format is retained. We therefore define an error object as an array:</p>
+                <blockquote>
+                    <p>[<em>ERROR_CODE</em>, "<em>ERROR_MESSAGE</em>", <em>TRACEBACK</em>]</p>
+                </blockquote>
+                <dl>
+                    <dt><code>ERROR_CODE</code> (int)</dt>
+                    <dd>
+                        <p>Indicates the type of error that occurred.</p>
+                        <p>The error codes are to be interpreted as described in <a id="footnote-reference-10" class="footnote_reference" href="#json-rpc-2-0">10</a>. The following application error codes are defined:</p>
+                        <ul>
+                            <li>20 - Other/Unknown</li>
+                            <li>21 - Job not found (=stale)</li>
+                            <li>22 - Duplicate share</li>
+                            <li>23 - Low difficulty share</li>
+                            <li>24 - Unauthorized worker</li>
+                            <li>25 - Not subscribed</li>
+                        </ul>
+                    </dd>
+                    <dt><code>ERROR_MESSAGE</code> (str)</dt>
+                    <dd>A human-readable error message. The message SHOULD be limited to a concise single sentence.</dd>
+                    <dt><code>TRACEBACK</code></dt>
+                    <dd>
+                        <p>Additional information for debugging errors. The format is server-specific.</p>
+                        <p>Miners MAY attempt to parse the field for displaying to the user, and SHOULD fall back to rendering it as a JSON string.</p>
+                        <p>Servers MUST set this to <code>null</code> if they have no additional information.</p>
+                    </dd>
+                </dl>
+                <p>Miners SHOULD display a human-readable message to the user. This message can be derived from either <code>ERROR_CODE</code> or <code>ERROR_MESSAGE</code>, or both. An example of using <code>ERROR_CODE</code> over <code>ERROR_MESSAGE</code> might be that the miner UI offers localization.</p>
+            </section>
+            <section id="protocol-flow"><h3><span class="section-heading">Protocol Flow</span><span class="section-anchor"> <a rel="bookmark" href="#protocol-flow"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <ul>
+                    <li>Client sends <code>mining.subscribe</code> to set up the session.</li>
+                    <li>Server replies with the session information.</li>
+                    <li>Client sends <code>mining.authorize</code> for their worker(s).</li>
+                    <li>Server replies with the result of authorization.</li>
+                    <li>Server sends <code>mining.set_target</code>.</li>
+                    <li>Server sends <code>mining.notify</code> with a new job.</li>
+                    <li>Client mines on that job.</li>
+                    <li>Client sends <code>mining.submit</code> for each solution found.</li>
+                    <li>Server replies with whether the solution was accepted.</li>
+                    <li>Server sends <code>mining.notify</code> again when there is a new job.</li>
+                </ul>
+            </section>
+            <section id="nonce-parts"><h3><span class="section-heading">Nonce Parts</span><span class="section-anchor"> <a rel="bookmark" href="#nonce-parts"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>In Bitcoin, blocks contain two nonces: the 4-byte block header nonce, and an extra nonce in the coinbase transaction <a id="footnote-reference-11" class="footnote_reference" href="#bitcoin-block">7</a>. The original Stratum protocol splits this extra nonce into two parts: one set by the server (used for splitting the search space amongst connected miners), and the other iterated by the miner <a id="footnote-reference-12" class="footnote_reference" href="#slushpool-stratum">4</a>. The nonce in Zcash's block header is 32 bytes long <a id="footnote-reference-13" class="footnote_reference" href="#protocol-blockheader">2</a>, and thus can serve both purposes simultaneously.</p>
+                <p>We define two nonce parts:</p>
+                <dl>
+                    <dt><code>NONCE_1</code></dt>
+                    <dd>The server MUST pick such that <code>len(NONCE_1) &lt; 32</code> in bytes.</dd>
+                    <dt><code>NONCE_2</code></dt>
+                    <dd>
+                        <p>The miner MUST pick such that <code>len(NONCE_2) = 32 - len(NONCE_1)</code> in bytes.</p>
+                        <p>In hex, <code>lenHex(NONCE_2) = 64 - lenHex(NONCE_1)</code>, and both lengths are even.</p>
+                    </dd>
+                </dl>
+                <p>The nonce in the block header is the concatenation of <code>NONCE_1</code> and <code>NONCE_2</code> in hex. This means that a miner using bignum representations of nonce MUST increment by <code>1 &lt;&lt; len(NONCE_1)</code> to avoid altering <code>NONCE_1</code> (because the encoding of the nonce in the block header is little endian, in line with the other 32-byte fields <a id="footnote-reference-14" class="footnote_reference" href="#bitcoin-block">7</a> <a id="footnote-reference-15" class="footnote_reference" href="#protocol-blockheader">2</a>).</p>
+            </section>
+            <section id="session-resuming"><h3><span class="section-heading">Session Resuming</span><span class="section-anchor"> <a rel="bookmark" href="#session-resuming"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Servers that support session resuming identify this by setting a <code>SESSION_ID</code> in their initial response. Servers MAY set <code>SESSION_ID</code> to <code>null</code> to indicate that they do not support session resuming. Servers that do not set <code>SESSION_ID</code> to <code>null</code> MUST cache the following information:</p>
+                <ul>
+                    <li>The session ID.</li>
+                    <li><code>NONCE_1</code></li>
+                    <li>Any active job IDs.</li>
+                </ul>
+                <p>Servers MAY drop entries from the cache on their own schedule.</p>
+                <p>When a miner connects using a previous <code>SESSION_ID</code>:</p>
+                <ul>
+                    <li>If the cache contains the <code>SESSION_ID</code>, the server's initial response MUST be constructed from the cached information.</li>
+                    <li>If the server does not recognise the session, the <code>SESSION_ID</code> in the server's initial response MUST NOT equal the <code>SESSION_ID</code> provided by the miner.</li>
+                </ul>
+                <p>Miners MUST re-authorize all workers upon resuming a session.</p>
+            </section>
+            <section id="methods"><h3><span class="section-heading">Methods</span><span class="section-anchor"> <a rel="bookmark" href="#methods"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <section id="mining-subscribe"><h4><span class="section-heading"><code>mining.subscribe()</code></span><span class="section-anchor"> <a rel="bookmark" href="#mining-subscribe"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Request:</p>
+                    <blockquote>
+                        <p>{"id": 1, "method": "mining.subscribe", "params": ["<em>MINER_USER_AGENT</em>", "<em>SESSION_ID</em>", "<em>CONNECT_HOST</em>", <em>CONNECT_PORT</em>]} <code>\n</code></p>
+                    </blockquote>
+                    <dl>
+                        <dt><code>MINER_USER_AGENT</code> (str)</dt>
+                        <dd>
+                            <p>A free-form string specifying the type and version of the mining software. Recommended syntax is the User Agent format used by Zcash nodes.</p>
+                            <p>Example: <code>MagicBean/1.0.0</code></p>
+                        </dd>
+                        <dt><code>SESSION_ID</code> (str)</dt>
+                        <dd>
+                            <p>The id for a previous session that the miner wants to resume (e.g. after a temporary network disconnection) (see <a href="#session-resuming">Session Resuming</a>).</p>
+                            <p>This MAY be <code>null</code> indicating that the miner wants to start a new session.</p>
+                        </dd>
+                        <dt><code>CONNECT_HOST</code> (str)</dt>
+                        <dd>
+                            <p>The host that the miner is connecting to (from the server URL).</p>
+                            <p>Example: <code>pool.example.com</code></p>
+                        </dd>
+                        <dt><code>CONNECT_PORT</code> (int)</dt>
+                        <dd>
+                            <p>The port that the miner is connecting to (from the server URL).</p>
+                            <p>Example: <code>3337</code></p>
+                        </dd>
+                    </dl>
+                    <p>Response:</p>
+                    <blockquote>
+                        <p>{"id": 1, "result": ["<em>SESSION_ID</em>", "<em>NONCE_1</em>"], "error": null} <code>\n</code></p>
+                    </blockquote>
+                    <dl>
+                        <dt><code>SESSION_ID</code> (str)</dt>
+                        <dd>The session id, for use when resuming (see <a href="#session-resuming">Session Resuming</a>).</dd>
+                        <dt><code>NONCE_1</code> (hex)</dt>
+                        <dd>The first part of the block header nonce (see <a href="#nonce-parts">Nonce Parts</a>).</dd>
+                    </dl>
+                </section>
+                <section id="mining-authorize"><h4><span class="section-heading"><code>mining.authorize()</code></span><span class="section-anchor"> <a rel="bookmark" href="#mining-authorize"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>A miner MUST authorize a worker in order to submit solutions. A miner MAY authorize multiple workers in the same session; this could be for statistical purposes on the particular server being used. Details of such purposes are outside the scope of this specification.</p>
+                    <p>Request:</p>
+                    <blockquote>
+                        <p>{"id": 2, "method": "mining.authorize", "params": ["<em>WORKER_NAME</em>", "<em>WORKER_PASSWORD</em>"]} <code>\n</code></p>
+                    </blockquote>
+                    <dl>
+                        <dt><code>WORKER_NAME</code> (str)</dt>
+                        <dd>The worker name.</dd>
+                        <dt><code>WORKER_PASSWORD</code> (str)</dt>
+                        <dd>The worker password.</dd>
+                    </dl>
+                    <p>Response:</p>
+                    <blockquote>
+                        <p>{"id": 2, "result": <em>AUTHORIZED</em>, "error": <em>ERROR</em>} <code>\n</code></p>
+                    </blockquote>
+                    <dl>
+                        <dt><code>AUTHORIZED</code> (bool)</dt>
+                        <dd>This MUST be <code>true</code> if authorization succeeded. Per <a id="footnote-reference-16" class="footnote_reference" href="#json-rpc-1-0">9</a>, it MUST be <code>null</code> if there was an error.</dd>
+                        <dt><code>ERROR</code> (obj)</dt>
+                        <dd>
+                            <p>An error object. This MUST be <code>null</code> if authorization succeeded.</p>
+                            <p>If authorization failed, the server MUST provide an error object describing the reason. See <a href="#error-objects">Error Objects</a> for the object format.</p>
+                        </dd>
+                    </dl>
+                </section>
+                <section id="mining-set-target"><h4><span class="section-heading"><code>mining.set_target()</code></span><span class="section-anchor"> <a rel="bookmark" href="#mining-set-target"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Server message:</p>
+                    <blockquote>
+                        <p>{"id": null, "method": "mining.set_target", "params": ["<em>TARGET</em>"]} <code>\n</code></p>
+                    </blockquote>
+                    <dl>
+                        <dt><code>TARGET</code> (hex)</dt>
+                        <dd>
+                            <p>The server target for the next received job and all subsequent jobs (until the next time this message is sent). The miner compares proposed block hashes with this target as a 256-bit big-endian integer, and valid blocks MUST NOT have hashes larger than (above) the current target (in accordance with the Zcash network consensus rules <a id="footnote-reference-17" class="footnote_reference" href="#protocol-difficulty">3</a>).</p>
+                            <p>Miners SHOULD NOT submit work above this target. Miners SHOULD validate their solutions before submission (to avoid both unnecessary network traffic and wasted miner time).</p>
+                            <p>Servers MUST NOT accept submissions above this target for jobs sent after this message. Servers MAY accept submissions above this target for jobs sent before this message, but MUST check them against the previous target.</p>
+                        </dd>
+                    </dl>
+                    <p>When displaying the current target in the UI to users, miners MAY convert the target to an integer difficulty as used in Bitcoin miners. When doing so, miners SHOULD use <code>powLimit</code> (as defined in <code>src/chainparams.cpp</code>) as the basis for conversion.</p>
+                </section>
+                <section id="mining-notify"><h4><span class="section-heading"><code>mining.notify()</code></span><span class="section-anchor"> <a rel="bookmark" href="#mining-notify"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Server message:</p>
+                    <blockquote>
+                        <p>{"id": null, "method": "mining.notify", "params": ["<em>JOB_ID</em>", "<em>VERSION</em>", "<em>PREVHASH</em>", "<em>MERKLEROOT</em>", "<em>RESERVED</em>", "<em>TIME</em>", "<em>BITS</em>", <em>CLEAN_JOBS</em>]} <code>\n</code></p>
+                    </blockquote>
+                    <dl>
+                        <dt><code>JOB_ID</code> (str)</dt>
+                        <dd>The id of this job.</dd>
+                        <dt><code>VERSION</code> (hex)</dt>
+                        <dd>
+                            <p>The block header version, encoded as in a block header (little-endian <code>int32_t</code>).</p>
+                            <p>Used as a switch for subsequent parameters. At time of writing, the only defined block header version is 4. Miners SHOULD alert the user upon receiving jobs containing block header versions they do not know about or support, and MUST ignore such jobs.</p>
+                            <p>Example: <code>04000000</code></p>
+                        </dd>
+                    </dl>
+                    <p>The following parameters are only valid for <code>VERSION == "04000000"</code>:</p>
+                    <dl>
+                        <dt><code>PREVHASH</code> (hex)</dt>
+                        <dd>The 32-byte hash of the previous block, encoded as in a block header.</dd>
+                        <dt><code>MERKLEROOT</code> (hex)</dt>
+                        <dd>The 32-byte Merkle root of the transactions in this block, encoded as in a block header.</dd>
+                        <dt><code>RESERVED</code> (hex)</dt>
+                        <dd>A 32-byte reserved field, encoded as in a block header. Zero by convention (in hex, <code>0000000000000000000000000000000000000000000000000000000000000000</code>).</dd>
+                        <dt><code>TIME</code> (hex)</dt>
+                        <dd>The block time suggested by the server, encoded as in a block header.</dd>
+                        <dt><code>BITS</code> (hex)</dt>
+                        <dd>The current network difficulty target, represented in compact format, encoded as in a block header.</dd>
+                        <dt><code>CLEAN_JOBS</code> (bool)</dt>
+                        <dd>If true, a new block has arrived. The miner SHOULD abandon all previous jobs.</dd>
+                    </dl>
+                </section>
+                <section id="mining-submit"><h4><span class="section-heading"><code>mining.submit()</code></span><span class="section-anchor"> <a rel="bookmark" href="#mining-submit"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Request:</p>
+                    <blockquote>
+                        <p>{"id": 4, "method": "mining.submit", "params": ["<em>WORKER_NAME</em>", "<em>JOB_ID</em>", "<em>TIME</em>", "<em>NONCE_2</em>", "<em>EQUIHASH_SOLUTION</em>"]} <code>\n</code></p>
+                    </blockquote>
+                    <dl>
+                        <dt><code>WORKER_NAME</code> (str)</dt>
+                        <dd>
+                            <p>A previously-authenticated worker name.</p>
+                            <p>Servers MUST NOT accept submissions from unauthenticated workers.</p>
+                        </dd>
+                        <dt><code>JOB_ID</code> (str)</dt>
+                        <dd>
+                            <p>The id of the job this submission is for.</p>
+                            <p>Miners MAY make multiple submissions for a single job id.</p>
+                        </dd>
+                        <dt><code>TIME</code> (hex)</dt>
+                        <dd>
+                            <p>The block time used in the submission, encoded as in a block header.</p>
+                            <p>MAY be enforced by the server to be unchanged.</p>
+                        </dd>
+                        <dt><code>NONCE_2</code> (hex)</dt>
+                        <dd>The second part of the block header nonce (see <a href="#nonce-parts">Nonce Parts</a>).</dd>
+                        <dt><code>EQUIHASH_SOLUTION</code> (hex)</dt>
+                        <dd>The Equihash solution, encoded as in a block header (including the compactSize at the beginning in canonical form <a id="footnote-reference-18" class="footnote_reference" href="#bitcoin-compactsize">8</a>).</dd>
+                    </dl>
+                    <p>Result:</p>
+                    <blockquote>
+                        <p>{"id": 4, "result": <em>ACCEPTED</em>, "error": <em>ERROR</em>} <code>\n</code></p>
+                    </blockquote>
+                    <dl>
+                        <dt><code>ACCEPTED</code> (bool)</dt>
+                        <dd>This MUST be <code>true</code> if the submission was accepted. Per <a id="footnote-reference-19" class="footnote_reference" href="#json-rpc-1-0">9</a>, it MUST be <code>null</code> if there was an error.</dd>
+                        <dt><code>ERROR</code> (obj)</dt>
+                        <dd>
+                            <p>An error object. Per <a id="footnote-reference-20" class="footnote_reference" href="#json-rpc-1-0">9</a>, this MUST be <code>null</code> if the submission was accepted without error.</p>
+                            <p>If the submission was not accepted, the server MUST provide an error object describing the reason for not accepting the submission. See <a href="#error-objects">Error Objects</a> for the object format.</p>
+                        </dd>
+                    </dl>
+                </section>
+                <section id="client-reconnect"><h4><span class="section-heading"><code>client.reconnect()</code></span><span class="section-anchor"> <a rel="bookmark" href="#client-reconnect"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Server message:</p>
+                    <blockquote>
+                        <p>{"id": null, "method": "client.reconnect", "params": [("<em>HOST</em>", <em>PORT</em>, <em>WAIT_TIME</em>)]} <code>\n</code></p>
+                    </blockquote>
+                    <dl>
+                        <dt><code>HOST</code> (str)</dt>
+                        <dd>
+                            <p>The host to reconnect to.</p>
+                            <p>Example: <code>pool.example.com</code></p>
+                        </dd>
+                        <dt><code>PORT</code> (int)</dt>
+                        <dd>
+                            <p>The port to reconnect to.</p>
+                            <p>Example: <code>3337</code></p>
+                        </dd>
+                        <dt><code>WAIT_TIME</code> (int)</dt>
+                        <dd>Time in seconds that the miner should wait before reconnecting.</dd>
+                    </dl>
+                    <p>If <code>client.reconnect</code> is sent with an empty parameter array, the miner SHOULD reconnect to the same host and port it is currently connected to.</p>
+                </section>
+                <section id="mining-suggest-target"><h4><span class="section-heading"><code>mining.suggest_target()</code></span><span class="section-anchor"> <a rel="bookmark" href="#mining-suggest-target"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Request (optional):</p>
+                    <blockquote>
+                        <p>{"id": 3, "method": "mining.suggest_target", "params": ["<em>TARGET</em>"]} <code>\n</code></p>
+                    </blockquote>
+                    <dl>
+                        <dt><code>TARGET</code> (hex)</dt>
+                        <dd>The target suggested by the miner for the next received job and all subsequent jobs (until the next time this message is sent).</dd>
+                    </dl>
+                    <p>The server SHOULD reply with <code>mining.set_target</code>. The server MAY set the result id equal to the request id.</p>
+                </section>
+            </section>
+        </section>
+        <section id="rationale"><h2><span class="section-heading">Rationale</span><span class="section-anchor"> <a rel="bookmark" href="#rationale"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>Why does <code>mining.subscribe</code> include the host and port?</p>
+            <ul>
+                <li>It has the same use cases as the <code>Host:</code> header in HTTP. Specifically, it enables virtual hosting, where virtual pools or private URLs might be used for DDoS protection, but that are aggregated on Stratum server backends. As with HTTP, the server CANNOT trust the host string.</li>
+                <li>The port is included separately to parallel the <code>client.reconnect</code> method; both are extracted from the server URL that the miner is connecting to (e.g. <code>stratum+tcp://pool.example.com:3337</code>).</li>
+            </ul>
+            <p>Why use the 256-bit target instead of a numerical difficulty?</p>
+            <ul>
+                <li>There is no protocol ambiguity when using a target. A server can pick a specific target (by whatever algorithm), and enforce it cleanly on submitted jobs.
+                    <ul>
+                        <li>A numerical difficulty must be converted into a target by miners, which adds unnecessary complexity, results in a loss of precision, and leaves ambiguity over the conversion and the validity of resulting submissions.</li>
+                    </ul>
+                </li>
+                <li>The minimum numerical difficulty in Bitcoin's Stratum protocol is 1, which corresponds to <code>powLimit</code>. This makes it harder to test miners and servers. A target can represent difficulties lower than the minimum.</li>
+            </ul>
+            <p>Does a 256-bit target waste bandwidth?</p>
+            <ul>
+                <li>The target is generally not set as often as solutions are submitted, so any effect is minimal.</li>
+                <li>Zcash's proof-of-work, Equihash, is much slower than Bitcoin's, so any latency caused by the size of the target is minimal compared to the overall solver time.</li>
+                <li>For the current Equihash parameters (200/9), the Equihash solution dominates bandwidth usage.</li>
+            </ul>
+            <p>Why does <code>mining.submit</code> include <code>WORKER_NAME</code>?</p>
+            <ul>
+                <li><code>WORKER_NAME</code> is only included here for statistical purposes (like monitoring performance and/or downtime). <code>JOB_ID</code> is used for pairing server-stored jobs with submissions.</li>
+            </ul>
+        </section>
+        <section id="reference-implementation"><h2><span class="section-heading">Reference Implementation</span><span class="section-anchor"> <a rel="bookmark" href="#reference-implementation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <ul>
+                <li><a href="https://github.com/str4d/zcash/tree/standalone-miner">str4d's standalone miner</a></li>
+            </ul>
+        </section>
+        <section id="acknowledgements"><h2><span class="section-heading">Acknowledgements</span><span class="section-anchor"> <a rel="bookmark" href="#acknowledgements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>Thanks to:</p>
+            <ul>
+                <li>5a1t for the initial brainstorming session.</li>
+                <li>Daira-Emma Hopwood for hir input on API selection and design.</li>
+                <li>Marek Palatinus (slush) and his colleagues for their refinements, suggestions, and robust discussion.</li>
+                <li>Jelle Bourdeaud'hui (razakal) and ocminer for their help with testing and finding implementation bugs in the specification.</li>
+            </ul>
+        </section>
+        <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <table id="bcp14" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>1</th>
+                        <td><a href="https://www.rfc-editor.org/info/bcp14">Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-blockheader" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>2</th>
+                        <td><a href="protocol/protocol.pdf#blockheader">Zcash Protocol Specification, Version 2020.1.15. Section 7.3: Block Headers</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-difficulty" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>3</th>
+                        <td><a href="protocol/protocol.pdf#difficulty">Zcash Protocol Specification, Version 2020.1.15. Section 7.6.2: Difficulty filter</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="slushpool-stratum" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>4</th>
+                        <td><a href="https://slushpool.com/help/stratum-protocol/">Stratum Mining Protocol. Slush Pool</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bitcointalk-stratum" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>5</th>
+                        <td><a href="https://bitcointalk.org/index.php?topic=557866.0">Stratum protocol documentation. Bitcoin Forum</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="p2pool" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>6</th>
+                        <td><a href="https://en.bitcoin.it/wiki/P2Pool">P2Pool. Bitcoin Wiki</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bitcoin-block" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>7</th>
+                        <td><a href="https://developer.bitcoin.org/reference/block_chain.html#block-headers">Block Headers - Bitcoin Developer Reference.</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bitcoin-compactsize" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>8</th>
+                        <td><a href="https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer">Variable length integer. Bitcoin Wiki</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="json-rpc-1-0" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>9</th>
+                        <td><a href="https://www.jsonrpc.org/specification_v1">JSON-RPC 1.0 Specification (2005).</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="json-rpc-2-0" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>10</th>
+                        <td><a href="https://www.jsonrpc.org/specification">JSON-RPC 2.0 Specification. The JSON-RPC Working Group.</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </section>
+</body>
+</html>

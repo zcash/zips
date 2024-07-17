@@ -1,0 +1,119 @@
+::
+
+  ZIP: 210
+  Title: Sapling Anchor Deduplication within Transactions
+  Owners: Jack Grigg <str4d@electriccoin.co>
+  Status: Withdrawn
+  Category: Consensus
+  Created: 2019-03-27
+  License: MIT
+
+
+Status
+======
+
+This ZIP has been withdrawn because a similar change has been incorporated into the
+ZIP 225 proposal for a version 5 transaction format. [#zip-0225]_
+
+
+Terminology
+===========
+
+The key words "MUST" and "MAY" in this document are to be interpreted as described in
+BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
+
+The term "network upgrade" in this document is to be interpreted as described in ZIP 200
+[#zip-0200]_.
+
+The term "Sapling" in this document is to be interpreted as described in ZIP 205
+[#zip-0205]_.
+
+
+Abstract
+========
+
+This proposal defines a modification to the transaction format whereby a single Sapling
+anchor is used for all Sapling spends. This change removes a potential implementation
+fingerprint, and reduces the size of Sapling transactions within the block chain.
+
+
+Motivation
+==========
+
+The Sapling network upgrade [#zip-0205]_ introduced new shielded inputs (spends) and
+outputs. Each spend proves the existence of the note being spent by including the anchor
+of a Merkle tree that contains the note's commitment, and proving in zero knowledge the
+existence of a path from the commitment to the anchor (a witness). Valid anchors
+correspond to the state of the Sapling commitment tree after each block in the chain.
+
+The choice of anchor leaks information about the note being spent, namely that the note
+was created no later than the anchor's block height. This is an unavoidable outcome of the
+Zcash design, and the least information it is possible to leak about a note being spent.
+However, the Sapling v4 transaction format [#protocol-txnencoding]_ includes
+a separate anchor for each Sapling spend, and thus it is possible to leak additional
+information by using different anchors for different notes. The anchor selection choices
+could also be used as a fingerprint to identify transactions created by particular wallet
+implementations, reducing the privacy set.
+
+Modifying the transaction format to have a single Sapling anchor field, instead of one
+field per Sapling spend, removes the ability (within the new transaction format version)
+to create transactions with this fingerprint. It also reduces the size of the transaction,
+costing 32 bytes per transaction instead of 32 bytes per spend.
+
+
+Specification
+=============
+
+A new transaction format is defined, identical to the Sapling v4 transaction format
+except for two changes:
+
+- The ``anchor`` field in ``SpendDescription`` is removed.
+- A new field ``saplingAnchor`` is placed between ``vShieldedOutput`` and ``vJoinSplit``,
+  if and only if ``vShieldedSpend`` is not empty.
+
+Consensus rules that previously applied to individual ``anchor`` entries MUST be applied
+to ``saplingAnchor``.
+
+TODO: If this is the only ZIP updating the transaction format in a NU, specify the full
+transaction format here. Otherwise, reference the new transaction format when specified.
+
+Implementations that support older transaction formats MAY copy ``saplingAnchor`` into
+each spend's in-memory representation during parsing to reduce code duplication, and MUST
+ensure that these per-spend in-memory anchors are all identical prior to serialization.
+
+
+Rationale
+=========
+
+Placing the ``saplingAnchor`` field after ``vShieldedOutput`` means that it can be
+conditionally included (saving space when there are no Sapling spends), while ensuring
+that the transaction can still be parsed unambiguously.
+
+Requiring all Sapling spends to use the same anchor removes a possible performance
+optimisation in certain classes of (particularly light) wallets, where witnesses for older
+notes are only updated periodically instead of every block. This optimisation is exactly
+the kind of behaviour that can be used as a fingerprint in the v4 transaction format, and
+that we are choosing to prevent with this proposal.
+
+
+Security and Privacy Considerations
+===================================
+
+This proposal eliminates a possible avenue for distinguishing transactions based on the
+client implementation that created them.
+
+
+Reference Implementation
+========================
+
+TBD
+
+
+References
+==========
+
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2021.2.16. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
+.. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
+.. [#zip-0205] `ZIP 205: Deployment of the Sapling Network Upgrade <zip-0205.rst>`_
+.. [#zip-0225] `ZIP 225: Version 5 Transaction Format <zip-0225.rst>`_

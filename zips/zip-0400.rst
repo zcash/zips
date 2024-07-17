@@ -1,0 +1,148 @@
+::
+
+  ZIP: 400
+  Title: Wallet.dat format
+  Owners: Alfredo Garcia <oxarbitrage@gmail.com>
+  Status: Draft
+  Category: Wallet
+  Created: 2020-05-26
+  License: MIT
+
+
+Terminology
+===========
+
+The key words "MUST" and "MAY" in this document are to be interpreted as described in
+BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
+
+Abstract
+========
+
+This proposal defines the current format used in zcashd for wallet persistent storage, commonly known as ``wallet.dat``.
+
+Motivation
+==========
+
+The process of saving wallet data into disk is currently unspecified. The key-values used in the current implementation are undocumented, and their structure and functionality are unknown without a deep analysis of the involved source code. This document details the schema and the mechanics of the wallet database. This is an informational document, no changes will be done to the source code.
+
+Specification
+=============
+
+Zcash stores wallet information in a Berkeley database (BDB) [#BDB]_ commonly known as ``wallet.dat``.
+The main purpose of this is the persistence of public and private keys the user created and the ability to recover the wallet state after a node restart. This file also allows the migration of user information from one node to another by moving the database to the corresponding new data directory, assuming both zcashd instances are running the same or similar version. A re-index may be necessary after this operation.
+
+The current database is a key-value store where keys and values can have multiple data types in binary format. The first data found in a database key is always the property name, the rest of the key is generally used to identify a record, for example::
+
+  <------ KEY ----+- VALUE ->
+  ---------------------------
+  | zkey | pubkey | privkey |
+  ---------------------------
+  
+Here ``zkey`` is the property name located at the first position of the database key; the public key is also part of the database key, and it is located in the second position; the private key is saved in the database value column at the first position.
+
+Schema
+------
+
+According to Zcash v3.0.0-rc1 the following key-values can be found: the property names in **bold** mean only one instance of this type can exist in the entire database, while the others, suffixed by '\*' can have multiple instances. Keys and Values columns of the table contain the types that the stored data is representing. Included also there are the variable names hoping it will add some clarity to what the stored data is representing.
+
+.. csv-table::
+   :header: "Name", "Description", "Keys", "Values"
+
+   "acc*", "Account data", "1. ``string strAccount``", "1. ``CAccount account``"
+   "acentry*", "Track internal transfers between accounts in the same wallet", "1. ``string strAccount``
+   2. ``uint64_t nNumber``", "1. ``CAccountingEntry acentry``"
+   "**bestblock**", "The current best block of the blockchain.", "", "1. ``CBlockLocator locator``"
+   "**chdseed**", "Encrypted HD seed", "1. ``uint256 seedFp``", "1. ``vector<unsigned char> vchCryptedSecret``"
+   "ckey*", "Encrypted transparent pubkey and private key.", "1. ``vector<unsigned char> vchPubKey``", "1. ``vector<unsigned char> vchPrivKey``"
+   "csapzkey*", "Encrypted Sapling pubkey and private key.", "1. ``libzcash::SaplingIncomingViewingKey ivk``", "1. ``libzcash::SaplingExtendedFullViewingKey extfvk`` 
+   2. ``vector<unsigned char> vchCryptedSecret``"
+   "**cscript**", "Serialized script, used inside transaction inputs and outputs", "1. ``uint160 hash``", "1. ``CScript script``"
+   "czkey*", "Encrypted Sprout pubkey and private key.", "1. ``libzcash::SproutPaymentAddress addr``", "1. ``uint256 rkValue`` 
+   2. ``vector<unsigned char> vchCryptedSecret``"
+   "**defaultkey**", "Default Transparent key.", "", "1. ``CPubKey CWallet::vchDefaultKey``"
+   "destdata*", "Adds a destination data tuple to the store.", "1. ``std::string strAddress``
+   2. ``std::string strKey``", "1. ``std::string strValue``"
+   "**hdchain**", "Hierarchical Deterministic chain code, derived from   seed.", "", "1. ``CHDChain chain``"
+   "hdseed*", "Hierarchical Deterministic seed. [#zip-0032]_", "1. ``uint256 seedFp``", "1. ``RawHDSeed rawSeed``"
+   "key*", "Transparent pubkey and privkey.", "1. ``CPubKey vchPubKey``", "1. ``CPrivKey pkey``"
+   "keymeta*", "Transparent key metadata.", "1. ``CPubKey vchPubKey``", "1. ``CKeyMetadata keyMeta``"
+   "**minversion**", "Wallet required minimal version.", "", ""
+   "**mkey**", "Master key, used to encrypt public and private keys of the database.", "1. ``unsigned int nID``", "1. ``CMasterKey kMasterKey``"
+   "name*", "Name of an address to insert in the address book.", "1. ``string strAddress``", "1. ``string strAddress``"
+   "**orderposnext**", "Index of next tx.", "", "1. ``int64_t nOrderPosNext``"
+   "pool*", "", "1. ``int64_t nIndex``", "1. ``CKeyPool keypool``"
+   "purpose*", "Short description or identifier of an address.", "1. ``string strAddress``", "1. ``string strPurpose``"
+   "sapzaddr*", "Sapling z-addr Incoming Viewing key and address.", "1. ``libzcash::SaplingPaymentAddress addr``", "1. ``libzcash::SaplingIncomingViewingKey ivk``"
+   "sapextfvk*", "Sapling Extended Full Viewing Key", "", ""
+   "sapzkey*", "Sapling Incoming Viewing Key and Extended Spending Key", "1. ``libzcash::SaplingIncomingViewingKey ivk``", "1. ``libzcash::SaplingExtendedSpendingKey key``"
+   "tx*", "Store all transactions that are related to wallet.", "1. ``uint256 hash``", "1. ``CWalletTx wtx``"
+   "**version**", "The ``CLIENT_VERSION`` from ``clientversion.h``.", "", "1. ``int nFileVersion``"
+   "vkey*", "Sprout Viewing Keys.", "1. ``libzcash::SproutViewingKey vk``", "1. ``char fYes``"
+   "watchs*", "Watch-only t-addresses.", "1. ``CScript script``", "1. ``char fYes``"
+   "**witnesscachesize**", "Shielded Note Witness cache size.", "", "1. ``int64_t nWitnessCacheSize``"
+   "wkey*", "Wallet key.", "", ""
+   "zkey*", "Sprout Payment Address and Spending Key.", "1. ``libzcash::SproutPaymentAddress addr``", "1. ``libzcash::SproutSpendingKey key``"
+   "zkeymeta*", "Sprout Payment Address and key metadata.", "1. ``libzcash::SproutPaymentAddress addr``", "1. ``CKeyMetadata keyMeta``"
+
+
+Functionality
+-------------
+
+When a zcashd node built with wallet support is started for the first time, a 
+new wallet database is created. By default the node will automatically execute 
+wallet actions that will be saved in the database at the first flush time.
+
+The following flow will happen when a node with wallet support is started for the first time:
+
+* ``DEFAULT_KEYPOOL_SIZE`` (100 by default) keys will be added to the pool, creating 100 records with ``pool`` as property name (first value of database key).
+* Also 100 ``key`` properties will be added.
+* 100 ``keymeta``.
+* Wallet will create a default transparent key to receive, this will be also added as ``key``, ``pool`` and ``keymeta`` properties.
+* This default key is also added as a ``defaultkey`` property. 
+* The last action created an entry in the address book that is reflected in the database by the ``name``  and ``purpose`` properties.
+* If the wallet is created with HD support, it will have additional properties ``hdseed`` and ``hdchain`` that will be saved.
+* ``version``, ``minversion``, ``witnesscachesize`` and ``bestblock`` properties are added. These are settings and state information: the ``bestblock`` property is a good example of the database being populated that is happening without any user interaction, but it will just update as the best block of the current chain changes.
+
+At any time after the database is created, new properties can be added as the wallet users perform actions. For example, if the user creates a new Sapling address with the RPC command ``z_getnewaddress`` then new records with properties `sapzkey` and `sapzkeymeta` will be added to the database.
+
+In zcashd, database changes do not happen immediately but they are flushed in its own thread by ``ThreadFlushWalletDB()`` function periodically to avoid overhead. The internal counter ``nWalletDBUpdated`` is increased each time a new write operation to the database is done, this is compared with the last flush in order to commit new stuff.
+
+When the node goes down for whatever reason the information in the wallet database SHOULD persist in the disk; the next time the node starts, the software will detect the database file, read from there and add the values into memory structures that will guarantee wallet functionality.
+
+Transactions
+^^^^^^^^^^^^
+
+The wallet database will not save all the transactions that are happening in the blockchain however it will save all transactions where wallet keys are involved. This is needed for example to get balances. Therefore the wallet must have all the transactions related to a key to compute the final value of coin available in the derived address.
+
+The ``tx`` property will hold the transaction-related data with the transaction hash as the key and the full transaction as the value.
+
+Wallet state and transaction reordering
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Transactions are saved in the database ``tx`` key as they arrive, this means transactions have a sequence.  The set of all transactions from the begging to a specified timestamp is the wallet state at that instant. Wallet state is important among other things to get current balance for a wallet or address.
+
+In the blockchain, transactions can be invalidated by rollbacks; wallet code will handle this by updating the transactions in the memory database. New state needs to be reflected in the disk database, this is done in zcashd by the flag ``fAnyUnordered`` where if true at start time, will launch a rescan over all transactions again.
+
+Wallet Recovery
+^^^^^^^^^^^^^^^
+
+The wallet database file may become corrupted. There are utilities in the `zcutil/bin`
+directory that may help with recovering it if this happens. Please ask for help on the
+Zcash forum or Community Discord.
+
+Wallet Encryption
+^^^^^^^^^^^^^^^^^
+
+Encryption will not be discussed in this document in detail as it is expected for the algorithm to change in the future according to the Wallet format ZIP issue: [#ZIP400Issue]_.
+
+
+For a deeper understanding of the current encryption mechanism please refer to [#CrypterCode]_
+
+References
+==========
+
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#BDB] `Oracle Berkeley Database <https://www.oracle.com/database/berkeley-db/db.html>`_
+.. [#ZIP400Issue] `ZIP 400 issue <https://github.com/zcash/zips/issues/350>`_
+.. [#zip-0032] `ZIP 32: Shielded Hierarchical Deterministic Wallets <zip-0032.rst>`_
+.. [#CrypterCode] `Database key encryption implementation <https://github.com/zcash/zcash/blob/master/src/wallet/crypter.h>`_
