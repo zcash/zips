@@ -111,7 +111,10 @@ written.
     <tr> <th>ZIP</th> <th>Title</th> <th>Status</th> </tr>
     <tr> <td><span class="reserved">1</span></td> <td class="left"><a class="reserved" href="zips/zip-0001.rst">Network Upgrade Policy and Scheduling</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">2</span></td> <td class="left"><a class="reserved" href="zips/zip-0002.rst">Design Considerations for Network Upgrades</a></td> <td>Reserved</td>
+    <tr> <td>68</td> <td class="left"><a href="zips/zip-0068.rst">Relative lock-time using consensus-enforced sequence numbers</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">76</span></td> <td class="left"><a class="reserved" href="zips/zip-0076.rst">Transaction Signature Validation before Overwinter</a></td> <td>Reserved</td>
+    <tr> <td>112</td> <td class="left"><a href="zips/zip-0112.rst">CHECKSEQUENCEVERIFY</a></td> <td>Draft</td>
+    <tr> <td>113</td> <td class="left"><a href="zips/zip-0113.rst">Median Time Past as endpoint for lock-time calculations</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">204</span></td> <td class="left"><a class="reserved" href="zips/zip-0204.rst">Zcash P2P Network Protocol</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">217</span></td> <td class="left"><a class="reserved" href="zips/zip-0217.rst">Aggregate Signatures</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">219</span></td> <td class="left"><a class="reserved" href="zips/zip-0219.rst">Disabling Addition of New Value to the Sapling Chain Value Pool</a></td> <td>Reserved</td>
@@ -131,7 +134,7 @@ written.
     <tr> <td>307</td> <td class="left"><a href="zips/zip-0307.rst">Light Client Protocol for Payment Detection</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">309</span></td> <td class="left"><a class="reserved" href="zips/zip-0309.rst">Blind Off-chain Lightweight Transactions (BOLT)</a></td> <td>Reserved</td>
     <tr> <td>310</td> <td class="left"><a href="zips/zip-0310.rst">Security Properties of Sapling Viewing Keys</a></td> <td>Draft</td>
-    <tr> <td><span class="reserved">311</span></td> <td class="left"><a class="reserved" href="zips/zip-0311.rst">Sapling Payment Disclosure</a></td> <td>Reserved</td>
+    <tr> <td>311</td> <td class="left"><a href="zips/zip-0311.rst">Zcash Payment Disclosures</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">312</span></td> <td class="left"><a class="reserved" href="zips/zip-0312.rst">Shielded Multisignatures using FROST</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">314</span></td> <td class="left"><a class="reserved" href="zips/zip-0314.rst">Privacy upgrades to the Zcash light client protocol</a></td> <td>Reserved</td>
     <tr> <td>315</td> <td class="left"><a href="zips/zip-0315.rst">Best Practices for Wallet Implementations</a></td> <td>Draft</td>
@@ -208,7 +211,10 @@ Index of ZIPs
     <tr> <td><span class="reserved">1</span></td> <td class="left"><a class="reserved" href="zips/zip-0001.rst">Network Upgrade Policy and Scheduling</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">2</span></td> <td class="left"><a class="reserved" href="zips/zip-0002.rst">Design Considerations for Network Upgrades</a></td> <td>Reserved</td>
     <tr> <td>32</td> <td class="left"><a href="zips/zip-0032.rst">Shielded Hierarchical Deterministic Wallets</a></td> <td>Final</td>
+    <tr> <td>68</td> <td class="left"><a href="zips/zip-0068.rst">Relative lock-time using consensus-enforced sequence numbers</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">76</span></td> <td class="left"><a class="reserved" href="zips/zip-0076.rst">Transaction Signature Validation before Overwinter</a></td> <td>Reserved</td>
+    <tr> <td>112</td> <td class="left"><a href="zips/zip-0112.rst">CHECKSEQUENCEVERIFY</a></td> <td>Draft</td>
+    <tr> <td>113</td> <td class="left"><a href="zips/zip-0113.rst">Median Time Past as endpoint for lock-time calculations</a></td> <td>Draft</td>
     <tr> <td>143</td> <td class="left"><a href="zips/zip-0143.rst">Transaction Signature Validation for Overwinter</a></td> <td>Final</td>
     <tr> <td>155</td> <td class="left"><a href="zips/zip-0155.rst">addrv2 message</a></td> <td>Proposed</td>
     <tr> <td>173</td> <td class="left"><a href="zips/zip-0173.rst">Bech32 Format</a></td> <td>Final</td>
