@@ -1,0 +1,374 @@
+::
+
+  ZIP: 212
+  Title: Allow Recipient to Derive Ephemeral Secret from Note Plaintext
+  Owners: Sean Bowe <sean@electriccoin.co>
+  Status: Final
+  Category: Consensus
+  Created: 2019-03-31
+  License: MIT
+
+
+Terminology
+===========
+
+The key words "MUST", "MUST NOT", "SHOULD NOT", and "MAY" in this document are
+to be interpreted as described in BCP 14 [#BCP14]_ when, and only when, they appear
+in all capitals.
+
+The following functions are defined in the Zcash Protocol Specification [#protocol]_
+according to the type (Sapling or Orchard) of note plaintext being processed:
+
+* let :math:`\mathsf{ToScalar}` be
+  :math:`\mathsf{ToScalar^{Sapling}}` defined in section 4.2.2 [#protocol-saplingkeycomponents]_ or
+  :math:`\mathsf{ToScalar^{Orchard}}` defined in section 4.2.3 [#protocol-orchardkeycomponents]_;
+* let :math:`\mathsf{DiversifyHash}` be
+  :math:`\mathsf{DiversifyHash^{Sapling}}` or :math:`\mathsf{DiversifyHash^{Orchard}}`
+  defined in section 5.4.1.6 [#protocol-concretediversifyhash]_;
+* let :math:`\mathsf{KA}` be
+  :math:`\mathsf{KA^{Sapling}}` defined in section 5.4.5.3 [#protocol-concretesaplingkeyagreement]_ or
+  :math:`\mathsf{KA^{Orchard}}` defined in section 5.4.5.5 [#protocol-concreteorchardkeyagreement]_;
+* let :math:`\mathsf{NoteCommit}` be
+  :math:`\mathsf{NoteCommit^{Sapling}}` or :math:`\mathsf{NoteCommit^{Orchard}}`
+  defined in section 4.1.8 [#protocol-abstractcommit]_.
+
+
+Abstract
+========
+
+This ZIP proposes a new note plaintext format for Sapling Outputs (later
+extended to include Orchard Actions) in transactions. The new format allows
+recipients to verify that the sender of an Output or Action knows the
+private key corresponding to the ephemeral Diffie–Hellman key, in order to
+avoid an assumption on zk-SNARK soundness for preventing diversified address
+linkability.
+
+
+Motivation
+==========
+
+The Sapling and Orchard payment protocols have a feature called "diversified
+addresses" which allows a single incoming viewing key to receive payments on
+an enormous number of distinct and unlinkable payment addresses. This feature
+allows users to maintain many payment addresses without paying additional
+overhead during blockchain scanning.
+
+The feature works by allowing payment addresses to become a tuple
+:math:`(\mathsf{pk_d}, \mathsf{d})` of a public key :math:`\mathsf{pk_d}` and
+:math:`88\!`-bit diversifier :math:`\mathsf{d}` such that
+:math:`\mathsf{pk_d} = [\mathsf{ivk}]\, \mathsf{DiversifyHash}(\mathsf{d})` for
+some incoming viewing key :math:`\mathsf{ivk}\!`. The hash function
+:math:`\mathsf{DiversifyHash}(\mathsf{d})` maps from a diversifier to prime-order
+elements of the Jubjub or Pallas elliptic curve. It is possible for a user
+to choose many :math:`\mathsf{d}` to create several distinct and unlinkable
+payment addresses of this form.
+
+In order to make a payment to a Sapling or Orchard address, an ephemeral secret
+:math:`\mathsf{esk}` is sampled by the sender and an ephemeral public key
+:math:`\mathsf{epk} = [\mathsf{esk}]\, \mathsf{DiversifyHash}(\mathsf{d})` is
+included in the Output or Action description. Then, a shared Diffie-Hellman
+secret is computed by the sender as
+:math:`\mathsf{KA.Agree}(\mathsf{esk}, \mathsf{pk_d})\!`. The recipient can
+recover this shared secret without knowledge of the particular :math:`\mathsf{d}`
+by computing :math:`\mathsf{KA.Agree}(\mathsf{ivk}, \mathsf{epk})\!`. This shared
+secret is then used as part of note decryption.
+
+Naïvely, the recipient cannot know which :math:`(\mathsf{pk_d}, \mathsf{d})`
+was used to compute the shared secret, but the sender is asked to include the
+:math:`\mathsf{d}` within the note plaintext to reconstruct the note. However,
+if the recipient has more than one known address, an attacker could use a
+different payment address to perform secret exchange and, by observing the
+behavior of the recipient, link the two diversified addresses together. (This
+attacker strategy was discovered by Brian Warner earlier in the design of the
+Sapling protocol.)
+
+In order to prevent this attack before activation of this ZIP, the protocol
+forced the sender to prove knowledge of the discrete logarithm of
+:math:`\mathsf{epk}` with respect to the
+:math:`\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})` included within the
+note commitment. This :math:`\mathsf{g_d}` is determined by :math:`\mathsf{d}`
+and recomputed during note decryption, and so either the note decryption will
+fail, or the sender will be unable to produce the proof that requires knowledge
+of the discrete logarithm.
+
+However, the latter proof was part of the Sapling Output statement, and so
+relied on the soundness of the underlying Groth16 zk-SNARK — hence on relatively
+strong cryptographic assumptions and a trusted setup. It is preferable to force
+the sender to transfer sufficient information in the note plaintext to allow
+deriving :math:`\mathsf{esk}\!`, so that, during note decryption, the recipient
+can check that :math:`\mathsf{epk} = [\mathsf{esk}]\, \mathsf{g_d}` for the
+expected :math:`\mathsf{g_d}\!`, and ignore the payment as invalid otherwise.
+For Sapling, this forms a line of defense in the case that soundness of the
+zk-SNARK does not hold. For Orchard, this check is essential because (for
+efficiency and simplicity) :math:`\mathsf{epk} = [\mathsf{esk}]\, \mathsf{g_d}`
+is *not* checked in the Action statement.
+
+Merely sending :math:`\mathsf{esk}` to the recipient in the note plaintext would
+require us to enlarge the note plaintext, but also would compromise the proof
+of IND-CCA2 security for in-band secret distribution. We avoid both of these
+concerns by using a key derivation to obtain both :math:`\mathsf{esk}` and
+:math:`\mathsf{rcm}\!`.
+
+
+Specification
+=============
+
+.. note::
+    The specification in this ZIP is intended to be aligned with version
+    2023.4.0 or later of the Zcash Protocol Specification [#protocol]_,
+    and with the deployed implementations in ``librustzcash`` and the
+    ``orchard`` crate.
+
+    Please note that prior versions of the protocol specification
+    (2022.3.8 and earlier) were inconsistent with this ZIP regarding the
+    domain separators for :math:`\mathsf{PRF^{expand}}` used to derive
+    :math:`\mathsf{rcm}` and :math:`\mathsf{esk}\!`. The protocol
+    specification diverged from the deployed implementations for Sapling,
+    and this ZIP previously (before December 2023) diverged from the
+    deployed implementations for Orchard.
+
+Pseudo random functions (PRFs) are defined in section 4.1.2 of the Zcash
+Protocol Specification [#protocol-abstractprfs]_. We will be adapting
+:math:`\mathsf{PRF^{expand}}` for the purposes of this ZIP. This function is
+keyed by a 256-bit key :math:`\mathsf{sk}` and takes an arbitrary length byte
+sequence as input, returning a :math:`64\!`-byte sequence as output.
+
+Changes to Sapling and Orchard Note plaintexts
+----------------------------------------------
+
+Note plaintext encodings are specified in section 5.5 of the Zcash Protocol
+Specification [#protocol-notept]_. Before activation of this ZIP, the encoding
+of a Sapling note plaintext required that the first byte take the form
+:math:`\mathtt{0x01}\!`, indicating the version of the note plaintext. In
+addition, a :math:`256\!`-bit :math:`\mathsf{rcm}` field exists within the
+note plaintext and encoding.
+
+Following the activation of this ZIP, senders of Sapling or Orchard notes
+MUST use the following note plaintext format:
+
+* The first byte of the encoding MUST take the form :math:`\mathtt{0x02}`
+  (representing the new note plaintext version).
+* The field :math:`\mathsf{rcm}` of the encoding is renamed to
+  :math:`\mathsf{rseed}\!`. This field :math:`\mathsf{rseed}` of the Sapling
+  or Orchard note plaintext no longer takes the type of
+  :math:`\mathsf{NoteCommit.Trapdoor}` (as it did for Sapling) but instead
+  is a :math:`32\!`-byte sequence.
+
+The requirement that the former :math:`\mathsf{rcm}` field be a scalar of the
+Jubjub elliptic curve, when interpreted as a little endian integer, is removed
+from descriptions of note plaintexts in the Zcash Protocol Specification.
+
+Changes to the process of sending Sapling or Orchard notes
+----------------------------------------------------------
+
+The process of sending notes is described in section 4.7.2 of the Zcash
+Protocol Specification for Sapling [#protocol-saplingsend]_ and section 4.7.3
+for Orchard [#protocol-orchardsend]_. In addition, the process of encrypting
+a note is described in section 4.19.1 of the Zcash Protocol Specification
+[#protocol-saplingandorchardencrypt]_. Prior to activation of this ZIP, the
+sender sampled :math:`\mathsf{rcm^{new}}` and the ephemeral private key
+:math:`\mathsf{esk}` uniformly at random during this process.
+
+After the activation of this ZIP, the sender MUST instead sample a uniformly
+random :math:`32\!`-byte sequence :math:`\mathsf{rseed}\!`. The note plaintext takes
+:math:`\mathsf{rseed}` in place of :math:`\mathsf{rcm^{new}}\!`.
+
+For Sapling:
+
+* :math:`\mathsf{rcm^{new}}` MUST be derived as the output of
+  :math:`\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([4]))\!`.
+* :math:`\mathsf{esk}` MUST be derived as the output of
+  :math:`\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([5]))\!`.
+
+For Orchard:
+
+* :math:`\mathsf{rcm^{new}}` MUST be derived as the output of
+  :math:`\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([5] \,||\, \underline{\text{ρ}}))\!`.
+* :math:`\mathsf{esk}` MUST be derived as the output of
+  :math:`\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([4] \,||\, \underline{\text{ρ}}))\!`.
+* :math:`\text{φ}` MUST be derived as the output of
+  :math:`\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([9] \,||\, \underline{\text{ρ}}))\!`.
+
+where :math:`\underline{\text{ρ}} = \mathsf{I2LEOSP}_{256}(\mathsf{nf^{old}}` from the same Action description :math:`\!)\!`.
+
+.. note::
+    The domain separators :math:`[4]` and :math:`[5]` used in the input to
+    :math:`\mathsf{PRF^{expand}_{rseed}}` are swapped for Orchard relative to
+    Sapling. This was due to an oversight and there is no good reason for it.
+
+    The specified domain separators were corrected to match the deployed
+    implementations in ``librustzcash`` and the ``orchard`` crate in
+    version 2023.4.0 of the Zcash Protocol Specification, and in this ZIP
+    from December 2023.
+
+Changes to the process of receiving Sapling or Orchard notes
+------------------------------------------------------------
+
+The process of receiving notes in Sapling is described in sections 4.19.2 and
+4.19.3 of the Zcash Protocol Specification. [#protocol-decryptivk]_
+[#protocol-decryptovk]_
+
+There is a "grace period" of 32256 blocks starting from the block at which this
+ZIP activates, during which note plaintexts with lead byte :math:`\mathtt{0x01}`
+MUST still be accepted.
+
+Let ActivationHeight be the activation height of this ZIP, and let
+GracePeriodEndHeight be ActivationHeight + 32256.
+
+The height of a transaction in a mined block is defined as the height of that
+block. An implementation MAY also decrypt mempool transactions, in which case
+the height used is the height of the next block at the time of the check.
+An implementation SHOULD NOT attempt to decrypt mempool transactions without
+having obtained a best-effort view of the current block chain height.
+
+When the recipient of a note (either using an incoming viewing key or a full
+viewing key) is able to decrypt a note plaintext, it performs the following
+check on the plaintext lead byte, based on the height of the containing
+transaction:
+
+* If the height is less than ActivationHeight, then only :math:`\mathtt{0x01}`
+  is accepted as the plaintext lead byte.
+* If the height is at least ActivationHeight and less than GracePeriodEndHeight,
+  then either :math:`\mathtt{0x01}` or :math:`\mathtt{0x02}` is accepted as the
+  plaintext lead byte.
+* If the height is at least GracePeriodEndHeight, then only :math:`\mathtt{0x02}`
+  is accepted as the plaintext lead byte.
+
+If the plaintext lead byte is not accepted then the note MUST be discarded.
+However, if an implementation decrypted the note from a mempool transaction and
+it was accepted at that time, but it is later mined in a block after the end of
+the grace period, then it MAY be retained.
+
+A note plaintext with lead byte :math:`\mathtt{0x02}` contains a field
+:math:`\mathsf{rseed}` that is a :math:`32\!`-byte sequence rather than a scalar
+value :math:`\mathsf{rcm}\!`. The recipient, during decryption and in any later
+contexts, will derive :math:`\mathsf{rcm}` using :math:`\mathsf{PRF^{expand}_{rseed}}`
+in the same way as the sender, as described in `Changes to the process of sending Sapling or Orchard notes`_.
+Further, the recipient MUST derive :math:`\mathsf{esk}` as described in that
+section and check that :math:`\mathsf{epk} = [\mathsf{esk}]\, \mathsf{g_d}\!`,
+failing decryption if this check is not satisfied.
+
+Consensus rule change for coinbase transactions
+-----------------------------------------------
+
+After the activation of this ZIP, any Sapling output of a coinbase transaction
+that is decrypted to a note plaintext as specified in [#zip-0213]_, MUST have
+note plaintext lead byte equal to :math:`\mathtt{0x02}\!`.
+
+This applies even during the “grace period”, and also applies to funding stream
+outputs [#zip-0207]_ sent to shielded payment addresses, if there are any.
+
+Since NU5 activates after the end of the grace period [#zip-0252]_, Orchard
+outputs will always require a note plaintext lead byte equal to
+:math:`\mathtt{0x02}\!`.
+
+
+Rationale
+=========
+
+The attack that this prevents is an interactive attack that requires an
+adversary to be able to break critical soundness properties of the zk-SNARKs
+underlying Sapling. It is potentially valid to assume that this cannot occur,
+due to other damaging effects on the system such as undetectable counterfeiting.
+However, we have attempted to avoid any instance in the protocol where privacy
+(even against interactive attacks) depended on strong cryptographic assumptions.
+Acting differently here would be confusing for users that have previously been
+told that "privacy does not depend on zk-SNARK soundness" or similar claims.
+
+It would have been possible to infringe on the length of the ``memo`` field and
+ask the sender to provide :math:`\mathsf{esk}` within the existing note plaintext
+without modifying the transaction format, but this would have harmed users who
+have come to expect a :math:`512\!`-byte memo field to be available to them.
+Changes to the memo field length should be considered in a broader context than
+changes made for cryptographic purposes.
+
+It would be possible to transmit a signature of knowledge of a correct
+:math:`\mathsf{esk}` rather than :math:`\mathsf{esk}` itself, but this appears
+to be an unnecessary complication and is likely slower than just supplying
+:math:`\mathsf{esk}\!`.
+
+The grace period is intended to mitigate loss-of-funds risk due to
+non-conformant sending wallet implementations. The intention is that during the
+grace period (of about 4 weeks), it will be possible to identify wallets that
+are still sending plaintexts according to the old specification, and cajole
+their developers to make the required updates. For the avoidance of doubt,
+such wallets are non-conformant because it is a "MUST" requirement to
+*immediately* switch to sending note plaintexts with lead byte
+:math:`\mathtt{0x02}` (and the other changes in this specification) at the
+upgrade. Note that nodes will clear their mempools when the upgrade activates,
+which will clear all plaintexts with lead byte :math:`\mathtt{0x01}` that were
+sent conformantly and not mined before the upgrade.
+
+Historical note: in practice some note plaintexts with lead byte
+:math:`\mathtt{0x01}` were non-conformantly sent even after the end of the
+specified grace period. ZecWallet extended its implementation of the grace
+period by a further 161280 blocks (approximately 20 weeks) in order to allow
+for recovery of these funds [#zecwallet-grace-extension]_.
+
+
+Security and Privacy Considerations
+===================================
+
+The changes made in this proposal prevent an interactive attack that could link
+together diversified addresses by only breaking the knowledge soundness
+assumption of the zk-SNARK. It is already assumed that the adversary cannot
+defeat the EC-DDH assumption of the Jubjub (or Pallas) elliptic curve, for it
+could perform a linkability attack trivially in that case.
+
+In the naïve case where the protocol is modified so that :math:`\mathsf{esk}`
+is supplied directly to the recipient (rather than derived through
+:math:`\mathsf{rseed}\!`) this would lead to an instance of key-dependent
+encryption, which is difficult or perhaps impossible to prove secure using
+existing security notions. Our approach of using a key derivation, which
+ultimately queries an oracle, allows a proof for IND-CCA2 security to be
+written by reprogramming the oracle to return bogus keys when necessary.
+
+
+Deployment
+==========
+
+This proposal will be deployed with the Canopy network upgrade. [#zip-0251]_
+
+
+Reference Implementation
+========================
+
+In zcashd:
+
+* https://github.com/zcash/zcash/pull/4578
+
+In librustzcash:
+
+* https://github.com/zcash/librustzcash/pull/258
+
+
+Acknowledgements
+================
+
+The discovery that diversified address unlinkability depended on the zk-SNARK
+knowledge assumption was made by Sean Bowe and Zooko Wilcox.
+
+
+References
+==========
+
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#protocol] `Zcash Protocol Specification, Version 2023.4.0 or later <protocol/protocol.pdf>`_
+.. [#protocol-abstractprfs] `Zcash Protocol Specification, Version 2023.4.0. Section 4.1.2: Pseudo Random Functions <protocol/protocol.pdf#abstractprfs>`_
+.. [#protocol-abstractcommit] `Zcash Protocol Specification, Version 2023.4.0. Section 4.1.8: Commitment <protocol/protocol.pdf#abstractcommit>`_
+.. [#protocol-saplingkeycomponents] `Zcash Protocol Specification, Version 2023.4.0. Section 4.2.2: Sapling Key Components <protocol/protocol.pdf#saplingkeycomponents>`_
+.. [#protocol-orchardkeycomponents] `Zcash Protocol Specification, Version 2023.4.0. Section 4.2.3: Orchard Key Components <protocol/protocol.pdf#orchardkeycomponents>`_
+.. [#protocol-saplingsend] `Zcash Protocol Specification, Version 2023.4.0. Section 4.7.2: Sending Notes (Sapling) <protocol/protocol.pdf#saplingsend>`_
+.. [#protocol-orchardsend] `Zcash Protocol Specification, Version 2023.4.0. Section 4.7.3: Sending Notes (Orchard) <protocol/protocol.pdf#orchardsend>`_
+.. [#protocol-saplingandorchardencrypt] `Zcash Protocol Specification, Version 2023.4.0. Section 4.19.1: Encryption (Sapling and Orchard) <protocol/protocol.pdf#saplingandorchardencrypt>`_
+.. [#protocol-decryptivk] `Zcash Protocol Specification, Version 2023.4.0. Section 4.19.2: Decryption using an Incoming Viewing Key (Sapling and Orchard) <protocol/protocol.pdf#decryptivk>`_
+.. [#protocol-decryptovk] `Zcash Protocol Specification, Version 2023.4.0. Section 4.19.3: Decryption using a Full Viewing Key (Sapling and Orchard) <protocol/protocol.pdf#decryptovk>`_
+.. [#protocol-concretediversifyhash] `Zcash Protocol Specification, Version 2023.4.0. Section 5.4.1.6: DiversifyHash^Sapling and DiversifyHash^Orchard Hash Functions <protocol/protocol.pdf#concretediversifyhash>`_
+.. [#protocol-concretesaplingkeyagreement] `Zcash Protocol Specification, Version 2023.4.0. Section 5.4.5.3 Sapling Key Agreement <protocol/protocol.pdf#concretesaplingkeyagreement>`_
+.. [#protocol-concreteorchardkeyagreement] `Zcash Protocol Specification, Version 2023.4.0. Section 5.4.5.5 Orchard Key Agreement <protocol/protocol.pdf#concreteorchardkeyagreement>`_
+.. [#protocol-notept] `Zcash Protocol Specification, Version 2023.4.0. Section 5.5: Encodings of Note Plaintexts and Memo Fields <protocol/protocol.pdf#notept>`_
+.. [#zip-0207] `ZIP 207: Split Founders' Reward <zip-0207.rst>`_
+.. [#zip-0213] `ZIP 213: Shielded Coinbase <zip-0213.rst>`_
+.. [#zip-0251] `ZIP 251: Deployment of the Canopy Network Upgrade <zip-0251.rst>`_
+.. [#zip-0252] `ZIP 252: Deployment of the NU5 Network Upgrade <zip-0252.rst>`_
+.. [#zecwallet-grace-extension] `Commit c31a04a in aditypk00/librustzcash: Move ZIP-212 grace period to end of April <https://github.com/adityapk00/librustzcash/commit/c31a04a4dbfa5a2ac013139db229f41cd421754d>`_

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZIP 245: Transaction Identifier Digests &amp; Signature Validation for Transparent Zcash Extensions</title>
+    <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+    <section>
+        <pre>ZIP: 245
+Title: Transaction Identifier Digests &amp; Signature Validation for Transparent Zcash Extensions
+Owners: Kris Nuttycombe &lt;kris@electriccoin.co&gt;
+        Daira-Emma Hopwood &lt;daira-emma@electriccoin.co&gt;
+Status: Draft
+Category: Consensus
+Created: 2021-01-13
+License: MIT
+Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/384">https://github.com/zcash/zips/issues/384</a>&gt;</pre>
+        <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The key words "MUST" and "MUST NOT" in this document are to be interpreted as described in BCP 14 <a id="footnote-reference-1" class="footnote_reference" href="#bcp14">1</a> when, and only when, they appear in all capitals.</p>
+            <p>The terms "consensus branch", "epoch", and "network upgrade" in this document are to be interpreted as described in ZIP 200. <a id="footnote-reference-2" class="footnote_reference" href="#zip-0200">2</a></p>
+        </section>
+        <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This proposal defines changes to ZIP 244 <a id="footnote-reference-3" class="footnote_reference" href="#zip-0244">4</a> transaction id and signature digest algorithms to accommodate the inclusion of transparent Zcash extensions (TZEs) as defined in ZIP 222 <a id="footnote-reference-4" class="footnote_reference" href="#zip-0222">3</a>.</p>
+        </section>
+        <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <section id="txid-digest"><h3><span class="section-heading">TxId Digest</span><span class="section-anchor"> <a rel="bookmark" href="#txid-digest"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>The tree of hashes defined by ZIP 244 <a id="footnote-reference-5" class="footnote_reference" href="#zip-0244">4</a> is re-structured to include a new branch for TZE hashes. The <code>tze_digest</code> branch is the only new addition to the tree; <code>header_digest</code>, <code>transparent_digest</code>, <code>sprout_digest</code>, and <code>sapling_digest</code> are as in ZIP 244:</p>
+                <pre>txid_digest
+├── header_digest
+├── transparent_digest
+├── tze_digest
+│   ├── tzein_digest
+│   └── tzeout_digest
+├── sprout_digest
+└── sapling_digest</pre>
+                <section id="txid-digest-1"><h4><span class="section-heading">txid_digest</span><span class="section-anchor"> <a rel="bookmark" href="#txid-digest-1"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>The top hash of the <code>txid_digest</code> tree is modified from the ZIP 244 structure to be a BLAKE2b-256 hash of the following values</p>
+                    <pre>T.1: header_digest      (32-byte hash output)
+T.2: transparent_digest (32-byte hash output)
+T.3: tze_digest         (32-byte hash output)
+T.4: sprout_digest      (32-byte hash output)
+T.5: sapling_digest     (32-byte hash output)</pre>
+                    <p>The personalization field of this hash is unmodified from ZIP 244.</p>
+                    <section id="tze-digest"><h5><span class="section-heading">2: <code>tze_digest</code></span><span class="section-anchor"> <a rel="bookmark" href="#tze-digest"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>A BLAKE2b-256 hash of the following values</p>
+                        <pre>T.2a: tzein_digest  (32-byte hash)
+T.2b: tzeout_digest (32-byte hash)</pre>
+                        <p>The personalization field of this hash is set to:</p>
+                        <pre>"ZTxIdTZE____Hash" (4 underscore characters)</pre>
+                        <section id="a-tzein-digest"><h6><span class="section-heading">2a: tzein_digest</span><span class="section-anchor"> <a rel="bookmark" href="#a-tzein-digest"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h6>
+                            <p>A BLAKE2b-256 hash of all TZE inputs to the transaction, excluding witness data. For each TZE input, the following values are appended to this hash:</p>
+                            <pre>2a.i:  extension_id (CompactSize field encoding)
+2a.ii: mode         (CompactSize field encoding)</pre>
+                            <p>The personalization field of this hash is set to:</p>
+                            <pre>"ZTxIdTZEIns_Hash" (1 underscore character)</pre>
+                        </section>
+                        <section id="a-tzeout-digest"><h6><span class="section-heading">2a: tzeout_digest</span><span class="section-anchor"> <a rel="bookmark" href="#a-tzeout-digest"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h6>
+                            <p>A BLAKE2b-256 hash of the field encoding of all TZE outputs belonging to the transaction.</p>
+                            <p>The personalization field of this hash is set to:</p>
+                            <pre>"ZTxIdTzeOutsHash"</pre>
+                        </section>
+                    </section>
+                </section>
+            </section>
+            <section id="signature-digest"><h3><span class="section-heading">Signature Digest</span><span class="section-anchor"> <a rel="bookmark" href="#signature-digest"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>The signature digest creation algorithm defined by ZIP 244 <a id="footnote-reference-6" class="footnote_reference" href="#zip-0244">4</a> is modified to include a new branch for TZE hashes. The <code>tze_digest</code> branch is the only new addition to the tree; <code>header_digest</code>, <code>transparent_digest</code>, <code>sprout_digest</code>, and <code>sapling_digest</code> are as in ZIP 244:</p>
+                <pre>signature_digest
+├── header_digest
+├── transparent_digest
+├── tze_digest
+│   ├── tzein_digest
+│   └── tzeout_digest
+├── sprout_digest
+└── sapling_digest</pre>
+                <section id="signature-digest-1"><h4><span class="section-heading">signature_digest</span><span class="section-anchor"> <a rel="bookmark" href="#signature-digest-1"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>A BLAKE2b-256 hash of the following values</p>
+                    <pre>S.1: header_digest      (32-byte hash output)
+S.2: transparent_digest (32-byte hash output)
+S.3: tze_digest         (32-byte hash output)
+S.4: sprout_digest      (32-byte hash output)
+S.5: sapling_digest     (32-byte hash output)</pre>
+                    <p>The personalization field of this hash is set to:</p>
+                    <pre>"ZcashTxHash_" || CONSENSUS_BRANCH_ID</pre>
+                    <p><code>ZcashTxHash_</code> has 1 underscore character.</p>
+                    <p>This value must have the same personalization as the top hash of the transaction identifier digest tree, in order to make it possible to sign the transaction id in the case that there are no transparent inputs.</p>
+                    <section id="s-3-tze-digest"><h5><span class="section-heading">S.3: tze_digest</span><span class="section-anchor"> <a rel="bookmark" href="#s-3-tze-digest"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>This digest is a BLAKE2b-256 hash of the following values of the TZE input being signed:</p>
+                        <pre>S.3a: prevout_digest (field encoding bytes)
+S.3b: extension_id   (CompactSize field encoding)
+S.3c: mode           (CompactSize field encoding)
+S.3d: payload        (arbitrary bytes)
+S.3e: value          (8-byte little endian value of the output spent by this input)</pre>
+                        <p>The personalization field of this hash is set to:</p>
+                        <pre>"Zcash__TzeInHash" (2 underscore characters)</pre>
+                    </section>
+                </section>
+            </section>
+            <section id="authorizing-data-commitment"><h3><span class="section-heading">Authorizing Data Commitment</span><span class="section-anchor"> <a rel="bookmark" href="#authorizing-data-commitment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>The tree of hashes defined by ZIP 244 <a id="footnote-reference-7" class="footnote_reference" href="#zip-0244">4</a> for authorizing data commitments is re-structured to include a new branch for TZE hashes. The <code>tze_witnesses_digest</code> branch is the only new addition to the tree; <code>transparent_auth_digest</code>, <code>sprout_auth_digest</code>, and <code>sapling_auth_digest</code> are as in ZIP 244:</p>
+                <pre>auth_digest
+├── transparent_scripts_digest
+├── tze_witnesses_digest
+├── sprout_auth_digest
+└── sapling_auth_digest</pre>
+                <section id="auth-digest"><h4><span class="section-heading">auth_digest</span><span class="section-anchor"> <a rel="bookmark" href="#auth-digest"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>The top hash of the <code>auth_digest</code> tree is modified from the ZIP 244 structure to be a BLAKE2b-256 hash of the following values</p>
+                    <pre>A.1: transparent_scripts_digest (32-byte hash output)
+A.2: tze_witnesses_digest       (32-byte hash output)
+A.3: sprout_auth_digest         (32-byte hash output)
+A.4: sapling_auth_digest        (32-byte hash output)</pre>
+                    <p>The personalization field of this hash is unmodified from ZIP 244.</p>
+                </section>
+                <section id="tze-witnesses-digest"><h4><span class="section-heading">2: tze_witnesses_digest</span><span class="section-anchor"> <a rel="bookmark" href="#tze-witnesses-digest"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>A BLAKE2b-256 hash of the field encoding of the witness <code>payload</code> data associated with each TZE input belonging to the transaction.</p>
+                    <p>The personalization field of this hash is set to:</p>
+                    <pre>"ZTxAuthTZE__Hash" (2 underscore characters)</pre>
+                </section>
+            </section>
+        </section>
+        <section id="reference-implementation"><h2><span class="section-heading">Reference implementation</span><span class="section-anchor"> <a rel="bookmark" href="#reference-implementation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <ul>
+                <li><a href="https://github.com/zcash/librustzcash/pull/319/files">https://github.com/zcash/librustzcash/pull/319/files</a></li>
+            </ul>
+        </section>
+        <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <table id="bcp14" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>1</th>
+                        <td><a href="https://www.rfc-editor.org/info/bcp14">Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0200" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>2</th>
+                        <td><a href="zip-0200">ZIP 200: Network Upgrade Mechanism</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0222" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>3</th>
+                        <td><a href="zip-0222">ZIP 222: Transparent Zcash Extensions</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0244" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>4</th>
+                        <td><a href="zip-0244">ZIP 244: Transaction Identifier Non-Malleability</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </section>
+</body>
+</html>

@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZIP 155: addrv2 message</title>
+    <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+    <section>
+        <pre>ZIP: 155
+Title: addrv2 message
+Owners: Daira-Emma Hopwood &lt;daira-emma@electriccoin.co&gt;
+Credits: Wladimir J. van der Laan
+         Zancas Wilcox
+Status: Proposed
+Category: Network
+Created: 2021-08-13
+License: BSD-2-Clause
+Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/542">https://github.com/zcash/zips/issues/542</a>&gt;
+Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/543">https://github.com/zcash/zips/pull/543</a>&gt;</pre>
+        <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The key words "MUST", "MUST NOT", "SHOULD", "SHOULD NOT", and "MAY" in this document are to be interpreted as described in BCP 14 <a id="footnote-reference-1" class="footnote_reference" href="#bcp14">1</a> when, and only when, they appear in all capitals.</p>
+            <p>The term "network upgrade" in this document is to be interpreted as described in ZIP 200. <a id="footnote-reference-2" class="footnote_reference" href="#zip-0200">4</a></p>
+            <p>The terms "Testnet" and "Mainnet" are to be interpreted as described in section 3.12 of the Zcash Protocol Specification <a id="footnote-reference-3" class="footnote_reference" href="#protocol-networks">2</a>.</p>
+            <p>"P2P network" means the Zcash peer-to-peer network.</p>
+            <p><code>uint8</code>, <code>uint16</code>, and <code>uint32</code> denote unsigned integer data types of the corresponding length (8, 16, or 32 bits respectively).</p>
+        </section>
+        <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This document proposes a new P2P message to gossip longer node addresses over the P2P network. This is required to support new-generation onion addresses, I2P, and potentially other networks that have longer endpoint addresses than fit in the 128 bits of the current <code>addr</code> message.</p>
+        </section>
+        <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>Tor v3 onion services are part of the stable release of Tor since version 0.3.2.9. They have various advantages compared to the old v2 onion services, among which better encryption and privacy <a id="footnote-reference-4" class="footnote_reference" href="#tor-rendezvous-v3">9</a>. These services have 256-bit addresses and thus do not fit in the existing <code>addr</code> message (unchanged from Bitcoin <a id="footnote-reference-5" class="footnote_reference" href="#bitcoin-addr-message">7</a>), which encapsulates onion addresses in OnionCat IPv6 addresses.</p>
+            <p>Other transport-layer protocols such as I2P have always used longer addresses. This change would make it possible to gossip such addresses over the P2P network, so that other peers can connect to them.</p>
+        </section>
+        <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The <code>addrv2</code> message is defined as a message where the <code>command</code> field is (NUL-padded) <code>"addrv2"</code>. It is serialized in the standard encoding for P2P messages. Its format is similar to the current <code>addr</code> message format described in <a id="footnote-reference-6" class="footnote_reference" href="#bitcoin-addr-message">7</a>, with the difference that the fixed 16-byte IP address is replaced by a network ID and a variable-length address, and the services format has been changed to <a id="footnote-reference-7" class="footnote_reference" href="#bitcoin-compactsize">8</a>.</p>
+            <p>This means that the message contains a serialized vector of the following structure:</p>
+            <blockquote>
+                <table>
+                    <tbody>
+                        <tr>
+                            <td>Bytes</td>
+                            <td>Name</td>
+                            <td>Data Type</td>
+                            <td>Description</td>
+                        </tr>
+                        <tr>
+                            <td>4</td>
+                            <td><code>time</code></td>
+                            <td><code>uint32</code></td>
+                            <td>Time that this node was last seen as connected to the network. A time in Unix epoch time format.</td>
+                        </tr>
+                        <tr>
+                            <td><code>varies</code></td>
+                            <td><code>services</code></td>
+                            <td><code>CompactSize</code></td>
+                            <td>Service bits. A CompactSize-encoded bit field that is 64 bits wide.</td>
+                        </tr>
+                        <tr>
+                            <td>1</td>
+                            <td><code>networkID</code></td>
+                            <td><code>uint8</code></td>
+                            <td>Network identifier. An 8-bit value that specifies which network is addressed.</td>
+                        </tr>
+                        <tr>
+                            <td><code>varies</code></td>
+                            <td><code>sizeAddr</code></td>
+                            <td><code>CompactSize</code></td>
+                            <td>The length in bytes of <code>addr</code>.</td>
+                        </tr>
+                        <tr>
+                            <td><code>sizeAddr</code></td>
+                            <td><code>addr</code></td>
+                            <td><code>uint8[sizeAddr]</code></td>
+                            <td>Network address. The interpretation depends on networkID.</td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td><code>port</code></td>
+                            <td><code>uint16</code></td>
+                            <td>Network port. If not relevant for the network this MUST be 0.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </blockquote>
+            <p>One message can contain up to 1,000 addresses. Clients MUST reject messages with more addresses.</p>
+            <p>Field <code>addr</code> has a variable length, with a maximum of 512 bytes (4096 bits). Clients MUST reject messages with a longer <code>addr</code> field, irrespective of the network ID.</p>
+            <p>The list of reserved network IDs is as follows:</p>
+            <blockquote>
+                <table>
+                    <tbody>
+                        <tr>
+                            <td>Network ID</td>
+                            <td>Enumeration</td>
+                            <td>Address length (bytes)</td>
+                            <td>Description</td>
+                        </tr>
+                        <tr>
+                            <td><code>0x01</code></td>
+                            <td><code>IPV4</code></td>
+                            <td>4</td>
+                            <td>IPv4 address (globally routed internet)</td>
+                        </tr>
+                        <tr>
+                            <td><code>0x02</code></td>
+                            <td><code>IPV6</code></td>
+                            <td>16</td>
+                            <td>IPv6 address (globally routed internet)</td>
+                        </tr>
+                        <tr>
+                            <td><code>0x04</code></td>
+                            <td><code>TORV3</code></td>
+                            <td>32</td>
+                            <td>Tor v3 onion service address</td>
+                        </tr>
+                        <tr>
+                            <td><code>0x05</code></td>
+                            <td><code>I2P</code></td>
+                            <td>32</td>
+                            <td>I2P overlay network address</td>
+                        </tr>
+                        <tr>
+                            <td><code>0x06</code></td>
+                            <td><code>CJDNS</code></td>
+                            <td>16</td>
+                            <td>Cjdns overlay network address</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </blockquote>
+            <p>Network ID <code>0x03</code> is intentionally not assigned. In BIP 155 <a id="footnote-reference-8" class="footnote_reference" href="#bip-0155">3</a> it was assigned to Tor v2 onion addresses, but those addresses are no longer supported by the latest Tor client code, and MUST NOT be used once this ZIP is deployed.</p>
+            <p>Clients SHOULD gossip valid, potentially routable addresses from all known networks, even if they are currently not connected to some of them. That could help multi-homed nodes and make it more difficult for an observer to tell which networks a node is connected to.</p>
+            <p>Clients MUST NOT gossip addresses from unknown networks, because they have no means to validate those addresses and so can be tricked to gossip invalid addresses.</p>
+            <p>Clients MUST reject messages that contain addresses that have a different length than specified in this table for a specific network ID, as these are meaningless.</p>
+            <section id="network-address-encodings"><h3><span class="section-heading">Network address encodings</span><span class="section-anchor"> <a rel="bookmark" href="#network-address-encodings"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>The <code>IPV4</code> and <code>IPV6</code> network IDs use addresses encoded in the usual way for binary IPv4 and IPv6 addresses in network byte order (big endian).</p>
+                <section id="tor-v3-address-encoding"><h4><span class="section-heading">Tor v3 address encoding</span><span class="section-anchor"> <a rel="bookmark" href="#tor-v3-address-encoding"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>According to the spec <a id="footnote-reference-9" class="footnote_reference" href="#tor-rendezvous-v3">9</a>, version 3 <code>.onion</code> addresses are encoded as follows:</p>
+                    <pre>onion_address = base32(PUBKEY || CHECKSUM || VERSION) + ".onion"
+CHECKSUM = H(".onion checksum" || PUBKEY || VERSION)[:2]  // first 2 bytes</pre>
+                    <p>where:</p>
+                    <ul>
+                        <li><code>PUBKEY</code> is the 32-byte Ed25519 master pubkey of the onion service;</li>
+                        <li><code>VERSION</code> is a one-byte version field (default value <code>0x03</code>);</li>
+                        <li><code>".onion"</code> and <code>".onion checksum"</code> are constant strings;</li>
+                        <li><code>CHECKSUM</code> is truncated to two bytes before inserting it in <code>onion_address</code>;</li>
+                        <li><code>H()</code> is the SHA3-256 cryptographic hash function. <a id="footnote-reference-10" class="footnote_reference" href="#nist-sha3">10</a></li>
+                    </ul>
+                    <p>Tor v3 addresses MUST be sent with the <code>TORV3</code> network ID, with the 32-byte <code>PUBKEY</code> part in the <code>addr</code> field. As <code>VERSION</code> will always be 0x03 in the case of v3 addresses, this is enough to reconstruct the onion address.</p>
+                </section>
+                <section id="i2p-address-encoding"><h4><span class="section-heading">I2P address encoding</span><span class="section-anchor"> <a rel="bookmark" href="#i2p-address-encoding"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Like Tor, I2P naming uses a base32-encoded address format <a id="footnote-reference-11" class="footnote_reference" href="#i2p-naming">11</a>.</p>
+                    <p>I2P uses 52 characters (256 bits) to represent the full SHA-256 hash, followed by <code>.b32.i2p</code>. The base32 encoding does not include <code>"="</code> padding characters.</p>
+                    <p>I2P addresses MUST be sent with the <code>I2P</code> network ID, with the decoded SHA-256 hash as address field.</p>
+                </section>
+                <section id="cjdns-address-encoding"><h4><span class="section-heading">Cjdns address encoding</span><span class="section-anchor"> <a rel="bookmark" href="#cjdns-address-encoding"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Cjdns addresses are simply IPv6 addresses in the <code>fc00::/8</code> range <a id="footnote-reference-12" class="footnote_reference" href="#cjdns-whitepaper">12</a>. They MUST be sent with the <code>CJDNS</code> network ID. They are encoded in network byte order (big endian) as for the <code>IPV6</code> network ID.</p>
+                </section>
+            </section>
+            <section id="deployment"><h3><span class="section-heading">Deployment</span><span class="section-anchor"> <a rel="bookmark" href="#deployment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>TODO: change ${PLACEHOLDER} to a specific peer protocol version.</p>
+                <p>Support for this specification is signalled by peer protocol version ${PLACEHOLDER} (on both Testnet and Mainnet). Note that this is the same peer protocol version that signals support for NU5 on Mainnet <a id="footnote-reference-13" class="footnote_reference" href="#zip-0252">6</a>.</p>
+                <p>Nodes that have not negotiated peer protocol version ${PLACEHOLDER} or higher on a given connection, MUST NOT send <code>addrv2</code> messages on that connection.</p>
+                <p>A node that has negotiated peer protocol version ${PLACEHOLDER} or higher on a given connection, MAY still send <code>addr</code> messages on the connection, and MUST handle received <code>addr</code> messages as it would have done prior to this ZIP.</p>
+            </section>
+        </section>
+        <section id="rationale"><h2><span class="section-heading">Rationale</span><span class="section-anchor"> <a rel="bookmark" href="#rationale"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This ZIP is closely based on BIP 155 <a id="footnote-reference-14" class="footnote_reference" href="#bip-0155">3</a>, with the following changes:</p>
+            <ul>
+                <li>Deployment: support for the <code>addrv2</code> message is signalled by advertising a peer protocol version of ${PLACEHOLDER} or higher, not by sending a <code>sendaddrv2</code> message. This is motivated by a desire to avoid an exponential explosion in the space of possible feature configurations in a given peer-to-peer connection. In Zcash, unlike Bitcoin, the space of such configurations is effectively constant no matter how many peer-to-peer protocol changes are made, because nodes that do not support a given peer protocol version will drop off the network over time if they do not support the latest Network Upgrade. The feature configuration for a given connection is also established at version negotiation, and cannot change after that point without reconnecting. Other peer-to-peer protocol changes ported from the Bitcoin peer-to-peer protocol, for example the <code>MSG_WTX</code> inv type defined in ZIP 239 <a id="footnote-reference-15" class="footnote_reference" href="#zip-0239">5</a>, have taken the same approach to signalling.</li>
+                <li>No Network ID for Tor v2 onion addresses: the Tor network is expected to have removed support for these addresses in the timeframe for deployment of this ZIP.</li>
+                <li>Clients MUST, rather than SHOULD, reject <code>addrv2</code> messages with more than 1,000 addresses. Making this a consistent requirement promotes interoperability.</li>
+                <li>Clients MUST NOT, rather than SHOULD NOT, gossip addresses from unknown networks.</li>
+                <li>Clients MUST, rather than SHOULD, reject messages that contain addresses that have a different length than specified for a known network ID, or a length greater than the 512-byte maximum for an unknown network ID.</li>
+            </ul>
+        </section>
+        <section id="reference-implementation"><h2><span class="section-heading">Reference implementation</span><span class="section-anchor"> <a rel="bookmark" href="#reference-implementation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>TBD.</p>
+        </section>
+        <section id="acknowledgements"><h2><span class="section-heading">Acknowledgements</span><span class="section-anchor"> <a rel="bookmark" href="#acknowledgements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This ZIP is closely based on BIP 155 <a id="footnote-reference-16" class="footnote_reference" href="#bip-0155">3</a>, written by Wladimir J. van der Laan. Zancas Wilcox ported the implementation for Zcashd.</p>
+            <p>Acknowledgements for BIP 155:</p>
+            <ul>
+                <li>Jonas Schnelli: change <code>services</code> field to <code>CompactSize</code>, to make the message more compact in the likely case instead of always using 8 bytes.</li>
+                <li>Gregory Maxwell: various suggestions regarding extensibility.</li>
+            </ul>
+        </section>
+        <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <table id="bcp14" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>1</th>
+                        <td><a href="https://www.rfc-editor.org/info/bcp14">Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-networks" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>2</th>
+                        <td><a href="protocol/protocol.pdf#networks">Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 3.12 Mainnet and Testnet</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bip-0155" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>3</th>
+                        <td><a href="https://github.com/bitcoin/bips/blob/master/bip-0155.mediawiki">BIP 155: addrv2 message</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0200" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>4</th>
+                        <td><a href="zip-0200">ZIP 200: Network Upgrade Mechanism</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0239" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>5</th>
+                        <td><a href="zip-0239">ZIP 239: Relay of Version 5 Transactions</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0252" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>6</th>
+                        <td><a href="zip-0252">ZIP 252: Deployment of the NU5 Network Upgrade</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bitcoin-addr-message" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>7</th>
+                        <td><a href="https://en.bitcoin.it/wiki/Protocol_documentation#addr">Protocol documentation: addr. Bitcoin Wiki</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bitcoin-compactsize" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>8</th>
+                        <td><a href="https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer">Variable length integer. Bitcoin Wiki</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="tor-rendezvous-v3" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>9</th>
+                        <td><a href="https://gitweb.torproject.org/torspec.git/tree/rend-spec-v3.txt">Tor Rendezvous Specification - Version 3</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="nist-sha3" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>10</th>
+                        <td><a href="https://csrc.nist.gov/publications/detail/fips/202/final">NIST FIPS 202 - SHA-3 Standard: Permutation-Based Hash and Extendable-Output Functions</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="i2p-naming" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>11</th>
+                        <td><a href="https://geti2p.net/en/docs/naming#base32">I2P: Naming and address book</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="cjdns-whitepaper" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>12</th>
+                        <td><a href="https://github.com/cjdelisle/cjdns/blob/f909b960709a4e06730ddd4d221e5df38164dbb6/doc/Whitepaper.md#user-content-pulling-it-all-together">Cjdns whitepaper: Pulling It All Together</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </section>
+</body>
+</html>

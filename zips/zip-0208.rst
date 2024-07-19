@@ -1,0 +1,409 @@
+::
+
+  ZIP: 208
+  Title: Shorter Block Target Spacing
+  Owners: Daira-Emma Hopwood <daira-emma@electriccoin.co>
+  Original-Authors: Daira-Emma Hopwood
+                    Simon Liu
+  Status: Final
+  Category: Consensus
+  Created: 2019-01-10
+  License: MIT
+  Pull-Request: <https://github.com/zcash/zips/pull/237>
+
+
+Terminology
+===========
+
+The key words "MUST" and "SHOULD" in this document are to be interpreted as
+described in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
+
+The terms "block chain", "consensus rule change", "consensus branch", and
+"network upgrade" are to be interpreted as defined in [#zip-0200]_.
+
+The term "block target spacing" means the time interval between blocks targeted
+by the difficulty adjustment algorithm in a given consensus branch. It is normally
+measured in seconds. (This is also sometimes called the "target block time",
+but "block target spacing" is the term used in the Zcash Protocol Specification
+[#protocol-diffadjustment]_.)
+
+The terms "Testnet" and "Mainnet" are to be interpreted as described in
+section 3.12 of the Zcash Protocol Specification [#protocol-networks]_.
+
+
+Abstract
+========
+
+This proposal specifies a change in the block target spacing, to take effect in
+the Blossom network upgrade [#zip-0206]_.
+
+The emission schedule of mined ZEC will be approximately the same in terms of
+time, but this requires the emission per block to be adjusted to take account
+of the changed block target spacing.
+
+
+Motivation
+==========
+
+The motivations for decreasing the block target spacing are:
+
+- Reduced latency for considering transactions to be sufficiently confirmed;
+- Greater throughput of transactions in unit time.
+
+The latter goal could alternatively be achieved by increasing the block size
+limit, but that would not also achieve the former goal.
+
+Note that, for a given security requirement (in terms of the expected cost
+distribution of a rollback attack), the number of confirmations needed
+increases more slowly than the decrease in block time, and so, up to a point,
+decreasing the block target spacing can provide a better trade-off between
+latency and security. This argument assumes that the validation and
+propagation time for a block remain small compared to the block target spacing.
+See [#slowfastblocks]_ for further analysis in various attack models.
+
+
+Specification
+=============
+
+The changes described in this section are to be made in the Zcash Protocol Specification
+[#protocol]_, relative to the pre-Blossom specification in [#preblossom-protocol].
+
+Consensus changes
+-----------------
+
+Throughout the specification, rename HalvingInterval to PreBlossomHalvingInterval,
+and rename PoWTargetSpacing to PreBlossomTargetSpacing. These constants retain
+their values from [#preblossom-protocol]_ of 840000 (blocks) and 150 (seconds)
+respectively.
+
+In section 2 (Notation), add BlossomActivationHeight and PostBlossomPoWTargetSpacing
+to the list of integer constants.
+
+In section 5.3 (Constants), define PostBlossomPoWTargetSpacing := 75 seconds.
+
+For a given network (production or test), define BlossomActivationHeight as the
+height at which Blossom activates on that network, as specified in [#zip-0206]_.
+
+In section 7.6.3 (Difficulty adjustment) [later moved to section 7.7.3], make the
+following changes:
+
+Define IsBlossomActivated(*height*) to return true if *height* ≥ BlossomActivationHeight,
+otherwise false.
+
+This specification assumes that BlossomActivationHeight ≥ SlowStartInterval.
+
+Define:
+
+- BlossomPoWTargetSpacingRatio := PreBlossomPoWTargetSpacing / PostBlossomPoWTargetSpacing
+- PostBlossomHalvingInterval := floor(PreBlossomHalvingInterval · BlossomPoWTargetSpacingRatio).
+
+In the same section, redefine PoWTargetSpacing as a function taking a *height*
+parameter, as follows:
+
+- PoWTargetSpacing(*height*) :=
+
+  - PreBlossomPoWTargetSpacing, if not IsBlossomActivated(*height*)
+  - PostBlossomPoWTargetSpacing, otherwise.
+
+Also redefine AveragingWindowTimespan, MinActualTimespan, MaxActualTimespan,
+ActualTimespanDamped, ActualTimespanBounded, and Threshold as follows:
+
+- add a *height* parameter to each of these functions that does not already
+  have one;
+- ensure that each reference to any of these values, or to PoWTargetSpacing,
+  are replaced with a function call passing the *height* parameter.
+
+In section 7.7 (Calculation of Block Subsidy and Founders’ Reward) [later moved
+to section 7.8], redefine the Halving and BlockSubsidy functions as follows:
+
+- Halving(*height*) :=
+
+  - floor((*height* - SlowStartShift) / PreBlossomHalvingInterval), if not IsBlossomActivated(*height*)
+  - floor((BlossomActivationHeight - SlowStartShift) / PreBlossomHalvingInterval + (*height* - BlossomActivationHeight) / PostBlossomHalvingInterval), otherwise
+
+- BlockSubsidy(*height*) :=
+
+  - SlowStartRate · *height*, if *height* < SlowStartInterval / 2
+  - SlowStartRate · (*height* + 1), if SlowStartInterval / 2 ≤ *height* and *height* < SlowStartInterval
+  - floor(MaxBlockSubsidy / 2\ :sup:`Halving(*height*)`\ ), if SlowStartInterval ≤ *height* and not IsBlossomActivated(*height*)
+  - floor(MaxBlockSubsidy / (BlossomPoWTargetSpacingRatio · 2\ :sup:`Halving(*height*)`\ )), otherwise
+
+Note: BlossomActivationHeight, PostBlossomHalvingInterval, and PostBlossomTargetSpacing are chosen so that:
+
+- (BlossomActivationHeight - SlowStartShift) / PreBlossomHalvingInterval + (*height* - BlossomActivationHeight) / PostBlossomHalvingInterval)
+  is exactly 1 for some integer *height*.
+- MaxBlockSubsidy / (BlossomPoWTargetSpacingRatio · 2\ :sup:`Halving(*height*)`\ )
+  is an integer for the next few periods.
+
+In section 7.8 (Payment of Founders’ Reward) [later moved to section 7.9], define:
+
+- FounderAddressAdjustedHeight(*height*) :=
+
+  - *height*, if not IsBlossomActivated(*height*)
+  - BlossomActivationHeight + floor((*height* - BlossomActivationHeight) / BlossomPoWTargetSpacingRatio), otherwise
+
+and in the definition of FounderAddressIndex, replace the use of *height* with FounderAddressAdjustedHeight(*height*).
+
+Also define:
+
+- FoundersRewardLastBlockHeight := max({ *height* ⦂ N | Halving(*height*) < 1 })
+
+Replace the first note in that section with:
+
+- No Founders’ Reward is required to be paid for *height* > FoundersRewardLastBlockHeight
+  (i.e. after the first halving), or for *height* = 0 (i.e. the genesis block).
+
+and in the second note, replace SlowStartShift + PreBlossomHalvingInterval - 1 with
+FoundersRewardLastBlockHeight.
+
+
+Effect on difficulty adjustment
+-------------------------------
+
+The difficulty adjustment parameters PoWAveragingWindow and PoWMedianBlockSpan
+refer to numbers of blocks, but do *not* change at Blossom activation. This is
+because the amount of damping/averaging required is expected to be roughly the
+same, in terms of the number of blocks, after the change in block target
+spacing.
+
+The change in the effective value of PoWTargetSpacing will cause the block
+spacing to adjust to the new target, at the normal rate for a difficulty
+adjustment. The results of simulations are consistent with this expected
+behaviour.
+
+Note that the change in AveragingWindowTimespan(height) takes effect
+immediately when calculating the target difficulty starting from the block at
+the Blossom activation height, even though the difficulty of the preceding
+PoWAveragingWindow blocks will have been adjusted using the pre-Blossom target
+spacing. Therefore it is likely that the difficulty adjustment for the first
+few blocks after activation will be limited by PoWMaxAdjustDown. This is not
+anticipated to cause any problem.
+
+
+Minimum difficulty blocks on Testnet
+''''''''''''''''''''''''''''''''''''
+
+On Testnet from block height 299188 onward, the difficulty adjustment algorithm
+[#protocol-diffadjustment]_ allows minimum-difficulty blocks, as described in
+[#zip-0205]_, when the block time is greater than a given threshold. This
+specification changes this threshold to be proportional to the block target
+spacing.
+
+That is, if the block time of a block at height *height* ≥ 299188 is greater than
+6 · PoWTargetSpacing(*height*) seconds after that of the preceding block,
+then the block is a minimum-difficulty block. In that case its ``nBits`` field
+MUST be set to ToCompact(PoWLimit), where PoWLimit is the value defined for Testnet
+in section 5.3 of the Zcash Protocol Specification [#protocol-constants]_, and
+ToCompact is as defined in section 7.7.4 of that specification [#protocol-nbits]_.
+
+Note: a previous revision of this ZIP (and [#zip-0205]_) incorrectly said that
+only the target threshold of minimum-difficulty blocks is affected. In fact
+the ``nBits`` field is modified as well, and this affects difficulty adjustment
+for subsequent blocks.
+
+This change does not affect Mainnet.
+
+
+Non-consensus node behaviour
+----------------------------
+
+End-of-Service halt
+'''''''''''''''''''
+
+`zcashd` implements an "End-of-Service halt" behaviour that halts the node at a
+block height that corresponds approximately to a given time after release. This
+interval SHOULD be adjusted in releases where the End-of-Service halt time will
+follow Blossom activation.
+
+
+Default expiry delta
+''''''''''''''''''''
+
+When not overridden by the ``-txexpirydelta`` option, `zcashd` RPC calls that
+create transactions use a default value for the number of blocks after which a
+transaction will expire. The default in recent versions of `zcashd` is
+20 blocks, which at the pre-Blossom block target spacing corresponds to roughly
+50 minutes.
+
+This default SHOULD change to BlossomPoWTargetSpacingRatio · 20 blocks after
+Blossom activation, to maintain the approximate expiry time of 50 minutes.
+
+If the ``-txexpirydelta`` option is set, then the set value SHOULD be used both
+before and after Blossom activation.
+
+
+Sprout to Sapling migration
+'''''''''''''''''''''''''''
+
+ZIP 308 [#zip-0308]_ defines a procedure for migrating funds from Sprout to
+Sapling z-addresses. In that procedure, migration transactions are sent every
+500 blocks, which corresponded to roughly 20.83 hours before Blossom.
+
+The 500-block constant has not been changed. Therefore, migration transactions
+are now sent roughly every 10.42 hours after Blossom activation. This has been
+noted in the ZIP, and a table showing the expected time to complete migration
+has been updated accordingly.
+
+
+Fingerprinting mitigation
+'''''''''''''''''''''''''
+
+A "fingerprinting attack" is a network analysis technique in which nodes are
+identified across network sessions, for example using information about which
+blocks they request or send.
+
+`zcashd` inherits from Bitcoin Core the following behaviour, described in a
+comment in ``main.cpp``, intended as a fingerprinting mitigation::
+
+    // To prevent fingerprinting attacks, only send blocks outside of the active
+    // chain if they are valid, and no more than a month older (both in time, and in
+    // best equivalent proof of work) than the best header chain we know about.
+
+We make no assertion about the significance of fingerprinting for Zcash,
+and (despite the word "prevent" in the above comment) no claim about the
+effectiveness of this mitigation.
+
+In any case, to estimate the "best equivalent proof of work" of a given block
+chain (measured in units of time), we take the total work of the chain as
+defined in section 7.7.5 of the Zcash Protocol Specification [#protocol-workdef]_,
+divide by the work of the block at the active tip, and multiply by the target
+block spacing of that block.
+
+It is not a requirement of the Zcash protocol that this fingerprinting
+mitigation is used; however, if it is used, then it SHOULD use the target
+block spacing at the same block height that is used for the current work
+estimate.
+
+
+Monitoring for quicker- or slower-than-expected blocks
+''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+`zcashd` previously did this monitoring every 150 seconds; it is now done
+every 60 seconds.
+
+
+Block timeout
+'''''''''''''
+
+The timeout for a requested block is calculated as the target block time,
+multiplied by 2 + (the number of queued validated headers)/2.
+
+
+Latency optimization when requesting blocks
+'''''''''''''''''''''''''''''''''''''''''''
+
+When `zcashd` sees an announced block that chains from headers that it does
+not already have, it will first ask for the headers, and then the block itself.
+A latency optimization is performed only if the chain is "nearly synced"::
+
+    // First request the headers preceding the announced block. In the normal fully-synced
+    // case where a new block is announced that succeeds the current tip (no reorganization),
+    // there are no such headers.
+    // Secondly, and only when we are close to being synced, we request the announced block directly,
+    // to avoid an extra round-trip. Note that we must *first* ask for the headers, so by the
+    // time the block arrives, the header chain leading up to it is already validated. Not
+    // doing this will result in the received block being rejected as an orphan in case it is
+    // not a direct successor.
+
+The heuristic for "nearly synced" is that the timestamp of the block at the active tip
+is no more than 20 block times before the current "adjusted time". In `zcashd` this
+calculation uses the block target spacing as of the best known header. Around Blossom
+activation when the block target spacing changes, this could cause the heuristic to be
+based on the pre-Blossom block target spacing until the node has synced headers past the
+activation block, but this is not anticipated to cause any problem.
+
+
+Response to getblocks message when pruning
+''''''''''''''''''''''''''''''''''''''''''
+
+If pruning is enabled, when `zcashd` responds to an "getblocks" peer-to-peer message,
+it will only include blocks that it has on disk, and is likely to still have on disk
+an hour after responding to the message::
+
+    // If pruning, don't inv blocks unless we have on disk and are likely to still have
+    // for some reasonable time window (1 hour) that block relay might require.
+
+For each block, when estimating whether it will still be on disk after an hour, we
+take MIN_BLOCKS_TO_KEEP = 288 blocks, minus approximately the number of blocks expected
+in one hour at the target block spacing as of that block. Around Blossom activation,
+this might underestimate the number of blocks in the next hour, but given the value
+of MIN_BLOCKS_TO_KEEP, this is not anticipated to cause any problem.
+
+
+Estimation of fully synced chain height
+'''''''''''''''''''''''''''''''''''''''
+
+`zcashd` uses the ``EstimateNetHeight`` function to estimate the approximate height
+of the fully synced chain, so that the progress of block download can be displayed to
+the node operator. This function has been rewritten, simplified, and changed to take
+account of cases where the time period that needs to be estimated crosses Blossom
+activation.
+
+
+Other block-related constants
+'''''''''''''''''''''''''''''
+
+The following constants, measured in number of blocks, were reviewed and a
+decision was made not to change them::
+
+    /** The number of blocks within expiry height when a tx is considered to be expiring soon */
+    TX_EXPIRING_SOON_THRESHOLD = 3
+
+    /** Maximum reorg length we will accept before we shut down and alert the user. */
+    MAX_REORG_LENGTH = COINBASE_MATURITY - 1;
+
+    static const int COINBASE_MATURITY = 100;
+
+    /** Number of blocks that can be requested at any given time from a single peer. */
+    static const int MAX_BLOCKS_IN_TRANSIT_PER_PEER = 16;
+
+    static const unsigned int BLOCK_DOWNLOAD_WINDOW = 1024;
+
+    /** Block files containing a block-height within MIN_BLOCKS_TO_KEEP of chainActive.Tip() will not be pruned. */
+    static const unsigned int MIN_BLOCKS_TO_KEEP = 288;
+
+    /**
+     * The period before a network upgrade activates, where connections to upgrading peers are preferred (in blocks).
+     * This was three days for upgrades up to and including Blossom, and is 1.5 days from Heartwood onward.
+     */
+    static const int NETWORK_UPGRADE_PEER_PREFERENCE_BLOCK_PERIOD = 1728;
+
+
+Deployment
+==========
+
+This proposal will be deployed with the Blossom network upgrade. [#zip-0206]_
+
+
+Backward compatibility
+======================
+
+This proposal intentionally creates what is known as a "bilateral consensus
+rule change". Use of this mechanism requires that all network participants
+upgrade their software to a compatible version within the upgrade window.
+Older software will treat post-upgrade blocks as invalid, and will follow any
+pre-upgrade consensus branch that persists.
+
+
+Reference Implementation
+========================
+
+https://github.com/zcash/zcash/pull/4025
+
+
+References
+==========
+
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#preblossom-protocol] `Zcash Protocol Specification, Version 2018.0-beta-37 (exactly) <https://github.com/zcash/zips/blob/9515d73aac0aea3494f77bcd634e1e4fbd744b97/protocol/protocol.pdf>`_
+.. [#protocol] `Zcash Protocol Specification, Version 2021.2.16 or later <protocol/protocol.pdf>`_
+.. [#protocol-networks] `Zcash Protocol Specification, Version 2021.2.16. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
+.. [#protocol-constants] `Zcash Protocol Specification, Version 2021.2.16. Section 5.3: Constants <protocol/protocol.pdf#constants>`_
+.. [#protocol-diffadjustment] `Zcash Protocol Specification, Version 2021.2.16. Section 7.7.3: Difficulty adjustment <protocol/protocol.pdf#diffadjustment>`_
+.. [#protocol-nbits] `Zcash Protocol Specification, Version 2021.2.16. Section 7.7.4: nBits conversion <protocol/protocol.pdf#nbits>`_
+.. [#protocol-workdef] `Zcash Protocol Specification, Version 2021.2.16. Section 7.7.5: Definition of Work <protocol/protocol.pdf#workdef>`_
+.. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
+.. [#zip-0205] `ZIP 205: Deployment of the Sapling Network Upgrade <zip-0205.rst>`_
+.. [#zip-0206] `ZIP 206: Deployment of the Blossom Network Upgrade <zip-0206.rst>`_
+.. [#zip-0308] `ZIP 308: Sprout to Sapling Migration <zip-0308.rst>`_
+.. [#slowfastblocks] `On Slow and Fast Block Times <https://blog.ethereum.org/2015/09/14/on-slow-and-fast-block-times/>`_

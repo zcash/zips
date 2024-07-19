@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZIP 173: Bech32 Format</title>
+    <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+    <section>
+        <pre>ZIP: 173
+Title: Bech32 Format
+Owners: Daira-Emma Hopwood &lt;daira-emma@electriccoin.co&gt;
+Credits: Pieter Wuille &lt;pieter.wuille@gmail.com&gt;
+         Greg Maxwell &lt;greg@xiph.org&gt;
+         Rusty Russell
+         Mark Friedenbach
+Status: Final
+Category: Standards / Wallet
+Created: 2018-06-13
+License: MIT</pre>
+        <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The key words "MUST", "MUST NOT", "SHOULD", and "SHOULD NOT" in this document are to be interpreted as described in BCP 14 <a id="footnote-reference-1" class="footnote_reference" href="#bcp14">1</a> when, and only when, they appear in all capitals.</p>
+            <p>The term "network upgrade" in this document is to be interpreted as described in ZIP 200. <a id="footnote-reference-2" class="footnote_reference" href="#zip-0200">4</a></p>
+            <p>The term "Sapling" in this document is to be interpreted as described in ZIP 205. <a id="footnote-reference-3" class="footnote_reference" href="#zip-0205">5</a></p>
+        </section>
+        <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This document proposes a checksummed base32 format, "Bech32", and a standard for Sapling addresses and keys using it.</p>
+        </section>
+        <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>Since launch, Zcash has relied on Base58 addresses with a truncated double-SHA256 checksum, inherited from Bitcoin. They were part of the original Bitcoin software and their scope was extended in BIP 13 <a id="footnote-reference-4" class="footnote_reference" href="#bip-0013">6</a> for P2SH (Pay-to-Script-Hash) addresses. However, both the character set and the checksum algorithm have limitations:</p>
+            <ul>
+                <li>Base58 needs a lot of space in QR codes, as it cannot use the ''alphanumeric mode''.</li>
+                <li>The mixed case in Base58 makes it inconvenient to reliably write down, type on mobile keyboards, or read out loud.</li>
+                <li>The double-SHA256 checksum is slow and has no error-detection guarantees.</li>
+                <li>Most of the research on error-detecting codes only applies to character-set sizes that are a <a href="https://en.wikipedia.org/wiki/Prime_power">prime power</a>, which 58 is not.</li>
+                <li>Base58 decoding is complicated and relatively slow.</li>
+            </ul>
+            <p>To address these issues, Bitcoin adopted a new encoding called Bech32 <a id="footnote-reference-5" class="footnote_reference" href="#bip-0173">7</a>, for use with address types added by its Segregated Witness proposal. Zcash does not implement Segregated Witness, but it reuses Bech32 with address and key types introduced by the Sapling network upgrade <a id="footnote-reference-6" class="footnote_reference" href="#zip-0205">5</a>.</p>
+            <p>Since the description of Bech32 in <a id="footnote-reference-7" class="footnote_reference" href="#bip-0173">7</a> is partially entangled with Segregated Witness address formats, we have found it clearer to write this ZIP to specify Bech32 separately. This specification should be read in conjunction with section 5.6 ("Encodings of Addresses and Keys") of the Zcash Sapling protocol specification <a id="footnote-reference-8" class="footnote_reference" href="#protocol">2</a>, and with ZIP 32 which specifies additional key types for support of shielded hierarchical deterministic wallets <a id="footnote-reference-9" class="footnote_reference" href="#zip-0032">3</a>.</p>
+        </section>
+        <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>We describe the general checksummed base32 format called ''Bech32''. Its use for Sapling payment addresses and keys is defined in the Sapling protocol specification <a id="footnote-reference-10" class="footnote_reference" href="#protocol">2</a>.</p>
+            <p>A Bech32 string consists of:</p>
+            <ul>
+                <li>The <em>human-readable part</em>, which is intended to convey the type of data, or anything else that is relevant to the reader. This part MUST contain 1 to 83 US-ASCII characters, with each character having a value in the range [33-126]. HRP validity may be further restricted by specific applications.</li>
+                <li>The <em>separator</em>, which is always "1". In case "1" is allowed inside the human-readable part, the last one in the string is the separator.</li>
+                <li>The <em>data part</em>, which is at least 6 characters long and only consists of alphanumeric characters excluding "1", "b", "i", and "o".</li>
+            </ul>
+            <table>
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>0</th>
+                        <th>1</th>
+                        <th>2</th>
+                        <th>3</th>
+                        <th>4</th>
+                        <th>5</th>
+                        <th>6</th>
+                        <th>7</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>+0</td>
+                        <td>q</td>
+                        <td>p</td>
+                        <td>z</td>
+                        <td>r</td>
+                        <td>y</td>
+                        <td>9</td>
+                        <td>x</td>
+                        <td>8</td>
+                    </tr>
+                    <tr>
+                        <td>+8</td>
+                        <td>g</td>
+                        <td>f</td>
+                        <td>2</td>
+                        <td>t</td>
+                        <td>v</td>
+                        <td>d</td>
+                        <td>w</td>
+                        <td>0</td>
+                    </tr>
+                    <tr>
+                        <td>+16</td>
+                        <td>s</td>
+                        <td>3</td>
+                        <td>j</td>
+                        <td>n</td>
+                        <td>5</td>
+                        <td>4</td>
+                        <td>k</td>
+                        <td>h</td>
+                    </tr>
+                    <tr>
+                        <td>+24</td>
+                        <td>c</td>
+                        <td>e</td>
+                        <td>6</td>
+                        <td>m</td>
+                        <td>u</td>
+                        <td>a</td>
+                        <td>7</td>
+                        <td>l</td>
+                    </tr>
+                </tbody>
+            </table>
+            <section id="checksum"><h3><span class="section-heading">Checksum</span><span class="section-anchor"> <a rel="bookmark" href="#checksum"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>The last six characters of the data part form a checksum and contain no information. Valid strings MUST pass the criteria for validity specified by the Python3 code snippet below. The checksum is defined so that the function <code>bech32_verify_checksum</code> returns true when its arguments are:</p>
+                <ul>
+                    <li><code>hrp</code>: the human-readable part as a string;</li>
+                    <li><code>data</code>: the data part as a list of integers representing the characters after conversion using the table above.</li>
+                </ul>
+                <pre>def bech32_polymod(values):
+  GEN = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3]
+  chk = 1
+  for v in values:
+    b = (chk &gt;&gt; 25)
+    chk = (chk &amp; 0x1ffffff) &lt;&lt; 5 ^ v
+    for i in range(5):
+    chk ^= GEN[i] if ((b &gt;&gt; i) &amp; 1) else 0
+  return chk
+
+def bech32_hrp_expand(s):
+  return [ord(x) &gt;&gt; 5 for x in s] + [0] + [ord(x) &amp; 31 for x in s]
+
+def bech32_verify_checksum(hrp, data):
+  return bech32_polymod(bech32_hrp_expand(hrp) + data) == 1</pre>
+                <p>This implements a <a href="https://en.wikipedia.org/wiki/BCH_code">BCH code</a>; in the case where the encoded string is at most 90 characters, this code guarantees detection of <em>any error affecting at most 4 characters</em> and has less than a 1 in 10<sup>9</sup> chance of failing to detect more errors. More details about the properties can be found in the Checksum Design section. The human-readable part is processed by first feeding the higher 3 bits of each character's US-ASCII value into the checksum calculation followed by a zero and then the lower 5 bits of each US-ASCII value.</p>
+                <p>To construct a valid checksum given the human-readable part and (non-checksum) values of the data-part characters, the code below can be used:</p>
+                <pre>def bech32_create_checksum(hrp, data):
+  values = bech32_hrp_expand(hrp) + data
+  polymod = bech32_polymod(values + [0,0,0,0,0,0]) ^ 1
+  return [(polymod &gt;&gt; 5 * (5 - i)) &amp; 31 for i in range(6)]</pre>
+                <section id="error-correction"><h4><span class="section-heading">Error correction</span><span class="section-anchor"> <a rel="bookmark" href="#error-correction"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>One of the properties of these BCH codes is that they can be used for error correction. An unfortunate side effect of error correction is that it erodes error detection: correction changes invalid inputs into valid inputs, but if more than a few errors were made then the valid input may not be the correct input. Use of an incorrect but valid input can cause funds to be lost irrecoverably. Because of this, implementations SHOULD NOT implement correction beyond potentially suggesting to the user where in the string an error might be found, without suggesting the correction to make.</p>
+                </section>
+                <section id="uppercase-lowercase"><h4><span class="section-heading">Uppercase/lowercase</span><span class="section-anchor"> <a rel="bookmark" href="#uppercase-lowercase"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>The lowercase form is used when determining a character's value for checksum purposes.</p>
+                    <p>Encoders MUST always output an all-lowercase Bech32 string. If an uppercase version of the encoding result is desired (e.g. for presentation purposes, or QR code use), then an uppercasing procedure can be performed external to the encoding process.</p>
+                    <p>Decoders MUST NOT accept strings where some characters are uppercase and some are lowercase (such strings are referred to as mixed-case strings).</p>
+                    <p>For presentation, lowercase is usually preferable, but inside QR codes uppercase SHOULD be used, as those permit the use of <a href="https://www.thonky.com/qr-code-tutorial/alphanumeric-mode-encoding">alphanumeric mode</a>, which is 45% more compact than the <a href="https://www.thonky.com/qr-code-tutorial/byte-mode-encoding">byte mode</a> that would otherwise be used.</p>
+                </section>
+                <section id="encoding"><h4><span class="section-heading">Encoding</span><span class="section-anchor"> <a rel="bookmark" href="#encoding"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <ul>
+                        <li>Start with the bits of the raw encoding of the appropriate address or key type, most significant bit per byte first.</li>
+                        <li>Re-arrange those bits into groups of 5, and pad with zeroes at the end if needed.</li>
+                        <li>Translate those bits, most significant bit first, to characters using the table above.</li>
+                    </ul>
+                </section>
+                <section id="decoding"><h4><span class="section-heading">Decoding</span><span class="section-anchor"> <a rel="bookmark" href="#decoding"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Software interpreting a Bech32-encoded address MUST first verify that the human-readable part matches that of a specified address type, and similarly for keys.</p>
+                    <p>If this check passes, convert the rest of the data to bytes:</p>
+                    <ul>
+                        <li>Translate the values using the table above to 5 bits, most significant bit first.</li>
+                        <li>Re-arrange those bits into groups of 8 bits. Any incomplete group at the end MUST be 4 bits or fewer, MUST be all zeroes, and is discarded.</li>
+                        <li>The resulting groups are interpreted as the raw encoding of the appropriate address or key type, with the most significant bit first in each byte.</li>
+                    </ul>
+                    <p>Decoders SHOULD enforce known-length restrictions on address and key types.</p>
+                    <p>For example, <a id="footnote-reference-11" class="footnote_reference" href="#protocol">2</a> specifies that the length of the raw encoding of a Sapling payment address is 43 bytes (88 + 256 bits). This results in a Bech32-encoded Sapling payment address being 78 characters long.</p>
+                </section>
+            </section>
+        </section>
+        <section id="compatibility"><h2><span class="section-heading">Compatibility</span><span class="section-anchor"> <a rel="bookmark" href="#compatibility"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>Only software supporting the Sapling network upgrade is able to use these addresses.</p>
+            <p>There is no effect on support for transparent addresses and keys, or for Sprout z-addresses and keys; these will continue to be encoded using Base58Check, and MUST NOT be encoded using Bech32.</p>
+        </section>
+        <section id="rationale"><h2><span class="section-heading">Rationale</span><span class="section-anchor"> <a rel="bookmark" href="#rationale"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <section id="why-use-base32-at-all"><h3><span class="section-heading">Why use base32 at all?</span><span class="section-anchor"> <a rel="bookmark" href="#why-use-base32-at-all"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>The lack of mixed case makes it more efficient to read out loud or to put into QR codes. It does come with a 15% length increase. However, the length of a Bech32-encoded Sapling payment address remains below 80 characters, which reduces the likelihood of line splitting in terminals or email. Thus, cutting-and-pasting of addresses is still reliable.</p>
+            </section>
+            <section id="why-call-it-bech32"><h3><span class="section-heading">Why call it Bech32?</span><span class="section-anchor"> <a rel="bookmark" href="#why-call-it-bech32"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>"Bech" contains the characters BCH (the error detection algorithm used) and sounds a bit like "base". The term Bech32 is established for Bitcoin and there was no reason to use a different name for it in Zcash Sapling.</p>
+            </section>
+            <section id="why-not-support-bech32-encoding-of-sprout-or-transparent-addresses"><h3><span class="section-heading">Why not support Bech32 encoding of Sprout or transparent addresses?</span><span class="section-anchor"> <a rel="bookmark" href="#why-not-support-bech32-encoding-of-sprout-or-transparent-addresses"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>This was not considered to be sufficiently well-motivated given the compatibility issues that would arise from having two formats for these address types, with pre-Sapling software not supporting the new format.</p>
+            </section>
+            <section id="why-include-a-separator-in-addresses"><h3><span class="section-heading">Why include a separator in addresses?</span><span class="section-anchor"> <a rel="bookmark" href="#why-include-a-separator-in-addresses"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>That way the human-readable part is unambiguously separated from the data part, avoiding potential collisions with other human-readable parts that share a prefix. It also allows us to avoid having character-set restrictions on the human-readable part. The separator is ''1'' because using a non-alphanumeric character would complicate copy-pasting of addresses (with no double-click selection in several applications). Therefore an alphanumeric character outside the normal character set was chosen.</p>
+            </section>
+            <section id="why-not-use-an-existing-base32-character-set"><h3><span class="section-heading">Why not use an existing base32 character set?</span><span class="section-anchor"> <a rel="bookmark" href="#why-not-use-an-existing-base32-character-set"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Existing character sets for base-32 encodings include <a href="https://www.rfc-editor.org/rfc/rfc3548.html">RFC 3548</a> and <a href="https://philzimmermann.com/docs/human-oriented-base-32-encoding.txt">z-base-32</a>. The set used for Bech32 was chosen to minimize ambiguity according to <a href="https://hissa.nist.gov/~black/GTLD/">this</a> visual similarity data, and the ordering is chosen to minimize the number of pairs of similar characters (according to the same data) that differ in more than 1 bit. As the checksum is chosen to maximize detection capabilities for low numbers of bit errors, this choice improves its performance under some error models.</p>
+            </section>
+            <section id="why-are-the-high-bits-of-the-human-readable-part-processed-first"><h3><span class="section-heading">Why are the high bits of the human-readable part processed first?</span><span class="section-anchor"> <a rel="bookmark" href="#why-are-the-high-bits-of-the-human-readable-part-processed-first"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>This design choice had a rationale for Bitcoin Segregated Witness addresses (see <a id="footnote-reference-12" class="footnote_reference" href="#bip-0173">7</a>) that does not apply to Zcash Sapling addresses. It is retained for compatibility with Bech32 encoders/decoders written for Bitcoin.</p>
+            </section>
+        </section>
+        <section id="reference-implementations"><h2><span class="section-heading">Reference implementations</span><span class="section-anchor"> <a rel="bookmark" href="#reference-implementations"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <ul>
+                <li>The encoder/decoder used by <code>zcashd</code>:
+                    <ul>
+                        <li><a href="https://github.com/zcash/zcash/blob/master/src/bech32.cpp">In C++</a></li>
+                    </ul>
+                </li>
+                <li>Encoders and decoders written specifically for Zcash:
+                    <ul>
+                        <li><a href="https://github.com/nerdcash/Nerdbank.Cryptocurrencies/blob/main/src/Nerdbank.Cryptocurrencies/Bech32.cs">For C#</a> (Bech32 and Bech32m)</li>
+                    </ul>
+                </li>
+                <li>Encoders and decoders written for Bitcoin:
+                    <ul>
+                        <li><a href="https://github.com/sipa/bech32/tree/master/ref/c">For C</a></li>
+                        <li><a href="https://github.com/sipa/bech32/tree/master/ref/c++">For C++</a></li>
+                        <li><a href="https://github.com/sipa/bech32/tree/master/ref/javascript">For Javascript</a></li>
+                        <li><a href="https://github.com/sipa/bech32/tree/master/ref/go">For Go</a></li>
+                        <li><a href="https://github.com/sipa/bech32/tree/master/ref/python">For Python</a></li>
+                        <li><a href="https://github.com/sipa/bech32/tree/master/ref/haskell">For Haskell</a></li>
+                        <li><a href="https://github.com/sipa/bech32/tree/master/ref/ruby">For Ruby</a></li>
+                        <li><a href="https://github.com/sipa/bech32/tree/master/ref/rust">For Rust</a></li>
+                    </ul>
+                </li>
+                <li>Fancy decoder written for Bitcoin that localizes errors:
+                    <ul>
+                        <li><a href="https://github.com/sipa/bech32/tree/master/ecc/javascript">Fancy decoder for Javascript</a> (<a href="HTTP://bitcoin.sipa.be/bech32/demo/demo.html">demo website</a>)</li>
+                    </ul>
+                </li>
+            </ul>
+            <p>Note that the encoders written for Bitcoin may make assumptions specific to Segregated Witness address formats that do not apply to Zcash. Only the Python one has been tested with Zcash at the time of writing.</p>
+        </section>
+        <section id="examples"><h2><span class="section-heading">Examples</span><span class="section-anchor"> <a rel="bookmark" href="#examples"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>TODO: add valid Sapling payment addresses and keys, and their corresponding raw encodings.</p>
+        </section>
+        <section id="test-vectors"><h2><span class="section-heading">Test vectors</span><span class="section-anchor"> <a rel="bookmark" href="#test-vectors"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The following strings are valid Bech32:</p>
+            <ul>
+                <li><code>A12UEL5L</code></li>
+                <li><code>a12uel5l</code></li>
+                <li><code>an83characterlonghumanreadablepartthatcontainsthenumber1andtheexcludedcharactersbio1tt5tgs</code></li>
+                <li><code>abcdef1qpzry9x8gf2tvdw0s3jn54khce6mua7lmqqqxw</code></li>
+                <li><code>11qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqc8247j</code></li>
+                <li><code>split1checkupstagehandshakeupstreamerranterredcaperred2y9e3w</code></li>
+                <li><code>?1ezyfcl</code></li>
+            </ul>
+            <p>The following strings are not valid Bech32 (with reason for invalidity):</p>
+            <ul>
+                <li>0x20 + <code>1nwldj5</code>: HRP character out of range</li>
+                <li>0x7F + <code>1axkwrx</code>: HRP character out of range</li>
+                <li>0x80 + <code>1eym55h</code>: HRP character out of range</li>
+                <li><code>pzry9x0s0muk</code>: No separator character</li>
+                <li><code>1pzry9x0s0muk</code>: Empty HRP</li>
+                <li><code>x1b4n0q5v</code>: Invalid data character</li>
+                <li><code>li1dgmt3</code>: Too short checksum</li>
+                <li><code>de1lg7wt</code> + 0xFF: Invalid character in checksum</li>
+                <li><code>A1G7SGD8</code>: checksum calculated with uppercase form of HRP</li>
+                <li><code>10a06t8</code>: empty HRP</li>
+                <li><code>1qzzfhee</code>: empty HRP</li>
+                <li><code>bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5</code>: Invalid checksum</li>
+                <li><code>tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sL5k7</code>: Mixed case</li>
+                <li><code>bc1zw508d6qejxtdg4y5r3zarvaryvqyzf3du</code>: Zero padding of more than 4 bits</li>
+                <li><code>tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3pjxtptv</code>: Non-zero padding in 8-to-5 conversion</li>
+            </ul>
+        </section>
+        <section id="checksum-design"><h2><span class="section-heading">Checksum design</span><span class="section-anchor"> <a rel="bookmark" href="#checksum-design"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <section id="design-choices"><h3><span class="section-heading">Design choices</span><span class="section-anchor"> <a rel="bookmark" href="#design-choices"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>BCH codes can be constructed over any prime-power alphabet and can be chosen to have a good trade-off between size and error-detection capabilities. Unlike <a href="https://en.wikipedia.org/wiki/Reed%E2%80%93Solomon_error_correction">Reed-Solomon codes</a>, they are not restricted in length to one less than the alphabet size. While they also support efficient error correction, the implementation of just error detection is very simple.</p>
+                <p>We pick 6 checksum characters as a trade-off between length of the addresses and the error-detection capabilities, as 6 characters is the lowest number sufficient for a random failure chance below 1 per billion. For the length of data we're most interested in protecting (up to 77 bytes excluding the separator, for a Sapling payment address), BCH codes can be constructed that guarantee detecting up to 4 errors. Longer data is also supported with slightly weaker error detection.</p>
+                <section id="selected-properties"><h4><span class="section-heading">Selected properties</span><span class="section-anchor"> <a rel="bookmark" href="#selected-properties"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Many of these codes perform badly when dealing with more errors than they are designed to detect, but not all. For that reason, we consider codes that are designed to detect only 3 errors as well as 4 errors, and analyse how well they perform in practice.</p>
+                    <p>The specific code chosen here is the result of:</p>
+                    <ul>
+                        <li>Starting with an exhaustive list of 159605 BCH codes designed to detect 3 or 4 errors up to length 93, 151, 165, 341, 1023, and 1057.</li>
+                        <li>From those, requiring the detection of 4 errors up to length 71, resulting in 28825 remaining codes.</li>
+                        <li>From those, choosing the codes with the best worst-case window for 5-character errors, resulting in 310 remaining codes.</li>
+                        <li>From those, picking the code with the lowest chance for not detecting small numbers of ''bit'' errors.</li>
+                    </ul>
+                    <p>As a naive search would require over 6.5 * 10<sup>19</sup> checksum evaluations, a collision-search approach was used for analysis. The code can be found <a href="https://github.com/sipa/ezbase32/">here</a>.</p>
+                </section>
+                <section id="properties"><h4><span class="section-heading">Properties</span><span class="section-anchor"> <a rel="bookmark" href="#properties"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>The following table summarizes the chances for detection failure (as multiples of 1 in 10<sup>9</sup>).</p>
+                    <table>
+                        <tbody>
+                            <tr>
+                                <td colspan="2">Window length</td>
+                                <td colspan="6">Number of wrong characters</td>
+                            </tr>
+                            <tr>
+                                <td>Length</td>
+                                <td>Description</td>
+                                <td>≤4</td>
+                                <td>5</td>
+                                <td>6</td>
+                                <td>7</td>
+                                <td>8</td>
+                                <td>≥9</td>
+                            </tr>
+                            <tr>
+                                <td>8</td>
+                                <td>Longest detecting 6 errors</td>
+                                <td colspan="3">0</td>
+                                <td>1.127</td>
+                                <td>0.909</td>
+                                <td>n/a</td>
+                            </tr>
+                            <tr>
+                                <td>18</td>
+                                <td>Longest detecting 5 errors</td>
+                                <td colspan="2">0</td>
+                                <td>0.965</td>
+                                <td>0.929</td>
+                                <td>0.932</td>
+                                <td>0.931</td>
+                            </tr>
+                            <tr>
+                                <td>19</td>
+                                <td>Worst case for 6 errors</td>
+                                <td>0</td>
+                                <td>0.093</td>
+                                <td>0.972</td>
+                                <td>0.928</td>
+                                <td colspan="2">0.931</td>
+                            </tr>
+                            <tr>
+                                <td>39</td>
+                                <td>Length ≤ 39 characters</td>
+                                <td>0</td>
+                                <td>0.756</td>
+                                <td>0.935</td>
+                                <td>0.932</td>
+                                <td colspan="2">0.931</td>
+                            </tr>
+                            <tr>
+                                <td>59</td>
+                                <td>Length ≤ 59 characters</td>
+                                <td>0</td>
+                                <td>0.805</td>
+                                <td>0.933</td>
+                                <td colspan="3">0.931</td>
+                            </tr>
+                            <tr>
+                                <td>71</td>
+                                <td>Length ≤ 71 characters</td>
+                                <td>0</td>
+                                <td>0.830</td>
+                                <td>0.934</td>
+                                <td colspan="3">0.931</td>
+                            </tr>
+                            <tr>
+                                <td>89</td>
+                                <td>Longest detecting 4 errors</td>
+                                <td>0</td>
+                                <td>0.867</td>
+                                <td>0.933</td>
+                                <td colspan="3">0.931</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p>TODO: fill in table for a Sapling payment address, and check the following paragraph.</p>
+                    <p>This means that when 5 changed characters occur randomly distributed in the 77 characters (excluding the separator) of a Sapling payment address, there is a chance of at most 0.867 per billion that it will go undetected. When those 5 changes occur randomly within a 19-character window, that chance goes down to 0.093 per billion. As the number of errors goes up, the chance converges towards 1 in 2<sup>30</sup> = 0.931 per billion.</p>
+                    <p>The chosen code performs reasonably well up to 1023 characters, but is best for lengths up to 89 characters (excluding the separator). Since the search for suitable codes was based on the requirements for Bitcoin P2WPKH and P2WSH addresses, it is not quite optimal for the address lengths used by Sapling, but the advantages of compatibility with existing Bitcoin libraries were considered to outweigh this consideration.</p>
+                </section>
+            </section>
+        </section>
+        <section id="acknowledgements"><h2><span class="section-heading">Acknowledgements</span><span class="section-anchor"> <a rel="bookmark" href="#acknowledgements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This document is closely based on BIP 173 written by Pieter Wuille and Greg Maxwell, which was inspired by the <a href="https://rusty.ozlabs.org/?p=578">address proposal</a> by Rusty Russell and the <a href="https://lists.linuxfoundation.org/pipermail/bitcoin-dev/2014-February/004402.html">base32</a> proposal by Mark Friedenbach. BIP 173 also had input from Luke Dashjr, Johnson Lau, Eric Lombrozo, Peter Todd, and various other reviewers.</p>
+        </section>
+        <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <table id="bcp14" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>1</th>
+                        <td><a href="https://www.rfc-editor.org/info/bcp14">Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>2</th>
+                        <td><a href="protocol/protocol.pdf">Zcash Protocol Specification, Version 2021.2.16 or later</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0032" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>3</th>
+                        <td><a href="zip-0032">ZIP 32: Shielded Hierarchical Deterministic Wallets</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0200" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>4</th>
+                        <td><a href="zip-0200">ZIP 200: Network Upgrade Mechanism</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0205" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>5</th>
+                        <td><a href="zip-0205">ZIP 205: Deployment of the Sapling Network Upgrade</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bip-0013" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>6</th>
+                        <td><a href="https://github.com/bitcoin/bips/blob/master/bip-0013.mediawiki">BIP 13: Address Format for pay-to-script-hash</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bip-0173" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>7</th>
+                        <td><a href="https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki">BIP 173: Base32 address format for native v0-16 witness outputs</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </section>
+</body>
+</html>

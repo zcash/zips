@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZIP 311: Zcash Payment Disclosures</title>
+    <meta charset="utf-8" />
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+    <section>
+        <pre>ZIP: 311
+Title: Zcash Payment Disclosures
+Owners: Jack Grigg &lt;jack@electriccoin.co&gt;
+Status: Draft
+Category: Standards / RPC / Wallet
+Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/387">https://github.com/zcash/zips/issues/387</a>&gt;</pre>
+        <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This ZIP describes a mechanism and format for disclosing information about shielded spends and outputs within a transaction. In the typical case, this means enabling a sender to present a proof that they transferred funds to a recipient's shielded address.</p>
+        </section>
+        <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>There are various situations where a proof-of-payment may be desired. For example:</p>
+            <ul>
+                <li>A sender may need to prove that their payment was sent to a recipient, and available to be received (following the Zcash protocol in-band).</li>
+                <li>A third party may need to verify that a payment between a given sender and recipient was executed successfully.</li>
+            </ul>
+            <p>When a transaction involves only transparent addresses, proof-of-payment is simple: The sender provides the transaction ID, and the recipient examines the blockchain to confirm that the transaction was mined. A third party can also perform this verification if they know the transparent addresses of the involved parties.</p>
+            <p>However, if the transaction involves shielded addresses, the blockchain by itself does not contain enough information to allow a record of the payment to be reconstructed and verified:</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Source</th>
+                        <th>Destination</th>
+                        <th>Sender</th>
+                        <th>Recipient</th>
+                        <th>Amount</th>
+                        <th>Payment dislosure?</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Transparent</td>
+                        <td>Transparent</td>
+                        <td>🔍</td>
+                        <td>🔍</td>
+                        <td>🔍</td>
+                        <td>Not required</td>
+                    </tr>
+                    <tr>
+                        <td>Transparent</td>
+                        <td>Shielded</td>
+                        <td>🔍</td>
+                        <td>🔐</td>
+                        <td>🔐*</td>
+                        <td>Required</td>
+                    </tr>
+                    <tr>
+                        <td>Shielded</td>
+                        <td>Transparent</td>
+                        <td>🔒</td>
+                        <td>🔍</td>
+                        <td>🔍</td>
+                        <td>Required</td>
+                    </tr>
+                    <tr>
+                        <td>Shielded</td>
+                        <td>Shielded</td>
+                        <td>🔒</td>
+                        <td>🔐</td>
+                        <td>🔐</td>
+                        <td>Required</td>
+                    </tr>
+                </tbody>
+            </table>
+            <ul>
+                <li>🔍 = Visible on the block chain.</li>
+                <li>🔐 = Cannot be confirmed without information that is not visible on the block chain.</li>
+                <li>🔐* = Information is revealed, but not enough to confirm the amount paid (due to change).</li>
+                <li>🔒 = Requires either an interactive payment disclosure, or a non-interactive payment disclosure that reveals the sender's address.</li>
+            </ul>
+            <p>Enabling proof-of-payment for all of these transaction variants (where it is possible to do so) is the subject of this ZIP.</p>
+        </section>
+        <section id="use-cases"><h2><span class="section-heading">Use cases</span><span class="section-anchor"> <a rel="bookmark" href="#use-cases"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <section id="managing-contributions-for-an-event"><h3><span class="section-heading">Managing contributions for an event</span><span class="section-anchor"> <a rel="bookmark" href="#managing-contributions-for-an-event"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Alice runs an event on behalf of Bob and Carol, who both agree to split the cost equally. Alice receives a single payment for half the amount, and wants proof of who it came from (so she knows which person to follow up with for the remaining amount). Carol can provide a payment disclosure that reveals to Alice:</p>
+                <ul>
+                    <li>The correct amount was sent to the Alice's recipient address in the given transaction.</li>
+                    <li>Carol was the sender of that transaction (more precisely, Carol controls the spend authority used in that transaction).</li>
+                </ul>
+                <p>and does not reveal:</p>
+                <ul>
+                    <li>Carol's payment address.</li>
+                    <li>Any of Carol's other diversified payment addresses.</li>
+                    <li>Any of Carol's other transactions.</li>
+                </ul>
+                <p>For this use case, it is not necessary (and not necessarily intended) that the payment disclosure be publically verifiable.</p>
+            </section>
+            <section id="donation-drive"><h3><span class="section-heading">Donation drive</span><span class="section-anchor"> <a rel="bookmark" href="#donation-drive"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Diana is a well-known individual with a public shielded payment address (for receiving donations). She runs a matching donation drive to the non-profit Totally Legit Bunnies, and wants to prove to her followers that she correctly matched their donations. Diana can create a payment disclosure, and post it to her social media account, that reveals:</p>
+                <ul>
+                    <li>The correct amount was sent to the Totally Legit Bunnies' recipient address in the given transaction.</li>
+                    <li>The sender of the transaction is the payment address that is associated with Diana.</li>
+                </ul>
+                <p>and does not reveal:</p>
+                <ul>
+                    <li>Any of Diana's other diversified payment addresses.</li>
+                    <li>Any of Diana's other transactions.</li>
+                </ul>
+            </section>
+            <section id="merchant-dispute"><h3><span class="section-heading">Merchant dispute</span><span class="section-anchor"> <a rel="bookmark" href="#merchant-dispute"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Edward goes to CarsRFast to buy a Lamborghini, and sends funds from his shielded address to CarsRFast's transparent address. They can see a payment has been made, but claim that they have not received a payment from Edward. He can create a payment disclosure that reveals:</p>
+                <ul>
+                    <li>Edward was the sender of the given transaction.</li>
+                </ul>
+                <p>and does not reveal:</p>
+                <ul>
+                    <li>Edward's payment address.</li>
+                    <li>Any of Edward's other diversified payment addresses.</li>
+                    <li>Any of Edward's other transactions.</li>
+                </ul>
+            </section>
+            <section id="shielded-withdrawals-from-an-exchange"><h3><span class="section-heading">Shielded withdrawals from an exchange</span><span class="section-anchor"> <a rel="bookmark" href="#shielded-withdrawals-from-an-exchange"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>CorpBux is an exchange with a transparent hot wallet, and enables customers to withdraw their funds to shielded addresses. They can create a payment disclosure, that they can give to their customers, that reveals:</p>
+                <ul>
+                    <li>The correct amount was sent to the customer's shielded recipient address in the given transaction.</li>
+                    <li>CorpBux was the sender of the given transaction.</li>
+                </ul>
+            </section>
+        </section>
+        <section id="requirements"><h2><span class="section-heading">Requirements</span><span class="section-anchor"> <a rel="bookmark" href="#requirements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <ul>
+                <li>The payment disclosure may disclose the contents of zero or more shielded outputs within a single transaction. (Zero outputs is useful for z2t transactions.)</li>
+                <li>Payment disclosures can only be created by a sender of the transaction, and are non-malleable (that is, no-one else can take one or more payment disclosures and construct a new one that they would not have been able to make independently).</li>
+                <li>A payment disclosure may be tied to a challenge, creating an interactive proof.</li>
+                <li>Senders with a shielded address may choose to provably reveal that address as part of the payment disclosure.</li>
+                <li>Senders are not required to remember any ephemeral data from the creation of a transaction in order to produce a payment disclosure for that transaction. (Performance may be improved if they do cache witness data for spent notes.)</li>
+                <li>The payment disclosure can be created without requiring another trusted setup.</li>
+            </ul>
+        </section>
+        <section id="conventions"><h2><span class="section-heading">Conventions</span><span class="section-anchor"> <a rel="bookmark" href="#conventions"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The following functions used in this ZIP are defined in the Zcash protocol specification: <a id="footnote-reference-1" class="footnote_reference" href="#protocol">3</a></p>
+            <ul>
+                <li>
+                    <span class="math">\(\mathsf{DiversifyHash}(\mathsf{d})\)</span>
+                 <a id="footnote-reference-2" class="footnote_reference" href="#protocol-concretediversifyhash">7</a></li>
+                <li>
+                    <span class="math">\(\mathsf{SpendAuthSig.RandomizePrivate}(α, \mathsf{sk})\)</span>
+                ,
+                    <span class="math">\(\mathsf{SpendAuthSig.Sign}(\mathsf{sk}, m)\)</span>
+                , and
+                    <span class="math">\(\mathsf{SpendAuthSig.Verify}(\mathsf{vk}, m, σ)\)</span>
+                 <a id="footnote-reference-3" class="footnote_reference" href="#protocol-concretespendauthsig">8</a></li>
+            </ul>
+            <p>We reproduce some notation and functions from <a id="footnote-reference-4" class="footnote_reference" href="#protocol">3</a> here for convenience:</p>
+            <ul>
+                <li>
+                    <span class="math">\([k] P\)</span>
+                 means scalar multiplication of the elliptic curve point
+                    <span class="math">\(P\)</span>
+                 by the scalar
+                    <span class="math">\(k\)</span>
+                .</li>
+                <li>
+                    <span class="math">\(\mathsf{BLAKE2b}\text{-}\mathsf{256}(p, x)\)</span>
+                 refers to unkeyed BLAKE2b-256 in sequential mode, with an output digest length of 32 bytes, 16-byte personalization string
+                    <span class="math">\(p\)</span>
+                , and input
+                    <span class="math">\(x\)</span>
+                .</li>
+            </ul>
+            <p>We also define the following notation here:</p>
+            <ul>
+                <li>
+                    <span class="math">\([a..b]\)</span>
+                 means the sequence of values inclusive of
+                    <span class="math">\(a\)</span>
+                 and exclusive of
+                    <span class="math">\(b\)</span>
+                .</li>
+                <li>
+                    <span class="math">\(\mathsf{length}(a)\)</span>
+                 means the length of the sequence
+                    <span class="math">\(a\)</span>
+                .</li>
+            </ul>
+        </section>
+        <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <section id="payment-disclosure-data-structure"><h3><span class="section-heading">Payment disclosure data structure</span><span class="section-anchor"> <a rel="bookmark" href="#payment-disclosure-data-structure"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>A payment disclosure has the following fields:</p>
+                <ul>
+                    <li><cite>txid</cite>: Transaction id for the transaction <cite>tx</cite> being disclosed.</li>
+                    <li><cite>msg</cite>: A message field, which could contain a challenge value from the party to whom the payment disclosure is directed.</li>
+                    <li>
+                        <span class="math">\(\mathsf{transparentInputs}\)</span>
+                    : A sequence of the transparent inputs for which we are proving spend authority
+                        <span class="math">\([0..\mathsf{length}(\mathsf{tx.vin})]\)</span>
+                        <ul>
+                            <li>
+                                <span class="math">\(\mathsf{index}\)</span>
+                            : An index into
+                                <span class="math">\(\mathsf{tx.vin}\)</span>
+                            .</li>
+                            <li>
+                                <span class="math">\(\mathsf{sig}\)</span>
+                            : A BIP 322 signature. <a id="footnote-reference-5" class="footnote_reference" href="#bip-0322">9</a>
+                                <ul>
+                                    <li>TODO: <cite>zcashd</cite> currently only supports the legacy format defined in BIP 322. We may want to backport full BIP 322 support before having transparent input support in this ZIP, to ensure it does what we need.</li>
+                                    <li>TODO: BIP 322 specifies consensus rule checks as part of the signature verification process. We will likely need to migrate it over to an equivalent ZIP that specifies these for Zcash (which has a different set of script validation consensus rules).</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </li>
+                    <li>
+                        <span class="math">\(\mathsf{saplingSpends}\)</span>
+                    : A sequence of the Sapling Spends for which we are proving spend authority
+                        <span class="math">\([0..\mathsf{length}(\mathsf{tx.shieldedSpends})]\)</span>
+                        <ul>
+                            <li>
+                                <span class="math">\(\mathsf{index}\)</span>
+                            : An index into
+                                <span class="math">\(\mathsf{tx.shieldedSpends}\)</span>
+                            .</li>
+                            <li>
+                                <span class="math">\(\mathsf{cv}\)</span>
+                            : A value commitment to the spent note.</li>
+                            <li>
+                                <span class="math">\(\mathsf{rk}\)</span>
+                            : A randomized public key linked to the spent note.</li>
+                            <li>
+                                <span class="math">\(\mathsf{zkproof_{spend}}\)</span>
+                            : A Sapling spend proof.</li>
+                            <li>[Optional] A payment address proof <cite>addr_proof</cite>:
+                                <ul>
+                                    <li>Any
+                                        <span class="math">\((\mathsf{d, pk_d})\)</span>
+                                     such that
+                                        <span class="math">\(\mathsf{pk_d} = [\mathsf{ivk}] \mathsf{DiversifyHash}(\mathsf{d})\)</span>
+                                    </li>
+                                    <li>
+                                        <span class="math">\(\mathsf{nullifier_{addr}}\)</span>
+                                    : A nullifier for a ZIP 304 fake note. <a id="footnote-reference-6" class="footnote_reference" href="#zip-0304">11</a></li>
+                                    <li>
+                                        <span class="math">\(\mathsf{zkproof_{addr}}\)</span>
+                                    : A Sapling spend proof.</li>
+                                </ul>
+                            </li>
+                            <li>
+                                <span class="math">\(\mathsf{spendAuthSig}\)</span>
+                            </li>
+                        </ul>
+                    </li>
+                    <li>
+                        <span class="math">\(\mathsf{saplingOutputs}\)</span>
+                    : A sequence of the Sapling Outputs that we are disclosing
+                        <span class="math">\([0..\mathsf{length}(\mathsf{tx.shieldedOutputs})]\)</span>
+                        <ul>
+                            <li>
+                                <span class="math">\(\mathsf{index}\)</span>
+                            : An index into
+                                <span class="math">\(\mathsf{tx.shieldedOutputs}\)</span>
+                            .</li>
+                            <li>
+                                <span class="math">\(\mathsf{ock}\)</span>
+                            : The outgoing cipher key that allows this output to be recovered. <a id="footnote-reference-7" class="footnote_reference" href="#protocol-saplingencrypt">5</a></li>
+                        </ul>
+                    </li>
+                </ul>
+                <p>TODO: Add support for Orchard.</p>
+                <p>TODO: Decide on payment disclosure versioning.</p>
+                <p>TODO: Define encodings for unsigned and signed payment disclosures.</p>
+            </section>
+            <section id="creating-a-payment-disclosure"><h3><span class="section-heading">Creating a payment disclosure</span><span class="section-anchor"> <a rel="bookmark" href="#creating-a-payment-disclosure"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>The inputs to a payment disclosure are:</p>
+                <ul>
+                    <li>The transaction.</li>
+                    <li>The SLIP-44 <a id="footnote-reference-8" class="footnote_reference" href="#slip-0044">10</a> coin type.</li>
+                    <li>The message
+                        <span class="math">\(msg\)</span>
+                     to be included (which may be empty).</li>
+                    <li>A sequence of
+                        <span class="math">\((\mathsf{outputIndex}, \mathsf{ock})\)</span>
+                     tuples (which may be empty).</li>
+                    <li>A sequence of Sapling spend tuples (which may be empty) containing:
+                        <ul>
+                            <li>A Sapling spend index.</li>
+                            <li>Its corresponding expanded spending key
+                                <span class="math">\((\mathsf{ask}, \mathsf{nsk}, \mathsf{ovk})\)</span>
+                            .</li>
+                            <li>[Optional] An associated payment address
+                                <span class="math">\((\mathsf{d}, \mathsf{pk_d})\)</span>
+                            .</li>
+                        </ul>
+                    </li>
+                    <li>A sequence of transparent input tuples (which may be empty) containing:
+                        <ul>
+                            <li>
+                                <span class="math">\(\mathsf{index}\)</span>
+                            : An index into
+                                <span class="math">\(\mathsf{tx.vin}\)</span>
+                            .</li>
+                            <li>The inputs to a BIP 322 signature (excluding <cite>message_data</cite>).</li>
+                        </ul>
+                    </li>
+                </ul>
+                <p>The caller MUST provide at least one input tuple of any type (either a Sapling spend tuple or a transparent input tuple).</p>
+                <p>The payment disclosure is created as follows:</p>
+                <ul>
+                    <li>For each Sapling spend index:
+                        <ul>
+                            <li>Create a Sapling spend proof for the note that was spent in
+                                <span class="math">\(\mathsf{tx.shieldedSpends[index]}\)</span>
+                            , using the same anchor, to obtain
+                                <span class="math">\((\mathsf{cv}, \mathsf{rk}, \mathsf{zkproof_{spend}})\)</span>
+                             as well as the random
+                                <span class="math">\(\alpha\)</span>
+                             that was generated internally.</li>
+                            <li>[Optional] If an associated payment address was provided for this spend index, create a ZIP 304 signature proof for that payment address, <a id="footnote-reference-9" class="footnote_reference" href="#zip-0304">11</a> using
+                                <span class="math">\(\alpha\)</span>
+                             and
+                                <span class="math">\(\mathsf{rk}\)</span>
+                             from the previous step. We obtain
+                                <span class="math">\((\mathsf{nullifier_{addr}}, \mathsf{zkproof_{addr}})\)</span>
+                             from this step.</li>
+                        </ul>
+                    </li>
+                    <li>For each transparent input index:
+                        <ul>
+                            <li>TODO: Prepare BIP 322 signature inputs using <cite>msg</cite> as the <cite>message_data</cite>.</li>
+                        </ul>
+                    </li>
+                    <li>Construct an unsigned payment disclosure from the disclosed Sapling outputs, and the above data for the Sapling spends and transparent inputs. Define the encoding of this as
+                        <span class="math">\(unsignedPaymentDisclosure\)</span>
+                    .</li>
+                    <li>For each Sapling spend index:
+                        <ul>
+                            <li>Let
+                                <span class="math">\(\mathsf{rsk} = \mathsf{SpendAuthSig.RandomizePrivate}(\alpha, \mathsf{ask})\)</span>
+                            .</li>
+                            <li>Let
+                                <span class="math">\(coinType\)</span>
+                             be the 4-byte little-endian encoding of the SLIP 44 coin type in its index form, not its hardened form (i.e. 133 for mainnet Zcash).</li>
+                            <li>Let
+                                <span class="math">\(digest = \mathsf{BLAKE2b}\text{-}\mathsf{256}(\texttt{"ZIP311Signed"}\,||\,coinType, unsignedPaymentDisclosure)\)</span>
+                            .</li>
+                            <li>Let
+                                <span class="math">\(spendAuthSig = \mathsf{SpendAuthSig.Sign}(\mathsf{rsk}, digest)\)</span>
+                            .</li>
+                        </ul>
+                    </li>
+                    <li>For each transparent input index:
+                        <ul>
+                            <li>TODO: Create a BIP 322 signature using <cite>msg</cite> as the <cite>message_data</cite>.</li>
+                        </ul>
+                    </li>
+                    <li>Return the payment disclosure as the combination of the unsigned payment disclosure and the set of <cite>spendAuthSig</cite> and transparent signature values.</li>
+                </ul>
+            </section>
+            <section id="verifying-a-payment-disclosure"><h3><span class="section-heading">Verifying a payment disclosure</span><span class="section-anchor"> <a rel="bookmark" href="#verifying-a-payment-disclosure"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Given a payment disclosure
+                    <span class="math">\(\mathsf{pd}\)</span>
+                , a transaction
+                    <span class="math">\(\mathsf{tx}\)</span>
+                , and the <cite>height</cite> of the block in which
+                    <span class="math">\(\mathsf{tx}\)</span>
+                 was mined (which we assume was verified by the caller), the verifier proceeds as follows:</p>
+                <ul>
+                    <li>Perform the following structural correctness checks, returning false if any check fails:
+                        <ul>
+                            <li>
+                                <span class="math">\(\mathsf{pd.txid} = \mathsf{tx.txid}()\)</span>
+                            </li>
+                            <li>Sequence length correctness:
+                                <ul>
+                                    <li>
+                                        <span class="math">\(\mathsf{length}(\mathsf{pd.saplingOutputs}) \leq \mathsf{length}(\mathsf{tx.shieldedOutputs})\)</span>
+                                    </li>
+                                    <li>
+                                        <span class="math">\(\mathsf{length}(\mathsf{pd.saplingSpends}) \leq \mathsf{length}(\mathsf{tx.shieldedSpends})\)</span>
+                                    </li>
+                                    <li>
+                                        <span class="math">\(\mathsf{length}(\mathsf{pd.transparentInputs}) \leq \mathsf{length}(\mathsf{tx.vin})\)</span>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li>Index uniqueness:
+                                <ul>
+                                    <li>For every
+                                        <span class="math">\(\mathsf{output}\)</span>
+                                     in
+                                        <span class="math">\(\mathsf{pd.saplingOutputs}\)</span>
+                                    ,
+                                        <span class="math">\(\mathsf{output.index}\)</span>
+                                     only occurs once.</li>
+                                    <li>For every
+                                        <span class="math">\(\mathsf{spend}\)</span>
+                                     in
+                                        <span class="math">\(\mathsf{pd.saplingSpends}\)</span>
+                                    ,
+                                        <span class="math">\(\mathsf{spend.index}\)</span>
+                                     only occurs once.</li>
+                                    <li>For every
+                                        <span class="math">\(\mathsf{input}\)</span>
+                                     in
+                                        <span class="math">\(\mathsf{pd.transparentInputs}\)</span>
+                                    ,
+                                        <span class="math">\(\mathsf{input.index}\)</span>
+                                     only occurs once.</li>
+                                </ul>
+                            </li>
+                            <li>Index correctness:
+                                <ul>
+                                    <li>For every
+                                        <span class="math">\(\mathsf{output}\)</span>
+                                     in
+                                        <span class="math">\(\mathsf{pd.saplingOutputs}\)</span>
+                                    ,
+                                        <span class="math">\(\mathsf{output.index} &lt; \mathsf{length}(\mathsf{tx.shieldedOutputs})\)</span>
+                                    </li>
+                                    <li>For every
+                                        <span class="math">\(\mathsf{spend}\)</span>
+                                     in
+                                        <span class="math">\(\mathsf{pd.saplingSpends}\)</span>
+                                    ,
+                                        <span class="math">\(\mathsf{spend.index} &lt; \mathsf{length}(\mathsf{tx.shieldedSpends})\)</span>
+                                    </li>
+                                    <li>For every
+                                        <span class="math">\(\mathsf{input}\)</span>
+                                     in
+                                        <span class="math">\(\mathsf{pd.transparentInputs}\)</span>
+                                    ,
+                                        <span class="math">\(\mathsf{input.index} &lt; \mathsf{length}(\mathsf{tx.vin})\)</span>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li>
+                                <span class="math">\(\mathsf{length}(\mathsf{pd.saplingSpends}) + \mathsf{length}(\mathsf{pd.transparentInputs}) &gt; 0\)</span>
+                            </li>
+                        </ul>
+                    </li>
+                    <li>Let
+                        <span class="math">\(unsignedPaymentDisclosure\)</span>
+                     be the encoding of the payment disclosure without signatures.</li>
+                    <li>Let
+                        <span class="math">\(coinType\)</span>
+                     be the 4-byte little-endian encoding of the coin type in its index form, not its hardened form (i.e. 133 for mainnet Zcash).</li>
+                    <li>Let
+                        <span class="math">\(digest = \mathsf{BLAKE2b}\text{-}\mathsf{256}(\texttt{"ZIP311Signed"}\,||\,coinType, unsignedPaymentDisclosure)\)</span>
+                    .</li>
+                    <li>For every
+                        <span class="math">\(\mathsf{spend}\)</span>
+                     in
+                        <span class="math">\(\mathsf{pd.saplingSpends}\)</span>
+                    :
+                        <ul>
+                            <li>If
+                                <span class="math">\(\mathsf{SpendAuthSig.Verify}(\mathsf{spend.rk}, digest, \mathsf{spend.spendAuthSig}) = 0\)</span>
+                            , return false.</li>
+                            <li>[Optional] If a payment address proof
+                                <span class="math">\(\mathsf{addrProof}\)</span>
+                             is present in
+                                <span class="math">\(\mathsf{spend}\)</span>
+                            , verify
+                                <span class="math">\((\mathsf{addrProof.nullifier_{addr}}, \mathsf{spend.rk}, \mathsf{addrProof.zkproof_{addr}})\)</span>
+                             as a ZIP 304 proof for
+                                <span class="math">\((\mathsf{addrProof.d}, \mathsf{addrProof.pk_d})\)</span>
+                             <a id="footnote-reference-10" class="footnote_reference" href="#zip-0304">11</a>. If verification fails, return false.</li>
+                            <li>Decode and verify
+                                <span class="math">\(\mathsf{zkproof_{spend}}\)</span>
+                             as a Sapling spend proof <a id="footnote-reference-11" class="footnote_reference" href="#protocol-spendstatement">4</a> with primary input:
+                                <ul>
+                                    <li>
+                                        <span class="math">\(\mathsf{tx.shieldedSpends[spend.index].rt}\)</span>
+                                    </li>
+                                    <li>
+                                        <span class="math">\(\mathsf{spend.cv}\)</span>
+                                    </li>
+                                    <li>
+                                        <span class="math">\(\mathsf{tx.shieldedSpends[spend.index].nf}\)</span>
+                                    </li>
+                                    <li>
+                                        <span class="math">\(\mathsf{spend.rk}\)</span>
+                                    </li>
+                                </ul>
+                                <p>If verification fails, return false.</p>
+                            </li>
+                        </ul>
+                    </li>
+                    <li>For every
+                        <span class="math">\(\mathsf{input}\)</span>
+                     in
+                        <span class="math">\(\mathsf{pd.transparentInputs}\)</span>
+                    :
+                        <ul>
+                            <li>TODO: BIP 322 verification.</li>
+                        </ul>
+                    </li>
+                    <li>For every
+                        <span class="math">\(\mathsf{output}\)</span>
+                     in
+                        <span class="math">\(\mathsf{pd.saplingOutputs}\)</span>
+                    :
+                        <ul>
+                            <li>Recover the Sapling note in
+                                <span class="math">\(\mathsf{tx.shieldedOutputs}[\mathsf{output.index}]\)</span>
+                             via the process specified in <a id="footnote-reference-12" class="footnote_reference" href="#protocol-saplingdecryptovk">6</a> with inputs
+                                <span class="math">\((height, \mathsf{output.ock})\)</span>
+                            . If recovery returns
+                                <span class="math">\(\bot\)</span>
+                            , return false.</li>
+                        </ul>
+                    </li>
+                    <li>Return true.</li>
+                </ul>
+            </section>
+            <section id="payment-disclosure-validity-in-uis"><h3><span class="section-heading">Payment disclosure validity in UIs</span><span class="section-anchor"> <a rel="bookmark" href="#payment-disclosure-validity-in-uis"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>TODO: Set some standards for how UIs should display payment disclosures, and how they should convey the various kinds of validity information:</p>
+                <ul>
+                    <li>One, but not all, of the spenders proved spend authority.</li>
+                    <li>All spenders of a specific type proved spend authority.</li>
+                    <li>All spenders proved spend authority.</li>
+                    <li>These, but also including optional payment address proofs.</li>
+                </ul>
+            </section>
+        </section>
+        <section id="rationale"><h2><span class="section-heading">Rationale</span><span class="section-anchor"> <a rel="bookmark" href="#rationale"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>If a sender elects, at transaction creation time, to use an
+                <span class="math">\(\mathsf{ovk}\)</span>
+             of
+                <span class="math">\(\bot\)</span>
+             for a specific Sapling output, then they are unable to subsequently create a payment disclosure that discloses that output. This maintains the semantics of
+                <span class="math">\(\mathsf{ovk}\)</span>
+            , in that the sender explicitly chose to lose the capability to recover that output.</p>
+            <p>Payment disclosures that prove Sapling spend authority are not required to reveal a sender address. This is because it is impossible: we can "prove" the transaction came from any of the diversified addresses linked to the spending key. Fundamentally, the "sender" of a transaction is anyone who has access to the corresponding spend authority; in the case of Sapling, a spend authority corresponds to multiple diversified addresses. In situations where a sender address is already known to the verifier of the payment disclosure (or publically), it may still be useful to have the option of linking the payment disclosure to that address.</p>
+        </section>
+        <section id="security-and-privacy-considerations"><h2><span class="section-heading">Security and Privacy Considerations</span><span class="section-anchor"> <a rel="bookmark" href="#security-and-privacy-considerations"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>When spending Sapling notes normally in transactions, wallets select a recent anchor to make the anonymity set of the spent note as large as possible. By contrast, Sapling spend authority in a payment disclosure is proven using the same anchor that was used in the transaction itself, instead of a recent anchor. We do this for efficency reasons:</p>
+            <ul>
+                <li>The anchor is already encoded in the transaction, so can be omitted from the payment disclosure encoding.</li>
+                <li>It is necessary to have a witness for each spent note that is being included in the payment disclosure. Using the same anchor means that the same witness can be used for the transaction spend and the payment disclosure, which in turn means that wallets that support payment disclosures only need to remember that witness, and do not need to continually update witnesses for spent notes in the off-chance that they might be used in a payment disclosure.</li>
+            </ul>
+            <p>There is no privacy benefit to selecting a more recent anchor; the anonymity set of the note was "fixed" by the original spend (which revealed that the note existed as of that anchor's height).</p>
+            <p>We require all payment disclosures to prove spend authority for at least one input, in order to simplify the verification UX. In particular, if payment disclosures without spends were considered valid, an invalid payment disclosure with invalid signatures (that would be shown as invalid by UIs) could be mutated into a payment disclosure that would be shown as valid by UIs, by stripping off the signatures. We do not believe that this prevents any useful use cases; meanwhile if someone is intent on obtaining Sapling output disclosures regardless of the validity of their source, they will do so without a common standard.</p>
+        </section>
+        <section id="reference-implementation"><h2><span class="section-heading">Reference implementation</span><span class="section-anchor"> <a rel="bookmark" href="#reference-implementation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>TBD</p>
+        </section>
+        <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <table id="rfc2119" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>1</th>
+                        <td><a href="https://www.rfc-editor.org/rfc/rfc2119.html">RFC 2119: Key words for use in RFCs to Indicate Requirement Levels</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="rfc4648" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>2</th>
+                        <td><a href="https://www.rfc-editor.org/rfc/rfc4648">RFC 4648: The Base16, Base32, and Base64 Data Encodings</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>3</th>
+                        <td><a href="protocol/protocol.pdf">Zcash Protocol Specification, Version 2020.1.15 or later</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-spendstatement" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>4</th>
+                        <td><a href="protocol/protocol.pdf#spendstatement">Zcash Protocol Specification, Version 2020.1.15. Section 4.15.2: Spend Statement (Sapling)</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-saplingencrypt" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>5</th>
+                        <td><a href="protocol/protocol.pdf#saplingencrypt">Zcash Protocol Specification, Version 2020.1.15. 4.17.1: Encryption (Sapling)</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-saplingdecryptovk" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>6</th>
+                        <td><a href="protocol/protocol.pdf#saplingdecryptovk">Zcash Protocol Specification, Version 2020.1.15. 4.17.3: Decryption using a Full Viewing Key (Sapling)</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-concretediversifyhash" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>7</th>
+                        <td><a href="protocol/protocol.pdf#concretediversifyhash">Zcash Protocol Specification, Version 2020.1.15. Section 5.4.1.6: DiversifyHash Hash Function</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-concretespendauthsig" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>8</th>
+                        <td><a href="protocol/protocol.pdf#concretespendauthsig">Zcash Protocol Specification, Version 2020.1.15. Section 5.4.6.1: Spend Authorization Signature</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bip-0322" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>9</th>
+                        <td><a href="https://github.com/bitcoin/bips/blob/master/bip-0322.mediawiki">BIP 322: Generic Signed Message Format</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="slip-0044" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>10</th>
+                        <td><a href="https://github.com/satoshilabs/slips/blob/master/slip-0044.md">SLIP-0044 : Registered coin types for BIP-0044</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0304" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>11</th>
+                        <td><a href="zip-0304">ZIP 304: Sapling Address Signatures</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </section>
+</body>
+</html>
