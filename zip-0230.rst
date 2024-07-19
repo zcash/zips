@@ -166,14 +166,12 @@ Transaction Format
 +------------------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------------+
 |``64 * nActionsOrchard``            |``vSpendAuthSigsOrchard`` |``byte[64 * nActionsOrchard]``          |Authorizing signatures for each Orchard-ZSA Action.                        |
 +------------------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------------+
-|``64``                              |``bindingSigOrchard``     |``byte[64]``                            |An Orchard binding signature on the SIGHASH transaction hash.              |
-+------------------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------------+
-| **Orchard-ZSA Burn Fields**                                                                                                                                                        |
-+------------------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------------+
 | ``varies``                         | ``nAssetBurn``           | ``compactSize``                        | The number of Assets burnt.                                               |
 +------------------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------------+
 | ``40 * nAssetBurn``                | ``vAssetBurn``           | ``AssetBurn[nAssetBurn]``              | A sequence of Asset Burn descriptions,                                    |
 |                                    |                          |                                        | encoded per `Orchard-ZSA Asset Burn Description`_.                        |
++------------------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------------+
+|``64``                              |``bindingSigOrchard``     |``byte[64]``                            |An Orchard-ZSA binding signature on the SIGHASH transaction hash.          |
 +------------------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------------+
 | **Orchard-ZSA Issuance Fields**                                                                                                                                                    |
 +------------------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------------+
@@ -304,7 +302,7 @@ An Orchard-ZSA Asset Burn description is encoded in a transaction as an instance
 +=======+===============+=============================+====================================================================================================================+
 | 32    | ``AssetBase`` | ``byte[32]``                | For the Orchard-based ZSA protocol, this is the encoding of the Asset Base :math:`\mathsf{AssetBase^{Orchard}}\!`. |
 +-------+---------------+-----------------------------+--------------------------------------------------------------------------------------------------------------------+
-| 8     | ``valueBurn`` | :math:`\{1 .. 2^{64} - 1\}` | The amount being burnt.                                                                                            |
+| 8     | ``valueBurn`` | ``uint64``                  | The amount being burnt. The value is checked by consensus to be non-zero.                                          |
 +-------+---------------+-----------------------------+--------------------------------------------------------------------------------------------------------------------+
 
 The encodings of each of these elements are defined in ZIP 226 [#zip-0226]_.
@@ -317,25 +315,48 @@ An issuance action, ``IssueAction``, is the instance of issuing a specific Custo
 +-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
 | Bytes                       | Name                     | Data Type                                 | Description                                                         |
 +=============================+==========================+===========================================+=====================================================================+
-|``2``                        |``assetDescSize``         |``byte``                                   |The length of the asset description string in bytes.                 |
+|``varies``                   |``assetDescSize``         |``compactSize``                            |The length of the asset description string in bytes.                 |
 +-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
 |``assetDescSize``            |``asset_desc``            |``byte[assetDescSize]``                    |A byte sequence of length ``assetDescSize`` bytes which SHOULD be a  |
 |                             |                          |                                           |well-formed UTF-8 code unit sequence according to Unicode 15.0.0     |
 |                             |                          |                                           |or later.                                                            |
 +-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
-|``varies``                   |``nNotes``                |``compactSize``                            |The number of notes in the issuance action.                          |
+|``varies``                   |``nNotes``                |``compactSize``                            |The number of notes in the Issuance Action.                          |
 +-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
-|``noteSize * nNotes``        |``vNotes``                |``Note[nNotes]``                           |A sequence of note descriptions within the issuance action,          |
-|                             |                          |                                           |where ``noteSize`` is the size, in bytes, of a Note.                 |
+|``147 * nNotes``             |``vNotes``                |``IssueNote[nNotes]``                      |A sequence of note descriptions within the Issuance Action.          |
 +-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
 |``1``                        |``flagsIssuance``         |``byte``                                   |An 8-bit value representing a set of flags. Ordered from LSB to MSB: |
 |                             |                          |                                           | * :math:`\mathsf{finalize}`                                         |
 |                             |                          |                                           | * The remaining bits are set to :math:`0\!`.                        |
 +-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
 
-The encodings of each of these elements are defined in ZIP 227 [#zip-0227]_.
+The encoding of ``IssueNote`` is described below.
 Note that we allow the number of notes (represented by ``nNotes``) to be zero. 
 This allows for issuers to create Issuance Actions to only finalize an issued Asset, without needing them to simultaneously issue more of that Asset. 
+
+Issue Note Description (``IssueNote``)
+--------------------------------------
+
+An issuance note, ``IssueNote`` contains the following fields:
+
++-----------------------------+--------------------------+--------------------------------------+--------------------------------------------------------------------+
+| Bytes                       | Name                     | Data Type                            | Description                                                        |
++=============================+==========================+======================================+====================================================================+
+|``43``                       |``recipient``             |``byte[43]``                          |The raw encoding of an Orchard Raw Payment Address, as              |
+|                             |                          |                                      |per protocol §5.6.4.2 ‘Orchard Raw Payment Addresses’.              |
++-----------------------------+--------------------------+--------------------------------------+--------------------------------------------------------------------+
+|``8``                        |``value``                 |``uint64``                            |The amount being issued in this note.                               |
++-----------------------------+--------------------------+--------------------------------------+--------------------------------------------------------------------+
+|``32``                       |``assetBase``             |``byte[32]``                          |The encoding of the Asset Base                                      |
+|                             |                          |                                      |:math:`\mathsf{AssetBase^{Orchard}}\!`, as defined in 'ZIP 227'.    |
++-----------------------------+--------------------------+--------------------------------------+--------------------------------------------------------------------+
+|``32``                       |``rho``                   |``byte[32]``                          |This is defined and encoded in the same manner as for Orchard       |
+|                             |                          |                                      |notes in protocol §3.2 'Notes'.                                     |
++-----------------------------+--------------------------+--------------------------------------+--------------------------------------------------------------------+
+|``32``                       |``rseed``                 |``byte[32]``                          |The ``rseed`` field of the note, encoded as for Orchard notes in    |
+|                             |                          |                                      |protocol §3.2 'Notes'.                                              |
++-----------------------------+--------------------------+--------------------------------------+--------------------------------------------------------------------+
+
 
 Reference implementation
 ========================
