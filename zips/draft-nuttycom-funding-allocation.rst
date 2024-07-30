@@ -2,12 +2,13 @@
 
   ZIP: Unassigned
   Title: Block Reward Allocation for Non-Direct Development Funding
-  Owners: Kris Nuttycombe <kris@nutty.land>
-          Jason McGee <aquietinvestor@gmail.com>
+  Owners: Jason McGee <aquietinvestor@gmail.com>
+          @Peacemonger (Zcash Forum)
+          Kris Nuttycombe <kris@nutty.land>
   Original-Authors: Skylar Saveland <skylar@free2z.com>
-  Credits: Daira-Emma Hopwood
+  Credits: @GGuy (Zcash Forum)
+           Daira-Emma Hopwood
            Jack Grigg
-           @Peacemonger (Zcash Forum)
   Status: Draft
   Category: Consensus
   Created: 2024-07-03
@@ -24,15 +25,15 @@ when, they appear in all capitals.
 Abstract
 ========
 
-This ZIP proposes several options for the allocation of a percentage of the
-Zcash block subsidy, post-November 2024 halving, to an in-protocol "lockbox."
-The "lockbox" will be a separate pool of issued funds tracked by the protocol,
-as described in ZIP 2001: Lockbox Funding Streams
-[#zip-2001]_. No disbursement mechanism is currently defined
-for this "lockbox"; the Zcash community will need to decide upon and specify a
-suitable decentralized mechanism for permitting withdrawals from this lockbox
-in a future ZIP in order to make these funds available for funding grants to
-ecosystem participants.
+This ZIP proposes the allocation of a percentage of the Zcash block subsidy,
+post-November 2024 halving, split between Zcash Community Grants (ZCG) an
+in-protocol "lockbox." The "lockbox" will be a separate pool of issued funds
+tracked by the protocol, as described in ZIP 2001: Lockbox Funding Streams
+[#zip-2001]_. No disbursement mechanism is currently defined for this "lockbox";
+the Zcash community will need to decide upon and specify a suitable
+decentralized mechanism for permitting withdrawals from this lockbox in a future
+ZIP in order to make these funds available for funding grants to ecosystem
+participants.
 
 The proposed lockbox addresses significant issues observed with ZIP 1014
 [#zip-1014]_, such as regulatory risks, inefficiencies due to funding of organizations
@@ -42,6 +43,16 @@ ZIP, the goal is to employ a decentralized mechanism that ensures community
 involvement and efficient, project-specific funding. This approach is intended
 to potentially improve regulatory compliance, reduce inefficiencies, and
 enhance the decentralization of Zcash's funding structure.
+
+A number of previously proposed alternatives are listed at the bottom of
+this document. Polling of the community was used to select among these and
+other proposals. See the following Zcash community forum posts for additional
+details:
+
+* https://forum.zcashcommunity.com/t/dev-fund-polling-results-discussion-and-next-steps/48314
+* https://forum.zcashcommunity.com/t/dev-fund-decision-time/48231/16
+* https://forum.zcashcommunity.com/t/dev-fund-decision-time/48231/17
+* https://forum.zcashcommunity.com/t/dev-fund-decision-time/48231/27
 
 Motivation
 ==========
@@ -97,6 +108,22 @@ funds. The alternatives presented here are intended to address the following:
    Deferred Dev Fund Lockbox incentivizes the development of a decentralized
    mechanism for the disbursement of the locked funds.
 
+6. **Limited Runway**: ZCG does not have the financial runway that ECC/BP and ZF
+   have. As such, allocating ongoing funding to ZCG will help ensure the Zcash
+   ecosystem has an active grants program.
+
+7. **Promoting Decentralization**: Allocating a portion of the Dev Fund to Zcash
+   Community Grants ensures small teams continue to receive funding to
+   contribute to Zcash. Allowing the Dev Fund to expire, or putting 100% into a
+   lockbox, would disproportionally impact grant recipients. This hybrid
+   approach promotes decentralization and the growth of independent development
+   teams.
+
+8. **Mitigating Regulatory Risks**: The Financial Privacy Foundation (FPF) is a
+   non-profit organization incorporated and based in the Cayman Islands. By
+   minimizing direct funding of US-based organizations, this proposal helps to
+   reduce potential regulatory scrutiny and legal risks.
+
 By addressing these issues, this proposal aims to ensure sustainable,
 efficient, and decentralized funding for essential activities within the Zcash
 ecosystem.
@@ -140,23 +167,6 @@ covered by this proposal:
 Specification
 =============
 
-The following alternatives all depend upon the Lockbox Funding Streams proposal
-[#zip-2001]_ for storage of funds into a deferred value
-pool.
-
-Some of the alternatives described below do not specify a termination height
-for the funding streams they propose. In these cases, the termination height
-is set to `u32::MAX_VALUE`. A future network upgrade that alters the
-maximum possible block height MUST also alter these termination heights.
-
-Alternatives
-============
-
-Alternative 1: Hybrid Deferred Dev Fund: Transitioning to a Non-Direct Funding Model
-------------------------------------------------------------------------------------
-
-Proposed by Jason McGee, Peacemonger, GGuy
-
 * 12% of the block subsidy is to be distributed to the lockbox.
 * 8% of the block subsidy is to be distributed to the Financial Privacy
   Foundation (FPF), for the express use of the Zcash Community Grants Committee
@@ -171,63 +181,6 @@ funding streams will be:
 ``FS_DEFERRED``       12           100          2726400      3146400
 ``FS_FPF_ZCG``         8           100          2726400      3146400
 ================= =========== ============= ============== ============
-
-Motivations for Alternative 1
-'''''''''''''''''''''''''''''
-
-* **Limited Runway**: ZCG does not have the financial runway that ECC/BP and ZF
-  have. As such, allocating ongoing funding to ZCG will help ensure the Zcash
-  ecosystem has an active grants program.
-
-* **Promoting Decentralization**: Allocating a portion of the Dev Fund to Zcash
-  Community Grants ensures small teams continue to receive funding to
-  contribute to Zcash. Allowing the Dev Fund to expire, or putting 100% into a
-  lockbox, would disproportionally impact grant recipients. This hybrid
-  approach promotes decentralization and the growth of independent development
-  teams.
-
-* **Mitigating Regulatory Risks**: The Financial Privacy Foundation (FPF) is a
-  non-profit organization incorporated and based in the Cayman Islands. By
-  minimizing direct funding of US-based organizations, this proposal helps to
-  reduce potential regulatory scrutiny and legal risks.
-
-Alternative 2: Lockbox For Decentralized Grants Allocation (20% option)
------------------------------------------------------------------------
-
-Proposed by Kris Nuttycombe
-
-* 20% of the block subsidy is to be distributed to the lockbox.
-
-As of block height 2726400, and continuing for two years, the complete set of
-funding streams will be:
-
-================= =========== ============= ============== ============
-      Stream       Numerator   Denominator   Start height   End height
-================= =========== ============= ============== ============
-``FS_DEFERRED``       20           100          2726400      3566400
-================= =========== ============= ============== ============
-
-Motivations for the 20% lockbox option
-''''''''''''''''''''''''''''''''''''''
-
-This alternative seeks to eliminate all direct funding of development
-organizations in the Zcash ecosystem, in preparation for designing a more
-decentralized and flexible approach to distributing funds allocated for
-ecosystem development.
-
-By eliminating all direct funding, this alternative fully aligns the incentives
-of the various existing development organizations to efficiently work toward
-the implementation of a new disbursement mechanism. At the time of this
-writing, these existing organizations each have funds in reserve that will
-enable them to continue operation for a period beyond the end of the previous
-development fund that should, with efficient operation, be sufficient for a
-decentralized disbursement mechanism to be implemented.
-
-Requirements related to direct streams for the Financial Privacy Foundation
-===========================================================================
-
-The following additional requirements apply to Alternative 1, and the option
-previously listed as Alternative 4 below:
 
 The stream allocated to Zcash Community Grants (ZCG) is intended to fund
 independent teams entering the Zcash ecosystem, to perform major ongoing
@@ -387,6 +340,38 @@ lockbox.
 
 Previously Considered Alternatives
 ==================================
+
+Lockbox For Decentralized Grants Allocation (20% option)
+-----------------------------------------------------------------------
+
+Proposed by Kris Nuttycombe
+
+* 20% of the block subsidy is to be distributed to the lockbox.
+
+As of block height 2726400, and continuing for two years, the complete set of
+funding streams will be:
+
+================= =========== ============= ============== ============
+      Stream       Numerator   Denominator   Start height   End height
+================= =========== ============= ============== ============
+``FS_DEFERRED``       20           100          2726400      3566400
+================= =========== ============= ============== ============
+
+Motivations for the 20% lockbox option
+''''''''''''''''''''''''''''''''''''''
+
+This alternative seeks to eliminate all direct funding of development
+organizations in the Zcash ecosystem, in preparation for designing a more
+decentralized and flexible approach to distributing funds allocated for
+ecosystem development.
+
+By eliminating all direct funding, this alternative fully aligns the incentives
+of the various existing development organizations to efficiently work toward
+the implementation of a new disbursement mechanism. At the time of this
+writing, these existing organizations each have funds in reserve that will
+enable them to continue operation for a period beyond the end of the previous
+development fund that should, with efficient operation, be sufficient for a
+decentralized disbursement mechanism to be implemented.
 
 Lockbox For Decentralized Grants Allocation (perpetual 50% option)
 ------------------------------------------------------------------
@@ -600,7 +585,6 @@ Motivations for "Masters of the Universe"
 This alternative proposes a slightly larger slice of the block subsidy than is
 currently allocated for development funding, in order to better provide for the
 needs of the Zcash community.
-
 
 Revisitation Requirement for "Masters of the Universe"
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''
