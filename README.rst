@@ -124,6 +124,7 @@ written.
     <tr> <td><span class="reserved">228</span></td> <td class="left"><a class="reserved" href="zips/zip-0228.rst">Asset Swaps for Zcash Shielded Assets</a></td> <td>Reserved</td>
     <tr> <td>230</td> <td class="left"><a href="zips/zip-0230.rst">Version 6 Transaction Format</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">231</span></td> <td class="left"><a class="reserved" href="zips/zip-0231.rst">Decouple Memos from Transaction Outputs</a></td> <td>Reserved</td>
+    <tr> <td>236</td> <td class="left"><a href="zips/zip-0236.rst">Blocks should balance exactly</a></td> <td>Draft</td>
     <tr> <td>245</td> <td class="left"><a href="zips/zip-0245.rst">Transaction Identifier Digests & Signature Validation for Transparent Zcash Extensions</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">253</span></td> <td class="left"><a class="reserved" href="zips/zip-0253.rst">Deployment of the NU6 Network Upgrade</a></td> <td>Reserved</td>
     <tr> <td>302</td> <td class="left"><a href="zips/zip-0302.rst">Standardized Memo Field Format</a></td> <td>Draft</td>
@@ -166,7 +167,6 @@ be deleted.
 
   <embed><table>
     <tr> <th>Title</th> </tr>
-    <tr> <td class="left"><a href="zips/draft-hopwood-coinbase-balance.rst">Blocks should balance exactly</a></td>
     <tr> <td class="left"><a href="zips/draft-noamchom67-manufacturing-consent.rst">Manufacturing Consent; Re-Establishing a Dev Fund for ECC, ZF, ZCG, Qedit, FPF, and ZecHub</a></td>
     <tr> <td class="left"><a href="zips/draft-nuttycom-funding-allocation.rst">Block Reward Allocation for Non-Direct Development Funding</a></td>
     <tr> <td class="left"><a href="zips/draft-zf-community-dev-fund-2-proposal.rst">Establishing a Hybrid Dev Fund for ZF, ZCG and a Dev Fund Reserve</a></td>
@@ -247,6 +247,7 @@ Index of ZIPs
     <tr> <td><span class="reserved">228</span></td> <td class="left"><a class="reserved" href="zips/zip-0228.rst">Asset Swaps for Zcash Shielded Assets</a></td> <td>Reserved</td>
     <tr> <td>230</td> <td class="left"><a href="zips/zip-0230.rst">Version 6 Transaction Format</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">231</span></td> <td class="left"><a class="reserved" href="zips/zip-0231.rst">Decouple Memos from Transaction Outputs</a></td> <td>Reserved</td>
+    <tr> <td>236</td> <td class="left"><a href="zips/zip-0236.rst">Blocks should balance exactly</a></td> <td>Draft</td>
     <tr> <td>239</td> <td class="left"><a href="zips/zip-0239.rst">Relay of Version 5 Transactions</a></td> <td>Final</td>
     <tr> <td>243</td> <td class="left"><a href="zips/zip-0243.rst">Transaction Signature Validation for Sapling</a></td> <td>Final</td>
     <tr> <td>244</td> <td class="left"><a href="zips/zip-0244.rst">Transaction Identifier Non-Malleability</a></td> <td>Final</td>
