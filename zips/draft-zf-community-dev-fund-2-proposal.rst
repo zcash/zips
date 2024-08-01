@@ -54,7 +54,7 @@ The terms "Testnet" and "Mainnet" are to be interpreted as described in
 section 3.12 of the Zcash Protocol Specification [#protocol-networks]_.
 
 “Lockbox” refers to a deferred funding pool of issued Zcash value as described 
-in [#draft-nuttycom-lockbox-streams]_.
+in ZIP 2001 [#zip-2001]_.
 
 “Dev Fund Reserve”, also called “DFR”, refers to the funds that are to be 
 stored in the Lockbox as a result of the changes described in this ZIP. 
@@ -493,7 +493,7 @@ References
 .. [#zip-1011] `ZIP 1011: Decentralize the Dev Fee <zip-1011.rst>`_
 .. [#zip-1012] `ZIP 1012: Dev Fund to ECC + ZF + Major Grants <zip-1012.rst>`_
 .. [#zip-1014] `ZIP 1014: Establishing a Dev Fund for ECC, ZF, and Major Grants <zip-1014.rst>`_
-.. [#draft-nuttycom-lockbox-streams] `Draft ZIP: Lockbox for Decentralized Grants Allocation <draft-nuttycom-lockbox-streams.rst>`_
+.. [#zip-2001] `ZIP 2001: Lockbox Funding Streams <zip-2001.rst>`_
 .. [#zcap] `Zcash Community Advisory Panel <https://zfnd.org/zcap/>`_
 .. [#section501c3] `U.S. Code, Title 26, Section 501(c)(3) <https://www.law.cornell.edu/uscode/text/26/501>`_
 
