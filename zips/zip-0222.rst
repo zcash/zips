@@ -1,0 +1,334 @@
+::
+
+  ZIP: 222
+  Title: Transparent Zcash Extensions
+  Owners: Jack Grigg <jack@electriccoin.co>
+          Kris Nuttycombe <kris@electriccoin.co>
+  Credits: Zaki Manian
+           Daira-Emma Hopwood
+           Sean Bowe
+  Status: Draft
+  Category: Consensus
+  Created: 2019-07-01
+  License: MIT
+
+
+Terminology
+===========
+
+The key words "MUST" and "MAY" in this document are to be interpreted as described in
+BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
+
+The term "network upgrade" in this document is to be interpreted as described in ZIP 200
+[#zip-0200]_.
+
+The term "prefix-free" in this document is to be interpreted as to mean that no valid
+encoding of a value may have the same binary representation as any prefix of
+the binary encoding of another value of the same type.
+
+The term "non-malleable" in this document is to be interpreted as described in ZIP 244
+[#zip-0244]_.
+
+The value ``MAX_MONEY`` is as defined in section 5.3 of the Zcash Protocol Specification
+[#protocol-constants]_.
+
+
+Abstract
+========
+
+This proposal defines a modification to the consensus rules that enables complex forms of
+transparent output preconditions to be deployed in network upgrades. This in turn enables the
+creation of "transparent Zcash extensions" that augment the network's functionality in a
+carefully-defined and auditable fashion.
+
+
+Motivation
+==========
+
+Zcash supports a limited set of preconditions that may be imposed upon how funds, both
+transparent and shielded, may be spent. Spending limitations on transparent funds are
+defined by what may be encoded in Bitcoin script, and spending of shielded funds is
+even more restricted. As such, some use cases (for example, integration of BOLT support
+[#zip-draft-bolt]_) are not yet supportable. 
+
+Transparent Zcash Extensions are intended to make it possible to incrementally
+add new functionality without modifying interpretation of the existing Bitcoin
+script, which is complex and potentially error-prone. Extensions may also serve 
+as laboratories for evaluating demand for functionality which may eventually be 
+candidates for inclusion in the consensus rules for shielded transactions.
+
+
+Definitions
+===========
+
+encumber
+    To set conditions that must be satisfied in order to spend some or all of a 
+    transaction's outputs.
+
+precondition
+    A challenge that must be satisfied in order to gain spending authority over 
+    an encumbered amount. 
+
+witness
+    Evidence to be evaluated against the challenge encoded by a precondition.
+
+
+Specification
+=============
+
+Transparent Extensions
+----------------------
+
+Transparent Extensions are modular software components that are distributed as
+part of the code of consensus implementations. An extension defines interpretation rules
+for several new pieces of data that are included as part of a transaction. 
+
+A Transparent Extension is identified by a numeric ``type``. A Transparent
+Extension may also have several modes of operation, corresponding to different
+kinds of encumbrance within the extension's overall protocol. 
+
+The following three values are made available to the extension (in addition to ``type``):
+
+- A numeric ``mode``.
+- A byte sequence ``precondition`` containing an encoding of the precondition that is
+  prefix-free within this ``(type, mode)``.
+- A byte sequence ``witness`` containing an encoding of evidence purporting 
+  to satisfy the precondition. This encoding MUST be prefix-free within this 
+  ``(type, mode)``.
+
+The extension is responsible for providing mode-specific parsing and
+serialization of these data fields. In addition, the extension MUST implement a
+deterministic verification algorithm ``tze_verify`` that takes as arguments
+``mode``, ``precondition``, ``witness``, and a context object. The context object 
+provides deterministic public information about the transaction as well as the block
+chain (up to and including the block that the transaction is mined in). It returns 
+``true`` if the precondition is satisfied in that context, and ``false`` otherwise. 
+
+An extension MAY request that arbitrary public information about the
+transaction and block chain be included in the context object provided to it;
+these requirements MUST be satisfied by a caller integrating the extension at
+the integration point. Extensions SHOULD restrict the information requested to
+that which may be provided by node implementations in an efficient manner. For
+example, an extension SHOULD NOT require that it be provided full blocks in
+order to be able to construct or validate a precondition, and SHOULD minimize
+transaction data requested to that which are essential for its computational
+needs. In addition, while some preprocessing by the consensus-validating node
+may be requested, construction of such contextual data SHOULD NOT impose
+significant computational costs.
+
+ZIPs that define a new transparent extension MUST completely specify the
+structure of all three of the specified values for each defined mode, as well
+as the behavior of ``tze_verify`` and any contextual information required.
+
+The encoded forms of ``precondition`` and ``witness`` are not required to be
+constant-length, but SHOULD be solely determined by the pair ``(type, mode)``.
+
+The introduction of TZEs by this ZIP produces a new transparent unspent
+outpoint set, distinct from the UTXO set, such that indices into this set of
+outpoints may be referred to by TZE inputs in spending transactions.
+
+Encoding in transactions
+------------------------
+
+We define a new transaction format that contains two new fields:
+
+- ``tze_outputs``: A list of pairs of:
+
+  - The value being encumbered.
+  - The precondition that must be satisfied to spend the value.
+
+- ``tze_inputs``: A list of pairs of:
+
+  - An outpoint referencing a prior precondition.
+  - A witness that satisfies it.
+
+The transaction format is required to be non-malleable, in the sense that any
+change to the effects of the transaction will change its transaction ID, but
+any valid change to a ``witness`` inside ``tze_inputs`` will not change the
+transaction ID. This will be specified in a separate ZIP.
+
+A new version <TBD> transaction format and corresponding version group
+identifier <TBD> will be introduced in the hard-fork network upgrade that
+introduces TZE functionality. The version <TBD> format differs from the version 4 
+transaction format as follows: a length-prefixed encoding of TZE inputs and outputs are
+added to the serialized transaction format immediately following the fields
+representing transparent inputs and outputs.
+
+======== ====================== =========================== ===============
+Version  Field                  Description                 Type
+======== ====================== =========================== ===============
+``...``  ``...`` as before      ``...``                     ``...``
+>= 1     ``tx_in_count``        variable-length integer     ``compactSize``
+>= 1     ``tx_in``              list of inputs              ``vector``
+>= 1     ``tx_out_count``       variable-length integer     ``compactSize``
+>= 1     ``tx_out``             list of outputs             ``vector``
+>= <TBD> ``tze_in_count``       variable-length integer     ``compactSize``
+>= <TBD> ``tze_in``             list of TZE inputs          ``vector``
+>= <TBD> ``tze_out_count``      variable-length integer     ``compactSize``
+>= <TBD> ``tze_out``            list of TZE outputs         ``vector``
+>= 1     ``lock_time``          block height or timestamp   ``uint32``
+``...``  ``...`` as before      ``...``                     ``...``
+======== ====================== =========================== ===============
+
+Both ``tze_in`` and ``tze_out`` vectors make use of the common serialized
+form ``tze_data`` described below. Serialization of all integer and vector
+types is as with Bitcoin.
+
+``tze_data`` encoding:
+
+======================== ==================================== ==============================
+Field                    Description                          Type           
+======================== ==================================== ==============================
+``tze_id``               extension ``type``                   ``compactSize``
+``tze_mode``             extension ``mode``                   ``compactSize``
+``tze_data_payload_len`` length of precondition/witness data  ``compactSize``
+``tze_data_payload``     serialized precondition/witness data ``tze_data_payload_len`` bytes
+======================== ==================================== ==============================
+
+TZE Input Encoding:
+
+====================== ==================================== ===============
+Field                  Description                          Type           
+====================== ==================================== ===============
+``prevout_hash``       previous txid                        ``uint256``    
+``prevout_in``         index into previous txn's outputs    ``uint32``
+``witness``            witness for prevout's precondition   ``tze_data``
+====================== ==================================== ===============
+
+
+TZE Output Encoding:
+
+====================== ============================================== ===============
+Field                  Description                                    Type           
+====================== ============================================== ===============
+``amount``             spendable amount, in zatoshi                   ``int64``    
+``precondition``       encodes a precondition encumbering ``amount``  ``tze_data``
+====================== ============================================== ===============
+
+
+Consensus rules
+---------------
+
+Once this ZIP becomes active, the following new consensus rules are enforced:
+
+- For each ``(outpoint, witness)`` pair in ``tze_inputs``:
+
+  - ``outpoint`` MUST reference a precondition of the same type and mode in an already-mined
+    transaction.
+  - ``tze_verify(mode, precondition, witness, context)`` MUST return ``true``.
+
+- If a transaction has non-empty ``tze_inputs`` and non-empty ``tze_outputs``,
+  then every element in both fields MUST have the same ``type`` in order to
+  eliminate the possibility for cross-extension attacks. As this is not a
+  consideration in the case that only ``tze_inputs`` or only ``tze_outputs``
+  are present, the extension ``type`` MAY vary between elements in that case.
+
+- Non-coinbase transactions MUST have at least one of the following:
+  - nonempty transparent inputs
+  - nonempty shielded inputs
+  - nonempty ``tze_inputs``
+
+The above rule replaces ``[Sapling onward] At least one of tx_in_count,
+nShieldedSpend, and nJoinSplit MUST be nonzero`` in [#protocol-txnconsensus]_.
+
+- Transactions MUST have at least one of the following:
+  - nonempty transparent outputs
+  - nonempty shielded outputs
+  - nonempty ``tze_outputs``
+
+- All ``amount`` field values of ``tze_output`` records MUST be nonnegative and not greater
+  than ``MAX_MONEY``.
+
+- The sum of amounts going out of the transparent value pool of a transaction (that is,
+  Bitcoin-style outputs and TZE outputs, plus JoinSplit ``vpub_old`` values) MUST NOT
+  exceed the sum of amounts going into that pool (that is, Bitcoin-style inputs and TZE
+  inputs, plus JoinSplit ``vpub_new`` values, plus the Sapling ``valueBalance`` amount).
+
+Changes to signatures over transaction digests
+----------------------------------------------
+
+This ZIP MUST be deployed in conjunction with or after ZIP 244 [#zip-0244]_, which defines
+new non-malleable transaction identifier and signature digest algorithms.
+
+The newly added parts of the transaction, excluding witness information (i.e. not the
+``witness`` fields of TZE Input Encodings), will be included in transaction digests for
+transaction identifiers and signatures.  See ZIP 245 [#zip-0245]_ for the specification of
+these new digests. If the changes in this ZIP are deployed, those described in ZIP 245
+MUST be deployed as well.
+
+
+Rationale
+=========
+
+Transactions that have both TZE inputs and outputs are required to use a single extension
+type, in order to prevent cross-protocol attacks. The downside is that this prevents all
+TZE-encumbered value from being spent directly into a different TZE type; the value needs
+to go through a regular address in between. This restriction might be relaxed in future
+ZIPs for specific combinations of ``(type, mode)`` pairs that have been analyzed for
+cross-protocol attacks, but we opt here for a fail-safe default behaviour.
+
+Transactions with TZE inputs which do not contain TZE outputs are not subject
+to single-extension or single-mode restrictions; likewise, transactions which
+contain TZE outputs without any TZE inputs may produce TZE outputs for multiple
+extension-type/mode pairs as the potential for cross-protocol attacks in this
+situation is negligible.
+
+An earlier draft version of this ZIP stored the payloads inside transparent inputs and
+outputs. Although this had the advantage of not requiring a transaction format change,
+the consensus rules were significantly more complicated, and the design coupled the
+extension logic too tightly to the transparent address logic. Instead, this ZIP uses
+dedicated transaction fields, and a separate unspent output set.
+
+
+Security and Privacy Considerations for Future TZE Implementations
+==================================================================
+
+This ZIP assumes that the base transaction format is non-malleable. However, the
+``precondition`` and ``witness`` byte sequences are treated here as opaque. It is the
+responsibility of ``tze_verify`` to enforce the following:
+
+- ``precondition`` MUST be non-malleable: any malleation MUST cause ``tze_verify`` to
+  return ``false``.
+- The output of ``tze_verify(mode, precondition, witness, context)`` MUST be deterministic.
+
+ZIPs defining new extension types MUST include a section explaining how any potential
+sources of malleability are handled.
+
+This ZIP includes restrictions to prevent cross-protocol attacks, but the extension mode
+is another potential attack surface. It is the responsibility of ZIPs defining new
+extensions to examine the potential for cross-mode attacks within their security analysis,
+and/or appropriately restrict which modes may be combined within a single transaction.
+
+
+Reference Implementation
+========================
+
+- Librustzcash reference implementation of TZE API: [#librustzcash_zip222]_
+- Zcashd reference implementation of consensus rule changes: [#zcashd_zip222]_
+
+
+Acknowledgements
+================
+
+The handler semantics of ``tze_verify`` were suggested by Zaki Manian, drawing on the
+design of Cosmos. Daira-Emma Hopwood and Sean Bowe gave useful feedback on an early draft of
+this ZIP, and helped to analyse the various sources of transaction ID malleability.
+
+We would also like to thank the numerous other individuals who participated in discussions
+at Zcon1 that led to the earlier draft version of this ZIP.
+
+
+References
+==========
+
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#protocol] `Zcash Protocol Specification, Version 2021.2.16 or later <protocol/protocol.pdf>`_
+.. [#protocol-constants] `Zcash Protocol Specification, Version 2021.2.16. Section 5.3: Constants <protocol/protocol.pdf#constants>`_
+.. [#protocol-txnconsensus] `Zcash Protocol Specification, Version 2021.2.16. Section 7.1: Transaction Consensus Rules <protocol/protocol.pdf#txnconsensus>`_
+.. [#zip-0032] `ZIP 32: Shielded Hierarchical Deterministic Wallets <zip-0032.rst>`_
+.. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
+.. [#zip-0244] `ZIP 244: Transaction Non-Malleability Support <zip-0244.rst>`_
+.. [#zip-0245] `ZIP 245: Transaction Identifier Digests & Signature Validation for Transparent Zcash Extensions <zip-0245.rst>`_
+.. [#zip-draft-bolt] `Draft ZIP: Add support for Blind Off-chain Lightweight Transactions (Bolt) protocol <https://github.com/zcash/zips/pull/216>`_
+.. [#librustzcash_zip222] `Rust language reference implementation of TZE API <https://github.com/zcash/librustzcash/pull/286>`_
+.. [#zcashd_zip222] `zcashd reference implementation of consensus rule changes <https://github.com/zcash/zcash/pull/4480>`_

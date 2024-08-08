@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZIP 207: Funding Streams</title>
+    <meta charset="utf-8" />
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+    <section>
+        <pre>ZIP: 207
+Title: Funding Streams
+Owners: Jack Grigg &lt;str4d@electriccoin.co&gt;
+        Daira-Emma Hopwood &lt;daira-emma@electriccoin.co&gt;
+Status: Final
+Category: Consensus
+Created: 2019-01-04
+License: MIT</pre>
+        <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The key words "MUST", "SHOULD", "SHOULD NOT", and "MAY" in this document are to be interpreted as described in BCP 14 <a id="footnote-reference-1" class="footnote_reference" href="#bcp14">1</a> when, and only when, they appear in all capitals.</p>
+            <p>The terms "block subsidy" and "halving" in this document are to be interpreted as described in sections 3.9 and 7.7 of the Zcash Protocol Specification. <a id="footnote-reference-2" class="footnote_reference" href="#protocol-subsidyconcepts">3</a> <a id="footnote-reference-3" class="footnote_reference" href="#protocol-subsidies">7</a></p>
+            <p>The terms "consensus branch" and "network upgrade" in this document are to be interpreted as described in ZIP 200. <a id="footnote-reference-4" class="footnote_reference" href="#zip-0200">10</a></p>
+            <p>The terms below are to be interpreted as follows:</p>
+            <dl>
+                <dt>Canopy</dt>
+                <dd>Code-name for the fifth Zcash network upgrade, also known as Network Upgrade 4.</dd>
+                <dt>Testnet</dt>
+                <dd>The Zcash test network, as defined in the Zcash Protocol Specification. <a id="footnote-reference-5" class="footnote_reference" href="#protocol-networks">4</a></dd>
+                <dt>Mainnet</dt>
+                <dd>The Zcash production network, as defined in the Zcash Protocol Specification. <a id="footnote-reference-6" class="footnote_reference" href="#protocol-networks">4</a></dd>
+            </dl>
+        </section>
+        <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This proposal specifies a mechanism to support funding streams, distributed from a portion of the block subsidy for a specified range of block heights.</p>
+            <p>This is intended as a means of implementing the Zcash Development Fund, using the funding stream definitions specified in ZIP 214 <a id="footnote-reference-7" class="footnote_reference" href="#zip-0214">14</a>. It should be read in conjunction with ZIP 1014 <a id="footnote-reference-8" class="footnote_reference" href="#zip-1014">16</a>, which describes the high-level requirements for that fund.</p>
+        </section>
+        <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>Motivation for the Zcash Development Fund is considered in ZIP 1014 <a id="footnote-reference-9" class="footnote_reference" href="#zip-1014">16</a>.</p>
+            <p>This ZIP 207 was originally proposed for the Blossom network upgrade, as a means of splitting the original Founders' Reward into several streams. It was then withdrawn when such splitting was judged to be unnecessary at the consensus level. Since the capabilities of the funding stream mechanism match the requirements for the Zcash Development Fund, the ZIP is being reintroduced for that purpose in order to reuse specification, analysis, and implementation effort.</p>
+        </section>
+        <section id="requirements"><h2><span class="section-heading">Requirements</span><span class="section-anchor"> <a rel="bookmark" href="#requirements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The primary requirement of this ZIP is to provide a mechanism for specifying the funding streams that are used in ZIP 214 <a id="footnote-reference-10" class="footnote_reference" href="#zip-0214">14</a> to implement the Zcash Development Fund. It should be sufficiently expressive to handle both the main three "slices" (BP, ZF, and MG) defined in ZIP 1014 <a id="footnote-reference-11" class="footnote_reference" href="#zip-1014">16</a>, and also (with additional funding stream definitions) the "direct grant option" described in that ZIP.</p>
+            <p>As for the original Founders' Reward, a mechanism is provided to allow addresses for a given funding stream to be changed on a roughly-monthly basis, so that keys that are not yet needed may be kept off-line as a security measure.</p>
+        </section>
+        <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <section id="definitions"><h3><span class="section-heading">Definitions</span><span class="section-anchor"> <a rel="bookmark" href="#definitions"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>We use the following constants and functions defined in <a id="footnote-reference-12" class="footnote_reference" href="#protocol-constants">5</a>, <a id="footnote-reference-13" class="footnote_reference" href="#protocol-diffadjustment">6</a>, <a id="footnote-reference-14" class="footnote_reference" href="#protocol-subsidies">7</a>, and <a id="footnote-reference-15" class="footnote_reference" href="#protocol-foundersreward">8</a>:</p>
+                <ul>
+                    <li>
+                        <span class="math">\(\mathsf{BlossomActivationHeight}\)</span>
+                    </li>
+                    <li>
+                        <span class="math">\(\mathsf{PostBlossomHalvingInterval}\)</span>
+                    </li>
+                    <li>
+                        <span class="math">\(\mathsf{Halving}(\mathsf{height})\)</span>
+                    </li>
+                    <li>
+                        <span class="math">\(\mathsf{BlockSubsidy}(\mathsf{height})\)</span>
+                    </li>
+                    <li>
+                        <span class="math">\(\mathsf{RedeemScriptHash}(\mathsf{height})\)</span>
+                    .</li>
+                </ul>
+                <p>We also define the following function:</p>
+                <ul>
+                    <li>
+                        <span class="math">\(\mathsf{HeightForHalving}(\mathsf{halving})\)</span>
+                    : Smallest
+                        <span class="math">\(\mathsf{height}\)</span>
+                     such that
+                        <span class="math">\(\mathsf{Halving}(\mathsf{height}) = \mathsf{halving}\)</span>
+                    </li>
+                </ul>
+            </section>
+            <section id="funding-streams"><h3><span class="section-heading">Funding streams</span><span class="section-anchor"> <a rel="bookmark" href="#funding-streams"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>A funding stream is defined by a block subsidy fraction (represented as a numerator and a denominator), a start height (inclusive), and an end height (exclusive).</p>
+                <p>By defining the issuance as a proportion of the total block subsidy, rather than absolute zatoshis, this ZIP dovetails with any changes to both block target spacing and issuance-per-block rates. Such a change occurred at the Blossom network upgrade, for example. <a id="footnote-reference-16" class="footnote_reference" href="#zip-0208">11</a></p>
+                <p>The value of a funding stream at a given block height is defined as:</p>
+                <div class="math">\(\mathsf{FundingStream[FUND].Value}(\mathsf{height}) =
+    \mathsf{floor}\left(
+        \frac{\mathsf{BlockSubsidy}(\mathsf{height}) \,\cdot\, \mathsf{FundingStream[FUND].ValueNumerator}}{\mathsf{FundingStream[FUND].ValueDenominator}}
+    \right)\)</div>
+                <p>An active funding stream at a given block height is defined as a funding stream for which the block height is less than its end height, but not less than its start height.</p>
+                <p>Each funding stream has an associated sequence of recipient addresses, each of which MUST be either a transparent P2SH address or a Sapling address.</p>
+                <p>Each address is used for at most 1/48th of a halving interval, creating a roughly-monthly sequence of funding periods. The address to be used for a given block height is defined as follows:</p>
+                <div class="math">\(\begin{eqnarray*}
+    \mathsf{AddressChangeInterval} &amp;=&amp; \mathsf{PostBlossomHalvingInterval} / 48 \\
+    \mathsf{AddressPeriod}(\mathsf{height}) &amp;=&amp;
+        \mathsf{floor}\left(
+            {\small\frac{\mathsf{height} + \mathsf{PostBlossomHalvingInterval} - \mathsf{HeightForHalving}(1)}{\mathsf{AddressChangeInterval}}}
+        \right) \\
+    \mathsf{FundingStream[FUND].AddressIndex}(\mathsf{height}) &amp;=&amp;
+        \mathsf{AddressPeriod}(\mathsf{height}) - \\&amp;&amp;\hspace{2em} \mathsf{AddressPeriod}(\mathsf{FundingStream[FUND].StartHeight}) \\
+    \mathsf{FundingStream[FUND].Address}(\mathsf{height}) &amp;=&amp; \mathsf{FundingStream[FUND].Addresses[} \\&amp;&amp;\hspace{2em} \mathsf{FundingStream[FUND].AddressIndex}(\mathsf{height})\mathsf{]}
+\end{eqnarray*}\)</div>
+                <p>This has the property that all active funding streams change the address they are using on the same block height schedule, aligned to the height of the first halving so that 48 funding periods fit cleanly within a halving interval. This can be leveraged to simplify implementations, by batching the necessary outputs for each funding period.</p>
+                <p>Below is a visual representation of how stream addresses align with funding periods:</p>
+                <blockquote>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Example height</th>
+                                <th>Stream A</th>
+                                <th>Stream B</th>
+                                <th>Stream C</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>AddressChangeInterval - 2</code></td>
+                                <td>A0</td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td><code>AddressChangeInterval - 1</code></td>
+                                <td>A0</td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td><code>AddressChangeInterval</code></td>
+                                <td>A1</td>
+                                <td>B0</td>
+                                <td>C0</td>
+                            </tr>
+                            <tr>
+                                <td><code>AddressChangeInterval + 1</code></td>
+                                <td>A1</td>
+                                <td>B0</td>
+                                <td>C0</td>
+                            </tr>
+                            <tr>
+                                <td>...</td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td><code>2*AddressChangeInterval - 2</code></td>
+                                <td>A1</td>
+                                <td>B0</td>
+                                <td>C0</td>
+                            </tr>
+                            <tr>
+                                <td><code>2*AddressChangeInterval - 1</code></td>
+                                <td>A1</td>
+                                <td>B0</td>
+                                <td>C0</td>
+                            </tr>
+                            <tr>
+                                <td><code>2*AddressChangeInterval</code></td>
+                                <td>A2</td>
+                                <td></td>
+                                <td>C1</td>
+                            </tr>
+                            <tr>
+                                <td><code>2*AddressChangeInterval + 1</code></td>
+                                <td>A2</td>
+                                <td></td>
+                                <td>C1</td>
+                            </tr>
+                            <tr>
+                                <td>...</td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td><code>PostBlossomHalvingInterval - 2</code></td>
+                                <td>A2</td>
+                                <td></td>
+                                <td>C1</td>
+                            </tr>
+                            <tr>
+                                <td><code>PostBlossomHalvingInterval - 1</code></td>
+                                <td>A2</td>
+                                <td></td>
+                                <td>C1</td>
+                            </tr>
+                            <tr>
+                                <td><code>PostBlossomHalvingInterval</code></td>
+                                <td></td>
+                                <td></td>
+                                <td>C2</td>
+                            </tr>
+                            <tr>
+                                <td><code>PostBlossomHalvingInterval + 1</code></td>
+                                <td></td>
+                                <td></td>
+                                <td>C2</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </blockquote>
+                <p>On Mainnet, Canopy is planned to activate exactly at the point when the Founders' Reward expires, at block height 1046400. On Testnet, there will be a shortened Founders' Reward address period prior to Canopy activation.</p>
+            </section>
+            <section id="consensus-rules"><h3><span class="section-heading">Consensus rules</span><span class="section-anchor"> <a rel="bookmark" href="#consensus-rules"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Prior to activation of the Canopy network upgrade, the existing consensus rule for payment of the original Founders' Reward is enforced. <a id="footnote-reference-17" class="footnote_reference" href="#protocol-foundersreward">8</a></p>
+                <p>Once the Canopy network upgrade activates:</p>
+                <ul>
+                    <li>The existing consensus rule for payment of the Founders' Reward <a id="footnote-reference-18" class="footnote_reference" href="#protocol-foundersreward">8</a> is no longer active. (This would be the case under the preexisting consensus rules for Mainnet, but not for Testnet.)</li>
+                    <li>The coinbase transaction in each block MUST contain at least one output per active funding stream that pays the stream's value in the prescribed way to the stream's recipient address for the block's height.</li>
+                    <li>The "prescribed way" to pay a transparent P2SH address is to use a standard P2SH script of the form <code>OP_HASH160 RedeemScriptHash(height) OP_EQUAL</code> as the <code>scriptPubKey</code>.</li>
+                    <li>The "prescribed way" to pay a Sapling address is as defined in <a id="footnote-reference-19" class="footnote_reference" href="#zip-0213">13</a>. That is, all Sapling outputs in coinbase transactions (including, but not limited to, outputs for funding streams) MUST have valid note commitments when recovered using a 32-byte array of zeroes as the outgoing viewing key. In this case the note plaintext lead byte MUST be
+                        <span class="math">\(\mathbf{0x02}\)</span>
+                    , as specified in <a id="footnote-reference-20" class="footnote_reference" href="#zip-0212">12</a>.</li>
+                </ul>
+                <p>For the funding stream definitions to be activated at Canopy, see ZIP 214. <a id="footnote-reference-21" class="footnote_reference" href="#zip-0214">14</a> Funding stream definitions can be added, changed, or deleted in ZIPs associated with subsequent network upgrades, subject to the ZIP process. <a id="footnote-reference-22" class="footnote_reference" href="#zip-0000">9</a></p>
+            </section>
+        </section>
+        <section id="deployment"><h2><span class="section-heading">Deployment</span><span class="section-anchor"> <a rel="bookmark" href="#deployment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This proposal is intended to be deployed with Canopy. <a id="footnote-reference-23" class="footnote_reference" href="#zip-0251">15</a></p>
+        </section>
+        <section id="backward-compatibility"><h2><span class="section-heading">Backward compatibility</span><span class="section-anchor"> <a rel="bookmark" href="#backward-compatibility"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This proposal intentionally creates what is known as a "bilateral consensus rule change". Use of this mechanism requires that all network participants upgrade their software to a compatible version within the upgrade window. Older software will treat post-upgrade blocks as invalid, and will follow any pre-upgrade consensus branch that persists.</p>
+        </section>
+        <section id="reference-implementation"><h2><span class="section-heading">Reference Implementation</span><span class="section-anchor"> <a rel="bookmark" href="#reference-implementation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <ul>
+                <li><a href="https://github.com/zcash/zcash/pull/4560">https://github.com/zcash/zcash/pull/4560</a></li>
+                <li><a href="https://github.com/zcash/zcash/pull/4675">https://github.com/zcash/zcash/pull/4675</a></li>
+                <li><a href="https://github.com/zcash/zcash/pull/4830">https://github.com/zcash/zcash/pull/4830</a></li>
+            </ul>
+        </section>
+        <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <table id="bcp14" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>1</th>
+                        <td><a href="https://www.rfc-editor.org/info/bcp14">Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>2</th>
+                        <td><a href="protocol/protocol.pdf">Zcash Protocol Specification, Version 2021.2.16 or later</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-subsidyconcepts" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>3</th>
+                        <td><a href="protocol/protocol.pdf#subsidyconcepts">Zcash Protocol Specification, Version 2021.2.16. Section 3.10: Block Subsidy and Founders' Reward</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-networks" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>4</th>
+                        <td><a href="protocol/protocol.pdf#networks">Zcash Protocol Specification, Version 2021.2.16. Section 3.12: Mainnet and Testnet</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-constants" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>5</th>
+                        <td><a href="protocol/protocol.pdf#constants">Zcash Protocol Specification, Version 2021.2.16. Section 5.3: Constants</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-diffadjustment" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>6</th>
+                        <td><a href="protocol/protocol.pdf#diffadjustment">Zcash Protocol Specification, Version 2021.2.16. Section 7.7.3: Difficulty adjustment</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-subsidies" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>7</th>
+                        <td><a href="protocol/protocol.pdf#subsidies">Zcash Protocol Specification, Version 2021.2.16. Section 7.8: Calculation of Block Subsidy, Funding Streams, and Founders' Reward</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-foundersreward" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>8</th>
+                        <td><a href="protocol/protocol.pdf#foundersreward">Zcash Protocol Specification, Version 2021.2.16. Section 7.9: Payment of Founders' Reward</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0000" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>9</th>
+                        <td><a href="zip-0000">ZIP 0: ZIP Process</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0200" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>10</th>
+                        <td><a href="zip-0200">ZIP 200: Network Upgrade Mechanism</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0208" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>11</th>
+                        <td><a href="zip-0208">ZIP 208: Shorter Block Target Spacing</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0212" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>12</th>
+                        <td><a href="zip-0212">ZIP 212: Allow Recipient to Derive Sapling Ephemeral Secret from Note Plaintext</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0213" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>13</th>
+                        <td><a href="zip-0213">ZIP 213: Shielded Coinbase</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0214" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>14</th>
+                        <td><a href="zip-0214">ZIP 214: Consensus rules for a Zcash Development Fund</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0251" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>15</th>
+                        <td><a href="zip-0251">ZIP 251: Deployment of the Canopy Network Upgrade</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-1014" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>16</th>
+                        <td><a href="zip-1014">ZIP 1014: Establishing a Dev Fund for ECC, ZF, and Major Grants</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </section>
+</body>
+</html>

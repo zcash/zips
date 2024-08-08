@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZIP 307: Light Client Protocol for Payment Detection</title>
+    <meta charset="utf-8" />
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+    <section>
+        <pre>ZIP: 307
+Title: Light Client Protocol for Payment Detection
+Owners: Jack Grigg &lt;jack@electriccoin.co&gt;
+        Daira-Emma Hopwood &lt;daira-emma@electriccoin.co&gt;
+Original-Authors: George Tankersley
+Credits: Matthew Green
+Category: Standards / Ecosystem
+Status: Draft
+Created: 2018-09-17
+License: MIT</pre>
+        <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The key words "MUST", "SHOULD", and "MAY" in this document are to be interpreted as described in BCP 14 <a id="footnote-reference-1" class="footnote_reference" href="#bcp14">1</a> when, and only when, they appear in all capitals.</p>
+            <p>The terms below are to be interpreted as follows:</p>
+            <dl>
+                <dt>Light client</dt>
+                <dd>A client that is not a full participant in the network of Zcash peers. It can send and receive payments, but does not store or validate a copy of the block chain.</dd>
+            </dl>
+        </section>
+        <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This proposal defines a protocol for a Zcash light client supporting Sapling shielded transactions.</p>
+        </section>
+        <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>Currently a client that wishes to send or receive shielded payments must be a full node participanting in the Zcash network. This requires an amount of available bandwidth, space, and processing power that may be unsuitable for some classes of user. This light client protocol addresses that need, and is appropriate for low-power, bandwidth-conscious, or otherwise limited machines (such as mobile phones).</p>
+        </section>
+        <section id="high-level-design"><h2><span class="section-heading">High-Level Design</span><span class="section-anchor"> <a rel="bookmark" href="#high-level-design"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>There are three logical components to a Zcash light client system:</p>
+            <ul>
+                <li><strong>Zcash node</strong> that provides chain state and serves as a root of trust for the system.</li>
+                <li><strong>Proxy server</strong> that extracts block chain data from zcashd to store and serve it in a lower-bandwidth format.</li>
+                <li><strong>Light client</strong> that subscribes to the stream from a proxy server and uses that data to update its own view of the chain state. The light client MAY be attached to a wallet backend that will track particular Sapling notes.</li>
+            </ul>
+            <figure class="align-center" align="center">
+                <img src="assets/images/zip-0307-arch.png" alt="" />
+                <figcaption>Outline of the light wallet architecture</figcaption>
+            </figure>
+        </section>
+        <section id="security-model"><h2><span class="section-heading">Security Model</span><span class="section-anchor"> <a rel="bookmark" href="#security-model"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>In this model, we propose <strong>payment detection privacy</strong> as our main security goal. That is, the proxy should not learn which transactions (received from the block chain) are addressed to a given light wallet. If we further assume network privacy (via Tor or similar), the proxy should not be able to link different connections or queries as deriving from the the same wallet.</p>
+            <p>In particular, the underlying Zcash node / proxy combination is assumed to be "honest but curious" and is trusted to provide a correct view of the current best chain state and to faithfully transmit queries and responses.</p>
+            <p>This ZIP does not address how to spend notes privately.</p>
+        </section>
+        <section id="compact-stream-format"><h2><span class="section-heading">Compact Stream Format</span><span class="section-anchor"> <a rel="bookmark" href="#compact-stream-format"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>A key observation in this protocol is that the current zcashd encrypted field is several hundred bytes long, due to the inclusion of a transaction “memo”. The need to download this entire field imposes a substantial bandwidth cost on each light wallets, which may be a limited mobile device on a restricted-bandwidth plan. While more efficient techniques can be developed in the future, for the moment we propose ignoring the memo field during payment detection. Futhermore, we can also ignore any information that is not directly relevant to a Sapling shielded transaction.</p>
+            <p>A <strong>compact block</strong> is a packaging of ONLY the data from a block needed to:</p>
+            <ol type="1">
+                <li>Detect a payment to your shielded Sapling address</li>
+                <li>Detect a spend of your shielded Sapling notes</li>
+                <li>Update your witnesses to generate new Sapling spend proofs.</li>
+            </ol>
+            <p>A compact block and its component compact transactions are encoded on the wire using the following Protocol Buffers <a id="footnote-reference-2" class="footnote_reference" href="#protocolbuffers">9</a> format:</p>
+            <pre data-language="proto"><span class="kd">message</span><span class="w"> </span><span class="nc">BlockID</span><span class="w"> </span><span class="p">{</span>
+<span class="w">     </span><span class="kt">uint64</span><span class="w"> </span><span class="na">blockHeight</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">     </span><span class="kt">bytes</span><span class="w"> </span><span class="na">blockHash</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kd">message</span><span class="w"> </span><span class="nc">CompactBlock</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">BlockID</span><span class="w"> </span><span class="na">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="k">repeated</span><span class="w"> </span><span class="n">CompactTx</span><span class="w"> </span><span class="na">vtx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kd">message</span><span class="w"> </span><span class="nc">CompactTx</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">uint64</span><span class="w"> </span><span class="na">txIndex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bytes</span><span class="w"> </span><span class="na">txHash</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">repeated</span><span class="w"> </span><span class="n">CompactSpend</span><span class="w"> </span><span class="na">spends</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span>
+<span class="w">    </span><span class="k">repeated</span><span class="w"> </span><span class="n">CompactOutput</span><span class="w"> </span><span class="na">outputs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kd">message</span><span class="w"> </span><span class="nc">CompactSpend</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">bytes</span><span class="w"> </span><span class="na">nf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kd">message</span><span class="w"> </span><span class="nc">CompactOutput</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">bytes</span><span class="w"> </span><span class="na">cmu</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bytes</span><span class="w"> </span><span class="na">epk</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bytes</span><span class="w"> </span><span class="na">ciphertext</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span>
+<span class="p">}</span></pre>
+            <section id="encoding-details"><h3><span class="section-heading">Encoding Details</span><span class="section-anchor"> <a rel="bookmark" href="#encoding-details"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p><code>blockHash</code>, <code>txHash</code>, <code>nf</code>, <code>cmu</code>, and <code>epk</code> are encoded as specified in the Zcash Protocol Spec.</p>
+                <p>The output and spend descriptions are handled differently, as described in the following sections.</p>
+            </section>
+            <section id="output-compression"><h3><span class="section-heading">Output Compression</span><span class="section-anchor"> <a rel="bookmark" href="#output-compression"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>In the normal Zcash protocol, the output ciphertext consists of the AEAD-encrypted form of a <em>note plaintext</em> <a id="footnote-reference-3" class="footnote_reference" href="#protocol-notept">5</a>:</p>
+                <table>
+                    <tbody>
+                        <tr>
+                            <td>8-bit 0x01</td>
+                            <td>88-bit d</td>
+                            <td>64-bit v</td>
+                            <td>256-bit rseed</td>
+                            <td>memo (512 bytes) + tag (16 bytes)</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p>A recipient detects their transactions by trial-decrypting this ciphertext. On a full node that has the entire block chain, the primary cost is computational. For light clients however, there is an additional bandwidth cost: every ciphertext on the block chain must be received from the server (or network node) the light client is connected to. This results in a total of 580 bytes per output that must be streamed to the client (in addition to the 32-byte ephemeral public key).</p>
+                <p>However, we don't need all of that just to detect payments. The first 52 bytes of the ciphertext contain the contents and opening of the note commitment, which is all of the data needed to spend the note and to verify that the note is spendable. If we ignore the memo and the authentication tag, we're left with a 32-byte ephemeral public key, the 32-byte note commitment, and only the first 52 bytes of the ciphertext for each output needed to decrypt, verify, and spend a note. This totals to 116 bytes per output, for an 80% reduction in bandwidth use.</p>
+                <p>However, skipping the full ciphertext means that we can no longer calculate the authentication tag for the entire ciphertext and will need to do something else to validate the integrity of the decrypted note plaintext.</p>
+                <p>Since the note commitment is sent outside the ciphertext and is authenticated by the binding signature over the entire transaction, it serves as an adequate check on the validity of the decrypted plaintext (assuming you trust the entity assembling transactions). We therefore recalculate the note commitment from the decrypted plaintext. If the recalculated commitment matches the one in the output, we accept the note as valid and spendable.</p>
+            </section>
+            <section id="spend-compression"><h3><span class="section-heading">Spend Compression</span><span class="section-anchor"> <a rel="bookmark" href="#spend-compression"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Recall that a full Sapling Spend description is 384 bytes long <a id="footnote-reference-4" class="footnote_reference" href="#protocol-spendencoding">6</a>:</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Bytes</th>
+                            <th>Name</th>
+                            <th>Type</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>32</td>
+                            <td>cv</td>
+                            <td>char[32]</td>
+                        </tr>
+                        <tr>
+                            <td>32</td>
+                            <td>anchor</td>
+                            <td>char[32]</td>
+                        </tr>
+                        <tr>
+                            <td>32</td>
+                            <td>nullifier</td>
+                            <td>char[32]</td>
+                        </tr>
+                        <tr>
+                            <td>32</td>
+                            <td>rk</td>
+                            <td>char[32]</td>
+                        </tr>
+                        <tr>
+                            <td>192</td>
+                            <td>zkproof</td>
+                            <td>char[192]</td>
+                        </tr>
+                        <tr>
+                            <td>64</td>
+                            <td>spendAuthSig</td>
+                            <td>char[64]</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p>The only part necessary for detection is the nullifier, which allows a light client to detect when one of its own notes has been spent. This means we only need to take 32 bytes of each Spend, for a 90% improvement in bandwidth use.</p>
+            </section>
+        </section>
+        <section id="proxy-operation"><h2><span class="section-heading">Proxy operation</span><span class="section-anchor"> <a rel="bookmark" href="#proxy-operation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The proxy's purpose is to provide a scalable and bandwidth-efficient interface between a Zcash node and any number of light clients. It accomplishes this by parsing a blockwise stream of transactions from the node and converting them into the compact format described above.</p>
+            <p><em>The details of the API described below may differ from the implementation.</em></p>
+            <p>The proxy offers the following API to clients:</p>
+            <pre data-language="proto"><span class="kd">service</span><span class="w"> </span><span class="n">CompactTxStreamer</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">rpc</span><span class="w"> </span><span class="n">GetLatestBlock</span><span class="p">(</span><span class="n">ChainSpec</span><span class="p">)</span><span class="w"> </span><span class="k">returns</span><span class="w"> </span><span class="p">(</span><span class="n">BlockID</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span>
+<span class="w">    </span><span class="k">rpc</span><span class="w"> </span><span class="n">GetBlock</span><span class="p">(</span><span class="n">BlockID</span><span class="p">)</span><span class="w"> </span><span class="k">returns</span><span class="w"> </span><span class="p">(</span><span class="n">CompactBlock</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span>
+<span class="w">    </span><span class="k">rpc</span><span class="w"> </span><span class="n">GetBlockRange</span><span class="p">(</span><span class="n">RangeFilter</span><span class="p">)</span><span class="w"> </span><span class="k">returns</span><span class="w"> </span><span class="p">(</span><span class="n">stream</span><span class="w"> </span><span class="n">CompactBlock</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span>
+<span class="w">    </span><span class="k">rpc</span><span class="w"> </span><span class="n">GetTransaction</span><span class="p">(</span><span class="n">TxFilter</span><span class="p">)</span><span class="w"> </span><span class="k">returns</span><span class="w"> </span><span class="p">(</span><span class="n">FullTransaction</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span>
+<span class="p">}</span>
+
+<span class="c1">// Remember that proto3 fields are all optional.</span>
+
+<span class="c1">// Someday we may want to specify e.g. a particular chain fork.</span>
+<span class="kd">message</span><span class="w"> </span><span class="nc">ChainSpec</span><span class="w"> </span><span class="p">{}</span>
+
+
+<span class="c1">// A BlockID message contains identifiers to select a block: either a</span>
+<span class="c1">// height or a hash.</span>
+<span class="kd">message</span><span class="w"> </span><span class="nc">BlockID</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">uint64</span><span class="w"> </span><span class="na">blockHeight</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bytes</span><span class="w"> </span><span class="na">blockHash</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="p">}</span>
+
+
+<span class="kd">message</span><span class="w"> </span><span class="nc">RangeFilter</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">BlockID</span><span class="w"> </span><span class="na">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="n">BlockID</span><span class="w"> </span><span class="na">end</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">// A TxFilter contains the information needed to identify a particular</span>
+<span class="c1">// transaction: either a block and an index, or a direct transaction hash.</span>
+<span class="kd">message</span><span class="w"> </span><span class="nc">TxFilter</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">BlockID</span><span class="w"> </span><span class="na">blockID</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint64</span><span class="w"> </span><span class="na">txIndex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bytes</span><span class="w"> </span><span class="na">txHash</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span>
+<span class="p">}</span></pre>
+        </section>
+        <section id="client-operation"><h2><span class="section-heading">Client operation</span><span class="section-anchor"> <a rel="bookmark" href="#client-operation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>Light clients obtain compact blocks from one or more proxy servers, which they then process locally to update their view of the block chain. We consider only a single proxy server here without loss of generality.</p>
+            <section id="local-processing"><h3><span class="section-heading">Local processing</span><span class="section-anchor"> <a rel="bookmark" href="#local-processing"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Given a <code>CompactBlock</code> at block height
+                    <span class="math">\(\mathsf{height}\)</span>
+                 received in height-sequential order from a proxy server, a light client can process it in four ways:</p>
+                <section id="scanning-for-relevant-transactions"><h4><span class="section-heading">Scanning for relevant transactions</span><span class="section-anchor"> <a rel="bookmark" href="#scanning-for-relevant-transactions"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>For every <code>CompactOutput</code> in the <code>CompactBlock</code>, the light client can trial-decrypt it against a set of Sapling incoming viewing keys. The procedure for trial-decrypting a <code>CompactOutput</code>
+                        <span class="math">\((\mathtt{cmu}, \mathtt{ephemeralKey}, \mathsf{ciphertext})\)</span>
+                     with an incoming viewing key
+                        <span class="math">\(\mathsf{ivk}\)</span>
+                     is a slight deviation from the standard decryption process <a id="footnote-reference-5" class="footnote_reference" href="#protocol-saplingdecryptivk">4</a> (all constants and algorithms are as defined there):</p>
+                    <ul>
+                        <li>let
+                            <span class="math">\(\mathsf{epk} = \mathsf{abst}_{\mathbb{J}}(\mathtt{ephemeralKey})\)</span>
+                        </li>
+                        <li>if
+                            <span class="math">\(\mathsf{epk} = \bot\)</span>
+                        , return
+                            <span class="math">\(\bot\)</span>
+                        </li>
+                        <li>let
+                            <span class="math">\(\mathsf{sharedSecret} = \mathsf{KA^{Sapling}.Agree}(\mathsf{ivk}, \mathsf{epk})\)</span>
+                        </li>
+                        <li>let
+                            <span class="math">\(K^{\mathsf{enc}} = \mathsf{KDF^{Sapling}}(\mathsf{sharedSecret}, \mathtt{ephemeralKey})\)</span>
+                        </li>
+                        <li>let
+                            <span class="math">\(P^{\mathsf{enc}} = \mathsf{ChaCha20.Decrypt}_{K^{\mathsf{enc}}}(\mathsf{ciphertext})\)</span>
+                        </li>
+                        <li>extract
+                            <span class="math">\(\mathbf{np} = (\mathsf{leadByte}, \mathsf{d}, \mathsf{v}, \mathsf{rseed})\)</span>
+                         from
+                            <span class="math">\(P^{\mathsf{enc}}\)</span>
+                        </li>
+                        <li>[Pre-Canopy] if
+                            <span class="math">\(\mathsf{leadByte} \neq 0x01\)</span>
+                        , return
+                            <span class="math">\(\bot\)</span>
+                        </li>
+                        <li>[Pre-Canopy] let
+                            <span class="math">\(\mathsf{\underline{rcm}} = \mathsf{rseed}\)</span>
+                        </li>
+                        <li>[Canopy onward] if
+                            <span class="math">\(\mathsf{height} &lt; \mathsf{CanopyActivationHeight} + \mathsf{ZIP212GracePeriod}\)</span>
+                         and
+                            <span class="math">\(\mathsf{leadByte} \not\in \{ \mathtt{0x01}, \mathtt{0x02} \}\)</span>
+                        , return
+                            <span class="math">\(\bot\)</span>
+                        </li>
+                        <li>[Canopy onward] if
+                            <span class="math">\(\mathsf{height} &lt; \mathsf{CanopyActivationHeight} + \mathsf{ZIP212GracePeriod}\)</span>
+                         and
+                            <span class="math">\(\mathsf{leadByte} \neq \mathtt{0x02}\)</span>
+                        , return
+                            <span class="math">\(\bot\)</span>
+                        </li>
+                        <li>[Canopy onward] let
+                            <span class="math">\(\mathsf{\underline{rcm}} = \begin{cases}\mathsf{rseed}, &amp;\text{if } \mathsf{leadByte} = \mathtt{0x01} \\ \mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([5])), &amp;\text{otherwise}\end{cases}\)</span>
+                        </li>
+                        <li>let
+                            <span class="math">\(\mathsf{rcm} = \mathsf{LEOS2IP}_{256}(\mathsf{\underline{rcm}})\)</span>
+                         and
+                            <span class="math">\(\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})\)</span>
+                        </li>
+                        <li>if
+                            <span class="math">\(\mathsf{rcm} \geq r_{\mathbb{J}}\)</span>
+                         or
+                            <span class="math">\(\mathsf{g_d} = \bot\)</span>
+                        , return
+                            <span class="math">\(\bot\)</span>
+                        </li>
+                        <li>[Canopy onward] if
+                            <span class="math">\(\mathsf{leadByte} \neq \mathtt{0x01}\)</span>
+                        :
+                            <ul>
+                                <li>
+                                    <span class="math">\(\mathsf{esk} = \mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([4]))\)</span>
+                                </li>
+                                <li>if
+                                    <span class="math">\(\mathsf{repr}_{\mathbb{J}}(\mathsf{KA^{Sapling}.DerivePublic}(\mathsf{esk}, \mathsf{g_d})) \neq \mathtt{ephemeralKey}\)</span>
+                                , return
+                                    <span class="math">\(\bot\)</span>
+                                </li>
+                            </ul>
+                        </li>
+                        <li>let
+                            <span class="math">\(\mathsf{pk_d} = \mathsf{KA^{Sapling}.DerivePublic}(\mathsf{ivk}, \mathsf{g_d})\)</span>
+                        </li>
+                        <li>let
+                            <span class="math">\(\mathsf{cm}_u' = \mathsf{Extract}_{\mathbb{J}^{(r)}}(\mathsf{NoteCommit^{Sapling}_{rcm}}(\mathsf{repr}_{\mathbb{J}}(\mathsf{g_d}), \mathsf{repr}_{\mathbb{J}}(\mathsf{pk_d}), \mathsf{v}))\)</span>
+                        .</li>
+                        <li>if
+                            <span class="math">\(\mathsf{LEBS2OSP}_{256}(\mathsf{cm}_u') \neq \mathtt{cmu}\)</span>
+                        , return
+                            <span class="math">\(\bot\)</span>
+                        </li>
+                        <li>return
+                            <span class="math">\(\mathbf{np}\)</span>
+                        .</li>
+                    </ul>
+                </section>
+                <section id="creating-and-updating-note-witnesses"><h4><span class="section-heading">Creating and updating note witnesses</span><span class="section-anchor"> <a rel="bookmark" href="#creating-and-updating-note-witnesses"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>As <code>CompactBlocks</code> are received in height order, and the transactions within them have their order preserved, the <em>cmu</em> values in each <code>CompactOutput</code> can be sequentially appended to an incremental Merkle tree of depth 32 in order to maintain a local copy of the Sapling note commitment tree. <a id="footnote-reference-6" class="footnote_reference" href="#protocol-merkletree">2</a> This can then be used to create incremental witnesses for each unspent note the light client is tracking. <a id="footnote-reference-7" class="footnote_reference" href="#incremental-witness">10</a> An incremental witness updated to height <code>X</code> corresponds to a Merkle path from the note to the Sapling commitment tree anchor for block <code>X</code>. <a id="footnote-reference-8" class="footnote_reference" href="#protocol-merklepath">3</a></p>
+                    <p>Let <code>tree</code> be the Sapling note commitment tree at height <code>X-1</code>, and <code>note_witnesses</code> be the incremental witnesses for unspent notes detected up to height <code>X-1</code>. When the <code>CompactBlock</code> at height <code>X</code> is received:</p>
+                    <ul>
+                        <li>For each <code>CompactTx</code> in <code>CompactBlock</code>:
+                            <ul>
+                                <li>For each <code>CompactOutput</code> (<em>cmu</em>, <em>epk</em>, <em>ciphertext</em>) in <code>CompactBlock</code>:
+                                    <ul>
+                                        <li>Append <code>cmu</code> to <code>tree</code>.</li>
+                                        <li>For <code>witness</code> in <code>note_witnesses</code>:
+                                            <ul>
+                                                <li>Append <code>cmu</code> to <code>witness</code>.</li>
+                                            </ul>
+                                        </li>
+                                        <li>If <code>ciphertext</code> contains a relevant note, create an incremental witness from <code>tree</code> and append it to <code>note_witnesses</code>.</li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                    <p>Incremental Merkle trees cannot be rewound, so the light client should cache both the Sapling note commitment tree and per-note incremental witnesses for recent block heights. Cache management is implementation-dependent, but a cache size of 100 is reasonable, as no full Zcash node will roll back the chain by more than 100 blocks.</p>
+                </section>
+                <section id="detecting-spends"><h4><span class="section-heading">Detecting spends</span><span class="section-anchor"> <a rel="bookmark" href="#detecting-spends"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>The <code>CompactSpend</code> entries can be checked against known local nullifiers, to for example ensure that a transaction has been received by the network and mined.</p>
+                </section>
+                <section id="block-header-validation"><h4><span class="section-heading">Block header validation</span><span class="section-anchor"> <a rel="bookmark" href="#block-header-validation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p><em>This section describes a proposed enhancement that has been only partially implemented: currently only</em> <code>prevHash</code> <em>is checked.</em></p>
+                    <p>If the <code>CompactBlock</code> for height <code>X</code> contains a block header, the light client can validate it in a similar way to SPV clients <a id="footnote-reference-9" class="footnote_reference" href="#spv-clients">11</a> by performing the following checks:</p>
+                    <ul>
+                        <li><code>version &gt;= MIN_BLOCK_VERSION</code></li>
+                        <li><code>prevHash == prevBlock.id.blockHash</code> where <code>prevBlock</code> is the previous <code>CompactBlock</code> received (at height <code>X-1</code>).</li>
+                        <li><code>finalSaplingRoot</code> is equal to the root of the Sapling note commitment tree after appending every <code>cmu</code> in the <code>CompactBlock</code> in-order.</li>
+                        <li>The Equihash solution is valid.</li>
+                        <li><code>targetFromBits(bits) != 0 &amp;&amp; targetFromBits(bits) &lt;= powLimit</code>.</li>
+                        <li>If the last 27 <code>CompactBlocks</code> all have block headers, <code>bits</code> is set correctly according to the difficulty adjustment algorithm.</li>
+                        <li><code>toLittleEndian(blockHash) &lt;= targetFromBits(bits)</code>.</li>
+                    </ul>
+                    <p>A <code>CompactBlock</code> that fails any of these checks MUST be discarded. If it was received as part of a <code>GetBlockRange</code> call, the call MUST be aborted.</p>
+                    <p>Block header validation provides light clients with some assurance that the <code>CompactOutputs</code> being sent to them are indeed from valid blocks that have been mined. The strongest-possible assurance is achieved when all block headers are synchronised; this comes at the cost of bandwidth and storage.</p>
+                    <p>By default, <code>CompactBlocks</code> only contain <code>CompactTxs</code> for transactions that contain Sapling spends or outputs. Thus they do not contain sufficient information to validate that the received transaction IDs correspond to the transaction tree root in the block header. This does not have a significant effect on light client security: light clients only directly depend on <code>CompactOutputs</code>, which can be authenticated via block header validation. If a txid is used in a <code>GetTransaction</code> call, the returned transaction SHOULD be checked against the corresponding <code>CompactOutputs</code>, in addition to verifying the transaction signatures.</p>
+                </section>
+                <section id="potential-extensions"><h4><span class="section-heading">Potential extensions</span><span class="section-anchor"> <a rel="bookmark" href="#potential-extensions"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>A trivial extension (with corresponding bandwidth cost) would be to transmit empty <code>CompactTxs</code> corresponding to transactions that do not contain Sapling spends or outputs. A more complex extension would send the inner nodes within the transaction trees corresponding to non-Sapling-relevant subtrees; this would require strictly less bandwidth that the trivial extension. These extensions are not currently defined.</p>
+                </section>
+            </section>
+            <section id="client-server-interaction"><h3><span class="section-heading">Client-server interaction</span><span class="section-anchor"> <a rel="bookmark" href="#client-server-interaction"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>We can divide the typical client-server interaction into four distinct phases:</p>
+                <pre data-language="text">Phase   Client                Server
+=====   ============================
+  A     GetLatestBlock ------------&gt;
+
+        &lt;---------------- BlockID(X)
+
+        GetBlock(X) ---------------&gt;
+
+        &lt;----------- CompactBlock(X)
+
+            ===
+
+  B     GetLatestBlock ------------&gt;
+
+        &lt;---------------- BlockID(Y)
+
+        GetBlockRange(X, Y) -------&gt;
+
+        &lt;--------- CompactBlock(X)
+        &lt;--------- CompactBlock(X+1)
+        &lt;--------- CompactBlock(X+2)
+                        ...
+        &lt;--------- CompactBlock(Y-1)
+        &lt;--------- CompactBlock(Y)
+
+            ===
+
+  C     GetTransaction(X+4, 7) ----&gt;
+
+        &lt;--- FullTransaction(X+4, 7)
+
+        GetTransaction(X+9, 2) ----&gt;
+
+        &lt;--- FullTransaction(X+9, 2)
+
+            ===
+
+  D     GetLatestBlock ------------&gt;
+
+        &lt;---------------- BlockID(Z)
+
+        GetBlockRange(Y, Z) -------&gt;
+
+        &lt;--------- CompactBlock(Y)
+        &lt;--------- CompactBlock(Y+1)
+        &lt;--------- CompactBlock(Y+2)
+                        ...
+        &lt;--------- CompactBlock(Z-1)
+        &lt;--------- CompactBlock(Z)</pre>
+                <p><strong>Phase A:</strong> The light client starts up for the first time.</p>
+                <ul>
+                    <li>The light client queries the server to fetch the most recent block <code>X</code>.</li>
+                    <li>The light client queries the commitment tree state for block <code>X</code>.
+                        <ul>
+                            <li>Or, it has to set <code>X</code> to the block height at which Sapling activated, so as to be sent the entire commitment tree. [TODO: Decide which to specify.]</li>
+                        </ul>
+                    </li>
+                    <li>Shielded addresses created by the light client will not have any relevant transactions in this or any prior block.</li>
+                </ul>
+                <p><strong>Phase B:</strong> The light client updates its local chain view for the first time.</p>
+                <ul>
+                    <li>The light client queries the server to fetch the most recent block <code>Y</code>.</li>
+                    <li>It then executes a block range query to fetch every block between <code>X</code> (inclusive) and <code>Y</code> (inclusive).</li>
+                    <li>The block at height <code>X</code> is checked to ensure the received <code>blockHash</code> matches the light client's cached copy, and then discards it without further processing.
+                        <ul>
+                            <li>An inconsistency would imply that block <code>X</code> was orphaned during a chain reorg.</li>
+                        </ul>
+                    </li>
+                    <li>As each subsequent <code>CompactBlock</code> arrives, the light client:
+                        <ul>
+                            <li>Validates the block header if it is present.</li>
+                            <li>Scans the <code>CompactBlock</code> to find any relevant transactions for addresses generated since <code>X</code> was fetched (likely the first transactions involving those addresses). If notes are detected, it:
+                                <ul>
+                                    <li>Generates incremental witnesses for the notes, and updates them going forward.</li>
+                                    <li>Scans for their nullifiers from that block onwards.</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+                <p><strong>Phase C:</strong> The light client has detected some notes and displayed them. User interaction has indicated that the corresponding full transactions should be fetched.</p>
+                <ul>
+                    <li>The light client queries the server for each transaction it wishes to fetch.</li>
+                </ul>
+                <p><strong>Phase D:</strong> The user has spent some notes. The light client updates its local chain view some time later.</p>
+                <ul>
+                    <li>The light client queries the server to fetch the most recent block <code>Z</code>.</li>
+                    <li>It then executes a block range query to fetch every block between <code>Y</code> (inclusive) and <code>Z</code> (inclusive).</li>
+                    <li>The block at height <code>Y</code> is checked to ensure the received <code>blockHash</code> matches the light client's cached copy, and then discards it without further processing.
+                        <ul>
+                            <li>An inconsistency would imply that block <code>Y</code> was orphaned during a chain reorg.</li>
+                        </ul>
+                    </li>
+                    <li>As each subsequent <code>CompactBlock</code> arrives, the light client:
+                        <ul>
+                            <li>Validates the block header if it is present.</li>
+                            <li>Updates the incremental witnesses for known notes.</li>
+                            <li>Scans for any known nullifiers. The corresponding notes are marked as spent at that height, and excluded from further witness updates.</li>
+                            <li>Scans for any relevant transactions for addresses generated since <code>Y</code> was fetched. These are handled as in phase B.</li>
+                        </ul>
+                    </li>
+                </ul>
+                <section id="importing-a-pre-existing-seed"><h4><span class="section-heading">Importing a pre-existing seed</span><span class="section-anchor"> <a rel="bookmark" href="#importing-a-pre-existing-seed"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Phase A of the interaction assumes that shielded addresses created by the light client will have never been used before. This is not a valid assumption if the light client is being initialised with a seed that it did not generate (e.g. a previously backed-up seed). In this case, phase A is modified as follows:</p>
+                    <p><strong>Phase A:</strong> The light client starts up for the first time.</p>
+                    <ul>
+                        <li>The light client sets <code>X</code> to the block height at which Sapling activated.
+                            <ul>
+                                <li>Shielded addresses created by any light client cannot have any relevant transactions prior to Sapling activation.</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </section>
+            </section>
+            <section id="block-privacy-via-bucketing"><h3><span class="section-heading">Block privacy via bucketing</span><span class="section-anchor"> <a rel="bookmark" href="#block-privacy-via-bucketing"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p><em>This section describes a proposed enhancement that has not been implemented.</em></p>
+                <p>The above interaction reveals to the server at the start of each synchronisation phase (B and D) the block height which the light client had previously synchronised to. This is an information leak under our security model (assuming network privacy). We can reduce the information leakage by "bucketing" the start point of each synchronisation. Doing so also enables us to handle most chain reorgs simultaneously.</p>
+                <p>Let <code>⌊X⌋ = X - (X % N)</code> be the value of <code>X</code> rounded down to some multiple of the bucket size <code>N</code>. The synchronisation phases from the above interaction are modified as follows:</p>
+                <pre data-language="text">Phase   Client                Server
+=====   ============================
+  B     GetLatestBlock ------------&gt;
+
+        &lt;---------------- BlockID(Y)
+
+        GetBlockRange(⌊X⌋, Y) -----&gt;
+
+        &lt;-------- CompactBlock(⌊X⌋)
+        &lt;-------- CompactBlock(⌊X⌋+1)
+        &lt;-------- CompactBlock(⌊X⌋+2)
+                        ...
+        &lt;-------- CompactBlock(Y-1)
+        &lt;-------- CompactBlock(Y)
+
+            ===
+
+  D     GetLatestBlock ------------&gt;
+
+        &lt;---------------- BlockID(Z)
+
+        GetBlockRange(⌊Y⌋, Z) -----&gt;
+
+        &lt;-------- CompactBlock(⌊Y⌋)
+        &lt;-------- CompactBlock(⌊Y⌋+1)
+                        ...
+        &lt;-------- CompactBlock(Z-1)
+        &lt;-------- CompactBlock(Z)</pre>
+                <p><strong>Phase B:</strong> The light client updates its local chain view for the first time.</p>
+                <ul>
+                    <li>The light client queries the server to fetch the most recent block <code>Y</code>.</li>
+                    <li>It then executes a block range query to fetch every block between <code>⌊X⌋</code> (inclusive) and <code>Y</code> (inclusive).</li>
+                    <li>Blocks between <code>⌊X⌋</code> and <code>X</code> are checked to ensure that the received <code>blockHash</code> matches the light client's chain view for each height, and are then discarded without further processing.
+                        <ul>
+                            <li>If an inconsistency is detected at height <code>Q</code>, the light client sets <code>X = Q-1</code>, discards all local blocks with height <code>&gt;= Q</code>, and rolls back the state of all local transactions to height <code>Q-1</code> (un-mining them as necessary).</li>
+                        </ul>
+                    </li>
+                    <li>Blocks between <code>X+1</code> and <code>Y</code> are processed as before.</li>
+                </ul>
+                <p><strong>Phase D:</strong> The user has spent some notes. The light client updates its local chain view some time later.</p>
+                <ul>
+                    <li>The light client queries the server to fetch the most recent block <code>Z</code>.</li>
+                    <li>It then executes a block range query to fetch every block between <code>⌊Y⌋</code> (inclusive) and <code>Z</code> (inclusive).</li>
+                    <li>Blocks between <code>⌊Y⌋</code> and <code>Y</code> are checked to ensure that the received <code>blockHash</code> matches the light client's chain view for each height, and are then discarded without further processing.
+                        <ul>
+                            <li>If an inconsistency is detected at height <code>R</code>, the light client sets <code>Y = R-1</code>, discards all local blocks with height <code>&gt;= R</code>, and rolls back the following local state to height <code>R-1</code>:
+                                <ul>
+                                    <li>All local transactions (un-mining them as necessary).</li>
+                                    <li>All tracked nullifiers (unspending or discarding as necessary).</li>
+                                    <li>All incremental witnesses (caching strategies are not covered in this ZIP).</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </li>
+                    <li>Blocks between <code>Y+1</code> and <code>Z</code> are processed as before.</li>
+                </ul>
+            </section>
+            <section id="transaction-privacy"><h3><span class="section-heading">Transaction privacy</span><span class="section-anchor"> <a rel="bookmark" href="#transaction-privacy"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>The synchronisation phases give the light client sufficient information to determine accurate address balances, show when funds were received or spent, and spend any unspent notes. As synchronisation happens via a broadcast medium, it leaks no information about which transactions the light client is interested in.</p>
+                <p>If, however, the light client needs access to other components of a transaction (such as the memo fields for received notes, or the outgoing ciphertexts in order to recover spend information when importing a wallet seed), it will need to download the full transaction. The light client SHOULD obscure the exact transactions of interest by downloading numerous uninteresting transactions as well, and SHOULD download all transactions in any block from which a single full transaction is fetched (interesting or otherwise). It MUST convey to the user that fetching full transactions will reduce their privacy.</p>
+            </section>
+        </section>
+        <section id="reference-implementation"><h2><span class="section-heading">Reference Implementation</span><span class="section-anchor"> <a rel="bookmark" href="#reference-implementation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This proposal is supported by a set of libraries and reference code made available by the Electric Coin Company.</p>
+        </section>
+        <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <table id="bcp14" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>1</th>
+                        <td><a href="https://www.rfc-editor.org/info/bcp14">Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-merkletree" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>2</th>
+                        <td><a href="protocol/protocol.pdf#merkletree">Zcash Protocol Specification, Version 2020.1.15. Section 3.7: Note Commitment Trees</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-merklepath" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>3</th>
+                        <td><a href="protocol/protocol.pdf#merklepath">Zcash Protocol Specification, Version 2020.1.15. Section 4.8: Merkle Path Validity</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-saplingdecryptivk" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>4</th>
+                        <td><a href="protocol/protocol.pdf#saplingdecryptivk">Zcash Protocol Specification, Version 2020.1.15. Section 4.17.2: Decryption using an Incoming Viewing Key (Sapling)</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-notept" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>5</th>
+                        <td><a href="protocol/protocol.pdf#notept">Zcash Protocol Specification, Version 2020.1.15. Section 5.5: Encodings of Note Plaintexts and Memo Fields</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-spendencoding" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>6</th>
+                        <td><a href="protocol/protocol.pdf#spendencoding">Zcash Protocol Specification, Version 2020.1.15. Section 7.3: Encoding of Spend Descriptions</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-outputencoding" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>7</th>
+                        <td><a href="protocol/protocol.pdf#outputencoding">Zcash Protocol Specification, Version 2020.1.15. Section 7.4: Encoding of Output Descriptions</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0212" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>8</th>
+                        <td><a href="zip-0212">ZIP 212: Allow Recipient to Derive Sapling Ephemeral Secret from Note Plaintext</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocolbuffers" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>9</th>
+                        <td><a href="https://developers.google.com/protocol-buffers/">Protocol Buffers documentation</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="incremental-witness" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>10</th>
+                        <td><a href="https://github.com/zcash/librustzcash/blob/master/zcash_primitives/src/merkle_tree.rs">zcash_primitives Rust crate — merkle_tree.rs</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="spv-clients" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>11</th>
+                        <td><a href="https://en.bitcoin.it/wiki/Scalability#Simplified_payment_verification">Bitcoin Wiki: Scalability — Simplified payment verification</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </section>
+</body>
+</html>

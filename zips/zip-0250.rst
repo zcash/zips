@@ -1,0 +1,137 @@
+::
+
+  ZIP: 250
+  Title: Deployment of the Heartwood Network Upgrade
+  Owners: Daira-Emma Hopwood <daira-emma@electriccoin.co>
+  Status: Final
+  Category: Consensus / Network
+  Created: 2020-02-28
+  License: MIT
+
+
+Terminology
+===========
+
+The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to be
+interpreted as described in BCP 14 [#BCP14]_ when, and only when, they appear in
+all capitals.
+
+The term "network upgrade" in this document is to be interpreted as described in
+ZIP 200. [#zip-0200]_
+
+The terms below are to be interpreted as follows:
+
+Heartwood
+  Code-name for the fourth Zcash network upgrade, also known as Network Upgrade 3.
+Testnet
+  The Zcash test network, as defined in [#protocol]_.
+Mainnet
+  The Zcash production network, as defined in [#protocol]_.
+
+
+Abstract
+========
+
+This proposal defines the deployment of the Heartwood network upgrade.
+
+
+Specification
+=============
+
+Heartwood deployment
+--------------------
+
+The primary sources of information about Heartwood consensus protocol changes are:
+
+- The Zcash Protocol Specification [#protocol]_
+- ZIP 200: Network Upgrade Mechanism [#zip-0200]_
+- ZIP 213: Shielded Coinbase [#zip-0213]_
+- ZIP 221: FlyClient - Consensus-Layer Changes [#zip-0221]_.
+
+The network handshake and peer management mechanisms defined in ZIP 201 [#zip-0201]_
+also apply to this upgrade.
+
+
+The following network upgrade constants [#zip-0200]_ are defined for the Heartwood
+upgrade:
+
+CONSENSUS_BRANCH_ID
+  ``0xF5B9230B``
+
+
+ACTIVATION_HEIGHT (Heartwood)
+  Testnet: 903800
+
+  Mainnet: 903000
+
+
+Nodes compatible with Heartwood activation on testnet MUST advertise protocol version
+170010 or later. Nodes compatible with Heartwood activation on mainnet MUST advertise
+protocol version 170011 or later. The minimum peer protocol version that
+Heartwood-compatible nodes will connect to is 170002.
+
+Pre-Heartwood testnet nodes are defined as nodes on testnet advertising a protocol
+version less than 170010. Pre-Heartwood mainnet nodes are defined as nodes on mainnet
+advertising a protocol version less than 170011.
+
+For each network (testnet and mainnet), approximately 1.5 days (defined in terms of
+block height) before the corresponding Heartwood activation height, nodes compatible
+with Heartwood activation on that network will change the behaviour of their peer
+connection logic in order to prefer pre-Heartwood peers on that network for eviction
+from the set of peer connections::
+
+    /**
+     * The period before a network upgrade activates, where connections to upgrading peers are preferred (in blocks).
+     * This was three days for upgrades up to and including Blossom, and is 1.5 days from Heartwood onward.
+     */
+    static const int NETWORK_UPGRADE_PEER_PREFERENCE_BLOCK_PERIOD = 1728;
+
+The implementation is similar to that for Overwinter which was described in
+[#zip-0201]_.
+
+Once Heartwood activates on testnet or mainnet, Heartwood nodes SHOULD take steps to:
+
+- reject new connections from pre-Heartwood nodes on that network;
+- disconnect any existing connections to pre-Heartwood nodes on that network.
+
+
+Backward compatibility
+======================
+
+Prior to the network upgrade activating on each network, Heartwood and pre-Heartwood
+nodes are compatible and can connect to each other. However, Heartwood nodes will
+have a preference for connecting to other Heartwood nodes, so pre-Heartwood nodes will
+gradually be disconnected in the run up to activation.
+
+Once the network upgrades, even though pre-Heartwood nodes can still accept the
+numerically larger protocol version used by Heartwood as being valid, Heartwood nodes
+will always disconnect peers using lower protocol versions.
+
+Unlike Overwinter and Sapling, and like Blossom, Heartwood does not define a new
+transaction version. Heartwood transactions are therefore in the same v4 format as
+Sapling transactions, use the same version group ID, i.e. 0x892F2085 as
+defined in [#protocol]_ section 7.1, and the same transaction digest algorithm as
+defined in [#zip-0243]_. This does not imply that transactions are valid across the
+Heartwood activation, since signatures MUST use the appropriate consensus branch ID.
+[#zip-0243]_
+
+
+Support in zcashd
+=================
+
+Support for Heartwood on testnet will be implemented in ``zcashd`` version 2.1.2,
+which will advertise protocol version 170010. Support for Heartwood on mainnet will
+be implemented in ``zcashd`` version 3.0.0, which will advertise protocol version
+170011.
+
+
+References
+==========
+
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#protocol] `Zcash Protocol Specification, Version 2021.2.16 or later <protocol/protocol.pdf>`_
+.. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
+.. [#zip-0201] `ZIP 201: Network Peer Management for Overwinter <zip-0201.rst>`_
+.. [#zip-0213] `ZIP 213: Shielded Coinbase <zip-0213.rst>`_
+.. [#zip-0221] `ZIP 221: FlyClient - Consensus-Layer Changes <zip-0221.rst>`_
+.. [#zip-0243] `ZIP 243: Transaction Signature Validation for Sapling <zip-0243.rst>`_

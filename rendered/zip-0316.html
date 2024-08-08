@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZIP 316: Unified Addresses and Unified Viewing Keys</title>
+    <meta charset="utf-8" />
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+    <section>
+        <pre>ZIP: 316
+Title: Unified Addresses and Unified Viewing Keys
+Owners: Daira-Emma Hopwood &lt;daira-emma@electriccoin.co&gt;
+        Nathan Wilcox &lt;nathan@electriccoin.co&gt;
+        Jack Grigg &lt;jack@electriccoin.co&gt;
+        Sean Bowe &lt;sean@electriccoin.co&gt;
+        Kris Nuttycombe &lt;kris@electriccoin.co&gt;
+Original-Authors: Greg Pfeil
+                  Ying Tong Lai
+Credits: Taylor Hornby
+         Stephen Smith
+Status: Revision 0: Final, Revision 1: Proposed
+Category: Standards / RPC / Wallet
+Created: 2021-04-07
+License: MIT
+Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/482">https://github.com/zcash/zips/issues/482</a>&gt;</pre>
+        <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The key words "MUST", "MUST NOT", "SHOULD", "RECOMMENDED", and "MAY" in this document are to be interpreted as described in BCP 14 <a id="footnote-reference-1" class="footnote_reference" href="#bcp14">1</a> when, and only when, they appear in all capitals.</p>
+            <p>The terms below are to be interpreted as follows:</p>
+            <dl>
+                <dt>Recipient</dt>
+                <dd>A wallet or other software that can receive transfers of assets (such as ZEC) or in the future potentially other transaction-based state changes.</dd>
+                <dt>Producer</dt>
+                <dd>A wallet or other software that can create an Address (in which case it is normally also a Recipient) or a Viewing Key.</dd>
+                <dt>Consumer</dt>
+                <dd>A wallet or other software that can make use of an Address or Viewing Key that it is given.</dd>
+                <dt>Sender</dt>
+                <dd>A wallet or other software that can send transfers of assets, or other side effects to consensus state that may be defined in future. Senders are a subset of Consumers.</dd>
+                <dt>Receiver</dt>
+                <dd>The necessary information to transfer an asset to a Recipient that generated that Receiver using a specific Transfer Protocol. Each Receiver is associated unambiguously with a specific Receiver Type, identified by an integer Typecode.</dd>
+                <dt>Receiver Encoding</dt>
+                <dd>An encoding of a Receiver as a byte sequence.</dd>
+                <dt>Viewing Key</dt>
+                <dd>The necessary information to view information about payments to an Address, or (in the case of a Full Viewing Key) from an Address. An Incoming Viewing Key can be derived from a Full Viewing Key, and an Address can be derived from an Incoming Viewing Key.</dd>
+                <dt>Viewing Key Encoding</dt>
+                <dd>An encoding of a Viewing Key as a byte sequence.</dd>
+                <dt>Metadata Encoding</dt>
+                <dd>An encoding of metadata that is not a Receiver or Viewing Key, but may affect the interpretation of the overall Unified Address/Viewing Key.</dd>
+                <dt>Item</dt>
+                <dd>An Receiver Encoding, Viewing Key Encoding, or Metadata Encoding.</dd>
+                <dt>Legacy Address</dt>
+                <dd>A Transparent, Sprout, or Sapling Address.</dd>
+                <dt>Unified Address (or UA)</dt>
+                <dd>A Unified Address combines multiple Receiver (and optionally Metadata) Items.</dd>
+                <dt>Unified Full Viewing Key (or UFVK)</dt>
+                <dd>A Unified Full Viewing Key combines multiple Full Viewing Key (and optionally Metadata) Items.</dd>
+                <dt>Unified Incoming Viewing Key (or UIVK)</dt>
+                <dd>A Unified Incoming Viewing Key combines multiple Incoming Viewing Key (and optionally Metadata) Items.</dd>
+                <dt>Unified Viewing Key (or UVK)</dt>
+                <dd>Either a Unified Full Viewing Key or a Unified Incoming Viewing Key.</dd>
+                <dt>Address</dt>
+                <dd>Either a Legacy Address or a Unified Address.</dd>
+                <dt>Transfer Protocol</dt>
+                <dd>A specification of how a Sender can transfer assets to a Recipient. For example, the Transfer Protocol for a Sapling Receiver is the subset of the Zcash protocol required to successfully transfer ZEC using Sapling Spend/Output Transfers as specified in the Zcash Protocol Specification. (A single Zcash transaction can contain transfers of multiple Transfer Protocols. For example a t→z transaction that shields to the Sapling pool requires both Transparent and Sapling Transfer Protocols.)</dd>
+                <dt>Unified String Encoding</dt>
+                <dd>An encoding of a UA/UVK as a US-ASCII string, intended either for display and transfer by Zcash end-users, or internal use by Zcash-related software.</dd>
+                <dt>Unified QR Encoding</dt>
+                <dd>An encoding of a UA/UVK as a QR code, intended for display and transfer by Zcash end-users in situations where usability advantages of a 2D bar code may be relevant.</dd>
+                <dt>Address Encoding</dt>
+                <dd>The externally visible encoding of an Address (e.g. as a string of characters or a QR code).</dd>
+                <dt>Unix Epoch Time</dt>
+                <dd>An integer representing a UTC time in seconds relative to the Unix Epoch of 1970-01-01T00:00:00Z.</dd>
+            </dl>
+            <p>Notation for sequences, conversions, and arithmetic operations follows the Zcash protocol specification <a id="footnote-reference-2" class="footnote_reference" href="#protocol-notation">3</a>.</p>
+        </section>
+        <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This proposal defines Unified Addresses, which bundle together Zcash Addresses of different types in a way that can be presented as a single Address Encoding. It also defines Unified Viewing Keys, which perform a similar function for Zcash viewing keys.</p>
+        </section>
+        <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>Up to and including the Canopy network upgrade, Zcash supported the following Payment Address types:</p>
+            <ul>
+                <li>Transparent Addresses (P2PKH and P2SH)</li>
+                <li>Sprout Addresses</li>
+                <li>Sapling Addresses</li>
+            </ul>
+            <p>Each of these has its own Address Encodings, as a string and as a QR code. (Since the QR code is derivable from the string encoding as described in <a id="footnote-reference-3" class="footnote_reference" href="#protocol-addressandkeyencoding">9</a>, for many purposes it suffices to consider the string encoding.)</p>
+            <p>The Orchard proposal <a id="footnote-reference-4" class="footnote_reference" href="#zip-0224">26</a> adds a new Address type, Orchard Addresses.</p>
+            <p>The difficulty with defining new Address Encodings for each Address type, is that end-users are forced to be aware of the various types, and in particular which types are supported by a given Consumer or Recipient. In order to make sure that transfers are completed successfully, users may be forced to explicitly generate Addresses of different types and re-distribute encodings of them, which adds significant friction and cognitive overhead to understanding and using Zcash.</p>
+            <p>The goals for a Unified Address standard are as follows:</p>
+            <ul>
+                <li>Simplify coordination between Recipients and Consumers by removing complexity from negotiating Address types.</li>
+                <li>Provide a “bridging mechanism” to allow shielded wallets to successfully interact with conformant Transparent-Only wallets.</li>
+                <li>Allow older conformant wallets to interact seamlessly with newer wallets.</li>
+                <li>Enable users of newer wallets to upgrade to newer transaction technologies and/or pools while maintaining seamless interactions with counterparties using older wallets.</li>
+                <li>Facilitate wallets to assume more sophisticated responsibilities for shielding and/or migrating user funds.</li>
+                <li>Allow wallets to potentially develop new transfer mechanisms without underlying protocol changes.</li>
+                <li>Support abstractions corresponding to a Unified Address that provide the functionality of Full Viewing Keys and Incoming Viewing Keys.</li>
+                <li>Provide forward compatibility that is standard for all wallets across a range of potential future features. Some examples might include Layer 2 features, cross-chain interoperability and bridging, and decentralized exchange.</li>
+                <li>Allow for Metadata Items to be included in Unified Addresses/Viewing Keys in order to provide future extensibility.</li>
+                <li>The standard should work well for Zcash today and upcoming potential upgrades, and also anticipate even broader use cases down the road such as cross-chain functionality.</li>
+            </ul>
+        </section>
+        <section id="requirements"><h2><span class="section-heading">Requirements</span><span class="section-anchor"> <a rel="bookmark" href="#requirements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <section id="overview"><h3><span class="section-heading">Overview</span><span class="section-anchor"> <a rel="bookmark" href="#overview"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Unified Addresses specify multiple methods for payment to a Recipient's wallet. The Sender's wallet can then non-interactively select the method of payment.</p>
+                <p>Importantly, any wallet can support Unified Addresses, even when that wallet only supports a subset of payment methods for receiving and/or sending.</p>
+                <p>Despite having some similar characteristics, the Unified Address standard is orthogonal to Payment Request URIs <a id="footnote-reference-5" class="footnote_reference" href="#zip-0321">29</a> and similar schemes. Since Payment Requests encode addresses as alphanumeric strings, no change to ZIP 321 is required in order to use Unified Addresses in Payment Requests.</p>
+            </section>
+            <section id="concepts"><h3><span class="section-heading">Concepts</span><span class="section-anchor"> <a rel="bookmark" href="#concepts"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Wallets follow a model <em>Interaction Flow</em> as follows:</p>
+                <ol type="1">
+                    <li>A Producer <em>generates</em> an Address.</li>
+                    <li>The Producer <em>encodes</em> the Address.</li>
+                    <li>The Producer wallet or human user <em>distributes</em> this Address Encoding. This ZIP leaves distribution mechanisms out of scope.</li>
+                    <li>A Consumer wallet or user <em>imports</em> the Address Encoding through any of a variety of mechanisms (QR code scanning, Payment URIs, cut-and-paste, or “in-band” protocols like <code>Reply-To</code> memos).</li>
+                    <li>A Consumer wallet <em>decodes</em> the Address Encoding and performs validity checks.</li>
+                    <li>(Perhaps later in time) if the Consumer wallet is a Sender, it can execute a transfer of ZEC (or other assets or protocol state changes) to the Address.</li>
+                </ol>
+                <p>Encodings of the same Address may be distributed zero or more times through different means. Zero or more Consumers may import Addresses. Zero or more of those (that are Senders) may execute a Transfer. A single Sender may execute multiple Transfers over time from a single import.</p>
+                <p>Steps 1 to 5 inclusive also apply to Interaction Flows for Unified Full Viewing Keys and Unified Incoming Viewing Keys.</p>
+            </section>
+            <section id="addresses"><h3><span class="section-heading">Addresses</span><span class="section-anchor"> <a rel="bookmark" href="#addresses"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>A Unified Address (or UA for short) combines one or more Receivers.</p>
+                <p>When new Transport Protocols are introduced to the Zcash protocol after Unified Addresses are standardized, those should introduce new Receiver Types but <em>not</em> different Address types outside of the UA standard. There needs to be a compelling reason to deviate from the standard, since the benefits of UA come precisely from their applicability across all new protocol upgrades.</p>
+            </section>
+            <section id="receivers"><h3><span class="section-heading">Receivers</span><span class="section-anchor"> <a rel="bookmark" href="#receivers"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Every wallet must properly <em>parse</em> encodings of a Unified Address or Unified Viewing Key containing unrecognised Items.</p>
+                <p>A wallet may process unrecognised Items by indicating to the user their presence or similar information for usability or diagnostic purposes.</p>
+            </section>
+            <section id="transport-encoding"><h3><span class="section-heading">Transport Encoding</span><span class="section-anchor"> <a rel="bookmark" href="#transport-encoding"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>The Unified String Encoding is “opaque” to human readers: it does <em>not</em> allow visual identification of which Receivers or Receiver Types are present.</p>
+                <p>The Unified String Encoding is resilient against typos, transcription errors, cut-and-paste errors, truncation, or other likely UX hazards.</p>
+                <p>There is a well-defined Unified QR Encoding of a Unified Address (or UFVK or UIVK) as a QR code, which produces QR codes that are reasonably compact and robust.</p>
+                <p>There is a well-defined transformation between the Unified QR Encoding and Unified String Encoding of a given UA/UVK in either direction.</p>
+                <p>The Unified String Encoding fits into ZIP-321 Payment URIs <a id="footnote-reference-6" class="footnote_reference" href="#zip-0321">29</a> and general URIs without introducing parse ambiguities.</p>
+                <p>The encoding must support sufficiently many Recipient Types to allow for reasonable future expansion.</p>
+                <p>The encoding must allow all wallets to safely and correctly parse out unrecognised Receiver Types well enough to ignore them.</p>
+            </section>
+            <section id="transfers"><h3><span class="section-heading">Transfers</span><span class="section-anchor"> <a rel="bookmark" href="#transfers"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>When executing a Transfer the Sender selects a Receiver via a Selection process.</p>
+                <p>Given a valid UA, Selection must treat any unrecognised Item as though it were absent.</p>
+                <ul>
+                    <li>This property is crucial for forward compatibility to ensure users who upgrade to newer protocols / UAs don't lose the ability to smoothly interact with older wallets.</li>
+                    <li>This property is crucial for allowing Transparent-Only UA-Conformant wallets to interact with newer shielded wallets, removing a disincentive for adopting newer shielded wallets.</li>
+                    <li>This property also allows Transparent-Only wallets to upgrade to shielded support without re-acquiring counterparty UAs. If they are re-acquired, the user flow and usability will be minimally disrupted.</li>
+                </ul>
+            </section>
+            <section id="experimental-usage"><h3><span class="section-heading">Experimental Usage</span><span class="section-anchor"> <a rel="bookmark" href="#experimental-usage"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Unified Addresses and Unified Viewing Keys must be able to include Receivers and Viewing Keys of experimental types, possibly alongside non-experimental ones. These experimental Receivers or Viewing Keys must be used only by wallets whose users have explicitly opted into the corresponding experiment.</p>
+            </section>
+            <section id="viewing-keys"><h3><span class="section-heading">Viewing Keys</span><span class="section-anchor"> <a rel="bookmark" href="#viewing-keys"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>A Unified Full Viewing Key (resp. Unified Incoming Viewing Key) can be used in a similar way to a Full Viewing Key (resp. Incoming Viewing Key) as described in the Zcash Protocol Specification <a id="footnote-reference-7" class="footnote_reference" href="#protocol">2</a>.</p>
+                <p>For a Transparent P2PKH Address that is derived according to BIP 32 <a id="footnote-reference-8" class="footnote_reference" href="#bip-0032">30</a> and BIP 44 <a id="footnote-reference-9" class="footnote_reference" href="#bip-0044">33</a>, the nearest equivalent to a Full Viewing Key or Incoming Viewing Key for a given BIP 44 account is an extended public key, as defined in the section “Extended keys” of BIP 32. Therefore, UFVKs and UIVKs should be able to include such extended public keys.</p>
+                <p>A wallet should support deriving a UIVK from a UFVK, and a Unified Address from a UIVK.</p>
+            </section>
+            <section id="open-issues-and-known-concerns"><h3><span class="section-heading">Open Issues and Known Concerns</span><span class="section-anchor"> <a rel="bookmark" href="#open-issues-and-known-concerns"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Privacy impacts of transparent or cross-pool transactions, and the associated UX issues, will be addressed in ZIP 315 (in preparation).</p>
+            </section>
+        </section>
+        <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <section id="revisions"><h3><span class="section-heading">Revisions</span><span class="section-anchor"> <a rel="bookmark" href="#revisions"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <ul id="revision-0">
+                    <li>Revision 0: The initial version of this specification.</li>
+                </ul>
+                <ul id="revision-1">
+                    <li>Revision 1: This version adds support for <a href="#must-understand-typecodes">MUST-understand Typecodes</a> and <a href="#address-expiration-metadata">Address Expiration Metadata</a>. It also drops the restriction that a UA/UVK must contain at least one shielded Item.</li>
+                </ul>
+                <p>A Revision 0 UA/UVK is distinguished from a Revision 1 UA/UVK by its Human-Readable Part, as follows.</p>
+                <p>Let <em>prefix</em> be:</p>
+                <ul>
+                    <li>“<code>u</code>”, if this is a UA/UVK prior to <a href="#revision-1">Revision 1</a>;</li>
+                    <li>“<code>ur</code>”, if this is a UA/UVK from <a href="#revision-1">Revision 1</a> onward.</li>
+                </ul>
+                <p>The Human-Readable Parts (as defined in <a id="footnote-reference-10" class="footnote_reference" href="#bip-0350">36</a>) of Unified Addresses are defined as:</p>
+                <ul>
+                    <li><em>prefix</em>, for Unified Addresses on Mainnet;</li>
+                    <li><em>prefix</em> || “<code>test</code>”, for Unified Addresses on Testnet.</li>
+                </ul>
+                <p>The Human-Readable Parts of Unified Viewing Keys are defined as:</p>
+                <ul>
+                    <li><em>prefix</em> || “<code>ivk</code>” for Unified Incoming Viewing Keys on Mainnet;</li>
+                    <li><em>prefix</em> || “<code>ivktest</code>” for Unified Incoming Viewing Keys on Testnet;</li>
+                    <li><em>prefix</em> || “<code>view</code>” for Unified Full Viewing Keys on Mainnet;</li>
+                    <li><em>prefix</em> || “<code>viewtest</code>” for Unified Full Viewing Keys on Testnet.</li>
+                </ul>
+                <p>While support for Revision 1 UAs/UVKs is still being rolled out across the Zcash ecosystem, a Producer can maximize interoperability by generating a Revision 0 UA/UVK in cases where the conditions on its use are met (i.e. there are no MUST-understand Metadata Items, and at least one shielded item). At some point when Revision 1 UA/UVKs are widely supported, this will be unnecessary and it will be sufficient to always produce Revision 1 UA/UVKs.</p>
+            </section>
+            <section id="encoding-of-unified-addresses"><h3><span class="section-heading">Encoding of Unified Addresses</span><span class="section-anchor"> <a rel="bookmark" href="#encoding-of-unified-addresses"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Rather than defining a Bech32 string encoding of Orchard Shielded Payment Addresses, we instead define a Unified Address format that is able to encode a set of Receivers of different types. This enables the Consumer of a Unified Address to choose the Receiver of the best type it supports, providing a better user experience as new Receiver Types are added in the future.</p>
+                <p>Assume that we are given a set of one or more Receiver Encodings for distinct types. That is, the set may optionally contain one Receiver of each of the Receiver Types in the following fixed Priority List:</p>
+                <ul>
+                    <li>Typecode
+                        <span class="math">\(\mathtt{0x03}\)</span>
+                     — an Orchard raw address as defined in <a id="footnote-reference-11" class="footnote_reference" href="#protocol-orchardpaymentaddrencoding">11</a>;</li>
+                    <li>Typecode
+                        <span class="math">\(\mathtt{0x02}\)</span>
+                     — a Sapling raw address as defined in <a id="footnote-reference-12" class="footnote_reference" href="#protocol-saplingpaymentaddrencoding">10</a>;</li>
+                    <li>Typecode
+                        <span class="math">\(\mathtt{0x01}\)</span>
+                     — a Transparent P2SH address, <em>or</em> Typecode
+                        <span class="math">\(\mathtt{0x00}\)</span>
+                     — a Transparent P2PKH address.</li>
+                </ul>
+                <p>If, and only if, the user of a Producer or Consumer wallet explicitly opts into an experiment as described in <a href="#experimental-usage">Experimental Usage</a>, the specification of the experiment MAY include additions to the above Priority List (such additions SHOULD maintain the intent of preferring more recent shielded protocols).</p>
+                <p>We say that a Receiver Type is “preferred” over another when it appears earlier in this Priority List (as potentially modified by experiments).</p>
+                <p>The Sender of a payment to a Unified Address MUST use the Receiver of the most preferred Receiver Type that it supports from the set.</p>
+                <p>For example, consider a wallet that supports sending funds to Orchard Receivers, and does not support sending to any Receiver Type that is preferred over Orchard. If that wallet is given a UA that includes an Orchard Receiver and possibly other Receivers, it MUST send to the Orchard Receiver.</p>
+                <p>The raw encoding of a Unified Address is a concatenation of
+                    <span class="math">\((\mathtt{typecode}, \mathtt{length}, \mathtt{addr})\)</span>
+                 encodings of the constituent Receivers, in ascending order of Typecode:</p>
+                <ul>
+                    <li>
+                        <span class="math">\(\mathtt{typecode} : \mathtt{compactSize}\)</span>
+                     — the Typecode from the above Priority List;</li>
+                    <li>
+                        <span class="math">\(\mathtt{length} : \mathtt{compactSize}\)</span>
+                     — the length in bytes of
+                        <span class="math">\(\mathtt{addr};\)</span>
+                    </li>
+                    <li>
+                        <span class="math">\(\mathtt{addr} : \mathtt{byte[length]}\)</span>
+                     — the Receiver Encoding.</li>
+                </ul>
+                <p>The values of the
+                    <span class="math">\(\mathtt{typecode}\)</span>
+                 and
+                    <span class="math">\(\mathtt{length}\)</span>
+                 fields MUST be less than or equal to
+                    <span class="math">\(\mathtt{0x2000000}.\)</span>
+                 (The limitation on the total length of encodings described below imposes a smaller limit for
+                    <span class="math">\(\mathtt{length}\)</span>
+                 in practice.)</p>
+                <p>A Receiver Encoding is the raw encoding of a Shielded Payment Address, or the
+                    <span class="math">\(160\!\)</span>
+                -bit script hash of a P2SH address <a id="footnote-reference-13" class="footnote_reference" href="#p2sh">38</a>, or the
+                    <span class="math">\(160\!\)</span>
+                -bit validating key hash of a P2PKH address <a id="footnote-reference-14" class="footnote_reference" href="#p2pkh">37</a>.</p>
+                <p>Let <code>padding</code> be the Human-Readable Part of the Unified Address in US-ASCII, padded to 16 bytes with zero bytes. We append <code>padding</code> to the concatenated encodings, and then apply the
+                    <span class="math">\(\mathsf{F4Jumble}\)</span>
+                 algorithm as described in <a href="#jumbling">Jumbling</a>. (In order for the limitation on the
+                    <span class="math">\(\mathsf{F4Jumble}\)</span>
+                 input size to be met, the total length of encodings MUST be at most
+                    <span class="math">\(\ell^\mathsf{MAX}_M - 16\)</span>
+                 bytes, where
+                    <span class="math">\(\ell^\mathsf{MAX}_M\)</span>
+                 is defined in <a href="#jumbling">Jumbling</a>.) The output is then encoded with Bech32m <a id="footnote-reference-15" class="footnote_reference" href="#bip-0350">36</a>, ignoring any length restrictions. This is chosen over Bech32 in order to better handle variable-length inputs.</p>
+                <p>To decode a Unified Address Encoding, a Consumer MUST use the following procedure:</p>
+                <ul>
+                    <li>Decode using Bech32m, rejecting any address with an incorrect checksum.</li>
+                    <li>Apply
+                        <span class="math">\(\mathsf{F4Jumble}^{-1}\)</span>
+                     (this can also reject if the input is not in the correct range of lengths).</li>
+                    <li>Let <code>padding</code> be the Human-Readable Part, padded to 16 bytes as for encoding. If the result ends in <code>padding</code>, remove these 16 bytes; otherwise reject.</li>
+                    <li>Parse the result as a raw encoding as described above, rejecting the entire Unified Address if it does not parse correctly.</li>
+                </ul>
+                <p>The Human-Readable Part is as specified for a Unified Address in <a href="#revisions">Revisions</a>.</p>
+                <p>A wallet MAY allow its user(s) to configure which Receiver Types it can send to. It MUST NOT allow the user(s) to change the order of the Priority List used to choose the Receiver Type, except by opting into experiments.</p>
+            </section>
+            <section id="encoding-of-unified-full-incoming-viewing-keys"><h3><span class="section-heading">Encoding of Unified Full/Incoming Viewing Keys</span><span class="section-anchor"> <a rel="bookmark" href="#encoding-of-unified-full-incoming-viewing-keys"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Unified Full or Incoming Viewing Keys are encoded and decoded analogously to Unified Addresses. A Consumer MUST use the decoding procedure from the previous section. For Viewing Keys, a Consumer will normally take the union of information provided by all contained Receivers, and therefore the Priority List defined in the previous section is not used.</p>
+                <p>For each FVK Type or IVK Type currently defined in this specification, the same Typecode is used as for the corresponding Receiver Type in a Unified Address. Additional FVK Types and IVK Types MAY be defined in future, and these will not necessarily use the same Typecode as the corresponding Unified Address.</p>
+                <p>The following FVK or IVK Encodings are used in place of the
+                    <span class="math">\(\mathtt{addr}\)</span>
+                 field:</p>
+                <ul>
+                    <li>An Orchard FVK or IVK Encoding, with Typecode
+                        <span class="math">\(\mathtt{0x03},\)</span>
+                     is the raw encoding of the Orchard Full Viewing Key or Orchard Incoming Viewing Key respectively.</li>
+                    <li>A Sapling FVK Encoding, with Typecode
+                        <span class="math">\(\mathtt{0x02},\)</span>
+                     is the encoding of
+                        <span class="math">\((\mathsf{ak}, \mathsf{nk}, \mathsf{ovk}, \mathsf{dk})\)</span>
+                     given by
+                        <span class="math">\(\mathsf{EncodeExtFVKParts}(\mathsf{ak}, \mathsf{nk}, \mathsf{ovk}, \mathsf{dk})\)</span>
+                    , where
+                        <span class="math">\(\mathsf{EncodeExtFVKParts}\)</span>
+                     is defined in <a id="footnote-reference-16" class="footnote_reference" href="#zip-0032-sapling-helper-functions">15</a>. This SHOULD be derived from the Extended Full Viewing Key at the Account level of the ZIP 32 hierarchy.</li>
+                    <li>A Sapling IVK Encoding, also with Typecode
+                        <span class="math">\(\mathtt{0x02},\)</span>
+                     is an encoding of
+                        <span class="math">\((\mathsf{dk}, \mathsf{ivk})\)</span>
+                     given by
+                        <span class="math">\(\mathsf{dk}\,||\,\mathsf{I2LEOSP}_{256}(\mathsf{ivk}).\)</span>
+                    </li>
+                    <li>There is no defined way to represent a Viewing Key for a Transparent P2SH Address in a UFVK or UIVK (because P2SH Addresses cannot be diversified in an unlinkable way). The Typecode
+                        <span class="math">\(\mathtt{0x01}\)</span>
+                     MUST NOT be included in a UFVK or UIVK by Producers, and MUST be treated as unrecognised by Consumers.</li>
+                    <li>For Transparent P2PKH Addresses that are derived according to BIP 32 <a id="footnote-reference-17" class="footnote_reference" href="#bip-0032">30</a> and BIP 44 <a id="footnote-reference-18" class="footnote_reference" href="#bip-0044">33</a>, the FVK and IVK Encodings have Typecode
+                        <span class="math">\(\mathtt{0x00}.\)</span>
+                     Both of these are encodings of the chain code and public key
+                        <span class="math">\((\mathsf{c}, \mathsf{pk})\)</span>
+                     given by
+                        <span class="math">\(\mathsf{c}\,||\,\mathsf{ser_P}(\mathsf{pk})\)</span>
+                    . (This is the same as the last 65 bytes of the extended public key format defined in section “Serialization format” of BIP 32 <a id="footnote-reference-19" class="footnote_reference" href="#bip-0032-serialization-format">31</a>.) However, the FVK uses the key at the Account level, i.e. at path
+                        <span class="math">\(m / 44' / coin\_type' / account'\)</span>
+                    , while the IVK uses the external (non-change) child key at the Change level, i.e. at path
+                        <span class="math">\(m / 44' / coin\_type' / account' / 0\)</span>
+                    .</li>
+                </ul>
+                <p>The Human-Readable Part is as specified for a Unified Viewing Key in <a href="#revisions">Revisions</a>.</p>
+                <section id="rationale-for-address-derivation"><h4><span class="section-heading">Rationale for address derivation</span><span class="section-anchor"> <a rel="bookmark" href="#rationale-for-address-derivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                <details>
+<summary>Click to show/hide</summary>
+                    <p>The design of address derivation is designed to maintain unlinkability between addresses derived from the same UIVK, to the extent possible. (This is only partially achieved if the UA contains a Transparent P2PKH Address, since the on-chain transaction graph can potentially be used to link transparent addresses.)</p>
+                    <p>Note that it may be difficult to retain this property for Metadata Items, and this should be taken into account in the design of such Items.</p>
+                </details></section>
+            </section>
+            <section id="requirements-for-both-unified-addresses-and-unified-viewing-keys"><h3><span class="section-heading">Requirements for both Unified Addresses and Unified Viewing Keys</span><span class="section-anchor"> <a rel="bookmark" href="#requirements-for-both-unified-addresses-and-unified-viewing-keys"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <ul>
+                    <li>A <a href="#revision-0">Revision 0</a> Unified Address or Unified Viewing Key MUST contain at least one shielded Item (Typecodes
+                        <span class="math">\(\mathtt{0x02}\)</span>
+                     and
+                        <span class="math">\(\mathtt{0x03}\)</span>
+                    ). This requirement is dropped for <a href="#revision-1">Revision 1</a> UA/UVKs.</li>
+                    <li>The
+                        <span class="math">\(\mathtt{typecode}\)</span>
+                     and
+                        <span class="math">\(\mathtt{length}\)</span>
+                     fields are encoded as
+                        <span class="math">\(\mathtt{compactSize}.\)</span>
+                     <a id="footnote-reference-20" class="footnote_reference" href="#bitcoin-compactsize">39</a> (Although existing Receiver Encodings and Viewing Key Encodings are all less than 256 bytes and so could use a one-byte length field, encodings for experimental types may be longer.)</li>
+                    <li>Within a single UA or UVK, all HD-derived Receivers, FVKs, and IVKs SHOULD represent an Address or Viewing Key for the same account (as used in the ZIP 32 or BIP 44 Account level).</li>
+                    <li>For Transparent Addresses, the Receiver Encoding does not include the first two bytes of a raw encoding.</li>
+                    <li>There is intentionally no Typecode defined for a Sprout Shielded Payment Address or Sprout Incoming Viewing Key. Since it is no longer possible (since activation of ZIP 211 in the Canopy network upgrade <a id="footnote-reference-21" class="footnote_reference" href="#zip-0211">25</a>) to send funds into the Sprout chain value pool, this would not be generally useful.</li>
+                    <li>With the exception of MUST-understand Metadata Items, Consumers MUST ignore constituent Items with Typecodes they do not recognise.</li>
+                    <li>Consumers MUST reject Unified Addresses/Viewing Keys in which the same Typecode appears more than once, or that include both P2SH and P2PKH Transparent Addresses, or that contain only a Transparent Address.</li>
+                    <li>Consumers MUST reject Unified Addresses/Viewing Keys in which <em>any</em> constituent Item does not meet the validation requirements of its encoding, as specified in this ZIP and the Zcash Protocol Specification <a id="footnote-reference-22" class="footnote_reference" href="#protocol">2</a>.</li>
+                    <li>Consumers MUST reject Unified Addresses/Viewing Keys in which the constituent Items are not ordered in ascending Typecode order. Note that this is different to priority order, and does not affect which Receiver in a Unified Address should be used by a Sender.</li>
+                    <li>There MUST NOT be additional bytes at the end of the raw encoding that cannot be interpreted as specified above.</li>
+                    <li>If the encoding of a Unified Address/Viewing Key is shown to a user in an abridged form due to lack of space, at least the first 20 characters MUST be included.</li>
+                </ul>
+                <section id="rationale-for-dropping-the-at-least-one-shielded-item-restriction"><h4><span class="section-heading">Rationale for dropping the "at least one shielded Item" restriction</span><span class="section-anchor"> <a rel="bookmark" href="#rationale-for-dropping-the-at-least-one-shielded-item-restriction"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                <details>
+<summary>Click to show/hide</summary>
+                    <p>The original rationale for this restriction was that the existing P2SH and P2PKH transparent-only address formats, and the existing P2PKH extended public key format, sufficed for representing transparent Items and were already supported by the existing ecosystem.</p>
+                    <p>However, as of <a href="#revision-1">Revision 1</a> there are uses for transparent-only UAs and UVKs that are not covered by the existing formats. In particular, they can use Metadata Items to represent expiration heights/dates as described in <a href="#address-expiration-metadata">Address Expiration Metadata</a>, or source restrictions as proposed in ZIP 320 <a id="footnote-reference-23" class="footnote_reference" href="#zip-0320">28</a>.</p>
+                </details></section>
+                <section id="rationale-for-item-ordering"><h4><span class="section-heading">Rationale for Item ordering</span><span class="section-anchor"> <a rel="bookmark" href="#rationale-for-item-ordering"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                <details>
+<summary>Click to show/hide</summary>
+                    <p>The rationale for requiring Items to be canonically ordered by Typecode is that it enables implementations to use an in-memory representation that discards ordering, while retaining the same round-trip serialization of a UA/UVK (provided that unrecognised Items are retained).</p>
+                </details></section>
+                <section id="rationale-for-showing-at-least-the-first-20-characters"><h4><span class="section-heading">Rationale for showing at least the first 20 characters</span><span class="section-anchor"> <a rel="bookmark" href="#rationale-for-showing-at-least-the-first-20-characters"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                <details>
+<summary>Click to show/hide</summary>
+                    <p>Showing fewer than 20 characters of the String Encoding of a UA/UVK would potentially allow practical attacks in which the adversary constructs another UA/UVK that matches in the characters shown. When a UA/UVK is abridged it is preferable to show a prefix rather than some other part, both for a more consistent user experience across wallets, and because security analysis of the cost of partial UA/UVK string matching attacks is more complicated if checksum characters are included in the characters that are compared.</p>
+                </details></section>
+            </section>
+            <section id="adding-new-types"><h3><span class="section-heading">Adding new types</span><span class="section-anchor"> <a rel="bookmark" href="#adding-new-types"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>It is intended that new Receiver Types and Viewing Key Types SHOULD be introduced either by a modification to this ZIP or by a new ZIP, in accordance with the ZIP Process <a id="footnote-reference-24" class="footnote_reference" href="#zip-0000">14</a>.</p>
+                <p>For experimentation prior to proposing a ZIP, experimental types MAY be added using the reserved Typecodes
+                    <span class="math">\(\mathtt{0xFFFA}\)</span>
+                 to
+                    <span class="math">\(\mathtt{0xFFFF}\)</span>
+                 inclusive. This provides for six simultaneous experiments, which can be referred to as experiments A to F. This should be sufficient because experiments are expected to be reasonably short-term, and should otherwise be either standardized in a ZIP (and allocated a Typecode outside this reserved range) or discontinued.</p>
+                <p>New types SHOULD maintain the same distinction between FVK and IVK authority as existing types, i.e. an FVK is intended to give access to view all transactions to and from the address, while an IVK is intended to give access only to view incoming payments (as opposed to change).</p>
+            </section>
+            <section id="metadata-items"><h3><span class="section-heading">Metadata Items</span><span class="section-anchor"> <a rel="bookmark" href="#metadata-items"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Typecodes
+                    <span class="math">\(\mathtt{0xC0}\)</span>
+                 to
+                    <span class="math">\(\mathtt{0xFC}\)</span>
+                 inclusive are reserved to indicate Metadata Items other than Receivers or Viewing Keys. These Items MAY affect the overall interpretation of the UA/UVK (for example, by specifying an expiration date).</p>
+                <p id="must-understand-typecodes">As of <a href="#revision-1">Revision 1</a> of this ZIP, the subset of Metadata Typecodes in the range
+                    <span class="math">\(\mathtt{0xE0}\)</span>
+                 to
+                    <span class="math">\(\mathtt{0xFC}\)</span>
+                 inclusive are designated as "MUST-understand": if a Consumer is unable to recognise the meaning of a Metadata Item with a Typecode in this range, then it MUST regard the entire UA/UVK as unsupported and not process it further.</p>
+                <p>A <a href="#revision-0">Revision 0</a> UA/UVK (determined by its HRP as specified in <a href="#revisions">Revisions</a>) MUST NOT include any Metadata Items with a MUST-understand Typecode; a Consumer MUST reject as invalid any UA/UVK that violates this requirement.</p>
+                <p>Since Metadata Items are not Receivers, they MUST NOT be selected by a Sender when choosing a Receiver to send to, and since they are not Viewing Keys, they MUST NOT provide additional authority to view information about transactions.</p>
+                <p>New Metadata Types SHOULD be introduced either by a modification to this ZIP or by a new ZIP, in accordance with the ZIP Process <a id="footnote-reference-25" class="footnote_reference" href="#zip-0000">14</a>.</p>
+                <section id="rationale-for-making-revision-0-ua-uvks-with-must-understand-typecodes-invalid"><h4><span class="section-heading">Rationale for making Revision 0 UA/UVKs with MUST-understand Typecodes invalid</span><span class="section-anchor"> <a rel="bookmark" href="#rationale-for-making-revision-0-ua-uvks-with-must-understand-typecodes-invalid"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                <details>
+<summary>Click to show/hide</summary>
+                    <p>A Consumer implementing this ZIP prior to <a href="#revision-1">Revision 1</a> will not recognise the Human-Readable Parts beginning with “<code>ur</code>” that mark a <a href="#revision-1">Revision 1</a> UA/UVK. So if a UA/UVK that includes MUST-understand Typecodes is required to use these <a href="#revision-1">Revision 1</a> HRPs, this will ensure that the MUST-understand specification is correctly enforced even for such implementations.</p>
+                </details></section>
+            </section>
+            <section id="address-expiration-metadata"><h3><span class="section-heading">Address Expiration Metadata</span><span class="section-anchor"> <a rel="bookmark" href="#address-expiration-metadata"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>As of <a href="#revision-1">Revision 1</a>, Typecodes
+                    <span class="math">\(\mathtt{0xE0}\)</span>
+                 and
+                    <span class="math">\(\mathtt{0xE1}\)</span>
+                 are reserved for optional address expiry metadata. A producer MAY choose to generate Unified Addresses containing either or both of the following Metadata Item Types, or none.</p>
+                <p>The value of a
+                    <span class="math">\(\mathtt{0xE0}\)</span>
+                 item MUST be an unsigned 32-bit integer in little-endian order specifying the Address Expiry Height, a block height of the Zcash chain associated with the UA/UVK. A Unified Address containing metadata Typecode
+                    <span class="math">\(\mathtt{0xE0}\)</span>
+                 MUST be considered expired when the height of the Zcash chain is greater than this value.</p>
+                <p>The value of a
+                    <span class="math">\(\mathtt{0xE1}\)</span>
+                 item MUST be an unsigned 64-bit integer in little-endian order specifying a Unix Epoch Time, hereafter referred to as the Address Expiry Time. A Unified Address containing Metadata Typecode
+                    <span class="math">\(\mathtt{0xE1}\)</span>
+                 MUST be considered expired when the current time is after the Address Expiry Time.</p>
+                <p>A Sender that supports <a href="#revision-1">Revision 1</a> of this specification MUST set a non-zero <code>nExpiryHeight</code> field in transactions it creates that are sent to a Unified Address that defines an Address Expiry Height. If the <code>nExpiryHeight</code> normally constructed by the Sender would be greater than the Address Expiry Height, then the transaction MUST NOT be sent. If only an Address Expiry Time is specified, then the Sender SHOULD choose a value for <code>nExpiryHeight</code> such that the transaction will expire no more than 24 hours after the current time. If both
+                    <span class="math">\(\mathtt{0xE0}\)</span>
+                 and
+                    <span class="math">\(\mathtt{0xE1}\)</span>
+                 Metadata Items are present, then both restrictions apply.</p>
+                <p>If a Sender sends to multiple Unified Addresses in the same transaction, then all of the Address Expiry constraints imposed by the individual addresses apply.</p>
+                <p>If a wallet user attempts to send to an expired address, the error presented to the user by the wallet SHOULD include a suggestion that the user should attempt to obtain a currently-valid address for the intended recipient. A wallet MUST NOT send to an address that it knows to have expired.</p>
+                <p>Address expiration imposes no constraints on the Producer of an address. A Producer MAY generate multiple Unified Addresses with the same Receivers but different expiration metadata and/or any number of distinct Diversified Unified Addresses with the same or different expiry metadata, in any combination. Note that although changes to metadata will result in a visually distinct address, such updated addresses will be directly linkable to the original addresses because they share the same Receivers.</p>
+                <p>When deriving a UIVK from a UFVK containing Typecodes
+                    <span class="math">\(\mathtt{0xE0}\)</span>
+                 and/or
+                    <span class="math">\(\mathtt{0xE1}\)</span>
+                , these Metadata Items MUST be retained unmodified in the derived UIVK.</p>
+                <p>When deriving a Unified Address from a UFVK or UIVK containing a Metadata Item having Typecode
+                    <span class="math">\(\mathtt{0xE0}\)</span>
+                , the derived Unified Address MUST contain a Metadata Item having Typecode
+                    <span class="math">\(\mathtt{0xE0}\)</span>
+                 such that the Address Expiry Height of the resulting address is less than or equal to the Expiry Height of the viewing key.</p>
+                <p>When deriving a Unified Address from a UFVK or UIVK containing a Metadata Item having Typecode
+                    <span class="math">\(\mathtt{0xE1}\)</span>
+                , the derived Unified Address MUST contain a Metadata Item having Typecode
+                    <span class="math">\(\mathtt{0xE1}\)</span>
+                 such that the Address Expiry Time of the resulting address is less than or equal to the Expiry Time of the viewing key.</p>
+                <p>Producers of Diversified Unified Addresses should be aware that the expiration metadata could potentially be used to link addresses from the same source. Normally, if Diversified Unified Addresses derived from the same UIVK contain only Sapling and/or Orchard Receivers and no Metadata Items, they will be unlinkable as described in <a id="footnote-reference-26" class="footnote_reference" href="#protocol-concretediversifyhash">8</a>; this property does not hold when Metadata Items are present. It is RECOMMENDED that when deriving Unified Addresses from a UFVK or UIVK containing expiry metadata that the Expiry Height and Expiry Time of each distinct address vary from one another, so as to reduce the likelihood that addresses may be linked via their expiry metadata.</p>
+                <section id="rationale"><h4><span class="section-heading">Rationale</span><span class="section-anchor"> <a rel="bookmark" href="#rationale"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>The intent of this specification is that Consumers of Unified Addresses must not send to expired addresses. If only an Address Expiry Time is specified, a transaction to the associated address could be mined after the Address Expiry Time within a 24-hour window.</p>
+                    <p>The reason that the transaction MUST NOT be sent when its <code>nExpiryHeight</code> as normally constructed is greater than the Address Expiry Height is to avoid unnecessary information leakage in that field about which address was used as the destination. If a sender were to instead use the expiry height to directly set the <code>nExpiryHeight</code> field, this would leak the expiry information of the destination address, which may then be identifiable.</p>
+                    <p>When honoring an Address Expiry Time, the reason that a sender SHOULD choose a <code>nExpiryHeight</code> that is expected to occur within 24 hours of the time of transaction construction is to, when possible, ensure that the expiry time is respected to within a day. Address Expiry Times are advisory and do not represent hard bounds because computer clocks often disagree, but every effort should be made to ensure that transactions expire instead of being mined more than 24 hours after a recipient address's expiry time. When chain height information is available to the Sender, it is both permissible and advisable to set this bound more tightly; a common expiry delta used by many wallets is 40 blocks from the current chain tip, as suggested in ZIP 203 <a id="footnote-reference-27" class="footnote_reference" href="#zip-0203-default-expiry">24</a>.</p>
+                </section>
+            </section>
+            <section id="deriving-internal-keys"><h3><span class="section-heading">Deriving Internal Keys</span><span class="section-anchor"> <a rel="bookmark" href="#deriving-internal-keys"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>In addition to external addresses suitable for giving out to Senders, a wallet typically requires addresses for internal operations such as change and auto-shielding.</p>
+                <p>We desire the following properties for viewing authority of both shielded and transparent key trees:</p>
+                <ul>
+                    <li>A holder of an FVK can derive external and internal IVKs, and external and internal
+                        <span class="math">\(\mathsf{ovk}\)</span>
+                     components.</li>
+                    <li>A holder of the external IVK cannot derive the internal IVK, or any of the
+                        <span class="math">\(\mathsf{ovk}\)</span>
+                     components.</li>
+                    <li>A holder of the external
+                        <span class="math">\(\mathsf{ovk}\)</span>
+                     component cannot derive the internal
+                        <span class="math">\(\mathsf{ovk}\)</span>
+                     component, or any of the IVKs.</li>
+                </ul>
+                <p>For shielded keys, these properties are achieved by the one-wayness of
+                    <span class="math">\(\mathsf{PRF^{expand}}\)</span>
+                 and of
+                    <span class="math">\(\mathsf{CRH^{ivk}}\)</span>
+                 or
+                    <span class="math">\(\mathsf{Commit^{ivk}}\)</span>
+                 (for Sapling and Orchard respectively). Derivation of an internal shielded FVK from an external shielded FVK is specified in the "Sapling internal key derivation" <a id="footnote-reference-28" class="footnote_reference" href="#zip-0032-sapling-internal-key-derivation">18</a> and "Orchard internal key derivation" <a id="footnote-reference-29" class="footnote_reference" href="#zip-0032-orchard-internal-key-derivation">20</a> sections of ZIP 32.</p>
+                <p>To satisfy the above properties for transparent (P2PKH) keys, we derive the external and internal
+                    <span class="math">\(\mathsf{ovk}\)</span>
+                 components from the transparent FVK
+                    <span class="math">\((\mathsf{c}, \mathsf{pk})\)</span>
+                 (described in <a href="#encoding-of-unified-full-incoming-viewing-keys">Encoding of Unified Full/Incoming Viewing Keys</a>) as follows:</p>
+                <ul>
+                    <li>Let
+                        <span class="math">\(I_\mathsf{ovk} = \mathsf{PRF^{expand}}_{\mathsf{LEOS2BSP}_{256}(\mathsf{c})}\big([\mathtt{0xd0}] \,||\, \mathsf{ser_P}(\mathsf{pk})\big)\)</span>
+                     where
+                        <span class="math">\(\mathsf{ser_P}(pk)\)</span>
+                     is
+                        <span class="math">\(33\)</span>
+                     bytes, as specified in <a id="footnote-reference-30" class="footnote_reference" href="#bip-0032-serialization-format">31</a>.</li>
+                    <li>Let
+                        <span class="math">\(\mathsf{ovk_{external}}\)</span>
+                     be the first
+                        <span class="math">\(32\)</span>
+                     bytes of
+                        <span class="math">\(I_\mathsf{ovk}\)</span>
+                     and let
+                        <span class="math">\(\mathsf{ovk_{internal}}\)</span>
+                     be the remaining
+                        <span class="math">\(32\)</span>
+                     bytes of
+                        <span class="math">\(I_\mathsf{ovk}\)</span>
+                    .</li>
+                </ul>
+                <p>Since an external P2PKH FVK encodes the chain code and public key at the Account level, we can derive both external and internal child keys from it, as described in BIP 44 <a id="footnote-reference-31" class="footnote_reference" href="#bip-0044-path-change">34</a>. It is possible to derive an internal P2PKH FVK from the external P2PKH FVK (i.e. its parent) without having the external spending key, because child derivation at the Change level is non-hardened.</p>
+            </section>
+            <section id="deriving-a-uivk-from-a-ufvk"><h3><span class="section-heading">Deriving a UIVK from a UFVK</span><span class="section-anchor"> <a rel="bookmark" href="#deriving-a-uivk-from-a-ufvk"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>As a consequence of the specification in <a href="#must-understand-typecodes">MUST-understand Typecodes</a>, as of <a href="#revision-1">Revision 1</a> a Consumer of a UFVK MUST understand the meaning of all "MUST-understand" Metadata Item Typecodes present in the UFVK in order to derive a UIVK from it.</p>
+                <p>If the source UFVK is Revision 1 then the derived UIVK SHOULD be Revision 1; if the source UFVK includes any Metadata Items then the derived UIVK MUST be Revision 1.</p>
+                <p>For Metadata Items recognised by the Consumer, the processing of the Item when deriving a UIVK is specified in the section or ZIP describing that Item.</p>
+                <p>The following derivations are applied to each component FVK:</p>
+                <ul>
+                    <li>For a Sapling FVK, the corresponding Sapling IVK is obtained as specified in <a id="footnote-reference-32" class="footnote_reference" href="#protocol-saplingkeycomponents">4</a>.</li>
+                    <li>For an Orchard FVK, the corresponding Orchard IVK is obtained as specified in <a id="footnote-reference-33" class="footnote_reference" href="#protocol-orchardkeycomponents">5</a>.</li>
+                    <li>For a Transparent P2PKH FVK, the corresponding Transparent P2PKH IVK is obtained by deriving the child key with non-hardened index
+                        <span class="math">\(0\)</span>
+                     as described in <a id="footnote-reference-34" class="footnote_reference" href="#bip-0032-public-to-public">32</a>.</li>
+                </ul>
+                <p>In each case, the Typecode remains the same as in the FVK.</p>
+                <p>Items (including Metadata Items that are not "MUST-understand") that are unrecognised by a given Consumer, or that are specified in experiments that the user has not opted into (see <a href="#experimental-usage">Experimental Usage</a>), MUST be dropped when the Consumer derives a UIVK from a UFVK.</p>
+            </section>
+            <section id="deriving-a-unified-address-from-a-uivk"><h3><span class="section-heading">Deriving a Unified Address from a UIVK</span><span class="section-anchor"> <a rel="bookmark" href="#deriving-a-unified-address-from-a-uivk"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>As a consequence of the specification in <a href="#must-understand-typecodes">MUST-understand Typecodes</a>, as of <a href="#revision-1">Revision 1</a> a Consumer of a UIVK MUST understand the meaning of all "MUST-understand" Metadata Item Typecodes present in the UIVK in order to derive a Unified Address from it.</p>
+                <p>If the source UIVK is Revision 1 then the derived Unified Address SHOULD be Revision 1; if the source UIVK includes any Metadata Items then the derived Unified Address MUST be Revision 1.</p>
+                <p>For Metadata Items recognised by the Consumer, the processing of the Item when deriving a Unified Address is specified in the section or ZIP describing that Item.</p>
+                <p>To derive a Unified Address from a UIVK we need to choose a diversifier index, which MUST be valid for all of the Viewing Key Types in the UIVK. That is,</p>
+                <ul>
+                    <li>A Sapling diversifier index MUST generate a valid diversifier as defined in ZIP 32 section “Sapling diversifier derivation” <a id="footnote-reference-35" class="footnote_reference" href="#zip-0032-sapling-diversifier-derivation">17</a>.</li>
+                    <li>A Transparent diversifier index MUST be in the range
+                        <span class="math">\(0\)</span>
+                     to
+                        <span class="math">\(2^{31} - 1\)</span>
+                     inclusive.</li>
+                    <li>There are no additional constraints on an Orchard diversifier index.</li>
+                </ul>
+                <p>The following derivations are applied to each component IVK using the diversifier index:</p>
+                <ul>
+                    <li>For a Sapling IVK, the corresponding Sapling Receiver is obtained as specified in <a id="footnote-reference-36" class="footnote_reference" href="#protocol-saplingkeycomponents">4</a>.</li>
+                    <li>For an Orchard IVK, the corresponding Orchard Receiver is obtained as specified in <a id="footnote-reference-37" class="footnote_reference" href="#protocol-orchardkeycomponents">5</a>.</li>
+                    <li>For a Transparent P2PKH IVK, the diversifier index is used as a BIP 44 child key index at the Index level <a id="footnote-reference-38" class="footnote_reference" href="#bip-0044-path-index">35</a> to derive the corresponding Transparent P2PKH Receiver. As is usual for derivations below the BIP 44 Account level, non-hardened (public) derivation <a id="footnote-reference-39" class="footnote_reference" href="#bip-0032-public-to-public">32</a> MUST be used. The IVK is assumed to correspond to the extended public key for the external (non-change) element of the path. That is, if the UIVK was constructed correctly then the BIP 44 path of the Transparent P2PKH Receiver will be
+                        <span class="math">\(m / 44' / \mathit{coin\_type\kern0.05em'} / \mathit{account\kern0.1em'} / 0 / \mathit{diversifier\_index}.\)</span>
+                    </li>
+                </ul>
+                <p>In each case, the Typecode remains the same as in the IVK.</p>
+                <p>Items (including Metadata Items that are not "MUST-understand") that are unrecognised by a given Consumer, or that are specified in experiments that the user has not opted into (see <a href="#experimental-usage">Experimental Usage</a>), MUST be dropped when the Consumer derives a Unified Address from a UIVK.</p>
+                <p>See <a href="#address-expiration-metadata">Address Expiration Metadata</a> for discussion of potential linking of Diversified Unified Addresses via their metadata.</p>
+            </section>
+            <section id="usage-of-outgoing-viewing-keys"><h3><span class="section-heading">Usage of Outgoing Viewing Keys</span><span class="section-anchor"> <a rel="bookmark" href="#usage-of-outgoing-viewing-keys"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>When a Sender constructs a transaction that creates Sapling or Orchard notes, it uses an outgoing viewing key, as described in <a id="footnote-reference-40" class="footnote_reference" href="#protocol-saplingsend">6</a> and <a id="footnote-reference-41" class="footnote_reference" href="#protocol-orchardsend">7</a>, to encrypt an outgoing ciphertext. Decryption with the outgoing viewing key allows recovering the sent note plaintext, including destination address, amount, and memo. The intention is that this outgoing viewing key should be associated with the source of the funds.</p>
+                <p>However, the specification of which outgoing viewing key should be used is left somewhat open in <a id="footnote-reference-42" class="footnote_reference" href="#protocol-saplingsend">6</a> and <a id="footnote-reference-43" class="footnote_reference" href="#protocol-orchardsend">7</a>; in particular, it was unclear whether transfers should be considered as being sent from an address, or from a ZIP 32 account <a id="footnote-reference-44" class="footnote_reference" href="#zip-0032-specification-wallet-usage">21</a>. The adoption of multiple shielded protocols that support outgoing viewing keys (i.e. Sapling and Orchard) further complicates this question, since from NU5 activation, nothing at the consensus level prevents a wallet from spending both Sapling and Orchard notes in the same transaction. (Recommendations about wallet usage of multiple pools will be given in ZIP 315 <a id="footnote-reference-45" class="footnote_reference" href="#zip-0315">27</a>.)</p>
+                <p>Here we refine the protocol specification in order to allow more precise determination of viewing authority for UFVKs.</p>
+                <p>A Sender will attempt to determine a "sending Account" for each transfer. The preferred approach is for the API used to perform a transfer to directly specify a sending Account. Otherwise, if the Sender can ascertain that all funds used in the transfer are from addresses associated with some Account, then it SHOULD treat that as the sending Account. If not, then the sending Account is undetermined.</p>
+                <p>The Sender also determines a "preferred sending protocol" —one of "transparent", "Sapling", or "Orchard"— corresponding to the most preferred Receiver Type (as given in <a href="#encoding-of-unified-addresses">Encoding of Unified Addresses</a>) of any funds sent in the transaction.</p>
+                <p>If the sending Account has been determined, then the Sender SHOULD use the external or internal
+                    <span class="math">\(\mathsf{ovk}\)</span>
+                 (according to the type of transfer), as specified by the preferred sending protocol, of the full viewing key for that Account (i.e. at the ZIP 32 Account level).</p>
+                <p>If the sending Account is undetermined, then the Sender SHOULD choose one of the addresses, restricted to addresses for the preferred sending protocol, from which funds are being sent (for example, the first one for that protocol), and then use the external or internal
+                    <span class="math">\(\mathsf{ovk}\)</span>
+                 (according to the type of transfer) of the full viewing key for that address.</p>
+            </section>
+            <section id="jumbling"><h3><span class="section-heading">Jumbling</span><span class="section-anchor"> <a rel="bookmark" href="#jumbling"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Security goal (<strong>near second preimage resistance</strong>):</p>
+                <ul>
+                    <li>An adversary is given
+                        <span class="math">\(q\)</span>
+                     Unified Addresses/Viewing Keys, generated honestly.</li>
+                    <li>The attack goal is to produce a “partially colliding” valid Unified Address/Viewing Key that:
+                        <ol suffix=")" type="a">
+                            <li>has a string encoding matching that of <em>one of</em> the input Addresses/Viewing Keys on some subset of characters (for concreteness, consider the first
+                                <span class="math">\(n\)</span>
+                             and last
+                                <span class="math">\(m\)</span>
+                             characters, up to some bound on
+                                <span class="math">\(n+m\)</span>
+                            );</li>
+                            <li>is controlled by the adversary (for concreteness, the adversary knows <em>at least one</em> of the private keys of the constituent Addresses).</li>
+                        </ol>
+                    </li>
+                </ul>
+                <p>Security goal (<strong>nonmalleability</strong>):</p>
+                <ul>
+                    <li>In this variant, part b) above is replaced by the meaning of the new Address/Viewing Key being “usefully” different than the one it is based on, even though the adversary does not know any of the private keys. For example, if it were possible to delete a shielded constituent Address from a UA leaving only a Transparent Address, that would be a significant malleability attack.</li>
+                </ul>
+                <section id="discussion"><h4><span class="section-heading">Discussion</span><span class="section-anchor"> <a rel="bookmark" href="#discussion"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>There is a generic brute force attack against near second preimage resistance. The adversary generates UAs / UVKs at random with known keys, until one has an encoding that partially collides with one of the
+                        <span class="math">\(q\)</span>
+                     targets. It may be possible to improve on this attack by making use of properties of checksums, etc.</p>
+                    <p>The generic attack puts an upper bound on the achievable security: if it takes work
+                        <span class="math">\(w\)</span>
+                     to produce and verify a UA/UVK, and the size of the character set is
+                        <span class="math">\(c,\)</span>
+                     then the generic attack costs
+                        <span class="math">\(\sim \frac{w \cdot
+c^{n+m}}{q}.\)</span>
+                    </p>
+                    <p>There is also a generic brute force attack against nonmalleability. The adversary modifies the target UA/UVK slightly and computes the corresponding decoding, then repeats until the decoding is valid and also useful to the adversary (e.g. it would lead to the Sender using a Transparent Address). With
+                        <span class="math">\(w\)</span>
+                     defined as above, the cost is
+                        <span class="math">\(w/p\)</span>
+                     where
+                        <span class="math">\(p\)</span>
+                     is the probability that a random decoding is of the required form.</p>
+                </section>
+                <section id="solution"><h4><span class="section-heading">Solution</span><span class="section-anchor"> <a rel="bookmark" href="#solution"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>We use an unkeyed 4-round Feistel construction to approximate a random permutation. (As explained below, 3 rounds would not be sufficient.)</p>
+                    <p>Let
+                        <span class="math">\(H_i\)</span>
+                     be a hash personalized by
+                        <span class="math">\(i,\)</span>
+                     with maximum output length
+                        <span class="math">\(\ell_H\)</span>
+                     bytes. Let
+                        <span class="math">\(G_i\)</span>
+                     be a XOF (a hash function with extendable output length) based on
+                        <span class="math">\(H,\)</span>
+                     personalized by
+                        <span class="math">\(i.\)</span>
+                    </p>
+                    <p>Define
+                        <span class="math">\(\ell^\mathsf{MAX}_M = (2^{16} + 1) \cdot \ell_H.\)</span>
+                     For the instantiation using BLAKE2b defined below,
+                        <span class="math">\(\ell^\mathsf{MAX}_M = 4194368.\)</span>
+                    </p>
+                    <p>Given input
+                        <span class="math">\(M\)</span>
+                     of length
+                        <span class="math">\(\ell_M\)</span>
+                     bytes such that
+                        <span class="math">\(48 \leq \ell_M \leq \ell^\mathsf{MAX}_M,\)</span>
+                     define
+                        <span class="math">\(\mathsf{F4Jumble}(M)\)</span>
+                     by:</p>
+                    <ul>
+                        <li>let
+                            <span class="math">\(\ell_L = \mathsf{min}(\ell_H, \mathsf{floor}(\ell_M/2))\)</span>
+                        </li>
+                        <li>let
+                            <span class="math">\(\ell_R = \ell_M - \ell_L\)</span>
+                        </li>
+                        <li>split
+                            <span class="math">\(M\)</span>
+                         into
+                            <span class="math">\(a\)</span>
+                         of length
+                            <span class="math">\(\ell_L\)</span>
+                         bytes and
+                            <span class="math">\(b\)</span>
+                         of length
+                            <span class="math">\(\ell_R\)</span>
+                         bytes</li>
+                        <li>let
+                            <span class="math">\(x = b \oplus G_0(a)\)</span>
+                        </li>
+                        <li>let
+                            <span class="math">\(y = a \oplus H_0(x)\)</span>
+                        </li>
+                        <li>let
+                            <span class="math">\(d = x \oplus G_1(y)\)</span>
+                        </li>
+                        <li>let
+                            <span class="math">\(c = y \oplus H_1(d)\)</span>
+                        </li>
+                        <li>return
+                            <span class="math">\(c \,||\, d.\)</span>
+                        </li>
+                    </ul>
+                    <p>The inverse function
+                        <span class="math">\(\mathsf{F4Jumble}^{-1}\)</span>
+                     is obtained in the usual way for a Feistel construction, by observing that
+                        <span class="math">\(r = p \oplus q\)</span>
+                     implies
+                        <span class="math">\(p = r \oplus q.\)</span>
+                    </p>
+                    <p>The first argument to BLAKE2b below is the personalization.</p>
+                    <p>We instantiate
+                        <span class="math">\(H_i(u)\)</span>
+                     by
+                        <span class="math">\(\mathsf{BLAKE2b‐}(8\ell_L)(\texttt{“UA_F4Jumble_H”} \,||\,\)</span>
+                        <span class="math">\([i, 0, 0], u),\)</span>
+                     with
+                        <span class="math">\(\ell_H = 64.\)</span>
+                    </p>
+                    <p>We instantiate
+                        <span class="math">\(G_i(u)\)</span>
+                     as the first
+                        <span class="math">\(\ell_R\)</span>
+                     bytes of the concatenation of
+                        <span class="math">\([\mathsf{BLAKE2b‐}512(\texttt{“UA_F4Jumble_G”} \,||\, [i] \,||\,\)</span>
+                        <span class="math">\(\mathsf{I2LEOSP}_{16}(j), u) \text{ for } j \text{ from}\)</span>
+                        <span class="math">\(0 \text{ up to } \mathsf{ceiling}(\ell_R/\ell_H)-1].\)</span>
+                    </p>
+                    <figure class="align-center" align="center">
+                        <img width="372" src="assets/images/zip-0316-f4.png" alt="" />
+                        <figcaption>Diagram of 4-round unkeyed Feistel construction</figcaption>
+                    </figure>
+                    <p>(In practice the lengths
+                        <span class="math">\(\ell_L\)</span>
+                     and
+                        <span class="math">\(\ell_R\)</span>
+                     will be roughly the same until
+                        <span class="math">\(\ell_M\)</span>
+                     is larger than
+                        <span class="math">\(128\)</span>
+                     bytes.)</p>
+                </section>
+                <section id="usage-for-unified-addresses-ufvks-and-uivks"><h4><span class="section-heading">Usage for Unified Addresses, UFVKs, and UIVKs</span><span class="section-anchor"> <a rel="bookmark" href="#usage-for-unified-addresses-ufvks-and-uivks"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>In order to prevent the generic attack against nonmalleability, there needs to be some redundancy in the encoding. Therefore, the Producer of a Unified Address, UFVK, or UIVK appends the HRP, padded to 16 bytes with zero bytes, to the raw encoding, then applies
+                        <span class="math">\(\mathsf{F4Jumble}\)</span>
+                     before encoding the result with Bech32m.</p>
+                    <p>The Consumer rejects any Bech32m-decoded byte sequence that is less than 38 bytes or greater than
+                        <span class="math">\(\ell^\mathsf{MAX}_M\)</span>
+                     bytes; otherwise it applies
+                        <span class="math">\(\mathsf{F4Jumble}^{-1}.\)</span>
+                     It rejects any result that does not end in the expected 16-byte padding, before stripping these 16 bytes and parsing the result.</p>
+                </section>
+                <section id="rationale-for-length-restrictions"><h4><span class="section-heading">Rationale for length restrictions</span><span class="section-anchor"> <a rel="bookmark" href="#rationale-for-length-restrictions"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                <details>
+<summary>Click to show/hide</summary>
+                    <p>A minimum input length to
+                        <span class="math">\(\mathsf{F4Jumble}^{-1}\)</span>
+                     of 38 bytes allows for the minimum size of a UA/UVK Item encoding to be 22 bytes including the typecode and length, taking into account 16 bytes of padding. This allows for a UA containing only a Transparent P2PKH Receiver:</p>
+                    <ul>
+                        <li>Transparent P2PKH Receiver Item:
+                            <ul>
+                                <li>1-byte typecode</li>
+                                <li>1-byte encoding of length</li>
+                                <li>20-byte transparent address hash</li>
+                            </ul>
+                        </li>
+                    </ul>
+                    <p>
+                        <span class="math">\(\ell^\mathsf{MAX}_M\)</span>
+                     bytes is the largest input/output size supported by
+                        <span class="math">\(\mathsf{F4Jumble}.\)</span>
+                    </p>
+                    <p>Allowing only a Transparent P2PKH Receiver is consistent with dropping the requirement to have at least one shielded Item in Revision 1 UA/UVKs (<a href="#rationale-for-dropping-the-at-least-one-shielded-item-restriction">see rationale</a>).</p>
+                    <p>Note that Revision 0 of this ZIP specified a minimum input length to
+                        <span class="math">\(\mathsf{F4Jumble}^{-1}\)</span>
+                     of 48 bytes. Since there were no sets of UA/UVK Item Encodings valid in Revision 0 to which a byte sequence (after removal of the 16-byte padding) of length between 22 and 31 bytes inclusive could be parsed, the difference between the 38 and 48-byte restrictions is not observable, other than potentially affecting which error is reported. A Consumer supporting Revision 1 of this specification MAY therefore apply either the 48-byte or 38-byte minimum to Revision 0 UA/UVKs.</p>
+                </details></section>
+                <section id="heuristic-analysis"><h4><span class="section-heading">Heuristic analysis</span><span class="section-anchor"> <a rel="bookmark" href="#heuristic-analysis"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>A 3-round unkeyed Feistel, as shown, is not sufficient:</p>
+                    <figure class="align-center" align="center">
+                        <img width="372" src="assets/images/zip-0316-f3.png" alt="" />
+                        <figcaption>Diagram of 3-round unkeyed Feistel construction</figcaption>
+                    </figure>
+                    <p>Suppose that an adversary has a target input/output pair
+                        <span class="math">\((a \,||\, b, c \,||\, d),\)</span>
+                     and that the input to
+                        <span class="math">\(H_0\)</span>
+                     is
+                        <span class="math">\(x.\)</span>
+                     By fixing
+                        <span class="math">\(x,\)</span>
+                     we can obtain another pair
+                        <span class="math">\(((a \oplus t) \,||\, b', (c \oplus t) \,||\, d')\)</span>
+                     such that
+                        <span class="math">\(a \oplus t\)</span>
+                     is close to
+                        <span class="math">\(a\)</span>
+                     and
+                        <span class="math">\(c \oplus t\)</span>
+                     is close to
+                        <span class="math">\(c.\)</span>
+                     (
+                        <span class="math">\(b'\)</span>
+                     and
+                        <span class="math">\(d'\)</span>
+                     will not be close to
+                        <span class="math">\(b\)</span>
+                     and
+                        <span class="math">\(d,\)</span>
+                     but that isn't necessarily required for a valid attack.)</p>
+                    <p>A 4-round Feistel thwarts this and similar attacks. Defining
+                        <span class="math">\(x\)</span>
+                     and
+                        <span class="math">\(y\)</span>
+                     as the intermediate values in the first diagram above:</p>
+                    <ul>
+                        <li>if
+                            <span class="math">\((x', y')\)</span>
+                         are fixed to the same values as
+                            <span class="math">\((x, y),\)</span>
+                         then
+                            <span class="math">\((a', b', c', d') = (a, b, c, d);\)</span>
+                        </li>
+                        <li>if
+                            <span class="math">\(x' = x\)</span>
+                         but
+                            <span class="math">\(y' \neq y,\)</span>
+                         then the adversary is able to introduce a controlled
+                            <span class="math">\(\oplus\!\)</span>
+                        -difference
+                            <span class="math">\(a \oplus a' = y \oplus y',\)</span>
+                         but the other three pieces
+                            <span class="math">\((b, c, d)\)</span>
+                         are all randomized, which is sufficient;</li>
+                        <li>if
+                            <span class="math">\(y' = y\)</span>
+                         but
+                            <span class="math">\(x' \neq x,\)</span>
+                         then the adversary is able to introduce a controlled
+                            <span class="math">\(\oplus\!\)</span>
+                        -difference
+                            <span class="math">\(d \oplus d' = x \oplus x',\)</span>
+                         but the other three pieces
+                            <span class="math">\((a, b, c)\)</span>
+                         are all randomized, which is sufficient;</li>
+                        <li>if
+                            <span class="math">\(x' \neq x\)</span>
+                         and
+                            <span class="math">\(y' \neq y,\)</span>
+                         all four pieces are randomized.</li>
+                    </ul>
+                    <p>Note that the size of each piece is at least 19 bytes.</p>
+                    <p>It would be possible to make an attack more expensive by making the work done by a Producer more expensive. (This wouldn't necessarily have to increase the work done by the Consumer.) However, given that Unified Addresses may need to be produced on constrained computing platforms, this was not considered to be beneficial overall.</p>
+                    <p>The padding contains the HRP so that the HRP has the same protection against malleation as the rest of the address. This may help against cross-network attacks, or attacks that confuse addresses with viewing keys.</p>
+                </section>
+                <section id="efficiency"><h4><span class="section-heading">Efficiency</span><span class="section-anchor"> <a rel="bookmark" href="#efficiency"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>The cost is dominated by 4 BLAKE2b compressions for
+                        <span class="math">\(\ell_M \leq 128\)</span>
+                     bytes. A UA containing a Transparent Address, a Sapling Address, and an Orchard Address, would have
+                        <span class="math">\(\ell_M = 128\)</span>
+                     bytes. The restriction to a single Address with a given Typecode (and at most one Transparent Address) means that this is also the maximum length of a Unified Address containing only defined Receiver Types as of NU5 activation.</p>
+                    <p>For longer UAs (when other Receiver Types are added) or UVKs, the cost increases to 6 BLAKE2b compressions for
+                        <span class="math">\(128 &lt; \ell_M \leq 192,\)</span>
+                     and 10 BLAKE2b compressions for
+                        <span class="math">\(192 &lt; \ell_M \leq 256,\)</span>
+                     for example. The maximum cost for which the algorithm is defined would be 196608 BLAKE2b compressions at
+                        <span class="math">\(\ell_M = \ell^\mathsf{MAX}_M\)</span>
+                     bytes.</p>
+                    <p>A naïve implementation of the
+                        <span class="math">\(\mathsf{F4Jumble}^{-1}\)</span>
+                     function would require roughly
+                        <span class="math">\(\ell_M\)</span>
+                     bytes plus the size of a BLAKE2b hash state. However, it is possible to reduce this by streaming the
+                        <span class="math">\(d\)</span>
+                     part of the jumbled encoding three times from a less memory-constrained device. It is essential that the streamed value of
+                        <span class="math">\(d\)</span>
+                     is the same on each pass, which can be verified using a Message Authentication Code (with key held only by the Consumer) or collision-resistant hash function. After the first pass of
+                        <span class="math">\(d\)</span>
+                    , the implementation is able to compute
+                        <span class="math">\(y;\)</span>
+                     after the second pass it is able to compute
+                        <span class="math">\(a;\)</span>
+                     and the third allows it to compute and incrementally parse
+                        <span class="math">\(b.\)</span>
+                     The maximum memory usage during this process would be 128 bytes plus two BLAKE2b hash states.</p>
+                    <p>Since this streaming implementation of
+                        <span class="math">\(\mathsf{F4Jumble}^{-1}\)</span>
+                     is quite complicated, we do not require all Consumers to support streaming. If a Consumer implementation cannot support UAs / UVKs up to the maximum length, it MUST nevertheless support UAs / UVKs with
+                        <span class="math">\(\ell_M\)</span>
+                     of at least
+                        <span class="math">\(256\)</span>
+                     bytes. Note that this effectively defines two conformance levels to this specification. A full implementation will support UAs / UVKs up to the maximum length.</p>
+                </section>
+                <section id="dependencies"><h4><span class="section-heading">Dependencies</span><span class="section-anchor"> <a rel="bookmark" href="#dependencies"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>BLAKE2b, with personalization and variable output length, is the only external dependency.</p>
+                </section>
+                <section id="related-work"><h4><span class="section-heading">Related work</span><span class="section-anchor"> <a rel="bookmark" href="#related-work"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p><a href="https://www.iacr.org/cryptodb/data/paper.php?pubkey=218">Eliminating Random Permutation Oracles in the Even–Mansour Cipher</a></p>
+                    <ul>
+                        <li>This paper argues that a 4-round unkeyed Feistel is sufficient to replace a random permutation in the Even–Mansour cipher construction.</li>
+                    </ul>
+                    <p><a href="https://www.iacr.org/archive/crypto2000/18800377/18800377.pdf">On the Round Security of Symmetric-Key Cryptographic Primitives</a></p>
+                    <p><a href="https://www.cl.cam.ac.uk/~rja14/Papers/bear-lion.pdf">LIONESS</a> is a similarly structured 4-round unbalanced Feistel cipher.</p>
+                </section>
+            </section>
+        </section>
+        <section id="reference-implementation"><h2><span class="section-heading">Reference implementation</span><span class="section-anchor"> <a rel="bookmark" href="#reference-implementation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>Revision 0: * <a href="https://github.com/zcash/librustzcash/pull/352">https://github.com/zcash/librustzcash/pull/352</a> * <a href="https://github.com/zcash/librustzcash/pull/416">https://github.com/zcash/librustzcash/pull/416</a></p>
+            <p>Revision 1: * <a href="https://github.com/zcash/librustzcash/pull/1135">https://github.com/zcash/librustzcash/pull/1135</a></p>
+        </section>
+        <section id="acknowledgements"><h2><span class="section-heading">Acknowledgements</span><span class="section-anchor"> <a rel="bookmark" href="#acknowledgements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The authors would like to thank Benjamin Winston, Zooko Wilcox, Francisco Gindre, Marshall Gaucher, Joseph Van Geffen, Brad Miller, Deirdre Connolly, Teor, Eran Tromer, Conrado Gouvêa, and Marek Bielik for discussions on the subject of Unified Addresses and Unified Viewing Keys.</p>
+        </section>
+        <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <table id="bcp14" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>1</th>
+                        <td><a href="https://www.rfc-editor.org/info/bcp14">Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>2</th>
+                        <td><a href="protocol/protocol.pdf">Zcash Protocol Specification, Version 2023.4.0 or later</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-notation" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>3</th>
+                        <td><a href="protocol/protocol.pdf#notation">Zcash Protocol Specification, Version 2023.4.0. Section 2: Notation</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-saplingkeycomponents" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>4</th>
+                        <td><a href="protocol/protocol.pdf#saplingkeycomponents">Zcash Protocol Specification, Version 2023.4.0. Section 4.2.2: Sapling Key Components</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-orchardkeycomponents" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>5</th>
+                        <td><a href="protocol/protocol.pdf#orchardkeycomponents">Zcash Protocol Specification, Version 2023.4.0. Section 4.2.3: Orchard Key Components</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-saplingsend" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>6</th>
+                        <td><a href="protocol/protocol.pdf#saplingsend">Zcash Protocol Specification, Version 2023.4.0. Section 4.7.2: Sending Notes (Sapling)</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-orchardsend" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>7</th>
+                        <td><a href="protocol/protocol.pdf#orchardsend">Zcash Protocol Specification, Version 2023.4.0. Section 4.7.3: Sending Notes (Orchard)</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-concretediversifyhash" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>8</th>
+                        <td><a href="protocol/protocol.pdf#concretediversifyhash">Zcash Protocol Specification, Version 2023.4.0. Section 5.4.1.6: DiversifyHash^Sapling and DiversifyHash^Orchard Hash Functions</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-addressandkeyencoding" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>9</th>
+                        <td><a href="protocol/protocol.pdf#addressandkeyencoding">Zcash Protocol Specification, Version 2023.4.0. Section 5.6: Encodings of Addresses and Keys</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-saplingpaymentaddrencoding" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>10</th>
+                        <td><a href="protocol/protocol.pdf#saplingpaymentaddrencoding">Zcash Protocol Specification, Version 2023.4.0. Section 5.6.3.1: Sapling Payment Addresses</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-orchardpaymentaddrencoding" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>11</th>
+                        <td><a href="protocol/protocol.pdf#orchardpaymentaddrencoding">Zcash Protocol Specification, Version 2023.4.0. Section 5.6.4.2: Orchard Raw Payment Addresses</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-orchardinviewingkeyencoding" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>12</th>
+                        <td><a href="protocol/protocol.pdf#orchardinviewingkeyencoding">Zcash Protocol Specification, Version 2023.4.0. Section 5.6.4.3: Orchard Raw Incoming Viewing Keys</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-orchardfullviewingkeyencoding" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>13</th>
+                        <td><a href="protocol/protocol.pdf#orchardfullviewingkeyencoding">Zcash Protocol Specification, Version 2023.4.0. Section 5.6.4.4: Orchard Raw Full Viewing Keys</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0000" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>14</th>
+                        <td><a href="zip-0000">ZIP 0: ZIP Process</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0032-sapling-helper-functions" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>15</th>
+                        <td><a href="zip-0032#sapling-helper-functions">ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling helper functions</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0032-sapling-extfvk" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>16</th>
+                        <td><a href="zip-0032#sapling-extended-full-viewing-keys">ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling extended full viewing keys</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0032-sapling-diversifier-derivation" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>17</th>
+                        <td><a href="zip-0032#sapling-diversifier-derivation">ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling diversifier derivation</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0032-sapling-internal-key-derivation" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>18</th>
+                        <td><a href="zip-0032#sapling-internal-key-derivation">ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling internal key derivation</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0032-orchard-child-key-derivation" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>19</th>
+                        <td><a href="zip-0032#orchard-child-key-derivation">ZIP 32: Shielded Hierarchical Deterministic Wallets — Orchard child key derivation</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0032-orchard-internal-key-derivation" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>20</th>
+                        <td><a href="zip-0032#orchard-internal-key-derivation">ZIP 32: Shielded Hierarchical Deterministic Wallets — Orchard internal key derivation</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0032-specification-wallet-usage" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>21</th>
+                        <td><a href="zip-0032#specification-wallet-usage">ZIP 32: Shielded Hierarchical Deterministic Wallets — Specification: Wallet usage</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0032-sapling-key-path" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>22</th>
+                        <td><a href="zip-0032#sapling-key-path">ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling key path</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0032-orchard-key-path" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>23</th>
+                        <td><a href="zip-0032#orchard-key-path">ZIP 32: Shielded Hierarchical Deterministic Wallets — Orchard key path</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0203-default-expiry" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>24</th>
+                        <td><a href="zip-0203#changes-for-blossom">ZIP 203: Transaction Expiry — Changes for Blossom</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0211" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>25</th>
+                        <td><a href="zip-0211">ZIP 211: Disabling Addition of New Value to the Sprout Chain Value Pool</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0224" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>26</th>
+                        <td><a href="zip-0224">ZIP 224: Orchard Shielded Protocol</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0315" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>27</th>
+                        <td><a href="zip-0315">ZIP 315: Best Practices for Wallet Handling of Multiple Pools</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0320" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>28</th>
+                        <td><a href="zip-0320">ZIP 320: Defining an Address Type to which funds can only be sent from Transparent Addresses</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0321" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>29</th>
+                        <td><a href="zip-0321">ZIP 321: Payment Request URIs</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bip-0032" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>30</th>
+                        <td><a href="https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki">BIP 32: Hierarchical Deterministic Wallets</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bip-0032-serialization-format" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>31</th>
+                        <td><a href="https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#serialization-format">BIP 32: Hierarchical Deterministic Wallets — Serialization Format</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bip-0032-public-to-public" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>32</th>
+                        <td><a href="https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#public-parent-key--public-child-key">BIP 32: Hierarchical Deterministic Wallets — Child key derivation (CKD) functions: Public parent key → public child key</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bip-0044" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>33</th>
+                        <td><a href="https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki">BIP 44: Multi-Account Hierarchy for Deterministic Wallets</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bip-0044-path-change" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>34</th>
+                        <td><a href="https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#change">BIP 44: Multi-Account Hierarchy for Deterministic Wallets — Path levels: Change</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bip-0044-path-index" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>35</th>
+                        <td><a href="https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#index">BIP 44: Multi-Account Hierarchy for Deterministic Wallets — Path levels: Index</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bip-0350" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>36</th>
+                        <td><a href="https://github.com/bitcoin/bips/blob/master/bip-0350.mediawiki">BIP 350: Bech32m format for v1+ witness addresses</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="p2pkh" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>37</th>
+                        <td><a href="https://developer.bitcoin.org/devguide/transactions.html#p2pkh-script-validation">Transactions: P2PKH Script Validation — Bitcoin Developer Guide</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="p2sh" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>38</th>
+                        <td><a href="https://developer.bitcoin.org/devguide/transactions.html#pay-to-script-hash-p2sh">Transactions: P2SH Scripts — Bitcoin Developer Guide</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bitcoin-compactsize" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>39</th>
+                        <td><a href="https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer">Variable length integer. Bitcoin Wiki</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </section>
+</body>
+</html>
