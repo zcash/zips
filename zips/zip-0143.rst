@@ -1,0 +1,477 @@
+::
+
+  ZIP: 143
+  Title: Transaction Signature Validation for Overwinter
+  Owners: Jack Grigg <str4d@electriccoin.co>
+          Daira-Emma Hopwood <daira-emma@electriccoin.co>
+  Credits: Johnson Lau
+           Pieter Wuille
+           Bitcoin-ABC
+  Status: Final
+  Category: Consensus
+  Created: 2017-12-27
+  License: MIT
+
+
+Terminology
+===========
+
+The key words "MUST" and "MUST NOT" in this document are to be interpreted as described in BCP 14 [#BCP14]_
+when, and only when, they appear in all capitals.
+
+The terms "consensus branch", "epoch", and "network upgrade" in this document are to be interpreted as
+described in ZIP 200. [#zip-0200]_
+
+The term "Overwinter" in this document is to be interpreted as described in ZIP 201. [#zip-0201]_
+
+
+Abstract
+========
+
+This proposal defines a new transaction digest algorithm for signature validation from the Overwinter
+network upgrade, in order to minimize redundant data hashing in validation, and to cover the input value by
+the signature.
+
+
+Motivation
+==========
+
+There are 4 ECDSA signature validation operations in the original Zcash script system: ``CHECKSIG``,
+``CHECKSIGVERIFY``, ``CHECKMULTISIG``, ``CHECKMULTISIGVERIFY`` ("sigops"). According to the sighash type
+(``ALL``, ``NONE``, or ``SINGLE``, possibly modified by ``ANYONECANPAY``), a transaction digest is generated
+with a double SHA256 of a serialized subset of the transaction, and the signature is validated against this
+digest with a given public key. The detailed procedure is described in a Bitcoin Wiki article. [#wiki-checksig]_
+The transaction digest is additionally used for the JoinSplit signature (solely with sighash type ``ALL``).
+[#protocol-sproutsend]_
+
+Unfortunately, there are at least 2 weaknesses in the original SignatureHash transaction digest algorithm:
+
+* For the validation of each signature, the amount of data hashing is proportional to the size of the
+  transaction. Therefore, data hashing grows in O(n\ :sup:`2`) as the number of sigops in a transaction
+  increases. While a 1 MB block would normally take 2 seconds to validate with an average computer in 2015, a
+  1MB transaction with 5569 sigops may take 25 seconds to validate. This could be fixed by optimizing the digest
+  algorithm by introducing some reusable "midstate", so the time complexity becomes O(n). [#quadratic]_
+
+* The algorithm does not involve the value being spent by the input. This is usually not a problem for online
+  network nodes as they could request for the specified transaction to acquire the output value. For an
+  offline transaction signing device ("cold wallet"), however, the lack of knowledge of input amount makes it
+  impossible to calculate the exact amount being spent and the transaction fee. To cope with this problem a
+  cold wallet must also acquire the full transaction being spent, which could be a big obstacle in the
+  implementation of a lightweight, air-gapped wallet. By including the input value of part of the transaction
+  digest, a cold wallet may safely sign a transaction by learning the value from an untrusted source. In the
+  case that a wrong value is provided and signed, the signature would be invalid and no funds would be lost.
+  [#offline-wallets]_
+
+Deploying the aforementioned fixes in the original script system is not a simple task.
+
+
+Specification
+=============
+
+A new transaction digest algorithm is defined::
+
+  BLAKE2b-256 hash of the serialization of:
+    1. header of the transaction (4-byte little endian)
+    2. nVersionGroupId of the transaction (4-byte little endian)
+    3. hashPrevouts (32-byte hash)
+    4. hashSequence (32-byte hash)
+    5. hashOutputs (32-byte hash)
+    6. hashJoinSplits (32-byte hash)
+    7. nLockTime of the transaction (4-byte little endian)
+    8. nExpiryHeight of the transaction (4-byte little endian)
+    9. sighash type of the signature (4-byte little endian)
+   10. If we are computing a transaction digest for a transparent input (i.e. this is not a JoinSplit
+       signature hash):
+       a. outpoint (32-byte hash + 4-byte little endian)
+       b. scriptCode of the input (serialized as scripts inside CTxOuts)
+       c. value of the output spent by this input (8-byte little endian)
+       d. nSequence of the input (4-byte little endian)
+
+The new algorithm is based on the Bitcoin transaction digest algorithm defined in BIP 143, [#bip-0143]_ with
+replay protection inspired by BUIP-HF v1.2. [#buip-HF]_
+
+The new algorithm MUST be used for signatures created over the Overwinter transaction format. [#zip-0202]_
+Combined with the new consensus rule that v1 and v2 transaction formats will be invalid from the Overwinter
+upgrade, [#zip-0202]_ this effectively means that all transaction signatures from the Overwinter activation
+height will use the new algorithm. [#zip-0201]_
+
+The BLAKE2b-256 personalization field [#BLAKE2-personalization]_ is set to::
+
+  "ZcashSigHash" || CONSENSUS_BRANCH_ID
+
+``CONSENSUS_BRANCH_ID`` is the 4-byte little-endian encoding of the consensus branch ID for the epoch of
+the block containing the transaction. [#zip-0200]_ Domain separation of the signature hash across parallel
+consensus branches provides replay protection: transactions targeted for one consensus branch will have
+invalid signatures on other consensus branches.
+
+Transaction creators MUST specify the epoch they want their transaction to be mined in. Across a network
+upgrade, this means that if a transaction is not mined before the activation height, it will never be mined.
+
+Semantics of the original sighash types remain unchanged, except the following:
+
+#. The serialization format is changed;
+
+#. All sighash types commit to the amount being spent by the signed input;
+
+#. ``SINGLE`` does not commit to the input index. When ``ANYONECANPAY`` is not set, the semantics are
+   unchanged since ``hashPrevouts`` and ``outpoint`` together implictly commit to the input index. When
+   ``SINGLE`` is used with ``ANYONECANPAY``, omission of the index commitment allows permutation of the
+   input-output pairs, as long as each pair is located at an equivalent index.
+
+Field definitions
+-----------------
+
+The items 7, 9, 10a, 10d have the same meaning as the original algorithm from Bitcoin. [#wiki-checksig]_
+
+1: ``header``
+`````````````
+Deserialized into two transaction properties: ``fOverwintered`` and ``nVersion``. For transactions that use
+this transaction digest algorithm, ``fOverwintered`` is always set. [#zip-0202]_
+
+2: ``nVersionGroupId``
+``````````````````````
+Provides domain separation of ``nVersion``. It is only defined if ``fOverwintered`` is set, which means that
+it is always defined for transactions that use this algorithm. [#zip-0202]_
+
+3: ``hashPrevouts``
+```````````````````
+* If the ``ANYONECANPAY`` flag is not set, ``hashPrevouts`` is the BLAKE2b-256 hash of the serialization of
+  all input outpoints;
+
+  * The BLAKE2b-256 personalization field is set to ``ZcashPrevoutHash``.
+
+* Otherwise, ``hashPrevouts`` is a ``uint256`` of ``0x0000......0000``.
+
+4: ``hashSequence``
+```````````````````
+* If none of the ``ANYONECANPAY``, ``SINGLE``, ``NONE`` sighash type is set, ``hashSequence`` is the
+  BLAKE2b-256 hash of the serialization of ``nSequence`` of all inputs;
+
+  * The BLAKE2b-256 personalization field is set to ``ZcashSequencHash``.
+
+* Otherwise, ``hashSequence`` is a ``uint256`` of ``0x0000......0000``.
+
+Note: the encoding of the sighash type is masked with ``0x1F`` when checking whether or not the ``SINGLE``
+and ``NONE`` flags are set.
+
+5: ``hashOutputs``
+``````````````````
+* If the sighash type is neither ``SINGLE`` nor ``NONE``, ``hashOutputs`` is the BLAKE2b-256 hash of the
+  serialization of all output amount (8-byte little endian) with ``scriptPubKey`` (serialized as scripts
+  inside CTxOuts);
+
+* If sighash type is ``SINGLE`` and the input index is smaller than the number of outputs, ``hashOutputs`` is
+  the BLAKE2b-256 hash of the output (serialized as above) with the same index as the input;
+
+  * The BLAKE2b-256 personalization field is set to ``ZcashOutputsHash`` in both cases above.
+
+* Otherwise, ``hashOutputs`` is a ``uint256`` of ``0x0000......0000``. [#01-change]_
+
+Note: the encoding of the sighash type is masked with ``0x1F`` when checking whether or not the ``SINGLE``
+and ``NONE`` flags are set.
+
+6: ``hashJoinSplits``
+`````````````````````
+* If ``vjoinsplits`` is non-empty, ``hashJoinSplits`` is the BLAKE2b-256 hash of the serialization of all
+  JoinSplits (in their canonical transaction serialization format) concatenated with the joinSplitPubKey;
+
+  * The BLAKE2b-256 personalization field is set to ``ZcashJSplitsHash``.
+
+  * Note that while signatures are omitted, the JoinSplit proofs are included in the signature hash, as with
+    v1 and v2 transactions.
+
+* Otherwise, ``hashJoinSplits`` is a ``uint256`` of ``0x0000......0000``.
+
+8: ``nExpiryHeight``
+````````````````````
+The block height after which the transaction becomes unilaterally invalid, and can never be mined. [#zip-0203]_
+
+10b: ``scriptCode``
+```````````````````
+The script being currently executed: ``redeemScript`` for P2SH, or ``scriptPubKey`` in the general case. This
+is the same script as serialized in the Sprout transaction digest algorithm.
+
+10c: value
+``````````
+An 8-byte little-endian value of the amount, in zatoshi, spent in this input.
+
+Notes
+-----
+
+The ``hashPrevouts``, ``hashSequence``, ``hashOutputs``, and ``hashJoinSplits`` calculated in an earlier
+validation can be reused in other inputs of the same transaction, so that the time complexity of the whole
+hashing process reduces from O(n\ :sup:`2`) to O(n).
+
+Refer to the reference implementation, reproduced below, for the precise algorithm:
+
+.. code:: cpp
+
+  const unsigned char ZCASH_PREVOUTS_HASH_PERSONALIZATION[16] =
+      {'Z','c','a','s','h','P','r','e','v','o','u','t','H','a','s','h'};
+  const unsigned char ZCASH_SEQUENCE_HASH_PERSONALIZATION[16] =
+      {'Z','c','a','s','h','S','e','q','u','e','n','c','H','a','s','h'};
+  const unsigned char ZCASH_OUTPUTS_HASH_PERSONALIZATION[16] =
+      {'Z','c','a','s','h','O','u','t','p','u','t','s','H','a','s','h'};
+  const unsigned char ZCASH_JOINSPLITS_HASH_PERSONALIZATION[16] =
+      {'Z','c','a','s','h','J','S','p','l','i','t','s','H','a','s','h'};
+
+  // The default values are zeroes
+  uint256 hashPrevouts;
+  uint256 hashSequence;
+  uint256 hashOutputs;
+  uint256 hashJoinSplits;
+
+  if (!(nHashType & SIGHASH_ANYONECANPAY)) {
+      CBLAKE2bWriter ss(SER_GETHASH, 0, ZCASH_PREVOUTS_HASH_PERSONALIZATION);
+      for (unsigned int n = 0; n < txTo.vin.size(); n++) {
+          ss << txTo.vin[n].prevout;
+      }
+      hashPrevouts = ss.GetHash();
+  }
+
+  if (!(nHashType & SIGHASH_ANYONECANPAY) && (nHashType & 0x1f) != SIGHASH_SINGLE && (nHashType & 0x1f) != SIGHASH_NONE) {
+      CBLAKE2bWriter ss(SER_GETHASH, 0, ZCASH_SEQUENCE_HASH_PERSONALIZATION);
+      for (unsigned int n = 0; n < txTo.vin.size(); n++) {
+          ss << txTo.vin[n].nSequence;
+      }
+      hashSequence = ss.GetHash();
+  }
+
+  if ((nHashType & 0x1f) != SIGHASH_SINGLE && (nHashType & 0x1f) != SIGHASH_NONE) {
+      CBLAKE2bWriter ss(SER_GETHASH, 0, ZCASH_OUTPUTS_HASH_PERSONALIZATION);
+      for (unsigned int n = 0; n < txTo.vout.size(); n++) {
+          ss << txTo.vout[n];
+      }
+      hashOutputs = ss.GetHash();
+  } else if ((nHashType & 0x1f) == SIGHASH_SINGLE && nIn < txTo.vout.size()) {
+      CBLAKE2bWriter ss(SER_GETHASH, 0, ZCASH_OUTPUTS_HASH_PERSONALIZATION);
+      ss << txTo.vout[nIn];
+      hashOutputs = ss.GetHash();
+  }
+
+  if (!txTo.vjoinsplit.empty()) {
+      CBLAKE2bWriter ss(SER_GETHASH, 0, ZCASH_JOINSPLITS_HASH_PERSONALIZATION);
+      for (unsigned int n = 0; n < txTo.vjoinsplit.size(); n++) {
+          ss << txTo.vjoinsplit[n];
+      }
+      ss << txTo.joinSplitPubKey;
+      hashJoinSplits = ss.GetHash();
+  }
+
+  uint32_t leConsensusBranchId = htole32(consensusBranchId);
+  unsigned char personalization[16] = {};
+  memcpy(personalization, "ZcashSigHash", 12);
+  memcpy(personalization+12, &leConsensusBranchId, 4);
+
+  CBLAKE2bWriter ss(SER_GETHASH, 0, personalization);
+  // fOverwintered and nVersion
+  ss << txTo.GetHeader();
+  // Version group ID
+  ss << txTo.nVersionGroupId;
+  // Input prevouts/nSequence (none/all, depending on flags)
+  ss << hashPrevouts;
+  ss << hashSequence;
+  // Outputs (none/one/all, depending on flags)
+  ss << hashOutputs;
+  // JoinSplits
+  ss << hashJoinSplits;
+  // Locktime
+  ss << txTo.nLockTime;
+  // Expiry height
+  ss << txTo.nExpiryHeight;
+  // Sighash type
+  ss << nHashType;
+
+  if (nIn != NOT_AN_INPUT) {
+      // The input being signed (replacing the scriptSig with scriptCode + amount)
+      // The prevout may already be contained in hashPrevout, and the nSequence
+      // may already be contained in hashSequence.
+      ss << txTo.vin[nIn].prevout;
+      ss << static_cast<const CScriptBase&>(scriptCode);
+      ss << amount;
+      ss << txTo.vin[nIn].nSequence;
+  }
+
+  return ss.GetHash();
+
+
+Example
+=======
+
+To ensure consistency in consensus-critical behaviour, developers should test their implementations against
+the ZIP 143 test vectors [#test-vectors]_. The first two test vectors are broken out below for clarity. Note
+that 32-byte values below are exactly as the hash function returns, and are not reversed. Further examples can
+be found in the SignatureHash test data [#sighash-tests]_.
+
+The test vectors below should be verified with the Overwinter consensus branch ID (0x5ba81b19) [#zip-0201]_.
+
+Test vector 1
+-------------
+
+Raw transaction::
+
+  030000807082c4030002e7719811893e0000095200ac6551ac636565b2835a0805750200025151481cdd86b3cc431800
+
+  header:          03000080
+  nVersionGroupId: 7082c403
+  vin:             00
+  vout:            02 e7719811893e0000 095200ac6551ac636565
+                      b2835a0805750200 025151
+  nLockTime:       481cdd86
+  nExpiryHeight:   b3cc4318
+  vJoinSplits:     00
+
+Transaction digest with ``nIn = NOT_AN_INPUT`` and ``nHashType = 1`` (``SIGHASH_ALL``)::
+
+  hashPrevouts:
+    BLAKE2b-256('ZcashPrevoutHash', b'')
+  = d53a633bbecf82fe9e9484d8a0e727c73bb9e68c96e72dec30144f6a84afa136
+
+  hashSequence:
+    BLAKE2b-256('ZcashSequencHash', b'')
+  = a5f25f01959361ee6eb56a7401210ee268226f6ce764a4f10b7f29e54db37272
+
+  hashOutputs:
+    BLAKE2b-256('ZcashOutputsHash', e7719811893e0000095200ac6551ac636565b2835a0805750200025151)
+  = ab6f7f6c5ad6b56357b5f37e16981723db6c32411753e28c175e15589172194a
+
+  Preimage:
+  030000807082c403d53a633bbecf82fe9e9484d8a0e727c73bb9e68c96e72dec30144f6a84afa136a5f25f01959361ee6eb56a7401210ee268226f6ce764a4f10b7f29e54db37272ab6f7f6c5ad6b56357b5f37e16981723db6c32411753e28c175e15589172194a0000000000000000000000000000000000000000000000000000000000000000481cdd86b3cc431801000000
+
+    header:          03000080
+    nVersionGroupId: 7082c403
+    hashPrevouts:    d53a633bbecf82fe9e9484d8a0e727c73bb9e68c96e72dec30144f6a84afa136
+    hashSequence:    a5f25f01959361ee6eb56a7401210ee268226f6ce764a4f10b7f29e54db37272
+    hashOutputs:     ab6f7f6c5ad6b56357b5f37e16981723db6c32411753e28c175e15589172194a
+    hashJoinSplits:  0000000000000000000000000000000000000000000000000000000000000000
+    nLockTime:       481cdd86
+    nExpiryHeight:   b3cc4318
+    nHashType:       01000000
+
+  sighash: a1f1a4e5cd9bd522322d661edd2af1bf2a7019cfab94ece18f4ba935b0a19073
+
+Test vector 2
+-------------
+
+Raw transaction::
+
+  030000807082c403024201cfb1cd8dbf69b8250c18ef41294ca97993db546c1fe01f7e9c8e36d6a5e29d4e30a703ac6a0098421c69378af1e40f64e125946f62c2fa7b2fecbcb64b6968912a6381ce3dc166d56a1d62f5a8d7056363635353e8c7203d02d2da86387ae60100080063656a63ac5200a7622997f4ff0400075151005353656597b0e4e4c705fc05020000000000000000000000000000000076495c222f7fba1e31defa3d5a57efc2e1e9b01a035587d5fb1a38e01d94903d3c3e0ad3360c1d3710acd20b183e31d49f25c9a138f49b1a537edcf04be34a9851a7af9db6990ed83dd64af3597c04323ea51b0052ad8084a8b9da948d320dadd64f5431e61ddf658d24ae67c22c8d1309131fc00fe7f235734276d38d47f1e191e00c7a1d48af046827591e9733a97fa6b679f3dc601d008285edcbdae69ce8fc1be4aac00ff2711ebd931de518856878f73476f21a482ec9378365c8f7393c94e2885315eb4671098b79535e790fe53e29fef2b3766697ac32b4f473f468a008e72389fc03880d780cb07fcfaabe3f1a84b27db59a4a153d882d2b2103596555ed9494c6ac893c49723833ec8926c1039586a7afcf4a0d9c731e985d99589c03b838e8aaf745533ed9e8ae3a1cd074a51a20da8aba18d1dbebbc862ded42435e02476930d069896cff30eb414f727b89e001afa2fb8dc3436d75a4a6f26572504b0b2232ecb9f0c02411e52596bc5e90457e745939ffedbd12863ce71a02af117d417adb3d15cc54dcb1fce467500c6b8fb86b12b56da9c382857deecc40a98d5f2903395ee4762dd21afdbb5d47fa9a6dd984d567db2857b927b7fae2db587105415d0242789d38f50b8dbcc129cab3d17d19f3355bcf73cecb8cb8a5da01307152f13902a270572670dc82d39026c6cb4cd4b0f7f5aa2a4f5a5341ec5dd715406f2fdd2a02733f5f641c8c21862a1bafce2609d9eecfa158cfb5cd79f88008e315dc7d8388036c1782fd2795d18a763624c25fa959cc97489ce75745824b77868c53239cfbdf73caec65604037314faaceb56218c6bd30f8374ac13386793f21a9fb80ad03bc0cda4a44946c00e1b1a1df0e5b87b5bece477a709649e950060591394812951e1fe3895b8cc3d14d2cf6556df6ed4b4ddd3d9a69f53357d7767f4f5ccbdbc596631277f8fecd08cb056b95e3025b9792fff7f244fc716269b926d62e9596fa825c6bf21aff9e68625a192440ea06828123d97884806f15fa08da52754a1095e3ff1abd5ce4fddfccfc3a6128aef784a64610a89d1a7099216d0814d3a2d452431c32d411ac1cce82ad0229407bbc48985675e3f874a4533f1d63a84dfa3e0f460fe2f57e34fbc75423c3737f5b2a0615f5722db041a3ef66fa483afd3c2e19e59444a64add6df1d963f5dd5b5010d3d025f0287c4cf19c75f33d51ddddba5d657b43ee8da645443814cc7329f3e9b4e54c236c29af3923101756d9fa4bd0f7d2ddaacb6b0f86a2658e0a07a05ac5b950051cd24c47a88d13d659ba2a46ca1830816d09cd7646f76f716abec5de07fe9b523410806ea6f288f8736c23357c85f45791e1708029d9824d90704607f387a03e49bf9836574431345a7877efaa8a08e73081ef8d62cb780ab6883a50a0d470190dfba10a857f82842d3825b3d6da0573d316eb160dc0b716c48fbd467f75b780149ae8808f4e68f50c0536acddf6f1aeab016b6bc1ec144b4e553acfd670f77e755fc88e0677e31ba459b44e307768958fe3789d41c2b1ff434cb30e15914f01bc6bc2307b488d2556d7b7380ea4ffd712f6b02fe806b94569cd4059f396bf29b99d0a40e5e1711ca944f72d436a102fca4b97693da0b086fe9d2e7162470d02e0f05d4bec9512bfb3f38327296efaa74328b118c27402c70c3a90b49ad4bbc68e37c0aa7d9b3fe17799d73b841e751713a02943905aae0803fd69442eb7681ec2a05600054e92eed555028f21b6a155268a2dd6640a69301a52a38d4d9f9f957ae35af7167118141ce4c9be0a6a492fe79f1581a155fa3a2b9dafd82e650b386ad3a08cb6b83131ac300b0846354a7eef9c410e4b62c47c5426907dfc6685c5c99b7141ac626ab4761fd3f41e728e1a28f89db89ffdeca364dd2f0f0739f0534556483199c71f189341ac9b78a269164206a0ea1ce73bfb2a942e7370b247c046f8e75ef8e3f8bd821cf577491864e20e6d08fd2e32b555c92c661f19588b72a89599710a88061253ca285b6304b37da2b5294f5cb354a894322848ccbdc7c2545b7da568afac87ffa005c312241c2d57f4b45d6419f0d2e2c5af33ae243785b325cdab95404fc7aed70525cddb41872cfcc214b13232edc78609753dbff930eb0dc156612b9cb434bc4b693392deb87c530435312edcedc6a961133338d786c4a3e103f60110a16b1337129704bf4754ff6ba9fbe65951e610620f71cda8fc877625f2c5bb04cbe1228b1e886f4050afd8fe94e97d2e9e85c6bb748c0042d3249abb1342bb0eebf62058bf3de080d94611a3750915b5dc6c0b3899d41222bace760ee9c8818ded599e34c56d7372af1eb86852f2a732104bdb750739de6c2c6e0f9eb7cb17f1942bfc9f4fd6ebb6b4cdd4da2bca26fac4578e9f543405acc7d86ff59158bd0cba3aef6f4a8472d144d99f8b8d1dedaa9077d4f01d4bb27bbe31d88fbefac3dcd4797563a26b1d61fcd9a464ab21ed550fe6fa09695ba0b2f10e00000000000000000000000000000000ea6468cc6e20a66f826e3d14c5006f0563887f5e1289be1b2004caca8d3f34d6e84bf59c1e04619a7c23a996941d889e4622a9b9b1d59d5e319094318cd405ba27b7e2c084762d31453ec4549a4d97729d033460fcf89d6494f2ffd789e98082ea5ce9534b3acd60fe49e37e4f666931677319ed89f85588741b3128901a93bd78e4be0225a9e2692c77c969ed0176bdf9555948cbd5a332d045de6ba6bf4490adfe7444cd467a09075417fcc0062e49f008c51ad4227439c1b4476ccd8e97862dab7be1e8d399c05ef27c6e22ee273e15786e394c8f1be31682a30147963ac8da8d41d804258426a3f70289b8ad19d8de13be4eebe3bd4c8a6f55d6e0c373d456851879f5fbc282db9e134806bff71e11bc33ab75dd6ca067fb73a043b646a70339cab4928386786d2f24141ee120fdc34d6764eafc66880ee0204f53cc1167ed02b43a52dea3ca7cff8ef35cd8e6d7c111a68ef44bcd0c1513ad47ca61c659cc5d0a5b440f6b9f59aff66879bb6688fd2859362b182f207b3175961f6411a493bffd048e7d0d87d82fe6f990a2b0a25f5aa0111a6e68f37bf6f3ac2d26b84686e569038d99c1383597fad81193c4c1b16e6a90e2d507cdfe6fbdaa86163e9cf5de310003ca7e8da047b090db9f37952fbfee76af61668190bd52ed490e677b515d0143840307219c7c0ee7fc7bfc79f325644e4df4c0d7db08e9f0bd024943c705abff899403a605cfbc7ed746a7d3f7c37d9e8bdc433b7d79e08a12f738a8f0dbddfef2f26502f3e47d1b0fd11e6a13311fb799c79c641d9da43b33e7ad012e28255398789262275f1175be8462c01491c4d842406d0ec4282c9526174a09878fe8fdde33a29604e5e5e7b2a025d6650b97dbb52befb59b1d30a57433b0a351474444099daa371046613260cf3354cfcdada663ece824ffd7e44393886a86165ddddf2b4c41773554c86995269408b11e6737a4c447586f69173446d8e48bf84cbc000a807899973eb93c5e819aad669413f8387933ad1584aa35e43f4ecd1e2d0407c0b1b89920ffdfdb9bea51ac95b557af71b89f903f5d9848f14fcbeb1837570f544d6359eb23faf38a0822da36ce426c4a2fbeffeb0a8a2e297a9d19ba15024590e3329d9fa9261f9938a4032dd34606c9cf9f3dd33e576f05cd1dd6811c6298757d77d9e810abdb226afcaa4346a6560f8932b3181fd355d5d391976183f8d99388839632d6354f666d09d3e5629ea19737388613d38a34fd0f6e50ee5a0cc9677177f50028c141378187bd2819403fc534f80076e9380cb4964d3b6b45819d3b8e9caf54f051852d671bf8c1ffde2d1510756418cb4810936aa57e6965d6fb656a760b7f19adf96c173488552193b147ee58858033dac7cd0eb204c06490bbdedf5f7571acb2ebe76acef3f2a01ee987486dfe6c3f0a5e234c127258f97a28fb5d164a8176be946b8097d0e317287f33bf9c16f9a545409ce29b1f4273725fc0df02a04ebae178b3414fb0a82d50deb09fcf4e6ee9d180ff4f56ff3bc1d3601fc2dc90d814c3256f4967d3a8d64c83fea339c51f5a8e5801fbb97835581b602465dee04b5922c2761b54245bec0c9eef2db97d22b2b3556cc969fbb13d06509765a52b3fac54b93f421bf08e18d52ddd52cc1c8ca8adfaccab7e5cc2f4573fbbf8239bb0b8aedbf8dad16282da5c9125dba1c059d0df8abf621078f02d6c4bc86d40845ac1d59710c45f07d585eb48b32fc0167ba256e73ca3b9311c62d109497957d8dbe10aa3e866b40c0baa2bc492c19ad1e6372d9622bf163fbffeaeee796a3cd9b6fbbfa4d792f34d7fd6e763cd5859dd26833d21d9bc5452bd19515dff9f4995b35bc0c1f876e6ad11f2452dc9ae85aec01fc56f8cbfda75a7727b75ebbd6bbffb43b63a3b1b671e40feb0db002974a3c3b1a788567231bf6399ff89236981149d423802d2341a3bedb9ddcbac1fe7b6435e1479c72e7089d029e7fbbaf3cf37e9b9a6b776791e4c5e6fda57e8d5f14c8c35a2d270846b9dbe005cda16af4408f3ab06a916eeeb9c9594b70424a4c1d171295b6763b22f47f80b53ccbb904bd68fd65fbd3fbdea1035e98c21a7dbc91a9b5bc7690f05ec317c97f8764eb48e911d428ec8d861b708e8298acb62155145155ae95f0a1d1501034753146e22d05f586d7f6b4fe12dad9a17f5db70b1db96b8d9a83edadc966c8a5466b61fc998c31f1070d9a5c9a6d268d304fe6b8fd3b4010348611abdcbd49fe4f85b623c7828c71382e1034ea67bc8ae97404b0c50b2a04f559e49950afcb0ef462a2ae024b0f0224dfd73684b88c7fbe92d02b68f759c4752663cd7b97a14943649305521326bde085630864629291bae25ff8822a14c4b666a9259ad0dc42a8290ac7bc7f53a16f379f758e5de750f04fd7cad47701c8597f97888bea6fa0bf2999956fbfd0ee68ec36e4688809ae231eb8bc4369f5fe1573f57e099d9c09901bf39caac48dc11956a8ae905ead86954547c448ae43d315e669c4242da565938f417bf43ce7b2b30b1cd4018388e1a910f0fc41fb0877a5925e466819d375b0a912d4fe843b76ef6f223f0f7c894f38f7ab780dfd75f669c8c06cffa43eb47565a50e3b1fa45ad61ce9a1c4727b7aaa53562f523e73952
+
+  header:          03000080
+  nVersionGroupId: 7082c403
+  vin:             02 4201cfb1cd8dbf69b8250c18ef41294ca97993db546c1fe01f7e9c8e36d6a5e2 9d4e30a7 03ac6a00 98421c69
+                      378af1e40f64e125946f62c2fa7b2fecbcb64b6968912a6381ce3dc166d56a1d 62f5a8d7 056363635353 e8c7203d
+  vout:            02 d2da86387ae60100 080063656a63ac5200
+                      a7622997f4ff0400 0751510053536565
+  nLockTime:       97b0e4e4
+  nExpiryHeight:   c705fc05
+  vJoinSplit:      02
+    vpub_old:     0000000000000000
+    vpub_new:     0000000000000000
+    anchor:       76495c222f7fba1e31defa3d5a57efc2e1e9b01a035587d5fb1a38e01d94903d
+    nullifiers:   3c3e0ad3360c1d3710acd20b183e31d49f25c9a138f49b1a537edcf04be34a98 51a7af9db6990ed83dd64af3597c04323ea51b0052ad8084a8b9da948d320dad
+    commitments:  d64f5431e61ddf658d24ae67c22c8d1309131fc00fe7f235734276d38d47f1e1 91e00c7a1d48af046827591e9733a97fa6b679f3dc601d008285edcbdae69ce8
+    ephemeralKey: fc1be4aac00ff2711ebd931de518856878f73476f21a482ec9378365c8f7393c
+    randomSeed:   94e2885315eb4671098b79535e790fe53e29fef2b3766697ac32b4f473f468a0
+    macs:         08e72389fc03880d780cb07fcfaabe3f1a84b27db59a4a153d882d2b21035965 55ed9494c6ac893c49723833ec8926c1039586a7afcf4a0d9c731e985d99589c
+    proof:        03b838e8aaf745533ed9e8ae3a1cd074a51a20da8aba18d1dbebbc862ded42435e02476930d069896cff30eb414f727b89e001afa2fb8dc3436d75a4a6f26572504b0b2232ecb9f0c02411e52596bc5e90457e745939ffedbd12863ce71a02af117d417adb3d15cc54dcb1fce467500c6b8fb86b12b56da9c382857deecc40a98d5f2903395ee4762dd21afdbb5d47fa9a6dd984d567db2857b927b7fae2db587105415d0242789d38f50b8dbcc129cab3d17d19f3355bcf73cecb8cb8a5da01307152f13902a270572670dc82d39026c6cb4cd4b0f7f5aa2a4f5a5341ec5dd715406f2fdd2a02733f5f641c8c21862a1bafce2609d9eecfa158cfb5cd79f88008e315dc7d8388036c1782fd2795d18a763624c25fa959cc97489ce75745824b77868c53239cfbdf
+    ciphertexts:
+      73caec65604037314faaceb56218c6bd30f8374ac13386793f21a9fb80ad03bc0cda4a44946c00e1b1a1df0e5b87b5bece477a709649e950060591394812951e1fe3895b8cc3d14d2cf6556df6ed4b4ddd3d9a69f53357d7767f4f5ccbdbc596631277f8fecd08cb056b95e3025b9792fff7f244fc716269b926d62e9596fa825c6bf21aff9e68625a192440ea06828123d97884806f15fa08da52754a1095e3ff1abd5ce4fddfccfc3a6128aef784a64610a89d1a7099216d0814d3a2d452431c32d411ac1cce82ad0229407bbc48985675e3f874a4533f1d63a84dfa3e0f460fe2f57e34fbc75423c3737f5b2a0615f5722db041a3ef66fa483afd3c2e19e59444a64add6df1d963f5dd5b5010d3d025f0287c4cf19c75f33d51ddddba5d657b43ee8da645443814cc7329f3e9b4e54c236c29af3923101756d9fa4bd0f7d2ddaacb6b0f86a2658e0a07a05ac5b950051cd24c47a88d13d659ba2a46ca1830816d09cd7646f76f716abec5de07fe9b523410806ea6f288f8736c23357c85f45791e1708029d9824d90704607f387a03e49bf9836574431345a7877efaa8a08e73081ef8d62cb780ab6883a50a0d470190dfba10a857f82842d3825b3d6da0573d316eb160dc0b716c48fbd467f75b780149ae8808f4e68f50c0536acddf6f1aeab016b6bc1ec144b4e553acfd670f77e755fc88e0677e31ba459b44e307768958fe3789d41c2b1ff434cb30e15914f01bc6bc2307b488d2556d7b7380ea4ffd712f6b02fe806b94569cd4059f396bf29b99d0a40e5e1711ca944f72d436a102fca4b97693da0b086fe9d2e7162470d02e0f05d4bec9512bf
+      b3f38327296efaa74328b118c27402c70c3a90b49ad4bbc68e37c0aa7d9b3fe17799d73b841e751713a02943905aae0803fd69442eb7681ec2a05600054e92eed555028f21b6a155268a2dd6640a69301a52a38d4d9f9f957ae35af7167118141ce4c9be0a6a492fe79f1581a155fa3a2b9dafd82e650b386ad3a08cb6b83131ac300b0846354a7eef9c410e4b62c47c5426907dfc6685c5c99b7141ac626ab4761fd3f41e728e1a28f89db89ffdeca364dd2f0f0739f0534556483199c71f189341ac9b78a269164206a0ea1ce73bfb2a942e7370b247c046f8e75ef8e3f8bd821cf577491864e20e6d08fd2e32b555c92c661f19588b72a89599710a88061253ca285b6304b37da2b5294f5cb354a894322848ccbdc7c2545b7da568afac87ffa005c312241c2d57f4b45d6419f0d2e2c5af33ae243785b325cdab95404fc7aed70525cddb41872cfcc214b13232edc78609753dbff930eb0dc156612b9cb434bc4b693392deb87c530435312edcedc6a961133338d786c4a3e103f60110a16b1337129704bf4754ff6ba9fbe65951e610620f71cda8fc877625f2c5bb04cbe1228b1e886f4050afd8fe94e97d2e9e85c6bb748c0042d3249abb1342bb0eebf62058bf3de080d94611a3750915b5dc6c0b3899d41222bace760ee9c8818ded599e34c56d7372af1eb86852f2a732104bdb750739de6c2c6e0f9eb7cb17f1942bfc9f4fd6ebb6b4cdd4da2bca26fac4578e9f543405acc7d86ff59158bd0cba3aef6f4a8472d144d99f8b8d1dedaa9077d4f01d4bb27bbe31d88fbefac3dcd4797563a26b1d61fcd9a464ab21ed550fe6fa09695ba0b2f10e
+
+    vpub_old:     0000000000000000
+    vpub_new:     0000000000000000
+    anchor:       ea6468cc6e20a66f826e3d14c5006f0563887f5e1289be1b2004caca8d3f34d6
+    nullifiers:   e84bf59c1e04619a7c23a996941d889e4622a9b9b1d59d5e319094318cd405ba 27b7e2c084762d31453ec4549a4d97729d033460fcf89d6494f2ffd789e98082
+    commitments:  ea5ce9534b3acd60fe49e37e4f666931677319ed89f85588741b3128901a93bd 78e4be0225a9e2692c77c969ed0176bdf9555948cbd5a332d045de6ba6bf4490
+    ephemeralKey: adfe7444cd467a09075417fcc0062e49f008c51ad4227439c1b4476ccd8e9786
+    randomSeed:   2dab7be1e8d399c05ef27c6e22ee273e15786e394c8f1be31682a30147963ac8
+    macs:         da8d41d804258426a3f70289b8ad19d8de13be4eebe3bd4c8a6f55d6e0c373d4 56851879f5fbc282db9e134806bff71e11bc33ab75dd6ca067fb73a043b646a7
+    proof:        0339cab4928386786d2f24141ee120fdc34d6764eafc66880ee0204f53cc1167ed02b43a52dea3ca7cff8ef35cd8e6d7c111a68ef44bcd0c1513ad47ca61c659cc5d0a5b440f6b9f59aff66879bb6688fd2859362b182f207b3175961f6411a493bffd048e7d0d87d82fe6f990a2b0a25f5aa0111a6e68f37bf6f3ac2d26b84686e569038d99c1383597fad81193c4c1b16e6a90e2d507cdfe6fbdaa86163e9cf5de310003ca7e8da047b090db9f37952fbfee76af61668190bd52ed490e677b515d0143840307219c7c0ee7fc7bfc79f325644e4df4c0d7db08e9f0bd024943c705abff899403a605cfbc7ed746a7d3f7c37d9e8bdc433b7d79e08a12f738a8f0dbddfef2f26502f3e47d1b0fd11e6a13311fb799c79c641d9da43b33e7ad012e28255398789262
+    ciphertexts:
+      275f1175be8462c01491c4d842406d0ec4282c9526174a09878fe8fdde33a29604e5e5e7b2a025d6650b97dbb52befb59b1d30a57433b0a351474444099daa371046613260cf3354cfcdada663ece824ffd7e44393886a86165ddddf2b4c41773554c86995269408b11e6737a4c447586f69173446d8e48bf84cbc000a807899973eb93c5e819aad669413f8387933ad1584aa35e43f4ecd1e2d0407c0b1b89920ffdfdb9bea51ac95b557af71b89f903f5d9848f14fcbeb1837570f544d6359eb23faf38a0822da36ce426c4a2fbeffeb0a8a2e297a9d19ba15024590e3329d9fa9261f9938a4032dd34606c9cf9f3dd33e576f05cd1dd6811c6298757d77d9e810abdb226afcaa4346a6560f8932b3181fd355d5d391976183f8d99388839632d6354f666d09d3e5629ea19737388613d38a34fd0f6e50ee5a0cc9677177f50028c141378187bd2819403fc534f80076e9380cb4964d3b6b45819d3b8e9caf54f051852d671bf8c1ffde2d1510756418cb4810936aa57e6965d6fb656a760b7f19adf96c173488552193b147ee58858033dac7cd0eb204c06490bbdedf5f7571acb2ebe76acef3f2a01ee987486dfe6c3f0a5e234c127258f97a28fb5d164a8176be946b8097d0e317287f33bf9c16f9a545409ce29b1f4273725fc0df02a04ebae178b3414fb0a82d50deb09fcf4e6ee9d180ff4f56ff3bc1d3601fc2dc90d814c3256f4967d3a8d64c83fea339c51f5a8e5801fbb97835581b602465dee04b5922c2761b54245bec0c9eef2db97d22b2b3556cc969fbb13d06509765a52b3fac54b93f421bf08e18d52ddd52cc1c8ca8adfaccab7e5cc2
+      f4573fbbf8239bb0b8aedbf8dad16282da5c9125dba1c059d0df8abf621078f02d6c4bc86d40845ac1d59710c45f07d585eb48b32fc0167ba256e73ca3b9311c62d109497957d8dbe10aa3e866b40c0baa2bc492c19ad1e6372d9622bf163fbffeaeee796a3cd9b6fbbfa4d792f34d7fd6e763cd5859dd26833d21d9bc5452bd19515dff9f4995b35bc0c1f876e6ad11f2452dc9ae85aec01fc56f8cbfda75a7727b75ebbd6bbffb43b63a3b1b671e40feb0db002974a3c3b1a788567231bf6399ff89236981149d423802d2341a3bedb9ddcbac1fe7b6435e1479c72e7089d029e7fbbaf3cf37e9b9a6b776791e4c5e6fda57e8d5f14c8c35a2d270846b9dbe005cda16af4408f3ab06a916eeeb9c9594b70424a4c1d171295b6763b22f47f80b53ccbb904bd68fd65fbd3fbdea1035e98c21a7dbc91a9b5bc7690f05ec317c97f8764eb48e911d428ec8d861b708e8298acb62155145155ae95f0a1d1501034753146e22d05f586d7f6b4fe12dad9a17f5db70b1db96b8d9a83edadc966c8a5466b61fc998c31f1070d9a5c9a6d268d304fe6b8fd3b4010348611abdcbd49fe4f85b623c7828c71382e1034ea67bc8ae97404b0c50b2a04f559e49950afcb0ef462a2ae024b0f0224dfd73684b88c7fbe92d02b68f759c4752663cd7b97a14943649305521326bde085630864629291bae25ff8822a14c4b666a9259ad0dc42a8290ac7bc7f53a16f379f758e5de750f04fd7cad47701c8597f97888bea6fa0bf2999956fbfd0ee68ec36e4688809ae231eb8bc4369f5fe1573f57e099d9c09901bf39caac48dc11956a8ae905ead86954547c448ae43d31
+
+  joinSplitPubKey: 5e669c4242da565938f417bf43ce7b2b30b1cd4018388e1a910f0fc41fb0877a
+  joinSplitSig:    5925e466819d375b0a912d4fe843b76ef6f223f0f7c894f38f7ab780dfd75f669c8c06cffa43eb47565a50e3b1fa45ad61ce9a1c4727b7aaa53562f523e73952
+  (joinSplitPubKey is a potentially-invalid public key; joinSplitSig is invalid random data)
+
+Transaction digest with ``nIn = 1`` and ``nHashType = 3`` (``SIGHASH_SINGLE``)::
+
+  hashPrevouts:
+    BLAKE2b-256('ZcashPrevoutHash', 4201cfb1cd8dbf69b8250c18ef41294ca97993db546c1fe01f7e9c8e36d6a5e29d4e30a7378af1e40f64e125946f62c2fa7b2fecbcb64b6968912a6381ce3dc166d56a1d62f5a8d7)
+  = 92b8af1f7e12cb8de105af154470a2ae0a11e64a24a514a562ff943ca0f35d7f
+
+  hashOutputs:
+    BLAKE2b-256('ZcashOutputsHash', 23752997f4ff04000751510053536565)
+  = e03b74bc5187184406285bb9f03b4be510f5700c5859738434cf7b8f5bdb6772
+
+  hashJoinSplits:
+    BLAKE2b-256('ZcashJSplitsHash', 0000000000000000000000000000000076495c222f7fba1e31defa3d5a57efc2e1e9b01a035587d5fb1a38e01d94903d3c3e0ad3360c1d3710acd20b183e31d49f25c9a138f49b1a537edcf04be34a9851a7af9db6990ed83dd64af3597c04323ea51b0052ad8084a8b9da948d320dadd64f5431e61ddf658d24ae67c22c8d1309131fc00fe7f235734276d38d47f1e191e00c7a1d48af046827591e9733a97fa6b679f3dc601d008285edcbdae69ce8fc1be4aac00ff2711ebd931de518856878f73476f21a482ec9378365c8f7393c94e2885315eb4671098b79535e790fe53e29fef2b3766697ac32b4f473f468a008e72389fc03880d780cb07fcfaabe3f1a84b27db59a4a153d882d2b2103596555ed9494c6ac893c49723833ec8926c1039586a7afcf4a0d9c731e985d99589c03b838e8aaf745533ed9e8ae3a1cd074a51a20da8aba18d1dbebbc862ded42435e02476930d069896cff30eb414f727b89e001afa2fb8dc3436d75a4a6f26572504b0b2232ecb9f0c02411e52596bc5e90457e745939ffedbd12863ce71a02af117d417adb3d15cc54dcb1fce467500c6b8fb86b12b56da9c382857deecc40a98d5f2903395ee4762dd21afdbb5d47fa9a6dd984d567db2857b927b7fae2db587105415d0242789d38f50b8dbcc129cab3d17d19f3355bcf73cecb8cb8a5da01307152f13902a270572670dc82d39026c6cb4cd4b0f7f5aa2a4f5a5341ec5dd715406f2fdd2a02733f5f641c8c21862a1bafce2609d9eecfa158cfb5cd79f88008e315dc7d8388036c1782fd2795d18a763624c25fa959cc97489ce75745824b77868c53239cfbdf73caec65604037314faaceb56218c6bd30f8374ac13386793f21a9fb80ad03bc0cda4a44946c00e1b1a1df0e5b87b5bece477a709649e950060591394812951e1fe3895b8cc3d14d2cf6556df6ed4b4ddd3d9a69f53357d7767f4f5ccbdbc596631277f8fecd08cb056b95e3025b9792fff7f244fc716269b926d62e9596fa825c6bf21aff9e68625a192440ea06828123d97884806f15fa08da52754a1095e3ff1abd5ce4fddfccfc3a6128aef784a64610a89d1a7099216d0814d3a2d452431c32d411ac1cce82ad0229407bbc48985675e3f874a4533f1d63a84dfa3e0f460fe2f57e34fbc75423c3737f5b2a0615f5722db041a3ef66fa483afd3c2e19e59444a64add6df1d963f5dd5b5010d3d025f0287c4cf19c75f33d51ddddba5d657b43ee8da645443814cc7329f3e9b4e54c236c29af3923101756d9fa4bd0f7d2ddaacb6b0f86a2658e0a07a05ac5b950051cd24c47a88d13d659ba2a46ca1830816d09cd7646f76f716abec5de07fe9b523410806ea6f288f8736c23357c85f45791e1708029d9824d90704607f387a03e49bf9836574431345a7877efaa8a08e73081ef8d62cb780ab6883a50a0d470190dfba10a857f82842d3825b3d6da0573d316eb160dc0b716c48fbd467f75b780149ae8808f4e68f50c0536acddf6f1aeab016b6bc1ec144b4e553acfd670f77e755fc88e0677e31ba459b44e307768958fe3789d41c2b1ff434cb30e15914f01bc6bc2307b488d2556d7b7380ea4ffd712f6b02fe806b94569cd4059f396bf29b99d0a40e5e1711ca944f72d436a102fca4b97693da0b086fe9d2e7162470d02e0f05d4bec9512bfb3f38327296efaa74328b118c27402c70c3a90b49ad4bbc68e37c0aa7d9b3fe17799d73b841e751713a02943905aae0803fd69442eb7681ec2a05600054e92eed555028f21b6a155268a2dd6640a69301a52a38d4d9f9f957ae35af7167118141ce4c9be0a6a492fe79f1581a155fa3a2b9dafd82e650b386ad3a08cb6b83131ac300b0846354a7eef9c410e4b62c47c5426907dfc6685c5c99b7141ac626ab4761fd3f41e728e1a28f89db89ffdeca364dd2f0f0739f0534556483199c71f189341ac9b78a269164206a0ea1ce73bfb2a942e7370b247c046f8e75ef8e3f8bd821cf577491864e20e6d08fd2e32b555c92c661f19588b72a89599710a88061253ca285b6304b37da2b5294f5cb354a894322848ccbdc7c2545b7da568afac87ffa005c312241c2d57f4b45d6419f0d2e2c5af33ae243785b325cdab95404fc7aed70525cddb41872cfcc214b13232edc78609753dbff930eb0dc156612b9cb434bc4b693392deb87c530435312edcedc6a961133338d786c4a3e103f60110a16b1337129704bf4754ff6ba9fbe65951e610620f71cda8fc877625f2c5bb04cbe1228b1e886f4050afd8fe94e97d2e9e85c6bb748c0042d3249abb1342bb0eebf62058bf3de080d94611a3750915b5dc6c0b3899d41222bace760ee9c8818ded599e34c56d7372af1eb86852f2a732104bdb750739de6c2c6e0f9eb7cb17f1942bfc9f4fd6ebb6b4cdd4da2bca26fac4578e9f543405acc7d86ff59158bd0cba3aef6f4a8472d144d99f8b8d1dedaa9077d4f01d4bb27bbe31d88fbefac3dcd4797563a26b1d61fcd9a464ab21ed550fe6fa09695ba0b2f10e00000000000000000000000000000000ea6468cc6e20a66f826e3d14c5006f0563887f5e1289be1b2004caca8d3f34d6e84bf59c1e04619a7c23a996941d889e4622a9b9b1d59d5e319094318cd405ba27b7e2c084762d31453ec4549a4d97729d033460fcf89d6494f2ffd789e98082ea5ce9534b3acd60fe49e37e4f666931677319ed89f85588741b3128901a93bd78e4be0225a9e2692c77c969ed0176bdf9555948cbd5a332d045de6ba6bf4490adfe7444cd467a09075417fcc0062e49f008c51ad4227439c1b4476ccd8e97862dab7be1e8d399c05ef27c6e22ee273e15786e394c8f1be31682a30147963ac8da8d41d804258426a3f70289b8ad19d8de13be4eebe3bd4c8a6f55d6e0c373d456851879f5fbc282db9e134806bff71e11bc33ab75dd6ca067fb73a043b646a70339cab4928386786d2f24141ee120fdc34d6764eafc66880ee0204f53cc1167ed02b43a52dea3ca7cff8ef35cd8e6d7c111a68ef44bcd0c1513ad47ca61c659cc5d0a5b440f6b9f59aff66879bb6688fd2859362b182f207b3175961f6411a493bffd048e7d0d87d82fe6f990a2b0a25f5aa0111a6e68f37bf6f3ac2d26b84686e569038d99c1383597fad81193c4c1b16e6a90e2d507cdfe6fbdaa86163e9cf5de310003ca7e8da047b090db9f37952fbfee76af61668190bd52ed490e677b515d0143840307219c7c0ee7fc7bfc79f325644e4df4c0d7db08e9f0bd024943c705abff899403a605cfbc7ed746a7d3f7c37d9e8bdc433b7d79e08a12f738a8f0dbddfef2f26502f3e47d1b0fd11e6a13311fb799c79c641d9da43b33e7ad012e28255398789262275f1175be8462c01491c4d842406d0ec4282c9526174a09878fe8fdde33a29604e5e5e7b2a025d6650b97dbb52befb59b1d30a57433b0a351474444099daa371046613260cf3354cfcdada663ece824ffd7e44393886a86165ddddf2b4c41773554c86995269408b11e6737a4c447586f69173446d8e48bf84cbc000a807899973eb93c5e819aad669413f8387933ad1584aa35e43f4ecd1e2d0407c0b1b89920ffdfdb9bea51ac95b557af71b89f903f5d9848f14fcbeb1837570f544d6359eb23faf38a0822da36ce426c4a2fbeffeb0a8a2e297a9d19ba15024590e3329d9fa9261f9938a4032dd34606c9cf9f3dd33e576f05cd1dd6811c6298757d77d9e810abdb226afcaa4346a6560f8932b3181fd355d5d391976183f8d99388839632d6354f666d09d3e5629ea19737388613d38a34fd0f6e50ee5a0cc9677177f50028c141378187bd2819403fc534f80076e9380cb4964d3b6b45819d3b8e9caf54f051852d671bf8c1ffde2d1510756418cb4810936aa57e6965d6fb656a760b7f19adf96c173488552193b147ee58858033dac7cd0eb204c06490bbdedf5f7571acb2ebe76acef3f2a01ee987486dfe6c3f0a5e234c127258f97a28fb5d164a8176be946b8097d0e317287f33bf9c16f9a545409ce29b1f4273725fc0df02a04ebae178b3414fb0a82d50deb09fcf4e6ee9d180ff4f56ff3bc1d3601fc2dc90d814c3256f4967d3a8d64c83fea339c51f5a8e5801fbb97835581b602465dee04b5922c2761b54245bec0c9eef2db97d22b2b3556cc969fbb13d06509765a52b3fac54b93f421bf08e18d52ddd52cc1c8ca8adfaccab7e5cc2f4573fbbf8239bb0b8aedbf8dad16282da5c9125dba1c059d0df8abf621078f02d6c4bc86d40845ac1d59710c45f07d585eb48b32fc0167ba256e73ca3b9311c62d109497957d8dbe10aa3e866b40c0baa2bc492c19ad1e6372d9622bf163fbffeaeee796a3cd9b6fbbfa4d792f34d7fd6e763cd5859dd26833d21d9bc5452bd19515dff9f4995b35bc0c1f876e6ad11f2452dc9ae85aec01fc56f8cbfda75a7727b75ebbd6bbffb43b63a3b1b671e40feb0db002974a3c3b1a788567231bf6399ff89236981149d423802d2341a3bedb9ddcbac1fe7b6435e1479c72e7089d029e7fbbaf3cf37e9b9a6b776791e4c5e6fda57e8d5f14c8c35a2d270846b9dbe005cda16af4408f3ab06a916eeeb9c9594b70424a4c1d171295b6763b22f47f80b53ccbb904bd68fd65fbd3fbdea1035e98c21a7dbc91a9b5bc7690f05ec317c97f8764eb48e911d428ec8d861b708e8298acb62155145155ae95f0a1d1501034753146e22d05f586d7f6b4fe12dad9a17f5db70b1db96b8d9a83edadc966c8a5466b61fc998c31f1070d9a5c9a6d268d304fe6b8fd3b4010348611abdcbd49fe4f85b623c7828c71382e1034ea67bc8ae97404b0c50b2a04f559e49950afcb0ef462a2ae024b0f0224dfd73684b88c7fbe92d02b68f759c4752663cd7b97a14943649305521326bde085630864629291bae25ff8822a14c4b666a9259ad0dc42a8290ac7bc7f53a16f379f758e5de750f04fd7cad47701c8597f97888bea6fa0bf2999956fbfd0ee68ec36e4688809ae231eb8bc4369f5fe1573f57e099d9c09901bf39caac48dc11956a8ae905ead86954547c448ae43d315e669c4242da565938f417bf43ce7b2b30b1cd4018388e1a910f0fc41fb0877a)
+  = f59e41b40f3a60be90bee2be11b0956dfff06a6d8e22668c4f215bd87b20d514
+
+  Preimage:
+  030000807082c40392b8af1f7e12cb8de105af154470a2ae0a11e64a24a514a562ff943ca0f35d7f0000000000000000000000000000000000000000000000000000000000000000edc32cce530f836f7c31c53656f859f514c3ff8dcae642d3e17700fdc6e829a4f59e41b40f3a60be90bee2be11b0956dfff06a6d8e22668c4f215bd87b20d51497b0e4e4c705fc0503000000378af1e40f64e125946f62c2fa7b2fecbcb64b6968912a6381ce3dc166d56a1d62f5a8d701532f6e04963b4c0100e8c7203d
+
+  header:          03000080
+  nVersionGroupId: 7082c403
+  hashPrevouts:    92b8af1f7e12cb8de105af154470a2ae0a11e64a24a514a562ff943ca0f35d7f
+  hashSequence:    0000000000000000000000000000000000000000000000000000000000000000
+  hashOutputs:     edc32cce530f836f7c31c53656f859f514c3ff8dcae642d3e17700fdc6e829a4
+  hashJoinSplits:  f59e41b40f3a60be90bee2be11b0956dfff06a6d8e22668c4f215bd87b20d514
+  nLockTime:       97b0e4e4
+  nExpiryHeight:   c705fc05
+  nHashType:       03000000
+
+  Input:
+    prevout:    378af1e40f64e125946f62c2fa7b2fecbcb64b6968912a6381ce3dc166d56a1d 62f5a8d7
+    scriptCode: 0153
+    amount:     2f6e04963b4c0100
+    nSequence:  e8c7203d
+
+  sighash: 23652e76cb13b85a0e3363bb5fca061fa791c40c533eccee899364e6e60bb4f7
+
+
+Deployment
+==========
+
+This proposal is deployed with the Overwinter network upgrade. [#zip-0201]_
+
+
+Backward compatibility
+======================
+
+This proposal is backwards-compatible with old UTXOs. It is **not** backwards-compatible with older software.
+All transactions will be required to use this transaction digest algorithm for signatures, and so transactions
+created by older software will be rejected by the network.
+
+
+Reference Implementation
+========================
+
+https://github.com/zcash/zcash/pull/2903
+
+
+References
+==========
+
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#protocol-sproutsend] `Zcash Protocol Specification, Version 2021.2.16. Section 4.7.1: Sending Notes (Sprout) <protocol/protocol.pdf#sproutsend>`_
+.. [#wiki-checksig] `OP\_CHECKSIG. Bitcoin Wiki <https://en.bitcoin.it/wiki/OP_CHECKSIG>`_
+.. [#quadratic]
+   * `CVE-2013-2292 <https://nvd.nist.gov/vuln/detail/CVE-2013-2292>`_
+   * `New Bitcoin vulnerability: A transaction that takes at least 3 minutes to verify <https://bitcointalk.org/?topic=140078>`_
+   * `The Megatransaction: Why Does It Take 25 Seconds? <https://rusty.ozlabs.org/?p=522>`_
+.. [#offline-wallets] `SIGHASH_WITHINPUTVALUE: Super-lightweight HW wallets and offline data <https://bitcointalk.org/index.php?topic=181734.0>`_
+.. [#bip-0143] `BIP 143: Transaction Signature Verification for Version 0 Witness Program <https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki>`_
+.. [#buip-HF] `BUIP-HF Digest for replay protected signature verification across hard forks, version 1.2 <https://github.com/Bitcoin-ABC/bitcoin-abc/blob/master/doc/abc/replay-protected-sighash.md>`_
+.. [#BLAKE2-personalization] `"BLAKE2: simpler, smaller, fast as MD5", Section 2.8 <https://blake2.net/blake2.pdf>`_
+.. [#01-change] In the original algorithm, a ``uint256`` of ``0x0000......0001`` is committed if the input
+   index for a ``SINGLE`` signature is greater than or equal to the number of outputs. In this ZIP a
+   ``0x0000......0000`` is commited, without changing the semantics.
+.. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
+.. [#zip-0201] `ZIP 201: Network Peer Management for Overwinter <zip-0201.rst>`_
+.. [#zip-0202] `ZIP 202: Version 3 Transaction Format for Overwinter <zip-0202.rst>`_
+.. [#zip-0203] `ZIP 203: Transaction Expiry <zip-0203.rst>`_
+.. [#test-vectors] `ZIP 143 Test Vectors <https://github.com/zcash-hackworks/zcash-test-vectors/blob/master/zcash_test_vectors/zip_0143.py>`_
+.. [#sighash-tests] `SignatureHash Test Vectors <https://github.com/zcash/zcash/blob/master/src/test/data/sighash.json>`_

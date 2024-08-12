@@ -1,0 +1,197 @@
+::
+
+  ZIP: 245
+  Title: Transaction Identifier Digests & Signature Validation for Transparent Zcash Extensions
+  Owners: Kris Nuttycombe <kris@electriccoin.co>
+          Daira-Emma Hopwood <daira-emma@electriccoin.co>
+  Status: Draft
+  Category: Consensus
+  Created: 2021-01-13
+  License: MIT
+  Discussions-To: <https://github.com/zcash/zips/issues/384>
+
+
+Terminology
+===========
+
+The key words "MUST" and "MUST NOT" in this document are to be interpreted as described
+in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
+
+The terms "consensus branch", "epoch", and "network upgrade" in this document are to be
+interpreted as described in ZIP 200. [#zip-0200]_
+
+
+Abstract
+========
+
+This proposal defines changes to ZIP 244 [#zip-0244]_ transaction id and signature digest 
+algorithms to accommodate the inclusion of transparent Zcash extensions (TZEs) 
+as defined in ZIP 222 [#zip-0222]_. 
+
+
+Specification
+=============
+
+TxId Digest
+-----------
+
+The tree of hashes defined by ZIP 244 [#zip-0244]_ is re-structured to include a new
+branch for TZE hashes. The ``tze_digest`` branch is the only new addition to the
+tree; ``header_digest``, ``transparent_digest``, ``sprout_digest``, and ``sapling_digest``
+are as in ZIP 244::
+
+   txid_digest
+   ├── header_digest
+   ├── transparent_digest
+   ├── tze_digest
+   │   ├── tzein_digest
+   │   └── tzeout_digest
+   ├── sprout_digest
+   └── sapling_digest
+
+txid_digest
+```````````
+The top hash of the ``txid_digest`` tree is modified from the ZIP 244 structure
+to be a BLAKE2b-256 hash of the following values ::
+
+   T.1: header_digest      (32-byte hash output)
+   T.2: transparent_digest (32-byte hash output)
+   T.3: tze_digest         (32-byte hash output)
+   T.4: sprout_digest      (32-byte hash output)
+   T.5: sapling_digest     (32-byte hash output)
+
+The personalization field of this hash is unmodified from ZIP 244.
+ 
+2: ``tze_digest``
+'''''''''''''''''
+A BLAKE2b-256 hash of the following values ::
+
+   T.2a: tzein_digest  (32-byte hash)
+   T.2b: tzeout_digest (32-byte hash)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdTZE____Hash" (4 underscore characters)
+
+2a: tzein_digest
+................
+A BLAKE2b-256 hash of all TZE inputs to the transaction, excluding witness data.
+For each TZE input, the following values are appended to this hash::
+
+   2a.i:  extension_id (CompactSize field encoding)
+   2a.ii: mode         (CompactSize field encoding)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdTZEIns_Hash" (1 underscore character)
+
+2a: tzeout_digest
+.................
+A BLAKE2b-256 hash of the field encoding of all TZE outputs 
+belonging to the transaction.
+
+The personalization field of this hash is set to::
+
+  "ZTxIdTzeOutsHash"
+
+Signature Digest
+----------------
+
+The signature digest creation algorithm defined by ZIP 244 [#zip-0244]_ is modified to
+include a new branch for TZE hashes.  The ``tze_digest`` branch is the only new addition
+to the tree; ``header_digest``, ``transparent_digest``, ``sprout_digest``, and
+``sapling_digest`` are as in ZIP 244::
+
+    signature_digest
+    ├── header_digest
+    ├── transparent_digest
+    ├── tze_digest
+    │   ├── tzein_digest
+    │   └── tzeout_digest
+    ├── sprout_digest
+    └── sapling_digest
+
+signature_digest
+````````````````
+A BLAKE2b-256 hash of the following values ::
+
+   S.1: header_digest      (32-byte hash output)
+   S.2: transparent_digest (32-byte hash output)
+   S.3: tze_digest         (32-byte hash output)
+   S.4: sprout_digest      (32-byte hash output)
+   S.5: sapling_digest     (32-byte hash output)
+
+The personalization field of this hash is set to::
+
+  "ZcashTxHash_" || CONSENSUS_BRANCH_ID
+
+``ZcashTxHash_`` has 1 underscore character.
+
+This value must have the same personalization as the top hash of the transaction
+identifier digest tree, in order to make it possible to sign the transaction id
+in the case that there are no transparent inputs.
+
+S.3: tze_digest
+'''''''''''''''
+This digest is a BLAKE2b-256 hash of the following values of the TZE
+input being signed::
+
+   S.3a: prevout_digest (field encoding bytes)
+   S.3b: extension_id   (CompactSize field encoding)
+   S.3c: mode           (CompactSize field encoding)
+   S.3d: payload        (arbitrary bytes)
+   S.3e: value          (8-byte little endian value of the output spent by this input) 
+
+The personalization field of this hash is set to::
+
+   "Zcash__TzeInHash" (2 underscore characters)
+
+Authorizing Data Commitment
+---------------------------
+
+The tree of hashes defined by ZIP 244 [#zip-0244]_ for authorizing data commitments is
+re-structured to include a new branch for TZE hashes. The ``tze_witnesses_digest`` branch
+is the only new addition to the tree; ``transparent_auth_digest``, ``sprout_auth_digest``,
+and ``sapling_auth_digest`` are as in ZIP 244::
+
+   auth_digest
+   ├── transparent_scripts_digest
+   ├── tze_witnesses_digest
+   ├── sprout_auth_digest
+   └── sapling_auth_digest
+
+auth_digest
+```````````
+The top hash of the ``auth_digest`` tree is modified from the ZIP 244 structure
+to be a BLAKE2b-256 hash of the following values ::
+
+   A.1: transparent_scripts_digest (32-byte hash output)
+   A.2: tze_witnesses_digest       (32-byte hash output)
+   A.3: sprout_auth_digest         (32-byte hash output)
+   A.4: sapling_auth_digest        (32-byte hash output)
+
+The personalization field of this hash is unmodified from ZIP 244.
+
+2: tze_witnesses_digest
+```````````````````````
+A BLAKE2b-256 hash of the field encoding of the witness ``payload`` data associated
+with each TZE input belonging to the transaction.
+
+The personalization field of this hash is set to::
+
+  "ZTxAuthTZE__Hash" (2 underscore characters)
+
+
+Reference implementation
+========================
+
+- https://github.com/zcash/librustzcash/pull/319/files
+
+
+References
+==========
+
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
+.. [#zip-0222] `ZIP 222: Transparent Zcash Extensions <zip-0222.rst>`_
+.. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`_

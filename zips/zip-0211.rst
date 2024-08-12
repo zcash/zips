@@ -1,0 +1,154 @@
+::
+
+  ZIP: 211
+  Title: Disabling Addition of New Value to the Sprout Chain Value Pool
+  Owners: Daira-Emma Hopwood <daira-emma@electriccoin.co>
+  Credits: Sean Bowe
+  Status: Final
+  Category: Consensus
+  Created: 2019-03-29
+  License: MIT
+
+
+Terminology
+===========
+
+The key words "MUST", "SHOULD", and "OPTIONAL" in this document are to be interpreted
+as described in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
+
+The term "network upgrade" in this document is to be interpreted as described in ZIP 200
+[#zip-0200]_.
+
+The term "Sprout shielded protocol" in this document refers to the shielded payment protocol
+defined at the launch of the Zcash network.
+
+The term "Sapling shielded protocol" in this document refers to the shielded payment protocol
+introduced in the Sapling network upgrade [#zip-0205]_ [#protocol]_.
+
+The term "Sprout chain value pool balance" in this document is to be interpreted as described
+in ZIP 209 [#zip-0209]_.
+
+
+Abstract
+========
+
+This proposal disables the ability to add new value to the Sprout chain value pool balance.
+This takes a step toward being able to remove the Sprout shielded protocol, thus reducing
+the overall complexity and attack surface of Zcash.
+
+
+Motivation
+==========
+
+The first iteration of the Zcash network, called Sprout, provided a shielded payment
+protocol that was relatively closely based on the original Zerocash proposal. [#zerocash]_
+
+The Sapling network upgrade [#zip-0205]_ introduced significant efficiency and
+functionality improvements for shielded transactions. It is expected that over time,
+the use of Sapling will replace the use of Sprout in shielded transactions.
+
+The Sapling and Sprout shielded protocols employ different cryptographic designs.
+Since an adversary could potentially exploit any vulnerability in either design,
+supporting both presents additional risk over supporting only the newer Sapling shielded
+protocol.
+
+For example, a vulnerability was discovered in the zero-knowledge proving system
+originally used by Zcash that could have allowed counterfeiting [#counterfeiting]_.
+While this particular vulnerability was addressed (also for Sprout shielded transactions)
+by the Sapling upgrade, and we are not aware of others at the time of writing, the
+possibility of other cryptographic weaknesses cannot be entirely ruled out.
+
+In addition, the Zcash specification and implementation incurs complexity and
+"technical debt" from the requirement to support and test both shielded payment
+protocols.
+
+Removing the ability to add to the Sprout chain value pool balance, is a first step
+toward reducing this complexity and potential risk. This does not prevent extracting value
+held in Sprout addresses and sending it to transparent addresses, or to Sapling addresses
+via the migration tool [#zip-0308]_.
+
+
+Specification
+=============
+
+Consensus rule: From the relevant activation height, the ``vpub_old`` field of each
+JoinSplit description MUST be zero.
+
+When this proposal is activated, nodes and wallets MUST disable any facilities to create
+transactions that have both one or more outputs to Sprout addresses, and one or more
+inputs from non-Sprout addresses. This SHOULD be made clear in user interfaces and API
+documentation.
+
+Notes:
+
+* The requirement on wallets is intentionally slightly stronger than that enforced
+  by the consensus rule. It is possible to construct a mixed transaction with inputs
+  from both Sprout and non-Sprout addresses, in which all ``vpub_old`` fields are zero,
+  but there are nevertheless sufficient funds from Sprout inputs to balance the Sprout
+  outputs. This is prohibited for usability reasons, but not by consensus.
+
+* The facility to send to Sprout addresses, even before activation of this proposal,
+  is OPTIONAL for a particular node or wallet implementation.
+
+
+Rationale
+=========
+
+This design does not require any change to the JoinSplit circuit, thus minimizing
+the risk of security regressions, and avoiding the need for a new ceremony to generate
+circuit parameters.
+
+The code changes needed are very small and simple, and their security is easy to
+analyse.
+
+During the development of this proposal, alternative designs were considered that
+would have removed some fields of a JoinSplit description. These alternatives were
+abandoned for several reasons:
+
+* Privacy concerns raised as a consequence of preventing the use of internal change
+  between JoinSplits, and/or change sent back to the input Sprout addresses. This
+  would have required the total value of the input Sprout notes (or, for some considered
+  designs, the total value of the two Sprout inputs to each JoinSplit) to be leaked.
+  As it is, there is an unavoidable leak of the total value extracted from the Sprout
+  value pool, but not of the sum of values of particular subsets of notes.
+
+* Modifications would have been needed to the design of the Sprout to Sapling migration
+  procedure described in [#zip-0308]_.
+
+* A new transaction version would have been required.
+
+
+Security and Privacy Considerations
+===================================
+
+The security motivations for making this change are described in the Motivation section.
+Privacy concerns that led to the current design are discussed in the Rationale section.
+
+Since all clients change their behaviour at the same time from this proposal's activation
+height, there is no additional client distinguisher.
+
+
+Deployment
+==========
+
+This proposal will be deployed with the Canopy network upgrade. [#zip-0251]_
+
+
+Reference Implementation
+========================
+
+https://github.com/zcash/zcash/pull/4489
+
+
+References
+==========
+
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#protocol] `Zcash Protocol Specification, Version 2021.2.16 or later <protocol/protocol.pdf>`_
+.. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
+.. [#zip-0205] `ZIP 205: Deployment of the Sapling Network Upgrade <zip-0205.rst>`_
+.. [#zip-0209] `ZIP 209: Prohibit Negative Shielded Value Pool <zip-0209.rst>`_
+.. [#zip-0251] `ZIP 251: Deployment of the Canopy Network Upgrade <zip-0251.rst>`_
+.. [#zip-0308] `ZIP 308: Sprout to Sapling Migration <zip-0308.rst>`_
+.. [#zerocash] `Zerocash: Decentralized Anonymous Payments from Bitcoin (extended version) <https://eprint.iacr.org/2014/349>`_
+.. [#counterfeiting] `Zcash Counterfeiting Vulnerability Successfully Remediated <https://electriccoin.co/blog/zcash-counterfeiting-vulnerability-successfully-remediated/>`_

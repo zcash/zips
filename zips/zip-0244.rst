@@ -1,0 +1,898 @@
+::
+
+  ZIP: 244
+  Title: Transaction Identifier Non-Malleability
+  Owners: Kris Nuttycombe <kris@electriccoin.co>
+          Daira-Emma Hopwood <daira-emma@electriccoin.co>
+          Jack Grigg <str4d@electriccoin.co>
+  Status: Final
+  Category: Consensus
+  Created: 2021-01-06
+  License: MIT
+  Discussions-To: <https://github.com/zcash/zips/issues/411>
+
+
+===========
+Terminology
+===========
+
+The key words "MUST" and "MUST NOT" in this document are to be interpreted as described
+in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
+
+The terms "consensus branch", "epoch", and "network upgrade" in this document are to be
+interpreted as described in ZIP 200. [#zip-0200]_
+
+The term "field encoding" refers to the binary serialized form of a Zcash transaction
+field, as specified in section 7.1 of the Zcash protocol specification
+[#protocol-txnencoding]_.
+
+========
+Abstract
+========
+
+This proposal defines a new transaction digest algorithm for the NU5 network upgrade
+onward, in order to introduce non-malleable transaction identifiers that commit to
+all transaction data except for attestations to transaction validity.
+
+This proposal also defines a new transaction digest algorithm for signature validation,
+which shares all available structure produced during the construction of transaction
+identifiers, in order to minimize redundant data hashing in validation.
+
+This proposal also defines a new name and semantics for the ``hashLightClientRoot`` field of the
+block header, to enable additional commitments to be represented in this hash and to
+provide a mechanism for future extensibility of the set of commitments represented.
+
+==========
+Motivation
+==========
+
+In all cases, but particularly in order to support the use of transactions in
+higher-level protocols, any modification of the transaction that has not been
+explicitly permitted (such as via anyone-can-spend inputs) should invalidate
+attestations to spend authority or to the included outputs. Following the activation
+of this proposed change, transaction identifiers will be stable irrespective of
+any possible malleation of "witness data" such as proofs and transaction
+signatures.
+
+In addition, by specifying a transaction identifier and signature algorithm
+that is decoupled from the serialized format of the transaction as a whole,
+this change makes it so that the wire format of transactions is no longer
+consensus-critical.
+
+============
+Requirements
+============
+
+- Continue to support existing functionality of the protocol (multisig,
+  signing modes for transparent inputs).
+
+- Allow the use of transaction ids, and pairs of the form (transaction id,
+  output index) as stable identifiers.
+
+- A sender must be able to recognize their own transaction, even given allowed
+  forms of malleability such as recomputation of transaction signatures.
+
+- In the case of transparent inputs, it should be possible to create a
+  transaction (B) that spends the outputs from a previous transaction (A) even
+  before (A) has been mined. This should also be possible in the case that the
+  creator of (B) does not wait for confirmations of (A). That is, (B) should remain
+  valid so long as any variant of (A) is eventually mined.
+
+- It should not be possible for an attacker to malleate a transaction in a
+  fashion that would result in the transaction being interpreted as a
+  double-spend.
+
+- It should be possible in the future to upgrade the protocol in such a fashion
+  that only non-malleable transactions are accepted.
+
+- It should be possible to use the transaction id unmodified as the value that
+  is used to produce a signature hash in the case that the transaction contains
+  no transparent inputs.
+
+================
+Non-requirements
+================
+
+In order to support backwards-compatibility with parts of the ecosystem that
+have not yet upgraded to the non-malleable transaction format, it is not an
+initial requirement that all transactions be non-malleable.
+
+It is not required that legacy (Sapling V4 and earlier) transaction formats
+support construction of non-malleable transaction identifiers, even though
+they may continue to be accepted by the network after the NU5 upgrade.
+
+=============
+Specification
+=============
+
+-------
+Digests
+-------
+
+All digests are personalized BLAKE2b-256 hashes. In cases where no elements are available
+for hashing (for example, if there are no transparent transaction inputs or no Orchard
+actions), a personalized hash of the empty byte array will be used. The personalization
+string therefore provides domain separation for the hashes of even empty data fields.
+
+The notation ``BLAKE2b-256(personalization_string, [])`` is used to refer to hashes
+constructed in this manner.
+
+TxId Digest
+===========
+
+A new transaction digest algorithm is defined that constructs the identifier for
+a transaction from a tree of hashes. Each branch of the tree of hashes will
+correspond to a specific subset of transaction data. The overall structure of
+the hash is as follows; each name referenced here will be described in detail
+below::
+
+    txid_digest
+    ├── header_digest
+    ├── transparent_digest
+    │   ├── prevouts_digest
+    │   ├── sequence_digest
+    │   └── outputs_digest
+    ├── sapling_digest
+    │   ├── sapling_spends_digest
+    │   │   ├── sapling_spends_compact_digest
+    │   │   └── sapling_spends_noncompact_digest
+    │   ├── sapling_outputs_digest
+    │   │   ├── sapling_outputs_compact_digest
+    │   │   ├── sapling_outputs_memos_digest
+    │   │   └── sapling_outputs_noncompact_digest
+    │   └── valueBalance
+    └── orchard_digest
+        ├── orchard_actions_compact_digest
+        ├── orchard_actions_memos_digest
+        ├── orchard_actions_noncompact_digest
+        ├── flagsOrchard
+        ├── valueBalanceOrchard
+        └── anchorOrchard
+
+Each node written as ``snake_case`` in this tree is a BLAKE2b-256 hash of its
+children, initialized with a personalization string specific to that branch
+of the tree. Nodes that are not themselves digests are written in ``camelCase``.
+In the specification below, nodes of the tree are presented in depth-first order.
+
+txid_digest
+-----------
+A BLAKE2b-256 hash of the following values ::
+
+   T.1: header_digest       (32-byte hash output)
+   T.2: transparent_digest  (32-byte hash output)
+   T.3: sapling_digest      (32-byte hash output)
+   T.4: orchard_digest      (32-byte hash output)
+
+The personalization field of this hash is set to::
+
+  "ZcashTxHash_" || CONSENSUS_BRANCH_ID
+
+``ZcashTxHash_`` has 1 underscore character.
+
+As in ZIP 143 [#zip-0143]_, CONSENSUS_BRANCH_ID is the 4-byte little-endian encoding of
+the consensus branch ID for the epoch of the block containing the transaction. Domain
+separation of the transaction id hash across parallel consensus branches provides replay
+protection: transactions targeted for one consensus branch will not have the same
+transaction identifier on other consensus branches.
+
+This signature hash personalization prefix has been changed to reflect the new role of
+this hash (relative to ``ZcashSigHash`` as specified in ZIP 143) as a transaction
+identifier rather than a commitment that is exclusively used for signature purposes.
+The previous computation of the transaction identifier was a SHA256d hash of the
+serialized transaction contents, and was not personalized.
+
+T.1: header_digest
+``````````````````
+A BLAKE2b-256 hash of the following values ::
+
+   T.1a: version             (4-byte little-endian version identifier including overwinter flag)
+   T.1b: version_group_id    (4-byte little-endian version group identifier)
+   T.1c: consensus_branch_id (4-byte little-endian consensus branch id)
+   T.1d: lock_time           (4-byte little-endian nLockTime value)
+   T.1e: expiry_height       (4-byte little-endian block height)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdHeadersHash"
+
+T.2: transparent_digest
+```````````````````````
+In the case that transparent inputs or outputs are present, the transparent digest
+consists of a BLAKE2b-256 hash of the following values ::
+
+   T.2a: prevouts_digest (32-byte hash)
+   T.2b: sequence_digest (32-byte hash)
+   T.2c: outputs_digest  (32-byte hash)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdTranspaHash"
+
+In the case that the transaction has no transparent components, ``transparent_digest`` is ::
+
+  BLAKE2b-256("ZTxIdTranspaHash", [])
+
+T.2a: prevouts_digest
+'''''''''''''''''''''
+A BLAKE2b-256 hash of the field encoding of all ``outpoint``
+field values of transparent inputs to the transaction.
+
+The personalization field of this hash is set to::
+
+  "ZTxIdPrevoutHash"
+
+In the case that the transaction has transparent outputs but no transparent inputs,
+``prevouts_digest`` is ::
+
+  BLAKE2b-256("ZTxIdPrevoutHash", [])
+
+T.2b: sequence_digest
+'''''''''''''''''''''
+A BLAKE2b-256 hash of the 32-bit little-endian representation of all ``nSequence``
+field values of transparent inputs to the transaction.
+
+The personalization field of this hash is set to::
+
+  "ZTxIdSequencHash"
+
+In the case that the transaction has transparent outputs but no transparent inputs,
+``sequence_digest`` is ::
+
+  BLAKE2b-256("ZTxIdSequencHash", [])
+
+T.2c: outputs_digest
+''''''''''''''''''''
+A BLAKE2b-256 hash of the concatenated field encodings of all transparent
+output values of the transaction. The field encoding of such an output consists
+of the encoded output ``amount`` (8-byte little endian) followed by
+the ``scriptPubKey`` byte array (serialized as Bitcoin script).
+
+The personalization field of this hash is set to::
+
+  "ZTxIdOutputsHash"
+
+In the case that the transaction has transparent inputs but no transparent outputs,
+``outputs_digest`` is ::
+
+  BLAKE2b-256("ZTxIdOutputsHash", [])
+
+T.3: sapling_digest
+```````````````````
+In the case that Sapling spends or outputs are present, the digest of Sapling components
+is composed of two subtrees which are organized to permit easy interoperability with the
+``CompactBlock`` representation of Sapling data specified by the ZIP 307 Light Client
+Protocol [#zip-0307]_.
+
+This digest is a BLAKE2b-256 hash of the following values ::
+
+   T.3a: sapling_spends_digest  (32-byte hash)
+   T.3b: sapling_outputs_digest (32-byte hash)
+   T.3c: valueBalance           (64-bit signed little-endian)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdSaplingHash"
+
+In the case that the transaction has no Sapling spends or outputs, ``sapling_digest`` is ::
+
+    BLAKE2b-256("ZTxIdSaplingHash", [])
+
+T.3a: sapling_spends_digest
+'''''''''''''''''''''''''''
+In the case that Sapling spends are present, this digest is a BLAKE2b-256 hash of the
+following values ::
+
+   T.3a.i:  sapling_spends_compact_digest    (32-byte hash)
+   T.3a.ii: sapling_spends_noncompact_digest (32-byte hash)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdSSpendsHash"
+
+In the case that the transaction has Sapling outputs but no Sapling spends,
+``sapling_spends_digest`` is ::
+
+    BLAKE2b-256("ZTxIdSSpendsHash", [])
+
+T.3a.i: sapling_spends_compact_digest
+.....................................
+A BLAKE2b-256 hash of the field encoding of all ``nullifier`` field
+values of Sapling shielded spends belonging to the transaction.
+
+The personalization field of this hash is set to::
+
+  "ZTxIdSSpendCHash"
+
+T.3a.ii: sapling_spends_noncompact_digest
+.........................................
+A BLAKE2b-256 hash of the non-nullifier information for all Sapling shielded spends
+belonging to the transaction, excluding both zkproof data and spend authorization
+signature(s). For each spend, the following elements are included in the hash::
+
+   T.3a.ii.1: cv     (field encoding bytes)
+   T.3a.ii.2: anchor (field encoding bytes)
+   T.3a.ii.3: rk     (field encoding bytes)
+
+In Transaction version 5, Sapling Spends have a shared anchor, which is hashed
+into the sapling_spends_noncompact_digest for *each* Spend.
+
+The personalization field of this hash is set to::
+
+  "ZTxIdSSpendNHash"
+
+T.3b: sapling_outputs_digest
+''''''''''''''''''''''''''''
+In the case that Sapling outputs are present, this digest is a BLAKE2b-256 hash of the
+following values ::
+
+   T.3b.i:   sapling_outputs_compact_digest    (32-byte hash)
+   T.3b.ii:  sapling_outputs_memos_digest      (32-byte hash)
+   T.3b.iii: sapling_outputs_noncompact_digest (32-byte hash)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdSOutputHash"
+
+In the case that the transaction has Sapling spends but no Sapling outputs,
+``sapling_outputs_digest`` is ::
+
+    BLAKE2b-256("ZTxIdSOutputHash", [])
+
+T.3b.i: sapling_outputs_compact_digest
+......................................
+A BLAKE2b-256 hash of the subset of Sapling output information included in the
+ZIP-307 [#zip-0307]_ ``CompactBlock`` format for all Sapling shielded outputs
+belonging to the transaction. For each output, the following elements are included
+in the hash::
+
+   T.3b.i.1: cmu                  (field encoding bytes)
+   T.3b.i.2: ephemeral_key        (field encoding bytes)
+   T.3b.i.3: enc_ciphertext[..52] (First 52 bytes of field encoding)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdSOutC__Hash" (2 underscore characters)
+
+T.3b.ii: sapling_outputs_memos_digest
+.....................................
+A BLAKE2b-256 hash of the subset of Sapling shielded memo field data for all Sapling
+shielded outputs belonging to the transaction. For each output, the following elements
+are included in the hash::
+
+   T.3b.ii.1: enc_ciphertext[52..564] (contents of the encrypted memo field)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdSOutM__Hash" (2 underscore characters)
+
+T.3b.iii: sapling_outputs_noncompact_digest
+...........................................
+A BLAKE2b-256 hash of the remaining subset of Sapling output information **not** included
+in the ZIP 307 [#zip-0307]_ ``CompactBlock`` format, excluding zkproof data, for all
+Sapling shielded outputs belonging to the transaction. For each output, the following
+elements are included in the hash::
+
+   T.3b.iii.1: cv                    (field encoding bytes)
+   T.3b.iii.2: enc_ciphertext[564..] (post-memo Poly1305 AEAD tag of field encoding)
+   T.3b.iii.3: out_ciphertext        (field encoding bytes)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdSOutN__Hash" (2 underscore characters)
+
+T.4: orchard_digest
+```````````````````
+In the case that Orchard actions are present in the transaction, this digest is
+a BLAKE2b-256 hash of the following values ::
+
+   T.4a: orchard_actions_compact_digest      (32-byte hash output)
+   T.4b: orchard_actions_memos_digest        (32-byte hash output)
+   T.4c: orchard_actions_noncompact_digest   (32-byte hash output)
+   T.4d: flagsOrchard                        (1 byte)
+   T.4e: valueBalanceOrchard                 (64-bit signed little-endian)
+   T.4f: anchorOrchard                       (32 bytes)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdOrchardHash"
+
+In the case that the transaction has no Orchard actions, ``orchard_digest`` is ::
+
+    BLAKE2b-256("ZTxIdOrchardHash", [])
+
+T.4a: orchard_actions_compact_digest
+''''''''''''''''''''''''''''''''''''
+
+A BLAKE2b-256 hash of the subset of Orchard Action information intended to be included in
+an updated version of the ZIP-307 [#zip-0307]_ ``CompactBlock`` format for all Orchard
+Actions belonging to the transaction. For each Action, the following elements are included
+in the hash::
+
+   T.4a.i  : nullifier            (field encoding bytes)
+   T.4a.ii : cmx                  (field encoding bytes)
+   T.4a.iii: ephemeralKey         (field encoding bytes)
+   T.4a.iv : encCiphertext[..52]  (First 52 bytes of field encoding)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdOrcActCHash"
+
+T.4b: orchard_actions_memos_digest
+''''''''''''''''''''''''''''''''''
+
+A BLAKE2b-256 hash of the subset of Orchard shielded memo field data for all Orchard
+Actions belonging to the transaction. For each Action, the following elements are included
+in the hash::
+
+   T.4b.i: encCiphertext[52..564] (contents of the encrypted memo field)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdOrcActMHash"
+
+T.4c: orchard_actions_noncompact_digest
+'''''''''''''''''''''''''''''''''''''''
+
+A BLAKE2b-256 hash of the remaining subset of Orchard Action information **not** intended
+for inclusion in an updated version of the the ZIP 307 [#zip-0307]_ ``CompactBlock``
+format, for all Orchard Actions belonging to the transaction. For each Action,
+the following elements are included in the hash::
+
+   T.4c.i  : cv                    (field encoding bytes)
+   T.4c.ii : rk                    (field encoding bytes)
+   T.4c.iii: encCiphertext[564..]  (post-memo suffix of field encoding)
+   T.4c.iv : outCiphertext         (field encoding bytes)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdOrcActNHash"
+
+Signature Digest
+================
+
+A new per-input transaction digest algorithm is defined that constructs a hash that may be
+signed by a transaction creator to commit to the effects of the transaction. A signature
+digest is produced for each transparent input, each Sapling input, and each Orchard
+action. For transparent inputs, this follows closely the algorithms from ZIP 143 [#zip-0143]_
+and ZIP 243 [#zip-0243]_. For shielded inputs, this algorithm has the exact same output
+as the transaction digest algorithm, thus the txid may be signed directly.
+
+The overall structure of the hash is as follows; each name referenced here will be
+described in detail below::
+
+    signature_digest
+    ├── header_digest
+    ├── transparent_sig_digest
+    ├── sapling_digest
+    └── orchard_digest
+
+signature_digest
+----------------
+A BLAKE2b-256 hash of the following values ::
+
+   S.1: header_digest          (32-byte hash output)
+   S.2: transparent_sig_digest (32-byte hash output)
+   S.3: sapling_digest         (32-byte hash output)
+   S.4: orchard_digest         (32-byte hash output)
+
+The personalization field of this hash is set to::
+
+  "ZcashTxHash_" || CONSENSUS_BRANCH_ID
+
+``ZcashTxHash_`` has 1 underscore character.
+
+This value has the same personalization as the top hash of the transaction
+identifier digest tree, so that what is being signed in the case that there are
+no transparent inputs is just the transaction id.
+
+S.1: header_digest
+``````````````````
+Identical to that specified for the transaction identifier.
+
+S.2: transparent_sig_digest
+```````````````````````````
+If we are producing a hash for either a coinbase transaction, or a non-coinbase
+transaction that has no transparent inputs, the value of ``transparent_sig_digest``
+is identical to the value specified in section `T.2 <#t-2-transparent-digest>`_.
+
+If we are producing a hash for a non-coinbase transaction that has transparent
+inputs, the value of ``transparent_sig_digest`` depends upon the value of a
+``hash_type`` flag, as follows.
+
+The construction of each component below depends upon the values of the
+``hash_type`` flag bits. Each component will be described separately.
+
+This digest is a BLAKE2b-256 hash of the following values ::
+
+   S.2a: hash_type                (1 byte)
+   S.2b: prevouts_sig_digest      (32-byte hash)
+   S.2c: amounts_sig_digest       (32-byte hash)
+   S.2d: scriptpubkeys_sig_digest (32-byte hash)
+   S.2e: sequence_sig_digest      (32-byte hash)
+   S.2f: outputs_sig_digest       (32-byte hash)
+   S.2g: txin_sig_digest          (32-byte hash)
+
+The personalization field of this hash is set to::
+
+   "ZTxIdTranspaHash"
+
+S.2a: hash_type
+'''''''''''''''
+This is an 8-bit unsigned value. The ``SIGHASH`` encodings from the legacy
+script system are reused: one of ``SIGHASH_ALL`` (0x01), ``SIGHASH_NONE`` (0x02),
+and ``SIGHASH_SINGLE`` (0x03), with or without the ``SIGHASH_ANYONECANPAY`` flag
+(0x80). The following restrictions apply, which cause validation failure if
+violated:
+
+- Using any undefined ``hash_type`` (not 0x01, 0x02, 0x03, 0x81, 0x82, or 0x83).
+- Using ``SIGHASH_SINGLE`` without a "corresponding output" (an output with the
+  same index as the input being verified).
+
+If we are producing a hash for the signature over a transparent input, the value
+of ``hash_type`` is obtained from the input's ``scriptSig`` as encoded in the
+transaction. If we are producing a hash for the signature over a Sapling Spend
+or an Orchard Action, ``hash_type`` is set to ``SIGHASH_ALL``.
+
+S.2b: prevouts_sig_digest
+'''''''''''''''''''''''''
+This is a BLAKE2b-256 hash initialized with the personalization field value
+``ZTxIdPrevoutHash``.
+
+If the ``SIGHASH_ANYONECANPAY`` flag is not set::
+
+   identical to the value of ``prevouts_digest`` as specified for the
+   transaction identifier in section T.2a.
+
+otherwise::
+
+   BLAKE2b-256(``ZTxIdPrevoutHash``, [])
+
+S.2c: amounts_sig_digest
+''''''''''''''''''''''''
+If the ``SIGHASH_ANYONECANPAY`` flag is not set, the value of
+``amounts_sig_digest`` is a BLAKE2b-256 hash of the concatenation of the 8-byte
+signed little-endian representations of all ``value`` fields [#bdr-txout]_ for
+the coins spent by the transparent inputs to the transaction.
+
+The personalization field of this hash is set to::
+
+  "ZTxTrAmountsHash"
+
+If the ``SIGHASH_ANYONECANPAY`` flag is set, ``amounts_sig_digest`` is::
+
+  BLAKE2b-256("ZTxTrAmountsHash", [])
+
+S.2d: scriptpubkeys_sig_digest
+''''''''''''''''''''''''''''''
+If the ``SIGHASH_ANYONECANPAY`` flag is not set, the value of
+``scriptpubkeys_sig_digest`` is a BLAKE2b-256 hash of the concatenation of the
+field encodings (each including a leading ``CompactSize``) of all ``pk_script``
+fields [#bdr-txout]_ for the coins spent by the transparent inputs to the
+transaction.
+
+The personalization field of this hash is set to::
+
+  "ZTxTrScriptsHash"
+
+If the ``SIGHASH_ANYONECANPAY`` flag is set, ``scriptpubkeys_sig_digest`` is::
+
+  BLAKE2b-256("ZTxTrScriptsHash", [])
+
+S.2e: sequence_sig_digest
+'''''''''''''''''''''''''
+This is a BLAKE2b-256 hash initialized with the personalization field value
+``ZTxIdSequencHash``.
+
+If the ``SIGHASH_ANYONECANPAY`` flag is not set::
+
+   identical to the value of ``sequence_digest`` as specified for the
+   transaction identifier in section T.2b.
+
+otherwise::
+
+   BLAKE2b-256(``ZTxIdSequencHash``, [])
+
+S.2f: outputs_sig_digest
+''''''''''''''''''''''''
+This is a BLAKE2b-256 hash initialized with the personalization field value
+``ZTxIdOutputsHash``.
+
+If the sighash type is neither ``SIGHASH_SINGLE`` nor ``SIGHASH_NONE``::
+
+   identical to the value of ``outputs_digest`` as specified for the
+   transaction identifier in section T.2c.
+
+If the sighash type is ``SIGHASH_SINGLE`` and the signature hash is being computed for
+the transparent input at a particular index, and a transparent output appears in
+the transaction at that index::
+
+   the hash is over the transaction serialized form of the transparent output at that
+   index
+
+otherwise::
+
+   BLAKE2b-256(``ZTxIdOutputsHash``, [])
+
+S.2g: txin_sig_digest
+'''''''''''''''''''''
+If we are producing a hash for the signature over a transparent input, the value
+of ``txin_sig_digest`` is a BLAKE2b-256 hash of the following properties of the
+transparent input being signed, initialized with the personalization field value
+``Zcash___TxInHash`` (3 underscores)::
+
+   S.2g.i:   prevout      (field encoding)
+   S.2g.ii:  value        (8-byte signed little-endian)
+   S.2g.iii: scriptPubKey (field encoding)
+   S.2g.iv:  nSequence    (4-byte unsigned little-endian)
+
+Notes:
+
+- ``value`` is defined in the consensus rules to be a nonnegative value <=
+  ``MAX_MONEY``, but all existing implementations parse this value as signed and
+  enforce the nonnegative constraint as a consensus check. It is defined as
+  signed here for consistency with those existing implementations.
+- ``scriptPubKey`` is the field encoding (including a leading ``CompactSize``)
+  of the ``pk_script`` field [#bdr-txout]_ for the coin spent by the transparent
+  input. For P2SH coins, this differs from the ``redeemScript`` committed to in
+  ZIP 243 [#zip-0243]_.
+
+If we are producing a hash for the signature over a Sapling Spend or an Orchard
+Action, ``txin_sig_digest`` is::
+
+  BLAKE2b-256("Zcash___TxInHash", [])
+
+S.3: sapling_digest
+```````````````````
+Identical to that specified for the transaction identifier.
+
+S.4: orchard_digest
+```````````````````
+Identical to that specified for the transaction identifier.
+
+Authorizing Data Commitment
+===========================
+
+A new transaction digest algorithm is defined that constructs a digest which commits
+to the authorizing data of a transaction from a tree of BLAKE2b-256 hashes.
+For v5 transactions, the overall structure of the hash is as follows::
+
+    auth_digest
+    ├── transparent_scripts_digest
+    ├── sapling_auth_digest
+    └── orchard_auth_digest
+
+Each node written as ``snake_case`` in this tree is a BLAKE2b-256 hash of authorizing
+data of the transaction.
+
+For transaction versions before v5, a placeholder value consisting of 32 bytes of
+``0xFF`` is used in place of the authorizing data commitment. This is only used in
+the tree committed to by ``hashAuthDataRoot``, as defined in `Block Header Changes`_.
+
+The pair (Transaction Identifier, Auth Commitment) constitutes a commitment to all the
+data of a serialized transaction that may be included in a block.
+
+auth_digest
+-----------
+A BLAKE2b-256 hash of the following values ::
+
+   A.1: transparent_scripts_digest (32-byte hash output)
+   A.2: sapling_auth_digest        (32-byte hash output)
+   A.3: orchard_auth_digest        (32-byte hash output)
+
+The personalization field of this hash is set to::
+
+  "ZTxAuthHash_" || CONSENSUS_BRANCH_ID
+
+``ZTxAuthHash_`` has 1 underscore character.
+
+A.1: transparent_scripts_digest
+```````````````````````````````
+In the case that the transaction contains transparent inputs, this is a BLAKE2b-256 hash
+of the field encoding of the concatenated values of the Bitcoin script values associated
+with each transparent input belonging to the transaction.
+
+The personalization field of this hash is set to::
+
+  "ZTxAuthTransHash"
+
+In the case that the transaction has no transparent inputs, ``transparent_scripts_digest`` is ::
+
+  BLAKE2b-256("ZTxAuthTransHash", [])
+
+A.2: sapling_auth_digest
+````````````````````````
+In the case that Sapling Spends or Sapling Outputs are present, this is a BLAKE2b-256 hash
+of the field encoding of the Sapling ``zkproof`` value of each Sapling Spend Description,
+followed by the field encoding of the ``spend_auth_sig`` value of each Sapling Spend
+Description belonging to the transaction, followed by the field encoding of the
+``zkproof`` field of each Sapling Output Description belonging to the transaction,
+followed by the field encoding of the binding signature::
+
+   A.2a: spend_zkproofs           (field encoding bytes)
+   A.2b: spend_auth_sigs          (field encoding bytes)
+   A.2c: output_zkproofs          (field encoding bytes)
+   A.2d: binding_sig              (field encoding bytes)
+
+The personalization field of this hash is set to::
+
+  "ZTxAuthSapliHash"
+
+In the case that the transaction has no Sapling Spends or Sapling Outputs,
+``sapling_auth_digest`` is ::
+
+  BLAKE2b-256("ZTxAuthSapliHash", [])
+
+A.3: orchard_auth_digest
+````````````````````````
+In the case that Orchard Actions are present, this is a BLAKE2b-256 hash of the field
+encoding of the ``zkProofsOrchard``, ``spendAuthSigsOrchard``, and ``bindingSigOrchard``
+fields of the transaction::
+
+   A.3a: proofsOrchard            (field encoding bytes)
+   A.3b: vSpendAuthSigsOrchard    (field encoding bytes)
+   A.3c: bindingSigOrchard        (field encoding bytes)
+
+The personalization field of this hash is set to::
+
+  "ZTxAuthOrchaHash"
+
+In the case that the transaction has no Orchard Actions, ``orchard_auth_digest`` is ::
+
+  BLAKE2b-256("ZTxAuthOrchaHash", [])
+
+--------------------
+Block Header Changes
+--------------------
+
+The nonmalleable transaction identifier specified by this ZIP will be used
+in the place of the current malleable transaction identifier within the
+Merkle tree committed to by the ``hashMerkleRoot`` value. However, this
+change now means that ``hashMerkleRoot`` is not sufficient to fully commit
+to the transaction data, including witnesses, that appear within the block.
+
+As a consequence, we now need to add a new commitment to the block header.
+This commitment will be the root of a Merkle tree having leaves that are
+transaction authorizing data commitments, produced according to the
+`Authorizing Data Commitment`_ part of this specification. The insertion
+order for this Merkle tree MUST be identical to the insertion order of
+transaction identifiers into the Merkle tree that is used to construct
+``hashMerkleRoot``, such that a path through this Merkle tree to a
+transaction identifies the same transaction as that path reaches in the tree
+rooted at ``hashMerkleRoot``.
+
+This new commitment is named ``hashAuthDataRoot`` and is the root of a
+binary Merkle tree of transaction authorizing data commitments having height
+:math:`\mathsf{ceil(log_2(tx\_count))}`, padded with leaves having the "null"
+hash value ``[0u8; 32]``. Note that :math:`\mathsf{log_2(tx\_count)}` is
+well-defined because :math:`\mathsf{tx\_count} > 0`, due to the coinbase
+transaction in each block. Non-leaf hashes in this tree are BLAKE2b-256
+hashes personalized by the string ``"ZcashAuthDatHash"``.
+
+Changing the block header format to allow space for an additional
+commitment is somewhat invasive. Instead, the name and meaning of the
+``hashLightClientRoot`` field, described in ZIP 221 [#zip-0221]_, is changed.
+
+``hashLightClientRoot`` is renamed to ``hashBlockCommitments``. The value
+of this hash is the BLAKE2b-256 hash personalized by the string ``"ZcashBlockCommit"``
+of the following elements::
+
+   hashLightClientRoot (as described in ZIP 221)
+   hashAuthDataRoot    (as described below)
+   terminator          [0u8;32]
+
+This representation treats the ``hashBlockCommitments`` value as a linked
+list of hashes terminated by arbitrary data. In the case of protocol upgrades
+where additional commitments need to be included in the block header, it is
+possible to replace this terminator with the hash of a newly defined structure
+which ends in a similar terminator. Fully validating nodes MUST always use the
+entire structure defined by the latest activated protocol version that they
+support.
+
+The linked structure of this hash is intended to provide extensibility for
+use by light clients which may be connected to a third-party server that supports
+a later protocol version. Such a third party SHOULD provide a value that can
+be used instead of the all-zeros terminator to permit the light client to
+perform validation of the parts of the structure it needs.
+
+Unlike the ``hashLightClientRoot`` change, the change to ``hashBlockCommitments``
+happens in the block that activates this ZIP.
+
+The block header byte format and version are not altered by this ZIP.
+
+=========
+Rationale
+=========
+
+In S.2, we use the same personalization strings for fields that have matching
+fields in T.2, in order to facilitate reuse of their digests. In particular, the
+"no transparent inputs or outputs" case of S.2 is identical to the equivalent
+case in T.2; thus for fully shielded transactions, ``signature_digest`` is
+equal to ``txid_digest``.
+
+Several changes in this ZIP (relative to ZIP 243 [#zip-0243]_) were made to
+align with BIP 341 [#bip-0341]_:
+
+- The ``hash_type`` field is now restricted via a new consensus rule to be one
+  of a specific set of sighash type encodings. The rationale for this change is
+  inherited from BIP 341 [#bip-0341-hash_type]_.
+
+  - Note however that we do not define ``SIGHASH_DEFAULT``, as it is equivalent
+    to ``SIGHASH_ALL``, and we prefer the encodings to be canonical.
+
+- Two new commitments (``amounts_sig_digest`` and ``scriptpubkeys_sig_digest``)
+  were added, to address difficulties in the case of a hardware wallet signing
+  transparent inputs. ``scriptpubkeys_sig_digest`` helps the hardware wallet to
+  determine the subset of inputs belonging to it [#bip-0341-scriptPubKey]_.
+  ``amounts_sig_digest`` prevents the transaction creator from lying to the
+  hardware wallet about the transaction fee [#bip-0341-amount]_. Without these
+  commitments, the hardware wallet would need to be sent every transaction
+  containing an outpoint referenced in the transaction being signed.
+- The semantics of ``sequence_sig_digest`` were changed, to commit to ``nSequence``
+  even if ``SIGHASH_SINGLE`` or ``SIGHASH_NONE`` is set. The rationale for this
+  change is inherited from BIP 341 [#bip-0341-nSequence]_.
+- The semantics of ``outputs_sig_digest`` were changed, via a new consensus rule
+  that rejects transparent inputs for which ``SIGHASH_SINGLE`` is set without a
+  corresponding transparent output at the same index. BIP 341 does not give a
+  rationale for this change, but without it these inputs were effectively using
+  ``SIGHASH_NONE``, which is silently misleading.
+- The semantics of ``txin_sig_digest`` were changed, to always commit to the
+  ``scriptPubKey`` field of the transparent coin being spent, instead of the
+  script actually being executed at the time ``signature_digest`` is calculated.
+
+  - This ensures that the signature commits to the entire committed script. In
+    Taproot, this makes it possible to prove to a hardware wallet what (unused)
+    execution paths exist [#bip-0341-scriptPubKey]_. Alternate execution paths
+    don't exist for P2PKH (where the executed script is ``scriptPubKey``) or
+    P2SH (where ``scriptPubKey`` is fully executed prior to ``redeemScript``).
+  - For P2SH, this means we commit to the Hash160 digest of ``redeemScript``
+    instead of the actual script. Note that the Bitcoin P2SH design depends
+    entirely on Hash160 being preimage-resistant, because otherwise anyone would
+    be able to spend someone else's P2SH UTXO using a preimage. We do need to
+    ensure that there is no collision attack; this holds because even if an
+    adversary could find a Hash160 collision, it would only enable them to
+    alter the input's ``scriptSig`` field. Doing so doesn't alter the effecting
+    data of the transaction, which by definition means the transaction has the
+    same effect under consensus (spends the same inputs and produces the same
+    outputs).
+
+Signatures over Sapling Spends or Orchard Actions, in transactions containing
+transparent inputs, commit to the same data that the transparent inputs do,
+including all of the transparent input values. Without this commitment, there
+would be a similar difficulty for a hardware wallet in the case where it is
+only signing shielded inputs, when the transaction also contains transparent
+inputs from a malicious other party, because that party could lie about their
+coins' values.
+
+By contrast, binding signatures for shielded coinbase transactions continue to
+be over the transaction ID, as for non-coinbase transactions without transparent
+inputs. This is necessary because coinbase transactions have a single "dummy"
+transparent input element that has no corresponding previous output to commit
+to. It is also sufficient because the data in that transparent input either is
+already bound elsewhere (namely the block height, placed in ``expiry_height``
+from NU5 activation), or does not need to be bound to the shielded outputs
+(e.g. miner-identifying information).
+
+========================
+Reference implementation
+========================
+
+- https://github.com/zcash/librustzcash/pull/319/files
+
+==========
+References
+==========
+
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
+.. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
+.. [#zip-0221] `ZIP 221: FlyClient - Consensus Layer Changes <zip-0221.rst>`_
+.. [#zip-0076] `ZIP 76: Transaction Signature Validation before Overwinter <zip-0076.rst>`_
+.. [#zip-0143] `ZIP 143: Transaction Signature Validation for Overwinter <zip-0143.rst>`_
+.. [#zip-0243] `ZIP 243: Transaction Signature Validation for Sapling <zip-0243.rst>`_
+.. [#zip-0307] `ZIP 307: Light Client Protocol for Payment Detection <zip-0307.rst>`_
+.. [#bip-0341] `BIP 341: Taproot: SegWit version 1 spending rules <https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki>`_
+.. [#bip-0341-hash_type] `Why reject unknown hash_type values? <https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki#cite_note-13>`_
+.. [#bip-0341-scriptPubKey] `Why does the signature message commit to the scriptPubKey? <https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki#cite_note-17>`_
+.. [#bip-0341-amount] `Why does the signature message commit to the amounts of all transaction inputs? <https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki#cite_note-18>`_
+.. [#bip-0341-nSequence] `Why does the signature message commit to all input nSequence if SIGHASH_SINGLE or SIGHASH_NONE are set? <https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki#cite_note-19>`_
+.. [#bdr-txout] `Bitcoin Developer Reference. TxOut: A Transaction Output <https://developer.bitcoin.org/reference/transactions.html#txout-a-transaction-output>`_
