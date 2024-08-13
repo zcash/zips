@@ -35,12 +35,13 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/">https://github.c
             <p>The funding stream mechanism defined in ZIP 207 <a id="footnote-reference-4" class="footnote_reference" href="#zip-0207">3</a> is modified such that a funding stream may deposit funds into the deferred pool.</p>
         </section>
         <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <section id="deferred-development-fund-chain-value-pool-balance"><h3><span class="section-heading">Deferred Development Fund Chain Value Pool Balance</span><span class="section-anchor"> <a rel="bookmark" href="#deferred-development-fund-chain-value-pool-balance"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
-                <p>Full node implementations MUST track an additional
-                    <span class="math">\(\mathsf{PoolValue}_{Deferred}\)</span>
-                 chain value pool balance, in addition to the Sprout, Sapling, and Orchard chain value pool balances. This balance is set to zero prior to the activation of Network Upgrade 6.</p>
-                <p>ZIP 207 <a id="footnote-reference-5" class="footnote_reference" href="#zip-0207">3</a> is modified as follows:</p>
-                <p>In the section <strong>Funding streams</strong> <a id="footnote-reference-6" class="footnote_reference" href="#zip-0207-funding-streams">4</a>, instead of:</p>
+            <section id="modifications-to-zip-207">
+                <h3>Modifications to ZIP 207 <a id="footnote-reference-5" class="footnote_reference" href="#zip-0207">3</a></h3>
+                <p>The following paragraph is added to the section <strong>Motivation</strong>:</p>
+                <blockquote>
+                    <p>ZIP TBD <a id="footnote-reference-6" class="footnote_reference" href="#draft-nuttycom-funding-allocation">6</a> directs part of the block reward to a reserve, the distribution of which is to be determined via a future ZIP. ZIP 2001 <a id="footnote-reference-7" class="footnote_reference" href="#zip-2001">7</a> modified this ZIP to augment the funding stream mechanism with a common mechanism to implement this proposal.</p>
+                </blockquote>
+                <p>In the section <strong>Funding streams</strong> <a id="footnote-reference-8" class="footnote_reference" href="#zip-0207-funding-streams">4</a>, instead of:</p>
                 <blockquote>
                     <p>Each funding stream has an associated sequence of recipient addresses, each of which MUST be either a transparent P2SH address or a Sapling address.</p>
                 </blockquote>
@@ -48,15 +49,93 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/">https://github.c
                 <blockquote>
                     <p>Each funding stream has an associated sequence of recipients, each of which MUST be either a transparent P2SH address, a Sapling address, or the identifier <cite>DEFERRED_POOL</cite>.</p>
                 </blockquote>
-                <p>In the section <strong>Consensus rules</strong> <a id="footnote-reference-7" class="footnote_reference" href="#zip-0207-consensus-rules">5</a>, the following will be added:</p>
+                <p>After the section <strong>Funding streams</strong>, a new section is added with the heading "Deferred Development Fund Chain Value Pool Balance" and the following contents:</p>
                 <blockquote>
-                    <p>The "prescribed way" to pay to the <cite>DEFERRED_POOL</cite> is to add
-                        <span class="math">\(\mathsf{FundingStream[FUND].Value}(\mathsf{height})\)</span>
-                     to
+                    <p>Full node implementations MUST track an additional
                         <span class="math">\(\mathsf{PoolValue}_{Deferred}\)</span>
+                     chain value pool balance, in addition to the Sprout, Sapling, and Orchard chain value pool balances.</p>
+                    <p>Define
+                        <span class="math">\(\mathsf{totalDeferredOutput}(\mathsf{height}) := \sum_{\mathsf{fs} \in \mathsf{DeferredFundingStreams}(\mathsf{height})} \mathsf{fs.Value}(\mathsf{height})\)</span>
+                     where
+                        <span class="math">\(\mathsf{DeferredFundingStreams}(\mathsf{height})\)</span>
+                     is the set of funding streams with a recipient of <cite>DEFERRED_POOL</cite> in the block at height
+                        <span class="math">\(\mathsf{height}\)</span>
                     .</p>
+                    <p>The
+                        <span class="math">\(\mathsf{PoolValue}_{Deferred}\)</span>
+                     chain value pool balance for a given block chain is the sum of the values of payments to <cite>DEFERRED_POOL</cite> for transactions in the block chain.</p>
+                    <p>Equivalently,
+                        <span class="math">\(\mathsf{PoolValue}_{Deferred}\)</span>
+                     for a block chain up to and including height
+                        <span class="math">\(\mathsf{height}\)</span>
+                     is given by
+                        <span class="math">\(\sum_{\mathsf{h} = 0}^{\mathsf{height}} \mathsf{totalDeferredOutput}(\mathsf{h})\)</span>
+                    .</p>
+                    <p>Note:
+                        <span class="math">\(\mathsf{totalDeferredOutput}(\mathsf{h})\)</span>
+                     is necessarily zero for heights
+                        <span class="math">\(\mathsf{h}\)</span>
+                     prior to NU6 activation.</p>
                 </blockquote>
-                <p>The protocol specification is modified to define the "total issued supply" such that the total issued supply as of a given height is given by the function:</p>
+                <p>In the section <strong>Consensus rules</strong> <a id="footnote-reference-9" class="footnote_reference" href="#zip-0207-consensus-rules">5</a>, instead of:</p>
+                <blockquote>
+                    <ul>
+                        <li>The coinbase transaction in each block MUST contain at least one output per active funding stream that pays the stream's value in the prescribed way to the stream's recipient address for the block's height.</li>
+                    </ul>
+                </blockquote>
+                <p>it will be modified to read:</p>
+                <blockquote>
+                    <ul>
+                        <li>In each block, for each active funding stream with a recipient other than <cite>DEFERRED_POOL</cite> at that block's height, the block's coinbase transaction MUST contain at least one output that pays the stream's value in the prescribed way to that recipient.</li>
+                    </ul>
+                </blockquote>
+                <p>After the list of post-Canopy consensus rules, the following paragraph is added:</p>
+                <blockquote>
+                    <p>The effect of the definition of
+                        <span class="math">\(\mathsf{PoolValue}_{Deferred}\)</span>
+                     above is that payments to the <cite>DEFERRED_POOL</cite> cause
+                        <span class="math">\(\mathsf{FundingStream[FUND].Value}(\mathsf{height})\)</span>
+                     to be added to
+                        <span class="math">\(\mathsf{PoolValue}_{Deferred}\)</span>
+                     for the block chain including that block.</p>
+                </blockquote>
+            </section>
+            <section id="modifications-to-the-protocol-specification"><h3><span class="section-heading">Modifications to the protocol specification</span><span class="section-anchor"> <a rel="bookmark" href="#modifications-to-the-protocol-specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>In section <strong>7.1.2 Transaction Consensus Rules</strong> <a id="footnote-reference-10" class="footnote_reference" href="#protocol-txnconsensus">10</a>, instead of:</p>
+                <blockquote>
+                    <p>The total value in zatoshi of transparent outputs from a coinbase transaction, minus
+                        <span class="math">\(\mathsf{v^{balanceSapling}}\)</span>
+                    , minus
+                        <span class="math">\(\mathsf{v^{balanceOrchard}}\)</span>
+                    , MUST NOT be greater than the value in zatoshi of the block subsidy plus the transaction fees paid by transactions in this block.</p>
+                </blockquote>
+                <p>it will be modified to read:</p>
+                <blockquote>
+                    <p>For the block at height
+                        <span class="math">\(\mathsf{height}\)</span>
+                    :</p>
+                    <ul>
+                        <li>define the "total output value" of its coinbase transaction to be the total value in zatoshi of its transparent outputs, minus
+                            <span class="math">\(\mathsf{v^{balanceSapling}}\)</span>
+                        , minus
+                            <span class="math">\(\mathsf{v^{balanceOrchard}}\)</span>
+                        , plus
+                            <span class="math">\(\mathsf{totalDeferredOutput}(\mathsf{height})\)</span>
+                        ;</li>
+                        <li>define the "total input value" of its coinbase transaction to be the value in zatoshi of the block subsidy, plus the transaction fees paid by transactions in the block.</li>
+                    </ul>
+                    <p>The total output value of a coinbase transaction MUST NOT be greater than its total input value.</p>
+                </blockquote>
+                <p>where
+                    <span class="math">\(\mathsf{totalDeferredOutput}(\mathsf{height})\)</span>
+                 is defined consistently with ZIP 207.</p>
+                <p>Note: this ZIP and ZIP 236 both make changes to the above rule. Their combined effect is that the last paragraph will be replaced by:</p>
+                <blockquote>
+                    <p>[Pre-NU6] The total output value of a coinbase transaction MUST NOT be greater than its total input value.</p>
+                    <p>[NU6 onward] The total output value of a coinbase transaction MUST be equal to its total input value.</p>
+                </blockquote>
+                <p>Section <strong>7.10 Payment of Funding Streams</strong> <a id="footnote-reference-11" class="footnote_reference" href="#protocol-fundingstreams">12</a> contains language and definitions copied from ZIP 207; it should be updated to reflect the changes made above.</p>
+                <p>In section <strong>3.4 Transactions and Treestates</strong> <a id="footnote-reference-12" class="footnote_reference" href="#protocol-transactions">9</a>, a definition of "total issued supply" will be added, such that the total issued supply as of a given height is given by the function:</p>
                 <div class="math">\(\begin{array}{ll}
 \mathsf{IssuedSupply}(\mathsf{height}) := &amp;\!\!\!\!\mathsf{PoolValue}_{Transparent}(\mathsf{height}) \\
 &amp;+\;\; \mathsf{PoolValue}_{Sprout}(\mathsf{height}) \\
@@ -64,6 +143,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/">https://github.c
 &amp;+\,\; \mathsf{PoolValue}_{Orchard}(\mathsf{height}) \\
 &amp;+\,\; \mathsf{PoolValue}_{Deferred}(\mathsf{height})
 \end{array}\)</div>
+                <p>The second paragraph of section <strong>1.2 High-level Overview</strong> <a id="footnote-reference-13" class="footnote_reference" href="#protocol-overview">8</a> should also be updated to take into account the deferred chain value pool. Since that section of the specification is entirely non-normative, we do not give the full wording change here.</p>
             </section>
         </section>
         <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
@@ -104,6 +184,62 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/">https://github.c
                     <tr>
                         <th>5</th>
                         <td><a href="zip-0207#consensus-rules">ZIP 207: Funding Streams. Section: Consensus rules</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="draft-nuttycom-funding-allocation" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>6</th>
+                        <td><a href="draft-nuttycom-funding-allocation">Draft ZIP: Block Reward Allocation for Non-Direct Development Funding</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-2001" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>7</th>
+                        <td><a href="zip-2001">ZIP 2001: Lockbox Funding Streams</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-overview" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>8</th>
+                        <td><cite>Zcash Protocol Specification, Version 2023.4.0. Section 1.2: High-level Overview &lt;protocol/protocol.pdf#overview&gt;</cite></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-transactions" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>9</th>
+                        <td><cite>Zcash Protocol Specification, Version 2023.4.0. Section 3.4: Transactions and Treestates &lt;protocol/protocol.pdf#transactions&gt;</cite></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-txnconsensus" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>10</th>
+                        <td><cite>Zcash Protocol Specification, Version 2023.4.0. Section 7.1.2: Transaction Consensus Rules &lt;protocol/protocol.pdf#txnconsensus&gt;</cite></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-subsidies" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>11</th>
+                        <td><cite>Zcash Protocol Specification, Version 2023.4.0. Section 7.8: Calculation of Block Subsidy, Funding Streams, and Founders’ Reward &lt;protocol/protocol.pdf#subsidies&gt;</cite></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-fundingstreams" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>12</th>
+                        <td><cite>Zcash Protocol Specification, Version 2023.4.0. Section 7.10: Payment of Funding Streams &lt;protocol/protocol.pdf#fundingstreams&gt;</cite></td>
                     </tr>
                 </tbody>
             </table>
