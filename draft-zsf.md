@@ -140,12 +140,6 @@ All technical decisions in this ZIP are balanced between the necessary robustnes
 
 Tracking the `ZSF_BALANCE` value as a node state using the above formula is very simple in terms of implementation, and should work correctly given that the node implementations calculate the value according to the specifications.
 
-### Committing to `ZsfBalanceAfter` in the block header
-
-The `ZsfBalanceAfter` node state has a block header commitment as specified above.
-
-Requiring block-header-rooted commitments of global fund balances such as the Sustainability Fund ensures that any consensus deviating bugs in accounting of this balance are immediately detected in the earliest impacted block. It also removes some of the need for explorer sites and other analytics services from tracking this value independently, assuming the committed value is made available by common APIs. This helps ensure that all explorers track and report the correct value.
-
 ## `ZSF_DEPOSIT` as explicit transaction field
 
 An explicit value distinguishes the ZEC destined to Sustainability Fund deposits from the implicit transaction fee. Explicitness also ensures any arithmetic flaws in any implementations are more likely to be observed and caught immediately.
