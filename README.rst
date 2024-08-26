@@ -94,6 +94,7 @@ Released ZIPs
     <tr> <td>401</td> <td class="left"><a href="zips/zip-0401.rst">Addressing Mempool Denial-of-Service</a></td> <td>Active</td>
     <tr> <td>1014</td> <td class="left"><a href="zips/zip-1014.rst">Establishing a Dev Fund for ECC, ZF, and Major Grants</a></td> <td>Active</td>
     <tr> <td>1015</td> <td class="left"><a href="zips/zip-1015.rst">Block Reward Allocation for Non-Direct Development Funding</a></td> <td>Proposed</td>
+    <tr> <td>2001</td> <td class="left"><a href="zips/zip-2001.rst">Lockbox Funding Streams</a></td> <td>Proposed</td>
   </table></embed>
 
 Draft ZIPs
@@ -151,7 +152,6 @@ written.
     <tr> <td><span class="reserved">402</span></td> <td class="left"><a class="reserved" href="zips/zip-0402.rst">New Wallet Database Format</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">403</span></td> <td class="left"><a class="reserved" href="zips/zip-0403.rst">Verification Behaviour of zcashd</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">416</span></td> <td class="left"><a class="reserved" href="zips/zip-0416.rst">Support for Unified Addresses in zcashd</a></td> <td>Reserved</td>
-    <tr> <td>2001</td> <td class="left"><a href="zips/zip-2001.rst">Lockbox Funding Streams</a></td> <td>Draft</td>
     <tr> <td>guide-markdown</td> <td class="left"><a href="zips/zip-guide-markdown.md">{Something Short and To the Point}</a></td> <td>Draft</td>
     <tr> <td>guide</td> <td class="left"><a href="zips/zip-guide.rst">{Something Short and To the Point}</a></td> <td>Draft</td>
   </table></embed>
@@ -304,7 +304,7 @@ Index of ZIPs
     <tr> <td><strike>1013</strike></td> <td class="left"><strike><a href="zips/zip-1013.rst">Keep It Simple, Zcashers: 10% to ECC, 10% to ZF</a></strike></td> <td>Obsolete</td>
     <tr> <td>1014</td> <td class="left"><a href="zips/zip-1014.rst">Establishing a Dev Fund for ECC, ZF, and Major Grants</a></td> <td>Active</td>
     <tr> <td>1015</td> <td class="left"><a href="zips/zip-1015.rst">Block Reward Allocation for Non-Direct Development Funding</a></td> <td>Proposed</td>
-    <tr> <td>2001</td> <td class="left"><a href="zips/zip-2001.rst">Lockbox Funding Streams</a></td> <td>Draft</td>
+    <tr> <td>2001</td> <td class="left"><a href="zips/zip-2001.rst">Lockbox Funding Streams</a></td> <td>Proposed</td>
     <tr> <td>guide-markdown</td> <td class="left"><a href="zips/zip-guide-markdown.md">{Something Short and To the Point}</a></td> <td>Draft</td>
     <tr> <td>guide</td> <td class="left"><a href="zips/zip-guide.rst">{Something Short and To the Point}</a></td> <td>Draft</td>
   </table></embed>
