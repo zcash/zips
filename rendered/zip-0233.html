@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZIP 233: Establish the Zcash Sustainability Fund on the Protocol Level</title>
+    <meta charset="utf-8" />
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<pre><code>ZIP: 233
+Title: Establish the Zcash Sustainability Fund on the Protocol Level
+Owners: Jason McGee &lt;jason@shieldedlabs.com&gt;
+        Mark Henderson &lt;mark@equilibrium.co&gt;
+        Tomek Piotrowski &lt;tomek@eiger.co&gt;
+        Mariusz Pilarek &lt;mariusz@eiger.co&gt;
+Original-Authors: Nathan Wilcox
+Credits:
+Status: Draft
+Category: Consensus / Ecosystem
+Created: 2023-08-16
+License: BSD-2-Clause</code></pre>
+<h1 id="terminology">Terminology</h1>
+<p>The key words “MUST”, “SHOULD”, “SHOULD NOT”, “MAY”, “RECOMMENDED”,
+“OPTIONAL”, and “REQUIRED” in this document are to be interpreted as
+described in RFC 2119. [1]</p>
+<p>The term “network upgrade” in this document is to be interpreted as
+described in ZIP 200. [2]</p>
+<p>“Block Subsidy” - the algorithmic issuance of ZEC on block creation –
+part of the consensus rules. Split between the miner and the Dev Fund.
+Also known as Block Reward.</p>
+<p>“Issuance” - The method by which unmined or unissued ZEC is converted
+to ZEC available to users of the network</p>
+<p>“We” - the ZIP authors, owners listed in the above front matter</p>
+<p>“<code>MAX_MONEY</code>” is the ZEC supply cap. For simplicity, this
+ZIP defines it to be <code>21,000,000 ZEC</code>, although this is
+slightly larger than the actual supply cap of the original ZEC issuance
+mechanism.</p>
+<h1 id="abstract">Abstract</h1>
+<p>This ZIP describes the motivation, the necessary changes for, and the
+implementation specifications for the Zcash Sustainability Fund (ZSF).
+The ZSF is a proposed alteration to the block rewards system and
+accounting of unmined ZEC that allows for other sources of funding
+besides unissued ZEC. This new mechanism for deposits – that new
+applications or protocol designs can use to strengthen the long-term
+sustainability of the network – will likely be an important step for
+future economic upgrades, such as a transition to Proof of Stake or
+Zcash Shielded Assets, and other potential protocol fees and user
+applications.</p>
+<p>The changes in this ZIP are ultimately minimal, only requiring for
+the node to track state in the form of a <code>ZSF_BALANCE</code>, and
+for a new transaction field to be added, called
+<code>ZSF_DEPOSIT</code>. While wallet developer would be encouraged to
+add the <code>ZSF_DEPOSIT</code> field to their UIs, no changes or new
+behavior are absolutely required for developers or ZEC holders.</p>
+<p>This ZIP does not change the current ZEC block subsidy issuance
+schedule. Any additional amounts paid into the sustainability fund are
+reserved for use in future ZIPs.</p>
+<h1 id="motivation">Motivation</h1>
+<p>The Zcash network’s operation and development relies fundamentally on
+the block reward system inherited from Bitcoin. This system currently
+looks like this:</p>
+<ul>
+<li>At Every New Block:
+<ul>
+<li>Miner and funding streams are rewarded a constant amount via
+unissued ZEC (this constant amount halves at specified heights)</li>
+<li>Miner is rewarded via Transaction fees
+<code>(inputs - outputs)</code></li>
+</ul></li>
+</ul>
+<p>The Zcash Sustainability Fund is a proposed replacement to that
+payout mechanism, with the relevant parts in <em>bold</em> below:</p>
+<ul>
+<li><strong>Unmined ZEC is now accounted for as
+<code>ZSF_BALANCE</code></strong></li>
+<li><strong>Transaction includes optional contributions to ZSF via a
+<code>ZSF_DEPOSIT</code> field</strong></li>
+<li>Thus, at Every New Block:
+<ul>
+<li>Miner and funding streams rewarded the same constant amount,
+<strong>but from <code>ZSF_BALANCE</code></strong> (this constant amount
+still halves at specified heights)</li>
+<li>Miner is rewarded via Transaction fees
+<code>(inputs - outputs)</code>, <strong>where <code>outputs</code>
+includes the <code>ZSF_DEPOSIT</code> amount</strong></li>
+</ul></li>
+</ul>
+<p>For example, an end-user wallet application could have an option to
+contribute a portion of a transaction to the ZSF, which would be
+included in a <code>ZSF_DEPOSIT</code> field in the transaction, to be
+taken into account by the Zcash nodes.</p>
+<p>This quite simple alteration has – in our opinion – a multitude of
+benefits:</p>
+<ol type="1">
+<li><strong>Long Term Consensus Sustainability:</strong> This mechanism
+supports long-term consensus sustainability by addressing concerns about
+the sustainability of the network design shared by Bitcoin-like systems
+through the establishment of deposits into the Sustainability Fund to
+augment block rewards, ensuring long-term sustainability as the issuance
+rate of Zcash drops and newly issued ZEC decreases over time.</li>
+<li><strong>Benefits to ZEC Holders:</strong> Deposits to the ZSF slow
+down the payout of ZEC, temporarily reducing its available supply,
+benefiting current holders of unencumbered active ZEC in proportion to
+their holdings without requiring them to opt into any scheme,
+introducing extra risk, active oversight, or accounting complexity.</li>
+<li><strong>Recovery of “Soft-Burned” Funds:</strong> In some instances,
+such as miners not claiming all available rewards, some ZEC goes
+unaccounted for, though not formally burned. This proposal would recover
+it through the <code>ZSF_BALANCE</code> mechanism described below.</li>
+</ol>
+<h1 id="specification">Specification</h1>
+<p>In practice, The Zcash Sustainability Fund is a single global balance
+maintained by the node state and contributed to via a single transaction
+field. This provides the economic and security support described in the
+motivation section, while also importantly keeping the fund payouts
+extremely simple to describe and implement.</p>
+<p>The two modifications are: 1. The re-accounting of unmined ZEC as a
+node state field called <code>ZSF_BALANCE</code> 2. The addition of a
+transaction field called <code>ZSF_DEPOSIT</code></p>
+<h2 id="zsf_balance"><code>ZSF_BALANCE</code></h2>
+<p>The ZEC issuance mechanism is re-defined to remove funds from
+<code>ZSF_BALANCE</code>, which is initially set to
+<code>MAX_MONEY</code> at the genesis block.</p>
+<p>Consensus nodes are then required to track new per-block state:</p>
+<ul>
+<li><code>ZSF_BALANCE[height] : u64 [zatoshi]</code></li>
+</ul>
+<p>The state is a single 64 bit integer (representing units of
+<code>zatoshi</code>) at any given block height, <span
+class="math inline">height</span>, representing the Sustainability Fund
+balance at that height. The <code>ZSF_BALANCE</code> can be calculated
+using the following formula:</p>
+<p><span class="math inline">$\mathsf{ZsfBalanceAfter}(\mathsf{height})
+= \mathsf{MAX\_MONEY} + \sum_{h = 0}^{\mathsf{height}}
+(\mathsf{ZsfDeposit}(h) + \mathsf{Unclaimed}(h) -
+\mathsf{BlockSubsidy}(h))$</span></p>
+<p>where <span class="math inline">Unclaimed(height)</span> is the
+portion of the block subsidy and miner fees that are unclaimed for the
+block at the given height.</p>
+<p>The block at height <span class="math inline">height</span> commits
+to <span class="math inline">ZsfBalanceAfter(height)</span> as part of a
+new block commitment in the block header, at the end of the
+<code>hashBlockCommitments</code> chain in <a
+href="https://zips.z.cash/zip-0244#block-header-changes">ZIP-244</a>.</p>
+<p>TODO ZIP editors: consider introducing a chain state commitment hash
+tree. (When we get closer to the network upgrade, we will have a better
+idea what commitments that network upgrade needs.)</p>
+<h2 id="deposits-into-the-sustainability-fund">Deposits into the
+Sustainability Fund</h2>
+<p>Sustainability fund deposits can be made via the new
+<code>zsfDeposit</code> field. This can be done by: - ZEC fund holders,
+in non-coinbase transactions; - Zcash miners, in coinbase
+transactions.</p>
+<p>In transaction versions without this new field: - unclaimed miner
+fees and rewards in <strong>coinbase transactions</strong> are
+re-defined as deposits into the sustainability fund, and - there are no
+sustainability fund deposits from non-coinbase transactions.</p>
+<p>Note: older transaction versions can continue to be supported after a
+network upgrade. For example, NU5 supports both v4 and v5 transaction
+formats, for both coinbase and non-coinbase transactions.</p>
+<h3 id="zsfdeposit-fields-in-transactions"><code>zsfDeposit</code>
+fields in transactions</h3>
+<p>Each transaction can dedicate some of its excess funds to the ZSF,
+and the remainder becomes the miner fee, with any excess miner
+fee/reward going to the ZSF</p>
+<p>This is achieved by adding a new field to the common transaction
+fields [#zip-0225-transaction-format]:</p>
+<ul>
+<li><code>zsfDeposit : u64 [zatoshi]</code></li>
+</ul>
+<p>The <code>ZSF_BALANCE[H]</code> for a block at height <code>H</code>
+can be calculated given a value of <code>ZSF_BALANCE[H-1]</code> and the
+set of transactions contained in that block. First, the
+<code>ZSF_DEPOSIT[H]</code> is calculated based solely on
+<code>ZSF_BALANCE[H-1]</code>. This is subtracted from the previous
+block’s balance to be distributed as part of the block reward. Second,
+the sum of all the <code>ZSF_DEPOSIT</code> fields of all transactions
+in the block is added to the balance.</p>
+<h3 id="non-coinbase-transactions">Non-Coinbase Transactions</h3>
+<p>If the <code>ZSF_DEPOSIT</code> field is not present in an older
+transaction version, it is defined to be zero for non-coinbase
+transactions.</p>
+<h4 id="consensus-rule-changes">Consensus Rule Changes</h4>
+<ul>
+<li>Transparent inputs to a transaction insert value into a transparent
+transaction value pool associated with the transaction. Transparent
+outputs <strong>and sustainability fund deposits</strong> remove value
+from this pool.</li>
+</ul>
+<h3 id="coinbase-transactions">Coinbase Transactions</h3>
+<p>Any excess miner fee/reward is sent to the ZSF.</p>
+<p>In new blocks, this deposit is tracked via the
+<code>ZSF_DEPOSIT</code> field in coinbase transactions.</p>
+<p>If the <code>ZSF_DEPOSIT</code> field is not present in a coinbase
+transaction with an older transaction version, it is defined as the
+value of any unspent miner fee and miner reward. This re-defines these
+previously unspendable funds as ZSF deposits.</p>
+<h4 id="consensus-rule-changes-1">Consensus Rule Changes</h4>
+<ul>
+<li>The remaining value in the transparent transaction value pool of a
+coinbase transaction is <strong>deposited in the sustainability
+fund</strong>.</li>
+</ul>
+<h3 id="zsf_deposit-requirements"><code>ZSF_DEPOSIT</code>
+Requirements</h3>
+<ul>
+<li>ZIP 230 [3] must be updated to include
+<code>ZSF_DEPOSIT</code>.</li>
+<li>ZIP 244 [4] must be updated as well to include
+<code>ZSF_DEPOSIT</code>.</li>
+</ul>
+<h1 id="rationale">Rationale</h1>
+<p>All technical decisions in this ZIP are balanced between the
+necessary robustness of the ZSF mechanics, and simplicity of
+implementation.</p>
+<h2 id="zsf_balance-as-node-state"><code>ZSF_BALANCE</code> as node
+state</h2>
+<p>Tracking the <code>ZSF_BALANCE</code> value as a node state using the
+above formula is very simple in terms of implementation, and should work
+correctly given that the node implementations calculate the value
+according to the specifications.</p>
+<h2
+id="zsf_deposit-as-explicit-transaction-field"><code>ZSF_DEPOSIT</code>
+as explicit transaction field</h2>
+<p>An explicit value distinguishes the ZEC destined to Sustainability
+Fund deposits from the implicit transaction fee. Explicitness also
+ensures any arithmetic flaws in any implementations are more likely to
+be observed and caught immediately.</p>
+<h1 id="deployment">Deployment</h1>
+<p>This ZIP is proposed to activate with Network Upgrade (TODO ZIP
+editors).</p>
+<h1 id="references">References</h1>
+<p><strong>[1]: <a
+href="https://www.rfc-editor.org/rfc/rfc2119.html">Key words for use in
+RFCs to Indicate Requirement Levels</a></strong></p>
+<p><strong>[2]: <a href="https://zips.z.cash/zip-0200">ZIP 200: Network
+Upgrade Mechanism</a></strong></p>
+<p><strong>[3]: <a href="https://github.com/zcash/zips/pull/687">ZIP
+230: v6 transactions, including ZSAs</a></strong></p>
+<p><strong>[4]: <a href="https://zips.z.cash/zip-0244">ZIP 244:
+Transaction Identifier Non-Malleability</a></strong></p>
+</body>
+</html>
