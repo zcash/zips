@@ -15,6 +15,8 @@ LATEXMK=max_print_line=10000 latexmk $(LATEXMKOPT_$(ENGINE)) --halt-on-error --f
 LATEX=$(ENGINE) --halt-on-error --file-line-error
 NOCRUFT?=|perl -pe 's|[{\<\(]\/[^ ]* ?||g;s|^.* has been referenced but does not exist.*||g;s|^\n||g'
 
+PDFDIR=../rendered/protocol
+
 # Use EXTRAOPT=-pvc for "continuous preview" mode. For example, "make auxblossom EXTRAOPT=-pvc".
 # In this case the updated .pdf will be in the aux/ directory.
 
@@ -23,41 +25,41 @@ all: .Makefile.uptodate
 	$(MAKE) nu5 canopy heartwood blossom sapling
 
 all-specs: .Makefile.uptodate
-	$(MAKE) nu5.pdf canopy.pdf heartwood.pdf blossom.pdf sapling.pdf
+	$(MAKE) $(PDFDIR)/nu5.pdf $(PDFDIR)/canopy.pdf $(PDFDIR)/heartwood.pdf $(PDFDIR)/blossom.pdf $(PDFDIR)/sapling.pdf
 
-release:
+tag-release:
 ifeq ($(shell git tag --points-at HEAD |wc -l),0)
 	echo "Set a tag at HEAD first."
 else
 	$(eval TAG := $(shell git tag --points-at HEAD))
-	if [[ "$(shell git rev-parse --abbrev-ref HEAD)" != "main" ]]; then echo "Not on main."; exit 1; fi
+	git fetch origin
+	git merge-base --is-ancestor origin/main HEAD || (echo "The current branch is dirty and/or not up-to-date with origin's main branch."; false)
 	$(MAKE) clean all
-	git add *.pdf
-	git commit -m "Regenerate PDFs." *.pdf
+	git add $(PDFDIR)/*.pdf
+	git commit -m "Regenerate PDFs." $(PDFDIR)/*.pdf
 	git tag "v$(TAG)"
-	git push --tags origin HEAD:main
 endif
 
 discard:
-	git checkout -- '*.pdf'
+	git checkout -- "$(PDFDIR)/*.pdf"
 
 .Makefile.uptodate: Makefile
 	$(MAKE) clean
 	touch .Makefile.uptodate
 
-sapling.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
+$(PDFDIR)/sapling.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
 	$(MAKE) sapling
 
-blossom.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
+$(PDFDIR)/blossom.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
 	$(MAKE) blossom
 
-heartwood.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
+$(PDFDIR)/heartwood.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
 	$(MAKE) heartwood
 
-canopy.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
+$(PDFDIR)/canopy.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
 	$(MAKE) canopy
 
-nu5.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
+$(PDFDIR)/nu5.pdf: protocol.tex zcash.bib incremental_merkle.png key_components_sapling.png
 	$(MAKE) nu5
 
 .PHONY: auxsapling
@@ -71,7 +73,7 @@ auxsapling:
 .PHONY: sapling
 sapling:
 	$(MAKE) auxsapling
-	mv -f aux/sapling.pdf .
+	mv -f aux/sapling.pdf $(PDFDIR)
 
 .PHONY: auxblossom
 auxblossom:
@@ -84,7 +86,7 @@ auxblossom:
 .PHONY: blossom
 blossom:
 	$(MAKE) auxblossom
-	mv -f aux/blossom.pdf .
+	mv -f aux/blossom.pdf $(PDFDIR)
 
 .PHONY: auxheartwood
 auxheartwood:
@@ -97,7 +99,7 @@ auxheartwood:
 .PHONY: heartwood
 heartwood:
 	$(MAKE) auxheartwood
-	mv -f aux/heartwood.pdf .
+	mv -f aux/heartwood.pdf $(PDFDIR)
 
 .PHONY: auxcanopy
 auxcanopy:
@@ -110,7 +112,7 @@ auxcanopy:
 .PHONY: canopy
 canopy:
 	$(MAKE) auxcanopy
-	mv -f aux/canopy.pdf .
+	mv -f aux/canopy.pdf $(PDFDIR)
 
 .PHONY: auxnu5
 auxnu5:
@@ -123,8 +125,8 @@ auxnu5:
 .PHONY: nu5
 nu5:
 	$(MAKE) auxnu5
-	mv -f aux/nu5.pdf .
-	cp -f nu5.pdf protocol.pdf
+	mv -f aux/nu5.pdf $(PDFDIR)
+	cp -f $(PDFDIR)/nu5.pdf $(PDFDIR)/protocol.pdf
 
 .PHONY: nolatexmk-sapling
 nolatexmk-sapling:
@@ -189,4 +191,4 @@ nolatexmk-nu5:
 
 .PHONY: clean
 clean:
-	rm -f aux/* html/* protocol.ver protocol.pdf nu5.pdf canopy.pdf heartwood.pdf blossom.pdf sapling.pdf
+	rm -f aux/* html/* protocol.ver $(PDFDIR)/protocol.pdf $(PDFDIR)/nu5.pdf $(PDFDIR)/canopy.pdf $(PDFDIR)/heartwood.pdf $(PDFDIR)/blossom.pdf $(PDFDIR)/sapling.pdf

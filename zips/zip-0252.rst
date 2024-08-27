@@ -1,0 +1,245 @@
+::
+
+  ZIP: 252
+  Title: Deployment of the NU5 Network Upgrade
+  Owners: teor <teor@zfnd.org>
+          Daira-Emma Hopwood <daira-emma@electriccoin.co>
+  Status: Final
+  Category: Consensus / Network
+  Created: 2021-02-23
+  License: MIT
+  Discussions-To: <https://github.com/zcash/zips/issues/440>
+  Pull-Request: <https://github.com/zcash/zips/pull/446>
+
+
+Terminology
+===========
+
+The key words "MUST" and "SHOULD" in this document are to be interpreted as
+described in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
+
+The term "network upgrade" in this document is to be interpreted as described in
+ZIP 200. [#zip-0200]_
+
+The terms "Testnet" and "Mainnet" are to be interpreted as described in
+section 3.12 of the Zcash Protocol Specification [#protocol-networks]_.
+
+
+Abstract
+========
+
+This proposal defines the deployment of the NU5 network upgrade.
+
+
+Specification
+=============
+
+NU5 deployment
+--------------
+
+The primary sources of information about NU5 consensus and peer-to-peer protocol
+changes are:
+
+- The Zcash Protocol Specification [#protocol]_ [#protocol-txnencoding]_
+- ZIP 200: Network Upgrade Mechanism [#zip-0200]_
+- ZIP 216: Require Canonical Point Encodings [#zip-0216]_
+- ZIP 224: Orchard Shielded Protocol [#zip-0224]_
+- ZIP 225: Version 5 Transaction Format [#zip-0225]_
+- ZIP 239: Relay of Version 5 Transactions [#zip-0239]_
+- ZIP 244: Transaction Identifier Non-Malleability [#zip-0244]_
+- The Orchard Book [#orchard-book]_
+- The halo2 Book [#halo2-book]_
+
+The network handshake and peer management mechanisms defined in ZIP 201 [#zip-0201]_
+also apply to this upgrade.
+
+Unified addresses and viewing keys are described in ZIP 316 [#zip-0316]_.
+
+The following ZIPs have been updated in varying degrees to take into account Orchard:
+
+- ZIP 32: Shielded Hierarchical Deterministic Wallets [#zip-0032]_
+- ZIP 203: Transaction Expiry [#zip-0203]_
+- ZIP 209: Prohibit Negative Shielded Chain Value Pool Balances [#zip-0209]_
+- ZIP 212: Allow Recipient to Derive Ephemeral Secret from Note Plaintext [#zip-0212]_
+- ZIP 213: Shielded Coinbase [#zip-0213]_
+- ZIP 221: FlyClient - Consensus-Layer Changes [#zip-0221]_
+- ZIP 401: Addressing Mempool Denial-of-Service [#zip-0401]_
+
+
+The following network upgrade constants [#zip-0200]_ are defined for the NU5
+upgrade:
+
+CONSENSUS_BRANCH_ID
+  ``0xc2d6d0b4``
+
+
+ACTIVATION_HEIGHT (NU5)
+  Testnet (second activation): 1842420
+
+  Mainnet: 1687104
+
+
+MIN_NETWORK_PROTOCOL_VERSION (NU5)
+  Testnet (second activation): 170050
+
+  Mainnet: 170100
+
+
+Note: A first activation of NU5, with a previous version of the Orchard circuit
+and other NU5 consensus rules, occurred on Testnet at block height 1599200 with
+consensus branch ID 0x37519621 and peer protocol version 170015. With the release
+of `zcashd` v4.7.0, Testnet is being rolled back to another chain that forks from
+the block immediately preceding that activation, at height 1599199. This chain
+had been continuously mined by `zcashd` v4.0.0 nodes modified to disable
+End-of-Service halt.
+
+For each network (Testnet and Mainnet), nodes compatible with NU5 activation
+on that network MUST advertise a network protocol version that is greater than
+or equal to the MIN_NETWORK_PROTOCOL_VERSION (NU5) for that activation.
+
+For each network, pre-NU5 nodes are defined as nodes advertising a protocol
+version less than that network's MIN_NETWORK_PROTOCOL_VERSION (NU5).
+
+Once NU5 activates on Testnet or Mainnet, NU5 nodes SHOULD take steps to:
+
+- reject new connections from pre-NU5 nodes on that network;
+- disconnect any existing connections to pre-NU5 nodes on that network.
+
+The change to the peer-to-peer protocol described in ZIP 239 took effect
+from peer protocol version 170014 onward, on both Testnet and Mainnet. [#zip-0239]_
+
+
+Backward compatibility
+======================
+
+Prior to the network upgrade activating on each network, NU5 and pre-NU5
+nodes are compatible and can connect to each other. (In the case of Testnet,
+there was a prolonged period of network fracturing due to a consensus bug,
+but this is expected to be resolved with the release of `zcashd` v4.7.0.)
+
+Once the network upgrades, even though pre-NU5 nodes can still accept the
+numerically larger protocol version used by NU5 as being valid, NU5 nodes
+will always disconnect peers using lower protocol versions.
+
+Unlike Blossom, Heartwood, and Canopy, and like Overwinter and Sapling, NU5
+defines a new transaction version. Therefore, NU5 transactions MAY be in
+the new v5 format specified by [#zip-0225]_. Unlike previous transaction
+version updates, the existing v4 transaction format remains valid after
+NU5 activation. Both transaction formats MUST be accepted by NU5 nodes.
+
+Backward compatibility of the new ``MSG_WTX`` inv type introduced for ``inv``
+and ``getdata`` messages is discussed in [#zip-0239]_.
+
+
+Support in zcashd
+=================
+
+Several versions of `zcashd` have implemented versions of the NU5 consensus
+rules on Testnet:
+
+- `zcashd` v4.5.0 implemented a consensus revision that contained critical
+  bugs in the Orchard Action circuit.
+- Before that revision could activate, `zcashd` v4.5.1 was released, with a
+  later activation height of 1599200 as described in section `NU5 deployment`_
+  above. This revision also had a consensus bug that caused many nodes to
+  stall at or near height 1779199, shortly after the first block containing
+  an Orchard output.
+- `zcashd` v4.7.0 implements what is expected to be the final revision
+  of the NU5 consensus rules, causing a long rollback to an alternate
+  Testnet chain. It is necessary to use the ``-reindex`` and ``-rescan``
+  options to `zcashd` in order to follow this chain as intended.
+
+Support for NU5 on Mainnet will be implemented in `zcashd` version 5.0.0,
+which will advertise protocol version 170100.
+
+Backward compatibility in zcashd
+--------------------------------
+
+The minimum peer protocol version that NU5-compatible `zcashd` nodes will
+connect to is 170002. On Testnet, they will immediately disconnect from nodes
+advertising a peer protocol version less than 170040.
+
+NU5 deployment for zcashd
+-------------------------
+
+For each network, approximately 1.5 days (defined in terms of
+block height) before the corresponding NU5 activation height, nodes compatible
+with NU5 activation on that network will change the behaviour of their peer
+connection logic in order to prefer pre-NU5 peers on that network for eviction
+from the set of peer connections::
+
+    /**
+     * The period before a network upgrade activates, where connections to upgrading peers are preferred (in blocks).
+     * This was three days for upgrades up to and including Blossom, and is 1.5 days from Heartwood onward.
+     */
+    static const int NETWORK_UPGRADE_PEER_PREFERENCE_BLOCK_PERIOD = 1728;
+
+The implementation is similar to that for Overwinter which was described in
+[#zip-0201]_.
+
+However, NU5 nodes will have a preference for connecting to other NU5 nodes, so
+pre-NU5 nodes will gradually be disconnected in the run up to activation.
+
+
+Support in Zebra
+================
+
+Several versions of Zebra have implemented versions of the NU5 consensus
+rules on Testnet:
+
+- `zebrad` v1.0.0-alpha.18 implemented partial support for NU5 on Testnet,
+  validating a strict subset of the NU5 consensus rules. This version had an
+  activation height of 1599200, as described in section `NU5 deployment`_
+  above.
+- `zebrad` v1.0.0-beta.8 will fully validate what is expected to be the final
+  revision of the NU5 consensus rules. As part of these consensus rule changes,
+  `zebrad` v1.0.0-beta.8 will automatically re-download the entire chain from
+  genesis, then follow an alternate chain starting at height 1599200. It will
+  advertise protocol version 170050.
+  
+
+Support for NU5 on Mainnet will be implemented in `zebrad` version v1.0.0-beta.10,
+which will advertise protocol version 170100.
+
+Backward compatibility in Zebra
+-------------------------------
+
+The minimum peer protocol version that NU5-compatible Zebra nodes will connect to
+is 170002. They will immediately disconnect from nodes advertising a peer protocol
+version less than:
+
+- 170040 on Testnet, or
+- 170013 on Mainnet.
+
+NU5 deployment for Zebra
+------------------------
+
+For each network, at the corresponding NU5 activation height, nodes compatible
+with NU5 activation on that network will close existing connections with pre-NU5
+peers, and reject new connections from pre-NU5 peers.
+
+
+References
+==========
+
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#protocol] `Zcash Protocol Specification, Version 2021.2.16 or later <protocol/protocol.pdf>`_
+.. [#protocol-networks] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
+.. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
+.. [#zip-0032] `ZIP 32: Shielded Hierarchical Deterministic Wallets <zip-0032.rst>`_
+.. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
+.. [#zip-0201] `ZIP 201: Network Peer Management for Overwinter <zip-0201.rst>`_
+.. [#zip-0203] `ZIP 203: Transaction Expiry <zip-0203.rst>`_
+.. [#zip-0209] `ZIP 209: Prohibit Negative Shielded Chain Value Pool Balances <zip-0209.rst>`_
+.. [#zip-0212] `ZIP 212: Allow Recipient to Derive Ephemeral Secret from Note Plaintext <zip-0212.rst>`_
+.. [#zip-0213] `ZIP 213: Shielded Coinbase <zip-0213.rst>`_
+.. [#zip-0216] `ZIP 216: Require Canonical Point Encodings <zip-0216.rst>`_
+.. [#zip-0221] `ZIP 221: FlyClient - Consensus-Layer Changes <zip-0221.rst>`_
+.. [#zip-0224] `ZIP 224: Orchard Shielded Protocol <zip-0224.rst>`_
+.. [#zip-0225] `ZIP 225: Version 5 Transaction Format <zip-0225.rst>`_
+.. [#zip-0239] `ZIP 239: Relay of Version 5 Transactions <zip-0239.rst>`_
+.. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`_
+.. [#zip-0316] `ZIP 316: Unified Addresses and Unified Viewing Keys <zip-0316.rst>`_
+.. [#zip-0401] `ZIP 401: Addressing Mempool Denial-of-Service <zip-0401.rst>`_
+.. [#orchard-book] `The Orchard Book <https://zcash.github.io/orchard/>`_
+.. [#halo2-book] `The halo2 Book <https://zcash.github.io/halo2/>`_

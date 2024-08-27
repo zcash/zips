@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZIP 300: Cross-chain Atomic Transactions</title>
+    <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+    <section>
+        <pre>ZIP: 300
+Title: Cross-chain Atomic Transactions
+Owners: Daira-Emma Hopwood &lt;daira-emma@electriccoin.co&gt;
+Original-Authors: Jay Graber
+Status: Proposed
+Category: Informational
+Created: 2017-03-08
+License: MIT
+Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/123">https://github.com/zcash/zips/pull/123</a>&gt;</pre>
+        <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This is an Informational ZIP describing a proposed specification for a standardized protocol for performing cross-chain atomic transactions (XCAT) between Zcash and Bitcoin, or other Bitcoin-derived cryptocurrencies.</p>
+        </section>
+        <section id="status"><h2><span class="section-heading">Status</span><span class="section-anchor"> <a rel="bookmark" href="#status"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This proposal only supports transparent cross-chain swaps and relies on the scripting system inherited from Bitcoin. At the time of writing (September 2020), it has not achieved widespread adoption.</p>
+        </section>
+        <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>A well-defined standard for performing cross-chain transactions would improve the liquidity of cryptocurrencies and be useful for third-party services, such as decentralized exchanges.</p>
+        </section>
+        <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The proposed protocol for XCAT is a set of hash time-locked contracts across both chains, created by two parties who wish to do a cross-chain exchange.</p>
+            <p>To perform an exchange, both parties need to have the public keys of the other, on both chains. The party that wishes to initiate the exchange (the "seller") constructs two hash time-locked contracts by generating pay-to-script-hash (P2SH) addresses using the XCAT protocol and the public key of their counterparty (the "buyer").</p>
+            <p>For the purposes of this example, the seller initiating the exchange will be named "Alice", and the buyer agreeing to complete the exchange will be named "Bob".</p>
+            <p>Alice wishes to initiate an XCAT exchange from Bitcoin to Zcash. She chooses a random number R, hashes it, and creates a P2SH address on the Zcash blockchain using her and Bob's public keys, that she will wait for Bob to fund with the amount he wants to trade. (Agreement on the amount to trade and exchange rate is outside the scope of this protocol, and could be determined out-of-band, or within the user interface of an application using XCAT under the hood)</p>
+            <p>The script in the P2SH address takes the following form:</p>
+            <pre>OP_IF
+    [HASHOP] &lt;hash digest of R&gt; OP_EQUALVERIFY OP_DUP OP_HASH160 &lt;Alice's pubkey hash&gt;
+OP_ELSE
+    &lt;time-out duration (24 hours)&gt; CHECKLOCKTIMEVERIFY OP_DROP OP_DUP OP_HASH160 &lt;Bob's pubkey hash&gt;
+OP_ENDIF
+OP_EQUALVERIFY
+OP_CHECKSIG</pre>
+            <p>There are two scenarios for spending funds from this P2SH address. The first is a successful atomic swap which gives Alice the money she asked for, and gives Bob access to the secret R which he can use to redeem his funds on the other blockchain. The second is a fail case which refunds Bob's money if Alice does not follow through.</p>
+            <ol type="1">
+                <li>Success case: Alice spends the funds sent to the address, revealing the random number R she hashed to create the script in the process.</li>
+                <li>Fail case: Alice does not spend the funds sent to the address within the timeout period, so Bob sends his funds back to himself, canceling the transaction.</li>
+            </ol>
+            <p>At the same time that Alice creates this P2SH address on the Zcash blockchain, she must also create a P2SH address on the Bitcoin blockchain, which she funds herself with the amount of BTC she wants to trade out of.</p>
+            <p>The script for this second transaction takes the following form:</p>
+            <pre>OP_IF
+    [HASHOP] &lt;hash digest of R&gt; OP_EQUALVERIFY OP_DUP OP_HASH160 &lt;Bob's pubkey hash&gt;
+OP_ELSE
+    &lt;time-out duration (48 hours)&gt; CHECKLOCKTIMEVERIFY OP_DROP OP_DUP OP_HASH160 &lt;Alice's pubkey hash&gt;
+OP_ENDIF
+OP_EQUALVERIFY
+OP_CHECKSIG</pre>
+            <p>The two scenarios for spending funds from this second P2SH address are as follows:</p>
+            <ol type="1">
+                <li>Success case: Bob uses R to spend the funds from this P2SH address, as Alice has already revealed R to Bob in the process of spending from the P2SH address he sent ZEC to on the Zcash blockchain. The cross-chain atomic transaction is now complete, and both parties have the funds they requested.</li>
+                <li>Fail case: Bob has not followed through on his part of the trade within the timeout period, so Alice sends her funds back to herself, canceling the transaction.</li>
+            </ol>
+            <section id="timeout-periods"><h3><span class="section-heading">Timeout Periods</span><span class="section-anchor"> <a rel="bookmark" href="#timeout-periods"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Having timeout periods on both transactions allows the XCAT protocol to work by enabling refunds in case a counterparty misbehaves. The example above uses a timeout period of 24 hours for the first transaction and 48 hours for the second, but these are simply suggestions. Actual timeout periods should be considered to be variables that depend on the following factors for any given implementation of XCAT:</p>
+                <section id="duration"><h4><span class="section-heading">Duration</span><span class="section-anchor"> <a rel="bookmark" href="#duration"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>The time-lock period on the transaction in which the initiating party reveals R must be significantly shorter than the time-lock period on the second transaction in which the other party uses the revealed R, in order to give them enough time to make use of R to redeem their funds.</p>
+                    <p>For example, once Alice reveals R by spending what Bob sent to her P2SH address, Bob must have enough time to use R to redeem his funds on the other blockchain before Alice can be allowed to refund herself. If there were an insufficient time delay between the first and second timeout periods, Alice could potentially spend Bob's funds at the last minute, then quickly refund herself on the other blockchain before Bob gets a chance to redeem his portion using the R she reveals.</p>
+                    <p>Note that using long time-locks in the P2SH scripts does not necessarily mean that the transactions themselves will take a long time. If both parties are immediately responsive and execute their trades in a timely manner, providing the correct information, the full cross-chain atomic trade can happen quickly. The full duration of the timeout period for each transaction only elapses in the fail case, when either Alice or Bob defaults on their agreement to exchange.</p>
+                </section>
+                <section id="block-times"><h4><span class="section-heading">Block times</span><span class="section-anchor"> <a rel="bookmark" href="#block-times"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>The protection provided by the timeout period must take into account relative block times between the two blockchains.</p>
+                </section>
+            </section>
+        </section>
+        <section id="rationale"><h2><span class="section-heading">Rationale</span><span class="section-anchor"> <a rel="bookmark" href="#rationale"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>Users are free to come up with their own protocols for cross-chain atomic transactions, but having a well-defined protocol would aid adoption and support third-party services wishing to provide such functionality.</p>
+        </section>
+    </section>
+</body>
+</html>

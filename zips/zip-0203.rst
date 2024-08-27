@@ -1,0 +1,151 @@
+::
+
+  ZIP: 203
+  Title: Transaction Expiry
+  Owners: Daira-Emma Hopwood <daira-emma@electriccoin.co>
+  Original-Authors: Jay Graber
+  Status: Final
+  Category: Consensus
+  Created: 2018-01-09
+  License: MIT
+
+
+Abstract
+========
+
+This is a Standards ZIP describing a new consensus rule to set an expiration time after
+which a transaction cannot be mined. If it is not mined within that time, the transaction
+will be removed from nodes' mempools.
+
+
+Motivation
+==========
+
+Transactions that have insufficient fees are often not mined. This indeterminism is a
+source of confusion for users and wallets. Allowing a transaction to set a block height
+after which it cannot be mined would provide certainty around how long a transaction has
+to confirm before it is rejected by the network and must be re-sent.
+
+Advantages include optimizing mempool performance by removing transactions that will not
+be mined, and potentially simplifying bidirectional payment channels by reducing the need
+to store and compress revocations for past states, since transactions not committed to the
+chain could expire and become invalid after a period of time.
+
+If the expiry is at block height :math:`N`, then the transaction must be included in block
+:math:`N` or earlier. Block :math:`N+1` will be too late, and the transaction will be
+removed from the mempool.
+
+The new consensus rule will enforce that the transaction will not be considered valid if
+included in block of height greater than :math:`N`, and blocks that include expired
+transactions will not be considered valid.
+
+
+Specification
+=============
+
+Transactions will have a new field, ``nExpiryHeight``, which will set the block height
+after which transactions will be removed from the mempool if they have not been mined.
+
+The data type for ``nExpiryHeight`` will be ``uint32_t``. ``nExpiryHeight`` will never
+be a UNIX timestamp, unlike ``nLockTime`` values, and thus the maximum expiry height
+will be 499999999 (but see the exception for coinbase transactions described in
+`Changes for NU5`_).
+
+Note: a previous version of this ZIP incorrectly specified an interaction between
+``nExpiryHeight`` and ``nLockTime`` that was never implemented.
+
+For the example below, the last block that the transaction below could possibly be
+included in is 3539. After that, it will be removed from the mempool.
+
+::
+
+    "txid": "17561b98cc77cd5a984bb959203e073b5f33cf14cbce90eb32b95ae2c796723f",
+    "version": 3,
+    "locktime": 2089,
+    "expiryheight": 3539,
+
+Default: (Before Blossom) 20 blocks from the current height, or about 50 minutes at
+2.5-minute target block spacing. A configuration option can be used to set the user's
+default.
+
+Minimum: No minimum
+
+Maximum: 499999999, which is about 1185 years from now at 75 seconds/block.
+
+No limit: To set no limit on transactions (so that they do not expire), ``nExpiryHeight``
+should be set to 0.
+
+Coinbase: ``nExpiryHeight`` on coinbase transactions is ignored, and is set to 0 by
+convention.
+
+Every time a transaction expires and should be removed from the mempool, so should all
+of its dependent transactions.
+
+Changes for Blossom
+-------------------
+
+On Blossom activation [#zip-0206]_, the default changes to 40 blocks from the current
+height, which still represents about 50 minutes at the revised 75-second target block
+spacing.
+
+Changes for NU5
+---------------
+
+As mentioned above, ``nExpiryHeight`` is ignored for coinbase transactions. However, from
+NU5 activation [#zip-0252]_, the ``nExpiryHeight`` field of a coinbase transaction MUST
+be set equal to the block height. Also, for coinbase transactions only, the bound of
+499999999 on ``nExpiryHeight`` is removed. The motivation is to ensure that transaction
+IDs remain unique, as explained in more detail in a note in Section 7.1 of the protocol
+specification [#protocol-txnencoding]_.
+
+Wallet behavior and UI
+----------------------
+
+With the addition of this feature, zero-confirmation transactions with an expiration block
+height set will have even less guarantee of inclusion. This means that UIs and services
+must never rely on zero-confirmation transactions in Zcash.
+
+Wallet should notify the user of expired transactions that must be re-sent.
+
+RPC
+---
+
+For Overwinter, transaction expiry will be set to a default that can be overridden by a
+flag `txexpirydelta` set in the config file.
+
+``-txexpirydelta=`` set the number of blocks after which a transaction that has not been
+mined will become invalid
+
+To view: `listtransactions` has a new filter attribute, showing expired transactions only::
+
+    listtransactions "*" 10 0 "expired"
+
+WalletTxToJSON shows a boolean expired true/false.
+
+Config
+------
+
+The default will be user-configurable with the option `txexpirydelta`.
+
+`--txexpirydelta=100`
+
+Deployment
+----------
+
+This feature will be deployed with Overwinter. The activation blockheight proposal is in
+[#zip-0201]_.
+
+
+Reference Implementation
+========================
+
+https://github.com/zcash/zcash/pull/2874
+
+
+References
+==========
+
+.. [#zip-0201] `ZIP 201: Network Peer Management for Overwinter <zip-0201.rst>`_
+.. [#zip-0206] `ZIP 206: Deployment of the Blossom Network Upgrade <zip-0206.rst>`_
+.. [#zip-0252] `ZIP 252: Deployment of the NU5 Network Upgrade <zip-0252.rst>`_
+.. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2021.2.16. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_

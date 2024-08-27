@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZIP 113: Median Time Past as endpoint for lock-time calculations</title>
+    <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+    <section>
+        <pre>ZIP: 113
+Title: Median Time Past as endpoint for lock-time calculations
+Author: Daira Hopwood &lt;daira@electriccoin.co&gt;
+Credits: Thomas Kerin &lt;me@thomaskerin.io&gt;
+         Mark Friedenbach &lt;mark@friedenbach.org&gt;
+         Gregory Maxwell
+Category: Consensus
+Status: Draft
+Created: 2019-06-07
+License: MIT</pre>
+        <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The key words "MUST" and "MAY" in this document are to be interpreted as described in RFC 2119. <a id="footnote-reference-1" class="footnote_reference" href="#rfc2119">1</a></p>
+        </section>
+        <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This ZIP is a proposal to redefine the semantics used in determining a time-locked transaction's eligibility for inclusion in a block. The median of the last PoWMedianBlockSpan (11) blocks is used instead of the block's timestamp, ensuring that it increases monotonically with each block.</p>
+        </section>
+        <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>At present, transactions are excluded from inclusion in a block if the present time or block height is less than or equal to that specified in the locktime. Since the consensus rules do not mandate strict ordering of block timestamps, this has the unfortunate outcome of creating a perverse incentive for miners to lie about the time of their blocks in order to collect more fees by including transactions that by wall clock determination have not yet matured.</p>
+            <p>This ZIP proposes comparing the locktime against the median of the past PoWMedianBlockSpan blocks' timestamps, rather than the timestamp of the block including the transaction. Existing consensus rules guarantee this value to monotonically advance, thereby removing the capability for miners to claim more transaction fees by lying about the timestamps of their block.</p>
+            <p>This proposal seeks to ensure reliable behaviour in locktime calculations as required by <a id="footnote-reference-2" class="footnote_reference" href="#bip-0065">3</a> (CHECKLOCKTIMEVERIFY) and matching the behavior of <a id="footnote-reference-3" class="footnote_reference" href="#zip-0112">5</a> (CHECKSEQUENCEVERIFY). This also matches the use of Median Time Past in difficulty adjustment as specified in section 7.6.3 of <a id="footnote-reference-4" class="footnote_reference" href="#protocol">2</a>.</p>
+        </section>
+        <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>Let PoWMedianBlockSpan be as defined in <a id="footnote-reference-5" class="footnote_reference" href="#protocol">2</a> section 5.3, and let the median function be as defined in <a id="footnote-reference-6" class="footnote_reference" href="#protocol">2</a> section 7.6.3.</p>
+            <p>The Median Time Past of a block is specified as the median of the timestamps of the prior PoWMedianBlockSpan blocks, as calculated by MedianTime(height) in <a id="footnote-reference-7" class="footnote_reference" href="#protocol">2</a> section 7.6.3.</p>
+            <p>The values for transaction locktime remain unchanged. The difference is only in the calculation determining whether a transaction can be included. After activation of this ZIP, lock-time constraints of a transaction MUST be checked according to the Median Time Past of the transaction's block.</p>
+            <p>[FIXME make this a proper specification, independent of the zcashd implementation.]</p>
+            <p>Lock-time constraints are checked by the consensus method <code>IsFinalTx()</code>. This method takes the block time as one parameter. This ZIP proposes that after activation calls to <code>IsFinalTx()</code> within consensus code use the return value of <code>GetMedianTimePast(pindexPrev)</code> instead.</p>
+            <p>The new rule applies to all transactions, including the coinbase transaction.</p>
+        </section>
+        <section id="reference-implementation"><h2><span class="section-heading">Reference Implementation</span><span class="section-anchor"> <a rel="bookmark" href="#reference-implementation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This will be based on <a href="https://github.com/bitcoin/bitcoin/pull/6566">Bitcoin PR 6566</a>.</p>
+        </section>
+        <section id="acknowledgements"><h2><span class="section-heading">Acknowledgements</span><span class="section-anchor"> <a rel="bookmark" href="#acknowledgements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This ZIP is based on BIP 113, authored by Thomas Kerin and Mark Friedenbach.</p>
+            <p>Mark Friedenbach designed and authored the reference implementation for Bitcoin.</p>
+            <p>Gregory Maxwell came up with the original idea, in #bitcoin-wizards on <a href="https://download.wpsoftware.net/bitcoin/wizards/2013/07/13-07-16.log">2013-07-16</a> and <a href="https://download.wpsoftware.net/bitcoin/wizards/2013/07/13-07-17.log">2013-07-17</a>.</p>
+        </section>
+        <section id="deployment"><h2><span class="section-heading">Deployment</span><span class="section-anchor"> <a rel="bookmark" href="#deployment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>At the time of writing it has not been decided which network upgrade (if any) will implement this proposal.</p>
+            <p>This ZIP is designed to be deployed simultaneously with <a id="footnote-reference-8" class="footnote_reference" href="#zip-0068">4</a> and <a id="footnote-reference-9" class="footnote_reference" href="#zip-0112">5</a>.</p>
+        </section>
+        <section id="compatibility"><h2><span class="section-heading">Compatibility</span><span class="section-anchor"> <a rel="bookmark" href="#compatibility"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>At the post-Blossom block target spacing of 75 seconds, transactions generated using time-based lock-time will take approximately 7.5 minutes longer to confirm than would be expected under the old rules. This is not known to introduce any compatibility concerns with existing protocols. This delay is less than in Bitcoin due to the faster block target spacing in Zcash.</p>
+        </section>
+        <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <table id="rfc2119" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>1</th>
+                        <td><a href="https://tools.ietf.org/html/rfc2119">Key words for use in RFCs to Indicate Requirement Levels</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>2</th>
+                        <td><a href="https://github.com/zcash/zips/blob/master/protocol/blossom.pdf">Zcash Protocol Specification, Version 2019.0.1 or later [Overwinter+Sapling+Blossom]</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bip-0065" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>3</th>
+                        <td><a href="https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki">BIP 65: OP_CHECKLOCKTIMEVERIFY</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0068" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>4</th>
+                        <td><a href="https://github.com/daira/zips/blob/op-csv/zip-0068.rst">ZIP 68: Consensus-enforced transaction replacement signaled via sequence numbers</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0112" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>5</th>
+                        <td><a href="https://github.com/daira/zips/blob/op-csv/zip-0112.rst">ZIP 112: CHECKSEQUENCEVERIFY</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </section>
+</body>
+</html>

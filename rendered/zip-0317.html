@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZIP 317: Proportional Transfer Fee Mechanism</title>
+    <meta charset="utf-8" />
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+    <section>
+        <pre>ZIP: 317
+Title: Proportional Transfer Fee Mechanism
+Owners: Aditya Bharadwaj &lt;nighthawk24@gmail.com&gt;
+        Daira-Emma Hopwood &lt;daira-emma@electriccoin.co&gt;
+Credits: Madars Virza
+         Kris Nuttycombe
+         Jack Grigg
+         Francisco Gindre
+Status: Active
+Category: Standards / Wallet
+Obsoletes: ZIP 313
+Created: 2022-08-15
+License: MIT
+Discussions-To: &lt;<a href="https://forum.zcashcommunity.com/t/zip-proportional-output-fee-mechanism-pofm/42808">https://forum.zcashcommunity.com/t/zip-proportional-output-fee-mechanism-pofm/42808</a>&gt;
+Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://github.com/zcash/zips/pull/631</a>&gt;</pre>
+        <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The key words "SHOULD", "SHOULD NOT", "RECOMMENDED", and "MAY" in this document are to be interpreted as described in BCP 14 <a id="footnote-reference-1" class="footnote_reference" href="#bcp14">1</a> when, and only when, they appear in all capitals.</p>
+            <p>The term "conventional transaction fee" in this document is in reference to the value of a transaction fee that is conventionally used by wallets, and that a user can reasonably expect miners on the Zcash network to accept for including a transaction in a block.</p>
+            <p>The terms "Mainnet", "Testnet", and "zatoshi" in this document are defined as in <a id="footnote-reference-2" class="footnote_reference" href="#protocol-networks">2</a>.</p>
+        </section>
+        <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The goal of this ZIP is to change the conventional fees for transactions by making them dependent on the number of inputs and outputs in a transaction, and to get buy-in for this change from wallet developers, miners and Zcash users.</p>
+        </section>
+        <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>In light of recent Mainnet network activity, it is time to review and update the standard 1,000 zatoshi transaction fee set in ZIP 313 <a id="footnote-reference-3" class="footnote_reference" href="#zip-0313">6</a>.</p>
+            <p>The conventional transaction fee presently is 0.00001 ZEC or 1,000 zatoshis, as specified in ZIP 313. This allowed exploration of novel use cases of the Zcash blockchain. The Zcash network has operated for almost 2 years at a conventional transaction fee of 1,000 zatoshis, without consideration for the total number of inputs and outputs in each transaction. Under this conventional fee, some usage of the chain has been characterized by high-output transactions with 1,100 outputs, paying the same conventional fee as a transaction with 2 outputs.</p>
+            <p>The objective of the new fee policy, once it is enforced, is for fees paid by transactions to fairly reflect the processing costs that their inputs and outputs impose on various participants in the network. This will tend to discourage usage patterns that cause either intentional or unintentional denial of service, while still allowing low fees for regular transaction use cases.</p>
+        </section>
+        <section id="requirements"><h2><span class="section-heading">Requirements</span><span class="section-anchor"> <a rel="bookmark" href="#requirements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <ul>
+                <li>The conventional fee formula should not favour or discriminate against any of the Orchard, Sapling, or transparent protocols.</li>
+                <li>The fee for a transaction should scale linearly with the number of inputs and/or outputs.</li>
+                <li>Users should not be penalised for sending transactions constructed with padding of inputs and outputs to reduce information leakage. (The default policy employed by zcashd and the mobile SDKs pads to two inputs and two outputs for each shielded pool used by the transaction).</li>
+                <li>Users should be able to spend a small number of UTXOs or notes with value below the marginal fee per input.</li>
+            </ul>
+        </section>
+        <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <section id="notation"><h3><span class="section-heading">Notation</span><span class="section-anchor"> <a rel="bookmark" href="#notation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Let
+                    <span class="math">\(\mathsf{min}(a, b)\)</span>
+                 be the lesser of
+                    <span class="math">\(a\)</span>
+                 and
+                    <span class="math">\(b\!\)</span>
+                . <br/> Let
+                    <span class="math">\(\mathsf{max}(a, b)\)</span>
+                 be the greater of
+                    <span class="math">\(a\)</span>
+                 and
+                    <span class="math">\(b\!\)</span>
+                . <br/> Let
+                    <span class="math">\(\mathsf{floor}(x)\)</span>
+                 be the largest integer
+                    <span class="math">\(\leq x\!\)</span>
+                . <br/> Let
+                    <span class="math">\(\mathsf{ceiling}(x)\)</span>
+                 be the smallest integer
+                    <span class="math">\(\geq x\!\)</span>
+                .</p>
+            </section>
+            <section id="fee-calculation"><h3><span class="section-heading">Fee calculation</span><span class="section-anchor"> <a rel="bookmark" href="#fee-calculation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>This specification defines several parameters that are used to calculate the conventional fee:</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Value</th>
+                            <th>Units</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <span class="math">\(marginal\_fee\)</span>
+                            </td>
+                            <td>
+                                <span class="math">\(5000\)</span>
+                            </td>
+                            <td>zatoshis per logical action (as defined below)</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <span class="math">\(grace\_actions\)</span>
+                            </td>
+                            <td>
+                                <span class="math">\(2\)</span>
+                            </td>
+                            <td>logical actions</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <span class="math">\(p2pkh\_standard\_input\_size\)</span>
+                            </td>
+                            <td>
+                                <span class="math">\(150\)</span>
+                            </td>
+                            <td>bytes</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <span class="math">\(p2pkh\_standard\_output\_size\)</span>
+                            </td>
+                            <td>
+                                <span class="math">\(34\)</span>
+                            </td>
+                            <td>bytes</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p>Wallets implementing this specification SHOULD use a conventional fee calculated in zatoshis per the following formula:</p>
+                <div class="math">\(\begin{array}{rcl}
+  contribution_{\,\mathsf{Transparent}} &amp;=&amp;
+      \mathsf{max}\big(\mathsf{ceiling}\big(\frac{tx\_in\_total\_size}{p2pkh\_standard\_input\_size}\big),\,
+                       \mathsf{ceiling}\big(\frac{tx\_out\_total\_size}{p2pkh\_standard\_output\_size}\big)\big) \\
+  contribution_{\,\rlap{\mathsf{Sprout}}\phantom{\mathsf{Transparent}}}  &amp;=&amp; 2 \cdot nJoinSplit \\
+  contribution_{\,\rlap{\mathsf{Sapling}}\phantom{\mathsf{Transparent}}} &amp;=&amp; \mathsf{max}(nSpendsSapling,\, nOutputsSapling) \\
+  contribution_{\,\rlap{\mathsf{Orchard}}\phantom{\mathsf{Transparent}}} &amp;=&amp; nActionsOrchard \\
+  \\
+  logical\_actions  &amp;=&amp; contribution_{\,\mathsf{Transparent}} +
+                        contribution_{\,\mathsf{Sprout}} +
+                        contribution_{\,\mathsf{Sapling}} +
+                        contribution_{\,\mathsf{Orchard}} \\
+  conventional\_fee &amp;=&amp; marginal\_fee \cdot \mathsf{max}(grace\_actions,\, logical\_actions)
+\end{array}\)</div>
+                <p>The inputs to this formula are taken from transaction fields defined in the Zcash protocol specification <a id="footnote-reference-4" class="footnote_reference" href="#protocol-txnencoding">3</a>:</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Input</th>
+                            <th>Units</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <span class="math">\(tx\_in\_total\_size\)</span>
+                            </td>
+                            <td>bytes</td>
+                            <td>total size in bytes of the <code>tx_in</code> field</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <span class="math">\(tx\_out\_total\_size\)</span>
+                            </td>
+                            <td>bytes</td>
+                            <td>total size in bytes of the <code>tx_out</code> field</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <span class="math">\(nJoinSplit\)</span>
+                            </td>
+                            <td>number</td>
+                            <td>the number of Sprout JoinSplits</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <span class="math">\(nSpendsSapling\)</span>
+                            </td>
+                            <td>number</td>
+                            <td>the number of Sapling spends</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <span class="math">\(nOutputsSapling\)</span>
+                            </td>
+                            <td>number</td>
+                            <td>the number of Sapling outputs</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <span class="math">\(nActionsOrchard\)</span>
+                            </td>
+                            <td>number</td>
+                            <td>the number of Orchard actions</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p>It is not a consensus requirement that fees follow this formula; however, wallets SHOULD create transactions that pay this fee, in order to reduce information leakage, unless overridden by the user.</p>
+                <section id="rationale-for-logical-actions"><h4><span class="section-heading">Rationale for logical actions</span><span class="section-anchor"> <a rel="bookmark" href="#rationale-for-logical-actions"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                <details>
+<summary>Click to show/hide</summary>
+                    <p>The intention is to make the fee paid for a transaction depend on its impact on the network, without discriminating between different protocols (Orchard, Sapling, or transparent). The impact on the network depends on the numbers of inputs and outputs.</p>
+                    <p>A previous proposal used
+                        <span class="math">\(inputs + outputs\)</span>
+                     instead of logical actions. This would have disadvantaged Orchard transactions, as a result of an Orchard Action combining an input and an output. The effect of this combining is that Orchard requires padding of either inputs or outputs to ensure that the number of inputs and outputs are the same. Usage of Sapling and transparent protocols does not require this padding, and so this could have effectively discriminated against Orchard.</p>
+                </details></section>
+                <section id="rationale-for-the-chosen-parameters"><h4><span class="section-heading">Rationale for the chosen parameters</span><span class="section-anchor"> <a rel="bookmark" href="#rationale-for-the-chosen-parameters"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                <details>
+<summary>Click to show/hide</summary>
+                    <section id="grace-actions"><h5><span class="section-heading">Grace Actions</span><span class="section-anchor"> <a rel="bookmark" href="#grace-actions"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p><strong>Why not just charge per-action, without a grace window?</strong></p>
+                        <ul>
+                            <li>This ensures that there is no penalty to padding a 1-action transaction to a 2-action transaction. Such padding is desirable to reduce information leakage from input and output arity, and is the standard approach used by <cite>zcashd</cite> and the mobile SDK transaction builder.</li>
+                            <li>Without a grace window, an input with value below the marginal fee would never be worth including in the resulting transaction. With a grace window, an input with value below
+                                <span class="math">\(marginal\_fee\)</span>
+                             <em>is</em> worth including, if a second input is available that covers both the primary output amount and the conventional transaction fee.</li>
+                        </ul>
+                        <p><strong>Why a grace window of 2?</strong></p>
+                        <p>A 1-in, 2-out (or 2-action) transaction is the smallest possible transaction that permits both an output to a recipient, and a change output. However, as stated above, <cite>zcashd</cite> and the mobile SDK transaction builder will pad the number of inputs to at least 2.</p>
+                        <p>Let
+                            <span class="math">\(min\_actions\)</span>
+                         be the minimum number of logical actions that can be used to execute economically relevant transactions that produce change. Due to the aforementioned padding,
+                            <span class="math">\(min\_actions = 2\)</span>
+                        .</p>
+                        <p>Having a grace window size greater than
+                            <span class="math">\(min\_actions\)</span>
+                         would increase the cost to create such a minimal transaction. If the cost we believe that users will tolerate for a minimal transaction is
+                            <span class="math">\(B\)</span>
+                        , then possible choices of
+                            <span class="math">\(marginal\_fee\)</span>
+                         are bounded above by
+                            <span class="math">\(B / \max(min\_actions, grace\_actions)\)</span>
+                        . Therefore, the optimal choice of
+                            <span class="math">\(grace\_actions\)</span>
+                         to maximize the per-logical-action cost of denial-of-service attacks for a given
+                            <span class="math">\(B\)</span>
+                        , is
+                            <span class="math">\(grace\_actions = min\_actions = 2\)</span>
+                        . This also ensures that a denial-of-service adversary does not gain a significant per-logical-action cost advantage by using transactions with a smaller or larger number of logical actions.</p>
+                    </section>
+                    <section id="transparent-contribution"><h5><span class="section-heading">Transparent Contribution</span><span class="section-anchor"> <a rel="bookmark" href="#transparent-contribution"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>The specified formula calculates the contribution of transparent inputs and outputs based on their total size relative to a typical input or output. Another considered approach was to calculate this contribution simply as
+                            <span class="math">\(\mathsf{max}(transparent\_inputs, transparent\_outputs)\)</span>
+                        . However, this would allow a denial-of-service adversary to create transactions with transparent components containing arbitrarily large scripts.</p>
+                        <p>The chosen values for
+                            <span class="math">\(p2pkh\_standard\_input\_size\)</span>
+                         and
+                            <span class="math">\(p2pkh\_standard\_output\_size\)</span>
+                         are based on the maximum encoded length for P2PKH inputs and outputs, as follows:</p>
+                        <ul>
+                            <li>
+                                <span class="math">\(p2pkh\_standard\_input\_size\)</span>
+                                <ul>
+                                    <li>outpoint: 36 bytes</li>
+                                    <li>script: 110 bytes
+                                        <ul>
+                                            <li>1 (overall length) + 1 (signature length) + 72 (signature) + 1 (sighash type) + 1 (pubkey length) + 33 (pubkey) + 1 (margin)</li>
+                                        </ul>
+                                    </li>
+                                    <li>sequence: 4 bytes</li>
+                                </ul>
+                            </li>
+                            <li>
+                                <span class="math">\(p2pkh\_standard\_output\_size\)</span>
+                                <ul>
+                                    <li>value: 8 bytes</li>
+                                    <li>script: 26 bytes
+                                        <ul>
+                                            <li>1 (script length) + 25 (P2PKH script)</li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                        <p>P2SH outputs are smaller than P2PKH outputs, but P2SH inputs may be larger than P2PKH inputs. For example a 2-of-3 multisig input is around 70% larger, and is counted as such when computing the number of logical actions.</p>
+                    </section>
+                    <section id="marginal-fee"><h5><span class="section-heading">Marginal Fee</span><span class="section-anchor"> <a rel="bookmark" href="#marginal-fee"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>This returns the conventional fee for a minimal transaction (as described above) to the original conventional fee of 10000 zatoshis specified in <a id="footnote-reference-5" class="footnote_reference" href="#zip-0313">6</a>, and imposes a non-trivial cost for potential denial-of-service attacks.</p>
+                    </details></section>
+                </section>
+            </section>
+            <section id="transaction-relaying"><h3><span class="section-heading">Transaction relaying</span><span class="section-anchor"> <a rel="bookmark" href="#transaction-relaying"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>zcashd, zebrad, and potentially other node implementations, implement fee-based restrictions on relaying of mempool transactions. Nodes that normally relay transactions are expected to do so for transactions that pay at least the conventional fee as specified in this ZIP, unless there are other reasons not to do so for robustness or denial-of-service mitigation.</p>
+                <p>If a transaction has more than
+                    <span class="math">\(block\_unpaid\_action\_limit\)</span>
+                 "unpaid actions" as defined by the <a href="#recommended-algorithm-for-block-template-construction">Recommended algorithm for block template construction</a>, it will never be mined by that algorithm. Nodes MAY drop these transactions, or transactions with more unpaid actions than a configurable limit (see the <a href="#deployment">Deployment</a> section for actual behaviour of node implementations).</p>
+            </section>
+            <section id="mempool-size-limiting"><h3><span class="section-heading">Mempool size limiting</span><span class="section-anchor"> <a rel="bookmark" href="#mempool-size-limiting"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>zcashd and zebrad limit the size of the mempool as described in <a id="footnote-reference-6" class="footnote_reference" href="#zip-0401">7</a>. This specifies a
+                    <span class="math">\(low\_fee\_penalty\)</span>
+                 that is added to the "eviction weight" if the transaction pays a fee less than the conventional transaction fee. This threshold is modified to use the new conventional fee formula.</p>
+            </section>
+            <section id="block-production"><h3><span class="section-heading">Block production</span><span class="section-anchor"> <a rel="bookmark" href="#block-production"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Miners, mining pools, and other block producers, select transactions for inclusion in blocks using a variety of criteria. The algorithm in the following section is planned to be implemented by <cite>zcashd</cite> and <cite>zebrad</cite>.</p>
+                <section id="recommended-algorithm-for-block-template-construction"><h4><span class="section-heading">Recommended algorithm for block template construction</span><span class="section-anchor"> <a rel="bookmark" href="#recommended-algorithm-for-block-template-construction"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Define constants
+                        <span class="math">\(weight\_ratio\_cap = 4\)</span>
+                     and
+                        <span class="math">\(block\_unpaid\_action\_limit = 50\!\)</span>
+                    .</p>
+                    <p>Let
+                        <span class="math">\(conventional\_fee(tx)\)</span>
+                     be the conventional fee for transaction
+                        <span class="math">\(tx\)</span>
+                     calculated according to the section <a href="#fee-calculation">Fee calculation</a>.</p>
+                    <p>Let
+                        <span class="math">\(unpaid\_actions(tx) = \begin{cases}\mathsf{max}\!\left(0,\, \mathsf{max}(grace\_actions,\, tx.\!logical\_actions) - \mathsf{floor}\!\left(\frac{tx.fee}{marginal\_fee}\right)\right),&amp;\textsf{if }tx\textsf{ is a non-coinbase transaction} \\ 0,&amp;\textsf{if }tx\textsf{ is a coinbase transaction.}\end{cases}\)</span>
+                    </p>
+                    <p>Let
+                        <span class="math">\(block\_unpaid\_actions(block) = \sum_{tx \,\in\, block}\, unpaid\_actions(tx)\)</span>
+                    .</p>
+                    <p>The following algorithm is RECOMMENDED for constructing a block template from a set of transactions in a node's mempool:</p>
+                    <ol type="1">
+                        <li>Set the block template
+                            <span class="math">\(T\)</span>
+                         to include a placeholder for the coinbase transaction (see Note below).</li>
+                        <li>For each transaction
+                            <span class="math">\(tx\)</span>
+                         in the mempool, calculate
+                            <span class="math">\(tx.\!weight\_ratio = \mathsf{min}\!\left(\frac{\mathsf{max}(1,\, tx.fee)}{conventional\_fee(tx)},\, weight\_ratio\_cap\right)\!\)</span>
+                         and add the transaction to the set of candidate transactions.</li>
+                        <li>Repeat while there is any candidate transaction that pays at least the conventional fee:
+                            <ol type="a">
+                                <li>Pick one of those transactions at random with probability in direct proportion to its
+                                    <span class="math">\(weight\_ratio\!\)</span>
+                                , and remove it from the set of candidate transactions. Let
+                                    <span class="math">\(B\)</span>
+                                 be the block template
+                                    <span class="math">\(T\)</span>
+                                 with this transaction included.</li>
+                                <li>If
+                                    <span class="math">\(B\)</span>
+                                 would be within the block size limit and block sigop limit <a id="footnote-reference-7" class="footnote_reference" href="#sigop-limit">4</a>, set
+                                    <span class="math">\(T := B\!\)</span>
+                                .</li>
+                            </ol>
+                        </li>
+                        <li>Repeat while there is any candidate transaction:
+                            <ol type="a">
+                                <li>Pick one of those transactions at random with probability in direct proportion to its
+                                    <span class="math">\(weight\_ratio\!\)</span>
+                                , and remove it from the set of candidate transactions. Let
+                                    <span class="math">\(B\)</span>
+                                 be the block template
+                                    <span class="math">\(T\)</span>
+                                 with this transaction included.</li>
+                                <li>If
+                                    <span class="math">\(B\)</span>
+                                 would be within the block size limit and block sigop limit <a id="footnote-reference-8" class="footnote_reference" href="#sigop-limit">4</a> and
+                                    <span class="math">\(block\_unpaid\_actions(B) \leq block\_unpaid\_action\_limit\!\)</span>
+                                , set
+                                    <span class="math">\(T := B\!\)</span>
+                                .</li>
+                            </ol>
+                        </li>
+                        <li>Return
+                            <span class="math">\(T\!\)</span>
+                        .</li>
+                    </ol>
+                    <p>Note: In step 1, the final coinbase transaction cannot be included at this stage because it depends on the fees paid by other transactions. In practice, this difficulty can be overcome by reserving sufficient space and sigops to allow modifying the coinbase transaction as needed, when testing against the block space and block sigop limits in steps 3b and 4b.</p>
+                </section>
+                <section id="rationale-for-block-template-construction-algorithm"><h4><span class="section-heading">Rationale for block template construction algorithm</span><span class="section-anchor"> <a rel="bookmark" href="#rationale-for-block-template-construction-algorithm"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>It is likely that not all wallets will immediately update to pay the (generally higher) fees specified by this ZIP. In order to be able to deploy this block template algorithm more quickly while still giving transactions created by such wallets a reasonable chance of being mined, we allow a limited number of "unpaid" logical actions in each block. Roughly speaking, if a transaction falls short of paying the conventional transaction fee by
+                        <span class="math">\(k\)</span>
+                     times the marginal fee, we count that as
+                        <span class="math">\(k\)</span>
+                     unpaid logical actions.</p>
+                    <p>Regardless of how full the mempool is (according to the ZIP 401 <a id="footnote-reference-9" class="footnote_reference" href="#zip-0401">7</a> cost limiting), and regardless of what strategy a denial-of-service adversary may use, the number of unpaid logical actions in each block is always limited to at most
+                        <span class="math">\(block\_unpaid\_action\_limit\!\)</span>
+                    .</p>
+                    <p>The weighting in step 2 does not create a situation where the adversary gains a significant advantage over other users by paying more than the conventional fee, for two reasons:</p>
+                    <ol type="1">
+                        <li>The weight ratio cap limits the relative probability of picking a given transaction to be at most
+                            <span class="math">\(weight\_ratio\_cap\)</span>
+                         times greater than a transaction that pays exactly the conventional fee.</li>
+                        <li>Compare the case where the adversary pays
+                            <span class="math">\(c\)</span>
+                         times the conventional fee for one transaction, to that where they pay the conventional fee for
+                            <span class="math">\(c\)</span>
+                         transactions. In the former case they are more likely to get <em>each</em> transaction into the block relative to competing transactions from other users, <em>but</em> those transactions take up less block space, all else (e.g. choice of input or output types) being equal. This is not what the attacker wants; they get a transaction into the block only at the expense of leaving more block space for the other users' transactions.</li>
+                    </ol>
+                    <p>The rationale for choosing
+                        <span class="math">\(weight\_ratio\_cap = 4\)</span>
+                     is as a compromise between not allowing any prioritization of transactions relative to those that pay the conventional fee, and allowing arbitrary prioritization based on ability to pay.</p>
+                    <p>Calculating
+                        <span class="math">\(tx.\!weight\_ratio\)</span>
+                     in terms of
+                        <span class="math">\(\mathsf{max}(1,\, tx.\!fee)\)</span>
+                     rather than just
+                        <span class="math">\(tx.\!fee\)</span>
+                     avoids needing to define "with probability in direct proportion to its
+                        <span class="math">\(weight\_ratio\!\)</span>
+                    " for the case where all remaining candidate transactions would have
+                        <span class="math">\(weight\_ratio = 0\!\)</span>
+                    .</p>
+                </section>
+                <section id="incentive-compatibility-for-miners"><h4><span class="section-heading">Incentive compatibility for miners</span><span class="section-anchor"> <a rel="bookmark" href="#incentive-compatibility-for-miners"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Miners have an incentive to make this change because:</p>
+                    <ul>
+                        <li>it will tend to increase the fees they are due;</li>
+                        <li>fees will act as a damping factor on the time needed to process blocks, and therefore on orphan rate.</li>
+                    </ul>
+                </section>
+            </section>
+        </section>
+        <section id="security-and-privacy-considerations"><h2><span class="section-heading">Security and Privacy considerations</span><span class="section-anchor"> <a rel="bookmark" href="#security-and-privacy-considerations"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>Non-standard transaction fees may reveal specific users or wallets or wallet versions, which would reduce privacy for those specific users and the rest of the network. However, the advantage of faster deployment weighed against synchronizing the change in wallet behaviour at a specific block height.</p>
+            <p>Long term, the issue of fees needs to be revisited in separate future proposals as the blocks start getting consistently full. Wallet developers and operators should monitor the Zcash network for rapid growth in transaction rates, and consider further changes to fee selection and/or other scaling solutions if necessary.</p>
+            <section id="denial-of-service"><h3><span class="section-heading">Denial of Service</span><span class="section-anchor"> <a rel="bookmark" href="#denial-of-service"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>A transaction-rate-based denial of service attack occurs when an attacker generates enough transactions over a window of time to prevent legitimate transactions from being mined, or to hinder syncing blocks for full nodes or miners.</p>
+                <p>There are two primary protections to this kind of attack in Zcash: the block size limit, and transaction fees. The block size limit ensures that full nodes and miners can keep up with the blockchain even if blocks are completely full. However, users sending legitimate transactions may not have their transactions confirmed in a timely manner.</p>
+                <p>This proposal does not alter how fees are paid from transactions to miners.</p>
+            </section>
+        </section>
+        <section id="deployment"><h2><span class="section-heading">Deployment</span><span class="section-anchor"> <a rel="bookmark" href="#deployment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>Wallets SHOULD deploy these changes immediately. Nodes SHOULD deploy the change to the
+                <span class="math">\(low\_fee\_penalty\)</span>
+             threshold described in <a href="#mempool-size-limiting">Mempool size limiting</a> immediately.</p>
+            <p>Nodes supporting block template construction SHOULD deploy the new <a href="#recommended-algorithm-for-block-template-construction">Recommended algorithm for block template construction</a> immediately, and miners SHOULD use nodes that have been upgraded to this algorithm.</p>
+            <p>Node developers SHOULD coordinate on schedules for deploying restrictions to their policies for transaction mempool acceptance and peer-to-peer relaying. These policy changes SHOULD NOT be deployed before the changes to block template construction for miners described in the preceding paragraph.</p>
+            <section id="deployment-in-zcashd"><h3><span class="section-heading">Deployment in zcashd</span><span class="section-anchor"> <a rel="bookmark" href="#deployment-in-zcashd"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p><cite>zcashd</cite> v5.5.0 implemented use of ZIP 317 fees by default for its internal wallet in the following PRs:</p>
+                <ul>
+                    <li><a href="https://github.com/zcash/zcash/pull/6527">https://github.com/zcash/zcash/pull/6527</a> (fee computation)</li>
+                    <li><a href="https://github.com/zcash/zcash/pull/6524">https://github.com/zcash/zcash/pull/6524</a> (main implementation)</li>
+                    <li><a href="https://github.com/zcash/zcash/pull/6559">https://github.com/zcash/zcash/pull/6559</a> (follow-up to #6524)</li>
+                    <li><a href="https://github.com/zcash/zcash/pull/6568">https://github.com/zcash/zcash/pull/6568</a> (for <code>z_shieldcoinbase</code>)</li>
+                    <li><a href="https://github.com/zcash/zcash/pull/6576">https://github.com/zcash/zcash/pull/6576</a> (follow-up to #6568)</li>
+                    <li><a href="https://github.com/zcash/zcash/pull/6569">https://github.com/zcash/zcash/pull/6569</a> (for <code>z_mergetoaddress</code>)</li>
+                </ul>
+                <p><cite>zcashd</cite> v5.5.0 implemented the <a href="#recommended-algorithm-for-block-template-construction">Recommended algorithm for block template construction</a> in:</p>
+                <ul>
+                    <li><a href="https://github.com/zcash/zcash/pull/6460">https://github.com/zcash/zcash/pull/6460</a> (preparation)</li>
+                    <li><a href="https://github.com/zcash/zcash/pull/6607">https://github.com/zcash/zcash/pull/6607</a> (follow-up to #6460)</li>
+                    <li><a href="https://github.com/zcash/zcash/pull/6527">https://github.com/zcash/zcash/pull/6527</a> (fee computation)</li>
+                    <li><a href="https://github.com/zcash/zcash/pull/6564">https://github.com/zcash/zcash/pull/6564</a> (block template construction)</li>
+                </ul>
+                <p>The value used for
+                    <span class="math">\(block\_unpaid\_action\_limit\)</span>
+                 by <cite>zcashd</cite> can be overridden using the <code>-blockunpaidactionlimit</code> configuration parameter.</p>
+                <p><cite>zcashd</cite> v5.5.0 also implemented the change to <a href="#mempool-size-limiting">Mempool size limiting</a> to use the ZIP 317 fee for the low fee penalty threshold, in:</p>
+                <ul>
+                    <li><a href="https://github.com/zcash/zcash/pull/6564">https://github.com/zcash/zcash/pull/6564</a></li>
+                </ul>
+                <p>As described in section <a href="#transaction-relaying">Transaction relaying</a>, nodes MAY drop transactions with more unpaid actions than a given limit. From <cite>zcashd</cite> v5.6.0, this is controlled by the <code>-txunpaidactionlimit</code> configuration option, which defaults to 50 unpaid actions (the same default as <code>-blockunpaidactionlimit</code>). This behaviour is implemented in:</p>
+                <ul>
+                    <li><a href="https://github.com/zcash/zcash/pull/6646">https://github.com/zcash/zcash/pull/6646</a></li>
+                </ul>
+                <p>Note that <cite>zcashd</cite> also requires transactions to pay at least a "relay threshold" fee. As part of the ZIP 317 work, this rule was simplified for <cite>zcashd</cite> v5.5.0:</p>
+                <ul>
+                    <li><a href="https://github.com/zcash/zcash/pull/6542/files#diff-34d21af3c614ea3cee120df276c9c4ae95053830d7f1d3deaf009a4625409ad2">https://github.com/zcash/zcash/pull/6542/files#diff-34d21af3c614ea3cee120df276c9c4ae95053830d7f1d3deaf009a4625409ad2</a></li>
+                </ul>
+            </section>
+            <section id="deployment-in-zebra"><h3><span class="section-heading">Deployment in zebra</span><span class="section-anchor"> <a rel="bookmark" href="#deployment-in-zebra"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p><cite>zebra</cite> does not provide a wallet, and so does not need to calculate ZIP 317 fees in order to construct transactions.</p>
+                <p><cite>zebra</cite> v1.0.0-rc.3 implemented the current <a href="#recommended-algorithm-for-block-template-construction">Recommended algorithm for block template construction</a> in:</p>
+                <ul>
+                    <li><a href="https://github.com/ZcashFoundation/zebra/pull/5724">https://github.com/ZcashFoundation/zebra/pull/5724</a></li>
+                    <li><a href="https://github.com/ZcashFoundation/zebra/pull/5776">https://github.com/ZcashFoundation/zebra/pull/5776</a> (algorithm update)</li>
+                </ul>
+                <p><cite>zebra</cite> v1.0.0-rc.2 had implemented an earlier version of this algorithm. The value used for
+                    <span class="math">\(block\_unpaid\_action\_limit\)</span>
+                 in <cite>zebra</cite> is not configurable.</p>
+                <p><cite>zebra</cite> v1.0.0-rc.2 implemented the change to <a href="#mempool-size-limiting">Mempool size limiting</a> in:</p>
+                <ul>
+                    <li><a href="https://github.com/ZcashFoundation/zebra/pull/5703">https://github.com/ZcashFoundation/zebra/pull/5703</a></li>
+                </ul>
+                <p><cite>zebra</cite> v1.0.0-rc.8 implemented <a href="#transaction-relaying">Transaction relaying</a> changes in:</p>
+                <ul>
+                    <li><a href="https://github.com/ZcashFoundation/zebra/pull/6556">https://github.com/ZcashFoundation/zebra/pull/6556</a></li>
+                </ul>
+                <p><cite>zebra</cite> uses a similar relay threshold rule to <cite>zcashd</cite>, but additionally enforces a minimum fee of 100 zatoshis (this differs from <cite>zcashd</cite> only for valid transactions of less than 1000 bytes, assuming that <cite>zcashd</cite> uses its default value for <code>-minrelaytxfee</code>).</p>
+            </section>
+        </section>
+        <section id="considered-alternatives"><h2><span class="section-heading">Considered Alternatives</span><span class="section-anchor"> <a rel="bookmark" href="#considered-alternatives"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This section describes alternative proposals that have not been adopted.</p>
+            <p>In previous iterations of this specification, the marginal fee was multiplied by the sum of inputs and outputs. This means that the alternatives given below are roughly half of what they would be under the current formula.</p>
+            <p>Possible alternatives for the parameters:</p>
+            <ul>
+                <li>
+                    <span class="math">\(marginal\_fee = 250\)</span>
+                 in @nuttycom's proposal.</li>
+                <li>
+                    <span class="math">\(marginal\_fee = 1000\)</span>
+                 adapted from @madars' proposal <a id="footnote-reference-10" class="footnote_reference" href="#madars-1">5</a>.</li>
+                <li>
+                    <span class="math">\(marginal\_fee = 2500\)</span>
+                 in @daira's proposal.</li>
+                <li>
+                    <span class="math">\(marginal\_fee = 1000\)</span>
+                 for Shielded, Shielding and De-shielding transactions, and
+                    <span class="math">\(marginal\_fee = 10000\)</span>
+                 for Transparent transactions adapted from @nighthawk24's proposal.</li>
+            </ul>
+            <p>(In @madars' and @nighthawk24's original proposals, there was an additional
+                <span class="math">\(base\_fee\)</span>
+             parameter that caused the relationship between fee and number of inputs/outputs to be non-proportional above the
+                <span class="math">\(grace\_actions\)</span>
+             threshold. This is no longer expressible with the formula specified above.)</p>
+        </section>
+        <section id="endorsements"><h2><span class="section-heading">Endorsements</span><span class="section-anchor"> <a rel="bookmark" href="#endorsements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The following entities and developers of the listed software expressed their support for the updated fee mechanism:</p>
+            <ul>
+                <li>Zecwallet Suite (Zecwallet Lite for Desktop/iOS/Android &amp; Zecwallet FullNode)</li>
+                <li>Nighthawk Wallet for Android &amp; iOS</li>
+                <li>Electric Coin Company</li>
+                <li>Zcash Foundation</li>
+            </ul>
+        </section>
+        <section id="acknowledgements"><h2><span class="section-heading">Acknowledgements</span><span class="section-anchor"> <a rel="bookmark" href="#acknowledgements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>Thanks to Madars Virza for initially proposing a fee mechanism similar to that proposed in this ZIP <a id="footnote-reference-11" class="footnote_reference" href="#madars-1">5</a>, and for finding a potential weakness in an earlier version of the block template construction algorithm. Thanks also to Kris Nuttycombe, Jack Grigg, Francisco Gindre, Greg Pfeil, Teor, and Deirdre Connolly for reviews and suggested improvements.</p>
+        </section>
+        <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <table id="bcp14" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>1</th>
+                        <td><a href="https://www.rfc-editor.org/info/bcp14">Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-networks" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>2</th>
+                        <td><a href="protocol/protocol.pdf#networks">Zcash Protocol Specification, Version 2022.3.8. Section 3.12: Mainnet and Testnet</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-txnencoding" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>3</th>
+                        <td><a href="protocol/protocol.pdf#txnencoding">Zcash Protocol Specification, Version 2022.3.8. Section 7.1: Transaction Encoding and Consensus</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="sigop-limit" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>4</th>
+                        <td><a href="https://github.com/zcash/zips/issues/568">zcash/zips issue #568 - Document block transparent sigops limit consensus rule</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="madars-1" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>5</th>
+                        <td><a href="https://forum.zcashcommunity.com/t/zip-reduce-default-shielded-transaction-fee-to-1000-zats/37566/89">Madars concrete soft-fork proposal</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0313" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>6</th>
+                        <td><a href="zip-0313">ZIP 313: Reduce Conventional Transaction Fee to 1000 zatoshis</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0401" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>7</th>
+                        <td><a href="zip-0401">ZIP 401: Addressing Mempool Denial-of-Service</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </section>
+</body>
+</html>

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZIP 250: Deployment of the Heartwood Network Upgrade</title>
+    <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+    <section>
+        <pre>ZIP: 250
+Title: Deployment of the Heartwood Network Upgrade
+Owners: Daira-Emma Hopwood &lt;daira-emma@electriccoin.co&gt;
+Status: Final
+Category: Consensus / Network
+Created: 2020-02-28
+License: MIT</pre>
+        <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to be interpreted as described in BCP 14 <a id="footnote-reference-1" class="footnote_reference" href="#bcp14">1</a> when, and only when, they appear in all capitals.</p>
+            <p>The term "network upgrade" in this document is to be interpreted as described in ZIP 200. <a id="footnote-reference-2" class="footnote_reference" href="#zip-0200">3</a></p>
+            <p>The terms below are to be interpreted as follows:</p>
+            <dl>
+                <dt>Heartwood</dt>
+                <dd>Code-name for the fourth Zcash network upgrade, also known as Network Upgrade 3.</dd>
+                <dt>Testnet</dt>
+                <dd>The Zcash test network, as defined in <a id="footnote-reference-3" class="footnote_reference" href="#protocol">2</a>.</dd>
+                <dt>Mainnet</dt>
+                <dd>The Zcash production network, as defined in <a id="footnote-reference-4" class="footnote_reference" href="#protocol">2</a>.</dd>
+            </dl>
+        </section>
+        <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This proposal defines the deployment of the Heartwood network upgrade.</p>
+        </section>
+        <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <section id="heartwood-deployment"><h3><span class="section-heading">Heartwood deployment</span><span class="section-anchor"> <a rel="bookmark" href="#heartwood-deployment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>The primary sources of information about Heartwood consensus protocol changes are:</p>
+                <ul>
+                    <li>The Zcash Protocol Specification <a id="footnote-reference-5" class="footnote_reference" href="#protocol">2</a></li>
+                    <li>ZIP 200: Network Upgrade Mechanism <a id="footnote-reference-6" class="footnote_reference" href="#zip-0200">3</a></li>
+                    <li>ZIP 213: Shielded Coinbase <a id="footnote-reference-7" class="footnote_reference" href="#zip-0213">5</a></li>
+                    <li>ZIP 221: FlyClient - Consensus-Layer Changes <a id="footnote-reference-8" class="footnote_reference" href="#zip-0221">6</a>.</li>
+                </ul>
+                <p>The network handshake and peer management mechanisms defined in ZIP 201 <a id="footnote-reference-9" class="footnote_reference" href="#zip-0201">4</a> also apply to this upgrade.</p>
+                <p>The following network upgrade constants <a id="footnote-reference-10" class="footnote_reference" href="#zip-0200">3</a> are defined for the Heartwood upgrade:</p>
+                <dl>
+                    <dt>CONSENSUS_BRANCH_ID</dt>
+                    <dd><code>0xF5B9230B</code></dd>
+                    <dt>ACTIVATION_HEIGHT (Heartwood)</dt>
+                    <dd>
+                        <p>Testnet: 903800</p>
+                        <p>Mainnet: 903000</p>
+                    </dd>
+                </dl>
+                <p>Nodes compatible with Heartwood activation on testnet MUST advertise protocol version 170010 or later. Nodes compatible with Heartwood activation on mainnet MUST advertise protocol version 170011 or later. The minimum peer protocol version that Heartwood-compatible nodes will connect to is 170002.</p>
+                <p>Pre-Heartwood testnet nodes are defined as nodes on testnet advertising a protocol version less than 170010. Pre-Heartwood mainnet nodes are defined as nodes on mainnet advertising a protocol version less than 170011.</p>
+                <p>For each network (testnet and mainnet), approximately 1.5 days (defined in terms of block height) before the corresponding Heartwood activation height, nodes compatible with Heartwood activation on that network will change the behaviour of their peer connection logic in order to prefer pre-Heartwood peers on that network for eviction from the set of peer connections:</p>
+                <pre>/**
+ * The period before a network upgrade activates, where connections to upgrading peers are preferred (in blocks).
+ * This was three days for upgrades up to and including Blossom, and is 1.5 days from Heartwood onward.
+ */
+static const int NETWORK_UPGRADE_PEER_PREFERENCE_BLOCK_PERIOD = 1728;</pre>
+                <p>The implementation is similar to that for Overwinter which was described in <a id="footnote-reference-11" class="footnote_reference" href="#zip-0201">4</a>.</p>
+                <p>Once Heartwood activates on testnet or mainnet, Heartwood nodes SHOULD take steps to:</p>
+                <ul>
+                    <li>reject new connections from pre-Heartwood nodes on that network;</li>
+                    <li>disconnect any existing connections to pre-Heartwood nodes on that network.</li>
+                </ul>
+            </section>
+        </section>
+        <section id="backward-compatibility"><h2><span class="section-heading">Backward compatibility</span><span class="section-anchor"> <a rel="bookmark" href="#backward-compatibility"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>Prior to the network upgrade activating on each network, Heartwood and pre-Heartwood nodes are compatible and can connect to each other. However, Heartwood nodes will have a preference for connecting to other Heartwood nodes, so pre-Heartwood nodes will gradually be disconnected in the run up to activation.</p>
+            <p>Once the network upgrades, even though pre-Heartwood nodes can still accept the numerically larger protocol version used by Heartwood as being valid, Heartwood nodes will always disconnect peers using lower protocol versions.</p>
+            <p>Unlike Overwinter and Sapling, and like Blossom, Heartwood does not define a new transaction version. Heartwood transactions are therefore in the same v4 format as Sapling transactions, use the same version group ID, i.e. 0x892F2085 as defined in <a id="footnote-reference-12" class="footnote_reference" href="#protocol">2</a> section 7.1, and the same transaction digest algorithm as defined in <a id="footnote-reference-13" class="footnote_reference" href="#zip-0243">7</a>. This does not imply that transactions are valid across the Heartwood activation, since signatures MUST use the appropriate consensus branch ID. <a id="footnote-reference-14" class="footnote_reference" href="#zip-0243">7</a></p>
+        </section>
+        <section id="support-in-zcashd"><h2><span class="section-heading">Support in zcashd</span><span class="section-anchor"> <a rel="bookmark" href="#support-in-zcashd"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>Support for Heartwood on testnet will be implemented in <code>zcashd</code> version 2.1.2, which will advertise protocol version 170010. Support for Heartwood on mainnet will be implemented in <code>zcashd</code> version 3.0.0, which will advertise protocol version 170011.</p>
+        </section>
+        <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <table id="bcp14" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>1</th>
+                        <td><a href="https://www.rfc-editor.org/info/bcp14">Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>2</th>
+                        <td><a href="protocol/protocol.pdf">Zcash Protocol Specification, Version 2021.2.16 or later</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0200" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>3</th>
+                        <td><a href="zip-0200">ZIP 200: Network Upgrade Mechanism</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0201" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>4</th>
+                        <td><a href="zip-0201">ZIP 201: Network Peer Management for Overwinter</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0213" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>5</th>
+                        <td><a href="zip-0213">ZIP 213: Shielded Coinbase</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0221" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>6</th>
+                        <td><a href="zip-0221">ZIP 221: FlyClient - Consensus-Layer Changes</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0243" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>7</th>
+                        <td><a href="zip-0243">ZIP 243: Transaction Signature Validation for Sapling</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </section>
+</body>
+</html>

@@ -1,0 +1,842 @@
+::
+
+  ZIP: 221
+  Title: FlyClient - Consensus-Layer Changes
+  Owners: Jack Grigg <jack@electriccoin.co>
+  Original-Authors: Ying Tong Lai
+                    James Prestwich
+                    Georgios Konstantopoulos
+  Status: Final
+  Category: Consensus
+  Created: 2019-03-30
+  License: MIT
+
+
+Terminology
+===========
+
+The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to be interpreted
+as described in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
+
+The terms "consensus branch", "epoch", and "network upgrade" in this document are to be
+interpreted as described in ZIP 200. [#zip-0200]_
+
+*Light client*
+  A client that is not a full participant in the network of Zcash peers. It can send and
+  receive payments, but does not store or validate a copy of the block chain.
+
+*High probability*
+  An event occurs with high probability if it occurs with probability :math:`1-O(1/2^\lambda)`,
+  where :math:`\lambda` is a security parameter.
+
+*Negligible probability*
+  An event occurs with negligible probability if it occurs with probability :math:`O(1/2^\lambda)`,
+  where :math:`\lambda` is the security parameter.
+
+*Merkle mountain range (MMR)*
+  A Merkle mountain range (MMR) is a binary hash tree that allows for efficient appends of
+  new leaves without changing the value of existing nodes.
+
+
+Abstract
+========
+
+This ZIP specifies modifications to the Zcash block header semantics and consensus rules
+in order to support the probabilistic verification FlyClient protocol [#FlyClient]_. The
+``hashFinalSaplingRoot`` commitment in the block header is replaced with a commitment to
+the root of a Merkle Mountain Range (MMR), that in turn commits to various features of the
+chain's history, including the Sapling commitment tree.
+
+
+Background
+==========
+
+An MMR is a Merkle tree which allows for efficient appends, proofs, and verifications.
+Informally, appending data to an MMR consists of creating a new leaf and then iteratively
+merging neighboring subtrees with the same size. This takes at most :math:`\log(n)` operations
+and only requires knowledge of the previous subtree roots, of which there are fewer than
+:math:`\log(n)`.
+
+(example adapted from [#mimblewimble]_)
+To illustrate this, consider a list of 11 leaves. We first construct the biggest perfect
+binary subtrees possible by joining any balanced sibling trees that are the same size. We
+do this starting from the left to the right, adding a parent as soon as 2 children exist.
+This leaves us with three subtrees ("mountains") of altitudes 3, 1, and 0:
+
+.. code-block:: text
+
+       /\
+      /  \
+     /\  /\
+    /\/\/\/\ /\ /
+
+Note that the first leftmost peak is always the highest. We can number this structure in
+the order by which nodes would be created, if the leaves were inserted from left to right:
+
+.. code-block:: text
+
+    Altitude
+
+        3              14
+                     /    \
+                    /      \
+                   /        \
+                  /          \
+        2        6            13
+               /   \        /    \
+        1     2     5      9     12     17
+             / \   / \    / \   /  \   /  \   /
+        0   0   1 3   4  7   8 10  11 15  16 18
+
+and represent this numbering in a flat list:
+
+  +----------+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
+  | Position |  0 |  1 |  2 |  3 |  4 |  5 |  6 |  7 |  8 |  9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 |
+  +----------+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
+  | Altitude |  0 |  0 |  1 |  0 |  0 |  1 |  2 |  0 |  0 |  1 |  0 |  0 |  1 |  2 |  3 |  0 |  0 |  1 |  0 |
+  +----------+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
+
+Let :math:`h` be the altitude of a given node. We can easily jump to the node's right
+sibling (if it has one) by adding :math:`2^{h+1} - 1` to its position, and its left child
+(if it has one) by subtracting :math:`2^h`. This allows us to efficiently find the subtree
+roots ("peaks") of the mountains.
+
+Once we have the positions of the mountain peaks, we "bag" them using the following
+algorithm:
+
+1. Generate a node connecting the 2 left-most peaks, forming a new peak.
+2. Repeat 1. until we have a single peak.
+
+Note that the extra nodes generated during the bagging process do not follow the above
+rules for jumping between nodes.
+
+.. code-block:: text
+
+    Altitude
+
+        5                     20g
+                             /  \
+        4                  19g   \
+                          /   \   \
+                         /     \   \
+                        /       \   \
+        3              14        \   \
+                     /    \       \   \
+                    /      \       \   \
+                   /        \       \   \
+                  /          \       \   \
+        2        6           13       \   \
+               /   \       /    \      \   \
+        1     2     5      9     12     17  \
+             / \   / \    / \   /  \   /  \  \
+        0   0   1 3   4  7   8 10  11 15  16 18
+
+MMR trees allow for efficient incremental set update operations (push, pop, prune). In
+addition, MMR update operations and Merkle proofs for recent additions to the leaf set are
+more efficient than other incremental Merkle tree implementations (e.g. Bitcoin's padded
+leafset, sparse Merkle trees, and Zcash's incremental note commitment trees).
+
+
+Motivation
+==========
+
+MMR proofs are used in the FlyClient protocol [#FlyClient]_, to reduce the proof size
+needed for light clients to verify:
+
+- the validity of a block chain received from a full node, and
+- the inclusion of a block :math:`B` in that chain, and
+- certain metadata of any block or range of blocks in that chain.
+
+The protocol requires that an MMR that commits to the inclusion of all blocks since the
+preceding network upgrade :math:`(B_x, \ldots, B_{n-1})` is formed for each block :math:`B_n`.
+The root :math:`M_n` of the MMR MUST be included in the header of :math:`B_n`.
+
+(:math:`x` is the activation height of the preceding network upgrade.)
+
+FlyClient reduces the number of block headers needed for light client verification of a
+valid chain, from linear (as in the current reference protocol) to logarithmic in
+block chain length. This verification is correct with high probability. It also allows
+creation of subtree proofs, so light clients need only check blocks later than the most
+recently verified block index. Following that, verification of a transaction inclusion
+within that block follows the usual reference protocol [#zip-0307]_.
+
+A smaller proof size could enable the verification of Zcash SPV Proofs in block-chain
+protocols such as Ethereum, enabling efficient cross-chain communication and pegs. It also
+reduces bandwidth and storage requirements for resource-limited clients like mobile or IoT
+devices.
+
+
+Specification
+=============
+
+For a block :math:`B_n` at height :math:`n > 0` in a given block chain, define the
+"preceding network upgrade height" :math:`x` of :math:`B_n` to be the last network
+upgrade activation height in the chain that is less than :math:`n`. (For this definition,
+block height :math:`0` is considered to be the height of a network upgrade activation.
+The preceding network upgrade height of the genesis block is undefined.)
+
+The leaves of the MMR at block :math:`B_n` are hash commitments to the header data
+and metadata of each previous block :math:`B_x, \ldots, B_{n-1}`, where :math:`x`
+is defined as above. We extend the standard MMR to allow metadata to propagate
+upwards through the tree by either summing the metadata of both children, or inheriting
+the metadata of a specific child as necessary. This allows us to create efficient proofs
+of selected properties of a range of blocks without transmitting the entire range of
+blocks or headers.
+
+Tree Node specification
+-----------------------
+
+Unless otherwise noted, all hashes use BLAKE2b-256 with the personalization field set
+to ``'ZcashHistory' || CONSENSUS_BRANCH_ID``. ``CONSENSUS_BRANCH_ID`` is the 4-byte
+little-endian encoding of the consensus branch ID for the epoch of the block containing
+the commitment. [#zip-0200]_ Which is to say, each node in the tree commits to the
+consensus branch that produced it.
+
+Each MMR node is defined as follows:
+
+1. ``hashSubtreeCommitment``
+
+   Leaf node
+     The consensus-defined block hash for the corresponding block.
+
+     * This hash is encoded in internal byte order, and does NOT use the BLAKE2b-256
+       personalization string described above.
+     * For clarity, in a given consensus branch, the ``hashSubtreeCommitment`` field
+       of leaf :math:`n-1` is *precisely equal* to the ``hashPrevBlock`` field in the
+       header of the block at height :math:`x+n`, where :math:`x` is the network
+       upgrade activation height of that consensus branch.
+
+   Internal or root node
+     * Both child nodes are serialized.
+     * ``hashSubtreeCommitment`` is the BLAKE2b-256 hash of ``left_child || right_child``.
+     * For clarity, this digest uses the BLAKE2b-256 personalization string described above.
+
+   Serialized as ``char[32]``.
+
+2. ``nEarliestTimestamp``
+
+   Leaf node
+     The header's timestamp.
+
+   Internal or root node
+     Inherited from the left child.
+
+   Serialized as ``nTime`` (``uint32``).
+
+   Note that a ``uint32`` time value would overflow on 2106-02-07, but this field (and
+   ``nLatestTimestamp`` below) can only hold values that occur in the ``nTime`` field of
+   a block header, which is also of type ``uint32``.
+
+3. ``nLatestTimestamp``
+
+   Leaf node
+     The header's timestamp.
+
+   Internal or root node
+     Inherited from the right child.
+
+   Note that due to timestamp consensus rules, ``nLatestTimestamp`` may be smaller than
+   ``nEarliestTimestamp`` in some subtrees. This may occur within subtrees smaller than
+   ``PoWMedianBlockSpan`` blocks.
+
+   Serialized as ``nTime`` (``uint32``).
+
+4. ``nEarliestTargetBits``
+
+   Leaf node
+     The header's ``nBits`` field.
+
+   Internal or root node
+     Inherited from the left child.
+
+   Serialized as ``nBits`` (``uint32``).
+
+5. ``nLatestTargetBits``
+
+   Leaf node
+     The header's ``nBits`` field.
+
+   Internal or root node
+     Inherited from the right child.
+
+   Serialized as ``nBits`` (``uint32``).
+
+6. ``hashEarliestSaplingRoot``
+
+   Leaf node
+     Calculated as ``hashFinalSaplingRoot``, as implemented in Sapling.
+
+   Internal or root node
+     Inherited from the left child.
+
+   Serialized as ``char[32]``.
+
+7. ``hashLatestSaplingRoot``
+
+   Leaf node
+     Calculated as ``hashFinalSaplingRoot``, as implemented in Sapling.
+
+   Internal or root node
+     Inherited from the right child.
+
+   Serialized as ``char[32]``.
+
+8. ``nSubTreeTotalWork``
+
+   Leaf node
+     The protocol-defined work of the block:
+     :math:`\mathsf{floor}(2^{256} / (\mathsf{ToTarget}(\mathsf{nBits}) + 1))`. [#protocol-workdef]_
+
+   Internal or root node
+     The sum of the ``nSubTreeTotalWork`` fields of both children.
+
+     Computations modulo :math:`2^{256}` are fine here; cumulative chain work is similarly
+     assumed elsewhere in the Zcash ecosystem to be at most :math:`2^{256}` (as inherited
+     from Bitcoin). The computed work factors are, on average, equal to the computational
+     efforts involved in the creation of the corresponding blocks, and an aggregate effort
+     of :math:`2^{256}` or more is infeasible in practice.
+
+   Serialized as ``uint256``.
+
+9. ``nEarliestHeight``
+
+   Leaf node
+     The height of the block.
+
+   Internal or root node
+     Inherited from the left child.
+
+   Serialized as ``CompactSize uint``.
+
+10. ``nLatestHeight``
+
+    Leaf node
+      The height of the block.
+
+    Internal or root node
+      Inherited from the right child.
+
+    Serialized as ``CompactSize uint``.
+
+11. ``nSaplingTxCount``
+
+    Leaf node
+      The number of transactions in the leaf block where either of
+      ``vSpendsSapling`` or ``vOutputsSapling`` is non-empty.
+
+    Internal or root node
+      The sum of the ``nSaplingTxCount`` field of both children.
+
+    Serialized as ``CompactSize uint``.
+
+12. [NU5 onward] ``hashEarliestOrchardRoot``
+
+    Leaf node
+      Calculated as the note commitment root of the final Orchard treestate
+      (similar to ``hashEarliestSaplingRoot`` in Sapling).
+
+    Internal or root node
+      Inherited from the left child.
+
+    Serialized as ``char[32]``.
+
+13. [NU5 onward] ``hashLatestOrchardRoot``
+
+    Leaf node
+      Calculated as the note commitment root of the final Orchard treestate
+      (similar to ``hashLatestSaplingRoot`` in Sapling).
+
+    Internal or root node
+      Inherited from the right child.
+
+    Serialized as ``char[32]``.
+
+14. [NU5 onward] ``nOrchardTxCount``
+
+    Leaf node
+      The number of transactions in the leaf block where ``vActionsOrchard``
+      is non-empty.
+
+    Internal or root node
+      The sum of the ``nOrchardTxCount`` field of both children.
+
+    Serialized as ``CompactSize uint``.
+
+
+The fields marked "[NU5 onward]" are omitted before NU5 activation [#zip-0252]_.
+
+Each node, when serialized, is between 147 and 171 bytes long (between 212 and 244 bytes
+after NU5 activation). The canonical serialized representation of a node is used whenever
+creating child commitments for future nodes. Other than the metadata commitments, the
+MMR tree's construction is standard.
+
+Once the MMR has been generated, we produce ``hashChainHistoryRoot``, which we define as
+the BLAKE2b-256 digest of the serialization of the root node.
+
+
+Tree nodes and hashing (pseudocode)
+-----------------------------------
+
+.. code-block:: python
+
+    def H(msg: bytes, consensusBranchId: bytes) -> bytes:
+        return blake2b256(msg, personalization=b'ZcashHistory' + consensusBranchId)
+
+    class ZcashMMRNode():
+        # leaf nodes have no children
+        left_child: Optional[ZcashMMRNode]
+        right_child: Optional[ZcashMMRNode]
+
+        # commitments
+        hashSubtreeCommitment: bytes
+        nEarliestTimestamp: int
+        nLatestTimestamp: int
+        nEarliestTargetBits: int
+        nLatestTargetBits: int
+        hashEarliestSaplingRoot: bytes # left child's Sapling root
+        hashLatestSaplingRoot: bytes # right child's Sapling root
+        nSubTreeTotalWork: int  # total difficulty accumulated within each subtree
+        nEarliestHeight: int
+        nLatestHeight: int
+        nSaplingTxCount: int # number of Sapling transactions in block
+        # NU5 only.
+        hashEarliestOrchardRoot: Optional[bytes] # left child's Orchard root
+        hashLatestOrchardRoot: Optional[bytes] # right child's Orchard root
+        nSaplingTxCount: Optional[int] # number of Orchard transactions in block
+
+        consensusBranchId: bytes
+
+        @classmethod
+        def from_block(Z, block: ZcashBlock) -> ZcashMMRNode:
+            '''Create a leaf node from a block'''
+            return Z(
+                left_child=None,
+                right_child=None,
+                hashSubtreeCommitment=block.header_hash,
+                nEarliestTimestamp=block.timestamp,
+                nLatestTimestamp=block.timestamp,
+                nEarliestTargetBits=block.nBits,
+                nLatestTargetBits=block.nBits,
+                hashEarliestSaplingRoot=block.sapling_root,
+                hashLatestSaplingRoot=block.sapling_root,
+                nSubTreeTotalWork=calculate_work(block.nBits),
+                nEarliestHeight=block.height,
+                nLatestHeight=block.height,
+                nSaplingTxCount=block.sapling_tx_count,
+                hashEarliestOrchardRoot=block.orchard_root,
+                hashLatestOrchardRoot=block.orchard_root,
+                nOrchardTxCount=block.orchard_tx_count,
+                consensusBranchId=block.consensusBranchId)
+
+        def serialize(self) -> bytes:
+            '''serializes a node'''
+            buf = (self.hashSubtreeCommitment
+                + serialize_uint32(self.nEarliestTimestamp)
+                + serialize_uint32(self.nLatestTimestamp)
+                + serialize_uint32(self.nEarliestTargetBits)
+                + serialize_uint32(self.nLatestTargetBits)
+                + hashEarliestSaplingRoot
+                + hashLatestSaplingRoot
+                + serialize_uint256(self.nSubTreeTotalWork)
+                + serialize_compact_uint(self.nEarliestHeight)
+                + serialize_compact_uint(self.nLatestHeight)
+                + serialize_compact_uint(self.nSaplingTxCount))
+            if hashEarliestOrchardRoot is not None:
+                buf += (hashEarliestOrchardRoot
+                    + hashLatestOrchardRoot
+                    + serialize_compact_uint(self.nOrchardTxCount))
+            return buf
+
+
+    def make_parent(
+            left_child: ZcashMMRNode,
+            right_child: ZcashMMRNode) -> ZcashMMRNode:
+        return ZcashMMRNode(
+            left_child=left_child,
+            right_child=right_child,
+            hashSubtreeCommitment=H(left_child.serialize() + right_child.serialize(),
+                                    left_child.consensusBranchId),
+            nEarliestTimestamp=left_child.nEarliestTimestamp,
+            nLatestTimestamp=right_child.nLatestTimestamp,
+            nEarliestTargetBits=left_child.nEarliestTargetBits,
+            nLatestTargetBits=right_child.nLatestTargetBits,
+            hashEarliestSaplingRoot=left_child.sapling_root,
+            hashLatestSaplingRoot=right_child.sapling_root,
+            nSubTreeTotalWork=left_child.nSubTreeTotalWork + right_child.nSubTreeTotalWork,
+            nEarliestHeight=left_child.nEarliestHeight,
+            nLatestHeight=right_child.nLatestHeight,
+            nSaplingTxCount=left_child.nSaplingTxCount + right_child.nSaplingTxCount,
+            hashEarliestOrchardRoot=left_child.orchard_root,
+            hashLatestOrchardRoot=right_child.orchard_root,
+            nOrchardTxCount=(left_child.nOrchardTxCount + right_child.nOrchardTxCount
+                             if left_child.nOrchardTxCount is not None and right_child.nOrchardTxCount is not None
+                             else None),
+            consensusBranchId=left_child.consensusBranchId)
+
+    def make_root_commitment(root: ZcashMMRNode) -> bytes:
+        '''Makes the root commitment for a blockheader'''
+        return H(root.serialize(), root.consensusBranchId)
+
+Incremental push and pop (pseudocode)
+-------------------------------------
+
+With each new block :math:`B_n`, we append a new MMR leaf node corresponding to block
+:math:`B_{n-1}`. The ``append`` operation is detailed below in pseudocode (adapted from
+[#FlyClient]_):
+
+.. code-block:: python
+
+    def get_peaks(node: ZcashMMRNode) -> List[ZcashMMRNode]:
+        peaks: List[ZcashMMRNode] = []
+
+        # Get number of leaves.
+        leaves = latest_height - (earliest_height - 1)
+        assert(leaves > 0)
+
+        # Check if the number of leaves is a power of two.
+        if (leaves & (leaves - 1)) == 0:
+            # Tree is full, hence a single peak. This also covers the
+            # case of a single isolated leaf.
+            peaks.append(node)
+        else:
+            # If the number of leaves is not a power of two, then this
+            # node must be internal, and cannot be a peak.
+            peaks.extend(get_peaks(left_child))
+            peaks.extend(get_peaks(right_child))
+
+        return peaks
+
+
+    def bag_peaks(peaks: List[ZcashMMRNode]) -> ZcashMMRNode:
+        '''
+        "Bag" a list of peaks, and return the final root
+        '''
+        root = peaks[0]
+        for i in range(1, len(peaks)):
+            root = make_parent(root, peaks[i])
+        return root
+
+
+    def append(root: ZcashMMRNode, leaf: ZcashMMRNode) -> ZcashMMRNode:
+        '''Append a leaf to an existing tree, return the new tree root'''
+        # recursively find a list of peaks in the current tree
+        peaks: List[ZcashMMRNode] = get_peaks(root)
+        merged: List[ZcashMMRNode] = []
+
+        # Merge peaks from right to left. 
+        # This will produce a list of peaks in reverse order
+        current = leaf
+        for peak in peaks[::-1]:
+            current_leaves = current.latest_height - (current.earliest_height - 1)
+            peak_leaves = peak.latest_height - (peak.earliest_height - 1)
+
+            if current_leaves == peak_leaves:
+                current = make_parent(peak, current)
+            else:
+                merged.append(current)
+                current = peak
+        merged.append(current)
+
+        # finally, bag the merged peaks
+        return bag_peaks(merged[::-1])
+
+In case of a block reorg, we have to delete the latest (i.e. rightmost) MMR leaf nodes, up
+to the reorg length. This operation is :math:`O(\log(k))` where :math:`k` is the number of leaves
+in the right subtree of the MMR root.
+
+.. code-block:: python
+
+    def delete(root: ZcashMMRNode) -> ZcashMMRNode:
+        '''
+        Delete the rightmost leaf node from an existing MMR
+        Return the new tree root
+        '''
+
+        n_leaves = root.latest_height - (root.earliest_height - 1)
+        # if there were an odd number of leaves,
+        # simply replace root with left_child
+        if n_leaves & 1:
+            return root.left_child
+
+        # otherwise, we need to re-bag the peaks.
+        else:
+            # first peak
+            peaks = [root.left_child]
+
+            # we do this traversing the right (unbalanced) side of the tree
+            # we keep the left side (balanced subtree or leaf) of each subtree
+            # until we reach a leaf
+            subtree_root = root.right_child
+            while subtree_root.left_child:
+                peaks.push(subtree_root.left_child)
+                subtree_root = subtree_root.right_child
+
+        new_root = bag_peaks(peaks)
+        return new_root
+
+Block header semantics and consensus rules
+------------------------------------------
+
+The following specification is accurate before NU5 activation. See [#zip-0244]_ for header
+field changes in NU5.
+
+The ``hashFinalSaplingRoot`` block header field (which was named ``hashReserved`` prior to
+the Sapling network upgrade) is renamed to ``hashLightClientRoot``, to reflect its usage
+by light clients. (In NU5, this field is renamed again to ``hashBlockCommitments`` as specified
+in [#zip-0244]_.)
+
+Prior to activation of the network upgrade that deploys this ZIP, this existing consensus
+rule on block headers (adjusted for the renamed field) is enforced: [#protocol-blockheader]_
+
+    [Sapling onward] ``hashLightClientRoot`` MUST be :math:`\mathsf{LEBS2OSP}_{256}(\mathsf{rt})`
+    where :math:`\mathsf{rt}` is the root of the Sapling note commitment tree for the final
+    Sapling tree state of this block.
+
+In the block that activates this ZIP, ``hashLightClientRoot`` MUST be set to all zero bytes.
+This MUST NOT be interpreted as a root hash.
+
+In subsequent blocks, ``hashLightClientRoot`` MUST be set to the value of ``hashChainHistoryRoot``
+as specified above.
+
+The block header byte format and version are not altered by this ZIP.
+
+
+Rationale
+=========
+
+Tree nodes
+----------
+
+Nodes in the commitment tree are canonical and immutable. They are cheap to generate, as
+(with the exception of ``nSaplingTxCount`` and ``nOrchardTxCount``) all metadata is already
+generated during block construction and/or checked during block validation. Nodes are
+relatively compact in memory. As of the original publication of this ZIP, approximately
+140,000 blocks had elapsed since Sapling activation. Assuming a 164-byte commitment to
+each of these, we would have generated approximately 24 MB of additional storage cost for
+the set of leaf nodes (and an additional ~24 MB for storage of intermediate nodes).
+
+``hashSubtreeCommitment`` forms the structure of the commitment tree. Other metadata
+commitments were chosen to serve specific purposes. Originally variable-length commitments
+were placed last, so that most metadata in a node could be directly indexed. We considered
+using fixed-length commitments here, but opted for variable-length, in order to marginally
+reduce the memory requirements for managing and updating the commitment trees.
+
+Orchard fields are placed last, in order to avoid complicating existing uses of the other
+fields.
+
+In leaf nodes, some information is repeated. We chose to do this so that leaf nodes could
+be treated identically to internal and root nodes for all algorithms and (de)serializers.
+Leaf nodes are easily identifiable, as they will show proof of work in the
+``hashSubtreeCommitment`` field (which commits to the block hash for leaf nodes), and
+their block range (calculated as ``nLatestHeight`` - (``nEarliestHeight`` - 1))
+will be precisely 1.
+
+Personalized BLAKE2b-256 was selected to match existing Zcash conventions. Adding the
+consensus branch ID to the hash personalization string ensures that valid nodes from one
+consensus branch cannot be used to make false statements about parallel consensus branches.
+
+FlyClient Requirements and Recommendations
+``````````````````````````````````````````
+These commitments enable FlyClient in the variable-difficulty model. Specifically, they
+allow light clients to reason about application of the difficulty adjustment algorithm
+over a range of blocks. They were chosen via discussion with an author of the FlyClient
+paper.
+
+- ``nEarliestTimestamp``
+- ``nLatestTimestamp``
+- ``nEarliestTargetBits``
+- ``nLatestTargetBits``
+- ``nEarliestHeight``
+- ``nLatestHeight``
+- ``nSubTreeTotalWork``
+
+Non-FlyClient Commitments
+`````````````````````````
+Additional metadata commitments were chosen primarily to improve light client security
+guarantees. We specified commitments where we could see an obvious security benefit, but
+there may be other useful metadata that we missed. We're interested in feedback and
+suggestions from the implementers of the current light client.
+
+We considered adding a commitment to the nullifier vector at each block. We would
+appreciate comments from light client teams on the utility of this commitment, as well as
+the proper serialization and commitment format for the nullifier vector, for possible
+inclusion in a future upgrade.
+
+- ``hashEarliestSaplingRoot``
+
+  * Committing to the earliest Sapling root of a range of blocks allows light clients to
+    check the consistency of treestate transitions over a range of blocks, without
+    recalculating the root from genesis.
+
+- ``hashLatestSaplingRoot``
+
+  * This commitment serves the same purpose as ``hashFinalSaplingRoot`` in current Sapling
+    semantics.
+  * However, because the MMR tree commits to blocks :math:`B_x \ldots B_{n-1}`, the latest
+    commitment will describe the final treestate of the previous block, rather than the
+    current block.
+  * Concretely: block 500 currently commits to the final treestate of block 500 in its
+    header. With this ZIP, block 500 will commit to all roots up to block 499, but not the
+    final root of block 500.
+  * We feel this is an acceptable tradeoff. Using the most recent treestate as a
+    transaction anchor is already unsafe in reorgs. Clients should never use the most
+    recent treestate to generate transactions, so it is acceptable to delay commitment by
+    one block.
+
+- ``nSaplingTxCount``
+
+  * By committing to the number of Sapling transactions in blocks (and ranges of blocks),
+    a light client may reliably learn whether a malicious server is witholding any
+    Sapling transactions.
+  * In addition, this commitment allows light clients to avoid syncing header ranges that
+    do not contain Sapling transactions. As the primary cost of a light client is
+    transmission of Equihash solution information in block headers, this optimization
+    would significantly decrease the bandwidth requirements of light clients.
+  * An earlier draft of this ZIP committed to the number of shielded transactions,
+    counting both Sprout and Sapling. This commitment would not have been useful to light
+    clients that only support Sapling addresses; they would not be able to distinguish
+    between Sapling transactions being maliciously withheld, and Sprout transactions not
+    being requested.
+  * A commitment to the number of Sprout transactions in blocks was not included, because
+    Sprout addresses are effectively deprecated at this point, and will not be supported
+    by any light clients.
+  * If a future network upgrade introduced a new shielded pool, a new commitment to that
+    pool's transactions would be added, to similarly enable future light clients that do
+    not support Sapling addresses.
+
+- ``hashEarliestOrchardRoot``, ``hashLatestOrchardRoot``, and ``nOrchardTxCount``
+
+  * These are included with the same rationale as for Sapling.
+
+
+Header Format Change
+--------------------
+
+The primary goal of the original authors was to minimize header changes; in particular,
+they preferred not to introduce changes that could affect mining hardware or embedded
+software. Altering the block header format would require changes throughout the ecosystem,
+so we decided against adding ``hashChainHistoryRoot`` to the header as a new field.
+
+ZIP 301 states that "[Miner client software] SHOULD alert the user upon receiving jobs
+containing block header versions they do not know about or support, and MUST ignore such
+jobs." [#zip-0301]_ As the only formally defined block header version is 4, any header
+version change requires changes to miner client software in order for miners to handle new
+jobs from mining pools. We therefore do not alter the block version for this semantic
+change. This does not make block headers ambiguous to interpret, because blocks commit to
+their block height inside their coinbase transaction, [#bip-0034]_ and they are never
+handled in a standalone context (unlike transactions, which exist in the mempool outside
+of blocks).
+
+Replacing ``hashFinalSaplingRoot`` with ``hashChainHistoryRoot`` does introduce the
+theoretical possibility of an attack where a miner constructs a Sapling commitment tree
+update that results in the same 32-byte value as the MMR root. We don't consider this a
+realistic attack, both because the adversary would need to find a preimage over 32 layers
+of Pedersen hash, and because light clients already need to update their code to include
+the consensus branch ID for the Heartwood network upgrade, and can simultaneously make
+changes to not rely on the value of this header field being the Sapling tree root.
+
+We also considered putting ``hashChainHistoryRoot`` in the ``hashPrevBlock`` field as it
+commits to the entire chain history, but quickly realized it would require massive
+refactoring of the existing code base and would negatively impact performance. Reorgs in
+particular are fragile, performance-critical, and rely on backwards iteration over the
+chain history. If a chain were to be designed from scratch there may be some efficient
+implementation that would join these commitments, but it is clearly not appropriate for
+Zcash as it exists.
+
+The calculation of ``hashChainHistoryRoot`` is not well-defined for the genesis block,
+since then :math:`n = 0` and there is no block :math:`B_{n-1}`. Also, in the case of
+chains that activate this ZIP after genesis (including Zcash Mainnet and Testnet), the
+``hashChainHistoryRoot`` of the activation block would commit to the whole previous epoch
+if a special case were not made. It would be impractical to calculate this commitment all
+at once, and so we specify that ``hashLightClientRoot`` is set to all zero bytes for that
+block instead. The hash of the final Sapling note commitment tree root for the activation
+block will not be encoded in that block, but will be committed to one block later in the
+``hashLatestSaplingRoot`` field of the MMR root commitment.
+
+
+Security and Privacy Considerations
+===================================
+
+This ZIP imposes an additional validation cost on new blocks. While this validation cost
+is small, it may exacerbate any existing DoS opportunities, particularly during abnormal
+events like long reorgs. Fortunately, these costs are logarithmic in the number of delete
+and append operations. In the worst case scenario, a well-resourced attacker could
+maintain 2 chains of approximately equal length, and alternate which chain they extend.
+This would result in repeated reorgs of increasing length.
+
+Given the performance of BLAKE2b, we expect this validation cost to be negligible.
+However, it seems prudent to benchmark potential MMR implementations during the
+implementation process. Should the validation cost be higher than expected, there are
+several potential mitigations, e.g. holding recently seen nodes in memory after a reorg.
+
+Generally, header commitments have no impact on privacy. However, FlyClient has additional
+security and privacy implications. Because FlyClient is a motivating factor for this ZIP,
+it seems prudent to include a brief overview. A more in-depth security analysis of
+FlyClient should be performed before designing a FlyClient-based light client ecosystem
+for Zcash.
+
+FlyClient, like all light clients, requires a connection to a light client server. That
+server may collect information about client requests, and may use that information to
+attempt to deanonymize clients. However, because FlyClient proofs are non-interactive and
+publicly verifiable, they could be shared among many light clients after the initial
+server interaction.
+
+FlyClient proofs are probabilistic. When properly constructed, there is negligible
+probability that a dishonest chain commitment will be accepted by the verifier. The
+security analysis assumes adversary mining power is bounded by a known fraction of
+combined mining power of honest nodes, and cannot drop or tamper with messages between
+client and full nodes. It also assumes the client is connected to at least one full node
+and knows the genesis block.
+
+In addition, [#FlyClient]_ only analyses these security properties in chain models with
+slowly adjusting difficulty, such as Bitcoin. That paper leaves their analysis in chains
+with rapidly adjusting difficulty –such as Zcash or Ethereum– as an open problem, and
+states that the FlyClient protocol provides only heuristic security guarantees in that
+case. However, as mentioned in `FlyClient Requirements and Recommendations`_, additional
+commitments allowing light clients to reason about application of the difficulty adjustment
+algorithm were added in discussion with an author of the FlyClient paper. The use of these
+fields has not been analysed in the academic security literature. It would be possible to
+update them in a future network upgrade if further security analysis were to find any
+deficiencies.
+
+
+Deployment
+==========
+
+On the Zcash Mainnet and Testnet, this proposal will be deployed with the Heartwood
+network upgrade. [#zip-0250]_
+
+Additional fields are added on activation of the NU5 network upgrade [#zip-0252]_,
+to support the new Orchard shielded protocol.
+
+
+Additional Reading
+==================
+
+- `Flyclient enabled geth fork by FlyClient authors <https://github.com/mahdiz/flyeth>`_
+- `Draft ECIP-1055: Succinct PoW Using Merkle Mountain Ranges <https://github.com/etclabscore/ECIPs/blob/f37acdbb392e18a61c8a6600ca1c4a2edee5813d/ECLIPs/ECIP-draft_succinct-proofs.md>`_
+- `Grin project MMR implementation in Rust <https://github.com/mimblewimble/grin/tree/master/core/src/core/pmmr>`_
+- `Tari Project MMR implementation in Rust <https://github.com/tari-project/tari/tree/development/base_layer/mmr>`_
+- `Beam Project MMR implementation in C++ <https://github.com/BeamMW/beam/blob/master/core/merkle.cpp>`_
+- `Mimblewimble MMR docs <https://github.com/mimblewimble/grin/blob/master/doc/mmr.md>`_
+- `MMR Python implementation <https://github.com/proofchains/python-proofmarshal/blob/master/proofmarshal/mmr.py>`_
+- `Tari MMR documentation <https://docs.rs/merklemountainrange/0.0.1/src/merklemountainrange/lib.rs.html>`_
+- `opentimestamps-server Merkle Mountain Range documentation <https://github.com/opentimestamps/opentimestamps-server/blob/master/doc/merkle-mountain-range.md>`_
+
+
+References
+==========
+
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#FlyClient] `FlyClient protocol <https://eprint.iacr.org/2019/226>`_
+.. [#protocol-blockheader] `Zcash Protocol Specification, Version 2021.2.16. Section 7.6: Block Header Encoding and Consensus <protocol/protocol.pdf#blockheader>`_
+.. [#protocol-workdef] `Zcash Protocol Specification, Version 2021.2.16. Section 7.7.5: Definition of Work <protocol/protocol.pdf#workdef>`_
+.. [#zcashBlock] `Zcash block primitive <https://github.com/zcash/zcash/blob/master/src/primitives/block.h>`_
+.. [#mimblewimble] `MimbleWimble Grin MMR implementation <https://github.com/mimblewimble/grin/blob/aedac483f5a116b91a8baf6acffd70e5f980b8cc/core/src/core/pmmr/pmmr.rs>`_
+.. [#bip-0034] `BIP 34: Block v2, Height in Coinbase <https://github.com/bitcoin/bips/blob/master/bip-0034.mediawiki>`_
+.. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
+.. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`_
+.. [#zip-0250] `ZIP 250: Deployment of the Heartwood Network Upgrade <zip-0250.rst>`_
+.. [#zip-0252] `ZIP 252: Deployment of the NU5 Network Upgrade <zip-0252.rst>`_
+.. [#zip-0301] `ZIP 301: Zcash Stratum Protocol <https://github.com/zcash/zips/pull/78>`_
+.. [#zip-0307] `ZIP 307: Light Client Protocol for Payment Detection <https://github.com/zcash/zips/pull/226>`_
