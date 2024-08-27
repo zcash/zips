@@ -1,6 +1,6 @@
     ZIP: Unassigned
     Title: Media Memos Protocol (MMP)
-    Owners: kdenhartog@brave.com
+    Owners: Kyle Den Hartog <kdenhartog@brave.com>
     Status: Draft
     Category: Wallet
     Created: 2024-08-27
