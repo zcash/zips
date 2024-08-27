@@ -1,0 +1,207 @@
+::
+
+  ZIP: 213
+  Title: Shielded Coinbase
+  Owners: Jack Grigg <jack@z.cash>
+  Status: Final
+  Category: Consensus
+  Created: 2019-03-30
+  License: MIT
+
+
+Terminology
+===========
+
+The key words "MUST" and "MAY" in this document are to be interpreted as described in
+BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
+
+The term "network upgrade" in this document is to be interpreted as described in ZIP 200
+[#zip-0200]_.
+
+The term "Sapling" in this document is to be interpreted as described in ZIP 205
+[#zip-0205]_.
+
+The terms "Founders' Reward" and "funding stream" in this document are to be interpreted
+as described in ZIP 207 [#zip-0207]_.
+
+
+Abstract
+========
+
+This proposal defines modifications to the Zcash consensus rules that enable coinbase
+funds to be mined to Sapling (and later Orchard) addresses. It does not disable the use
+of transparent addresses in coinbase transactions.
+
+
+Motivation
+==========
+
+Zcash inherited the concept of "coinbase transactions" from Bitcoin: special transactions
+inside each block that are allowed to have no inputs. These transactions are created by
+miners during block creation, and collect the block reward and transaction fees into new
+transparent outputs that can then be spent. They are also leveraged in Zcash for the
+Founders' Reward (and potentially for funding streams [#zip-0207]_).
+
+On the path to deprecating and removing Bitcoin-inherited transparent addresses within the
+Zcash network, a required step is to be able to create coinbase transactions that have no
+transparent outputs. However, Zcash was launched with a consensus rule preventing coinbase
+transactions from containing shielded outputs, instead enforcing that coinbase funds could
+not be spent in transactions with transparent outputs. This was partly in order to reduce
+the complexity of the original Zcash modifications to the Bitcoin Core codebase, but also
+because at the time, shielded transactions required significant memory and CPU resources
+to create.
+
+The Sapling network upgrade [#zip-0205]_ deployed architectural changes and performance
+improvements that make shielding funds directly in the coinbase transaction feasible. In
+order to reduce the complexity of the Sapling network upgrade, the existing consensus
+rules preventing coinbase transactions from containing shielded outputs were extended to
+cover Sapling outputs. Therefore, it is now necessary to modify the consensus rules in
+order to enable miners to start using Sapling addresses. It will also be possible for
+miners to use Orchard addresses starting from activation of the NU5 upgrade [#zip-0252]_.
+
+
+Specification
+=============
+
+Prior to activation of the Heartwood network upgrade, this existing consensus rule on
+coinbase transactions is enforced:
+
+    A coinbase transaction MUST NOT have any JoinSplit descriptions, Spend descriptions,
+    or Output descriptions.
+
+Once the Heartwood network upgrade activates:
+
+- Coinbase transactions MAY contain Sapling outputs. More precisely, the above existing
+  consensus rule is modified to:
+
+      A coinbase transaction MUST NOT have any JoinSplit descriptions or Spend
+      descriptions.
+
+      [Pre-Heartwood] A coinbase transaction also MUST NOT have any Output descriptions.
+
+- The consensus rules applied to ``valueBalance``, ``vShieldedOutput``, and ``bindingSig``
+  in non-coinbase transactions MUST also be applied to coinbase transactions.
+
+- Only transparent outputs in coinbase transactions are subject to the existing
+  restrictions on spending coinbase funds. More precisely:
+
+  - The existing consensus rule requiring transactions that spend coinbase outputs to have
+    an empty ``vout``, is amended to only apply to transactions that spend transparent
+    coinbase outputs.
+
+  - The existing consensus rule requiring coinbase outputs to have 100 confirmations
+    before they may be spent (coinbase maturity), is amended to only apply to transparent
+    coinbase outputs. Specifically, it becomes:
+
+        A transaction MUST NOT spend a transparent output of a coinbase transaction from a
+        block less than 100 blocks prior to the spend. Note that outputs of coinbase
+        transactions include Founders’ Reward outputs [and potentially funding stream
+        outputs].
+
+- Full note decryption of shielded coinbase outputs MUST succeed using the all-zero
+  outgoing viewing key. More precisely, all shielded coinbase outputs MUST have valid
+  note commitments when recovered using a sequence of 32 zero bytes as the outgoing
+  viewing key.
+
+Once the NU5 network upgrade activates:
+
+- Coinbase transactions MAY contain Sapling and/or Orchard outputs.
+
+This does not require any change to the consensus rule given above; it is a consequence
+of other rules as of NU5 activation.
+
+
+Interaction with the Founders' Reward
+-------------------------------------
+
+This ZIP does not alter the existing Founders' Reward addresses.
+
+
+Rationale
+=========
+
+The ZIP does not require that all coinbase must be shielded immediately from activation of
+the network upgrade, so that miners and mining pools may gradually migrate from their
+existing transparent addresses to Sapling addresses. This also simplifies the consensus
+rules, because the Founders' Reward targets transparent addresses, and thus it remains
+necessary for the time being to support them. A future ZIP could require all coinbase to
+be shielded immediately.
+
+Enforcing coinbase maturity at the consensus level for Sapling outputs would incur
+significant complexity in the consensus rules, because it would require special-casing
+coinbase note commitments in the Sapling commitment tree. The standard recommendation when
+spending a note is to select an anchor 10 blocks back from the current chain tip, which
+acts as a de-facto 10-block maturity on all notes, coinbase included. This might be
+proposed as a consensus rule in future.
+
+There is another reason for shielded coinbase maturity being unnecessary: shielded
+coinbase outputs have the same effect on economic activity as regular shielded outputs.
+When a transparent address receives a coin in some "parent" transaction and later spends
+it, a tree of "direct child" transactions is created that all require the original parent
+transaction to be valid. However, most wallets treat unspent transparent outputs as a
+single "bucket of money", and select coins to spend without direct user input. This can
+create a disconnect between the economic activity of users (who might be intending to
+spend funds that they just received, creating "logical child" transactions), and their
+on-chain transaction graph.
+
+For example, a mining pool that successfully mines a block will receive a coinbase
+output, but their subsequent payout to miners might instead spend ZEC that they already
+had before the block was mined. If the mining pool pays out for block X, and then a
+reorg or rollback occurs that causes the transparent coinbase in block X to become
+invalid, the payout transaction might still be mined on the new chain, even though the
+funds that the miner was logically spending do not exist there.
+
+By contrast, when a reorg or rollback occurs that would cause a shielded coinbase output
+to disappear, it will also invalidate every shielded transaction that uses an anchor
+descending from the tree that the shielded coinbase output had been appended to. That is,
+all shielded economic activity would be rolled back in addition to the shielded coinbase
+output disappearing, ensuring that all logical child transactions are invalidated, not
+just direct child transactions. Therefore, there is no reason to make shielded coinbase a
+special case when the same behaviour already occurs in regular shielded notes.
+
+Requiring that note commitments are valid when recovering using a fixed outgoing viewing
+key implies that target addresses and values for all Sapling outputs within the coinbase
+are revealed. This would be necessary to correctly enforce shielded Founders' Reward or
+funding stream outputs, and it is simpler to enforce this on all outputs. Additionally,
+this maintains the ability for network observers to track miners and mining pools.
+Meanwhile, the miners and mining pools could put useful or identifying text in the memo
+fields of the outputs, instead of storing it ad-hoc elsewhere in the coinbase transaction.
+
+
+Security and Privacy Considerations
+===================================
+
+Sapling outputs in coinbase transactions are by design publicly viewable, in contrast to
+Sapling outputs in normal transactions. This does not introduce any privacy regressions
+relative to existing coinbase transactions, because coinbase output values and recipient
+addresses have always been public information. However, users with threat models that rely
+on keeping their Sapling address private (for example, to maintain post-quantum privacy),
+and who are also miners or mining pools, should use a coinbase-specific address when
+creating blocks.
+
+Revealing the coinbase output notes does not enable anyone else to detect when the note is
+spent, which removes the need for a separate shielding step like is enforced for
+transparent coinbase outputs.
+
+
+Deployment
+==========
+
+This proposal will be deployed with the Heartwood network upgrade. [#zip-0250]_
+
+
+Reference Implementation
+========================
+
+https://github.com/zcash/zcash/pull/4256
+
+
+References
+==========
+
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
+.. [#zip-0205] `ZIP 205: Deployment of the Sapling Network Upgrade <zip-0205.rst>`_
+.. [#zip-0207] `ZIP 207: Split Founders' Reward <zip-0207.rst>`_
+.. [#zip-0250] `ZIP 250: Deployment of the Heartwood Network Upgrade <zip-0250.rst>`_
+.. [#zip-0252] `ZIP 252: Deployment of the NU5 Network Upgrade <zip-0252.rst>`_

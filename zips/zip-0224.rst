@@ -1,0 +1,315 @@
+::
+
+  ZIP: 224
+  Title: Orchard Shielded Protocol
+  Owners: Daira-Emma Hopwood <daira-emma@electriccoin.co>
+          Jack Grigg <jack@electriccoin.co>
+          Sean Bowe <sean@electriccoin.co>
+          Kris Nuttycombe <kris@electriccoin.co>
+  Original-Authors: Ying Tong Lai
+  Status: Final
+  Category: Consensus
+  Created: 2021-02-27
+  License: MIT
+  Discussions-To: <https://github.com/zcash/zips/issues/435>
+
+
+Terminology
+===========
+
+The key words "MUST" and "SHOULD" in this document are to be interpreted as described in
+BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
+
+The terms "Testnet" and "Mainnet" are to be interpreted as described in section 3.12 of
+the Zcash Protocol Specification [#protocol-networks]_.
+
+
+Abstract
+========
+
+This document proposes the Orchard shielded protocol, which defines a new shielded pool
+with spending keys and payment addresses that are amenable to future scalability
+improvements.
+
+
+Motivation
+==========
+
+Zcash currently has two active shielded protocols and associated shielded pools:
+
+- The Sprout shielded protocol (based on the Zerocash paper with improvements and security
+  fixes [#protocol-differences]_), which as of February 2021 is a "closing" shielded pool
+  into which no new ZEC can be sent.
+- The Sapling shielded protocol, which consisted of numerous improvements to functionality
+  and improved performance by orders of magnitude, and as of Feburary 2021 is the "active"
+  shielded pool.
+
+Both of these shielded protocols suffer from two issues:
+
+- Neither Sprout nor Sapling are compatible with known efficient scalability techniques.
+  Recursive zero-knowledge proofs (where a proof verifies an earlier instance of itself
+  along with new state) that are suitable for deployment in a block chain like Zcash
+  require a cycle of elliptic curves. The Sprout protocol does not use elliptic curves
+  and thus is an inherently inefficient protocol to implement inside a circuit, while the
+  Sapling protocol uses curves for which there is no known way to construct an efficient
+  curve cycle (or path to one).
+
+- The Sprout and Sapling circuits are implemented using a proving system (Groth16) that
+  requires a "trusted setup": the circuit parameters are a Structured Reference String
+  (SRS) with hidden structure, that if known could be used to create fake proofs and
+  thus counterfeit funds. The parameters are in practice generated using a multiparty
+  computation (MPC), where as long as at least one participant was honest and not
+  compromised, the hidden structure is unrecoverable. The MPCs themselves have improved
+  over the years (Zcash had 6 participants in the Sprout MPC, and around 90 per round in
+  the Sapling MPC two years later [#zcash-paramgen]_), but it remains the case that
+  generating these parameters is a point of risk within the protocol. For example, the
+  original proving system used for the Sprout circuit (BCTV14) had a bug that made the
+  Sprout shielded protocol vulnerable to counterfeiting, [#bctv14-vuln]_ which needed to
+  be resolved by changing the proving system and running a new MPC.
+
+We are thus motivated to deploy a new shielded protocol designed around a curve cycle,
+using a proving system that is both amenable to recursion and does not require an SRS.
+
+
+Specification
+=============
+
+The Orchard protocol MUST be implemented as specified in the Zcash Protocol Specification
+[#protocol-orchard]_.
+
+Given that the Orchard protocol largely follows the design of the Sapling protocol, we
+provide here a list of differences, with references to their normative specifications and
+associated design rationale.
+
+Curves
+------
+
+The Orchard protocol uses the Pallas / Vesta curve cycle, in place of BLS12-381 and its
+embedded curve Jubjub:
+
+- Pallas is used as the "application curve", on which the Orchard protocol itself is
+  implemented (c/f Jubjub).
+- Vesta is used as the "circuit curve"; its scalar field (being the base field of Pallas)
+  is the "word" type over which the circuit is implemented (c/f BLS12-381).
+
+We use the "simplified SWU" algorithm to define an infallible :math:`\mathsf{GroupHash}`,
+instead of the fallible BLAKE2s-based mechanism used for Sapling. It is intended to follow
+(version 10 of) the IETF hash-to-curve Internet Draft [#ietf-hash-to-curve]_ (but the
+protocol specification takes precedence in the case of any discrepancy).
+
+The presence of the curve cycle is an explicit design choice. This proposal only uses half
+of the cycle (Pallas being an embedded curve of Vesta); the full cycle is expected to be
+leveraged by future protocol updates.
+
+- Curve specifications: [#protocol-pallasandvesta]_
+- :math:`\mathsf{GroupHash}`: [#protocol-concretegrouphashpallasandvesta]_
+- Supporting evidence: [#pasta-evidence]_
+
+Proving system
+--------------
+
+Orchard uses the Halo 2 proving system [#halo2-proving-system]_ with the PLONKish
+arithmetization [#halo2-arithmetization]_, instead of Groth16 and R1CS.
+
+This proposal does not make use of Halo 2's support for recursive proofs, but this is
+expected to be leveraged by future protocol updates.
+
+Circuit
+-------
+
+Orchard uses a single circuit for both spends and outputs, similar to Sprout. An "action"
+contains both a single (possibly dummy) note being spent, and a single (possibly dummy)
+note being created.
+
+An Orchard transaction contains a "bundle" of actions, and a single Halo 2 proof that
+covers all of the actions in the bundle.
+
+- Action description: [#protocol-actions]_
+- Circuit statement: [#protocol-actionstatement]_
+- Design rationale: [#orchard-actions]_
+
+Commitments
+-----------
+
+The Orchard protocol has equivalent commitment schemes to Sapling. For non-homomorphic
+commitments, Orchard uses the PLONKish-efficient Sinsemilla in place of Bowe–Hopwood
+Pedersen hashes.
+
+- Sinsemilla hash function: [#protocol-concretesinsemillahash]_
+- Sinsemilla commitments: [#protocol-concretesinsemillacommit]_
+- Design rationale: [#orchard-commitments]_
+
+Commitment tree
+---------------
+
+Orchard uses an identical commitment tree structure to Sapling, except that we instantiate
+it with Sinsemilla instead of a Bowe–Hopwood Pedersen hash.
+
+- Design rationale and considered alternatives: [#orchard-tree]_
+
+Keys and addresses
+------------------
+
+Orchard keys and payment addresses are structurally similar to Sapling, with the following
+changes:
+
+- The proof authorizing key is removed, and :math:`\mathsf{nk}` is now a field element.
+- :math:`\mathsf{ivk}` is computed as a Sinsemilla commitment instead of a BLAKE2s output.
+  There is an additional :math:`\mathsf{rivk}` component of the full viewing key that acts
+  as the randomizer for this commitment.
+- :math:`\mathsf{ovk}` is derived from :math:`\mathsf{fvk}`, instead of being a component
+  of the spending key.
+- All diversifiers now result in valid payment addresses.
+
+There is no Bech32 encoding defined for an individual Orchard shielded payment address,
+incoming viewing key, or full viewing key. Instead we define unified payment addresses and
+viewing keys in [#zip-0316]_. Orchard spending keys are encoded using Bech32m as specified
+in [#protocol-orchardspendingkeyencoding]_.
+
+Orchard keys may be derived in a hierarchical deterministic (HD) manner. We do not adapt
+the Sapling HD mechanism from ZIP 32 to Orchard; instead, we define a hardened-only
+derivation mechanism (similar to Sprout).
+
+- Key components diagram: [#protocol-addressesandkeys]_
+- Key components specification: [#protocol-orchardkeycomponents]_
+- Encodings: [#protocol-orchardpaymentaddrencoding]_ [#protocol-orchardinviewingkeyencoding]_
+  [#protocol-orchardfullviewingkeyencoding]_ [#protocol-orchardspendingkeyencoding]_
+- HD key derivation specification: [#zip-0032]_
+- Design rationale: [#orchard-keys]_
+
+Notes
+-----
+
+Orchard notes have the structure :math:`(addr, v, \rho, \psi, \mathsf{rcm}).` :math:`\rho`
+is set to the nullifier of the spent note in the same action, which ensures it is unique.
+:math:`\psi` and :math:`\mathsf{rcm}` are derived from a random seed (as with Sapling
+after ZIP 212 [#zip-0212]_).
+
+- Orchard notes: [#protocol-notes]_
+
+Nullifiers
+----------
+
+Nullifiers for Orchard notes are computed as:
+
+:math:`\mathsf{nf} = [F_{\mathsf{nk}}(\rho) + \psi \pmod{p}] \mathcal{G} + \mathsf{cm}`
+
+where :math:`F` is instantiated with Poseidon, and :math:`\mathcal{G}` is a fixed
+independent base.
+
+- Poseidon: [#protocol-poseidonhash]_
+- Design rationale and considered alternatives: [#orchard-nullifiers]_
+
+Signatures
+----------
+
+Orchard uses RedPallas (RedDSA instantiated with the Pallas curve) as its signature scheme
+in place of Sapling's RedJubjub (RedDSA instantiated with the Jubjub curve).
+
+- RedPallas: [#protocol-concretereddsa]_
+
+
+Additional Rationale
+====================
+
+The primary motivator for proposing a new shielded protocol and pool is the need to
+migrate spend authority to a recursion-friendly curve. Spend authority in the Sapling
+shielded pool is rooted in the Jubjub curve, but there is no known way to construct an
+efficient curve cycle (or path to one) from either Jubjub or BLS12-381.
+
+Despite having recursion-friendliness as a design goal, we do not propose a recursive
+protocol in this ZIP. Deploying an entire scaling solution in a single upgrade would be a
+risky endeavour with a lot of moving parts. By focusing just on the components that enable
+a recursive protocol (namely the curve cycle and the proving system), we can start the
+migration of value to a scalable protocol before actually deploying the scalable protocol
+itself.
+
+The remainder of the changes we make relative to Sapling are motivated by simplifying the
+Sapling protocol (and fixing deficiencies), and using protocol primitives that are more
+efficient in the UltraPLONK arithmetization.
+
+
+Security and Privacy Considerations
+===================================
+
+This ZIP defines a new shielded pool. As with Sapling, the Orchard protocol only supports
+spending Orchard notes, and moving ZEC into or out of the Orchard pool happens via the
+:math:`\mathsf{valueBalanceOrchard}` transaction field. This has the following
+considerations:
+
+- The Orchard pool forms a separate anonymity set from the Sprout and Sapling pools. The
+  new pool will start with zero notes (as Sapling did at its deployment), but transactions
+  within Orchard will increase the size of the anonymity set more rapidly than Sapling,
+  due to the arity-hiding nature of Orchard actions.
+- The "transparent turnstile" created by the :math:`\mathsf{valueBalanceOrchard}` field,
+  combined with the consensus checks that each pool's balance cannot be negative, together
+  enforce that any potential counterfeiting bugs in the Orchard protocol or implementation
+  are contained within the Orchard pool, and similarly any potential counterfeiting bugs
+  in existing shielded pools cannot cause inflation of the Orchard pool.
+- Spending funds residing in the Orchard pool to a non-Orchard address will reveal the
+  value of the transaction. This is a necessary side-effect of the transparent turnstile,
+  but can be mitigated by migrating the majority of shielded activity to the Orchard pool
+  and making these transactions a minority. Wallets SHOULD convey within their transaction
+  creation UX that amounts are revealed in these situations.
+
+  - Wallets SHOULD take steps to migrate their user bases to store funds uniformly within
+    the Orchard pool. Best practices for wallet handling of multiple pools will be covered
+    in a subsequent ZIP. [#zip-0315]_
+
+
+Test Vectors
+============
+
+- https://github.com/zcash-hackworks/zcash-test-vectors/pull/14
+
+
+Reference Implementation
+========================
+
+- https://github.com/zcash/halo2
+- https://github.com/zcash/orchard
+
+
+Deployment
+==========
+
+This ZIP is proposed to activate with Network Upgrade 5.
+
+
+References
+==========
+
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#zcash-paramgen] `Parameter Generation <https://z.cash/technology/paramgen/>`_
+.. [#bctv14-vuln] `Zcash Counterfeiting Vulnerability Successfully Remediated <https://electriccoin.co/blog/zcash-counterfeiting-vulnerability-successfully-remediated/>`_
+.. [#protocol-orchard] `Zcash Protocol Specification, Version 2021.2.16 or later [NU5 proposal] <protocol/protocol.pdf>`_
+.. [#protocol-networks] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
+.. [#protocol-addressesandkeys] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 3.1: Payment Addresses and Keys <protocol/protocol.pdf#addressesandkeys>`_
+.. [#protocol-notes] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 3.2: Notes <protocol/protocol.pdf#notes>`_
+.. [#protocol-actions] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 3.7: Action Transfers and their Descriptions <protocol/protocol.pdf#actions>`_
+.. [#protocol-actionstatement] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 4.17.4: Action Statement (Orchard) <protocol/protocol.pdf#actionstatement>`_
+.. [#protocol-orchardkeycomponents] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 4.2.3: Orchard Key Components <protocol/protocol.pdf#orchardkeycomponents>`_
+.. [#protocol-concretesinsemillahash] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.4.1.9: Sinsemilla Hash Function <protocol/protocol.pdf#concretesinsemillahash>`_
+.. [#protocol-poseidonhash] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.4.1.10: PoseidonHash Function <protocol/protocol.pdf#poseidonhash>`_
+.. [#protocol-concretereddsa] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.4.7: RedDSA, RedJubjub, and RedPallas <protocol/protocol.pdf#concretereddsa>`_
+.. [#protocol-concretesinsemillacommit] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.4.8.4: Sinsemilla commitments <protocol/protocol.pdf#concretesinsemillacommit>`_
+.. [#protocol-pallasandvesta] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.4.9.6: Pallas and Vesta <protocol/protocol.pdf#pallasandvesta>`_
+.. [#protocol-concretegrouphashpallasandvesta] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.4.9.8: Group Hash into Pallas and Vesta <protocol/protocol.pdf#concretegrouphashpallasandvesta>`_
+.. [#protocol-orchardpaymentaddrencoding] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.6.4.2: Orchard Raw Payment Addresses <protocol/protocol.pdf#orchardpaymentaddrencoding>`_
+.. [#protocol-orchardinviewingkeyencoding] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.6.4.3: Orchard Raw Incoming Viewing Keys <protocol/protocol.pdf#orchardinviewingkeyencoding>`_
+.. [#protocol-orchardfullviewingkeyencoding] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.6.4.4: Orchard Raw Full Viewing Keys <protocol/protocol.pdf#orchardfullviewingkeyencoding>`_
+.. [#protocol-orchardspendingkeyencoding] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.6.4.5: Orchard Spending Keys <protocol/protocol.pdf#orchardspendingkeyencoding>`_
+.. [#protocol-differences] `Zcash Protocol Specification, Version 2021.2.16. Section 8: Differences from the Zerocash paper <protocol/protocol.pdf#differences>`_
+.. [#halo2-arithmetization] `The halo2 Book: 1.2 PLONKish Arithmetization <https://zcash.github.io/halo2/concepts/arithmetization.html>`_
+.. [#halo2-proving-system] `The halo2 Book: 3.1. Proving system <https://zcash.github.io/halo2/design/proving-system.html>`_
+.. [#orchard-keys] `The Orchard Book: 3.1. Keys and addresses <https://zcash.github.io/orchard/design/keys.html>`_
+.. [#orchard-actions] `The Orchard Book: 3.2. Actions <https://zcash.github.io/orchard/design/actions.html>`_
+.. [#orchard-commitments] `The Orchard Book: 3.3. Commitments <https://zcash.github.io/orchard/design/commitments.html>`_
+.. [#orchard-tree] `The Orchard Book: 3.4. Commitment tree <https://zcash.github.io/orchard/design/commitment-tree.html>`_
+.. [#orchard-nullifiers] `The Orchard Book: 3.5. Nullifiers <https://zcash.github.io/orchard/design/nullifiers.html>`_
+.. [#zip-0032] `ZIP 32: Shielded Hierarchical Deterministic Wallets <zip-0032.rst>`_
+.. [#zip-0212] `ZIP 212: Allow Recipient to Derive Sapling Ephemeral Secret from Note Plaintext <zip-0212.rst>`_
+.. [#zip-0315] `ZIP 315: Best Practices for Wallet Handling of Multiple Pools <zip-0315.rst>`_
+.. [#zip-0316] `ZIP 316: Unified Addresses and Unified Viewing Keys <zip-0316.rst>`_
+.. [#ietf-hash-to-curve] `draft-irtf-cfrg-hash-to-curve-10: Hashing to Elliptic Curves <https://www.ietf.org/archive/id/draft-irtf-cfrg-hash-to-curve-10.html>`_
+.. [#pasta-evidence] `Pallas/Vesta supporting evidence <https://github.com/zcash/pasta>`_

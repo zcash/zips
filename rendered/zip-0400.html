@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZIP 400: Wallet.dat format</title>
+    <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+    <section>
+        <pre>ZIP: 400
+Title: Wallet.dat format
+Owners: Alfredo Garcia &lt;oxarbitrage@gmail.com&gt;
+Status: Draft
+Category: Wallet
+Created: 2020-05-26
+License: MIT</pre>
+        <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The key words "MUST" and "MAY" in this document are to be interpreted as described in BCP 14 <a id="footnote-reference-1" class="footnote_reference" href="#bcp14">1</a> when, and only when, they appear in all capitals.</p>
+        </section>
+        <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This proposal defines the current format used in zcashd for wallet persistent storage, commonly known as <code>wallet.dat</code>.</p>
+        </section>
+        <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The process of saving wallet data into disk is currently unspecified. The key-values used in the current implementation are undocumented, and their structure and functionality are unknown without a deep analysis of the involved source code. This document details the schema and the mechanics of the wallet database. This is an informational document, no changes will be done to the source code.</p>
+        </section>
+        <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>Zcash stores wallet information in a Berkeley database (BDB) <a id="footnote-reference-2" class="footnote_reference" href="#bdb">2</a> commonly known as <code>wallet.dat</code>. The main purpose of this is the persistence of public and private keys the user created and the ability to recover the wallet state after a node restart. This file also allows the migration of user information from one node to another by moving the database to the corresponding new data directory, assuming both zcashd instances are running the same or similar version. A re-index may be necessary after this operation.</p>
+            <p>The current database is a key-value store where keys and values can have multiple data types in binary format. The first data found in a database key is always the property name, the rest of the key is generally used to identify a record, for example:</p>
+            <pre>&lt;------ KEY ----+- VALUE -&gt;
+---------------------------
+| zkey | pubkey | privkey |
+---------------------------</pre>
+            <p>Here <code>zkey</code> is the property name located at the first position of the database key; the public key is also part of the database key, and it is located in the second position; the private key is saved in the database value column at the first position.</p>
+            <section id="schema"><h3><span class="section-heading">Schema</span><span class="section-anchor"> <a rel="bookmark" href="#schema"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>According to Zcash v3.0.0-rc1 the following key-values can be found: the property names in <strong>bold</strong> mean only one instance of this type can exist in the entire database, while the others, suffixed by '*' can have multiple instances. Keys and Values columns of the table contain the types that the stored data is representing. Included also there are the variable names hoping it will add some clarity to what the stored data is representing.</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th>Keys</th>
+                            <th>Values</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>acc*</td>
+                            <td>Account data</td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>string strAccount</code></li>
+                                </ol>
+                            </td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>CAccount account</code></li>
+                                </ol>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>acentry*</td>
+                            <td>Track internal transfers between accounts in the same wallet</td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>string strAccount</code></li>
+                                    <li><code>uint64_t nNumber</code></li>
+                                </ol>
+                            </td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>CAccountingEntry acentry</code></li>
+                                </ol>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>bestblock</strong></td>
+                            <td>The current best block of the blockchain.</td>
+                            <td></td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>CBlockLocator locator</code></li>
+                                </ol>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>chdseed</strong></td>
+                            <td>Encrypted HD seed</td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>uint256 seedFp</code></li>
+                                </ol>
+                            </td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>vector&lt;unsigned char&gt; vchCryptedSecret</code></li>
+                                </ol>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>ckey*</td>
+                            <td>Encrypted transparent pubkey and private key.</td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>vector&lt;unsigned char&gt; vchPubKey</code></li>
+                                </ol>
+                            </td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>vector&lt;unsigned char&gt; vchPrivKey</code></li>
+                                </ol>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>csapzkey*</td>
+                            <td>Encrypted Sapling pubkey and private key.</td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>libzcash::SaplingIncomingViewingKey ivk</code></li>
+                                </ol>
+                            </td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>libzcash::SaplingExtendedFullViewingKey extfvk</code></li>
+                                    <li><code>vector&lt;unsigned char&gt; vchCryptedSecret</code></li>
+                                </ol>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>cscript</strong></td>
+                            <td>Serialized script, used inside transaction inputs and outputs</td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>uint160 hash</code></li>
+                                </ol>
+                            </td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>CScript script</code></li>
+                                </ol>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>czkey*</td>
+                            <td>Encrypted Sprout pubkey and private key.</td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>libzcash::SproutPaymentAddress addr</code></li>
+                                </ol>
+                            </td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>uint256 rkValue</code></li>
+                                    <li><code>vector&lt;unsigned char&gt; vchCryptedSecret</code></li>
+                                </ol>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>defaultkey</strong></td>
+                            <td>Default Transparent key.</td>
+                            <td></td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>CPubKey CWallet::vchDefaultKey</code></li>
+                                </ol>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>destdata*</td>
+                            <td>Adds a destination data tuple to the store.</td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>std::string strAddress</code></li>
+                                    <li><code>std::string strKey</code></li>
+                                </ol>
+                            </td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>std::string strValue</code></li>
+                                </ol>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>hdchain</strong></td>
+                            <td>Hierarchical Deterministic chain code, derived from seed.</td>
+                            <td></td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>CHDChain chain</code></li>
+                                </ol>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>hdseed*</td>
+                            <td>Hierarchical Deterministic seed. <a id="footnote-reference-3" class="footnote_reference" href="#zip-0032">4</a></td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>uint256 seedFp</code></li>
+                                </ol>
+                            </td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>RawHDSeed rawSeed</code></li>
+                                </ol>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>key*</td>
+                            <td>Transparent pubkey and privkey.</td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>CPubKey vchPubKey</code></li>
+                                </ol>
+                            </td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>CPrivKey pkey</code></li>
+                                </ol>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>keymeta*</td>
+                            <td>Transparent key metadata.</td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>CPubKey vchPubKey</code></li>
+                                </ol>
+                            </td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>CKeyMetadata keyMeta</code></li>
+                                </ol>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>minversion</strong></td>
+                            <td>Wallet required minimal version.</td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td><strong>mkey</strong></td>
+                            <td>Master key, used to encrypt public and private keys of the database.</td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>unsigned int nID</code></li>
+                                </ol>
+                            </td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>CMasterKey kMasterKey</code></li>
+                                </ol>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>name*</td>
+                            <td>Name of an address to insert in the address book.</td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>string strAddress</code></li>
+                                </ol>
+                            </td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>string strAddress</code></li>
+                                </ol>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>orderposnext</strong></td>
+                            <td>Index of next tx.</td>
+                            <td></td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>int64_t nOrderPosNext</code></li>
+                                </ol>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>pool*</td>
+                            <td></td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>int64_t nIndex</code></li>
+                                </ol>
+                            </td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>CKeyPool keypool</code></li>
+                                </ol>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>purpose*</td>
+                            <td>Short description or identifier of an address.</td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>string strAddress</code></li>
+                                </ol>
+                            </td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>string strPurpose</code></li>
+                                </ol>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>sapzaddr*</td>
+                            <td>Sapling z-addr Incoming Viewing key and address.</td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>libzcash::SaplingPaymentAddress addr</code></li>
+                                </ol>
+                            </td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>libzcash::SaplingIncomingViewingKey ivk</code></li>
+                                </ol>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>sapextfvk*</td>
+                            <td>Sapling Extended Full Viewing Key</td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td>sapzkey*</td>
+                            <td>Sapling Incoming Viewing Key and Extended Spending Key</td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>libzcash::SaplingIncomingViewingKey ivk</code></li>
+                                </ol>
+                            </td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>libzcash::SaplingExtendedSpendingKey key</code></li>
+                                </ol>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>tx*</td>
+                            <td>Store all transactions that are related to wallet.</td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>uint256 hash</code></li>
+                                </ol>
+                            </td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>CWalletTx wtx</code></li>
+                                </ol>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>version</strong></td>
+                            <td>The <code>CLIENT_VERSION</code> from <code>clientversion.h</code>.</td>
+                            <td></td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>int nFileVersion</code></li>
+                                </ol>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>vkey*</td>
+                            <td>Sprout Viewing Keys.</td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>libzcash::SproutViewingKey vk</code></li>
+                                </ol>
+                            </td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>char fYes</code></li>
+                                </ol>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>watchs*</td>
+                            <td>Watch-only t-addresses.</td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>CScript script</code></li>
+                                </ol>
+                            </td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>char fYes</code></li>
+                                </ol>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>witnesscachesize</strong></td>
+                            <td>Shielded Note Witness cache size.</td>
+                            <td></td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>int64_t nWitnessCacheSize</code></li>
+                                </ol>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>wkey*</td>
+                            <td>Wallet key.</td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td>zkey*</td>
+                            <td>Sprout Payment Address and Spending Key.</td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>libzcash::SproutPaymentAddress addr</code></li>
+                                </ol>
+                            </td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>libzcash::SproutSpendingKey key</code></li>
+                                </ol>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>zkeymeta*</td>
+                            <td>Sprout Payment Address and key metadata.</td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>libzcash::SproutPaymentAddress addr</code></li>
+                                </ol>
+                            </td>
+                            <td>
+                                <ol type="1">
+                                    <li><code>CKeyMetadata keyMeta</code></li>
+                                </ol>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+            <section id="functionality"><h3><span class="section-heading">Functionality</span><span class="section-anchor"> <a rel="bookmark" href="#functionality"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>When a zcashd node built with wallet support is started for the first time, a new wallet database is created. By default the node will automatically execute wallet actions that will be saved in the database at the first flush time.</p>
+                <p>The following flow will happen when a node with wallet support is started for the first time:</p>
+                <ul>
+                    <li><code>DEFAULT_KEYPOOL_SIZE</code> (100 by default) keys will be added to the pool, creating 100 records with <code>pool</code> as property name (first value of database key).</li>
+                    <li>Also 100 <code>key</code> properties will be added.</li>
+                    <li>100 <code>keymeta</code>.</li>
+                    <li>Wallet will create a default transparent key to receive, this will be also added as <code>key</code>, <code>pool</code> and <code>keymeta</code> properties.</li>
+                    <li>This default key is also added as a <code>defaultkey</code> property.</li>
+                    <li>The last action created an entry in the address book that is reflected in the database by the <code>name</code> and <code>purpose</code> properties.</li>
+                    <li>If the wallet is created with HD support, it will have additional properties <code>hdseed</code> and <code>hdchain</code> that will be saved.</li>
+                    <li><code>version</code>, <code>minversion</code>, <code>witnesscachesize</code> and <code>bestblock</code> properties are added. These are settings and state information: the <code>bestblock</code> property is a good example of the database being populated that is happening without any user interaction, but it will just update as the best block of the current chain changes.</li>
+                </ul>
+                <p>At any time after the database is created, new properties can be added as the wallet users perform actions. For example, if the user creates a new Sapling address with the RPC command <code>z_getnewaddress</code> then new records with properties <cite>sapzkey</cite> and <cite>sapzkeymeta</cite> will be added to the database.</p>
+                <p>In zcashd, database changes do not happen immediately but they are flushed in its own thread by <code>ThreadFlushWalletDB()</code> function periodically to avoid overhead. The internal counter <code>nWalletDBUpdated</code> is increased each time a new write operation to the database is done, this is compared with the last flush in order to commit new stuff.</p>
+                <p>When the node goes down for whatever reason the information in the wallet database SHOULD persist in the disk; the next time the node starts, the software will detect the database file, read from there and add the values into memory structures that will guarantee wallet functionality.</p>
+                <section id="transactions"><h4><span class="section-heading">Transactions</span><span class="section-anchor"> <a rel="bookmark" href="#transactions"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>The wallet database will not save all the transactions that are happening in the blockchain however it will save all transactions where wallet keys are involved. This is needed for example to get balances. Therefore the wallet must have all the transactions related to a key to compute the final value of coin available in the derived address.</p>
+                    <p>The <code>tx</code> property will hold the transaction-related data with the transaction hash as the key and the full transaction as the value.</p>
+                </section>
+                <section id="wallet-state-and-transaction-reordering"><h4><span class="section-heading">Wallet state and transaction reordering</span><span class="section-anchor"> <a rel="bookmark" href="#wallet-state-and-transaction-reordering"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Transactions are saved in the database <code>tx</code> key as they arrive, this means transactions have a sequence. The set of all transactions from the begging to a specified timestamp is the wallet state at that instant. Wallet state is important among other things to get current balance for a wallet or address.</p>
+                    <p>In the blockchain, transactions can be invalidated by rollbacks; wallet code will handle this by updating the transactions in the memory database. New state needs to be reflected in the disk database, this is done in zcashd by the flag <code>fAnyUnordered</code> where if true at start time, will launch a rescan over all transactions again.</p>
+                </section>
+                <section id="wallet-recovery"><h4><span class="section-heading">Wallet Recovery</span><span class="section-anchor"> <a rel="bookmark" href="#wallet-recovery"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>The wallet database file may become corrupted. There are utilities in the <cite>zcutil/bin</cite> directory that may help with recovering it if this happens. Please ask for help on the Zcash forum or Community Discord.</p>
+                </section>
+                <section id="wallet-encryption"><h4><span class="section-heading">Wallet Encryption</span><span class="section-anchor"> <a rel="bookmark" href="#wallet-encryption"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Encryption will not be discussed in this document in detail as it is expected for the algorithm to change in the future according to the Wallet format ZIP issue: <a id="footnote-reference-4" class="footnote_reference" href="#zip400issue">3</a>.</p>
+                    <p>For a deeper understanding of the current encryption mechanism please refer to <a id="footnote-reference-5" class="footnote_reference" href="#cryptercode">5</a></p>
+                </section>
+            </section>
+        </section>
+        <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <table id="bcp14" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>1</th>
+                        <td><a href="https://www.rfc-editor.org/info/bcp14">Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bdb" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>2</th>
+                        <td><a href="https://www.oracle.com/database/berkeley-db/db.html">Oracle Berkeley Database</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip400issue" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>3</th>
+                        <td><a href="https://github.com/zcash/zips/issues/350">ZIP 400 issue</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0032" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>4</th>
+                        <td><a href="zip-0032">ZIP 32: Shielded Hierarchical Deterministic Wallets</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="cryptercode" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>5</th>
+                        <td><a href="https://github.com/zcash/zcash/blob/master/src/wallet/crypter.h">Database key encryption implementation</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </section>
+</body>
+</html>

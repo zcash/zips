@@ -1,0 +1,258 @@
+::
+
+  ZIP: 320
+  Title: Defining an Address Type to which funds can only be sent from Transparent Addresses
+  Owners: Daira-Emma Hopwood <daira-emma@electriccoin.co>
+          Kris Nuttycombe <kris@nutty.land>
+  Credits: Hanh
+  Status: Proposed
+  Category: Standards / Wallet
+  Created: 2024-01-12
+  License: MIT
+  Discussions-To: <https://github.com/zcash/zips/issues/757>
+                  <https://github.com/zcash/zips/issues/795>
+  Pull-Request: <https://github.com/zcash/zips/pull/760>
+                <https://github.com/zcash/zips/pull/766>
+                <https://github.com/zcash/zips/pull/798>
+
+
+Terminology
+===========
+
+The key words "MUST", "SHOULD", "NOT RECOMMENDED", and "MAY" in this document
+are to be interpreted as described in BCP 14 [#BCP14]_ when, and only when,
+they appear in all capitals.
+
+The terms "Recipient", "Producer", "Consumer", "Sender", "Receiver", "Address",
+and "Unified Address" are to be interpreted as described in ZIP 316
+[#zip-0316-terminology]_.
+
+The terms "Testnet" and "Mainnet" are to be interpreted as described in section
+3.12 of the Zcash Protocol Specification [#protocol-networks]_.
+
+
+Abstract
+========
+
+This ZIP defines a new encoding for transparent Zcash addresses. Wallets must
+ensure that no shielded notes are spent in transactions that send to a
+transparent address encoded in the specified fashion.
+
+
+Background
+==========
+
+In November 2023, the Zcash community received notice from the Binance
+cryptocurrency exchange that Zcash was at risk of being delisted from the
+exchange unless the community could provide a mechanism by which Binance could
+refuse deposits from shielded addresses and return them to the depositor. This
+issue was raised and discussed at length in the Zcash Community forum
+[#binance-delisting]_.
+
+In the course of that discussion thread, wallet developer and community member
+@hanh [#hanh-profile]_ suggested a wallet-oriented approach [#hanh-suggestion]_
+that involved defining a new encoding for Zcash transparent P2PKH addresses. A
+Consumer of such an address, whether it be a wallet or an exchange, could
+recognize this encoding as a directive that the wallet should only spend
+transparent funds when creating an output to that address. This ZIP formalizes
+that proposal.
+
+
+Motivation
+==========
+
+The Binance cryptocurrency exchange requires that funds sent to their deposit
+addresses come from source addresses that are readily identifiable using
+on-chain information, such that if necessary funds may be rejected by sending
+them back to one of the source addresses. This ZIP is intended to standardize
+a transparent address encoding that is not yet understood by preexisting
+Consumers, in order to prevent inadvertent shielded spends when sending to such
+addresses. Then, Consumers that upgrade to support the new encoding will do so
+with the understanding that they must respect the restrictions on sources of
+funds described in this ZIP.
+
+It is not expected that other exchanges or Producers of Zcash addresses will
+generate Transparent-Source-Only Addresses unless they have a specific need to
+be able to identify the address or addresses from which a payment was funded.
+However, all Consumers of Zcash addresses should implement this specification,
+in order to promote interoperability across the Zcash ecosystem.
+
+
+Requirements
+============
+
+1. A Recipient wishing to receive funds from exclusively transparent sources
+   must be able to generate a receiving address such that only transparent
+   funds will be spent in transactions with an output to this address. The
+   purpose of this is to ensure that it is reliably possible for the Recipient
+   to send back funds received from a Sender that conforms to this ZIP.
+2. Wallets and other Consumers that have not been upgraded to recognize the new
+   address format cannot mistake the address for another address type or
+   inadvertently send shielded funds to the address.
+3. No changes to Recipient infrastructure beyond changes to address encoding
+   and decoding should be required as a consequence of this ZIP. In particular,
+   conversion between a Transparent-Source-Only Address and the corresponding
+   unrestricted transparent address should be possible using only dependencies
+   that are available to Binance's front-end code.
+
+
+Non-requirements
+================
+
+1. It is only required to support a Transparent-Source-Only form of P2PKH
+   addresses; P2SH address support is not necessary.
+2. It is not required to limit the source of transparent funds sent to a
+   Transparent-Source-Only Address to a single source address. This implies that
+   if the Recipient chooses to send back the funds, it is acceptable for it to
+   send them back to any of the source addresses if there is more than one.
+3. It is not necessary for the restriction on the source of funds to be enforced
+   as a consensus rule. If a Sender fails to adhere to the restriction, it risks
+   loss of funds, which is acceptable in the case of a non-conforming Sender
+   implementation.
+
+
+Specification
+=============
+
+A TEX Address, also called a Transparent-Source-Only Address, is a Bech32m [#bip-0350]_
+reencoding of a transparent Zcash P2PKH address [#protocol-transparentaddrencoding]_.
+
+Wallets and other Senders sending to a TEX address (as any output) MUST ensure that
+only transparent (P2SH or P2PKH) UTXOs are spent in the creation of the transaction.
+For simplicity of parsing and interpreting such transactions, they also SHOULD only
+send to transparent outputs.
+
+A TEX address can be produced from a Mainnet Zcash P2PKH Address by executing the
+following steps:
+
+1. Decode the address to a byte sequence using the Base58Check decoding
+   algorithm [#Base58Check]_.
+2. If the length of the resulting byte sequence is not 22 bytes or if its two-byte
+   address prefix is not :math:`[\mathtt{0x1C}, \mathtt{0xB8}]`, return an error.
+   Otherwise, let the **validating key hash** be the remaining 20 bytes of the
+   sequence after removing the two-byte address prefix.
+3. Reencode the 20-byte **validating key hash** using the Bech32m encoding
+   defined in [#bip-0350]_ with the human-readable prefix (HRP) ``"tex"``.
+
+For Testnet addresses, the required lead bytes of a P2PKH address in step 2 are
+:math:`[\mathtt{0x1D}, \mathtt{0x25}]`, and the ``"textest"`` HRP is used when
+reencoding in step 3.
+
+A TEX address can be parsed by reversing this encoding, i.e.:
+
+1. Decode the address to a byte sequence using Bech32m [#bip-0350]_, checking
+   that the HRP is ``"tex"`` for a Mainnet TEX Address and ``"textest"`` for a
+   Testnet TEX Address.
+2. If the length of the resulting byte sequence is not 20 bytes, return an error.
+   Otherwise, the **validating key hash** is this byte sequence.
+
+Design considerations for Senders
+---------------------------------
+
+For a transaction that spends only from transparent funds to a TEX Address,
+this specification imposes no additional requirements.
+
+If, on the other hand, a user desires to spend shielded funds to a TEX Address,
+a Sender supporting this ZIP MUST create two transactions: one that unshields
+the funds to an ephemeral transparent address, and one that spends from that
+ephemeral address to the destination TEX Address. This does not defeat the
+intent of the ZIP, because it is still possible for a Recipient to return the
+funds to the Sender by sending them back to the ephemeral address.
+
+Wallets MUST be able to recognize funds that have been returned in this way
+and spend them if desired. In order for this to be possible without use of
+TEX Addresses increasing the risk of loss of funds, wallets based on ZIP 32
+[#zip-0032]_ SHOULD choose ephemeral addresses in a way that allows the
+corresponding private keys to be recovered from a ZIP 32 master seed.
+
+However, ephemeral addresses SHOULD NOT be chosen in a way that allows them
+to be linked between transactions, without knowledge of the wallet seed or
+the relevant transparent viewing keys. This also implies that they SHOULD be
+chosen in a way that avoids collisions with addresses for previously generated
+outputs (including change outputs), such as might have been created by a
+transparent-only wallet using Bitcoin-derived code based on BIP 44 [#bip-0044]_.
+
+In order to show accurate transaction history to a user, wallets SHOULD
+remember when a particular transaction output was sent to a TEX Address, so
+that they can show that form rather than its P2PKH form. It is acceptable that
+this information may be lost on recovery from seed.
+
+
+Reference Implementation
+========================
+
+Javascript::
+
+   import bs58check from 'bs58check'
+   import {bech32m} from 'bech32'
+   
+   // From t1 to tex
+   var b58decoded = bs58check.decode('t1VmmGiyjVNeCjxDZzg7vZmd99WyzVby9yC')
+   console.assert(b58decoded.length == 22, 'Invalid length');
+   console.assert(b58decoded[0] == 0x1C && b58decoded[1] == 0xB8, 'Invalid address prefix');
+   var pkh = b58decoded.slice(2)
+   var tex = bech32m.encode('tex', bech32m.toWords(pkh))
+   console.log(tex)
+   
+   // From tex to t1
+   var bech32decoded = bech32m.decode('tex1s2rt77ggv6q989lr49rkgzmh5slsksa9khdgte')
+   console.assert(bech32decoded.prefix == 'tex', 'Invalid address prefix')
+   var pkh2 = Uint8Array.from(bech32m.fromWords(bech32decoded.words))
+   console.assert(pkh2.length == 20, 'Invalid length');
+   var t1 = bs58check.encode(Buffer.concat([Uint8Array.from([0x1C, 0xB8]), pkh2]))
+   console.log(t1)
+
+Rationale
+=========
+
+TEX addresses are the simplest possible approach to creating a new address type that
+indicates that only transparent sources of funds should be used.
+
+As required by Binance, it will be possible to convert between a TEX address and an
+unrestricted transparent P2PKH address using extremely straightforward code that
+depends only on Base58Check and Bech32m encoding/decoding, as shown in the above
+`Reference Implementation`_.
+
+An earlier version of this ZIP also described another alternative using metadata
+in Unified Addresses, as specified in ZIP 316 [#zip-0316]_. That alternative was
+designed to enable better integration with the Zcash Unified Address ecosystem, and
+had the advantage of being able to combine different types of metadata along with
+the Transparent-Source-Only indicator, such as an expiration block height or time
+[#zip-0316-address-expiry]_ [#binance-address-expiry]_.
+
+However, ultimately the Unified Address-based approach did not meet all of the
+requirements, since it would in practice have required dependencies on address
+handling libraries that Binance did not want to depend on in their front-end code.
+
+Some design elements of that approach that apply to metadata in general have
+been incorporated into ZIP 316 Revision 1 [#zip-0316-revision-1]_. A more general
+form of Source Restriction Metadata is also under consideration.
+
+Disadvantages
+-------------
+
+A disadvantage of TEX Addresses (and also of the alternative approach using
+Unified Addresses) is that the information that a TEX Address was used does not
+appear on-chain, i.e. a transaction sending to a TEX Address is indistinguishable
+from one sending to the underlying P2PKH address. This is inevitable given the
+desire not to change the underlying consensus protocol to support this functionality.
+
+
+References
+==========
+
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#binance-delisting] `Zcash Community Forum thread "Important: Potential Binance Delisting" <https://forum.zcashcommunity.com/t/important-potential-binance-delisting/45954>`_
+.. [#hanh-profile] `Zcash Community Forum user @hanh <https://forum.zcashcommunity.com/u/hanh/summary>`_
+.. [#hanh-suggestion] `Ywallet developer @hanh's proposal <https://forum.zcashcommunity.com/t/important-potential-binance-delisting/45954/112>`_
+.. [#zip-0032] `ZIP 32: Shielded Hierarchical Deterministic Wallets <zip-0032.rst>`_
+.. [#zip-0316] `ZIP 316: Unified Addresses and Unified Viewing Keys <zip-0316.rst>`_
+.. [#zip-0316-terminology] `ZIP 316: Unified Addresses and Unified Viewing Keys — Terminology <zip-0316#terminology>`_
+.. [#zip-0316-revision-1] `ZIP 316: Unified Addresses and Unified Viewing Keys — Revision 1 <zip-0316#revision-1>`_
+.. [#zip-0316-address-expiry] `ZIP 316: Unified Addresses and Unified Viewing Keys — Address Expiration Metadata <zip-0316#address-expiration-metadata>`_
+.. [#protocol-networks] `Zcash Protocol Specification, Version 2023.4.0. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
+.. [#protocol-transparentaddrencoding] `Zcash Protocol Specification, Version 2023.4.0. Section 5.6.1.1 Transparent Addresses <protocol/protocol.pdf#transparentaddrencoding>`_
+.. [#binance-address-expiry] `Zcash Community Forum post describing motivations for address expiry <https://forum.zcashcommunity.com/t/unified-address-expiration/46564/6>`_
+.. [#Base58Check] `Base58Check encoding — Bitcoin Wiki <https://en.bitcoin.it/wiki/Base58Check_encoding>`_
+.. [#bip-0044] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>`_
+.. [#bip-0350] `BIP 350: Bech32m format for v1+ witness addresses <https://github.com/bitcoin/bips/blob/master/bip-0350.mediawiki>`_

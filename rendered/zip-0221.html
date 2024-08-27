@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZIP 221: FlyClient - Consensus-Layer Changes</title>
+    <meta charset="utf-8" />
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+    <section>
+        <pre>ZIP: 221
+Title: FlyClient - Consensus-Layer Changes
+Owners: Jack Grigg &lt;jack@electriccoin.co&gt;
+Original-Authors: Ying Tong Lai
+                  James Prestwich
+                  Georgios Konstantopoulos
+Status: Final
+Category: Consensus
+Created: 2019-03-30
+License: MIT</pre>
+        <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to be interpreted as described in BCP 14 <a id="footnote-reference-1" class="footnote_reference" href="#bcp14">1</a> when, and only when, they appear in all capitals.</p>
+            <p>The terms "consensus branch", "epoch", and "network upgrade" in this document are to be interpreted as described in ZIP 200. <a id="footnote-reference-2" class="footnote_reference" href="#zip-0200">8</a></p>
+            <dl>
+                <dt><em>Light client</em></dt>
+                <dd>A client that is not a full participant in the network of Zcash peers. It can send and receive payments, but does not store or validate a copy of the block chain.</dd>
+                <dt><em>High probability</em></dt>
+                <dd>An event occurs with high probability if it occurs with probability
+                    <span class="math">\(1-O(1/2^\lambda)\)</span>
+                , where
+                    <span class="math">\(\lambda\)</span>
+                 is a security parameter.</dd>
+                <dt><em>Negligible probability</em></dt>
+                <dd>An event occurs with negligible probability if it occurs with probability
+                    <span class="math">\(O(1/2^\lambda)\)</span>
+                , where
+                    <span class="math">\(\lambda\)</span>
+                 is the security parameter.</dd>
+                <dt><em>Merkle mountain range (MMR)</em></dt>
+                <dd>A Merkle mountain range (MMR) is a binary hash tree that allows for efficient appends of new leaves without changing the value of existing nodes.</dd>
+            </dl>
+        </section>
+        <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This ZIP specifies modifications to the Zcash block header semantics and consensus rules in order to support the probabilistic verification FlyClient protocol <a id="footnote-reference-3" class="footnote_reference" href="#flyclient">2</a>. The <code>hashFinalSaplingRoot</code> commitment in the block header is replaced with a commitment to the root of a Merkle Mountain Range (MMR), that in turn commits to various features of the chain's history, including the Sapling commitment tree.</p>
+        </section>
+        <section id="background"><h2><span class="section-heading">Background</span><span class="section-anchor"> <a rel="bookmark" href="#background"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>An MMR is a Merkle tree which allows for efficient appends, proofs, and verifications. Informally, appending data to an MMR consists of creating a new leaf and then iteratively merging neighboring subtrees with the same size. This takes at most
+                <span class="math">\(\log(n)\)</span>
+             operations and only requires knowledge of the previous subtree roots, of which there are fewer than
+                <span class="math">\(\log(n)\)</span>
+            .</p>
+            <p>(example adapted from <a id="footnote-reference-4" class="footnote_reference" href="#mimblewimble">6</a>) To illustrate this, consider a list of 11 leaves. We first construct the biggest perfect binary subtrees possible by joining any balanced sibling trees that are the same size. We do this starting from the left to the right, adding a parent as soon as 2 children exist. This leaves us with three subtrees ("mountains") of altitudes 3, 1, and 0:</p>
+            <pre data-language="text">   /\
+  /  \
+ /\  /\
+/\/\/\/\ /\ /</pre>
+            <p>Note that the first leftmost peak is always the highest. We can number this structure in the order by which nodes would be created, if the leaves were inserted from left to right:</p>
+            <pre data-language="text">Altitude
+
+    3              14
+                 /    \
+                /      \
+               /        \
+              /          \
+    2        6            13
+           /   \        /    \
+    1     2     5      9     12     17
+         / \   / \    / \   /  \   /  \   /
+    0   0   1 3   4  7   8 10  11 15  16 18</pre>
+            <p>and represent this numbering in a flat list:</p>
+            <blockquote>
+                <table>
+                    <tbody>
+                        <tr>
+                            <td>Position</td>
+                            <td>0</td>
+                            <td>1</td>
+                            <td>2</td>
+                            <td>3</td>
+                            <td>4</td>
+                            <td>5</td>
+                            <td>6</td>
+                            <td>7</td>
+                            <td>8</td>
+                            <td>9</td>
+                            <td>10</td>
+                            <td>11</td>
+                            <td>12</td>
+                            <td>13</td>
+                            <td>14</td>
+                            <td>15</td>
+                            <td>16</td>
+                            <td>17</td>
+                            <td>18</td>
+                        </tr>
+                        <tr>
+                            <td>Altitude</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>1</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>1</td>
+                            <td>2</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>1</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>1</td>
+                            <td>2</td>
+                            <td>3</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>1</td>
+                            <td>0</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </blockquote>
+            <p>Let
+                <span class="math">\(h\)</span>
+             be the altitude of a given node. We can easily jump to the node's right sibling (if it has one) by adding
+                <span class="math">\(2^{h+1} - 1\)</span>
+             to its position, and its left child (if it has one) by subtracting
+                <span class="math">\(2^h\)</span>
+            . This allows us to efficiently find the subtree roots ("peaks") of the mountains.</p>
+            <p>Once we have the positions of the mountain peaks, we "bag" them using the following algorithm:</p>
+            <ol type="1">
+                <li>Generate a node connecting the 2 left-most peaks, forming a new peak.</li>
+                <li>Repeat 1. until we have a single peak.</li>
+            </ol>
+            <p>Note that the extra nodes generated during the bagging process do not follow the above rules for jumping between nodes.</p>
+            <pre data-language="text">Altitude
+
+    5                     20g
+                         /  \
+    4                  19g   \
+                      /   \   \
+                     /     \   \
+                    /       \   \
+    3              14        \   \
+                 /    \       \   \
+                /      \       \   \
+               /        \       \   \
+              /          \       \   \
+    2        6           13       \   \
+           /   \       /    \      \   \
+    1     2     5      9     12     17  \
+         / \   / \    / \   /  \   /  \  \
+    0   0   1 3   4  7   8 10  11 15  16 18</pre>
+            <p>MMR trees allow for efficient incremental set update operations (push, pop, prune). In addition, MMR update operations and Merkle proofs for recent additions to the leaf set are more efficient than other incremental Merkle tree implementations (e.g. Bitcoin's padded leafset, sparse Merkle trees, and Zcash's incremental note commitment trees).</p>
+        </section>
+        <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>MMR proofs are used in the FlyClient protocol <a id="footnote-reference-5" class="footnote_reference" href="#flyclient">2</a>, to reduce the proof size needed for light clients to verify:</p>
+            <ul>
+                <li>the validity of a block chain received from a full node, and</li>
+                <li>the inclusion of a block
+                    <span class="math">\(B\)</span>
+                 in that chain, and</li>
+                <li>certain metadata of any block or range of blocks in that chain.</li>
+            </ul>
+            <p>The protocol requires that an MMR that commits to the inclusion of all blocks since the preceding network upgrade
+                <span class="math">\((B_x, \ldots, B_{n-1})\)</span>
+             is formed for each block
+                <span class="math">\(B_n\)</span>
+            . The root
+                <span class="math">\(M_n\)</span>
+             of the MMR MUST be included in the header of
+                <span class="math">\(B_n\)</span>
+            .</p>
+            <p>(
+                <span class="math">\(x\)</span>
+             is the activation height of the preceding network upgrade.)</p>
+            <p>FlyClient reduces the number of block headers needed for light client verification of a valid chain, from linear (as in the current reference protocol) to logarithmic in block chain length. This verification is correct with high probability. It also allows creation of subtree proofs, so light clients need only check blocks later than the most recently verified block index. Following that, verification of a transaction inclusion within that block follows the usual reference protocol <a id="footnote-reference-6" class="footnote_reference" href="#zip-0307">13</a>.</p>
+            <p>A smaller proof size could enable the verification of Zcash SPV Proofs in block-chain protocols such as Ethereum, enabling efficient cross-chain communication and pegs. It also reduces bandwidth and storage requirements for resource-limited clients like mobile or IoT devices.</p>
+        </section>
+        <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>For a block
+                <span class="math">\(B_n\)</span>
+             at height
+                <span class="math">\(n &gt; 0\)</span>
+             in a given block chain, define the "preceding network upgrade height"
+                <span class="math">\(x\)</span>
+             of
+                <span class="math">\(B_n\)</span>
+             to be the last network upgrade activation height in the chain that is less than
+                <span class="math">\(n\)</span>
+            . (For this definition, block height
+                <span class="math">\(0\)</span>
+             is considered to be the height of a network upgrade activation. The preceding network upgrade height of the genesis block is undefined.)</p>
+            <p>The leaves of the MMR at block
+                <span class="math">\(B_n\)</span>
+             are hash commitments to the header data and metadata of each previous block
+                <span class="math">\(B_x, \ldots, B_{n-1}\)</span>
+            , where
+                <span class="math">\(x\)</span>
+             is defined as above. We extend the standard MMR to allow metadata to propagate upwards through the tree by either summing the metadata of both children, or inheriting the metadata of a specific child as necessary. This allows us to create efficient proofs of selected properties of a range of blocks without transmitting the entire range of blocks or headers.</p>
+            <section id="tree-node-specification"><h3><span class="section-heading">Tree Node specification</span><span class="section-anchor"> <a rel="bookmark" href="#tree-node-specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Unless otherwise noted, all hashes use BLAKE2b-256 with the personalization field set to <code>'ZcashHistory' || CONSENSUS_BRANCH_ID</code>. <code>CONSENSUS_BRANCH_ID</code> is the 4-byte little-endian encoding of the consensus branch ID for the epoch of the block containing the commitment. <a id="footnote-reference-7" class="footnote_reference" href="#zip-0200">8</a> Which is to say, each node in the tree commits to the consensus branch that produced it.</p>
+                <p>Each MMR node is defined as follows:</p>
+                <ol type="1">
+                    <li><code>hashSubtreeCommitment</code>
+                        <dl>
+                            <dt>Leaf node</dt>
+                            <dd>
+                                <p>The consensus-defined block hash for the corresponding block.</p>
+                                <ul>
+                                    <li>This hash is encoded in internal byte order, and does NOT use the BLAKE2b-256 personalization string described above.</li>
+                                    <li>For clarity, in a given consensus branch, the <code>hashSubtreeCommitment</code> field of leaf
+                                        <span class="math">\(n-1\)</span>
+                                     is <em>precisely equal</em> to the <code>hashPrevBlock</code> field in the header of the block at height
+                                        <span class="math">\(x+n\)</span>
+                                    , where
+                                        <span class="math">\(x\)</span>
+                                     is the network upgrade activation height of that consensus branch.</li>
+                                </ul>
+                            </dd>
+                            <dt>Internal or root node</dt>
+                            <dd>
+                                <ul>
+                                    <li>Both child nodes are serialized.</li>
+                                    <li><code>hashSubtreeCommitment</code> is the BLAKE2b-256 hash of <code>left_child || right_child</code>.</li>
+                                    <li>For clarity, this digest uses the BLAKE2b-256 personalization string described above.</li>
+                                </ul>
+                            </dd>
+                        </dl>
+                        <p>Serialized as <code>char[32]</code>.</p>
+                    </li>
+                    <li><code>nEarliestTimestamp</code>
+                        <dl>
+                            <dt>Leaf node</dt>
+                            <dd>The header's timestamp.</dd>
+                            <dt>Internal or root node</dt>
+                            <dd>Inherited from the left child.</dd>
+                        </dl>
+                        <p>Serialized as <code>nTime</code> (<code>uint32</code>).</p>
+                        <p>Note that a <code>uint32</code> time value would overflow on 2106-02-07, but this field (and <code>nLatestTimestamp</code> below) can only hold values that occur in the <code>nTime</code> field of a block header, which is also of type <code>uint32</code>.</p>
+                    </li>
+                    <li><code>nLatestTimestamp</code>
+                        <dl>
+                            <dt>Leaf node</dt>
+                            <dd>The header's timestamp.</dd>
+                            <dt>Internal or root node</dt>
+                            <dd>Inherited from the right child.</dd>
+                        </dl>
+                        <p>Note that due to timestamp consensus rules, <code>nLatestTimestamp</code> may be smaller than <code>nEarliestTimestamp</code> in some subtrees. This may occur within subtrees smaller than <code>PoWMedianBlockSpan</code> blocks.</p>
+                        <p>Serialized as <code>nTime</code> (<code>uint32</code>).</p>
+                    </li>
+                    <li><code>nEarliestTargetBits</code>
+                        <dl>
+                            <dt>Leaf node</dt>
+                            <dd>The header's <code>nBits</code> field.</dd>
+                            <dt>Internal or root node</dt>
+                            <dd>Inherited from the left child.</dd>
+                        </dl>
+                        <p>Serialized as <code>nBits</code> (<code>uint32</code>).</p>
+                    </li>
+                    <li><code>nLatestTargetBits</code>
+                        <dl>
+                            <dt>Leaf node</dt>
+                            <dd>The header's <code>nBits</code> field.</dd>
+                            <dt>Internal or root node</dt>
+                            <dd>Inherited from the right child.</dd>
+                        </dl>
+                        <p>Serialized as <code>nBits</code> (<code>uint32</code>).</p>
+                    </li>
+                    <li><code>hashEarliestSaplingRoot</code>
+                        <dl>
+                            <dt>Leaf node</dt>
+                            <dd>Calculated as <code>hashFinalSaplingRoot</code>, as implemented in Sapling.</dd>
+                            <dt>Internal or root node</dt>
+                            <dd>Inherited from the left child.</dd>
+                        </dl>
+                        <p>Serialized as <code>char[32]</code>.</p>
+                    </li>
+                    <li><code>hashLatestSaplingRoot</code>
+                        <dl>
+                            <dt>Leaf node</dt>
+                            <dd>Calculated as <code>hashFinalSaplingRoot</code>, as implemented in Sapling.</dd>
+                            <dt>Internal or root node</dt>
+                            <dd>Inherited from the right child.</dd>
+                        </dl>
+                        <p>Serialized as <code>char[32]</code>.</p>
+                    </li>
+                    <li><code>nSubTreeTotalWork</code>
+                        <dl>
+                            <dt>Leaf node</dt>
+                            <dd>The protocol-defined work of the block:
+                                <span class="math">\(\mathsf{floor}(2^{256} / (\mathsf{ToTarget}(\mathsf{nBits}) + 1))\)</span>
+                            . <a id="footnote-reference-8" class="footnote_reference" href="#protocol-workdef">4</a></dd>
+                            <dt>Internal or root node</dt>
+                            <dd>
+                                <p>The sum of the <code>nSubTreeTotalWork</code> fields of both children.</p>
+                                <p>Computations modulo
+                                    <span class="math">\(2^{256}\)</span>
+                                 are fine here; cumulative chain work is similarly assumed elsewhere in the Zcash ecosystem to be at most
+                                    <span class="math">\(2^{256}\)</span>
+                                 (as inherited from Bitcoin). The computed work factors are, on average, equal to the computational efforts involved in the creation of the corresponding blocks, and an aggregate effort of
+                                    <span class="math">\(2^{256}\)</span>
+                                 or more is infeasible in practice.</p>
+                            </dd>
+                        </dl>
+                        <p>Serialized as <code>uint256</code>.</p>
+                    </li>
+                    <li><code>nEarliestHeight</code>
+                        <dl>
+                            <dt>Leaf node</dt>
+                            <dd>The height of the block.</dd>
+                            <dt>Internal or root node</dt>
+                            <dd>Inherited from the left child.</dd>
+                        </dl>
+                        <p>Serialized as <code>CompactSize uint</code>.</p>
+                    </li>
+                    <li><code>nLatestHeight</code>
+                        <dl>
+                            <dt>Leaf node</dt>
+                            <dd>The height of the block.</dd>
+                            <dt>Internal or root node</dt>
+                            <dd>Inherited from the right child.</dd>
+                        </dl>
+                        <p>Serialized as <code>CompactSize uint</code>.</p>
+                    </li>
+                    <li><code>nSaplingTxCount</code>
+                        <dl>
+                            <dt>Leaf node</dt>
+                            <dd>The number of transactions in the leaf block where either of <code>vSpendsSapling</code> or <code>vOutputsSapling</code> is non-empty.</dd>
+                            <dt>Internal or root node</dt>
+                            <dd>The sum of the <code>nSaplingTxCount</code> field of both children.</dd>
+                        </dl>
+                        <p>Serialized as <code>CompactSize uint</code>.</p>
+                    </li>
+                    <li>[NU5 onward] <code>hashEarliestOrchardRoot</code>
+                        <dl>
+                            <dt>Leaf node</dt>
+                            <dd>Calculated as the note commitment root of the final Orchard treestate (similar to <code>hashEarliestSaplingRoot</code> in Sapling).</dd>
+                            <dt>Internal or root node</dt>
+                            <dd>Inherited from the left child.</dd>
+                        </dl>
+                        <p>Serialized as <code>char[32]</code>.</p>
+                    </li>
+                    <li>[NU5 onward] <code>hashLatestOrchardRoot</code>
+                        <dl>
+                            <dt>Leaf node</dt>
+                            <dd>Calculated as the note commitment root of the final Orchard treestate (similar to <code>hashLatestSaplingRoot</code> in Sapling).</dd>
+                            <dt>Internal or root node</dt>
+                            <dd>Inherited from the right child.</dd>
+                        </dl>
+                        <p>Serialized as <code>char[32]</code>.</p>
+                    </li>
+                    <li>[NU5 onward] <code>nOrchardTxCount</code>
+                        <dl>
+                            <dt>Leaf node</dt>
+                            <dd>The number of transactions in the leaf block where <code>vActionsOrchard</code> is non-empty.</dd>
+                            <dt>Internal or root node</dt>
+                            <dd>The sum of the <code>nOrchardTxCount</code> field of both children.</dd>
+                        </dl>
+                        <p>Serialized as <code>CompactSize uint</code>.</p>
+                    </li>
+                </ol>
+                <p>The fields marked "[NU5 onward]" are omitted before NU5 activation <a id="footnote-reference-9" class="footnote_reference" href="#zip-0252">11</a>.</p>
+                <p>Each node, when serialized, is between 147 and 171 bytes long (between 212 and 244 bytes after NU5 activation). The canonical serialized representation of a node is used whenever creating child commitments for future nodes. Other than the metadata commitments, the MMR tree's construction is standard.</p>
+                <p>Once the MMR has been generated, we produce <code>hashChainHistoryRoot</code>, which we define as the BLAKE2b-256 digest of the serialization of the root node.</p>
+            </section>
+            <section id="tree-nodes-and-hashing-pseudocode"><h3><span class="section-heading">Tree nodes and hashing (pseudocode)</span><span class="section-anchor"> <a rel="bookmark" href="#tree-nodes-and-hashing-pseudocode"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <pre data-language="python"><span class="k">def</span> <span class="nf">H</span><span class="p">(</span><span class="n">msg</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">consensusBranchId</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">blake2b256</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">personalization</span><span class="o">=</span><span class="sa">b</span><span class="s1">&#39;ZcashHistory&#39;</span> <span class="o">+</span> <span class="n">consensusBranchId</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">ZcashMMRNode</span><span class="p">():</span>
+    <span class="c1"># leaf nodes have no children</span>
+    <span class="n">left_child</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ZcashMMRNode</span><span class="p">]</span>
+    <span class="n">right_child</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ZcashMMRNode</span><span class="p">]</span>
+
+    <span class="c1"># commitments</span>
+    <span class="n">hashSubtreeCommitment</span><span class="p">:</span> <span class="nb">bytes</span>
+    <span class="n">nEarliestTimestamp</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">nLatestTimestamp</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">nEarliestTargetBits</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">nLatestTargetBits</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">hashEarliestSaplingRoot</span><span class="p">:</span> <span class="nb">bytes</span> <span class="c1"># left child&#39;s Sapling root</span>
+    <span class="n">hashLatestSaplingRoot</span><span class="p">:</span> <span class="nb">bytes</span> <span class="c1"># right child&#39;s Sapling root</span>
+    <span class="n">nSubTreeTotalWork</span><span class="p">:</span> <span class="nb">int</span>  <span class="c1"># total difficulty accumulated within each subtree</span>
+    <span class="n">nEarliestHeight</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">nLatestHeight</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">nSaplingTxCount</span><span class="p">:</span> <span class="nb">int</span> <span class="c1"># number of Sapling transactions in block</span>
+    <span class="c1"># NU5 only.</span>
+    <span class="n">hashEarliestOrchardRoot</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bytes</span><span class="p">]</span> <span class="c1"># left child&#39;s Orchard root</span>
+    <span class="n">hashLatestOrchardRoot</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bytes</span><span class="p">]</span> <span class="c1"># right child&#39;s Orchard root</span>
+    <span class="n">nSaplingTxCount</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="c1"># number of Orchard transactions in block</span>
+
+    <span class="n">consensusBranchId</span><span class="p">:</span> <span class="nb">bytes</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_block</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">block</span><span class="p">:</span> <span class="n">ZcashBlock</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ZcashMMRNode</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;Create a leaf node from a block&#39;&#39;&#39;</span>
+        <span class="k">return</span> <span class="n">Z</span><span class="p">(</span>
+            <span class="n">left_child</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">right_child</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">hashSubtreeCommitment</span><span class="o">=</span><span class="n">block</span><span class="o">.</span><span class="n">header_hash</span><span class="p">,</span>
+            <span class="n">nEarliestTimestamp</span><span class="o">=</span><span class="n">block</span><span class="o">.</span><span class="n">timestamp</span><span class="p">,</span>
+            <span class="n">nLatestTimestamp</span><span class="o">=</span><span class="n">block</span><span class="o">.</span><span class="n">timestamp</span><span class="p">,</span>
+            <span class="n">nEarliestTargetBits</span><span class="o">=</span><span class="n">block</span><span class="o">.</span><span class="n">nBits</span><span class="p">,</span>
+            <span class="n">nLatestTargetBits</span><span class="o">=</span><span class="n">block</span><span class="o">.</span><span class="n">nBits</span><span class="p">,</span>
+            <span class="n">hashEarliestSaplingRoot</span><span class="o">=</span><span class="n">block</span><span class="o">.</span><span class="n">sapling_root</span><span class="p">,</span>
+            <span class="n">hashLatestSaplingRoot</span><span class="o">=</span><span class="n">block</span><span class="o">.</span><span class="n">sapling_root</span><span class="p">,</span>
+            <span class="n">nSubTreeTotalWork</span><span class="o">=</span><span class="n">calculate_work</span><span class="p">(</span><span class="n">block</span><span class="o">.</span><span class="n">nBits</span><span class="p">),</span>
+            <span class="n">nEarliestHeight</span><span class="o">=</span><span class="n">block</span><span class="o">.</span><span class="n">height</span><span class="p">,</span>
+            <span class="n">nLatestHeight</span><span class="o">=</span><span class="n">block</span><span class="o">.</span><span class="n">height</span><span class="p">,</span>
+            <span class="n">nSaplingTxCount</span><span class="o">=</span><span class="n">block</span><span class="o">.</span><span class="n">sapling_tx_count</span><span class="p">,</span>
+            <span class="n">hashEarliestOrchardRoot</span><span class="o">=</span><span class="n">block</span><span class="o">.</span><span class="n">orchard_root</span><span class="p">,</span>
+            <span class="n">hashLatestOrchardRoot</span><span class="o">=</span><span class="n">block</span><span class="o">.</span><span class="n">orchard_root</span><span class="p">,</span>
+            <span class="n">nOrchardTxCount</span><span class="o">=</span><span class="n">block</span><span class="o">.</span><span class="n">orchard_tx_count</span><span class="p">,</span>
+            <span class="n">consensusBranchId</span><span class="o">=</span><span class="n">block</span><span class="o">.</span><span class="n">consensusBranchId</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">serialize</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;serializes a node&#39;&#39;&#39;</span>
+        <span class="n">buf</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hashSubtreeCommitment</span>
+            <span class="o">+</span> <span class="n">serialize_uint32</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nEarliestTimestamp</span><span class="p">)</span>
+            <span class="o">+</span> <span class="n">serialize_uint32</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nLatestTimestamp</span><span class="p">)</span>
+            <span class="o">+</span> <span class="n">serialize_uint32</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nEarliestTargetBits</span><span class="p">)</span>
+            <span class="o">+</span> <span class="n">serialize_uint32</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nLatestTargetBits</span><span class="p">)</span>
+            <span class="o">+</span> <span class="n">hashEarliestSaplingRoot</span>
+            <span class="o">+</span> <span class="n">hashLatestSaplingRoot</span>
+            <span class="o">+</span> <span class="n">serialize_uint256</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nSubTreeTotalWork</span><span class="p">)</span>
+            <span class="o">+</span> <span class="n">serialize_compact_uint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nEarliestHeight</span><span class="p">)</span>
+            <span class="o">+</span> <span class="n">serialize_compact_uint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nLatestHeight</span><span class="p">)</span>
+            <span class="o">+</span> <span class="n">serialize_compact_uint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nSaplingTxCount</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">hashEarliestOrchardRoot</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">buf</span> <span class="o">+=</span> <span class="p">(</span><span class="n">hashEarliestOrchardRoot</span>
+                <span class="o">+</span> <span class="n">hashLatestOrchardRoot</span>
+                <span class="o">+</span> <span class="n">serialize_compact_uint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nOrchardTxCount</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">buf</span>
+
+
+<span class="k">def</span> <span class="nf">make_parent</span><span class="p">(</span>
+        <span class="n">left_child</span><span class="p">:</span> <span class="n">ZcashMMRNode</span><span class="p">,</span>
+        <span class="n">right_child</span><span class="p">:</span> <span class="n">ZcashMMRNode</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ZcashMMRNode</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">ZcashMMRNode</span><span class="p">(</span>
+        <span class="n">left_child</span><span class="o">=</span><span class="n">left_child</span><span class="p">,</span>
+        <span class="n">right_child</span><span class="o">=</span><span class="n">right_child</span><span class="p">,</span>
+        <span class="n">hashSubtreeCommitment</span><span class="o">=</span><span class="n">H</span><span class="p">(</span><span class="n">left_child</span><span class="o">.</span><span class="n">serialize</span><span class="p">()</span> <span class="o">+</span> <span class="n">right_child</span><span class="o">.</span><span class="n">serialize</span><span class="p">(),</span>
+                                <span class="n">left_child</span><span class="o">.</span><span class="n">consensusBranchId</span><span class="p">),</span>
+        <span class="n">nEarliestTimestamp</span><span class="o">=</span><span class="n">left_child</span><span class="o">.</span><span class="n">nEarliestTimestamp</span><span class="p">,</span>
+        <span class="n">nLatestTimestamp</span><span class="o">=</span><span class="n">right_child</span><span class="o">.</span><span class="n">nLatestTimestamp</span><span class="p">,</span>
+        <span class="n">nEarliestTargetBits</span><span class="o">=</span><span class="n">left_child</span><span class="o">.</span><span class="n">nEarliestTargetBits</span><span class="p">,</span>
+        <span class="n">nLatestTargetBits</span><span class="o">=</span><span class="n">right_child</span><span class="o">.</span><span class="n">nLatestTargetBits</span><span class="p">,</span>
+        <span class="n">hashEarliestSaplingRoot</span><span class="o">=</span><span class="n">left_child</span><span class="o">.</span><span class="n">sapling_root</span><span class="p">,</span>
+        <span class="n">hashLatestSaplingRoot</span><span class="o">=</span><span class="n">right_child</span><span class="o">.</span><span class="n">sapling_root</span><span class="p">,</span>
+        <span class="n">nSubTreeTotalWork</span><span class="o">=</span><span class="n">left_child</span><span class="o">.</span><span class="n">nSubTreeTotalWork</span> <span class="o">+</span> <span class="n">right_child</span><span class="o">.</span><span class="n">nSubTreeTotalWork</span><span class="p">,</span>
+        <span class="n">nEarliestHeight</span><span class="o">=</span><span class="n">left_child</span><span class="o">.</span><span class="n">nEarliestHeight</span><span class="p">,</span>
+        <span class="n">nLatestHeight</span><span class="o">=</span><span class="n">right_child</span><span class="o">.</span><span class="n">nLatestHeight</span><span class="p">,</span>
+        <span class="n">nSaplingTxCount</span><span class="o">=</span><span class="n">left_child</span><span class="o">.</span><span class="n">nSaplingTxCount</span> <span class="o">+</span> <span class="n">right_child</span><span class="o">.</span><span class="n">nSaplingTxCount</span><span class="p">,</span>
+        <span class="n">hashEarliestOrchardRoot</span><span class="o">=</span><span class="n">left_child</span><span class="o">.</span><span class="n">orchard_root</span><span class="p">,</span>
+        <span class="n">hashLatestOrchardRoot</span><span class="o">=</span><span class="n">right_child</span><span class="o">.</span><span class="n">orchard_root</span><span class="p">,</span>
+        <span class="n">nOrchardTxCount</span><span class="o">=</span><span class="p">(</span><span class="n">left_child</span><span class="o">.</span><span class="n">nOrchardTxCount</span> <span class="o">+</span> <span class="n">right_child</span><span class="o">.</span><span class="n">nOrchardTxCount</span>
+                         <span class="k">if</span> <span class="n">left_child</span><span class="o">.</span><span class="n">nOrchardTxCount</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">right_child</span><span class="o">.</span><span class="n">nOrchardTxCount</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                         <span class="k">else</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="n">consensusBranchId</span><span class="o">=</span><span class="n">left_child</span><span class="o">.</span><span class="n">consensusBranchId</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">make_root_commitment</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="n">ZcashMMRNode</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Makes the root commitment for a blockheader&#39;&#39;&#39;</span>
+    <span class="k">return</span> <span class="n">H</span><span class="p">(</span><span class="n">root</span><span class="o">.</span><span class="n">serialize</span><span class="p">(),</span> <span class="n">root</span><span class="o">.</span><span class="n">consensusBranchId</span><span class="p">)</span></pre>
+            </section>
+            <section id="incremental-push-and-pop-pseudocode"><h3><span class="section-heading">Incremental push and pop (pseudocode)</span><span class="section-anchor"> <a rel="bookmark" href="#incremental-push-and-pop-pseudocode"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>With each new block
+                    <span class="math">\(B_n\)</span>
+                , we append a new MMR leaf node corresponding to block
+                    <span class="math">\(B_{n-1}\)</span>
+                . The <code>append</code> operation is detailed below in pseudocode (adapted from <a id="footnote-reference-10" class="footnote_reference" href="#flyclient">2</a>):</p>
+                <pre data-language="python"><span class="k">def</span> <span class="nf">get_peaks</span><span class="p">(</span><span class="n">node</span><span class="p">:</span> <span class="n">ZcashMMRNode</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">ZcashMMRNode</span><span class="p">]:</span>
+    <span class="n">peaks</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">ZcashMMRNode</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c1"># Get number of leaves.</span>
+    <span class="n">leaves</span> <span class="o">=</span> <span class="n">latest_height</span> <span class="o">-</span> <span class="p">(</span><span class="n">earliest_height</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">assert</span><span class="p">(</span><span class="n">leaves</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="c1"># Check if the number of leaves is a power of two.</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">leaves</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">leaves</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="c1"># Tree is full, hence a single peak. This also covers the</span>
+        <span class="c1"># case of a single isolated leaf.</span>
+        <span class="n">peaks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># If the number of leaves is not a power of two, then this</span>
+        <span class="c1"># node must be internal, and cannot be a peak.</span>
+        <span class="n">peaks</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">get_peaks</span><span class="p">(</span><span class="n">left_child</span><span class="p">))</span>
+        <span class="n">peaks</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">get_peaks</span><span class="p">(</span><span class="n">right_child</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">peaks</span>
+
+
+<span class="k">def</span> <span class="nf">bag_peaks</span><span class="p">(</span><span class="n">peaks</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">ZcashMMRNode</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">ZcashMMRNode</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    &quot;Bag&quot; a list of peaks, and return the final root</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">root</span> <span class="o">=</span> <span class="n">peaks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">peaks</span><span class="p">)):</span>
+        <span class="n">root</span> <span class="o">=</span> <span class="n">make_parent</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">peaks</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">root</span>
+
+
+<span class="k">def</span> <span class="nf">append</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="n">ZcashMMRNode</span><span class="p">,</span> <span class="n">leaf</span><span class="p">:</span> <span class="n">ZcashMMRNode</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ZcashMMRNode</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Append a leaf to an existing tree, return the new tree root&#39;&#39;&#39;</span>
+    <span class="c1"># recursively find a list of peaks in the current tree</span>
+    <span class="n">peaks</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">ZcashMMRNode</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_peaks</span><span class="p">(</span><span class="n">root</span><span class="p">)</span>
+    <span class="n">merged</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">ZcashMMRNode</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c1"># Merge peaks from right to left.</span>
+    <span class="c1"># This will produce a list of peaks in reverse order</span>
+    <span class="n">current</span> <span class="o">=</span> <span class="n">leaf</span>
+    <span class="k">for</span> <span class="n">peak</span> <span class="ow">in</span> <span class="n">peaks</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+        <span class="n">current_leaves</span> <span class="o">=</span> <span class="n">current</span><span class="o">.</span><span class="n">latest_height</span> <span class="o">-</span> <span class="p">(</span><span class="n">current</span><span class="o">.</span><span class="n">earliest_height</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">peak_leaves</span> <span class="o">=</span> <span class="n">peak</span><span class="o">.</span><span class="n">latest_height</span> <span class="o">-</span> <span class="p">(</span><span class="n">peak</span><span class="o">.</span><span class="n">earliest_height</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">current_leaves</span> <span class="o">==</span> <span class="n">peak_leaves</span><span class="p">:</span>
+            <span class="n">current</span> <span class="o">=</span> <span class="n">make_parent</span><span class="p">(</span><span class="n">peak</span><span class="p">,</span> <span class="n">current</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">merged</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">current</span><span class="p">)</span>
+            <span class="n">current</span> <span class="o">=</span> <span class="n">peak</span>
+    <span class="n">merged</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">current</span><span class="p">)</span>
+
+    <span class="c1"># finally, bag the merged peaks</span>
+    <span class="k">return</span> <span class="n">bag_peaks</span><span class="p">(</span><span class="n">merged</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span></pre>
+                <p>In case of a block reorg, we have to delete the latest (i.e. rightmost) MMR leaf nodes, up to the reorg length. This operation is
+                    <span class="math">\(O(\log(k))\)</span>
+                 where
+                    <span class="math">\(k\)</span>
+                 is the number of leaves in the right subtree of the MMR root.</p>
+                <pre data-language="python"><span class="k">def</span> <span class="nf">delete</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="n">ZcashMMRNode</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ZcashMMRNode</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Delete the rightmost leaf node from an existing MMR</span>
+<span class="sd">    Return the new tree root</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="n">n_leaves</span> <span class="o">=</span> <span class="n">root</span><span class="o">.</span><span class="n">latest_height</span> <span class="o">-</span> <span class="p">(</span><span class="n">root</span><span class="o">.</span><span class="n">earliest_height</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="c1"># if there were an odd number of leaves,</span>
+    <span class="c1"># simply replace root with left_child</span>
+    <span class="k">if</span> <span class="n">n_leaves</span> <span class="o">&amp;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">root</span><span class="o">.</span><span class="n">left_child</span>
+
+    <span class="c1"># otherwise, we need to re-bag the peaks.</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># first peak</span>
+        <span class="n">peaks</span> <span class="o">=</span> <span class="p">[</span><span class="n">root</span><span class="o">.</span><span class="n">left_child</span><span class="p">]</span>
+
+        <span class="c1"># we do this traversing the right (unbalanced) side of the tree</span>
+        <span class="c1"># we keep the left side (balanced subtree or leaf) of each subtree</span>
+        <span class="c1"># until we reach a leaf</span>
+        <span class="n">subtree_root</span> <span class="o">=</span> <span class="n">root</span><span class="o">.</span><span class="n">right_child</span>
+        <span class="k">while</span> <span class="n">subtree_root</span><span class="o">.</span><span class="n">left_child</span><span class="p">:</span>
+            <span class="n">peaks</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">subtree_root</span><span class="o">.</span><span class="n">left_child</span><span class="p">)</span>
+            <span class="n">subtree_root</span> <span class="o">=</span> <span class="n">subtree_root</span><span class="o">.</span><span class="n">right_child</span>
+
+    <span class="n">new_root</span> <span class="o">=</span> <span class="n">bag_peaks</span><span class="p">(</span><span class="n">peaks</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">new_root</span></pre>
+            </section>
+            <section id="block-header-semantics-and-consensus-rules"><h3><span class="section-heading">Block header semantics and consensus rules</span><span class="section-anchor"> <a rel="bookmark" href="#block-header-semantics-and-consensus-rules"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>The following specification is accurate before NU5 activation. See <a id="footnote-reference-11" class="footnote_reference" href="#zip-0244">9</a> for header field changes in NU5.</p>
+                <p>The <code>hashFinalSaplingRoot</code> block header field (which was named <code>hashReserved</code> prior to the Sapling network upgrade) is renamed to <code>hashLightClientRoot</code>, to reflect its usage by light clients. (In NU5, this field is renamed again to <code>hashBlockCommitments</code> as specified in <a id="footnote-reference-12" class="footnote_reference" href="#zip-0244">9</a>.)</p>
+                <p>Prior to activation of the network upgrade that deploys this ZIP, this existing consensus rule on block headers (adjusted for the renamed field) is enforced: <a id="footnote-reference-13" class="footnote_reference" href="#protocol-blockheader">3</a></p>
+                <blockquote>
+                    <p>[Sapling onward] <code>hashLightClientRoot</code> MUST be
+                        <span class="math">\(\mathsf{LEBS2OSP}_{256}(\mathsf{rt})\)</span>
+                     where
+                        <span class="math">\(\mathsf{rt}\)</span>
+                     is the root of the Sapling note commitment tree for the final Sapling tree state of this block.</p>
+                </blockquote>
+                <p>In the block that activates this ZIP, <code>hashLightClientRoot</code> MUST be set to all zero bytes. This MUST NOT be interpreted as a root hash.</p>
+                <p>In subsequent blocks, <code>hashLightClientRoot</code> MUST be set to the value of <code>hashChainHistoryRoot</code> as specified above.</p>
+                <p>The block header byte format and version are not altered by this ZIP.</p>
+            </section>
+        </section>
+        <section id="rationale"><h2><span class="section-heading">Rationale</span><span class="section-anchor"> <a rel="bookmark" href="#rationale"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <section id="tree-nodes"><h3><span class="section-heading">Tree nodes</span><span class="section-anchor"> <a rel="bookmark" href="#tree-nodes"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Nodes in the commitment tree are canonical and immutable. They are cheap to generate, as (with the exception of <code>nSaplingTxCount</code> and <code>nOrchardTxCount</code>) all metadata is already generated during block construction and/or checked during block validation. Nodes are relatively compact in memory. As of the original publication of this ZIP, approximately 140,000 blocks had elapsed since Sapling activation. Assuming a 164-byte commitment to each of these, we would have generated approximately 24 MB of additional storage cost for the set of leaf nodes (and an additional ~24 MB for storage of intermediate nodes).</p>
+                <p><code>hashSubtreeCommitment</code> forms the structure of the commitment tree. Other metadata commitments were chosen to serve specific purposes. Originally variable-length commitments were placed last, so that most metadata in a node could be directly indexed. We considered using fixed-length commitments here, but opted for variable-length, in order to marginally reduce the memory requirements for managing and updating the commitment trees.</p>
+                <p>Orchard fields are placed last, in order to avoid complicating existing uses of the other fields.</p>
+                <p>In leaf nodes, some information is repeated. We chose to do this so that leaf nodes could be treated identically to internal and root nodes for all algorithms and (de)serializers. Leaf nodes are easily identifiable, as they will show proof of work in the <code>hashSubtreeCommitment</code> field (which commits to the block hash for leaf nodes), and their block range (calculated as <code>nLatestHeight</code> - (<code>nEarliestHeight</code> - 1)) will be precisely 1.</p>
+                <p>Personalized BLAKE2b-256 was selected to match existing Zcash conventions. Adding the consensus branch ID to the hash personalization string ensures that valid nodes from one consensus branch cannot be used to make false statements about parallel consensus branches.</p>
+                <section id="flyclient-requirements-and-recommendations"><h4><span class="section-heading">FlyClient Requirements and Recommendations</span><span class="section-anchor"> <a rel="bookmark" href="#flyclient-requirements-and-recommendations"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>These commitments enable FlyClient in the variable-difficulty model. Specifically, they allow light clients to reason about application of the difficulty adjustment algorithm over a range of blocks. They were chosen via discussion with an author of the FlyClient paper.</p>
+                    <ul>
+                        <li><code>nEarliestTimestamp</code></li>
+                        <li><code>nLatestTimestamp</code></li>
+                        <li><code>nEarliestTargetBits</code></li>
+                        <li><code>nLatestTargetBits</code></li>
+                        <li><code>nEarliestHeight</code></li>
+                        <li><code>nLatestHeight</code></li>
+                        <li><code>nSubTreeTotalWork</code></li>
+                    </ul>
+                </section>
+                <section id="non-flyclient-commitments"><h4><span class="section-heading">Non-FlyClient Commitments</span><span class="section-anchor"> <a rel="bookmark" href="#non-flyclient-commitments"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Additional metadata commitments were chosen primarily to improve light client security guarantees. We specified commitments where we could see an obvious security benefit, but there may be other useful metadata that we missed. We're interested in feedback and suggestions from the implementers of the current light client.</p>
+                    <p>We considered adding a commitment to the nullifier vector at each block. We would appreciate comments from light client teams on the utility of this commitment, as well as the proper serialization and commitment format for the nullifier vector, for possible inclusion in a future upgrade.</p>
+                    <ul>
+                        <li><code>hashEarliestSaplingRoot</code>
+                            <ul>
+                                <li>Committing to the earliest Sapling root of a range of blocks allows light clients to check the consistency of treestate transitions over a range of blocks, without recalculating the root from genesis.</li>
+                            </ul>
+                        </li>
+                        <li><code>hashLatestSaplingRoot</code>
+                            <ul>
+                                <li>This commitment serves the same purpose as <code>hashFinalSaplingRoot</code> in current Sapling semantics.</li>
+                                <li>However, because the MMR tree commits to blocks
+                                    <span class="math">\(B_x \ldots B_{n-1}\)</span>
+                                , the latest commitment will describe the final treestate of the previous block, rather than the current block.</li>
+                                <li>Concretely: block 500 currently commits to the final treestate of block 500 in its header. With this ZIP, block 500 will commit to all roots up to block 499, but not the final root of block 500.</li>
+                                <li>We feel this is an acceptable tradeoff. Using the most recent treestate as a transaction anchor is already unsafe in reorgs. Clients should never use the most recent treestate to generate transactions, so it is acceptable to delay commitment by one block.</li>
+                            </ul>
+                        </li>
+                        <li><code>nSaplingTxCount</code>
+                            <ul>
+                                <li>By committing to the number of Sapling transactions in blocks (and ranges of blocks), a light client may reliably learn whether a malicious server is witholding any Sapling transactions.</li>
+                                <li>In addition, this commitment allows light clients to avoid syncing header ranges that do not contain Sapling transactions. As the primary cost of a light client is transmission of Equihash solution information in block headers, this optimization would significantly decrease the bandwidth requirements of light clients.</li>
+                                <li>An earlier draft of this ZIP committed to the number of shielded transactions, counting both Sprout and Sapling. This commitment would not have been useful to light clients that only support Sapling addresses; they would not be able to distinguish between Sapling transactions being maliciously withheld, and Sprout transactions not being requested.</li>
+                                <li>A commitment to the number of Sprout transactions in blocks was not included, because Sprout addresses are effectively deprecated at this point, and will not be supported by any light clients.</li>
+                                <li>If a future network upgrade introduced a new shielded pool, a new commitment to that pool's transactions would be added, to similarly enable future light clients that do not support Sapling addresses.</li>
+                            </ul>
+                        </li>
+                        <li><code>hashEarliestOrchardRoot</code>, <code>hashLatestOrchardRoot</code>, and <code>nOrchardTxCount</code>
+                            <ul>
+                                <li>These are included with the same rationale as for Sapling.</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </section>
+            </section>
+            <section id="header-format-change"><h3><span class="section-heading">Header Format Change</span><span class="section-anchor"> <a rel="bookmark" href="#header-format-change"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>The primary goal of the original authors was to minimize header changes; in particular, they preferred not to introduce changes that could affect mining hardware or embedded software. Altering the block header format would require changes throughout the ecosystem, so we decided against adding <code>hashChainHistoryRoot</code> to the header as a new field.</p>
+                <p>ZIP 301 states that "[Miner client software] SHOULD alert the user upon receiving jobs containing block header versions they do not know about or support, and MUST ignore such jobs." <a id="footnote-reference-14" class="footnote_reference" href="#zip-0301">12</a> As the only formally defined block header version is 4, any header version change requires changes to miner client software in order for miners to handle new jobs from mining pools. We therefore do not alter the block version for this semantic change. This does not make block headers ambiguous to interpret, because blocks commit to their block height inside their coinbase transaction, <a id="footnote-reference-15" class="footnote_reference" href="#bip-0034">7</a> and they are never handled in a standalone context (unlike transactions, which exist in the mempool outside of blocks).</p>
+                <p>Replacing <code>hashFinalSaplingRoot</code> with <code>hashChainHistoryRoot</code> does introduce the theoretical possibility of an attack where a miner constructs a Sapling commitment tree update that results in the same 32-byte value as the MMR root. We don't consider this a realistic attack, both because the adversary would need to find a preimage over 32 layers of Pedersen hash, and because light clients already need to update their code to include the consensus branch ID for the Heartwood network upgrade, and can simultaneously make changes to not rely on the value of this header field being the Sapling tree root.</p>
+                <p>We also considered putting <code>hashChainHistoryRoot</code> in the <code>hashPrevBlock</code> field as it commits to the entire chain history, but quickly realized it would require massive refactoring of the existing code base and would negatively impact performance. Reorgs in particular are fragile, performance-critical, and rely on backwards iteration over the chain history. If a chain were to be designed from scratch there may be some efficient implementation that would join these commitments, but it is clearly not appropriate for Zcash as it exists.</p>
+                <p>The calculation of <code>hashChainHistoryRoot</code> is not well-defined for the genesis block, since then
+                    <span class="math">\(n = 0\)</span>
+                 and there is no block
+                    <span class="math">\(B_{n-1}\)</span>
+                . Also, in the case of chains that activate this ZIP after genesis (including Zcash Mainnet and Testnet), the <code>hashChainHistoryRoot</code> of the activation block would commit to the whole previous epoch if a special case were not made. It would be impractical to calculate this commitment all at once, and so we specify that <code>hashLightClientRoot</code> is set to all zero bytes for that block instead. The hash of the final Sapling note commitment tree root for the activation block will not be encoded in that block, but will be committed to one block later in the <code>hashLatestSaplingRoot</code> field of the MMR root commitment.</p>
+            </section>
+        </section>
+        <section id="security-and-privacy-considerations"><h2><span class="section-heading">Security and Privacy Considerations</span><span class="section-anchor"> <a rel="bookmark" href="#security-and-privacy-considerations"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This ZIP imposes an additional validation cost on new blocks. While this validation cost is small, it may exacerbate any existing DoS opportunities, particularly during abnormal events like long reorgs. Fortunately, these costs are logarithmic in the number of delete and append operations. In the worst case scenario, a well-resourced attacker could maintain 2 chains of approximately equal length, and alternate which chain they extend. This would result in repeated reorgs of increasing length.</p>
+            <p>Given the performance of BLAKE2b, we expect this validation cost to be negligible. However, it seems prudent to benchmark potential MMR implementations during the implementation process. Should the validation cost be higher than expected, there are several potential mitigations, e.g. holding recently seen nodes in memory after a reorg.</p>
+            <p>Generally, header commitments have no impact on privacy. However, FlyClient has additional security and privacy implications. Because FlyClient is a motivating factor for this ZIP, it seems prudent to include a brief overview. A more in-depth security analysis of FlyClient should be performed before designing a FlyClient-based light client ecosystem for Zcash.</p>
+            <p>FlyClient, like all light clients, requires a connection to a light client server. That server may collect information about client requests, and may use that information to attempt to deanonymize clients. However, because FlyClient proofs are non-interactive and publicly verifiable, they could be shared among many light clients after the initial server interaction.</p>
+            <p>FlyClient proofs are probabilistic. When properly constructed, there is negligible probability that a dishonest chain commitment will be accepted by the verifier. The security analysis assumes adversary mining power is bounded by a known fraction of combined mining power of honest nodes, and cannot drop or tamper with messages between client and full nodes. It also assumes the client is connected to at least one full node and knows the genesis block.</p>
+            <p>In addition, <a id="footnote-reference-16" class="footnote_reference" href="#flyclient">2</a> only analyses these security properties in chain models with slowly adjusting difficulty, such as Bitcoin. That paper leaves their analysis in chains with rapidly adjusting difficulty –such as Zcash or Ethereum– as an open problem, and states that the FlyClient protocol provides only heuristic security guarantees in that case. However, as mentioned in <a href="#flyclient-requirements-and-recommendations">FlyClient Requirements and Recommendations</a>, additional commitments allowing light clients to reason about application of the difficulty adjustment algorithm were added in discussion with an author of the FlyClient paper. The use of these fields has not been analysed in the academic security literature. It would be possible to update them in a future network upgrade if further security analysis were to find any deficiencies.</p>
+        </section>
+        <section id="deployment"><h2><span class="section-heading">Deployment</span><span class="section-anchor"> <a rel="bookmark" href="#deployment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>On the Zcash Mainnet and Testnet, this proposal will be deployed with the Heartwood network upgrade. <a id="footnote-reference-17" class="footnote_reference" href="#zip-0250">10</a></p>
+            <p>Additional fields are added on activation of the NU5 network upgrade <a id="footnote-reference-18" class="footnote_reference" href="#zip-0252">11</a>, to support the new Orchard shielded protocol.</p>
+        </section>
+        <section id="additional-reading"><h2><span class="section-heading">Additional Reading</span><span class="section-anchor"> <a rel="bookmark" href="#additional-reading"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <ul>
+                <li><a href="https://github.com/mahdiz/flyeth">Flyclient enabled geth fork by FlyClient authors</a></li>
+                <li><a href="https://github.com/etclabscore/ECIPs/blob/f37acdbb392e18a61c8a6600ca1c4a2edee5813d/ECLIPs/ECIP-draft_succinct-proofs.md">Draft ECIP-1055: Succinct PoW Using Merkle Mountain Ranges</a></li>
+                <li><a href="https://github.com/mimblewimble/grin/tree/master/core/src/core/pmmr">Grin project MMR implementation in Rust</a></li>
+                <li><a href="https://github.com/tari-project/tari/tree/development/base_layer/mmr">Tari Project MMR implementation in Rust</a></li>
+                <li><a href="https://github.com/BeamMW/beam/blob/master/core/merkle.cpp">Beam Project MMR implementation in C++</a></li>
+                <li><a href="https://github.com/mimblewimble/grin/blob/master/doc/mmr.md">Mimblewimble MMR docs</a></li>
+                <li><a href="https://github.com/proofchains/python-proofmarshal/blob/master/proofmarshal/mmr.py">MMR Python implementation</a></li>
+                <li><a href="https://docs.rs/merklemountainrange/0.0.1/src/merklemountainrange/lib.rs.html">Tari MMR documentation</a></li>
+                <li><a href="https://github.com/opentimestamps/opentimestamps-server/blob/master/doc/merkle-mountain-range.md">opentimestamps-server Merkle Mountain Range documentation</a></li>
+            </ul>
+        </section>
+        <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <table id="bcp14" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>1</th>
+                        <td><a href="https://www.rfc-editor.org/info/bcp14">Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="flyclient" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>2</th>
+                        <td><a href="https://eprint.iacr.org/2019/226">FlyClient protocol</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-blockheader" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>3</th>
+                        <td><a href="protocol/protocol.pdf#blockheader">Zcash Protocol Specification, Version 2021.2.16. Section 7.6: Block Header Encoding and Consensus</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-workdef" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>4</th>
+                        <td><a href="protocol/protocol.pdf#workdef">Zcash Protocol Specification, Version 2021.2.16. Section 7.7.5: Definition of Work</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zcashblock" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>5</th>
+                        <td><a href="https://github.com/zcash/zcash/blob/master/src/primitives/block.h">Zcash block primitive</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="mimblewimble" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>6</th>
+                        <td><a href="https://github.com/mimblewimble/grin/blob/aedac483f5a116b91a8baf6acffd70e5f980b8cc/core/src/core/pmmr/pmmr.rs">MimbleWimble Grin MMR implementation</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bip-0034" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>7</th>
+                        <td><a href="https://github.com/bitcoin/bips/blob/master/bip-0034.mediawiki">BIP 34: Block v2, Height in Coinbase</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0200" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>8</th>
+                        <td><a href="zip-0200">ZIP 200: Network Upgrade Mechanism</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0244" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>9</th>
+                        <td><a href="zip-0244">ZIP 244: Transaction Identifier Non-Malleability</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0250" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>10</th>
+                        <td><a href="zip-0250">ZIP 250: Deployment of the Heartwood Network Upgrade</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0252" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>11</th>
+                        <td><a href="zip-0252">ZIP 252: Deployment of the NU5 Network Upgrade</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0301" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>12</th>
+                        <td><a href="https://github.com/zcash/zips/pull/78">ZIP 301: Zcash Stratum Protocol</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0307" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>13</th>
+                        <td><a href="https://github.com/zcash/zips/pull/226">ZIP 307: Light Client Protocol for Payment Detection</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </section>
+</body>
+</html>

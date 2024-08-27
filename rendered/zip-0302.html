@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZIP 302: Standardized Memo Field Format</title>
+    <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+    <section>
+        <pre>ZIP: 302
+Title: Standardized Memo Field Format
+Owners: Jack Grigg &lt;jack@electriccoin.co&gt;
+Original-Authors: Jay Graber
+Status: Draft
+Category: Standards / RPC / Wallet
+Created: 2017-02-08
+Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/366">https://github.com/zcash/zips/issues/366</a>&gt;
+Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/105">https://github.com/zcash/zips/pull/105</a>&gt;</pre>
+        <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This ZIP describes a proposed specification for a standardized format for clients who wish to transmit or receive content within the encrypted memo field of shielded transactions.</p>
+        </section>
+        <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>A well-defined standard for formatting content within the encrypted memo field will help expand its use within the Zcash ecosystem by providing a commonly recognized format for memo values carrying different types of data. Users and third-party services benefit from standardized formatting rules that define the type and length of the data contained within.</p>
+        </section>
+        <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>Section 5.5 of the Zcash protocol specification <a id="footnote-reference-1" class="footnote_reference" href="#protocol">1</a> defines three cases for the encoding of a memo field:</p>
+            <ul>
+                <li>a UTF-8 human-readable string <a id="footnote-reference-2" class="footnote_reference" href="#utf-8">2</a>, padded by appending zero bytes; or</li>
+                <li>the byte <code>0xF6</code> followed by 511 <code>0x00</code> bytes, indicating "no memo"; or</li>
+                <li>any other sequence of 512 bytes starting with a byte value <code>0xF5</code> or greater (which is therefore not a valid UTF-8 string), as specified in ZIP 302.</li>
+            </ul>
+            <p>This ZIP refines the specification of the third case.</p>
+            <p>The following specification constrains a party, called the "reader", that interprets the contents of a memo. It does not define consensus requirements.</p>
+            <ul>
+                <li>If the first byte (byte 0) has a value of <code>0xF4</code> or smaller, then the reader MUST:
+                    <ul>
+                        <li>strip any trailing zero bytes</li>
+                        <li>decode it as a UTF-8 string (if decoding fails then report an error).</li>
+                    </ul>
+                </li>
+                <li>If the first byte has a value of <code>0xF6</code>, and the remaining 511 bytes are <code>0x00</code>, then the user supplied no memo, and the encrypted memo field is to be treated as empty.</li>
+                <li>If the memo matches any of these patterns, then this memo is from the future, because these ranges are reserved for future updates to this specification:
+                    <ul>
+                        <li>The first byte has a value of <code>0xF6</code>, and the remaining 511 bytes are not all <code>0x00</code>.</li>
+                        <li>The first byte has a value between <code>0xF7</code> and <code>0xFE</code> inclusive.</li>
+                    </ul>
+                </li>
+                <li>If the first byte has a value of <code>0xFF</code> then the reader should not make any other assumption about the memo. In order to put arbitrary data into a memo field (that might have some private non-standard structure), the value of the first byte SHOULD be set to 0xFF; the remaining 511 bytes are then unconstrained.</li>
+                <li>If the first byte has a value of <code>0xF5</code>, then the reader should not make any other assumption about the memo. This value was used ambiguously in the past by private agreement; applications SHOULD prefer <code>0xFF</code> which is unambiguously for this purpose.</li>
+            </ul>
+        </section>
+        <section id="rationale"><h2><span class="section-heading">Rationale</span><span class="section-anchor"> <a rel="bookmark" href="#rationale"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The new protocol specification is an improvement over the current memo field content specification that was in the protocol spec up to version 2020.1.0, which stated:</p>
+            <blockquote>
+                <p>The usage of the memo field is by agreement between the sender and recipient of the note. The memo field SHOULD be encoded either as:</p>
+                <ul>
+                    <li>a UTF-8 human-readable string [Unicode], padded by appending zero bytes; or</li>
+                    <li>an arbitrary sequence of 512 bytes starting with a byte value of <code>0xF5</code> or greater, which is therefore not a valid UTF-8 string.</li>
+                </ul>
+                <p>In the former case, wallet software is expected to strip any trailing zero bytes and then display the resulting UTF-8 string to the recipient user, where applicable. Incorrect UTF-8-encoded byte sequences should be displayed as replacement characters (<code>U+FFFD</code>).</p>
+                <p>In the latter case, the contents of the memo field SHOULD NOT be displayed. A start byte of <code>0xF5</code> is reserved for use by automated software by private agreement. A start byte of <code>0xF6</code> or greater is reserved for use in future Zcash protocol extensions.</p>
+            </blockquote>
+            <p>See issue <a href="https://github.com/zcash/zcash/issues/1849">#1849</a> for further discussion.</p>
+        </section>
+        <section id="backwards-compatibility"><h2><span class="section-heading">Backwards Compatibility</span><span class="section-anchor"> <a rel="bookmark" href="#backwards-compatibility"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>Encrypted memo field contents sent without the standardized format proposed here will be interpreted according to the specification set out in older versions of the protocol spec.</p>
+        </section>
+        <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <table id="protocol" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>1</th>
+                        <td><a href="protocol/protocol.pdf">Zcash Protocol Specification, Version 2021.1.19</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="utf-8" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>2</th>
+                        <td><a href="https://www.rfc-editor.org/rfc/rfc3629.html">UTF-8, a transformation format of ISO 10646</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bitcoin-compactsize" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>3</th>
+                        <td><a href="https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer">Variable length integer. Bitcoin Wiki</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </section>
+</body>
+</html>

@@ -1,0 +1,242 @@
+::
+
+  ZIP: 401
+  Title: Addressing Mempool Denial-of-Service
+  Owners: Daira-Emma Hopwood <daira-emma@electriccoin.co>
+  Status: Active
+  Category: Network
+  Created: 2019-09-09
+  License: MIT
+
+
+Terminology
+===========
+
+The key words "MUST", "SHOULD", and "MAY" in this document are to be interpreted
+as described in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
+
+
+Abstract
+========
+
+This proposal specifies a change to the behaviour of `zcashd` nodes intended to
+mitigate denial-of-service from transaction flooding.
+
+
+Motivation
+==========
+
+Adoption of this proposal would increase robustness of Zcash nodes against
+denial-of-service attack, in particular attacks that attempt to exhaust node
+memory.
+
+Bitcoin Core added size limitation for the mempool in version 0.12
+[#BitcoinCore-PR6722]_, defaulting to 300 MB. This was after Zcash forked from
+Bitcoin Core.
+
+
+Requirements
+============
+
+The memory usage of a node’s mempool should be bounded.
+
+The eviction policy should as far as possible not be “gameable” by an adversary,
+i.e. an adversary should not be able to cause legitimate transactions (that do not
+themselves present any denial-of-service problem) to be preferentially evicted
+relative to its own transactions.
+
+Any configuration options should have reasonable defaults, i.e. without changing
+relevant configuration, a node should be adequately protected from denial-of-service
+via mempool memory exhaustion.
+
+
+Non-requirements
+================
+
+The current architecture of Zcash imposes fundamental limits on scaling of
+transaction throughput. This proposal does not increase the aggregate transaction
+capacity of the network. (The Blossom upgrade does increase transaction capacity,
+by a factor of two [#zip-0208]_.)
+
+Denial-of-service issues in the messaging layer of the peer-to-peer protocol are
+out of scope for this proposal.
+
+This proposal is focused primarily on memory exhaustion attacks. It does not
+attempt to use fees to make denial-of-service economically prohibitive, since that
+is unlikely to be feasible while maintaining low fees for legitimate users. It
+does not preclude changes in fee policy.
+
+
+Specification
+=============
+
+This specification describes the intended behaviour of `zcashd` nodes. Other node
+implementations MAY implement the same or similar behaviour, but this is not a
+requirement of the network protocol. Thus, RFC 2119 conformance keywords below are
+to be interpreted only as placing requirements on the `zcashd` implementation (and
+potentially other implementations that have adopted this specification in full).
+
+The mempool of a node holds a set of transactions. Each transaction has a *cost*,
+which is an integer defined as:
+
+  max(memory size in bytes, 10000)
+
+The memory size is an estimate of the size that a transaction occupies in the
+memory of a node. It MAY be approximated as the serialized transaction size in
+bytes.
+
+Each transaction also has an *eviction weight*, which is *cost* + *low_fee_penalty*,
+where *low_fee_penalty* is 40000 if the transaction pays a fee less than the
+conventional fee, otherwise 0. The conventional fee is currently defined in
+ZIP 317 [#zip-0317]_.
+
+Each node also MUST hold a FIFO queue RecentlyEvicted of pairs (txid, time), where
+the time indicates when the transaction with the given txid was evicted. The txid
+(rather than the wtxid as defined in [#zip-0239]_) is used even for version 5
+transactions after activation of NU5 [#zip-0252]_.
+
+The RecentlyEvicted queue SHOULD be empty on node startup. The size of RecentlyEvicted
+SHOULD never exceed ``eviction_memory_entries`` entries, which is the constant 40000.
+
+There MUST be a configuration option ``mempooltxcostlimit``, which SHOULD default
+to 80000000.
+
+There MUST be a configuration option ``mempoolevictionmemoryminutes``, which
+SHOULD default to 60.
+
+On receiving a transaction:
+
+* If it is in RecentlyEvicted, the transaction MUST be dropped.
+* Calculate its cost. If the total cost of transactions in the mempool including
+  this one would exceed ``mempooltxcostlimit``, then the node MUST repeatedly
+  call EvictTransaction (with the new transaction included as a candidate to evict)
+  until the total cost does not exceed ``mempooltxcostlimit``.
+
+EvictTransaction MUST do the following:
+
+* Select a random transaction to evict, with probability in direct proportion to
+  eviction weight.
+* Add the txid and the current time to RecentlyEvicted, dropping the oldest entry
+  in RecentlyEvicted if necessary to keep it to at most ``eviction_memory_entries``
+  entries.
+* Remove it from the mempool.
+
+Nodes SHOULD remove transactions from RecentlyEvicted that were evicted more than
+``mempoolevictionmemoryminutes`` minutes ago. This MAY be done periodically,
+and/or just before RecentlyEvicted is accessed when receiving a transaction.
+
+
+Rationale
+=========
+
+The accounting for transaction size should include some overhead per transaction,
+to reflect the cost to the network of processing them (proof and signature
+verification; networking overheads; size of in-memory data structures). The
+implication of not including overhead is that a denial-of-service attacker would
+be likely to use minimum-size transactions so that more of them would fit in a
+block, increasing the unaccounted-for overhead. A possible counterargument would
+be that the complexity of accounting for this overhead is unwarranted given that
+the format of a transaction already imposes a minimum size. However, the proposed
+cost function is almost as simple as using transaction size directly.
+
+There is some ambiguity in the specification of a transaction's "memory size",
+allowing implementations to use different approximations. Currently, `zcashd`
+uses a size computed by the ``RecursiveDynamicUsage`` function, and `zebrad` uses
+the serialized size. This has been changed from a previous version of this ZIP
+that specified use of the serialized size, to reflect how the implementation in
+`zcashd` has worked since it was first deployed [#size-ambiguity]_.
+
+The threshold 10000 for the cost function is chosen so that the size in bytes of
+a minimal fully shielded Orchard transaction with 2 shielded actions (having a
+serialized size of 9165 bytes) will fall below the threshold. This has the effect
+of ensuring that such transactions are not evicted preferentially to typical
+transparent or Sapling transactions because of their size. This constant has been
+updated [#constants-update]_ from 4000 to 10000 in parallel with the changes for
+deployment of ZIP 317 [#zip-0317]_; the previous value had been chosen based on
+the typical size of fully shielded Sapling transactions.
+
+The proposed eviction policy differs significantly from that of Bitcoin Core
+[#BitcoinCore-PR6722]_, which is primarily fee-based. This reflects differing
+philosophies about the motivation for fees and the level of fee that legitimate
+users can reasonably be expected to pay. The proposed eviction weight function
+does involve a penalty for transactions with a fee lower than the ZIP 317
+[#zip-0317]_ conventional fee, but since there is no further benefit (as far
+as mempool limiting is concerned) to increasing the fee above the conventional
+fee value, it creates no pressure toward escalating fees. For transactions
+with a memory size up to 10000 bytes, this penalty makes a transaction that
+pays less than the conventional fee five times as likely to be chosen for
+eviction (because :math:`10000 + 40000 = 50000 = 10000 \times 5`).
+
+The fee penalty is not included in the cost that determines whether the mempool
+is considered full. This ensures that a DoS attacker does not have an incentive
+to pay less than the conventional fee in order to cause the mempool to be
+considered full sooner.
+
+The default value of 80000000 for ``mempooltxcostlimit`` represents no more
+than 40 blocks’ worth of transactions in the worst case, which is the default
+expiration height after the Blossom network upgrade [#zip-0208]_. It would serve
+no purpose to make it larger.
+
+The ``mempooltxcostlimit`` is a per-node configurable parameter in order to
+provide flexibility for node operators to change it either in response to
+attempted denial-of-service attacks, or if needed to handle spikes in transaction
+demand. It may also be useful for nodes running in memory-constrained environments
+to reduce this parameter.
+
+The limit of ``eviction_memory_entries`` = 40000 entries in RecentlyEvicted bounds
+the memory needed for this data structure. Since a txid is 32 bytes and a
+timestamp 8 bytes, 40000 entries can be stored in ~1.6 MB, which is small compared
+to other node memory usage (in particular, small compared to the maximum memory
+usage of the mempool itself under the default ``mempooltxcostlimit``).
+``eviction_memory_entries`` entries should be sufficient to mitigate any
+performance loss caused by re-accepting transactions that were previously evicted.
+In particular, since a transaction has a minimum cost of 10000, and the default
+``mempooltxcostlimit`` is 80000000, at most 8000 transactions can be in the
+mempool of a node using the default parameters. While the number of transactions
+“in flight” or across the mempools of all nodes in the network could exceed this
+number, we believe that is unlikely to be a problem in practice.
+
+Note that the RecentlyEvicted queue is intended as a performance optimization
+under certain conditions, rather than as a DoS-mitigation measure in itself.
+
+The default expiry of 40 blocks after Blossom activation represents an expected
+time of 50 minutes. Therefore (even if some blocks are slow), most legitimate
+transactions are expected to expire within 60 minutes. Note however that an
+attacker’s transactions cannot be relied on to expire.
+
+
+Deployment
+==========
+
+This specification was implemented in `zcashd` v2.1.0-1. It is independent of
+the Blossom network upgrade.
+
+The fee threshold for applying the *low_fee_penalty* was reduced from 10000 to
+1000 zatoshis as part of the deployment of ZIP 313 in `zcashd` v4.2.0.
+
+The fee threshold for applying the *low_fee_penalty* changed again in `zcashd`
+v5.5.0 and `zebrad` v1.0.0-rc.7 to match the ZIP 317 conventional fee. At the
+same time, the minimum cost threshold and the *low_fee_penalty* constant was
+increased as proposed in [#constants-update]_.
+
+
+Reference implementation
+========================
+
+* `zcashd PR 4145: DoS protection: Weighted random drop of txs if mempool full <https://github.com/zcash/zcash/pull/4145>`_
+* `zcashd PR 4166: Use same type when calling max (macOS compilation fix) <https://github.com/zcash/zcash/pull/4166>`_
+* `zcashd PR 4916: Reduce default fee to 1000 zatoshis <https://github.com/zcash/zcash/pull/4916>`_
+* `zcashd PR 6564: Change ZIP 401 mempool limiting to use conventional fee and new constants <https://github.com/zcash/zcash/pull/6564>`_
+
+
+References
+==========
+
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#zip-0208] `ZIP 208: Shorter Block Target Spacing <zip-0208.rst>`_
+.. [#zip-0239] `ZIP 239: Relay of Version 5 Transactions <zip-0239.rst>`_
+.. [#zip-0252] `ZIP 252: Deployment of the NU5 Network Upgrade <zip-0252.rst>`_
+.. [#zip-0317] `ZIP 317: Proportional Transfer Fee Mechanism <zip-0317.rst>`_
+.. [#constants-update] `zcash/zips issue #565 - ZIP 401: Increase the minimum eviction cost to avoid penalizing Orchard <https://github.com/zcash/zips/issues/565>`_
+.. [#size-ambiguity] `zcash/zips issue #673 - ZIP 401 uses serialized size to calculate cost but the zcashd implementation uses RecursiveDynamicUsage <https://github.com/zcash/zips/issues/673>`_
+.. [#BitcoinCore-PR6722] `Bitcoin Core PR 6722: Limit mempool by throwing away the cheapest txn and setting min relay fee to it <https://github.com/bitcoin/bitcoin/pull/6722>`_

@@ -1,0 +1,206 @@
+::
+
+  ZIP: 2001
+  Title: Lockbox Funding Streams
+  Owners: Kris Nuttycombe <kris@nutty.land>
+  Credits: Daira-Emma Hopwood <daira-emma@electriccoin.co>
+           Jack Grigg <jack@electriccoin.co>
+  Status: Proposed
+  Category: Consensus
+  Created: 2024-07-02
+  License: MIT
+  Pull-Request: <https://github.com/zcash/zips/pull/>
+
+Terminology
+===========
+
+The key words "MUST", "REQUIRED", "MUST NOT", "SHOULD", and "MAY" in this
+document are to be interpreted as described in BCP 14 [#BCP14]_ when, and only
+when, they appear in all capitals.
+
+Abstract
+========
+
+This ZIP specifies a change to the Zcash consensus protocol to define a pool
+of issued Zcash value to be used to fund future development efforts within the
+Zcash ecosystem.
+
+This ZIP builds upon the funding stream mechanism defined in ZIP 207
+[#zip-0207]_. It defines a new "DEFERRED_POOL" funding stream type such that
+portions of the block reward sent to a stream of this type are deposited
+directly into the deferred funding pool instead of being sent to a recipient
+address. Other ways of adding to the pool, such as allowing for direct deposits
+or fee value currently allocated to miners may be defined in the future.
+
+Motivation
+==========
+
+In accordance with ZIP 1014, [#zip-1014]_ the Zcash block reward is allocated
+with 80% going to miners, and the remaining 20% distributed among the Major
+Grants Fund (8%), Electric Coin Company (ECC) (7%), and the Zcash Foundation
+(ZF) (5%). This funding structure supports various essential activities such as
+protocol development, security, marketing, and legal expenses. However, this
+model will expire in November 2024, leading to the entire block reward being
+allocated to miners if no changes are made.
+
+Several draft ZIPs under consideration for replacing the existing direct
+allocation of block rewards suggest that part of the block reward be directed
+to a reserve, the distribution of which is to be determined via a future ZIP.
+This ZIP is intended to provide a common mechanism that can be used to
+implement these various proposals.
+
+Requirements
+============
+
+The Zcash protocol will maintain a new Deferred chain pool value balance
+:math:`\mathsf{PoolValue}_{Deferred}` for the deferred funding pool, in much
+the same fashion as it maintains chain pool value balances for the transparent,
+Sprout, Sapling, and Orchard pools.
+
+The funding stream mechanism defined in ZIP 207 [#zip-0207]_ is modified such
+that a funding stream may deposit funds into the deferred pool.
+
+Specification
+=============
+
+Modifications to ZIP 207 [#zip-0207]_
+-------------------------------------
+
+The following paragraph is added to the section **Motivation**:
+
+    ZIP TBD [#draft-nuttycom-funding-allocation]_ directs part of the block reward
+    to a reserve, the distribution of which is to be determined via a future ZIP.
+    ZIP 2001 [#zip-2001]_ modified this ZIP to augment the funding stream mechanism
+    with a common mechanism to implement this proposal.
+
+In the section **Funding streams** [#zip-0207-funding-streams]_, instead of:
+
+    Each funding stream has an associated sequence of recipient addresses,
+    each of which MUST be either a transparent P2SH address or a Sapling address.
+
+it will be modified to read:
+
+    Each funding stream has an associated sequence of recipients, each of which
+    MUST be either a transparent P2SH address, a Sapling address, or the identifier
+    `DEFERRED_POOL`.
+
+After the section **Funding streams**, a new section is added with the heading
+"Deferred Development Fund Chain Value Pool Balance" and the following contents:
+
+    Full node implementations MUST track an additional
+    :math:`\mathsf{PoolValue}_{Deferred}` chain value pool balance, in addition to
+    the Sprout, Sapling, and Orchard chain value pool balances.
+
+    Define :math:`\mathsf{totalDeferredOutput}(\mathsf{height}) := \sum_{\mathsf{fs} \in \mathsf{DeferredFundingStreams}(\mathsf{height})} \mathsf{fs.Value}(\mathsf{height})`
+    where :math:`\mathsf{DeferredFundingStreams}(\mathsf{height})` is the set of
+    funding streams with a recipient of `DEFERRED_POOL` in the block at height
+    :math:`\mathsf{height}`.
+
+    The :math:`\mathsf{PoolValue}_{Deferred}` chain value pool balance for a given
+    block chain is the sum of the values of payments to `DEFERRED_POOL` for
+    transactions in the block chain.
+
+    Equivalently, :math:`\mathsf{PoolValue}_{Deferred}` for a block chain up to
+    and including height :math:`\mathsf{height}` is given by
+    :math:`\sum_{\mathsf{h} = 0}^{\mathsf{height}} \mathsf{totalDeferredOutput}(\mathsf{h})`.
+
+    Note: :math:`\mathsf{totalDeferredOutput}(\mathsf{h})` is necessarily
+    zero for heights :math:`\mathsf{h}` prior to NU6 activation.
+
+In the section **Consensus rules** [#zip-0207-consensus-rules]_, instead of:
+
+    - The coinbase transaction in each block MUST contain at least one output per
+      active funding stream that pays the stream's value in the prescribed way to
+      the stream's recipient address for the block's height.
+
+it will be modified to read:
+
+    - In each block, for each active funding stream with a recipient other than
+      `DEFERRED_POOL` at that block's height, the block's coinbase transaction
+      MUST contain at least one output that pays the stream's value in the
+      prescribed way to that recipient.
+
+After the list of post-Canopy consensus rules, the following paragraph is added:
+
+    The effect of the definition of :math:`\mathsf{PoolValue}_{Deferred}` above
+    is that payments to the `DEFERRED_POOL` cause
+    :math:`\mathsf{FundingStream[FUND].Value}(\mathsf{height})` to be added to
+    :math:`\mathsf{PoolValue}_{Deferred}` for the block chain including that block.
+
+
+Modifications to the protocol specification
+-------------------------------------------
+
+In section **7.1.2 Transaction Consensus Rules** [#protocol-txnconsensus]_, instead of:
+
+    The total value in zatoshi of transparent outputs from a coinbase transaction,
+    minus :math:`\mathsf{v^{balanceSapling}}`, minus :math:`\mathsf{v^{balanceOrchard}}`,
+    MUST NOT be greater than the value in zatoshi of the block subsidy plus the transaction
+    fees paid by transactions in this block.
+
+it will be modified to read:
+
+    For the block at height :math:`\mathsf{height}`:
+
+    - define the "total output value" of its coinbase transaction to be the total value
+      in zatoshi of its transparent outputs, minus :math:`\mathsf{v^{balanceSapling}}`,
+      minus :math:`\mathsf{v^{balanceOrchard}}`, plus :math:`\mathsf{totalDeferredOutput}(\mathsf{height})`;
+    - define the "total input value" of its coinbase transaction to be the value in zatoshi
+      of the block subsidy, plus the transaction fees paid by transactions in the block.
+
+    The total output value of a coinbase transaction MUST NOT be greater than its
+    total input value.
+
+where :math:`\mathsf{totalDeferredOutput}(\mathsf{height})` is defined consistently
+with ZIP 207.
+
+Note: this ZIP and ZIP 236 both make changes to the above rule. Their combined effect
+is that the last paragraph will be replaced by:
+
+    [Pre-NU6] The total output value of a coinbase transaction MUST NOT be greater
+    than its total input value.
+
+    [NU6 onward] The total output value of a coinbase transaction MUST be equal to
+    its total input value.
+
+Section **7.10 Payment of Funding Streams** [#protocol-fundingstreams]_ contains
+language and definitions copied from ZIP 207; it should be updated to reflect the
+changes made above.
+
+In section **3.4 Transactions and Treestates** [#protocol-transactions]_, a definition
+of "total issued supply" will be added, such that the total issued supply as of a given
+height is given by the function:
+
+.. math::
+
+    \begin{array}{ll}
+    \mathsf{IssuedSupply}(\mathsf{height}) := &\!\!\!\!\mathsf{PoolValue}_{Transparent}(\mathsf{height}) \\
+    &+\;\; \mathsf{PoolValue}_{Sprout}(\mathsf{height}) \\
+    &+\,\; \mathsf{PoolValue}_{Sapling}(\mathsf{height}) \\
+    &+\,\; \mathsf{PoolValue}_{Orchard}(\mathsf{height}) \\
+    &+\,\; \mathsf{PoolValue}_{Deferred}(\mathsf{height})
+    \end{array}
+
+The second paragraph of section **1.2 High-level Overview** [#protocol-overview]_
+should also be updated to take into account the deferred chain value pool. Since
+that section of the specification is entirely non-normative, we do not give the
+full wording change here.
+
+
+References
+==========
+
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to
+    Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs
+    Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#zip-1014] `ZIP 1014: Establishing a Dev Fund for ECC, ZF, and Major Grants <zip-1014.rst>`_
+.. [#zip-0207] `ZIP 207: Funding Streams <zip-0207.rst>`_
+.. [#zip-0207-funding-streams] `ZIP 207: Funding Streams. Section: Funding streams <zip-0207.rst#funding-streams>`_
+.. [#zip-0207-consensus-rules] `ZIP 207: Funding Streams. Section: Consensus rules <zip-0207.rst#consensus-rules>`_
+.. [#draft-nuttycom-funding-allocation] `Draft ZIP: Block Reward Allocation for Non-Direct Development Funding <draft-nuttycom-funding-allocation.rst>`_
+.. [#zip-2001] `ZIP 2001: Lockbox Funding Streams <zip-2001.rst>`_
+.. [#protocol-overview] `Zcash Protocol Specification, Version 2023.4.0. Section 1.2: High-level Overview <protocol/protocol.pdf#overview>`
+.. [#protocol-transactions] `Zcash Protocol Specification, Version 2023.4.0. Section 3.4: Transactions and Treestates <protocol/protocol.pdf#transactions>`
+.. [#protocol-txnconsensus] `Zcash Protocol Specification, Version 2023.4.0. Section 7.1.2: Transaction Consensus Rules <protocol/protocol.pdf#txnconsensus>`
+.. [#protocol-subsidies] `Zcash Protocol Specification, Version 2023.4.0. Section 7.8: Calculation of Block Subsidy, Funding Streams, and Founders’ Reward <protocol/protocol.pdf#subsidies>`
+.. [#protocol-fundingstreams] `Zcash Protocol Specification, Version 2023.4.0. Section 7.10: Payment of Funding Streams <protocol/protocol.pdf#fundingstreams>`
