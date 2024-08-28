@@ -22,11 +22,9 @@ PDFDIR=../rendered/protocol
 
 .PHONY: all protocol all-specs tag-release discard
 all: .Makefile.uptodate
-	$(MAKE) $(PDFDIR)/nu6.pdf $(PDFDIR)/nu5.pdf $(PDFDIR)/canopy.pdf $(PDFDIR)/heartwood.pdf $(PDFDIR)/blossom.pdf $(PDFDIR)/sapling.pdf
-	$(MAKE) protocol
+	$(MAKE) $(PDFDIR)/protocol.pdf $(PDFDIR)/nu5.pdf $(PDFDIR)/canopy.pdf $(PDFDIR)/heartwood.pdf $(PDFDIR)/blossom.pdf $(PDFDIR)/sapling.pdf
 
-protocol: $(PDFDIR)/nu5.pdf
-	cp -f $(PDFDIR)/nu5.pdf $(PDFDIR)/protocol.pdf
+protocol: $(PDFDIR)/protocol.pdf
 
 all-specs: .Makefile.uptodate
 	$(MAKE) nu6 nu5 canopy heartwood blossom sapling
@@ -66,7 +64,7 @@ $(PDFDIR)/canopy.pdf: protocol.tex zcash.bib jubjub.png key_components_sapling.p
 $(PDFDIR)/nu5.pdf: protocol.tex zcash.bib jubjub.png key_components_sapling.png key_components_orchard.png incremental_merkle.png
 	$(MAKE) nu5
 
-$(PDFDIR)/nu6.pdf: protocol.tex zcash.bib jubjub.png key_components_sapling.png key_components_orchard.png incremental_merkle.png
+$(PDFDIR)/protocol.pdf: protocol.tex zcash.bib jubjub.png key_components_sapling.png key_components_orchard.png incremental_merkle.png
 	$(MAKE) nu6
 
 .PHONY: auxsapling sapling
@@ -139,8 +137,8 @@ auxnu6:
 
 nu6:
 	$(MAKE) auxnu6
-	mv -f aux/nu6.pdf $(PDFDIR)
+	mv -f aux/nu6.pdf $(PDFDIR)/protocol.pdf
 
 .PHONY: clean
 clean:
-	rm -f aux/* protocol.ver $(PDFDIR)/protocol.pdf $(PDFDIR)/nu6.pdf $(PDFDIR)/nu5.pdf $(PDFDIR)/canopy.pdf $(PDFDIR)/heartwood.pdf $(PDFDIR)/blossom.pdf $(PDFDIR)/sapling.pdf
+	rm -f aux/* protocol.ver $(PDFDIR)/protocol.pdf $(PDFDIR)/nu5.pdf $(PDFDIR)/canopy.pdf $(PDFDIR)/heartwood.pdf $(PDFDIR)/blossom.pdf $(PDFDIR)/sapling.pdf
