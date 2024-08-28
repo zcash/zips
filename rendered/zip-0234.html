@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZIP 234: Smooth Out The Block Subsidy Issuance</title>
+    <meta charset="utf-8" />
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<pre><code>ZIP: 234
+Title: Smooth Out The Block Subsidy Issuance
+Owners: Jason McGee &lt;jason@shieldedlabs.com&gt;
+        Mark Henderson &lt;mark@equilibrium.co&gt;
+        Tomek Piotrowski &lt;tomek@eiger.co&gt;
+        Mariusz Pilarek &lt;mariusz@eiger.co&gt;
+Original-Authors: Nathan Wilcox
+Credits:
+Status: Draft
+Category: Consensus
+Created: 2023-08-23
+License: BSD-2-Clause</code></pre>
+<h1 id="terminology">Terminology</h1>
+<p>The key words “MUST”, “SHOULD”, “SHOULD NOT”, “MAY”, “RECOMMENDED”,
+“OPTIONAL”, and “REQUIRED” in this document are to be interpreted as
+described in RFC 2119. [1]</p>
+<p>“Network upgrade” - to be interpreted as described in ZIP 200.
+[2]</p>
+<p>“Block Subsidy” - to be interpreted as described in the Zcash
+Protocol Specification (TODO ZIP Editors: link from comment).</p>
+<p>“Issuance” - the sum of Block Subsidies over time. (TODO ZIP Editors:
+work out if this definition is correct or can be removed).</p>
+<p>“<code>ZsfBalanceAfter(h)</code>” is the total ZEC available in the
+Zcash Sustainability Fund (ZSF) after the transactions in block
+<code>h</code>, described in ZIP draft-zsf.md. In this ZIP, the
+Sustainability Fund is used to pay out Block Subsidies from unmined ZEC,
+and other fund deposits.</p>
+<p>Let <code>PostBlossomHalvingInterval</code> be as defined in
+[#protocol-diffadjustment]_.</p>
+<h1 id="abstract">Abstract</h1>
+<p>This ZIP proposes a change to how nodes calculate the block
+subsidy.</p>
+<p>Instead of following a step function around the 4-year halving
+intervals inherited from Bitcoin, we propose a slow exponential
+“smoothing” of the curve. The new issuance scheme would approximate the
+current issuance over 4-year intervals.</p>
+<p>This ZIP depends on the ZIP introducing the Zcash Sustainability Fund
+(ZIP-XXX).</p>
+<h1 id="motivation">Motivation</h1>
+<p>The current Zcash economic model, inherited from Bitcoin, includes a
+halving mechanism which dictates the issuance of new coins. While this
+has been foundational, halvings can lead to abrupt changes in the rate
+of new coins being introduced to the market. Such sudden shifts can
+potentially disrupt the network’s economic model, potentially impacting
+its security and stability. Furthermore, the halvings schedule is fixed
+and does not provide any way to “recycle” funds into future
+issuance.</p>
+<p>To address this, we propose issuing a fixed portion of the pending
+funds-to-be-issued in each block. This has the effect of smoothing out
+the issuance curve of ZEC, ensuring a more consistent and predictable
+rate of coin issuance, while still preserving the overall supply cap of
+21,000,000 coins. This mechanism by itself (without other anticipated
+changes) seeks to preserve the core aspects of Zcash’s issuance policy
+and aims to enhance predictability and avoid sudden changes. By making
+this shift, the average block subsidy over time will remain predictable
+with very gradual changes.</p>
+<p>However, we anticipate schemes proposed in [#draft-zsf]_ where the
+amount of funds-to-be-issued may increase. In that scenario, this
+issuance mechanism would distribute that increase starting in the
+immediately following block and subsequent blocks. Because this
+distribution mechanism has an exponential decay, such increases will be
+spread out in miniscule amounts to future blocks over a long time
+period. This issuance mechanism thus provides a way for potential
+increases or decreases of issuance while constraining those changes to
+be small on a short time scale to avoid unexpected disruptions.</p>
+<p>Additionally, the current Bitcoin-style issuance does not take into
+account the current balance of <code>ZsfBalanceAfter(h)</code>. If
+[#draft-zsf]_ were to activate without a change to the issuance
+mechanism, then some funds would never be disbursed after they are
+deposited back into the ZSF.</p>
+<h1 id="requirements">Requirements</h1>
+<p>Smoothing the issuance curve is possible using an exponential decay
+formula that satisfies the following requirements:</p>
+<h2 id="issuance-requirements">Issuance Requirements</h2>
+<ol type="1">
+<li>The issuance can be summarised into a reasonably simple
+explanation</li>
+<li>Block subsidies approximate a continuous function</li>
+<li>If there are funds in the ZSF, then the block subsidy must be
+non-zero, preventing any final “unmined” zatoshis</li>
+<li>For any 4 year period, all paid out block subsidies are
+approximately equal to half of the ZSF at the beginning of that 4 year
+period, if there are no deposits into the ZSF during those 4 years</li>
+</ol>
+<p>TODO daira: add a requirement that makes the initial total issuance
+match the previous total issuance</p>
+<h1 id="specification">Specification</h1>
+<h2 id="goals">Goals</h2>
+<p>We want to decrease the short-term impact of the deployment of this
+ZIP on block reward recipients, and minimise the potential reputational
+risk to Zcash of changing the block reward amount.</p>
+<h2 id="constants">Constants</h2>
+<p>Define constants:</p>
+<p>“<code>BLOCK_SUBSIDY_FRACTION</code>” = 4126 / 10,000,000,000 or
+<code>0.0000004126</code></p>
+<p>“<code>DEPLOYMENT_BLOCK_HEIGHT</code>” = 2726400</p>
+<h2 id="issuance-calculation">Issuance Calculation</h2>
+<p>At the <code>DEPLOYMENT_BLOCK_HEIGHT</code>, nodes should switch from
+the current issuance calculation, to the following:</p>
+<p>Given the block height <code>h</code> define a function
+<strong>BlockSubsidy(h)</strong>, such that:</p>
+<p><strong>BlockSubsidy(h)</strong> = Block subsidy for a given
+<code>h</code>, that satisfies above requirements.</p>
+<p>Using an exponential decay function for <strong>BlockSubsidy</strong>
+satisfies requirements <strong>R1</strong> and <strong>R2</strong>
+above:</p>
+<p><code>BlockSubsidy(h) = BLOCK_SUBSIDY_FRACTION * ZsfBalanceAfter(h - 1)</code></p>
+<p>Finally, to satisfy <strong>R3</strong> above we always round up to
+the next zatoshi.</p>
+<p><code>BlockSubsidy(h) = ceiling(BLOCK_SUBSIDY_FRACTION * ZsfBalanceAfter(h - 1))</code></p>
+<h1 id="rationale">Rationale</h1>
+<h2 id="block_subsidy_fraction"><code>BLOCK_SUBSIDY_FRACTION</code></h2>
+<p>Let <code>IntendedZSFFractionRemainingAfterFourYears</code> =
+0.5.</p>
+<p>The value <code>4126 / 10_000_000_000</code> satisfies the
+approximation within +0.002%:</p>
+<p><code>(1 - BLOCK_SUBSIDY_FRACTION)^PostBlossomHalvingInterval ≈ IntendedZSFFractionRemainingAfterFourYears</code></p>
+<p>Meaning after a period of 4 years around half of
+<code>ZSF_BALANCE</code> will be paid out as block subsidies, thus
+satisfying <strong>R4</strong>.</p>
+<p>The largest possible amount in the ZSF is MAX_MONEY, in the
+theoretically possible case that all issued funds are deposited back
+into the ZSF. If this happened, the largest interim sum in the block
+subsidy calculation would be MAX_MONEY * 4126 + 10000000000.</p>
+<p>This uses 62.91 bits, which is just under the 63 bit limit for 64-bit
+signed two’s-complement integer amount types.</p>
+<p>The numerator could be brought closer to the limit by using a larger
+denominator, but the difference in the amount issued would be very
+small. So we chose a power-of-10 denominator for simplicity.</p>
+<p>TODO for ZIP owners: How many ZEC per day?</p>
+<h2
+id="deployment_block_height"><code>DEPLOYMENT_BLOCK_HEIGHT</code></h2>
+<p>The deployment should happen at the next halving, which is block
+<code>2726400</code>.</p>
+<p>Since there is a planned halving at this point, there will already be
+a significant “shock” caused by the drop in issuance caused by the
+halving. This reduces surprise and thus increases security. Also, due to
+the nature of the smoothed curve having a portion of the curve above the
+respective step function line at times, this will maximally
+<em>reduce</em> the issuance shock at the
+<code>DEPLOYMENT_BLOCK_HEIGHT</code>.</p>
+<h2 id="visualization-of-the-smoothed-curve">Visualization of the
+Smoothed Curve</h2>
+<p>The following graph illustrates compares issuance for the current
+halving-based step function vs the smoothed curve.</p>
+<figure>
+<img src="assets/images/zip-0234-block_subsidy.png"
+alt="A graph showing a comparison of the halving-based step function vs the smoothed curve" />
+<figcaption aria-hidden="true">A graph showing a comparison of the
+halving-based step function vs the smoothed curve</figcaption>
+</figure>
+<p>The graph below shows the balance of the ZSF assuming smooth issuance
+is implemented.</p>
+<figure>
+<img src="assets/images/zip-0234-balance.png"
+alt="A graph showing the balance of the ZSF assuming smooth issuance is implemented" />
+<figcaption aria-hidden="true">A graph showing the balance of the ZSF
+assuming smooth issuance is implemented</figcaption>
+</figure>
+<h1 id="deployment">Deployment</h1>
+<p>The implementation of this ZIP MUST be deployed at the same time or
+after the Zcash Sustainability Fund is established (ZIP-XXX).</p>
+<h1 id="appendix-simulation">Appendix: Simulation</h1>
+<p>The <a href="https://github.com/eigerco/zsf-simulator">ZSF
+simulator</a> allows us to simulate the effects of this ZIP on the ZSF
+balance and the block subsidy, as well as generate plots like the ones
+above. Its output:</p>
+<pre><code>Last block is 47917869 in ~113.88 years</code></pre>
+<p>indicates that, assuming no ZEC is ever deposited to the ZSF, its
+balance will be depleted after 113.88 years, and the block subsidy will
+be 0 ZEC after that point.</p>
+<p>This fragment of the output</p>
+<pre><code>Halving  1 at block  1680000:
+  ZSF subsidies:    262523884819889 (~ 2625238.848 ZEC,        1.563 ZEC per block)
+  legacy subsidies: 262500000000000 (~ 2625000.000 ZEC,        1.562 ZEC per block)
+  difference:           23884819889 (~         238 ZEC),         ZSF/legacy: 1.0001</code></pre>
+<p>shows that the difference between the smoothed out and the current
+issuance schemes is 238 ZEC after 1680000 blocks (aroound 4 years).</p>
+<h1 id="references">References</h1>
+<p>[1] RFC-2119: https://datatracker.ietf.org/doc/html/rfc2119</p>
+<p>[2] ZIP-200: https://zips.z.cash/zip-0200</p>
+<p>[3] ZIP-XXX: Placeholder for the ZSF ZIP</p>
+</body>
+</html>
