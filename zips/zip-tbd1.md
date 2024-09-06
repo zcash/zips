@@ -109,7 +109,7 @@ Since the cryptographic and protocol security will be defined within separate pr
 In order to support additional protocol versions and make it easy to find the documentation of a protocol version for implementers we’ll establish a first come first serve registration process. The version number MUST be the next integer available in the registry table. Minor or patch versions won't be used. The requirements to register a new version are the following:
 
 1. It MUST be published as a ZIP and have reached “Final” Status.
-2. Once the ZIP has been finalized a version identifier can be gotten by registering it with a table entry. The table entry should include the ZIP number defining the version, the ZIP’s title, the next version number, and the date of registration. The
+2. Once the ZIP has been finalized a version identifier can be gotten by registering it with a table entry. The table entry should include the ZIP number defining the version, the ZIP’s title, the next version number, and the date of registration.
 3. Once this is done the version number MUST NOT be changed or reused
 
 ## Registry Table
