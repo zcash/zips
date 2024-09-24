@@ -126,8 +126,15 @@ An active funding stream at a given block height is defined as a funding
 stream for which the block height is less than its end height, but not less
 than its start height.
 
-Each funding stream has an associated sequence of recipient addresses,
-each of which MUST be either a transparent P2SH address or a Sapling address.
+The funding streams are paid to one of a pre-defined set of recipients,
+depending on the block height. Each recipient identifier MUST be either the
+string encoding of a transparent P2SH address or Sapling address (as specified in
+[#protocol-transparentaddrencoding]_ or [#protocol-saplingpaymentaddrencoding])
+to be paid by an output in the coinbase transaction, or the identifier
+:math:`\mathsf{DEFERRED}\_\mathsf{POOL}`. The latter, added in the NU6 network
+upgrade [#zip-0253]_, indicates that the value is to be paid to a reserve to be
+used for development funding, the distribution of which is to be determined via
+a future ZIP.
 
 Each address is used for at most 1/48th of a halving interval, creating a
 roughly-monthly sequence of funding periods. The address to be used for a
@@ -179,6 +186,30 @@ Reward expires, at block height 1046400. On Testnet, there will be a shortened
 Founders' Reward address period prior to Canopy activation.
 
 
+Deferred Development Fund Chain Value Pool Balance
+--------------------------------------------------
+
+Full node implementations MUST track an additional :math:`\mathsf{PoolValue}_{Deferred}`
+chain value pool balance, in addition to the Sprout, Sapling, and Orchard
+chain value pool balances.
+
+Define :math:`\mathsf{totalDeferredOutput}(\mathsf{height}) := \sum_{\mathsf{fs} \in \mathsf{DeferredFundingStreams}(\mathsf{height})} \mathsf{fs.Value}(\mathsf{height})`
+where :math:`\mathsf{DeferredFundingStreams}(\mathsf{height})` is the set of
+funding streams with a recipient of :math:`\mathsf{DEFERRED}\_\mathsf{POOL}`
+in the block at height :math:`\mathsf{height}`.
+
+The :math:`\mathsf{PoolValue}_{Deferred}` chain value pool balance for a given
+block chain is the sum of the values of payments to
+:math:`\mathsf{DEFERRED}\_\mathsf{POOL}` for transactions in the block chain.
+
+Equivalently, :math:`\mathsf{PoolValue}_{Deferred}` for a block chain up to
+and including height :math:`\mathsf{height}` is given by
+:math:`\sum_{\mathsf{h} = 0}^{\mathsf{height}} \mathsf{totalDeferredOutput}(\mathsf{h})`.
+
+Note: :math:`\mathsf{totalDeferredOutput}(\mathsf{h})` is necessarily
+zero for heights :math:`\mathsf{h}` prior to NU6 activation.
+
+
 Consensus rules
 ---------------
 
@@ -192,9 +223,14 @@ Once the Canopy network upgrade activates:
   (This would be the case under the preexisting consensus rules for Mainnet, but
   not for Testnet.)
 
-- The coinbase transaction in each block MUST contain at least one output per
-  active funding stream that pays the stream's value in the prescribed way to
-  the stream's recipient address for the block's height.
+- In each block with coinbase transaction :math:`\mathsf{cb}` at block height
+  :math:`\mathsf{height}`, for each funding stream :math:`\mathsf{fs}`
+  active at that \blockHeight with a recipient identifier other than
+  :math:`\mathsf{DEFERRED}\_\mathsf{POOL}` given by
+  :math:`\fsRecipients_{\fsRecipientIndex(\BlockHeight)}$:math:`\fsRecipients_{\fsRecipientIndex(\BlockHeight)}`,
+  :math:`\mathsf{cb}` \MUST contain at least one output that pays
+  :math:`\fsValue(\BlockHeight)` \zatoshi in the prescribed way to the
+  address represented by that recipient identifier.
 
 - The "prescribed way" to pay a transparent P2SH address is to use a standard
   P2SH script of the form ``OP_HASH160 RedeemScriptHash(height) OP_EQUAL`` as
@@ -207,9 +243,15 @@ Once the Canopy network upgrade activates:
   In this case the note plaintext lead byte MUST be :math:`\mathbf{0x02}`, as
   specified in [#zip-0212]_.
 
-For the funding stream definitions to be activated at Canopy, see ZIP 214. [#zip-0214]_
-Funding stream definitions can be added, changed, or deleted in ZIPs associated
-with subsequent network upgrades, subject to the ZIP process. [#zip-0000]_
+The effect of the definition of :math:`\mathsf{PoolValue}_{Deferred}` above
+is that payments to the :math:`\mathsf{DEFERRED}\_\mathsf{POOL}` cause
+:math:`\mathsf{FundingStream[FUND].Value}(\mathsf{height})` to be added to
+:math:`\mathsf{PoolValue}_{Deferred}` for the block chain including that block.
+
+For the funding stream definitions to be activated at Canopy and at NU6, see
+ZIP 214. [#zip-0214]_ Funding stream definitions can be added, changed, or
+deleted in ZIPs associated with subsequent network upgrades, subject to the
+ZIP process. [#zip-0000]_
 
 
 Deployment
