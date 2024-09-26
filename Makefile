@@ -1,6 +1,6 @@
 # Dependencies: see zip-guide.rst and protocol/README.rst
 
-.PHONY: all all-zips tag-release protocol discard
+.PHONY: all-zips all tag-release protocol all-protocol discard
 all-zips: .Makefile.uptodate
 	echo "$(patsubst zips/%,%,$(sort $(wildcard zips/zip-*.rst) $(wildcard zips/zip-*.md)))" >.zipfilelist.new
 	diff .zipfilelist.current .zipfilelist.new || cp -f .zipfilelist.new .zipfilelist.current
@@ -11,13 +11,16 @@ all-zips: .Makefile.uptodate
 	$(MAKE) README.rst
 	$(MAKE) rendered/index.html $(addprefix rendered/,$(addsuffix .html,$(basename $(patsubst zips/%,%,$(sort $(wildcard zips/*.rst) $(wildcard zips/*.md))))))
 
-all: all-zips protocol
+all: all-zips all-protocol
 
 tag-release:
 	$(MAKE) -C protocol tag-release
 
 protocol:
-	$(MAKE) -C protocol
+	$(MAKE) -C protocol protocol
+
+all-protocol:
+	$(MAKE) -C protocol all
 
 discard:
 	git checkout -- 'rendered/*.html' 'README.rst' 'rendered/protocol/*.pdf'
@@ -50,11 +53,13 @@ rendered/%.html: zips/%.md edithtml.sh
 README.rst: .zipfilelist.current .draftfilelist.current makeindex.sh README.template $(wildcard zips/zip-*.rst) $(wildcard zips/zip-*.md) $(wildcard zips/draft-*.rst) $(wildcard zips/draft-*.md)
 	./makeindex.sh | cat README.template - >README.rst
 
-.PHONY: linkcheck
-linkcheck: all-zips
-	$(MAKE) -C protocol all-specs
-	./links_and_dests.py --check $(filter-out $(wildcard rendered/draft-*.html),$(wildcard rendered/*.html)) rendered/protocol/protocol.pdf rendered/protocol/canopy.pdf rendered/protocol/heartwood.pdf rendered/protocol/blossom.pdf rendered/protocol/sapling.pdf
+.PHONY: linkcheck clean all-clean
+linkcheck: all
+	./links_and_dests.py --check $(filter-out $(wildcard rendered/draft-*.html),$(wildcard rendered/*.html)) $(filter-out rendered/protocol/sprout.pdf,$(wildcard rendered/protocol/*.pdf))
 
-.PHONY: clean
 clean:
 	rm -f .zipfilelist.* README.rst rendered/index.html $(addprefix rendered/,$(addsuffix .html,$(basename $(patsubst zips/%,%,$(sort $(wildcard zips/*.rst) $(wildcard zips/*.md))))))
+
+all-clean:
+	$(MAKE) clean
+	$(MAKE) -C protocol clean
