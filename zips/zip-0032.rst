@@ -356,12 +356,64 @@ The default diversifier for a Sapling extended key is defined to be :math:`d_j`,
 least nonnegative integer yielding a valid diversifier.
 
 
-Specification: Orchard key derivation
-=====================================
+Specification: Hardened-only key derivation
+===========================================
 
 The derivation mechanism for Sapling addresses specified above incurs significant complexity to support
 non-hardened derivation. In the several years since Sapling was deployed, we have seen no use cases for
-non-hardened derivation appear. With that in mind, we only support hardened key derivation for Orchard.
+non-hardened derivation appear. With that in mind, we now have a general hardened-only derivation
+process that retains compatibility with existing derivation path semantics (to enable deriving the same
+path across multiple contexts).
+
+Instantiation
+-------------
+
+Let :math:`\mathsf{Context}` be the context in which the hardened-only key derivation process is
+instantiated (e.g. a shielded protocol). We define two context-specific constants:
+
+- :math:`\mathsf{Context.MKGDomain}` is a 16-byte domain separator used during master key generation.
+- :math:`\mathsf{Context.CKDDomain}` is a 1-byte domain separator used during child key derivation.
+  This should be tracked as part of the global set of domains defined for :math:`\mathsf{PRF^{expand}}`.
+
+Hardened-only master key generation
+-----------------------------------
+
+Let :math:`\mathsf{IKM}` be an input key material byte sequence, which MUST use an unambiguous encoding
+within the given context, and SHOULD contain at least 256 bits of entropy.
+
+:math:`\mathsf{MKGh}^\mathsf{Context}(\mathsf{IKM}) \rightarrow (\mathsf{sk}_m, \mathsf{c}_m)`
+
+- Calculate :math:`I = \mathsf{BLAKE2b}\text{-}\mathsf{512}(\mathsf{Context.MKGDomain}, \mathsf{IKM})`.
+- Split :math:`I` into two 32-byte sequences, :math:`I_L` and :math:`I_R`.
+- Use :math:`I_L` as the master secret key :math:`\mathsf{sk}_m`.
+- Use :math:`I_R` as the master chain code :math:`\mathsf{c}_m`.
+- Return :math:`(\mathsf{sk}_m, \mathsf{c}_m)`.
+
+Hardened-only child key derivation
+----------------------------------
+
+:math:`\mathsf{CKDh}^\mathsf{Context}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i)`:math:`\rightarrow (\mathsf{sk}_i, \mathsf{c}_i)`
+
+- Check whether :math:`i \geq 2^{31}` (whether the child is a hardened key).
+
+  - If so (hardened child): let
+    :math:`I = \mathsf{PRF^{expand}}(\mathsf{c}_{par}, \mathsf{Context.CKDDomain}\,||\,\mathsf{sk}_{par}\,||\,\mathsf{I2LEOSP}_{32}(i))`.
+  - If not (normal child): return failure.
+
+- Split :math:`I` into two 32-byte sequences, :math:`I_L` and :math:`I_R`.
+- Use :math:`I_L` as the child secret key :math:`\mathsf{sk}_i`.
+- Use :math:`I_R` as the child chain code :math:`\mathsf{c}_i`.
+- Return :math:`(\mathsf{sk}_i, \mathsf{c}_i)`.
+
+
+Specification: Orchard key derivation
+=====================================
+
+We only support hardened key derivation for Orchard. We instantiate the hardened key generation
+process with the following constants:
+
+- :math:`\mathsf{Orchard.MKGDomain} = \texttt{“ZcashIP32Orchard”}`
+- :math:`\mathsf{Orchard.CKDDomain} = [\texttt{0x81}]`
 
 Orchard extended keys
 ---------------------
@@ -374,11 +426,7 @@ Orchard master key generation
 
 Let :math:`S` be a seed byte sequence of a chosen length, which MUST be at least 32 and at most 252 bytes.
 
-- Calculate :math:`I = \mathsf{BLAKE2b}\text{-}\mathsf{512}(\texttt{“ZcashIP32Orchard”}, S)`.
-- Split :math:`I` into two 32-byte sequences, :math:`I_L` and :math:`I_R`.
-- Use :math:`I_L` as the master spending key :math:`\mathsf{sk}_m`.
-- Use :math:`I_R` as the master chain code :math:`\mathsf{c}_m`.
-- Return :math:`(\mathsf{sk}_m, \mathsf{c}_m)` as the master extended spending key
+- Return :math:`\mathsf{MKGh}^\mathsf{Orchard}(S)` as the master extended spending key
   :math:`m_\mathsf{Orchard}`.
 
 Orchard child key derivation
@@ -386,15 +434,7 @@ Orchard child key derivation
 
 :math:`\mathsf{CDKsk}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i)`:math:`\rightarrow (\mathsf{sk}_{i}, \mathsf{c}_i)`
 
-- Check whether :math:`i \geq 2^{31}` (whether the child is a hardened key).
-
-  - If so (hardened child): let
-    :math:`I = \mathsf{PRF^{expand}}(\mathsf{c}_{par}, [\texttt{0x81}]\,||\,\mathsf{sk}_{par}\,||\,\mathsf{I2LEOSP}_{32}(i))`.
-  - If not (normal child): return failure.
-
-- Split :math:`I` into two 32-byte sequences, :math:`I_L` and :math:`I_R`.
-- Use :math:`I_L` as the child spending key :math:`\mathsf{sk}_{i}`.
-- Use :math:`I_R` as the child chain code :math:`\mathsf{c}_i`.
+- Return :math:`\mathsf{CKDh}^\mathsf{Orchard}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i)`
 
 Note that the resulting child spending key may produce an invalid external FVK, as specified
 in [#protocol-orchardkeycomponents]_, with small probability. The corresponding internal FVK
