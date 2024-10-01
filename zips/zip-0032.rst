@@ -20,8 +20,8 @@
 Terminology
 ===========
 
-The key words "MUST", "MUST NOT", and "MAY" in this document are to be interpreted as described
-in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
+The key words "MUST", "MUST NOT", "SHOULD", "RECOMMENDED", and "MAY" in this document are to be
+interpreted as described in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
 
 "Jubjub" refers to the elliptic curve defined in [#protocol-jubjub]_.
 
@@ -371,15 +371,20 @@ Instantiation
 Let :math:`\mathsf{Context}` be the context in which the hardened-only key derivation process is
 instantiated (e.g. a shielded protocol). We define two context-specific constants:
 
-- :math:`\mathsf{Context.MKGDomain}` is a 16-byte domain separator used during master key generation.
-- :math:`\mathsf{Context.CKDDomain}` is a 1-byte domain separator used during child key derivation.
-  This should be tracked as part of the global set of domains defined for :math:`\mathsf{PRF^{expand}}`.
+- :math:`\mathsf{Context.MKGDomain}` is a sequence of 16 bytes, used as a domain separator during
+  master key generation. It SHOULD be disjoint from other domain separators used with BLAKE2b in
+  Zcash protocols.
+- :math:`\mathsf{Context.CKDDomain}` is a byte value, used as a domain separator during child key
+  derivation. This should be tracked as part of the global set of domains defined for
+  :math:`\mathsf{PRF^{expand}}`.
 
 Hardened-only master key generation
 -----------------------------------
 
 Let :math:`\mathsf{IKM}` be an input key material byte sequence, which MUST use an unambiguous encoding
-within the given context, and SHOULD contain at least 256 bits of entropy.
+within the given context, and SHOULD contain at least 256 bits of entropy. It is RECOMMENDED to
+use a prefix-free encoding, which may require the use of length fields if multiple fields need
+to be encoded.
 
 :math:`\mathsf{MKGh}^\mathsf{Context}(\mathsf{IKM}) \rightarrow (\mathsf{sk}_m, \mathsf{c}_m)`
 
@@ -397,7 +402,7 @@ Hardened-only child key derivation
 - Check whether :math:`i \geq 2^{31}` (whether the child is a hardened key).
 
   - If so (hardened child): let
-    :math:`I = \mathsf{PRF^{expand}}(\mathsf{c}_{par}, \mathsf{Context.CKDDomain}\,||\,\mathsf{sk}_{par}\,||\,\mathsf{I2LEOSP}_{32}(i))`.
+    :math:`I = \mathsf{PRF^{expand}}(\mathsf{c}_{par}, [\mathsf{Context.CKDDomain}]\,||\,\mathsf{sk}_{par}\,||\,\mathsf{I2LEOSP}_{32}(i))`.
   - If not (normal child): return failure.
 
 - Split :math:`I` into two 32-byte sequences, :math:`I_L` and :math:`I_R`.
@@ -413,7 +418,7 @@ We only support hardened key derivation for Orchard. We instantiate the hardened
 process with the following constants:
 
 - :math:`\mathsf{Orchard.MKGDomain} = \texttt{“ZcashIP32Orchard”}`
-- :math:`\mathsf{Orchard.CKDDomain} = [\texttt{0x81}]`
+- :math:`\mathsf{Orchard.CKDDomain} = \texttt{0x81}`
 
 Orchard extended keys
 ---------------------
@@ -516,13 +521,13 @@ existing key material (for example, deriving an arbitrary account-level key), wi
 ecosystem-wide coordination. The following instantiation of the hardened key generation process may
 be used for this purpose.
 
-Let :math:`\mathsf{ContextString}` be a globally-unique non-empty sequence of at most 65535 bytes
+Let :math:`\mathsf{ContextString}` be a globally-unique non-empty sequence of at most 252 bytes
 that identifies the desired context.
 
 We instantiate the hardened key generation process with the following constants:
 
 - :math:`\mathsf{Arbitrary.MKGDomain} = \texttt{“ZcashArbitraryKD”}`
-- :math:`\mathsf{Arbitrary.CKDDomain} = [\texttt{0xAB}]`
+- :math:`\mathsf{Arbitrary.CKDDomain} = \texttt{0xAB}`
 
 Arbitrary master key generation
 -------------------------------
@@ -531,16 +536,14 @@ Let :math:`S` be a seed byte sequence of a chosen length, which MUST be at least
 
 The master extended arbitrary key is:
 
-:math:`m_\mathsf{Arbitrary} = \mathsf{MKGh}^\mathsf{Arbitrary}(`
-:math:`\mathsf{I2LEOSP}_{16}(\mathsf{length}(\mathsf{ContextString}))\,||\,\mathsf{ContextString}\,||\,`
-:math:`[\mathsf{length}(S)]\,||\,S)`.
+:math:`m_\mathsf{Arbitrary} = \mathsf{MKGh}^\mathsf{Arbitrary}([\mathsf{length}(\mathsf{ContextString})]\,||\,\mathsf{ContextString}\,||\,[\mathsf{length}(S)]\,||\,S)\!`.
 
 Arbitrary child key derivation
 ------------------------------
 
 :math:`\mathsf{CKDarb}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i)`:math:`\rightarrow (\mathsf{sk}_i, \mathsf{c}_i)`
 
-- Return :math:`\mathsf{CKDh}^\mathsf{Arbitrary}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i)`
+- Return :math:`\mathsf{CKDh}^\mathsf{Arbitrary}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i)\!`.
 
 If the context requires a 64-byte key (for example, to avoid an entropy bottleneck in its particular
 subsequent operations), and :math:`i` is the last element of an HD path, the concatenation
