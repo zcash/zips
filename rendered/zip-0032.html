@@ -25,7 +25,7 @@ License: MIT</pre>
             <span class="math">\(% This ZIP makes heavy use of mathematical markup. If you can see this, you may want to instead view the rendered version at https://zips.z.cash/zip-0032 .\)</span>
         </p>
         <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>The key words "MUST", "MUST NOT", and "MAY" in this document are to be interpreted as described in BCP 14 <a id="footnote-reference-1" class="footnote_reference" href="#bcp14">1</a> when, and only when, they appear in all capitals.</p>
+            <p>The key words "MUST", "MUST NOT", "SHOULD", "RECOMMENDED", and "MAY" in this document are to be interpreted as described in BCP 14 <a id="footnote-reference-1" class="footnote_reference" href="#bcp14">1</a> when, and only when, they appear in all capitals.</p>
             <p>"Jubjub" refers to the elliptic curve defined in <a id="footnote-reference-2" class="footnote_reference" href="#protocol-jubjub">15</a>.</p>
             <p>A "chain code" is a cryptovalue that is needed, in addition to a spending key, in order to derive descendant keys and addresses of that key.</p>
             <p>The terms "Testnet" and "Mainnet" are to be interpreted as described in section 3.12 of the Zcash Protocol Specification <a id="footnote-reference-3" class="footnote_reference" href="#protocol-networks">10</a>.</p>
@@ -188,7 +188,7 @@ License: MIT</pre>
             ) as in BIP 44 <a id="footnote-reference-14" class="footnote_reference" href="#bip-0044">5</a>:</p>
             <ul>
                 <li>
-                    <span class="math">\(\mathsf{CDKfvk}(\mathsf{CDKfvk}(\mathsf{CDKfvk}(m_\mathsf{Sapling}, a), b), c)\)</span>
+                    <span class="math">\(\mathsf{CKDfvk}(\mathsf{CKDfvk}(\mathsf{CKDfvk}(m_\mathsf{Sapling}, a), b), c)\)</span>
                  is written as
                     <span class="math">\(m_\mathsf{Sapling} / a / b / c\)</span>
                 .</li>
@@ -313,7 +313,7 @@ License: MIT</pre>
                 , depends on the type of key being derived, and whether this is a hardened or non-hardened derivation.</p>
                 <section id="deriving-a-child-extended-spending-key"><h4><span class="section-heading">Deriving a child extended spending key</span><span class="section-anchor"> <a rel="bookmark" href="#deriving-a-child-extended-spending-key"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
                     <p>
-                        <span class="math">\(\mathsf{CDKsk}((\mathsf{ask}_{par}, \mathsf{nsk}_{par}, \mathsf{ovk}_{par}, \mathsf{dk}_{par}, \mathsf{c}_{par}), i)\)</span>
+                        <span class="math">\(\mathsf{CKDsk}((\mathsf{ask}_{par}, \mathsf{nsk}_{par}, \mathsf{ovk}_{par}, \mathsf{dk}_{par}, \mathsf{c}_{par}), i)\)</span>
                         <span class="math">\(\rightarrow (\mathsf{ask}_i, \mathsf{nsk}_i, \mathsf{ovk}_i, \mathsf{dk}_i, \mathsf{c}_i)\)</span>
                     </p>
                     <ul>
@@ -389,7 +389,7 @@ License: MIT</pre>
                         <span class="math">\(\mathcal{H}^\mathsf{Sapling}\)</span>
                      be as defined in <a id="footnote-reference-20" class="footnote_reference" href="#protocol-saplingkeycomponents">11</a>.</p>
                     <p>
-                        <span class="math">\(\mathsf{CDKfvk}((\mathsf{ak}_{par}, \mathsf{nk}_{par}, \mathsf{ovk}_{par}, \mathsf{dk}_{par}, \mathsf{c}_{par}), i)\)</span>
+                        <span class="math">\(\mathsf{CKDfvk}((\mathsf{ak}_{par}, \mathsf{nk}_{par}, \mathsf{ovk}_{par}, \mathsf{dk}_{par}, \mathsf{c}_{par}), i)\)</span>
                         <span class="math">\(\rightarrow (\mathsf{ak}_{i}, \mathsf{nk}_{i}, \mathsf{ovk}_{i}, \mathsf{dk}_{i}, \mathsf{c}_{i})\)</span>
                     </p>
                     <ul>
@@ -578,8 +578,105 @@ License: MIT</pre>
                  is the least nonnegative integer yielding a valid diversifier.</p>
             </section>
         </section>
+        <section id="specification-hardened-only-key-derivation"><h2><span class="section-heading">Specification: Hardened-only key derivation</span><span class="section-anchor"> <a rel="bookmark" href="#specification-hardened-only-key-derivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The derivation mechanism for Sapling addresses specified above incurs significant complexity to support non-hardened derivation. In the several years since Sapling was deployed, we have seen no use cases for non-hardened derivation appear. With that in mind, we now have a general hardened-only derivation process that retains compatibility with existing derivation path semantics (to enable deriving the same path across multiple contexts).</p>
+            <section id="instantiation"><h3><span class="section-heading">Instantiation</span><span class="section-anchor"> <a rel="bookmark" href="#instantiation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Let
+                    <span class="math">\(\mathsf{Context}\)</span>
+                 be the context in which the hardened-only key derivation process is instantiated (e.g. a shielded protocol). We define two context-specific constants:</p>
+                <ul>
+                    <li>
+                        <span class="math">\(\mathsf{Context.MKGDomain}\)</span>
+                     is a sequence of 16 bytes, used as a domain separator during master key generation. It SHOULD be disjoint from other domain separators used with BLAKE2b in Zcash protocols.</li>
+                    <li>
+                        <span class="math">\(\mathsf{Context.CKDDomain}\)</span>
+                     is a byte value, used as a domain separator during child key derivation. This should be tracked as part of the global set of domains defined for
+                        <span class="math">\(\mathsf{PRF^{expand}}\)</span>
+                    .</li>
+                </ul>
+            </section>
+            <section id="hardened-only-master-key-generation"><h3><span class="section-heading">Hardened-only master key generation</span><span class="section-anchor"> <a rel="bookmark" href="#hardened-only-master-key-generation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Let
+                    <span class="math">\(\mathsf{IKM}\)</span>
+                 be an input key material byte sequence, which MUST use an unambiguous encoding within the given context, and SHOULD contain at least 256 bits of entropy. It is RECOMMENDED to use a prefix-free encoding, which may require the use of length fields if multiple fields need to be encoded.</p>
+                <p>
+                    <span class="math">\(\mathsf{MKGh}^\mathsf{Context}(\mathsf{IKM}) \rightarrow (\mathsf{sk}_m, \mathsf{c}_m)\)</span>
+                </p>
+                <ul>
+                    <li>Calculate
+                        <span class="math">\(I = \mathsf{BLAKE2b}\text{-}\mathsf{512}(\mathsf{Context.MKGDomain}, \mathsf{IKM})\)</span>
+                    .</li>
+                    <li>Split
+                        <span class="math">\(I\)</span>
+                     into two 32-byte sequences,
+                        <span class="math">\(I_L\)</span>
+                     and
+                        <span class="math">\(I_R\)</span>
+                    .</li>
+                    <li>Use
+                        <span class="math">\(I_L\)</span>
+                     as the master secret key
+                        <span class="math">\(\mathsf{sk}_m\)</span>
+                    .</li>
+                    <li>Use
+                        <span class="math">\(I_R\)</span>
+                     as the master chain code
+                        <span class="math">\(\mathsf{c}_m\)</span>
+                    .</li>
+                    <li>Return
+                        <span class="math">\((\mathsf{sk}_m, \mathsf{c}_m)\)</span>
+                    .</li>
+                </ul>
+            </section>
+            <section id="hardened-only-child-key-derivation"><h3><span class="section-heading">Hardened-only child key derivation</span><span class="section-anchor"> <a rel="bookmark" href="#hardened-only-child-key-derivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>
+                    <span class="math">\(\mathsf{CKDh}^\mathsf{Context}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i)\)</span>
+                    <span class="math">\(\rightarrow (\mathsf{sk}_i, \mathsf{c}_i)\)</span>
+                </p>
+                <ul>
+                    <li>Check whether
+                        <span class="math">\(i \geq 2^{31}\)</span>
+                     (whether the child is a hardened key).
+                        <ul>
+                            <li>If so (hardened child): let
+                                <span class="math">\(I = \mathsf{PRF^{expand}}(\mathsf{c}_{par}, [\mathsf{Context.CKDDomain}]\,||\,\mathsf{sk}_{par}\,||\,\mathsf{I2LEOSP}_{32}(i))\)</span>
+                            .</li>
+                            <li>If not (normal child): return failure.</li>
+                        </ul>
+                    </li>
+                    <li>Split
+                        <span class="math">\(I\)</span>
+                     into two 32-byte sequences,
+                        <span class="math">\(I_L\)</span>
+                     and
+                        <span class="math">\(I_R\)</span>
+                    .</li>
+                    <li>Use
+                        <span class="math">\(I_L\)</span>
+                     as the child secret key
+                        <span class="math">\(\mathsf{sk}_i\)</span>
+                    .</li>
+                    <li>Use
+                        <span class="math">\(I_R\)</span>
+                     as the child chain code
+                        <span class="math">\(\mathsf{c}_i\)</span>
+                    .</li>
+                    <li>Return
+                        <span class="math">\((\mathsf{sk}_i, \mathsf{c}_i)\)</span>
+                    .</li>
+                </ul>
+            </section>
+        </section>
         <section id="specification-orchard-key-derivation"><h2><span class="section-heading">Specification: Orchard key derivation</span><span class="section-anchor"> <a rel="bookmark" href="#specification-orchard-key-derivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>The derivation mechanism for Sapling addresses specified above incurs significant complexity to support non-hardened derivation. In the several years since Sapling was deployed, we have seen no use cases for non-hardened derivation appear. With that in mind, we only support hardened key derivation for Orchard.</p>
+            <p>We only support hardened key derivation for Orchard. We instantiate the hardened key generation process with the following constants:</p>
+            <ul>
+                <li>
+                    <span class="math">\(\mathsf{Orchard.MKGDomain} = \texttt{“ZcashIP32Orchard”}\)</span>
+                </li>
+                <li>
+                    <span class="math">\(\mathsf{Orchard.CKDDomain} = \texttt{0x81}\)</span>
+                </li>
+            </ul>
             <section id="orchard-extended-keys"><h3><span class="section-heading">Orchard extended keys</span><span class="section-anchor"> <a rel="bookmark" href="#orchard-extended-keys"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>We represent an Orchard extended spending key as
                     <span class="math">\((\mathsf{sk, c}),\)</span>
@@ -594,28 +691,8 @@ License: MIT</pre>
                     <span class="math">\(S\)</span>
                  be a seed byte sequence of a chosen length, which MUST be at least 32 and at most 252 bytes.</p>
                 <ul>
-                    <li>Calculate
-                        <span class="math">\(I = \mathsf{BLAKE2b}\text{-}\mathsf{512}(\texttt{“ZcashIP32Orchard”}, S)\)</span>
-                    .</li>
-                    <li>Split
-                        <span class="math">\(I\)</span>
-                     into two 32-byte sequences,
-                        <span class="math">\(I_L\)</span>
-                     and
-                        <span class="math">\(I_R\)</span>
-                    .</li>
-                    <li>Use
-                        <span class="math">\(I_L\)</span>
-                     as the master spending key
-                        <span class="math">\(\mathsf{sk}_m\)</span>
-                    .</li>
-                    <li>Use
-                        <span class="math">\(I_R\)</span>
-                     as the master chain code
-                        <span class="math">\(\mathsf{c}_m\)</span>
-                    .</li>
                     <li>Return
-                        <span class="math">\((\mathsf{sk}_m, \mathsf{c}_m)\)</span>
+                        <span class="math">\(\mathsf{MKGh}^\mathsf{Orchard}(S)\)</span>
                      as the master extended spending key
                         <span class="math">\(m_\mathsf{Orchard}\)</span>
                     .</li>
@@ -623,37 +700,13 @@ License: MIT</pre>
             </section>
             <section id="orchard-child-key-derivation"><h3><span class="section-heading">Orchard child key derivation</span><span class="section-anchor"> <a rel="bookmark" href="#orchard-child-key-derivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>
-                    <span class="math">\(\mathsf{CDKsk}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i)\)</span>
+                    <span class="math">\(\mathsf{CKDsk}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i)\)</span>
                     <span class="math">\(\rightarrow (\mathsf{sk}_{i}, \mathsf{c}_i)\)</span>
                 </p>
                 <ul>
-                    <li>Check whether
-                        <span class="math">\(i \geq 2^{31}\)</span>
-                     (whether the child is a hardened key).
-                        <ul>
-                            <li>If so (hardened child): let
-                                <span class="math">\(I = \mathsf{PRF^{expand}}(\mathsf{c}_{par}, [\texttt{0x81}]\,||\,\mathsf{sk}_{par}\,||\,\mathsf{I2LEOSP}_{32}(i))\)</span>
-                            .</li>
-                            <li>If not (normal child): return failure.</li>
-                        </ul>
+                    <li>Return
+                        <span class="math">\(\mathsf{CKDh}^\mathsf{Orchard}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i)\)</span>
                     </li>
-                    <li>Split
-                        <span class="math">\(I\)</span>
-                     into two 32-byte sequences,
-                        <span class="math">\(I_L\)</span>
-                     and
-                        <span class="math">\(I_R\)</span>
-                    .</li>
-                    <li>Use
-                        <span class="math">\(I_L\)</span>
-                     as the child spending key
-                        <span class="math">\(\mathsf{sk}_{i}\)</span>
-                    .</li>
-                    <li>Use
-                        <span class="math">\(I_R\)</span>
-                     as the child chain code
-                        <span class="math">\(\mathsf{c}_i\)</span>
-                    .</li>
                 </ul>
                 <p>Note that the resulting child spending key may produce an invalid external FVK, as specified in <a id="footnote-reference-28" class="footnote_reference" href="#protocol-orchardkeycomponents">12</a>, with small probability. The corresponding internal FVK derived as specified in the next section may also be invalid with small probability.</p>
             </section>
@@ -733,6 +786,52 @@ License: MIT</pre>
                  is defined to be
                     <span class="math">\(d_{i,0}.\)</span>
                 </p>
+            </section>
+        </section>
+        <section id="specification-arbitrary-key-derivation"><h2><span class="section-heading">Specification: Arbitrary key derivation</span><span class="section-anchor"> <a rel="bookmark" href="#specification-arbitrary-key-derivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>In some contexts there is a need for deriving arbitrary keys with the same derivation path as existing key material (for example, deriving an arbitrary account-level key), without the need for ecosystem-wide coordination. The following instantiation of the hardened key generation process may be used for this purpose.</p>
+            <p>Let
+                <span class="math">\(\mathsf{ContextString}\)</span>
+             be a globally-unique non-empty sequence of at most 252 bytes that identifies the desired context.</p>
+            <p>We instantiate the hardened key generation process with the following constants:</p>
+            <ul>
+                <li>
+                    <span class="math">\(\mathsf{Arbitrary.MKGDomain} = \texttt{“ZcashArbitraryKD”}\)</span>
+                </li>
+                <li>
+                    <span class="math">\(\mathsf{Arbitrary.CKDDomain} = \texttt{0xAB}\)</span>
+                </li>
+            </ul>
+            <section id="arbitrary-master-key-generation"><h3><span class="section-heading">Arbitrary master key generation</span><span class="section-anchor"> <a rel="bookmark" href="#arbitrary-master-key-generation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Let
+                    <span class="math">\(S\)</span>
+                 be a seed byte sequence of a chosen length, which MUST be at least 32 and at most 252 bytes.</p>
+                <p>The master extended arbitrary key is:</p>
+                <p>
+                    <span class="math">\(m_\mathsf{Arbitrary} = \mathsf{MKGh}^\mathsf{Arbitrary}([\mathsf{length}(\mathsf{ContextString})]\,||\,\mathsf{ContextString}\,||\,[\mathsf{length}(S)]\,||\,S)\!\)</span>
+                .</p>
+            </section>
+            <section id="arbitrary-child-key-derivation"><h3><span class="section-heading">Arbitrary child key derivation</span><span class="section-anchor"> <a rel="bookmark" href="#arbitrary-child-key-derivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>
+                    <span class="math">\(\mathsf{CKDarb}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i)\)</span>
+                    <span class="math">\(\rightarrow (\mathsf{sk}_i, \mathsf{c}_i)\)</span>
+                </p>
+                <ul>
+                    <li>Return
+                        <span class="math">\(\mathsf{CKDh}^\mathsf{Arbitrary}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i)\!\)</span>
+                    .</li>
+                </ul>
+                <p>If the context requires a 64-byte key (for example, to avoid an entropy bottleneck in its particular subsequent operations), and
+                    <span class="math">\(i\)</span>
+                 is the last element of an HD path, the concatenation
+                    <span class="math">\(\mathsf{sk}_i\,||\,\mathsf{c}_i\)</span>
+                 MAY be used as a key. In this case,
+                    <span class="math">\((\mathsf{sk}_i, \mathsf{c}_i)\)</span>
+                 MUST NOT be given as input to
+                    <span class="math">\(\mathsf{CKDarb}\)</span>
+                 (this is a restatement of the requirement that
+                    <span class="math">\(i\)</span>
+                 is the last element of an HD path).</p>
             </section>
         </section>
         <section id="specification-wallet-usage"><h2><span class="section-heading">Specification: Wallet usage</span><span class="section-anchor"> <a rel="bookmark" href="#specification-wallet-usage"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
