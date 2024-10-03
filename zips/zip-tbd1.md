@@ -39,42 +39,43 @@ This spec should allow ZCash users to include rich media messages in their trans
 
 The current memo zip requires that the content of the message is less than 512 ASCII characters which is a sufficient size to include a URI which includes the sufficient details to locate and decrypt the message. Here is how the format of the pointer will be:
 
-## ABNF definition of message URI syntax
-    mmp-uri                     = mmp ":" version ":" cid query-params
-    mmp-uri                     = /1*512VCHAR; Limit to 512 ASCII VCHARs
-    scheme                      = "mmp"
-    version                       = 1*2DIGIT
-    message-location      = 1*256VCHAR
-    query-params            = "?" encrypt-key-param "&" param *("&" param)
-    param                        = param-name "=" param-value
-    param-name              = 1*ALPHA
-    param-value              = 1*VCHAR
+### ABNF definition of message URI syntax
+    mmp-uri                         = scheme ":" version ":" message-location query fragment
+    mmp-uri                         = /1*512URICHAR; Limit to 512 ASCII characters that are URI safe
+    scheme                          = "mmp"
+    version                           = 1*2DIGIT
+    message-location          = 1*256PCHAR
+    encrypt-key-fragment    = "key=" 1*64unreserved
+    URICHAR                      = reserved / unreserved
+
+If a term is used here, but not specifically defined then see RFC3986 appendix A for it's definition.
 
 ## Example of message URI
 
-mmp:v1:bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku?ttl=2024-07-02T14:30:00Z&key=Hy9X_k2mLpQrZtNbVc5hA7sDxEuFoP-iQnWyG4M6OjBv
+mmp:01:bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku#key=Hy9X_k2mLpQrZtNbVc5hA7sDxEuFoP-iQnWyG4M6OjBv
 
 ## Protocol Versioning
 
-Since the version number determines the various associated properties of the protocol (including cryptographic properties to support cryptographic agility) there can be a wide range of capabilities that MAY NOT be interoperable. As such, all valid implementations of this protocol MUST implement at least version 1 to ensure a fallback for messaging. 
+Since the version number determines the various associated properties of the protocol (including cryptographic properties to support cryptographic alacrity) there can be a wide range of capabilities that MAY NOT be interoperable. As such, all valid implementations of this protocol MUST implement at least version 1 to ensure a fallback for messaging. 
 
 ## Message Location
 
-This message location is a URL which can be used to locate a message. It’s used to locate the encrypted ciphertext of the media which is stored at the URL location. It MUST be defined by each protocol version specification. For example in V1, this will be defined as a CID that can be used to get the message from IPFS, but in future iterations it could be a URL that points to a S3 bucket, Torrent file, or elsewhere. It MAY contain additional details about how a path as defined by [^RFC-3986] can be used if a version wants to support this. If the URL contains additional information such as a different scheme (e.g. `https://`) it MUST be defined how it’s encoded within the protocol versioning specification since this URI 
+This message location is a URL which can be used to locate a message. It’s used to locate the encrypted ciphertext of the media which is stored at the URL location. It MUST be defined by each protocol version specification. The message location MUST define how the URL is encoded and define how the URL used to locate and resolve the encrypted message is parsed within the URI. For example in V1, this will be defined as a CID that can be used to get the message from [^IPFS], but in future iterations it could be a URL that points to a S3 bucket, Torrent file, or elsewhere.
 
 ## Query Parameters
 
-All query parameters are optional and MAY be included. Any required query parameters MUST be defined by the version specification. The exception here is the key parameter which are defined in this document because of its expected ubiquitous use across versions.
+All query parameters are optional and MAY be included. Any required query parameters MUST be defined by the version specification. Generally speaking these are expected to behave how they're used in the URL spec, but each spec MUST define specific behavior if a query parameter is necessary within a specification. Generally, these will be the preferred parameterization mechanism for passing data between the sender and recipients.
 
-### Encryption Key Query Parameter
-In all versions of the Media Memo Protocol that require passing a secret key between sender and recipients the key parameter MUST be used to. The key parameter MUST be the first query parameter if used so it should follow directly after a ? symbol. Reuse of this query parameter for many protocols will ensure the greatest possible interoperability.
+## Fragment Parameters
 
-### ABNF for Encryption Key Query Parameter
-    encrypt-key-param = "key=" 1*64VCHAR
-    Protocol flow
+The fragment identifier will primarily be used to pass the key within the URI. However, it is still possible to define additional fragment parameter using a key-value pair delimited with a `=` character. Each fragment key-value pair MUST be separated with an `&`. This serves as a method to match behavior of other URI schemes. Any additional required fragment parameters MUST be defined by the version specification. The exception here is the `key` fragment parameter which is defined in this document because of its expected ubiquitous use across many versions. 
+
+### Encryption Key Fragment Parameter
+In all versions of the Media Memo Protocol that require passing a secret key between sender and recipients the key fragment MUST be used to pass the key. The key parameter MUST be a fragment identified by the `key=` identifier and followed with a base64URL encoded encryption key. If encryption is not used within the protocol then this fragment parameter MUST NOT be used. Reuse of this fragment parameter for many protocols will ensure the greatest possible interoperability hence why it's the only defined fragment identifier. The use of a fragment parameter was chosen here because it will assist a naive parser and resolver from accidentally sending the key across the wire when picking up the message from the message location.
+
+## Protocol Flow
 
 To respond to the message, it's as simple as sending a new message. There isn't a concept of threading built within the protocol itself. Although this could be handled ad a higher layer if desired. Some basic error handling should be defined as well. In general the message should be assumed to be a “broadcast and forget” model where as long as the message has been published it’s not necessary to maintain threading or further capabilities in the message order. Further complex threading, complex protocol features, and complex error handling should be defined in a new message format spec. However this protocol does support some basic error handling to be able to inform the counterparty that a message wasn’t able to be received for some reason.
-
 
 ## Basic Error Handling
 
@@ -127,3 +128,5 @@ In order to support additional protocol versions and make it easy to find the do
 [^RFC-3552]: [Guidelines for Writing RFC Text on Security Considerations](https://datatracker.ietf.org/doc/html/rfc3552)
 [^RFC-6973]: [Privacy Considerations for Internet Protocols](https://datatracker.ietf.org/doc/html/rfc6973)
 [^ZIP-tbd2]: [ZIP TBD2: Media Memos Protocol (MMP) Version 1](zip-tbd2.md)
+[^alacrity]: [Cryptographic Alacrity](https://soatok.blog/2024/08/28/introducing-alacrity-to-federated-cryptography/)
+[^IPFS]: [IPFS Network](https://ipfs.tech/)
