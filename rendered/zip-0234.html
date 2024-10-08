@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ZIP 234: Smooth Out The Block Subsidy Issuance</title>
+    <title>ZIP 234: Network Sustainability Mechanism: Issuance Smoothing</title>
     <meta charset="utf-8" />
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <pre><code>ZIP: 234
-Title: Smooth Out The Block Subsidy Issuance
-Owners: Jason McGee &lt;jason@shieldedlabs.com&gt;
-        Mark Henderson &lt;mark@equilibrium.co&gt;
+Title: Network Sustainability Mechanism: Issuance Smoothing
+Owners: Jason McGee &lt;jason@shieldedlabs.net&gt;
+        Zooko Wilcox &lt;zooko@shieldedlabs.net&gt;
         Tomek Piotrowski &lt;tomek@eiger.co&gt;
         Mariusz Pilarek &lt;mariusz@eiger.co&gt;
         Paul Dann &lt;paul@eiger.co&gt;
@@ -33,49 +33,61 @@ Also known as Block Reward.</p>
 circulation on the network.</p>
 <p>Let <code>PostBlossomHalvingInterval</code> be as defined in
 [#protocol-diffadjustment]_.</p>
-<p>“<code>MAX_MONEY</code>” is the total ZEC supply cap, defined as
-21,000,000 ZEC. This is slightly larger than the supply cap for the
-current issuance mechanism, but is the value used in existing critical
-consensus checks.</p>
+<p>“Money Reserve” - <code>MAX_MONEY - ChainValue</code>, where
+<code>ChainValue</code> includes all ZEC available on the network,
+across all value pools.</p>
 <h1 id="abstract">Abstract</h1>
 <p>This ZIP proposes a change to how nodes calculate the block
 subsidy.</p>
 <p>Instead of following a step function around the 4-year halving
 intervals inherited from Bitcoin, we propose a smooth logarithmic curve,
-defined as a fixed portion of the current ZSF balance (introduced in
-ZIP-233) at a given block height.</p>
+defined as a fixed portion of the current value of the Money Reserve at
+a given block height.</p>
 <p>The new issuance scheme would approximate the current issuance over
-4-year intervals, assuming no deposits into the ZSF during that time,
-and retains the overall supply cap of <code>MAX_MONEY</code>.</p>
+4-year intervals, assuming no ZEC is burned during that time, and
+retains the overall supply cap of <code>MAX_MONEY</code>.</p>
 <h1 id="motivation">Motivation</h1>
+<p>Key Objectives:</p>
+<ol type="1">
+<li>We want to introduce an automated mechanism that allows users of the
+network to contribute to the long-term sustainability of the
+network.</li>
+<li>We want to enable ZEC that has been burned to be recreated in the
+future to benefit network sustainability.</li>
+<li>We want to retain the existing ZEC supply cap of 21 million.</li>
+<li>We want the issuance rate to remain similar to the historical rate
+for Zcash (and before that, Bitcoin).</li>
+<li>We want issuance to be easy for all network users to understand and
+predict.</li>
+</ol>
 <p>The current Zcash economic model, inherited from Bitcoin, includes a
-halving mechanism which dictates the issuance of new coins. While this
+halving mechanism that dictates the issuance of new coins. While this
 has been foundational, halvings can lead to abrupt changes in the rate
 of new coins being introduced to the market. Such sudden shifts can
 potentially disrupt the network’s economic model, potentially impacting
 its security and stability. Furthermore, the halvings schedule is fixed
 and does not provide any way to “recycle” funds into future
 issuance.</p>
-<p>This new ZSF-based issuance scheme solves these problems by ensuring
-a more consistent and predictable rate of coin issuance, whilst
-preserving the core aspects of Zcash’s issuance policy. At the same
-time, it introduces the first mechanism for payout from the
-Sustainability Fund (ZSF), essentially distributing ZSF deposits and
-unclaimed transaction fees across all future block subsidies.</p>
+<p>This new NSM-based issuance scheme solves these problems by ensuring
+a more consistent and predictable rate of coin issuance, while
+preserving the core aspects of Zcash’s issuance policy and the 21
+million coin cap. At the same time, it introduces the first mechanism to
+recreate and distribute ZEC that has been removed from circulation, as
+well as unclaimed transaction fees, across future block subsidies.</p>
 <h1 id="requirements">Requirements</h1>
 <p>Smoothing the issuance curve is possible using an exponential decay
 formula that satisfies the following requirements:</p>
 <ol type="1">
-<li>The issuance can be summarised into a reasonably simple
+<li>The issuance can be summarized into a reasonably simple
 explanation</li>
 <li>Block subsidies approximate a continuous function</li>
-<li>If there are funds in the ZSF, then the block subsidy must be
-non-zero, preventing any final “unmined” zatoshis</li>
+<li>If the Money Reserve is greater than 0, then the block subsidy must
+be non-zero, preventing any final “unmined” zatoshis</li>
 <li>For any 4 year period, all paid out block subsidies are
-approximately equal to half of the ZSF at the beginning of that 4 year
-period, if there are no deposits into the ZSF during those 4 years</li>
+approximately equal to half of the Money Reserve at the beginning of
+that 4 year period, if no ZEC is burned during those 4 years</li>
 <li>Decrease the short-term impact of the deployment of this ZIP on
-block reward recipients, and minimise the potential reputation risk to
+block reward recipients, and minimize the potential reputation risk to
 Zcash of changing the block reward amount.</li>
 </ol>
 <p>TODO daira: add a requirement that makes the initial total issuance
@@ -85,15 +97,12 @@ match the previous total issuance</p>
 <p><code>BLOCK_SUBSIDY_FRACTION</code> = 4126 / 10,000,000,000 or
 <code>0.0000004126</code></p>
 <p><code>DEPLOYMENT_BLOCK_HEIGHT</code> = 2726400</p>
-<p><code>ZSF_BALANCE</code> = <code>MAX_MONEY - ChainValue</code>, where
-<code>ChainValue</code> includes all ZEC available on the network at a
-given block height, across all value pools</p>
-<p><code>ZsfBalanceAfter(block_height)</code> = <code>ZSF_BALANCE</code>
-as calculated above the specified block height</p>
+<p><code>MoneyReserveAfter(block_height)</code> = The value of the Money
+Reserve after the specified block height.</p>
 <h2 id="issuance-calculation">Issuance Calculation</h2>
 <p>At the <code>DEPLOYMENT_BLOCK_HEIGHT</code>, nodes should switch from
 the current issuance calculation, to the following:</p>
-<p><code>BlockSubsidy(block_height) = ceiling(BLOCK_SUBSIDY_FRACTION * ZsfBalanceAfter(block_height - 1))</code></p>
+<p><code>BlockSubsidy(block_height) = ceiling(BLOCK_SUBSIDY_FRACTION * MoneyReserveAfter(block_height - 1))</code></p>
 <h1 id="rationale">Rationale</h1>
 <ul>
 <li>Using an exponential decay function satisfies <strong>Requirements
@@ -102,19 +111,19 @@ the current issuance calculation, to the following:</p>
 3</strong> above.</li>
 </ul>
 <h2 id="block_subsidy_fraction"><code>BLOCK_SUBSIDY_FRACTION</code></h2>
-<p>Let <code>IntendedZSFFractionRemainingAfterFourYears</code> =
-0.5.</p>
+<p>Let <code>IntendedMoneyReserveFractionRemainingAfterFourYears</code>
+= 0.5.</p>
 <p>The value <code>4126 / 10_000_000_000</code> satisfies the
 approximation within +0.002%:</p>
-<p><code>(1 - BLOCK_SUBSIDY_FRACTION)^PostBlossomHalvingInterval ≈ IntendedZSFFractionRemainingAfterFourYears</code></p>
-<p>Meaning after a period of 4 years around half of
-<code>ZSF_BALANCE</code> will be paid out as block subsidies, thus
-satisfying <strong>Requirement 4</strong>.</p>
-<p>The largest possible amount in the ZSF is <code>MAX_MONEY</code>, in
-the theoretically possible case that all issued funds are deposited back
-into the ZSF. If this happened, the largest interim sum in the block
-subsidy calculation would be
-<code>MAX_MONEY * 4126 + 10000000000</code>.</p>
+<p><code>(1 - BLOCK_SUBSIDY_FRACTION)^PostBlossomHalvingInterval ≈ IntendedMoneyReserveFractionRemainingAfterFourYears</code></p>
+<p>Meaning after a period of 4 years around half of Money Reserve will
+be issued as block subsidies, thus satisfying <strong>Requirement
+4</strong>.</p>
+<p>The largest possible value in the Money Reserve is
+<code>MAX_MONEY</code>, in the theoretically possible case that all
+issued funds are burned. If this happened, the largest interim sum in
+the block subsidy calculation would be
+<code>MAX_MONEY * 4126 / 10000000000</code>.</p>
 <p>This uses 62.91 bits, which is just under the 63 bit limit for 64-bit
 signed two’s-complement integer amount types.</p>
 <p>The numerator could be brought closer to the limit by using a larger
@@ -134,45 +143,46 @@ line at times, this will maximally <em>reduce</em> the issuance shock at
 the <code>DEPLOYMENT_BLOCK_HEIGHT</code>.</p>
 <h2 id="visualization-of-the-smoothed-curve">Visualization of the
 Smoothed Curve</h2>
-<p>The following graph illustrates compares issuance for the current
-halving-based step function vs the smoothed curve.</p>
+<p>The following graph compares issuance for the current halving-based
+step function vs the smoothed curve.</p>
 <figure>
 <img src="assets/images/zip-0234-block_subsidy.png"
 alt="A graph showing a comparison of the halving-based step function vs the smoothed curve" />
 <figcaption aria-hidden="true">A graph showing a comparison of the
 halving-based step function vs the smoothed curve</figcaption>
 </figure>
-<p>The graph below shows the balance of the ZSF assuming smooth issuance
-is implemented.</p>
+<p>The graph below shows the balance of the Money Reserve assuming
+smooth issuance is implemented.</p>
 <figure>
 <img src="assets/images/zip-0234-balance.png"
-alt="A graph showing the balance of the ZSF assuming smooth issuance is implemented" />
-<figcaption aria-hidden="true">A graph showing the balance of the ZSF
-assuming smooth issuance is implemented</figcaption>
+alt="A graph showing the balance of the Money Reserve assuming smooth issuance is implemented" />
+<figcaption aria-hidden="true">A graph showing the balance of the Money
+Reserve assuming smooth issuance is implemented</figcaption>
 </figure>
 <h1 id="deployment">Deployment</h1>
 <p>The implementation of this ZIP MUST be deployed at the same time or
-after the Zcash Sustainability Fund is established (ZIP-0233).</p>
+after the Network Sustainability Mechanism Burning function is deployed
+(ZIP-0233).</p>
 <h1 id="appendix-simulation">Appendix: Simulation</h1>
-<p>The <a href="https://github.com/eigerco/zsf-simulator">ZSF
-simulator</a> allows us to simulate the effects of this ZIP on the ZSF
-balance and the block subsidy, as well as generate plots like the ones
+<p>The <a href="https://github.com/eigerco/zsf-simulator">NSM
+Simulator</a> allows us to simulate the effects of this ZIP on the Money
+Reserve and the block subsidy, as well as generate plots like the ones
 above. Its output:</p>
 <pre><code>Last block is 47917869 in ~113.88 years</code></pre>
-<p>indicates that, assuming that no ZEC is ever deposited into the ZSF,
-its balance will be depleted after 113.88 years, and the block subsidy
-will be 0 ZEC after that point.</p>
-<p>This fragment of the output</p>
+<p>indicates that, assuming that no ZEC is ever burned, the Money
+Reserve will be depleted after 113.88 years, and the block subsidy will
+be 0 ZEC after that point.</p>
+<p>This fragment of the output:</p>
 <pre><code>Halving  1 at block  1680000:
-  ZSF subsidies:    262523884819889 (~ 2625238.848 ZEC,        1.563 ZEC per block)
+  NSM subsidies:    262523884819889 (~ 2625238.848 ZEC,        1.563 ZEC per block)
   legacy subsidies: 262500000000000 (~ 2625000.000 ZEC,        1.562 ZEC per block)
-  difference:           23884819889 (~         238 ZEC),         ZSF/legacy: 1.0001</code></pre>
+  difference:           23884819889 (~         238 ZEC),         NSM/legacy: 1.0001</code></pre>
 <p>shows that the difference between the smoothed out and the current
-issuance schemes is 238 ZEC after 1680000 blocks (aroound 4 years).</p>
+issuance schemes is 238 ZEC after 1680000 blocks (around 4 years).</p>
 <h1 id="references">References</h1>
 <p>[1] RFC-2119: https://datatracker.ietf.org/doc/html/rfc2119</p>
 <p>[2] <a href="zip-0200">ZIP-200: Network Upgrade Mechanism</a></p>
-<p>[3] <a href="zip-0233">ZIP_233: Establish the Zcash Sustainability
-Fund on the Protocol Level</a></p>
+<p>[3] <a href="zip-0233">ZIP_233: Network Sustainability Mechanism:
+Burning</a></p>
 </body>
 </html>
