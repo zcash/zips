@@ -60,7 +60,9 @@ Because in a single transaction all value commitments are balanced, there must b
 
 In order to ensure the security of the transfers, and as we will explain below, we are redefining input dummy notes [#protocol-orcharddummynotes]_ for Custom Assets, as we need to enforce that the :math:`\mathsf{AssetBase}` of the output note of that Split Action is the output of a valid :math:`\mathsf{ZSAValueBase}` computation defined in ZIP 227 [#zip-0227]_.
 
-We include the ability to pause the ZSA functionality, via a :math:`\mathsf{enableZSA}` boolean flag. When this flag is set to false, it is not possible to perform transactions involving Custom Assets (the Action statement as modified for ZSAs will not be satisfied).
+We include the ability to pause the ZSA functionality, via a :math:`\mathsf{enableZSA}` boolean flag. 
+When this flag is set to false, the proof will fail for any non-native Asset, making it  impossible to perform transactions involving Custom Assets.
+When this flag is set to true, the circuit will allow transactions involving Custom Assets subject to the values of the :math:`\mathsf{enableSpendsOrchard}` and :math:`\mathsf{enableOutputsOrchard}` flags, similar to the vanilla Orchard setting.
 
 Finally, in this ZIP we also describe the *burn* mechanism, which is a direct extension of the transfer mechanism. The burn process uses a similar mechanism to what is used in Orchard to unshield ZEC, by using the :math:`\mathsf{valueBalance}` of the Asset in question. Burning Assets is useful for many purposes, including bridging of Wrapped Assets and removing supply of Assets.
 
@@ -166,23 +168,28 @@ The use of different value base points for different Assets enables the final ba
 Burn Mechanism
 --------------
 
-The burn mechanism is a transparent extension to the transfer protocol that enables a specific amount of any Asset Identifier to be "destroyed". The burn mechanism does NOT send Assets to a non-spendable address, it simply reduces the total number of units of a given Custom Asset in circulation at the consensus level. It is enforced at the consensus level, by using an extension of the value balance mechanism used for ZEC Assets.
-Burning makes it globally provable that a given amount of an Asset has been destroyed.
+The burn mechanism is a transparent extension to the transfer protocol that enables a specific amount of any Custom Asset to be "destroyed" by the holder. 
+The burn mechanism does NOT send Assets to a non-spendable address, it simply reduces the total number of units of a given Custom Asset in circulation. 
+It is enforced at the consensus level, by using an extension of the value balance mechanism used for ZEC Assets.
+Burning makes it globally provable that a given amount of a Custom Asset has been destroyed.
+Note that the OrchardZSA Protocol does not allow for the burning of ZEC (or TAZ).
 
-The sender includes a :math:`\mathsf{v_{AssetId}}` variable for every Asset Identifier that is being burnt, which represents the amount of that Asset being burnt. As described in the `Orchard-ZSA Transaction Structure`_, this is separate from the regular :math:`\mathsf{valueBalance^{Orchard}}` that is the default transparent value for the ZEC Asset, and represents either the transaction fee, or the amount of ZEC changing pools (e.g. to Sapling or Transparent).
+In the `Orchard-ZSA Transaction Structure`_, there is now an :math:`\mathsf{assetBurn}` set. 
+For every Custom Asset (represented by its :math:`\mathsf{AssetBase}\!`) that is burnt in the transaction, the sender adds to :math:`\mathsf{assetBurn}` the tuple :math:`(\mathsf{AssetBase}, \mathsf{v})`, where :math:`\mathsf{v}` is the amount of the Custom Asset the sender wants to burn. 
+We denote by :math:`L` the cardinality of the :math:`\mathsf{assetBurn}` set in a transaction.
 
-For every Custom Asset that is burnt, we add to the :math:`\mathsf{assetBurn}` set the tuple :math:`(\mathsf{AssetBase_{AssetId}}, \mathsf{v_{AssetId}})` such that the validator of the transaction can compute the value commitment with the corresponding value base point of that Asset. This ensures that the values are all balanced out with respect to the Asset Identifiers in the transfer.
-
-.. math:: \mathsf{assetBurn} := \{ (\mathsf{AssetBase}_{\mathsf{AssetId}} : \mathbb{P}^*, \mathsf{v_{AssetId}} : \{1 .. 2^{\ell_{\mathsf{value}}} - 1\}) \,|\, \mathsf{AssetId} \in \mathsf{AssetIdsToBurn} \}
-
-We denote by :math:`L` the cardinality of the :math:`\mathsf{assetBurn}` set.
+As described in `Value Balance Verification`_, this provides the information for the validator of the transaction to compute the value commitment with the corresponding Asset Base. 
+This ensures that the values are all balanced out on a per-Asset basis in the transaction.
 
 Additional Consensus Rules
 ``````````````````````````
 
-1. We require that for every :math:`(\mathsf{AssetBase_{AssetId}}, \mathsf{v_{AssetId}}) \in \mathsf{assetBurn}, \mathsf{AssetBase_{AssetId}} \neq \mathcal{V}^{\mathsf{Orchard}}\!`. That is, ZEC or TAZ is not allowed to be burnt by this mechanism.
-2. We require that for every :math:`(\mathsf{AssetBase_{AssetId}}, \mathsf{v_{AssetId}}) \in \mathsf{assetBurn}, \mathsf{v_{AssetId}} \neq 0\!`.
-3. We require that there be no duplication of Custom Assets in the :math:`\mathsf{assetBurn}` set. That is, every :math:`\mathsf{AssetBase_{AssetId}}` has at most one entry in :math:`\mathsf{assetBurn}\!`.
+1. Check that for every :math:`(\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{assetBurn}, \mathsf{AssetBase} \neq \mathcal{V}^{\mathsf{Orchard}}\!`. That is, ZEC or TAZ is not allowed to be burnt by this mechanism.
+2. Check that for every :math:`(\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{assetBurn}, \mathsf{v} \neq 0\!`.
+3. Check that there is no duplication of Custom Assets in the :math:`\mathsf{assetBurn}` set. That is, every :math:`\mathsf{AssetBase}` has at most one entry in :math:`\mathsf{assetBurn}\!`.
+4. Check that for every :math:`(\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{assetBurn}\!`, :math:`\mathsf{v} \leq \mathsf{issued\_assets(AssetBase).balance}\!`, where the map :math:`\mathsf{issued\_assets}` is defined in ZIP 227 [#zip-0227-specification-global-issuance-state]_. That is, it is not possible to burn more of an Asset than is currently in circulation.
+
+If all these checks pass, then for every :math:`(\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{assetBurn}\!`, reduce the value of :math:`\mathsf{issued\_assets(AssetBase).balance}` in the global state by :math:`\mathsf{v}\!`.
 
 **Note:** Even if this mechanism allows having transparent ↔ shielded Asset transfers in theory, the transparent protocol will not be changed with this ZIP to adapt to a multiple Asset structure. This means that unless future consensus rules changes do allow it, unshielding will not be possible for Custom Assets.
 
@@ -243,9 +250,9 @@ Wallets and other clients have to choose from the following to ensure the Asset 
 
 For Split Notes, the nullifier is generated as follows:
 
-.. math:: \mathsf{nf_{old}} = \mathsf{Extract}_{\mathbb{P}} ([(\mathsf{PRF^{nfOrchard}_{nk}} (\text{ρ}^{\mathsf{old}}) + \text{ψ}') \bmod q_{\mathbb{P}}]\,\mathcal{K}^\mathsf{Orchard} + \mathsf{cm^{old}} + \mathcal{L}^\mathsf{Orchard})
+.. math:: \mathsf{nf_{old}} = \mathsf{Extract}_{\mathbb{P}} ([(\mathsf{PRF^{nfOrchard}_{nk}} (\text{ρ}^{\mathsf{old}}) + \text{ψ}^{\mathsf{nf}}) \bmod q_{\mathbb{P}}]\,\mathcal{K}^\mathsf{Orchard} + \mathsf{cm^{old}} + \mathcal{L}^\mathsf{Orchard})
 
-where :math:`\text{ψ}'` is sampled uniformly at random on :math:`\mathbb{F}_{q_{\mathbb{P}}}\!`, :math:`\mathcal{K}^{\mathsf{Orchard}}` is the Orchard Nullifier Base as defined in [#protocol-commitmentsandnullifiers]_, and :math:`\mathcal{L}^{\mathsf{Orchard}} := \mathsf{GroupHash^{\mathbb{P}}}(\texttt{"z.cash:Orchard"}, \texttt{"L"})\!`.
+where :math:`\text{ψ}^{\mathsf{nf}}` is sampled uniformly at random on :math:`\mathbb{F}_{q_{\mathbb{P}}}\!`, :math:`\mathcal{K}^{\mathsf{Orchard}}` is the Orchard Nullifier Base as defined in [#protocol-commitmentsandnullifiers]_, and :math:`\mathcal{L}^{\mathsf{Orchard}} := \mathsf{GroupHash^{\mathbb{P}}}(\texttt{"z.cash:Orchard"}, \texttt{"L"})\!`.
 
 Rationale for Split Notes
 `````````````````````````
@@ -344,9 +351,10 @@ When Orchard Actions are present in the transaction, this digest is a BLAKE2b-25
    T.4a: orchard_actions_compact_digest      (32-byte hash output)          [UPDATED FOR ZSA]
    T.4b: orchard_actions_memos_digest        (32-byte hash output)          [UPDATED FOR ZSA]
    T.4c: orchard_actions_noncompact_digest   (32-byte hash output)          [UPDATED FOR ZSA]
-   T.4d: flagsOrchard                        (1 byte)
-   T.4e: valueBalanceOrchard                 (64-bit signed little-endian)
-   T.4f: anchorOrchard                       (32 bytes)
+   T.4d: orchard_zsa_burn_digest             (32-byte hash output)          [ADDED FOR ZSA]
+   T.4e: flagsOrchard                        (1 byte)
+   T.4f: valueBalanceOrchard                 (64-bit signed little-endian)
+   T.4g: anchorOrchard                       (32 bytes)
 
 T.4a: orchard_actions_compact_digest
 ''''''''''''''''''''''''''''''''''''
@@ -396,6 +404,36 @@ the following elements are included in the hash::
 The personalization field of this hash is defined identically to ZIP 244::
 
     "ZTxIdOrcActNHash"
+
+
+T.4d: orchard_zsa_burn_digest
+'''''''''''''''''''''''''''''
+
+A BLAKE2b-256 hash of the data from the burn fields of the transaction. For each tuple in 
+the :math:`\mathsf{assetBurn}` set, the following elements are included in the hash::
+
+    T.4d.i : assetBase    (field encoding bytes)
+    T.4d.ii: valueBurn    (field encoding bytes)
+
+The personalization field of this hash is set to::
+
+    "ZTxIdOrcBurnHash"
+
+In case the transaction does not perform the burning of any Assets (i.e. the 
+:math:`\mathsf{assetBurn}` set is empty), the ''orchard_zsa_burn_digest'' is::
+
+    BLAKE2b-256("ZTxIdOrcBurnHash", [])
+
+T.4d.i: assetBase
+.................
+The Asset Base being burnt encoded as the 32-byte representation of a point on the 
+Pallas curve.
+
+T.4d.ii: valueBurn
+..................
+Value of the Asset Base being burnt encoded as little-endian 8-byte representation 
+of 64-bit unsigned integer (e.g. u64 in Rust) raw value.
+
 
 T.5: issuance_digest
 ````````````````````
@@ -458,29 +496,30 @@ References
 .. [#zip-0209] `ZIP 209: Prohibit Negative Shielded Chain Value Pool Balances <zip-0209.html>`_
 .. [#zip-0224] `ZIP 224: Orchard <zip-0224.html>`_
 .. [#zip-0227] `ZIP 227: Issuance of Zcash Shielded Assets <zip-0227.html>`_
+.. [#zip-0227-specification-global-issuance-state] `ZIP 227: Issuance of Zcash Shielded Assets: Specification: Global Issuance State <zip-0227.html#specification-global-issuance-state>`_
 .. [#zip-0227-assetidentifier] `ZIP 227: Issuance of Zcash Shielded Assets: Specification: Asset Identifier <zip-0227.html#specification-asset-identifier>`_
 .. [#zip-0227-txiddigest] `ZIP 227: Issuance of Zcash Shielded Assets: TxId Digest - Issuance <zip-0227.html#txid-digest-issuance>`_
 .. [#zip-0227-sigdigest] `ZIP 227: Issuance of Zcash Shielded Assets: Signature Digest <zip-0227.html#signature-digest>`_
 .. [#zip-0227-authcommitment] `ZIP 227: Issuance of Zcash Shielded Assets: Authorizing Data Commitment <zip-0227.html#authorizing-data-commitment>`_
-.. [#zip-0230] `ZIP 230: Version 6 Transaction Format <https://github.com/QED-it/zips/pull/36>`_
+.. [#zip-0230] `ZIP 230: Version 6 Transaction Format <zip-0230.html>`_
 .. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.html>`_
 .. [#zip-0307] `ZIP 307: Light Client Protocol for Payment Detection <zip-0307.rst>`_
 .. [#zip-0317b] `ZIP 317: Proportional Transfer Fee Mechanism - Pull Request #667 for ZSA Protocol ZIPs <https://github.com/zcash/zips/pull/667>`_
-.. [#protocol-notes] `Zcash Protocol Specification, Version 2023.4.0. Section 3.2: Notes <protocol/protocol.pdf#notes>`_
-.. [#protocol-actions] `Zcash Protocol Specification, Version 2023.4.0. Section 3.7: Action Transfers and their Descriptions <protocol/protocol.pdf#actions>`_
-.. [#protocol-abstractcommit] `Zcash Protocol Specification, Version 2023.4.0. Section 4.1.8: Commitment <protocol/protocol.pdf#abstractcommit>`_
-.. [#protocol-orcharddummynotes] `Zcash Protocol Specification, Version 2023.4.0. Section 4.8.3: Dummy Notes (Orchard) <protocol/protocol.pdf#orcharddummynotes>`_
-.. [#protocol-orchardbalance] `Zcash Protocol Specification, Version 2023.4.0. Section 4.14: Balance and Binding Signature (Orchard) <protocol/protocol.pdf#orchardbalance>`_
-.. [#protocol-commitmentsandnullifiers] `Zcash Protocol Specification, Version 2023.4.0. Section 4.16: Note Commitments and Nullifiers <protocol/protocol.pdf#commitmentsandnullifiers>`_
-.. [#protocol-actionstatement] `Zcash Protocol Specification, Version 2023.4.0. Section 4.17.4: Action Statement (Orchard) <protocol/protocol.pdf#actionstatement>`_
-.. [#protocol-endian] `Zcash Protocol Specification, Version 2023.4.0. Section 5.1: Integers, Bit Sequences, and Endianness <protocol/protocol.pdf#endian>`_
-.. [#protocol-constants] `Zcash Protocol Specification, Version 2023.4.0. Section 5.3: Constants <protocol/protocol.pdf#constants>`_
-.. [#protocol-concretesinsemillahash] `Zcash Protocol Specification, Version 2023.4.0. Section 5.4.1.9: Sinsemilla hash function <protocol/protocol.pdf#concretesinsemillahash>`_
-.. [#protocol-concretehomomorphiccommit] `Zcash Protocol Specification, Version 2023.4.0. Section 5.4.8.3: Homomorphic Pedersen commitments (Sapling and Orchard) <protocol/protocol.pdf#concretehomomorphiccommit>`_
-.. [#protocol-concretesinsemillacommit] `Zcash Protocol Specification, Version 2023.4.0. Section 5.4.8.4: Sinsemilla commitments <protocol/protocol.pdf#concretesinsemillacommit>`_
-.. [#protocol-pallasandvesta] `Zcash Protocol Specification, Version 2023.4.0. Section 5.4.9.6: Pallas and Vesta <protocol/protocol.pdf#pallasandvesta>`_
-.. [#protocol-notept] `Zcash Protocol Specification, Version 2023.4.0. Section 5.5: Encodings of Note Plaintexts and Memo Fields <protocol/protocol.pdf#notept>`_
-.. [#protocol-actionencodingandconsensus] `Zcash Protocol Specification, Version 2023.4.0. Section 7.5: Action Description Encoding and Consensus  <protocol/protocol.pdf#actionencodingandconsensus>`_
+.. [#protocol-notes] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.2: Notes <protocol/protocol.pdf#notes>`_
+.. [#protocol-actions] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.7: Action Transfers and their Descriptions <protocol/protocol.pdf#actions>`_
+.. [#protocol-abstractcommit] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.1.8: Commitment <protocol/protocol.pdf#abstractcommit>`_
+.. [#protocol-orcharddummynotes] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.8.3: Dummy Notes (Orchard) <protocol/protocol.pdf#orcharddummynotes>`_
+.. [#protocol-orchardbalance] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.14: Balance and Binding Signature (Orchard) <protocol/protocol.pdf#orchardbalance>`_
+.. [#protocol-commitmentsandnullifiers] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.16: Computing ρ values and Nullifiers <protocol/protocol.pdf#commitmentsandnullifiers>`_
+.. [#protocol-actionstatement] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.18.4: Action Statement (Orchard) <protocol/protocol.pdf#actionstatement>`_
+.. [#protocol-endian] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 5.1: Integers, Bit Sequences, and Endianness <protocol/protocol.pdf#endian>`_
+.. [#protocol-constants] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 5.3: Constants <protocol/protocol.pdf#constants>`_
+.. [#protocol-concretesinsemillahash] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 5.4.1.9: Sinsemilla hash function <protocol/protocol.pdf#concretesinsemillahash>`_
+.. [#protocol-concretehomomorphiccommit] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 5.4.8.3: Homomorphic Pedersen commitments (Sapling and Orchard) <protocol/protocol.pdf#concretehomomorphiccommit>`_
+.. [#protocol-concretesinsemillacommit] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 5.4.8.4: Sinsemilla commitments <protocol/protocol.pdf#concretesinsemillacommit>`_
+.. [#protocol-pallasandvesta] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 5.4.9.6: Pallas and Vesta <protocol/protocol.pdf#pallasandvesta>`_
+.. [#protocol-notept] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 5.5: Encodings of Note Plaintexts and Memo Fields <protocol/protocol.pdf#notept>`_
+.. [#protocol-actionencodingandconsensus] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 7.5: Action Description Encoding and Consensus  <protocol/protocol.pdf#actionencodingandconsensus>`_
 .. [#initial-zsa-issue] `User-Defined Assets and Wrapped Assets <https://github.com/str4d/zips/blob/zip-udas/drafts/zip-user-defined-assets.rst>`_
 .. [#generalized-value-commitments] `Comment on Generalized Value Commitments <https://github.com/zcash/zcash/issues/2277#issuecomment-321106819>`_
 .. [#circuit-modifications] `Modifications to the Orchard circuit for the ZSA Protocol <https://docs.google.com/document/d/1DzXBqZl_l3aIs_gcelw3OuZz2OVMnYk6Xe_1lBsTji8/edit?usp=sharing>`_
