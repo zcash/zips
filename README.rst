@@ -127,7 +127,7 @@ written.
     <tr> <td><span class="reserved">228</span></td> <td class="left"><a class="reserved" href="zips/zip-0228.rst">Asset Swaps for Zcash Shielded Assets</a></td> <td>Reserved</td>
     <tr> <td>230</td> <td class="left"><a href="zips/zip-0230.rst">Version 6 Transaction Format</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">231</span></td> <td class="left"><a class="reserved" href="zips/zip-0231.rst">Decouple Memos from Transaction Outputs</a></td> <td>Reserved</td>
-    <tr> <td>233</td> <td class="left"><a href="zips/zip-0233.md">Establish the Zcash Sustainability Fund on the Protocol Level</a></td> <td>Draft</td>
+    <tr> <td>233</td> <td class="left"><a href="zips/zip-0233.md">Network Sustainability Mechanism: Burning</a></td> <td>Draft</td>
     <tr> <td>234</td> <td class="left"><a href="zips/zip-0234.md">Smooth Out The Block Subsidy Issuance</a></td> <td>Draft</td>
     <tr> <td>236</td> <td class="left"><a href="zips/zip-0236.rst">Blocks should balance exactly</a></td> <td>Draft</td>
     <tr> <td>245</td> <td class="left"><a href="zips/zip-0245.rst">Transaction Identifier Digests & Signature Validation for Transparent Zcash Extensions</a></td> <td>Draft</td>
@@ -250,7 +250,7 @@ Index of ZIPs
     <tr> <td><span class="reserved">228</span></td> <td class="left"><a class="reserved" href="zips/zip-0228.rst">Asset Swaps for Zcash Shielded Assets</a></td> <td>Reserved</td>
     <tr> <td>230</td> <td class="left"><a href="zips/zip-0230.rst">Version 6 Transaction Format</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">231</span></td> <td class="left"><a class="reserved" href="zips/zip-0231.rst">Decouple Memos from Transaction Outputs</a></td> <td>Reserved</td>
-    <tr> <td>233</td> <td class="left"><a href="zips/zip-0233.md">Establish the Zcash Sustainability Fund on the Protocol Level</a></td> <td>Draft</td>
+    <tr> <td>233</td> <td class="left"><a href="zips/zip-0233.md">Network Sustainability Mechanism: Burning</a></td> <td>Draft</td>
     <tr> <td>234</td> <td class="left"><a href="zips/zip-0234.md">Smooth Out The Block Subsidy Issuance</a></td> <td>Draft</td>
     <tr> <td>236</td> <td class="left"><a href="zips/zip-0236.rst">Blocks should balance exactly</a></td> <td>Draft</td>
     <tr> <td>239</td> <td class="left"><a href="zips/zip-0239.rst">Relay of Version 5 Transactions</a></td> <td>Final</td>
