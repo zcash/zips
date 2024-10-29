@@ -45,6 +45,10 @@ In addition, when signing a transaction with a hardware wallet, using an implici
 fee means that the hardware wallet must recompute the fee on its own and cannot
 simply display the value being committed to.
 
+Finally, this change will make it possible for light clients to determine the
+fee paid by a transaction without needing to download and inspect transparent
+inputs to the transaction.
+
 
 Requirements
 ============
