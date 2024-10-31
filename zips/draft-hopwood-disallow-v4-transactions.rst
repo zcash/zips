@@ -98,6 +98,15 @@ from NU7 onward does not allow version 4.
 
 These changes apply identically to Mainnet and Testnet.
 
+Interaction with the proposed Network Sustainability Mechanism
+--------------------------------------------------------------
+
+For clarity, the Sprout chain value pool balance as of activation of this ZIP
+remains issued. If the Network Sustainability Mechanism ZIPs that affect
+issuance ([#draft-zip-0233]_ and [#draft-zip-0234]_) are activated, then the
+Sprout chain value pool balance is, therefore, not considered part of the
+“Money Reserve” as a consequence of activating this ZIP.
+
 
 Deployment
 ==========
@@ -131,4 +140,6 @@ References
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
 .. [#zip-0209] `ZIP 209: Prohibit Negative Shielded Chain Value Pool Balances <zip-0209.rst>`_
 .. [#zip-0225] `ZIP 225: Version 5 Transaction Format <zip-0225.rst>`_
+.. [#draft-zip-0233] `Draft ZIP 233: Network Sustainability Mechanism: Burning <zip-0233.rst>`_
+.. [#draft-zip-0234] `Draft ZIP 234: Network Sustainability Mechanism: Issuance Smoothing <zip-0234.rst>`_
 .. [#cultivating-sapling] `Cultivating Sapling: Faster zk-SNARKs. Sean Bowe, September 13, 2017. <https://electriccoin.co/blog/cultivating-sapling-faster-zksnarks/>`_
