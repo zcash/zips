@@ -22,6 +22,9 @@ protocol:
 all-protocol:
 	$(MAKE) -C protocol all
 
+all-specs: all-zips
+	$(MAKE) -C protocol all-specs
+
 discard:
 	git checkout -- 'rendered/*.html' 'README.rst' 'rendered/protocol/*.pdf'
 

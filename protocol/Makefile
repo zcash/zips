@@ -69,7 +69,7 @@ $(PDFDIR)/protocol.pdf: protocol.tex zcash.bib jubjub.png key_components_sapling
 
 .PHONY: auxsapling sapling
 auxsapling:
-	printf '\\toggletrue{issapling}\n\\renewcommand{\\docversion}{Version %s [\\SaplingSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	printf '\\toggletrue{issapling}\n\\renewcommand{\\docversion}{Version %s [\\SaplingSpec]}\n' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/sapling.*
 	cp mymakeindex.sh aux
@@ -81,7 +81,7 @@ sapling:
 
 .PHONY: auxblossom blossom
 auxblossom:
-	printf '\\toggletrue{isblossom}\n\\renewcommand{\\docversion}{Version %s [\\BlossomSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	printf '\\toggletrue{isblossom}\n\\renewcommand{\\docversion}{Version %s [\\BlossomSpec]}\n' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/blossom.*
 	cp mymakeindex.sh aux
@@ -93,7 +93,7 @@ blossom:
 
 .PHONY: auxheartwood heartwood
 auxheartwood:
-	printf '\\toggletrue{isheartwood}\n\\renewcommand{\\docversion}{Version %s [\\HeartwoodSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	printf '\\toggletrue{isheartwood}\n\\renewcommand{\\docversion}{Version %s [\\HeartwoodSpec]}\n' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/heartwood.*
 	cp mymakeindex.sh aux
@@ -105,7 +105,7 @@ heartwood:
 
 .PHONY: auxcanopy canopy
 auxcanopy:
-	printf '\\toggletrue{iscanopy}\n\\renewcommand{\\docversion}{Version %s [\\CanopySpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	printf '\\toggletrue{iscanopy}\n\\renewcommand{\\docversion}{Version %s [\\CanopySpec]}\n' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/canopy.*
 	cp mymakeindex.sh aux
@@ -117,7 +117,7 @@ canopy:
 
 .PHONY: auxnu5 nu5
 auxnu5:
-	printf '\\toggletrue{isnufive}\n\\renewcommand{\\docversion}{Version %s [\\NUFiveSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	printf '\\toggletrue{isnufive}\n\\renewcommand{\\docversion}{Version %s [\\NUFiveSpec]}\n' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/nu5.*
 	cp mymakeindex.sh aux
@@ -129,7 +129,7 @@ nu5:
 
 .PHONY: auxnu6 nu6
 auxnu6:
-	printf '\\toggletrue{isnusix}\n\\renewcommand{\\docversion}{Version %s [\\NUSixSpec]}' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	printf '\\toggletrue{isnusix}\n\\renewcommand{\\docversion}{Version %s [\\NUSixSpec]}\n' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/nu6.*
 	cp mymakeindex.sh aux
