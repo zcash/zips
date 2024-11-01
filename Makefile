@@ -19,6 +19,9 @@ tag-release:
 protocol:
 	$(MAKE) -C protocol protocol
 
+protocol-dark:
+	$(MAKE) -C protocol protocol-dark
+
 all-protocol:
 	$(MAKE) -C protocol all
 

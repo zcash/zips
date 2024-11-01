@@ -20,14 +20,16 @@ PDFDIR=../rendered/protocol
 # Use EXTRAOPT=-pvc for "continuous preview" mode. For example, "make auxblossom EXTRAOPT=-pvc".
 # In this case the updated .pdf will be in the aux/ directory.
 
-.PHONY: all protocol all-specs tag-release discard
+.PHONY: all protocol protocol-dark all-specs tag-release discard
 all: .Makefile.uptodate
-	$(MAKE) $(PDFDIR)/protocol.pdf $(PDFDIR)/nu5.pdf $(PDFDIR)/canopy.pdf $(PDFDIR)/heartwood.pdf $(PDFDIR)/blossom.pdf $(PDFDIR)/sapling.pdf
+	$(MAKE) $(PDFDIR)/protocol.pdf $(PDFDIR)/protocol-dark.pdf $(PDFDIR)/nu5.pdf $(PDFDIR)/canopy.pdf $(PDFDIR)/heartwood.pdf $(PDFDIR)/blossom.pdf $(PDFDIR)/sapling.pdf
 
 protocol: $(PDFDIR)/protocol.pdf
 
+protocol-dark: $(PDFDIR)/protocol-dark.pdf
+
 all-specs: .Makefile.uptodate
-	$(MAKE) nu6 nu5 canopy heartwood blossom sapling
+	$(MAKE) nu6 nu6-dark nu5 canopy heartwood blossom sapling
 
 tag-release:
 ifeq ($(shell git tag --points-at HEAD |wc -l),0)
@@ -66,6 +68,9 @@ $(PDFDIR)/nu5.pdf: protocol.tex zcash.bib jubjub.png key_components_sapling.png 
 
 $(PDFDIR)/protocol.pdf: protocol.tex zcash.bib jubjub.png key_components_sapling.png key_components_orchard.png incremental_merkle.png
 	$(MAKE) nu6
+
+$(PDFDIR)/protocol-dark.pdf: protocol.tex zcash.bib jubjub.png key_components_sapling.png key_components_orchard_dark.png incremental_merkle_dark.png
+	$(MAKE) nu6-dark
 
 .PHONY: auxsapling sapling
 auxsapling:
@@ -139,6 +144,18 @@ nu6:
 	$(MAKE) auxnu6
 	mv -f aux/nu6.pdf $(PDFDIR)/protocol.pdf
 
+.PHONY: auxnu6-dark nu6-dark
+auxnu6-dark:
+	printf '\\toggletrue{darkmode}\\toggletrue{isnusix}\n\\renewcommand{\\docversion}{Version %s [\\NUSixSpec]}\n' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	mkdir -p aux
+	rm -f aux/nu6-dark.*
+	cp mymakeindex.sh aux
+	$(LATEXMK) -jobname=nu6-dark -auxdir=aux -outdir=aux $(EXTRAOPT) protocol $(NOCRUFT)
+
+nu6-dark:
+	$(MAKE) auxnu6-dark
+	mv -f aux/nu6-dark.pdf $(PDFDIR)/protocol-dark.pdf
+
 .PHONY: clean
 clean:
-	rm -f aux/* protocol.ver $(PDFDIR)/protocol.pdf $(PDFDIR)/nu5.pdf $(PDFDIR)/canopy.pdf $(PDFDIR)/heartwood.pdf $(PDFDIR)/blossom.pdf $(PDFDIR)/sapling.pdf
+	rm -f aux/* protocol.ver $(PDFDIR)/protocol.pdf $(PDFDIR)/protocol-dark.pdf $(PDFDIR)/nu5.pdf $(PDFDIR)/canopy.pdf $(PDFDIR)/heartwood.pdf $(PDFDIR)/blossom.pdf $(PDFDIR)/sapling.pdf
