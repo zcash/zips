@@ -33,6 +33,9 @@ EOF
     rm -f "$2".prefix
 fi
 
+sed -i.sedbak 's|<a href="[^":]*">Protocol Specification</a>|<span class="lightmode"><a href="https://zips.z.cash/protocol/protocol.pdf">Protocol Specification</a></span>|g' "$2"
+sed -i.sedbak 's|\s*<a href="[^":]*">(dark mode version)</a>|<span class="darkmode" style="display: none;"><a href="https://zips.z.cash/protocol/protocol-dark.pdf">Protocol Specification</a></span>|g' "$2"
+
 sed -i.sedbak 's|<a \(class=[^ ]* \)*href="\([^":]*\)\.rst\(\#[^"]*\)*">|<a \1href="\2\3">|g' "$2"
 sed -i.sedbak 's|<a \(class=[^ ]* \)*href="\([^":]*\)\.md\(\#[^"]*\)*">|<a \1href="\2\3">|g' "$2"
 sed -i.sedbak 's|&lt;\(https:[^&]*\)&gt;|\&lt;<a href="\1">\1</a>\&gt;|g' "$2"
