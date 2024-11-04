@@ -33,11 +33,12 @@ This proposal disallows v4 transactions. The v5 transaction format introduced
 in the NU5 network upgrade [#zip-0225]_ does not support Sprout, and so this
 will have the effect of disabling the ability to spend Sprout funds.
 
-It is not proposed in this ZIP to unissue Sprout funds. This leaves open the
-possibility of re-enabling v4 transactions, or of adding another facility to
-retrieve these funds if the Zcash community considers it worthwhile. However,
-since it is possible the ability to spend Sprout funds will never be re-enabled,
-holders of these funds should move them out of the Sprout pool without delay.
+It is not proposed in this ZIP to unissue, burn, or otherwise make Sprout funds
+permanently unavailable. This leaves open the possibility of re-enabling v4
+transactions, or of adding another facility to retrieve these funds if the Zcash
+community considers it worthwhile. However, since it is possible the ability to
+spend Sprout funds will never be re-enabled, holders of these funds should move
+them out of the Sprout pool without delay.
 
 
 Motivation
