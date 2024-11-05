@@ -123,13 +123,20 @@ Issuance Key Derivation
 Issuance authorizing key generation for hierarchical deterministic wallets
 ``````````````````````````````````````````````````````````````````````````
 
-The issuance authorizing key is generated using the Orchard master key derivation procedure defined in ZIP 32 [#zip-0032-orchard-master]_. We reuse the functions defined there in what follows in this section.
+The issuance authorizing key is generated using the Hardened-only key derivation process defined in ZIP 32 [#zip-0032-hardened-only-key-derivation]_. 
+For the :math:`\mathsf{Issuance}` context, we define the following constants:
+
+- :math:`\mathsf{Issuance.\!MKGDomain} := \texttt{"ZcashSA_Issue_V1"}`
+- :math:`\mathsf{Issuance.\!CKDDomain} := \mathtt{0x81}\!`
 
 Let :math:`S` be a seed byte sequence of a chosen length, which MUST be at least 32 and at most 252 bytes.
-We define the master extended issuance key :math:`m_{\mathsf{Issuance}} := \mathsf{MasterKeyGen}(\texttt{"ZIP32ZSAIssue_V1"}, S)\!`.
+We define the master extended issuance key :math:`m_{\mathsf{Issuance}} := \mathsf{MKGh}^{\mathsf{Issuance}}(S)\!`.
 
-As in ZIP 32 for Orchard [#zip-0032-orchard-child-key-derivation]_, we only use hardened child key derivation for the issuance authorizing key.
-We reuse the :math:`\mathsf{CDKsk}` function for Orchard child key derivation from ZIP 32.
+We use hardened-only child key derivation as defined in ZIP 32 [#zip-0032-hardened-only-child-key-derivation]_ for the issuance authorizing key.
+
+:math:`\mathsf{CKDsk}((\mathsf{sk}_{par},\mathsf{c}_{par}), i) \rightarrow (\mathsf{sk}_{i}, \mathsf{c}_{i})` 
+
+- Return :math:`\mathsf{CKDh}^{\mathsf{Issuance}}((\mathsf{sk}_{par},\mathsf{c}_{par}), i)\!`
 
 We use the notation of ZIP 32 [#zip-0032-orchard-key-path]_ for shielded HD paths, and define the issuance authorizing key path as :math:`m_{\mathsf{Issuance}} / \mathit{purpose}' / \mathit{coin\_type}' / \mathit{account}'\!`. We fix the path levels as follows:
 
@@ -221,8 +228,24 @@ Specification: Global Issuance State
 
 Issuance requires the following additions to the global state defined at block boundaries:
 
-- :math:`\mathsf{previously\_finalized}\!`, a set of :math:`\mathsf{AssetId}` that have been finalized (i.e.: the :math:`\mathsf{finalize}` flag has been set to :math:`1` in some issuance transaction preceding the block boundary).
+A map, :math:`\mathsf{issued\_assets}\!`, from the Asset Base, :math:`\mathsf{AssetBase}`, to a tuple :math:`(\mathsf{balance}, \mathsf{final})\!`, for every Asset that has been issued up until the block boundary. For each Asset:
 
+- The amount of the Asset in circulation, computed as the amount of the Asset that has been issued less the amount of the Asset that has been burnt, is stored in :math:`\mathsf{balance}\!`.
+- The boolean :math:`\mathsf{final}` stores the finalization status of the Asset (i.e.: whether the :math:`\mathsf{finalize}` flag has been set to :math:`1` in some issuance transaction for the Asset preceding the block boundary). The value of :math:`\mathsf{final}` for any Asset cannot be changed from :math:`1` to :math:`0`.
+
+
+We use the notation :math:`\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{balance}` and :math:`\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{final}` to access, respectively, the balance and finalization status of the Asset stored in the global state.
+
+Rationale for Global Issuance State
+-----------------------------------
+
+It is necessary to ensure that the balance of any issued Custom Asset never becomes negative within a shielded pool, along the lines of ZIP 209 [#zip-0209]_. 
+However, unlike for the shielded ZEC pools, there is no individual transaction field that directly corresponds to both the issued and burnt amounts for a given Asset.
+Therefore, we require that all nodes maintain a record of the current amount in circulation for every issued Custom Asset, and update this record at the block boundary based on the issuance and burn transactions within the block. 
+This allows for efficient detection of balance violations for any Asset, in which scenario we specify a consensus rule to reject the block.
+
+Nodes also need to ensure the rejection of blocks in which issuance of Custom Assets that have been previously finalized. 
+The :math:`\mathsf{issued\_assets}` map allows nodes to store whether or not a given Asset has been finalized. 
 
 Specification: Issuance Action, Issuance Bundle and Issuance Protocol
 =====================================================================
@@ -328,14 +351,19 @@ For each ``IssueAction`` in ``IssueBundle``:
 - check that :math:`\mathsf{asset\_desc}` is a string of length :math:`\mathtt{assetDescSize}` bytes.
 
 - retrieve :math:`\mathsf{AssetBase}` from the first note in the sequence and check that :math:`\mathsf{AssetBase}` is derived from the issuance validating key :math:`\mathsf{ik}` and :math:`\mathsf{asset\_desc}` as described in the `Specification: Asset Identifier`_ section.
-- check that the :math:`\mathsf{AssetDigest}` does not exist in the :math:`\mathsf{previously\_finalized}` set in the global state.
+- check that :math:`\mathsf{issued\_assets(AssetBase).final} \neq 1` in the global state.
 - check that every note in the ``IssueAction`` contains the same :math:`\mathsf{AssetBase}` and is properly constructed as :math:`\mathsf{note} = (\mathsf{g_d}, \mathsf{pk_d}, \mathsf{v}, \text{ρ}, \mathsf{rseed}, \mathsf{AssetBase})\!`.
 
 If all of the above checks pass, do the following:
 
-- For each note, compute the note commitment as :math:`\mathsf{cm} = \mathsf{NoteCommit^{OrchardZSA}_{rcm}}(\mathsf{repr}_{\mathbb{P}}(\mathsf{g_d}), \mathsf{repr}_{\mathbb{P}}(\mathsf{pk_d}), \mathsf{v}, \text{ρ}, \text{ψ}, \mathsf{AssetBase})` as defined in the Note Structure and Commitment section of ZIP 226 [#zip-0226-notestructure]_ and
-- Add :math:`\mathsf{cm}` to the Merkle tree of note commitments.
-- If :math:`\mathsf{finalize} = 1\!`, add :math:`\mathsf{AssetDigest}` to the :math:`\mathsf{previously\_finalized}` set immediately after the block in which this transaction occurs.
+- For each note, 
+
+  - compute the note commitment as :math:`\mathsf{cm} = \mathsf{NoteCommit^{OrchardZSA}_{rcm}}(\mathsf{repr}_{\mathbb{P}}(\mathsf{g_d}), \mathsf{repr}_{\mathbb{P}}(\mathsf{pk_d}), \mathsf{v}, \text{ρ}, \text{ψ}, \mathsf{AssetBase})` as defined in the Note Structure and Commitment section of ZIP 226 [#zip-0226-notestructure]_.
+  - Add :math:`\mathsf{cm}` to the Merkle tree of note commitments.
+  - Increase the value of :math:`\mathsf{issued\_assets(AssetBase).balance}` by the value of the note, :math:`\mathsf{v}`.
+
+- If :math:`\mathsf{finalize} = 1\!`, set :math:`\mathsf{issued\_assets(AssetBase).final}` to :math:`1` in the global state.
+
 - (Replay Protection) If issue bundle is present, the fees MUST be greater than zero.
 
 
@@ -353,7 +381,7 @@ The following is a list of rationale for different decisions made in the proposa
     - bridging information for Wrapped Assets (chain of origin, issuer name, etc)
     - information to be committed by the issuer, though not enforceable by the protocol.
 
-- We require a check whether the :math:`\mathsf{finalize}` flag only has been set in a previous block rather than a previous transaction in the same block. In other words, we only update the :math:`\mathsf{previously\_finalized}`` set at the block boundary. This is in keeping with the current property which allows for a miner to reorder transactions in a block without changing the meaning, which we aim to preserve.
+- We limit the size of the :math:`\mathsf{asset\_desc}` string to 512 bytes as it is a reasonable size to store metadata about the Asset, for example in JSON format.
 - We require non-zero fees in the presence of an issue bundle, in order to preclude the possibility of a transaction containing only an issue bundle. If a transaction includes only an issue bundle, the SIGHASH transaction hash would be computed solely based on the issue bundle. A duplicate bundle would have the same SIGHASH transaction hash, potentially allowing for a replay attack.
 
 Concrete Applications
@@ -406,7 +434,7 @@ The personalization field of this hash is set to::
 
   "ZTxIdSAIssueHash"
 
-In case the transaction has no issuance components, ''issue_actions_digest'' is::
+In case the transaction has no issuance components, ''issuance_digest'' is::
 
     BLAKE2b-256("ZTxIdSAIssueHash", [])
 
@@ -435,6 +463,10 @@ A BLAKE2b-256 hash of Note information for all Notes belonging to the Issuance A
 The personalization field of this hash is set to::
 
   "ZTxIdIAcNoteHash"
+
+In case the transaction has no Issue Notes, ''issue_notes_digest'' is::
+
+    BLAKE2b-256("ZTxIdIAcNoteHash", [])
 
 T.5a.i.1: recipient
 ...................
@@ -598,11 +630,12 @@ References
 
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
 .. [#zip-0032] `ZIP 32: Shielded Hierarchical Deterministic Wallets <zip-0032.html>`_
-.. [#zip-0032-orchard-master] `ZIP 32: Shielded Hierarchical Deterministic Wallets - Orchard master key generation <zip-0032.html#orchard-master-key-generation>`_
-.. [#zip-0032-orchard-child-key-derivation] `ZIP 32: Shielded Hierarchical Deterministic Wallets - Orchard child key derivation <zip-0032.html#orchard-child-key-derivation>`_
+.. [#zip-0032-hardened-only-key-derivation] `ZIP 32: Shielded Hierarchical Deterministic Wallets - Specification: Hardened-only key derivation <zip-0032.html#specification-hardened-only-key-derivation>`_
+.. [#zip-0032-hardened-only-child-key-derivation] `ZIP 32: Shielded Hierarchical Deterministic Wallets - Hardened-only child key derivation <zip-0032.html#hardened-only-child-key-derivation>`_
 .. [#zip-0032-key-path-levels] `ZIP 32: Shielded Hierarchical Deterministic Wallets - Key path levels <zip-0032.html#key-path-levels>`_
 .. [#zip-0032-orchard-key-path] `ZIP 32: Shielded Hierarchical Deterministic Wallets - Orchard key path <zip-0032.html#orchard-key-path>`_
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.html>`_
+.. [#zip-0209] `ZIP 209: Prohibit Negative Shielded Chain Value Pool Balances <zip-0209.html>`_
 .. [#zip-0224] `ZIP 224: Orchard <zip-0224.html>`_
 .. [#zip-0226] `ZIP 226: Transfer and Burn of Zcash Shielded Assets <zip-0226.html>`_
 .. [#zip-0226-notestructure] `ZIP 226: Transfer and Burn of Zcash Shielded Assets - Note Structure & Commitment <zip-0226.html#note-structure-commitment>`_
@@ -611,10 +644,10 @@ References
 .. [#zip-0244-sigdigest] `ZIP 244: Transaction Identifier Non-Malleability: Signature Digest <zip-0244.html#signature-digest>`_
 .. [#zip-0244-authcommitment] `ZIP 244: Transaction Identifier Non-Malleability: Authorizing Data Commitment <zip-0244.html#authorizing-data-commitment>`_
 .. [#zip-0317b] `ZIP 317: Proportional Transfer Fee Mechanism <https://github.com/zcash/zips/pull/667>`_
-.. [#bip-0340] `BIP 340: Schnorr Signatures for secp256k1 <https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki>`_
-.. [#protocol-notation] `Zcash Protocol Specification, Version 2023.4.0. Section 2: Notation <protocol/protocol.pdf#notation>`_
-.. [#protocol-addressesandkeys] `Zcash Protocol Specification, Version 2023.4.0. Section 3.1: Payment Addresses and Keys <protocol/protocol.pdf#addressesandkeys>`_
-.. [#protocol-orchardkeycomponents] `Zcash Protocol Specification, Version 2023.4.0. Section 4.2.3: Orchard Key Components <protocol/protocol.pdf#orchardkeycomponents>`_
-.. [#protocol-concretegrouphashpallasandvesta] `Zcash Protocol Specification, Version 2023.4.0. Section 5.4.9.8: Group Hash into Pallas and Vesta <protocol/protocol.pdf#concretegrouphashpallasandvesta>`_
-.. [#protocol-orchardpaymentaddrencoding] `Zcash Protocol Specification, Version 2023.4.0. Section 5.6.4.2: Orchard Raw Payment Addresses <protocol/protocol.pdf#orchardpaymentaddrencoding>`_
-.. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2023.4.0. Section 7.1: Transaction Encoding and Consensus (Transaction Version 5) <protocol/protocol.pdf#txnencoding>`_
+.. [#bip-0340] `BIP 340: Schnorr Signatures for secp256k1 <https://github.com/bitcoin/bips/blob/200f9b26fe0a2f235a2af8b30c4be9f12f6bc9cb/bip-0340.mediawiki>`_
+.. [#protocol-notation] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 2: Notation <protocol/protocol.pdf#notation>`_
+.. [#protocol-addressesandkeys] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.1: Payment Addresses and Keys <protocol/protocol.pdf#addressesandkeys>`_
+.. [#protocol-orchardkeycomponents] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.2.3: Orchard Key Components <protocol/protocol.pdf#orchardkeycomponents>`_
+.. [#protocol-concretegrouphashpallasandvesta] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 5.4.9.8: Group Hash into Pallas and Vesta <protocol/protocol.pdf#concretegrouphashpallasandvesta>`_
+.. [#protocol-orchardpaymentaddrencoding] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 5.6.4.2: Orchard Raw Payment Addresses <protocol/protocol.pdf#orchardpaymentaddrencoding>`_
+.. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
