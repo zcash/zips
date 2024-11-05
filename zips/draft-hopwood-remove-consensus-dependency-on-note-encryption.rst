@@ -31,10 +31,9 @@ Abstract
 ========
 
 ZIP 213 [#zip-0213]_ added the ability for coinbase outputs to be shielded. An
-unfortunate side effect of this was to make consensus dependent on the details of
-note encryption, because these outputs are required to be validly encrypted with
-the zero key. This has unnecessarily complicated the specification and implementation
-of consensus rules.
+unfortunate side effect of this was to make consensus dependent on the details
+of note encryption. This has unnecessarily complicated the specification and
+implementation of consensus rules.
 
 This proposal disentangles note encryption from consensus, by instead requiring
 coinbase outputs for v6 and later transaction versions to be unencrypted. The
@@ -45,7 +44,26 @@ allowed on the network, which is likely to happen in some later upgrade.
 Motivation
 ==========
 
-[...]
+In the original design of Zcash, the consensus protocol was carefully isolated
+from the details of note encryption. This property, which was preserved through
+the Overwinter, Sapling, and Blossom upgrades, reduces the complexity and attack
+surface of the consensus protocol. It also potentially allows changes to note
+encryption to be made outside network upgrades.
+
+A dependency on note encryption crept into the consensus protocol as a result
+of the changes to support shielded coinbase outputs in ZIP 213 [#zip-0213]_,
+deployed in the Heartwood network upgrade. These changes added the requirement
+that it must be possible to decrypt Sapling and Orchard outputs in coinbase
+transactions using a sequence of 32 zero bytes as the outgoing viewing key.
+
+The complexity impact of this change was overlooked. This became apparent during
+the design of ZIP 212 [#zip-0212]_ for the Heartwood network upgrade. In fact
+for a time there were separate and slightly diverging implementations of note
+decryption for the consensus checks in `zcashd`, and in `librustzcash`. This
+could have led to a chain fork between `zcashd` and `zebrad` before the
+implementations were reconciled.
+
+This ZIP restores the originally intended design property.
 
 
 Requirements
@@ -59,7 +77,61 @@ independent of note encryption.
 Specification
 =============
 
-TBD.
+Changes to the protocol specification
+-------------------------------------
+
+In § 5.4.3 'Symmetric Encryption', rename :math:`Sym` to :math:`NoteSym` and
+add the following text:
+
+> Let :math:`\mathsf{NullSym.}\mathbf{K} := \mathbb{B}^{[256]}`,
+>     :math:`\mathsf{NullSym.}\mathbf{P} := \mathbb{B^Y}^{\mathbb{N}}`, and
+>     :math:`\mathsf{NullSym.}\mathbf{C} := \mathbb{B^Y}^{\mathbb{N}}`.
+>
+> Let :math:`\mathsf{NullSym.Encrypt_K}(\mathsf{P}) := \mathsf{P} || [0x00]^{16}`.
+>
+> Define :math:`\mathsf{NullSym.Decrypt_K}(\mathsf{C})` as follows:
+> * If the last 16 bytes of :math:`\mathsf{C}` are not :math:`[0x00]^{16}`,
+>   return :math:`\bot`. Otherwise discard those 16 bytes and return the
+>   remaining prefix of :math:`\mathsf{C}`.
+>
+> Note: These definitions intentionally ignore the key; :math:`\mathsf{NullSym}`
+> is not a secure authenticated encryption scheme. It MUST be used only for
+> notes in shielded coinbase outputs, which are intended to be visible as
+> cleartext.
+
+In § 4.20 'In-band secret distribution (Sapling and Orchard)', change:
+
+> let :math:`\mathsf{Sym}` be the encryption scheme instantiated in
+> § 5.4.3 'Symmetric Encryption'.
+
+to
+
+> let :math:`\mathsf{NoteSym}` and :math:`\mathsf{NullSym}` be as
+> instantiated in § 5.4.3 'Symmetric Encryption'.
+>
+> [Pre-NU7] let :math:`\mathsf{Sym}` be :math:`\mathsf{NoteSym}`.
+>
+> [NU7 onward] if the note to be decrypted is in an output of a version 6
+> or later coinbase transaction, let :math:`\mathsf{Sym}` be
+> :math:`\mathsf{NullSym}`, otherwise let it be :math:`\mathsf{NoteSym}`.
+
+In § 4.20.1 'Encryption (Sapling and Orchard)', add at the beginning:
+
+> [NU7 onward] If the note to be encrypted is in an output of a
+> version 6 or later coinbase transaction, then use the procedure in
+> § 4.20.4 'Null Coinbase Output Encryption (Sapling and Orchard)'
+> instead of the procedure in this section.
+
+In both § 4.20.2 'Decryption using an Incoming Viewing Key (Sapling and Orchard)',
+and § 4.20.3 'Decryption using a Full Viewing Key (Sapling and Orchard)'
+add at the beginning:
+
+> [NU7 onward] If the note to be encrypted is in an output of a
+> version 6 or later coinbase transaction, then use the procedure in
+> § 4.20.5 'Null Coinbase Output Decryption (Sapling and Orchard)'
+> instead of the procedure in this section.
+
+Add § 4.20.4 'Null Coinbase Output Encryption (Sapling and Orchard)'
 
 
 Deployment
@@ -88,4 +160,6 @@ References
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
 .. [#protocol] `Zcash Protocol Specification, Version 2024.5.1 or later <protocol/protocol.pdf>`_
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
+.. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
+.. [#zip-0212] `ZIP 212: Allow Recipient to Derive Ephemeral Secret from Note Plaintext <zip-0212.rst>`_
 .. [#zip-0213] `ZIP 213: Shielded Coinbase <zip-0213.rst>`_
