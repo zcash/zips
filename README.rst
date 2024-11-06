@@ -42,6 +42,32 @@ and double-check the generated ``rendered/draft-*.html`` file before filing a Pu
 See `here <protocol/README.rst>`__ for the project dependencies.
 
 
+NU7 Candidate ZIPs
+------------------
+
+The following ZIPs are under consideration for inclusion in NU7:
+
+- `ZIP 226: Transfer and Burn of Zcash Shielded Assets <zip-0226.rst>`__
+- `ZIP 227: Issuance of Zcash Shielded Assets <zip-0227.rst>`__
+- `ZIP 230: Version 6 Transaction Format <zip-0230.rst>`__
+- `ZIP 231: Memo Bundles <zip-0231.rst>`__
+- `ZIP 233: Network Sustainability Mechanism: Burning <zip-0233.rst>`__
+- `ZIP 234: Network Sustainability Mechanism: Issuance Smoothing <zip-0234.rst>`__
+- `ZIP 235: Network Sustainability Mechanism: Burn 60% of Transaction Fees <zip-0235.rst>`__
+- `ZIP 2002: Explicit Fees <zip-2002.rst>`__
+- `ZIP 2003: Disallow version 4 transactions <zip-2003.rst>`__
+- `ZIP 2004: Remove the dependency of consensus on note encryption <zip-2004.rst>`__
+
+In addition, `ZIP 317: Proportional Transfer Fee Mechanism <zip-0317.rst>`__
+may be updated.
+
+This list is only provided here for easy reference; no decision has been made
+on whether to include each of these ZIPs.
+
+`ZIP 254: Deployment of the NU7 Network Upgrade <zip-0254.rst>`__ will define
+which ZIPs are included in NU7.
+
+
 License
 -------
 
@@ -129,10 +155,12 @@ written.
     <tr> <td>227</td> <td class="left"><a href="zips/zip-0227.rst">Issuance of Zcash Shielded Assets</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">228</span></td> <td class="left"><a class="reserved" href="zips/zip-0228.rst">Asset Swaps for Zcash Shielded Assets</a></td> <td>Reserved</td>
     <tr> <td>230</td> <td class="left"><a href="zips/zip-0230.rst">Version 6 Transaction Format</a></td> <td>Draft</td>
-    <tr> <td><span class="reserved">231</span></td> <td class="left"><a class="reserved" href="zips/zip-0231.rst">Decouple Memos from Transaction Outputs</a></td> <td>Reserved</td>
-    <tr> <td>233</td> <td class="left"><a href="zips/zip-0233.md">Establish the Zcash Sustainability Fund on the Protocol Level</a></td> <td>Draft</td>
-    <tr> <td>234</td> <td class="left"><a href="zips/zip-0234.md">Smooth Out The Block Subsidy Issuance</a></td> <td>Draft</td>
+    <tr> <td>231</td> <td class="left"><a href="zips/zip-0231.md">Memo Bundles</a></td> <td>Draft</td>
+    <tr> <td>233</td> <td class="left"><a href="zips/zip-0233.md">Network Sustainability Mechanism: Burning</a></td> <td>Draft</td>
+    <tr> <td>234</td> <td class="left"><a href="zips/zip-0234.md">Network Sustainability Mechanism: Issuance Smoothing</a></td> <td>Draft</td>
+    <tr> <td>235</td> <td class="left"><a href="zips/zip-0235.md">Burn 60% of Transaction Fees</a></td> <td>Draft</td>
     <tr> <td>245</td> <td class="left"><a href="zips/zip-0245.rst">Transaction Identifier Digests & Signature Validation for Transparent Zcash Extensions</a></td> <td>Draft</td>
+    <tr> <td>254</td> <td class="left"><a href="zips/zip-0254.md">Deployment of the NU7 Network Upgrade</a></td> <td>Draft</td>
     <tr> <td>302</td> <td class="left"><a href="zips/zip-0302.rst">Standardized Memo Field Format</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">303</span></td> <td class="left"><a class="reserved" href="zips/zip-0303.rst">Sprout Payment Disclosure</a></td> <td>Reserved</td>
     <tr> <td>304</td> <td class="left"><a href="zips/zip-0304.rst">Sapling Address Signatures</a></td> <td>Draft</td>
@@ -156,6 +184,9 @@ written.
     <tr> <td><span class="reserved">402</span></td> <td class="left"><a class="reserved" href="zips/zip-0402.rst">New Wallet Database Format</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">403</span></td> <td class="left"><a class="reserved" href="zips/zip-0403.rst">Verification Behaviour of zcashd</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">416</span></td> <td class="left"><a class="reserved" href="zips/zip-0416.rst">Support for Unified Addresses in zcashd</a></td> <td>Reserved</td>
+    <tr> <td>2002</td> <td class="left"><a href="zips/zip-2002.rst">Explicit Fees</a></td> <td>Draft</td>
+    <tr> <td>2003</td> <td class="left"><a href="zips/zip-2003.rst">Disallow version 4 transactions</a></td> <td>Draft</td>
+    <tr> <td>2004</td> <td class="left"><a href="zips/zip-2004.rst">Remove the dependency of consensus on note encryption</a></td> <td>Draft</td>
     <tr> <td>guide-markdown</td> <td class="left"><a href="zips/zip-guide-markdown.md">{Something Short and To the Point}</a></td> <td>Draft</td>
     <tr> <td>guide</td> <td class="left"><a href="zips/zip-guide.rst">{Something Short and To the Point}</a></td> <td>Draft</td>
   </table></embed>
@@ -172,8 +203,6 @@ be deleted.
 
   <embed><table>
     <tr> <th>Title</th> </tr>
-    <tr> <td class="left"><a href="zips/draft-ecc-explicit-fees.rst">Explicit Fees</a></td>
-    <tr> <td class="left"><a href="zips/draft-hopwood-disallow-v4-transactions.rst">Disallow version 4 transactions</a></td>
     <tr> <td class="left"><a href="zips/draft-noamchom67-manufacturing-consent.rst">Manufacturing Consent; Re-Establishing a Dev Fund for ECC, ZF, ZCG, Qedit, FPF, and ZecHub</a></td>
     <tr> <td class="left"><a href="zips/draft-nuttycom-funding-allocation.rst">Block Reward Allocation for Non-Direct Development Funding</a></td>
     <tr> <td class="left"><a href="zips/draft-zf-community-dev-fund-2-proposal.rst">Establishing a Hybrid Dev Fund for ZF, ZCG and a Dev Fund Reserve</a></td>
@@ -253,9 +282,10 @@ Index of ZIPs
     <tr> <td>227</td> <td class="left"><a href="zips/zip-0227.rst">Issuance of Zcash Shielded Assets</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">228</span></td> <td class="left"><a class="reserved" href="zips/zip-0228.rst">Asset Swaps for Zcash Shielded Assets</a></td> <td>Reserved</td>
     <tr> <td>230</td> <td class="left"><a href="zips/zip-0230.rst">Version 6 Transaction Format</a></td> <td>Draft</td>
-    <tr> <td><span class="reserved">231</span></td> <td class="left"><a class="reserved" href="zips/zip-0231.rst">Decouple Memos from Transaction Outputs</a></td> <td>Reserved</td>
-    <tr> <td>233</td> <td class="left"><a href="zips/zip-0233.md">Establish the Zcash Sustainability Fund on the Protocol Level</a></td> <td>Draft</td>
-    <tr> <td>234</td> <td class="left"><a href="zips/zip-0234.md">Smooth Out The Block Subsidy Issuance</a></td> <td>Draft</td>
+    <tr> <td>231</td> <td class="left"><a href="zips/zip-0231.md">Memo Bundles</a></td> <td>Draft</td>
+    <tr> <td>233</td> <td class="left"><a href="zips/zip-0233.md">Network Sustainability Mechanism: Burning</a></td> <td>Draft</td>
+    <tr> <td>234</td> <td class="left"><a href="zips/zip-0234.md">Network Sustainability Mechanism: Issuance Smoothing</a></td> <td>Draft</td>
+    <tr> <td>235</td> <td class="left"><a href="zips/zip-0235.md">Burn 60% of Transaction Fees</a></td> <td>Draft</td>
     <tr> <td>236</td> <td class="left"><a href="zips/zip-0236.rst">Blocks should balance exactly</a></td> <td>Implemented (zcashd and zebrad)</td>
     <tr> <td>239</td> <td class="left"><a href="zips/zip-0239.rst">Relay of Version 5 Transactions</a></td> <td>Final</td>
     <tr> <td>243</td> <td class="left"><a href="zips/zip-0243.rst">Transaction Signature Validation for Sapling</a></td> <td>Final</td>
@@ -265,6 +295,7 @@ Index of ZIPs
     <tr> <td>251</td> <td class="left"><a href="zips/zip-0251.rst">Deployment of the Canopy Network Upgrade</a></td> <td>Final</td>
     <tr> <td>252</td> <td class="left"><a href="zips/zip-0252.rst">Deployment of the NU5 Network Upgrade</a></td> <td>Final</td>
     <tr> <td>253</td> <td class="left"><a href="zips/zip-0253.md">Deployment of the NU6 Network Upgrade</a></td> <td>Implemented (zcashd and zebrad)</td>
+    <tr> <td>254</td> <td class="left"><a href="zips/zip-0254.md">Deployment of the NU7 Network Upgrade</a></td> <td>Draft</td>
     <tr> <td>300</td> <td class="left"><a href="zips/zip-0300.rst">Cross-chain Atomic Transactions</a></td> <td>Proposed</td>
     <tr> <td>301</td> <td class="left"><a href="zips/zip-0301.rst">Zcash Stratum Protocol</a></td> <td>Final</td>
     <tr> <td>302</td> <td class="left"><a href="zips/zip-0302.rst">Standardized Memo Field Format</a></td> <td>Draft</td>
@@ -313,6 +344,9 @@ Index of ZIPs
     <tr> <td>1014</td> <td class="left"><a href="zips/zip-1014.rst">Establishing a Dev Fund for ECC, ZF, and Major Grants</a></td> <td>Active</td>
     <tr> <td>1015</td> <td class="left"><a href="zips/zip-1015.rst">Block Reward Allocation for Non-Direct Development Funding</a></td> <td>Proposed</td>
     <tr> <td>2001</td> <td class="left"><a href="zips/zip-2001.rst">Lockbox Funding Streams</a></td> <td>Implemented (zcashd and zebrad)</td>
+    <tr> <td>2002</td> <td class="left"><a href="zips/zip-2002.rst">Explicit Fees</a></td> <td>Draft</td>
+    <tr> <td>2003</td> <td class="left"><a href="zips/zip-2003.rst">Disallow version 4 transactions</a></td> <td>Draft</td>
+    <tr> <td>2004</td> <td class="left"><a href="zips/zip-2004.rst">Remove the dependency of consensus on note encryption</a></td> <td>Draft</td>
     <tr> <td>guide-markdown</td> <td class="left"><a href="zips/zip-guide-markdown.md">{Something Short and To the Point}</a></td> <td>Draft</td>
     <tr> <td>guide</td> <td class="left"><a href="zips/zip-guide.rst">{Something Short and To the Point}</a></td> <td>Draft</td>
   </table></embed>
