@@ -29,4 +29,4 @@ RUN apt-get install -y locales \
  && echo "LANG=en_US.UTF-8" > /etc/locale.conf \
  && locale-gen en_US.UTF-8
 
-ENV PATH=${PATH}:/root/.local/bin
+ENV PATH=${PATH}:/usr/local/bin
