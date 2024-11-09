@@ -11,25 +11,38 @@ if ! [ -f "$2" ]; then
     exit
 fi
 
+Math1='<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">'
+Math2='<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>'
+Math3='<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script>'
+ViewAndStyle='<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css">'
+
 if [ "x$1" = "x--rst" ]; then
-    sed -i.sedbak 's|</head>|<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>|' $2
-    sed -i.sedbak 's|http://cdn.mathjax.org/mathjax/latest/MathJax.js|https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js|' $2
+    sed -i.sedbak "s|<script src=\"http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML\"></script>|${Math1}\n    ${Math2}\n    ${Math3}|" $2
+    sed -i.sedbak "s|</head>|${ViewAndStyle}</head>|" $2
 else
-    cat - "$2" >"$2".prefix <<EOF
+    cat - >"$2".prefix <<EndOfMdInitial
 <!DOCTYPE html>
 <html>
 <head>
     <title>$3</title>
     <meta charset="utf-8" />
-    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js?config=TeX-AMS-MML_HTMLorMML"></script>
-    <meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css">
+EndOfMdInitial
+    if grep -q -E 'class="math( inline)?"' "$2"; then
+        cat - >>"$2.prefix" <<EndOfMathSupport
+    ${Math1}
+    ${Math2}
+    ${Math3}
+EndOfMathSupport
+    fi
+    cat - "$2" >>"$2".prefix <<EndOfStyle
+    ${ViewAndStyle}
 </head>
 <body>
-EOF
-    cat "$2.prefix" - >"$2" <<EOF
+EndOfStyle
+    cat "$2.prefix" - >"$2" <<EndOfTrailer
 </body>
 </html>
-EOF
+EndOfTrailer
     rm -f "$2".prefix
 fi
 

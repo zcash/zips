@@ -43,7 +43,7 @@ endef
 
 define PROCESSMD
 $(eval TITLE := $(shell echo '$(patsubst zips/%,%,$(basename $<))' | sed -E 's|zip-0{0,3}|ZIP |;s|draft-|Draft |')$(shell grep -E '^(\.\.)?\s*Title: ' $< |sed -E 's|.*Title||'))
-pandoc --from=markdown --to=html $< --output=$@
+pandoc --mathjax --from=markdown --to=html $< --output=$@
 ./edithtml.sh --md $@ "${TITLE}"
 endef
 
