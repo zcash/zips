@@ -20,8 +20,8 @@
 Terminology
 ===========
 
-The key words "MUST", "MUST NOT", and "MAY" in this document are to be interpreted as described
-in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
+The key words "MUST", "MUST NOT", "SHOULD", "RECOMMENDED", and "MAY" in this document are to be
+interpreted as described in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
 
 "Jubjub" refers to the elliptic curve defined in [#protocol-jubjub]_.
 
@@ -140,7 +140,7 @@ specifications), which is the opposite of BIP 32.
 We adapt the path notation of BIP 32 [#bip-0032]_ to describe shielded HD paths, using prime marks (:math:`'`) to
 indicate hardened derivation (:math:`i' = i + 2^{31}`) as in BIP 44 [#bip-0044]_:
 
-- :math:`\mathsf{CDKfvk}(\mathsf{CDKfvk}(\mathsf{CDKfvk}(m_\mathsf{Sapling}, a), b), c)` is written as :math:`m_\mathsf{Sapling} / a / b / c`.
+- :math:`\mathsf{CKDfvk}(\mathsf{CKDfvk}(\mathsf{CKDfvk}(m_\mathsf{Sapling}, a), b), c)` is written as :math:`m_\mathsf{Sapling} / a / b / c`.
 
 
 Specification: Sapling key derivation
@@ -214,7 +214,7 @@ depends on the type of key being derived, and whether this is a hardened or non-
 Deriving a child extended spending key
 ``````````````````````````````````````
 
-:math:`\mathsf{CDKsk}((\mathsf{ask}_{par}, \mathsf{nsk}_{par}, \mathsf{ovk}_{par}, \mathsf{dk}_{par}, \mathsf{c}_{par}), i)`:math:`\rightarrow (\mathsf{ask}_i, \mathsf{nsk}_i, \mathsf{ovk}_i, \mathsf{dk}_i, \mathsf{c}_i)`
+:math:`\mathsf{CKDsk}((\mathsf{ask}_{par}, \mathsf{nsk}_{par}, \mathsf{ovk}_{par}, \mathsf{dk}_{par}, \mathsf{c}_{par}), i)`:math:`\rightarrow (\mathsf{ask}_i, \mathsf{nsk}_i, \mathsf{ovk}_i, \mathsf{dk}_i, \mathsf{c}_i)`
 
 - Check whether :math:`i \geq 2^{31}` (whether the child is a hardened key).
 
@@ -245,7 +245,7 @@ Deriving a child extended full viewing key
 Let :math:`\mathcal{G}^\mathsf{Sapling}` be as defined in [#protocol-concretespendauthsig]_ and
 let :math:`\mathcal{H}^\mathsf{Sapling}` be as defined in [#protocol-saplingkeycomponents]_.
 
-:math:`\mathsf{CDKfvk}((\mathsf{ak}_{par}, \mathsf{nk}_{par}, \mathsf{ovk}_{par}, \mathsf{dk}_{par}, \mathsf{c}_{par}), i)`:math:`\rightarrow (\mathsf{ak}_{i}, \mathsf{nk}_{i}, \mathsf{ovk}_{i}, \mathsf{dk}_{i}, \mathsf{c}_{i})`
+:math:`\mathsf{CKDfvk}((\mathsf{ak}_{par}, \mathsf{nk}_{par}, \mathsf{ovk}_{par}, \mathsf{dk}_{par}, \mathsf{c}_{par}), i)`:math:`\rightarrow (\mathsf{ak}_{i}, \mathsf{nk}_{i}, \mathsf{ovk}_{i}, \mathsf{dk}_{i}, \mathsf{c}_{i})`
 
 - Check whether :math:`i \geq 2^{31}` (whether the child is a hardened key).
 
@@ -356,12 +356,69 @@ The default diversifier for a Sapling extended key is defined to be :math:`d_j`,
 least nonnegative integer yielding a valid diversifier.
 
 
-Specification: Orchard key derivation
-=====================================
+Specification: Hardened-only key derivation
+===========================================
 
 The derivation mechanism for Sapling addresses specified above incurs significant complexity to support
 non-hardened derivation. In the several years since Sapling was deployed, we have seen no use cases for
-non-hardened derivation appear. With that in mind, we only support hardened key derivation for Orchard.
+non-hardened derivation appear. With that in mind, we now have a general hardened-only derivation
+process that retains compatibility with existing derivation path semantics (to enable deriving the same
+path across multiple contexts).
+
+Instantiation
+-------------
+
+Let :math:`\mathsf{Context}` be the context in which the hardened-only key derivation process is
+instantiated (e.g. a shielded protocol). We define two context-specific constants:
+
+- :math:`\mathsf{Context.MKGDomain}` is a sequence of 16 bytes, used as a domain separator during
+  master key generation. It SHOULD be disjoint from other domain separators used with BLAKE2b in
+  Zcash protocols.
+- :math:`\mathsf{Context.CKDDomain}` is a byte value, used as a domain separator during child key
+  derivation. This should be tracked as part of the global set of domains defined for
+  :math:`\mathsf{PRF^{expand}}`.
+
+Hardened-only master key generation
+-----------------------------------
+
+Let :math:`\mathsf{IKM}` be an input key material byte sequence, which MUST use an unambiguous encoding
+within the given context, and SHOULD contain at least 256 bits of entropy. It is RECOMMENDED to
+use a prefix-free encoding, which may require the use of length fields if multiple fields need
+to be encoded.
+
+:math:`\mathsf{MKGh}^\mathsf{Context}(\mathsf{IKM}) \rightarrow (\mathsf{sk}_m, \mathsf{c}_m)`
+
+- Calculate :math:`I = \mathsf{BLAKE2b}\text{-}\mathsf{512}(\mathsf{Context.MKGDomain}, \mathsf{IKM})`.
+- Split :math:`I` into two 32-byte sequences, :math:`I_L` and :math:`I_R`.
+- Use :math:`I_L` as the master secret key :math:`\mathsf{sk}_m`.
+- Use :math:`I_R` as the master chain code :math:`\mathsf{c}_m`.
+- Return :math:`(\mathsf{sk}_m, \mathsf{c}_m)`.
+
+Hardened-only child key derivation
+----------------------------------
+
+:math:`\mathsf{CKDh}^\mathsf{Context}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i)`:math:`\rightarrow (\mathsf{sk}_i, \mathsf{c}_i)`
+
+- Check whether :math:`i \geq 2^{31}` (whether the child is a hardened key).
+
+  - If so (hardened child): let
+    :math:`I = \mathsf{PRF^{expand}}(\mathsf{c}_{par}, [\mathsf{Context.CKDDomain}]\,||\,\mathsf{sk}_{par}\,||\,\mathsf{I2LEOSP}_{32}(i))`.
+  - If not (normal child): return failure.
+
+- Split :math:`I` into two 32-byte sequences, :math:`I_L` and :math:`I_R`.
+- Use :math:`I_L` as the child secret key :math:`\mathsf{sk}_i`.
+- Use :math:`I_R` as the child chain code :math:`\mathsf{c}_i`.
+- Return :math:`(\mathsf{sk}_i, \mathsf{c}_i)`.
+
+
+Specification: Orchard key derivation
+=====================================
+
+We only support hardened key derivation for Orchard. We instantiate the hardened key generation
+process with the following constants:
+
+- :math:`\mathsf{Orchard.MKGDomain} = \texttt{“ZcashIP32Orchard”}`
+- :math:`\mathsf{Orchard.CKDDomain} = \texttt{0x81}`
 
 Orchard extended keys
 ---------------------
@@ -374,27 +431,15 @@ Orchard master key generation
 
 Let :math:`S` be a seed byte sequence of a chosen length, which MUST be at least 32 and at most 252 bytes.
 
-- Calculate :math:`I = \mathsf{BLAKE2b}\text{-}\mathsf{512}(\texttt{“ZcashIP32Orchard”}, S)`.
-- Split :math:`I` into two 32-byte sequences, :math:`I_L` and :math:`I_R`.
-- Use :math:`I_L` as the master spending key :math:`\mathsf{sk}_m`.
-- Use :math:`I_R` as the master chain code :math:`\mathsf{c}_m`.
-- Return :math:`(\mathsf{sk}_m, \mathsf{c}_m)` as the master extended spending key
+- Return :math:`\mathsf{MKGh}^\mathsf{Orchard}(S)` as the master extended spending key
   :math:`m_\mathsf{Orchard}`.
 
 Orchard child key derivation
 ----------------------------
 
-:math:`\mathsf{CDKsk}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i)`:math:`\rightarrow (\mathsf{sk}_{i}, \mathsf{c}_i)`
+:math:`\mathsf{CKDsk}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i)`:math:`\rightarrow (\mathsf{sk}_{i}, \mathsf{c}_i)`
 
-- Check whether :math:`i \geq 2^{31}` (whether the child is a hardened key).
-
-  - If so (hardened child): let
-    :math:`I = \mathsf{PRF^{expand}}(\mathsf{c}_{par}, [\texttt{0x81}]\,||\,\mathsf{sk}_{par}\,||\,\mathsf{I2LEOSP}_{32}(i))`.
-  - If not (normal child): return failure.
-
-- Split :math:`I` into two 32-byte sequences, :math:`I_L` and :math:`I_R`.
-- Use :math:`I_L` as the child spending key :math:`\mathsf{sk}_{i}`.
-- Use :math:`I_R` as the child chain code :math:`\mathsf{c}_i`.
+- Return :math:`\mathsf{CKDh}^\mathsf{Orchard}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i)`
 
 Note that the resulting child spending key may produce an invalid external FVK, as specified
 in [#protocol-orchardkeycomponents]_, with small probability. The corresponding internal FVK
@@ -466,6 +511,45 @@ Note that unlike Sapling, all Orchard diversifiers are valid, and thus all possi
 valid diversifiers.
 
 The default diversifier for :math:`(\mathsf{sk}_i, \mathsf{c}_i)` is defined to be :math:`d_{i,0}.`
+
+
+Specification: Arbitrary key derivation
+=======================================
+
+In some contexts there is a need for deriving arbitrary keys with the same derivation path as
+existing key material (for example, deriving an arbitrary account-level key), without the need for
+ecosystem-wide coordination. The following instantiation of the hardened key generation process may
+be used for this purpose.
+
+Let :math:`\mathsf{ContextString}` be a globally-unique non-empty sequence of at most 252 bytes
+that identifies the desired context.
+
+We instantiate the hardened key generation process with the following constants:
+
+- :math:`\mathsf{Arbitrary.MKGDomain} = \texttt{“ZcashArbitraryKD”}`
+- :math:`\mathsf{Arbitrary.CKDDomain} = \texttt{0xAB}`
+
+Arbitrary master key generation
+-------------------------------
+
+Let :math:`S` be a seed byte sequence of a chosen length, which MUST be at least 32 and at most 252 bytes.
+
+The master extended arbitrary key is:
+
+:math:`m_\mathsf{Arbitrary} = \mathsf{MKGh}^\mathsf{Arbitrary}([\mathsf{length}(\mathsf{ContextString})]\,||\,\mathsf{ContextString}\,||\,[\mathsf{length}(S)]\,||\,S)\!`.
+
+Arbitrary child key derivation
+------------------------------
+
+:math:`\mathsf{CKDarb}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i)`:math:`\rightarrow (\mathsf{sk}_i, \mathsf{c}_i)`
+
+- Return :math:`\mathsf{CKDh}^\mathsf{Arbitrary}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i)\!`.
+
+If the context requires a 64-byte key (for example, to avoid an entropy bottleneck in its particular
+subsequent operations), and :math:`i` is the last element of an HD path, the concatenation
+:math:`\mathsf{sk}_i\,||\,\mathsf{c}_i` MAY be used as a key. In this case,
+:math:`(\mathsf{sk}_i, \mathsf{c}_i)` MUST NOT be given as input to :math:`\mathsf{CKDarb}` (this
+is a restatement of the requirement that :math:`i` is the last element of an HD path).
 
 
 Specification: Wallet usage

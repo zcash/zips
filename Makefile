@@ -19,8 +19,14 @@ tag-release:
 protocol:
 	$(MAKE) -C protocol protocol
 
+protocol-dark:
+	$(MAKE) -C protocol protocol-dark
+
 all-protocol:
 	$(MAKE) -C protocol all
+
+all-specs: all-zips
+	$(MAKE) -C protocol all-specs
 
 discard:
 	git checkout -- 'rendered/*.html' 'README.rst' 'rendered/protocol/*.pdf'
