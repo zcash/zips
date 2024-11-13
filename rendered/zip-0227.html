@@ -327,14 +327,14 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/680">https://githu
             </ul>
         </section>
         <section id="specification-global-issuance-state"><h2><span class="section-heading">Specification: Global Issuance State</span><span class="section-anchor"> <a rel="bookmark" href="#specification-global-issuance-state"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>Issuance requires the following additions to the global state defined at block boundaries:</p>
+            <p>Issuance requires the following additions to the global state:</p>
             <p>A map,
                 <span class="math">\(\mathsf{issued\_assets}\!\)</span>
             , from the Asset Base,
                 <span class="math">\(\mathsf{AssetBase}\)</span>
             , to a tuple
                 <span class="math">\((\mathsf{balance}, \mathsf{final})\!\)</span>
-            , for every Asset that has been issued up until the block boundary. For each Asset:</p>
+            , for every Asset that has been issued. For each Asset:</p>
             <ul>
                 <li>The amount of the Asset in circulation, computed as the amount of the Asset that has been issued less the amount of the Asset that has been burnt, is stored in
                     <span class="math">\(\mathsf{balance}\!\)</span>
@@ -345,7 +345,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/680">https://githu
                     <span class="math">\(\mathsf{finalize}\)</span>
                  flag has been set to
                     <span class="math">\(1\)</span>
-                 in some issuance transaction for the Asset preceding the block boundary). The value of
+                 in some preceding issuance transaction for the Asset). The value of
                     <span class="math">\(\mathsf{final}\)</span>
                  for any Asset cannot be changed from
                     <span class="math">\(1\)</span>
@@ -359,8 +359,8 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/680">https://githu
                 <span class="math">\(\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{final}\)</span>
              to access, respectively, the balance and finalization status of the Asset stored in the global state.</p>
             <section id="rationale-for-global-issuance-state"><h3><span class="section-heading">Rationale for Global Issuance State</span><span class="section-anchor"> <a rel="bookmark" href="#rationale-for-global-issuance-state"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
-                <p>It is necessary to ensure that the balance of any issued Custom Asset never becomes negative within a shielded pool, along the lines of ZIP 209 <a id="footnote-reference-21" class="footnote_reference" href="#zip-0209">8</a>. However, unlike for the shielded ZEC pools, there is no individual transaction field that directly corresponds to both the issued and burnt amounts for a given Asset. Therefore, we require that all nodes maintain a record of the current amount in circulation for every issued Custom Asset, and update this record at the block boundary based on the issuance and burn transactions within the block. This allows for efficient detection of balance violations for any Asset, in which scenario we specify a consensus rule to reject the block.</p>
-                <p>Nodes also need to ensure the rejection of blocks in which issuance of Custom Assets that have been previously finalized. The
+                <p>It is necessary to ensure that the balance of any issued Custom Asset never becomes negative within a shielded pool, along the lines of ZIP 209 <a id="footnote-reference-21" class="footnote_reference" href="#zip-0209">8</a>. However, unlike for the shielded ZEC pools, there is no individual transaction field that directly corresponds to both the issued and burnt amounts for a given Asset. Therefore, we require that all nodes maintain a record of the current amount in circulation for every issued Custom Asset, and update this record based on the issuance and burn transactions processed. This allows for efficient detection of balance violations for any Asset, in which scenario we specify a consensus rule to reject the transaction or block.</p>
+                <p>Nodes also need to reject transactions that issue Custom Assets that have been previously finalized. The
                     <span class="math">\(\mathsf{issued\_assets}\)</span>
                  map allows nodes to store whether or not a given Asset has been finalized.</p>
             </section>
@@ -380,23 +380,9 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/680">https://githu
                         <span class="math">\(\mathsf{finalize}\)</span>
                      boolean that defines whether the issuance of that specific Custom Asset is finalized or not.</li>
                 </ul>
-                <p>An asset's
-                    <span class="math">\(\mathsf{AssetDigest}\)</span>
-                 is added to the
-                    <span class="math">\(\mathsf{previously\_finalized}\)</span>
-                 set after a block that contains any issuance transaction for that asset with
-                    <span class="math">\(\mathsf{finalize} = 1\!\)</span>
-                . It then cannot be removed from this set. For Assets with
-                    <span class="math">\(\mathsf{AssetDigest} \in \mathsf{previously\_finalized}\!\)</span>
-                , no further tokens can be issued, so as seen below, the validators will reject the transaction. For Assets with
-                    <span class="math">\(\mathsf{AssetDigest} \not\in \mathsf{previously\_finalized}\!\)</span>
-                , new issuance actions can be issued in future transactions. These MUST use the same Asset description,
-                    <span class="math">\(\mathsf{asset\_desc}\!\)</span>
-                , and can either maintain
-                    <span class="math">\(\mathsf{finalize} = 0\)</span>
-                 or change it to
-                    <span class="math">\(\mathsf{finalize} = 1\!\)</span>
-                , denoting that this Custom Asset cannot be issued after the containing block.</p>
+                <p>The
+                    <span class="math">\(\mathsf{finalize}\)</span>
+                 boolean is set by the Issuer to signal that there will be no further issuance of the specific Custom Asset. As we will see in <a href="#specification-consensus-rule-changes">Specification: Consensus Rule Changes</a>, transactions that attempt to issue further amounts of a Custom Asset that has previously been finalized will be rejected.</p>
                 <table>
                     <thead>
                         <tr>
@@ -672,9 +658,6 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/680">https://githu
                             , where the note will contain a
                                 <span class="math">\(\mathsf{value} = 0\!\)</span>
                             . This can be used for application-specific purposes (NFT collections) or for security purposes to revoke the Asset issuance (see Security and Privacy Considerations).</li>
-                            <li>Note in the above cases, that the setting of the
-                                <span class="math">\(\mathsf{finalize}\)</span>
-                             flag will take effect at the block boundary, that is, after all the transactions in the block.</li>
                         </ul>
                     </li>
                     <li>The issuance and burn mechanisms can be used in conjunction to determine the supply of Assets on the Zcash ecosystem. This allows for the bridging of Assets defined on other chains.</li>

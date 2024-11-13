@@ -226,12 +226,12 @@ Wallets MUST NOT display just the :math:`\mathsf{asset\_desc}` string to their u
 Specification: Global Issuance State
 ====================================
 
-Issuance requires the following additions to the global state defined at block boundaries:
+Issuance requires the following additions to the global state:
 
-A map, :math:`\mathsf{issued\_assets}\!`, from the Asset Base, :math:`\mathsf{AssetBase}`, to a tuple :math:`(\mathsf{balance}, \mathsf{final})\!`, for every Asset that has been issued up until the block boundary. For each Asset:
+A map, :math:`\mathsf{issued\_assets}\!`, from the Asset Base, :math:`\mathsf{AssetBase}`, to a tuple :math:`(\mathsf{balance}, \mathsf{final})\!`, for every Asset that has been issued. For each Asset:
 
 - The amount of the Asset in circulation, computed as the amount of the Asset that has been issued less the amount of the Asset that has been burnt, is stored in :math:`\mathsf{balance}\!`.
-- The boolean :math:`\mathsf{final}` stores the finalization status of the Asset (i.e.: whether the :math:`\mathsf{finalize}` flag has been set to :math:`1` in some issuance transaction for the Asset preceding the block boundary). The value of :math:`\mathsf{final}` for any Asset cannot be changed from :math:`1` to :math:`0`.
+- The boolean :math:`\mathsf{final}` stores the finalization status of the Asset (i.e.: whether the :math:`\mathsf{finalize}` flag has been set to :math:`1` in some preceding issuance transaction for the Asset). The value of :math:`\mathsf{final}` for any Asset cannot be changed from :math:`1` to :math:`0`.
 
 
 We use the notation :math:`\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{balance}` and :math:`\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{final}` to access, respectively, the balance and finalization status of the Asset stored in the global state.
@@ -241,10 +241,10 @@ Rationale for Global Issuance State
 
 It is necessary to ensure that the balance of any issued Custom Asset never becomes negative within a shielded pool, along the lines of ZIP 209 [#zip-0209]_. 
 However, unlike for the shielded ZEC pools, there is no individual transaction field that directly corresponds to both the issued and burnt amounts for a given Asset.
-Therefore, we require that all nodes maintain a record of the current amount in circulation for every issued Custom Asset, and update this record at the block boundary based on the issuance and burn transactions within the block. 
-This allows for efficient detection of balance violations for any Asset, in which scenario we specify a consensus rule to reject the block.
+Therefore, we require that all nodes maintain a record of the current amount in circulation for every issued Custom Asset, and update this record based on the issuance and burn transactions processed. 
+This allows for efficient detection of balance violations for any Asset, in which scenario we specify a consensus rule to reject the transaction or block.
 
-Nodes also need to ensure the rejection of blocks in which issuance of Custom Assets that have been previously finalized. 
+Nodes also need to reject transactions that issue Custom Assets that have been previously finalized. 
 The :math:`\mathsf{issued\_assets}` map allows nodes to store whether or not a given Asset has been finalized. 
 
 Specification: Issuance Action, Issuance Bundle and Issuance Protocol
@@ -260,11 +260,8 @@ An issuance action, ``IssueAction``, is the instance of issuing a specific Custo
 - ``vNotes``: an array of ``Note`` containing the unencrypted output notes of the recipients of the Asset.
 - ``flagsIssuance``: a byte that stores the :math:`\mathsf{finalize}` boolean that defines whether the issuance of that specific Custom Asset is finalized or not.
 
-An asset's :math:`\mathsf{AssetDigest}` is added to the :math:`\mathsf{previously\_finalized}` set after a block that contains any issuance transaction for that asset with :math:`\mathsf{finalize} = 1\!`. 
-It then cannot be removed from this set. For Assets with :math:`\mathsf{AssetDigest} \in \mathsf{previously\_finalized}\!`, no further tokens can be issued, so as seen below, the validators will reject the transaction. 
-For Assets with :math:`\mathsf{AssetDigest} \not\in \mathsf{previously\_finalized}\!`, new issuance actions can be issued in future transactions. These MUST use the same Asset description, :math:`\mathsf{asset\_desc}\!`, 
-and can either maintain :math:`\mathsf{finalize} = 0` or change it to :math:`\mathsf{finalize} = 1\!`, denoting that this Custom Asset cannot be issued after the containing block.
-
+The :math:`\mathsf{finalize}` boolean is set by the Issuer to signal that there will be no further issuance of the specific Custom Asset.
+As we will see in `Specification: Consensus Rule Changes`_, transactions that attempt to issue further amounts of a Custom Asset that has previously been finalized will be rejected.
 
 +-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
 | Bytes                       | Name                     | Data Type                                 | Description                                                         |
@@ -400,7 +397,6 @@ Concrete Applications
 
     - issuing a last set of tokens of that specific :math:`\mathsf{AssetId}\!`, for which :math:`\mathsf{finalize} = 1\!`, or by
     - issuing a transaction with a single note in the issuance action pertaining to that :math:`\mathsf{AssetId}\!`, where the note will contain a :math:`\mathsf{value} = 0\!`. This can be used for application-specific purposes (NFT collections) or for security purposes to revoke the Asset issuance (see Security and Privacy Considerations).
-    - Note in the above cases, that the setting of the :math:`\mathsf{finalize}` flag will take effect at the block boundary, that is, after all the transactions in the block.
 
 - The issuance and burn mechanisms can be used in conjunction to determine the supply of Assets on the Zcash ecosystem. This allows for the bridging of Assets defined on other chains.
 
