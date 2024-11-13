@@ -41,6 +41,8 @@ Use ``make`` to check that you are using correct
 and double-check the generated ``rendered/draft-*.html`` file before filing a Pull Request.
 See `here <protocol/README.rst>`__ for the project dependencies.
 
+Consider leveraging `our devcontainer.json <devcontainer.rst>`__ for ease of tool aquisition
+when working in this repo.
 
 NU7 Candidate ZIPs
 ------------------

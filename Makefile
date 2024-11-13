@@ -37,7 +37,7 @@ discard:
 
 define PROCESSRST
 $(eval TITLE := $(shell echo '$(patsubst zips/%,%,$(basename $<))' | sed -E 's|zip-0{0,3}|ZIP |;s|draft-|Draft |')$(shell grep -E '^(\.\.)?\s*Title: ' $< |sed -E 's|.*Title||'))
-rst2html5 -v --title="$(TITLE)" $< >$@
+rst2html5.py -v --title="$(TITLE)" $< >$@
 ./edithtml.sh --rst $@
 endef
 
