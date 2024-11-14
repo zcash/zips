@@ -185,7 +185,7 @@ where the :math:`\mathsf{Verify}` algorithm is defined in BIP 340 [#bip-0340]_.
 Specification: Asset Identifier
 ===============================
 
-For every new Asset, there must be a new and unique Asset Identifier, denoted :math:`\mathsf{AssetId}\!`. We define this to be a globally unique pair :math:`\mathsf{AssetId} := (\mathsf{ik}, \mathsf{asset\_desc})\!`, where :math:`\mathsf{ik}` is the issuance key and :math:`\mathsf{asset\_desc}` is a byte string.
+For every new Asset, there MUST be a new and unique Asset Identifier, denoted :math:`\mathsf{AssetId}\!`. We define this to be a globally unique pair :math:`\mathsf{AssetId} := (\mathsf{ik}, \mathsf{asset\_desc})\!`, where :math:`\mathsf{ik}` is the issuance key and :math:`\mathsf{asset\_desc}` is a byte string.
 
 A given Asset Identifier is used across all Zcash protocols that support ZSAs -- that is, the Orchard-ZSA protocol and potentially future Zcash shielded protocols. For this Asset Identifier, we derive an Asset Digest, :math:`\mathsf{AssetDigest}\!`, which is simply is a :math:`\textsf{BLAKE2b-512}` hash of the Asset Identifier.
 From the Asset Digest, we derive a specific Asset Base within each shielded protocol using the applicable hash-to-curve algorithm. This Asset Base is included in shielded notes.
@@ -226,12 +226,12 @@ Wallets MUST NOT display just the :math:`\mathsf{asset\_desc}` string to their u
 Specification: Global Issuance State
 ====================================
 
-Issuance requires the following additions to the global state defined at block boundaries:
+Issuance requires the following additions to the global state:
 
-A map, :math:`\mathsf{issued\_assets}\!`, from the Asset Base, :math:`\mathsf{AssetBase}`, to a tuple :math:`(\mathsf{balance}, \mathsf{final})\!`, for every Asset that has been issued up until the block boundary. For each Asset:
+A map, :math:`\mathsf{issued\_assets}\!`, from the Asset Base, :math:`\mathsf{AssetBase}`, to a tuple :math:`(\mathsf{balance}, \mathsf{final})\!`, for every Asset that has been issued. For each Asset:
 
 - The amount of the Asset in circulation, computed as the amount of the Asset that has been issued less the amount of the Asset that has been burnt, is stored in :math:`\mathsf{balance}\!`.
-- The boolean :math:`\mathsf{final}` stores the finalization status of the Asset (i.e.: whether the :math:`\mathsf{finalize}` flag has been set to :math:`1` in some issuance transaction for the Asset preceding the block boundary). The value of :math:`\mathsf{final}` for any Asset cannot be changed from :math:`1` to :math:`0`.
+- The boolean :math:`\mathsf{final}` stores the finalization status of the Asset (i.e.: whether the :math:`\mathsf{finalize}` flag has been set to :math:`1` in some preceding issuance transaction for the Asset). The value of :math:`\mathsf{final}` for any Asset cannot be changed from :math:`1` to :math:`0`.
 
 
 We use the notation :math:`\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{balance}` and :math:`\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{final}` to access, respectively, the balance and finalization status of the Asset stored in the global state.
@@ -241,10 +241,10 @@ Rationale for Global Issuance State
 
 It is necessary to ensure that the balance of any issued Custom Asset never becomes negative within a shielded pool, along the lines of ZIP 209 [#zip-0209]_. 
 However, unlike for the shielded ZEC pools, there is no individual transaction field that directly corresponds to both the issued and burnt amounts for a given Asset.
-Therefore, we require that all nodes maintain a record of the current amount in circulation for every issued Custom Asset, and update this record at the block boundary based on the issuance and burn transactions within the block. 
-This allows for efficient detection of balance violations for any Asset, in which scenario we specify a consensus rule to reject the block.
+Therefore, we require that all nodes maintain a record of the current amount in circulation for every issued Custom Asset, and update this record based on the issuance and burn transactions processed. 
+This allows for efficient detection of balance violations for any Asset, in which scenario we specify a consensus rule to reject the transaction or block.
 
-Nodes also need to ensure the rejection of blocks in which issuance of Custom Assets that have been previously finalized. 
+Nodes also need to reject transactions that issue Custom Assets that have been previously finalized. 
 The :math:`\mathsf{issued\_assets}` map allows nodes to store whether or not a given Asset has been finalized. 
 
 Specification: Issuance Action, Issuance Bundle and Issuance Protocol
@@ -255,32 +255,15 @@ Issuance Action Description
 
 An issuance action, ``IssueAction``, is the instance of issuing a specific Custom Asset, and contains the following fields:
 
-- ``assetDescSize``: the size of the Asset description, a number between :math:`0` and :math:`512\!`, stored in two bytes.
+- ``assetDescSize``: the size of the Asset description, a number between :math:`0` and :math:`512\!`.
 - ``asset_desc``: the Asset description, a byte string of up to 512 bytes as defined in the `Specification: Asset Identifier`_ section.
 - ``vNotes``: an array of ``Note`` containing the unencrypted output notes of the recipients of the Asset.
 - ``flagsIssuance``: a byte that stores the :math:`\mathsf{finalize}` boolean that defines whether the issuance of that specific Custom Asset is finalized or not.
 
-An asset's :math:`\mathsf{AssetDigest}` is added to the :math:`\mathsf{previously\_finalized}` set after a block that contains any issuance transaction for that asset with :math:`\mathsf{finalize} = 1\!`. It then cannot be removed from this set. For Assets with :math:`\mathsf{AssetDigest} \in \mathsf{previously\_finalized}\!`, no further tokens can be issued, so as seen below, the validators will reject the transaction. For Assets with :math:`\mathsf{AssetDigest} \not\in \mathsf{previously\_finalized}\!`, new issuance actions can be issued in future transactions. These must use the same Asset description, :math:`\mathsf{asset\_desc}\!`, and can either maintain :math:`\mathsf{finalize} = 0` or change it to :math:`\mathsf{finalize} = 1\!`, denoting that this Custom Asset cannot be issued after the containing block.
+The :math:`\mathsf{finalize}` boolean is set by the Issuer to signal that there will be no further issuance of the specific Custom Asset.
+As we will see in `Specification: Consensus Rule Changes`_, transactions that attempt to issue further amounts of a Custom Asset that has previously been finalized will be rejected.
 
-
-+-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
-| Bytes                       | Name                     | Data Type                                 | Description                                                         |
-+=============================+==========================+===========================================+=====================================================================+
-|``2``                        |``assetDescSize``         |``byte``                                   |The length of the ``asset_desc`` string in bytes.                    |
-+-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
-|``assetDescSize``            |``asset_desc``            |``byte[assetDescSize]``                    |A byte sequence of length ``assetDescSize`` bytes which SHOULD be a  |
-|                             |                          |                                           |well-formed UTF-8 code unit sequence according to Unicode 15.0.0     |
-|                             |                          |                                           |or later.                                                            |
-+-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
-|``varies``                   |``nNotes``                |``compactSize``                            |The number of notes in the issuance action.                          |
-+-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
-|``noteSize * nNotes``        |``vNotes``                |``Note[nNotes]``                           |A sequence of note descriptions within the issuance action,          |
-|                             |                          |                                           |where ``noteSize`` is the size, in bytes, of a Note.                 |
-+-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
-|``1``                        |``flagsIssuance``         |``byte``                                   |An 8-bit value representing a set of flags. Ordered from LSB to MSB: |
-|                             |                          |                                           | * :math:`\mathsf{finalize}`                                         |
-|                             |                          |                                           | * The remaining bits are set to :math:`0\!`.                        |
-+-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
+The complete encoding of these fields into an ``IssueAction`` is defined in ZIP 230 [#zip-0230-issuance-action-description]_.
 
 We note that the output note commitment of the recipient's notes are not included in the actual transaction, but when added to the global state of the chain, they will be added to the note commitment tree as a shielded note.
 This prevents future usage of the note from being linked to the issuance transaction, as the nullifier key is not known to the validators and chain observers.
@@ -288,7 +271,7 @@ This prevents future usage of the note from being linked to the issuance transac
 Issuance Bundle
 ---------------
 
-An issuance bundle, ``IssueBundle``, is the aggregate of all the issuance-related information.
+An issuance bundle is the aggregate of all the issuance-related information.
 Specifically, contains all the issuance actions and the issuer signature on the transaction SIGHASH that validates the issuance itself.
 It contains the following fields:
 
@@ -296,21 +279,8 @@ It contains the following fields:
 - ``vIssueActions``: an array of issuance actions, of type ``IssueAction``.
 - :math:`\mathsf{issueAuthSig}`: the signature of the transaction SIGHASH, signed by the issuance authorizing key, :math:`\mathsf{isk}\!`, that validates the issuance.
 
-The issuance bundle is then added within the transaction format as a new bundle. That is, issuance requires the addition of the following information to the transaction format [#protocol-txnencoding]_.
-
-+------------------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------------+
-| Bytes                              | Name                     | Data Type                                 | Description                                                               |
-+====================================+==========================+===========================================+===========================================================================+
-|``varies``                          |``nIssueActions``         |``compactSize``                            |The number of issuance actions in the bundle.                              |
-+------------------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------------+
-|``IssueActionSize * nIssueActions`` |``vIssueActions``         |``IssueAction[nIssueActions]``             |A sequence of issuance action descriptions, where IssueActionSize is       |
-|                                    |                          |                                           |the size, in bytes, of an IssueAction description.                         |
-+------------------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------------+
-|``32``                              |``ik``                    |``byte[32]``                               |The issuance validating key of the issuer, used to validate the signature. |
-+------------------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------------+
-|``64``                              |``issueAuthSig``          |``byte[64]``                               |The signature of the transaction SIGHASH, signed by the issuer,            |
-|                                    |                          |                                           |validated as in `Issuance Authorization Signature Scheme`_.                |
-+------------------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------------+
+The issuance bundle is added within the transaction format as a new bundle. 
+The detailed encoding of the issuance bundle as a part of the V6 transaction format is defined in ZIP 230 [#zip-0230-transaction-format]_.
 
 Issuance Protocol
 -----------------
@@ -397,7 +367,6 @@ Concrete Applications
 
     - issuing a last set of tokens of that specific :math:`\mathsf{AssetId}\!`, for which :math:`\mathsf{finalize} = 1\!`, or by
     - issuing a transaction with a single note in the issuance action pertaining to that :math:`\mathsf{AssetId}\!`, where the note will contain a :math:`\mathsf{value} = 0\!`. This can be used for application-specific purposes (NFT collections) or for security purposes to revoke the Asset issuance (see Security and Privacy Considerations).
-    - Note in the above cases, that the setting of the :math:`\mathsf{finalize}` flag will take effect at the block boundary, that is, after all the transactions in the block.
 
 - The issuance and burn mechanisms can be used in conjunction to determine the supply of Assets on the Zcash ecosystem. This allows for the bridging of Assets defined on other chains.
 
@@ -640,6 +609,8 @@ References
 .. [#zip-0226] `ZIP 226: Transfer and Burn of Zcash Shielded Assets <zip-0226.html>`_
 .. [#zip-0226-notestructure] `ZIP 226: Transfer and Burn of Zcash Shielded Assets - Note Structure & Commitment <zip-0226.html#note-structure-commitment>`_
 .. [#zip-0226-txiddigest] `ZIP 226: Transfer and Burn of Zcash Shielded Assets - TxId Digest <zip-0226.html#txid-digest>`_
+.. [#zip-0230-issuance-action-description] `ZIP 230: Version 6 Transaction Format: Issuance Action Description (IssueAction) <zip-0230.html#issuance-action-description-issueaction>`_
+.. [#zip-0230-transaction-format] `ZIP 230: Version 6 Transaction Format: Transaction Format <zip-0230.html#transaction-format>`_
 .. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.html>`_
 .. [#zip-0244-sigdigest] `ZIP 244: Transaction Identifier Non-Malleability: Signature Digest <zip-0244.html#signature-digest>`_
 .. [#zip-0244-authcommitment] `ZIP 244: Transaction Identifier Non-Malleability: Authorizing Data Commitment <zip-0244.html#authorizing-data-commitment>`_
