@@ -20,6 +20,8 @@ RUN apt-get install -y \
 RUN rm /usr/lib/python3.11/EXTERNALLY-MANAGED
 RUN pip install rst2html5
 
+RUN git config --global --add safe.directory /zips
+
 ENV PATH=${PATH}:/root/.local/bin
 
 WORKDIR "/zips"
