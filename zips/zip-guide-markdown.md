@@ -177,11 +177,17 @@ or "SHOULD" conformance requirement is more appropriate.
 ## Valid markup
 
 This is optional before publishing a PR, but to check whether a document is valid
-reStructuredText or Markdown, first install `rst2html5` and `pandoc`. E.g. on
-Debian-based distros::
+reStructuredText or Markdown, first install `docutils` and `rst2html5`, and
+build ``MultiMarkdown-6``. E.g. on Debian-based distros::
 
-    sudo apt install python3-pip pandoc perl sed
-    pip3 install docutils==0.19 rst2html5
+    sudo apt install python3-pip perl sed cmake
+    pip3 install 'docutils==0.21.2' 'rst2html5==2.0.1'
+    git clone -b develop https://github.com/Electric-Coin-Company/MultiMarkdown-6
+    cd MultiMarkdown-6
+    make release
+    cd build
+    make
+    sudo make install
 
 Then, with `draft-myzip.rst` or `draft-myzip.md` in the root directory of a clone
 of this repo, run::

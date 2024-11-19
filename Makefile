@@ -1,6 +1,6 @@
-# Dependencies: see zip-guide.rst and protocol/README.rst
+# Dependencies: see zips/zip-guide.rst and protocol/README.rst
 
-MARKDOWN_OPTION?=--pandoc
+MARKDOWN_OPTION?=--mmd
 
 .PHONY: all-zips all tag-release protocol all-protocol discard
 all-zips: .Makefile.uptodate
