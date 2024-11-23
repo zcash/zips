@@ -86,5 +86,6 @@ cat <(
  s|<a href="rendered/|<a href="|g;
  s|<a \(class=[^ ]* \)*href="zips/|<a \1href="|g' \
 | perl -p0e \
-'s|<section id="([^"]*)">\s*.?\s*<h([1-9])>([^<]*(?:<code>[^<]*</code>[^<]*)?)</h([1-9])>|<section id="\1"><h\2><span class="section-heading">\3</span><span class="section-anchor"> <a rel="bookmark" href="#\1"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h\4>|g' \
+'s|<section id="([^"]*)">\s*.?\s*<h([1-9])>([^<]*(?:<code>[^<]*</code>[^<]*)?)</h([1-9])>|<section id="\1"><h\2><span class="section-heading">\3</span><span class="section-anchor"> <a rel="bookmark" href="#\1"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h\4>|g;
+ s|<h([1-9]) id="([^"]*)">([^<]*(?:<code>[^<]*</code>[^<]*)?)</h([1-9])>|<h\1 id="\2"><span class="section-heading">\3</span><span class="section-anchor"> <a rel="bookmark" href="#\2"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h\4>|g;' \
 > "${outputfile}"
