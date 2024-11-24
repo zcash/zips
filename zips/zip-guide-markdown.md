@@ -142,12 +142,12 @@ ZIPs are different from RFCs in the following ways:
 
 ## Using mathematical notation
 
-Embedded LaTeX, e.g. $x + y$, is allowed and encouraged in ZIPs. The syntax for
+Embedded $\LaTeX$, e.g. $x + y$, is allowed and encouraged in ZIPs. The syntax for
 inline math is "<code>\$latex code\$</code>" in either Markdown or (as a
 non-standard extension) reStructuredText. This syntax does not work in tables for
 reStructuredText; in that case use "<code>:math:\`latex code\`</code>" instead.
 
-The rendered HTML will use KaTeX [^katex], which only supports a subset of LaTeX,
+The rendered HTML will use KaTeX [^katex], which only supports a subset of $\LaTeX$,
 so you will need to double-check that the rendering is as intended.
 
 In general the conventions in the Zcash protocol specification SHOULD be followed.
