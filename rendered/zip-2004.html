@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZIP 2004: Remove the dependency of consensus on note encryption</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
+<body>
+    <section>
+        <pre>ZIP: 2004
+Title: Remove the dependency of consensus on note encryption
+Owners: Daira-Emma Hopwood &lt;daira-emma@electriccoin.co&gt;
+Status: Draft
+Category: Consensus
+Created: 2024-10-22
+License: MIT
+Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/917">https://github.com/zcash/zips/issues/917</a>&gt;
+Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/918">https://github.com/zcash/zips/pull/918</a>&gt;</pre>
+        <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The key word "MUST" in this document is to be interpreted as described in BCP 14 <a id="footnote-reference-1" class="footnote_reference" href="#bcp14">1</a> when, and only when, it appears in all capitals.</p>
+            <p>The term "network upgrade" in this document is to be interpreted as described in ZIP 200. <a id="footnote-reference-2" class="footnote_reference" href="#zip-0200">4</a></p>
+            <p>The character § is used when referring to sections of the Zcash Protocol Specification. <a id="footnote-reference-3" class="footnote_reference" href="#protocol">2</a></p>
+            <p>The terms "Mainnet" and "Testnet" are to be interpreted as described in § 3.12 ‘Mainnet and Testnet’. <a id="footnote-reference-4" class="footnote_reference" href="#protocol-networks">3</a></p>
+        </section>
+        <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>ZIP 213 <a id="footnote-reference-5" class="footnote_reference" href="#zip-0213">6</a> added the ability for coinbase outputs to be shielded. An unfortunate side effect of this was to make consensus dependent on the details of note encryption. This has unnecessarily complicated the specification and implementation of consensus rules.</p>
+            <p>This proposal disentangles note encryption from consensus, by instead requiring coinbase outputs for v6 and later transaction versions to be unencrypted. The disentanglement will be complete once earlier transaction versions are no longer allowed on the network, which is likely to happen in some later upgrade.</p>
+        </section>
+        <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>In the original design of Zcash, the consensus protocol was carefully isolated from the details of note encryption. This property, which was preserved through the Overwinter, Sapling, and Blossom upgrades, reduces the complexity and attack surface of the consensus protocol. It also potentially allows changes to note encryption to be made outside network upgrades.</p>
+            <p>A dependency on note encryption crept into the consensus protocol as a result of the changes to support shielded coinbase outputs in ZIP 213 <a id="footnote-reference-6" class="footnote_reference" href="#zip-0213">6</a>, deployed in the Heartwood network upgrade. These changes added the requirement that it must be possible to decrypt Sapling and Orchard outputs in coinbase transactions using a sequence of 32 zero bytes as the outgoing viewing key.</p>
+            <p>The complexity impact of this change was overlooked. This became apparent during the design of ZIP 212 <a id="footnote-reference-7" class="footnote_reference" href="#zip-0212">5</a> for the Heartwood network upgrade. In fact for a time there were separate and slightly diverging implementations of note decryption for the consensus checks in <cite>zcashd</cite>, and in <cite>librustzcash</cite>. This could have led to a chain fork between <cite>zcashd</cite> and <cite>zebrad</cite> before the implementations were reconciled.</p>
+            <p>This ZIP restores the originally intended design property.</p>
+        </section>
+        <section id="requirements"><h2><span class="section-heading">Requirements</span><span class="section-anchor"> <a rel="bookmark" href="#requirements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The consensus rule change specified in this ZIP must, from transaction version 6 onward, make the implementation and specification of shielded coinbase outputs independent of note encryption.</p>
+        </section>
+        <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <section id="changes-to-the-zcash-protocol-specification"><h3><span class="section-heading">Changes to the Zcash Protocol Specification</span><span class="section-anchor"> <a rel="bookmark" href="#changes-to-the-zcash-protocol-specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>In § 5.4.3 'Symmetric Encryption', rename
+                    <span class="math">\(Sym\)</span>
+                 to
+                    <span class="math">\(NoteSym\)</span>
+                 and add the following text:</p>
+                <blockquote>
+                    <p>Let
+                        <span class="math">\(\mathsf{NullSym.}\mathbf{K} := \mathbb{B}^{[256]}\!\)</span>
+                    ,
+                        <span class="math">\(\mathsf{NullSym.}\mathbf{P} := \mathbb{B^Y}^{\mathbb{N}}\!\)</span>
+                    , and
+                        <span class="math">\(\mathsf{NullSym.}\mathbf{C} := \mathbb{B^Y}^{\mathbb{N}}\!\)</span>
+                    .</p>
+                    <p>Let
+                        <span class="math">\(\mathsf{NullSym.Encrypt_K}(\mathsf{P}) := \mathsf{P} \,||\, [0x00]^{16}\!\)</span>
+                    .</p>
+                    <p>Define
+                        <span class="math">\(\mathsf{NullSym.Decrypt_K}(\mathsf{C})\)</span>
+                     as follows:</p>
+                    <ul>
+                        <li>If the last 16 bytes of
+                            <span class="math">\(\mathsf{C}\)</span>
+                         are not
+                            <span class="math">\([0x00]^{16}\!\)</span>
+                        , return
+                            <span class="math">\(\bot\!\)</span>
+                        . Otherwise discard those 16 bytes and return the remaining prefix of
+                            <span class="math">\(\mathsf{C}\!\)</span>
+                        .</li>
+                    </ul>
+                    <p>Note: These definitions intentionally ignore the key;
+                        <span class="math">\(\mathsf{NullSym}\)</span>
+                     is not a secure authenticated encryption scheme. It MUST be used only for notes in shielded coinbase outputs, which are intended to be visible as cleartext.</p>
+                </blockquote>
+                <p>In § 4.20 'In-band secret distribution (Sapling and Orchard)', change:</p>
+                <blockquote>
+                    <p>let
+                        <span class="math">\(\mathsf{Sym}\)</span>
+                     be the encryption scheme instantiated in § 5.4.3 'Symmetric Encryption'.</p>
+                </blockquote>
+                <p>to</p>
+                <blockquote>
+                    <p>let
+                        <span class="math">\(\mathsf{NoteSym}\)</span>
+                     and
+                        <span class="math">\(\mathsf{NullSym}\)</span>
+                     be as instantiated in § 5.4.3 'Symmetric Encryption'.</p>
+                    <p>[Pre-NU7] let
+                        <span class="math">\(\mathsf{Sym}\)</span>
+                     be
+                        <span class="math">\(\mathsf{NoteSym}\!\)</span>
+                    .</p>
+                    <p>[NU7 onward] if the note to be decrypted is in an output of a version 6 or later coinbase transaction, let
+                        <span class="math">\(\mathsf{Sym}\)</span>
+                     be
+                        <span class="math">\(\mathsf{NullSym}\!\)</span>
+                    , otherwise let it be
+                        <span class="math">\(\mathsf{NoteSym}\!\)</span>
+                    .</p>
+                </blockquote>
+                <p>These changes apply identically to Mainnet and Testnet.</p>
+                <p>TODO: specify the handling of the <code>ephemeralKey</code> field.</p>
+            </section>
+        </section>
+        <section id="deployment"><h2><span class="section-heading">Deployment</span><span class="section-anchor"> <a rel="bookmark" href="#deployment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This ZIP is proposed to be deployed with the next transaction version change, which is assumed to be v6. <a id="footnote-reference-8" class="footnote_reference" href="#zip-0230">7</a></p>
+        </section>
+        <section id="reference-implementation"><h2><span class="section-heading">Reference implementation</span><span class="section-anchor"> <a rel="bookmark" href="#reference-implementation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>TBD.</p>
+        </section>
+        <section id="acknowledgements"><h2><span class="section-heading">Acknowledgements</span><span class="section-anchor"> <a rel="bookmark" href="#acknowledgements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The author would like to thank Jack Grigg and Kris Nuttycombe for discussions leading to the submission of this ZIP.</p>
+        </section>
+        <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <table id="bcp14" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>1</th>
+                        <td><a href="https://www.rfc-editor.org/info/bcp14">Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>2</th>
+                        <td><a href="protocol/protocol.pdf">Zcash Protocol Specification, Version 2024.5.1 or later</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-networks" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>3</th>
+                        <td><a href="protocol/protocol.pdf#networks">Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.12: Mainnet and Testnet</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0200" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>4</th>
+                        <td><a href="zip-0200">ZIP 200: Network Upgrade Mechanism</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0212" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>5</th>
+                        <td><a href="zip-0212">ZIP 212: Allow Recipient to Derive Ephemeral Secret from Note Plaintext</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0213" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>6</th>
+                        <td><a href="zip-0213">ZIP 213: Shielded Coinbase</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0230" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>7</th>
+                        <td><a href="zip-0230">ZIP 230: Version 6 Transaction Format</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </section>
+</body>
+</html>

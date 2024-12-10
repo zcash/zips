@@ -6,7 +6,7 @@ Build dependencies on Debian-based systems include, at least:
 
 .. code::
 
-   apt install python3-pip pandoc perl sed perl \
+   apt install python3-pip perl sed cmake \
      texlive texlive-science texlive-fonts-extra texlive-bibtex-extra biber latexmk
 
 Prior to Bullseye you may also need the ``awk`` and ``texlive-generic-recommended``
@@ -16,7 +16,7 @@ For link checking, you will also need the following Python packages:
 
 .. code::
 
-   pip3 install docutils==0.19 rst2html5 certifi PyPDF2
+   pip3 install 'docutils==0.21.2' 'rst2html5==2.0.1' certifi PyPDF2
 
 
 Building

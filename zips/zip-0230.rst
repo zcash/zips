@@ -24,6 +24,14 @@ Terminology
 The key words "MUST", "SHOULD", and "MAY" in this document are to be interpreted as
 described in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
 
+The terms "Zcash Shielded Asset", "ZSA" and "Asset" in this document are to be interpreted as described in ZIP 226 [#zip-0226]_.
+
+The term "Issuance" and "Issuance Action" in this document are to be interpreted as described in ZIP 227 [#zip-0227]_.
+
+We define the following additional terms:
+
+- Issuance Fee: This is the specific fixed fee that has to be paid to the network for every given issuance action.
+
 The character § is used when referring to sections of the Zcash Protocol Specification
 [#protocol]_.
 
@@ -41,6 +49,10 @@ This ZIP also depends upon and defines modifications to the computation of the v
 **TxId Digest**, **Signature Digest**, and **Authorizing Data Commitment** defined by
 ZIP 244 [#zip-0244]_.
 
+This ZIP additionally defines the fee mechanism associated with the Orchard Zcash Shielded Assets (OrchardZSA) protocol 
+as described in ZIP 226 [#zip-0226]_ and ZIP 227 [#zip-0227]_.
+The fee mechanism is defined in terms of modifications to the Proportionak Transfer Fee Mechanism [#zip-0317]_.
+
 
 Motivation
 ==========
@@ -50,6 +62,15 @@ any previous Zcash transaction. Since ZIP 244 was activated in NU5, the
 v5 and later serialized transaction formats are not consensus-critical.
 Thus, this ZIP defines format that can easily accommodate future extensions,
 where elements or a given pool are kept separate.
+
+The upgrade to the OrchardZSA protocol will also need to define a fee structure consistent with the objectives of ZIP 317 [#zip-0317]_. 
+This involves adaptation for the transfer protocol [#zip-0226]_, as well as additional considerations for the issuance protocol [#zip-0227]_ such as fees for asset issuance. 
+Specifically, the OrchardZSA Transfer and Burn mechanism should follow the same fee mechanism in order to not discriminate between transfer bundle types. 
+When it comes to Issuance of ZSA, however, there should be a disincentive that will stop users from flooding the chain with useless asset identifiers.
+In the case of Issuance, the computational power needed to verify the bundle is not large. 
+The transaction size, however, can be an issue as the number of output notes can be large. 
+Furthermore, as defined in ZIP 227 [#zip-0227]_, there is an additional data structure in the global state that needs to be maintained as part of the consensus. 
+This motivates further the addition of an Issuance-specific fee.
 
 
 Requirements
@@ -65,6 +86,14 @@ newly incorporated elements except those that attest to transaction validity.
 
 The computation of the commitment to authorizing data for a transaction must include
 all newly incorporated elements that attest to transaction validity.
+
+In addition to the requirements of ZIP 317 [#zip-0317]_, the fee mechanism for the OrchardZSA protocol should satisfy the following requirements:
+
+* The conventional fee should not leak private information used in
+  constructing the transaction; that is, it should be computable from only
+  the public data of the transaction.
+* Users should be discouraged from issuing new “garbage” custom Assets. 
+  The fee should reflect the cost of adding new data to the global state.
 
 
 Non-requirements
@@ -166,14 +195,12 @@ Transaction Format
 +------------------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------------+
 |``64 * nActionsOrchard``            |``vSpendAuthSigsOrchard`` |``byte[64 * nActionsOrchard]``          |Authorizing signatures for each Orchard-ZSA Action.                        |
 +------------------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------------+
-|``64``                              |``bindingSigOrchard``     |``byte[64]``                            |An Orchard binding signature on the SIGHASH transaction hash.              |
-+------------------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------------+
-| **Orchard-ZSA Burn Fields**                                                                                                                                                        |
-+------------------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------------+
 | ``varies``                         | ``nAssetBurn``           | ``compactSize``                        | The number of Assets burnt.                                               |
 +------------------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------------+
 | ``40 * nAssetBurn``                | ``vAssetBurn``           | ``AssetBurn[nAssetBurn]``              | A sequence of Asset Burn descriptions,                                    |
 |                                    |                          |                                        | encoded per `Orchard-ZSA Asset Burn Description`_.                        |
++------------------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------------+
+|``64``                              |``bindingSigOrchard``     |``byte[64]``                            |An Orchard-ZSA binding signature on the SIGHASH transaction hash.          |
 +------------------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------------+
 | **Orchard-ZSA Issuance Fields**                                                                                                                                                    |
 +------------------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------------+
@@ -190,15 +217,10 @@ Transaction Format
 
 
 * The fields ``valueBalanceSapling`` and ``bindingSigSapling`` are present if and only if
-  :math:`\mathtt{nSpendsSapling} + \mathtt{nOutputsSapling} > 0\!`. If ``valueBalanceSapling``
-  is not present, then :math:`\mathsf{v^{balanceSapling}}`` is defined to be :math:`0\!`.
+  $\mathtt{nSpendsSapling} + \mathtt{nOutputsSapling} > 0$. If ``valueBalanceSapling``
+  is not present, then $\mathsf{v^{balanceSapling}}$ is defined to be $0$.
 
-* The field ``anchorSapling`` is present if and only if :math:`\mathtt{nSpendsSapling} > 0\!`.
-
-* The fields ``flagsOrchard``, ``valueBalanceOrchard``, ``anchorOrchard``,
-  ``sizeProofsOrchardZSA``, ``proofsOrchardZSA``, and ``bindingSigOrchard`` are present if and
-  only if :math:`\mathtt{nActionsOrchard} > 0\!`. If ``valueBalanceOrchard`` is not present,
-  then :math:`\mathsf{v^{balanceOrchard}}` is defined to be :math:`0\!`.
+* The field ``anchorSapling`` is present if and only if $\mathtt{nSpendsSapling} > 0$.
 
 * The elements of ``vSpendProofsSapling`` and ``vSpendAuthSigsSapling`` have a 1:1
   correspondence to the elements of ``vSpendsSapling`` and MUST be ordered such that the
@@ -209,12 +231,19 @@ Transaction Format
   ``vOutputsSapling`` and MUST be ordered such that the proof at a given index corresponds
   to the ``OutputDescriptionV6`` at the same index.
 
+* The fields ``flagsOrchard``, ``valueBalanceOrchard``, ``anchorOrchard``,
+  ``sizeProofsOrchardZSA``, ``proofsOrchardZSA``, and ``bindingSigOrchard`` are present if and
+  only if $\mathtt{nActionsOrchard} > 0$. If ``valueBalanceOrchard`` is not present,
+  then $\mathsf{v^{balanceOrchard}}$ is defined to be $0$.
+
 * The proofs aggregated in ``proofsOrchardZSA``, and the elements of
   ``vSpendAuthSigsOrchard``, each have a 1:1 correspondence to the elements of
   ``vActionsOrchard`` and MUST be ordered such that the proof or signature at a given
   index corresponds to the ``OrchardZsaAction`` at the same index.
 
-* For coinbase transactions, the ``enableSpendsOrchard`` and ``enableZSAs`` bits MUST be set to :math:`0\!`.
+* The fields ``ik`` and ``issueAuthSig`` are present if and only if $\mathtt{nIssueActions} > 0$.
+
+* For coinbase transactions, the ``enableSpendsOrchard`` and ``enableZSAs`` bits MUST be set to $0$.
 
 The encodings of ``tx_in``, and ``tx_out`` are as in a version 4 transaction (i.e.
 unchanged from Canopy). The encodings of ``SpendDescriptionV6``, ``OutputDescriptionV6``
@@ -302,7 +331,7 @@ An Orchard-ZSA Asset Burn description is encoded in a transaction as an instance
 +=======+===============+=============================+====================================================================================================================+
 | 32    | ``AssetBase`` | ``byte[32]``                | For the Orchard-based ZSA protocol, this is the encoding of the Asset Base :math:`\mathsf{AssetBase^{Orchard}}\!`. |
 +-------+---------------+-----------------------------+--------------------------------------------------------------------------------------------------------------------+
-| 8     | ``valueBurn`` | :math:`\{1 .. 2^{64} - 1\}` | The amount being burnt.                                                                                            |
+| 8     | ``valueBurn`` | ``uint64``                  | The amount being burnt. The value is checked by consensus to be non-zero.                                          |
 +-------+---------------+-----------------------------+--------------------------------------------------------------------------------------------------------------------+
 
 The encodings of each of these elements are defined in ZIP 226 [#zip-0226]_.
@@ -315,23 +344,124 @@ An issuance action, ``IssueAction``, is the instance of issuing a specific Custo
 +-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
 | Bytes                       | Name                     | Data Type                                 | Description                                                         |
 +=============================+==========================+===========================================+=====================================================================+
-|``2``                        |``assetDescSize``         |``byte``                                   |The length of the asset description string in bytes.                 |
+|``varies``                   |``assetDescSize``         |``compactSize``                            |The length of the asset description string in bytes.                 |
 +-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
 |``assetDescSize``            |``asset_desc``            |``byte[assetDescSize]``                    |A byte sequence of length ``assetDescSize`` bytes which SHOULD be a  |
 |                             |                          |                                           |well-formed UTF-8 code unit sequence according to Unicode 15.0.0     |
 |                             |                          |                                           |or later.                                                            |
 +-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
-|``varies``                   |``nNotes``                |``compactSize``                            |The number of notes in the issuance action.                          |
+|``varies``                   |``nNotes``                |``compactSize``                            |The number of notes in the Issuance Action.                          |
 +-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
-|``noteSize * nNotes``        |``vNotes``                |``Note[nNotes]``                           |A sequence of note descriptions within the issuance action,          |
-|                             |                          |                                           |where ``noteSize`` is the size, in bytes, of a Note.                 |
+|``147 * nNotes``             |``vNotes``                |``IssueNote[nNotes]``                      |A sequence of note descriptions within the Issuance Action.          |
 +-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
 |``1``                        |``flagsIssuance``         |``byte``                                   |An 8-bit value representing a set of flags. Ordered from LSB to MSB: |
 |                             |                          |                                           | * :math:`\mathsf{finalize}`                                         |
 |                             |                          |                                           | * The remaining bits are set to :math:`0\!`.                        |
 +-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
 
-The encodings of each of these elements are defined in ZIP 227 [#zip-0227]_.
+The encoding of ``IssueNote`` is described below.
+Note that we allow the number of notes (represented by ``nNotes``) to be zero. 
+This allows for issuers to create Issuance Actions to only finalize an issued Asset, without needing them to simultaneously issue more of that Asset. 
+
+Issue Note Description (``IssueNote``)
+--------------------------------------
+
+An issuance note, ``IssueNote`` contains the following fields:
+
++-----------------------------+--------------------------+--------------------------------------+--------------------------------------------------------------------+
+| Bytes                       | Name                     | Data Type                            | Description                                                        |
++=============================+==========================+======================================+====================================================================+
+|``43``                       |``recipient``             |``byte[43]``                          |The encoding of a recipient's diversified payment address, as       |
+|                             |                          |                                      |:math:`\mathsf{LEBS2OSP}_{88}(\mathsf{d})\|                         |
+|                             |                          |                                      |\mathsf{LEBS2OSP}_{256}(\mathsf{repr}_{\mathbb{P}}                  |
+|                             |                          |                                      |(\mathsf{pk}_\mathsf{d}))\!`, where :math:`\mathsf{d}` is the       |
+|                             |                          |                                      |diversifier and :math:`\mathsf{pk_d}` is the diversified            |
+|                             |                          |                                      |transmission key. **Non Normative Note**: This is the same as the   |
+|                             |                          |                                      |encoding of an Orchard Raw Payment Address, as defined in the       |
+|                             |                          |                                      |protocol specification §5.6.4.2 ‘Orchard Raw Payment Addresses’.    |
++-----------------------------+--------------------------+--------------------------------------+--------------------------------------------------------------------+
+|``8``                        |``value``                 |``uint64``                            |The amount being issued in this note.                               |
++-----------------------------+--------------------------+--------------------------------------+--------------------------------------------------------------------+
+|``32``                       |``assetBase``             |``byte[32]``                          |The encoding of the Asset Base                                      |
+|                             |                          |                                      |:math:`\mathsf{AssetBase^{Orchard}}\!`, as defined in 'ZIP 227'.    |
++-----------------------------+--------------------------+--------------------------------------+--------------------------------------------------------------------+
+|``32``                       |``rho``                   |``byte[32]``                          |This is defined and encoded in the same manner as for Orchard       |
+|                             |                          |                                      |notes in protocol §3.2.1 'Note Plaintexts and Memo Fields'.         |
++-----------------------------+--------------------------+--------------------------------------+--------------------------------------------------------------------+
+|``32``                       |``rseed``                 |``byte[32]``                          |The ``rseed`` field of the note, encoded as for Orchard notes in    |
+|                             |                          |                                      |protocol §3.2.1 'Note Plaintexts and Memo Fields'.                  |
++-----------------------------+--------------------------+--------------------------------------+--------------------------------------------------------------------+
+
+OrchardZSA Fee Calculation
+==========================
+
+In addition to the parameters defined in the Fee calculation section of ZIP 317 [#zip-0317-fee-calc]_, the OrchardZSA protocol upgrade defines the following additional parameters:
+
+===================================== ==========================================================================
+Parameter                             Value                          
+===================================== ==========================================================================
+:math:`\mathsf{issuance\_fee}`        :math:`100 \cdot marginal\_fee` per issuance action (as defined below)
+===================================== ==========================================================================
+
+Wallets implementing this specification SHOULD use a conventional fee, viz. $\mathsf{zsa\_conventional\_fee}$, that is
+calculated in zatoshis. Additional definitions that are used in the formula for the calculation are in the table below:
+
+========================================= ====== ====================================================================================================================
+Input                                     Units  Description
+========================================= ====== ====================================================================================================================
+:math:`\mathsf{nOrchardActions}`          number the number of OrchardZSA transfer actions (including ZEC actions)
+:math:`\mathsf{nTotalOutputsZsaIssuance}` number the total number of OrchardZSA issuance outputs (added across issuance actions)
+:math:`\mathsf{nCreateActions}`           number the number of OrchardZSA issuance actions that issue a Custom Asset that is not present in the Global Issuance State
+========================================= ====== ====================================================================================================================
+
+The other inputs to this formula are taken from transaction fields defined in the Zcash protocol specification [#protocol-txnencoding]_ and the global state.
+They are defined in the Fee calculation section of ZIP 317 [#zip-0317-fee-calc]_.
+Note that $\mathsf{nOrchardActions}$, that is used in the computation of $\mathsf{logical\_actions}$, is redefined in
+the above table, and now combines the actions for native ZEC as well as OrchardZSA transfer actions for Custom Assets. 
+
+The formula for the computation of the $\mathsf{zsa\_logical\_actions}$ (with the updated computation of
+$\mathsf{logical\_actions}$ as described above) is:
+
+.. math::
+    \mathsf{zsa\_logical\_actions} = \mathsf{logical\_actions} \;+ \mathsf{nTotalOutputsZsaIssuance}
+
+The formula for the computation of the $\mathsf{zsa\_conventional\_fee}$ is:
+
+.. math::
+    \begin{array}{rcl}
+      \mathsf{zsa\_conventional\_fee} &=& \mathsf{marginal\_fee} \cdot \mathsf{max}(\mathsf{grace\_actions}, \mathsf{zsa\_logical\_actions}) \;+ \\
+                                      & & \mathsf{issuance\_fee} \cdot \mathsf{nCreateActions}
+    \end{array}
+
+It is not a consensus requirement that fees follow this formula; however,
+wallets SHOULD create transactions that pay this fee, in order to reduce
+information leakage, unless overridden by the user.
+
+Rationale for OrchardZSA Fee calculation
+----------------------------------------
+
+The OrchardZSA fee calculation accounts for the additions to the Global Issuance State that are required for the OrchardZSA protocol.
+Every newly created Custom Asset adds a new row to the Global Issuance State. 
+Subsequent issuance, finalization, or burn of existing Custom Assets only changes the values in the corresponding row.
+
+This explains the need for a higher fee for the creation of entirely new Custom Assets, in order to disincentivize the creation of "junk" assets. 
+
+OrchardZSA Fee Considerations
+-----------------------------
+
+We choose to maintain the native ZEC Asset as the primary token for the Zcash blockchain, similar to how ETH is needed for ERC20 transactions to the benefit of the Ethereum ecosystem.
+
+An alternative proposal for the OrchardZSA fee mechanism that was not adopted was to adopt a new type of fee, denominated in the custom Asset being issued or transferred.
+In the context of transparent transactions, such a fee allows miners to “tap into” the ZSA value of the transactions, rather than the ZEC value of transactions.
+However when transactions are shielded, any design that lifts value from the transaction would also leak information about it.
+
+
+Deployment
+==========
+
+Version 6 transactions are proposed to be allowed on the network starting from
+Network Upgrade 7. [#zip-0254]_
+
 
 Reference implementation
 ========================
@@ -343,10 +473,14 @@ References
 ==========
 
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
-.. [#protocol] `Zcash Protocol Specification, Version 2023.4.0 or later [NU5 proposal] <protocol/protocol.pdf>`_
-.. [#protocol-spenddesc] `Zcash Protocol Specification, Version 2023.4.0 [NU5 proposal]. Section 4.4: Spend Descriptions <protocol/protocol.pdf#spenddesc>`_
-.. [#protocol-outputdesc] `Zcash Protocol Specification, Version 2023.4.0 [NU5 proposal]. Section 4.5: Output Descriptions <protocol/protocol.pdf#outputdesc>`_
-.. [#protocol-actiondesc] `Zcash Protocol Specification, Version 2023.4.0 [NU5 proposal]. Section 4.6: Action Descriptions <protocol/protocol.pdf#actiondesc>`_
+.. [#protocol] `Zcash Protocol Specification, Version 2024.5.1 or later [NU6] <protocol/protocol.pdf>`_
+.. [#protocol-spenddesc] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.4: Spend Descriptions <protocol/protocol.pdf#spenddesc>`_
+.. [#protocol-outputdesc] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.5: Output Descriptions <protocol/protocol.pdf#outputdesc>`_
+.. [#protocol-actiondesc] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.6: Action Descriptions <protocol/protocol.pdf#actiondesc>`_
+.. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2022.3.8. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
 .. [#zip-0226] `ZIP 226: Transfer and Burn of Zcash Shielded Assets <https://qed-it.github.io/zips/zip-0226>`_
 .. [#zip-0227] `ZIP 227: Issuance of Zcash Shielded Assets <https://qed-it.github.io/zips/zip-0227>`_
 .. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`_
+.. [#zip-0254] `ZIP 254: Deployment of the NU7 Network Upgrade <zip-0254.rst>`_
+.. [#zip-0317] `ZIP 317: Proportional Transfer Fee Mechanism <zip-0317.rst>`_
+.. [#zip-0317-fee-calc] `ZIP 317: Proportional Transfer Fee Mechanism, Fee calculation <zip-0317.rst#fee-calculation>`_

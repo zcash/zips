@@ -71,112 +71,123 @@ The changes described in this section are to be made in the Zcash Protocol Speci
 Consensus changes
 -----------------
 
-Throughout the specification, rename HalvingInterval to PreBlossomHalvingInterval,
-and rename PoWTargetSpacing to PreBlossomTargetSpacing. These constants retain
-their values from [#preblossom-protocol]_ of 840000 (blocks) and 150 (seconds)
-respectively.
+Throughout the specification, rename $\mathsf{HalvingInterval}$ to $\mathsf{PreBlossomHalvingInterval}$,
+and rename $\mathsf{PoWTargetSpacing}$ to $\mathsf{PreBlossomTargetSpacing}$. These constants retain
+their values from [#preblossom-protocol]_ of $840000$ (blocks) and $150$ (seconds) respectively.
 
-In section 2 (Notation), add BlossomActivationHeight and PostBlossomPoWTargetSpacing
+In section 2 (Notation), add $\mathsf{BlossomActivationHeight}$ and $\mathsf{PostBlossomPoWTargetSpacing}$
 to the list of integer constants.
 
-In section 5.3 (Constants), define PostBlossomPoWTargetSpacing := 75 seconds.
+In section 5.3 (Constants), define $\mathsf{PostBlossomPoWTargetSpacing} := 75$ seconds.
 
-For a given network (production or test), define BlossomActivationHeight as the
+For a given network (production or test), define $\mathsf{BlossomActivationHeight}$ as the
 height at which Blossom activates on that network, as specified in [#zip-0206]_.
 
 In section 7.6.3 (Difficulty adjustment) [later moved to section 7.7.3], make the
 following changes:
 
-Define IsBlossomActivated(*height*) to return true if *height* ≥ BlossomActivationHeight,
-otherwise false.
+Define $\mathsf{IsBlossomActivated}(\mathsf{height})$ to return true if
+$\mathsf{height} \geq \mathsf{BlossomActivationHeight}$, otherwise false.
 
-This specification assumes that BlossomActivationHeight ≥ SlowStartInterval.
+This specification assumes that $\mathsf{BlossomActivationHeight} \geq \mathsf{SlowStartInterval}$.
 
 Define:
 
-- BlossomPoWTargetSpacingRatio := PreBlossomPoWTargetSpacing / PostBlossomPoWTargetSpacing
-- PostBlossomHalvingInterval := floor(PreBlossomHalvingInterval · BlossomPoWTargetSpacingRatio).
+- $\mathsf{BlossomPoWTargetSpacingRatio} := \mathsf{PreBlossomPoWTargetSpacing} / \mathsf{PostBlossomPoWTargetSpacing}$
+- $\mathsf{PostBlossomHalvingInterval} := \mathsf{floor}(\mathsf{PreBlossomHalvingInterval} \cdot \mathsf{BlossomPoWTargetSpacingRatio})$.
 
-In the same section, redefine PoWTargetSpacing as a function taking a *height*
-parameter, as follows:
+In the same section, redefine $\mathsf{PoWTargetSpacing} as a function taking a
+$\mathsf{height}$ parameter, as follows:
 
-- PoWTargetSpacing(*height*) :=
+.. math::
+    \mathsf{PoWTargetSpacing}(\mathsf{height}) :=
+      \begin{cases}
+        \mathsf{PreBlossomPoWTargetSpacing}, &\!\!\text{if not } \mathsf{IsBlossomActivated}(\mathsf{height}) \\
+        \mathsf{PostBlossomPoWTargetSpacing} &\!\!\text{otherwise}
+      \end{cases}
 
-  - PreBlossomPoWTargetSpacing, if not IsBlossomActivated(*height*)
-  - PostBlossomPoWTargetSpacing, otherwise.
+Also redefine $\mathsf{AveragingWindowTimespan}$, $\mathsf{MinActualTimespan}$, $\mathsf{MaxActualTimespan}$,
+$\mathsf{ActualTimespanDamped}$, $\mathsf{ActualTimespanBounded}$, and $\mathsf{Threshold}$ as follows:
 
-Also redefine AveragingWindowTimespan, MinActualTimespan, MaxActualTimespan,
-ActualTimespanDamped, ActualTimespanBounded, and Threshold as follows:
-
-- add a *height* parameter to each of these functions that does not already
+- add a $\mathsf{height}$ parameter to each of these functions that does not already
   have one;
-- ensure that each reference to any of these values, or to PoWTargetSpacing,
-  are replaced with a function call passing the *height* parameter.
+- ensure that each reference to any of these values, or to $\mathsf{PoWTargetSpacing}$,
+  are replaced with a function call passing the $\mathsf{height}$ parameter.
 
 In section 7.7 (Calculation of Block Subsidy and Founders’ Reward) [later moved
-to section 7.8], redefine the Halving and BlockSubsidy functions as follows:
+to section 7.8], redefine the $\mathsf{Halving}$ and $\mathsf{BlockSubsidy}$ functions as follows:
 
-- Halving(*height*) :=
+.. math::
+    \mathsf{Halving}(\mathsf{height}) :=
+      \begin{cases}
+        \mathsf{floor}((\mathsf{height} - \mathsf{SlowStartShift}) / \mathsf{PreBlossomHalvingInterval}), &\!\!\text{if not } \mathsf{IsBlossomActivated}(\mathsf{height}) \\
+        \mathsf{floor}((\mathsf{BlossomActivationHeight} - \mathsf{SlowStartShift}) / \mathsf{PreBlossomHalvingInterval} & \\
+        \hspace{1em}+\; (\mathsf{height} - \mathsf{BlossomActivationHeight}) / \mathsf{PostBlossomHalvingInterval}) &\!\!\text{otherwise}
+      \end{cases}
 
-  - floor((*height* - SlowStartShift) / PreBlossomHalvingInterval), if not IsBlossomActivated(*height*)
-  - floor((BlossomActivationHeight - SlowStartShift) / PreBlossomHalvingInterval + (*height* - BlossomActivationHeight) / PostBlossomHalvingInterval), otherwise
+.. math::
+    \mathsf{BlockSubsidy}(\mathsf{height}) :=
+      \begin{cases}
+        \mathsf{SlowStartRate} \cdot \mathsf{height}, &\!\!\text{if } \mathsf{height} < \mathsf{SlowStartInterval} / 2 \\
+        \mathsf{SlowStartRate} \cdot (\mathsf{height} + 1), &\!\!\text{if } \mathsf{SlowStartInterval} / 2 \leq \mathsf{height} \text{ and } \mathsf{height} < \mathsf{SlowStartInterval} \\
+        \mathsf{floor}(\mathsf{MaxBlockSubsidy} / 2^{\mathsf{Halving}(\mathsf{height})}), &\!\!\text{if } \mathsf{SlowStartInterval} \leq \mathsf{height} \text{ and not } \mathsf{IsBlossomActivated}(\mathsf{height}) \\
+        \mathsf{floor}(\mathsf{MaxBlockSubsidy} / & \\
+        \hspace{1em}(\mathsf{BlossomPoWTargetSpacingRatio} \cdot 2^{\mathsf{Halving}(\mathsf{height})})) &\!\!\text{otherwise}
+      \end{cases}
 
-- BlockSubsidy(*height*) :=
+Note: $\mathsf{BlossomActivationHeight}$, $\mathsf{PostBlossomHalvingInterval}$, and $\mathsf{PostBlossomTargetSpacing}$ are chosen so that:
 
-  - SlowStartRate · *height*, if *height* < SlowStartInterval / 2
-  - SlowStartRate · (*height* + 1), if SlowStartInterval / 2 ≤ *height* and *height* < SlowStartInterval
-  - floor(MaxBlockSubsidy / 2\ :sup:`Halving(*height*)`\ ), if SlowStartInterval ≤ *height* and not IsBlossomActivated(*height*)
-  - floor(MaxBlockSubsidy / (BlossomPoWTargetSpacingRatio · 2\ :sup:`Halving(*height*)`\ )), otherwise
-
-Note: BlossomActivationHeight, PostBlossomHalvingInterval, and PostBlossomTargetSpacing are chosen so that:
-
-- (BlossomActivationHeight - SlowStartShift) / PreBlossomHalvingInterval + (*height* - BlossomActivationHeight) / PostBlossomHalvingInterval)
-  is exactly 1 for some integer *height*.
-- MaxBlockSubsidy / (BlossomPoWTargetSpacingRatio · 2\ :sup:`Halving(*height*)`\ )
+- $(\mathsf{BlossomActivationHeight} - \mathsf{SlowStartShift}) / \mathsf{PreBlossomHalvingInterval}\hspace{-3em}$
+  $\hspace{3em}+\; (\mathsf{height} - \mathsf{BlossomActivationHeight}) / \mathsf{PostBlossomHalvingInterval}$
+  is exactly $1$ for some integer $\mathsf{height}$.
+- $\mathsf{MaxBlockSubsidy} / (\mathsf{BlossomPoWTargetSpacingRatio} \cdot 2^{\mathsf{Halving}(\mathsf{height})})$
   is an integer for the next few periods.
 
 In section 7.8 (Payment of Founders’ Reward) [later moved to section 7.9], define:
 
-- FounderAddressAdjustedHeight(*height*) :=
+.. math::
+    \mathsf{FounderAddressAdjustedHeight}(\mathsf{height}) :=
+      \begin{cases}
+        \mathsf{height}, &\!\!\text{if not } \mathsf{IsBlossomActivated}(\mathsf{height}) \\
+        \mathsf{BlossomActivationHeight} + \mathsf{floor}((\mathsf{height} - \mathsf{BlossomActivationHeight}) / \\
+          \hspace{1em}\mathsf{BlossomPoWTargetSpacingRatio}) &\!\!\text{otherwise}
+      \end{cases}
 
-  - *height*, if not IsBlossomActivated(*height*)
-  - BlossomActivationHeight + floor((*height* - BlossomActivationHeight) / BlossomPoWTargetSpacingRatio), otherwise
-
-and in the definition of FounderAddressIndex, replace the use of *height* with FounderAddressAdjustedHeight(*height*).
+and in the definition of $\mathsf{FounderAddressIndex}$, replace the use of $\mathsf{height}$ with $\mathsf{FounderAddressAdjustedHeight}(\mathsf{height})$.
 
 Also define:
 
-- FoundersRewardLastBlockHeight := max({ *height* ⦂ N | Halving(*height*) < 1 })
+- $\mathsf{FoundersRewardLastBlockHeight} := \mathsf{max}(\{ \mathsf{height} \;{\small ⦂}\; \mathbb{N} | \mathsf{Halving}(\mathsf{height}) < 1 \})$
 
 Replace the first note in that section with:
 
-- No Founders’ Reward is required to be paid for *height* > FoundersRewardLastBlockHeight
-  (i.e. after the first halving), or for *height* = 0 (i.e. the genesis block).
+- No Founders’ Reward is required to be paid for $\mathsf{height} > \mathsf{FoundersRewardLastBlockHeight}$
+  (i.e. after the first halving), or for $\mathsf{height} = 0$ (i.e. the genesis block).
 
-and in the second note, replace SlowStartShift + PreBlossomHalvingInterval - 1 with
-FoundersRewardLastBlockHeight.
+and in the second note, replace $\mathsf{SlowStartShift} + \mathsf{PreBlossomHalvingInterval} - 1$ with
+$\mathsf{FoundersRewardLastBlockHeight}$.
 
 
 Effect on difficulty adjustment
 -------------------------------
 
-The difficulty adjustment parameters PoWAveragingWindow and PoWMedianBlockSpan
+The difficulty adjustment parameters $\mathsf{PoWAveragingWindow}$ and $\mathsf{PoWMedianBlockSpan}$
 refer to numbers of blocks, but do *not* change at Blossom activation. This is
 because the amount of damping/averaging required is expected to be roughly the
 same, in terms of the number of blocks, after the change in block target
 spacing.
 
-The change in the effective value of PoWTargetSpacing will cause the block
+The change in the effective value of $\mathsf{PoWTargetSpacing}$ will cause the block
 spacing to adjust to the new target, at the normal rate for a difficulty
 adjustment. The results of simulations are consistent with this expected
 behaviour.
 
-Note that the change in AveragingWindowTimespan(height) takes effect
+Note that the change in $\mathsf{AveragingWindowTimespan(\mathsf{height})$ takes effect
 immediately when calculating the target difficulty starting from the block at
 the Blossom activation height, even though the difficulty of the preceding
-PoWAveragingWindow blocks will have been adjusted using the pre-Blossom target
+$\mathsf{PoWAveragingWindow}$ blocks will have been adjusted using the pre-Blossom target
 spacing. Therefore it is likely that the difficulty adjustment for the first
-few blocks after activation will be limited by PoWMaxAdjustDown. This is not
+few blocks after activation will be limited by $\mathsf{PoWMaxAdjustDown}$. This is not
 anticipated to cause any problem.
 
 
@@ -189,12 +200,13 @@ On Testnet from block height 299188 onward, the difficulty adjustment algorithm
 specification changes this threshold to be proportional to the block target
 spacing.
 
-That is, if the block time of a block at height *height* ≥ 299188 is greater than
-6 · PoWTargetSpacing(*height*) seconds after that of the preceding block,
-then the block is a minimum-difficulty block. In that case its ``nBits`` field
-MUST be set to ToCompact(PoWLimit), where PoWLimit is the value defined for Testnet
-in section 5.3 of the Zcash Protocol Specification [#protocol-constants]_, and
-ToCompact is as defined in section 7.7.4 of that specification [#protocol-nbits]_.
+That is, if the block time of a block at height $\mathsf{height} \geq 299188$ is greater
+than $6 \cdot \mathsf{PoWTargetSpacing}(\mathsf{height})$ seconds after that of the
+preceding block, then the block is a minimum-difficulty block. In that case its ``nBits``
+field MUST be set to $\mathsf{ToCompact}(\mathsf{PoWLimit})$, where $\mathsf{PoWLimit}$
+is the value defined for Testnet in section 5.3 of the Zcash Protocol Specification
+[#protocol-constants]_, and $\mathsf{ToCompact}$ is as defined in section 7.7.4 of that
+specification [#protocol-nbits]_.
 
 Note: a previous revision of this ZIP (and [#zip-0205]_) incorrectly said that
 only the target threshold of minimum-difficulty blocks is affected. In fact
@@ -324,7 +336,7 @@ an hour after responding to the message::
     // for some reasonable time window (1 hour) that block relay might require.
 
 For each block, when estimating whether it will still be on disk after an hour, we
-take MIN_BLOCKS_TO_KEEP = 288 blocks, minus approximately the number of blocks expected
+take MIN_BLOCKS_TO_KEEP = $288$ blocks, minus approximately the number of blocks expected
 in one hour at the target block spacing as of that block. Around Blossom activation,
 this might underestimate the number of blocks in the next hour, but given the value
 of MIN_BLOCKS_TO_KEEP, this is not anticipated to cause any problem.
@@ -388,7 +400,7 @@ pre-upgrade consensus branch that persists.
 Reference Implementation
 ========================
 
-https://github.com/zcash/zcash/pull/4025
+* https://github.com/zcash/zcash/pull/4025
 
 
 References

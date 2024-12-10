@@ -8,7 +8,7 @@
   Credits: Daira-Emma Hopwood
            Jack Grigg
            @Peacemonger (Zcash Forum)
-  Status: Draft
+  Status: Withdrawn
   Category: Consensus
   Created: 2024-07-03
   License: MIT

@@ -4,7 +4,7 @@
   Title: Establishing a Hybrid Dev Fund for ZF, ZCG and a Dev Fund Reserve
   Owners: Jack Gavigan <jack@zfnd.org>
   Credits: The ZIP 1014 Authors
-  Status: Draft
+  Status: Withdrawn
   Category: Consensus Process
   Created: 2024-07-01
   License: MIT

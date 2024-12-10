@@ -4,7 +4,7 @@
   Title: Manufacturing Consent; Re-Establishing a Dev Fund for ECC, ZF, ZCG, Qedit, FPF, and ZecHub
   Owner: Noam Chom <noamchom1967@gmail.com>
   Credits: The ZIP-1014 Authors
-  Status: Active
+  Status: Withdrawn
   Category: Consensus Process
   Created: 2024-06-25
   License: MIT

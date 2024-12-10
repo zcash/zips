@@ -1,21 +1,750 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ZIP 231: Decouple Memos from Transaction Outputs</title>
+    <title>ZIP 231: Memo Bundles</title>
     <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css">
+</head>
 <body>
-    <section>
-        <pre>ZIP: 231
-Title: Decouple Memos from Transaction Outputs
+<pre><code>ZIP: 231
+Title: Memo Bundles
 Owners: Jack Grigg &lt;jack@electriccoin.co&gt;
         Kris Nuttycombe &lt;kris@electriccoin.co&gt;
-        Daira-Emma Hopwood &lt;daira-emma@electriccoin.co&gt;
+        Daira-Emma Hopwood &lt;daira@electriccoin.co&gt;
+        Arya Solhi &lt;arya@zfnd.org&gt;
 Credits: Sean Bowe
          Nate Wilcox
-Status: Reserved
+Status: Draft
 Category: Consensus / Wallet
-Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/627">https://github.com/zcash/zips/issues/627</a>&gt;</pre>
-    </section>
+Created: 2024-04-26
+License: MIT
+Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/627">https://github.com/zcash/zips/issues/627</a>&gt;
+</code></pre>
+
+<h1 id="terminology"><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>The key words &#8220;MUST&#8221;, &#8220;MUST NOT&#8221;, &#8220;SHOULD&#8221;, and &#8220;MAY&#8221; in this document are to
+be interpreted as described in BCP 14 <a href="#fn:1" id="fnref:1" title="see footnote" class="footnote"><sup>1</sup></a> when, and only when, they appear
+in all capitals.</p>
+
+<p>The term &#8220;network upgrade&#8221; in this document is to be interpreted as described in
+ZIP 200. <a href="#fn:2" id="fnref:2" title="see footnote" class="footnote"><sup>2</sup></a></p>
+
+<p>The character § is used when referring to sections of the Zcash Protocol
+Specification. <a href="#fn:3" id="fnref:3" title="see footnote" class="footnote"><sup>3</sup></a></p>
+
+<p>The terms &#8220;Mainnet&#8221; and &#8220;Testnet&#8221; are to be interpreted as described in
+§ 3.12 ‘Mainnet and Testnet’. <a href="#fn:4" id="fnref:4" title="see footnote" class="footnote"><sup>4</sup></a></p>
+
+<h1 id="abstract"><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>Currently, the memo sent in a shielded output is limited to at most 512 bytes.
+This ZIP proposes to allow larger memos, and to enable memo data to be shared
+between multiple recipients of a transaction.</p>
+
+<h1 id="motivation"><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>In Zcash transaction versions v2 to v5 inclusive, each Sapling or Orchard
+shielded output contains a ciphertext comprised of a 52-byte note plaintext,
+and a corresponding 512-byte memo field. <a href="#fn:5" id="fnref:5" title="see footnote" class="footnote"><sup>5</sup></a> Recipients
+can only decrypt the outputs sent to them, and thus can also only observe the
+memo fields included with the outputs they can decrypt.</p>
+
+<p>The shielded transaction protocol hides the sender(s) (that is, the addresses
+corresponding to the keys used to spend the input notes) from all of the
+recipients. For certain kinds of transactions, it is desirable to make one or
+more sender addresses available to one or more recipients (for example, a reply
+address). In such circumstances it is important to authenticate the sender
+addresses, to give the recipient a guarantee that the address is controlled by
+a sender of the transaction; failure to authenticate this address can enable
+phishing attacks. These Authenticated Reply Addresses require zero-knowledge
+proofs, and for the Orchard protocol these proofs are too large to fit into a
+512-byte memo field.</p>
+
+<p>It is also desirable, for clients with more stringent bandwidth constraints,
+to be able to transmit encrypted notes to the client without including the
+encrypted memo data. In the current light client protocol <a href="#fn:6" id="fnref:6" title="see footnote" class="footnote"><sup>6</sup></a>, this
+is done by truncating the note ciphertext to just the part that encrypts the
+memo. However, that has the effect of truncating the authentication tag, and
+so the resulting decryption algorithm does not meet standard security notions
+for an authenticated encryption scheme. It is a goal of this proposal to
+rectify this, simplifying the security argument.</p>
+
+<p>Instead of the memo data, this ZIP proposes that it is possible to indicate whether
+a memo is present for the recipient. When using the light client protocol, a recipient
+need not download full transaction information if this indication tells them that they
+have not received any memo in the transaction.</p>
+
+<p>At present, it is not possible to transmit the same memo data to multiple
+transaction recipients without redundantly encoding that data, and sending
+memo data greater than 512 bytes requires sending multiple outputs; the
+problem is compounded when attempting to send more than 512 bytes to each
+recipient. By separating memo data from the decryption capability for those
+memos, it admits a greater variety of applications that utilize memo data,
+while decreasing the amount of data that needs to be stored on-chain overall.</p>
+
+<h1 id="requirements"><span class="section-heading">Requirements</span><span class="section-anchor"> <a rel="bookmark" href="#requirements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<ul>
+<li>Recipients can receive memo data that is greater than 512 bytes in length.</li>
+<li>Multiple recipients, across any of the shielded pools, can be given the
+capability to view the same memo data.</li>
+<li>The exact number and exact lengths of distinct decryptable memos should not
+be revealed, even to the transaction recipients, although an upper bound on
+the total length of memo data that the observer does not have the capability
+to view will be leaked to transaction recipients, and the overall maximum
+possible length of memo data will be revealed on-chain.</li>
+<li>A recipient can determine whether or not they have been given the capability
+to view any memo solely by decrypting the note ciphertext.</li>
+<li>Memo chunks within a transaction can be individually pruned from block storage
+without preventing the transaction from being verified when transmitting block
+data to peers.</li>
+<li>The ciphertext of the note alone can be decrypted using a scheme that meets
+a standard security notion for authenticated encryption, without more than a
+small constant overhead in ciphertext size.</li>
+</ul>
+
+<h1 id="non-requirements"><span class="section-heading">Non-requirements</span><span class="section-anchor"> <a rel="bookmark" href="#non-requirements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<ul>
+<li>Recipients do not need to be able to receive multiple memos per note. This
+capability can however be enabled under the existing proposal by &#8220;chaining&#8221;
+memos, including the decryption key for another memo within the memo that
+is decryptable by a recipient.</li>
+</ul>
+
+<h1 id="specification"><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>Since this proposal is defined only for v6 and later transactions, it is not
+necessary to consider Sprout JoinSplit outputs. The following sections apply
+to both Sapling and Orchard outputs.</p>
+
+<h2 id="memobundle"><span class="section-heading">Memo bundle</span><span class="section-anchor"> <a rel="bookmark" href="#memobundle"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>A memo bundle consists of a sequence of 256-byte memo chunks, each individually
+encrypted. These memo chunks represent zero or more encrypted memos.</p>
+
+<p>Each transaction may contain a single memo bundle, and a memo bundle may contain
+at most <code>memo_chunk_limit</code> memo chunks. This limits the total amount of memo data
+that can be conveyed within a single transaction to <code>memo_chunk_limit * 256</code> bytes.</p>
+
+<p><code>memo_chunk_limit</code> is a parameter to this specification, to be decided upon
+by the community. The authors of this ZIP propose a maximum of 64 chunks,
+resulting in a maximum total memo data length of 16 KiB.</p>
+
+<p>Memo bundles are encoded in transactions in a prunable manner: each memo chunk
+can be replaced by its representative digest.</p>
+
+<h2 id="memoencryption"><span class="section-heading">Memo encryption</span><span class="section-anchor"> <a rel="bookmark" href="#memoencryption"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>During transaction construction, each output with memo data is assigned a 32-byte
+memo key <span class="math">\(\mathsf{K^{memo}}\)</span>. These keys SHOULD be generated randomly, and MUST NOT
+be used to encrypt more than one memo within a single transaction. If an output has
+no memo data, it is assigned the memo key consisting of 32 <span class="math">\(\mathtt{0xFF}\)</span> bytes.</p>
+
+<p>In note plaintexts of v6-onward transactions, the 512-byte memo field is replaced
+by <span class="math">\(\mathsf{K^{memo}}\)</span>.</p>
+
+<p>The transaction builder generates a 32-byte salt value <span class="math">\(\mathsf{salt}\)</span> from a CSPRNG.
+A new salt MUST be generated for each memo bundle.</p>
+
+<p>The symmetric encryption key for a memo is derived from its <span class="math">\(\mathsf{K^{memo}}\)</span> as follows:</p>
+
+<p><span class="math">\(\hspace{2em}\mathsf{encryption\_key} = \mathsf{PRF^{expand}_{K^{memo}}}([\mathtt{0xE0}] \,||\, \mathsf{salt})\)</span></p>
+
+<p>The first byte <span class="math">\(\mathtt{0xE0}\)</span> should be added to the documentation of inputs to
+<span class="math">\(\mathsf{PRF^{expand}}\)</span> in § 4.1.2 ‘Pseudo Random Functions’ <a href="#fn:7" id="fnref:7" title="see footnote" class="footnote"><sup>7</sup></a>.</p>
+
+<p>If the generated key is 32 <span class="math">\(\mathtt{0xFF}\)</span> bytes, the transaction constructor MAY
+repeat this procedure with a different salt, in order to avoid the recipient
+misinterpreting the output as having no memo data. Since that has negligible
+probability, it alternatively MAY omit this check.</p>
+
+<p>Each memo is padded to a multiple of 256 bytes with zeroes, and split into
+256-byte chunks. Each memo chunk is encrypted with ChaCha20Poly1305 <a href="#fn:8" id="fnref:8" title="see footnote" class="footnote"><sup>8</sup></a>
+as follows:</p>
+
+<p><span class="math">\(\hspace{2em}\mathsf{IETF\_AEAD\_CHACHA20\_POLY1305}(\mathsf{encryption\_key}, \mathsf{nonce}, \mathsf{memo\_chunk})\)</span></p>
+
+<p>where <span class="math">\(\mathsf{nonce} = \mathsf{I2BEOSP}_{88}(\mathsf{counter}) \,||\, [\mathsf{final\_chunk}]\)</span>.</p>
+
+<p>This is a variant of the STREAM construction <a href="#fn:9" id="fnref:9" title="see footnote" class="footnote"><sup>9</sup></a>.</p>
+
+<ul>
+<li><span class="math">\(\mathsf{counter}\)</span> is a big-endian chunk counter starting at zero and incrementing
+by one for each subsequent chunk within a particular memo.</li>
+<li><span class="math">\(\mathsf{final\_chunk}\)</span> is the byte <span class="math">\(\mathtt{0x01}\)</span> for the final memo chunk, and
+<span class="math">\(\mathtt{0x00}\)</span> for all preceding chunks.</li>
+</ul>
+
+<p>Finally, the encrypted memo chunks for all memos are combined into a single
+sequence using an order-preserving shuffle. Memo chunks from different memos MAY
+be interleaved in any order, but memo chunks from the same memo MUST have the
+same relative order. The following diagram shows an example shuffle of three
+memos:</p>
+
+<pre><code>[
+    (memo_a, 0),
+    (memo_b, 0),
+    (memo_a, 1),
+    (memo_c, 0),
+    (memo_c, 1),
+    (memo_a, 2),
+]
+</code></pre>
+
+<h2 id="memodecryption"><span class="section-heading">Memo decryption</span><span class="section-anchor"> <a rel="bookmark" href="#memodecryption"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>When a recipient decrypts a shielded output, they obtain a memo key <span class="math">\(\mathsf{K^{memo}}\)</span>.
+From this they derive <code>encryption_key</code> as above, and then proceed as follows:</p>
+
+<ul>
+<li>Set <code>counter = 0</code> and <code>final_chunk = 0x00</code>.</li>
+<li>Attempt to decrypt each memo chunk in order. Pruned memo chunks are skipped.</li>
+<li>Each time decryption succeeds for a memo chunk, increment <code>counter</code> by 1, and
+then continue attempting to decrypt subsequent chunks.</li>
+<li>Once all memo chunks have been trial-decrypted once, set <code>final_chunk = 0x01</code>
+and then attempt to decrypt the memo chunks again, starting immediately after
+the last successfully-decrypted chunk (or at the start if none were), and
+without incrementing <code>counter</code>.</li>
+<li> This step can be made secret-independent by attempting to decrypt every memo
+chunk again, and ignoring the results of all chunks up to and including the
+last successfully-decrypted chunk.</li>
+<li>If no memo chunk decrypts successfully with <code>final_chunk = 0x01</code>, discard any
+memo chunks that were decrypted, and return nothing. Otherwise, concatenate
+the decrypted memo chunks in order and return the concatenation as the memo.</li>
+</ul>
+
+<p>If any chunk of the memo encrypted to <code>memo_key</code> has been pruned, the decryption
+process above returns nothing (as <code>final_chunk</code> will be set to <code>0x01</code> with the
+wrong counter value), ensuring that a malformed memo is not returned.</p>
+
+<h2 id="encodingintransactions"><span class="section-heading">Encoding in transactions</span><span class="section-anchor"> <a rel="bookmark" href="#encodingintransactions"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Bytes </th>
+	<th> Name   </th>
+	<th> Data Type      </th>
+	<th> Description             </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> 1  </td>
+	<td> <code>fAllPruned</code> </td>
+	<td> <code>uint8</code>      </td>
+	<td> 1 if all chunks have been pruned, otherwise 0.    </td>
+</tr>
+<tr>
+	<td> 32  </td>
+	<td> <code>nonceOrHash</code> </td>
+	<td> <code>byte[32]</code>      </td>
+	<td> The nonce for deriving encryption keys, or the overall hash. </td>
+</tr>
+<tr>
+	<td> † varies </td>
+	<td> <code>nMemoChunks</code> </td>
+	<td> <code>compactSize</code>     </td>
+	<td> The number of memo chunks.         </td>
+</tr>
+<tr>
+	<td> † varies </td>
+	<td> <code>pruned</code>  </td>
+	<td> <code>byte[</code><span class="math">\(\mathsf{ceiling}(\mathtt{nMemoChunks}/8)\)</span><code>]</code> </td>
+	<td> Bitflags indicating the type of each entry in <code>vMemoChunks</code>. </td>
+</tr>
+<tr>
+	<td> † varies </td>
+	<td> <code>vMemoChunks</code> </td>
+	<td> <code>MemoChunk[nMemoChunks]</code>  </td>
+	<td> A sequence of encrypted memo chunks.       </td>
+</tr>
+</tbody>
+</table>
+
+<p>† These fields are present if and only if <code>fAllPruned == 0</code>.</p>
+
+<p>If <code>fAllPruned == 0</code>, then:</p>
+
+<ul>
+<li><code>nonceOrHash</code> represents the nonce for deriving encryption keys.</li>
+<li>Each bit of <code>pruned</code>, in little-endian order, indicates the type of the
+corresponding entry in <code>vMemoChunks</code>. A bit value of 0 indicates that
+the entry will be of type <code>byte[272]</code> representing an encrypted memo
+chunk. A bit value of 1 indicates the entry will be a <code>byte[32]</code> and
+contains the <code>memo_chunk_digest</code> for a pruned chunk.</li>
+</ul>
+
+<p>If <code>fAllPruned == 1</code>, then:</p>
+
+<ul>
+<li><code>nonceOrHash</code> represents the overall hash for the memo bundle as defined in
+<a href="#transactionsighash">Transaction sighash</a>.</li>
+<li>The <code>nMemoChunks</code>, <code>pruned</code>, and <code>vMemoChunks</code> fields will be absent.</li>
+</ul>
+
+<h2 id="transactionsighash"><span class="section-heading">Transaction sighash</span><span class="section-anchor"> <a rel="bookmark" href="#transactionsighash"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<pre><code>memo_chunk_digest = H(AEAD(MemoChunk, memo_key))
+memo_bundle_digest = H(concat(memo_chunk_digests))
+</code></pre>
+
+<p>The memo bundle digest structure is a performance optimization for the case
+where all memo chunks in a transaction have been pruned.</p>
+
+<p>TODO: finish this to be a modification to the equivalent of ZIP 244 for
+transaction v6.</p>
+
+<h2 id="transactionfees"><span class="section-heading">Transaction fees</span><span class="section-anchor"> <a rel="bookmark" href="#transactionfees"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>(This section will become a modification to ZIP 317.)</p>
+
+<p>A memo bundle may contain two free chunks if there are any shielded outputs in
+the transaction. Otherwise, each memo chunk requires <code>marginal_fee</code> as defined
+in ZIP 317 <a href="#fn:10" id="fnref:10" title="see footnote" class="footnote"><sup>10</sup></a>.</p>
+
+<h2 id="networkprotocol"><span class="section-heading">Network protocol</span><span class="section-anchor"> <a rel="bookmark" href="#networkprotocol"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>Nodes must reject <code>GetData</code> responses having an <code>fAllPruned</code> value that is nonzero,
+or any byte of <code>pruned</code> that is nonzero.</p>
+
+<h2 id="changestothezcashprotocolspecification"><span class="section-heading">Changes to the Zcash Protocol Specification</span><span class="section-anchor"> <a rel="bookmark" href="#changestothezcashprotocolspecification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>The following changes affecting the definitions of note plaintexts and note ciphertexts,
+and the algorithms for encryption and decryption.</p>
+
+<p>In § 3.2.1 ‘Note Plaintexts and Memo Fields’:</p>
+
+<ul>
+<li><p>Change</p>
+
+<blockquote>
+<p>Each Sapling or Orchard note plaintext (denoted <span class="math">\(\mathbf{np}\)</span>) consists of</p>
+
+<p><span class="math">\(\hspace{2em}(\mathsf{leadByte} \;⦂\; \mathbb{B^{Y}}, \mathsf{d} \;⦂\; \mathbb{B^{[\ell_{\mathsf{d}}]}}, \mathsf{rseed} \;⦂\; \mathbb{B^{Y[32]}}, \mathsf{memo} \;⦂\; \mathbb{B^{Y[512]}})\)</span></p>
+</blockquote>
+
+<p>to</p>
+
+<blockquote>
+<p>The form of a Sapling or Orchard note plaintext depends on the version of
+the transaction in which it will be included; specifically whether that
+version is pre-v6, or v6-onward.</p>
+
+<p>Each pre-v6 Sapling or Orchard note plaintext (denoted <span class="math">\(\mathbf{np}\)</span>) consists of</p>
+
+<p><span class="math">\(\hspace{2em}(\mathsf{leadByte} \;⦂\; \mathbb{B^{Y}}, \mathsf{d} \;⦂\; \mathbb{B^{[\ell_{\mathsf{d}}]}}, \mathsf{rseed} \;⦂\; \mathbb{B^{Y[32]}}, \mathsf{memo} \;⦂\; \mathbb{B^{Y[512]}})\)</span></p>
+
+<p>Each v6-onward Sapling or Orchard note plaintext (denoted <span class="math">\(\mathbf{np}\)</span>) consists of</p>
+
+<p><span class="math">\(\hspace{2em}(\mathsf{leadByte} \;⦂\; \mathbb{B^{Y}}, \mathsf{d} \;⦂\; \mathbb{B^{[\ell_{\mathsf{d}}]}}, \mathsf{rseed} \;⦂\; \mathbb{B^{Y[32]}}, \mathsf{K^{memo}} \;⦂\; \mathbb{B^{Y[32]}})\)</span></p>
+</blockquote></li>
+</ul>
+
+<p>In § 5.5 ‘Encodings of Note Plaintexts and Memo Fields’ <a href="#fn:11" id="fnref:11" title="see footnote" class="footnote"><sup>11</sup></a>:</p>
+
+<ul>
+<li><p>Change the paragraph that describes &#8220;The encoding of a Sapling or Orchard note plaintext&#8221;
+to refer to &#8220;The encoding of a pre-v6 Sapling or Orchard note plaintext&#8221;.</p></li>
+<li><p>Add a new paragraph at the end of the section:</p>
+
+<blockquote>
+<p>The encoding of a v6-onward Sapling or Orchard note plaintext consists of:</p>
+
+<p>|       |      |      |       |        |
+|&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;|&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;|&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;|&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8211;|&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8211;|
+| 8-bit <span class="math">\(\mathsf{leadByte}\)</span> | 88-bit <span class="math">\(\mathsf{d}\)</span> | 64-bit <span class="math">\(\mathsf{v}\)</span> | 256-bit <span class="math">\(\mathsf{rseed}\)</span> | 32-byte <span class="math">\(\mathsf{K^{memo}}\)</span> |</p>
+
+<ul>
+<li>A byte 0x03, indicating this version of the encoding of a v6-onward
+Sapling or Orchard note plaintext.</li>
+<li>11 bytes specifying <span class="math">\(\mathsf{d}\)</span>.</li>
+<li>8 bytes specifying <span class="math">\(\mathsf{v}\)</span>.</li>
+<li>32 bytes specifying <span class="math">\(\mathsf{rseed}\)</span>.</li>
+<li>32 bytes specifying <span class="math">\(\mathsf{K^{memo}}\)</span>.</li>
+</ul>
+
+<p>A value consisting of 32 <span class="math">\(\mathtt{0xFF}\)</span> bytes for <span class="math">\(\mathsf{K^{memo}}\)</span> is used
+to indicate that there is no memo for this note plaintext.</p>
+</blockquote></li>
+</ul>
+
+<p>In § 4.7.2 ‘Sending Notes (Sapling)’ <a href="#fn:12" id="fnref:12" title="see footnote" class="footnote"><sup>12</sup></a> and
+§ 4.7.3 ‘Sending Notes (Orchard)’ <a href="#fn:13" id="fnref:13" title="see footnote" class="footnote"><sup>13</sup></a>:</p>
+
+<ul>
+<li><p>Add a reference to this ZIP specifying the construction of the memo bundle and
+derivation of <span class="math">\(\mathsf{K^{memo}}\)</span> in the case of a v6-onward note plaintext.</p></li>
+<li><p>Change</p>
+
+<blockquote>
+<p>Let <span class="math">\(\mathbf{np} = (\mathsf{leadByte}, \mathsf{d}, \mathsf{v}, \mathsf{rseed}, \mathsf{memo})\)</span>.</p>
+</blockquote>
+
+<p>to</p>
+
+<blockquote>
+<p>Let <span class="math">\(\mathbf{np}\)</span> be the encoding of a Sapling note plaintext using <span class="math">\(\mathsf{leadByte}\)</span>, <span class="math">\(\mathsf{d}\)</span>,
+<span class="math">\(\mathsf{v}\)</span>, <span class="math">\(\mathsf{rseed}\)</span>, and either <span class="math">\(\mathsf{memo}\)</span> for a pre-v6 note plaintext or
+<span class="math">\(\mathsf{K^{memo}}\)</span> for a v6-onward note plaintext.</p>
+</blockquote>
+
+<p>replacing &#8220;Sapling&#8221; with Orchard in the case of § 4.7.3.</p></li>
+</ul>
+
+<p>In § 4.20.1 ‘Encryption (Sapling and Orchard)’ <a href="#fn:14" id="fnref:14" title="see footnote" class="footnote"><sup>14</sup></a>:</p>
+
+<ul>
+<li><p>Change</p>
+
+<blockquote>
+<p>Let <span class="math">\(\mathbf{np} = (\mathsf{leadByte}, \mathsf{d}, \mathsf{v}, \mathsf{rseed}, \mathsf{memo})\)</span>
+be the Sapling or Orchard note plaintext. <span class="math">\(\mathbf{np}\)</span> is encoded as defined
+in § 5.5 ‘Encodings of Note Plaintexts and Memo Fields’.</p>
+</blockquote>
+
+<p>to</p>
+
+<blockquote>
+<p>Let <span class="math">\(\mathbf{np}\)</span> be the encoding of the Sapling or Orchard note plaintext (which may be
+pre-v6 or v6-onward), as defined in § 5.5 ‘Encodings of Note Plaintexts and Memo Fields’.</p>
+</blockquote></li>
+<li><p>Add another normative note to that section:</p>
+
+<blockquote>
+<ul>
+<li><span class="math">\(\mathsf{C^{enc}}\)</span> will be of length either 580 or 100 bytes, depending on whether
+<span class="math">\(\mathbf{np}\)</span> is a pre-v6 or v6-onward note plaintext.</li>
+</ul>
+</blockquote></li>
+</ul>
+
+<p>In § 4.20.2 ‘Decryption using an Incoming Viewing Key (Sapling and Orchard)’ <a href="#fn:15" id="fnref:15" title="see footnote" class="footnote"><sup>15</sup></a>
+and § 4.20.3 ‘Decryption using a Full Viewing Key (Sapling and Orchard)’ <a href="#fn:16" id="fnref:16" title="see footnote" class="footnote"><sup>16</sup></a>:</p>
+
+<ul>
+<li>Replace <span class="math">\(\mathsf{memo} \;⦂\; \mathbb{B^{Y[512]}}\)</span> with <span class="math">\(\mathsf{memoOrKey}\)</span>.</li>
+<li>Specify that the type of <span class="math">\(\mathsf{memoOrKey}\)</span> is <span class="math">\(\mathbb{B^{Y[512]}}\)</span> when
+decrypting a pre-v6 note ciphertext, or <span class="math">\(\mathbb{B^{Y[32]}}\)</span> when decrypting a
+v6-onward note ciphertext. In the latter case, it is used as <span class="math">\(\mathsf{K^{memo}}\)</span>
+to decrypt the memo bundle as described in <a href="#memobundle">Memo bundle</a>.</li>
+</ul>
+
+<h2 id="applicability"><span class="section-heading">Applicability</span><span class="section-anchor"> <a rel="bookmark" href="#applicability"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>All of these changes apply identically to Mainnet and Testnet.</p>
+
+<h1 id="openissues"><span class="section-heading">Open issues</span><span class="section-anchor"> <a rel="bookmark" href="#openissues"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<h2 id="limitonthenumberofmemochunks"><span class="section-heading">Limit on the number of memo chunks</span><span class="section-anchor"> <a rel="bookmark" href="#limitonthenumberofmemochunks"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p><code>memo_chunk_limit == 64</code> is recommended. This results in a maximum of 16 KiB
+of memo data per transaction.</p>
+
+<h2 id="interactionwithzip302zip-0302">Interaction with ZIP 302 <a href="#fn:17" id="fnref:17" title="see footnote" class="footnote"><sup>17</sup></a></h2>
+
+<p>TBD</p>
+
+<h1 id="rationale"><span class="section-heading">Rationale</span><span class="section-anchor"> <a rel="bookmark" href="#rationale"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<h2 id="memobundlesizerestriction"><span class="section-heading">Memo bundle size restriction</span><span class="section-anchor"> <a rel="bookmark" href="#memobundlesizerestriction"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>Restricting the total amount of memo data in a bundle, for example to 16 KiB,
+limits the rate at which the chain size can grow cheaply (from a computational
+perspective; memo bundles are much easier to produce than proofs or signatures).</p>
+
+<p>The current behaviour for previous transaction versions (no limit on the number
+of memos) is not altered by this ZIP, because memos in those transactions are
+tied to individual shielded outputs (incurring their computational cost), and
+are not natively aggregatable.</p>
+
+<h2 id="memochunksize"><span class="section-heading">Memo chunk size</span><span class="section-anchor"> <a rel="bookmark" href="#memochunksize"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>TODO: this table needs to be recalculated with a 16 KiB limit.</p>
+
+<p>With 10 KiB limit on amount of memo data as the constant in this table, the
+maximum number of unique memos you can create, and the cost in bytes of that
+memo data plus auth when using a 32-byte memo key, is:</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Chunk size </th>
+	<th> Memo size ≤ 256 bytes</th>
+	<th> Memo size = 512 bytes</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> Pre-231 </td>
+	<td> 20 @ 10240 ( 0.00%) </td>
+	<td> 20 @ 10240 ( 0.00%) </td>
+</tr>
+<tr>
+	<td> 512  </td>
+	<td> 20 @ 11220 (+ 9.57%) </td>
+	<td> 20 @ 11220 (+ 9.57%) </td>
+</tr>
+<tr>
+	<td> 256  </td>
+	<td> 40 @ 12200 (+19.14%) </td>
+	<td> 20 @ 11540 (+12.70%) </td>
+</tr>
+<tr>
+	<td> 256 20-out </td>
+	<td> 20 @ 6100 (-40.43%) </td>
+	<td>      </td>
+</tr>
+</tbody>
+</table>
+
+<p>In the &#8220;256 20-out&#8221; case you have a distinguisher compared to old transactions,
+in that you can tell the transaction is sending at most 256 bytes per recipient
+rather than 512 if it is sending the max number of memos. But that&#8217;s inherently
+baked into the decision to use a smaller memo chunk size (and it is still
+possible for the chunks to all be a single memo sent to all outputs, or anything
+in between).</p>
+
+<h2 id="memokeysize"><span class="section-heading">Memo key size</span><span class="section-anchor"> <a rel="bookmark" href="#memokeysize"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>If we used a 16-byte memo key instead of 32 bytes, the transaction size overhead
+becomes:</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Chunk size </th>
+	<th> Memo size ≤ 256 bytes</th>
+	<th> Memo size = 512 bytes</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> Pre-231 </td>
+	<td> 20 @ 10240 ( 0.00%) </td>
+	<td> 20 @ 10240 ( 0.00%) </td>
+</tr>
+<tr>
+	<td> 512  </td>
+	<td> 20 @ 10900 (+ 6.45%) </td>
+	<td> 20 @ 10900 (+ 6.45%) </td>
+</tr>
+<tr>
+	<td> 256  </td>
+	<td> 40 @ 11560 (+12.89%) </td>
+	<td> 20 @ 11220 (+ 9.57%) </td>
+</tr>
+<tr>
+	<td> 256 20-out </td>
+	<td> 20 @ 5780 (-43.55%) </td>
+	<td>      </td>
+</tr>
+</tbody>
+</table>
+
+<p>The decrease in overhead is relatively modest in most cases, but more noticeable
+for small memos with a 256-byte memo chunk.</p>
+
+<p>However, 128-bit keys don&#8217;t meet Zcash&#8217;s target security level of 125 bits,
+as argued in <a href="#fn:18" id="fnref:18" title="see footnote" class="footnote"><sup>18</sup></a>.</p>
+
+<p>The benefits of 256-bit keys are:</p>
+
+<ul>
+<li>They incur only a small transaction size overhead above the minimum key size
+that <em>would</em> meet the target security level.</li>
+<li>This key length matches what we already use elsewhere for symmetric keys.</li>
+</ul>
+
+<h2 id="encryptionformat"><span class="section-heading">Encryption format</span><span class="section-anchor"> <a rel="bookmark" href="#encryptionformat"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>Including a per-transaction <span class="math">\(\mathsf{salt}\)</span> in the derivation of
+<span class="math">\(\mathsf{encryption_key}\)</span> gives protection against accidental (or intentional)
+reuse of <span class="math">\(\mathsf{K^{memo}}\)</span> reuse across multiple transactions. We do not
+protect against <span class="math">\(\mathsf{K^{memo}}\)</span> reuse within a transaction; it is up to
+the transaction builder to ensure that the same <span class="math">\(\mathsf{K^{memo}}\)</span> is not
+used to encrypt two different memos (and if they did so, normal clients would
+either never observe the second memo, or would decrypt parts of each memo and
+get a nonsensical and potentially insecure &#8220;spliced&#8221; memo).</p>
+
+<p>We do not include commitments to the shielded outputs in the derivation of
+<span class="math">\(\mathsf{encryption_key}\)</span> for two reasons:</p>
+
+<ul>
+<li>It would force the transaction builder to fully define all shielded outputs
+before encrypting the memos, which might prevent potential use cases of PCZTs <a href="#fn:19" id="fnref:19" title="see footnote" class="footnote"><sup>19</sup></a>.</li>
+<li>We don&#8217;t want to unnecessarily prevent the ability to create a transaction
+with a memo bundle and no shielded outputs, as there may be use cases for,
+e.g. a fully-transparent transaction with encrypted memo, or a ZSA issuance
+transaction with exposed memo data using a well-known <span class="math">\(\mathsf{K^{memo}}\)</span>.</li>
+</ul>
+
+<h2 id="prunedencoding"><span class="section-heading">Pruned encoding</span><span class="section-anchor"> <a rel="bookmark" href="#prunedencoding"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>The separation of memo data from note data, and the new ability to easily store
+variable-length memo data, opens up an attack vector against node operators for
+storing arbitrary data. The transaction digest commitments to the memo bundle
+are structured such that if a node operator is presented with a memo key (i.e.
+they are given the capability to decrypt a particular memo), they can identify
+and prune the corresponding memo chunks, while still enabling the transaction to
+be validated as part of its corresponding block and broadcast over the network.</p>
+
+<p>The transaction encoding permits pruning at the individual chunk level in order
+to facilitate pruning an individual memo from a transaction without affecting the
+other memos. This enables node operators to be responsive to, for example, GDPR
+deletion requests.</p>
+
+<p>Note that broadcasting a partially-pruned transaction means that the pruned
+chunks no longer contribute to the upper bound on memo data.</p>
+
+<p>The prunable structure does not introduce a censorship axis; memo bundles do not
+reveal which memo chunks correspond to which memos, and therefore a network
+adversary cannot selectively censor individual memos. They can censor any/all
+chunks within specific transactions, however shielded transactions do not reveal
+their senders, recipients, or amounts, and thus also cannot be individually
+targeted for censorship.</p>
+
+<h2 id="transactionfees"><span class="section-heading">Transaction fees</span><span class="section-anchor"> <a rel="bookmark" href="#transactionfees"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>Making the fee linear in the number of chunks has the following properties:</p>
+
+<ul>
+<li>The required fee to add more memo chunks scales at the same rate as adding
+logical actions, so it isn&#8217;t a cheaper mechanism for an adversary to bloat
+chain size.</li>
+<li>A &#8220;baseline transaction&#8221; (one spent note, one output to an external recipient
+with a memo, one change output without a memo) has the same fee as before.</li>
+<li>A &#8220;broadcast transaction&#8221; (many outputs to different recipients all given the
+same memo) is the same fee as before (but a smaller transaction).</li>
+<li>A &#8220;many memos transaction&#8221; (many outputs to different recipients all with
+unique memos) is at most around twice the fee as before.</li>
+</ul>
+
+<p>Combined with the memo bundle size restriction, the maximum additional fee for
+a memo bundle over prior transactions is 0.0019 ZEC.</p>
+
+<h1 id="deployment"><span class="section-heading">Deployment</span><span class="section-anchor"> <a rel="bookmark" href="#deployment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>This ZIP is proposed to activate with Network Upgrade 7. <a href="#fn:20" id="fnref:20" title="see footnote" class="footnote"><sup>20</sup></a></p>
+
+<h1 id="referenceimplementation"><span class="section-heading">Reference implementation</span><span class="section-anchor"> <a rel="bookmark" href="#referenceimplementation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>TBD</p>
+
+<h1 id="references"><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<div class="footnotes">
+<hr />
+<ol>
+
+<li id="fn:1">
+<p><a href="https://www.rfc-editor.org/info/bcp14">Information on BCP 14 — &#8220;RFC 2119: Key words for use in RFCs to Indicate Requirement Levels&#8221; and &#8220;RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words&#8221;</a> <a href="#fnref:1" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:2">
+<p><a href="zip-0200">ZIP 200: Network Upgrade Mechanism</a> <a href="#fnref:2" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:3">
+<p><a href="protocol/protocol.pdf">Zcash Protocol Specification, Version 2024.5.1 [NU6] or later</a> <a href="#fnref:3" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:4">
+<p><a href="protocol/protocol.pdf#networks">Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.12: Mainnet and Testnet</a> <a href="#fnref:4" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:5">
+<p><a href="protocol/protocol.pdf#noteptconcept">Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.2.1: Note Plaintexts and Memo Fields</a> <a href="#fnref:5" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:6">
+<p><a href="zip-0307">ZIP 307: Light Client Protocol for Payment Detection</a> <a href="#fnref:6" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:7">
+<p><a href="protocol/protocol.pdf#abstractprfs">Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.1.2: Pseudo Random Functions</a> <a href="#fnref:7" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:8">
+<p><a href="https://www.rfc-editor.org/rfc/rfc8439.html">RFC 8439: ChaCha20 and Poly1305 for IETF Protocols</a> <a href="#fnref:8" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:9">
+<p><a href="https://eprint.iacr.org/2015/189">Online Authenticated-Encryption and its Nonce-Reuse Misuse-Resistance</a> <a href="#fnref:9" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:10">
+<p><a href="zip-0317">ZIP 317: Proportional Transfer Fee Mechanism</a> <a href="#fnref:10" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:11">
+<p><a href="protocol/protocol.pdf#noteptencoding">Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 5.5: Encodings of Note Plaintexts and Memo Fields</a> <a href="#fnref:11" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:12">
+<p><a href="protocol/protocol.pdf#saplingsend">Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.7.2: Sending Notes (Sapling)</a> <a href="#fnref:12" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:13">
+<p><a href="protocol/protocol.pdf#orchardsend">Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.7.3: Sending Notes (Orchard)</a> <a href="#fnref:13" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:14">
+<p><a href="protocol/protocol.pdf#saplingandorchardinband">Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.20.1: Encryption (Sapling and Orchard)</a> <a href="#fnref:14" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:15">
+<p><a href="protocol/protocol.pdf#decryptivk">Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.20.2: Decryption using an Incoming Viewing Key (Sapling and Orchard)</a> <a href="#fnref:15" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:16">
+<p><a href="protocol/protocol.pdf#decryptovk">Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.20.3: Decryption using a Full Viewing Key (Sapling and Orchard)</a> <a href="#fnref:16" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:17">
+<p><a href="zip-0302">ZIP 302: Standardized Memo Field Format</a> <a href="#fnref:17" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:18">
+<p><a href="protocol/protocol.pdf#inbandrationale">Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 8.7: In-band secret distribution</a> <a href="#fnref:18" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:19">
+<p><a href="https://github.com/zcash/zips/issues/693">zcash/zips issue #693: Standardize a protocol for creating shielded transactions offline</a> <a href="#fnref:19" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:20">
+<p><a href="zip-0254">ZIP 254: Deployment of the NU7 Network Upgrade</a> <a href="#fnref:20" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+</ol>
+</div>
 </body>
 </html>

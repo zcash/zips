@@ -151,11 +151,13 @@ ZIPs are different from RFCs in the following ways:
 Using mathematical notation
 ---------------------------
 
-Embedded :math:`\LaTeX` is allowed and encouraged in ZIPs. The syntax for inline
-math is "``:math:`latex code```" in reStructuredText or "``$latex code$``" in
-Markdown. The rendered HTML will use KaTeX [#katex]_, which only supports a subset
-of :math:`\LaTeX\!`, so you will need to double-check that the rendering is as
-intended.
+Embedded $\LaTeX$, e.g. $x + y$, is allowed and encouraged in ZIPs. The syntax for
+inline math is "``\$latex code\$``" in either Markdown or (as a non-standard
+extension) reStructuredText. This syntax does not work in tables for
+reStructuredText; in that case use "``:math:`latex code```" instead.
+
+The rendered HTML will use KaTeX [#katex]_, which only supports a subset of
+$\LaTeX$, so you will need to double-check that the rendering is as intended.
 
 In general the conventions in the Zcash protocol specification SHOULD be followed.
 If you find this difficult, don't worry too much about it in initial drafts; the
@@ -184,11 +186,17 @@ Valid markup
 ------------
 
 This is optional before publishing a PR, but to check whether a document is valid
-reStructuredText or Markdown, first install ``rst2html5`` and ``pandoc``. E.g. on
-Debian-based distros::
+reStructuredText or Markdown, first install ``docutils`` and ``rst2html5``, and
+build ``MultiMarkdown-6``. E.g. on Debian-based distros::
 
-  sudo apt install python3-pip pandoc perl sed
-  pip3 install docutils==0.19 rst2html5
+  sudo apt install python3-pip perl sed cmake
+  pip3 install 'docutils==0.21.2' 'rst2html5==2.0.1'
+  git clone -b develop https://github.com/Electric-Coin-Company/MultiMarkdown-6
+  cd MultiMarkdown-6
+  make release
+  cd build
+  make
+  sudo make install
 
 Then, with ``draft-myzip.rst`` or ``draft-myzip.md`` in the root directory of a
 clone of this repo, run::
