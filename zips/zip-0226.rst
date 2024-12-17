@@ -172,7 +172,7 @@ The burn mechanism is a transparent extension to the transfer protocol that enab
 The burn mechanism does NOT send Assets to a non-spendable address, it simply reduces the total number of units of a given Custom Asset in circulation. 
 It is enforced at the consensus level, by using an extension of the value balance mechanism used for ZEC Assets.
 Burning makes it globally provable that a given amount of a Custom Asset has been destroyed.
-Note that the OrchardZSA Protocol does not allow for the burning of ZEC (or TAZ).
+Note that the OrchardZSA Protocol does not allow for the burning of the Native Asset (i.e. ZEC or TAZ).
 
 In the `OrchardZSA Transaction Structure`_, there is now an :math:`\mathsf{assetBurn}` set. 
 For every Custom Asset (represented by its :math:`\mathsf{AssetBase}\!`) that is burnt in the transaction, the sender adds to :math:`\mathsf{assetBurn}` the tuple :math:`(\mathsf{AssetBase}, \mathsf{v})`, where :math:`\mathsf{v}` is the amount of the Custom Asset the sender wants to burn. 
@@ -181,17 +181,17 @@ We denote by :math:`L` the cardinality of the :math:`\mathsf{assetBurn}` set in 
 As described in `Value Balance Verification`_, this provides the information for the validator of the transaction to compute the value commitment with the corresponding Asset Base. 
 This ensures that the values are all balanced out on a per-Asset basis in the transaction.
 
-Additional Consensus Rules
-``````````````````````````
+Additional Consensus Rules for the assetBurn set
+````````````````````````````````````````````````
 
-1. Check that for every :math:`(\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{assetBurn}, \mathsf{AssetBase} \neq \mathcal{V}^{\mathsf{Orchard}}\!`. That is, ZEC or TAZ is not allowed to be burnt by this mechanism.
-2. Check that for every :math:`(\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{assetBurn}, \mathsf{v} \neq 0\!`.
-3. Check that there is no duplication of Custom Assets in the :math:`\mathsf{assetBurn}` set. That is, every :math:`\mathsf{AssetBase}` has at most one entry in :math:`\mathsf{assetBurn}\!`.
-4. Check that for every :math:`(\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{assetBurn}\!`, :math:`\mathsf{v} \leq \mathsf{issued\_assets(AssetBase).balance}\!`, where the map :math:`\mathsf{issued\_assets}` is defined in ZIP 227 [#zip-0227-specification-global-issuance-state]_. That is, it is not possible to burn more of an Asset than is currently in circulation.
+1. It MUST be the case that for every :math:`(\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{assetBurn}, \mathsf{AssetBase} \neq \mathcal{V}^{\mathsf{Orchard}}\!`. That is, the Native Asset is not allowed to be burnt by this mechanism.
+2. It MUST be that for every :math:`(\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{assetBurn}, \mathsf{v} \neq 0\!`.
+3. There MUST be no duplication of Custom Assets in the :math:`\mathsf{assetBurn}` set. That is, every :math:`\mathsf{AssetBase}` has at most one entry in :math:`\mathsf{assetBurn}\!`.
 
-If all these checks pass, then for every :math:`(\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{assetBurn}\!`, reduce the value of :math:`\mathsf{issued\_assets(AssetBase).balance}` in the global state by :math:`\mathsf{v}\!`.
+The other consensus rule changes for the OrchardZSA protocol are specified in ZIP 227 [#zip-0227-consensus]_.
 
-**Note:** Even if this mechanism allows having transparent ↔ shielded Asset transfers in theory, the transparent protocol will not be changed with this ZIP to adapt to a multiple Asset structure. This means that unless future consensus rules changes do allow it, unshielding will not be possible for Custom Assets.
+**Note:** The transparent protocol will not be changed with this ZIP to adapt to a multiple Asset structure. 
+This means that unless future consensus rules changes do allow it, unshielding will not be possible for Custom Assets.
 
 Value Balance Verification
 --------------------------
@@ -383,7 +383,7 @@ T.4a.i: orchard_actions_compact_digest
 
 A BLAKE2b-256 hash of the subset of OrchardZSA Action information intended to be included in
 an updated version of the ZIP-307 [#zip-0307]_ ``CompactBlock`` format for all OrchardZSA
-Actions belonging to the transaction. For each Action, the following elements are included
+Actions belonging to the Action Group. For each Action, the following elements are included
 in the hash::
 
    T.4a.i.1 : nullifier            (field encoding bytes)
@@ -400,7 +400,7 @@ T.4a.ii: orchard_actions_memos_digest
 .....................................
 
 A BLAKE2b-256 hash of the subset of Orchard shielded memo field data for all OrchardZSA
-Actions belonging to the transaction. For each Action, the following elements are included
+Actions belonging to the Action Group. For each Action, the following elements are included
 in the hash::
 
     T.4a.ii.1: encCiphertext[84..596] (contents of the encrypted memo field)  [UPDATED FOR ZSA]
@@ -415,7 +415,7 @@ T.4a.iii: orchard_actions_noncompact_digest
 
 A BLAKE2b-256 hash of the remaining subset of OrchardZSA Action information **not** intended
 for inclusion in an updated version of the the ZIP 307 [#zip-0307]_ ``CompactBlock``
-format, for all OrchardZSA Actions belonging to the transaction. For each Action,
+format, for all OrchardZSA Actions belonging to the Action Group. For each Action,
 the following elements are included in the hash::
 
    T.4a.iii.1 : cv                    (field encoding bytes)
@@ -461,10 +461,72 @@ T.5: issuance_digest
 ````````````````````
 The details of the computation of this value are in ZIP 227 [#zip-0227-txiddigest]_.
 
-Signature Digest and Authorizing Data Commitment
-================================================
+Signature Digest 
+================
 
-The details of the changes to these algorithms are in ZIP 227 [#zip-0227-sigdigest]_ [#zip-0227-authcommitment]_.
+The details of the changes to this algorithm are in ZIP 227 [#zip-0227-sigdigest]_.
+
+Authorizing Data Commitment
+===========================
+
+The transaction digest algorithm defined in ZIP 244 [#zip-0244-authcommitment]_ which commits to the authorizing data of a transaction is modified by the OrchardZSA protocol to have the structure specified in this section.
+There is a new branch added for issuance information, along with modifications within the ``orchard_auth_digest`` to account for the presence of Action Groups.
+
+We highlight the changes for the OrchardZSA protocol via the ``[UPDATED FOR ZSA]`` or ``[ADDED FOR ZSA]`` text label, and we omit the descriptions of the sections that do not change for the OrchardZSA protocol::
+
+    auth_digest
+    ├── transparent_scripts_digest
+    ├── sapling_auth_digest
+    ├── orchard_auth_digest         [UPDATED FOR ZSA]
+    └── issuance_auth_digest        [ADDED FOR ZSA]
+
+The pair (Transaction Identifier, Auth Commitment) constitutes a commitment to all the data of a serialized transaction that may be included in a block.
+
+auth_digest
+-----------
+A BLAKE2b-256 hash of the following values ::
+
+   A.1: transparent_scripts_digest (32-byte hash output)
+   A.2: sapling_auth_digest        (32-byte hash output)
+   A.3: orchard_auth_digest        (32-byte hash output)  [UPDATED FOR ZSA]
+   A.4: issuance_auth_digest       (32-byte hash output)  [ADDED FOR ZSA]
+
+The personalization field of this hash remains the same as in ZIP 244.
+
+
+A.3: orchard_auth_digest
+````````````````````````
+
+In the case that OrchardZSA Action Groups are present, this is a BLAKE2b-256 hash of the following values::
+
+    A.3a: orchard_action_groups_auth_digest  (32-byte hash output)  [ADDED FOR ZSA]
+    A.3b: bindingSigOrchard                  (field encoding bytes)
+
+The personalization field of this hash is the same as in ZIP 244, that is::
+
+    "ZTxAuthOrchaHash"
+
+In case that the transaction has no OrchardZSA Action Groups, ``orchard_auth_digest`` is::
+
+    BLAKE2b-256("ZTxAuthOrchaHash", [])
+
+A.3a: orchard_action_groups_auth_digest
+'''''''''''''''''''''''''''''''''''''''
+
+This is a BLAKE2b-256 hash of the ``proofsOrchard`` and ``spendAuthSigsOrchard`` fields of all OrchardZSA Action Groups belonging to the transaction::
+
+    A.3a.i:  proofsOrchard               (field encoding bytes)
+    A.3a.ii: spendAuthSigsOrchard        (field encoding bytes)
+
+The personalization field of this hash is set to::
+
+    "ZTxAuthOrcAGHash"
+
+A.4: issuance_auth_digest
+`````````````````````````
+
+The details of the computation of this value are in ZIP 227 [#zip-0227-authcommitment]_.
+
 
 Security and Privacy Considerations
 ===================================
@@ -520,12 +582,14 @@ References
 .. [#zip-0227] `ZIP 227: Issuance of Zcash Shielded Assets <zip-0227.html>`_
 .. [#zip-0227-specification-global-issuance-state] `ZIP 227: Issuance of Zcash Shielded Assets: Specification: Global Issuance State <zip-0227.html#specification-global-issuance-state>`_
 .. [#zip-0227-assetidentifier] `ZIP 227: Issuance of Zcash Shielded Assets: Specification: Asset Identifier <zip-0227.html#specification-asset-identifier>`_
+.. [#zip-0227-consensus] `ZIP 227: Issuance of Zcash Shielded Assets: Specification: Consensus Rule Changes <zip-0227.html#specification-consensus-rule-changes>`_
 .. [#zip-0227-txiddigest] `ZIP 227: Issuance of Zcash Shielded Assets: TxId Digest - Issuance <zip-0227.html#txid-digest-issuance>`_
 .. [#zip-0227-sigdigest] `ZIP 227: Issuance of Zcash Shielded Assets: Signature Digest <zip-0227.html#signature-digest>`_
-.. [#zip-0227-authcommitment] `ZIP 227: Issuance of Zcash Shielded Assets: Authorizing Data Commitment <zip-0227.html#authorizing-data-commitment>`_
+.. [#zip-0227-authcommitment] `ZIP 227: Issuance of Zcash Shielded Assets: Authorizing Data Commitment <zip-0227.html#authorizing-data-commitment-issuance>`_
 .. [#zip-0230] `ZIP 230: Version 6 Transaction Format <zip-0230.html>`_
 .. [#zip-0230-orchardzsa-fee-calculation] `ZIP 230: Version 6 Transaction Format: OrchardZSA Fee Calculation <zip-0230.html#orchardzsa-fee-calculation>`_
 .. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.html>`_
+.. [#zip-0244-authcommitment] `ZIP 244: Transaction Identifier Non-Malleability: Authorizing Data Commitment <zip-0244.html#authorizing-data-commitment>`_
 .. [#zip-0307] `ZIP 307: Light Client Protocol for Payment Detection <zip-0307.rst>`_
 .. [#protocol-notes] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.2: Notes <protocol/protocol.pdf#notes>`_
 .. [#protocol-actions] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.7: Action Transfers and their Descriptions <protocol/protocol.pdf#actions>`_

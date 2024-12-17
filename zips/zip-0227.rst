@@ -223,32 +223,14 @@ Wallets MUST NOT display just the :math:`\mathsf{asset\_desc}` string to their u
 - Wallets could allow clients to provide an additional configuration file that stores a one-to-one mapping of names to Asset Identifiers via a petname system. This allows clients to rename the Assets in a way they find useful. Default versions of this file with well-known Assets listed can be made available online as a starting point for clients.
 - The Asset Digest could be used as a more compact bytestring to uniquely determine an Asset, and wallets could support clients scanning QR codes to load Asset information into their wallets.
 
-Specification: Global Issuance State
-====================================
-
-Issuance requires the following additions to the global state:
-
-A map, :math:`\mathsf{issued\_assets}\!`, from the Asset Base, :math:`\mathsf{AssetBase}`, to a tuple :math:`(\mathsf{balance}, \mathsf{final})\!`, for every Asset that has been issued. For each Asset:
-
-- The amount of the Asset in circulation, computed as the amount of the Asset that has been issued less the amount of the Asset that has been burnt, is stored in :math:`\mathsf{balance}\!`.
-- The boolean :math:`\mathsf{final}` stores the finalization status of the Asset (i.e.: whether the :math:`\mathsf{finalize}` flag has been set to :math:`1` in some preceding issuance transaction for the Asset). The value of :math:`\mathsf{final}` for any Asset cannot be changed from :math:`1` to :math:`0`.
-
-
-We use the notation :math:`\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{balance}` and :math:`\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{final}` to access, respectively, the balance and finalization status of the Asset stored in the global state.
-
-Rationale for Global Issuance State
------------------------------------
-
-It is necessary to ensure that the balance of any issued Custom Asset never becomes negative within a shielded pool, along the lines of ZIP 209 [#zip-0209]_. 
-However, unlike for the shielded ZEC pools, there is no individual transaction field that directly corresponds to both the issued and burnt amounts for a given Asset.
-Therefore, we require that all nodes maintain a record of the current amount in circulation for every issued Custom Asset, and update this record based on the issuance and burn transactions processed. 
-This allows for efficient detection of balance violations for any Asset, in which scenario we specify a consensus rule to reject the transaction or block.
-
-Nodes also need to reject transactions that issue Custom Assets that have been previously finalized. 
-The :math:`\mathsf{issued\_assets}` map allows nodes to store whether or not a given Asset has been finalized. 
 
 Specification: Issuance Action, Issuance Bundle and Issuance Protocol
 =====================================================================
+
+Issue Note Description
+----------------------
+
+TODO: Fill this section.
 
 Issuance Action Description
 ---------------------------
@@ -307,34 +289,62 @@ For the ``IssueBundle``:
 
 **Note:** that the commitment is not included in the ``IssuanceAction`` itself. As explained below, it is computed later by the validators and added to the note commitment tree.
 
+Specification: Global Issuance State
+====================================
+
+Issuance requires the following additions to the global state:
+
+A map, :math:`\mathsf{issued\_assets} : \mathbb{P}^* \to \{0 .. \mathsf{MAX\_ISSUE}\} \times \mathbb{B} \!`, from the Asset Base, :math:`\mathsf{AssetBase} : \mathbb{P}^*`, to a tuple :math:`(\mathsf{balance}, \mathsf{final})\!`, for every Asset that has been issued.
+We use the notation :math:`\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{balance}` and :math:`\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{final}` to access, respectively, the elements of the tuple stored in the global state for a given :math:`\mathsf{AssetBase}\!`.
+If :math:`\mathsf{issued\_assets}(\mathsf{AssetBase}) = \bot\!`, it is assumed that :math:`\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{balance} = 0` and :math:`\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{final} = 0\!`.
+
+For any Asset represented by :math:`\mathsf{AssetBase}\!`:
+
+- :math:`\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{balance} \in \{0 .. \mathsf{MAX\_ISSUE}\}` stores the amount of the Asset in circulation, computed as the amount of the Asset that has been issued less the amount of the Asset that has been burnt. 
+- :math:`\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{final} : \mathbb{B}` is a Boolean that stores the finalization status of the Asset (i.e.: whether the :math:`\mathsf{finalize}` flag has been set to :math:`1` in any preceding issuance transaction for the Asset). The value of :math:`\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{final}` for any :math:`\mathsf{AssetBase}` cannot be changed from :math:`1` to :math:`0\!`.
+
+The maximum total supply of any issued Custom Asset is denoted by the constant :math:`\mathsf{MAX\_ISSUE} := 2^{64} - 1 \!`. 
+
+
+Management of the Global Issuance State
+---------------------------------------
+
+The issuance state, that is, the :math:`\mathsf{issued\_assets}` map, MUST be updated by a node during the processing of any transaction that contains burn information, or an issuance bundle.
+The issuance state is chained as follows:
+
+- The issuance state for the first block post the activation of the OrchardZSA protocol is the empty map.
+- The input issuance state for the first transaction of a block is the final issuance state of the immediately preceding block.
+- The input issuance state of each subsequent transaction in the block is the output issuance state of the immediately preceding transaction.
+- The final issuance state of a block is the output issuance state of the last transaction in the block. 
+
+We describe the consensus rule changes that govern the management of the global issuance state in the `Specification: Consensus Rule Changes`_ section.
+We use :math:`\mathsf{issued\_assets}_{\mathsf{IN}}` and :math:`\mathsf{issued\_assets}_{\mathsf{OUT}}\!` to denote the input issuance state and output issuance state for a transaction, respectively.
+
 
 Specification: Consensus Rule Changes
 =====================================
 
-For the ``IssueBundle``:
+For every transaction:
 
-- Validate the issuance authorization signature, :math:`\mathsf{issueAuthSig}\!`, on the SIGHASH transaction hash, :math:`\mathsf{SigHash}\!`, by invoking :math:`\mathsf{IssueAuthSig}.\!\mathsf{Validate}(\mathsf{ik}, \mathsf{SigHash}, \mathsf{issueAuthSig})\!`.
+- The output issuance state of the transaction MUST be initialized to be the same as the input issuance state, :math:`\mathsf{issued\_assets}_{\mathsf{OUT}} = \mathsf{issued\_assets}_{\mathsf{IN}}\!`.
+- The :math:`\mathsf{assetBurn}` set MUST satisfy the consensus rules specified in ZIP 226 [#zip-0226-assetburn]_.
+- It MUST be the case that for all :math:`(\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{assetBurn}\!`, :math:`\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\!\mathsf{balance} \geq \mathsf{v}\!`. The node then MUST update :math:`\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase})` prior to processing the issuance bundle in the following manner. For every :math:`(\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{AssetBurn}\!`, :math:`\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\!\mathsf{balance} = \mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\!\mathsf{balance} - \mathsf{v}\!`.
+- Let :math:`\mathsf{SigHash}` be the SIGHASH transaction hash of this transaction, as defined in §4.10 of the protocol specification [#protocol-sighash]_ with the modifications described in ZIP 226 [#zip-0226-txiddigest]_, using :math:`\mathsf{SIGHASH\_ALL}\!`.
+- The issuance authorization signature, :math:`\mathsf{issueAuthSig}\!`, MUST be a valid :math:`\mathsf{IssueAuthSig}` signature over :math:`\mathsf{SigHash}\!`, i.e. :math:`\mathsf{IssueAuthSig}.\!\mathsf{Validate}(\mathsf{ik}, \mathsf{SigHash}, \mathsf{issueAuthSig}) = 1\!`. 
+- For every issuance action description (:math:`\!\mathsf{IssueAction}_\mathsf{i},\ 1 \leq i \leq \mathtt{nIssueActions}\!`) in the issuance bundle:
 
-For each ``IssueAction`` in ``IssueBundle``:
+  - It MUST be the case that :math:`0 < \mathtt{assetDescSize} \leq 512\!`.
+  - It MUST be the case that :math:`\mathsf{asset\_desc}` is a string of length :math:`\mathtt{assetDescSize}` bytes.
+  - Elements of every issue note description in ``IssueAction`` MUST be valid encodings of the types given in `Issue Note Description`_, and MUST encode the same :math:`\mathsf{AssetBase}`. 
+  - This :math:`\mathsf{AssetBase}` MUST satisfy the derivation from the issuance validating key and asset description described in the `Specification: Asset Identifier`_ section.
+  - It MUST be the case that :math:`\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\!\mathsf{final} \neq 1\!`.
+  - For every issue note description (:math:`\!\mathsf{note}_{\mathsf{j}},\ 1 \leq j \leq \mathtt{nNotes}\!`) in ``IssueAction``:
 
-- check that :math:`0 < \mathtt{assetDescSize} \leq 512\!`.
-- check that :math:`\mathsf{asset\_desc}` is a string of length :math:`\mathtt{assetDescSize}` bytes.
-
-- retrieve :math:`\mathsf{AssetBase}` from the first note in the sequence and check that :math:`\mathsf{AssetBase}` is derived from the issuance validating key :math:`\mathsf{ik}` and :math:`\mathsf{asset\_desc}` as described in the `Specification: Asset Identifier`_ section.
-- check that :math:`\mathsf{issued\_assets(AssetBase).final} \neq 1` in the global state.
-- check that every note in the ``IssueAction`` contains the same :math:`\mathsf{AssetBase}` and is properly constructed as :math:`\mathsf{note} = (\mathsf{g_d}, \mathsf{pk_d}, \mathsf{v}, \text{ρ}, \mathsf{rseed}, \mathsf{AssetBase})\!`.
-
-If all of the above checks pass, do the following:
-
-- For each note, 
-
-  - compute the note commitment as :math:`\mathsf{cm} = \mathsf{NoteCommit^{OrchardZSA}_{rcm}}(\mathsf{repr}_{\mathbb{P}}(\mathsf{g_d}), \mathsf{repr}_{\mathbb{P}}(\mathsf{pk_d}), \mathsf{v}, \text{ρ}, \text{ψ}, \mathsf{AssetBase})` as defined in the Note Structure and Commitment section of ZIP 226 [#zip-0226-notestructure]_.
-  - Add :math:`\mathsf{cm}` to the Merkle tree of note commitments.
-  - Increase the value of :math:`\mathsf{issued\_assets(AssetBase).balance}` by the value of the note, :math:`\mathsf{v}`.
-
-- If :math:`\mathsf{finalize} = 1\!`, set :math:`\mathsf{issued\_assets(AssetBase).final}` to :math:`1` in the global state.
-
-- (Replay Protection) If issue bundle is present, the fees MUST be greater than zero.
+    - It MUST be the case that :math:`\mathsf{issued\_assets}_{\mathsf{OUT}}.\!\mathsf{balance} + \mathsf{v} \leq \mathsf{MAX\_ISSUE}\!`, where :math:`\mathsf{v}` is the value of :math:`\mathsf{note}_{\mathsf{j}}`. The node then MUST update :math:`\mathsf{issued\_assets}_{\mathsf{OUT}}.\!\mathsf{balance} = \mathsf{issued\_assets}_{\mathsf{OUT}}.\!\mathsf{balance} + \mathsf{v}\!`.
+    - The node MUST compute the note commitment, :math:`\mathsf{cm}_{\mathsf{i,j}}\!`, as defined in the Note Structure and Commitment section of ZIP 226 [#zip-0226-notestructure]_.
+  - If :math:`\mathsf{finalize} = 1` within the ``flagsIssuance`` field of ``IssueAction``, the node MUST set :math:`\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\!\mathsf{final} = 1\!`.
+- If all the consensus rules are satisfied, the node MUST add the note commitments, :math:`\mathsf{cm}_{\mathsf{i,j}}\ \forall\ \mathsf{i} \in \{1..\mathtt{nIssueActions}\},\ \mathsf{j} \in \{1..\mathtt{nNotes}\}\!`, to the Merkle tree of note commitments.
+- (Replay Protection) If an issue bundle is present, the fees MUST be greater than zero.
 
 
 
@@ -342,8 +352,8 @@ Rationale
 =========
 The following is a list of rationale for different decisions made in the proposal:
 
-- The issuance key structure is independent of the original key tree, but derived in an analogous manner (via ZIP 32). This is in order to keep the issuance details and the Asset Identifiers consistent across multiple shielded pools.
-- The design decision is not to have a chosen name to describe the Custom Asset, but to delegate it to an off-chain mapping, as this would imply a land-grab “war”.
+- The issuance key structure is independent of the original key tree, but derived in an analogous manner (via ZIP 32). This keeps the issuance details and the Asset Identifiers consistent across multiple shielded pools. It also separates the issuance authority from the spend authority, allowing for the potential transfer of issuance authority without compromising the spend authority.
+- The Custom Asset is described via a combination of the issuance validating key and an asset description string, to preclude the possibility of two different issuers creating colliding Custom Assets.
 - The :math:`\mathsf{asset\_desc}` is a general byte string in order to allow for a wide range of information type to be included that may be associated with the Assets. Some are:
 
     - links for storage such as for NFTs.
@@ -353,6 +363,21 @@ The following is a list of rationale for different decisions made in the proposa
 
 - We limit the size of the :math:`\mathsf{asset\_desc}` string to 512 bytes as it is a reasonable size to store metadata about the Asset, for example in JSON format.
 - We require non-zero fees in the presence of an issue bundle, in order to preclude the possibility of a transaction containing only an issue bundle. If a transaction includes only an issue bundle, the SIGHASH transaction hash would be computed solely based on the issue bundle. A duplicate bundle would have the same SIGHASH transaction hash, potentially allowing for a replay attack.
+
+Rationale for Global Issuance State
+-----------------------------------
+
+It is necessary to ensure that the balance of any issued Custom Asset never becomes negative within a shielded pool, along the lines of ZIP 209 [#zip-0209]_. 
+However, unlike for the shielded ZEC pools, there is no individual transaction field that directly corresponds to both the issued and burnt amounts for a given Asset.
+Therefore, we require that all nodes maintain a record of the current amount in circulation for every issued Custom Asset, and update this record based on the issuance and burn transactions processed. 
+This allows for efficient detection of balance violations for any Asset, in which scenario we specify a consensus rule to reject the transaction or block.
+
+We limit the total issuance of any Asset to a maximum of :math:`\mathsf{MAX\_ISSUE}`. 
+This is a practical limit that also allows an issuer to issue the complete supply of an Asset in a single transaction.
+
+Nodes also need to reject transactions that issue Custom Assets that have been previously finalized. 
+The :math:`\mathsf{issued\_assets}` map allows nodes to store whether or not a given Asset has been finalized. 
+
 
 Concrete Applications
 ---------------------
@@ -504,33 +529,15 @@ S.5: issuance_digest
 ````````````````````
 Identical to that specified for the transaction identifier.
 
-Authorizing Data Commitment
-===========================
+Authorizing Data Commitment - Issuance
+======================================
 
-The transaction digest algorithm defined in ZIP 244 [#zip-0244-authcommitment]_ which commits to the authorizing data of a transaction is modified by the OrchardZSA protocol to have the following structure.
-We highlight the changes for the OrchardZSA protocol via the ``[ADDED FOR ZSA]`` text label, and we omit the descriptions of the sections that do not change for the OrchardZSA protocol::
-
-    auth_digest
-    ├── transparent_scripts_digest
-    ├── sapling_auth_digest
-    ├── orchard_auth_digest
-    └── issuance_auth_digest        [ADDED FOR ZSA]
-
-The pair (Transaction Identifier, Auth Commitment) constitutes a commitment to all the data of a serialized transaction that may be included in a block.
-
-auth_digest
------------
-A BLAKE2b-256 hash of the following values ::
-
-   A.1: transparent_scripts_digest (32-byte hash output)
-   A.2: sapling_auth_digest        (32-byte hash output)
-   A.3: orchard_auth_digest        (32-byte hash output)
-   A.4: issuance_auth_digest       (32-byte hash output)  [ADDED FOR ZSA]
-
-The personalization field of this hash remains the same as in ZIP 244.
+This section covers the construction of the subtree of hashes in the authorizing data commitment that corresponds to issuance transaction data.
+Details of the overall changes to the authorizing data commitment due to the OrchardZSA protocol can be found in ZIP 226 [#zip-0226-authcommitment]_.
 
 A.4: issuance_auth_digest
-`````````````````````````
+-------------------------
+
 In the case that Issuance Actions are present, this is a BLAKE2b-256 hash of the field encoding of the ``issueAuthSig`` field of the transaction::
 
    A.4a: issueAuthSig            (field encoding bytes)
@@ -608,17 +615,19 @@ References
 .. [#zip-0224] `ZIP 224: Orchard <zip-0224.html>`_
 .. [#zip-0226] `ZIP 226: Transfer and Burn of Zcash Shielded Assets <zip-0226.html>`_
 .. [#zip-0226-notestructure] `ZIP 226: Transfer and Burn of Zcash Shielded Assets - Note Structure & Commitment <zip-0226.html#note-structure-commitment>`_
+.. [#zip-0226-assetburn] `ZIP 226: Transfer and Burn of Zcash Shielded Assets - Additional Consensus Rules for the assetBurn set <zip-0226.html#additional-consensus-rules-for-the-assetburn-set>`_
 .. [#zip-0226-txiddigest] `ZIP 226: Transfer and Burn of Zcash Shielded Assets - TxId Digest <zip-0226.html#txid-digest>`_
+.. [#zip-0226-authcommitment] `ZIP 226: Transfer and Burn of Zcash Shielded Assets - Authorizing Data Commitment <zip-0226.html#authorizing-data-commitment>`_
 .. [#zip-0230-issuance-action-description] `ZIP 230: Version 6 Transaction Format: Issuance Action Description (IssueAction) <zip-0230.html#issuance-action-description-issueaction>`_
 .. [#zip-0230-transaction-format] `ZIP 230: Version 6 Transaction Format: Transaction Format <zip-0230.html#transaction-format>`_
 .. [#zip-0230-orchardzsa-fee-calculation] `ZIP 230: Version 6 Transaction Format: OrchardZSA Fee Calculation <zip-0230.html#orchardzsa-fee-calculation>`_
 .. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.html>`_
 .. [#zip-0244-sigdigest] `ZIP 244: Transaction Identifier Non-Malleability: Signature Digest <zip-0244.html#signature-digest>`_
-.. [#zip-0244-authcommitment] `ZIP 244: Transaction Identifier Non-Malleability: Authorizing Data Commitment <zip-0244.html#authorizing-data-commitment>`_
 .. [#bip-0340] `BIP 340: Schnorr Signatures for secp256k1 <https://github.com/bitcoin/bips/blob/200f9b26fe0a2f235a2af8b30c4be9f12f6bc9cb/bip-0340.mediawiki>`_
 .. [#protocol-notation] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 2: Notation <protocol/protocol.pdf#notation>`_
 .. [#protocol-addressesandkeys] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.1: Payment Addresses and Keys <protocol/protocol.pdf#addressesandkeys>`_
 .. [#protocol-orchardkeycomponents] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.2.3: Orchard Key Components <protocol/protocol.pdf#orchardkeycomponents>`_
+.. [#protocol-sighash] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.10: SIGHASH Transaction Hashing <protocol/protocol.pdf#sighash>`_
 .. [#protocol-concretegrouphashpallasandvesta] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 5.4.9.8: Group Hash into Pallas and Vesta <protocol/protocol.pdf#concretegrouphashpallasandvesta>`_
 .. [#protocol-orchardpaymentaddrencoding] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 5.6.4.2: Orchard Raw Payment Addresses <protocol/protocol.pdf#orchardpaymentaddrencoding>`_
 .. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
