@@ -88,14 +88,14 @@ Most of the protocol is kept the same as the Orchard protocol released with NU5,
 Approval Signature
 ------------------
 
-Given the Orchard address (in the form: $d | pk_d$) of the recipient of the output note of an Orchard Action and given that $g_d$ is a Pallas curve point, derived from $d$ - the approval signature derivation goes as follows:
+Given the Orchard address (in the form: $d | pk_d$, see [#protocol-raw-address]_) of the recipient of the output note of an Orchard Action and given that $g_d$ is a Pallas curve point, derived from $d$ (see [#protocol-diversify-hash]_) - the approval signature derivation goes as follows:
 
 1. The sender sends the OrchardAction (the preimage of the message to be signed) for the recipient to sign.
 2. The recipient executes the following steps:
     - $m \gets H(OrchardActionDescription)$, where $OrchardActionDescription$ is the Orchard Action description as per [#protocol-actions]_.
-    - Takes $r \overset{{\scriptscriptstyle\$}}{\leftarrow} \mathbb{Z}_{r_{\mathbb{P}}}$, where $\mathbb{Z}_{r_{\mathbb{P}}}$ is the scalar field of Pallas, and where $\overset{{\scriptscriptstyle\$}}{\leftarrow}$ denotes a variable assignment uniformly at random from a given set.
+    - Takes $r \overset{{\scriptscriptstyle\$}}{\leftarrow} \mathbb{Z}_{r_{\mathbb{P}}}$, where $\mathbb{Z}_{r_{\mathbb{P}}}$ is the scalar field of Pallas [#protocol-pallas-vesta]_, and where $\overset{{\scriptscriptstyle\$}}{\leftarrow}$ denotes a variable assignment uniformly at random from a given set.
     - $u \gets [r]g_d$, a Pallas point
-    - $C \gets H(g_d, pk_d, u, m) \mod r_{\mathbb{P}}$, an element of Pallas' scalar field
+    - $C \gets H(g_d, pk_d, u, m) \mod r_{\mathbb{P}}$, an element of Pallas' scalar field, and where $H$ is a secure hash function (e.g. SHA256 or Blake2)
     - $s \gets r + C * ivk \mod r_{\mathbb{P}}$, an element of Pallas' scalar field
     - $\sigma_{approval} \gets (u, s)$
 
@@ -116,7 +116,7 @@ We know that the Orchard address is of the form: $d | pk_d$.
 These 2 fields, the diversifier and the diversified address, are used by the sender when sending notes.
 
 Looking at the Orchard key components derivations, we know that $pk_d$ is derived as:
-$pk_d := KAOrchard.DerivePublic(ivk, g_d) = [ivk]g_d$
+$pk_d := KAOrchard.DerivePublic(ivk, g_d) = [ivk]g_d$, see [#protocol-orchard-keys]_ and [#protocol-key-agreement]_
 
 Given that $ivk$ is derived from the spending key of the recipient of the funds, we can prove that the recipient of the funds in an Orchard Action is approving the receipt of the funds, by using a proof of knowledge of $ivk$.
 Such proof of knowledge of $ivk$ can be obtained by using the Non-Interactive Schnorr Protocol. 
@@ -131,7 +131,7 @@ The following steps are added to the Orchard Action statement:
 Instance:
 
 - $\sigma_{approval}$
-- OrchardActionDescription
+- $OrchardActionDescription$
 
 Witness:
 
@@ -175,7 +175,7 @@ The Zcash miners, just need to verify the Orchard Action proof to make sure the 
 Modifications to the Transaction Format
 ---------------------------------------
 
-In order to support this ZIP, the transaction format must be extended to add the appoval signatures, as follows:
+In order to support this ZIP, the transaction format, as specified in [#protocol-tx-encoding]_, must be extended to add the appoval signatures, as follows:
 
 ======================= ================ ============================ ================================================================
 Bytes                   Name             Data Type                    Description
@@ -201,4 +201,10 @@ References
 .. [#zip-0227] `ZIP 227: Issuance of Zcash Shielded Assets <zip-0227.html>`_
 .. [#confirmation-of-payee] `Confirmation of Payee` <https://www.wearepay.uk/what-we-do/overlay-services/confirmation-of-payee/>
 .. [#zcash-delist] `Important: Potential Binance Delisting` <https://forum.zcashcommunity.com/t/important-potential-binance-delisting/45954>
-.. [#protocol-actions] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 7.5: Action Description Encoding and Consensus, ` <https://zips.z.cash/protocol/protocol.pdf#actionencodingandconsensus>
+.. [#protocol-actions] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 7.5: Action Description Encoding and Consensus` <https://zips.z.cash/protocol/protocol.pdf#actionencodingandconsensus>
+.. [#protocol-raw-address] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. 5.6.4.2 Orchard Raw Payment Addresses` <https://zips.z.cash/protocol/protocol.pdf#orchardpaymentaddrencoding>
+.. [#protocol-diversify-hash] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. 5.4.1.6 DiversifyHashSapling and DiversifyHashOrchard Hash Functions` <https://zips.z.cash/protocol/protocol.pdf#concretediversifyhash>
+.. [#protocol-pallas-vesta] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. 5.4.9.6 Pallas and Vesta` <https://zips.z.cash/protocol/protocol.pdf#pallasandvesta>
+.. [#protocol-orchard-keys] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. 4.2.3 Orchard Key Components` <https://zips.z.cash/protocol/protocol.pdf#orchardkeycomponents>
+.. [#protocol-key-agreement] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. 5.4.5.5 Orchard Key Agreement` <https://zips.z.cash/protocol/protocol.pdf#concreteorchardkeyagreement>
+.. [#protocol-tx-encoding] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. 7.1 Transaction Encoding and Consensus` <https://zips.z.cash/protocol/protocol.pdf#txnencoding>
