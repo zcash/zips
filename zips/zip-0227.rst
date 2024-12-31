@@ -245,11 +245,6 @@ An Issue Note is a tuple $(\mathsf{d}, \mathsf{pk_d}, \mathsf{v}, \mathsf{AssetB
 The complete encoding of these fields into an ``IssueNote`` is defined in ZIP 230 [#zip-0230-issue-note]_.
 
 
-Computation of ρ
-````````````````
-
-TO BE FILLED
-
 Issuance Action
 ---------------
 
@@ -257,7 +252,7 @@ An issuance action, ``IssueAction``, is the instance of issuing a specific Custo
 
 - ``assetDescSize``: the size of the Asset description, a number between $0$ and $512$.
 - ``asset_desc``: the Asset description, a byte string of up to 512 bytes as defined in the `Specification: Asset Identifier`_ section.
-- ``vNotes``: an array of ``Note`` containing the unencrypted output notes of the recipients of the Asset.
+- ``vNotes``: an array of Issue Notes containing the unencrypted output notes to the recipients of the Asset.
 - ``flagsIssuance``: a byte that stores the $\mathsf{finalize}$ boolean that defines whether the issuance of that specific Custom Asset is finalized or not.
 
 The $\mathsf{finalize}$ boolean is set by the Issuer to signal that there will be no further issuance of the specific Custom Asset.
@@ -265,7 +260,7 @@ As we will see in `Specification: Consensus Rule Changes`_, transactions that at
 
 The complete encoding of these fields into an ``IssueAction`` is defined in ZIP 230 [#zip-0230-issuance-action-description]_.
 
-We note that the output note commitment of the recipient's notes are not included in the actual transaction, but when added to the global state of the chain, they will be added to the note commitment tree as a shielded note.
+We note that when the issued note commitments are added to the global state of the chain, they will be added to the note commitment tree as any other shielded note. 
 This prevents future usage of the note from being linked to the issuance transaction, as the nullifier key is not known to the validators and chain observers.
 
 Issuance Bundle
@@ -282,6 +277,25 @@ It contains the following fields:
 The issuance bundle is added within the transaction format as a new bundle. 
 The detailed encoding of the issuance bundle as a part of the V6 transaction format is defined in ZIP 230 [#zip-0230-transaction-format]_.
 
+Computation of ρ
+----------------
+
+We define a function $\mathsf{DeriveIssuedRho} : \mathbb{F}_{q_{\mathbb{P}}} \times \{0 .. 2^{32} - 1\} \times \{0 .. 2^{32} - 1\} \to \mathbb{F}_{q_{\mathbb{P}}}$ as follows:
+
+.. math:: \mathsf{DeriveIssuedRho}(\mathsf{nf}, \mathsf{i_{A}}, \mathsf{i_{N}}) := \mathsf{ToBase}^{\mathsf{Rho}}(\mathsf{PRF}^{\mathsf{Rho}}(\mathsf{I2LEOSP}_{256}(\mathsf{nf}), [\mathtt{0x84}] \| \mathsf{I2LEOSP}_{32}(\mathsf{i_{A}}) \| \mathsf{I2LEOSP}_{32}(\mathsf{i_{N}}))),
+
+where 
+
+- $\mathsf{ToBase}^{\mathsf{Rho}} : \mathbb{B}^{512} \to \mathbb{F}_{q_{\mathbb{P}}}$ is defined as $\mathsf{ToBase}^{\mathsf{Rho}}(x) := \mathsf{LEOS2IP}_{512}(x) \mod q_{\mathbb{P}}$ 
+- $\mathsf{PRF}^{\mathsf{Rho}} : \mathbb{B}^{256} \times \mathbb{B}^{\mathbb{Y}^{[\mathbb{N}]}} \to \mathbb{B}^{512}$ is defined as $\mathsf{PRF}^{\mathsf{Rho}}(\mathsf{k},t) := \textsf{BLAKE2b-512}(\mathtt{"ZSA\_IssueNoteRho"}, \mathsf{LEBS2OSP}_{256}(\mathsf{k}) \| t)$
+
+The $\text{ρ}$ field of an Issue Note is computed as 
+
+.. math:: \text{ρ} := \mathsf{DeriveIssuedRho}(\mathsf{nf}_{1,1}, \mathsf{index_{Action}}, \mathsf{index_{Note}}),
+
+where $\mathsf{nf}_{1,1}$ is the nullifier of the first Note in the first Action of the OrchardZSA Bundle of the transaction, $\mathsf{index_{Action}}$ is the index of the Issuance Action in the Issuance Bundle, and $\mathsf{index_{Note}}$ is the index of the Issue Note in the Issuance Action.
+
+
 Issuance Protocol
 -----------------
 The issuer program performs the following operations:
@@ -294,7 +308,8 @@ For all actions ``IssueAction``:
 - set the $\mathsf{finalize}$ boolean as desired (if more issuance actions are to be created for this $\mathsf{AssetBase}$, set $\mathsf{finalize} = 0$, otherwise set $\mathsf{finalize} = 1$).
 - for each recipient $i$:
 
-    - generate a ZSA output note that includes the Asset Base. For an OrchardZSA note this is $\mathsf{note}_i = (\mathsf{d}_i, \mathsf{pk}_{\mathsf{d}_i}, \mathsf{v}_i, \text{ρ}_i, \mathsf{rseed}_i, \mathsf{AssetBase}, \mathsf{rcm}_i)$.
+    - generate an Issue Note, $\mathsf{note}_i = (\mathsf{d}_i, \mathsf{pk}_{\mathsf{d}_i}, \mathsf{v}_i, \mathsf{AssetBase}, \text{ρ}_i, \mathsf{rseed}_i)$.
+    - encode the $\mathsf{note}_i$ into the vector ``vNotes`` of the ``IssueAction``.
 
 - encode the ``IssueAction`` into the vector ``vIssueActions`` of the bundle.
 
@@ -313,13 +328,13 @@ Specification: Global Issuance State
 Issuance requires the following additions to the global state:
 
 A map, $\mathsf{issued\_assets} : \mathbb{P}^* \to \{0 .. \mathsf{MAX\_ISSUE}\} \times \mathbb{B}$, from the Asset Base, $\mathsf{AssetBase} : \mathbb{P}^*$, to a tuple $(\mathsf{balance}, \mathsf{final})$, for every Asset that has been issued.
-We use the notation $\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{balance}$ and $\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{final}$ to access, respectively, the elements of the tuple stored in the global state for a given $\mathsf{AssetBase}$.
-If $\mathsf{issued\_assets}(\mathsf{AssetBase}) = \bot$, it is assumed that $\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{balance} = 0$ and $\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{final} = 0$.
+We use the notation $\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{balance}$ and $\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{final}$ to access, respectively, the elements of the tuple stored in the global state for a given $\mathsf{AssetBase}$.
+If $\mathsf{issued\_assets}(\mathsf{AssetBase}) = \bot$, it is assumed that $\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{balance} = 0$ and $\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{final} = 0$.
 
 For any Asset represented by $\mathsf{AssetBase}$:
 
-- $\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{balance} \in \{0 .. \mathsf{MAX\_ISSUE}\}$ stores the amount of the Asset in circulation, computed as the amount of the Asset that has been issued less the amount of the Asset that has been burnt. 
-- $\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{final} : \mathbb{B}$ is a Boolean that stores the finalization status of the Asset (i.e.: whether the $\mathsf{finalize}$ flag has been set to $1$ in any preceding issuance transaction for the Asset). The value of $\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{final}$ for any $\mathsf{AssetBase}$ cannot be changed from $1$ to $0$.
+- $\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{balance} \in \{0 .. \mathsf{MAX\_ISSUE}\}$ stores the amount of the Asset in circulation, computed as the amount of the Asset that has been issued less the amount of the Asset that has been burnt. 
+- $\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{final} : \mathbb{B}$ is a Boolean that stores the finalization status of the Asset (i.e.: whether the $\mathsf{finalize}$ flag has been set to $1$ in any preceding issuance transaction for the Asset). The value of $\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{final}$ for any $\mathsf{AssetBase}$ cannot be changed from $1$ to $0$.
 
 The maximum total supply of any issued Custom Asset is denoted by the constant $\mathsf{MAX\_ISSUE} := 2^{64} - 1$. 
 
@@ -346,21 +361,23 @@ For every transaction:
 
 - The output issuance state of the transaction MUST be initialized to be the same as the input issuance state, $\mathsf{issued\_assets}_{\mathsf{OUT}} = \mathsf{issued\_assets}_{\mathsf{IN}}$.
 - The $\mathsf{assetBurn}$ set MUST satisfy the consensus rules specified in ZIP 226 [#zip-0226-assetburn]_.
-- It MUST be the case that for all $(\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{assetBurn}$, $\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\!\mathsf{balance} \geq \mathsf{v}$. The node then MUST update $\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase})$ prior to processing the issuance bundle in the following manner. For every $(\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{AssetBurn}$, $\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\!\mathsf{balance} = \mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\!\mathsf{balance} - \mathsf{v}$.
+- It MUST be the case that for all $(\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{assetBurn}$, $\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\mathsf{balance} \geq \mathsf{v}$. The node then MUST update $\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase})$ prior to processing the issuance bundle in the following manner. For every $(\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{AssetBurn}$, $\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\mathsf{balance} = \mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\mathsf{balance} - \mathsf{v}$.
 - Let $\mathsf{SigHash}$ be the SIGHASH transaction hash of this transaction, as defined in §4.10 of the protocol specification [#protocol-sighash]_ with the modifications described in ZIP 226 [#zip-0226-txiddigest]_, using $\mathsf{SIGHASH\_ALL}$.
+- If the transaction contains an Issuance Bundle, it MUST also contain at least one OrchardZSA Action.
 - The issuance authorization signature, $\mathsf{issueAuthSig}$, MUST be a valid $\mathsf{IssueAuthSig}$ signature over $\mathsf{SigHash}$, i.e. $\mathsf{IssueAuthSig}.\!\mathsf{Validate}(\mathsf{ik}, \mathsf{SigHash}, \mathsf{issueAuthSig}) = 1$. 
 - For every issuance action description ($\mathsf{IssueAction}_\mathsf{i},\ 1 \leq i \leq \mathtt{nIssueActions}$) in the issuance bundle:
 
   - It MUST be the case that $0 < \mathtt{assetDescSize} \leq 512$.
   - It MUST be the case that $\mathsf{asset\_desc}$ is a string of length $\mathtt{assetDescSize}$ bytes.
-  - Elements of every issue note description in ``IssueAction`` MUST be valid encodings of the types given in `Issue Note`_, and MUST encode the same $\mathsf{AssetBase}$. 
+  - Elements of every Issue Note in ``IssueAction`` MUST be valid encodings of the types given in the `Issue Note`_ section, and MUST encode the same $\mathsf{AssetBase}$. 
   - This $\mathsf{AssetBase}$ MUST satisfy the derivation from the issuance validating key and asset description described in the `Specification: Asset Identifier`_ section.
-  - It MUST be the case that $\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\!\mathsf{final} \neq 1$.
+  - It MUST be the case that $\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\mathsf{final} \neq 1$.
   - For every issue note description ($\mathsf{note}_{\mathsf{j}},\ 1 \leq j \leq \mathtt{nNotes}$) in ``IssueAction``:
 
-    - It MUST be the case that $\mathsf{issued\_assets}_{\mathsf{OUT}}.\!\mathsf{balance} + \mathsf{v} \leq \mathsf{MAX\_ISSUE}$, where $\mathsf{v}$ is the value of $\mathsf{note}_{\mathsf{j}}$. The node then MUST update $\mathsf{issued\_assets}_{\mathsf{OUT}}.\!\mathsf{balance} = \mathsf{issued\_assets}_{\mathsf{OUT}}.\!\mathsf{balance} + \mathsf{v}$.
+    - The $\text{ρ}$ field of the issue note MUST have been computed as described in the `Computation of ρ`_ section.
+    - It MUST be the case that $\mathsf{issued\_assets}_{\mathsf{OUT}}.\mathsf{balance} + \mathsf{v} \leq \mathsf{MAX\_ISSUE}$, where $\mathsf{v}$ is the value of $\mathsf{note}_{\mathsf{j}}$. The node then MUST update $\mathsf{issued\_assets}_{\mathsf{OUT}}.\mathsf{balance} = \mathsf{issued\_assets}_{\mathsf{OUT}}.\mathsf{balance} + \mathsf{v}$.
     - The node MUST compute the note commitment, $\mathsf{cm}_{\mathsf{i,j}}$, as defined in the Note Structure and Commitment section of ZIP 226 [#zip-0226-notestructure]_.
-  - If $\mathsf{finalize} = 1$ within the ``flagsIssuance`` field of ``IssueAction``, the node MUST set $\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\!\mathsf{final} = 1$.
+  - If $\mathsf{finalize} = 1$ within the ``flagsIssuance`` field of ``IssueAction``, the node MUST set $\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\mathsf{final} = 1$.
 - If all the consensus rules are satisfied, the node MUST add the note commitments, $\mathsf{cm}_{\mathsf{i,j}}\ \forall\ \mathsf{i} \in \{1..\mathtt{nIssueActions}\},\ \mathsf{j} \in \{1..\mathtt{nNotes}\}$, to the Merkle tree of note commitments.
 - (Replay Protection) If an issue bundle is present, the fees MUST be greater than zero.
 

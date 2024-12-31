@@ -359,9 +359,6 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/680">https://githu
                      MUST be sampled uniformly at random by the issuer.</li>
                 </ul>
                 <p>The complete encoding of these fields into an <code>IssueNote</code> is defined in ZIP 230 <a id="footnote-reference-24" class="footnote_reference" href="#zip-0230-issue-note">16</a>.</p>
-                <section id="computation-of"><h4><span class="section-heading">Computation of ρ</span><span class="section-anchor"> <a rel="bookmark" href="#computation-of"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
-                    <p>TO BE FILLED</p>
-                </section>
             </section>
             <section id="issuance-action"><h3><span class="section-heading">Issuance Action</span><span class="section-anchor"> <a rel="bookmark" href="#issuance-action"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>An issuance action, <code>IssueAction</code>, is the instance of issuing a specific Custom Asset, and contains the following fields:</p>
@@ -372,7 +369,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/680">https://githu
                         <span class="math">\(512\!\)</span>
                     .</li>
                     <li><code>asset_desc</code>: the Asset description, a byte string of up to 512 bytes as defined in the <a href="#specification-asset-identifier">Specification: Asset Identifier</a> section.</li>
-                    <li><code>vNotes</code>: an array of <code>Note</code> containing the unencrypted output notes of the recipients of the Asset.</li>
+                    <li><code>vNotes</code>: an array of Issue Notes containing the unencrypted output notes to the recipients of the Asset.</li>
                     <li><code>flagsIssuance</code>: a byte that stores the
                         <span class="math">\(\mathsf{finalize}\)</span>
                      boolean that defines whether the issuance of that specific Custom Asset is finalized or not.</li>
@@ -381,7 +378,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/680">https://githu
                     <span class="math">\(\mathsf{finalize}\)</span>
                  boolean is set by the Issuer to signal that there will be no further issuance of the specific Custom Asset. As we will see in <a href="#specification-consensus-rule-changes">Specification: Consensus Rule Changes</a>, transactions that attempt to issue further amounts of a Custom Asset that has previously been finalized will be rejected.</p>
                 <p>The complete encoding of these fields into an <code>IssueAction</code> is defined in ZIP 230 <a id="footnote-reference-25" class="footnote_reference" href="#zip-0230-issuance-action-description">15</a>.</p>
-                <p>We note that the output note commitment of the recipient's notes are not included in the actual transaction, but when added to the global state of the chain, they will be added to the note commitment tree as a shielded note. This prevents future usage of the note from being linked to the issuance transaction, as the nullifier key is not known to the validators and chain observers.</p>
+                <p>We note that when the issued note commitments are added to the global state of the chain, they will be added to the note commitment tree as any other shielded note. This prevents future usage of the note from being linked to the issuance transaction, as the nullifier key is not known to the validators and chain observers.</p>
             </section>
             <section id="issuance-bundle"><h3><span class="section-heading">Issuance Bundle</span><span class="section-anchor"> <a rel="bookmark" href="#issuance-bundle"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>An issuance bundle is the aggregate of all the issuance-related information. Specifically, contains all the issuance actions and the issuer signature on the transaction SIGHASH that validates the issuance itself. It contains the following fields:</p>
@@ -399,6 +396,36 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/680">https://githu
                     , that validates the issuance.</li>
                 </ul>
                 <p>The issuance bundle is added within the transaction format as a new bundle. The detailed encoding of the issuance bundle as a part of the V6 transaction format is defined in ZIP 230 <a id="footnote-reference-26" class="footnote_reference" href="#zip-0230-transaction-format">17</a>.</p>
+            </section>
+            <section id="computation-of"><h3><span class="section-heading">Computation of ρ</span><span class="section-anchor"> <a rel="bookmark" href="#computation-of"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>We define a function
+                    <span class="math">\(\mathsf{DeriveIssuedRho} : \mathbb{F}_{q_{\mathbb{P}}} \times \{0 .. 2^{32} - 1\} \times \{0 .. 2^{32} - 1\} \to \mathbb{F}_{q_{\mathbb{P}}}\)</span>
+                 as follows:</p>
+                <div class="math">\(\mathsf{DeriveIssuedRho}(\mathsf{nf}, \mathsf{i_{A}}, \mathsf{i_{N}}) := \mathsf{ToBase}^{\mathsf{Rho}}(\mathsf{PRF}^{\mathsf{Rho}}(\mathsf{I2LEOSP}_{256}(\mathsf{nf}), [\mathtt{0x84}] \| \mathsf{I2LEOSP}_{32}(\mathsf{i_{A}}) \| \mathsf{I2LEOSP}_{32}(\mathsf{i_{N}}))),\)</div>
+                <p>where</p>
+                <ul>
+                    <li>
+                        <span class="math">\(\mathsf{ToBase}^{\mathsf{Rho}} : \mathbb{B}^{512} \to \mathbb{F}_{q_{\mathbb{P}}}\)</span>
+                     is defined as
+                        <span class="math">\(\mathsf{ToBase}^{\mathsf{Rho}}(x) := \mathsf{LEOS2IP}_{512}(x) \mod q_{\mathbb{P}}\)</span>
+                    </li>
+                    <li>
+                        <span class="math">\(\mathsf{PRF}^{\mathsf{Rho}} : \mathbb{B}^{256} \times \mathbb{B}^{\mathbb{Y}^{[\mathbb{N}]}} \to \mathbb{B}^{512}\)</span>
+                     is defined as
+                        <span class="math">\(\mathsf{PRF}^{\mathsf{Rho}}(\mathsf{k},t) := \textsf{BLAKE2b-512}(\mathtt{"ZSA\_IssueNoteRho"}, \mathsf{LEBS2OSP}_{256}(\mathsf{k}) \| t)\)</span>
+                    </li>
+                </ul>
+                <p>The
+                    <span class="math">\(\text{ρ}\)</span>
+                 field of an Issue Note is computed as</p>
+                <div class="math">\(\text{ρ} := \mathsf{DeriveIssuedRho}(\mathsf{nf}_{1,1}, \mathsf{index_{Action}}, \mathsf{index_{Note}}),\)</div>
+                <p>where
+                    <span class="math">\(\mathsf{nf}_{1,1}\)</span>
+                 is the nullifier of the first Note in the first Action of the OrchardZSA Bundle of the transaction,
+                    <span class="math">\(\mathsf{index_{Action}}\)</span>
+                 is the index of the Issuance Action in the Issuance Bundle, and
+                    <span class="math">\(\mathsf{index_{Note}}\)</span>
+                 is the index of the Issue Note in the Issuance Action.</p>
             </section>
             <section id="issuance-protocol"><h3><span class="section-heading">Issuance Protocol</span><span class="section-anchor"> <a rel="bookmark" href="#issuance-protocol"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>The issuer program performs the following operations:</p>
@@ -432,9 +459,12 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/680">https://githu
                         <span class="math">\(i\!\)</span>
                     :
                         <ul>
-                            <li>generate a ZSA output note that includes the Asset Base. For an OrchardZSA note this is
-                                <span class="math">\(\mathsf{note}_i = (\mathsf{d}_i, \mathsf{pk}_{\mathsf{d}_i}, \mathsf{v}_i, \text{ρ}_i, \mathsf{rseed}_i, \mathsf{AssetBase}, \mathsf{rcm}_i)\!\)</span>
+                            <li>generate an Issue Note,
+                                <span class="math">\(\mathsf{note}_i = (\mathsf{d}_i, \mathsf{pk}_{\mathsf{d}_i}, \mathsf{v}_i, \mathsf{AssetBase}, \text{ρ}_i, \mathsf{rseed}_i)\!\)</span>
                             .</li>
+                            <li>encode the
+                                <span class="math">\(\mathsf{note}_i\)</span>
+                             into the vector <code>vNotes</code> of the <code>IssueAction</code>.</li>
                         </ul>
                     </li>
                     <li>encode the <code>IssueAction</code> into the vector <code>vIssueActions</code> of the bundle.</li>
@@ -463,33 +493,33 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/680">https://githu
             , to a tuple
                 <span class="math">\((\mathsf{balance}, \mathsf{final})\!\)</span>
             , for every Asset that has been issued. We use the notation
-                <span class="math">\(\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{balance}\)</span>
+                <span class="math">\(\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{balance}\)</span>
              and
-                <span class="math">\(\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{final}\)</span>
+                <span class="math">\(\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{final}\)</span>
              to access, respectively, the elements of the tuple stored in the global state for a given
                 <span class="math">\(\mathsf{AssetBase}\!\)</span>
             . If
                 <span class="math">\(\mathsf{issued\_assets}(\mathsf{AssetBase}) = \bot\!\)</span>
             , it is assumed that
-                <span class="math">\(\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{balance} = 0\)</span>
+                <span class="math">\(\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{balance} = 0\)</span>
              and
-                <span class="math">\(\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{final} = 0\!\)</span>
+                <span class="math">\(\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{final} = 0\!\)</span>
             .</p>
             <p>For any Asset represented by
                 <span class="math">\(\mathsf{AssetBase}\!\)</span>
             :</p>
             <ul>
                 <li>
-                    <span class="math">\(\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{balance} \in \{0 .. \mathsf{MAX\_ISSUE}\}\)</span>
+                    <span class="math">\(\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{balance} \in \{0 .. \mathsf{MAX\_ISSUE}\}\)</span>
                  stores the amount of the Asset in circulation, computed as the amount of the Asset that has been issued less the amount of the Asset that has been burnt.</li>
                 <li>
-                    <span class="math">\(\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{final} : \mathbb{B}\)</span>
+                    <span class="math">\(\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{final} : \mathbb{B}\)</span>
                  is a Boolean that stores the finalization status of the Asset (i.e.: whether the
                     <span class="math">\(\mathsf{finalize}\)</span>
                  flag has been set to
                     <span class="math">\(1\)</span>
                  in any preceding issuance transaction for the Asset). The value of
-                    <span class="math">\(\mathsf{issued\_assets}(\mathsf{AssetBase}).\!\mathsf{final}\)</span>
+                    <span class="math">\(\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{final}\)</span>
                  for any
                     <span class="math">\(\mathsf{AssetBase}\)</span>
                  cannot be changed from
@@ -530,19 +560,20 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/680">https://githu
                 <li>It MUST be the case that for all
                     <span class="math">\((\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{assetBurn}\!\)</span>
                 ,
-                    <span class="math">\(\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\!\mathsf{balance} \geq \mathsf{v}\!\)</span>
+                    <span class="math">\(\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\mathsf{balance} \geq \mathsf{v}\!\)</span>
                 . The node then MUST update
                     <span class="math">\(\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase})\)</span>
                  prior to processing the issuance bundle in the following manner. For every
                     <span class="math">\((\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{AssetBurn}\!\)</span>
                 ,
-                    <span class="math">\(\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\!\mathsf{balance} = \mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\!\mathsf{balance} - \mathsf{v}\!\)</span>
+                    <span class="math">\(\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\mathsf{balance} = \mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\mathsf{balance} - \mathsf{v}\!\)</span>
                 .</li>
                 <li>Let
                     <span class="math">\(\mathsf{SigHash}\)</span>
                  be the SIGHASH transaction hash of this transaction, as defined in §4.10 of the protocol specification <a id="footnote-reference-28" class="footnote_reference" href="#protocol-sighash">28</a> with the modifications described in ZIP 226 <a id="footnote-reference-29" class="footnote_reference" href="#zip-0226-txiddigest">13</a>, using
                     <span class="math">\(\mathsf{SIGHASH\_ALL}\!\)</span>
                 .</li>
+                <li>If the transaction contains an Issuance Bundle, it MUST also contain at least one OrchardZSA Action.</li>
                 <li>The issuance authorization signature,
                     <span class="math">\(\mathsf{issueAuthSig}\!\)</span>
                 , MUST be a valid
@@ -564,27 +595,30 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/680">https://githu
                          is a string of length
                             <span class="math">\(\mathtt{assetDescSize}\)</span>
                          bytes.</li>
-                        <li>Elements of every issue note description in <code>IssueAction</code> MUST be valid encodings of the types given in <a href="#issue-note">Issue Note</a>, and MUST encode the same
+                        <li>Elements of every Issue Note in <code>IssueAction</code> MUST be valid encodings of the types given in the <a href="#issue-note">Issue Note</a> section, and MUST encode the same
                             <span class="math">\(\mathsf{AssetBase}\!\)</span>
                         .</li>
                         <li>This
                             <span class="math">\(\mathsf{AssetBase}\)</span>
                          MUST satisfy the derivation from the issuance validating key and asset description described in the <a href="#specification-asset-identifier">Specification: Asset Identifier</a> section.</li>
                         <li>It MUST be the case that
-                            <span class="math">\(\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\!\mathsf{final} \neq 1\!\)</span>
+                            <span class="math">\(\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\mathsf{final} \neq 1\!\)</span>
                         .</li>
                         <li>For every issue note description (
                             <span class="math">\(\mathsf{note}_{\mathsf{j}},\ 1 \leq j \leq \mathtt{nNotes}\!\)</span>
                         ) in <code>IssueAction</code>:
                             <ul>
+                                <li>The
+                                    <span class="math">\(\text{ρ}\)</span>
+                                 field of the issue note MUST have been computed as described in the <a href="#computation-of">Computation of ρ</a> section.</li>
                                 <li>It MUST be the case that
-                                    <span class="math">\(\mathsf{issued\_assets}_{\mathsf{OUT}}.\!\mathsf{balance} + \mathsf{v} \leq \mathsf{MAX\_ISSUE}\!\)</span>
+                                    <span class="math">\(\mathsf{issued\_assets}_{\mathsf{OUT}}.\mathsf{balance} + \mathsf{v} \leq \mathsf{MAX\_ISSUE}\!\)</span>
                                 , where
                                     <span class="math">\(\mathsf{v}\)</span>
                                  is the value of
                                     <span class="math">\(\mathsf{note}_{\mathsf{j}}\!\)</span>
                                 . The node then MUST update
-                                    <span class="math">\(\mathsf{issued\_assets}_{\mathsf{OUT}}.\!\mathsf{balance} = \mathsf{issued\_assets}_{\mathsf{OUT}}.\!\mathsf{balance} + \mathsf{v}\!\)</span>
+                                    <span class="math">\(\mathsf{issued\_assets}_{\mathsf{OUT}}.\mathsf{balance} = \mathsf{issued\_assets}_{\mathsf{OUT}}.\mathsf{balance} + \mathsf{v}\!\)</span>
                                 .</li>
                                 <li>The node MUST compute the note commitment,
                                     <span class="math">\(\mathsf{cm}_{\mathsf{i,j}}\!\)</span>
@@ -594,7 +628,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/680">https://githu
                         <li>If
                             <span class="math">\(\mathsf{finalize} = 1\)</span>
                          within the <code>flagsIssuance</code> field of <code>IssueAction</code>, the node MUST set
-                            <span class="math">\(\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\!\mathsf{final} = 1\!\)</span>
+                            <span class="math">\(\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\mathsf{final} = 1\!\)</span>
                         .</li>
                     </ul>
                 </li>
