@@ -335,20 +335,38 @@ For the ``IssueBundle``:
 
 **Note:** that the commitment is not included in the ``IssuanceAction`` itself. As explained below, it is computed later by the validators and added to the note commitment tree.
 
-Specification: Global Issuance State
-====================================
+Specification: Reference Notes and Global Issuance State
+========================================================
+
+Reference Notes
+---------------
+
+A reference note for a Custom Asset MUST be included by the issuer as the first Note in the Action of the Issuance Bundle where that Custom Asset is being issued for the first time.
+
+A reference note for a Custom Asset is an Issue Note where the value $\mathsf{v}$ is set to $0$, the Asset Base ($\mathsf{AssetBase}$) corresponds to that of the Custom Asset, and the recipient address $(\mathsf{d}, \mathsf{pk}_{\mathsf{d}})$ is set to the default diversified payment address (i.e. the diversified payment address with diversifier index $0$) derived from the all-zero Orchard spending key using the algorithm specified in §4.2.3 of the protocol specification [#protocol-orchardkeycomponents]_. This corresponds to a 43 byte ``u8`` array with the following entries::
+
+  [
+    204, 54, 96, 25, 89, 33, 59, 107, 12, 219, 150, 167, 92, 23, 195, 166, 104, 169, 127, 13, 106,
+    140, 92, 225, 100, 165, 24, 234, 155, 169, 165, 14, 167, 81, 145, 253, 134, 27, 15, 241, 14,
+    98, 176,
+  ]
+
+
+Global Issuance State
+---------------------
 
 The maximum total supply of any issued Custom Asset is denoted by the constant $\mathsf{MAX\_ISSUE} := 2^{64} - 1$. 
 Issuance requires the following additions to the global state:
 
-A map, $\mathsf{issued\_assets} : \mathbb{P}^* \to \{0 .. \mathsf{MAX\_ISSUE}\} \times \mathbb{B}$, from the Asset Base, $\mathsf{AssetBase} : \mathbb{P}^*$, to a tuple $(\mathsf{balance}, \mathsf{final})$, for every Asset that has been issued.
-We use the notation $\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{balance}$ and $\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{final}$ to access, respectively, the elements of the tuple stored in the global state for a given $\mathsf{AssetBase}$.
-If $\mathsf{issued\_assets}(\mathsf{AssetBase}) = \bot$, it is assumed that $\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{balance} = 0$ and $\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{final} = 0$.
+A map, $\mathsf{issued\_assets} : \mathbb{P}^* \to \{0 .. \mathsf{MAX\_ISSUE}\} \times \mathbb{B} \times \mathsf{Note^{Issue}}$, from the Asset Base, $\mathsf{AssetBase} : \mathbb{P}^*$, to a tuple $(\mathsf{balance}, \mathsf{final}, \mathsf{note_{ref}})$, for every Asset that has been issued.
+We use the notation $\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{balance}$, $\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{final}$, and $\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{note_{ref}}$ to access, respectively, the elements of the tuple stored in the global state for a given $\mathsf{AssetBase}$.
+If $\mathsf{issued\_assets}(\mathsf{AssetBase}) = \bot$, it is assumed that $\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{balance} = 0$, $\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{final} = 0$, and $\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{note_{ref}} = \bot$.
 
 For any Asset represented by $\mathsf{AssetBase}$:
 
 - $\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{balance} \in \{0 .. \mathsf{MAX\_ISSUE}\}$ stores the amount of the Asset in circulation, computed as the amount of the Asset that has been issued less the amount of the Asset that has been burnt. 
 - $\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{final} : \mathbb{B}$ is a Boolean that stores the finalization status of the Asset (i.e.: whether the $\mathsf{finalize}$ flag has been set to $1$ in any preceding issuance transaction for the Asset). The value of $\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{final}$ for any $\mathsf{AssetBase}$ cannot be changed from $1$ to $0$.
+- $\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{note_{ref}} : \mathsf{Note^{Issue}}$ stores the reference note for the Asset, as defined in the `Reference Notes`_ section.
 
 The maximum total supply of any issued Custom Asset is denoted by the constant $\mathsf{MAX\_ISSUE} := 2^{64} - 1$. 
 
@@ -383,9 +401,15 @@ For every transaction:
 
   - It MUST be the case that $0 < \mathtt{assetDescSize} \leq 512$.
   - It MUST be the case that $\mathsf{asset\_desc}$ is a string of length $\mathtt{assetDescSize}$ bytes.
-  - Elements of every Issue Note in ``IssueAction`` MUST be valid encodings of the types given in the `Issue Note`_ section, and MUST encode the same $\mathsf{AssetBase}$. 
+  - Every Issue Note in ``IssueAction`` MUST be a valid encoding of the $\mathsf{Note^{Issue}}$ type, and MUST encode the same $\mathsf{AssetBase}$. 
   - This $\mathsf{AssetBase}$ MUST satisfy the derivation from the issuance validating key and asset description described in the `Specification: Asset Identifier, Asset Digest, and Asset Base`_ section.
   - It MUST be the case that $\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\mathsf{final} \neq 1$.
+  - If $\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\mathsf{note_{ref}} = \bot$, then let $\mathsf{note}_1$ be the first Issue Note in the Issuance Action.
+
+      - The recipient address $(\mathsf{d}, \mathsf{pk}_{\mathsf{d}})$ of $\mathsf{note}_1$ MUST be the default diversified payment address derived from the all-zero Orchard spending key, as described in the `Reference Notes`_ section.
+      - The value $\mathsf{v}_0$ of $\mathsf{note}_1$ MUST be $0$.
+      - The node MUST update $\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\mathsf{note_{ref}} = \mathsf{note}_1$.
+
   - For every issue note description ($\mathsf{note}_{\mathsf{j}},\ 1 \leq j \leq \mathtt{nNotes}$) in ``IssueAction``:
 
     - The $\text{ρ}$ field of the issue note MUST have been computed as described in the `Computation of ρ`_ section.
