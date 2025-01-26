@@ -1,6 +1,6 @@
 ::
 
-  ZIP: TO BE ASSIGNED
+  ZIP: Unassigned
   Title: Transaction User Controls
   Owners: Antoine Rondelet <antoine@qed-it.com>
           Pablo Kogan <pablo@qed-it.com>
@@ -9,7 +9,7 @@
   Created: 2024-12-22
   License: MIT
   Discussions-To: <https://forum.zcashcommunity.com/t/introducing-transaction-controls-in-zcash/49640>
-  Pull-Request: <TODO: ADD>
+  Pull-Request: TBD
 
 
 Terminology
