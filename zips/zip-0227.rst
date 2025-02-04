@@ -192,7 +192,7 @@ From the Asset Digest, we derive a specific Asset Base within each shielded prot
 
 Let
 
-- $\mathsf{asset\_desc}$ be the asset description, which includes any information pertaining to the issuance, and is a byte sequence of up to 512 bytes which SHOULD be a well-formed UTF-8 code unit sequence according to Unicode 15.0.0 or later.
+- $\mathsf{asset\_desc}$ be the asset description, which includes any information pertaining to the issuance, and is a non-empty byte sequence of at most 512 bytes which SHOULD be a well-formed UTF-8 code unit sequence according to Unicode 15.0.0 or later.
 - $\mathsf{ik}$ be the issuance validating key of the issuer, a public key used to verify the signature on the issuance transaction's SIGHASH.
 
 Define 
@@ -265,7 +265,7 @@ Issuance Action
 
 An issuance action, ``IssueAction``, is the instance of issuing a specific Custom Asset, and contains the following fields:
 
-- ``assetDescSize``: the size of the Asset description, a number between $0$ and $512$.
+- ``assetDescSize``: the size of the Asset description, a non-zero number that is at most $512$.
 - ``asset_desc``: the Asset description, a byte string of up to 512 bytes as defined in the `Specification: Asset Identifier, Asset Digest, and Asset Base`_ section.
 - ``vNotes``: an array of Issue Notes containing the unencrypted output notes to the recipients of the Asset.
 - ``flagsIssuance``: a byte that stores the $\mathsf{finalize}$ boolean that defines whether the issuance of that specific Custom Asset is finalized or not.
@@ -293,21 +293,20 @@ The detailed encoding of the issuance bundle as a part of the V6 transaction for
 Computation of ρ
 ----------------
 
-We define a function $\mathsf{DeriveIssuedRho} : \mathbb{F}_{q_{\mathbb{P}}} \times \{0 .. 2^{32} - 1\} \times \{0 .. 2^{32} - 1\} \to \mathbb{F}_{q_{\mathbb{P}}}$ as follows:
+We define a function $\mathsf{DeriveIssuedRho} : \mathbb{F}_{q_{\mathbb{P}}} \times \{0 .. 2^{32} - 1\} \times \{0 .. 2^{32} - 1\} \to \mathbb{F}_{q_{\mathbb{P}}}$ for Issue Notes in the OrchardZSA Protocol as follows:
 
-.. math:: \mathsf{DeriveIssuedRho}(\mathsf{nf}, \mathsf{i_{A}}, \mathsf{i_{N}}) := \mathsf{ToBase}^{\mathsf{Rho}}(\mathsf{PRF}^{\mathsf{Rho}}(\mathsf{I2LEOSP}_{256}(\mathsf{nf}), [\mathtt{0x84}] \| \mathsf{I2LEOSP}_{32}(\mathsf{i_{A}}) \| \mathsf{I2LEOSP}_{32}(\mathsf{i_{N}}))),
+.. math:: \mathsf{DeriveIssuedRho}(\mathsf{nf}, \mathsf{i_{A}}, \mathsf{i_{N}}) := \mathsf{ToBase}^{\mathsf{Orchard}}(\mathsf{PRF}^{\mathsf{expand}}(\mathsf{I2LEOSP}_{256}(\mathsf{nf}), [\mathtt{0x84}] \| \mathsf{I2LEOSP}_{32}(\mathsf{i_{A}}) \| \mathsf{I2LEOSP}_{32}(\mathsf{i_{N}}))),
 
-where 
-
-- $\mathsf{ToBase}^{\mathsf{Rho}} : \mathbb{B}^{512} \to \mathbb{F}_{q_{\mathbb{P}}}$ is defined as $\mathsf{ToBase}^{\mathsf{Rho}}(x) := \mathsf{LEOS2IP}_{512}(x) \mod q_{\mathbb{P}}$ 
-- $\mathsf{PRF}^{\mathsf{Rho}} : \mathbb{B}^{256} \times \mathbb{B}^{\mathbb{Y}^{[\mathbb{N}]}} \to \mathbb{B}^{512}$ is defined as $\mathsf{PRF}^{\mathsf{Rho}}(\mathsf{k},t) := \textsf{BLAKE2b-512}(\mathtt{"ZSA\_IssueNoteRho"}, \mathsf{k} \| t)$
+where $\mathsf{ToBase}^{\mathsf{Orchard}}$ is defined in §4.2.3 of the protocol specification [#protocol-orchardkeycomponents]_, and $\mathsf{PRF}^{\mathsf{expand}}$ is defined in §5.4.2 of the protocol specification [#protocol-concreteprfs]_.
 
 The $\text{ρ}$ field of an Issue Note is computed as 
 
-.. math:: \text{ρ} := \mathsf{DeriveIssuedRho}(\mathsf{nf}_{1,1}, \mathsf{index_{Action}}, \mathsf{index_{Note}}),
+.. math:: \text{ρ} := \mathsf{DeriveIssuedRho}(\mathsf{nf}_{0,0}, \mathsf{index_{Action}}, \mathsf{index_{Note}}),
 
-where $\mathsf{nf}_{1,1}$ is the nullifier of the first Note in the first Action of the OrchardZSA Bundle of the transaction, $\mathsf{index_{Action}}$ is the index of the Issuance Action in the Issuance Bundle, and $\mathsf{index_{Note}}$ is the index of the Issue Note in the Issuance Action.
+where $\mathsf{nf}_{0,0}$ is the nullifier of the first Note in the first Action in the first Action Group of the OrchardZSA Bundle of the transaction, $\mathsf{index_{Action}}$ is the zero-based index of the Issuance Action in the Issuance Bundle, and $\mathsf{index_{Note}}$ is the zero-based index of the Issue Note in the Issuance Action.
 
+**NOTE:** This implicitly requires that there always is an Action Group in the OrchardZSA bundle of the transaction.
+This is enforced by the sixth consensus rule in the `Specification: Consensus Rule Changes`_ section.
 
 Issuance Protocol
 -----------------
@@ -333,7 +332,7 @@ For the ``IssueBundle``:
 - sign the SIGHASH transaction hash with the issuance authorizing key, $\mathsf{isk}$, using the $\mathsf{IssueAuthSig}$ signature scheme. The signature is then added to the issuance bundle.
 
 
-**Note:** that the commitment is not included in the ``IssuanceAction`` itself. As explained below, it is computed later by the validators and added to the note commitment tree.
+**Note:** The note commitment is not included in the ``IssuanceAction`` itself. As explained below, it is computed later by the validators and added to the note commitment tree.
 
 Specification: Reference Notes and Global Issuance State
 ========================================================
@@ -377,7 +376,7 @@ Management of the Global Issuance State
 The issuance state, that is, the $\mathsf{issued\_assets}$ map, MUST be updated by a node during the processing of any transaction that contains burn information, or an issuance bundle.
 The issuance state is chained as follows:
 
-- The issuance state for the first block post the activation of the OrchardZSA protocol is the empty map.
+- The input issuance state for the activation block of the OrchardZSA protocol is the empty map.
 - The input issuance state for the first transaction of a block is the final issuance state of the immediately preceding block.
 - The input issuance state of each subsequent transaction in the block is the output issuance state of the immediately preceding transaction.
 - The final issuance state of a block is the output issuance state of the last transaction in the block. 
@@ -391,16 +390,16 @@ Specification: Consensus Rule Changes
 
 For every transaction:
 
+- The ``nActionGroupsOrchard`` field MUST have a value of either ``0`` or ``1`` and the ``nAGExpiryHeight`` field MUST have a value of ``0``.
 - The output issuance state of the transaction MUST be initialized to be the same as the input issuance state, $\mathsf{issued\_assets}_{\mathsf{OUT}} = \mathsf{issued\_assets}_{\mathsf{IN}}$.
 - The $\mathsf{assetBurn}$ set MUST satisfy the consensus rules specified in ZIP 226 [#zip-0226-assetburn]_.
 - It MUST be the case that for all $(\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{assetBurn}$, $\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\mathsf{balance} \geq \mathsf{v}$. The node then MUST update $\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase})$ prior to processing the issuance bundle in the following manner. For every $(\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{AssetBurn}$, $\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\mathsf{balance} = \mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\mathsf{balance} - \mathsf{v}$.
 - Let $\mathsf{SigHash}$ be the SIGHASH transaction hash of this transaction, as defined in §4.10 of the protocol specification [#protocol-sighash]_ with the modifications described in ZIP 226 [#zip-0226-txiddigest]_, using $\mathsf{SIGHASH\_ALL}$.
-- If the transaction contains an Issuance Bundle, it MUST also contain at least one OrchardZSA Action.
+- If the transaction contains an Issuance Bundle, it MUST also contain at least one OrchardZSA Action Group.
 - The issuance authorization signature, $\mathsf{issueAuthSig}$, MUST be a valid $\mathsf{IssueAuthSig}$ signature over $\mathsf{SigHash}$, i.e. $\mathsf{IssueAuthSig}.\!\mathsf{Validate}(\mathsf{ik}, \mathsf{SigHash}, \mathsf{issueAuthSig}) = 1$. 
 - For every issuance action description ($\mathsf{IssueAction}_\mathsf{i},\ 1 \leq i \leq \mathtt{nIssueActions}$) in the issuance bundle:
 
   - It MUST be the case that $0 < \mathtt{assetDescSize} \leq 512$.
-  - It MUST be the case that $\mathsf{asset\_desc}$ is a string of length $\mathtt{assetDescSize}$ bytes.
   - Every Issue Note in ``IssueAction`` MUST be a valid encoding of the $\mathsf{Note^{Issue}}$ type, and MUST encode the same $\mathsf{AssetBase}$. 
   - This $\mathsf{AssetBase}$ MUST satisfy the derivation from the issuance validating key and asset description described in the `Specification: Asset Identifier, Asset Digest, and Asset Base`_ section.
   - It MUST be the case that $\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\mathsf{final} \neq 1$.
@@ -416,10 +415,20 @@ For every transaction:
     - It MUST be the case that $\mathsf{issued\_assets}_{\mathsf{OUT}}.\mathsf{balance} + \mathsf{v} \leq \mathsf{MAX\_ISSUE}$, where $\mathsf{v}$ is the value of $\mathsf{note}_{\mathsf{j}}$. The node then MUST update $\mathsf{issued\_assets}_{\mathsf{OUT}}.\mathsf{balance} = \mathsf{issued\_assets}_{\mathsf{OUT}}.\mathsf{balance} + \mathsf{v}$.
     - The node MUST compute the note commitment, $\mathsf{cm}_{\mathsf{i,j}}$, as defined in the Note Structure and Commitment section of ZIP 226 [#zip-0226-notestructure]_.
   - If $\mathsf{finalize} = 1$ within the ``flagsIssuance`` field of ``IssueAction``, the node MUST set $\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\mathsf{final} = 1$.
-- If all the consensus rules are satisfied, the node MUST add the note commitments, $\mathsf{cm}_{\mathsf{i,j}}\ \forall\ \mathsf{i} \in \{1..\mathtt{nIssueActions}\},\ \mathsf{j} \in \{1..\mathtt{nNotes}\}$, to the Merkle tree of note commitments.
-- (Replay Protection) If an issue bundle is present, the fees MUST be greater than zero.
 
+Addition to the Note Commitment Tree
+------------------------------------
 
+If the transaction is added to the block chain, the note commitments of all the OrchardZSA Notes and the Issue Notes in the transaction are added to the note commitment tree of the associated treestate. 
+The order of addition to the tree is as specified below:
+
+- For each Action Group in the OrchardZSA Bundle:
+
+  - For every Action in the Action Group, append the note commitment of every new OrchardZSA note in the Action to the note commitment tree.
+
+- For each Issue Action in the Issue Bundle:
+
+  - For every Issue Note in the Issue Action, append the note commitment of the Issue Note to the note commitment tree.
 
 Rationale
 =========
@@ -443,7 +452,7 @@ Rationale for Global Issuance State
 It is necessary to ensure that the balance of any issued Custom Asset never becomes negative within a shielded pool, along the lines of ZIP 209 [#zip-0209]_. 
 However, unlike for the shielded ZEC pools, there is no individual transaction field that directly corresponds to both the issued and burnt amounts for a given Asset.
 Therefore, we require that all nodes maintain a record of the current amount in circulation for every issued Custom Asset, and update this record based on the issuance and burn transactions processed. 
-This allows for efficient detection of balance violations for any Asset, in which scenario we specify a consensus rule to reject the transaction or block.
+This allows for efficient detection of balance violations for any Asset, in which case we specify a consensus rule to reject the transaction or block.
 
 We limit the total issuance of any Asset to a maximum of $\mathsf{MAX\_ISSUE}$. 
 This is a practical limit that also allows an issuer to issue the complete supply of an Asset in a single transaction.
@@ -772,6 +781,7 @@ References
 .. [#protocol-orchardkeycomponents] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.2.3: Orchard Key Components <protocol/protocol.pdf#orchardkeycomponents>`_
 .. [#protocol-sighash] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.10: SIGHASH Transaction Hashing <protocol/protocol.pdf#sighash>`_
 .. [#protocol-constants] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 5.3: Constants <protocol/protocol.pdf#constants>`_
+.. [#protocol-concreteprfs] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 5.4.2: Pseudo Random Functions <protocol/protocol.pdf#concreteprfs>`_
 .. [#protocol-concretegrouphashpallasandvesta] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 5.4.9.8: Group Hash into Pallas and Vesta <protocol/protocol.pdf#concretegrouphashpallasandvesta>`_
 .. [#protocol-orchardpaymentaddrencoding] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 5.6.4.2: Orchard Raw Payment Addresses <protocol/protocol.pdf#orchardpaymentaddrencoding>`_
 .. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
