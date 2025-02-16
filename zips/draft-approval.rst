@@ -73,15 +73,15 @@ Most of the protocol is kept the same as the Orchard protocol released with NU5,
 Approval Signature
 ------------------
 
-Given the Orchard address of the recipient of the output note of an Orchard Action (in the form: $d | pk_d$, see [#protocol-raw-address]_), and given that $g_d$ is a Pallas curve point, derived from $d$ (see [#protocol-diversify-hash]_) - the approval signature derivation goes as follows:
+Let $(\mathsf{d}, \mathsf{pk_d})$ be the Orchard shielded payment address of the recipient of the output note of an Orchard Action [#protocol-raw-address]_. Let $\mathsf{g_d}$ be derived from the diversifier $\mathsf{d}$ as in §5.4.1.6 of the protocol specification [#protocol-diversify-hash]_. The approval signature is derived as follows:
 
-1. The sender sends the $OrchardActionDescription$ (the preimage of the message to be signed, as per [#protocol-actions]_) for the recipient to sign.
+1. The sender sends the $\mathtt{OrchardActionDescription}$ (the preimage of the message to be signed, as per [#protocol-actions]_) for the recipient to sign.
 2. The recipient executes the following steps:
-    - $m \gets H(OrchardActionDescription)$
-    - $r \overset{R}{\leftarrow} \mathbb{Z}_{r_{\mathbb{P}}}$, where $\mathbb{Z}_{r_{\mathbb{P}}}$ is the scalar field of Pallas [#protocol-pallas-vesta]_, and where $\overset{R}{\leftarrow}$ denotes a variable assignment uniformly at random from a given set.
+    - $m \gets H(\mathtt{OrchardActionDescription})$
+    - $r \overset{R}{\leftarrow} \mathbb{Z}_{r_{\mathbb{P}}}$, where $\mathbb{Z}_{r_{\mathbb{P}}}$ is the scalar field of Pallas [#protocol-pallas-vesta]_, and where $\overset{R}{\leftarrow}$ denotes a variable assignment uniformly at random from a given set [#protocol-notation]_.
     - $u \gets [r] \mathsf{g_d}$
-    - $C \gets H(g_d, pk_d, u, m) \mod r_{\mathbb{P}}$, an element of Pallas' scalar field, and where $H$ is a secure hash function (e.g. SHA256 or Blake2)
-    - $s \gets r + C \cdot ivk \mod r_{\mathbb{P}}$, an element of Pallas' scalar field
+    - $C \gets H(g_d || pk_d || u || m) \mod r_{\mathbb{P}}$, an element of Pallas' scalar field, and where $H$ is a secure hash function (e.g. SHA256 or Blake2)
+    - $s \gets r + C \cdot \mathsf{ivk} \mod r_{\mathbb{P}}$, an element of Pallas' scalar field
     - $\sigma_{approval} \gets (u, s)$
 
 , and sends $\sigma_{approval}$ to the sender (off-chain).
@@ -118,7 +118,7 @@ The following steps are added to the Orchard Action statement:
 Instance:
 
 - $\sigma_{approval}$
-- $OrchardActionDescription$
+- $\mathtt{OrchardActionDescription}$
 
 Witness:
 
@@ -127,7 +127,7 @@ Witness:
 
 Circuit:
 
-- $C’ \gets H(g_d, pk_d, \sigma_{approval}.u, H(OrchardActionDescription))$
+- $C’ \gets H(g_d || pk_d || \sigma_{approval}.u || H(\mathtt{OrchardActionDescription}))$
 - $LHS \gets [\sigma_{approval}.s]g_d$
 - $RHS \gets \sigma_{approval}.u + [C']pk_d$
 - $LHS - RHS = 0$
@@ -144,7 +144,7 @@ Indeed, both $g_d$ and $pk_d$ of the recipient are needed by the Zcash validator
 
 In this case, the Zcash miners could verify the recipient's approval by doing (for each Action in the transaction):
 
-1. $C’ \gets H(g_d, pk_d, \sigma_{approval}.u, H(OrchardActionDescription))$
+1. $C’ \gets H(g_d, pk_d, \sigma_{approval}.u, H(\mathtt{OrchardActionDescription}))$
 2. $LHS \gets [\sigma_{approval}.sigma]g_d$
 3. $RHS \gets \sigma_{approval}.u + [C']pk_d$
 4. $LHS \stackrel{?}{=} RHS$. If not, reject transaction.
@@ -189,7 +189,7 @@ By empowering recipients to approve (or not) incoming transactions, we also give
 This could be done maliciously to, for instance:
 
 1. Block a payment and deny to have received the "approval request", then accuse the sender to have failed to settle a contractual obligation.
-2. Gain information: By receiving the $OrchardActionDescription$ to approve, recipients gets to see the $nullifier$ of the input note of the Orchard Action before the rest of the network.
+2. Gain information: By receiving the $\mathtt{OrchardActionDescription}$ to approve, recipients gets to see the $nullifier$ of the input note of the Orchard Action before the rest of the network.
 
 References
 ==========
