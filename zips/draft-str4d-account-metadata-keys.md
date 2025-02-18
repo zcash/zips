@@ -31,21 +31,21 @@ received by an account, determine whether those notes are spent, build witnesses
 for spending, recover on-chain memo data, and so on. However, wallets also
 generate significant quantities of off-chain metadata as they are used, such as:
 
-- Local notes about transactions in the wallet.
-- Mappings from Zcash addresses to user-meaningful recipient names.
+- Local annotations about transactions in the wallet.
+- Mappings between Zcash addresses and user-meaningful recipient names.
 - The exchange rate from ZEC to another currency that was used to determine how
   much ZEC to send in a payment.
 
-This metadata is valuable to users, and highly desirable to ensure is backed up.
+This metadata is valuable to users, and highly desirable to ensure to be backed up.
 If the user's device is wiped or lost and the user recovers their wallet from a
 backed-up mnemonic phrase, they will lose all of this metadata if it is not
 stored somewhere.
 
 For other kinds of phone data, it is expected by users that their phone's normal
 backup storage will have saved (most of) their data, such that access to e.g.
-their Apple or Google account will be sufficient for data recovery. However,
-metadata like mappings from Zcash addresses to recipient names can be
-particularly sensitive, meaning that users may not want it to be backed up
+the associated Apple or Google account will be sufficient for data recovery.
+However, metadata such as mappings between Zcash addresses and recipient names can
+be particularly sensitive, meaning that users may not want these to be backed up
 unencrypted in their phone's normal backup storage. Similarly, the inability to
 alter on-chain data means that permanently storing metadata in transaction memo
 fields may also not be an option.
@@ -81,11 +81,11 @@ The tree has the following general structure, specified in more detail below:
   - $m_{\mathsf{metadata}} / TBD' / \mathsf{coinType}' / \mathsf{account}'$ - Account Metadata Key
     - $\ldots / 0'$ - Account-level Inherent Metadata Key
       - $\ldots / \ldots$ - (Reserved for future updates to this ZIP)
-      - $\ldots / \texttt{0x7FFFFFFFF}' \# \texttt{PrivateSubject}$ - Private-use Inherent Metadata Key
+      - $\ldots / \mathtt{0x7FFFFFFFF}' \# \mathsf{PrivateSubject}$ - Private-use Inherent Metadata Key
     - $\ldots / 1'$ - Account-level External Metadata Key
-      - $\ldots / 0' \# \langle FVKTypedItem \rangle$ - Imported UFVK Metadata Key
+      - $\ldots / 0' \# \mathsf{FVKTypedItem}$ - Imported UFVK Metadata Key
         - $\ldots / \ldots$ - (Reserved for future updates to this ZIP)
-        - $\ldots / \texttt{0x7FFFFFFFF}' \# \texttt{PrivateSubject}$ - Private-use External Metadata Key
+        - $\ldots / \mathtt{0x7FFFFFFFF}' \# \mathsf{PrivateSubject}$ - Private-use External Metadata Key
       - $\ldots / \ldots$ - (Reserved for future updates to this ZIP)
     - $\ldots / \ldots$ - (Reserved for future updates to this ZIP)
 
@@ -127,13 +127,13 @@ domain separation between metadata keys is provided by the UFVKs themselves.
 As UFVKs may in general change over time (due to the inclusion of new
 higher-preference FVK items, or removal of older deprecated FVK items), there is
 no guarantee that the exact same set of FVK items will be present at both backup
-creation time and recovery time. Instead, the most-preferred FVK item within a
+creation time and recovery time. Instead, the most preferred FVK item within a
 UFVK is used as the domain separator, and the Imported UFVK Metadata Key is
 derived as:
 
-$\mathsf{CKDreg}(\mathsf{CKDreg}(\mathsf{AccountMetadataKey}, 1, [\,]), 0, \langle FVKTypedItem \rangle)$
+$\mathsf{CKDreg}(\mathsf{CKDreg}(\mathsf{AccountMetadataKey}, 1, [\,]), 0, \mathsf{FVKTypedItem})$
 
-where $\langle FVKTypedItem \rangle$ is the encoding of the most preferred FVK
+where $\mathsf{FVKTypedItem}$ is the encoding of the most preferred FVK
 item within the ZIP 316 raw encoding of a UFVK. [^zip-0316]
 
 Usage of the Imported UFVK Metadata Key trees SHOULD follow ZIP 316 preference
@@ -144,8 +144,8 @@ order: [^zip-0316]
 - For decryption-like usage, each key tree SHOULD be tried in preference order
   until metadata can be recovered. If metadata is recovered via an FVK item that
   is not the most preferred, wallets SHOULD update their metadata backups by
-  re-encrypting the metadata using the key tree corresponding to most preferred
-  FVK item.
+  re-encrypting the metadata using the key tree corresponding to the most
+  preferred FVK item.
 
 ## Standardised metadata protocols
 
@@ -158,18 +158,18 @@ are reserved for future updates to this ZIP. Wallet developers can propose new
 standardised metadata protocols by writing a 2000-series ZIP that specifies the
 protocol as an update to this ZIP.
 
-## Private use metadata keys
+## Private-use metadata keys
 
 In some contexts there is a need for deriving ad-hoc key trees for private use
 by wallets, without ecosystem coordination and without any kind of compatibility
-guarantees. This ZIP reserves child index $\texttt{0x7FFFFFFFF}$ (the maximum
+guarantees. This ZIP reserves child index $\mathtt{0x7FFFFFFFF}$ (the maximum
 valid hardened child index) within its key tree for this purpose.
 
 - Let $K$ be either the Account-level Inherent Metadata Key, or an Imported UFVK
   Metadata Key.
-- Let $\mathsf{PrivateSubject}$ be a globally-unique non-empty sequence of at
-  most 252 bytes that identifies the desired private use context.
-- Return $\mathsf{CKDreg}(K, \texttt{0x7FFFFFFFF}, \mathsf{PrivateSubject})$
+- Let $\mathsf{PrivateSubject}$ be a globally unique non-empty sequence of at
+  most 252 bytes that identifies the desired private-use context.
+- Return $\mathsf{CKDreg}(K, \mathtt{0x7FFFFFFFF}, \mathsf{PrivateSubject})$
 
 :::warning
 It is the responsibility of wallet developers to ensure that they do not use
