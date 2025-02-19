@@ -145,7 +145,7 @@ indicate hardened derivation ($\!i' = i + 2^{31}$) as in BIP 44 [#bip-0044]_:
 - $\mathsf{CKDfvk}(\mathsf{CKDfvk}(\mathsf{CKDfvk}(m_\mathsf{Sapling}, a), b), c)$ is written as $m_\mathsf{Sapling} / a / b / c$.
 
 Note: no corresponding notation is currently defined for the result of
-`Hardened-only child key derivation`_ with a non-empty tag and/or $\mathsf{full\_width\_flag}$ set to true.
+`Hardened-only child key derivation`_ with non-zero $\mathsf{lead}$ and/or non-empty $\mathsf{tag}$.
 
 
 Specification: Sapling key derivation
@@ -406,24 +406,20 @@ Hardened-only child key derivation
 ----------------------------------
 
 As well as the integer child index $i$, the child key derivation function defined here supports a
-byte sequence $\mathsf{tag}$ and a $\mathsf{full\_width\_leaf}$ flag (representing a boolean value
-where $0$ means false and $1$ means true). Each triple $(i, \mathsf{tag}, \mathsf{full\_width\_leaf})$
-produces an independent output.
+lead byte $\mathsf{lead}$ (used for domain separation) and byte sequence $\mathsf{tag}$. Each triple
+$(i, \mathsf{lead}, \mathsf{tag})$ produces an independent output.
 
-Non-empty $\mathsf{tag}$ inputs are reserved for use in `Registered key derivation <#specification-registered-key-derivation>`_.
-For all other uses currently defined, $\mathsf{tag}$ MUST be $[\,]$.
-
-The case $\mathsf{full\_width\_leaf} = 1$ is reserved for use in
-`Full-width child cryptovalue derivation`_ (to ensure domain separation of the full-width derivation
-from other cases). For all other uses currently defined, $\mathsf{full\_width\_leaf}$ MUST be $0$.
-
-$\mathsf{CKDh}^\mathsf{Context}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i, \mathsf{tag}, \mathsf{full\_width\_leaf})$ $\rightarrow (\mathsf{sk}_{child}, \mathsf{c}_{child})$ :
+$\mathsf{CKDh}^\mathsf{Context}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i, \mathsf{lead}, \mathsf{tag})$ $\rightarrow (\mathsf{sk}_{child}, \mathsf{c}_{child})$ :
 
 - If $i < 2^{31}$ (non-hardened child index): return failure.
-- Let $\mathsf{leaf} = \begin{cases} \,[\,],&\!\!\textsf{if } \mathsf{tag} = [\,] \textsf{ and } \mathsf{full\_width\_leaf} = 0 \\ \,[\mathsf{full\_width\_leaf}],&\!\!\textsf{otherwise.}\end{cases}$
-- Let $I = \mathsf{PRF^{expand}}(\mathsf{c}_{par}, [\mathsf{Context.CKDDomain}]\,||\,\mathsf{sk}_{par}\,||\,\mathsf{I2LEOSP}_{32}(i)\,||\,\mathsf{leaf}\,||\,\mathsf{tag})$.
+- Let $\mathsf{lead\_enc} = \begin{cases} \,[\,],&\!\!\textsf{if } \mathsf{lead} = 0 \textsf{ and } \mathsf{tag} = [\,] \\ \,[\mathsf{lead}],&\!\!\textsf{otherwise.}\end{cases}$
+- Let $I = \mathsf{PRF^{expand}}(\mathsf{c}_{par}, [\mathsf{Context.CKDDomain}]\,||\,\mathsf{sk}_{par}\,||\,\mathsf{I2LEOSP}_{32}(i)\,||\,\mathsf{lead\_enc}\,||\,\mathsf{tag})$.
 - Split $I$ into two 32-byte sequences, $I_L$ and $I_R$.
 - Return $(I_L, I_R)$.
+
+Note that in the input to $\mathsf{PRF^{expand}}$, the case $\mathsf{lead} = 0$ and $\mathsf{tag} = [\,]$
+is encoded in a way compatible with the definition of $\mathsf{CKDh}$ in previous versions of this
+specification (before $\mathsf{lead}$ and $\mathsf{tag}$ were added).
 
 
 Specification: Orchard key derivation
@@ -454,7 +450,7 @@ Orchard child key derivation
 
 $\mathsf{CKDsk}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i)$ $\rightarrow (\mathsf{sk}_{i}, \mathsf{c}_i)$ :
 
-- Return $\mathsf{CKDh}^\mathsf{Orchard}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i, [\,], 0)$
+- Return $\mathsf{CKDh}^\mathsf{Orchard}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i, 0, [\,])$
 
 Note that the resulting child spending key may produce an invalid external FVK, as specified
 in [#protocol-orchardkeycomponents]_, with small probability. The corresponding internal FVK
@@ -563,7 +559,7 @@ The registered subtree root is obtained as:
 $\mathsf{RegKD}(\mathsf{ContextString}, \mathsf{S}, \mathsf{ZipNumber})$ $\rightarrow (\mathsf{sk}_{subtree}, \mathsf{c}_{subtree})$ :
 
 - Let $(\mathsf{sk}_{m}, \mathsf{c}_{m}) = \mathsf{MKGh}^\mathsf{Registered}([\mathsf{length}(\mathsf{ContextString})]\,||\,\mathsf{ContextString}\,||\,[\mathsf{length}(S)]\,||\,S)$.
-- Return $\mathsf{CKDh}^\mathsf{Registered}((\mathsf{sk}_{m}, \mathsf{c}_{m}), \mathsf{ZipNumber} + 2^{31}, [\,], 0)$.
+- Return $\mathsf{CKDh}^\mathsf{Registered}((\mathsf{sk}_{m}, \mathsf{c}_{m}), \mathsf{ZipNumber} + 2^{31}, 0, [\,])$.
 
 Note: The intermediate key $(\mathsf{sk}_{m}, \mathsf{c}_{m})$ would grant the ability to derive the
 subtree root for application protocols defined in *any* ZIP using the same $\mathsf{ContextString}$
@@ -584,7 +580,7 @@ encoded.
 
 $\mathsf{CKDreg}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i, \mathsf{tag})$ $\rightarrow (\mathsf{sk}_{child}, \mathsf{c}_{child})$ :
 
-- Return $\mathsf{CKDh}^\mathsf{Registered}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i, \mathsf{tag}, 0)$.
+- Return $\mathsf{CKDh}^\mathsf{Registered}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i, 0, \mathsf{tag})$.
 
 Full-width child cryptovalue derivation
 ---------------------------------------
@@ -596,7 +592,7 @@ The same considerations about encoding of the $\mathsf{tag}$ apply as above.
 
 $\mathsf{derive\_child\_cryptovalue}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i, \mathsf{tag})$ $\rightarrow \mathsf{K}_{child}$ :
 
-- Let $(I_L, I_R) = \mathsf{CKDh}^\mathsf{Registered}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i, \mathsf{tag}, 1)$.
+- Let $(I_L, I_R) = \mathsf{CKDh}^\mathsf{Registered}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i, 1, \mathsf{tag})$.
 - Return $I_L\,||\,I_R$.
 
 For the avoidance of doubt, the output of $\mathsf{derive\_child\_cryptovalue}$
@@ -639,7 +635,7 @@ Ad-hoc child key derivation (deprecated)
 
 $\mathsf{CKDarb}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i)$ $\rightarrow (\mathsf{sk}_i, \mathsf{c}_i)$ :
 
-- Return $\mathsf{CKDh}^\mathsf{Adhoc}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i, [\,], 0)$.
+- Return $\mathsf{CKDh}^\mathsf{Adhoc}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i, 0, [\,])$.
 
 Note: a previous iteration of this ZIP suggested that, if $i$ is the last element of an HD path
 (i.e. no extension of this path is used), then the concatenation $\mathsf{sk}_i\,||\,\mathsf{c}_i$
