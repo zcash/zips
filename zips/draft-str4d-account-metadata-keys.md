@@ -81,11 +81,11 @@ The tree has the following general structure, specified in more detail below:
   - $m_{\mathsf{metadata}} / TBD' / \mathsf{coinType}' / \mathsf{account}'$ - Account Metadata Key
     - $\ldots / 0'$ - Account-level Inherent Metadata Key
       - $\ldots / \ldots$ - (Reserved for future updates to this ZIP)
-      - $\ldots / \mathtt{0x7FFFFFFFF}' \# \mathsf{PrivateSubject}$ - Private-use Inherent Metadata Key
+      - $\ldots / (\mathtt{0x7FFFFFFFF}', \mathsf{PrivateUseSubject})$ - Private-use Inherent Metadata Key
     - $\ldots / 1'$ - Account-level External Metadata Key
-      - $\ldots / 0' \# \mathsf{FVKTypedItem}$ - Imported UFVK Metadata Key
+      - $\ldots / (0', \mathsf{FVKTypedItem})$ - Imported UFVK Metadata Key
         - $\ldots / \ldots$ - (Reserved for future updates to this ZIP)
-        - $\ldots / \mathtt{0x7FFFFFFFF}' \# \mathsf{PrivateSubject}$ - Private-use External Metadata Key
+        - $\ldots / (\mathtt{0x7FFFFFFFF}', \mathsf{PrivateUseSubject})$ - Private-use External Metadata Key
       - $\ldots / \ldots$ - (Reserved for future updates to this ZIP)
     - $\ldots / \ldots$ - (Reserved for future updates to this ZIP)
 
@@ -167,15 +167,15 @@ valid hardened child index) within its key tree for this purpose.
 
 - Let $K$ be either the Account-level Inherent Metadata Key, or an Imported UFVK
   Metadata Key.
-- Let $\mathsf{PrivateSubject}$ be a globally unique non-empty sequence of at
+- Let $\mathsf{PrivateUseSubject}$ be a globally unique non-empty sequence of at
   most 252 bytes that identifies the desired private-use context.
-- Return $\mathsf{CKDreg}(K, \mathtt{0x7FFFFFFFF}, \mathsf{PrivateSubject})$
+- Return $\mathsf{CKDreg}(K, \mathtt{0x7FFFFFFFF}, \mathsf{PrivateUseSubject})$
 
 :::warning
 It is the responsibility of wallet developers to ensure that they do not use
-colliding $\mathsf{PrivateSubject}$ values, and to analyse their private use for
+colliding $\mathsf{PrivateUseSubject}$ values, and to analyse their private use for
 any security risks related to potential cross-protocol attacks (in the event that
-two wallet developers happen to select a colliding $\mathsf{PrivateSubject}$).
+two wallet developers happen to select a colliding $\mathsf{PrivateUseSubject}$).
 Wallet developers that are unwilling to accept these risks SHOULD propose new
 standardised metadata protocols instead, to benefit from ecosystem coordination
 and review.
