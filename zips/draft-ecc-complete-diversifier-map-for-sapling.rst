@@ -25,6 +25,19 @@ The terms "Mainnet" and "Testnet" are to be interpreted as described in
 
 "Jubjub" refers to the elliptic curve defined in § 5.4.9.3 ‘Jubjub’ [#protocol-jubjub]_.
 
+A "Newly Allowed Sapling payment address" is a Sapling payment address that would have
+been invalid prior to the activation of this proposal; that is, it has a diversifier
+$\mathsf{d}$ for which $\mathsf{DiversifyHash^{Sapling}}(d) = \bot$.
+
+A "Newly Allowed Unified Address" is a Unified Address [#zip-0316]_ that contains a
+Sapling Receiver corresponding to a Newly Allowed Sapling payment address.
+
+A "Newly Allowed Address" is either a Newly Allowed Sapling payment address or a
+Newly Allowed Unified Address.
+
+Conversely, a "Previously Allowed Address" is an address that would have been valid
+prior to the activation of this proposal.
+
 
 Abstract
 ========
@@ -53,6 +66,8 @@ Requirements
   remain valid.
 * The algorithm to decrypt a note ciphertext must be well specified for transactions
   at any block height.
+* The compatibility consequences of the proposal must be comprehensively assessed and
+  clearly documented.
 
 
 Specification
@@ -80,10 +95,10 @@ The name of this primitive follows the convention established by section 8.10 of
 parameters of the algorithm, which are specified below.
 
 Jubjub is a complete Twisted Edwards curve ([#protocol-jubjub]_ and section 4.3.4 of [#BL2017]_).
-In that respect it is similar mathematically to the Edwards25519 curve; in particular it is
-birationally equivalent to a particular Montgomery curve [#protocol-ecbackground]_. RFC 9380
-already defines a parameter suite for Edwards25519 [#RFC-9380-suites-for-curve25519-and-e]_, and
-we specify $\texttt{jubjub\_XMD:BLAKE2b\_ELL2\_RO\_}$ following the same pattern for Jubjub.
+In that respect it is similar mathematically to the widely deployed Edwards25519 curve; in
+particular it is birationally equivalent to a particular Montgomery curve [#protocol-ecbackground]_.
+RFC 9380 already defines a parameter suite for Edwards25519 [#RFC-9380-suites-for-curve25519-and-e]_,
+and we specify $\texttt{jubjub\_XMD:BLAKE2b\_ELL2\_RO\_}$ following the same pattern for Jubjub.
 
 The result of the encoding is obtained by adding (as curve points) the results of two maps to
 the Montgomery curve using the method of section 6.8.2 of RFC 9380 [#RFC-9380-elligator-2-method-2]_
@@ -155,11 +170,67 @@ Modify the definition of $\mathsf{DiversifyHash}$ in ... [#protocol-concretedive
 Note Encryption
 ---------------
 
+In [#protocol-saplingandorchardinband]_, TBD
+
+    let DiversifyHash be DiversifyHashSapling in section 5.4.1.6 ‘DiversifyHashSapling and DiversifyHashOrchard Hash Functions’
+
+on page 76, or DiversifyHashOrchard in the same section.
+
 Modify the uses of $\mathsf{DiversifyHash^{Sapling}}$ as follows: TBD
 
 
-Deployment
-==========
+Specification: Compatibility and Deployment
+===========================================
+
+The deployment of this proposal raises compatibility issues that will require coordination
+and interoperability testing between wallet implementors. These issues arise from the fact
+that Newly Allowed Addresses will only work for receiving funds in wallets that have upgraded
+their note decryption procedure to support them.
+
+We believe that these issues will be tractable for the following reason: under the assumption
+that a wallet implementation only exposes Newly Allowed Addresses *after* it has upgraded
+its note decryption procedure (as required by this specification), then it will always be
+able to receive funds on those addresses.
+
+There are a couple of caveats to the above observation:
+
+* If a seed is shared between wallets, or if it is restored from one wallet implementation
+  to another, the above argument may not hold. Sharing seeds concurrently between wallets
+  is generally not a supported usage model, but the ability to restore a seed from one wallet
+  implementation to another is critical to ensure preservation of funds in the case of data
+  loss or device malfunction, and also helps to avoid user lock-in to a particular wallet
+  implementation. A past version of a wallet counts as a different wallet implementation for
+  this discussion.
+* In the case of a host wallet that relies on a connected hardware wallet to guard spend authority,
+  care must be taken to ensure that both wallet implementations support Newly Allowed Addresses
+  if either exposes them. Otherwise, the implementation that lacks this support could either
+  fail to correctly receive a payment sent to a Newly Allowed Address, or be unable to spend
+  notes from such payments.
+
+Note that, according to the specification of the Sapling shielded protocol prior to activation
+of this proposal, the behaviour of a wallet receiving a decrypted note plaintext with a
+diversifier that it sees as invalid was well defined: it MUST ignore that note plaintext,
+as though it were not intended for the wallet. So the user-visible symptom of the situations
+described above will be that some funds are apparently missing.
+
+These observations apply to scanning using either an incoming viewing key or an outgoing
+viewing key, because both will perform the check for diversifier validity.
+
+In order to mitigate these issues we impose the following requirements:
+
+* If a wallet implementation cannot reliably determine that the Sapling outputs of transactions
+  mined since the activation height of this proposal have been scanned by an implementation
+  that would correctly receive payments on Newly Allowed Addresses —possibly including past
+  iterations of the same wallet from which state has been preserved— it MUST rescan them.
+* If a host wallet and hardware wallet are connected, each SHOULD verify that the other fully
+  supports Newly Allowed Addresses before exposing any such address.
+
+After activation of this proposal, a wallet implementation MAY continue to expose only
+Previously Allowed Addresses. We nevertheless suggest that wallet implementors consider the
+simplicity advantages of generating addresses at contiguous ZIP 32 indices.
+
+Activation height
+-----------------
 
 Let $\mathsf{ZipXXXActivationHeight}$ be the activation height of this ZIP. This is the first block
 height at which it is valid for transactions in that block to contain Sapling Output descriptions
@@ -222,6 +293,7 @@ References
 .. [#protocol-saplingkeycomponents] `Zcash Protocol Specification, Version 2024.6.0. Section 4.2.2: Sapling Key Components <protocol/protocol.pdf#saplingkeycomponents>`_
 .. [#protocol-concretereddsa] `Zcash Protocol Specification, Version 2024.6.0. Section 5.4.7: RedDSA, RedJubjub, and RedPallas <protocol/protocol.pdf#concretereddsa>`_
 .. [#protocol-jubjub] `Zcash Protocol Specification, Version 2024.6.0. Section 5.4.9.3: Jubjub <protocol/protocol.pdf#jubjub>`_
+.. [#protocol-saplingandorchardinband] `Zcash Protocol Specification, Version 2024.6.0. Section 4.20: In-band secret distribution (Sapling and Orchard) <protocol/protocol.pdf#saplingandorchardinband>`_
 .. [#protocol-ecbackground] `Zcash Protocol Specification, Version 2024.6.0. Appendix A.2: Elliptic curve background <protocol/protocol.pdf#ecbackground>`_
 .. [#protocol-cctconversion] `Zcash Protocol Specification, Version 2024.6.0. Appendix A.3.3.3: ctEdwards ↔ Montgomery conversion <protocol/protocol.pdf#cctconversion>`_
 .. [#RFC-9380] `RFC 9380: Hashing to Elliptic Curves <https://www.rfc-editor.org/rfc/rfc9380.html#elligator2>`_
@@ -234,6 +306,7 @@ References
 .. [#RFC-9380-finding-z-for-elligator-2] `RFC 9380: Hashing to Elliptic Curves. Appendix H.3: Finding Z for Elligator 2 <https://www.rfc-editor.org/rfc/rfc9380.html#name-finding-z-for-elligator-2>`_
 .. [#RFC-9380-appendix-j] `RFC 9380: Hashing to Elliptic Curves. Appendix J: Suite Test Vectors <https://www.rfc-editor.org/rfc/rfc9380.html#appendix-J>`_
 .. [#zip-0032] `ZIP 32: Shielded Hierarchical Deterministic Wallets <zip-0032.rst>`_
+.. [#zip-0316] `ZIP 316: Unified Addresses and Unified Viewing Keys <zip-0316.rst>`_
 .. [#BHKL13] `Daniel Bernstein, Mike Hamburg, Anna Krasnova, and Tanje Lange. "Elligator: elliptic-curve points indistinguishable from uniform random strings." DOI:10.1145/2508859.2516734 <https://doi.org/10.1145/2508859.2516734>`_ 
 .. [#BL2017] `Daniel Bernstein and Tanja Lange. "Montgomery curves and the Montgomery ladder." Cryptology ePrint Archive: Report 2017/293 <https://eprint.iacr.org/2017/293>`_
 .. [#Hopwood2022] `Daira Hopwood. "Understanding the Security of Zcash." Slide 41: Cryptographic strength <https://raw.githubusercontent.com/daira/zcash-security/main/zcash-security.pdf>`_
