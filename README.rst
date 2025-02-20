@@ -115,16 +115,16 @@ Released ZIPs
     <tr> <td>252</td> <td class="left"><a href="zips/zip-0252.rst">Deployment of the NU5 Network Upgrade</a></td> <td>Final</td>
     <tr> <td>253</td> <td class="left"><a href="zips/zip-0253.md">Deployment of the NU6 Network Upgrade</a></td> <td>Final</td>
     <tr> <td>300</td> <td class="left"><a href="zips/zip-0300.rst">Cross-chain Atomic Transactions</a></td> <td>Proposed</td>
-    <tr> <td>301</td> <td class="left"><a href="zips/zip-0301.rst">Zcash Stratum Protocol</a></td> <td>Final</td>
-    <tr> <td>308</td> <td class="left"><a href="zips/zip-0308.rst">Sprout to Sapling Migration</a></td> <td>Final</td>
-    <tr> <td>316</td> <td class="left"><a href="zips/zip-0316.rst">Unified Addresses and Unified Viewing Keys</a></td> <td>[Revision 0] Final, [Revision 1] Proposed</td>
+    <tr> <td>301</td> <td class="left"><a href="zips/zip-0301.rst">Zcash Stratum Protocol</a></td> <td>Active</td>
+    <tr> <td>308</td> <td class="left"><a href="zips/zip-0308.rst">Sprout to Sapling Migration</a></td> <td>Active</td>
+    <tr> <td>316</td> <td class="left"><a href="zips/zip-0316.rst">Unified Addresses and Unified Viewing Keys</a></td> <td>[Revision 0] Active, [Revision 1] Proposed</td>
     <tr> <td>317</td> <td class="left"><a href="zips/zip-0317.rst">Proportional Transfer Fee Mechanism</a></td> <td>Active</td>
-    <tr> <td>320</td> <td class="left"><a href="zips/zip-0320.rst">Defining an Address Type to which funds can only be sent from Transparent Addresses</a></td> <td>Proposed</td>
-    <tr> <td>321</td> <td class="left"><a href="zips/zip-0321.rst">Payment Request URIs</a></td> <td>Proposed</td>
+    <tr> <td>320</td> <td class="left"><a href="zips/zip-0320.rst">Defining an Address Type to which funds can only be sent from Transparent Addresses</a></td> <td>Active</td>
+    <tr> <td>321</td> <td class="left"><a href="zips/zip-0321.rst">Payment Request URIs</a></td> <td>Active</td>
     <tr> <td>401</td> <td class="left"><a href="zips/zip-0401.rst">Addressing Mempool Denial-of-Service</a></td> <td>Active</td>
     <tr> <td>1014</td> <td class="left"><a href="zips/zip-1014.rst">Establishing a Dev Fund for ECC, ZF, and Major Grants</a></td> <td>Active</td>
     <tr> <td>1015</td> <td class="left"><a href="zips/zip-1015.rst">Block Subsidy Allocation for Non-Direct Development Funding</a></td> <td>Final</td>
-    <tr> <td>2001</td> <td class="left"><a href="zips/zip-2001.rst">Lockbox Funding Streams</a></td> <td>Implemented (zcashd and zebrad)</td>
+    <tr> <td>2001</td> <td class="left"><a href="zips/zip-2001.rst">Lockbox Funding Streams</a></td> <td>Final</td>
   </table></embed>
 
 Draft ZIPs
@@ -297,14 +297,14 @@ Index of ZIPs
     <tr> <td>253</td> <td class="left"><a href="zips/zip-0253.md">Deployment of the NU6 Network Upgrade</a></td> <td>Final</td>
     <tr> <td>254</td> <td class="left"><a href="zips/zip-0254.md">Deployment of the NU7 Network Upgrade</a></td> <td>Draft</td>
     <tr> <td>300</td> <td class="left"><a href="zips/zip-0300.rst">Cross-chain Atomic Transactions</a></td> <td>Proposed</td>
-    <tr> <td>301</td> <td class="left"><a href="zips/zip-0301.rst">Zcash Stratum Protocol</a></td> <td>Final</td>
+    <tr> <td>301</td> <td class="left"><a href="zips/zip-0301.rst">Zcash Stratum Protocol</a></td> <td>Active</td>
     <tr> <td>302</td> <td class="left"><a href="zips/zip-0302.rst">Standardized Memo Field Format</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">303</span></td> <td class="left"><a class="reserved" href="zips/zip-0303.rst">Sprout Payment Disclosure</a></td> <td>Reserved</td>
     <tr> <td>304</td> <td class="left"><a href="zips/zip-0304.rst">Sapling Address Signatures</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">305</span></td> <td class="left"><a class="reserved" href="zips/zip-0305.rst">Best Practices for Hardware Wallets supporting Sapling</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">306</span></td> <td class="left"><a class="reserved" href="zips/zip-0306.rst">Security Considerations for Anchor Selection</a></td> <td>Reserved</td>
     <tr> <td>307</td> <td class="left"><a href="zips/zip-0307.rst">Light Client Protocol for Payment Detection</a></td> <td>Draft</td>
-    <tr> <td>308</td> <td class="left"><a href="zips/zip-0308.rst">Sprout to Sapling Migration</a></td> <td>Final</td>
+    <tr> <td>308</td> <td class="left"><a href="zips/zip-0308.rst">Sprout to Sapling Migration</a></td> <td>Active</td>
     <tr> <td><span class="reserved">309</span></td> <td class="left"><a class="reserved" href="zips/zip-0309.rst">Blind Off-chain Lightweight Transactions (BOLT)</a></td> <td>Reserved</td>
     <tr> <td>310</td> <td class="left"><a href="zips/zip-0310.rst">Security Properties of Sapling Viewing Keys</a></td> <td>Draft</td>
     <tr> <td>311</td> <td class="left"><a href="zips/zip-0311.rst">Zcash Payment Disclosures</a></td> <td>Draft</td>
@@ -312,12 +312,12 @@ Index of ZIPs
     <tr> <td><strike>313</strike></td> <td class="left"><strike><a href="zips/zip-0313.rst">Reduce Conventional Transaction Fee to 1000 zatoshis</a></strike></td> <td>Obsolete</td>
     <tr> <td><span class="reserved">314</span></td> <td class="left"><a class="reserved" href="zips/zip-0314.rst">Privacy upgrades to the Zcash light client protocol</a></td> <td>Reserved</td>
     <tr> <td>315</td> <td class="left"><a href="zips/zip-0315.rst">Best Practices for Wallet Implementations</a></td> <td>Draft</td>
-    <tr> <td>316</td> <td class="left"><a href="zips/zip-0316.rst">Unified Addresses and Unified Viewing Keys</a></td> <td>[Revision 0] Final, [Revision 1] Proposed</td>
+    <tr> <td>316</td> <td class="left"><a href="zips/zip-0316.rst">Unified Addresses and Unified Viewing Keys</a></td> <td>[Revision 0] Active, [Revision 1] Proposed</td>
     <tr> <td>317</td> <td class="left"><a href="zips/zip-0317.rst">Proportional Transfer Fee Mechanism</a></td> <td>Active</td>
     <tr> <td><span class="reserved">318</span></td> <td class="left"><a class="reserved" href="zips/zip-0318.rst">Associated Payload Encryption</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">319</span></td> <td class="left"><a class="reserved" href="zips/zip-0319.rst">Options for Shielded Pool Retirement</a></td> <td>Reserved</td>
-    <tr> <td>320</td> <td class="left"><a href="zips/zip-0320.rst">Defining an Address Type to which funds can only be sent from Transparent Addresses</a></td> <td>Proposed</td>
-    <tr> <td>321</td> <td class="left"><a href="zips/zip-0321.rst">Payment Request URIs</a></td> <td>Proposed</td>
+    <tr> <td>320</td> <td class="left"><a href="zips/zip-0320.rst">Defining an Address Type to which funds can only be sent from Transparent Addresses</a></td> <td>Active</td>
+    <tr> <td>321</td> <td class="left"><a href="zips/zip-0321.rst">Payment Request URIs</a></td> <td>Active</td>
     <tr> <td><span class="reserved">322</span></td> <td class="left"><a class="reserved" href="zips/zip-0322.rst">Generic Signed Message Format</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">323</span></td> <td class="left"><a class="reserved" href="zips/zip-0323.rst">Specification of getblocktemplate for Zcash</a></td> <td>Reserved</td>
     <tr> <td>324</td> <td class="left"><a href="zips/zip-0324.rst">URI-Encapsulated Payments</a></td> <td>Draft</td>
@@ -343,7 +343,7 @@ Index of ZIPs
     <tr> <td><strike>1013</strike></td> <td class="left"><strike><a href="zips/zip-1013.rst">Keep It Simple, Zcashers: 10% to ECC, 10% to ZF</a></strike></td> <td>Obsolete</td>
     <tr> <td>1014</td> <td class="left"><a href="zips/zip-1014.rst">Establishing a Dev Fund for ECC, ZF, and Major Grants</a></td> <td>Active</td>
     <tr> <td>1015</td> <td class="left"><a href="zips/zip-1015.rst">Block Subsidy Allocation for Non-Direct Development Funding</a></td> <td>Final</td>
-    <tr> <td>2001</td> <td class="left"><a href="zips/zip-2001.rst">Lockbox Funding Streams</a></td> <td>Implemented (zcashd and zebrad)</td>
+    <tr> <td>2001</td> <td class="left"><a href="zips/zip-2001.rst">Lockbox Funding Streams</a></td> <td>Final</td>
     <tr> <td>2002</td> <td class="left"><a href="zips/zip-2002.rst">Explicit Fees</a></td> <td>Draft</td>
     <tr> <td>2003</td> <td class="left"><a href="zips/zip-2003.rst">Disallow version 4 transactions</a></td> <td>Draft</td>
     <tr> <td>2004</td> <td class="left"><a href="zips/zip-2004.rst">Remove the dependency of consensus on note encryption</a></td> <td>Draft</td>
