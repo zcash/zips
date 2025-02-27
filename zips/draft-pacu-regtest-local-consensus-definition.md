@@ -17,22 +17,47 @@
 
 ## Terminology 
 
-The key words "MUST", "REQUIRED", "MUST NOT", "SHOULD", and "MAY" in this document are to be interpreted as described in BCP 14 [^BCP14] when, and only when, they appear in all capitals.
+The key words "MUST", "REQUIRED", "MUST NOT", "SHOULD", and "MAY" in this document
+are to be interpreted as described in BCP 14 [^BCP14] when, and only when, they 
+appear in all capitals.
 
-The terms "Mainnet" and "Testnet" in this document are to be interpreted as defined in the Zcash protocol specification [^protocol-networks].
+The terms "Mainnet" and "Testnet" in this document are to be interpreted as defined 
+in the Zcash protocol specification [^protocol-networks].
 
 ## Abstract
-At minimum, Regtest is a testing mode inherited from the Bitcoin node. It is a way to have a consensus node on a local network with a private state that a developer can drive at its will to reproduce certain situations deterministically and  see how the code reacts to them. Regtest, as it was implemented on Zcashd, is similar to a “testnet” but without miners and remote peers.
+At minimum, Regtest is a testing mode inherited from the Bitcoin node. It is a 
+way to have a consensus node on a local network with a private state that a 
+developer can drive at its will to reproduce certain situations deterministically 
+and  see how the code reacts to them. Regtest, as it was implemented on Zcashd, 
+is similar to a “testnet” but without miners and remote peers.
 
 ## Motivation
-It is necessary to define Regtest mode so that different implementations of Zcash Full Nodes provide the same capabilities so that testing infrastructure can be interoperable. Regtest mode was inherited from Bitcoin functionality and never defined in a ZIP due to resource constraints and priorities. Differences between Zebra and Zcashd Regtest implementations found by developers involved in Zcashd deprecation motivated this ZIP as a way to document existing assumptions, expectations and functionalites of Regtest as well as new features that focus specifically on Zcash features. 
+It is necessary to define Regtest mode so that different implementations of Zcash
+Full Nodes provide the same capabilities so that testing infrastructure can be 
+interoperable. Regtest mode was inherited from Bitcoin functionality and never 
+defined in a ZIP due to resource constraints and priorities. Differences between 
+Zebra and Zcashd Regtest implementations found by developers involved in Zcashd 
+deprecation motivated this ZIP as a way to document existing assumptions, 
+expectations and functionalites of Regtest as well as new features that focus 
+specifically on Zcash features. 
 
 
 ## Requirements
-The scope of this ZIP is to define the behavior of a Zcash full-node when set up to run in Regtest mode. It focuses on highlighting and specifying the difference in behavior, values, expectations and assumpions in comparison to Testnet. It uses the Zcash protocol and existing ZIPs as guiding principles for the document structure. It also documents pre-existing and previously *undocumented* requirements, constants and values that are present in the Zcashd 6.1.0 implementation and `zcash_protocol` crate 0.4.3[^zcash_protocol]. This ZIP should be useful for Core Developers working on full node implementations but also a handbook for developers and QA testers to make use and take advantage of Regtest functionality to ensure test coverage of their codebases and a high quality assurance to Zcash users.
+The scope of this ZIP is to define the behavior of a Zcash full-node when set up 
+to run in Regtest mode. It focuses on highlighting and specifying the difference 
+in behavior, values, expectations and assumpions in comparison to Testnet. It 
+uses the Zcash protocol and existing ZIPs as guiding principles for the document 
+structure. It also documents pre-existing and previously *undocumented* requirements, 
+constants and values that are present in the Zcashd 6.1.0 implementation and 
+`zcash_protocol` crate 0.4.3[^zcash_protocol]. This ZIP should be useful for Core 
+Developers working on full node implementations but also a handbook for developers 
+and QA testers to make use and take advantage of Regtest functionality to ensure 
+test coverage of their codebases and a high quality assurance to Zcash users.
 
 ## Non-requirements
-This ZIP does not attempt to address how Regtest should be implemented. Details on full-node architecture, implementation details, software distribution are out of scope of this document.
+This ZIP does not attempt to address how Regtest should be implemented. Details 
+on full-node architecture, implementation details, software distribution are out
+of scope of this document.
 
 ## Specification
 
@@ -40,12 +65,25 @@ This ZIP does not attempt to address how Regtest should be implemented. Details 
 TODO: Gather existing Zcashd and compare them to Zebra parameters.
 
 ### Regtest nodes and Network connections
-Nodes that start on Regtest mode should never connect to any external peers. Localhost connections MUST be enforced. Attempts to  configure a Regtest setup in a way that violate this principle should cause a `FatalError` informing the developer of the problem an pointing to the relevant documentation. 
+Nodes that start on Regtest mode should never connect to any external peers. 
+Localhost connections MUST be enforced. Attempts to  configure a Regtest setup 
+in a way that violate this principle should cause a `FatalError` informing the 
+developer of the problem an pointing to the relevant documentation. 
 
 ### Global Effects on Network Upgrades 
-Regtest mode must allow Network Upgrades to occur at configurable arbitrary block heights in a way that all one of more of them can be activated at once at a given height. Effects from network upgrades activating MUST be guaranteed to occur in the  intended order as it is defined on its **Testnet** or **Mainnet**  implementation. This means that there is a hard requirement that guarantees a chronological order of NU's event so that it is not possible to enable a NU prior to one of its predecessors. Example: a configuration such as `NU1 -> NU3 -> NU2` should raise a critical error and fail the execution of the Regtest environment. The rationale of this is to avoid unfeasible chain states. 
+Regtest mode must allow Network Upgrades to occur at configurable arbitrary 
+block heights in a way that all one of more of them can be activated at once at 
+a given height. Effects from network upgrades activating MUST be guaranteed to 
+occur in the  intended order as it is defined on its **Testnet** or **Mainnet** 
+implementation. This means that there is a hard requirement that guarantees a 
+chronological order of NU's event so that it is not possible to enable a NU prior 
+to one of its predecessors. Example: a configuration such as `NU1 -> NU3 -> NU2` 
+should raise a critical error and fail the execution of the Regtest environment.
+The rationale of this is to avoid unfeasible chain states. 
 
-(TODO: check with Daira-Emma if this is really necessary or whether the ability to do such a mess with activation heights is actually a testing feature and not a bug.)
+(TODO: check with Daira-Emma if this is really necessary or whether the ability 
+to do such a mess with activation heights is actually a testing feature and not 
+a bug.)
 
 ## Effects of Regtest mode by ZIP
 
@@ -95,23 +133,39 @@ Regtest mode must allow Network Upgrades to occur at configurable arbitrary bloc
 
 
 ### Behevior for ZIP-155
-Peer-to-peer communications on Regtest MUST be restricted to localhost nodes. See "Regtest nodes and Network connections"
+Peer-to-peer communications on Regtest MUST be restricted to localhost nodes. 
+See "Regtest nodes and Network connections"
 
 ### Behaviour for ZIP-200 Network Upgrade Mechanism
-Regtest nodes should implement a way to configure parameters such as Network Upgrade activation heights and their respective consensus branch IDs. For convenience these should be defined on this ZIP and to be used in all libraries that enable Regtest testing. Configuration should favor that such values can be altered and/or added if necessary, for example to develop a new Network Upgrade. Regtest client libraries SHOULD accommodate to such flexibility. 
+Regtest nodes should implement a way to configure parameters such as Network 
+Upgrade activation heights and their respective consensus branch IDs. For 
+convenience these should be defined on this ZIP and to be used in all libraries 
+that enable Regtest testing. Configuration should favor that such values can be 
+altered and/or added if necessary, for example to develop a new Network Upgrade.
+Regtest client libraries SHOULD accommodate to such flexibility. 
 
 ### Behavior for ZIP-208 Shorter Block Target Spacing
-In Regtest mode, block generation is dictated by whomever is ordering the node to generate one or more new blocks at will. Difficulty adjustments to enforce a blocktime MAY be ignored if  the node has been set with that intention. Values referred by ZIP-208 such as `BlossomActivationHeight` shall be populated with whatever value the regtest mode was configured with. Regtest allows developers to set their own Network Upgrade activation heights and  references to Blossom activation should be replaced with the value 
-present in the node configuration.
+In Regtest mode, block generation is dictated by whomever is ordering the node 
+o generate one or more new blocks at will. Difficulty adjustments to enforce a 
+blocktime MAY be ignored if  the node has been set with that intention. Values 
+referred by ZIP-208 such as `BlossomActivationHeight` shall be populated with 
+whatever value the regtest mode was configured with. Regtest allows developers 
+to set their own Network Upgrade activation heights and  references to Blossom 
+activation should be replaced with the value present in the node configuration.
 
 ### Behavior for ZIP-301 Zcash Stratum Protocol
-Regtest nodes MUST never expose connections or connect to public networks or other machines on a private network.
-Regtest support of this ZIP MUST ensure that such requirement is enforced and guaranteed, failing when a configuration attempts to violate that premise.
+Regtest nodes MUST never expose connections or connect to public networks or other 
+machines on a private network.
+
+Regtest support of this ZIP MUST ensure that such requirement is enforced and 
+guaranteed, failing when a configuration attempts to violate that premise.
 
 ### Effects on ZIP-316
 
 #### Revision 0
-The HRP for regtest is defined as `uregtest`. Receivers included inside regtest UAs MUST also be regtest variants of their type. The example below shows how a regtest UA
+The HRP for regtest is defined as `uregtest`. Receivers included inside regtest 
+UAs MUST also be regtest variants of their type. The example below shows how a 
+regtest UA
 
 Example: 
 ```
@@ -125,13 +179,24 @@ uregtest1....
 
 #### Revision 1
 From [Address Expiration Metadata](https://github.com/zcash/zips/blob/main/zips/zip-0316.rst#address-expiration-metadata) section: 
-> When honoring an Address Expiry Time, the reason that a sender SHOULD choose a nExpiryHeight that is expected to occur within 24 hours of the time of transaction construction is to, when possible, ensure that the expiry time is respected to within a day.
+> When honoring an Address Expiry Time, the reason that a sender SHOULD choose a 
+`nExpiryHeight` that is expected to occur within 24 hours of the time of transaction 
+construction is to, when possible, ensure that the expiry time is respected to 
+within a day.
 
-Time is fluid on Regtest mode. Given that blocktimes are reduced there is a conflict between expected timespans for address expiration and the real timestamps of the transactions in a Regtest generated blockchain where a desktop computer can generate a block (or more) per second. 
+Time is fluid on Regtest mode. Given that blocktimes are reduced there is a 
+conflict between expected timespans for address expiration and the real timestamps
+of the transactions in a Regtest generated blockchain where a desktop computer can 
+generate a block (or more) per second. 
 
 Approaches:
-A. Regtest manages a separate clock where the timestamps can appear to be "real" in terms of the average blocktime per second of mainnet (~72 seconds) for scenarios where time is of the essence of the test.
-B. Adjust ZIP-316 implementations on regtest so that the expiration window can be adjusted according to Regtest block cadence. 
+
+A. Regtest manages a separate clock where the timestamps can appear to be "real"
+in terms of the average blocktime per second of mainnet (~72 seconds) for scenarios 
+where time is of the essence of the test.
+
+B. Adjust ZIP-316 implementations on regtest so that the expiration window can 
+be adjusted according to Regtest block cadence. 
 
 #### Unified Incoming Viewing Keys encoding.
 UIVKs MUST be encoded with the `uivkregtest` HRP on Regtest.
@@ -141,11 +206,14 @@ UFVKs MUST be encoded with the `uviewregtest` HRP on Regtest.
 
 ### Effects on ZIP-320 (TEX Addresses)
 
-[ZIP-320, Defining an Address Type to which funds can only be sent from Transparent Addresses](https://github.com/zcash/zips/blob/main/zips/zip-0320.rst) defines an encoding or transparent-source-only addresses with a `tex` HRP. On Regtest that that value MUST be `texregtest`.
+[ZIP-320, Defining an Address Type to which funds can only be sent from Transparent Addresses](https://github.com/zcash/zips/blob/main/zips/zip-0320.rst) 
+defines an encoding or transparent-source-only addresses with a `tex` HRP. 
+On Regtest that that value MUST be `texregtest`.
 
 ## Effects of Regtest mode on protocol definitions
 
-The following section describes how Regtest mode affects definitions present on the [Zcash protocol](https://zips.z.cash/protocol/protocol.pdf).
+The following section describes how Regtest mode affects definitions present on 
+the [Zcash protocol](https://zips.z.cash/protocol/protocol.pdf).
 ### Constants
 
 #### Coin type:
@@ -156,20 +224,22 @@ pub const COIN_TYPE: u32 = 1;
 ```
 #### Sapling address encoding
 From the Zcash protocol `[^protocol-saplingpaymentaddrencoding]:
-> For addresses on Mainnet , the Human-Readable Part (as defined in [ZIP-173](https://zips.z.cash/zip-0173)) is “zs”. For addresses on Testnet , the Human-Readable Part is “ztestsapling”.
+> For addresses on Mainnet , the Human-Readable Part (as defined in [ZIP-173](https://zips.z.cash/zip-0173)) 
+is “zs”. For addresses on Testnet , the Human-Readable Part is “ztestsapling”.
 
 On Regtest mode this MUST be `zregtestsapling`
 
 #### Sapling Incoming Viewing Keys encoding
 From the Zcash protocol `[^protocol-saplinginviewingkeyencoding]:
-> For incoming viewing keys on Mainnet, the Human-Readable Part is “zivks”. For incoming viewing keys on Testnet,
-the Human-Readable Part is“zivktestsapling”
+> For incoming viewing keys on Mainnet, the Human-Readable Part is “zivks”. For 
+incoming viewing keys on Testnet, the Human-Readable Part is“zivktestsapling”
 
 On Regtest this value MUST be `zivkregtestsapling`
 
 #### Sapling Full Viewing Keys encoding 
 From the Zcash protocol `[^protocol-saplingfullviewingkeyencoding]:
-> For full viewing keys on Mainnet, the Human-Readable Part is “zviews”. For full viewing keys on Testnet, the
+> For full viewing keys on Mainnet, the Human-Readable Part is “zviews”. For 
+full viewing keys on Testnet, the
 Human-Readable Part is“zviewtestsapling”
 
 
@@ -177,8 +247,9 @@ On Regtest this value MUST be `zviewregtestsapling`
 
 #### Sapling Spending Keys encoding 
 From the Zcash protocol `[^protocol-saplingspendingkeyencoding]:
-> For spending keys on Mainnet, the Human-Readable Part is “secret-spending-key-main”. For spending keys on
-Testnet, the Human-Readable Part is “secret-spending-key-test”
+> For spending keys on Mainnet, the Human-Readable Part is 
+`secret-spending-key-main`. For spending keys on Testnet, the Human-Readable Part 
+is `secret-spending-key-test`
 
 On Regtest this value MUST be `secret-spending-key-regtest`
 
@@ -193,20 +264,23 @@ These keys are defined on the [Sapling Crypto crate](https://docs.rs/sapling-cry
 On Regtest their HRP encoding MUST be `zxviewregtestsapling`
 
 #### Transparent Address Public Key Script Hash B58 prefix
-The prefix for a Base58Check-encoded regtest transparent `PublicKeyHash` MUST be the same as the testnet prefix.
+The prefix for a Base58Check-encoded regtest transparent `PublicKeyHash` MUST be
+the same as the testnet prefix.
 
 ```Rust
 pub const B58_PUBKEY_ADDRESS_PREFIX: [u8; 2] = [0x1d, 0x25];
 ```
 #### Transparent Address ScriptHash Base58 Prefix
-/// The prefix for a Base58Check-encoded regtest transparent `ScriptHash` must be the same as the testnet prefix
+/// The prefix for a Base58Check-encoded regtest transparent `ScriptHash` must 
+be the same as the testnet prefix
 ```Rust
 pub const B58_SCRIPT_ADDRESS_PREFIX: [u8; 2] = [0x1c, 0xba];
 ```
 #### Sprout payment address encoding
 Zcash Protocol `[^protocol-sproutpaymentaddrencoding]` defines:
-> Two bytes [0x16, 0x9A], indicating this version of the raw encoding of a Sprout shielded payment address on
-Mainnet. (Addresses on Testnet use [0x16, 0xB6] instead.)
+> Two bytes [0x16, 0x9A], indicating this version of the raw encoding of a Sprout 
+shielded payment address onMainnet. (Addresses on Testnet use `[0x16, 0xB6]` 
+instead.)
 
 Regtest uses the same prefix as **Testnet**
 
