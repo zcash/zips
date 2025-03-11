@@ -167,20 +167,23 @@ Notes and warnings
 ------------------
 
 .. note::
-    "``.. note::``" in reStructuredText, or "``:::info``" (terminated by
-    "``:::``") in Markdown, can be used for an aside from the main text.
+    "``.. note::``" in reStructuredText or "``<div class="note"></div>``" in
+    Markdown (followed by a blank line in either case), can be used for an aside
+    from the main text.
 
     The rendering of notes is colourful and may be distracting, so they should
     only be used for important points.
 
 .. warning::
-    "``.. warning::``" in reStructuredText, or "``:::warning``" (terminated by
-    "``:::``") in Markdown, can be used for warnings.
+    "``.. warning::``" in reStructuredText, or "``<div class="warning"></div>``"
+    in Markdown (followed by a blank line in either case), can be used for warnings.
 
     Warnings should be used very sparingly — for example to signal that a
     entire specification, or part of it, may be inapplicable or could cause
     significant interoperability or security problems. In most cases, a "MUST"
     or "SHOULD" conformance requirement is more appropriate.
+
+In Markdown, notes and warnings can currently only be a single paragraph.
 
 Valid markup
 ------------
