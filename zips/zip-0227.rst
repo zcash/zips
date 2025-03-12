@@ -185,34 +185,23 @@ where the $\mathsf{Verify}$ algorithm is defined in BIP 340 [#bip-0340]_.
 Specification: Asset Identifier, Asset Digest, and Asset Base
 =============================================================
 
-For every new Asset, there MUST be a new and unique Asset Identifier, denoted $\mathsf{AssetId}$. We define this to be a globally unique pair $\mathsf{AssetId} := (\mathsf{ik}, \mathsf{asset\_desc})$, where $\mathsf{ik}$ is the issuance key and $\mathsf{asset\_desc}$ is a byte string.
+Every Asset has a globally-unique Asset Identifier, denoted $\mathsf{AssetId}$. A given
+Asset Identifier is used across all Zcash protocols that support ZSAs -- that is, the
+OrchardZSA protocol and potentially future Zcash shielded protocols.
 
-A given Asset Identifier is used across all Zcash protocols that support ZSAs -- that is, the OrchardZSA protocol and potentially future Zcash shielded protocols. For this Asset Identifier, we derive an Asset Digest, $\mathsf{AssetDigest}$, which is simply is a $\textsf{BLAKE2b-512}$ hash of the Asset Identifier.
-From the Asset Digest, we derive a specific Asset Base within each shielded protocol using the applicable hash-to-curve algorithm. This Asset Base is included in shielded notes.
-
-Let
-
-- $\mathsf{asset\_desc}$ be the asset description, which includes any information pertaining to the issuance, and is a non-empty byte sequence of at most 512 bytes which SHOULD be a well-formed UTF-8 code unit sequence according to Unicode 15.0.0 or later.
-- $\mathsf{ik}$ be the issuance validating key of the issuer, a public key used to verify the signature on the issuance transaction's SIGHASH.
-
-Define 
+From the Asset Identifier, we derive an Asset Digest
 
 .. math:: \mathsf{AssetDigest_{AssetId}} := \textsf{BLAKE2b-512}(\texttt{“ZSA-Asset-Digest”},\; \mathsf{EncodeAssetId}(\mathsf{AssetId})),
 
-where
+where $\mathsf{EncodeAssetId}(\mathsf{AssetId})$ is a canonical encoding scheme for the
+Asset Identifier.
 
-- $\mathsf{EncodeAssetId}(\mathsf{AssetId}) = \mathsf{EncodeAssetId}((\mathsf{ik}, \mathsf{asset\_desc})) := \mathtt{0x00} || \mathsf{ik} || \mathsf{asset\_desc}\!$.
-- Note that the initial $\mathtt{0x00}$ byte is a version byte.
-
-Define 
+From the Asset Digest, we derive a specific Asset Base that represents the Custom Asset
+within each shielded protocol:
 
 .. math:: \mathsf{AssetBase_{AssetId}} := \mathsf{ZSAValueBase}(\mathsf{AssetDigest_{AssetId}})
 
-In the case of the OrchardZSA protocol, we define 
-
-.. math:: \mathsf{ZSAValueBase}(\mathsf{AssetDigest_{AssetId}}) := \mathsf{GroupHash}^\mathbb{P}(\texttt{"z.cash:OrchardZSA"}, \mathsf{AssetDigest_{AssetId}})
-
-where $\mathsf{GroupHash}^\mathbb{P}$ is defined as in [#protocol-concretegrouphashpallasandvesta]_.
+This Asset Base is included in shielded notes within the shielded protocol.
 
 The relations between the Asset Identifier, Asset Digest, and Asset Base are shown in the following diagram:
 
@@ -226,10 +215,43 @@ The relations between the Asset Identifier, Asset Digest, and Asset Base are sho
 
 **Note:** To keep notations light and concise, we may omit $\mathsf{AssetId}$ (resp. $\mathsf{Protocol}$) in the subscript (resp. superscript) when the Asset Identifier (resp. Protocol) is clear from the context.
 
+ZIP 227 Asset Identifiers
+-------------------------
+
+Assets issued using the protocol specified in this ZIP are scoped to the $\mathsf{ik}$
+that issued them. Within that scope, Asset Identifier uniqueness is obtained by way of an
+asset description, $\mathsf{asset\_desc}$, which includes any information pertaining to
+the issuance. $\mathsf{asset\_desc}$ is a non-empty byte sequence which SHOULD be a
+well-formed UTF-8 code unit sequence according to Unicode 15.0.0 or later.
+
+Define
+
+.. math:: \mathsf{AssetDescHash} := \textsf{BLAKE2b-256}(\texttt{“ZSA-AssetDescCRH”},\; \mathsf{asset\_desc}),
+
+We define Asset Identifiers for assets issued under this ZIP as
+
+.. math:: \mathsf{AssetId} := (\mathsf{ik}, \mathsf{AssetDescHash})
+
+and define their canonical encoding as
+
+.. math:: \mathsf{EncodeAssetId}(\mathsf{AssetId}) = \mathsf{EncodeAssetId}((\mathsf{ik}, \mathsf{AssetDescHash})) := \mathtt{0x00} || \mathsf{ik} || \mathsf{AssetDescHash}
+
+Note that the initial $\mathtt{0x00}$ byte is a version byte, enabling future ZIPs to
+specify alternative issuance protocols and Asset Identifiers.
+
 Wallets MUST NOT display just the $\mathsf{asset\_desc}$ string to their users as the name of the Asset. Some possible alternatives include:
 
 - Wallets could allow clients to provide an additional configuration file that stores a one-to-one mapping of names to Asset Identifiers via a petname system. This allows clients to rename the Assets in a way they find useful. Default versions of this file with well-known Assets listed can be made available online as a starting point for clients.
 - The Asset Digest could be used as a more compact bytestring to uniquely determine an Asset, and wallets could support clients scanning QR codes to load Asset information into their wallets.
+
+OrchardZSA Custom Assets
+------------------------
+
+In the case of the OrchardZSA protocol, we define
+
+.. math:: \mathsf{ZSAValueBase}(\mathsf{AssetDigest_{AssetId}}) := \mathsf{GroupHash}^\mathbb{P}(\texttt{"z.cash:OrchardZSA"}, \mathsf{AssetDigest_{AssetId}})
+
+where $\mathsf{GroupHash}^\mathbb{P}$ is defined as in [#protocol-concretegrouphashpallasandvesta]_.
 
 
 Specification: Issue Note, Issuance Action, Issuance Bundle and Issuance Protocol
@@ -314,8 +336,9 @@ The issuer program performs the following operations:
 
 For all actions ``IssueAction``:
 
-- encode $\mathsf{asset\_desc}$ as a UTF-8 byte string of size up to 512.
-- compute $\mathsf{AssetDigest}$ from the issuance validating key $\mathsf{ik}$ and $\mathsf{asset\_desc}$ as decribed in the `Specification: Asset Identifier, Asset Digest, and Asset Base`_ section.
+- encode $\mathsf{asset\_desc}$ as a UTF-8 byte string.
+- compute $\mathsf{AssetDescHash}$
+- compute $\mathsf{AssetDigest}$ from the issuance validating key $\mathsf{ik}$ and $\mathsf{AssetDescHash}$ as decribed in the `Specification: Asset Identifier, Asset Digest, and Asset Base`_ section.
 - compute $\mathsf{AssetBase}$ from $\mathsf{AssetDigest}$ as decribed in the `Specification: Asset Identifier, Asset Digest, and Asset Base`_ section.
 - set the $\mathsf{finalize}$ boolean as desired (if more issuance actions are to be created for this $\mathsf{AssetBase}$, set $\mathsf{finalize} = 0$, otherwise set $\mathsf{finalize} = 1$).
 - for each recipient $i$:
@@ -436,15 +459,40 @@ The following is a list of rationale for different decisions made in the proposa
 
 - The issuance key structure is independent of the original key tree, but derived in an analogous manner (via ZIP 32). This keeps the issuance details and the Asset Identifiers consistent across multiple shielded pools. It also separates the issuance authority from the spend authority, allowing for the potential transfer of issuance authority without compromising the spend authority.
 - The Custom Asset is described via a combination of the issuance validating key and an asset description string, to preclude the possibility of two different issuers creating colliding Custom Assets.
-- The $\mathsf{asset\_desc}$ is a general byte string in order to allow for a wide range of information type to be included that may be associated with the Assets. Some are:
-
-    - links for storage such as for NFTs.
-    - metadata for Assets, encoded in any format.
-    - bridging information for Wrapped Assets (chain of origin, issuer name, etc)
-    - information to be committed by the issuer, though not enforceable by the protocol.
-
-- We limit the size of the $\mathsf{asset\_desc}$ string to 512 bytes as it is a reasonable size to store metadata about the Asset, for example in JSON format.
 - We require non-zero fees in the presence of an issue bundle, in order to preclude the possibility of a transaction containing only an issue bundle. If a transaction includes only an issue bundle, the SIGHASH transaction hash would be computed solely based on the issue bundle. A duplicate bundle would have the same SIGHASH transaction hash, potentially allowing for a replay attack.
+
+Hash of the asset description
+-----------------------------
+
+In an earlier version of this ZIP, the asset description was a direct component of the
+Asset Identifier, and was stored on-chain in each issuance transaction. The Asset
+Identifier and issuance transactions now instead include a collision-resistant hash of the
+asset description, for the following reasons:
+
+- A hash output (32 bytes per Issue Action) incurs lower average bandwidth costs in
+  issuance transactions than the asset description (previously up to 512 bytes).
+
+- The asset description can be longer than 512 bytes without incurring chain costs.
+
+- Including an asset description byte string directly in issuance transactions does not
+  ensure that the "user-visible" asset description is consensus-visible, because the byte
+  string could itself be a hash of another off-chain description (even if the consensus
+  rules had required it to be a Unicode string instead of only recommending it).
+
+- The lack of key rotation in this issuance protocol means that it is not sufficient to
+  mark an $\mathsf{ik}$ as trusted and then accept whatever asset descriptions are issued
+  by it. Each Asset Identifier needs to be independently verified, which requires some
+  out-of-band protocol that can also convey the corresponding asset description.
+
+- If issuance transactions include the asset descriptions directly, wallets will discover
+  them during scanning. This is an "attractive nuisance" because it would result in
+  wallets being more likely to expose the asset description directly to users without any
+  verification that the received asset has the value that a user might expect from that
+  description. By instead using a collision-resistant hash of an asset description,
+  wallets are forced to look up the corresponding asset description when a payment is
+  received in an unknown asset. That lookup can be mediated by a trusted party or common
+  trusted registry of known assets, or else will need to be approved directly by a user
+  who can personally assert their interest in that specific asset.
 
 Rationale for Global Issuance State
 -----------------------------------
