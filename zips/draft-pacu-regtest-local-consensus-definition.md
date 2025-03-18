@@ -6,6 +6,7 @@
   Credits: Daira-Emma Hopwood
            Zancas (Zingo Labs)
            idky137 (Zingo Labs)
+           Kris Nuttycombe
   Status: Draft
   Category: Consensus
   Created: 2025-02-26
@@ -38,21 +39,39 @@ interoperable. Regtest mode was inherited from Bitcoin functionality and never
 defined in a ZIP due to resource constraints and priorities. Differences between 
 Zebra and Zcashd Regtest implementations found by developers involved in Zcashd 
 deprecation motivated this ZIP as a way to document existing assumptions, 
-expectations and functionalites of Regtest as well as new features that focus 
-specifically on Zcash features. 
+expectations and functionalites of Regtest, and to document regtest-only features.
+This ZIP documents differences in behavior, values, expectations and assumpions 
+in comparison to Testnet. It uses the Zcash protocol and existing ZIPs as guiding 
+principles for the document structure. It also documents pre-existing and 
+previously *undocumented* requirements, constants and values that are present in
+the Zcashd 6.1.0 implementation and `zcash_protocol` crate 0.4.3[^zcash_protocol].
+This ZIP should be useful for Core Developers working on full node implementations
+but also a handbook for developers and QA testers to make use and take advantage
+of Regtest functionality to ensure test coverage of their codebases and a high 
+quality assurance to Zcash users.
 
 
 ## Requirements
-The scope of this ZIP is to define the behavior of a Zcash full-node when set up 
-to run in Regtest mode. It focuses on highlighting and specifying the difference 
-in behavior, values, expectations and assumpions in comparison to Testnet. It 
-uses the Zcash protocol and existing ZIPs as guiding principles for the document 
-structure. It also documents pre-existing and previously *undocumented* requirements, 
-constants and values that are present in the Zcashd 6.1.0 implementation and 
-`zcash_protocol` crate 0.4.3[^zcash_protocol]. This ZIP should be useful for Core 
-Developers working on full node implementations but also a handbook for developers 
-and QA testers to make use and take advantage of Regtest functionality to ensure 
-test coverage of their codebases and a high quality assurance to Zcash users.
+1. Nodes launched in Regtest mode MUST be able to generate deterministic sequences
+of blocks and transactions. 
+1. Regtest MUST override, adjust, by-pass or ignore consensus checks that are 
+specifically designed to avoid requirement 1 in Testnet and Mainnet
+1. Developers MUST specify the activation heights of the different Network 
+Upgrades on launch via parameters or configuration file.
+1. Remote Peer-to-Peer connections MUST NOT be allowed. All peers MUST be local 
+Regtestand share the same configuration (unless there is an arbitrary failure 
+scenario under test).
+1. Regtest can activate all Network Upgrades at once while maintaining the order
+of the Network Upgrades when an evaluation in code relies or depends on the 
+sequence of Network Upgrade activations.
+1. Block generation can be generated at will ensuring that deterministic sequences
+of blocks and transactions can be generated as defined in requirement 1.
+1. Changes on Human-Readable Parts (HRP) of address string encodings (if applicable)
+are defined with their respective prefix to signal a regtest variant.
+1. Regtest functionality SHOULD allow developers to ensure test coverage of their 
+codebases and a high quality assurance to Zcash users.
+1. (TODO: Add more requirements)
+
 
 ## Non-requirements
 This ZIP does not attempt to address how Regtest should be implemented. Details 
@@ -91,7 +110,7 @@ a bug.)
 |------|--------------------------------------------------------------|-------------------------------------------------------------|
 | 32   | [Shielded Hierarchical Deterministic Wallets](https://github.com/zcash/zips/blob/main/zips/zip-0032.rst) | No change |
 | 143  | [Transaction Signature Validation for Overwinter](https://github.com/zcash/zips/blob/main/zips/zip-0143.rst) | No change |
-| 155  | [addrv2 message](https://github.com/zcash/zips/blob/main/zips/zip-0155.rst) | Address should only be pointing to localhost |
+| [155](#Behavior-for-ZIP-155)  | [addrv2 message](https://github.com/zcash/zips/blob/main/zips/zip-0155.rst) | Address should only be pointing to localhost |
 | 173  | [Bech32 Format](https://github.com/zcash/zips/blob/main/zips/zip-0173.rst) | No changes |
 | 200  | [Network Upgrade Mechanism](https://github.com/zcash/zips/blob/main/zips/zip-0200.rst) | See section below |
 | 201  | [Network Peer Management for Overwinter](https://github.com/zcash/zips/blob/main/zips/zip-0201.rst) | No changes |
@@ -132,7 +151,7 @@ a bug.)
 | 2001 | [Lockbox Funding Streams](https://github.com/zcash/zips/blob/main/zips/zip-2001.rst) | No changes |
 
 
-### Behevior for ZIP-155
+### Behavior for ZIP-155
 Peer-to-peer communications on Regtest MUST be restricted to localhost nodes. 
 See "Regtest nodes and Network connections"
 
@@ -253,7 +272,7 @@ is `secret-spending-key-test`
 
 On Regtest this value MUST be `secret-spending-key-regtest`
 
-#### Sapling Extended Spending Keys encoding8
+#### Sapling Extended Spending Keys encoding
 These keys are defined on the [Sapling Crypto crate](https://docs.rs/sapling-crypto/latest/sapling_crypto/zip32/struct.ExtendedSpendingKey.html).
 
 On Regtest their HRP encoding MUST be `secret-extended-key-regtest`
