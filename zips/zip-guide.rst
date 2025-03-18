@@ -222,7 +222,7 @@ reStructuredText::
 
 or like this in Markdown::
 
-  [^snark] [The Hunting of the Snark](https://www.gutenberg.org/files/29888/29888-h/29888-h.htm). Lewis Carroll, with illustrations by Henry Holiday. MacMillan and Co. London. March 29, 1876.
+  [^snark]: [The Hunting of the Snark](https://www.gutenberg.org/files/29888/29888-h/29888-h.htm). Lewis Carroll, with illustrations by Henry Holiday. MacMillan and Co. London. March 29, 1876.
 
 Note that each entry must be on a single line regardless of how long that makes the
 line. In Markdown there must be a blank line between entries.
