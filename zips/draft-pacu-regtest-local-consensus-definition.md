@@ -84,27 +84,28 @@ of scope of this document.
 TODO: Gather existing Zcashd and compare them to Zebra parameters.
 
 ### Regtest nodes and Network connections
-Nodes that start on Regtest mode should never connect to any external peers. 
-Localhost connections MUST be enforced. Attempts to  configure a Regtest setup 
-in a way that violate this principle should cause a `FatalError` informing the 
-developer of the problem an pointing to the relevant documentation. 
+Nodes that start in Regtest mode MUST NOT connect to external peers. Localhost 
+connections MUST be enforced. Attempts to configure a node in a way that violate
+this principle MUST cause the node to halt with an error informing the developer
+of the problem and pointing to the relevant documentation. 
 
 ### Global Effects on Network Upgrades 
-Regtest mode must allow Network Upgrades to occur at configurable arbitrary 
-block heights in a way that all one of more of them can be activated at once at 
-a given height. Effects from network upgrades activating MUST be guaranteed to 
-occur in the  intended order as it is defined on its **Testnet** or **Mainnet** 
-implementation. This means that there is a hard requirement that guarantees a 
-chronological order of NU's event so that it is not possible to enable a NU prior 
-to one of its predecessors. Example: a configuration such as `NU1 -> NU3 -> NU2` 
-should raise a critical error and fail the execution of the Regtest environment.
-The rationale of this is to avoid unfeasible chain states. 
+Regtest mode must allow Network Upgrades to occur at configurable arbitrary block
+heights in a way that all one of more of them can be activated at once at a given
+height. Effects that result from network upgrades activating MUST be guaranteed 
+to occur in the order defined for the **Testnet** or **Mainnet** activation of 
+those upgrades. It MUST NOT not be possible to enable a NU prior to one of its 
+predecessors, and attempts to configure a node such that, for example, 
+`NU1 -> NU3 -> NU2` should cause the node to raise a error and halt. 
 
 (TODO: check with Daira-Emma if this is really necessary or whether the ability 
 to do such a mess with activation heights is actually a testing feature and not 
 a bug.)
 
 ## Effects of Regtest mode by ZIP
+
+The following table presents the ZIP catalog and a one-line summary of the regtest
+changes that apply.
 
 | ZIP  | Title | Regtest Behavior |
 |------|--------------------------------------------------------------|-------------------------------------------------------------|
@@ -156,12 +157,12 @@ Peer-to-peer communications on Regtest MUST be restricted to localhost nodes.
 See "Regtest nodes and Network connections"
 
 ### Behaviour for ZIP-200 Network Upgrade Mechanism
-Regtest nodes should implement a way to configure parameters such as Network 
-Upgrade activation heights and their respective consensus branch IDs. For 
-convenience these should be defined on this ZIP and to be used in all libraries 
-that enable Regtest testing. Configuration should favor that such values can be 
-altered and/or added if necessary, for example to develop a new Network Upgrade.
-Regtest client libraries SHOULD accommodate to such flexibility. 
+It must be possible to configure a regtest node with a mapping between Network 
+Upgrade activation heights and consensus branch IDs. It must be possible for such
+configuration to enable the development of functionality for not-yet-released 
+Network Upgrades, in order to enable testing of new protocol features in advance
+of mainnet or testnet activation. Client libraries SHOULD also accommodate such
+flexibility. 
 
 ### Behavior for ZIP-208 Shorter Block Target Spacing
 In Regtest mode, block generation is dictated by whomever is ordering the node 
