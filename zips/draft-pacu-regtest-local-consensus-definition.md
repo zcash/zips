@@ -25,11 +25,11 @@ The terms "Mainnet" and "Testnet" in this document are to be interpreted as defi
 in the Zcash protocol specification [^protocol-networks].
 
 ## Abstract
-At minimum, Regtest is a testing mode inherited from the Bitcoin node. It is a 
-way to have a consensus node on a local network with a private state that a 
-developer can drive at its will to reproduce certain situations deterministically 
-and  see how the code reacts to them. Regtest, as it was implemented on Zcashd, 
-is similar to a “testnet” but without miners and remote peers.
+Regtest is a testing mode inherited from the Bitcoin node. It provides a way to 
+have a consensus node on a local network with a private state that a developer 
+can control in order to reproduce certain situations deterministically for 
+testing purposes. Regtest, as it was implemented on Zcashd, is similar to a 
+“testnet” but without miners and remote peers.
 
 ## Motivation
 It is necessary to define Regtest mode so that different implementations of Zcash
