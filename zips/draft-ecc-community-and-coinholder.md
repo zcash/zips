@@ -69,8 +69,8 @@ It would immediately increase coinholders’ voice, minimize governance confusio
 
 # Non-requirements
 
-Any changes to the ZCG or its governance, such as its expansion to include more members, may be desired but are specifically outside this proposal’s scope.
-
+* Any changes to the ZCG or its governance, such as its expansion to include more members, may be desired but are specifically outside this proposal’s scope.
+* Any changes to Zcash protocol governance, specifically what changes are made to consensus node software, are outside this proposal’s scope.
 
 # Specification
 

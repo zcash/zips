@@ -86,8 +86,6 @@ Since a memo field can be a maximum of 512 bytes, this currently allows a maximu
 
 The contents of the file at the given URL MUST NOT be automatically downloaded unless that is requested by an explicit user action.
 
-TODO: decide whether we want to just assume that memo bundles are available.
-
 ## Approval and Rejection Outputs
 
 Let DeadlineHeight be the last block height at which a Decision can be made for this Proposal.
