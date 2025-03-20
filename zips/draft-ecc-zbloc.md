@@ -73,7 +73,7 @@ It is built to allow new innovative and positive voices to rise up and carry the
 
 Any changes to the ZCG or its governance, such as its expansion to include more members, may be desired but are specifically outside this proposal’s scope.
 
-The full implementation of this proposal would require the design and implementation of a lockbox distribution mechanism, likely using multisig. This mechanism would be similar to that needed for an alternative proposal, the Community and Coin-holder Funding Model [^draft-ecc-community-and-coinholder]. However, this proposal does not require that a lockbox distribution mechanism be implemented at the same time as a change to the funding stream.
+The full implementation of this proposal would require the design and implementation of a lockbox distribution mechanism, likely using multisig. This mechanism would be similar to that needed for an alternative proposal, the Community and Coinholder Funding Model [^draft-ecc-community-and-coinholder]. However, this proposal does not require that a lockbox distribution mechanism be implemented at the same time as a change to the funding stream.
 
 # Specification
 
@@ -85,11 +85,11 @@ A zBloc Constituency is a group representing a trusted subsection of the Zcash c
 
 The [Initial Structure] section below proposes a set of initial Constituencies, but the model allows for changes over time, enabling the zBloc to evolve. New zBloc Constituencies may be added as they gain trust and removed if they are no longer operating or trust is eroded. The means for this is described in the [Governance Decisions] section below.
 
-zBloc Constituencies may be granted different levels of authority, receiving less or more say over time. This is done by allocating or removing "Voting Units" to reflect the amount of voting power allocated to each Constituency. For example, if the community wishes to increase the weight of coin-holder voice over time, it could increase the number of Voting Units allocated to coin-holder representatives, which would dilute the relative power of other Constituencies.
+zBloc Constituencies may be granted different levels of authority, receiving less or more say over time. This is done by allocating or removing "Voting Units" to reflect the amount of voting power allocated to each Constituency. For example, if the community wishes to increase the weight of coinholder voice over time, it could increase the number of Voting Units allocated to coinholder representatives, which would dilute the relative power of other Constituencies.
 
 ### Decision-making policies
 
-To be considered a Constituency, each must pre-commit to an internal policy for decision-making that all other Constituencies approve of (i.e. greater than one decision maker, means of assessing community sentiment, etc.). This could be by polling, majority vote within the Constituency, coin-holder signaling, technical feasibility, mission alignment, etc.
+To be considered a Constituency, each must pre-commit to an internal policy for decision-making that all other Constituencies approve of (i.e. greater than one decision maker, means of assessing community sentiment, etc.). This could be by polling, majority vote within the Constituency, coinholder signaling, technical feasibility, mission alignment, etc.
 
 In order for a Constituency to change its decision-making policy, the change MUST be expressed as a [Governance Proposal] and Approved before it comes into effect. The Constituency that is proposing to change its policy is eligible to vote, but it MUST make its decision according to its *pre-existing* policy (if it does not abstain).
 
@@ -97,7 +97,7 @@ In order for a Constituency to change its decision-making policy, the change MUS
 
 The initial group of Constituencies will be (if they are willing and approved by the others and by the Zcash community):
 
-* Coin-holders
+* Coinholders
 * Electric Coin Company
 * Zcash Foundation
 * Shielded Labs
@@ -107,7 +107,7 @@ The initial group of Constituencies will be (if they are willing and approved by
 
 Each Constituency initially receives three Voting Units. This MAY be changed by a Governance Proposal.
 
-Constituencies other than the Coin-holder Constituency above are called Organizational Constituencies. The Organizational Constituencies will together elect a representative responsible for establishing a clear process and mechanism for gathering coin-holder sentiment, which will then be used as the decision-making process of the Coin-holder Constituency.
+Constituencies other than the Coinholder Constituency above are called Organizational Constituencies. The Organizational Constituencies will together elect a representative responsible for establishing a clear process and mechanism for gathering coinholder sentiment, which will then be used as the decision-making process of the Coinholder Constituency.
 
 TODO: as Organizational Constituencies make commitments about their decision-making policies, link to those commitments here.
 
@@ -133,7 +133,7 @@ The Approval Threshold is the absolute majority, as a proportion of the total nu
 
 By default, a Governance Proposal requires a three-fifths Approval Threshold, and MUST have a Deadline at least two weeks from when the Proposal is published on-chain.
 
-All Consituencies MUST be consulted in order to determine whether they consider a draft Proposal to be "controversial", before it published on-chain. If *any* Constituency decides that a Proposal should be treated as controversial, it is then subject to a higher Approval Threshold of three quarters, and a Deadline at least four weeks from when the Proposal is published on-chain. (In the case of the Coin-holder constituency, a coin-holder vote is not necessarily required to establish this; it is likely sufficient to decide based on forum discussions for example.)
+All Consituencies MUST be consulted in order to determine whether they consider a draft Proposal to be "controversial", before it published on-chain. If *any* Constituency decides that a Proposal should be treated as controversial, it is then subject to a higher Approval Threshold of three quarters, and a Deadline at least four weeks from when the Proposal is published on-chain. (In the case of the Coinholder constituency, a coinholder vote is not necessarily required to establish this; it is likely sufficient to decide based on forum discussions for example.)
 
 The following categories of Governance Proposal are automatically subject to the three-quarters Approval Threshold and 4-week Deadline:
 
@@ -188,13 +188,13 @@ In cases where the zBloc governance processes could not be used for this reason,
 
 ### Zcash Community Fund
 
-A funding stream will be established for a Zcash Community Fund, consisting of 20% of the block subsidy paid to a 2-of-3 P2SH multisig with keys held by the Financial Privacy Foundation, the Zcash Foundation and the Electric Coin Company ("Key-holder Organisations").
+A funding stream will be established for a Zcash Community Fund, consisting of 20% of the block subsidy paid to a 2-of-3 P2SH multisig with keys held by the Financial Privacy Foundation, the Zcash Foundation and the Electric Coin Company ("Key-Holder Organisations").
 
 This funding stream will start immediately on activation of this ZIP, which is assumed to be after the expiry of the existing ``FS_FPF_ZCG`` and ``FS_DEFERRED`` funding streams. It is proposed to be continued until modified by a future network upgrade.
 
-The community SHOULD prioritize the development of a mechanism for disbursement of funds from the Deferred Dev Fund Lockbox. It is assumed here that lockbox funds would be controlled via a similar multisig with keys held by the same Key-holder Organisations.
+The community SHOULD prioritize the development of a mechanism for disbursement of funds from the Deferred Dev Fund Lockbox. It is assumed here that lockbox funds would be controlled via a similar multisig with keys held by the same Key-Holder Organisations.
 
-From activation of this ZIP, the Zcash Community Fund is considered to include funds both from this 20% funding stream and from the Deferred Dev Fund Lockbox, which will become available for use on the same basis. That is, disbursement transactions MAY, at the discretion of the Key-holder Organizations, come either from the 20% funding stream, or from the Deferred Dev Fund Lockbox via a mechanism to be defined.
+From activation of this ZIP, the Zcash Community Fund is considered to include funds both from this 20% funding stream and from the Deferred Dev Fund Lockbox, which will become available for use on the same basis. That is, disbursement transactions MAY, at the discretion of the Key-Holder Organizations, come either from the 20% funding stream, or from the Deferred Dev Fund Lockbox via a mechanism to be defined.
 
 The Key-Holder Organisations would be bound by a legal agreement to only use funds held in the Zcash Community Fund according to the specifications in this ZIP, expressed in suitable legal language.
 
@@ -227,12 +227,14 @@ The Small Grant Fund will include 20% of the Zcash Community Fund.
 
 Provisions of ZIP 1015 imposing obligations and constraints on the Financial Privacy Foundation, Electric Coin Company, the Zcash Foundation, and grant recipients relating to the previous ``FS_FPF_ZCG`` funding stream, SHALL continue in effect for the Zcash Community Fund. In particular this includes the following:
 
-* A decision to disburse funds is subject to veto if any Key-holder Organization judges it to violate applicable law or reporting requirements.
-* The Key-holder Organizations SHALL be contractually required to recognize the Zcash Community Fund as a Restricted Fund donation or equivalent [TBD], and keep separate accounting of its balance and usage under its Transparency and Accountability obligations defined in ZIP 1015 [^zip-1015-transparency-and-accountability].
+* A decision to disburse funds is subject to veto if any Key-Holder Organization judges it to violate applicable law or reporting requirements.
+* The Key-Holder Organizations SHALL be contractually required to recognize the Zcash Community Fund as a Restricted Fund donation or equivalent [TBD], and keep separate accounting of its balance and usage under its Transparency and Accountability obligations defined in ZIP 1015 [^zip-1015-transparency-and-accountability].
+
+TODO: use the same veto process as [^draft-ecc-community-and-coinholder].
 
 ## Security precautions
 
-The Key-holder Organizations and the Organizational Consituencies MUST take appropriate precautions to safeguard funds from theft or accidental loss. Any theft or loss of funds, or any loss or compromise of key material MUST be reported to the Zcash community as promptly as possible after applying necessary mitigations.
+The Key-Holder Organizations and the Organizational Consituencies MUST take appropriate precautions to safeguard funds from theft or accidental loss. Any theft or loss of funds, or any loss or compromise of key material MUST be reported to the Zcash community as promptly as possible after applying necessary mitigations.
 
 # Acknowledgements
 
@@ -261,7 +263,7 @@ Thank you to Tatyana Peacemonger, Kris Nuttycombe, and Chris Tomeo for the revie
 
 [^zip-2001]: [ZIP 2001: Lockbox Funding Streams](zip-2001.rst)
 
-[^draft-ecc-community-and-coinholder]: [draft-ecc-community-and-coinholder: Community and Coin-holder Funding Model](draft-ecc-community-and-coinholder.md)
+[^draft-ecc-community-and-coinholder]: [draft-ecc-community-and-coinholder: Community and Coinholder Funding Model](draft-ecc-community-and-coinholder.md)
 
 [^draft-ecc-onchain-accountable-voting]: [draft-ecc-onchain-accountable-voting: On-chain Accountable Voting](draft-ecc-onchain-accountable-voting.md)
 

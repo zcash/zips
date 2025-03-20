@@ -204,7 +204,7 @@ be deleted.
 
   <embed><table>
     <tr> <th>Title</th> </tr>
-    <tr> <td class="left"><a href="zips/draft-ecc-community-and-coinholder.md">Community and Coin-holder Funding Model</a></td>
+    <tr> <td class="left"><a href="zips/draft-ecc-community-and-coinholder.md">Community and Coinholder Funding Model</a></td>
     <tr> <td class="left"><a href="zips/draft-ecc-onchain-accountable-voting.md">On-chain Accountable Voting</a></td>
     <tr> <td class="left"><a href="zips/draft-ecc-zbloc.md">Zcash Governance Bloc</a></td>
     <tr> <td class="left"><a href="zips/draft-noamchom67-manufacturing-consent.rst">Manufacturing Consent; Re-Establishing a Dev Fund for ECC, ZF, ZCG, Qedit, FPF, and ZecHub</a></td>

@@ -45,7 +45,7 @@ It is possible that these mechanisms may also have wider usefulness in the Zcash
 
 # Non-requirements
 
-The on-chain accountable voting mechanism does not need to directly support coin-holder voting. If that is required, it should be performed via a separate protocol. The results of that protocol might then feed into votes cast in on-chain accountable voting, as suggested by the Zcash Governance Bloc [^draft-ecc-zbloc] proposal, for example.
+The on-chain accountable voting mechanism does not need to directly support coinholder voting. If that is required, it should be performed via a separate protocol. The results of that protocol might then feed into votes cast in on-chain accountable voting, as suggested by the Zcash Governance Bloc [^draft-ecc-zbloc] proposal, for example.
 
 
 # Specification
@@ -164,7 +164,7 @@ Thank you to Josh Swihart and Kris Nuttycombe for discussions about [^draft-ecc-
 
 [^draft-ecc-zbloc]: [draft-ecc-zbloc: Zcash Governance Bloc](draft-ecc-zbloc.md)
 
-[^draft-ecc-community-and-coinholder]: [draft-ecc-community-and-coinholder: Community and Coin-holder Funding Model](draft-ecc-community-and-coinholder.md)
+[^draft-ecc-community-and-coinholder]: [draft-ecc-community-and-coinholder: Community and Coinholder Funding Model](draft-ecc-community-and-coinholder.md)
 
 [^forum-loan-directed-retroactive-grants]: [Zcash forum: Loan-Directed Retroactive Grants](https://forum.zcashcommunity.com/t/loan-directed-retroactive-grants/48230)
 
