@@ -55,7 +55,6 @@ This proposal aims to:
 
 It would immediately increase coinholders’ voice, minimize governance confusion, and simplify decision-making.
 
-
 # Requirements
 
 * There is a well-defined, publically agreed, process for evaluation and community feedback on grant proposals.
@@ -65,7 +64,6 @@ It would immediately increase coinholders’ voice, minimize governance confusio
 * The funds from the 8% funding stream will be usable immediately on activation of this ZIP.
 * The funds in the Deferred Dev Fund Lockbox will be usable immediately on activation of this ZIP.
 * Any use of Deferred Dev Fund Lockbox funds is consistent with the purpose specified in [^zip-1015-lockbox] of "funding grants to ecosystem participants".
-
 
 # Non-requirements
 
@@ -86,49 +84,7 @@ This funding stream will start on expiry of the existing ``FS_FPF_ZCG`` funding 
 
 ## Coinholder-Controlled Fund
 
-### One-time lockbox disbursement
-
-The coinbase transaction of the activation block of this ZIP MUST include an additional output to a 3-of-5 P2SH multisig with keys held by the following "Key-Holder Organizations": Zcash Foundation, the Electric Coin Company, Shielded Labs, and two other organizations yet to be decided.
-
-Let $v$ be the zatoshi amount in the Deferred Dev Fund Lockbox at the activation height. ($v$ can be predicted in advance given that height.)
-
-The additional coinbase output MUST follow the same consensus rules as apply to funding stream outputs [^zip-0207-consensus-rules]. That is, the coinbase transaction MUST contain at least one output that pays $v$ zatoshi, in the prescribed way defined in ZIP 207, to the above P2SH multisig address. $v$ zatoshi are added to the transparent transaction value pool to fund this output, and subtracted from the balance of the Deferred Dev Fund Lockbox (i.e. the latter balance is reset to zero).
-
-Exactly one of the following options will also be taken.
-
-### Option 1: Extend the lockbox funding stream
-
-The ``FS_DEFERRED`` lockbox funding stream is extended by a further 1,260,000 blocks (approximately 3 years), ending at the 3rd halving.
-
-#### Rationale for Option 1
-
-Performing a one-time disbursement to a P2SH multisig address will provide a source of grant funding for a limited period, allowing time for a lockbox disbursement mechanism to be specified and deployed.
-
-In particular, this provides an opportunity for transaction format changes that may be required for such a mechanism to be included in the v6 transaction format [^zip-0230]. It is desirable to limit the frequency of transaction format changes because such changes are disruptive to the ecosystem. It is not necessary that protocol rules for disbursement actually be implemented until after the transaction format changes are live on the network.
-
-By implementing a one-time disbursement along with a continuation of the ``FS_DEFERRED`` stream, we prioritize both the availability of grant funding and the implementation of a more flexible and secure mechanism for disbursement from the lockbox — making it possible to address the need to rotate keys and/or alter the set of key holders in a way that reverting to hard-coded output addresses for repeated disbursements would not.
-
-### Option 2: Revert to hard-coded output address
-
-The 12% of the block subsidy that currently is distributed to the lockbox via the existing ``FS_DEFERRED`` funding stream, is instead regularly distributed to a 3-of-5 P2SH multisig with keys held by the same Key-Holder Organizations as above. The Coinholder-Controlled Fund is considered to include both this stream of funds, and funds from the one-time lockbox disbursement described above.
-
-Option 2 can be realized by either of the following mechanisms:
-
-#### Mechanism 2a: Classic funding stream
-
-A new funding stream is defined that replaces the existing ``FS_DEFERRED`` lockbox funding stream [^zip-1015-funding-streams]. That is, the end height of ``FS_DEFERRED`` will be changed to the activation height of this ZIP. The new ``FS_COINHOLDER`` stream will start at the same height and last until the 3rd halving.
-
-#### Mechanism 2b: Periodic lockbox disbursement
-
-Constant parameter $N = 35000$ blocks $= \mathsf{PostBlossomHalvingInterval}/48$ (i.e. approximately one month of blocks).
-
-The ``FS_DEFERRED`` lockbox funding stream is extended by a further 1,260,000 blocks (approximately 3 years), ending at the 3rd halving. A consensus rule is added to disburse from the Deferred Dev Fund Lockbox to a 3-of-5 P2SH multisig with keys held by the same Key-Holder Organizations as above, starting at block height $\mathsf{activation\_height} + N$ and continuing at periodic intervals of $N$ blocks ending with the 3rd halving height. Each disbursement empties the lockbox. This is equivalent to specifying $\frac{\mathstrut\mathsf{third\_halving\_height} \,-\, \mathsf{activation\_height}}{N}$ [One-time lockbox disbursement]s, that all output to the same address.
-
-#### Rationale for periodic disbursement
-
-Classic funding streams [^zip-0207] produce many small output values, due to only being able to direct funds from a single block's subsidy at a time. This creates operational burdens to utilizing the funds — in particular due to block and transaction sizes limiting how many outputs can be combined at once, which increases the number of required transactions and correspondingly the overall fee.
-
-The periodic lockbox disbursement mechanism can produce the same effective funding stream, but with aggregation performed for free: the output to the funding stream recipient is aggregated into larger outputs every $N$ blocks. In the specific case of Mechanism 2b, the recipient multisig address would receive around 40 outputs, instead of around 1,300,000.
+The pool of multisig-controlled funds described as the Zcash Development Fund by [^draft-ecc-lockbox-distribution] forms a new Coinholder-Controlled Fund.
 
 ### Requirements on use of the Coinholder-Controlled Fund
 
@@ -144,7 +100,9 @@ The Key-Holder Organizations collectively administer the Coinholder-Controlled F
 4. If a grant application is not [vetoed](#veto-process) and proceeds to a coinholder vote according to the agreed process, then coinholders will be asked to vote on it.
 5. If the vote passes, then as payments are scheduled for the grant, then (subject to the [Veto process]) the Key-Holder Organizations SHOULD sign the corresponding transactions for disbursement from the Coinholder-Controlled Fund.
 
-For coinholder votes, a minimum of 420,000 ZEC (2% of the total eventual supply) MUST be voted, with a simple majority cast in favor, for a grant proposal to be approved. Upon approval, the grants are paid to the recipient per the terms of the grant proposal.
+For coinholder votes, a minimum of 420,000 ZEC (2% of the total eventual supply) MUST be voted, with a simple majority cast in favor, for a grant proposal to be approved. Upon approval, the grants are paid to the recipient per the terms of the grant proposal. In the case that multiple grant proposals are submitted that are in competition with one another, a single winner will be selected by holding a separate coinholder vote for each proposal, with the approved proposal having the highest total ZEC value committed in support being the winner.
+
+Each coinholder vote (including in cases where multiple grants are in competition) is independent, and coins used in one vote are also allowed to be used in another; this approach is necessary to avoid vote-splitting scenarios that can result in an option being selected that achieves only a plurality (not a majority) of coinholder support.
 
 Coinholders SHOULD take account of the same factors considered by the ZCG Committee (described in points 2, 3, and 4 of [^zip-1015-zcg]) in deciding whether to fund a grant. If any contentious issue arises in connection with a grant (such as milestones not being met), or periodically for grants of indefinite duration, the Key-Holder Organizations SHOULD hold additional coinholder votes to determine whether funding should continue.
 
@@ -173,6 +131,8 @@ These obligations and constraints will be extended to all Key-Holder Organizatio
 
 The provisions after the first paragraph of the section "Zcash Community Grants (ZCG)" also apply to the Key-Holder Organizations' administration of the Coinholder-Controlled Fund, with coinholder voting replacing the role of the ZCG Committee.
 
+Note: Nothing forces developers of Zcash consensus node software to implement any particular proposal. The aim of a process specification like this one is only to social consensus. It fundamentally cannot affect the autonomy of developers of Zcash consensus node software to publish (or not) the software they want to publish, or the autonomy of node operators to run (or not) the software they want to run.
+
 ## Security precautions
 
 The Key-Holder Organizations and the ZCG Committee MUST take appropriate precautions to safeguard funds from theft or accidental loss. Any theft or loss of funds, or any loss or compromise of key material MUST be reported to the Zcash community as promptly as possible after applying necessary mitigations.
@@ -181,20 +141,11 @@ The Key-Holder Organizations and the ZCG Committee MUST take appropriate precaut
 
 In order to allow the mechanism and process for coinholder voting to be tested, this process SHOULD be rehearsed on Testnet. The threshold of 420,000 ZEC applied to Mainnet coinholder votes does not apply to these rehearsals.
 
-
-# Rationale
-
-TODO: Write a rationale for not having manually authorized disbursements (they require a transaction format change, to add a section similar to the ZSA issuance bundle).
-
-
 # Open questions
 
 * Is a 3-of-5 threshold appropriate? What should the other two Key-Holder Organizations be?
-* Do we need to specify more about key rotation (beyond "take appropriate precautions")?
 * Is 420,000 ZEC the right threshold for coinholder votes?
 * Is USD 500,000 the right threshold for grants to be controlled by coinholder vote rather than ZCG?
-* Should Option 1 or Option 2 be taken?
-
 
 # References
 
@@ -206,11 +157,7 @@ TODO: Write a rationale for not having manually authorized disbursements (they r
 
 [^zip-0207]: [ZIP 207: Funding Streams](zip-0207.rst)
 
-[^zip-0207-consensus-rules]: [ZIP 207: Funding Streams — Consensus Rules](zip-0207#consensus-rules)
-
 [^zip-0214]: [ZIP 214: Consensus rules for a Zcash Development Fund](zip-0214.rst)
-
-[^zip-0230]: [ZIP 230: Version 6 Transaction Format](zip-0230.rst)
 
 [^zip-1014]: [ZIP 1014: Establishing a Dev Fund for ECC, ZF, and Major Grants](zip-1014.rst)
 
@@ -221,6 +168,8 @@ TODO: Write a rationale for not having manually authorized disbursements (they r
 [^zip-1015-zcg]: [ZIP 1015: Block Subsidy Allocation for Non-Direct Development Funding — Zcash Community Grants](zip-1015#zcash-community-grants-zcg)
 
 [^zip-1015-funding-streams]: [ZIP 1015: Block Subsidy Allocation for Non-Direct Development Funding — Funding Streams](zip-1015#funding-streams)
+
+[^draft-ecc-lockbox-distribution]: [draft-ecc-lockbox-distribution: Zcash Development Fund](draft-ecc-zbloc.md)
 
 [^zip-1015-transparency-and-accountability]: [ZIP 1015: Block Subsidy Allocation for Non-Direct Development Funding — Transparency and Accountability](zip-1015#transparency-and-accountability)
 

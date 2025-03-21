@@ -117,7 +117,7 @@ Initial zBloc members MUST take on the responsibility to encourage, nurture, and
 
 ## Voting
 
-A suitable voting mechanism is needed that —among other design requirements— makes the votes cast by each Constituency (i.e. the number of Voting Units cast for Approval and for Rejection) publically visible. A possible design that meets this requirement is suggested in [^draft-ecc-onchain-accountable-voting] ("On-chain Accountable Voting").
+A suitable voting mechanism is needed that —among other design requirements— makes the votes cast by each Constituency (i.e. the number of Voting Units cast for Approval and for Rejection) publically visible. A possible design that meets this requirement is suggested in [^draft-ecc-onchain-accountable-voting] ("On-chain Accountable Voting"). In addition, the chosen voting mechanism MUST support the situation where voting entities must choose among multiple competing proposals to select a single grant recipient. The voting system selected MUST avoid vote-splitting scenarios that can result in an option being selected that achieves only a plurality (not a majority) of Consituencies supporting it.
 
 Each independent zBloc Constituency decides how to cast its Voting Units for each Governance or Funding Proposal, provided it is eligible to vote on that proposal (see the next section). If its decision-making policy permits, it MAY cast fewer than its total number of Voting Units, and MAY cast some Voting Units for Approval and some for Rejection. This might be used to publically acknowledge internal dispute over a decision, for example.
 
@@ -133,7 +133,7 @@ The Approval Threshold is the absolute majority, as a proportion of the total nu
 
 By default, a Governance Proposal requires a three-fifths Approval Threshold, and MUST have a Deadline at least two weeks from when the Proposal is published on-chain.
 
-All Consituencies MUST be consulted in order to determine whether they consider a draft Proposal to be "controversial", before it published on-chain. If *any* Constituency decides that a Proposal should be treated as controversial, it is then subject to a higher Approval Threshold of three quarters, and a Deadline at least four weeks from when the Proposal is published on-chain. (In the case of the Coinholder constituency, a coinholder vote is not necessarily required to establish this; it is likely sufficient to decide based on forum discussions for example.)
+All Consituencies MUST be consulted in order to determine whether they consider a draft Proposal to be "controversial", before it is published on-chain. If *any* Constituency decides that a Proposal should be treated as controversial, it is then subject to a higher Approval Threshold of three quarters, and a Deadline at least four weeks from when the Proposal is published on-chain. (In the case of the Coinholder constituency, a coinholder vote is not necessarily required to establish this; it is likely sufficient to decide based on forum discussions for example.)
 
 The following categories of Governance Proposal are automatically subject to the three-quarters Approval Threshold and 4-week Deadline:
 
@@ -142,7 +142,7 @@ The following categories of Governance Proposal are automatically subject to the
 
 In the case of Governance Proposals that affect consensus, final ratification occurs when node operators adopt the software implementing the changes.
 
-Note: Nothing forces developers of Zcash consensus node software to follow this specification. The aim of a process specification like this one is only to establish a social consensus. It fundamentally cannot affect the autonomy of developers of Zcash consensus node software to publish (or not) the software they want to publish, or the autonomy of node operators to run (or not) the software they want to run.
+Note: Nothing forces developers of Zcash consensus node software to implement any particular proposal. The aim of a process specification like this one is only to establish a social consensus. It fundamentally cannot affect the autonomy of developers of Zcash consensus node software to publish (or not) the software they want to publish, or the autonomy of node operators to run (or not) the software they want to run.
 
 ## Proposals
 
@@ -188,13 +188,9 @@ In cases where the zBloc governance processes could not be used for this reason,
 
 ### Zcash Community Fund
 
-A funding stream will be established for a Zcash Community Fund, consisting of 20% of the block subsidy paid to a 2-of-3 P2SH multisig with keys held by the Financial Privacy Foundation, the Zcash Foundation and the Electric Coin Company ("Key-Holder Organisations").
+The pool of multisig-controlled funds described as the Zcash Development Fund by [^draft-ecc-lockbox-distribution] forms a new Zcash Community Fund. Funds will be controlled by a P2SH multisig with keys held by the Financial Privacy Foundation, the Zcash Foundation and the Electric Coin Company, along with two other entities yet to be determined ("Key-Holder Organisations"). Future deposits to the Zcash Community Fund will consist of 20% of block rewards, sent either to the Deferred Dev Fund Lockbox or to a traditional funding stream, as described in the Zcash Development Fund proposal.
 
-This funding stream will start immediately on activation of this ZIP, which is assumed to be after the expiry of the existing ``FS_FPF_ZCG`` and ``FS_DEFERRED`` funding streams. It is proposed to be continued until modified by a future network upgrade.
-
-The community SHOULD prioritize the development of a mechanism for disbursement of funds from the Deferred Dev Fund Lockbox. It is assumed here that lockbox funds would be controlled via a similar multisig with keys held by the same Key-Holder Organisations.
-
-From activation of this ZIP, the Zcash Community Fund is considered to include funds both from this 20% funding stream and from the Deferred Dev Fund Lockbox, which will become available for use on the same basis. That is, disbursement transactions MAY, at the discretion of the Key-Holder Organizations, come either from the 20% funding stream, or from the Deferred Dev Fund Lockbox via a mechanism to be defined.
+If Option 1 of the Zcash Development Fund proposal is selected, the community SHOULD prioritize the development of a mechanism for disbursement of funds from the Deferred Dev Fund Lockbox. It is assumed here that lockbox funds would be controlled via a similar multisig with keys held by the same Key-Holder Organisations.
 
 The Key-Holder Organisations would be bound by a legal agreement to only use funds held in the Zcash Community Fund according to the specifications in this ZIP, expressed in suitable legal language.
 
@@ -240,7 +236,6 @@ The Key-Holder Organizations and the Organizational Consituencies MUST take appr
 
 Thank you to Tatyana Peacemonger, Kris Nuttycombe, and Chris Tomeo for the reviews, feedback, questions, and suggestions needed to make this a strong proposal.
 
-
 # References
 
 [^BCP14]: [Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"](https://www.rfc-editor.org/info/bcp14)
@@ -262,6 +257,8 @@ Thank you to Tatyana Peacemonger, Kris Nuttycombe, and Chris Tomeo for the revie
 [^zip-1015-transparency-and-accountability]: [ZIP 1015: Block Subsidy Allocation for Non-Direct Development Funding — Transparency and Accountability](zip-1015#transparency-and-accountability)
 
 [^zip-2001]: [ZIP 2001: Lockbox Funding Streams](zip-2001.rst)
+
+[^draft-ecc-lockbox-distribution]: [draft-ecc-lockbox-distribution: Zcash Development Fund](draft-ecc-zbloc.md)
 
 [^draft-ecc-community-and-coinholder]: [draft-ecc-community-and-coinholder: Community and Coinholder Funding Model](draft-ecc-community-and-coinholder.md)
 
