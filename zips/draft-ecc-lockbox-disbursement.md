@@ -1,5 +1,5 @@
     ZIP: XXX
-    Title: Zcash Development Fund
+    Title: Deferred Dev Fund Lockbox Disbursement
     Owners: Daira-Emma Hopwood <daira@jacaranda.org>
             Kris Nuttycombe <kris@nutty.land>
             Jack Grigg <jack@electriccoin.co>
@@ -26,17 +26,18 @@ context of the Community And Coinholder Funding Model
 both of these and may be applicable to other similar proposals as well.
 
 At a high level, this ZIP proposes:
-* Extension of protocol-based development funding for a period of 1,260,000
-  blocks starting from the scheduled end height of the current ``FS_DEFERRED``
-  and ``FS_FPF_ZCG`` funding streams defined in ZIP 1015 [^zip-1015-funding-streams].
 * A one-time disbursement of the full contents of the lockbox to a transparent
   P2SH multisig address, at the time of the activation of this ZIP. The
   key-holders for that address are then responsible for distributing the
   resulting funds in the form of development grants, according to the rules set
   by either [^draft-ecc-community-and-coinholder] or [^draft-ecc-zbloc], or
   another similar proposal.
+* Extension of protocol-based development funding blocks starting from the
+  scheduled end height of the current ``FS_DEFERRED`` and ``FS_FPF_ZCG``
+  funding streams defined in ZIP 1015 [^zip-1015-funding-streams].
 * A variety of different mechanisms that may be used for distributing funds
-  that accrue during the 1,260,000 block extension.
+  that accrue during the period of the extension, which may vary depending upon
+  which proposal this mechanism is used.
 
 # Requirements
 
@@ -73,25 +74,35 @@ zatoshi are added to the transparent transaction value pool to fund this
 output, and subtracted from the balance of the Deferred Dev Fund Lockbox (i.e.
 the latter balance is reset to zero).
 
-Exactly one of the following options will also be taken.
+Exactly one of the following options will also be taken. The proposal that
+activates this ZIP must define values for the following two parameters:
+
+* $\mathsf{stream\_value}$: the percentage of the block subsidy to send to 
+  a new funding stream, as described in the options below.
+* $\mathsf{stream\_end\_height}$: The ending block height of that stream.
 
 ### Option 1: Extend the lockbox funding stream
 
-The ``FS_DEFERRED`` lockbox funding stream is extended by a further 1,260,000
-blocks (approximately 3 years), ending at the 3rd halving.
+The ``FS_DEFERRED`` lockbox funding stream is set to receive
+$\mathsf{stream\_value}\%$ of the block subsidy and is extended until block
+height $\mathsf{stream\_end\_height}$ Both of these parameters must must be
+specified by the proposal under which this ZIP is activated.
 
 #### Rationale for Option 1
 
 Performing a one-time disbursement to a P2SH multisig address will provide a
 source of grant funding for a limited period, allowing time for a lockbox
-disbursement mechanism to be specified and deployed.
+disbursement mechanism to be specified and deployed, as originally intended by 
+ZIP 1015 [^zip-1015].
 
 In particular, this provides an opportunity for transaction format changes that
 may be required for such a mechanism to be included in the v6 transaction
 format [^zip-0230]. It is desirable to limit the frequency of transaction
 format changes because such changes are disruptive to the ecosystem. It is not
 necessary that protocol rules for disbursement actually be implemented until
-after the transaction format changes are live on the network.
+after the transaction format changes are live on the network. It is RECOMMENDED
+that any such transaction format changes be included in the upcoming V6
+transaction format in order to avoid such disruption.
 
 By implementing a one-time disbursement along with a continuation of the
 ``FS_DEFERRED`` stream, we prioritize both the availability of grant funding
@@ -102,21 +113,22 @@ addresses for repeated disbursements would not.
 
 ### Option 2: Revert to hard-coded output address
 
-The 12% of the block subsidy that currently is distributed to the lockbox via
-the existing ``FS_DEFERRED`` funding stream, is instead regularly distributed
-to a 3-of-5 P2SH multisig with keys held by the same Key-Holder Organizations
-as above. The Zcash Development Fund is considered to include both this stream
-of funds, and funds from the one-time lockbox disbursement described above.
+A new funding stream consisting of $\mathsf{stream\_value}\%$ of the block
+subsidy is defined to begin when the existing ZIP 1015 funding streams
+[^zip-1015-funding-streams] end. The new streams will distribute funds to a
+3-of-5 P2SH multisig with keys held by the same Key-Holder Organizations as
+above. The resulting Fund is considered to include both this stream of funds,
+and funds from the one-time lockbox disbursement described above.
 
 Option 2 can be realized by either of the following mechanisms:
 
 #### Mechanism 2a: Classic funding stream
 
-A new funding stream is defined that replaces the existing ``FS_DEFERRED``
-lockbox funding stream [^zip-1015-funding-streams]. That is, the end height of
-``FS_DEFERRED`` will be changed to the activation height of this ZIP. The new
-``FS_DEVFUND`` stream will start at the same height and last until the 3rd
-halving.
+A new funding stream is definedthat pays directly to the above-mentioned 3-of-5
+multisig address on a block-by-block basis. It is defined to start at the end
+height of the existing ``FS_DEFERRED`` funding stream and end at
+$\mathsf{stream\_end\_height}$ and consists of $\mathsf{stream\_value}\%$ of the
+block subsidy.
 
 #### Mechanism 2b: Periodic lockbox disbursement
 
@@ -124,16 +136,17 @@ Constant parameter $N = 35000$ blocks $=
 \mathsf{PostBlossomHalvingInterval}/48$ (i.e. approximately one month of
 blocks).
 
-The ``FS_DEFERRED`` lockbox funding stream is extended by a further 1,260,000
-blocks (approximately 3 years), ending at the 3rd halving. A consensus rule is
-added to disburse from the Deferred Dev Fund Lockbox to a 3-of-5 P2SH multisig
-with keys held by the same Key-Holder Organizations as above, starting at block
-height $\mathsf{activation\_height} + N$ and continuing at periodic intervals
-of $N$ blocks ending with the 3rd halving height. Each disbursement empties the
+The ``FS_DEFERRED`` lockbox funding stream is extended to end at height
+$\mathsf{stream\_end\_height}$ and has its per-block output value set to
+$\mathsf{stream\_value}\%$ A consensus rule is added to disburse from the
+Deferred Dev Fund Lockbox to a 3-of-5 P2SH multisig with keys held by the same
+Key-Holder Organizations as above, starting at block height
+$\mathsf{activation\_height} + N$ and continuing at periodic intervals of $N$
+blocks until $\mathsf{stream\_end\_height}$. Each disbursement empties the
 lockbox. 
 
 This is equivalent to specifying
-$\frac{\mathstrut\mathsf{third\_halving\_height} \,-\, \mathsf{activation\_height}}{N}$ [One-time lockbox disbursement]s, 
+$\frac{\mathstrut\mathsf{stream\_end\_height} \,-\, \mathsf{activation\_height}}{N}$ [One-time lockbox disbursement]s, 
 that all output to the same address.
 
 #### Rationale for periodic disbursement
@@ -221,6 +234,8 @@ funds.
 [^zip-0230]: [ZIP 230: Version 6 Transaction Format](zip-0230.rst)
 
 [^zip-0214]: [ZIP 214: Consensus rules for a Zcash Development Fund](zip-0214.rst)
+
+[^zip-1015]: [ZIP 1015: Block Subsidy Allocation for Non-Direct Development Funding](zip-1015.rst)
 
 [^zip-1015-funding-streams]: [ZIP 1015: Block Subsidy Allocation for Non-Direct Development Funding — Funding Streams](zip-1015#funding-streams)
 

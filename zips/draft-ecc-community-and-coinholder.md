@@ -84,11 +84,11 @@ This funding stream will start on expiry of the existing ``FS_FPF_ZCG`` funding 
 
 ## Coinholder-Controlled Fund
 
-The pool of multisig-controlled funds described as the Zcash Development Fund by [^draft-ecc-lockbox-distribution] forms a new Coinholder-Controlled Fund.
-
+A pool of multisig-controlled funds, seeded from the existing contents of the ZIP 1015 Deferred Dev Fund Lockbox [^zip-1015-lockbox] and supplemented with a funding stream consising of 12% of the block subsidy for the same time period as the Zcash Community Grants stream, forms a new Coinholder-Controlled Fund. The mechanisms for the creation and management of this fund are described by the Deferred Dev Fund Lockbox Disbursement proposal [^draft-ecc-lockbox-disbursement]. This proposal sets the $\mathsf{stream\_value}$ parameter of that proposal to 12%, and the $\mathsf{stream\_end\_height}$ parameter to mainnet block height 4406400, equal to that of the Zcash Community Grants stream so that both streams end at Zcash's 3rd halving.
+ 
 ### Requirements on use of the Coinholder-Controlled Fund
 
-The Key-Holder Organizations SHALL be bound by a legal agreement to only use funds held in the Coinholder-Controlled Fund according to the specifications in this ZIP, expressed in suitable legal language. In particular, all requirements on the use of Deferred Dev Fund Lockbox funds in ZIP 1015 [^zip-1015-lockbox] MUST be followed for the funds obtained from the [One-time lockbox disbursement].
+The Key-Holder Organizations SHALL be bound by a legal agreement to only use funds held in the Coinholder-Controlled Fund according to the specifications in this ZIP, expressed in suitable legal language. In particular, all requirements on the use of Deferred Dev Fund Lockbox funds in ZIP 1015 [^zip-1015-lockbox] MUST be followed for Coinholder-Controlled Fund.
 
 The Key-Holder Organizations collectively administer the Coinholder-Controlled Fund based on decisions taken by coinholder voting, following a model decided by the community and specified in another ZIP [TBD].
 
@@ -100,7 +100,7 @@ The Key-Holder Organizations collectively administer the Coinholder-Controlled F
 4. If a grant application is not [vetoed](#veto-process) and proceeds to a coinholder vote according to the agreed process, then coinholders will be asked to vote on it.
 5. If the vote passes, then as payments are scheduled for the grant, then (subject to the [Veto process]) the Key-Holder Organizations SHOULD sign the corresponding transactions for disbursement from the Coinholder-Controlled Fund.
 
-For coinholder votes, a minimum of 420,000 ZEC (2% of the total eventual supply) MUST be voted, with a simple majority cast in favor, for a grant proposal to be approved. Upon approval, the grants are paid to the recipient per the terms of the grant proposal. In the case that multiple grant proposals are submitted that are in competition with one another, a single winner will be selected by holding a separate coinholder vote for each proposal, with the approved proposal having the highest total ZEC value committed in support being the winner.
+For coinholder votes, a minimum of 420,000 ZEC (2% of the total eventual supply) MUST be voted, with a simple majority cast in favor, for a grant proposal to be approved. Upon approval, the grants are paid to the recipient per the terms of the grant proposal. In the case that multiple grant proposals are submitted that are in competition with one another, a single winner will be selected by holding a separate coinholder vote for each proposal, with the approved proposal having the highest total ZEC value committed in support being the winner. It is the responsibility of the Key-Holder Organizations to determine whether proposals are in competition with one another when organizing coinholder votes.
 
 Each coinholder vote (including in cases where multiple grants are in competition) is independent, and coins used in one vote are also allowed to be used in another; this approach is necessary to avoid vote-splitting scenarios that can result in an option being selected that achieves only a plurality (not a majority) of coinholder support.
 
@@ -169,7 +169,7 @@ In order to allow the mechanism and process for coinholder voting to be tested, 
 
 [^zip-1015-funding-streams]: [ZIP 1015: Block Subsidy Allocation for Non-Direct Development Funding — Funding Streams](zip-1015#funding-streams)
 
-[^draft-ecc-lockbox-distribution]: [draft-ecc-lockbox-distribution: Zcash Development Fund](draft-ecc-zbloc.md)
+[^draft-ecc-lockbox-disbursement]: [draft-ecc-lockbox-disbursement: Deferred Dev Fund Lockbox Disbursement](draft-ecc-zbloc.md)
 
 [^zip-1015-transparency-and-accountability]: [ZIP 1015: Block Subsidy Allocation for Non-Direct Development Funding — Transparency and Accountability](zip-1015#transparency-and-accountability)
 

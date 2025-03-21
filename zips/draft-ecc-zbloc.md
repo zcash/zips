@@ -73,8 +73,6 @@ It is built to allow new innovative and positive voices to rise up and carry the
 
 Any changes to the ZCG or its governance, such as its expansion to include more members, may be desired but are specifically outside this proposal’s scope.
 
-The full implementation of this proposal would require the design and implementation of a lockbox distribution mechanism, likely using multisig. This mechanism would be similar to that needed for an alternative proposal, the Community and Coinholder Funding Model [^draft-ecc-community-and-coinholder]. However, this proposal does not require that a lockbox distribution mechanism be implemented at the same time as a change to the funding stream.
-
 # Specification
 
 ## zBloc Membership
@@ -184,13 +182,15 @@ The governance processes specified in this ZIP are not intended to prevent conse
 
 In cases where the zBloc governance processes could not be used for this reason, the consensus node implementors MUST, once the risk of exploitation has passed, publish a thorough post-mortem analysis that explains why this was the case.
 
-## Funding Proposals
+## Funding
 
 ### Zcash Community Fund
 
-The pool of multisig-controlled funds described as the Zcash Development Fund by [^draft-ecc-lockbox-distribution] forms a new Zcash Community Fund. Funds will be controlled by a P2SH multisig with keys held by the Financial Privacy Foundation, the Zcash Foundation and the Electric Coin Company, along with two other entities yet to be determined ("Key-Holder Organisations"). Future deposits to the Zcash Community Fund will consist of 20% of block rewards, sent either to the Deferred Dev Fund Lockbox or to a traditional funding stream, as described in the Zcash Development Fund proposal.
+A pool of multisig-controlled funds, seeded from the existing contents of the ZIP 1015 Deferred Dev Fund Lockbox [^zip-1015-lockbox] and supplemented with a funding stream consising of 20% of the block subsidy starting at block 3146400 that will continue until modified by a future ZIP, forms a new Zcash Community Fund. The mechanisms for the creation and management of this fund are described by the Deferred Dev Fund Lockbox Disbursement proposal [^draft-ecc-lockbox-disbursement], with the $\mathsf{stream\_value}$ parameter set to 20%, and the $\mathsf{stream\_end\_height}$ parameter set to the height at which the Zcash block subsidy diminishes to zero.
 
-If Option 1 of the Zcash Development Fund proposal is selected, the community SHOULD prioritize the development of a mechanism for disbursement of funds from the Deferred Dev Fund Lockbox. It is assumed here that lockbox funds would be controlled via a similar multisig with keys held by the same Key-Holder Organisations.
+The Zcash Community Fund will be controlled by a multisig with keys held by the Financial Privacy Foundation, the Zcash Foundation and the Electric Coin Company, along with two other entities yet to be determined ("Key-Holder Organisations").
+
+If Option 1 of the Deferred Dev Fund Lockbox Disbursement proposal is selected, the community SHOULD prioritize the development of a mechanism for disbursement of funds from the Deferred Dev Fund Lockbox. It is assumed here that lockbox funds would be controlled via a similar multisig with keys held by the same Key-Holder Organisations.
 
 The Key-Holder Organisations would be bound by a legal agreement to only use funds held in the Zcash Community Fund according to the specifications in this ZIP, expressed in suitable legal language.
 
@@ -258,7 +258,7 @@ Thank you to Tatyana Peacemonger, Kris Nuttycombe, and Chris Tomeo for the revie
 
 [^zip-2001]: [ZIP 2001: Lockbox Funding Streams](zip-2001.rst)
 
-[^draft-ecc-lockbox-distribution]: [draft-ecc-lockbox-distribution: Zcash Development Fund](draft-ecc-zbloc.md)
+[^draft-ecc-lockbox-disbursement]: [draft-ecc-lockbox-disbursement: Deferred Dev Fund Lockbox Disbursement](draft-ecc-zbloc.md)
 
 [^draft-ecc-community-and-coinholder]: [draft-ecc-community-and-coinholder: Community and Coinholder Funding Model](draft-ecc-community-and-coinholder.md)
 
