@@ -129,16 +129,16 @@ A Constituency is not automatically considered to have a conflict of interest me
 
 The Approval Threshold is the absolute majority, as a proportion of the total number of Eligible Voting Units, required for a Proposal to be Approved. As stated earlier, Eligible Voting Units do not include those of Constituencies that have a conflict of interest for this Proposal. However, they do include the Voting Units of Constituencies that have no conflict of interest but choose to abstain.
 
-By default, a Governance Proposal requires a three-fifths Approval Threshold, and MUST have a Deadline at least two weeks from when the Proposal is published on-chain.
+By default, a [Governance Proposal](#governanceproposals) requires a three-fifths Approval Threshold, and MUST have a Deadline at least two weeks from when the Proposal is published on-chain.
 
 All Consituencies MUST be consulted in order to determine whether they consider a draft Proposal to be "controversial", before it is published on-chain. If *any* Constituency decides that a Proposal should be treated as controversial, it is then subject to a higher Approval Threshold of three quarters, and a Deadline at least four weeks from when the Proposal is published on-chain. (In the case of the Coinholder constituency, a coinholder vote is not necessarily required to establish this; it is likely sufficient to decide based on forum discussions for example.)
 
-The following categories of Governance Proposal are automatically subject to the three-quarters Approval Threshold and 4-week Deadline:
+The following categories of [Governance Proposal](#governanceproposals) are automatically subject to the three-quarters Approval Threshold and 4-week Deadline:
 
 * Increasing or decreasing the voting power of zBloc Constituencies by adjusting how many Voting Units they hold.
 * Increasing or decreasing the number of Funding Pools, the rules that govern them, and the amounts allocated.
 
-In the case of Governance Proposals that affect consensus, final ratification occurs when node operators adopt the software implementing the changes.
+In the case of [Governance Proposals] that affect consensus, final ratification occurs when node operators adopt the software implementing the changes.
 
 Note: Nothing forces developers of Zcash consensus node software to implement any particular proposal. The aim of a process specification like this one is only to establish a social consensus. It fundamentally cannot affect the autonomy of developers of Zcash consensus node software to publish (or not) the software they want to publish, or the autonomy of node operators to run (or not) the software they want to run.
 
