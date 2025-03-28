@@ -5,6 +5,8 @@
              Kris Nuttycombe
              Jack Grigg
              Tatyana Peacemonger
+             Alex Bornstein
+             Jason McGee
     Status: Draft
     Category: Consensus / Process
     Created: 2025-02-19
@@ -84,21 +86,20 @@ This funding stream will start on expiry of the existing ``FS_FPF_ZCG`` funding 
 
 ## Coinholder-Controlled Fund
 
-A pool of multisig-controlled funds, seeded from the existing contents of the ZIP 1015 Deferred Dev Fund Lockbox [^zip-1015-lockbox] and supplemented with a funding stream consising of 12% of the block subsidy for the same time period as the Zcash Community Grants stream, forms a new Coinholder-Controlled Fund. The mechanisms for the creation and management of this fund are described by the Deferred Dev Fund Lockbox Disbursement proposal [^draft-ecc-lockbox-disbursement]. This proposal sets the $\mathsf{stream\_value}$ parameter of that proposal to 12%, and the $\mathsf{stream\_end\_height}$ parameter to mainnet block height 4406400, equal to that of the Zcash Community Grants stream so that both streams end at Zcash's 3rd halving.
+A pool of multisig-controlled funds, seeded from the existing contents of the ZIP 1015 Deferred Dev Fund Lockbox [^zip-1015-lockbox] and supplemented with a funding stream consising of 12% of the block subsidy for the same time period as the Zcash Community Grants stream, forms a new Coinholder-Controlled Fund. The mechanisms for the creation and management of this fund are described by the Deferred Dev Fund Lockbox Disbursement proposal [^draft-ecc-lockbox-disbursement]. This proposal sets the $\mathsf{stream\_value}$ parameter of that proposal to 12%, and the $\mathsf{stream\_end\_height}$ parameter to Mainnet block height 4406400, equal to that of the Zcash Community Grants stream so that both streams end at Zcash's 3rd halving.
  
 ### Requirements on use of the Coinholder-Controlled Fund
 
-The Key-Holder Organizations SHALL be bound by a legal agreement to only use funds held in the Coinholder-Controlled Fund according to the specifications in this ZIP, expressed in suitable legal language. In particular, all requirements on the use of Deferred Dev Fund Lockbox funds in ZIP 1015 [^zip-1015-lockbox] MUST be followed for Coinholder-Controlled Fund.
+The Key-Holder Organizations SHALL be bound by a legal agreement to only use funds held in the Coinholder-Controlled Fund according to the specifications in this ZIP, expressed in suitable legal language. In particular, all requirements on the use of Deferred Dev Fund Lockbox funds in ZIP 1015 [^zip-1015-lockbox] MUST be followed for the Coinholder-Controlled Fund.
 
 The Key-Holder Organizations collectively administer the Coinholder-Controlled Fund based on decisions taken by coinholder voting, following a model decided by the community and specified in another ZIP [TBD].
 
 ### Disbursement process
 
 1. Anyone can submit a grant application via a process agreed upon by the Key-Holder Organizations.
-2. Grant applications with total below USD 500,000 (or equivalent in another currency) are directed to ZCG.
-3. For grant applications above this threshold, a 30-day community review and feedback period will start.
-4. If a grant application is not [vetoed](#veto-process) and proceeds to a coinholder vote according to the agreed process, then coinholders will be asked to vote on it.
-5. If the vote passes, then as payments are scheduled for the grant, then (subject to the [Veto process]) the Key-Holder Organizations SHOULD sign the corresponding transactions for disbursement from the Coinholder-Controlled Fund.
+2. Coinholders will vote on grant applications every three months. Grant applications must be submitted for community review 30 days prior to coinholder voting.
+3. If a grant application is not [vetoed](#veto-process) and proceeds to a coinholder vote according to the agreed process, then coinholders will be asked to vote on it.
+4. If the vote passes, then as payments are scheduled for the grant, then (subject to the [Veto process]) the Key-Holder Organizations SHOULD sign the corresponding transactions for disbursement from the Coinholder-Controlled Fund.
 
 For coinholder votes, a minimum of 420,000 ZEC (2% of the total eventual supply) MUST be voted, with a simple majority cast in favor, for a grant proposal to be approved. Upon approval, the grants are paid to the recipient per the terms of the grant proposal. In the case that multiple grant proposals are submitted that are in competition with one another, a single winner will be selected by holding a separate coinholder vote for each proposal, with the approved proposal having the highest total ZEC value committed in support being the winner. It is the responsibility of the Key-Holder Organizations to determine whether proposals are in competition with one another when organizing coinholder votes.
 
@@ -131,7 +132,7 @@ These obligations and constraints will be extended to all Key-Holder Organizatio
 
 The provisions after the first paragraph of the section "Zcash Community Grants (ZCG)" also apply to the Key-Holder Organizations' administration of the Coinholder-Controlled Fund, with coinholder voting replacing the role of the ZCG Committee.
 
-Note: Nothing forces developers of Zcash consensus node software to implement any particular proposal. The aim of a process specification like this one is only to social consensus. It fundamentally cannot affect the autonomy of developers of Zcash consensus node software to publish (or not) the software they want to publish, or the autonomy of node operators to run (or not) the software they want to run.
+Note: Nothing forces developers of Zcash consensus node software to implement any particular proposal. The aim of a process specification like this one is only to indicate social consensus. It fundamentally cannot affect the autonomy of developers of Zcash consensus node software to publish (or not) the software they want to publish, or the autonomy of node operators to run (or not) the software they want to run.
 
 ## Security precautions
 
@@ -143,9 +144,7 @@ In order to allow the mechanism and process for coinholder voting to be tested, 
 
 # Open questions
 
-* Is a 3-of-5 threshold appropriate? What should the other two Key-Holder Organizations be?
 * Is 420,000 ZEC the right threshold for coinholder votes?
-* Is USD 500,000 the right threshold for grants to be controlled by coinholder vote rather than ZCG?
 
 # References
 

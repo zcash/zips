@@ -50,7 +50,7 @@ The on-chain accountable voting mechanism does not need to directly support coin
 
 # Specification
 
-A Proposal to be decided using On-chain Accountable Voting is represented as Proposal Transaction, which references a human-readable Description of what is to happen on its Approval. The Proposal Transaction MAY also lock up funds that are to be granted on Approval [TODO].
+A Proposal to be decided using On-chain Accountable Voting is represented as a Proposal Transaction, which references a human-readable Description of what is to happen on its Approval. The Proposal Transaction MAY also lock up funds that are to be granted on Approval [TODO].
 
 The scope of possible Proposals is left to be specified by the high-level policy that uses this mechanism.
 
