@@ -1,7 +1,7 @@
     ZIP: XXX
     Title: Pure Coinholder Funding Model
     Owners: Tatyana Peacemonger
-            Josh Swihart <josh@electriccoin.co>
+            Josh Swihart
     Credits: Daira-Emma Hopwood
              Kris Nuttycombe
     Status: Draft
@@ -58,7 +58,7 @@ via ZCG grants and via potential future disbursements from the Deferred Dev Fund
 Lockbox.
 
 This proposal aims to:
-* maximizes the alignment between the coinholders and those who seek funding from block rewards,
+* maximize the alignment between the coinholders and those who seek funding from block rewards,
 * decentralize decision-making,
 * hold stakeholders accountable for outcomes,
 * be dynamic enough to allow for change, and
