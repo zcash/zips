@@ -53,12 +53,13 @@ time to determine whether it should be changed or codified for longer.
 If no action is taken, in November 2025 funds from block subsidies will stop
 being directed to Zcash Community Grants [^zip-1015-zcg] and to the Deferred
 Dev Fund Lockbox established by ZIP 2001 [^zip-2001]. If the block subsidies
-stop, it will risk a gap in funding of Zcash development organisations,
-via ZCG grants and via potential future disbursements from the Deferred Dev Fund
+stop, it will risk a gap in funding of Zcash development organisations, via ZCG
+grants and via potential future disbursements from the Deferred Dev Fund
 Lockbox.
 
 This proposal aims to:
-* maximize the alignment between the coinholders and those who seek funding from block rewards,
+* maximize the alignment between the coinholders and those who seek funding
+  from block rewards,
 * decentralize decision-making,
 * hold stakeholders accountable for outcomes,
 * be dynamic enough to allow for change, and
@@ -195,7 +196,11 @@ thorough rationale.
 
 # Administrative obligations and constraints
 
-All provisions of ZIP 1015 imposing obligations and constraints on Bootstrap Project, Electric Coin Company, Zcash Foundation, Financial Privacy Foundation, the ZCG Committee, and grant recipients relating to the previous FS_FPF_ZCG funding stream, will be extended to all Key-Holder Organizations in respect of the Coinholder-Controlled Fund.
+All provisions of ZIP 1015 imposing obligations and constraints on Bootstrap
+Project, Electric Coin Company, Zcash Foundation, Financial Privacy Foundation,
+the ZCG Committee, and grant recipients relating to the previous FS_FPF_ZCG
+funding stream, will be extended to all Key-Holder Organizations in respect of
+the Coinholder-Controlled Fund.
 
 The provisions after the first paragraph of the section "Zcash Community Grants
 (ZCG)" also apply to the Key-Holder Organizations' administration of the
