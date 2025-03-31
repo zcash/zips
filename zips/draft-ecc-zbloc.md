@@ -188,7 +188,7 @@ In cases where the zBloc governance processes could not be used for this reason,
 
 A pool of multisig-controlled funds, seeded from the existing contents of the ZIP 1015 Deferred Dev Fund Lockbox [^zip-1015-lockbox] and supplemented with a funding stream consising of 20% of the block subsidy starting at block 3146400 that will continue until modified by a future ZIP, forms a new Zcash Community Fund. The mechanisms for the creation and management of this fund are described by the Deferred Dev Fund Lockbox Disbursement proposal [^draft-ecc-lockbox-disbursement], with the $\mathsf{stream\_value}$ parameter set to 20%, and the $\mathsf{stream\_end\_height}$ parameter set to the height at which the Zcash block subsidy diminishes to zero.
 
-The Zcash Community Fund will be controlled by a multisig with keys held by the Financial Privacy Foundation, the Zcash Foundation and the Electric Coin Company, along with two other entities yet to be determined ("Key-Holder Organisations").
+The Zcash Community Fund will be controlled by a multisig with keys held by the Zcash Foundation and the Electric Coin Company, along with three other entities yet to be determined ("Key-Holder Organisations").
 
 If Option 1 of the Deferred Dev Fund Lockbox Disbursement proposal is selected, the community SHOULD prioritize the development of a mechanism for disbursement of funds from the Deferred Dev Fund Lockbox. It is assumed here that lockbox funds would be controlled via a similar multisig with keys held by the same Key-Holder Organisations.
 

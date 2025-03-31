@@ -37,7 +37,7 @@ At a high level, this ZIP proposes:
   funding streams defined in ZIP 1015 [^zip-1015-funding-streams].
 * A variety of different mechanisms that may be used for distributing funds
   that accrue during the period of the extension, which may vary depending upon
-  which proposal this mechanism is used.
+  the proposal that uses this mechanism.
 
 # Requirements
 
@@ -45,7 +45,7 @@ At a high level, this ZIP proposes:
   keys, up to a given threshold.
 * No single party's non-cooperation or loss of keys is able to cause any
   Protocol-defined Ecosystem Funding to be locked up unrecoverably.
-* The funds previously accrued the Deferred Dev Fund Lockbox as the activation
+* The funds previously accrued to the Deferred Dev Fund Lockbox as the activation
   height of this ZIP will be usable immediately on activation.
 
 # Specification
@@ -59,9 +59,9 @@ as specified by this ZIP.
 ### One-time lockbox disbursement
 
 The coinbase transaction of the activation block of this ZIP MUST include an
-additional output to a 3-of-5 P2SH multisig with keys held by the following
+additional output to a 2-of-3 P2SH multisig with keys held by the following
 "Key-Holder Organizations": Zcash Foundation, the Electric Coin Company,
-Shielded Labs, and two other organizations yet to be decided.
+and Shielded Labs.
 
 Let $v$ be the zatoshi amount in the Deferred Dev Fund Lockbox at the
 activation height. ($v$ can be predicted in advance given that height.)
@@ -85,7 +85,7 @@ activates this ZIP must define values for the following two parameters:
 
 The ``FS_DEFERRED`` lockbox funding stream is set to receive
 $\mathsf{stream\_value}\%$ of the block subsidy and is extended until block
-height $\mathsf{stream\_end\_height}$ Both of these parameters must must be
+height $\mathsf{stream\_end\_height}$. Both of these parameters must be
 specified by the proposal under which this ZIP is activated.
 
 #### Rationale for Option 1
@@ -101,7 +101,7 @@ format [^zip-0230]. It is desirable to limit the frequency of transaction
 format changes because such changes are disruptive to the ecosystem. It is not
 necessary that protocol rules for disbursement actually be implemented until
 after the transaction format changes are live on the network. It is RECOMMENDED
-that any such transaction format changes be included in the upcoming V6
+that any such transaction format changes be included in the upcoming v6
 transaction format in order to avoid such disruption.
 
 By implementing a one-time disbursement along with a continuation of the
@@ -139,7 +139,7 @@ blocks).
 The ``FS_DEFERRED`` lockbox funding stream is extended to end at height
 $\mathsf{stream\_end\_height}$ and has its per-block output value set to
 $\mathsf{stream\_value}\%$ A consensus rule is added to disburse from the
-Deferred Dev Fund Lockbox to a 3-of-5 P2SH multisig with keys held by the same
+Deferred Dev Fund Lockbox to a 2-of-3 P2SH multisig with keys held by the same
 Key-Holder Organizations as above, starting at block height
 $\mathsf{activation\_height} + N$ and continuing at periodic intervals of $N$
 blocks until $\mathsf{stream\_end\_height}$. Each disbursement empties the
@@ -174,9 +174,9 @@ transparent and auditable by any participant in the network.
 #### Security implications of the One-Time Lockbox Disbursement
 
 After the activation block of this ZIP has been mined, all development funds
-previously accrued to the in-protocol lockbox will be held instead by a 3-of-5
+previously accrued to the in-protocol lockbox will be held instead by a 2-of-3
 multisig address. The key-holders for this address will have the capability to
-spend these funds. Compromise or loss of 3 of these 5 keys would result in
+spend these funds. Compromise or loss of 2 of these 3 keys would result in
 total loss of funds; as such, in the event of the compromise or loss of a
 single key, the Key-Holders MUST establish a new multisig key set and address,
 and transfer remaining unspent funds held by the original address before
@@ -194,10 +194,10 @@ in-protocol option for key rotation, such that it is not necessary to perform a
 network upgrade to recover from key loss or compromise, or to change the size
 of the signing set or the number of signatures required to reach threshold.
 
-#### Security implications for Option 2a
+#### Security implications for Mechanism 2a
 
 As of the activation height of this ZIP, development funds will begin accruing
-as additional outputs spendable by a 3-of-5 multisig address on a
+as additional outputs spendable by a 2-of-3 multisig address on a
 block-by-block basis. Key-Holders will need to perform regular multiparty
 signing ceremonies in order to shield the resulting coinbase outputs. Each such
 signing ceremony involves shared spending authority being used to sign
@@ -213,10 +213,10 @@ In the case of key compromise or loss, it may be necessary to perform an
 emergency Network Upgrade to perform a manual key rotation to ensure that
 future development funds are not lost.
 
-#### Security implications for Option 2b
+#### Security implications for Mechanism 2b
 
 Due to the aggregation of funds recommended by Option 2b, it is no longer
-necessary use scripts with elevated privileges to perform shielding and/or
+necessary to use scripts with spending privileges to perform shielding and/or
 distribution operations; instead, these operations can be performed by human
 operators using an interactive protocol that does not require sharing spending
 key material.
