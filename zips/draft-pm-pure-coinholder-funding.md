@@ -36,8 +36,8 @@ via Funding Streams [^zip-0207] and Lockbox Funding Streams [^zip-2001].
 
 # Abstract
 
-This proposal outlines a funding model that gives the coin holders distinct
-voices in determining what, if any, grants are provided to support Zcash’s
+This proposal outlines a funding model that gives the coin holders a distinct
+voice in determining what, if any, grants are provided to support Zcash’s
 development and community efforts.
 
 Under this model, 20% of the block rewards will accrue to a fund controlled by
@@ -45,7 +45,7 @@ decisions of coin holders, seeded by the Deferred Dev Fund Lockbox. The
 Coinholder-Controlled Fund may be used to distribute grants to ecosystem
 participants, or left at rest.
 
-This system would be activated through until the 3rd halving, allowing enough
+This system would be activated until the 3rd halving, allowing enough
 time to determine whether it should be changed or codified for longer.
 
 # Motivation
@@ -53,8 +53,8 @@ time to determine whether it should be changed or codified for longer.
 If no action is taken, in November 2025 funds from block subsidies will stop
 being directed to Zcash Community Grants [^zip-1015-zcg] and to the Deferred
 Dev Fund Lockbox established by ZIP 2001 [^zip-2001]. If the block subsidies
-stop, it will risk a gap in funding of Zcash development organisations, either
-via ZCG grants or via potential future disbursements from the Deferred Dev Fund
+stop, it will risk a gap in funding of Zcash development organisations,
+via ZCG grants and via potential future disbursements from the Deferred Dev Fund
 Lockbox.
 
 This proposal aims to:
@@ -140,7 +140,7 @@ submit a grant proposal for coinholder vote.
 3. If a grant application is not [vetoed](#veto-process) and proceeds to a
    coinholder vote according to the agreed process, then coinholders will be
    asked to vote on it.
-4. If the vote passes, then as payments are scheduled for the grant, then
+4. If the vote passes, then as payments are scheduled for the grant,
    (subject to the [Veto process]) the Key-Holder Organizations SHOULD sign the
    corresponding transactions for disbursement from the Coinholder-Controlled
    Fund.
