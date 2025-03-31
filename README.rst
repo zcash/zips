@@ -210,6 +210,7 @@ be deleted.
     <tr> <td class="left"><a href="zips/draft-ecc-zbloc.md">Zcash Governance Bloc</a></td>
     <tr> <td class="left"><a href="zips/draft-noamchom67-manufacturing-consent.rst">Manufacturing Consent; Re-Establishing a Dev Fund for ECC, ZF, ZCG, Qedit, FPF, and ZecHub</a></td>
     <tr> <td class="left"><a href="zips/draft-nuttycom-funding-allocation.rst">Block Reward Allocation for Non-Direct Development Funding</a></td>
+    <tr> <td class="left"><a href="zips/draft-pm-pure-coinholder-funding.md">Pure Coinholder Funding Model</a></td>
     <tr> <td class="left"><a href="zips/draft-zf-community-dev-fund-2-proposal.rst">Establishing a Hybrid Dev Fund for ZF, ZCG and a Dev Fund Reserve</a></td>
   </table></embed>
 
