@@ -139,7 +139,7 @@ blocks).
 The ``FS_DEFERRED`` lockbox funding stream is extended to end at height
 $\mathsf{stream\_end\_height}$ and has its per-block output value set to
 $\mathsf{stream\_value}\%$ A consensus rule is added to disburse from the
-Deferred Dev Fund Lockbox to a 3-of-5 P2SH multisig with keys held by the same
+Deferred Dev Fund Lockbox to a 2-of-3 P2SH multisig with keys held by the same
 Key-Holder Organizations as above, starting at block height
 $\mathsf{activation\_height} + N$ and continuing at periodic intervals of $N$
 blocks until $\mathsf{stream\_end\_height}$. Each disbursement empties the
@@ -174,9 +174,9 @@ transparent and auditable by any participant in the network.
 #### Security implications of the One-Time Lockbox Disbursement
 
 After the activation block of this ZIP has been mined, all development funds
-previously accrued to the in-protocol lockbox will be held instead by a 3-of-5
+previously accrued to the in-protocol lockbox will be held instead by a 2-of-3
 multisig address. The key-holders for this address will have the capability to
-spend these funds. Compromise or loss of 3 of these 5 keys would result in
+spend these funds. Compromise or loss of 2 of these 3 keys would result in
 total loss of funds; as such, in the event of the compromise or loss of a
 single key, the Key-Holders MUST establish a new multisig key set and address,
 and transfer remaining unspent funds held by the original address before
@@ -197,7 +197,7 @@ of the signing set or the number of signatures required to reach threshold.
 #### Security implications for Mechanism 2a
 
 As of the activation height of this ZIP, development funds will begin accruing
-as additional outputs spendable by a 3-of-5 multisig address on a
+as additional outputs spendable by a 2-of-3 multisig address on a
 block-by-block basis. Key-Holders will need to perform regular multiparty
 signing ceremonies in order to shield the resulting coinbase outputs. Each such
 signing ceremony involves shared spending authority being used to sign
