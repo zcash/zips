@@ -58,7 +58,7 @@ via ZCG grants or via potential future disbursements from the Deferred Dev Fund
 Lockbox.
 
 This proposal aims to:
-* align economic incentives with decisions related to distributed funds,
+* maximizes the alignment between the coinholders and those who seek funding from block rewards,
 * decentralize decision-making,
 * hold stakeholders accountable for outcomes,
 * be dynamic enough to allow for change, and
@@ -195,13 +195,7 @@ thorough rationale.
 
 # Administrative obligations and constraints
 
-All provisions of ZIP 1015 imposing obligations and constraints on Bootstrap
-Project, Electric Coin Company, Zcash Foundation, Financial Privacy Foundation,
-the ZCG Committee, and grant recipients relating to the previous ``FS_FPF_ZCG``
-funding stream, SHALL continue in effect for Zcash Community Grants.
-
-These obligations and constraints will be extended to all Key-Holder
-Organizations in respect of the Coinholder-Controlled Fund.
+All provisions of ZIP 1015 imposing obligations and constraints on Bootstrap Project, Electric Coin Company, Zcash Foundation, Financial Privacy Foundation, the ZCG Committee, and grant recipients relating to the previous FS_FPF_ZCG funding stream, will be extended to all Key-Holder Organizations in respect of the Coinholder-Controlled Fund.
 
 The provisions after the first paragraph of the section "Zcash Community Grants
 (ZCG)" also apply to the Key-Holder Organizations' administration of the
@@ -210,7 +204,7 @@ ZCG Committee.
 
 Note: Nothing forces developers of Zcash consensus node software to implement
 any particular proposal. The aim of a process specification like this one is
-only to social consensus. It fundamentally cannot affect the autonomy of
+only to indicate social consensus. It fundamentally cannot affect the autonomy of
 developers of Zcash consensus node software to publish (or not) the software
 they want to publish, or the autonomy of node operators to run (or not) the
 software they want to run.
