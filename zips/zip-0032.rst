@@ -25,6 +25,8 @@ interpreted as described in BCP 14 [#BCP14]_ when, and only when, they appear in
 
 "Jubjub" refers to the elliptic curve defined in [#protocol-jubjub]_.
 
+A "cryptovalue" is a high-entropy value used in a cryptographic protocol that is not necessarily a key.
+
 A "chain code" is a cryptovalue that is needed, in addition to a spending key, in order to derive
 descendant keys and addresses of that key.
 
@@ -141,6 +143,9 @@ We adapt the path notation of BIP 32 [#bip-0032]_ to describe shielded HD paths,
 indicate hardened derivation ($\!i' = i + 2^{31}$) as in BIP 44 [#bip-0044]_:
 
 - $\mathsf{CKDfvk}(\mathsf{CKDfvk}(\mathsf{CKDfvk}(m_\mathsf{Sapling}, a), b), c)$ is written as $m_\mathsf{Sapling} / a / b / c$.
+
+Note: no corresponding notation is currently defined for the result of
+`Hardened-only child key derivation`_ with non-zero $\mathsf{lead}$ and/or non-empty $\mathsf{tag}$.
 
 
 Specification: Sapling key derivation
@@ -365,6 +370,9 @@ non-hardened derivation appear. With that in mind, we now have a general hardene
 process that retains compatibility with existing derivation path semantics (to enable deriving the same
 path across multiple contexts).
 
+The functions defined in this section are intended for internal use by context-specific mechanisms in
+subsequent sections, rather than for direct use.
+
 Instantiation
 -------------
 
@@ -397,18 +405,21 @@ $\mathsf{MKGh}^\mathsf{Context}(\mathsf{IKM}) \rightarrow (\mathsf{sk}_m, \maths
 Hardened-only child key derivation
 ----------------------------------
 
-$\mathsf{CKDh}^\mathsf{Context}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i)$ $\rightarrow (\mathsf{sk}_i, \mathsf{c}_i)$ :
+As well as the integer child index $i$, the child key derivation function defined here supports a
+lead byte $\mathsf{lead}$ (used for domain separation) and byte sequence $\mathsf{tag}$. Each triple
+$(i, \mathsf{lead}, \mathsf{tag})$ produces an independent output.
 
-- Check whether $i \geq 2^{31}$ (whether the child is a hardened key).
+$\mathsf{CKDh}^\mathsf{Context}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i, \mathsf{lead}, \mathsf{tag})$ $\rightarrow (\mathsf{sk}_{child}, \mathsf{c}_{child})$ :
 
-  - If so (hardened child): let
-    $I = \mathsf{PRF^{expand}}(\mathsf{c}_{par}, [\mathsf{Context.CKDDomain}]\,||\,\mathsf{sk}_{par}\,||\,\mathsf{I2LEOSP}_{32}(i))$.
-  - If not (normal child): return failure.
-
+- If $i < 2^{31}$ (non-hardened child index): return failure.
+- Let $\mathsf{lead\_enc} = \begin{cases} \,[\,],&\!\!\textsf{if } \mathsf{lead} = 0 \textsf{ and } \mathsf{tag} = [\,] \\ \,[\mathsf{lead}],&\!\!\textsf{otherwise.}\end{cases}$
+- Let $I = \mathsf{PRF^{expand}}(\mathsf{c}_{par}, [\mathsf{Context.CKDDomain}]\,||\,\mathsf{sk}_{par}\,||\,\mathsf{I2LEOSP}_{32}(i)\,||\,\mathsf{lead\_enc}\,||\,\mathsf{tag})$.
 - Split $I$ into two 32-byte sequences, $I_L$ and $I_R$.
-- Use $I_L$ as the child secret key $\mathsf{sk}_i$.
-- Use $I_R$ as the child chain code $\mathsf{c}_i$.
-- Return $(\mathsf{sk}_i, \mathsf{c}_i)$.
+- Return $(I_L, I_R)$.
+
+Note that in the input to $\mathsf{PRF^{expand}}$, the case $\mathsf{lead} = 0$ and $\mathsf{tag} = [\,]$
+is encoded in a way compatible with the definition of $\mathsf{CKDh}$ in previous versions of this
+specification (before $\mathsf{lead}$ and $\mathsf{tag}$ were added).
 
 
 Specification: Orchard key derivation
@@ -439,7 +450,7 @@ Orchard child key derivation
 
 $\mathsf{CKDsk}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i)$ $\rightarrow (\mathsf{sk}_{i}, \mathsf{c}_i)$ :
 
-- Return $\mathsf{CKDh}^\mathsf{Orchard}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i)$
+- Return $\mathsf{CKDh}^\mathsf{Orchard}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i, 0, [\,])$
 
 Note that the resulting child spending key may produce an invalid external FVK, as specified
 in [#protocol-orchardkeycomponents]_, with small probability. The corresponding internal FVK
@@ -462,7 +473,7 @@ Define $\mathsf{DeriveInternalFVK^{Orchard}}(\mathsf{ak}, \mathsf{nk}, \mathsf{r
 as follows:
 
 - Let $K = \mathsf{I2LEBSP}_{256}(\mathsf{rivk})$.
-- Let $\mathsf{rivk_{internal}} = \mathsf{ToScalar^{Orchard}}(\mathsf{PRF^{expand}}(K, [\mathtt{0x83}] \,||\, \mathsf{I2LEOSP_{256}}(\mathsf{ak}) \,||\, \mathsf{I2LEOSP_{256}}(\mathsf{nk}))$.
+- Let $\mathsf{rivk_{internal}} = \mathsf{ToScalar^{Orchard}}(\mathsf{PRF^{expand}}(K, [\mathtt{0x83}] \,||\, \mathsf{I2LEOSP_{256}}(\mathsf{ak}) \,||\, \mathsf{I2LEOSP_{256}}(\mathsf{nk})))$.
 - Return $(\mathsf{ak}, \mathsf{nk}, \mathsf{rivk_{internal}})$.
 
 The result of applying $\mathsf{DeriveInternalFVK^{Orchard}}$ to the external full viewing
@@ -513,43 +524,125 @@ valid diversifiers.
 The default diversifier for $(\mathsf{sk}_i, \mathsf{c}_i)$ is defined to be $d_{i,0}.$
 
 
-Specification: Arbitrary key derivation
-=======================================
+Specification: Registered key derivation
+========================================
 
-In some contexts there is a need for deriving arbitrary keys with the same derivation path as
-existing key material (for example, deriving an arbitrary account-level key), without the need for
-ecosystem-wide coordination. The following instantiation of the hardened key generation process may
-be used for this purpose.
+In the context of a particular application protocol defined by a ZIP, there is sometimes
+a need to define an HD subtree that will not collide with keys derived for other protocols,
+as far as that is possible to assure by following the ZIP process [#zip-0000]_.
+
+Within this subtree, the application protocol may use derivation paths related to those
+used for existing key material — for example, to derive an account-level key. The following
+instantiation of the hardened key generation process may be used for this purpose.
+
+It is strongly RECOMMENDED that implementors ensure that documentation of the context
+string(s), and the usage and derivation paths of the application protocol's key tree in
+the corresponding ZIP are substantially complete, before public deployment of software
+or hardware using this mechanism. The ZIP process allows for subsequent updates and
+corrections.
 
 Let $\mathsf{ContextString}$ be a globally-unique non-empty sequence of at most 252 bytes
 that identifies the desired context.
 
 We instantiate the hardened key generation process with the following constants:
 
-- $\mathsf{Arbitrary.MKGDomain} = \texttt{“ZcashArbitraryKD”}$
-- $\mathsf{Arbitrary.CKDDomain} = \mathtt{0xAB}$
+- $\mathsf{Registered.MKGDomain} = \texttt{“ZIPRegistered\_KD”}$
+- $\mathsf{Registered.CKDDomain} = \mathtt{0xAC}$
 
-Arbitrary master key generation
--------------------------------
+Registered subtree root key generation
+--------------------------------------
 
 Let $S$ be a seed byte sequence of a chosen length, which MUST be at least 32 and at most 252 bytes.
 
-The master extended arbitrary key is:
+The registered subtree root is obtained as:
 
-$m_\mathsf{Arbitrary} = \mathsf{MKGh}^\mathsf{Arbitrary}([\mathsf{length}(\mathsf{ContextString})]\,||\,\mathsf{ContextString}\,||\,[\mathsf{length}(S)]\,||\,S)$.
+$\mathsf{RegKD}(\mathsf{ContextString}, \mathsf{S}, \mathsf{ZipNumber})$ $\rightarrow (\mathsf{sk}_{subtree}, \mathsf{c}_{subtree})$ :
 
-Arbitrary child key derivation
-------------------------------
+- Let $(\mathsf{sk}_{m}, \mathsf{c}_{m}) = \mathsf{MKGh}^\mathsf{Registered}([\mathsf{length}(\mathsf{ContextString})]\,||\,\mathsf{ContextString}\,||\,[\mathsf{length}(S)]\,||\,S)$.
+- Return $\mathsf{CKDh}^\mathsf{Registered}((\mathsf{sk}_{m}, \mathsf{c}_{m}), \mathsf{ZipNumber} + 2^{31}, 0, [\,])$.
+
+Note: The intermediate key $(\mathsf{sk}_{m}, \mathsf{c}_{m})$ would grant the ability to derive the
+subtree root for application protocols defined in *any* ZIP using the same $\mathsf{ContextString}$
+and seed. This is a potentially dangerous scope of grant since it cannot be known what future
+protocols will use this mechanism; therefore, $(\mathsf{sk}_{m}, \mathsf{c}_{m})$ SHOULD NOT be
+used or stored directly without careful consideration of security consequences.
+
+Registered child key derivation
+-------------------------------
+
+As well as the integer child index $i$, the child key derivation function defined here supports a
+byte sequence $\mathsf{tag}$; each pair $(i, \mathsf{tag})$ produces a different child key. If an
+explicit tag is not required, $\mathsf{tag}$ is set to the empty byte sequence.
+
+Note: The tag MUST use an unambiguous encoding within the given context. It is RECOMMENDED to use
+a prefix-free encoding, which may require the use of length fields if multiple fields need to be
+encoded.
+
+$\mathsf{CKDreg}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i, \mathsf{tag})$ $\rightarrow (\mathsf{sk}_{child}, \mathsf{c}_{child})$ :
+
+- Return $\mathsf{CKDh}^\mathsf{Registered}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i, 0, \mathsf{tag})$.
+
+Full-width child cryptovalue derivation
+---------------------------------------
+
+If the application protocol requires a 64-byte cryptovalue (for example, to avoid an entropy
+bottleneck in its subsequent operations), then a similar process to `Registered child key derivation`_
+above can be used to obtain such a cryptovalue at a given child index; again with optional tag.
+The same considerations about encoding of the $\mathsf{tag}$ apply as above.
+
+$\mathsf{derive\_child\_cryptovalue}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i, \mathsf{tag})$ $\rightarrow \mathsf{K}_{child}$ :
+
+- Let $(I_L, I_R) = \mathsf{CKDh}^\mathsf{Registered}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i, 1, \mathsf{tag})$.
+- Return $I_L\,||\,I_R$.
+
+For the avoidance of doubt, the output of $\mathsf{derive\_child\_cryptovalue}$
+MUST NOT be provided as input to any key derivation function defined in ZIP 32.
+In particular, it MUST NOT be reinterpreted directly or indirectly as an input to
+$\mathsf{CKDh}$.
+
+
+Specification: Ad-hoc key derivation (deprecated)
+=================================================
+
+For compatibility with existing deployments, we also define a mechanism to derive ad-hoc
+key trees for private use by applications, without ecosystem coordination. This was called
+"arbitrary key derivation" in previous iterations of this ZIP, but that term caused confusion
+as to the applicability of the mechanism.
+
+Since there is no guarantee of non-collision between different application protocols, and no
+way to tie these key trees to well-defined specification or documentation processes, use of
+this mechanism is NOT RECOMMENDED for new protocols.
+
+Let $\mathsf{ContextString}$ be a globally-unique non-empty sequence of at most 252 bytes
+that identifies the desired context.
+
+We instantiate the hardened key derivation process with the following constants:
+
+- $\mathsf{Adhoc.MKGDomain} = \texttt{“ZcashArbitraryKD”}$
+- $\mathsf{Adhoc.CKDDomain} = \mathtt{0xAB}$
+
+Ad-hoc master key generation (deprecated)
+-----------------------------------------
+
+Let $S$ be a seed byte sequence of a chosen length, which MUST be at least 32 and at most 252 bytes.
+
+The master extended ad-hoc key is:
+
+$m_\mathsf{Adhoc} = \mathsf{MKGh}^\mathsf{Adhoc}([\mathsf{length}(\mathsf{ContextString})]\,||\,\mathsf{ContextString}\,||\,[\mathsf{length}(S)]\,||\,S)$.
+
+Ad-hoc child key derivation (deprecated)
+----------------------------------------
 
 $\mathsf{CKDarb}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i)$ $\rightarrow (\mathsf{sk}_i, \mathsf{c}_i)$ :
 
-- Return $\mathsf{CKDh}^\mathsf{Arbitrary}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i)$.
+- Return $\mathsf{CKDh}^\mathsf{Adhoc}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i, 0, [\,])$.
 
-If the context requires a 64-byte key (for example, to avoid an entropy bottleneck in its particular
-subsequent operations), and $i$ is the last element of an HD path, the concatenation
-$\mathsf{sk}_i\,||\,\mathsf{c}_i$ MAY be used as a key. In this case,
-$(\mathsf{sk}_i, \mathsf{c}_i)$ MUST NOT be given as input to $\mathsf{CKDarb}$ (this
-is a restatement of the requirement that $i$ is the last element of an HD path).
+Note: a previous iteration of this ZIP suggested that, if $i$ is the last element of an HD path
+(i.e. no extension of this path is used), then the concatenation $\mathsf{sk}_i\,||\,\mathsf{c}_i$
+could be used as a 64-bit key. This is NOT RECOMMENDED, because it is difficult to define safe APIs
+that enforce the restriction that a given node in the key tree must not be used both in this way
+and to derive further child keys. `Full-width child cryptovalue derivation`_ provides a safe way to
+obtain the same functionality for new application protocols.
 
 
 Specification: Wallet usage
@@ -756,7 +849,9 @@ for Sprout, and therefore SHOULD NOT be used in future Zcash-related specificati
 Test Vectors
 ============
 
-TBC
+Test vectors are available at <https://github.com/zcash/zcash-test-vectors> in the
+`sapling_zip32`, `sapling_zip32_hard`, `orchard_zip32`, `zip_0032_registered`, and
+`zip_0032_arbitrary` files for each format.
 
 
 Reference Implementation
@@ -778,7 +873,6 @@ References
 .. [#bip-0044] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>`_
 .. [#slip-0044] `SLIP 44: Registered coin types for BIP-0044 <https://github.com/satoshilabs/slips/blob/master/slip-0044.md>`_
 .. [#bip-0173] `BIP 173: Base32 address format for native v0-16 witness outputs <https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki>`_
-.. [#zip-0316] `ZIP 316: Unified Addresses and Unified Viewing Keys <zip-0316.rst>`_
 .. [#protocol] `Zcash Protocol Specification, Version 2022.2.19 or later [NU5 proposal] <protocol/protocol.pdf>`_
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2022.2.19. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
 .. [#protocol-saplingkeycomponents] `Zcash Protocol Specification, Version 2022.2.19. Section 4.2.2: Sapling Key Components <protocol/protocol.pdf#saplingkeycomponents>`_
@@ -793,3 +887,5 @@ References
 .. [#protocol-orchardfullviewingkeyencoding] `Zcash Protocol Specification, Version 2022.2.19. Section 5.6.4.4: Orchard Raw Full Viewing Keys <protocol/protocol.pdf#orchardfullviewingkeyencoding>`_
 .. [#protocol-orchardspendingkeyencoding] `Zcash Protocol Specification, Version 2022.2.19. Section 5.6.4.5: Orchard Spending Keys <protocol/protocol.pdf#orchardspendingkeyencoding>`_
 .. [#NIST-SP-800-38G] `NIST Special Publication 800-38G — Recommendation for Block Cipher Modes of Operation: Methods for Format-Preserving Encryption <https://dx.doi.org/10.6028/NIST.SP.800-38G>`_
+.. [#zip-0000] `ZIP 0: ZIP Process <zip-0000.rst>`_
+.. [#zip-0316] `ZIP 316: Unified Addresses and Unified Viewing Keys <zip-0316.rst>`_
