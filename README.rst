@@ -20,7 +20,8 @@ and documenting / addressing dissenting opinions.
 
 Anyone can write a ZIP! We encourage community contributions and decentralization
 of work on the Zcash protocol. If you’d like to bounce ideas off people before formally
-writing a ZIP, we encourage it! Visit the `ZcashCommunity Discord chat <https://discord.gg/kdjfvps>`__
+writing a ZIP, we encourage it!
+Visit the `Zcash Community Forum <https://forum.zcashcommunity.com/c/community-collaboration/7>`__
 to talk about your idea.
 
 Participation in the Zcash project is subject to a `Code of
