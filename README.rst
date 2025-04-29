@@ -48,16 +48,16 @@ NU7 Candidate ZIPs
 
 The following ZIPs are under consideration for inclusion in NU7:
 
-- `ZIP 226: Transfer and Burn of Zcash Shielded Assets <zip-0226.rst>`__
-- `ZIP 227: Issuance of Zcash Shielded Assets <zip-0227.rst>`__
-- `ZIP 230: Version 6 Transaction Format <zip-0230.rst>`__
-- `ZIP 231: Memo Bundles <zip-0231.rst>`__
-- `ZIP 233: Network Sustainability Mechanism: Burning <zip-0233.rst>`__
-- `ZIP 234: Network Sustainability Mechanism: Issuance Smoothing <zip-0234.rst>`__
-- `ZIP 235: Network Sustainability Mechanism: Burn 60% of Transaction Fees <zip-0235.rst>`__
-- `ZIP 2002: Explicit Fees <zip-2002.rst>`__
-- `ZIP 2003: Disallow version 4 transactions <zip-2003.rst>`__
-- `ZIP 2004: Remove the dependency of consensus on note encryption <zip-2004.rst>`__
+- `ZIP 226: Transfer and Burn of Zcash Shielded Assets <zips/zip-0226.rst>`__
+- `ZIP 227: Issuance of Zcash Shielded Assets <zips/zip-0227.rst>`__
+- `ZIP 230: Version 6 Transaction Format <zips/zip-0230.rst>`__
+- `ZIP 231: Memo Bundles <zips/zip-0231.md>`__
+- `ZIP 233: Network Sustainability Mechanism: Burning <zips/zip-0233.md>`__
+- `ZIP 234: Network Sustainability Mechanism: Issuance Smoothing <zips/zip-0234.md>`__
+- `ZIP 235: Network Sustainability Mechanism: Burn 60% of Transaction Fees <zips/zip-0235.md>`__
+- `ZIP 2002: Explicit Fees <zips/zip-2002.rst>`__
+- `ZIP 2003: Disallow version 4 transactions <zips/zip-2003.rst>`__
+- `ZIP 2004: Remove the dependency of consensus on note encryption <zips/zip-2004.rst>`__
 
 In addition, `ZIP 317: Proportional Transfer Fee Mechanism <zip-0317.rst>`__
 may be updated.
