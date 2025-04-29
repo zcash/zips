@@ -48,7 +48,7 @@ NU7 Candidate ZIPs
 
 The following ZIPs are under consideration for inclusion in NU7:
 
-- `ZIP 226: Transfer and Burn of Zcash Shielded Assets <zip-0226.rst>`__
+- `ZIP 226: Transfer and Burn of Zcash Shielded Assets <zips/zip-0226.rst>`__
 - `ZIP 227: Issuance of Zcash Shielded Assets <zip-0227.rst>`__
 - `ZIP 230: Version 6 Transaction Format <zip-0230.rst>`__
 - `ZIP 231: Memo Bundles <zip-0231.rst>`__
