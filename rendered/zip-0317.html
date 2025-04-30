@@ -33,7 +33,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
             <p>The goal of this ZIP is to change the conventional fees for transactions by making them dependent on the number of inputs and outputs in a transaction, and to get buy-in for this change from wallet developers, miners and Zcash users.</p>
         </section>
         <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>In light of recent Mainnet network activity, it is time to review and update the standard 1,000 zatoshi transaction fee set in ZIP 313 <a id="footnote-reference-3" class="footnote_reference" href="#zip-0313">6</a>.</p>
+            <p>In light of recent Mainnet network activity, it is time to review and update the standard 1,000 zatoshi transaction fee set in ZIP 313 <a id="footnote-reference-3" class="footnote_reference" href="#zip-0313">8</a>.</p>
             <p>The conventional transaction fee presently is 0.00001 ZEC or 1,000 zatoshis, as specified in ZIP 313. This allowed exploration of novel use cases of the Zcash blockchain. The Zcash network has operated for almost 2 years at a conventional transaction fee of 1,000 zatoshis, without consideration for the total number of inputs and outputs in each transaction. Under this conventional fee, some usage of the chain has been characterized by high-output transactions with 1,100 outputs, paying the same conventional fee as a transaction with 2 outputs.</p>
             <p>The objective of the new fee policy, once it is enforced, is for fees paid by transactions to fairly reflect the processing costs that their inputs and outputs impose on various participants in the network. This will tend to discourage usage patterns that cause either intentional or unintentional denial of service, while still allowing low fees for regular transaction use cases.</p>
         </section>
@@ -44,6 +44,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
                 <li>Users should not be penalised for sending transactions constructed with padding of inputs and outputs to reduce information leakage. (The default policy employed by zcashd and the mobile SDKs pads to two inputs and two outputs for each shielded pool used by the transaction).</li>
                 <li>Users should be able to spend a small number of UTXOs or notes with value below the marginal fee per input.</li>
                 <li>The conventional fee should not leak private information used in constructing the transaction; that is, it should be computable from only the public data of the transaction.</li>
+                <li>Users should be discouraged from issuing new “garbage” Custom Assets. The fee should reflect the cost of adding new data to the global state.</li>
             </ul>
         </section>
         <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
@@ -117,21 +118,41 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
                             </td>
                             <td>bytes</td>
                         </tr>
+                        <tr>
+                            <td>
+                                <span class="math">\(creation\_cost\)</span>
+                            </td>
+                            <td>
+                                <span class="math">\(100\)</span>
+                            </td>
+                            <td>logical actions</td>
+                        </tr>
                     </tbody>
                 </table>
                 <p>Wallets implementing this specification SHOULD use a conventional fee calculated in zatoshis per the following formula:</p>
-                <div class="math">\(\begin{array}{rcl}
-  contribution_{\,\mathsf{Transparent}} &amp;=&amp;
-      \mathsf{max}\big(\mathsf{ceiling}\big(\frac{tx\_in\_total\_size}{p2pkh\_standard\_input\_size}\big),\,
-                       \mathsf{ceiling}\big(\frac{tx\_out\_total\_size}{p2pkh\_standard\_output\_size}\big)\big) \\
-  contribution_{\,\rlap{\mathsf{Sprout}}\phantom{\mathsf{Transparent}}}  &amp;=&amp; 2 \cdot nJoinSplit \\
-  contribution_{\,\rlap{\mathsf{Sapling}}\phantom{\mathsf{Transparent}}} &amp;=&amp; \mathsf{max}(nSpendsSapling,\, nOutputsSapling) \\
-  contribution_{\,\rlap{\mathsf{Orchard}}\phantom{\mathsf{Transparent}}} &amp;=&amp; nActionsOrchard \\
+                <div class="math">\(\begin{array}{lcl}
+  free\_memo\_chunks &amp;=&amp; \begin{cases}
+                           2, &amp;\!\!\text{if } nOutputsSapling + nActionsOrchard &gt; 0, \\
+                           0, &amp;\!\!\text{otherwise}
+                         \end{cases}
+  \\
+  contribution_{\,\mathsf{Transparent}} &amp;=&amp; \mathsf{max}\big(\mathsf{ceiling}\big(\frac{tx\_in\_total\_size}{p2pkh\_standard\_input\_size}\big),\,
+                                              \mathsf{ceiling}\big(\frac{tx\_out\_total\_size}{p2pkh\_standard\_output\_size}\big)\big) \\
+  contribution_{\,\mathsf{Sprout}}      &amp;=&amp; 2 \cdot nJoinSplit \\
+  contribution_{\,\mathsf{Sapling}}     &amp;=&amp; \mathsf{max}(nSpendsSapling,\, nOutputsSapling) \\
+  contribution_{\,\mathsf{Orchard}}     &amp;=&amp; nActionsOrchard \\
+  contribution_{\,\mathsf{ZSAIssuance}} &amp;=&amp; nZSAIssueNotes \\
+  contribution_{\,\mathsf{ZSACreation}} &amp;=&amp; creation\_cost \cdot nAssetCreations \\
+  contribution_{\,\mathsf{Memos}}       &amp;=&amp; \mathsf{max}\big(0, nMemoChunks - free\_memo\_chunks\big) \\
   \\
   logical\_actions  &amp;=&amp; contribution_{\,\mathsf{Transparent}} +
                         contribution_{\,\mathsf{Sprout}} +
                         contribution_{\,\mathsf{Sapling}} +
                         contribution_{\,\mathsf{Orchard}} \\
+   &amp; &amp; \hspace{1em} +\; contribution_{\,\mathsf{ZSAIssuance}} +
+                        contribution_{\,\mathsf{ZSACreation}} +
+                        contribution_{\,\mathsf{Memos}} \\
+  \\
   conventional\_fee &amp;=&amp; marginal\_fee \cdot \mathsf{max}(grace\_actions,\, logical\_actions)
 \end{array}\)</div>
                 <p>The inputs to this formula are taken from transaction fields defined in the Zcash protocol specification <a id="footnote-reference-4" class="footnote_reference" href="#protocol-txnencoding">3</a>:</p>
@@ -186,6 +207,27 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
                             <td>number</td>
                             <td>the number of Orchard actions</td>
                         </tr>
+                        <tr>
+                            <td>
+                                <span class="math">\(nZSAIssueNotes\)</span>
+                            </td>
+                            <td>number</td>
+                            <td>the number of <code>IssueNote</code> outputs</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <span class="math">\(nAssetCreations\)</span>
+                            </td>
+                            <td>number</td>
+                            <td>the number of Custom Assets newly added to the Global Issuance State</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <span class="math">\(nMemoChunks\)</span>
+                            </td>
+                            <td>number</td>
+                            <td>the number of memo chunks</td>
+                        </tr>
                     </tbody>
                 </table>
                 <p>It is not a consensus requirement that fees follow this formula; however, wallets SHOULD create transactions that pay this fee, in order to reduce information leakage, unless overridden by the user.</p>
@@ -200,77 +242,84 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
                 <section id="rationale-for-the-chosen-parameters"><h4><span class="section-heading">Rationale for the chosen parameters</span><span class="section-anchor"> <a rel="bookmark" href="#rationale-for-the-chosen-parameters"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
                 <details>
 <summary>Click to show/hide</summary>
-                    <section id="grace-actions"><h5><span class="section-heading">Grace Actions</span><span class="section-anchor"> <a rel="bookmark" href="#grace-actions"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
-                        <p><strong>Why not just charge per-action, without a grace window?</strong></p>
-                        <ul>
-                            <li>This ensures that there is no penalty to padding a 1-action transaction to a 2-action transaction. Such padding is desirable to reduce information leakage from input and output arity, and is the standard approach used by <cite>zcashd</cite> and the mobile SDK transaction builder.</li>
-                            <li>Without a grace window, an input with value below the marginal fee would never be worth including in the resulting transaction. With a grace window, an input with value below
-                                <span class="math">\(marginal\_fee\)</span>
-                             <em>is</em> worth including, if a second input is available that covers both the primary output amount and the conventional transaction fee.</li>
-                        </ul>
-                        <p><strong>Why a grace window of 2?</strong></p>
-                        <p>A 1-in, 2-out (or 2-action) transaction is the smallest possible transaction that permits both an output to a recipient, and a change output. However, as stated above, <cite>zcashd</cite> and the mobile SDK transaction builder will pad the number of inputs to at least 2.</p>
-                        <p>Let
-                            <span class="math">\(min\_actions\)</span>
-                         be the minimum number of logical actions that can be used to execute economically relevant transactions that produce change. Due to the aforementioned padding,
-                            <span class="math">\(min\_actions = 2\!\)</span>
-                        .</p>
-                        <p>Having a grace window size greater than
-                            <span class="math">\(min\_actions\)</span>
-                         would increase the cost to create such a minimal transaction. If the cost we believe that users will tolerate for a minimal transaction is
-                            <span class="math">\(B\!\)</span>
-                        , then possible choices of
+                    <p><strong>Why not just charge per-action, without a grace window?</strong></p>
+                    <ul>
+                        <li>This ensures that there is no penalty to padding a 1-action transaction to a 2-action transaction. Such padding is desirable to reduce information leakage from input and output arity, and is the standard approach used by <cite>zcashd</cite> and the mobile SDK transaction builder.</li>
+                        <li>Without a grace window, an input with value below the marginal fee would never be worth including in the resulting transaction. With a grace window, an input with value below
                             <span class="math">\(marginal\_fee\)</span>
-                         are bounded above by
-                            <span class="math">\(B / \max(min\_actions, grace\_actions)\!\)</span>
-                        . Therefore, the optimal choice of
-                            <span class="math">\(grace\_actions\)</span>
-                         to maximize the per-logical-action cost of denial-of-service attacks for a given
-                            <span class="math">\(B\!\)</span>
-                        , is
-                            <span class="math">\(grace\_actions = min\_actions = 2\!\)</span>
-                        . This also ensures that a denial-of-service adversary does not gain a significant per-logical-action cost advantage by using transactions with a smaller or larger number of logical actions.</p>
-                    </section>
-                    <section id="transparent-contribution"><h5><span class="section-heading">Transparent Contribution</span><span class="section-anchor"> <a rel="bookmark" href="#transparent-contribution"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
-                        <p>The specified formula calculates the contribution of transparent inputs and outputs based on their total size relative to a typical input or output. Another considered approach was to calculate this contribution simply as
-                            <span class="math">\(\mathsf{max}(transparent\_inputs, transparent\_outputs)\!\)</span>
-                        . However, this would allow a denial-of-service adversary to create transactions with transparent components containing arbitrarily large scripts.</p>
-                        <p>The chosen values for
+                         <em>is</em> worth including, if a second input is available that covers both the primary output amount and the conventional transaction fee.</li>
+                    </ul>
+                    <p><strong>Why a grace window of 2?</strong></p>
+                    <p>A 1-in, 2-out (or 2-action) transaction is the smallest possible transaction that permits both an output to a recipient, and a change output. However, as stated above, <cite>zcashd</cite> and the mobile SDK transaction builder will pad the number of inputs to at least 2.</p>
+                    <p>Let
+                        <span class="math">\(min\_actions\)</span>
+                     be the minimum number of logical actions that can be used to execute economically relevant transactions that produce change. Due to the aforementioned padding,
+                        <span class="math">\(min\_actions = 2\!\)</span>
+                    .</p>
+                    <p>Having a grace window size greater than
+                        <span class="math">\(min\_actions\)</span>
+                     would increase the cost to create such a minimal transaction. If the cost we believe that users will tolerate for a minimal transaction is
+                        <span class="math">\(B\!\)</span>
+                    , then possible choices of
+                        <span class="math">\(marginal\_fee\)</span>
+                     are bounded above by
+                        <span class="math">\(B / \max(min\_actions, grace\_actions)\!\)</span>
+                    . Therefore, the optimal choice of
+                        <span class="math">\(grace\_actions\)</span>
+                     to maximize the per-logical-action cost of denial-of-service attacks for a given
+                        <span class="math">\(B\!\)</span>
+                    , is
+                        <span class="math">\(grace\_actions = min\_actions = 2\!\)</span>
+                    . This also ensures that a denial-of-service adversary does not gain a significant per-logical-action cost advantage by using transactions with a smaller or larger number of logical actions.</p>
+                    <p><strong>Transparent Contribution</strong></p>
+                    <p>The specified formula calculates the contribution of transparent inputs and outputs based on their total size relative to a typical input or output. Another considered approach was to calculate this contribution simply as
+                        <span class="math">\(\mathsf{max}(transparent\_inputs, transparent\_outputs)\!\)</span>
+                    . However, this would allow a denial-of-service adversary to create transactions with transparent components containing arbitrarily large scripts.</p>
+                    <p>The chosen values for
+                        <span class="math">\(p2pkh\_standard\_input\_size\)</span>
+                     and
+                        <span class="math">\(p2pkh\_standard\_output\_size\)</span>
+                     are based on the maximum encoded length for P2PKH inputs and outputs, as follows:</p>
+                    <ul>
+                        <li>
                             <span class="math">\(p2pkh\_standard\_input\_size\)</span>
-                         and
+                            <ul>
+                                <li>outpoint: 36 bytes</li>
+                                <li>script: 110 bytes
+                                    <ul>
+                                        <li>1 (overall length) + 1 (signature length) + 72 (signature) + 1 (sighash type) + 1 (pubkey length) + 33 (pubkey) + 1 (margin)</li>
+                                    </ul>
+                                </li>
+                                <li>sequence: 4 bytes</li>
+                            </ul>
+                        </li>
+                        <li>
                             <span class="math">\(p2pkh\_standard\_output\_size\)</span>
-                         are based on the maximum encoded length for P2PKH inputs and outputs, as follows:</p>
-                        <ul>
-                            <li>
-                                <span class="math">\(p2pkh\_standard\_input\_size\)</span>
-                                <ul>
-                                    <li>outpoint: 36 bytes</li>
-                                    <li>script: 110 bytes
-                                        <ul>
-                                            <li>1 (overall length) + 1 (signature length) + 72 (signature) + 1 (sighash type) + 1 (pubkey length) + 33 (pubkey) + 1 (margin)</li>
-                                        </ul>
-                                    </li>
-                                    <li>sequence: 4 bytes</li>
-                                </ul>
-                            </li>
-                            <li>
-                                <span class="math">\(p2pkh\_standard\_output\_size\)</span>
-                                <ul>
-                                    <li>value: 8 bytes</li>
-                                    <li>script: 26 bytes
-                                        <ul>
-                                            <li>1 (script length) + 25 (P2PKH script)</li>
-                                        </ul>
-                                    </li>
-                                </ul>
-                            </li>
-                        </ul>
-                        <p>P2SH outputs are smaller than P2PKH outputs, but P2SH inputs may be larger than P2PKH inputs. For example a 2-of-3 multisig input is around 70% larger, and is counted as such when computing the number of logical actions.</p>
-                    </section>
-                    <section id="marginal-fee"><h5><span class="section-heading">Marginal Fee</span><span class="section-anchor"> <a rel="bookmark" href="#marginal-fee"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
-                        <p>This returns the conventional fee for a minimal transaction (as described above) to the original conventional fee of 10000 zatoshis specified in <a id="footnote-reference-5" class="footnote_reference" href="#zip-0313">6</a>, and imposes a non-trivial cost for potential denial-of-service attacks.</p>
-                    </details></section>
-                </section>
+                            <ul>
+                                <li>value: 8 bytes</li>
+                                <li>script: 26 bytes
+                                    <ul>
+                                        <li>1 (script length) + 25 (P2PKH script)</li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                    <p>P2SH outputs are smaller than P2PKH outputs, but P2SH inputs may be larger than P2PKH inputs. For example a 2-of-3 multisig input is around 70% larger, and is counted as such when computing the number of logical actions.</p>
+                    <p><strong>Marginal Fee</strong></p>
+                    <p>This returns the conventional fee for a minimal transaction (as described above) to the original conventional fee of 10000 zatoshis specified in <a id="footnote-reference-5" class="footnote_reference" href="#zip-0313">8</a>, and imposes a non-trivial cost for potential denial-of-service attacks.</p>
+                    <p><strong>ZSA Creation Cost</strong></p>
+                    <p>Every newly created Custom Asset adds a new row to the Global Issuance State <a id="footnote-reference-6" class="footnote_reference" href="#zip-0227-global-issuance-state">6</a> that full validators need to track in perpetuity. Subsequent issuance, finalization, or burn of existing Custom Assets only changes the values in the corresponding row. Imposing a higher cost on Custom Asset creation events disincentivizes the creation of "junk" assets.</p>
+                    <p><strong>Memo Chunks</strong></p>
+                    <p>Making the fee linear in the number of memo chunks has the following properties:</p>
+                    <ul>
+                        <li>The required fee to add more memo chunks scales at the same rate as adding logical actions, so it isn't a cheaper mechanism for an adversary to bloat chain size.</li>
+                        <li>A "baseline transaction" (one spent note, one output to an external recipient with a memo, one change output without a memo) has the same fee as before.</li>
+                        <li>A "broadcast transaction" (many outputs to different recipients all given the same memo) is the same fee as before (but a smaller transaction).</li>
+                        <li>A "many memos transaction" (many outputs to different recipients all with unique memos) is at most around twice the fee as before.</li>
+                    </ul>
+                    <p>Combined with the memo bundle size restriction, the maximum additional fee for a ZIP 231 memo bundle <a id="footnote-reference-7" class="footnote_reference" href="#zip-0231">7</a> over prior transactions is 0.0019 ZEC.</p>
+                </details></section>
             </section>
             <section id="transaction-relaying"><h3><span class="section-heading">Transaction relaying</span><span class="section-anchor"> <a rel="bookmark" href="#transaction-relaying"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>zcashd, zebrad, and potentially other node implementations, implement fee-based restrictions on relaying of mempool transactions. Nodes that normally relay transactions are expected to do so for transactions that pay at least the conventional fee as specified in this ZIP, unless there are other reasons not to do so for robustness or denial-of-service mitigation.</p>
@@ -279,7 +328,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
                  "unpaid actions" as defined by the <a href="#recommended-algorithm-for-block-template-construction">Recommended algorithm for block template construction</a>, it will never be mined by that algorithm. Nodes MAY drop these transactions, or transactions with more unpaid actions than a configurable limit (see the <a href="#deployment">Deployment</a> section for actual behaviour of node implementations).</p>
             </section>
             <section id="mempool-size-limiting"><h3><span class="section-heading">Mempool size limiting</span><span class="section-anchor"> <a rel="bookmark" href="#mempool-size-limiting"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
-                <p>zcashd and zebrad limit the size of the mempool as described in <a id="footnote-reference-6" class="footnote_reference" href="#zip-0401">7</a>. This specifies a
+                <p>zcashd and zebrad limit the size of the mempool as described in <a id="footnote-reference-8" class="footnote_reference" href="#zip-0401">9</a>. This specifies a
                     <span class="math">\(low\_fee\_penalty\)</span>
                  that is added to the "eviction weight" if the transaction pays a fee less than the conventional transaction fee. This threshold is modified to use the new conventional fee formula.</p>
             </section>
@@ -323,7 +372,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
                                  with this transaction included.</li>
                                 <li>If
                                     <span class="math">\(B\)</span>
-                                 would be within the block size limit and block sigop limit <a id="footnote-reference-7" class="footnote_reference" href="#sigop-limit">4</a>, set
+                                 would be within the block size limit and block sigop limit <a id="footnote-reference-9" class="footnote_reference" href="#sigop-limit">4</a>, set
                                     <span class="math">\(T := B\!\)</span>
                                 .</li>
                             </ol>
@@ -339,7 +388,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
                                  with this transaction included.</li>
                                 <li>If
                                     <span class="math">\(B\)</span>
-                                 would be within the block size limit and block sigop limit <a id="footnote-reference-8" class="footnote_reference" href="#sigop-limit">4</a> and
+                                 would be within the block size limit and block sigop limit <a id="footnote-reference-10" class="footnote_reference" href="#sigop-limit">4</a> and
                                     <span class="math">\(block\_unpaid\_actions(B) \leq block\_unpaid\_action\_limit\!\)</span>
                                 , set
                                     <span class="math">\(T := B\!\)</span>
@@ -358,7 +407,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
                      times the marginal fee, we count that as
                         <span class="math">\(k\)</span>
                      unpaid logical actions.</p>
-                    <p>Regardless of how full the mempool is (according to the ZIP 401 <a id="footnote-reference-9" class="footnote_reference" href="#zip-0401">7</a> cost limiting), and regardless of what strategy a denial-of-service adversary may use, the number of unpaid logical actions in each block is always limited to at most
+                    <p>Regardless of how full the mempool is (according to the ZIP 401 <a id="footnote-reference-11" class="footnote_reference" href="#zip-0401">9</a> cost limiting), and regardless of what strategy a denial-of-service adversary may use, the number of unpaid logical actions in each block is always limited to at most
                         <span class="math">\(block\_unpaid\_action\_limit\!\)</span>
                     .</p>
                     <p>The weighting in step 2 does not create a situation where the adversary gains a significant advantage over other users by paying more than the conventional fee, for two reasons:</p>
@@ -475,7 +524,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
                  in @nuttycom's proposal.</li>
                 <li>
                     <span class="math">\(marginal\_fee = 1000\)</span>
-                 adapted from @madars' proposal <a id="footnote-reference-10" class="footnote_reference" href="#madars-1">5</a>.</li>
+                 adapted from @madars' proposal <a id="footnote-reference-12" class="footnote_reference" href="#madars-1">5</a>.</li>
                 <li>
                     <span class="math">\(marginal\_fee = 2500\)</span>
                  in @daira's proposal.</li>
@@ -501,7 +550,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
             </ul>
         </section>
         <section id="acknowledgements"><h2><span class="section-heading">Acknowledgements</span><span class="section-anchor"> <a rel="bookmark" href="#acknowledgements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>Thanks to Madars Virza for initially proposing a fee mechanism similar to that proposed in this ZIP <a id="footnote-reference-11" class="footnote_reference" href="#madars-1">5</a>, and for finding a potential weakness in an earlier version of the block template construction algorithm. Thanks also to Kris Nuttycombe, Jack Grigg, Francisco Gindre, Greg Pfeil, Teor, and Deirdre Connolly for reviews and suggested improvements.</p>
+            <p>Thanks to Madars Virza for initially proposing a fee mechanism similar to that proposed in this ZIP <a id="footnote-reference-13" class="footnote_reference" href="#madars-1">5</a>, and for finding a potential weakness in an earlier version of the block template construction algorithm. Thanks also to Kris Nuttycombe, Jack Grigg, Francisco Gindre, Greg Pfeil, Teor, and Deirdre Connolly for reviews and suggested improvements.</p>
         </section>
         <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <table id="bcp14" class="footnote">
@@ -544,10 +593,26 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
                     </tr>
                 </tbody>
             </table>
-            <table id="zip-0313" class="footnote">
+            <table id="zip-0227-global-issuance-state" class="footnote">
                 <tbody>
                     <tr>
                         <th>6</th>
+                        <td><a href="zip-0227#global-issuance-state">ZIP 227: Issuance of Zcash Shielded Assets - Global Issuance State</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0231" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>7</th>
+                        <td><a href="zip-0231">ZIP 231: Memo Bundles</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0313" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>8</th>
                         <td><a href="zip-0313">ZIP 313: Reduce Conventional Transaction Fee to 1000 zatoshis</a></td>
                     </tr>
                 </tbody>
@@ -555,7 +620,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/631">https://githu
             <table id="zip-0401" class="footnote">
                 <tbody>
                     <tr>
-                        <th>7</th>
+                        <th>9</th>
                         <td><a href="zip-0401">ZIP 401: Addressing Mempool Denial-of-Service</a></td>
                     </tr>
                 </tbody>
