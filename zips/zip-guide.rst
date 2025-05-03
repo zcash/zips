@@ -167,23 +167,24 @@ Notes and warnings
 ------------------
 
 .. note::
-    "``.. note::``" in reStructuredText or "``<div class="note"></div>``" in
-    Markdown (followed by a blank line in either case), can be used for an aside
-    from the main text.
+    "``.. note::``" in reStructuredText, or "``<div class="note"></div>``" followed
+    by a blank line in Markdown, can be used for an aside from the main text.
 
     The rendering of notes is colourful and may be distracting, so they should
     only be used for important points.
 
 .. warning::
     "``.. warning::``" in reStructuredText, or "``<div class="warning"></div>``"
-    in Markdown (followed by a blank line in either case), can be used for warnings.
+    followed by a blank line in Markdown, can be used for warnings.
 
     Warnings should be used very sparingly — for example to signal that a
     entire specification, or part of it, may be inapplicable or could cause
     significant interoperability or security problems. In most cases, a "MUST"
     or "SHOULD" conformance requirement is more appropriate.
 
-In Markdown, notes and warnings can currently only be a single paragraph.
+In Markdown, notes and warnings can be extended across multiple paragraphs by
+using "``<div class="note-cont"></div>``" or "``<div class="warning-cont"></div>``"
+(preceded and followed by a blank line) between paragraphs.
 
 Valid markup
 ------------
@@ -221,7 +222,7 @@ reStructuredText::
 
 or like this in Markdown::
 
-  [^snark] [The Hunting of the Snark](https://www.gutenberg.org/files/29888/29888-h/29888-h.htm). Lewis Carroll, with illustrations by Henry Holiday. MacMillan and Co. London. March 29, 1876.
+  [^snark]: [The Hunting of the Snark](https://www.gutenberg.org/files/29888/29888-h/29888-h.htm). Lewis Carroll, with illustrations by Henry Holiday. MacMillan and Co. London. March 29, 1876.
 
 Note that each entry must be on a single line regardless of how long that makes the
 line. In Markdown there must be a blank line between entries.
