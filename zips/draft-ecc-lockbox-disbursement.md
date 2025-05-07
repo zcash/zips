@@ -63,16 +63,19 @@ additional output to a 2-of-3 P2SH multisig with keys held by the following
 "Key-Holder Organizations": Zcash Foundation, the Electric Coin Company,
 and Shielded Labs.
 
-Let $v$ be the zatoshi amount in the Deferred Dev Fund Lockbox at the
-activation height. ($v$ can be predicted in advance given that height.)
+Let $v$ be the zatoshi amount in the Deferred Dev Fund Lockbox as of the end
+of the block preceding the activation height. ($v$ can be predicted in advance
+given that height.)
 
-The additional coinbase output MUST follow the same consensus rules as apply to
-funding stream outputs [^zip-0207-consensus-rules]. That is, the coinbase
-transaction MUST contain at least one output that pays $v$ zatoshi, in the
-prescribed way defined in ZIP 207, to the above P2SH multisig address. $v$
-zatoshi are added to the transparent transaction value pool to fund this
-output, and subtracted from the balance of the Deferred Dev Fund Lockbox (i.e.
-the latter balance is reset to zero).
+The additional coinbase output MUST contain at least one output that pays
+$v$ zatoshi to the above P2SH multisig address, using a standard P2SH script
+of the form $\texttt{OP\_HASH160}$ $\mathsf{RedeemScriptHash}(\mathsf{height})$
+$\texttt{OP\_EQUAL}$ as the $\mathtt{scriptPubKey}$. $v$ zatoshi are added to
+the transparent transaction value pool of the coinbase transaction to fund
+this output, and deducted from the balance of the Deferred Dev Fund Lockbox.
+The latter deduction occurs before any other change to the Deferred Dev Fund
+Lockbox balance in the transaction, and MUST NOT cause the Deferred Dev Fund
+Lockbox balance to become negative at that point.
 
 Exactly one of the following options will also be taken. The proposal that
 activates this ZIP must define values for the following two parameters:
@@ -80,6 +83,11 @@ activates this ZIP must define values for the following two parameters:
 * $\mathsf{stream\_value}$: the percentage of the block subsidy to send to 
   a new funding stream, as described in the options below.
 * $\mathsf{stream\_end\_height}$: The ending block height of that stream.
+
+Note: The value $v$ might need to be precalculated so that it is known at
+the point when the relevant consensus check is done in node implementations.
+If so, the specification should be written in terms of the precalculated
+value.
 
 ### Option 1: Extend the lockbox funding stream
 
