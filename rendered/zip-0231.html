@@ -86,6 +86,36 @@ recipient. By separating memo data from the decryption capability for those
 memos, it admits a greater variety of applications that utilize memo data,
 while decreasing the amount of data that needs to be stored on-chain overall.</p>
 
+<h1 id="privacyimplications"><span class="section-heading">Privacy Implications</span><span class="section-anchor"> <a rel="bookmark" href="#privacyimplications"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>Prior to the activation of this ZIP, every shielded output has an associated
+memo field. A chain observer can therefore infer a likely 1:1 correlation
+between transaction recipients and memo payloads. The maximum number of
+distinct memos is precisely known, and the bounds on possible memo sizes are
+very small (between 0 and 512 bytes). It is possible to send additional data to
+a single recipient by adding (potentially zero-valued) outputs; on-chain this is
+indistinguishable from sending more memos to more recipients or (in the case of
+Orchard) spending more input notes.</p>
+
+<p>After the activation of this ZIP, recipient count and memo count are decoupled.
+It becomes possible to construct transactions for which there are many more
+recipients than distinct memos, or vice versa. This may result in more observably
+distinct patterns relating the number of recipients to the number of possible
+memos. One important example is that if a wallet includes an authenticated
+reply-to address, this may be distinguishable from other ordinary wallet
+behaviour.</p>
+
+<p>On the flip side, a chain observer now only knows upper bounds on the amount
+of memo data being conveyed, and the number of possible distinct memos.
+They have no information about how memo data is split among the recipients.
+This can provide a privacy improvement in some situations. For example, it is
+not possible to distinguish between many recipients receiving many small
+memos, and the same set of recipients receiving one large shared memo.</p>
+
+<p>In summary, when sending large amounts of memo data, the change introduced by
+this ZIP eliminates a potential distinguisher along one axis in exchange for a
+potential distinguisher along another.</p>
+
 <h1 id="requirements"><span class="section-heading">Requirements</span><span class="section-anchor"> <a rel="bookmark" href="#requirements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
 
 <ul>
@@ -128,12 +158,9 @@ to both Sapling and Orchard outputs.</p>
 encrypted. These memo chunks represent zero or more encrypted memos.</p>
 
 <p>Each transaction may contain a single memo bundle, and a memo bundle may contain
-at most <code>memo_chunk_limit</code> memo chunks. This limits the total amount of memo data
-that can be conveyed within a single transaction to <code>memo_chunk_limit * 256</code> bytes.</p>
-
-<p><code>memo_chunk_limit</code> is a parameter to this specification, to be decided upon
-by the community. The authors of this ZIP propose a maximum of 64 chunks,
-resulting in a maximum total memo data length of 16 KiB.</p>
+at most <span class="math">\(\mathsf{memo\_chunk\_limit}\)</span> = 64 memo chunks. This limits the total amount
+of memo data that can be conveyed within a single transaction to
+<span class="math">\(\mathsf{memo\_chunk\_limit}\)</span> × 256 = 16384 bytes, or 16 KiB.</p>
 
 <p>Memo bundles are encoded in transactions in a prunable manner: each memo chunk
 can be replaced by its representative digest.</p>
@@ -153,7 +180,7 @@ A new salt MUST be generated for each memo bundle.</p>
 
 <p>The symmetric encryption key for a memo is derived from its <span class="math">\(\mathsf{K^{memo}}\)</span> as follows:</p>
 
-<p><span class="math">\(\hspace{2em}\mathsf{encryption\_key} = \mathsf{PRF^{expand}_{K^{memo}}}([\mathtt{0xE0}] \,||\, \mathsf{salt})\)</span></p>
+<p><span class="math">\(\hspace{2em}\mathsf{encryptionKey} = \mathsf{PRF^{expand}_{K^{memo}}}([\mathtt{0xE0}] \,||\, \mathsf{salt})\)</span></p>
 
 <p>The first byte <span class="math">\(\mathtt{0xE0}\)</span> should be added to the documentation of inputs to
 <span class="math">\(\mathsf{PRF^{expand}}\)</span> in § 4.1.2 ‘Pseudo Random Functions’ <a href="#fn:7" id="fnref:7" title="see footnote" class="footnote"><sup>7</sup></a>.</p>
@@ -167,7 +194,7 @@ probability, it alternatively MAY omit this check.</p>
 256-byte chunks. Each memo chunk is encrypted with ChaCha20Poly1305 <a href="#fn:8" id="fnref:8" title="see footnote" class="footnote"><sup>8</sup></a>
 as follows:</p>
 
-<p><span class="math">\(\hspace{2em}\mathsf{IETF\_AEAD\_CHACHA20\_POLY1305}(\mathsf{encryption\_key}, \mathsf{nonce}, \mathsf{memo\_chunk})\)</span></p>
+<p><span class="math">\(\hspace{2em}\mathsf{IETF\_AEAD\_CHACHA20\_POLY1305}(\mathsf{encryptionKey}, \mathsf{nonce}, \mathsf{memo\_chunk})\)</span></p>
 
 <p>where <span class="math">\(\mathsf{nonce} = \mathsf{I2BEOSP}_{88}(\mathsf{counter}) \,||\, [\mathsf{final\_chunk}]\)</span>.</p>
 
@@ -201,25 +228,31 @@ memos:</p>
 <p>When a recipient decrypts a shielded output, they obtain a memo key <span class="math">\(\mathsf{K^{memo}}\)</span>.
 From this they derive <code>encryption_key</code> as above, and then proceed as follows:</p>
 
-<ul>
-<li>Set <code>counter = 0</code> and <code>final_chunk = 0x00</code>.</li>
-<li>Attempt to decrypt each memo chunk in order. Pruned memo chunks are skipped.</li>
-<li>Each time decryption succeeds for a memo chunk, increment <code>counter</code> by 1, and
-then continue attempting to decrypt subsequent chunks.</li>
-<li>Once all memo chunks have been trial-decrypted once, set <code>final_chunk = 0x01</code>
-and then attempt to decrypt the memo chunks again, starting immediately after
-the last successfully-decrypted chunk (or at the start if none were), and
-without incrementing <code>counter</code>.</li>
-<li> This step can be made secret-independent by attempting to decrypt every memo
-chunk again, and ignoring the results of all chunks up to and including the
-last successfully-decrypted chunk.</li>
-<li>If no memo chunk decrypts successfully with <code>final_chunk = 0x01</code>, discard any
-memo chunks that were decrypted, and return nothing. Otherwise, concatenate
-the decrypted memo chunks in order and return the concatenation as the memo.</li>
-</ul>
+<p><span class="math">\(\hspace{1.5em}\)</span> let mutable <span class="math">\(\mathsf{memo} \;{\small ⦂}\; \mathbb{N} \leftarrow 0 \\\)</span>
+<span class="math">\(\hspace{1.5em}\)</span> let mutable <span class="math">\(\mathsf{counter} \;{\small ⦂}\; \mathbb{N} \leftarrow 0 \\\)</span>
+<span class="math">\(\hspace{1.5em}\)</span> let mutable <span class="math">\(\mathsf{potential\_last\_chunk} \;{\small ⦂}\; \mathbb{N} \leftarrow 0 \\\)</span>
+<span class="math">\(\hspace{1.5em}\)</span> for <span class="math">\(i\)</span> from <span class="math">\(0\)</span> up to <span class="math">\(\mathsf{len}(\mathsf{memo\_chunks})-1\)</span>: <span class="math">\(\\\)</span>
+<span class="math">\(\hspace{3.0em}\)</span>  if <span class="math">\(\mathsf{memo\_chunks}[i]\)</span> is not pruned: <span class="math">\(\\\)</span>
+<span class="math">\(\hspace{4.5em}\)</span>   let <span class="math">\(\mathsf{nonce} = \mathsf{I2BEOSP}_{88}(\mathsf{counter}) \,||\, [\mathtt{0x00}] \\\)</span>
+<span class="math">\(\hspace{4.5em}\)</span>   let <span class="math">\(P = \mathsf{IETF\_AEAD\_CHACHA20\_POLY1305.Decrypt}(\mathsf{encryptionKey}, \mathsf{nonce}, \mathsf{memo\_chunks}[i]) \\\)</span>
+<span class="math">\(\hspace{4.5em}\)</span>   if <span class="math">\(P \neq \bot\)</span>: <span class="math">\(\\\)</span>
+<span class="math">\(\hspace{6.0em}\)</span>    set <span class="math">\(\mathsf{memo} \leftarrow \mathsf{memo} \,||\, P \\\)</span>
+<span class="math">\(\hspace{6.0em}\)</span>    set <span class="math">\(\mathsf{counter} \leftarrow \mathsf{counter} + 1 \\\)</span>
+<span class="math">\(\hspace{6.0em}\)</span>    set <span class="math">\(\mathsf{potential\_last\_chunk} \leftarrow i + 1 \\\)</span>
+<span class="math">\(\,\\\)</span>
+<span class="math">\(\hspace{1.5em}\)</span> let <span class="math">\(\mathsf{nonce} = \mathsf{I2BEOSP}_{88}(\mathsf{counter}) \,||\, [\mathtt{0x01}] \\\)</span>
+<span class="math">\(\hspace{1.5em}\)</span> let mutable <span class="math">\(\mathsf{success} \leftarrow \kern0.05em\)</span> false <span class="math">\(\\\)</span>
+<span class="math">\(\hspace{1.5em}\)</span> for <span class="math">\(i\)</span> from <span class="math">\(0\)</span> up to <span class="math">\(\mathsf{len}(\mathsf{memo\_chunks})-1\)</span>: <span class="math">\(\\\)</span>
+<span class="math">\(\hspace{3.0em}\)</span>  if <span class="math">\(\mathsf{memo\_chunks}[i]\)</span> is not pruned: <span class="math">\(\\\)</span>
+<span class="math">\(\hspace{4.5em}\)</span>   let <span class="math">\(P = \mathsf{IETF\_AEAD\_CHACHA20\_POLY1305.Decrypt}(\mathsf{encryptionKey}, \mathsf{nonce}, \mathsf{memo\_chunks}[i]) \\\)</span>
+<span class="math">\(\hspace{4.5em}\)</span>   if <span class="math">\(i \geq \mathsf{potential\_last\_chunk}\)</span> and <span class="math">\(P \neq \bot\)</span> and not <span class="math">\(\mathsf{success}\)</span>: <span class="math">\(\\\)</span>
+<span class="math">\(\hspace{6.0em}\)</span>    set <span class="math">\(\mathsf{memo} \leftarrow \mathsf{memo} \,||\, P \\\)</span>
+<span class="math">\(\hspace{6.0em}\)</span>    set <span class="math">\(\mathsf{success} \leftarrow \kern0.05em\)</span> true <span class="math">\(\\\)</span>
+<span class="math">\(\,\\\)</span>
+<span class="math">\(\hspace{1.5em}\)</span> if <span class="math">\(\mathsf{success}\)</span> then return <span class="math">\(\mathsf{memo}\)</span> else return <span class="math">\(\bot \\\)</span></p>
 
-<p>If any chunk of the memo encrypted to <code>memo_key</code> has been pruned, the decryption
-process above returns nothing (as <code>final_chunk</code> will be set to <code>0x01</code> with the
+<p>If any chunk of the memo encrypted to <span class="math">\(\mathsf{encryptionKey}\)</span> has been pruned, the decryption
+process above returns nothing (as <span class="math">\(\mathsf{final_chunk}\)</span> will be set to <span class="math">\(\mathtt{0x01}\)</span> with the
 wrong counter value), ensuring that a malformed memo is not returned.</p>
 
 <h2 id="encodingintransactions"><span class="section-heading">Encoding in transactions</span><span class="section-anchor"> <a rel="bookmark" href="#encodingintransactions"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
@@ -334,7 +367,7 @@ and the algorithms for encryption and decryption.</p>
 <blockquote>
 <p>Each Sapling or Orchard note plaintext (denoted <span class="math">\(\mathbf{np}\)</span>) consists of</p>
 
-<p><span class="math">\(\hspace{2em}(\mathsf{leadByte} \;⦂\; \mathbb{B^{Y}}, \mathsf{d} \;⦂\; \mathbb{B^{[\ell_{\mathsf{d}}]}}, \mathsf{rseed} \;⦂\; \mathbb{B^{Y[32]}}, \mathsf{memo} \;⦂\; \mathbb{B^{Y[512]}})\)</span></p>
+<p><span class="math">\(\hspace{2em}(\mathsf{leadByte} \;{\small ⦂}\; \mathbb{B}^{{\kern-0.05em\tiny\mathbb{Y}}}, \mathsf{d} \;{\small ⦂}\; \mathbb{B}^{[\ell_{\mathsf{d}}]}, \mathsf{rseed} \;{\small ⦂}\; \mathbb{B}^{{\kern-0.05em\tiny\mathbb{Y}}[32]}, \mathsf{memo} \;{\small ⦂}\; \mathbb{B}^{{\kern-0.05em\tiny\mathbb{Y}}[512]})\)</span></p>
 </blockquote>
 
 <p>to</p>
@@ -346,11 +379,11 @@ version is pre-v6, or v6-onward.</p>
 
 <p>Each pre-v6 Sapling or Orchard note plaintext (denoted <span class="math">\(\mathbf{np}\)</span>) consists of</p>
 
-<p><span class="math">\(\hspace{2em}(\mathsf{leadByte} \;⦂\; \mathbb{B^{Y}}, \mathsf{d} \;⦂\; \mathbb{B^{[\ell_{\mathsf{d}}]}}, \mathsf{rseed} \;⦂\; \mathbb{B^{Y[32]}}, \mathsf{memo} \;⦂\; \mathbb{B^{Y[512]}})\)</span></p>
+<p><span class="math">\(\hspace{2em}(\mathsf{leadByte} \;{\small ⦂}\; \mathbb{B}^{{\kern-0.05em\tiny\mathbb{Y}}}, \mathsf{d} \;{\small ⦂}\; \mathbb{B}^{[\ell_{\mathsf{d}}]}, \mathsf{rseed} \;{\small ⦂}\; \mathbb{B}^{{\kern-0.05em\tiny\mathbb{Y}}[32]}, \mathsf{memo} \;{\small ⦂}\; \mathbb{B}^{{\kern-0.05em\tiny\mathbb{Y}}[512]})\)</span></p>
 
 <p>Each v6-onward Sapling or Orchard note plaintext (denoted <span class="math">\(\mathbf{np}\)</span>) consists of</p>
 
-<p><span class="math">\(\hspace{2em}(\mathsf{leadByte} \;⦂\; \mathbb{B^{Y}}, \mathsf{d} \;⦂\; \mathbb{B^{[\ell_{\mathsf{d}}]}}, \mathsf{rseed} \;⦂\; \mathbb{B^{Y[32]}}, \mathsf{K^{memo}} \;⦂\; \mathbb{B^{Y[32]}})\)</span></p>
+<p><span class="math">\(\hspace{2em}(\mathsf{leadByte} \;{\small ⦂}\; \mathbb{B}^{{\kern-0.05em\tiny\mathbb{Y}}}, \mathsf{d} \;{\small ⦂}\; \mathbb{B}^{[\ell_{\mathsf{d}}]}, \mathsf{rseed} \;⦂\; \mathbb{B}^{{\kern-0.05em\tiny\mathbb{Y}}[32]}, \mathsf{K^{memo}} \;{\small ⦂}\; \mathbb{B}^{{\kern-0.05em\tiny\mathbb{Y}}[512]})\)</span></p>
 </blockquote></li>
 </ul>
 
@@ -364,9 +397,7 @@ to refer to &#8220;The encoding of a pre-v6 Sapling or Orchard note plaintext&#8
 <blockquote>
 <p>The encoding of a v6-onward Sapling or Orchard note plaintext consists of:</p>
 
-<p>|       |      |      |       |        |
-|&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;|&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;|&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;|&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8211;|&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8211;|
-| 8-bit <span class="math">\(\mathsf{leadByte}\)</span> | 88-bit <span class="math">\(\mathsf{d}\)</span> | 64-bit <span class="math">\(\mathsf{v}\)</span> | 256-bit <span class="math">\(\mathsf{rseed}\)</span> | 32-byte <span class="math">\(\mathsf{K^{memo}}\)</span> |</p>
+<p>| 8-bit <span class="math">\(\mathsf{leadByte}\)</span> | 88-bit <span class="math">\(\mathsf{d}\)</span> | 64-bit <span class="math">\(\mathsf{v}\)</span> | 256-bit <span class="math">\(\mathsf{rseed}\)</span> | 32-byte <span class="math">\(\mathsf{K^{memo}}\)</span> |</p>
 
 <ul>
 <li>A byte 0x03, indicating this version of the encoding of a v6-onward
@@ -436,10 +467,11 @@ pre-v6 or v6-onward), as defined in § 5.5 ‘Encodings of Note Plaintexts and M
 and § 4.20.3 ‘Decryption using a Full Viewing Key (Sapling and Orchard)’ <a href="#fn:16" id="fnref:16" title="see footnote" class="footnote"><sup>16</sup></a>:</p>
 
 <ul>
-<li>Replace <span class="math">\(\mathsf{memo} \;⦂\; \mathbb{B^{Y[512]}}\)</span> with <span class="math">\(\mathsf{memoOrKey}\)</span>.</li>
-<li>Specify that the type of <span class="math">\(\mathsf{memoOrKey}\)</span> is <span class="math">\(\mathbb{B^{Y[512]}}\)</span> when
-decrypting a pre-v6 note ciphertext, or <span class="math">\(\mathbb{B^{Y[32]}}\)</span> when decrypting a
-v6-onward note ciphertext. In the latter case, it is used as <span class="math">\(\mathsf{K^{memo}}\)</span>
+<li>Replace <span class="math">\(\mathsf{memo} \;{\small ⦂}\; \mathbb{B}^{{\kern-0.05em\tiny\mathbb{Y}}[512]}\)</span> with
+<span class="math">\(\mathsf{memoOrKey}\)</span>.</li>
+<li>Specify that the type of <span class="math">\(\mathsf{memoOrKey}\)</span> is <span class="math">\(\mathbb{B}^{{\kern-0.05em\tiny\mathbb{Y}}[512]}\)</span>
+when decrypting a pre-v6 note ciphertext, or <span class="math">\(\mathbb{B}^{{\kern-0.05em\tiny\mathbb{Y}}[32]}\)</span> when
+decrypting a v6-onward note ciphertext. In the latter case, it is used as <span class="math">\(\mathsf{K^{memo}}\)</span>
 to decrypt the memo bundle as described in <a href="#memobundle">Memo bundle</a>.</li>
 </ul>
 
@@ -448,11 +480,6 @@ to decrypt the memo bundle as described in <a href="#memobundle">Memo bundle</a>
 <p>All of these changes apply identically to Mainnet and Testnet.</p>
 
 <h1 id="openissues"><span class="section-heading">Open issues</span><span class="section-anchor"> <a rel="bookmark" href="#openissues"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
-
-<h2 id="limitonthenumberofmemochunks"><span class="section-heading">Limit on the number of memo chunks</span><span class="section-anchor"> <a rel="bookmark" href="#limitonthenumberofmemochunks"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-
-<p><code>memo_chunk_limit == 64</code> is recommended. This results in a maximum of 16 KiB
-of memo data per transaction.</p>
 
 <h2 id="interactionwithzip302zip-0302">Interaction with ZIP 302 <a href="#fn:17" id="fnref:17" title="see footnote" class="footnote"><sup>17</sup></a></h2>
 
@@ -473,11 +500,41 @@ are not natively aggregatable.</p>
 
 <h2 id="memochunksize"><span class="section-heading">Memo chunk size</span><span class="section-anchor"> <a rel="bookmark" href="#memochunksize"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
-<p>TODO: this table needs to be recalculated with a 16 KiB limit.</p>
+<p>To understand the effect of memo chunk size, we construct a table showing the
+total amount of data stored on-chain when encoding 16 KiB of memo data to as
+many recipients as possible.</p>
 
-<p>With 10 KiB limit on amount of memo data as the constant in this table, the
-maximum number of unique memos you can create, and the cost in bytes of that
-memo data plus auth when using a 32-byte memo key, is:</p>
+<p>Each table entry has the format &#8220;<span class="math">\(N\)</span> @ <span class="math">\(M\)</span> (<span class="math">\(O\)</span>)&#8221; where <span class="math">\(N\)</span> is the maximum
+number of distinct recipients you can have within the memo data limits, <span class="math">\(M\)</span>
+is the cost in bytes of that memo data plus memo keys and authentication tags
+when using a 32-byte memo key, and <span class="math">\(O\)</span> is the relative overhead compared to
+pre-ZIP-231 memos.</p>
+
+<details>
+<summary>
+Calculation details
+</summary>
+
+<p>Let:</p>
+
+<ul>
+<li><span class="math">\(D\)</span> be the limit on total memo data (16384 bytes);</li>
+<li><span class="math">\(C\)</span> be the chunk size (256 or 512 bytes);</li>
+<li><span class="math">\(S\)</span> be the maximum length of an individual memo (256 or 512 bytes);</li>
+<li><span class="math">\(K\)</span> be the key size (32 bytes);</li>
+<li><span class="math">\(A\)</span> be the authentication tag size (16 bytes);</li>
+<li><span class="math">\(L\)</span> be the limit on the number of chunks (32 or <span class="math">\(\infty\)</span>).</li>
+</ul>
+
+<p>Then</p>
+
+<ul>
+<li><span class="math">\(N = \mathsf{min}(L, \mathsf{ceiling}(D / \mathsf{max}(C, S))\)</span>;</li>
+<li><span class="math">\(M = N × (S+K+A)\)</span>; and</li>
+<li><span class="math">\(O = (M / D - 1) × 100\%\)</span>.
+</details>
+<br/></li>
+</ul>
 
 <table>
 <colgroup>
@@ -497,38 +554,41 @@ memo data plus auth when using a 32-byte memo key, is:</p>
 <tbody>
 <tr>
 	<td> Pre-231 </td>
-	<td> 20 @ 10240 ( 0.00%) </td>
-	<td> 20 @ 10240 ( 0.00%) </td>
+	<td> 32 @ 16384 (  0.00%) </td>
+	<td> 32 @ 16384 (  0.00%) </td>
 </tr>
 <tr>
 	<td> 512  </td>
-	<td> 20 @ 11220 (+ 9.57%) </td>
-	<td> 20 @ 11220 (+ 9.57%) </td>
+	<td> 32 @ 17920 (+ 9.38%) </td>
+	<td> 32 @ 17920 (+ 9.38%) </td>
 </tr>
 <tr>
 	<td> 256  </td>
-	<td> 40 @ 12200 (+19.14%) </td>
-	<td> 20 @ 11540 (+12.70%) </td>
+	<td> 64 @ 19456 (+18.75%) </td>
+	<td> 32 @ 18432 (+12.50%) </td>
 </tr>
 <tr>
-	<td> 256 20-out </td>
-	<td> 20 @ 6100 (-40.43%) </td>
+	<td> 256 32-out </td>
+	<td> 32 @  9728 (-40.63%) </td>
 	<td>      </td>
 </tr>
 </tbody>
 </table>
 
-<p>In the &#8220;256 20-out&#8221; case you have a distinguisher compared to old transactions,
+<p>In the &#8220;256 32-out&#8221; case you have a distinguisher compared to old transactions,
 in that you can tell the transaction is sending at most 256 bytes per recipient
-rather than 512 if it is sending the max number of memos. But that&#8217;s inherently
+rather than 512 if it is sending the maximum number of memos. But that&#8217;s inherently
 baked into the decision to use a smaller memo chunk size (and it is still
 possible for the chunks to all be a single memo sent to all outputs, or anything
 in between).</p>
 
 <h2 id="memokeysize"><span class="section-heading">Memo key size</span><span class="section-anchor"> <a rel="bookmark" href="#memokeysize"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
-<p>If we used a 16-byte memo key instead of 32 bytes, the transaction size overhead
-becomes:</p>
+<p>16-byte (128-bit) keys don&#8217;t meet Zcash&#8217;s target security level of 125 bits,
+as argued in <a href="#fn:18" id="fnref:18" title="see footnote" class="footnote"><sup>18</sup></a>.</p>
+
+<p>However, for the sake of argument, if we used a 16-byte memo key instead of
+32 bytes, the transaction size overhead would become:</p>
 
 <table>
 <colgroup>
@@ -548,22 +608,22 @@ becomes:</p>
 <tbody>
 <tr>
 	<td> Pre-231 </td>
-	<td> 20 @ 10240 ( 0.00%) </td>
-	<td> 20 @ 10240 ( 0.00%) </td>
+	<td> 32 @ 16384 (  0.00%) </td>
+	<td> 32 @ 16384 (  0.00%) </td>
 </tr>
 <tr>
 	<td> 512  </td>
-	<td> 20 @ 10900 (+ 6.45%) </td>
-	<td> 20 @ 10900 (+ 6.45%) </td>
+	<td> 32 @ 17408 (+ 6.25%) </td>
+	<td> 32 @ 17408 (+ 6.25%) </td>
 </tr>
 <tr>
 	<td> 256  </td>
-	<td> 40 @ 11560 (+12.89%) </td>
-	<td> 20 @ 11220 (+ 9.57%) </td>
+	<td> 64 @ 18432 (+12.50%) </td>
+	<td> 32 @ 17920 (+ 9.38%) </td>
 </tr>
 <tr>
-	<td> 256 20-out </td>
-	<td> 20 @ 5780 (-43.55%) </td>
+	<td> 256 32-out </td>
+	<td> 32 @  9216 (-43.75%) </td>
 	<td>      </td>
 </tr>
 </tbody>
@@ -571,9 +631,6 @@ becomes:</p>
 
 <p>The decrease in overhead is relatively modest in most cases, but more noticeable
 for small memos with a 256-byte memo chunk.</p>
-
-<p>However, 128-bit keys don&#8217;t meet Zcash&#8217;s target security level of 125 bits,
-as argued in <a href="#fn:18" id="fnref:18" title="see footnote" class="footnote"><sup>18</sup></a>.</p>
 
 <p>The benefits of 256-bit keys are:</p>
 
@@ -595,7 +652,7 @@ either never observe the second memo, or would decrypt parts of each memo and
 get a nonsensical and potentially insecure &#8220;spliced&#8221; memo).</p>
 
 <p>We do not include commitments to the shielded outputs in the derivation of
-<span class="math">\(\mathsf{encryption_key}\)</span> for two reasons:</p>
+<span class="math">\(\mathsf{encryptionKey}\)</span> for two reasons:</p>
 
 <ul>
 <li>It would force the transaction builder to fully define all shielded outputs
