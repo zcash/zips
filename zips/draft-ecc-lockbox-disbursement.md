@@ -11,7 +11,7 @@
 
 # Terminology
 
-The key words "MUST", "SHOULD", "MAY", and "RECOMMENDED" in this document are
+The key words "MUST", "MUST NOT", and "RECOMMENDED" in this document are
 to be interpreted as described in BCP 14 [^BCP14] when, and only when, they
 appear in all capitals.
 
@@ -59,9 +59,9 @@ as specified by this ZIP.
 ### One-time lockbox disbursement
 
 The coinbase transaction of the activation block of this ZIP MUST include an
-additional output to a 2-of-3 P2SH multisig with keys held by the following
-"Key-Holder Organizations": Zcash Foundation, the Electric Coin Company,
-and Shielded Labs.
+additional lockbox disbursement output to a 2-of-3 P2SH multisig with keys held
+by the following "Key-Holder Organizations": Zcash Foundation, the Electric Coin
+Company, and Shielded Labs.
 
 Let $v$ be the zatoshi amount in the Deferred Dev Fund Lockbox as of the end
 of the block preceding the activation height. ($v$ can be predicted in advance
@@ -88,6 +88,23 @@ Note: The value $v$ might need to be precalculated so that it is known at
 the point when the relevant consensus check is done in node implementations.
 If so, the specification should be written in terms of the precalculated
 value.
+
+#### Change to the Zcash Protocol Specification
+
+In section **7.1.2 Transaction Consensus Rules** [^protocol-txnconsensus], change:
+
+> * A transaction MUST NOT spend a transparent output of a coinbase transaction
+>   from a block less than 100 blocks prior to the spend. Note that transparent
+>   outputs of coinbase transactions include Founders’ Reward outputs and
+>   transparent funding stream outputs.
+
+to
+
+> * A transaction MUST NOT spend a transparent output of a coinbase transaction
+>   from a block less than 100 blocks prior to the spend. Note that transparent
+>   outputs of coinbase transactions include Founders’ Reward outputs,
+>   transparent funding stream outputs [[ZIP-207]](zip-0207), and lockbox
+>   disbursement outputs {{ reference to this ZIP section }}.
 
 ### Option 1: Extend the lockbox funding stream
 
@@ -132,7 +149,7 @@ Option 2 can be realized by either of the following mechanisms:
 
 #### Mechanism 2a: Classic funding stream
 
-A new funding stream is definedthat pays directly to the above-mentioned 3-of-5
+A new funding stream is defined that pays directly to the above-mentioned 3-of-5
 multisig address on a block-by-block basis. It is defined to start at the end
 height of the existing ``FS_DEFERRED`` funding stream and end at
 $\mathsf{stream\_end\_height}$ and consists of $\mathsf{stream\_value}\%$ of the
@@ -234,6 +251,10 @@ Upgrade to perform manual key rotation to mitigate the potential for loss of
 funds.
 
 # References
+
+[^BCP14]: [Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"](https://www.rfc-editor.org/info/bcp14)
+
+[^protocol-txnconsensus]: [Zcash Protocol Specification, Version 2024.5.1. Section 7.1.2: Transaction Consensus Rules](protocol/protocol.pdf#txnconsensus)
 
 [^zip-0207]: [ZIP 207: Funding Streams](zip-0207.rst)
 
