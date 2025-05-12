@@ -7,7 +7,9 @@
     Category: Consensus / Process
     Created: 2025-02-19
     License: MIT
-    Pull-Request: <https://github.com/zcash/zips/pull/???>
+    Pull-Request: <https://github.com/zcash/zips/pull/989>
+                  <https://github.com/zcash/zips/pull/1014>
+                  <https://github.com/zcash/zips/pull/1015>
 
 # Terminology
 
@@ -206,7 +208,7 @@ blocks).
 
 The ``FS_DEFERRED`` lockbox funding stream is extended to end at height
 $\mathsf{stream\_end\_height}$ and has its per-block output value set to
-$\mathsf{stream\_value}\%$ A consensus rule is added to disburse from the
+$\mathsf{stream\_value}\%$. A consensus rule is added to disburse from the
 Deferred Dev Fund Lockbox to a 2-of-3 P2SH multisig with keys held by the same
 Key-Holder Organizations as above, starting at block height
 $\mathsf{activation\_height} + N$ and continuing at periodic intervals of $N$
