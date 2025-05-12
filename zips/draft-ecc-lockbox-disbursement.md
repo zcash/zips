@@ -90,6 +90,11 @@ value.
 
 ### Rationale for using a P2SH output
 
+<details>
+<summary>
+Rationale
+</summary>
+
 The keyholders may desire the grant-filling transactions use transparent inputs or
 shielded inputs. Regardless of their desire, the one-time disbursement must at some
 point go through a shielded pool, because this ZIP does not propose altering the
@@ -119,6 +124,7 @@ This ZIP instead uses a P2SH output for two reasons:
   undesirable to couple the specification process for that to this ZIP. P2SH
   multisig addresses by comparison have a stable and well understood format and
   generation process.
+</details>
 
 ### Change to the Zcash Protocol Specification
 
@@ -146,6 +152,11 @@ specified by the proposal under which this ZIP is activated.
 
 ### Rationale for Option 1
 
+<details>
+<summary>
+Rationale
+</summary>
+
 Performing a one-time disbursement to a P2SH multisig address will provide a
 source of grant funding for a limited period, allowing time for a lockbox
 disbursement mechanism to be specified and deployed, as originally intended by 
@@ -166,6 +177,7 @@ and the implementation of a more flexible and secure mechanism for disbursement
 from the lockbox — making it possible to address the need to rotate keys and/or
 alter the set of key holders in a way that reverting to hard-coded output
 addresses for repeated disbursements would not.
+</details>
 
 ## Option 2: Revert to hard-coded output address
 
@@ -207,6 +219,11 @@ that all output to the same address.
 
 #### Rationale for periodic disbursement
 
+<details>
+<summary>
+Rationale
+</summary>
+
 Classic funding streams [^zip-0207] produce many small output values, due to
 only being able to direct funds from a single block's subsidy at a time. This
 creates operational burdens to utilizing the funds — in particular due to block
@@ -219,6 +236,7 @@ funding stream, but with aggregation performed for free: the output to the
 funding stream recipient is aggregated into larger outputs every $N$ blocks. In
 the specific case of Mechanism 2b, the recipient multisig address would receive
 around 40 outputs, instead of around 1,300,000.
+</details>
 
 # Privacy and Security Implications
 
