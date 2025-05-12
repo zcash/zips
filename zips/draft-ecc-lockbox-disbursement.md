@@ -69,10 +69,9 @@ given that height.)
 
 The additional coinbase output MUST contain at least one output that pays
 $v$ zatoshi to the above P2SH multisig address, using a standard P2SH script
-of the form $\texttt{OP\_HASH160}$ $\mathsf{RedeemScriptHash}(\mathsf{height})$
-$\texttt{OP\_EQUAL}$ as the $\mathtt{scriptPubKey}$. $v$ zatoshi are added to
-the transparent transaction value pool of the coinbase transaction to fund
-this output, and deducted from the balance of the Deferred Dev Fund Lockbox.
+as specified in [^Bitcoin-Multisig]. $v$ zatoshi are added to the transparent
+transaction value pool of the coinbase transaction to fund this output, and
+deducted from the balance of the Deferred Dev Fund Lockbox.
 The latter deduction occurs before any other change to the Deferred Dev Fund
 Lockbox balance in the transaction, and MUST NOT cause the Deferred Dev Fund
 Lockbox balance to become negative at that point.
@@ -272,3 +271,4 @@ funds.
 
 [^draft-ecc-community-and-coinholder]: [draft-ecc-community-and-coinholder: Community and Coinholder Funding Model](draft-ecc-community-and-coinholder.md)
 
+[^Bitcoin-Multisig]: [Bitcoin Developer Documentation — Pay To Script Hash (P2SH) — Multisig](https://developer.bitcoin.org/devguide/transactions.html#multisig)
