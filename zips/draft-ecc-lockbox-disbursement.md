@@ -88,6 +88,38 @@ the point when the relevant consensus check is done in node implementations.
 If so, the specification should be written in terms of the precalculated
 value.
 
+### Rationale for using a P2SH output
+
+The keyholders may desire the grant-filling transactions use transparent inputs or
+shielded inputs. Regardless of their desire, the one-time disbursement must at some
+point go through a shielded pool, because this ZIP does not propose altering the
+consensus rules for spendability of transparent coinbase outputs. That would be far
+too complex a change for the intended scope.
+
+This means that by using a P2SH output in consensus, the Key-Holder Organizations
+will need to spend the one-time disbursement completely into a shielded output.
+This spend would presumably be to a FROST address in order to maintain consistent
+security position over the lockbox funds; perhaps publishing the viewing key to
+maintain visibility.
+
+An alternative proposal could require the one-time disbursement to directly create
+a shielded output to the FROST address. This would mean that the Key-Holder
+Organizations could immediately start disbursing grants (although the 100-block
+coinbase maturity is not particularly onerous).
+
+This ZIP instead uses a P2SH output for two reasons:
+
+* Using a shielded output would place a requirement on the miner (or mining pool)
+  to be able to create shielded coinbase outputs. Technically that requirement
+  is already in the consensus rules, but it has never before been exercised,
+  since no Funding Stream has been defined with a shielded address.
+* Using a shielded output in the context of this ZIP would mean that the FROST
+  address needs to be derived well in advance of NU activation. At the time of
+  writing (May 2025), ZIP 312 does not specify key generation, and it would be
+  undesirable to couple the specification process for that to this ZIP. P2SH
+  multisig addresses by comparison have a stable and well understood format and
+  generation process.
+
 ### Change to the Zcash Protocol Specification
 
 In section **7.1.2 Transaction Consensus Rules** [^protocol-txnconsensus], change:
