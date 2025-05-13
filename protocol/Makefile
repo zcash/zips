@@ -31,19 +31,6 @@ protocol-dark: $(PDFDIR)/protocol-dark.pdf
 all-specs: .Makefile.uptodate
 	$(MAKE) nu6 nu6-dark nu5 canopy heartwood blossom sapling
 
-tag-release:
-ifeq ($(shell git tag --points-at HEAD |wc -l),0)
-	echo "Set a tag at HEAD first."
-else
-	$(eval TAG := $(shell git tag --points-at HEAD))
-	git fetch origin
-	git merge-base --is-ancestor origin/main HEAD || (echo "The current branch is dirty and/or not up-to-date with origin's main branch."; false)
-	$(MAKE) clean all
-	git add $(PDFDIR)/*.pdf
-	git commit -m "Regenerate PDFs." $(PDFDIR)/*.pdf
-	git tag "v$(TAG)"
-endif
-
 discard:
 	git checkout -- "$(PDFDIR)/*.pdf"
 
