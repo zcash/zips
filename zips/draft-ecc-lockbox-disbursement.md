@@ -60,10 +60,10 @@ as specified by this ZIP.
 
 ## One-time lockbox disbursement
 
-The coinbase transaction of the activation block of this ZIP MUST include an
-additional lockbox disbursement output to a 2-of-3 P2SH multisig with keys held
-by the following "Key-Holder Organizations": Zcash Foundation, the Electric Coin
-Company, and Shielded Labs.
+The coinbase transaction of the activation block of this ZIP MUST include a
+lockbox disbursement output to a 2-of-3 P2SH multisig with keys held by the
+following "Key-Holder Organizations": Zcash Foundation, the Electric Coin Company,
+and Shielded Labs.
 
 Let $v$ be the zatoshi amount in the Deferred Dev Fund Lockbox as of the end
 of the block preceding the activation height. ($v$ can be predicted in advance
