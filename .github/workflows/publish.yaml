@@ -1,0 +1,61 @@
+name: Deploy Rendered Site
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run
+# in-progress and latest queued. However, do NOT cancel in-progress runs as we
+# want to allow these production deployments to complete.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  render-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4.1.7
+        with:
+          ref: publish
+          fetch-depth: 0
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Merge `main` to the `publish` branch
+        run: |
+          set -x
+          git config --global user.name 'github_actions'
+          git config --global user.email 'actions@github.com'
+          git merge origin/main --commit -m 'Auto-deploy: merging "main" branch'
+
+      - name: Compile ZIPs and Zcash Protocol Specification
+        uses: ./.github/actions/render
+
+      - name: Commit and push to `publish` branch
+        uses: EndBug/add-and-commit@v9.1.4
+        with:
+          add: 'rendered'
+          default_author: github_actions
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'rendered'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
