@@ -78,6 +78,8 @@ Requirements
 * The conventional fee should not leak private information used in
   constructing the transaction; that is, it should be computable from only
   the public data of the transaction.
+* Users should be discouraged from issuing new “garbage” Custom Assets.
+  The fee should reflect the cost of adding new data to the global state.
 
 
 Specification
@@ -108,6 +110,7 @@ Parameter                                 Value     Units
 :math:`grace\_actions`                :math:`2`     logical actions
 :math:`p2pkh\_standard\_input\_size`  :math:`150`   bytes
 :math:`p2pkh\_standard\_output\_size` :math:`34`    bytes
+:math:`creation\_cost`                :math:`100`   logical actions
 ===================================== ============= ==============================================
 
 Wallets implementing this specification SHOULD use a conventional fee
@@ -115,18 +118,29 @@ calculated in zatoshis per the following formula:
 
 .. math::
 
-   \begin{array}{rcl}
-     contribution_{\,\mathsf{Transparent}} &=&
-         \mathsf{max}\big(\mathsf{ceiling}\big(\frac{tx\_in\_total\_size}{p2pkh\_standard\_input\_size}\big),\,
-                          \mathsf{ceiling}\big(\frac{tx\_out\_total\_size}{p2pkh\_standard\_output\_size}\big)\big) \\
-     contribution_{\,\rlap{\mathsf{Sprout}}\phantom{\mathsf{Transparent}}}  &=& 2 \cdot nJoinSplit \\
-     contribution_{\,\rlap{\mathsf{Sapling}}\phantom{\mathsf{Transparent}}} &=& \mathsf{max}(nSpendsSapling,\, nOutputsSapling) \\
-     contribution_{\,\rlap{\mathsf{Orchard}}\phantom{\mathsf{Transparent}}} &=& nActionsOrchard \\
+   \begin{array}{lcl}
+     free\_memo\_chunks &=& \begin{cases}
+                              2, &\!\!\text{if } nOutputsSapling + nActionsOrchard > 0, \\
+                              0, &\!\!\text{otherwise}
+                            \end{cases}
+     \\
+     contribution_{\,\mathsf{Transparent}} &=& \mathsf{max}\big(\mathsf{ceiling}\big(\frac{tx\_in\_total\_size}{p2pkh\_standard\_input\_size}\big),\,
+                                                 \mathsf{ceiling}\big(\frac{tx\_out\_total\_size}{p2pkh\_standard\_output\_size}\big)\big) \\
+     contribution_{\,\mathsf{Sprout}}      &=& 2 \cdot nJoinSplit \\
+     contribution_{\,\mathsf{Sapling}}     &=& \mathsf{max}(nSpendsSapling,\, nOutputsSapling) \\
+     contribution_{\,\mathsf{Orchard}}     &=& nActionsOrchard \\
+     contribution_{\,\mathsf{ZSAIssuance}} &=& nZSAIssueNotes \\
+     contribution_{\,\mathsf{ZSACreation}} &=& creation\_cost \cdot nAssetCreations \\
+     contribution_{\,\mathsf{Memos}}       &=& \mathsf{max}\big(0, nMemoChunks - free\_memo\_chunks\big) \\
      \\
      logical\_actions  &=& contribution_{\,\mathsf{Transparent}} +
                            contribution_{\,\mathsf{Sprout}} +
                            contribution_{\,\mathsf{Sapling}} +
                            contribution_{\,\mathsf{Orchard}} \\
+      & & \hspace{1em} +\; contribution_{\,\mathsf{ZSAIssuance}} +
+                           contribution_{\,\mathsf{ZSACreation}} +
+                           contribution_{\,\mathsf{Memos}} \\
+     \\
      conventional\_fee &=& marginal\_fee \cdot \mathsf{max}(grace\_actions,\, logical\_actions)
    \end{array}
 
@@ -142,6 +156,9 @@ Input                        Units  Description
 :math:`nSpendsSapling`       number the number of Sapling spends
 :math:`nOutputsSapling`      number the number of Sapling outputs
 :math:`nActionsOrchard`      number the number of Orchard actions
+:math:`nZSAIssueNotes`       number the number of ``IssueNote`` outputs
+:math:`nAssetCreations`      number the number of Custom Assets newly added to the Global Issuance State
+:math:`nMemoChunks`          number the number of memo chunks
 ============================ ====== ===========================================
 
 It is not a consensus requirement that fees follow this formula; however,
@@ -181,9 +198,6 @@ Rationale for the chosen parameters
    <details>
    <summary>Click to show/hide</summary>
 
-Grace Actions
-~~~~~~~~~~~~~
-
 **Why not just charge per-action, without a grace window?**
 
 * This ensures that there is no penalty to padding a 1-action
@@ -221,8 +235,7 @@ ensures that a denial-of-service adversary does not gain a
 significant per-logical-action cost advantage by using transactions
 with a smaller or larger number of logical actions.
 
-Transparent Contribution
-~~~~~~~~~~~~~~~~~~~~~~~~
+**Transparent Contribution**
 
 The specified formula calculates the contribution of transparent inputs
 and outputs based on their total size relative to a typical input or
@@ -257,13 +270,38 @@ may be larger than P2PKH inputs. For example a 2-of-3 multisig
 input is around 70% larger, and is counted as such when computing
 the number of logical actions.
 
-Marginal Fee
-~~~~~~~~~~~~
+**Marginal Fee**
 
 This returns the conventional fee for a minimal transaction (as
 described above) to the original conventional fee of 10000 zatoshis
 specified in [#zip-0313]_, and imposes a non-trivial cost for
 potential denial-of-service attacks.
+
+**ZSA Creation Cost**
+
+Every newly created Custom Asset adds a new row to the Global Issuance
+State [#zip-0227-global-issuance-state]_ that full validators need to
+track in perpetuity. Subsequent issuance, finalization, or burn of
+existing Custom Assets only changes the values in the corresponding row.
+Imposing a higher cost on Custom Asset creation events disincentivizes
+the creation of "junk" assets.
+
+**Memo Chunks**
+
+Making the fee linear in the number of memo chunks has the following properties:
+
+- The required fee to add more memo chunks scales at the same rate as adding
+  logical actions, so it isn't a cheaper mechanism for an adversary to bloat
+  chain size.
+- A "baseline transaction" (one spent note, one output to an external recipient
+  with a memo, one change output without a memo) has the same fee as before.
+- A "broadcast transaction" (many outputs to different recipients all given the
+  same memo) is the same fee as before (but a smaller transaction).
+- A "many memos transaction" (many outputs to different recipients all with
+  unique memos) is at most around twice the fee as before.
+
+Combined with the memo bundle size restriction, the maximum additional fee for
+a ZIP 231 memo bundle [#zip-0231]_ over prior transactions is 0.0019 ZEC.
 
 .. raw:: html
 
@@ -582,5 +620,7 @@ References
 .. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2022.3.8. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
 .. [#sigop-limit] `zcash/zips issue #568 - Document block transparent sigops limit consensus rule <https://github.com/zcash/zips/issues/568>`_
 .. [#madars-1] `Madars concrete soft-fork proposal <https://forum.zcashcommunity.com/t/zip-reduce-default-shielded-transaction-fee-to-1000-zats/37566/89>`_
+.. [#zip-0227-global-issuance-state] `ZIP 227: Issuance of Zcash Shielded Assets - Global Issuance State <zip-0227.rst#global-issuance-state>`_
+.. [#zip-0231] `ZIP 231: Memo Bundles <zip-0231.rst>`_
 .. [#zip-0313] `ZIP 313: Reduce Conventional Transaction Fee to 1000 zatoshis <zip-0313.rst>`_
 .. [#zip-0401] `ZIP 401: Addressing Mempool Denial-of-Service <zip-0401.rst>`_
