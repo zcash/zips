@@ -1,7 +1,7 @@
     ZIP: XXX
     Title: Community-Governed Funding Model
     Owners: Jack Gavigan <jackgaviganzip@gmail.com>
-    Status: Draft
+    Status: Obsolete
     Category: Consensus / Process
     Created: 2025-03-31
     License: MIT

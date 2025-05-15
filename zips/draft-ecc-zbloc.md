@@ -6,7 +6,7 @@
              Jack Grigg
              Tatyana Peacemonger
              Chris Tomeo
-    Status: Draft
+    Status: Obsolete
     Category: Consensus / Process
     Created: 2025-01-28
     License: MIT
