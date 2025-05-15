@@ -20,7 +20,7 @@ PDFDIR=../rendered/protocol
 # Use EXTRAOPT=-pvc for "continuous preview" mode. For example, "make auxblossom EXTRAOPT=-pvc".
 # In this case the updated .pdf will be in the aux/ directory.
 
-.PHONY: all protocol protocol-dark all-specs tag-release discard
+.PHONY: all protocol protocol-dark all-specs discard
 all: .Makefile.uptodate
 	$(MAKE) $(PDFDIR)/protocol.pdf $(PDFDIR)/protocol-dark.pdf $(PDFDIR)/nu5.pdf $(PDFDIR)/canopy.pdf $(PDFDIR)/heartwood.pdf $(PDFDIR)/blossom.pdf $(PDFDIR)/sapling.pdf
 

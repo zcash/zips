@@ -17,9 +17,6 @@ all-zips: .Makefile.uptodate
 
 all: all-zips all-protocol
 
-tag-release:
-	$(MAKE) -C protocol tag-release
-
 protocol:
 	$(MAKE) -C protocol protocol
 
