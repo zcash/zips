@@ -51,10 +51,10 @@ The following ZIPs are under consideration for inclusion in NU7:
 - `ZIP 226: Transfer and Burn of Zcash Shielded Assets <zip-0226.rst>`__
 - `ZIP 227: Issuance of Zcash Shielded Assets <zip-0227.rst>`__
 - `ZIP 230: Version 6 Transaction Format <zip-0230.rst>`__
-- `ZIP 231: Memo Bundles <zip-0231.rst>`__
-- `ZIP 233: Network Sustainability Mechanism: Burning <zip-0233.rst>`__
-- `ZIP 234: Network Sustainability Mechanism: Issuance Smoothing <zip-0234.rst>`__
-- `ZIP 235: Network Sustainability Mechanism: Burn 60% of Transaction Fees <zip-0235.rst>`__
+- `ZIP 231: Memo Bundles <zip-0231.md>`__
+- `ZIP 233: Network Sustainability Mechanism: Burning <zip-0233.md>`__
+- `ZIP 234: Network Sustainability Mechanism: Issuance Smoothing <zip-0234.md>`__
+- `ZIP 235: Network Sustainability Mechanism: Burn 60% of Transaction Fees <zip-0235.md>`__
 - `ZIP 2002: Explicit Fees <zip-2002.rst>`__
 - `ZIP 2003: Disallow version 4 transactions <zip-2003.rst>`__
 - `ZIP 2004: Remove the dependency of consensus on note encryption <zip-2004.rst>`__
@@ -161,7 +161,7 @@ written.
     <tr> <td>234</td> <td class="left"><a href="zips/zip-0234.md">Network Sustainability Mechanism: Issuance Smoothing</a></td> <td>Draft</td>
     <tr> <td>235</td> <td class="left"><a href="zips/zip-0235.md">Remove 60% of Transaction Fees From Circulation</a></td> <td>Draft</td>
     <tr> <td>245</td> <td class="left"><a href="zips/zip-0245.rst">Transaction Identifier Digests & Signature Validation for Transparent Zcash Extensions</a></td> <td>Draft</td>
-    <tr> <td>254</td> <td class="left"><a href="zips/zip-0254.md">Deployment of the NU7 Network Upgrade</a></td> <td>Draft</td>
+    <tr> <td>255</td> <td class="left"><a href="zips/zip-0255.md">Deployment of the NU6.1 Network Upgrade</a></td> <td>Draft</td>
     <tr> <td>302</td> <td class="left"><a href="zips/zip-0302.rst">Standardized Memo Field Format</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">303</span></td> <td class="left"><a class="reserved" href="zips/zip-0303.rst">Sprout Payment Disclosure</a></td> <td>Reserved</td>
     <tr> <td>304</td> <td class="left"><a href="zips/zip-0304.rst">Sapling Address Signatures</a></td> <td>Draft</td>
@@ -205,6 +205,7 @@ be deleted.
 
   <embed><table>
     <tr> <th>Title</th> </tr>
+    <tr> <td class="left"><a href="zips/draft-arya-deploy-nu7.md">Deployment of the NU7 Network Upgrade</a></td>
     <tr> <td class="left"><a href="zips/draft-ecc-community-and-coinholder.md">Community and Coinholder Funding Model</a></td>
     <tr> <td class="left"><a href="zips/draft-ecc-lockbox-disbursement.md">Deferred Dev Fund Lockbox Disbursement</a></td>
     <tr> <td class="left"><a href="zips/draft-ecc-onchain-accountable-voting.md">On-chain Accountable Voting</a></td>
@@ -226,6 +227,7 @@ Withdrawn, Rejected, or Obsolete ZIPs
     <tr> <th>ZIP</th> <th>Title</th> <th>Status</th> </tr>
     <tr> <td><strike>210</strike></td> <td class="left"><strike><a href="zips/zip-0210.rst">Sapling Anchor Deduplication within Transactions</a></strike></td> <td>Withdrawn</td>
     <tr> <td><strike>220</strike></td> <td class="left"><strike><a href="zips/zip-0220.rst">Zcash Shielded Assets</a></strike></td> <td>Withdrawn</td>
+    <tr> <td><strike>254</strike></td> <td class="left"><strike><a href="zips/zip-0254.md">Deployment of the NU7 Network Upgrade</a></strike></td> <td>Withdrawn</td>
     <tr> <td><strike>313</strike></td> <td class="left"><strike><a href="zips/zip-0313.rst">Reduce Conventional Transaction Fee to 1000 zatoshis</a></strike></td> <td>Obsolete</td>
     <tr> <td><strike>1001</strike></td> <td class="left"><strike><a href="zips/zip-1001.rst">Keep the Block Distribution as Initially Defined — 90% to Miners</a></strike></td> <td>Obsolete</td>
     <tr> <td><strike>1002</strike></td> <td class="left"><strike><a href="zips/zip-1002.rst">Opt-in Donation Feature</a></strike></td> <td>Obsolete</td>
@@ -302,7 +304,8 @@ Index of ZIPs
     <tr> <td>251</td> <td class="left"><a href="zips/zip-0251.rst">Deployment of the Canopy Network Upgrade</a></td> <td>Final</td>
     <tr> <td>252</td> <td class="left"><a href="zips/zip-0252.rst">Deployment of the NU5 Network Upgrade</a></td> <td>Final</td>
     <tr> <td>253</td> <td class="left"><a href="zips/zip-0253.md">Deployment of the NU6 Network Upgrade</a></td> <td>Final</td>
-    <tr> <td>254</td> <td class="left"><a href="zips/zip-0254.md">Deployment of the NU7 Network Upgrade</a></td> <td>Draft</td>
+    <tr> <td><strike>254</strike></td> <td class="left"><strike><a href="zips/zip-0254.md">Deployment of the NU7 Network Upgrade</a></strike></td> <td>Withdrawn</td>
+    <tr> <td>255</td> <td class="left"><a href="zips/zip-0255.md">Deployment of the NU6.1 Network Upgrade</a></td> <td>Draft</td>
     <tr> <td>300</td> <td class="left"><a href="zips/zip-0300.rst">Cross-chain Atomic Transactions</a></td> <td>Proposed</td>
     <tr> <td>301</td> <td class="left"><a href="zips/zip-0301.rst">Zcash Stratum Protocol</a></td> <td>Active</td>
     <tr> <td>302</td> <td class="left"><a href="zips/zip-0302.rst">Standardized Memo Field Format</a></td> <td>Draft</td>
