@@ -20,13 +20,18 @@ PDFDIR=../rendered/protocol
 # Use EXTRAOPT=-pvc for "continuous preview" mode. For example, "make auxblossom EXTRAOPT=-pvc".
 # In this case the updated .pdf will be in the aux/ directory.
 
-.PHONY: all protocol protocol-dark all-specs tag-release discard
+.PHONY: all protocol protocol-dark all-pdfs all-specs discard
 all: .Makefile.uptodate
-	$(MAKE) $(PDFDIR)/protocol.pdf $(PDFDIR)/protocol-dark.pdf $(PDFDIR)/nu5.pdf $(PDFDIR)/canopy.pdf $(PDFDIR)/heartwood.pdf $(PDFDIR)/blossom.pdf $(PDFDIR)/sapling.pdf
+	# Run `$(MAKE) all-pdfs` if anything under `protocol/` has changed.
+	# See the documentation for "Porcelain Format Version 1" in `git status --help`.
+	if ( git status --porcelain=v1 |grep '^.[^ ?] protocol/' ); then $(MAKE) all-pdfs; fi
 
 protocol: $(PDFDIR)/protocol.pdf
 
 protocol-dark: $(PDFDIR)/protocol-dark.pdf
+
+all-pdfs: .Makefile.uptodate
+	$(MAKE) $(PDFDIR)/protocol.pdf $(PDFDIR)/protocol-dark.pdf $(PDFDIR)/nu5.pdf $(PDFDIR)/canopy.pdf $(PDFDIR)/heartwood.pdf $(PDFDIR)/blossom.pdf $(PDFDIR)/sapling.pdf
 
 all-specs: .Makefile.uptodate
 	$(MAKE) nu6 nu6-dark nu5 canopy heartwood blossom sapling
