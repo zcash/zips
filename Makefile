@@ -10,6 +10,8 @@ all-zips: .Makefile.uptodate
 	echo "$(patsubst zips/%,%,$(sort $(wildcard zips/draft-*.rst) $(wildcard zips/draft-*.md)))" >.draftfilelist.new
 	diff .draftfilelist.current .draftfilelist.new || cp -f .draftfilelist.new .draftfilelist.current
 	rm -f .draftfilelist.new
+	mkdir -p rendered
+	cp -r static/* rendered/
 	$(MAKE) README.rst
 	$(MAKE) rendered/index.html $(addprefix rendered/,$(addsuffix .html,$(basename $(patsubst zips/%,%,$(sort $(wildcard zips/*.rst) $(wildcard zips/*.md))))))
 
@@ -31,7 +33,8 @@ all-specs: all-zips
 	$(MAKE) -C protocol all-specs
 
 discard:
-	git checkout -- 'rendered/*.html' 'README.rst' 'rendered/protocol/*.pdf'
+	rm -r rendered
+	git checkout -- 'README.rst'
 
 .Makefile.uptodate: Makefile render.sh
 	$(MAKE) clean

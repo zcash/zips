@@ -37,8 +37,8 @@ We define the following additional terms:
 Abstract
 ========
 
-This ZIP (ZIP 226) proposes the Zcash Shielded Assets (ZSA) protocol, in conjunction with ZIP 227 [#zip-0227]_. The ZSA protocol is an extension of the Orchard protocol that enables the issuance, transfer and burn of custom Assets on the Zcash chain. The issuance of such Assets is defined in ZIP 227 [#zip-0227]_, while the transfer and burn of such Assets is defined in this ZIP (ZIP 226).
-While the proposed ZSA protocol is a modification to the Orchard protocol, it has been designed with adaptation to possible future shielded protocols in mind.
+This ZIP (ZIP 226) proposes the Orchard Zcash Shielded Assets (OrchardZSA) protocol, in conjunction with ZIP 227 [#zip-0227]_. The OrchardZSA protocol is an extension of the Orchard protocol that enables the issuance, transfer and burn of custom Assets on the Zcash chain. The issuance of such Assets is defined in ZIP 227 [#zip-0227]_, while the transfer and burn of such Assets is defined in this ZIP (ZIP 226).
+While the proposed OrchardZSA protocol is a modification to the Orchard protocol, it has been designed with adaptation to possible future shielded protocols in mind.
 
 Motivation
 ==========
@@ -49,7 +49,7 @@ This ZIP builds on the issuance mechanism introduced in ZIP 227 [#zip-0227]_.
 Overview
 ========
 In order to be able to represent different Assets, we need to define a data field that uniquely represents the Asset in question, which we call the Asset Identifier $\mathsf{AssetId}$.
-This Asset Identifier maps to an Asset Base $\mathsf{AssetBase}$ that is stored in Orchard-based ZSA notes.
+This Asset Identifier maps to an Asset Base $\mathsf{AssetBase}$ that is stored in OrchardZSA notes.
 These terms are formally defined in ZIP 227 [#zip-0227]_.
 
 The Asset Identifier (via means of the Asset Digest and Asset Base) will be used to enforce that the balance of an Action Description [#protocol-actions]_ [#protocol-actionencodingandconsensus]_ is preserved across Assets (see the Orchard Binding Signature [#protocol-orchardbalance]_), and by extension the balance of an Orchard transaction. That is, the sum of all the $\mathsf{value^{net}}$ from each Action Description, computed as $\mathsf{value^{old}} - \mathsf{value^{new}}$, must be balanced **only with respect to the same Asset Identifier**. This is especially important since we will allow different Action Descriptions to transfer notes of different Asset Identifiers, where the overall balance is checked without revealing which (or how many distinct) Assets are being transferred.
@@ -74,7 +74,7 @@ Most of the protocol is kept the same as the Orchard protocol released with NU5,
 Asset Identifiers
 -----------------
 
-For every new Asset, there must be a new and unique Asset Identifier. Every Asset is defined by an *Asset description*, $\mathsf{asset\_desc}$, which is a global byte string (scoped across all future versions of Zcash). From this Asset description and the issuance validating key of the issuer, the specific Asset Identifier, $\mathsf{AssetId}$, the Asset Digest, and the Asset Base ($\!\mathsf{AssetBase}$) are derived as defined in ZIP 227 [#zip-0227]_.
+For every new Asset, there MUST be a new and unique Asset Identifier. Every Asset is defined by an *Asset description*, $\mathsf{asset\_desc}$, which is a global byte string (scoped across all future versions of Zcash). From this Asset description and the issuance validating key of the issuer, the specific Asset Identifier, $\mathsf{AssetId}$, the Asset Digest, and the Asset Base ($\!\mathsf{AssetBase}$) are derived as defined in ZIP 227 [#zip-0227]_.
 
 This Asset Base will be the base point of the value commitment for the specific Custom Asset. Note that the Asset Base of the ZEC Asset will be kept as the original value base point, $\mathcal{V}^{\mathsf{Orchard}}$.
 
@@ -86,15 +86,22 @@ In future network and protocol upgrades, the same Asset description string can b
 Note Structure & Commitment
 ---------------------------
 
-Let $\mathsf{Note^{OrchardZSA}}$ be the type of a ZSA note, i.e.
-$\mathsf{Note^{OrchardZSA}} := \mathsf{Note^{Orchard}} \times \mathbb{P}^*$.
-
-An Orchard ZSA note differs from an Orchard note [#protocol-notes]_ by additionally including the Asset Base, $\mathsf{AssetBase}$. So a ZSA note is a tuple $(\mathsf{g_d}, \mathsf{pk_d}, \mathsf{v}, \text{ρ}, \text{ψ}, \mathsf{AssetBase})$,
+An OrchardZSA note differs from an Orchard note [#protocol-notes]_ by additionally including the Asset Base, $\mathsf{AssetBase}$. So an OrchardZSA note is a tuple $(\mathsf{d}, \mathsf{pk_d}, \mathsf{v}, \mathsf{AssetBase}, \text{ρ}, \text{ψ}, \mathsf{rcm})$,
 where
 
-- $\mathsf{AssetBase} : \mathbb{P}^*$ is the unique element of the Pallas group [#protocol-pallasandvesta]_ that identifies each Asset in the Orchard protocol, defined as the Asset Base in ZIP 227 [#zip-0227]_, a valid group element that is not the identity and is not $\bot$. The byte representation of the Asset Base is defined as $\mathsf{asset\_base} : \mathbb{B}^{[\ell_{\mathbb{P}}]} := \mathsf{repr}_{\mathbb{P}}(\mathsf{AssetBase})$.
+- $\mathsf{AssetBase} : \mathbb{P}^*$ is the unique element of the Pallas group [#protocol-pallasandvesta]_ that identifies each Asset in the Orchard protocol, defined as the Asset Base in ZIP 227 [#zip-0227-assetidentifier]_, a valid group element that is not the identity and is not $\bot$. The byte representation of the Asset Base is defined as $\mathsf{asset\_base} : \mathbb{B}^{[\ell_{\mathbb{P}}]} := \mathsf{repr}_{\mathbb{P}}(\mathsf{AssetBase})$.
+- The remaining terms are as defined in §3.2 of the protocol specification [#protocol-notes]_.
 
 Note that the above assumes a canonical encoding, which is true for the Pallas group, but may not hold for future shielded protocols.
+
+Let $\mathsf{Note^{OrchardZSA}}$ be the type of a OrchardZSA note, i.e.
+
+.. math:: \mathsf{Note^{OrchardZSA}} := \mathbb{B}^{[\ell_{\mathsf{d}}]} \times \mathsf{KA}^{\mathsf{Orchard}}.\mathsf{Public} \times \{0 .. 2^{\ell_{\mathsf{value}}} - 1\} \times \mathbb{P}^* \times \mathbb{F}_{q_{\mathbb{P}}} \times \mathbb{F}_{q_{\mathbb{P}}} \times \mathsf{NoteCommit^{Orchard}.Trapdoor}, 
+
+where $\mathbb{P}^*$ is the Pallas group excluding the identity element, and the other types are as defined in §3.2 of the protocol specification [#protocol-notes]_.
+
+**Non-normative note:** 
+The type and definition of the OrchardZSA note reflect that it is a tuple of all the components of an Orchard note, with the addition of the Asset Base into the tuple. 
 
 We define the note commitment scheme $\mathsf{NoteCommit^{OrchardZSA}_{rcm}}$ as follows:
 
@@ -127,28 +134,30 @@ Note that $\mathsf{repr}_{\mathbb{P}}$ and $\mathsf{GroupHash}^{\mathbb{P}}$ are
 
 The nullifier is generated in the same manner as in the Orchard protocol [#protocol-commitmentsandnullifiers]_.
 
-The ZSA note plaintext also includes the Asset Base in addition to the components in the Orchard note plaintext [#protocol-notept]_.
+The OrchardZSA note plaintext also includes the Asset Base in addition to the components in the Orchard note plaintext [#protocol-notept]_.
 It consists of
 
 .. math:: (\mathsf{leadByte} : \mathbb{B}^{\mathbb{Y}}, \mathsf{d} : \mathbb{B}^{[\ell_{\mathsf{d}}]}, \mathsf{v} : \{0 .. 2^{\ell_{\mathsf{value}}} - 1\}, \mathsf{rseed} : \mathbb{B}^{\mathbb{Y}[32]}, \mathsf{asset\_base} : \mathbb{B}^{[\ell_{\mathbb{P}}]}, \mathsf{memo} : \mathbb{B}^{\mathbb{Y}[512]})
 
+The explicit order of addition of the note commitments to the note commitment tree is specified in ZIP 227 [#zip-0227-note-commitment-order]_.
+
 Rationale for Note Commitment
 `````````````````````````````
 
-In the ZSA protocol, the instance of the note commitment scheme, $\mathsf{NoteCommit^{OrchardZSA}_{rcm}}$, differs from the Orchard note commitment $\mathsf{NoteCommit^{Orchard}_{rcm}}$ in that for Custom Assets, the Asset Base will be added as an input to the commitment computation.
+In the OrchardZSA protocol, the instance of the note commitment scheme, $\mathsf{NoteCommit^{OrchardZSA}_{rcm}}$, differs from the Orchard note commitment $\mathsf{NoteCommit^{Orchard}_{rcm}}$ in that for Custom Assets, the Asset Base will be added as an input to the commitment computation.
 In the case where the Asset is the ZEC Asset, the commitment is computed identically to the Orchard note commitment, without making use of the ZEC Asset Base as an input.
 As we will see, the nested structure of the Sinsemilla-based commitment [#protocol-concretesinsemillacommit]_ allows us to add the Asset Base as a final recursive step.
 
-The note commitment output is still indistinguishable from the original Orchard ZEC note commitments, by definition of the Sinsemilla hash function [#protocol-concretesinsemillahash]_. ZSA note commitments will therefore be added to the same Orchard Note Commitment Tree. In essence, we have:
+The note commitment output is still indistinguishable from the original Orchard ZEC note commitments, by definition of the Sinsemilla hash function [#protocol-concretesinsemillahash]_. OrchardZSA note commitments will therefore be added to the same Orchard Note Commitment Tree. In essence, we have:
 
 .. math:: \mathsf{NoteCommit^{OrchardZSA}_{rcm}}(\mathsf{repr}_{\mathbb{P}}(\mathsf{g_d}), \mathsf{repr}_{\mathbb{P}}(\mathsf{pk_d}), \mathsf{v}, \text{ρ}, \text{ψ}, \mathsf{AssetBase}) \in \mathsf{NoteCommit^{Orchard}.Output}
 
-This definition can be viewed as a generalization of the Orchard note commitment, and will allow maintaining a single commitment instance for the note commitment, which will be used both for pre-ZSA Orchard and ZSA notes.
+This definition can be viewed as a generalization of the Orchard note commitment, and will allow maintaining a single commitment instance for the note commitment, which will be used both for pre-ZSA Orchard and OrchardZSA notes.
 
 Value Commitment
 ----------------
 
-In the case of the Orchard-based ZSA protocol, the value of different Asset Identifiers in a given transaction will be committed using a **different value base point**. The value commitment becomes:
+In the case of the OrchardZSA protocol, the value of different Asset Identifiers in a given transaction will be committed using a **different value base point**. The value commitment becomes:
 
 .. math:: \mathsf{cv^{net}} := \mathsf{ValueCommit^{OrchardZSA}_{rcv}}(\mathsf{AssetBase_{AssetId}}, \mathsf{v^{net}_{AssetId}}) = [\mathsf{v^{net}_{AssetId}}]\,\mathsf{AssetBase_{AssetId}} + [\mathsf{rcv}]\,\mathcal{R}^{\mathsf{Orchard}}
 
@@ -176,26 +185,26 @@ The burn mechanism is a transparent extension to the transfer protocol that enab
 The burn mechanism does NOT send Assets to a non-spendable address, it simply reduces the total number of units of a given Custom Asset in circulation. 
 It is enforced at the consensus level, by using an extension of the value balance mechanism used for ZEC Assets.
 Burning makes it globally provable that a given amount of a Custom Asset has been destroyed.
-Note that the OrchardZSA Protocol does not allow for the burning of ZEC (or TAZ).
+Note that the OrchardZSA Protocol does not allow for the burning of the Native Asset (i.e. ZEC or TAZ).
 
-In the `Orchard-ZSA Transaction Structure`_, there is now an $\mathsf{assetBurn}$ set. 
+In the `OrchardZSA Transaction Structure`_, there is now an $\mathsf{assetBurn}$ set. 
 For every Custom Asset (represented by its $\mathsf{AssetBase}$) that is burnt in the transaction, the sender adds to $\mathsf{assetBurn}$ the tuple $(\mathsf{AssetBase}, \mathsf{v})$, where $\mathsf{v}$ is the amount of the Custom Asset the sender wants to burn. 
 We denote by $L$ the cardinality of the $\mathsf{assetBurn}$ set in a transaction.
 
 As described in `Value Balance Verification`_, this provides the information for the validator of the transaction to compute the value commitment with the corresponding Asset Base. 
 This ensures that the values are all balanced out on a per-Asset basis in the transaction.
 
-Additional Consensus Rules
-``````````````````````````
+Additional Consensus Rules for the assetBurn set
+````````````````````````````````````````````````
 
-1. Check that for every $(\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{assetBurn}, \mathsf{AssetBase} \neq \mathcal{V}^{\mathsf{Orchard}}$. That is, ZEC or TAZ is not allowed to be burnt by this mechanism.
-2. Check that for every $(\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{assetBurn}, \mathsf{v} \neq 0$.
-3. Check that there is no duplication of Custom Assets in the $\mathsf{assetBurn}$ set. That is, every $\mathsf{AssetBase}$ has at most one entry in $\mathsf{assetBurn}$.
-4. Check that for every $(\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{assetBurn}$, $\mathsf{v} \leq \mathsf{issued\_assets(AssetBase).balance}$, where the map $\mathsf{issued\_assets}$ is defined in ZIP 227 [#zip-0227-specification-global-issuance-state]_. That is, it is not possible to burn more of an Asset than is currently in circulation.
+1. It MUST be the case that for every $(\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{assetBurn}, \mathsf{AssetBase} \neq \mathcal{V}^{\mathsf{Orchard}}$. That is, the Native Asset is not allowed to be burnt by this mechanism.
+2. It MUST be that for every $(\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{assetBurn}, \mathsf{v} \neq 0$.
+3. There MUST be no duplication of Custom Assets in the $\mathsf{assetBurn}$ set. That is, every $\mathsf{AssetBase}$ has at most one entry in $\mathsf{assetBurn}$.
 
-If all these checks pass, then for every $(\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{assetBurn}$, reduce the value of $\mathsf{issued\_assets(AssetBase).balance}$ in the global state by $\mathsf{v}$.
+The other consensus rule changes for the OrchardZSA protocol are specified in ZIP 227 [#zip-0227-consensus]_.
 
-**Note:** Even if this mechanism allows having transparent ↔ shielded Asset transfers in theory, the transparent protocol will not be changed with this ZIP to adapt to a multiple Asset structure. This means that unless future consensus rules changes do allow it, unshielding will not be possible for Custom Assets.
+**Note:** The transparent protocol will not be changed with this ZIP to adapt to a multiple Asset structure. 
+This means that unless future consensus rules changes do allow it, unshielding will not be possible for Custom Assets.
 
 Value Balance Verification
 --------------------------
@@ -263,9 +272,9 @@ Rationale for Split Notes
 
 In the Orchard protocol, since each Action represents an input and an output, the transaction that wants to send one input to multiple outputs must have multiple inputs. The Orchard protocol gives *dummy spend notes* [#protocol-orcharddummynotes]_ to the Actions that have not been assigned input notes.
 
-The Orchard technique requires modification for the ZSA protocol with multiple Asset Identifiers, as the output note of the split Actions *cannot* contain *just any* Asset Base. We must enforce it to be an actual output of a GroupHash computation (in fact, we want it to be of the same Asset Base as the original input note, but the binding signature takes care that the proper balancing is performed). Without this enforcement the prover could input a multiple (or linear combination) of an existing Asset Base, and thereby attack the network by overflowing the ZEC value balance and hence counterfeiting ZEC funds.
+The Orchard technique requires modification for the OrchardZSA protocol with multiple Asset Identifiers, as the output note of the split Actions *cannot* contain *just any* Asset Base. We must enforce it to be an actual output of a GroupHash computation (in fact, we want it to be of the same Asset Base as the original input note, but the binding signature takes care that the proper balancing is performed). Without this enforcement the prover could input a multiple (or linear combination) of an existing Asset Base, and thereby attack the network by overflowing the ZEC value balance and hence counterfeiting ZEC funds.
 
-Therefore, for Custom Assets we enforce that *every* input note to an ZSA Action must be proven to exist in the set of note commitments in the note commitment tree. We then enforce this real note to be “unspendable” in the sense that its value will be zeroed in split Actions and the nullifier will be randomized, making the note not spendable in the specific Action. Then, the proof itself ensures that the output note is of the same Asset Base as the input note. In the circuit, the split note functionality will be activated by a boolean private input to the proof (aka the $\mathsf{split\_flag}$ boolean).
+Therefore, for Custom Assets we enforce that *every* input note to an OrchardZSA Action must be proven to exist in the set of note commitments in the note commitment tree. We then enforce this real note to be “unspendable” in the sense that its value will be zeroed in split Actions and the nullifier will be randomized, making the note not spendable in the specific Action. Then, the proof itself ensures that the output note is of the same Asset Base as the input note. In the circuit, the split note functionality will be activated by a boolean private input to the proof (aka the $\mathsf{split\_flag}$ boolean).
 This ensures that the value base points of all output notes of a transfer are actual outputs of a GroupHash, as they originate in the Issuance protocol which is publicly verified.
 
 Note that the Orchard dummy note functionality remains in use for ZEC notes, and the Split Input technique is used in order to support Custom Assets.
@@ -274,7 +283,7 @@ Note that the Orchard dummy note functionality remains in use for ZEC notes, and
 Circuit Statement
 -----------------
 
-Every *ZSA Action statement* is closely similar to the Orchard Action statement [#protocol-actionstatement]_, except for a few additions that ensure the security of the Asset Identifier system. We detail these changes below.
+Every *OrchardZSA Action statement* is closely similar to the Orchard Action statement [#protocol-actionstatement]_, except for a few additions that ensure the security of the Asset Identifier system. We detail these changes below.
 
 All modifications in the Circuit are detailed in [#circuit-modifications]_.
 
@@ -328,10 +337,10 @@ Senders must not be able to change the Asset Base for the output note in a Split
 Backwards Compatibility with ZEC Notes
 ``````````````````````````````````````
 
-The input note in the old note commitment integrity check must either include an Asset Base (ZSA note) or not (pre-ZSA Orchard note). If the note is a pre-ZSA Orchard note, the note commitment is computed in the original Orchard fashion [#protocol-abstractcommit]_. If the note is a ZSA note, the note commitment is computed as defined in the `Note Structure & Commitment`_ section.
+The input note in the old note commitment integrity check must either include an Asset Base (OrchardZSA note) or not (pre-ZSA Orchard note). If the note is a pre-ZSA Orchard note, the note commitment is computed in the original Orchard fashion [#protocol-abstractcommit]_. If the note is an OrchardZSA note, the note commitment is computed as defined in the `Note Structure & Commitment`_ section.
 
-Orchard-ZSA Transaction Structure
-=================================
+OrchardZSA Transaction Structure
+================================
 
 The transaction format for v6 transactions is described in ZIP 230 [#zip-0230]_.
 
@@ -339,12 +348,12 @@ The transaction format for v6 transactions is described in ZIP 230 [#zip-0230]_.
 TxId Digest
 ===========
 
-The transaction digest algorithm defined in ZIP 244 [#zip-0244]_ is modified by the ZSA protocol to add a new branch for issuance information, along with modifications within the ``orchard_digest`` to account for the inclusion of the Asset Base.
-The details of these changes are described in this section, and highlighted using the ``[UPDATED FOR ZSA]`` or ``[ADDED FOR ZSA]`` text label. We omit the details of the sections that do not change for the ZSA protocol.
+The transaction digest algorithm defined in ZIP 244 [#zip-0244]_ is modified by the OrchardZSA protocol to add a new branch for issuance information, along with modifications within the ``orchard_digest`` to account for the inclusion of the Asset Base.
+The details of these changes are described in this section, and highlighted using the ``[UPDATED FOR ZSA]`` or ``[ADDED FOR ZSA]`` text label. We omit the details of the sections that do not change for the OrchardZSA protocol.
 
 txid_digest
 -----------
-A BLAKE2b-256 hash of the following values ::
+A BLAKE2b-256 hash of the following values::
 
    T.1: header_digest       (32-byte hash output)
    T.2: transparent_digest  (32-byte hash output)
@@ -356,74 +365,96 @@ The personalization field remains the same as in ZIP 244 [#zip-0244]_.
 
 T.4: orchard_digest
 ```````````````````
-When Orchard Actions are present in the transaction, this digest is a BLAKE2b-256 hash of the following values ::
+When OrchardZSA Actions Groups are present in the transaction, this digest is a BLAKE2b-256 hash of the following values::
 
-   T.4a: orchard_actions_compact_digest      (32-byte hash output)          [UPDATED FOR ZSA]
-   T.4b: orchard_actions_memos_digest        (32-byte hash output)          [UPDATED FOR ZSA]
-   T.4c: orchard_actions_noncompact_digest   (32-byte hash output)          [UPDATED FOR ZSA]
-   T.4d: orchard_zsa_burn_digest             (32-byte hash output)          [ADDED FOR ZSA]
-   T.4e: flagsOrchard                        (1 byte)
-   T.4f: valueBalanceOrchard                 (64-bit signed little-endian)
-   T.4g: anchorOrchard                       (32 bytes)
+    T.4a: orchard_action_groups_digest   (32-byte hash output)          [ADDED FOR ZSA]
+    T.4b: orchard_zsa_burn_digest        (32-byte hash output)          [ADDED FOR ZSA]
+    T.4c: valueBalanceOrchard            (64-bit signed little-endian)
 
-T.4a: orchard_actions_compact_digest
-''''''''''''''''''''''''''''''''''''
+The personalization field of this hash is the same as in ZIP 244 [#zip-0244]_ ::
 
-A BLAKE2b-256 hash of the subset of Orchard Action information intended to be included in
-an updated version of the ZIP-307 [#zip-0307]_ ``CompactBlock`` format for all Orchard
-Actions belonging to the transaction. For each Action, the following elements are included
+    "ZTxIdOrchardHash"
+
+In the case that the transaction has no OrchardZSA Action Groups, ``orchard_digest`` is ::
+
+    BLAKE2b-256("ZTxIdOrchardHash", [])
+
+T.4a: orchard_action_groups_digest
+''''''''''''''''''''''''''''''''''
+
+A BLAKE2b-256 hash of the subset of OrchardZSA Action Groups information for all OrchardZSA Action Groups belonging to the transaction.
+For each Action Group, the following elements are included in the hash::
+
+    T.4a.i  : orchard_actions_compact_digest      (32-byte hash output)
+    T.4a.ii : orchard_actions_memos_digest        (32-byte hash output)
+    T.4a.iii: orchard_actions_noncompact_digest   (32-byte hash output)
+    T.4a.iv : flagsOrchard                        (1 byte)
+    T.4a.v  : anchorOrchard                       (32 bytes)
+    T.4a.vi : nAGExpiryHeight                     (4 bytes)
+
+The personalization field of this hash is set to::
+
+    "ZTxIdOrcActGHash"
+
+
+T.4a.i: orchard_actions_compact_digest
+......................................
+
+A BLAKE2b-256 hash of the subset of OrchardZSA Action information intended to be included in
+an updated version of the ZIP-307 [#zip-0307]_ ``CompactBlock`` format for all OrchardZSA
+Actions belonging to the Action Group. For each Action, the following elements are included
 in the hash::
 
-   T.4a.i  : nullifier            (field encoding bytes)
-   T.4a.ii : cmx                  (field encoding bytes)
-   T.4a.iii: ephemeralKey         (field encoding bytes)
-   T.4a.iv : encCiphertext[..84]  (First 84 bytes of field encoding)  [UPDATED FOR ZSA]
+   T.4a.i.1 : nullifier            (field encoding bytes)
+   T.4a.i.2 : cmx                  (field encoding bytes)
+   T.4a.i.3 : ephemeralKey         (field encoding bytes)
+   T.4a.i.4 : encCiphertext[..84]  (First 84 bytes of field encoding)  [UPDATED FOR ZSA]
 
 The personalization field of this hash is the same as in ZIP 244::
 
   "ZTxIdOrcActCHash"
 
 
-T.4b: orchard_actions_memos_digest
-''''''''''''''''''''''''''''''''''
+T.4a.ii: orchard_actions_memos_digest
+.....................................
 
-A BLAKE2b-256 hash of the subset of Orchard shielded memo field data for all Orchard
-Actions belonging to the transaction. For each Action, the following elements are included
+A BLAKE2b-256 hash of the subset of Orchard shielded memo field data for all OrchardZSA
+Actions belonging to the Action Group. For each Action, the following elements are included
 in the hash::
 
-    T.4b.i: encCiphertext[84..596] (contents of the encrypted memo field)  [UPDATED FOR ZSA]
+    T.4a.ii.1: encCiphertext[84..596] (contents of the encrypted memo field)  [UPDATED FOR ZSA]
 
 The personalization field of this hash remains identical to ZIP 244::
 
   "ZTxIdOrcActMHash"
 
 
-T.4c: orchard_actions_noncompact_digest
-'''''''''''''''''''''''''''''''''''''''
+T.4a.iii: orchard_actions_noncompact_digest
+...........................................
 
-A BLAKE2b-256 hash of the remaining subset of Orchard Action information **not** intended
+A BLAKE2b-256 hash of the remaining subset of OrchardZSA Action information **not** intended
 for inclusion in an updated version of the the ZIP 307 [#zip-0307]_ ``CompactBlock``
-format, for all Orchard Actions belonging to the transaction. For each Action,
+format, for all OrchardZSA Actions belonging to the Action Group. For each Action,
 the following elements are included in the hash::
 
-   T.4d.i  : cv                    (field encoding bytes)
-   T.4d.ii : rk                    (field encoding bytes)
-   T.4d.iii: encCiphertext[596..]  (post-memo suffix of field encoding)  [UPDATED FOR ZSA]
-   T.4d.iv : outCiphertext         (field encoding bytes)
+   T.4a.iii.1 : cv                    (field encoding bytes)
+   T.4a.iii.2 : rk                    (field encoding bytes)
+   T.4a.iii.3 : encCiphertext[596..]  (post-memo suffix of field encoding)  [UPDATED FOR ZSA]
+   T.4a.iii.4 : outCiphertext         (field encoding bytes)
 
 The personalization field of this hash is defined identically to ZIP 244::
 
     "ZTxIdOrcActNHash"
 
 
-T.4d: orchard_zsa_burn_digest
+T.4b: orchard_zsa_burn_digest
 '''''''''''''''''''''''''''''
 
 A BLAKE2b-256 hash of the data from the burn fields of the transaction. For each tuple in 
 the $\mathsf{assetBurn}$ set, the following elements are included in the hash::
 
-    T.4d.i : assetBase    (field encoding bytes)
-    T.4d.ii: valueBurn    (field encoding bytes)
+    T.4b.i : assetBase    (field encoding bytes)
+    T.4b.ii: valueBurn    (field encoding bytes)
 
 The personalization field of this hash is set to::
 
@@ -434,12 +465,12 @@ $\mathsf{assetBurn}$ set is empty), the ''orchard_zsa_burn_digest'' is::
 
     BLAKE2b-256("ZTxIdOrcBurnHash", [])
 
-T.4d.i: assetBase
+T.4b.i: assetBase
 .................
 The Asset Base being burnt encoded as the 32-byte representation of a point on the 
 Pallas curve.
 
-T.4d.ii: valueBurn
+T.4b.ii: valueBurn
 ..................
 Value of the Asset Base being burnt encoded as little-endian 8-byte representation 
 of 64-bit unsigned integer (e.g. u64 in Rust) raw value.
@@ -449,17 +480,79 @@ T.5: issuance_digest
 ````````````````````
 The details of the computation of this value are in ZIP 227 [#zip-0227-txiddigest]_.
 
-Signature Digest and Authorizing Data Commitment
-================================================
+Signature Digest 
+================
 
-The details of the changes to these algorithms are in ZIP 227 [#zip-0227-sigdigest]_ [#zip-0227-authcommitment]_.
+The details of the changes to this algorithm are in ZIP 227 [#zip-0227-sigdigest]_.
+
+Authorizing Data Commitment
+===========================
+
+The transaction digest algorithm defined in ZIP 244 [#zip-0244-authcommitment]_ which commits to the authorizing data of a transaction is modified by the OrchardZSA protocol to have the structure specified in this section.
+There is a new branch added for issuance information, along with modifications within the ``orchard_auth_digest`` to account for the presence of Action Groups.
+
+We highlight the changes for the OrchardZSA protocol via the ``[UPDATED FOR ZSA]`` or ``[ADDED FOR ZSA]`` text label, and we omit the descriptions of the sections that do not change for the OrchardZSA protocol::
+
+    auth_digest
+    ├── transparent_scripts_digest
+    ├── sapling_auth_digest
+    ├── orchard_auth_digest         [UPDATED FOR ZSA]
+    └── issuance_auth_digest        [ADDED FOR ZSA]
+
+The pair (Transaction Identifier, Auth Commitment) constitutes a commitment to all the data of a serialized transaction that may be included in a block.
+
+auth_digest
+-----------
+A BLAKE2b-256 hash of the following values ::
+
+   A.1: transparent_scripts_digest (32-byte hash output)
+   A.2: sapling_auth_digest        (32-byte hash output)
+   A.3: orchard_auth_digest        (32-byte hash output)  [UPDATED FOR ZSA]
+   A.4: issuance_auth_digest       (32-byte hash output)  [ADDED FOR ZSA]
+
+The personalization field of this hash remains the same as in ZIP 244.
+
+
+A.3: orchard_auth_digest
+````````````````````````
+
+In the case that OrchardZSA Action Groups are present, this is a BLAKE2b-256 hash of the following values::
+
+    A.3a: orchard_action_groups_auth_digest  (32-byte hash output)  [ADDED FOR ZSA]
+    A.3b: bindingSigOrchard                  (field encoding bytes)
+
+The personalization field of this hash is the same as in ZIP 244, that is::
+
+    "ZTxAuthOrchaHash"
+
+In case that the transaction has no OrchardZSA Action Groups, ``orchard_auth_digest`` is::
+
+    BLAKE2b-256("ZTxAuthOrchaHash", [])
+
+A.3a: orchard_action_groups_auth_digest
+'''''''''''''''''''''''''''''''''''''''
+
+This is a BLAKE2b-256 hash of the ``proofsOrchard`` and ``spendAuthSigsOrchard`` fields of all OrchardZSA Action Groups belonging to the transaction::
+
+    A.3a.i:  proofsOrchard               (field encoding bytes)
+    A.3a.ii: spendAuthSigsOrchard        (field encoding bytes)
+
+The personalization field of this hash is set to::
+
+    "ZTxAuthOrcAGHash"
+
+A.4: issuance_auth_digest
+`````````````````````````
+
+The details of the computation of this value are in ZIP 227 [#zip-0227-authcommitment]_.
+
 
 Security and Privacy Considerations
 ===================================
 
-- After the protocol upgrade, the Orchard shielded pool will be shared by the Orchard protocol and the Orchard-ZSA protocol.
-- Deploying the Orchard-ZSA protocol does not necessitate disabling the Orchard protocol. Both can co-exist and be addressed via different transaction versions (V5 for Orchard and V6 for Orchard-ZSA). Due to this, Orchard note commitments can be distinguished from Orchard-ZSA note commitments. This holds whether or not the two protocols are active simultaneously.
-- Orchard-ZSA note commitments for the native asset (ZEC) are indistinguishable from Orchard-ZSA note commitments for non-native Assets.
+- After the protocol upgrade, the Orchard shielded pool will be shared by the Orchard protocol and the OrchardZSA protocol.
+- Deploying the OrchardZSA protocol does not necessitate disabling the Orchard protocol. Both can co-exist and be addressed via different transaction versions (V5 for Orchard and V6 for OrchardZSA). Due to this, Orchard note commitments can be distinguished from OrchardZSA note commitments. This holds whether or not the two protocols are active simultaneously.
+- OrchardZSA note commitments for the native asset (ZEC) are indistinguishable from OrchardZSA note commitments for non-native Assets.
 - When including new Assets we would like to maintain the amount and identifiers of Assets private, which is achieved with the design.
 - We prevent a potential malleability attack on the Asset Identifier by ensuring the output notes receive an Asset Base that exists on the global state.
 
@@ -469,21 +562,21 @@ Other Considerations
 Transaction Fees
 ----------------
 
-The fee mechanism for the upgrades proposed in this ZIP will follow the mechanism described in ZIP 317 for the ZSA protocol upgrade [#zip-0317b]_.
+The fee mechanism for the upgrades proposed in this ZIP will follow the mechanism described in ZIP 317 for the OrchardZSA protocol upgrade, and are described in ZIP 227 [#zip-0227-orchardzsa-fee-calculation]_.
 
 Backward Compatibility
 ----------------------
 
-In order to have backward compatibility with the ZEC notes, we have designed the circuit to support both ZEC and ZSA notes. As we specify above, there are three main reasons we can do this:
+In order to have backward compatibility with the ZEC notes, we have designed the circuit to support both ZEC and OrchardZSA notes. As we specify above, there are three main reasons we can do this:
 
 - Note commitments for ZEC notes will remain the same, while note commitments for Custom Assets will be computed taking into account the $\mathsf{AssetBase}$ value as well.
-- The existing Orchard shielded pool will continue to be used for the new ZSA notes post the upgrade.
+- The existing Orchard shielded pool will continue to be used for the new OrchardZSA notes post the upgrade.
 - The value commitment is abstracted to allow for the value base-point as a variable private input to the proof.
-- The ZEC-based Actions will still include dummy input notes, whereas the ZSA-based Actions will include split input notes and will not include dummy input notes.
+- The ZEC-based Actions will still include dummy input notes, whereas the OrchardZSA Actions will include split input notes and will not include dummy input notes.
 
 Deployment
 -----------
-The Zcash Shielded Assets protocol will be deployed in a subsequent Network Upgrade.
+The Zcash Shielded Assets protocol is scheduled to be deployed in Network Upgrade 7 (NU7).
 
 Test Vectors
 ============
@@ -507,14 +600,17 @@ References
 .. [#zip-0224] `ZIP 224: Orchard <zip-0224.html>`_
 .. [#zip-0227] `ZIP 227: Issuance of Zcash Shielded Assets <zip-0227.html>`_
 .. [#zip-0227-specification-global-issuance-state] `ZIP 227: Issuance of Zcash Shielded Assets: Specification: Global Issuance State <zip-0227.html#specification-global-issuance-state>`_
-.. [#zip-0227-assetidentifier] `ZIP 227: Issuance of Zcash Shielded Assets: Specification: Asset Identifier <zip-0227.html#specification-asset-identifier>`_
+.. [#zip-0227-assetidentifier] `ZIP 227: Issuance of Zcash Shielded Assets: Specification: Asset Identifier <zip-0227.html#specification-asset-identifier-asset-digest-and-asset-base>`_
+.. [#zip-0227-consensus] `ZIP 227: Issuance of Zcash Shielded Assets: Specification: Consensus Rule Changes <zip-0227.html#specification-consensus-rule-changes>`_
+.. [#zip-0227-note-commitment-order] `ZIP 227: Issuance of Zcash Shielded Assets: Addition to the Note Commitment Tree <zip-0227.html#addition-to-the-note-commitment-tree>`_
 .. [#zip-0227-txiddigest] `ZIP 227: Issuance of Zcash Shielded Assets: TxId Digest - Issuance <zip-0227.html#txid-digest-issuance>`_
 .. [#zip-0227-sigdigest] `ZIP 227: Issuance of Zcash Shielded Assets: Signature Digest <zip-0227.html#signature-digest>`_
-.. [#zip-0227-authcommitment] `ZIP 227: Issuance of Zcash Shielded Assets: Authorizing Data Commitment <zip-0227.html#authorizing-data-commitment>`_
+.. [#zip-0227-authcommitment] `ZIP 227: Issuance of Zcash Shielded Assets: Authorizing Data Commitment <zip-0227.html#authorizing-data-commitment-issuance>`_
+.. [#zip-0227-orchardzsa-fee-calculation] `ZIP 227: Issuance of Zcash Shielded Assets: OrchardZSA Fee Calculation <zip-0227.html#orchardzsa-fee-calculation>`_
 .. [#zip-0230] `ZIP 230: Version 6 Transaction Format <zip-0230.html>`_
 .. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.html>`_
+.. [#zip-0244-authcommitment] `ZIP 244: Transaction Identifier Non-Malleability: Authorizing Data Commitment <zip-0244.html#authorizing-data-commitment>`_
 .. [#zip-0307] `ZIP 307: Light Client Protocol for Payment Detection <zip-0307.rst>`_
-.. [#zip-0317b] `ZIP 317: Proportional Transfer Fee Mechanism - Pull Request #667 for ZSA Protocol ZIPs <https://github.com/zcash/zips/pull/667>`_
 .. [#protocol-notes] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.2: Notes <protocol/protocol.pdf#notes>`_
 .. [#protocol-actions] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.7: Action Transfers and their Descriptions <protocol/protocol.pdf#actions>`_
 .. [#protocol-abstractcommit] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.1.8: Commitment <protocol/protocol.pdf#abstractcommit>`_
@@ -532,4 +628,4 @@ References
 .. [#protocol-actionencodingandconsensus] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 7.5: Action Description Encoding and Consensus  <protocol/protocol.pdf#actionencodingandconsensus>`_
 .. [#initial-zsa-issue] `User-Defined Assets and Wrapped Assets <https://github.com/str4d/zips/blob/zip-udas/drafts/zip-user-defined-assets.rst>`_
 .. [#generalized-value-commitments] `Comment on Generalized Value Commitments <https://github.com/zcash/zcash/issues/2277#issuecomment-321106819>`_
-.. [#circuit-modifications] `Modifications to the Orchard circuit for the ZSA Protocol <https://docs.google.com/document/d/1DzXBqZl_l3aIs_gcelw3OuZz2OVMnYk6Xe_1lBsTji8/edit?usp=sharing>`_
+.. [#circuit-modifications] `Modifications to the Orchard circuit for the OrchardZSA Protocol <https://docs.google.com/document/d/1DzXBqZl_l3aIs_gcelw3OuZz2OVMnYk6Xe_1lBsTji8/edit?usp=sharing>`_

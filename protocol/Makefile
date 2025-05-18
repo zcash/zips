@@ -31,19 +31,6 @@ protocol-dark: $(PDFDIR)/protocol-dark.pdf
 all-specs: .Makefile.uptodate
 	$(MAKE) nu6 nu6-dark nu5 canopy heartwood blossom sapling
 
-tag-release:
-ifeq ($(shell git tag --points-at HEAD |wc -l),0)
-	echo "Set a tag at HEAD first."
-else
-	$(eval TAG := $(shell git tag --points-at HEAD))
-	git fetch origin
-	git merge-base --is-ancestor origin/main HEAD || (echo "The current branch is dirty and/or not up-to-date with origin's main branch."; false)
-	$(MAKE) clean all
-	git add $(PDFDIR)/*.pdf
-	git commit -m "Regenerate PDFs." $(PDFDIR)/*.pdf
-	git tag "v$(TAG)"
-endif
-
 discard:
 	git checkout -- "$(PDFDIR)/*.pdf"
 
@@ -82,6 +69,7 @@ auxsapling:
 
 sapling:
 	$(MAKE) auxsapling
+	mkdir -p $(PDFDIR)
 	mv -f aux/sapling.pdf $(PDFDIR)
 
 .PHONY: auxblossom blossom
@@ -94,6 +82,7 @@ auxblossom:
 
 blossom:
 	$(MAKE) auxblossom
+	mkdir -p $(PDFDIR)
 	mv -f aux/blossom.pdf $(PDFDIR)
 
 .PHONY: auxheartwood heartwood
@@ -106,6 +95,7 @@ auxheartwood:
 
 heartwood:
 	$(MAKE) auxheartwood
+	mkdir -p $(PDFDIR)
 	mv -f aux/heartwood.pdf $(PDFDIR)
 
 .PHONY: auxcanopy canopy
@@ -118,6 +108,7 @@ auxcanopy:
 
 canopy:
 	$(MAKE) auxcanopy
+	mkdir -p $(PDFDIR)
 	mv -f aux/canopy.pdf $(PDFDIR)
 
 .PHONY: auxnu5 nu5
@@ -130,6 +121,7 @@ auxnu5:
 
 nu5:
 	$(MAKE) auxnu5
+	mkdir -p $(PDFDIR)
 	mv -f aux/nu5.pdf $(PDFDIR)
 
 .PHONY: auxnu6 nu6
@@ -142,6 +134,7 @@ auxnu6:
 
 nu6:
 	$(MAKE) auxnu6
+	mkdir -p $(PDFDIR)
 	mv -f aux/nu6.pdf $(PDFDIR)/protocol.pdf
 
 .PHONY: auxnu6-dark nu6-dark
@@ -154,8 +147,9 @@ auxnu6-dark:
 
 nu6-dark:
 	$(MAKE) auxnu6-dark
+	mkdir -p $(PDFDIR)
 	mv -f aux/nu6-dark.pdf $(PDFDIR)/protocol-dark.pdf
 
 .PHONY: clean
 clean:
-	rm -f aux/* protocol.ver $(PDFDIR)/protocol.pdf $(PDFDIR)/protocol-dark.pdf $(PDFDIR)/nu5.pdf $(PDFDIR)/canopy.pdf $(PDFDIR)/heartwood.pdf $(PDFDIR)/blossom.pdf $(PDFDIR)/sapling.pdf
+	rm -f aux/* protocol.ver $(PDFDIR)/*
