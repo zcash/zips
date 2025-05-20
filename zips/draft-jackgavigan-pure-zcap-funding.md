@@ -1,7 +1,7 @@
     ZIP: XXX
     Title: Pure ZCAP Funding Model <jackgaviganzip@gmail.com>
     Owner: Jack Gavigan <jackgaviganzip@gmail.com>
-    Status: Draft
+    Status: Obsolete
     Category: Consensus / Process
     Created: 2025-03-31
     License: MIT

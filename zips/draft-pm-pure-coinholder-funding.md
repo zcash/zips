@@ -4,7 +4,7 @@
             Josh Swihart
     Credits: Daira-Emma Hopwood
              Kris Nuttycombe
-    Status: Draft
+    Status: Obsolete
     Category: Consensus / Process
     Created: 2025-02-19
     License: MIT
