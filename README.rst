@@ -43,30 +43,46 @@ and double-check the generated ``rendered/draft-*.html`` file before filing a Pu
 See `here <protocol/README.rst>`__ for the project dependencies.
 
 
+NU6.1 Candidate ZIPs
+--------------------
+
+The following ZIP drafts are under consideration for inclusion in NU6.1:
+
+- `draft-ecc-community-and-coinholder: Community and Coinholder Funding Model <zips/draft-ecc-community-and-coinholder.md>`__
+- `draft-ecc-lockbox-disbursement: Deferred Dev Fund Lockbox Disbursement <zips/draft-ecc-lockbox-disbursement.md>`__
+
+This list is only provided here for easy reference; no decision has been made
+on whether to include each of these ZIP drafts.
+
+`ZIP 255: Deployment of the NU6.1 Network Upgrade <zips/zip-0255.md>`__ will define which
+ZIPs are included in NU6.1.
+
+
 NU7 Candidate ZIPs
 ------------------
 
 The following ZIPs are under consideration for inclusion in NU7:
 
-- `ZIP 226: Transfer and Burn of Zcash Shielded Assets <zip-0226.rst>`__
-- `ZIP 227: Issuance of Zcash Shielded Assets <zip-0227.rst>`__
-- `ZIP 230: Version 6 Transaction Format <zip-0230.rst>`__
-- `ZIP 231: Memo Bundles <zip-0231.md>`__
-- `ZIP 233: Network Sustainability Mechanism: Burning <zip-0233.md>`__
-- `ZIP 234: Network Sustainability Mechanism: Issuance Smoothing <zip-0234.md>`__
-- `ZIP 235: Network Sustainability Mechanism: Burn 60% of Transaction Fees <zip-0235.md>`__
-- `ZIP 2002: Explicit Fees <zip-2002.rst>`__
-- `ZIP 2003: Disallow version 4 transactions <zip-2003.rst>`__
-- `ZIP 2004: Remove the dependency of consensus on note encryption <zip-2004.rst>`__
+- `ZIP 226: Transfer and Burn of Zcash Shielded Assets <zips/zip-0226.rst>`__
+- `ZIP 227: Issuance of Zcash Shielded Assets <zips/zip-0227.rst>`__
+- `ZIP 230: Version 6 Transaction Format <zips/zip-0230.rst>`__
+- `ZIP 231: Memo Bundles <zips/zip-0231.md>`__
+- `ZIP 233: Network Sustainability Mechanism: Burning <zips/zip-0233.md>`__
+- `ZIP 234: Network Sustainability Mechanism: Issuance Smoothing <zips/zip-0234.md>`__
+- `ZIP 235: Network Sustainability Mechanism: Burn 60% of Transaction Fees <zips/zip-0235.md>`__
+- `ZIP 246: Digests for the Version 6 Transaction Format <zips/zip-0246.rst>`__
+- `ZIP 2002: Explicit Fees <zips/zip-2002.rst>`__
+- `ZIP 2003: Disallow version 4 transactions <zips/zip-2003.rst>`__
+- `ZIP 2004: Remove the dependency of consensus on note encryption <zips/zip-2004.rst>`__
 
-In addition, `ZIP 317: Proportional Transfer Fee Mechanism <zip-0317.rst>`__
+In addition, `ZIP 317: Proportional Transfer Fee Mechanism <zips/zip-0317.rst>`__
 may be updated.
 
 This list is only provided here for easy reference; no decision has been made
 on whether to include each of these ZIPs.
 
-`ZIP 254: Deployment of the NU7 Network Upgrade <zip-0254.rst>`__ will define
-which ZIPs are included in NU7.
+`draft-arya-deploy-nu7: Deployment of the NU7 Network Upgrade <zips/draft-arya-deploy-nu7.md>`__
+will define which ZIPs are included in NU7.
 
 
 License
@@ -161,6 +177,7 @@ written.
     <tr> <td>234</td> <td class="left"><a href="zips/zip-0234.md">Network Sustainability Mechanism: Issuance Smoothing</a></td> <td>Draft</td>
     <tr> <td>235</td> <td class="left"><a href="zips/zip-0235.md">Remove 60% of Transaction Fees From Circulation</a></td> <td>Draft</td>
     <tr> <td>245</td> <td class="left"><a href="zips/zip-0245.rst">Transaction Identifier Digests & Signature Validation for Transparent Zcash Extensions</a></td> <td>Draft</td>
+    <tr> <td>246</td> <td class="left"><a href="zips/zip-0246.rst">Digests for the Version 6 Transaction Format</a></td> <td>Draft</td>
     <tr> <td>255</td> <td class="left"><a href="zips/zip-0255.md">Deployment of the NU6.1 Network Upgrade</a></td> <td>Draft</td>
     <tr> <td>302</td> <td class="left"><a href="zips/zip-0302.rst">Standardized Memo Field Format</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">303</span></td> <td class="left"><a class="reserved" href="zips/zip-0303.rst">Sprout Payment Disclosure</a></td> <td>Reserved</td>
@@ -210,6 +227,8 @@ be deleted.
     <tr> <td class="left"><a href="zips/draft-ecc-lockbox-disbursement.md">Deferred Dev Fund Lockbox Disbursement</a></td>
     <tr> <td class="left"><a href="zips/draft-ecc-onchain-accountable-voting.md">On-chain Accountable Voting</a></td>
     <tr> <td class="left"><a href="zips/draft-ecc-zbloc.md">Zcash Governance Bloc</a></td>
+    <tr> <td class="left"><a href="zips/draft-jackgavigan-community-governed-funding.md">Community-Governed Funding Model</a></td>
+    <tr> <td class="left"><a href="zips/draft-jackgavigan-pure-zcap-funding.md">Pure ZCAP Funding Model <jackgaviganzip@gmail.com></a></td>
     <tr> <td class="left"><a href="zips/draft-noamchom67-manufacturing-consent.rst">Manufacturing Consent; Re-Establishing a Dev Fund for ECC, ZF, ZCG, Qedit, FPF, and ZecHub</a></td>
     <tr> <td class="left"><a href="zips/draft-nuttycom-funding-allocation.rst">Block Reward Allocation for Non-Direct Development Funding</a></td>
     <tr> <td class="left"><a href="zips/draft-pm-pure-coinholder-funding.md">Pure Coinholder Funding Model</a></td>
@@ -300,6 +319,7 @@ Index of ZIPs
     <tr> <td>243</td> <td class="left"><a href="zips/zip-0243.rst">Transaction Signature Validation for Sapling</a></td> <td>Final</td>
     <tr> <td>244</td> <td class="left"><a href="zips/zip-0244.rst">Transaction Identifier Non-Malleability</a></td> <td>Final</td>
     <tr> <td>245</td> <td class="left"><a href="zips/zip-0245.rst">Transaction Identifier Digests & Signature Validation for Transparent Zcash Extensions</a></td> <td>Draft</td>
+    <tr> <td>246</td> <td class="left"><a href="zips/zip-0246.rst">Digests for the Version 6 Transaction Format</a></td> <td>Draft</td>
     <tr> <td>250</td> <td class="left"><a href="zips/zip-0250.rst">Deployment of the Heartwood Network Upgrade</a></td> <td>Final</td>
     <tr> <td>251</td> <td class="left"><a href="zips/zip-0251.rst">Deployment of the Canopy Network Upgrade</a></td> <td>Final</td>
     <tr> <td>252</td> <td class="left"><a href="zips/zip-0252.rst">Deployment of the NU5 Network Upgrade</a></td> <td>Final</td>
