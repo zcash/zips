@@ -2,7 +2,7 @@
 
 MARKDOWN_OPTION?=--mmd
 
-.PHONY: all-zips all tag-release protocol all-protocol discard
+.PHONY: all-zips all-docker all tag-release protocol all-protocol discard
 all-zips: .Makefile.uptodate
 	echo "$(patsubst zips/%,%,$(sort $(wildcard zips/zip-*.rst) $(wildcard zips/zip-*.md)))" >.zipfilelist.new
 	diff .zipfilelist.current .zipfilelist.new || cp -f .zipfilelist.new .zipfilelist.current
@@ -15,10 +15,11 @@ all-zips: .Makefile.uptodate
 	$(MAKE) README.rst
 	$(MAKE) rendered/index.html $(addprefix rendered/,$(addsuffix .html,$(basename $(patsubst zips/%,%,$(sort $(wildcard zips/*.rst) $(wildcard zips/*.md))))))
 
-all: all-zips all-protocol
+all-docker:
+	git config --global --add safe.directory "$(shell pwd)"
+	$(MAKE) all
 
-tag-release:
-	$(MAKE) -C protocol tag-release
+all: all-zips all-protocol
 
 protocol:
 	$(MAKE) -C protocol protocol

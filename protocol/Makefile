@@ -20,13 +20,36 @@ PDFDIR=../rendered/protocol
 # Use EXTRAOPT=-pvc for "continuous preview" mode. For example, "make auxblossom EXTRAOPT=-pvc".
 # In this case the updated .pdf will be in the aux/ directory.
 
-.PHONY: all protocol protocol-dark all-specs tag-release discard
+.PHONY: all protocol protocol-dark all-pdfs all-specs discard
 all: .Makefile.uptodate
-	$(MAKE) $(PDFDIR)/protocol.pdf $(PDFDIR)/protocol-dark.pdf $(PDFDIR)/nu5.pdf $(PDFDIR)/canopy.pdf $(PDFDIR)/heartwood.pdf $(PDFDIR)/blossom.pdf $(PDFDIR)/sapling.pdf
+	# Make `all-pdfs` in CI only if anything under `protocol/` has changed. For local builds
+	# this does not need to be conditional, since each PDF will only be built if its dependencies
+	# have changed. However, when checking renderability of a PR in CI the `rendered/` directory
+	# will not exist, so the PDFs would always be built from scratch. This is quite slow, so we
+	# want to avoid it for PRs that have not changed anything under `protocol/`.
+	#
+	# For a build from the CI workflow, the base ref hash should be written to `../base_ref`.
+	# If that file does not exist (the expected case locally), we make `all-pdfs` unconditionally.
+	# If it contains a hash (the expected case for CI), we make `all-pdfs` if
+	# `git diff --name-only` shows changes relative to that base ref under `protocol/`.
+	# Finally, just in case we have `../base_ref` locally, we make `all-pdfs` if any status
+	# entry under `protocol/` is dirty, i.e. if its second status character is not " "
+	# (see the documentation for "Porcelain Format Version 1" in `git status --help`).
+	#
+	# Note that in Makefiles, a dollar sign must be doubled to get a literal dollar sign in *any*
+	# context. Be very careful if refactoring this to ensure that the contents of `../base_ref`
+	# are only expanded if they are a hash.
+	if ( ! [ -e ../base_ref ] ) || \
+	   ( git diff --name-only "$$(grep -E '^[0-9a-f]{40}$$' ../base_ref).." -- |grep '^protocol/' ) || \
+	   ( git status --porcelain=v1 |grep '^.[^ ] protocol/' ); then \
+	    $(MAKE) all-pdfs; fi
 
 protocol: $(PDFDIR)/protocol.pdf
 
 protocol-dark: $(PDFDIR)/protocol-dark.pdf
+
+all-pdfs: .Makefile.uptodate
+	$(MAKE) $(PDFDIR)/protocol.pdf $(PDFDIR)/protocol-dark.pdf $(PDFDIR)/nu5.pdf $(PDFDIR)/canopy.pdf $(PDFDIR)/heartwood.pdf $(PDFDIR)/blossom.pdf $(PDFDIR)/sapling.pdf
 
 all-specs: .Makefile.uptodate
 	$(MAKE) nu6 nu6-dark nu5 canopy heartwood blossom sapling
