@@ -226,13 +226,6 @@ be deleted.
     <tr> <td class="left"><a href="zips/draft-ecc-community-and-coinholder.md">Community and Coinholder Funding Model</a></td>
     <tr> <td class="left"><a href="zips/draft-ecc-lockbox-disbursement.md">Deferred Dev Fund Lockbox Disbursement</a></td>
     <tr> <td class="left"><a href="zips/draft-ecc-onchain-accountable-voting.md">On-chain Accountable Voting</a></td>
-    <tr> <td class="left"><a href="zips/draft-ecc-zbloc.md">Zcash Governance Bloc</a></td>
-    <tr> <td class="left"><a href="zips/draft-jackgavigan-community-governed-funding.md">Community-Governed Funding Model</a></td>
-    <tr> <td class="left"><a href="zips/draft-jackgavigan-pure-zcap-funding.md">Pure ZCAP Funding Model <jackgaviganzip@gmail.com></a></td>
-    <tr> <td class="left"><a href="zips/draft-noamchom67-manufacturing-consent.rst">Manufacturing Consent; Re-Establishing a Dev Fund for ECC, ZF, ZCG, Qedit, FPF, and ZecHub</a></td>
-    <tr> <td class="left"><a href="zips/draft-nuttycom-funding-allocation.rst">Block Reward Allocation for Non-Direct Development Funding</a></td>
-    <tr> <td class="left"><a href="zips/draft-pm-pure-coinholder-funding.md">Pure Coinholder Funding Model</a></td>
-    <tr> <td class="left"><a href="zips/draft-zf-community-dev-fund-2-proposal.rst">Establishing a Hybrid Dev Fund for ZF, ZCG and a Dev Fund Reserve</a></td>
   </table></embed>
 
 Withdrawn, Rejected, or Obsolete ZIPs
