@@ -55,11 +55,12 @@ quality assurance to Zcash users.
 1. Nodes launched in Regtest mode MUST be able to generate deterministic sequences
 of blocks and transactions. 
 1. Regtest MUST override, adjust, by-pass or ignore consensus checks that are 
-specifically designed to avoid requirement 1 in Testnet and Mainnet
+specifically designed to avoid the efficiency in requirement 1 in Testnet and 
+Mainnet
 1. Developers MUST specify the activation heights of the different Network 
 Upgrades on launch via parameters or configuration file.
 1. Remote Peer-to-Peer connections MUST NOT be allowed. All peers MUST be local 
-Regtestand share the same configuration (unless there is an arbitrary failure 
+Regtest and share the same configuration (unless there is an arbitrary failure 
 scenario under test).
 1. Regtest can activate all Network Upgrades at once while maintaining the order
 of the Network Upgrades when an evaluation in code relies or depends on the 
@@ -166,7 +167,7 @@ flexibility.
 
 ### Behavior for ZIP-208 Shorter Block Target Spacing
 In Regtest mode, block generation is dictated by whomever is ordering the node 
-o generate one or more new blocks at will. Difficulty adjustments to enforce a 
+to generate one or more new blocks at will. Difficulty adjustments to enforce a 
 blocktime MAY be ignored if  the node has been set with that intention. Values 
 referred by ZIP-208 such as `BlossomActivationHeight` shall be populated with 
 whatever value the regtest mode was configured with. Regtest allows developers 
