@@ -100,17 +100,23 @@ The relations between these keys are shown in the following diagram:
 Issuance Authorization Signature Scheme
 ---------------------------------------
 
-We instantiate the issuance authorization signature scheme $\mathsf{IssueAuthSig}$ as a BIP-340 Schnorr signature over the secp256k1 curve. The signing and validation algorithms, signature encoding, and public key encoding MUST follow BIP 340 [#bip-0340]_.
+The issuance authorization signature $\mathsf{issueAuthSig}$ is used to authorize the issuance of Custom Assets by the issuer.
+The issuance authorization signature scheme, $\mathsf{IssueAuthSig}$, comprises of all the associated types and algorithms defined in the protocol specification [#protocol-abstractsig]_.
 
-Batch verification MAY be used. Precomputation MAY be used if and only if it produces equivalent results; for example, for a given verification key $pk$ and $\mathit{lift\_x}(\mathit{int}(pk))$ MAY be precomputed.
+Batch verification MAY be used. Precomputation MAY be used if and only if it produces equivalent results.
 
+Orchard ZSA Issuance Authorization Signature Scheme
+```````````````````````````````````````````````````
+
+In the OrchardZSA protocol, we instantiate the issuance authorization signature scheme $\mathsf{IssueAuthSig}$ as a BIP-340 Schnorr signature over the secp256k1 curve.
 We define the constants as per the secp256k1 standard parameters, as described in BIP 340.
+The encodings of the signature and the public key differ slightly from that of BIP 340, and we specify the changes in what follows. 
 
 The associated types of the $\mathsf{IssueAuthSig}$ signature scheme are as follows:
 
 * $\mathsf{IssueAuthSig.Message} = \mathbb{B}^{\mathbb{Y}^{[\mathbb{N}]}}$
-* $\mathsf{IssueAuthSig.Signature} = \mathbb{B}^{\mathbb{Y}^{[64]}} \cup \{\bot\}$
-* $\mathsf{IssueAuthSig.Public} = \mathbb{B}^{\mathbb{Y}^{[32]}} \cup \{\bot\}$
+* $\mathsf{IssueAuthSig.Signature} = \mathbb{B}^{\mathbb{Y}^{[65]}} \cup \{\bot\}$
+* $\mathsf{IssueAuthSig.Public} = \mathbb{B}^{\mathbb{Y}^{[33]}} \cup \{\bot\}$
 * $\mathsf{IssueAuthSig.Private} = \mathbb{B}^{\mathbb{Y}^{[32]}}$
 
 where $\mathbb{B}^{\mathbb{Y}^{[k]}}$ denotes the set of sequences of $k$ bytes, and $\mathbb{B}^{\mathbb{Y}^{[\mathbb{N}]}}$ denotes the type of byte sequences of arbitrary length, as defined in the Zcash protocol specification [#protocol-notation]_.
@@ -151,11 +157,11 @@ Derivation of issuance validating key
 
 Define $\mathsf{IssueAuthSig.DerivePublic} \;{\small ⦂}\; (\mathsf{isk} \;{\small ⦂}\; \mathsf{IssueAuthSig.Private}) \to \mathsf{IssueAuthSig.Public}$ as:
 
-* $\mathsf{ik} := \textit{PubKey}(\mathsf{isk})$
+* $\mathsf{ik} := \mathtt{0x00} || \textit{PubKey}(\mathsf{isk})$
 * Return $\bot$ if the $\textit{PubKey}$ algorithm invocation fails, otherwise return $\mathsf{ik}$.
 
-where the $\textit{PubKey}$ algorithm is defined in BIP 340 [#bip-0340]_.
-Note that the byte representation of $\mathsf{ik}$ is in big-endian order as defined in BIP 340.
+where the $\textit{PubKey}$ algorithm is defined in BIP 340 [#bip-0340]_, and the output of the algorithm is in big-endian order as defined in BIP 340.
+The encoding of $\mathsf{ik}$ begins with a version byte that is $\mathtt{0x00}$. This enables future ZIPs to specify alternative signature schemes.
 
 It is possible for the $\textit{PubKey}$ algorithm to fail with very low probability, which means that $\mathsf{IssueAuthSig.DerivePublic}$ could return $\bot$ with very low probability.
 If this happens, discard the keys and repeat with a different $\mathsf{isk}$.
@@ -168,17 +174,20 @@ Issuance Authorization Signing and Validation
 Define $\mathsf{IssueAuthSig.Sign} \;{\small ⦂}\; (\mathsf{isk} \;{\small ⦂}\; \mathsf{IssueAuthSig.Private}) \times (M \;{\small ⦂}\; \mathsf{IssueAuthSig.Message}) \to \mathsf{IssueAuthSig.Signature}$ as:
 
 * Let the auxiliary data $a = [\mathtt{0x00}]^{32}$.
-* Let $\text{σ} = \mathsf{Sign}(\mathsf{isk}, M)$.
+* Let $\text{σ} = \mathtt{0x00} || \mathsf{Sign}(\mathsf{isk}, M)$.
 * Return $\bot$ if the $\mathsf{Sign}$ algorithm fails in the previous step, otherwise return $\text{σ}$.
 
 where the $\mathsf{Sign}$ algorithm is defined in BIP 340 and $a$ denotes the auxiliary data used in BIP 340 [#bip-0340]_.
 Note that $\mathsf{IssueAuthSig.Sign}$ could return $\bot$ with very low probability.
+Note that the initial $\mathtt{0x00}$ byte in the signature is a version byte, enabling future ZIPs to
+specify alternative issuance authorization signature schemes.
 
 
 Define $\mathsf{IssueAuthSig.Validate} \;{\small ⦂}\; (\mathsf{ik} \;{\small ⦂}\; \mathsf{IssueAuthSig.Public}) \times (M \;{\small ⦂}\; \mathsf{IssueAuthSig.Message}) \times (\text{σ} \;{\small ⦂}\; \mathsf{IssueAuthSig.Signature}) \to \mathbb{B}$ as:
 
 * Return $0$ if $\text{σ} = \bot$.
-* Return $1$ if $\mathsf{Verify}(\mathsf{ik}, M, \text{σ})$ succeeds, otherwise $0$.
+* Parse $\text{σ}$ as $\mathtt{0x00} || \mathsf{sig}$ and parse $\mathsf{ik}$ as $\mathtt{0x00} || \mathsf{key}$. Return $0$ if the parsing fails.
+* Return $1$ if $\mathsf{Verify}(\mathsf{key}, M, \mathsf{sig})$ succeeds, otherwise $0$.
 
 where the $\mathsf{Verify}$ algorithm is defined in BIP 340 [#bip-0340]_.
 
@@ -197,6 +206,7 @@ For context, the relations between the Asset Identifier, Asset Digest, and Asset
 
 
 **Note:** To keep notations light and concise, we may omit $\mathsf{AssetId}$ in the subscript when the Asset Identifier is clear from the context.
+
 
 Asset Identifiers
 -----------------
@@ -657,6 +667,7 @@ References
 .. [#protocol-notation] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 2: Notation <protocol/protocol.pdf#notation>`_
 .. [#protocol-addressesandkeys] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.1: Payment Addresses and Keys <protocol/protocol.pdf#addressesandkeys>`_
 .. [#protocol-notes] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.2: Notes <protocol/protocol.pdf#notes>`_
+.. [#protocol-abstractsig] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.1.7: Signature <protocol/protocol.pdf#abstractsig>`_
 .. [#protocol-orchardkeycomponents] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.2.3: Orchard Key Components <protocol/protocol.pdf#orchardkeycomponents>`_
 .. [#protocol-sighash] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.10: SIGHASH Transaction Hashing <protocol/protocol.pdf#sighash>`_
 .. [#protocol-constants] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 5.3: Constants <protocol/protocol.pdf#constants>`_
