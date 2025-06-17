@@ -180,7 +180,7 @@ A new salt MUST be generated for each memo bundle.</p>
 
 <p>The symmetric encryption key for a memo is derived from its <span class="math">\(\mathsf{K^{memo}}\)</span> as follows:</p>
 
-<p><span class="math">\(\hspace{2em}\mathsf{encryptionKey} = \mathsf{PRF^{expand}_{K^{memo}}}([\mathtt{0xE0}] \,||\, \mathsf{salt})\)</span></p>
+<p><span class="math">\(\hspace{2em}\mathsf{encryption\_key} = \mathsf{PRF^{expand}_{K^{memo}}}([\mathtt{0xE0}] \,||\, \mathsf{salt})\)</span></p>
 
 <p>The first byte <span class="math">\(\mathtt{0xE0}\)</span> should be added to the documentation of inputs to
 <span class="math">\(\mathsf{PRF^{expand}}\)</span> in § 4.1.2 ‘Pseudo Random Functions’ <a href="#fn:7" id="fnref:7" title="see footnote" class="footnote"><sup>7</sup></a>.</p>
@@ -194,16 +194,16 @@ probability, it alternatively MAY omit this check.</p>
 256-byte chunks. Each memo chunk is encrypted with ChaCha20Poly1305 <a href="#fn:8" id="fnref:8" title="see footnote" class="footnote"><sup>8</sup></a>
 as follows:</p>
 
-<p><span class="math">\(\hspace{2em}\mathsf{IETF\_AEAD\_CHACHA20\_POLY1305}(\mathsf{encryptionKey}, \mathsf{nonce}, \mathsf{memo\_chunk})\)</span></p>
+<p><span class="math">\(\hspace{2em}\mathsf{IETF\_AEAD\_CHACHA20\_POLY1305}(\mathsf{encryption\_key}, \mathsf{nonce}, \mathsf{memo\_chunk})\)</span></p>
 
-<p>where <span class="math">\(\mathsf{nonce} = \mathsf{I2BEOSP}_{88}(\mathsf{counter}) \,||\, [\mathsf{final\_chunk}]\)</span>.</p>
+<p>where <span class="math">\(\mathsf{nonce} = \mathsf{I2BEOSP}_{88}(\mathsf{counter}) \,||\, [\mathsf{is\_final\_chunk}]\)</span>.</p>
 
 <p>This is a variant of the STREAM construction <a href="#fn:9" id="fnref:9" title="see footnote" class="footnote"><sup>9</sup></a>.</p>
 
 <ul>
 <li><span class="math">\(\mathsf{counter}\)</span> is a big-endian chunk counter starting at zero and incrementing
 by one for each subsequent chunk within a particular memo.</li>
-<li><span class="math">\(\mathsf{final\_chunk}\)</span> is the byte <span class="math">\(\mathtt{0x01}\)</span> for the final memo chunk, and
+<li><span class="math">\(\mathsf{is\_final\_chunk}\)</span> is the byte <span class="math">\(\mathtt{0x01}\)</span> for the final memo chunk, and
 <span class="math">\(\mathtt{0x00}\)</span> for all preceding chunks.</li>
 </ul>
 
@@ -230,30 +230,30 @@ From this they derive <code>encryption_key</code> as above, and then proceed as 
 
 <p><span class="math">\(\hspace{1.5em}\)</span> let mutable <span class="math">\(\mathsf{memo} \;{\small ⦂}\; \mathbb{N} \leftarrow 0 \\\)</span>
 <span class="math">\(\hspace{1.5em}\)</span> let mutable <span class="math">\(\mathsf{counter} \;{\small ⦂}\; \mathbb{N} \leftarrow 0 \\\)</span>
-<span class="math">\(\hspace{1.5em}\)</span> let mutable <span class="math">\(\mathsf{potential\_last\_chunk} \;{\small ⦂}\; \mathbb{N} \leftarrow 0 \\\)</span>
-<span class="math">\(\hspace{1.5em}\)</span> for <span class="math">\(i\)</span> from <span class="math">\(0\)</span> up to <span class="math">\(\mathsf{len}(\mathsf{memo\_chunks})-1\)</span>: <span class="math">\(\\\)</span>
-<span class="math">\(\hspace{3.0em}\)</span>  if <span class="math">\(\mathsf{memo\_chunks}[i]\)</span> is not pruned: <span class="math">\(\\\)</span>
+<span class="math">\(\hspace{1.5em}\)</span> let mutable <span class="math">\(\mathsf{potential\_last\_chunk\_index} \;{\small ⦂}\; \mathbb{N} \leftarrow 0 \\\)</span>
+<span class="math">\(\hspace{1.5em}\)</span> for <span class="math">\(i\)</span> from <span class="math">\(0\)</span> up to <span class="math">\(\mathtt{nMemoChunks}-1\)</span>: <span class="math">\(\\\)</span>
+<span class="math">\(\hspace{3.0em}\)</span>  if <span class="math">\(\mathtt{vMemoChunks}[i]\)</span> is not pruned: <span class="math">\(\\\)</span>
 <span class="math">\(\hspace{4.5em}\)</span>   let <span class="math">\(\mathsf{nonce} = \mathsf{I2BEOSP}_{88}(\mathsf{counter}) \,||\, [\mathtt{0x00}] \\\)</span>
-<span class="math">\(\hspace{4.5em}\)</span>   let <span class="math">\(P = \mathsf{IETF\_AEAD\_CHACHA20\_POLY1305.Decrypt}(\mathsf{encryptionKey}, \mathsf{nonce}, \mathsf{memo\_chunks}[i]) \\\)</span>
+<span class="math">\(\hspace{4.5em}\)</span>   let <span class="math">\(P = \mathsf{IETF\_AEAD\_CHACHA20\_POLY1305.Decrypt}(\mathsf{encryption\_key}, \mathsf{nonce}, \mathtt{vMemoChunks}[i]) \\\)</span>
 <span class="math">\(\hspace{4.5em}\)</span>   if <span class="math">\(P \neq \bot\)</span>: <span class="math">\(\\\)</span>
 <span class="math">\(\hspace{6.0em}\)</span>    set <span class="math">\(\mathsf{memo} \leftarrow \mathsf{memo} \,||\, P \\\)</span>
 <span class="math">\(\hspace{6.0em}\)</span>    set <span class="math">\(\mathsf{counter} \leftarrow \mathsf{counter} + 1 \\\)</span>
-<span class="math">\(\hspace{6.0em}\)</span>    set <span class="math">\(\mathsf{potential\_last\_chunk} \leftarrow i + 1 \\\)</span>
+<span class="math">\(\hspace{6.0em}\)</span>    set <span class="math">\(\mathsf{potential\_last\_chunk\_index} \leftarrow i + 1 \\\)</span>
 <span class="math">\(\,\\\)</span>
-<span class="math">\(\hspace{1.5em}\)</span> let <span class="math">\(\mathsf{nonce} = \mathsf{I2BEOSP}_{88}(\mathsf{counter}) \,||\, [\mathtt{0x01}] \\\)</span>
+<span class="math">\(\hspace{1.5em}\)</span> let <span class="math">\(\mathsf{final\_nonce} = \mathsf{I2BEOSP}_{88}(\mathsf{counter}) \,||\, [\mathtt{0x01}] \\\)</span>
 <span class="math">\(\hspace{1.5em}\)</span> let mutable <span class="math">\(\mathsf{success} \leftarrow \kern0.05em\)</span> false <span class="math">\(\\\)</span>
-<span class="math">\(\hspace{1.5em}\)</span> for <span class="math">\(i\)</span> from <span class="math">\(0\)</span> up to <span class="math">\(\mathsf{len}(\mathsf{memo\_chunks})-1\)</span>: <span class="math">\(\\\)</span>
-<span class="math">\(\hspace{3.0em}\)</span>  if <span class="math">\(\mathsf{memo\_chunks}[i]\)</span> is not pruned: <span class="math">\(\\\)</span>
-<span class="math">\(\hspace{4.5em}\)</span>   let <span class="math">\(P = \mathsf{IETF\_AEAD\_CHACHA20\_POLY1305.Decrypt}(\mathsf{encryptionKey}, \mathsf{nonce}, \mathsf{memo\_chunks}[i]) \\\)</span>
-<span class="math">\(\hspace{4.5em}\)</span>   if <span class="math">\(i \geq \mathsf{potential\_last\_chunk}\)</span> and <span class="math">\(P \neq \bot\)</span> and not <span class="math">\(\mathsf{success}\)</span>: <span class="math">\(\\\)</span>
+<span class="math">\(\hspace{1.5em}\)</span> for <span class="math">\(i\)</span> from <span class="math">\(0\)</span> up to <span class="math">\(\mathtt{nMemoChunks}-1\)</span>: <span class="math">\(\\\)</span>
+<span class="math">\(\hspace{3.0em}\)</span>  if <span class="math">\(\mathtt{vMemoChunks}[i]\)</span> is not pruned: <span class="math">\(\\\)</span>
+<span class="math">\(\hspace{4.5em}\)</span>   let <span class="math">\(P = \mathsf{IETF\_AEAD\_CHACHA20\_POLY1305.Decrypt}(\mathsf{encryption\_key}, \mathsf{final\_nonce}, \mathtt{vMemoChunks}[i]) \\\)</span>
+<span class="math">\(\hspace{4.5em}\)</span>   if <span class="math">\(i \geq \mathsf{potential\_last\_chunk\_index}\)</span> and <span class="math">\(P \neq \bot\)</span> and not <span class="math">\(\mathsf{success}\)</span>: <span class="math">\(\\\)</span>
 <span class="math">\(\hspace{6.0em}\)</span>    set <span class="math">\(\mathsf{memo} \leftarrow \mathsf{memo} \,||\, P \\\)</span>
 <span class="math">\(\hspace{6.0em}\)</span>    set <span class="math">\(\mathsf{success} \leftarrow \kern0.05em\)</span> true <span class="math">\(\\\)</span>
 <span class="math">\(\,\\\)</span>
 <span class="math">\(\hspace{1.5em}\)</span> if <span class="math">\(\mathsf{success}\)</span> then return <span class="math">\(\mathsf{memo}\)</span> else return <span class="math">\(\bot \\\)</span></p>
 
-<p>If any chunk of the memo encrypted to <span class="math">\(\mathsf{encryptionKey}\)</span> has been pruned, the decryption
-process above returns nothing (as <span class="math">\(\mathsf{final_chunk}\)</span> will be set to <span class="math">\(\mathtt{0x01}\)</span> with the
-wrong counter value), ensuring that a malformed memo is not returned.</p>
+<p>If any chunk of the memo encrypted to <span class="math">\(\mathsf{encryption\_key}\)</span> has been pruned, the decryption
+process above returns nothing (as <span class="math">\(\mathsf{final\_nonce}\)</span> will be set to the wrong counter value
+followed by <span class="math">\(\mathtt{0x01}\)</span>), ensuring that a malformed memo is not returned.</p>
 
 <h2 id="encodingintransactions"><span class="section-heading">Encoding in transactions</span><span class="section-anchor"> <a rel="bookmark" href="#encodingintransactions"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
@@ -268,72 +268,71 @@ wrong counter value), ensuring that a malformed memo is not returned.</p>
 <thead>
 <tr>
 	<th> Bytes </th>
-	<th> Name   </th>
-	<th> Data Type      </th>
-	<th> Description             </th>
+	<th> Name     </th>
+	<th> Data Type             </th>
+	<th> Description               </th>
 </tr>
 </thead>
 
 <tbody>
 <tr>
 	<td> 1  </td>
-	<td> <code>fAllPruned</code> </td>
-	<td> <code>uint8</code>      </td>
-	<td> 1 if all chunks have been pruned, otherwise 0.    </td>
+	<td> <span class="math">\(\mathtt{fAllPruned}\)</span> </td>
+	<td> <span class="math">\(\mathtt{uint8}\)</span>           </td>
+	<td> 1 if all chunks have been pruned, otherwise 0.      </td>
 </tr>
 <tr>
 	<td> 32  </td>
-	<td> <code>nonceOrHash</code> </td>
-	<td> <code>byte[32]</code>      </td>
-	<td> The nonce for deriving encryption keys, or the overall hash. </td>
+	<td> <span class="math">\(\mathtt{nonceOrHash}\)</span> </td>
+	<td> <span class="math">\(\mathtt{byte}[32]\)</span>          </td>
+	<td> The nonce for deriving encryption keys, or the overall hash.   </td>
 </tr>
 <tr>
 	<td> † varies </td>
-	<td> <code>nMemoChunks</code> </td>
-	<td> <code>compactSize</code>     </td>
-	<td> The number of memo chunks.         </td>
+	<td> <span class="math">\(\mathtt{nMemoChunks}\)</span> </td>
+	<td> <span class="math">\(\mathtt{compactSize}\)</span>         </td>
+	<td> The number of memo chunks.           </td>
 </tr>
 <tr>
 	<td> † varies </td>
-	<td> <code>pruned</code>  </td>
-	<td> <code>byte[</code><span class="math">\(\mathsf{ceiling}(\mathtt{nMemoChunks}/8)\)</span><code>]</code> </td>
-	<td> Bitflags indicating the type of each entry in <code>vMemoChunks</code>. </td>
+	<td> <span class="math">\(\mathtt{pruned}\)</span>  </td>
+	<td> <span class="math">\(\mathtt{byte}[\mathsf{ceiling}(\mathtt{nMemoChunks}/8)]\)</span> </td>
+	<td> Bitflags indicating the type of each entry in <span class="math">\(\mathtt{vMemoChunks}\)</span>. </td>
 </tr>
 <tr>
 	<td> † varies </td>
-	<td> <code>vMemoChunks</code> </td>
-	<td> <code>MemoChunk[nMemoChunks]</code>  </td>
-	<td> A sequence of encrypted memo chunks.       </td>
+	<td> <span class="math">\(\mathtt{vMemoChunks}\)</span> </td>
+	<td> <span class="math">\(\mathtt{MemoChunk}[\mathtt{nMemoChunks}]\)</span>    </td>
+	<td> A sequence of encrypted memo chunks.         </td>
 </tr>
 </tbody>
 </table>
 
-<p>† These fields are present if and only if <code>fAllPruned == 0</code>.</p>
+<p>† These fields are present if and only if <span class="math">\(\mathtt{fAllPruned} = 0\)</span>.</p>
 
-<p>If <code>fAllPruned == 0</code>, then:</p>
+<p>If <span class="math">\(\mathtt{fAllPruned} = 0\)</span>, then:</p>
 
 <ul>
-<li><code>nonceOrHash</code> represents the nonce for deriving encryption keys.</li>
-<li>Each bit of <code>pruned</code>, in little-endian order, indicates the type of the
-corresponding entry in <code>vMemoChunks</code>. A bit value of 0 indicates that
-the entry will be of type <code>byte[272]</code> representing an encrypted memo
-chunk. A bit value of 1 indicates the entry will be a <code>byte[32]</code> and
-contains the <code>memo_chunk_digest</code> for a pruned chunk.</li>
+<li><span class="math">\(\mathtt{nonceOrHash}\)</span> represents the nonce for deriving encryption keys.</li>
+<li>Each bit of <span class="math">\(\mathtt{pruned}\)</span>, in little-endian order, indicates the type of the
+corresponding entry in <span class="math">\(\mathtt{vMemoChunks}\)</span>. A bit value of 0 indicates that
+the entry will be of type <span class="math">\(\mathtt{byte}[272]\)</span> representing an encrypted memo
+chunk. A bit value of 1 indicates the entry will be a <span class="math">\(\mathtt{byte}[32]\)</span> and
+contains the <span class="math">\(\mathsf{memo\_chunk\_digest}\)</span> for a pruned chunk.</li>
 </ul>
 
-<p>If <code>fAllPruned == 1</code>, then:</p>
+<p>If <span class="math">\(\mathtt{fAllPruned} = 1\)</span>, then:</p>
 
 <ul>
-<li><code>nonceOrHash</code> represents the overall hash for the memo bundle as defined in
+<li><span class="math">\(\mathtt{nonceOrHash}\)</span> represents the overall hash for the memo bundle as defined in
 <a href="#transactionsighash">Transaction sighash</a>.</li>
-<li>The <code>nMemoChunks</code>, <code>pruned</code>, and <code>vMemoChunks</code> fields will be absent.</li>
+<li>The <span class="math">\(\mathtt{nMemoChunks}\)</span>, <span class="math">\(\mathtt{pruned}\)</span>, and <span class="math">\(\mathtt{vMemoChunks}\)</span> fields will be absent.</li>
 </ul>
 
 <h2 id="transactionsighash"><span class="section-heading">Transaction sighash</span><span class="section-anchor"> <a rel="bookmark" href="#transactionsighash"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
-<pre><code>memo_chunk_digest = H(AEAD(MemoChunk, memo_key))
-memo_bundle_digest = H(concat(memo_chunk_digests))
-</code></pre>
+<p><span class="math">\(\mathsf{memo\_chunk\_digest}[i] = H(\mathtt{vMemoChunks}[i]) \\\)</span>
+<span class="math">\(\mathsf{memo\_bundle\_digest} = H(\mathsf{concat}(\mathsf{memo\_chunk\_digests}))\)</span></p>
 
 <p>The memo bundle digest structure is a performance optimization for the case
 where all memo chunks in a transaction have been pruned.</p>
@@ -350,8 +349,8 @@ beyond this requires <code>marginal_fee</code>. See the Fee calculation section 
 
 <h2 id="networkprotocol"><span class="section-heading">Network protocol</span><span class="section-anchor"> <a rel="bookmark" href="#networkprotocol"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
-<p>Nodes must reject <code>GetData</code> responses having an <code>fAllPruned</code> value that is nonzero,
-or any byte of <code>pruned</code> that is nonzero.</p>
+<p>Nodes must reject <code>GetData</code> responses having an <span class="math">\(\mathtt{fAllPruned}\)</span> value that is nonzero,
+or any byte of <span class="math">\(\mathtt{pruned}\)</span> that is nonzero.</p>
 
 <h2 id="changestothezcashprotocolspecification"><span class="section-heading">Changes to the Zcash Protocol Specification</span><span class="section-anchor"> <a rel="bookmark" href="#changestothezcashprotocolspecification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
@@ -396,7 +395,7 @@ to refer to &#8220;The encoding of a pre-v6 Sapling or Orchard note plaintext&#8
 <blockquote>
 <p>The encoding of a v6-onward Sapling or Orchard note plaintext consists of:</p>
 
-<p>| 8-bit <span class="math">\(\mathsf{leadByte}\)</span> | 88-bit <span class="math">\(\mathsf{d}\)</span> | 64-bit <span class="math">\(\mathsf{v}\)</span> | 256-bit <span class="math">\(\mathsf{rseed}\)</span> | 32-byte <span class="math">\(\mathsf{K^{memo}}\)</span> |</p>
+<p><span class="math">\(\begin{array}{|c|c|c|c|c|} \hline \raisebox{0.6ex}{\mathstrut} \text{8-bit } \mathsf{leadByte} &amp; \text{88-bit } \mathsf{d} &amp; \text{64-bit } \mathsf{v} &amp; \text{256-bit } \mathsf{rseed} &amp; \text{32-byte } \mathsf{K^{memo}} \\\hline \end{array}\)</span></p>
 
 <ul>
 <li>A byte 0x03, indicating this version of the encoding of a v6-onward
@@ -651,7 +650,7 @@ either never observe the second memo, or would decrypt parts of each memo and
 get a nonsensical and potentially insecure &#8220;spliced&#8221; memo).</p>
 
 <p>We do not include commitments to the shielded outputs in the derivation of
-<span class="math">\(\mathsf{encryptionKey}\)</span> for two reasons:</p>
+<span class="math">\(\mathsf{encryption\_key}\)</span> for two reasons:</p>
 
 <ul>
 <li>It would force the transaction builder to fully define all shielded outputs
