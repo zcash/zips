@@ -23,7 +23,7 @@ This ZIP proposes an extension of protocol-based development funding, in the
 context of multiple alternatives for distributing funds that have accrued to
 the Deferred Dev Fund Lockbox. This proposal is intended to be evaluated in the
 context of the Community And Coinholder Funding Model
-[^draft-ecc-community-and-coinholder] and Zcash Governance Bloc
+[^zip-1016] and Zcash Governance Bloc
 [^draft-ecc-zbloc] proposals; the mechanisms it describes are applicable to
 both of these and may be applicable to other similar proposals as well.
 
@@ -32,7 +32,7 @@ At a high level, this ZIP proposes:
   P2SH multisig address, at the time of the activation of this ZIP. The
   key-holders for that address are then responsible for distributing the
   resulting funds in the form of development grants, according to the rules set
-  by either [^draft-ecc-community-and-coinholder] or [^draft-ecc-zbloc], or
+  by either [^zip-1016] or [^draft-ecc-zbloc], or
   another similar proposal.
 * Extension of protocol-based development funding blocks starting from the
   scheduled end height of the current ``FS_DEFERRED`` and ``FS_FPF_ZCG``
@@ -321,6 +321,6 @@ funds.
 
 [^draft-ecc-zbloc]: [draft-ecc-zbloc: Zcash Governance Bloc](draft-ecc-zbloc.md)
 
-[^draft-ecc-community-and-coinholder]: [draft-ecc-community-and-coinholder: Community and Coinholder Funding Model](draft-ecc-community-and-coinholder.md)
+[^zip-1016]: [ZIP 1016: Community and Coinholder Funding Model](zip-1016.md)
 
 [^Bitcoin-Multisig]: [Bitcoin Developer Documentation — Pay To Script Hash (P2SH) — Multisig](https://developer.bitcoin.org/devguide/transactions.html#multisig)
