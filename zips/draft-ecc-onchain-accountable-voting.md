@@ -145,7 +145,7 @@ TBD
 
 # Acknowledgements
 
-Thank you to Josh Swihart and Kris Nuttycombe for discussions about [^draft-ecc-zbloc] and [^draft-ecc-community-and-coinholder] that led to the idea for this ZIP.
+Thank you to Josh Swihart and Kris Nuttycombe for discussions about [^draft-ecc-zbloc] and [^zip-1016] that led to the idea for this ZIP.
 
 
 # References
@@ -162,7 +162,7 @@ Thank you to Josh Swihart and Kris Nuttycombe for discussions about [^draft-ecc-
 
 [^draft-ecc-zbloc]: [draft-ecc-zbloc: Zcash Governance Bloc](draft-ecc-zbloc.md)
 
-[^draft-ecc-community-and-coinholder]: [draft-ecc-community-and-coinholder: Community and Coinholder Funding Model](draft-ecc-community-and-coinholder.md)
+[^zip-1016]: [ZIP 1016: Community and Coinholder Funding Model](zip-1016.md)
 
 [^forum-loan-directed-retroactive-grants]: [Zcash forum: Loan-Directed Retroactive Grants](https://forum.zcashcommunity.com/t/loan-directed-retroactive-grants/48230)
 
