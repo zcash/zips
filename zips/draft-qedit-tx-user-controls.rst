@@ -100,7 +100,7 @@ We know that the Orchard address is of the form: $(\mathsf{d}, \mathsf{pk_d})$.
 These 2 fields, the diversifier and the diversified address, are used by the sender when sending notes.
 
 Looking at the Orchard key components derivations, we know that $\mathsf{pk_d}$ is derived as:
-$\mathsf{pk_d} =mathsf{KAOrchard.DerivePublic}(\mathsf{ivk}, \mathsf{g_d}) = [\mathsf{ivk}]\mathsf{g_d}$ [#protocol-orchard-keys]_```
+$\mathsf{pk_d} =mathsf{KAOrchard.DerivePublic}(\mathsf{ivk}, \mathsf{g_d}) = [\mathsf{ivk}]\mathsf{g_d}$ [#protocol-orchard-keys]_.
 
 Given that $\mathsf{ivk}$ is derived from the spending key of the recipient of the funds, we can prove that the recipient of the funds in an Orchard Action is approving the receipt of the funds, by using a proof of knowledge of $\mathsf{ivk}$.
 Such proof of knowledge of $\mathsf{ivk}$ can be obtained by using the Non-Interactive Schnorr Protocol. 
@@ -108,7 +108,7 @@ Such proof of knowledge of $\mathsf{ivk}$ can be obtained by using the Non-Inter
 In fact, such proof of knowledge of $\mathsf{ivk}$ can be obtained by using a Schnorr Signature on the Action (the message) with $\mathsf{ivk}$ as signing/secret key and $\mathsf{g_d}$ as group generator.
 
 **Note:** Zcash Orchard already uses a Schnorr-based signature scheme instantiated with the Pallas curve, $\mathsf{RedPallas}$ [#protocol-redpallas]_.
-As of NU6, RedPallas is used to instantiate $SpendAuthSig^{Orchard}$ and $BindingSig^{Orchard}$.
+As of NU6, $\mathsf{RedPallas}$ is used to instantiate $\mathsf{SpendAuthSig^{Orchard}}$ and $\mathsf{BindingSig^{Orchard}}$.
 
 Modifications to the Orchard Statement/Circuit
 ----------------------------------------------
@@ -144,7 +144,7 @@ Indeed, both $g_d$ and $pk_d$ of the recipient are needed by the Zcash validator
 
 In this case, the Zcash miners could verify the recipient's approval by doing (for each Action in the transaction):
 
-1. $C’ \gets H(g_d, pk_d, \sigma_{approval}.u, H(\mathtt{OrchardActionDescription}))$
+1. $C’ \gets H(g_d || pk_d || \sigma_{approval}.u || H(\mathtt{OrchardActionDescription}))$
 2. $LHS \gets [\sigma_{approval}.sigma]g_d$
 3. $RHS \gets \sigma_{approval}.u + [C']pk_d$
 4. $LHS \stackrel{?}{=} RHS$. If not, reject transaction.
@@ -189,7 +189,7 @@ By empowering recipients to approve (or not) incoming transactions, we also give
 This could be done maliciously to, for instance:
 
 1. Block a payment and deny to have received the "approval request", then accuse the sender to have failed to settle a contractual obligation.
-2. Gain information: By receiving the $\mathtt{OrchardActionDescription}$ to approve, recipients gets to see the $nullifier$ of the input note of the Orchard Action before the rest of the network.
+2. Gain information: By receiving the $\mathtt{OrchardActionDescription}$ to approve, recipients gets to see the nullifier of the input note of the Orchard Action before the rest of the network.
 
 References
 ==========
