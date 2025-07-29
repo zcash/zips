@@ -73,7 +73,6 @@ The following ZIPs are under consideration for inclusion in NU7:
 - `ZIP 246: Digests for the Version 6 Transaction Format <zips/zip-0246.rst>`__
 - `ZIP 2002: Explicit Fees <zips/zip-2002.rst>`__
 - `ZIP 2003: Disallow version 4 transactions <zips/zip-2003.rst>`__
-- `ZIP 2004: Remove the dependency of consensus on note encryption <zips/zip-2004.rst>`__
 
 In addition, `ZIP 317: Proportional Transfer Fee Mechanism <zips/zip-0317.rst>`__
 may be updated.
