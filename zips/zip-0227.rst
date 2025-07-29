@@ -25,6 +25,8 @@ The key words "MUST", "MUST NOT", "SHOULD", "RECOMMENDED", and "MAY" in this doc
 
 The term "network upgrade" in this document is to be interpreted as described in ZIP 200 [#zip-0200]_.
 
+The character § is used when referring to sections of the Zcash Protocol Specification. [#protocol]_
+
 The terms "Orchard" and "Action" in this document are to be interpreted as described in
 ZIP 224 [#zip-0224]_.
 
@@ -78,14 +80,17 @@ Requirements
 - Every "issuance action" should contain a $\mathsf{finalize}$ boolean that defines whether the specific Custom Asset can have further tokens issued or not.
 
 
-Specification: Issuance Keys and Issuance Authorization Signature Scheme
-========================================================================
+Specification: Issuance Keys, Issuer Identifier, and Issuance Authorization Signature Scheme
+============================================================================================
 
-The OrchardZSA Protocol adds the following keys to the key components [#protocol-addressesandkeys]_ [#protocol-orchardkeycomponents]_:
+Issuance Keys
+-------------
+
+The OrchardZSA Protocol adds the following keys used for issuance:
 
 1. The issuance authorizing key, denoted as $\mathsf{isk}$, is the key used to authorize the issuance of Asset Identifiers by a given issuer, and is only used by that issuer.
 
-2. The issuance validating key, denoted as $\mathsf{ik}$, is the key that is used to validate issuance transactions. This key is used to validate the issuance of Asset Identifiers by a given issuer, and is used by all blockchain users (specifically the owners of notes for that Asset, and consensus validators) to associate the Asset in question with the issuer.
+2. The issuance validating key, denoted as $\mathsf{ik}$, is the key that is used to validate issuance transactions. This key is used to validate the issuance of Asset Identifiers by a given issuer.
 
 The relations between these keys are shown in the following diagram:
 
@@ -97,11 +102,22 @@ The relations between these keys are shown in the following diagram:
     Diagram of Issuance Key Components for the OrchardZSA Protocol
 
 
+Issuer Identifier
+-----------------
+
+The identifier for a particular issuer is denoted by $\mathsf{issuer}$. This identifier is used by all blockchain users (specifically the owners of notes for that Asset, and consensus validators) to associate the Asset in question with the issuer.
+
+$\mathsf{issuer}$ is equal to the encoding $\mathsf{ik\_encoding}$ (specified below in `Derivation of issuance validating key`_) of the issuance validating key $\mathsf{ik}$ used to validate the issuance of Asset Identifiers by that issuer.
+
+Note: the equality of $\mathsf{issuer}$ and $\mathsf{ik\_encoding}$ might not hold in future when key rotation is specified for issuance key pairs.
+
+
 Issuance Authorization Signature Scheme
 ---------------------------------------
 
-The issuance authorization signature $\mathsf{issueAuthSig}$ is used to authorize the issuance of Custom Assets by the issuer.
-The issuance authorization signature scheme, $\mathsf{IssueAuthSig}$, comprises of all the associated types and algorithms defined in the protocol specification [#protocol-abstractsig]_.
+The issuance authorization signature, encoded in the ``issueAuthSig`` field of an issuance bundle, is used to authorize the issuance of Custom Assets by the issuer.
+
+The issuance authorization signature scheme, $\mathsf{IssueAuthSig}$, comprises all the associated types and algorithms required for a signature scheme in §4.1.7 ‘Signature’ [#protocol-abstractsig]_.
 
 Batch verification MAY be used. Precomputation MAY be used if and only if it produces equivalent results.
 
@@ -110,13 +126,12 @@ Orchard ZSA Issuance Authorization Signature Scheme
 
 In the OrchardZSA protocol, we instantiate the issuance authorization signature scheme $\mathsf{IssueAuthSig}$ as a BIP-340 Schnorr signature over the secp256k1 curve.
 We define the constants as per the secp256k1 standard parameters, as described in BIP 340.
-The encodings of the signature and the public key differ slightly from that of BIP 340, and we specify the changes in what follows. 
 
-The associated types of the $\mathsf{IssueAuthSig}$ signature scheme are as follows:
+The associated types of the $\mathsf{IssueAuthSig}$ signature scheme, which are identical to BIP 340, are as follows:
 
 * $\mathsf{IssueAuthSig.Message} = \mathbb{B}^{\mathbb{Y}^{[\mathbb{N}]}}$
-* $\mathsf{IssueAuthSig.Signature} = \mathbb{B}^{\mathbb{Y}^{[65]}} \cup \{\bot\}$
-* $\mathsf{IssueAuthSig.Public} = \mathbb{B}^{\mathbb{Y}^{[33]}} \cup \{\bot\}$
+* $\mathsf{IssueAuthSig.Signature} = \mathbb{B}^{\mathbb{Y}^{[64]}} \cup \{\bot\}$
+* $\mathsf{IssueAuthSig.Public} = \mathbb{B}^{\mathbb{Y}^{[32]}} \cup \{\bot\}$
 * $\mathsf{IssueAuthSig.Private} = \mathbb{B}^{\mathbb{Y}^{[32]}}$
 
 where $\mathbb{B}^{\mathbb{Y}^{[k]}}$ denotes the set of sequences of $k$ bytes, and $\mathbb{B}^{\mathbb{Y}^{[\mathbb{N}]}}$ denotes the type of byte sequences of arbitrary length, as defined in the Zcash protocol specification [#protocol-notation]_.
@@ -157,16 +172,19 @@ Derivation of issuance validating key
 
 Define $\mathsf{IssueAuthSig.DerivePublic} \;{\small ⦂}\; (\mathsf{isk} \;{\small ⦂}\; \mathsf{IssueAuthSig.Private}) \to \mathsf{IssueAuthSig.Public}$ as:
 
-* $\mathsf{ik} := \mathtt{0x00} || \textit{PubKey}(\mathsf{isk})$
+* $\mathsf{ik} := \textit{PubKey}(\mathsf{isk})$
 * Return $\bot$ if the $\textit{PubKey}$ algorithm invocation fails, otherwise return $\mathsf{ik}$.
 
 where the $\textit{PubKey}$ algorithm is defined in BIP 340 [#bip-0340]_, and the output of the algorithm is in big-endian order as defined in BIP 340.
-The encoding of $\mathsf{ik}$ begins with a version byte that is $\mathtt{0x00}$. This enables future ZIPs to specify alternative signature schemes.
+
+The encoding of this validating key, $\mathsf{ik\_encoding}$, includes an initial byte indicating the signature scheme, which MUST be $\mathtt{0x00}$ indicating BIP 340.
+That is, $\mathsf{ik\_encoding} = \mathtt{0x00} \,||\, \mathsf{ik}$. This enables future ZIPs to specify alternative signature schemes.
+Note that this encoding currently only appears in the ``issuer`` field of an issuance bundle.
 
 It is possible for the $\textit{PubKey}$ algorithm to fail with very low probability, which means that $\mathsf{IssueAuthSig.DerivePublic}$ could return $\bot$ with very low probability.
 If this happens, discard the keys and repeat with a different $\mathsf{isk}$.
 
-This allows the issuer to use the same wallet it usually uses to transfer Assets, while keeping a disconnect from the other keys. Specifically, this method is aligned with the requirements and motivation of ZIP 32 [#zip-0032]_. It provides further anonymity and the ability to delegate issuance of an Asset (or in the future, generate a multi-signature protocol) while the rest of the keys remain in the wallet safe.
+This allows the issuer to use the same wallet it usually uses to transfer Assets, while keeping a disconnect from the other keys. Specifically, this method is aligned with the requirements and motivation of ZIP 32 [#zip-0032]_. It provides further anonymity and the ability to delegate issuance of an Asset (or in the future, use a multi-signature protocol) while the rest of the keys remain safe in the wallet.
 
 Issuance Authorization Signing and Validation
 ---------------------------------------------
@@ -174,22 +192,22 @@ Issuance Authorization Signing and Validation
 Define $\mathsf{IssueAuthSig.Sign} \;{\small ⦂}\; (\mathsf{isk} \;{\small ⦂}\; \mathsf{IssueAuthSig.Private}) \times (M \;{\small ⦂}\; \mathsf{IssueAuthSig.Message}) \to \mathsf{IssueAuthSig.Signature}$ as:
 
 * Let the auxiliary data $a = [\mathtt{0x00}]^{32}$.
-* Let $\text{σ} = \mathtt{0x00} || \mathsf{Sign}(\mathsf{isk}, M)$.
+* Let $\text{σ} = \mathsf{Sign}(\mathsf{isk}, M)$ with auxiliary data $a$.
 * Return $\bot$ if the $\mathsf{Sign}$ algorithm fails in the previous step, otherwise return $\text{σ}$.
 
-where the $\mathsf{Sign}$ algorithm is defined in BIP 340 and $a$ denotes the auxiliary data used in BIP 340 [#bip-0340]_.
+where the $\mathsf{Sign}$ algorithm is defined in BIP 340 [#bip-0340]_.
 Note that $\mathsf{IssueAuthSig.Sign}$ could return $\bot$ with very low probability.
-Note that the initial $\mathtt{0x00}$ byte in the signature is a version byte, enabling future ZIPs to
-specify alternative issuance authorization signature schemes.
-
 
 Define $\mathsf{IssueAuthSig.Validate} \;{\small ⦂}\; (\mathsf{ik} \;{\small ⦂}\; \mathsf{IssueAuthSig.Public}) \times (M \;{\small ⦂}\; \mathsf{IssueAuthSig.Message}) \times (\text{σ} \;{\small ⦂}\; \mathsf{IssueAuthSig.Signature}) \to \mathbb{B}$ as:
 
 * Return $0$ if $\text{σ} = \bot$.
-* Parse $\text{σ}$ as $\mathtt{0x00} || \mathsf{sig}$ and parse $\mathsf{ik}$ as $\mathtt{0x00} || \mathsf{key}$. Return $0$ if the parsing fails.
-* Return $1$ if $\mathsf{Verify}(\mathsf{key}, M, \mathsf{sig})$ succeeds, otherwise $0$.
+* Return $1$ if $\mathsf{Verify}(\mathsf{key}, M, \text{σ})$ succeeds, otherwise $0$.
 
 where the $\mathsf{Verify}$ algorithm is defined in BIP 340 [#bip-0340]_.
+
+The $\mathtt{issueAuthSig}$ field of an issuance bundle encodes the signature with an initial byte indicating the signature scheme, which MUST be $\mathtt{0x00}$ indicating BIP 340.
+That is, $\mathtt{issueAuthSig} = \mathtt{0x00} \,||\, \text{σ}$. This enables future ZIPs to specify alternative signature schemes.
+
 
 Specification: Asset Identifier, Asset Digest, and Asset Base
 =============================================================
@@ -208,8 +226,8 @@ For context, the relations between the Asset Identifier, Asset Digest, and Asset
 **Note:** To keep notations light and concise, we may omit $\mathsf{AssetId}$ in the subscript when the Asset Identifier is clear from the context.
 
 
-Asset Identifiers
------------------
+Asset Identifier
+----------------
 
 Every Asset has a globally-unique Asset Identifier, denoted $\mathsf{AssetId}$. A given
 Asset Identifier is used across all Zcash protocols that support ZSAs -- that is, the
@@ -218,7 +236,7 @@ OrchardZSA protocol and potentially future Zcash shielded protocols.
 ZIP 227 Asset Identifiers
 `````````````````````````
 
-Assets issued using the protocol specified in this ZIP are scoped to the $\mathsf{ik}$
+Assets issued using the protocol specified in this ZIP are scoped to the $\mathsf{issuer}$
 that issued them. Within that scope, Asset Identifier uniqueness is obtained by way of an
 asset description, $\mathsf{asset\_desc}$, which includes any information pertaining to
 the issuance. $\mathsf{asset\_desc}$ is a non-empty byte sequence which SHOULD be a
@@ -230,19 +248,18 @@ Define
 
 We define Asset Identifiers for Assets issued under this ZIP as
 
-.. math:: \mathsf{AssetId} := (\mathsf{ik}, \mathsf{assetDescHash})
+.. math:: \mathsf{AssetId} := (\mathsf{issuer}, \mathsf{assetDescHash})
 
 and define their canonical encoding as
 
-.. math:: \mathsf{EncodeAssetId}(\mathsf{AssetId}) = \mathsf{EncodeAssetId}((\mathsf{ik}, \mathsf{assetDescHash})) := \mathtt{0x00} || \mathsf{ik} || \mathsf{assetDescHash}
+.. math:: \mathsf{EncodeAssetId}(\mathsf{AssetId}) = \mathsf{EncodeAssetId}((\mathsf{issuer}, \mathsf{assetDescHash})) := \mathtt{0x00} \,||\, \mathsf{issuer}\,||\,\mathsf{assetDescHash}
 
-Note that the initial $\mathtt{0x00}$ byte is a version byte, enabling future ZIPs to
-specify alternative issuance protocols and Asset Identifiers.
+Note that the initial $\mathtt{0x00}$ byte is a version byte, enabling future ZIPs to specify alternative issuance protocols and Asset Identifiers. (This should not be confused with the first byte of $\mathsf{issuer}$, currently equal to the first byte of $\mathsf{ik\_encoding}$, that indicates the issuance signature scheme.)
 
 Wallets MUST NOT display just the $\mathsf{asset\_desc}$ string to their users as the name of the Asset. Some possible alternatives include:
 
-- Wallets could allow clients to provide an additional configuration file that stores a one-to-one mapping of names to Asset Identifiers via a petname system. This allows clients to rename the Assets in a way they find useful. Default versions of this file with well-known Assets listed can be made available online as a starting point for clients.
-- The Asset Digest could be used as a more compact bytestring to uniquely determine an Asset, and wallets could support clients scanning QR codes to load Asset information into their wallets.
+- Wallets could allow clients to provide an additional configuration file that stores a one-to-one mapping of names to Asset Identifiers via a petname system [#petnames]_. This allows clients to rename the Assets in a way they find useful. Default versions of this file with well-known Assets listed can be made available online as a starting point for clients.
+- The Asset Digest could be used as a more compact byte sequence to uniquely determine an Asset, and wallets could support clients scanning QR codes to load Asset information into their wallets.
 
 Asset Digests
 -------------
@@ -278,7 +295,7 @@ where $\mathsf{GroupHash}^\mathbb{P}$ is defined as in [#protocol-concretegrouph
     :align: center
     :figclass: align-center
 
-    Diagram relating the Issuance validating key, asset description, asset description hash, Asset Identifier, Asset Digest, and Asset Base for the OrchardZSA Protocol.
+    Diagram relating the Issuer identifier, asset description, asset description hash, Asset Identifier, Asset Digest, and Asset Base for the OrchardZSA Protocol.
 
 
 Specification: Issue Note, Issuance Action, Issuance Bundle and Issuance Protocol
@@ -287,19 +304,19 @@ Specification: Issue Note, Issuance Action, Issuance Bundle and Issuance Protoco
 Issue Note
 ----------
 
-Let $\ell_{\mathsf{value}}$ be as defined in §5.3 of the protocol specification [#protocol-constants]_.
+Let $\ell_{\mathsf{value}}$ be as defined in §5.3 ‘Constants’ [#protocol-constants]_.
 An Issue Note represents that a value $\mathsf{v} : \{0 .. 2^{\ell_{\mathsf{value}}} - 1\}$ of a specific Custom Asset is issued to a recipient.
 An Issue Note is a tuple $(\mathsf{d}, \mathsf{pk_d}, \mathsf{v}, \mathsf{AssetBase}, \text{ρ}, \mathsf{rseed})$, where:
 
-- $\mathsf{d}: \mathbb{B}^{[\ell_{\mathsf{d}}]}$ is the diversifier of the recipient's shielded payment address, as in §3.2 of the protocol specification [#protocol-notes]_.
-- $\mathsf{pk_d}: \mathsf{KA}^{\mathsf{Orchard}}.\mathsf{Public}$ is the recipient's diversified transmission key, as in §3.2 of the protocol specification [#protocol-notes]_.
+- $\mathsf{d}: \mathbb{B}^{[\ell_{\mathsf{d}}]}$ is the diversifier of the recipient's shielded payment address, as in §3.2 ‘Notes’ [#protocol-notes]_.
+- $\mathsf{pk_d}: \mathsf{KA}^{\mathsf{Orchard}}.\mathsf{Public}$ is the recipient's diversified transmission key, as in §3.2 ‘Notes’ [#protocol-notes]_.
 - $\mathsf{v} : \{0 .. 2^{\ell_{\mathsf{value}}} - 1\}$ is the value of the note in terms of the number of Asset tokens.
 - $\mathsf{AssetBase}: \mathbb{P}^*$ is the Asset Base corresponding to the ZSA being issued in the Issue Note.
 - $\text{ρ}: \mathbb{F}_{q_{\mathbb{P}}}$ is used to derive the nullifier of the note, and is computed as in `Computation of ρ`_.
 - $\mathsf{rseed}: \mathbb{B}^{[\mathbb{Y}^{32}]}$ MUST be sampled uniformly at random by the issuer.
 
 ZIP 230 [#zip-0230-issue-note]_ defines, in ``IssueNote``, field encodings which together with
-$\mathsf{ik}$ from the parent `Issuance Bundle`_ and $\mathsf{AssetDescHash}$ from the parent
+$\mathsf{issuer}$ from the parent `Issuance Bundle`_ and $\mathsf{AssetDescHash}$ from the parent
 `Issuance Action`_, specify an Issue Note.
 
 Let $\mathsf{Note^{Issue}}$ be the type of an Issue Note, i.e.
@@ -333,9 +350,9 @@ An issuance bundle is the aggregate of all the issuance-related information.
 Specifically, contains all the issuance actions and the issuer signature on the transaction SIGHASH that validates the issuance itself.
 It contains the following fields:
 
-- $\mathsf{ik}$: the issuance validating key, that allows the validators to verify that the $\mathsf{AssetId}$ is properly associated with the issuer.
+- ``issuer``: the issuer identifier, that allows the validators to verify that the $\mathsf{AssetId}$ is properly associated with the issuer.
 - ``vIssueActions``: an array of issuance actions, of type ``IssueAction``.
-- $\mathsf{issueAuthSig}$: the signature of the transaction SIGHASH, signed by the issuance authorizing key, $\mathsf{isk}$, that validates the issuance.
+- ``issueAuthSig``: the encoding of a signature of the transaction SIGHASH, signed by the issuance authorizing key, $\mathsf{isk}$, that validates the issuance.
 
 The issuance bundle is added within the transaction format as a new bundle. 
 The detailed encoding of the issuance bundle as a part of the V6 transaction format is defined in ZIP 230 [#zip-0230-transaction-format]_.
@@ -345,9 +362,9 @@ Computation of ρ
 
 We define a function $\mathsf{DeriveIssuedRho} : \mathbb{F}_{q_{\mathbb{P}}} \times \{0 .. 2^{32} - 1\} \times \{0 .. 2^{32} - 1\} \to \mathbb{F}_{q_{\mathbb{P}}}$ for Issue Notes in the OrchardZSA Protocol as follows:
 
-.. math:: \mathsf{DeriveIssuedRho}(\mathsf{nf}, \mathsf{i_{A}}, \mathsf{i_{N}}) := \mathsf{ToBase}^{\mathsf{Orchard}}(\mathsf{PRF}^{\mathsf{expand}}(\mathsf{I2LEOSP}_{256}(\mathsf{nf}), [\mathtt{0x84}] \| \mathsf{I2LEOSP}_{32}(\mathsf{i_{A}}) \| \mathsf{I2LEOSP}_{32}(\mathsf{i_{N}}))),
+.. math:: \mathsf{DeriveIssuedRho}(\mathsf{nf}, \mathsf{i_{A}}, \mathsf{i_{N}}) := \mathsf{ToBase}^{\mathsf{Orchard}}\big(\mathsf{PRF}^{\mathsf{expand}}\big(\mathsf{I2LEOSP}_{256}(\mathsf{nf}), [\mathtt{0x84}] \,||\, \mathsf{I2LEOSP}_{32}(\mathsf{i_{A}}) \,||\, \mathsf{I2LEOSP}_{32}(\mathsf{i_{N}})\big)\big),
 
-where $\mathsf{ToBase}^{\mathsf{Orchard}}$ is defined in §4.2.3 of the protocol specification [#protocol-orchardkeycomponents]_, and $\mathsf{PRF}^{\mathsf{expand}}$ is defined in §5.4.2 of the protocol specification [#protocol-concreteprfs]_.
+where $\mathsf{ToBase}^{\mathsf{Orchard}}$ is defined in §4.2.3 ‘Orchard Key Components’ [#protocol-orchardkeycomponents]_, and $\mathsf{PRF}^{\mathsf{expand}}$ is defined in §5.4.2 ‘Pseudo Random Functions’ [#protocol-concreteprfs]_.
 
 The $\text{ρ}$ field of an Issue Note is computed as 
 
@@ -356,7 +373,7 @@ The $\text{ρ}$ field of an Issue Note is computed as
 where $\mathsf{nf}_{0,0}$ is the nullifier for the input note in the first Action in the first Action Group of the OrchardZSA Bundle of the transaction, $\mathsf{index_{Action}}$ is the zero-based index of the Issuance Action in the Issuance Bundle, and $\mathsf{index_{Note}}$ is the zero-based index of the Issue Note in the Issuance Action.
 
 **NOTE:** This implicitly requires that there always is an Action Group in the OrchardZSA bundle of the transaction.
-This is enforced by the sixth consensus rule in the `Specification: Consensus Rule Changes`_ section.
+This is enforced by a consensus rule in the `Specification: Consensus Rule Changes`_ section.
 
 Issuance Protocol
 -----------------
@@ -366,7 +383,7 @@ For all actions ``IssueAction``:
 
 - encode $\mathsf{asset\_desc}$ as a UTF-8 byte string.
 - compute $\mathsf{assetDescHash}$
-- compute $\mathsf{AssetDigest}$ from the issuance validating key $\mathsf{ik}$ and $\mathsf{assetDescHash}$ as decribed in the `Specification: Asset Identifier, Asset Digest, and Asset Base`_ section.
+- compute $\mathsf{AssetDigest}$ from the issuer identifier $\mathsf{issuer}$ and $\mathsf{assetDescHash}$ as decribed in the `Specification: Asset Identifier, Asset Digest, and Asset Base`_ section.
 - compute $\mathsf{AssetBase}$ from $\mathsf{AssetDigest}$ as decribed in the `Specification: Asset Identifier, Asset Digest, and Asset Base`_ section.
 - set the $\mathsf{finalize}$ boolean as desired (if more issuance actions are to be created for this $\mathsf{AssetBase}$, set $\mathsf{finalize} = 0$, otherwise set $\mathsf{finalize} = 1$).
 - for each recipient $i$:
@@ -376,10 +393,10 @@ For all actions ``IssueAction``:
 
 - encode the ``IssueAction`` into the vector ``vIssueActions`` of the bundle.
 
-For the ``IssueBundle``:
+For the ``IssueBundle`` (see “ZSA Issuance Bundle Fields” in [#zip-0230-transaction-format]_):
 
 - encode the ``vIssueActions`` vector.
-- encode the $\mathsf{ik}$ as 32 byte-string.
+- fill the ``issuerLength`` and ``issuer`` fields using $\mathsf{issuer}$.
 - sign the SIGHASH transaction hash with the issuance authorizing key, $\mathsf{isk}$, using the $\mathsf{IssueAuthSig}$ signature scheme. The signature is then added to the issuance bundle.
 
 
@@ -393,7 +410,7 @@ Reference Notes
 
 A reference note for a Custom Asset MUST be included by the issuer as the first Note in the Action of the Issuance Bundle where that Custom Asset is being issued for the first time.
 
-A reference note for a Custom Asset is an Issue Note where the value $\mathsf{v}$ is set to $0$, the Asset Base ($\mathsf{AssetBase}$) corresponds to that of the Custom Asset, and the recipient address $(\mathsf{d}, \mathsf{pk}_{\mathsf{d}})$ is set to the default diversified payment address (i.e. the diversified payment address with diversifier index $0$) derived from the all-zero Orchard spending key using the algorithm specified in §4.2.3 of the protocol specification [#protocol-orchardkeycomponents]_. This corresponds to a 43 byte ``u8`` array with the following entries::
+A reference note for a Custom Asset is an Issue Note where the value $\mathsf{v}$ is set to $0$, the Asset Base ($\mathsf{AssetBase}$) corresponds to that of the Custom Asset, and the recipient address $(\mathsf{d}, \mathsf{pk}_{\mathsf{d}})$ is set to the default diversified payment address (i.e. the diversified payment address with diversifier index $0$) derived from the all-zero Orchard spending key using the algorithm specified in §4.2.3 ‘Orchard Key Components’ [#protocol-orchardkeycomponents]_. This corresponds to a 43-byte ``u8`` array with the following entries::
 
   [
     204, 54, 96, 25, 89, 33, 59, 107, 12, 219, 150, 167, 92, 23, 195, 166, 104, 169, 127, 13, 106,
@@ -405,7 +422,8 @@ A reference note for a Custom Asset is an Issue Note where the value $\mathsf{v}
 Global Issuance State
 ---------------------
 
-The maximum total supply of any issued Custom Asset is denoted by the constant $\mathsf{MAX\_ISSUE} := 2^{64} - 1$. 
+The maximum total supply of any issued Custom Asset is denoted by the constant $\mathsf{MAX\_ISSUE} := 2^{64} - 1$.
+
 Issuance requires the following additions to the global state:
 
 A map, $\mathsf{issued\_assets} : \mathbb{P}^* \to \{0 .. \mathsf{MAX\_ISSUE}\} \times \mathbb{B} \times \mathsf{Note^{Issue}}$, from the Asset Base, $\mathsf{AssetBase} : \mathbb{P}^*$, to a tuple $(\mathsf{balance}, \mathsf{final}, \mathsf{note_{ref}})$, for every Asset that has been issued.
@@ -417,8 +435,6 @@ For any Asset represented by $\mathsf{AssetBase}$:
 - $\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{balance} \in \{0 .. \mathsf{MAX\_ISSUE}\}$ stores the amount of the Asset in circulation, computed as the amount of the Asset that has been issued less the amount of the Asset that has been burnt. 
 - $\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{final} : \mathbb{B}$ is a Boolean that stores the finalization status of the Asset (i.e.: whether the $\mathsf{finalize}$ flag has been set to $1$ in any preceding issuance transaction for the Asset). The value of $\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{final}$ for any $\mathsf{AssetBase}$ cannot be changed from $1$ to $0$.
 - $\mathsf{issued\_assets}(\mathsf{AssetBase}).\mathsf{note_{ref}} : \mathsf{Note^{Issue}}$ stores the reference note for the Asset, as defined in the `Reference Notes`_ section.
-
-The maximum total supply of any issued Custom Asset is denoted by the constant $\mathsf{MAX\_ISSUE} := 2^{64} - 1$. 
 
 
 Management of the Global Issuance State
@@ -439,30 +455,35 @@ We use $\mathsf{issued\_assets}_{\mathsf{IN}}$ and $\mathsf{issued\_assets}_{\ma
 Specification: Consensus Rule Changes
 =====================================
 
+Let $\mathsf{SigHash}$ be the SIGHASH transaction hash of this transaction, as defined in §4.10 ‘SIGHASH Transaction Hashing’ [#protocol-sighash]_ with the modifications described in ZIP 226 [#zip-0226-txiddigest]_, using $\mathsf{SIGHASH\_ALL}$.
+
 For every transaction:
 
 - The ``nActionGroupsOrchard`` field MUST have a value of either ``0`` or ``1`` and the ``nAGExpiryHeight`` field MUST have a value of ``0``.
 - The output issuance state of the transaction MUST be initialized to be the same as the input issuance state, $\mathsf{issued\_assets}_{\mathsf{OUT}} = \mathsf{issued\_assets}_{\mathsf{IN}}$.
 - The $\mathsf{assetBurn}$ set MUST satisfy the consensus rules specified in ZIP 226 [#zip-0226-assetburn]_.
 - It MUST be the case that for all $(\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{assetBurn}$, $\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\mathsf{balance} \geq \mathsf{v}$. The node then MUST update $\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase})$ prior to processing the issuance bundle in the following manner. For every $(\mathsf{AssetBase}, \mathsf{v}) \in \mathsf{AssetBurn}$, $\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\mathsf{balance} = \mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\mathsf{balance} - \mathsf{v}$.
-- Let $\mathsf{SigHash}$ be the SIGHASH transaction hash of this transaction, as defined in §4.10 of the protocol specification [#protocol-sighash]_ with the modifications described in ZIP 226 [#zip-0226-txiddigest]_, using $\mathsf{SIGHASH\_ALL}$.
-- If the transaction contains an Issuance Bundle, it MUST also contain at least one OrchardZSA Action Group.
-- The issuance authorization signature, $\mathsf{issueAuthSig}$, MUST be a valid $\mathsf{IssueAuthSig}$ signature over $\mathsf{SigHash}$, i.e. $\mathsf{IssueAuthSig}.\!\mathsf{Validate}(\mathsf{ik}, \mathsf{SigHash}, \mathsf{issueAuthSig}) = 1$. 
+
+If the transaction contains an issuance bundle:
+
+- It MUST also contain at least one OrchardZSA Action Group.
+- The encoding $\mathsf{ik\_encoding}$ of the issuance key $\mathsf{ik}$ used to validate the issuance authorization signature MUST be taken from the ``issuer`` field, and MUST start with the byte value $\mathtt{0x00}$ indicating a BIP 340 public key.
+- The issuance authorization signature, $\mathsf{issueAuthSig}$, MUST be a valid $\mathsf{IssueAuthSig}$ signature over $\mathsf{SigHash}$, i.e. $\mathsf{IssueAuthSig}.\!\mathsf{Validate}(\mathsf{ik}, \mathsf{SigHash}, \mathsf{issueAuthSig}) = 1$.
 - For every issuance action description ($\mathsf{IssueAction}_\mathsf{i},\ 1 \leq i \leq \mathtt{nIssueActions}$) in the issuance bundle:
 
   - Every Issue Note in ``IssueAction`` MUST be a valid encoding of the $\mathsf{Note^{Issue}}$ type, and MUST encode the same $\mathsf{AssetBase}$. 
-  - This $\mathsf{AssetBase}$ MUST satisfy the derivation from the issuance validating key and asset description described in the `Specification: Asset Identifier, Asset Digest, and Asset Base`_ section.
+  - This $\mathsf{AssetBase}$ MUST satisfy the derivation from the issuer identifier and asset description described in the `Specification: Asset Identifier, Asset Digest, and Asset Base`_ section.
   - It MUST be the case that $\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\mathsf{final} \neq 1$.
-  - If $\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\mathsf{note_{ref}} = \bot$, then let $\mathsf{note}_1$ be the first Issue Note in the Issuance Action.
+  - If $\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\mathsf{note_{ref}} = \bot$, then let $\mathsf{new\_note_{ref}}$ be the first Issue Note in the Issuance Action.
 
-      - The recipient address $(\mathsf{d}, \mathsf{pk}_{\mathsf{d}})$ of $\mathsf{note}_1$ MUST be the default diversified payment address derived from the all-zero Orchard spending key, as described in the `Reference Notes`_ section.
-      - The value $\mathsf{v}_0$ of $\mathsf{note}_1$ MUST be $0$.
-      - The node MUST update $\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\mathsf{note_{ref}} = \mathsf{note}_1$.
+      - The recipient address $(\mathsf{d}, \mathsf{pk}_{\mathsf{d}})$ of $\mathsf{new\_note_{ref}}$ MUST be the default diversified payment address derived from the all-zero Orchard spending key, as described in the `Reference Notes`_ section.
+      - The value of $\mathsf{new\_note_{ref}}$ MUST be $0$.
+      - The node MUST update $\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\mathsf{note_{ref}} = \mathsf{new\_note_{ref}}$.
 
-  - For every issue note description ($\mathsf{note}_{\mathsf{j}},\ 1 \leq j \leq \mathtt{nNotes}$) in ``IssueAction``:
+  - For every issue note description, $\mathsf{note}_j$ for $1 \leq j \leq \mathtt{nNotes}$ in ``IssueAction``:
 
     - The $\text{ρ}$ field of the issue note MUST have been computed as described in the `Computation of ρ`_ section.
-    - It MUST be the case that $\mathsf{issued\_assets}_{\mathsf{OUT}}.\mathsf{balance} + \mathsf{v} \leq \mathsf{MAX\_ISSUE}$, where $\mathsf{v}$ is the value of $\mathsf{note}_{\mathsf{j}}$. The node then MUST update $\mathsf{issued\_assets}_{\mathsf{OUT}}.\mathsf{balance} = \mathsf{issued\_assets}_{\mathsf{OUT}}.\mathsf{balance} + \mathsf{v}$.
+    - It MUST be the case that $\mathsf{issued\_assets}_{\mathsf{OUT}}.\mathsf{balance} + \mathsf{v}_j \leq \mathsf{MAX\_ISSUE}$, where $\mathsf{v}_j$ is the value of $\mathsf{note}_j$. The node then MUST update $\mathsf{issued\_assets}_{\mathsf{OUT}}.\mathsf{balance} = \mathsf{issued\_assets}_{\mathsf{OUT}}.\mathsf{balance} + \mathsf{v}_j$.
     - The node MUST compute the note commitment, $\mathsf{cm}_{\mathsf{i,j}}$, as defined in the Note Structure and Commitment section of ZIP 226 [#zip-0226-notestructure]_.
   - If $\mathsf{finalize} = 1$ within the ``flagsIssuance`` field of ``IssueAction``, the node MUST set $\mathsf{issued\_assets}_{\mathsf{OUT}}(\mathsf{AssetBase}).\mathsf{final} = 1$.
 
@@ -485,7 +506,7 @@ Rationale
 The following is a list of rationale for different decisions made in the proposal:
 
 - The issuance key structure is independent of the original key tree, but derived in an analogous manner (via ZIP 32). This keeps the issuance details and the Asset Identifiers consistent across multiple shielded pools. It also separates the issuance authority from the spend authority, allowing for the potential transfer of issuance authority without compromising the spend authority.
-- The Custom Asset is described via a combination of the issuance validating key and an asset description string, to preclude the possibility of two different issuers creating colliding Custom Assets.
+- The Custom Asset is described via a combination of the issuer identifier and an asset description string, to preclude the possibility of two different issuers creating colliding Custom Assets.
 - The requirement of at least one OrchardZSA Action Group in the presence of an issue bundle is both to allow for the computation of the $\text{ρ}$ field of the issue notes, as well as to prevent replay attacks. If a transaction includes only an issue bundle, the SIGHASH transaction hash would be computed solely based on the issue bundle. A duplicate bundle would have the same SIGHASH transaction hash, potentially allowing for a replay attack.
 
 Hash of the asset description
@@ -507,7 +528,7 @@ asset description, for the following reasons:
   rules had required it to be a Unicode string instead of only recommending it).
 
 - The lack of key rotation in this issuance protocol means that it is not sufficient to
-  mark an $\mathsf{ik}$ as trusted and then accept whatever asset descriptions are issued
+  mark an $\mathsf{issuer}$ as trusted and then accept whatever asset descriptions are issued
   by it. Each Asset Identifier needs to be independently verified, which requires some
   out-of-band protocol that can also convey the corresponding asset description.
 
@@ -605,7 +626,7 @@ Issuance Key Compromise
 
 The design of this protocol does not currently allow for rotation of the issuance validating key that would allow for replacing the key of a specific Asset. In case of compromise, the following actions are recommended:
 
-- If an issuance validating key is compromised, the $\mathsf{finalize}$ boolean for all the Assets issued with that key should be set to $1$ and the issuer should change to a new issuance authorizing key, and issue new Assets, each with a new $\mathsf{AssetId}$.
+- If an issuer identifier is compromised, the $\mathsf{finalize}$ boolean for all the Assets issued with that key should be set to $1$; then the issuer should change to a new issuance authorizing key (hence a new issuer identifier), and issue new Assets, each with a new $\mathsf{AssetId}$.
 
 Bridging Assets
 ---------------
@@ -664,8 +685,8 @@ References
 .. [#zip-0317-fee-calculation] `ZIP 317: Proportional Transfer Fee Mechanism - Fee calculation <zip-0317.html#fee-calculation>`_
 .. [#bip-0043] `BIP 43: Purpose Field for Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0043.mediawiki>`_
 .. [#bip-0340] `BIP 340: Schnorr Signatures for secp256k1 <https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki>`_
+.. [#protocol] `Zcash Protocol Specification, Version 2024.5.1 [NU6] or later. <protocol/protocol.pdf>`_
 .. [#protocol-notation] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 2: Notation <protocol/protocol.pdf#notation>`_
-.. [#protocol-addressesandkeys] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.1: Payment Addresses and Keys <protocol/protocol.pdf#addressesandkeys>`_
 .. [#protocol-notes] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.2: Notes <protocol/protocol.pdf#notes>`_
 .. [#protocol-abstractsig] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.1.7: Signature <protocol/protocol.pdf#abstractsig>`_
 .. [#protocol-orchardkeycomponents] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.2.3: Orchard Key Components <protocol/protocol.pdf#orchardkeycomponents>`_
@@ -675,3 +696,4 @@ References
 .. [#protocol-concretegrouphashpallasandvesta] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 5.4.9.8: Group Hash into Pallas and Vesta <protocol/protocol.pdf#concretegrouphashpallasandvesta>`_
 .. [#protocol-orchardpaymentaddrencoding] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 5.6.4.2: Orchard Raw Payment Addresses <protocol/protocol.pdf#orchardpaymentaddrencoding>`_
 .. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
+.. [#petnames] `An Introduction to Petname Systems. Marc Stiegler, updated June 2010. <HTTP://www.skyhunter.com/marcs/petnames/IntroPetNames.html>`_
