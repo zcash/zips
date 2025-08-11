@@ -62,11 +62,15 @@ that they have enough information to assess the consequences of their economic a
 This ZIP covers best practices for:
 
 * what information to display to the user about transactions and balances;
-* how to handle interactions between the ZIP 32 [#zip-0032]_ key tree and Unified Addresses [#zip-0316]_;
+* how to handle interactions between the ZIP 32 [#zip-0032]_ key tree and
+  Unified Addresses [#zip-0316]_;
 * when to use external or internal keys/addresses;
 * sharing addresses and viewing keys;
 * sending and receiving funds (including fee selection);
 * migrating funds between pools.
+
+Note: The policies implemented by the legacy `zcashd` internal wallet are known
+to be in violation of this ZIP.
 
 
 Requirements
@@ -226,7 +230,9 @@ Trusted and untrusted TXOs
 A wallet SHOULD treat received TXOs that are outputs of transactions created
 by the same wallet, as trusted TXOs. Wallets MAY enable users to mark specific
 external transactions as trusted, allowing their received TXOs also to be
-classified as trusted TXOs.
+classified as trusted TXOs; wallets MAY also permit users to define alternate
+policies for the number of confirmations required before untrusted TXOs may be
+spent based on a user-configured value threshold.
 
 A wallet SHOULD have a policy that is clearly communicated to the user for
 the number of confirmations needed to spend untrusted and trusted TXOs
@@ -234,6 +240,10 @@ respectively. The following confirmation policy is RECOMMENDED:
 
 * 10 confirmations, for untrusted TXOs;
 * 3 confirmations, for trusted TXOs.
+
+Wallets MUST NOT permit the spending of TXOs with fewer than 3 confirmations,
+with the exception of shielding transactions for transparent UTXOs, as
+discussed below.
 
 Rationale for the given numbers of confirmations
 ''''''''''''''''''''''''''''''''''''''''''''''''
@@ -251,8 +261,8 @@ that funds are re-sent.
 Categories of TXOs according to spendability
 --------------------------------------------
 
-A TXO is *known-spendable*, relative to a given block chain and wallet state,
-if and only if all of the following are true in that state:
+A TXO is *known-spendable*, relative to a given block chain and wallet
+state, if and only if all of the following are true in that state:
 
 * the TXO is unspent at the wallet's view of the chain tip, and that view is
   reasonably up-to-date;
@@ -260,20 +270,30 @@ if and only if all of the following are true in that state:
   TODO: consider undoing the up-to-date part, as when combined with the
   definition of balance below, it causes wallet balance to drop to zero in
   the short window between opening and updating the wallet's chain tip view.
-* the TXO is not committed to be spent in another transaction created
+* the TXO is not committed to be spent in another unexpired transaction created
   by this wallet; and
-* the wallet has the TXO's spending key (for whatever protocol the TXO uses).
+* the wallet can effect the spend, either by having access to the TXO's
+  spending key (for whatever protocol the TXO uses) or by mediating interaction
+  with a hardware device or other offline signing protocol.
 
-A TXO is *confirmed-spendable*, relative to a given block chain and
+Shielded TXOs
+'''''''''''''
+
+A shielded TXO is *confirmed-spendable*, relative to a given block chain and
 wallet state, if and only if all of the following are true in that state:
 
-* the wallet is synchronized; and
 * the TXO is known-spendable; and
-* either auto-shielding is not active or the TXO is shielded; and
-* auto-migration *from* whatever protocol the TXO uses is not active; and
-* the TXO is trusted and has at least the required confirmations for
-  trusted TXOs, or it is untrusted and has at least the required
-  confirmations for untrusted TXOs.
+* the wallet has sufficient contextual information to be able to effect the
+  spend (i.e. it is able to construct required witnesses, etc.); and
+* one of the follwing is true:
+  * the TXO is not an output of a wallet-internal shielding transaction, and either:
+    * it is trusted and has at least the required confirmations for trusted TXOs
+    * it is untrusted and has at least the required confirmations for untrusted TXOs.
+  * the TXO is the output of a wallet-internal shielding transaction, and both:
+    * the transparent UTXOs spent in the shielding transaction have at least
+      `(untrusted_confirmations - trusted_confirmations)` confirmations
+    * the wallet-internal shielding transaction has at least `trusted_confirmations`
+      confirmations
 
 A TXO is *unconfirmed-spendable*, relative to a given block chain and
 wallet state, if and only if the TXO is known-spendable but is not
@@ -285,12 +305,24 @@ A TXO is *watch-only* if and only if the wallet has its full viewing key
 A wallet MUST NOT attempt to spend a TXO in a user-initiated transaction
 that is not confirmed-spendable.
 
-Open question: what should be specified about which TXOs can be spent
-in non-user-initiated transactions?
+Transparent UTXOs
+'''''''''''''''''
 
-Note: the definition of a TXO includes outputs in mempool transactions
-that are unconflicted from the perspective of the wallet.
+A transparent UTXO is *confirmed-shieldable* relative to a given block chain and
+wallet state, if and only if all of the following are true in that state:
 
+* the TXO is known-spendable; and
+* the wallet has sufficient contextual information to be able to effect the
+  spend (i.e. it is able to construct a correct redeem script, etc.)
+
+Wallets MAY attempt to spend received transparent UTXOs in wallet-internal
+shielding transactions with zero confirmations. In this case, the resulting
+shielded funds will not be made available for spending until the transaction
+that produced the original transparent UTXOs has at least
+`untrusted_confirmations`, and the shielding transaction has at least
+`trusted_confirmations`. Wallet implementers should take care not to mistake
+the TXOs resulting from shielding transactions as trusted outputs just because
+they are sent to a wallet-internal address.
 
 Reporting of balances
 ---------------------
@@ -302,9 +334,10 @@ Wallets SHOULD report:
 
 These are calculated as follows:
 
-* The confirmed-spendable balance is the sum of values of
-  confirmed-spendable TXOs.
+* The confirmed-spendable balance is the sum of values of confirmed-spendable
+  TXOs.
 * The pending balance is the sum of values of unconfirmed-spendable TXOs.
+  TODO: split out `confirmed-shieldable` cases
 * The total balance is the confirmed-spendable balance plus the pending
   balance.
 
