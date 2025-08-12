@@ -8,6 +8,7 @@ RUN apt-get install -y \
         cmake \
         python3 \
         python3-pip \
+        curl \
         pandoc \
         biber \
         latexmk \
@@ -17,8 +18,16 @@ RUN apt-get install -y \
         texlive-plain-generic \
         texlive-bibtex-extra
 
-RUN rm /usr/lib/python3.11/EXTERNALLY-MANAGED
-RUN pip install 'docutils==0.21.2' 'rst2html5==2.0.1'
+# Install uv using the official installer
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:$PATH"
+
+# Copy pyproject.toml and install dependencies with uv
+COPY pyproject.toml .
+RUN uv sync
+
+# Add the virtual environment to PATH so tools are available
+ENV PATH="/.venv/bin:$PATH"
 
 # Use a fork so that we're running pinned code. The Makefile for
 # MultiMarkdown-6 expects the `master` branch to exist for delta computation,
