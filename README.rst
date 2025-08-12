@@ -110,7 +110,7 @@ Released ZIPs
     <tr> <td>203</td> <td class="left"><a href="zips/zip-0203.rst">Transaction Expiry</a></td> <td>Final</td>
     <tr> <td>205</td> <td class="left"><a href="zips/zip-0205.rst">Deployment of the Sapling Network Upgrade</a></td> <td>Final</td>
     <tr> <td>206</td> <td class="left"><a href="zips/zip-0206.rst">Deployment of the Blossom Network Upgrade</a></td> <td>Final</td>
-    <tr> <td>207</td> <td class="left"><a href="zips/zip-0207.rst">Funding Streams</a></td> <td>[Canopy, NU6] Final</td>
+    <tr> <td>207</td> <td class="left"><a href="zips/zip-0207.rst">Funding Streams</a></td> <td>[Revision 0: Canopy, Revision 1: NU6] Final</td>
     <tr> <td>208</td> <td class="left"><a href="zips/zip-0208.rst">Shorter Block Target Spacing</a></td> <td>Final</td>
     <tr> <td>209</td> <td class="left"><a href="zips/zip-0209.rst">Prohibit Negative Shielded Chain Value Pool Balances</a></td> <td>Final</td>
     <tr> <td>211</td> <td class="left"><a href="zips/zip-0211.rst">Disabling Addition of New Value to the Sprout Chain Value Pool</a></td> <td>Final</td>
@@ -282,7 +282,7 @@ Index of ZIPs
     <tr> <td><span class="reserved">204</span></td> <td class="left"><a class="reserved" href="zips/zip-0204.rst">Zcash P2P Network Protocol</a></td> <td>Reserved</td>
     <tr> <td>205</td> <td class="left"><a href="zips/zip-0205.rst">Deployment of the Sapling Network Upgrade</a></td> <td>Final</td>
     <tr> <td>206</td> <td class="left"><a href="zips/zip-0206.rst">Deployment of the Blossom Network Upgrade</a></td> <td>Final</td>
-    <tr> <td>207</td> <td class="left"><a href="zips/zip-0207.rst">Funding Streams</a></td> <td>[Canopy, NU6] Final</td>
+    <tr> <td>207</td> <td class="left"><a href="zips/zip-0207.rst">Funding Streams</a></td> <td>[Revision 0: Canopy, Revision 1: NU6] Final</td>
     <tr> <td>208</td> <td class="left"><a href="zips/zip-0208.rst">Shorter Block Target Spacing</a></td> <td>Final</td>
     <tr> <td>209</td> <td class="left"><a href="zips/zip-0209.rst">Prohibit Negative Shielded Chain Value Pool Balances</a></td> <td>Final</td>
     <tr> <td><strike>210</strike></td> <td class="left"><strike><a href="zips/zip-0210.rst">Sapling Anchor Deduplication within Transactions</a></strike></td> <td>Withdrawn</td>
