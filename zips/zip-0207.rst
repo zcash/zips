@@ -4,7 +4,7 @@
   Title: Funding Streams
   Owners: Jack Grigg <str4d@electriccoin.co>
           Daira-Emma Hopwood <daira-emma@electriccoin.co>
-  Status: [Canopy, NU6] Final
+  Status: [Revision 0: Canopy, Revision 1: NU6] Final
   Category: Consensus
   Created: 2019-01-04
   License: MIT
@@ -83,6 +83,21 @@ that are not yet needed may be kept off-line as a security measure.
 Specification
 =============
 
+Revisions
+---------
+
+.. _`Revision 0`:
+
+* Revision 0: The initial version of this specification, as agreed upon
+  by the Zcash community in ZIP 1014 [#zip-1014]_.
+
+.. _`Revision 1`:
+
+* Revision 1: Adds the `Deferred Development Fund Chain Value Pool Balance`_ as
+  a potential recipient of funding stream outputs, as agreed upon by the
+  Zcash community in ZIP 1015 [#zip-1015]_ and specified in ZIP 2001
+  [#zip-2001]_.
+
 Definitions
 -----------
 
@@ -125,15 +140,20 @@ An active funding stream at a given block height is defined as a funding
 stream for which the block height is less than its end height, but not less
 than its start height.
 
-The funding streams are paid to one of a pre-defined set of recipients,
-depending on the block height. Each recipient identifier MUST be either the
-string encoding of a transparent P2SH address or Sapling address (as specified in
+The value of each funding stream is paid to one of a pre-defined set of
+recipients, depending on the block height.
+
+As of `Revision 0`_, each recipient MUST be the string encoding of a
+transparent P2SH address or Sapling address (as specified in
+[#protocol-transparentaddrencoding]_ or [#protocol-saplingpaymentaddrencoding]_).
+
+As of `Revision 1`_, each recipient identifier MUST be either the string
+encoding of a transparent P2SH address or Sapling address (as specified in
 [#protocol-transparentaddrencoding]_ or [#protocol-saplingpaymentaddrencoding]_)
-to be paid by an output in the coinbase transaction, or the identifier
-$\mathsf{DEFERRED\_POOL}$. The latter, added in the NU6 network upgrade
-[#zip-0253]_, indicates that the value is to be paid to a reserve to be
-used for development funding, the distribution of which is to be determined via
-a future ZIP.
+or the identifier $\mathsf{DEFERRED\_POOL}$. The latter, added in the NU6
+network upgrade [#zip-0253]_, indicates that the value is to be paid to a
+reserve to be used for development funding, the distribution of which is to be
+determined via a future ZIP.
 
 Each address is used for at most 1/48th of a halving interval, creating a
 roughly-monthly sequence of funding periods. The address to be used for a
@@ -188,9 +208,10 @@ Founders' Reward address period prior to Canopy activation.
 Deferred Development Fund Chain Value Pool Balance
 --------------------------------------------------
 
-Full node implementations MUST track an additional
-$\mathsf{ChainValuePoolBalance^{Deferred}}$ chain value pool balance,
-in addition to the Sprout, Sapling, and Orchard chain value pool balances.
+As of `Revision 1`_ of this specification, full node implementations MUST track
+an additional $\mathsf{ChainValuePoolBalance^{Deferred}}$ chain value pool
+balance, in addition to the Sprout, Sapling, and Orchard chain value pool
+balances.
 
 Define $\mathsf{totalDeferredOutput}(\mathsf{height}) := \sum_{\mathsf{fs} \in \mathsf{DeferredFundingStreams}(\mathsf{height})} \mathsf{fs.Value}(\mathsf{height})$
 where $\mathsf{DeferredFundingStreams}(\mathsf{height})$ is the set of
@@ -217,12 +238,31 @@ for payment of the original Founders' Reward is enforced. [#protocol-foundersrew
 
 Once the Canopy network upgrade activates:
 
-- The existing consensus rule for payment of the Founders' Reward [#protocol-foundersreward]_
-  is no longer active.
-  (This would be the case under the preexisting consensus rules for Mainnet, but
-  not for Testnet.)
+1. The existing consensus rule for payment of the Founders' Reward
+   [#protocol-foundersreward]_ is no longer active. (This would be the case
+   under the preexisting consensus rules for Mainnet, but not for Testnet.)
 
-- In each block with coinbase transaction $\mathsf{cb}$ at block height
+2. The coinbase transaction in each block MUST contain at least one output per
+   active funding stream that pays the stream's value in the prescribed way to
+   the stream's recipient address for the block's height.
+
+3. $\mathsf{fs.Recipient}(\mathsf{height})$ is defined as
+   $\mathsf{fs.Recipients_{\,fs.RecipientIndex}}(\mathsf{height})$.
+
+4. The "prescribed way" to pay a transparent multisig P2SH address is to use a
+   standard P2SH script as specified in [#Bitcoin-Multisig]_.
+
+5. The "prescribed way" to pay a Sapling address is as defined in [#zip-0213]_.
+   That is, all Sapling outputs in coinbase transactions (including, but not
+   limited to, outputs for funding streams) MUST have valid note commitments
+   when recovered using a 32-byte array of zeroes as the outgoing viewing key.
+   In this case the note plaintext lead byte MUST be $\mathbf{0x02}$, as
+   specified in [#zip-0212]_.
+
+Once the NU6 network upgrade activates:
+
+- Rule 2 above is replaced by:
+  In each block with coinbase transaction $\mathsf{cb}$ at block height
   $\mathsf{height}$, for each funding stream $\mathsf{fs}$
   active at that block height with a recipient identifier other than
   $\mathsf{DEFERRED\_POOL}$ given by
@@ -230,19 +270,6 @@ Once the Canopy network upgrade activates:
   $\mathsf{cb}$ \MUST contain at least one output that pays
   $\mathsf{fs.Value}(\mathsf{height})$ zatoshi in the prescribed way to
   the address represented by that recipient identifier.
-
-- $\mathsf{fs.Recipient}(\mathsf{height})$ is defined as
-  $\mathsf{fs.Recipients_{\,fs.RecipientIndex}}(\mathsf{height})$.
-
-- The "prescribed way" to pay a transparent multisig P2SH address is to use a
-  standard P2SH script as specified in [#Bitcoin-Multisig]_.
-
-- The "prescribed way" to pay a Sapling address is as defined in [#zip-0213]_.
-  That is, all Sapling outputs in coinbase transactions (including, but not
-  limited to, outputs for funding streams) MUST have valid note commitments
-  when recovered using a 32-byte array of zeroes as the outgoing viewing key.
-  In this case the note plaintext lead byte MUST be $\mathbf{0x02}$, as
-  specified in [#zip-0212]_.
 
 These rules are reproduced in [#protocol-fundingstreams]_.
 
