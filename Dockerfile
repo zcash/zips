@@ -1,4 +1,4 @@
-FROM debian:latest
+FROM debian:bullseye
 
 RUN apt-get update
 RUN apt-get install -y \
@@ -17,7 +17,7 @@ RUN apt-get install -y \
         texlive-plain-generic \
         texlive-bibtex-extra
 
-RUN rm /usr/lib/python3.11/EXTERNALLY-MANAGED
+RUN rm -f /usr/lib/python3.11/EXTERNALLY-MANAGED
 RUN pip install 'docutils==0.21.2' 'rst2html5==2.0.1'
 
 # Use a fork so that we're running pinned code. The Makefile for
