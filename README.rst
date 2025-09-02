@@ -225,6 +225,7 @@ be deleted.
 
   <embed><table>
     <tr> <th>Title</th> </tr>
+    <tr> <td class="left"><a href="zips/draft-arya-dairaemma-disable-addition-of-transparent-chain-value.md">Disabling Addition of New Value to the Transparent Chain Value Pool</a></td>
     <tr> <td class="left"><a href="zips/draft-arya-deploy-nu7.md">Deployment of the NU7 Network Upgrade</a></td>
     <tr> <td class="left"><a href="zips/draft-ecc-authenticated-reply-addrs.md">Authenticated Reply Addresses</a></td>
     <tr> <td class="left"><a href="zips/draft-ecc-onchain-accountable-voting.md">On-chain Accountable Voting</a></td>
