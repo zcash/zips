@@ -79,10 +79,10 @@ following:
 
 * Choose a pool snapshot at a particular block height.
 * Choose a previously unused nullifier domain $\mathsf{dom}$.
-  * > TODO: how to ensure it is previously unused? What are the consequences if it isn't?
-  * Maybe the domain is derived from the pool snapshot and a string identifying
-    the air-drop/poll? Then a wallet that supports this protocol can display the
-    string and the block height/date of the snapshot to the wallet user.
+    * > TODO: how to ensure it is previously unused? What are the consequences if it isn't?
+    * Maybe the domain is derived from the pool snapshot and a string identifying
+      the air-drop/poll? Then a wallet that supports this protocol can display the
+      string and the block height/date of the snapshot to the wallet user.
 * Deterministically construct a nullifier non-membership tree as of the snapshot,
   with root $\mathsf{rt^{excl}}$. Anyone can check that this root is correct using
   public information.
