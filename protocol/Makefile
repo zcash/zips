@@ -50,10 +50,10 @@ protocol: $(PDFDIR)/protocol.pdf
 protocol-dark: $(PDFDIR)/protocol-dark.pdf
 
 all-pdfs: .Makefile.uptodate
-	$(MAKE) $(PDFDIR)/protocol.pdf $(PDFDIR)/protocol-dark.pdf $(PDFDIR)/nu5.pdf $(PDFDIR)/canopy.pdf $(PDFDIR)/heartwood.pdf $(PDFDIR)/blossom.pdf $(PDFDIR)/sapling.pdf
+	$(MAKE) $(PDFDIR)/protocol.pdf $(PDFDIR)/protocol-dark.pdf $(PDFDIR)/nu6.pdf $(PDFDIR)/nu5.pdf $(PDFDIR)/canopy.pdf $(PDFDIR)/heartwood.pdf $(PDFDIR)/blossom.pdf $(PDFDIR)/sapling.pdf
 
 all-specs: .Makefile.uptodate
-	$(MAKE) nu6 nu6-dark nu5 canopy heartwood blossom sapling
+	$(MAKE) nu6_1 nu6_1-dark nu6 nu5 canopy heartwood blossom sapling
 
 discard:
 	git checkout -- "$(PDFDIR)/*.pdf"
@@ -77,15 +77,18 @@ $(PDFDIR)/canopy.pdf: protocol.tex zcash.bib jubjub.png key_components_sapling.p
 $(PDFDIR)/nu5.pdf: protocol.tex zcash.bib jubjub.png key_components_sapling.png key_components_orchard.png incremental_merkle.png
 	$(MAKE) nu5
 
-$(PDFDIR)/protocol.pdf: protocol.tex zcash.bib jubjub.png key_components_sapling.png key_components_orchard.png incremental_merkle.png
+$(PDFDIR)/nu6.pdf: protocol.tex zcash.bib jubjub.png key_components_sapling.png key_components_orchard.png incremental_merkle.png
 	$(MAKE) nu6
 
+$(PDFDIR)/protocol.pdf: protocol.tex zcash.bib jubjub.png key_components_sapling.png key_components_orchard.png incremental_merkle.png
+	$(MAKE) nu6_1
+
 $(PDFDIR)/protocol-dark.pdf: protocol.tex zcash.bib jubjub.png key_components_sapling.png key_components_orchard_dark.png incremental_merkle_dark.png
-	$(MAKE) nu6-dark
+	$(MAKE) nu6_1-dark
 
 .PHONY: auxsapling sapling
 auxsapling:
-	printf '\\toggletrue{issapling}\n\\renewcommand{\\docversion}{Version %s [\\SaplingSpec]}\n' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	printf '\\toggletrue{issapling}\n\\renewcommand{\\docversion}{Version %s [\\SaplingSpec]}\n' "$$(git describe --tags --abbrev=6 |sed 's/-1-g.*//')" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/sapling.*
 	cp mymakeindex.sh aux
@@ -98,7 +101,7 @@ sapling:
 
 .PHONY: auxblossom blossom
 auxblossom:
-	printf '\\toggletrue{isblossom}\n\\renewcommand{\\docversion}{Version %s [\\BlossomSpec]}\n' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	printf '\\toggletrue{isblossom}\n\\renewcommand{\\docversion}{Version %s [\\BlossomSpec]}\n' "$$(git describe --tags --abbrev=6 |sed 's/-1-g.*//')" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/blossom.*
 	cp mymakeindex.sh aux
@@ -111,7 +114,7 @@ blossom:
 
 .PHONY: auxheartwood heartwood
 auxheartwood:
-	printf '\\toggletrue{isheartwood}\n\\renewcommand{\\docversion}{Version %s [\\HeartwoodSpec]}\n' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	printf '\\toggletrue{isheartwood}\n\\renewcommand{\\docversion}{Version %s [\\HeartwoodSpec]}\n' "$$(git describe --tags --abbrev=6 |sed 's/-1-g.*//')" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/heartwood.*
 	cp mymakeindex.sh aux
@@ -124,7 +127,7 @@ heartwood:
 
 .PHONY: auxcanopy canopy
 auxcanopy:
-	printf '\\toggletrue{iscanopy}\n\\renewcommand{\\docversion}{Version %s [\\CanopySpec]}\n' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	printf '\\toggletrue{iscanopy}\n\\renewcommand{\\docversion}{Version %s [\\CanopySpec]}\n' "$$(git describe --tags --abbrev=6 |sed 's/-1-g.*//')" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/canopy.*
 	cp mymakeindex.sh aux
@@ -137,7 +140,7 @@ canopy:
 
 .PHONY: auxnu5 nu5
 auxnu5:
-	printf '\\toggletrue{isnufive}\n\\renewcommand{\\docversion}{Version %s [\\NUFiveSpec]}\n' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	printf '\\toggletrue{isnufive}\n\\renewcommand{\\docversion}{Version %s [\\NUFiveSpec]}\n' "$$(git describe --tags --abbrev=6 |sed 's/-1-g.*//')" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/nu5.*
 	cp mymakeindex.sh aux
@@ -150,7 +153,7 @@ nu5:
 
 .PHONY: auxnu6 nu6
 auxnu6:
-	printf '\\toggletrue{isnusix}\n\\renewcommand{\\docversion}{Version %s [\\NUSixSpec]}\n' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+	printf '\\toggletrue{isnusix}\n\\renewcommand{\\docversion}{Version %s [\\NUSixSpec]}\n' "$$(git describe --tags --abbrev=6 |sed 's/-1-g.*//')" |tee protocol.ver
 	mkdir -p aux
 	rm -f aux/nu6.*
 	cp mymakeindex.sh aux
@@ -159,20 +162,33 @@ auxnu6:
 nu6:
 	$(MAKE) auxnu6
 	mkdir -p $(PDFDIR)
-	mv -f aux/nu6.pdf $(PDFDIR)/protocol.pdf
+	mv -f aux/nu6.pdf $(PDFDIR)
 
-.PHONY: auxnu6-dark nu6-dark
-auxnu6-dark:
-	printf '\\toggletrue{darkmode}\\toggletrue{isnusix}\n\\renewcommand{\\docversion}{Version %s [\\NUSixSpec]}\n' "$$(git describe --tags --abbrev=6)" |tee protocol.ver
+.PHONY: auxnu6_1 nu6_1
+auxnu6_1:
+	printf '\\toggletrue{isnusixone}\n\\renewcommand{\\docversion}{Version %s [\\NUSixOneSpec]}\n' "$$(git describe --tags --abbrev=6 |sed 's/-1-g.*//')" |tee protocol.ver
 	mkdir -p aux
-	rm -f aux/nu6-dark.*
+	rm -f aux/nu6_1.*
 	cp mymakeindex.sh aux
-	$(LATEXMK) -jobname=nu6-dark -auxdir=aux -outdir=aux $(EXTRAOPT) protocol $(NOCRUFT)
+	$(LATEXMK) -jobname=nu6_1 -auxdir=aux -outdir=aux $(EXTRAOPT) protocol $(NOCRUFT)
 
-nu6-dark:
-	$(MAKE) auxnu6-dark
+nu6_1:
+	$(MAKE) auxnu6_1
 	mkdir -p $(PDFDIR)
-	mv -f aux/nu6-dark.pdf $(PDFDIR)/protocol-dark.pdf
+	mv -f aux/nu6_1.pdf $(PDFDIR)/protocol.pdf
+
+.PHONY: auxnu6_1-dark nu6_1-dark
+auxnu6_1-dark:
+	printf '\\toggletrue{darkmode}\\toggletrue{isnusixone}\n\\renewcommand{\\docversion}{Version %s [\\NUSixOneSpec]}\n' "$$(git describe --tags --abbrev=6 |sed 's/-1-g.*//')" |tee protocol.ver
+	mkdir -p aux
+	rm -f aux/nu6_1-dark.*
+	cp mymakeindex.sh aux
+	$(LATEXMK) -jobname=nu6_1-dark -auxdir=aux -outdir=aux $(EXTRAOPT) protocol $(NOCRUFT)
+
+nu6_1-dark:
+	$(MAKE) auxnu6_1-dark
+	mkdir -p $(PDFDIR)
+	mv -f aux/nu6_1-dark.pdf $(PDFDIR)/protocol-dark.pdf
 
 .PHONY: clean
 clean:
