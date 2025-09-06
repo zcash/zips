@@ -20,6 +20,12 @@ when, and only when, they appear in all capitals.
 The term "network upgrade" in this document is to be interpreted as described in
 ZIP 200. [#zip-0200]_
 
+The terms "settled" and "full validator" in this document are to be interpreted as
+described in [#protocol-blockchain]_.
+
+The terms "Mainnet" and "Testnet" in this document are to be interpreted as described
+in [#protocol-networks]_.
+
 
 Abstract
 ========
@@ -72,8 +78,9 @@ affected, the issue does not occur because there are already consensus rules tha
 prohibit small-order points, and this incidentally prohibits non-canonical encodings.
 
 Adjustments to the protocol specification were made in versions 2020.1.8, 2020.1.9,
-2020.1.15, and 2021.1.17 to match the `zcashd` implementation. (The fact that this
-required 4 specification revisions to get right, conclusively demonstrates the problem.)
+2020.1.15, 2021.1.17, and 2023.4.0 to match the `zcashd` implementation. The fact that
+this required five specification revisions to get right, conclusively demonstrates the
+problem.
 
 
 Specification
@@ -107,13 +114,29 @@ In transactions [#protocol-txnencoding]_:
     $\mathtt{bindingSigSapling}$ RedDSA signature.
 
 In the plaintext obtained by decrypting the $\mathsf{C^{out}}$ field of a
-Sapling transmitted note ciphertext [#protocol-decryptovk]_:
+Sapling transmitted note ciphertext (encrypted in [#protocol-saplingandorchardencrypt]_
+and decrypted in [#protocol-decryptovk]_):
 
-  - $\mathsf{pk}\star_{\mathsf{d}}$.
+  - $\mathsf{pk\star_d}$.
 
-(This affects decryption of $\mathsf{C^{out}}$ in all cases, but is
-consensus-critical only in the case of a shielded coinbase output.
-[#protocol-txnencoding]_)
+$\mathsf{pk\star_d}$ also MUST be considered invalid if it encodes the zero point
+$\mathcal{O}_{\mathbb{J}}$.
+
+These requirements on $\mathsf{pk\star_d}$ affect the decryption of
+$\mathsf{C^{out}}$ in all cases, but are consensus-critical only in the case
+of decrypting $\mathsf{C^{out}}$ for a Sapling shielded coinbase output.
+[#protocol-txnconsensus]_ [#zip-0213]_
+
+Note: When a Sapling transmitted note ciphertext is decrypted using an incoming
+viewing key [#protocol-decryptivk]_, $\mathsf{pk_d}$ is computed as
+$\mathsf{KA^{Sapling}.DerivePublic}(\mathsf{ivk}, \mathsf{g_d}) =$ $[\mathsf{ivk}]\,\mathsf{g_d}$.
+Since $\mathsf{g_d}$ is an output of
+$\mathsf{DiversifyHash^{Sapling}} \;{\small ⦂}\; \mathbb{B}^{[\ell_d]} \rightarrow \mathbb{J}^{(r)*} \cup \{\bot\}$,
+it cannot be $\mathcal{O}_{\mathbb{J}}$. $\mathsf{ivk}$ cannot be $0$ for a validly
+constructed Sapling incoming viewing key [#protocol-saplingkeycomponents]_, and
+so the computed value of $\mathsf{pk_d}$ cannot be $\mathcal{O}_{\mathbb{J}}$.
+An implementation MAY redundantly enforce that the computed value of $\mathsf{pk_d}$
+is not $\mathcal{O}_{\mathbb{J}}$.
 
 There are some additional fields in the consensus protocol that encode Jubjub points,
 but where non-canonical encodings MUST already be rejected as a side-effect of
@@ -122,7 +145,7 @@ existing consensus rules.
 In Sapling Spend descriptions:
 
   - $\mathtt{cv}$
-  - $\mathtt{rk}$
+  - $\mathtt{rk}$.
 
 In Sapling Output descriptions [#protocol-outputdesc]_:
 
@@ -141,22 +164,74 @@ transaction IDs.
 In addition, Sapling addresses and full viewing keys MUST be considered invalid when
 imported if they contain non-canonical Jubjub point encodings, or encodings of points
 that are not in the prime-order subgroup $\mathbb{J}^{(r)}$. These requirements
-\MAY be enforced in advance of NU5 activation.
+\MAY be enforced in advance of NU5 activation. This affects the fields listed below.
 
-In Sapling addresses [#protocol-saplingpaymentaddrencoding]_:
+In Sapling payment addresses [#protocol-saplingpaymentaddrencoding]_:
 
   - the encoding of $\mathsf{pk_d}$.
 
 In Sapling full viewing keys [#protocol-saplingfullviewingkeyencoding]_ and extended
 full viewing keys [#zip-0032-extfvk]_:
 
-  - the encoding of $\mathsf{ak}$.
+  - the encoding of $\mathsf{ak}$
+  - the encoding of $\mathsf{nk}$.
 
-($\mathsf{ak}$ also MUST NOT encode the zero point $\mathcal{O}_{\mathbb{J}}$.)
+$\mathsf{pk_d}$ and $\mathsf{ak}$ also MUST be considered invalid if they encode the
+zero point $\mathcal{O}_{\mathbb{J}}$.
 
-The above is intended to be a complete list of the places where compressed encodings
-of Jubjub points occur in the Zcash consensus protocol and in plaintext, address, or
-key formats.
+The fields mentioned in this Specification are intended to be a complete list of the
+places where compressed encodings of Jubjub points occur in the Zcash consensus protocol
+and in plaintext, address, or key formats.
+
+Note: Some versions of the Zcash protocol specification mistakenly allowed $\mathsf{pk_d}$
+in a Sapling payment address, or $\mathsf{pk\star_d}$ in a decrypted $\mathsf{C^{out}}$,
+to encode the zero point. The history is explained in a note added in version 2023.4.0 of
+the protocol specification [#protocol-2023.4.0]_:
+
+  A previous version of this specification did not have the requirement for the decoded point
+  $\mathsf{pk_d}$ of a Sapling note to be in the set of prime-order points $\mathbb{J}^{(r)*}$
+  (i.e. "if ... $\mathsf{pk_d} \not\in \mathbb{J}^{(r)*}$, return $\bot\!$").
+  That did not match the implementation in `zcashd`. In fact the history is a little more
+  complicated. The current specification matches the implementation in `librustzcash` as of
+  [#librustzcash-pr109]_, which has been used in `zcashd` since v2.1.2. However, there was
+  another implementation of Sapling note decryption used in `zcashd` for consensus checks,
+  specifically the check that a shielded coinbase output decrypts successfully with the
+  zero $\mathsf{ovk}$. This was corrected to enforce the same restriction on the decrypted
+  $\mathsf{pk_d}$ in `zcashd` v5.5.0, originally set to activate in a soft fork at block
+  height 2121200 on both Mainnet and Testnet [#zcashd-pr6459]_. (On Testnet this height was
+  in the past as of the `zcashd` v5.5.0 release, and so the change would have been immediately
+  enforced on upgrade.) Since the soft fork was observed to be retrospectively valid after
+  that height, the implementation was simplified in [#zcashd-pr6725]_ to use the
+  `librustzcash` implementation in all cases, which reflects the specification above.
+  `zebra` always used the `librustzcash` implementation.
+
+Retroactive applicability
+-------------------------
+
+As originally specified, this ZIP required that the new validity rules be applied only
+after NU5 activation. This was necessary because a transaction containing a non-canonical
+Jubjub point encoding could have been included in any block before NU5 activation.
+
+However, now that NU5 is a settled upgrade on the Zcash Mainnet and Testnet chains
+[#protocol-blockchain]_ [#protocol-networks]_, it can be observed that there were no such
+non-canonical encodings in publically visible transaction fields before the Mainnet and
+Testnet NU5 activations. Therefore, a full validator MAY enforce the above specification
+retroactively.
+
+It remains possible that there could be non-canonical $\mathsf{pk\star_d}$ encodings in
+plaintexts obtained by decrypting the $\mathsf{C^{out}}$ field of a Sapling transmitted
+note ciphertext. Such encodings MUST be rejected by the decryption
+procedure in [#protocol-decryptovk]_ after NU5 activation. An implementation MAY also
+reject them before NU5 activation. Doing so cannot lead to loss of funds
+sent to a Sapling address that has been correctly generated as specified in
+[#protocol-saplingkeycomponents]_, because such an address cannot have $\mathsf{ivk} = 0$,
+which is the only case in which $\mathsf{pk\star_d}$ could be non-canonical.
+They are rejected in wallet rescanning by current `zcashd` and by `librustzcash`-based
+light wallets.
+
+Note: There are no such non-canonical $\mathsf{pk\star_d}$ encodings in the
+$\mathsf{C^{out}}$ components of shielded coinbase outputs (which are required by
+consensus to be decryptable by an all-zero $\mathsf{ovk}$ [#protocol-txnconsensus]_).
 
 
 Rationale
@@ -191,8 +266,8 @@ Encodings of elliptic curve points on Curve25519, BN-254 $\mathbb{G}_1$,
 BN-254 $\mathbb{G}_2$, BLS12-381 $\mathbb{G}_1$, and
 BLS12-381 $\mathbb{G}_2$ are not affected.
 
-Encodings of elliptic curve points on the Pallas and Vesta curves in the NU5 proposal
-[#protocol-pallasandvesta]_ are also not affected.
+Encodings of elliptic curve points on the Pallas and Vesta curves [#protocol-pallasandvesta]_
+used by the Orchard shielded protocol are also not affected.
 
 
 Security and Privacy Considerations
@@ -200,32 +275,50 @@ Security and Privacy Considerations
 
 This ZIP eliminates a potential source of consensus divergence between differing full node
 implementations. At the time of writing (February 2021), no such divergence exists for any
-production implementation of Zcash, but the alpha-stage `zebrad` node implementation would
-be susceptible to this issue.
+production implementation of Zcash, but an early alpha version of the `zebrad` node
+implementation would have been susceptible to this issue.
 
 
 Deployment
 ==========
 
-This ZIP is proposed to activate with Network Upgrade 5. Requirements on points encoded in
-payment addresses and full viewing keys MAY be enforced in advance of NU5 activation.
+This ZIP activated with Network Upgrade 5. Requirements on points encoded in payment
+addresses and full viewing keys MAY be enforced in advance of NU5 activation.
+
+`zcashd` PRs #6399 [#zcashd-pr6399]_, #6459 [#zcashd-pr6459]_, and #6725 [#zcashd-pr6725]_
+retroactively enforce canonical encoding of Jubjub points for the entire chain history,
+as described in the `Retroactive applicability`_ section.
 
 
 References
 ==========
 
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
-.. [#protocol] `Zcash Protocol Specification, Version 2021.2.16 or later [NU5 proposal] <protocol/protocol.pdf>`_
-.. [#protocol-spenddesc] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 4.4: Spend Descriptions <protocol/protocol.pdf#spenddesc>`_
-.. [#protocol-outputdesc] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 4.5: Output Descriptions <protocol/protocol.pdf#outputdesc>`_
-.. [#protocol-decryptovk] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 4.19.3 Decryption using a Full Viewing Key (Sapling and Orchard) <protocol/protocol.pdf#decryptovk>`_
-.. [#protocol-jubjub] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.4.9.3: Jubjub <protocol/protocol.pdf#jubjub>`_
-.. [#protocol-pallasandvesta] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.4.9.6: Pallas and Vesta <protocol/protocol.pdf#pallasandvesta>`_
-.. [#protocol-saplingpaymentaddrencoding] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.6.3.1: Sapling Payment Addresses <protocol/protocol.pdf#saplingpaymentaddrencoding>`_
-.. [#protocol-saplingfullviewingkeyencoding] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.6.3.3: Sapling Full Viewing Keys <protocol/protocol.pdf#saplingfullviewingkeyencoding>`_
-.. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
+.. [#protocol] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal] or later <protocol/protocol.pdf>`_
+.. [#protocol-blockchain] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 3.3: The Block Chain <protocol/protocol.pdf#blockchain>`_
+.. [#protocol-networks] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
+.. [#protocol-saplingkeycomponents] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 4.2.2: Sapling Key Components <protocol/protocol.pdf#saplingkeycomponents>`_
+.. [#protocol-spenddesc] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 4.4: Spend Descriptions <protocol/protocol.pdf#spenddesc>`_
+.. [#protocol-outputdesc] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 4.5: Output Descriptions <protocol/protocol.pdf#outputdesc>`_
+.. [#protocol-saplingandorchardencrypt] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 4.20.1 Encryption (Sapling and Orchard) <protocol/protocol.pdf#saplingandorchardencrypt>`_
+.. [#protocol-decryptivk] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 4.20.2 Decryption using a Incoming Viewing Key (Sapling and Orchard) <protocol/protocol.pdf#decryptivk>`_
+.. [#protocol-decryptovk] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 4.20.3 Decryption using a Full Viewing Key (Sapling and Orchard) <protocol/protocol.pdf#decryptovk>`_
+.. [#protocol-jubjub] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 5.4.9.3: Jubjub <protocol/protocol.pdf#jubjub>`_
+.. [#protocol-pallasandvesta] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 5.4.9.6: Pallas and Vesta <protocol/protocol.pdf#pallasandvesta>`_
+.. [#protocol-saplingpaymentaddrencoding] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 5.6.3.1: Sapling Payment Addresses <protocol/protocol.pdf#saplingpaymentaddrencoding>`_
+.. [#protocol-saplinginviewingkeyencoding] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 5.6.3.2: Sapling Incoming Viewing Keys <protocol/protocol.pdf#saplinginviewingkeyencoding>`_
+.. [#protocol-saplingfullviewingkeyencoding] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 5.6.3.3: Sapling Full Viewing Keys <protocol/protocol.pdf#saplingfullviewingkeyencoding>`_
+.. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
+.. [#protocol-txnconsensus] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 7.1.2: Transaction Consensus Rules <protocol/protocol.pdf#txnconsensus>`_
+.. [#protocol-2023.4.0] `Zcash Protocol Specification, Version 2023.4.0. Section 10: Change History — 2023.4.0 <protocol/protocol.pdf#2023.4.0>`_
 .. [#zip-0032-extfvk] `ZIP 32: Shielded Hierarchical Deterministic Wallets. Sapling extended full viewing keys <zip-0032.rst#sapling-extended-full-viewing-keys>`_
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
+.. [#zip-0213] `ZIP 213: Shielded Coinbase <zip-0213.rst>`_
 .. [#zip-0215] `ZIP 215: Explicitly Defining and Modifying Ed25519 Validation Rules <zip-0215.rst>`_
 .. [#zip-0251] `ZIP 251: Deployment of the Canopy Network Upgrade <zip-0251.rst>`_
 .. [#jubjub-crate] `jubjub Rust crate <https://github.com/zkcrypto/jubjub>`_
+.. [#zcashd-pr6399] `zcash/zcash PR 6399: Retroactively enable ZIP 216 before NU5 activation <https://github.com/zcash/zcash/pull/6399>`_
+.. [#zcashd-pr6459] `zcash/zcash PR 6459: Migrate to zcash_primitives 0.10 <https://github.com/zcash/zcash/pull/6459>`_
+.. [#zcashd-pr6725] `zcash/zcash PR 6725: Retroactively use Rust to decrypt shielded coinbase before soft fork <https://github.com/zcash/zcash/pull/6725>`_
+.. [#librustzcash-pr109] `zcash/librustzcash PR 109: PaymentAddress encapsulation <https://github.com/zcash/librustzcash/pull/109/files#diff-92d6b429f317a74bd65b2ad87d4f841e9fa9e334edab4199cdaba91172cd2d10R147-R151>`_
+.. [#zips-issue664] `zcash/zips issue 664: Sapling pk\_d should not allow the zero point <https://github.com/zcash/zips/issues/664>`_
