@@ -33,14 +33,14 @@ TODO
 
 - Versioning (which could instead be represented by the ZIP 302 TLV type).
 - The reply address.
-  - This uses a binary encoding of a ZIP 316 Unified Address.
-    - TODO: decide on specifics - https://github.com/zcash/librustzcash/pull/711#issuecomment-1377783264
-  - This might be the same address for all inputs, or it might only cover a subset of them
-    (in a collaborative multi-sender transaction).
+    - This uses a binary encoding of a ZIP 316 Unified Address.
+        - TODO: decide on specifics - https://github.com/zcash/librustzcash/pull/711#issuecomment-1377783264
+    - This might be the same address for all inputs, or it might only cover a subset of them
+      (in a collaborative multi-sender transaction).
 - A non-empty list of tuples:
-  - $\mathsf{receiver_type}$: The receiver type for which this proof is made. This receiver
-    MUST match one of the receiver types in the reply address.
-  - $\mathsf{addr_proof}_\mathsf{pool_type}$: An address proof for that pool type.
+    - $\mathsf{receiver_type}$: The receiver type for which this proof is made. This receiver
+      MUST match one of the receiver types in the reply address.
+    - $\mathsf{addr_proof}_\mathsf{pool_type}$: An address proof for that pool type.
 
 ## Creating
 
@@ -49,7 +49,7 @@ TODO
 - Verify that the transaction is valid (in particular, that all proofs and signatures are valid).
 - Decrypt the transaction output to obtain the memo field.
 - Decode the authenticated reply address.
-  - This MUST validate the inner encodings of e.g. ZIP 316 for UAs (as applicable).
+    - This MUST validate the inner encodings of e.g. ZIP 316 for UAs (as applicable).
 - Verify each address proof.
 
 ## Sapling address proof
@@ -99,17 +99,17 @@ However, to have proper cross-linking, we need to ensure that all receivers in t
 proofs of spend authority, to prevent a sender from including a receiver that they do not
 control (as a form of impersonation attack). There are a few ways this could be resolved:
 - Always require the transaction to spend notes for all receivers.
-  - Pro: This could be done with dummy notes for the pools that the sender doesn't want to
-    spend from.
-  - Con: This would prevent the sender from pre-emptively adding receivers for upcoming
-    shielded pools that are not yet activated.
-  - Con: For UAs with transparent receivers, this would be incompatible with shielded-only
-    transactions.
+    - Pro: This could be done with dummy notes for the pools that the sender doesn't want to
+      spend from.
+    - Con: This would prevent the sender from pre-emptively adding receivers for upcoming
+      shielded pools that are not yet activated.
+    - Con: For UAs with transparent receivers, this would be incompatible with shielded-only
+      transactions.
 - Have an optional proof of spend authority in the address proof.
-  - This is omitted when a spent note is present for that receiver type (as the spent note
-    serves this purpose).
-  - This is pretty much the exact opposite of ZIP 311 (where we require proofs of spend
-    authority, and have optional proof-of-address).
+    - This is omitted when a spent note is present for that receiver type (as the spent note
+      serves this purpose).
+    - This is pretty much the exact opposite of ZIP 311 (where we require proofs of spend
+      authority, and have optional proof-of-address).
 
 In any case, doing this for UAs that include Orchard receivers will result in more data
 than can be stored in a single memo field, so this is blocked on some kind of multi-part
