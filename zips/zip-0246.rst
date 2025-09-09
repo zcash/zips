@@ -431,8 +431,8 @@ The personalization field of this hash is set to::
 
   "ZTxIdMemoCksHash"
 
-In the case that the transaction has transparent inputs but no transparent outputs,
-``outputs_digest`` is ::
+In the case that the transaction has no memo chunks,
+``memo_chunks_digest`` is ::
 
   BLAKE2b-256("ZTxIdMemoCksHash", [])
 
@@ -497,12 +497,12 @@ Authorizing Data Commitment
 ===========================
 
 The transaction digest algorithm defined in ZIP 244 [#zip-0244-authcommitment]_ which commits to the authorizing data of a transaction is modified by the OrchardZSA protocol to have the structure specified in this section.
-There is a new branch added for issuance information, and the ``orchard_auth_digest`` in ZIP 244 is replaced with ``orchard_auth_digest`` to account for the presence of Action Groups.
+There is a new branch added for issuance information, and the ``orchard_auth_digest`` in ZIP 244 is altered to account for the presence of Action Groups.
 
 We omit the descriptions of the sections that do not change for the OrchardZSA protocol::
 
     auth_digest
-    ├── transparent_scripts_digest
+    ├── transparent_auth_digest
     ├── sapling_auth_digest
     ├── orchard_auth_digest
     └── issuance_auth_digest
@@ -513,21 +513,42 @@ auth_digest
 -----------
 A BLAKE2b-256 hash of the following values ::
 
-   A.1: transparent_scripts_digest (32-byte hash output)
-   A.2: sapling_auth_digest        (32-byte hash output)
-   A.3: orchard_auth_digest        (32-byte hash output)
-   A.4: issuance_auth_digest       (32-byte hash output)
+   A.1: transparent_auth_digest          (32-byte hash output)
+   A.2: sapling_auth_digest              (32-byte hash output)
+   A.3: orchard_auth_digest              (32-byte hash output)
+   A.4: issuance_auth_digest             (32-byte hash output)
 
 The personalization field of this hash remains the same as in ZIP 244.
 
+Note that while the structure of ``sapling_auth_digest`` remains the same as in ZIP 244, the field encodings of some of its components 
+(viz. ``spend_auth_sigs`` and ``binding_sig``) differ due to changes to their field encodings in ZIP 230 [#zip-0230-transaction-field-encodings]_.
+
+
+A.1: transparent_auth_digest
+````````````````````````````
+
+In the case that the transaction contains transparent inputs, this is a BLAKE2b-256 hash of the following values for each transparent input::
+
+   A.1a: TransparentSighashInfo    (field encoding bytes)
+   A.1b: scriptSig                 (field encoding bytes)
+
+The personalization field of this hash is::
+
+    "ZTxAuthTransHash"
+
+In the case that the transaction has no transparent inputs, ``transparent_auth_digest`` is::
+
+    BLAKE2b-256("ZTxAuthTransHash", [])
+
+The field encoding of ``TransparentSighashInfo`` is specified in ZIP 230 [#zip-0230-transparent-sighash-info-field-encodings]_.
 
 A.3: orchard_auth_digest
 ````````````````````````
 
 In the case that OrchardZSA Action Groups are present, this is a BLAKE2b-256 hash of the following values::
 
-    A.3a: orchard_action_groups_auth_digest  (32-byte hash output)
-    A.3b: bindingSigOrchard                      (field encoding bytes)
+    A.3a: orchard_action_groups_auth_digest    (32-byte hash output)
+    A.3b: bindingSigOrchard                    (field encoding bytes)
 
 The personalization field of this hash is the same as in ZIP 244, that is::
 
@@ -538,6 +559,7 @@ In case that the transaction has no OrchardZSA Action Groups, ``orchard_auth_dig
     BLAKE2b-256("ZTxAuthOrchaHash", [])
 
 The field encodings are specified in ZIP 230 [#zip-0230-transaction-field-encodings]_.
+Note that this means the encoding of ``bindingSigOrchard`` differs from that used in ZIP 244.
 
 A.3a: orchard_action_groups_auth_digest
 '''''''''''''''''''''''''''''''''''''''
@@ -552,6 +574,7 @@ The personalization field of this hash is set to::
     "ZTxAuthOrcAGHash"
 
 The field encodings are specified in ZIP 230 [#zip-0230-orchard-action-group-field-encodings]_.
+Note that this means the encoding of ``spendAuthSigsOrchard`` differs from that used in ZIP 244.
 
 A.4: issuance_auth_digest
 -------------------------
@@ -577,6 +600,13 @@ Rationale
 
 TBD
 
+-----------------------------------------------------------------
+Rationale for ``auth_digest`` domain separator reuse from ZIP 244
+-----------------------------------------------------------------
+
+An authorizing data commitment cannot be used without the context of a transaction ID. 
+That is, it cannot be used independently from the ``version`` and ``versionGroupId`` fields committed to within the transaction ID.
+Therefore, reusing the same personalization values within the authorizing data commitment tree as in ZIP 244 is safe, even though the structure may have changed.
 
 ========================
 Reference implementation
@@ -601,6 +631,7 @@ References
 .. [#zip-0230-orchard-action-field-encodings] `ZIP 230: Version 6 Transaction Format. Specification: OrchardZSA Action Description <zip-0230.html#orchardzsa-action-description>`_
 .. [#zip-0230-orchard-asset-burn-field-encodings] `ZIP 230: Version 6 Transaction Format. Specification: OrchardZSA Asset Burn Description <zip-0230.html#orchardzsa-asset-burn-description>`_
 .. [#zip-0230-sapling-output-field-encodings] `ZIP 230: Version 6 Transaction Format. Specification: Sapling Output Description (OutputDescriptionV6) <zip-0230.html#sapling-output-description-outputdescriptionv6>`_
+.. [#zip-0230-transparent-sighash-info-field-encodings] `ZIP 230: Version 6 Transaction Format. Specification: Transparent Sighash Information <zip-0230.html#transparent-sighash-information-transparentsighashinfo>`_
 .. [#zip-0230-issue-actions-field-encodings] `ZIP 230: Version 6 Transaction Format. Specification: Issuance Action Description <zip-0230.html#issuance-action-description>`_
 .. [#zip-0230-issue-notes-field-encodings] `ZIP 230: Version 6 Transaction Format. Specification: Issue Note Description <zip-0230.html#issue-note-description>`_
 .. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.html>`_
