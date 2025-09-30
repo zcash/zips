@@ -48,6 +48,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/607">https://githu
                 <li>sending and receiving funds (including fee selection);</li>
                 <li>migrating funds between pools.</li>
             </ul>
+            <p>Note: The policies implemented by the legacy <cite>zcashd</cite> internal wallet are known to be in violation of this ZIP.</p>
         </section>
         <section id="requirements"><h2><span class="section-heading">Requirements</span><span class="section-anchor"> <a rel="bookmark" href="#requirements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <section id="user-consent"><h3><span class="section-heading">User consent</span><span class="section-anchor"> <a rel="bookmark" href="#user-consent"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
@@ -76,28 +77,43 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/607">https://githu
                 <p>It is RECOMMENDED that wallets only hold funds as shielded in the long term; that is, if a wallet supports receiving transparent funds (or supports importing a seed from another wallet that might have done so), then it SHOULD auto-shield such funds by default.</p>
                 <p>A shielding transaction is always linked to the transparent addresses it spends from. This can cause undesirable information leaks:</p>
                 <ol suffix=")" type="a">
-                    <li>if there are multiple transparent addresses, they will be linked to each other;</li>
+                    <li>if the inputs to the transaction are associated with multiple transparent addresses, those addresses will be linked to each other;</li>
                     <li>a link between the input transparent address(es) and the payment will be visible to the recipient(s), or to any other holder of an Incoming Viewing Key for the destination address(es).</li>
                 </ol>
                 <p>Despite the fact that it is not possible to achieve strong privacy guarantees from <em>any</em> use of transparent addresses, it is undesirable to reveal this additional information. In particular, issue b) motivates ruling out the use of "opportunistic shielding", i.e. shielding previously received transparent funds as part of a user-initiated transaction.</p>
                 <p>Wallets SHOULD NOT auto-shield from multiple transparent addresses in the same transaction, and SHOULD NOT use opportunistic shielding.</p>
                 <p>Following all of the recommendations in this section improves both collective privacy and the user's individual privacy, by maximizing the size of the note anonymity set over time and minimizing the potential linkage of shielding transactions to other transactions.</p>
                 <p>The remainder of this specification assumes a wallet that follows all of these recommendations, except where explicitly noted.</p>
-                <p>A wallet MAY allow users to disable auto-shielding, auto-migration, and/or opportunistic migration. If it does so, this need not be via three independent settings.</p>
-                <p>Automatic shielding and automatic/opportunistic migration SHOULD NOT be applied to inputs where the cost of shielding or migrating them will exceed their economic value. If these transactions are paying the ZIP 317 conventional fee <a id="footnote-reference-4" class="footnote_reference" href="#zip-0317">7</a>, that will be the case if the amount of the UTXO to be shielded/migrated exceeds the marginal fee, and cannot be accommodated by an input that would be present in any case due to padding of the number of inputs from a given shielded pool.</p>
             </section>
             <section id="address-management"><h3><span class="section-heading">Address management</span><span class="section-anchor"> <a rel="bookmark" href="#address-management"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
-                <p>Zcash wallets SHOULD only use addresses generated deterministically from a seed as specified in ZIP 32 <a id="footnote-reference-5" class="footnote_reference" href="#zip-0032">2</a>. The discussion of address management below assumes this is the case.</p>
-                <p>The general framework specified in ZIP 32 is that addresses are derived in a hierarchy <a id="footnote-reference-6" class="footnote_reference" href="#zip-0032-wallet-usage">3</a>, following a similar structure to that defined by BIP 44. Each <cite>account</cite> in the derivation path represents a distinct spending authority. Funds within an account are differentiated according to the protocol under which the TXOs that contributed to the account balance were created, but TXOs are not managed individually except when it is required to select funds from a specific shielded pool in order to reduce information leakage.</p>
-                <p>ZIP 316 specifies that when generating a Unified Address, the same diversifier index MUST be used for each Receiver. <a id="footnote-reference-7" class="footnote_reference" href="#zip-0316-deriving-a-unified-address">6</a> This has the consequence that, for wallets that implement address rotation, care must be taken to avoid accidentally leaking information that allows an observer to link the ownership of addresses that are intended by the wallet user to be unrelated to one another.</p>
+                <p>Zcash wallets SHOULD only use addresses generated deterministically from a seed as specified in ZIP 32 <a id="footnote-reference-4" class="footnote_reference" href="#zip-0032">2</a>. The discussion of address management below assumes this is the case.</p>
+                <p>The general framework specified in ZIP 32 is that addresses are derived in a hierarchy <a id="footnote-reference-5" class="footnote_reference" href="#zip-0032-wallet-usage">3</a>, following a similar structure to that defined by BIP 44. Each <cite>account</cite> in the derivation path represents a distinct spending authority. Funds within an account are differentiated according to the protocol under which the TXOs that contributed to the account balance were created, but TXOs are not managed individually except when it is required to select funds from a specific shielded pool in order to reduce information leakage.</p>
+                <p>ZIP 316 specifies that when generating a Unified Address, the same diversifier index MUST be used for each Receiver. <a id="footnote-reference-6" class="footnote_reference" href="#zip-0316-deriving-a-unified-address">6</a> This has the consequence that, for wallets that implement address rotation, care must be taken to avoid accidentally leaking information that allows an observer to link the ownership of addresses that are intended by the wallet user to be unrelated to one another.</p>
+            </section>
+            <section id="allowed-transfers"><h3><span class="section-heading">Allowed transfers</span><span class="section-anchor"> <a rel="bookmark" href="#allowed-transfers"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Wallets SHOULD NOT spend funds from a transparent address in a transaction with an external recipient, unless the user gives explicit consent for this on a per-transaction basis. Wallets MAY further restrict the set of transfers they perform.</p>
+            </section>
+            <section id="auto-shielding"><h3><span class="section-heading">Auto-shielding</span><span class="section-anchor"> <a rel="bookmark" href="#auto-shielding"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Auto-shielding requires that the wallet have ambient access to the spending authority, and that this authority may be exercised without user intervention. This is not the case for e.g. wallets where key material is stored in a secure enclave with access that is mediated by direct user interaction, or wallets used in conjunction with hardware devices.</p>
+                <p>For wallets that have the required ambient spending authority, auto-shielding is the process by which transparent UTXOs detected as belonging to the wallet are shielded by the wallet without user intervention.</p>
+                <p>Wallet users MUST be able to disable auto-shielding functionality offered by a wallet.</p>
+                <p>Automatic shielding and automatic/opportunistic migration SHOULD NOT be applied to inputs where the cost of shielding or migrating them will exceed their economic value. If these transactions are paying the ZIP 317 conventional fee <a id="footnote-reference-7" class="footnote_reference" href="#zip-0317">7</a>, that will be the case if the amount of the UTXO to be shielded/migrated exceeds the marginal fee, and cannot be accommodated by an input that would be present in any case due to padding of the number of inputs from a given shielded pool.</p>
             </section>
             <section id="trusted-and-untrusted-txos"><h3><span class="section-heading">Trusted and untrusted TXOs</span><span class="section-anchor"> <a rel="bookmark" href="#trusted-and-untrusted-txos"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
-                <p>A wallet SHOULD treat received TXOs that are outputs of transactions created by the same wallet, as trusted TXOs. Wallets MAY enable users to mark specific external transactions as trusted, allowing their received TXOs also to be classified as trusted TXOs.</p>
+                <p>A wallet SHOULD treat received TXOs that are outputs of transactions created by the same wallet, as trusted TXOs. Wallets MAY enable users to mark specific external transactions as trusted, allowing their received TXOs also to be classified as trusted TXOs. Wallets MAY also permit users to define alternate policies for the number of confirmations required before untrusted TXOs may be spent based on a user-configured value threshold.</p>
                 <p>A wallet SHOULD have a policy that is clearly communicated to the user for the number of confirmations needed to spend untrusted and trusted TXOs respectively. The following confirmation policy is RECOMMENDED:</p>
                 <ul>
                     <li>10 confirmations, for untrusted TXOs;</li>
                     <li>3 confirmations, for trusted TXOs.</li>
                 </ul>
+                <p>Wallets SHOULD NOT permit the spending of TXOs with fewer than 3 confirmations, with the exception of: * transparent UTXOs that are spent in shielding transactions * ephemeral transparent UTXOs created in the process of sending funds from</p>
+                <div>
+                    <h1>System Message: ERROR/3 (&lt;stdin&gt; line 243)</h1>
+                    <p>Unexpected indentation.</p>
+                </div>
+                <blockquote>
+                    <p>the shielded pools to a TEX recipient address <a id="footnote-reference-8" class="footnote_reference" href="#zip-0320">8</a>.</p>
+                </blockquote>
                 <section id="rationale-for-the-given-numbers-of-confirmations"><h4><span class="section-heading">Rationale for the given numbers of confirmations</span><span class="section-anchor"> <a rel="bookmark" href="#rationale-for-the-given-numbers-of-confirmations"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
                     <p>The rationale for choosing three confirmations for trusted TXOs is that anecdotally, reorgs are usually less than three blocks.</p>
                     <p>The consequences of attempting to spend a trusted TXO may be less severe in the case of a rollback than the consequences of attempting to spend an untrusted TXO. The value received from a trusted TXO should always be recoverable, whereas recovering value received from an untrusted TXO may require the user to request that funds are re-sent.</p>
@@ -109,22 +125,57 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/607">https://githu
                     <li>the TXO is unspent at the wallet's view of the chain tip, and that view is reasonably up-to-date;
                         <p>TODO: consider undoing the up-to-date part, as when combined with the definition of balance below, it causes wallet balance to drop to zero in the short window between opening and updating the wallet's chain tip view.</p>
                     </li>
-                    <li>the TXO is not committed to be spent in another transaction created by this wallet; and</li>
-                    <li>the wallet has the TXO's spending key (for whatever protocol the TXO uses).</li>
+                    <li>the TXO is not committed to be spent in another unexpired transaction created by this wallet; and</li>
+                    <li>the wallet can effect the spend, either by having access to the TXO's spending key (for whatever protocol the TXO uses) or by mediating interaction with a hardware device or other offline signing protocol.</li>
                 </ul>
-                <p>A TXO is <em>confirmed-spendable</em>, relative to a given block chain and wallet state, if and only if all of the following are true in that state:</p>
-                <ul>
-                    <li>the wallet is synchronized; and</li>
-                    <li>the TXO is known-spendable; and</li>
-                    <li>either auto-shielding is not active or the TXO is shielded; and</li>
-                    <li>auto-migration <em>from</em> whatever protocol the TXO uses is not active; and</li>
-                    <li>the TXO is trusted and has at least the required confirmations for trusted TXOs, or it is untrusted and has at least the required confirmations for untrusted TXOs.</li>
-                </ul>
-                <p>A TXO is <em>unconfirmed-spendable</em>, relative to a given block chain and wallet state, if and only if the TXO is known-spendable but is not confirmed-spendable in that state.</p>
-                <p>A TXO is <em>watch-only</em> if and only if the wallet has its full viewing key (or address in the case of a transparent TXO) but not its spending key.</p>
-                <p>A wallet MUST NOT attempt to spend a TXO in a user-initiated transaction that is not confirmed-spendable.</p>
-                <p>Open question: what should be specified about which TXOs can be spent in non-user-initiated transactions?</p>
-                <p>Note: the definition of a TXO includes outputs in mempool transactions that are unconflicted from the perspective of the wallet.</p>
+                <section id="shielded-txos"><h4><span class="section-heading">Shielded TXOs</span><span class="section-anchor"> <a rel="bookmark" href="#shielded-txos"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>A shielded TXO is <em>confirmed-spendable</em>, relative to a given block chain and wallet state, if and only if all of the following are true in that state:</p>
+                    <ul>
+                        <li>the TXO is known-spendable; and</li>
+                        <li>the wallet has sufficient contextual information to be able to effect the spend (i.e. it is able to construct required witnesses, etc.); and</li>
+                        <li>one of the following is true: * the TXO is not an output of a wallet-internal shielding transaction, and either:
+                            <div>
+                                <h1>System Message: ERROR/3 (&lt;stdin&gt; line 287)</h1>
+                                <p>Unexpected indentation.</p>
+                            </div>
+                            <ul>
+                                <li>it is trusted and has at least the required confirmations for trusted TXOs</li>
+                                <li>it is untrusted and has at least the required confirmations for untrusted TXOs.</li>
+                            </ul>
+                            <div>
+                                <h1>System Message: WARNING/2 (&lt;stdin&gt; line 289)</h1>
+                                <p>Block quote ends without a blank line; unexpected unindent.</p>
+                            </div>
+                            <ul>
+                                <li>the TXO is the output of a wallet-internal shielding transaction, and both: * the transparent UTXOs spent in the shielding transaction have at least
+                                    <div>
+                                        <h1>System Message: ERROR/3 (&lt;stdin&gt; line 291)</h1>
+                                        <p>Unexpected indentation.</p>
+                                    </div>
+                                    <p><cite>(untrusted_confirmations - trusted_confirmations)</cite> confirmations</p>
+                                    <div>
+                                        <h1>System Message: WARNING/2 (&lt;stdin&gt; line 292)</h1>
+                                        <p>Block quote ends without a blank line; unexpected unindent.</p>
+                                    </div>
+                                    <ul>
+                                        <li>the wallet-internal shielding transaction has at least <cite>trusted_confirmations</cite> confirmations</li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                    <p>A TXO is <em>unconfirmed-spendable</em>, relative to a given block chain and wallet state, if and only if the TXO is known-spendable but is not confirmed-spendable in that state.</p>
+                    <p>A TXO is <em>watch-only</em> if and only if the wallet has its full viewing key (or address in the case of a transparent TXO) but not its spending key.</p>
+                    <p>A wallet MUST NOT attempt to spend a TXO in a user-initiated transaction that is not confirmed-spendable.</p>
+                </section>
+                <section id="transparent-utxos"><h4><span class="section-heading">Transparent UTXOs</span><span class="section-anchor"> <a rel="bookmark" href="#transparent-utxos"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>A transparent UTXO is <em>confirmed-shieldable</em> relative to a given block chain and wallet state, if and only if all of the following are true in that state:</p>
+                    <ul>
+                        <li>the TXO is known-spendable; and</li>
+                        <li>the wallet has sufficient contextual information to be able to effect the spend (i.e. it is able to construct a correct redeem script, etc.)</li>
+                    </ul>
+                    <p>Wallets MAY attempt to spend received transparent UTXOs in wallet-internal shielding transactions with zero confirmations. In this case, the resulting shielded funds will not be made available for spending until the transaction that produced the original transparent UTXOs has at least <cite>untrusted_confirmations</cite>, and the shielding transaction has at least <cite>trusted_confirmations</cite>. Wallet implementers should take care not to mistake the TXOs resulting from shielding transactions as trusted outputs just because they are sent to a wallet-internal address.</p>
+                </section>
             </section>
             <section id="reporting-of-balances"><h3><span class="section-heading">Reporting of balances</span><span class="section-anchor"> <a rel="bookmark" href="#reporting-of-balances"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>Wallets SHOULD report:</p>
@@ -132,11 +183,16 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/607">https://githu
                     <li>Confirmed-spendable balance.</li>
                     <li>Pending balance, <em>or</em> total balance.</li>
                 </ul>
+                <p>Wallets MAY report:</p>
+                <ul>
+                    <li>Un-economic balance.</li>
+                </ul>
                 <p>These are calculated as follows:</p>
                 <ul>
-                    <li>The confirmed-spendable balance is the sum of values of confirmed-spendable TXOs.</li>
-                    <li>The pending balance is the sum of values of unconfirmed-spendable TXOs.</li>
+                    <li>The confirmed-spendable balance is the sum of values of confirmed-spendable TXOs. This balance MAY ignore notes with value less than the ZIP 317 marginal fee <a id="footnote-reference-9" class="footnote_reference" href="#zip-0317">7</a>.</li>
+                    <li>The pending balance is the sum of values of unconfirmed-spendable TXOs. This balance MAY ignore notes with value less than the ZIP 317 marginal fee <a id="footnote-reference-10" class="footnote_reference" href="#zip-0317">7</a>, and MUST exercise this option in a way that is consistent with how the confirmed-spendable balance is computed.</li>
                     <li>The total balance is the confirmed-spendable balance plus the pending balance.</li>
+                    <li>The un-economic balance is the total of TXOs that individually have value less than the ZIP 317 marginal fee <a id="footnote-reference-11" class="footnote_reference" href="#zip-0317">7</a>. Such TXOs can only be spent as "grace inputs" as they do not provide sufficient value to pay the fees required to spend them; wallets MAY ignore the presence of such notes in note selection and balance calculation. If wallets ignore the presence of such notes, they MUST do so consistently; i.e. wallets MUST NOT report them as part of balance that is exposed to the user as spendable or pending if the wallet does not provide any mechanism to spend them.</li>
                 </ul>
                 <p>Note: the definition of "confirmed-spendable" above ensures that:</p>
                 <ul>
@@ -228,7 +284,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/607">https://githu
                         <p>If multiple UTXOs are received at the same transparent address, it is safe to shield them all in the same transaction, because that is not leaking additional information.</p>
                         <p>UTXOs received on different transparent receivers SHOULD NOT be shielded in the same transaction. Ideally, when they are shielded in separate transactions, this should be done in such a way that the timing of those transactions is not linkable.</p>
                         <p>TODO: move this. Daira-Emma thinks that if we only document leakage rather than explicitly say in the specification of how to construct transactions how to mitigate it, then implementors will ignore it.</p>
-                        <p>When spending transparent UTXOs, they SHOULD only be sent to an internal shielded receiver belonging to the wallet, except when they are generated and spent ephemerally as part of a ZIP 320 transfer <a id="footnote-reference-8" class="footnote_reference" href="#zip-0320">8</a>.</p>
+                        <p>When spending transparent UTXOs, they SHOULD only be sent to an internal shielded receiver belonging to the wallet, except when they are generated and spent ephemerally as part of a ZIP 320 transfer <a id="footnote-reference-12" class="footnote_reference" href="#zip-0320">8</a>.</p>
                         <p>A wallet MUST NOT send funds to a transparent address unless all of the source funds come from shielded pools, and this SHOULD be a single shielded pool.</p>
                         <p>We want to minimize pool crossing.</p>
                     </section>
@@ -250,7 +306,7 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/607">https://githu
                     <p>TODO: recommend that when nullifiers are revealed in a transaction that is then invalidated (or revealed in some other detectable way), they SHOULD be used in a note management tx to avoid linking the invalidated tx with some arbitrary future tx. Provided that there are no transparent outputs leaving this wallet's control, the same arities and transparent outputs SHOULD be preserved, which also avoids revealing whether the user changed their mind about whether to send the original semantic transaction.</p>
                 </section>
                 <section id="expiration-height"><h4><span class="section-heading">Expiration height</span><span class="section-anchor"> <a rel="bookmark" href="#expiration-height"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
-                    <p>A wallet SHOULD create transactions using the default expiration height of 40 blocks from the current height, as specified in <a id="footnote-reference-9" class="footnote_reference" href="#zip-0203">4</a>.</p>
+                    <p>A wallet SHOULD create transactions using the default expiration height of 40 blocks from the current height, as specified in <a id="footnote-reference-13" class="footnote_reference" href="#zip-0203">4</a>.</p>
                 </section>
                 <section id="open-question"><h4><span class="section-heading">Open question</span><span class="section-anchor"> <a rel="bookmark" href="#open-question"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
                     <p>How should wallet developers time transactions to avoid linkability?</p>
@@ -264,32 +320,6 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/607">https://githu
             </section>
             <section id="viewing-keys"><h3><span class="section-heading">Viewing keys</span><span class="section-anchor"> <a rel="bookmark" href="#viewing-keys"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>What they are supposed to reveal; see ZIP 310 for Sapling (needs updating for Orchard). <a href="https://github.com/zcash/zips/issues/606">https://github.com/zcash/zips/issues/606</a></p>
-            </section>
-            <section id="allowed-transfers"><h3><span class="section-heading">Allowed transfers</span><span class="section-anchor"> <a rel="bookmark" href="#allowed-transfers"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
-                <ul>
-                    <li>Sprout -&gt; transparent or Sapling</li>
-                    <li>Sapling -&gt; transparent or Sapling or Orchard</li>
-                    <li>Orchard -&gt; transparent or Sapling or Orchard</li>
-                    <li>if auto-shielding is off: * transparent -&gt; transparent or Sapling or Orchard</li>
-                    <li>if auto-shielding is on: * transparent -&gt; internal Orchard or Sapling</li>
-                </ul>
-                <p>Note: wallets MAY further restrict the set of transfers they perform.</p>
-            </section>
-            <section id="auto-shielding"><h3><span class="section-heading">Auto-shielding</span><span class="section-anchor"> <a rel="bookmark" href="#auto-shielding"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
-                <p>Wallets SHOULD NOT spend funds from a transparent address to an external address, unless the user gives explicit consent for this on a per-transaction basis.</p>
-                <p>TODO: Reword this to define the source transparent address as any transparent address (external, internal, or ephemeral), except in the case of ephemeral as allowed for implementing ZIP 320.</p>
-                <p>In order to support this policy, wallets SHOULD implement a system of auto-shielding with the following characteristics:</p>
-                <p>If auto-shielding functionality is available in a wallet, then users MUST be able to explicitly consent to one of the following possibilities:</p>
-                <ul>
-                    <li>auto-shielding is always on;</li>
-                    <li>auto-shielding is always off;</li>
-                    <li>the user specifies a policy...</li>
-                </ul>
-                <p>Auto-shielding MUST be one of:</p>
-                <ul>
-                    <li>"must opt in or out" (zcashd will do this -- i.e. refuse to start unless the option is configured), or</li>
-                    <li>always on.</li>
-                </ul>
             </section>
             <section id="auto-migration"><h3><span class="section-heading">Auto-migration</span><span class="section-anchor"> <a rel="bookmark" href="#auto-migration"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
             </section>
