@@ -45,15 +45,15 @@ Motivation
 ==========
 
 In order for a robust transactional ecosystem to evolve for Zcash, it is
-necessary for vendors to be able to issue requests for payment. At present, the
-best option available is to manually specify a payment address, a payment
-amount, and potentially memo field content. Of these three components, existing
-wallets only provide functionality for reading payment addresses in a
-semi-automated fashion. It is then necessary for the user to manually enter
-payment amounts and any associated memo information, which is tedious and may
-be error-prone, particularly if a payment is intended for multiple recipients
-or the memo field information contains structured data that must be faithfully
-reproduced.
+necessary for vendors to be able to issue requests for payment. At present,
+the best option available is to manually specify a payment address, a payment
+amount, and potentially asset id and memo field content. Of these three
+components, existing wallets only provide functionality for reading payment
+addresses in a semi-automated fashion. It is then necessary for the user to
+manually enter payment asset ids, amounts and any associated memo information,
+which is tedious and may be error-prone, particularly if a payment is intended
+for multiple recipients or the memo field information contains structured data
+that must be faithfully reproduced.
 
 This ZIP seeks to eliminate these issues by proposing a standard format that
 wallet vendors may support so that human intervention is required only for
@@ -76,8 +76,8 @@ Requirements
 
 The format must be a valid URI format [#RFC3986]_.
 
-The format must permit the representation of one or more (payment address, amount,
-memo) tuples.
+The format must permit the representation of one or more (payment address,
+asset id, amount, memo) tuples.
 
 
 Specification
@@ -93,12 +93,13 @@ The following syntax specification uses ABNF [#RFC5234]_.
   zcashurn        = "zcash:" ( zcashaddress [ "?" zcashparams ] / "?" zcashparams )
   zcashaddress    = 1*( ALPHA / DIGIT )
   zcashparams     = zcashparam [ "&" zcashparams ]
-  zcashparam      = [ addrparam / amountparam / memoparam / messageparam / labelparam / reqparam / otherparam ]
+  zcashparam      = [ addrparam / amountparam / assetidparam / memoparam / messageparam / labelparam / reqparam / otherparam ]
   NONZERO         = %x31-39
   DIGIT           = %x30-39
   paramindex      = "." NONZERO 0*3DIGIT
   addrparam       = "address" [ paramindex ] "=" zcashaddress
   amountparam     = "amount"  [ paramindex ] "=" 1*DIGIT [ "." 1*8DIGIT ]
+  assetidparam    = "asset_id"[ paramindex ] "=" 88*88base64url
   labelparam      = "label"   [ paramindex ] "=" *qchar
   memoparam       = "memo"    [ paramindex ] "=" *base64url
   messageparam    = "message" [ paramindex ] "=" *qchar
@@ -122,6 +123,12 @@ at most `<m>` instances of production ``x``.
 Note that this grammar does not allow percent encoding outside the productions
 that use ``qchar``, i.e. the values of label, message, ``reqparam``, and
 ``otherparam`` parameters.
+
+The value of an ``asset_id`` parameter MUST be a base64url string without
+padding that decodes to exactly 66 bytes. This is the canonical
+``EncodeAssetId`` defined in ZIP 227 [#zip-0227]_. Implementations MUST reject
+any ``asset_id`` value that is not exactly 88 base64url characters long,
+or that uses invalid characters.
 
 Purported ZIP 321 URIs that cannot be parsed according to the above grammar
 MUST NOT be accepted.
@@ -192,6 +199,51 @@ to satisfy requests for payment to a Sprout address. If the same rationale
 applies to other address types in future, consideration should be given to
 updating this ZIP to exclude these types, as part of their deprecation.
 
+Asset Identifiers
+-----------------
+
+If an asset identifier is provided, it MUST be specified as the string returned
+by ``EncodeAssetId`` from ZIP 227 [#zip-0227]_. This value is defined as:
+
+::
+  EncodeAssetId = 0x00 || issuer || assetDescHash
+
+where:
+
+* ``issuer`` is ``0x00 || ik``, with ik a 32-byte public key, and
+* ``assetDescHash`` is the 32-byte BLAKE2b-256 digest of the asset description,
+  using personalization "ZSA-AssetDescCRH".
+
+This encoding yields 66 bytes, which MUST be represented in a URI using base64url
+without padding. Implementations MUST decode this string back to exactly 66 bytes.
+
+If no asset identifier is present, the payment MUST be considered to be for the
+default asset (ZEC).
+
+Example:
+
+Suppose the asset description is "USD testing", with an invented digest and
+issuer key as inputs. The resulting 66-byte value is:
+
+::
+
+  0000deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
+  11223344556677889900aabbccddeeff00112233445566778899aabbccddeeff
+
+Base64url-encoded, this becomes (88 characters):
+
+::
+
+  AADO6tvr79rr79rr79rr79rr79rr79rr79rr79rr79rr79rr79rr79rrERIjRFVme4mQCqu8zd7v8AESIzRFVm
+
+A payment URI using this asset identifier could look like:
+
+::
+
+  zcash:zs1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq
+    ?amount=1.23
+    &asset_id=AADO6tvr79rr79rr79rr79rr79rr79rr79rr79rr79rr79rr79rr79rrERIjRFVme4mQCqu8zd7v8AESIzRFVm
+
 Transfer amount
 ---------------
 
@@ -256,6 +308,20 @@ address, with a base64url-encoded memo and a message for display by the wallet.
 A valid payment request with one transparent and one shielded Sapling recipient
 address, with a base64url-encoded Unicode memo for the shielded recipient.
 
+::
+
+  zcash:?address=tmEZhbWHTpdKMw5it8YDspUXSMGQyFwovpU
+    &amount=50
+    &asset_id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    &address.1=ztestsapling10yy2ex5dcqkclhc7z7yrnjq2z6feyjad56ptwlfgmy77dmaqqrl9gyhprdx59qgmsnyfska2kez
+    &amount.1=0.789
+    &asset_id.1=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB
+    &memo.1=VGhpcyBpcyBhIHVuaXF1ZSBtZW1vIGZvciB0aGUgc2hpZWxkZWQgcmVjaXBpZW50Lg
+
+A valid payment request with one transparent and one shielded Sapling recipient
+address, with different asset identifiers for each payment, and a base64url-encoded
+memo for the shielded recipient.
+
 Invalid Examples
 ~~~~~~~~~~~~~~~~
 
@@ -303,6 +369,14 @@ Invalid; the grammar does not allow ``//``. ZIP 321 URIs are not
 "hierarchical URIs" in the sense defined in [#RFC3986]_ section 1.2.3,
 and do not have an "authority component".
 
+::
+
+  zcash:?address=ztestsapling10yy2ex5dcqkclhc7z7yrnjq2z6feyjad56ptwlfgmy77dmaqqrl9gyhprdx59qgmsnyfska2kez
+    &amount=5
+    &asset_id=not@valid!chars
+
+Invalid; the ``asset_id`` contains characters (@, !) that are not valid.
+base64url alphanumerics.
 
 Forward compatibility
 ---------------------
@@ -344,6 +418,7 @@ References
 .. [#base58check] `Bitcoin Wiki: Base58Check encoding <https://en.bitcoin.it/wiki/Base58Check_encoding>`_
 .. [#zip-0173] `ZIP 173: Bech32 Format <zip-0173.rst>`_
 .. [#zip-0211] `ZIP 211: Disabling Addition of New Value to the Sprout Value Pool <zip-0211.rst>`_
+.. [#zip-0227] `ZIP 227: Issuance of Zcash Shielded Assets <zip-0227.rst>`_
 .. [#zip-0316] `ZIP 316: Unified Addresses and Unified Viewing Keys <zip-0316.rst>`_
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2023.4.0. Section 3.11: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
 .. [#protocol-saplingbalance] `Zcash Protocol Specification, Version 2023.4.0. Section 4.12: Balance and Binding Signature (Sapling) <protocol/protocol.pdf#saplingbalance>`_
