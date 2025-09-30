@@ -62,11 +62,15 @@ that they have enough information to assess the consequences of their economic a
 This ZIP covers best practices for:
 
 * what information to display to the user about transactions and balances;
-* how to handle interactions between the ZIP 32 [#zip-0032]_ key tree and Unified Addresses [#zip-0316]_;
+* how to handle interactions between the ZIP 32 [#zip-0032]_ key tree and
+  Unified Addresses [#zip-0316]_;
 * when to use external or internal keys/addresses;
 * sharing addresses and viewing keys;
 * sending and receiving funds (including fee selection);
 * migrating funds between pools.
+
+Note: The policies implemented by the legacy `zcashd` internal wallet are known
+to be in violation of this ZIP.
 
 
 Requirements
@@ -133,8 +137,8 @@ auto-shield such funds by default.
 A shielding transaction is always linked to the transparent addresses it
 spends from. This can cause undesirable information leaks:
 
-a) if there are multiple transparent addresses, they will be linked to each
-   other;
+a) if the inputs to the transaction are associated with multiple transparent
+   addresses, those addresses will be linked to each other;
 b) a link between the input transparent address(es) and the payment will be
    visible to the recipient(s), or to any other holder of an Incoming Viewing
    Key for the destination address(es).
@@ -155,20 +159,6 @@ transactions to other transactions.
 
 The remainder of this specification assumes a wallet that follows all of these
 recommendations, except where explicitly noted.
-
-A wallet MAY allow users to disable auto-shielding, auto-migration,
-and/or opportunistic migration. If it does so, this need not be via
-three independent settings.
-
-Automatic shielding and automatic/opportunistic migration SHOULD NOT be
-applied to inputs where the cost of shielding or migrating them will
-exceed their economic value. If these transactions are paying the
-ZIP 317 conventional fee [#zip-0317]_, that will be the case if the
-amount of the UTXO to be shielded/migrated exceeds the marginal
-fee, and cannot be accommodated by an input that would be present
-in any case due to padding of the number of inputs from a given
-shielded pool.
-
 
 Address management
 ------------------
@@ -194,13 +184,50 @@ observer to link the ownership of addresses that are intended by the wallet
 user to be unrelated to one another.
 
 
+Allowed transfers
+-----------------
+
+Wallets SHOULD NOT spend funds from a transparent address in a transaction with
+an external recipient, unless the user gives explicit consent for this on a
+per-transaction basis. Wallets MAY further restrict the set of transfers they
+perform.
+
+
+Auto-shielding
+--------------
+
+Auto-shielding requires that the wallet have ambient access to the spending
+authority, and that this authority may be exercised without user intervention.
+This is not the case for e.g. wallets where key material is stored in a secure
+enclave with access that is mediated by direct user interaction, or wallets
+used in conjunction with hardware devices.
+
+For wallets that have the required ambient spending authority, auto-shielding
+is the process by which transparent UTXOs detected as belonging to the wallet
+are shielded by the wallet without user intervention.
+
+Wallet users MUST be able to disable auto-shielding functionality offered by a
+wallet.
+
+Automatic shielding and automatic/opportunistic migration SHOULD NOT be
+applied to inputs where the cost of shielding or migrating them will
+exceed their economic value. If these transactions are paying the
+ZIP 317 conventional fee [#zip-0317]_, that will be the case if the
+amount of the UTXO to be shielded/migrated exceeds the marginal
+fee, and cannot be accommodated by an input that would be present
+in any case due to padding of the number of inputs from a given
+shielded pool.
+
+
 Trusted and untrusted TXOs
 --------------------------
 
 A wallet SHOULD treat received TXOs that are outputs of transactions created
 by the same wallet, as trusted TXOs. Wallets MAY enable users to mark specific
 external transactions as trusted, allowing their received TXOs also to be
-classified as trusted TXOs.
+classified as trusted TXOs. Wallets MAY also permit users to define alternate
+policies for the number of confirmations required before untrusted TXOs may be
+spent based on a user-configured value threshold.
 
 A wallet SHOULD have a policy that is clearly communicated to the user for
 the number of confirmations needed to spend untrusted and trusted TXOs
@@ -208,6 +235,12 @@ respectively. The following confirmation policy is RECOMMENDED:
 
 * 10 confirmations, for untrusted TXOs;
 * 3 confirmations, for trusted TXOs.
+
+Wallets SHOULD NOT permit the spending of TXOs with fewer than 3 confirmations,
+with the exception of:
+* transparent UTXOs that are spent in shielding transactions
+* ephemeral transparent UTXOs created in the process of sending funds from
+  the shielded pools to a TEX recipient address [#zip-0320]_.
 
 Rationale for the given numbers of confirmations
 ''''''''''''''''''''''''''''''''''''''''''''''''
@@ -225,8 +258,8 @@ that funds are re-sent.
 Categories of TXOs according to spendability
 --------------------------------------------
 
-A TXO is *known-spendable*, relative to a given block chain and wallet state,
-if and only if all of the following are true in that state:
+A TXO is *known-spendable*, relative to a given block chain and wallet
+state, if and only if all of the following are true in that state:
 
 * the TXO is unspent at the wallet's view of the chain tip, and that view is
   reasonably up-to-date;
@@ -234,20 +267,30 @@ if and only if all of the following are true in that state:
   TODO: consider undoing the up-to-date part, as when combined with the
   definition of balance below, it causes wallet balance to drop to zero in
   the short window between opening and updating the wallet's chain tip view.
-* the TXO is not committed to be spent in another transaction created
+* the TXO is not committed to be spent in another unexpired transaction created
   by this wallet; and
-* the wallet has the TXO's spending key (for whatever protocol the TXO uses).
+* the wallet can effect the spend, either by having access to the TXO's
+  spending key (for whatever protocol the TXO uses) or by mediating interaction
+  with a hardware device or other offline signing protocol.
 
-A TXO is *confirmed-spendable*, relative to a given block chain and
+Shielded TXOs
+'''''''''''''
+
+A shielded TXO is *confirmed-spendable*, relative to a given block chain and
 wallet state, if and only if all of the following are true in that state:
 
-* the wallet is synchronized; and
 * the TXO is known-spendable; and
-* either auto-shielding is not active or the TXO is shielded; and
-* auto-migration *from* whatever protocol the TXO uses is not active; and
-* the TXO is trusted and has at least the required confirmations for
-  trusted TXOs, or it is untrusted and has at least the required
-  confirmations for untrusted TXOs.
+* the wallet has sufficient contextual information to be able to effect the
+  spend (i.e. it is able to construct required witnesses, etc.); and
+* one of the following is true:
+  * the TXO is not an output of a wallet-internal shielding transaction, and either:
+    * it is trusted and has at least the required confirmations for trusted TXOs
+    * it is untrusted and has at least the required confirmations for untrusted TXOs.
+  * the TXO is the output of a wallet-internal shielding transaction, and both:
+    * the transparent UTXOs spent in the shielding transaction have at least
+      `(untrusted_confirmations - trusted_confirmations)` confirmations
+    * the wallet-internal shielding transaction has at least `trusted_confirmations`
+      confirmations
 
 A TXO is *unconfirmed-spendable*, relative to a given block chain and
 wallet state, if and only if the TXO is known-spendable but is not
@@ -259,12 +302,24 @@ A TXO is *watch-only* if and only if the wallet has its full viewing key
 A wallet MUST NOT attempt to spend a TXO in a user-initiated transaction
 that is not confirmed-spendable.
 
-Open question: what should be specified about which TXOs can be spent
-in non-user-initiated transactions?
+Transparent UTXOs
+'''''''''''''''''
 
-Note: the definition of a TXO includes outputs in mempool transactions
-that are unconflicted from the perspective of the wallet.
+A transparent UTXO is *confirmed-shieldable* relative to a given block chain and
+wallet state, if and only if all of the following are true in that state:
 
+* the TXO is known-spendable; and
+* the wallet has sufficient contextual information to be able to effect the
+  spend (i.e. it is able to construct a correct redeem script, etc.)
+
+Wallets MAY attempt to spend received transparent UTXOs in wallet-internal
+shielding transactions with zero confirmations. In this case, the resulting
+shielded funds will not be made available for spending until the transaction
+that produced the original transparent UTXOs has at least
+`untrusted_confirmations`, and the shielding transaction has at least
+`trusted_confirmations`. Wallet implementers should take care not to mistake
+the TXOs resulting from shielding transactions as trusted outputs just because
+they are sent to a wallet-internal address.
 
 Reporting of balances
 ---------------------
@@ -274,13 +329,29 @@ Wallets SHOULD report:
 * Confirmed-spendable balance.
 * Pending balance, *or* total balance.
 
+Wallets MAY report:
+
+* Un-economic balance.
+
 These are calculated as follows:
 
-* The confirmed-spendable balance is the sum of values of
-  confirmed-spendable TXOs.
-* The pending balance is the sum of values of unconfirmed-spendable TXOs.
+* The confirmed-spendable balance is the sum of values of confirmed-spendable
+  TXOs. This balance MAY ignore notes with value less than the ZIP 317
+  marginal fee [#zip-0317]_.
+* The pending balance is the sum of values of unconfirmed-spendable TXOs. This
+  balance MAY ignore notes with value less than the ZIP 317 marginal fee
+  [#zip-0317]_, and MUST exercise this option in a way that is consistent
+  with how the confirmed-spendable balance is computed.
 * The total balance is the confirmed-spendable balance plus the pending
   balance.
+* The un-economic balance is the total of TXOs that individually have value
+  less than the ZIP 317 marginal fee [#zip-0317]_. Such TXOs can only be spent
+  as "grace inputs" as they do not provide sufficient value to pay the fees
+  required to spend them; wallets MAY ignore the presence of such notes in note
+  selection and balance calculation. If wallets ignore the presence of such
+  notes, they MUST do so consistently; i.e. wallets MUST NOT report them as
+  part of balance that is exposed to the user as spendable or pending if the
+  wallet does not provide any mechanism to spend them.
 
 Note: the definition of "confirmed-spendable" above ensures that:
 
@@ -530,49 +601,6 @@ Viewing keys
 
 What they are supposed to reveal; see ZIP 310 for Sapling (needs updating for
 Orchard). https://github.com/zcash/zips/issues/606
-
-
-
-Allowed transfers
------------------
-
-* Sprout -> transparent or Sapling
-* Sapling -> transparent or Sapling or Orchard
-* Orchard -> transparent or Sapling or Orchard
-* if auto-shielding is off:
-  *  transparent -> transparent or Sapling or Orchard
-* if auto-shielding is on:
-  *  transparent -> internal Orchard or Sapling
-
-Note: wallets MAY further restrict the set of transfers they perform.
-
-
-Auto-shielding
---------------
-
-Wallets SHOULD NOT spend funds from a transparent address to an external address,
-unless the user gives explicit consent for this on a per-transaction basis.
-
-TODO: Reword this to define the source transparent address as any transparent
-address (external, internal, or ephemeral), except in the case of ephemeral as
-allowed for implementing ZIP 320.
-
-In order to support this policy, wallets SHOULD implement a system of auto-shielding
-with the following characteristics:
-
-
-If auto-shielding functionality is available in a wallet, then users MUST be able
-to explicitly consent to one of the following possibilities:
-
-* auto-shielding is always on;
-* auto-shielding is always off;
-* the user specifies a policy...
-
-Auto-shielding MUST be one of:
-
-* "must opt in or out" (zcashd will do this -- i.e. refuse to start unless the option
-  is configured), or
-* always on.
 
 
 Auto-migration
