@@ -48,12 +48,15 @@ contents of a memo. It does not define consensus requirements.
 + If the first byte has a value of ``0xF6``, and the remaining 511 bytes are ``0x00``,
   then the user supplied no memo, and the encrypted memo field is to be treated as empty.
 
++ If the first byte has a value of ``0xF7``, then the reader MUST interpret the memo as a
+  structured memo; see the next section for its format.
+
 + If the memo matches any of these patterns, then this memo is from the future, because
   these ranges are reserved for future updates to this specification:
 
      + The first byte has a value of ``0xF6``, and the remaining 511 bytes are not all
        ``0x00``.
-     + The first byte has a value between ``0xF7`` and ``0xFE`` inclusive.
+     + The first byte has a value between ``0xF8`` and ``0xFE`` inclusive.
 
 + If the first byte has a value of ``0xFF`` then the reader should not make any other
   assumption about the memo. In order to put arbitrary data into a memo field (that
@@ -63,6 +66,57 @@ contents of a memo. It does not define consensus requirements.
 + If the first byte has a value of ``0xF5``, then the reader should not make any other
   assumption about the memo. This value was used ambiguously in the past by private
   agreement; applications SHOULD prefer ``0xFF`` which is unambiguously for this purpose.
+
+Structured memos
+----------------
+
+A memo can be used to store structured data by setting its first byte to a value of
+``0xF7``. The remaining bytes contain a set of "memo parts", encoded as concatenated
+Type-Length-Value tuples, followed by fixed padding (if any memo bytes remain after the
+TLV tuples).
+
+Multiple memo parts with the same type are not permitted in structured memos.
+
+Parsing a structured memo
+`````````````````````````
+
+After the leading ``0xF7`` byte, readers parse the remaining memo bytes as follows:
+
+- While there are remaining unparsed memo bytes:
+
+  - Parse a ``compactSize`` to obtain ``partType``. If there are insufficient bytes to
+    parse a ``compactSize``, return an error.
+  - If ``partType == 0``:
+
+    - This is a marker type indicating that there are no more TLV tuples. If any of the
+      remaining memo bytes are not ``0x00``, return an error.
+
+  - Else if ``partType`` has already been parsed in an earlier memo part, return an error.
+  - Otherwise:
+
+    - Parse a ``compactSize`` to obtain ``partLength``. If there are insufficient bytes to
+      parse a ``compactSize``, return an error.
+    - Parse the next ``partLength`` bytes to obtain ``partValue``. If ``partLength`` would
+      require the reader to read past the end of the memo bytes, return an error.
+    - Store ``(partType, partValue)`` and continue parsing.
+
+If an error occurs, readers MUST treat the entire memo as invalid (ignoring any
+``MemoPart`` that was successfully parsed prior to the error).
+
+Defined memo part types
+```````````````````````
+
+The following memo part types (and corresponding value encodings) are defined:
+
+- ``0xA0``: a UTF-8 string.
+
+  - If decoding fails then return an error; readers MUST NOT replace invalid sequences.
+
+Adding new types
+~~~~~~~~~~~~~~~~
+
+It is intended that new memo part types SHOULD be introduced by a modification to this
+ZIP, in accordance with the ZIP Process [#zip-0000]_.
 
 Rationale
 =========
@@ -103,3 +157,4 @@ References
 .. [#protocol] `Zcash Protocol Specification, Version 2021.1.19 <protocol/protocol.pdf>`_
 .. [#UTF-8] `UTF-8, a transformation format of ISO 10646 <https://www.rfc-editor.org/rfc/rfc3629.html>`_
 .. [#Bitcoin-CompactSize] `Variable length integer. Bitcoin Wiki <https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer>`_
+.. [#zip-0000] `ZIP 0: ZIP Process <zip-0000.rst>`_
