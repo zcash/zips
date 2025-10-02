@@ -67,9 +67,9 @@ The following ZIPs are under consideration for inclusion in NU7:
 - `ZIP 227: Issuance of Zcash Shielded Assets <zips/zip-0227.rst>`__
 - `ZIP 230: Version 6 Transaction Format <zips/zip-0230.rst>`__
 - `ZIP 231: Memo Bundles <zips/zip-0231.md>`__
-- `ZIP 233: Network Sustainability Mechanism: Burning <zips/zip-0233.md>`__
+- `ZIP 233: Network Sustainability Mechanism: Removing Funds From Circulation <zips/zip-0233.md>`__
 - `ZIP 234: Network Sustainability Mechanism: Issuance Smoothing <zips/zip-0234.md>`__
-- `ZIP 235: Network Sustainability Mechanism: Burn 60% of Transaction Fees <zips/zip-0235.md>`__
+- `ZIP 235: Network Sustainability Mechanism: Remove 60% of Transaction Fees From Circulation <zips/zip-0235.md>`__
 - `ZIP 246: Digests for the Version 6 Transaction Format <zips/zip-0246.rst>`__
 - `ZIP 2002: Explicit Fees <zips/zip-2002.rst>`__
 - `ZIP 2003: Disallow version 4 transactions <zips/zip-2003.rst>`__
