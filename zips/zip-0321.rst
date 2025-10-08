@@ -45,15 +45,15 @@ Motivation
 ==========
 
 In order for a robust transactional ecosystem to evolve for Zcash, it is
-necessary for vendors to be able to issue requests for payment. At present,
-the best option available is to manually specify a payment address, a payment
-amount, and potentially asset id and memo field content. Of these three
-components, existing wallets only provide functionality for reading payment
-addresses in a semi-automated fashion. It is then necessary for the user to
-manually enter payment asset ids, amounts and any associated memo information,
-which is tedious and may be error-prone, particularly if a payment is intended
-for multiple recipients or the memo field information contains structured data
-that must be faithfully reproduced.
+necessary for vendors to be able to issue requests for payment. At the time
+of first writing this ZIP, the best option available was to manually specify
+a payment address, a payment amount, and potentially memo field content.
+Of these three components, existing wallets only provided functionality for
+reading payment addresses in a semi-automated fashion. It was then necessary
+for the user to manually enter payment amounts and any associated memo
+information, which is tedious and may be error-prone, particularly if a
+payment is intended for multiple recipients or the memo field information
+contains structured data that must be faithfully reproduced.
 
 This ZIP seeks to eliminate these issues by proposing a standard format that
 wallet vendors may support so that human intervention is required only for
@@ -76,8 +76,8 @@ Requirements
 
 The format must be a valid URI format [#RFC3986]_.
 
-The format must permit the representation of one or more (payment address,
-asset id, amount, memo) tuples.
+The format must permit the representation of one or more tuples of
+payment address, amount, asset id (if applicable), and optional memo.
 
 
 Specification
@@ -99,7 +99,7 @@ The following syntax specification uses ABNF [#RFC5234]_.
   paramindex      = "." NONZERO 0*3DIGIT
   addrparam       = "address" [ paramindex ] "=" zcashaddress
   amountparam     = "amount"  [ paramindex ] "=" 1*DIGIT [ "." 1*8DIGIT ]
-  assetidparam    = "asset_id"[ paramindex ] "=" 88*88base64url
+  assetidparam    = "req-assetid"[ paramindex ] "=" *base64url
   labelparam      = "label"   [ paramindex ] "=" *qchar
   memoparam       = "memo"    [ paramindex ] "=" *base64url
   messageparam    = "message" [ paramindex ] "=" *qchar
@@ -124,11 +124,10 @@ Note that this grammar does not allow percent encoding outside the productions
 that use ``qchar``, i.e. the values of label, message, ``reqparam``, and
 ``otherparam`` parameters.
 
-The value of an ``asset_id`` parameter MUST be a base64url string without
-padding that decodes to exactly 66 bytes. This is the canonical
-``EncodeAssetId`` defined in ZIP 227 [#zip-0227]_. Implementations MUST reject
-any ``asset_id`` value that is not exactly 88 base64url characters long,
-or that uses invalid characters.
+The value of an ``req-assetid`` parameter MUST be a `base64url` string without
+padding. This is the canonical ``EncodeAssetId`` defined in ZIP 227 [#zip-0227]_.
+Implementations MUST reject any ``req-assetid`` value that does not match
+`*base64url`.
 
 Purported ZIP 321 URIs that cannot be parsed according to the above grammar
 MUST NOT be accepted.
@@ -203,19 +202,7 @@ Asset Identifiers
 -----------------
 
 If an asset identifier is provided, it MUST be specified as the string returned
-by ``EncodeAssetId`` from ZIP 227 [#zip-0227]_. This value is defined as:
-
-::
-  EncodeAssetId = 0x00 || issuer || assetDescHash
-
-where:
-
-* ``issuer`` is ``0x00 || ik``, with ik a 32-byte public key, and
-* ``assetDescHash`` is the 32-byte BLAKE2b-256 digest of the asset description,
-  using personalization "ZSA-AssetDescCRH".
-
-This encoding yields 66 bytes, which MUST be represented in a URI using base64url
-without padding. Implementations MUST decode this string back to exactly 66 bytes.
+by ``EncodeAssetId`` as specified in ZIP 227 [#zip-0227]_.
 
 If no asset identifier is present, the payment MUST be considered to be for the
 default asset (ZEC).
@@ -271,7 +258,7 @@ in Zcash cannot be greater than this value).
 
 The same syntax and validity rules apply when specifying amounts for other assets;
 in that case, the asset being transferred is identified by the accompanying
-``asset_id`` parameter.
+``req-assetid`` parameter.
 
 Query Keys
 ----------
@@ -386,8 +373,6 @@ Invalid:
    support asset identifiers.
  * The ``asset_id`` contains characters (e.g. ``@``, ``!``) that are not permitted in
    base64url.
- * The ``asset_id`` value is not exactly 88 characters long, and therefore cannot
-   decode to the required 66-byte ``EncodeAssetId``.
 
 Forward compatibility
 ---------------------
