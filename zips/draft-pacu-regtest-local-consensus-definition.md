@@ -69,7 +69,7 @@ sequence of Network Upgrade activations.
 of blocks and transactions can be generated as defined in requirement 1.
 1. Changes on Human-Readable Parts (HRP) of address string encodings (if applicable)
 are defined with their respective prefix to signal a regtest variant.
-1. Regtest functionality SHOULD allow developers to ensure test coverage of their 
+1. Regtest functionality should allow developers to ensure test coverage of their 
 codebases and a high quality assurance to Zcash users.
 1. (TODO: Add more requirements)
 
