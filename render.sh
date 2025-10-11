@@ -32,6 +32,9 @@ echo "    ${title}"
 Math1='<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">'
 Math2='<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>'
 Math3='<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script>'
+
+Mermaid='<script defer src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js" integrity="sha384-o+g/BxPwhi0C3RK7oQBxQuNimeafQ3GE/ST4iT2BxVI4Wzt60SH4pq9iXVYujjaS" crossorigin="anonymous" onload="mermaid.initialize({ startOnLoad: true });"></script>'
+
 ViewAndStyle='<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css">'
 
 cat <(
@@ -62,12 +65,15 @@ cat <(
         echo "<head>"
         echo "    <title>${title}</title>"
         echo "    <meta charset=\"utf-8\" />"
+        echo "    ${ViewAndStyle}"
+        if grep -q -E 'class="mermaid"' "${outputfile}.temp"; then
+            echo "    ${Mermaid}"
+        fi
         if grep -q -E 'class="math( inline)?"' "${outputfile}.temp"; then
             echo "    ${Math1}"
             echo "    ${Math2}"
             echo "    ${Math3}"
         fi
-        echo "    ${ViewAndStyle}"
         echo "</head>"
         echo "<body>"
         cat "${outputfile}.temp"
