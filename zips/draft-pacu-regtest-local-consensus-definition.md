@@ -50,8 +50,8 @@ quality assurance to Zcash users.
 
 
 # Requirements
-1. Nodes launched in Regtest mode MUST be able to generate deterministic sequences
-of blocks and transactions. 
+1. Nodes launched in Regtest mode MUST be able to *efficiently* generate
+deterministic sequences of blocks and transactions.
 1. Regtest MUST override, adjust, by-pass or ignore consensus checks that are 
 specifically designed to avoid the efficiency in requirement 1 in Testnet and 
 Mainnet
