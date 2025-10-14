@@ -1,7 +1,7 @@
 ```
   ZIP: Unassigned
   Title: Regtest: Definition of a Local Consensus test mode for Zcash Full-Nodes
-  Owners: ZIP Editors
+  Owners: Francisco Gindre <pacu@zecdev.org>
   Original-Authors: Francisco Gindre <pacu@zecdev.org>
   Credits: Daira-Emma Hopwood
            Zancas (Zingo Labs)
