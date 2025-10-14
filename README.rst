@@ -228,6 +228,7 @@ be deleted.
     <tr> <td class="left"><a href="zips/draft-arya-deploy-nu7.md">Deployment of the NU7 Network Upgrade</a></td>
     <tr> <td class="left"><a href="zips/draft-ecc-authenticated-reply-addrs.md">Authenticated Reply Addresses</a></td>
     <tr> <td class="left"><a href="zips/draft-ecc-onchain-accountable-voting.md">On-chain Accountable Voting</a></td>
+    <tr> <td class="left"><a href="zips/draft-ecc-quantum-recoverability.md">Quantum recoverability</a></td>
     <tr> <td class="left"><a href="zips/draft-str4d-orchard-balance-proof.md">Air drops, Proof-of-Balance, and Stake-weighted Polling</a></td>
   </table></embed>
 
