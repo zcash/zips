@@ -429,13 +429,6 @@ ZSAs [^zip-0226] [^zip-0227]).
 
 ### Changes to the Protocol Specification
 
-Some of the suggested changes to the protocol specification are
-refactoring to make it easier to consistently specify the rules on
-allowed note plaintext lead bytes and generation of note components,
-without duplication between sections. It is suggested to do this
-refactoring first, independently of the semantic changes for quantum
-recoverability, and then to simplify this ZIP accordingly.
-
 #### § 3.2.1 ‘Note Plaintexts and Memo Fields’
 
 Replace the paragraph
