@@ -711,7 +711,6 @@ delete the word "later".
 
 For both § 4.20.2 and § 4.20.3, replace
 
-> $\hspace{1.0em}$ [Pre-**Canopy**] let $\underline{\mathsf{rcm}} = \mathsf{rseed}$ <br>
 > $\hspace{1.0em}$ for Sapling, let $\mathsf{pre\_rcm} = [4]$ and $\mathsf{pre\_esk} = [5]$ <br>
 > $\hspace{1.0em}$ for Orchard, let $\underline{\text{ρ}} = \mathsf{I2LEOSP}_{256}(\mathsf{nf^{old}}$ from the same Action description $\!)$, $\mathsf{pre\_rcm} = [5] \,||\, \underline{\text{ρ}}$, and $\mathsf{pre\_esk} = [4] \,||\, \underline{\text{ρ}}$
 
@@ -721,11 +720,12 @@ with
 
 For § 4.20.2, replace
 
-> $\hspace{1.0em}$ [**Canopy** onward] let $\underline{\mathsf{rcm}} = \begin{cases}
->                    \mathsf{rseed},&\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x01} \\
->                    \mathsf{ToScalar^{protocol}}(\mathsf{PRF^{expand}_{rseed}}(\mathsf{pre\_rcm})),&\!\!\!\text{otherwise}
+> $\hspace{1.0em}$ let $\mathsf{rcm} = \begin{cases}
+>                    \mathsf{LEOS2IP}_{256}(\mathsf{rseed}),&\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x01} \\
+>                    \mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}(\mathsf{pre\_rcm})),&\!\!\!\text{otherwise}
 >                  \end{cases}$ <br>
-> $\hspace{1.0em}$ let $\mathsf{rcm} = \mathsf{LEOS2IP}_{256}(\underline{\mathsf{rcm}})$ and $\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})$. if $\mathsf{rcm} \geq r_{\mathbb{G}}$ or (for Sapling) $\mathsf{g_d} = \bot$, return $\bot$ <br>
+> $\hspace{1.0em}$ if $\mathsf{rcm} \geq r_{\mathbb{G}}$, return $\bot$ <br>
+> $\hspace{1.0em}$ let $\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})$. if (for Sapling) $\mathsf{g_d} = \bot$, return $\bot$ <br>
 > $\hspace{1.0em}$ [**Canopy** onward] if $\mathsf{leadByte} \neq \mathtt{0x01}$: <br>
 > $\hspace{2.5em}$     $\mathsf{esk} = \mathsf{ToScalar^{protocol}}(\mathsf{PRF^{expand}_{rseed}}(\mathsf{pre\_esk}))$ <br>
 > $\hspace{2.5em}$     if $\mathsf{repr}_{\mathbb{G}}(\mathsf{KA.DerivePublic}(\mathsf{esk}, \mathsf{g_d})) \neq \mathtt{ephemeralKey}$, return $\bot$
@@ -734,48 +734,47 @@ For § 4.20.2, replace
 
 with
 
-> $\hspace{1.0em}$ let $\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})$; for Sapling, if $\mathsf{g_d} = \bot$, return $\bot$ <br>
+> $\hspace{1.0em}$ let $\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})$. if (for Sapling) $\mathsf{g_d} = \bot$, return $\bot$ <br>
 > $\hspace{1.0em}$ [**Canopy** onward] if $\mathsf{leadByte} \neq \mathtt{0x01}$: <br>
 > $\hspace{2.5em}$     let $\mathsf{esk} = \mathsf{H^{esk,protocol}_{rseed}}(\underline{\text{ρ}})$ <br>
 > $\hspace{2.5em}$     if $\mathsf{repr}_{\mathbb{G}}(\mathsf{KA.DerivePublic}(\mathsf{esk}, \mathsf{g_d})) \neq \mathtt{ephemeralKey}$, return $\bot$ <br>
-> $\hspace{2.5em}$     let $\text{ψ} = \mathsf{H^{\text{ψ},Orchard}_{rseed}}(\underline{\text{ρ}}, 0)$ for Orchard or $\bot$ for Sapling
 > 
 > $\hspace{1.0em}$ let $\mathsf{pk_d} = \mathsf{KA.DerivePublic}(\mathsf{ivk}, \mathsf{g_d})$ <br>
 > $\hspace{1.0em}$ let $\mathsf{g}\star_{\mathsf{d}} = \mathsf{repr}_{\mathbb{P}}(\mathsf{g_d})$, $\mathsf{pk}\star_{\mathsf{d}} = \mathsf{repr}_{\mathbb{P}}(\mathsf{pk_d}) [$, and $\mathsf{AssetBase}\kern0.08em\star = \mathsf{repr}_{\mathbb{P}}(\mathsf{AssetBase})]$ <br>
+> $\hspace{1.0em}$ let $\text{ψ} = \mathsf{H^{\text{ψ},Orchard}_{rseed}}(\underline{\text{ρ}}, 0)$ for Orchard or $\bot$ for Sapling <br>
 > $\hspace{1.0em}$ let $\mathsf{rcm} = \begin{cases}
 >                    \mathsf{LEOS2IP}_{256}(\mathsf{rseed}),&\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x01} \\
 >                    \mathsf{H^{rcm,protocol}_{rseed}}(\mathsf{leadByte}, (\mathsf{g}\star_{\mathsf{d}}, \mathsf{pk}\star_{\mathsf{d}}, \mathsf{v}, \underline{\text{ρ}}, \text{ψ}[, \mathsf{AssetBase}\kern0.08em\star])),&\!\!\!\text{otherwise}
 >                  \end{cases}$ <br>
 > $\hspace{1.0em}$ if $\mathsf{rcm} \geq r_{\mathbb{G}}$, return $\bot$
 
-(The order of operations has to be altered because the derivation of
-$\mathsf{rcm}$ can depend on $\mathsf{g_d}$ and $\mathsf{pk_d}$.)
+The order of operations has to be altered because the derivation of
+$\mathsf{rcm}$ can depend on $\mathsf{g_d}$ and $\mathsf{pk_d}$.
+The definitions of $\mathsf{pre\_rcm}$ and $\mathsf{pre\_esk}$ are moved into
+§ 4.7.2 ‘Sending Notes (Sapling)’ and § 4.7.3 ‘Sending Notes (Orchard)’ which
+define $\mathsf{H^{rcm,protocol}}$.
 
 For § 4.20.3, replace
 
-> $\hspace{1.0em}$ [**Canopy** onward] let $\underline{\mathsf{rcm}} = \begin{cases}
->                    \mathsf{rseed},&\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x01} \\
+> $\hspace{1.0em}$ let $\mathsf{rcm} = \begin{cases}
+>                    \mathsf{LEOS2IP}_{256}(\mathsf{rseed}),&\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x01} \\
 >                    \mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}(\mathsf{pre\_rcm})),&\!\!\!\text{otherwise}
 >                  \end{cases}$ <br>
-> $\hspace{1.0em}$ let $\mathsf{rcm} = \mathsf{LEOS2IP}_{256}(\underline{\mathsf{rcm}})$ and $\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})$ <br>
-> $\hspace{1.0em}$ if $\mathsf{rcm} \geq r_{\mathbb{G}}$ or (for Sapling) $\mathsf{g_d} = \bot$ or $\mathsf{pk_d} \not\in \mathbb{J}^{(r)*}$ (see note below), return $\bot$
+> $\hspace{1.0em}$ if $\mathsf{rcm} \geq r_{\mathbb{G}}$, return $\bot$ <br>
+> $\hspace{1.0em}$ let $\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})$. if (for Sapling) $\mathsf{g_d} = \bot$ or $\mathsf{pk_d} \not\in \mathbb{J}^{(r)*}$ (see note below), return $\bot$
 
 with
 
-> $\hspace{1.0em}$ let $\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})$; for Sapling, if $\mathsf{g_d} = \bot$, return $\bot$ <br>
-> $\hspace{1.0em}$ let $\mathsf{g}\star_{\mathsf{d}} = \mathsf{repr}_{\mathbb{P}}(\mathsf{g_d}) [$ and $\mathsf{AssetBase}\kern0.08em\star = \mathsf{repr}_{\mathbb{P}}(\mathsf{AssetBase})]$ <br>
-> $\hspace{1.0em}$ if $\mathsf{leadByte} \neq \mathtt{0x01}$, let $\text{ψ} = \mathsf{H^{\text{ψ},Orchard}_{rseed}}(\underline{\text{ρ}}, 0)$ for Orchard or $\bot$ for Sapling <br>
+> $\hspace{1.0em}$ let $\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})$. if (for Sapling) $\mathsf{g_d} = \bot$, return $\bot$ <br>
+> $\hspace{1.0em}$ let $\mathsf{g}\star_{\mathsf{d}} = \mathsf{repr}_{\mathbb{P}}(\mathsf{g_d})$, $\mathsf{pk}\star_{\mathsf{d}} = \mathsf{repr}_{\mathbb{P}}(\mathsf{pk_d}) [$, and $\mathsf{AssetBase}\kern0.08em\star = \mathsf{repr}_{\mathbb{P}}(\mathsf{AssetBase})]$ <br>
+> $\hspace{1.0em}$ let $\text{ψ} = \mathsf{H^{\text{ψ},Orchard}_{rseed}}(\underline{\text{ρ}}, 0)$ for Orchard or $\bot$ for Sapling <br>
 > $\hspace{1.0em}$ let $\mathsf{rcm} = \begin{cases}
 >                    \mathsf{LEOS2IP}_{256}(\mathsf{rseed}),&\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x01} \\
 >                    \mathsf{H^{rcm,protocol}_{rseed}}(\mathsf{leadByte}, (\mathsf{g}\star_{\mathsf{d}}, \mathsf{pk}\star_{\mathsf{d}}, \mathsf{v}, \underline{\text{ρ}}, \text{ψ}[, \mathsf{AssetBase}\kern0.08em\star])),&\!\!\!\text{otherwise}
 >                  \end{cases}$ <br>
 > $\hspace{1.0em}$ if $\mathsf{rcm} \geq r_{\mathbb{G}}$, return $\bot$
 
-(Note that there was previously a type error in both § 4.20.2 and § 4.20.3:
-$\mathsf{ToScalar}$ returns an integer, not a byte sequence, and so cannot
-be assigned to $\underline{\mathsf{rcm}}$.)
-
-Delete "where $\text{ψ} = \mathsf{ToBase^{Orchard}}(\mathsf{PRF^{expand}_{rseed}}([9] \,||\, \underline{\text{ρ}}))$".
+and delete "where $\text{ψ} = \mathsf{ToBase^{Orchard}}(\mathsf{PRF^{expand}_{rseed}}([9] \,||\, \underline{\text{ρ}}))$".
 
 #### § 5.3 ‘Constants’
 
