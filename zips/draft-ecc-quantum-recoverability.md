@@ -440,27 +440,15 @@ recoverability, and then to simplify this ZIP accordingly.
 
 Replace the paragraph
 
-> The field $\mathsf{leadByte}$ indicates the version of the encoding of
-> a Sapling or Orchard note plaintext. For Sapling it is $\mathtt{0x01}$
-> before activation of the Canopy network upgrade and $\mathtt{0x02}$
-> afterward, as specified in [ZIP-212]. For Orchard note plaintexts it is
-> always $\mathtt{0x02}$.
+> Define $\mathsf{allowedLeadBytes^{protocol}}(\mathsf{height}, \mathsf{txVersion}) =$
+> $\hspace{2em} \begin{cases}
+>   \{ \mathtt{0x01} \},&\!\!\!\text{if } \mathsf{height} < \mathsf{CanopyActivationHeight} \\
+>   \{ \mathtt{0x01}, \mathtt{0x02} \},&\!\!\!\text{if } \mathsf{CanopyActivationHeight} \leq \mathsf{height} < \mathsf{CanopyActivationHeight} + \mathsf{ZIP212GracePeriod} \\
+>   \{ \mathtt{0x02} \},&\!\!\!\text{otherwise.}
+> \end{cases}$
 
 with
 
-> The field $\mathsf{leadByte}$ indicates the version of the encoding of
-> a Sapling or Orchard note plaintext.
->
-> Let the constants $\mathsf{CanopyActivationHeight}$ and
-> $\mathsf{ZIP212GracePeriod}$ be as defined in § 5.3 ‘Constants’.
->
-> Let $\mathsf{protocol} \;{\small ⦂}\; \{ \mathsf{Sapling}, \mathsf{Orchard} \}$
-> be the shielded protocol of the note.
->
-> Let $\mathsf{height}$ be the block height of the block containing the
-> transaction having the encrypted note plaintext as an output, and let
-> $\mathsf{txVersion}$ be the transaction version number.
->
 > Define $\mathsf{allowedLeadBytes^{protocol}}(\mathsf{height}, \mathsf{txVersion}) =$
 > $\hspace{2em} \begin{cases}
 >   \{ \mathtt{0x01} \},&\!\!\!\text{if } \mathsf{height} < \mathsf{CanopyActivationHeight} \\
@@ -468,18 +456,10 @@ with
 >   \{ \mathtt{0x02} \},&\!\!\!\text{if } \mathsf{CanopyActivationHeight} + \mathsf{ZIP212GracePeriod} \leq \mathsf{height} \text{ and } \mathsf{txVersion} < 6 \\
 >   \{ \mathtt{0x03} \},&\!\!\!\text{otherwise.}
 > \end{cases}$
->
-> The $\mathsf{leadByte}$ of a Sapling or Orchard note MUST satisfy
-> $\mathsf{leadByte} \in \mathsf{allowedLeadBytes^{protocol}}(\mathsf{height}, \mathsf{txVersion})$.
-> Senders SHOULD choose the highest lead byte allowed under this condition.
-> 
-> **Non-normative notes:**
-> * Since Orchard was introduced after the end of the [[ZIP-212]](https://zips.z.cash/zip-0212))
->   grace period, note plaintexts for Orchard notes MUST have
->   $\mathsf{leadByte} \geq \mathtt{0x02}$.
-> * It is intentional that the definition of $\mathsf{allowedLeadBytes}$
->   does not currently depend on $\mathsf{protocol}$. It might do so in
->   future.
+
+and delete "or $\mathsf{txVersion}$" from "It is intentional that the
+definition of $\mathsf{allowedLeadBytes}$ does not currently depend on
+$\mathsf{protocol}$ or $\mathsf{txVersion}$."
 
 #### § 4.1.2 ‘Pseudo Random Functions’
 
@@ -619,21 +599,8 @@ Add the following notes:
 
 #### § 4.7.2 ‘Sending Notes (Sapling)’
 
-Replace
+Add after the definition of $\mathsf{leadByte}$:
 
-> Let $\mathsf{CanopyActivationHeight}$ be as defined in § 5.3 ‘Constants’.
->
-> Let $\mathsf{leadByte}$ be the note plaintext lead byte.
-> This MUST be $\mathsf{0x01}$ if for the next block,
-> $\mathsf{height} < \mathsf{CanopyActivationHeight}$, or $\mathtt{0x02}$
-> if $\mathsf{height} \geq \mathsf{CanopyActivationHeight}$.
-
-with
-
-> Let $\mathsf{leadByte}$ be the note plaintext lead byte, chosen
-> according to § 3.2.1 ‘Note Plaintexts and Memo Fields’ with
-> $\mathsf{protocol} = \mathsf{Sapling}$.
->
 > Define $\mathsf{H^{rcm,Sapling}_{rseed}}(\_, \_) = \mathsf{ToScalar^{Sapling}}\big(\mathsf{PRF^{expand}_{rseed}}([\mathtt{0x04}])\kern-0.1em\big)$
 >
 > Define $\mathsf{H^{esk,Sapling}_{rseed}}(\_, \_) = \mathsf{ToScalar^{Sapling}}\big(\mathsf{PRF^{expand}_{rseed}}([\mathtt{0x05}])\kern-0.1em\big)$.
@@ -649,17 +616,8 @@ Replace the lines deriving $\mathsf{rcm}$ and $\mathsf{esk}$ with
 
 #### § 4.7.3 ‘Sending Notes (Orchard)’
 
-Replace
+Add after the definition of $\mathsf{leadByte}$:
 
-> Let $\mathsf{leadByte}$ be the note plaintext lead byte, which MUST be
-> $\mathtt{0x02}$.
-
-with
-
-> Let $\mathsf{leadByte}$ be the note plaintext lead byte, chosen
-> according to § 3.2.1 ‘Note Plaintexts and Memo Fields’ with
-> $\mathsf{protocol} = \mathsf{Orchard}$.
->
 > Define $\mathsf{H^{rcm,Orchard}_{rseed}}\big(\mathsf{leadByte}, (\mathsf{g}\star_{\mathsf{d}}, \mathsf{pk}\star_{\mathsf{d}}, \mathsf{v}, \underline{\text{ρ}}, \text{ψ}[, \mathsf{AssetBase}\kern0.08em\star])\kern-0.1em\big) =$
 >   $\mathsf{ToScalar^{Orchard}}\big(\mathsf{PRF^{expand}_{rseed}}(\mathsf{pre\_rcm})\kern-0.1em\big)$
 >
@@ -706,24 +664,10 @@ Replace the line deriving $\mathsf{rcm}$ with
 
 > Derive $\mathsf{rcm} = \mathsf{H^{rcm,Sapling}_{rseed}}(\bot, \bot)$
 
-Correct
-
-> A Spend description for a dummy Sapling input note is constructed as
-> follows:
-
-to
-
-> A Spend description for a dummy Sapling input note with note plaintext
-> lead byte $\mathtt{0x02}$ is constructed as follows:
-
 #### § 4.8.3 ‘Dummy Notes (Orchard)’
 
 Insert before "The spend-related fields ...":
 
-> Let $\mathsf{leadByte}$ be the note plaintext lead byte, chosen
-> according to § 3.2.1 ‘Note Plaintexts and Memo Fields’ with
-> $\mathsf{protocol} = \mathsf{Orchard}$.
->
 > Let $\mathsf{H^{rcm,Orchard}}$ and $\mathsf{H^{\text{ψ},Orchard}}$ be
 > as defined in § 4.7.3 ‘Sending Notes (Orchard)’.
 
@@ -743,28 +687,14 @@ $\mathsf{NoteCommit^{Orchard}}$.
 
 #### § 4.20.2 and § 4.20.3 ‘Decryption using an Incoming/Full Viewing Key (Sapling and Orchard)’
 
-For both § 4.20.2 and § 4.20.3, replace
+For both § 4.20.2 and § 4.20.3, add before the decryption procedure:
 
-> Let the constants $\mathsf{CanopyActivationHeight}$ and
-> $\mathsf{ZIP212GracePeriod}$ be as defined in § 5.3 ‘Constants’.
->
-> Let $\mathsf{height}$ be the block height of the block containing this
-> transaction.
-
-with
-
-> Let $\mathsf{protocol}$ and $\mathsf{allowedLeadBytes}$ be as defined
-> in § 3.2.1 ‘Note Plaintexts and Memo Fields’.
->
 > Let $\mathsf{H^{rcm,Sapling}}$ and $\mathsf{H^{\text{esk},Sapling}}$
 > be as defined in § 4.7.2 ‘Sending Notes (Sapling)’.
 >
 > Let $\mathsf{H^{rcm,Orchard}}$, $\mathsf{H^{\text{esk},Orchard}}$,
 > and $\mathsf{H^{\text{ψ},Orchard}}$ be as defined in
 > § 4.7.3 ‘Sending Notes (Orchard)’.
->
-> Let $\mathsf{height}$ be the block height of the block containing this
-> transaction, and let $\mathsf{txVersion}$ be the transaction version.
 
 For § 4.20.3, replace
 
@@ -781,16 +711,12 @@ delete the word "later".
 
 For both § 4.20.2 and § 4.20.3, replace
 
-> $\hspace{1.0em}$ [Pre-**Canopy**] if $\mathsf{leadByte} \neq \mathtt{0x01}$, return $\bot$ <br>
 > $\hspace{1.0em}$ [Pre-**Canopy**] let $\underline{\mathsf{rcm}} = \mathsf{rseed}$ <br>
-> $\hspace{1.0em}$ [**Canopy** onward] if $\mathsf{height} < \mathsf{CanopyActivationHeight} + \mathsf{ZIP212GracePeriod}$ and $\mathsf{leadByte} \not\in \{ \mathtt{0x01}, \mathtt{0x02} \}$, return $\bot$ <br>
-> $\hspace{1.0em}$ [**Canopy** onward] if $\mathsf{height} \geq \mathsf{CanopyActivationHeight} + \mathsf{ZIP212GracePeriod}$ and $\mathsf{leadByte} \neq \mathtt{0x02}$, return $\bot$ <br>
 > $\hspace{1.0em}$ for Sapling, let $\mathsf{pre\_rcm} = [4]$ and $\mathsf{pre\_esk} = [5]$ <br>
 > $\hspace{1.0em}$ for Orchard, let $\underline{\text{ρ}} = \mathsf{I2LEOSP}_{256}(\mathsf{nf^{old}}$ from the same Action description $\!)$, $\mathsf{pre\_rcm} = [5] \,||\, \underline{\text{ρ}}$, and $\mathsf{pre\_esk} = [4] \,||\, \underline{\text{ρ}}$
 
 with
 
-> $\hspace{1.0em}$ if $\mathsf{leadByte} \not\in \mathsf{allowedLeadBytes^{protocol}}(\mathsf{height}, \mathsf{txVersion})$, return $\bot$ <br>
 > $\hspace{1.0em}$ let $\underline{\text{ρ}} = \mathsf{I2LEOSP}_{256}(\mathsf{nf^{old}}$ from the same Action description $\!)$
 
 For § 4.20.2, replace

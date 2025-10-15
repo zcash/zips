@@ -1611,6 +1611,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\PtoPKHAddressTestnetLeadByte}{\hexint{1D}}
 \newcommand{\PtoPKHAddressTestnetSecondByte}{\hexint{25}}
 \newcommand{\NotePlaintextLeadByte}{\mathsf{leadByte}}
+\newcommand{\TxVersion}{\mathsf{txVersion}}
+\newcommand{\AllowedLeadBytes}{\mathsf{allowedLeadBytes}}
 \newcommand{\AuthPublic}{\mathsf{a_{pk}}}
 \newcommand{\AuthPublicSub}[1]{\mathsf{a_{pk,\mathnormal{#1}}}}
 \newcommand{\AuthPrivate}{\mathsf{a_{sk}}}
@@ -3459,9 +3461,37 @@ Each \SaplingOrOrchard{} \defining{\notePlaintext} (denoted $\NotePlaintext{}$) 
 
 \vspace{-1ex}
 The field $\NotePlaintextLeadByte$ indicates the version of the encoding of a \SaplingOrOrchard
-\notePlaintext. For \Sapling it is $\hexint{01}$ before activation of the \Canopy
-\networkUpgrade\canopy{ and $\hexint{02}$ afterward, as specified in \cite{ZIP-212}}.
-\nufive{For \Orchard \notePlaintexts it is always $\hexint{02}$.}
+\notePlaintext.
+
+Let the constants $\CanopyActivationHeight$ and $\ZIPTwoOneTwoGracePeriod$ be as defined in \crossref{constants}.
+
+Let $\Protocol \typecolon \setof{\SaplingProto, \OrchardProto}$ be the \shieldedProtocol of the \note.
+
+Let $\BlockHeight$ be the \blockHeight of the \block containing the \transaction having the encrypted
+\notePlaintext as an output, and let $\TxVersion$ be the \transactionVersionNumber.
+
+Define $\AllowedLeadBytes^{\Protocol}(\BlockHeight, \TxVersion) := \notcanopy{\setof{\hexint{01}}}$\notcanopy{.}
+\canopy{
+\begin{formulae}
+        \vspace{-1ex}
+  \item $\begin{cases}
+           \setof{\hexint{01}},             &\caseif \BlockHeight < \CanopyActivationHeight \\
+           \setof{\hexint{01}, \hexint{02}},&\caseif \CanopyActivationHeight \leq \BlockHeight < \CanopyActivationHeight + \ZIPTwoOneTwoGracePeriod \\
+           \setof{\hexint{02}},             &\caseotherwise.
+         \end{cases}$
+\end{formulae}
+} %canopy
+
+The $\NotePlaintextLeadByte$ of a \Sapling or \Orchard \note MUST satisfy
+$\NotePlaintextLeadByte \in \AllowedLeadBytes^{\Protocol}(\BlockHeight, \TxVersion)$.
+Senders \SHOULD choose the highest \notePlaintextLeadByte allowed under this condition.
+
+\begin{nnotes}
+  \nufiveonwarditem{Since \Orchard was introduced after the end of the \cite{ZIP-212} grace period,
+        \notePlaintexts for \Orchard \notes \MUST have $\NotePlaintextLeadByte \geq \hexint{02}$.}
+  \item It is intentional that the definition of $\AllowedLeadBytes$ does not currently depend
+        on $\Protocol$ or $\TxVersion$. It might do so in future.
+\end{nnotes}
 
 The fields \notcanopy{$\Diversifier$, $\Value$, and $\NoteCommitRandBytes$}\notbeforecanopy{$\Diversifier$ and $\Value$}
 are as defined in \crossref{notes}.
@@ -5940,13 +5970,8 @@ this payment. This may be one of:
 \pnote{Choosing $\OutViewingKey = \bot$ is useful if the sender prefers to obtain
 forward secrecy of the payment information with respect to compromise of its own secrets.}
 
-\canopy{
-Let $\CanopyActivationHeight$ be as defined in \crossref{constants}.
-
-Let $\NotePlaintextLeadByte$ be the \notePlaintextLeadByte. This \MUST be $\hexint{01}$
-if for the next \block, $\BlockHeight < \CanopyActivationHeight$, or $\hexint{02}$
-if $\BlockHeight \geq \CanopyActivationHeight$.
-}
+Let $\NotePlaintextLeadByte$ be the \notePlaintextLeadByte, chosen according to
+\crossref{noteptconcept} with $\Protocol = \SaplingProto$.
 
 \intropart
 For each \outputDescription, the sender selects a value $\Value \typecolon \range{0}{\MAXMONEY}$
@@ -6052,7 +6077,8 @@ this payment. The considerations for choosing \outgoingViewingKeys are as descri
 in \crossref{saplingsend}.
 
 \vspace{-0.25ex}
-Let $\NotePlaintextLeadByte$ be the \notePlaintextLeadByte, which \MUST be $\hexint{02}$.
+Let $\NotePlaintextLeadByte$ be the \notePlaintextLeadByte, chosen according to
+\crossref{noteptconcept} with $\Protocol = \OrchardProto$.
 
 \vspace{0.5ex}
 \introlist
@@ -6188,7 +6214,9 @@ Let $\NoteCommitAlg{Sapling}$ be as defined in \crossref{abstractcommit}.
 
 \introlist
 \vspace{0.75ex}
-A \spendDescription for a \dummy \Sapling input \note is constructed as follows:
+A \spendDescription for a \dummy \Sapling input \note with \notePlaintextLeadByte
+$\hexint{02}$ is constructed as follows:
+
 \begin{itemize}
   \item Choose uniformly random $\SpendingKey \leftarrowR \SpendingKeyType$.
         \vspace{-0.2ex}
@@ -6254,6 +6282,10 @@ Let $\NoteCommitAlg{Orchard}$ be as defined in \crossref{abstractcommit}.
 
 \vspace{-0.25ex}
 Let $\ItoLEOSP{}$ be as defined in \crossref{endian}.
+
+\vspace{-0.25ex}
+Let $\NotePlaintextLeadByte$ be the \notePlaintextLeadByte, chosen according to
+\crossref{noteptconcept} with $\Protocol = \OrchardProto$.
 
 \introlist
 \vspace{0.5ex}
@@ -7942,9 +7974,10 @@ the \outputDescription\nufive{ or \actionDescription respectively}. (This encode
 $u$-coordinate\nufive{ or \affineSW $x$-coordinate} of the \noteCommitment, i.e.\ $\ExtractG(\cm)$.)
 
 \canopy{
-Let the constants $\CanopyActivationHeight$ and $\ZIPTwoOneTwoGracePeriod$ be as defined in \crossref{constants}.
+Let $\Protocol$ and $\AllowedLeadBytes$ be as defined in \crossref{noteptconcept}.
 
-Let $\BlockHeight$ be the \blockHeight of the \block containing this \transaction.
+Let $\BlockHeight$ be the \blockHeight of the \block containing this \transaction, and
+let $\TxVersion$ be the \transactionVersionNumber.
 } %canopy
 
 \introsection
@@ -7962,11 +7995,8 @@ components of the \noteCiphertext:
   \item extract $\NotePlaintext{} = (\NotePlaintextLeadByte \typecolon \byte, \Diversifier \typecolon \DiversifierType,
 \Value \typecolon \ValueType, \NoteCommitRandBytesOrSeedBytes \typecolon \NoteSeedBytesType, \Memo \typecolon \MemoType)$
 from $\TransmitPlaintext{}$
-  \precanopyitem{if $\NotePlaintextLeadByte \neq \hexint{01}$, return $\bot$}
-        \vspace{-0.2ex}
+  \item if $\NotePlaintextLeadByte \not\in \AllowedLeadBytes^{\Protocol}(\BlockHeight, \TxVersion)$, return $\bot$
   \precanopyitem{let $\NoteCommitRandBytes = \NoteSeedBytes$}
-  \canopyonwarditem{if $\BlockHeight < \CanopyActivationHeight + \ZIPTwoOneTwoGracePeriod \text{ and } \NotePlaintextLeadByte \not\in \setof{\hexint{01}, \hexint{02}}$, return $\bot$}
-  \canopyonwarditem{if $\BlockHeight \geq \CanopyActivationHeight + \ZIPTwoOneTwoGracePeriod \text{ and } \NotePlaintextLeadByte \neq \hexint{02}$, return $\bot$}
   \canopyonwarditem{for \Sapling, let $\NoteCommitRandPre = [4]$ and $\EphemeralPrivatePre = [5]$}
 \nufive{
   \item for \Orchard, let $\NoteUniqueRandBytes = \ItoLEOSP{256}\big(\nfOld{}$ from the same \actionDescription$\kern-0.2em\big)\kern-0.08em$, $\NoteCommitRandPre = [5] \bconcat \NoteUniqueRandBytes$,
@@ -8056,7 +8086,8 @@ this method.)
 Let the constants $\CanopyActivationHeight$ and $\ZIPTwoOneTwoGracePeriod$ be as defined in \crossref{constants}.
 
 \vspace{-0.4ex}
-Let $\BlockHeight$ be the \blockHeight of the \block containing this \transaction.
+Let $\BlockHeight$ be the \blockHeight of the \block containing this \transaction, and
+let $\TxVersion$ be the \transactionVersionNumber.
 } %canopy
 
 \vspace{-0.5ex}
@@ -8099,10 +8130,8 @@ The \outgoingViewingKey holder will attempt to decrypt the \noteCiphertext as fo
   \item extract $\NotePlaintext{} = (\NotePlaintextLeadByte \typecolon \byte, \Diversifier \typecolon \DiversifierType,
 \Value \typecolon \ValueType, \NoteCommitRandBytesOrSeedBytes \typecolon \NoteSeedBytesType, \Memo \typecolon \MemoType)$
 from $\TransmitPlaintext{}$
-  \precanopyitem{if $\NotePlaintextLeadByte \neq \hexint{01}$, return $\bot$}
+  \item if $\NotePlaintextLeadByte \not\in \AllowedLeadBytes^{\Protocol}(\BlockHeight, \TxVersion)$, return $\bot$
   \precanopyitem{let $\NoteCommitRandBytes = \NoteSeedBytes$}
-  \canopyonwarditem{if $\BlockHeight < \CanopyActivationHeight + \ZIPTwoOneTwoGracePeriod \text{ and } \NotePlaintextLeadByte \not\in \setof{\hexint{01}, \hexint{02}}$, return $\bot$}
-  \canopyonwarditem{if $\BlockHeight \geq \CanopyActivationHeight + \ZIPTwoOneTwoGracePeriod \text{ and } \NotePlaintextLeadByte \neq \hexint{02}$, return $\bot$}
   \canopyonwarditem{for \Sapling, let $\NoteCommitRandPre = [4]$ and $\EphemeralPrivatePre = [5]$}
 \nufive{
   \item for \Orchard, let $\NoteUniqueRandBytes = \ItoLEOSP{256}\big(\nfOld{}$ from the same \actionDescription$\kern-0.2em\big)\kern-0.08em$, $\NoteCommitRandPre = [5] \bconcat \NoteUniqueRandBytes$,
@@ -15275,6 +15304,8 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
     \item Rename \shortcrossref{decryptovk} from ``Decryption using a Full Viewing Key (\SaplingAndOrchard)''
           to ``Decryption using an Outgoing Viewing Key (\SaplingAndOrchard)''.
 } %sapling
+    \item Define $\AllowedLeadBytes$ in \crossref{noteptconcept}, and use it to refactor the
+          constraints on \notePlaintextLeadBytes.
     \item Correct the accents on Lukáš Korba's name.
     \item Add acknowledgements to Joe Kilian, Yael Tauman Kalai, and Guy Rothblum for contributions
           to the science of \zeroKnowledgeProvingSystems.
