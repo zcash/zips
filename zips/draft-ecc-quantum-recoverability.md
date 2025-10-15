@@ -488,13 +488,15 @@ In the list of places where $\mathsf{PRF^{expand}}$ is used:
 Replace
 
 > * [**NU5** onward] in § 4.2.3 ‘Orchard Key Components’, with inputs
->   $[6]$, $[7]$, $[8]$, and with first byte $\mathtt{0x82}$ (the last of
->   these is also specified in [[ZIP-32]](https://zips.z.cash/zip-0032));
+>   $[\mathtt{0x06}]$, $[\mathtt{0x07}]$, $[\mathtt{0x08}]$, and with
+>   first byte $\mathtt{0x82}$ (the last of these is also specified in
+>   [[ZIP-32]](https://zips.z.cash/zip-0032));
 > * in the processes of sending (§ 4.7.2 ‘Sending Notes (Sapling)’ and
 >   § 4.7.3 ‘Sending Notes (Orchard)’) and of receiving
 >   (§ 4.20 ‘In-band secret distribution (Sapling and Orchard)’) notes,
->   with inputs $[4]$ and $[5]$, and for Orchard
->   $[t] || \underline{\text{ρ}}$ with $t \in \{ 5, 4, 9 \}$;
+>   for Sapling with inputs $[\mathtt{0x04}]$ and $[\mathtt{0x05}]$,
+>   and for Orchard $[t] || \underline{\text{ρ}}$ with
+>   $t \in \{ \mathtt{0x05}, \mathtt{0x04}, \mathtt{0x09} \}$;
 
 with
 
@@ -516,8 +518,6 @@ Add
 
 > * in {{ reference to this ZIP }}, with first byte in
 >   $\{ \mathtt{0x0A}, \mathtt{0x0B}, \mathtt{0x0C}, \mathtt{0x0D} \}$.
-
-Also change the remaining decimal constants to hex for consistency.
 
 #### § 4.2.3 ‘Orchard Key Components’
 
