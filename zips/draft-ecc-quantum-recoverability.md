@@ -436,15 +436,6 @@ without duplication between sections. It is suggested to do this
 refactoring first, independently of the semantic changes for quantum
 recoverability, and then to simplify this ZIP accordingly.
 
-#### § 3.1 ‘Payment Addresses and Keys’
-
-Add a $\ast$ to the arrows leading to $\mathsf{ask}$ and $\mathsf{rivk}$
-in the Orchard key components diagram, with the following note:
-
-> $\ast$ The derivations of $\mathsf{ask}$ and $\mathsf{rivk}$ shown
-> are not the only possibility. For further detail see
-> § 4.2.3 ‘Orchard Key Components’.
-
 #### § 3.2.1 ‘Note Plaintexts and Memo Fields’
 
 Replace the paragraph
