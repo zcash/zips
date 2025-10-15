@@ -159,7 +159,7 @@ necessary to implement ZSAs [^zip-0226] and Memo Bundles [^zip-0231].
 
 # High-level summary of changes
 
-This subsection is non-normative.
+This subsection and the flow diagram below are non-normative.
 
 In order to support ZSAs [^zip-0226] [^zip-0227] and memo bundles
 [^zip-0231], v6 transactions require in any case a new note plaintext
@@ -183,15 +183,251 @@ alternative way to derive $\mathsf{rivk}$ which is to be used in that
 case. This alternative derivation, using a new "quantum spending key"
 $\mathsf{qsk}$ and "quantum intermediate key" $\mathsf{qk}$, also
 supports more efficient use of hardware wallets in the Recovery Protocol.
-It is described in section [Quantum Recovery-Friendly Key Derivation].
+It is described in sections [Usage with FROST] and [Usage with Hardware Wallets].
 
+## Flow diagram for the Orchard and OrchardZSA protocols
+
+This diagram shows, approximately, the derivation of Orchard keys,
+addresses, notes, note commitments, and nullifiers. All of the flow
+diagrams in this ZIP omit type conversions between curve points, field
+elements, byte sequences, and bit sequences, and so are not sufficiently
+precise to be used directly as a guide for implementation.
+
+```mermaid
+---
+title: "Key to flow diagrams"
+---
+graph BT
+  classDef default stroke:#111111;
+  classDef func fill:#d0ffb8;
+  classDef cefunc fill:#a0e0a0;
+  classDef sensitive fill:#ffb0b0;
+  classDef semi_sensitive fill:#ffb0ff;
+  classDef keybox stroke:#808080, fill:#ffffff;
+  classDef spacer opacity:0;
+
+  key([sensitive key]):::sensitive ~~~ function:::func
+  value([value]) ~~~ cond{{conditional value}}
+  dummyA( ) -->|existing| dummyB( )
+  dummyC( ) ==>|new| dummyD( )
+  dummyE( ) -.->|optional| dummyF( )
+```
+
+The bold lines are changes introduced by this ZIP, which all take the form
+of additional inputs to derivation functions or alternative derivations.
+The derivations shown in the box labelled "Potential recovery circuit" are,
+roughly speaking, those enforced by the [Proposed Recovery Protocol].
+
+```mermaid
+graph BT
+  classDef default stroke:#111111;
+  classDef func fill:#d0ffb8;
+  classDef cefunc fill:#a0e0a0;
+  classDef sensitive fill:#ffb0b0;
+  classDef semi_sensitive fill:#ffb0ff;
+  classDef circuit stroke:#000000, fill:#fffff0;
+  classDef spacer opacity:0;
+
+  PostQC:::circuit
+  subgraph PostQC[<div style="margin:1.1em;font-size:20px"><b>Potential recovery circuit</b></div>]
+    direction BT
+    rivk_ext([rivk_ext]) --> Hrivk_int[H<sup>rivk_int</sup>]:::func
+    ak([ak]) --> Hrivk_int[H<sup>rivk_int</sup>]:::func
+    nk --> Hrivk_int
+    rivk_ext -->|¬is_internal_rivk| rivk
+    Hrivk_int -->|is_internal_rivk| rivk{{rivk}}
+    rivk --> Commitivk[Commit<sup>ivk</sup>]:::func
+    ak([ak]) ----> Commitivk
+    nk([nk]) ----> Commitivk
+    Commitivk ---> ivk([ivk])
+    gd ---> ivkmul[［ivk］g<sub>d</sub>&nbsp;]:::func
+    ivk --> ivkmul
+    split_flag([split_flag]) --> Hpsi
+    rsplit([rsplit]) -->|split_flag| rpsi{{rψ}}
+    rsplit ~~~ split_flag
+    rseed -->|¬split_flag| rpsi
+    rpsi --> Hpsi[H<sup>ψ</sup>]:::func
+    rho --> Hpsi
+    leadByte([leadByte]) ==> pre_rcm
+    v([v, AssetBase]) ===> pre_rcm([pre_rcm])
+    pkd ====> pre_rcm
+    gd ==> pre_rcm
+    psi ===> pre_rcm
+    rho([#8239;ρ#8239;]) --> pre_rcm
+    v ~~~~ rcm
+    ivkmul --> pkd([pk<sub>d</sub>])
+    pre_rcm --> Hrcm[H<sup>rcm</sup>]:::func
+    rseed([rseed]) --> Hrcm
+    Hrcm --> rcm([rcm])
+    Hpsi --> psi([#8239;ψ#8239;])
+    gd --> NoteCommit:::func
+    pkd --> NoteCommit
+    v --> NoteCommit
+    psi --> NoteCommit
+    rcm --> NoteCommit
+    rho --> NoteCommit
+    cm --> DeriveNullifier:::func
+    psi --> DeriveNullifier
+    rho --> DeriveNullifier
+    nk --> DeriveNullifier
+    NoteCommit --> cm([cm])
+    DeriveNullifier --> nf([nf])
+    cm --> cmx([cm<sub><i>x</i></sub>])
+  end
+
+  d([#8239;d#8239;]) --> HashToCurve:::func ------> gd([g<sub>d</sub>])
+```
 
 # Specification
 
-This is written as a set of changes to the existing protocol
-specification and ZIPs. It will need to be merged with other changes
-for v6 transactions (memo bundles [^zip-0231] and ZSAs
-[^zip-0226] [^zip-0227]).
+## Usage with FROST
+
+When generating Orchard keys for FROST, $\mathsf{ak}$ will be derived jointly
+from the participants' shares of $\mathsf{ask}$ according to the FROST
+Distributed Key Generation (DKG) protocol.
+
+This ZIP further constrains FROST key generation for Orchard as follows:
+participants MUST privately agree on a value $\mathsf{sk}$, and then use it
+with $\mathsf{use\_qsk} = \mathsf{true}$ to derive $\mathsf{nk}$, $\mathsf{qsk}$,
+$\mathsf{qk}$, and (using the $\mathsf{ak}$ output by the DKG protocol)
+$\mathsf{rivk\_ext}$, as specified in § 4.2.3 ‘Orchard Key Components’.
+
+```mermaid
+graph BT
+  classDef default stroke:#111111;
+  classDef func fill:#d0ffb8;
+  classDef cefunc fill:#a0e0a0;
+  classDef sensitive fill:#ffb0b0;
+  classDef semi_sensitive fill:#ffb0ff;
+  classDef circuit stroke:#000000, fill:#fffff0;
+  classDef spacer opacity:0;
+
+  sk([sk]):::sensitive --> Hnk[H<sup>nk</sup>]:::func ----> nk([nk])
+  sk --> Hqsk[H<sup>qsk</sup>]:::func --> qsk([qsk]):::sensitive
+  qk ==> Hrivk_ext
+  nk ==> Hrivk_ext
+  FROST_DKG --> ak([ak]) --> FROST_Sign
+  FROST_DKG ~~~ s( ):::spacer ~~~ FROST_Sign
+  FROST_DKG --> ask([ask<sub>i</sub>]):::sensitive --> FROST_Sign
+  ak ==> Hrivk_ext[H<sup>rivk_ext</sup>]:::func
+  Hrivk_ext ==>|use_qsk| rivk_ext([rivk_ext])
+
+  HWW1:::circuit
+  subgraph HWW1[<div style="margin:1.6em;font-size:20px"><br><br><br><br><br><br><br><br><br><b>SoK<sup>qsk</sup></b></div>]
+    qsk([qsk]):::sensitive ==> Hqk[H<sup>qk</sup>]:::cefunc
+    Hqk ==> qk([qk]):::semi_sensitive
+  end
+```
+
+The protocol MUST ensure that all participants obtain the same values for
+$\mathsf{ak}$, $\mathsf{nk}$, and $\mathsf{rivk\_ext}$. (Provided that the
+participants have followed § 4.2.3, this implies that they have the same
+$\mathsf{qsk}$ and $\mathsf{qk}$, by collision resistance of $\mathsf{H^{qk}}$
+and $\mathsf{H^{rivk\_ext}}$.)
+
+Each participant MUST treat $\mathsf{qsk}$ as a secret held at least as
+securely and reliably as $\mathsf{ask}$. Note that $\mathsf{qsk}$ will
+not be needed to sign unless and until the Recovery Protocol is needed,
+but it is essential that it be retained, otherwise funds could be lost if
+and when the current Orchard protocol is disabled.
+
+The Recovery Protocol will still require a RedDSA signature verifiable by
+the Spend validating key $\mathsf{ak}$, in addition to knowledge of
+$\mathsf{qsk}$. Although RedDSA is not secure in the long term against a
+quantum or discrete-log-breaking adversary, the most likely eventuality is
+that attacks against it will be difficult for some years after the current
+Orchard protocol is disabled. During this period, checking this RedDSA
+signature in the Recovery Protocol will ensure that spend authorization by
+a $t$-of-$n$ threshold of participants continues to be needed against
+classical adversaries. This retains the usual advantage of FROST that the
+parties can sign using their shares *without* reconstructing the Spend
+authorizing key $\mathsf{ask}$. Coalitions of fewer than $t$ of the
+participants will be unable to authorize spends as long as they do not
+have access to a sufficiently powerful quantum computer.
+
+Note that a quantum adversary may be able to steal the funds with only
+access to $\mathsf{qsk}$, which is held by every participant. Therefore,
+it is RECOMMENDED that as soon as a fully post-quantum protocol that
+supports multisignatures is available, all funds held under FROST keys
+be transferred into that protocol's shielded pool.
+
+## Usage with hardware wallets
+
+The same $\mathsf{use\_qsk}$ option can help to improve the efficiency of
+using the Recovery Protocol with hardware wallets. If the keys
+$\mathsf{rivk\_ext},$ $\mathsf{nk},$ and $\mathsf{ak}$ are generated from
+$\mathsf{sk},$ then the circuit for the Recovery Protocol will need to
+prove their correct derivation using $\mathsf{H^{rivk\_legacy}},$
+$\mathsf{H^{nk}},$ $\mathsf{H^{ask}},$ and $\mathsf{DerivePublic}$ as
+shown in the $\mathsf{SoK^{sk}}$ box of the diagram below.
+
+```mermaid
+graph BT
+  classDef default stroke:#111111;
+  classDef func fill:#d0ffb8;
+  classDef cefunc fill:#a0e0a0;
+  classDef sensitive fill:#ffb0b0;
+  classDef semi_sensitive fill:#ffb0ff;
+  classDef circuit stroke:#000000, fill:#fffff0;
+  classDef spacer opacity:0;
+
+  HWW1:::circuit
+  subgraph HWW1[<div style="margin:1.1em;font-size:20px"><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><b>SoK<sup>sk</sup></b></div>]
+    sk --> Hrivk_legacy[H<sup>rivk_legacy</sup>]:::func ----> rivk_legacy
+    DerivePublic --> ak([ak])
+    sk([sk]):::sensitive --> Hnk[H<sup>nk</sup>]:::func ----> nk([nk])
+    sk --> Hask[H<sup>ask</sup>]:::func --> ask([ask]):::sensitive
+    ask --> DerivePublic:::func
+  end
+
+  HWW2:::circuit
+  subgraph HWW2[<div style="margin:1.6em;font-size:20px"><br><br><br><br><br><br><br><br><br><b>SoK<sup>qsk</sup></b></div>]
+    qsk([qsk]):::sensitive ==> Hqk[H<sup>qk</sup>]:::cefunc
+    Hqk ==> qk([qk]):::semi_sensitive
+  end
+
+  sk -.-> Hqsk[H<sup>qsk</sup>]:::func -.-> qsk
+  qk ==> Hrivk_ext[H<sup>rivk_ext</sup>]:::func
+  nk([nk]) ==> Hrivk_ext
+  ak ==> Hrivk_ext
+  Hrivk_ext ==>|use_qsk| rivk_ext{{rivk_ext}}
+  rivk_legacy([rivk_legacy]) -->|¬use_qsk| rivk_ext
+```
+
+When $\mathsf{use\_qsk}$ is used, on the other hand, it is possible for
+the Recovery Protocol to support spend authorization using a much smaller
+circuit that only uses $\mathsf{H^{qk}}$ and a commitment scheme.
+For example, for some hiding and collapse binding commitment
+$c = \mathsf{LinkCommit}_r(\mathsf{qk}, \mathsf{sighash}),$
+the hardware wallet could prove knowledge of $(\mathsf{qsk}, r)$ such that
+$c = \mathsf{LinkCommit}_r(\mathsf{H^{qk}}(\mathsf{qsk}), \mathsf{sighash}).$
+This circuit is relatively small and it might be feasible to do the proof in
+quite constrained hardware.
+
+The host wallet would be given $\mathsf{nk},$ $\mathsf{ak},$ and $\mathsf{qk}$
+for use in the main Recovery circuit (discussed later). The commitment $c$ would
+be a public input opened to $(\mathsf{qk}, \mathsf{sighash})$ in that circuit,
+ensuring that the hardware wallet has authorized the spend for the correct key.
+Because $\mathsf{LinkCommit}$ is hiding and the proofs are zero knowledge, no
+information is leaked about which $\mathsf{qk}$ is being used.
+
+Alternatively, if the hardware wallet is unable to support making proofs at
+all, it could be updated to permit exporting $\mathsf{qsk}$. This is less
+secure against a quantum adversary that is able to obtain $\mathsf{qsk}$, but
+it allows the funds to be transferred to another key or protocol. A quantum
+adversary would have to break RedDSA in order to steal funds even if it were
+to obtain $\mathsf{qsk}$, since $\mathsf{ask}$ would remain on the hardware
+wallet.
+
+## Specification Updates
+
+This is written as a set of changes to version 2025.6.1 of the protocol
+specification, and to the contents of ZIPs at the time of writing in
+October 2025 (as proposed for the NU6.1 upgrade). It will need to be merged
+with other changes for v6 transactions (memo bundles [^zip-0231] and
+ZSAs [^zip-0226] [^zip-0227]).
+
+### Changes to the Protocol Specification
 
 Some of the suggested changes to the protocol specification are
 refactoring to make it easier to consistently specify the rules on
@@ -200,9 +436,7 @@ without duplication between sections. It is suggested to do this
 refactoring first, independently of the semantic changes for quantum
 recoverability, and then to simplify this ZIP accordingly.
 
-## Changes to the protocol specification
-
-### § 3.1 ‘Payment Addresses and Keys’
+#### § 3.1 ‘Payment Addresses and Keys’
 
 Add a $\ast$ to the arrows leading to $\mathsf{ask}$ and $\mathsf{rivk}$
 in the Orchard key components diagram, with the following note:
@@ -211,7 +445,7 @@ in the Orchard key components diagram, with the following note:
 > are not the only possibility. For further detail see
 > § 4.2.3 ‘Orchard Key Components’.
 
-### § 3.2.1 ‘Note Plaintexts and Memo Fields’
+#### § 3.2.1 ‘Note Plaintexts and Memo Fields’
 
 Replace the paragraph
 
@@ -294,7 +528,7 @@ Add
 
 Also change the remaining decimal constants to hex for consistency.
 
-### § 4.2.3 ‘Orchard Key Components’
+#### § 4.2.3 ‘Orchard Key Components’
 
 Add $\ell_{\mathsf{qsk}}$ and $\ell_{\mathsf{qk}}$ to the constants obtained
 from § 5.3 ‘Constants’.
@@ -392,7 +626,7 @@ Add the following notes:
 >   recommendations on the storage of, and access to $\mathsf{qsk}$
 >   and $\mathsf{qk}$.
 
-### § 4.7.2 ‘Sending Notes (Sapling)’
+#### § 4.7.2 ‘Sending Notes (Sapling)’
 
 Replace
 
@@ -422,7 +656,7 @@ Replace the lines deriving $\mathsf{rcm}$ and $\mathsf{esk}$ with
 > 
 > Derive $\mathsf{esk} = \mathsf{H^{esk,Sapling}_{rseed}}(\bot, \bot)$
 
-### § 4.7.3 ‘Sending Notes (Orchard)’
+#### § 4.7.3 ‘Sending Notes (Orchard)’
 
 Replace
 
@@ -470,7 +704,7 @@ with
 
 > Derive $\text{ψ} = \mathsf{H^{\text{ψ},Orchard}_{rseed}}(\underline{\text{ρ}}, \mathsf{split\_flag})$
 
-### § 4.8.2 ‘Dummy Notes (Sapling)’
+#### § 4.8.2 ‘Dummy Notes (Sapling)’
 
 Add
 
@@ -491,7 +725,7 @@ to
 > A Spend description for a dummy Sapling input note with note plaintext
 > lead byte $\mathtt{0x02}$ is constructed as follows:
 
-### § 4.8.3 ‘Dummy Notes (Orchard)’
+#### § 4.8.3 ‘Dummy Notes (Orchard)’
 
 Insert before "The spend-related fields ...":
 
@@ -516,7 +750,7 @@ and use $\mathsf{g}\star_{\mathsf{d}}$, $\mathsf{pk}\star_{\mathsf{d}}$,
 and $\mathsf{AssetBase}\kern0.08em\star$ in the inputs to
 $\mathsf{NoteCommit^{Orchard}}$.
 
-### § 4.20.2 and § 4.20.3 ‘Decryption using an Incoming/Full Viewing Key (Sapling and Orchard)’
+#### § 4.20.2 and § 4.20.3 ‘Decryption using an Incoming/Full Viewing Key (Sapling and Orchard)’
 
 For both § 4.20.2 and § 4.20.3, replace
 
@@ -626,16 +860,16 @@ be assigned to $\underline{\mathsf{rcm}}$.)
 
 Delete "where $\text{ψ} = \mathsf{ToBase^{Orchard}}(\mathsf{PRF^{expand}_{rseed}}([9] \,||\, \underline{\text{ρ}}))$".
 
-### § 5.3 ‘Constants’
+#### § 5.3 ‘Constants’
 
 Add the definitions
 
 > $\ell_{\mathsf{qsk}} \;{\small ⦂}\; \mathbb{N} := 256$ <br>
 > $\ell_{\mathsf{qk}} \;{\small ⦂}\; \mathbb{N} := 256$
 
-## Changes to ZIPs
+### Changes to ZIPs
 
-### ZIP 32
+#### ZIP 32
 
 Add a $\ast$ to the arrows leading to $\mathsf{ask}$ and $\mathsf{rivk}$
 in the diagram in section ‘Orchard internal key derivation’
@@ -650,7 +884,7 @@ in the diagram in section ‘Orchard internal key derivation’
 > {{ reference to this ZIP }} in the event that attacks using quantum
 > computers become practical.
 
-### ZIP 212
+#### ZIP 212
 
 Add a note before the Abstract:
 
@@ -659,7 +893,7 @@ Add a note before the Abstract:
 This ZIP reflects the changes made to note encryption for the Canopy upgrade.
 It does not include subsequent changes in {{ reference to this ZIP }}.
 
-### ZIP 226
+#### ZIP 226
 
 Add the following to the section [Note Structure & Commitment](https://zips.z.cash/zip-0226#note-structure-commitment):
 
@@ -679,174 +913,6 @@ to
 > $\mathsf{H^{\text{ψ},Orchard}_{rseed\_nf}}(\underline{\text{ρ}}, 1) = \mathsf{ToBase^{Orchard}}\big(\mathsf{PRF^{expand}_{rseed\_nf}}([\mathtt{0x0A}] \,||\, \underline{\text{ρ}})\kern-0.1em\big)$
 > for $\mathsf{rseed\_nf}$ sampled uniformly at random on $\mathbb{B}^{{\kern-0.1em\tiny\mathbb{Y}}[32]}$, ...
 
-## Flow diagrams
-
-In subsequent sections we use flow diagrams to illustrate the relationships
-between protocol values. These diagrams omit type conversions between curve
-points, field elements, byte sequences, and bit sequences, and so are not
-sufficiently precise to be used directly as a guide for implementation.
-
-```mermaid
----
-title: "Key to flow diagrams"
----
-graph BT
-  classDef default stroke:#111111;
-  classDef func fill:#d0ffb8;
-  classDef cefunc fill:#a0e0a0;
-  classDef sensitive fill:#ffb0b0;
-  classDef semi_sensitive fill:#ffb0ff;
-  classDef keybox stroke:#808080, fill:#ffffff;
-  classDef spacer opacity:0;
-
-  key([sensitive key]):::sensitive ~~~ function:::func
-  value([value]) ~~~ cond{{conditional value}}
-  dummyA( ) -->|existing| dummyB( )
-  dummyC( ) ==>|new| dummyD( )
-  dummyE( ) -.->|optional| dummyF( )
-```
-
-## Quantum Recovery-Friendly Key Derivation
-
-### Usage with FROST
-
-When generating Orchard keys for FROST, $\mathsf{ak}$ will be derived jointly
-from the participants' shares of $\mathsf{ask}$ according to the FROST
-Distributed Key Generation (DKG) protocol.
-
-This ZIP further constrains FROST key generation for Orchard as follows:
-participants MUST privately agree on a value $\mathsf{sk}$, and then use it
-with $\mathsf{use\_qsk} = \mathsf{true}$ to derive $\mathsf{nk}$, $\mathsf{qsk}$,
-$\mathsf{qk}$, and (using the $\mathsf{ak}$ output by the DKG protocol)
-$\mathsf{rivk\_ext}$, as specified in § 4.2.3 ‘Orchard Key Components’.
-
-```mermaid
-graph BT
-  classDef default stroke:#111111;
-  classDef func fill:#d0ffb8;
-  classDef cefunc fill:#a0e0a0;
-  classDef sensitive fill:#ffb0b0;
-  classDef semi_sensitive fill:#ffb0ff;
-  classDef circuit stroke:#000000, fill:#fffff0;
-  classDef spacer opacity:0;
-
-  sk([sk]):::sensitive --> Hnk[H<sup>nk</sup>]:::func ----> nk([nk])
-  sk --> Hqsk[H<sup>qsk</sup>]:::func --> qsk([qsk]):::sensitive
-  qk ==> Hrivk_ext
-  nk ==> Hrivk_ext
-  FROST_DKG --> ak([ak]) --> FROST_Sign
-  FROST_DKG ~~~ s( ):::spacer ~~~ FROST_Sign
-  FROST_DKG --> ask([ask<sub>i</sub>]):::sensitive --> FROST_Sign
-  ak ==> Hrivk_ext[H<sup>rivk_ext</sup>]:::func
-  Hrivk_ext ==>|use_qsk| rivk_ext([rivk_ext])
-
-  HWW1:::circuit
-  subgraph HWW1[<div style="margin:1.6em;font-size:20px"><br><br><br><br><br><br><br><br><br><b>SoK<sup>qsk</sup></b></div>]
-    qsk([qsk]):::sensitive ==> Hqk[H<sup>qk</sup>]:::cefunc
-    Hqk ==> qk([qk]):::semi_sensitive
-  end
-```
-
-The protocol MUST ensure that all participants obtain the same values for
-$\mathsf{ak}$, $\mathsf{nk}$, and $\mathsf{rivk\_ext}$. (Provided that the
-participants have followed § 4.2.3, this implies that they have the same
-$\mathsf{qsk}$ and $\mathsf{qk}$, by collision resistance of $\mathsf{H^{qk}}$
-and $\mathsf{H^{rivk\_ext}}$.)
-
-Each participant MUST treat $\mathsf{qsk}$ as a secret held at least as
-securely and reliably as $\mathsf{ask}$. Note that $\mathsf{qsk}$ will not
-be needed to sign unless and until the Quantum Recovery protocol is needed,
-but it is essential that it be retained, otherwise funds could be lost if
-and when the current Orchard protocol is disabled.
-
-The Recovery Protocol will still require a RedDSA signature verifiable by
-the Spend validating key $\mathsf{ak}$, in addition to knowledge of
-$\mathsf{qsk}$. Although RedDSA is not secure in the long term against a
-quantum or discrete-log-breaking adversary, the most likely eventuality is
-that attacks against it will be difficult for some years after the current
-Orchard protocol is disabled. During this period, checking this RedDSA
-signature in the Recovery Protocol will ensure that spend authorization by
-a $t$-of-$n$ threshold of participants continues to be needed against
-classical adversaries. This retains the usual advantage of FROST that the
-parties can sign using their shares *without* reconstructing the Spend
-authorizing key $\mathsf{ask}$. Coalitions of fewer than $t$ of the
-participants will be unable to authorize spends as long as they do not
-have access to a sufficiently powerful quantum computer.
-
-Note that a quantum adversary may be able to steal the funds with only
-access to $\mathsf{qsk}$, which is held by every participant. Therefore,
-it is RECOMMENDED that as soon as a fully post-quantum protocol that
-supports multisignatures is available, all funds held under FROST keys
-be transferred into that protocol's shielded pool.
-
-### Usage with hardware wallets
-
-The same $\mathsf{use\_qsk}$ option can help to improve the efficiency of
-using the Recovery Protocol with hardware wallets. If the keys
-$\mathsf{rivk\_ext},$ $\mathsf{nk},$ and $\mathsf{ak}$ are generated from
-$\mathsf{sk},$ then the circuit for the Recovery Protocol will need to
-prove their correct derivation using $\mathsf{H^{rivk\_legacy}},$
-$\mathsf{H^{nk}},$ $\mathsf{H^{ask}},$ and $\mathsf{DerivePublic}$ as
-shown in the $\mathsf{SoK^{sk}}$ box of the diagram below.
-
-```mermaid
-graph BT
-  classDef default stroke:#111111;
-  classDef func fill:#d0ffb8;
-  classDef cefunc fill:#a0e0a0;
-  classDef sensitive fill:#ffb0b0;
-  classDef semi_sensitive fill:#ffb0ff;
-  classDef circuit stroke:#000000, fill:#fffff0;
-  classDef spacer opacity:0;
-
-  HWW1:::circuit
-  subgraph HWW1[<div style="margin:1.1em;font-size:20px"><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><b>SoK<sup>sk</sup></b></div>]
-    sk --> Hrivk_legacy[H<sup>rivk_legacy</sup>]:::func ----> rivk_legacy
-    DerivePublic --> ak([ak])
-    sk([sk]):::sensitive --> Hnk[H<sup>nk</sup>]:::func ----> nk([nk])
-    sk --> Hask[H<sup>ask</sup>]:::func --> ask([ask]):::sensitive
-    ask --> DerivePublic:::func
-  end
-
-  HWW2:::circuit
-  subgraph HWW2[<div style="margin:1.6em;font-size:20px"><br><br><br><br><br><br><br><br><br><b>SoK<sup>qsk</sup></b></div>]
-    qsk([qsk]):::sensitive ==> Hqk[H<sup>qk</sup>]:::cefunc
-    Hqk ==> qk([qk]):::semi_sensitive
-  end
-
-  sk -.-> Hqsk[H<sup>qsk</sup>]:::func -.-> qsk
-  qk ==> Hrivk_ext[H<sup>rivk_ext</sup>]:::func
-  nk([nk]) ==> Hrivk_ext
-  ak ==> Hrivk_ext
-  Hrivk_ext ==>|use_qsk| rivk_ext{{rivk_ext}}
-  rivk_legacy([rivk_legacy]) -->|¬use_qsk| rivk_ext
-```
-
-When $\mathsf{use\_qsk}$ is used, on the other hand, it is possible for
-the Recovery Protocol to support spend authorization using a much smaller
-circuit that only uses $\mathsf{H^{qk}}$ and a commitment scheme.
-For example, for some hiding and collapse binding commitment
-$c = \mathsf{LinkCommit}_r(\mathsf{qk}, \mathsf{sighash}),$
-the hardware wallet could prove knowledge of $(\mathsf{qsk}, r)$ such that
-$c = \mathsf{LinkCommit}_r(\mathsf{H^{qk}}(\mathsf{qsk}), \mathsf{sighash}).$
-This circuit is relatively small and it might be feasible to do the proof in
-quite constrained hardware.
-
-The host wallet would be given $\mathsf{nk},$ $\mathsf{ak},$ and $\mathsf{qk}$
-for use in the main Recovery circuit (discussed later). The commitment $c$ would
-be a public input opened to $(\mathsf{qk}, \mathsf{sighash})$ in that circuit,
-ensuring that the hardware wallet has authorized the spend for the correct key.
-Because $\mathsf{LinkCommit}$ is hiding and the proofs are zero knowledge, no
-information is leaked about which $\mathsf{qk}$ is being used.
-
-Alternatively, if the hardware wallet is unable to support making proofs at
-all, it could be updated to permit exporting $\mathsf{qsk}$. This is less
-secure against a quantum adversary that is able to obtain $\mathsf{qsk}$, but
-it allows the funds to be transferred to another key or protocol. A quantum
-adversary would have to break RedDSA in order to steal funds even if it were
-to obtain $\mathsf{qsk}$, since $\mathsf{ask}$ would remain on the hardware
-wallet.
-
 
 # Rationale
 
@@ -862,79 +928,16 @@ to first read the slides of, and/or watch the following presentations:
 To understand the modelling of hash function and commitment security
 against a quantum adversary we also recommend [^Unruh2015] and [^Unruh2016].
 
+## Proposed Recovery Protocol
 
-## Flow diagram for the Orchard and OrchardZSA protocols
+The details of the protocol in this section are subject to change. This
+description is meant to facilitate analysis of whether the specification
+changes to be adopted now are likely to be sufficient to securely support
+a Recovery Protocol.
 
-This diagram shows, approximately, the derivation of Orchard keys,
-addresses, notes, note commitments, and nullifiers. It omits type
-conversions between curve points, field elements, byte sequences, and
-bit sequences, and so is not sufficiently precise to be used directly as
-a guide for implementation.
-
-The bold lines are changes introduced by this ZIP, which all take the form
-of additional inputs to derivation functions or alternative derivations.
-
-```mermaid
-graph BT
-  classDef default stroke:#111111;
-  classDef func fill:#d0ffb8;
-  classDef cefunc fill:#a0e0a0;
-  classDef sensitive fill:#ffb0b0;
-  classDef semi_sensitive fill:#ffb0ff;
-  classDef circuit stroke:#000000, fill:#fffff0;
-  classDef spacer opacity:0;
-
-  PostQC:::circuit
-  subgraph PostQC[<div style="margin:1.1em;font-size:20px"><b>Recovery circuit</b></div>]
-    direction BT
-    rivk_ext([rivk_ext]) --> Hrivk_int[H<sup>rivk_int</sup>]:::func
-    ak([ak]) --> Hrivk_int[H<sup>rivk_int</sup>]:::func
-    nk --> Hrivk_int
-    rivk_ext -->|¬is_internal_rivk| rivk
-    Hrivk_int -->|is_internal_rivk| rivk{{rivk}}
-    rivk --> Commitivk[Commit<sup>ivk</sup>]:::func
-    ak([ak]) ----> Commitivk
-    nk([nk]) ----> Commitivk
-    Commitivk ---> ivk([ivk])
-    gd ---> ivkmul[［ivk］g<sub>d</sub>&nbsp;]:::func
-    ivk --> ivkmul
-    split_flag([split_flag]) --> Hpsi
-    rsplit([rsplit]) -->|split_flag| rpsi{{rψ}}
-    rsplit ~~~ split_flag
-    rseed -->|¬split_flag| rpsi
-    rpsi --> Hpsi[H<sup>ψ</sup>]:::func
-    rho --> Hpsi
-    leadByte([leadByte]) ==> pre_rcm
-    v([v, AssetBase]) ===> pre_rcm([pre_rcm])
-    pkd ====> pre_rcm
-    gd ==> pre_rcm
-    psi ===> pre_rcm
-    rho([#8239;ρ#8239;]) --> pre_rcm
-    v ~~~~ rcm
-    ivkmul --> pkd([pk<sub>d</sub>])
-    pre_rcm --> Hrcm[H<sup>rcm</sup>]:::func
-    rseed([rseed]) --> Hrcm
-    Hrcm --> rcm([rcm])
-    Hpsi --> psi([#8239;ψ#8239;])
-    gd --> NoteCommit:::func
-    pkd --> NoteCommit
-    v --> NoteCommit
-    psi --> NoteCommit
-    rcm --> NoteCommit
-    rho --> NoteCommit
-    cm --> DeriveNullifier:::func
-    psi --> DeriveNullifier
-    rho --> DeriveNullifier
-    nk --> DeriveNullifier
-    NoteCommit --> cm([cm])
-    DeriveNullifier --> nf([nf])
-    cm --> cmx([cm<sub><i>x</i></sub>])
-  end
-
-  d([#8239;d#8239;]) --> HashToCurve:::func ------> gd([g<sub>d</sub>])
-```
-
-### Post-quantum recovery statement
+The proposed Recovery Protocol works, roughly speaking, by enforcing the
+derivations given in the [Flow diagram for the Orchard and OrchardZSA protocols],
+and we suggest having that diagram open in another window to refer to it.
 
 Import this definition from § 4.7.3 ‘Sending Notes (Orchard)’:
 
@@ -1396,10 +1399,10 @@ An adversary could also attempt to cause a collision in $\mathsf{nf}$ by causing
 collision on $\mathsf{Extract}_{\mathbb{P}}$, but this is also not feasible if
 $\mathsf{H^{rcm,Orchard}}$ can be modelled as a random oracle.
 
-## Effects of discrete-log-breaking attacks before the switch to the Recovery protocol
+## Effects of discrete-log-breaking attacks before the switch to the Recovery Protocol
 
 TBD: explain that such attacks can break Balance and Spendability, including
-Spendability for transactions after switching to the Recovery protocol.
+Spendability for transactions after switching to the Recovery Protocol.
 
 Note that we can identify the precise set of note commitments for
 recoverable (lead byte $\mathtt{0x03}$) Orchard notes, since they are
