@@ -127,7 +127,8 @@ that use ``qchar``, i.e. the values of label, message, ``reqparam``, and
 The value of an ``req-asset`` parameter MUST be a `base64url` string without
 padding. This string is obtained by concatenating a version byte, the
 canonical ``EncodeAssetId`` defined in ZIP 227 [#zip-0227]_, and an asset
-amount encoded as an unsigned integer in minimal units.
+amount encoded as an unsigned integer value representing the number of Asset tokens,
+in the smallest possible denomination for the Asset.
 
 Implementations MUST reject any ``req-asset`` value that is not a valid
 `*base64url` string. A URI containing both an ``amount`` parameter and a
@@ -208,28 +209,24 @@ Assets
 The ``req-asset`` parameter permits the specification of both an asset
 identifier and an amount for a payment. It is encoded as follows:
 
-::
-
-  req-asset = base64url( 0x00 || EncodeAssetId(66 bytes) || uint64_be(8 bytes) )
+$\textt{req-assert} = \mathsf{base6url}\big(\mathtt{0x00} \,||\, \mathsf{I2LEOSP}_{64}(value) \,||\, \mathsf{EncodeAssetId}(\mathsf{AssetId})\big)$
 
 The leading version byte (``0x00``) indicates the encoding format.
-For version ``0x00``, the next 66 bytes are the ``EncodeAssetId`` value
-defined in ZIP 227 [#zip-0227]_, followed by 8 bytes representing the amount
-as an unsigned 64-bit integer in big-endian (network) byte order,
-corresponding to the number of minimal units of the asset to be transferred.
+For version ``0x00``, the next 8 bytes represent the amount
+as an unsigned 64-bit integer in little-endian byte order,
+followed by the encoded $\mathsf{AssetId}$.
 
 Future versions MAY define different structures or lengths after the version
 byte; implementations MUST use the version value to determine how to decode
 the remainder of the parameter.
 
 If no ``req-asset`` parameter is present, the payment MUST be considered to
-be for the default asset (ZEC), and the transfer amount is specified using
-the ``amount`` parameter.
+be for ZEC, and the transfer amount in ZEC is specified using the ``amount``
+parameter.
 
-Only Orchard receivers are valid for asset payments. Therefore, a payment request
-MUST use a Unified Address that encodes at least one Orchard receiver.
-If the address in a payment request is a transparent address or a Sapling address,
-then the request is invalid.
+Only Orchard receivers are valid for Custom Asset payments. Therefore, a payment
+request for a Custom Asset MUST use a Unified Address that encodes at least one
+Orchard receiver.
 
 Example:
 
@@ -247,15 +244,15 @@ We want to create a URI to request a payment of ``100.55`` of this asset:
 
   100.55 USD = 10055 minimal units (assuming 2 decimal places)
   = 0x0000000000002747
-  = 00 00 00 00 00 00 27 47 (8 bytes, big-endian)
+  = 47 27 00 00 00 00 00 00 (8 bytes, little-endian)
 
-Concatenating the version byte, asset id, and amount gives (hex):
+Concatenating the version byte, amount, and asset id gives (hex):
 ::
 
   00
+  4727000000000000
   0000deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
   11223344556677889900aabbccddeeff00112233445566778899aabbccddeeff
-  0000000000002747
 
 Base64url-encoded (unpadded) for the entire 75-byte blob, this becomes
 (100 characters):
@@ -275,7 +272,7 @@ A payment URI using this ``req-asset`` could look like:
 Transfer amount
 ---------------
 
-If an amount is provided without an asset parameter, the amount is considered to be
+If an amount is provided without a ``req-asset`` parameter, the amount is considered to be
 in the base currency and MUST be specified in decimal ZEC. If a decimal fraction
 is present then a period (`.`) MUST be used as the separating character to separate
 the whole number from the decimal fraction, and both the whole number and the 
@@ -293,7 +290,7 @@ For example,
 The amount MUST NOT be greater than 21000000 ZEC (in general, monetary amounts
 in Zcash cannot be greater than this value).
 
-Amounts for other assets are specified in the Assets section above.
+Amounts for Custom Assets are specified in the Assets section above.
 
 
 Query Keys
@@ -349,7 +346,7 @@ address, with a base64url-encoded Unicode memo for the shielded recipient.
 
 This represents a valid payment request with two recipients, each having a distinct
 Unified Address that includes an Orchard receiver. Each ``req-asset`` parameter
-encodes a version byte, an asset identifier and asset amount.
+encodes a version byte, an asset amount, and an asset identifier.
 
 
 Invalid Examples
@@ -407,7 +404,7 @@ and do not have an "authority component".
 
 Invalid:
  * A Sapling address is used with a ``req-asset`` parameter. Sapling receivers do not
-   support asset payments (only Unified Addresses with an Orchard receiver do).
+   support Custom Asset payments (only Unified Addresses with an Orchard receiver do).
  * The ``req-asset`` value contains characters (e.g., ``@``, ``!``) that are not
    permitted in base64url.
  * The ``amount`` parameter is present together with ``req-asset``. These parameters
