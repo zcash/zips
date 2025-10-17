@@ -72,8 +72,8 @@ Structured memos
 
 A memo can be used to store structured data by setting its first byte to a value of
 ``0xF7``. The remaining bytes contain a set of "memo parts", encoded as concatenated
-Type-Length-Value tuples, followed by fixed padding (if any memo bytes remain after the
-TLV tuples).
+Type-Version-Length-Value tuples, followed by fixed padding (if any memo bytes remain
+after the TVLV tuples).
 
 Multiple memo parts with the same type are not permitted in structured memos.
 
@@ -88,17 +88,19 @@ After the leading ``0xF7`` byte, readers parse the remaining memo bytes as follo
     parse a ``compactSize``, return an error.
   - If ``partType == 0``:
 
-    - This is a marker type indicating that there are no more TLV tuples. If any of the
+    - This is a marker type indicating that there are no more TVLV tuples. If any of the
       remaining memo bytes are not ``0x00``, return an error.
 
   - Else if ``partType`` has already been parsed in an earlier memo part, return an error.
   - Otherwise:
 
+    - Parse a ``compactSize`` to obtain ``partVersion``. If there are insufficient bytes
+      to parse a ``compactSize``, return an error.
     - Parse a ``compactSize`` to obtain ``partLength``. If there are insufficient bytes to
       parse a ``compactSize``, return an error.
-    - Parse the next ``partLength`` bytes to obtain ``partValue``. If ``partLength`` would
+    - Read the next ``partLength`` bytes to obtain ``partValue``. If ``partLength`` would
       require the reader to read past the end of the memo bytes, return an error.
-    - Store ``(partType, partValue)`` and continue parsing.
+    - Store ``(partType, partVersion, partValue)`` and continue parsing.
 
 If an error occurs, readers MUST treat the entire memo as invalid (ignoring any
 ``MemoPart`` that was successfully parsed prior to the error).
@@ -106,14 +108,14 @@ If an error occurs, readers MUST treat the entire memo as invalid (ignoring any
 Defined memo part types
 ```````````````````````
 
-The following memo part types (and corresponding value encodings) are defined:
+The following memo part types (and corresponding versioned value encodings) are defined:
 
-+--------------+-------------------------------------------------------------------------------------+
-| ``partType`` | ``partValue`` encoding                                                              |
-+==============+=====================================================================================+
-| 160          | A UTF-8 string.                                                                     |
-|              | If decoding fails then return an error; readers MUST NOT replace invalid sequences. |
-+--------------+-------------------------------------------------------------------------------------+
++--------------+-----------------+-------------------------------------------------------------------------------------+
+| ``partType`` | ``partVersion`` | ``partValue`` encoding                                                              |
++==============+=================+=====================================================================================+
+| 160          | 0               | A UTF-8 string.                                                                     |
+|              |                 | If decoding fails then return an error; readers MUST NOT replace invalid sequences. |
++--------------+-----------------+-------------------------------------------------------------------------------------+
 
 Adding new types
 ~~~~~~~~~~~~~~~~
@@ -148,6 +150,24 @@ See issue `#1849`_ for further discussion.
 
 .. _`#1849`: https://github.com/zcash/zcash/issues/1849
 
+``partVersion`` at the top level of structured memos
+----------------------------------------------------
+
+It is intentional that only one memo part of each type be present in a memo; any container
+formats should be represented within ``partValue``. However, it is also desirable that the
+``partValue`` encodings can be updated over time as changes are made to the wallet-level
+protocols that use them. Without an explicit version field, the only alternative would be
+to assign a new ``partType`` for the new version, at which point it would be possible for
+a memo to contain two versions of the same semantic data. By having an explicit version
+field, wallets can forward-compatibly distinguish between a new version of a memo part
+type they are currently handling, and a new memo part type they don't know about.
+
+A prior argument against explicit version bytes at the top level was that memo space is
+limited to 511 bytes, and requiring every memo part type to have a version byte would add
+25-50% overhead on top of the TLV header. However, once ZIP 231 Memo Bundles [#zip-0231]_
+are deployed, a single memo can be at most 16384 bytes in a v6 transaction, weakening this
+argument.
+
 Backwards Compatibility
 =======================
 
@@ -161,3 +181,4 @@ References
 .. [#UTF-8] `UTF-8, a transformation format of ISO 10646 <https://www.rfc-editor.org/rfc/rfc3629.html>`_
 .. [#Bitcoin-CompactSize] `Variable length integer. Bitcoin Wiki <https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer>`_
 .. [#zip-0000] `ZIP 0: ZIP Process <zip-0000.rst>`_
+.. [#zip-0231] `ZIP 231: Memo Bundles <zip-0231.rst>`_
