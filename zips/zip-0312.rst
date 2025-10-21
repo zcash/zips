@@ -18,8 +18,9 @@
 Terminology
 ===========
 
-The key words "MUST", "SHOULD", and "MAY" in this document are to be interpreted
-as described in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
+The key words "MUST", "SHOULD", "RECOMMENDED", "NOT RECOMMENDED", and "MAY" in
+this document are to be interpreted as described in BCP 14 [#BCP14]_ when, and
+only when, they appear in all capitals.
 
 The term below is to be interpreted as follows:
 
@@ -157,11 +158,58 @@ Specification, which would use $[k]\, P$ with the group implied by $P$
 Key Generation
 --------------
 
-While key generation is out of scope for this ZIP and the FROST spec [#FROST]_,
-it needs to be consistent with FROST, see [#frost-tdkg]_ for guidance. The spend
-authorization private key $\mathsf{ask}$ [#protocol-spendauthsig]_ is the
-particular key that must be used in the context of this ZIP. Note that the
-$\mathsf{ask}$ is usually derived from the spending key
+FROST key generation with a trusted dealer is described in [#frost-tdkg]_. That
+description does not support key re-randomization but can be adapted to do so,
+as described in section 5 of [#frost-rerandomized]_.
+
+Instead, it is RECOMMENDED to instead use Distributed Key Generation. This is
+supported by the Zcash Foundation's reference implementation of FROST
+[#zf-frost-dkg]_.
+
+To define a spending or viewing key that uses FROST, the Orchard and Sapling key
+trees [#protocol-orchardkeycomponents]_ [#protocol-saplingkeycomponents]_ are
+adjusted as follows:
+
+- The Spend validating key $\mathsf{ak}$ is replaced by the FROST group
+  public key `PK` [#frost-protocol]_ when deriving other key components.
+- The Spend authorizing key $\mathsf{ask}$ [#protocol-spendauthsig]_ is
+  replaced by the logical signing key that corresponds to the group public key
+  `PK`. By design, this key is never explicitly constructed (unless trusted
+  dealer key generation was used), and instead is represented by any sufficient
+  subset of the participant FROST signing key shares `sk_i`.
+
+The remaining parts of the Orchard and Sapling key trees SHOULD be generated
+from a common spending key $\mathsf{sk}$ as described in
+[#protocol-orchardkeycomponents]_ [#protocol-saplingkeycomponents]_, with the
+exception of $\mathsf{ask}$ which SHOULD NOT be derived from $\mathsf{sk}$ (and
+can't possibly be derived, if Distributed Key Generation was used). Deriving
+$\mathsf{ask}$ from $\mathsf{sk}$ MAY be done if the application requires to
+back up the unsplit key, but this is generally NOT RECOMMENDED since it forces
+the usage of trusted dealer key generation.
+
+In order for all participants to agree on the value of $\mathsf{sk}$, one
+of the following options SHOULD be carried out:
+
+- One participant generates a random $\mathsf{sk}$ and sends it to the
+  others via an encrypted and authenticated channel. This option SHOULD be used
+  if trusted dealer key generation was used, and the $\mathsf{sk}$ value
+  can be sent along with the FROST shares during key generation. This option MAY
+  be used if Distributed Key Generation was used, if participants find it
+  acceptable to trust one participant to correctly generate $\mathsf{sk}$.
+- Participants generate a $\mathsf{sk}$ in distributed manner using TODO.
+  This option SHOULD be used if Distributed Key Generation was used.
+- (TODO: evaluate if it is secure) Participants derive $\mathsf{sk}$ from
+  the public keys of the particpants (`PK_i` in [#FROST]_) via (TODO: specify
+  mechanism to hash all PK_i and derive sk)
+
+... (TODO: Finish specifying how the other common parts of the Sapling and
+Orchard key trees are derived for participants, perhaps in terms of a common
+$\mathsf{sk}$ or a common HD path.)
+
+(Old remaining content below, which will change after the above TODO and
+Quantum Recoverability changes.)
+
+Note that the $\mathsf{ask}$ is usually derived from the spending key
 $\mathsf{sk}$, though that is not required. Not doing so allows using
 Distributed Key Generation, since the key it generates is unpredictable. Note
 however that not deriving $\mathsf{ask}$ from $\mathsf{sk}$ prevents using seed
@@ -347,7 +395,7 @@ Authorization Signatures as specified in [#protocol-concretespendauthsig]_.
   - Order: $r_{\mathbb{J}}$ as defined in [#protocol-jubjub]_.
   - Identity: as defined in [#protocol-jubjub]_.
   - RandomScalar(): Implemented by returning a uniformly random Scalar in the range
-    \[0, ``G.Order()`` - 1\]. Refer to {{frost-randomscalar}} for implementation guidance.
+    \[0, ``G.Order()`` - 1\]. Refer to [#frost-randomscalar]_ for implementation guidance.
   - SerializeElement(P): Implemented as $\mathsf{repr}_{\mathbb{J}}(P)$ as defined in [#protocol-jubjub]_
   - DeserializeElement(P): Implemented as $\mathsf{abst}_{\mathbb{J}}(P)$ as defined in [#protocol-jubjub]_,
     returning an error if $\bot$ is returned. Additionally, this function
@@ -396,7 +444,7 @@ Authorization Signatures as specified in [#protocol-concretespendauthsig]_.
   - Order: $r_\mathbb{P}$ as defined in [#protocol-pallasandvesta]_.
   - Identity: as defined in [#protocol-pallasandvesta]_.
   - RandomScalar(): Implemented by returning a uniformly random Scalar in the range
-    \[0, ``G.Order()`` - 1\]. Refer to {{frost-randomscalar}} for implementation guidance.
+    \[0, ``G.Order()`` - 1\]. Refer to [#frost-randomscalar]_ for implementation guidance.
   - SerializeElement(P): Implemented as $\mathsf{repr}_\mathbb{P}(P)$ as defined in [#protocol-pallasandvesta]_.
   - DeserializeElement(P): Implemented as $\mathsf{abst}_\mathbb{P}(P)$ as defined in [#protocol-pallasandvesta]_,
     failing if $\bot$ is returned. Additionally, this function validates that the resulting
@@ -519,19 +567,22 @@ References
 .. [#BLAKE] `BLAKE2: simpler, smaller, fast as MD5 <https://blake2.net/#sp>`_
 .. [#FROST] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures <https://www.rfc-editor.org/rfc/rfc9591.html>`_
 .. [#frost-rerandomized] `Re-Randomized FROST (ePrint 2024/436) <https://eprint.iacr.org/2024/436>`_
-.. [#frost-protocol] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Section 5: Two-Round FROST Signing Protocol <https://www.rfc-editor.org/rfc/rfc9591.html#name-two-round-frost-signing-pro>`_
-.. [#frost-removingcoordinator] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Section 7.3: Removing the Coordinator Role <https://www.rfc-editor.org/rfc/rfc9591.html#name-removing-the-coordinator-ro>`_
-.. [#frost-primeordergroup] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Section 3.1: Prime-Order Group <https://www.rfc-editor.org/rfc/rfc9591.html#name-prime-order-group>`_
-.. [#frost-primeorderverify] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Appendix B: Schnorr Signature Generation and Verification for Prime-Order Groups <https://www.ietf.org/archive/id/draft-irtf-cfrg-frost-11.html#name-schnorr-signature-generatio>`_
-.. [#frost-tdkg] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Appendix B: Trusted Dealer Key Generation <https://www.rfc-editor.org/rfc/rfc9591.html#name-trusted-dealer-key-generati>`_
-.. [#frost-randomscalar] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Appendix C: Random Scalar Generation <https://www.rfc-editor.org/rfc/rfc9591.html#name-random-scalar-generation>`_
 .. [#frost-serialization] `The ZF FROST Book, Serialization Format <https://frost.zfnd.org/user/serialization.html>`_
-.. [#frost-listoperations] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Section 4.3: List Operations <https://www.rfc-editor.org/rfc/rfc9591.html#name-list-operations>`_
 .. [#frost-conventions] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Section 2: Conventions and Definitions <https://www.rfc-editor.org/rfc/rfc9591.html#name-conventions-and-definitions>`_
+.. [#frost-primeordergroup] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Section 3.1: Prime-Order Group <https://www.rfc-editor.org/rfc/rfc9591.html#name-prime-order-group>`_
 .. [#frost-hash] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Section 3.2: Cryptographic Hash Function <https://www.rfc-editor.org/rfc/rfc9591.html#name-cryptographic-hash-function>`_
+.. [#frost-listoperations] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Section 4.3: List Operations <https://www.rfc-editor.org/rfc/rfc9591.html#name-list-operations>`_
+.. [#frost-protocol] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Section 5: Two-Round FROST Signing Protocol <https://www.rfc-editor.org/rfc/rfc9591.html#name-two-round-frost-signing-pro>`_
 .. [#frost-sign] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Section 5.2: Round Two - Signature Share Generation <https://www.rfc-editor.org/rfc/rfc9591.html#name-round-two-signature-share-g>`_
 .. [#frost-aggregate] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Section 5.3: Signature Share Aggregation <https://www.rfc-editor.org/rfc/rfc9591.html#name-signature-share-aggregation>`_
+.. [#frost-removingcoordinator] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Section 7.5: Removing the Coordinator Role <https://www.rfc-editor.org/rfc/rfc9591.html#name-removing-the-coordinator-ro>`_
+.. [#frost-primeorderverify] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Appendix B: Schnorr Signature Generation and Verification for Prime-Order Groups <https://www.ietf.org/archive/id/draft-irtf-cfrg-frost-11.html#name-schnorr-signature-generatio>`_
+.. [#frost-tdkg] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Appendix C: Trusted Dealer Key Generation <https://www.rfc-editor.org/rfc/rfc9591.html#name-trusted-dealer-key-generati>`_
+.. [#frost-randomscalar] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Appendix D: Random Scalar Generation <https://www.rfc-editor.org/rfc/rfc9591.html#name-random-scalar-generation>`_
+.. [#protocol-addressesandkeys] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 3.1: Payment Addresses and Keys <protocol/protocol.pdf#addressesandkeys>`_
 .. [#protocol-abstractgroup] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 4.1.9: Represented Group <protocol/protocol.pdf#abstractgroup>`_
+.. [#protocol-saplingkeycomponents] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 4.2.2: Sapling Key Components <protocol/protocol.pdf#saplingkeycomponents>`_
+.. [#protocol-orchardkeycomponents] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 4.2.3: Orchard Key Components <protocol/protocol.pdf#orchardkeycomponents>`_
 .. [#protocol-spendauthsig] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 4.15: Spend Authorization Signature (Sapling and Orchard) <protocol/protocol.pdf#spendauthsig>`_
 .. [#protocol-concretereddsa] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 5.4.7: RedDSA, RedJubjub, and RedPallas <protocol/protocol.pdf#concretereddsa>`_
 .. [#protocol-concretespendauthsig] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 5.4.7.1: Spend Authorization Signature (Sapling and Orchard) <protocol/protocol.pdf#concretespendauthsig>`_
@@ -539,4 +590,5 @@ References
 .. [#protocol-pallasandvesta] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 5.4.9.6: Pallas and Vesta <protocol/protocol.pdf#pallasandvesta>`_
 .. [#crate-reddsa] `reddsa Rust crate <https://github.com/ZcashFoundation/reddsa>`_
 .. [#sum-lambda-proof] `Prove that the sum of the Lagrange (interpolation) coefficients is equal to 1 <https://math.stackexchange.com/questions/1325292/prove-that-the-sum-of-the-lagrange-interpolation-coefficients-is-equal-to-1/1325342#1325342>`_
-.. [#draft-zip-0374] `Draft ZIP 374: Partially Created Zcash Transaction Format <https://github.com/zcash/zips/pull/1063>`_
+.. [#draft-zip-0374] `Draft ZIP 374 (zcash/zips PR 1063): Partially Created Zcash Transaction Format <https://github.com/zcash/zips/pull/1063>`_
+.. [#zf-frost-dkg] `FROST reference implementation (ZcashFoundation/frost) - Distributed Key Generation <https://github.com/ZcashFoundation/frost/blob/main/frost-core/src/keys/dkg.rs>`_
