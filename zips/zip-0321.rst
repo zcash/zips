@@ -16,12 +16,15 @@
 Terminology
 ===========
 
-The key words "MUST", "REQUIRED", "MUST NOT", "SHOULD", "RECOMMENDED", and "MAY"
-in this document are to be interpreted as described in BCP 14 [#BCP14]_ when, and
-only when, they appear in all capitals.
+The key words "MUST", "REQUIRED", "MUST NOT", "SHOULD", and "MAY" in this document
+are to be interpreted as described in BCP 14 [#BCP14]_ when, and only when, they
+appear in all capitals.
 
 The terms "Testnet" and "Mainnet" are to be interpreted as described in
 section 3.11 of the Zcash Protocol Specification [#protocol-networks]_.
+
+The terms "Custom Asset", "Asset Identifier", and "asset description" in this
+document are to be interpreted as described in ZIP 227 [#zip-0227]_.
 
 The terms below are to be interpreted as follows:
 
@@ -93,18 +96,18 @@ The following syntax specification uses ABNF [#RFC5234]_.
   zcashurn        = "zcash:" ( zcashaddress [ "?" zcashparams ] / "?" zcashparams )
   zcashaddress    = 1*( ALPHA / DIGIT )
   zcashparams     = zcashparam [ "&" zcashparams ]
-  zcashparam      = [ addrparam / amountparam / assetparam / memoparam / messageparam / labelparam / reqparam / otherparam ]
+  zcashparam      = [ addrparam / amountparam / assetparam / memoparam / messageparam / labelparam / otherreqparam / otherparam ]
   NONZERO         = %x31-39
   DIGIT           = %x30-39
   paramindex      = "." NONZERO 0*3DIGIT
-  addrparam       = "address" [ paramindex ] "=" zcashaddress
-  amountparam     = "amount"  [ paramindex ] "=" 1*DIGIT [ "." 1*8DIGIT ]
-  assetparam      = "req-asset"[ paramindex ] "=" *base64url
-  labelparam      = "label"   [ paramindex ] "=" *qchar
-  memoparam       = "memo"    [ paramindex ] "=" *base64url
-  messageparam    = "message" [ paramindex ] "=" *qchar
+  addrparam       = "address"   [ paramindex ] "=" zcashaddress
+  amountparam     = "amount"    [ paramindex ] "=" 1*DIGIT [ "." 1*8DIGIT ]
+  assetparam      = "req-asset" [ paramindex ] "=" *base64url
+  labelparam      = "label"     [ paramindex ] "=" *qchar
+  memoparam       = "memo"      [ paramindex ] "=" *base64url
+  messageparam    = "message"   [ paramindex ] "=" *qchar
   paramname       = ALPHA *( ALPHA / DIGIT / "+" / "-" )
-  reqparam        = "req-" paramname [ paramindex ] [ "=" *qchar ]
+  otherreqparam   = "req-" paramname [ paramindex ] [ "=" *qchar ]
   otherparam      = paramname [ paramindex ] [ "=" *qchar ]
   qchar           = unreserved / pct-encoded / allowed-delims / ":" / "@"
   allowed-delims  = "!" / "$" / "'" / "(" / ")" / "*" / "+" / "," / ";"
@@ -121,18 +124,8 @@ production ``x``. Productions of the form ``<n>*<m>x`` indicate at least `<n>` a
 at most `<m>` instances of production ``x``.
 
 Note that this grammar does not allow percent encoding outside the productions
-that use ``qchar``, i.e. the values of label, message, ``reqparam``, and
+that use ``qchar``, i.e. the values of label, message, ``otherreqparam``, and
 ``otherparam`` parameters.
-
-The value of an ``req-asset`` parameter MUST be a `base64url` string without
-padding. This string is obtained by concatenating a version byte, the
-canonical ``EncodeAssetId`` defined in ZIP 227 [#zip-0227]_, and an asset
-amount encoded as an unsigned integer value representing the number of Asset tokens,
-in the smallest possible denomination for the Asset.
-
-Implementations MUST reject any ``req-asset`` value that is not a valid
-`*base64url` string. A URI containing both an ``amount`` parameter and a
-``req-asset`` parameter MUST also be rejected.
 
 Purported ZIP 321 URIs that cannot be parsed according to the above grammar
 MUST NOT be accepted.
@@ -172,6 +165,9 @@ If there are any non-address parameters having a given ``paramindex``, then
 the URI MUST contain an address parameter having that ``paramindex``. There
 MUST NOT be more than one occurrence of a given parameter and ``paramindex``.
 
+A URI containing both an ``amount`` parameter and a ``req-asset`` parameter
+at the same ``paramindex`` MUST be rejected.
+
 Implementations SHOULD check that each instance of ``zcashaddress`` is a valid
 string encoding of an address, other than a Sprout address, as specified in the
 subsections of section 5.6 (Encoding of Addresses and Keys) of the Zcash protocol
@@ -203,13 +199,13 @@ to satisfy requests for payment to a Sprout address. If the same rationale
 applies to other address types in future, consideration should be given to
 updating this ZIP to exclude these types, as part of their deprecation.
 
-Assets
-------
+Custom Assets
+-------------
 
-The ``req-asset`` parameter permits the specification of both an asset
-identifier and an amount for a payment. It is encoded as follows:
+The ``req-asset`` parameter permits the specification of both an Asset Identifier
+and an amount for a payment. It is encoded as follows:
 
-$\mathtt{asset} = \mathsf{base64url}\big(\mathtt{0x00} \,||\, \mathsf{I2LEOSP}_{64}(value) \,||\, \mathsf{EncodeAssetId}(\mathsf{AssetId})\big)$
+$\hspace{2em}\mathtt{asset} = \mathsf{base64url}\big([\mathtt{0x00}] \,||\, \mathsf{I2LEOSP}_{64}(value) \,||\, \mathsf{EncodeAssetId}(\mathsf{AssetId})\big)$
 
 The leading version byte (``0x00``) indicates the encoding format.
 For version ``0x00``, the next 8 bytes represent the amount
@@ -228,7 +224,13 @@ Only Orchard receivers are valid for Custom Asset payments. Therefore, a payment
 request for a Custom Asset MUST use a Unified Address that encodes at least one
 Orchard receiver.
 
-Example:
+Example
+~~~~~~~
+
+.. raw:: html
+
+   <details>
+   <summary>Click to show/hide</summary>
 
 Suppose the asset description is "USD testing", with an invented digest and
 issuer key as inputs. The resulting 66-byte value is:
@@ -238,11 +240,12 @@ issuer key as inputs. The resulting 66-byte value is:
   0000deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
   11223344556677889900aabbccddeeff00112233445566778899aabbccddeeff
 
-We want to create a URI to request a payment of ``100.55`` of this asset:
+We want to create a URI to request a payment of ``10055`` minimal units of
+this asset (hypothetically representing 100.55 USD):
 
 ::
 
-  100.55 USD = 10055 minimal units (assuming 2 decimal places)
+  100.55 USD = 10055 minimal units
   = 0x0000000000002747
   = 47 27 00 00 00 00 00 00 (8 bytes, little-endian)
 
@@ -269,30 +272,31 @@ A payment URI using this ``req-asset`` could look like:
   zcash:utest1q9d6gqg...7y0d9zj7ns2ceqk4j0d6ngqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq7e4t0p
     ?req-asset=AEcnAAAAAAAAAADerb7v3q2-796tvu_erb7v3q2-796tvu_erb7v3q2-7xEiM0RVZneImQCqu8zd7v8AESIzRFVmd4iZqrvM3e7_
 
+.. raw:: html
 
-Transfer amount
----------------
+   </details>
 
-If an amount is provided without a ``req-asset`` parameter, the amount is considered to be
-in the base currency and MUST be specified in decimal ZEC. If a decimal fraction
-is present then a period (`.`) MUST be used as the separating character to separate
-the whole number from the decimal fraction, and both the whole number and the 
-decimal fraction MUST be nonempty. No other separators (such as commas for 
-grouping or thousands) are permitted. Leading zeros in the whole number or trailing
-zeros in the decimal fraction are ignored. There MUST NOT be more than 8 digits in 
-the decimal fraction.
+ZEC Transfer Amount
+-------------------
+
+If an ``amount`` parameter is provided, its value is interpreted as decimal ZEC.
+
+If a decimal fraction is present then a period (`.`) MUST be used as the separating
+character to separate the whole number from the decimal fraction, and both the
+whole number and the decimal fraction MUST be nonempty. No other separators (such
+as commas for grouping or thousands) are permitted. Leading zeros in the whole
+number or trailing zeros in the decimal fraction are ignored. There MUST NOT be
+more than 8 digits in the decimal fraction.
 
 For example,
- * ``amount=50.00`` or ``amount=50`` or ``amount=050`` is treated as 50 ZEC;
- * ``amount=0.5`` or ``amount=00.500`` is treated as 0.5 ZEC; and
- * ``amount=50,000.00`` or ``amount=50,00`` or ``amount=50.`` or ``amount=.5``
-   or ``amount=0.123456789`` are invalid.
 
-The amount MUST NOT be greater than 21000000 ZEC (in general, monetary amounts
+* ``amount=50.00`` or ``amount=50`` or ``amount=050`` is treated as 50 ZEC;
+* ``amount=0.5`` or ``amount=00.500`` is treated as 0.5 ZEC; and
+* ``amount=50,000.00`` or ``amount=50,00`` or ``amount=50.`` or ``amount=.5``
+  or ``amount=0.123456789`` are invalid.
+
+The amount MUST NOT be greater than 21000000 ZEC (in general, ZEC monetary amounts
 in Zcash cannot be greater than this value).
-
-Amounts for Custom Assets are specified in the Assets section above.
-
 
 Query Keys
 ----------
@@ -349,6 +353,7 @@ This is a valid payment request with two recipients, each using a distinct Unifi
 Address that includes an Orchard receiver. Each ``req-asset`` value encodes, in order,
 a version byte (``0x00``), an 8-byte unsigned integer amount in minimal units, and
 a 66-byte ``EncodeAssetId``.
+
 In this example both payments reference the same asset: the first requests 10 055
 minimal units (100.55 "USD testing"), and the second requests 250 000 minimal
 units (2 500.00 "USD testing").
@@ -408,12 +413,13 @@ and do not have an "authority component".
     &req-asset=not@valid!chars
 
 Invalid:
- * A Sapling address is used with a ``req-asset`` parameter. Sapling receivers do not
-   support Custom Asset payments (only Unified Addresses with an Orchard receiver do).
- * The ``req-asset`` value contains characters (e.g., ``@``, ``!``) that are not
-   permitted in base64url.
- * The ``amount`` parameter is present together with ``req-asset``. These parameters
-   are mutually exclusive.
+
+* A Sapling address is used with a ``req-asset`` parameter. Sapling receivers do not
+  support Custom Asset payments (only Unified Addresses with an Orchard receiver do).
+* The ``req-asset`` value contains characters (e.g., ``@``, ``!``) that are not
+  permitted in base64url.
+* The ``amount`` parameter is present together with ``req-asset``. These parameters
+  are mutually exclusive.
 
 
 Forward compatibility
