@@ -1,15 +1,14 @@
 
-```
-ZIP: XXX
-Title: Disabling Addition of New Value to the Transparent Chain Value Pool
-Owners: Arya <arya@zfnd.org>
-        Daira-Emma Hopwood <daira-emma@electriccoin.co>
-Status: Draft
-Category: Consensus
-Created: 2025-08-13
-License: MIT
-Discussions-To: <https://github.com/zcash/zips/issues/???>
-```
+    ZIP: XXX
+    Title: Disabling Addition of New Value to the Transparent Chain Value Pool
+    Owners: Arya <arya@zfnd.org>
+            Daira-Emma Hopwood <daira-emma@electriccoin.co>
+    Status: Draft
+    Category: Consensus
+    Created: 2025-08-13
+    License: MIT
+    Discussions-To: <https://github.com/zcash/zips/issues/1115>
+    Pull-Request: <https://github.com/zcash/zips/pull/1067>
 
 
 # Terminology
@@ -153,11 +152,11 @@ TODO
 
 [^zip-0200]: [ZIP 200: Network Upgrade Mechanism](zip-0200.rst)
 
-[^protocol]: [Zcash Protocol Specification, Version 2024.5.1 [NU5] or later](protocol/protocol.pdf)
+[^protocol]: [Zcash Protocol Specification, Version 2025.6.1 [NU6.1] or later](protocol/protocol.pdf)
 
-[^protocol-chainvaluepoolbalances]: [Zcash Protocol Specification, Version 2024.5.1 [NU5]. Section 4.17: Chain Value Balances](protocol/protocol.pdf#chainvaluepoolbalances)
+[^protocol-chainvaluepoolbalances]: [Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 4.17: Chain Value Pool Balances](protocol/protocol.pdf#chainvaluepoolbalances)
 
-[^protocol-txnconsensus]: [Zcash Protocol Specification, Version 2024.5.1 [NU5]. Section 7.1.2: Transaction Consensus Rules](protocol/protocol.pdf#txnconsensus)
+[^protocol-txnconsensus]: [Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 7.1.2: Transaction Consensus Rules](protocol/protocol.pdf#txnconsensus)
 
 [^zip-0205]: [ZIP 205: Deployment of the Sapling Network Upgrade](zip-0205.rst)
 
