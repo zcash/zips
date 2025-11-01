@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# If a URL in this script should not be checked as a dependency by `update_check.sh`,
+# break it up like this: 'https''://' .
+
 set -euo pipefail
 
 if ! ( ( [ "x$1" = "x--rst" ] || [ "x$1" = "x--pandoc" ] || [ "x$1" = "x--mmd" ] ) && [ $# -eq 3 ] ); then
@@ -83,8 +86,8 @@ cat <(
     fi
 ) \
 | sed \
-'s|<a href="[^":]*">Protocol Specification</a>|<span class="lightmode"><a href="https://zips.z.cash/protocol/protocol.pdf">Protocol Specification</a></span>|g;
- s|\s*<a href="[^":]*">(dark mode version)</a>|<span class="darkmode" style="display: none;"><a href="https://zips.z.cash/protocol/protocol-dark.pdf">Protocol Specification</a></span>|g;
+'s|<a href="[^":]*">Protocol Specification</a>|<span class="lightmode"><a href="https''://zips.z.cash/protocol/protocol.pdf">Protocol Specification</a></span>|g;
+ s|\s*<a href="[^":]*">(dark mode version)</a>|<span class="darkmode" style="display: none;"><a href="https''://zips.z.cash/protocol/protocol-dark.pdf">Protocol Specification</a></span>|g;
  s|<a \(class=[^ ]* \)*href="\([^":]*\)\.rst\(\#[^"]*\)*">|<a \1href="\2\3">|g;
  s|<a \(class=[^ ]* \)*href="\([^":]*\)\.md\(\#[^"]*\)*">|<a \1href="\2\3">|g;
  s|&lt;\(https:[^&]*\)&gt;|\&lt;<a href="\1">\1</a>\&gt;|g;
