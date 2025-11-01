@@ -31,4 +31,7 @@ RUN git clone -b develop https://github.com/Electric-Coin-Company/MultiMarkdown-
 ENV PATH=${PATH}:/root/.local/bin
 
 WORKDIR "/zips"
-ENTRYPOINT ["make", "all-docker"]
+
+# By default this will run "make all-docker", but passing an argument will override the make target.
+ENTRYPOINT ["make"]
+CMD ["all-docker"]
