@@ -37,17 +37,18 @@ discard:
 	rm -r rendered
 	git checkout -- 'README.rst'
 
-.Makefile.uptodate: Makefile render.sh
+.Makefile.uptodate: Makefile render.sh expand_macros.py
 	$(MAKE) clean
+	./expand_macros.py --test
 	touch .Makefile.uptodate
 
-rendered/index.html: README.rst render.sh
+rendered/index.html: README.rst render.sh expand_macros.py
 	./render.sh --rst $< $@
 
-rendered/%.html: zips/%.rst render.sh
+rendered/%.html: zips/%.rst render.sh expand_macros.py
 	./render.sh --rst $< $@
 
-rendered/%.html: zips/%.md render.sh
+rendered/%.html: zips/%.md render.sh expand_macros.py
 	./render.sh $(MARKDOWN_OPTION) $< $@
 
 README.rst: .zipfilelist.current .draftfilelist.current makeindex.sh README.template $(wildcard zips/zip-*.rst) $(wildcard zips/zip-*.md) $(wildcard zips/draft-*.rst) $(wildcard zips/draft-*.md)
