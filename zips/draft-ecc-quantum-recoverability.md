@@ -804,7 +804,7 @@ It does not include subsequent changes in {{ reference to this ZIP }}.
 
 #### ZIP 226
 
-Add the following to the section [Note Structure & Commitment](https://zips.z.cash/zip-0226#note-structure-commitment):
+Add the following to the section [Note Structure and Commitment](https://zips.z.cash/zip-0226#note-structure-and-commitment):
 
 > When § 4.7.3 ‘Sending Notes (Orchard)’ or § 4.8.3 ‘Dummy Notes (Orchard)’
 > are invoked directly or indirectly in the computation of $\text{ρ}$ and
