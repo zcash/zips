@@ -421,7 +421,7 @@ wallet.
 
 ## Specification Updates
 
-This is written as a set of changes to version 2025.6.1 of the protocol
+This is written as a set of changes to version 2025.6.2 of the protocol
 specification, and to the contents of ZIPs at the time of writing in
 October 2025 (as proposed for the NU6.1 upgrade). It will need to be merged
 with other changes for v6 transactions (memo bundles [^zip-0231] and
@@ -1369,13 +1369,13 @@ manipulate the note selection algorithm to some extent.
 
 [^BCP14]: [Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"](https://www.rfc-editor.org/info/bcp14)
 
-[^protocol]: [Zcash Protocol Specification, Version 2025.6.1 [NU6.1] or later](protocol/protocol.pdf)
+[^protocol]: [Zcash Protocol Specification, Version 2025.6.2 [NU6.1] or later](protocol/protocol.pdf)
 
-[^protocol-networks]: [Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 3.12: Mainnet and Testnet](protocol/protocol.pdf#networks)
+[^protocol-networks]: [Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 3.12: Mainnet and Testnet](protocol/protocol.pdf#networks)
 
-[^protocol-concretesinsemillahash]: [Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 5.4.1.9: Sinsemilla Hash Function](protocol/protocol.pdf#concretesinsemillahash)
+[^protocol-concretesinsemillahash]: [Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.4.1.9: Sinsemilla Hash Function](protocol/protocol.pdf#concretesinsemillahash)
 
-[^protocol-sinsemillasecurity]: [Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 5.4.1.9: Sinsemilla Hash Function — Security argument](protocol/protocol.pdf#sinsemillasecurity)
+[^protocol-sinsemillasecurity]: [Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.4.1.9: Sinsemilla Hash Function — Security argument](protocol/protocol.pdf#sinsemillasecurity)
 
 [^zip-0032-sapling-child-key-derivation]: [ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling child key derivation](zip-0032#sapling-child-key-derivation)
 
