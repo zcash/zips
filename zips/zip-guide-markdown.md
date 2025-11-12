@@ -154,6 +154,35 @@ In general the conventions in the Zcash protocol specification SHOULD be followe
 If you find this difficult, don't worry too much about it in initial drafts; the
 ZIP editors will catch any inconsistencies in review.
 
+## Macros
+
+$\LaTeX$-style macros are supported in ZIPs. The macros for `zips/<name>.{rst,md}`
+must be defined in `zips/<name>.macros.tex`. Macros will only be processed for a
+given document if this file exists.
+
+There is a common set of useful macro definitions in `zips/common-macros.tex`,
+but they will not be used by default. To use them, write this line in
+`zips/<name>.macros.tex`::
+
+    \includeonly{common-macros}
+
+The syntax of macro invocations follows LaTeX and is the same for ZIPs written in
+reStructuredText and Markdown.
+
+For example, the following macro definition:
+
+    \newcommand{\hello}[1]{Hello, #1!}
+
+causes `\hello{world}` to be replaced with `Hello, world!`. Note that it is more
+typical to surround argument subsitutions with braces, e.g. `{#1}`, in the case
+of macros intended for use in LaTeX.
+
+Run `./expand_macros.py --help` for more details, including discussion of escaping
+and corner cases.
+
+Macros can be used anywhere in a document for which they are enabled; their use
+is not restricted to embedded LaTeX.
+
 ## Notes and warnings
 
 <div class="note"></div>

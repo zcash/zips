@@ -163,7 +163,7 @@ This subsection and the flow diagram below are non-normative.
 
 In order to support ZSAs [^zip-0226] [^zip-0227] and memo bundles
 [^zip-0231], v6 transactions require in any case a new note plaintext
-format, with lead byte $\mathtt{0x03}.$ This gives us an opportunity
+format, with lead byte $\hexint{03}.$ This gives us an opportunity
 to change the way that the $\mathsf{pre\_rcm}$ value is computed for
 this new format, by including all of the note fields in $\mathsf{pre\_rcm}$.
 The resulting $\mathsf{rcm}$ is essentially a random function of the
@@ -450,10 +450,10 @@ in the Orchard key components diagram, with the following note:
 Replace the paragraph
 
 > The field $\mathsf{leadByte}$ indicates the version of the encoding of
-> a Sapling or Orchard note plaintext. For Sapling it is $\mathtt{0x01}$
-> before activation of the Canopy network upgrade and $\mathtt{0x02}$
+> a Sapling or Orchard note plaintext. For Sapling it is $\hexint{01}$
+> before activation of the Canopy network upgrade and $\hexint{02}$
 > afterward, as specified in [ZIP-212]. For Orchard note plaintexts it is
-> always $\mathtt{0x02}$.
+> always $\hexint{02}$.
 
 with
 
@@ -472,10 +472,10 @@ with
 >
 > Define $\mathsf{allowedLeadBytes^{protocol}}(\mathsf{height}, \mathsf{txVersion}) =$
 > $\hspace{2em} \begin{cases}
->   \{ \mathtt{0x01} \},&\!\!\!\text{if } \mathsf{height} < \mathsf{CanopyActivationHeight} \\
->   \{ \mathtt{0x01}, \mathtt{0x02} \},&\!\!\!\text{if } \mathsf{CanopyActivationHeight} \leq \mathsf{height} < \mathsf{CanopyActivationHeight} + \mathsf{ZIP212GracePeriod} \\
->   \{ \mathtt{0x02} \},&\!\!\!\text{if } \mathsf{CanopyActivationHeight} + \mathsf{ZIP212GracePeriod} \leq \mathsf{height} \text{ and } \mathsf{txVersion} < 6 \\
->   \{ \mathtt{0x03} \},&\!\!\!\text{otherwise.}
+>   \setof{\hexint{01}},&\caseif \mathsf{height} < \mathsf{CanopyActivationHeight} \\
+>   \setof{\hexint{01}, \hexint{02}},&\caseif \mathsf{CanopyActivationHeight} \leq \mathsf{height} < \mathsf{CanopyActivationHeight} + \mathsf{ZIP212GracePeriod} \\
+>   \setof{\hexint{02}},&\caseif \mathsf{CanopyActivationHeight} + \mathsf{ZIP212GracePeriod} \leq \mathsf{height} \text{ and } \mathsf{txVersion} < 6 \\
+>   \setof{\hexint{03}},&\!\!\!\text{otherwise.}
 > \end{cases}$
 >
 > The $\mathsf{leadByte}$ of a Sapling or Orchard note MUST satisfy
@@ -497,7 +497,7 @@ In the list of places where $\mathsf{PRF^{expand}}$ is used:
 Replace
 
 > * [**NU5** onward] in § 4.2.3 ‘Orchard Key Components’, with inputs
->   $[6]$, $[7]$, $[8]$, and with first byte $\mathtt{0x82}$ (the last of
+>   $[6]$, $[7]$, $[8]$, and with first byte $\hexint{82}$ (the last of
 >   these is also specified in [[ZIP-32]](https://zips.z.cash/zip-0032));
 > * in the processes of sending (§ 4.7.2 ‘Sending Notes (Sapling)’ and
 >   § 4.7.3 ‘Sending Notes (Orchard)’) and of receiving
@@ -508,23 +508,23 @@ Replace
 with
 
 > * [**NU5** onward] in § 4.2.3 ‘Orchard Key Components’, with inputs
->   $[\mathtt{0x06}]$, $[\mathtt{0x07}]$, $[\mathtt{0x08}]$, with first
->   byte in $\{ \mathtt{0x0C}, \mathtt{0x0D} \}$ (also specified in
->   {{ reference to this ZIP }}), and with first byte $\mathtt{0x82}$
+>   $[\hexint{06}]$, $[\hexint{07}]$, $[\hexint{08}]$, with first
+>   byte in $\setof{\hexint{0C}, \hexint{0D}}$ (also specified in
+>   {{ reference to this ZIP }}), and with first byte $\hexint{82}$
 >   (also specified in [[ZIP-32]](https://zips.z.cash/zip-0032));
 > * in the processes of sending (§ 4.7.2 ‘Sending Notes (Sapling)’ and
 >   § 4.7.3 ‘Sending Notes (Orchard)’) and of receiving
 >   (§ 4.20 ‘In-band secret distribution (Sapling and Orchard)’) notes,
->   for Sapling with inputs $[\mathtt{0x04}]$ and $[\mathtt{0x05}]$,
+>   for Sapling with inputs $[\hexint{04}]$ and $[\hexint{05}]$,
 >   and for Orchard with first byte in
->   $\{ \mathtt{0x05}, \mathtt{0x04}, \mathtt{0x09}, \mathtt{0x0A}, \mathtt{0x0B} \}$
->   ($\mathtt{0x0A}$ and $\mathtt{0x0B}$ are also specified in
+>   $\setof{\hexint{05}, \hexint{04}, \hexint{09}, \hexint{0A}, \hexint{0B}}$
+>   ($\hexint{0A}$ and $\hexint{0B}$ are also specified in
 >   {{ reference to this ZIP }});
 
 Add
 
 > * in {{ reference to this ZIP }}, with first byte in
->   $\{ \mathtt{0x0A}, \mathtt{0x0B}, \mathtt{0x0C}, \mathtt{0x0D} \}$.
+>   $\setof{\hexint{0A}, \hexint{0B}, \hexint{0C}, \hexint{0D}}$.
 
 Also change the remaining decimal constants to hex for consistency.
 
@@ -535,7 +535,7 @@ from § 5.3 ‘Constants’.
 
 Insert after the definition of $\mathsf{ToScalar^{Orchard}}$:
 
-> Define $\mathsf{H}^{\mathsf{rivk\_ext}}_{\mathsf{qk}}(\mathsf{ak}, \mathsf{nk}) = \mathsf{ToScalar^{Orchard}}(\mathsf{PRF^{expand}_{qk}}([\mathtt{0x0D}] \,||\, \mathsf{I2LEOSP}_{256}(\mathsf{ak})$
+> Define $\mathsf{H}^{\mathsf{rivk\_ext}}_{\mathsf{qk}}(\mathsf{ak}, \mathsf{nk}) = \mathsf{ToScalar^{Orchard}}(\mathsf{PRF^{expand}_{qk}}([\hexint{0D}] \,||\, \mathsf{I2LEOSP}_{256}(\mathsf{ak})$
 > $\hspace{23.9em} ||\, \mathsf{I2LEOSP}_{256}(\mathsf{nk})))$.
 
 Replace from "From this spending key" up to and including the line
@@ -567,10 +567,10 @@ in the algorithm with:
 > needs to be set to false.)
 >
 > Define:
-> * $\mathsf{H^{ask}}(\mathsf{sk}) = \mathsf{ToScalar^{Orchard}}\big(\mathsf{PRF^{expand}_{sk}}([\mathtt{0x06}])\kern-0.1em\big)$
-> * $\mathsf{H^{nk}}(\mathsf{sk}) = \mathsf{ToBase^{Orchard}}\big(\mathsf{PRF^{expand}_{sk}}([\mathtt{0x07}])\kern-0.1em\big)$
-> * $\mathsf{H^{rivk}}(\mathsf{sk}) = \mathsf{ToScalar^{Orchard}}\big(\mathsf{PRF^{expand}_{sk}}([\mathtt{0x08}])\kern-0.1em\big)$
-> * $\mathsf{H^{qsk}}(\mathsf{sk}) = \mathsf{truncate}_{32}\big(\mathsf{PRF^{expand}_{sk}}([\mathtt{0x0C}])\kern-0.1em\big)$
+> * $\mathsf{H^{ask}}(\mathsf{sk}) = \mathsf{ToScalar^{Orchard}}\big(\mathsf{PRF^{expand}_{sk}}([\hexint{06}])\kern-0.1em\big)$
+> * $\mathsf{H^{nk}}(\mathsf{sk}) = \mathsf{ToBase^{Orchard}}\big(\mathsf{PRF^{expand}_{sk}}([\hexint{07}])\kern-0.1em\big)$
+> * $\mathsf{H^{rivk}}(\mathsf{sk}) = \mathsf{ToScalar^{Orchard}}\big(\mathsf{PRF^{expand}_{sk}}([\hexint{08}])\kern-0.1em\big)$
+> * $\mathsf{H^{qsk}}(\mathsf{sk}) = \mathsf{truncate}_{32}\big(\mathsf{PRF^{expand}_{sk}}([\hexint{0C}])\kern-0.1em\big)$
 > * $\mathsf{H^{qk}}(\mathsf{qsk}) = \textsf{BLAKE2s\kern0.1em-256}(\texttt{“Zcash\_qk”}, \mathsf{qsk})$.
 > 
 > $\mathsf{ask} \;{\small ⦂}\; \mathbb{F}^{*}_{r_{\mathbb{P}}}$,
@@ -633,8 +633,8 @@ Replace
 > Let $\mathsf{CanopyActivationHeight}$ be as defined in § 5.3 ‘Constants’.
 >
 > Let $\mathsf{leadByte}$ be the note plaintext lead byte.
-> This MUST be $\mathsf{0x01}$ if for the next block,
-> $\mathsf{height} < \mathsf{CanopyActivationHeight}$, or $\mathtt{0x02}$
+> This MUST be $\hexint{01}$ if for the next block,
+> $\mathsf{height} < \mathsf{CanopyActivationHeight}$, or $\hexint{02}$
 > if $\mathsf{height} \geq \mathsf{CanopyActivationHeight}$.
 
 with
@@ -643,9 +643,9 @@ with
 > according to § 3.2.1 ‘Note Plaintexts and Memo Fields’ with
 > $\mathsf{protocol} = \mathsf{Sapling}$.
 >
-> Define $\mathsf{H^{rcm,Sapling}_{rseed}}(\_, \_) = \mathsf{ToScalar^{Sapling}}\big(\mathsf{PRF^{expand}_{rseed}}([\mathtt{0x04}])\kern-0.1em\big)$
+> Define $\mathsf{H^{rcm,Sapling}_{rseed}}(\_, \_) = \mathsf{ToScalar^{Sapling}}\big(\mathsf{PRF^{expand}_{rseed}}([\hexint{04}])\kern-0.1em\big)$
 >
-> Define $\mathsf{H^{esk,Sapling}_{rseed}}(\_, \_) = \mathsf{ToScalar^{Sapling}}\big(\mathsf{PRF^{expand}_{rseed}}([\mathtt{0x05}])\kern-0.1em\big)$.
+> Define $\mathsf{H^{esk,Sapling}_{rseed}}(\_, \_) = \mathsf{ToScalar^{Sapling}}\big(\mathsf{PRF^{expand}_{rseed}}([\hexint{05}])\kern-0.1em\big)$.
 >
 > ($\mathsf{H^{rcm,Sapling}}$ and $\mathsf{H^{esk,Sapling}}$ intentionally
 > take arguments that are unused.)
@@ -673,18 +673,18 @@ with
 >   $\mathsf{ToScalar^{Orchard}}\big(\mathsf{PRF^{expand}_{rseed}}(\mathsf{pre\_rcm})\kern-0.1em\big)$
 >
 > where $\mathsf{pre\_rcm} = \begin{cases}
->   [\mathtt{0x05}] \,||\, \underline{\text{ρ}},&\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x02} \\
->   [\mathtt{0x0B}, \mathsf{leadByte}] \,||\, \mathsf{LEBS2OSP}_{256}(\mathsf{g}\star_{\mathsf{d}}) \,||\, \mathsf{LEBS2OSP}_{256}(\mathsf{pk}\star_{\mathsf{d}}) \\
->   \hphantom{[\mathtt{0x0B}, \mathsf{leadByte}]} \,||\, \mathsf{I2LEOSP}_{64}(\mathsf{v}) \,||\, \underline{\text{ρ}} \,||\, \mathsf{I2LEOSP}_{256}(\text{ψ}) \\
->   \hphantom{[\mathtt{0x0B}, \mathsf{leadByte}]}\,[\,||\, \mathsf{LEBS2OSP}_{256}(\mathsf{AssetBase}\kern0.08em\star)],&\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x03}
+>   [\hexint{05}] \,||\, \underline{\text{ρ}},&\caseif \mathsf{leadByte} = \hexint{02} \\
+>   [\hexint{0B}, \mathsf{leadByte}] \,||\, \mathsf{LEBS2OSP}_{256}(\mathsf{g}\star_{\mathsf{d}}) \,||\, \mathsf{LEBS2OSP}_{256}(\mathsf{pk}\star_{\mathsf{d}}) \\
+>   \hphantom{[\hexint{0B}, \mathsf{leadByte}]} \,||\, \mathsf{I2LEOSP}_{64}(\mathsf{v}) \,||\, \underline{\text{ρ}} \,||\, \mathsf{I2LEOSP}_{256}(\text{ψ}) \\
+>   \hphantom{[\hexint{0B}, \mathsf{leadByte}]}\,[\,||\, \mathsf{LEBS2OSP}_{256}(\mathsf{AssetBase}\kern0.08em\star)],&\caseif \mathsf{leadByte} = \hexint{03}
 > \end{cases}$
 >
-> Define $\mathsf{H^{esk,Orchard}_{rseed}}(\underline{\text{ρ}}) = \mathsf{ToScalar^{Orchard}}\big(\mathsf{PRF^{expand}_{rseed}}([\mathtt{0x04}] \,||\, \underline{\text{ρ}})\kern-0.1em\big)$.
+> Define $\mathsf{H^{esk,Orchard}_{rseed}}(\underline{\text{ρ}}) = \mathsf{ToScalar^{Orchard}}\big(\mathsf{PRF^{expand}_{rseed}}([\hexint{04}] \,||\, \underline{\text{ρ}})\kern-0.1em\big)$.
 >
 > Define $\mathsf{H^{\text{ψ},Orchard}_{rseed}}(\underline{\text{ρ}}, \mathsf{split\_flag}) = \mathsf{ToBase^{Orchard}}\big(\mathsf{PRF^{expand}_{rseed}}([\mathsf{split\_domain}] \,||\, \underline{\text{ρ}})\kern-0.1em\big)$.
 > where $\mathsf{split\_domain} = \begin{cases}
->   \mathtt{0x09}&\text{if } \mathsf{split\_flag} = 0 \\
->   \mathtt{0x0A}&\text{if } \mathsf{split\_flag} = 1\text{.}
+>   \hexint{09}&\text{if } \mathsf{split\_flag} = 0 \\
+>   \hexint{0A}&\text{if } \mathsf{split\_flag} = 1\text{.}
 > \end{cases}$
 
 Insert before the derivation of $\mathsf{esk}$:
@@ -805,11 +805,11 @@ with
 For § 4.20.2, replace
 
 > $\hspace{1.0em}$ [**Canopy** onward] let $\underline{\mathsf{rcm}} = \begin{cases}
->                    \mathsf{rseed},&\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x01} \\
+>                    \mathsf{rseed},&\!\!\!\text{if } \mathsf{leadByte} = hexint{01} \\
 >                    \mathsf{ToScalar^{protocol}}(\mathsf{PRF^{expand}_{rseed}}(\mathsf{pre\_rcm})),&\!\!\!\text{otherwise}
 >                  \end{cases}$ <br>
 > $\hspace{1.0em}$ let $\mathsf{rcm} = \mathsf{LEOS2IP}_{256}(\underline{\mathsf{rcm}})$ and $\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})$. if $\mathsf{rcm} \geq r_{\mathbb{G}}$ or (for Sapling) $\mathsf{g_d} = \bot$, return $\bot$ <br>
-> $\hspace{1.0em}$ [**Canopy** onward] if $\mathsf{leadByte} \neq \mathtt{0x01}$: <br>
+> $\hspace{1.0em}$ [**Canopy** onward] if $\mathsf{leadByte} \neq hexint{01}$: <br>
 > $\hspace{2.5em}$     $\mathsf{esk} = \mathsf{ToScalar^{protocol}}(\mathsf{PRF^{expand}_{rseed}}(\mathsf{pre\_esk}))$ <br>
 > $\hspace{2.5em}$     if $\mathsf{repr}_{\mathbb{G}}(\mathsf{KA.DerivePublic}(\mathsf{esk}, \mathsf{g_d})) \neq \mathtt{ephemeralKey}$, return $\bot$
 > 
@@ -818,7 +818,7 @@ For § 4.20.2, replace
 with
 
 > $\hspace{1.0em}$ let $\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})$; for Sapling, if $\mathsf{g_d} = \bot$, return $\bot$ <br>
-> $\hspace{1.0em}$ [**Canopy** onward] if $\mathsf{leadByte} \neq \mathtt{0x01}$: <br>
+> $\hspace{1.0em}$ [**Canopy** onward] if $\mathsf{leadByte} \neq hexint{01}$: <br>
 > $\hspace{2.5em}$     let $\mathsf{esk} = \mathsf{H^{esk,protocol}_{rseed}}(\underline{\text{ρ}})$ <br>
 > $\hspace{2.5em}$     if $\mathsf{repr}_{\mathbb{G}}(\mathsf{KA.DerivePublic}(\mathsf{esk}, \mathsf{g_d})) \neq \mathtt{ephemeralKey}$, return $\bot$ <br>
 > $\hspace{2.5em}$     let $\text{ψ} = \mathsf{H^{\text{ψ},Orchard}_{rseed}}(\underline{\text{ρ}}, 0)$ for Orchard or $\bot$ for Sapling
@@ -826,7 +826,7 @@ with
 > $\hspace{1.0em}$ let $\mathsf{pk_d} = \mathsf{KA.DerivePublic}(\mathsf{ivk}, \mathsf{g_d})$ <br>
 > $\hspace{1.0em}$ let $\mathsf{g}\star_{\mathsf{d}} = \mathsf{repr}_{\mathbb{P}}(\mathsf{g_d})$, $\mathsf{pk}\star_{\mathsf{d}} = \mathsf{repr}_{\mathbb{P}}(\mathsf{pk_d}) [$, and $\mathsf{AssetBase}\kern0.08em\star = \mathsf{repr}_{\mathbb{P}}(\mathsf{AssetBase})]$ <br>
 > $\hspace{1.0em}$ let $\mathsf{rcm} = \begin{cases}
->                    \mathsf{LEOS2IP}_{256}(\mathsf{rseed}),&\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x01} \\
+>                    \mathsf{LEOS2IP}_{256}(\mathsf{rseed}),&\caseif \mathsf{leadByte} = \hexint{01} \\
 >                    \mathsf{H^{rcm,protocol}_{rseed}}(\mathsf{leadByte}, (\mathsf{g}\star_{\mathsf{d}}, \mathsf{pk}\star_{\mathsf{d}}, \mathsf{v}, \underline{\text{ρ}}, \text{ψ}[, \mathsf{AssetBase}\kern0.08em\star])),&\!\!\!\text{otherwise}
 >                  \end{cases}$ <br>
 > $\hspace{1.0em}$ if $\mathsf{rcm} \geq r_{\mathbb{G}}$, return $\bot$
@@ -837,7 +837,7 @@ $\mathsf{rcm}$ can depend on $\mathsf{g_d}$ and $\mathsf{pk_d}$.)
 For § 4.20.3, replace
 
 > $\hspace{1.0em}$ [**Canopy** onward] let $\underline{\mathsf{rcm}} = \begin{cases}
->                    \mathsf{rseed},&\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x01} \\
+>                    \mathsf{rseed},&\!\!\!\text{if } \mathsf{leadByte} = hexint{01} \\
 >                    \mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}(\mathsf{pre\_rcm})),&\!\!\!\text{otherwise}
 >                  \end{cases}$ <br>
 > $\hspace{1.0em}$ let $\mathsf{rcm} = \mathsf{LEOS2IP}_{256}(\underline{\mathsf{rcm}})$ and $\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})$ <br>
@@ -849,7 +849,7 @@ with
 > $\hspace{1.0em}$ let $\mathsf{g}\star_{\mathsf{d}} = \mathsf{repr}_{\mathbb{P}}(\mathsf{g_d}) [$ and $\mathsf{AssetBase}\kern0.08em\star = \mathsf{repr}_{\mathbb{P}}(\mathsf{AssetBase})]$ <br>
 > $\hspace{1.0em}$ if $\mathsf{leadByte} \neq \mathtt{0x01}$, let $\text{ψ} = \mathsf{H^{\text{ψ},Orchard}_{rseed}}(\underline{\text{ρ}}, 0)$ for Orchard or $\bot$ for Sapling <br>
 > $\hspace{1.0em}$ let $\mathsf{rcm} = \begin{cases}
->                    \mathsf{LEOS2IP}_{256}(\mathsf{rseed}),&\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x01} \\
+>                    \mathsf{LEOS2IP}_{256}(\mathsf{rseed}),&\caseif \mathsf{leadByte} = \hexint{01} \\
 >                    \mathsf{H^{rcm,protocol}_{rseed}}(\mathsf{leadByte}, (\mathsf{g}\star_{\mathsf{d}}, \mathsf{pk}\star_{\mathsf{d}}, \mathsf{v}, \underline{\text{ρ}}, \text{ψ}[, \mathsf{AssetBase}\kern0.08em\star])),&\!\!\!\text{otherwise}
 >                  \end{cases}$ <br>
 > $\hspace{1.0em}$ if $\mathsf{rcm} \geq r_{\mathbb{G}}$, return $\bot$
@@ -900,7 +900,7 @@ Add the following to the section [Note Structure & Commitment](https://zips.z.ca
 > When § 4.7.3 ‘Sending Notes (Orchard)’ or § 4.8.3 ‘Dummy Notes (Orchard)’
 > are invoked directly or indirectly in the computation of $\text{ρ}$ and
 > $\text{ψ}$ for an OrchardZSA note, $\mathsf{leadByte}$ MUST be set to
-> $\mathtt{0x03}$.
+> $\hexint{03}$.
 
 In section [Split Notes](https://zips.z.cash/zip-0226#split-notes), change:
 
@@ -910,7 +910,7 @@ In section [Split Notes](https://zips.z.cash/zip-0226#split-notes), change:
 to
 
 > where $\text{ψ}^{\mathsf{nf}}$ is computed as
-> $\mathsf{H^{\text{ψ},Orchard}_{rseed\_nf}}(\underline{\text{ρ}}, 1) = \mathsf{ToBase^{Orchard}}\big(\mathsf{PRF^{expand}_{rseed\_nf}}([\mathtt{0x0A}] \,||\, \underline{\text{ρ}})\kern-0.1em\big)$
+> $\mathsf{H^{\text{ψ},Orchard}_{rseed\_nf}}(\underline{\text{ρ}}, 1) = \mathsf{ToBase^{Orchard}}\big(\mathsf{PRF^{expand}_{rseed\_nf}}([\hexint{0A}] \,||\, \underline{\text{ρ}})\kern-0.1em\big)$
 > for $\mathsf{rseed\_nf}$ sampled uniformly at random on $\mathbb{B}^{{\kern-0.1em\tiny\mathbb{Y}}[32]}$, ...
 
 
@@ -949,22 +949,22 @@ Import this definition from § 4.7.3 ‘Sending Notes (Orchard)’:
 > $\mathsf{ToScalar^{Orchard}}\big(\mathsf{PRF^{expand}_{rseed}}(\mathsf{pre\_rcm})\kern-0.1em\big)$
 >
 > where $\mathsf{pre\_rcm} = \begin{cases}
->   [\mathtt{0x05}] \,||\, \underline{\text{ρ}},&\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x02} \\
->   [\mathtt{0x0B}, \mathsf{leadByte}] \,||\, \mathsf{LEBS2OSP}_{256}(\mathsf{g}\star_{\mathsf{d}}) \,||\, \mathsf{LEBS2OSP}_{256}(\mathsf{pk}\star_{\mathsf{d}}) \\
->   \hphantom{[\mathtt{0x0B}, \mathsf{leadByte}]} \,||\, \mathsf{I2LEOSP}_{64}(\mathsf{v}) \,||\, \underline{\text{ρ}} \,||\, \mathsf{I2LEOSP}_{256}(\text{ψ}) \\
->   \hphantom{[\mathtt{0x0B}, \mathsf{leadByte}]}\,[\,||\, \mathsf{LEBS2OSP}_{256}(\mathsf{AssetBase}\kern0.08em\star)],&\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x03}\text{.} \\
+>   [\hexint{05}] \,||\, \underline{\text{ρ}},&\caseif \mathsf{leadByte} = \hexint{02} \\
+>   [\hexint{0B}, \mathsf{leadByte}] \,||\, \mathsf{LEBS2OSP}_{256}(\mathsf{g}\star_{\mathsf{d}}) \,||\, \mathsf{LEBS2OSP}_{256}(\mathsf{pk}\star_{\mathsf{d}}) \\
+>   \hphantom{[\hexint{0B}, \mathsf{leadByte}]} \,||\, \mathsf{I2LEOSP}_{64}(\mathsf{v}) \,||\, \underline{\text{ρ}} \,||\, \mathsf{I2LEOSP}_{256}(\text{ψ}) \\
+>   \hphantom{[\hexint{0B}, \mathsf{leadByte}]}\,[\,||\, \mathsf{LEBS2OSP}_{256}(\mathsf{AssetBase}\kern0.08em\star)],&\caseif \mathsf{leadByte} = \hexint{03}\text{.} \\
 > \end{cases}$
 
 Define:
 
 * $\mathsf{H}^{\text{ψ},\mathsf{Orchard}}_{\mathsf{r}\text{ψ}}(\underline{\text{ρ}}, \mathsf{split\_flag}) = \mathsf{ToBase^{Orchard}}(\mathsf{PRF}^{\mathsf{expand}}_{\mathsf{r}\text{ψ}}([\mathsf{split\_domain}] \,||\, \underline{\text{ρ}}))$ <br>
   where $\mathsf{split\_domain} = \begin{cases}
-    \mathtt{0x09},&\!\!\!\text{if } \mathsf{split\_flag} = 0 \\
-    \mathtt{0x0A},&\!\!\!\text{if } \mathsf{split\_flag} = 1\text{.}
+    \hexint{09},&\caseif \mathsf{split\_flag} = 0 \\
+    \hexint{0A},&\caseif \mathsf{split\_flag} = 1\text{.}
   \end{cases}$
-* $\mathsf{H^{rivk\_int}_{rivk\_ext}}(\mathsf{ak}, \mathsf{nk}) = \mathsf{ToScalar^{Orchard}}(\mathsf{PRF^{expand}_{rivk\_ext}}([\mathtt{0x83}] \,||\, \mathsf{I2LEOSP}_{256}(\mathsf{ak})$
+* $\mathsf{H^{rivk\_int}_{rivk\_ext}}(\mathsf{ak}, \mathsf{nk}) = \mathsf{ToScalar^{Orchard}}(\mathsf{PRF^{expand}_{rivk\_ext}}([\hexint{83}] \,||\, \mathsf{I2LEOSP}_{256}(\mathsf{ak})$
   $\hspace{21.58em} ||\, \mathsf{I2LEOSP}_{256}(\mathsf{nk})))$
-* $\mathsf{H}^{\mathsf{rivk\_ext}}_{\mathsf{qk}}(\mathsf{ak}, \mathsf{nk}) = \mathsf{ToScalar^{Orchard}}(\mathsf{PRF^{expand}_{\rlap{qk}{\hphantom{rivk\_ext}}}}([\mathtt{0x84}] \,||\, \mathsf{I2LEOSP}_{256}(\mathsf{ak})$
+* $\mathsf{H}^{\mathsf{rivk\_ext}}_{\mathsf{qk}}(\mathsf{ak}, \mathsf{nk}) = \mathsf{ToScalar^{Orchard}}(\mathsf{PRF^{expand}_{\rlap{qk}{\hphantom{rivk\_ext}}}}([\hexint{84}] \,||\, \mathsf{I2LEOSP}_{256}(\mathsf{ak})$
   $\hspace{21.58em} ||\, \mathsf{I2LEOSP}_{256}(\mathsf{nk})))$
 * $\mathcal{G}^{\mathsf{Orchard}} = \mathsf{GroupHash}^{\mathbb{P}}(\texttt{“z.cash:Orchard”}, \texttt{“G”})$
 
@@ -1023,7 +1023,7 @@ $\begin{array}{l}
 \wedge\; \text{let } \mathsf{pk_d} = [\mathsf{ivk}]\, \mathsf{g_d} \\
 \wedge\; \text{let } \text{ψ} = \mathsf{H}^{\text{ψ}}_{\mathsf{r}\text{ψ}}(\underline{\text{ρ}}, \mathsf{split\_flag}) \\
 \wedge\; \text{let } \mathsf{note\_repr} = \big(\mathsf{repr}_{\mathbb{P}}(\mathsf{g_d}), \mathsf{repr}_{\mathbb{P}}(\mathsf{pk_d}), \mathsf{v}, \underline{\text{ρ}}, \text{ψ}[, \mathsf{AssetBase}\kern0.08em\star]\big) \\
-\wedge\; \text{let } \mathsf{rcm} = \mathsf{H^{rcm,Orchard}_{rseed}}\big(\mathtt{0x03}, \mathsf{note\_repr}\big) \\
+\wedge\; \text{let } \mathsf{rcm} = \mathsf{H^{rcm,Orchard}_{rseed}}\big(\hexint{03}, \mathsf{note\_repr}\big) \\
 \wedge\; \text{let } \mathsf{cm} = \mathsf{NoteCommit^{Orchard}_{rcm}}(\mathsf{note\_repr}) \\
 \wedge\; \mathsf{cm} \neq \bot \\
 \wedge\; \text{let } \mathsf{cm}_x = \mathsf{Extract}_{\mathbb{P}}(\mathsf{cm}) \\
@@ -1121,11 +1121,11 @@ We prefer to fix this without changing $\mathsf{NoteCommit^{Orchard}}$ itself.
 Instead we change how $\mathsf{rcm}$ is computed to be a hash of $\mathsf{rseed}$ and
 $\mathsf{noterepr} = (\mathsf{g}\star_{\mathsf{d}}, \mathsf{pk}\star_{\mathsf{d}}, \mathsf{v}, \underline{\text{ρ}}, \text{ψ}[, \mathsf{AssetBase}\kern0.08em\star])$,
 as detailed in the [Specification] section.
-Specifically, when $\mathsf{leadByte} = \mathtt{0x03}$ we have:
+Specifically, when $\mathsf{leadByte} = \hexint{03}$ we have:
 
 $\mathsf{rcm} = \mathsf{H^{rcm,Orchard}_{rseed}}(\mathsf{leadByte}, \mathsf{noterepr}) = \mathsf{ToScalar^{Orchard}}(\mathsf{PRF^{expand}_{rseed}}(\mathsf{pre\_rcm}))$
 
-$\text{where } \mathsf{pre\_rcm} = [\mathtt{0x0B}, \mathsf{leadByte}] \,||\, \mathsf{encode}(\mathsf{noterepr})$
+$\text{where } \mathsf{pre\_rcm} = [\hexint{0B}, \mathsf{leadByte}] \,||\, \mathsf{encode}(\mathsf{noterepr})$
 
 Then we view the output of
 $\mathsf{NoteCommit^{Orchard}_{rcm}}(\mathsf{noterepr})$
@@ -1405,7 +1405,7 @@ TBD: explain that such attacks can break Balance and Spendability, including
 Spendability for transactions after switching to the Recovery Protocol.
 
 Note that we can identify the precise set of note commitments for
-recoverable (lead byte $\mathtt{0x03}$) Orchard notes, since they are
+recoverable (lead byte $\hexint{03}$) Orchard notes, since they are
 the commitments for Orchard outputs of v6 transactions.
 However, we cannot identify the precise set of nullifiers for
 recoverable notes: an Orchard action in a v6 transaction could be

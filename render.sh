@@ -7,7 +7,7 @@ set -euo pipefail
 
 if ! ( ( [ "x$1" = "x--rst" ] || [ "x$1" = "x--pandoc" ] || [ "x$1" = "x--mmd" ] ) && [ $# -eq 3 ] ); then
     cat - <<EndOfUsage
-Usage: render.sh --rst|--pandoc|--mmd <inputfile> <htmlfile> <title>
+Usage: render.sh --rst|--pandoc|--mmd <inputfile> <htmlfile>
 
 --rst     render reStructuredText using rst2html5
 --pandoc  render Markdown using pandoc
@@ -29,7 +29,8 @@ if [ "x$1" = "x--rst" ]; then
 else
     filetype='.md'
 fi
-title="$(basename -s ${filetype} ${inputfile} | sed -E 's|zip-0{0,3}|ZIP |; s|draft-|Draft |')$(grep -E '^(\.\.)?\s*Title: ' ${inputfile} |sed -E 's|.*Title||')"
+basefile="$(basename -s ${filetype} ${inputfile})"
+title="$(echo ${basefile} | sed -E 's|zip-0{0,3}|ZIP |; s|draft-|Draft |')$(grep -E '^(\.\.)?\s*Title: ' ${inputfile} |sed -E 's|.*Title||')"
 echo "    ${title}"
 
 Math1='<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.25/dist/katex.min.css" integrity="sha384-WcoG4HRXMzYzfCgiyfrySxx90XSl2rxY5mnVY5TwtWE6KLrArNKn0T/mOgNL0Mmi" crossorigin="anonymous">'
@@ -40,13 +41,19 @@ Mermaid='<script defer src="https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/me
 
 ViewAndStyle='<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css">'
 
+macrofile="$(dirname ${inputfile})/${basefile}.macros.tex"
+
 cat <(
     if [ "x$1" = "x--rst" ]; then
         # These are basic regexps so \+ is needed, not +.
         # We use the Unicode 💲 character to move an escaped $ out of the way,
         # which is much easier than trying to handle escapes within a capture.
 
-        cat "${inputfile}" \
+        (if [ -f "${macrofile}" ]; then
+            ./expand_macros.py "${macrofile}" "${inputfile}"
+        else
+            cat "${inputfile}"
+        fi) \
         | sed 's|[\][$]|💲|g;
                s|[$]\([^$]\+\)[$]\([.,:;!?)-]\)|:math:`\1\\!`\2|g;
                s|[$]\([^$]\+\)[$]|:math:`\1`|g;
@@ -55,12 +62,21 @@ cat <(
         | sed "s|<script src=\"http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML\"></script>|${Math1}\n    ${Math2}\n    ${Math3}|;
                s|</head>|${ViewAndStyle}</head>|"
     else
+        delete_expandedfile=0
+        if [ -f "${macrofile}" ]; then
+            expandedfile="$(dirname ${inputfile})/${basefile}.expanded${filetype})"
+            ./expand_macros.py "${macrofile}" "${inputfile}" >"${expandedfile}"
+            delete_expandedfile=1
+        else
+            expandedfile="${inputfile}"
+        fi
         if [ "x$1" = "x--pandoc" ]; then
             # Not actually MathJax. KaTeX is compatible if we use the right headers.
-            pandoc --mathjax --from=markdown --to=html "${inputfile}" --output="${outputfile}.temp"
+            pandoc --mathjax --from=markdown --to=html "${expandedfile}" --output="${outputfile}.temp"
         else
-            multimarkdown ${inputfile} -o "${outputfile}.temp"
+            multimarkdown ${expandedfile} -o "${outputfile}.temp"
         fi
+        if [ ${delete_expandedfile} -eq 1 ]; then rm -f "${expandedfile}"; fi
 
         # Both pandoc and multimarkdown just output the HTML body.
         echo "<!DOCTYPE html>"
