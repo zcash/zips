@@ -1377,13 +1377,13 @@ manipulate the note selection algorithm to some extent.
 
 [^protocol-sinsemillasecurity]: [Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.4.1.9: Sinsemilla Hash Function — Security argument](protocol/protocol.pdf#sinsemillasecurity)
 
-[^zip-0032-sapling-child-key-derivation]: [ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling child key derivation](zip-0032#sapling-child-key-derivation)
+[^zip-0032-sapling-child-key-derivation]: [ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling child key derivation](zip-0032.rst#sapling-child-key-derivation)
 
-[^zip-0032-sapling-internal-key-derivation]: [ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling internal key derivation](zip-0032#sapling-internal-key-derivation)
+[^zip-0032-sapling-internal-key-derivation]: [ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling internal key derivation](zip-0032.rst#sapling-internal-key-derivation)
 
-[^zip-0032-orchard-child-key-derivation]: [ZIP 32: Shielded Hierarchical Deterministic Wallets — Orchard child key derivation](zip-0032#orchard-child-key-derivation)
+[^zip-0032-orchard-child-key-derivation]: [ZIP 32: Shielded Hierarchical Deterministic Wallets — Orchard child key derivation](zip-0032.rst#orchard-child-key-derivation)
 
-[^zip-0032-orchard-internal-key-derivation]: [ZIP 32: Shielded Hierarchical Deterministic Wallets — Orchard internal key derivation](zip-0032#orchard-internal-key-derivation)
+[^zip-0032-orchard-internal-key-derivation]: [ZIP 32: Shielded Hierarchical Deterministic Wallets — Orchard internal key derivation](zip-0032.rst#orchard-internal-key-derivation)
 
 [^zip-0200]: [ZIP 200: Network Upgrade Mechanism](zip-0200.rst)
 
@@ -1397,7 +1397,7 @@ manipulate the note selection algorithm to some extent.
 
 [^zip-0312]: [ZIP 312: FROST for Spend Authorization Multisignatures](zip-0312.rst)
 
-[^zip-0312-key-generation]: [ZIP 312: FROST for Spend Authorization Multisignatures — Key Generation](zip-0312#key-generation)
+[^zip-0312-key-generation]: [ZIP 312: FROST for Spend Authorization Multisignatures — Key Generation](zip-0312.rst#key-generation)
 
 [^zcash-security]: Understanding Zcash Security ([video](https://www.youtube.com/watch?v=f6UToqiIdeY), [slides](https://raw.githubusercontent.com/daira/zcash-security/main/zcash-security.pdf)). Presentation by Daira-Emma Hopwood at Zcon3.
 
