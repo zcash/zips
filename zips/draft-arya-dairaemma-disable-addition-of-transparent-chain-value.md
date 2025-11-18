@@ -152,11 +152,11 @@ TODO
 
 [^zip-0200]: [ZIP 200: Network Upgrade Mechanism](zip-0200.rst)
 
-[^protocol]: [Zcash Protocol Specification, Version 2025.6.1 [NU6.1] or later](protocol/protocol.pdf)
+[^protocol]: [Zcash Protocol Specification, Version 2025.6.2 [NU6.1] or later](protocol/protocol.pdf)
 
-[^protocol-chainvaluepoolbalances]: [Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 4.17: Chain Value Pool Balances](protocol/protocol.pdf#chainvaluepoolbalances)
+[^protocol-chainvaluepoolbalances]: [Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 4.17: Chain Value Pool Balances](protocol/protocol.pdf#chainvaluepoolbalances)
 
-[^protocol-txnconsensus]: [Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 7.1.2: Transaction Consensus Rules](protocol/protocol.pdf#txnconsensus)
+[^protocol-txnconsensus]: [Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 7.1.2: Transaction Consensus Rules](protocol/protocol.pdf#txnconsensus)
 
 [^zip-0205]: [ZIP 205: Deployment of the Sapling Network Upgrade](zip-0205.rst)
 

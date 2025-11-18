@@ -421,7 +421,7 @@ wallet.
 
 ## Specification Updates
 
-This is written as a set of changes to version 2025.6.1 of the protocol
+This is written as a set of changes to version 2025.6.2 of the protocol
 specification, and to the contents of ZIPs at the time of writing in
 October 2025 (as proposed for the NU6.1 upgrade). It will need to be merged
 with other changes for v6 transactions (memo bundles [^zip-0231] and
@@ -429,47 +429,19 @@ ZSAs [^zip-0226] [^zip-0227]).
 
 ### Changes to the Protocol Specification
 
-Some of the suggested changes to the protocol specification are
-refactoring to make it easier to consistently specify the rules on
-allowed note plaintext lead bytes and generation of note components,
-without duplication between sections. It is suggested to do this
-refactoring first, independently of the semantic changes for quantum
-recoverability, and then to simplify this ZIP accordingly.
-
-#### § 3.1 ‘Payment Addresses and Keys’
-
-Add a $\ast$ to the arrows leading to $\mathsf{ask}$ and $\mathsf{rivk}$
-in the Orchard key components diagram, with the following note:
-
-> $\ast$ The derivations of $\mathsf{ask}$ and $\mathsf{rivk}$ shown
-> are not the only possibility. For further detail see
-> § 4.2.3 ‘Orchard Key Components’.
-
 #### § 3.2.1 ‘Note Plaintexts and Memo Fields’
 
 Replace the paragraph
 
-> The field $\mathsf{leadByte}$ indicates the version of the encoding of
-> a Sapling or Orchard note plaintext. For Sapling it is $\mathtt{0x01}$
-> before activation of the Canopy network upgrade and $\mathtt{0x02}$
-> afterward, as specified in [ZIP-212]. For Orchard note plaintexts it is
-> always $\mathtt{0x02}$.
+> Define $\mathsf{allowedLeadBytes^{protocol}}(\mathsf{height}, \mathsf{txVersion}) =$
+> $\hspace{2em} \begin{cases}
+>   \{ \mathtt{0x01} \},&\!\!\!\text{if } \mathsf{height} < \mathsf{CanopyActivationHeight} \\
+>   \{ \mathtt{0x01}, \mathtt{0x02} \},&\!\!\!\text{if } \mathsf{CanopyActivationHeight} \leq \mathsf{height} < \mathsf{CanopyActivationHeight} + \mathsf{ZIP212GracePeriod} \\
+>   \{ \mathtt{0x02} \},&\!\!\!\text{otherwise.}
+> \end{cases}$
 
 with
 
-> The field $\mathsf{leadByte}$ indicates the version of the encoding of
-> a Sapling or Orchard note plaintext.
->
-> Let the constants $\mathsf{CanopyActivationHeight}$ and
-> $\mathsf{ZIP212GracePeriod}$ be as defined in § 5.3 ‘Constants’.
->
-> Let $\mathsf{protocol} \;{\small ⦂}\; \{ \mathsf{Sapling}, \mathsf{Orchard} \}$
-> be the shielded protocol of the note.
->
-> Let $\mathsf{height}$ be the block height of the block containing the
-> transaction having the encrypted note plaintext as an output, and let
-> $\mathsf{txVersion}$ be the transaction version number.
->
 > Define $\mathsf{allowedLeadBytes^{protocol}}(\mathsf{height}, \mathsf{txVersion}) =$
 > $\hspace{2em} \begin{cases}
 >   \{ \mathtt{0x01} \},&\!\!\!\text{if } \mathsf{height} < \mathsf{CanopyActivationHeight} \\
@@ -477,18 +449,10 @@ with
 >   \{ \mathtt{0x02} \},&\!\!\!\text{if } \mathsf{CanopyActivationHeight} + \mathsf{ZIP212GracePeriod} \leq \mathsf{height} \text{ and } \mathsf{txVersion} < 6 \\
 >   \{ \mathtt{0x03} \},&\!\!\!\text{otherwise.}
 > \end{cases}$
->
-> The $\mathsf{leadByte}$ of a Sapling or Orchard note MUST satisfy
-> $\mathsf{leadByte} \in \mathsf{allowedLeadBytes^{protocol}}(\mathsf{height}, \mathsf{txVersion})$.
-> Senders SHOULD choose the highest lead byte allowed under this condition.
-> 
-> **Non-normative notes:**
-> * Since Orchard was introduced after the end of the [[ZIP-212]](https://zips.z.cash/zip-0212))
->   grace period, note plaintexts for Orchard notes MUST have
->   $\mathsf{leadByte} \geq \mathtt{0x02}$.
-> * It is intentional that the definition of $\mathsf{allowedLeadBytes}$
->   does not currently depend on $\mathsf{protocol}$. It might do so in
->   future.
+
+and delete "or $\mathsf{txVersion}$" from "It is intentional that the
+definition of $\mathsf{allowedLeadBytes}$ does not currently depend on
+$\mathsf{protocol}$ or $\mathsf{txVersion}$."
 
 #### § 4.1.2 ‘Pseudo Random Functions’
 
@@ -497,13 +461,15 @@ In the list of places where $\mathsf{PRF^{expand}}$ is used:
 Replace
 
 > * [**NU5** onward] in § 4.2.3 ‘Orchard Key Components’, with inputs
->   $[6]$, $[7]$, $[8]$, and with first byte $\mathtt{0x82}$ (the last of
->   these is also specified in [[ZIP-32]](https://zips.z.cash/zip-0032));
+>   $[\mathtt{0x06}]$, $[\mathtt{0x07}]$, $[\mathtt{0x08}]$, and with
+>   first byte $\mathtt{0x82}$ (the last of these is also specified in
+>   [[ZIP-32]](https://zips.z.cash/zip-0032));
 > * in the processes of sending (§ 4.7.2 ‘Sending Notes (Sapling)’ and
 >   § 4.7.3 ‘Sending Notes (Orchard)’) and of receiving
 >   (§ 4.20 ‘In-band secret distribution (Sapling and Orchard)’) notes,
->   with inputs $[4]$ and $[5]$, and for Orchard
->   $[t] || \underline{\text{ρ}}$ with $t \in \{ 5, 4, 9 \}$;
+>   for Sapling with inputs $[\mathtt{0x04}]$ and $[\mathtt{0x05}]$,
+>   and for Orchard $[t] || \underline{\text{ρ}}$ with
+>   $t \in \{ \mathtt{0x05}, \mathtt{0x04}, \mathtt{0x09} \}$;
 
 with
 
@@ -525,8 +491,6 @@ Add
 
 > * in {{ reference to this ZIP }}, with first byte in
 >   $\{ \mathtt{0x0A}, \mathtt{0x0B}, \mathtt{0x0C}, \mathtt{0x0D} \}$.
-
-Also change the remaining decimal constants to hex for consistency.
 
 #### § 4.2.3 ‘Orchard Key Components’
 
@@ -628,21 +592,8 @@ Add the following notes:
 
 #### § 4.7.2 ‘Sending Notes (Sapling)’
 
-Replace
+Add after the definition of $\mathsf{leadByte}$:
 
-> Let $\mathsf{CanopyActivationHeight}$ be as defined in § 5.3 ‘Constants’.
->
-> Let $\mathsf{leadByte}$ be the note plaintext lead byte.
-> This MUST be $\mathsf{0x01}$ if for the next block,
-> $\mathsf{height} < \mathsf{CanopyActivationHeight}$, or $\mathtt{0x02}$
-> if $\mathsf{height} \geq \mathsf{CanopyActivationHeight}$.
-
-with
-
-> Let $\mathsf{leadByte}$ be the note plaintext lead byte, chosen
-> according to § 3.2.1 ‘Note Plaintexts and Memo Fields’ with
-> $\mathsf{protocol} = \mathsf{Sapling}$.
->
 > Define $\mathsf{H^{rcm,Sapling}_{rseed}}(\_, \_) = \mathsf{ToScalar^{Sapling}}\big(\mathsf{PRF^{expand}_{rseed}}([\mathtt{0x04}])\kern-0.1em\big)$
 >
 > Define $\mathsf{H^{esk,Sapling}_{rseed}}(\_, \_) = \mathsf{ToScalar^{Sapling}}\big(\mathsf{PRF^{expand}_{rseed}}([\mathtt{0x05}])\kern-0.1em\big)$.
@@ -658,17 +609,8 @@ Replace the lines deriving $\mathsf{rcm}$ and $\mathsf{esk}$ with
 
 #### § 4.7.3 ‘Sending Notes (Orchard)’
 
-Replace
+Add after the definition of $\mathsf{leadByte}$:
 
-> Let $\mathsf{leadByte}$ be the note plaintext lead byte, which MUST be
-> $\mathtt{0x02}$.
-
-with
-
-> Let $\mathsf{leadByte}$ be the note plaintext lead byte, chosen
-> according to § 3.2.1 ‘Note Plaintexts and Memo Fields’ with
-> $\mathsf{protocol} = \mathsf{Orchard}$.
->
 > Define $\mathsf{H^{rcm,Orchard}_{rseed}}\big(\mathsf{leadByte}, (\mathsf{g}\star_{\mathsf{d}}, \mathsf{pk}\star_{\mathsf{d}}, \mathsf{v}, \underline{\text{ρ}}, \text{ψ}[, \mathsf{AssetBase}\kern0.08em\star])\kern-0.1em\big) =$
 >   $\mathsf{ToScalar^{Orchard}}\big(\mathsf{PRF^{expand}_{rseed}}(\mathsf{pre\_rcm})\kern-0.1em\big)$
 >
@@ -715,24 +657,10 @@ Replace the line deriving $\mathsf{rcm}$ with
 
 > Derive $\mathsf{rcm} = \mathsf{H^{rcm,Sapling}_{rseed}}(\bot, \bot)$
 
-Correct
-
-> A Spend description for a dummy Sapling input note is constructed as
-> follows:
-
-to
-
-> A Spend description for a dummy Sapling input note with note plaintext
-> lead byte $\mathtt{0x02}$ is constructed as follows:
-
 #### § 4.8.3 ‘Dummy Notes (Orchard)’
 
 Insert before "The spend-related fields ...":
 
-> Let $\mathsf{leadByte}$ be the note plaintext lead byte, chosen
-> according to § 3.2.1 ‘Note Plaintexts and Memo Fields’ with
-> $\mathsf{protocol} = \mathsf{Orchard}$.
->
 > Let $\mathsf{H^{rcm,Orchard}}$ and $\mathsf{H^{\text{ψ},Orchard}}$ be
 > as defined in § 4.7.3 ‘Sending Notes (Orchard)’.
 
@@ -752,28 +680,14 @@ $\mathsf{NoteCommit^{Orchard}}$.
 
 #### § 4.20.2 and § 4.20.3 ‘Decryption using an Incoming/Full Viewing Key (Sapling and Orchard)’
 
-For both § 4.20.2 and § 4.20.3, replace
+For both § 4.20.2 and § 4.20.3, add before the decryption procedure:
 
-> Let the constants $\mathsf{CanopyActivationHeight}$ and
-> $\mathsf{ZIP212GracePeriod}$ be as defined in § 5.3 ‘Constants’.
->
-> Let $\mathsf{height}$ be the block height of the block containing this
-> transaction.
-
-with
-
-> Let $\mathsf{protocol}$ and $\mathsf{allowedLeadBytes}$ be as defined
-> in § 3.2.1 ‘Note Plaintexts and Memo Fields’.
->
 > Let $\mathsf{H^{rcm,Sapling}}$ and $\mathsf{H^{\text{esk},Sapling}}$
 > be as defined in § 4.7.2 ‘Sending Notes (Sapling)’.
 >
 > Let $\mathsf{H^{rcm,Orchard}}$, $\mathsf{H^{\text{esk},Orchard}}$,
 > and $\mathsf{H^{\text{ψ},Orchard}}$ be as defined in
 > § 4.7.3 ‘Sending Notes (Orchard)’.
->
-> Let $\mathsf{height}$ be the block height of the block containing this
-> transaction, and let $\mathsf{txVersion}$ be the transaction version.
 
 For § 4.20.3, replace
 
@@ -790,25 +704,21 @@ delete the word "later".
 
 For both § 4.20.2 and § 4.20.3, replace
 
-> $\hspace{1.0em}$ [Pre-**Canopy**] if $\mathsf{leadByte} \neq \mathtt{0x01}$, return $\bot$ <br>
-> $\hspace{1.0em}$ [Pre-**Canopy**] let $\underline{\mathsf{rcm}} = \mathsf{rseed}$ <br>
-> $\hspace{1.0em}$ [**Canopy** onward] if $\mathsf{height} < \mathsf{CanopyActivationHeight} + \mathsf{ZIP212GracePeriod}$ and $\mathsf{leadByte} \not\in \{ \mathtt{0x01}, \mathtt{0x02} \}$, return $\bot$ <br>
-> $\hspace{1.0em}$ [**Canopy** onward] if $\mathsf{height} \geq \mathsf{CanopyActivationHeight} + \mathsf{ZIP212GracePeriod}$ and $\mathsf{leadByte} \neq \mathtt{0x02}$, return $\bot$ <br>
 > $\hspace{1.0em}$ for Sapling, let $\mathsf{pre\_rcm} = [4]$ and $\mathsf{pre\_esk} = [5]$ <br>
 > $\hspace{1.0em}$ for Orchard, let $\underline{\text{ρ}} = \mathsf{I2LEOSP}_{256}(\mathsf{nf^{old}}$ from the same Action description $\!)$, $\mathsf{pre\_rcm} = [5] \,||\, \underline{\text{ρ}}$, and $\mathsf{pre\_esk} = [4] \,||\, \underline{\text{ρ}}$
 
 with
 
-> $\hspace{1.0em}$ if $\mathsf{leadByte} \not\in \mathsf{allowedLeadBytes^{protocol}}(\mathsf{height}, \mathsf{txVersion})$, return $\bot$ <br>
 > $\hspace{1.0em}$ let $\underline{\text{ρ}} = \mathsf{I2LEOSP}_{256}(\mathsf{nf^{old}}$ from the same Action description $\!)$
 
 For § 4.20.2, replace
 
-> $\hspace{1.0em}$ [**Canopy** onward] let $\underline{\mathsf{rcm}} = \begin{cases}
->                    \mathsf{rseed},&\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x01} \\
->                    \mathsf{ToScalar^{protocol}}(\mathsf{PRF^{expand}_{rseed}}(\mathsf{pre\_rcm})),&\!\!\!\text{otherwise}
+> $\hspace{1.0em}$ let $\mathsf{rcm} = \begin{cases}
+>                    \mathsf{LEOS2IP}_{256}(\mathsf{rseed}),&\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x01} \\
+>                    \mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}(\mathsf{pre\_rcm})),&\!\!\!\text{otherwise}
 >                  \end{cases}$ <br>
-> $\hspace{1.0em}$ let $\mathsf{rcm} = \mathsf{LEOS2IP}_{256}(\underline{\mathsf{rcm}})$ and $\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})$. if $\mathsf{rcm} \geq r_{\mathbb{G}}$ or (for Sapling) $\mathsf{g_d} = \bot$, return $\bot$ <br>
+> $\hspace{1.0em}$ if $\mathsf{rcm} \geq r_{\mathbb{G}}$, return $\bot$ <br>
+> $\hspace{1.0em}$ let $\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})$. if (for Sapling) $\mathsf{g_d} = \bot$, return $\bot$ <br>
 > $\hspace{1.0em}$ [**Canopy** onward] if $\mathsf{leadByte} \neq \mathtt{0x01}$: <br>
 > $\hspace{2.5em}$     $\mathsf{esk} = \mathsf{ToScalar^{protocol}}(\mathsf{PRF^{expand}_{rseed}}(\mathsf{pre\_esk}))$ <br>
 > $\hspace{2.5em}$     if $\mathsf{repr}_{\mathbb{G}}(\mathsf{KA.DerivePublic}(\mathsf{esk}, \mathsf{g_d})) \neq \mathtt{ephemeralKey}$, return $\bot$
@@ -817,48 +727,47 @@ For § 4.20.2, replace
 
 with
 
-> $\hspace{1.0em}$ let $\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})$; for Sapling, if $\mathsf{g_d} = \bot$, return $\bot$ <br>
+> $\hspace{1.0em}$ let $\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})$. if (for Sapling) $\mathsf{g_d} = \bot$, return $\bot$ <br>
 > $\hspace{1.0em}$ [**Canopy** onward] if $\mathsf{leadByte} \neq \mathtt{0x01}$: <br>
 > $\hspace{2.5em}$     let $\mathsf{esk} = \mathsf{H^{esk,protocol}_{rseed}}(\underline{\text{ρ}})$ <br>
 > $\hspace{2.5em}$     if $\mathsf{repr}_{\mathbb{G}}(\mathsf{KA.DerivePublic}(\mathsf{esk}, \mathsf{g_d})) \neq \mathtt{ephemeralKey}$, return $\bot$ <br>
-> $\hspace{2.5em}$     let $\text{ψ} = \mathsf{H^{\text{ψ},Orchard}_{rseed}}(\underline{\text{ρ}}, 0)$ for Orchard or $\bot$ for Sapling
 > 
 > $\hspace{1.0em}$ let $\mathsf{pk_d} = \mathsf{KA.DerivePublic}(\mathsf{ivk}, \mathsf{g_d})$ <br>
 > $\hspace{1.0em}$ let $\mathsf{g}\star_{\mathsf{d}} = \mathsf{repr}_{\mathbb{P}}(\mathsf{g_d})$, $\mathsf{pk}\star_{\mathsf{d}} = \mathsf{repr}_{\mathbb{P}}(\mathsf{pk_d}) [$, and $\mathsf{AssetBase}\kern0.08em\star = \mathsf{repr}_{\mathbb{P}}(\mathsf{AssetBase})]$ <br>
+> $\hspace{1.0em}$ let $\text{ψ} = \mathsf{H^{\text{ψ},Orchard}_{rseed}}(\underline{\text{ρ}}, 0)$ for Orchard or $\bot$ for Sapling <br>
 > $\hspace{1.0em}$ let $\mathsf{rcm} = \begin{cases}
 >                    \mathsf{LEOS2IP}_{256}(\mathsf{rseed}),&\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x01} \\
 >                    \mathsf{H^{rcm,protocol}_{rseed}}(\mathsf{leadByte}, (\mathsf{g}\star_{\mathsf{d}}, \mathsf{pk}\star_{\mathsf{d}}, \mathsf{v}, \underline{\text{ρ}}, \text{ψ}[, \mathsf{AssetBase}\kern0.08em\star])),&\!\!\!\text{otherwise}
 >                  \end{cases}$ <br>
 > $\hspace{1.0em}$ if $\mathsf{rcm} \geq r_{\mathbb{G}}$, return $\bot$
 
-(The order of operations has to be altered because the derivation of
-$\mathsf{rcm}$ can depend on $\mathsf{g_d}$ and $\mathsf{pk_d}$.)
+The order of operations has to be altered because the derivation of
+$\mathsf{rcm}$ can depend on $\mathsf{g_d}$ and $\mathsf{pk_d}$.
+The definitions of $\mathsf{pre\_rcm}$ and $\mathsf{pre\_esk}$ are moved into
+§ 4.7.2 ‘Sending Notes (Sapling)’ and § 4.7.3 ‘Sending Notes (Orchard)’ which
+define $\mathsf{H^{rcm,protocol}}$.
 
 For § 4.20.3, replace
 
-> $\hspace{1.0em}$ [**Canopy** onward] let $\underline{\mathsf{rcm}} = \begin{cases}
->                    \mathsf{rseed},&\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x01} \\
+> $\hspace{1.0em}$ let $\mathsf{rcm} = \begin{cases}
+>                    \mathsf{LEOS2IP}_{256}(\mathsf{rseed}),&\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x01} \\
 >                    \mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}(\mathsf{pre\_rcm})),&\!\!\!\text{otherwise}
 >                  \end{cases}$ <br>
-> $\hspace{1.0em}$ let $\mathsf{rcm} = \mathsf{LEOS2IP}_{256}(\underline{\mathsf{rcm}})$ and $\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})$ <br>
-> $\hspace{1.0em}$ if $\mathsf{rcm} \geq r_{\mathbb{G}}$ or (for Sapling) $\mathsf{g_d} = \bot$ or $\mathsf{pk_d} \not\in \mathbb{J}^{(r)*}$ (see note below), return $\bot$
+> $\hspace{1.0em}$ if $\mathsf{rcm} \geq r_{\mathbb{G}}$, return $\bot$ <br>
+> $\hspace{1.0em}$ let $\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})$. if (for Sapling) $\mathsf{g_d} = \bot$ or $\mathsf{pk_d} \not\in \mathbb{J}^{(r)*}$ (see note below), return $\bot$
 
 with
 
-> $\hspace{1.0em}$ let $\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})$; for Sapling, if $\mathsf{g_d} = \bot$, return $\bot$ <br>
-> $\hspace{1.0em}$ let $\mathsf{g}\star_{\mathsf{d}} = \mathsf{repr}_{\mathbb{P}}(\mathsf{g_d}) [$ and $\mathsf{AssetBase}\kern0.08em\star = \mathsf{repr}_{\mathbb{P}}(\mathsf{AssetBase})]$ <br>
-> $\hspace{1.0em}$ if $\mathsf{leadByte} \neq \mathtt{0x01}$, let $\text{ψ} = \mathsf{H^{\text{ψ},Orchard}_{rseed}}(\underline{\text{ρ}}, 0)$ for Orchard or $\bot$ for Sapling <br>
+> $\hspace{1.0em}$ let $\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})$. if (for Sapling) $\mathsf{g_d} = \bot$, return $\bot$ <br>
+> $\hspace{1.0em}$ let $\mathsf{g}\star_{\mathsf{d}} = \mathsf{repr}_{\mathbb{P}}(\mathsf{g_d})$, $\mathsf{pk}\star_{\mathsf{d}} = \mathsf{repr}_{\mathbb{P}}(\mathsf{pk_d}) [$, and $\mathsf{AssetBase}\kern0.08em\star = \mathsf{repr}_{\mathbb{P}}(\mathsf{AssetBase})]$ <br>
+> $\hspace{1.0em}$ let $\text{ψ} = \mathsf{H^{\text{ψ},Orchard}_{rseed}}(\underline{\text{ρ}}, 0)$ for Orchard or $\bot$ for Sapling <br>
 > $\hspace{1.0em}$ let $\mathsf{rcm} = \begin{cases}
 >                    \mathsf{LEOS2IP}_{256}(\mathsf{rseed}),&\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x01} \\
 >                    \mathsf{H^{rcm,protocol}_{rseed}}(\mathsf{leadByte}, (\mathsf{g}\star_{\mathsf{d}}, \mathsf{pk}\star_{\mathsf{d}}, \mathsf{v}, \underline{\text{ρ}}, \text{ψ}[, \mathsf{AssetBase}\kern0.08em\star])),&\!\!\!\text{otherwise}
 >                  \end{cases}$ <br>
 > $\hspace{1.0em}$ if $\mathsf{rcm} \geq r_{\mathbb{G}}$, return $\bot$
 
-(Note that there was previously a type error in both § 4.20.2 and § 4.20.3:
-$\mathsf{ToScalar}$ returns an integer, not a byte sequence, and so cannot
-be assigned to $\underline{\mathsf{rcm}}$.)
-
-Delete "where $\text{ψ} = \mathsf{ToBase^{Orchard}}(\mathsf{PRF^{expand}_{rseed}}([9] \,||\, \underline{\text{ρ}}))$".
+and delete "where $\text{ψ} = \mathsf{ToBase^{Orchard}}(\mathsf{PRF^{expand}_{rseed}}([9] \,||\, \underline{\text{ρ}}))$".
 
 #### § 5.3 ‘Constants’
 
@@ -1460,21 +1369,21 @@ manipulate the note selection algorithm to some extent.
 
 [^BCP14]: [Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"](https://www.rfc-editor.org/info/bcp14)
 
-[^protocol]: [Zcash Protocol Specification, Version 2025.6.1 [NU6.1] or later](protocol/protocol.pdf)
+[^protocol]: [Zcash Protocol Specification, Version 2025.6.2 [NU6.1] or later](protocol/protocol.pdf)
 
-[^protocol-networks]: [Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 3.12: Mainnet and Testnet](protocol/protocol.pdf#networks)
+[^protocol-networks]: [Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 3.12: Mainnet and Testnet](protocol/protocol.pdf#networks)
 
-[^protocol-concretesinsemillahash]: [Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 5.4.1.9: Sinsemilla Hash Function](protocol/protocol.pdf#concretesinsemillahash)
+[^protocol-concretesinsemillahash]: [Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.4.1.9: Sinsemilla Hash Function](protocol/protocol.pdf#concretesinsemillahash)
 
-[^protocol-sinsemillasecurity]: [Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 5.4.1.9: Sinsemilla Hash Function — Security argument](protocol/protocol.pdf#sinsemillasecurity)
+[^protocol-sinsemillasecurity]: [Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.4.1.9: Sinsemilla Hash Function — Security argument](protocol/protocol.pdf#sinsemillasecurity)
 
-[^zip-0032-sapling-child-key-derivation]: [ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling child key derivation](zip-0032#sapling-child-key-derivation)
+[^zip-0032-sapling-child-key-derivation]: [ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling child key derivation](zip-0032.rst#sapling-child-key-derivation)
 
-[^zip-0032-sapling-internal-key-derivation]: [ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling internal key derivation](zip-0032#sapling-internal-key-derivation)
+[^zip-0032-sapling-internal-key-derivation]: [ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling internal key derivation](zip-0032.rst#sapling-internal-key-derivation)
 
-[^zip-0032-orchard-child-key-derivation]: [ZIP 32: Shielded Hierarchical Deterministic Wallets — Orchard child key derivation](zip-0032#orchard-child-key-derivation)
+[^zip-0032-orchard-child-key-derivation]: [ZIP 32: Shielded Hierarchical Deterministic Wallets — Orchard child key derivation](zip-0032.rst#orchard-child-key-derivation)
 
-[^zip-0032-orchard-internal-key-derivation]: [ZIP 32: Shielded Hierarchical Deterministic Wallets — Orchard internal key derivation](zip-0032#orchard-internal-key-derivation)
+[^zip-0032-orchard-internal-key-derivation]: [ZIP 32: Shielded Hierarchical Deterministic Wallets — Orchard internal key derivation](zip-0032.rst#orchard-internal-key-derivation)
 
 [^zip-0200]: [ZIP 200: Network Upgrade Mechanism](zip-0200.rst)
 
@@ -1488,7 +1397,7 @@ manipulate the note selection algorithm to some extent.
 
 [^zip-0312]: [ZIP 312: FROST for Spend Authorization Multisignatures](zip-0312.rst)
 
-[^zip-0312-key-generation]: [ZIP 312: FROST for Spend Authorization Multisignatures — Key Generation](zip-0312#key-generation)
+[^zip-0312-key-generation]: [ZIP 312: FROST for Spend Authorization Multisignatures — Key Generation](zip-0312.rst#key-generation)
 
 [^zcash-security]: Understanding Zcash Security ([video](https://www.youtube.com/watch?v=f6UToqiIdeY), [slides](https://raw.githubusercontent.com/daira/zcash-security/main/zcash-security.pdf)). Presentation by Daira-Emma Hopwood at Zcon3.
 
