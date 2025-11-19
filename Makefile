@@ -53,12 +53,16 @@ rendered/%.html: zips/%.md render.sh
 README.rst: .zipfilelist.current .draftfilelist.current makeindex.sh README.template $(wildcard zips/zip-*.rst) $(wildcard zips/zip-*.md) $(wildcard zips/draft-*.rst) $(wildcard zips/draft-*.md)
 	./makeindex.sh | cat README.template - >README.rst
 
-.PHONY: linkcheck clean all-clean
+.PHONY: linkcheck updatecheck clean all-clean
 linkcheck: all
 	./links_and_dests.py --check $(filter-out $(wildcard rendered/draft-*.html),$(wildcard rendered/*.html)) $(filter-out rendered/protocol/sprout.pdf,$(wildcard rendered/protocol/*.pdf))
 
+updatecheck:
+	./update_check.sh
+
 clean:
 	rm -f .zipfilelist.* README.rst rendered/index.html $(addprefix rendered/,$(addsuffix .html,$(basename $(patsubst zips/%,%,$(sort $(wildcard zips/*.rst) $(wildcard zips/*.md))))))
+	rm -rf temp
 
 all-clean:
 	$(MAKE) clean

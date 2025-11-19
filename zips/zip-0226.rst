@@ -68,6 +68,21 @@ When this flag is set to true, the circuit will allow transactions involving Cus
 
 Finally, in this ZIP we also describe the *burn* mechanism, which is a direct extension of the transfer mechanism. The burn process uses a similar mechanism to what is used in Orchard to unshield ZEC, by using the $\mathsf{valueBalance}$ of the Asset in question. Burning Assets is useful for many purposes, including bridging of Wrapped Assets and removing supply of Assets.
 
+Privacy Implications
+====================
+
+- After the protocol upgrade, the Orchard shielded pool will be shared by the
+  Orchard protocol and the OrchardZSA protocol.
+- Deploying the OrchardZSA protocol does not necessitate disabling the Orchard
+  protocol. Both can co-exist and be addressed via different transaction
+  versions (V5 for Orchard and V6 for OrchardZSA). Due to this, Orchard note
+  commitments can be distinguished from OrchardZSA note commitments. This holds
+  whether or not the two protocols are active simultaneously.
+- OrchardZSA note commitments for the native asset (ZEC) are indistinguishable
+  from OrchardZSA note commitments for non-native Assets.
+- When including new Assets we would like to maintain the amount and identifiers
+  of Assets private, which is achieved with the design.
+
 Specification
 =============
 
@@ -85,8 +100,11 @@ Rationale for Asset Identifiers
 
 In future network and protocol upgrades, the same Asset description string can be carried on, potentially mapping into a different shielded pool. In that case, nodes should know how to transform the Asset Identifier, the Asset Digest, and the Asset Base from one shielded pool to another, while ensuring there are no balance violations [#zip-0209]_.
 
-Note Structure & Commitment
----------------------------
+We prevent a potential malleability attack on the Asset Identifier by ensuring
+the output notes receive an Asset Base that exists on the global state.
+
+Note Structure and Commitment
+-----------------------------
 
 An OrchardZSA note differs from an Orchard note [#protocol-notes]_ by additionally including the Asset Base, $\mathsf{AssetBase}$. So an OrchardZSA note is a tuple $(\mathsf{d}, \mathsf{pk_d}, \mathsf{v}, \mathsf{AssetBase}, \text{ρ}, \text{ψ}, \mathsf{rcm})$,
 where
@@ -279,7 +297,6 @@ This ensures that the value base points of all output notes of a transfer are ac
 
 Note that the Orchard dummy note functionality remains in use for ZEC notes, and the Split Input technique is used in order to support Custom Assets.
 
-
 Circuit Statement
 -----------------
 
@@ -337,35 +354,46 @@ Senders must not be able to change the Asset Base for the output note in a Split
 Backwards Compatibility with ZEC Notes
 ``````````````````````````````````````
 
-The input note in the old note commitment integrity check must either include an Asset Base (OrchardZSA note) or not (pre-ZSA Orchard note). If the note is a pre-ZSA Orchard note, the note commitment is computed in the original Orchard fashion [#protocol-abstractcommit]_. If the note is an OrchardZSA note, the note commitment is computed as defined in the `Note Structure & Commitment`_ section.
+The input note in the old note commitment integrity check must either include an Asset Base (OrchardZSA note) or not (pre-ZSA Orchard note). If the note is a pre-ZSA Orchard note, the note commitment is computed in the original Orchard fashion [#protocol-abstractcommit]_. If the note is an OrchardZSA note, the note commitment is computed as defined in the `Note Structure and Commitment`_ section.
 
 OrchardZSA Transaction Structure
-================================
+--------------------------------
 
 The transaction format for v6 transactions is described in ZIP 230 [#zip-0230]_.
+The ZSA-related changes in v6 include:
 
+* updates to the transaction structure [#zip-0230-transaction-format]_ and the
+  sighash digest computation [#zip-0246]_;
+* new note plaintext formats for both Sapling and Orchard outputs [#zip-0230-note-plaintexts]_,
+  with corresponding changes to the note decryption algorithms for incoming and
+  outgoing viewing keys [#draft-ecc-quantum-recoverability]_.
 
+Implications for Wallets
+````````````````````````
 
-Modifications relative to ZIP 244 [#zip-0244]_
-==============================================
+The following requirements on wallets are specified and motivated in ZIP 230
+[#zip-0230-implications-for-wallets]_:
+
+* *All* wallets should switch to sending only v6 transactions once NU7 has activated.
+  The main consequence of not doing so relevant to ZSAs, is that users would not obtain
+  the privacy benefit of indistinguishability between native and non-native assets in
+  the Orchard shielded pool, because v5 transactions can only transact in the native
+  ZEC asset. For other consequences see ZIP 230.
+
+* *All* wallets should be ready to receive funds in outputs of v6 transactions as soon
+  as ZSAs activate — in particular to support decrypting note plaintexts with lead-byte
+  $\mathtt{0x03}$ [#zip-0230-note-plaintexts]_. The consequence of not doing so would
+  be that funds sent to Orchard addresses of a wallet without this support could be
+  temporarily inaccessible, until the wallet is upgraded to fully support v6 and to
+  rescan outputs since v6 activation.
+
+Sighash modifications relative to ZIP 244 [#zip-0244]_
+------------------------------------------------------
 
 Relative to the sighash algorithm defined in ZIP 244 [#zip-0244]_, the sighash algorithm
 that applies to v6 transactions differs by altering the Orchard bundle within
 the tree hash to match the corresponding OrchardZSA changes. See ZIP 246 [#zip-0246]_
 for details.
-
-
-Security and Privacy Considerations
-===================================
-
-- After the protocol upgrade, the Orchard shielded pool will be shared by the Orchard protocol and the OrchardZSA protocol.
-- Deploying the OrchardZSA protocol does not necessitate disabling the Orchard protocol. Both can co-exist and be addressed via different transaction versions (V5 for Orchard and V6 for OrchardZSA). Due to this, Orchard note commitments can be distinguished from OrchardZSA note commitments. This holds whether or not the two protocols are active simultaneously.
-- OrchardZSA note commitments for the native asset (ZEC) are indistinguishable from OrchardZSA note commitments for non-native Assets.
-- When including new Assets we would like to maintain the amount and identifiers of Assets private, which is achieved with the design.
-- We prevent a potential malleability attack on the Asset Identifier by ensuring the output notes receive an Asset Base that exists on the global state.
-
-Other Considerations
-====================
 
 Transaction Fees
 ----------------
@@ -383,8 +411,10 @@ In order to have backward compatibility with the ZEC notes, we have designed the
 - The ZEC-based Actions will still include dummy input notes, whereas the OrchardZSA Actions will include split input notes and will not include dummy input notes.
 
 Deployment
------------
+==========
+
 The Zcash Shielded Assets protocol is scheduled to be deployed in Network Upgrade 7 (NU7).
+This ZIP currently assumes that this will be the case.
 
 Test Vectors
 ============
@@ -403,38 +433,42 @@ References
 ==========
 
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
-.. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.html>`_
-.. [#zip-0209] `ZIP 209: Prohibit Negative Shielded Chain Value Pool Balances <zip-0209.html>`_
-.. [#zip-0224] `ZIP 224: Orchard <zip-0224.html>`_
-.. [#zip-0227] `ZIP 227: Issuance of Zcash Shielded Assets <zip-0227.html>`_
-.. [#zip-0227-specification-global-issuance-state] `ZIP 227: Issuance of Zcash Shielded Assets: Specification: Global Issuance State <zip-0227.html#specification-global-issuance-state>`_
-.. [#zip-0227-assetidentifier] `ZIP 227: Issuance of Zcash Shielded Assets: Specification: Asset Identifier <zip-0227.html#specification-asset-identifier-asset-digest-and-asset-base>`_
-.. [#zip-0227-consensus] `ZIP 227: Issuance of Zcash Shielded Assets: Specification: Consensus Rule Changes <zip-0227.html#specification-consensus-rule-changes>`_
-.. [#zip-0227-note-commitment-order] `ZIP 227: Issuance of Zcash Shielded Assets: Addition to the Note Commitment Tree <zip-0227.html#addition-to-the-note-commitment-tree>`_
-.. [#zip-0227-txiddigest] `ZIP 227: Issuance of Zcash Shielded Assets: TxId Digest - Issuance <zip-0227.html#txid-digest-issuance>`_
-.. [#zip-0227-authcommitment] `ZIP 227: Issuance of Zcash Shielded Assets: Authorizing Data Commitment <zip-0227.html#authorizing-data-commitment-issuance>`_
-.. [#zip-0227-orchardzsa-fee-calculation] `ZIP 227: Issuance of Zcash Shielded Assets: OrchardZSA Fee Calculation <zip-0227.html#orchardzsa-fee-calculation>`_
-.. [#zip-0230] `ZIP 230: Version 6 Transaction Format <zip-0230.html>`_
-.. [#zip-0230-orchard-note-plaintext] `ZIP 230: Version 6 Transaction Format: Orchard Note Plaintext <zip-0230.html#orchard-note-plaintext>`_
-.. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.html>`_
-.. [#zip-0246] `ZIP 246: Digests for the Version 6 Transaction Format <zip-0246.html>`_
+.. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
+.. [#zip-0209] `ZIP 209: Prohibit Negative Shielded Chain Value Pool Balances <zip-0209.rst>`_
+.. [#zip-0224] `ZIP 224: Orchard <zip-0224.rst>`_
+.. [#zip-0227] `ZIP 227: Issuance of Zcash Shielded Assets <zip-0227.rst>`_
+.. [#zip-0227-specification-global-issuance-state] `ZIP 227: Issuance of Zcash Shielded Assets — Specification: Global Issuance State <zip-0227.rst#specification-global-issuance-state>`_
+.. [#zip-0227-assetidentifier] `ZIP 227: Issuance of Zcash Shielded Assets — Specification: Asset Identifier <zip-0227.rst#specification-asset-identifier-asset-digest-and-asset-base>`_
+.. [#zip-0227-consensus] `ZIP 227: Issuance of Zcash Shielded Assets — Specification: Consensus Rule Changes <zip-0227.rst#specification-consensus-rule-changes>`_
+.. [#zip-0227-note-commitment-order] `ZIP 227: Issuance of Zcash Shielded Assets — Addition to the Note Commitment Tree <zip-0227.rst#addition-to-the-note-commitment-tree>`_
+.. [#zip-0227-txiddigest] `ZIP 227: Issuance of Zcash Shielded Assets — TxId Digest - Issuance <zip-0227.rst#txid-digest-issuance>`_
+.. [#zip-0227-authcommitment] `ZIP 227: Issuance of Zcash Shielded Assets — Authorizing Data Commitment <zip-0227.rst#authorizing-data-commitment-issuance>`_
+.. [#zip-0227-orchardzsa-fee-calculation] `ZIP 227: Issuance of Zcash Shielded Assets — OrchardZSA Fee Calculation <zip-0227.rst#orchardzsa-fee-calculation>`_
+.. [#zip-0230] `ZIP 230: Version 6 Transaction Format <zip-0230.rst>`_
+.. [#zip-0230-transaction-format] `ZIP 230: Version 6 Transaction Format — Transaction Format <zip-0230.rst#transaction-format>`_
+.. [#zip-0230-note-plaintexts] `ZIP 230: Version 6 Transaction Format — Note Plaintexts <zip-0230.rst#note-plaintexts>`_
+.. [#zip-0230-orchard-note-plaintext] `ZIP 230: Version 6 Transaction Format — Orchard Note Plaintext <zip-0230.rst#orchard-note-plaintext>`_
+.. [#zip-0230-implications-for-wallets] `ZIP 230: Version 6 Transaction Format — Implications for Wallets <zip-0230.rst#implications-for-wallets>`_
+.. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`_
+.. [#zip-0246] `ZIP 246: Digests for the Version 6 Transaction Format <zip-0246.rst>`_
 .. [#zip-0307] `ZIP 307: Light Client Protocol for Payment Detection <zip-0307.rst>`_
-.. [#protocol] `Zcash Protocol Specification, Version 2024.5.1 [NU6] or later. <protocol/protocol.pdf>`_
-.. [#protocol-notes] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.2: Notes <protocol/protocol.pdf#notes>`_
-.. [#protocol-actions] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.7: Action Transfers and their Descriptions <protocol/protocol.pdf#actions>`_
-.. [#protocol-abstractcommit] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.1.8: Commitment <protocol/protocol.pdf#abstractcommit>`_
-.. [#protocol-orcharddummynotes] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.8.3: Dummy Notes (Orchard) <protocol/protocol.pdf#orcharddummynotes>`_
-.. [#protocol-orchardbalance] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.14: Balance and Binding Signature (Orchard) <protocol/protocol.pdf#orchardbalance>`_
-.. [#protocol-rhoandnullifiers] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.16: Computing ρ values and Nullifiers <protocol/protocol.pdf#rhoandnullifiers>`_
-.. [#protocol-actionstatement] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.18.4: Action Statement (Orchard) <protocol/protocol.pdf#actionstatement>`_
-.. [#protocol-endian] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 5.1: Integers, Bit Sequences, and Endianness <protocol/protocol.pdf#endian>`_
-.. [#protocol-constants] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 5.3: Constants <protocol/protocol.pdf#constants>`_
-.. [#protocol-concretesinsemillahash] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 5.4.1.9: Sinsemilla hash function <protocol/protocol.pdf#concretesinsemillahash>`_
-.. [#protocol-concretehomomorphiccommit] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 5.4.8.3: Homomorphic Pedersen commitments (Sapling and Orchard) <protocol/protocol.pdf#concretehomomorphiccommit>`_
-.. [#protocol-concretesinsemillacommit] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 5.4.8.4: Sinsemilla commitments <protocol/protocol.pdf#concretesinsemillacommit>`_
-.. [#protocol-pallasandvesta] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 5.4.9.6: Pallas and Vesta <protocol/protocol.pdf#pallasandvesta>`_
-.. [#protocol-notept] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 5.5: Encodings of Note Plaintexts and Memo Fields <protocol/protocol.pdf#notept>`_
-.. [#protocol-actionencodingandconsensus] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 7.5: Action Description Encoding and Consensus  <protocol/protocol.pdf#actionencodingandconsensus>`_
+.. [#draft-ecc-quantum-recoverability] `draft-ecc-quantum-recoverability: Quantum Recoverability <draft-ecc-quantum-recoverability.md>`_
+.. [#protocol] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1] or later. <protocol/protocol.pdf>`_
+.. [#protocol-notes] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 3.2: Notes <protocol/protocol.pdf#notes>`_
+.. [#protocol-actions] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 3.7: Action Transfers and their Descriptions <protocol/protocol.pdf#actions>`_
+.. [#protocol-abstractcommit] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 4.1.8: Commitment <protocol/protocol.pdf#abstractcommit>`_
+.. [#protocol-orcharddummynotes] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 4.8.3: Dummy Notes (Orchard) <protocol/protocol.pdf#orcharddummynotes>`_
+.. [#protocol-orchardbalance] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 4.14: Balance and Binding Signature (Orchard) <protocol/protocol.pdf#orchardbalance>`_
+.. [#protocol-rhoandnullifiers] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 4.16: Computing ρ values and Nullifiers <protocol/protocol.pdf#rhoandnullifiers>`_
+.. [#protocol-actionstatement] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 4.18.4: Action Statement (Orchard) <protocol/protocol.pdf#actionstatement>`_
+.. [#protocol-endian] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.1: Integers, Bit Sequences, and Endianness <protocol/protocol.pdf#endian>`_
+.. [#protocol-constants] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.3: Constants <protocol/protocol.pdf#constants>`_
+.. [#protocol-concretesinsemillahash] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.4.1.9: Sinsemilla hash function <protocol/protocol.pdf#concretesinsemillahash>`_
+.. [#protocol-concretehomomorphiccommit] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.4.8.3: Homomorphic Pedersen commitments (Sapling and Orchard) <protocol/protocol.pdf#concretehomomorphiccommit>`_
+.. [#protocol-concretesinsemillacommit] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.4.8.4: Sinsemilla commitments <protocol/protocol.pdf#concretesinsemillacommit>`_
+.. [#protocol-pallasandvesta] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.4.9.6: Pallas and Vesta <protocol/protocol.pdf#pallasandvesta>`_
+.. [#protocol-notept] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.5: Encodings of Note Plaintexts and Memo Fields <protocol/protocol.pdf#notept>`_
+.. [#protocol-actionencodingandconsensus] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 7.5: Action Description Encoding and Consensus <protocol/protocol.pdf#actionencodingandconsensus>`_
 .. [#initial-zsa-issue] `User-Defined Assets and Wrapped Assets <https://github.com/str4d/zips/blob/zip-udas/drafts/zip-user-defined-assets.rst>`_
 .. [#generalized-value-commitments] `Comment on Generalized Value Commitments <https://github.com/zcash/zcash/issues/2277#issuecomment-321106819>`_
 .. [#circuit-modifications] `Modifications to the Orchard circuit for the OrchardZSA Protocol <https://docs.google.com/document/d/1DzXBqZl_l3aIs_gcelw3OuZz2OVMnYk6Xe_1lBsTji8/edit?usp=sharing>`_
