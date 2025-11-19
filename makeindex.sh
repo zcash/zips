@@ -11,13 +11,13 @@ Released ZIPs
     <tr> <th>ZIP</th> <th>Title</th> <th>Status</th> </tr>
 EndOfHeader
 for zipfile in $(cat .zipfilelist.current); do
-  zipfile=zips/$zipfile
-  if grep -E '^\s*Status:\s*(Reserved|Draft|Withdrawn|Rejected|Obsolete)' $zipfile >/dev/null; then
+  zipfile="zips/$zipfile"
+  if grep -E '^\s*Status:\s*(Reserved|Draft|Withdrawn|Rejected|Obsolete)' "$zipfile" >/dev/null; then
     # Handled below.
     true
   else
-    echo Adding $zipfile to released index. >/dev/stderr
-    echo "    <tr> <td>`basename $(basename $zipfile .rst) .md | sed -E 's@zip-0{0,3}@@'`</td> <td class=\"left\"><a href=\"`echo $zipfile`\">`grep '^\s*Title:' $zipfile | sed -E 's@\s*Title:\s*@@'`</a></td> <td>`grep '^\s*Status:' $zipfile | sed -E 's@\s*Status:\s*@@'`</td>"
+    echo "Adding $zipfile to released index." >/dev/stderr
+    echo "    <tr> <td>$(basename $(basename $zipfile .rst) .md | sed -E 's@zip-0{0,3}@@')</td> <td class=\"left\"><a href=\"$zipfile\">$(grep '^\s*Title:' $zipfile | sed -E 's@\s*Title:\s*@@')</a></td> <td>$(grep '^\s*Status:' $zipfile | sed -E 's@\s*Status:\s*@@')</td>"
   fi
 done
 cat <<EndOfDraftZipHeader
@@ -39,13 +39,13 @@ written.
     <tr> <th>ZIP</th> <th>Title</th> <th>Status</th> </tr>
 EndOfDraftZipHeader
 for zipfile in $(cat .zipfilelist.current); do
-  zipfile=zips/$zipfile
-  if grep -E '^\s*Status:\s*Reserved' $zipfile >/dev/null; then
-    echo Adding $zipfile to draft index. >/dev/stderr
-    echo "    <tr> <td><span class=\"reserved\">`basename $(basename $zipfile .rst) .md | sed -E 's@zip-0{0,3}@@'`</span></td> <td class=\"left\"><a class=\"reserved\" href=\"`echo $zipfile`\">`grep '^\s*Title:' $zipfile | sed -E 's@\s*Title:\s*@@'`</a></td> <td>`grep '^\s*Status:' $zipfile | sed -E 's@\s*Status:\s*@@'`</td>"
-  elif grep -E '^\s*Status:\s*Draft' $zipfile >/dev/null; then
-    echo Adding $zipfile to draft index. >/dev/stderr
-    echo "    <tr> <td>`basename $(basename $zipfile .rst) .md | sed -E 's@zip-0{0,3}@@'`</td> <td class=\"left\"><a href=\"`echo $zipfile`\">`grep '^\s*Title:' $zipfile | sed -E 's@\s*Title:\s*@@'`</a></td> <td>`grep '^\s*Status:' $zipfile | sed -E 's@\s*Status:\s*@@'`</td>"
+  zipfile="zips/$zipfile"
+  if grep -E '^\s*Status:\s*Reserved' "$zipfile" >/dev/null; then
+    echo "Adding $zipfile to draft index." >/dev/stderr
+    echo "    <tr> <td><span class=\"reserved\">$(basename $(basename $zipfile .rst) .md | sed -E 's@zip-0{0,3}@@')</span></td> <td class=\"left\"><a class=\"reserved\" href=\"$zipfile\">$(grep '^\s*Title:' $zipfile | sed -E 's@\s*Title:\s*@@')</a></td> <td>$(grep '^\s*Status:' $zipfile | sed -E 's@\s*Status:\s*@@')</td>"
+  elif grep -E '^\s*Status:\s*Draft' "$zipfile" >/dev/null; then
+    echo "Adding $zipfile to draft index." >/dev/stderr
+    echo "    <tr> <td>$(basename $(basename $zipfile .rst) .md | sed -E 's@zip-0{0,3}@@')</td> <td class=\"left\"><a href=\"$zipfile\">$(grep '^\s*Title:' $zipfile | sed -E 's@\s*Title:\s*@@')</a></td> <td>$(grep '^\s*Status:' $zipfile | sed -E 's@\s*Status:\s*@@')</td>"
   fi
 done
 echo "  </table></embed>"
@@ -68,9 +68,9 @@ be deleted.
     <tr> <th>Title</th> </tr>
 EndOfDraftHeader
   for draftfile in $(cat .draftfilelist.current); do
-    draftfile=zips/$draftfile
-    echo Adding $draftfile to index of drafts. >/dev/stderr
-    echo "    <tr> <td class=\"left\"><a href=\"`echo $draftfile`\">`grep '^\s*Title:' $draftfile | sed -E 's@\s*Title:\s*@@'`</a></td>"
+    draftfile="zips/$draftfile"
+    echo "Adding $draftfile to index of drafts." >/dev/stderr
+    echo "    <tr> <td class=\"left\"><a href=\"$draftfile\">$(grep '^\s*Title:' $draftfile | sed -E 's@\s*Title:\s*@@')</a></td>"
   done
   echo "  </table></embed>"
 fi
