@@ -41,12 +41,16 @@ jobs:
           git config --global user.name 'github_actions'
           git config --global user.email 'actions@github.com'
           git config --global --add safe.directory /github/workspace
+          version="$(git describe --tags --abbrev=6 --always main |sed 's/-1-g.*//')"
           # Merge preferring the version in main.
           git merge -s recursive -Xtheirs origin/main --commit -m 'Auto-deploy: merging "main" branch'
+          # Apply a tag to the merge commit, otherwise the uses of `git describe` in `protocol/Makefile`
+          # won't find it. Any existing tag of the same name will be overwritten.
+          git tag -f "${version}-auto"
 
       - name: Set base ref
         run: |
-          git show --format=%H --no-notes --no-patch origin/main -- |tee base_ref
+          git show --format=%H --no-notes --no-patch 'HEAD^' -- |tee base_ref
           if ! ( grep -E '^[0-9a-f]{40}$' base_ref ); then exit 1; fi
 
       - name: Compile ZIPs and Zcash Protocol Specification
