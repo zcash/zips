@@ -68,25 +68,21 @@ TBD
 
 # Requirements
 
-The Coinholder Grants Program is intended to fund only retroactive grants for work that is already completed and can be publicly verified.  
+The design of this ZIP is constrained to align with the coinholder decision-making mechanisms established in ZIP 1016.
 
-The design of this ZIP is constrained to align with the coinholder decision-making mechanisms established in ZIP 1016.  
+The process described in this ZIP should describe how proposals are submitted, how voting is performed, how voting outcomes are determined, and how disbursements are made.
 
-The process described in this ZIP is intended to provide transparency around proposals, voting outcomes, and disbursements.  
+The roles of the Administrator, Key-Holder Organizations, Voting Authorities, and coinholders are expected to be clearly defined and distinguishable.
 
-The roles of the Administrator, Key-Holder Organizations, Voting Authorities, and coinholders are expected to be clearly defined and distinguishable.  
+This ZIP should describe Key-Holder responsibilities for custody, security, and legal compliance in a clear and understandable manner.
 
-This ZIP is written with the intention of describing custody, security, and compliance responsibilities in a clear and understandable manner.  
-
-The design is constrained to remain compatible with ZIP 1016 and with the NU6.1 funding specification that governs key custody.  
+The design is constrained to remain compatible with ZIP 1016 and with the NU 6.1 funding specification that governs key custody.
 
 The process described in this ZIP is intended to operate on a quarterly cycle, with recurring rounds for proposal submission, review, voting, and disbursement.
 
+This ZIP should not modify other Zcash funding programs or governance structures.
 
-# Non-Requirements
-
-This ZIP does not modify other Zcash funding programs or governance structures.  
-This ZIP does not change consensus parameters or introduce new funding streams.
+This ZIP must not require any changes to Zcash consensus.
 
 
 # Specification
@@ -97,7 +93,7 @@ The Coinholder Grants Program SHALL be administered by an organization to be des
 
 Key custody and the n-of-m multisignature scheme controlling the Coinholder-Controlled Fund MUST follow the NU 6.1 funding specification referenced by ZIP 1016. Key-Holder Organizations MUST execute disbursements according to NU 6.1 [^zip-0271] and ZIP 1016’s veto provisions [^zip-1016-veto-process].
 
-Only completed and publicly verifiable work is eligible to be funded.
+The Coinholder Grants Program MUST fund only grants for work that is already completed and has been publicly verified.
 
 The Administrator MUST maintain publicly accessible resources including program rules, submission formats, timelines, voting instructions, and historical reports.
 
@@ -119,43 +115,80 @@ The Administrator MUST perform KYC verification for any grant exceeding 50,000 U
 
 The Administrator MUST comply with applicable legal, tax, and reporting requirements.
 
-## Voting Process
+## Voting Methods
 
-Two voting methods are supported: shielded voting and transparent voting. The Administrator MUST publish cycle parameters and provide sufficient information for independent auditing.
+Two voting methods are supported: shielded voting and transparent voting.
 
 ### Shielded Voting
 
-Shielded voting SHOULD be conducted through the dedicated Coin Voting 2.0 [^zcash-vote-app] application, which uses Orchard addresses and the Halo2 proof system to verify balances and prevent double spending [^zcash-vote-doc].
+Coinholders should vote using the dedicated Coin Voting 2.0 [^zcash-vote-app] application, which uses Orchard addresses and the Halo2 proof system to verify balances and prevent double voting [^zcash-vote-doc]. In the future, the coin voting process should be rigorously specified, at which point any application that correctly implements that specification may be used to vote.
 
-The Administrator MUST define a registration window of at least 10 days. Eligibility is determined by Orchard notes created within the defined block range.
+#### Collecting Votes
+
+The shielded voting protocol has a registration window corresponding to a defined block range. Eligibility is determined by Orchard notes created within this block range.
+
+The Administrator MUST choose a registration window of at least 10 days.
 
 The Administrator MUST publish voting guidance to coinholders. This guidance SHOULD include advising participants to move funds out of any wallet used for voting before entering a seed phrase into the Coin Voting 2.0 application, in order to reduce risk if the third-party application is compromised.
 
-Coinholders MAY vote using the shielded voting application.
+Votes MUST be submitted to a BFT voting chain operated by at least four independent Voting Authorities. The rationale for this threshold is that if at least two thirds of Voting Authorities are honest, vote suppression or manipulation becomes infeasible.
 
-Votes MUST be submitted to a BFT voting chain operated by at least four independent Voting Authorities. If at least two-thirds of Voting Authorities are honest, vote suppression or manipulation becomes infeasible.
+#### Counting Votes
 
-The Administrator MUST collect and publish finalized tallies. Independent auditors MAY verify the results using the published election data.
+The Administrator MUST collect and publish finalized tallies.
+
+TBD: specify how shielded voting is counted.
+
+#### Vote Auditing
+
+Independent auditors MAY verify the results using the published election data.
+
+TBD: specify how shielded voting is audited.
 
 ### Transparent Voting
 
-Before accepting votes, the Administrator MUST publish the IVK for the Orchard address designated for receiving vote messages and payments. The FVK MUST NOT be published.
+#### Collecting Votes
 
-Voters MUST create a signed message indicating their vote and transparent address using ECDSA over secp256k1 for the signature.
+Before accepting votes, the Administrator MUST publish an Orchard-only IVK designated for receiving vote messages and payments. The corresponding FVK MUST NOT be published.
 
-Voters MUST send the signed message and a payment of at least 1 ZEC to the address associated with the published IVK.
+To create a transparent vote, Voters:
 
-The Administrator MUST ignore submissions with payments below 1 ZEC.
+- Create a signed message indicating their vote and transparent address using ECDSA over secp256k1 for the signature.
+- Send the signed message along with a payment of at least 1 ZEC to the address associated with the published IVK.
 
-Voters MUST NOT move submitted funds until voting concludes, as specifed in the Quarterly Timeline below.
+TBD: finish the specification, including but not limited to:
+- The signing protocol (just specifying a signature algorithm is insufficient).
+- The address derivation to be used.
+- The structure of transaction to be created (what kinds of outputs, how many, to what recipients, with what values).
 
-The Administrator MUST publish IVK-based audit data and all received vote messages to allow verification.
+#### Counting Votes
+
+TBD: specify how transparent votes are counted.
+
+The Administrator MUST ignore submissions:
+
+- with payments below 1 ZEC.
+- where the Voter moves the submitted funds before voting concludes, as specified in the Quarterly Timeline below.
+
+TBD: clarify specification of "voting concludes"; if you mean "at the end of the Coinholder Vote on Proposals phase" then say this instead of relying on the indirect definition.
+
+#### Vote Auditing
+
+The Administrator MUST publish IVK-based audit data and all received vote messages in order to allow verification.
+
+TBD: specify how transparent votes are verified.
+
+## Voting Process
+
+The Administrator MUST publish relevant parameters for each voting method for each cycle, and provide sufficient information for independent auditing.
+
+TBD: specify the rest of the overall voting process.
 
 ## Participation and Voting Thresholds
 
 A proposal MUST have at least 420,000 ZEC participating to be eligible for approval, as specifed in ZIP 1016. [^zip-1016]
 
-A proposal is approved if a simple majority of participating votes are “Yes.”
+A proposal is approved if a simple majority of participating votes are “Yes”.
 
 Each proposal vote is independent, and coins MAY be reused across proposals in the same cycle.
 
@@ -195,7 +228,10 @@ Any theft or compromise of funds or key material MUST be reported promptly after
 
 # Rationale
 
-TBD
+TBD: add missing rationale for:
+- Why the transparent voting FVK must not be published.
+- The requirement for, and bound on, the payment amount for transparent voting.
+- The requirement that transparent voters not move their funds until voting concludes.
 
 
 # References
