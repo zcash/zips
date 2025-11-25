@@ -12,10 +12,24 @@
 
 # Terminology
 
+The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to
+be interpreted as described in BCP 14 [^BCP14] when, and only when, they appear
+in all capitals.
 
-The key words “MUST”, “SHOULD”, and “MAY” are to be interpreted as described in BCP 14 [1] when used in all capitals.
+The character § is used when referring to sections of the Zcash Protocol
+Specification. [^protocol]
 
-The meanings of Mainnet, Testnet, Electric Coin Company, Zcash Foundation, Bootstrap Project, Deferred Dev Fund Lockbox, Key-Holder Organizations, and Shielded Labs are as defined in ZIP 1016 [2].
+The terms “Mainnet" and “Testnet" are to be interpreted as described in
+§ 3.12 ‘Mainnet and Testnet’. [^protocol-networks]
+
+The terms “Electric Coin Company”, “Bootstrap Project”, and “Zcash Foundation”
+in this document are to be interpreted as described in ZIP 1014 [^zip-1014].
+
+The terms “Zcash Community Grants” and “Deferred Dev Fund Lockbox” in this
+document are to be interpreted as defined in ZIP 1015 [^zip-1015].
+
+The terms “Key-Holder Organizations” and “Shielded Labs” in this document are to
+be interpreted as defined in ZIP 1016 [^zip-1016].
 
 “Coinholder Grants Program” refers to the 12% funding stream and multisig-controlled treasury defined in ZIP 1016.
 
@@ -27,19 +41,22 @@ The meanings of Mainnet, Testnet, Electric Coin Company, Zcash Foundation, Boots
 
 “Incoming Viewing Key (IVK)” and “Full Viewing Key (FVK)” have the meanings used in the Orchard protocol. The IVK reveals incoming transaction values and memo data, but does not reveal any information about when outputs are spent.
 
-“ZEC” refers to the Zcash mainnet currency.
+“ZEC” refers to the native currency of Zcash on Mainnet.
+
+"Cycle" refers to a single iteration of the quarterly process of grant submission,
+voting, and grant disbursement.
 
 
 # Abstract
 
-This ZIP defines how the Coinholder Grants Program established in ZIP 1016 operates. It specifies a retroactive funding model, Administrator responsibilities, shielded and transparent voting procedures, participation thresholds, funding prioritization, partial funding, and payment execution by Key-Holder Organizations.
+This ZIP defines how the Coinholder Grants Program established in ZIP 1016 [^zip-1016] operates. It specifies a retroactive funding model, Administrator responsibilities, shielded and transparent voting procedures, participation thresholds, funding prioritization, partial funding, and payment execution by Key-Holder Organizations.
 
 
 # Motivation
 
-ZIP 1015 [3] introduced a temporary, non-direct funding model that directed 12% of block rewards to a protocol lockbox and 8% to Zcash Community Grants (ZCG).
+ZIP 1015 [^zip-1015] introduced a temporary, non-direct funding model that directed 12% of block rewards to a protocol lockbox and 8% to Zcash Community Grants.
 
-ZIP 1016 extends this by defining the Community and Coinholder Funding Model, allocating 12% of block rewards to a Coinholder Grants Program and 8% to ZCG through Zcash’s third halving.
+ZIP 1016 extends this by defining the Community and Coinholder Funding Model, allocating 12% of block rewards to a Coinholder Grants Program and 8% to Zcash Community Grants through Zcash’s third halving.
 
 While ZIP 1016 establishes a funding stream for coinholder-directed grants, it does not define how proposals are submitted, reviewed, voted, prioritized, or paid. This ZIP provides that missing operational process so that the Coinholder Grants Program can function as intended.
 
@@ -78,7 +95,7 @@ This ZIP does not change consensus parameters or introduce new funding streams.
 
 The Coinholder Grants Program SHALL be administered by an organization to be designated prior to activation, referred to as the Administrator.
 
-Key custody and the n-of-m multisignature scheme controlling the Coinholder-Controlled Fund SHALL follow the NU6.1 funding specification referenced by ZIP 1016. Key-Holder Organizations MUST execute disbursements according to NU6.1 and ZIP 1016’s veto provisions [4].
+Key custody and the n-of-m multisignature scheme controlling the Coinholder-Controlled Fund MUST follow the NU 6.1 funding specification referenced by ZIP 1016. Key-Holder Organizations MUST execute disbursements according to NU 6.1 [^zip-0271] and ZIP 1016’s veto provisions [^zip-1016-veto-process].
 
 Only completed and publicly verifiable work is eligible to be funded.
 
@@ -108,7 +125,7 @@ Two voting methods are supported: shielded voting and transparent voting. The Ad
 
 ### Shielded Voting
 
-Shielded voting SHOULD be conducted through the dedicated Coin Voting 2.0 [5] application, which uses Orchard addresses and the Halo2 proof system to verify balances and prevent double spending [6].
+Shielded voting SHOULD be conducted through the dedicated Coin Voting 2.0 [^zcash-vote-app] application, which uses Orchard addresses and the Halo2 proof system to verify balances and prevent double spending [^zcash-vote-doc].
 
 The Administrator MUST define a registration window of at least 10 days. Eligibility is determined by Orchard notes created within the defined block range.
 
@@ -136,7 +153,7 @@ The Administrator MUST publish IVK-based audit data and all received vote messag
 
 ## Participation and Voting Thresholds
 
-A proposal MUST have at least 420,000 ZEC participating to be eligible for approval, as specifed in ZIP 1016.
+A proposal MUST have at least 420,000 ZEC participating to be eligible for approval, as specifed in ZIP 1016. [^zip-1016]
 
 A proposal is approved if a simple majority of participating votes are “Yes.”
 
@@ -154,7 +171,7 @@ If insufficient funds remain to fully fund the next approved proposal, the Key-H
 
 Approved proposals not funded or partially funded MAY be resubmitted in future quarters.
 
-Key-Holder Organizations MUST execute payments using the NU6.1 multisignature scheme and MUST publish transaction identifiers.
+Key-Holder Organizations MUST execute payments using the NU 6.1 multisignature scheme and MUST publish transaction identifiers.
 
 The Administrator MUST publish a disbursement report detailing allocated amounts, partial disbursements, and executed transactions.
 
@@ -166,12 +183,12 @@ The Administrator MUST publish a disbursement report detailing allocated amounts
 | Review and Discussion Period | ≥ 30 days             | Proposals are publicly discussed and evaluated. The Administrator or its delegate reviews submissions for eligibility and publishes a final list of qualified proposals. |
 | Registration Period          | ≥ 10 days             | Coinholders register their balances for voting by creating eligible Orchard notes within a defined block range (as described in Section 4.1). |
 | Coinholder Vote on Proposals | ~ 2 weeks             | Coinholders vote on eligible proposals using the process defined in Section 4. The Administrator or its delegate verifies and tallies the results. |
-| Vote Tallying                | After voting concludes | The Administrator or its delegate tallies all votes. For shielded voting, tallying is performed using the Coin Voting 2.0 Audit Tool [7] to aggregate verified ballots submitted to the voting chain. For transparent voting, tallying is performed by verifying signed messages and corresponding transparent payments received at the published Orchard address using the IVK. Shielded and transparent results are combined into a unified tally prior to publication. |
+| Vote Tallying                | After voting concludes | The Administrator or its delegate tallies all votes. For shielded voting, tallying is performed using the Coin Voting 2.0 Audit Tool [^zcash-vote-audit] to aggregate verified ballots submitted to the voting chain. For transparent voting, tallying is performed by verifying signed messages and corresponding transparent payments received at the published Orchard address using the IVK. Shielded and transparent results are combined into a unified tally prior to publication. |
 | Funding Disbursements        | —                     | After final tallies are published, the Administrator or its delegate coordinates with Key-Holder Organizations to execute approved payments from the multisig wallet. |
 
 ## Security Precautions
 
-Key-Holder Organizations MUST maintain custody according to the NU6.1 funding specification and ZIP 1016.
+Key-Holder Organizations MUST maintain custody according to the NU 6.1 funding specification and ZIP 1016.
 
 Any theft or compromise of funds or key material MUST be reported promptly after mitigation.
 
@@ -183,23 +200,24 @@ TBD
 
 # References
 
-[1] BCP 14 – Key words for use in RFCs to Indicate Requirement Levels:  
-https://www.rfc-editor.org/info/bcp14
+[^BCP14]: [Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"](https://www.rfc-editor.org/info/bcp14)
 
-[2] ZIP 1016 – Community and Coinholder Funding Model:  
-https://zips.z.cash/zip-1016
+[^protocol]: [Zcash Protocol Specification, Version 2025.6.1 [NU 6.1] or later](protocol/protocol.pdf)
 
-[3] ZIP 1015 – Block Subsidy Allocation for Non-Direct Development Funding:  
-https://zips.z.cash/zip-1015
+[^protocol-networks]: [Zcash Protocol Specification, Version 2025.6.1 [NU 6.1]. Section 3.12: Mainnet and Testnet](protocol/protocol.pdf#networks)
 
-[4] ZIP 271 – Deferred Dev Fund Lockbox Disbursement:  
-https://zips.z.cash/zip-0271
+[^zip-0271]: [ZIP 271: Deferred Dev Fund Lockbox Disbursement](zip-0271.md)
 
-[5] Coin Voting 2.0 Application (zcash-vote-app):  
-https://github.com/hhanh00/zcash-vote-app
+[^zip-1014]: [ZIP 1014: Establishing a Dev Fund for ECC, ZF, and Major Grants](zip-1014.rst)
 
-[6] Coin Voting 2.0 Technical Documentation (Audit Book):  
-https://hhanh00.github.io/coin-voting-book/
+[^zip-1015]: [ZIP 1015: Block Subsidy Allocation for Non-Direct Development Funding](zip-1015.rst)
 
-[7] Coin Voting 2.0 Audit Tool:  
-https://github.com/hhanh00/zcash-vote-audit
+[^zip-1016]: [ZIP 1016: Community and Coinholder Funding Model](zip-1016.md)
+
+[^zip-1016-veto-process]: [ZIP 1016: Community and Coinholder Funding Model — Veto Process](zip-1016.md#veto-process)
+
+[^zcash-vote-app]: [Coin Voting 2.0 Application (zcash-vote-app)](https://github.com/hhanh00/zcash-vote-app)
+
+[^zcash-vote-doc]: [Coin Voting 2.0 Technical Documentation (Audit Book)](https://hhanh00.github.io/coin-voting-book/)
+
+[^zcash-vote-audit]: [Coin Voting 2.0 Audit Tool](https://github.com/hhanh00/zcash-vote-audit)
