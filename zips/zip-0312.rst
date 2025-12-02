@@ -3,24 +3,26 @@
   ZIP: 312
   Title: FROST for Spend Authorization Multisignatures
   Owners: Conrado Gouvea <conrado@zfnd.org>
-          Chelsea Komlo <ckomlo@uwaterloo.ca>
-          Deirdre Connolly <deirdre@zfnd.org>
+          Daira-Emma Hopwood <daira-emma@electriccoin.co>
+  Original-Authors: Chelsea Komlo
+                    Deirdre Connolly
   Status: Draft
   Category: Wallet
-  Created: 2022-08-dd
+  Created: 2022-08-01
   License: MIT
   Discussions-To: <https://github.com/zcash/zips/issues/382>
   Pull-Request: <https://github.com/zcash/zips/pull/662>
+                <https://github.com/zcash/zips/pull/895>
 
 
 Terminology
 ===========
 
-{Edit this to reflect the key words that are actually used.}
-The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to
-be interpreted as described in RFC 2119. [#RFC2119]_
+The key words "MUST", "SHOULD", "RECOMMENDED", "NOT RECOMMENDED", and "MAY" in
+this document are to be interpreted as described in BCP 14 [#BCP14]_ when, and
+only when, they appear in all capitals.
 
-The terms below are to be interpreted as follows:
+The term below is to be interpreted as follows:
 
 Unlinkability
   The property of statistical independence of signatures from the
@@ -33,18 +35,19 @@ Unlinkability
 Abstract
 ========
 
-This proposal adapts FROST [#FROST]_, a threshold signature scheme,
-to make it unlinkable, which is a requirement for its use in the Zcash protocol.
-The adapted scheme generates signatures compatible with spend authorization
-signatures in the Sapling and Orchard shielded protocols as deployed in Zcash.
+This proposal adapts FROST [#FROST]_, a threshold signature scheme, to make it
+support key re-randomization as described in [#protocol-abstractsigrerand]_.
+This is a requirement in order for it to be used to implement unlinkable spend
+authorization signatures in the Orchard and Sapling shielded protocols, as
+deployed in Zcash.
 
 
 Motivation
 ==========
 
 In the Zcash protocol, Spend Authorization Signatures are employed to authorize
-a transaction. The ability to generate these signatures with the user's
-private key is what effectively allows the user to spend funds.
+a transaction. The ability to generate these signatures with the user's private
+key is what effectively allows the user to spend funds.
 
 This is a security-critical step, since anyone who obtains access to the private
 key will be able to spend the user's funds. For this reason, one interesting
@@ -87,9 +90,9 @@ shielded transaction:
   as an auxiliary (secret) input, among others.
 
 When employing re-randomizable FROST as specified in this ZIP, the goal is to
-split the spend authorization private key $\mathsf{ask}$ among multiple
-possible signers. This means that the proof generation will still be performed
-by a single participant, likely the one that created the transaction in the first
+split the spend authorization private key $\mathsf{ask}$ among multiple possible
+signers. This means that the proof generation will still be performed by a
+single participant, likely the one that created the transaction in the first
 place. Note that this user already controls the privacy of the transaction since
 they are responsible for creating the proof.
 
@@ -101,10 +104,12 @@ With those considerations in mind, the threat model considered in this ZIP is:
 
 - The Coordinator is trusted with the privacy of the transaction (which includes
   the unlinkability property). A rogue Coordinator will be able to break
-  unlinkability and privacy, but should not be able to create signed transactions
-  without the approval of ``MIN_PARTICIPANTS`` participants, as specified in FROST.
+  unlinkability and privacy, but should not be able to create signed
+  transactions without the approval of ``MIN_PARTICIPANTS`` participants, as
+  specified in FROST.
 - All key share holders are also trusted with the privacy of the transaction,
-  thus a rogue key share holder will be able to break its privacy and unlinkability.
+  thus a rogue key share holder will be able to break its privacy and
+  unlinkability.
 
 
 Non-requirements
@@ -126,60 +131,162 @@ Specification
 Algorithms in this section are specified using Python pseudo-code, in the same
 fashion as the FROST specification [#FROST]_.
 
-The types Scalar, Element, and G are defined in [#frost-primeordergroup]_, as
-well as the notation for elliptic-curve arithmetic, which uses the additive
-notation. Note that this notation differs from that used in the Zcash Protocol
-Specification. For example, ``G.ScalarMult(P, k)`` is used for scalar
-multiplication, where the protocol spec would use $[k] P$ with the group
-implied by $P$.
+We define the following as in [#FROST]_ for a specific FROST ciphersuite:
 
-An additional per-ciphersuite hash function is used, denote ``HR(m)``, which
-receives an arbitrary-sized byte string and returns a Scalar. It is defined
-concretely in the Ciphersuites section.
+* Let $G$ be a group of prime order $p$ as described in [#frost-primeordergroup]_,
+  with element type $\mathtt{Element}$, identity $I \;{\small ⦂}\; \mathtt{Element}$,
+  base element $B \;{\small ⦂}\; \mathtt{Element}$ where $B \neq I$, and scalar type
+  $\mathtt{Scalar} = \mathbb{F}_p$.
+* Let $\mathtt{Ne}$ and $\mathtt{Ns}$ be the sizes in bytes of a serialized Element
+  representation and Scalar representation, respectively.
+* Let functions $\mathsf{Scalar} \;{\small ⦂}\; \{ 0 .. p-1 \} \rightarrow \mathtt{Scalar}$,
+  $\mathsf{RandomScalar} \;{\small ⦂}\; () \stackrel{\tiny\mathrm{R}}{\rightarrow} \mathtt{Scalar}$,
+  $\mathtt{ScalarMult} \;{\small ⦂}\; \mathtt{Element} \times \mathtt{Scalar} \rightarrow \mathtt{Element}$,
+  $\mathsf{ScalarBaseMult} \;{\small ⦂}\; \mathtt{Scalar} \rightarrow \mathtt{Element}$,
+  $\mathsf{SerializeElement} \;{\small ⦂}\; \mathtt{Element} \rightarrow \mathbb{B}^{{\kern-0.05em\tiny\mathbb{Y}}[\mathtt{Ne}]}$,
+  $\mathsf{DeserializeElement} \;{\small ⦂}\; \mathbb{B}^{{\kern-0.05em\tiny\mathbb{Y}}[\mathtt{Ne}]} \rightarrow \mathtt{Element} \cup \{ \bot \}$,
+  $\mathsf{SerializeScalar} \;{\small ⦂}\; \mathtt{Scalar} \rightarrow \mathbb{B}^{{\kern-0.05em\tiny\mathbb{Y}}[\mathtt{Ns}]}$,
+  $\mathsf{DeserializeScalar} \;{\small ⦂}\; \mathbb{B}^{{\kern-0.05em\tiny\mathbb{Y}}[\mathtt{Ns}]} \rightarrow \mathtt{Scalar} \cup \{ \bot \}$
+  also be as described in [#frost-primeordergroup]_ (where "raising an error"
+  corresponds to returning $\bot$).
+
+Note that the notation for elliptic-curve scalar multiplication,
+``G.ScalarMult(P, k)``, differs from that used in the Zcash Protocol
+Specification, which would use $[k]\, P$ with the group implied by $P$
+[#protocol-abstractgroup]_.
 
 
 Key Generation
 --------------
 
-While key generation is out of scope for this ZIP and the FROST spec [#FROST]_,
-it needs to be consistent with FROST, see [#frost-tdkg]_ for guidance. The spend
-authorization private key $\mathsf{ask}$ [#protocol-spendauthsig]_ is the
-particular key that must be used in the context of this ZIP. Note that the
-$\mathsf{ask}$ is usually derived from the spending key
-$\mathsf{sk}$, though that is not required. Not doing so allows using
-distributed key generation, since the key it generates is unpredictable. Note
-however that not deriving $\mathsf{ask}$ from $\mathsf{sk}$ prevents
-using seed phrases to recover the original secret (which may be something
-desirable in the context of FROST).
+FROST key generation with a trusted dealer is described in [#frost-tdkg]_. That
+description does not support key re-randomization but can be adapted to do so,
+as described in section 5 of [#frost-rerandomized]_.
 
+.. warning::
+    Trusted dealer key generation has the severe disadvantage that it requires
+    absolutely trustworthy hardware and software to be used by the dealer in
+    order to reliably avoid exposing the private key material. That is, it is
+    not sufficient simply to have an individual or organization that is trusted
+    by all participants; their entire hardware and software stack also needs to
+    be trusted by all participants.
 
-Re-randomizable FROST
----------------------
+    Since this will often be an unrealistic assumption that partly defeats the
+    point of using a threshold signature scheme, trusted dealer key generation
+    SHOULD NOT be used.
 
-To add re-randomization to FROST, follow the specification [#FROST]_ with the
-following modifications.
+Instead, it is RECOMMENDED to instead use Distributed Key Generation. This is
+supported by the Zcash Foundation's reference implementation of FROST
+[#zf-frost-dkg]_.
+
+To define a spending or viewing key that uses FROST, the Orchard and Sapling key
+trees [#protocol-orchardkeycomponents]_ [#protocol-saplingkeycomponents]_ are
+adjusted as follows:
+
+- The Spend validating key $\mathsf{ak}$ is replaced by the FROST group
+  public key `PK` [#frost-protocol]_ when deriving other key components.
+- The Spend authorizing key $\mathsf{ask}$ [#protocol-spendauthsig]_ is
+  replaced by the logical signing key that corresponds to the group public key
+  `PK`. By design, this key is never explicitly constructed (unless trusted
+  dealer key generation was used), and instead is represented by any sufficient
+  subset of the participant FROST signing key shares `sk_i`.
+
+For both Orchard and Sapling, use of Distributed Key Generation precludes
+generating $\mathsf{ask}$ from a spending key $\mathsf{sk}$. Instead the
+Distributed Key Generation protocol will output the FROST group public key `PK`.
+
+When generating FROST key components for the Orchard shielded protocol, the
+remaining parts of the Orchard key tree apart from $\mathsf{ask}$ and
+$\mathsf{ak}$ SHOULD be generated as described in
+[#draft-ecc-quantum-recoverability-usage-with-frost]_. The specification there
+is normative, and is only summarized here. It requires the participants to
+privately agree on a value $\mathsf{sk}$ (which is no longer sufficient by
+itself for spend authorization), and then use it to obtain the nullifier
+deriving key $\mathsf{nk}$, the quantum spending key $\mathsf{qsk}$, the quantum
+intermediate key $\mathsf{qk}$, and (using the FROST group public key in place
+of $\mathsf{ak}$) $\mathsf{rivk\_ext}$. This process is specified in § 4.2.3
+‘Orchard Key Components’ [#protocol-orchardkeycomponents]_ as modified by
+[#draft-ecc-quantum-recoverability-usage-with-frost]_.
+
+Similarly, when generating a FROST key for the Sapling shielded protocol, the
+remaining parts of the Sapling key tree apart from $\mathsf{ask}$ and
+$\mathsf{ak}$ (that is, $\mathsf{nk}$, $\mathsf{rivk\_ext}$, and further values
+derived from them and $\mathsf{ak}$) SHOULD be generated from a common value
+$\mathsf{sk}$ (again, not sufficient by itself for spend authorization) as
+described in [#protocol-saplingkeycomponents]_.
+
+If trusted dealer key generation is used contrary to recommendation, then
+$\mathsf{ask}$ MAY in that case be derived from an $\mathsf{sk}$ known only to
+the trusted dealer. This allows backing up the unsplit key, but any benefit of
+being able to do so does not outweigh the disadvantages of requiring a trusted
+dealer under normal circumstances.
+
+Regardless of how the Orchard or Sapling key components are generated, the
+participants MUST ensure that they have obtained the same values for
+$\mathsf{ak}$, $\mathsf{nk}$, and $\mathsf{rivk\_ext}$.
+
+Since Sapling will not be modified to support Quantum Recoverability
+[#draft-ecc-quantum-recoverability]_, Orchard is RECOMMENDED for new FROST keys.
+
+In order for all participants to agree on the value of $\mathsf{sk}$, one
+of the following options SHOULD be carried out:
+
+- One participant generates a random $\mathsf{sk}$ and sends it to the
+  others via an encrypted and authenticated channel. This option SHOULD be used
+  if trusted dealer key generation was used, and the $\mathsf{sk}$ value
+  can be sent along with the FROST shares during key generation. This option MAY
+  be used if Distributed Key Generation was used, if participants find it
+  acceptable to trust one participant to correctly generate $\mathsf{sk}$.
+- Participants generate a $\mathsf{sk}$ in distributed manner using TODO.
+  This option SHOULD be used if Distributed Key Generation was used.
 
 
 Randomizer Generation
-'''''''''''''''''''''
+---------------------
 
-A new helper function is defined, which generates a randomizer. The
-`encode_signing_package` is defined as the byte serialization of the `msg`,
-`commitment_list` values as described in [#frost-serialization]_.
-Implementations MAY choose another encoding as long as all values (the message,
-and the identifier, binding nonce and hiding nonce for each participant) are
-unambiguously encoded.
+Re-Randomized FROST uses randomizers. This section specifies how they are
+generated; this will be required for the Signature Share Generation
+specification below.
 
-The function `random_bytes(n)` is defined in [#FROST]_ and it returns a buffer
-with `n` bytes sampled uniformly at random. The constant `Ns` is also specified
-in [#FROST]_ and is the size of a serialized scalar.
+Two functions are provided to generate randomizers: `randomizer_generate()` and
+`randomizer_regenerate()`. Both use helper functions and a constant which are
+defined as follows:
+
+- The `encode_group_commitment_list()` function is defined in
+  [#frost-listoperations]_. It returns a byte serialization of a
+  `commitment_list` value.
+- The `random_bytes(n)` function is defined in [#frost-conventions]_ and it
+  returns a sequence of `n` bytes sampled uniformly at random.
+- The `H2(m)` function is a ciphersuite-generic function defined in
+  [#frost-hash]_ but it is instantiated in the `Ciphersuites`_ section.
 
 ::
 
   randomizer_generate():
 
   Inputs:
-  - msg, the message being signed in the current FROST signing run
+  - commitment_list = [(i, hiding_nonce_commitment_i,
+    binding_nonce_commitment_i), ...], a list of commitments issued by
+    each participant, where each element in the list indicates a
+    NonZeroScalar identifier i and two commitment Element values
+    (hiding_nonce_commitment_i, binding_nonce_commitment_i). This list
+    MUST be sorted in ascending order by identifier.
+
+  Outputs: (randomizer_seed, randomizer), a byte sequence and a Scalar
+
+  def randomizer_generate(commitment_list):
+    # Generate a random byte sequence with the size of a serialized scalar.
+    randomizer_seed = random_bytes(Ns)
+    signing_commitments_enc = encode_group_commitment_list(commitment_list)
+    randomizer_input = randomizer_seed || signing_commitments_enc
+    return (randomizer_seed, H2(randomizer_input))
+
+::
+
+  randomizer_regenerate():
+
+  Inputs:
+  - randomizer_seed = a sequence of Ns bytes
   - commitment_list = [(i, hiding_nonce_commitment_i,
     binding_nonce_commitment_i), ...], a list of commitments issued by
     each participant, where each element in the list indicates a
@@ -189,68 +296,111 @@ in [#FROST]_ and is the size of a serialized scalar.
 
   Outputs: randomizer, a Scalar
 
-  def randomizer_generate(msg, commitment_list):
-    # Generate a random byte buffer with the size of a serialized scalar
-    rng_randomizer = random_bytes(Ns)
-    signing_package_enc = encode_signing_package(commitment_list, msg)
-    randomizer_input = rng_randomizer || signing_package_enc
-    return HR(randomizer_input)
+  def randomizer_regenerate(randomizer_seed, commitment_list):
+    signing_commitments_enc = encode_group_commitment_list(commitment_list)
+    randomizer_input = randomizer_seed || signing_commitments_enc
+    return H2(randomizer_input)
+
+
+Re-Randomized FROST
+-------------------
+
+To add re-randomization to FROST, the signers MUST follow the specification
+[#FROST]_ with the following modifications.
 
 
 Round One - Commitment
 ''''''''''''''''''''''
 
-Roune One is exactly the same as specified [#FROST]_. But for context, it
+Round One is exactly the same as specified [#FROST]_. But for context, it
 involves these steps:
 
 - Each signer generates nonces and their corresponding public commitments.
   A nonce is a pair of Scalar values, and a commitment is a pair of Element values.
-- The nonces are stored locally by the signer and kept private for use in the second round.
+- The nonces are stored locally by the signer and kept private for use in the
+  second round.
 - The commitments are sent to the Coordinator.
 
 
 Round Two - Signature Share Generation
 ''''''''''''''''''''''''''''''''''''''
 
-In Round Two, the Coordinator generates a random scalar ``randomizer`` by calling
-``randomizer_generate`` and sends it to each signer, over a confidential and
-authenticated channel, along with the message and the set of signing
-commitments. (Note that this differs from regular FROST which just requires an
-authenticated channel.)
+In Round Two of regular FROST, the Coordinator picks a message and sends it to
+each signer along with the commitments received in Round One. In Re-Randomized
+FROST, the Coordinator MUST additionally call `randomizer_generate()` and send
+the `randomizer_seed` along with the message and the commitments. Each
+participant, upon receiving those values, MUST compute `randomizer` by calling
+`randomizer_regenerate()` with the received `randomizer_seed` and commitments.
 
-In Zcash, the message that needs to be signed is actually the SIGHASH
-transaction hash, which does not convey enough information for the signers to
-decide if they want to authorize the transaction or not. Therefore, in practice,
-more data is needed to be sent (over the same encrypted, authenticated channel)
-from the Coordinator to the signers, possibly the transaction itself, openings of
-value commitments, decryption of note ciphertexts, etc.; and the signers MUST check
-that the given SIGHASH matches the data sent from the Coordinator, or compute the
-SIGHASH themselves from that data. However, the specific mechanism for that process
-is outside the scope of this ZIP.
+In Zcash, the message that needs to be signed is the SIGHASH transaction hash.
+This by itself does not convey enough information for the signers to decide
+whether they want to authorize the transaction or not. Therefore, in addition
+to the serialized transaction, more data (such as openings of value commitments,
+decryption of note ciphertexts, etc.) needs to be sent from the Coordinator to
+the signers. This SHOULD be done by sending a Partially Constructed Zcash Transaction
+[#draft-zip-0374]_ over the same encrypted, authenticated channel. In order to sign,
+each signer MUST be satisfied that the transaction should be authorized, using
+the additional information provided in the PCZT where necessary. That information
+MUST be checked for consistency with the transaction and not trusted simply
+because the Coordinator is providing it.
 
-The randomized ``sign`` function is defined as the regular FROST ``sign``
-function, but with its inputs modified relative to the ``randomizer`` as
-following:
+The details of this checking, and of what needs to be included in the PCZT in
+order for the signers to be satisfied that the transaction should be authorized,
+are to be specified in [#draft-zip-0374]_.
 
-- ``sk_i = sk_i + randomizer``
-- ``group_public_key = group_public_key + G.ScalarBaseMult(randomizer)``
+Let ``FROST.sign`` be the regular FROST signing function with arguments
+``(identifier, sk_i, group_public_key, nonce_i, msg, commitment_list)``,
+as defined in [#frost-sign]_.
+
+The ``Rerandomized-FROST.sign`` function takes an additional input
+``randomizer_seed``, and adjusts the inputs relative to the ``randomizer``
+computed by ``randomizer_regenerate()``::
+
+  def Rerandomized-FROST.sign(identifier, sk_i, group_public_key, nonce_i, msg,
+                              commitment_list, randomizer_seed):
+    randomizer = randomizer_regenerate(randomizer_seed, commitment_list)
+    randomized_sk_i = sk_i + randomizer
+    randomized_group_public_key = group_public_key + G.ScalarBaseMult(randomizer)
+    return FROST.sign(identifier, randomized_sk_i, randomized_group_public_key,
+                      nonce_i, msg, commitment_list)
+
+The signer MAY cache ``randomizer`` and ``G.ScalarBaseMult(randomizer)`` for
+use in the ``Rerandomized-FROST.{aggregate, verify_signature_share}`` functions
+defined below.
 
 
 Signature Share Verification and Aggregation
 ''''''''''''''''''''''''''''''''''''''''''''
 
-The randomized ``aggregate`` function is defined as the regular FROST
-``aggregate`` function, but with its inputs modified relative to the
-``randomizer`` as following:
+Let ``FROST.aggregate`` be the regular FROST aggregation function with
+arguments ``(commitment_list, msg, group_public_key, sig_shares)``, as
+defined in [#frost-aggregate]_.
 
-- ``group_public_key = group_public_key + G.ScalarBaseMult(randomizer)``
+The ``Rerandomized-FROST.aggregate`` function takes an additional input
+``randomizer`` computed as above, and adjusts the inputs relative to this
+randomizer::
 
-The randomized ``verify_signature_share`` function is defined as the regular
-FROST ``verify_signature_share`` function, but with its inputs modified relative
-to the ``randomizer`` as following:
+ def Rerandomized-FROST.aggregate(commitment_list, msg, group_public_key, sig_shares,
+                                  randomizer):
+   randomized_group_public_key = group_public_key + G.ScalarBaseMult(randomizer)
+   return FROST.aggregate(commitment_list, msg, randomized_group_public_key, sig_shares)
 
-- ``PK_i = PK_i + G.ScalarBaseMult(randomizer)``
-- ``group_public_key = group_public_key + G.ScalarBaseMult(randomizer)``
+Similarly, let ``FROST.verify_signature_share`` be the regular FROST signature
+share verification function with arguments
+``(identifier, PK_i, comm_i, sig_share_i, commitment_list, group_public_key, msg)``,
+as defined also in [#frost-aggregate]_.
+
+The ``Rerandomized-FROST.verify_signature_share`` function takes an additional
+input ``randomizer`` computed as above, and adjusts the inputs relative to this
+randomizer::
+
+  def Rerandomized-FROST.verify_signature_share(identifier, PK_i, comm_i, sig_share_i,
+                                                commitment_list, group_public_key, msg):
+    group_offset = G.ScalarBaseMult(randomizer)
+    randomized_PK_i = PK_i + group_offset
+    randomized_group_public_key = group_public_key + group_offset
+    return FROST.verify_signature_share(identifier, randomized_PK_i, comm_i, sig_share_i,
+                                        commitment_list, randomized_group_public_key, msg)
 
 
 Ciphersuites
@@ -266,12 +416,12 @@ Authorization Signatures as specified in [#protocol-concretespendauthsig]_.
 - Group: Jubjub [#protocol-jubjub]_ with base point $\mathcal{G}^{\mathsf{Sapling}}$
   as defined in [#protocol-concretespendauthsig]_.
 
-  - Order: $r_\mathbb{J}$ as defined in [#protocol-jubjub]_.
+  - Order: $r_{\mathbb{J}}$ as defined in [#protocol-jubjub]_.
   - Identity: as defined in [#protocol-jubjub]_.
   - RandomScalar(): Implemented by returning a uniformly random Scalar in the range
-    \[0, ``G.Order()`` - 1\]. Refer to {{frost-randomscalar}} for implementation guidance.
-  - SerializeElement(P): Implemented as $\mathsf{repr}_\mathbb{J}(P)$ as defined in [#protocol-jubjub]_
-  - DeserializeElement(P): Implemented as $\mathsf{abst}_\mathbb{J}(P)$ as defined in [#protocol-jubjub]_,
+    \[0, ``G.Order()`` - 1\]. Refer to [#frost-randomscalar]_ for implementation guidance.
+  - SerializeElement(P): Implemented as $\mathsf{repr}_{\mathbb{J}}(P)$ as defined in [#protocol-jubjub]_
+  - DeserializeElement(P): Implemented as $\mathsf{abst}_{\mathbb{J}}(P)$ as defined in [#protocol-jubjub]_,
     returning an error if $\bot$ is returned. Additionally, this function
     validates that the resulting element is not the group identity element,
     returning an error if the check fails.
@@ -318,7 +468,7 @@ Authorization Signatures as specified in [#protocol-concretespendauthsig]_.
   - Order: $r_\mathbb{P}$ as defined in [#protocol-pallasandvesta]_.
   - Identity: as defined in [#protocol-pallasandvesta]_.
   - RandomScalar(): Implemented by returning a uniformly random Scalar in the range
-    \[0, ``G.Order()`` - 1\]. Refer to {{frost-randomscalar}} for implementation guidance.
+    \[0, ``G.Order()`` - 1\]. Refer to [#frost-randomscalar]_ for implementation guidance.
   - SerializeElement(P): Implemented as $\mathsf{repr}_\mathbb{P}(P)$ as defined in [#protocol-pallasandvesta]_.
   - DeserializeElement(P): Implemented as $\mathsf{abst}_\mathbb{P}(P)$ as defined in [#protocol-pallasandvesta]_,
     failing if $\bot$ is returned. Additionally, this function validates that the resulting
@@ -364,25 +514,26 @@ practice this entails making sure that the generated signature can be verified
 by the $\mathsf{RedDSA.Validate}$ function specified in
 [#protocol-concretereddsa]_:
 
-- The FROST signature, when split into R and S in the first step of
+- The FROST signature, when split into $R$ and $S$ in the first step of
   $\mathsf{RedDSA.Validate}$, must yield the values expected by the
-  function. This is ensured by defining SerializeElement and SerializeScalar in
-  each ciphersuite to yield those values.
+  function. This is ensured by defining $\mathsf{SerializeElement}$ and
+  $\mathsf{SerializeScalar}$ in each ciphersuite to yield those values.
 
-- The challenge c used during FROST signing must be equal to the challenge c
-  computed during $\mathsf{RedDSA.Validate}$. This requires defining the
+- The challenge $c$ used during FROST signing must be equal to the challenge
+  $c$ computed during $\mathsf{RedDSA.Validate}$. This requires defining the
   ciphersuite H2 function as the $\mathsf{H}^\circledast(m)$ Zcash
   function in the ciphersuites, and making sure its input will be the same.
-  Fortunately FROST and Zcash use the same input order (R, public key, message)
-  so we just need to make sure that SerializeElement (used to compute the
-  encoded public key before passing to the hash function) matches what
-  $\mathsf{RedDSA.Validate}$ expects; which is possible since both `R` and
-  `vk` (the public key) are encoded in the same way as in Zcash.
+  Fortunately FROST and Zcash use the same input order ($R$, public key, message)
+  so we just need to make sure that $\mathsf{SerializeElement}$ (used to compute
+  the encoded public key before passing to the hash function) matches what
+  $\mathsf{RedDSA.Validate}$ expects; which is possible since both $R$ and
+  $\mathsf{vk}$ (the public key) are encoded in the same way as in Zcash.
 
-- Note that ``r`` (and thus ``R``) will not be generated as specified in RedDSA.Sign.
-  This is not an issue however, since with Schnorr signatures it does not matter
-  for the verifier how the ``r`` value was chosen, it just needs to be generated
-  uniformly at random, which is true for FROST.
+- Note that $r$ (and thus $R$) will not be generated as specified in
+  $\mathsf{RedDSA.Sign}$. This is not an issue however, since with Schnorr
+  signatures it does not matter for the verifier how the $r$ value was chosen,
+  it just needs to be a uniformly distributed random element, which is true for
+  FROST.
 
 - The above will ensure that the verification equation in
   $\mathsf{RedDSA.Validate}$ will pass, since FROST ensures the exact same
@@ -395,59 +546,76 @@ signing generates a re-randomized signature:
   This is exactly what is done in the functions defined above.
 - The re-randomization must be done in each signature share generation, such
   that the aggregated signature must be valid under verification with the
-  randomized public key. The ``R`` value from the signature is not influenced by
-  the randomizer so we just need to focus on the ``z`` value (using FROST
-  notation). Recall that ``z`` must equal to ``r + (c * sk)``, and that each
-  signature share is ``z_i = (hiding_nonce + (binding_nonce * binding_factor)) +
-  (lambda_i * c * sk_i)``. The first terms are not influenced by the randomizer
-  so we can only look into the second term of each top-level addition, i.e. ``c
-  * sk`` must be equal to ``sum(lambda_i * c * sk_i)`` for each participant
-  ``i``. Under re-randomization these become ``c * (sk + randomizer)`` (see
-  $\mathsf{RedDSA.RandomizedPrivate}$, which refers to the randomizer as
-  $\alpha$) and ``sum(lambda_i * c * (sk_i + randomizer))``. The latter
-  can be rewritten as ``c * (sum(lambda_i * sk_i) + randomizer *
-  sum(lambda_i)``. Since ``sum(lambda_i * sk_i) == sk`` per the Shamir secret
-  sharing mechanism used by FROST, and since ``sum(lambda_i) == 1``
-  [#sum-lambda-proof]_, we arrive at ``c * (sk + randomizer)`` as required.
+  randomized public key. This is shown to be true in [#frost-rerandomized]_.
 
 - The re-randomization procedure must be exactly the same as in
   [#protocol-concretereddsa]_ to ensure that re-randomized keys are uniformly
   distributed and signatures are unlinkable. This is also true; observe that
   ``randomizer_generate`` generates randomizer uniformly at random as required
   by $\mathsf{RedDSA.GenRandom}$; and signature generation is compatible
-  with $\mathsf{RedDSA.RandomizedPrivate}$,
-  $\mathsf{RedDSA.RandomizedPublic}$, $\mathsf{RedDSA.Sign}$ and
+  with $\mathsf{RedDSA.RandomizePrivate}$,
+  $\mathsf{RedDSA.RandomizePublic}$, $\mathsf{RedDSA.Sign}$ and
   $\mathsf{RedDSA.Validate}$ as explained in the previous item.
 
 The security of Re-Randomized FROST with respect to the security assumptions of
 regular FROST is shown in [#frost-rerandomized]_.
 
+Regarding randomizer handling, in Zcash, the `randomizer` is called $\alpha$
+and is usually generated using the $\mathsf{RedDSA.GenRandom}$ function as
+defined in the Zcash specification [#protocol-spendauthsig]_. Note that the
+choice of $\alpha$ influences the SIGHASH computation, so it is impossible
+to compute the `randomizer` based on the message (SIGHASH), as suggested in
+[#frost-rerandomized]_. This is not an issue as long as the `randomizer` is
+generated with the same security properties as $\mathsf{RedDSA.GenRandom}$.
+We ensure that by using a very similar approach; while the original
+$\mathsf{RedDSA.GenRandom}$ uses $\mathsf{H}^\circledast(T)$ where $T$ is a
+random byte sequence with a certain size, in this ZIP we effectively use
+$\mathsf{H}^\circledast(T || \mathsf{signing\_commitments\_enc})$, i.e. we
+concatenate the random bytes with the encoding of the signing commitments.
+This preserves the security assumptions and also hedges against issues in the
+Coordinator random byte generator and prevents the Coordinator from fully
+influencing the randomizer, reducing its trust assumptions.
+
 
 Reference implementation
 ========================
 
-The `reddsa` crate [#crate-reddsa]_ contains a re-randomized FROST implementation of
-both ciphersuites.
+The `reddsa` crate [#crate-reddsa]_ contains a re-randomized FROST implementation
+of both ciphersuites.
 
 
 References
 ==========
 
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
 .. [#BLAKE] `BLAKE2: simpler, smaller, fast as MD5 <https://blake2.net/#sp>`_
-.. [#RFC2119] `RFC 2119: Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
 .. [#FROST] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures <https://www.rfc-editor.org/rfc/rfc9591.html>`_
-.. [#frost-rerandomized] `Re-Randomized FROST <https://eprint.iacr.org/2024/436>`_
-.. [#frost-protocol] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Section 5: Two-Round FROST Signing Protocol <https://www.rfc-editor.org/rfc/rfc9591.html#name-two-round-frost-signing-pro>`_
-.. [#frost-removingcoordinator] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Section 7.3: Removing the Coordinator Role <https://www.rfc-editor.org/rfc/rfc9591.html#name-removing-the-coordinator-ro>`_
-.. [#frost-primeordergroup] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Section 3.1: Prime-Order Group <https://www.rfc-editor.org/rfc/rfc9591.html#name-prime-order-group>`_
-.. [#frost-primeorderverify] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Appendix B: Schnorr Signature Generation and Verification for Prime-Order Groups <https://www.ietf.org/archive/id/draft-irtf-cfrg-frost-11.html#name-schnorr-signature-generatio>`_
-.. [#frost-tdkg] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Appendix B: Trusted Dealer Key Generation <https://www.rfc-editor.org/rfc/rfc9591.html#name-trusted-dealer-key-generati>`_
-.. [#frost-randomscalar] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Appendix C: Random Scalar Generation <https://www.rfc-editor.org/rfc/rfc9591.html#name-random-scalar-generation>`_
+.. [#draft-ecc-quantum-recoverability] `draft-ecc-quantum-recoverability (zcash/zips PR 962): Quantum recoverability <https://github.com/zcash/zips/pull/962>`_
+.. [#draft-ecc-quantum-recoverability-usage-with-frost] `draft-ecc-quantum-recoverability (zcash/zips PR 962): Quantum recoverability - Usage with FROST <https://github.com/zcash/zips/pull/962>`_
+.. [#frost-rerandomized] `Re-Randomized FROST (ePrint 2024/436) <https://eprint.iacr.org/2024/436>`_
 .. [#frost-serialization] `The ZF FROST Book, Serialization Format <https://frost.zfnd.org/user/serialization.html>`_
-.. [#protocol-concretereddsa] `Zcash Protocol Specification, Version 2022.3.4 [NU5]. Section 5.4.7: RedDSA, RedJubjub, and RedPallas <protocol/protocol.pdf#concretereddsa>`_
-.. [#protocol-concretespendauthsig] `Zcash Protocol Specification, Version 2022.3.4 [NU5]. Section 5.4.7.1: Spend Authorization Signature (Sapling and Orchard) <protocol/protocol.pdf#concretespendauthsig>`_
-.. [#protocol-spendauthsig] `Zcash Protocol Specification, Version 2022.3.4 [NU5]. Section 4.15: Spend Authorization Signature (Sapling and Orchard) <protocol/protocol.pdf#spendauthsig>`_
-.. [#protocol-jubjub] `Zcash Protocol Specification, Version 2022.3.4 [NU5]. Section 5.4.9.3: Jubjub <protocol/protocol.pdf#jubjub>`_
-.. [#protocol-pallasandvesta] `Zcash Protocol Specification, Version 2022.3.4 [NU5]. Section 5.4.9.6: Pallas and Vesta <protocol/protocol.pdf#pallasandvesta>`_
-.. [#crate-reddsa] `reddsa <https://github.com/ZcashFoundation/reddsa>`_
+.. [#frost-conventions] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Section 2: Conventions and Definitions <https://www.rfc-editor.org/rfc/rfc9591.html#name-conventions-and-definitions>`_
+.. [#frost-primeordergroup] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Section 3.1: Prime-Order Group <https://www.rfc-editor.org/rfc/rfc9591.html#name-prime-order-group>`_
+.. [#frost-hash] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Section 3.2: Cryptographic Hash Function <https://www.rfc-editor.org/rfc/rfc9591.html#name-cryptographic-hash-function>`_
+.. [#frost-listoperations] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Section 4.3: List Operations <https://www.rfc-editor.org/rfc/rfc9591.html#name-list-operations>`_
+.. [#frost-protocol] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Section 5: Two-Round FROST Signing Protocol <https://www.rfc-editor.org/rfc/rfc9591.html#name-two-round-frost-signing-pro>`_
+.. [#frost-sign] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Section 5.2: Round Two - Signature Share Generation <https://www.rfc-editor.org/rfc/rfc9591.html#name-round-two-signature-share-g>`_
+.. [#frost-aggregate] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Section 5.3: Signature Share Aggregation <https://www.rfc-editor.org/rfc/rfc9591.html#name-signature-share-aggregation>`_
+.. [#frost-removingcoordinator] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Section 7.5: Removing the Coordinator Role <https://www.rfc-editor.org/rfc/rfc9591.html#name-removing-the-coordinator-ro>`_
+.. [#frost-primeorderverify] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Appendix B: Schnorr Signature Generation and Verification for Prime-Order Groups <https://www.ietf.org/archive/id/draft-irtf-cfrg-frost-11.html#name-schnorr-signature-generatio>`_
+.. [#frost-tdkg] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Appendix C: Trusted Dealer Key Generation <https://www.rfc-editor.org/rfc/rfc9591.html#name-trusted-dealer-key-generati>`_
+.. [#frost-randomscalar] `RFC 9591: The Flexible Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round Schnorr Signatures. Appendix D: Random Scalar Generation <https://www.rfc-editor.org/rfc/rfc9591.html#name-random-scalar-generation>`_
+.. [#protocol-addressesandkeys] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 3.1: Payment Addresses and Keys <protocol/protocol.pdf#addressesandkeys>`_
+.. [#protocol-abstractsigrerand] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 4.1.7.1: Signature with Re-Randomizable Keys <protocol/protocol.pdf#abstractsigrerand>`_
+.. [#protocol-abstractgroup] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 4.1.9: Represented Group <protocol/protocol.pdf#abstractgroup>`_
+.. [#protocol-saplingkeycomponents] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 4.2.2: Sapling Key Components <protocol/protocol.pdf#saplingkeycomponents>`_
+.. [#protocol-orchardkeycomponents] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 4.2.3: Orchard Key Components <protocol/protocol.pdf#orchardkeycomponents>`_
+.. [#protocol-spendauthsig] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 4.15: Spend Authorization Signature (Sapling and Orchard) <protocol/protocol.pdf#spendauthsig>`_
+.. [#protocol-concretereddsa] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 5.4.7: RedDSA, RedJubjub, and RedPallas <protocol/protocol.pdf#concretereddsa>`_
+.. [#protocol-concretespendauthsig] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 5.4.7.1: Spend Authorization Signature (Sapling and Orchard) <protocol/protocol.pdf#concretespendauthsig>`_
+.. [#protocol-jubjub] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 5.4.9.3: Jubjub <protocol/protocol.pdf#jubjub>`_
+.. [#protocol-pallasandvesta] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 5.4.9.6: Pallas and Vesta <protocol/protocol.pdf#pallasandvesta>`_
+.. [#crate-reddsa] `reddsa Rust crate <https://github.com/ZcashFoundation/reddsa>`_
 .. [#sum-lambda-proof] `Prove that the sum of the Lagrange (interpolation) coefficients is equal to 1 <https://math.stackexchange.com/questions/1325292/prove-that-the-sum-of-the-lagrange-interpolation-coefficients-is-equal-to-1/1325342#1325342>`_
+.. [#draft-zip-0374] `Draft ZIP 374 (zcash/zips PR 1063): Partially Created Zcash Transaction Format <https://github.com/zcash/zips/pull/1063>`_
+.. [#zf-frost-dkg] `FROST reference implementation (ZcashFoundation/frost) - Distributed Key Generation <https://github.com/ZcashFoundation/frost/blob/main/frost-core/src/keys/dkg.rs>`_
