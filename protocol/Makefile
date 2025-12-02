@@ -39,8 +39,7 @@ all: .Makefile.uptodate
 	# Note that in Makefiles, a dollar sign must be doubled to get a literal dollar sign in *any*
 	# context. Be very careful if refactoring this to ensure that the contents of `../base_ref`
 	# are only expanded if they are a hash.
-	if ( /bin/true ) || \
-	   ( ! [ -e ../base_ref ] ) || \
+	if ( ! [ -e ../base_ref ] ) || \
 	   ( git diff --name-only "$$(grep -E '^[0-9a-f]{40}$$' ../base_ref).." -- |grep '^protocol/' ) || \
 	   ( git status --porcelain=v1 |grep '^.[^ ] protocol/' ); then \
 	    $(MAKE) all-pdfs; fi
