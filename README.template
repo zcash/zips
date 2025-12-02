@@ -43,25 +43,24 @@ and double-check the generated ``rendered/draft-*.html`` file before filing a Pu
 See `here <protocol/README.rst>`__ for the project dependencies.
 
 
-NU6.1 Candidate ZIPs
---------------------
+Settled Mainnet Network Upgrade
+-------------------------------
 
-The following ZIPs are under consideration for inclusion in NU6.1:
+The most recent [settled](https://zips.z.cash/protocol/protocol.pdf#blockchain) Network Upgrade
+on Mainnet is NU6.1, which activated at Mainnet block height 3146400 on November 24, 2025, at
+19:56 UTC.
+
+NU6.1 is described in `ZIP 255: Deployment of the NU6.1 Network Upgrade <zips/zip-0255.md>`__.
+It deployed the following ZIPs:
 
 - `ZIP 1016: Community and Coinholder Funding Model <zips/zip-1016.md>`__
 - `ZIP 271: Deferred Dev Fund Lockbox Disbursement <zips/zip-0271.md>`__
-
-This list is only provided here for easy reference; no decision has been made
-on whether to include each of these ZIPs.
-
-`ZIP 255: Deployment of the NU6.1 Network Upgrade <zips/zip-0255.md>`__ will define which
-ZIPs are included in NU6.1.
 
 
 NU7 Candidate ZIPs
 ------------------
 
-The following ZIPs are under consideration for inclusion in NU7:
+The following ZIPs are under consideration for deployment in NU7:
 
 - `ZIP 226: Transfer and Burn of Zcash Shielded Assets <zips/zip-0226.rst>`__
 - `ZIP 227: Issuance of Zcash Shielded Assets <zips/zip-0227.rst>`__
