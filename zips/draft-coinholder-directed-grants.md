@@ -167,7 +167,7 @@ TBD: specify how transparent votes are counted.
 
 The Administrator MUST ignore submissions:
 
-- with payments below 1 ZEC.
+- with a payment threshold chosen by the Administrator.
 - where the Voter moves the submitted funds before voting concludes, as specified in the Quarterly Timeline below.
 
 TBD: clarify specification of "voting concludes"; if you mean "at the end of the Coinholder Vote on Proposals phase" then say this instead of relying on the indirect definition.
