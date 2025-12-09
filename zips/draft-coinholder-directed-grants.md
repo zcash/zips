@@ -250,7 +250,7 @@ TBD: add missing rationale for:
 
 [^zip-1016]: [ZIP 1016: Community and Coinholder Funding Model](zip-1016.md)
 
-[^zip-1016-veto-process]: [ZIP 1016: Community and Coinholder Funding Model — Veto Process](zip-1016.md#veto-process)
+[^zip-1016-disbursement-process]: [ZIP 1016: Community and Coinholder Funding Model — Disbursement Process](zip-1016.md#disbursementprocess)
 
 [^zcash-vote-app]: [Coin Voting 2.0 Application (zcash-vote-app)](https://github.com/hhanh00/zcash-vote-app)
 
