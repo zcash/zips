@@ -91,7 +91,7 @@ This ZIP must not require any changes to Zcash consensus.
 
 The Coinholder Grants Program SHALL be administered by an organization to be designated prior to activation, referred to as the Administrator.
 
-Key custody and the n-of-m multisignature scheme controlling the Coinholder-Controlled Fund MUST follow the NU 6.1 funding specification referenced by ZIP 1016. Key-Holder Organizations MUST execute disbursements according to NU 6.1 [^zip-0271] and ZIP 1016’s veto provisions [^zip-1016-veto-process].
+Key-Holder Organizations MUST execute disbursements according to ZIP 1016’s disbursment process [^zip-1016-disbursement-process] when grant proposals are approved by the process described in this ZIP.
 
 The Coinholder Grants Program MUST fund only grants for work that is already completed and has been publicly verified. Such a grant for completed work is referred to as a "retroactive grant".
 
