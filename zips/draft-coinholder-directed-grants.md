@@ -93,7 +93,7 @@ The Coinholder Grants Program SHALL be administered by an organization to be des
 
 Key custody and the n-of-m multisignature scheme controlling the Coinholder-Controlled Fund MUST follow the NU 6.1 funding specification referenced by ZIP 1016. Key-Holder Organizations MUST execute disbursements according to NU 6.1 [^zip-0271] and ZIP 1016’s veto provisions [^zip-1016-veto-process].
 
-The Coinholder Grants Program MUST fund only grants for work that is already completed and has been publicly verified.
+The Coinholder Grants Program MUST fund only grants for work that is already completed and has been publicly verified. Such a grant for completed work is referred to as a "retroactive grant".
 
 The Administrator MUST maintain publicly accessible resources including program rules, submission formats, timelines, voting instructions, and historical reports.
 
