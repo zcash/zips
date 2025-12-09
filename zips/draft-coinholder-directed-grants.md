@@ -221,7 +221,7 @@ The Administrator MUST publish a disbursement report detailing allocated amounts
 
 ## Security Precautions
 
-Key-Holder Organizations MUST maintain custody according to the NU 6.1 funding specification and ZIP 1016.
+Key-Holder Organizations MUST maintain custody according to the ZIP 271 funding specification and ZIP 1016.
 
 Any theft or compromise of funds or key material MUST be reported promptly after mitigation.
 
