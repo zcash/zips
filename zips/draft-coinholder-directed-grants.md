@@ -17,9 +17,9 @@
 
 # Terminology
 
-The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to
-be interpreted as described in BCP 14 [^BCP14] when, and only when, they appear
-in all capitals.
+The key words "MUST", "SHALL", "MUST NOT", "SHOULD", and "MAY" in this document
+are to be interpreted as described in BCP 14 [^BCP14] when, and only when, they
+appear in all capitals.
 
 The character § is used when referring to sections of the Zcash Protocol
 Specification. [^protocol]
