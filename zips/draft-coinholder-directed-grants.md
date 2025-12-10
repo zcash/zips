@@ -279,6 +279,55 @@ TBD: add missing rationale for:
 - The requirement that transparent voters not move their funds until voting concludes.
 
 
+# Historic Context: How the transparent voting process was run in the last vote
+
+Every election, Jason posts something like this:
+
+>Transparent ZEC
+>
+> If you want to vote ZEC held in a transparent address, follow the instructions and example outlined by @outgoing.doze:
+>
+>> To protect the anonymity of wallet holders, I suggest votes (signed messages) are sent to a shielded wallet where the viewing key is shared with the community so anyone can review the votes. The character limit being 512 if not mistaken, should be plenty. The format could be as simple as this:
+>>
+>>     $voteDetails
+>>
+>>     $address
+>>
+>>     $signature
+>>
+>> The extra line in between will make it easier easier to review visually.
+>>
+>> Example (ignore invalid signature):
+>>
+>>     1A; 2E Let’s make more Zcash Swag; 3Y
+>>
+>>     t1VydNnkjBzfL1iAMyUbwGKJAF7PgvuCfMY
+>>
+>>     ICrKSQjLORZP/aUTluyf2sZXXK+HuKtxdBLt2RRCn2j5CxgZlccNmiMC2K104JuhHnvHd5cXgSzdZtGh9vgWAYA=
+>>
+>> To protect from a Sybil attack, I suggest a payment of 0.1 ZEC is sent along with the vote. Anything less than 0.1 ZEC would therefore be ignored.
+>>
+>> The wallet would be generated and controlled by a trusted member of the community, same person that would share the viewing key with the community.
+>
+> Orchard Address:
+>     ADDRESS
+>
+> View Key:
+>     VK
+>
+> Birthday Height:
+>     HEIGHT
+>
+> Note: Funds cannot be moved during the voting period, which runs until Tuesday, November 25, at 11:59 PM UTC.
+
+Jason then pulled up the transparent address received in each voting message on a block explorer (Blockchair) and looked at when the last activity was. If there was no activity since the defined registration window ended, then the vote was accepted, and he trusted that the balance in the address (as reported by the block explorer) was the voting amount corresponding to the received message.
+
+dismad verified signatures in zcashd with:
+
+> zcash-cli verifymessage "t1VydNnkjBzfL1iAMyUbwGKJAF7PgvuCfMY" "IGobRVUtwsL92th70UFj0bGztv701evq/uHVuoTTceWsRjWeasSdvMkNUR43gSpMo393yixoFMiTQqnYh3y0b5U=" "Q1:N; Q2:N; Q3:Y (20250903)" true
+
+and in Trezor following the instructions in [^trezor-sign-and-verify].
+
 # References
 
 [^BCP14]: [Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"](https://www.rfc-editor.org/info/bcp14)
