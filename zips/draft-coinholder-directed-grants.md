@@ -152,17 +152,57 @@ TBD: specify how shielded voting is audited.
 
 ### Transparent Voting
 
+
+#### Signing protocol
+
+The signing protocol used for transparent voting is the "legacy address signatures" signature scheme implemented by Satoshi in Bitcoin Core. We specify it here in the absence of a formal specification anywhere else.
+
+Let `SerializeString(s) = WriteCompactSize(length(s)) || s`
+
+Let `MessageHash(msg) = SHA-256(SHA-256(SerializeString("Zcash Signed Message:" || [0x0A]) || SerializeString(msg)))`
+
+Let `Base64Encode` denote Base 64 Encoding as specified in [^base64], i.e. with the standard alphabet and '=' padding.
+
+`LegacySignMessage(msg, addr)` is the following algorithm:
+- Let `msg` be the message to be signed, encoded as US-ASCII.
+- Let `addr` be a transparent P2PKH address.
+- Fetch the secp256k1 public key `pk` corresponding to `addr`. (The wallet controlling `addr` should be tracking sufficient information to trivially derive it.)
+- Fetch the secp256k1 private key `sk` corresponding to `pk`.
+- Let `msg_hash = MessageHash(msg)`
+- Let `sig = secp256k1_ecdsa_sign_recoverable(msg_hash, sk, secp256k1_nonce_function_rfc6979)`
+- Let `(recid, sig_bytes) = secp256k1_ecdsa_recoverable_signature_serialize_compact(sig)`
+- Verify that `recid` is set appropriately (TODO: be more precise).
+- Return `Base64Encode([27 + recid + (pk.is_compressed ? 4 : 0)] || sig_bytes)`
+  - (TODO: try and find where this encoding comes from, and reference it. SEC-1 perhaps? IEEE Std 1363-2000? This is a 3-bit flag added to 27 = 0b11011)
+
+`LegacyVerifyMessage(msg, addr, signature)` is the following algorithm:
+- Let `msg` be the message to be verified, encoded as US-ASCII.
+- Let `addr` be a transparent P2PKH address.
+- If the signature is not a strictly valid Base 64 Encoding, fail verification; otherwise let `sig_bytes = Base64Decode(signature)`.
+- Check that `len(sig_bytes) == 65`, otherwise fail verification.
+- Let `msg_hash = MessageHash(msg)`
+- Let `recid = (sig_bytes[0] - 27) & 0b011`
+- Let `pk_is_compressed = ((sig_bytes[0] - 27) & 0b100) != 0`
+- Let `sig = secp256k1_ecdsa_recoverable_signature_parse_compact(sig_bytes[1..], recid)`, and fail verification if this errors.
+- Let `raw_pk = secp256k1_ecdsa_recover(msg_hash, sig)`, and fail verification if this errors.
+- Let `pk = secp256k1_ec_pubkey_serialize(raw_pk, pk_is_compressed)`
+- Pass verification if `addr` is the transparent P2PKH address encoding of `RIPEMD-160(SHA-256(pk))` as defined in [^protocol-transparentaddrencoding], otherwise fail verification.
+
 #### Collecting Votes
 
 Before accepting votes, the Administrator MUST publish an Orchard-only IVK designated for receiving vote messages and payments. The corresponding FVK MUST NOT be published.
 
-To create a transparent vote, Voters:
+To create a transparent vote, Voters do the following:
 
-- Create a signed message indicating their vote and transparent address using ECDSA over secp256k1 for the signature.
-- Send the signed message along with a payment of at least 1 ZEC to the address associated with the published IVK.
+- Select a transparent P2PKH address `addr` to use for voting.
+- Ensure that `addr` contains the intended balance of funds as of the end of the registration window.
+- Construct a US-ASCII-encoded voting message `msg`, using the template provided by the Administrator. It MUST NOT be longer than `387` bytes.
+- Let `sig = LegacySignMessage(msg, addr)`. This can be produced via the `zcashd` `signmessage` RPC call, or using a Trezor device following the procedure described in [^trezor-sign-and-verify].
+- Construct a vote-casting text `memo = msg || [0x0A] || addr || [0x0A] || sig`
+  - Previously this was ambiguous as to how many LF characters (or other whitespace) separated the fields, or whether additional LF characters were allowed.
+- Send `memo` along with a payment of at least 1 ZEC to the address associated with the published IVK.
 
 TBD: finish the specification, including but not limited to:
-- The signing protocol (just specifying a signature algorithm is insufficient).
 - The address derivation to be used.
 - The structure of transaction to be created (what kinds of outputs, how many, to what recipients, with what values).
 
@@ -243,9 +283,13 @@ TBD: add missing rationale for:
 
 [^BCP14]: [Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"](https://www.rfc-editor.org/info/bcp14)
 
+[^base64]: [RFC 4658: The Base16, Base32, and Base64 Data Encodings. Section 4: Base 64 Encoding](https://www.rfc-editor.org/rfc/rfc4648.html#section-4)
+
 [^protocol]: [Zcash Protocol Specification, Version 2025.6.1 [NU 6.1] or later](protocol/protocol.pdf)
 
 [^protocol-networks]: [Zcash Protocol Specification, Version 2025.6.1 [NU 6.1]. Section 3.12: Mainnet and Testnet](protocol/protocol.pdf#networks)
+
+[^protocol-transparentaddrencoding]: [Zcash Protocol Specification, Version 2025.6.1 [NU 6.1]. Section 5.6.1.1: Transparent Addresses](protocol/protocol.pdf#transparentaddrencoding)
 
 [^zip-0271]: [ZIP 271: Deferred Dev Fund Lockbox Disbursement](zip-0271.md)
 
@@ -262,3 +306,5 @@ TBD: add missing rationale for:
 [^zcash-vote-doc]: [Coin Voting 2.0 Technical Documentation (Audit Book)](https://hhanh00.github.io/coin-voting-book/)
 
 [^zcash-vote-audit]: [Coin Voting 2.0 Audit Tool](https://github.com/hhanh00/zcash-vote-audit)
+
+[^trezor-sign-and-verify]: [Trezor documentation: Sign & Verify messages in Trezor Suite](https://trezor.io/learn/supported-assets/bitcoin/sign-and-verify-messages-trezor-suite)
