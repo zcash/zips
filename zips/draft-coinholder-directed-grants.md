@@ -1,13 +1,18 @@
     ZIP: Unassigned
     Title: Coinholder-Directed Retroactive Grants Program
     Owners: Jason McGee <jason@shieldedlabs.net>
+            Mark Henderson <mark@shieldedlabs.net>
     Credits: Alex Bornstein
              Josh Swihart
+             outgoing.doze
+             Jack Grigg
+             Daira-Emma Hopwood
+             Kris Nuttycombe
     Status: Draft
     Category: Process / Standards
     Created: 2025-10-14
     License: MIT
-    Pull Request: TBD
+    Pull Request: <https://github.com/zcash/zips/pull/1112>
 
 
 # Terminology
