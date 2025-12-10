@@ -24,7 +24,7 @@ appear in all capitals.
 The character § is used when referring to sections of the Zcash Protocol
 Specification. [^protocol]
 
-The terms “Mainnet" and “Testnet" are to be interpreted as described in
+The terms “Mainnet” and “Testnet” are to be interpreted as described in
 § 3.12 ‘Mainnet and Testnet’. [^protocol-networks]
 
 The terms “Electric Coin Company”, “Bootstrap Project”, and “Zcash Foundation”
@@ -48,7 +48,7 @@ be interpreted as defined in ZIP 1016 [^zip-1016].
 
 “ZEC” refers to the native currency of Zcash on Mainnet.
 
-"Cycle" refers to a single iteration of the quarterly process of grant submission,
+“Cycle” refers to a single iteration of the quarterly process of grant submission,
 voting, and grant disbursement.
 
 
@@ -157,36 +157,36 @@ TBD: specify how shielded voting is audited.
 
 The signing protocol used for transparent voting is the "legacy address signatures" signature scheme implemented by Satoshi in Bitcoin Core. We specify it here in the absence of a formal specification anywhere else.
 
-Let `SerializeString(s) = WriteCompactSize(length(s)) || s`
+Let $\mathsf{SerializeString}(s) = \mathsf{WriteCompactSize}(\mathsf{length}(s)) \,||\, s$
 
-Let `MessageHash(msg) = SHA-256(SHA-256(SerializeString("Zcash Signed Message:" || [0x0A]) || SerializeString(msg)))`
+Let $\mathsf{MessageHash}(\mathsf{msg}) = \textsf{SHA-256}(\textsf{SHA-256}(\mathsf{SerializeString}(\texttt{“Zcash Signed Message:”} \,||\, [\mathtt{0x0A}]) \,||\, \mathsf{SerializeString}(\mathsf{msg})))$
 
-Let `Base64Encode` denote Base 64 Encoding as specified in [^base64], i.e. with the standard alphabet and '=' padding.
+Let $\mathsf{Base64Encode}$ denote Base 64 Encoding as specified in [^base64], i.e. with the standard alphabet and '=' padding.
 
-`LegacySignMessage(msg, addr)` is the following algorithm:
-- Let `msg` be the message to be signed, encoded as US-ASCII.
-- Let `addr` be a transparent P2PKH address.
-- Fetch the secp256k1 public key `pk` corresponding to `addr`. (The wallet controlling `addr` should be tracking sufficient information to trivially derive it.)
-- Fetch the secp256k1 private key `sk` corresponding to `pk`.
-- Let `msg_hash = MessageHash(msg)`
-- Let `sig = secp256k1_ecdsa_sign_recoverable(msg_hash, sk, secp256k1_nonce_function_rfc6979)`
-- Let `(recid, sig_bytes) = secp256k1_ecdsa_recoverable_signature_serialize_compact(sig)`
-- Verify that `recid` is set appropriately (TODO: be more precise).
-- Return `Base64Encode([27 + recid + (pk.is_compressed ? 4 : 0)] || sig_bytes)`
-  - (TODO: try and find where this encoding comes from, and reference it. SEC-1 perhaps? IEEE Std 1363-2000? This is a 3-bit flag added to 27 = 0b11011)
+$\mathsf{LegacySignMessage}(\mathsf{msg}, \mathsf{addr})$ is the following algorithm:
+- Let $\mathsf{msg}$ be the message to be signed, encoded as US-ASCII.
+- Let $\mathsf{addr}$ be a transparent P2PKH address.
+- Fetch the secp256k1 public key $\mathsf{pk}$ corresponding to $\mathsf{addr}$. (The wallet controlling $\mathsf{addr}$ should be tracking sufficient information to trivially derive it.)
+- Fetch the secp256k1 private key $\mathsf{sk}$ corresponding to $\mathsf{pk}$.
+- Let $\mathsf{msg\_hash} = \mathsf{MessageHash}(\mathsf{msg})$
+- Let $\mathsf{sig} = \mathsf{secp256k1\_ecdsa\_sign\_recoverable}(\mathsf{msg\_hash}, \mathsf{sk}, \mathsf{secp256k1\_nonce\_function\_rfc6979})$
+- Let $(\mathsf{recid}, \mathsf{sig\_bytes}) = \mathsf{secp256k1\_ecdsa\_recoverable\_signature\_serialize\_compact}(\mathsf{sig})$
+- Verify that $\mathsf{recid}$ is set appropriately (TODO: be more precise).
+- Return $\mathsf{Base64Encode}([27 + \mathsf{recid} + (\mathsf{pk.is\_compressed} \;?\; 4 : 0)] \,||\, \mathsf{sig\_bytes})$
+   - (TODO: try and find where this encoding comes from, and reference it. SEC-1 perhaps? IEEE Std 1363-2000? This is a 3-bit flag added to $27 = \mathtt{0b11011}$)
 
-`LegacyVerifyMessage(msg, addr, signature)` is the following algorithm:
-- Let `msg` be the message to be verified, encoded as US-ASCII.
-- Let `addr` be a transparent P2PKH address.
-- If the signature is not a strictly valid Base 64 Encoding, fail verification; otherwise let `sig_bytes = Base64Decode(signature)`.
-- Check that `len(sig_bytes) == 65`, otherwise fail verification.
-- Let `msg_hash = MessageHash(msg)`
-- Let `recid = (sig_bytes[0] - 27) & 0b011`
-- Let `pk_is_compressed = ((sig_bytes[0] - 27) & 0b100) != 0`
-- Let `sig = secp256k1_ecdsa_recoverable_signature_parse_compact(sig_bytes[1..], recid)`, and fail verification if this errors.
-- Let `raw_pk = secp256k1_ecdsa_recover(msg_hash, sig)`, and fail verification if this errors.
-- Let `pk = secp256k1_ec_pubkey_serialize(raw_pk, pk_is_compressed)`
-- Pass verification if `addr` is the transparent P2PKH address encoding of `RIPEMD-160(SHA-256(pk))` as defined in [^protocol-transparentaddrencoding], otherwise fail verification.
+$\mathsf{LegacyVerifyMessage}(\mathsf{msg}, \mathsf{addr}, \mathsf{signature})$ is the following algorithm:
+- Let $\mathsf{msg}$ be the message to be verified, encoded as US-ASCII.
+- Let $\mathsf{addr}$ be a transparent P2PKH address.
+- If the signature is not a strictly valid Base 64 Encoding, fail verification; otherwise let $\mathsf{sig\_bytes} = \mathsf{Base64Decode}(\mathsf{signature})$.
+- Check that $\mathsf{length}(\mathsf{sig\_bytes}) = 65$, otherwise fail verification.
+- Let $\mathsf{msg\_hash} = \mathsf{MessageHash}(\mathsf{msg})$
+- Let $\mathsf{recid} = (\mathsf{sig\_bytes}[0] - 27) \;\&\; \mathtt{0b011}$
+- Let $\mathsf{pk\_is\_compressed} = ((\mathsf{sig\_bytes}[0] - 27) \;\&\; \mathtt{0b100}) \neq 0$
+- Let $\mathsf{sig} = \mathsf{secp256k1\_ecdsa\_recoverable\_signature\_parse\_compact}(\mathsf{sig\_bytes}[1..], \mathsf{recid})$, and fail verification if this errors.
+- Let $\mathsf{raw\_pk} = \mathsf{secp256k1\_ecdsa\_recover}(\mathsf{msg\_hash}, \mathsf{sig})$, and fail verification if this errors.
+- Let $\mathsf{pk} = \mathsf{secp256k1\_ec\_pubkey\_serialize}(\mathsf{raw\_pk}, \mathsf{pk\_is\_compressed})$
+- Pass verification if $\mathsf{addr}$ is the transparent P2PKH address encoding of $\textsf{RIPEMD-160}(\textsf{SHA-256}(\mathsf{pk}))$ as defined in [^protocol-transparentaddrencoding], otherwise fail verification.
 
 #### Collecting Votes
 
@@ -194,13 +194,13 @@ Before accepting votes, the Administrator MUST publish an Orchard-only IVK desig
 
 To create a transparent vote, Voters do the following:
 
-- Select a transparent P2PKH address `addr` to use for voting.
-- Ensure that `addr` contains the intended balance of funds as of the end of the registration window.
-- Construct a US-ASCII-encoded voting message `msg`, using the template provided by the Administrator. It MUST NOT be longer than `387` bytes.
-- Let `sig = LegacySignMessage(msg, addr)`. This can be produced via the `zcashd` `signmessage` RPC call, or using a Trezor device following the procedure described in [^trezor-sign-and-verify].
-- Construct a vote-casting text `memo = msg || [0x0A] || addr || [0x0A] || sig`
-  - Previously this was ambiguous as to how many LF characters (or other whitespace) separated the fields, or whether additional LF characters were allowed.
-- Send `memo` along with a payment of at least 1 ZEC to the address associated with the published IVK.
+- Select a transparent P2PKH address $\mathsf{addr}$ to use for voting.
+- Ensure that $\mathsf{addr}$ contains the intended balance of funds as of the end of the registration window.
+- Construct a US-ASCII-encoded voting message $\mathsf{msg}$, using the template provided by the Administrator. It MUST NOT be longer than $387$ bytes.
+- Let $\mathsf{sig} = \mathsf{LegacySignMessage}(\mathsf{msg}, \mathsf{addr})$. This can be produced via the `zcashd` `signmessage` RPC call, or using a Trezor device following the procedure described in [^trezor-sign-and-verify].
+- Construct a vote-casting text $\mathsf{memo} = \mathsf{msg} \,||\, [\mathtt{0x0A}] \,||\, \mathsf{addr} \,||\, [\mathtt{0x0A}] || \mathsf{sig}$
+   - Previously this was ambiguous as to how many LF characters (or other whitespace) separated the fields, or whether additional LF characters were allowed.
+- Send $\mathsf{memo}$ along with a payment of at least 1 ZEC to the address associated with the published IVK.
 
 TBD: finish the specification, including but not limited to:
 - The address derivation to be used.
