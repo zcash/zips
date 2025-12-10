@@ -225,6 +225,7 @@ be deleted.
 
   <embed><table>
     <tr> <th>Draft name</th> <th>Title</th> <th>Discussions-To</th> </tr>
+    <tr> <td class="left">draft-aquietinvestor-coinholder-directed-grants</td> <td class="left"><a href="zips/draft-aquietinvestor-coinholder-directed-grants.md">Coinholder-Directed Retroactive Grants Program</a></td> <td class="left"></td>
     <tr> <td class="left">draft-arya-dairaemma-disable-addition-of-transparent-chain-value</td> <td class="left"><a href="zips/draft-arya-dairaemma-disable-addition-of-transparent-chain-value.md">Disabling Addition of New Value to the Transparent Chain Value Pool</a></td> <td class="left"><a href="https://github.com/zcash/zips/issues/1115">zips#1115</a></td>
     <tr> <td class="left">draft-arya-deploy-nu7</td> <td class="left"><a href="zips/draft-arya-deploy-nu7.md">Deployment of the NU7 Network Upgrade</a></td> <td class="left"><a href="https://github.com/zcash/zips/issues/839">zips#839</a></td>
     <tr> <td class="left">draft-ecc-authenticated-reply-addrs</td> <td class="left"><a href="zips/draft-ecc-authenticated-reply-addrs.md">Authenticated Reply Addresses</a></td> <td class="left"><a href="https://github.com/zcash/zips/issues/???">zips#???</a></td>
