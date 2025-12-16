@@ -254,8 +254,118 @@ of the following options SHOULD be used:
   can be sent along with the FROST shares during key generation. This option MAY
   be used if Distributed Key Generation was employed, if participants find it
   acceptable to trust one participant to correctly generate $\mathsf{sk}$.
-- Participants generate a $\mathsf{sk}$ in distributed manner using TODO.
-  This option SHOULD be used if Distributed Key Generation was used.
+- Participants generate a $\mathsf{sk}$ in a contributory manner, for example
+  using the method defined in `Contributory Generation of sk`_. This approach
+  SHOULD be used to generate $\mathsf{sk}$ if Distributed Key Generation was
+  employed.
+
+
+Contributory Randomness Generation
+----------------------------------
+
+The following procedure allows generating randomness with inputs from all
+participants, such that each participant can verify that its contribution
+was included and that other honest participants will obtain the same value.
+
+This is used to generate FROST randomizers, and can also be used for the
+initial generation of $\mathsf{sk}$.
+
+Two functions are provided for this purpose: $\mathtt{randomness\_generate}()$
+and $\mathtt{randomness\_regenerate}()$. Both use helper functions defined as
+follows:
+
+- The $\mathtt{encode\_contributions}()$ function returns a byte serialization
+  of a contribution list as defined below.
+- $\mathtt{random\_bytes}(n)$ is defined in [#frost-conventions]_. It returns a
+  sequence of $n$ bytes sampled uniformly at random.
+
+A contribution list is a value of the form $[(i, \mathtt{contribution}_{\,i}),\, \ldots]$.
+Each element in the list indicates a NonZeroScalar identifier $i$ and a byte
+sequence $\mathtt{contribution}_{\,i}$. This list MUST be sorted in ascending
+order by identifier.
+
+::
+
+  encode_contributions():
+
+  Input: a contribution list.
+
+  Output: a byte array.
+
+  def encode_contributions(contribution_list):
+    return the concatenation of (G.SerializeScalar(i) || contribution_i) for each i
+
+::
+
+  randomness_generate():
+
+  Inputs:
+  - contribution_list, a contribution list.
+  - N, a seed length in bytes.
+  - H', a hash function (in practice this is either H2 or Hs from the
+    ciphersuite).
+
+  Outputs: (randomness_seed, randomness), a byte sequence of length N
+  and an output of H'.
+
+  def randomness_generate(contribution_list, N, H'):
+    randomness_seed = random_bytes(N)
+    randomness_input = randomness_seed || encode_contribution_list(contribution_list)
+    return (randomness_seed, H'(randomness_input))
+
+::
+
+  randomness_regenerate():
+
+  Inputs:
+  - randomness_seed, a byte sequence.
+  - contribution_list, a contribution list.
+  - H', a hash function (in practice this is either H2 or Hs from the
+    ciphersuite).
+
+  Outputs: randomness, a Scalar
+
+  def randomness_regenerate(randomness_seed, contribution_list, H'):
+    randomness_input = randomness_seed || encode_contribution_list(contribution_list)
+    return H'(randomness_input)
+
+
+Contributory Generation of sk
+-----------------------------
+
+This section describes a method of generating $\mathsf{sk}$ based on randomness
+contributed by each participant, as well as the Coordinator. This avoids
+entirely depending on the Coordinator's random number generator for security of
+this key. This method depends on an encrypted, authenticated channel between the
+Coordinator and each participant.
+
+We make use of the following ciphersuite-generic parameters defined in the
+`Ciphersuites`_ section:
+
+- $\mathtt{Nh}$, the output size of the ciphersuite hash $\mathtt{H}$.
+- $\mathtt{Hs}(m)$, a hash function.
+
+Define::
+
+  def sk_generate(contribution_list):
+    return randomness_generate(contribution_list, Nh, Hs)
+
+  def sk_regenerate(sk_seed, contribution_list):
+    return randomness_regenerate(sk_seed, contribution_list, Hs)
+
+The parties agree on $\mathsf{sk}$ as follows:
+
+1. The Coordinator chooses a random seed
+   $\mathtt{sk\_seed} = \mathtt{random\_bytes}(\mathtt{Nh})$.
+2. Each participant $i$ generates
+   $\mathtt{contribution}_{\,i} = \mathtt{random\_bytes}(\mathtt{Nh})$, and sends
+   its contribution to the Coordinator over an encrypted, authenticated channel.
+3. The Coordinator calls $\mathtt{sk\_generate}(\mathtt{contribution\_list})$,
+   and sends the resulting $\mathtt{sk\_seed}$ to each participant over an
+   encrypted, authenticated channel.
+4. All parties regenerate $\mathsf{sk}$ using
+   $\mathtt{sk\_regenerate}(\mathtt{sk\_seed}, \mathtt{contribution\_list})$,
+   and they include a Pedersen commitment to it in the transcript.
 
 
 Randomizer Generation
@@ -265,58 +375,28 @@ Re-Randomized FROST uses randomizers. This section specifies how they are
 generated; this will be required for the Signature Share Generation
 specification below.
 
-Two functions are provided to generate randomizers: `randomizer_generate()` and
-`randomizer_regenerate()`. Both use helper functions and a constant which are
-defined as follows:
+We make use of the following ciphersuite-generic parameters defined in the
+`Ciphersuites`_ section:
 
-- The `encode_group_commitment_list()` function is defined in
-  [#frost-listoperations]_. It returns a byte serialization of a
-  `commitment_list` value.
-- The `random_bytes(n)` function is defined in [#frost-conventions]_ and it
-  returns a sequence of `n` bytes sampled uniformly at random.
-- The `H2(m)` function is a ciphersuite-generic function defined in
-  [#frost-hash]_ but it is instantiated in the `Ciphersuites`_ section.
+- $\mathtt{Ns}$, the size of a serialized scalar.
+- $\mathtt{H2}(m)$, a hash function defined in [#frost-hash]_.
 
-::
+The contribution to randomness generation from each participant,
+$\mathtt{contribution}_{\,i}$, is the serialization of the hiding and binding
+commitment Element values generated in Round One of the signing protocol, i.e.
+$\mathsf{G.SerializeElement}(\mathtt{hiding\_nonce\_commitment}_i) \,||$ $\mathsf{G.SerializeElement}(\mathtt{binding\_nonce\_commitment}_i)$.
 
-  randomizer_generate():
+Note that $\mathtt{encode\_contributions}$ defined in `Contributory Randomness Generation`_,
+applied to a list of commitments of this form, is equivalent to
+$\mathtt{encode\_group\_commitment\_list}$ defined in [#frost-listoperations]_.
 
-  Inputs:
-  - commitment_list = [(i, hiding_nonce_commitment_i,
-    binding_nonce_commitment_i), ...], a list of commitments issued by
-    each participant, where each element in the list indicates a
-    NonZeroScalar identifier i and two commitment Element values
-    (hiding_nonce_commitment_i, binding_nonce_commitment_i). This list
-    MUST be sorted in ascending order by identifier.
-
-  Outputs: (randomizer_seed, randomizer), a byte sequence and a Scalar
+Define::
 
   def randomizer_generate(commitment_list):
-    # Generate a random byte sequence with the size of a serialized scalar.
-    randomizer_seed = random_bytes(Ns)
-    signing_commitments_enc = encode_group_commitment_list(commitment_list)
-    randomizer_input = randomizer_seed || signing_commitments_enc
-    return (randomizer_seed, H2(randomizer_input))
-
-::
-
-  randomizer_regenerate():
-
-  Inputs:
-  - randomizer_seed = a sequence of Ns bytes
-  - commitment_list = [(i, hiding_nonce_commitment_i,
-    binding_nonce_commitment_i), ...], a list of commitments issued by
-    each participant, where each element in the list indicates a
-    NonZeroScalar identifier i and two commitment Element values
-    (hiding_nonce_commitment_i, binding_nonce_commitment_i). This list
-    MUST be sorted in ascending order by identifier.
-
-  Outputs: randomizer, a Scalar
+    return randomness_generate(commitment_list, Ns, H2)
 
   def randomizer_regenerate(randomizer_seed, commitment_list):
-    signing_commitments_enc = encode_group_commitment_list(commitment_list)
-    randomizer_input = randomizer_seed || signing_commitments_enc
-    return H2(randomizer_input)
+    return randomness_regenerate(randomizer_seed, commitment_list, H2)
 
 
 Re-Randomized FROST
@@ -467,6 +547,7 @@ Authorization Signatures as specified in [#protocol-concretespendauthsig]_.
   - HR(m): Implemented by computing BLAKE2b-512("FROST_RedJubjubA", m), interpreting
     the 64 bytes as a little-endian integer, and reducing the resulting integer
     modulo ``G.Order()``.
+  - Hs(m): Implemented by taking the first 32 bytes of BLAKE2b-512("FROST_RedJubjubs", m).
 
 Signature verification is as specified in [#protocol-concretespendauthsig]_
 for RedJubjub.
@@ -515,6 +596,7 @@ Authorization Signatures as specified in [#protocol-concretespendauthsig]_.
   - HR(m): Implemented by computing BLAKE2b-512("FROST_RedPallasA", m), interpreting
     the 64 bytes as a little-endian integer, and reducing the resulting integer
     modulo ``G.Order()``.
+  - Hs(m): Implemented by taking the first 32 bytes of BLAKE2b-512("FROST_RedPallass", m).
 
 Signature verification is as specified in [#protocol-concretespendauthsig]_
 for RedPallas.
