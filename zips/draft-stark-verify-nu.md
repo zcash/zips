@@ -1,6 +1,7 @@
     ZIP: XXX
     Title: Circle STARK Verification as a Transparent Zcash Extension
-    Owners: Abdel <abdel.dev.bitcoin@proton.me>, Michael Zaikin <michael.z@starkware.co>
+    Owners: Abdel <abdel.dev.bitcoin@proton.me>
+            Michael Zaikin <michael.z@starkware.co>
     Status: Draft
     Category: Consensus
     Created: 2025-10-14
@@ -13,23 +14,23 @@ The key words "MUST", "SHOULD", and "MAY" are to be interpreted as described in 
 
 ## Abstract
 
-This ZIP defines a new Transparent Zcash Extension that verifies a bounded‑size Circle STARK proof (Stwo). The extension has a single `type` and a single mode, and exposes a compact precondition/witness interface suitable for verifying L2 validity proofs on Zcash L1. It specifies:
+This ZIP defines a new Transparent Zcash Extension that verifies a bounded‑size Circle STARK [^circle-stark-paper] proof. The extension has a single `type` and a single mode, and exposes a compact precondition/witness interface suitable for verifying validity proofs of a Starknet-style scaling solution [^sn-stack] on Zcash. It specifies:
 
 - a prefix‑free encoding of precondition and witness;
 - pinned verifier parameter set via a `param_id` namespace;
 - strict consensus bounds on sizes and verifier parameters for DoS safety; and
 - digest integration consistent with a future transaction version that supports TZEs [^zip-0245].
 
-This ZIP does not change Sapling/Orchard; it only adds a TZE that can be used to enforce L2 state transitions or other validity claims.
+This ZIP does not change Sapling/Orchard; it only adds a TZE that can be used to enforce state transition of a Starknet chain or other validity claims.
 
 ## Motivation
 
-Zcash's programmability is restricted by the Bitcoin script, which lacks sufficient expressiveness and implies high costs that limit throughput. A Starknet‑style scaling solution can address the issue by providing an expressive programming language (Cairo), a ZK friendly virtual machine, and an effective proving system (Circle STARK/Stwo) that compresses large computation into a succinct proof, suitable for onchain verification. A custom transparent extension [^zip-0222] is the cleanest way to introduce such verifier and enable layer-2 solutions on top of Zcash.
+Zcash's programmability is restricted by the Bitcoin script, which lacks sufficient expressiveness and implies high costs that limit throughput. A Starknet‑style scaling solution can address the issue by providing an expressive programming language (Cairo [^cairo-paper]), a ZK friendly virtual machine, and an effective proving system (Stwo [^stwo]) that compresses large computation into a succinct proof, suitable for onchain verification. A custom transparent extension [^zip-0222] is the cleanest way to introduce such verifier and enable scaling solutions on top of Zcash.
 
 ## Requirements
 
 * Define a TZE `type` for Stwo/Circle STARK verification, and fully specify how this type is to be encoded, verified, and integrated into transaction digest computation, without allowing implementation‑defined behavior.
-* Define a `param_id` namespace that pins the specification of the Stwo proof relation, the proof object wire format, field encodings, transcript/Merkle hash suite and personalization, FRI expansion and query caps, any grinding bounds, and any batch‑verification settings.
+* Define a `param_id` namespace that pins the specification of the Stwo proof relation, the proof object format, field encodings, transcript/Merkle hash suite and personalization, FRI expansion and query caps, any grinding bounds, and any batch‑verification settings.
 * A reference implementation of the prover and verifier, and reference test vectors (valid and invalid) must be provided for each such `param_id`.
 * Limits on proof sizes, etc. must be chosen to avoid potential denial of service, and the necessary updates to ZIP 317 fee calculation [^zip-0317] must be specified.
 
@@ -53,7 +54,7 @@ if (flags & 0x01) {
 }
 ```
 
-- `param_id` selects an enumerated, pinned Stwo parameter set (field & hash suite, FRI/query caps, wire format version, endianness, personalization, etc.). Unknown `param_id` MUST be rejected.
+- `param_id` selects an enumerated, pinned Stwo parameter set. Unknown `param_id` MUST be rejected.
 - `pub_in` is an opaque byte string to consensus; it MUST be absorbed by the verifier transcript exactly as specified (byte‑for‑byte).
 - If `bind_ctx` is set, `ctx_digest` MUST equal the transaction's non‑malleable digest [^zip-0244]. A mismatch MUST cause rejection.
 
@@ -63,7 +64,7 @@ if (flags & 0x01) {
 vec  proof            // the Stwo (Circle STARK) proof object (len + bytes)
 ```
 
-The `proof` MUST conform to the Stwo wire format pinned by `param_id`.
+The `proof` MUST conform to the Stwo proof object format pinned by `param_id`.
 
 ### Verification
 
@@ -82,14 +83,18 @@ The namespace is 16‑bit (0x0001..0xFFFF). This ZIP introduces:
 
 - `param_id = 0x0001` — `STWO_V1_P1`
 
-  - Upstream: `starkware-libs/stwo` at tag TBD, commit `TBD`.
-  - Wire format: Stwo proof object at v1.0.0 (exact byte layout pinned in this ZIP's test‑vector directory).
-  - Arithmetic & domains: per Stwo v1.0.0 (Circle STARK over the 31‑bit Mersenne field; exact domain and padding rules pinned by the vector files).
-  - Hash suite: as used by the v1.0.0 verifier for transcript/Merkle commitments (parameters and personalization strings pinned by vector files).
-  - FRI/query caps: exact maximums pinned by vector files.
-  - Grinding/nonce: if present in the format, upper bounds are pinned by vector files.
+  - Upstream: `starkware-libs/stwo` [^stwo-repo] at tag TBD, commit `TBD`.
+  - Proving system: Stwo [^stwo] based on Circle STARK over the 31‑bit Mersenne field [^circle-stark-paper]
+  - Proof format:
+    - Stwo proof structure layout (TBD)
+    - Binary codec and compression algorithm (TBD)
+  - Prover parameters:
+    - Stwo channel hash function (TBD)
+    - Stwo preprocessed AIR configuration (TBD)
+    - PoW difficulty target (TBD)
+    - FRI configuration (TBD)
 
-> Normative reference material for `STWO_V1_P1` (field encodings, wire format, hash personalization, FRI expansions, max queries) is included alongside this ZIP in `zip-XXXX/params/STWO_V1_P1.json` and the accompanying test vectors. Implementations MUST treat those files as normative parts of this ZIP.
+> Normative reference material for `STWO_V1_P1` (encodings, proof format, prover parameters) is included alongside this ZIP in `zip-XXXX/params/STWO_V1_P1.json` and the accompanying test vectors. These files are to be treated as normative parts of this specification.
 
 Future parameter sets (e.g., different hash suite or query caps) **MAY** be proposed under new `param_id`s in a subsequent ZIP.
 
@@ -100,11 +105,15 @@ Let the following consensus constants be defined for this `(type, mode)`:
 - `PUBIN_MAX_BYTES = TBD` (discussion range: ≤ 4096).
 - `PROOF_MAX_BYTES = TBD` (discussion range: 64–192 KiB; finalize from measurements on realistic proof instances).
 
-Nodes MUST reject if any bound is exceeded. Bounds MUST be enforced before allocation to prevent DoS.
+Nodes MUST reject if any bound is exceeded, and MUST NOT allow denial of service via memory exhaustion due to allocating memory before bounds are checked.
 
 ### Fee model
 
-Fees follow standard byte‑based rules. This ZIP does not introduce an additional "op‑count" or sigop‑like budget. Implementations SHOULD enforce conservative policy limits initially (e.g., at most one `STARK_VERIFY` TZE input per transaction; local size caps stricter than consensus).
+Follows ZIP-317 [^zip-0317].
+
+TODO: introduce an adapted fee model with discounted price per byte (rationale: large proof size does not reflect the cost of the verification)
+
+TODO: introduce a rate limiting policy that prevents crowding out non-TZE transactions
 
 ## Rationale
 
@@ -114,7 +123,7 @@ Fees follow standard byte‑based rules. This ZIP does not introduce an addition
 
 ## Privacy Implications
 
-No changes to Sapling/Orchard. Protocols built on top (e.g., an L2) MUST document their own privacy model (e.g., DA choices, metadata leakage). This ZIP's verifier only checks validity of a statement over public inputs; it does not guarantee zero‑knowledge unless the prover uses a ZK proof generation mode.
+No changes to Sapling/Orchard. Protocols built on top MUST document their own privacy model (e.g., DA choices, metadata leakage). This ZIP's verifier only checks validity of a statement over public inputs; it does not guarantee zero‑knowledge unless the prover uses a ZK proof generation mode.
 
 ## Backward Compatibility
 
@@ -142,9 +151,23 @@ Nodes that do not implement this TZE will reject transactions that use it after 
 
 ## References
 
-- [ZIP‑222: Transparent Zcash Extensions (TZE)](https://zips.z.cash/zip-0222)
-- [ZIP-244: Transaction Identifier Non-Malleability](https://zips.z.cash/zip-0244)
-- [ZIP-245: Transaction Identifier Digests & Signature Validation for Transparent Zcash Extensions](https://zips.z.cash/zip-0245)
-- [STARK paper](https://eprint.iacr.org/2018/046)
-- [Circle STARKs paper](https://eprint.iacr.org/2024/278)
-- [Stwo prover/verifier](https://github.com/starkware-libs/stwo)
+[^BCP14]: [Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"](https://www.rfc-editor.org/info/bcp14)
+
+[^zip-0222]: [ZIP‑222: Transparent Zcash Extensions (TZE)](https://zips.z.cash/zip-0222)
+
+
+[^zip-0244]: [ZIP-244: Transaction Identifier Non-Malleability](https://zips.z.cash/zip-0244)
+
+[^zip-0245]: [ZIP-245: Transaction Identifier Digests & Signature Validation for Transparent Zcash Extensions](https://zips.z.cash/zip-0245)
+
+[^zip-0317]: [ZIP-317: Proportional Transfer Fee Mechanism](https://zips.z.cash/zip-0317)
+
+[^circle-stark-paper]: [Circle STARKs paper](https://eprint.iacr.org/2024/278)
+
+[^sn-stack]: [Starknet stack](https://www.starknet.io/sn-stack/)
+
+[^cairo-paper]: [Cairo – a Turing-complete STARK-friendly CPU architecture](https://eprint.iacr.org/2021/1063.pdf)
+
+[^stwo]: [Stwo proving system](https://starkware.co/blog/s-two-prover/)
+
+[^stwo-repo]: [Stwo prover and verifier implementation](https://github.com/starkware-libs/stwo)
