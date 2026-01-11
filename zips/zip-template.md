@@ -18,11 +18,11 @@ The key words "MUST", "REQUIRED", "MUST NOT", "SHOULD", and "MAY" in this
 document are to be interpreted as described in BCP 14 [^BCP14] when, and
 only when, they appear in all capitals.
 
-The terms "Mainnet" and "Testnet" in this document are to be interpreted as
-defined in the Zcash protocol specification [^protocol-networks].
+The character § is used when referring to sections of the Zcash Protocol Specification. [^protocol]
 
-The term "full validator" in this document is to be interpreted as defined in
-the Zcash protocol specification [^protocol-blockchain].
+The terms "Mainnet" and "Testnet" are to be interpreted as described in § 3.12 ‘Mainnet and Testnet’. [^protocol-networks]
+
+The term "full validator" in this document is to be interpreted as defined in § 3.3 ‘The Block Chain’. [^protocol-blockchain].
 
 The terms below are to be interpreted as follows:
 
@@ -77,4 +77,8 @@ The terms below are to be interpreted as follows:
 
 [^BCP14]: [Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"](https://www.rfc-editor.org/info/bcp14)
 
-[^protocol]: [Zcash Protocol Specification, Version 2025.6.2 [NU6.1] or later](protocol/protocol.pdf)
+[^protocol]: [Zcash Protocol Specification, Version 2025.6.3 [NU6.1] or later](protocol/protocol.pdf)
+
+[^protocol-blockchain]: [Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.3: The Block Chain](protocol/protocol.pdf#blockchain)
+
+[^protocol]: [Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.12: Mainnet and Testnet](protocol/protocol.pdf#networks)
