@@ -47,6 +47,7 @@ of protocol bundles, and a "value balance" map that describes the effect of
 each bundle on the transparent chain value balance, much in the same fashion
 as the Sapling and Orchard value balance fields have done in the past.
 
+
 Motivation
 ==========
 
@@ -67,20 +68,21 @@ wallet be aware of and be adapted to those changes, and in those cases making a
 major (breaking) transaction version update as we've done in the past is
 appropriate. For many new features, however, it is possible for a wallet to
 continue functioning correctly without having to fully understand a transaction
-using that feature. 
+using that feature.
 
 For example, if TZEs were to be added to the protocol, it wouild be possible
 for wallets to continue operating with transparent/Sapling/Orchard
 functionality, ignoring TZE parts. There is substantial precedent for this sort
 of behavior; transparent-only hardware wallets are currently still important in
 the Zcash ecosystem, and many wallets didn't begin interacting with Orchard
-transaction parts until quite a while after Orchard activation. 
+transaction parts until quite a while after Orchard activation.
 
 After this change to transaction encoding, wallets and other third parties will
 not be required to update their transaction parsers in advance of a network
 upgrade for the introduction of many (and perhaps most) types of new protocol
 features. This will enable the Zcash ecosystem to make smaller and more
 incremental network upgrades without breaking existing wallets.
+
 
 Privacy Implications
 ====================
@@ -93,7 +95,7 @@ be aware of the new format. This information leakage is unavoidable for any
 transaction format change.
 
 In the future, this change may reduce the amount of information leakage, since
-transactions created using the proposed TLV format will include bundles only 
+transactions created using the proposed TLV format will include bundles only
 for those protocols for which the transaction modifies chain state. For example,
 if this transaction format change is deployed in NU7 and NU8 defines a bundle
 type for TZE components, it will not be possible for a chain observer to
@@ -105,6 +107,7 @@ distinguishable.
 In summary, this proposal provides a net improvement in user privacy in
 addition to its other benefits.
 
+
 Requirements
 ============
 
@@ -112,6 +115,9 @@ Requirements
   payment protocols.
 * Movement of value into and out of the transparent value pool(s) can be
   understood with only partial knowledge of the Zcash payment protocols.
+* The information content of transactions should not change as part of
+  this ZIP. Other ZIPs activated along with this ZIP may however make
+  use of it in introducing such changes.
 
 
 Non-requirements
@@ -120,45 +126,6 @@ Non-requirements
 
 Specification
 =============
-
-Sketch of the format:
-- Transaction version (like now)
-    - Version
-    - Version group ID
-- Transaction header
-    - Expiry height etc
-    - Likely need some kind of key-value map here to allow additional fields to be added, or maybe version the header to allow evolution?
-- Transparent transaction value pool "traffic map"
-    - Option 1: BundleVersionID -> (valueBalance, AssetId -> valueBalance)
-        - Key: Bundle version ID
-        - Value:
-            - ZEC `valueBalance`
-            - CompactSize len(generalizedValueBalances)
-            - Zero or more generalized value balances
-                - `AssetId` (not `AssetBase` because those are protocol-specific, and we want generalized value balances to be understandable independently of protocol changes)
-                - `valueBalance`
-    - Option 2: (BundleVersionID, Option[AssetId]) -> valueBalance
-        - Key: Bundle version ID encoded as u8 || { Option[AssetId] }
-        - Value: `valueBalance`
-    - Option 3: BundleVersionID -> Option[AssetId] -> valueBalance
-        - Key: Bundle version ID
-        - Value:
-            - Map containing one or more generalized value balances
-                - { Option[AssetId] }
-                - `valueBalance`
-- Sequence of bundles (maybe with a length prefix?)
-    - Bundle version ID
-        - Flag bits, either in the version ID or next to it, that indicate how an opaquely-parsing wallet should interpret the bundle, e.g.:
-            - A bit that says whether or not the bundle interacts with the transparent transaction value pool (which memo bundles would not have).
-                - Counterpoint: The traffic map already specifies whether a given bundle *does* have an interaction with the transparent tx value pool for this tx. This is different from whether that kind of bundle *can* interact with the transparent tx value pool, but it the latter needed?
-            - A bit that says whether the bundle has any other effect than what is specified in the traffic map.
-                - Counterpoint: We should split apart effecting and authorizing data in the encoding, and then a bundle must be assumed effecting iff it has non-null effecting data.
-    - CompactSize len(effectingData)
-    - effectingData
-    - CompactSize len(authorizingData)
-    - authorizingData
-        - effectingData and authorizingData would be opaque to the initial parser.
-        - Parsers that support parsing (tx_version, bundle_version) know how to interpret its internals
 
 Transaction Format
 ------------------
@@ -182,13 +149,16 @@ Transaction Format
 | 4                           |``nExpiryHeight``             |``uint32``                                      |A block height in the range {1 .. 499999999} after which             |
 |                             |                              |                                                |the transaction will expire, or 0 to disable expiry. [#zip-0203]_    |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
-| **Transparent transaction value pool balance map**                                                                                                                                |
+| **Transaction transparent value pool balance map**                                                                                                                                |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 | varies                      |``nValuePoolDeltas``          |``compactSize``                                 |Number of entries in the ``mValuePoolDeltas`` map.                   |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
-| varies                      |``mValuePoolDeltas``          |``ValuePoolDelta[nValuePoolDeltas]``            |A map describing the change to the transparent value pool produced by| 
+| varies                      |``mValuePoolDeltas``          |``ValuePoolDelta[nValuePoolDeltas]``            |A map describing the change to the transparent value pool produced by|
 |                             |                              |                                                |each bundle. Only bundles that produces changes to the transparent   |
-|                             |                              |                                                |value balance will have corresponding entries in this map.           |
+|                             |                              |                                                |value balance will have corresponding entries in this map. For       |
+|                             |                              |                                                |bundles that have no data except for a value, such as the ZIP 233    |
+|                             |                              |                                                |amount, no additional bundle data will be present in the ``Bundles`` |
+|                             |                              |                                                |section.                                                             |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 | **Bundles**                                                                                                                                                                       |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
@@ -210,12 +180,24 @@ ValuePoolDelta
 | 1                           |``assetClass``                |``uint8``                                       |An asset class identifier. 0 for the ZEC asset, nonzero for any      |
 |                             |                              |                                                |other asset type.                                                    |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
-| varies                      |``assetId``                   |``byte[varies]``                                |If `assetClass == 0`, the zero-length byte array, otherwise a byte   |
-|                             |                              |                                                |containing the asset ID for the asset. The length of this array      |
-|                             |                              |                                                |depends on the asset class; ordinarily it will be 32 bytes.          |
+| one of {0, 32}              |``assetId``                   |``byte[0] or byte[32]``                         |If `assetClass == 0`, the zero-length byte array, otherwise a byte   |
+|                             |                              |                                                |array containing the 32-byte asset ID for the asset.                 |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
-| 8                           |``value``                     |``int64``                                       |The net change to the transparent value pool produced by the bundle  |
-|                             |                              |                                                |corresponding to the bundle type identifier.                         |
+| 8                           |``value``                     |``int64``                                       |The net change to the transparent value pool of the given asset      | 
+|                             |                              |                                                |produced by the bundle corresponding to the bundle type identifier.  |
++-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
+
+BundleDescription
+-----------------
+
++-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
+| Bytes                       | Name                         | Data Type                                      | Description                                                         |
++=============================+==============================+================================================+=====================================================================+
+| 1                           |``bundleType``                |``uint8``                                       |A bundle type identifier.                                            |
++-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
+| varies                      |``nBundleLength``             |``compactSize``                                 |The length of the ``vBundleData`` byte array.                        |
++-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
+| varies                      |``vBundleData``               |``byte[nBundleLength]``                         |The bundle data.                                                     |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 
 
@@ -350,7 +332,7 @@ Loss of funds is unacceptable. Temporary inaccessibility of funds in certain cir
 
 Modify how we approach transaction format evolution, such that (after one more change to transaction encoding) it is possible for a wallet that has not adopted a parser for a given transaction format to continue to function after an *additive* change to the transaction format. Another way to state this is that we should make it possible to make "semver-compatible" transaction format changes.
 
-- @str4d: We could use a TLV approach where each "bundle" has a value balance. The NSM burn amount field could be its own bundle, the explicit fee data could be its own bundle and the consensus rule could be that all value balances sum to zero. 
+- @str4d: We could use a TLV approach where each "bundle" has a value balance. The NSM burn amount field could be its own bundle, the explicit fee data could be its own bundle and the consensus rule could be that all value balances sum to zero.
     - generically, you want a value balance vector, where you have zero or more value balances moving between bundles in other assets.
 
 - @nuttycom: You could have pre-ZSA and post-ZSA Orchard bundles.
@@ -382,13 +364,23 @@ Sketch of the format:
     - Expiry height etc
     - Likely need some kind of key-value map here to allow additional fields to be added, or maybe version the header to allow evolution?
 - Transparent transaction value pool "traffic map"
-    - Key: Bundle version ID
-    - Value:
-        - ZEC `valueBalance`
-        - CompactSize len(generalizedValueBalances)
-        - Zero or more generalized value balances
-            - `AssetId` (not `AssetBase` because those are protocol-specific, and we want generalized value balances to be understandable independently of protocol changes)
-            - `valueBalance`
+    - Option 1: BundleVersionID -> (valueBalance, AssetId -> valueBalance)
+        - Key: Bundle version ID
+        - Value:
+            - ZEC `valueBalance`
+            - CompactSize len(generalizedValueBalances)
+            - Zero or more generalized value balances
+                - `AssetId` (not `AssetBase` because those are protocol-specific, and we want generalized value balances to be understandable independently of protocol changes)
+                - `valueBalance`
+    - Option 2: (BundleVersionID, Option[AssetId]) -> valueBalance
+        - Key: Bundle version ID encoded as u8 || { Option[AssetId] }
+        - Value: `valueBalance`
+    - Option 3: BundleVersionID -> Option[AssetId] -> valueBalance
+        - Key: Bundle version ID
+        - Value:
+            - Map containing one or more generalized value balances
+                - { Option[AssetId] }
+                - `valueBalance`
 - Sequence of bundles (maybe with a length prefix?)
     - Bundle version ID
         - Flag bits, either in the version ID or next to it, that indicate how an opaquely-parsing wallet should interpret the bundle, e.g.:
