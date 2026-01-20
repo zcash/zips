@@ -118,6 +118,17 @@ Requirements
 * The information content of transactions should not change as part of
   this ZIP. Other ZIPs activated along with this ZIP may however make
   use of it in introducing such changes.
+* It must be possible for wallets to parse any transaction that is valid within
+  a version group that it understands, even if it doesn't have handling for or
+  understand all of the bundle types that are valid for that version group. In
+  such a situation, however, such a wallet must still be able to accurately
+  describe any transparent movement of funds effected by the transaction, and
+  alert the user if the transaction contains bundles that it does not
+  understand.
+* It must be possible for a wallet to correctly construct and sign transactions
+  for a given transaction version group that it understands, even if it doesn't
+  have handling for or understand all of the bundle types that are valid for
+  transactions in that version group.
 
 
 Non-requirements
@@ -164,10 +175,12 @@ Transaction Format
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 | varies                      |``nBundles``                  |``compactSize``                                 |Number of bundles in the transaction that have per-bundle data.      |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
-| varies                      |``vBundles``                  |``BundleDescription[nBundles]``                 |A sequence of Bundle descriptions.                                   |
+| varies                      |``vBundles``                  |``Bundle[nBundles]``                            |A sequence of ``Bundle`` values.                                     |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 
-* `vBundles` MUST NOT contain duplicate `BundleDescription.
+``mValuePoolDeltas`` MUST NOT contain more than a single entry for a given
+``(bundleType, assetClass, assetId)`` tuple, which is treated as the "key" of
+the map.
 
 ValuePoolDelta
 --------------
@@ -175,76 +188,109 @@ ValuePoolDelta
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 | Bytes                       | Name                         | Data Type                                      | Description                                                         |
 +=============================+==============================+================================================+=====================================================================+
-| 1                           |``bundleType``                |``uint8``                                       |A bundle type identifier.                                            |
+| varies                      |``bundleType``                |``compactSize``                                 |An encoding of the bundle type identifier.                           |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
-| 1                           |``assetClass``                |``uint8``                                       |An asset class identifier. 0 for the ZEC asset, nonzero for any      |
-|                             |                              |                                                |other asset type.                                                    |
+| 1                           |``assetClass``                |``uint8``                                       |An asset class identifier. 0x00 for the ZEC asset, 0x01 for ZSA      |
+|                             |                              |                                                |assets. All other values are reserved for future use.                |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 | one of {0, 32}              |``assetId``                   |``byte[0] or byte[32]``                         |If `assetClass == 0`, the zero-length byte array, otherwise a byte   |
 |                             |                              |                                                |array containing the 32-byte asset ID for the asset.                 |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
-| 8                           |``value``                     |``int64``                                       |The net change to the transparent value pool of the given asset      | 
+| 8                           |``value``                     |``nonzero int64``                               |The net change to the transparent value pool of the given asset      |
 |                             |                              |                                                |produced by the bundle corresponding to the bundle type identifier.  |
+|                             |                              |                                                |This value MUST be nonzero; if a ``ValuePoolDelta`` record would     |
+|                             |                              |                                                |have zero value, it MUST be elided from the encoding                 |
+|                             |                              |                                                |of ``mValuePoolDeltas`` instead.                                     |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 
-BundleDescription
------------------
+Bundle
+------
 
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 | Bytes                       | Name                         | Data Type                                      | Description                                                         |
 +=============================+==============================+================================================+=====================================================================+
-| 1                           |``bundleType``                |``uint8``                                       |A bundle type identifier.                                            |
+| varies                      |``bundleType``                |``compactSize``                                 |An encoding of the bundle type identifier.                           |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
-| varies                      |``nBundleLength``             |``compactSize``                                 |The length of the ``vBundleData`` byte array.                        |
+| varies                      |``nBundleEffectsLen``         |``compactSize``                                 |The length of the ``vBundleEffectsData`` byte array.                 |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
-| varies                      |``vBundleData``               |``byte[nBundleLength]``                         |The bundle data.                                                     |
+| varies                      |``vBundleEffectsData``        |``byte[nBundleEffectsLen]``                     |The "effecting" data for the bundle. This consists of any            |
+|                             |                              |                                                |information in the bundle that induces a state change in the         |
+|                             |                              |                                                |blockchain and must therefore be committed to by the txid.           |
++-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
+| varies                      |``nBundleAuthLen``            |``compactSize``                                 |The length of the ``vBundleAuthData`` byte array.                    |
++-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
+| varies                      |``vBundleAuthData``           |``byte[nBundleAuthLen]``                        |The authorizing data for the bundle.                                 |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 
 
-## Bundle version ID Registry
+Bundle type identifier ID Registry
+----------------------------------
 
-+------------------------------+----------------------+-------------------------------------------------------------+
-| Can appear in value pool map | Can have bundle data | Bundle kind                                                 |
-+==============================+======================+=============================================================+
-|✅                            |❌                    | Transaction fee                                             |
-+------------------------------+----------------------+-------------------------------------------------------------+
-|✅                            |❌                    | ZIP 233 NSM field                                           |
-+------------------------------+----------------------+-------------------------------------------------------------+
-|✅                            |✅                    | Transparent                                                 |
-+------------------------------+----------------------+-------------------------------------------------------------+
-|✅                            |✅                    | Sapling-pre-ZIP 231 (if ZIP 231 activated after this ZIP)   |
-+------------------------------+----------------------+-------------------------------------------------------------+
-|✅                            |✅                    | Orchard-pre-ZIP 231                                         |
-+------------------------------+----------------------+-------------------------------------------------------------+
-|✅                            |✅                    | Sapling-post-ZIP 231 (if ZIP 231 activated after this ZIP)  |
-+------------------------------+----------------------+-------------------------------------------------------------+
-|✅                            |✅                    | Orchard-post-ZIP 231                                        |
-+------------------------------+----------------------+-------------------------------------------------------------+
-|✅                            |✅                    | OrchardZSA                                                  |
-+------------------------------+----------------------+-------------------------------------------------------------+
-|✅                            |✅                    | TZEs                                                        |
-+------------------------------+----------------------+-------------------------------------------------------------+
-|❌                            |✅                    | ZIP 231 Memos                                               |
-+------------------------------+----------------------+-------------------------------------------------------------+
-|✅                            |✅                    | ZSA Issuance                                                |
-+------------------------------+----------------------+-------------------------------------------------------------+
-|❌                            |✅                    | Key rotation                                                |
-+------------------------------+----------------------+-------------------------------------------------------------+
-|✅                            |✅                    | Lockbox disbursement / "Consensus accounts"                 |
-|                              |                      | (for miner payouts, lockbox, etc)                           |
-+------------------------------+----------------------+-------------------------------------------------------------+
-|✅                            |✅                    | Pool that only has a long-term storage protocol (PQ, very   |
-|                              |                      | simple thus insulated from counterfeiting fears, can be     |
-|                              |                      | used for payments but higher latency for that purpose)      |
-+------------------------------+----------------------+-------------------------------------------------------------+
-|✅                            |✅                    | Tachyon                                                     |
-+------------------------------+----------------------+-------------------------------------------------------------+
-|✅                            |✅                    | Staking                                                     |
-+------------------------------+----------------------+-------------------------------------------------------------+
-|✅                            |✅                    | Unstaking (if it can't be combined with the Staking bundle) |
-+------------------------------+----------------------+-------------------------------------------------------------+
-|✅                            |✅                    | Post-quantum fast payment protocol                          |
-+------------------------------+----------------------+-------------------------------------------------------------+
+The following integers are registered as bundle type identifiers for the V6
+transaction format. All currently-defined IDs are encoded as single-byte
+``CompactSize`` values where they appear in the transaction format.
+
+The "Can appear in ``mValuePoolDeltas``" column indicates whether or not an
+entry for this value type is allowed to appear in ``mValuePoolDeltas``. For
+rows where an ❌ is present, the value pool delta for every pool is guaranteed
+to be zero, and so entries in ``mValuePoolDeltas`` are disallowed.
+
+The "Can appear in ``vBundles``" column indicates whether or not an entry for
+this value type is allowed to appear in ``vBundles``. For rows where an ❌ is
+present, the bundle is guaranteed to have no effecting or authorizing data, and
+so no entry in ``vBundles`` is permitted.
+
++------------+------------------------------------+----------------------------+-------------------------------------------------------------+
+| BundleType | Can appear in ``mValuePoolDeltas`` | Can appear in ``vBundles`` | Bundle kind                                                 |
++============+====================================+============================+=============================================================+
+| 0          |✅                                  |✅                          | Transparent                                                 |
++------------+------------------------------------+----------------------------+-------------------------------------------------------------+
+| 1          |✅                                  |✅                          | Reserved                                                    |
++------------+------------------------------------+----------------------------+-------------------------------------------------------------+
+| 2          |✅                                  |✅                          | Sapling                                                     |
++------------+------------------------------------+----------------------------+-------------------------------------------------------------+
+| 3          |✅                                  |✅                          | Orchard                                                     |
++------------+------------------------------------+----------------------------+-------------------------------------------------------------+
+| 4*         |✅                                  |❌                          | Transaction fee (*if ZIP 2002 activated)                    |
++------------+------------------------------------+----------------------------+-------------------------------------------------------------+
+| 5*         |✅                                  |❌                          | ZIP 233 NSM field (*if ZIP 233 activated)                   |
++------------+------------------------------------+----------------------------+-------------------------------------------------------------+
+| 6*         |❌                                  |✅                          | ZIP 270 Key rotation (*if ZIP 270 activated)                |
++------------+------------------------------------+----------------------------+-------------------------------------------------------------+
+| 7*         |✅                                  |✅                          | Lockbox disbursement / "Consensus accounts"                 |
+|            |                                    |                            | (*for miner payouts, lockbox, etc if ZIP activated)         |
++------------+------------------------------------+----------------------------+-------------------------------------------------------------+
+|            |❌                                  |✅                          | ZIP 231 Memos                                               |
++------------+------------------------------------+----------------------------+-------------------------------------------------------------+
+|            |✅                                  |✅                          | Sapling-post-ZIP 231 (if ZIP 231 activated after this ZIP)  |
++------------+------------------------------------+----------------------------+-------------------------------------------------------------+
+|            |✅                                  |✅                          | Orchard-post-ZIP 231 (if ZIP 231 activated after this ZIP)  |
++------------+------------------------------------+----------------------------+-------------------------------------------------------------+
+|            |✅                                  |✅                          | ZSA Issuance                                                |
++------------+------------------------------------+----------------------------+-------------------------------------------------------------+
+|            |✅                                  |✅                          | OrchardZSA                                                  |
++------------+------------------------------------+----------------------------+-------------------------------------------------------------+
+
+The following entries are provided to illustrate how potential future upgrades
+might affect the value pool delta map.
+
++------------+------------------------------------+----------------------------+-------------------------------------------------------------+
+| BundleType | Can appear in ``mValuePoolDeltas`` | Can appear in ``vBundles`` | Bundle kind                                                 |
++============+====================================+============================+=============================================================+
+|            |✅                                  |✅                          | TZEs                                                        |
++------------+------------------------------------+----------------------------+-------------------------------------------------------------+
+|            |✅                                  |✅                          | Pool that only has a long-term storage protocol (PQ, very   |
+|            |                                    |                            | simple thus insulated from counterfeiting fears, can be     |
+|            |                                    |                            | used for payments but higher latency for that purpose)      |
++------------+------------------------------------+----------------------------+-------------------------------------------------------------+
+|            |✅                                  |✅                          | Tachyon                                                     |
++------------+------------------------------------+----------------------------+-------------------------------------------------------------+
+|            |✅                                  |✅                          | Staking                                                     |
++------------+------------------------------------+----------------------------+-------------------------------------------------------------+
+|            |✅                                  |✅                          | Unstaking (if it can't be combined with the Staking bundle) |
++------------+------------------------------------+----------------------------+-------------------------------------------------------------+
+|            |✅                                  |✅                          | Post-quantum fast payment protocol                          |
++------------+------------------------------------+----------------------------+-------------------------------------------------------------+
 
 Rationale
 =========
@@ -263,36 +309,6 @@ Reference implementation
 Open issues
 ===========
 
-Design Considerations
-=====================
-
-It is okay that a wallet might not be able to see parts of the transaction that
-depend on new features, as long as they do not create such parts themselves.
-
-If a wallet needs to actively do something differently (for example,
-advertizing addresses in a new format or creating an output with a TZE
-precondition) in order to be affected by a new feature, then it is reasonably
-safe for it to ignore the feature as long as it can still parse transactions
-and, and create and sign transactions that don't make use of those features.
-
-Wallets or consensus-dependent applications that send transactions might do
-something wrong that compromises user funds or privacy if they do not take into
-account consensus changes in an upgrade. In particular, consensus rules may
-change in such a way that a wallet doing what it has done in the past causes
-risk of loss of funds, and in those cases, major transaction version bumps will
-still be required. An example of this was [ZIP
-212](https://zips.z.cash/zip-0212). In that case the existing mechanisms failed
-to prevent loss of funds because in practice, wallets updated the consensus
-branch ID without updating note encryption. In this case we made the mistake of
-requiring wallets to change their behaviour for an existing transaction
-version. Except for certain cases involving severe security flaws, we can avoid
-doing that again.
-
-Loss of funds is unacceptable. Temporary inaccessibility of funds in certain
-circumstances can be okay -- provided that this potential inaccessiblity and
-the circumstances where it can occur is documented and an explicit design
-decision.
-
 References
 ==========
 
@@ -306,102 +322,167 @@ References
 
 
 
+Notes from design sessions
+==========================
 
+This section should be removed as soon as all the considerations described here
+are accounted for in ZIP.
 
----
+Wallets or consensus-dependent applications that send transactions, might do
+something wrong that compromises user funds or privacy if they do not take into
+account consensus changes in an upgrade; therefore, only a subset of consensus
+changes can be safely adapted to using this mechanism.
 
-# Notes on consensus branch ID & transaction format updates
+In particular, consensus rules may change in such a way that a wallet doing
+what it has done in the past causes risk of loss of funds.
 
-Wallets or consensus-dependent applications that send transactions, might do something wrong that compromises user funds or privacy if they do not take into account consensus changes in an upgrade.
+An example of this was [ZIP 212](https://zips.z.cash/zip-0212). In that case
+the existing mechanisms failed to prevent loss of funds because in practice,
+wallets updated the consensus branch ID without updating note encryption. We
+made the mistake of requiring wallets to change their behaviour for an existing
+transaction version. Except for certain cases involving severe security flaws,
+we should avoid doing that again.
 
-In particular, consensus rules may change in such a way that a wallet doing what it has done in the past causes risk of loss of funds.
+If a wallet needs to actively do something differently (for example,
+advertizing addresses in a new format or creating an output with a TZE
+precondition) in order to be affected by a new feature, then it is reasonably
+safe for it to ignore the feature as long as it can still parse transactions
+and, and create and sign transactions that don't make use of those features.
 
-An example of this was [ZIP 212](https://zips.z.cash/zip-0212). In that case the existing mechanisms failed to prevent loss of funds because in practice, wallets updated the consensus branch ID without updating note encryption.
+It is okay that such a wallet might not be able to see funds that depend on new
+features, as long as they do not create such funds themselves.
 
-> We made the mistake of requiring wallets to change their behaviour for an existing transaction version. Except for certain cases involving severe security flaws, we can avoid doing that again.
+Loss of funds is unacceptable. Temporary inaccessibility of funds in certain
+circumstances can be okay -- provided that this potential inaccessiblity and
+the circumstances where it can occur is documented and an explicit design
+decision.
 
-For some new features, it might be possible for a wallet to continue functioning correctly without having to fully understand a transaction using that feature. For instance, if a wallet needs to actively do something differently (for example, advertizing addresses in a new format or creating an output with a TZE precondition) in order to be affected by a new feature, then it is reasonably safe for it to ignore the feature as long as it can still parse transactions and sign them.
+Strawman
+--------
 
-For example, if TZEs were to be added, it might be possible for wallets to continue operating with transparent/Sapling/Orchard functionality, ignoring TZE parts. There is some precedent for this as many wallets didn't begin interacting with Orchard transaction parts until quite a while after Orchard activation.
+Modify how we approach transaction format evolution, such that (after one more
+change to transaction encoding) it is possible for a wallet that has not
+adopted a parser for a given transaction format to continue to function after
+an *additive* change to the transaction format. Another way to state this is
+that we should make it possible to make "semver-compatible" transaction format
+changes.
 
-It is okay that such a wallet might not be able to see funds that depend on new features, as long as they do not create such funds themselves.
+* @str4d: We could use a TLV approach where each "bundle" has a value balance.
+  The NSM burn amount field could be its own bundle, the explicit fee data
+  could be its own bundle and the consensus rule could be that all value
+  balances sum to zero.
+    * generically, you want a value balance vector, where you have zero or more
+      value balances moving between bundles in other assets.
 
-Loss of funds is unacceptable. Temporary inaccessibility of funds in certain circumstances can be okay -- provided that this potential inaccessiblity and the circumstances where it can occur is documented and an explicit design decision.
+* @nuttycom: You could have pre-ZSA and post-ZSA Orchard bundles.
 
-## Strawman
-
-Modify how we approach transaction format evolution, such that (after one more change to transaction encoding) it is possible for a wallet that has not adopted a parser for a given transaction format to continue to function after an *additive* change to the transaction format. Another way to state this is that we should make it possible to make "semver-compatible" transaction format changes.
-
-- @str4d: We could use a TLV approach where each "bundle" has a value balance. The NSM burn amount field could be its own bundle, the explicit fee data could be its own bundle and the consensus rule could be that all value balances sum to zero.
-    - generically, you want a value balance vector, where you have zero or more value balances moving between bundles in other assets.
-
-- @nuttycom: You could have pre-ZSA and post-ZSA Orchard bundles.
-
-## Strawman II
+Strawman II
+-----------
 
 Treat bundles as individually versioned.
-- Each bundle is registered with an ID relative to a tx version group ID.
-- The bundle ID encoding also has some flag bits indicating how it interacts with the tx as a whole.
-- Transactions then have two "bundle maps":
-    - The first encodes how value moves between the different bundles.
-    - The second encodes data specific to a bundle (e.g. how value moves within a bundle)
-    - Bundles that don't have any data would just appear in the first map, and bundles that don't produce or consume value would just appear in the second map.
-- We can re-interpret various other facets of transactions as "bundles"
-    - Explicit fees are a bundle that never produces value
-    - NSM field similarly never produces value
-    - ZSA burns would be split into "value balance out of Orchard pool" and "value balance being removed from ZSA issuance"
-    - See also the conversation we had about refactoring coinbase transactions. TODO: Figure out how to integrate the two.
-- Privacy effect is minimal
-    - We already follow a bundle approach with a transparent transaction value pool, for the turnstiles. This leans into it, while preserving the bundle boundary within which we implement each privacy protocol.
-    - Some combinations of bundles would be permitted by the tx format that were not previously permitted.
-        - However, we can still restrict which combinations of bundles can be mined in the consensus rules.
+* Each bundle is registered with an ID relative to a tx version group ID.
+* The bundle ID encoding also has some flag bits indicating how it interacts
+  with the tx as a whole.
+* Transactions then have two "bundle maps":
+    * The first encodes how value moves between the different bundles.
+    * The second encodes data specific to a bundle (e.g. how value moves within a bundle)
+    * Bundles that don't have any data would just appear in the first map, and
+      bundles that don't produce or consume value would just appear in the
+      second map.
+* We can re-interpret various other facets of transactions as "bundles"
+    * Explicit fees are a bundle that never produces value
+    * NSM field similarly never produces value
+    * ZSA burns would be split into "value balance out of Orchard pool" and
+      "value balance being removed from ZSA issuance"
+    * See also the conversation we had about refactoring coinbase transactions.
+      TODO: Figure out how to integrate the two.
+* Privacy effect is minimal
+    * We already follow a bundle approach with a transparent transaction value
+      pool, for the turnstiles. This leans into it, while preserving the bundle
+      boundary within which we implement each privacy protocol.
+    * Some combinations of bundles would be permitted by the tx format that
+      were not previously permitted.
+        * However, we can still restrict which combinations of bundles can be
+          mined in the consensus rules.
 
 Sketch of the format:
-- Transaction version (like now)
-    - Version
-    - Version group ID
-- Transaction header
-    - Expiry height etc
-    - Likely need some kind of key-value map here to allow additional fields to be added, or maybe version the header to allow evolution?
-- Transparent transaction value pool "traffic map"
-    - Option 1: BundleVersionID -> (valueBalance, AssetId -> valueBalance)
-        - Key: Bundle version ID
-        - Value:
-            - ZEC `valueBalance`
-            - CompactSize len(generalizedValueBalances)
-            - Zero or more generalized value balances
-                - `AssetId` (not `AssetBase` because those are protocol-specific, and we want generalized value balances to be understandable independently of protocol changes)
-                - `valueBalance`
-    - Option 2: (BundleVersionID, Option[AssetId]) -> valueBalance
-        - Key: Bundle version ID encoded as u8 || { Option[AssetId] }
-        - Value: `valueBalance`
-    - Option 3: BundleVersionID -> Option[AssetId] -> valueBalance
-        - Key: Bundle version ID
-        - Value:
-            - Map containing one or more generalized value balances
-                - { Option[AssetId] }
-                - `valueBalance`
-- Sequence of bundles (maybe with a length prefix?)
-    - Bundle version ID
-        - Flag bits, either in the version ID or next to it, that indicate how an opaquely-parsing wallet should interpret the bundle, e.g.:
-            - A bit that says whether or not the bundle interacts with the transparent transaction value pool (which memo bundles would not have).
-                - Counterpoint: The traffic map already specifies whether a given bundle *does* have an interaction with the transparent tx value pool for this tx. This is different from whether that kind of bundle *can* interact with the transparent tx value pool, but it the latter needed?
-            - A bit that says whether the bundle has any other effect than what is specified in the traffic map.
-                - Counterpoint: We should split apart effecting and authorizing data in the encoding, and then a bundle must be assumed effecting iff it has non-null effecting data.
-    - CompactSize len(effectingData)
-    - effectingData
-    - CompactSize len(authorizingData)
-    - authorizingData
-        - effectingData and authorizingData would be opaque to the initial parser.
-        - Parsers that support parsing (tx_version, bundle_version) know how to interpret its internals
+* Transaction version (like now)
+    * Version
+    * Version group ID
+* Transaction header
+    * Expiry height etc
+    * Likely need some kind of key-value map here to allow additional fields to
+      be added, or maybe version the header to allow evolution?
+* Transparent transaction value pool "traffic map"
+    * Option 1: BundleVersionID -> (valueBalance, AssetId -> valueBalance)
+        * Key: Bundle version ID
+        * Value:
+            * ZEC `valueBalance`
+            * CompactSize len(generalizedValueBalances)
+            * Zero or more generalized value balances
+                * `AssetId` (not `AssetBase` because those are
+                  protocol-specific, and we want generalized value balances to
+                  be understandable independently of protocol changes)
+                * `valueBalance`
+    * Option 2: (BundleVersionID, Option[AssetId]) -> valueBalance
+        * Key: Bundle version ID encoded as u8 || { Option[AssetId] }
+        * Value: `valueBalance`
+    * Option 3: BundleVersionID -> Option[AssetId] -> valueBalance
+        * Key: Bundle version ID
+        * Value:
+            * Map containing one or more generalized value balances
+                * { Option[AssetId] }
+                * `valueBalance`
+* Sequence of bundles (maybe with a length prefix?)
+    * Bundle version ID
+        * Maybe flag bits, either in the version ID or next to it, that
+          indicate how an opaquely-parsing wallet should interpret the bundle,
+          e.g.:
+            * A bit that says whether or not the bundle interacts with the
+              transparent transaction value pool (which memo bundles would not
+              have).
+                * Counterpoint: The traffic map already specifies whether a
+                  given bundle *does* have an interaction with the transparent
+                  tx value pool for this tx. This is different from whether
+                  that kind of bundle *can* interact with the transparent tx
+                  value pool, but it the latter needed?
+            * A bit that says whether the bundle has any other effect than what
+              is specified in the traffic map.
+                * Counterpoint: We should split apart effecting and authorizing
+                  data in the encoding, and then a bundle must be assumed
+                  effecting iff it has non-null effecting data.
+    * CompactSize len(effectingData)
+    * effectingData
+    * CompactSize len(authorizingData)
+    * authorizingData
+        * effectingData and authorizingData would be opaque to the initial
+          parser.
+        * Parsers that support parsing (tx_version, bundle_version) know how to
+          interpret its internals
 
-Questions:
-- Is it okay for fee calculations to be opaque to wallet parsers, as long as the fee amounts can be calculated in consensus?
-    - Yes:
-        - When receiving, all you care about is knowing the actual fee amount; you see that in the fee bundle's value balance.
-        - When sending, you need to understand all bundles you are including, and then you can calculate the fee.
-- Can wallets still compute the txid and wtxid of an arbitrary transaction?
-    - Yes, provided that effecting and authorizing data is separated. Then they can hash the effecting data even without understanding it to compute the txid, and they can hash the authorizing data even without understanding it to compute the authorizing data commitment part of the wtxid [[ZIP 239]](https://zips.z.cash/zip-0239).
-    - *However*, this reintroduces a more direct linkage between the [w]txid computation and the transaction encoding. It's arguably fine, and potentially simpler -- since the [w]txid computation need not change at all for most protocol changes.
-    - If the hashing uses flat hashes over the effectingData and authorizingData of each bundle (which it has to because the internal structure is not known), then it might be more difficult to do Merkle proofs over subsets of the data within a bundle. We haven't used that so far; is it really needed?
+Questions
+---------
+
+* Is it okay for fee calculations to be opaque to wallet parsers, as long as
+  the fee amounts can be calculated in consensus?
+    * Yes:
+        * When receiving, all you care about is knowing the actual fee amount;
+          you see that in the fee bundle's value balance.
+        * When sending, you need to understand all bundles you are including,
+          and then you can calculate the fee.
+* Can wallets still compute the txid and wtxid of an arbitrary transaction?
+    * Yes, provided that effecting and authorizing data is separated. Then they
+      can hash the effecting data even without understanding it to compute the
+      txid, and they can hash the authorizing data even without understanding
+      it to compute the authorizing data commitment part of the wtxid [[ZIP
+      239]](https://zips.z.cash/zip-0239).
+    * *However*, this reintroduces a more direct linkage between the [w]txid
+      computation and the transaction encoding. It's arguably fine, and
+      potentially simpler -- since the [w]txid computation need not change at
+      all for most protocol changes.
+    * If the hashing uses flat hashes over the effectingData and
+      authorizingData of each bundle (which it has to because the internal
+      structure is not known), then it might be more difficult to do Merkle
+      proofs over subsets of the data within a bundle. We haven't used that so
+      far; is it really needed?
 
