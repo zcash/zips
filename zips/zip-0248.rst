@@ -178,10 +178,19 @@ Transaction Format
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 | **Bundles**                                                                                                                                                                       |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
-| varies                      |``nBundles``                  |``compactSize``                                 |Number of bundles in the transaction that have per-bundle data.      |
+| varies                      |``nEffectBundles``            |``compactSize``                                 |Number of bundles in the transaction that have per-bundle data.      |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
-| varies                      |``vBundles``                  |``Bundle[nBundles]``                            |A sequence of ``Bundle`` values.                                     |
+| varies                      |``mEffectBundles``            |``BundleData[nEffectBundles]``                  |A map from bundle identifier to the effecting data of a bundle.      |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
+| varies                      |``nAuthBundles``              |``compactSize``                                 |Number of bundles in the transaction that have per-bundle data.      |
++-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
+| varies                      |``mAuthBundles``              |``BundleData[nAuthBundles]``                    |A map from bundle identifier to the authorizing data of a bundle.    |
++-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
+
+``mEffectBundles`` and ``mAuthBundles`` are interpreted as a maps keyed by
+bundle type. Each map MUST NOT contain more than a single entry for a given
+key. For each key that exists in ``mAuthBundles``, a corresponding entry
+must exist in ``mEffectBundles``.
 
 ValuePoolDelta
 --------------
@@ -191,11 +200,12 @@ ValuePoolDelta
 +=============================+==============================+================================================+=====================================================================+
 | varies                      |``bundleType``                |``compactSize``                                 |An encoding of the bundle type identifier.                           |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
-| 1                           |``assetClass``                |``uint8``                                       |An asset class identifier. 0x00 for the ZEC asset, 0x01 for ZSA      |
-|                             |                              |                                                |assets. All other values are reserved for future use.                |
+| 1                           |``assetClass``                |``uint8``                                       |An asset class identifier. 0x00 for the ZEC asset, 0x01 for other    |
+|                             |                              |                                                |assets.                                                              |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
-| one of {0, 32}              |``assetId``                   |``byte[0] or byte[32]``                         |If `assetClass == 0`, the zero-length byte array, otherwise a byte   |
-|                             |                              |                                                |array containing the 32-byte asset ID for the asset.                 |
+| one of {0, 64}              |``assetUuid``                 |``byte[0] or byte[64]``                         |If `assetClass == 0`, the zero-length byte array, otherwise a byte   |
+|                             |                              |                                                |array containing a universally unique 64-byte identifier for the     |
+|                             |                              |                                                |asset.                                                               |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 | 8                           |``value``                     |``nonzero int64``                               |The net change to the transparent value pool of the given asset      |
 |                             |                              |                                                |produced by the bundle corresponding to the bundle type identifier.  |
@@ -204,37 +214,35 @@ ValuePoolDelta
 |                             |                              |                                                |of ``mValuePoolDeltas`` instead.                                     |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 
-In definitions below, $[0]^{32}$ is treated as the asset identifier for the ZEC asset.
+``mValuePoolDeltas`` is interpreted as a map keyed by the tuple
+$(\mathsf{BundleType}, \mathsf{AssetUuid}).$ The map MUST NOT contain more than
+a single entry for a given key. Lookups in this map are denoted with the
+syntax $\mathsf{mValuePoolDeltas}[(\mathsf{BundleType}, \mathsf{AssetUuid})].$
+
+Let $\mathsf{AssetUuid}_\mathsf{d}$ be the asset indicated by the ``mValuePoolDeltas`` entry $\mathsf{d}.$
 
 .. math::
 
-    \mathsf{AssetId} =
+    \mathsf{AssetUuid} =
     \begin{cases}
-       [0]^{32} & \text{if } \mathsf{assetClass} = 0 \\
-       \mathsf{assetId} & \text{otherwise}
+       \mathsf{Zec} & \text{if } \mathsf{d}.\mathsf{assetClass} = 0 \\
+       \mathsf{d}.\mathsf{assetUuid} & \text{if } \mathsf{d}.\mathsf{assetClass} = 1 \\
+       \bot \text{otherwise}
     \end{cases}
 
-``mValuePoolDeltas`` is interpreted as a map keyed by the tuple
-$(\mathsf{BundleType}, \mathsf{AssetId})$. The map MUST NOT contain more than
-a single entry for a given key.
-
-Bundle
-------
+BundleData
+----------
 
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 | Bytes                       | Name                         | Data Type                                      | Description                                                         |
 +=============================+==============================+================================================+=====================================================================+
 | varies                      |``bundleType``                |``compactSize``                                 |An encoding of the bundle type identifier.                           |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
-| varies                      |``nBundleEffectsLen``         |``compactSize``                                 |The length of the ``vBundleEffectsData`` byte array.                 |
+| varies                      |``nBundleDataLen``            |``compactSize``                                 |The length of the ``vBundleData`` byte array.                        |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
-| varies                      |``vBundleEffectsData``        |``byte[nBundleEffectsLen]``                     |The "effecting" data for the bundle. This consists of any            |
-|                             |                              |                                                |information in the bundle that induces a state change in the         |
-|                             |                              |                                                |blockchain and must therefore be committed to by the txid.           |
-+-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
-| varies                      |``nBundleAuthLen``            |``compactSize``                                 |The length of the ``vBundleAuthData`` byte array.                    |
-+-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
-| varies                      |``vBundleAuthData``           |``byte[nBundleAuthLen]``                        |The authorizing data for the bundle.                                 |
+| varies                      |``vBundleData``               |``byte[nBundleDataLen]``                        |The effecting or authorizing data for the bundle, dependent upon     |
+|                             |                              |                                                |whether the ``BundleData`` occurs in ``mEffectBundles`` or           |
+|                             |                              |                                                |``mAuthBundles``.                                                    |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 
 
@@ -245,106 +253,123 @@ The following integers are registered as bundle type identifiers for the V6
 transaction format. All currently-defined IDs are encoded as single-byte
 ``CompactSize`` values where they appear in the transaction format.
 
-The "Can appear in ``mValuePoolDeltas``" column indicates whether or not an
-entry for this value type is allowed to appear in ``mValuePoolDeltas``. For
-rows where an ❌ is present, the value pool delta for every pool is guaranteed
-to be zero, and so entries in ``mValuePoolDeltas`` are disallowed.
+The ``mValuePoolDeltas`` column indicates whether or not an entry for this
+value type is allowed to appear in ``mValuePoolDeltas``. For rows where an ❌
+is present, the value pool delta for every pool is guaranteed to be zero, and
+so entries in ``mValuePoolDeltas`` are disallowed.
 
-The "Can appear in ``vBundles``" column indicates whether or not an entry for
-this value type is allowed to appear in ``vBundles``. For rows where an ❌ is
+The ``mEffectBundles`` column indicates whether or not an entry for this value
+type is allowed to appear in ``mEffectBundles``. For rows where an ❌ is
 present, the bundle is guaranteed to have no effecting or authorizing data, and
-so no entry in ``vBundles`` is permitted.
+so no entry in ``mEffectBundles`` is permitted.
 
-+------------+------------------------------------+----------------------------+-------------------------------------------------------------+
-| BundleType | Can appear in ``mValuePoolDeltas`` | Can appear in ``vBundles`` | Bundle kind                                                 |
-+============+====================================+============================+=============================================================+
-| 0          |✅                                  |✅                          | Transparent                                                 |
-+------------+------------------------------------+----------------------------+-------------------------------------------------------------+
-| 1          |✅                                  |✅                          | Reserved                                                    |
-+------------+------------------------------------+----------------------------+-------------------------------------------------------------+
-| 2          |✅                                  |✅                          | Sapling                                                     |
-+------------+------------------------------------+----------------------------+-------------------------------------------------------------+
-| 3          |✅                                  |✅                          | Orchard                                                     |
-+------------+------------------------------------+----------------------------+-------------------------------------------------------------+
-| 4\*        |✅                                  |❌                          | Transaction fee (\*if ZIP 2002 activated)                   |
-+------------+------------------------------------+----------------------------+-------------------------------------------------------------+
-| 5\*        |✅                                  |❌                          | ZIP 233 NSM field (\*if ZIP 233 activated)                  |
-+------------+------------------------------------+----------------------------+-------------------------------------------------------------+
-| 6\*        |❌                                  |✅                          | ZIP 270 Key rotation (\*if ZIP 270 activated)               |
-+------------+------------------------------------+----------------------------+-------------------------------------------------------------+
-| 7\*        |✅                                  |✅                          | Lockbox disbursement / "Consensus accounts"                 |
-|            |                                    |                            | (\*for miner payouts, lockbox, etc if ZIP activated)        |
-+------------+------------------------------------+----------------------------+-------------------------------------------------------------+
-|            |❌                                  |✅                          | ZIP 231 Memos                                               |
-+------------+------------------------------------+----------------------------+-------------------------------------------------------------+
-|            |✅                                  |✅                          | Sapling-post-ZIP 231 (if ZIP 231 activated after this ZIP)  |
-+------------+------------------------------------+----------------------------+-------------------------------------------------------------+
-|            |✅                                  |✅                          | Orchard-post-ZIP 231 (if ZIP 231 activated after this ZIP)  |
-+------------+------------------------------------+----------------------------+-------------------------------------------------------------+
-|            |✅                                  |✅                          | ZSA Issuance                                                |
-+------------+------------------------------------+----------------------------+-------------------------------------------------------------+
-|            |✅                                  |✅                          | OrchardZSA                                                  |
-+------------+------------------------------------+----------------------------+-------------------------------------------------------------+
+The ``mAuthBundles`` column indicates whether or not an entry for this value
+type is allowed to appear in ``mAuthBundles``. For rows where an ❌ is present,
+the bundle is guaranteed to have no authorizing data, and so no entry in
+``mAuthBundles`` is permitted.
+
++------------+----------------------+--------------------+------------------+-------------------------------------------------------------+
+| BundleType | ``mValuePoolDeltas`` | ``mEffectBundles`` | ``mAuthBundles`` | Bundle kind                                                 |
++============+======================+====================+==================+=============================================================+
+| 0          |✅                    |✅                  |✅                | Transparent                                                 |
++------------+----------------------+--------------------+------------------+-------------------------------------------------------------+
+| 1          |                      |                    |                  | Reserved                                                    |
++------------+----------------------+--------------------+------------------+-------------------------------------------------------------+
+| 2          |✅                    |✅                  |✅                | Sapling                                                     |
++------------+----------------------+--------------------+------------------+-------------------------------------------------------------+
+| 3          |✅                    |✅                  |✅                | Orchard                                                     |
++------------+----------------------+--------------------+------------------+-------------------------------------------------------------+
+| 4\*        |✅                    |❌                  |❌                | Transaction fee (\*if ZIP 2002 activated)                   |
++------------+----------------------+--------------------+------------------+-------------------------------------------------------------+
+| 5\*        |✅                    |❌                  |❌                | ZIP 233 NSM field (\*if ZIP 233 activated)                  |
++------------+----------------------+--------------------+------------------+-------------------------------------------------------------+
+| 6\*        |❌                    |✅                  |✅                | ZIP 270 Key rotation (\*if ZIP 270 activated)               |
++------------+----------------------+--------------------+------------------+-------------------------------------------------------------+
+| 7\*        |✅                    |✅                  |✅                | Lockbox disbursement / "Consensus accounts"                 |
+|            |                      |                    |                  | (\*for miner payouts, lockbox, etc if ZIP activated)        |
++------------+----------------------+--------------------+------------------+-------------------------------------------------------------+
+|            |❌                    |✅                  |❌                | ZIP 231 Memos                                               |
++------------+----------------------+--------------------+------------------+-------------------------------------------------------------+
+|            |✅                    |✅                  |✅                | Sapling-post-ZIP 231 (if ZIP 231 activated after this ZIP)  |
++------------+----------------------+--------------------+------------------+-------------------------------------------------------------+
+|            |✅                    |✅                  |✅                | Orchard-post-ZIP 231 (if ZIP 231 activated after this ZIP)  |
++------------+----------------------+--------------------+------------------+-------------------------------------------------------------+
+|            |✅                    |✅                  |✅                | ZSA Issuance                                                |
++------------+----------------------+--------------------+------------------+-------------------------------------------------------------+
+|            |✅                    |✅                  |✅                | OrchardZSA                                                  |
++------------+----------------------+--------------------+------------------+-------------------------------------------------------------+
 
 The following entries are provided to illustrate how potential future upgrades
 might affect the value pool delta map.
 
-+------------+------------------------------------+----------------------------+-------------------------------------------------------------+
-| BundleType | Can appear in ``mValuePoolDeltas`` | Can appear in ``vBundles`` | Bundle kind                                                 |
-+============+====================================+============================+=============================================================+
-|            |✅                                  |✅                          | TZEs                                                        |
-+------------+------------------------------------+----------------------------+-------------------------------------------------------------+
-|            |✅                                  |✅                          | Pool that only has a long-term storage protocol (PQ, very   |
-|            |                                    |                            | simple thus insulated from counterfeiting fears, can be     |
-|            |                                    |                            | used for payments but higher latency for that purpose)      |
-+------------+------------------------------------+----------------------------+-------------------------------------------------------------+
-|            |✅                                  |✅                          | Tachyon                                                     |
-+------------+------------------------------------+----------------------------+-------------------------------------------------------------+
-|            |✅                                  |✅                          | Staking                                                     |
-+------------+------------------------------------+----------------------------+-------------------------------------------------------------+
-|            |✅                                  |✅                          | Unstaking (if it can't be combined with the Staking bundle) |
-+------------+------------------------------------+----------------------------+-------------------------------------------------------------+
-|            |✅                                  |✅                          | Post-quantum fast payment protocol                          |
-+------------+------------------------------------+----------------------------+-------------------------------------------------------------+
++------------+----------------------+--------------------+------------------+-------------------------------------------------------------+
+| BundleType | ``mValuePoolDeltas`` | ``mEffectBundles`` | ``mAuthBundles`` | Bundle kind                                                 |
++============+======================+====================+==================+=============================================================+
+|            |✅                    |✅                  |✅                | TZEs                                                        |
++------------+----------------------+--------------------+------------------+-------------------------------------------------------------+
+|            |✅                    |✅                  |✅                | Pool that only has a long-term storage protocol (PQ, very   |
+|            |                      |                    |                  | simple thus insulated from counterfeiting fears, can be     |
+|            |                      |                    |                  | used for payments but higher latency for that purpose)      |
++------------+----------------------+--------------------+------------------+-------------------------------------------------------------+
+|            |✅                    |✅                  |✅                | Tachyon                                                     |
++------------+----------------------+--------------------+------------------+-------------------------------------------------------------+
+|            |✅                    |✅                  |❌                | Staking                                                     |
++------------+----------------------+--------------------+------------------+-------------------------------------------------------------+
+|            |✅                    |✅                  |✅                | Unstaking (if it can't be combined with the Staking bundle) |
++------------+----------------------+--------------------+------------------+-------------------------------------------------------------+
+|            |✅                    |✅                  |✅                | Post-quantum fast payment protocol                          |
++------------+----------------------+--------------------+------------------+-------------------------------------------------------------+
 
 Consensus Rules
 ---------------
 
+Let ``FeeBundleId`` be the identifier of the fee bundle. In V6 transactions,
+$\mathsf{FeeBundleId} = 4$ as defined in the table above.
+
 Full node implementations MUST verify that:
 
 * The ``assetClass`` value for any entry in ``mValuePoolDeltas`` having
-  ``bundleType = 4`` (fees) is 0 (fee amounts are denominated in ZEC
+  ``bundleType = FeeBundleId`` is 0 (fee amounts are denominated in ZEC
   and no other asset.)
+
+* For coinbase transaction, the value of $\mathsf{mValuePoolDeltas}[(\mathsf{FeeBundleId}, \mathsf{Zec})]$ must be nonnegative.
+
+* For non-coinbase transactions, the value of $\mathsf{mValuePoolDeltas}[(\mathsf{FeeBundleId}, \mathsf{Zec})]$ must be nonpositive.
+
+* Within the scope of a block, the sum of the fee bundle values must equal 0.
 
 * For the coinbase transaction, the sum of value pool deltas in the ZEC asset
   is equal to the negative of the block subsidy for that block; the block
   subsidy adds an implicit input value to the transparent transaction value
-  pool that the coinbase outputs consume. 
+  pool that the coinbase outputs consume.
 
-.. math::
+  .. math::
 
-    \sum_{\mathsf{d} \in \mathsf{mValuePoolDeltas} | \mathsf{d}.\mathsf{bundleType} = 4} \mathsf{d.value} = \mathsf{BlockSubsidy}(\mathsf{height})
+      \sum_{\mathsf{d} \in \mathsf{mValuePoolDeltas} | \mathsf{AssetUuid}_\mathsf{d} = \mathsf{Zec}} \mathsf{d.value} = -\mathsf{BlockSubsidy}(\mathsf{height})
 
-* For the coinbase transaction, the value of the fee bundle is equal to the
-  negative of the total fees produced by the non-coinbase transactions in the
-  block. $\mathsf{T}$ is the set of non-coinbase transactions included in the
-  block. 
-
-.. math::
-
-    \mathsf{mValuePoolDeltas}[(4, [0]^{32})].\mathsf{value} = -\sum_{\mathsf{t} \in \mathsf{T}}\mathsf{mValuePoolDeltas}_{\mathsf{t}}[(4, [0]^{32})].\mathsf{value}
+  where $\mathsf{BlockSubsidy}$ is defined in § 7.8 'Block Subsidy and
+  Founders' Reward'. [#protocol-subsidies]_
 
 * For all non-coinbase transactions, the sum of value pool delta values in each
-  asset equals 0. 
+  asset equals 0.
 
-.. math::
+  .. math::
+  
+      \forall \mathsf{a}. \sum_{\mathsf{d} \in \mathsf{mValuePoolDeltas} | \mathsf{AssetUuid}_\mathsf{d} = \mathsf{a}} \mathsf{d.value} = 0
 
-    \forall bundleType,assetId. \sum\mathsf{mValuePoolDeltas}[(bundleType, assetId)].\mathsf{value} = 0
+V0 Digest Algorithm
+-------------------
 
 Rationale
 =========
 
-TODO: Document why we take the specific approach we do on what the format constrains vs what wallets are expected (required?) to notify users of (once we decide on the approach).
+TODO: Document why we take the specific approach we do on what the format
+constrains vs what wallets are expected (required?) to notify users of (once we
+decide on the approach).
+
+Effecting data bundles and authorizing data bundles are stored separately in
+the transaction format so that the authorizing data may be pruned by
+straightforward truncation of the encoded representation of the transaction.
 
 
 Deployment
@@ -558,6 +583,16 @@ Questions
     proofs over subsets of the data within a bundle. We haven't used that so
     far; is it really needed?
 
+  * Should the authorizing data be entirely separate from the effecting data,
+    and encoded at the end of the transaction in a batch, so that pruning is
+    simply truncation?
+
+
+TODO
+====
+
+Rename ``assetDigest`` to ``assetUuid`` in ZIP 227
+
 
 References
 ==========
@@ -566,6 +601,7 @@ References
 .. [#protocol] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1] or later <protocol/protocol.pdf>`_
 .. [#protocol-blockchain] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.3: The Block Chain <protocol/protocol.pdf#blockchain>`_
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
+.. [#protocol-subsidies] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 7.8: Block Subsidy and Founders' Reward <protocol/protocol.pdf#subsidies>`_
 .. [#zip-0203] `ZIP 203: Transaction Expiry <https://zips.z.cash/zip-0203>`_
 .. [#zip-0212] `ZIP 212: Allow Recipient to Derive Ephemeral Secret from Note Plaintext <https://zips.z.cash/zip-0212>`_
 .. [#zip-0239] `ZIP 239: Relay of Version 5 Transactions <https://zips.z.cash/zip-0239>`_
