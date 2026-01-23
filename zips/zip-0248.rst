@@ -32,9 +32,12 @@ The term "full validator" in this document is to be interpreted as defined in §
 
 The terms below are to be interpreted as follows:
 
-{Term to be defined}
-
-: {Definition.}
+transparent transaction value pool
+  An ephemeral value for the balance of an asset within the scope of a single
+  transaction, which is modified by additions and subtractions in the
+  processing of the effects of transaction bundles. When all of the effects of
+  a transaction are accounted for, each such balance is zero; i.e, the total of
+  additions to the balance equals the total of subtractions from it.
 
 
 Abstract
@@ -44,19 +47,20 @@ This ZIP proposes an encoding for V6 Zcash transactions that is intended to
 reduce the impact of future changes to the Zcash transaction format on the
 Zcash ecosystem. It defines a new typecode-length-value encoding for a sequence
 of protocol bundles, and a "value balance" map that describes the effect of
-each bundle on the transparent chain value balance, much in the same fashion
-as the Sapling and Orchard value balance fields have done in the past.
+each bundle on the transparent transaction value pool for each asset. The
+entries of this map serve the same purpose as the Sapling and Orchard value
+balance fields have done in the past.
 
 
 Motivation
 ==========
 
-In the past, Zcash network upgrades that change the transaction format have
+In the past, Zcash network upgrades that changed the transaction format have
 resulted in substantial disruption for wallets and other third-party clients in
 the Zcash ecosystem. In order to continue functioning after a network upgrade,
 clients were required to upgrade their Zcash transaction parsers to read the
 new format, even if the context in which those parsers were being used didn't
-need or couldn't make use of newly added transaction data; an example of this
+need or couldn't make use of newly added transaction data. An example of this
 is that transparent-only wallets were forced to update their parsers to
 understand the Sapling and Orchard parts of transactions, even if they would
 never read or act upon those parts. This has led on occasion to significant
@@ -113,8 +117,9 @@ Requirements
 
 * The transaction format can be parsed without any knowledge of any Zcash
   payment protocols.
-* Movement of value into and out of the transparent value pool(s) can be
-  understood with only partial knowledge of the Zcash payment protocols.
+* Movement of value into and out of the transparent value pools (the ZEC
+  transparent value pool, plus the transparent value pool for each ZSA asset)
+  can be understood with only partial knowledge of the Zcash payment protocols.
 * The information content of transactions should not change as part of
   this ZIP. Other ZIPs activated along with this ZIP may however make
   use of it in introducing such changes.
@@ -178,10 +183,6 @@ Transaction Format
 | varies                      |``vBundles``                  |``Bundle[nBundles]``                            |A sequence of ``Bundle`` values.                                     |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 
-``mValuePoolDeltas`` MUST NOT contain more than a single entry for a given
-``(bundleType, assetClass, assetId)`` tuple, which is treated as the "key" of
-the map.
-
 ValuePoolDelta
 --------------
 
@@ -202,6 +203,20 @@ ValuePoolDelta
 |                             |                              |                                                |have zero value, it MUST be elided from the encoding                 |
 |                             |                              |                                                |of ``mValuePoolDeltas`` instead.                                     |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
+
+In definitions below, $[0]^{32}$ is treated as the asset identifier for the ZEC asset.
+
+.. math::
+
+    \mathsf{AssetId} =
+    \begin{cases}
+       [0]^{32} & \text{if } \mathsf{assetClass} = 0 \\
+       \mathsf{assetId} & \text{otherwise}
+    \end{cases}
+
+``mValuePoolDeltas`` is interpreted as a map keyed by the tuple
+$(\mathsf{BundleType}, \mathsf{AssetId})$. The map MUST NOT contain more than
+a single entry for a given key.
 
 Bundle
 ------
@@ -291,6 +306,40 @@ might affect the value pool delta map.
 +------------+------------------------------------+----------------------------+-------------------------------------------------------------+
 |            |✅                                  |✅                          | Post-quantum fast payment protocol                          |
 +------------+------------------------------------+----------------------------+-------------------------------------------------------------+
+
+Consensus Rules
+---------------
+
+Full node implementations MUST verify that:
+
+* The ``assetClass`` value for any entry in ``mValuePoolDeltas`` having
+  ``bundleType = 4`` (fees) is 0 (fee amounts are denominated in ZEC
+  and no other asset.)
+
+* For the coinbase transaction, the sum of value pool deltas in the ZEC asset
+  is equal to the negative of the block subsidy for that block; the block
+  subsidy adds an implicit input value to the transparent transaction value
+  pool that the coinbase outputs consume. 
+
+.. math::
+
+    \sum_{\mathsf{d} \in \mathsf{mValuePoolDeltas} | \mathsf{d}.\mathsf{bundleType} = 4} \mathsf{d.value} = \mathsf{BlockSubsidy}(\mathsf{height})
+
+* For the coinbase transaction, the value of the fee bundle is equal to the
+  negative of the total fees produced by the non-coinbase transactions in the
+  block. $\mathsf{T}$ is the set of non-coinbase transactions included in the
+  block. 
+
+.. math::
+
+    \mathsf{mValuePoolDeltas}[(4, [0]^{32})].\mathsf{value} = -\sum_{\mathsf{t} \in \mathsf{T}}\mathsf{mValuePoolDeltas}_{\mathsf{t}}[(4, [0]^{32})].\mathsf{value}
+
+* For all non-coinbase transactions, the sum of value pool delta values in each
+  asset equals 0. 
+
+.. math::
+
+    \forall bundleType,assetId. \sum\mathsf{mValuePoolDeltas}[(bundleType, assetId)].\mathsf{value} = 0
 
 Rationale
 =========
