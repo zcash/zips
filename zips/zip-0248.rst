@@ -613,8 +613,644 @@ Full node implementations MUST verify that:
   
       \forall \mathsf{a}. \sum_{\mathsf{d} \in \mathsf{mValuePoolDeltas} | \mathsf{AssetUuid}_\mathsf{d} = \mathsf{a}} \mathsf{d.value} = 0
 
-V0 Digest Algorithm
--------------------
+Digest Algorithms
+-----------------
+
+All digests are personalized BLAKE2b-256 hashes. In cases where no elements are
+available for hashing (for example, if there are no transparent transaction
+inputs), a personalized hash of the empty byte array will be used. The
+personalization string therefore provides domain separation for the hashes of
+even empty data fields.
+
+The notation ``BLAKE2b-256(personalization_string, [])`` is used to refer to
+hashes constructed in this manner.
+
+TxId Digest
+```````````
+
+A new transaction digest algorithm is defined that constructs the identifier for
+a V6 transaction from a tree of hashes. The overall structure of the hash is as
+follows::
+
+    txid_digest
+    ├── header_digest
+    ├── value_pool_deltas_digest
+    └── effects_bundles_digest
+        ├─ (bundle_type_id || transparent_effects_digest)
+        ├─ (bundle_type_id || sapling_effects_digest)
+        │   ├── sapling_spends_digest
+        │   │   ├── sapling_spends_compact_digest
+        │   │   └── sapling_spends_noncompact_digest
+        │   └── sapling_outputs_digest
+        │       ├── sapling_outputs_compact_digest
+        │       ├── sapling_outputs_memos_digest
+        │       └── sapling_outputs_noncompact_digest
+        ├─ (bundle_type_id || orchard_effects_digest)
+        │   ├── orchard_actions_compact_digest
+        │   ├── orchard_actions_memos_digest
+        │   └── orchard_actions_noncompact_digest
+        └─ (bundle_type_id || unknown_bundle_effects_digest) ...
+
+Each node written as ``snake_case`` in this tree is a BLAKE2b-256 hash of its
+children, initialized with a personalization string specific to that branch
+of the tree. Nodes that are not themselves digests are written in ``camelCase``.
+In the specification below, nodes of the tree are presented in depth-first order.
+
+txid_digest
+...........
+
+A BLAKE2b-256 hash of the following values::
+
+   T.1: header_digest             (32-byte hash output)
+   T.2: value_pool_deltas_digest  (32-byte hash output)
+   T.3: effects_bundles_digest    (32-byte hash output)
+
+The personalization field of this hash is set to::
+
+  "ZcashTxHash_" || CONSENSUS_BRANCH_ID
+
+``ZcashTxHash_`` has 1 underscore character.
+
+As in ZIP 143 [#zip-0143]_, CONSENSUS_BRANCH_ID is the 4-byte little-endian
+encoding of the consensus branch ID for the epoch of the block containing the
+transaction.
+
+T.1: header_digest
+..................
+
+A BLAKE2b-256 hash of the following values::
+
+   T.1a: version             (4-byte little-endian version identifier including overwintered flag)
+   T.1b: version_group_id    (4-byte little-endian version group identifier)
+   T.1c: consensus_branch_id (4-byte little-endian consensus branch id)
+   T.1d: lock_time           (4-byte little-endian nLockTime value)
+   T.1e: expiry_height       (4-byte little-endian block height)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdHeadersHash"
+
+T.2: value_pool_deltas_digest
+.............................
+
+A BLAKE2b-256 hash of the concatenated encodings of all entries in
+``mValuePoolDeltas``, ordered by ``(bundleType, assetClass, assetUuid)``.
+For each entry, the following values are concatenated::
+
+   T.2a: bundleType  (compactSize encoding)
+   T.2b: assetClass  (1 byte)
+   T.2c: assetUuid   (0 or 64 bytes, depending on assetClass)
+   T.2d: value       (8-byte signed little-endian)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdVPDeltaHash"
+
+In the case that the transaction has no value pool delta entries (which would
+only occur for transactions that have no effect on any value pool),
+``value_pool_deltas_digest`` is::
+
+  BLAKE2b-256("ZTxIdVPDeltaHash", [])
+
+T.3: effects_bundles_digest
+...........................
+
+A BLAKE2b-256 hash of the concatenated tagged bundle effect digests for all
+bundles present in ``mEffectBundles``, ordered by ``bundleType``. For each
+bundle, the following values are concatenated::
+
+   T.3a: bundleType            (compactSize encoding)
+   T.3b: bundle_effects_digest (32-byte hash output)
+
+where ``bundle_effects_digest`` is the root hash of the bundle's effecting data
+tree, as defined below for each known bundle type.
+
+The personalization field of this hash is set to::
+
+  "ZTxIdEffBndHash"
+
+In the case that the transaction has no effect bundles, ``effects_bundles_digest``
+is::
+
+  BLAKE2b-256("ZTxIdEffBndHash", [])
+
+For bundle types not recognized by a wallet, the wallet MUST be provided with the
+32-byte ``bundle_effects_digest`` value in order to compute the transaction
+identifier. This enables partial verification of transactions containing unknown
+bundle types.
+
+T.3.0: transparent_effects_digest
+'''''''''''''''''''''''''''''''''
+
+In the case that transparent inputs or outputs are present, the transparent
+effects digest is a BLAKE2b-256 hash of the following values::
+
+   T.3.0a: prevouts_digest  (32-byte hash)
+   T.3.0b: sequence_digest  (32-byte hash)
+   T.3.0c: outputs_digest   (32-byte hash)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdTranspaHash"
+
+In the case that the transaction has no transparent components,
+``transparent_effects_digest`` is::
+
+  BLAKE2b-256("ZTxIdTranspaHash", [])
+
+T.3.0a: prevouts_digest
+~~~~~~~~~~~~~~~~~~~~~~~
+
+A BLAKE2b-256 hash of the field encoding of all ``(prevout_hash, prevout_index)``
+pairs from the transparent effecting data.
+
+The personalization field of this hash is set to::
+
+  "ZTxIdPrevoutHash"
+
+In the case that the transaction has transparent outputs but no transparent
+inputs, ``prevouts_digest`` is::
+
+  BLAKE2b-256("ZTxIdPrevoutHash", [])
+
+T.3.0b: sequence_digest
+~~~~~~~~~~~~~~~~~~~~~~~
+
+A BLAKE2b-256 hash of the 32-bit little-endian representation of all ``nSequence``
+field values from the transparent effecting data.
+
+The personalization field of this hash is set to::
+
+  "ZTxIdSequencHash"
+
+In the case that the transaction has transparent outputs but no transparent
+inputs, ``sequence_digest`` is::
+
+  BLAKE2b-256("ZTxIdSequencHash", [])
+
+T.3.0c: outputs_digest
+~~~~~~~~~~~~~~~~~~~~~~
+
+A BLAKE2b-256 hash of the concatenated field encodings of all transparent
+outputs. The field encoding of each output consists of the encoded output
+``value`` (8-byte little endian) followed by the ``scriptPubKey`` byte array
+(with leading ``compactSize`` length).
+
+The personalization field of this hash is set to::
+
+  "ZTxIdOutputsHash"
+
+In the case that the transaction has transparent inputs but no transparent
+outputs, ``outputs_digest`` is::
+
+  BLAKE2b-256("ZTxIdOutputsHash", [])
+
+T.3.2: sapling_effects_digest
+'''''''''''''''''''''''''''''
+
+In the case that Sapling spends or outputs are present, the Sapling effects
+digest is a BLAKE2b-256 hash of the following values::
+
+   T.3.2a: sapling_spends_digest   (32-byte hash)
+   T.3.2b: sapling_outputs_digest  (32-byte hash)
+   T.3.2c: anchorSapling           (32 bytes)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdSaplingHash"
+
+Note that unlike ZIP 244, the value balance is not included here; it is committed
+via ``value_pool_deltas_digest`` instead.
+
+In the case that the transaction has no Sapling spends or outputs,
+``sapling_effects_digest`` is::
+
+  BLAKE2b-256("ZTxIdSaplingHash", [])
+
+T.3.2a: sapling_spends_digest
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In the case that Sapling spends are present, this digest is a BLAKE2b-256 hash
+of the following values::
+
+   T.3.2a.i:  sapling_spends_compact_digest    (32-byte hash)
+   T.3.2a.ii: sapling_spends_noncompact_digest (32-byte hash)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdSSpendsHash"
+
+In the case that the transaction has Sapling outputs but no Sapling spends,
+``sapling_spends_digest`` is::
+
+  BLAKE2b-256("ZTxIdSSpendsHash", [])
+
+T.3.2a.i: sapling_spends_compact_digest
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A BLAKE2b-256 hash of the field encoding of all ``nullifier`` field values
+of Sapling spends belonging to the transaction.
+
+The personalization field of this hash is set to::
+
+  "ZTxIdSSpendCHash"
+
+T.3.2a.ii: sapling_spends_noncompact_digest
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A BLAKE2b-256 hash of the non-nullifier information for all Sapling spends
+belonging to the transaction. For each spend, the following elements are
+included in the hash::
+
+   T.3.2a.ii.1: cv     (32 bytes)
+   T.3.2a.ii.2: anchor (32 bytes)
+   T.3.2a.ii.3: rk     (32 bytes)
+
+The anchor is hashed for *each* spend (even though it is shared in the encoding).
+
+The personalization field of this hash is set to::
+
+  "ZTxIdSSpendNHash"
+
+T.3.2b: sapling_outputs_digest
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In the case that Sapling outputs are present, this digest is a BLAKE2b-256 hash
+of the following values::
+
+   T.3.2b.i:   sapling_outputs_compact_digest    (32-byte hash)
+   T.3.2b.ii:  sapling_outputs_memos_digest      (32-byte hash)
+   T.3.2b.iii: sapling_outputs_noncompact_digest (32-byte hash)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdSOutputHash"
+
+In the case that the transaction has Sapling spends but no Sapling outputs,
+``sapling_outputs_digest`` is::
+
+  BLAKE2b-256("ZTxIdSOutputHash", [])
+
+T.3.2b.i: sapling_outputs_compact_digest
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A BLAKE2b-256 hash of the subset of Sapling output information included in the
+ZIP 307 [#zip-0307]_ ``CompactBlock`` format for all Sapling outputs belonging
+to the transaction. For each output, the following elements are included::
+
+   T.3.2b.i.1: cmu                  (32 bytes)
+   T.3.2b.i.2: ephemeralKey         (32 bytes)
+   T.3.2b.i.3: encCiphertext[..52]  (first 52 bytes)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdSOutC__Hash" (2 underscore characters)
+
+T.3.2b.ii: sapling_outputs_memos_digest
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A BLAKE2b-256 hash of the memo field data for all Sapling outputs belonging to
+the transaction. For each output::
+
+   T.3.2b.ii.1: encCiphertext[52..564] (512 bytes, encrypted memo)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdSOutM__Hash" (2 underscore characters)
+
+T.3.2b.iii: sapling_outputs_noncompact_digest
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A BLAKE2b-256 hash of the remaining Sapling output information not included in
+the ``CompactBlock`` format. For each output::
+
+   T.3.2b.iii.1: cv                    (32 bytes)
+   T.3.2b.iii.2: encCiphertext[564..]  (post-memo AEAD tag, 16 bytes)
+   T.3.2b.iii.3: outCiphertext         (80 bytes)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdSOutN__Hash" (2 underscore characters)
+
+T.3.3: orchard_effects_digest
+'''''''''''''''''''''''''''''
+
+In the case that Orchard actions are present, the Orchard effects digest is a
+BLAKE2b-256 hash of the following values::
+
+   T.3.3a: orchard_actions_compact_digest    (32-byte hash)
+   T.3.3b: orchard_actions_memos_digest      (32-byte hash)
+   T.3.3c: orchard_actions_noncompact_digest (32-byte hash)
+   T.3.3d: flagsOrchard                      (1 byte)
+   T.3.3e: anchorOrchard                     (32 bytes)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdOrchardHash"
+
+Note that unlike ZIP 244, the value balance is not included here; it is committed
+via ``value_pool_deltas_digest`` instead.
+
+In the case that the transaction has no Orchard actions, ``orchard_effects_digest``
+is::
+
+  BLAKE2b-256("ZTxIdOrchardHash", [])
+
+T.3.3a: orchard_actions_compact_digest
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A BLAKE2b-256 hash of the subset of Orchard action information intended for
+inclusion in the ``CompactBlock`` format. For each action::
+
+   T.3.3a.i:   nullifier            (32 bytes)
+   T.3.3a.ii:  cmx                  (32 bytes)
+   T.3.3a.iii: ephemeralKey         (32 bytes)
+   T.3.3a.iv:  encCiphertext[..52]  (first 52 bytes)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdOrcActCHash"
+
+T.3.3b: orchard_actions_memos_digest
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A BLAKE2b-256 hash of the memo field data for all Orchard actions. For each
+action::
+
+   T.3.3b.i: encCiphertext[52..564] (512 bytes, encrypted memo)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdOrcActMHash"
+
+T.3.3c: orchard_actions_noncompact_digest
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A BLAKE2b-256 hash of the remaining Orchard action information not intended for
+inclusion in the ``CompactBlock`` format. For each action::
+
+   T.3.3c.i:   cv                   (32 bytes)
+   T.3.3c.ii:  rk                   (32 bytes)
+   T.3.3c.iii: encCiphertext[564..] (post-memo AEAD tag, 16 bytes)
+   T.3.3c.iv:  outCiphertext        (80 bytes)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdOrcActNHash"
+
+Signature Digest
+````````````````
+
+A new per-input transaction digest algorithm is defined that constructs a hash
+that may be signed by a transaction creator to commit to the effects of the
+transaction. This follows closely the algorithm from ZIP 244 [#zip-0244]_.
+
+For transactions that have no transparent inputs, the signature digest is
+identical to the transaction identifier digest.
+
+For transactions with transparent inputs, the signature digest replaces
+``effects_bundles_digest`` with a ``signature_bundles_digest`` that incorporates
+``hash_type``-dependent transparent signing data::
+
+    signature_digest
+    ├── header_digest
+    ├── value_pool_deltas_digest
+    └── signature_bundles_digest
+
+signature_digest
+................
+
+A BLAKE2b-256 hash of the following values::
+
+   S.1: header_digest             (32-byte hash output)
+   S.2: value_pool_deltas_digest  (32-byte hash output)
+   S.3: signature_bundles_digest  (32-byte hash output)
+
+The personalization field of this hash is set to::
+
+  "ZcashTxHash_" || CONSENSUS_BRANCH_ID
+
+This value has the same personalization as the transaction identifier digest,
+so that what is being signed in the case that there are no transparent inputs
+is exactly the transaction id.
+
+S.3: signature_bundles_digest
+.............................
+
+If the transaction has no transparent inputs, ``signature_bundles_digest`` is
+identical to ``effects_bundles_digest``.
+
+Otherwise, ``signature_bundles_digest`` is constructed the same as
+``effects_bundles_digest``, except that ``transparent_effects_digest`` is
+replaced with ``transparent_sig_digest``.
+
+S.3.0: transparent_sig_digest
+'''''''''''''''''''''''''''''
+
+This digest is a BLAKE2b-256 hash of the following values::
+
+   S.3.0a: hash_type                (1 byte)
+   S.3.0b: prevouts_sig_digest      (32-byte hash)
+   S.3.0c: amounts_sig_digest       (32-byte hash)
+   S.3.0d: scriptpubkeys_sig_digest (32-byte hash)
+   S.3.0e: sequence_sig_digest      (32-byte hash)
+   S.3.0f: outputs_sig_digest       (32-byte hash)
+   S.3.0g: txin_sig_digest          (32-byte hash)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdTranspaHash"
+
+S.3.0a: hash_type
+~~~~~~~~~~~~~~~~~
+
+An 8-bit unsigned value. The ``SIGHASH`` encodings from the legacy script system
+are used: one of ``SIGHASH_ALL`` (0x01), ``SIGHASH_NONE`` (0x02), or
+``SIGHASH_SINGLE`` (0x03), optionally combined with ``SIGHASH_ANYONECANPAY`` (0x80).
+
+The following restrictions apply:
+
+- Using any undefined ``hash_type`` (not 0x01, 0x02, 0x03, 0x81, 0x82, or 0x83)
+  causes validation failure.
+- Using ``SIGHASH_SINGLE`` without a corresponding output at the same index
+  causes validation failure.
+
+For signatures over Sapling Spends or Orchard Actions, ``hash_type`` is set to
+``SIGHASH_ALL`` (0x01).
+
+S.3.0b: prevouts_sig_digest
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If the ``SIGHASH_ANYONECANPAY`` flag is not set, identical to ``prevouts_digest``
+(T.3.0a).
+
+Otherwise::
+
+  BLAKE2b-256("ZTxIdPrevoutHash", [])
+
+S.3.0c: amounts_sig_digest
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If the ``SIGHASH_ANYONECANPAY`` flag is not set, a BLAKE2b-256 hash of the
+concatenation of the 8-byte signed little-endian representations of all ``value``
+fields for the coins spent by the transparent inputs to the transaction.
+
+The personalization field of this hash is set to::
+
+  "ZTxTrAmountsHash"
+
+If the ``SIGHASH_ANYONECANPAY`` flag is set::
+
+  BLAKE2b-256("ZTxTrAmountsHash", [])
+
+S.3.0d: scriptpubkeys_sig_digest
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If the ``SIGHASH_ANYONECANPAY`` flag is not set, a BLAKE2b-256 hash of the
+concatenation of the field encodings (each including a leading ``compactSize``)
+of all ``scriptPubKey`` fields for the coins spent by the transparent inputs.
+
+The personalization field of this hash is set to::
+
+  "ZTxTrScriptsHash"
+
+If the ``SIGHASH_ANYONECANPAY`` flag is set::
+
+  BLAKE2b-256("ZTxTrScriptsHash", [])
+
+S.3.0e: sequence_sig_digest
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Identical to ``sequence_digest`` (T.3.0b) regardless of ``hash_type``.
+
+S.3.0f: outputs_sig_digest
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If the sighash type is neither ``SIGHASH_SINGLE`` nor ``SIGHASH_NONE``, identical
+to ``outputs_digest`` (T.3.0c).
+
+If the sighash type is ``SIGHASH_SINGLE`` and a transparent output exists at the
+same index as the input being signed, a hash of that output's encoding.
+
+Otherwise::
+
+  BLAKE2b-256("ZTxIdOutputsHash", [])
+
+S.3.0g: txin_sig_digest
+~~~~~~~~~~~~~~~~~~~~~~~
+
+For signatures over a transparent input, a BLAKE2b-256 hash of::
+
+   S.3.0g.i:   prevout      (36 bytes: 32-byte hash + 4-byte index)
+   S.3.0g.ii:  value        (8-byte signed little-endian)
+   S.3.0g.iii: scriptPubKey (with compactSize length prefix)
+   S.3.0g.iv:  nSequence    (4-byte unsigned little-endian)
+
+The personalization field of this hash is set to::
+
+  "Zcash___TxInHash" (3 underscores)
+
+For signatures over a Sapling Spend or Orchard Action::
+
+  BLAKE2b-256("Zcash___TxInHash", [])
+
+Authorizing Data Commitment
+```````````````````````````
+
+A transaction digest algorithm is defined that constructs a digest committing to
+the authorizing data of a transaction. The overall structure is::
+
+    auth_digest
+    └── auth_bundles_digest
+        ├─ (bundle_type_id || transparent_auth_digest)
+        ├─ (bundle_type_id || sapling_auth_digest)
+        ├─ (bundle_type_id || orchard_auth_digest)
+        └─ (bundle_type_id || unknown_bundle_auth_digest) ...
+
+auth_digest
+...........
+
+A BLAKE2b-256 hash of the following value::
+
+   A.1: auth_bundles_digest (32-byte hash output)
+
+The personalization field of this hash is set to::
+
+  "ZTxAuthHash_" || CONSENSUS_BRANCH_ID
+
+For transaction versions before V6, a placeholder value consisting of 32 bytes
+of ``0xFF`` is used in place of the authorizing data commitment.
+
+A.1: auth_bundles_digest
+........................
+
+A BLAKE2b-256 hash of the concatenated tagged bundle auth digests for all
+bundles present in ``mAuthBundles``, ordered by ``bundleType``. For each
+bundle, the following values are concatenated::
+
+   A.1a: bundleType          (compactSize encoding)
+   A.1b: bundle_auth_digest  (32-byte hash output)
+
+The personalization field of this hash is set to::
+
+  "ZTxAuthBndHash"
+
+In the case that the transaction has no auth bundles, ``auth_bundles_digest`` is::
+
+  BLAKE2b-256("ZTxAuthBndHash", [])
+
+A.1.0: transparent_auth_digest
+''''''''''''''''''''''''''''''
+
+In the case that the transaction contains transparent inputs, this is a
+BLAKE2b-256 hash of the concatenated ``scriptSig`` values (each with leading
+``compactSize`` length) for all transparent inputs.
+
+The personalization field of this hash is set to::
+
+  "ZTxAuthTransHash"
+
+In the case that the transaction has no transparent inputs::
+
+  BLAKE2b-256("ZTxAuthTransHash", [])
+
+A.1.2: sapling_auth_digest
+''''''''''''''''''''''''''
+
+In the case that Sapling spends or outputs are present, this is a BLAKE2b-256
+hash of the following concatenated values::
+
+   A.1.2a: vSpendProofsSapling    (192 bytes per spend)
+   A.1.2b: vSpendAuthSigsSapling  (64 bytes per spend)
+   A.1.2c: vOutputProofsSapling   (192 bytes per output)
+   A.1.2d: bindingSigSapling      (64 bytes)
+
+The personalization field of this hash is set to::
+
+  "ZTxAuthSapliHash"
+
+In the case that the transaction has no Sapling spends or outputs::
+
+  BLAKE2b-256("ZTxAuthSapliHash", [])
+
+A.1.3: orchard_auth_digest
+''''''''''''''''''''''''''
+
+In the case that Orchard actions are present, this is a BLAKE2b-256 hash of the
+following concatenated values::
+
+   A.1.3a: proofsOrchard         (aggregated proofs)
+   A.1.3b: vSpendAuthSigsOrchard (64 bytes per action)
+   A.1.3c: bindingSigOrchard     (64 bytes)
+
+The personalization field of this hash is set to::
+
+  "ZTxAuthOrchaHash"
+
+In the case that the transaction has no Orchard actions::
+
+  BLAKE2b-256("ZTxAuthOrchaHash", [])
+
 
 Rationale
 =========
@@ -858,8 +1494,11 @@ References
 .. [#protocol-blockchain] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.3: The Block Chain <protocol/protocol.pdf#blockchain>`_
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
 .. [#protocol-subsidies] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 7.8: Block Subsidy and Founders' Reward <protocol/protocol.pdf#subsidies>`_
+.. [#zip-0143] `ZIP 143: Transaction Signature Validation for Overwinter <https://zips.z.cash/zip-0143>`_
 .. [#zip-0203] `ZIP 203: Transaction Expiry <https://zips.z.cash/zip-0203>`_
 .. [#zip-0212] `ZIP 212: Allow Recipient to Derive Ephemeral Secret from Note Plaintext <https://zips.z.cash/zip-0212>`_
 .. [#zip-0225] `ZIP 225: Version 5 Transaction Format <https://zips.z.cash/zip-0225>`_
 .. [#zip-0239] `ZIP 239: Relay of Version 5 Transactions <https://zips.z.cash/zip-0239>`_
+.. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <https://zips.z.cash/zip-0244>`_
+.. [#zip-0307] `ZIP 307: Light Client Protocol for Payment Detection <https://zips.z.cash/zip-0307>`_
 
