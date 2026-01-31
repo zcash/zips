@@ -16,7 +16,7 @@
           buildInputs = with pkgs; [
             # Core dependencies for render.sh
             python3Packages.docutils  # provides rst2html5
-            pandoc                     # pandoc markdown renderer
+            pandoc                    # pandoc markdown renderer
             multimarkdown             # multimarkdown renderer
             perl                      # perl for text processing
 
@@ -26,7 +26,7 @@
 
             # LaTeX dependencies for protocol PDF generation
             (texlive.combine {
-              inherit (texlive) scheme-full fdsymbol;
+              inherit (texlive) scheme-full;
             })
 
             # Python dependencies for links_and_dests.py
