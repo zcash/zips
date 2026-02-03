@@ -1,8 +1,8 @@
     ZIP: ???
     Title: Authenticated Reply Addresses
-    Owners: Jack Grigg <jack@electriccoin.co>
-            Kris Nuttycombe <kris@electriccoin.co>
-            Daira Emma Hopwood <daira@electriccoin.co>
+    Owners: Jack Grigg <thestr4d@gmail.com>
+            Kris Nuttycombe <kris@nutty.land>
+            Daira-Emma Hopwood <daira@jacaranda.org>
     Status: Draft
     Category: Standards / Wallet
     Created: 2023-11-12

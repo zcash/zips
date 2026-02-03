@@ -2,7 +2,7 @@
     ZIP: XXX
     Title: Disabling Addition of New Value to the Transparent Chain Value Pool
     Owners: Arya <arya@zfnd.org>
-            Daira-Emma Hopwood <daira-emma@electriccoin.co>
+            Daira-Emma Hopwood <daira@jacaranda.org>
     Status: Draft
     Category: Consensus
     Created: 2025-08-13
