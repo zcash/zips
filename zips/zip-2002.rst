@@ -32,10 +32,12 @@ The terms "Mainnet" and "Testnet" are to be interpreted as described in
 Abstract
 ========
 
-This proposal adds an explicit ``fee`` field to the v6 transaction format.
-Instead of fees being implicit in the difference between the input value and
-output value of the transaction, all value transfers, including fee transfers to
-miners, will be explicit and committed to via the txid.
+This proposal makes the transaction fee explicit in the v6 transaction format,
+as an entry in the transparent transaction value pool balance map defined in
+ZIP 248 [#zip-0248]_. Instead of fees being implicit in the difference between
+the input value and output value of the transaction, all value transfers,
+including fee transfers to miners, will be explicit and committed to via the
+txid.
 
 
 Motivation
@@ -68,53 +70,65 @@ needed to compute it.
 Specification
 =============
 
-Changes to ZIP 230 [#zip-0230]_
--------------------------------
+Changes to ZIP 248
+------------------
 
-The following field is appended to the Common Transaction Fields of the v6
-transaction format after  ``nExpiryHeight`` [#zip-0230-transaction-format]_:
+This ZIP proposes to register bundle type 4 ("Transaction fee") in the V6
+transaction bundle type registry defined in ZIP 248 [#zip-0248]_.
 
-+-------+---------+------------+------------------------------------------------------+
-| Bytes | Name    | Data Type  | Description                                          |
-+=======+=========+============+======================================================+
-|   8   | ``fee`` | ``uint64`` | The fee to be paid by this transaction, in zatoshis. |
-+-------+---------+------------+------------------------------------------------------+
++------------+----------------------+--------------------+------------------+
+| BundleType | ``mValuePoolDeltas`` | ``mEffectBundles`` | ``mAuthBundles`` |
++============+======================+====================+==================+
+| 4          |✅                    |❌                  |❌                |
++------------+----------------------+--------------------+------------------+
 
-Note: If both this ZIP and ZIP 233 are selected for inclusion in the same
-Network Upgrade, then the ordering of fields in the transaction format will
-be ``fee`` and then ``zip233Amount``.
+The fee bundle has no effecting data and no authorizing data. The transaction
+fee is represented solely as an entry in ``mValuePoolDeltas`` with
+``bundleType = 4`` and ``assetClass = 0`` (ZEC).
+
+For non-coinbase transactions, the ``value`` field of this entry MUST be
+nonpositive, representing the fee being removed from the transparent
+transaction value pool. For coinbase transactions, the ``value`` field MUST be
+nonnegative, representing the total fees collected from other transactions in
+the block being added to the ZEC transparent transaction value pool.
 
 Changes to the Zcash Protocol Specification
 -------------------------------------------
 
-In § 3.4 ‘Transactions and Treestates’ [#protocol-transactions]_ (last modified by
-ZIP 236 [#zip-0236]_), add the following consensus rule and note:
+Let $\mathsf{FeeBundleId} = 4.$
 
-  * [NU7 onward] For v6 and later transactions, the remaining value in the
-    transparent transaction value pool, in zatoshis, MUST be equal to the value
-    of the transaction’s ``fee`` field.
- 
-  Non-normative note: The effect of these rules is that the ``fee`` field of
-  v6 and later coinbase transactions will always be zero.
+Let $\mathsf{Zec}$ be the asset UUID for ZEC as defined in ZIP 248 [#zip-0248]_.
 
-In § 7.1 ‘Transaction Encoding and Consensus’ [#protocol-txnconsensus]_, add:
+In § 3.4 'Transactions and Treestates' [#protocol-transactions]_ (last modified by
+ZIP 236 [#zip-0236]_), add the following consensus rules:
 
-  [NU7 onward] ``fee`` MUST be in the range $\{ 0 .. \mathsf{MAX\_MONEY} \}$.
+  * [NU7 onward] The ``assetClass`` for any entry in ``mValuePoolDeltas`` having
+    ``bundleType`` $= \mathsf{FeeBundleId}$ MUST be 0. That is, fee amounts MUST
+    be denominated in ZEC.
+
+  * [NU7 onward] For v6 and later non-coinbase transactions, the value of
+    $\mathsf{mValuePoolDeltas}[(\mathsf{FeeBundleId}, \mathsf{Zec})]$ MUST be
+    nonpositive. Its absolute value represents the transaction fee in zatoshis.
+
+  * [NU7 onward] For v6 and later coinbase transactions, the value of
+    $\mathsf{mValuePoolDeltas}[(\mathsf{FeeBundleId}, \mathsf{Zec})]$ MUST be
+    nonnegative. It represents the total transaction fees collected from all
+    other transactions in the block.
+
+In § 7.1 'Transaction Encoding and Consensus' [#protocol-txnconsensus]_, add:
+
+  [NU7 onward] The absolute value of the fee bundle's value pool delta MUST
+  be in the range $\{ 0 .. \mathsf{MAX\_MONEY} \}$.
 
 
-Modifications relative to ZIP 244 [#zip-0244]_
-----------------------------------------------
+Modifications to Digest Algorithms
+----------------------------------
 
-Relative to the sighash algorithm defined in ZIP 244, the sighash algorithm
-that applies to v6 transactions differs by appending the ``fee`` field to
-the Common Transaction Fields that are the input to the digest in
-T.1: header_digest [#zip-0244-header-digest]_::
-
-   T.1f: fee (8-byte little-endian fee amount)
-
-Note: If both this ZIP and ZIP 233 are selected for inclusion in the same
-Network Upgrade, then the ambiguity in ordering of the fields added by these
-ZIPs would need to be resolved.
+The fee amount is committed to the transaction identifier and signature
+digest via the ``value_pool_deltas_digest`` defined in ZIP 248 [#zip-0248]_.
+Since the fee bundle (bundle type 4) has no effecting data and no authorizing
+data, its only contribution to the transaction digest is through its entry
+in ``mValuePoolDeltas``.
 
 
 Applicability
@@ -147,8 +161,5 @@ References
 .. [#bitcointalk-fee-error] `Bitcoin Forum post by @Voiceeeeee, March 8, 2017. "PLEASE HELP.. I sent a transaction with a 2.5 BTC transaction fee" <https://bitcointalk.org/index.php?topic=1818791.0>`_
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
 .. [#zip-0230] `ZIP 230: Version 6 Transaction Format <zip-0230.rst>`_
-.. [#zip-0230-transaction-format] `ZIP 230: Version 6 Transaction Format — Specification: Transaction Format <zip-0230.rst#transaction-format>`_
 .. [#zip-0236] `ZIP 236: Blocks should balance exactly <zip-0236.rst>`_
-.. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`_
-.. [#zip-0244-header-digest] `ZIP 244: Transaction Identifier Non-Malleability. Section T.1: Header Digest <zip-0244.rst#t-1-header-digest>`_
-.. [#zip-0246] `ZIP 246: Digests for the Version 6 Transaction Format <zip-0246.rst>`_
+.. [#zip-0248] `ZIP 248: Extensible Transaction Format <zip-0248.rst>`_
