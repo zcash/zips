@@ -370,10 +370,189 @@ The transaction format for v6 transactions is described in ZIP 230 [#zip-0230]_.
 The ZSA-related changes in v6 include:
 
 * updates to the transaction structure [#zip-0230-transaction-format]_ and the
-  sighash digest computation [#zip-0246]_;
+  sighash digest computation [#zip-0248]_;
 * new note plaintext formats for both Sapling and Orchard outputs [#zip-0230-note-plaintexts]_,
   with corresponding changes to the note decryption algorithms for incoming and
   outgoing viewing keys [#zip-2005]_.
+
+Changes to ZIP 248
+``````````````````
+
+This ZIP proposes to register the OrchardZSA bundle type in the V6 transaction
+bundle type registry defined in ZIP 248 [#zip-0248]_:
+
++------------+----------------------+--------------------+------------------+-------------+
+| BundleType | ``mValuePoolDeltas`` | ``mEffectBundles`` | ``mAuthBundles`` | Bundle kind |
++============+======================+====================+==================+=============+
+| TBD        |✅                    |✅                  |✅                | OrchardZSA  |
++------------+----------------------+--------------------+------------------+-------------+
+
+OrchardZSA Effecting Data
+'''''''''''''''''''''''''
+
++-----------------------------+----------------------------------+------------------------------------------------------+---------------------------------------------------------------------+
+| Bytes                       | Name                             | Data Type                                            | Description                                                         |
++=============================+==================================+======================================================+=====================================================================+
+| varies                      |``nActionGroupsOrchard``          |``compactSize``                                       |The number of Action Group descriptions in                           |
+|                             |                                  |                                                      |``vActionGroupsOrchard``.                                            |
++-----------------------------+----------------------------------+------------------------------------------------------+---------------------------------------------------------------------+
+| varies                      |``vActionGroupsOrchard``          |``ActionGroupOrchardEffecting[nActionGroupsOrchard]`` |A sequence of ActionGroupOrchardEffecting descriptions, encoded as   |
+|                             |                                  |                                                      |per `ActionGroupOrchardEffecting`_.                                  |
++-----------------------------+----------------------------------+------------------------------------------------------+---------------------------------------------------------------------+
+
+ActionGroupOrchardEffecting
+'''''''''''''''''''''''''''
+
++-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
+| Bytes                       | Name                         | Data Type                                      | Description                                                         |
++=============================+==============================+================================================+=====================================================================+
+| varies                      |``nActionsOrchard``           |``compactSize``                                 |The number of Action descriptions in ``vActionsOrchard``.            |
+|                             |                              |                                                |This MUST have a value strictly greater than ``0``.                  |
++-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
+| 372 × ``nActionsOrchard``   |``vActionsOrchard``           |``OrchardZSAEffecting[nActionsOrchard]``        |A sequence of OrchardZSA Action descriptions in the Action Group.    |
++-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
+| 1                           |``flagsOrchard``              |``byte``                                        |As defined in §7.1 ‘Transaction Encoding and Consensus’              |
+|                             |                              |                                                |[#protocol-txnencoding]_.                                            |
++-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
+| 32                          |``anchorOrchard``             |``byte[32]``                                    |As defined in §7.1 ‘Transaction Encoding and Consensus’              |
+|                             |                              |                                                |[#protocol-txnencoding]_.                                            |
++-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
+| 4                           |``nAGExpiryHeight``           |``uint32``                                      |A block height in the range {1 .. 499999999} after which any         |
+|                             |                              |                                                |transaction including this Action Group cannot be mined, or 0 if     |
+|                             |                              |                                                |this Action Group places no constraint on transaction expiry.        |
++-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
+| varies                      | ``nAssetBurn``               | ``compactSize``                                |The number of Assets burnt.                                          |
++-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
+| 40 × ``nAssetBurn``         | ``vAssetBurn``               | ``AssetBurn[nAssetBurn]``                      |A sequence of Asset Burn descriptions, encoded per                   |
+|                             |                              |                                                |`OrchardZSA Asset Burn Description`_.                                |
++-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
+
+The encodings of ``OrchardZSAEffecting`` and ``AssetBurn`` are described below.
+
+* If the value of ``nAGExpiryHeight`` is nonzero, it MUST be consistent with
+  the ``nExpiryHeight`` of the overall transaction.
+* In NU7, ``nExpiryHeight`` MUST be set to ``0``; this restriction is expected
+  to be lifted in a future network upgrade.
+
+Rationale for nAGExpiryHeight
+'''''''''''''''''''''''''''''
+
+We introduce the ``nAGExpiryHeight`` field in this transaction format in order
+to be forward compatible with Swaps over ZSAs, as proposed in ZIP 228
+[#zip-0228]_. For the OrchardZSA protocol, which does not make use of an
+additional expiry height for transactions, we set the value of
+``nAGExpiryHeight`` to be ``0`` by consensus. This serves as a default value to
+represent the situation where there is no expiry, analogous to the convention
+adopted for ``nExpiryHeight`` in ZIP 203 [#zip-0203].
+
+Rationale for including Burn fields inside OrchardZSA Action Groups
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Note that the bundle format includes the burn fields of the transaction inside
+the OrchardZSA Action Group rather than at the transaction level. This is a
+design choice that considers the future scenario where Action Groups may be
+generated by different parties before being bundled together into a
+transaction. In such a scenario, the individual parties can burn Assets of
+their choice in their corresponding Action Groups. Maintaining the burn fields
+at the transaction level would provide the ability to burn Assets only to the
+party performing the bundling of the Action Groups.
+
+OrchardZSAEffecting
+'''''''''''''''''''
+
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+| Bytes                       | Name                     | Data Type                              | Description                                                         |
++=============================+==========================+========================================+=====================================================================+
+|``32``                       |``cv``                    |``byte[32]``                            |A value commitment to the net value of the input note minus the      |
+|                             |                          |                                        |output note.                                                         |
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+|``32``                       |``nullifier``             |``byte[32]``                            |The nullifier of the input note.                                     |
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+|``32``                       |``rk``                    |``byte[32]``                            |The randomized validating key for this Action.                       |
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+|``32``                       |``cmx``                   |``byte[32]``                            |The :math:`x\!`-coordinate of the note commitment for the output     |
+|                             |                          |                                        |note.                                                                |
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+|``32``                       |``ephemeralKey``          |``byte[32]``                            |An encoding of an ephemeral Pallas public key.                       |
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+|``132``                      |``encCiphertext``         |``byte[132]``                           |The encrypted contents of the note plaintext.                        |
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+|``80``                       |``outCiphertext``         |``byte[80]``                            |The encrypted contents of the byte string created by concatenation   |
+|                             |                          |                                        |of the transmission key with the ephemeral secret key.               |
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+
+.. _`OrchardZSA Asset Burn Description`:
+
+OrchardZSA Asset Burn Description
+'''''''''''''''''''''''''''''''''
+
+An OrchardZSA Asset Burn description is encoded as an instance of an
+``AssetBurn`` type:
+
++-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
+| Bytes                       | Name                         | Data Type                                      | Description                                                         |
++=============================+==============================+================================================+=====================================================================+
+| 32                          |``AssetBase``                 |``byte[32]``                                    |For the OrchardZSA protocol, this is the encoding of the Asset Base  |
+|                             |                              |                                                |:math:`\mathsf{AssetBase^{Orchard}}\!`.                              |
++-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
+| 8                           |``valueBurn``                 |``uint64``                                      |The amount being burnt. The value is checked by consensus to be      |
+|                             |                              |                                                |non-zero.                                                            |
++-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
+
+OrchardZSA Authorizing Data
+'''''''''''''''''''''''''''
+
+The authorizing data for the OrchardZSA bundle contains the proofs and
+signatures that authorize the actions. The per-action-group data parallels the
+structure of the effecting data.
+
++-----------------------------+----------------------------------+------------------------------------------------------+---------------------------------------------------------------------+
+| Bytes                       | Name                             | Data Type                                            | Description                                                         |
++=============================+==================================+======================================================+=====================================================================+
+| varies                      |``vActionGroupsOrchardAuth``      |``ActionGroupOrchardAuthorizing[nActionGroupsOrchard]``|Authorizing data for each Action Group, in the same order as        |
+|                             |                                  |                                                      |``vActionGroupsOrchard`` in the effecting data.                      |
++-----------------------------+----------------------------------+------------------------------------------------------+---------------------------------------------------------------------+
+|``64``                       |``bindingSigOrchard``             |``byte[64]``                                          |An Orchard binding signature on the SIGHASH transaction hash.        |
++-----------------------------+----------------------------------+------------------------------------------------------+---------------------------------------------------------------------+
+
+* The value of ``nActionGroupsOrchard`` is not re-encoded in the authorizing
+  data; it is taken from the corresponding effecting data.
+
+* The field ``bindingSigOrchard`` is present if and only if
+  $\mathtt{nActionGroupsOrchard} > 0$.
+
+ActionGroupOrchardAuthorizing
+'''''''''''''''''''''''''''''
+
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+| Bytes                       | Name                     | Data Type                              | Description                                                         |
++=============================+==========================+========================================+=====================================================================+
+|``varies``                   |``sizeProofsOrchard``     |``compactSize``                         |Length in bytes of ``proofsOrchard``. Value is                       |
+|                             |                          |                                        |:math:`2720 + 2272 \cdot \mathtt{nActionsOrchard}\!`.                |
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+|``sizeProofsOrchard``        |``proofsOrchard``         |``byte[sizeProofsOrchard]``             |Encoding of aggregated zk-SNARK proofs for OrchardZSA Actions        |
+|                             |                          |                                        |in this Action Group.                                                |
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+|``64 * nActionsOrchard``     |``vSpendAuthSigsOrchard`` |``byte[64 * nActionsOrchard]``          |Authorizing signatures for each OrchardZSA Action in this            |
+|                             |                          |                                        |Action Group.                                                        |
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+
+* The value of ``nActionsOrchard`` is not re-encoded in the authorizing data; it
+  is taken from the corresponding ``ActionGroupOrchardEffecting``.
+
+* The proofs aggregated in ``proofsOrchard``, and the elements of
+  ``vSpendAuthSigsOrchard``, each have a 1:1 correspondence to the elements of
+  ``vActionsOrchard`` in the corresponding ``ActionGroupOrchardEffecting`` and
+  MUST be ordered such that the proof or signature at a given index corresponds
+  to the ``OrchardZSAEffecting`` at the same index.
+
+The OrchardZSA bundle has value pool deltas (transfers move value in and out of
+the transparent transaction value pool), effecting data (the OrchardZSA actions
+and burn information), and authorizing data (the proofs and binding signature).
+
+A transaction MUST NOT contain both an Orchard bundle (type 3) and an OrchardZSA
+bundle. The OrchardZSA bundle replaces the Orchard bundle for transactions that
+transfer Custom Assets.
 
 Implications for Wallets
 ````````````````````````
@@ -394,13 +573,18 @@ The following requirements on wallets are specified and motivated in ZIP 230
   temporarily inaccessible, until the wallet is upgraded to fully support v6 and to
   rescan outputs since v6 activation.
 
-Sighash modifications relative to ZIP 244 [#zip-0244]_
-------------------------------------------------------
+Modifications to Digest Algorithms
+----------------------------------
 
-Relative to the sighash algorithm defined in ZIP 244 [#zip-0244]_, the sighash algorithm
-that applies to v6 transactions differs by altering the Orchard bundle within
-the tree hash to match the corresponding OrchardZSA changes. See ZIP 246 [#zip-0246]_
-for details.
+The OrchardZSA bundle contributes to the transaction identifier and signature
+digest via the ``effects_bundles_digest`` and ``auth_bundles_digest`` defined
+in ZIP 248 [#zip-0248]_.
+
+The OrchardZSA bundle's value pool deltas (for both ZEC and Custom Assets) are
+committed via ``value_pool_deltas_digest``. The OrchardZSA effecting data
+(actions and burn information) is committed via ``effects_bundles_digest``.
+The OrchardZSA authorizing data (proofs and binding signature) is committed
+via ``auth_bundles_digest``.
 
 Transaction Fees
 ----------------
@@ -442,7 +626,9 @@ References
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
 .. [#zip-0209] `ZIP 209: Prohibit Negative Shielded Chain Value Pool Balances <zip-0209.rst>`_
+.. [#zip-0203] `ZIP 203: Transaction Expiry <zip-0203.rst>`_
 .. [#zip-0224] `ZIP 224: Orchard <zip-0224.rst>`_
+.. [#zip-0228] `ZIP 228: Asset Swaps for Zcash Shielded Assets <zip-0228.rst>`_
 .. [#zip-0227] `ZIP 227: Issuance of Zcash Shielded Assets <zip-0227.rst>`_
 .. [#zip-0227-specification-global-issuance-state] `ZIP 227: Issuance of Zcash Shielded Assets — Specification: Global Issuance State <zip-0227.rst#specification-global-issuance-state>`_
 .. [#zip-0227-assetidentifier] `ZIP 227: Issuance of Zcash Shielded Assets — Specification: Asset Identifier <zip-0227.rst#specification-asset-identifier-asset-digest-and-asset-base>`_
@@ -456,8 +642,7 @@ References
 .. [#zip-0230-note-plaintexts] `ZIP 230: Version 6 Transaction Format — Note Plaintexts <zip-0230.rst#note-plaintexts>`_
 .. [#zip-0230-orchard-note-plaintext] `ZIP 230: Version 6 Transaction Format — Orchard Note Plaintext <zip-0230.rst#orchard-note-plaintext>`_
 .. [#zip-0230-implications-for-wallets] `ZIP 230: Version 6 Transaction Format — Implications for Wallets <zip-0230.rst#implications-for-wallets>`_
-.. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`_
-.. [#zip-0246] `ZIP 246: Digests for the Version 6 Transaction Format <zip-0246.rst>`_
+.. [#zip-0248] `ZIP 248: Extensible Transaction Format <zip-0248.rst>`_
 .. [#zip-0307] `ZIP 307: Light Client Protocol for Payment Detection <zip-0307.rst>`_
 .. [#zip-2005] `ZIP 2005: Quantum Recoverability <zip-2005.md>`_
 .. [#protocol] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1] or later. <protocol/protocol.pdf>`_
@@ -475,6 +660,7 @@ References
 .. [#protocol-concretesinsemillacommit] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.4.8.4: Sinsemilla commitments <protocol/protocol.pdf#concretesinsemillacommit>`_
 .. [#protocol-pallasandvesta] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.4.9.6: Pallas and Vesta <protocol/protocol.pdf#pallasandvesta>`_
 .. [#protocol-notept] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.5: Encodings of Note Plaintexts and Memo Fields <protocol/protocol.pdf#notept>`_
+.. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
 .. [#protocol-actionencodingandconsensus] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 7.5: Action Description Encoding and Consensus <protocol/protocol.pdf#actionencodingandconsensus>`_
 .. [#initial-zsa-issue] `User-Defined Assets and Wrapped Assets <https://github.com/str4d/zips/blob/zip-udas/drafts/zip-user-defined-assets.rst>`_
 .. [#generalized-value-commitments] `Comment on Generalized Value Commitments <https://github.com/zcash/zcash/issues/2277#issuecomment-321106819>`_
