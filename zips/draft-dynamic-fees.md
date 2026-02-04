@@ -58,7 +58,7 @@ calculation is required both to weather short-term volatility, and also to
 adjust the marginal fee dynamically over time.
 
 TODO: Justify the complexity of this approach relative to adjusting the ZIP 317
-marginal fee. At present, arginal fee adjustments across the ecosystem are a
+marginal fee. At present, marginal fee adjustments across the ecosystem are a
 bit of a challenge, in particular, raising the marginal fee definitely requires
 wallets to update. An automatic fee adjustment mechanism handles this.
 
