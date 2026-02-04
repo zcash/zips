@@ -125,7 +125,7 @@ When calculating the median fee, if a block has unused capacity (i.e., fewer act
 - By using the average size of real actions for synthetic actions, we ensure that the fee calculation remains realistic and reflective of actual network conditions.
 </details>
 
-## New Consensus Rules
+## New Rules
 
 The following rules can be enforced by relay policy initially, and later hardened into consensus rules in a future network upgrade.
 
