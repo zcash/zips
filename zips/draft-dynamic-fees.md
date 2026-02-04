@@ -101,10 +101,6 @@ A successful design and implementation is one that:
     - Uses a stateless design, with minimal calculations
 - Does not substantively degrade user experience compared to the status quo.
 
-# Rationale
-
-Rationale is provided inline as part of the specification below.
-
 # Specification
 
 ## Notation
