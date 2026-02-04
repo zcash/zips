@@ -152,7 +152,7 @@ conventional fee calculation remains unchanged as per ZIP-317. [^zip-0317]
 
 ## Synthetic Actions
 
-Given the same set of transactions `T` as defined above, let synthetic action
+Given the same sequence of transactions `T` as defined above, let synthetic action
 `S` be defined as an action with a `S_fee = fee_floor` and a size of
 $\mathsf{mean}(T_size)$.
 
