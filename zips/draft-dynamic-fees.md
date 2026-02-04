@@ -154,7 +154,7 @@ conventional fee calculation remains unchanged as per ZIP-317. [^zip-0317]
 
 Given the same set of transactions `T` as defined above, let synthetic action
 `S` be defined as an action with a `S_fee = fee_floor` and a size of
-$\mathsf{average}(T_size)$.
+$\mathsf{mean}(T_size)$.
 
 When calculating the median fee, if a block has unused capacity (i.e., fewer
 actions than the maximum allowed), we fill the empty space with synthetic
