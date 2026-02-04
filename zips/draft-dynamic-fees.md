@@ -16,6 +16,9 @@ The key words "SHOULD", and "MUST" in this document
 are to be interpreted as described in BCP 14 [^BCP14] when, and only when, they
 appear in all capitals.
 
+The character § is used when referring to sections of the Zcash Protocol Specification.
+[^protocol]
+
 The terms "actions", "conventional fee", and "marginal fee" are defined as in ZIP 317. [^zip-0317]
 
 The term "reorg buffer" refers to the number of blocks prior to the chain tip that are excluded from consideration to mitigate reorganization risk.
