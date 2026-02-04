@@ -32,23 +32,42 @@ The Version 6 transaction fields `nIssueActions`, `fee`, and `nExpiryHeight` are
 
 # Abstract
 
-This ZIP introduces a dynamic pricing mechanism based on a median calculation of comparable prices that users have paid in previous blocks.
+This ZIP introduces a dynamic pricing mechanism based on a median calculation
+of comparable prices that users have paid in previous blocks.
 
-The mechanism can ship first as simple node and wallet policy changes, and consensus hardening can follow in a later network upgrade. The design preserves Zcash's core privacy assumptions and adds no explicit on-chain metadata beyond the paid fee.
+The mechanism can ship first as simple node and wallet policy changes, and
+consensus hardening can follow in a later network upgrade. The design preserves
+Zcash's core privacy assumptions and adds no explicit on-chain metadata beyond
+the paid fee.
 
 # Motivation
 
-The price of ZEC has become more volatile and risen sharply, raising transaction fees along with it to prices users have begun to find questionable. Additionally, new environmental factors such as new levels of adoption, and the emergence of Zcash Digital Asset Treasuries may hint at increased volume over the foreseeable future.
+The price of ZEC has become more volatile and risen sharply, raising
+transaction fees along with it to prices users have begun to find questionable.
+Additionally, new environmental factors such as new levels of adoption, and the
+emergence of Zcash Digital Asset Treasuries may hint at increased volume over
+the foreseeable future.
 
-While there are short-term solutions available (the simplest of which would simply be to lower the ZIP-317 marginal fee), this may be inadequate over a longer period of time and require periodic tuning. Thus, a dynamic fee calculation is required both to weather short-term volatility, and also to adjust the marginal fee dynamically over time.
+While there are short-term solutions available (the simplest of which would
+simply be to lower the ZIP-317 marginal fee), this may be inadequate over a
+longer period of time and require periodic tuning. Thus, a dynamic fee
+calculation is required both to weather short-term volatility, and also to
+adjust the marginal fee dynamically over time.
+
+TODO: Justify the complexity of this approach relative to adjusting the ZIP 317
+marginal fee. At present, arginal fee adjustments across the ecosystem are a
+bit of a challenge, in particular, raising the marginal fee definitely requires
+wallets to update. An automatic fee adjustment mechanism handles this.
 
 # Privacy Implications
 
-This design attempts to minimize information leakage about the user while still providing user discretion on paying a premium rate for priority processing, resulting
-in a better user experience.
+This design attempts to minimize information leakage about the user while still
+providing user discretion on paying a premium rate for priority processing,
+resulting in a better user experience.
 
-The combined effects of an additional bit of user choice (priority vs standard) and 
-powers of 10 quantization of fees result in an overall reduction of fee entropy leakage.
+The combined effects of an additional bit of user choice (priority vs standard)
+and powers of 10 quantization of fees result in an overall reduction of fee
+entropy leakage.
 
 This design likely requires trust in the lightwallet's relay of the fees, which
 is compatible with the existing wallet app threat model. [^wallet-threat-model]
@@ -57,23 +76,27 @@ is compatible with the existing wallet app threat model. [^wallet-threat-model]
 
 A successful design and implementation is one that:
 
-1. Does not leak information that can be used to segment the user base
-2. Only uses already-public information
-3. Provides a clear and consistent user experience
+- Does not leak information that can be used to segment the user base.
+- Only uses public information to compute the conventional fee.
+- Has the fee remain roughly economically stable, even though the economic
+  power of ZEC can fluctuate substantially.
+- Provides a clear and consistent user experience:
     - Fees are easy to understand and explain
     - Fees are kept low and adjust rarely
     - Transactions are reliable under uncongested network conditions
     - Prioritizes higher value transactions when the network is congested
-4. Incentivizes miners to include legitimate transactions in blocks
-5. Responds quickly to congestion and slowly returns to normal prices
-6. Makes griefing expensive:
-    - Preventing legitimate transactions requires paying a price higher than legitimate users are willing to pay
+- Incentivizes miners to include legitimate transactions in blocks
+- Responds quickly to congestion and slowly returns to normal prices
+- Makes griefing expensive:
+    - Preventing legitimate transactions requires paying a price higher than
+      legitimate users are willing to pay
     - Prevents miners from gaming the protocol by making users pay more
-7. Is easy to implement and deploy:
-    - Compatible with current and planned network upgrades i.e. ZIP-235’s NSM contributions and ZIP-317’s action-based accounting.
+- Is easy to implement and deploy:
+    - Compatible with current and planned network upgrades i.e. ZIP-235’s NSM
+      contributions and ZIP-317’s action-based accounting.
     - Policy-first, hardened by minimal consensus upgrades later
     - Uses a stateless design, with minimal calculations
-8. Does not substantively degrade user experience compared to the status quo.
+- Does not substantively degrade user experience compared to the status quo.
 
 # Rationale
 
@@ -93,7 +116,8 @@ Let $\mathsf{average}(S)$ be the result of summing all elements of `S` and divid
 
 ## Marginal Fee Calculation
 
-This specification defines several new parameters that are used to calculate the new marginal fee.
+This specification defines several new parameters that are used to calculate
+the new marginal fee.
 
 | Parameter | Value | Units |
 | --- | --- | --- |
@@ -105,29 +129,45 @@ Let `chain_tip` be the height of the latest known block.
 
 Let `T` be the set of transactions in the blocks with heights `[chain_tip - reorg_buffer - lookback_window ... chain_tip - reorg_buffer]`.
 
-The new suggested marginal fee is calculated as $\mathsf{median}(T_fee)$. The conventional fee calculation remains unchanged as per ZIP-317. [^zip-0317]
+The new suggested marginal fee is calculated as $\mathsf{median}(T_fee)$. The
+conventional fee calculation remains unchanged as per ZIP-317. [^zip-0317]
 
 <details>
 <summary>Rationale</summary>
-- A reorg buffer of 5 blocks is chosen to balance the need to mitigate reorganization risk with the desire to use recent transaction data for fee calculation.
-- A lookback window of 50 blocks (roughly the last hour based on the difficulty algorithm) is selected to provide a sufficient sample size of recent transactions while still being responsive to changes in network conditions. 
-- The median is chosen as the method for calculating the marginal fee because it is robust against outliers and provides a more accurate representation of typical transaction fees paid by users. By ensuring that 50% of transactions pay at least the median fee, we can reasonably assume that miners are incentivized to include transactions paying this fee in their blocks.
+- A reorg buffer of 5 blocks is chosen to balance the need to mitigate
+  reorganization risk with the desire to use recent transaction data for fee
+  calculation.
+- A lookback window of 50 blocks (roughly the last hour based on the difficulty
+  algorithm) is selected to provide a sufficient sample size of recent
+  transactions while still being responsive to changes in network conditions. 
+- The median is chosen as the method for calculating the marginal fee because
+  it is robust against outliers and provides a more accurate representation of
+  typical transaction fees paid by users. By ensuring that 50% of transactions
+  pay at least the median fee, we can reasonably assume that miners are
+  incentivized to include transactions paying this fee in their blocks.
 </details>
 
 ## Synthetic Actions
 
-Given the same set of transactions `T` as defined above, let synthetic action `S` be defined as an action with a `S_fee = fee_floor` and a size of $\mathsf{average}(T_size)$.
+Given the same set of transactions `T` as defined above, let synthetic action
+`S` be defined as an action with a `S_fee = fee_floor` and a size of
+$\mathsf{average}(T_size)$.
 
-When calculating the median fee, if a block has unused capacity (i.e., fewer actions than the maximum allowed), we fill the empty space with synthetic actions, and then perform the median calculation.
+When calculating the median fee, if a block has unused capacity (i.e., fewer
+actions than the maximum allowed), we fill the empty space with synthetic
+actions, and then perform the median calculation.
 
 <details>
 <summary>Rationale</summary>
-- By using the average size of real actions for synthetic actions, we ensure that the fee calculation remains realistic and reflective of actual network conditions.
+- By using the average size of real actions for synthetic actions, we ensure
+  that the fee calculation remains realistic and reflective of actual network
+  conditions.
 </details>
 
 ## New Rules
 
-The following rules can be enforced by relay policy initially, and later hardened into consensus rules in a future network upgrade.
+The following rules can be enforced by relay policy initially, and later
+hardened into consensus rules in a future network upgrade.
 
 - The per-action fee MUST be at least `fee_floor` zats.
 - The per-action fee MUST be a power of 10.
@@ -135,7 +175,8 @@ The following rules can be enforced by relay policy initially, and later hardene
 
 <details>
 <summary>Rationale</summary>
-- Setting an expiry height within this range ensures that mispriced transactions don't linger in the mempool for too long.
+- Setting an expiry height within this range ensures that mispriced
+  transactions don't linger in the mempool for too long.
 </details>
 
 ## Wallet Construction
