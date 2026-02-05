@@ -126,7 +126,7 @@ the new marginal fee.
 
 Let `chain_tip` be the height of the latest known block.
 
-Let `T` be the set of transactions in the blocks with heights `[chain_tip - reorg_buffer - lookback_window ... chain_tip - reorg_buffer]`.
+Let `T` be the sequence of transactions in the blocks with heights `[chain_tip - reorg_buffer - lookback_window ... chain_tip - reorg_buffer]`.
 
 The new suggested marginal fee is calculated as $\mathsf{median}(T_fee)$. The
 conventional fee calculation remains unchanged as per ZIP-317. [^zip-0317]
