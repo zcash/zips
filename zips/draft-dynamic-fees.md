@@ -105,13 +105,7 @@ A successful design and implementation is one that:
 
 ## Notation
 
-Let $\mathsf{lceil}(x)$ be the smallest integer greater than or equal to `x`.
-<br />
-Let $\mathsf{rceil}(x)$ be the largest integer less than or equal to `x`.
-<br />
-Let $\mathsf{median}(S)$ be the value at index $\lceil (|S| - 1) / 2 \rceil$ of the sorted set `S`.
-<br />
-Let $\mathsf{average}(S)$ be the result of summing all elements of `S` and dividing by `|S|`.
+Let $\mathsf{median}(S)$ and $\mathsf{mean}$ be as defined in §7.7.3 ‘Difficulty Adjustment’ [^protocol-diffadjustment].
 
 ## Marginal Fee Calculation
 
