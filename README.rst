@@ -167,7 +167,7 @@ written.
     <tr> <td><span class="reserved">76</span></td> <td class="left"><a class="reserved" href="zips/zip-0076.rst">Transaction Signature Validation before Overwinter</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/130">zips#130</a></td>
     <tr> <td>112</td> <td class="left"><a href="zips/zip-0112.rst">CHECKSEQUENCEVERIFY</a></td> <td>Draft</td> <td class="left"></td>
     <tr> <td>113</td> <td class="left"><a href="zips/zip-0113.rst">Median Time Past as endpoint for lock-time calculations</a></td> <td>Draft</td> <td class="left"></td>
-    <tr> <td><span class="reserved">204</span></td> <td class="left"><a class="reserved" href="zips/zip-0204.rst">Zcash P2P Network Protocol</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/352">zips#352</a></td>
+    <tr> <td>204</td> <td class="left"><a href="zips/zip-0204.rst">Zcash P2P Network Protocol</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/352">zips#352</a></td>
     <tr> <td><span class="reserved">217</span></td> <td class="left"><a class="reserved" href="zips/zip-0217.rst">Aggregate Signatures</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zcash/issues/2914">zcash#2914</a></td>
     <tr> <td><span class="reserved">219</span></td> <td class="left"><a class="reserved" href="zips/zip-0219.rst">Disabling Addition of New Value to the Sapling Chain Value Pool</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/428">zips#428</a></td>
     <tr> <td>222</td> <td class="left"><a href="zips/zip-0222.rst">Transparent Zcash Extensions</a></td> <td>Draft</td> <td class="left"></td>
@@ -286,7 +286,7 @@ Index of ZIPs
     <tr> <td>201</td> <td class="left"><a href="zips/zip-0201.rst">Network Peer Management for Overwinter</a></td> <td>Final</td>
     <tr> <td>202</td> <td class="left"><a href="zips/zip-0202.rst">Version 3 Transaction Format for Overwinter</a></td> <td>Final</td>
     <tr> <td>203</td> <td class="left"><a href="zips/zip-0203.rst">Transaction Expiry</a></td> <td>Final</td>
-    <tr> <td><span class="reserved">204</span></td> <td class="left"><a class="reserved" href="zips/zip-0204.rst">Zcash P2P Network Protocol</a></td> <td>Reserved</td>
+    <tr> <td>204</td> <td class="left"><a href="zips/zip-0204.rst">Zcash P2P Network Protocol</a></td> <td>Draft</td>
     <tr> <td>205</td> <td class="left"><a href="zips/zip-0205.rst">Deployment of the Sapling Network Upgrade</a></td> <td>Final</td>
     <tr> <td>206</td> <td class="left"><a href="zips/zip-0206.rst">Deployment of the Blossom Network Upgrade</a></td> <td>Final</td>
     <tr> <td>207</td> <td class="left"><a href="zips/zip-0207.rst">Funding Streams</a></td> <td>[Revision 0: Canopy, Revision 1: NU6] Final</td>
