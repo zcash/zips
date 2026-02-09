@@ -8,7 +8,7 @@ Status: Draft
 Category: Informational
 Created: 2026-02-08
 License: MIT
-Pull-Request: <https://github.com/zcash/zips/pull/???>
+Pull-Request: <https://github.com/zcash/zips/pull/1176>
 ```
 
 # Terminology
