@@ -103,6 +103,10 @@ Funds may exist on addresses derived from multiple sequential account indices. R
 - Specify exact rule: when does ZWL increment account index, and by how much?
 - Clarify relationship between transparent vs shielded indexes (if applicable).
 
+## `zcash_client_sqlite`
+
+TBD
+
 # Security and Privacy Considerations
 
 This ZIP documents behaviors that may expand the search space required for recovery (e.g., scanning multiple account indices). Implementations should:
