@@ -131,14 +131,16 @@ Peer Discovery
 
 A node discovers peers through the following mechanisms:
 
-1. **DNS seeding.** On startup, if the node's address manager is empty or if fewer
-   than 2 outbound connections have been established within 11 seconds, the node
-   queries the DNS seed hostnames listed above for A and AAAA records. Addresses
-   obtained from DNS seeds are added to the address manager with a random age of
-   3–7 days.
+1. **DNS seeding.** On startup, a node queries the DNS seed hostnames listed above
+   for A and AAAA records. The zcashd implementation does this only if the address
+   manager is empty or if fewer than 2 outbound connections have been established
+   within 11 seconds; the Zebra implementation always performs DNS lookups on
+   startup (alongside consulting a persistent address cache).
 
 2. **Hardcoded seed nodes.** If DNS seeding fails or is insufficient, the node
-   falls back to a compiled-in list of seed node addresses (``SeedSpec6`` entries).
+   MAY fall back to a compiled-in list of seed node addresses. In the zcashd
+   implementation these hardcoded addresses may be found in the chain
+   parameters for the relevant network.
 
 DNS seeding is preferred over hardcoded seed nodes. The following mechanism operates
 independently of the above:
@@ -180,8 +182,9 @@ Additional timeout rules:
   within a reasonable time after connection establishment. The zcashd implementation
   uses 60 seconds; the Zebra implementation uses 3 seconds (``HANDSHAKE_TIMEOUT``).
 - A node SHOULD close the connection if a peer has not responded to a ``ping`` with
-  a ``pong`` within a reasonable time. The zcashd implementation uses 1200 seconds
-  (20 minutes); the Zebra implementation uses 20 seconds (``REQUEST_TIMEOUT``).
+  a corresponding ``pong`` within a reasonable time. The zcashd implementation uses
+  1200 seconds (20 minutes); the Zebra implementation uses 20 seconds
+  (``REQUEST_TIMEOUT``).
 
 The specific timeout values are implementation-defined.
 
@@ -215,7 +218,14 @@ Command String Validation
 The ``command`` field MUST contain only printable ASCII characters (bytes in the range
 ``0x20`` to ``0x7E`` inclusive) up to the first NUL byte (``0x00``). After the first NUL
 byte, all remaining bytes MUST be ``0x00``. A message that violates these constraints
-MUST be rejected.
+MUST be ignored.
+
+The following command strings are currently used on the Zcash network:
+
+``version``, ``verack``, ``ping``, ``pong``, ``reject``, ``addr``, ``addrv2``,
+``getaddr``, ``inv``, ``getdata``, ``notfound``, ``getblocks``, ``getheaders``,
+``headers``, ``block``, ``tx``, ``mempool``, ``filterload``, ``filteradd``,
+``filterclear``, ``alert``.
 
 Maximum Message Size
 ````````````````````
@@ -331,8 +341,8 @@ Service Flags
 -------------
 
 Service flags are advertised in the ``services`` field of ``version`` messages and
-``CAddress`` structures. In the table below, bit :math:`k` refers to the bit with
-numeric weight :math:`2^k`; that is, the ``services`` field has the corresponding flag
+``CAddress`` structures. In the table below, bit $k$ refers to the bit with
+numeric weight $2^k$; that is, the ``services`` field has the corresponding flag
 set if and only if ``services & (1 << k) != 0``.
 
 +------------------+-----+------------------------------------------------------+
@@ -793,7 +803,7 @@ Address Messages
   +---------+---------------+------------------------------------------------+
 
 The ``count`` MUST NOT exceed 1000. A node receiving an ``addr`` message with more than
-1000 entries MUST assign a misbehavior penalty of 20 points to the sending peer.
+1000 entries SHOULD assign a misbehavior penalty of 20 points to the sending peer.
 
 
 .. _getaddr-message:
@@ -925,7 +935,7 @@ Inventory Messages
 
 Announces one or more objects (transactions or blocks) that the sender has available.
 The ``count`` MUST NOT exceed 50,000. A node receiving an ``inv`` message with more than
-50,000 entries MUST assign a misbehavior penalty of 20 points.
+50,000 entries SHOULD assign a misbehavior penalty of 20 points.
 
 
 .. _getdata-message:
@@ -1003,8 +1013,8 @@ Block Messages
   +---------+---------------------------+------------------------------------------+
 
 Requests an ``inv`` message containing block hashes starting after the first block
-locator hash found in the responder's best chain, up to ``hash_stop`` or 500 blocks,
-whichever comes first.
+locator hash found in the responder's best chain, up to and including ``hash_stop`` or
+500 blocks, whichever comes first. A node MUST NOT return more than 500 blocks.
 
 
 .. _getheaders-message:
@@ -1032,7 +1042,8 @@ whichever comes first.
   +---------+---------------------------+------------------------------------------+
 
 Requests a ``headers`` message containing block headers starting after the first
-block locator hash found in the responder's best chain. A node MUST return at most
+block locator hash found in the responder's best chain, up to and including
+``hash_stop`` or 160 headers, whichever comes first. A node MUST NOT return more than
 160 headers (``MAX_HEADERS_RESULTS``).
 
 
@@ -1057,7 +1068,7 @@ block locator hash found in the responder's best chain. A node MUST return at mo
 
 The ``count`` MUST NOT exceed 160. The headers MUST form a contiguous chain
 (each header's ``hashPrevBlock`` must match the hash of the preceding header). A
-node receiving non-contiguous headers MUST assign a misbehavior penalty of 20 points.
+node receiving non-contiguous headers SHOULD assign a misbehavior penalty of 20 points.
 
 For the encoding of block headers, see the Zcash Protocol Specification
 [#protocol-blockheader]_.
@@ -1096,10 +1107,11 @@ entry. For the encoding of transactions, see the Zcash Protocol Specification
 Bloom Filter Messages
 `````````````````````
 
-These messages implement BIP 37 [#bip-0037]_ bloom filtering. As of protocol version
-170004, a node MUST NOT send bloom filter commands to a peer that does not advertise
-``NODE_BLOOM`` in its service flags. Sending bloom filter commands to a peer that does
-not advertise ``NODE_BLOOM`` incurs a misbehavior penalty of 100 points (immediate ban).
+These messages implement BIP 37 [#bip-0037]_ bloom filtering. As of protocol
+version 170004, a node MUST NOT send bloom filter commands to a peer that does
+not advertise ``NODE_BLOOM`` in its service flags. Sending bloom filter
+commands to a peer that does not advertise ``NODE_BLOOM`` SHOULD incur a
+misbehavior penalty of 100 points (immediate ban).
 
 .. _filterload-message:
 
@@ -1131,7 +1143,7 @@ transactions that match the filter.
   +---------+----------+------------------------------------------------------+
 
 Adds an element to the existing bloom filter. The data MUST NOT exceed 520 bytes. A node
-receiving data exceeding 520 bytes MUST assign a misbehavior penalty of 100 points.
+receiving data exceeding 520 bytes SHOULD assign a misbehavior penalty of 100 points.
 
 
 .. _filterclear-message:
@@ -1168,7 +1180,8 @@ Block Relay
 Headers-First Synchronization
 `````````````````````````````
 
-Nodes synchronize the block chain using a headers-first approach:
+Nodes MAY synchronize the block chain using a headers-first approach. The Zebra
+implementation uses headers-first synchronization; zcashd does not [#zcashd-6292]_.
 
 1. The synchronizing node sends a ``getheaders`` message with a block locator.
 2. The remote peer responds with a ``headers`` message containing up to 160 headers.
@@ -1207,21 +1220,22 @@ Transaction relay follows an inventory-based protocol:
 2. Peers that want the transaction respond with a ``getdata`` message.
 3. The originating node sends the transaction in a ``tx`` message.
 
-Transactions with version ≤ 4 are announced using ``MSG_TX`` inventory vectors.
-Transactions with version ≥ 5 MUST be announced using ``MSG_WTX`` inventory vectors, as
-specified in ZIP 239 [#zip-0239]_.
+Transactions with version ≤ 4 MUST be announced using ``MSG_TX`` inventory vectors.
+Transactions with version ≥ 5 MUST be announced using ``MSG_WTX`` inventory vectors.
+Using the wrong inventory type for a transaction version SHOULD incur a misbehavior
+penalty. See ZIP 239 [#zip-0239]_.
 
 Trickling
 `````````
 
-To prevent network topology inference, transaction inventory SHOULD NOT be sent
+To impede network topology inference, transaction inventory SHOULD NOT be sent
 immediately but SHOULD instead be "trickled" at random intervals. The specific
 trickling parameters are implementation-defined. The zcashd implementation uses the
 following values:
 
 - The average broadcast interval is 5 seconds (``INVENTORY_BROADCAST_INTERVAL``).
-- For outbound peers, the effective interval is halved via integer right-shift
-  (``5 >> 1 = 2`` seconds on average).
+- For outbound peers, the effective interval in seconds is halved rounding down
+  (2 seconds on average).
 - At most 35 inventory entries (``INVENTORY_BROADCAST_MAX``) are sent per trickle
   interval.
 - Broadcast times follow a Poisson distribution centered on the broadcast interval.
@@ -1231,8 +1245,8 @@ The Zebra implementation uses a 7-second gossip delay (``PEER_GOSSIP_DELAY``).
 Transaction Expiry
 ``````````````````
 
-A node SHOULD NOT relay a transaction that will expire within 3 blocks of the current
-chain tip (``TX_EXPIRING_SOON_THRESHOLD``).
+A node SHOULD NOT relay a transaction that will expire within 3 blocks of its view of
+the current chain tip (``TX_EXPIRING_SOON_THRESHOLD``).
 
 Orphan Transactions
 ```````````````````
@@ -1242,18 +1256,18 @@ An orphan transaction is one that references inputs from unknown parent transact
 - A node SHOULD store at most 100 orphan transactions
   (``DEFAULT_MAX_ORPHAN_TRANSACTIONS``).
 - Orphan transactions expire and are removed after 1200 seconds (20 minutes,
-  ``ORPHAN_TX_EXPIRE_TIME``). Expiration checks occur at most every 300 seconds
-  (5 minutes, ``ORPHAN_TX_EXPIRE_INTERVAL``).
-- Only transactions without shielded components (no JoinSplit descriptions, no Sapling
-  bundle, no Orchard bundle) are eligible for orphan storage.
+  ``ORPHAN_TX_EXPIRE_TIME``).
+- Only fully transparent transactions are eligible for orphan storage.
 - When the orphan pool is full, the oldest orphan transactions are evicted.
 
 Relay Fee
 `````````
 
-Transactions are subject to a minimum relay fee of 100 zatoshis per 1000 bytes
-(``DEFAULT_MIN_RELAY_TX_FEE``). A node SHOULD NOT relay transactions with fees below
-this threshold.
+Transactions are subject to a minimum relay fee. Both the zcashd and Zebra
+implementations use a base rate of 100 zatoshis per 1000 bytes
+(``DEFAULT_MIN_RELAY_TX_FEE``), though the zcashd implementation applies additional
+logic for low-fee and free transactions [#zcashd-relay-fee]_. A node SHOULD NOT relay
+transactions with fees below its minimum relay fee threshold.
 
 
 Address Relay
@@ -1266,8 +1280,8 @@ Rate Limiting
 `````````````
 
 Address records SHOULD be subject to rate limiting to prevent address flooding. The
-specific rate limiting mechanism is implementation-defined. The zcashd implementation
-uses a token bucket algorithm:
+specific rate-limiting mechanism is implementation-defined. The zcashd-specific
+rate-limiting mechanism uses a token-bucket algorithm:
 
 - Rate: 0.1 address records per second per peer (``MAX_ADDR_RATE_PER_SECOND``).
 - Bucket capacity: 1000 (``MAX_ADDR_PROCESSING_TOKEN_BUCKET``), replenished at 0.1
@@ -1394,23 +1408,25 @@ Reject Codes
 References
 ==========
 
-.. [#rfc4291] `RFC 4291: IP Version 6 Addressing Architecture, Section 2.5.5.2 <https://www.rfc-editor.org/rfc/rfc4291.html#section-2.5.5.2>`_
-.. [#zcashd-remove-alert] `zcashd PR 7039: Remove alert handling <https://github.com/zcash/zcash/pull/7039>`_
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#rfc4291] `RFC 4291: IP Version 6 Addressing Architecture, Section 2.5.5.2 <https://www.rfc-editor.org/rfc/rfc4291.html#section-2.5.5.2>`_
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
 .. [#protocol-blockchain] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.3: The Block Chain <protocol/protocol.pdf#blockchain>`_
 .. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
 .. [#protocol-blockencoding] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 7.6: Block Encoding <protocol/protocol.pdf#blockencoding>`_
 .. [#protocol-blockheader] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 7.5: Block Header Encoding <protocol/protocol.pdf#blockheader>`_
+.. [#zip-0155] `ZIP 155: addrv2 message <zip-0155.rst>`_
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
 .. [#zip-0201] `ZIP 201: Network Peer Management for Overwinter <zip-0201.rst>`_
 .. [#zip-0225] `ZIP 225: Version 5 Transaction Format <zip-0225.rst>`_
-.. [#zip-0155] `ZIP 155: addrv2 message <zip-0155.rst>`_
 .. [#zip-0239] `ZIP 239: Relay of Version 5 Transactions <zip-0239.rst>`_
 .. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`_
 .. [#bip-0031] `BIP 31: Pong Message <https://github.com/bitcoin/bips/blob/master/bip-0031.mediawiki>`_
 .. [#bip-0037] `BIP 37: Connection Bloom filtering <https://github.com/bitcoin/bips/blob/master/bip-0037.mediawiki>`_
-.. [#bip-0155] `BIP 155: addrv2 message <https://github.com/bitcoin/bips/blob/master/bip-0155.mediawiki>`_
 .. [#bip-0111] `BIP 111: NODE_BLOOM service bit <https://github.com/bitcoin/bips/blob/master/bip-0111.mediawiki>`_
 .. [#bip-0130] `BIP 130: sendheaders message <https://github.com/bitcoin/bips/blob/master/bip-0130.mediawiki>`_
+.. [#bip-0155] `BIP 155: addrv2 message <https://github.com/bitcoin/bips/blob/master/bip-0155.mediawiki>`_
+.. [#zcashd-6292] `zcashd issue 6292: zcashd does not use headers-first sync <https://github.com/zcash/zcash/issues/6292>`_
+.. [#zcashd-relay-fee] `zcashd relay fee policy (policy.h) <https://github.com/zcash/zcash/blob/cfcfcd93b06d2ee897f1d24eb62692c9e9e0e66d/src/policy/policy.h#L65-L77>`_
+.. [#zcashd-remove-alert] `zcashd PR 7039: Remove alert handling <https://github.com/zcash/zcash/pull/7039>`_
 .. [#bitcoin-protocol] `Bitcoin Developer Reference: P2P Network <https://developer.bitcoin.org/reference/p2p_networking.html>`_
