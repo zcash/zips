@@ -129,7 +129,7 @@ Regtest does not use DNS seeds or hardcoded seed nodes.
 Peer Discovery
 --------------
 
-A node discovers peers through the following mechanisms, in order of preference:
+A node discovers peers through the following mechanisms:
 
 1. **DNS seeding.** On startup, if the node's address manager is empty or if fewer
    than 2 outbound connections have been established within 11 seconds, the node
@@ -139,6 +139,9 @@ A node discovers peers through the following mechanisms, in order of preference:
 
 2. **Hardcoded seed nodes.** If DNS seeding fails or is insufficient, the node
    falls back to a compiled-in list of seed node addresses (``SeedSpec6`` entries).
+
+DNS seeding is preferred over hardcoded seed nodes. The following mechanism operates
+independently of the above:
 
 3. **Address relay.** Connected peers exchange address information using ``addr`` and
    ``getaddr`` messages (see `addr`_ and `getaddr`_).
@@ -156,30 +159,31 @@ encryption or authentication.
 Connection Limits
 `````````````````
 
-The zcashd reference implementation defaults to a maximum of 125 peer connections
-(``DEFAULT_MAX_PEER_CONNECTIONS``), of which a maximum of 8 are outbound connections
-(``MAX_OUTBOUND_CONNECTIONS``). Implementations MAY use different limits.
+The specific connection limits are implementation-defined. The zcashd implementation
+defaults to a maximum of 125 peer connections (``DEFAULT_MAX_PEER_CONNECTIONS``), of
+which a maximum of 8 are outbound connections (``MAX_OUTBOUND_CONNECTIONS``). The Zebra
+implementation computes its limits from a configurable initial target size (default 25),
+applying multipliers to derive an outbound limit of 75 and an inbound limit of 125.
 
 Timeouts
 ````````
 
 A node SHOULD disconnect a peer if no message has been received from that peer within
-a reasonable timeout period. The zcashd reference implementation uses 1200 seconds
-(20 minutes, ``TIMEOUT_INTERVAL``) for this purpose. Automatic ``ping`` messages (see
-`ping`_) are sent periodically to keep connections alive and measure latency.
+a reasonable timeout period. The zcashd implementation uses 1200 seconds (20 minutes,
+``TIMEOUT_INTERVAL``) for this purpose; the Zebra implementation uses a 20-second
+request timeout (``REQUEST_TIMEOUT``). Automatic ``ping`` messages (see `ping`_) are
+sent periodically to keep connections alive and measure latency.
 
 Additional timeout rules:
 
 - A node SHOULD close the connection if a peer has not sent a ``version`` message
-  within a reasonable time after connection establishment. The zcashd reference
-  implementation uses 60 seconds.
+  within a reasonable time after connection establishment. The zcashd implementation
+  uses 60 seconds; the Zebra implementation uses 3 seconds (``HANDSHAKE_TIMEOUT``).
 - A node SHOULD close the connection if a peer has not responded to a ``ping`` with
-  a ``pong`` within a reasonable time. The zcashd reference implementation uses
-  1200 seconds (20 minutes).
+  a ``pong`` within a reasonable time. The zcashd implementation uses 1200 seconds
+  (20 minutes); the Zebra implementation uses 20 seconds (``REQUEST_TIMEOUT``).
 
-Implementations MAY use different timeout values. The specific values above are from
-the zcashd reference implementation; other implementations (e.g. Zebra) use
-significantly shorter timeouts.
+The specific timeout values are implementation-defined.
 
 
 Message Framing
@@ -235,29 +239,16 @@ Data Types and Encoding
 -----------------------
 
 All multi-byte integer types are encoded in little-endian byte order unless otherwise
-specified.
-
-Integers
-````````
-
-+------------+------+------------------------------------------+
-| Type       | Size | Description                              |
-+============+======+==========================================+
-| ``uint8``  | 1    | Unsigned 8-bit integer.                  |
-+------------+------+------------------------------------------+
-| ``uint16`` | 2    | Unsigned 16-bit integer, little-endian.  |
-+------------+------+------------------------------------------+
-| ``int32``  | 4    | Signed 32-bit integer, little-endian.    |
-+------------+------+------------------------------------------+
-| ``uint32`` | 4    | Unsigned 32-bit integer, little-endian.  |
-+------------+------+------------------------------------------+
-| ``int64``  | 8    | Signed 64-bit integer, little-endian.    |
-+------------+------+------------------------------------------+
-| ``uint64`` | 8    | Unsigned 64-bit integer, little-endian.  |
-+------------+------+------------------------------------------+
+specified. The integer types used in this specification (``uint8``, ``uint16``,
+``int32``, ``uint32``, ``int64``, ``uint64``) have their conventional meanings.
 
 CompactSize
 ```````````
+
+.. note::
+
+  The CompactSize encoding is used in the Zcash Protocol Specification (section 7)
+  but is not formally defined there. It is defined here for completeness.
 
 A variable-length unsigned integer encoding used for lengths and counts:
 
@@ -290,13 +281,15 @@ A network address without associated metadata, as inherited from the Bitcoin pro
 +------+----------+--------------------------------------------------------------+
 | Size | Field    | Description                                                  |
 +======+==========+==============================================================+
-| 16   | ``ip``   | IPv6 address (or IPv4-mapped IPv6 address for IPv4 peers).   |
+| 16   | ``ip``   | IPv6 address (or IPv4-mapped IPv6 address [#rfc4291]_ for   |
+|      |          | IPv4 peers).                                                 |
 +------+----------+--------------------------------------------------------------+
 | 2    | ``port`` | TCP port number (big-endian, i.e. network byte order).       |
 +------+----------+--------------------------------------------------------------+
 
-IPv4 addresses are represented as IPv4-mapped IPv6 addresses: the first 12 bytes are
-``00 00 00 00 00 00 00 00 00 00 FF FF`` followed by the 4-byte IPv4 address.
+IPv4 addresses are represented as IPv4-mapped IPv6 addresses as defined in RFC 4291
+section 2.5.5.2 [#rfc4291]_: the first 12 bytes are ``00 00 00 00 00 00 00 00 00 00 FF FF``
+followed by the 4-byte IPv4 address.
 
 Peer Address (``CAddress``)
 ```````````````````````````
@@ -307,16 +300,17 @@ messages:
 +------+--------------+-----------------------------------------------------+
 | Size | Field        | Description                                         |
 +======+==============+=====================================================+
-| 8    | ``services`` | Bitfield of service flags (``uint64``, LE).         |
+| 8    | ``services`` | Bitfield of service flags (``uint64``,              |
+|      |              | little-endian).                                     |
 +------+--------------+-----------------------------------------------------+
 | 16   | ``ip``       | IPv6 address (or IPv4-mapped IPv6).                 |
 +------+--------------+-----------------------------------------------------+
 | 2    | ``port``     | TCP port number (big-endian).                       |
 +------+--------------+-----------------------------------------------------+
 
-When the protocol version is ≥ 31402 (``CADDR_TIME_VERSION``) and the address appears
-in a context other than a ``version`` message, the encoding is preceded by a ``uint32``
-timestamp field:
+When the negotiated protocol version (see `Protocol Version Negotiation`_) is
+≥ 31402 (``CADDR_TIME_VERSION``) and the address appears in a context other than a
+``version`` message, the encoding is preceded by a ``uint32`` timestamp field:
 
 +------+--------------+-----------------------------------------------------+
 | Size | Field        | Description                                         |
@@ -324,7 +318,8 @@ timestamp field:
 | 4    | ``time``     | Unix timestamp when the node was last seen          |
 |      |              | (``uint32``, little-endian).                        |
 +------+--------------+-----------------------------------------------------+
-| 8    | ``services`` | Bitfield of service flags (``uint64``, LE).         |
+| 8    | ``services`` | Bitfield of service flags (``uint64``,              |
+|      |              | little-endian).                                     |
 +------+--------------+-----------------------------------------------------+
 | 16   | ``ip``       | IPv6 address (or IPv4-mapped IPv6).                 |
 +------+--------------+-----------------------------------------------------+
@@ -336,7 +331,9 @@ Service Flags
 -------------
 
 Service flags are advertised in the ``services`` field of ``version`` messages and
-``CAddress`` structures.
+``CAddress`` structures. In the table below, bit :math:`k` refers to the bit with
+numeric weight :math:`2^k`; that is, the ``services`` field has the corresponding flag
+set if and only if ``services & (1 << k) != 0``.
 
 +------------------+-----+------------------------------------------------------+
 | Name             | Bit | Description                                          |
@@ -407,6 +404,32 @@ Handshake Sequence
 A peer MUST NOT send any message other than ``version`` before receiving the remote
 peer's ``version`` message. A peer MUST NOT send any message other than ``verack`` after
 sending its ``version`` and before receiving the remote peer's ``verack``.
+
+.. _protocol-version-negotiation:
+
+Protocol Version Negotiation
+````````````````````````````
+
+Each peer advertises its own protocol version in its ``version`` message. The
+*negotiated protocol version* for the connection is defined as:
+
+  ``negotiated_version = min(local_version, remote_version)``
+
+Before the handshake completes, messages are serialized using the initial protocol
+version 209 (``INIT_PROTO_VERSION``). Once both ``version`` and ``verack`` messages
+have been exchanged, the negotiated protocol version is used for all subsequent
+interpretation of protocol features and message semantics on that connection. In
+particular, the negotiated protocol version determines:
+
+- Whether ``CAddress`` structures include a ``time`` field (version ≥ 31402).
+- Whether ``MSG_WTX`` inventory vectors are permitted (version ≥ 170014).
+- Whether ``addrv2`` messages are supported (see `addrv2`_).
+- Whether the peer meets the minimum version requirements for the current network
+  epoch (see `Network Upgrade Epoch Enforcement`_).
+
+Note that "the protocol version" as used in this document refers to the negotiated
+protocol version unless otherwise specified. A node's *advertised* protocol version
+is the version it includes in its ``version`` message.
 
 Version Message
 ```````````````
@@ -621,8 +644,9 @@ Acknowledges receipt of a ``version`` message. After exchanging ``version`` and
   | 8    | ``nonce`` | Random value (``uint64``).        |
   +------+-----------+-----------------------------------+
 
-Sent periodically to measure latency and detect dead connections. The zcashd reference
-implementation sends ``ping`` messages every 120 seconds (``PING_INTERVAL``).
+Sent periodically to measure latency and detect dead connections. The zcashd
+implementation sends ``ping`` messages every 120 seconds (``PING_INTERVAL``); the Zebra
+implementation uses a 59-second heartbeat interval (``HEARTBEAT_INTERVAL``).
 The receiving node MUST respond with a ``pong`` message containing the same nonce.
 
 .. note::
@@ -741,7 +765,8 @@ Notifies the peer of a rejected message. This message is informational; receipt 
   +---------+------------------+------------------------------------------------+
 
 The ``alert`` message is deprecated. It is documented here for completeness, as it
-remains part of the zcashd implementation, but implementations MAY choose not to
+remains part of the zcashd implementation but has been proposed for removal
+[#zcashd-remove-alert]_, and implementations MAY choose not to
 support it. Nodes that do support ``alert`` messages SHOULD validate the alert
 signature against the network's alert public key before processing or relaying alerts.
 
@@ -867,7 +892,8 @@ addresses consist of the 32-byte Ed25519 master public key of the onion service.
 
 **Deployment:** Unlike BIP 155 [#bip-0155]_, which uses a ``sendaddrv2`` handshake
 message, Zcash signals ``addrv2`` support through protocol version negotiation, as
-specified in ZIP 155 [#zip-0155]_. The deployment version has not yet been assigned.
+specified in ZIP 155 [#zip-0155]_. The deployment version has not yet been assigned;
+see ZIP 155 for the status of this assignment.
 A node MUST NOT send ``addrv2`` messages on connections where the negotiated protocol
 version is below the deployment threshold. A node that supports ``addrv2`` MAY still
 send ``addr`` messages on any connection.
@@ -1190,8 +1216,8 @@ Trickling
 
 To prevent network topology inference, transaction inventory SHOULD NOT be sent
 immediately but SHOULD instead be "trickled" at random intervals. The specific
-trickling parameters are implementation-defined. The zcashd reference implementation
-uses the following values:
+trickling parameters are implementation-defined. The zcashd implementation uses the
+following values:
 
 - The average broadcast interval is 5 seconds (``INVENTORY_BROADCAST_INTERVAL``).
 - For outbound peers, the effective interval is halved via integer right-shift
@@ -1199,6 +1225,8 @@ uses the following values:
 - At most 35 inventory entries (``INVENTORY_BROADCAST_MAX``) are sent per trickle
   interval.
 - Broadcast times follow a Poisson distribution centered on the broadcast interval.
+
+The Zebra implementation uses a 7-second gossip delay (``PEER_GOSSIP_DELAY``).
 
 Transaction Expiry
 ``````````````````
@@ -1238,8 +1266,8 @@ Rate Limiting
 `````````````
 
 Address records SHOULD be subject to rate limiting to prevent address flooding. The
-specific rate limiting mechanism is implementation-defined. The zcashd reference
-implementation uses a token bucket algorithm:
+specific rate limiting mechanism is implementation-defined. The zcashd implementation
+uses a token bucket algorithm:
 
 - Rate: 0.1 address records per second per peer (``MAX_ADDR_RATE_PER_SECOND``).
 - Bucket capacity: 1000 (``MAX_ADDR_PROCESSING_TOKEN_BUCKET``), replenished at 0.1
@@ -1251,8 +1279,8 @@ implementation uses a token bucket algorithm:
 Address Broadcasting
 ````````````````````
 
-The specific broadcast intervals are implementation-defined. The zcashd reference
-implementation uses the following values:
+The specific broadcast intervals are implementation-defined. The zcashd implementation
+uses the following values:
 
 - Addresses are broadcast to peers at an average interval of 30 seconds
   (``AVG_ADDRESS_BROADCAST_INTERVAL``).
@@ -1263,11 +1291,12 @@ implementation uses the following values:
 Misbehavior and Banning
 -----------------------
 
-Nodes SHOULD track misbehavior scores for each connected peer. The zcashd reference
+Nodes SHOULD track misbehavior scores for each connected peer. The zcashd
 implementation bans a peer when its cumulative score reaches or exceeds 100
 (``DEFAULT_BANSCORE_THRESHOLD``), with bans lasting 24 hours
-(``DEFAULT_MISBEHAVING_BANTIME``). The ban threshold and duration are
-implementation-defined.
+(``DEFAULT_MISBEHAVING_BANTIME``). The Zebra implementation also uses a threshold of
+100 (``MAX_PEER_MISBEHAVIOR_SCORE``) but bans persist indefinitely. The ban threshold
+and duration are implementation-defined.
 
 Whitelisted peers accumulate misbehavior scores but are exempt from banning.
 
@@ -1365,6 +1394,8 @@ Reject Codes
 References
 ==========
 
+.. [#rfc4291] `RFC 4291: IP Version 6 Addressing Architecture, Section 2.5.5.2 <https://www.rfc-editor.org/rfc/rfc4291.html#section-2.5.5.2>`_
+.. [#zcashd-remove-alert] `zcashd PR 7039: Remove alert handling <https://github.com/zcash/zcash/pull/7039>`_
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
 .. [#protocol-blockchain] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.3: The Block Chain <protocol/protocol.pdf#blockchain>`_
