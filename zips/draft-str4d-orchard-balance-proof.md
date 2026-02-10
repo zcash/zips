@@ -1,7 +1,7 @@
     ZIP: unassigned
     Title: Air drops, Proof-of-Balance, and Stake-weighted Polling
-    Owners: Daira-Emma Hopwood <daira@electriccoin.co>
-            Jack Grigg <jack@electriccoin.co>
+    Owners: Daira-Emma Hopwood <daira@jacaranda.org>
+            Jack Grigg <thestr4d@gmail.com>
     Status: Draft
     Category: Informational
     Created: 2023-12-07
