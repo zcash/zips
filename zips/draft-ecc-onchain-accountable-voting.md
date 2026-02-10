@@ -1,6 +1,6 @@
     ZIP: XXX
     Title: On-chain Accountable Voting
-    Owners: Daira-Emma Hopwood <daira-emma@electriccoin.co>
+    Owners: Daira-Emma Hopwood <daira@jacaranda.org>
     Status: Draft
     Credits: Josh Swihart
              Kris Nuttycombe
