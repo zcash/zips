@@ -181,6 +181,7 @@ written.
     <tr> <td>235</td> <td class="left"><a href="zips/zip-0235.md">Remove 60% of Transaction Fees From Circulation</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/924">zips#924</a></td>
     <tr> <td>245</td> <td class="left"><a href="zips/zip-0245.rst">Transaction Identifier Digests & Signature Validation for Transparent Zcash Extensions</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/384">zips#384</a></td>
     <tr> <td>246</td> <td class="left"><a href="zips/zip-0246.rst">Digests for the Version 6 Transaction Format</a></td> <td>Draft</td> <td class="left"></td>
+    <tr> <td>248</td> <td class="left"><a href="zips/zip-0248.rst">Extensible Transaction Format</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/pull/1163">zips/pull/1163</a></td>
     <tr> <td><span class="reserved">270</span></td> <td class="left"><a class="reserved" href="zips/zip-0270.md">Key Rotation for Tracked Signing Keys</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/1047">zips#1047</a></td>
     <tr> <td>302</td> <td class="left"><a href="zips/zip-0302.rst">Standardized Memo Field Format</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/366">zips#366</a></td>
     <tr> <td><span class="reserved">303</span></td> <td class="left"><a class="reserved" href="zips/zip-0303.rst">Sprout Payment Disclosure</a></td> <td>Reserved</td> <td class="left"></td>
@@ -320,6 +321,7 @@ Index of ZIPs
     <tr> <td>244</td> <td class="left"><a href="zips/zip-0244.rst">Transaction Identifier Non-Malleability</a></td> <td>Final</td>
     <tr> <td>245</td> <td class="left"><a href="zips/zip-0245.rst">Transaction Identifier Digests & Signature Validation for Transparent Zcash Extensions</a></td> <td>Draft</td>
     <tr> <td>246</td> <td class="left"><a href="zips/zip-0246.rst">Digests for the Version 6 Transaction Format</a></td> <td>Draft</td>
+    <tr> <td>248</td> <td class="left"><a href="zips/zip-0248.rst">Extensible Transaction Format</a></td> <td>Draft</td>
     <tr> <td>250</td> <td class="left"><a href="zips/zip-0250.rst">Deployment of the Heartwood Network Upgrade</a></td> <td>Final</td>
     <tr> <td>251</td> <td class="left"><a href="zips/zip-0251.rst">Deployment of the Canopy Network Upgrade</a></td> <td>Final</td>
     <tr> <td>252</td> <td class="left"><a href="zips/zip-0252.rst">Deployment of the NU5 Network Upgrade</a></td> <td>Final</td>
