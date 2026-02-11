@@ -3,15 +3,1255 @@
 <head>
     <title>ZIP 204: Zcash P2P Network Protocol</title>
     <meta charset="utf-8" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.28/dist/katex.min.css" integrity="sha384-Wsr4Nh3yrvMf2KCebJchRJoVo1gTU6kcP05uRSh5NV3sj9+a8IomuJoQzf3sMq4T" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.28/dist/katex.min.js" integrity="sha384-+W9OcrYK2/bD7BmUAk+xeFAyKp0QjyRQUCxeU31dfyTt/FrPsUgaBTLLkVf33qWt" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.28/dist/contrib/auto-render.min.js" integrity="sha384-hCXGrW6PitJEwbkoStFjeJxv+fSOOQKOPbJxSfM6G5sWZjAyWhXiTIIAmQqnlLlh" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script>
+    <meta content="mempool" name="Command" />
+    <meta content="Both" name="Direction" />
+    <meta content="Empty (0 bytes)." name="Payload" />
 <meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
 <body>
     <section>
         <pre>ZIP: 204
 Title: Zcash P2P Network Protocol
 Owners: Daira-Emma Hopwood &lt;daira@jacaranda.org&gt;
-Status: Reserved
+        Kris Nuttycombe &lt;kris@nutty.land&gt;
+Status: Draft
 Category: Network
+Created: 2026-02-05
+License: MIT
 Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/352">https://github.com/zcash/zips/issues/352</a>&gt;</pre>
+        <section id="terminology"><h2><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>The key words "MUST", "MUST NOT", "SHOULD", "SHOULD NOT", and "RECOMMENDED" in this document are to be interpreted as described in BCP 14 <a id="footnote-reference-1" class="footnote_reference" href="#bcp14">1</a> when, and only when, they appear in all capitals.</p>
+            <p>The terms "Mainnet" and "Testnet" are to be interpreted as described in section 3.12 of the Zcash Protocol Specification. <a id="footnote-reference-2" class="footnote_reference" href="#protocol-networks">3</a></p>
+            <p>The term "network upgrade" is to be interpreted as described in ZIP 200. <a id="footnote-reference-3" class="footnote_reference" href="#zip-0200">9</a></p>
+            <p>The term "block chain" in this document is to be interpreted as described in section 3.3 of the Zcash Protocol Specification. <a id="footnote-reference-4" class="footnote_reference" href="#protocol-blockchain">4</a></p>
+            <dl>
+                <dt>peer</dt>
+                <dd>A network node that participates in the Zcash P2P protocol by maintaining one or more TCP connections to other peers and exchanging protocol messages.</dd>
+                <dt>connection</dt>
+                <dd>A TCP session between two peers over which P2P messages are exchanged.</dd>
+                <dt>inbound connection</dt>
+                <dd>A connection that was initiated by the remote peer.</dd>
+                <dt>outbound connection</dt>
+                <dd>A connection that was initiated by the local node.</dd>
+                <dt>protocol version</dt>
+                <dd>A 32-bit integer identifying the set of protocol features supported by a node. Higher values indicate support for more recent features.</dd>
+            </dl>
+        </section>
+        <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>This ZIP specifies the Zcash peer-to-peer network protocol, including connection setup, message framing, message types, and relay behavior. It is intended to be sufficient for an implementor to build a conformant Zcash network peer.</p>
+        </section>
+        <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <p>There is currently no single document that specifies the full Zcash P2P network protocol. While Bitcoin protocol documentation exists, the Zcash protocol has diverged in several significant ways: network magic bytes differ, protocol version numbers follow an independent numbering scheme, inventory types include <code>MSG_WTX</code> <a id="footnote-reference-5" class="footnote_reference" href="#zip-0239">12</a>, and network upgrade activation drives protocol versioning and peer management <a id="footnote-reference-6" class="footnote_reference" href="#zip-0200">9</a> <a id="footnote-reference-7" class="footnote_reference" href="#zip-0201">10</a>.</p>
+            <p>This ZIP consolidates the protocol specification into a single normative reference, enabling independent implementations and protocol analysis.</p>
+            <p>This ZIP does not specify the encoding of transactions and blocks; for those, refer to the Zcash Protocol Specification <a id="footnote-reference-8" class="footnote_reference" href="#protocol-txnencoding">5</a> <a id="footnote-reference-9" class="footnote_reference" href="#protocol-blockencoding">6</a>.</p>
+        </section>
+        <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <section id="network-parameters"><h3><span class="section-heading">Network Parameters</span><span class="section-anchor"> <a rel="bookmark" href="#network-parameters"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <section id="magic-bytes"><h4><span class="section-heading">Magic Bytes</span><span class="section-anchor"> <a rel="bookmark" href="#magic-bytes"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Each Zcash network is identified by a 4-byte magic value that appears at the start of every protocol message. A node MUST reject messages whose magic bytes do not match the expected network.</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Network</th>
+                                <th>Magic Bytes (hex)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Mainnet</td>
+                                <td><code>24 e9 27 64</code></td>
+                            </tr>
+                            <tr>
+                                <td>Testnet</td>
+                                <td><code>fa 1a f9 bf</code></td>
+                            </tr>
+                            <tr>
+                                <td>Regtest</td>
+                                <td><code>aa e8 3f 5f</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </section>
+                <section id="default-ports"><h4><span class="section-heading">Default Ports</span><span class="section-anchor"> <a rel="bookmark" href="#default-ports"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Network</th>
+                                <th>Default Port</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Mainnet</td>
+                                <td>8233</td>
+                            </tr>
+                            <tr>
+                                <td>Testnet</td>
+                                <td>18233</td>
+                            </tr>
+                            <tr>
+                                <td>Regtest</td>
+                                <td>18344</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </section>
+                <section id="dns-seeds"><h4><span class="section-heading">DNS Seeds</span><span class="section-anchor"> <a rel="bookmark" href="#dns-seeds"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>The following DNS seed hostnames are used for initial peer discovery.</p>
+                    <p><strong>Mainnet:</strong></p>
+                    <ul>
+                        <li><code>dnsseed.z.cash</code></li>
+                        <li><code>dnsseed.str4d.xyz</code></li>
+                        <li><code>mainnet.seeder.zfnd.org</code></li>
+                        <li><code>mainnet.is.yolo.money</code></li>
+                    </ul>
+                    <p><strong>Testnet:</strong></p>
+                    <ul>
+                        <li><code>dnsseed.testnet.z.cash</code></li>
+                        <li><code>testnet.seeder.zfnd.org</code></li>
+                        <li><code>testnet.is.yolo.money</code></li>
+                    </ul>
+                    <p>Regtest does not use DNS seeds or hardcoded seed nodes.</p>
+                </section>
+            </section>
+            <section id="peer-discovery"><h3><span class="section-heading">Peer Discovery</span><span class="section-anchor"> <a rel="bookmark" href="#peer-discovery"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>A node discovers peers through the following mechanisms:</p>
+                <ol type="1">
+                    <li><strong>DNS seeding.</strong> On startup, a node queries the DNS seed hostnames listed above for A and AAAA records. The zcashd implementation does this only if the address manager is empty or if fewer than 2 outbound connections have been established within 11 seconds; the Zebra implementation always performs DNS lookups on startup (alongside consulting a persistent address cache).</li>
+                    <li><strong>Hardcoded seed nodes.</strong> If DNS seeding fails or is insufficient, the node MAY fall back to a compiled-in list of seed node addresses. In the zcashd implementation these hardcoded addresses may be found in the chain parameters for the relevant network. DNS seeding is preferred over hardcoded seed nodes.</li>
+                    <li><strong>Address relay.</strong> Connected peers exchange address information using <code>addr</code> and <code>getaddr</code> messages (see <a href="#addr">addr</a> and <a href="#getaddr">getaddr</a>). This mechanism operates independently of the above.</li>
+                </ol>
+            </section>
+            <section id="connection-handling"><h3><span class="section-heading">Connection Handling</span><span class="section-anchor"> <a rel="bookmark" href="#connection-handling"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <section id="transport"><h4><span class="section-heading">Transport</span><span class="section-anchor"> <a rel="bookmark" href="#transport"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>All connections use unencrypted TCP. The protocol does not provide transport-layer encryption or authentication.</p>
+                </section>
+                <section id="connection-limits"><h4><span class="section-heading">Connection Limits</span><span class="section-anchor"> <a rel="bookmark" href="#connection-limits"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>The specific connection limits are implementation-defined. The zcashd implementation defaults to a maximum of 125 peer connections (<code>DEFAULT_MAX_PEER_CONNECTIONS</code>), of which a maximum of 8 are outbound connections (<code>MAX_OUTBOUND_CONNECTIONS</code>). The Zebra implementation computes its limits from a configurable initial target size (default 25), applying multipliers to derive an outbound limit of 75 and an inbound limit of 125.</p>
+                </section>
+                <section id="timeouts"><h4><span class="section-heading">Timeouts</span><span class="section-anchor"> <a rel="bookmark" href="#timeouts"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>A node SHOULD disconnect a peer if no message has been received from that peer within a reasonable timeout period. The zcashd implementation uses 1200 seconds (20 minutes, <code>TIMEOUT_INTERVAL</code>) for this purpose; the Zebra implementation uses a 20-second request timeout (<code>REQUEST_TIMEOUT</code>). Automatic <code>ping</code> messages (see <a href="#ping">ping</a>) are sent periodically to keep connections alive and measure latency.</p>
+                    <p>Additional timeout rules:</p>
+                    <ul>
+                        <li>A node SHOULD close the connection if a peer has not sent a <code>version</code> message within a reasonable time after connection establishment. The zcashd implementation uses 60 seconds; the Zebra implementation uses 3 seconds (<code>HANDSHAKE_TIMEOUT</code>).</li>
+                        <li>A node SHOULD close the connection if a peer has not responded to a <code>ping</code> with a corresponding <code>pong</code> within a reasonable time. The zcashd implementation uses 1200 seconds (20 minutes); the Zebra implementation uses 20 seconds (<code>REQUEST_TIMEOUT</code>).</li>
+                    </ul>
+                    <p>The specific timeout values are implementation-defined.</p>
+                </section>
+            </section>
+            <section id="message-framing"><h3><span class="section-heading">Message Framing</span><span class="section-anchor"> <a rel="bookmark" href="#message-framing"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Every protocol message consists of a 24-byte header followed by a variable-length payload.</p>
+                <section id="message-header"><h4><span class="section-heading">Message Header</span><span class="section-anchor"> <a rel="bookmark" href="#message-header"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Offset</th>
+                                <th>Size</th>
+                                <th>Field</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>0</td>
+                                <td>4</td>
+                                <td><code>magic</code></td>
+                                <td>Network magic bytes (see <a href="#magic-bytes">Magic Bytes</a>).</td>
+                            </tr>
+                            <tr>
+                                <td>4</td>
+                                <td>12</td>
+                                <td><code>command</code></td>
+                                <td>ASCII command string, NUL-padded to 12 bytes.</td>
+                            </tr>
+                            <tr>
+                                <td>16</td>
+                                <td>4</td>
+                                <td><code>length</code></td>
+                                <td>Payload size in bytes (<code>uint32</code>, little-endian).</td>
+                            </tr>
+                            <tr>
+                                <td>20</td>
+                                <td>4</td>
+                                <td><code>checksum</code></td>
+                                <td>First 4 bytes of <code>SHA-256d(payload)</code>.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p>The total header size is 24 bytes.</p>
+                </section>
+                <section id="command-string-validation"><h4><span class="section-heading">Command String Validation</span><span class="section-anchor"> <a rel="bookmark" href="#command-string-validation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>The <code>command</code> field MUST contain only printable ASCII characters (bytes in the range <code>0x20</code> to <code>0x7E</code> inclusive) up to the first NUL byte (<code>0x00</code>). After the first NUL byte, all remaining bytes MUST be <code>0x00</code>. A message that violates these constraints MUST be ignored.</p>
+                    <p>The following command strings are currently used on the Zcash network:</p>
+                    <p><code>version</code>, <code>verack</code>, <code>ping</code>, <code>pong</code>, <code>reject</code>, <code>addr</code>, <code>addrv2</code>, <code>getaddr</code>, <code>inv</code>, <code>getdata</code>, <code>notfound</code>, <code>getblocks</code>, <code>getheaders</code>, <code>headers</code>, <code>block</code>, <code>tx</code>, <code>mempool</code>, <code>filterload</code>, <code>filteradd</code>, <code>filterclear</code>, <code>alert</code>.</p>
+                </section>
+                <section id="maximum-message-size"><h4><span class="section-heading">Maximum Message Size</span><span class="section-anchor"> <a rel="bookmark" href="#maximum-message-size"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>The maximum payload size is 2,097,152 bytes (2 MiB). A node MUST reject any message whose <code>length</code> field exceeds this limit.</p>
+                </section>
+                <section id="checksum-verification"><h4><span class="section-heading">Checksum Verification</span><span class="section-anchor"> <a rel="bookmark" href="#checksum-verification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>The <code>checksum</code> field contains the first 4 bytes of the double-SHA-256 hash of the payload:</p>
+                    <blockquote>
+                        <p><code>checksum = SHA-256(SHA-256(payload))[0..4]</code></p>
+                    </blockquote>
+                    <p>A node MUST verify the checksum after receiving the full payload and MUST reject the message if the checksum does not match.</p>
+                </section>
+            </section>
+            <section id="data-types-and-encoding"><h3><span class="section-heading">Data Types and Encoding</span><span class="section-anchor"> <a rel="bookmark" href="#data-types-and-encoding"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>All multi-byte integer types are encoded in little-endian byte order unless otherwise specified. The integer types used in this specification (<code>uint8</code>, <code>uint16</code>, <code>int32</code>, <code>uint32</code>, <code>int64</code>, <code>uint64</code>) have their conventional meanings.</p>
+                <section id="compactsize"><h4><span class="section-heading">CompactSize</span><span class="section-anchor"> <a rel="bookmark" href="#compactsize"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <aside class="note">The CompactSize encoding is used in the Zcash Protocol Specification (section 7) but is not formally defined there. It is defined here for completeness.</aside>
+                    <p>A variable-length unsigned integer encoding used for lengths and counts:</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Value Range</th>
+                                <th>Encoding Size</th>
+                                <th>Format</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>0 to 252</td>
+                                <td>1 byte</td>
+                                <td>Single byte with the value directly.</td>
+                            </tr>
+                            <tr>
+                                <td>253 to 0xFFFF</td>
+                                <td>3 bytes</td>
+                                <td><code>0xFD</code> followed by the value as <code>uint16</code>.</td>
+                            </tr>
+                            <tr>
+                                <td>0x10000 to 0xFFFFFFFF</td>
+                                <td>5 bytes</td>
+                                <td><code>0xFE</code> followed by the value as <code>uint32</code>.</td>
+                            </tr>
+                            <tr>
+                                <td>0x100000000 to 0xFFFFFFFFFFFFFFFF</td>
+                                <td>9 bytes</td>
+                                <td><code>0xFF</code> followed by the value as <code>uint64</code>.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p>Encodings MUST be canonical: the shortest possible encoding MUST be used for any given value. A node MUST reject messages containing non-canonical CompactSize encodings.</p>
+                </section>
+                <section id="strings"><h4><span class="section-heading">Strings</span><span class="section-anchor"> <a rel="bookmark" href="#strings"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Character strings are encoded as a CompactSize length prefix followed by that many bytes of string data. There is no NUL terminator.</p>
+                </section>
+                <section id="network-address-cservice"><h4><span class="section-heading">Network Address (<code>CService</code>)</span><span class="section-anchor"> <a rel="bookmark" href="#network-address-cservice"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>A network address without associated metadata, as inherited from the Bitcoin protocol:</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Size</th>
+                                <th>Field</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>16</td>
+                                <td><code>ip</code></td>
+                                <td>IPv6 address (or IPv4-mapped IPv6 address <a id="footnote-reference-10" class="footnote_reference" href="#rfc4291">2</a> for IPv4 peers).</td>
+                            </tr>
+                            <tr>
+                                <td>2</td>
+                                <td><code>port</code></td>
+                                <td>TCP port number (big-endian, i.e. network byte order).</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p>IPv4 addresses are represented as IPv4-mapped IPv6 addresses as defined in RFC 4291 section 2.5.5.2 <a id="footnote-reference-11" class="footnote_reference" href="#rfc4291">2</a>: the first 12 bytes are <code>00 00 00 00 00 00 00 00 00 00 FF FF</code> followed by the 4-byte IPv4 address.</p>
+                </section>
+                <section id="peer-address-caddress"><h4><span class="section-heading">Peer Address (<code>CAddress</code>)</span><span class="section-anchor"> <a rel="bookmark" href="#peer-address-caddress"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>A network address with associated metadata, used in <code>version</code>, <code>addr</code>, and other messages:</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Size</th>
+                                <th>Field</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>8</td>
+                                <td><code>services</code></td>
+                                <td>Bitfield of service flags (<code>uint64</code>, little-endian).</td>
+                            </tr>
+                            <tr>
+                                <td>16</td>
+                                <td><code>ip</code></td>
+                                <td>IPv6 address (or IPv4-mapped IPv6).</td>
+                            </tr>
+                            <tr>
+                                <td>2</td>
+                                <td><code>port</code></td>
+                                <td>TCP port number (big-endian).</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p>When the negotiated protocol version (see <a href="#protocol-version-negotiation">Protocol Version Negotiation</a>) is ≥ 31402 (<code>CADDR_TIME_VERSION</code>) and the address appears in a context other than a <code>version</code> message, the encoding is preceded by a <code>uint32</code> timestamp field:</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Size</th>
+                                <th>Field</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>4</td>
+                                <td><code>time</code></td>
+                                <td>Unix-epoch UTC time in seconds when the node was last seen (<code>uint32</code>, little-endian).</td>
+                            </tr>
+                            <tr>
+                                <td>8</td>
+                                <td><code>services</code></td>
+                                <td>Bitfield of service flags (<code>uint64</code>, little-endian).</td>
+                            </tr>
+                            <tr>
+                                <td>16</td>
+                                <td><code>ip</code></td>
+                                <td>IPv6 address (or IPv4-mapped IPv6).</td>
+                            </tr>
+                            <tr>
+                                <td>2</td>
+                                <td><code>port</code></td>
+                                <td>TCP port number (big-endian).</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </section>
+            </section>
+            <section id="service-flags"><h3><span class="section-heading">Service Flags</span><span class="section-anchor"> <a rel="bookmark" href="#service-flags"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Service flags are advertised in the <code>services</code> field of <code>version</code> messages and <code>CAddress</code> structures. In the table below, bit
+                    <span class="math">\(k\)</span>
+                 refers to the bit with numeric weight
+                    <span class="math">\(2^k;\)</span>
+                 that is, the <code>services</code> field has the corresponding flag set if and only if <code>services &amp; (1 &lt;&lt; k) != 0</code>.</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Bit</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>NODE_NETWORK</code></td>
+                            <td>0</td>
+                            <td>The node is capable of serving the complete block chain.</td>
+                        </tr>
+                        <tr>
+                            <td><code>NODE_BLOOM</code></td>
+                            <td>2</td>
+                            <td>The node supports Bloom-filtered connections (BIP 37 <a id="footnote-reference-12" class="footnote_reference" href="#bip-0037">15</a>). Zcash nodes used to support this by default without advertising the bit, but no longer do as of protocol version 170004 (<code>NO_BLOOM_VERSION</code>).</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p>Bits 24–31 are reserved for temporary experiments.</p>
+            </section>
+            <section id="inventory-vectors"><h3><span class="section-heading">Inventory Vectors</span><span class="section-anchor"> <a rel="bookmark" href="#inventory-vectors"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Inventory vectors identify objects (transactions and blocks) for relay. The format depends on the type:</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Code</th>
+                            <th>Entry Size</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>MSG_TX</code></td>
+                            <td>1</td>
+                            <td>36 bytes</td>
+                            <td>Transaction identified by txid. 4-byte type code + 32-byte txid.</td>
+                        </tr>
+                        <tr>
+                            <td><code>MSG_BLOCK</code></td>
+                            <td>2</td>
+                            <td>36 bytes</td>
+                            <td>Block identified by block hash. 4-byte type code + 32-byte block hash.</td>
+                        </tr>
+                        <tr>
+                            <td><code>MSG_FILTERED_BLOCK</code></td>
+                            <td>3</td>
+                            <td>36 bytes</td>
+                            <td>Filtered block (<code>getdata</code> only). 4-byte type code + 32-byte block hash.</td>
+                        </tr>
+                        <tr>
+                            <td><code>MSG_WTX</code></td>
+                            <td>5</td>
+                            <td>68 bytes</td>
+                            <td>Transaction identified by wtxid. 4-byte type code + 32-byte txid + 32-byte authorizing data commitment (<code>auth_digest</code>). Requires negotiated protocol version ≥ 170014 (<code>CINV_WTX_VERSION</code>). See ZIP 239 <a id="footnote-reference-13" class="footnote_reference" href="#zip-0239">12</a>.</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p>Because <code>MSG_TX</code> and <code>MSG_WTX</code> entries have different sizes (36 and 68 bytes respectively), they may be mixed in a single <code>inv</code> or <code>getdata</code> message. The total message size is therefore not determined solely by the entry count and MUST be determined by parsing each entry individually.</p>
+                <p>A node MUST reject inventory vectors with unrecognized type codes. A node MUST reject <code>MSG_WTX</code> inventory vectors if the negotiated protocol version is less than 170014.</p>
+            </section>
+            <section id="connection-handshake"><h3><span class="section-heading">Connection Handshake</span><span class="section-anchor"> <a rel="bookmark" href="#connection-handshake"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Peers perform a version handshake immediately upon establishing a TCP connection.</p>
+                <section id="handshake-sequence"><h4><span class="section-heading">Handshake Sequence</span><span class="section-anchor"> <a rel="bookmark" href="#handshake-sequence"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <ol type="1">
+                        <li>The initiating (outbound) peer sends a <code>version</code> message.</li>
+                        <li>The receiving (inbound) peer sends its own <code>version</code> message.</li>
+                        <li>Each peer, upon receiving a valid <code>version</code> message, responds with a <code>verack</code> message.</li>
+                        <li>The negotiated protocol version is <code>min(local_version, remote_version)</code>.</li>
+                    </ol>
+                    <p>A peer MUST NOT send any message other than <code>version</code> before receiving the remote peer's <code>version</code> message. A peer MUST NOT send any message other than <code>verack</code> after sending its <code>version</code> and before receiving the remote peer's <code>verack</code>.</p>
+                    <p>If validation of the <code>version</code> message received from a peer fails, the node MUST disconnect the peer. See (see <a href="#version-validation">Version Validation</a>) below for additional details.</p>
+                </section>
+                <section id="protocol-version-negotiation"><h4><span class="section-heading">Protocol Version Negotiation</span><span class="section-anchor"> <a rel="bookmark" href="#protocol-version-negotiation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Each peer advertises its own protocol version in its <code>version</code> message. The <em>negotiated protocol version</em> for the connection is defined as:</p>
+                    <blockquote>
+                        <p><code>negotiated_version = min(local_version, remote_version)</code></p>
+                    </blockquote>
+                    <p>Before the handshake completes, messages are serialized using the initial protocol version 209 (<code>INIT_PROTO_VERSION</code>). Once both <code>version</code> and <code>verack</code> messages have been exchanged, the negotiated protocol version is used for all subsequent interpretation of protocol features and message semantics on that connection. In particular, the negotiated protocol version determines:</p>
+                    <ul>
+                        <li>Whether <code>CAddress</code> structures include a <code>time</code> field (version ≥ 31402).</li>
+                        <li>Whether <code>MSG_WTX</code> inventory vectors are permitted (version ≥ 170014).</li>
+                        <li>Whether <code>addrv2</code> messages are supported (see <a href="#addrv2">addrv2</a>).</li>
+                        <li>Whether the peer meets the minimum version requirements for the current network epoch (see <a href="#network-upgrade-epoch-enforcement">Network Upgrade Epoch Enforcement</a>).</li>
+                    </ul>
+                    <p>Note that "the protocol version" as used in this document refers to the negotiated protocol version unless otherwise specified. A node's <em>advertised</em> protocol version is the version it includes in its <code>version</code> message.</p>
+                </section>
+                <section id="version-message"><h4><span class="section-heading">Version Message</span><span class="section-anchor"> <a rel="bookmark" href="#version-message"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>The <code>version</code> message payload has the following format:</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Offset</th>
+                                <th>Size</th>
+                                <th>Field</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>0</td>
+                                <td>4</td>
+                                <td><code>version</code></td>
+                                <td>Protocol version (<code>int32</code>).</td>
+                            </tr>
+                            <tr>
+                                <td>4</td>
+                                <td>8</td>
+                                <td><code>services</code></td>
+                                <td>Bitfield of service flags (<code>uint64</code>).</td>
+                            </tr>
+                            <tr>
+                                <td>12</td>
+                                <td>8</td>
+                                <td><code>timestamp</code></td>
+                                <td>Unix-epoch UTC time in seconds (<code>int64</code>).</td>
+                            </tr>
+                            <tr>
+                                <td>20</td>
+                                <td>26</td>
+                                <td><code>addr_recv</code></td>
+                                <td>Address of the receiving node (<code>CAddress</code> without <code>time</code> field).</td>
+                            </tr>
+                            <tr>
+                                <td>46</td>
+                                <td>26</td>
+                                <td><code>addr_from</code></td>
+                                <td>Address of the sending node (<code>CAddress</code> without <code>time</code> field).</td>
+                            </tr>
+                            <tr>
+                                <td>72</td>
+                                <td>8</td>
+                                <td><code>nonce</code></td>
+                                <td>Random nonce for self-connection detection (<code>uint64</code>).</td>
+                            </tr>
+                            <tr>
+                                <td>80</td>
+                                <td>varies</td>
+                                <td><code>user_agent</code></td>
+                                <td>User agent string (CompactSize-prefixed, max 256 bytes).</td>
+                            </tr>
+                            <tr>
+                                <td>varies</td>
+                                <td>4</td>
+                                <td><code>start_height</code></td>
+                                <td>Best block height known to the sender (<code>int32</code>).</td>
+                            </tr>
+                            <tr>
+                                <td>varies</td>
+                                <td>1</td>
+                                <td><code>relay</code></td>
+                                <td>Whether the sender wants transaction relay (<code>uint8</code>; 0 for false, nonzero for true).</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p>The <code>addr_recv</code> and <code>addr_from</code> fields use the <code>CAddress</code> encoding <em>without</em> the <code>time</code> field, regardless of the protocol version being negotiated.</p>
+                    <p>The <code>nonce</code> field is used for self-connection detection. If a node receives a <code>version</code> message containing its own nonce, it MUST close the connection.</p>
+                    <p>The <code>user_agent</code> string MUST NOT exceed 256 bytes. A node SHOULD disconnect peers that send a longer user agent.</p>
+                    <p>A node SHOULD reject <code>version</code> messages in which the <code>relay</code> field has a value other than 0 or 1.</p>
+                </section>
+                <section id="version-validation"><h4><span class="section-heading">Version Validation</span><span class="section-anchor"> <a rel="bookmark" href="#version-validation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>A receiving node MUST validate the <code>version</code> message as follows:</p>
+                    <ul>
+                        <li>The <code>version</code> field MUST be at least 170002 (<code>MIN_PEER_PROTO_VERSION</code>).</li>
+                        <li>On Testnet, the <code>version</code> field MUST be at least 170040 (<code>MIN_TESTNET_PEER_PROTO_VERSION</code>).</li>
+                        <li>The <code>version</code> field MUST be at least the protocol version associated with the current network epoch (see <a href="#network-upgrade-peer-management">Network Upgrade Peer Management</a>).</li>
+                        <li>The <code>nonce</code> MUST NOT match the local node's nonce (self-connection detection).</li>
+                        <li>A peer MUST NOT send more than one <code>version</code> message per connection. Duplicate <code>version</code> messages incur a misbehavior penalty.</li>
+                    </ul>
+                    <p>If any of these checks fail, the node MUST disconnect the peer. A <code>reject</code> message with code <code>REJECT_OBSOLETE</code> (<code>0x11</code>) SHOULD be sent before disconnecting for version-related failures.</p>
+                </section>
+            </section>
+            <section id="protocol-versioning"><h3><span class="section-heading">Protocol Versioning</span><span class="section-anchor"> <a rel="bookmark" href="#protocol-versioning"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Protocol versions are 32-bit integers. The following versions are significant:</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Version</th>
+                            <th>Constant</th>
+                            <th>Significance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>209</td>
+                            <td><code>INIT_PROTO_VERSION</code></td>
+                            <td>Initial protocol version. Used as the serialization version before the <code>version</code>/<code>verack</code> handshake completes.</td>
+                        </tr>
+                        <tr>
+                            <td>31402</td>
+                            <td><code>CADDR_TIME_VERSION</code></td>
+                            <td>Adds the <code>time</code> field to <code>CAddress</code> in <code>addr</code> messages. Also affects encoding of the <code>addr_from</code> field in <code>version</code> messages.</td>
+                        </tr>
+                        <tr>
+                            <td>60000</td>
+                            <td><code>BIP0031_VERSION</code></td>
+                            <td><code>ping</code> messages include a <code>uint64</code> nonce and expect a <code>pong</code> response. For protocol versions ≤ 60000, <code>ping</code> has an empty payload.</td>
+                        </tr>
+                        <tr>
+                            <td>170002</td>
+                            <td><code>MIN_PEER_PROTO_VERSION</code></td>
+                            <td>Minimum protocol version for Mainnet peers.</td>
+                        </tr>
+                        <tr>
+                            <td>170004</td>
+                            <td><code>NO_BLOOM_VERSION</code></td>
+                            <td>Bloom filter commands (<code>filterload</code>, <code>filteradd</code>, <code>filterclear</code>) are disabled unless the node advertises <code>NODE_BLOOM</code>.</td>
+                        </tr>
+                        <tr>
+                            <td>170014</td>
+                            <td><code>CINV_WTX_VERSION</code></td>
+                            <td>Adds <code>MSG_WTX</code> inventory type for v5 transaction relay. See ZIP 239 <a id="footnote-reference-14" class="footnote_reference" href="#zip-0239">12</a>.</td>
+                        </tr>
+                        <tr>
+                            <td>170040</td>
+                            <td><code>MIN_TESTNET_PEER_PROTO_VERSION</code></td>
+                            <td>Minimum protocol version for Testnet peers.</td>
+                        </tr>
+                        <tr>
+                            <td>170140</td>
+                            <td><code>PROTOCOL_VERSION</code></td>
+                            <td>Current protocol version.</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <section id="network-upgrade-epoch-enforcement"><h4><span class="section-heading">Network Upgrade Epoch Enforcement</span><span class="section-anchor"> <a rel="bookmark" href="#network-upgrade-epoch-enforcement"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Each network upgrade defines a minimum protocol version. When a network upgrade activates (as defined in ZIP 200 <a id="footnote-reference-15" class="footnote_reference" href="#zip-0200">9</a>), a node MUST disconnect any peer whose negotiated protocol version is less than the protocol version associated with the current epoch. The node SHOULD send a <code>reject</code> message with code <code>REJECT_OBSOLETE</code> (<code>0x11</code>) before disconnecting.</p>
+                    <p>The following protocol versions are associated with network upgrades on Mainnet:</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Network Upgrade</th>
+                                <th>Protocol Version</th>
+                                <th>Activation Height</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Sprout</td>
+                                <td>170002</td>
+                                <td>(always active)</td>
+                            </tr>
+                            <tr>
+                                <td>Overwinter</td>
+                                <td>170005</td>
+                                <td>347,500</td>
+                            </tr>
+                            <tr>
+                                <td>Sapling</td>
+                                <td>170007</td>
+                                <td>419,200</td>
+                            </tr>
+                            <tr>
+                                <td>Blossom</td>
+                                <td>170009</td>
+                                <td>653,600</td>
+                            </tr>
+                            <tr>
+                                <td>Heartwood</td>
+                                <td>170011</td>
+                                <td>903,000</td>
+                            </tr>
+                            <tr>
+                                <td>Canopy</td>
+                                <td>170013</td>
+                                <td>1,046,400</td>
+                            </tr>
+                            <tr>
+                                <td>NU5</td>
+                                <td>170100</td>
+                                <td>1,687,104</td>
+                            </tr>
+                            <tr>
+                                <td>NU6</td>
+                                <td>170120</td>
+                                <td>2,726,400</td>
+                            </tr>
+                            <tr>
+                                <td>NU6.1</td>
+                                <td>170140</td>
+                                <td>3,146,400</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p>The following protocol versions are associated with network upgrades on Testnet:</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Network Upgrade</th>
+                                <th>Protocol Version</th>
+                                <th>Activation Height</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Sprout</td>
+                                <td>170002</td>
+                                <td>(always active)</td>
+                            </tr>
+                            <tr>
+                                <td>Overwinter</td>
+                                <td>170003</td>
+                                <td>207,500</td>
+                            </tr>
+                            <tr>
+                                <td>Sapling</td>
+                                <td>170007</td>
+                                <td>280,000</td>
+                            </tr>
+                            <tr>
+                                <td>Blossom</td>
+                                <td>170008</td>
+                                <td>584,000</td>
+                            </tr>
+                            <tr>
+                                <td>Heartwood</td>
+                                <td>170010</td>
+                                <td>903,800</td>
+                            </tr>
+                            <tr>
+                                <td>Canopy</td>
+                                <td>170012</td>
+                                <td>1,028,500</td>
+                            </tr>
+                            <tr>
+                                <td>NU5</td>
+                                <td>170050</td>
+                                <td>1,842,420</td>
+                            </tr>
+                            <tr>
+                                <td>NU6</td>
+                                <td>170110</td>
+                                <td>2,976,000</td>
+                            </tr>
+                            <tr>
+                                <td>NU6.1</td>
+                                <td>170130</td>
+                                <td>3,536,500</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p>Note that Testnet protocol versions differ from Mainnet for several upgrades (Overwinter, Blossom, Heartwood, Canopy, NU5, NU6, and NU6.1).</p>
+                </section>
+            </section>
+            <section id="message-types"><h3><span class="section-heading">Message Types</span><span class="section-anchor"> <a rel="bookmark" href="#message-types"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>This section defines each protocol message. For each message, the command string, direction, payload format, and semantics are specified.</p>
+                <section id="control-messages"><h4><span class="section-heading">Control Messages</span><span class="section-anchor"> <a rel="bookmark" href="#control-messages"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <section id="version"><h5><span class="section-heading"><code>version</code></span><span class="section-anchor"> <a rel="bookmark" href="#version"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>Initiates the connection handshake. The details of this message are specified in <a href="#connection-handshake">Connection Handshake</a>.</p>
+                    </section>
+                    <section id="verack"><h5><span class="section-heading"><code>verack</code></span><span class="section-anchor"> <a rel="bookmark" href="#verack"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>Acknowledges receipt of a <code>version</code> message. After exchanging <code>version</code> and <code>verack</code> messages, the connection is considered established.</p>
+                    </section>
+                    <section id="ping"><h5><span class="section-heading"><code>ping</code></span><span class="section-anchor"> <a rel="bookmark" href="#ping"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>Sent periodically to measure latency and detect dead connections. The zcashd implementation sends <code>ping</code> messages every 120 seconds (<code>PING_INTERVAL</code>); the Zebra implementation uses a 59-second heartbeat interval (<code>HEARTBEAT_INTERVAL</code>). The receiving node MUST respond with a <code>pong</code> message containing the same nonce.</p>
+                        <aside class="note">Historically (BIP 31 <a id="footnote-reference-16" class="footnote_reference" href="#bip-0031">14</a>), <code>ping</code> messages had an empty payload for protocol versions ≤ 60000 (<code>BIP0031_VERSION</code>). Since the minimum Zcash peer protocol version is 170002 (<code>MIN_PEER_PROTO_VERSION</code>), well above this threshold, all conformant Zcash peers use the nonce-bearing format. The empty-payload variant will never be encountered on the Zcash network.</aside>
+                    </section>
+                    <section id="pong"><h5><span class="section-heading"><code>pong</code></span><span class="section-anchor"> <a rel="bookmark" href="#pong"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>Sent in response to a <code>ping</code>. The <code>nonce</code> MUST match the <code>nonce</code> from the <code>ping</code> that is being responded to.</p>
+                    </section>
+                    <section id="reject"><h5><span class="section-heading"><code>reject</code></span><span class="section-anchor"> <a rel="bookmark" href="#reject"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>Notifies the peer of a rejected message. This message is informational; receipt of a <code>reject</code> message does not require any specific action by the receiving node.</p>
+                    </section>
+                    <section id="alert"><h5><span class="section-heading"><code>alert</code></span><span class="section-anchor"> <a rel="bookmark" href="#alert"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>The <code>alert</code> message is deprecated. It is documented here for completeness, as it remains part of the zcashd implementation but has been proposed for removal <a id="footnote-reference-17" class="footnote_reference" href="#zcashd-remove-alert">21</a>, and implementations MAY choose not to support it. Nodes that do support <code>alert</code> messages SHOULD validate the alert signature against the network's alert public key before processing or relaying alerts.</p>
+                    </section>
+                </section>
+                <section id="address-messages"><h4><span class="section-heading">Address Messages</span><span class="section-anchor"> <a rel="bookmark" href="#address-messages"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <section id="addr"><h5><span class="section-heading"><code>addr</code></span><span class="section-anchor"> <a rel="bookmark" href="#addr"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>The <code>count</code> MUST NOT exceed 1000. A node receiving an <code>addr</code> message with more than 1000 entries SHOULD assign a misbehavior penalty of 20 points to the sending peer.</p>
+                    </section>
+                    <section id="getaddr"><h5><span class="section-heading"><code>getaddr</code></span><span class="section-anchor"> <a rel="bookmark" href="#getaddr"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>Requests peer addresses from the remote node. The remote node responds by sending one or more <code>addr</code> messages. A node SHOULD only send <code>getaddr</code> once per connection, and SHOULD only process <code>getaddr</code> from inbound peers to prevent address-based fingerprinting attacks.</p>
+                    </section>
+                    <section id="addrv2"><h5><span class="section-heading"><code>addrv2</code></span><span class="section-anchor"> <a rel="bookmark" href="#addrv2"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>Each address entry has the following format:</p>
+                        <blockquote>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Size</th>
+                                        <th>Field</th>
+                                        <th>Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>4</td>
+                                        <td><code>time</code></td>
+                                        <td>Unix-epoch UTC time in seconds when the node was last seen (<code>uint32</code>, little-endian).</td>
+                                    </tr>
+                                    <tr>
+                                        <td>varies</td>
+                                        <td><code>services</code></td>
+                                        <td>Service bits (CompactSize-encoded <code>uint64</code>).</td>
+                                    </tr>
+                                    <tr>
+                                        <td>1</td>
+                                        <td><code>networkID</code></td>
+                                        <td>Network identifier (<code>uint8</code>).</td>
+                                    </tr>
+                                    <tr>
+                                        <td>varies</td>
+                                        <td><code>sizeAddr</code></td>
+                                        <td>Length of <code>addr</code> in bytes (CompactSize).</td>
+                                    </tr>
+                                    <tr>
+                                        <td>varies</td>
+                                        <td><code>addr</code></td>
+                                        <td>Network address (<code>sizeAddr</code> bytes). Interpretation depends on <code>networkID</code>.</td>
+                                    </tr>
+                                    <tr>
+                                        <td>2</td>
+                                        <td><code>port</code></td>
+                                        <td>Network port (<code>uint16</code>, big-endian). MUST be 0 if not relevant for the network.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </blockquote>
+                        <p>The <code>count</code> MUST NOT exceed 1000. A node MUST reject messages with more than 1000 addresses.</p>
+                        <p>The <code>addr</code> field MUST NOT exceed 512 bytes. A node MUST reject messages with a longer <code>addr</code> field, irrespective of the network ID.</p>
+                        <p>The <code>services</code> field is encoded as a CompactSize, unlike the fixed 8-byte <code>uint64</code> encoding used in <code>addr</code> messages. This makes the common case (few service bits) more compact.</p>
+                        <p>The following network IDs are defined:</p>
+                        <blockquote>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Network ID</th>
+                                        <th>Name</th>
+                                        <th>Address Size</th>
+                                        <th>Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><code>0x01</code></td>
+                                        <td><code>IPV4</code></td>
+                                        <td>4 bytes</td>
+                                        <td>IPv4 address.</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>0x02</code></td>
+                                        <td><code>IPV6</code></td>
+                                        <td>16 bytes</td>
+                                        <td>IPv6 address.</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>0x04</code></td>
+                                        <td><code>TORV3</code></td>
+                                        <td>32 bytes</td>
+                                        <td>Tor v3 onion service address (Ed25519 public key).</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>0x05</code></td>
+                                        <td><code>I2P</code></td>
+                                        <td>32 bytes</td>
+                                        <td>I2P overlay network address (SHA-256 hash).</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>0x06</code></td>
+                                        <td><code>CJDNS</code></td>
+                                        <td>16 bytes</td>
+                                        <td>Cjdns overlay network address (IPv6 in <code>fc00::/8</code>).</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </blockquote>
+                        <p>Network ID <code>0x03</code> is reserved (it was assigned to Tor v2 in BIP 155 <a id="footnote-reference-18" class="footnote_reference" href="#bip-0155">18</a>, but Tor v2 addresses are no longer supported and MUST NOT be used).</p>
+                        <p>A node MUST reject addresses whose length does not match the expected length for the given network ID. A node MUST NOT gossip addresses with unrecognized network IDs.</p>
+                        <p><code>IPV4</code> and <code>IPV6</code> addresses are encoded in network byte order (big-endian). <code>TORV3</code> addresses consist of the 32-byte Ed25519 master public key of the onion service. <code>I2P</code> addresses consist of the decoded 32-byte SHA-256 hash. <code>CJDNS</code> addresses are 16-byte IPv6 addresses in the <code>fc00::/8</code> range, encoded in network byte order.</p>
+                        <p><strong>Deployment:</strong> Unlike BIP 155 <a id="footnote-reference-19" class="footnote_reference" href="#bip-0155">18</a>, which uses a <code>sendaddrv2</code> handshake message, Zcash signals <code>addrv2</code> support through protocol version negotiation, as specified in ZIP 155 <a id="footnote-reference-20" class="footnote_reference" href="#zip-0155">8</a>. The deployment version has not yet been assigned; see ZIP 155 for the status of this assignment. A node MUST NOT send <code>addrv2</code> messages on connections where the negotiated protocol version is below the deployment threshold. A node that supports <code>addrv2</code> MAY still send <code>addr</code> messages on any connection.</p>
+                        <p>The full specification of the <code>addrv2</code> message, including network address encoding details, is given in ZIP 155 <a id="footnote-reference-21" class="footnote_reference" href="#zip-0155">8</a>.</p>
+                    </section>
+                </section>
+                <section id="inventory-messages"><h4><span class="section-heading">Inventory Messages</span><span class="section-anchor"> <a rel="bookmark" href="#inventory-messages"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <section id="inv"><h5><span class="section-heading"><code>inv</code></span><span class="section-anchor"> <a rel="bookmark" href="#inv"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>Announces one or more objects (transactions or blocks) that the sender has available. The <code>count</code> MUST NOT exceed 50,000. A node receiving an <code>inv</code> message with more than 50,000 entries SHOULD assign a misbehavior penalty of 20 points.</p>
+                    </section>
+                    <section id="getdata"><h5><span class="section-heading"><code>getdata</code></span><span class="section-anchor"> <a rel="bookmark" href="#getdata"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>Requests one or more objects from the remote peer. The <code>count</code> MUST NOT exceed 50,000. A node receiving a <code>getdata</code> message with more than 50,000 entries MUST assign a misbehavior penalty of 20 points.</p>
+                        <p>If the requested object is not available, the receiving node SHOULD respond with a <code>notfound</code> message.</p>
+                    </section>
+                    <section id="notfound"><h5><span class="section-heading"><code>notfound</code></span><span class="section-anchor"> <a rel="bookmark" href="#notfound"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>Sent in response to a <code>getdata</code> message for objects that the node does not have.</p>
+                    </section>
+                </section>
+                <section id="block-messages"><h4><span class="section-heading">Block Messages</span><span class="section-anchor"> <a rel="bookmark" href="#block-messages"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <section id="getblocks"><h5><span class="section-heading"><code>getblocks</code></span><span class="section-anchor"> <a rel="bookmark" href="#getblocks"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>Requests an <code>inv</code> message containing block hashes starting after the first block locator hash found in the responder's best chain, up to and including <code>hash_stop</code> or 500 blocks, whichever comes first. A node MUST NOT return more than 500 blocks.</p>
+                    </section>
+                    <section id="getheaders"><h5><span class="section-heading"><code>getheaders</code></span><span class="section-anchor"> <a rel="bookmark" href="#getheaders"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>Requests a <code>headers</code> message containing block headers starting after the first block locator hash found in the responder's best chain, up to and including <code>hash_stop</code> or 160 headers, whichever comes first. A node MUST NOT return more than 160 headers (<code>MAX_HEADERS_RESULTS</code>).</p>
+                    </section>
+                    <section id="headers"><h5><span class="section-heading"><code>headers</code></span><span class="section-anchor"> <a rel="bookmark" href="#headers"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>The <code>count</code> MUST NOT exceed 160. The headers MUST form a contiguous chain (each header's <code>hashPrevBlock</code> must match the hash of the preceding header). A node receiving non-contiguous headers SHOULD assign a misbehavior penalty of 20 points.</p>
+                        <p>For the encoding of block headers, see the Zcash Protocol Specification <a id="footnote-reference-22" class="footnote_reference" href="#protocol-blockheader">7</a>.</p>
+                    </section>
+                    <section id="block"><h5><span class="section-heading"><code>block</code></span><span class="section-anchor"> <a rel="bookmark" href="#block"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>Sent in response to a <code>getdata</code> request for a <code>MSG_BLOCK</code> inventory entry. For the encoding of blocks, see the Zcash Protocol Specification <a id="footnote-reference-23" class="footnote_reference" href="#protocol-blockencoding">6</a>.</p>
+                    </section>
+                </section>
+                <section id="transaction-messages"><h4><span class="section-heading">Transaction Messages</span><span class="section-anchor"> <a rel="bookmark" href="#transaction-messages"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <section id="tx"><h5><span class="section-heading"><code>tx</code></span><span class="section-anchor"> <a rel="bookmark" href="#tx"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>Sent in response to a <code>getdata</code> request for a <code>MSG_TX</code> or <code>MSG_WTX</code> inventory entry. For the encoding of transactions, see the Zcash Protocol Specification <a id="footnote-reference-24" class="footnote_reference" href="#protocol-txnencoding">5</a>.</p>
+                    </section>
+                </section>
+                <section id="bloom-filter-messages"><h4><span class="section-heading">Bloom Filter Messages</span><span class="section-anchor"> <a rel="bookmark" href="#bloom-filter-messages"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>These messages implement BIP 37 <a id="footnote-reference-25" class="footnote_reference" href="#bip-0037">15</a> Bloom filtering. As of protocol version 170004, a node MUST NOT send Bloom filter commands to a peer that does not advertise <code>NODE_BLOOM</code> in its service flags. Sending Bloom filter commands to a peer that does not advertise <code>NODE_BLOOM</code> SHOULD incur a misbehavior penalty of 100 points (immediate ban).</p>
+                    <section id="filterload"><h5><span class="section-heading"><code>filterload</code></span><span class="section-anchor"> <a rel="bookmark" href="#filterload"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>Sets a Bloom filter on the connection. After a filter is set, the peer will only relay transactions that match the filter.</p>
+                    </section>
+                    <section id="filteradd"><h5><span class="section-heading"><code>filteradd</code></span><span class="section-anchor"> <a rel="bookmark" href="#filteradd"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>Adds an element to the existing Bloom filter. The data MUST NOT exceed 520 bytes. A node receiving data exceeding 520 bytes SHOULD assign a misbehavior penalty of 100 points.</p>
+                    </section>
+                    <section id="filterclear"><h5><span class="section-heading"><code>filterclear</code></span><span class="section-anchor"> <a rel="bookmark" href="#filterclear"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>Removes the Bloom filter from the connection. Transaction relay resumes normally.</p>
+                    </section>
+                </section>
+                <section id="memory-pool"><h4><span class="section-heading">Memory Pool</span><span class="section-anchor"> <a rel="bookmark" href="#memory-pool"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <section id="mempool"><h5><span class="section-heading"><code>mempool</code></span><span class="section-anchor"> <a rel="bookmark" href="#mempool"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
+                        <p>Requests the contents of the peer's transaction memory pool. The peer responds by sending one or more <code>inv</code> messages listing the transactions in its mempool.</p>
+                    </section>
+                </section>
+            </section>
+            <section id="block-relay"><h3><span class="section-heading">Block Relay</span><span class="section-anchor"> <a rel="bookmark" href="#block-relay"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <section id="headers-first-synchronization"><h4><span class="section-heading">Headers-First Synchronization</span><span class="section-anchor"> <a rel="bookmark" href="#headers-first-synchronization"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Nodes MAY synchronize the block chain using a headers-first approach. The Zebra implementation uses headers-first synchronization; zcashd does not <a id="footnote-reference-27" class="footnote_reference" href="#zcashd-6292">19</a>.</p>
+                    <ol type="1">
+                        <li>The synchronizing node sends a <code>getheaders</code> message with a block locator.</li>
+                        <li>The remote peer responds with a <code>headers</code> message containing up to 160 headers.</li>
+                        <li>The synchronizing node validates the headers and requests full blocks via <code>getdata</code> with <code>MSG_BLOCK</code> inventory entries.</li>
+                        <li>Steps 1–3 repeat until the node is synchronized with the network.</li>
+                    </ol>
+                </section>
+                <section id="block-download-parameters"><h4><span class="section-heading">Block Download Parameters</span><span class="section-anchor"> <a rel="bookmark" href="#block-download-parameters"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <ul>
+                        <li><strong>Download window:</strong> A node SHOULD NOT request blocks more than 1024 blocks ahead of its current validated tip (<code>BLOCK_DOWNLOAD_WINDOW</code>).</li>
+                        <li><strong>Per-peer limit:</strong> A node SHOULD NOT have more than 16 blocks in transit from a single peer simultaneously (<code>MAX_BLOCKS_IN_TRANSIT_PER_PEER</code>).</li>
+                        <li><strong>Stalling timeout:</strong> If a peer has not delivered a requested block within 2 seconds (<code>BLOCK_STALLING_TIMEOUT</code>) and there are other peers available with the same block, the node MAY request the block from an alternative peer.</li>
+                        <li><strong>Maximum headers per response:</strong> 160 (<code>MAX_HEADERS_RESULTS</code>).</li>
+                    </ul>
+                </section>
+                <section id="block-announcement"><h4><span class="section-heading">Block Announcement</span><span class="section-anchor"> <a rel="bookmark" href="#block-announcement"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Blocks are announced immediately via <code>inv</code> messages; they are not subject to the trickling delay applied to transactions.</p>
+                </section>
+            </section>
+            <section id="transaction-relay"><h3><span class="section-heading">Transaction Relay</span><span class="section-anchor"> <a rel="bookmark" href="#transaction-relay"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <section id="inventory-based-relay"><h4><span class="section-heading">Inventory-Based Relay</span><span class="section-anchor"> <a rel="bookmark" href="#inventory-based-relay"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Transaction relay follows an inventory-based protocol:</p>
+                    <ol type="1">
+                        <li>A node with a new transaction sends an <code>inv</code> message to its peers.</li>
+                        <li>Peers that want the transaction respond with a <code>getdata</code> message.</li>
+                        <li>The originating node sends the transaction in a <code>tx</code> message.</li>
+                    </ol>
+                    <p>Transactions with version ≤ 4 MUST be announced using <code>MSG_TX</code> inventory vectors. Transactions with version ≥ 5 MUST be announced using <code>MSG_WTX</code> inventory vectors. Using the wrong inventory type for a transaction version SHOULD incur a misbehavior penalty. See ZIP 239 <a id="footnote-reference-28" class="footnote_reference" href="#zip-0239">12</a>.</p>
+                </section>
+                <section id="trickling"><h4><span class="section-heading">Trickling</span><span class="section-anchor"> <a rel="bookmark" href="#trickling"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>To impede network topology inference, transaction inventory SHOULD NOT be sent immediately but SHOULD instead be "trickled" at random intervals. The specific trickling parameters are implementation-defined. The zcashd implementation uses the following values:</p>
+                    <ul>
+                        <li>The average broadcast interval is 5 seconds (<code>INVENTORY_BROADCAST_INTERVAL</code>).</li>
+                        <li>For outbound peers, the effective interval in seconds is halved rounding down (2 seconds on average).</li>
+                        <li>At most 35 inventory entries (<code>INVENTORY_BROADCAST_MAX</code>) are sent per trickle interval.</li>
+                        <li>Broadcast times follow a Poisson distribution centered on the broadcast interval.</li>
+                    </ul>
+                    <p>The Zebra implementation uses a 7-second gossip delay (<code>PEER_GOSSIP_DELAY</code>).</p>
+                </section>
+                <section id="transaction-expiry"><h4><span class="section-heading">Transaction Expiry</span><span class="section-anchor"> <a rel="bookmark" href="#transaction-expiry"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>A node SHOULD NOT relay a transaction that will expire within 3 blocks of its view of the current chain tip (<code>TX_EXPIRING_SOON_THRESHOLD</code>).</p>
+                </section>
+                <section id="orphan-transactions"><h4><span class="section-heading">Orphan Transactions</span><span class="section-anchor"> <a rel="bookmark" href="#orphan-transactions"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>An orphan transaction is one that references inputs from unknown parent transactions.</p>
+                    <ul>
+                        <li>A node SHOULD store at most 100 orphan transactions (<code>DEFAULT_MAX_ORPHAN_TRANSACTIONS</code>).</li>
+                        <li>Orphan transactions expire and are removed after 1200 seconds (20 minutes, <code>ORPHAN_TX_EXPIRE_TIME</code>).</li>
+                        <li>Only fully transparent transactions are eligible for orphan storage.</li>
+                        <li>When the orphan pool is full, the oldest orphan transactions are evicted.</li>
+                    </ul>
+                </section>
+                <section id="relay-fee"><h4><span class="section-heading">Relay Fee</span><span class="section-anchor"> <a rel="bookmark" href="#relay-fee"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Transactions are subject to a minimum relay fee. Both the zcashd and Zebra implementations use a base rate of 100 zatoshis per 1000 bytes (<code>DEFAULT_MIN_RELAY_TX_FEE</code>), though the zcashd implementation applies additional logic for low-fee and free transactions <a id="footnote-reference-29" class="footnote_reference" href="#zcashd-relay-fee">20</a>. A node SHOULD NOT relay transactions with fees below its minimum relay fee threshold.</p>
+                </section>
+            </section>
+            <section id="address-relay"><h3><span class="section-heading">Address Relay</span><span class="section-anchor"> <a rel="bookmark" href="#address-relay"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Address relay allows nodes to discover peers by propagating <code>CAddress</code> records through the network.</p>
+                <section id="rate-limiting"><h4><span class="section-heading">Rate Limiting</span><span class="section-anchor"> <a rel="bookmark" href="#rate-limiting"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>Address records SHOULD be subject to rate limiting to prevent address flooding. The specific rate-limiting mechanism is implementation-defined. The zcashd-specific rate-limiting mechanism uses a token-bucket algorithm:</p>
+                    <ul>
+                        <li>Rate: 0.1 address records per second per peer (<code>MAX_ADDR_RATE_PER_SECOND</code>).</li>
+                        <li>Bucket capacity: 1000 (<code>MAX_ADDR_PROCESSING_TOKEN_BUCKET</code>), replenished at 0.1 tokens per second.</li>
+                        <li>Upon receiving a <code>getaddr</code> response, 1000 tokens (<code>MAX_ADDR_TO_SEND</code>) are added to the bucket, exempt from the soft limit.</li>
+                        <li>Whitelisted peers bypass address rate limiting.</li>
+                    </ul>
+                </section>
+                <section id="address-broadcasting"><h4><span class="section-heading">Address Broadcasting</span><span class="section-anchor"> <a rel="bookmark" href="#address-broadcasting"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>The specific broadcast intervals are implementation-defined. The zcashd implementation uses the following values:</p>
+                    <ul>
+                        <li>Addresses are broadcast to peers at an average interval of 30 seconds (<code>AVG_ADDRESS_BROADCAST_INTERVAL</code>).</li>
+                        <li>A node's own address is broadcast approximately every 9.6 hours (<code>AVG_LOCAL_ADDRESS_BROADCAST_INTERVAL = 24 * 24 * 60 = 34560</code> seconds).</li>
+                    </ul>
+                </section>
+            </section>
+            <section id="misbehavior-and-banning"><h3><span class="section-heading">Misbehavior and Banning</span><span class="section-anchor"> <a rel="bookmark" href="#misbehavior-and-banning"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Nodes SHOULD track misbehavior scores for each connected peer. The zcashd implementation bans a peer when its cumulative score reaches or exceeds 100 (<code>DEFAULT_BANSCORE_THRESHOLD</code>), with bans lasting 24 hours (<code>DEFAULT_MISBEHAVING_BANTIME</code>). The Zebra implementation also uses a threshold of 100 (<code>MAX_PEER_MISBEHAVIOR_SCORE</code>) but bans persist indefinitely. The ban threshold and duration are implementation-defined.</p>
+                <p>Whitelisted peers accumulate misbehavior scores but are exempt from banning.</p>
+                <p>The following table lists the misbehavior penalties assigned for specific protocol violations:</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Points</th>
+                            <th>Violation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>1</td>
+                            <td>Duplicate <code>version</code> message.</td>
+                        </tr>
+                        <tr>
+                            <td>1</td>
+                            <td>Message received before <code>version</code> handshake.</td>
+                        </tr>
+                        <tr>
+                            <td>1</td>
+                            <td>Duplicate <code>verack</code> message.</td>
+                        </tr>
+                        <tr>
+                            <td>10</td>
+                            <td>Alert processing failure.</td>
+                        </tr>
+                        <tr>
+                            <td>20</td>
+                            <td><code>addr</code> message with more than 1000 entries.</td>
+                        </tr>
+                        <tr>
+                            <td>20</td>
+                            <td><code>inv</code> message with more than 50,000 entries.</td>
+                        </tr>
+                        <tr>
+                            <td>20</td>
+                            <td><code>getdata</code> message with more than 50,000 entries.</td>
+                        </tr>
+                        <tr>
+                            <td>20</td>
+                            <td><code>headers</code> message with more than 160 entries.</td>
+                        </tr>
+                        <tr>
+                            <td>20</td>
+                            <td>Non-contiguous headers sequence.</td>
+                        </tr>
+                        <tr>
+                            <td>50</td>
+                            <td>Causing send buffer overflow.</td>
+                        </tr>
+                        <tr>
+                            <td>100</td>
+                            <td>Bloom filter commands without <code>NODE_BLOOM</code> support.</td>
+                        </tr>
+                        <tr>
+                            <td>100</td>
+                            <td>Invalid Bloom filter parameters.</td>
+                        </tr>
+                        <tr>
+                            <td>100</td>
+                            <td><code>filteradd</code> data exceeding 520 bytes.</td>
+                        </tr>
+                        <tr>
+                            <td>100</td>
+                            <td>Using <code>MSG_TX</code> to announce a v5 transaction, or <code>MSG_WTX</code> to announce a v4-or-earlier transaction (see ZIP 239 <a id="footnote-reference-30" class="footnote_reference" href="#zip-0239">12</a>).</td>
+                        </tr>
+                        <tr>
+                            <td>varies</td>
+                            <td>Transaction, block, or header validation failure. The penalty is determined by the severity of the validation error.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+            <section id="network-upgrade-peer-management"><h3><span class="section-heading">Network Upgrade Peer Management</span><span class="section-anchor"> <a rel="bookmark" href="#network-upgrade-peer-management"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>Network upgrade peer management is specified in ZIP 201 <a id="footnote-reference-31" class="footnote_reference" href="#zip-0201">10</a>. This section summarizes the key behaviors.</p>
+                <section id="pre-activation"><h4><span class="section-heading">Pre-Activation</span><span class="section-anchor"> <a rel="bookmark" href="#pre-activation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>In the 1728-block window (<code>NETWORK_UPGRADE_PEER_PREFERENCE_BLOCK_PERIOD</code>) before a network upgrade activation height, a node SHOULD preferentially connect to peers that advertise a protocol version at or above the version required by the upcoming upgrade. This period corresponds to approximately 1.5 days at the post-Blossom block interval.</p>
+                </section>
+                <section id="post-activation"><h4><span class="section-heading">Post-Activation</span><span class="section-anchor"> <a rel="bookmark" href="#post-activation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+                    <p>After a network upgrade activates, a node MUST disconnect any peer whose negotiated protocol version is below the version required by the active epoch. The node SHOULD send a <code>reject</code> message with code <code>REJECT_OBSOLETE</code> (<code>0x11</code>) before disconnecting.</p>
+                </section>
+            </section>
+        </section>
+        <section id="reject-codes"><h2><span class="section-heading">Reject Codes</span><span class="section-anchor"> <a rel="bookmark" href="#reject-codes"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Constant</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>0x01</code></td>
+                        <td><code>REJECT_MALFORMED</code></td>
+                        <td>The message could not be decoded.</td>
+                    </tr>
+                    <tr>
+                        <td><code>0x10</code></td>
+                        <td><code>REJECT_INVALID</code></td>
+                        <td>The message was invalid (e.g., a block or transaction that fails validation).</td>
+                    </tr>
+                    <tr>
+                        <td><code>0x11</code></td>
+                        <td><code>REJECT_OBSOLETE</code></td>
+                        <td>The message uses an obsolete protocol version.</td>
+                    </tr>
+                    <tr>
+                        <td><code>0x12</code></td>
+                        <td><code>REJECT_DUPLICATE</code></td>
+                        <td>The message is a duplicate of one already received.</td>
+                    </tr>
+                    <tr>
+                        <td><code>0x40</code></td>
+                        <td><code>REJECT_NONSTANDARD</code></td>
+                        <td>The transaction is valid but not standard.</td>
+                    </tr>
+                    <tr>
+                        <td><code>0x41</code></td>
+                        <td><code>REJECT_DUST</code></td>
+                        <td>One or more transaction outputs are below the dust threshold.</td>
+                    </tr>
+                    <tr>
+                        <td><code>0x42</code></td>
+                        <td><code>REJECT_INSUFFICIENTFEE</code></td>
+                        <td>The transaction fee is insufficient.</td>
+                    </tr>
+                    <tr>
+                        <td><code>0x43</code></td>
+                        <td><code>REJECT_CHECKPOINT</code></td>
+                        <td>The block conflicts with a checkpoint.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section id="references"><h2><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+            <table id="bcp14" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>1</th>
+                        <td><a href="https://www.rfc-editor.org/info/bcp14">Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="rfc4291" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>2</th>
+                        <td><a href="https://www.rfc-editor.org/rfc/rfc4291.html#section-2.5.5.2">RFC 4291: IP Version 6 Addressing Architecture, Section 2.5.5.2</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-networks" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>3</th>
+                        <td><a href="protocol/protocol.pdf#networks">Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.12: Mainnet and Testnet</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-blockchain" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>4</th>
+                        <td><a href="protocol/protocol.pdf#blockchain">Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.3: The Block Chain</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-txnencoding" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>5</th>
+                        <td><a href="protocol/protocol.pdf#txnencoding">Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 7.1: Transaction Encoding and Consensus</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-blockencoding" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>6</th>
+                        <td><a href="protocol/protocol.pdf#blockencoding">Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 7.6: Block Encoding</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="protocol-blockheader" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>7</th>
+                        <td><a href="protocol/protocol.pdf#blockheader">Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 7.5: Block Header Encoding</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0155" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>8</th>
+                        <td><a href="zip-0155">ZIP 155: addrv2 message</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0200" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>9</th>
+                        <td><a href="zip-0200">ZIP 200: Network Upgrade Mechanism</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0201" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>10</th>
+                        <td><a href="zip-0201">ZIP 201: Network Peer Management for Overwinter</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0225" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>11</th>
+                        <td><a href="zip-0225">ZIP 225: Version 5 Transaction Format</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0239" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>12</th>
+                        <td><a href="zip-0239">ZIP 239: Relay of Version 5 Transactions</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zip-0244" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>13</th>
+                        <td><a href="zip-0244">ZIP 244: Transaction Identifier Non-Malleability</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bip-0031" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>14</th>
+                        <td><a href="https://github.com/bitcoin/bips/blob/master/bip-0031.mediawiki">BIP 31: Pong Message</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bip-0037" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>15</th>
+                        <td><a href="https://github.com/bitcoin/bips/blob/master/bip-0037.mediawiki">BIP 37: Connection Bloom filtering</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bip-0111" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>16</th>
+                        <td><a href="https://github.com/bitcoin/bips/blob/master/bip-0111.mediawiki">BIP 111: NODE_BLOOM service bit</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bip-0130" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>17</th>
+                        <td><a href="https://github.com/bitcoin/bips/blob/master/bip-0130.mediawiki">BIP 130: sendheaders message</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bip-0155" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>18</th>
+                        <td><a href="https://github.com/bitcoin/bips/blob/master/bip-0155.mediawiki">BIP 155: addrv2 message</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zcashd-6292" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>19</th>
+                        <td><a href="https://github.com/zcash/zcash/issues/6292">zcashd issue 6292: zcashd does not use headers-first sync</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zcashd-relay-fee" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>20</th>
+                        <td><a href="https://github.com/zcash/zcash/blob/cfcfcd93b06d2ee897f1d24eb62692c9e9e0e66d/src/policy/policy.h#L65-L77">zcashd relay fee policy (policy.h)</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="zcashd-remove-alert" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>21</th>
+                        <td><a href="https://github.com/zcash/zcash/pull/7039">zcashd PR 7039: Remove alert handling</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="bitcoin-protocol" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>22</th>
+                        <td><a href="https://developer.bitcoin.org/reference/p2p_networking.html">Bitcoin Developer Reference: P2P Network</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
     </section>
 </body>
 </html>
