@@ -43,6 +43,25 @@ and double-check the generated ``rendered/draft-*.html`` file before filing a Pu
 See `here <protocol/README.rst>`__ for the project dependencies.
 
 
+Building with Podman
+~~~~~~~~~~~~~~~~~~~~
+
+To build the rendered HTML without installing dependencies locally, use
+`Podman <https://podman.io/>`__ with the included ``Containerfile``:
+
+.. code::
+
+   podman build -t zcash-zips-render .
+   podman run --rm --userns=keep-id -v "$(pwd):/zips" zcash-zips-render
+
+The ``--userns=keep-id`` flag ensures that rendered files are owned by your
+user rather than root. To render only the ZIPs (skipping protocol PDFs):
+
+.. code::
+
+   podman run --rm --userns=keep-id -v "$(pwd):/zips" zcash-zips-render all-zips
+
+
 Settled Mainnet Network Upgrade
 -------------------------------
 
@@ -212,6 +231,7 @@ written.
     <tr> <td>2005</td> <td class="left"><a href="zips/zip-2005.md">Quantum Recoverability</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/1135">zips#1135</a></td>
     <tr> <td>guide-markdown</td> <td class="left"><a href="zips/zip-guide-markdown.md">{Something Short and To the Point}</a></td> <td>Draft</td> <td class="left"></td>
     <tr> <td>guide</td> <td class="left"><a href="zips/zip-guide.rst">{Something Short and To the Point}</a></td> <td>Draft</td> <td class="left"></td>
+    <tr> <td>template</td> <td class="left"><a href="zips/zip-template.md">{Something Short and To the Point}</a></td> <td>Draft</td> <td class="left"></td>
   </table></embed>
 
 Drafts without assigned ZIP numbers
@@ -384,4 +404,5 @@ Index of ZIPs
     <tr> <td>2005</td> <td class="left"><a href="zips/zip-2005.md">Quantum Recoverability</a></td> <td>Draft</td>
     <tr> <td>guide-markdown</td> <td class="left"><a href="zips/zip-guide-markdown.md">{Something Short and To the Point}</a></td> <td>Draft</td>
     <tr> <td>guide</td> <td class="left"><a href="zips/zip-guide.rst">{Something Short and To the Point}</a></td> <td>Draft</td>
+    <tr> <td>template</td> <td class="left"><a href="zips/zip-template.md">{Something Short and To the Point}</a></td> <td>Draft</td>
   </table></embed>
