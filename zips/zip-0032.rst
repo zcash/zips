@@ -148,6 +148,57 @@ Note: no corresponding notation is currently defined for the result of
 `Hardened-only child key derivation`_ with non-zero $\mathsf{lead}$ and/or non-empty $\mathsf{tag}$.
 
 
+Specification: Wallet seeds
+===========================
+
+Several of the key derivation algorithms specified in this ZIP derive a master key from a
+seed byte sequence. Any such seed byte sequence MUST be at least 32 and at most 252 bytes.
+
+The method of generating such a seed byte sequence MUST ensure that it has at least 256 bits
+of entropy. This requirement also applies to any mnemonic or input randomness used to obtain
+the seed byte sequence. For example, when the seed byte sequence is generated from a BIP 39
+mnemonic [#bip-0039]_ (usually called a "secret recovery phrase"), the generator of the
+mnemonic MUST ensure that it has at least 256 bits of entropy, which will require at least
+24-word mnemonics. BIP 39 mnemonics SHOULD be exactly 24 words for interoperability.
+
+In the case where a wallet implementation restores a wallet from an existing mnemonic /
+secret recovery phrase, it will normally not be in a position to enforce a minimum entropy
+requirement on that mnemonic. It SHOULD NOT present the wallet restore option as enabling
+the user to arbitrarily pick their own mnemonic, since it would be unrealistic to assume
+that such user-chosen mnemonics will meet the entropy requirement in general.
+
+A wallet implementation MAY accept BIP 39 mnemonics of fewer than 24 words when restoring
+a wallet (but as specified above, MUST NOT generate such mnemonics). If it accepts them —or
+in other cases where it can reliably detect that the seed to be restored will have less than
+256 bits of entropy— it SHOULD warn the user that the security of the restored wallet will
+be weaker than expected, and SHOULD recommend transferring all of the wallet's funds, once
+it has fully synced, to another wallet controlled by the user.
+
+Rationale for the 256-bit entropy requirement
+---------------------------------------------
+
+Zcash consistently uses cryptovalues of length at or close to 256 bits, throughout its
+cryptographic design. Although the target security level for the protocol against classical
+cryptanalytic attacks is $2^{125}$ (i.e. any such attack should take at least $2^{125}$
+operations, as explained in [#zcash-security]_), this does not imply that 128-bit keys or
+seeds are sufficient. The apparent gap between the security target and the key length is
+well motivated: it provides better resistance to attacks using parallel hardware
+[#Bernstein2005]_ in the multi-user setting [#Zaverucha2012]_; it takes into account small
+entropy losses in the key derivation process; and it simplifies the analysis of the protocol
+against quantum attacks for unknown addresses [#zcash-security]_, or in the context of a
+future post-quantum recovery protocol [#zip-2005]_.
+
+In particular, for the hierarchical key derivation method described in this ZIP, if the seed
+or mnemonic has entropy less than 256 bits, it will be a weak link in the derivation of
+*all* keys belonging to that wallet.
+
+It should be noted that an adversary can search for uses of lower-entropy mnemonics across
+multiple wallets simultaneously. They can collect a large set of (transparent or shielded)
+target addresses and/or viewing keys, and then perform a brute-force search over mnemonics
+in a lower-entropy subspace, efficiently checking whether the first few addresses or viewing
+keys that would be generated from each mnemonic match any of the targets.
+
+
 Specification: Sapling key derivation
 =====================================
 
@@ -187,7 +238,7 @@ Define
 Sapling master key generation
 -----------------------------
 
-Let $S$ be a seed byte sequence of a chosen length, which MUST be at least 32 and at most 252 bytes.
+Let $S$ be a seed byte sequence meeting the requirements in `Specification: Wallet seeds`_.
 
 - Calculate $I = \mathsf{BLAKE2b}\text{-}\mathsf{512}(\texttt{“ZcashIP32Sapling”}, S)$.
 - Split $I$ into two 32-byte sequences, $I_L$ and $I_R$.
@@ -440,7 +491,7 @@ is the normal Orchard spending key (opaque 32 bytes), and $\mathsf{c}$ is the ch
 Orchard master key generation
 -----------------------------
 
-Let $S$ be a seed byte sequence of a chosen length, which MUST be at least 32 and at most 252 bytes.
+Let $S$ be a seed byte sequence meeting the requirements in `Specification: Wallet seeds`_.
 
 - Return $\mathsf{MKGh}^\mathsf{Orchard}(S)$ as the master extended spending key
   $m_\mathsf{Orchard}$.
@@ -552,7 +603,7 @@ We instantiate the hardened key generation process with the following constants:
 Registered subtree root key generation
 --------------------------------------
 
-Let $S$ be a seed byte sequence of a chosen length, which MUST be at least 32 and at most 252 bytes.
+Let $S$ be a seed byte sequence meeting the requirements in `Specification: Wallet seeds`_.
 
 The registered subtree root is obtained as:
 
@@ -624,7 +675,7 @@ We instantiate the hardened key derivation process with the following constants:
 Ad-hoc master key generation (deprecated)
 -----------------------------------------
 
-Let $S$ be a seed byte sequence of a chosen length, which MUST be at least 32 and at most 252 bytes.
+Let $S$ be a seed byte sequence meeting the requirements in `Specification: Wallet seeds`_.
 
 The master extended ad-hoc key is:
 
@@ -890,5 +941,9 @@ References
 .. [#protocol-orchardfullviewingkeyencoding] `Zcash Protocol Specification, Version 2022.2.19. Section 5.6.4.4: Orchard Raw Full Viewing Keys <protocol/protocol.pdf#orchardfullviewingkeyencoding>`_
 .. [#protocol-orchardspendingkeyencoding] `Zcash Protocol Specification, Version 2022.2.19. Section 5.6.4.5: Orchard Spending Keys <protocol/protocol.pdf#orchardspendingkeyencoding>`_
 .. [#NIST-SP-800-38G] `NIST Special Publication 800-38G — Recommendation for Block Cipher Modes of Operation: Methods for Format-Preserving Encryption <https://dx.doi.org/10.6028/NIST.SP.800-38G>`_
+.. [#zcash-security] `Understanding the Security of Zcash. Presentation by Daira-Emma Hopwood at Zcon3 <https://www.youtube.com/watch?v=f6UToqiIdeY>`_ (`slides <https://raw.githubusercontent.com/daira/zcash-security/main/zcash-security.pdf>`_).
+.. [#Bernstein2005] `Understanding brute force. Daniel Bernstein, 2005. <https://cr.yp.to/papers.html#bruteforce>`_
+.. [#Zaverucha2012] `Hybrid Encryption in the Multi-User Setting. Gregory M. Zaverucha, 2012. <https://eprint.iacr.org/2012/159>`_
 .. [#zip-0000] `ZIP 0: ZIP Process <zip-0000.rst>`_
 .. [#zip-0316] `ZIP 316: Unified Addresses and Unified Viewing Keys <zip-0316.rst>`_
+.. [#zip-2005] `ZIP 2005: Orchard Quantum Recoverability <zip-2005.md>`_
