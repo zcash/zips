@@ -132,8 +132,8 @@ risks revealing the on-chain link to the server, breaking the privacy
 that Zcash's shielded transactions are designed to provide.
 
 The alternative of downloading the entire nullifier set is impractical:
-approximately 50 million nullifiers produce a Merkle tree exceeding 6 GB,
-far beyond what a mobile client can store or process.
+with up to $2^{26} \approx 67$ million leaf slots, the exclusion tree
+exceeds 6 GB, far beyond what a mobile client can store or process.
 
 PIR resolves this tension. A PIR server holds the full database and
 accepts encrypted queries. The server homomorphically evaluates the
@@ -605,7 +605,8 @@ Bytes 8,128–12,223: leaf_values[0..127]       128 × 32 B = 4,096 B
 
 1. Compute the Tier 2 row index as $S_1 \times 256 + S_2$.
 2. Issue a PIR query for this row.
-3. Scan the 128 leaf keys to find the target key and retrieve its value.
+3. Binary search the 128 leaf keys to find the target key and retrieve
+   its value.
 4. Read 7 sibling hashes from the row:
    - Depth-26 sibling: the leaf at index
      $(\mathsf{target\_position} \oplus 1)$. Compute its hash as
@@ -677,7 +678,7 @@ communication costs for a 32 GB database:
 <details>
 <summary>
 
-#### Sources for comparison table
+### Sources for comparison table
 </summary>
 
 The SimplePIR, DoublePIR, and YPIR columns are from Table 2 of the YPIR
@@ -751,7 +752,7 @@ status.
 
 <div class="note"></div>
 
-Server deployments benefits from AVX-512 support for the ring-packing
+Server deployment benefits from AVX-512 support for the ring-packing
 step (the CDKS LWE-to-RLWE transformation), which involves NTT-based
 polynomial arithmetic that is compute-bound. However, the dominant
 per-query cost — the SimplePIR database scan — is memory-bandwidth
@@ -762,8 +763,7 @@ bound and does not benefit from wider SIMD lanes.
 
 The underlying PIR primitive is implemented in the YPIR library [^ypir-impl],
 which provides the single-server private information retrieval scheme described
-in [^YPIR]. This includes the LWE-based query encoding, the ring-packing
-optimization for response compression, and the silent preprocessing protocol.
+in [^YPIR], including the YPIR+SP variant used by this ZIP.
 
 A full reference implementation of the governance-specific layers — the
 three-tier Poseidon tree, the Tier 1 / Tier 2 query orchestration, and the
