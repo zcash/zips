@@ -249,10 +249,12 @@ These parameters support databases up to 64 GB ($\sqrt{N} \leq 2^{18}$).
 
 ### Security
 
-The security of YPIR+SP relies on the Ring LWE assumption and circular
-security (the packing key contains encryptions of automorphisms of the
-secret key under itself). Both assumptions are standard in lattice-based
-fully homomorphic encryption and are shared with Spiral, OnionPIR, and
+The security of YPIR+SP relies on the LWE assumption at the SimplePIR
+level (Regev encryption of the column selector) and the Ring LWE
+assumption at the packing level, together with circular security (the
+packing key contains encryptions of automorphisms of the secret key
+under itself). All three assumptions are standard in lattice-based fully
+homomorphic encryption and are shared with Spiral, OnionPIR, and
 HintlessPIR [^YPIR].
 
 ### Conformance
