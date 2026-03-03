@@ -166,7 +166,7 @@ The following are explicitly out of scope:
 - Multi-server PIR protocols.
 - Stateful or preprocessing-based PIR constructions that require
   per-client server state.
-- Updates to the database (assumed static)
+- Updates to the database (assumed static).
 - Sub-second end-to-end query latency. The two sequential PIR round-trips
   impose a latency floor determined by network conditions.
 - Retrieval of data other than nullifier exclusion proofs.
@@ -205,8 +205,8 @@ into RLWE ciphertexts using the CDKS transformation [^CDKS].
 
 RLWE ciphertexts encrypt $d$ values in a single ciphertext (as
 coefficients of a polynomial in $\mathbb{Z}[x]/(x^d + 1)$), compared to
-one value per LWE ciphertext. This yields approximately $500\times$ better
-ciphertext rate, making it possible to compress the entire SimplePIR
+one value per LWE ciphertext. This yields approximately $500\times$ less
+ciphertext overhead, making it possible to compress the entire SimplePIR
 column response — which would otherwise require the hint for decryption —
 into a small number of RLWE ciphertexts that the client can decrypt
 directly.
@@ -353,8 +353,8 @@ $t$ in the range, and the single unsigned comparison is sufficient.
 #### Rationale for (low, width) encoding
 </summary>
 
-The original formulation in "Air drops, Proof-of-Balance, and Stake-weighted Polling" [^draft-str4d-orchard-balance-proof] uses $(low, high)$ pairs. Verifying
-$low \leq t < high$ requires two comparisons inside the ZKP circuit.
+The original formulation in "Air drops, Proof-of-Balance, and Stake-weighted Polling" [^draft-str4d-orchard-balance-proof] uses $(start, end)$ pairs. Verifying
+$start \leq t \leq end$ requires two comparisons inside the ZKP circuit.
 
 The $(low, width)$ encoding reduces this to one subtraction ($t - low$)
 and one unsigned comparison ($< width$), saving one comparison gate in the
@@ -636,10 +636,11 @@ future ZIP may specify it as a replacement or alternative.
 The 11 + 8 + 7 tier split balances three competing concerns:
 
 1. **Tier 0 broadcast size.** The plaintext tier covers 11 levels,
-   producing $2^{11} = 2{,}048$ subtree roots. At 64 bytes each, this is
-   128 KB — small enough for CDN distribution or even bundling in
-   application code. Increasing Tier 0 to 12 levels would double the
-   broadcast to 256 KB with diminishing returns.
+   producing $2^{11} = 2{,}048$ subtree roots (128 KB) plus 2,047
+   internal hashes (64 KB), totaling 192 KB — small enough for CDN
+   distribution or even bundling in application code. Increasing Tier 0
+   to 12 levels would roughly double the broadcast with diminishing
+   returns.
 
 2. **Tier 1 PIR database size.** Each of the 2,048 rows contains an
    8-level subtree (24,512 bytes), yielding a 48 MB database (64 MB
@@ -710,4 +711,4 @@ No reference implementation exists at this time.
 
 [^Poseidon]: [Poseidon: A New Hash Function for Zero-Knowledge Proof Systems](https://eprint.iacr.org/2019/458)
 
-[^draft-str4d-orchard-balance-proof]: [Orchard Balance Proof](draft-str4d-orchard-balance-proof)
+[^draft-str4d-orchard-balance-proof]: [Air drops, Proof-of-Balance, and Stake-weighted Polling](draft-str4d-orchard-balance-proof)
