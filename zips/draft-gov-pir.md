@@ -621,13 +621,12 @@ response, eliminating the offline download entirely.
 
 ## Construction Choice
 
-Our choice of YPIR+SP stems from the fact that standard YPIR (built on
-DoublePIR) is only suitable for small record sizes. In our data structure
-(see [Data Structure Layout]), the Tier 2 PIR layer has rows of 12,224
-bytes — far too large for DoublePIR's per-element retrieval model.
+## Construction Choice
 
-YPIR+SP and InsPIRe [^InsPIRe] are both SimplePIR-based constructions
-that eliminate hints and return column data. The following table compares
+Standard YPIR (DoublePIR-based) retrieves a single element per query,
+which cannot serve the 12,224-byte rows in our Tier 2 layout (see
+[Data Structure Layout]). Both YPIR+SP and InsPIRe [^InsPIRe] build on
+SimplePIR and return full column data; the following table compares their
 communication costs for a 32 GB database:
 
 | Metric | SimplePIR | DoublePIR | YPIR | YPIR+SP | InsPIRe |
