@@ -247,7 +247,8 @@ computational security and correctness error at most $2^{-40}$:
 | Plaintext modulus $p$ | $2^8$ | $2^{20}$ |
 | Noise width $\sigma$ | $11\sqrt{2\pi}$ | $6.4\sqrt{2\pi}$ |
 
-These parameters support databases up to 64 GB ($\sqrt{N} \leq 2^{18}$).
+These parameters are taken from Table 1 of the YPIR paper [^YPIR] and
+support databases up to 64 GB ($\sqrt{N} \leq 2^{18}$).
 
 ### Security
 
