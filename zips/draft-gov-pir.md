@@ -122,9 +122,9 @@ target record from any other.
 
 The PIR construction in this document uses a single untrusted server. The
 server is assumed to be computationally bounded but arbitrarily curious
-(the honest-but-curious model). Under the hardness of the Ring LWE
-problem, the server learns nothing about which nullifier the client
-queries.
+(the honest-but-curious model). Under the hardness of the LWE and Ring
+LWE problems (see [Security]), the server learns nothing about which
+nullifier the client queries.
 
 The following information is public and available to all parties, including
 the server:
