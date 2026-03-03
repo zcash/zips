@@ -113,7 +113,8 @@ The nullifier exclusion tree is organized into a three-tier data structure
 spanning 26 levels of depth: a plaintext broadcast tier (192 KB, cacheable),
 a small PIR tier (48 MB), and a large PIR tier (6 GB). A complete
 authentication path is retrieved in two sequential PIR queries plus the
-plaintext download, for a total bandwidth of approximately 1.2 MB per query.
+plaintext download, for a total bandwidth of approximately 5.4 MB per
+query (dominated by the Tier 2 upload).
 
 This document also surveys the PIR design space, explains the choice of
 YPIR+SP over alternatives such as InsPIRe, and specifies the row layouts,
@@ -202,8 +203,8 @@ requirements.
   first query without any prior download or preprocessing.
 - Single untrusted server with no per-client state. The server holds only
   the public database and processes queries statelessly.
-- Total bandwidth per query (upload plus download) under approximately
-  2 MB, suitable for mobile networks.
+- Total bandwidth per query (upload plus download) under
+  10MB, suitable for mobile networks (see actual results [Bandwidth Summary]).
 - Two sequential network round-trips per query are acceptable.
 - The hash function used in the exclusion tree must be efficient inside
   zero-knowledge proof circuits (Poseidon).
@@ -615,13 +616,18 @@ Bytes 8,128–12,223: leaf_values[0..127]       128 × 32 B = 4,096 B
 
 ##### Bandwidth Summary
 
-| Component | Direction | Size |
-|---|---|---|
-| Tier 0 payload | Server to Client | 192 KB |
-| PIR Query 1 (round trip) | Both | ~500 KB |
-| PIR Query 2 (round trip) | Both | ~500 KB |
-| **Total (first query)** | | **~1.2 MB** |
-| **Total (Tier 0 cached)** | | **~1.0 MB** |
+| Component | Upload | Download | Round trip |
+|---|---|---|---|
+| Tier 0 payload | — | 192 KB | 192 KB |
+| PIR Query 1 (Tier 1, 48 MB) | 544 KB | ~84 KB | ~628 KB |
+| PIR Query 2 (Tier 2, 6 GB) | 4.5 MB | ~48 KB | ~4.5 MB |
+| **Total (first query)** | **5.0 MB** | **~324 KB** | **~5.4 MB** |
+| **Total (Tier 0 cached)** | **5.0 MB** | **~132 KB** | **~5.2 MB** |
+
+Upload is dominated by the Tier 2 column selector ($c_1$, proportional
+to the number of database columns) and the packing key ($pk$, ~462 KB
+fixed). Downloads are small because RLWE packing compresses the column
+response efficiently.
 
 ##### Client Computation Summary
 
@@ -744,6 +750,14 @@ this overhead.
 
 This section will be completed before this ZIP advances to Proposed
 status.
+
+<div class="note"></div>
+
+Server deployments benefits from AVX-512 support for the ring-packing
+step (the CDKS LWE-to-RLWE transformation), which involves NTT-based
+polynomial arithmetic that is compute-bound. However, the dominant
+per-query cost — the SimplePIR database scan — is memory-bandwidth
+bound and does not benefit from wider SIMD lanes.
 
 
 # Reference implementation
