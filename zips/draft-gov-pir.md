@@ -64,6 +64,22 @@ Authentication path
   exclusion tree, sufficient to recompute the Merkle root and verify
   membership.
 
+Hint (client-side database hint)
+
+: A precomputed summary of the PIR database that the client must hold in
+  order to decrypt the server's response. In SimplePIR, the hint is the
+  product of the database matrix with the public encryption matrix and
+  can exceed 1 GB for large databases. A *hintless* scheme such as
+  YPIR+SP eliminates this requirement, allowing the client to issue its
+  first query without any prior download.
+
+Per-client server state
+
+: Any data that the server must store on behalf of an individual client
+  between requests, such as client-specific keys or preprocessing
+  artifacts. A *stateless* PIR server holds only the public database and
+  can serve any client without prior interaction.
+
 Poseidon hash
 
 : An algebraic hash function designed for efficient evaluation inside
