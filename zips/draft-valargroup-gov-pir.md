@@ -5,7 +5,7 @@
       Adam Tucker <>,
       Greg Nagy <>
     Status: Draft
-    Category: Standards Track
+    Category: Standards
     Created: 2026-03-02
     License: MIT
     Pull-Request: <https://github.com/zcash/zips/pull/???>
@@ -123,11 +123,11 @@ verification.
 
 The single most critical component for user privacy is the correctness of
 Regev encryption on the client side. The query vector — a Regev-encrypted
-column selector that picks the target database column (see [YPIR+SP]) —
+row selector that picks the target database row (see [YPIR+SP]) —
 is what the server multiplies against the entire database. If Regev
 encryption is implemented correctly, the query is computationally
 indistinguishable from random and the server learns nothing about the
-target column. Every other component in the protocol — CDKS packing,
+target row. Every other component in the protocol — CDKS packing,
 modulus switching, the packing key — affects correctness of the response
 or cross-query linkability, but not the confidentiality of the query
 itself. A bug in packing may produce a garbled answer; a bug in Regev
@@ -230,7 +230,7 @@ into RLWE ciphertexts using the CDKS transformation [^CDKS].
 RLWE ciphertexts encrypt $d$ values in a single ciphertext (as
 coefficients of a polynomial in $\mathbb{Z}[x]/(x^d + 1)$), compared to
 one value per LWE ciphertext. This yields dramatically less ciphertext
-overhead, making it possible to compress the entire SimplePIR column
+overhead, making it possible to compress the entire SimplePIR row
 response — which would otherwise require the hint for decryption — into
 a small number of RLWE ciphertexts that the client can decrypt directly.
 
@@ -240,7 +240,7 @@ The protocol proceeds as follows:
    packing key $pk$ consisting of key-switching matrices for the CDKS
    automorphisms.
 2. The client sends the query $(c_1, pk)$ to the server, where $c_1$ is
-   the Regev-encrypted column selector.
+   the Regev-encrypted row selector.
 3. The server computes the SimplePIR matrix-vector product
    $T = D \times c_1$, yielding $\sqrt{N}$ LWE ciphertexts.
 4. The server packs $T$ into $\lceil \sqrt{N} / d_2 \rceil$ RLWE
@@ -249,12 +249,11 @@ The protocol proceeds as follows:
 5. The server applies modulus switching to reduce the response size and
    returns the result.
 6. The client decrypts the RLWE ciphertexts with $s_2$, recovering the
-   column values directly.
+   row values directly.
 
 Unlike standard YPIR (which is built on DoublePIR and retrieves a single
-element), YPIR+SP returns an entire column of $\sqrt{N}$ values. This
-makes it suitable for large records where multiple bytes are stacked
-vertically in the database matrix.
+element), YPIR+SP returns an entire row of the database matrix. This
+makes it suitable for large records that span many bytes.
 
 ### Parameters
 
@@ -274,7 +273,7 @@ support databases up to 64 GB ($\sqrt{N} \leq 2^{18}$).
 ### Security
 
 The security of YPIR+SP relies on the LWE assumption at the SimplePIR
-level (Regev encryption of the column selector) and the Ring LWE
+level (Regev encryption of the row selector) and the Ring LWE
 assumption at the packing level, together with circular security (the
 packing key contains encryptions of automorphisms of the secret key
 under itself). In other words, the key material is encrypted with itself.
@@ -299,18 +298,17 @@ consistent with the published Merkle root of the exclusion tree.
 </summary>
 
 Standard YPIR is built on DoublePIR and retrieves a single database
-element per query. The DoublePIR second level selects a row, returning one
-element per column. This means bytes of a large record cannot be stacked
-vertically in the matrix.
+element per query. This means a large multi-byte record cannot be
+retrieved in a single query.
 
 In our data structure (see [Data Structure Layout]), the Tier 2 PIR
 database has rows of 12,224 bytes. Retrieving a row of this size with
 standard YPIR would require running 12,224 parallel DoublePIR instances
 (one per byte), each with its own 16 MB hint — a prohibitive cost.
 
-YPIR+SP returns an entire column from the SimplePIR matrix. Large records
-are naturally stacked vertically, and the full column is packed into RLWE
-ciphertexts in a single pass. For a 32 GB database with 64 KB records,
+YPIR+SP returns an entire row from the SimplePIR matrix, and the full
+row is packed into RLWE ciphertexts in a single pass. For a 32 GB
+database with 64 KB records,
 YPIR+SP achieves 2.6 MB total communication (query plus response) compared
 to standard YPIR's inability to handle the record size efficiently.
 </details>
@@ -593,9 +591,9 @@ Bytes 8,128–12,223: leaf_values[0..127]       128 × 32 B = 4,096 B
 | **Total (first query)** | **5.0 MB** | **~324 KB** | **~5.4 MB** |
 | **Total (Tier 0 cached)** | **5.0 MB** | **~132 KB** | **~5.2 MB** |
 
-Upload is dominated by the Tier 2 column selector ($c_1$, proportional
-to the number of database columns) and the packing key ($pk$, ~462 KB
-fixed). Downloads are small because RLWE packing compresses the column
+Upload is dominated by the Tier 2 row selector ($c_1$, proportional
+to the number of database rows) and the packing key ($pk$, ~462 KB
+fixed). Downloads are small because RLWE packing compresses the row
 response efficiently.
 
 ##### Client Computation Summary
@@ -633,7 +631,7 @@ response, eliminating the offline download entirely.
 Standard YPIR (DoublePIR-based) retrieves a single element per query,
 which cannot serve the 12,224-byte rows in our Tier 2 layout (see
 [Data Structure Layout]). Both YPIR+SP and InsPIRe [^InsPIRe] build on
-SimplePIR and return full column data; the following table compares their
+SimplePIR and return full row data; the following table compares their
 communication costs for a 32 GB database:
 
 | Metric | SimplePIR | DoublePIR | YPIR | YPIR+SP | InsPIRe |
