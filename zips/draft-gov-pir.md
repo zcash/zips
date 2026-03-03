@@ -682,7 +682,15 @@ status.
 
 # Reference implementation
 
-No reference implementation exists at this time.
+The underlying PIR primitive is implemented in the YPIR library [^ypir-impl],
+which provides the single-server private information retrieval scheme described
+in [^YPIR]. This includes the LWE-based query encoding, the ring-packing
+optimization for response compression, and the silent preprocessing protocol.
+
+A full reference implementation of the governance-specific layers — the
+two-tier Poseidon tree, the Tier 1 / Tier 2 query orchestration, and the
+client-side balance proof integration described in this ZIP — is to be
+provided before this ZIP advances to Proposed status.
 
 
 # Open issues
@@ -720,5 +728,7 @@ No reference implementation exists at this time.
 [^CDKS]: [Efficient Homomorphic Conversion Between Ring LWE Ciphertexts](https://eprint.iacr.org/2020/015)
 
 [^Poseidon]: [Poseidon: A New Hash Function for Zero-Knowledge Proof Systems](https://eprint.iacr.org/2019/458)
+
+[^ypir-impl]: [YPIR reference implementation (artifact branch)](https://github.com/menonsamir/ypir/tree/artifact)
 
 [^draft-str4d-orchard-balance-proof]: [Air drops, Proof-of-Balance, and Stake-weighted Polling](draft-str4d-orchard-balance-proof)
