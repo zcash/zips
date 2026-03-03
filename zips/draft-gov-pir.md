@@ -166,7 +166,9 @@ The following are explicitly out of scope:
 - Multi-server PIR protocols.
 - Stateful or preprocessing-based PIR constructions that require
   per-client server state.
-- Updates to the database (assumed static).
+- Incremental database updates. The PIR database is computed once from
+  the nullifier set at the start of each governance round and is treated
+  as static for the duration of that round.
 - Sub-second end-to-end query latency. The two sequential PIR round-trips
   impose a latency floor determined by network conditions.
 - Retrieval of data other than nullifier exclusion proofs.
@@ -308,6 +310,11 @@ spent nullifiers. This proof takes the form of a zero-knowledge proof over
 the authentication path of the enclosing exclusion range in a sorted
 Merkle tree, building on the approach described in
 "Air drops, Proof-of-Balance, and Stake-weighted Polling" [^draft-str4d-orchard-balance-proof].
+
+The server MUST construct the exclusion tree and the corresponding PIR
+databases (Tiers 0, 1, and 2) once from the nullifier set at the start
+of each governance round. The databases are static for the duration of
+the round.
 
 #### Tree Structure
 
@@ -674,25 +681,15 @@ No reference implementation exists at this time.
    auxiliary data such as neighboring subtree information for approximate
    key positioning.
 
-2. **Tree updates.** When leaves change, Tier 2 rows and all ancestor
-   nodes are affected. Tier 1 rows change if any descendant leaf changes.
-   Tier 0 always changes. Incremental update cost depends on the PIR
-   scheme's ability to handle database mutations efficiently.
-
-3. **Query sequentiality.** The two PIR queries are inherently
+2. **Query sequentiality.** The two PIR queries are inherently
    sequential — Query 2's row index depends on Query 1's result.
    Pipelining is not possible without speculative execution (querying
    multiple candidate Tier 2 rows), which would increase bandwidth.
 
-4. **Parameter tuning for mainnet.** The parameters in
+3. **Parameter tuning for mainnet.** The parameters in
    [PIR Construction] are derived from the YPIR paper's recommendations
    for 128-bit security. Deployment may require tuning based on observed
    tree sizes and client device capabilities.
-
-5. **CDN strategy for Tier 0.** The 192 KB plaintext payload is cacheable
-   and identical for all clients. The distribution mechanism (bundled in
-   software updates, served via CDN, or included in protocol messages)
-   remains to be determined.
 
 
 # References
