@@ -469,12 +469,13 @@ These are Tier 2 subtree roots, each containing a 32-byte hash and a
 
 **Row total: 24,512 bytes (23.9 KB).**
 
-Rows MUST be padded to 32,768 bytes (32 KB) for PIR alignment.
+The PIR value size for Tier 1 MUST be set to the row size (24,512 bytes)
+or the next implementation-required alignment boundary. Tier 1 and
+Tier 2 are independent PIR databases and do not share a value size.
 
 | Metric | Value |
 |---|---|
-| Raw database size | 2,048 rows $\times$ 24,512 B = **47.9 MB** |
-| Padded database size | 2,048 rows $\times$ 32,768 B = **64 MB** |
+| Database size | 2,048 rows $\times$ 24,512 B = **47.9 MB** |
 
 **Row serialization (24,512 bytes):**
 
@@ -532,12 +533,13 @@ $\mathsf{Hash}(\mathsf{key} \| \mathsf{value})$.
 
 **Row total: 12,224 bytes (11.9 KB).**
 
-Rows MUST be padded to 32,768 bytes (32 KB) for PIR alignment.
+The PIR value size for Tier 2 MUST be set to the row size (12,224 bytes)
+or the next implementation-required alignment boundary. Tier 1 and
+Tier 2 are independent PIR databases and do not share a value size.
 
 | Metric | Value |
 |---|---|
-| Raw database size | 524,288 rows $\times$ 12,224 B = **5.97 GB** |
-| Padded database size | 524,288 rows $\times$ 32,768 B = **16 GB** |
+| Database size | 524,288 rows $\times$ 12,224 B = **5.97 GB** |
 
 **Row serialization (12,224 bytes):**
 
@@ -661,17 +663,32 @@ The 11 + 8 + 7 tier split balances three competing concerns:
    returns.
 
 2. **Tier 1 PIR database size.** Each of the 2,048 rows contains an
-   8-level subtree (24,512 bytes), yielding a 48 MB database (64 MB
-   padded). This is small enough for efficient PIR processing.
+   8-level subtree (24,512 bytes), yielding a 48 MB database. This is
+   small enough for efficient PIR processing.
 
 3. **Tier 2 PIR database size.** The remaining 7 levels produce 524,288
-   rows of 12,224 bytes each, yielding a 6 GB database (16 GB padded).
-   This is the binding constraint for PIR scheme selection and determines
-   server hardware requirements.
+   rows of 12,224 bytes each, yielding a 6 GB database. This is the
+   binding constraint for PIR scheme selection and determines server
+   hardware requirements.
 
 Only 2 PIR queries are needed, and they are inherently sequential: the
 Tier 2 row index depends on the Tier 1 result. The plaintext tier
 requires no PIR query at all.
+
+## Per-Tier PIR Value Sizing
+
+Tier 1 and Tier 2 are independent PIR databases with separate queries.
+There is no requirement that they share a PIR value size. Configuring
+each tier's value size to match its actual row size — 24,512 bytes for
+Tier 1 and 12,224 bytes for Tier 2 — avoids wasted padding and reduces
+the effective database size the server must scan per query.
+
+A naive approach would use a single uniform value size (e.g., 32 KB)
+for both tiers. This would inflate Tier 1 from 48 MB to 64 MB (74.8%
+utilization) and Tier 2 from 6 GB to 16 GB (37.3% utilization). Since
+YPIR+SP touches every byte of the database per query, unused padding
+directly increases server computation time. Per-tier sizing eliminates
+this overhead.
 
 
 # Deployment
@@ -695,17 +712,12 @@ provided before this ZIP advances to Proposed status.
 
 # Open issues
 
-1. **Tier 2 cache-line utilization.** Rows use 12,224 of 32,768 padded
-   bytes (37.3% utilization). The spare 20,544 bytes per row could store
-   auxiliary data such as neighboring subtree information for approximate
-   key positioning.
-
-2. **Query sequentiality.** The two PIR queries are inherently
+1. **Query sequentiality.** The two PIR queries are inherently
    sequential — Query 2's row index depends on Query 1's result.
    Pipelining is not possible without speculative execution (querying
    multiple candidate Tier 2 rows), which would increase bandwidth.
 
-3. **Parameter tuning for mainnet.** The parameters in
+2. **Parameter tuning for mainnet.** The parameters in
    [PIR Construction] are taken directly from the YPIR paper's
    recommendations for 128-bit security. We do not intend to modify them
    as long as performance meets our needs. Tuning would only be
