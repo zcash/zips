@@ -227,7 +227,7 @@ processes the encrypted query by touching every record in the database,
 ensuring that its access pattern reveals nothing about the target.
 
 The underlying mechanism is homomorphic encryption. The client encrypts a
-selection vector using Regev (LWE) encryption and sends it to the server.
+selection vector using Regev (LWE) encryption [^Regev05] and sends it to the server.
 The server multiplies the database matrix by the encrypted query,
 producing an encrypted response. The client decrypts the response using
 its secret key.
@@ -776,6 +776,8 @@ provided before this ZIP advances to Proposed status.
 [^InsPIRe]: [InsPIRe: Communication-Efficient PIR with Server-side Preprocessing](https://eprint.iacr.org/2025/1352)
 
 [^CDKS]: [Efficient Homomorphic Conversion Between Ring LWE Ciphertexts](https://eprint.iacr.org/2020/015)
+
+[^Regev05]: [On Lattices, Learning with Errors, Random Linear Codes, and Cryptography](https://doi.org/10.1145/1568318.1568324)
 
 [^Poseidon]: [Poseidon: A New Hash Function for Zero-Knowledge Proof Systems](https://eprint.iacr.org/2019/458)
 
