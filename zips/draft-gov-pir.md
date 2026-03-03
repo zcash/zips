@@ -152,6 +152,17 @@ server is assumed to be computationally bounded but arbitrarily curious
 LWE problems (see [Security]), the server learns nothing about which
 nullifier the client queries.
 
+The single most critical component for user privacy is the correctness of
+Regev encryption on the client side. The column selector $c_1$ is what
+the server multiplies against the entire database; if Regev encryption is
+implemented correctly, $c_1$ is computationally indistinguishable from
+random and the server learns nothing about the target column. Every other
+component in the protocol — CDKS packing, modulus switching, the packing
+key — affects correctness of the response or cross-query linkability, but
+not the confidentiality of the query itself. A bug in packing may produce
+a garbled answer; a bug in Regev encryption leaks which record the client
+asked for.
+
 The following information is public and available to all parties, including
 the server:
 
