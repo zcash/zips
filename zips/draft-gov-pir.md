@@ -242,7 +242,7 @@ computational security and correctness error at most $2^{-40}$:
 |---|---|---|
 | Ring dimension $d$ | 1024 | 2048 |
 | Ciphertext modulus $q$ | $2^{32}$ | $\approx 2^{56}$ (two 28-bit NTT-friendly primes) |
-| Plaintext modulus | $N = 2^8$ | $p = 2^{20}$ |
+| Plaintext modulus $p$ | $2^8$ | $2^{20}$ |
 | Noise width $\sigma$ | $11\sqrt{2\pi}$ | $6.4\sqrt{2\pi}$ |
 
 These parameters support databases up to 64 GB ($\sqrt{N} \leq 2^{18}$).
