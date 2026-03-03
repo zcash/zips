@@ -40,6 +40,16 @@ CDKS transformation
   ciphertexts into one RLWE ciphertext using ring automorphisms and
   key-switching matrices.
 
+Packing key
+
+: A set of $\log(d)$ key-switching matrices sent to the server as part of
+  each YPIR+SP query. Each matrix encrypts an automorphism of the client's
+  RLWE secret $s_2$ under $s_2$ itself, enabling the server to perform the
+  CDKS transformation without learning $s_2$. The packing key is
+  approximately 462 KB and is visible to the server in plaintext; a fresh
+  packing key (derived from a fresh $s_2$) must be generated per query to
+  prevent cross-query linkability (see [Privacy Implications]).
+
 Nullifier
 
 : A unique value derived from a Zcash note that is published when the note
@@ -155,6 +165,21 @@ the server:
 
 Mitigations for traffic analysis (such as cover traffic or query batching
 across clients) are out of scope for this document.
+
+The packing key $pk$ — approximately 462 KB of key-switching matrices —
+is sent to the server in plaintext as part of every query. If a client
+reuses the same packing key across queries, the server can compare the
+bytes and trivially conclude the queries came from the same client, even
+though it cannot determine which records were requested. This linkability
+reveals the number of queries a participant makes and enables correlation
+with external timing or network metadata.
+
+Clients must therefore generate a fresh RLWE secret $s_2$ and derive a
+new packing key for every query. Regenerating from the same $s_2$ with
+fresh randomness is insufficient: the server receives key-switching
+matrices that encrypt known automorphisms of $s_2$, and could test
+consistency across two key sets to link them to the same underlying
+secret.
 
 
 # Requirements
@@ -282,8 +307,6 @@ shared with Spiral and OnionPIR [^YPIR].
 
 The server MUST implement YPIR+SP as described in this section with the
 parameters specified in [Parameters].
-
-The server MUST NOT retain any per-client state between queries.
 
 The client MUST verify that the decrypted authentication path is
 consistent with the published Merkle root of the exclusion tree.
