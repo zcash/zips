@@ -337,7 +337,7 @@ vertically in the matrix.
 
 In our data structure (see [Data Structure Layout]), the Tier 2 PIR
 database has rows of 12,224 bytes. Retrieving a row of this size with
-standard YPIR would require running $d$ parallel DoublePIR instances
+standard YPIR would require running 12,224 parallel DoublePIR instances
 (one per byte), each with its own 16 MB hint — a prohibitive cost.
 
 YPIR+SP returns an entire column from the SimplePIR matrix. Large records
@@ -684,7 +684,7 @@ The SimplePIR, DoublePIR, and YPIR columns are from Table 2 of the YPIR
 paper [^YPIR] (32 GB database, single-bit retrieval). The YPIR+SP column
 is from Table 7 of the same paper (32 GB database, 64 KB records). The
 InsPIRe column is from the InsPIRe paper [^InsPIRe]: the ~236 KB total
-communication and ~12 KB response are from Table 2 (1 GB database,
+communication and ~12 KB response are from Table 2 (32 GB database,
 1-bit entries, full InsPIRe variant). The "up to 9.4 GB/s" throughput
 (9,360 MB/s) is from Table 4 (32 GB database, 32 KB entries).
 </details>
@@ -766,7 +766,7 @@ in [^YPIR]. This includes the LWE-based query encoding, the ring-packing
 optimization for response compression, and the silent preprocessing protocol.
 
 A full reference implementation of the governance-specific layers — the
-two-tier Poseidon tree, the Tier 1 / Tier 2 query orchestration, and the
+three-tier Poseidon tree, the Tier 1 / Tier 2 query orchestration, and the
 client-side balance proof integration described in this ZIP — is to be
 provided before this ZIP advances to Proposed status.
 
