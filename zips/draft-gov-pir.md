@@ -271,11 +271,6 @@ The server MUST NOT retain any per-client state between queries.
 The client MUST verify that the decrypted authentication path is
 consistent with the published Merkle root of the exclusion tree.
 
-The packing key MUST consist of $\lceil \log_2(d_2) \rceil = 11$
-key-switching matrices as required by the CDKS transformation.
-
-After modulus switching, the server MUST reduce the mask coefficients to
-11 bits and the payload coefficients to 15 bits.
 
 <details>
 <summary>
