@@ -148,10 +148,17 @@ target record from any other.
 # Privacy Implications
 
 The PIR construction in this document uses a single untrusted server. The
-server is assumed to be computationally bounded but arbitrarily curious
-(the honest-but-curious model). Under the hardness of the LWE and Ring
-LWE problems (see [Security]), the server learns nothing about which
-nullifier the client queries.
+server is assumed to follow the protocol faithfully but may attempt to
+learn which record the client queries (the honest-but-curious model).
+Under the hardness of the LWE and Ring LWE problems (see [Security]),
+such a server learns nothing about which nullifier the client queries.
+
+A malicious server that deviates from the protocol cannot break query
+privacy (which depends only on the client's Regev encryption), but it
+can return incorrect results. The client detects this because the
+decrypted authentication path must be consistent with the published
+Merkle root (see [Conformance]); a corrupted response will fail this
+verification.
 
 The single most critical component for user privacy is the correctness of
 Regev encryption on the client side. The query vector — a Regev-encrypted
