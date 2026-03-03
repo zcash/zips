@@ -294,7 +294,9 @@ YPIR+SP achieves 2.6 MB total communication (query plus response) compared
 to standard YPIR's inability to handle the record size efficiently.
 </details>
 
-## Nullifier Exclusion Tree
+## Instantiations
+
+### Nullifier Exclusion Tree
 
 The governance system requires each participant to prove that the
 nullifiers associated with their voting notes do not appear in the set of
@@ -303,7 +305,7 @@ the authentication path of the enclosing exclusion range in a sorted
 Merkle tree, building on the approach described in
 "Air drops, Proof-of-Balance, and Stake-weighted Polling" [^draft-str4d-orchard-balance-proof].
 
-### Tree Structure
+#### Tree Structure
 
 The exclusion tree is a sorted binary Merkle tree with depth 26, holding
 up to $N = 2^{26} \approx 67$ million leaves. The tree MUST use the
@@ -318,7 +320,7 @@ A leaf is a 64-byte record consisting of a 32-byte key and a 32-byte
 value. The leaf hash is computed as
 $\text{Hash}(\text{key} \| \text{value})$ and is not stored separately.
 
-### Leaf Encoding
+#### Leaf Encoding
 
 Each leaf represents an exclusion range. Implementations MUST encode
 exclusion ranges as $(low, width)$ pairs, where $low$ is the lower bound
@@ -334,7 +336,7 @@ This is a single subtraction and a single unsigned comparison.
 <details>
 <summary>
 
-### Rationale for (low, width) encoding
+#### Rationale for (low, width) encoding
 </summary>
 
 The original formulation in "Air drops, Proof-of-Balance, and Stake-weighted Polling" [^draft-str4d-orchard-balance-proof] uses $(low, high)$ pairs. Verifying
@@ -346,14 +348,14 @@ circuit. Since the exclusion range check is performed for every voting
 proof, this saving applies to every governance participant.
 </details>
 
-### Authentication Path
+#### Authentication Path
 
 A complete authentication path consists of 26 sibling hashes, one per
 tree depth from the leaf (depth 26) to the root (depth 0). The client
 MUST reconstruct the Merkle root from the retrieved path and verify it
 against the published root.
 
-## Data Structure Layout
+#### Data Structure Layout
 
 The 26-level exclusion tree is partitioned into three tiers to balance
 plaintext broadcast cost, PIR database size, and the number of PIR
@@ -385,7 +387,7 @@ Depth 26 ──────────────  leaves (up to 67,108,864)
 | 2 | 19–26 | 7 | PIR query |
 | **Total** | | **26** | |
 
-### Tier 0: Plaintext Broadcast (Depths 0–11)
+##### Tier 0: Plaintext Broadcast (Depths 0–11)
 
 The server MUST publish the following two data blocks as a plaintext
 payload, identical for all clients:
@@ -425,7 +427,7 @@ by clients. It changes only when the exclusion tree is updated.
    - Depths 1–10 siblings: read from Block B by walking the path
      determined by $S_1$ upward through the BFS-indexed tree.
 
-### Tier 1: Small PIR (Depths 11–19)
+##### Tier 1: Small PIR (Depths 11–19)
 
 The Tier 1 PIR database MUST contain one row per depth-11 subtree. Each
 row contains a complete 8-level subtree (depths 11–19). The subtree root
@@ -486,7 +488,7 @@ position $p \gg 1$ at depth $d - 1$.
    - Depths 12–18 siblings: walk the internal nodes from position $S_2$
      upward, reading the sibling hash at each level.
 
-### Tier 2: Large PIR (Depths 19–26)
+##### Tier 2: Large PIR (Depths 19–26)
 
 The Tier 2 PIR database MUST contain one row per depth-19 subtree. Each
 row contains a complete 7-level subtree (depths 19–26). The subtree root
@@ -542,7 +544,7 @@ Bytes 8,128–12,223: leaf_values[0..127]       128 × 32 B = 4,096 B
    - Depths 20–25 siblings: read from the 126 internal nodes by walking
      upward from the target leaf position.
 
-### Bandwidth Summary
+##### Bandwidth Summary
 
 | Component | Direction | Size |
 |---|---|---|
@@ -552,7 +554,7 @@ Bytes 8,128–12,223: leaf_values[0..127]       128 × 32 B = 4,096 B
 | **Total (first query)** | | **~1.2 MB** |
 | **Total (Tier 0 cached)** | | **~1.0 MB** |
 
-### Client Computation Summary
+##### Client Computation Summary
 
 | Step | Binary search | Hashes computed | Sibling hashes read |
 |---|---|---|---|
