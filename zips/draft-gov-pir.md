@@ -260,11 +260,10 @@ into RLWE ciphertexts using the CDKS transformation [^CDKS].
 
 RLWE ciphertexts encrypt $d$ values in a single ciphertext (as
 coefficients of a polynomial in $\mathbb{Z}[x]/(x^d + 1)$), compared to
-one value per LWE ciphertext. This yields approximately $500\times$ less
-ciphertext overhead, making it possible to compress the entire SimplePIR
-column response — which would otherwise require the hint for decryption —
-into a small number of RLWE ciphertexts that the client can decrypt
-directly.
+one value per LWE ciphertext. This yields dramatically less ciphertext
+overhead, making it possible to compress the entire SimplePIR column
+response — which would otherwise require the hint for decryption — into
+a small number of RLWE ciphertexts that the client can decrypt directly.
 
 The protocol proceeds as follows:
 
@@ -658,8 +657,6 @@ cold-start applications such as mobile wallets [^SimplePIR].
 YPIR [^YPIR] introduced a packing mechanism based on the CDKS
 transformation [^CDKS] that compresses the hint as part of the query
 response, eliminating the offline download entirely.
-
-## Construction Choice
 
 ## Construction Choice
 
