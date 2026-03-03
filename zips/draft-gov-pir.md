@@ -253,9 +253,11 @@ The security of YPIR+SP relies on the LWE assumption at the SimplePIR
 level (Regev encryption of the column selector) and the Ring LWE
 assumption at the packing level, together with circular security (the
 packing key contains encryptions of automorphisms of the secret key
-under itself). All three assumptions are standard in lattice-based fully
-homomorphic encryption and are shared with Spiral, OnionPIR, and
-HintlessPIR [^YPIR].
+under itself). In other words, the key material is encrypted with itself.
+
+The LWE and RLWE assumptions are standard in lattice-based
+cryptography. Circular security is a well-studied additional assumption
+shared with Spiral and OnionPIR [^YPIR].
 
 ### Conformance
 
