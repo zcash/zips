@@ -383,7 +383,7 @@ $\mathsf{Hash}(\mathsf{key} \| \mathsf{value})$ and is not stored separately.
 Each leaf represents an exclusion range. Implementations MUST encode
 exclusion ranges as $(low, width)$ pairs, where $low$ is the lower bound
 of the range and $width = high - low$. Both $low$ and $width$ are
-elements of $\mathbb{F}_{q_\mathbb{P}}$ (the Pallas base field), as are
+elements of $\mathbb{F}_{q_\mathbb{P}}$ (the Pallas base field [^protocol-pallasandvesta]), as are
 nullifiers.
 
 To verify that a target nullifier $t$ falls within the exclusion range,
@@ -804,5 +804,7 @@ provided before this ZIP advances to Proposed status.
 [^Poseidon]: [Poseidon: A New Hash Function for Zero-Knowledge Proof Systems](https://eprint.iacr.org/2019/458)
 
 [^ypir-impl]: [YPIR reference implementation (artifact branch)](https://github.com/menonsamir/ypir/tree/artifact)
+
+[^protocol-pallasandvesta]: [Zcash Protocol Specification, Section 5.4.9.6: Pallas and Vesta](protocol/protocol.pdf#pallasandvesta)
 
 [^draft-str4d-orchard-balance-proof]: [Air drops, Proof-of-Balance, and Stake-weighted Polling](draft-str4d-orchard-balance-proof)
