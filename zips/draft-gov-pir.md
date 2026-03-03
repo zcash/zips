@@ -328,14 +328,24 @@ $\text{Hash}(\text{key} \| \text{value})$ and is not stored separately.
 
 Each leaf represents an exclusion range. Implementations MUST encode
 exclusion ranges as $(low, width)$ pairs, where $low$ is the lower bound
-of the range and $width = high - low$.
+of the range and $width = high - low$. Both $low$ and $width$ are
+elements of $\mathbb{F}_{q_\mathbb{P}}$ (the Pallas base field), as are
+nullifiers.
 
-To verify that a target nullifier $t$ falls within the exclusion range, a
-client checks:
+To verify that a target nullifier $t$ falls within the exclusion range,
+the circuit MUST check:
 
-$$t - low < width$$
+$$\text{int}(t - low \mod q_\mathbb{P}) < \text{int}(width)$$
 
-This is a single subtraction and a single unsigned comparison.
+where $\text{int}(\cdot)$ denotes the canonical integer representation
+in $\{0, \ldots, q_\mathbb{P} - 1\}$. The subtraction is performed in
+$\mathbb{F}_{q_\mathbb{P}}$; the comparison is an unsigned integer
+comparison on the canonical representatives.
+
+The tree builder MUST ensure that $\text{int}(low) + \text{int}(width) < q_\mathbb{P}$
+for every leaf, so that the exclusion range does not wrap around the
+field modulus. Under this invariant, $t - low$ does not wrap for any
+$t$ in the range, and the single unsigned comparison is sufficient.
 
 <details>
 <summary>
