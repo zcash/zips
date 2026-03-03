@@ -321,11 +321,11 @@ Poseidon is designed for efficient evaluation inside zero-knowledge proof
 circuits.
 
 An internal node is a 32-byte hash:
-$\text{Hash}(\text{left\_child} \| \text{right\_child})$.
+$\mathsf{Hash}(\mathsf{left\_child} \| \mathsf{right\_child})$.
 
 A leaf is a 64-byte record consisting of a 32-byte key and a 32-byte
 value. The leaf hash is computed as
-$\text{Hash}(\text{key} \| \text{value})$ and is not stored separately.
+$\mathsf{Hash}(\mathsf{key} \| \mathsf{value})$ and is not stored separately.
 
 #### Leaf Encoding
 
@@ -338,14 +338,14 @@ nullifiers.
 To verify that a target nullifier $t$ falls within the exclusion range,
 the circuit MUST check:
 
-$$\text{int}(t - low \mod q_\mathbb{P}) < \text{int}(width)$$
+$$\mathsf{int}(t - low \bmod q_\mathbb{P}) < \mathsf{int}(width)$$
 
-where $\text{int}(\cdot)$ denotes the canonical integer representation
+where $\mathsf{int}(\cdot)$ denotes the canonical integer representation
 in $\{0, \ldots, q_\mathbb{P} - 1\}$. The subtraction is performed in
 $\mathbb{F}_{q_\mathbb{P}}$; the comparison is an unsigned integer
 comparison on the canonical representatives.
 
-The tree builder MUST ensure that $\text{int}(low) + \text{int}(width) < q_\mathbb{P}$
+The tree builder MUST ensure that $\mathsf{int}(low) + \mathsf{int}(width) < q_\mathbb{P}$
 for every leaf, so that the exclusion range does not wrap around the
 field modulus. Under this invariant, $t - low$ does not wrap for any
 $t$ in the range, and the single unsigned comparison is sufficient.
@@ -438,7 +438,7 @@ by clients. It changes only when the exclusion tree is updated.
 
 1. Binary search the 2,048 `min_key` values in Block A to find subtree
    index $S_1 \in [0, 2047]$ such that
-   $\text{min\_key}[S_1] \leq \text{target\_key} < \text{min\_key}[S_1 + 1]$.
+   $\mathsf{min\_key}[S_1] \leq \mathsf{target\_key} < \mathsf{min\_key}[S_1 + 1]$.
 2. Read 11 sibling hashes directly from the two blocks:
    - Depth-11 sibling: read `hash` from Block A at index $S_1 \oplus 1$.
    - Depths 1–10 siblings: read from Block B by walking the path
@@ -526,7 +526,7 @@ leaves):
 
 Each leaf contains a 32-byte key and a 32-byte value. No separate hash
 field is stored; the leaf hash is computed as
-$\text{Hash}(\text{key} \| \text{value})$.
+$\mathsf{Hash}(\mathsf{key} \| \mathsf{value})$.
 
 128 leaves $\times$ 64 bytes = **8,192 bytes**.
 
@@ -555,8 +555,8 @@ Bytes 8,128–12,223: leaf_values[0..127]       128 × 32 B = 4,096 B
 3. Scan the 128 leaf keys to find the target key and retrieve its value.
 4. Read 7 sibling hashes from the row:
    - Depth-26 sibling: the leaf at index
-     $(\text{target\_position} \oplus 1)$. Compute its hash as
-     $\text{Hash}(\text{key} \| \text{value})$. This is the only hash
+     $(\mathsf{target\_position} \oplus 1)$. Compute its hash as
+     $\mathsf{Hash}(\mathsf{key} \| \mathsf{value})$. This is the only hash
      the client computes during the PIR retrieval phase.
    - Depths 20–25 siblings: read from the 126 internal nodes by walking
      upward from the target leaf position.
