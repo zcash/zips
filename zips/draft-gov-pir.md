@@ -87,7 +87,7 @@ The nullifier exclusion tree is organized into a three-tier data structure
 spanning 26 levels of depth: a plaintext broadcast tier (192 KB, cacheable),
 a small PIR tier (48 MB), and a large PIR tier (6 GB). A complete
 authentication path is retrieved in two sequential PIR queries plus the
-plaintext download, for a total bandwidth of approximately 1.1 MB per query.
+plaintext download, for a total bandwidth of approximately 1.2 MB per query.
 
 This document also surveys the PIR design space, explains the choice of
 YPIR+SP over alternatives such as InsPIRe, and specifies the row layouts,
@@ -546,10 +546,10 @@ Bytes 8,128–12,223: leaf_values[0..127]       128 × 32 B = 4,096 B
 
 | Component | Direction | Size |
 |---|---|---|
-| Tier 0 payload | Server to Client | 128 KB |
+| Tier 0 payload | Server to Client | 192 KB |
 | PIR Query 1 (round trip) | Both | ~500 KB |
 | PIR Query 2 (round trip) | Both | ~500 KB |
-| **Total (first query)** | | **~1.1 MB** |
+| **Total (first query)** | | **~1.2 MB** |
 | **Total (Tier 0 cached)** | | **~1.0 MB** |
 
 ### Client Computation Summary
