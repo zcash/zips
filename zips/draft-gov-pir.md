@@ -687,9 +687,11 @@ No reference implementation exists at this time.
    multiple candidate Tier 2 rows), which would increase bandwidth.
 
 3. **Parameter tuning for mainnet.** The parameters in
-   [PIR Construction] are derived from the YPIR paper's recommendations
-   for 128-bit security. Deployment may require tuning based on observed
-   tree sizes and client device capabilities.
+   [PIR Construction] are taken directly from the YPIR paper's
+   recommendations for 128-bit security. We do not intend to modify them
+   as long as performance meets our needs. Tuning would only be
+   considered if observed tree sizes or client device capabilities
+   require it. In our internal testing, we do not anticipate the need for this but listing for completeness of analysis.
 
 
 # References
