@@ -1,7 +1,9 @@
     ZIP: Unassigned
     Title: Private Information Retrieval for Governance
-    Owners: First Owner <email>
-    Credits: First Credited
+    Owners: Dev Ojha <dojha@berkeley.edu>
+      Roman Akhtariev <>,
+      Adam Tucker <>,
+      Greg Nagy <>
     Status: Draft
     Category: Standards Track
     Created: 2026-03-02
@@ -50,51 +52,10 @@ Packing key
   packing key (derived from a fresh $s_2$) must be generated per query to
   prevent cross-query linkability (see [Privacy Implications]).
 
-Nullifier
+Interval Merkle tree
 
-: A unique value derived from a Zcash note that is published when the note
-  is spent. The set of all published nullifiers determines which notes have
-  been consumed.
-
-Exclusion tree
-
-: A sorted Merkle tree over nullifier exclusion ranges. A client proves
-  that a given nullifier does not appear in the tree by retrieving the
-  authentication path for the enclosing exclusion range.
-
-Exclusion range
-
-: A leaf of the exclusion tree, stored as a pair $(low, width)$ where
-  $low$ is the lower bound and $width = high - low$. The range certifies
-  that no nullifier exists in the interval $[low, low + width)$.
-
-Authentication path
-
-: The sequence of 26 sibling hashes from a leaf to the root of the
-  exclusion tree, sufficient to recompute the Merkle root and verify
-  membership.
-
-Hint (client-side database hint)
-
-: A precomputed summary of the PIR database that the client must hold in
-  order to decrypt the server's response. In SimplePIR, the hint is the
-  product of the database matrix with the public encryption matrix and
-  can exceed 1 GB for large databases. A *hintless* scheme such as
-  YPIR+SP eliminates this requirement, allowing the client to issue its
-  first query without any prior download.
-
-Per-client server state
-
-: Any data that the server must store on behalf of an individual client
-  between requests, such as client-specific keys or preprocessing
-  artifacts. A *stateless* PIR server holds only the public database and
-  can serve any client without prior interaction.
-
-Poseidon hash
-
-: An algebraic hash function designed for efficient evaluation inside
-  zero-knowledge proof circuits [^Poseidon].
-
+: A Merkle tree, where each leaf commits to a continuous range of valid values.
+  A client proves inclusion of a value in one of the tree's intervals.
 
 # Abstract
 
