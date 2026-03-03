@@ -615,9 +615,24 @@ communication costs for a 32 GB database:
 | Metric | SimplePIR | DoublePIR | YPIR | YPIR+SP | InsPIRe |
 |---|---|---|---|---|---|
 | Hint | 724 MB | 16 MB | **0** | **0** | **0** |
-| Query | 724 KB | 1.4 MB | 2.5 MB | 2.2 MB | ~236 KB |
-| Response | 724 KB | 32 KB | 12 KB | 444 KB | ~12 KB |
+| Query | 724 KB | 1.4 MB | 2.5 MB | 2.2 MB | ~1.1 MB |
+| Response | 724 KB | 32 KB | 12 KB | 444 KB | ~96 KB |
 | Throughput | 10.4 GB/s | 9.9 GB/s | 12.1 GB/s | 6.1 GB/s | up to 9.4 GB/s |
+
+<details>
+<summary>
+
+#### Sources for comparison table
+</summary>
+
+The SimplePIR, DoublePIR, and YPIR columns are from Table 2 of the YPIR
+paper [^YPIR] (32 GB database, single-bit retrieval). The YPIR+SP column
+is from Table 7 of the same paper (32 GB database, 64 KB records). The
+InsPIRe column is from the InsPIRe paper [^InsPIRe]: the ~236 KB total
+communication and ~12 KB response are from Table 2 (1 GB database,
+1-bit entries, full InsPIRe variant). The "up to 9.4 GB/s" throughput
+(9,360 MB/s) is from Table 4 (32 GB database, 32 KB entries).
+</details>
 
 InsPIRe achieves superior communication metrics through a novel packing
 mechanism (InspiRING, requiring only 2 key-switching matrices instead of
