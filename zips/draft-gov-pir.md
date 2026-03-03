@@ -704,6 +704,16 @@ It is our intent to continue researching and productionizing InsPIRe
 concurrently. Should InsPIRe mature and undergo sufficient auditing, a
 future ZIP may specify it as a replacement or alternative.
 
+## Parameter Selection
+
+The parameters in [Parameters] are taken directly from the YPIR paper's
+recommendations for 128-bit security with correctness error at most
+$2^{-40}$. These are not expected to require modification for mainnet
+deployment as long as the nullifier tree remains within the 64 GB
+database limit ($\sqrt{N} \leq 2^{18}$). Tuning would only be
+considered if observed tree sizes or client device capabilities
+require it.
+
 ## Data Structure Split
 
 The 11 + 8 + 7 tier split balances three competing concerns:
@@ -725,7 +735,9 @@ The 11 + 8 + 7 tier split balances three competing concerns:
    hardware requirements.
 
 Only 2 PIR queries are needed, and they are inherently sequential: the
-Tier 2 row index depends on the Tier 1 result. The plaintext tier
+Tier 2 row index depends on the Tier 1 result. Pipelining is not
+possible without speculative execution (querying multiple candidate
+Tier 2 rows), which would increase bandwidth. The plaintext tier
 requires no PIR query at all.
 
 ## Per-Tier PIR Value Sizing
@@ -769,20 +781,6 @@ three-tier Poseidon tree, the Tier 1 / Tier 2 query orchestration, and the
 client-side balance proof integration described in this ZIP — is to be
 provided before this ZIP advances to Proposed status.
 
-
-# Open issues
-
-1. **Query sequentiality.** The two PIR queries are inherently
-   sequential — Query 2's row index depends on Query 1's result.
-   Pipelining is not possible without speculative execution (querying
-   multiple candidate Tier 2 rows), which would increase bandwidth.
-
-2. **Parameter tuning for mainnet.** The parameters in
-   [PIR Construction] are taken directly from the YPIR paper's
-   recommendations for 128-bit security. We do not intend to modify them
-   as long as performance meets our needs. Tuning would only be
-   considered if observed tree sizes or client device capabilities
-   require it. In our internal testing, we do not anticipate the need for this but listing for completeness of analysis.
 
 
 # References
