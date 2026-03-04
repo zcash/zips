@@ -33,7 +33,7 @@ LWE (Learning With Errors)
 RLWE (Ring Learning With Errors)
 
 : A structured variant of LWE where operations take place in a polynomial
-  ring $\mathbb{Z}\lbrack x\rbrack/(x^d + 1)$. A single RLWE ciphertext encrypts $d$
+  ring $\mathbb{Z}[x]/(x^d + 1)$. A single RLWE ciphertext encrypts $d$
   values simultaneously.
 
 CDKS transformation
@@ -317,7 +317,7 @@ YPIR+SP [^YPIR] eliminates the hint by packing the SimplePIR response
 into RLWE ciphertexts using the CDKS transformation [^CDKS].
 
 RLWE ciphertexts encrypt $d$ values in a single ciphertext (as
-coefficients of a polynomial in $\mathbb{Z}\lbrack x\rbrack/(x^d + 1)$), compared to
+coefficients of a polynomial in $\mathbb{Z}[x]/(x^d + 1)$), compared to
 one value per LWE ciphertext. This yields dramatically less ciphertext
 overhead, making it possible to compress the entire SimplePIR row
 response — which would otherwise require the hint for decryption — into
