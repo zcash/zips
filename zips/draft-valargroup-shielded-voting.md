@@ -180,9 +180,10 @@ $t = \lceil 2n/3 \rceil + 1$) to reconstruct the key and decrypt
 individual share ciphertexts. Even with access to the full key, privacy
 against the EA relies on vote splitting: the EA would see encrypted
 shares but cannot link them to specific voters or vote commitments.
-Submission servers learn the encrypted share ciphertext, proposal
-identifier, and vote decision for each share they submit, but cannot
-decrypt plaintext amounts or link shares to voter identities. The
+Submission servers learn the encrypted share ciphertext, blind factor,
+and blinded share commitments for each share they submit, along with
+the proposal identifier and vote decision, but cannot decrypt plaintext
+amounts or link shares to voter identities. The
 primary trust requirement on submission servers is not leaking timing
 metadata; using multiple independent servers mitigates this risk.
 
@@ -851,10 +852,11 @@ The prover (submission server) knows:
   in the VCT.
 - $\mathsf{shares}\_\mathsf{hash} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$
 - $\mathsf{share}\_\mathsf{index} \in \{0, 1, \ldots, N_s - 1\}$ — which share is being revealed.
-- $\mathsf{enc}\_{\mathsf{share}\_1} \ldots \mathsf{enc}\_{\mathsf{share}\_{N_s}}$ — all
-  $N_s$ ciphertexts (to recompute $\mathsf{shares}\_\mathsf{hash}$).
-- $\mathsf{blind}\_1 \ldots \mathsf{blind}_{N_s}$ — all $N_s$ blind
-  factors.
+- $\mathsf{share}\_{\mathsf{comm}\_0} \ldots \mathsf{share}\_{\mathsf{comm}\_{N_s - 1}}$ —
+  all $N_s$ blinded share commitments (to recompute
+  $\mathsf{shares}\_\mathsf{hash}$).
+- $\mathsf{blind}$ — the blind factor for the revealed share
+  (at position $\mathsf{share}\_\mathsf{index}$).
 
 #### Conditions
 
@@ -877,14 +879,14 @@ revealed share is attributed to the correct proposal and decision.
 ##### Share Opening
 
 **Condition 3 — Shares hash integrity.** The $\mathsf{shares}\_\mathsf{hash}$ is
-recomputed from the witness ciphertexts and blind factors:
-
-$$\mathsf{share}\_{\mathsf{comm}\_\mathsf{i}} = \mathsf{Poseidon}\bigl(\mathsf{blind}\_\mathsf{i}, C_{1,i,x}, C_{2,i,x}\bigr) \quad \text{for each } i \in \{0 \ldots N_s - 1\}$$
+recomputed from the witness share commitments:
 
 $$\mathsf{shares}\_\mathsf{hash} = \mathsf{Poseidon}\bigl(\mathsf{share}\_{\mathsf{comm}\_\mathsf{0}}, \ldots, \mathsf{share}\_{\mathsf{comm}_{N_s - 1}}\bigr)$$
 
 The recomputed $\mathsf{shares}\_\mathsf{hash}$ is constrained equal to the one
-inside the VC (via condition 2).
+inside the VC (via condition 2). The share commitments are blinded
+(see [Why Blinded Share Commitments]), so they do not reveal the
+ciphertexts or blind factors of other shares to the prover.
 
 **Condition 4 — Share membership.** The public
 $\mathsf{enc}\_\mathsf{share} = (C_1, C_2)$ matches the ciphertext at position
@@ -895,10 +897,11 @@ $$\mathsf{Poseidon}\bigl(\mathsf{blind}_{\mathsf{share}\_\mathsf{index}}, C_{1,x
 The circuit encodes $\mathsf{share}\_\mathsf{index}$ as a one-hot selector
 vector over $N_s$ positions. The mux extracts the corresponding
 $\mathsf{share}\_\mathsf{comm}$ via a dot product and constrains equality with
-the commitment derived from the public ciphertext coordinates. Only the
-blind factor for the revealed share is needed; the other $N_s - 1$
-blinds remain part of the full set used in condition 3 but are not
-individually exposed.
+the commitment derived from the public ciphertext coordinates and the
+witness blind factor. Only the blind factor for the revealed share is
+needed; the remaining $N_s - 1$ share commitments used in condition 3
+are opaque witnesses that do not expose their underlying ciphertexts
+or blind factors.
 
 ##### Nullifier
 
@@ -963,12 +966,17 @@ payload. For share $i$, the payload MUST contain:
 | $\mathsf{proposal}_{\mathsf{id}}$ | Proposal identifier |
 | $\mathsf{vote}_{\mathsf{decision}}$ | Vote decision |
 | $\mathsf{share}_{\mathsf{index}}$ | Which share to reveal (0-indexed) |
-| $\mathsf{enc}\_{\mathsf{share}\_1} \ldots \mathsf{enc}\_{\mathsf{share}\_{N_s}}$ | All $N_s$ ciphertexts |
-| $\mathsf{blind}\_1 \ldots \mathsf{blind}_{N_s}$ | All $N_s$ blind factors |
+| $\mathsf{enc}\_\mathsf{share}$ | El Gamal ciphertext $(C_1, C_2)$ for this share |
+| $\mathsf{blind}$ | Blind factor for this share |
+| $\mathsf{share}\_{\mathsf{comm}\_0} \ldots \mathsf{share}\_{\mathsf{comm}\_{N_s - 1}}$ | All $N_s$ blinded share commitments |
 
-The server needs all $N_s$ ciphertexts and blind factors (not just the
-one being revealed) to recompute $\mathsf{shares}\_\mathsf{hash}$ in
-condition 3 of the Vote Reveal Proof.
+The server receives only the ciphertext and blind factor for the
+single share it is responsible for revealing. The remaining $N_s - 1$
+shares are sent to other servers, each of which receives only its own
+share's raw data. To recompute $\mathsf{shares}\_\mathsf{hash}$ in
+condition 3 of the Vote Reveal Proof, the server uses the blinded
+share commitments, which do not expose the ciphertexts or blind
+factors of the other shares (see [Why Per-Server Share Isolation]).
 
 
 ## Submission Server
@@ -992,11 +1000,14 @@ For each payload received, the server:
 4. Constructs the Vote Reveal Proof (ZKP #3).
 5. Submits the share reveal transaction to the vote chain.
 
-**What the server learns:** the encrypted share ciphertexts, proposal
-identifier, and vote decision. **What it cannot learn:** the plaintext
-share amounts (El Gamal encrypted under $\mathsf{ea}\_\mathsf{pk}$), the voter's
-identity (the VC hides the link), or which VCT leaf the VC corresponds
-to (the Merkle path is a private witness in the proof).
+**What the server learns:** the encrypted share ciphertext and blind
+factor for a single share, the blinded share commitments for all $N_s$
+shares, the proposal identifier, and the vote decision. **What it
+cannot learn:** the plaintext share amount (El Gamal encrypted under
+$\mathsf{ea}\_\mathsf{pk}$), the ciphertexts or blind factors of other
+shares (hidden behind blinded commitments), the voter's identity (the
+VC hides the link), or which VCT leaf the VC corresponds to (the
+Merkle path is a private witness in the proof).
 
 Voters MAY distribute shares across multiple independent servers to
 further limit any single server's view of their voting activity.
@@ -1140,6 +1151,19 @@ $\mathsf{Poseidon}(C_{1,i,x}, C_{2,i,x})$ for each on-chain ciphertext
 and compare against the $\mathsf{shares}\_\mathsf{hash}$ values committed in
 VCs, linking revealed shares back to specific vote commitments. The
 blind factor makes this reverse computation infeasible.
+
+## Why Per-Server Share Isolation
+
+Each submission server receives only the ciphertext and blind factor
+for the single share it reveals, plus the blinded share commitments
+for all $N_s$ shares. It does not receive the raw ciphertexts or blind
+factors of shares assigned to other servers. This limits the data any
+single server can observe: even a compromised server learns only one
+share's plaintext-encrypted ciphertext and blind, not the full set.
+The blinded share commitments are sufficient for the server to
+recompute $\mathsf{shares}\_\mathsf{hash}$ in the proof (condition 3),
+while the blinding prevents the server from correlating other shares'
+ciphertexts with their commitments.
 
 ## Why Server-Delegated Share Reveal
 
