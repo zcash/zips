@@ -209,6 +209,7 @@ Let $S = \{s_0, s_1, \ldots, s_{m-1}\}$ be the set of all Orchard
 nullifiers revealed on the consensus chain as of block height $h$, together
 with a set of sentinel values (see [Sentinel Initialization]). Sort $S$ in
 ascending order as elements of $\mathbb{F}_{q_{\mathbb{P}}}$.
+Because sentinel initialization is mandatory, $S$ is non-empty.
 
 For each pair of consecutive elements $(s_i, s_{i+1})$ where $s_i < s_{i+1}$
 and $s_{i+1} - s_i > 1$, create a leaf with:
@@ -736,7 +737,3 @@ this ZIP.
 [^poseidon]: [Poseidon: A New Hash Function for Zero-Knowledge Proof Systems](https://eprint.iacr.org/2019/458)
 
 [^draft-str4d-orchard-balance-proof]: [Draft ZIP: Air drops, Proof-of-Balance, and Stake-weighted Polling](draft-str4d-orchard-balance-proof)
-
-[^voting-circuits]: [Zcash coinholder voting circuits](https://github.com/z-cale/voting-circuits)
-
-[^imt-impl]: [Indexed Merkle Tree implementation](https://github.com/AimyZEC/orchard/blob/main/src/delegation/imt.rs)
