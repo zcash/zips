@@ -65,8 +65,8 @@ notes intended for voting are unspent by retrieving exclusion proofs from
 a nullifier exclusion tree without revealing which nullifier is being
 checked.
 
-The construction uses YPIR+SP, a single-server PIR protocol built on
-SimplePIR with RLWE packing via the CDKS transformation. YPIR+SP requires
+The construction uses YPIR+SP [^YPIR], a single-server PIR protocol built on
+SimplePIR [^SimplePIR] with RLWE packing via the CDKS transformation [^CDKS]. YPIR+SP requires
 no client-side database hint and no server-side per-client state, making
 it suitable for cold-start mobile wallets.
 
@@ -207,20 +207,114 @@ without the server learning which record was requested. The server
 processes the encrypted query by touching every record in the database,
 ensuring that its access pattern reveals nothing about the target.
 
-The underlying mechanism is homomorphic encryption. The client encrypts a
-selection vector using Regev (LWE) encryption [^Regev05] and sends it to the server.
-The server multiplies the database matrix by the encrypted query,
-producing an encrypted response. The client decrypts the response using
-its secret key.
+The underlying mechanism is homomorphic encryption. The server multiplies the database matrix by the encrypted query, producing an encrypted response. The client decrypts the response using its secret key.
+
+Next-generation PIR designs (YPIR, InsPIRe) build on top of SimplePIR, aiming to eliminate the hint.
+
+### SimplePIR
 
 In SimplePIR [^SimplePIR], the database is reshaped into a
 $\sqrt{N} \times \sqrt{N}$ matrix where each cell holds one byte. The
 server computes the answer as a single matrix-vector product, achieving
-throughput of approximately 10 GB/s. However, the client requires a
-precomputed *hint* — the product of the database matrix with the public
-encryption matrix — to decrypt the response. This hint is proportional to
-$\sqrt{N}$ and can exceed 1 GB for large databases, making SimplePIR
-unsuitable for cold-start clients.
+throughput that is constrained by the hardware's memory-bandwidth.
+
+The client encrypts a selection vector using Regev (LWE) encryption [^Regev05] and sends it to the server.
+
+The client requires a precomputed *hint* — the product of the database matrix with the public encryption matrix — to decrypt the response. This hint is proportional to $\sqrt{N}$ and can exceed 1 GB for large databases, making SimplePIR unsuitable for cold-start clients.
+
+### Regev Encryption
+
+Regev encryption [^Regev05] is the LWE-based scheme that encrypts the
+client's selection vector. It is the single component on which query
+privacy depends (see [Privacy Implications]).
+
+The scheme operates in two number spaces. The *plaintext space*
+$\mathbb{Z}_p$ (with $p = 2^8$) holds database values. The *ciphertext
+space* $\mathbb{Z}_q$ (with $q = 2^{32}$) holds encrypted values. The
+ratio $\Delta = \lfloor q / p \rfloor$ is the scaling factor that spaces
+plaintext values apart in the larger ciphertext space, leaving room for
+noise.
+
+All parties agree on a public random matrix $A$ of dimensions
+$n \times \sqrt{N}$, where $n = 1024$ is the LWE security parameter.
+Its transpose $A^T$ is a $\sqrt{N} \times n$ matrix. The client samples
+a secret vector $s$ of length $n$ and a small noise vector $e$ (each
+entry drawn from a discrete Gaussian with standard deviation $\sigma$).
+
+To encrypt a selection vector $\mu$ (zeros everywhere except a 1 at the
+target row):
+
+$$c = A^T \cdot s + e + \Delta \cdot \mu$$
+
+The term $A^T \cdot s$ is a mask that only the client can remove (since
+only the client knows $s$). The noise $e$ ensures that $c$ is
+computationally indistinguishable from a uniformly random vector under
+the LWE assumption: even an adversary who knows $A$ cannot recover $s$
+or $\mu$.
+
+To decrypt (given $s$):
+
+1. Subtract the mask: $c - A^T \cdot s = e + \Delta \cdot \mu$.
+2. Round each element to the nearest multiple of $\Delta$.
+3. Divide by $\Delta$ to recover $\mu$.
+
+This works because the noise $e$ is small relative to the spacing
+$\Delta$. For example, with $\Delta = \lfloor 2^{32} / 256 \rfloor =
+2^{24} \approx 16{,}000{,}000$ and noise magnitude on the order of tens,
+rounding reliably recovers the correct plaintext.
+
+Regev encryption is linearly homomorphic: the server can multiply the
+database matrix $D$ by the encrypted query $c$ and obtain an encrypted
+version of the selected row, $D \cdot c = D \cdot A^T \cdot s + D
+\cdot e + \Delta \cdot (D \times \mu)$, without learning which row
+was selected. This matrix-vector product is the entirety of the server's
+per-query work in SimplePIR.
+
+A critical property for PIR is that the matrix $A$ is independent of the
+message $\mu$. This allows the server to precompute the product $D
+\cdot A^T$ once, yielding the *hint* that clients use for decryption.
+
+### Hint
+
+After the server computes $\mathsf{answer} = D \cdot c$, the client
+holds:
+
+$$\mathsf{answer} = D \cdot A^T \cdot s + D \cdot e + \Delta \cdot (\text{selected row})$$
+
+To isolate the selected row, the client must subtract $D \cdot A^T
+\cdot s$. Computing this requires $D \cdot A^T$, which depends on the
+entire database — information the client does not have.
+
+The *hint* is the precomputed product $H = D \cdot A^T$, a matrix of
+dimensions $\sqrt{N} \times n$. With the hint in hand, the client
+computes $H \cdot s = D \cdot A^T \cdot s$ and subtracts it from the
+answer, leaving $D \cdot e + \Delta \cdot (\text{selected row})$.
+Standard rounding then recovers the row values.
+
+Because $A$ is independent of the query, the hint is the same for every
+client and every query. It is computed once by the server and can be
+distributed via CDN or bundled with the application. However, the hint
+must be recomputed whenever the database changes, and its size is
+proportional to $\sqrt{N}$, which becomes prohibitive for large
+databases.
+
+#### SimplePIR Hint
+
+On a database of $N$ bytes, the hint size is roughly $4\sqrt{N}$ KB
+[^SimplePIR]:
+
+| Database size | Hint size            |
+|---------------|----------------------|
+| 100 KB        | $\approx$ 1.25 MB   |
+| 10 MB         | $\approx$ 12.6 MB   |
+| 1 GB          | 128 MB               |
+
+For the Tier 2 database in this document (6 GB, see
+[Tier 2: Large PIR (Depths 19–26)]), the hint would exceed 300 MB — far
+beyond what a cold-start mobile client can download before its first
+query. This motivates the move to YPIR+SP, which eliminates the hint
+entirely by packing the SimplePIR response into RLWE ciphertexts (see
+[YPIR+SP]).
 
 ### YPIR+SP
 
@@ -255,7 +349,7 @@ Unlike standard YPIR (which is built on DoublePIR and retrieves a single
 element), YPIR+SP returns an entire row of the database matrix. This
 makes it suitable for large records that span many bytes.
 
-### Parameters
+#### Parameters
 
 Implementations MUST use the following parameters, which provide 128-bit
 computational security and correctness error at most $2^{-40}$:
@@ -270,7 +364,7 @@ computational security and correctness error at most $2^{-40}$:
 These parameters are taken from Table 1 of the YPIR paper [^YPIR] and
 support databases up to 64 GB ($\sqrt{N} \leq 2^{18}$).
 
-### Security
+#### Security
 
 The security of YPIR+SP relies on the LWE assumption at the SimplePIR
 level (Regev encryption of the row selector) and the Ring LWE
