@@ -5,7 +5,7 @@
             Adam Tucker <adamleetucker@outlook.com>
             Greg Nagy <greg@dhamma.works>
     Status: Draft
-    Category: Standards
+    Category: Standards Track
     Created: 2026-03-02
     License: MIT
     Pull-Request: https://github.com/zcash/zips/pull/1198
@@ -382,6 +382,10 @@ parameters specified in [Parameters].
 
 The client MUST verify that the decrypted authentication path is
 consistent with the published Merkle root of the exclusion tree.
+
+The client MUST generate a fresh RLWE secret $s_2$ and derive a new
+packing key for every query. Reuse of $s_2$ across queries enables
+cross-query linkability (see [Privacy Implications]).
 
 
 <details>
@@ -803,7 +807,7 @@ reduces the dominant upload cost by approximately 44% (from 4.5 MB to
 that impact response size across both tiers remains constant at 11).
 
 Moving to 12 + 8 + 6 split showed an inverse effect of doubling
-the number of rows for Tier 2 and Tier 1. Thus, increasing query sizes
+the number of rows for both Tier 2 and Tier 1. Thus, increasing query sizes
 which is the dominant communication cost.
 
 Two hard constraints from the YPIR library further limit the design space.
