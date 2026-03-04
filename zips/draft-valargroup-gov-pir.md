@@ -1,14 +1,14 @@
     ZIP: Unassigned
     Title: Private Information Retrieval for Governance
     Owners: Dev Ojha <dojha@berkeley.edu>
-      Roman Akhtariev <>,
-      Adam Tucker <>,
-      Greg Nagy <>
+            Roman Akhtariev <ackhtariev@gmail.com>
+            Adam Tucker <adamleetucker@outlook.com>
+            Greg Nagy <greg@dhamma.works>
     Status: Draft
     Category: Standards
     Created: 2026-03-02
     License: MIT
-    Pull-Request: <https://github.com/zcash/zips/pull/???>
+    Pull-Request: https://github.com/zcash/zips/pull/1198
 
 
 # Terminology
@@ -72,9 +72,9 @@ it suitable for cold-start mobile wallets.
 
 The nullifier exclusion tree is organized into a three-tier data structure
 spanning 26 levels of depth: a plaintext broadcast tier (192 KB, cacheable),
-a small PIR tier (48 MB), and a large PIR tier (6 GB). A complete
+a small PIR tier (24 MB), and a large PIR tier (6 GB). A complete
 authentication path is retrieved in two sequential PIR queries plus the
-plaintext download, for a total bandwidth of approximately 5.4 MB per
+plaintext download, for a total bandwidth of approximately 3.3 MB per
 query (dominated by the Tier 2 upload).
 
 This document also surveys the PIR design space, explains the choice of
@@ -309,7 +309,7 @@ On a database of $N$ bytes, the hint size is roughly $4\sqrt{N}$ KB
 | 1 GB          | 128 MB               |
 
 For the Tier 2 database in this document (6 GB, see
-[Tier 2: Large PIR (Depths 19–26)]), the hint would exceed 300 MB — far
+[Tier 2: Large PIR (Depths 18–26)]), the hint would exceed 300 MB — far
 beyond what a cold-start mobile client can download before its first
 query. This motivates the move to YPIR+SP, which eliminates the hint
 entirely by packing the SimplePIR response into RLWE ciphertexts (see
@@ -395,8 +395,8 @@ element per query. This means a large multi-byte record cannot be
 retrieved in a single query.
 
 In our data structure (see [Data Structure Layout]), the Tier 2 PIR
-database has rows of 12,224 bytes. Retrieving a row of this size with
-standard YPIR would require running 12,224 parallel DoublePIR instances
+database has rows of 24,512 bytes. Retrieving a row of this size with
+standard YPIR would require running 24,512 parallel DoublePIR instances
 (one per byte), each with its own 16 MB hint — a prohibitive cost.
 
 YPIR+SP returns an entire row from the SimplePIR matrix, and the full
@@ -496,13 +496,13 @@ Depth 0  ──────────────  root
   │
 Depth 11 ──────────────  2,048 subtree roots
   │
-  │   TIER 1: Small PIR (8 levels)
-  │   Depths 11–19
+  │   TIER 1: Small PIR (7 levels)
+  │   Depths 11–18
   │
-Depth 19 ──────────────  524,288 subtree roots
+Depth 18 ──────────────  262,144 subtree roots
   │
-  │   TIER 2: Large PIR (7 levels)
-  │   Depths 19–26
+  │   TIER 2: Large PIR (8 levels)
+  │   Depths 18–26
   │
 Depth 26 ──────────────  leaves (up to 67,108,864)
 ```
@@ -510,8 +510,8 @@ Depth 26 ──────────────  leaves (up to 67,108,864)
 | Tier | Depths | Siblings provided | Retrieval method |
 |---|---|---|---|
 | 0 | 0–11 | 11 | Plaintext broadcast |
-| 1 | 11–19 | 8 | PIR query |
-| 2 | 19–26 | 7 | PIR query |
+| 1 | 11–18 | 7 | PIR query |
+| 2 | 18–26 | 8 | PIR query |
 | **Total** | | **26** | |
 
 ##### Tier 0: Plaintext Broadcast (Depths 0–11)
@@ -554,124 +554,124 @@ by clients. It changes only when the exclusion tree is updated.
    - Depths 1–10 siblings: read from Block B by walking the path
      determined by $S_1$ upward through the BFS-indexed tree.
 
-##### Tier 1: Small PIR (Depths 11–19)
+##### Tier 1: Small PIR (Depths 11–18)
 
 The Tier 1 PIR database MUST contain one row per depth-11 subtree. Each
-row contains a complete 8-level subtree (depths 11–19). The subtree root
+row contains a complete 7-level subtree (depths 11–18). The subtree root
 (the depth-11 node) is not included, as the client already has it from
 Tier 0.
 
 | Property | Value | Derivation |
 |---|---|---|
 | Rows | $2^{11} = 2{,}048$ | One per depth-11 subtree |
-| Content per row | 8-level subtree (depths 11–19) | See below |
+| Content per row | 7-level subtree (depths 11–18) | See below |
 
-**Internal nodes** (relative depths 1–7, absolute depths 12–18):
+**Internal nodes** (relative depths 1–6, absolute depths 12–17):
 
-254 nodes ($2^8 - 2$) $\times$ 32 bytes = **8,128 bytes**.
+126 nodes ($2^7 - 2$) $\times$ 32 bytes = **4,032 bytes**.
 
-**Leaf records** (relative depth 8, absolute depth 19):
+**Leaf records** (relative depth 7, absolute depth 18):
 
 These are Tier 2 subtree roots, each containing a 32-byte hash and a
 32-byte `min_key` for binary search.
 
-256 records $\times$ 64 bytes = **16,384 bytes**.
+128 records $\times$ 64 bytes = **8,192 bytes**.
 
-**Row total: 24,512 bytes (23.9 KB).**
+**Row total: 12,224 bytes (11.9 KB).**
 
-The PIR value size for Tier 1 MUST be set to the row size (24,512 bytes)
+The PIR value size for Tier 1 MUST be set to the row size (12,224 bytes)
 or the next implementation-required alignment boundary. Tier 1 and
 Tier 2 are independent PIR databases and do not share a value size.
 
 | Metric | Value |
 |---|---|
-| Database size | 2,048 rows $\times$ 24,512 B = **47.9 MB** |
+| Database size | 2,048 rows $\times$ 12,224 B = **23.9 MB** |
 
-**Row serialization (24,512 bytes):**
+**Row serialization (12,224 bytes):**
 
 Internal nodes MUST be serialized in breadth-first order (depth 1
-left-to-right, then depth 2, and so on through depth 7):
+left-to-right, then depth 2, and so on through depth 6):
 
 ```
-Bytes 0–8,127:       internal_nodes[0..253]    254 × 32 B = 8,128 B
-Bytes 8,128–16,319:  leaf_hashes[0..255]       256 × 32 B = 8,192 B
-Bytes 16,320–24,511: leaf_min_keys[0..255]     256 × 32 B = 8,192 B
-                                                Total:      24,512 B
+Bytes 0–4,031:      internal_nodes[0..125]    126 × 32 B = 4,032 B
+Bytes 4,032–8,127:  leaf_hashes[0..127]       128 × 32 B = 4,096 B
+Bytes 8,128–12,223: leaf_min_keys[0..127]     128 × 32 B = 4,096 B
+                                               Total:      12,224 B
 ```
 
 **BFS indexing:** A node at relative depth $d$, horizontal position $p$
 (0-indexed) has internal node index $(2^d - 2) + p$ for
-$d \in [1, 7]$, $p \in [0, 2^d)$. The sibling of position $p$ at any
+$d \in [1, 6]$, $p \in [0, 2^d)$. The sibling of position $p$ at any
 depth is at position $p \oplus 1$. The parent of position $p$ is at
 position $p \gg 1$ at depth $d - 1$.
 
 **Client procedure:**
 
 1. Issue a PIR query for row $S_1$ (the subtree index from Tier 0).
-2. Binary search the 256 `min_key` values at the end of the row to find
-   sub-subtree index $S_2 \in [0, 255]$.
-3. Read 8 sibling hashes directly from the row:
-   - Depth-19 sibling: the leaf record at index $S_2 \oplus 1$ (its
+2. Binary search the 128 `min_key` values at the end of the row to find
+   sub-subtree index $S_2 \in [0, 127]$.
+3. Read 7 sibling hashes directly from the row:
+   - Depth-18 sibling: the leaf record at index $S_2 \oplus 1$ (its
      `hash` field).
-   - Depths 12–18 siblings: walk the internal nodes from position $S_2$
+   - Depths 12–17 siblings: walk the internal nodes from position $S_2$
      upward, reading the sibling hash at each level.
 
-##### Tier 2: Large PIR (Depths 19–26)
+##### Tier 2: Large PIR (Depths 18–26)
 
-The Tier 2 PIR database MUST contain one row per depth-19 subtree. Each
-row contains a complete 7-level subtree (depths 19–26). The subtree root
-(the depth-19 node) is not included, as the client already has it from
+The Tier 2 PIR database MUST contain one row per depth-18 subtree. Each
+row contains a complete 8-level subtree (depths 18–26). The subtree root
+(the depth-18 node) is not included, as the client already has it from
 Tier 1.
 
 | Property | Value | Derivation |
 |---|---|---|
-| Rows | $2^{19} = 524{,}288$ | One per depth-19 subtree |
-| Content per row | 7-level subtree (depths 19–26) | See below |
+| Rows | $2^{18} = 262{,}144$ | One per depth-18 subtree |
+| Content per row | 8-level subtree (depths 18–26) | See below |
 
-**Internal nodes** (relative depths 1–6, absolute depths 20–25):
+**Internal nodes** (relative depths 1–7, absolute depths 19–25):
 
-126 nodes ($2^7 - 2$) $\times$ 32 bytes = **4,032 bytes**.
+254 nodes ($2^8 - 2$) $\times$ 32 bytes = **8,128 bytes**.
 
-**Leaf records** (relative depth 7, absolute depth 26 — the actual tree
+**Leaf records** (relative depth 8, absolute depth 26 — the actual tree
 leaves):
 
 Each leaf contains a 32-byte key and a 32-byte value. No separate hash
 field is stored; the leaf hash is computed as
 $\mathsf{Hash}(\mathsf{key} \| \mathsf{value})$.
 
-128 leaves $\times$ 64 bytes = **8,192 bytes**.
+256 leaves $\times$ 64 bytes = **16,384 bytes**.
 
-**Row total: 12,224 bytes (11.9 KB).**
+**Row total: 24,512 bytes (23.9 KB).**
 
-The PIR value size for Tier 2 MUST be set to the row size (12,224 bytes)
+The PIR value size for Tier 2 MUST be set to the row size (24,512 bytes)
 or the next implementation-required alignment boundary. Tier 1 and
 Tier 2 are independent PIR databases and do not share a value size.
 
 | Metric | Value |
 |---|---|
-| Database size | 524,288 rows $\times$ 12,224 B = **5.97 GB** |
+| Database size | 262,144 rows $\times$ 24,512 B = **5.98 GB** |
 
-**Row serialization (12,224 bytes):**
+**Row serialization (24,512 bytes):**
 
 ```
-Bytes 0–4,031:      internal_nodes[0..125]    126 × 32 B = 4,032 B
-Bytes 4,032–8,127:  leaf_keys[0..127]         128 × 32 B = 4,096 B
-Bytes 8,128–12,223: leaf_values[0..127]       128 × 32 B = 4,096 B
-                                               Total:      12,224 B
+Bytes 0–8,127:       internal_nodes[0..253]    254 × 32 B = 8,128 B
+Bytes 8,128–16,319:  leaf_keys[0..255]         256 × 32 B = 8,192 B
+Bytes 16,320–24,511: leaf_values[0..255]       256 × 32 B = 8,192 B
+                                                Total:      24,512 B
 ```
 
 **Client procedure:**
 
-1. Compute the Tier 2 row index as $S_1 \times 256 + S_2$.
+1. Compute the Tier 2 row index as $S_1 \times 128 + S_2$.
 2. Issue a PIR query for this row.
-3. Binary search the 128 leaf keys to find the target key and retrieve
+3. Binary search the 256 leaf keys to find the target key and retrieve
    its value.
-4. Read 7 sibling hashes from the row:
+4. Read 8 sibling hashes from the row:
    - Depth-26 sibling: the leaf at index
      $(\mathsf{target\_position} \oplus 1)$. Compute its hash as
      $\mathsf{Hash}(\mathsf{key} \| \mathsf{value})$. This is the only hash
      the client computes during the PIR retrieval phase.
-   - Depths 20–25 siblings: read from the 126 internal nodes by walking
+   - Depths 19–25 siblings: read from the 254 internal nodes by walking
      upward from the target leaf position.
 
 ##### Bandwidth Summary
@@ -679,10 +679,10 @@ Bytes 8,128–12,223: leaf_values[0..127]       128 × 32 B = 4,096 B
 | Component | Upload | Download | Round trip |
 |---|---|---|---|
 | Tier 0 payload | — | 192 KB | 192 KB |
-| PIR Query 1 (Tier 1, 48 MB) | 544 KB | ~84 KB | ~628 KB |
-| PIR Query 2 (Tier 2, 6 GB) | 4.5 MB | ~48 KB | ~4.5 MB |
-| **Total (first query)** | **5.0 MB** | **~324 KB** | **~5.4 MB** |
-| **Total (Tier 0 cached)** | **5.0 MB** | **~132 KB** | **~5.2 MB** |
+| PIR Query 1 (Tier 1, 24 MB) | 544 KB | ~48 KB | ~592 KB |
+| PIR Query 2 (Tier 2, 6 GB) | 2.5 MB | ~84 KB | ~2.6 MB |
+| **Total (first query)** | **3.0 MB** | **~324 KB** | **~3.3 MB** |
+| **Total (Tier 0 cached)** | **3.0 MB** | **~132 KB** | **~3.1 MB** |
 
 Upload is dominated by the Tier 2 row selector ($c_1$, proportional
 to the number of database rows) and the packing key ($pk$, ~462 KB
@@ -694,8 +694,8 @@ response efficiently.
 | Step | Binary search | Hashes computed | Sibling hashes read |
 |---|---|---|---|
 | Tier 0 | Over 2,048 keys | 2,047 (reconstruct depths 0–10) | 11 |
-| Tier 1 | Over 256 keys | 0 | 8 |
-| Tier 2 | Over 128 keys | 1 (sibling leaf hash) | 7 |
+| Tier 1 | Over 128 keys | 0 | 7 |
+| Tier 2 | Over 256 keys | 1 (sibling leaf hash) | 8 |
 | **Total** | | **2,048** | **26** |
 
 All hashing occurs during Tier 0 reconstruction, which can be performed
@@ -722,7 +722,7 @@ response, eliminating the offline download entirely.
 ## Construction Choice
 
 Standard YPIR (DoublePIR-based) retrieves a single element per query,
-which cannot serve the 12,224-byte rows in our Tier 2 layout (see
+which cannot serve the 24,512-byte rows in our Tier 2 layout (see
 [Data Structure Layout]). Both YPIR+SP and InsPIRe [^InsPIRe] build on
 SimplePIR and return full row data; the following table compares their
 communication costs for a 32 GB database:
@@ -775,7 +775,7 @@ require it.
 
 ## Data Structure Split
 
-The 11 + 8 + 7 tier split balances three competing concerns:
+The 11 + 7 + 8 tier split balances three competing concerns:
 
 1. **Tier 0 broadcast size.** The plaintext tier covers 11 levels,
    producing $2^{11} = 2{,}048$ subtree roots (128 KB) plus 2,047
@@ -784,14 +784,38 @@ The 11 + 8 + 7 tier split balances three competing concerns:
    to 12 levels would roughly double the broadcast with diminishing
    returns.
 
-2. **Tier 1 PIR database size.** Each of the 2,048 rows contains an
-   8-level subtree (24,512 bytes), yielding a 48 MB database. This is
+2. **Tier 1 PIR database size.** Each of the 2,048 rows contains a
+   7-level subtree (12,224 bytes), yielding a 24 MB database. This is
    small enough for efficient PIR processing.
 
-3. **Tier 2 PIR database size.** The remaining 7 levels produce 524,288
-   rows of 12,224 bytes each, yielding a 6 GB database. This is the
+3. **Tier 2 PIR database size.** The remaining 8 levels produce 262,144
+   rows of 24,512 bytes each, yielding a 6 GB database. This is the
    binding constraint for PIR scheme selection and determines server
    hardware requirements.
+
+Compared to an 11 + 8 + 7 split, moving one Merkle layer from Tier 1
+into Tier 2 halves the number of Tier 2 rows (from 524,288 to 262,144)
+at the cost of doubling the row size (from 12,224 to 24,512 bytes).
+Because the YPIR query upload scales linearly with the number of
+database rows while the response scales with row size, this trade-off
+reduces the dominant upload cost by approximately 44% (from 4.5 MB to
+2.5 MB) with no net change in total download (the total YPIR instances
+that impact response size across both tiers remains constant at 11).
+
+Moving to 12 + 8 + 6 split showed an inverse effect of doubling
+the number of rows for Tier 2 and Tier 1. Thus, increasing query sizes
+which is the dominant communication cost.
+
+Two hard constraints from the YPIR library further limit the design space.
+YPIR requires `num_items` $\geq 2^{11}$, setting a floor of 2,048
+rows for any PIR tier. YPIR also requires `item_size_bits` $\geq
+2{,}048 \times 14 = 28{,}672$, setting a floor of 3,584 bytes per row.
+The 11 + 7 + 8 split satisfies both (Tier 1 has 2,048 rows; Tier 2 has
+24,512-byte rows). Alternative splits such as 10 + 8 + 8 (violates the
+Tier 1 row minimum) and 13 + 8 + 5 (violates the Tier 2 minimum item
+size) are infeasible without modifying YPIR.
+
+As a result, 11 + 7 + 8 tier split is the optimal.
 
 Only 2 PIR queries are needed, and they are inherently sequential: the
 Tier 2 row index depends on the Tier 1 result. Pipelining is not
@@ -803,13 +827,13 @@ requires no PIR query at all.
 
 Tier 1 and Tier 2 are independent PIR databases with separate queries.
 There is no requirement that they share a PIR value size. Configuring
-each tier's value size to match its actual row size — 24,512 bytes for
-Tier 1 and 12,224 bytes for Tier 2 — avoids wasted padding and reduces
+each tier's value size to match its actual row size — 12,224 bytes for
+Tier 1 and 24,512 bytes for Tier 2 — avoids wasted padding and reduces
 the effective database size the server must scan per query.
 
 A naive approach would use a single uniform value size (e.g., 32 KB)
-for both tiers. This would inflate Tier 1 from 48 MB to 64 MB (74.8%
-utilization) and Tier 2 from 6 GB to 16 GB (37.3% utilization). Since
+for both tiers. This would inflate Tier 1 from 24 MB to 64 MB (37.3%
+utilization) and Tier 2 from 6 GB to 8 GB (74.8% utilization). Since
 YPIR+SP touches every byte of the database per query, unused padding
 directly increases server computation time. Per-tier sizing eliminates
 this overhead.
