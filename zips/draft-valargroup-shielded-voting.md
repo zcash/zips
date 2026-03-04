@@ -319,11 +319,11 @@ where:
   key of the governance hotkey address.
 - $\mathsf{num}\_\mathsf{ballots} \in \{1 \ldots 2^{30}\}$ — total voting
   weight in ballots.
-- `voting_round_id` ∈ Pallas scalar — scopes this VAN to a specific voting round.
+- $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}} \in \{ 0 .. q_{\mathbb{P}}-1 \}$ — scopes this VAN to a specific voting round.
 - $\mathsf{proposal}\_\mathsf{authority} \in \{0 \ldots 2^{16}-1\}$ — bitmask
   encoding which proposals this VAN is authorized to vote on. Full
   authority for 16 proposals is $2^{16} - 1 = 65535$.
-- `gov_comm_rand` ∈ Pallas scalar —
+- $\mathsf{gov}\_{\mathsf{comm}\_\mathsf{rand}} \in \{ 0 .. q_{\mathbb{P}}-1 \}$ —
   commitment randomness.
 
 **VAN nullifier.** When a VAN is consumed (to vote or delegate), its
@@ -349,12 +349,12 @@ $$\mathsf{vc} = \mathsf{Poseidon}\bigl(\mathsf{DOMAIN}\_\mathsf{VC}, \mathsf{vot
 where:
 
 - $\mathsf{DOMAIN}\_\mathsf{VC} = 1$ — domain tag.
-- `shares_hash` ∈ Pallas scalar — a hash
+- $\mathsf{shares}\_\mathsf{hash} \in \{ 0 .. q_{\mathbb{P}}-1 \}$ — a hash
   over blinded commitments to all $N_s$ encrypted shares (see
   [Shares Hash]).
 - $\mathsf{proposal}\_\mathsf{id} \in \{1 \ldots 16\}$ — which proposal this
   vote targets.
-- `vote_decision` ∈ Pallas scalar — the
+- $\mathsf{vote}\_\mathsf{decision} \in \{ 0 .. q_{\mathbb{P}}-1 \}$ — the
   voter's choice (0-indexed into the proposal's declared options).
 
 A VC is created during voting (Phase 2) and opened during share reveal
@@ -371,7 +371,7 @@ For share index $i \in \{0 \ldots N_s - 1\}$:
 - $\mathsf{v}\_\mathsf{i} \in \{0 \ldots 2^{30} - 1\}$ — plaintext share
   amount in ballots (private, never revealed).
 - $r_i$ — El Gamal encryption randomness (Pallas scalar, private).
-- `blind_i` ∈ Pallas scalar — per-share
+- $\mathsf{blind}\_\mathsf{i} \in \{ 0 .. q_{\mathbb{P}}-1 \}$ — per-share
   blind factor for the blinded share commitment (independent of $r_i$).
 - $\mathsf{enc}\_{\mathsf{share}\_\mathsf{i}} = \mathsf{Enc}(\mathsf{v}\_\mathsf{i}, r_i) = (C_{1,i}, C_{2,i})$
   — El Gamal ciphertext.
@@ -404,7 +404,7 @@ $\mathsf{blind}$ is the blind factor for the revealed share.
 ### Vote Commitment Tree
 
 The VCT is an append-only Merkle tree of depth
-`MerkleDepth_vct` that stores both VANs and VCs as leaves.
+$\mathsf{MerkleDepth}^{\mathsf{vct}}$ that stores both VANs and VCs as leaves.
 The tree MUST use the Poseidon hash function [^poseidon] over
 the Pallas scalar field for all internal node hashing, with
 the same instantiation used by the nullifier non-membership
@@ -502,7 +502,7 @@ Given a primary input:
   commitment.
 - $\mathsf{gov}\_{\mathsf{null}\_\mathsf{1}}, \ldots, \mathsf{gov}\_{\mathsf{null}\_\mathsf{5}} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$ —
   governance nullifiers for each note slot.
-- `voting_round_id` ⦂ Pallas scalar
+- $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$
 - $\mathsf{cmx}\_\mathsf{new} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$ — output note
   commitment (to the governance hotkey address).
 
@@ -540,12 +540,12 @@ circuit [^balance-proof] apply:
 
 $$\mathsf{gov}\_{\mathsf{null}\_\mathsf{i}} = \mathsf{Poseidon}\bigl(\mathsf{nk}, \mathsf{tag}_{\mathsf{gov}}, \mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}, \mathsf{nf}^{\mathsf{old}}_i\bigr)$$
 
-where `tag_gov` is the field-element encoding of
-`"governance authorization"` and `nf_old_i` is the note's
+where $\mathsf{tag}_{\mathsf{gov}}$ is the field-element encoding of
+"governance authorization" and $\mathsf{nf}^{\mathsf{old}}_i$ is the note's
 standard nullifier (computed in-circuit but never revealed). This is an
 instantiation of the alternate nullifier derivation defined
-in [^balance-proof], with `tag` = `tag_gov` and
-`dom` = `voting_round_id`.
+in [^balance-proof], with $\mathsf{tag} = \mathsf{tag}_{\mathsf{gov}}$ and
+$\mathsf{dom} = \mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}$.
 
 **Signed note integrity.** The signed note is a dummy note with value 0.
 Its note commitment $\mathsf{cm}^{\mathsf{signed}}$ is correctly constructed, and
@@ -600,16 +600,16 @@ A delegation transaction submitted to the vote chain MUST contain:
 
 | Field | Type | Description |
 |---|---|---|
-| `π_del` | Proof | The Delegation Proof |
-| `σ_del` | Signature | SpendAuthSig under `rk` |
-| `signed_note_nullifier` | Pallas scalar | Dummy note nullifier |
-| `rk` | Pallas point | Randomized verification key |
-| `rt_cm` | Pallas scalar | Note commitment tree root |
-| `rt_excl` | Pallas scalar | Non-membership tree root |
-| `van` | Pallas scalar | VAN commitment |
-| `gov_null_1 … gov_null_5` | Pallas scalar each | Governance nullifiers |
-| `voting_round_id` | Pallas scalar | Round identifier |
-| `cmx_new` | Pallas scalar | Output note commitment |
+| $\pi\_\mathsf{del}$ | Proof | The Delegation Proof |
+| $\sigma\_\mathsf{del}$ | Signature | SpendAuthSig under $\mathsf{rk}$ |
+| $\mathsf{signed}\_{\mathsf{note}\_\mathsf{nullifier}}$ | Pallas scalar | Dummy note nullifier |
+| $\mathsf{rk}$ | Pallas point | Randomized verification key |
+| $\mathsf{rt}^{\mathsf{cm}}$ | Pallas scalar | Note commitment tree root |
+| $\mathsf{rt}^{\mathsf{excl}}$ | Pallas scalar | Non-membership tree root |
+| $\mathsf{van}$ | Pallas scalar | VAN commitment |
+| $\mathsf{gov}\_{\mathsf{null}\_1} \ldots \mathsf{gov}\_{\mathsf{null}\_5}$ | Pallas scalar each | Governance nullifiers |
+| $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}$ | Pallas scalar | Round identifier |
+| $\mathsf{cmx}\_\mathsf{new}$ | Pallas scalar | Output note commitment |
 
 
 ## Vote Phase
@@ -636,7 +636,7 @@ Given a primary input:
   Vote Commitment Tree.
 - $\mathsf{anchor}\_\mathsf{height} ⦂ \mathbb{N}$ — VCT snapshot height.
 - $\mathsf{proposal}\_\mathsf{id} ⦂ \{1 \ldots 16\}$ — which proposal.
-- `voting_round_id` ⦂ Pallas scalar
+- $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$
 - $\mathsf{ea}\_\mathsf{pk} ⦂ \mathbb{P}^*$ — election authority public key
   (x and y coordinates).
 
@@ -644,11 +644,11 @@ Given a primary input:
 
 The prover knows:
 
-- `vote_decision` ⦂ Pallas scalar — the voter's choice.
+- $\mathsf{vote}\_\mathsf{decision} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$ — the voter's choice.
 - $\mathsf{vsk.ak} ⦂ \mathbb{P}^*$ — voting spend authorization
   validating key.
-- `vsk.nk` ⦂ Pallas scalar — nullifier
-  deriving key (same as `nk` from the holder's FVK).
+- $\mathsf{vsk.nk} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$ — nullifier
+  deriving key (same as $\mathsf{nk}$ from the holder's FVK).
 - $\mathsf{rivk}\_\mathsf{v} ⦂ \mathsf{Commit}^{\mathsf{ivk}}\mathsf{.Trapdoor}$ —
   CommitIvk randomness for the voting key.
 - $\alpha_v$ — spend authorization randomizer for the voting hotkey.
@@ -688,7 +688,7 @@ belongs to the voting key:
 
 $$\mathsf{vpk}\_{\mathsf{pk}\_\mathsf{d}} = [\mathsf{ivk}\_\mathsf{v}]\, \mathsf{vpk}\_{\mathsf{g}\_\mathsf{d}}$$
 
-where `ivk_v` = CommitIvk<sub>`rivk_v`</sub>(Extract<sub>P</sub>(`vsk.ak`), `vsk.nk`).
+where $\mathsf{ivk}\_\mathsf{v} = \mathsf{CommitIvk}_{\mathsf{rivk}\_\mathsf{v}}\!\bigl(\mathsf{Extract}_{\mathbb{P}}(\mathsf{vsk.ak}),\; \mathsf{vsk.nk}\bigr)$.
 
 **Condition 4 — Spend authority.** The randomized voting public key is
 a valid rerandomization:
@@ -830,30 +830,30 @@ submission server, not the voter.
 
 Given a primary input:
 
-- `share_nullifier` ⦂ {0 .. $q_\mathbb{P}$ − 1} —
+- $\mathsf{share}\_\mathsf{nullifier} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$ —
   prevents double-counting.
-- `enc_share` ⦂ $\mathbb{P}^* \times \mathbb{P}^*$ — the
+- $\mathsf{enc}\_\mathsf{share} ⦂ \mathbb{P}^* \times \mathbb{P}^*$ — the
   El Gamal ciphertext $(C_1, C_2)$ for this share.
-- `proposal_id` ⦂ {1 … 16} — which proposal.
-- `vote_decision` ⦂ Pallas scalar — the voter's choice.
-- `rt_vct` ⦂ {0 .. $q_\mathbb{P}$ − 1} — root of the
+- $\mathsf{proposal}\_\mathsf{id} ⦂ \{1 \ldots 16\}$ — which proposal.
+- $\mathsf{vote}\_\mathsf{decision} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$ — the voter's choice.
+- $\mathsf{rt}^{\mathsf{vct}} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$ — root of the
   Vote Commitment Tree.
-- `anchor_height` ⦂ integer — VCT snapshot height.
-- `voting_round_id` ⦂ Pallas scalar
+- $\mathsf{anchor}\_\mathsf{height} ⦂ \mathbb{N}$ — VCT snapshot height.
+- $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$
 
 #### Auxiliary Inputs
 
 The prover (submission server) knows:
 
-- `vc` ⦂ {0 .. $q_\mathbb{P}$ − 1} — the vote commitment
+- $\mathsf{vc} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$ — the vote commitment
   being opened (hidden from the verifier).
-- `path_vct`, `pos_vct` — Merkle proof for the VC
+- $\mathsf{path}^{\mathsf{vct}}, \mathsf{pos}^{\mathsf{vct}}$ — Merkle proof for the VC
   in the VCT.
-- `shares_hash` ⦂ Pallas scalar
-- `share_index` ∈ {0, 1, …, $N_s$ − 1} — which share is being revealed.
-- `enc_share_1` … `enc_share_Ns` — all
-  $N_s$ ciphertexts (to recompute `shares_hash`).
-- `blind_1` … `blind_Ns` — all $N_s$ blind
+- $\mathsf{shares}\_\mathsf{hash} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$
+- $\mathsf{share}\_\mathsf{index} \in \{0, 1, \ldots, N_s - 1\}$ — which share is being revealed.
+- $\mathsf{enc}\_{\mathsf{share}\_1} \ldots \mathsf{enc}\_{\mathsf{share}\_{N_s}}$ — all
+  $N_s$ ciphertexts (to recompute $\mathsf{shares}\_\mathsf{hash}$).
+- $\mathsf{blind}\_1 \ldots \mathsf{blind}_{N_s}$ — all $N_s$ blind
   factors.
 
 #### Conditions
@@ -963,8 +963,8 @@ payload. For share $i$, the payload MUST contain:
 | $\mathsf{proposal}_{\mathsf{id}}$ | Proposal identifier |
 | $\mathsf{vote}_{\mathsf{decision}}$ | Vote decision |
 | $\mathsf{share}_{\mathsf{index}}$ | Which share to reveal (0-indexed) |
-| `enc_share_1` … `enc_share_Ns` | All $N_s$ ciphertexts |
-| `blind_1` … `blind_Ns` | All $N_s$ blind factors |
+| $\mathsf{enc}\_{\mathsf{share}\_1} \ldots \mathsf{enc}\_{\mathsf{share}\_{N_s}}$ | All $N_s$ ciphertexts |
+| $\mathsf{blind}\_1 \ldots \mathsf{blind}_{N_s}$ | All $N_s$ blind factors |
 
 The server needs all $N_s$ ciphertexts and blind factors (not just the
 one being revealed) to recompute $\mathsf{shares}\_\mathsf{hash}$ in
