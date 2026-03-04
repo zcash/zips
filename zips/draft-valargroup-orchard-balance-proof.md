@@ -48,7 +48,7 @@ Alternate nullifier
 
 Nullifier domain
 
-: A unique identifier, encoded as an element of $\mathbb{F}_{q_{\mathbb{P}}}$,
+: A unique identifier, encoded as an element of $\mathbb{F}_ {q_ {\mathbb{P}}}$,
   that scopes alternate nullifiers to a particular application instance. Two
   claims in the same domain for the same note produce the same alternate
   nullifier; claims in different domains are unlinkable.
@@ -123,9 +123,9 @@ experience of the Zcash coinholder voting system.
 # Privacy Implications
 
 **Unlinkability to standard nullifiers.** The alternate nullifier
-$\mathsf{nf_{dom}}$ for a note is computed as a Poseidon hash keyed by the
+$\mathsf{nf_ {dom}}$ for a note is computed as a Poseidon hash keyed by the
 nullifier deriving key $\mathsf{nk}$, which is secret. An observer who
-sees both $\mathsf{nf_{dom}}$ (published during a claim) and the standard
+sees both $\mathsf{nf_ {dom}}$ (published during a claim) and the standard
 nullifier $\mathsf{nf^{old}}$ (published when the note is later spent on
 the Zcash chain) cannot link them without knowledge of $\mathsf{nk}$.
 This property holds under the assumption that Poseidon is a pseudorandom
@@ -133,9 +133,9 @@ function when keyed with a uniformly random field element (see
 [Security Argument]).
 
 **Cross-domain unlinkability.** If the same note participates in two
-independent applications with different nullifier domains $\mathsf{dom_1}$
-and $\mathsf{dom_2}$, the resulting alternate nullifiers
-$\mathsf{nf_{dom_1}}$ and $\mathsf{nf_{dom_2}}$ are unlinkable. This
+independent applications with different nullifier domains $\mathsf{dom_ 1}$
+and $\mathsf{dom_ 2}$, the resulting alternate nullifiers
+$\mathsf{nf_ {dom_ 1}}$ and $\mathsf{nf_ {dom_ 2}}$ are unlinkable. This
 follows from the PRF property: distinct inputs produce outputs that are
 computationally indistinguishable from independent random values.
 
@@ -205,28 +205,28 @@ in-circuit proofs that a given nullifier is absent from the revealed set.
 
 ### Construction
 
-Let $S = \{s_0, s_1, \ldots, s_{m-1}\}$ be the set of all Orchard
+Let $S = \{s_ 0, s_ 1, \ldots, s_ {m-1}\}$ be the set of all Orchard
 nullifiers revealed on the consensus chain as of block height $h$, together
 with a set of sentinel values (see [Sentinel Initialization]). Sort $S$ in
-ascending order as elements of $\mathbb{F}_{q_{\mathbb{P}}}$.
+ascending order as elements of $\mathbb{F}_ {q_ {\mathbb{P}}}$.
 Because sentinel initialization is mandatory, $S$ is non-empty.
 
-For each pair of consecutive elements $(s_i, s_{i+1})$ where $s_i < s_{i+1}$
-and $s_{i+1} - s_i > 1$, create a leaf with:
+For each pair of consecutive elements $(s_ i, s_ {i+1})$ where $s_ i < s_ {i+1}$
+and $s_ {i+1} - s_ i > 1$, create a leaf with:
 
-- $\mathsf{low} = s_i + 1$ — the first value in the gap
-- $\mathsf{width} = s_{i+1} - s_i - 2$ — the number of additional values
+- $\mathsf{low} = s_ i + 1$ — the first value in the gap
+- $\mathsf{width} = s_ {i+1} - s_ i - 2$ — the number of additional values
   in the gap beyond $\mathsf{low}$
 
 The leaf represents the closed interval
 $[\mathsf{low},\; \mathsf{low} + \mathsf{width}]$, which contains exactly
-the field elements between $s_i$ and $s_{i+1}$ exclusive.
+the field elements between $s_ i$ and $s_ {i+1}$ exclusive.
 
-After processing all consecutive pairs, if $s_{m-1} < q_{\mathbb{P}} - 1$,
+After processing all consecutive pairs, if $s_ {m-1} < q_ {\mathbb{P}} - 1$,
 a terminal leaf MUST be added with:
 
-- $\mathsf{low} = s_{m-1} + 1$
-- $\mathsf{width} = (q_{\mathbb{P}} - 1) - \mathsf{low}$
+- $\mathsf{low} = s_ {m-1} + 1$
+- $\mathsf{width} = (q_ {\mathbb{P}} - 1) - \mathsf{low}$
 
 This ensures that all unrevealed values above the largest element of $S$ are
 represented in the tree.
@@ -246,7 +246,7 @@ per claim, this trade-off favors prover efficiency.
 ### Hash Function
 
 The non-membership tree uses Poseidon [^poseidon] over
-$\mathbb{F}_{q_{\mathbb{P}}}$ (the Pallas base field) for all hashing:
+$\mathbb{F}_ {q_ {\mathbb{P}}}$ (the Pallas base field) for all hashing:
 
 - **Leaf hash:** $\mathsf{Poseidon}(\mathsf{low}, \mathsf{width})$,
   a 2-input Poseidon hash with width $t = 3$.
@@ -254,7 +254,7 @@ $\mathbb{F}_{q_{\mathbb{P}}}$ (the Pallas base field) for all hashing:
   a 2-input Poseidon hash with width $t = 3$, where $\mathsf{left}$ and
   $\mathsf{right}$ are determined by the node's position bit at each level.
 
-Implementations MUST use the Poseidon instantiation over $\mathbb{F}_{q_{\mathbb{P}}}$
+Implementations MUST use the Poseidon instantiation over $\mathbb{F}_ {q_ {\mathbb{P}}}$
 with the standard parameter generation procedure from [^poseidon], targeting
 128-bit security.
 
@@ -288,10 +288,10 @@ Unused leaf positions MUST be filled with a canonical empty leaf value
 ### Sentinel Initialization
 
 Before inserting any real nullifiers, the non-membership tree MUST be
-initialized with sentinel values that partition $\mathbb{F}_{q_{\mathbb{P}}}$
+initialized with sentinel values that partition $\mathbb{F}_ {q_ {\mathbb{P}}}$
 into intervals each of width strictly less than $2^{250}$.
 
-For the Pallas base field ($q_{\mathbb{P}} \approx 2^{254}$),
+For the Pallas base field ($q_ {\mathbb{P}} \approx 2^{254}$),
 implementations MUST insert 17 sentinels at:
 
 $$s_k = k \cdot 2^{250}, \quad k \in \{0,1,\ldots,16\}.$$
@@ -301,7 +301,7 @@ This guarantees the width bound required by the in-circuit range checks:
 - For $k = 0,\ldots,15$, the interval between consecutive sentinels has
   width exactly $2^{250} - 2$.
 - The final tail interval has width
-  $q_{\mathbb{P}} - 16 \cdot 2^{250} - 2 < 2^{250}$.
+  $q_ {\mathbb{P}} - 16 \cdot 2^{250} - 2 < 2^{250}$.
 
 The width bound is critical for the soundness of the in-circuit range
 checks. If any interval had width $\geq 2^{250}$, the range check could
@@ -314,7 +314,7 @@ tree specification so that any party can reconstruct the tree independently.
 ## Nullifier Domains
 
 A nullifier domain $\mathsf{dom}$ is an element of
-$\mathbb{F}_{q_{\mathbb{P}}}$ that defines a double-claim detection scope.
+$\mathbb{F}_ {q_ {\mathbb{P}}}$ that defines a double-claim detection scope.
 Each independent claim context (such as a specific air-drop event, a single
 poll, or an individual voting round) MUST use its own domain.
 
@@ -339,19 +339,19 @@ satisfies the uniqueness requirement above.
 ## Alternate Nullifier Derivation
 
 Given a nullifier domain $\mathsf{dom}$ and an Orchard note with standard
-nullifier $\mathsf{nf^{old}}$, the alternate nullifier $\mathsf{nf_{dom}}$
+nullifier $\mathsf{nf^{old}}$, the alternate nullifier $\mathsf{nf_ {dom}}$
 is computed as:
 
-$$\mathsf{nf_{dom}} = \mathsf{DeriveAlternateNullifier_{nk}}(\mathsf{dom}, \mathsf{nf^{old}}) = \mathsf{Poseidon}(\mathsf{nk}, \mathsf{dom}, \mathsf{nf^{old}})$$
+$$\mathsf{nf_ {dom}} = \mathsf{DeriveAlternateNullifier_ {nk}}(\mathsf{dom}, \mathsf{nf^{old}}) = \mathsf{Poseidon}(\mathsf{nk}, \mathsf{dom}, \mathsf{nf^{old}})$$
 
 where:
 
-- $\mathsf{nk} \in \mathbb{F}_{q_{\mathbb{P}}}$ is the nullifier deriving
+- $\mathsf{nk} \in \mathbb{F}_ {q_ {\mathbb{P}}}$ is the nullifier deriving
   key from the holder's full viewing key.
-- $\mathsf{dom} \in \mathbb{F}_{q_{\mathbb{P}}}$ is the nullifier domain.
-- $\mathsf{nf^{old}} \in \mathbb{F}_{q_{\mathbb{P}}}$ is the note's
+- $\mathsf{dom} \in \mathbb{F}_ {q_ {\mathbb{P}}}$ is the nullifier domain.
+- $\mathsf{nf^{old}} \in \mathbb{F}_ {q_ {\mathbb{P}}}$ is the note's
   standard Orchard nullifier, computed as
-  $\mathsf{DeriveNullifier_{nk}}(\text{ρ}^{\mathsf{old}}, \text{φ}^{\mathsf{old}}, \mathsf{cm^{old}})$.
+  $\mathsf{DeriveNullifier_ {nk}}(\text{ρ}^{\mathsf{old}}, \text{φ}^{\mathsf{old}}, \mathsf{cm^{old}})$.
 
 This is a 3-input Poseidon hash. Using the standard $\mathsf{P128Pow5T3}$
 instantiation (width $t = 3$, rate 2), this requires two permutations
@@ -363,7 +363,7 @@ to absorb three input elements.
 same alternate nullifier, enabling double-claim detection.
 
 **Unlinkable to standard nullifier.** An adversary who observes
-$\mathsf{nf_{dom}}$ and later observes $\mathsf{nf^{old}}$ (when the note
+$\mathsf{nf_ {dom}}$ and later observes $\mathsf{nf^{old}}$ (when the note
 is spent on-chain) cannot link them without knowledge of $\mathsf{nk}$.
 
 **Cross-domain unlinkable.** Alternate nullifiers for the same note in
@@ -377,25 +377,25 @@ distinct alternate nullifiers, under the collision resistance of Poseidon.
 
 The security of the alternate nullifier derivation relies on Poseidon
 being a pseudorandom function (PRF) when keyed with a uniformly random
-element of $\mathbb{F}_{q_{\mathbb{P}}}$.
+element of $\mathbb{F}_ {q_ {\mathbb{P}}}$.
 
 **Unlinkability.** Model $\mathsf{Poseidon}(\mathsf{nk}, \cdot, \cdot)$
 as a PRF keyed by $\mathsf{nk}$. An adversary who does not know
 $\mathsf{nk}$ sees outputs that are indistinguishable from random. Given
-$\mathsf{nf_{dom}} = \mathsf{Poseidon}(\mathsf{nk}, \mathsf{dom}, \mathsf{nf^{old}})$
+$\mathsf{nf_ {dom}} = \mathsf{Poseidon}(\mathsf{nk}, \mathsf{dom}, \mathsf{nf^{old}})$
 and $\mathsf{nf^{old}}$, the adversary cannot verify the relationship
 without $\mathsf{nk}$. The nullifier deriving key $\mathsf{nk}$ is a
 255-bit value derived from the spending key and is never revealed on-chain.
 
-**Cross-domain unlinkability.** For two domains $\mathsf{dom_1} \neq \mathsf{dom_2}$,
-the pairs $(\mathsf{dom_1}, \mathsf{nf^{old}})$ and
-$(\mathsf{dom_2}, \mathsf{nf^{old}})$ are distinct inputs to the PRF.
+**Cross-domain unlinkability.** For two domains $\mathsf{dom_ 1} \neq \mathsf{dom_ 2}$,
+the pairs $(\mathsf{dom_ 1}, \mathsf{nf^{old}})$ and
+$(\mathsf{dom_ 2}, \mathsf{nf^{old}})$ are distinct inputs to the PRF.
 Under the PRF assumption, their outputs are jointly indistinguishable from
 independent random values.
 
-**Collision resistance.** If $\mathsf{nf^{old}_1} \neq \mathsf{nf^{old}_2}$,
-then $(\mathsf{nk}, \mathsf{dom}, \mathsf{nf^{old}_1})$ and
-$(\mathsf{nk}, \mathsf{dom}, \mathsf{nf^{old}_2})$ are distinct Poseidon
+**Collision resistance.** If $\mathsf{nf^{old}_ 1} \neq \mathsf{nf^{old}_ 2}$,
+then $(\mathsf{nk}, \mathsf{dom}, \mathsf{nf^{old}_ 1})$ and
+$(\mathsf{nk}, \mathsf{dom}, \mathsf{nf^{old}_ 2})$ are distinct Poseidon
 inputs, so their outputs collide with negligible probability under
 Poseidon's collision resistance.
 
@@ -406,7 +406,7 @@ The earlier draft [^draft-str4d-orchard-balance-proof] proposed an
 alternate nullifier derivation structurally parallel to the standard
 Orchard nullifier:
 
-$$\mathsf{Extract}_{\mathbb{P}}\!\left(\!\left[(\mathsf{PRF^{nfAlternate}_{nk}}(\text{ρ}^{\mathsf{old}}, \mathsf{dom}) + \text{φ}^{\mathsf{old}}) \bmod q_{\mathbb{P}}\right] \mathcal{K}^\mathsf{Orchard} + \mathsf{cm^{old}}\right)$$
+$$\mathsf{Extract}_ {\mathbb{P}}\!\left(\!\left[(\mathsf{PRF^{nfAlternate}_ {nk}}(\text{ρ}^{\mathsf{old}}, \mathsf{dom}) + \text{φ}^{\mathsf{old}}) \bmod q_ {\mathbb{P}}\right] \mathcal{K}^\mathsf{Orchard} + \mathsf{cm^{old}}\right)$$
 
 That construction has the advantage of sharing more circuit infrastructure
 with the standard nullifier check.
@@ -436,35 +436,35 @@ A valid instance of a Claim proof $\pi$ assures the following statement.
 
 Given a primary input:
 
-- $\mathsf{rt^{cm}} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$
-- $\mathsf{rt^{excl}} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$
+- $\mathsf{rt^{cm}} ⦂ \{ 0 .. q_ {\mathbb{P}}-1 \}$
+- $\mathsf{rt^{excl}} ⦂ \{ 0 .. q_ {\mathbb{P}}-1 \}$
 - $\mathsf{rk} ⦂ \mathsf{SpendAuthSig^{Orchard}.Public}$
-- $\mathsf{nf_{dom}} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$
-- $\mathsf{dom} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$
+- $\mathsf{nf_ {dom}} ⦂ \{ 0 .. q_ {\mathbb{P}}-1 \}$
+- $\mathsf{dom} ⦂ \{ 0 .. q_ {\mathbb{P}}-1 \}$
 - $\mathsf{cv} ⦂ \mathsf{ValueCommit^{Orchard}.Output}$
 
 ### Auxiliary Inputs
 
 the prover knows an auxiliary input:
 
-- $\mathsf{g_d^{old}} ⦂ \mathbb{P}^*$
-- $\mathsf{pk_d^{old}} ⦂ \mathbb{P}^*$
-- $\mathsf{v^{old}} ⦂ \{ 0 .. 2^{\ell_{\mathsf{value}}}-1 \}$
-- $\text{ρ}^{\mathsf{old}} ⦂ \mathbb{F}_{q_{\mathbb{P}}}$
-- $\text{φ}^{\mathsf{old}} ⦂ \mathbb{F}_{q_{\mathbb{P}}}$
-- $\mathsf{rcm^{old}} ⦂ \{ 0 .. 2^{\ell^{\mathsf{Orchard}}_{\mathsf{scalar}}}-1 \}$
+- $\mathsf{g_ d^{old}} ⦂ \mathbb{P}^*$
+- $\mathsf{pk_ d^{old}} ⦂ \mathbb{P}^*$
+- $\mathsf{v^{old}} ⦂ \{ 0 .. 2^{\ell_ {\mathsf{value}}}-1 \}$
+- $\text{ρ}^{\mathsf{old}} ⦂ \mathbb{F}_ {q_ {\mathbb{P}}}$
+- $\text{φ}^{\mathsf{old}} ⦂ \mathbb{F}_ {q_ {\mathbb{P}}}$
+- $\mathsf{rcm^{old}} ⦂ \{ 0 .. 2^{\ell^{\mathsf{Orchard}}_ {\mathsf{scalar}}}-1 \}$
 - $\mathsf{cm^{old}} ⦂ \mathbb{P}$
-- $\mathsf{nf^{old}} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$
-- $\mathsf{path^{cm}} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}^{[\mathsf{MerkleDepth^{Orchard}}]}$
+- $\mathsf{nf^{old}} ⦂ \{ 0 .. q_ {\mathbb{P}}-1 \}$
+- $\mathsf{path^{cm}} ⦂ \{ 0 .. q_ {\mathbb{P}}-1 \}^{[\mathsf{MerkleDepth^{Orchard}}]}$
 - $\mathsf{pos^{cm}} ⦂ \{ 0 .. 2^{\mathsf{MerkleDepth^{Orchard}}}\!-1 \}$
 - $\mathsf{ak}^{\mathbb{P}} ⦂ \mathbb{P}^*$
-- $\mathsf{nk} ⦂ \mathbb{F}_{q_{\mathbb{P}}}$
+- $\mathsf{nk} ⦂ \mathbb{F}_ {q_ {\mathbb{P}}}$
 - $\mathsf{rivk} ⦂ \mathsf{Commit^{ivk}.Trapdoor}$
-- $\alpha ⦂ \{ 0 .. 2^{\ell^{\mathsf{Orchard}}_{\mathsf{scalar}}}-1 \}$
-- $\mathsf{rcv} ⦂ \{ 0 .. 2^{\ell^{\mathsf{Orchard}}_{\mathsf{scalar}}}-1 \}$
-- $\mathsf{low} ⦂ \mathbb{F}_{q_{\mathbb{P}}}$
-- $\mathsf{width} ⦂ \mathbb{F}_{q_{\mathbb{P}}}$
-- $\mathsf{path^{excl}} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}^{[\mathsf{MerkleDepth^{excl}}]}$
+- $\alpha ⦂ \{ 0 .. 2^{\ell^{\mathsf{Orchard}}_ {\mathsf{scalar}}}-1 \}$
+- $\mathsf{rcv} ⦂ \{ 0 .. 2^{\ell^{\mathsf{Orchard}}_ {\mathsf{scalar}}}-1 \}$
+- $\mathsf{low} ⦂ \mathbb{F}_ {q_ {\mathbb{P}}}$
+- $\mathsf{width} ⦂ \mathbb{F}_ {q_ {\mathbb{P}}}$
+- $\mathsf{path^{excl}} ⦂ \{ 0 .. q_ {\mathbb{P}}-1 \}^{[\mathsf{MerkleDepth^{excl}}]}$
 - $\mathsf{pos^{excl}} ⦂ \{ 0 .. 2^{\mathsf{MerkleDepth^{excl}}}\!-1 \}$
 
 such that the following conditions hold:
@@ -472,7 +472,7 @@ such that the following conditions hold:
 ### Conditions
 
 **Note commitment integrity.** $\hspace{0.5em}$
-$\mathsf{NoteCommit^{Orchard}_{rcm^{old}}}(\mathsf{repr}_{\mathbb{P}}(\mathsf{g_d^{old}}), \mathsf{repr}_{\mathbb{P}}(\mathsf{pk_d^{old}}), \mathsf{v^{old}}, \text{ρ}^{\mathsf{old}}, \text{φ}^{\mathsf{old}}) \in \{ \mathsf{cm^{old}}, \bot \}$.
+$\mathsf{NoteCommit^{Orchard}_ {rcm^{old}}}(\mathsf{repr}_ {\mathbb{P}}(\mathsf{g_ d^{old}}), \mathsf{repr}_ {\mathbb{P}}(\mathsf{pk_ d^{old}}), \mathsf{v^{old}}, \text{ρ}^{\mathsf{old}}, \text{φ}^{\mathsf{old}}) \in \{ \mathsf{cm^{old}}, \bot \}$.
 
 This is identical to the corresponding check in an Orchard Action
 statement. [^protocol-actionstatement]
@@ -481,13 +481,13 @@ statement. [^protocol-actionstatement]
 $(\mathsf{path^{cm}}, \mathsf{pos^{cm}})$ is a valid Merkle path of depth
 $\mathsf{MerkleDepth^{Orchard}}$, as defined in
 § 4.9 'Merkle Path Validity' [^protocol-merklepath], from
-$\mathsf{Extract}_{\mathbb{P}}(\mathsf{cm^{old}})$ to the anchor $\mathsf{rt^{cm}}$.
+$\mathsf{Extract}_ {\mathbb{P}}(\mathsf{cm^{old}})$ to the anchor $\mathsf{rt^{cm}}$.
 
 **Value commitment integrity.** $\hspace{0.5em}$
-$\mathsf{cv} = \mathsf{ValueCommit^{Orchard}_{rcv}}(\mathsf{v^{old}})$.
+$\mathsf{cv} = \mathsf{ValueCommit^{Orchard}_ {rcv}}(\mathsf{v^{old}})$.
 
 **Nullifier derivation.** $\hspace{0.5em}$
-$\mathsf{nf^{old}} = \mathsf{DeriveNullifier_{nk}}(\text{ρ}^{\mathsf{old}}, \text{φ}^{\mathsf{old}}, \mathsf{cm^{old}})$.
+$\mathsf{nf^{old}} = \mathsf{DeriveNullifier_ {nk}}(\text{ρ}^{\mathsf{old}}, \text{φ}^{\mathsf{old}}, \mathsf{cm^{old}})$.
 
 The standard nullifier is computed inside the circuit but is NOT a public
 input — it is used only as an intermediate value for the non-membership
@@ -497,9 +497,9 @@ check and the alternate nullifier derivation. It is never revealed.
 $\mathsf{rk} = \mathsf{SpendAuthSig^{Orchard}.RandomizePublic}(\alpha, \mathsf{ak}^{\mathbb{P}})$.
 
 **Diversified address integrity.** $\hspace{0.5em}$
-$\mathsf{ivk} = \bot$ or $\mathsf{pk_d^{old}} = [\mathsf{ivk}]\, \mathsf{g_d^{old}}$
+$\mathsf{ivk} = \bot$ or $\mathsf{pk_ d^{old}} = [\mathsf{ivk}]\, \mathsf{g_ d^{old}}$
 where
-$\mathsf{ivk} = \mathsf{Commit^{ivk}_{rivk}}(\mathsf{Extract}_{\mathbb{P}}(\mathsf{ak}^{\mathbb{P}}), \mathsf{nk})$.
+$\mathsf{ivk} = \mathsf{Commit^{ivk}_ {rivk}}(\mathsf{Extract}_ {\mathbb{P}}(\mathsf{ak}^{\mathbb{P}}), \mathsf{nk})$.
 
 **Nullifier non-membership.** $\hspace{0.5em}$
 Let $\mathsf{leaf} = \mathsf{Poseidon}(\mathsf{low}, \mathsf{width})$.
@@ -507,14 +507,14 @@ $(\mathsf{path^{excl}}, \mathsf{pos^{excl}})$ is a valid Merkle path of
 depth $\mathsf{MerkleDepth^{excl}}$ from $\mathsf{leaf}$ to the anchor
 $\mathsf{rt^{excl}}$, using Poseidon for internal node hashing.
 
-Additionally, let $x = \mathsf{nf^{old}} - \mathsf{low} \bmod q_{\mathbb{P}}$.
+Additionally, let $x = \mathsf{nf^{old}} - \mathsf{low} \bmod q_ {\mathbb{P}}$.
 Both of the following range checks MUST hold:
 
 1. $x < 2^{250}$
 2. $2^{250} - 1 - \mathsf{width} + x < 2^{250}$
 
 These together enforce $\mathsf{low} \leq \mathsf{nf^{old}} \leq \mathsf{low} + \mathsf{width}$
-over $\mathbb{F}_{q_{\mathbb{P}}}$, proving that the standard nullifier
+over $\mathbb{F}_ {q_ {\mathbb{P}}}$, proving that the standard nullifier
 falls within an interval of unrevealed values.
 
 <details>
@@ -524,7 +524,7 @@ To prove $\mathsf{low} \leq \mathsf{nf^{old}} \leq \mathsf{low} + \mathsf{width}
 
 - Check 1 proves $\mathsf{nf^{old}} \geq \mathsf{low}$: if
   $\mathsf{nf^{old}} < \mathsf{low}$, the field subtraction wraps to a
-  value $\geq q_{\mathbb{P}} - 2^{250} \gg 2^{250}$, failing the range
+  value $\geq q_ {\mathbb{P}} - 2^{250} \gg 2^{250}$, failing the range
   check. This relies on the sentinel initialization ensuring
   $\mathsf{width} < 2^{250}$ and therefore all legitimate offsets are
   small.
@@ -536,14 +536,14 @@ To prove $\mathsf{low} \leq \mathsf{nf^{old}} \leq \mathsf{low} + \mathsf{width}
 </details>
 
 **Alternate nullifier integrity.** $\hspace{0.5em}$
-$\mathsf{nf_{dom}} = \mathsf{Poseidon}(\mathsf{nk}, \mathsf{dom}, \mathsf{nf^{old}})$.
+$\mathsf{nf_ {dom}} = \mathsf{Poseidon}(\mathsf{nk}, \mathsf{dom}, \mathsf{nf^{old}})$.
 
 ### Circuit Implementation Notes
 
 The first six conditions (note commitment integrity through diversified
 address integrity) are adapted from the corresponding Orchard Action
 statement checks. In particular, note-commitment Merkle membership uses
-$\mathsf{Extract}_{\mathbb{P}}(\mathsf{cm^{old}})$ as in the Orchard
+$\mathsf{Extract}_ {\mathbb{P}}(\mathsf{cm^{old}})$ as in the Orchard
 Action statement. [^protocol-actionstatement] Implementations SHOULD share
 circuit gadgets with an Orchard implementation to minimize new code
 requiring review.
@@ -562,7 +562,7 @@ A verifier that receives a Claim proof $\pi$ together with a spend
 authorization signature $\sigma$ MUST perform the following checks:
 
 1. Verify $\pi$ against the public inputs
-   $(\mathsf{rt^{cm}}, \mathsf{rt^{excl}}, \mathsf{rk}, \mathsf{nf_{dom}}, \mathsf{dom}, \mathsf{cv})$.
+   $(\mathsf{rt^{cm}}, \mathsf{rt^{excl}}, \mathsf{rk}, \mathsf{nf_ {dom}}, \mathsf{dom}, \mathsf{cv})$.
 
 2. Verify $\sigma$ as a valid $\mathsf{SpendAuthSig^{Orchard}}$ signature
    on the application-defined sighash, under the randomized key
@@ -577,7 +577,7 @@ authorization signature $\sigma$ MUST perform the following checks:
 5. Verify that $\mathsf{dom}$ is valid for the current application
    instance.
 
-6. Verify that $\mathsf{nf_{dom}}$ has not been previously accepted in the
+6. Verify that $\mathsf{nf_ {dom}}$ has not been previously accepted in the
    same nullifier domain. If it has, reject the claim as a double-claim.
 
 
@@ -595,7 +595,7 @@ as follows:
 - The public inputs $\mathsf{rt^{cm}}$, $\mathsf{rt^{excl}}$,
   $\mathsf{rk}$, and $\mathsf{dom}$ are shared across all $N$ notes.
 - Each note $i$ contributes its own alternate nullifier
-  $\mathsf{nf_{dom,i}}$ and value commitment $\mathsf{cv_i}$ as public
+  $\mathsf{nf_ {dom,i}}$ and value commitment $\mathsf{cv_ i}$ as public
   inputs.
 - A single $\mathsf{ivk}$ (derived from the shared $\mathsf{ak}$ and
   $\mathsf{nk}$) is constrained to own all $N$ notes, ensuring they
@@ -607,8 +607,8 @@ as follows:
 ### Note Padding
 
 To avoid leaking the number of notes a holder is claiming, the circuit
-SHOULD accept a fixed number of note slots $N_{\max}$ (for example,
-$N_{\max} = 5$). Unused slots are filled with *padded notes*: randomly
+SHOULD accept a fixed number of note slots $N_ {\max}$ (for example,
+$N_ {\max} = 5$). Unused slots are filled with *padded notes*: randomly
 generated note data with value 0. Padded notes satisfy all circuit
 checks (the commitment is valid, the Merkle path can use any valid leaf,
 the non-membership check passes for random nullifiers with overwhelming
@@ -626,14 +626,14 @@ distinguishes real notes from padded notes:
 
 The verifier computes the aggregate value commitment as:
 
-$$\mathsf{cv_{total}} = \sum_{i=0}^{N_{\max}-1} \mathsf{cv_i}$$
+$$\mathsf{cv_ {total}} = \sum_ {i=0}^{N_ {\max}-1} \mathsf{cv_ i}$$
 
 Since padded notes commit to value 0, they contribute the identity to the
 sum (up to their blinding factor). The aggregate commitment
-$\mathsf{cv_{total}}$ commits to the holder's total claimed balance.
+$\mathsf{cv_ {total}}$ commits to the holder's total claimed balance.
 Applications that need to open this commitment (e.g., to verify a minimum
 balance threshold) can do so by requiring the prover to reveal the
-aggregate randomness $\mathsf{rcv_{total}} = \sum_i \mathsf{rcv_i}$.
+aggregate randomness $\mathsf{rcv_ {total}} = \sum_ i \mathsf{rcv_ i}$.
 
 
 # Rationale
@@ -669,7 +669,7 @@ primitive is used.
 ## Why Sentinel Initialization
 
 Without sentinels, the initial non-membership tree would contain a single
-leaf spanning the entire field $[0, q_{\mathbb{P}}-1]$, with width
+leaf spanning the entire field $[0, q_ {\mathbb{P}}-1]$, with width
 $\approx 2^{254}$. The in-circuit range checks use 250-bit windows
 (25 limbs of the 10-bit lookup table). An interval wider than $2^{250}$
 would allow the upper-bound range check to wrap, enabling a prover to
@@ -699,7 +699,7 @@ signature scheme.
 
 A reference implementation of the Claim circuit (including the
 non-membership tree, alternate nullifier derivation, and multi-note
-batching for $N_{\max} = 5$) exists in the coinholder voting codebase used
+batching for $N_ {\max} = 5$) exists in the coinholder voting codebase used
 for this design.
 
 At the time of writing, some implementation repositories are not publicly
