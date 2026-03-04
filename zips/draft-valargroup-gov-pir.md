@@ -47,10 +47,7 @@ Packing key
 : A set of $\log(d)$ key-switching matrices sent to the server as part of
   each YPIR+SP query. Each matrix encrypts an automorphism of the client's
   RLWE secret $s_2$ under $s_2$ itself, enabling the server to perform the
-  CDKS transformation without learning $s_2$. The packing key is
-  approximately 462 KB and is visible to the server in plaintext; a fresh
-  packing key (derived from a fresh $s_2$) must be generated per query to
-  prevent cross-query linkability (see [Privacy Implications]).
+  CDKS transformation without learning $s_2$.
 
 Interval Merkle tree
 
