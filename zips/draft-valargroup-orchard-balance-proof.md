@@ -94,9 +94,9 @@ demonstrate that they controlled a certain balance at a point in time,
 without revealing which specific notes they held or linking the
 demonstration to their on-chain transaction history. Examples include:
 
-- **Air drops** — distributing tokens proportional to shielded holdings.
-- **Stake-weighted polling** — weighting votes by ZEC balance.
-- **Proof-of-balance** — demonstrating solvency or collateral without
+- **Air drops**: distributing tokens proportional to shielded holdings.
+- **Stake-weighted polling**: weighting votes by ZEC balance.
+- **Proof-of-balance**: demonstrating solvency or collateral without
   revealing addresses.
 
 The naive approach of revealing standard nullifiers would link the
@@ -214,8 +214,8 @@ Because sentinel initialization is mandatory, $S$ is non-empty.
 For each pair of consecutive elements $(s_ i, s_ {i+1})$ where $s_ i < s_ {i+1}$
 and $s_ {i+1} - s_ i > 1$, create a leaf with:
 
-- $\mathsf{low} = s_ i + 1$ — the first value in the gap
-- $\mathsf{width} = s_ {i+1} - s_ i - 2$ — the number of additional values
+- $\mathsf{low} = s_ i + 1$: the first value in the gap
+- $\mathsf{width} = s_ {i+1} - s_ i - 2$: the number of additional values
   in the gap beyond $\mathsf{low}$
 
 The leaf represents the closed interval
@@ -433,13 +433,13 @@ The Poseidon-based construction adopted here was chosen for simplicity:
 it requires only a single Poseidon hash rather than an additional
 fixed-base scalar multiplication, and it reuses the standard nullifier
 $\mathsf{nf^{old}}$ that the circuit already computes for the
-non-membership check. The security assumption is comparable — both
+non-membership check. The security assumption is comparable, as both
 constructions rely on the hardness of distinguishing $\mathsf{nk}$-keyed
 evaluations from random.
 
 The current Zcash coinholder voting system was designed and implemented
 around this construction. A future revision of this ZIP may revisit the
-choice as part of a broader protocol revision — for example, if hardware
+choice as part of a broader protocol revision. For example, if hardware
 wallet firmware support (e.g., a Keystone testnet byte for governance
 signing) restructures the spend authority flow in a way that favors
 tighter integration with the standard Orchard nullifier derivation.
@@ -504,7 +504,7 @@ $\mathsf{Extract}_ {\mathbb{P}}(\mathsf{cm^{old}})$ to the anchor $\mathsf{rt^{c
 $\mathsf{nf^{old}} = \mathsf{DeriveNullifier_ {nk}}(\text{ρ}^{\mathsf{old}}, \text{ψ}^{\mathsf{old}}, \mathsf{cm^{old}})$.
 
 The standard nullifier is computed inside the circuit but is NOT a public
-input — it is used only as an intermediate value for the non-membership
+input. It is used only as an intermediate value for the non-membership
 check and the alternate nullifier derivation. It is never revealed.
 
 **Spend authority.** $\hspace{0.5em}$
@@ -556,7 +556,10 @@ To prove $\mathsf{low} \leq \mathsf{nf^{old}} \leq \mathsf{low} + \mathsf{width}
 </details>
 
 **Alternate nullifier integrity.** $\hspace{0.5em}$
-$\mathsf{nf_ {dom}} = \mathsf{Poseidon}(\mathsf{nk}, \mathsf{tag}, \mathsf{dom}, \mathsf{nf^{old}})$.
+$\mathsf{nf_ {dom}} = \mathsf{Poseidon}(\mathsf{nk}, \mathsf{tag}, \mathsf{dom}, \mathsf{nf^{old}})$,
+where $\mathsf{tag}$ is the application-defined domain separator constant
+(see [Alternate Nullifier Derivation]), fixed per application and embedded
+in the circuit definition.
 
 ### Circuit Implementation Notes
 
