@@ -63,9 +63,10 @@ Voting round
 
 Election authority (EA)
 
-: The entity (or set of validators) that holds the El Gamal secret key
-  $\mathsf{ea}\_\mathsf{sk}$ for a voting round and is responsible for decrypting
-  the aggregate tally after the voting window closes.
+: The set of validators that collectively hold Shamir shares of the
+  El Gamal secret key $\mathsf{ea}\_\mathsf{sk}$ for a voting round. No single
+  validator holds the full key. At tally time, $t$ validators cooperate
+  to produce partial decryptions of the aggregate ciphertext.
 
 Submission server
 
@@ -109,10 +110,10 @@ individual encrypted shares for homomorphic accumulation, without
 revealing which Vote Commitment the share originated from.
 
 After the voting window closes, anyone can publicly aggregate the
-revealed El Gamal ciphertexts per proposal option. The election authority
-decrypts the aggregate totals and publishes results with a
-Chaum–Pedersen proof of correct decryption. Individual vote amounts are
-never revealed.
+revealed El Gamal ciphertexts per proposal option. Validators holding
+Shamir shares of the election authority key cooperate to produce partial
+decryptions; the results are combined and verified via Chaum–Pedersen
+DLEQ proofs. Individual vote amounts are never revealed.
 
 
 # Motivation
@@ -172,15 +173,18 @@ without revealing which one. Blinded per-share commitments prevent
 observers from recomputing $\mathsf{shares}\_\mathsf{hash}$ from on-chain
 ciphertexts and linking revealed shares back to a specific VC.
 
-**Trust assumptions.** The election authority holds $\mathsf{ea}\_\mathsf{sk}$ and
-can in principle decrypt individual share ciphertexts. Privacy against
-the EA relies on vote splitting: the EA sees encrypted shares but cannot
-link them to specific voters or vote commitments. Submission servers
-learn the encrypted share ciphertext, proposal identifier, and vote
-decision for each share they submit, but cannot decrypt plaintext amounts
-or link shares to voter identities. The primary trust requirement on
-submission servers is not leaking timing metadata; using multiple
-independent servers mitigates this risk.
+**Trust assumptions.** After the key ceremony, no single party holds
+$\mathsf{ea}\_\mathsf{sk}$; each validator holds only a Shamir share. An
+adversary must compromise at least $t$ validators (where
+$t = \lceil 2n/3 \rceil + 1$) to reconstruct the key and decrypt
+individual share ciphertexts. Even with access to the full key, privacy
+against the EA relies on vote splitting: the EA would see encrypted
+shares but cannot link them to specific voters or vote commitments.
+Submission servers learn the encrypted share ciphertext, proposal
+identifier, and vote decision for each share they submit, but cannot
+decrypt plaintext amounts or link shares to voter identities. The
+primary trust requirement on submission servers is not leaking timing
+metadata; using multiple independent servers mitigates this risk.
 
 **Non-membership tree queries.** Obtaining exclusion proofs for the
 nullifier non-membership tree during delegation requires querying a data
@@ -212,13 +216,15 @@ see [^pir-governance].
 
 - The consensus mechanism and operational parameters of the vote chain
   are out of scope for this ZIP.
-- The election authority key ceremony (generation and distribution of
-  $\mathsf{ea}\_\mathsf{sk}$) is specified separately in [^ea-ceremony].
+- The election authority key ceremony (generation, threshold sharing,
+  and distribution of $\mathsf{ea}\_\mathsf{sk}$ shares) is specified separately
+  in [^ea-ceremony].
 - The operational process for conducting a coinholder vote (validator
   setup, poll creation, deadlines) is out of scope; it is expected to
   be specified in a separate ZIP.
-- Threshold decryption (splitting $\mathsf{ea}\_\mathsf{sk}$ among multiple
-  parties) is out of scope.
+- Distributed key generation (producing $\mathsf{ea}\_\mathsf{pk}$ without any
+  party constructing $\mathsf{ea}\_\mathsf{sk}$) is out of scope; the current
+  design uses a trusted dealer.
 - Post-quantum security of the El Gamal encryption layer is out of
   scope.
 - Privacy-preserving retrieval of nullifier non-membership proofs is
@@ -254,11 +260,12 @@ revealing which one) and submits it to the vote chain at a randomized
 delay. The chain accumulates the revealed El Gamal ciphertexts
 homomorphically.
 
-**Phase 5 — Tally.** After the voting window closes, the election
-authority decrypts the aggregate ciphertext per (proposal, decision)
-pair, recovers the total ballot count via bounded discrete-log search,
-and publishes the result with a Chaum–Pedersen proof of correct
-decryption.
+**Phase 5 — Tally.** After the voting window closes, at least $t$
+validators produce partial decryptions of the aggregate ciphertext per
+(proposal, decision) pair. The partial decryptions are combined via
+Lagrange interpolation to recover the total ballot count (via bounded
+discrete-log search), with correctness verified through per-validator
+Chaum–Pedersen DLEQ proofs.
 
 
 ## El Gamal Encryption on Pallas
@@ -1011,42 +1018,55 @@ $$\mathsf{agg} = \Bigl(\sum C_{1,j}, \sum C_{2,j}\Bigr)$$
 This is publicly computable from on-chain data. Any party can
 independently verify the aggregation.
 
-**Step 2 — EA decryption.** The election authority decrypts the
-aggregate:
+**Step 2 — Threshold decryption.** At least $t$ validators each produce
+a partial decryption of the aggregate ciphertext using their Shamir
+share, accompanied by a Chaum–Pedersen DLEQ proof [^chaum-pedersen] of
+correctness. The partial decryptions are combined via Lagrange
+interpolation:
 
-$$\sum C_{2,j} - [\mathsf{ea}\_\mathsf{sk}]\, \sum C_{1,j} = [\mathsf{total}\_\mathsf{ballots}]\, G$$
+$$\sum C_{2,j} - \sum_{i \in S} [\lambda_i]\, D_i = [\mathsf{total}\_\mathsf{ballots}]\, G$$
 
-and recovers $\mathsf{total}\_\mathsf{ballots}$ via baby-step giant-step
-discrete-log search (feasible because the total is bounded by ZEC
-supply).
+where $D_i = [s_i]\, \sum C_{1,j}$ is validator $V_i$'s partial
+decryption and $\lambda_i$ are the Lagrange coefficients for the
+participating set $S$. The value $\mathsf{total}\_\mathsf{ballots}$ is recovered
+via baby-step giant-step discrete-log search (feasible because the total
+is bounded by ZEC supply). No party reconstructs $\mathsf{ea}\_\mathsf{sk}$
+during this process.
 
-**Step 3 — Publish result with proof.** The EA publishes
-$\mathsf{total}\_\mathsf{ballots}$ together with a Chaum–Pedersen discrete-log
-equality proof [^chaum-pedersen] demonstrating that the same
-$\mathsf{ea}\_\mathsf{sk}$ used to generate the published $\mathsf{ea}\_\mathsf{pk}$ was
-used to decrypt the aggregate. Anyone can verify this proof against
-the published $\mathsf{ea}\_\mathsf{pk}$, the on-chain aggregate ciphertext, and
-the claimed $\mathsf{total}\_\mathsf{ballots}$.
+**Step 3 — Publish result with proof.** The proposer publishes
+$\mathsf{total}\_\mathsf{ballots}$ together with the individual partial
+decryptions and their DLEQ proofs. Anyone can verify each partial
+decryption against the validator's public share commitment (derived from
+the Feldman commitments published during the key ceremony), recompute
+the Lagrange combination, and confirm the claimed
+$\mathsf{total}\_\mathsf{ballots}$.
 
 Individual vote amounts are never revealed — only the aggregate total
-per (proposal, decision) pair. The tally decryption procedure and
-Chaum–Pedersen proof construction are specified in [^ea-ceremony].
+per (proposal, decision) pair. The threshold decryption procedure is specified in [^ea-ceremony].
 
 
 ## Election Authority Key
 
 Each voting round uses a fresh election authority keypair
-$(\mathsf{ea}\_\mathsf{sk}, \mathsf{ea}\_\mathsf{pk})$ produced by an automated ceremony
-among the vote chain's validator set. The ceremony generates
-$\mathsf{ea}\_\mathsf{sk}$, distributes it to eligible validators via ECIES, and
-transitions the round to active status once a quorum of validators have
-acknowledged receipt. At tally time, any acknowledging validator can
-decrypt the aggregate and publish a Chaum–Pedersen correctness proof.
+$(\mathsf{ea}\_\mathsf{sk}, \mathsf{ea}\_\mathsf{pk})$ produced by an automated threshold
+secret sharing ceremony among the vote chain's validator set. A trusted
+dealer generates $\mathsf{ea}\_\mathsf{sk}$, splits it into Shamir shares, distributes the shares to eligible validators via
+ECIES, and deletes the full key. After the ceremony, no single party
+holds $\mathsf{ea}\_\mathsf{sk}$; each validator holds only its share. The round
+transitions to active status once a quorum of validators have verified
+their shares and acknowledged receipt.
 
-The ceremony protocol — including dealer selection, ECIES key
-distribution, validator acknowledgment, confirmation thresholds, timeout
-and jailing rules, and tally decryption procedures — is specified
-in [^ea-ceremony].
+At tally time, at least $t = \lceil 2n/3 \rceil + 1$ validators
+cooperate to produce partial decryptions of the aggregate ciphertext.
+Each partial decryption is accompanied by a Chaum–Pedersen DLEQ proof
+verifiable against the validator's public share commitment. The partial
+decryptions are combined via Lagrange interpolation — the full secret
+key is never reconstructed.
+
+The ceremony protocol — including dealer selection, Feldman VSS
+construction, ECIES share distribution, validator acknowledgment,
+confirmation thresholds, timeout and jailing rules, and threshold
+decryption procedures — is specified in [^ea-ceremony].
 
 
 ## Vote Chain
@@ -1141,6 +1161,27 @@ commitments are blinded Poseidon hashes — the shared fields are never
 externally observable (both old and new commitments appear as opaque
 field elements in the VCT), so address rotation would provide no
 additional unlinkability.
+
+## Why Threshold Secret Sharing
+
+The election authority key is split into Shamir shares rather than distributed intact to all validators. This
+ensures that compromise of any single validator (or any minority below
+$t$) does not expose the full decryption key. The threshold
+$t = \lceil 2n/3 \rceil + 1$ aligns with the CometBFT supermajority
+assumption: an adversary that controls fewer than one-third of
+validators cannot reach the decryption threshold, so the existing
+consensus trust boundary extends to vote-amount privacy.
+
+The protocol uses a trusted dealer rather than
+distributed key generation (DKG).
+
+
+For initial scope, we have consdered Feldman VSS buthave opted out. We have to trust the dealer and validators to correctly distribute the shares. This is a correctness problem which would be caught at tally if tampered with.
+
+The following are left as consideration for future scope:
+- Feldman commitment from dealer to prove they submitted the right share
+- DLEQ proofs for validators to confirm that they used a correct share
+- Distributed key generation
 
 ## Why Domain Tags in the VCT
 
