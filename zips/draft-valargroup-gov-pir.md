@@ -171,8 +171,6 @@ secret.
 
 # Requirements
 
-The following high-level goals guide the design. They are not conformance
-requirements.
 
 - No client-side database hint. A mobile wallet must be able to issue its
   first query without any prior download or preprocessing.
