@@ -351,7 +351,7 @@ where:
 - $\mathsf{dom} \in \mathbb{F}_ {q_ {\mathbb{P}}}$ is the nullifier domain.
 - $\mathsf{nf^{old}} \in \mathbb{F}_ {q_ {\mathbb{P}}}$ is the note's
   standard Orchard nullifier, computed as
-  $\mathsf{DeriveNullifier_ {nk}}(\text{ρ}^{\mathsf{old}}, \text{φ}^{\mathsf{old}}, \mathsf{cm^{old}})$.
+  $\mathsf{DeriveNullifier_ {nk}}(\text{ρ}^{\mathsf{old}}, \text{ψ}^{\mathsf{old}}, \mathsf{cm^{old}})$.
 
 This is a 3-input Poseidon hash. Using the standard $\mathsf{P128Pow5T3}$
 instantiation (width $t = 3$, rate 2), this requires two permutations
@@ -406,14 +406,14 @@ The earlier draft [^draft-str4d-orchard-balance-proof] proposed an
 alternate nullifier derivation structurally parallel to the standard
 Orchard nullifier:
 
-$$\mathsf{Extract}_ {\mathbb{P}}\!\left(\!\left[(\mathsf{PRF^{nfAlternate}_ {nk}}(\text{ρ}^{\mathsf{old}}, \mathsf{dom}) + \text{φ}^{\mathsf{old}}) \bmod q_ {\mathbb{P}}\right] \mathcal{K}^\mathsf{Orchard} + \mathsf{cm^{old}}\right)$$
+$$\mathsf{Extract}_ {\mathbb{P}}\!\left(\!\left[(\mathsf{PRF^{nfAlternate}_ {nk}}(\text{ρ}^{\mathsf{old}}, \mathsf{dom}) + \text{ψ}^{\mathsf{old}}) \bmod q_ {\mathbb{P}}\right] \mathcal{K}^\mathsf{Orchard} + \mathsf{cm^{old}}\right)$$
 
 That construction has the advantage of sharing more circuit infrastructure
 with the standard nullifier check.
 
 The Poseidon-based construction adopted here was chosen for simplicity:
 it requires only a single Poseidon hash rather than an additional
-variable-base scalar multiplication, and it reuses the standard nullifier
+fixed-base scalar multiplication, and it reuses the standard nullifier
 $\mathsf{nf^{old}}$ that the circuit already computes for the
 non-membership check. The security assumption is comparable — both
 constructions rely on the hardness of distinguishing $\mathsf{nk}$-keyed
@@ -451,7 +451,7 @@ the prover knows an auxiliary input:
 - $\mathsf{pk_ d^{old}} ⦂ \mathbb{P}^*$
 - $\mathsf{v^{old}} ⦂ \{ 0 .. 2^{\ell_ {\mathsf{value}}}-1 \}$
 - $\text{ρ}^{\mathsf{old}} ⦂ \mathbb{F}_ {q_ {\mathbb{P}}}$
-- $\text{φ}^{\mathsf{old}} ⦂ \mathbb{F}_ {q_ {\mathbb{P}}}$
+- $\text{ψ}^{\mathsf{old}} ⦂ \mathbb{F}_ {q_ {\mathbb{P}}}$
 - $\mathsf{rcm^{old}} ⦂ \{ 0 .. 2^{\ell^{\mathsf{Orchard}}_ {\mathsf{scalar}}}-1 \}$
 - $\mathsf{cm^{old}} ⦂ \mathbb{P}$
 - $\mathsf{nf^{old}} ⦂ \{ 0 .. q_ {\mathbb{P}}-1 \}$
@@ -472,7 +472,7 @@ such that the following conditions hold:
 ### Conditions
 
 **Note commitment integrity.** $\hspace{0.5em}$
-$\mathsf{NoteCommit^{Orchard}_ {rcm^{old}}}(\mathsf{repr}_ {\mathbb{P}}(\mathsf{g_ d^{old}}), \mathsf{repr}_ {\mathbb{P}}(\mathsf{pk_ d^{old}}), \mathsf{v^{old}}, \text{ρ}^{\mathsf{old}}, \text{φ}^{\mathsf{old}}) \in \{ \mathsf{cm^{old}}, \bot \}$.
+$\mathsf{NoteCommit^{Orchard}_ {rcm^{old}}}(\mathsf{repr}_ {\mathbb{P}}(\mathsf{g_ d^{old}}), \mathsf{repr}_ {\mathbb{P}}(\mathsf{pk_ d^{old}}), \mathsf{v^{old}}, \text{ρ}^{\mathsf{old}}, \text{ψ}^{\mathsf{old}}) \in \{ \mathsf{cm^{old}}, \bot \}$.
 
 This is identical to the corresponding check in an Orchard Action
 statement. [^protocol-actionstatement]
@@ -487,7 +487,7 @@ $\mathsf{Extract}_ {\mathbb{P}}(\mathsf{cm^{old}})$ to the anchor $\mathsf{rt^{c
 $\mathsf{cv} = \mathsf{ValueCommit^{Orchard}_ {rcv}}(\mathsf{v^{old}})$.
 
 **Nullifier derivation.** $\hspace{0.5em}$
-$\mathsf{nf^{old}} = \mathsf{DeriveNullifier_ {nk}}(\text{ρ}^{\mathsf{old}}, \text{φ}^{\mathsf{old}}, \mathsf{cm^{old}})$.
+$\mathsf{nf^{old}} = \mathsf{DeriveNullifier_ {nk}}(\text{ρ}^{\mathsf{old}}, \text{ψ}^{\mathsf{old}}, \mathsf{cm^{old}})$.
 
 The standard nullifier is computed inside the circuit but is NOT a public
 input — it is used only as an intermediate value for the non-membership
