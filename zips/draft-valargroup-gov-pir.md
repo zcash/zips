@@ -442,7 +442,7 @@ $\mathsf{Hash}(\mathsf{key} \| \mathsf{value})$ and is not stored separately.
 Each leaf represents an exclusion range. Implementations MUST encode
 exclusion ranges as $(low, width)$ pairs, where $low$ is the lower bound
 of the range and $width = high - low$. Both $low$ and $width$ are
-elements of $\mathbb{F}_{q_\mathbb{P}}$ (the Pallas base field [^protocol-pallasandvesta]), as are
+elements of $\mathbb{F}_ {q_ \mathbb{P}}$ (the Pallas base field [^protocol-pallasandvesta]), as are
 nullifiers.
 
 To verify that a target nullifier $t$ falls within the exclusion range,
@@ -452,7 +452,7 @@ $$\mathsf{int}(t - low \bmod q_\mathbb{P}) < \mathsf{int}(width)$$
 
 where $\mathsf{int}(\cdot)$ denotes the canonical integer representation
 in $\{0, \ldots, q_\mathbb{P} - 1\}$. The subtraction is performed in
-$\mathbb{F}_{q_\mathbb{P}}$; the comparison is an unsigned integer
+$\mathbb{F}_ {q_ \mathbb{P}}$; the comparison is an unsigned integer
 comparison on the canonical representatives.
 
 The tree builder MUST ensure that $\mathsf{int}(low) + \mathsf{int}(width) < q_\mathbb{P}$
