@@ -144,8 +144,11 @@ the server:
   at depth 11. This reveals the distribution of nullifiers across
   top-level subtrees but not which subtree any specific client queries.
 - The timing and size of PIR queries. All queries have identical size for
-  a given database configuration, but the number and timing of queries may
-  reveal that a client is performing balance verification.
+  a given database configuration. Contacting the server at all reveals
+  that the client is participating in whatever protocol the server
+  operates its PIR database for; beyond that, the number and timing of
+  queries may leak additional details about the client's specific usage
+  pattern (e.g. how many nullifiers it is checking).
 
 Mitigations for traffic analysis (such as cover traffic or query batching
 across clients) are out of scope for this document.
