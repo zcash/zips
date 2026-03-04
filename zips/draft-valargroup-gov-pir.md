@@ -355,7 +355,7 @@ computational security and correctness error at most $2^{-40}$:
 
 | Parameter | SimplePIR level | Packing level |
 |---|---|---|
-| Ring dimension $d$ | 1024 | 2048 |
+| Lattice dimension $n$ / Ring degree $d$ | 1024 | 2048 |
 | Ciphertext modulus $q$ | $2^{32}$ | $\approx 2^{56}$ (two 28-bit NTT-friendly primes) |
 | Plaintext modulus $p$ | $2^8$ | $2^{20}$ |
 | Noise width $\sigma$ | $11\sqrt{2\pi}$ | $6.4\sqrt{2\pi}$ |
