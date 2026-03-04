@@ -221,6 +221,15 @@ The leaf represents the closed interval
 $[\mathsf{low},\; \mathsf{low} + \mathsf{width}]$, which contains exactly
 the field elements between $s_i$ and $s_{i+1}$ exclusive.
 
+After processing all consecutive pairs, if $s_{m-1} < q_{\mathbb{P}} - 1$,
+a terminal leaf MUST be added with:
+
+- $\mathsf{low} = s_{m-1} + 1$
+- $\mathsf{width} = (q_{\mathbb{P}} - 1) - \mathsf{low}$
+
+This ensures that all unrevealed values above the largest element of $S$ are
+represented in the tree.
+
 <details>
 <summary>Rationale for (low, width) encoding</summary>
 
@@ -266,8 +275,9 @@ This specification uses a tree depth of
 $\mathsf{MerkleDepth^{excl}} = 29$, supporting up to $2^{29} \approx 537$
 million leaves. Each nullifier insertion splits one interval leaf into two
 (adding one leaf), so the tree supports approximately 537 million distinct
-nullifiers. As of this writing, the Zcash Orchard pool contains
-approximately 50 million nullifiers, providing over 10x headroom.
+nullifiers. As of early 2026, the Zcash Orchard pool contains roughly
+51 million nullifiers, so depth 29 provides about one order of magnitude
+of headroom.
 Implementations MAY choose a different depth to suit their capacity
 requirements; the circuit must be parameterized accordingly.
 
@@ -280,11 +290,17 @@ Before inserting any real nullifiers, the non-membership tree MUST be
 initialized with sentinel values that partition $\mathbb{F}_{q_{\mathbb{P}}}$
 into intervals each of width strictly less than $2^{250}$.
 
-This is achieved by inserting sentinel nullifiers at evenly spaced points
-across the field. For the Pallas base field ($q_{\mathbb{P}} \approx
-2^{254.9}$), inserting 17 sentinels at multiples of
-$\lfloor q_{\mathbb{P}} / 17 \rfloor$ suffices, as each resulting interval
-has width at most $\lceil q_{\mathbb{P}} / 17 \rceil < 2^{250}$.
+For the Pallas base field ($q_{\mathbb{P}} \approx 2^{254}$),
+implementations MUST insert 17 sentinels at:
+
+$$s_k = k \cdot 2^{250}, \quad k \in \{0,1,\ldots,16\}.$$
+
+This guarantees the width bound required by the in-circuit range checks:
+
+- For $k = 0,\ldots,15$, the interval between consecutive sentinels has
+  width exactly $2^{250} - 2$.
+- The final tail interval has width
+  $q_{\mathbb{P}} - 16 \cdot 2^{250} - 2 < 2^{250}$.
 
 The width bound is critical for the soundness of the in-circuit range
 checks. If any interval had width $\geq 2^{250}$, the range check could
@@ -464,7 +480,7 @@ statement. [^protocol-actionstatement]
 $(\mathsf{path^{cm}}, \mathsf{pos^{cm}})$ is a valid Merkle path of depth
 $\mathsf{MerkleDepth^{Orchard}}$, as defined in
 § 4.9 'Merkle Path Validity' [^protocol-merklepath], from
-$\mathsf{cm^{old}}$ to the anchor $\mathsf{rt^{cm}}$.
+$\mathsf{Extract}_{\mathbb{P}}(\mathsf{cm^{old}})$ to the anchor $\mathsf{rt^{cm}}$.
 
 **Value commitment integrity.** $\hspace{0.5em}$
 $\mathsf{cv} = \mathsf{ValueCommit^{Orchard}_{rcv}}(\mathsf{v^{old}})$.
@@ -524,7 +540,9 @@ $\mathsf{nf_{dom}} = \mathsf{Poseidon}(\mathsf{nk}, \mathsf{dom}, \mathsf{nf^{ol
 ### Circuit Implementation Notes
 
 The first six conditions (note commitment integrity through diversified
-address integrity) are identical to the corresponding parts of an Orchard
+address integrity) are adapted from the corresponding Orchard Action
+statement checks. In particular, note-commitment Merkle membership uses
+$\mathsf{Extract}_{\mathbb{P}}(\mathsf{cm^{old}})$ as in the Orchard
 Action statement. [^protocol-actionstatement] Implementations SHOULD share
 circuit gadgets with an Orchard implementation to minimize new code
 requiring review.
@@ -680,11 +698,12 @@ signature scheme.
 
 A reference implementation of the Claim circuit (including the
 non-membership tree, alternate nullifier derivation, and multi-note
-batching for $N_{\max} = 5$) is provided in the voting-circuits
-repository. [^voting-circuits]
+batching for $N_{\max} = 5$) exists in the coinholder voting codebase used
+for this design.
 
-The out-of-circuit IMT construction and Merkle path utilities are
-implemented in the orchard fork used by the voting system. [^imt-impl]
+At the time of writing, some implementation repositories are not publicly
+accessible. Public, stable links SHOULD be added before finalization of
+this ZIP.
 
 
 # Open issues
