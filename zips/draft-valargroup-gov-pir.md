@@ -1,5 +1,5 @@
     ZIP: Unassigned
-    Title: Private Information Retrieval for Governance
+    Title: Private Information Retrieval for Nullifier Exclusion Proofs
     Owners: Dev Ojha <dojha@berkeley.edu>
             Roman Akhtariev <ackhtariev@gmail.com>
             Adam Tucker <adamleetucker@outlook.com>
@@ -60,10 +60,11 @@ Interval Merkle tree
 # Abstract
 
 This document specifies a private information retrieval (PIR) scheme for
-use in a Zcash governance system. A governance participant must prove that
-notes intended for voting are unspent by retrieving exclusion proofs from
-a nullifier exclusion tree without revealing which nullifier is being
-checked.
+privately retrieving nullifier exclusion proofs from a Zcash nullifier
+set. Any point-in-time protocol requiring proof-of-balance — such as
+airdrops, stake-weighted polling, or governance voting — needs to verify
+that notes are unspent by checking their nullifiers against the spent
+set, without revealing which nullifier is being checked.
 
 The construction uses YPIR+SP [^YPIR], a single-server PIR protocol built on
 SimplePIR [^SimplePIR] with RLWE packing via the CDKS transformation [^CDKS]. YPIR+SP requires
@@ -84,9 +85,19 @@ serialization formats, and client procedures for each tier.
 
 # Motivation
 
-A governance system must fetch exclusion proofs for nullifiers to prove
-that Zcash mainnet notes intended for use in voting are unspent and, thus,
-eligible to participate.
+Several point-in-time protocols for Zcash require proof-of-balance:
+proving that specific shielded notes are unspent at a given block height.
+Use cases include airdrops, stake-weighted polling, and governance voting
+systems, as described in "Air drops, Proof-of-Balance, and
+Stake-weighted Polling" [^draft-str4d-orchard-balance-proof]. Each of
+these protocols requires a client to prove that the nullifiers associated
+with its notes do not appear in the set of spent nullifiers — that is, to
+obtain nullifier exclusion proofs.
+
+For example, a governance voting system may require participants to prove
+that notes committed to voting are unspent and therefore eligible. The
+same exclusion proof mechanism applies to any protocol distributing rewards or
+weighting influence based on a user's proven balance at a snapshot height.
 
 A user naively querying a centralized server for the unspent property
 risks revealing the on-chain link to the server, breaking the privacy
@@ -141,7 +152,7 @@ the server:
   top-level subtrees but not which subtree any specific client queries.
 - The timing and size of PIR queries. All queries have identical size for
   a given database configuration, but the number and timing of queries may
-  reveal that a client is participating in governance.
+  reveal that a client is performing balance verification.
 
 Mitigations for traffic analysis (such as cover traffic or query batching
 across clients) are out of scope for this document.
@@ -188,8 +199,8 @@ The following are explicitly out of scope:
 - Stateful or preprocessing-based PIR constructions that require
   per-client server state.
 - Incremental database updates. The PIR database is computed once from
-  the nullifier set at the start of each governance round and is treated
-  as static for the duration of that round.
+  the nullifier set at a given snapshot height and is treated
+  as static for the duration of the protocol epoch.
 - Sub-second end-to-end query latency. The two sequential PIR round-trips
   impose a latency floor determined by network conditions.
 - Retrieval of data other than nullifier exclusion proofs.
@@ -410,8 +421,8 @@ to standard YPIR's inability to handle the record size efficiently.
 
 ### Nullifier Exclusion Tree
 
-The governance system requires each participant to prove that the
-nullifiers associated with their voting notes do not appear in the set of
+A proof-of-balance protocol requires each participant to prove that the
+nullifiers associated with their notes do not appear in the set of
 spent nullifiers. This proof takes the form of a zero-knowledge proof over
 the authentication path of the enclosing exclusion range in a sorted
 Merkle tree, building on the approach described in
@@ -419,8 +430,8 @@ Merkle tree, building on the approach described in
 
 The server MUST construct the exclusion tree and the corresponding PIR
 databases (Tiers 0, 1, and 2) once from the nullifier set at the start
-of each governance round. The databases are static for the duration of
-the round.
+of each protocol epoch. The databases are static for the duration of
+the epoch.
 
 #### Tree Structure
 
@@ -471,8 +482,8 @@ $start \leq t \leq end$ requires two comparisons inside the ZKP circuit.
 
 The $(low, width)$ encoding reduces this to one subtraction ($t - low$)
 and one unsigned comparison ($< width$), saving one comparison gate in the
-circuit. Since the exclusion range check is performed for every voting
-proof, this saving applies to every governance participant.
+circuit. Since the exclusion range check is performed for every balance
+proof, this saving applies to every protocol participant.
 </details>
 
 #### Authentication Path
@@ -753,10 +764,10 @@ mechanism (InspiRING, requiring only 2 key-switching matrices instead of
 11) and homomorphic polynomial evaluation. However, its underlying
 cryptography is complex, has no known production usage, and is one year
 younger than YPIR+SP, complicating auditability and imposing production
-risk for a governance system that must be trustworthy from launch.
+risk for a system that must be trustworthy from launch.
 
 We choose YPIR+SP because it achieves a hintless design with appropriate
-communication and throughput for a mobile governance system, built on the
+communication and throughput for mobile clients, built on the
 well-understood CDKS transformation.
 
 It is our intent to continue researching and productionizing InsPIRe
@@ -859,7 +870,7 @@ The underlying PIR primitive is implemented in the YPIR library [^ypir-impl],
 which provides the single-server private information retrieval scheme described
 in [^YPIR], including the YPIR+SP variant used by this ZIP.
 
-A full reference implementation of the governance-specific layers — the
+A full reference implementation of the application-specific layers — the
 three-tier Poseidon tree, the Tier 1 / Tier 2 query orchestration, and the
 client-side balance proof integration described in this ZIP — is to be
 provided before this ZIP advances to Proposed status.
