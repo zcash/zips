@@ -180,7 +180,7 @@ secret.
   10MB, suitable for mobile networks.
 - Two sequential network round-trips per query are acceptable.
 - The hash function used in the exclusion tree must be efficient inside
-  zero-knowledge proof circuits (Poseidon).
+  zero-knowledge proof circuits.
 - 128-bit computational security with correctness error probability at
   most $2^{-40}$.
 
