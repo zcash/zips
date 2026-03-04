@@ -147,8 +147,8 @@ viewing key cannot make claims on behalf of the holder.
 non-membership tree requires querying a data source that holds the full
 tree. A naive query reveals which path is being requested, potentially
 linking the querier to a nullifier range. Private information retrieval
-(PIR) techniques can mitigate this leakage; their specification is out of
-scope for this document.
+(PIR) techniques can mitigate this leakage [^pir-governance]; their
+specification is out of scope for this document.
 
 
 # Requirements
@@ -732,5 +732,7 @@ this ZIP.
 [^protocol-sinsemilla]: [Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 5.4.1.9: Sinsemilla Hash Function](protocol/protocol.pdf#concretesinsemillahash)
 
 [^poseidon]: [Poseidon: A New Hash Function for Zero-Knowledge Proof Systems](https://eprint.iacr.org/2019/458)
+
+[^pir-governance]: [Draft ZIP: Private Information Retrieval for Governance](https://github.com/zcash/zips/pull/1198)
 
 [^draft-str4d-orchard-balance-proof]: [Draft ZIP: Air drops, Proof-of-Balance, and Stake-weighted Polling](draft-str4d-orchard-balance-proof)
