@@ -4,8 +4,8 @@
             Adam Tucker <adamleetucker@outlook.com>
             Roman Akhtariev <ackhtariev@gmail.com>
             Greg Nagy <greg@dhamma.works>
-    Credits: Daira-Emma Hopwood <daira@jacaranda.org>
-             Jack Grigg <thestr4d@gmail.com>
+    Credits: Daira-Emma Hopwood
+             Jack Grigg
     Status: Draft
     Category: Informational
     Created: 2026-03-03
@@ -147,23 +147,23 @@ viewing key cannot make claims on behalf of the holder.
 non-membership tree requires querying a data source that holds the full
 tree. A naive query reveals which path is being requested, potentially
 linking the querier to a nullifier range. Private information retrieval
-(PIR) techniques can mitigate this leakage [^pir-governance]; their
+(PIR) techniques can mitigate this leakage [^pir-nullifier-exclusion]; their
 specification is out of scope for this document.
 
 
 # Requirements
 
-- A holder MUST be able to prove ownership of an unspent Orchard note at a
-  pool snapshot without revealing the note's standard nullifier.
-- Double-claiming the same note within the same nullifier domain MUST be
+- A holder can prove ownership of an unspent Orchard note at a pool
+  snapshot without revealing the note's standard nullifier.
+- Double-claiming the same note within the same nullifier domain is
   detectable: the alternate nullifier is deterministic, so a duplicate
   claim produces an identical value that the verifier can reject.
-- Claims MUST be unlinkable to the holder's past or future on-chain
-  spends, and to their claims in other nullifier domains.
-- The holder MUST prove spend authority (not merely viewing access).
-- The construction SHOULD allow a holder to participate in multiple
-  independent applications using the same notes, provided each application
-  uses a distinct nullifier domain. This is a natural consequence of the
+- Claims are unlinkable to the holder's past or future on-chain spends,
+  and to their claims in other nullifier domains.
+- The holder proves spend authority (not merely viewing access).
+- The construction allows a holder to participate in multiple independent
+  applications using the same notes, provided each application uses a
+  distinct nullifier domain. This is a natural consequence of the
   domain-separated alternate nullifier derivation.
 
 
@@ -232,7 +232,10 @@ This ensures that all unrevealed values above the largest element of $S$ are
 represented in the tree.
 
 <details>
-<summary>Rationale for (low, width) encoding</summary>
+<summary>
+
+### Rationale for (low, width) encoding
+</summary>
 
 An alternative encoding stores $(\mathsf{start}, \mathsf{end})$ pairs
 directly, as proposed in [^draft-str4d-orchard-balance-proof]. The
@@ -259,7 +262,10 @@ with the standard parameter generation procedure from [^poseidon], targeting
 128-bit security.
 
 <details>
-<summary>Rationale for Poseidon over Sinsemilla</summary>
+<summary>
+
+### Rationale for Poseidon over Sinsemilla
+</summary>
 
 The Orchard note commitment tree uses Sinsemilla [^protocol-sinsemilla]
 for Merkle hashing. The non-membership tree uses Poseidon instead because
@@ -408,7 +414,10 @@ inputs, so their outputs collide with negligible probability under
 Poseidon's collision resistance.
 
 <details>
-<summary>Rationale for divergence from the Orchard-native construction</summary>
+<summary>
+
+### Rationale for divergence from the Orchard-native construction
+</summary>
 
 The earlier draft [^draft-str4d-orchard-balance-proof] proposed an
 alternate nullifier derivation structurally parallel to the standard
@@ -525,7 +534,10 @@ over $\mathbb{F}_ {q_ {\mathbb{P}}}$, proving that the standard nullifier
 falls within an interval of unrevealed values.
 
 <details>
-<summary>Derivation of the interval check</summary>
+<summary>
+
+### Derivation of the interval check
+</summary>
 
 To prove $\mathsf{low} \leq \mathsf{nf^{old}} \leq \mathsf{low} + \mathsf{width}$:
 
@@ -696,14 +708,14 @@ batching for $N_ {\max} = 5$) exists in the coinholder voting codebase used
 for this design.
 
 At the time of writing, some implementation repositories are not publicly
-accessible. Public, stable links SHOULD be added before finalization of
+accessible. Public, stable links will be added before finalization of
 this ZIP.
 
 
 # Open issues
 
 - The Poseidon instantiation ($\mathsf{P128Pow5T3}$) and its round
-  constants should be explicitly referenced or pinned once a canonical
+  constants remain to be explicitly referenced or pinned once a canonical
   parameter set for Zcash usage is published.
 - The interaction between multi-note batching and the sighash scheme
   (what exactly is signed, and how it binds to all $N$ notes) requires
@@ -726,6 +738,6 @@ this ZIP.
 
 [^poseidon]: [Poseidon: A New Hash Function for Zero-Knowledge Proof Systems](https://eprint.iacr.org/2019/458)
 
-[^pir-governance]: [Draft ZIP: Private Information Retrieval for Governance](https://github.com/zcash/zips/pull/1198)
+[^pir-nullifier-exclusion]: [Draft ZIP: Private Information Retrieval for Nullifier Exclusion Proofs](https://github.com/zcash/zips/pull/1198)
 
 [^draft-str4d-orchard-balance-proof]: [Draft ZIP: Air drops, Proof-of-Balance, and Stake-weighted Polling](draft-str4d-orchard-balance-proof)
