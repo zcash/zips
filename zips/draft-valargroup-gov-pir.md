@@ -5,7 +5,7 @@
             Adam Tucker <adamleetucker@outlook.com>
             Greg Nagy <greg@dhamma.works>
     Status: Draft
-    Category: Standards Track
+    Category: Standards / Wallet
     Created: 2026-03-02
     License: MIT
     Pull-Request: https://github.com/zcash/zips/pull/1198
