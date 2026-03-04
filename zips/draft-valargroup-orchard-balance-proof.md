@@ -290,7 +290,8 @@ nullifiers. As of early 2026, the Zcash Orchard pool contains roughly
 51 million nullifiers, so depth 29 provides about one order of magnitude
 of headroom.
 Implementations MAY choose a different depth to suit their capacity
-requirements; the circuit must be parameterized accordingly.
+requirements, but the circuit MUST be parameterized accordingly based on
+the chosen depth.
 
 Unused leaf positions MUST be filled with a canonical empty leaf value
 (the hash of the zero interval).
