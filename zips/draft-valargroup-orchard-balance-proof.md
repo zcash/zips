@@ -346,20 +346,24 @@ Given a nullifier domain $\mathsf{dom}$ and an Orchard note with standard
 nullifier $\mathsf{nf^{old}}$, the alternate nullifier $\mathsf{nf_ {dom}}$
 is computed as:
 
-$$\mathsf{nf_ {dom}} = \mathsf{DeriveAlternateNullifier_ {nk}}(\mathsf{dom}, \mathsf{nf^{old}}) = \mathsf{Poseidon}(\mathsf{nk}, \mathsf{dom}, \mathsf{nf^{old}})$$
+$$\mathsf{nf_ {dom}} = \mathsf{DeriveAlternateNullifier_ {nk}}(\mathsf{tag}, \mathsf{dom}, \mathsf{nf^{old}}) = \mathsf{Poseidon}(\mathsf{nk}, \mathsf{tag}, \mathsf{dom}, \mathsf{nf^{old}})$$
 
 where:
 
 - $\mathsf{nk} \in \mathbb{F}_ {q_ {\mathbb{P}}}$ is the nullifier deriving
   key from the holder's full viewing key.
+- $\mathsf{tag} \in \mathbb{F}_ {q_ {\mathbb{P}}}$ is an application-defined
+  domain separator constant that identifies the protocol type (e.g.,
+  governance, air-drop). This value is fixed per application and known to
+  both prover and verifier.
 - $\mathsf{dom} \in \mathbb{F}_ {q_ {\mathbb{P}}}$ is the nullifier domain.
 - $\mathsf{nf^{old}} \in \mathbb{F}_ {q_ {\mathbb{P}}}$ is the note's
   standard Orchard nullifier, computed as
   $\mathsf{DeriveNullifier_ {nk}}(\text{ρ}^{\mathsf{old}}, \text{ψ}^{\mathsf{old}}, \mathsf{cm^{old}})$.
 
-This is a 3-input Poseidon hash. Using the standard $\mathsf{P128Pow5T3}$
+This is a 4-input Poseidon hash. Using the standard $\mathsf{P128Pow5T3}$
 instantiation (width $t = 3$, rate 2), this requires two permutations
-to absorb three input elements.
+to absorb four input elements.
 
 ### Properties
 
@@ -383,23 +387,23 @@ The security of the alternate nullifier derivation relies on Poseidon
 being a pseudorandom function (PRF) when keyed with a uniformly random
 element of $\mathbb{F}_ {q_ {\mathbb{P}}}$.
 
-**Unlinkability.** Model $\mathsf{Poseidon}(\mathsf{nk}, \cdot, \cdot)$
+**Unlinkability.** Model $\mathsf{Poseidon}(\mathsf{nk}, \cdot, \cdot, \cdot)$
 as a PRF keyed by $\mathsf{nk}$. An adversary who does not know
 $\mathsf{nk}$ sees outputs that are indistinguishable from random. Given
-$\mathsf{nf_ {dom}} = \mathsf{Poseidon}(\mathsf{nk}, \mathsf{dom}, \mathsf{nf^{old}})$
+$\mathsf{nf_ {dom}} = \mathsf{Poseidon}(\mathsf{nk}, \mathsf{tag}, \mathsf{dom}, \mathsf{nf^{old}})$
 and $\mathsf{nf^{old}}$, the adversary cannot verify the relationship
 without $\mathsf{nk}$. The nullifier deriving key $\mathsf{nk}$ is a
 255-bit value derived from the spending key and is never revealed on-chain.
 
 **Cross-domain unlinkability.** For two domains $\mathsf{dom_ 1} \neq \mathsf{dom_ 2}$,
-the pairs $(\mathsf{dom_ 1}, \mathsf{nf^{old}})$ and
-$(\mathsf{dom_ 2}, \mathsf{nf^{old}})$ are distinct inputs to the PRF.
+the tuples $(\mathsf{tag}, \mathsf{dom_ 1}, \mathsf{nf^{old}})$ and
+$(\mathsf{tag}, \mathsf{dom_ 2}, \mathsf{nf^{old}})$ are distinct inputs to the PRF.
 Under the PRF assumption, their outputs are jointly indistinguishable from
 independent random values.
 
 **Collision resistance.** If $\mathsf{nf^{old}_ 1} \neq \mathsf{nf^{old}_ 2}$,
-then $(\mathsf{nk}, \mathsf{dom}, \mathsf{nf^{old}_ 1})$ and
-$(\mathsf{nk}, \mathsf{dom}, \mathsf{nf^{old}_ 2})$ are distinct Poseidon
+then $(\mathsf{nk}, \mathsf{tag}, \mathsf{dom}, \mathsf{nf^{old}_ 1})$ and
+$(\mathsf{nk}, \mathsf{tag}, \mathsf{dom}, \mathsf{nf^{old}_ 2})$ are distinct Poseidon
 inputs, so their outputs collide with negligible probability under
 Poseidon's collision resistance.
 
@@ -463,6 +467,7 @@ the prover knows an auxiliary input:
 - $\mathsf{ak}^{\mathbb{P}} ⦂ \mathbb{P}^*$
 - $\mathsf{nk} ⦂ \mathbb{F}_ {q_ {\mathbb{P}}}$
 - $\mathsf{rivk} ⦂ \mathsf{Commit^{ivk}.Trapdoor}$
+- $\mathsf{rivk\_ {internal}} ⦂ \mathsf{Commit^{ivk}.Trapdoor}$
 - $\alpha ⦂ \{ 0 .. 2^{\ell^{\mathsf{Orchard}}_ {\mathsf{scalar}}}-1 \}$
 - $\mathsf{low} ⦂ \mathbb{F}_ {q_ {\mathbb{P}}}$
 - $\mathsf{width} ⦂ \mathbb{F}_ {q_ {\mathbb{P}}}$
@@ -496,9 +501,12 @@ check and the alternate nullifier derivation. It is never revealed.
 $\mathsf{rk} = \mathsf{SpendAuthSig^{Orchard}.RandomizePublic}(\alpha, \mathsf{ak}^{\mathbb{P}})$.
 
 **Diversified address integrity.** $\hspace{0.5em}$
-$\mathsf{ivk} = \bot$ or $\mathsf{pk_ d^{old}} = [\mathsf{ivk}]\, \mathsf{g_ d^{old}}$
-where
-$\mathsf{ivk} = \mathsf{Commit^{ivk}_ {rivk}}(\mathsf{Extract}_ {\mathbb{P}}(\mathsf{ak}^{\mathbb{P}}), \mathsf{nk})$.
+Let
+$\mathsf{ivk} = \mathsf{Commit^{ivk}_ {rivk}}(\mathsf{Extract}_ {\mathbb{P}}(\mathsf{ak}^{\mathbb{P}}), \mathsf{nk})$
+and
+$\mathsf{ivk\_ {internal}} = \mathsf{Commit^{ivk}_ {rivk\_ {internal}}}(\mathsf{Extract}_ {\mathbb{P}}(\mathsf{ak}^{\mathbb{P}}), \mathsf{nk})$.
+Then $\mathsf{pk_ d^{old}} = [\mathsf{ivk}]\, \mathsf{g_ d^{old}}$ or
+$\mathsf{pk_ d^{old}} = [\mathsf{ivk\_ {internal}}]\, \mathsf{g_ d^{old}}$.
 
 **Nullifier non-membership.** $\hspace{0.5em}$
 Let $\mathsf{leaf} = \mathsf{Poseidon}(\mathsf{low}, \mathsf{width})$.
@@ -535,7 +543,7 @@ To prove $\mathsf{low} \leq \mathsf{nf^{old}} \leq \mathsf{low} + \mathsf{width}
 </details>
 
 **Alternate nullifier integrity.** $\hspace{0.5em}$
-$\mathsf{nf_ {dom}} = \mathsf{Poseidon}(\mathsf{nk}, \mathsf{dom}, \mathsf{nf^{old}})$.
+$\mathsf{nf_ {dom}} = \mathsf{Poseidon}(\mathsf{nk}, \mathsf{tag}, \mathsf{dom}, \mathsf{nf^{old}})$.
 
 ### Circuit Implementation Notes
 
