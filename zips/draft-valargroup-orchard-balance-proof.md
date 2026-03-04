@@ -76,8 +76,8 @@ prevent double-claiming within an application domain while remaining
 unlinkable across domains and to on-chain activity.
 
 A Claim circuit combines these primitives with standard Orchard note
-commitment integrity, Merkle membership, value commitment, spend authority,
-and diversified address integrity checks to produce a single proof per
+commitment integrity, Merkle membership, spend authority, and diversified
+address integrity checks to produce a single proof per
 note. An optional multi-note batching extension allows proving aggregate
 balance across several notes in one proof.
 
@@ -445,7 +445,6 @@ Given a primary input:
 - $\mathsf{rk} ⦂ \mathsf{SpendAuthSig^{Orchard}.Public}$
 - $\mathsf{nf_ {dom}} ⦂ \{ 0 .. q_ {\mathbb{P}}-1 \}$
 - $\mathsf{dom} ⦂ \{ 0 .. q_ {\mathbb{P}}-1 \}$
-- $\mathsf{cv} ⦂ \mathsf{ValueCommit^{Orchard}.Output}$
 
 ### Auxiliary Inputs
 
@@ -465,7 +464,6 @@ the prover knows an auxiliary input:
 - $\mathsf{nk} ⦂ \mathbb{F}_ {q_ {\mathbb{P}}}$
 - $\mathsf{rivk} ⦂ \mathsf{Commit^{ivk}.Trapdoor}$
 - $\alpha ⦂ \{ 0 .. 2^{\ell^{\mathsf{Orchard}}_ {\mathsf{scalar}}}-1 \}$
-- $\mathsf{rcv} ⦂ \{ 0 .. 2^{\ell^{\mathsf{Orchard}}_ {\mathsf{scalar}}}-1 \}$
 - $\mathsf{low} ⦂ \mathbb{F}_ {q_ {\mathbb{P}}}$
 - $\mathsf{width} ⦂ \mathbb{F}_ {q_ {\mathbb{P}}}$
 - $\mathsf{path^{excl}} ⦂ \{ 0 .. q_ {\mathbb{P}}-1 \}^{[\mathsf{MerkleDepth^{excl}}]}$
@@ -486,9 +484,6 @@ $(\mathsf{path^{cm}}, \mathsf{pos^{cm}})$ is a valid Merkle path of depth
 $\mathsf{MerkleDepth^{Orchard}}$, as defined in
 § 4.9 'Merkle Path Validity' [^protocol-merklepath], from
 $\mathsf{Extract}_ {\mathbb{P}}(\mathsf{cm^{old}})$ to the anchor $\mathsf{rt^{cm}}$.
-
-**Value commitment integrity.** $\hspace{0.5em}$
-$\mathsf{cv} = \mathsf{ValueCommit^{Orchard}_ {rcv}}(\mathsf{v^{old}})$.
 
 **Nullifier derivation.** $\hspace{0.5em}$
 $\mathsf{nf^{old}} = \mathsf{DeriveNullifier_ {nk}}(\text{ρ}^{\mathsf{old}}, \text{ψ}^{\mathsf{old}}, \mathsf{cm^{old}})$.
@@ -544,7 +539,7 @@ $\mathsf{nf_ {dom}} = \mathsf{Poseidon}(\mathsf{nk}, \mathsf{dom}, \mathsf{nf^{o
 
 ### Circuit Implementation Notes
 
-The first six conditions (note commitment integrity through diversified
+The first five conditions (note commitment integrity through diversified
 address integrity) are adapted from the corresponding Orchard Action
 statement checks. In particular, note-commitment Merkle membership uses
 $\mathsf{Extract}_ {\mathbb{P}}(\mathsf{cm^{old}})$ as in the Orchard
@@ -566,7 +561,7 @@ A verifier that receives a Claim proof $\pi$ together with a spend
 authorization signature $\sigma$ MUST perform the following checks:
 
 1. Verify $\pi$ against the public inputs
-   $(\mathsf{rt^{cm}}, \mathsf{rt^{excl}}, \mathsf{rk}, \mathsf{nf_ {dom}}, \mathsf{dom}, \mathsf{cv})$.
+   $(\mathsf{rt^{cm}}, \mathsf{rt^{excl}}, \mathsf{rk}, \mathsf{nf_ {dom}}, \mathsf{dom})$.
 
 2. Verify $\sigma$ as a valid $\mathsf{SpendAuthSig^{Orchard}}$ signature
    on the application-defined sighash, under the randomized key
@@ -599,8 +594,7 @@ as follows:
 - The public inputs $\mathsf{rt^{cm}}$, $\mathsf{rt^{excl}}$,
   $\mathsf{rk}$, and $\mathsf{dom}$ are shared across all $N$ notes.
 - Each note $i$ contributes its own alternate nullifier
-  $\mathsf{nf_ {dom,i}}$ and value commitment $\mathsf{cv_ i}$ as public
-  inputs.
+  $\mathsf{nf_ {dom,i}}$ as a public input.
 - A single $\mathsf{ivk}$ (derived from the shared $\mathsf{ak}$ and
   $\mathsf{nk}$) is constrained to own all $N$ notes, ensuring they
   belong to the same holder.
@@ -615,8 +609,8 @@ SHOULD accept a fixed number of note slots $N_ {\max}$ (for example,
 $N_ {\max} = 5$). Unused slots are filled with *padded notes*: randomly
 generated note data with value 0. Padded notes satisfy all circuit
 checks (the commitment is valid, the Merkle path can use any valid leaf,
-the non-membership check passes for random nullifiers with overwhelming
-probability, and the value commitment commits to zero).
+and the non-membership check passes for random nullifiers with overwhelming
+probability).
 
 An $\mathsf{is\_real}$ flag (private witness, constrained to be boolean)
 distinguishes real notes from padded notes:
@@ -625,19 +619,6 @@ distinguishes real notes from padded notes:
 - Merkle membership and non-membership checks MAY be skipped for padded
   notes (conditioned on $\mathsf{is\_real} = 0$) as an optimization, but
   performing them is also sound since padded notes use valid dummy data.
-
-### Aggregate Value
-
-The verifier computes the aggregate value commitment as:
-
-$$\mathsf{cv_ {total}} = \sum_ {i=0}^{N_ {\max}-1} \mathsf{cv_ i}$$
-
-Since padded notes commit to value 0, they contribute the identity to the
-sum (up to their blinding factor). The aggregate commitment
-$\mathsf{cv_ {total}}$ commits to the holder's total claimed balance.
-Applications that need to open this commitment (e.g., to verify a minimum
-balance threshold) can do so by requiring the prover to reveal the
-aggregate randomness $\mathsf{rcv_ {total}} = \sum_ i \mathsf{rcv_ i}$.
 
 
 # Rationale
