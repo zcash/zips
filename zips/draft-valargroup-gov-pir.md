@@ -33,7 +33,7 @@ LWE (Learning With Errors)
 RLWE (Ring Learning With Errors)
 
 : A structured variant of LWE where operations take place in a polynomial
-  ring $\mathbb{Z}[x]/(x^d + 1)$. A single RLWE ciphertext encrypts $d$
+  ring $\mathbb{Z}\lbrack x\rbrack/(x^d + 1)$. A single RLWE ciphertext encrypts $d$
   values simultaneously.
 
 CDKS transformation
@@ -258,20 +258,17 @@ To decrypt (given $s$):
 3. Divide by $\Delta$ to recover $\mu$.
 
 This works because the noise $e$ is small relative to the spacing
-$\Delta$. For example, with $\Delta = \lfloor 2^{32} / 256 \rfloor =
-2^{24} \approx 16{,}000{,}000$ and noise magnitude on the order of tens,
+$\Delta$. For example, with $\Delta = \lfloor 2^{32} / 256 \rfloor = 2^{24} \approx 16{,}000{,}000$ and noise magnitude on the order of tens,
 rounding reliably recovers the correct plaintext.
 
 Regev encryption is linearly homomorphic: the server can multiply the
 database matrix $D$ by the encrypted query $c$ and obtain an encrypted
-version of the selected row, $D \cdot c = D \cdot A^T \cdot s + D
-\cdot e + \Delta \cdot (D \times \mu)$, without learning which row
+version of the selected row, $D \cdot c = D \cdot A^T \cdot s + D \cdot e + \Delta \cdot (D \times \mu)$, without learning which row
 was selected. This matrix-vector product is the entirety of the server's
 per-query work in SimplePIR.
 
 A critical property for PIR is that the matrix $A$ is independent of the
-message $\mu$. This allows the server to precompute the product $D
-\cdot A^T$ once, yielding the *hint* that clients use for decryption.
+message $\mu$. This allows the server to precompute the product $D \cdot A^T$ once, yielding the *hint* that clients use for decryption.
 
 ### Hint
 
@@ -280,8 +277,7 @@ holds:
 
 $$\mathsf{answer} = D \cdot A^T \cdot s + D \cdot e + \Delta \cdot (\text{selected row})$$
 
-To isolate the selected row, the client must subtract $D \cdot A^T
-\cdot s$. Computing this requires $D \cdot A^T$, which depends on the
+To isolate the selected row, the client must subtract $D \cdot A^T \cdot s$. Computing this requires $D \cdot A^T$, which depends on the
 entire database — information the client does not have.
 
 The *hint* is the precomputed product $H = D \cdot A^T$, a matrix of
@@ -321,7 +317,7 @@ YPIR+SP [^YPIR] eliminates the hint by packing the SimplePIR response
 into RLWE ciphertexts using the CDKS transformation [^CDKS].
 
 RLWE ciphertexts encrypt $d$ values in a single ciphertext (as
-coefficients of a polynomial in $\mathbb{Z}[x]/(x^d + 1)$), compared to
+coefficients of a polynomial in $\mathbb{Z}\lbrack x\rbrack/(x^d + 1)$), compared to
 one value per LWE ciphertext. This yields dramatically less ciphertext
 overhead, making it possible to compress the entire SimplePIR row
 response — which would otherwise require the hint for decryption — into
@@ -551,8 +547,8 @@ by clients. It changes only when the exclusion tree is updated.
 **Client procedure:**
 
 1. Binary search the 2,048 `min_key` values in Block A to find subtree
-   index $S_1 \in [0, 2047]$ such that
-   $\mathsf{min\_key}[S_1] \leq \mathsf{target\_key} < \mathsf{min\_key}[S_1 + 1]$.
+   index $S_1 \in \lbrack 0, 2047\rbrack$ such that
+   $\mathsf{min\_key}\lbrack S_1\rbrack \leq \mathsf{target\_key} < \mathsf{min\_key}\lbrack S_1 + 1\rbrack$.
 2. Read 11 sibling hashes directly from the two blocks:
    - Depth-11 sibling: read `hash` from Block A at index $S_1 \oplus 1$.
    - Depths 1–10 siblings: read from Block B by walking the path
@@ -605,7 +601,7 @@ Bytes 8,128–12,223: leaf_min_keys[0..127]     128 × 32 B = 4,096 B
 
 **BFS indexing:** A node at relative depth $d$, horizontal position $p$
 (0-indexed) has internal node index $(2^d - 2) + p$ for
-$d \in [1, 6]$, $p \in [0, 2^d)$. The sibling of position $p$ at any
+$d \in \lbrack 1, 6\rbrack$, $p \in \lbrack 0, 2^d)$. The sibling of position $p$ at any
 depth is at position $p \oplus 1$. The parent of position $p$ is at
 position $p \gg 1$ at depth $d - 1$.
 
@@ -613,7 +609,7 @@ position $p \gg 1$ at depth $d - 1$.
 
 1. Issue a PIR query for row $S_1$ (the subtree index from Tier 0).
 2. Binary search the 128 `min_key` values at the end of the row to find
-   sub-subtree index $S_2 \in [0, 127]$.
+   sub-subtree index $S_2 \in \lbrack 0, 127\rbrack$.
 3. Read 7 sibling hashes directly from the row:
    - Depth-18 sibling: the leaf record at index $S_2 \oplus 1$ (its
      `hash` field).
