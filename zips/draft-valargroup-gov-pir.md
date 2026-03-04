@@ -108,11 +108,10 @@ target record from any other.
 
 # Privacy Implications
 
-The PIR construction in this document uses a single untrusted server. The
-server is assumed to follow the protocol faithfully but may attempt to
-learn which record the client queries (the honest-but-curious model).
-Under the hardness of the LWE and Ring LWE problems (see [Security]),
-such a server learns nothing about which nullifier the client queries.
+The PIR construction in this document uses a single untrusted server.
+The server may attempt to learn which nullifier the client queries, but
+assuming hardness of the LWE and Ring LWE problems (see [Security]),
+it gains no information about that.
 
 A malicious server that deviates from the protocol cannot break query
 privacy (which depends only on the client's Regev encryption), but it
