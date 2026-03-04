@@ -248,8 +248,8 @@ per claim, this trade-off favors prover efficiency.
 
 ### Hash Function
 
-The non-membership tree uses Poseidon [^poseidon] over
-$\mathbb{F}_ {q_ {\mathbb{P}}}$ (the Pallas base field) for all hashing:
+The non-membership tree uses Poseidon [^poseidon], instantiated over
+the Pallas base field $\mathbb{F}_ {q_ {\mathbb{P}}}$, for all hashing:
 
 - **Leaf hash:** $\mathsf{Poseidon}(\mathsf{low}, \mathsf{width})$,
   a 2-input Poseidon hash with width $t = 3$.
