@@ -161,9 +161,9 @@ though it cannot determine which records were requested. This linkability
 reveals the number of queries a participant makes and enables correlation
 with external timing or network metadata.
 
-Clients must therefore generate a fresh RLWE secret $s_2$ and derive a
-new packing key for every query. Regenerating from the same $s_2$ with
-fresh randomness is insufficient: the server receives key-switching
+A correct implementation generates a fresh RLWE secret $s_2$ and derives
+a new packing key for every query. Regenerating from the same $s_2$ with
+fresh randomness would not be sufficient: the server receives key-switching
 matrices that encrypt known automorphisms of $s_2$, and could test
 consistency across two key sets to link them to the same underlying
 secret.
