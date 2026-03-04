@@ -268,6 +268,10 @@ efficient inside Halo 2 arithmetic circuits. Sinsemilla is optimized for
 bitstring inputs and incurs overhead when hashing field elements. Since
 the non-membership tree is a new data structure not constrained by backwards
 compatibility, the more circuit-efficient choice is appropriate.
+
+Poseidon2 was considered but not adopted because no audited implementation was
+available at the time of design. Poseidon already has an audited implementation
+used by Orchard for nullifier derivation.
 </details>
 
 ### Tree Depth
