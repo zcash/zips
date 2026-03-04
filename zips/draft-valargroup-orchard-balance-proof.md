@@ -709,9 +709,6 @@ this ZIP.
 
 # Open issues
 
-- The security argument for the alternate nullifier derivation is
-  informal. A formal reduction from the unlinkability property to the
-  Poseidon PRF assumption would strengthen confidence.
 - The Poseidon instantiation ($\mathsf{P128Pow5T3}$) and its round
   constants should be explicitly referenced or pinned once a canonical
   parameter set for Zcash usage is published.
