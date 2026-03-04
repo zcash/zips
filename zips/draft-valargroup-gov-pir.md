@@ -75,10 +75,6 @@ authentication path is retrieved in two sequential PIR queries plus the
 plaintext download, for a total bandwidth of approximately 3.3 MB per
 query (dominated by the Tier 2 upload).
 
-This document also surveys the PIR design space, explains the choice of
-YPIR+SP over alternatives such as InsPIRe, and specifies the row layouts,
-serialization formats, and client procedures for each tier.
-
 
 # Motivation
 
