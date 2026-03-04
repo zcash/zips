@@ -177,7 +177,7 @@ secret.
 - Single untrusted server with no per-client state. The server holds only
   the public database and processes queries statelessly.
 - Total bandwidth per query (upload plus download) under
-  10MB, suitable for mobile networks (see actual results [Bandwidth Summary]).
+  10MB, suitable for mobile networks.
 - Two sequential network round-trips per query are acceptable.
 - The hash function used in the exclusion tree must be efficient inside
   zero-knowledge proof circuits (Poseidon).
