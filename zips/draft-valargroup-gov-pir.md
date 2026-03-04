@@ -317,7 +317,7 @@ YPIR+SP [^YPIR] eliminates the hint by packing the SimplePIR response
 into RLWE ciphertexts using the CDKS transformation [^CDKS].
 
 RLWE ciphertexts encrypt $d$ values in a single ciphertext (as
-coefficients of a polynomial in $\mathbb{Z}[x]/(x^d + 1)$), compared to
+coefficients of a polynomial in $\mathbb{Z}[x]/(x^d + 1)$ ), compared to
 one value per LWE ciphertext. This yields dramatically less ciphertext
 overhead, making it possible to compress the entire SimplePIR row
 response — which would otherwise require the hint for decryption — into
