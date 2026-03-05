@@ -208,6 +208,8 @@ see [^pir-governance].
 - The aggregate tally is publicly verifiable: any party can confirm the
   homomorphic accumulation.
 - The protocol supports up to 15 proposals per voting round.
+- The Vote Commitment Tree has capacity for at least several million
+  leaves (combined VANs and VCs) per voting round.
 - The protocol supports delegation of voting authority to a third-party
   hotkey.
 - The delegation phase is compatible with hardware wallets that support
@@ -415,11 +417,12 @@ $\mathsf{blind}$ is the blind factor for the revealed share.
 
 ### Vote Commitment Tree
 
-The VCT is an append-only Merkle tree of depth
-$\mathsf{MerkleDepth}^{\mathsf{vct}}$ that stores both VANs and VCs as leaves.
-The tree MUST use the Poseidon hash function [^poseidon] over
-the Pallas scalar field for all internal node hashing, with
-the same instantiation used by the nullifier non-membership
+The VCT is an incremental Merkle tree [^protocol-merkletree] of depth
+$\mathsf{MerkleDepth}^{\mathsf{vct}} = 24$ that stores both VANs and VCs as leaves.
+It uses the same append-only data structure as the Orchard note
+commitment tree, but with Poseidon [^poseidon] over the Pallas
+scalar field for internal node hashing instead of Sinsemilla,
+using the same instantiation as the nullifier non-membership
 tree [^balance-proof].
 
 Domain separation between VANs and VCs is achieved structurally: the
@@ -1409,6 +1412,22 @@ unlinkability (which depends on the Poseidon-based blinded share
 commitments, not on El Gamal). Post-quantum migration is tracked as an
 open issue.
 
+## Why VCT Depth 24
+
+The Orchard note commitment tree uses depth 32, supporting $2^{32}$
+(~4.3 billion) leaves. Governance voting produces far fewer leaves:
+each voter generates one VAN per delegation and two leaves (a new VAN
+plus a VC) per vote. Even 10,000 voters each voting on 50 proposals
+produce roughly 1 million leaves — well within the $2^{24}$
+(~16.7 million) capacity of a depth-24 tree.
+
+The reduced depth saves constraint rows in every circuit that performs
+a Merkle membership proof (Vote Proof and Vote Reveal Proof), since
+each level adds a Poseidon hash region. Moving from 32 to 24 levels
+removes 8 hash regions per proof, reducing prover cost and verification
+time without any practical capacity risk.
+
+
 ## Why Domain Tags in the VCT
 
 Both VANs and VCs are leaves in the same Merkle tree. The domain tags
@@ -1488,6 +1507,14 @@ finalization of this ZIP.
   be replaced without changing the commitment, nullifier, or Merkle
   membership components of the protocol.
   See [Why Classical El Gamal Rather Than Post-Quantum Encryption].
+- The VCT depth of 24 ($2^{24} \approx 16.7$ million leaves) is
+  sufficient for current governance usage projections, but may need to
+  be increased via a vote chain upgrade if participation grows
+  significantly (e.g., more voters, more proposals per round, or more
+  frequent rounds reusing the same tree). Increasing the depth requires
+  updating the Merkle membership circuits in both the Vote Proof and
+  Vote Reveal Proof, reproving the verification key, and coordinating
+  a CometBFT chain upgrade. See [Why VCT Depth 24].
 
 
 # References
@@ -1523,6 +1550,8 @@ finalization of this ZIP.
 [^halo2]: [S. Bowe, J. Grigg, and D. Hopwood, "Recursive Proof Composition without a Trusted Setup", 2019](https://eprint.iacr.org/2019/1021)
 
 [^cometbft]: [CometBFT Specification](https://docs.cometbft.com/v1/spec/)
+
+[^protocol-merkletree]: [Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.8: Note Commitment Trees](protocol/protocol.pdf#merkletree)
 
 [^protocol-concretesinsemilla]: [Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 5.4.1.9: Sinsemilla Hash Function](protocol/protocol.pdf#concretesinsemillahash)
 
