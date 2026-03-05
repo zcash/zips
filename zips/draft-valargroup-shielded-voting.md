@@ -167,7 +167,7 @@ submissions.
 whose plaintext value is never revealed. Only the aggregate total per
 (proposal, decision) pair is decrypted at tally time.
 
-**Vote commitment unlinkability.** The Vote Reveal Proof (ZKP #3) proves
+**Vote commitment unlinkability.** The Vote Reveal Proof proves
 that a revealed share belongs to some valid Vote Commitment in the VCT
 without revealing which one. Blinded per-share commitments prevent
 observers from recomputing $\mathsf{shares}\_\mathsf{hash}$ from on-chain
@@ -1026,7 +1026,7 @@ For each payload received, the server:
 1. Waits a randomized delay.
 2. Obtains the current VCT Merkle path for the VC.
 3. Derives the share nullifier.
-4. Constructs the Vote Reveal Proof (ZKP #3).
+4. Constructs the Vote Reveal Proof.
 5. Submits the share reveal transaction to the vote chain.
 
 **What the server learns:** the encrypted share ciphertext and blind
@@ -1207,8 +1207,8 @@ the delegation parameters. The signed note scaffolding — signed note
 integrity, signed note nullifier, rho binding, and output note
 commitment — can then be removed from the circuit. This migration is
 purely subtractive: the simplified circuit is a strict subset of the
-current one, and only ZKP #1 (the Delegation Proof) changes. ZKP #2
-(Vote Proof) and ZKP #3 (Vote Reveal Proof) are unaffected.
+current one, and only the Delegation Proof changes. The Vote Proof
+and Vote Reveal Proof are unaffected.
 
 ## Why $N_s$ Shares Per Vote
 
@@ -1244,7 +1244,7 @@ ciphertexts with their commitments.
 
 ## Why Server-Delegated Share Reveal
 
-The Vote Reveal Proof (ZKP #3) is constructed by the submission server
+The Vote Reveal Proof is constructed by the submission server
 rather than the voter's client for two reasons: mobile devices are
 unreliable for background ZKP computation, and server-side construction
 enables temporal mixing of shares from many voters. The trust
