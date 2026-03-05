@@ -312,9 +312,17 @@ ZEC supply yields at most $\approx 1.68 \times 10^8$ ballots).
 ### Vote Authority Note (VAN)
 
 A VAN represents spendable voting authority on the vote chain. Its
-commitment is:
+commitment is computed in two layers:
 
-$$\mathsf{van} = \mathsf{Poseidon}\bigl(\mathsf{DOMAIN\_VAN}, \mathsf{vpk}_{\mathsf{g\_d}}, \mathsf{vpk}_{\mathsf{pk\_d}}, \mathsf{num\_ballots}, \mathsf{voting}_{\mathsf{round\_id}}, \mathsf{proposal\_authority}, \mathsf{gov}_{\mathsf{comm\_rand}}\bigr)$$
+$$\mathsf{van}\_\mathsf{core} = \mathsf{Poseidon}\bigl(\mathsf{DOMAIN}\_\mathsf{VAN}, \mathsf{vpk}\_{\mathsf{g}\_\mathsf{d}}, \mathsf{vpk}\_{\mathsf{pk}\_\mathsf{d}}, \mathsf{num}\_\mathsf{ballots}, \mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}, \mathsf{proposal}\_\mathsf{authority}\bigr)$$
+
+$$\mathsf{van} = \mathsf{Poseidon}\bigl(\mathsf{van}\_\mathsf{core}, \mathsf{gov}\_{\mathsf{comm}\_\mathsf{rand}}\bigr)$$
+
+The first layer binds the structural fields; the second layer blinds
+the commitment with randomness. These are two separate Poseidon
+invocations ($\mathsf{ConstantLength}\langle 6 \rangle$ then
+$\mathsf{ConstantLength}\langle 2 \rangle$), not a single 7-input
+sponge absorption.
 
 where:
 
@@ -643,9 +651,13 @@ constructed note commitment to an output note addressed to the
 governance hotkey.
 
 **VAN integrity.** The public VAN commitment matches the claimed
-governance hotkey, ballot count, round, and full proposal authority:
+governance hotkey, ballot count, round, and full proposal authority
+(using the two-layer construction defined in [Vote Authority Note
+(VAN)]):
 
-$$\mathsf{van} = \mathsf{Poseidon}\bigl(\mathsf{DOMAIN}\_\mathsf{VAN}, \mathsf{vpk}\_{\mathsf{g}\_\mathsf{d}}, \mathsf{vpk}\_{\mathsf{pk}\_\mathsf{d}}, \mathsf{num}\_\mathsf{ballots}, \mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}, \mathsf{MAX}\_{\mathsf{PROPOSAL}\_\mathsf{AUTHORITY}}, \mathsf{gov}\_{\mathsf{comm}\_\mathsf{rand}}\bigr)$$
+$$\mathsf{van}\_\mathsf{core} = \mathsf{Poseidon}\bigl(\mathsf{DOMAIN}\_\mathsf{VAN}, \mathsf{vpk}\_{\mathsf{g}\_\mathsf{d}}, \mathsf{vpk}\_{\mathsf{pk}\_\mathsf{d}}, \mathsf{num}\_\mathsf{ballots}, \mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}, \mathsf{MAX}\_{\mathsf{PROPOSAL}\_\mathsf{AUTHORITY}}\bigr)$$
+
+$$\mathsf{van} = \mathsf{Poseidon}\bigl(\mathsf{van}\_\mathsf{core}, \mathsf{gov}\_{\mathsf{comm}\_\mathsf{rand}}\bigr)$$
 
 where $\mathsf{MAX}\_{\mathsf{PROPOSAL}\_\mathsf{AUTHORITY}} = 2^{16} - 1$.
 
@@ -753,9 +765,12 @@ depth $\mathsf{MerkleDepth}^{\mathsf{vct}}$ from $\mathsf{van}_{\mathsf{old}}$ t
 anchor $\mathsf{rt}^{\mathsf{vct}}$, using Poseidon for internal node hashing.
 
 **Condition 2 — Old VAN integrity.** The old VAN commitment matches the
-claimed fields:
+claimed fields (using the two-layer construction defined in
+[Vote Authority Note (VAN)]):
 
-$$\mathsf{van}_{\mathsf{old}} = \mathsf{Poseidon}\bigl(\mathsf{DOMAIN}\_\mathsf{VAN}, \mathsf{vpk}\_{\mathsf{g}\_\mathsf{d}}, \mathsf{vpk}\_{\mathsf{pk}\_\mathsf{d}}, \mathsf{num}\_\mathsf{ballots}, \mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}, \mathsf{proposal}\_{\mathsf{authority}\_\mathsf{old}}, \mathsf{gov}\_{\mathsf{comm}\_\mathsf{rand}}\bigr)$$
+$$\mathsf{van}\_{\mathsf{core}\_\mathsf{old}} = \mathsf{Poseidon}\bigl(\mathsf{DOMAIN}\_\mathsf{VAN}, \mathsf{vpk}\_{\mathsf{g}\_\mathsf{d}}, \mathsf{vpk}\_{\mathsf{pk}\_\mathsf{d}}, \mathsf{num}\_\mathsf{ballots}, \mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}, \mathsf{proposal}\_{\mathsf{authority}\_\mathsf{old}}\bigr)$$
+
+$$\mathsf{van}\_\mathsf{old} = \mathsf{Poseidon}\bigl(\mathsf{van}\_{\mathsf{core}\_\mathsf{old}}, \mathsf{gov}\_{\mathsf{comm}\_\mathsf{rand}}\bigr)$$
 
 **Condition 3 — Diversified address integrity.** The VAN's address
 belongs to the voting key:
@@ -810,9 +825,12 @@ $\mathsf{proposal}\_\mathsf{id}$ is cleared in the authority bitmask:
   $\mathsf{proposal}\_\mathsf{id}$ cleared; all other bits are unchanged.
 
 **Condition 7 — New VAN integrity.** The new VAN is correctly
-constructed:
+constructed (using the two-layer construction defined in
+[Vote Authority Note (VAN)]):
 
-$$\mathsf{van}_{\mathsf{new}} = \mathsf{Poseidon}\bigl(\mathsf{DOMAIN}\_\mathsf{VAN}, \mathsf{vpk}\_{\mathsf{g}\_\mathsf{d}}, \mathsf{vpk}\_{\mathsf{pk}\_\mathsf{d}}, \mathsf{num}\_\mathsf{ballots}, \mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}, \mathsf{proposal}\_{\mathsf{authority}\_\mathsf{new}}, \mathsf{gov}\_{\mathsf{comm}\_\mathsf{rand}}\bigr)$$
+$$\mathsf{van}\_{\mathsf{core}\_\mathsf{new}} = \mathsf{Poseidon}\bigl(\mathsf{DOMAIN}\_\mathsf{VAN}, \mathsf{vpk}\_{\mathsf{g}\_\mathsf{d}}, \mathsf{vpk}\_{\mathsf{pk}\_\mathsf{d}}, \mathsf{num}\_\mathsf{ballots}, \mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}, \mathsf{proposal}\_{\mathsf{authority}\_\mathsf{new}}\bigr)$$
+
+$$\mathsf{van}\_\mathsf{new} = \mathsf{Poseidon}\bigl(\mathsf{van}\_{\mathsf{core}\_\mathsf{new}}, \mathsf{gov}\_{\mathsf{comm}\_\mathsf{rand}}\bigr)$$
 
 The new VAN reuses the old VAN's diversified address and commitment
 randomness; only $\mathsf{proposal}\_\mathsf{authority}$ changes.
@@ -912,13 +930,14 @@ Given a primary input:
 
 - $\mathsf{share}\_\mathsf{nullifier} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$ —
   prevents double-counting.
-- $\mathsf{enc}\_\mathsf{share} ⦂ \mathbb{P}^* \times \mathbb{P}^*$ — the
-  El Gamal ciphertext $(C_1, C_2)$ for this share.
+- $C_{1,x}, C_{2,x} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$ — the $x$-coordinates
+  of the El Gamal ciphertext $(C_1, C_2)$ for this share. The full
+  points are carried in the share reveal message for homomorphic
+  accumulation, but only the $x$-coordinates are circuit public inputs.
 - $\mathsf{proposal}\_\mathsf{id} ⦂ \{1 \ldots 15\}$ — which proposal.
 - $\mathsf{vote}\_\mathsf{decision} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$ — the voter's choice.
 - $\mathsf{rt}^{\mathsf{vct}} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$ — root of the
   Vote Commitment Tree.
-- $\mathsf{anchor}\_\mathsf{height} ⦂ \mathbb{N}$ — VCT snapshot height.
 - $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$
 
 #### Auxiliary Inputs
@@ -968,7 +987,7 @@ inside the VC (via condition 2). The share commitments are blinded
 ciphertexts or blind factors of other shares to the prover.
 
 **Condition 4 — Share membership.** The commitment derived from the
-public $\mathsf{enc}\_\mathsf{share} = (C_1, C_2)$ and the witness blind
+public $x$-coordinates $C_{1,x}, C_{2,x}$ and the witness blind
 factor matches the share commitment at position
 $\mathsf{share}\_\mathsf{index}$:
 
@@ -1003,8 +1022,7 @@ following checks:
 1. Verify $\pi$ against the public inputs.
 2. Verify that $\mathsf{share}\_\mathsf{nullifier}$ does not appear in the
    share nullifier set. If it does, reject as double-counting.
-3. Verify that $\mathsf{rt}^{\mathsf{vct}}$ matches a published VCT root at
-   $\mathsf{anchor}\_\mathsf{height}$.
+3. Verify that $\mathsf{rt}^{\mathsf{vct}}$ matches a published VCT root.
 4. Verify that $\mathsf{proposal}\_\mathsf{id}$ is valid for the current round.
 5. Verify that $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}$ matches an active round.
 6. Add $\mathsf{share}\_\mathsf{nullifier}$ to the share nullifier set.
@@ -1027,7 +1045,6 @@ A share reveal transaction submitted to the vote chain MUST contain:
 | $\mathsf{proposal}\_\mathsf{id}$ | $\{1 \ldots 15\}$ | Proposal identifier |
 | $\mathsf{vote}\_\mathsf{decision}$ | Pallas scalar | Vote decision |
 | $\mathsf{rt}^{\mathsf{vct}}$ | Pallas scalar | VCT root |
-| $\mathsf{anchor}\_\mathsf{height}$ | integer | VCT anchor height |
 | $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}$ | Pallas scalar | Round identifier |
 
 Note: the Vote Reveal Proof has no spend authorization signature
