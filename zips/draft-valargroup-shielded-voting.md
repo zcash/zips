@@ -806,14 +806,14 @@ A vote transaction submitted to the vote chain MUST contain:
 |---|---|---|
 | $\pi_{\text{vote}}$ | Proof | The Vote Proof |
 | $\sigma_{\text{vote}}$ | Signature | SpendAuthSig under $\mathsf{r}_{\mathsf{vpk}}$ |
-| $\mathsf{van}_{\mathsf{nullifier}}$ | Pallas scalar | Old VAN nullifier |
+| $\mathsf{van}\_\mathsf{nullifier}$ | Pallas scalar | Old VAN nullifier |
 | $\mathsf{r}_{\mathsf{vpk}}$ | Pallas point | Randomized voting public key |
 | $\mathsf{van}_{\mathsf{new}}$ | Pallas scalar | New VAN commitment |
 | $\mathsf{vc}$ | Pallas scalar | Vote commitment |
 | $\mathsf{rt}^{\mathsf{vct}}$ | Pallas scalar | VCT root |
-| $\mathsf{anchor}_{\mathsf{height}}$ | integer | VCT anchor height |
-| $\mathsf{proposal}_{\mathsf{id}}$ | $\{1 \ldots 16\}$ | Proposal identifier |
-| $\mathsf{voting}_{\mathsf{round\_id}}$ | Pallas scalar | Round identifier |
+| $\mathsf{anchor}\_\mathsf{height}$ | integer | VCT anchor height |
+| $\mathsf{proposal}\_\mathsf{id}$ | $\{1 \ldots 16\}$ | Proposal identifier |
+| $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}$ | Pallas scalar | Round identifier |
 | $\mathsf{ea}_{\mathsf{pk}}$ | Pallas point | EA public key |
 
 
@@ -888,9 +888,10 @@ inside the VC (via condition 2). The share commitments are blinded
 (see [Why Blinded Share Commitments]), so they do not reveal the
 ciphertexts or blind factors of other shares to the prover.
 
-**Condition 4 — Share membership.** The public
-$\mathsf{enc}\_\mathsf{share} = (C_1, C_2)$ matches the ciphertext at position
-$\mathsf{share}\_\mathsf{index}$ in the committed set:
+**Condition 4 — Share membership.** The commitment derived from the
+public $\mathsf{enc}\_\mathsf{share} = (C_1, C_2)$ and the witness blind
+factor matches the share commitment at position
+$\mathsf{share}\_\mathsf{index}$:
 
 $$\mathsf{Poseidon}\bigl(\mathsf{blind}_{\mathsf{share}\_\mathsf{index}}, C_{1,x}, C_{2,x}\bigr) = \mathsf{share}\_\mathsf{comms}[\mathsf{share}\_\mathsf{index}]$$
 
@@ -942,13 +943,13 @@ A share reveal transaction submitted to the vote chain MUST contain:
 | Field | Type | Description |
 |---|---|---|
 | $\pi_{\text{reveal}}$ | Proof | The Vote Reveal Proof |
-| $\mathsf{share}_{\mathsf{nullifier}}$ | Pallas scalar | Share nullifier |
-| $\mathsf{enc}_{\mathsf{share}}$ | $(C_1, C_2)$ | El Gamal ciphertext (two Pallas points) |
-| $\mathsf{proposal}_{\mathsf{id}}$ | $\{1 \ldots 16\}$ | Proposal identifier |
-| $\mathsf{vote}_{\mathsf{decision}}$ | Pallas scalar | Vote decision |
+| $\mathsf{share}\_\mathsf{nullifier}$ | Pallas scalar | Share nullifier |
+| $\mathsf{enc}\_\mathsf{share}$ | $(C_1, C_2)$ | El Gamal ciphertext (two Pallas points) |
+| $\mathsf{proposal}\_\mathsf{id}$ | $\{1 \ldots 16\}$ | Proposal identifier |
+| $\mathsf{vote}\_\mathsf{decision}$ | Pallas scalar | Vote decision |
 | $\mathsf{rt}^{\mathsf{vct}}$ | Pallas scalar | VCT root |
-| $\mathsf{anchor}_{\mathsf{height}}$ | integer | VCT anchor height |
-| $\mathsf{voting}_{\mathsf{round\_id}}$ | Pallas scalar | Round identifier |
+| $\mathsf{anchor}\_\mathsf{height}$ | integer | VCT anchor height |
+| $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}$ | Pallas scalar | Round identifier |
 
 Note: the Vote Reveal Proof has no spend authorization signature
 because it is constructed by the submission server, not the voter.
@@ -962,10 +963,10 @@ payload. For share $i$, the payload MUST contain:
 |---|---|
 | $\mathsf{vc}$ | The vote commitment |
 | VCT position | Position of $\mathsf{vc}$ in the VCT |
-| $\mathsf{shares}_{\mathsf{hash}}$ | Hash of all blinded share commitments |
-| $\mathsf{proposal}_{\mathsf{id}}$ | Proposal identifier |
-| $\mathsf{vote}_{\mathsf{decision}}$ | Vote decision |
-| $\mathsf{share}_{\mathsf{index}}$ | Which share to reveal (0-indexed) |
+| $\mathsf{shares}\_\mathsf{hash}$ | Hash of all blinded share commitments |
+| $\mathsf{proposal}\_\mathsf{id}$ | Proposal identifier |
+| $\mathsf{vote}\_\mathsf{decision}$ | Vote decision |
+| $\mathsf{share}\_\mathsf{index}$ | Which share to reveal (0-indexed) |
 | $\mathsf{enc}\_\mathsf{share}$ | El Gamal ciphertext $(C_1, C_2)$ for this share |
 | $\mathsf{blind}$ | Blind factor for this share |
 | $\mathsf{share}\_{\mathsf{comm}\_0} \ldots \mathsf{share}\_{\mathsf{comm}\_{N_s - 1}}$ | All $N_s$ blinded share commitments |
@@ -1046,9 +1047,7 @@ during this process.
 
 **Step 3 — Publish result with proof.** The proposer publishes
 $\mathsf{total}\_\mathsf{ballots}$ together with the individual partial
-decryptions and their DLEQ proofs. Anyone can verify each partial
-decryption against the validator's public share commitment (derived from
-the Feldman commitments published during the key ceremony), recompute
+decryptions and their DLEQ proofs. Anyone can recompute
 the Lagrange combination, and confirm the claimed
 $\mathsf{total}\_\mathsf{ballots}$.
 
