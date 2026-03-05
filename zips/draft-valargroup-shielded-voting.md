@@ -344,10 +344,12 @@ where $\mathsf{tag}_{\mathsf{van}}$ is the field-element encoding of the domain
 separator `"vote authority spend"` and $\mathsf{nk}$ is the nullifier
 deriving key from the holder's full viewing key.
 
-**Lifecycle.** A VAN is created during delegation (Phase 1), consumed
-during voting (Phase 2) or further delegation, and replaced by a new VAN
-with updated $\mathsf{proposal}\_\mathsf{authority}$ (voting) or split
-$\mathsf{num}\_\mathsf{ballots}$ (delegation).
+**Lifecycle.** A VAN is created during delegation (Phase 1) and consumed
+during voting (Phase 2), which produces a replacement VAN with updated
+$\mathsf{proposal}\_\mathsf{authority}$. The VAN model is designed to
+support future extensions such as partial delegation (splitting
+$\mathsf{num}\_\mathsf{ballots}$ across multiple delegates), but this
+ZIP specifies only the delegation and voting operations.
 
 ### Vote Commitment (VC)
 
@@ -1354,13 +1356,18 @@ appeal is reduced client sync overhead: voters would not need to track
 VAN re-insertions or maintain up-to-date Merkle paths for their own
 VANs.
 
-The send-based model is retained because the alternative removes
-partial delegation — the ability to split $\mathsf{num}\_\mathsf{ballots}$
-across multiple delegates, each receiving a fraction of the holder's
-voting weight. The VAN's explicit ballot count and proposal authority
-bitmask are the mechanism that enables this. Under the keysharing
-alternative, the delegate holds the full key and therefore the full
-voting weight; there is no in-protocol mechanism to subdivide it.
+The send-based model is retained because it preserves the ability to
+add partial delegation in a future extension — splitting
+$\mathsf{num}\_\mathsf{ballots}$ across multiple delegates, each
+receiving a fraction of the holder's voting weight. The VAN's explicit
+ballot count and proposal authority bitmask are the data model that
+would enable this; a future VAN-to-VAN delegation proof could consume
+one VAN and produce two with subdivided ballot counts. Partial
+delegation is not specified in this ZIP but the VAN model keeps the
+design space open. Under the keysharing alternative, the delegate holds
+the full key and therefore the full voting weight; there is no
+in-protocol mechanism to subdivide it, and adding one later would
+require a fundamentally different data model.
 
 The sync savings of the alternative are also smaller than they first
 appear: even without VAN re-creation, clients still need to update
@@ -1487,11 +1494,17 @@ finalization of this ZIP.
   integrity, rho binding, output note commitment). The migration is
   purely subtractive — the post-firmware circuit is a strict subset of
   the pre-firmware circuit. See [Why a Dummy Signed Note].
+- Partial delegation — a VAN-to-VAN delegation proof that consumes
+  one VAN and produces two with subdivided $\mathsf{num}\_\mathsf{ballots}$
+  — is enabled by the send-based VAN model but not specified in this
+  ZIP. Specifying the circuit and transaction type would allow a
+  holder to distribute voting weight across multiple delegates.
+  See [Why a Send-Based VAN Model].
 - A simplified non-send VAN model — replacing VAN consumption and
   re-creation with out-of-band key delegation — would remove the
   proposal authority decrement step from the Vote Proof and reduce
   per-vote VCT growth. This is currently not adopted because it
-  eliminates partial delegation and clients still need VCT Merkle path
+  forecloses partial delegation and clients still need VCT Merkle path
   updates regardless. If future design changes remove the client's need
   to track VCT paths (e.g., full server-side path retrieval), this
   tradeoff should be revisited.
