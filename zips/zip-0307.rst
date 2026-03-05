@@ -190,8 +190,8 @@ server here without loss of generality.
 Local processing
 ----------------
 
-Given a ``CompactBlock`` at block height $\mathsf{height}$ received in height-sequential
-order from a proxy server, a light client can process it in four ways:
+Given a ``CompactBlock`` at block height $\mathsf{height}$ received from a proxy server, a
+light client processes it in the following ways:
 
 Scanning for relevant transactions
 ``````````````````````````````````
@@ -290,142 +290,52 @@ validation. If a txid is used in a ``GetTransaction`` call, the returned transac
 SHOULD be checked against the corresponding ``CompactOutputs``, in addition to verifying
 the transaction signatures.
 
-Potential extensions
-````````````````````
-
-A trivial extension (with corresponding bandwidth cost) would be to transmit empty
-``CompactTxs`` corresponding to transactions that do not contain Sapling spends or
-outputs. A more complex extension would send the inner nodes within the transaction
-trees corresponding to non-Sapling-relevant subtrees; this would require strictly less
-bandwidth that the trivial extension. These extensions are not currently defined.
-
-
 Client-server interaction
 -------------------------
 
-We can divide the typical client-server interaction into four distinct phases:
+A light client MUST perform the following operations as part of synchronisation:
 
-.. code:: text
+- **Trial decryption**: For each ``CompactSaplingOutput`` and ``CompactOrchardAction`` in
+  the scanned ``CompactBlocks``, the light client attempts trial decryption against its
+  set of incoming viewing keys. Successfully decrypted outputs represent received notes.
+  See `Scanning for relevant transactions`_ for details.
 
-    Phase   Client                Server
-    =====   ============================
-      A     GetLatestBlock ------------>
+- **Nullifier matching**: For each ``CompactSaplingSpend`` nullifier and
+  ``CompactOrchardAction`` nullifier in the scanned ``CompactBlocks``, the light client
+  checks against its set of known nullifiers for unspent notes. A match indicates that the
+  corresponding note has been spent.
 
-            <---------------- BlockID(X)
+- **Note commitment tree maintenance**: The light client updates its local note commitment
+  tree state as described in `Maintaining note commitment tree witnesses`_.
 
-            GetBlock(X) --------------->
+Retrieving full transactions
+````````````````````````````
 
-            <----------- CompactBlock(X)
+The compact block stream provides sufficient information for payment detection and balance
+tracking, but does not include memo fields or other transaction details. When a light
+client needs to access the memo field of a received note, the outgoing ciphertexts for
+spend recovery, or other transaction components, it retrieves the full transaction via the
+``GetTransaction`` RPC method.
 
-                ===
+Since a ``GetTransaction`` request reveals to the proxy server that the light client is
+interested in a specific transaction, full transaction retrieval SHOULD be performed over a
+privacy-preserving network connection such as Tor [#tor]_ or the Nym mixnet [#nym]_.
 
-      B     GetLatestBlock ------------>
-
-            <---------------- BlockID(Y)
-
-            GetBlockRange(X, Y) ------->
-
-            <--------- CompactBlock(X)
-            <--------- CompactBlock(X+1)
-            <--------- CompactBlock(X+2)
-                            ...
-            <--------- CompactBlock(Y-1)
-            <--------- CompactBlock(Y)
-
-                ===
-
-      C     GetTransaction(X+4, 7) ---->
-
-            <--- FullTransaction(X+4, 7)
-
-            GetTransaction(X+9, 2) ---->
-
-            <--- FullTransaction(X+9, 2)
-
-                ===
-
-      D     GetLatestBlock ------------>
-
-            <---------------- BlockID(Z)
-
-            GetBlockRange(Y, Z) ------->
-
-            <--------- CompactBlock(Y)
-            <--------- CompactBlock(Y+1)
-            <--------- CompactBlock(Y+2)
-                            ...
-            <--------- CompactBlock(Z-1)
-            <--------- CompactBlock(Z)
-
-**Phase A:** The light client starts up for the first time.
-
-- The light client queries the server to fetch the most recent block ``X``.
-- The light client queries the commitment tree state for block ``X``.
-
-  - Or, it has to set ``X`` to the block height at which Sapling activated, so as to be
-    sent the entire commitment tree. [TODO: Decide which to specify.]
-
-- Shielded addresses created by the light client will not have any relevant transactions
-  in this or any prior block.
-
-**Phase B:** The light client updates its local chain view for the first time.
-
-- The light client queries the server to fetch the most recent block ``Y``.
-- It then executes a block range query to fetch every block between ``X`` (inclusive) and
-  ``Y`` (inclusive).
-- The block at height ``X`` is checked to ensure the received ``blockHash`` matches the
-  light client's cached copy, and then discards it without further processing.
-
-  - An inconsistency would imply that block ``X`` was orphaned during a chain reorg.
-
-- As each subsequent ``CompactBlock`` arrives, the light client:
-
-  - Validates the block header if it is present.
-  - Scans the ``CompactBlock`` to find any relevant transactions for addresses generated
-    since ``X`` was fetched (likely the first transactions involving those addresses). If
-    notes are detected, it:
-
-    - Generates incremental witnesses for the notes, and updates them going forward.
-    - Scans for their nullifiers from that block onwards.
-
-**Phase C:** The light client has detected some notes and displayed them. User interaction
-has indicated that the corresponding full transactions should be fetched.
-
-- The light client queries the server for each transaction it wishes to fetch.
-
-**Phase D:** The user has spent some notes. The light client updates its local chain view
-some time later.
-
-- The light client queries the server to fetch the most recent block ``Z``.
-- It then executes a block range query to fetch every block between ``Y`` (inclusive) and
-  ``Z`` (inclusive).
-- The block at height ``Y`` is checked to ensure the received ``blockHash`` matches the
-  light client's cached copy, and then discards it without further processing.
-
-  - An inconsistency would imply that block ``Y`` was orphaned during a chain reorg.
-
-- As each subsequent ``CompactBlock`` arrives, the light client:
-
-  - Validates the block header if it is present.
-  - Updates the incremental witnesses for known notes.
-  - Scans for any known nullifiers. The corresponding notes are marked as spent at that
-    height, and excluded from further witness updates.
-  - Scans for any relevant transactions for addresses generated since ``Y`` was fetched.
-    These are handled as in phase B.
-
-Importing a pre-existing seed
+Importing a pre-existing key
 `````````````````````````````
-Phase A of the interaction assumes that shielded addresses created by the light client
-will have never been used before. This is not a valid assumption if the light client is
-being initialised with a seed that it did not generate (e.g. a previously backed-up seed).
-In this case, phase A is modified as follows:
+The light client's scanning start height (often called the "wallet birthday")
+determines how far back the light client must scan to detect all relevant
+transactions. When a light client is initialized with a newly generated key, it
+can use the current chain tip as its wallet birthday, since no prior
+transactions can be relevant.
 
-**Phase A:** The light client starts up for the first time.
-
-- The light client sets ``X`` to the block height at which Sapling activated.
-
-  - Shielded addresses created by any light client cannot have any relevant transactions
-    prior to Sapling activation.
+When initialized with a pre-existing key —- whether a seed, a full viewing key,
+or an incoming viewing key —- the light client MUST scan from the key's
+birthday height, which is the earliest block height at which the key could have
+been used. If the birthday height is unknown and cannot be estimated by the
+user, the light client SHOULD scan from the activation height of the earliest
+shielded protocol supported by the key (Sapling activation at block 419200 on
+mainnet, or Orchard activation at block 1687104 on mainnet).
 
 Block privacy via bucketing
 ---------------------------
@@ -550,3 +460,5 @@ References
 .. [#protocolbuffers] `Protocol Buffers documentation <https://developers.google.com/protocol-buffers/>`_
 .. [#incremental-witness] `zcash_primitives Rust crate — merkle_tree.rs <https://github.com/zcash/librustzcash/blob/master/zcash_primitives/src/merkle_tree.rs>`_
 .. [#spv-clients] `Bitcoin Wiki: Scalability — Simplified payment verification <https://en.bitcoin.it/wiki/Scalability#Simplified_payment_verification>`_
+.. [#tor] `Tor Project <https://www.torproject.org/>`_
+.. [#nym] `Nym mixnet <https://nymtech.net/>`_
