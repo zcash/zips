@@ -366,8 +366,9 @@ Proof proves membership without exposing which VC is being opened.
 
 ### Vote Share
 
-A vote share is one of the $N_s$ encrypted portions of a voter's ballot
-count within a VC.
+A vote share is one of $N_s = 16$ encrypted portions of a voter's ballot
+count within a VC. The value 16 is chosen as a sufficiently high number
+to ensure amount privacy through share decomposition.
 
 For share index $i \in \{0 \ldots N_s - 1\}$:
 
@@ -1259,26 +1260,6 @@ finalization of this ZIP.
 
 # Open issues
 
-- The Poseidon instantiation ($\mathsf{P128Pow5T3}$) and round
-  constants should be explicitly referenced or pinned once a canonical
-  parameter set for Zcash usage is published.
-- The exact sighash construction for the Delegation Proof and Vote
-  Proof (what is signed by the spend authorization key, and how it
-  binds to the proof's public inputs) requires further specification.
-- The depth of the Vote Commitment Tree
-  ($\mathsf{MerkleDepth}^{\mathsf{vct}}$) should be specified based on expected
-  capacity requirements.
-- The encoding of domain separator strings (`"governance authorization"`,
-  `"vote authority spend"`, `"share spend"`) as field elements should be
-  pinned to a specific encoding procedure.
-- The number of shares $N_s = 16$ is a design target; the current
-  implementation uses a smaller value. The final parameter should be
-  confirmed based on circuit size and proving time benchmarks.
-- The interaction between delegation (VAN splitting) and the Delegation
-  Proof circuit (which produces a single VAN) should be specified for
-  the delegation extension.
-- The $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}$ derivation procedure should be
-  specified to ensure uniqueness across rounds.
 - Per-validator Chaum–Pedersen DLEQ proofs for partial decryptions
   would allow immediate identification of misbehaving validators at
   tally time, converting the current liveness cost (subset search) to
