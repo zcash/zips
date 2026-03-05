@@ -1310,6 +1310,40 @@ and exclusion of misbehaving validators, reducing verification to
 $O(1)$ per partial decryption. This is left as a future enhancement
 (see [Open issues]).
 
+## Why a Send-Based VAN Model
+
+The Vote Proof consumes the old VAN and produces a new one with the
+voted proposal's authority bit cleared. This is a UTXO-style
+"send" — each vote appends two leaves to the VCT (new VAN + VC) and
+requires the voter to hold a current Merkle path.
+
+An alternative design was considered in which the VAN is eliminated
+entirely and delegation is performed by out-of-band sharing of a
+private key (hash-committed to on-chain). Under this model the Vote
+Proof would not consume or re-create a VAN, removing the proposal
+authority decrement step and the corresponding VCT growth. The primary
+appeal is reduced client sync overhead: voters would not need to track
+VAN re-insertions or maintain up-to-date Merkle paths for their own
+VANs.
+
+The send-based model is retained because the alternative removes
+partial delegation — the ability to split $\mathsf{num}\_\mathsf{ballots}$
+across multiple delegates, each receiving a fraction of the holder's
+voting weight. The VAN's explicit ballot count and proposal authority
+bitmask are the mechanism that enables this. Under the keysharing
+alternative, the delegate holds the full key and therefore the full
+voting weight; there is no in-protocol mechanism to subdivide it.
+
+The sync savings of the alternative are also smaller than they first
+appear: even without VAN re-creation, clients still need to update
+VCT Merkle paths for their Vote Commitments (which the submission
+server requires for the Vote Reveal Proof). The VAN model adds
+incremental path-update overhead but does not introduce a new
+category of sync obligation. If a future design change eliminated the
+need for clients to track VCT paths entirely — for example by moving
+Merkle path retrieval fully to the submission server — the tradeoff
+would shift in favor of removing the VAN. See [Open issues].
+
 ## Why Domain Tags in the VCT
 
 Both VANs and VCs are leaves in the same Merkle tree. The domain tags
@@ -1369,6 +1403,15 @@ finalization of this ZIP.
   integrity, rho binding, output note commitment). The migration is
   purely subtractive — the post-firmware circuit is a strict subset of
   the pre-firmware circuit. See [Why a Dummy Signed Note].
+- A simplified non-send VAN model — replacing VAN consumption and
+  re-creation with out-of-band key delegation — would remove the
+  proposal authority decrement step from the Vote Proof and reduce
+  per-vote VCT growth. This is currently not adopted because it
+  eliminates partial delegation and clients still need VCT Merkle path
+  updates regardless. If future design changes remove the client's need
+  to track VCT paths (e.g., full server-side path retrieval), this
+  tradeoff should be revisited.
+  See [Why a Send-Based VAN Model].
 
 
 # References
