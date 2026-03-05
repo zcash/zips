@@ -338,11 +338,11 @@ where:
 **VAN nullifier.** When a VAN is consumed (to vote or delegate), its
 nullifier is:
 
-$$\mathsf{van}\_\mathsf{nullifier} = \mathsf{Poseidon}\bigl(\mathsf{nk}, \mathsf{tag}_{\mathsf{van}}, \mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}, \mathsf{van}\bigr)$$
+$$\mathsf{van}\_\mathsf{nullifier} = \mathsf{Poseidon}\bigl(\mathsf{vsk.nk}, \mathsf{tag}_{\mathsf{van}}, \mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}, \mathsf{van}\bigr)$$
 
 where $\mathsf{tag}_{\mathsf{van}}$ is the field-element encoding of the domain
-separator `"vote authority spend"` and $\mathsf{nk}$ is the nullifier
-deriving key from the holder's full viewing key.
+separator `"vote authority spend"` and $\mathsf{vsk.nk}$ is the nullifier
+deriving key from the governance hotkey's full viewing key.
 
 **Lifecycle.** A VAN is created during delegation (Phase 1) and consumed
 during voting (Phase 2), which produces a replacement VAN with updated
@@ -469,6 +469,41 @@ The protocol defines three tags:
 | $\mathsf{tag}\_{\mathsf{gov}}$ | `"governance authorization"` | 24 bytes |
 | $\mathsf{tag}\_{\mathsf{van}}$ | `"vote authority spend"` | 20 bytes |
 | $\mathsf{tag}\_{\mathsf{share}}$ | `"share spend"` | 11 bytes |
+
+
+## Governance Hotkey
+
+The governance hotkey is a separate Orchard key hierarchy generated on
+a general-purpose device (e.g., a mobile phone). It is distinct from
+the holder's Orchard spending key, which may reside on a hardware
+wallet. The hotkey provides the key material for all voting operations
+after delegation.
+
+A governance hotkey consists of:
+
+- A fresh spend-authorizing key $\mathsf{vsk}$, from which
+  $\mathsf{vsk.ak} = [\mathsf{vsk}]\, G$ is derived.
+- A nullifier deriving key $\mathsf{vsk.nk}$, derived from the hotkey's
+  spending key via the standard Orchard key hierarchy.
+- A CommitIvk trapdoor $\mathsf{rivk}\_\mathsf{v}$, derived from the
+  hotkey's spending key.
+- A diversified address
+  $(\mathsf{vpk}\_{\mathsf{g}\_\mathsf{d}}, \mathsf{vpk}\_{\mathsf{pk}\_\mathsf{d}})$
+  at a chosen diversifier index, where
+  $\mathsf{vpk}\_{\mathsf{pk}\_\mathsf{d}} = [\mathsf{ivk}\_\mathsf{v}]\, \mathsf{vpk}\_{\mathsf{g}\_\mathsf{d}}$
+  and $\mathsf{ivk}\_\mathsf{v} = \mathsf{CommitIvk}\_{\mathsf{rivk}\_\mathsf{v}}\!\bigl(\mathsf{Extract}\_{\mathbb{P}}(\mathsf{vsk.ak}),\; \mathsf{vsk.nk}\bigr)$.
+
+The Delegation Proof does not constrain the hotkey address to match the
+holder's key — the output address is bound to the delegation
+transitively through the VAN commitment and the rho binding (see
+[Delegation Proof]), which the holder's hardware wallet authenticates
+via the spend authorization signature.
+
+The hotkey MAY be generated deterministically from a seed (e.g., via
+Blake2b with a voting-specific personalization) or sampled randomly.
+The generation method is an application concern; the protocol requires
+only that the resulting key material satisfies the standard Orchard
+key relationships above.
 
 
 ## Ballot Scaling
@@ -687,7 +722,7 @@ The prover knows:
 - $\mathsf{vsk.ak} ⦂ \mathbb{P}^*$ — voting spend authorization
   validating key.
 - $\mathsf{vsk.nk} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$ — nullifier
-  deriving key (same as $\mathsf{nk}$ from the holder's FVK).
+  deriving key from the governance hotkey's full viewing key.
 - $\mathsf{rivk}\_\mathsf{v} ⦂ \mathsf{Commit}^{\mathsf{ivk}}\mathsf{.Trapdoor}$ —
   CommitIvk randomness for the voting key.
 - $\alpha_v$ — spend authorization randomizer for the voting hotkey.
@@ -748,12 +783,18 @@ where $\mathsf{tag}_{\mathsf{van}}$ is the field-element encoding of
 ### Rationale for VAN nullifier domain separation
 </summary>
 
-The VAN nullifier and governance nullifier both use $\mathsf{nk}$ as the
-Poseidon key (since $\mathsf{vsk.nk}$ and $\mathsf{nk}$ are the same
-field element). Cross-circuit collision resistance relies on the domain
-tags being distinct: `"vote authority spend"` and
+The VAN nullifier uses $\mathsf{vsk.nk}$ (the governance hotkey's
+nullifier deriving key) as the Poseidon key, while the governance
+nullifier uses $\mathsf{nk}$ (the holder's nullifier deriving key).
+When the hotkey is a separate key from the holder's, these are distinct
+field elements, and cross-circuit collision resistance follows from the
+key difference alone. When the hotkey reuses the holder's key hierarchy
+(e.g., in an all-software flow without hardware wallet separation),
+$\mathsf{vsk.nk} = \mathsf{nk}$ and collision resistance relies on
+the domain tags being distinct: `"vote authority spend"` and
 `"governance authorization"` differ in both byte length and content,
-producing distinct field elements.
+producing distinct field elements. The domain tags provide
+defense-in-depth in both cases.
 </details>
 
 ##### New VAN Construction
