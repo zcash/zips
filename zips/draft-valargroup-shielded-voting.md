@@ -724,14 +724,14 @@ producing distinct field elements.
 ##### New VAN Construction
 
 **Condition 6 — Proposal authority decrement.** Bit
-$\mathsf{proposal}\_\mathsf{id}$ is cleared in the authority bitmask:
+$\mathsf{proposal}\_\mathsf{id} - 1$ is cleared in the authority bitmask:
 
 - $\mathsf{proposal}\_{\mathsf{authority}\_\mathsf{old}}$ is decomposed into 16 boolean
   wires $b_0, \ldots, b_{15}$ that recompose to the original value.
-- The bit at position $\mathsf{proposal}\_\mathsf{id}$ is asserted to be 1
+- The bit at position $\mathsf{proposal}\_\mathsf{id} - 1$ is asserted to be 1
   (the voter has authority for this proposal).
 - $\mathsf{proposal}\_{\mathsf{authority}\_\mathsf{new}}$ is the recomposition with bit
-  $\mathsf{proposal}\_\mathsf{id}$ cleared; all other bits are unchanged.
+  $\mathsf{proposal}\_\mathsf{id} - 1$ cleared; all other bits are unchanged.
 
 **Condition 7 — New VAN integrity.** The new VAN is correctly
 constructed:
