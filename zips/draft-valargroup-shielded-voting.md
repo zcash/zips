@@ -227,7 +227,8 @@ see [^pir-governance].
 - The operational process for conducting a coinholder vote (validator
   setup, poll creation, deadlines) is out of scope; it is expected to
   be specified in a separate ZIP.
-- Distributed key generation (producing $\mathsf{ea}\_\mathsf{pk}$ without any
+- Distributed key generation of the election authority's El Gamal keypair
+  among validators (producing $\mathsf{ea}\_\mathsf{pk}$ without any single
   party constructing $\mathsf{ea}\_\mathsf{sk}$) is out of scope; the current
   design uses a trusted dealer.
 - Post-quantum security of the El Gamal encryption layer is out of
