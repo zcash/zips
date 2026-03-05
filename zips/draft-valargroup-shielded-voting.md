@@ -1131,6 +1131,30 @@ bounded discrete-log search at tally time has a smaller search space.
 The 0.125 ZEC minimum also prevents dust delegations from bloating vote
 chain state.
 
+## Why Delegation to a Hotkey
+
+The protocol requires voters to produce Halo 2 zero-knowledge proofs
+(delegation proof, vote proof) and construct vote commitments —
+operations that demand general-purpose computation on private key
+material. Hardware wallets that custody Orchard spending keys cannot
+perform these operations: they support signature generation but not
+arbitrary-circuit ZKP construction.
+
+Delegation to a governance hotkey resolves this by separating spend
+authorization from vote execution. The hardware wallet signs a single
+$\mathsf{SpendAuthSig}^{\mathsf{Orchard}}$ during delegation, authorizing the
+transfer of voting power to a software-controlled hotkey. All subsequent
+voting operations — VAN consumption, vote commitment construction, share
+submission — use the hotkey's key material and run on a general-purpose
+device.
+
+Without this separation, hardware wallet users would need to either
+export spending keys to a software environment — negating the security
+benefit of hardware custody — or forgo participation in governance
+entirely. Delegation preserves the hardware wallet's role as the sole
+custodian of spending keys while enabling full participation in the
+voting protocol.
+
 ## Why $N_s$ Shares Per Vote
 
 Splitting a vote into $N_s$ shares serves two purposes. First, it
