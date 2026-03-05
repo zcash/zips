@@ -10,7 +10,7 @@
     Category: Standards
     Created: 2026-03-04
     License: MIT
-    Pull-Request: <https://github.com/zcash/zips/pull/???>
+    Pull-Request: <https://github.com/zcash/zips/pull/1200>
 
 
 # Terminology
@@ -1600,11 +1600,11 @@ finalization of this ZIP.
 
 [^poseidon]: [Poseidon: A New Hash Function for Zero-Knowledge Proof Systems](https://eprint.iacr.org/2019/458)
 
-[^balance-proof]: [Draft ZIP: Orchard Proof-of-Balance](draft-valargroup-orchard-balance-proof)
+[^balance-proof]: [Orchard Proof-of-Balance](draft-valargroup-orchard-balance-proof)
 
-[^pir-governance]: [Draft ZIP: Private Information Retrieval for Nullifier Exclusion Proofs](draft-valargroup-nullifier-pir)
+[^pir-governance]: [Private Information Retrieval for Nullifier Exclusion Proofs](draft-valargroup-nullifier-pir)
 
-[^ea-ceremony]: [Draft ZIP: Election Authority Key Ceremony](draft-valargroup-ea-key-ceremony)
+[^ea-ceremony]: [Election Authority Key Ceremony](draft-valargroup-ea-key-ceremony)
 
 [^chaum-pedersen]: [Chaum, D. and Pedersen, T.P. "Wallet Databases with Observers." CRYPTO 1992](https://link.springer.com/chapter/10.1007/3-540-48071-4_7)
 
