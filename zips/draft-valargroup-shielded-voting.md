@@ -26,9 +26,8 @@ The terms below are to be interpreted as follows:
 
 Ballot
 
-: A unit of voting weight equal to
-  $\lfloor v / 12{,}500{,}000 \rfloor$ where $v$ is a balance in
-  zatoshi. One ballot corresponds to 0.125 ZEC.
+: A unit of voting weight derived from a zatoshi balance. The
+  conversion from zatoshi to ballots is defined in [Ballot Scaling].
 
 Vote Authority Note (VAN)
 
@@ -51,8 +50,8 @@ Vote Commitment Tree (VCT)
 Vote share
 
 : One of $N_s$ encrypted portions of a voter's ballot count within a
-  Vote Commitment. Each share is an El Gamal ciphertext under the
-  election authority's public key.
+  Vote Commitment. Each share is submitted independently for
+  homomorphic accumulation.
 
 Voting round
 
