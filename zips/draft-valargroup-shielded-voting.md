@@ -112,8 +112,9 @@ revealing which Vote Commitment the share originated from.
 After the voting window closes, anyone can publicly aggregate the
 revealed El Gamal ciphertexts per proposal option. Validators holding
 Shamir shares of the election authority key cooperate to produce partial
-decryptions; the results are combined and verified via Chaum–Pedersen
-DLEQ proofs. Individual vote amounts are never revealed.
+decryptions; the results are combined via Lagrange interpolation and
+the aggregate total is publicly verified. Individual vote amounts are
+never revealed.
 
 
 # Motivation
@@ -263,10 +264,11 @@ homomorphically.
 
 **Phase 5 — Tally.** After the voting window closes, at least $t$
 validators produce partial decryptions of the aggregate ciphertext per
-(proposal, decision) pair. The partial decryptions are combined via
+(proposal, decision) pair. The partial decryptions are stored on-chain and combined via
 Lagrange interpolation to recover the total ballot count (via bounded
-discrete-log search), with correctness verified through per-validator
-Chaum–Pedersen DLEQ proofs.
+discrete-log search). Correctness is publicly verifiable: anyone can
+recompute the Lagrange combination from the on-chain partial
+decryptions.
 
 
 ## El Gamal Encryption on Pallas
@@ -1032,9 +1034,8 @@ independently verify the aggregation.
 
 **Step 2 — Threshold decryption.** At least $t$ validators each produce
 a partial decryption of the aggregate ciphertext using their Shamir
-share, accompanied by a Chaum–Pedersen DLEQ proof [^chaum-pedersen] of
-correctness. The partial decryptions are combined via Lagrange
-interpolation:
+share and post it on-chain. The partial decryptions are combined via
+Lagrange interpolation:
 
 $$\sum C_{2,j} - \sum_{i \in S} [\lambda_i]\, D_i = [\mathsf{total}\_\mathsf{ballots}]\, G$$
 
@@ -1045,11 +1046,10 @@ via baby-step giant-step discrete-log search (feasible because the total
 is bounded by ZEC supply). No party reconstructs $\mathsf{ea}\_\mathsf{sk}$
 during this process.
 
-**Step 3 — Publish result with proof.** The proposer publishes
-$\mathsf{total}\_\mathsf{ballots}$ together with the individual partial
-decryptions and their DLEQ proofs. Anyone can recompute
-the Lagrange combination, and confirm the claimed
-$\mathsf{total}\_\mathsf{ballots}$.
+**Step 3 — Public verification.** The individual partial decryptions
+$D_i$ and the aggregate ciphertext are all on-chain. Anyone can
+recompute the Lagrange combination for any qualifying subset of $t$
+validators and confirm the claimed $\mathsf{total}\_\mathsf{ballots}$.
 
 Individual vote amounts are never revealed — only the aggregate total
 per (proposal, decision) pair. The threshold decryption procedure is specified in [^ea-ceremony].
@@ -1067,11 +1067,9 @@ transitions to active status once a quorum of validators have verified
 their shares and acknowledged receipt.
 
 At tally time, at least $t = \lceil 2n/3 \rceil + 1$ validators
-cooperate to produce partial decryptions of the aggregate ciphertext.
-Each partial decryption is accompanied by a Chaum–Pedersen DLEQ proof
-verifiable against the validator's public share commitment. The partial
-decryptions are combined via Lagrange interpolation — the full secret
-key is never reconstructed.
+cooperate to produce partial decryptions of the aggregate ciphertext
+and post them on-chain. The partial decryptions are combined via
+Lagrange interpolation — the full secret key is never reconstructed.
 
 The ceremony protocol — including dealer selection, Feldman VSS
 construction, ECIES share distribution, validator acknowledgment,
@@ -1195,16 +1193,42 @@ assumption: an adversary that controls fewer than one-third of
 validators cannot reach the decryption threshold, so the existing
 consensus trust boundary extends to vote-amount privacy.
 
-The protocol uses a trusted dealer rather than
-distributed key generation (DKG).
+The protocol uses a trusted dealer rather than distributed key
+generation (DKG). Feldman VSS commitments (which would let each
+validator verify that its share is consistent with
+$\mathsf{ea}\_\mathsf{pk}$) are omitted for initial scope; the dealer is
+trusted to distribute correct shares, and any tampering would be
+caught at tally time. Distributed key generation is a potential future
+enhancement (see [Open issues]).
 
+## Why No Per-Validator DLEQ Proofs
 
-For initial scope, we have consdered Feldman VSS buthave opted out. We have to trust the dealer and validators to correctly distribute the shares. This is a correctness problem which would be caught at tally if tampered with.
+Each validator's partial decryption $D_i = [s_i]\, \sum C_{1,j}$ is
+posted on-chain without a Chaum–Pedersen DLEQ proof [^chaum-pedersen]
+attesting that $s_i$ matches the validator's committed share. This is a
+deliberate simplification.
 
-The following are left as consideration for future scope:
-- Feldman commitment from dealer to prove they submitted the right share
-- DLEQ proofs for validators to confirm that they used a correct share
-- Distributed key generation
+Without DLEQ proofs, a malicious validator can post a bogus $D_i$. Any
+Lagrange combination that includes this $D_i$ will produce an incorrect
+message point, causing the baby-step giant-step search to fail or
+return an implausible result. However, a bogus $D_i$ cannot cause a
+wrong tally to be accepted: the decrypted result is publicly
+verifiable (anyone can check that the claimed
+$\mathsf{total}\_\mathsf{ballots}$ satisfies the decryption equation for
+the on-chain aggregate ciphertext), so a tally derived from a corrupted
+subset will always be detected.
+
+The missing DLEQ proofs are therefore a liveness issue, not a
+correctness one. A single malicious validator can force the tally
+procedure to try alternative subsets of size $t$ to find a fully honest
+quorum, delaying finalization. Under the CometBFT assumption that fewer
+than one-third of validators are Byzantine, such an honest quorum
+always exists.
+
+Adding per-validator DLEQ proofs would allow immediate identification
+and exclusion of misbehaving validators, reducing verification to
+$O(1)$ per partial decryption. This is left as a future enhancement
+(see [Open issues]).
 
 ## Why Domain Tags in the VCT
 
@@ -1255,6 +1279,17 @@ finalization of this ZIP.
   the delegation extension.
 - The $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}$ derivation procedure should be
   specified to ensure uniqueness across rounds.
+- Per-validator Chaum–Pedersen DLEQ proofs for partial decryptions
+  would allow immediate identification of misbehaving validators at
+  tally time, converting the current liveness cost (subset search) to
+  $O(1)$ verification. See [Why No Per-Validator DLEQ Proofs].
+- Feldman VSS commitments from the dealer during the key ceremony
+  would let each validator verify that its Shamir share is consistent
+  with $\mathsf{ea}\_\mathsf{pk}$, removing the trust assumption on the
+  dealer. See [Why Threshold Secret Sharing].
+- Distributed key generation (DKG) would eliminate the trusted dealer
+  entirely, producing $\mathsf{ea}\_\mathsf{pk}$ without any single party
+  ever holding $\mathsf{ea}\_\mathsf{sk}$. See [Why Threshold Secret Sharing].
 
 
 # References
