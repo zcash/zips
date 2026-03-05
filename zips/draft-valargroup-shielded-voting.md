@@ -177,7 +177,7 @@ ciphertexts and linking revealed shares back to a specific VC.
 **Trust assumptions.** After the key ceremony, no single party holds
 $\mathsf{ea}\_\mathsf{sk}$; each validator holds only a Shamir share. An
 adversary must compromise at least $t$ validators (where
-$t = \lceil 2n/3 \rceil + 1$) to reconstruct the key and decrypt
+$t = \lceil n/2 \rceil + 1$) to reconstruct the key and decrypt
 individual share ciphertexts. Even with access to the full key, privacy
 against the EA relies on vote splitting: the EA would see encrypted
 shares but cannot link them to specific voters or vote commitments.
@@ -1067,7 +1067,7 @@ holds $\mathsf{ea}\_\mathsf{sk}$; each validator holds only its share. The round
 transitions to active status once a quorum of validators have verified
 their shares and acknowledged receipt.
 
-At tally time, at least $t = \lceil 2n/3 \rceil + 1$ validators
+At tally time, at least $t = \lceil n/2 \rceil + 1$ validators
 cooperate to produce partial decryptions of the aggregate ciphertext
 and post them on-chain. The partial decryptions are combined via
 Lagrange interpolation — the full secret key is never reconstructed.
@@ -1189,10 +1189,10 @@ additional unlinkability.
 The election authority key is split into Shamir shares rather than distributed intact to all validators. This
 ensures that compromise of any single validator (or any minority below
 $t$) does not expose the full decryption key. The threshold
-$t = \lceil 2n/3 \rceil + 1$ aligns with the CometBFT supermajority
-assumption: an adversary that controls fewer than one-third of
-validators cannot reach the decryption threshold, so the existing
-consensus trust boundary extends to vote-amount privacy.
+$t = \lceil n/2 \rceil + 1$ ensures that an adversary controlling fewer
+than half of validators cannot reach the decryption threshold. Under
+the standard CometBFT assumption (fewer than one-third Byzantine),
+this provides an additional safety margin for vote-amount privacy.
 
 The protocol uses a trusted dealer rather than distributed key
 generation (DKG). Feldman VSS commitments (which would let each
