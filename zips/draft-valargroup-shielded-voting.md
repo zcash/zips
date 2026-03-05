@@ -365,8 +365,12 @@ where:
   voter's choice (0-indexed into the proposal's declared options).
 
 A VC is created during voting (Phase 2) and opened during share reveal
-(Phase 4/5). The VC itself is never revealed on-chain; the Vote Reveal
-Proof proves membership without exposing which VC is being opened.
+(Phase 4/5). The VC hash is posted on-chain as a public input of the
+Vote Proof and inserted into the VCT, but its preimage fields
+($\mathsf{shares}\_\mathsf{hash}$ and $\mathsf{vote}\_\mathsf{decision}$)
+are private witnesses in that proof. During share reveal, the Vote
+Reveal Proof proves membership in the VCT without exposing which VC is
+being opened.
 
 ### Vote Share
 
