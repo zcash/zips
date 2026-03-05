@@ -80,19 +80,18 @@ This ZIP does not address how to spend notes privately.
 Compact Stream Format
 =====================
 
-A key observation in this protocol is that the current zcashd encrypted field is several
-hundred bytes long, due to the inclusion of a transaction “memo”. The need to download
-this entire field imposes a substantial bandwidth cost on each light wallet, which may be
-a limited mobile device on a restricted-bandwidth plan. While more efficient techniques
-can be developed in the future, for the moment we propose ignoring the memo field during
-payment detection. Futhermore, we can also ignore any information that is not directly
-relevant to a Sapling shielded transaction.
+A key observation in this protocol is that the encrypted ciphertext in each shielded output
+is several hundred bytes long, due to the inclusion of a transaction memo. The need to
+download the entire ciphertext imposes a substantial bandwidth cost on each light wallet,
+which may be a limited mobile device on a restricted-bandwidth plan. The memo field can be
+ignored during payment detection, as can any information that is not directly relevant to
+shielded transaction processing.
 
 A **compact block** is a packaging of ONLY the data from a block needed to:
 
-1. Detect a payment to your shielded Sapling address
-2. Detect a spend of your shielded Sapling notes
-3. Update your witnesses to generate new Sapling spend proofs.
+1. Detect a payment to your shielded address (Sapling or Orchard).
+2. Detect a spend of your shielded notes.
+3. Update note commitment tree witnesses.
 
 Compact blocks and their component compact transactions are encoded on the wire using
 Protocol Buffers [#protocolbuffers]_. The normative definitions of the compact block format
@@ -116,63 +115,57 @@ The following sections describe the rationale for the compact format design.
 Output Compression
 ------------------
 
-In the normal Zcash protocol, the output ciphertext consists of the AEAD-encrypted form of
-a *note plaintext* [#protocol-notept]_:
+In the Zcash protocol, each shielded output contains an AEAD-encrypted *note
+plaintext* [#protocol-notept]_. For both Sapling and Orchard, this encrypted
+ciphertext (``encCiphertext``) is 580 bytes long and includes the memo field
+and an authentication tag.
 
-+------------+----------+----------+---------------+-----------------------------------+
-| 8-bit 0x01 | 88-bit d | 64-bit v | 256-bit rseed | memo (512 bytes) + tag (16 bytes) |
-+------------+----------+----------+---------------+-----------------------------------+
+A recipient detects their transactions by trial-decrypting this ciphertext. On
+a full node that has the entire block chain, the primary cost is computational.
+For light clients however, there is an additional bandwidth cost: every
+ciphertext on the block chain must be received from the server (or network
+node) the light client is connected to.
 
-A recipient detects their transactions by trial-decrypting this ciphertext. On a full node
-that has the entire block chain, the primary cost is computational. For light clients
-however, there is an additional bandwidth cost: every ciphertext on the block chain must
-be received from the server (or network node) the light client is connected to. This
-results in a total of 580 bytes per output that must be streamed to the client (in addition
-to the 32-byte ephemeral public key).
+However, payment detection does not require the full ciphertext. The first 52
+bytes of ``encCiphertext`` contain the contents and opening of the note
+commitment, which is sufficient to detect, verify, and spend the note. The
+compact representation therefore includes only these 52 bytes along with the
+note commitment and ephemeral public key.
 
-However, we don't need all of that just to detect payments. The first 52 bytes of the
-ciphertext contain the contents and opening of the note commitment, which is all of the
-data needed to spend the note and to verify that the note is spendable. If we ignore the
-memo and the authentication tag, we're left with a 32-byte ephemeral public key, the 32-byte
-note commitment, and only the first 52 bytes of the ciphertext for each output needed to
-decrypt, verify, and spend a note. This totals to 116 bytes per output, for an 80%
-reduction in bandwidth use.
+For **Sapling**, a ``CompactSaplingOutput`` contains the 32-byte note commitment
+($\mathsf{cmu}$), the 32-byte ephemeral public key, and the first 52 bytes of
+the ciphertext, for a total of 116 bytes per output. A full Sapling Output
+description [#protocol-outputencodingandconsensus]_ is 948 bytes in v4
+transactions (756 bytes in v5), so the compact representation provides an
+85–88% reduction in bandwidth.
 
-However, skipping the full ciphertext means that we can no longer calculate the
-authentication tag for the entire ciphertext and will need to do something else to
-validate the integrity of the decrypted note plaintext.
+For **Orchard**, a ``CompactOrchardAction`` contains the 32-byte nullifier, the
+32-byte note commitment ($\mathsf{cmx}$), the 32-byte ephemeral public key, and
+the first 52 bytes of the ciphertext, for a total of 148 bytes per action. A
+full Orchard Action description [#protocol-actionencodingandconsensus]_ is 820
+bytes, so the compact representation provides an 82% reduction in bandwidth.
+Note that the Orchard compact representation includes the nullifier because the
+Orchard Action structure combines a spend and an output into a single
+description.
 
-Since the note commitment is sent outside the ciphertext and is authenticated by the
-binding signature over the entire transaction, it serves as an adequate check on the
-validity of the decrypted plaintext (assuming you trust the entity assembling
-transactions). We therefore recalculate the note commitment from the decrypted plaintext.
-If the recalculated commitment matches the one in the output, we accept the note as valid
-and spendable.
+Since the compact representation omits the authentication tag, the integrity of
+the decrypted note plaintext is instead validated by recalculating the note
+commitment from the decrypted plaintext and checking it against the note
+commitment sent outside the ciphertext, which is authenticated by the binding
+signature over the entire transaction.
 
 Spend Compression
 -----------------
 
-Recall that a full Sapling Spend description is 384 bytes long [#protocol-spendencodingandconsensus]_:
+For **Sapling**, a full Spend description is 384 bytes long
+[#protocol-spendencodingandconsensus]_. The only part necessary for spend
+detection is the 32-byte nullifier, which allows a light client to detect when
+one of its own notes has been spent. A ``CompactSaplingSpend`` therefore
+contains only the nullifier, for a 92% reduction in bandwidth.
 
-+-------+--------------+-----------+
-| Bytes | Name         | Type      |
-+=======+==============+===========+
-| 32    | cv           | char[32]  |
-+-------+--------------+-----------+
-| 32    | anchor       | char[32]  |
-+-------+--------------+-----------+
-| 32    | nullifier    | char[32]  |
-+-------+--------------+-----------+
-| 32    | rk           | char[32]  |
-+-------+--------------+-----------+
-| 192   | zkproof      | char[192] |
-+-------+--------------+-----------+
-| 64    | spendAuthSig | char[64]  |
-+-------+--------------+-----------+
-
-The only part necessary for detection is the nullifier, which allows a light client to
-detect when one of its own notes has been spent. This means we only need to take 32 bytes
-of each Spend, for a 90% improvement in bandwidth use.
+For **Orchard**, spend detection is handled by checking the nullifier included
+in each ``CompactOrchardAction`` (as described in `Output Compression`_ above),
+since the Orchard Action structure combines a spend and an output.
 
 Proxy operation
 ===============
@@ -559,6 +552,7 @@ References
 .. [#protocol-notept] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 5.5: Encodings of Note Plaintexts and Memo Fields <protocol/protocol.pdf#notept>`_
 .. [#protocol-spendencodingandconsensus] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 7.3: Spend Description Encoding and Consensus <protocol/protocol.pdf#spendencodingandconsensus>`_
 .. [#protocol-outputencodingandconsensus] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 7.4: Output Description Encoding and Consensus <protocol/protocol.pdf#outputencodingandconsensus>`_
+.. [#protocol-actionencodingandconsensus] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 7.5: Action Description Encoding and Consensus <protocol/protocol.pdf#actionencodingandconsensus>`_
 .. [#zip-0205] `ZIP 205: Deployment of the Sapling Network Upgrade <zip-0205.rst>`_
 .. [#zip-0212] `ZIP 212: Allow Recipient to Derive Sapling Ephemeral Secret from Note Plaintext <zip-0212.rst>`_
 .. [#zip-0224] `ZIP 224: Orchard Shielded Protocol <zip-0224.rst>`_
