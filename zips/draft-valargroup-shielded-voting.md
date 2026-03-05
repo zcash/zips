@@ -212,8 +212,8 @@ see [^pir-governance].
 - The protocol supports delegation of voting authority to a third-party
   hotkey.
 - The delegation phase is compatible with hardware wallets that support
-  only the standard Orchard PCZT signing flow, without requiring
-  firmware changes specific to the voting protocol.
+  only the standard Orchard PCZT [^pczt] signing flow, without
+  requiring firmware changes specific to the voting protocol.
 
 
 # Non-requirements
@@ -275,8 +275,9 @@ decryptions.
 
 ## El Gamal Encryption on Pallas
 
-The protocol uses additively homomorphic El Gamal encryption over the
-Pallas curve [^protocol-pallasandvesta] to encrypt vote share amounts.
+The protocol uses additively homomorphic El Gamal encryption [^elgamal]
+over the Pallas curve [^protocol-pallasandvesta] to encrypt vote share
+amounts.
 
 Let $G$ be the Pallas $\mathsf{SpendAuthSig}^{\mathsf{Orchard}}$
 generator [^protocol-concretespendauthsig] and let
@@ -300,9 +301,9 @@ $\mathsf{ea}\_\mathsf{sk}$:
 
 $$C_2 - [\mathsf{ea}\_\mathsf{sk}]\, C_1 = [v]\, G$$
 
-The discrete logarithm $v$ is recovered via baby-step giant-step, which
-is feasible because ballot counts are bounded (the total ZEC supply
-yields at most $\approx 1.68 \times 10^8$ ballots).
+The discrete logarithm $v$ is recovered via baby-step giant-step
+[^bsgs], which is feasible because ballot counts are bounded (the total
+ZEC supply yields at most $\approx 1.68 \times 10^8$ ballots).
 
 
 ## Data Structures
@@ -716,7 +717,7 @@ belongs to the voting key:
 
 $$\mathsf{vpk}\_{\mathsf{pk}\_\mathsf{d}} = [\mathsf{ivk}\_\mathsf{v}]\, \mathsf{vpk}\_{\mathsf{g}\_\mathsf{d}}$$
 
-where $\mathsf{ivk}\_\mathsf{v} = \mathsf{CommitIvk}_{\mathsf{rivk}\_\mathsf{v}}\!\bigl(\mathsf{Extract}_{\mathbb{P}}(\mathsf{vsk.ak}),\; \mathsf{vsk.nk}\bigr)$.
+where $\mathsf{ivk}\_\mathsf{v} = \mathsf{CommitIvk}_{\mathsf{rivk}\_\mathsf{v}}\!\bigl(\mathsf{Extract}_{\mathbb{P}}(\mathsf{vsk.ak}),\; \mathsf{vsk.nk}\bigr)$ [^protocol-concretecommitivk].
 
 **Condition 4 — Spend authority.** The randomized voting public key is
 a valid rerandomization:
@@ -1085,8 +1086,9 @@ per (proposal, decision) pair. The threshold decryption procedure is specified i
 Each voting round uses a fresh election authority keypair
 $(\mathsf{ea}\_\mathsf{sk}, \mathsf{ea}\_\mathsf{pk})$ produced by an automated threshold
 secret sharing ceremony among the vote chain's validator set. A trusted
-dealer generates $\mathsf{ea}\_\mathsf{sk}$, splits it into Shamir shares, distributes the shares to eligible validators via
-ECIES, and deletes the full key. After the ceremony, no single party
+dealer generates $\mathsf{ea}\_\mathsf{sk}$, splits it into Shamir
+shares [^shamir], distributes the shares to eligible validators via
+ECIES [^ecies], and deletes the full key. After the ceremony, no single party
 holds $\mathsf{ea}\_\mathsf{sk}$; each validator holds only its share. The round
 transitions to active status once a quorum of validators have verified
 their shares and acknowledged receipt.
@@ -1096,9 +1098,8 @@ cooperate to produce partial decryptions of the aggregate ciphertext
 and post them on-chain. The partial decryptions are combined via
 Lagrange interpolation — the full secret key is never reconstructed.
 
-The ceremony protocol — including dealer selection, Feldman VSS
-construction, ECIES share distribution, validator acknowledgment,
-confirmation thresholds, timeout and jailing rules, and threshold
+The ceremony protocol — including dealer selection, ECIES share distribution, validator
+acknowledgment, confirmation thresholds, timeout and jailing rules, and threshold
 decryption procedures — is specified in [^ea-ceremony].
 
 
@@ -1136,11 +1137,12 @@ independent of mainchain upgrade cycles.
 
 ## Why Poseidon for the VCT
 
-The Orchard note commitment tree uses Sinsemilla for Merkle hashing.
-The VCT uses Poseidon instead because all three ZKPs in this protocol
-require VCT Merkle membership proofs, and Poseidon operates natively on
-field elements — making it significantly more efficient inside Halo 2
-arithmetic circuits than Sinsemilla (which is optimized for bitstring
+The Orchard note commitment tree uses Sinsemilla [^protocol-concretesinsemilla]
+for Merkle hashing. The VCT uses Poseidon instead because all three ZKPs
+in this protocol require VCT Merkle membership proofs, and Poseidon
+operates natively on field elements — making it significantly more
+efficient inside Halo 2 [^halo2] arithmetic circuits than Sinsemilla
+(which is optimized for bitstring
 inputs). Since the VCT is new infrastructure with no backwards-
 compatibility constraint, the more circuit-efficient primitive is
 appropriate. This is the same rationale as for the nullifier
@@ -1268,11 +1270,11 @@ ensures that compromise of any single validator (or any minority below
 $t$) does not expose the full decryption key. The threshold
 $t = \lceil n/2 \rceil + 1$ ensures that an adversary controlling fewer
 than half of validators cannot reach the decryption threshold. Under
-the standard CometBFT assumption (fewer than one-third Byzantine),
+the standard CometBFT [^cometbft] assumption (fewer than one-third Byzantine),
 this provides an additional safety margin for vote-amount privacy.
 
 The protocol uses a trusted dealer rather than distributed key
-generation (DKG). Feldman VSS commitments (which would let each
+generation (DKG). Feldman VSS commitments [^feldman] (which would let each
 validator verify that its share is consistent with
 $\mathsf{ea}\_\mathsf{pk}$) are omitted for initial scope; the dealer is
 trusted to distribute correct shares, and any tampering would be
@@ -1388,3 +1390,23 @@ finalization of this ZIP.
 [^ea-ceremony]: [Draft ZIP: Election Authority Key Ceremony](draft-valargroup-ea-key-ceremony)
 
 [^chaum-pedersen]: [Chaum, D. and Pedersen, T.P. "Wallet Databases with Observers." CRYPTO 1992](https://link.springer.com/chapter/10.1007/3-540-48071-4_7)
+
+[^elgamal]: [T. ElGamal, "A public key cryptosystem and a signature scheme based on discrete logarithms", IEEE Transactions on Information Theory, vol. 31, no. 4, pp. 469-472, 1985](https://doi.org/10.1109/TIT.1985.1057074)
+
+[^shamir]: [A. Shamir, "How to share a secret", Communications of the ACM, vol. 22, no. 11, pp. 612-613, 1979](https://doi.org/10.1145/359168.359176)
+
+[^feldman]: [P. Feldman, "A practical scheme for non-interactive verifiable secret sharing", in Proceedings of the 28th IEEE Symposium on Foundations of Computer Science, pp. 427-437, 1987](https://doi.org/10.1109/SFCS.1987.4)
+
+[^ecies]: [V. Shoup, "A Proposal for an ISO Standard for Public Key Encryption", version 2.1, 2001](https://www.shoup.net/papers/iso-2_1.pdf)
+
+[^bsgs]: [D. Shanks, "Class number, a theory of factorization, and genera", in Proceedings of Symposia in Pure Mathematics, vol. 20, pp. 415-440, 1971](https://doi.org/10.1090/pspum/020/0316385)
+
+[^halo2]: [S. Bowe, J. Grigg, and D. Hopwood, "Recursive Proof Composition without a Trusted Setup", 2019](https://eprint.iacr.org/2019/1021)
+
+[^cometbft]: [CometBFT Specification](https://docs.cometbft.com/v1/spec/)
+
+[^protocol-concretesinsemilla]: [Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 5.4.1.9: Sinsemilla Hash Function](protocol/protocol.pdf#concretesinsemillahash)
+
+[^protocol-concretecommitivk]: [Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 5.4.9.4: CommitIvk](protocol/protocol.pdf#concretecommitivk)
+
+[^pczt]: [zcash/zips issue #693: Standardize a protocol for creating shielded transactions offline (PCZT)](https://github.com/zcash/zips/issues/693)
