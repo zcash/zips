@@ -7,7 +7,7 @@
     Credits: Daira-Emma Hopwood <daira@jacaranda.org>
              Jack Grigg <thestr4d@gmail.com>
     Status: Draft
-    Category: Informational
+    Category: Standards
     Created: 2026-03-04
     License: MIT
     Pull-Request: <https://github.com/zcash/zips/pull/???>
