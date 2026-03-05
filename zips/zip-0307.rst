@@ -94,47 +94,24 @@ A **compact block** is a packaging of ONLY the data from a block needed to:
 2. Detect a spend of your shielded Sapling notes
 3. Update your witnesses to generate new Sapling spend proofs.
 
-A compact block and its component compact transactions are encoded on the wire using the
-following Protocol Buffers [#protocolbuffers]_ format:
+Compact blocks and their component compact transactions are encoded on the wire using
+Protocol Buffers [#protocolbuffers]_. The normative definitions of the compact block format
+are specified in the ``compact_formats.proto`` file of the Zcash Light Client Protocol
+[#lightwallet-protocol]_.
 
-.. code:: proto
+The protocol has evolved through several major versions:
 
-    message BlockID {
-         uint64 blockHeight = 1;
-         bytes blockHash = 2;
-    }
+- **v0.3.x** (2021–2023): Added Orchard shielded protocol support via
+  ``CompactOrchardAction`` and note commitment tree state queries
+  (``GetTreeState``, ``GetLatestTreeState``) and subtree root retrieval
+  (``GetSubtreeRoots``) to support efficient witness construction.
 
-    message CompactBlock {
-        BlockID id = 1;
-        repeated CompactTx vtx = 3;
-    }
+- **v0.4.x** (2025): Added transparent transaction data (``CompactTxIn``, ``TxOut``) to
+  compact blocks, enabling transparent outputs to be discovered without revealing
+  the client's addresses to the light wallet server. The update also added
+  ``PoolType``-based filtering for selective retrieval by shielded protocol.
 
-    message CompactTx {
-        uint64 txIndex = 1;
-        bytes txHash = 2;
-
-        repeated CompactSpend spends = 3;
-        repeated CompactOutput outputs = 4;
-    }
-
-    message CompactSpend {
-        bytes nf = 1;
-    }
-
-    message CompactOutput {
-        bytes cmu = 1;
-        bytes epk = 2;
-        bytes ciphertext = 3;
-    }
-
-Encoding Details
-----------------
-
-``blockHash``, ``txHash``, ``nf``, ``cmu``, and ``epk`` are encoded as
-specified in the Zcash Protocol Spec.
-
-The output and spend descriptions are handled differently, as described in the following
-sections.
+The following sections describe the rationale for the compact format design.
 
 Output Compression
 ------------------
@@ -205,46 +182,10 @@ Zcash node and any number of light clients. It accomplishes this by parsing a bl
 stream of transactions from the node and converting them into the compact format described
 above.
 
-*The details of the API described below may differ from the implementation.*
-
-The proxy offers the following API to clients:
-
-.. code:: proto
-
-    service CompactTxStreamer {
-        rpc GetLatestBlock(ChainSpec) returns (BlockID) {}
-        rpc GetBlock(BlockID) returns (CompactBlock) {}
-        rpc GetBlockRange(RangeFilter) returns (stream CompactBlock) {}
-        rpc GetTransaction(TxFilter) returns (FullTransaction) {}
-    }
-
-    // Remember that proto3 fields are all optional.
-
-    // Someday we may want to specify e.g. a particular chain fork.
-    message ChainSpec {}
-
-
-    // A BlockID message contains identifiers to select a block: either a
-    // height or a hash.
-    message BlockID {
-        uint64 blockHeight = 1;
-        bytes blockHash = 2;
-    }
-
-
-    message RangeFilter {
-        BlockID start = 1;
-        BlockID end = 2;
-    }
-
-    // A TxFilter contains the information needed to identify a particular
-    // transaction: either a block and an index, or a direct transaction hash.
-    message TxFilter {
-        BlockID blockID = 1;
-        uint64 txIndex = 2;
-        bytes txHash = 3;
-    }
-
+The proxy offers a gRPC API to clients, defined by the ``service.proto`` file of the
+Zcash Light Client Protocol [#lightwallet-protocol]_. The ``CompactTxStreamer`` service
+provides methods for retrieving compact blocks, submitting transactions, querying note
+commitment tree state, and querying for transparent outputs by address.
 
 Client operation
 ================
@@ -621,6 +562,7 @@ References
 .. [#zip-0205] `ZIP 205: Deployment of the Sapling Network Upgrade <zip-0205.rst>`_
 .. [#zip-0212] `ZIP 212: Allow Recipient to Derive Sapling Ephemeral Secret from Note Plaintext <zip-0212.rst>`_
 .. [#zip-0224] `ZIP 224: Orchard Shielded Protocol <zip-0224.rst>`_
+.. [#lightwallet-protocol] `Zcash Light Client Protocol <https://github.com/zcash/lightwallet-protocol>`_
 .. [#protocolbuffers] `Protocol Buffers documentation <https://developers.google.com/protocol-buffers/>`_
 .. [#incremental-witness] `zcash_primitives Rust crate — merkle_tree.rs <https://github.com/zcash/librustzcash/blob/master/zcash_primitives/src/merkle_tree.rs>`_
 .. [#spv-clients] `Bitcoin Wiki: Scalability — Simplified payment verification <https://en.bitcoin.it/wiki/Scalability#Simplified_payment_verification>`_
