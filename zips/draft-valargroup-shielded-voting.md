@@ -104,7 +104,7 @@ converts proven Orchard balance into a Vote Authority Note on a
 purpose-built vote chain. Second, a *vote proof* consumes a VAN to
 produce a Vote Commitment containing $N_s$ El Gamal-encrypted shares of
 the voter's ballot count, split across vote options. Third, a *vote
-reveal proof* — constructed by an untrusted submission server — opens
+reveal proof*, constructed by an untrusted submission server, opens
 individual encrypted shares for homomorphic accumulation, without
 revealing which Vote Commitment the share originated from.
 
@@ -125,7 +125,7 @@ transactions provide.
 
 This ZIP addresses that tension for Zcash's Orchard shielded pool. The
 Orchard Proof-of-Balance [^balance-proof] provides the foundational
-primitive — proving note ownership without revealing standard nullifiers.
+primitive, proving note ownership without revealing standard nullifiers.
 This ZIP builds on that primitive to specify a complete voting protocol
 with the following properties:
 
@@ -243,30 +243,30 @@ see [^pir-governance].
 
 The protocol proceeds in five phases within a voting round.
 
-**Phase 1 — Delegation.** A holder proves ownership of unspent Orchard
+**Phase 1: Delegation.** A holder proves ownership of unspent Orchard
 notes at a pool snapshot (using the Claim circuit from [^balance-proof])
 and delegates voting authority to a locally-generated governance hotkey.
 The delegation produces a Vote Authority Note (VAN) that is inserted
 into the Vote Commitment Tree on the vote chain. Governance nullifiers
 are published to prevent double-delegation.
 
-**Phase 2 — Voting.** The governance hotkey consumes a VAN by publishing
+**Phase 2: Voting.** The governance hotkey consumes a VAN by publishing
 its VAN nullifier, and produces two new VCT leaves: a replacement VAN
 with the voted proposal's authority bit cleared, and a Vote Commitment
 containing $N_s$ El Gamal-encrypted shares of the voter's ballot count.
 
-**Phase 3 — Share submission.** The voter sends each encrypted share as
+**Phase 3: Share submission.** The voter sends each encrypted share as
 an independent payload to one or more submission servers. Each payload
 contains the data necessary for the server to construct a Vote Reveal
 Proof.
 
-**Phase 4 — Share reveal.** Each submission server constructs a Vote
+**Phase 4: Share reveal.** Each submission server constructs a Vote
 Reveal Proof (proving the share belongs to a valid VC in the VCT without
 revealing which one) and submits it to the vote chain at a randomized
 delay. The chain accumulates the revealed El Gamal ciphertexts
 homomorphically.
 
-**Phase 5 — Tally.** After the voting window closes, at least $t$
+**Phase 5: Tally.** After the voting window closes, at least $t$
 validators produce partial decryptions of the aggregate ciphertext per
 (proposal, decision) pair. The partial decryptions are stored on-chain and combined via
 Lagrange interpolation to recover the total ballot count (via bounded
@@ -448,10 +448,10 @@ inserts one VAN; a vote transaction inserts both a new VAN and a VC.
 
 The vote chain maintains three disjoint nullifier sets:
 
-1. **Governance nullifiers** — prevent double-delegation of mainchain
+1. **Governance nullifiers**: prevent double-delegation of mainchain
    Orchard notes within a voting round.
-2. **VAN nullifiers** — prevent double-spending of voting authority.
-3. **Share nullifiers** — prevent double-counting of revealed shares.
+2. **VAN nullifiers**: prevent double-spending of voting authority.
+3. **Share nullifiers**: prevent double-counting of revealed shares.
 
 Each set is append-only within a voting round. The vote chain rejects
 any transaction that publishes a nullifier already present in the
@@ -503,7 +503,7 @@ A governance hotkey consists of:
   and $\mathsf{ivk}\_\mathsf{v} = \mathsf{CommitIvk}\_{\mathsf{rivk}\_\mathsf{v}}\!\bigl(\mathsf{Extract}\_{\mathbb{P}}(\mathsf{vsk.ak}),\; \mathsf{vsk.nk}\bigr)$.
 
 The Delegation Proof does not constrain the hotkey address to match the
-holder's key — the output address is bound to the delegation
+holder's key; the output address is bound to the delegation
 transitively through the VAN commitment and the rho binding (see
 [Delegation Proof]), which the holder's hardware wallet authenticates
 via the spend authorization signature.
@@ -535,7 +535,7 @@ constrains:
 3. $\mathsf{num}\_\mathsf{ballots} \geq 1$ and $\mathsf{num}\_\mathsf{ballots} \leq 2^{30}$
 
 The 30-bit upper bound on $\mathsf{num}\_\mathsf{ballots}$ accommodates up to
-$\approx 134$ million ZEC — well above the 21 million ZEC supply cap.
+$\approx 134$ million ZEC, well above the 21 million ZEC supply cap.
 The minimum of 1 ballot prevents dust delegations (holdings below
 0.125 ZEC) from producing voting authority.
 
@@ -760,12 +760,12 @@ The prover knows:
 
 ##### VAN Ownership and Spending
 
-**Condition 1 — Merkle tree membership.** The old VAN exists in the VCT:
+**Condition 1: Merkle tree membership.** The old VAN exists in the VCT:
 $(\mathsf{path}^{\mathsf{vct}}, \mathsf{pos}^{\mathsf{vct}})$ is a valid Merkle path of
 depth $\mathsf{MerkleDepth}^{\mathsf{vct}}$ from $\mathsf{van}_{\mathsf{old}}$ to the
 anchor $\mathsf{rt}^{\mathsf{vct}}$, using Poseidon for internal node hashing.
 
-**Condition 2 — Old VAN integrity.** The old VAN commitment matches the
+**Condition 2: Old VAN integrity.** The old VAN commitment matches the
 claimed fields (using the two-layer construction defined in
 [Vote Authority Note (VAN)]):
 
@@ -773,19 +773,19 @@ $$\mathsf{van}\_{\mathsf{core}\_\mathsf{old}} = \mathsf{Poseidon}\bigl(\mathsf{D
 
 $$\mathsf{van}\_\mathsf{old} = \mathsf{Poseidon}\bigl(\mathsf{van}\_{\mathsf{core}\_\mathsf{old}}, \mathsf{gov}\_{\mathsf{comm}\_\mathsf{rand}}\bigr)$$
 
-**Condition 3 — Diversified address integrity.** The VAN's address
+**Condition 3: Diversified address integrity.** The VAN's address
 belongs to the voting key:
 
 $$\mathsf{vpk}\_{\mathsf{pk}\_\mathsf{d}} = [\mathsf{ivk}\_\mathsf{v}]\, \mathsf{vpk}\_{\mathsf{g}\_\mathsf{d}}$$
 
 where $\mathsf{ivk}\_\mathsf{v} = \mathsf{CommitIvk}_{\mathsf{rivk}\_\mathsf{v}}\!\bigl(\mathsf{Extract}_{\mathbb{P}}(\mathsf{vsk.ak}),\; \mathsf{vsk.nk}\bigr)$ [^protocol-concretecommitivk].
 
-**Condition 4 — Spend authority.** The randomized voting public key is
+**Condition 4: Spend authority.** The randomized voting public key is
 a valid rerandomization:
 
 $$\mathsf{r}\_\mathsf{vpk} = \mathsf{vsk.ak} + [\alpha_v]\, G$$
 
-**Condition 5 — VAN nullifier.** The public $\mathsf{van}\_\mathsf{nullifier}$
+**Condition 5: VAN nullifier.** The public $\mathsf{van}\_\mathsf{nullifier}$
 is correctly derived:
 
 $$\mathsf{van}\_\mathsf{nullifier} = \mathsf{Poseidon}\bigl(\mathsf{vsk.nk}, \mathsf{tag}_{\mathsf{van}}, \mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}, \mathsf{van}_{\mathsf{old}}\bigr)$$
@@ -815,7 +815,7 @@ defense-in-depth in both cases.
 
 ##### New VAN Construction
 
-**Condition 6 — Proposal authority decrement.** Bit
+**Condition 6: Proposal authority decrement.** Bit
 $\mathsf{proposal}\_\mathsf{id}$ is cleared in the authority bitmask:
 
 - $\mathsf{proposal}\_{\mathsf{authority}\_\mathsf{old}}$ is decomposed into 16 boolean
@@ -825,7 +825,7 @@ $\mathsf{proposal}\_\mathsf{id}$ is cleared in the authority bitmask:
 - $\mathsf{proposal}\_{\mathsf{authority}\_\mathsf{new}}$ is the recomposition with bit
   $\mathsf{proposal}\_\mathsf{id}$ cleared; all other bits are unchanged.
 
-**Condition 7 — New VAN integrity.** The new VAN is correctly
+**Condition 7: New VAN integrity.** The new VAN is correctly
 constructed (using the two-layer construction defined in
 [Vote Authority Note (VAN)]):
 
@@ -838,11 +838,11 @@ randomness; only $\mathsf{proposal}\_\mathsf{authority}$ changes.
 
 ##### Vote Commitment Construction
 
-**Condition 8 — Shares sum correctness.**
+**Condition 8: Shares sum correctness.**
 
 $$\sum_{i=0}^{N_s - 1} \mathsf{v}\_\mathsf{i} = \mathsf{num}\_\mathsf{ballots}$$
 
-**Condition 9 — Shares range check.** Each share is bounded:
+**Condition 9: Shares range check.** Each share is bounded:
 
 $$0 \leq \mathsf{v}\_\mathsf{i} < 2^{30} \quad \text{for each } i \in \{0 \ldots N_s - 1\}$$
 
@@ -851,14 +851,14 @@ share sum and the scalar-field El Gamal encoding agree (no modular
 reduction in either field), and (2) it keeps the aggregate discrete log
 small enough for efficient baby-step giant-step recovery at tally time.
 
-**Condition 10 — Shares hash integrity.** The blinded share commitments
+**Condition 10: Shares hash integrity.** The blinded share commitments
 and their aggregate hash are correctly computed:
 
 $$\mathsf{share}\_{\mathsf{comm}\_\mathsf{i}} = \mathsf{Poseidon}\bigl(\mathsf{blind}\_\mathsf{i}, C_{1,i,x}, C_{2,i,x}\bigr) \quad \text{for each } i$$
 
 $$\mathsf{shares}\_\mathsf{hash} = \mathsf{Poseidon}\bigl(\mathsf{share}\_{\mathsf{comm}\_\mathsf{0}}, \ldots, \mathsf{share}\_{\mathsf{comm}_{N_s - 1}}\bigr)$$
 
-**Condition 11 — El Gamal encryption integrity.** Each ciphertext is a
+**Condition 11: El Gamal encryption integrity.** Each ciphertext is a
 valid encryption of its share under $\mathsf{ea}\_\mathsf{pk}$:
 
 $$C_{1,i} = [r_i]\, G$$
@@ -869,7 +869,7 @@ and witnessed ciphertext points. Constraining only $x$-coordinates is
 sufficient because the shared randomness $r_i$ binds both curve points,
 leaving no prover freedom in the $y$-coordinates.
 
-**Condition 12 — Vote commitment integrity.** The public vote commitment
+**Condition 12: Vote commitment integrity.** The public vote commitment
 matches the private vote details:
 
 $$\mathsf{vc} = \mathsf{Poseidon}\bigl(\mathsf{DOMAIN}\_\mathsf{VC}, \mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}, \mathsf{shares}\_\mathsf{hash}, \mathsf{proposal}\_\mathsf{id}, \mathsf{vote}\_\mathsf{decision}\bigr)$$
@@ -921,7 +921,7 @@ A vote transaction submitted to the vote chain MUST contain:
 
 The Vote Reveal Proof opens a single encrypted share from a Vote
 Commitment, revealing the El Gamal ciphertext for homomorphic
-accumulation — without revealing the plaintext amount or which Vote
+accumulation, without revealing the plaintext amount or which Vote
 Commitment the share came from. This proof is constructed by the
 submission server, not the voter.
 
@@ -961,12 +961,12 @@ The prover (submission server) knows:
 
 ##### Vote Commitment Membership
 
-**Condition 1 — Merkle tree membership.** The VC exists in the VCT:
+**Condition 1: Merkle tree membership.** The VC exists in the VCT:
 $(\mathsf{path}^{\mathsf{vct}}, \mathsf{pos}^{\mathsf{vct}})$ is a valid Merkle path
 from $\mathsf{vc}$ to $\mathsf{rt}^{\mathsf{vct}}$, without revealing which
 leaf. The VC value is a private witness.
 
-**Condition 2 — Vote commitment integrity.** The VC is correctly
+**Condition 2: Vote commitment integrity.** The VC is correctly
 constructed from its components:
 
 $$\mathsf{vc} = \mathsf{Poseidon}\bigl(\mathsf{DOMAIN}\_\mathsf{VC}, \mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}, \mathsf{shares}\_\mathsf{hash}, \mathsf{proposal}\_\mathsf{id}, \mathsf{vote}\_\mathsf{decision}\bigr)$$
@@ -977,7 +977,7 @@ revealed share is attributed to the correct proposal and decision.
 
 ##### Share Opening
 
-**Condition 3 — Shares hash integrity.** The $\mathsf{shares}\_\mathsf{hash}$ is
+**Condition 3: Shares hash integrity.** The $\mathsf{shares}\_\mathsf{hash}$ is
 recomputed from the witness share commitments:
 
 $$\mathsf{shares}\_\mathsf{hash} = \mathsf{Poseidon}\bigl(\mathsf{share}\_{\mathsf{comm}\_\mathsf{0}}, \ldots, \mathsf{share}\_{\mathsf{comm}_{N_s - 1}}\bigr)$$
@@ -987,7 +987,7 @@ inside the VC (via condition 2). The share commitments are blinded
 (see [Why Blinded Share Commitments]), so they do not reveal the
 ciphertexts or blind factors of other shares to the prover.
 
-**Condition 4 — Share membership.** The commitment derived from the
+**Condition 4: Share membership.** The commitment derived from the
 public $x$-coordinates $C_{1,x}, C_{2,x}$ and the witness blind
 factor matches the share commitment at position
 $\mathsf{share}\_\mathsf{index}$:
@@ -1005,7 +1005,7 @@ or blind factors.
 
 ##### Nullifier
 
-**Condition 5 — Share nullifier.** The public
+**Condition 5: Share nullifier.** The public
 $\mathsf{share}\_\mathsf{nullifier}$ is correctly derived:
 
 $$\mathsf{share}\_\mathsf{nullifier} = \mathsf{Poseidon}\bigl(\mathsf{tag}_{\mathsf{share}}, \mathsf{vc}, \mathsf{share}\_\mathsf{index}, \mathsf{blind}\bigr)$$
@@ -1117,7 +1117,7 @@ parameters is deferred to the operational voting process ZIP.
 
 After the voting window closes, the tally proceeds in three steps.
 
-**Step 1 — Public aggregation.** For each
+**Step 1: Public aggregation.** For each
 $(\mathsf{proposal}\_\mathsf{id}, \mathsf{vote}\_\mathsf{decision})$ pair, the aggregate
 ciphertext is the component-wise sum of all revealed shares attributed
 to that pair:
@@ -1127,7 +1127,7 @@ $$\mathsf{agg} = \Bigl(\sum C_{1,j}, \sum C_{2,j}\Bigr)$$
 This is publicly computable from on-chain data. Any party can
 independently verify the aggregation.
 
-**Step 2 — Threshold decryption.** At least $t$ validators each produce
+**Step 2: Threshold decryption.** At least $t$ validators each produce
 a partial decryption of the aggregate ciphertext using their Shamir
 share and post it on-chain. The partial decryptions are combined via
 Lagrange interpolation:
@@ -1141,12 +1141,12 @@ via baby-step giant-step discrete-log search (feasible because the total
 is bounded by ZEC supply). No party reconstructs $\mathsf{ea}\_\mathsf{sk}$
 during this process.
 
-**Step 3 — Public verification.** The individual partial decryptions
+**Step 3: Public verification.** The individual partial decryptions
 $D_i$ and the aggregate ciphertext are all on-chain. Anyone can
 recompute the Lagrange combination for any qualifying subset of $t$
 validators and confirm the claimed $\mathsf{total}\_\mathsf{ballots}$.
 
-Individual vote amounts are never revealed — only the aggregate total
+Individual vote amounts are never revealed; only the aggregate total
 per (proposal, decision) pair. The threshold decryption procedure is specified in [^ea-ceremony].
 
 
@@ -1165,11 +1165,11 @@ their shares and acknowledged receipt.
 At tally time, at least $t = \lceil n/2 \rceil + 1$ validators
 cooperate to produce partial decryptions of the aggregate ciphertext
 and post them on-chain. The partial decryptions are combined via
-Lagrange interpolation — the full secret key is never reconstructed.
+Lagrange interpolation - the full secret key is never reconstructed.
 
-The ceremony protocol — including dealer selection, ECIES share distribution, validator
+The ceremony protocol, including dealer selection, ECIES share distribution, validator
 acknowledgment, confirmation thresholds, timeout and jailing rules, and threshold
-decryption procedures — is specified in [^ea-ceremony].
+decryption procedures, is specified in [^ea-ceremony].
 
 
 ## Vote Chain
@@ -1177,16 +1177,16 @@ decryption procedures — is specified in [^ea-ceremony].
 The vote chain is a purpose-built chain that records all governance
 transactions. It maintains:
 
-- The **Vote Commitment Tree** — an append-only Poseidon Merkle tree
+- The **Vote Commitment Tree**: an append-only Poseidon Merkle tree
   storing VANs and VCs.
-- Three **nullifier sets** — governance, VAN, and share nullifiers.
-- An **encrypted share accumulator** — per
+- Three **nullifier sets**: governance, VAN, and share nullifiers.
+- An **encrypted share accumulator**: per
   $(\mathsf{proposal}\_\mathsf{id}, \mathsf{vote}\_\mathsf{decision})$, the running
   component-wise sum of revealed El Gamal ciphertexts.
 
 For each transaction type, the chain verifies the corresponding proof,
 checks nullifier freshness, updates the VCT, and (for share reveals)
-accumulates the ciphertext. All verification is ZKP-based — the chain
+accumulates the ciphertext. All verification is ZKP-based - the chain
 never observes plaintext vote amounts or voter identities.
 
 The vote chain's consensus mechanism, block structure, transaction
@@ -1209,7 +1209,7 @@ independent of mainchain upgrade cycles.
 The Orchard note commitment tree uses Sinsemilla [^protocol-concretesinsemilla]
 for Merkle hashing. The VCT uses Poseidon instead because all three ZKPs
 in this protocol require VCT Merkle membership proofs, and Poseidon
-operates natively on field elements — making it significantly more
+operates natively on field elements, making it significantly more
 efficient inside Halo 2 [^halo2] arithmetic circuits than Sinsemilla
 (which is optimized for bitstring
 inputs). Since the VCT is new infrastructure with no backwards-
@@ -1229,8 +1229,7 @@ chain state.
 ## Why Delegation to a Hotkey
 
 The protocol requires voters to produce Halo 2 zero-knowledge proofs
-(delegation proof, vote proof) and construct vote commitments —
-operations that demand general-purpose computation on private key
+(delegation proof, vote proof) and construct vote commitments, operations that demand general-purpose computation on private key
 material. Hardware wallets that custody Orchard spending keys cannot
 perform these operations: they support signature generation but not
 arbitrary-circuit ZKP construction.
@@ -1239,13 +1238,13 @@ Delegation to a governance hotkey resolves this by separating spend
 authorization from vote execution. The hardware wallet signs a single
 $\mathsf{SpendAuthSig}^{\mathsf{Orchard}}$ during delegation, authorizing the
 transfer of voting power to a software-controlled hotkey. All subsequent
-voting operations — VAN consumption, vote commitment construction, share
-submission — use the hotkey's key material and run on a general-purpose
+voting operations (VAN consumption, vote commitment construction, share
+submission) use the hotkey's key material and run on a general-purpose
 device.
 
 Without this separation, hardware wallet users would need to either
-export spending keys to a software environment — negating the security
-benefit of hardware custody — or forgo participation in governance
+export spending keys to a software environment, negating the security
+benefit of hardware custody, or forgo participation in governance
 entirely. Delegation preserves the hardware wallet's role as the sole
 custodian of spending keys while enabling full participation in the
 voting protocol.
@@ -1265,16 +1264,16 @@ is non-replayable and scoped to the exact delegation context (all note
 commitments, the VAN, and the voting round), even though the hardware
 wallet is unaware of governance semantics. The sighash that the hardware
 wallet signs commits to a structure that appears to be a fund-moving
-transaction — this is an inherent consequence of reusing the standard
+transaction - this is an inherent consequence of reusing the standard
 signing flow and cannot be avoided without firmware changes.
 
 When hardware wallet firmware adds voting-aware signing (e.g., a
 governance network byte analogous to the testnet byte), the firmware can
 display the delegation context to the user (notes, amounts, voting
 round) and sign a governance-specific sighash that binds directly to
-the delegation parameters. The signed note scaffolding — signed note
+the delegation parameters. The signed note scaffolding (signed note
 integrity, signed note nullifier, rho binding, and output note
-commitment — can then be removed from the circuit. This migration is
+commitment) can then be removed from the circuit. This migration is
 purely subtractive: the simplified circuit is a strict subset of the
 current one, and only the Delegation Proof changes. The Vote Proof
 and Vote Reveal Proof are unaffected.
@@ -1317,7 +1316,7 @@ The Vote Reveal Proof is constructed by the submission server
 rather than the voter's client for two reasons: mobile devices are
 unreliable for background ZKP computation, and server-side construction
 enables temporal mixing of shares from many voters. The trust
-requirement on the server is minimal — it learns encrypted shares and
+requirement on the server is minimal: it learns encrypted shares and
 vote decisions but cannot decrypt amounts or link shares to identities.
 
 ## Why Reusing VAN Address and Randomness
@@ -1327,7 +1326,7 @@ the old VAN's diversified address ($\mathsf{vpk}\_{\mathsf{g}\_\mathsf{d}}$,
 $\mathsf{vpk}\_{\mathsf{pk}\_\mathsf{d}}$) and commitment randomness
 ($\mathsf{gov}\_{\mathsf{comm}\_\mathsf{rand}}$). Only
 $\mathsf{proposal}\_\mathsf{authority}$ changes. This is safe because VAN
-commitments are blinded Poseidon hashes — the shared fields are never
+commitments are blinded Poseidon hashes - the shared fields are never
 externally observable (both old and new commitments appear as opaque
 field elements in the VCT), so address rotation would provide no
 additional unlinkability.
@@ -1342,7 +1341,7 @@ This follows from how lookup arguments work in Halo 2. A lookup table
 that validates $(\mathsf{proposal}\_\mathsf{id}, 2^{\mathsf{proposal}\_\mathsf{id}})$
 must include a default row that satisfies the lookup when the selector
 is inactive. The circuit uses the identity row $(0, 1)$ for this
-purpose — when the selector $q = 0$, the lookup input evaluates to
+purpose: when the selector $q = 0$, the lookup input evaluates to
 $(0, 1)$, which must be present in the table for the proof to verify.
 Because every inactive row matches this entry, $\mathsf{proposal}\_\mathsf{id} = 0$
 cannot be used as a valid proposal identifier: a prover could trivially
@@ -1403,7 +1402,7 @@ $O(1)$ per partial decryption. This is left as a future enhancement
 
 The Vote Proof consumes the old VAN and produces a new one with the
 voted proposal's authority bit cleared. This is a UTXO-style
-"send" — each vote appends two leaves to the VCT (new VAN + VC) and
+"send": each vote appends two leaves to the VCT (new VAN + VC) and
 requires the voter to hold a current Merkle path.
 
 An alternative design was considered in which the VAN is eliminated
@@ -1416,7 +1415,7 @@ VAN re-insertions or maintain up-to-date Merkle paths for their own
 VANs.
 
 The send-based model is retained because it preserves the ability to
-add partial delegation in a future extension — splitting
+add partial delegation in a future extension, splitting
 $\mathsf{num}\_\mathsf{ballots}$ across multiple delegates, each
 receiving a fraction of the holder's voting weight. The VAN's explicit
 ballot count and proposal authority bitmask are the data model that
@@ -1434,8 +1433,8 @@ VCT Merkle paths for their Vote Commitments (which the submission
 server requires for the Vote Reveal Proof). The VAN model adds
 incremental path-update overhead but does not introduce a new
 category of sync obligation. If a future design change eliminated the
-need for clients to track VCT paths entirely — for example by moving
-Merkle path retrieval fully to the submission server — the tradeoff
+need for clients to track VCT paths entirely (for example by moving
+Merkle path retrieval fully to the submission server), the tradeoff
 would shift in favor of removing the VAN. See [Open issues].
 
 ## Why Classical El Gamal Rather Than Post-Quantum Encryption
@@ -1447,8 +1446,8 @@ $\mathsf{ea}\_\mathsf{pk}$ and decrypt individual vote share ciphertexts,
 breaking vote-amount privacy for any round whose on-chain ciphertexts
 were recorded.
 
-Post-quantum aggregatable encryption — a scheme that is both
-quantum-resistant and additively homomorphic — would eliminate this
+Post-quantum aggregatable encryption, a scheme that is both
+quantum-resistant and additively homomorphic, would eliminate this
 risk. However, no such scheme is mature enough for production use.
 Lattice-based homomorphic encryption exists in theory, but practical
 instantiations have ciphertext sizes, proving costs, and threshold
@@ -1465,9 +1464,9 @@ The practical consequence is that vote-amount privacy has a finite
 horizon tied to quantum computing timelines. Ciphertexts are stored
 on-chain permanently; an adversary who records them today could decrypt
 individual share amounts once a cryptographically relevant quantum
-computer exists. Voter *identity* is unaffected — alternate nullifier
-unlinkability relies on Poseidon preimage resistance, not on El Gamal
-— but *how much* a voter allocated to each option would be exposed.
+computer exists. Voter *identity* is unaffected (alternate nullifier
+unlinkability relies on Poseidon preimage resistance, not on El Gamal),
+but *how much* a voter allocated to each option would be exposed.
 
 This tradeoff is accepted for initial deployment. Per-round key rotation
 (each round uses a fresh $\mathsf{ea}\_\mathsf{sk}$) limits a classical
@@ -1484,7 +1483,7 @@ The Orchard note commitment tree uses depth 32, supporting $2^{32}$
 (~4.3 billion) leaves. Governance voting produces far fewer leaves:
 each voter generates one VAN per delegation and two leaves (a new VAN
 plus a VC) per vote. Even 10,000 voters each voting on 50 proposals
-produce roughly 1 million leaves — well within the $2^{24}$
+produce roughly 1 million leaves, well within the $2^{24}$
 (~16.7 million) capacity of a depth-24 tree.
 
 The reduced depth saves constraint rows in every circuit that performs
@@ -1551,16 +1550,16 @@ finalization of this ZIP.
   governance network byte) would allow a simplified Delegation Proof
   circuit that removes the dummy signed note scaffolding (signed note
   integrity, rho binding, output note commitment). The migration is
-  purely subtractive — the post-firmware circuit is a strict subset of
+  purely subtractive: the post-firmware circuit is a strict subset of
   the pre-firmware circuit. See [Why a Dummy Signed Note].
-- Partial delegation — a VAN-to-VAN delegation proof that consumes
-  one VAN and produces two with subdivided $\mathsf{num}\_\mathsf{ballots}$
-  — is enabled by the send-based VAN model but not specified in this
+- Partial delegation (a VAN-to-VAN delegation proof that consumes
+  one VAN and produces two with subdivided $\mathsf{num}\_\mathsf{ballots}$)
+  is enabled by the send-based VAN model but not specified in this
   ZIP. Specifying the circuit and transaction type would allow a
   holder to distribute voting weight across multiple delegates.
   See [Why a Send-Based VAN Model].
-- A simplified non-send VAN model — replacing VAN consumption and
-  re-creation with out-of-band key delegation — would remove the
+- A simplified non-send VAN model, replacing VAN consumption and
+  re-creation with out-of-band key delegation, would remove the
   proposal authority decrement step from the Vote Proof and reduce
   per-vote VCT growth. This is currently not adopted because it
   forecloses partial delegation and clients still need VCT Merkle path
