@@ -277,35 +277,16 @@ decryptions.
 
 ## El Gamal Encryption on Pallas
 
-The protocol uses additively homomorphic El Gamal encryption [^elgamal]
-over the Pallas curve [^protocol-pallasandvesta] to encrypt vote share
-amounts.
-
-Let $G$ be the Pallas $\mathsf{SpendAuthSig}^{\mathsf{Orchard}}$
-generator [^protocol-concretespendauthsig] and let
-$\mathsf{ea}\_\mathsf{pk} = [\mathsf{ea}\_\mathsf{sk}]\, G$ be the election authority's
-public key for the current voting round.
-
-To encrypt a ballot count $v$ with randomness $r$:
-
-$$\mathsf{Enc}(v, r) = \bigl([r]\, G, [v]\, G + [r]\, \mathsf{ea}\_\mathsf{pk}\bigr)$$
-
-The ciphertext is a pair of Pallas points $(C_1, C_2)$.
-
-**Homomorphic property.** Given ciphertexts $\mathsf{Enc}(a, r_1)$ and
-$\mathsf{Enc}(b, r_2)$, component-wise point addition yields a valid
-encryption of $a + b$:
-
-$$\mathsf{Enc}(a, r_1) + \mathsf{Enc}(b, r_2) = \mathsf{Enc}(a + b, r_1 + r_2)$$
-
-**Decryption.** Given ciphertext $(C_1, C_2)$ and secret key
-$\mathsf{ea}\_\mathsf{sk}$:
-
-$$C_2 - [\mathsf{ea}\_\mathsf{sk}]\, C_1 = [v]\, G$$
-
-The discrete logarithm $v$ is recovered via baby-step giant-step
-[^bsgs], which is feasible because ballot counts are bounded (the total
-ZEC supply yields at most $\approx 1.68 \times 10^8$ ballots).
+The protocol uses additively homomorphic El Gamal encryption over the
+Pallas curve to encrypt vote share amounts. The scheme — including
+setup, encryption, additive homomorphism, and decryption — is defined
+in [^ea-ceremony]. This ZIP uses the notation established there: $G$ is
+the Pallas $\mathsf{SpendAuthSig}^{\mathsf{Orchard}}$
+generator [^protocol-concretespendauthsig],
+$\mathsf{ea}\_\mathsf{pk} = [\mathsf{ea}\_\mathsf{sk}]\, G$ is the election
+authority's public key for the current voting round, and a ciphertext is
+a pair of Pallas points $(C_1, C_2)$ where
+$\mathsf{Enc}(v, r) = \bigl([r]\, G,\; [v]\, G + [r]\, \mathsf{ea}\_\mathsf{pk}\bigr)$.
 
 
 ## Data Structures
@@ -1115,7 +1096,7 @@ parameters is deferred to the operational voting process ZIP.
 
 ## Homomorphic Tally
 
-After the voting window closes, the tally proceeds in three steps.
+After the voting window closes, the tally proceeds in two steps.
 
 **Step 1: Public aggregation.** For each
 $(\mathsf{proposal}\_\mathsf{id}, \mathsf{vote}\_\mathsf{decision})$ pair, the aggregate
@@ -1127,49 +1108,24 @@ $$\mathsf{agg} = \Bigl(\sum C_{1,j}, \sum C_{2,j}\Bigr)$$
 This is publicly computable from on-chain data. Any party can
 independently verify the aggregation.
 
-**Step 2: Threshold decryption.** At least $t$ validators each produce
-a partial decryption of the aggregate ciphertext using their Shamir
-share and post it on-chain. The partial decryptions are combined via
-Lagrange interpolation:
-
-$$\sum C_{2,j} - \sum_{i \in S} [\lambda_i]\, D_i = [\mathsf{total}\_\mathsf{ballots}]\, G$$
-
-where $D_i = [s_i]\, \sum C_{1,j}$ is validator $V_i$'s partial
-decryption and $\lambda_i$ are the Lagrange coefficients for the
-participating set $S$. The value $\mathsf{total}\_\mathsf{ballots}$ is recovered
-via baby-step giant-step discrete-log search (feasible because the total
-is bounded by ZEC supply). No party reconstructs $\mathsf{ea}\_\mathsf{sk}$
-during this process.
-
-**Step 3: Public verification.** The individual partial decryptions
-$D_i$ and the aggregate ciphertext are all on-chain. Anyone can
-recompute the Lagrange combination for any qualifying subset of $t$
-validators and confirm the claimed $\mathsf{total}\_\mathsf{ballots}$.
-
-Individual vote amounts are never revealed; only the aggregate total
-per (proposal, decision) pair. The threshold decryption procedure is specified in [^ea-ceremony].
+**Step 2: Threshold decryption and public verification.** At least $t$
+validators produce partial decryptions that are combined via Lagrange
+interpolation to recover $\mathsf{total}\_\mathsf{ballots}$. The procedure,
+including partial decryption submission, Lagrange combination, and
+public verification, is specified in [^ea-ceremony]. Individual vote
+amounts are never revealed; only the aggregate total per
+(proposal, decision) pair.
 
 
 ## Election Authority Key
 
 Each voting round uses a fresh election authority keypair
-$(\mathsf{ea}\_\mathsf{sk}, \mathsf{ea}\_\mathsf{pk})$ produced by an automated threshold
-secret sharing ceremony among the vote chain's validator set. A trusted
-dealer generates $\mathsf{ea}\_\mathsf{sk}$, splits it into Shamir
-shares [^shamir], distributes the shares to eligible validators via
-ECIES [^ecies], and deletes the full key. After the ceremony, no single party
-holds $\mathsf{ea}\_\mathsf{sk}$; each validator holds only its share. The round
-transitions to active status once a quorum of validators have verified
-their shares and acknowledged receipt.
-
-At tally time, at least $t = \lceil n/2 \rceil + 1$ validators
-cooperate to produce partial decryptions of the aggregate ciphertext
-and post them on-chain. The partial decryptions are combined via
-Lagrange interpolation - the full secret key is never reconstructed.
-
-The ceremony protocol, including dealer selection, ECIES share distribution, validator
-acknowledgment, confirmation thresholds, timeout and jailing rules, and threshold
-decryption procedures, is specified in [^ea-ceremony].
+$(\mathsf{ea}\_\mathsf{sk}, \mathsf{ea}\_\mathsf{pk})$ produced by the key
+ceremony specified in [^ea-ceremony]. After the ceremony, no single
+party holds $\mathsf{ea}\_\mathsf{sk}$; each validator holds only a Shamir
+share. At tally time, at least $t = \lceil n/2 \rceil + 1$ validators
+cooperate to produce partial decryptions without reconstructing the
+full secret key.
 
 
 ## Vote Chain
@@ -1351,52 +1307,12 @@ authority check is intended. An additional non-zero gate
 provides defense-in-depth by rejecting $\mathsf{proposal}\_\mathsf{id} = 0$
 on active rows.
 
-## Why Threshold Secret Sharing
+## Why Threshold Secret Sharing and No Per-Validator DLEQ Proofs
 
-The election authority key is split into Shamir shares rather than distributed intact to all validators. This
-ensures that compromise of any single validator (or any minority below
-$t$) does not expose the full decryption key. The threshold
-$t = \lceil n/2 \rceil + 1$ ensures that an adversary controlling fewer
-than half of validators cannot reach the decryption threshold. Under
-the standard CometBFT [^cometbft] assumption (fewer than one-third Byzantine),
-this provides an additional safety margin for vote-amount privacy.
-
-The protocol uses a trusted dealer rather than distributed key
-generation (DKG). Feldman VSS commitments [^feldman] (which would let each
-validator verify that its share is consistent with
-$\mathsf{ea}\_\mathsf{pk}$) are omitted for initial scope; the dealer is
-trusted to distribute correct shares, and any tampering would be
-caught at tally time. Distributed key generation is a potential future
-enhancement (see [Open issues]).
-
-## Why No Per-Validator DLEQ Proofs
-
-Each validator's partial decryption $D_i = [s_i]\, \sum C_{1,j}$ is
-posted on-chain without a Chaum–Pedersen DLEQ proof [^chaum-pedersen]
-attesting that $s_i$ matches the validator's committed share. This is a
-deliberate simplification.
-
-Without DLEQ proofs, a malicious validator can post a bogus $D_i$. Any
-Lagrange combination that includes this $D_i$ will produce an incorrect
-message point, causing the baby-step giant-step search to fail or
-return an implausible result. However, a bogus $D_i$ cannot cause a
-wrong tally to be accepted: the decrypted result is publicly
-verifiable (anyone can check that the claimed
-$\mathsf{total}\_\mathsf{ballots}$ satisfies the decryption equation for
-the on-chain aggregate ciphertext), so a tally derived from a corrupted
-subset will always be detected.
-
-The missing DLEQ proofs are therefore a liveness issue, not a
-correctness one. A single malicious validator can force the tally
-procedure to try alternative subsets of size $t$ to find a fully honest
-quorum, delaying finalization. Under the CometBFT assumption that fewer
-than one-third of validators are Byzantine, such an honest quorum
-always exists.
-
-Adding per-validator DLEQ proofs would allow immediate identification
-and exclusion of misbehaving validators, reducing verification to
-$O(1)$ per partial decryption. This is left as a future enhancement
-(see [Open issues]).
+See [^ea-ceremony] for the rationale behind threshold secret sharing
+(including the trusted dealer model and the omission of Feldman VSS
+commitments) and the omission of per-validator DLEQ proofs for partial
+decryptions.
 
 ## Why a Send-Based VAN Model
 
@@ -1439,43 +1355,15 @@ would shift in favor of removing the VAN. See [Open issues].
 
 ## Why Classical El Gamal Rather Than Post-Quantum Encryption
 
-The protocol uses El Gamal on the Pallas curve, which is vulnerable to a
-quantum adversary running Shor's algorithm. A sufficiently powerful
-quantum computer could recover $\mathsf{ea}\_\mathsf{sk}$ from
-$\mathsf{ea}\_\mathsf{pk}$ and decrypt individual vote share ciphertexts,
-breaking vote-amount privacy for any round whose on-chain ciphertexts
-were recorded.
-
-Post-quantum aggregatable encryption, a scheme that is both
-quantum-resistant and additively homomorphic, would eliminate this
-risk. However, no such scheme is mature enough for production use.
-Lattice-based homomorphic encryption exists in theory, but practical
-instantiations have ciphertext sizes, proving costs, and threshold
-decryption complexities that are orders of magnitude larger than
-El Gamal on an elliptic curve. The homomorphic tally
-(component-wise point addition of Pallas points) and the threshold
-decryption (Shamir/Feldman secret sharing with Lagrange interpolation
-over a scalar field) are both simple precisely because El Gamal
-operates in the same algebraic setting as the rest of the protocol.
-Replacing it would require a fundamentally different threshold
-protocol and circuit design for the Vote Proof and Vote Reveal Proof.
-
-The practical consequence is that vote-amount privacy has a finite
-horizon tied to quantum computing timelines. Ciphertexts are stored
-on-chain permanently; an adversary who records them today could decrypt
-individual share amounts once a cryptographically relevant quantum
-computer exists. Voter *identity* is unaffected (alternate nullifier
-unlinkability relies on Poseidon preimage resistance, not on El Gamal),
-but *how much* a voter allocated to each option would be exposed.
-
-This tradeoff is accepted for initial deployment. Per-round key rotation
-(each round uses a fresh $\mathsf{ea}\_\mathsf{sk}$) limits a classical
-compromise to a single round, and vote splitting across $N_s$ shares
-means a quantum adversary would recover individual shares rather than
-complete ballot allocations unless it also breaks the vote commitment
-unlinkability (which depends on the Poseidon-based blinded share
-commitments, not on El Gamal). Post-quantum migration is tracked as an
-open issue.
+See [^ea-ceremony] for the rationale behind using classical El Gamal
+rather than post-quantum encryption. The key consequence for this
+protocol is that vote-amount privacy has a finite horizon tied to
+quantum computing timelines, while voter *identity* is unaffected
+(alternate nullifier unlinkability relies on Poseidon preimage
+resistance, not on El Gamal). Vote splitting across $N_s$ shares
+provides additional mitigation: a quantum adversary would recover
+individual shares rather than complete ballot allocations unless it
+also breaks the Poseidon-based blinded share commitments.
 
 ## Why VCT Depth 24
 
@@ -1535,17 +1423,9 @@ finalization of this ZIP.
 
 # Open issues
 
-- Per-validator Chaum–Pedersen DLEQ proofs for partial decryptions
-  would allow immediate identification of misbehaving validators at
-  tally time, converting the current liveness cost (subset search) to
-  $O(1)$ verification. See [Why No Per-Validator DLEQ Proofs].
-- Feldman VSS commitments from the dealer during the key ceremony
-  would let each validator verify that its Shamir share is consistent
-  with $\mathsf{ea}\_\mathsf{pk}$, removing the trust assumption on the
-  dealer. See [Why Threshold Secret Sharing].
-- Distributed key generation (DKG) would eliminate the trusted dealer
-  entirely, producing $\mathsf{ea}\_\mathsf{pk}$ without any single party
-  ever holding $\mathsf{ea}\_\mathsf{sk}$. See [Why Threshold Secret Sharing].
+- Open issues related to the EA key ceremony (per-validator DLEQ proofs,
+  Feldman VSS commitments, distributed key generation, and post-quantum
+  encryption) are tracked in [^ea-ceremony].
 - Hardware wallet firmware with voting-aware signing (e.g., a
   governance network byte) would allow a simplified Delegation Proof
   circuit that removes the dummy signed note scaffolding (signed note
@@ -1567,17 +1447,6 @@ finalization of this ZIP.
   to track VCT paths (e.g., full server-side path retrieval), this
   tradeoff should be revisited.
   See [Why a Send-Based VAN Model].
-- Post-quantum aggregatable encryption would eliminate the long-term
-  "harvest now, decrypt later" risk to vote-amount privacy. On-chain
-  El Gamal ciphertexts are permanent; a future quantum adversary could
-  decrypt individual share amounts for any recorded round. No production-
-  ready post-quantum scheme currently offers both additive homomorphism
-  and efficient threshold decryption. If such a scheme matures, the
-  El Gamal layer (encryption in the Vote Proof, ciphertext verification
-  in the Vote Reveal Proof, and the homomorphic tally procedure) could
-  be replaced without changing the commitment, nullifier, or Merkle
-  membership components of the protocol.
-  See [Why Classical El Gamal Rather Than Post-Quantum Encryption].
 - The VCT depth of 24 ($2^{24} \approx 16.7$ million leaves) is
   sufficient for current governance usage projections, but may need to
   be increased via a vote chain upgrade if participation grows
@@ -1594,8 +1463,6 @@ finalization of this ZIP.
 
 [^protocol]: [Zcash Protocol Specification, Version 2025.6.3 [NU6.1] or later](protocol/protocol.pdf)
 
-[^protocol-pallasandvesta]: [Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 5.4.9.6: Pallas and Vesta](protocol/protocol.pdf#pallasandvesta)
-
 [^protocol-concretespendauthsig]: [Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 5.4.7.1: Spend Authorization Signature (Orchard)](protocol/protocol.pdf#concretespendauthsig)
 
 [^poseidon]: [Poseidon: A New Hash Function for Zero-Knowledge Proof Systems](https://eprint.iacr.org/2019/458)
@@ -1606,21 +1473,7 @@ finalization of this ZIP.
 
 [^ea-ceremony]: [Election Authority Key Ceremony](draft-valargroup-ea-key-ceremony)
 
-[^chaum-pedersen]: [Chaum, D. and Pedersen, T.P. "Wallet Databases with Observers." CRYPTO 1992](https://link.springer.com/chapter/10.1007/3-540-48071-4_7)
-
-[^elgamal]: [T. ElGamal, "A public key cryptosystem and a signature scheme based on discrete logarithms", IEEE Transactions on Information Theory, vol. 31, no. 4, pp. 469-472, 1985](https://doi.org/10.1109/TIT.1985.1057074)
-
-[^shamir]: [A. Shamir, "How to share a secret", Communications of the ACM, vol. 22, no. 11, pp. 612-613, 1979](https://doi.org/10.1145/359168.359176)
-
-[^feldman]: [P. Feldman, "A practical scheme for non-interactive verifiable secret sharing", in Proceedings of the 28th IEEE Symposium on Foundations of Computer Science, pp. 427-437, 1987](https://doi.org/10.1109/SFCS.1987.4)
-
-[^ecies]: [V. Shoup, "A Proposal for an ISO Standard for Public Key Encryption", version 2.1, 2001](https://www.shoup.net/papers/iso-2_1.pdf)
-
-[^bsgs]: [D. Shanks, "Class number, a theory of factorization, and genera", in Proceedings of Symposia in Pure Mathematics, vol. 20, pp. 415-440, 1971](https://doi.org/10.1090/pspum/020/0316385)
-
 [^halo2]: [S. Bowe, J. Grigg, and D. Hopwood, "Recursive Proof Composition without a Trusted Setup", 2019](https://eprint.iacr.org/2019/1021)
-
-[^cometbft]: [CometBFT Specification](https://docs.cometbft.com/v1/spec/)
 
 [^protocol-merkletree]: [Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.8: Note Commitment Trees](protocol/protocol.pdf#merkletree)
 
