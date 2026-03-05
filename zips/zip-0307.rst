@@ -224,43 +224,33 @@ viewing key $\mathsf{ivk}$ is a slight deviation from the standard decryption pr
 - if $\mathsf{LEBS2OSP}_{256}(\mathsf{cm}_u') \neq \mathtt{cmu}$, return $\bot$
 - return $\mathbf{np}$.
 
-Creating and updating note witnesses
-````````````````````````````````````
-As ``CompactBlocks`` are received in height order, and the transactions within them have
-their order preserved, the *cmu* values in each ``CompactOutput`` can be sequentially
-appended to an incremental Merkle tree of depth 32 in order to maintain a local copy of
-the Sapling note commitment tree. [#protocol-merkletree]_ This can then be used to
-create incremental witnesses for each unspent note the light client is tracking.
-[#incremental-witness]_ An incremental witness updated to height ``X`` corresponds to a
-Merkle path from the note to the Sapling commitment tree anchor for block ``X``.
-[#protocol-merklepath]_
+Maintaining note commitment tree witnesses
+``````````````````````````````````````````
+In order to spend a shielded note, the spender must produce a Merkle path
+(witness) from the note's commitment to an anchor (a root of the note commitment 
+tree at some block height). [#protocol-merkletree]_ [#protocol-merklepath]_ 
+A light client MUST therefore maintain sufficient note commitment tree state to
+produce witnesses for its unspent notes.
 
-Let ``tree`` be the Sapling note commitment tree at height ``X-1``, and ``note_witnesses``
-be the incremental witnesses for unspent notes detected up to height ``X-1``. When the
-``CompactBlock`` at height ``X`` is received:
+The note commitments in each ``CompactBlock`` (the $\mathsf{cmu}$ values from
+``CompactSaplingOutput`` entries and the $\mathsf{cmx}$ values from
+``CompactOrchardAction`` entries) are inserted into the respective Sapling or
+Orchard note commitment trees in the order they appear in the block.
 
-- For each ``CompactTx`` in ``CompactBlock``:
-
-  - For each ``CompactOutput`` (*cmu*, *epk*, *ciphertext*) in ``CompactBlock``:
-
-    - Append ``cmu`` to ``tree``.
-    - For ``witness`` in ``note_witnesses``:
-
-      - Append ``cmu`` to ``witness``.
-
-    - If ``ciphertext`` contains a relevant note, create an incremental witness from
-      ``tree`` and append it to ``note_witnesses``.
-
-Incremental Merkle trees cannot be rewound, so the light client should cache both the
-Sapling note commitment tree and per-note incremental witnesses for recent block heights.
-Cache management is implementation-dependent, but a cache size of 100 is reasonable, as no
-full Zcash node will roll back the chain by more than 100 blocks.
+A light client that has scanned a contiguous range of blocks can construct
+witnesses from the note commitments it has observed. However, a light client
+need not have scanned the entire chain in order to construct witnesses: the
+``GetSubtreeRoots`` RPC method [#lightwallet-protocol]_ provides roots of
+completed subtrees of the note commitment trees, which can be combined with
+locally-scanned commitments to produce valid witnesses even when portions of
+the chain have not been scanned.
 
 Detecting spends
 ````````````````
 
-The ``CompactSpend`` entries can be checked against known local nullifiers, to for example
-ensure that a transaction has been received by the network and mined.
+The ``CompactSaplingSpend`` nullifier entries and the nullifier fields of
+``CompactOrchardAction`` entries can be checked against the nullifiers
+of notes known to the client to determine when those notes have been spent.
 
 Block header validation
 ```````````````````````
