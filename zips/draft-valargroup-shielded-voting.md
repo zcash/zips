@@ -212,6 +212,9 @@ see [^pir-governance].
 - The protocol supports up to 16 proposals per voting round.
 - The protocol supports delegation of voting authority to a third-party
   hotkey.
+- The delegation phase is compatible with hardware wallets that support
+  only the standard Orchard PCZT signing flow, without requiring
+  firmware changes specific to the voting protocol.
 
 
 # Non-requirements
@@ -1177,6 +1180,35 @@ entirely. Delegation preserves the hardware wallet's role as the sole
 custodian of spending keys while enabling full participation in the
 voting protocol.
 
+## Why a Dummy Signed Note
+
+The Delegation Proof includes a dummy signed note (value 0) whose rho is
+deterministically bound to the delegation context. This mechanism exists
+to obtain a $\mathsf{SpendAuthSig}^{\mathsf{Orchard}}$ from hardware
+wallets (e.g., Keystone) that support only the standard Orchard PCZT
+signing flow.
+
+Without voting-specific firmware, the hardware wallet interprets the
+delegation as a standard Orchard Action and signs the transaction
+sighash accordingly. The dummy note's rho binding ensures this signature
+is non-replayable and scoped to the exact delegation context (all note
+commitments, the VAN, and the voting round), even though the hardware
+wallet is unaware of governance semantics. The sighash that the hardware
+wallet signs commits to a structure that appears to be a fund-moving
+transaction — this is an inherent consequence of reusing the standard
+signing flow and cannot be avoided without firmware changes.
+
+When hardware wallet firmware adds voting-aware signing (e.g., a
+governance network byte analogous to the testnet byte), the firmware can
+display the delegation context to the user (notes, amounts, voting
+round) and sign a governance-specific sighash that binds directly to
+the delegation parameters. The signed note scaffolding — signed note
+integrity, signed note nullifier, rho binding, and output note
+commitment — can then be removed from the circuit. This migration is
+purely subtractive: the simplified circuit is a strict subset of the
+current one, and only ZKP #1 (the Delegation Proof) changes. ZKP #2
+(Vote Proof) and ZKP #3 (Vote Reveal Proof) are unaffected.
+
 ## Why $N_s$ Shares Per Vote
 
 Splitting a vote into $N_s$ shares serves two purposes. First, it
@@ -1292,6 +1324,19 @@ This ZIP does not specify a consensus change to the Zcash mainchain.
 Deployment considerations are specific to the vote chain and will be
 addressed in the operational voting process ZIP.
 
+The protocol is designed to support two hardware wallet modes for the
+delegation phase. In the pre-firmware mode, the spend authorization
+signature is obtained through a standard PCZT-based signing flow: the
+hardware wallet signs what it interprets as an Orchard Action, and the
+dummy signed note mechanism (see [Why a Dummy Signed Note]) ensures
+correctness. In the post-firmware mode, the hardware wallet recognizes
+a governance-specific network byte, displays the delegation context
+(notes, amounts, voting round) to the user, and signs a
+governance-specific sighash. Both modes produce a valid
+$\mathsf{SpendAuthSig}^{\mathsf{Orchard}}$ that the Delegation Proof
+consumes. The post-firmware circuit is a strict subset of the
+pre-firmware circuit (see [Open issues]).
+
 
 # Reference implementation
 
@@ -1317,6 +1362,12 @@ finalization of this ZIP.
 - Distributed key generation (DKG) would eliminate the trusted dealer
   entirely, producing $\mathsf{ea}\_\mathsf{pk}$ without any single party
   ever holding $\mathsf{ea}\_\mathsf{sk}$. See [Why Threshold Secret Sharing].
+- Hardware wallet firmware with voting-aware signing (e.g., a
+  governance network byte) would allow a simplified Delegation Proof
+  circuit that removes the dummy signed note scaffolding (signed note
+  integrity, rho binding, output note commitment). The migration is
+  purely subtractive — the post-firmware circuit is a strict subset of
+  the pre-firmware circuit. See [Why a Dummy Signed Note].
 
 
 # References
