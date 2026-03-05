@@ -936,7 +936,6 @@ Given a primary input:
 - $\mathsf{vote}\_\mathsf{decision} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$ — the voter's choice.
 - $\mathsf{rt}^{\mathsf{vct}} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$ — root of the
   Vote Commitment Tree.
-- $\mathsf{anchor}\_\mathsf{height} ⦂ \mathbb{N}$ — VCT snapshot height.
 - $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$
 
 #### Auxiliary Inputs
@@ -1021,8 +1020,7 @@ following checks:
 1. Verify $\pi$ against the public inputs.
 2. Verify that $\mathsf{share}\_\mathsf{nullifier}$ does not appear in the
    share nullifier set. If it does, reject as double-counting.
-3. Verify that $\mathsf{rt}^{\mathsf{vct}}$ matches a published VCT root at
-   $\mathsf{anchor}\_\mathsf{height}$.
+3. Verify that $\mathsf{rt}^{\mathsf{vct}}$ matches a published VCT root.
 4. Verify that $\mathsf{proposal}\_\mathsf{id}$ is valid for the current round.
 5. Verify that $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}$ matches an active round.
 6. Add $\mathsf{share}\_\mathsf{nullifier}$ to the share nullifier set.
@@ -1045,7 +1043,6 @@ A share reveal transaction submitted to the vote chain MUST contain:
 | $\mathsf{proposal}\_\mathsf{id}$ | $\{1 \ldots 15\}$ | Proposal identifier |
 | $\mathsf{vote}\_\mathsf{decision}$ | Pallas scalar | Vote decision |
 | $\mathsf{rt}^{\mathsf{vct}}$ | Pallas scalar | VCT root |
-| $\mathsf{anchor}\_\mathsf{height}$ | integer | VCT anchor height |
 | $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}$ | Pallas scalar | Round identifier |
 
 Note: the Vote Reveal Proof has no spend authorization signature
