@@ -4,8 +4,8 @@
             Roman Akhtariev <ackhtariev@gmail.com>
             Adam Tucker <adamleetucker@outlook.com>
             Greg Nagy <greg@dhamma.works>
-    Credits: Daira-Emma Hopwood <daira@jacaranda.org>
-             Jack Grigg <thestr4d@gmail.com>
+    Credits: Daira-Emma Hopwood
+             Jack Grigg
     Status: Draft
     Category: Standards
     Created: 2026-03-04
@@ -15,9 +15,9 @@
 
 # Terminology
 
-The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document
-are to be interpreted as described in BCP 14 [^BCP14] when, and only
-when, they appear in all capitals.
+The key words "MUST", "REQUIRED", "MUST NOT", "SHOULD", and "MAY" in this
+document are to be interpreted as described in BCP 14 [^BCP14] when, and
+only when, they appear in all capitals.
 
 The character § is used when referring to sections of the Zcash Protocol
 Specification. [^protocol]
@@ -435,6 +435,28 @@ Each set is append-only within a voting round. The vote chain rejects
 any transaction that publishes a nullifier already present in the
 corresponding set.
 
+### Domain Separator Tags
+
+Several constructions in this protocol use a domain separator tag
+encoded as a Pallas scalar. Each tag is defined by a fixed ASCII
+string. To convert a tag string to a field element, interpret its
+byte representation as an unsigned little-endian integer:
+
+$$\mathsf{tag} = \sum_{j=0}^{\ell-1} b_j \cdot 256^j$$
+
+where $b_0, \ldots, b_{\ell-1}$ are the ASCII byte values of the string
+and $\ell$ is its length. All tag strings in this protocol are shorter
+than 32 bytes, so the resulting integer is less than $2^{256}$ and fits
+in $\mathbb{F}_{q_{\mathbb{P}}}$ without reduction.
+
+The protocol defines three tags:
+
+| Tag constant | String | Length |
+|---|---|---|
+| $\mathsf{tag}\_{\mathsf{gov}}$ | `"governance authorization"` | 24 bytes |
+| $\mathsf{tag}\_{\mathsf{van}}$ | `"vote authority spend"` | 20 bytes |
+| $\mathsf{tag}\_{\mathsf{share}}$ | `"share spend"` | 11 bytes |
+
 
 ## Ballot Scaling
 
@@ -595,7 +617,7 @@ authorization signature $\sigma$ MUST perform the following checks:
 4. Verify that no $\mathsf{gov}\_{\mathsf{null}\_\mathsf{i}}$ appears in the governance
    nullifier set. If any does, reject as a double-delegation.
 5. Verify that $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}$ matches an active round.
-6. Insert $\mathsf{van}$ and $\mathsf{cmx}\_\mathsf{new}$ into the VCT.
+6. Insert $\mathsf{van}$ into the VCT.
 7. Add all $\mathsf{gov}\_{\mathsf{null}\_\mathsf{i}}$ to the governance nullifier set.
 
 ### Delegation Message
@@ -668,9 +690,9 @@ The prover knows:
 - $\mathsf{path}^{\mathsf{vct}}, \mathsf{pos}^{\mathsf{vct}}$ — Merkle proof for the
   old VAN in the VCT.
 - $\mathsf{van}_{\mathsf{old}}$ — old VAN commitment.
-- $\mathsf{v}\_\mathsf{1}, \ldots, \mathsf{v}_{N_s}$ — plaintext share values.
-- $r_1, \ldots, r_{N_s}$ — El Gamal encryption randomness per share.
-- $\mathsf{blind}\_\mathsf{1}, \ldots, \mathsf{blind}_{N_s}$ — per-share blind
+- $\mathsf{v}\_\mathsf{0}, \ldots, \mathsf{v}_{N_s - 1}$ — plaintext share values.
+- $r_0, \ldots, r_{N_s - 1}$ — El Gamal encryption randomness per share.
+- $\mathsf{blind}\_\mathsf{0}, \ldots, \mathsf{blind}_{N_s - 1}$ — per-share blind
   factors.
 
 #### Conditions
@@ -745,11 +767,11 @@ randomness; only $\mathsf{proposal}\_\mathsf{authority}$ changes.
 
 **Condition 8 — Shares sum correctness.**
 
-$$\sum_{i=1}^{N_s} \mathsf{v}\_\mathsf{i} = \mathsf{num}\_\mathsf{ballots}$$
+$$\sum_{i=0}^{N_s - 1} \mathsf{v}\_\mathsf{i} = \mathsf{num}\_\mathsf{ballots}$$
 
 **Condition 9 — Shares range check.** Each share is bounded:
 
-$$0 \leq \mathsf{v}\_\mathsf{i} < 2^{30} \quad \text{for each } i \in \{1 \ldots N_s\}$$
+$$0 \leq \mathsf{v}\_\mathsf{i} < 2^{30} \quad \text{for each } i \in \{0 \ldots N_s - 1\}$$
 
 This bound is critical for two reasons: (1) it ensures the base-field
 share sum and the scalar-field El Gamal encoding agree (no modular
