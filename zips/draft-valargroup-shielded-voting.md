@@ -185,7 +185,7 @@ and blinded share commitments for each share they submit, along with
 the proposal identifier and vote decision, but cannot decrypt plaintext
 amounts or link shares to voter identities. The
 primary trust requirement on submission servers is not leaking timing
-metadata; using multiple independent servers mitigates this risk.
+metadata; using multiple independent servers with randomized delays for submission mitigates this risk.
 
 **Non-membership tree queries.** Obtaining exclusion proofs for the
 nullifier non-membership tree during delegation requires querying a data
@@ -206,9 +206,8 @@ see [^pir-governance].
 - Individual vote amounts are not revealed at any point; only aggregate
   totals per (proposal, decision) pair are recoverable.
 - The aggregate tally is publicly verifiable: any party can confirm the
-  homomorphic accumulation and verify the election authority's
-  decryption proof.
-- The protocol supports up to 16 proposals per voting round.
+  homomorphic accumulation.
+- The protocol supports up to 15 proposals per voting round.
 - The protocol supports delegation of voting authority to a third-party
   hotkey.
 - The delegation phase is compatible with hardware wallets that support
@@ -327,8 +326,10 @@ where:
   weight in ballots.
 - $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}} \in \{ 0 .. q_{\mathbb{P}}-1 \}$ — scopes this VAN to a specific voting round.
 - $\mathsf{proposal}\_\mathsf{authority} \in \{0 \ldots 2^{16}-1\}$ — bitmask
-  encoding which proposals this VAN is authorized to vote on. Full
-  authority for 16 proposals is $2^{16} - 1 = 65535$.
+  encoding which proposals this VAN is authorized to vote on.
+  $\mathsf{proposal}\_\mathsf{id}$ values 1–15 map to bits 1–15; bit 0 is
+  reserved (see [Why Proposal Identifiers Start at 1]). Full authority
+  is $2^{16} - 1 = 65535$.
 - $\mathsf{gov}\_{\mathsf{comm}\_\mathsf{rand}} \in \{ 0 .. q_{\mathbb{P}}-1 \}$ —
   commitment randomness.
 
@@ -358,7 +359,7 @@ where:
 - $\mathsf{shares}\_\mathsf{hash} \in \{ 0 .. q_{\mathbb{P}}-1 \}$ — a hash
   over blinded commitments to all $N_s$ encrypted shares (see
   [Shares Hash]).
-- $\mathsf{proposal}\_\mathsf{id} \in \{1 \ldots 16\}$ — which proposal this
+- $\mathsf{proposal}\_\mathsf{id} \in \{1 \ldots 15\}$ — which proposal this
   vote targets.
 - $\mathsf{vote}\_\mathsf{decision} \in \{ 0 .. q_{\mathbb{P}}-1 \}$ — the
   voter's choice (0-indexed into the proposal's declared options).
@@ -664,7 +665,7 @@ Given a primary input:
 - $\mathsf{rt}^{\mathsf{vct}} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$ — root of the
   Vote Commitment Tree.
 - $\mathsf{anchor}\_\mathsf{height} ⦂ \mathbb{N}$ — VCT snapshot height.
-- $\mathsf{proposal}\_\mathsf{id} ⦂ \{1 \ldots 16\}$ — which proposal.
+- $\mathsf{proposal}\_\mathsf{id} ⦂ \{1 \ldots 15\}$ — which proposal.
 - $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$
 - $\mathsf{ea}\_\mathsf{pk} ⦂ \mathbb{P}^*$ — election authority public key
   (x and y coordinates).
@@ -749,14 +750,14 @@ producing distinct field elements.
 ##### New VAN Construction
 
 **Condition 6 — Proposal authority decrement.** Bit
-$\mathsf{proposal}\_\mathsf{id} - 1$ is cleared in the authority bitmask:
+$\mathsf{proposal}\_\mathsf{id}$ is cleared in the authority bitmask:
 
 - $\mathsf{proposal}\_{\mathsf{authority}\_\mathsf{old}}$ is decomposed into 16 boolean
   wires $b_0, \ldots, b_{15}$ that recompose to the original value.
-- The bit at position $\mathsf{proposal}\_\mathsf{id} - 1$ is asserted to be 1
+- The bit at position $\mathsf{proposal}\_\mathsf{id}$ is asserted to be 1
   (the voter has authority for this proposal).
 - $\mathsf{proposal}\_{\mathsf{authority}\_\mathsf{new}}$ is the recomposition with bit
-  $\mathsf{proposal}\_\mathsf{id} - 1$ cleared; all other bits are unchanged.
+  $\mathsf{proposal}\_\mathsf{id}$ cleared; all other bits are unchanged.
 
 **Condition 7 — New VAN integrity.** The new VAN is correctly
 constructed:
@@ -840,7 +841,7 @@ A vote transaction submitted to the vote chain MUST contain:
 | $\mathsf{vc}$ | Pallas scalar | Vote commitment |
 | $\mathsf{rt}^{\mathsf{vct}}$ | Pallas scalar | VCT root |
 | $\mathsf{anchor}\_\mathsf{height}$ | integer | VCT anchor height |
-| $\mathsf{proposal}\_\mathsf{id}$ | $\{1 \ldots 16\}$ | Proposal identifier |
+| $\mathsf{proposal}\_\mathsf{id}$ | $\{1 \ldots 15\}$ | Proposal identifier |
 | $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}$ | Pallas scalar | Round identifier |
 | $\mathsf{ea}_{\mathsf{pk}}$ | Pallas point | EA public key |
 
@@ -863,7 +864,7 @@ Given a primary input:
   prevents double-counting.
 - $\mathsf{enc}\_\mathsf{share} ⦂ \mathbb{P}^* \times \mathbb{P}^*$ — the
   El Gamal ciphertext $(C_1, C_2)$ for this share.
-- $\mathsf{proposal}\_\mathsf{id} ⦂ \{1 \ldots 16\}$ — which proposal.
+- $\mathsf{proposal}\_\mathsf{id} ⦂ \{1 \ldots 15\}$ — which proposal.
 - $\mathsf{vote}\_\mathsf{decision} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$ — the voter's choice.
 - $\mathsf{rt}^{\mathsf{vct}} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$ — root of the
   Vote Commitment Tree.
@@ -973,7 +974,7 @@ A share reveal transaction submitted to the vote chain MUST contain:
 | $\pi_{\text{reveal}}$ | Proof | The Vote Reveal Proof |
 | $\mathsf{share}\_\mathsf{nullifier}$ | Pallas scalar | Share nullifier |
 | $\mathsf{enc}\_\mathsf{share}$ | $(C_1, C_2)$ | El Gamal ciphertext (two Pallas points) |
-| $\mathsf{proposal}\_\mathsf{id}$ | $\{1 \ldots 16\}$ | Proposal identifier |
+| $\mathsf{proposal}\_\mathsf{id}$ | $\{1 \ldots 15\}$ | Proposal identifier |
 | $\mathsf{vote}\_\mathsf{decision}$ | Pallas scalar | Vote decision |
 | $\mathsf{rt}^{\mathsf{vct}}$ | Pallas scalar | VCT root |
 | $\mathsf{anchor}\_\mathsf{height}$ | integer | VCT anchor height |
@@ -1262,6 +1263,26 @@ commitments are blinded Poseidon hashes — the shared fields are never
 externally observable (both old and new commitments appear as opaque
 field elements in the VCT), so address rotation would provide no
 additional unlinkability.
+
+## Why Proposal Identifiers Start at 1
+
+The $\mathsf{proposal}\_\mathsf{authority}$ bitmask is 16 bits wide, but
+$\mathsf{proposal}\_\mathsf{id}$ values start at 1, yielding 15 usable
+proposal slots rather than 16. Bit 0 is reserved.
+
+This follows from how lookup arguments work in Halo 2. A lookup table
+that validates $(\mathsf{proposal}\_\mathsf{id}, 2^{\mathsf{proposal}\_\mathsf{id}})$
+must include a default row that satisfies the lookup when the selector
+is inactive. The circuit uses the identity row $(0, 1)$ for this
+purpose — when the selector $q = 0$, the lookup input evaluates to
+$(0, 1)$, which must be present in the table for the proof to verify.
+Because every inactive row matches this entry, $\mathsf{proposal}\_\mathsf{id} = 0$
+cannot be used as a valid proposal identifier: a prover could trivially
+satisfy the lookup with $\mathsf{proposal}\_\mathsf{id} = 0$ even when no
+authority check is intended. An additional non-zero gate
+($\mathsf{proposal}\_\mathsf{id} \cdot \mathsf{proposal}\_\mathsf{id}^{-1} = 1$)
+provides defense-in-depth by rejecting $\mathsf{proposal}\_\mathsf{id} = 0$
+on active rows.
 
 ## Why Threshold Secret Sharing
 
