@@ -1344,6 +1344,46 @@ need for clients to track VCT paths entirely — for example by moving
 Merkle path retrieval fully to the submission server — the tradeoff
 would shift in favor of removing the VAN. See [Open issues].
 
+## Why Classical El Gamal Rather Than Post-Quantum Encryption
+
+The protocol uses El Gamal on the Pallas curve, which is vulnerable to a
+quantum adversary running Shor's algorithm. A sufficiently powerful
+quantum computer could recover $\mathsf{ea}\_\mathsf{sk}$ from
+$\mathsf{ea}\_\mathsf{pk}$ and decrypt individual vote share ciphertexts,
+breaking vote-amount privacy for any round whose on-chain ciphertexts
+were recorded.
+
+Post-quantum aggregatable encryption — a scheme that is both
+quantum-resistant and additively homomorphic — would eliminate this
+risk. However, no such scheme is mature enough for production use.
+Lattice-based homomorphic encryption exists in theory, but practical
+instantiations have ciphertext sizes, proving costs, and threshold
+decryption complexities that are orders of magnitude larger than
+El Gamal on an elliptic curve. The homomorphic tally
+(component-wise point addition of Pallas points) and the threshold
+decryption (Shamir/Feldman secret sharing with Lagrange interpolation
+over a scalar field) are both simple precisely because El Gamal
+operates in the same algebraic setting as the rest of the protocol.
+Replacing it would require a fundamentally different threshold
+protocol and circuit design for the Vote Proof and Vote Reveal Proof.
+
+The practical consequence is that vote-amount privacy has a finite
+horizon tied to quantum computing timelines. Ciphertexts are stored
+on-chain permanently; an adversary who records them today could decrypt
+individual share amounts once a cryptographically relevant quantum
+computer exists. Voter *identity* is unaffected — alternate nullifier
+unlinkability relies on Poseidon preimage resistance, not on El Gamal
+— but *how much* a voter allocated to each option would be exposed.
+
+This tradeoff is accepted for initial deployment. Per-round key rotation
+(each round uses a fresh $\mathsf{ea}\_\mathsf{sk}$) limits a classical
+compromise to a single round, and vote splitting across $N_s$ shares
+means a quantum adversary would recover individual shares rather than
+complete ballot allocations unless it also breaks the vote commitment
+unlinkability (which depends on the Poseidon-based blinded share
+commitments, not on El Gamal). Post-quantum migration is tracked as an
+open issue.
+
 ## Why Domain Tags in the VCT
 
 Both VANs and VCs are leaves in the same Merkle tree. The domain tags
@@ -1412,6 +1452,17 @@ finalization of this ZIP.
   to track VCT paths (e.g., full server-side path retrieval), this
   tradeoff should be revisited.
   See [Why a Send-Based VAN Model].
+- Post-quantum aggregatable encryption would eliminate the long-term
+  "harvest now, decrypt later" risk to vote-amount privacy. On-chain
+  El Gamal ciphertexts are permanent; a future quantum adversary could
+  decrypt individual share amounts for any recorded round. No production-
+  ready post-quantum scheme currently offers both additive homomorphism
+  and efficient threshold decryption. If such a scheme matures, the
+  El Gamal layer (encryption in the Vote Proof, ciphertext verification
+  in the Vote Reveal Proof, and the homomorphic tally procedure) could
+  be replaced without changing the commitment, nullifier, or Merkle
+  membership components of the protocol.
+  See [Why Classical El Gamal Rather Than Post-Quantum Encryption].
 
 
 # References
