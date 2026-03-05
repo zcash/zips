@@ -930,8 +930,10 @@ Given a primary input:
 
 - $\mathsf{share}\_\mathsf{nullifier} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$ —
   prevents double-counting.
-- $\mathsf{enc}\_\mathsf{share} ⦂ \mathbb{P}^* \times \mathbb{P}^*$ — the
-  El Gamal ciphertext $(C_1, C_2)$ for this share.
+- $C_{1,x}, C_{2,x} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$ — the $x$-coordinates
+  of the El Gamal ciphertext $(C_1, C_2)$ for this share. The full
+  points are carried in the share reveal message for homomorphic
+  accumulation, but only the $x$-coordinates are circuit public inputs.
 - $\mathsf{proposal}\_\mathsf{id} ⦂ \{1 \ldots 15\}$ — which proposal.
 - $\mathsf{vote}\_\mathsf{decision} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$ — the voter's choice.
 - $\mathsf{rt}^{\mathsf{vct}} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$ — root of the
@@ -985,7 +987,7 @@ inside the VC (via condition 2). The share commitments are blinded
 ciphertexts or blind factors of other shares to the prover.
 
 **Condition 4 — Share membership.** The commitment derived from the
-public $\mathsf{enc}\_\mathsf{share} = (C_1, C_2)$ and the witness blind
+public $x$-coordinates $C_{1,x}, C_{2,x}$ and the witness blind
 factor matches the share commitment at position
 $\mathsf{share}\_\mathsf{index}$:
 
