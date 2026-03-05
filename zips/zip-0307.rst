@@ -344,15 +344,26 @@ A light client MUST perform the following operations as part of synchronisation:
 Retrieving full transactions
 ````````````````````````````
 
-The compact block stream provides sufficient information for payment detection and balance
-tracking, but does not include memo fields or other transaction details. When a light
-client needs to access the memo field of a received note, the outgoing ciphertexts for
-spend recovery, or other transaction components, it retrieves the full transaction via the
-``GetTransaction`` RPC method.
+The compact block stream provides sufficient information for payment detection
+and balance tracking, but does not include memo fields or other transaction
+details. When a light client needs to access the memo field of a received note,
+the outgoing ciphertexts for spend recovery, or other transaction components,
+it retrieves the full transaction via the ``GetTransaction`` RPC method.
 
-Since a ``GetTransaction`` request reveals to the proxy server that the light client is
-interested in a specific transaction, full transaction retrieval SHOULD be performed over a
-privacy-preserving network connection such as Tor [#tor]_ or the Nym mixnet [#nym]_.
+Since a ``GetTransaction`` request reveals to the proxy server that the light
+client is interested in a specific transaction, full transaction retrieval
+SHOULD be performed over a privacy-preserving network connection such as Tor
+[#tor]_ or the Nym mixnet [#nym]_.
+
+In addition, even when using a privacy-preserving network connection for these
+operations, a client SHOULD NOT make transaction data requests to the proxy
+server in a fashion that links the client's interest in that transaction to
+other operations that the client may be performing in the clear. For example,
+if a client uses an unprotected connection for compact block download, that
+client SHOULD NOT retrieve full transaction data immediately upon transaction
+discovery, but SHOULD defer it until a later time when the download will 
+not be identifiably related to the download of the compact block range in 
+which the transaction was discovered.
 
 Importing a pre-existing key
 `````````````````````````````
@@ -375,97 +386,47 @@ Block privacy via bucketing
 
 *This section describes a proposed enhancement that has not been implemented.*
 
-The above interaction reveals to the server at the start of each synchronisation phase (B
-and D) the block height which the light client had previously synchronised to. This is an
-information leak under our security model (assuming network privacy). We can reduce the
-information leakage by "bucketing" the start point of each synchronisation. Doing so also
-enables us to handle most chain reorgs simultaneously.
+When a light client requests a range of compact blocks via ``GetBlockRange``, the start
+height of the request reveals to the proxy server the block height to which the light
+client had previously synchronised. This is an information leak under our security model
+(assuming network privacy). The information leakage can be reduced by "bucketing" the
+start point of each synchronisation request.
 
 Let ``⌊X⌋ = X - (X % N)`` be the value of ``X`` rounded down to some multiple of the
-bucket size ``N``. The synchronisation phases from the above interaction are modified as
-follows:
-
-.. code:: text
-
-    Phase   Client                Server
-    =====   ============================
-      B     GetLatestBlock ------------>
-
-            <---------------- BlockID(Y)
-
-            GetBlockRange(⌊X⌋, Y) ----->
-
-            <-------- CompactBlock(⌊X⌋)
-            <-------- CompactBlock(⌊X⌋+1)
-            <-------- CompactBlock(⌊X⌋+2)
-                            ...
-            <-------- CompactBlock(Y-1)
-            <-------- CompactBlock(Y)
-
-                ===
-
-      D     GetLatestBlock ------------>
-
-            <---------------- BlockID(Z)
-
-            GetBlockRange(⌊Y⌋, Z) ----->
-
-            <-------- CompactBlock(⌊Y⌋)
-            <-------- CompactBlock(⌊Y⌋+1)
-                            ...
-            <-------- CompactBlock(Z-1)
-            <-------- CompactBlock(Z)
-
-**Phase B:** The light client updates its local chain view for the first time.
-
-- The light client queries the server to fetch the most recent block ``Y``.
-- It then executes a block range query to fetch every block between ``⌊X⌋`` (inclusive)
-  and ``Y`` (inclusive).
-- Blocks between ``⌊X⌋`` and ``X`` are checked to ensure that the received ``blockHash``
-  matches the light client's chain view for each height, and are then discarded without
-  further processing.
-
-  - If an inconsistency is detected at height ``Q``, the light client sets ``X = Q-1``,
-    discards all local blocks with height ``>= Q``, and rolls back the state of all local
-    transactions to height ``Q-1`` (un-mining them as necessary).
-
-- Blocks between ``X+1`` and ``Y`` are processed as before.
-
-**Phase D:** The user has spent some notes. The light client updates its local chain view
-some time later.
-
-- The light client queries the server to fetch the most recent block ``Z``.
-- It then executes a block range query to fetch every block between ``⌊Y⌋`` (inclusive)
-  and ``Z`` (inclusive).
-- Blocks between ``⌊Y⌋`` and ``Y`` are checked to ensure that the received ``blockHash``
-  matches the light client's chain view for each height, and are then discarded without
-  further processing.
-
-  - If an inconsistency is detected at height ``R``, the light client sets ``Y = R-1``,
-    discards all local blocks with height ``>= R``, and rolls back the following local
-    state to height ``R-1``:
-
-    - All local transactions (un-mining them as necessary).
-    - All tracked nullifiers (unspending or discarding as necessary).
-    - All incremental witnesses (caching strategies are not covered in this ZIP).
-
-- Blocks between ``Y+1`` and ``Z`` are processed as before.
+bucket size ``N``. Instead of requesting blocks starting from the light client's last
+synchronised height ``X``, the light client requests blocks starting from ``⌊X⌋``. Blocks
+between ``⌊X⌋`` and ``X`` are checked against the light client's cached chain view for
+consistency and then discarded without further processing. This also helps detect chain
+reorganisations that occurred within the bucket window.
 
 Transaction privacy
 -------------------
 
-The synchronisation phases give the light client sufficient information to determine
+The compact block stream gives the light client sufficient information to determine
 accurate address balances, show when funds were received or spent, and spend any unspent
-notes. As synchronisation happens via a broadcast medium, it leaks no information about
-which transactions the light client is interested in.
+notes. Since synchronisation happens via a broadcast medium (the compact block stream), it
+leaks no information about which transactions the light client is interested in.
 
-If, however, the light client needs access to other components of a transaction (such as
-the memo fields for received notes, or the outgoing ciphertexts in order to recover spend
-information when importing a wallet seed), it will need to download the full transaction.
-The light client SHOULD obscure the exact transactions of interest by downloading numerous
-uninteresting transactions as well, and SHOULD download all transactions in any block from
-which a single full transaction is fetched (interesting or otherwise). It MUST convey to
-the user that fetching full transactions will reduce their privacy.
+However, other API methods reveal more specific interests to the proxy server:
+
+- ``GetTransaction`` reveals interest in a specific transaction. See
+  `Retrieving full transactions`_ for mitigation recommendations.
+- ``SendTransaction`` reveals that the light client is the sender of a transaction.
+  Transaction submission SHOULD be performed over a privacy-preserving network connection
+  such as Tor [#tor]_ or the Nym mixnet [#nym]_.
+- Transparent address queries (``GetTaddressTransactions``, ``GetTaddressBalance``,
+  ``GetAddressUtxos``) reveal the transparent addresses held by the light client. These
+  queries SHOULD be performed over a privacy-preserving network connection such as
+  Tor [#tor]_ or the Nym mixnet [#nym]_.
+- If a client queries for transactions related to multiple transparent addresses in
+  a single request, this will leak the fact that those addresses are controlled by
+  the same client. If the ``GetTaddressTransactions``, ``GetTaddressBalance`` 
+  or ``GetAddressUtxos`` methods are used, even over a privacy-preserving network
+  connect, the client SHOULD NOT request data for more than one address at a time
+  and SHOULD make such requests in a fashion that is not temporally linkable to
+  other operation of the wallet.
+- ``GetMempoolTx`` and ``GetMempoolStream`` reveal the light client's interest in
+  unconfirmed transactions.
 
 
 Reference Implementation
