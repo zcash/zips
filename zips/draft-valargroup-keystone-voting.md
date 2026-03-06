@@ -283,8 +283,8 @@ The signing flow uses the standard PCZT QR-based air-gapped protocol:
    PCZT. The wallet scans and parses it.
 
 5. **Extraction.** The wallet extracts the 64-byte
-   $\mathsf{spend\_auth\_sig}$ and the 32-byte sighash from the signed
-   PCZT.
+   $\mathsf{spend}\_\mathsf{auth}\_\mathsf{sig}$ and the 32-byte
+   sighash from the signed PCZT.
 
 ## Keystone Device Display
 
@@ -321,8 +321,8 @@ transaction.
 After receiving the signed PCZT from the Keystone device, the wallet:
 
 1. Parses the signed PCZT structurally and reads the
-   $\mathsf{spend\_auth\_sig}$ field from the relevant action. Keystone
-   redacts sensitive fields (e.g., $\alpha$, rseed, ZIP-32 derivation)
+   $\mathsf{spend}\_\mathsf{auth}\_\mathsf{sig}$ field from the relevant action.
+   Keystone redacts sensitive fields (e.g., $\alpha$, rseed, ZIP-32 derivation)
    after signing, so the wallet MUST extract the signature by parsing
    the PCZT structure rather than by byte-diffing against the unsigned
    version.
