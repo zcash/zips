@@ -11,7 +11,7 @@
                     Ying Tong Lai
   Credits: Taylor Hornby
            Stephen Smith
-  Status: [Revision 0] Active, [Revision 1] Proposed
+  Status: [Revision 0] Active, [Revision 1] Draft
   Category: Standards / RPC / Wallet
   Created: 2021-04-07
   License: MIT
@@ -214,6 +214,10 @@ to be a compelling reason to deviate from the standard, since the benefits
 of UA come precisely from their applicability across all new protocol
 upgrades.
 
+For `Revision 1`_, users must be able to visually distinguish addresses
+that risk information being leaked on-chain as a result of a transfer
+from addresses that present no such risks.
+
 Receivers
 ---------
 
@@ -262,13 +266,13 @@ it were absent.
   who upgrade to newer protocols / UAs don't lose the ability to smoothly
   interact with older wallets.
 
-- This property is crucial for allowing Transparent-Only UA-Conformant
-  wallets to interact with newer shielded wallets, removing a
+- This property is crucial for allowing wallets that support only older
+  shielded protocols to interact with newer shielded wallets, removing a
   disincentive for adopting newer shielded wallets.
 
-- This property also allows Transparent-Only wallets to upgrade to
-  shielded support without re-acquiring counterparty UAs. If they are
-  re-acquired, the user flow and usability will be minimally disrupted.
+- This property also allows wallets to upgrade to newer shielded protocol
+  support without re-acquiring counterparty UAs. If they are re-acquired,
+  the user flow and usability will be minimally disrupted.
 
 Experimental Usage
 ------------------
@@ -316,16 +320,22 @@ Revisions
 .. _`Revision 1`:
 
 * Revision 1: This version adds support for `MUST-understand Typecodes`_
-  and `Address Expiration Metadata`_. It also drops the restriction that
-  a UA/UVK must contain at least one shielded Item.
+  and `Address Expiration Metadata`_. It introduces two new variants of
+  Unified Addresses; `zu` addresses, which are prohibited from containing
+  transparent receivers, and `tu` addresses, which allow transparent
+  receivers to be augmented with metadata items. For Unified Viewing Keys,
+  Revision 1 also drops the restriction that a UVK must contain at least one
+  shielded Item.
 
-A Revision 0 UA/UVK is distinguished from a Revision 1 UA/UVK by its
+A Revision 0 UA is distinguished from a Revision 1 UA/UVK by its
 Human-Readable Part, as follows.
 
 Let *prefix* be:
 
-* “``u``”, if this is a UA/UVK prior to `Revision 1`_;
-* “``ur``”, if this is a UA/UVK from `Revision 1`_ onward.
+* “``u``”, if this is a UA or UVK prior to `Revision 1`_;
+* “``zu``”, if this is a shielded-only UA from `Revision 1`_ onward.
+* “``tu``”, if this is a transparent-enabled UA from `Revision 1`_ onward.
+* “``ur``”, if this is a UVK from `Revision 1`_ onward.
 
 The Human-Readable Parts (as defined in [#bip-0350]_) of Unified
 Addresses are defined as:
@@ -525,11 +535,23 @@ and this should be taken into account in the design of such Items.
 Requirements for both Unified Addresses and Unified Viewing Keys
 ----------------------------------------------------------------
 
-* A `Revision 0`_ Unified Address or Unified Viewing Key MUST contain
-  at least one shielded Item (Typecodes $\mathtt{0x02}$ and
-  $\mathtt{0x03}$). This requirement is dropped for `Revision 1`_
-  UA/UVKs; however, a `Revision 1`_ UA/UVK MUST contain at least one
-  non-Metadata Item.
+* A `Revision 0`_ Unified Address, or a `Revision 1`_ Unified Address encoded
+  with the `zu` prefix MUST contain at least one shielded Item (Typecodes
+  $\mathtt{0x02}$ and $\mathtt{0x03}$). Consumers MUST reject addresses
+  that violate this restriction.
+
+* A `Revision 1`_ Unified Address encoded with the `zu` prefix MUST NOT
+  contain any transparent Items (Typecodes $\mathtt{0x00}$ and
+  $\mathtt{0x01}$) or any Metadata Items whose interpretation in transaction
+  construction could result in an observer of the chain being able to
+  distinguish transactions sent to addresses containing such Items from
+  transactions sent to addresses that do not. Consumers MUST reject addresses
+  that violate this restriction.
+
+* A `Revision 0`_ Unified Viewing Key MUST contain at least one shielded
+  Item (Typecodes $\mathtt{0x02}$ and $\mathtt{0x03}$). This requirement
+  is dropped for `Revision 1`_ UVKs; however, a `Revision 1`_ UVK MUST
+  contain at least one non-Metadata Item.
 
 * The $\mathtt{typecode}$ and $\mathtt{length}$ fields are
   encoded as $\mathtt{compactSize}.$ [#Bitcoin-CompactSize]_
@@ -574,8 +596,8 @@ Requirements for both Unified Addresses and Unified Viewing Keys
   in an abridged form due to lack of space, at least the first 20
   characters MUST be included.
 
-Rationale for dropping the "at least one shielded Item" restriction
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Rationale for dropping the "at least one shielded Item" restriction for UVKs
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 .. raw:: html
 
@@ -587,11 +609,41 @@ and P2PKH transparent-only address formats, and the existing P2PKH
 extended public key format, sufficed for representing transparent Items
 and were already supported by the existing ecosystem.
 
-However, as of `Revision 1`_ there are uses for transparent-only UAs
-and UVKs that are not covered by the existing formats. In particular,
-they can use Metadata Items to represent expiration heights/dates as
-described in `Address Expiration Metadata`_, or source restrictions as
-proposed in ZIP 320 [#zip-0320]_.
+However, as of `Revision 1`_ there are uses for transparent-only UVKs
+that are not covered by the existing formats. In particular, they can
+use Metadata Items to represent expiration heights/dates as described in
+`Address Expiration Metadata`_.
+
+.. raw:: html
+
+   </details>
+
+.. _`Rationale for removing Transparent Receivers from Unified Addresses`:
+
+Rationale for removing Transparent Receivers from `zu` Unified Addresses
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+.. raw:: html
+
+   <details>
+   <summary>Click to show/hide</summary>
+
+A common complaint about `Revision 0`_ Unified Addresses was that there was no
+way for a user to visually distinguish a Unified Address that allowed the
+receipt of transparent funds from one that did not; Transparent addresses do
+not provide any privacy protection, and including them in UAs created a risk
+that Senders would fall back to transparent transfers even when the Recipient
+supports shielded protocols. Historically, the `z` address prefix indicated 
+to the user that no element of the recipient address would cause information
+about the recipient to be leaked on-chain by transfers to that address. 
+`Revision 1`_ restores this property.
+
+Transparent Items are still permitted in Unified Viewing Keys because
+viewing keys serve a different purpose: they allow observation of
+transaction activity across all pools, including transparent. A UFVK or
+UIVK that includes a transparent component allows the holder to derive
+transparent addresses for scanning purposes and to track transparent
+funds associated with the same account.
 
 .. raw:: html
 
@@ -686,6 +738,11 @@ information about transactions.
 New Metadata Types SHOULD be introduced either by a modification to this
 ZIP or by a new ZIP, in accordance with the ZIP Process [#zip-0000]_.
 
+A `Revision 1`_ Unified Address encoded with the `zu` prefix MUST NOT contain
+any Metadata Items whose interpretation in transaction construction could
+result in an observer of the chain being able to distinguish transactions sent
+to addresses containing such Items from transactions that do not.
+
 Rationale for making Revision 0 UA/UVKs with MUST-understand Typecodes invalid
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
@@ -695,7 +752,7 @@ Rationale for making Revision 0 UA/UVKs with MUST-understand Typecodes invalid
    <summary>Click to show/hide</summary>
 
 A Consumer implementing this ZIP prior to `Revision 1`_ will not
-recognise the Human-Readable Parts beginning with “``ur``” that mark a
+recognise the Human-Readable Parts beginning with “``zu``” that mark a
 `Revision 1`_ UA/UVK. So if a UA/UVK that includes MUST-understand
 Typecodes is required to use these `Revision 1`_ HRPs, this will ensure
 that the MUST-understand specification is correctly enforced even for
@@ -896,7 +953,7 @@ as of `Revision 1`_ a Consumer of a UIVK MUST understand the meaning of
 all "MUST-understand" Metadata Item Typecodes present in the UIVK in
 order to derive a Unified Address from it.
 
-If the source UIVK is Revision 1 then the derived Unified Address
+If the source UIVK is `Revision 1`_ then the derived Unified Address
 SHOULD be Revision 1; if the source UIVK includes any Metadata Items
 then the derived Unified Address MUST be Revision 1.
 
@@ -1222,11 +1279,10 @@ Efficiency
 ''''''''''
 
 The cost is dominated by 4 BLAKE2b compressions for $\ell_M \leq 128$
-bytes. A UA containing a Transparent Address, a Sapling Address, and an
-Orchard Address, would have $\ell_M = 128$ bytes. The restriction
-to a single Address with a given Typecode (and at most one Transparent
-Address) means that this is also the maximum length of a Unified Address
-containing only defined Receiver Types as of NU5 activation.
+bytes. A Revision 0 UA containing a Transparent Address, a Sapling
+Address, and an Orchard Address, would have $\ell_M = 128$ bytes.
+As of `Revision 1`_, a UA containing a Sapling Address and an Orchard
+Address would have $\ell_M = 106$ bytes.
 
 For longer UAs (when other Receiver Types are added) or UVKs, the cost
 increases to 6 BLAKE2b compressions for $128 < \ell_M \leq 192,$ and
@@ -1328,7 +1384,6 @@ References
 .. [#zip-0211] `ZIP 211: Disabling Addition of New Value to the Sprout Chain Value Pool <zip-0211.rst>`_
 .. [#zip-0224] `ZIP 224: Orchard Shielded Protocol <zip-0224.rst>`_
 .. [#zip-0315] `ZIP 315: Best Practices for Wallet Handling of Multiple Pools <zip-0315.rst>`_
-.. [#zip-0320] `ZIP 320: Defining an Address Type to which funds can only be sent from Transparent Addresses <zip-0320.rst>`_
 .. [#zip-0321] `ZIP 321: Payment Request URIs <zip-0321.rst>`_
 .. [#bip-0032] `BIP 32: Hierarchical Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki>`_
 .. [#bip-0032-serialization-format] `BIP 32: Hierarchical Deterministic Wallets — Serialization Format <https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#serialization-format>`_
