@@ -11,7 +11,7 @@
                     Ying Tong Lai
   Credits: Taylor Hornby
            Stephen Smith
-  Status: [Revision 0] Active, [Revision 1] Proposed
+  Status: [Revision 0] Active, [Revision 0.1] Proposed, [Revision 1] Proposed
   Category: Standards / RPC / Wallet
   Created: 2021-04-07
   License: MIT
@@ -313,13 +313,22 @@ Revisions
 
 * Revision 0: The initial version of this specification.
 
+.. _`Revision 0.1`:
+
+* Revision 0.1: This version adds support for `P2SH Viewing Key Items`_
+  in Unified Full Viewing Keys and Unified Incoming Viewing Keys, using
+  BIP 388 wallet policies [#bip-0388]_. Revision 0.1 uses the same
+  Human-Readable Parts as `Revision 0`_. Consumers that do not support
+  Revision 0.1 will treat P2SH Items as unrecognised and ignore them.
+
 .. _`Revision 1`:
 
 * Revision 1: This version adds support for `MUST-understand Typecodes`_
   and `Address Expiration Metadata`_. It removes Transparent Receivers from
   Unified Addresses, while still permitting Transparent Items in Unified
   Viewing Keys. For Unified Viewing Keys, it also drops the restriction
-  that a UVK must contain at least one shielded Item.
+  that a UVK must contain at least one shielded Item. It also incorporates
+  the `P2SH Viewing Key Items`_ support introduced in `Revision 0.1`_.
 
 A Revision 0 UA/UVK is distinguished from a Revision 1 UA/UVK by its
 Human-Readable Part, as follows.
@@ -486,11 +495,52 @@ $\mathtt{addr}$ field:
   $\mathsf{dk}\,||\,\mathsf{I2LEOSP}_{256}(\mathsf{ivk}).$ Note that
   a zero $\mathsf{ivk}$ is not valid [#protocol-2025.6.0]_.
 
-* There is no defined way to represent a Viewing Key for a Transparent
-  P2SH Address in a UFVK or UIVK (because P2SH Addresses cannot, in general,
-  be diversified in an unlinkable way). The Typecode $\mathtt{0x01}$
-  MUST NOT be included in a UFVK or UIVK by Producers, and MUST be
-  treated as unrecognised by Consumers.
+.. _`P2SH Viewing Key Items`:
+
+* As of `Revision 0.1`_, a P2SH Viewing Key Item with Typecode
+  $\mathtt{0x01}$ MAY be included in a UFVK or UIVK. Prior to
+  `Revision 0.1`_, the Typecode $\mathtt{0x01}$ MUST NOT be included
+  in a UFVK or UIVK by Producers, and MUST be treated as unrecognised
+  by Consumers.
+
+  A P2SH Viewing Key Item encodes a BIP 388 wallet policy
+  [#bip-0388]_ as follows:
+
+  * $\mathtt{template\_len} : \mathtt{compactSize}$ — the length in
+    bytes of the descriptor template.
+
+  * $\mathtt{template} : \mathtt{byte[template\_len]}$ — a BIP 388
+    descriptor template [#bip-0388]_, encoded as UTF-8. Key placeholders
+    in the template use the ``@N`` notation defined by BIP 388. In a
+    UFVK, the template MUST use the ``/**`` multipath notation for each
+    key placeholder (indicating derivation of both external and internal
+    addresses). In a UIVK, the template MUST use the ``/*`` notation
+    instead (indicating derivation of external addresses only).
+
+  * $\mathtt{n\_keys} : \mathtt{compactSize}$ — the number of key
+    information entries.
+
+  * For each of the $\mathtt{n\_keys}$ entries:
+
+    * $\mathtt{fingerprint} : \mathtt{byte[4]}$ — the BIP 32 master
+      key fingerprint [#bip-0032-key-identifiers]_.
+
+    * $\mathtt{depth} : \mathtt{byte}$ — the number of derivation
+      path components.
+
+    * $\mathtt{path} : \mathtt{uint32[depth]}$ — the derivation path
+      components, each encoded as a 4-byte unsigned little-endian integer.
+      Bit 31 is set for hardened derivation.
+
+    * $\mathtt{chaincode} : \mathtt{byte[32]}$ — the BIP 32 chain code.
+
+    * $\mathtt{pubkey} : \mathtt{byte[33]}$ — the compressed public key
+      in SEC1 encoding.
+
+  The number of ``@N`` key placeholders in the descriptor template MUST
+  equal $\mathtt{n\_keys}.$ Consumers MUST reject P2SH Viewing Key
+  Items for which this does not hold, or for which the descriptor
+  template is not a valid BIP 388 descriptor template.
 
 * For Transparent P2PKH Addresses that are derived according to BIP 32
   [#bip-0032]_ and BIP 44 [#bip-0044]_, the FVK and IVK Encodings have
@@ -899,6 +949,26 @@ derive an internal P2PKH FVK from the external P2PKH FVK (i.e. its parent)
 without having the external spending key, because child derivation at the
 Change level is non-hardened.
 
+As of `Revision 0.1`_, to satisfy the above properties for transparent
+P2SH keys, we derive the external and internal $\mathsf{ovk}$ components
+from the P2SH FVK (described in `P2SH Viewing Key Items`_) as follows:
+
+- Let $\mathsf{raw\_keys}$ be the concatenation of
+  $\mathsf{c}_i \,||\, \mathsf{ser_P}(\mathsf{pk}_i)$ for each key
+  $i$ in the key information vector, in the order they appear.
+- Let $\mathsf{ovk\_seed} = \mathsf{BLAKE2b\text{-}256}(\texttt{"Zcash\_P2SH\_OVK\_"},\, \mathsf{raw\_keys}).$
+- Let $I_\mathsf{ovk} = \mathsf{PRF^{expand}}_{\mathsf{ovk\_seed}}\big([\mathtt{0xd1}] \,||\, \mathsf{template}\big)$
+  where $\mathsf{template}$ is the descriptor template encoded as UTF-8.
+- Let $\mathsf{ovk_{external}}$ be the first $32$ bytes of
+  $I_\mathsf{ovk}$ and let $\mathsf{ovk_{internal}}$ be the
+  remaining $32$ bytes of $I_\mathsf{ovk}$.
+
+Since a P2SH FVK encodes the keys at a level from which both external
+and internal child keys can be derived (via the ``/**`` multipath
+notation in the descriptor template), we can derive both external and
+internal P2SH addresses without having any spending key, because child
+derivation at the Change and Index levels is non-hardened.
+
 
 Deriving a UIVK from a UFVK
 ---------------------------
@@ -927,6 +997,16 @@ The following derivations are applied to each component FVK:
 * For a Transparent P2PKH FVK, the corresponding Transparent P2PKH IVK
   is obtained by deriving the child key with non-hardened index $0$
   as described in [#bip-0032-public-to-public]_.
+
+* For a P2SH FVK (as of `Revision 0.1`_), the corresponding P2SH IVK
+  is obtained by:
+
+  1. Replacing each occurrence of ``/**`` in the descriptor template
+     with ``/*``.
+  2. For each key in the key information vector, deriving the child key
+     with non-hardened index $0$ (external chain) as described in
+     [#bip-0032-public-to-public]_, and appending $0$ (non-hardened)
+     to the key's derivation path.
 
 In each case, the Typecode remains the same as in the FVK.
 
@@ -989,11 +1069,25 @@ diversifier index:
 
 In each case, the Typecode remains the same as in the IVK.
 
-As of `Revision 1`_, Transparent P2PKH IVK Items MUST NOT be included
-in the derived Unified Address. (Prior to `Revision 1`_, the diversifier
+As of `Revision 1`_, Transparent IVK Items (including both P2PKH and
+P2SH) MUST NOT be included in the derived Unified Address.
+
+Prior to `Revision 1`_, for a Transparent P2PKH IVK, the diversifier
 index was used as a BIP 44 child key index at the Index level
 [#bip-0044-path-index]_ to derive the corresponding Transparent P2PKH
-Receiver.)
+Receiver.
+
+Prior to `Revision 1`_, for a P2SH IVK (as of `Revision 0.1`_), the
+corresponding P2SH Receiver is obtained by:
+
+1. For each key in the key information vector, deriving the child key
+   at the diversifier index using non-hardened BIP 32 public derivation
+   [#bip-0032-public-to-public]_.
+2. Instantiating the descriptor template by substituting each ``@N``
+   placeholder with the corresponding derived public key, evaluating
+   the resulting output descriptor [#bip-0380]_ to obtain the output
+   script, and computing the HASH160 of the serialized script to
+   produce the P2SH Receiver Encoding.
 
 Items (including Metadata Items that are not "MUST-understand") that
 are unrecognised by a given Consumer, or that are specified in experiments
@@ -1374,12 +1468,15 @@ References
 .. [#zip-0315] `ZIP 315: Best Practices for Wallet Handling of Multiple Pools <zip-0315.rst>`_
 .. [#zip-0321] `ZIP 321: Payment Request URIs <zip-0321.rst>`_
 .. [#bip-0032] `BIP 32: Hierarchical Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki>`_
+.. [#bip-0032-key-identifiers] `BIP 32: Hierarchical Deterministic Wallets — Key identifiers <https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#key-identifiers>`_
 .. [#bip-0032-serialization-format] `BIP 32: Hierarchical Deterministic Wallets — Serialization Format <https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#serialization-format>`_
 .. [#bip-0032-public-to-public] `BIP 32: Hierarchical Deterministic Wallets — Child key derivation (CKD) functions: Public parent key → public child key <https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#public-parent-key--public-child-key>`_
 .. [#bip-0044] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>`_
 .. [#bip-0044-path-change] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets — Path levels: Change <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#change>`_
 .. [#bip-0044-path-index] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets — Path levels: Index <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#index>`_
 .. [#bip-0350] `BIP 350: Bech32m format for v1+ witness addresses <https://github.com/bitcoin/bips/blob/master/bip-0350.mediawiki>`_
+.. [#bip-0380] `BIP 380: Output Script Descriptors General Operation <https://github.com/bitcoin/bips/blob/master/bip-0380.mediawiki>`_
+.. [#bip-0388] `BIP 388: Wallet Policies for Descriptor Wallets <https://github.com/bitcoin/bips/blob/master/bip-0388.mediawiki>`_
 .. [#P2PKH] `Transactions: P2PKH Script Validation — Bitcoin Developer Guide <https://developer.bitcoin.org/devguide/transactions.html#p2pkh-script-validation>`_
 .. [#P2SH] `Transactions: P2SH Scripts — Bitcoin Developer Guide <https://developer.bitcoin.org/devguide/transactions.html#pay-to-script-hash-p2sh>`_
 .. [#Bitcoin-CompactSize] `Variable length integer. Bitcoin Wiki <https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer>`_
