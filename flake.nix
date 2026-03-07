@@ -24,7 +24,16 @@
         pkgs = nixpkgs.legacyPackages.${system};
         mmd = multimarkdown6.packages.${system}.default;
 
-        # Pin rst2html5 to the version specified in zip-guide.rst.
+        # Pin docutils and rst2html5 to the versions specified in zip-guide.rst.
+        docutils = pkgs.python3Packages.docutils.overridePythonAttrs (old: rec {
+          version = "0.21.2";
+          src = pkgs.fetchPypi {
+            pname = "docutils";
+            inherit version;
+            hash = "sha256-OmsYcy7fGC2qPNEndbuzOM9WkUaPke7rEJ3v9uv6mG8=";
+          };
+        });
+
         # This is a separate PyPI package from docutils' built-in rst2html5;
         # it provides its own HTML5 writer with different math handling.
         rst2html5 = pkgs.python3Packages.buildPythonPackage rec {
@@ -40,7 +49,7 @@
           build-system = [ pkgs.python3Packages.poetry-core ];
 
           dependencies = [
-            pkgs.python3Packages.docutils
+            docutils
             pkgs.python3Packages.genshi
             pkgs.python3Packages.pygments
           ];
