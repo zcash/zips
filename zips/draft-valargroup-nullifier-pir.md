@@ -451,6 +451,80 @@ A leaf is a 64-byte record consisting of a 32-byte key and a 32-byte
 value. The leaf hash is computed as
 $\mathsf{Hash}(\mathsf{key} \| \mathsf{value})$ and is not stored separately.
 
+#### Tree Construction
+
+The tree is built from the set of all Orchard nullifiers revealed on the
+consensus chain as of the snapshot height. The construction follows the
+algorithm defined in [^draft-valargroup-orchard-balance-proof],
+summarized here for the aspects relevant to the PIR data layout.
+
+**Step 1: Sentinel initialization.** Before processing real nullifiers,
+the builder MUST insert 17 sentinel values into the sorted set:
+
+$$s_k = k \cdot 2^{250}, \quad k \in \{0, 1, \ldots, 16\}$$
+
+These sentinels partition $\mathbb{F}_{q_\mathbb{P}}$ (the Pallas base
+field, $q_\mathbb{P} \approx 2^{254}$) into intervals each of width
+strictly less than $2^{250}$, as required for the soundness of the
+in-circuit range checks defined in
+[^draft-valargroup-orchard-balance-proof].
+
+**Step 2: Build the sorted set.** Let $S$ be the union of the 17
+sentinels and all revealed Orchard nullifiers at the snapshot height.
+Sort $S$ in ascending order by canonical integer representation in
+$\{0, \ldots, q_\mathbb{P} - 1\}$.
+
+**Step 3: Derive exclusion ranges.** For each pair of consecutive
+elements $(s_i, s_{i+1})$ in $S$ with $s_{i+1} - s_i > 1$, create a
+leaf:
+
+- $\mathsf{low} = s_i + 1$
+- $\mathsf{width} = s_{i+1} - s_i - 2$
+
+Consecutive elements with $s_{i+1} - s_i = 1$ produce no leaf (there is
+no unrevealed value between them).
+
+If $s_{m-1} < q_\mathbb{P} - 1$ (where $s_{m-1}$ is the largest element
+in $S$), a terminal leaf MUST be added with
+$\mathsf{low} = s_{m-1} + 1$ and
+$\mathsf{width} = (q_\mathbb{P} - 1) - \mathsf{low}$.
+
+**Leaf count.** Starting from 17 sentinels (which produce at most 17
+initial interval leaves), each additional nullifier splits one interval
+into at most two, adding at most one leaf. After inserting $k$ distinct
+nullifiers the tree contains at most $17 + k$ real leaves. As of early
+2026 the Orchard pool contains approximately 51 million nullifiers,
+yielding approximately 51 million leaves — within the $2^{26} \approx
+67$ million capacity of the depth-26 tree.
+
+**Step 4: Pad to $2^{26}$ leaves.** The three-tier layout requires a
+complete binary tree with exactly $2^{26}$ leaf positions. The builder
+MUST pad the tree as follows.
+
+The canonical empty leaf has $\mathsf{key} = 0$ and
+$\mathsf{value} = 0$ (i.e., $\mathsf{low} = 0$, $\mathsf{width} = 0$),
+with leaf hash $\mathsf{Hash}(0 \| 0)$, consistent with the empty-leaf
+definition in [^draft-valargroup-orchard-balance-proof].
+
+Real exclusion-range leaves MUST occupy the rightmost (highest-index)
+leaf positions, sorted in ascending order by $\mathsf{low}$. The
+remaining leftmost positions MUST be filled with canonical empty leaves.
+Because the smallest sentinel is $s_0 = 0$, all real leaves have
+$\mathsf{low} \geq 1$, so the key ordering across the full leaf array is
+non-decreasing: empty leaves (key 0) precede all real leaves (key
+$\geq 1$). This ordering is required by the binary search procedures in
+[Tier 0: Plaintext Broadcast (Depths 0–11)],
+[Tier 1: Small PIR (Depths 11–18)], and
+[Tier 2: Large PIR (Depths 18–26)].
+
+In those procedures, the `min_key` of any subtree consisting entirely of
+empty leaves is 0. Because no valid target nullifier equals 0 (it is a
+sentinel), the binary search condition
+$\mathsf{min\_key}[S] \leq t < \mathsf{min\_key}[S + 1]$ cannot be
+satisfied when both $S$ and $S + 1$ index empty-only subtrees (since
+$\mathsf{min\_key}[S + 1] = 0 \not> t$ for any $t > 0$). The search
+therefore always resolves to a subtree containing real leaves.
+
 #### Leaf Encoding
 
 Each leaf represents an exclusion range. Implementations MUST encode
@@ -852,6 +926,37 @@ YPIR+SP touches every byte of the database per query, unused padding
 directly increases server computation time. Per-tier sizing eliminates
 this overhead.
 
+## Tree Depth vs. Circuit Depth
+
+The PIR data structure uses a tree of depth 26, which is sufficient for
+the current Orchard nullifier set (~51 million nullifiers, well within
+the $2^{26} \approx 67$ million leaf capacity). The Claim circuit
+defined in [^draft-valargroup-orchard-balance-proof], however, fixes
+the non-membership Merkle path depth at 29, supporting up to
+$2^{29} \approx 537$ million leaves.
+
+These depths intentionally differ. The tree used by the PIR server has
+depth 29 (matching the circuit), but only the bottom 26 levels contain
+meaningful variation. The top 3 levels of the authentication path, from
+the depth-26 subtree root up to the depth-29 tree root, have
+deterministic siblings: each is the root hash of a completely empty
+subtree, computable from the canonical empty leaf hash. The client
+appends these 3 known sibling hashes to the 26 siblings retrieved via
+PIR, producing a full depth-29 authentication path for the circuit.
+
+This costs approximately 1,000 additional constraints in the Claim
+circuit (3 extra Poseidon hashes, each roughly 330 constraints at width
+$t = 3$). This overhead does not increase the minimum SRS degree for
+the polynomial commitment scheme, because the total circuit size remains
+within the same power-of-two bound.
+
+The benefit is that the circuit's proving and verification keys support
+trees up to depth 29 without regeneration. As the Orchard nullifier set
+grows beyond $2^{26}$, only the PIR tier structure and server databases
+need to be updated. The circuit parameters remain unchanged. Changing
+the circuit depth would require new key generation and distribution to
+all clients, an operationally costly step that this headroom avoids.
+
 
 # Deployment
 
@@ -903,3 +1008,5 @@ three-tier Poseidon tree, the Tier 1 / Tier 2 query orchestration desribed in th
 [^protocol-pallasandvesta]: [Zcash Protocol Specification, Section 5.4.9.6: Pallas and Vesta](protocol/protocol.pdf#pallasandvesta)
 
 [^draft-str4d-orchard-balance-proof]: [Air drops, Proof-of-Balance, and Stake-weighted Polling](draft-str4d-orchard-balance-proof)
+
+[^draft-valargroup-orchard-balance-proof]: [Orchard Proof-of-Balance](draft-valargroup-orchard-balance-proof)
