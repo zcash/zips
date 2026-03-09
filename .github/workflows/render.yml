@@ -6,9 +6,6 @@ on:
 jobs:
   render:
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -22,10 +19,20 @@ jobs:
           if [ -e base_ref ]; then exit 1; fi
 
       - uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
-      - uses: DeterminateSystems/magic-nix-cache-action@565684385bcd71bad329742eefe8d12f2e765b39 # v13
+
+      - name: Restore Nix store cache
+        id: nix-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: /tmp/nix-closure
+          key: nix-devshell-${{ runner.os }}-${{ hashFiles('flake.lock', 'flake.nix') }}
+
+      - name: Import cached Nix store paths
+        if: steps.nix-cache.outputs.cache-hit == 'true'
+        run: nix-store --import < /tmp/nix-closure/store.nar
 
       - name: Compile ZIPs
-        run: nix develop --command make all-zips
+        run: nix develop --profile /tmp/dev-profile --command make all-zips
 
       - name: Set base ref
         run: |
@@ -33,4 +40,10 @@ jobs:
           if ! ( grep -E '^[0-9a-f]{40}$' base_ref ); then exit 1; fi
 
       - name: Compile Protocol Specification
-        run: nix develop --command make all
+        run: nix develop --profile /tmp/dev-profile --command make all
+
+      - name: Export Nix store for caching
+        if: steps.nix-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p /tmp/nix-closure
+          nix-store --export $(nix-store -qR /tmp/dev-profile) > /tmp/nix-closure/store.nar
