@@ -802,10 +802,9 @@ response, eliminating the offline download entirely.
 
 ## Construction Choice
 
-As described in [YPIR+SP], standard YPIR retrieves a single element per
-query, while YPIR+SP builds on SimplePIR and
-returns full row data. The following table compares communication communication
-costs for a 32 GB database:
+YPIR+SP and InsPIRe build on SimplePIR while supporting full-row retrieval (see [YPIR+SP]).
+
+The following table compares communication costs for a 32 GB database:
 
 | Metric | SimplePIR | DoublePIR | YPIR | YPIR+SP | InsPIRe |
 |---|---|---|---|---|---|
