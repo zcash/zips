@@ -68,46 +68,56 @@ SimplePIR [^SimplePIR] with RLWE packing via the CDKS transformation [^CDKS]. YP
 no client-side database hint and no server-side per-client state, making
 it suitable for cold-start mobile wallets.
 
-The nullifier exclusion tree is organized into a three-tier data structure
-spanning 26 levels of depth: a plaintext broadcast tier (192 KB, cacheable),
-a small PIR tier (24 MB), and a large PIR tier (6 GB). A complete
-authentication path is retrieved in two sequential PIR queries plus the
+The nullifier exclusion tree is a binary merkle tree, organized into a
+three-tier data structure spanning 26 levels of depth: a plaintext broadcast
+tier (192 KB, cacheable), a small PIR tier (24 MB), and a large PIR tier (6 GB).
+A complete authentication path is retrieved in two sequential PIR queries plus the
 plaintext download, for a total bandwidth of approximately 3.3 MB per
 query (dominated by the Tier 2 upload).
 
 
 # Motivation
 
-Several point-in-time protocols for Zcash require proof-of-balance:
+Several point-in-time protocols for Zcash require a proof-of-balance:
 proving that specific shielded notes are unspent at a given block height.
-Use cases include airdrops, stake-weighted polling, and governance voting
-systems, as described in "Air drops, Proof-of-Balance, and
-Stake-weighted Polling" [^draft-str4d-orchard-balance-proof]. Each of
-these protocols requires a client to prove that the nullifiers associated
-with its notes do not appear in the set of spent nullifiers — that is, to
-obtain nullifier exclusion proofs.
+Usecases include airdrops, stake-weighted polling, and governance voting
+systems, as described in [^draft-str4d-orchard-balance-proof]. Proving your 
+balance requires proving you have a note in the note commitment tree, and it
+has not been spent at that height. For privacy, we do not want to directly
+reveal the client's nullifier in this balance snapshot. This means the client 
+must be able to create a proof that the correct nullifier for a note was not
+spent at the snapshot height. To achieve this, we make a merkle tree of all
+known nullifiers at snapshot height, and in zero knowledge prove exclusion of
+the user's nullifier into this snapshot height. Hence the name "Nullifier
+exclusion proof".
 
-For example, a governance voting system may require participants to prove
-that notes committed to voting are unspent and therefore eligible. The
-same exclusion proof mechanism applies to any protocol distributing rewards or
-weighting influence based on a user's proven balance at a snapshot height.
-
-A user naively querying a centralized server for the unspent property
-risks revealing the on-chain link to the server, breaking the privacy
+There is a problem though, how does the user get the exclusion proof?
+A user naively querying a centralized server for the exclusion proof would
+reveal their nullifier to the server, breaking the privacy
 that Zcash's shielded transactions are designed to provide.
+The alternative of downloading the entire set of Orchard nullifiers is 
+impractical. Its already ~2GB, and as Zcash scales this grows unboundedly.
+The existing solution in the design of token holder voting prior to this ZIP is
+to not allow snapshots of balances, but instead "snapshots of balances that
+moved in a registration period". This lowers the download size to just grow in
+the number of transactions during registration period. It comes at the cost of
+voting friction (requiring users to move funds), safety as moving all your
+funds is never risk-free, and anonymity as your not anonymous amongst all
+notes, only recently mvoed notes.
 
-The alternative of downloading the entire nullifier set is impractical:
-with up to $2^{26} \approx 67$ million leaf slots, the exclusion tree
-exceeds 6 GB, far beyond what a mobile client can store or process.
-
-PIR resolves this tension. A PIR server holds the full database and
-accepts encrypted queries. The server homomorphically evaluates the
-database against the query via matrix-vector multiplication, returning an
-encrypted response. Because the server touches every record during
-evaluation, it learns nothing about which record was requested. The
+PIR provides a solution to download the exclusion proof, without any of the 
+registration period tradeoffs. There is an untrusted PIR server, who holds an 
+entire database, of which there is an entry the user wishes to lookup. 
+A user will send a homomorphically encrypted "query vector" for a given key to
+a PIR server. The PIR server will perform additvely homomorphic operations on
+the query vector, to return the response back to the client. In practice, this
+is a matrix-vector multiplication, where the matrix is a representation of the
+entire database. The PIR server operates over every single database entry 
+during evaluation, and learns nothing about which record was requested. The
 privacy guarantee rests entirely on the client-side encryption: as long as
 the client's secret key remains private, the server cannot distinguish the
 target record from any other.
+We decompose exclusion proof fetching into PIR queries.
 
 
 # Privacy Implications
@@ -118,13 +128,12 @@ assuming hardness of the LWE and Ring LWE problems (see [Security]),
 it gains no information about that.
 
 A malicious server that deviates from the protocol cannot break query
-privacy (which depends only on the client's Regev encryption), but it
-can return incorrect results. The client detects this because the
-decrypted authentication path must be consistent with the published
+privacy, but it can return incorrect results. The client detects this 
+because the decrypted authentication path must be consistent with the published
 Merkle root (see [Conformance]); a corrupted response will fail this
 verification.
 
-The single most critical component for user privacy is the correctness of
+The only component for user privacy is the correctness of
 Regev encryption on the client side. The query vector — a Regev-encrypted
 row selector that picks the target database row (see [YPIR+SP]) —
 is what the server multiplies against the entire database. If Regev
