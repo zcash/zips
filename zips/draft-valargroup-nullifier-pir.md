@@ -404,20 +404,13 @@ cross-query linkability (see [Privacy Implications]).
 ### Rationale for YPIR+SP over standard YPIR
 </summary>
 
-Standard YPIR is built on DoublePIR and retrieves a single database
-element per query. This means a large multi-byte record cannot be
-retrieved in a single query.
-
-In our data structure (see [Data Structure Layout]), the Tier 2 PIR
-database has rows of 24,512 bytes. Retrieving a row of this size with
-standard YPIR would require running 24,512 parallel DoublePIR instances
-(one per byte), each with its own 16 MB hint — a prohibitive cost.
-
-YPIR+SP returns an entire row from the SimplePIR matrix, and the full
-row is packed into RLWE ciphertexts in a single pass. For a 32 GB
-database with 64 KB records,
-YPIR+SP achieves 2.6 MB total communication (query plus response) compared
-to standard YPIR's inability to handle the record size efficiently.
+For the Tier 2 PIR database (24,512-byte rows; see
+[Data Structure Layout]), standard YPIR would require 24,512 parallel
+DoublePIR instances (one per byte), each with its own 16 MB hint — a
+prohibitive cost. YPIR+SP avoids this: the full row is packed into RLWE
+ciphertexts in a single pass, achieving ~2.6 MB total communication for
+the 6 GB Tier 2 database (see [Bandwidth Summary]). See
+[Construction Choice] for a comparison with other PIR schemes.
 </details>
 
 ## Instantiations
@@ -809,11 +802,10 @@ response, eliminating the offline download entirely.
 
 ## Construction Choice
 
-Standard YPIR (DoublePIR-based) retrieves a single element per query,
-which cannot serve the 24,512-byte rows in our Tier 2 layout (see
-[Data Structure Layout]). Both YPIR+SP and InsPIRe [^InsPIRe] build on
-SimplePIR and return full row data; the following table compares their
-communication costs for a 32 GB database:
+As described in [YPIR+SP], standard YPIR retrieves a single element per
+query, while YPIR+SP builds on SimplePIR and
+returns full row data. The following table compares communication communication
+costs for a 32 GB database:
 
 | Metric | SimplePIR | DoublePIR | YPIR | YPIR+SP | InsPIRe |
 |---|---|---|---|---|---|
