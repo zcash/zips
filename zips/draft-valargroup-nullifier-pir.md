@@ -874,9 +874,7 @@ which provides the single-server private information retrieval scheme described
 in [^YPIR], including the YPIR+SP variant used by this ZIP.
 
 A full reference implementation of the application-specific layers — the
-three-tier Poseidon tree, the Tier 1 / Tier 2 query orchestration, and the
-client-side balance proof integration described in this ZIP — is to be
-provided before this ZIP advances to Proposed status.
+three-tier Poseidon tree, the Tier 1 / Tier 2 query orchestration desribed in this ZIP — is provided in [^nullifier-pir-impl].
 
 
 
@@ -897,6 +895,8 @@ provided before this ZIP advances to Proposed status.
 [^Regev05]: [On Lattices, Learning with Errors, Random Linear Codes, and Cryptography](https://doi.org/10.1145/1568318.1568324)
 
 [^Poseidon]: [Poseidon: A New Hash Function for Zero-Knowledge Proof Systems](https://eprint.iacr.org/2019/458)
+
+[^nullifier-pir-impl]: [Nullifier PIR reference implementation](https://github.com/valargroup/vote-nullifier-pir)
 
 [^ypir-impl]: [YPIR reference implementation (artifact branch)](https://github.com/menonsamir/ypir/tree/artifact)
 
