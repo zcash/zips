@@ -796,9 +796,8 @@ client, requiring them to download massive compressed representations of
 the database ("hints") before a single query could be issued, barring
 cold-start applications such as mobile wallets [^SimplePIR].
 
-YPIR [^YPIR] introduced a packing mechanism based on the CDKS
-transformation [^CDKS] that compresses the hint as part of the query
-response, eliminating the offline download entirely.
+YPIR [^YPIR] eliminated the offline hint entirely via the CDKS packing
+mechanism described in [YPIR+SP].
 
 ## Construction Choice
 
