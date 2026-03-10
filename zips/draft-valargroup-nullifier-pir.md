@@ -64,15 +64,16 @@ that notes are unspent by checking their nullifiers against the spent
 set, without revealing which nullifier is being checked.
 
 The construction uses YPIR+SP [^YPIR], a single-server PIR protocol built on
-SimplePIR [^SimplePIR] with RLWE packing via the CDKS transformation [^CDKS]. YPIR+SP requires
-no client-side database hint and no server-side per-client state, making
-it suitable for cold-start mobile wallets.
+SimplePIR [^SimplePIR] whose security depends on LWE and RLWE. YPIR+SP requires
+a single untrusted server, no client-side database hint and no DB 
+pre-processing per client. This makes it suited for privacy in the Zcash 
+setting.
 
 The nullifier exclusion tree is a binary merkle tree, organized into a
 three-tier data structure spanning 26 levels of depth: a plaintext broadcast
 tier (192 KB, cacheable), a small PIR tier (24 MB), and a large PIR tier (6 GB).
-A complete authentication path is retrieved in two sequential PIR queries plus the
-plaintext download, for a total bandwidth of approximately 3.3 MB per
+A complete authentication path is retrieved in two sequential PIR queries plus
+the plaintext download, for a total bandwidth of approximately 3.3 MB per
 query (dominated by the Tier 2 upload).
 
 
@@ -92,115 +93,64 @@ the user's nullifier into this snapshot height. Hence the name "Nullifier
 exclusion proof".
 
 There is a problem though, how does the user get the exclusion proof?
-A user naively querying a centralized server for the exclusion proof would
-reveal their nullifier to the server, breaking the privacy
-that Zcash's shielded transactions are designed to provide.
+A user directly querying a centralized server for the exclusion proof would
+reveal their nullifier to the server, breaking the privacy guarantee.
 The alternative of downloading the entire set of Orchard nullifiers is 
 impractical. Its already ~2GB, and as Zcash scales this grows unboundedly.
 The existing solution in the design of token holder voting prior to this ZIP is
 to not allow snapshots of balances, but instead "snapshots of balances that
 moved in a registration period". This lowers the download size to just grow in
 the number of transactions during registration period. It comes at the cost of
-voting friction (requiring users to move funds), safety as moving all your
-funds is never risk-free, and anonymity as your not anonymous amongst all
-notes, only recently mvoed notes.
+voting friction (requiring users to move funds), safety, and anonymity as your 
+not anonymous amongst all notes, only recently moved notes.
 
-PIR provides a solution to download the exclusion proof, without any of the 
-registration period tradeoffs. There is an untrusted PIR server, who holds an 
-entire database, of which there is an entry the user wishes to lookup. 
-A user will send a homomorphically encrypted "query vector" for a given key to
-a PIR server. The PIR server will perform additvely homomorphic operations on
-the query vector, to return the response back to the client. In practice, this
-is a matrix-vector multiplication, where the matrix is a representation of the
-entire database. The PIR server operates over every single database entry 
-during evaluation, and learns nothing about which record was requested. The
-privacy guarantee rests entirely on the client-side encryption: as long as
-the client's secret key remains private, the server cannot distinguish the
-target record from any other.
-We decompose exclusion proof fetching into PIR queries.
+Private Information Retrieval (PIR) provides a cryptographic solution to 
+retrieve the exclusion proofs. PIR allows a client to retrieve a record from a 
+server-held database without the server learning which record was requested. 
+The server processes the encrypted query by touching every record in the 
+database, ensuring that its access pattern reveals nothing about the target. 
+The client retrieves the exclusion proof from an untrusted server without 
+revealing which nullifier it is checking (see [PIR Construction]).
 
 
 # Privacy Implications
 
-The PIR construction in this document uses a single untrusted server.
-The server may attempt to learn which nullifier the client queries, but
-assuming hardness of the LWE and Ring LWE problems (see [Security]),
-it gains no information about that.
+Query privacy rests entirely on the Regev encryption of the client's
+selection vector (see [Regev Encryption]). Regev encryption ensures the query
+is computationally indistinguishable from random under the LWE assumption. 
+Therefore the server learns nothing about the target record. 
+Every other component - CDKS packing, modulus switching, the packing key -
+affects response correctness or cross-query linkability, but not the 
+confidentiality of the query itself.
 
-A malicious server that deviates from the protocol cannot break query
-privacy, but it can return incorrect results. The client detects this 
-because the decrypted authentication path must be consistent with the published
-Merkle root (see [Conformance]); a corrupted response will fail this
-verification.
-
-The only component for user privacy is the correctness of
-Regev encryption on the client side. The query vector — a Regev-encrypted
-row selector that picks the target database row (see [YPIR+SP]) —
-is what the server multiplies against the entire database. If Regev
-encryption is implemented correctly, the query is computationally
-indistinguishable from random and the server learns nothing about the
-target row. Every other component in the protocol — CDKS packing,
-modulus switching, the packing key — affects correctness of the response
-or cross-query linkability, but not the confidentiality of the query
-itself. A bug in packing may produce a garbled answer; a bug in Regev
-encryption leaks which record the client asked for.
-
-The following information is public and available to all parties, including
-the server:
-
-- The total number of nullifiers (and therefore the tree size).
-- The Tier 0 plaintext data, which includes the 2,048 subtree-root keys
-  at depth 11. This reveals the distribution of nullifiers across
-  top-level subtrees but not which subtree any specific client queries.
-- The timing and size of PIR queries. All queries have identical size for
-  a given database configuration. Contacting the server at all reveals
-  that the client is participating in whatever protocol the server
-  operates its PIR database for; beyond that, the number and timing of
-  queries may leak additional details about the client's specific usage
-  pattern (e.g. how many nullifiers it is checking).
-
-Mitigations for traffic analysis (such as cover traffic or query batching
-across clients) are out of scope for this document.
-
-The packing key $pk$ — approximately 462 KB of key-switching matrices —
-is sent to the server in plaintext as part of every query. If a client
-reuses the same packing key across queries, the server can compare the
-bytes and trivially conclude the queries came from the same client, even
-though it cannot determine which records were requested. This linkability
-reveals the number of queries a participant makes and enables correlation
-with external timing or network metadata.
-
-A correct implementation generates a fresh RLWE secret $s_2$ and derives
-a new packing key for every query. Regenerating from the same $s_2$ with
-fresh randomness would not be sufficient: the server receives key-switching
-matrices that encrypt known automorphisms of $s_2$, and could test
-consistency across two key sets to link them to the same underlying
-secret.
+All queries have identical size for a given database configuration. The number of records the client must retrieve is based on the number of nullifiers they
+must query for. The following are out of scope of this document:
+- Padding the number of queries to lower metadata leakage of the number of 
+notes the user owns at snapshot height.
+- IP obfuscation
 
 
 # Requirements
 
 
 - No client-side database hint. A mobile wallet must be able to issue its
-  first query without any prior download or preprocessing.
+  first query without any prior large (MB) download or expensive preprocessing.
 - Single untrusted server with no per-client state. The server holds only
-  the public database and processes queries statelessly.
+  the public database and processes queries statelessly. A client could query
+  multiple for queries 
 - Total bandwidth per query (upload plus download) under
   10MB, suitable for mobile networks.
 - Two sequential network round-trips per query are acceptable.
 - The hash function used in the exclusion tree must be efficient inside
   zero-knowledge proof circuits.
 - 128-bit computational security with correctness error probability at
-  most $2^{-40}$.
+  most $2^{-40}$. Re-sampling fixes this
 
 
 # Non-requirements
 
 The following are explicitly out of scope:
 
-- Multi-server PIR protocols.
-- Stateful or preprocessing-based PIR constructions that require
-  per-client server state.
 - Incremental database updates. The PIR database is computed once from
   the nullifier set at a given snapshot height and is treated
   as static for the duration of the protocol epoch.
@@ -213,16 +163,7 @@ The following are explicitly out of scope:
 
 ## PIR Construction
 
-### Background
-
-PIR allows a client to retrieve a record from a server-held database
-without the server learning which record was requested. The server
-processes the encrypted query by touching every record in the database,
-ensuring that its access pattern reveals nothing about the target.
-
-The underlying mechanism is homomorphic encryption. The server multiplies the database matrix by the encrypted query, producing an encrypted response. The client decrypts the response using its secret key.
-
-Next-generation PIR designs (YPIR, InsPIRe) build on top of SimplePIR, aiming to eliminate the hint.
+Next-generation PIR designs (YPIR, InsPIRe) build on top of SimplePIR, aiming to eliminate the hint and shrink response sizes. So we explain SimplePIR first.
 
 ### SimplePIR
 
@@ -416,13 +357,6 @@ the 6 GB Tier 2 database (see [Bandwidth Summary]). See
 ## Instantiations
 
 ### Nullifier Exclusion Tree
-
-A proof-of-balance protocol requires each participant to prove that the
-nullifiers associated with their notes do not appear in the set of
-spent nullifiers. This proof takes the form of a zero-knowledge proof over
-the authentication path of the enclosing exclusion range in a sorted
-Merkle tree, building on the approach described in
-"Air drops, Proof-of-Balance, and Stake-weighted Polling" [^draft-str4d-orchard-balance-proof].
 
 The server MUST construct the exclusion tree and the corresponding PIR
 databases (Tiers 0, 1, and 2) once from the nullifier set at the start
@@ -725,8 +659,7 @@ $\mathsf{Hash}(\mathsf{key} \| \mathsf{value})$.
 **Row total: 24,512 bytes (23.9 KB).**
 
 The PIR value size for Tier 2 MUST be set to the row size (24,512 bytes)
-or the next implementation-required alignment boundary. Tier 1 and
-Tier 2 are independent PIR databases and do not share a value size.
+or the next implementation-required alignment boundary.
 
 | Metric | Value |
 |---|---|
@@ -786,19 +719,6 @@ the client computes exactly 1 hash.
 
 # Rationale
 
-## PIR Background
-
-Early PIR schemes, while mathematically sound, imposed prohibitive costs
-on either the server or the client. Some required the server to store
-large, client-specific keys, creating a stateful architecture that could
-not scale to millions of users [^XPIR]. Others shifted the burden to the
-client, requiring them to download massive compressed representations of
-the database ("hints") before a single query could be issued, barring
-cold-start applications such as mobile wallets [^SimplePIR].
-
-YPIR [^YPIR] eliminated the offline hint entirely via the CDKS packing
-mechanism described in [YPIR+SP].
-
 ## Construction Choice
 
 YPIR+SP and InsPIRe build on SimplePIR while supporting full-row retrieval (see [YPIR+SP]).
@@ -840,16 +760,6 @@ well-understood CDKS transformation.
 It is our intent to continue researching and productionizing InsPIRe
 concurrently. Should InsPIRe mature and undergo sufficient auditing, a
 future ZIP may specify it as a replacement or alternative.
-
-## Parameter Selection
-
-The parameters in [Parameters] are taken directly from the YPIR paper's
-recommendations for 128-bit security with correctness error at most
-$2^{-40}$. These are not expected to require modification for mainnet
-deployment as long as the nullifier tree remains within the 64 GB
-database limit ($\sqrt{N} \leq 2^{18}$). Tuning would only be
-considered if observed tree sizes or client device capabilities
-require it.
 
 ## Data Structure Split
 
@@ -903,18 +813,10 @@ requires no PIR query at all.
 
 ## Per-Tier PIR Value Sizing
 
-Tier 1 and Tier 2 are independent PIR databases with separate queries.
-There is no requirement that they share a PIR value size. Configuring
-each tier's value size to match its actual row size — 12,224 bytes for
-Tier 1 and 24,512 bytes for Tier 2 — avoids wasted padding and reduces
-the effective database size the server must scan per query.
-
-A naive approach would use a single uniform value size (e.g., 32 KB)
-for both tiers. This would inflate Tier 1 from 24 MB to 64 MB (37.3%
-utilization) and Tier 2 from 6 GB to 8 GB (74.8% utilization). Since
-YPIR+SP touches every byte of the database per query, unused padding
-directly increases server computation time. Per-tier sizing eliminates
-this overhead.
+A uniform value size (e.g., 32 KB) would inflate Tier 1 from 24 MB to
+64 MB and Tier 2 from 6 GB to 8 GB. Since YPIR+SP touches every byte
+per query, unused padding directly increases server computation time.
+Per-tier sizing eliminates this overhead.
 
 ## Tree Depth vs. Circuit Depth
 
