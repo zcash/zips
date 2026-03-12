@@ -282,8 +282,7 @@ ratio $\Delta = \lfloor q / p \rfloor$ is the scaling factor that spaces
 plaintext values apart in the larger ciphertext space, leaving room for
 noise.
 
-Public random matrix $A$ is of dimensions $n \times \sqrt{N}$,
-where $n = 1024$ is the LWE security parameter.
+Public random matrix $A$ is of dimensions $n \times \sqrt{N}$.
 
 Implementations MUST expand $A$ from $\mathsf{seed\_A}$ as specified in [Public Seeds].
 
