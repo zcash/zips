@@ -100,7 +100,8 @@ There is a problem though, how does the user get the exclusion proof?
 A user directly querying a centralized server for the exclusion proof would
 reveal their nullifier to the server, breaking the privacy guarantee.
 The alternative of downloading the entire set of Orchard nullifiers is 
-impractical. Its already ~2GB, and as Zcash scales this grows unboundedly.
+impractical. As of block height 3,268,870 with 49,813,784 nullifiers, it's already 1.48Gib (ssuming binary serialization). As Zcash scales, this grows unboundedly.
+
 The existing solution in the design of token holder voting prior to this ZIP is
 to not allow snapshots of balances, but instead "snapshots of balances that
 moved in a registration period". This lowers the download size to just grow in
