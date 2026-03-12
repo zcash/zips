@@ -266,6 +266,10 @@ $\mathbb{Z}_q[x]/(x^d + 1)$. Using a CRT (Chinese Remainder Theorem)
 representation of the modulus enables all packing-level arithmetic to
 remain within 64-bit machine words.
 
+For transmission after packing, implementations MUST use split modulus
+switching with target coefficient moduli
+$q_\mathsf{mask} = 2^{11}$ and $q_\mathsf{payload} = 2^{15}$.
+
 The scaling factor $\Delta = \lfloor q / p \rfloor$ maps plaintext
 values into the ciphertext space. At the SimplePIR level,
 $\Delta = \lfloor 2^{32} / 2^8 \rfloor = 2^{24}$.
@@ -451,6 +455,78 @@ hides which row is requested, and $pk$ enables the server to pack the
 SimplePIR response into packing-level RLWE ciphertexts decryptable under
 the client's $s_2$.
 
+#### LWE-to-RLWE Packing
+
+After receiving a request $Q = (c_1, pk)$, the server computes the
+SimplePIR matrix-vector product $T = D \times c_1$. Let
+$T = (t_0, \ldots, t_{L_\mathsf{value}-1})$ be the ordered sequence of
+SimplePIR-level LWE ciphertexts corresponding to the selected PIR value,
+where $L_\mathsf{value}$ is the PIR value size for the queried tier.
+
+Define the function
+$\mathsf{PackSimplePIRResponse}(T, pk, L_\mathsf{value})$ as follows:
+
+1. Let $d = 2048$ be the packing-level ring degree from [Parameters] and
+   let $m = \lceil L_\mathsf{value} / d \rceil$.
+2. Partition $T$ into $m$ consecutive chunks of length $d$:
+   $(t_{j,0}, \ldots, t_{j,d-1})$ for $j \in \{0, \ldots, m-1\}$. If the
+   final chunk is shorter than $d$, pad it with SimplePIR-level
+   encryptions of zero so that it has exactly $d$ inputs.
+3. For each chunk $j$, apply the CDKS transformation [^CDKS] using the
+   packing key $pk$ to produce one packing-level RLWE ciphertext
+   $\widehat{C}_j = (\widehat{a}_j, \widehat{b}_j) \in R_{q_2}^2$ such
+   that, for every slot index $\ell \in \{0, \ldots, d-1\}$, slot
+   $\ell$ of $\widehat{C}_j$ decrypts under $s_2$ to the same plaintext
+   value that $t_{j,\ell}$ decrypts to under the corresponding
+   SimplePIR-level secret.
+4. Return the ordered packed sequence
+   $\widehat{R} = (\widehat{C}_0, \ldots, \widehat{C}_{m-1})$.
+
+The order of slots within each $\widehat{C}_j$ MUST match the byte order
+of the PIR value: slot $\ell$ of $\widehat{C}_j$ corresponds to byte
+index $jd + \ell$ of the value before zero-padding. Any unused slots in
+the final ciphertext MUST encode zero.
+
+#### Split Modulus Switching
+
+The packed sequence $\widehat{R}$ is represented over the packing-level
+modulus $q_2$. The server MUST apply split modulus switching before
+returning the response.
+
+Define the function
+$\mathsf{SplitModulusSwitchRLWECiphertext}((a, b))$ for a packing-level
+RLWE ciphertext $(a, b) \in R_{q_2}^2$ as follows:
+
+1. Let $q_\mathsf{mask} = 2^{11}$ and
+   $q_\mathsf{payload} = 2^{15}$ as specified in [Parameters].
+2. For each coefficient $a_k$ of $a$, let
+   $a'_k = \lfloor (q_\mathsf{mask} / q_2) \cdot a_k \rceil \bmod q_\mathsf{mask}$,
+   where $a_k$ is interpreted via its canonical representative in
+   $\{0, \ldots, q_2 - 1\}$ and $\lfloor \cdot \rceil$ denotes rounding
+   to the nearest integer.
+3. For each coefficient $b_k$ of $b$, let
+   $b'_k = \lfloor (q_\mathsf{payload} / q_2) \cdot b_k \rceil \bmod q_\mathsf{payload}$,
+   where $b_k$ is interpreted via its canonical representative in
+   $\{0, \ldots, q_2 - 1\}$.
+4. Return the modulus-switched ciphertext
+   $C' = (a', b') \in R_{q_\mathsf{mask}} \times R_{q_\mathsf{payload}}$.
+
+Define the function
+$\mathsf{SplitModulusSwitchRLWEResponse}(\widehat{R})$ by applying
+$\mathsf{SplitModulusSwitchRLWECiphertext}$ coefficient-wise to each
+packed ciphertext in $\widehat{R}$ and returning the resulting ordered
+sequence $R = (C'_0, \ldots, C'_{m-1})$.
+
+For client-side decoding, define the function
+$\mathsf{LiftModulusSwitchedRLWECiphertext}((a', b'))$ as follows:
+
+1. For each coefficient $a'_k$ of $a'$, let
+   $\widetilde{a}_k = \lfloor (q_2 / q_\mathsf{mask}) \cdot a'_k \rceil \bmod q_2$.
+2. For each coefficient $b'_k$ of $b'$, let
+   $\widetilde{b}_k = \lfloor (q_2 / q_\mathsf{payload}) \cdot b'_k \rceil \bmod q_2$.
+3. Return the lifted ciphertext
+   $\widetilde{C} = (\widetilde{a}, \widetilde{b}) \in R_{q_2}^2$.
+
 #### Packing-level RLWE Decryption
 
 Define the function
@@ -479,31 +555,35 @@ MUST append `L_value - L_row` zero bytes to each serialized row before
 loading it into the PIR database.
 
 A YPIR+SP server response is an ordered sequence
-$R = (C_0, \ldots, C_{m-1})$ of packing-level RLWE ciphertexts, where
-$m = \lceil L_\mathsf{value} / d \rceil$ and $d = 2048$ is the
-packing-level ring degree from [Parameters]. Each ciphertext has the
-form $C_j = (a_j, b_j) \in R_{q_2}^2$. Ciphertext $C_j$ encodes
-plaintext slots $jd, jd + 1, \ldots, \min((j + 1)d, L_\mathsf{value}) -
-1$ of the selected PIR value in increasing byte order. Any unused slots
-in the final ciphertext MUST encode zero.
+$R = (C'_0, \ldots, C'_{m-1})$ of modulus-switched packing-level
+ciphertexts, where $m = \lceil L_\mathsf{value} / d \rceil$ and
+$d = 2048$ is the packing-level ring degree from [Parameters]. Each
+$C'_j = (a'_j, b'_j)$ is the transmission form of one packed
+packing-level RLWE ciphertext after [Split Modulus Switching]. Ciphertext
+$C'_j$ encodes plaintext slots $jd, jd + 1, \ldots, \min((j + 1)d,
+L_\mathsf{value}) - 1$ of the selected PIR value in increasing byte
+order. Any unused slots in the final ciphertext MUST encode zero.
 
 Define the function
 $\mathsf{DecodeYPIRSPResponse}(R, L_\mathsf{value}, L_\mathsf{row})$ as
 follows:
 
 1. Compute
-   $\mathsf{DecryptPackingRLWECiphertext}(C_j, s_2) = (v_{j,0}, \ldots, v_{j,d-1})$
-   for each $C_j$, obtaining slot values in $\mathbb{Z}_{p_2}$.
-2. Form the concatenated slot sequence
+   $\widetilde{C}_j = \mathsf{LiftModulusSwitchedRLWECiphertext}(C'_j)$
+   for each $C'_j$.
+2. Compute
+   $\mathsf{DecryptPackingRLWECiphertext}(\widetilde{C}_j, s_2) = (v_{j,0}, \ldots, v_{j,d-1})$
+   for each $\widetilde{C}_j$, obtaining slot values in $\mathbb{Z}_{p_2}$.
+3. Form the concatenated slot sequence
    $V = v_{0,0} \| \ldots \| v_{0,d-1} \| v_{1,0} \| \ldots \| v_{m-1,d-1}$.
-3. Interpret $V[0..L_\mathsf{value}-1]$ as the bytes of the returned PIR
+4. Interpret $V[0..L_\mathsf{value}-1]$ as the bytes of the returned PIR
    value, requiring each retained slot value to lie in
    $\{0, 1, \ldots, 255\}$. If any retained slot lies outside this
    range, reject the response as invalid.
-4. If $L_\mathsf{value} > L_\mathsf{row}$, verify that
+5. If $L_\mathsf{value} > L_\mathsf{row}$, verify that
    $V[L_\mathsf{row}..L_\mathsf{value}-1]$ consists entirely of zeros,
    then discard those padding bytes.
-5. Return the first $L_\mathsf{row}$ decoded bytes as the returned row
+6. Return the first $L_\mathsf{row}$ decoded bytes as the returned row
    of the selected PIR database.
 
 #### Query Procedure
@@ -516,11 +596,12 @@ The protocol proceeds as follows:
 2. The client sends $Q = (c_1, pk)$ to the server.
 3. The server computes the SimplePIR matrix-vector product
    $T = D \times c_1$, yielding $\sqrt{N}$ LWE ciphertexts.
-4. The server packs the SimplePIR response into an ordered sequence of
-   packing-level RLWE ciphertexts using the CDKS transformation with
-   $pk$.
-5. The server applies modulus switching to reduce the response size and
-   returns the resulting ciphertext sequence.
+4. The server computes
+   $\widehat{R} = \mathsf{PackSimplePIRResponse}(T, pk, L_\mathsf{value})$
+   as specified in [LWE-to-RLWE Packing].
+5. The server computes
+   $R = \mathsf{SplitModulusSwitchRLWEResponse}(\widehat{R})$ as
+   specified in [Split Modulus Switching], and returns $R$.
 6. The client computes the returned row as
    $\mathsf{DecodeYPIRSPResponse}(R, L_\mathsf{value}, L_\mathsf{row})$
    as specified in [YPIR+SP Response Decoding].
@@ -987,6 +1068,42 @@ well-understood CDKS transformation.
 It is our intent to continue researching and productionizing InsPIRe
 concurrently. Should InsPIRe mature and undergo sufficient auditing, a
 future ZIP may specify it as a replacement or alternative.
+
+## Split Modulus Switching
+
+Packing and split modulus switching solve different problems.
+
+The CDKS packing step reduces the number of ciphertexts in the server's
+response by combining many SimplePIR-level LWE ciphertexts into a small
+number of packing-level RLWE ciphertexts. However, those packed RLWE
+ciphertexts are still represented over the full packing modulus $q_2$.
+Packing therefore compresses the response structurally, but it does not
+yet make each packed ciphertext cheap to transmit.
+
+Split modulus switching is the second compression step. It reduces the
+coefficient representation of each packed RLWE ciphertext before the
+server sends it to the client. In other words, packing changes "many
+ciphertexts into few ciphertexts", while split modulus switching changes
+"wide ciphertexts into narrower ciphertexts". This reduction in wire
+size is what enables the small download sizes summarized in [Bandwidth
+Summary].
+
+A packing-level RLWE ciphertext has the form $(a, b)$, where $a$ is the
+mask polynomial and $b$ is the payload polynomial. During decryption the
+client computes $u = b - a \cdot s_2$, so $a$ contributes through
+multiplication by the secret key, while $b$ more directly carries the
+encoded plaintext.
+
+We use different target moduli for the two ciphertext components because
+they contribute differently during decryption. The mask polynomial is
+multiplied by the secret key and can therefore be compressed more
+aggressively. The payload polynomial carries the encoded plaintext more
+directly, so it requires slightly more precision in order to preserve
+correct decoding after decryption and rounding.
+
+This asymmetric compression follows the YPIR design: it reduces response
+size substantially without sacrificing the correctness margin needed for
+recovering the packed PIR value.
 
 ## Data Structure Split
 
