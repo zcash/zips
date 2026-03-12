@@ -248,18 +248,19 @@ per claim, this trade-off favors prover efficiency.
 
 ### Hash Function
 
-The non-membership tree uses Poseidon [^poseidon], instantiated over
-the Pallas base field $\mathbb{F}_ {q_ {\mathbb{P}}}$, for all hashing:
+The non-membership tree uses Poseidon [^protocol-poseidon] with the
+$\mathsf{P128Pow5T3}$ instantiation (width $t = 3$, rate 2) over the
+Pallas base field $\mathbb{F}_ {q_ {\mathbb{P}}}$ for all hashing:
 
-- **Leaf hash:** $\mathsf{Poseidon}(\mathsf{low}, \mathsf{width})$,
-  a 2-input Poseidon hash with width $t = 3$.
-- **Internal node hash:** $\mathsf{Poseidon}(\mathsf{left}, \mathsf{right})$,
-  a 2-input Poseidon hash with width $t = 3$, where $\mathsf{left}$ and
+- **Leaf hash:** $\mathsf{PoseidonLeafHash}(\mathsf{low}, \mathsf{width})$,
+  a 2-input Poseidon hash (one permutation).
+- **Internal node hash:** $\mathsf{PoseidonNodeHash}(\mathsf{left}, \mathsf{right})$,
+  a 2-input Poseidon hash (one permutation), where $\mathsf{left}$ and
   $\mathsf{right}$ are determined by the node's position bit at each level.
 
-Implementations MUST use the Poseidon instantiation over $\mathbb{F}_ {q_ {\mathbb{P}}}$
-with the standard parameter generation procedure from [^poseidon], targeting
-128-bit security.
+Both functions use $\mathsf{P128Pow5T3}$ with $\mathsf{ConstantLength}\langle 2 \rangle$.
+This is the same Poseidon instantiation used by Orchard for nullifier
+derivation [^protocol-poseidon].
 
 <details>
 <summary>
@@ -335,13 +336,11 @@ same underlying note will produce the same alternate nullifier, which is
 the mechanism for double-claim prevention.
 
 Applications SHOULD derive the domain deterministically from public
-parameters that bind it to a specific context. For example:
-
-$$\mathsf{dom} = \mathsf{Poseidon}(\text{"BalanceProofDomain"}, \mathsf{snapshot\_height}, \mathsf{purpose\_hash})$$
-
-where $\mathsf{purpose\_hash}$ is a hash of an application-specific
-identifier string. This derivation prevents accidental domain collisions
-across independent applications using the same snapshot.
+parameters that bind it to a specific context. For example, an
+application-specific domain tag can be constructed by encoding a
+UTF-8 string as a little-endian Pallas base field element (zero-padded
+to 32 bytes), then combining it with a round or event identifier that
+is unique per claim context.
 
 Applications MAY define their own domain derivation scheme provided it
 satisfies the uniqueness requirement above.
@@ -519,10 +518,12 @@ Then $\mathsf{pk_ d^{old}} = [\mathsf{ivk}]\, \mathsf{g_ d^{old}}$ or
 $\mathsf{pk_ d^{old}} = [\mathsf{ivk\_ {internal}}]\, \mathsf{g_ d^{old}}$.
 
 **Nullifier non-membership.** $\hspace{0.5em}$
-Let $\mathsf{leaf} = \mathsf{Poseidon}(\mathsf{low}, \mathsf{width})$.
+Let $\mathsf{leaf} = \mathsf{PoseidonLeafHash}(\mathsf{low}, \mathsf{width})$
+(see [Hash Function]).
 $(\mathsf{path^{excl}}, \mathsf{pos^{excl}})$ is a valid Merkle path of
 depth $\mathsf{MerkleDepth^{excl}}$ from $\mathsf{leaf}$ to the anchor
-$\mathsf{rt^{excl}}$, using Poseidon for internal node hashing.
+$\mathsf{rt^{excl}}$, using $\mathsf{PoseidonNodeHash}$ (see [Hash Function])
+at each level.
 
 Additionally, let $x = \mathsf{nf^{old}} - \mathsf{low} \bmod q_ {\mathbb{P}}$.
 Both of the following range checks MUST hold:
@@ -718,13 +719,6 @@ this ZIP.
 
 # Open issues
 
-- The Poseidon instantiation ($\mathsf{P128Pow5T3}$) and its round
-  constants remain to be explicitly referenced or pinned once a canonical
-  parameter set for Zcash usage is published.
-- The interaction between multi-note batching and the sighash scheme
-  (what exactly is signed, and how it binds to all $N$ notes) requires
-  further specification per application.
-
 
 # References
 
@@ -739,6 +733,8 @@ this ZIP.
 [^protocol-merklepath]: [Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 4.9: Merkle Path Validity](protocol/protocol.pdf#merklepath)
 
 [^protocol-sinsemilla]: [Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 5.4.1.9: Sinsemilla Hash Function](protocol/protocol.pdf#concretesinsemillahash)
+
+[^protocol-poseidon]: [Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 5.4.2: Pseudo Random Functions](protocol/protocol.pdf#concreteprfs)
 
 [^poseidon]: [Poseidon: A New Hash Function for Zero-Knowledge Proof Systems](https://eprint.iacr.org/2019/458)
 
