@@ -87,7 +87,7 @@ balance requires proving you have a note in the note commitment tree, and it
 has not been spent at that height. For privacy, we do not want to directly
 reveal the client's nullifier in this balance snapshot. This means the client 
 must be able to create a proof that the correct nullifier for a note was not
-spent at the snapshot height. To achieve this, we make a merkle tree of all
+spent at the snapshot height. To achieve this, we make a Merkle tree of all
 known nullifiers at snapshot height, and in zero knowledge prove exclusion of
 the user's nullifier into this snapshot height. Hence the name "Nullifier
 exclusion proof".
