@@ -200,7 +200,9 @@ The client encrypts a selection vector using Regev (LWE) encryption [^Regev05] a
 
 The client requires a precomputed *hint* — the product of the database matrix with the public encryption matrix — to decrypt the response. This hint is proportional to $\sqrt{N}$ and can exceed 1 GB for large databases, making SimplePIR unsuitable for cold-start clients.
 
-All parties agree on a public random matrix A (and transpose $A^T$). For parameters, see "Regev Encryption" under "Specification".
+The public random matrix $A$ (and its transpose $A^T$) is not transmitted;
+both client and server expand it deterministically from a shared seed
+using ChaCha20 [^ChaCha20] (see [Public Seeds] and [Regev Encryption]).
 
 Regev encryption [^Regev05] is the LWE-based scheme that encrypts the
 client's selection vector. It is the primary component on which query
@@ -244,6 +246,33 @@ The scaling factor $\Delta = \lfloor q / p \rfloor$ maps plaintext
 values into the ciphertext space. At the SimplePIR level,
 $\Delta = \lfloor 2^{32} / 2^8 \rfloor = 2^{24}$.
 
+### Public Seeds
+
+Public random matrices used in the YPIR+SP protocol are not transmitted.
+Both client and server MUST expand them deterministically from
+protocol-fixed 32-byte seeds using ChaCha20 [^ChaCha20] as a
+pseudorandom number generator (seeded via `ChaCha20Rng::from_seed`).
+Each matrix entry is a uniformly random element of the relevant
+$\mathbb{Z}_q$, obtained by drawing one 32-bit sample from the ChaCha20
+stream.
+
+| Seed name | Byte value (hex) | Purpose |
+|---|---|---|
+| $\mathsf{seed\_A}$ | $\mathtt{0x00}^{32}$ | SimplePIR matrix $A$ (Regev encryption, see [Regev Encryption]) |
+| $\mathsf{seed\_pack}$ | $\mathtt{0x02} \| \mathtt{0x00}^{31}$ | Packing-level RLWE public randomness (see [YPIR+SP]) |
+
+The seeds are protocol constants: the same matrices are used across all
+queries, all clients, and all Protocol Epochs. Neither party transmits
+the expanded matrices; both expand them independently from the shared
+seeds. This is a standard bandwidth optimization in lattice-based
+cryptography. Transmitting a 32-byte seed instead of a multi-megabyte
+matrix.
+
+Using fixed seeds is safe for LWE and RLWE: the hardness assumptions
+hold even for adversarially chosen public matrices, so reuse across
+queries does not weaken security. Per-query privacy is provided by the
+client's fresh secret key and noise (see [Privacy Implications]).
+
 ### Regev Encryption
 
 The scheme operates in two number spaces. The *plaintext space*
@@ -255,6 +284,8 @@ noise.
 
 Public random matrix $A$ is of dimensions $n \times \sqrt{N}$,
 where $n = 1024$ is the LWE security parameter.
+
+Implementations MUST expand $A$ from $\mathsf{seed\_A}$ as specified in [Public Seeds].
 
 Its transpose $A^T$ is a $\sqrt{N} \times n$ matrix. The client samples
 a secret vector $s$ of length $n$ and a small noise vector $e$ (each
@@ -338,7 +369,10 @@ The protocol proceeds as follows:
 
 1. The client generates LWE secret $s_1$, a fresh RLWE secret $s_2$,
    and a packing key $pk$ consisting of key-switching matrices for the
-   CDKS automorphisms. The client MUST generate a fresh $s_2$ and derive
+   CDKS automorphisms. The RLWE public randomness in $pk$ MUST be
+   expanded from $\mathsf{seed\_pack}$ (see [Public Seeds]); the server
+   expands the same seed to recover the public component without
+   transmitting it. The client MUST generate a fresh $s_2$ and derive
    a new packing key for every query. Reuse of $s_2$ across queries
    enables cross-query linkability (see [Privacy Implications]).
 2. The client sends the query $(c_1, pk)$ to the server, where $c_1$ is
@@ -945,6 +979,8 @@ three-tier Poseidon tree, the Tier 1 / Tier 2 query orchestration desribed in th
 [^CDKS]: [Efficient Homomorphic Conversion Between Ring LWE Ciphertexts](https://eprint.iacr.org/2020/015)
 
 [^Regev05]: [On Lattices, Learning with Errors, Random Linear Codes, and Cryptography](https://doi.org/10.1145/1568318.1568324)
+
+[^ChaCha20]: [ChaCha20 and Poly1305 for IETF Protocols (RFC 8439)](https://www.rfc-editor.org/rfc/rfc8439)
 
 [^Poseidon]: [Poseidon: A New Hash Function for Zero-Knowledge Proof Systems](https://eprint.iacr.org/2019/458)
 
