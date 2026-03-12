@@ -453,8 +453,12 @@ the client's $s_2$.
 
 #### Packing-level RLWE Decryption
 
-For a packing-level RLWE ciphertext $(a, b) \in R_{q_2}^2$, decryption
-with secret key $s_2$ is:
+Define the function
+$\mathsf{DecryptPackingRLWECiphertext}((a, b), s_2)$ for a packing-level
+RLWE ciphertext $(a, b) \in R_{q_2}^2$ as follows:
+
+This decryption procedure is analogous to [Regev Encryption], but over
+the packing-level RLWE ring $R_{q_2}$ instead of the SimplePIR-level LWE space.
 
 1. Compute $u = b - a \cdot s_2 \in R_{q_2}$.
 2. Let $\Delta_2 = \lfloor q_2 / p_2 \rfloor$, where $p_2 = 2^{20}$ is
@@ -462,9 +466,8 @@ with secret key $s_2$ is:
 3. For each coefficient of $u$, round to the nearest multiple of
    $\Delta_2$ and divide by $\Delta_2$ to recover the corresponding
    plaintext slot in $\mathbb{Z}_{p_2}$.
-
-Applying this to each returned RLWE ciphertext recovers the packed row
-values in ciphertext order.
+4. Return the resulting plaintext slot vector
+   $(v_0, \ldots, v_{d-1})$ in $\mathbb{Z}_{p_2}^d$.
 
 #### YPIR+SP Response Decoding
 
@@ -478,26 +481,30 @@ loading it into the PIR database.
 A YPIR+SP server response is an ordered sequence
 $R = (C_0, \ldots, C_{m-1})$ of packing-level RLWE ciphertexts, where
 $m = \lceil L_\mathsf{value} / d \rceil$ and $d = 2048$ is the
-packing-level ring degree from [Parameters]. Ciphertext $C_j$ encodes
+packing-level ring degree from [Parameters]. Each ciphertext has the
+form $C_j = (a_j, b_j) \in R_{q_2}^2$. Ciphertext $C_j$ encodes
 plaintext slots $jd, jd + 1, \ldots, \min((j + 1)d, L_\mathsf{value}) -
 1$ of the selected PIR value in increasing byte order. Any unused slots
 in the final ciphertext MUST encode zero.
 
-To decode $R$, the client:
+Define the function
+$\mathsf{DecodeYPIRSPResponse}(R, L_\mathsf{value}, L_\mathsf{row})$ as
+follows:
 
-1. Applies [Packing-level RLWE Decryption] to each $C_j$, obtaining slot
-   values $(v_{j,0}, \ldots, v_{j,d-1})$ in $\mathbb{Z}_{p_2}$.
-2. Forms the concatenated slot sequence
+1. Compute
+   $\mathsf{DecryptPackingRLWECiphertext}(C_j, s_2) = (v_{j,0}, \ldots, v_{j,d-1})$
+   for each $C_j$, obtaining slot values in $\mathbb{Z}_{p_2}$.
+2. Form the concatenated slot sequence
    $V = v_{0,0} \| \ldots \| v_{0,d-1} \| v_{1,0} \| \ldots \| v_{m-1,d-1}$.
-3. Interprets $V[0..L_\mathsf{value}-1]$ as the bytes of the returned
-   PIR value, requiring each retained slot value to lie in
+3. Interpret $V[0..L_\mathsf{value}-1]$ as the bytes of the returned PIR
+   value, requiring each retained slot value to lie in
    $\{0, 1, \ldots, 255\}$. If any retained slot lies outside this
-   range, the response MUST be rejected as invalid.
-4. If $L_\mathsf{value} > L_\mathsf{row}$, the client MUST verify that
-   $V[L_\mathsf{row}..L_\mathsf{value}-1]$ consists entirely of zeros
-   and then discard those padding bytes.
-5. The first $L_\mathsf{row}$ decoded bytes are the returned row of the
-   selected PIR database.
+   range, reject the response as invalid.
+4. If $L_\mathsf{value} > L_\mathsf{row}$, verify that
+   $V[L_\mathsf{row}..L_\mathsf{value}-1]$ consists entirely of zeros,
+   then discard those padding bytes.
+5. Return the first $L_\mathsf{row}$ decoded bytes as the returned row
+   of the selected PIR database.
 
 #### Query Procedure
 
@@ -514,8 +521,9 @@ The protocol proceeds as follows:
    $pk$.
 5. The server applies modulus switching to reduce the response size and
    returns the resulting ciphertext sequence.
-6. The client decodes the returned ciphertext sequence as specified in
-   [YPIR+SP Response Decoding].
+6. The client computes the returned row as
+   $\mathsf{DecodeYPIRSPResponse}(R, L_\mathsf{value}, L_\mathsf{row})$
+   as specified in [YPIR+SP Response Decoding].
 
 Unlike standard YPIR (which is built on DoublePIR and retrieves a single
 element), YPIR+SP returns an entire PIR value. In this ZIP, the PIR
