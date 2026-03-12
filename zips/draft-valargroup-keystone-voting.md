@@ -31,24 +31,20 @@ Governance PCZT
 : A Partially Created Zcash Transaction [^pczt] constructed solely for
   governance delegation. The PCZT contains a single Orchard Action that
   spends a dummy signed note and produces an output to the governance
-  hotkey address. It is never broadcast to the Zcash mainchain.
+  hotkey address.
 
 Dummy signed note
 
 : A synthetic Orchard note with value 0 (in the Delegation Proof
   circuit) whose $\text{ρ}$ is deterministically bound to the
   delegation context. The note does not exist in any on-chain note
-  commitment tree; it is constructed exclusively to obtain a
-  $\mathsf{SpendAuthSig}^{\mathsf{Orchard}}$ via the standard PCZT
-  signing flow.
+  commitment tree.
 
 Rho binding
 
 : The constraint that the dummy signed note's
   $\text{ρ}^{\mathsf{signed}}$ equals a Poseidon hash of the delegated
   note commitments, the VAN commitment, and the voting round identifier.
-  This makes the spend authorization signature non-replayable and scoped
-  to the exact delegation context.
 
 
 # Abstract
@@ -71,9 +67,7 @@ the Delegation Proof to the vote chain.
 Governance semantics (note ownership, nullifier non-membership, VAN
 construction, and rho binding) are enforced entirely by the
 zero-knowledge proof and on-chain verification, not by the hardware
-wallet. The user confirms the delegation on the Keystone display, which
-shows a 1-zatoshi transfer with zero fee and a memo describing the
-delegation.
+wallet.
 
 
 # Motivation
@@ -125,15 +119,12 @@ specific on-chain notes or determine how the holder subsequently votes.
 
 # Requirements
 
-- The delegation signing flow MUST be compatible with existing Keystone
-  firmware that supports the Orchard PCZT signing flow [^pczt], without
-  requiring firmware changes specific to governance.
-- The spend authorization signature MUST be non-replayable: it MUST be
+- The delegation signing flow is compatible with existing Keystone
+  firmware, without requiring firmware changes specific to governance.
+- The spend authorization signature is non-replayable: it is
   cryptographically scoped to a specific set of delegated notes, VAN
-  commitment, and voting round via the rho binding.
-- Real funds MUST NOT be at risk during the delegation signing. The dummy
-  signed note has value 0 in the Delegation Proof circuit [^voting-protocol],
-  and the governance PCZT is never broadcast to the Zcash mainchain.
+  commitment, and voting round.
+- Real funds are not at risk during the delegation signing.
 
 
 # Non-requirements
@@ -200,6 +191,10 @@ $$\text{ρ}^{\mathsf{signed}} = \mathsf{Poseidon}\bigl(\mathsf{cmx}\_\mathsf{1},
    plus zero-value padding notes), $\mathsf{van}$ is the VAN commitment
    as defined in [^voting-protocol], and
    $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}$ is the round identifier.
+
+   This is a 7-input Poseidon hash using the $\mathsf{P128Pow5T3}$
+   instantiation (width $t = 3$, rate 2) over $\mathbb{F}_{q_{\mathbb{P}}}$.
+   The seven inputs are absorbed in four permutations.
 
 3. **Value.** The note value MUST be set to 1 zatoshi (0.00000001 ZEC)
    in the PCZT so that the Keystone device renders all transaction
