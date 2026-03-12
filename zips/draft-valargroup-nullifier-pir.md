@@ -222,6 +222,25 @@ per-query work in SimplePIR.
 A critical property for PIR is that the matrix $A$ is independent of the
 message $\mu$. This allows the server to precompute the product $D \cdot A^T$ once, yielding the *hint* that clients use for decryption.
 
+### YPIR+SP
+
+YPIR+SP builds on SimplePIR and inherits its matrix layout, Regev/LWE
+encryption of the client’s query, and the server’s LWE-linear
+homomorphic evaluation of that query over the database.
+
+Its main innovation is eliminating the database-dependent hint required
+by SimplePIR. Instead, it packs the intermediate LWE-form response into
+a more compact RLWE form.
+
+Accordingly, YPIR+SP uses two client secrets:
+- `s_1`, the LWE secret used to form the Regev-encrypted selection vector.
+- `s_2`, the RLWE secret used to derive the packing key `pk` and to decrypt the packed response.
+
+The client does not separately decrypt the intermediate SimplePIR
+response. Instead, the server uses `pk` to pack that response into RLWE
+ciphertexts decryptable under `s_2`, and the client recovers the
+returned response via the packing-level RLWE decryption procedure.
+
 # Specification
 
 ## Parameters
@@ -379,23 +398,53 @@ overhead, making it possible to compress the entire SimplePIR row
 response — which would otherwise require the hint for decryption — into
 a small number of RLWE ciphertexts that the client can decrypt directly.
 
+#### Client Key Generation
+
+For each query, the client samples a fresh LWE secret $s_1$ uniformly at
+random from $\mathbb{Z}_q^n$ and samples noise
+$e_1 \leftarrow D_{\mathbb{Z},\sigma_1}^{\sqrt{N}}$ as specified in
+[Regev Encryption], using the SimplePIR-level parameters from
+[Parameters]. These values are used to construct the Regev-encrypted row
+selector $c_1$.
+
+The client also samples a fresh RLWE secret $s_2$ uniformly at random
+from $R_{q_2} = \mathbb{Z}_{q_2}[x]/(x^d + 1)$, with each coefficient
+drawn independently and uniformly at random from $\mathbb{Z}_{q_2}$.
+
+The client derives a packing key $pk$ consisting of key-switching
+matrices for the CDKS automorphisms. Each matrix entry's noise term is
+drawn from $D_{\mathbb{Z},\sigma_2}$, with $\sigma_2$ as specified in
+[Parameters]. The RLWE public randomness in $pk$ MUST be expanded from
+$\mathsf{seed\_pack}$ (see [Public Seeds]); the server expands the same
+seed to recover the public component without transmitting it.
+
+The client MUST sample fresh values for $s_1$, $e_1$, and $s_2$, and
+derive a new packing key $pk$, for every query. Reuse of $s_1$ or $s_2$
+across queries can enable cross-query linkability (see [Privacy
+Implications]).
+
+#### Packing-level RLWE Decryption
+
+For a packing-level RLWE ciphertext $(a, b) \in R_{q_2}^2$, decryption
+with secret key $s_2$ is:
+
+1. Compute $u = b - a \cdot s_2 \in R_{q_2}$.
+2. Let $\Delta_2 = \lfloor q_2 / p_2 \rfloor$, where $p_2 = 2^{20}$ is
+   the packing-level plaintext modulus from [Parameters].
+3. For each coefficient of $u$, round to the nearest multiple of
+   $\Delta_2$ and divide by $\Delta_2$ to recover the corresponding
+   plaintext slot in $\mathbb{Z}_{p_2}$.
+
+Applying this to each returned RLWE ciphertext recovers the packed row
+values in ciphertext order.
+
 The protocol proceeds as follows:
 
-1. The client samples LWE secret $s_1 \xleftarrow{\$} \mathbb{Z}_q^n$
-   and noise $e_1 \leftarrow D_{\mathbb{Z},\sigma_1}^{\sqrt{N}}$ as
+1. The client samples a fresh LWE secret $s_1$ and noise $e_1$ as
    specified in [Regev Encryption], using the SimplePIR-level parameters
-   from [Parameters]. The client also samples a fresh RLWE secret
-   $s_2 \xleftarrow{\$} R_{q_2} = \mathbb{Z}_{q_2}[x]/(x^d + 1)$
-   (each coefficient drawn independently and uniformly at random from
-   $\mathbb{Z}_{q_2}$) and derives a packing key $pk$ consisting of
-   key-switching matrices for the CDKS automorphisms; each matrix entry's
-   noise term is drawn from $D_{\mathbb{Z},\sigma_2}$, with $\sigma_2$ as
-   specified in [Parameters]. The RLWE public randomness in $pk$ MUST be
-   expanded from $\mathsf{seed\_pack}$ (see [Public Seeds]); the server
-   expands the same seed to recover the public component without
-   transmitting it. The client MUST generate a fresh $s_2$ and derive
-   a new packing key for every query. Reuse of $s_2$ across queries
-   enables cross-query linkability (see [Privacy Implications]).
+   from [Parameters]. The client also samples a fresh RLWE secret $s_2$
+   and derives a packing key $pk$ as specified in [Client Key
+   Generation].
 2. The client sends the query $(c_1, pk)$ to the server, where $c_1$ is
    the Regev-encrypted row selector.
 3. The server computes the SimplePIR matrix-vector product
@@ -405,8 +454,9 @@ The protocol proceeds as follows:
    key.
 5. The server applies modulus switching to reduce the response size and
    returns the result.
-6. The client decrypts the RLWE ciphertexts with $s_2$, recovering the
-   row values directly.
+6. The client applies [Packing-level RLWE Decryption] to each returned
+   ciphertext, concatenates the recovered plaintext slots in order, and
+   truncates the result to the row length of the target PIR database.
 
 Unlike standard YPIR (which is built on DoublePIR and retrieves a single
 element), YPIR+SP returns an entire row of the database matrix. This
