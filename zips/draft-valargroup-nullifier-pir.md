@@ -328,9 +328,6 @@ shared with Spiral and OnionPIR [^YPIR].
 
 ### Conformance
 
-The server MUST implement YPIR+SP as described in this section with the
-parameters specified in [Parameters].
-
 The client MUST verify that the decrypted authentication path is
 consistent with the published Merkle root of the exclusion tree.
 
