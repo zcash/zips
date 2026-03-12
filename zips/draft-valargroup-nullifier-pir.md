@@ -423,6 +423,34 @@ derive a new packing key $pk$, for every query. Reuse of $s_1$ or $s_2$
 across queries can enable cross-query linkability (see [Privacy
 Implications]).
 
+#### YPIR+SP Request Encoding
+
+Define the function $\mathsf{EncodeYPIRSPRequest}(i)$ as follows, where
+$i$ is the row index of the selected PIR database row that the client
+wishes to retrieve:
+
+1. Construct the selection vector $\mu_i$ as specified in [Regev
+   Encryption]: a unit vector with value 1 at position $i$ and 0 at
+   every other position.
+2. Sample fresh $s_1$, $e_1$, and $s_2$ as specified in [Client Key
+   Generation].
+3. Derive the fresh packing key $pk$ from $s_2$ as specified in [Client
+   Key Generation].
+4. Compute the Regev-encrypted row selector:
+
+   $$c_1 = A^T \cdot s_1 + e_1 + \Delta \cdot \mu_i$$
+
+   where $A^T$ and $\Delta$ are the SimplePIR-level public matrix and
+   scaling factor from [Regev Encryption].
+5. Return the request tuple $Q = (c_1, pk)$.
+
+The client MUST invoke $\mathsf{EncodeYPIRSPRequest}(i)$ separately for
+each PIR query. Reuse of $s_1$, $e_1$, $s_2$, or $pk$ across queries is
+not allowed. The pair $(c_1, pk)$ is required for each query: $c_1$
+hides which row is requested, and $pk$ enables the server to pack the
+SimplePIR response into packing-level RLWE ciphertexts decryptable under
+the client's $s_2$.
+
 #### Packing-level RLWE Decryption
 
 For a packing-level RLWE ciphertext $(a, b) \in R_{q_2}^2$, decryption
@@ -438,29 +466,60 @@ with secret key $s_2$ is:
 Applying this to each returned RLWE ciphertext recovers the packed row
 values in ciphertext order.
 
+#### YPIR+SP Response Decoding
+
+Let `L_value` be the PIR value size for the selected database tier, and
+let `L_row` be the row serialization length defined by this ZIP for that
+tier (12,224 bytes for Tier 1 and 24,512 bytes for Tier 2). If an
+implementation uses an aligned PIR value size with `L_value > L_row`, it
+MUST append `L_value - L_row` zero bytes to each serialized row before
+loading it into the PIR database.
+
+A YPIR+SP server response is an ordered sequence
+$R = (C_0, \ldots, C_{m-1})$ of packing-level RLWE ciphertexts, where
+$m = \lceil L_\mathsf{value} / d \rceil$ and $d = 2048$ is the
+packing-level ring degree from [Parameters]. Ciphertext $C_j$ encodes
+plaintext slots $jd, jd + 1, \ldots, \min((j + 1)d, L_\mathsf{value}) -
+1$ of the selected PIR value in increasing byte order. Any unused slots
+in the final ciphertext MUST encode zero.
+
+To decode $R$, the client:
+
+1. Applies [Packing-level RLWE Decryption] to each $C_j$, obtaining slot
+   values $(v_{j,0}, \ldots, v_{j,d-1})$ in $\mathbb{Z}_{p_2}$.
+2. Forms the concatenated slot sequence
+   $V = v_{0,0} \| \ldots \| v_{0,d-1} \| v_{1,0} \| \ldots \| v_{m-1,d-1}$.
+3. Interprets $V[0..L_\mathsf{value}-1]$ as the bytes of the returned
+   PIR value, requiring each retained slot value to lie in
+   $\{0, 1, \ldots, 255\}$. If any retained slot lies outside this
+   range, the response MUST be rejected as invalid.
+4. If $L_\mathsf{value} > L_\mathsf{row}$, the client MUST verify that
+   $V[L_\mathsf{row}..L_\mathsf{value}-1]$ consists entirely of zeros
+   and then discard those padding bytes.
+5. The first $L_\mathsf{row}$ decoded bytes are the returned row of the
+   selected PIR database.
+
+#### Query Procedure
+
 The protocol proceeds as follows:
 
-1. The client samples a fresh LWE secret $s_1$ and noise $e_1$ as
-   specified in [Regev Encryption], using the SimplePIR-level parameters
-   from [Parameters]. The client also samples a fresh RLWE secret $s_2$
-   and derives a packing key $pk$ as specified in [Client Key
-   Generation].
-2. The client sends the query $(c_1, pk)$ to the server, where $c_1$ is
-   the Regev-encrypted row selector.
+1. The client computes
+   $Q = \mathsf{EncodeYPIRSPRequest}(i)$ as specified in [YPIR+SP
+   Request Encoding].
+2. The client sends $Q = (c_1, pk)$ to the server.
 3. The server computes the SimplePIR matrix-vector product
    $T = D \times c_1$, yielding $\sqrt{N}$ LWE ciphertexts.
-4. The server packs $T$ into $\lceil \sqrt{N} / d_2 \rceil$ RLWE
-   ciphertexts using the CDKS transformation with the client's packing
-   key.
+4. The server packs the SimplePIR response into an ordered sequence of
+   packing-level RLWE ciphertexts using the CDKS transformation with
+   $pk$.
 5. The server applies modulus switching to reduce the response size and
-   returns the result.
-6. The client applies [Packing-level RLWE Decryption] to each returned
-   ciphertext, concatenates the recovered plaintext slots in order, and
-   truncates the result to the row length of the target PIR database.
+   returns the resulting ciphertext sequence.
+6. The client decodes the returned ciphertext sequence as specified in
+   [YPIR+SP Response Decoding].
 
 Unlike standard YPIR (which is built on DoublePIR and retrieves a single
-element), YPIR+SP returns an entire row of the database matrix. This
-makes it suitable for large records that span many bytes.
+element), YPIR+SP returns an entire PIR value. In this ZIP, the PIR
+value is a serialized Tier 1 or Tier 2 row.
 
 #### Security
 
