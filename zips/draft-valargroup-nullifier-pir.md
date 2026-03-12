@@ -332,9 +332,11 @@ Implementations MUST expand $A$ from $\mathsf{seed\_A}$ as specified in [Public 
 Its transpose $A^T$ is a $\sqrt{N} \times n$ matrix. For each query,
 the client MUST sample two fresh vectors:
 
-- **Secret vector** $s \xleftarrow{\$} \mathbb{Z}_q^n$: each entry
-  drawn independently and uniformly at random from
-  $\{0, 1, \ldots, q - 1\}$.
+- **Secret vector** $s \leftarrow D_{\mathbb{Z},\sigma}^n$: each entry
+  drawn independently from the discrete Gaussian
+  distribution $D_{\mathbb{Z},\sigma}$ centered at zero, with standard
+  deviation $\sigma$ as specified in [Parameters], and then interpreted
+  in $\mathbb{Z}_q$ via the canonical embedding of integers modulo $q$.
 - **Noise vector** $e \leftarrow D_{\mathbb{Z},\sigma}^{\sqrt{N}}$:
   each entry drawn independently from the discrete Gaussian
   distribution $D_{\mathbb{Z},\sigma}$ centered at zero, with standard
@@ -420,16 +422,17 @@ a small number of RLWE ciphertexts that the client can decrypt directly.
 
 #### Client Key Generation
 
-For each query, the client samples a fresh LWE secret $s_1$ uniformly at
-random from $\mathbb{Z}_q^n$ and samples noise
+For each query, the client samples a fresh LWE secret
+$s_1 \leftarrow D_{\mathbb{Z},\sigma_1}^n$ and samples noise
 $e_1 \leftarrow D_{\mathbb{Z},\sigma_1}^{\sqrt{N}}$ as specified in
 [Regev Encryption], using the SimplePIR-level parameters from
 [Parameters]. These values are used to construct the Regev-encrypted row
 selector $c_1$.
 
-The client also samples a fresh RLWE secret $s_2$ uniformly at random
-from $R_{q_2} = \mathbb{Z}_{q_2}[x]/(x^d + 1)$, with each coefficient
-drawn independently and uniformly at random from $\mathbb{Z}_{q_2}$.
+The client also samples a fresh RLWE secret
+$s_2 \leftarrow D_{\mathbb{Z},\sigma_2}^d$, and interprets the resulting
+coefficient vector as an element of
+$R_{q_2} = \mathbb{Z}_{q_2}[x]/(x^d + 1)$.
 
 The client MUST sample fresh values for $s_1$, $e_1$, and $s_2$ for
 every query. Reuse of $s_1$ or $s_2$ across queries can enable
