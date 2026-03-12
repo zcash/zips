@@ -192,11 +192,16 @@ Next-generation PIR designs (YPIR, InsPIRe) build on top of SimplePIR, aiming to
 ### SimplePIR
 
 In SimplePIR [^SimplePIR], the database is reshaped into a
-$\sqrt{N} \times \sqrt{N}$ matrix where each cell holds one byte. The
-server computes the answer as a single matrix-vector product, achieving
-throughput that is constrained by the hardware's memory-bandwidth.
+$\sqrt{N} \times \sqrt{N}$ matrix $D$ where each cell holds one byte.
 
-The client encrypts a selection vector using Regev (LWE) encryption [^Regev05] and sends it to the server.
+To retrieve row $i$ of $D$, the client constructs a *selection vector*
+$\mu$ — a unit vector that is 1 at position $i$ and 0 elsewhere. The
+product $D \times \mu$ then yields exactly row $i$. To hide which row
+is being retrieved, the client encrypts $\mu$ under Regev (LWE)
+encryption [^Regev05] and sends the ciphertext to the server, which
+computes the answer as a single matrix-vector product. This makes
+server throughput constrained by memory bandwidth rather than
+computation.
 
 The client requires a precomputed *hint* — the product of the database matrix with the public encryption matrix — to decrypt the response. This hint is proportional to $\sqrt{N}$ and can exceed 1 GB for large databases, making SimplePIR unsuitable for cold-start clients.
 
