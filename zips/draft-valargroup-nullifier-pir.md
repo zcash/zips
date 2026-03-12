@@ -179,6 +179,13 @@ The following are explicitly out of scope:
 - Retrieval of data other than nullifier exclusion proofs.
 
 
+# High-level summary
+
+This subsection is non-normative.
+
+<Rest of content providing context for understanding the Specification.>
+
+
 # Specification
 
 ## Parameters
