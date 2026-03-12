@@ -54,6 +54,13 @@ Interval Merkle tree
 : A Merkle tree, where each leaf commits to a continuous range of valid values.
   A client proves inclusion of a value in one of the tree's intervals.
 
+Protocol Epoch
+
+: A bounded time period during which the nullifier exclusion tree and its
+  derived PIR databases, computed from a specific snapshot height, are treated
+  as static. Each consuming protocol defines its own epoch duration (e.g. a
+  voting round in a snapshot-based governance system [^draft-voting-protocol]).
+
 # Abstract
 
 This document specifies a private information retrieval (PIR) scheme for
@@ -166,7 +173,7 @@ The following are explicitly out of scope:
 
 - Incremental database updates. The PIR database is computed once from
   the nullifier set at a given snapshot height and is treated
-  as static for the duration of the protocol epoch.
+  as static for the duration of the Protocol Epoch.
 - Sub-second end-to-end query latency. The two sequential PIR round-trips
   impose a latency floor determined by network conditions.
 - Retrieval of data other than nullifier exclusion proofs.
@@ -176,7 +183,7 @@ The following are explicitly out of scope:
 
 ## Parameters
 
-Implementations MUST use the following parameters, which provide 128-bit
+Implementations MUST use the following parameters, which provide 128-bit)
 computational security and correctness error at most $2^{-40}$:
 
 | Parameter | SimplePIR level | Packing level |
@@ -377,7 +384,7 @@ the 6 GB Tier 2 database (see [Bandwidth Summary]). See
 
 The server MUST construct the exclusion tree and the corresponding PIR
 databases (Tiers 0, 1, and 2) once from the nullifier set at the start
-of each protocol epoch. The databases are static for the duration of
+of each Protocol Epoch. The databases are static for the duration of
 the epoch.
 
 #### Tree Structure
@@ -920,3 +927,5 @@ three-tier Poseidon tree, the Tier 1 / Tier 2 query orchestration desribed in th
 [^draft-str4d-orchard-balance-proof]: [Air drops, Proof-of-Balance, and Stake-weighted Polling](draft-str4d-orchard-balance-proof)
 
 [^draft-valargroup-orchard-balance-proof]: [Orchard Proof-of-Balance](draft-valargroup-orchard-balance-proof)
+
+[^draft-voting-protocol]: [Draft ZIP: Zcash Shielded Voting Protocol](draft-valargroup-voting-protocol.md)
