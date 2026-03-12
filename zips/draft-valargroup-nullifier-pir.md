@@ -137,8 +137,9 @@ notes the user owns at snapshot height.
 # Requirements
 
 
-- No client-side database hint. A mobile wallet must be able to issue its
-  first query without any prior large (MB) download or expensive preprocessing.
+- No client-side preprocessing. A mobile wallet must be able to issue
+  its first query without any prior download beyond the query itself
+  or any client state carried over from a previous session.
 - Single untrusted server with no per-client state. The server holds only
   the public database and processes queries statelessly. A client could query
   multiple for queries 
