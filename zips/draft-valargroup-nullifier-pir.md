@@ -69,9 +69,13 @@ a single untrusted server, no client-side database hint and no DB
 pre-processing per client. This makes it suited for privacy in the Zcash 
 setting.
 
-The nullifier exclusion tree is a binary merkle tree, organized into a
-three-tier data structure spanning 26 levels of depth: a plaintext broadcast
-tier (192 KB, cacheable), a small PIR tier (24 MB), and a large PIR tier (6 GB).
+For the Orchard nullifier set of size 49,813,801 (as of block height 3,268,870), the nullifier exclusion tree is a binary merkle tree, organized into a
+three-tier data structure spanning 26 levels of depth:
+
+1. Plaintext broadcast tier (192 KB, cacheable)
+2. Small PIR tier (24 MB)
+3. Large PIR tier (6 GB).
+
 A complete authentication path is retrieved in two sequential PIR queries plus
 the plaintext download, for a total bandwidth of approximately 3.3 MB per
 query (dominated by the Tier 2 upload).
