@@ -291,9 +291,19 @@ Public random matrix $A$ is of dimensions $n \times \sqrt{N}$.
 
 Implementations MUST expand $A$ from $\mathsf{seed\_A}$ as specified in [Public Seeds].
 
-Its transpose $A^T$ is a $\sqrt{N} \times n$ matrix. The client samples
-a secret vector $s$ of length $n$ and a small noise vector $e$ (each
-entry drawn from a discrete Gaussian with standard deviation $\sigma$).
+Its transpose $A^T$ is a $\sqrt{N} \times n$ matrix. For each query,
+the client MUST sample two fresh vectors:
+
+- **Secret vector** $s \xleftarrow{\$} \mathbb{Z}_q^n$: each entry
+  drawn independently and uniformly at random from
+  $\{0, 1, \ldots, q - 1\}$.
+- **Noise vector** $e \leftarrow D_{\mathbb{Z},\sigma}^{\sqrt{N}}$:
+  each entry drawn independently from the discrete Gaussian
+  distribution $D_{\mathbb{Z},\sigma}$ centered at zero, with standard
+  deviation $\sigma$ as specified in [Parameters].
+
+The discrete Gaussian $D_{\mathbb{Z},\sigma}$ assigns to each integer
+$x$ probability proportional to $\exp\!\bigl(-x^2 / (2\sigma^2)\bigr)$.
 
 To encrypt a selection vector $\mu$ (zeros everywhere except a 1 at the
 target row):
@@ -371,9 +381,16 @@ a small number of RLWE ciphertexts that the client can decrypt directly.
 
 The protocol proceeds as follows:
 
-1. The client generates LWE secret $s_1$, a fresh RLWE secret $s_2$,
-   and a packing key $pk$ consisting of key-switching matrices for the
-   CDKS automorphisms. The RLWE public randomness in $pk$ MUST be
+1. The client samples LWE secret $s_1 \xleftarrow{\$} \mathbb{Z}_q^n$
+   and noise $e_1 \leftarrow D_{\mathbb{Z},\sigma_1}^{\sqrt{N}}$ as
+   specified in [Regev Encryption], using the SimplePIR-level parameters
+   from [Parameters]. The client also samples a fresh RLWE secret
+   $s_2 \xleftarrow{\$} R_{q_2} = \mathbb{Z}_{q_2}[x]/(x^d + 1)$
+   (each coefficient drawn independently and uniformly at random from
+   $\mathbb{Z}_{q_2}$) and derives a packing key $pk$ consisting of
+   key-switching matrices for the CDKS automorphisms; each matrix entry's
+   noise term is drawn from $D_{\mathbb{Z},\sigma_2}$, with $\sigma_2$ as
+   specified in [Parameters]. The RLWE public randomness in $pk$ MUST be
    expanded from $\mathsf{seed\_pack}$ (see [Public Seeds]); the server
    expands the same seed to recover the public component without
    transmitting it. The client MUST generate a fresh $s_2$ and derive
