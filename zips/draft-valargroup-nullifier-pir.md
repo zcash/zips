@@ -128,11 +128,16 @@ Every other component - CDKS packing, modulus switching, the packing key -
 affects response correctness or cross-query linkability, but not the 
 confidentiality of the query itself.
 
-All queries have identical size for a given database configuration. The number of records the client must retrieve is based on the number of nullifiers they
-must query for. The following are out of scope of this document:
-- Padding the number of queries to lower metadata leakage of the number of 
-notes the user owns at snapshot height.
-- IP obfuscation
+All queries have identical size for a given database configuration. However,
+each unspent note requires exactly one pair of PIR queries (Tier 1 + Tier 2),
+so an observer who can count a client's queries learns the exact number of
+unspent notes that client's wallet held at the snapshot height. The following
+approaches to mitigating this metadata leakage are out of scope for this
+document:
+- Padding the query count (e.g. to a fixed number or the next power of two)
+  to hide the true number of unspent notes.
+- IP obfuscation or mixing network round-trips across multiple servers to
+  prevent an observer from attributing queries to a single client.
 
 
 # Requirements
