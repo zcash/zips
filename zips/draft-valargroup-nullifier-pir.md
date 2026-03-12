@@ -229,9 +229,6 @@ computational security and correctness error at most $2^{-40}$:
 | Plaintext modulus $p$ | $2^8$ | $2^{20}$ |
 | Noise width $\sigma$ | $11\sqrt{2\pi}$ | $6.4\sqrt{2\pi}$ |
 
-These parameters are taken from Table 1 of the YPIR paper [^YPIR] and
-support databases up to 64 GB ($\sqrt{N} \leq 2^{18}$).
-
 The packing-level ciphertext modulus is the product of two 28-bit
 NTT-friendly primes:
 
@@ -752,6 +749,30 @@ the client computes exactly 1 hash.
 
 
 # Rationale
+
+## Parameter Selection
+
+The parameters in [Parameters] are taken from Table 1 of the YPIR
+paper [^YPIR] and support databases up to 64 GB ($\sqrt{N} \leq 2^{18}$).
+
+The binding constraint is the Tier 2 database (see
+[Tier 2: Large PIR (Depths 18–26)]). With a depth-26 exclusion tree
+holding up to $2^{26} \approx 67$ million leaves, Tier 2 contains
+$2^{18} = 262{,}144$ rows of 24,512 bytes each, totaling approximately
+6 GB. This is well within the 64 GB ceiling. This leaves roughly an order of
+magnitude of headroom before the parameters would need to be revised,
+accommodating substantial growth of the Orchard nullifier set without
+any change to the cryptographic configuration.
+
+Even under the depth-29 tree supported by the Claim circuit
+(see [Tree Depth vs. Circuit Depth]), an analogous three-tier layout
+would produce at most $2^{21} \approx 2$ million Tier 2 rows. At the
+current row size this yields approximately 48 GB, still within the
+64 GB bound.
+
+The YPIR authors provide a concrete security analysis for these
+parameters in Table 1 of [^YPIR], achieving at least 128-bit
+computational security with correctness error at most $2^{-40}$.
 
 ## Construction Choice
 
