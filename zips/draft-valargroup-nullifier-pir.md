@@ -44,10 +44,10 @@ CDKS transformation
 
 Packing key
 
-: A set of $\log(d)$ key-switching matrices sent to the server as part of
-  each YPIR+SP query. Each matrix encrypts an automorphism of the client's
-  RLWE secret $s_2$ under $s_2$ itself, enabling the server to perform the
-  CDKS transformation without learning $s_2$.
+: Auxiliary key material sent as part of each YPIR+SP query that enables
+  the server to apply the CDKS packing procedure to ciphertexts
+  encrypted for the client, without learning the client's packing-level
+  secret key.
 
 Interval Merkle tree
 
