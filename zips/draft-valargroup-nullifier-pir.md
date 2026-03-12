@@ -174,6 +174,36 @@ The following are explicitly out of scope:
 
 # Specification
 
+## Parameters
+
+Implementations MUST use the following parameters, which provide 128-bit
+computational security and correctness error at most $2^{-40}$:
+
+| Parameter | SimplePIR level | Packing level |
+|---|---|---|
+| Lattice dimension $n$ / Ring degree $d$ | 1024 | 2048 |
+| Ciphertext modulus $q$ | $2^{32}$ | $q_{2,1} \cdot q_{2,2}$ |
+| Plaintext modulus $p$ | $2^8$ | $2^{20}$ |
+| Noise width $\sigma$ | $11\sqrt{2\pi}$ | $6.4\sqrt{2\pi}$ |
+
+These parameters are taken from Table 1 of the YPIR paper [^YPIR] and
+support databases up to 64 GB ($\sqrt{N} \leq 2^{18}$).
+
+The packing-level ciphertext modulus is the product of two 28-bit
+NTT-friendly primes:
+
+$$q_{2,1} = 268\,369\,921 \qquad q_{2,2} = 249\,561\,089$$
+
+Both satisfy $q \equiv 1 \pmod{2d}$ (with $d = 2048$), the condition
+required for the Number Theoretic Transform over the polynomial ring
+$\mathbb{Z}_q[x]/(x^d + 1)$. Using a CRT (Chinese Remainder Theorem)
+representation of the modulus enables all packing-level arithmetic to
+remain within 64-bit machine words.
+
+The scaling factor $\Delta = \lfloor q / p \rfloor$ maps plaintext
+values into the ciphertext space. At the SimplePIR level,
+$\Delta = \lfloor 2^{32} / 2^8 \rfloor = 2^{24}$.
+
 ## PIR Construction
 
 Next-generation PIR designs (YPIR, InsPIRe) build on top of SimplePIR, aiming to eliminate the hint and shrink response sizes. So we explain SimplePIR first.
@@ -311,21 +341,6 @@ The protocol proceeds as follows:
 Unlike standard YPIR (which is built on DoublePIR and retrieves a single
 element), YPIR+SP returns an entire row of the database matrix. This
 makes it suitable for large records that span many bytes.
-
-#### Parameters
-
-Implementations MUST use the following parameters, which provide 128-bit
-computational security and correctness error at most $2^{-40}$:
-
-| Parameter | SimplePIR level | Packing level |
-|---|---|---|
-| Lattice dimension $n$ / Ring degree $d$ | 1024 | 2048 |
-| Ciphertext modulus $q$ | $2^{32}$ | $\approx 2^{56}$ (two 28-bit NTT-friendly primes) |
-| Plaintext modulus $p$ | $2^8$ | $2^{20}$ |
-| Noise width $\sigma$ | $11\sqrt{2\pi}$ | $6.4\sqrt{2\pi}$ |
-
-These parameters are taken from Table 1 of the YPIR paper [^YPIR] and
-support databases up to 64 GB ($\sqrt{N} \leq 2^{18}$).
 
 #### Security
 
