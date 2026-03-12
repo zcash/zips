@@ -323,9 +323,11 @@ a small number of RLWE ciphertexts that the client can decrypt directly.
 
 The protocol proceeds as follows:
 
-1. The client generates LWE secret $s_1$, RLWE secret $s_2$, and a
-   packing key $pk$ consisting of key-switching matrices for the CDKS
-   automorphisms.
+1. The client generates LWE secret $s_1$, a fresh RLWE secret $s_2$,
+   and a packing key $pk$ consisting of key-switching matrices for the
+   CDKS automorphisms. The client MUST generate a fresh $s_2$ and derive
+   a new packing key for every query. Reuse of $s_2$ across queries
+   enables cross-query linkability (see [Privacy Implications]).
 2. The client sends the query $(c_1, pk)$ to the server, where $c_1$ is
    the Regev-encrypted row selector.
 3. The server computes the SimplePIR matrix-vector product
@@ -353,13 +355,6 @@ under itself). In other words, the key material is encrypted with itself.
 The LWE and RLWE assumptions are standard in lattice-based
 cryptography. Circular security is a well-studied additional assumption
 shared with Spiral and OnionPIR [^YPIR].
-
-### Conformance
-
-The client MUST generate a fresh RLWE secret $s_2$ and derive a new
-packing key for every query. Reuse of $s_2$ across queries enables
-cross-query linkability (see [Privacy Implications]).
-
 
 <details>
 <summary>
