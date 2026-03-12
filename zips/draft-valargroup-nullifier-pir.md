@@ -356,9 +356,6 @@ shared with Spiral and OnionPIR [^YPIR].
 
 ### Conformance
 
-The client MUST verify that the decrypted authentication path is
-consistent with the published Merkle root of the exclusion tree.
-
 The client MUST generate a fresh RLWE secret $s_2$ and derive a new
 packing key for every query. Reuse of $s_2$ across queries enables
 cross-query linkability (see [Privacy Implications]).
@@ -518,9 +515,10 @@ proof, this saving applies to every protocol participant.
 #### Authentication Path
 
 A complete authentication path consists of 26 sibling hashes, one per
-tree depth from the leaf (depth 26) to the root (depth 0). The client
-MUST reconstruct the Merkle root from the retrieved path and verify it
-against the published root.
+tree depth from the leaf (depth 26) to the root (depth 0). After
+decrypting the PIR responses for Tiers 1 and 2, the client MUST
+reconstruct the Merkle root from the complete retrieved path and verify
+it against the published root of the exclusion tree.
 
 #### Data Structure Layout
 
