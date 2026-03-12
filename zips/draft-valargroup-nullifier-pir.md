@@ -185,12 +185,41 @@ This subsection is non-normative.
 
 <Rest of content providing context for understanding the Specification.>
 
+## PIR Construction
+
+Next-generation PIR designs (YPIR, InsPIRe) build on top of SimplePIR, aiming to eliminate the hint and shrink response sizes. So we explain SimplePIR first.
+
+### SimplePIR
+
+In SimplePIR [^SimplePIR], the database is reshaped into a
+$\sqrt{N} \times \sqrt{N}$ matrix where each cell holds one byte. The
+server computes the answer as a single matrix-vector product, achieving
+throughput that is constrained by the hardware's memory-bandwidth.
+
+The client encrypts a selection vector using Regev (LWE) encryption [^Regev05] and sends it to the server.
+
+The client requires a precomputed *hint* — the product of the database matrix with the public encryption matrix — to decrypt the response. This hint is proportional to $\sqrt{N}$ and can exceed 1 GB for large databases, making SimplePIR unsuitable for cold-start clients.
+
+All parties agree on a public random matrix A (and transpose $A^T$). For parameters, see "Regev Encryption" under "Specification".
+
+Regev encryption [^Regev05] is the LWE-based scheme that encrypts the
+client's selection vector. It is the primary component on which query
+privacy depends (see [Privacy Implications]).
+
+Regev encryption is linearly homomorphic: the server can multiply the
+database matrix $D$ by the encrypted query $c$ and obtain an encrypted
+version of the selected row, $D \cdot c = D \cdot A^T \cdot s + D \cdot e + \Delta \cdot (D \times \mu)$, without learning which row
+was selected. This matrix-vector product is the entirety of the server's
+per-query work in SimplePIR.
+
+A critical property for PIR is that the matrix $A$ is independent of the
+message $\mu$. This allows the server to precompute the product $D \cdot A^T$ once, yielding the *hint* that clients use for decryption.
 
 # Specification
 
 ## Parameters
 
-Implementations MUST use the following parameters, which provide 128-bit)
+Implementations MUST use the following parameters, which provide 128-bit
 computational security and correctness error at most $2^{-40}$:
 
 | Parameter | SimplePIR level | Packing level |
@@ -218,26 +247,7 @@ The scaling factor $\Delta = \lfloor q / p \rfloor$ maps plaintext
 values into the ciphertext space. At the SimplePIR level,
 $\Delta = \lfloor 2^{32} / 2^8 \rfloor = 2^{24}$.
 
-## PIR Construction
-
-Next-generation PIR designs (YPIR, InsPIRe) build on top of SimplePIR, aiming to eliminate the hint and shrink response sizes. So we explain SimplePIR first.
-
-### SimplePIR
-
-In SimplePIR [^SimplePIR], the database is reshaped into a
-$\sqrt{N} \times \sqrt{N}$ matrix where each cell holds one byte. The
-server computes the answer as a single matrix-vector product, achieving
-throughput that is constrained by the hardware's memory-bandwidth.
-
-The client encrypts a selection vector using Regev (LWE) encryption [^Regev05] and sends it to the server.
-
-The client requires a precomputed *hint* — the product of the database matrix with the public encryption matrix — to decrypt the response. This hint is proportional to $\sqrt{N}$ and can exceed 1 GB for large databases, making SimplePIR unsuitable for cold-start clients.
-
 ### Regev Encryption
-
-Regev encryption [^Regev05] is the LWE-based scheme that encrypts the
-client's selection vector. It is the single component on which query
-privacy depends (see [Privacy Implications]).
 
 The scheme operates in two number spaces. The *plaintext space*
 $\mathbb{Z}_p$ (with $p = 2^8$) holds database values. The *ciphertext
@@ -246,8 +256,9 @@ ratio $\Delta = \lfloor q / p \rfloor$ is the scaling factor that spaces
 plaintext values apart in the larger ciphertext space, leaving room for
 noise.
 
-All parties agree on a public random matrix $A$ of dimensions
-$n \times \sqrt{N}$, where $n = 1024$ is the LWE security parameter.
+Public random matrix $A$ is of dimensions $n \times \sqrt{N}$,
+where $n = 1024$ is the LWE security parameter.
+
 Its transpose $A^T$ is a $\sqrt{N} \times n$ matrix. The client samples
 a secret vector $s$ of length $n$ and a small noise vector $e$ (each
 entry drawn from a discrete Gaussian with standard deviation $\sigma$).
@@ -272,15 +283,6 @@ To decrypt (given $s$):
 This works because the noise $e$ is small relative to the spacing
 $\Delta$. For example, with $\Delta = \lfloor 2^{32} / 256 \rfloor = 2^{24} \approx 16{,}000{,}000$ and noise magnitude on the order of tens,
 rounding reliably recovers the correct plaintext.
-
-Regev encryption is linearly homomorphic: the server can multiply the
-database matrix $D$ by the encrypted query $c$ and obtain an encrypted
-version of the selected row, $D \cdot c = D \cdot A^T \cdot s + D \cdot e + \Delta \cdot (D \times \mu)$, without learning which row
-was selected. This matrix-vector product is the entirety of the server's
-per-query work in SimplePIR.
-
-A critical property for PIR is that the matrix $A$ is independent of the
-message $\mu$. This allows the server to precompute the product $D \cdot A^T$ once, yielding the *hint* that clients use for decryption.
 
 ### Hint
 
