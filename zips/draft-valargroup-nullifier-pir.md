@@ -147,15 +147,17 @@ document:
   its first query without any prior download beyond the query itself
   or any client state carried over from a previous session.
 - Single untrusted server with no per-client state. The server holds only
-  the public database and processes queries statelessly. A client could query
-  multiple for queries 
+  the public database and processes queries statelessly. A client could
+  query multiple independent servers without requiring coordination
+  between them.
 - Total bandwidth per query (upload plus download) under
   10MB, suitable for mobile networks.
 - Two sequential network round-trips per query are acceptable.
 - The hash function used in the exclusion tree must be efficient inside
   zero-knowledge proof circuits.
 - 128-bit computational security with correctness error probability at
-  most $2^{-40}$. Re-sampling fixes this
+  most $2^{-40}$. A client can detect and recover from a correctness
+  error by re-issuing the query.
 
 
 # Non-requirements
