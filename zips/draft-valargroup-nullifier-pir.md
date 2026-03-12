@@ -431,17 +431,92 @@ The client also samples a fresh RLWE secret $s_2$ uniformly at random
 from $R_{q_2} = \mathbb{Z}_{q_2}[x]/(x^d + 1)$, with each coefficient
 drawn independently and uniformly at random from $\mathbb{Z}_{q_2}$.
 
-The client derives a packing key $pk$ consisting of key-switching
-matrices for the CDKS automorphisms. Each matrix entry's noise term is
-drawn from $D_{\mathbb{Z},\sigma_2}$, with $\sigma_2$ as specified in
-[Parameters]. The RLWE public randomness in $pk$ MUST be expanded from
-$\mathsf{seed\_pack}$ (see [Public Seeds]); the server expands the same
-seed to recover the public component without transmitting it.
+The client MUST sample fresh values for $s_1$, $e_1$, and $s_2$ for
+every query. Reuse of $s_1$ or $s_2$ across queries can enable
+cross-query linkability (see [Privacy Implications]).
 
-The client MUST sample fresh values for $s_1$, $e_1$, and $s_2$, and
-derive a new packing key $pk$, for every query. Reuse of $s_1$ or $s_2$
-across queries can enable cross-query linkability (see [Privacy
-Implications]).
+#### PackingKeyGeneration
+
+Define the function $\mathsf{GeneratePackingKey}(s_2)$ as follows, where
+$s_2 \in R_{q_2}$ is a freshly sampled packing-level RLWE secret.
+
+For any odd integer $k \in \{1, 3, \ldots, 2d - 1\}$, define the
+packing-level ring automorphism
+$\tau_k : R_{q_2} \rightarrow R_{q_2}$ by
+
+$$\tau_k(f(X)) = f(X^k) \bmod (X^d + 1).$$
+
+The canonical CDKS automorphism order for this ZIP is
+
+$$k_r = d / 2^r + 1 \qquad \text{for } r \in \{0, \ldots, 10\}.$$
+
+Equivalently, the 11 automorphisms are
+$\tau_{2049}, \tau_{1025}, \tau_{513}, \tau_{257}, \tau_{129},
+\tau_{65}, \tau_{33}, \tau_{17}, \tau_{9}, \tau_{5}, \tau_{3}$, in
+that order. The packing key MUST contain exactly one key-switch matrix
+for each of those automorphisms, serialized in increasing matrix index
+$r$.
+
+For any polynomial $f = \sum_{j=0}^{d-1} f_j X^j \in R_{q_2}$, define
+its base-$B_\mathsf{ks}$ gadget decomposition
+
+$$f = \sum_{u=0}^{L_\mathsf{ks}-1} B_\mathsf{ks}^u \cdot f^{(u)}$$
+
+where each coefficient of each digit polynomial $f^{(u)}$ is the unique
+integer in $\{0, \ldots, B_\mathsf{ks} - 1\}$ obtained from the
+canonical base-$B_\mathsf{ks}$ expansion of the corresponding
+coefficient of $f$ in $\{0, \ldots, q_2 - 1\}$.
+
+The digit index $u$ runs over the $L_\mathsf{ks} = 3$ gadget digits.
+
+The function $\mathsf{GeneratePackingKey}(s_2)$ proceeds as follows:
+
+1. Construct 33 public mask polynomials
+   $a_{r,u} \in R_{q_2}$ for
+   $r \in \{0, \ldots, 10\}$ and
+   $u \in \{0, 1, 2\}$ by expanding $\mathsf{seed\_pack}$ with ChaCha20
+   as specified in [Public Seeds], in row-major order on $(r, u)$:
+   $a_{0,0}, a_{0,1}, a_{0,2}, a_{1,0}, \ldots, a_{10,2}$. For each
+   $a_{r,u}$ and each coefficient index $j \in \{0, \ldots, d - 1\}$:
+
+   1. Draw one 32-bit word from the ChaCha20 stream, reduce it modulo
+      $q_{2,1}$, and use the result as the residue of coefficient $j$
+      modulo $q_{2,1}$.
+   2. Draw the next 32-bit word from the same stream, reduce it modulo
+      $q_{2,2}$, and use the result as the residue of coefficient $j$
+      modulo $q_{2,2}$.
+   3. Recombine the two residues via CRT into the unique coefficient in
+      $\{0, \ldots, q_2 - 1\}$.
+2. For each matrix index $r$ and gadget digit $u$, sample a noise
+   polynomial $e_{r,u} \leftarrow D_{\mathbb{Z},\sigma_2}^d$, with
+   $\sigma_2$ as specified in [Parameters], and form the RLWE ciphertext
+
+   $$K_{r,u} = (a_{r,u}, b_{r,u})$$
+
+   with
+
+   $$b_{r,u} = a_{r,u} \cdot s_2 + e_{r,u} + B_\mathsf{ks}^u \cdot \tau_{k_r}(s_2) \in R_{q_2}.$$
+3. For each $r \in \{0, \ldots, 10\}$, define the key-switch matrix for
+   automorphism $\tau_{k_r}$ as
+
+   $$K_r = (K_{r,0}, K_{r,1}, K_{r,2}).$$
+4. Let
+
+   $$pk = (K_0, \ldots, K_{10}).$$
+
+   The complete packing key therefore contains exactly 11 matrices and
+   exactly 33 RLWE ciphertexts.
+5. Serialize $pk$ for transmission by emitting only the
+   $b_{r,u}$ polynomials, because the server reconstructs the matching
+   $a_{r,u}$ polynomials from $\mathsf{seed\_pack}$. The wire format of
+   $pk$ is the concatenation of
+   $b_{0,0}, b_{0,1}, b_{0,2}, b_{1,0}, \ldots, b_{10,2}$. Each
+   polynomial is serialized coefficient-wise in ascending order
+   $(X^0, X^1, \ldots, X^{d-1})$; each coefficient is serialized as its
+   canonical representative in $\{0, \ldots, q_2 - 1\}$ encoded as a
+   7-byte unsigned little-endian integer.
+6. Return $pk$. The transmitted packing key size is therefore fixed at
+   $11 \cdot 3 \cdot 2048 \cdot 7 = 473{,}088$ bytes.
 
 #### YPIR+SP Request Encoding
 
@@ -454,8 +529,9 @@ wishes to retrieve:
    every other position.
 2. Sample fresh $s_1$, $e_1$, and $s_2$ as specified in [Client Key
    Generation].
-3. Derive the fresh packing key $pk$ from $s_2$ as specified in [Client
-   Key Generation].
+3. Compute the fresh packing key
+   $pk = \mathsf{GeneratePackingKey}(s_2)$ as specified in
+   [PackingKeyGeneration].
 4. Compute the Regev-encrypted row selector:
 
    $$c_1 = A^T \cdot s_1 + e_1 + \Delta \cdot \mu_i$$
@@ -475,21 +551,30 @@ the client's $s_2$.
 
 After receiving a request $Q = (c_1, pk)$, the server computes the
 SimplePIR matrix-vector product $T = D \times c_1$. Let
-$T = (t_0, \ldots, t_{L_\mathsf{value}-1})$ be the ordered sequence of
+$T = (t_0, \ldots, t_{W_\mathsf{value}-1})$ be the ordered sequence of
 SimplePIR-level LWE ciphertexts corresponding to the selected PIR value,
-where $L_\mathsf{value}$ is the PIR value size for the queried tier.
+where $L_\mathsf{value}$ is the aligned PIR value size in bytes for the
+queried tier and
+$W_\mathsf{value} = 8L_\mathsf{value} / 14$ is the corresponding number
+of packing-level plaintext words.
 
 Define the function
 $\mathsf{PackSimplePIRResponse}(T, pk, L_\mathsf{value})$ as follows:
 
 1. Let $d = 2048$ be the packing-level ring degree from [Parameters] and
-   let $m = \lceil L_\mathsf{value} / d \rceil$.
+   let $W_\mathsf{value} = 8L_\mathsf{value} / 14$. Let
+   $m = \lceil W_\mathsf{value} / d \rceil$.
 2. Partition $T$ into $m$ consecutive chunks of length $d$:
    $(t_{j,0}, \ldots, t_{j,d-1})$ for $j \in \{0, \ldots, m-1\}$. If the
    final chunk is shorter than $d$, pad it with SimplePIR-level
    encryptions of zero so that it has exactly $d$ inputs.
 3. For each chunk $j$, apply the CDKS transformation [^CDKS] using the
-   packing key $pk$ to produce one packing-level RLWE ciphertext
+   packing key $pk$, the canonical automorphism order
+   $\tau_{2049}, \tau_{1025}, \tau_{513}, \tau_{257}, \tau_{129},
+   \tau_{65}, \tau_{33}, \tau_{17}, \tau_{9}, \tau_{5}, \tau_{3}$, and
+   the corresponding key-switch matrices output by
+   $\mathsf{GeneratePackingKey}(s_2)$ as specified in
+   [PackingKeyGeneration] to produce one packing-level RLWE ciphertext
    $\widehat{C}_j = (\widehat{a}_j, \widehat{b}_j) \in R_{q_2}^2$ such
    that, for every slot index $\ell \in \{0, \ldots, d-1\}$, slot
    $\ell$ of $\widehat{C}_j$ decrypts under $s_2$ to the same plaintext
@@ -498,10 +583,18 @@ $\mathsf{PackSimplePIRResponse}(T, pk, L_\mathsf{value})$ as follows:
 4. Return the ordered packed sequence
    $\widehat{R} = (\widehat{C}_0, \ldots, \widehat{C}_{m-1})$.
 
-The order of slots within each $\widehat{C}_j$ MUST match the byte order
-of the PIR value: slot $\ell$ of $\widehat{C}_j$ corresponds to byte
-index $jd + \ell$ of the value before zero-padding. Any unused slots in
-the final ciphertext MUST encode zero.
+The order of slots within each $\widehat{C}_j$ MUST match the order of
+the 14-bit plaintext words obtained from the PIR value byte string. Let
+$B[0], \ldots, B[L_\mathsf{value} - 1]$ be that byte string, and let bit
+index $8b + r$ denote bit $r$ (with weight $2^r$) of byte $B[b]$. Then
+word $w_k$ is defined by
+
+$$w_k = \sum_{r=0}^{13} \mathsf{bit}(14k + r)\, 2^r \in \mathbb{Z}_{p_2}$$
+
+for $k \in \{0, \ldots, W_\mathsf{value} - 1\}$. Slot $\ell$ of
+$\widehat{C}_j$ MUST correspond to word index $jd + \ell$ of this packed
+representation. Any unused slots in the final ciphertext MUST encode
+zero.
 
 #### Split Modulus Switching
 
@@ -568,17 +661,19 @@ let `L_row` be the row serialization length defined by this ZIP for that
 tier (12,224 bytes for Tier 1 and 24,512 bytes for Tier 2). If an
 implementation uses an aligned PIR value size with `L_value > L_row`, it
 MUST append `L_value - L_row` zero bytes to each serialized row before
-loading it into the PIR database.
+loading it into the PIR database. Implementations MUST choose
+`L_value` so that $8L_\mathsf{value}$ is divisible by 14. Define
+$W_\mathsf{value} = 8L_\mathsf{value} / 14$.
 
 A YPIR+SP server response is an ordered sequence
 $R = (C'_0, \ldots, C'_{m-1})$ of modulus-switched packing-level
-ciphertexts, where $m = \lceil L_\mathsf{value} / d \rceil$ and
+ciphertexts, where $m = \lceil W_\mathsf{value} / d \rceil$ and
 $d = 2048$ is the packing-level ring degree from [Parameters]. Each
 $C'_j = (a'_j, b'_j)$ is the transmission form of one packed
 packing-level RLWE ciphertext after [Split Modulus Switching]. Ciphertext
 $C'_j$ encodes plaintext slots $jd, jd + 1, \ldots, \min((j + 1)d,
-L_\mathsf{value}) - 1$ of the selected PIR value in increasing byte
-order. Any unused slots in the final ciphertext MUST encode zero.
+ W_\mathsf{value}) - 1$ of the selected PIR value in increasing packed-word
+ order. Any unused slots in the final ciphertext MUST encode zero.
 
 Define the function
 $\mathsf{DecodeYPIRSPResponse}(R, L_\mathsf{value}, L_\mathsf{row})$ as
@@ -592,14 +687,16 @@ follows:
    for each $\widetilde{C}_j$, obtaining slot values in $\mathbb{Z}_{p_2}$.
 3. Form the concatenated slot sequence
    $V = v_{0,0} \| \ldots \| v_{0,d-1} \| v_{1,0} \| \ldots \| v_{m-1,d-1}$.
-4. Interpret $V[0..L_\mathsf{value}-1]$ as the bytes of the returned PIR
-   value, requiring each retained slot value to lie in
-   $\{0, 1, \ldots, 255\}$. If any retained slot lies outside this
-   range, reject the response as invalid.
-5. If $L_\mathsf{value} > L_\mathsf{row}$, verify that
-   $V[L_\mathsf{row}..L_\mathsf{value}-1]$ consists entirely of zeros,
+4. Let $W = V[0..W_\mathsf{value}-1]$.
+5. Reconstruct the aligned PIR value byte string
+   $B[0], \ldots, B[L_\mathsf{value} - 1]$ by writing the least-significant
+   14 bits of each word $W[k]$ into bit positions
+   $14k, \ldots, 14k + 13$ of a contiguous bitstream, where bit position
+   $8b + r$ becomes bit $r$ (with weight $2^r$) of byte $B[b]$.
+6. If $L_\mathsf{value} > L_\mathsf{row}$, verify that
+   $B[L_\mathsf{row}..L_\mathsf{value}-1]$ consists entirely of zeros,
    then discard those padding bytes.
-6. Return the first $L_\mathsf{row}$ decoded bytes as the returned row
+7. Return the first $L_\mathsf{row}$ decoded bytes as the returned row
    of the selected PIR database.
 
 #### Query Procedure
@@ -1066,6 +1163,14 @@ InsPIRe column is from Table 4 of the InsPIRe paper [^InsPIRe] (32 GB
 database, 32 KB entries, full InsPIRe variant): ~1.1 MB query, ~96 KB
 response, and up to 9.4 GB/s throughput (9,360 MB/s).
 </details>
+
+The YPIR+SP packing key contains exactly 11 automorphism-specific
+key-switch matrices because the packing-level ring degree is
+$d = 2048 = 2^{11}$. CDKS packing follows a radix-2 butterfly recursion,
+so it requires one automorphism for each halving level of that
+recursion. Therefore the number of required automorphisms is
+$\log_2(d) = 11$. This is a structural property of the CDKS packing
+procedure for this ring size, not an arbitrary parameter choice.
 
 InsPIRe achieves superior communication metrics through a novel packing
 mechanism (InspiRING, requiring only 2 key-switching matrices instead of
