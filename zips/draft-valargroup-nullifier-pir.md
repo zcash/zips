@@ -245,22 +245,28 @@ returned response via the packing-level RLWE decryption procedure.
 
 ## Parameters
 
-Implementations MUST use the following parameters, which provide 128-bit
-computational security and correctness error at most $2^{-40}$:
+Implementations MUST use the following parameters for the YPIR+SP
+instantiation specified by this ZIP:
 
-| Parameter | SimplePIR level | Packing level |
-|---|---|---|
-| Lattice dimension $n$ / Ring degree $d$ | 1024 | 2048 |
-| Ciphertext modulus $q$ | $2^{32}$ | $q_{2,1} \cdot q_{2,2}$ |
-| Plaintext modulus $p$ | $2^8$ | $2^{20}$ |
-| Noise width $\sigma$ | $11\sqrt{2\pi}$ | $6.4\sqrt{2\pi}$ |
+| Parameter | Value |
+|---|---|
+| Effective inner LWE dimension | 1024 |
+| Ring degree $d$ | 2048 |
+| Ciphertext modulus $q$ | $q_{2,1} \cdot q_{2,2}$ |
+| Plaintext modulus $p$ | $2^{14}$ |
+| Noise width $\sigma$ | $6.4\sqrt{2\pi}$ |
+| Gadget length $L_\mathsf{ks}$ | 3 |
 
-The packing-level ciphertext modulus is the product of two 28-bit
+The ciphertext modulus is the product of two 28-bit
 NTT-friendly primes:
 
 $$q_{2,1} = 268\,369\,921 \qquad q_{2,2} = 249\,561\,089$$
 
-Both satisfy $q \equiv 1 \pmod{2d}$ (with $d = 2048$), the condition
+Their product is
+
+$$q = q_{2,1} \cdot q_{2,2} = 66\,974\,689\,739\,603\,969 \approx 2^{56}.$$
+
+Both primes satisfy $q \equiv 1 \pmod{2d}$ (with $d = 2048$), the condition
 required for the Number Theoretic Transform over the polynomial ring
 $\mathbb{Z}_q[x]/(x^d + 1)$. Using a CRT (Chinese Remainder Theorem)
 representation of the modulus enables all packing-level arithmetic to
@@ -268,11 +274,19 @@ remain within 64-bit machine words.
 
 For transmission after packing, implementations MUST use split modulus
 switching with target coefficient moduli
-$q_\mathsf{mask} = 2^{11}$ and $q_\mathsf{payload} = 2^{15}$.
+$q_\mathsf{mask} = 268\,369\,921$ and $q_\mathsf{payload} = 2^{20}$.
+
+For packing-key generation and CDKS key-switching, implementations MUST
+use gadget base
+$B_\mathsf{ks} = 2^{19}$ and gadget length
+$L_\mathsf{ks} = \lceil \log_{B_\mathsf{ks}}(q_2) \rceil = 3$.
+
+Concretely, each automorphism-specific key-switch matrix therefore has
+exactly $L_\mathsf{ks} = 3$ columns.
 
 The scaling factor $\Delta = \lfloor q / p \rfloor$ maps plaintext
-values into the ciphertext space. At the SimplePIR level,
-$\Delta = \lfloor 2^{32} / 2^8 \rfloor = 2^{24}$.
+values into the ciphertext space:
+$\Delta = \lfloor q / 2^{14} \rfloor = 4\,087\,810\,653\,052$.
 
 ### Public Seeds
 
@@ -303,9 +317,10 @@ client's fresh secret key and noise (see [Privacy Implications]).
 
 ### Regev Encryption
 
-The scheme operates in two number spaces. The *plaintext space*
-$\mathbb{Z}_p$ (with $p = 2^8$) holds database values. The *ciphertext
-space* $\mathbb{Z}_q$ (with $q = 2^{32}$) holds encrypted values. The
+For the YPIR+SP instantiation in this ZIP, the *plaintext space*
+$\mathbb{Z}_p$ (with $p = 2^{14}$) holds packed database words. The
+*ciphertext space* $\mathbb{Z}_q$ (with
+$q = q_{2,1} \cdot q_{2,2}$) holds encrypted values. The
 ratio $\Delta = \lfloor q / p \rfloor$ is the scaling factor that spaces
 plaintext values apart in the larger ciphertext space, leaving room for
 noise.
@@ -346,7 +361,8 @@ To decrypt (given $s$):
 3. Divide by $\Delta$ to recover $\mu$.
 
 This works because the noise $e$ is small relative to the spacing
-$\Delta$. For example, with $\Delta = \lfloor 2^{32} / 256 \rfloor = 2^{24} \approx 16{,}000{,}000$ and noise magnitude on the order of tens,
+$\Delta$. For this instantiation,
+$\Delta = \lfloor q / 2^{14} \rfloor \approx 4.09 \times 10^{12}$, so
 rounding reliably recovers the correct plaintext.
 
 ### Hint
@@ -497,8 +513,8 @@ Define the function
 $\mathsf{SplitModulusSwitchRLWECiphertext}((a, b))$ for a packing-level
 RLWE ciphertext $(a, b) \in R_{q_2}^2$ as follows:
 
-1. Let $q_\mathsf{mask} = 2^{11}$ and
-   $q_\mathsf{payload} = 2^{15}$ as specified in [Parameters].
+1. Let $q_\mathsf{mask} = 268\,369\,921$ and
+   $q_\mathsf{payload} = 2^{20}$ as specified in [Parameters].
 2. For each coefficient $a_k$ of $a$, let
    $a'_k = \lfloor (q_\mathsf{mask} / q_2) \cdot a_k \rceil \bmod q_\mathsf{mask}$,
    where $a_k$ is interpreted via its canonical representative in
@@ -537,7 +553,7 @@ This decryption procedure is analogous to [Regev Encryption], but over
 the packing-level RLWE ring $R_{q_2}$ instead of the SimplePIR-level LWE space.
 
 1. Compute $u = b - a \cdot s_2 \in R_{q_2}$.
-2. Let $\Delta_2 = \lfloor q_2 / p_2 \rfloor$, where $p_2 = 2^{20}$ is
+2. Let $\Delta_2 = \lfloor q_2 / p_2 \rfloor$, where $p_2 = 2^{14}$ is
    the packing-level plaintext modulus from [Parameters].
 3. For each coefficient of $u$, round to the nearest multiple of
    $\Delta_2$ and divide by $\Delta_2$ to recover the corresponding
@@ -621,21 +637,6 @@ under itself). In other words, the key material is encrypted with itself.
 The LWE and RLWE assumptions are standard in lattice-based
 cryptography. Circular security is a well-studied additional assumption
 shared with Spiral and OnionPIR [^YPIR].
-
-<details>
-<summary>
-
-### Rationale for YPIR+SP over standard YPIR
-</summary>
-
-For the Tier 2 PIR database (24,512-byte rows; see
-[Data Structure Layout]), standard YPIR would require 24,512 parallel
-DoublePIR instances (one per byte), each with its own 16 MB hint — a
-prohibitive cost. YPIR+SP avoids this: the full row is packed into RLWE
-ciphertexts in a single pass, achieving ~2.6 MB total communication for
-the 6 GB Tier 2 database (see [Bandwidth Summary]). See
-[Construction Choice] for a comparison with other PIR schemes.
-</details>
 
 ## Instantiations
 
@@ -1005,8 +1006,7 @@ the client computes exactly 1 hash.
 
 ## Parameter Selection
 
-The parameters in [Parameters] are taken from Table 1 of the YPIR
-paper [^YPIR] and support databases up to 64 GB ($\sqrt{N} \leq 2^{18}$).
+The parameters in [Parameters] follow the referenced YPIR implementation [^ypir-impl].
 
 The binding constraint is the Tier 2 database (see
 [Tier 2: Large PIR (Depths 18–26)]). With a depth-26 exclusion tree
@@ -1023,9 +1023,22 @@ would produce at most $2^{21} \approx 2$ million Tier 2 rows. At the
 current row size this yields approximately 48 GB, still within the
 64 GB bound.
 
-The YPIR authors provide a concrete security analysis for these
-parameters in Table 1 of [^YPIR], achieving at least 128-bit
-computational security with correctness error at most $2^{-40}$.
+The YPIR authors provide a concrete security analysis for the parameter
+family underlying these choices in [^YPIR], targeting at least 128-bit
+computational security with correctness error at most $2^{-40}$. The
+shared-modulus YPIR+SP constants above are taken from the referenced
+implementation used by this ZIP.
+
+## Rationale for representing $q$ as two primes
+
+The packed RLWE layer uses a ciphertext modulus represented as the
+product of two 28-bit NTT-friendly primes rather than as a single large
+prime. This CRT representation gives the implementation enough modulus
+headroom for the packing and key-switching steps while still allowing
+the polynomial arithmetic to be carried out efficiently in 64-bit
+machine words. In other words, the construction needs a modulus of
+roughly 56 bits overall, but realizes it as two smaller compatible
+factors so that the NTT-based implementation remains practical.
 
 ## Construction Choice
 
@@ -1060,6 +1073,16 @@ mechanism (InspiRING, requiring only 2 key-switching matrices instead of
 cryptography is complex, has no known production usage, and is one year
 younger than YPIR+SP, complicating auditability and imposing production
 risk for a system that must be trustworthy from launch.
+
+### Rationale for YPIR+SP over standard YPIR
+
+For the Tier 2 PIR database (24,512-byte rows; see
+[Data Structure Layout]), standard YPIR would require 24,512 parallel
+DoublePIR instances (one per byte), each with its own 16 MB hint — a
+prohibitive cost. YPIR+SP avoids this: the full row is packed into RLWE
+ciphertexts in a single pass, achieving ~2.6 MB total communication for
+the 6 GB Tier 2 database (see [Bandwidth Summary]). See
+[Construction Choice] for a comparison with other PIR schemes.
 
 We choose YPIR+SP because it achieves a hintless design with appropriate
 communication and throughput for mobile clients, built on the
