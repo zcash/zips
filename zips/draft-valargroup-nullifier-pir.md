@@ -989,10 +989,12 @@ Internal nodes MUST be serialized in breadth-first order (depth 1
 left-to-right, then depth 2, and so on through depth 6):
 
 ```
-Bytes 0–4,031:      internal_nodes[0..125]    126 × 32 B = 4,032 B
-Bytes 4,032–8,127:  leaf_hashes[0..127]       128 × 32 B = 4,096 B
-Bytes 8,128–12,223: leaf_min_keys[0..127]     128 × 32 B = 4,096 B
-                                               Total:      12,224 B
+Bytes 0–4,031:      internal_nodes[0..125]        126 × 32 B = 4,032 B
+Bytes 4,032–12,223: leaf_records[0..127]          128 × 64 B = 8,192 B
+                    where each record is:
+                    bytes 0–31:   hash
+                    bytes 32–63:  min_key
+                                                     Total:      12,224 B
 ```
 
 **BFS indexing:** A node at relative depth $d$, horizontal position $p$
@@ -1001,13 +1003,19 @@ $d \in \lbrack 1, 6\rbrack$, $p \in \lbrack 0, 2^d)$. The sibling of position $p
 depth is at position $p \oplus 1$. The parent of position $p$ is at
 position $p \gg 1$ at depth $d - 1$.
 
+Leaf record $i \in \lbrack 0, 127\rbrack$ begins at byte offset
+$4032 + 64i$. Within that record, the `hash` field occupies bytes
+$4032 + 64i \ldots 4063 + 64i$ and the `min_key` field occupies bytes
+$4064 + 64i \ldots 4095 + 64i$.
+
 **Client procedure:**
 
 1. Issue a PIR query for row $S_1$ (the subtree index from Tier 0).
-2. Binary search the 128 `leaf_min_keys` values at the end of the row to
+2. Binary search the 128 `min_key` fields in the interleaved leaf
+   records to
    find the largest sub-subtree index $S_2 \in \lbrack 0, 127\rbrack$
    such that
-   $\mathsf{leaf\_min\_keys}\lbrack S_2\rbrack \leq \mathsf{target\_key}$.
+   $\mathsf{leaf\_records}[S_2].\mathsf{min\_key} \leq \mathsf{target\_key}$.
    Any empty-only suffix subtree in this array is encoded with
    $\mathsf{min\_key} = \mathsf{max\_key}$.
 3. Read 7 sibling hashes directly from the row:
@@ -1054,20 +1062,28 @@ zero bytes of padding before being loaded into the PIR database.
 **Row serialization (24,512 bytes):**
 
 ```
-Bytes 0–8,127:       internal_nodes[0..253]    254 × 32 B = 8,128 B
-Bytes 8,128–16,319:  leaf_lows[0..255]         256 × 32 B = 8,192 B
-Bytes 16,320–24,511: leaf_widths[0..255]       256 × 32 B = 8,192 B
-                                                Total:      24,512 B
+Bytes 0–8,127:       internal_nodes[0..253]        254 × 32 B = 8,128 B
+Bytes 8,128–24,511:  leaf_records[0..255]          256 × 64 B = 16,384 B
+                     where each record is:
+                     bytes 0–31:   low
+                     bytes 32–63:  width
+                                                       Total:      24,512 B
 ```
+
+Leaf record $i \in \lbrack 0, 255\rbrack$ begins at byte offset
+$8128 + 64i$. Within that record, the `low` field occupies bytes
+$8128 + 64i \ldots 8159 + 64i$ and the `width` field occupies bytes
+$8160 + 64i \ldots 8191 + 64i$.
 
 **Client procedure:**
 
 1. Compute the Tier 2 row index as $S_1 \times 128 + S_2$.
 2. Issue a PIR query for this row.
-3. Binary search only the populated prefix of the 256 `leaf_lows`
-   values to find the largest index $\mathsf{target\_position}$ such
+3. Binary search only the populated prefix of the 256 interleaved leaf
+   records to find the largest index $\mathsf{target\_position}$ such
    that
-   $\mathsf{leaf\_lows}[\mathsf{target\_position}] \leq \mathsf{target\_key}$.
+   $\mathsf{leaf\_records}[\mathsf{target\_position}].\mathsf{low} \leq
+   \mathsf{target\_key}$.
    Any trailing records corresponding to empty right-padding are not part
    of this search.
    Let $(low, width)$ be the leaf record at that position. The client
