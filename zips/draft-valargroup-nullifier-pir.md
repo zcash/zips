@@ -110,13 +110,13 @@ There is a problem though, how does the user get the exclusion proof?
 A user directly querying a centralized server for the exclusion proof would
 reveal their nullifier to the server, breaking the privacy guarantee.
 The alternative of downloading the entire set of Orchard nullifiers is 
-impractical. As of block height 3,268,870 with 49,813,784 nullifiers, it's already 1.48Gib (ssuming binary serialization). As Zcash scales, this grows unboundedly.
+impractical. As of block height 3,268,870 with 49,813,784 nullifiers, it's already 1.48 GiB (assuming binary serialization). As Zcash scales, this grows unboundedly.
 
 The existing solution in the design of token holder voting prior to this ZIP is
 to not allow snapshots of balances, but instead "snapshots of balances that
 moved in a registration period". This lowers the download size to just grow in
 the number of transactions during registration period. It comes at the cost of
-voting friction (requiring users to move funds), safety, and anonymity as your 
+voting friction (requiring users to move funds), safety, and anonymity as you're
 not anonymous amongst all notes, only recently moved notes.
 
 Private Information Retrieval (PIR) provides a cryptographic solution to 
@@ -270,6 +270,7 @@ instantiation specified by this ZIP:
 | Ciphertext modulus $q$ | $q_{2,1} \cdot q_{2,2}$ |
 | Plaintext modulus $p$ | $2^{14}$ |
 | Noise width $\sigma$ | $6.4\sqrt{2\pi}$ |
+| Packing-level noise width $\sigma_2$ | $6.4\sqrt{2\pi}$ |
 | Gadget length $L_\mathsf{ks}$ | 3 |
 
 The ciphertext modulus is the product of two 28-bit
@@ -712,7 +713,7 @@ $\mathsf{PackSimplePIRResponse}(T, pk, L_\mathsf{value})$ as follows:
 
 The order of slots within each $\widehat{C}_j$ MUST match the order of
 the 14-bit plaintext words obtained from the canonical byte-to-word
-mapping in [Parameters]. Slot $\ell$ of $\widehat{C}_j$ MUST correspond
+mapping in [Canonical Plaintext Packing]. Slot $\ell$ of $\widehat{C}_j$ MUST correspond
 to word index $jd + \ell$ of that packed representation. Any additional
 slots introduced only to complete the final ciphertext chunk MUST decode
 to zero.
@@ -945,7 +946,7 @@ MUST pad the tree as follows.
 
 The canonical empty leaf has $\mathsf{key} = 0$ and
 $\mathsf{value} = 0$ (i.e., $\mathsf{low} = 0$, $\mathsf{width} = 0$),
-with leaf hash $\mathsf{Hash}(0 \| 0)$, consistent with the empty-leaf
+with leaf hash $\mathsf{Poseidon}(0, 0)$, consistent with the empty-leaf
 definition in [^draft-valargroup-orchard-balance-proof].
 
 Real exclusion-range leaves MUST occupy the leftmost (lowest-index) leaf
@@ -1521,7 +1522,7 @@ which provides the single-server private information retrieval scheme described
 in [^YPIR], including the YPIR+SP variant used by this ZIP.
 
 A full reference implementation of the application-specific layers — the
-three-tier Poseidon tree, the Tier 1 / Tier 2 query orchestration desribed in this ZIP — is provided in [^nullifier-pir-impl].
+three-tier Poseidon tree, the Tier 1 / Tier 2 query orchestration described in this ZIP — is provided in [^nullifier-pir-impl].
 
 
 
