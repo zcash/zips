@@ -516,10 +516,11 @@ The function $\mathsf{GeneratePackingKey}(s_2)$ proceeds as follows:
    $b_{0,0}, b_{0,1}, b_{0,2}, b_{1,0}, \ldots, b_{10,2}$. Each
    polynomial is serialized coefficient-wise in ascending order
    $(X^0, X^1, \ldots, X^{d-1})$; each coefficient is serialized as its
-   canonical representative in $\{0, \ldots, q_2 - 1\}$ encoded as a
-   7-byte unsigned little-endian integer.
+   canonical representative in $\{0, \ldots, q_2 - 1\}$ encoded as an
+   8-byte unsigned little-endian integer. Because $q_2 < 2^{56}$, the
+   most significant byte of each encoded coefficient is zero.
 6. Return $pk$. The transmitted packing key size is therefore fixed at
-   $11 \cdot 3 \cdot 2048 \cdot 7 = 473{,}088$ bytes.
+   $11 \cdot 3 \cdot 2048 \cdot 8 = 540{,}672$ bytes.
 
 #### YPIR+SP Request Encoding
 
