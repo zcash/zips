@@ -290,19 +290,22 @@ The scaling factor $\Delta = \lfloor q / p \rfloor$ maps plaintext
 values into the ciphertext space:
 $\Delta = \lfloor q / 2^{14} \rfloor = 4\,087\,810\,653\,052$.
 
+For the nullifier-exclusion-tree instantiation in [Instantiations], the
+PIR value sizes are fixed as follows:
+
+| Tier | Row serialization length $L_\mathsf{row}$ | PIR value size $L_\mathsf{value}$ | Zero-padding bytes |
+|---|---|---|---|
+| Tier 1 | 12,224 bytes | 12,229 bytes | 5 |
+| Tier 2 | 24,512 bytes | 24,514 bytes | 2 |
+
+These are the smallest byte lengths not less than $L_\mathsf{row}$ for
+which $8L_\mathsf{value}$ is divisible by 14.
+
 ### Public Seeds
 
 Public random matrices used in the YPIR+SP protocol are not transmitted.
 Both client and server MUST expand them deterministically from
-protocol-fixed 32-byte seeds using ChaCha20 [^ChaCha20] as a
-pseudorandom number generator (seeded via `ChaCha20Rng::from_seed`).
-Each matrix entry MUST be derived from enough ChaCha20 output to cover
-the target modulus. For the packing modulus $q_2 \approx 2^{56}$, the
-reference implementation draws one 64-bit word and reduces it modulo
-$q_2$. Equivalently, because $q_2 = q_{2,1} q_{2,2}$ with 28-bit prime
-factors, an implementation may draw one 32-bit word for each prime,
-reduce modulo that prime, and recombine via CRT. Only moduli that fit
-within 32 bits may be sampled from a single 32-bit draw.
+protocol-fixed 32-byte seeds using ChaCha20 [^ChaCha20], with the seed as key.
 
 | Seed name | Byte value (hex) | Purpose |
 |---|---|---|
@@ -486,16 +489,9 @@ The function $\mathsf{GeneratePackingKey}(s_2)$ proceeds as follows:
    $u \in \{0, 1, 2\}$ by expanding $\mathsf{seed\_pack}$ with ChaCha20
    as specified in [Public Seeds], in row-major order on $(r, u)$:
    $a_{0,0}, a_{0,1}, a_{0,2}, a_{1,0}, \ldots, a_{10,2}$. For each
-   $a_{r,u}$ and each coefficient index $j \in \{0, \ldots, d - 1\}$:
-
-   1. Draw one 32-bit word from the ChaCha20 stream, reduce it modulo
-      $q_{2,1}$, and use the result as the residue of coefficient $j$
-      modulo $q_{2,1}$.
-   2. Draw the next 32-bit word from the same stream, reduce it modulo
-      $q_{2,2}$, and use the result as the residue of coefficient $j$
-      modulo $q_{2,2}$.
-   3. Recombine the two residues via CRT into the unique coefficient in
-      $\{0, \ldots, q_2 - 1\}$.
+   $a_{r,u}$ and each coefficient index $j \in \{0, \ldots, d - 1\}$,
+   set coefficient $j$ to the next coefficient modulo $q_2$ derived
+   from the ChaCha20 byte stream by the procedure in [Public Seeds].
 2. For each matrix index $r$ and gadget digit $u$, sample a noise
    polynomial $e_{r,u} \leftarrow D_{\mathbb{Z},\sigma_2}^d$, with
    $\sigma_2$ as specified in [Parameters], and form the RLWE ciphertext
@@ -558,8 +554,8 @@ After receiving a request $Q = (c_1, pk)$, the server computes the
 SimplePIR matrix-vector product $T = D \times c_1$. Let
 $T = (t_0, \ldots, t_{W_\mathsf{value}-1})$ be the ordered sequence of
 SimplePIR-level LWE ciphertexts corresponding to the selected PIR value,
-where $L_\mathsf{value}$ is the aligned PIR value size in bytes for the
-queried tier and
+where $L_\mathsf{value}$ is the PIR value size in bytes fixed for the
+queried tier in [Parameters] and
 $W_\mathsf{value} = 8L_\mathsf{value} / 14$ is the corresponding number
 of packing-level plaintext words.
 
@@ -661,13 +657,13 @@ the packing-level RLWE ring $R_{q_2}$ instead of the SimplePIR-level LWE space.
 
 #### YPIR+SP Response Decoding
 
-Let `L_value` be the PIR value size for the selected database tier, and
-let `L_row` be the row serialization length defined by this ZIP for that
-tier (12,224 bytes for Tier 1 and 24,512 bytes for Tier 2). If an
-implementation uses an aligned PIR value size with `L_value > L_row`, it
-MUST append `L_value - L_row` zero bytes to each serialized row before
-loading it into the PIR database. Implementations MUST choose
-`L_value` so that $8L_\mathsf{value}$ is divisible by 14. Define
+Let `L_value` be the PIR value size fixed for the selected database tier
+in [Parameters], and let `L_row` be the row serialization length defined
+by this ZIP for that tier (12,224 bytes for Tier 1 and 24,512 bytes for
+Tier 2). The Tier 1 PIR database MUST use `L_value = 12,229` bytes, and
+the Tier 2 PIR database MUST use `L_value = 24,514` bytes. For each
+tier, the server MUST append exactly `L_value - L_row` zero bytes to
+each serialized row before loading it into the PIR database. Define
 $W_\mathsf{value} = 8L_\mathsf{value} / 14$.
 
 A YPIR+SP server response is an ordered sequence
@@ -980,13 +976,13 @@ These are Tier 2 subtree roots, each containing a 32-byte hash and a
 
 **Row total: 12,224 bytes (11.9 KB).**
 
-The PIR value size for Tier 1 MUST be set to the row size (12,224 bytes)
-or the next implementation-required alignment boundary. Tier 1 and
-Tier 2 are independent PIR databases and do not share a value size.
+The Tier 1 PIR value size is fixed at 12,229 bytes. Each Tier 1 row
+therefore consists of the 12,224-byte serialization below followed by 5
+zero bytes of padding before being loaded into the PIR database.
 
 | Metric | Value |
 |---|---|
-| Database size | 2,048 rows $\times$ 12,224 B = **23.9 MB** |
+| Database size | 2,048 rows $\times$ 12,229 B = **23.9 MB** |
 
 **Row serialization (12,224 bytes):**
 
@@ -1046,12 +1042,13 @@ hash is computed as $\mathsf{Hash}(\mathsf{low} \| \mathsf{width})$.
 
 **Row total: 24,512 bytes (23.9 KB).**
 
-The PIR value size for Tier 2 MUST be set to the row size (24,512 bytes)
-or the next implementation-required alignment boundary.
+The Tier 2 PIR value size is fixed at 24,514 bytes. Each Tier 2 row
+therefore consists of the 24,512-byte serialization below followed by 2
+zero bytes of padding before being loaded into the PIR database.
 
 | Metric | Value |
 |---|---|
-| Database size | 262,144 rows $\times$ 24,512 B = **5.98 GB** |
+| Database size | 262,144 rows $\times$ 24,514 B = **5.98 GB** |
 
 **Row serialization (24,512 bytes):**
 
@@ -1075,9 +1072,12 @@ Bytes 16,320–24,511: leaf_widths[0..255]       256 × 32 B = 8,192 B
    otherwise it MUST reject the row as invalid.
 4. Read 8 sibling hashes from the row:
    - Depth-26 sibling: the leaf at index
-     $(\mathsf{target\_position} \oplus 1)$. Compute its hash as
-     $\mathsf{Hash}(\mathsf{low} \| \mathsf{width})$. This is the only hash
-     the client computes during the PIR retrieval phase.
+     $(\mathsf{target\_position} \oplus 1)$. Let
+     $(low_\mathsf{sib}, width_\mathsf{sib})$ be the leaf record at that
+     position. Compute its hash as
+     $\mathsf{Hash}(\mathsf{low}_\mathsf{sib} \| \mathsf{width}_\mathsf{sib})$.
+     This is the only hash the client computes during the PIR retrieval
+     phase.
    - Depths 19–25 siblings: read from the 254 internal nodes by walking
      upward from the target leaf position.
 
@@ -1120,7 +1120,7 @@ The parameters in [Parameters] follow the referenced YPIR implementation [^ypir-
 The binding constraint is the Tier 2 database (see
 [Tier 2: Large PIR (Depths 18–26)]). With a depth-26 exclusion tree
 holding up to $2^{26} \approx 67$ million leaves, Tier 2 contains
-$2^{18} = 262{,}144$ rows of 24,512 bytes each, totaling approximately
+$2^{18} = 262{,}144$ rows of 24,514 bytes each, totaling approximately
 6 GB. This is well within the 64 GB ceiling. This leaves roughly an order of
 magnitude of headroom before the parameters would need to be revised,
 accommodating substantial growth of the Orchard nullifier set without
@@ -1193,7 +1193,8 @@ risk for a system that must be trustworthy from launch.
 
 ### Rationale for YPIR+SP over standard YPIR
 
-For the Tier 2 PIR database (24,512-byte rows; see
+For the Tier 2 PIR database (24,514-byte PIR values carrying 24,512-byte
+serialized rows; see
 [Data Structure Layout]), standard YPIR would require 24,512 parallel
 DoublePIR instances (one per byte), each with its own 16 MB hint — a
 prohibitive cost. YPIR+SP avoids this: the full row is packed into RLWE
@@ -1261,7 +1262,7 @@ The 11 + 7 + 8 tier split balances three competing concerns:
    small enough for efficient PIR processing.
 
 3. **Tier 2 PIR database size.** The remaining 8 levels produce 262,144
-   rows of 24,512 bytes each, yielding a 6 GB database. This is the
+   rows of 24,514 bytes each, yielding a 6 GB database. This is the
    binding constraint for PIR scheme selection and determines server
    hardware requirements.
 
@@ -1283,7 +1284,7 @@ YPIR requires `num_items` $\geq 2^{11}$, setting a floor of 2,048
 rows for any PIR tier. YPIR also requires `item_size_bits` $\geq
 2{,}048 \times 14 = 28{,}672$, setting a floor of 3,584 bytes per row.
 The 11 + 7 + 8 split satisfies both (Tier 1 has 2,048 rows; Tier 2 has
-24,512-byte rows). Alternative splits such as 10 + 8 + 8 (violates the
+24,514-byte PIR values). Alternative splits such as 10 + 8 + 8 (violates the
 Tier 1 row minimum) and 13 + 8 + 5 (violates the Tier 2 minimum item
 size) are infeasible without modifying YPIR.
 
@@ -1300,7 +1301,9 @@ requires no PIR query at all.
 A uniform value size (e.g., 32 KB) would inflate Tier 1 from 24 MB to
 64 MB and Tier 2 from 6 GB to 8 GB. Since YPIR+SP touches every byte
 per query, unused padding directly increases server computation time.
-Per-tier sizing eliminates this overhead.
+This ZIP therefore fixes distinct per-tier PIR value sizes: 12,229 bytes
+for Tier 1 and 24,514 bytes for Tier 2, the smallest sizes at or above
+the serialized row lengths that satisfy the 14-bit packing constraint.
 
 ## Tree Depth vs. Circuit Depth
 
