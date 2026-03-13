@@ -836,11 +836,10 @@ $\geq 1$). This ordering is required by the binary search procedures in
 
 In those procedures, the `min_key` of any subtree consisting entirely of
 empty leaves is 0. Because no valid target nullifier equals 0 (it is a
-sentinel), the binary search condition
-$\mathsf{min\_key}[S] \leq t < \mathsf{min\_key}[S + 1]$ cannot be
-satisfied when both $S$ and $S + 1$ index empty-only subtrees (since
-$\mathsf{min\_key}[S + 1] = 0 \not> t$ for any $t > 0$). The search
-therefore always resolves to a subtree containing real leaves.
+sentinel), clients use predecessor search: they select the largest index
+$S$ such that $\mathsf{min\_key}[S] \leq t$. Since all empty-only
+subtrees precede all subtrees containing real leaves, this rule always
+resolves to a subtree containing real leaves.
 
 #### Leaf Encoding
 
@@ -952,9 +951,9 @@ by clients. It changes only when the exclusion tree is updated.
 
 **Client procedure:**
 
-1. Binary search the 2,048 `min_key` values in Block A to find subtree
-   index $S_1 \in \lbrack 0, 2047\rbrack$ such that
-   $\mathsf{min\_key}\lbrack S_1\rbrack \leq \mathsf{target\_key} < \mathsf{min\_key}\lbrack S_1 + 1\rbrack$.
+1. Binary search the 2,048 `min_key` values in Block A to find the
+   largest subtree index $S_1 \in \lbrack 0, 2047\rbrack$ such that
+   $\mathsf{min\_key}\lbrack S_1\rbrack \leq \mathsf{target\_key}$.
 2. Read 11 sibling hashes directly from the two blocks:
    - Depth-11 sibling: read `hash` from Block A at index $S_1 \oplus 1$.
    - Depths 1–10 siblings: read from Block B by walking the path
@@ -1014,8 +1013,10 @@ position $p \gg 1$ at depth $d - 1$.
 **Client procedure:**
 
 1. Issue a PIR query for row $S_1$ (the subtree index from Tier 0).
-2. Binary search the 128 `min_key` values at the end of the row to find
-   sub-subtree index $S_2 \in \lbrack 0, 127\rbrack$.
+2. Binary search the 128 `leaf_min_keys` values at the end of the row to
+   find the largest sub-subtree index $S_2 \in \lbrack 0, 127\rbrack$
+   such that
+   $\mathsf{leaf\_min\_keys}\lbrack S_2\rbrack \leq \mathsf{target\_key}$.
 3. Read 7 sibling hashes directly from the row:
    - Depth-18 sibling: the leaf record at index $S_2 \oplus 1$ (its
      `hash` field).
