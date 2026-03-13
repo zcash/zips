@@ -294,9 +294,13 @@ Public random matrices used in the YPIR+SP protocol are not transmitted.
 Both client and server MUST expand them deterministically from
 protocol-fixed 32-byte seeds using ChaCha20 [^ChaCha20] as a
 pseudorandom number generator (seeded via `ChaCha20Rng::from_seed`).
-Each matrix entry is a uniformly random element of the relevant
-$\mathbb{Z}_q$, obtained by drawing one 32-bit sample from the ChaCha20
-stream.
+Each matrix entry MUST be derived from enough ChaCha20 output to cover
+the target modulus. For the packing modulus $q_2 \approx 2^{56}$, the
+reference implementation draws one 64-bit word and reduces it modulo
+$q_2$. Equivalently, because $q_2 = q_{2,1} q_{2,2}$ with 28-bit prime
+factors, an implementation may draw one 32-bit word for each prime,
+reduce modulo that prime, and recombine via CRT. Only moduli that fit
+within 32 bits may be sampled from a single 32-bit draw.
 
 | Seed name | Byte value (hex) | Purpose |
 |---|---|---|
