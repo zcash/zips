@@ -324,7 +324,7 @@ these rows before they are loaded into the PIR database.
 
 Public random matrices used in the YPIR+SP protocol are not transmitted.
 Both client and server MUST expand them deterministically from
-protocol-fixed 32-byte seeds using ChaCha20 [^ChaCha20], with the seed as key.
+protocol-fixed 32-byte seeds using ChaCha20 [^ChaCha20].
 
 | Seed name | Byte value (hex) | Purpose |
 |---|---|---|
@@ -335,13 +335,80 @@ The seeds are protocol constants: the same matrices are used across all
 queries, all clients, and all Protocol Epochs. Neither party transmits
 the expanded matrices; both expand them independently from the shared
 seeds. This is a standard bandwidth optimization in lattice-based
-cryptography. Transmitting a 32-byte seed instead of a multi-megabyte
-matrix.
+cryptography.
 
 Using fixed seeds is safe for LWE and RLWE: the hardness assumptions
 hold even for adversarially chosen public matrices, so reuse across
 queries does not weaken security. Per-query privacy is provided by the
 client's fresh secret key and noise (see [Privacy Implications]).
+
+#### ChaCha20 Stream Initialization
+
+For each seed, implementations MUST initialize the ChaCha20 stream as
+follows:
+
+- **Key**: the 32-byte seed value from the table above.
+- **Nonce**: 12 bytes, all zero ($\mathtt{0x00}^{12}$).
+- **Initial block counter**: 0.
+
+This corresponds to the IETF ChaCha20 profile defined in RFC 8439
+[^ChaCha20] (32-bit block counter, 96-bit nonce).
+
+The ChaCha20 stream produces an unlimited sequence of pseudorandom
+bytes. Implementations consume this stream sequentially, starting from
+byte offset 0, as specified below for each seed. Once a stream is
+initialized for a given seed, its state advances monotonically; no
+seeking or resetting occurs.
+
+#### Expansion of $\mathsf{seed\_A}$ (SimplePIR Matrix)
+
+The SimplePIR public matrix $A$ has dimensions $n \times m$, where
+$n = 1024$ is the LWE dimension and $m = \sqrt{N}$ is the number of
+database rows (after the database is reshaped into a square layout). At
+the SimplePIR level, coefficients are elements of $\mathbb{Z}_{2^{32}}$.
+
+Implementations MUST expand $A$ from $\mathsf{seed\_A}$ as follows:
+
+1. Initialize the ChaCha20 stream from $\mathsf{seed\_A}$ as specified
+   in [ChaCha20 Stream Initialization].
+2. The matrix is constructed as a block matrix of $n \times n$
+   negacyclic blocks. Let $m_b = m / n$ be the number of block columns.
+3. For each block column $j \in \{0, \ldots, m_b - 1\}$:
+   a. Read $n$ consecutive little-endian 32-bit words
+      $(a_0, \ldots, a_{n-1})$ from the ChaCha20 stream. Each word is
+      used as a raw $\mathtt{u32}$ value without modular reduction.
+   b. Form the $n \times n$ negacyclic matrix $M$ from the vector
+      $(a_0, \ldots, a_{n-1})$: for row $r$ and column $c$,
+
+      $$M[r][c] = \begin{cases}
+      a_{(n + r - c) \bmod n} & \text{if } r \geq c \\
+      -a_{(n + r - c) \bmod n} \bmod 2^{32} & \text{if } r < c
+      \end{cases}$$
+
+      where the negation is unsigned wrapping negation modulo $2^{32}$.
+      Note: $M$ is stored in transposed form relative to the seed
+      vector, i.e. $M[r][c]$ is placed at matrix position
+      $(r, j \cdot n + c)$ in $A$.
+
+#### Expansion of $\mathsf{seed\_pack}$ (Packing Mask Polynomials)
+
+The 33 public mask polynomials $a_{r,u} \in R_{q_2}$ used in
+[PackingKeyGeneration] are expanded from $\mathsf{seed\_pack}$.
+
+Implementations MUST expand them as follows:
+
+1. Initialize the ChaCha20 stream from $\mathsf{seed\_pack}$ as
+   specified in [ChaCha20 Stream Initialization].
+2. For each mask polynomial index in row-major order on $(r, u)$:
+   $r \in \{0, \ldots, 10\}$ (outermost), $u \in \{0, 1, 2\}$:
+   a. For each coefficient index $j \in \{0, \ldots, d - 1\}$ (with
+      $d = 2048$):
+      - Read one little-endian 64-bit word $w$ from the ChaCha20
+        stream.
+      - Set coefficient $j$ of $a_{r,u}$ to $w \bmod q_2$.
+
+No rejection sampling is used: each coefficient is the direct remainder
+of the 64-bit stream word modulo $q_2$.
 
 ### Regev Encryption
 
@@ -355,7 +422,8 @@ noise.
 
 Public random matrix $A$ is of dimensions $n \times \sqrt{N}$.
 
-Implementations MUST expand $A$ from $\mathsf{seed\_A}$ as specified in [Public Seeds].
+Implementations MUST expand $A$ from $\mathsf{seed\_A}$ as specified in
+[Expansion of $\mathsf{seed\_A}$ (SimplePIR Matrix)].
 
 Its transpose $A^T$ is a $\sqrt{N} \times n$ matrix. For each query,
 the client MUST sample two fresh vectors:
@@ -505,12 +573,8 @@ The function $\mathsf{GeneratePackingKey}(s_2)$ proceeds as follows:
 1. Construct 33 public mask polynomials
    $a_{r,u} \in R_{q_2}$ for
    $r \in \{0, \ldots, 10\}$ and
-   $u \in \{0, 1, 2\}$ by expanding $\mathsf{seed\_pack}$ with ChaCha20
-   as specified in [Public Seeds], in row-major order on $(r, u)$:
-   $a_{0,0}, a_{0,1}, a_{0,2}, a_{1,0}, \ldots, a_{10,2}$. For each
-   $a_{r,u}$ and each coefficient index $j \in \{0, \ldots, d - 1\}$,
-   set coefficient $j$ to the next coefficient modulo $q_2$ derived
-   from the ChaCha20 byte stream by the procedure in [Public Seeds].
+   $u \in \{0, 1, 2\}$ by expanding $\mathsf{seed\_pack}$ as specified
+   in [Expansion of $\mathsf{seed\_pack}$ (Packing Mask Polynomials)].
 2. For each matrix index $r$ and gadget digit $u$, sample a noise
    polynomial $e_{r,u} \leftarrow D_{\mathbb{Z},\sigma_2}^d$, with
    $\sigma_2$ as specified in [Parameters], and form the RLWE ciphertext
