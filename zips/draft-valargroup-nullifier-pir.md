@@ -463,7 +463,7 @@ Equivalently, the 11 automorphisms are
 $\tau_{2049}, \tau_{1025}, \tau_{513}, \tau_{257}, \tau_{129},
 \tau_{65}, \tau_{33}, \tau_{17}, \tau_{9}, \tau_{5}, \tau_{3}$, in
 that order. The packing key MUST contain exactly one key-switch matrix
-for each of those automorphisms, serialized in increasing matrix index
+for each of those automorphisms, indexed by increasing matrix index
 $r$.
 
 For any polynomial $f = \sum_{j=0}^{d-1} f_j X^j \in R_{q_2}$, define
@@ -513,20 +513,15 @@ The function $\mathsf{GeneratePackingKey}(s_2)$ proceeds as follows:
 
    $$pk = (K_0, \ldots, K_{10}).$$
 
-   The complete packing key therefore contains exactly 11 matrices and
-   exactly 33 RLWE ciphertexts.
-5. Serialize $pk$ for transmission by emitting only the
-   $b_{r,u}$ polynomials, because the server reconstructs the matching
-   $a_{r,u}$ polynomials from $\mathsf{seed\_pack}$. The wire format of
-   $pk$ is the concatenation of
-   $b_{0,0}, b_{0,1}, b_{0,2}, b_{1,0}, \ldots, b_{10,2}$. Each
-   polynomial is serialized coefficient-wise in ascending order
-   $(X^0, X^1, \ldots, X^{d-1})$; each coefficient is serialized as its
-   canonical representative in $\{0, \ldots, q_2 - 1\}$ encoded as an
-   8-byte unsigned little-endian integer. Because $q_2 < 2^{56}$, the
-   most significant byte of each encoded coefficient is zero.
-6. Return $pk$. The transmitted packing key size is therefore fixed at
-   $11 \cdot 3 \cdot 2048 \cdot 8 = 540{,}672$ bytes.
+5. Return $pk$.
+
+The complete packing key therefore contains exactly 11 matrices and
+exactly 33 RLWE ciphertexts.
+
+Concrete byte encoding of the packing key is out of scope for this ZIP.
+
+In the reference implementation, the transmitted packing key occupies
+$11 \cdot 3 \cdot 2048 \cdot 8 = 540{,}672$ bytes.
 
 #### YPIR+SP Request Encoding
 
@@ -1097,9 +1092,10 @@ Bytes 16,320–24,511: leaf_widths[0..255]       256 × 32 B = 8,192 B
 | **Total (Tier 0 cached)** | **3.2 MB** | **~132 KB** | **~3.3 MB** |
 
 Upload is dominated by the Tier 2 row selector ($c_1$, proportional
-to the number of database rows) and the packing key ($pk$, fixed at
-540,672 bytes = 528 KiB on the wire). Downloads are small because
-RLWE packing compresses the row response efficiently.
+to the number of database rows) and the packing key. In the reference
+implementation, the transmitted packing key occupies 540,672 bytes
+(528 KiB). Downloads are small because RLWE packing compresses the row
+response efficiently.
 
 ##### Client Computation Summary
 
