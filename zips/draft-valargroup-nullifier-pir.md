@@ -84,8 +84,9 @@ three-tier data structure spanning 26 levels of depth:
 3. Large PIR tier (6 GB).
 
 A complete authentication path is retrieved in two sequential PIR queries plus
-the plaintext download, for a total bandwidth of approximately 3.3 MB per
-query (dominated by the Tier 2 upload).
+the plaintext download, for a total bandwidth of approximately 3.5 MB on the
+first query, or approximately 3.3 MB once the Tier 0 plaintext is cached
+(dominated by the Tier 2 upload).
 
 
 # Motivation
@@ -1091,14 +1092,14 @@ Bytes 16,320–24,511: leaf_widths[0..255]       256 × 32 B = 8,192 B
 |---|---|---|---|
 | Tier 0 payload | — | 192 KB | 192 KB |
 | PIR Query 1 (Tier 1, 24 MB) | 544 KB | ~48 KB | ~592 KB |
-| PIR Query 2 (Tier 2, 6 GB) | 2.5 MB | ~84 KB | ~2.6 MB |
-| **Total (first query)** | **3.0 MB** | **~324 KB** | **~3.3 MB** |
-| **Total (Tier 0 cached)** | **3.0 MB** | **~132 KB** | **~3.1 MB** |
+| PIR Query 2 (Tier 2, 6 GB) | 2.6 MB | ~84 KB | ~2.7 MB |
+| **Total (first query)** | **3.2 MB** | **~324 KB** | **~3.5 MB** |
+| **Total (Tier 0 cached)** | **3.2 MB** | **~132 KB** | **~3.3 MB** |
 
 Upload is dominated by the Tier 2 row selector ($c_1$, proportional
-to the number of database rows) and the packing key ($pk$, ~462 KB
-fixed). Downloads are small because RLWE packing compresses the row
-response efficiently.
+to the number of database rows) and the packing key ($pk$, fixed at
+540,672 bytes = 528 KiB on the wire). Downloads are small because
+RLWE packing compresses the row response efficiently.
 
 ##### Client Computation Summary
 
