@@ -180,13 +180,25 @@ The following are explicitly out of scope:
 - Sub-second end-to-end query latency. The two sequential PIR round-trips
   impose a latency floor determined by network conditions.
 - Retrieval of data other than nullifier exclusion proofs.
+- YPIR transport-level wire format between client and server.
 
 
 # High-level summary
 
 This subsection is non-normative.
 
+
 <Rest of content providing context for understanding the Specification.>
+
+The nullifier exclusion tree is split into three tiers:
+
+- Tier 0 contains the top levels of the tree and is downloaded in plaintext by all clients.
+- Tier 1 contains depth-11 to depth-18 subtrees and is served as a PIR database.
+- Tier 2 contains depth-18 to depth-26 subtrees and is served as a PIR database.
+
+The client privately retrieves the Tier 1 row and Tier 2 row corresponding to its target nullifier. Each row is selected with an LWE-encrypted query, and the server compresses the corresponding SimplePIR-style response into a smaller RLWE form using the CDKS transformation. This avoids the large client-side hint required by SimplePIR while preserving single-server privacy for the row selection.
+
+From the plaintext Tier 0 data and the Tier 1 and Tier 2 PIR responses, the client reconstructs the authentication path used to prove nullifier non-membership.
 
 ## PIR Construction
 
@@ -269,6 +281,11 @@ Their product is
 
 $$q = q_{2,1} \cdot q_{2,2} = 66\,974\,689\,739\,603\,969 \approx 2^{56}.$$
 
+Throughout this ZIP, $q_2$ denotes this packing-level ciphertext modulus.
+That is,
+
+$$q_2 = q = q_{2,1} \cdot q_{2,2}.$$
+
 Both primes satisfy $q_{2,1} \equiv q_{2,2} \equiv 1 \pmod{2d}$ (with
 $d = 2048$), the condition
 required for the Number Theoretic Transform over the polynomial ring
@@ -301,12 +318,7 @@ PIR database values are the raw serialized tier rows:
 | Tier 2 | 24,512 bytes |
 
 No explicit file-level or wire-level zero-padding bytes are appended to
-these rows before they are loaded into the PIR database. If an
-implementation's internal YPIR packing logic requires additional
-zero-filled bits, words, or slots when mapping a byte string into its
-implementation and is not part of the serialized tier-row format defined
-plaintext representation, that zero-fill is internal to the YPIR
-by this ZIP.
+these rows before they are loaded into the PIR database.
 
 ### Public Seeds
 
@@ -526,11 +538,10 @@ Concrete byte encoding of the packing key is out of scope for this ZIP.
 In the reference implementation, the transmitted packing key occupies
 $11 \cdot 3 \cdot 2048 \cdot 8 = 540{,}672$ bytes.
 
-#### YPIR+SP Request Encoding
+#### Client Query Generation
 
-Define the function $\mathsf{EncodeYPIRSPRequest}(i)$ as follows, where
-$i$ is the row index of the selected PIR database row that the client
-wishes to retrieve:
+For each PIR query, the client MUST construct fresh query material for
+the selected row index $i$ as follows:
 
 1. Construct the selection vector $\mu_i$ as specified in [Regev
    Encryption]: a unit vector with value 1 at position $i$ and 0 at
@@ -546,27 +557,70 @@ wishes to retrieve:
 
    where $A^T$ and $\Delta$ are the SimplePIR-level public matrix and
    scaling factor from [Regev Encryption].
-5. Return the request tuple $Q = (c_1, pk)$.
 
-The client MUST invoke $\mathsf{EncodeYPIRSPRequest}(i)$ separately for
-each PIR query. Reuse of $s_1$, $e_1$, $s_2$, or $pk$ across queries is
-not allowed. The pair $(c_1, pk)$ is required for each query: $c_1$
-hides which row is requested, and $pk$ enables the server to pack the
-SimplePIR response into packing-level RLWE ciphertexts decryptable under
-the client's $s_2$.
+The client MUST generate fresh query material separately for each PIR
+query. Reuse of $s_1$, $e_1$, $s_2$, or $pk$ across queries is not
+allowed. The query material MUST contain enough information for the
+server to evaluate the selected row query while preserving the privacy
+of the row index. In particular, $c_1$ hides which row is requested, and
+the packing material derived from $s_2$ enables the server to produce a
+packed response decryptable under the client's $s_2$.
+
+Define the abstract client query object as
+
+$$Q = (c_1, pk).$$
+
+Here, $c_1$ is the Regev-encrypted row selector and
+$pk = (K_0, \ldots, K_{10})$ is the ordered packing key returned by
+$\mathsf{GeneratePackingKey}(s_2)$, where each
+$K_r = (K_{r,0}, K_{r,1}, K_{r,2})$.
+
+The outer transport encoding used to carry $Q$ is out of scope for this
+ZIP. However, any conforming transport or API framing MUST preserve the
+same abstract query object $Q$, including the ordering of $K_0$ through
+$K_{10}$ and, within each $K_r$, the ordering of
+$K_{r,0}$, $K_{r,1}$, and $K_{r,2}$.
 
 #### LWE-to-RLWE Packing
 
-After receiving a request $Q = (c_1, pk)$, the server computes the
-SimplePIR matrix-vector product $T = D \times c_1$. Let
-$T = (t_0, \ldots, t_{W_\mathsf{value}-1})$ be the ordered sequence of
+After receiving the client's query material for row index $i$, the
+server computes the corresponding SimplePIR matrix-vector product.
+
+##### Canonical Plaintext Packing
+
+For YPIR plaintext packing, implementations MUST map each serialized
+`L_value`-byte row into 14-bit plaintext words by interpreting the row as
+a contiguous little-endian bitstream:
+
+- Bit 0 is the least-significant bit of byte 0.
+- Within each byte, bits are ordered from least significant to most
+  significant.
+- Word index $k$ is formed from bits $14k$ through $14k + 13$, with bit
+  $14k$ becoming the least-significant bit of that 14-bit word.
+
+For a row of `L_value` bytes, let
+$W_\mathsf{value} = \lceil 8L_\mathsf{value} / 14 \rceil$. If the final
+14-bit word is only partially filled by row bits, the missing high bits
+of that word MUST be zero. If additional all-zero words are needed to
+complete the final packing chunk of length $d = 2048$, those words are
+internal YPIR padding and are not part of the serialized tier-row format
+defined by this ZIP.
+
+Let $T = (t_0, \ldots, t_{W_\mathsf{value}-1})$ be the ordered sequence of
 SimplePIR-level LWE ciphertexts corresponding to the selected PIR value,
 where $L_\mathsf{value}$ is the PIR value size in bytes fixed for the
-queried tier in [Parameters]. Let $W_\mathsf{value}$ denote the number of
-packing-level plaintext words obtained by the implementation's byte-to-word
-packing of that $L_\mathsf{value}$-byte value, including any
-implementation-internal zero-fill needed to complete the final packed word
-or the final ciphertext chunk.
+queried tier in [Parameters]. Let
+$W_\mathsf{value} = \lceil 8L_\mathsf{value} / 14 \rceil$ denote the
+number of packing-level plaintext words obtained from that
+$L_\mathsf{value}$-byte value by the canonical byte-to-word mapping in
+[Canonical Plaintext Packing], before any additional all-zero word
+padding used only to complete the final ciphertext chunk.
+
+The server MUST then apply the YPIR+SP packing procedure using the
+packing material associated with the client's query so that the
+resulting packed ciphertexts decrypt, under the client's fresh
+packing-level secret, to the same ordered plaintext words as the
+selected PIR value.
 
 Define the function
 $\mathsf{PackSimplePIRResponse}(T, pk, L_\mathsf{value})$ as follows:
@@ -593,19 +647,18 @@ $\mathsf{PackSimplePIRResponse}(T, pk, L_\mathsf{value})$ as follows:
    $\widehat{R} = (\widehat{C}_0, \ldots, \widehat{C}_{m-1})$.
 
 The order of slots within each $\widehat{C}_j$ MUST match the order of
-the 14-bit plaintext words obtained from the PIR value byte string under
-the implementation's byte-to-word packing procedure. That packing
-procedure MUST preserve the byte order of the first $L_\mathsf{value}$
-bytes of the selected row, and any additional words or slots introduced
-only to complete the final packed word or ciphertext chunk MUST decode to
-zero. Slot $\ell$ of $\widehat{C}_j$ MUST correspond to word index
-$jd + \ell$ of this packed representation.
+the 14-bit plaintext words obtained from the canonical byte-to-word
+mapping in [Parameters]. Slot $\ell$ of $\widehat{C}_j$ MUST correspond
+to word index $jd + \ell$ of that packed representation. Any additional
+slots introduced only to complete the final ciphertext chunk MUST decode
+to zero.
 
 #### Split Modulus Switching
 
 The packed sequence $\widehat{R}$ is represented over the packing-level
-modulus $q_2$. The server MUST apply split modulus switching before
-returning the response.
+modulus $q_2$. Before transport, the server MUST apply split modulus
+switching to $\widehat{R}$ as specified in this section. The transport
+encoding of the resulting response is out of scope for this ZIP.
 
 Define the function
 $\mathsf{SplitModulusSwitchRLWECiphertext}((a, b))$ for a packing-level
@@ -630,6 +683,16 @@ $\mathsf{SplitModulusSwitchRLWEResponse}(\widehat{R})$ by applying
 $\mathsf{SplitModulusSwitchRLWECiphertext}$ coefficient-wise to each
 packed ciphertext in $\widehat{R}$ and returning the resulting ordered
 sequence $R = (C'_0, \ldots, C'_{m-1})$.
+
+This ordered sequence
+
+$$R = (C'_0, \ldots, C'_{m-1})$$
+
+is the abstract server response object specified by this ZIP. The outer
+transport encoding used to carry $R$ is out of scope, but any conforming
+transport or API framing MUST preserve the order of the ciphertexts and
+the distinction between the two components of each
+$C'_j = (a'_j, b'_j)$.
 
 For client-side decoding, define the function
 $\mathsf{LiftModulusSwitchedRLWECiphertext}((a', b'))$ as follows:
@@ -659,7 +722,7 @@ the packing-level RLWE ring $R_{q_2}$ instead of the SimplePIR-level LWE space.
 4. Return the resulting plaintext slot vector
    $(v_0, \ldots, v_{d-1})$ in $\mathbb{Z}_{p_2}^d$.
 
-#### YPIR+SP Response Decoding
+#### Client Recovery of the Selected Row
 
 Let `L_value` be the PIR value size fixed for the selected database tier
 in [Parameters], and let `L_row` be the row serialization length defined
@@ -667,20 +730,18 @@ by this ZIP for that tier (12,224 bytes for Tier 1 and 24,512 bytes for
 Tier 2). For this ZIP, `L_value = L_row` for both tiers: Tier 1 uses
 12,224 bytes and Tier 2 uses 24,512 bytes. No explicit padding bytes are
 appended to the serialized rows before they are loaded into the PIR
-database. Let $W_\mathsf{value}$ denote the number of plaintext words
-produced by the implementation's internal byte-to-word packing of the
-selected `L_value`-byte row, including any implementation-internal
-zero-fill.
+database. Let
+$W_\mathsf{value} = \lceil 8L_\mathsf{value} / 14 \rceil$ denote the
+number of plaintext words produced by the canonical byte-to-word mapping
+in [Canonical Plaintext Packing], before any all-zero word padding used
+only to complete the final ciphertext chunk.
 
-A YPIR+SP server response is an ordered sequence
-$R = (C'_0, \ldots, C'_{m-1})$ of modulus-switched packing-level
-ciphertexts, where $m = \lceil W_\mathsf{value} / d \rceil$ and
-$d = 2048$ is the packing-level ring degree from [Parameters]. Each
-$C'_j = (a'_j, b'_j)$ is the transmission form of one packed
-packing-level RLWE ciphertext after [Split Modulus Switching]. Ciphertext
-$C'_j$ encodes plaintext slots $jd, jd + 1, \ldots, \min((j + 1)d,
- W_\mathsf{value}) - 1$ of the selected PIR value in increasing packed-word
- order. Any unused slots in the final ciphertext MUST encode zero.
+Given the server's response to a PIR query, the client MUST recover the
+selected tier row of length $L_\mathsf{row}$ for the queried tier. This
+ZIP does not standardize the outer transport encoding of that response.
+It only requires that the response decode, under the client's fresh
+packing-level secret and the YPIR+SP semantics described above, to the
+exact serialized row bytes defined for the selected tier.
 
 Define the function
 $\mathsf{DecodeYPIRSPResponse}(R, L_\mathsf{value}, L_\mathsf{row})$ as
@@ -697,12 +758,12 @@ follows:
 4. Let $W = V[0..W_\mathsf{value}-1]$.
 5. Reconstruct a byte string $B$ by writing the least-significant 14 bits
    of each word in $W$ in order as a contiguous bitstream, regrouping
-   that bitstream into 8-bit bytes, and interpreting those bytes in the
-   same byte order used for the original serialized row.
-6. If the implementation's internal packing procedure introduced any
-   trailing zero-filled words, bits, or bytes beyond the first
-   $L_\mathsf{row}$ bytes, verify that those trailing values decode to
-   zero and discard them.
+   that bitstream into 8-bit bytes using the inverse of the canonical
+   byte-to-word mapping in [Canonical Plaintext Packing].
+6. Verify that any unused high bits of the final 14-bit word are zero.
+   If the final ciphertext chunk contained additional all-zero padding
+   words beyond $W_\mathsf{value}$, verify that those omitted words also
+   decrypt to zero.
 7. Return the first $L_\mathsf{row}$ decoded bytes as the returned row
    of the selected PIR database.
 
@@ -711,20 +772,18 @@ follows:
 The protocol proceeds as follows:
 
 1. The client computes
-   $Q = \mathsf{EncodeYPIRSPRequest}(i)$ as specified in [YPIR+SP
-   Request Encoding].
-2. The client sends $Q = (c_1, pk)$ to the server.
-3. The server computes the SimplePIR matrix-vector product
-   $T = D \times c_1$, yielding $\sqrt{N}$ LWE ciphertexts.
-4. The server computes
-   $\widehat{R} = \mathsf{PackSimplePIRResponse}(T, pk, L_\mathsf{value})$
-   as specified in [LWE-to-RLWE Packing].
-5. The server computes
-   $R = \mathsf{SplitModulusSwitchRLWEResponse}(\widehat{R})$ as
-   specified in [Split Modulus Switching], and returns $R$.
-6. The client computes the returned row as
+   the abstract client query object $Q$ for row index $i$ as specified in
+   [Client Query Generation].
+2. The client sends $Q$ to the server using an implementation-defined
+   transport encoding.
+3. The server reconstructs the same abstract query object $Q$, evaluates
+   it over the selected PIR database tier, and computes the abstract
+   server response object $R$.
+4. The server returns $R$ using an implementation-defined transport
+   encoding.
+5. The client recovers the returned row as
    $\mathsf{DecodeYPIRSPResponse}(R, L_\mathsf{value}, L_\mathsf{row})$
-   as specified in [YPIR+SP Response Decoding].
+   in the sense specified in [Client Recovery of the Selected Row].
 
 Unlike standard YPIR (which is built on DoublePIR and retrieves a single
 element), YPIR+SP returns an entire PIR value. In this ZIP, the PIR
@@ -755,16 +814,20 @@ the epoch.
 
 The exclusion tree is a sorted binary Merkle tree with depth 26, holding
 up to $N = 2^{26} \approx 67$ million leaves. The tree MUST use the
-Poseidon hash function [^Poseidon] for all internal node computations, as
-Poseidon is designed for efficient evaluation inside zero-knowledge proof
+same Poseidon-based non-membership tree specified in
+[^draft-valargroup-orchard-balance-proof]. In particular,
+implementations MUST use the same field, Poseidon instantiation, and
+hash definitions as that ZIP:
+
+- Internal node hash:
+  $\mathsf{Poseidon}(\mathsf{left}, \mathsf{right})$ over
+  $\mathbb{F}_{q_\mathbb{P}}$.
+- Leaf hash:
+  $\mathsf{Poseidon}(\mathsf{low}, \mathsf{width})$ over
+  $\mathbb{F}_{q_\mathbb{P}}$.
+
+Poseidon is used because it is efficient inside zero-knowledge proof
 circuits.
-
-An internal node is a 32-byte hash:
-$\mathsf{Hash}(\mathsf{left\_child} \| \mathsf{right\_child})$.
-
-A leaf is a 64-byte record consisting of a 32-byte key and a 32-byte
-value. The leaf hash is computed as
-$\mathsf{Hash}(\mathsf{key} \| \mathsf{value})$ and is not stored separately.
 
 #### Tree Construction
 
