@@ -817,23 +817,29 @@ $\mathsf{value} = 0$ (i.e., $\mathsf{low} = 0$, $\mathsf{width} = 0$),
 with leaf hash $\mathsf{Hash}(0 \| 0)$, consistent with the empty-leaf
 definition in [^draft-valargroup-orchard-balance-proof].
 
-Real exclusion-range leaves MUST occupy the rightmost (highest-index)
-leaf positions, sorted in ascending order by $\mathsf{low}$. The
-remaining leftmost positions MUST be filled with canonical empty leaves.
-Because the smallest sentinel is $s_0 = 0$, all real leaves have
-$\mathsf{low} \geq 1$, so the key ordering across the full leaf array is
-non-decreasing: empty leaves (key 0) precede all real leaves (key
-$\geq 1$). This ordering is required by the binary search procedures in
-[Tier 0: Plaintext Broadcast (Depths 0–11)],
-[Tier 1: Small PIR (Depths 11–18)], and
-[Tier 2: Large PIR (Depths 18–26)].
+Real exclusion-range leaves MUST occupy the leftmost (lowest-index) leaf
+positions, sorted in ascending order by $\mathsf{low}$. The remaining
+rightmost positions MUST be filled with canonical empty leaves.
 
-In those procedures, the `min_key` of any subtree consisting entirely of
-empty leaves is 0. Because no valid target nullifier equals 0 (it is a
-sentinel), clients use predecessor search: they select the largest index
-$S$ such that $\mathsf{min\_key}[S] \leq t$. Since all empty-only
-subtrees precede all subtrees containing real leaves, this rule always
-resolves to a subtree containing real leaves.
+For Tier 0 and Tier 1 subtree metadata, define `min_key` as follows:
+
+Let $\mathsf{max\_key} \in \mathbb{F}_{q_\mathbb{P}}$ denote the field
+element whose canonical integer representation is $q_\mathbb{P} - 1$;
+equivalently, $\mathsf{max\_key} = -1 \bmod q_\mathbb{P}$.
+
+- If the subtree contains at least one real exclusion-range leaf,
+  `min_key` is the `low` value of that subtree's leftmost real leaf.
+- If the subtree consists entirely of empty leaves, implementations MUST
+  encode $\mathsf{min\_key} = \mathsf{max\_key}$.
+
+Clients use predecessor search over these `min_key` values: for target
+nullifier $t$, they select the largest index $S$ such that
+$\mathsf{min\_key}[S] \leq t$. Because
+all empty-only subtrees form a suffix and are encoded with
+$\mathsf{min\_key} = \mathsf{max\_key}$, this search is performed with respect to
+the canonical integer ordering on $\mathbb{F}_{q_\mathbb{P}}$. After the
+Tier 2 descent, the client MUST still verify that the decoded
+`(low, width)` interval contains the target key, and reject otherwise.
 
 #### Leaf Encoding
 
@@ -858,21 +864,6 @@ for every leaf, so that the exclusion range does not wrap around the
 field modulus. Under this invariant, $t - low$ does not wrap for any
 $t$ in the range, and the single unsigned comparison is sufficient.
 
-<details>
-<summary>
-
-#### Rationale for (low, width) encoding
-</summary>
-
-The original formulation in "Air drops, Proof-of-Balance, and Stake-weighted Polling" [^draft-str4d-orchard-balance-proof] uses $(start, end)$ pairs. Verifying
-$start \leq t \leq end$ requires two comparisons inside the ZKP circuit.
-
-The $(low, width)$ encoding reduces this to one subtraction ($t - low$)
-and one unsigned comparison ($< width$), saving one comparison gate in the
-circuit. Since the exclusion range check is performed for every balance
-proof, this saving applies to every protocol participant.
-</details>
-
 #### Authentication Path
 
 The PIR tiers provide 26 sibling hashes, one per tree depth from the
@@ -880,7 +871,7 @@ leaf (depth 26) to the root of the depth-26 PIR tree (depth 0). To form
 the authentication path consumed by the Claim circuit, the client MUST
 append 3 additional sibling hashes corresponding to the canonical empty
 subtrees above that depth-26 root, yielding a complete depth-29
-authentication path. After decrypting the PIR responses for Tiers 1 and
+authentication path. See [Tree Depth vs. Circuit Depth]. After decrypting the PIR responses for Tiers 1 and
 2 and appending those 3 deterministic siblings, the client MUST
 reconstruct the depth-29 Merkle root and verify it against the published
 depth-29 root of the exclusion tree.
@@ -951,7 +942,9 @@ by clients. It changes only when the exclusion tree is updated.
 
 1. Binary search the 2,048 `min_key` values in Block A to find the
    largest subtree index $S_1 \in \lbrack 0, 2047\rbrack$ such that
-   $\mathsf{min\_key}\lbrack S_1\rbrack \leq \mathsf{target\_key}$.
+   $\mathsf{min\_key}\lbrack S_1\rbrack \leq \mathsf{target\_key}$,
+   where any empty-only suffix subtree is encoded with
+   $\mathsf{min\_key} = \mathsf{max\_key}$ as described in [Tree Construction].
 2. Read 11 sibling hashes directly from the two blocks:
    - Depth-11 sibling: read `hash` from Block A at index $S_1 \oplus 1$.
    - Depths 1–10 siblings: read from Block B by walking the path
@@ -1015,6 +1008,8 @@ position $p \gg 1$ at depth $d - 1$.
    find the largest sub-subtree index $S_2 \in \lbrack 0, 127\rbrack$
    such that
    $\mathsf{leaf\_min\_keys}\lbrack S_2\rbrack \leq \mathsf{target\_key}$.
+   Any empty-only suffix subtree in this array is encoded with
+   $\mathsf{min\_key} = \mathsf{max\_key}$.
 3. Read 7 sibling hashes directly from the row:
    - Depth-18 sibling: the leaf record at index $S_2 \oplus 1$ (its
      `hash` field).
@@ -1069,9 +1064,12 @@ Bytes 16,320–24,511: leaf_widths[0..255]       256 × 32 B = 8,192 B
 
 1. Compute the Tier 2 row index as $S_1 \times 128 + S_2$.
 2. Issue a PIR query for this row.
-3. Binary search the 256 `leaf_lows` values to find the largest index
-   $\mathsf{target\_position}$ such that
+3. Binary search only the populated prefix of the 256 `leaf_lows`
+   values to find the largest index $\mathsf{target\_position}$ such
+   that
    $\mathsf{leaf\_lows}[\mathsf{target\_position}] \leq \mathsf{target\_key}$.
+   Any trailing records corresponding to empty right-padding are not part
+   of this search.
    Let $(low, width)$ be the leaf record at that position. The client
    MUST verify that $\mathsf{target\_key}$ is contained in the exclusion
    interval encoded by $(low, width)$ as specified in [Leaf Encoding];
@@ -1343,6 +1341,15 @@ need to be updated. The circuit parameters remain unchanged. Changing
 the circuit depth would require new key generation and distribution to
 all clients, an operationally costly step that this headroom avoids.
 
+## Rationale for (low, width) encoding
+
+The original formulation in "Air drops, Proof-of-Balance, and Stake-weighted Polling" [^draft-str4d-orchard-balance-proof] uses $(start, end)$ pairs. Verifying
+$start \leq t \leq end$ requires two comparisons inside the ZKP circuit.
+
+The $(low, width)$ encoding reduces this to one subtraction ($t - low$)
+and one unsigned comparison ($< width$), saving one comparison gate in the
+circuit. Since the exclusion range check is performed for every balance
+proof, this saving applies to every protocol participant.
 
 # Deployment
 
