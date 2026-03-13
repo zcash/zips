@@ -196,7 +196,13 @@ The nullifier exclusion tree is split into three tiers:
 - Tier 1 contains depth-11 to depth-18 subtrees and is served as a PIR database.
 - Tier 2 contains depth-18 to depth-26 subtrees and is served as a PIR database.
 
-The client privately retrieves the Tier 1 row and Tier 2 row corresponding to its target nullifier. Each row is selected with an LWE-encrypted query, and the server compresses the corresponding SimplePIR-style response into a smaller RLWE form using the CDKS transformation. This avoids the large client-side hint required by SimplePIR while preserving single-server privacy for the row selection.
+The client privately retrieves the Tier 1 row and Tier 2
+row corresponding to its target nullifier. Each row is
+selected with a Ring-generated row-selector query, and the server compresses the corresponding SimplePIR-style LWE
+response into a smaller RLWE form using the CDKS
+transformation. This avoids downloading the large
+client-side hint required by SimplePIR while preserving
+single-server privacy for the row selection.
 
 From the plaintext Tier 0 data and the Tier 1 and Tier 2 PIR responses, the client reconstructs the authentication path used to prove nullifier non-membership.
 
@@ -239,21 +245,22 @@ message $\mu$. This allows the server to precompute the product $D \cdot A^T$ on
 
 ### YPIR+SP
 
-YPIR+SP builds on SimplePIR and inherits its matrix layout, Regev/LWE
-encryption of the client’s query, and the server’s LWE-linear
-homomorphic evaluation of that query over the database.
+YPIR+SP builds on SimplePIR and inherits its matrix layout and the
+server's linear homomorphic evaluation of the client's row-selector
+query over the database.
 
 Its main innovation is eliminating the database-dependent hint required
 by SimplePIR. Instead, it packs the intermediate LWE-form response into
 a more compact RLWE form.
 
-Accordingly, YPIR+SP uses two client secrets:
-- `s_1`, the LWE secret used to form the Regev-encrypted selection vector.
-- `s_2`, the RLWE secret used to derive the packing key `pk` and to decrypt the packed response.
+YPIR+SP uses fresh 2048-coefficient secret per query:
+- `s`, whose coefficient vector induces the deployed row-selector LWE
+  secret and is also used to derive the packing material and to decrypt
+  the packed response.
 
 The client does not separately decrypt the intermediate SimplePIR
 response. Instead, the server uses `pk` to pack that response into RLWE
-ciphertexts decryptable under `s_2`, and the client recovers the
+ciphertexts decryptable under `s`, and the client recovers the
 returned response via the packing-level RLWE decryption procedure.
 
 # Specification
@@ -265,12 +272,11 @@ instantiation specified by this ZIP:
 
 | Parameter | Value |
 |---|---|
-| Effective inner LWE dimension | 1024 |
+| Selector LWE dimension $n$ | 2048 |
 | Ring degree $d$ | 2048 |
 | Ciphertext modulus $q$ | $q_{2,1} \cdot q_{2,2}$ |
-| Plaintext modulus $p$ | $2^{14}$ |
+| Packing/plaintext modulus $p$ | $2^{14}$ |
 | Noise width $\sigma$ | $6.4\sqrt{2\pi}$ |
-| Packing-level noise width $\sigma_2$ | $6.4\sqrt{2\pi}$ |
 | Gadget length $L_\mathsf{ks}$ | 3 |
 
 The ciphertext modulus is the product of two 28-bit
@@ -323,13 +329,13 @@ these rows before they are loaded into the PIR database.
 
 ### Public Seeds
 
-Public random matrices used in the YPIR+SP protocol are not transmitted.
-Both client and server MUST expand them deterministically from
+Public randomness used in the YPIR+SP protocol is not transmitted. Both
+client and server MUST expand it deterministically from
 protocol-fixed 32-byte seeds using ChaCha20 [^ChaCha20].
 
 | Seed name | Byte value (hex) | Purpose |
 |---|---|---|
-| $\mathsf{seed\_A}$ | $\mathtt{0x00}^{32}$ | SimplePIR matrix $A$ (Regev encryption, see [Regev Encryption]) |
+| $\mathsf{seed\_A}$ | $\mathtt{0x00}^{32}$ | Implicit SimplePIR public matrix $A$ for the deployed row-selector query (see [Regev Encryption]) |
 | $\mathsf{seed\_pack}$ | $\mathtt{0x02} \| \mathtt{0x00}^{31}$ | Packing-level RLWE public randomness (see [YPIR+SP]) |
 
 The seeds are protocol constants: the same matrices are used across all
@@ -361,35 +367,29 @@ byte offset 0, as specified below for each seed. Once a stream is
 initialized for a given seed, its state advances monotonically; no
 seeking or resetting occurs.
 
-#### Expansion of $\mathsf{seed\_A}$ (SimplePIR Matrix)
+#### Expansion of $\mathsf{seed\_A}$ (Implicit Public Matrix $A$)
 
-The SimplePIR public matrix $A$ has dimensions $n \times m$, where
-$n = 1024$ is the LWE dimension and $m = \sqrt{N}$ is the number of
-database rows (after the database is reshaped into a square layout). At
-the SimplePIR level, coefficients are elements of $\mathbb{Z}_{2^{32}}$.
+$\mathsf{seed\_A}$ defines the implicit public matrix $A$ used by the row-selector query. This matrix is viewed
+in LWE form, but its block structure is generated from seeded ring elements.
 
-Implementations MUST expand $A$ from $\mathsf{seed\_A}$ as follows:
+Implementations MUST expand $\mathsf{seed\_A}$ as follows:
 
 1. Initialize the ChaCha20 stream from $\mathsf{seed\_A}$ as specified
    in [ChaCha20 Stream Initialization].
-2. The matrix is constructed as a block matrix of $n \times n$
-   negacyclic blocks. Let $m_b = m / n$ be the number of block columns.
-3. For each block column $j \in \{0, \ldots, m_b - 1\}$:
-   a. Read $n$ consecutive little-endian 32-bit words
-      $(a_0, \ldots, a_{n-1})$ from the ChaCha20 stream. Each word is
-      used as a raw $\mathtt{u32}$ value without modular reduction.
-   b. Form the $n \times n$ negacyclic matrix $M$ from the vector
-      $(a_0, \ldots, a_{n-1})$: for row $r$ and column $c$,
+2. Let $n = 2048$ be the selector LWE dimension from [Parameters]. The
+   matrix $A$ is partitioned into consecutive $n \times n$ negacyclic
+   blocks.
+3. For each block column, sample one public ring element
+   $a \in R_q = \mathbb{Z}_q[X]/(X^n + 1)$ coefficient-wise from the
+   ChaCha20 stream, reducing coefficients modulo $q$.
+4. Expand that ring element into its $n \times n$ negacyclic matrix
+   representation and place the resulting block into the corresponding
+   block column of $A$.
 
-      $$M[r][c] = \begin{cases}
-      a_{(n + r - c) \bmod n} & \text{if } r \geq c \\
-      -a_{(n + r - c) \bmod n} \bmod 2^{32} & \text{if } r < c
-      \end{cases}$$
-
-      where the negation is unsigned wrapping negation modulo $2^{32}$.
-      Note: $M$ is stored in transposed form relative to the seed
-      vector, i.e. $M[r][c]$ is placed at matrix position
-      $(r, j \cdot n + c)$ in $A$.
+Equivalently, implementations may generate the same public randomness
+through the ring-based helper routines used by the reference
+implementation. Interoperability requires only that both parties derive
+the same implicit matrix $A$ from $\mathsf{seed\_A}$.
 
 #### Expansion of $\mathsf{seed\_pack}$ (Packing Mask Polynomials)
 
@@ -413,56 +413,40 @@ of the 64-bit stream word modulo $q_2$.
 
 ### Regev Encryption
 
-For the YPIR+SP instantiation in this ZIP, the *plaintext space*
-$\mathbb{Z}_p$ (with $p = 2^{14}$) holds packed database words. The
-*ciphertext space* $\mathbb{Z}_q$ (with
-$q = q_{2,1} \cdot q_{2,2}$) holds encrypted values. The
-ratio $\Delta = \lfloor q / p \rfloor$ is the scaling factor that spaces
-plaintext values apart in the larger ciphertext space, leaving room for
-noise.
+For the query path specified by this ZIP, row
+selection is represented in LWE form over $\mathbb{Z}_q$, with selector dimension $n = 2048$, ciphertext modulus
+$q = q_{2,1} \cdot q_{2,2}$, plaintext modulus $p = 2^{14}$, and scaling factor $\Delta = \lfloor q / p \rfloor$.
 
-Public random matrix $A$ is of dimensions $n \times \sqrt{N}$.
+Let $m$ be the number of database rows and let
+$\mu_i \in \mathbb{Z}_p^m$ denote the row-selector vector for row
+index $i$, where $\mu_i[j] = 1$ exactly when $j = i$ and
+$\mu_i[j] = 0$ otherwise.
 
-Implementations MUST expand $A$ from $\mathsf{seed\_A}$ as specified in
-[Expansion of $\mathsf{seed\_A}$ (SimplePIR Matrix)].
+Let $A \in \mathbb{Z}_q^{n \times m}$ be the implicit public matrix
+derived from $\mathsf{seed\_A}$ as specified in
+[Expansion of $\mathsf{seed\_A}$ (Implicit Public Matrix $A$)].
 
-Its transpose $A^T$ is a $\sqrt{N} \times n$ matrix. For each query,
-the client MUST sample two fresh vectors:
+For each query, the client MUST sample a fresh secret vector
+$s \leftarrow D_{\mathbb{Z},\sigma}^{n}$ and a fresh noise vector
+$e \leftarrow D_{\mathbb{Z},\sigma}^{m}$. The row selector is then
+encrypted as
 
-- **Secret vector** $s \leftarrow D_{\mathbb{Z},\sigma}^n$: each entry
-  drawn independently from the discrete Gaussian
-  distribution $D_{\mathbb{Z},\sigma}$ centered at zero, with standard
-  deviation $\sigma$ as specified in [Parameters], and then interpreted
-  in $\mathbb{Z}_q$ via the canonical embedding of integers modulo $q$.
-- **Noise vector** $e \leftarrow D_{\mathbb{Z},\sigma}^{\sqrt{N}}$:
-  each entry drawn independently from the discrete Gaussian
-  distribution $D_{\mathbb{Z},\sigma}$ centered at zero, with standard
-  deviation $\sigma$ as specified in [Parameters].
+$$c = A^T \cdot s + e + \Delta \cdot \mu_i.$$
 
-The discrete Gaussian $D_{\mathbb{Z},\sigma}$ assigns to each integer
-$x$ probability proportional to $\exp\!\bigl(-x^2 / (2\sigma^2)\bigr)$.
+This is the abstract selector consumed by the SimplePIR first pass. In
+the reference implementation, the same values are generated via ring-based routines, and the
+transmitted selector is the packed last-row representation of that LWE form.
 
-To encrypt a selection vector $\mu$ (zeros everywhere except a 1 at the
-target row):
+The term $A^T \cdot s$ is the public-randomness mask that only the
+client can remove. The noise vector $e$ ensures that $c$ is
+computationally indistinguishable from random under the LWE assumption,
+so the server cannot recover the selected row from the query.
 
-$$c = A^T \cdot s + e + \Delta \cdot \mu$$
-
-The term $A^T \cdot s$ is a mask that only the client can remove (since
-only the client knows $s$). The noise $e$ ensures that $c$ is
-computationally indistinguishable from a uniformly random vector under
-the LWE assumption: even an adversary who knows $A$ cannot recover $s$
-or $\mu$.
-
-To decrypt (given $s$):
-
-1. Subtract the mask: $c - A^T \cdot s = e + \Delta \cdot \mu$.
-2. Round each element to the nearest multiple of $\Delta$.
-3. Divide by $\Delta$ to recover $\mu$.
-
-This works because the noise $e$ is small relative to the spacing
-$\Delta$. For this instantiation,
-$\Delta = \lfloor q / 2^{14} \rfloor \approx 4.09 \times 10^{12}$, so
-rounding reliably recovers the correct plaintext.
+To decrypt (given $s$), subtract the mask to obtain
+$c - A^T \cdot s = e + \Delta \cdot \mu_i$, then round by $\Delta$ to
+recover the selector values. This works because the noise is small
+relative to the spacing
+$\Delta = \lfloor q / 2^{14} \rfloor = 4\,087\,810\,653\,052$.
 
 ### Hint
 
@@ -519,26 +503,23 @@ a small number of RLWE ciphertexts that the client can decrypt directly.
 
 #### Client Key Generation
 
-For each query, the client samples a fresh LWE secret
-$s_1 \leftarrow D_{\mathbb{Z},\sigma_1}^n$ and samples noise
-$e_1 \leftarrow D_{\mathbb{Z},\sigma_1}^{\sqrt{N}}$ as specified in
-[Regev Encryption], using the SimplePIR-level parameters from
-[Parameters]. These values are used to construct the Regev-encrypted row
-selector $c_1$.
+For each query, the client samples a fresh 2048-coefficient secret
+$s \leftarrow D_{\mathbb{Z},\sigma}^{d}$ with $d = 2048$ as specified
+in [Parameters].
 
-The client also samples a fresh RLWE secret
-$s_2 \leftarrow D_{\mathbb{Z},\sigma_2}^d$, and interprets the resulting
-coefficient vector as an element of
-$R_{q_2} = \mathbb{Z}_{q_2}[x]/(x^d + 1)$.
+The coefficient vector of $s$ induces the deployed selector LWE secret
+$s \in \mathbb{Z}_q^n$ from [Regev Encryption], and the same fresh
+secret is also used to derive the packing public parameters from
+$\mathsf{seed\_pack}$ in [PackingKeyGeneration].
 
-The client MUST sample fresh values for $s_1$, $e_1$, and $s_2$ for
-every query. Reuse of $s_1$ or $s_2$ across queries can enable
-cross-query linkability (see [Privacy Implications]).
+The client MUST sample a fresh $s$ for every query. Reuse of $s$
+across queries can enable cross-query linkability (see
+[Privacy Implications]).
 
 #### PackingKeyGeneration
 
-Define the function $\mathsf{GeneratePackingKey}(s_2)$ as follows, where
-$s_2 \in R_{q_2}$ is a freshly sampled packing-level RLWE secret.
+Define the function $\mathsf{GeneratePackingKey}(s)$ as follows, where
+$s \in R_{q_2}$ is a freshly sampled packing-level RLWE secret.
 
 For any odd integer $k \in \{1, 3, \ldots, 2d - 1\}$, define the
 packing-level ring automorphism
@@ -569,7 +550,7 @@ coefficient of $f$ in $\{0, \ldots, q_2 - 1\}$.
 
 The digit index $u$ runs over the $L_\mathsf{ks} = 3$ gadget digits.
 
-The function $\mathsf{GeneratePackingKey}(s_2)$ proceeds as follows:
+The function $\mathsf{GeneratePackingKey}(s)$ proceeds as follows:
 
 1. Construct 33 public mask polynomials
    $a_{r,u} \in R_{q_2}$ for
@@ -577,14 +558,14 @@ The function $\mathsf{GeneratePackingKey}(s_2)$ proceeds as follows:
    $u \in \{0, 1, 2\}$ by expanding $\mathsf{seed\_pack}$ as specified
    in [Expansion of $\mathsf{seed\_pack}$ (Packing Mask Polynomials)].
 2. For each matrix index $r$ and gadget digit $u$, sample a noise
-   polynomial $e_{r,u} \leftarrow D_{\mathbb{Z},\sigma_2}^d$, with
-   $\sigma_2$ as specified in [Parameters], and form the RLWE ciphertext
+   polynomial $e_{r,u} \leftarrow D_{\mathbb{Z},\sigma}^d$, with
+   $\sigma$ as specified in [Parameters], and form the RLWE ciphertext
 
    $$K_{r,u} = (a_{r,u}, b_{r,u})$$
 
    with
 
-   $$b_{r,u} = a_{r,u} \cdot s_2 + e_{r,u} + B_\mathsf{ks}^u \cdot \tau_{k_r}(s_2) \in R_{q_2}.$$
+   $$b_{r,u} = a_{r,u} \cdot s + e_{r,u} + B_\mathsf{ks}^u \cdot \tau_{k_r}(s) \in R_{q_2}.$$
 3. For each $r \in \{0, \ldots, 10\}$, define the key-switch matrix for
    automorphism $\tau_{k_r}$ as
 
@@ -600,7 +581,8 @@ exactly 33 RLWE ciphertexts.
 
 Concrete byte encoding of the packing key is out of scope for this ZIP.
 
-In the reference implementation, the transmitted packing key occupies
+In the reference implementation, the transmitted condensed packing
+public parameter block occupies
 $11 \cdot 3 \cdot 2048 \cdot 8 = 540{,}672$ bytes.
 
 #### Client Query Generation
@@ -608,43 +590,51 @@ $11 \cdot 3 \cdot 2048 \cdot 8 = 540{,}672$ bytes.
 For each PIR query, the client MUST construct fresh query material for
 the selected row index $i$ as follows:
 
-1. Construct the selection vector $\mu_i$ as specified in [Regev
-   Encryption]: a unit vector with value 1 at position $i$ and 0 at
-   every other position.
-2. Sample fresh $s_1$, $e_1$, and $s_2$ as specified in [Client Key
-   Generation].
-3. Compute the fresh packing key
-   $pk = \mathsf{GeneratePackingKey}(s_2)$ as specified in
+1. Sample a fresh $s$ as specified in [Client Key Generation].
+2. Construct the row-selector vector $\mu_i$ as specified in [Regev
+   Encryption].
+3. Generate the abstract LWE-form row selector
+   $c = A^T \cdot s + e + \Delta \cdot \mu_i$ as specified in
+   [Regev Encryption].
+4. Derive the condensed packing public parameter block
+   $\mathsf{pack\_pub\_params\_row\_1s\_pm}$ from $s$ and
+   $\mathsf{seed\_pack}$. This is the implementation's transmitted
+   representation of the packing material described abstractly in
    [PackingKeyGeneration].
-4. Compute the Regev-encrypted row selector:
-
-   $$c_1 = A^T \cdot s_1 + e_1 + \Delta \cdot \mu_i$$
-
-   where $A^T$ and $\Delta$ are the SimplePIR-level public matrix and
-   scaling factor from [Regev Encryption].
+5. Derive $\mathsf{packed\_query\_row}$ from that selector by taking the
+   packed transmitted representation used by the deployed simplepir
+   implementation. The resulting
+   $\mathsf{packed\_query\_row}$ is a length-$m$ vector of CRT-packed
+   $\mathtt{u64}$ values.
 
 The client MUST generate fresh query material separately for each PIR
-query. Reuse of $s_1$, $e_1$, $s_2$, or $pk$ across queries is not
+query. Reuse of $s$ or of query material derived from it is not
 allowed. The query material MUST contain enough information for the
 server to evaluate the selected row query while preserving the privacy
-of the row index. In particular, $c_1$ hides which row is requested, and
-the packing material derived from $s_2$ enables the server to produce a
-packed response decryptable under the client's $s_2$.
+of the row index. In particular,
+$\mathsf{packed\_query\_row}$ hides which row is requested, and
+$\mathsf{pack\_pub\_params\_row\_1s\_pm}$ enables the server to produce a
+packed response decryptable under the client's $s$.
 
 Define the abstract client query object as
 
-$$Q = (c_1, pk).$$
+$$Q = (\mathsf{packed\_query\_row}, \mathsf{pack\_pub\_params\_row\_1s\_pm}).$$
 
-Here, $c_1$ is the Regev-encrypted row selector and
-$pk = (K_0, \ldots, K_{10})$ is the ordered packing key returned by
-$\mathsf{GeneratePackingKey}(s_2)$, where each
-$K_r = (K_{r,0}, K_{r,1}, K_{r,2})$.
+Here, $\mathsf{packed\_query\_row}$ is the transmitted packed row
+selector, and $\mathsf{pack\_pub\_params\_row\_1s\_pm}$ is the
+transmitted condensed packing public parameter block associated with the
+same fresh $s$.
 
 The outer transport encoding used to carry $Q$ is out of scope for this
 ZIP. However, any conforming transport or API framing MUST preserve the
-same abstract query object $Q$, including the ordering of $K_0$ through
-$K_{10}$ and, within each $K_r$, the ordering of
-$K_{r,0}$, $K_{r,1}$, and $K_{r,2}$.
+same abstract query object $Q$, including the order of the
+$\mathtt{u64}$ values in $\mathsf{packed\_query\_row}$ and the order of
+the $\mathtt{u64}$ values in
+$\mathsf{pack\_pub\_params\_row\_1s\_pm}$.
+
+In the reference implementation, one such encoding is the byte string
+
+$$[\text{8-byte little-endian packed-query length}] \| [\mathsf{packed\_query\_row}\text{ as little-endian }\mathtt{u64}\text{s}] \| [\mathsf{pack\_pub\_params\_row\_1s\_pm}\text{ as little-endian }\mathtt{u64}\text{s}].$$
 
 #### LWE-to-RLWE Packing
 
@@ -701,11 +691,11 @@ $\mathsf{PackSimplePIRResponse}(T, pk, L_\mathsf{value})$ as follows:
    $\tau_{2049}, \tau_{1025}, \tau_{513}, \tau_{257}, \tau_{129},
    \tau_{65}, \tau_{33}, \tau_{17}, \tau_{9}, \tau_{5}, \tau_{3}$, and
    the corresponding key-switch matrices output by
-   $\mathsf{GeneratePackingKey}(s_2)$ as specified in
+   $\mathsf{GeneratePackingKey}(s)$ as specified in
    [PackingKeyGeneration] to produce one packing-level RLWE ciphertext
    $\widehat{C}_j = (\widehat{a}_j, \widehat{b}_j) \in R_{q_2}^2$ such
    that, for every slot index $\ell \in \{0, \ldots, d-1\}$, slot
-   $\ell$ of $\widehat{C}_j$ decrypts under $s_2$ to the same plaintext
+   $\ell$ of $\widehat{C}_j$ decrypts under $s$ to the same plaintext
    value that $t_{j,\ell}$ decrypts to under the corresponding
    SimplePIR-level secret.
 4. Return the ordered packed sequence
@@ -772,13 +762,13 @@ $\mathsf{LiftModulusSwitchedRLWECiphertext}((a', b'))$ as follows:
 #### Packing-level RLWE Decryption
 
 Define the function
-$\mathsf{DecryptPackingRLWECiphertext}((a, b), s_2)$ for a packing-level
+$\mathsf{DecryptPackingRLWECiphertext}((a, b), s)$ for a packing-level
 RLWE ciphertext $(a, b) \in R_{q_2}^2$ as follows:
 
 This decryption procedure is analogous to [Regev Encryption], but over
 the packing-level RLWE ring $R_{q_2}$ instead of the SimplePIR-level LWE space.
 
-1. Compute $u = b - a \cdot s_2 \in R_{q_2}$.
+1. Compute $u = b - a \cdot s \in R_{q_2}$.
 2. Let $\Delta_2 = \lfloor q_2 / p_2 \rfloor$, where $p_2 = 2^{14}$ is
    the packing-level plaintext modulus from [Parameters].
 3. For each coefficient of $u$, round to the nearest multiple of
@@ -816,7 +806,7 @@ follows:
    $\widetilde{C}_j = \mathsf{LiftModulusSwitchedRLWECiphertext}(C'_j)$
    for each $C'_j$.
 2. Compute
-   $\mathsf{DecryptPackingRLWECiphertext}(\widetilde{C}_j, s_2) = (v_{j,0}, \ldots, v_{j,d-1})$
+   $\mathsf{DecryptPackingRLWECiphertext}(\widetilde{C}_j, s) = (v_{j,0}, \ldots, v_{j,d-1})$
    for each $\widetilde{C}_j$, obtaining slot values in $\mathbb{Z}_{p_2}$.
 3. Form the concatenated slot sequence
    $V = v_{0,0} \| \ldots \| v_{0,d-1} \| v_{1,0} \| \ldots \| v_{m-1,d-1}$.
@@ -1243,11 +1233,12 @@ $8160 + 64i \ldots 8191 + 64i$.
 | **Total (first query)** | **3.2 MB** | **~324 KB** | **~3.5 MB** |
 | **Total (Tier 0 cached)** | **3.2 MB** | **~132 KB** | **~3.3 MB** |
 
-Upload is dominated by the Tier 2 row selector ($c_1$, proportional
-to the number of database rows) and the packing key. In the reference
-implementation, the transmitted packing key occupies 540,672 bytes
-(528 KiB). Downloads are small because RLWE packing compresses the row
-response efficiently.
+Upload is dominated by the Tier 2 packed row selector
+($\mathsf{packed\_query\_row}$, proportional to the number of database
+rows) and the transmitted packing public parameter block. In the
+reference implementation, that block occupies 540,672 bytes (528 KiB).
+Downloads are small because RLWE packing compresses the row response
+efficiently.
 
 ##### Client Computation Summary
 
@@ -1383,7 +1374,7 @@ Summary].
 
 A packing-level RLWE ciphertext has the form $(a, b)$, where $a$ is the
 mask polynomial and $b$ is the payload polynomial. During decryption the
-client computes $u = b - a \cdot s_2$, so $a$ contributes through
+client computes $u = b - a \cdot s$, so $a$ contributes through
 multiplication by the secret key, while $b$ more directly carries the
 encoded plaintext.
 
