@@ -1041,9 +1041,9 @@ Tier 1.
 **Leaf records** (relative depth 8, absolute depth 26 — the actual tree
 leaves):
 
-Each leaf contains a 32-byte key and a 32-byte value. No separate hash
-field is stored; the leaf hash is computed as
-$\mathsf{Hash}(\mathsf{key} \| \mathsf{value})$.
+Each leaf contains a 32-byte `low` value and a 32-byte `width` value as
+specified in [Leaf Encoding]. No separate hash field is stored; the leaf
+hash is computed as $\mathsf{Hash}(\mathsf{low} \| \mathsf{width})$.
 
 256 leaves $\times$ 64 bytes = **16,384 bytes**.
 
@@ -1060,8 +1060,8 @@ or the next implementation-required alignment boundary.
 
 ```
 Bytes 0–8,127:       internal_nodes[0..253]    254 × 32 B = 8,128 B
-Bytes 8,128–16,319:  leaf_keys[0..255]         256 × 32 B = 8,192 B
-Bytes 16,320–24,511: leaf_values[0..255]       256 × 32 B = 8,192 B
+Bytes 8,128–16,319:  leaf_lows[0..255]         256 × 32 B = 8,192 B
+Bytes 16,320–24,511: leaf_widths[0..255]       256 × 32 B = 8,192 B
                                                 Total:      24,512 B
 ```
 
@@ -1069,12 +1069,17 @@ Bytes 16,320–24,511: leaf_values[0..255]       256 × 32 B = 8,192 B
 
 1. Compute the Tier 2 row index as $S_1 \times 128 + S_2$.
 2. Issue a PIR query for this row.
-3. Binary search the 256 leaf keys to find the target key and retrieve
-   its value.
+3. Binary search the 256 `leaf_lows` values to find the largest index
+   $\mathsf{target\_position}$ such that
+   $\mathsf{leaf\_lows}[\mathsf{target\_position}] \leq \mathsf{target\_key}$.
+   Let $(low, width)$ be the leaf record at that position. The client
+   MUST verify that $\mathsf{target\_key}$ is contained in the exclusion
+   interval encoded by $(low, width)$ as specified in [Leaf Encoding];
+   otherwise it MUST reject the row as invalid.
 4. Read 8 sibling hashes from the row:
    - Depth-26 sibling: the leaf at index
      $(\mathsf{target\_position} \oplus 1)$. Compute its hash as
-     $\mathsf{Hash}(\mathsf{key} \| \mathsf{value})$. This is the only hash
+     $\mathsf{Hash}(\mathsf{low} \| \mathsf{width})$. This is the only hash
      the client computes during the PIR retrieval phase.
    - Depths 19–25 siblings: read from the 254 internal nodes by walking
      upward from the target leaf position.
