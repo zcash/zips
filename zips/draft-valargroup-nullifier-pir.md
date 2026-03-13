@@ -83,9 +83,11 @@ three-tier data structure spanning 26 levels of depth:
 2. Small PIR tier (24 MB)
 3. Large PIR tier (6 GB).
 
-A complete authentication path is retrieved in two sequential PIR queries plus
-the plaintext download, for a total bandwidth of approximately 3.5 MB on the
-first query, or approximately 3.3 MB once the Tier 0 plaintext is cached
+The client retrieves the 26 sibling hashes for the depth-26 PIR tree in two
+sequential PIR queries plus the plaintext download, then appends 3
+deterministic empty-subtree siblings to obtain the depth-29 authentication
+path. Total bandwidth is approximately 3.5 MB on
+the first query, or approximately 3.3 MB once the Tier 0 plaintext is cached
 (dominated by the Tier 2 upload).
 
 
@@ -873,11 +875,15 @@ proof, this saving applies to every protocol participant.
 
 #### Authentication Path
 
-A complete authentication path consists of 26 sibling hashes, one per
-tree depth from the leaf (depth 26) to the root (depth 0). After
-decrypting the PIR responses for Tiers 1 and 2, the client MUST
-reconstruct the Merkle root from the complete retrieved path and verify
-it against the published root of the exclusion tree.
+The PIR tiers provide 26 sibling hashes, one per tree depth from the
+leaf (depth 26) to the root of the depth-26 PIR tree (depth 0). To form
+the authentication path consumed by the Claim circuit, the client MUST
+append 3 additional sibling hashes corresponding to the canonical empty
+subtrees above that depth-26 root, yielding a complete depth-29
+authentication path. After decrypting the PIR responses for Tiers 1 and
+2 and appending those 3 deterministic siblings, the client MUST
+reconstruct the depth-29 Merkle root and verify it against the published
+depth-29 root of the exclusion tree.
 
 #### Data Structure Layout
 
@@ -1314,12 +1320,13 @@ defined in [^draft-valargroup-orchard-balance-proof], however, fixes
 the non-membership Merkle path depth at 29, supporting up to
 $2^{29} \approx 537$ million leaves.
 
-These depths intentionally differ. The tree used by the PIR server has
-depth 29 (matching the circuit), but only the bottom 26 levels contain
-meaningful variation. The top 3 levels of the authentication path, from
-the depth-26 subtree root up to the depth-29 tree root, have
-deterministic siblings: each is the root hash of a completely empty
-subtree, computable from the canonical empty leaf hash. The client
+These depths intentionally differ. The PIR server's tiered data
+structure materializes only the depth-26 tree, because that is sufficient
+for the current nullifier set and keeps Tier 2 within the desired size
+bound. The server also publishes a depth-29 root obtained by extending
+the depth-26 root upward with 3 completely empty sibling subtrees. Those
+top 3 siblings are deterministic: each is the root hash of a completely
+empty subtree, computable from the canonical empty leaf hash. The client
 appends these 3 known sibling hashes to the 26 siblings retrieved via
 PIR, producing a full depth-29 authentication path for the circuit.
 
