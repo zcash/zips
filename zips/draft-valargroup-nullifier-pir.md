@@ -266,7 +266,8 @@ Their product is
 
 $$q = q_{2,1} \cdot q_{2,2} = 66\,974\,689\,739\,603\,969 \approx 2^{56}.$$
 
-Both primes satisfy $q \equiv 1 \pmod{2d}$ (with $d = 2048$), the condition
+Both primes satisfy $q_{2,1} \equiv q_{2,2} \equiv 1 \pmod{2d}$ (with
+$d = 2048$), the condition
 required for the Number Theoretic Transform over the polynomial ring
 $\mathbb{Z}_q[x]/(x^d + 1)$. Using a CRT (Chinese Remainder Theorem)
 representation of the modulus enables all packing-level arithmetic to
