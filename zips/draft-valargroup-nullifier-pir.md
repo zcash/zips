@@ -327,91 +327,7 @@ PIR database values are the raw serialized tier rows:
 No explicit file-level or wire-level zero-padding bytes are appended to
 these rows before they are loaded into the PIR database.
 
-### Public Seeds
-
-Public randomness used in the YPIR+SP protocol is not transmitted. Both
-client and server MUST expand it deterministically from
-protocol-fixed 32-byte seeds using ChaCha20 [^ChaCha20].
-
-| Seed name | Byte value (hex) | Purpose |
-|---|---|---|
-| $\mathsf{seed\_A}$ | $\mathtt{0x00}^{32}$ | Implicit SimplePIR public matrix $A$ for the deployed row-selector query (see [Regev Encryption]) |
-| $\mathsf{seed\_pack}$ | $\mathtt{0x02} \| \mathtt{0x00}^{31}$ | Packing-level RLWE public randomness (see [YPIR+SP]) |
-
-The seeds are protocol constants: the same matrices are used across all
-queries, all clients, and all Protocol Epochs. Neither party transmits
-the expanded matrices; both expand them independently from the shared
-seeds. This is a standard bandwidth optimization in lattice-based
-cryptography.
-
-Using fixed seeds is safe for LWE and RLWE: the hardness assumptions
-hold even for adversarially chosen public matrices, so reuse across
-queries does not weaken security. Per-query privacy is provided by the
-client's fresh secret key and noise (see [Privacy Implications]).
-
-#### ChaCha20 Stream Initialization
-
-For each seed, implementations MUST initialize the ChaCha20 stream as
-follows:
-
-- **Key**: the 32-byte seed value from the table above.
-- **Nonce**: 12 bytes, all zero ($\mathtt{0x00}^{12}$).
-- **Initial block counter**: 0.
-
-This corresponds to the IETF ChaCha20 profile defined in RFC 8439
-[^ChaCha20] (32-bit block counter, 96-bit nonce).
-
-The ChaCha20 stream produces an unlimited sequence of pseudorandom
-bytes. Implementations consume this stream sequentially, starting from
-byte offset 0, as specified below for each seed. Once a stream is
-initialized for a given seed, its state advances monotonically; no
-seeking or resetting occurs.
-
-#### Expansion of $\mathsf{seed\_A}$ (Implicit Public Matrix $A$)
-
-$\mathsf{seed\_A}$ defines the implicit public matrix $A$ used by the row-selector query. This matrix is viewed
-in LWE form, but its block structure is generated from seeded ring elements.
-
-Implementations MUST expand $\mathsf{seed\_A}$ as follows:
-
-1. Initialize the ChaCha20 stream from $\mathsf{seed\_A}$ as specified
-   in [ChaCha20 Stream Initialization].
-2. Let $n = 2048$ be the selector LWE dimension from [Parameters]. The
-   matrix $A$ is partitioned into consecutive $n \times n$ negacyclic
-   blocks.
-3. For each block column, sample one public ring element
-   $a \in R_q = \mathbb{Z}_q[X]/(X^n + 1)$ coefficient-wise from the
-   ChaCha20 stream, reducing coefficients modulo $q$.
-4. Expand that ring element into its $n \times n$ negacyclic matrix
-   representation and place the resulting block into the corresponding
-   block column of $A$.
-
-Equivalently, implementations may generate the same public randomness
-through the ring-based helper routines used by the reference
-implementation. Interoperability requires only that both parties derive
-the same implicit matrix $A$ from $\mathsf{seed\_A}$.
-
-#### Expansion of $\mathsf{seed\_pack}$ (Packing Mask Polynomials)
-
-The 33 public mask polynomials $a_{r,u} \in R_{q_2}$ used in
-[PackingKeyGeneration] are expanded from $\mathsf{seed\_pack}$.
-
-Implementations MUST expand them as follows:
-
-1. Initialize the ChaCha20 stream from $\mathsf{seed\_pack}$ as
-   specified in [ChaCha20 Stream Initialization].
-2. For each mask polynomial index in row-major order on $(r, u)$:
-   $r \in \{0, \ldots, 10\}$ (outermost), $u \in \{0, 1, 2\}$:
-   a. For each coefficient index $j \in \{0, \ldots, d - 1\}$ (with
-      $d = 2048$):
-      - Read one little-endian 64-bit word $w$ from the ChaCha20
-        stream.
-      - Set coefficient $j$ of $a_{r,u}$ to $w \bmod q_2$.
-
-No rejection sampling is used: each coefficient is the direct remainder
-of the 64-bit stream word modulo $q_2$.
-
-### Regev Encryption
+## Regev Encryption
 
 For the query path specified by this ZIP, row
 selection is represented in LWE form over $\mathbb{Z}_q$, with selector dimension $n = 2048$, ciphertext modulus
@@ -448,7 +364,7 @@ recover the selector values. This works because the noise is small
 relative to the spacing
 $\Delta = \lfloor q / 2^{14} \rfloor = 4\,087\,810\,653\,052$.
 
-### Hint
+## Hint
 
 After the server computes $\mathsf{answer} = D \cdot c$, the client
 holds:
@@ -471,7 +387,7 @@ must be recomputed whenever the database changes, and its size is
 proportional to $\sqrt{N}$, which becomes prohibitive for large
 databases.
 
-#### SimplePIR Hint
+### SimplePIR Hint
 
 On a database of $N$ bytes, the hint size is roughly $4\sqrt{N}$ KB
 [^SimplePIR]:
@@ -489,7 +405,7 @@ query. This motivates the move to YPIR+SP, which eliminates the hint
 entirely by packing the SimplePIR response into RLWE ciphertexts (see
 [YPIR+SP]).
 
-### YPIR+SP
+## YPIR+SP
 
 YPIR+SP [^YPIR] eliminates the hint by packing the SimplePIR response
 into RLWE ciphertexts using the CDKS transformation [^CDKS].
@@ -501,7 +417,7 @@ overhead, making it possible to compress the entire SimplePIR row
 response — which would otherwise require the hint for decryption — into
 a small number of RLWE ciphertexts that the client can decrypt directly.
 
-#### Client Key Generation
+### Client Key Generation
 
 For each query, the client samples a fresh 2048-coefficient secret
 $s \leftarrow D_{\mathbb{Z},\sigma}^{d}$ with $d = 2048$ as specified
@@ -516,7 +432,7 @@ The client MUST sample a fresh $s$ for every query. Reuse of $s$
 across queries can enable cross-query linkability (see
 [Privacy Implications]).
 
-#### PackingKeyGeneration
+### PackingKeyGeneration
 
 Define the function $\mathsf{GeneratePackingKey}(s)$ as follows, where
 $s \in R_{q_2}$ is a freshly sampled packing-level RLWE secret.
@@ -585,7 +501,7 @@ In the reference implementation, the transmitted condensed packing
 public parameter block occupies
 $11 \cdot 3 \cdot 2048 \cdot 8 = 540{,}672$ bytes.
 
-#### Client Query Generation
+### Client Query Generation
 
 For each PIR query, the client MUST construct fresh query material for
 the selected row index $i$ as follows:
@@ -636,12 +552,12 @@ In the reference implementation, one such encoding is the byte string
 
 $$[\text{8-byte little-endian packed-query length}] \| [\mathsf{packed\_query\_row}\text{ as little-endian }\mathtt{u64}\text{s}] \| [\mathsf{pack\_pub\_params\_row\_1s\_pm}\text{ as little-endian }\mathtt{u64}\text{s}].$$
 
-#### LWE-to-RLWE Packing
+### LWE-to-RLWE Packing
 
 After receiving the client's query material for row index $i$, the
 server computes the corresponding SimplePIR matrix-vector product.
 
-##### Canonical Plaintext Packing
+### Canonical Plaintext Packing
 
 For YPIR plaintext packing, implementations MUST map each serialized
 `L_value`-byte row into 14-bit plaintext words by interpreting the row as
@@ -708,7 +624,7 @@ to word index $jd + \ell$ of that packed representation. Any additional
 slots introduced only to complete the final ciphertext chunk MUST decode
 to zero.
 
-#### Split Modulus Switching
+### Split Modulus Switching
 
 The packed sequence $\widehat{R}$ is represented over the packing-level
 modulus $q_2$. Before transport, the server MUST apply split modulus
@@ -759,7 +675,7 @@ $\mathsf{LiftModulusSwitchedRLWECiphertext}((a', b'))$ as follows:
 3. Return the lifted ciphertext
    $\widetilde{C} = (\widetilde{a}, \widetilde{b}) \in R_{q_2}^2$.
 
-#### Packing-level RLWE Decryption
+### Packing-level RLWE Decryption
 
 Define the function
 $\mathsf{DecryptPackingRLWECiphertext}((a, b), s)$ for a packing-level
@@ -777,7 +693,7 @@ the packing-level RLWE ring $R_{q_2}$ instead of the SimplePIR-level LWE space.
 4. Return the resulting plaintext slot vector
    $(v_0, \ldots, v_{d-1})$ in $\mathbb{Z}_{p_2}^d$.
 
-#### Client Recovery of the Selected Row
+### Client Recovery of the Selected Row
 
 Let `L_value` be the PIR value size fixed for the selected database tier
 in [Parameters], and let `L_row` be the row serialization length defined
@@ -822,7 +738,7 @@ follows:
 7. Return the first $L_\mathsf{row}$ decoded bytes as the returned row
    of the selected PIR database.
 
-#### Query Procedure
+### Query Procedure
 
 The protocol proceeds as follows:
 
@@ -844,7 +760,7 @@ Unlike standard YPIR (which is built on DoublePIR and retrieves a single
 element), YPIR+SP returns an entire PIR value. In this ZIP, the PIR
 value is a serialized Tier 1 or Tier 2 row.
 
-#### Security
+### Security
 
 The security of YPIR+SP relies on the LWE assumption at the SimplePIR
 level (Regev encryption of the row selector) and the Ring LWE
@@ -855,6 +771,70 @@ under itself). In other words, the key material is encrypted with itself.
 The LWE and RLWE assumptions are standard in lattice-based
 cryptography. Circular security is a well-studied additional assumption
 shared with Spiral and OnionPIR [^YPIR].
+
+### Public Seeds
+
+Public randomness in the deployed `YPIR+SP` protocol is not transmitted. Both client and server MUST derive it deterministically from protocol-fixed 32-byte seeds using the ChaCha20-based seeded RNG.
+
+| Seed name | Byte value (hex) | Purpose |
+|---|---|---|
+| $\mathsf{seed\_A}$ | $\mathtt{0x00}^{32}$ | Public randomness for the deployed row-selector query |
+| $\mathsf{seed\_pack}$ | $\mathtt{0x02} \| \mathtt{0x00}^{31}$ | Packing public randomness |
+
+These seeds are protocol constants. The same public randomness is reused across all queries, all clients, and all Protocol Epochs. Neither party transmits the expanded public objects; both parties expand them locally from the shared seeds.
+
+Using fixed seeds is safe for both the deployed ring-based selector path and the packing RLWE path. The underlying hardness assumptions remain hard even for adversarially chosen public matrices. Per-query privacy is provided by the client's fresh secret material and fresh noise; the public seeds determine only the query-independent public-random part.
+
+#### ChaCha20 RNG Initialization
+
+For each seed, implementations MUST initialize the ChaCha20-based seeded RNG as follows:
+
+- **Seed**: the 32-byte seed value from the table above.
+- **Stream identifier**: 0.
+- **Initial position**: word position 0.
+
+This specification uses ChaCha20 with 20 rounds in the original 64/64 configuration: a 64-bit block counter and a 64-bit stream identifier, both initialized to zero. It does not use the IETF ChaCha20 profile with a 96-bit nonce and a 32-bit block counter.
+
+The RNG yields an unlimited pseudorandom stream. For each public object derived from a given seed, implementations MUST initialize the RNG from that seed and consume outputs sequentially from the beginning. No seeking is used within a derivation.
+
+#### Expansion of $\mathsf{seed\_A}$ (Row-Selector Public Randomness)
+
+$\mathsf{seed\_A}$ defines the public randomness used by the deployed row-selector query.
+
+Implementations MUST expand $\mathsf{seed\_A}$ as follows:
+
+1. Initialize the ChaCha20-based seeded RNG from $\mathsf{seed\_A}$ as specified in [ChaCha20 RNG Initialization].
+2. Let $d = 2048$ be the ring dimension from [Parameters]. Let $R_q = \mathbb{Z}_q[X]/(X^d + 1)$.
+3. Let the selector consist of consecutive ring blocks indexed in increasing order.
+4. For each block index, sample one public ring element $a \in R_q$ coefficient-wise from the RNG:
+   - For each coefficient index $j \in \{0, \ldots, d - 1\}$:
+     - Read one 64-bit output word $w$ from the RNG.
+     - Set coefficient $j$ of $a$ to $w \bmod q$.
+5. Use these sampled ring elements, in order, as the public query-independent randomness of the deployed selector-generation procedure.
+
+When the deployed selector path is viewed in extracted LWE form, these same seeded ring elements induce the implicit public matrix used by the server's offline preprocessing.
+
+#### Expansion of $\mathsf{seed\_pack}$ (Packing Public Randomness)
+
+The packing public randomness consists of 33 public ring elements $a_{r,u} \in R_q$, indexed by:
+
+- $r \in \{0, \ldots, 10\}$,
+- $u \in \{0, 1, 2\}$.
+
+The iteration order is row-major in $(r,u)$, with $r$ outermost.
+
+Implementations MUST expand $\mathsf{seed\_pack}$ as follows:
+
+1. Initialize the ChaCha20-based seeded RNG from $\mathsf{seed\_pack}$ as specified in [ChaCha20 RNG Initialization].
+2. For each index pair $(r,u)$ in row-major order:
+   - Sample one ring element $a_{r,u} \in R_q$ coefficient-wise.
+   - For each coefficient index $j \in \{0, \ldots, d - 1\}$, where $d = 2048$:
+     - Read one 64-bit output word $w$ from the RNG.
+     - Set coefficient $j$ of $a_{r,u}$ to $w \bmod q$.
+
+No rejection sampling is used: each coefficient is the direct remainder of the sampled 64-bit word modulo $q$.
+
+These 33 seeded ring elements are the public-random part of the packing public parameters. The client transmits only the complementary secret/noise-dependent second rows; the corresponding seeded public rows are reconstructed by the server from $\mathsf{seed\_pack}$.
 
 ## Instantiations
 
