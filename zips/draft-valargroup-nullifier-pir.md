@@ -762,15 +762,10 @@ value is a serialized Tier 1 or Tier 2 row.
 
 ### Security
 
-The security of YPIR+SP relies on the LWE assumption at the SimplePIR
-level (Regev encryption of the row selector) and the Ring LWE
-assumption at the packing level, together with circular security (the
-packing key contains encryptions of automorphisms of the secret key
-under itself). In other words, the key material is encrypted with itself.
+The security of YPIR+SP is best viewed as relying primarily on the RLWE assumption for the ring-based query-generation and response-packing machinery, together with a circular-security assumption for the automorphism/key-switching material used in packing.
 
-The LWE and RLWE assumptions are standard in lattice-based
-cryptography. Circular security is a well-studied additional assumption
-shared with Spiral and OnionPIR [^YPIR].
+The RLWE assumption is standard in lattice-based
+cryptography. Circular security is a well-studied additional assumption shared with Spiral and OnionPIR [^YPIR].
 
 ### Public Seeds
 
