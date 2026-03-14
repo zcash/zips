@@ -519,8 +519,7 @@ $$
 
 That is, the selector LWE secret is exactly the coefficient vector of the fresh
 RLWE secret polynomial, in increasing coefficient order from $X^0$ through
-$X^{d-1}$, with each coefficient interpreted in $\mathbb{Z}_q$ via its canonical
-representative in $\{0, \ldots, q-1\}$.
+$X^{d-1}$.
 
 The client MUST sample a fresh $s^\star$ for every PIR query. Reuse of $s^\star$
 across queries is not allowed.
@@ -559,9 +558,6 @@ canonical base-$B_\mathsf{ks}$ expansion of the corresponding
 coefficient of $f$ in $\{0, \ldots, q_2 - 1\}$.
 
 The digit index $u$ runs over the $L_\mathsf{ks} = 3$ gadget digits.
-For avoidance of doubt, the input polynomial to gadget decomposition is
-interpreted coefficient-wise via canonical representatives in
-$\{0, \ldots, q_2 - 1\}$.
 
 The function $\mathsf{GeneratePackingKey}(s^\star)$ proceeds as follows:
 
@@ -737,13 +733,9 @@ RLWE ciphertext $(a, b) \in R_{q_2}^2$ as follows:
    $q_\mathsf{payload} = 2^{20}$ as specified in [Parameters].
 2. For each coefficient $a_k$ of $a$, let
    $a'_k = \lfloor (q_\mathsf{mask} / q_2) \cdot a_k \rceil \bmod q_\mathsf{mask}$,
-   where $a_k$ is interpreted via its canonical representative in
-   $\{0, \ldots, q_2 - 1\}$ and $\lfloor \cdot \rceil$ denotes rounding
-   to the nearest integer.
+   where $\lfloor \cdot \rceil$ denotes rounding to the nearest integer.
 3. For each coefficient $b_k$ of $b$, let
-   $b'_k = \lfloor (q_\mathsf{payload} / q_2) \cdot b_k \rceil \bmod q_\mathsf{payload}$,
-   where $b_k$ is interpreted via its canonical representative in
-   $\{0, \ldots, q_2 - 1\}$.
+   $b'_k = \lfloor (q_\mathsf{payload} / q_2) \cdot b_k \rceil \bmod q_\mathsf{payload}$.
 4. Return the modulus-switched ciphertext
    $C' = (a', b') \in R_{q_\mathsf{mask}} \times R_{q_\mathsf{payload}}$.
 
