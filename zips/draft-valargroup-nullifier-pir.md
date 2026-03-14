@@ -182,6 +182,7 @@ The following are explicitly out of scope:
 - Retrieval of data other than nullifier exclusion proofs.
 - YPIR transport-level wire format between client and server.
 - Noise analysis. Refer to YPIR paper for noise and security analysis. We directly use the suggested values with no amendments [^YPIR].
+- The outer transport and wire-level encoding of queries and responses is out of scope for this ZIP.
 
 
 # High-level summary
@@ -516,8 +517,7 @@ of the row index. In particular, $c$ hides which row is requested, and
 $pk$ enables the server to produce a packed response decryptable under
 the client's $s^\star$.
 
-The outer transport encoding used to carry $Q$ is out of scope for this
-ZIP. However, any conforming transport or API framing MUST preserve the
+Any conforming transport or API framing MUST preserve the
 same abstract query object $Q$, including the distinction between the
 row selector $c$ and the packing key $pk$, and the ordering of the
 components within each object as specified by [Regev Encryption] and
@@ -599,8 +599,7 @@ to zero.
 
 The packed sequence $\widehat{R}$ is represented over the packing-level
 modulus $q_2$. Before transport, the server MUST apply split modulus
-switching to $\widehat{R}$ as specified in this section. The transport
-encoding of the resulting response is out of scope for this ZIP.
+switching to $\widehat{R}$ as specified in this section.
 
 Define the function
 $\mathsf{SplitModulusSwitchRLWECiphertext}((a, b))$ for a packing-level
@@ -626,8 +625,7 @@ This ordered sequence
 
 $$R = (C'_0, \ldots, C'_{m-1})$$
 
-is the abstract server response object specified by this ZIP. The outer
-transport encoding used to carry $R$ is out of scope, but any conforming
+is the abstract server response object specified by this ZIP. Any conforming
 transport or API framing MUST preserve the order of the ciphertexts and
 the distinction between the two components of each
 $C'_j = (a'_j, b'_j)$.
@@ -673,9 +671,8 @@ defined in [Canonical Plaintext Packing], before any all-zero word
 padding used only to complete the final ciphertext chunk.
 
 Given the server's response to a PIR query, the client MUST recover the
-selected tier row of length $L_\mathsf{row}$ for the queried tier. This
-ZIP does not standardize the outer transport encoding of that response.
-It only requires that the response decode, under the client's fresh
+selected tier row of length $L_\mathsf{row}$ for the queried tier. It
+only requires that the response decode, under the client's fresh
 packing-level secret and the YPIR+SP semantics described above, to the
 exact serialized row bytes defined for the selected tier.
 
