@@ -368,42 +368,70 @@ PIR database values are the raw serialized tier rows:
 No explicit file-level or wire-level zero-padding bytes are appended to
 these rows before they are loaded into the PIR database.
 
+## Coefficient Representatives
+
+Unless otherwise specified, every element of $\mathbb{Z}_q$ or $\mathbb{Z}_{q_2}$
+in this ZIP is serialized and decomposed using its canonical representative in
+$\{0, \ldots, q-1\}$ or $\{0, \ldots, q_2-1\}$, respectively.
+
+When this ZIP refers to sampling from $D_{\mathbb{Z},\sigma}$, the sampled values
+are integers. After sampling, each coefficient is reduced modulo the relevant
+ciphertext modulus to obtain an element of $\mathbb{Z}_q$ or $\mathbb{Z}_{q_2}$.
+
+For correctness and noise analysis, implementations MAY equivalently view such
+values via centered representatives in
+$\{ -\lfloor q/2 \rfloor, \ldots, \lceil q/2 \rceil - 1 \}$ or
+$\{ -\lfloor q_2/2 \rfloor, \ldots, \lceil q_2/2 \rceil - 1 \}$, but this
+centered interpretation MUST NOT be used for serialization, public-seed
+expansion, or gadget decomposition unless explicitly stated.
+
+For [PackingKeyGeneration], [Split Modulus Switching], and all transport-facing
+objects, coefficients MUST be interpreted via canonical representatives.
+
 ## Regev Encryption
 
-For the query path specified by this ZIP, row
-selection is represented in LWE form over $\mathbb{Z}_q$, with selector dimension $n = 2048$, ciphertext modulus
-$q = q_{2,1} \cdot q_{2,2}$, plaintext modulus $p = 2^{14}$, and scaling factor $\Delta = \lfloor q / p \rfloor$.
+Row selection is represented in LWE form over $\mathbb{Z}_q$, with selector dimension $n = 2048$, ciphertext modulus
+$q = q_{2,1} \cdot q_{2,2}$, plaintext modulus $p = 2^{14}$, and scaling factor
+$\Delta = \lfloor q / p \rfloor$.
 
 Let $m$ be the number of database rows and let
-$\mu_i \in \mathbb{Z}_p^m$ denote the row-selector vector for row
-index $i$, where $\mu_i[j] = 1$ exactly when $j = i$ and
-$\mu_i[j] = 0$ otherwise.
+$\mu_i \in \mathbb{Z}_p^m$ denote the row-selector vector for row index $i$,
+where $\mu_i[j] = 1$ exactly when $j = i$ and $\mu_i[j] = 0$ otherwise.
 
-Let $A \in \mathbb{Z}_q^{n \times m}$ be the implicit public matrix
-derived from $\mathsf{seed\_A}$ as specified in
-[Expansion of $\mathsf{seed\_A}$ (Implicit Public Matrix $A$)].
+Let $A \in \mathbb{Z}_q^{n \times m}$ be the implicit public matrix derived from
+$\mathsf{seed\_A}$ as specified in
+[Expansion of $\mathsf{seed\_A}$ (Row-Selector Public Randomness)] and
+[Negacyclic Extraction of the Deployed Selector Matrix].
 
-For each query, the client MUST sample a fresh secret vector
-$s \leftarrow D_{\mathbb{Z},\sigma}^{n}$ and a fresh noise vector
-$e \leftarrow D_{\mathbb{Z},\sigma}^{m}$. The row selector is then
-encrypted as
+The deployed selector path does not sample an independent LWE secret vector.
+Instead, for each query the client samples one fresh ring secret
+$s^\star \in R_q = \mathbb{Z}_q[X]/(X^d + 1)$ as specified in
+[Client Key Generation], with $d = n = 2048$, and derives from it the selector
+LWE secret vector
 
-$$c = A^T \cdot s + e + \Delta \cdot \mu_i.$$
+$$
+\mathbf{s} = (s^\star_0, \ldots, s^\star_{d-1}) \in \mathbb{Z}_q^n,
+$$
 
-This is the abstract selector consumed by the SimplePIR first pass. In
-the reference implementation, the same values are generated via ring-based routines, and the
-transmitted selector is the packed last-row representation of that LWE form.
+where $s^\star_j$ denotes the coefficient of $X^j$ in $s^\star$, reduced modulo
+$q$ and interpreted via its canonical representative in $\{0, \ldots, q-1\}$.
 
-The term $A^T \cdot s$ is the public-randomness mask that only the
-client can remove. The noise vector $e$ ensures that $c$ is
-computationally indistinguishable from random under the LWE assumption,
-so the server cannot recover the selected row from the query.
+For each query, the client MUST also sample a fresh noise vector
+$e \leftarrow D_{\mathbb{Z},\sigma}^{m}$ and reduce each entry modulo $q$.
+The abstract selector is then
 
-To decrypt (given $s$), subtract the mask to obtain
-$c - A^T \cdot s = e + \Delta \cdot \mu_i$, then round by $\Delta$ to
-recover the selector values. This works because the noise is small
-relative to the spacing
-$\Delta = \lfloor q / 2^{14} \rfloor = 4\,087\,810\,653\,052$.
+$$
+c = A^T \cdot \mathbf{s} + e + \Delta \cdot \mu_i.
+$$
+
+This is the abstract LWE-form selector consumed by the SimplePIR first pass.
+
+TODO: decide if below is specification or implementation specific.
+
+The selector is generated through ring-based routines and transmitted in a packed extracted representation.
+
+When the deployed ring-generated selector path is viewed in LWE form, the same
+fresh secret $\mathbf{s}$ is paired with the public matrix induced by the seeded ring blocks under the negacyclic extraction convention.
 
 ## YPIR+SP
 
@@ -423,23 +451,43 @@ TODO: specify this for YPIR+SP
 
 ### Client Key Generation
 
-For each query, the client samples a fresh 2048-coefficient secret
-$s \leftarrow D_{\mathbb{Z},\sigma}^{d}$ with $d = 2048$ as specified
-in [Parameters].
+For each query, the client MUST sample one fresh packing/query secret
 
-The coefficient vector of $s$ induces the deployed selector LWE secret
-$s \in \mathbb{Z}_q^n$ from [Regev Encryption], and the same fresh
-secret is also used to derive the packing public parameters from
-$\mathsf{seed\_pack}$ in [PackingKeyGeneration].
+$$
+s^\star(X) = \sum_{j=0}^{d-1} s^\star_j X^j \in R_{q_2},
+$$
 
-The client MUST sample a fresh $s$ for every query. Reuse of $s$
-across queries can enable cross-query linkability (see
-[Privacy Implications]).
+where $d = 2048$, each coefficient $s^\star_j$ is sampled independently from
+$D_{\mathbb{Z},\sigma}$, and each sampled coefficient is then reduced modulo
+$q_2$.
+
+This same fresh secret is used in two roles:
+
+1. as the packing-level RLWE secret for [PackingKeyGeneration] and
+   [Packing-level RLWE Decryption], and
+2. as the source of the selector LWE secret used in [Regev Encryption].
+
+Because $q = q_2$ for this ZIP, the selector LWE secret is defined
+coefficient-wise from the same polynomial:
+
+$$
+\mathbf{s} = (s^\star_0, \ldots, s^\star_{d-1}) \in \mathbb{Z}_q^n,
+\qquad n = d = 2048.
+$$
+
+That is, the selector LWE secret is exactly the coefficient vector of the fresh
+RLWE secret polynomial, in increasing coefficient order from $X^0$ through
+$X^{d-1}$, with each coefficient interpreted in $\mathbb{Z}_q$ via its canonical
+representative in $\{0, \ldots, q-1\}$.
+
+The client MUST sample a fresh $s^\star$ for every PIR query. Reuse of $s^\star$
+across queries is not allowed.
 
 ### PackingKeyGeneration
 
-Define the function $\mathsf{GeneratePackingKey}(s)$ as follows, where
-$s \in R_{q_2}$ is a freshly sampled packing-level RLWE secret.
+Define the function $\mathsf{GeneratePackingKey}(s^\star)$ as follows, where
+$s^\star \in R_{q_2}$ is the fresh client secret sampled in
+[Client Key Generation].
 
 For any odd integer $k \in \{1, 3, \ldots, 2d - 1\}$, define the
 packing-level ring automorphism
@@ -791,6 +839,8 @@ Using fixed seeds is safe for both the deployed ring-based selector path and the
 
 #### ChaCha20 RNG Initialization
 
+TODO: consider if we want to keep this level of specification. This could be collapsed into "matching Rust RNG implementation".
+
 For each seed, implementations MUST initialize the ChaCha20-based seeded RNG as follows:
 
 - **Seed**: the 32-byte seed value from the table above.
@@ -816,7 +866,84 @@ Implementations MUST expand $\mathsf{seed\_A}$ as follows:
      - Set coefficient $j$ of $a$ to $w \bmod q$.
 5. Use these sampled ring elements, in order, as the public query-independent randomness of the deployed selector-generation procedure.
 
-When the deployed selector path is viewed in extracted LWE form, these same seeded ring elements induce the implicit public matrix used by the server's offline preprocessing.
+These seeded ring elements are converted into the implicit selector
+public matrix $A$ by the procedure defined in
+[Negacyclic Extraction of the Deployed Selector Matrix].
+
+#### Negacyclic Extraction of the Deployed Selector Matrix
+
+This subsection normatively defines the implicit public matrix
+$A \in \mathbb{Z}_q^{n \times m}$ used in [Regev Encryption], as derived
+from the seeded ring elements expanded from $\mathsf{seed\_A}$.
+
+Let $d = n = 2048$, let
+$R_q = \mathbb{Z}_q[X]/(X^d + 1)$, and let
+
+$$
+a(X) = \sum_{j=0}^{d-1} a_j X^j \in R_q
+$$
+
+be one seeded ring element expanded from $\mathsf{seed\_A}$.
+
+Define the negacyclic matrix
+$\mathsf{NCyc}(a) \in \mathbb{Z}_q^{d \times d}$ by requiring that, for
+every
+$\mathbf{x} = (x_0, \ldots, x_{d-1}) \in \mathbb{Z}_q^d$ with
+$x(X) = \sum_{j=0}^{d-1} x_j X^j$,
+
+$$
+\mathsf{NCyc}(a)\,\mathbf{x}
+$$
+
+is the coefficient vector, in increasing order from $X^0$ through
+$X^{d-1}$, of
+
+$$
+a(X)\cdot x(X) \bmod (X^d + 1).
+$$
+
+Equivalently, for each
+$c \in \{0, \ldots, d-1\}$, column $c$ of $\mathsf{NCyc}(a)$ is the
+coefficient vector of
+
+$$
+a(X)\cdot X^c \bmod (X^d + 1).
+$$
+
+Let $m$ be the number of database rows for the queried PIR tier, and let
+
+$$
+B = \left\lceil \frac{m}{d} \right\rceil.
+$$
+
+Implementations MUST expand exactly $B$ seeded ring elements from
+$\mathsf{seed\_A}$ in the order specified in
+[Expansion of $\mathsf{seed\_A}$ (Row-Selector Public Randomness)].
+Let these elements be
+$a^{(0)}(X), \ldots, a^{(B-1)}(X)$.
+
+For each block index $b \in \{0, \ldots, B-1\}$, define
+
+$$
+A^{(b)} = \mathsf{NCyc}(a^{(b)}).
+$$
+
+The implicit public matrix $A$ is the horizontal concatenation
+
+$$
+A = \left[ A^{(0)} \mid A^{(1)} \mid \cdots \mid A^{(B-1)} \right],
+$$
+
+with the final block truncated on the right if necessary so that $A$
+has exactly $m$ columns.
+
+Equivalently, for
+$j \in \{0, \ldots, m-1\}$, let
+$b = \lfloor j/d \rfloor$ and $c = j \bmod d$.
+Then column $j$ of $A$ is column $c$ of $\mathsf{NCyc}(a^{(b)})$.
+
+This negacyclic extraction procedure is normative for conforming
+implementations.
 
 #### Expansion of $\mathsf{seed\_pack}$ (Packing Public Randomness)
 
