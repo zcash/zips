@@ -456,15 +456,9 @@ $\mathsf{seed\_A}$ as specified in
 The deployed selector path does not sample an independent LWE secret vector.
 Instead, for each query the client samples one fresh ring secret
 $s^\star \in R_q = \mathbb{Z}_q[X]/(X^d + 1)$ as specified in
-[Client Key Generation], with $d = n = 2048$, and derives from it the selector
-LWE secret vector
-
-$$
-\mathbf{s} = (s^\star_0, \ldots, s^\star_{d-1}) \in \mathbb{Z}_q^n,
-$$
-
-where $s^\star_j$ denotes the coefficient of $X^j$ in $s^\star$, reduced modulo
-$q$ and interpreted via its canonical representative in $\{0, \ldots, q-1\}$.
+[Client Key Generation], with $d = n = 2048$. The selector LWE secret
+vector $\mathbf{s} \in \mathbb{Z}_q^n$ is derived from $s^\star$ as
+specified in [Client Key Generation].
 
 For each query, the client MUST also sample a fresh noise vector
 $e \leftarrow D_{\mathbb{Z},\sigma}^{m}$ and reduce each entry modulo $q$.
