@@ -679,22 +679,6 @@ complete the final packing chunk of length $d = 2048$, those words are
 internal YPIR padding and are not part of the serialized tier-row format
 defined by this ZIP.
 
-Let $T = (t_0, \ldots, t_{W_\mathsf{value}-1})$ be the ordered sequence of
-SimplePIR-level LWE ciphertexts corresponding to the selected PIR value,
-where $L_\mathsf{value}$ is the PIR value size in bytes fixed for the
-queried tier in [Parameters]. Let
-$W_\mathsf{value} = \lceil 8L_\mathsf{value} / 14 \rceil$ denote the
-number of packing-level plaintext words obtained from that
-$L_\mathsf{value}$-byte value by the canonical byte-to-word mapping in
-[Canonical Plaintext Packing], before any additional all-zero word
-padding used only to complete the final ciphertext chunk.
-
-The server MUST then apply the YPIR+SP packing procedure using the
-packing material associated with the client's query so that the
-resulting packed ciphertexts decrypt, under the client's fresh
-packing-level secret, to the same ordered plaintext words as the
-selected PIR value.
-
 ### CDKS Transformation
 
 Implement CDKS transformation as specified in [^CDKS].
@@ -702,6 +686,18 @@ Implement CDKS transformation as specified in [^CDKS].
 TODO: specify
 
 ### Packing
+
+Let $T = (t_0, \ldots, t_{W_\mathsf{value}-1})$ be the ordered sequence of
+SimplePIR-level LWE ciphertexts corresponding to the selected PIR value,
+where $L_\mathsf{value}$ is the PIR value size in bytes fixed for the
+queried tier in [Parameters] and $W_\mathsf{value}$ is determined from
+$L_\mathsf{value}$ by [Canonical Plaintext Packing], before any
+additional all-zero word padding used only to complete the final
+ciphertext chunk. The server MUST apply the YPIR+SP packing procedure
+using the packing material associated with the client's query so that
+the resulting packed ciphertexts decrypt, under the client's fresh
+packing-level secret, to the same ordered plaintext words as the
+selected PIR value.
 
 Define the function
 $\mathsf{PackSimplePIRResponse}(T, pk, L_\mathsf{value})$ as follows:
@@ -811,11 +807,10 @@ by this ZIP for that tier (12,224 bytes for Tier 1 and 24,512 bytes for
 Tier 2). For this ZIP, `L_value = L_row` for both tiers: Tier 1 uses
 12,224 bytes and Tier 2 uses 24,512 bytes. No explicit padding bytes are
 appended to the serialized rows before they are loaded into the PIR
-database. Let
-$W_\mathsf{value} = \lceil 8L_\mathsf{value} / 14 \rceil$ denote the
+database, as specified in [Parameters]. Let $W_\mathsf{value}$ be the
 number of plaintext words produced by the canonical byte-to-word mapping
-in [Canonical Plaintext Packing], before any all-zero word padding used
-only to complete the final ciphertext chunk.
+defined in [Canonical Plaintext Packing], before any all-zero word
+padding used only to complete the final ciphertext chunk.
 
 Given the server's response to a PIR query, the client MUST recover the
 selected tier row of length $L_\mathsf{row}$ for the queried tier. This
