@@ -251,8 +251,6 @@ $$
 c = A^T \cdot \mathbf{s} + e + \Delta \cdot \mu_i.
 $$
 
-This is the abstract LWE-form selector consumed by the SimplePIR first pass as defined in "Regev Encryption" specification.
-
 Regev encryption is linearly homomorphic: the server can multiply the
 database matrix $D$ by the encrypted query $c$ and obtain an encrypted
 version of the selected row, $D \cdot c = D \cdot A^T \cdot s + D \cdot e + \Delta \cdot (D \times \mu)$, without learning which row
