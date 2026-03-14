@@ -206,6 +206,47 @@ single-server privacy for the row selection.
 
 From the plaintext Tier 0 data and the Tier 1 and Tier 2 PIR responses, the client reconstructs the authentication path used to prove nullifier non-membership.
 
+## Hint
+
+After the server computes $\mathsf{answer} = D \cdot c$, the client
+holds:
+
+$$\mathsf{answer} = D \cdot A^T \cdot s + D \cdot e + \Delta \cdot (\text{selected row})$$
+
+To isolate the selected row, the client must subtract $D \cdot A^T \cdot s$. Computing this requires $D \cdot A^T$, which depends on the
+entire database — information the client does not have.
+
+The *hint* is the precomputed product $H = D \cdot A^T$, a matrix of
+dimensions $\sqrt{N} \times n$. With the hint in hand, the client
+computes $H \cdot s = D \cdot A^T \cdot s$ and subtracts it from the
+answer, leaving $D \cdot e + \Delta \cdot (\text{selected row})$.
+Standard rounding then recovers the row values.
+
+Because $A$ is independent of the query, the hint is the same for every
+client and every query. It is computed once by the server and can be
+distributed via CDN or bundled with the application. However, the hint
+must be recomputed whenever the database changes, and its size is
+proportional to $\sqrt{N}$, which becomes prohibitive for large
+databases.
+
+### SimplePIR Hint
+
+On a database of $N$ bytes, the hint size is roughly $4\sqrt{N}$ KB
+[^SimplePIR]:
+
+| Database size | Hint size            |
+|---------------|----------------------|
+| 100 KB        | $\approx$ 1.25 MB   |
+| 10 MB         | $\approx$ 12.6 MB   |
+| 1 GB          | 128 MB               |
+
+For the Tier 2 database in this document (6 GB, see
+[Tier 2: Large PIR (Depths 18–26)]), the hint would exceed 300 MB — far
+beyond what a cold-start mobile client can download before its first
+query. This motivates the move to YPIR+SP, which eliminates the hint
+entirely by packing the SimplePIR response into RLWE ciphertexts (see
+[YPIR+SP]).
+
 ## PIR Construction
 
 Next-generation PIR designs (YPIR, InsPIRe) build on top of SimplePIR, aiming to eliminate the hint and shrink response sizes. So we explain SimplePIR first.
@@ -364,47 +405,6 @@ recover the selector values. This works because the noise is small
 relative to the spacing
 $\Delta = \lfloor q / 2^{14} \rfloor = 4\,087\,810\,653\,052$.
 
-## Hint
-
-After the server computes $\mathsf{answer} = D \cdot c$, the client
-holds:
-
-$$\mathsf{answer} = D \cdot A^T \cdot s + D \cdot e + \Delta \cdot (\text{selected row})$$
-
-To isolate the selected row, the client must subtract $D \cdot A^T \cdot s$. Computing this requires $D \cdot A^T$, which depends on the
-entire database — information the client does not have.
-
-The *hint* is the precomputed product $H = D \cdot A^T$, a matrix of
-dimensions $\sqrt{N} \times n$. With the hint in hand, the client
-computes $H \cdot s = D \cdot A^T \cdot s$ and subtracts it from the
-answer, leaving $D \cdot e + \Delta \cdot (\text{selected row})$.
-Standard rounding then recovers the row values.
-
-Because $A$ is independent of the query, the hint is the same for every
-client and every query. It is computed once by the server and can be
-distributed via CDN or bundled with the application. However, the hint
-must be recomputed whenever the database changes, and its size is
-proportional to $\sqrt{N}$, which becomes prohibitive for large
-databases.
-
-### SimplePIR Hint
-
-On a database of $N$ bytes, the hint size is roughly $4\sqrt{N}$ KB
-[^SimplePIR]:
-
-| Database size | Hint size            |
-|---------------|----------------------|
-| 100 KB        | $\approx$ 1.25 MB   |
-| 10 MB         | $\approx$ 12.6 MB   |
-| 1 GB          | 128 MB               |
-
-For the Tier 2 database in this document (6 GB, see
-[Tier 2: Large PIR (Depths 18–26)]), the hint would exceed 300 MB — far
-beyond what a cold-start mobile client can download before its first
-query. This motivates the move to YPIR+SP, which eliminates the hint
-entirely by packing the SimplePIR response into RLWE ciphertexts (see
-[YPIR+SP]).
-
 ## YPIR+SP
 
 YPIR+SP [^YPIR] eliminates the hint by packing the SimplePIR response
@@ -416,6 +416,10 @@ one value per LWE ciphertext. This yields dramatically less ciphertext
 overhead, making it possible to compress the entire SimplePIR row
 response — which would otherwise require the hint for decryption — into
 a small number of RLWE ciphertexts that the client can decrypt directly.
+
+## Hint and Pre-processing
+
+TODO: specify this for YPIR+SP
 
 ### Client Key Generation
 
@@ -552,10 +556,7 @@ In the reference implementation, one such encoding is the byte string
 
 $$[\text{8-byte little-endian packed-query length}] \| [\mathsf{packed\_query\_row}\text{ as little-endian }\mathtt{u64}\text{s}] \| [\mathsf{pack\_pub\_params\_row\_1s\_pm}\text{ as little-endian }\mathtt{u64}\text{s}].$$
 
-### LWE-to-RLWE Packing
 
-After receiving the client's query material for row index $i$, the
-server computes the corresponding SimplePIR matrix-vector product.
 
 ### Canonical Plaintext Packing
 
@@ -593,6 +594,14 @@ resulting packed ciphertexts decrypt, under the client's fresh
 packing-level secret, to the same ordered plaintext words as the
 selected PIR value.
 
+### CDKS Transformation
+
+Implement CDKS transformation as specified in [^CDKS].
+
+TODO: specify
+
+### Packing
+
 Define the function
 $\mathsf{PackSimplePIRResponse}(T, pk, L_\mathsf{value})$ as follows:
 
@@ -602,7 +611,7 @@ $\mathsf{PackSimplePIRResponse}(T, pk, L_\mathsf{value})$ as follows:
    $(t_{j,0}, \ldots, t_{j,d-1})$ for $j \in \{0, \ldots, m-1\}$. If the
    final chunk is shorter than $d$, pad it with SimplePIR-level
    encryptions of zero so that it has exactly $d$ inputs.
-3. For each chunk $j$, apply the CDKS transformation [^CDKS] using the
+3. For each chunk $j$, apply the "CDKS Transformation" (see section) using the
    packing key $pk$, the canonical automorphism order
    $\tau_{2049}, \tau_{1025}, \tau_{513}, \tau_{257}, \tau_{129},
    \tau_{65}, \tau_{33}, \tau_{17}, \tau_{9}, \tau_{5}, \tau_{3}$, and
