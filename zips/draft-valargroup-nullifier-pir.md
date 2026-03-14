@@ -1503,6 +1503,36 @@ This asymmetric compression follows the YPIR design: it reduces response
 size substantially without sacrificing the correctness margin needed for
 recovering the packed PIR value.
 
+## Why A Is Negacyclic But the Database Is Not
+
+In the deployed selector path, the query uses ring structure, but the
+server still evaluates it as an implicit LWE selector. The earlier
+negacyclic extraction rule defines exactly which implicit public matrix
+$A$ corresponds to the seeded ring elements, so the ring-based query can
+be viewed coefficient-wise as the abstract selector
+$A^T \mathbf{s} + e + \Delta \mu_i$.
+
+Accordingly, the deployed query is not generated from an unstructured LWE
+matrix directly. Instead, the client encrypts a polynomial selector using
+ring structure, and the server's first pass still consumes the resulting
+LWE-form selector and produces the same kind of per-row LWE outputs that
+SimplePIR expects. YPIR+SP then packs those outputs into RLWE
+ciphertexts.
+
+This design gives the implementation the main benefit of ring structure
+without moving the full database representation into the ring. Keeping the
+public randomness for $A$ in negacyclic form enables NTT-friendly
+preprocessing and compact seeded expansion. Keeping the database in the
+ordinary SimplePIR matrix layout preserves the high-throughput online
+matrix-vector scan, avoiding the memory overhead and throughput loss that
+would result from representing the full database in the ring [^YPIR].
+
+In short, deriving $A$ from seeded ring elements enables compact public
+randomness and NTT-accelerated preprocessing, while keeping the database
+in the ordinary matrix domain preserves the fast SimplePIR-style online
+evaluation path. The RLWE packing step is then applied only to the
+resulting LWE-form outputs.
+
 ## Data Structure Split
 
 The 11 + 7 + 8 tier split balances three competing concerns:
