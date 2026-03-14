@@ -209,11 +209,12 @@ From the plaintext Tier 0 data and the Tier 1 and Tier 2 PIR responses, the clie
 
 ## PIR Construction
 
-PIR construction can be generalized to the following operations:
-- `Server_Setup`, server configures, pre-processes, and initializes the database. This produces a hint that clients download
-- `Client_Download`, optionally ran by the client to download the query-independent hints which we describe below.
+PIR constructions can be described in terms of the following generic operations.
+
+- `Server_Setup`, server configures, pre-processes, and initializes the database. This produces a hint that clients download.
+- `Client_Download`, optionally run by the client to download query-independent hints which we describe below.
    * Modern constructions aim to eliminate this step, including the chosen YPIR+SP. We keep it here for completeness of discussion.
-- `Client_Query`, client encrypts the query request and send it to the server
+- `Client_Query`, client encrypts the query request and sends it to the server.
 - `Server_Answer`, server responds to the client by applying the encrypted query vector against the plaintext database matrix.
 - `Client_Recover`, client decrypts the encrypted server response.
 
@@ -327,6 +328,37 @@ by eliminating the `Client_Download` step while compressing the
 query responses, making it practical for our use.
 
 # Specification
+
+## PIR Operations
+
+`Server_Setup`
+
+: Server-side initialization: the parameter set ([Parameters]),
+  database row serialization ([Instantiations]), public-seed expansion
+  ([Public Seeds]), and preprocessing artifacts including packing keys
+  ([PackingKeyGeneration]).
+
+`Client_Query`
+
+: Client-side query construction: fresh key generation
+  ([Client Key Generation]), row-selector encryption
+  ([Regev Encryption]), and packed query generation
+  ([Client Query Generation]).
+
+`Server_Answer`
+
+: Server-side response computation: selector application over the
+  database matrix, CDKS packing ([Packing]), and split modulus switching
+  ([Split Modulus Switching]).
+
+`Client_Recover`
+
+: Client-side response decryption: packing-level RLWE decryption
+  ([Packing-level RLWE Decryption]) and row recovery
+  ([Client Recovery of the Selected Row]).
+
+The end-to-end sequencing of these operations is specified in
+[Query Procedure].
 
 ## Parameters
 
