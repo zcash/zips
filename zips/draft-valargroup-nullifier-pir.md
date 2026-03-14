@@ -181,6 +181,7 @@ The following are explicitly out of scope:
   impose a latency floor determined by network conditions.
 - Retrieval of data other than nullifier exclusion proofs.
 - YPIR transport-level wire format between client and server.
+- Noise analysis. Refer to YPIR paper for noise and security analysis. We directly use the suggested values with no amendments [^YPIR].
 
 
 # High-level summary
@@ -208,7 +209,18 @@ From the plaintext Tier 0 data and the Tier 1 and Tier 2 PIR responses, the clie
 
 ## PIR Construction
 
-Next-generation PIR designs (YPIR, InsPIRe) build on top of SimplePIR, aiming to eliminate the hint and shrink response sizes. So we explain SimplePIR first.
+PIR construction can be generalized to the following operations:
+- `Server_Setup`, server configures, pre-processes, and initializes the database. This produces a hint that clients download
+- `Client_Download`, optionally ran by the client to download the query-independent hints which we describe below.
+   * Modern constructions aim to eliminate this step, including the chosen YPIR+SP. We keep it here for completeness of discussion.
+- `Client_Query`, client encrypts the query request and send it to the server
+- `Server_Answer`, server responds to the client by applying the encrypted query vector against the plaintext database matrix.
+- `Client_Recover`, client decrypts the encrypted server response.
+
+SimplePIR is the baseline design that downloads the hint from client to server.
+
+Next-generation PIR designs (YPIR, InsPIRe) evolve by eliminating the
+client-hint download and shrink response sizes.
 
 ### SimplePIR
 
@@ -233,6 +245,12 @@ using ChaCha20 [^ChaCha20] (see [Public Seeds] and [Regev Encryption]).
 Regev encryption [^Regev05] is the LWE-based scheme that encrypts the
 client's selection vector. It is the primary component on which query
 privacy depends (see [Privacy Implications]).
+
+$$
+c = A^T \cdot \mathbf{s} + e + \Delta \cdot \mu_i.
+$$
+
+This is the abstract LWE-form selector consumed by the SimplePIR first pass as defined in "Regev Encryption" specification.
 
 Regev encryption is linearly homomorphic: the server can multiply the
 database matrix $D$ by the encrypted query $c$ and obtain an encrypted
@@ -295,14 +313,18 @@ by SimplePIR. Instead, it packs the intermediate LWE-form response into
 a more compact RLWE form.
 
 YPIR+SP uses one fresh 2048-coefficient secret polynomial per query:
-- `s^\star`, whose coefficient vector defines the deployed row-selector
-  LWE secret `\mathbf{s}` and which is also used to derive the packing
+- $s^\star$, whose coefficient vector defines the deployed row-selector
+  LWE secret $\mathbf{s}$ and which is also used to derive the packing
   material and to decrypt the packed response.
 
 The client does not separately decrypt the intermediate SimplePIR
 response. Instead, the server uses `pk` to pack that response into RLWE
 ciphertexts decryptable under `s`, and the client recovers the
 returned response via the packing-level RLWE decryption procedure.
+
+This packing procedure allows to reduce total communication in YPIR+SP
+by eliminating the `Client_Download` step while compressing the
+query responses, making it practical for our use.
 
 # Specification
 
@@ -378,11 +400,7 @@ When this ZIP refers to sampling from $D_{\mathbb{Z},\sigma}$, the sampled value
 are integers. After sampling, each coefficient is reduced modulo the relevant
 ciphertext modulus to obtain an element of $\mathbb{Z}_q$ or $\mathbb{Z}_{q_2}$.
 
-For correctness and noise analysis, implementations MAY equivalently view such
-values via centered representatives in
-$\{ -\lfloor q/2 \rfloor, \ldots, \lceil q/2 \rceil - 1 \}$ or
-$\{ -\lfloor q_2/2 \rfloor, \ldots, \lceil q_2/2 \rceil - 1 \}$, but this
-centered interpretation MUST NOT be used for serialization, public-seed
+Centered representatives MUST NOT be used for serialization, public-seed
 expansion, or gadget decomposition unless explicitly stated.
 
 For [PackingKeyGeneration], [Split Modulus Switching], and all transport-facing
@@ -875,7 +893,7 @@ public matrix $A$ by the procedure defined in
 
 #### Negacyclic Extraction of the Deployed Selector Matrix
 
-This subsection normatively defines the implicit public matrix
+This subsection defines the implicit public matrix
 $A \in \mathbb{Z}_q^{n \times m}$ used in [Regev Encryption], as derived
 from the seeded ring elements expanded from $\mathsf{seed\_A}$.
 
@@ -944,9 +962,6 @@ Equivalently, for
 $j \in \{0, \ldots, m-1\}$, let
 $b = \lfloor j/d \rfloor$ and $c = j \bmod d$.
 Then column $j$ of $A$ is column $c$ of $\mathsf{NCyc}(a^{(b)})$.
-
-This negacyclic extraction procedure is normative for conforming
-implementations.
 
 #### Expansion of $\mathsf{seed\_pack}$ (Packing Public Randomness)
 
