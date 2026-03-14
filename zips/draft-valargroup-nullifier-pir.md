@@ -211,14 +211,14 @@ From the plaintext Tier 0 data and the Tier 1 and Tier 2 PIR responses, the clie
 After the server computes $\mathsf{answer} = D \cdot c$, the client
 holds:
 
-$$\mathsf{answer} = D \cdot A^T \cdot s + D \cdot e + \Delta \cdot (\text{selected row})$$
+$$\mathsf{answer} = D \cdot A^T \cdot \mathbf{s} + D \cdot e + \Delta \cdot (\text{selected row})$$
 
-To isolate the selected row, the client must subtract $D \cdot A^T \cdot s$. Computing this requires $D \cdot A^T$, which depends on the
+To isolate the selected row, the client must subtract $D \cdot A^T \cdot \mathbf{s}$. Computing this requires $D \cdot A^T$, which depends on the
 entire database — information the client does not have.
 
 The *hint* is the precomputed product $H = D \cdot A^T$, a matrix of
 dimensions $\sqrt{N} \times n$. With the hint in hand, the client
-computes $H \cdot s = D \cdot A^T \cdot s$ and subtracts it from the
+computes $H \cdot \mathbf{s} = D \cdot A^T \cdot \mathbf{s}$ and subtracts it from the
 answer, leaving $D \cdot e + \Delta \cdot (\text{selected row})$.
 Standard rounding then recovers the row values.
 
@@ -294,10 +294,10 @@ Its main innovation is eliminating the database-dependent hint required
 by SimplePIR. Instead, it packs the intermediate LWE-form response into
 a more compact RLWE form.
 
-YPIR+SP uses fresh 2048-coefficient secret per query:
-- `s`, whose coefficient vector induces the deployed row-selector LWE
-  secret and is also used to derive the packing material and to decrypt
-  the packed response.
+YPIR+SP uses one fresh 2048-coefficient secret polynomial per query:
+- `s^\star`, whose coefficient vector defines the deployed row-selector
+  LWE secret `\mathbf{s}` and which is also used to derive the packing
+  material and to decrypt the packed response.
 
 The client does not separately decrypt the intermediate SimplePIR
 response. Instead, the server uses `pk` to pack that response into RLWE
@@ -461,7 +461,7 @@ where $d = 2048$, each coefficient $s^\star_j$ is sampled independently from
 $D_{\mathbb{Z},\sigma}$, and each sampled coefficient is then reduced modulo
 $q_2$.
 
-This same fresh secret is used in two roles:
+This same fresh $s^\star$ is used in two roles:
 
 1. as the packing-level RLWE secret for [PackingKeyGeneration] and
    [Packing-level RLWE Decryption], and
@@ -517,8 +517,11 @@ canonical base-$B_\mathsf{ks}$ expansion of the corresponding
 coefficient of $f$ in $\{0, \ldots, q_2 - 1\}$.
 
 The digit index $u$ runs over the $L_\mathsf{ks} = 3$ gadget digits.
+For avoidance of doubt, the input polynomial to gadget decomposition is
+interpreted coefficient-wise via canonical representatives in
+$\{0, \ldots, q_2 - 1\}$.
 
-The function $\mathsf{GeneratePackingKey}(s)$ proceeds as follows:
+The function $\mathsf{GeneratePackingKey}(s^\star)$ proceeds as follows:
 
 1. Construct 33 public mask polynomials
    $a_{r,u} \in R_{q_2}$ for
@@ -533,7 +536,7 @@ The function $\mathsf{GeneratePackingKey}(s)$ proceeds as follows:
 
    with
 
-   $$b_{r,u} = a_{r,u} \cdot s + e_{r,u} + B_\mathsf{ks}^u \cdot \tau_{k_r}(s) \in R_{q_2}.$$
+   $$b_{r,u} = a_{r,u} \cdot s^\star + e_{r,u} + B_\mathsf{ks}^u \cdot \tau_{k_r}(s^\star) \in R_{q_2}.$$
 3. For each $r \in \{0, \ldots, 10\}$, define the key-switch matrix for
    automorphism $\tau_{k_r}$ as
 
@@ -558,14 +561,14 @@ $11 \cdot 3 \cdot 2048 \cdot 8 = 540{,}672$ bytes.
 For each PIR query, the client MUST construct fresh query material for
 the selected row index $i$ as follows:
 
-1. Sample a fresh $s$ as specified in [Client Key Generation].
+1. Sample a fresh $s^\star$ as specified in [Client Key Generation].
 2. Construct the row-selector vector $\mu_i$ as specified in [Regev
    Encryption].
 3. Generate the abstract LWE-form row selector
-   $c = A^T \cdot s + e + \Delta \cdot \mu_i$ as specified in
+   $c = A^T \cdot \mathbf{s} + e + \Delta \cdot \mu_i$ as specified in
    [Regev Encryption].
 4. Derive the condensed packing public parameter block
-   $\mathsf{pack\_pub\_params\_row\_1s\_pm}$ from $s$ and
+   $\mathsf{pack\_pub\_params\_row\_1s\_pm}$ from $s^\star$ and
    $\mathsf{seed\_pack}$. This is the implementation's transmitted
    representation of the packing material described abstractly in
    [PackingKeyGeneration].
@@ -576,13 +579,13 @@ the selected row index $i$ as follows:
    $\mathtt{u64}$ values.
 
 The client MUST generate fresh query material separately for each PIR
-query. Reuse of $s$ or of query material derived from it is not
+query. Reuse of $s^\star$ or of query material derived from it is not
 allowed. The query material MUST contain enough information for the
 server to evaluate the selected row query while preserving the privacy
 of the row index. In particular,
 $\mathsf{packed\_query\_row}$ hides which row is requested, and
 $\mathsf{pack\_pub\_params\_row\_1s\_pm}$ enables the server to produce a
-packed response decryptable under the client's $s$.
+packed response decryptable under the client's $s^\star$.
 
 Define the abstract client query object as
 
@@ -591,7 +594,7 @@ $$Q = (\mathsf{packed\_query\_row}, \mathsf{pack\_pub\_params\_row\_1s\_pm}).$$
 Here, $\mathsf{packed\_query\_row}$ is the transmitted packed row
 selector, and $\mathsf{pack\_pub\_params\_row\_1s\_pm}$ is the
 transmitted condensed packing public parameter block associated with the
-same fresh $s$.
+same fresh $s^\star$.
 
 The outer transport encoding used to carry $Q$ is out of scope for this
 ZIP. However, any conforming transport or API framing MUST preserve the
@@ -664,11 +667,11 @@ $\mathsf{PackSimplePIRResponse}(T, pk, L_\mathsf{value})$ as follows:
    $\tau_{2049}, \tau_{1025}, \tau_{513}, \tau_{257}, \tau_{129},
    \tau_{65}, \tau_{33}, \tau_{17}, \tau_{9}, \tau_{5}, \tau_{3}$, and
    the corresponding key-switch matrices output by
-   $\mathsf{GeneratePackingKey}(s)$ as specified in
+   $\mathsf{GeneratePackingKey}(s^\star)$ as specified in
    [PackingKeyGeneration] to produce one packing-level RLWE ciphertext
    $\widehat{C}_j = (\widehat{a}_j, \widehat{b}_j) \in R_{q_2}^2$ such
    that, for every slot index $\ell \in \{0, \ldots, d-1\}$, slot
-   $\ell$ of $\widehat{C}_j$ decrypts under $s$ to the same plaintext
+   $\ell$ of $\widehat{C}_j$ decrypts under $s^\star$ to the same plaintext
    value that $t_{j,\ell}$ decrypts to under the corresponding
    SimplePIR-level secret.
 4. Return the ordered packed sequence
@@ -735,13 +738,13 @@ $\mathsf{LiftModulusSwitchedRLWECiphertext}((a', b'))$ as follows:
 ### Packing-level RLWE Decryption
 
 Define the function
-$\mathsf{DecryptPackingRLWECiphertext}((a, b), s)$ for a packing-level
+$\mathsf{DecryptPackingRLWECiphertext}((a, b), s^\star)$ for a packing-level
 RLWE ciphertext $(a, b) \in R_{q_2}^2$ as follows:
 
 This decryption procedure is analogous to [Regev Encryption], but over
 the packing-level RLWE ring $R_{q_2}$ instead of the SimplePIR-level LWE space.
 
-1. Compute $u = b - a \cdot s \in R_{q_2}$.
+1. Compute $u = b - a \cdot s^\star \in R_{q_2}$.
 2. Let $\Delta_2 = \lfloor q_2 / p_2 \rfloor$, where $p_2 = 2^{14}$ is
    the packing-level plaintext modulus from [Parameters].
 3. For each coefficient of $u$, round to the nearest multiple of
@@ -779,7 +782,7 @@ follows:
    $\widetilde{C}_j = \mathsf{LiftModulusSwitchedRLWECiphertext}(C'_j)$
    for each $C'_j$.
 2. Compute
-   $\mathsf{DecryptPackingRLWECiphertext}(\widetilde{C}_j, s) = (v_{j,0}, \ldots, v_{j,d-1})$
+   $\mathsf{DecryptPackingRLWECiphertext}(\widetilde{C}_j, s^\star) = (v_{j,0}, \ldots, v_{j,d-1})$
    for each $\widetilde{C}_j$, obtaining slot values in $\mathbb{Z}_{p_2}$.
 3. Form the concatenated slot sequence
    $V = v_{0,0} \| \ldots \| v_{0,d-1} \| v_{1,0} \| \ldots \| v_{m-1,d-1}$.
