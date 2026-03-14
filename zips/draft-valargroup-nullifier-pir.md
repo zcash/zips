@@ -797,9 +797,8 @@ Let `L_value` be the PIR value size fixed for the selected database tier
 in [Parameters], and let `L_row` be the row serialization length defined
 by this ZIP for that tier (12,224 bytes for Tier 1 and 24,512 bytes for
 Tier 2). For this ZIP, `L_value = L_row` for both tiers: Tier 1 uses
-12,224 bytes and Tier 2 uses 24,512 bytes. No explicit padding bytes are
-appended to the serialized rows before they are loaded into the PIR
-database, as specified in [Parameters]. Let $W_\mathsf{value}$ be the
+12,224 bytes and Tier 2 uses 24,512 bytes, as specified in [Parameters].
+Let $W_\mathsf{value}$ be the
 number of plaintext words produced by the canonical byte-to-word mapping
 defined in [Canonical Plaintext Packing], before any all-zero word
 padding used only to complete the final ciphertext chunk.
