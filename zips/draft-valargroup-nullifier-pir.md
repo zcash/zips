@@ -197,133 +197,27 @@ The nullifier exclusion tree is split into three tiers:
 - Tier 1 contains depth-11 to depth-18 subtrees and is served as a PIR database.
 - Tier 2 contains depth-18 to depth-26 subtrees and is served as a PIR database.
 
-The client privately retrieves the Tier 1 row and Tier 2
-row corresponding to its target nullifier. Each row is
-selected with a Ring-generated row-selector query, and the server compresses the corresponding SimplePIR-style LWE
-response into a smaller RLWE form using the CDKS
-transformation. This avoids downloading the large
-client-side hint required by SimplePIR while preserving
-single-server privacy for the row selection.
-
-From the plaintext Tier 0 data and the Tier 1 and Tier 2 PIR responses, the client reconstructs the authentication path used to prove nullifier non-membership.
-
 ## PIR Construction
 
-PIR constructions can be described in terms of the following generic operations.
+Each proof retrieval consists of one plaintext download plus two
+sequential PIR queries:
 
-- `Server_Setup`, server configures, pre-processes, and initializes the database. This produces a hint that clients download.
-- `Client_Download`, optionally run by the client to download query-independent hints which we describe below.
-   * Modern constructions aim to eliminate this step, including the chosen YPIR+SP. We keep it here for completeness of discussion.
-- `Client_Query`, client encrypts the query request and sends it to the server.
-- `Server_Answer`, server responds to the client by applying the encrypted query vector against the plaintext database matrix.
-- `Client_Recover`, client decrypts the encrypted server response.
+1. The client obtains Tier 0 and uses the target nullifier to identify
+   the Tier 1 subtree index.
+2. The client issues a PIR query for the corresponding Tier 1 row.
+3. From the Tier 1 row, the client derives the Tier 2 row index and
+   issues a second PIR query.
+4. From Tier 0 and the recovered Tier 1 and Tier 2 rows, the client
+   reconstructs the depth-26 authentication path used for nullifier
+   non-membership.
+5. The client appends the 3 deterministic empty-subtree siblings needed
+   by the depth-29 Claim circuit.
 
-SimplePIR is the baseline design that downloads the hint from client to server.
-
-Next-generation PIR designs (YPIR, InsPIRe) evolve by eliminating the
-client-hint download and shrink response sizes.
-
-### SimplePIR
-
-In SimplePIR [^SimplePIR], the database is reshaped into a
-$\sqrt{N} \times \sqrt{N}$ matrix $D$ where each cell holds one byte.
-
-To retrieve row $i$ of $D$, the client constructs a *selection vector*
-$\mu$ — a unit vector that is 1 at position $i$ and 0 elsewhere. The
-product $D \times \mu$ then yields exactly row $i$. To hide which row
-is being retrieved, the client encrypts $\mu$ under Regev (LWE)
-encryption [^Regev05] and sends the ciphertext to the server, which
-computes the answer as a single matrix-vector product. This makes
-server throughput constrained by memory bandwidth rather than
-computation.
-
-The client requires a precomputed *hint* — the product of the database matrix with the public encryption matrix — to decrypt the response. This hint is proportional to $\sqrt{N}$ and can exceed 1 GB for large databases, making SimplePIR unsuitable for cold-start clients.
-
-The public random matrix $A$ (and its transpose $A^T$) is not transmitted;
-both client and server expand it deterministically from a shared seed
-using ChaCha20 [^ChaCha20] (see [Public Seeds] and [Regev Encryption]).
-
-Regev encryption [^Regev05] is the LWE-based scheme that encrypts the
-client's selection vector. It is the primary component on which query
-privacy depends (see [Privacy Implications]).
-
-$$
-c = A^T \cdot \mathbf{s} + e + \Delta \cdot \mu_i.
-$$
-
-Regev encryption is linearly homomorphic: the server can multiply the
-database matrix $D$ by the encrypted query $c$ and obtain an encrypted
-version of the selected row, $D \cdot c = D \cdot A^T \cdot s + D \cdot e + \Delta \cdot (D \times \mu)$, without learning which row
-was selected. This matrix-vector product is the entirety of the server's
-per-query work in SimplePIR.
-
-A critical property for PIR is that the matrix $A$ is independent of the
-message $\mu$. This allows the server to precompute the product $D \cdot A^T$ once, yielding the *hint* that clients use for decryption.
-
-## Hint
-
-After the server computes $\mathsf{answer} = D \cdot c$, the client
-holds:
-
-$$\mathsf{answer} = D \cdot A^T \cdot \mathbf{s} + D \cdot e + \Delta \cdot (\text{selected row})$$
-
-To isolate the selected row, the client must subtract $D \cdot A^T \cdot \mathbf{s}$. Computing this requires $D \cdot A^T$, which depends on the
-entire database — information the client does not have.
-
-The *hint* is the precomputed product $H = D \cdot A^T$, a matrix of
-dimensions $\sqrt{N} \times n$. With the hint in hand, the client
-computes $H \cdot \mathbf{s} = D \cdot A^T \cdot \mathbf{s}$ and subtracts it from the
-answer, leaving $D \cdot e + \Delta \cdot (\text{selected row})$.
-Standard rounding then recovers the row values.
-
-Because $A$ is independent of the query, the hint is the same for every
-client and every query. It is computed once by the server and can be
-distributed via CDN or bundled with the application. However, the hint
-must be recomputed whenever the database changes, and its size is
-proportional to $\sqrt{N}$, which becomes prohibitive for large
-databases.
-
-### SimplePIR Hint
-
-On a database of $N$ bytes, the hint size is roughly $4\sqrt{N}$ KB
-[^SimplePIR]:
-
-| Database size | Hint size            |
-|---------------|----------------------|
-| 100 KB        | $\approx$ 1.25 MB   |
-| 10 MB         | $\approx$ 12.6 MB   |
-| 1 GB          | 128 MB               |
-
-For the Tier 2 database in this document (6 GB, see
-[Tier 2: Large PIR (Depths 18–26)]), the hint would exceed 300 MB — far
-beyond what a cold-start mobile client can download before its first
-query. This motivates the move to YPIR+SP, which eliminates the hint
-entirely by packing the SimplePIR response into RLWE ciphertexts (see
-[YPIR+SP]).
-
-### YPIR+SP
-
-YPIR+SP builds on SimplePIR and inherits its matrix layout and the
-server's linear homomorphic evaluation of the client's row-selector
-query over the database.
-
-Its main innovation is eliminating the database-dependent hint required
-by SimplePIR. Instead, it packs the intermediate LWE-form response into
-a more compact RLWE form.
-
-YPIR+SP uses one fresh 2048-coefficient secret polynomial per query:
-- $s^\star$, whose coefficient vector defines the deployed row-selector
-  LWE secret $\mathbf{s}$ and which is also used to derive the packing
-  material and to decrypt the packed response.
-
-The client does not separately decrypt the intermediate SimplePIR
-response. Instead, the server uses `pk` to pack that response into RLWE
-ciphertexts decryptable under `s`, and the client recovers the
-returned response via the packing-level RLWE decryption procedure.
-
-This packing procedure allows to reduce total communication in YPIR+SP
-by eliminating the `Client_Download` step while compressing the
-query responses, making it practical for our use.
+For each PIR tier, the client hides the selected row with Regev
+encryption, the server evaluates the corresponding SimplePIR-style
+matrix-vector product, and YPIR+SP packs the resulting response into
+RLWE ciphertexts so that the client does not need a precomputed
+database hint.
 
 # Specification
 
@@ -1430,6 +1324,69 @@ roughly 56 bits overall, but realizes it as two smaller compatible
 factors so that the NTT-based implementation remains practical.
 
 ## Construction Choice
+
+SimplePIR is the baseline design that requires a client-download hint.
+Next-generation designs such as YPIR and InsPIRe aim to eliminate that
+step and reduce communication.
+
+### Why SimplePIR Is Not Enough
+
+In SimplePIR [^SimplePIR], the database is reshaped into a
+$\sqrt{N} \times \sqrt{N}$ matrix $D$ where each cell holds one byte.
+To retrieve row $i$, the client constructs a unit selection vector
+$\mu$, encrypts it under Regev [^Regev05], and sends the ciphertext to
+the server. The server then computes one matrix-vector product, so the
+online work is dominated by memory bandwidth rather than computation.
+
+The public random matrix $A$ (and its transpose $A^T$) is not
+transmitted; both client and server expand it deterministically from a
+shared seed using ChaCha20 [^ChaCha20] (see [Public Seeds] and
+[Regev Encryption]). Regev encryption is linearly homomorphic, so the
+server can evaluate the encrypted selector without learning which row
+was chosen.
+
+A critical property is that $A$ is independent of the message $\mu$.
+This allows the server to precompute the product $D \cdot A^T$ once,
+yielding the SimplePIR hint. After the server computes
+$\mathsf{answer} = D \cdot c$, the client would subtract
+$D \cdot A^T \cdot \mathbf{s}$ using that hint and then recover the
+selected row by rounding. Because the hint depends on the full
+database, it must be recomputed whenever the database changes, and its
+size grows with $\sqrt{N}$.
+
+On a database of $N$ bytes, the hint size is roughly $4\sqrt{N}$ KB
+[^SimplePIR]:
+
+| Database size | Hint size            |
+|---------------|----------------------|
+| 100 KB        | $\approx$ 1.25 MB   |
+| 10 MB         | $\approx$ 12.6 MB   |
+| 1 GB          | 128 MB               |
+
+For the Tier 2 database in this document (6 GB, see
+[Tier 2: Large PIR (Depths 18–26)]), the hint would exceed 300 MB. That
+is far beyond what a cold-start mobile client can download before its
+first query.
+
+### Why YPIR+SP Fits This ZIP
+
+YPIR+SP builds on SimplePIR and inherits its matrix layout and the
+server's linear homomorphic evaluation of the client's row-selector
+query over the database. Its key improvement is that it eliminates the
+database-dependent hint by packing the intermediate LWE-form response
+into a more compact RLWE form.
+
+YPIR+SP uses one fresh 2048-coefficient secret polynomial per query:
+$s^\star$, whose coefficient vector defines the deployed row-selector
+LWE secret $\mathbf{s}$ and which is also used to derive the packing
+material and decrypt the packed response.
+
+The client does not separately decrypt the intermediate SimplePIR
+response. Instead, the server uses `pk` to pack that response into RLWE
+ciphertexts decryptable under `s^\star`, and the client recovers the
+returned response via the packing-level RLWE decryption procedure. This
+eliminates the `Client_Download` step while also compressing the query
+responses, making the construction practical for this ZIP.
 
 YPIR+SP and InsPIRe build on SimplePIR while supporting full-row retrieval (see [YPIR+SP]).
 
