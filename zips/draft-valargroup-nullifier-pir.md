@@ -355,17 +355,16 @@ specified in [Client Key Generation].
 
 For each query, the client MUST also sample a fresh noise vector
 $e \leftarrow D_{\mathbb{Z},\sigma}^{m}$ and reduce each entry modulo $q$.
-The abstract selector is then
+Let $d^{-1}$ denote the
+multiplicative inverse of the ring degree $d$ modulo $q$. The client MUST
+form the deployed selector as
 
 $$
-c = A^T \cdot \mathbf{s} + e + \Delta \cdot \mu_i.
+c = A^T \cdot \mathbf{s} + d^{-1} \cdot e + \Delta \cdot d^{-1} \cdot \mu_i.
 $$
 
-This is the abstract LWE-form selector consumed by the SimplePIR first pass.
-
-TODO: decide if below is specification or implementation specific.
-
-The selector is generated through ring-based routines and transmitted in a packed extracted representation.
+This scales both the sampled noise and the unique nonzero selector entry
+by $d^{-1}$ before ring-based encryption and extraction.
 
 When the deployed ring-generated selector path is viewed in LWE form, the same
 fresh secret $\mathbf{s}$ is paired with the public matrix induced by the seeded ring blocks under the negacyclic extraction convention.
@@ -497,9 +496,9 @@ the selected row index $i$ as follows:
 1. Sample a fresh $s^\star$ as specified in [Client Key Generation].
 2. Construct the row-selector vector $\mu_i$ as specified in [Regev
    Encryption].
-3. Generate the abstract LWE-form row selector
-   $c = A^T \cdot \mathbf{s} + e + \Delta \cdot \mu_i$ as specified in
-   [Regev Encryption].
+3. Generate the deployed row selector
+   $c = A^T \cdot \mathbf{s} + d^{-1} \cdot e + \Delta \cdot d^{-1} \cdot \mu_i$
+   as specified in [Regev Encryption], where $d^{-1}$ is taken modulo $q$.
 4. Generate the packing key
    $pk = \mathsf{GeneratePackingKey}(s^\star)$ as specified in
    [PackingKeyGeneration].
@@ -585,6 +584,15 @@ $\mathsf{PackSimplePIRResponse}(T, pk, L_\mathsf{value})$ as follows:
    $\ell$ of $\widehat{C}_j$ decrypts under $s^\star$ to the same plaintext
    value that $t_{j,\ell}$ decrypts to under the corresponding
    SimplePIR-level secret.
+   For the deployed packing-enabled selector path, this step MUST also
+   restore the selector pre-scaling from [Regev Encryption]: the packed
+   payload contribution derived from the accumulated SimplePIR $b$-values
+   MUST be multiplied by $d$ modulo
+   $q_2$, or an algebraically equivalent transformation MUST be applied,
+   so that the packed ciphertexts implement the effective selector
+   semantics $A^T \cdot \mathbf{s} + e + \Delta \cdot \mu_i$ rather than
+   the pre-scaled form $A^T \cdot \mathbf{s} + d^{-1} \cdot e + \Delta
+   \cdot d^{-1} \cdot \mu_i$.
 4. Return the ordered packed sequence
    $\widehat{R} = (\widehat{C}_0, \ldots, \widehat{C}_{m-1})$.
 
@@ -1469,8 +1477,14 @@ In the deployed selector path, the query uses ring structure, but the
 server still evaluates it as an implicit LWE selector. The earlier
 negacyclic extraction rule defines exactly which implicit public matrix
 $A$ corresponds to the seeded ring elements, so the ring-based query can
-be viewed coefficient-wise as the abstract selector
-$A^T \mathbf{s} + e + \Delta \mu_i$.
+be viewed coefficient-wise, before packing restoration, as the deployed
+selector
+$A^T \mathbf{s} + d^{-1} e + \Delta d^{-1} \mu_i$.
+
+On the packing-enabled path, the server's packing procedure later restores
+that factor by multiplying the packed $b$ contribution by $d$ modulo
+$q_2$, yielding the effective selector semantics
+$A^T \mathbf{s} + e + \Delta \mu_i$ at the packed/decrypted level.
 
 Accordingly, the deployed query is not generated from an unstructured LWE
 matrix directly. Instead, the client encrypts a polynomial selector using
