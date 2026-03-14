@@ -739,45 +739,52 @@ cryptography. Circular security is a well-studied additional assumption shared w
 
 ### Public Seeds
 
-Public randomness in the deployed `YPIR+SP` protocol is not transmitted. Both client and server MUST derive it deterministically from protocol-fixed 32-byte seeds using the ChaCha20-based seeded RNG.
+#### Public-Ring-Element Expansion
 
-| Seed name | Byte value (hex) | Purpose |
-|---|---|---|
-| $\mathsf{seed\_A}$ | $\mathtt{0x00}^{32}$ | Public randomness for the deployed row-selector query |
-| $\mathsf{seed\_pack}$ | $\mathtt{0x02} \| \mathtt{0x00}^{31}$ | Packing public randomness |
+For the packed RLWE layer, each seeded public ring element is sampled as
+an element of
 
-These seeds are protocol constants. The same public randomness is reused across all queries, all clients, and all Protocol Epochs. Neither party transmits the expanded public objects; both parties expand them locally from the shared seeds.
+$$
+R_q = \mathbb{Z}_q[X]/(X^d + 1)
+$$
 
-Using fixed seeds is safe for both the deployed ring-based selector path and the packing RLWE path. The underlying hardness assumptions remain hard even for adversarially chosen public matrices. Per-query privacy is provided by the client's fresh secret material and fresh noise; the public seeds determine only the query-independent public-random part.
+using canonical representatives in $\{0, \ldots, q-1\}$.
 
-#### ChaCha20 RNG Initialization
+To sample one seeded public ring element
+$a(X) = \sum_{j=0}^{d-1} a_j X^j \in R_q$ from a ChaCha20-based seeded
+RNG, implementations MUST proceed as follows:
 
-TODO: consider if we want to keep this level of specification. This could be collapsed into "matching Rust RNG implementation".
+1. For coefficient indices $j = 0, \ldots, d-1$ in increasing order:
+   - Read one 64-bit output word $w$ from the RNG.
+   - Set
+     $a_j = w \bmod q$,
+     interpreted in $\{0, \ldots, q-1\}$.
+2. Return the resulting polynomial $a(X)$.
 
-For each seed, implementations MUST initialize the ChaCha20-based seeded RNG as follows:
+No rejection sampling is used.
 
-- **Seed**: the 32-byte seed value from the table above.
-- **Stream identifier**: 0.
-- **Initial position**: word position 0.
-
-This specification uses ChaCha20 with 20 rounds in the original 64/64 configuration: a 64-bit block counter and a 64-bit stream identifier, both initialized to zero. It does not use the IETF ChaCha20 profile with a 96-bit nonce and a 32-bit block counter.
-
-The RNG yields an unlimited pseudorandom stream. For each public object derived from a given seed, implementations MUST initialize the RNG from that seed and consume outputs sequentially from the beginning. No seeking is used within a derivation.
+Implementations MUST NOT instead sample public ring elements by drawing
+separate residues independently modulo $q_{2,1}$ and $q_{2,2}$ and then
+CRT-composing them.
 
 #### Expansion of $\mathsf{seed\_A}$ (Row-Selector Public Randomness)
 
-$\mathsf{seed\_A}$ defines the public randomness used by the deployed row-selector query.
+$\mathsf{seed\_A}$ defines the public randomness used by the deployed
+row-selector query.
 
 Implementations MUST expand $\mathsf{seed\_A}$ as follows:
 
-1. Initialize the ChaCha20-based seeded RNG from $\mathsf{seed\_A}$ as specified in [ChaCha20 RNG Initialization].
-2. Let $d = 2048$ be the ring dimension from [Parameters]. Let $R_q = \mathbb{Z}_q[X]/(X^d + 1)$.
-3. Let the selector consist of consecutive ring blocks indexed in increasing order.
-4. For each block index, sample one public ring element $a \in R_q$ coefficient-wise from the RNG:
-   - For each coefficient index $j \in \{0, \ldots, d - 1\}$:
-     - Read one 64-bit output word $w$ from the RNG.
-     - Set coefficient $j$ of $a$ to $w \bmod q$.
-5. Use these sampled ring elements, in order, as the public query-independent randomness of the deployed selector-generation procedure.
+1. Initialize the ChaCha20-based seeded RNG from $\mathsf{seed\_A}$ as
+   specified in [ChaCha20 RNG Initialization].
+2. Let $d = 2048$ be the ring dimension from [Parameters].
+3. Let the selector consist of consecutive ring blocks indexed in
+   increasing order.
+4. For each block index, sample one public ring element in
+   $R_q = \mathbb{Z}_q[X]/(X^d + 1)$ by the procedure in
+   [Public-Ring-Element Expansion].
+5. Use these sampled ring elements, in order, as the public
+   query-independent randomness of the deployed selector-generation
+   procedure.
 
 These seeded ring elements are converted into the implicit selector
 public matrix $A$ by the procedure defined in
@@ -857,7 +864,8 @@ Then column $j$ of $A$ is column $c$ of $\mathsf{NCyc}(a^{(b)})$.
 
 #### Expansion of $\mathsf{seed\_pack}$ (Packing Public Randomness)
 
-The packing public randomness consists of 33 public ring elements $a_{r,u} \in R_q$, indexed by:
+The packing public randomness consists of 33 public ring elements
+$a_{r,u} \in R_q$, indexed by:
 
 - $r \in \{0, \ldots, 10\}$,
 - $u \in \{0, 1, 2\}$.
@@ -866,16 +874,18 @@ The iteration order is row-major in $(r,u)$, with $r$ outermost.
 
 Implementations MUST expand $\mathsf{seed\_pack}$ as follows:
 
-1. Initialize the ChaCha20-based seeded RNG from $\mathsf{seed\_pack}$ as specified in [ChaCha20 RNG Initialization].
+1. Initialize the ChaCha20-based seeded RNG from $\mathsf{seed\_pack}$
+   as specified in [ChaCha20 RNG Initialization].
 2. For each index pair $(r,u)$ in row-major order:
-   - Sample one ring element $a_{r,u} \in R_q$ coefficient-wise.
-   - For each coefficient index $j \in \{0, \ldots, d - 1\}$, where $d = 2048$:
-     - Read one 64-bit output word $w$ from the RNG.
-     - Set coefficient $j$ of $a_{r,u}$ to $w \bmod q$.
+   - Sample one ring element
+     $a_{r,u} \in R_q = \mathbb{Z}_q[X]/(X^d + 1)$
+     by the procedure in [Public-Ring-Element Expansion], with
+     $d = 2048$.
 
-No rejection sampling is used: each coefficient is the direct remainder of the sampled 64-bit word modulo $q$.
-
-These 33 seeded ring elements are the public-random part of the packing public parameters. The client transmits only the complementary secret/noise-dependent second rows; the corresponding seeded public rows are reconstructed by the server from $\mathsf{seed\_pack}$.
+These 33 seeded ring elements are the public-random part of the packing
+public parameters. The client transmits only the complementary
+secret/noise-dependent second rows; the corresponding seeded public rows
+are reconstructed by the server from $\mathsf{seed\_pack}$.
 
 ## Instantiations
 
