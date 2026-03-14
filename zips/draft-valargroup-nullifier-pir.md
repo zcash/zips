@@ -1236,9 +1236,8 @@ These are Tier 2 subtree roots, each containing a 32-byte hash and a
 
 **Row total: 12,224 bytes (11.9 KB).**
 
-The Tier 1 PIR value size is 12,224 bytes, equal to the serialized row
-length. Rows are loaded into the PIR database exactly as serialized
-below.
+The PIR value size for this tier is given in [Parameters]. Rows are
+loaded into the PIR database exactly as serialized below.
 
 | Metric | Value |
 |---|---|
@@ -1312,9 +1311,8 @@ hash is computed as $\mathsf{Hash}(\mathsf{low} \| \mathsf{width})$.
 
 **Row total: 24,512 bytes (23.9 KB).**
 
-The Tier 2 PIR value size is 24,512 bytes, equal to the serialized row
-length. Rows are loaded into the PIR database exactly as serialized
-below.
+The PIR value size for this tier is given in [Parameters]. Rows are
+loaded into the PIR database exactly as serialized below.
 
 | Metric | Value |
 |---|---|
