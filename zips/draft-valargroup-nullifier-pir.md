@@ -499,46 +499,29 @@ the selected row index $i$ as follows:
 3. Generate the abstract LWE-form row selector
    $c = A^T \cdot \mathbf{s} + e + \Delta \cdot \mu_i$ as specified in
    [Regev Encryption].
-4. Derive the condensed packing public parameter block
-   $\mathsf{pack\_pub\_params\_row\_1s\_pm}$ from $s^\star$ and
-   $\mathsf{seed\_pack}$. This is the implementation's transmitted
-   representation of the packing material described abstractly in
+4. Generate the packing key
+   $pk = \mathsf{GeneratePackingKey}(s^\star)$ as specified in
    [PackingKeyGeneration].
-5. Derive $\mathsf{packed\_query\_row}$ from that selector by taking the
-   packed transmitted representation used by the deployed simplepir
-   implementation. The resulting
-   $\mathsf{packed\_query\_row}$ is a length-$m$ vector of CRT-packed
-   $\mathtt{u64}$ values.
+5. Form the abstract client query object
+
+   $$
+   Q = (c, pk).
+   $$
 
 The client MUST generate fresh query material separately for each PIR
 query. Reuse of $s^\star$ or of query material derived from it is not
 allowed. The query material MUST contain enough information for the
 server to evaluate the selected row query while preserving the privacy
-of the row index. In particular,
-$\mathsf{packed\_query\_row}$ hides which row is requested, and
-$\mathsf{pack\_pub\_params\_row\_1s\_pm}$ enables the server to produce a
-packed response decryptable under the client's $s^\star$.
-
-Define the abstract client query object as
-
-$$Q = (\mathsf{packed\_query\_row}, \mathsf{pack\_pub\_params\_row\_1s\_pm}).$$
-
-Here, $\mathsf{packed\_query\_row}$ is the transmitted packed row
-selector, and $\mathsf{pack\_pub\_params\_row\_1s\_pm}$ is the
-transmitted condensed packing public parameter block associated with the
-same fresh $s^\star$.
+of the row index. In particular, $c$ hides which row is requested, and
+$pk$ enables the server to produce a packed response decryptable under
+the client's $s^\star$.
 
 The outer transport encoding used to carry $Q$ is out of scope for this
 ZIP. However, any conforming transport or API framing MUST preserve the
-same abstract query object $Q$, including the order of the
-$\mathtt{u64}$ values in $\mathsf{packed\_query\_row}$ and the order of
-the $\mathtt{u64}$ values in
-$\mathsf{pack\_pub\_params\_row\_1s\_pm}$.
-
-In the reference implementation, one such encoding is the byte string
-
-$$[\text{8-byte little-endian packed-query length}] \| [\mathsf{packed\_query\_row}\text{ as little-endian }\mathtt{u64}\text{s}] \| [\mathsf{pack\_pub\_params\_row\_1s\_pm}\text{ as little-endian }\mathtt{u64}\text{s}].$$
-
+same abstract query object $Q$, including the distinction between the
+row selector $c$ and the packing key $pk$, and the ordering of the
+components within each object as specified by [Regev Encryption] and
+[PackingKeyGeneration].
 
 
 ### Canonical Plaintext Packing
