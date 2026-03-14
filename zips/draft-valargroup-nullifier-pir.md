@@ -484,8 +484,16 @@ exactly 33 RLWE ciphertexts.
 
 Concrete byte encoding of the packing key is out of scope for this ZIP.
 
-In the reference implementation, the transmitted condensed packing
-public parameter block occupies
+For the seeded representation deployed by this ZIP, the client transmits
+only the condensed packing-key component
+$pk_\mathsf{condensed} = (b_{0,0}, b_{0,1}, b_{0,2}, \ldots, b_{10,2})$,
+that is, the secret/noise-dependent second rows of the 33 RLWE
+ciphertexts in row-major $(r,u)$ order. The corresponding seeded public
+rows $(a_{r,u})$ are not transmitted; the server reconstructs them from
+$\mathsf{seed\_pack}$ as specified in [Public Seeds].
+
+In the reference implementation, the transmitted condensed packing-key
+component occupies
 $11 \cdot 3 \cdot 2048 \cdot 8 = 540{,}672$ bytes.
 
 ### Client Query Generation
@@ -502,25 +510,49 @@ the selected row index $i$ as follows:
 4. Generate the packing key
    $pk = \mathsf{GeneratePackingKey}(s^\star)$ as specified in
    [PackingKeyGeneration].
-5. Form the abstract client query object
+5. Form the abstract query material
 
    $$
-   Q = (c, pk).
+   (c, pk).
+   $$
+
+6. For the deployed seeded representation specified by this ZIP, the
+   client MUST transmit only the query-dependent selector component
+   $c_\mathsf{online}$ and the condensed packing-key component
+   $pk_\mathsf{condensed}$.
+
+Here:
+
+- $c_\mathsf{online}$ is the transmitted query-dependent selector
+  component derived from the deployed selector-generation procedure.
+- $pk_\mathsf{condensed}$ contains only the secret/noise-dependent second
+  rows of the automorphism-specific key-switch matrices in $pk$.
+
+The corresponding public/query-independent components of the selector
+and packing key MUST NOT be transmitted. They are reconstructed by the
+server from the fixed public seeds $\mathsf{seed\_A}$ and
+$\mathsf{seed\_pack}$ as specified in [Public Seeds].
+
+7. Form the deployed transmitted query object
+
+   $$
+   Q = (c_\mathsf{online}, pk_\mathsf{condensed}).
    $$
 
 The client MUST generate fresh query material separately for each PIR
 query. Reuse of $s^\star$ or of query material derived from it is not
-allowed. The query material MUST contain enough information for the
-server to evaluate the selected row query while preserving the privacy
-of the row index. In particular, $c$ hides which row is requested, and
-$pk$ enables the server to produce a packed response decryptable under
-the client's $s^\star$.
+allowed.
 
-Any conforming transport or API framing MUST preserve the
-same abstract query object $Q$, including the distinction between the
-row selector $c$ and the packing key $pk$, and the ordering of the
-components within each object as specified by [Regev Encryption] and
-[PackingKeyGeneration].
+Using the fixed public seeds together with the transmitted query object
+$Q$, the server obtains enough information to evaluate the selected row
+query while preserving the privacy of the row index. In particular,
+$c_\mathsf{online}$ carries the query-dependent selector information,
+while $pk_\mathsf{condensed}$ enables response packing under the client's
+fresh $s^\star$ once the omitted public rows are reconstructed.
+
+Any conforming transport or API framing MUST preserve the order of the
+components of $Q$ and the ordering of the automorphism and gadget-digit
+indices within $pk_\mathsf{condensed}$.
 
 
 ### Canonical Plaintext Packing
@@ -712,17 +744,23 @@ follows:
 
 The protocol proceeds as follows:
 
-1. The client computes
-   the abstract client query object $Q$ for row index $i$ as specified in
+1. The client computes the deployed transmitted query object
+   $Q = (c_\mathsf{online}, pk_\mathsf{condensed})$ for row index $i$ as specified in
    [Client Query Generation].
 2. The client sends $Q$ to the server using an implementation-defined
    transport encoding.
-3. The server reconstructs the same abstract query object $Q$, evaluates
-   it over the selected PIR database tier, and computes the abstract
-   server response object $R$.
-4. The server returns $R$ using an implementation-defined transport
+3. The server reconstructs the omitted public/query-independent
+   packing-key components from $\mathsf{seed\_pack}$ as specified in
+   [Public Seeds].
+4. Using the received $c_\mathsf{online}$, the reconstructed packing-key
+   public components, and the public selector semantics induced by
+   $\mathsf{seed\_A}$, the server evaluates the same deployed query
+   semantics specified by [Regev Encryption] and [PackingKeyGeneration]
+   over the selected PIR database tier and computes the abstract server
+   response object $R$.
+5. The server returns $R$ using an implementation-defined transport
    encoding.
-5. The client recovers the returned row as
+6. The client recovers the returned row as
    $\mathsf{DecodeYPIRSPResponse}(R, L_\mathsf{value}, L_\mathsf{row})$
    in the sense specified in [Client Recovery of the Selected Row].
 
@@ -1262,10 +1300,12 @@ $8160 + 64i \ldots 8191 + 64i$.
 | **Total (first query)** | **3.2 MB** | **~324 KB** | **~3.5 MB** |
 | **Total (Tier 0 cached)** | **3.2 MB** | **~132 KB** | **~3.3 MB** |
 
-Upload is dominated by the Tier 2 packed row selector
+Upload is dominated by the Tier 2 query-dependent selector component
 ($\mathsf{packed\_query\_row}$, proportional to the number of database
-rows) and the transmitted packing public parameter block. In the
-reference implementation, that block occupies 540,672 bytes (528 KiB).
+rows) and the transmitted condensed packing-key component.
+
+In our implementation, the packing key component occupies 540,672 bytes (528 KiB).
+
 Downloads are small because RLWE packing compresses the row response
 efficiently.
 
