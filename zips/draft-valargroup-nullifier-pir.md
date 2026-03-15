@@ -381,9 +381,117 @@ overhead, making it possible to compress the entire SimplePIR row
 response — which would otherwise require the hint for decryption — into
 a small number of RLWE ciphertexts that the client can decrypt directly.
 
-## Hint and Pre-processing
+## Pre-processing
 
-TODO: specify this for YPIR+SP
+The server computation splits into a query-independent offline phase
+and a query-dependent online phase. The CDKS packing transformation
+from [CDKS Transformation] is linear in the second-row (scalar)
+components of its input ciphertexts. This allows precomputation of
+everything that depends only on the first-row (vector) components,
+which are determined entirely by $\mathsf{seed\_A}$ and the database.
+
+### Server Pre-processing
+
+Before any client query arrives, the server MUST precompute the
+following query-independent artifacts for the active PIR database
+tier. Let $m$ be the number of database rows, $W$ the number of
+14-bit plaintext-word columns (from [Canonical Plaintext Packing]),
+and let $d = 2048$.
+
+1. **Selector hint.** Let
+   $A \in \mathbb{Z}_q^{n \times m}$ be the implicit public matrix
+   from [Negacyclic Extraction of the Deployed Selector Matrix].
+   Compute
+
+   $$
+   H = A \cdot \mathsf{DB} \in \mathbb{Z}_q^{n \times W},
+   $$
+
+   where $\mathsf{DB} \in \mathbb{Z}_q^{m \times W}$ is the packed
+   plaintext database from [Canonical Plaintext Packing].
+
+   Column $k$ of $H$ is the $\mathbf{a}$-component of the
+   SimplePIR-level ciphertext $t_k$ for any query — it does not
+   depend on the client's secret or selector.
+
+2. **Lifted placeholder ciphertexts.** For each packing chunk
+   $j \in \{0, \ldots, \lceil W/d \rceil - 1\}$, form $d$ placeholder
+   ciphertexts $t^\mathsf{off}_k = (\mathbf{h}_k, 0)$ where
+   $\mathbf{h}_k$ is column $k$ of $H$ and the scalar component is
+   zero. Apply the negacyclic lifting from [CDKS Transformation] to
+   obtain
+   $\overline{t}^\mathsf{off}_k = (\overline{a}_k(X), 0)$.
+
+3. **Packing precomputation.** For each chunk, evaluate the CDKS
+   packing tree on the lifted placeholders
+   $(\overline{t}^\mathsf{off}_0, \ldots,
+   \overline{t}^\mathsf{off}_{d-1})$, using the seeded packing
+   public parameters reconstructed from $\mathsf{seed\_pack}$ with
+   a zero secret. Store the resulting first-row polynomial and
+   per-level intermediate state (gadget-decomposition products and
+   automorphism index tables).
+
+4. **Packing constants.** Precompute
+   $Y_\ell = X^{d/2^\ell}$ and $-Y_\ell$ in evaluation form for
+   $\ell \in \{1, \ldots, L\}$.
+
+Every retained offline artifact MUST be a deterministic function of
+the database and the fixed public seeds only. Any secret or noise
+values used internally during packing precomputation (e.g. the zero
+secret in step 3) MUST be either zero, discarded, or algebraically
+irrelevant to the retained state. The artifacts MUST be recomputed
+when the database changes. They do not depend on any client secret
+or query.
+
+### Server Online Evaluation
+
+Given the precomputed artifacts from [Server Pre-processing] and a
+received query $Q = (c_\mathsf{online}, pk_\mathsf{condensed})$, the
+server MUST compute the packed response as follows:
+
+1. **Database scan.** Compute the query-dependent scalar components
+
+   $$
+   b'_k = \sum_{j=0}^{m-1}
+     \mathsf{DB}[j][k] \cdot c_\mathsf{online}[j]
+   \pmod{q}
+   $$
+
+   for each plaintext-word column $k \in \{0, \ldots, W-1\}$.
+   For indices $k \geq W$ (padding positions in the final chunk),
+   define $b'_k = 0$.
+
+2. **Reconstruct packing key.** Recover the full packing key from
+   $pk_\mathsf{condensed}$ and $\mathsf{seed\_pack}$ using the
+   convention in [Packing-Level Ciphertext Convention].
+
+3. **Online packing.** For each packing chunk $j$, combine the
+   precomputed first-row result and intermediate packing-tree state
+   from [Server Pre-processing] with the client's packing-key
+   second rows from $pk_\mathsf{condensed}$ to obtain the packed
+   ciphertext $\widehat{C}_j = (\widehat{a}_j, \widehat{b}_j)$:
+
+   - $\widehat{a}_j$ is the precomputed first-row polynomial
+     (query-independent).
+
+   - $\widehat{b}_j$ is formed by adding two contributions:
+     the second-row result from the online packing-tree traversal
+     using $pk_\mathsf{condensed}$, and the $d$-restored online
+     $b$-values:
+
+     $$
+     \widehat{b}_j \mathrel{+}= \sum_{z=0}^{d-1}
+       (d \cdot b'_{jd+z} \bmod q_2)\, X^z.
+     $$
+
+     This restores the factor of $d$ removed by the client's
+     $d^{-1}$ pre-scaling in [Regev Encryption].
+
+4. **Modulus switching.** Apply [Split Modulus Switching] to each
+   $\widehat{C}_j$.
+
+The resulting sequence of modulus-switched packed RLWE ciphertexts
+is the server response $R$.
 
 ### Client Key Generation
 
@@ -417,6 +525,26 @@ $X^{d-1}$.
 
 The client MUST sample a fresh $s^\star$ for every PIR query. Reuse of $s^\star$
 across queries is not allowed.
+
+### Packing-Level Ciphertext Convention
+
+A packing-level RLWE ciphertext under secret $s^\star \in R_{q_2}$
+is a pair $(c_0, c_1) \in R_{q_2}^2$ stored as a two-row polynomial
+matrix:
+
+- Row 0 (public row): $c_0 = -\rho$, the negation of the public
+  random ring element.
+- Row 1 (second row): $c_1 = \rho \cdot s^\star + e + m$, where $e$
+  is a noise polynomial and $m$ is the plaintext polynomial.
+
+Decryption recovers $m + e$ as $c_1 + c_0 \cdot s^\star$.
+
+Throughout this ZIP, "public row" means row 0 and "second row" means
+row 1 under this convention. When [PackingKeyGeneration] refers to
+the seeded public element $\rho_{r,u}$ determining the public row of
+$K_{r,u}$, the stored row 0 is $-\rho_{r,u}$. The second row
+$\beta_{r,u}$ transmitted in $pk_\mathsf{condensed}$ is row 1 of
+$K_{r,u}$.
 
 ### PackingKeyGeneration
 
@@ -467,13 +595,11 @@ The function $\mathsf{GeneratePackingKey}(s^\star)$ proceeds as follows:
 
    $$B_\mathsf{ks}^u \cdot \tau_{k_r}(s^\star),$$
 
-   using the same ciphertext row/sign convention as the deployed
-   packing implementation.
+   using the convention in [Packing-Level Ciphertext Convention].
 
-   The seeded element $\rho_{r,u}$ determines the query-independent
-   public row of $K_{r,u}$ under that convention. Let $\beta_{r,u}$
-   denote the corresponding secret/noise-dependent second row of
-   $K_{r,u}$.
+   The seeded element $\rho_{r,u}$ determines the public row of
+   $K_{r,u}$: row 0 is $-\rho_{r,u}$. Let $\beta_{r,u}$
+   denote the second row (row 1) of $K_{r,u}$.
 
 3. For each $r \in \{0, \ldots, 10\}$, define the key-switch matrix for
    automorphism $\tau_{k_r}$ as
@@ -493,11 +619,11 @@ Concrete byte encoding of the packing key is out of scope for this ZIP.
 For the seeded representation deployed by this ZIP, the client transmits
 only the condensed packing-key component
 $pk_\mathsf{condensed} = (\beta_{0,0}, \beta_{0,1}, \beta_{0,2}, \ldots, \beta_{10,2})$,
-that is, the secret/noise-dependent second rows of the 33 RLWE
-ciphertexts in row-major $(r,u)$ order. The corresponding seeded public
-rows are not transmitted; the server reconstructs them from
-$\mathsf{seed\_pack}$ as specified in [Public Seeds], using the same
-row/sign convention as [PackingKeyGeneration].
+that is, the second rows (row 1 per
+[Packing-Level Ciphertext Convention]) of the 33 RLWE ciphertexts in
+row-major $(r,u)$ order. The corresponding public rows (row 0) are not
+transmitted; the server reconstructs them from $\mathsf{seed\_pack}$ as
+specified in [Public Seeds].
 
 In the reference implementation, the transmitted condensed packing-key
 component occupies
@@ -530,10 +656,14 @@ the selected row index $i$ as follows:
 
 Here:
 
-- $c_\mathsf{online}$ is the transmitted query-dependent selector
-  component derived from the deployed selector-generation procedure.
-- $pk_\mathsf{condensed}$ contains only the secret/noise-dependent second
-  rows of the automorphism-specific key-switch matrices in $pk$.
+- $c_\mathsf{online} = c \in \mathbb{Z}_q^m$ is the deployed selector
+  defined in [Regev Encryption]. Each entry $c_\mathsf{online}[j]$
+  is the scalar ($b$-value) component of the $j$-th LWE-form selector
+  ciphertext; the corresponding $\mathbf{a}$-vector components are
+  reconstructed by the server from $\mathsf{seed\_A}$.
+- $pk_\mathsf{condensed}$ contains only the second rows (row 1 per
+  [Packing-Level Ciphertext Convention]) of the 33 packing-key RLWE
+  ciphertexts in $pk$, in row-major $(r, u)$ order.
 
 The corresponding public/query-independent components of the selector
 and packing key MUST NOT be transmitted. They are reconstructed by the
@@ -656,9 +786,9 @@ under $K(\tau_{t_\ell})$ as follows:
 
 1. Compute the coefficient-wise ring automorphism
    $\tau_{t_\ell}(C) = (\tau_{t_\ell}(a), \tau_{t_\ell}(b))$.
-2. Interpret the automorphed ciphertext in the same stored-row
-   convention used by [PackingKeyGeneration], and write its first row in
-   gadget form:
+2. Interpret the automorphed ciphertext in the convention of
+   [Packing-Level Ciphertext Convention], and write its public row
+   (row 0) in gadget form:
 
    $$
    c^\mathsf{row0}_\ell = \sum_{u=0}^{L_\mathsf{ks}-1} B_\mathsf{ks}^u \cdot f^{(u)}
@@ -730,10 +860,12 @@ $\mathsf{ApplyCDKSTransformation}(T, pk)$ as follows:
 3. Return $\widehat{C}$.
 
 Implementations MAY realize this lifted chunk transformation via
-an algebraically equivalent offline/online split in which precomputed
-query-independent components are combined with the online SimplePIR
-$b$-values, provided that the resulting packed ciphertext is equivalent
-to $\mathsf{ApplyCDKSTransformation}(T, pk)$.
+the offline/online split specified in [Server Pre-processing] and
+[Server Online Evaluation], or any algebraically equivalent
+realization, provided that decryption of the resulting packed
+ciphertext under $s^\star$ yields the same ordered plaintext-word
+vector as decryption of
+$\mathsf{ApplyCDKSTransformation}(T, pk)$.
 
 The packed ciphertext for the chunk is therefore
 
@@ -753,8 +885,12 @@ Note,
 - the client-side selector generation uses the pre-scaling by $d^{-1}
   \bmod q$ specified in [Client Query Generation];
 - the server-side packing procedure MUST restore the corresponding
-  factor of $d$ modulo $q_2$ in the packed payload, or apply an
-  algebraically equivalent transformation;
+  factor of $d$ modulo $q_2$ by scaling each online $b$-value by $d$
+  when injecting it into the packed ciphertext's second row, as
+  specified in [Server Online Evaluation], or apply an algebraically
+  equivalent transformation that produces the effective packed/decrypted
+  selector semantics $A^T \mathbf{s} + e + \Delta \mu_i$ (see
+  [Why A Is Negacyclic But the Database Is Not]);
 - the canonical packing-key index order remains
   $\tau_{2049}, \tau_{1025}, \tau_{513}, \tau_{257}, \tau_{129},
   \tau_{65}, \tau_{33}, \tau_{17}, \tau_{9}, \tau_{5}, \tau_{3}$ as
@@ -921,12 +1057,9 @@ The protocol proceeds as follows:
 3. The server reconstructs the omitted public/query-independent
    packing-key components from $\mathsf{seed\_pack}$ as specified in
    [Public Seeds].
-4. Using the received $c_\mathsf{online}$, the reconstructed packing-key
-   public components, and the public selector semantics induced by
-   $\mathsf{seed\_A}$, the server evaluates the same deployed query
-   semantics specified by [Regev Encryption] and [PackingKeyGeneration]
-   over the selected PIR database tier and computes the abstract server
-   response object $R$.
+4. The server evaluates the query using the offline/online split
+   specified in [Server Pre-processing] and [Server Online Evaluation]
+   to compute the abstract server response object $R$.
 5. The server returns $R$ using an implementation-defined transport
    encoding.
 6. The client recovers the returned row as
@@ -1137,9 +1270,9 @@ Implementations MUST expand $\mathsf{seed\_pack}$ as follows:
 
 These 33 seeded ring elements are the public-random part of the packing
 public parameters. The client transmits only the complementary
-secret/noise-dependent second rows; the corresponding seeded public rows
-are reconstructed by the server from $\mathsf{seed\_pack}$ using the
-same row/sign convention referenced in [PackingKeyGeneration].
+second rows (row 1); the corresponding public rows (row 0) are
+reconstructed by the server from $\mathsf{seed\_pack}$ using the
+convention in [Packing-Level Ciphertext Convention].
 
 ## Instantiations
 
