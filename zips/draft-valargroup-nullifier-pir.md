@@ -231,7 +231,7 @@ This ZIP specifies the YPIR+SP scheme [^YPIR].
   ([Instantiations]); expand the fixed public seeds and derived
   public/query-independent material ([Public Seeds]); encode each
   serialized PIR row into plaintext words
-  ([Canonical Plaintext Packing]); and optionally perform
+  ([Plaintext Encoding]); and optionally perform
   query-independent preprocessing ([Precomputation]).
 
 `Client_Query`
@@ -390,7 +390,7 @@ public LWE matrix $A$ via negacyclic extraction.
 Given a query $Q = (c_\mathsf{online}, pk_\mathsf{condensed})$ and
 the active PIR database tier, the server MUST compute the response
 as follows. Let $m$ be the number of database rows, $W$ the number
-of 14-bit plaintext-word columns (from [Canonical Plaintext Packing]).
+of 14-bit plaintext-word columns (from [Plaintext Encoding]).
 Recall, $d = 2048$.
 
 The server operates on the row-serialized and plaintext-packed database prepared during `Server_Setup`; any equivalent use of precomputed query-independent artifacts is permitted only as specified in [Precomputation].
@@ -405,7 +405,7 @@ The server operates on the row-serialized and plaintext-packed database prepared
    $$
 
    where $\mathsf{DB} \in \mathbb{Z}_q^{m \times W}$ is the packed
-   plaintext database from [Canonical Plaintext Packing].
+   plaintext database from [Plaintext Encoding].
    Column $k$ of $H$ is the $\mathbf{a}$-component of the
    corresponding SimplePIR-level ciphertext.
 
@@ -441,7 +441,7 @@ The server operates on the row-serialized and plaintext-packed database prepared
 The resulting sequence of modulus-switched packed RLWE ciphertexts is
 the server response $R$.
 
-### Canonical Plaintext Packing
+### Plaintext Encoding
 
 For YPIR plaintext packing, implementations MUST map each serialized
 `L_value`-byte row into 14-bit plaintext words by interpreting the row as
@@ -488,7 +488,7 @@ Let $T = (t_0, \ldots, t_{W_\mathsf{value}-1})$ be the ordered sequence of
 SimplePIR-level LWE ciphertexts corresponding to the selected PIR value,
 where $L_\mathsf{value}$ is the PIR value size in bytes fixed for the
 queried tier in [Parameters] and $W_\mathsf{value}$ is determined from
-$L_\mathsf{value}$ by [Canonical Plaintext Packing], before any
+$L_\mathsf{value}$ by [Plaintext Encoding], before any
 additional all-zero word padding used only to complete the final
 ciphertext chunk. The server MUST pack $T$ so that the resulting
 packing-level ciphertexts decrypt, under the client's fresh
@@ -517,7 +517,7 @@ $\mathsf{PackSimplePIRResponse}(T, pk)$ as follows:
 
 The order of slots within each $\widehat{C}_j$ MUST match the order of
 the 14-bit plaintext words obtained from the canonical byte-to-word
-mapping in [Canonical Plaintext Packing]. Slot $\ell$ of $\widehat{C}_j$ MUST correspond
+mapping in [Plaintext Encoding]. Slot $\ell$ of $\widehat{C}_j$ MUST correspond
 to word index $jd + \ell$ of that packed representation. Any additional
 slots introduced only to complete the final ciphertext chunk MUST decode
 to zero.
@@ -954,7 +954,7 @@ Tier 2). For this ZIP, `L_value = L_row` for both tiers: Tier 1 uses
 12,224 bytes and Tier 2 uses 24,512 bytes, as specified in [Parameters].
 Let $W_\mathsf{value}$ be the
 number of plaintext words produced by the canonical byte-to-word mapping
-defined in [Canonical Plaintext Packing], before any all-zero word
+defined in [Plaintext Encoding], before any all-zero word
 padding used only to complete the final ciphertext chunk.
 
 Given the server's response to a PIR query, the client MUST recover the
@@ -979,7 +979,7 @@ follows:
 5. Reconstruct a byte string $B$ by writing the least-significant 14 bits
    of each word in $W$ in order as a contiguous bitstream, regrouping
    that bitstream into 8-bit bytes using the inverse of the canonical
-   byte-to-word mapping in [Canonical Plaintext Packing].
+   byte-to-word mapping in [Plaintext Encoding].
 6. Verify that any unused high bits of the final 14-bit word are zero.
    If the final ciphertext chunk contained additional all-zero padding
    words beyond $W_\mathsf{value}$, verify that those omitted words also
