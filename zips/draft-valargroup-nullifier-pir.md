@@ -241,7 +241,7 @@ This ZIP specifies the YPIR+SP scheme [^YPIR].
 : Client-side query construction: sample fresh query material
   ([Client Key Generation]); construct the row-selector encryption
   ([Regev Encryption]); form the deployed transmitted query object
-  ([Client Query Generation]); and send that query using an
+  ([Query Generation]); and send that query using an
   implementation-defined transport encoding.
 
 `Server_Answer`
@@ -255,8 +255,8 @@ This ZIP specifies the YPIR+SP scheme [^YPIR].
 `Client_Recover`
 
 : Client-side response processing: decode the server response by
-  packing-level RLWE decryption ([Packing-level RLWE Decryption]) and
-  row recovery ([Client Recovery of the Selected Row]).
+  RLWE Decryption ([RLWE Decryption]) and
+  row recovery ([Recovery of the Selected Row]).
 
 The protocol proceeds in the order:
 1. `Server_Setup`
@@ -525,7 +525,7 @@ slots introduced only to complete the final ciphertext chunk MUST decode
 to zero.
 
 This packing procedure is also responsible for restoring the
-$d^{-1}$ pre-scaling applied in [Client Query Generation], so that the
+$d^{-1}$ pre-scaling applied in [Query Generation], so that the
 packed/decrypted selector semantics match the unscaled plaintext-word
 selection behavior.
 
@@ -710,7 +710,7 @@ ordered chunk $(t_0, \ldots, t_{d-1})$.
 Note,
 
 - the packing procedure defined in [Packing] restores the $d^{-1}$
-  pre-scaling from [Client Query Generation], so that the effective
+  pre-scaling from [Query Generation], so that the effective
   packed/decrypted selector semantics are
   $A^T \mathbf{s} + e + \Delta \mu_i$ (see
   [Why A Is Negacyclic But the Database Is Not]);
@@ -768,22 +768,6 @@ $\mathsf{LiftModulusSwitchedRLWECiphertext}((a', b'))$ as follows:
 3. Return the lifted ciphertext
    $\widetilde{C} = (\widetilde{a}, \widetilde{b}) \in R_q^2$.
 
-### Packing-level RLWE Decryption
-
-Define the function
-$\mathsf{DecryptPackingRLWECiphertext}((a, b), s^\star)$ for a packing-level
-RLWE ciphertext $(a, b) \in R_q^2$ as follows, where $(a, b)$
-are ordered as in [Packing-Level Ciphertext Convention]:
-
-1. Compute $u = b + a \cdot s^\star \in R_q$.
-2. Let $\Delta_2 = \lfloor q / p_2 \rfloor$, where $p_2 = 2^{14}$ is
-   the packing-level plaintext modulus from [Parameters].
-3. For each coefficient of $u$, round to the nearest multiple of
-   $\Delta_2$ and divide by $\Delta_2$ to recover the corresponding
-   plaintext slot in $\mathbb{Z}_{p_2}$.
-4. Return the resulting plaintext slot vector
-   $(v_0, \ldots, v_{d-1})$ in $\mathbb{Z}_{p_2}^d$.
-
 ## Client Work
 
 ### Client Key Generation
@@ -801,7 +785,7 @@ $q$.
 This same fresh $s^\star$ is used in two roles:
 
 1. as the packing-level RLWE secret for [PackingKeyGeneration] and
-   [Packing-level RLWE Decryption], and
+   [RLWE Decryption], and
 2. as the source of the selector LWE secret used in [Regev Encryption].
 
 The selector LWE secret is defined coefficient-wise from the same polynomial:
@@ -901,7 +885,7 @@ In the reference implementation, the transmitted condensed packing-key
 component occupies
 $11 \cdot 3 \cdot 2048 \cdot 8 = 540{,}672$ bytes.
 
-### Client Query Generation
+### Query Generation
 
 For each PIR query, the client MUST construct fresh query material for
 the selected row index $i$ as follows:
@@ -963,7 +947,7 @@ Any conforming transport or API framing MUST preserve the order of the
 components of $Q$ and the ordering of the automorphism and gadget-digit
 indices within $pk_\mathsf{condensed}$.
 
-### Client Recovery of the Selected Row
+### Recovery of the Selected Row
 
 Let `L_value` be the PIR value size fixed for the selected database tier
 in [Parameters], and let `L_row` be the row serialization length defined
@@ -1004,6 +988,22 @@ follows:
    decrypt to zero.
 7. Return the first $L_\mathsf{row}$ decoded bytes as the returned row
    of the selected PIR database.
+
+### RLWE Decryption
+
+Define the function
+$\mathsf{DecryptPackingRLWECiphertext}((a, b), s^\star)$ for a packing-level
+RLWE ciphertext $(a, b) \in R_q^2$ as follows, where $(a, b)$
+are ordered as in [Packing-Level Ciphertext Convention]:
+
+1. Compute $u = b + a \cdot s^\star \in R_q$.
+2. Let $\Delta_2 = \lfloor q / p_2 \rfloor$, where $p_2 = 2^{14}$ is
+   the packing-level plaintext modulus from [Parameters].
+3. For each coefficient of $u$, round to the nearest multiple of
+   $\Delta_2$ and divide by $\Delta_2$ to recover the corresponding
+   plaintext slot in $\mathbb{Z}_{p_2}$.
+4. Return the resulting plaintext slot vector
+   $(v_0, \ldots, v_{d-1})$ in $\mathbb{Z}_{p_2}^d$.
 
 ## Common Conventions and Public Material
 
@@ -1801,7 +1801,7 @@ material and decrypt the packed response.
 The client does not separately decrypt the intermediate SimplePIR
 response. Instead, the server uses `pk` to pack that response into RLWE
 ciphertexts decryptable under `s^\star`, and the client recovers the
-returned response via the packing-level RLWE decryption procedure. This
+returned response via the RLWE Decryption procedure. This
 eliminates the `Client_Download` step while also compressing the query
 responses, making the construction practical for this ZIP.
 
