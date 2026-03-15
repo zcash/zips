@@ -251,7 +251,7 @@ database hint.
   ([Client Recovery of the Selected Row]).
 
 The end-to-end sequencing of these operations is specified in
-[Query Procedure].
+[Client Work].
 
 ## Parameters
 
@@ -401,7 +401,7 @@ and let $d = 2048$.
    where $\mathsf{DB} \in \mathbb{Z}_q^{m \times W}$ is the packed
    plaintext database from [Canonical Plaintext Packing].
    Column $k$ of $H$ is the $\mathbf{a}$-component of the
-   SimplePIR-level ciphertext $t_k$ for any query.
+   corresponding SimplePIR-level ciphertext.
 
 2. **Database scan.** Compute the query-dependent scalar components
 
@@ -457,208 +457,6 @@ In particular, the gadget-decomposition digit polynomials
 $f^{(u)}_\ell$ computed in step 2 of each $\mathsf{AutoKS}_\ell$
 call ([CDKS Transformation]) depend only on row 0, so they may be
 stored and reused with different packing keys.
-
-### Client Key Generation
-
-For each query, the client MUST sample one fresh packing/query secret
-
-$$
-s^\star(X) = \sum_{j=0}^{d-1} s^\star_j X^j \in R_q,
-$$
-
-where $d = 2048$, each coefficient $s^\star_j$ is sampled independently from
-$D_{\mathbb{Z},\sigma}$, and each sampled coefficient is then reduced modulo
-$q$.
-
-This same fresh $s^\star$ is used in two roles:
-
-1. as the packing-level RLWE secret for [PackingKeyGeneration] and
-   [Packing-level RLWE Decryption], and
-2. as the source of the selector LWE secret used in [Regev Encryption].
-
-The selector LWE secret is defined coefficient-wise from the same polynomial:
-
-$$
-\mathbf{s} = (s^\star_0, \ldots, s^\star_{d-1}) \in \mathbb{Z}_q^n,
-\qquad n = d = 2048.
-$$
-
-That is, the selector LWE secret is exactly the coefficient vector of the fresh
-RLWE secret polynomial, in increasing coefficient order from $X^0$ through
-$X^{d-1}$.
-
-The client MUST sample a fresh $s^\star$ for every PIR query. Reuse of $s^\star$
-across queries is not allowed.
-
-### Packing-Level Ciphertext Convention
-
-A packing-level RLWE ciphertext under secret $s^\star \in R_q$
-is a pair $(c_0, c_1) \in R_q^2$ stored as a two-row polynomial
-matrix:
-
-- Row 0 (public row): $c_0 = -\rho$, the negation of the public
-  random ring element.
-- Row 1 (second row): $c_1 = \rho \cdot s^\star + e + m$, where $e$
-  is a noise polynomial and $m$ is the plaintext polynomial.
-
-Decryption recovers $m + e$ as $c_1 + c_0 \cdot s^\star$.
-
-When this ZIP writes a packing-level RLWE ciphertext as $(a, b)$,
-$a$ denotes row 0 and $b$ denotes row 1. The decryption identity is
-therefore $b + a \cdot s^\star$.
-
-Throughout this ZIP, "public row" means row 0 and "second row" means
-row 1 under this convention. When [PackingKeyGeneration] refers to
-the seeded public element $\rho_{r,u}$ determining the public row of
-$K_{r,u}$, the stored row 0 is $-\rho_{r,u}$. The second row
-$\beta_{r,u}$ transmitted in $pk_\mathsf{condensed}$ is row 1 of
-$K_{r,u}$.
-
-### PackingKeyGeneration
-
-Define the function $\mathsf{GeneratePackingKey}(s^\star)$ as follows, where
-$s^\star \in R_q$ is the fresh client secret sampled in
-[Client Key Generation].
-
-For any odd integer $k \in \{1, 3, \ldots, 2d - 1\}$, define the
-packing-level ring automorphism
-$\tau_k : R_q \rightarrow R_q$ by
-
-$$\tau_k(f(X)) = f(X^k) \bmod (X^d + 1).$$
-
-The canonical CDKS automorphism order for this ZIP is
-
-$$k_r = d / 2^r + 1 \qquad \text{for } r \in \{0, \ldots, 10\}.$$
-
-Equivalently, the 11 automorphisms are
-$\tau_{2049}, \tau_{1025}, \tau_{513}, \tau_{257}, \tau_{129},
-\tau_{65}, \tau_{33}, \tau_{17}, \tau_{9}, \tau_{5}, \tau_{3}$, in
-that order. The packing key MUST contain exactly one key-switch matrix
-for each of those automorphisms, indexed by increasing matrix index
-$r$.
-
-For any polynomial $f = \sum_{j=0}^{d-1} f_j X^j \in R_q$, define
-its base-$B_\mathsf{ks}$ gadget decomposition
-
-$$f = \sum_{u=0}^{L_\mathsf{ks}-1} B_\mathsf{ks}^u \cdot f^{(u)}$$
-
-where each coefficient of each digit polynomial $f^{(u)}$ is the unique
-integer in $\{0, \ldots, B_\mathsf{ks} - 1\}$ obtained from the
-canonical base-$B_\mathsf{ks}$ expansion of the corresponding
-coefficient of $f$ in $\{0, \ldots, q - 1\}$.
-
-The digit index $u$ runs over the $L_\mathsf{ks} = 3$ gadget digits.
-
-The function $\mathsf{GeneratePackingKey}(s^\star)$ proceeds as follows:
-
-1. Construct 33 seeded public ring elements
-   $\rho_{r,u} \in R_q$ for
-   $r \in \{0, \ldots, 10\}$ and
-   $u \in \{0, 1, 2\}$ by expanding $\mathsf{seed\_pack}$ as specified
-   in [Expansion of $\mathsf{seed\_pack}$ (Packing Public Randomness)].
-2. For each matrix index $r$ and gadget digit $u$, sample a noise
-   polynomial $e_{r,u} \leftarrow D_{\mathbb{Z},\sigma}^d$, with
-   $\sigma$ as specified in [Parameters], and form one packing-level
-   RLWE ciphertext $K_{r,u}$ under secret $s^\star$ whose plaintext is
-
-   $$B_\mathsf{ks}^u \cdot \tau_{k_r}(s^\star),$$
-
-   using the convention in [Packing-Level Ciphertext Convention].
-
-   The seeded element $\rho_{r,u}$ determines the public row of
-   $K_{r,u}$: row 0 is $-\rho_{r,u}$. Let $\beta_{r,u}$
-   denote the second row (row 1) of $K_{r,u}$.
-
-3. For each $r \in \{0, \ldots, 10\}$, define the key-switch matrix for
-   automorphism $\tau_{k_r}$ as
-
-   $$K_r = (K_{r,0}, K_{r,1}, K_{r,2}).$$
-4. Let
-
-   $$pk = (K_0, \ldots, K_{10}).$$
-
-5. Return $pk$.
-
-The complete packing key therefore contains exactly 11 matrices and
-exactly 33 RLWE ciphertexts.
-
-Concrete byte encoding of the packing key is out of scope for this ZIP.
-
-For the seeded representation deployed by this ZIP, the client transmits
-only the condensed packing-key component
-$pk_\mathsf{condensed} = (\beta_{0,0}, \beta_{0,1}, \beta_{0,2}, \ldots, \beta_{10,2})$,
-that is, the second rows (row 1 per
-[Packing-Level Ciphertext Convention]) of the 33 RLWE ciphertexts in
-row-major $(r,u)$ order. The corresponding public rows (row 0) are not
-transmitted; the server reconstructs them from $\mathsf{seed\_pack}$ as
-specified in [Public Seeds].
-
-In the reference implementation, the transmitted condensed packing-key
-component occupies
-$11 \cdot 3 \cdot 2048 \cdot 8 = 540{,}672$ bytes.
-
-### Client Query Generation
-
-For each PIR query, the client MUST construct fresh query material for
-the selected row index $i$ as follows:
-
-1. Sample a fresh $s^\star$ as specified in [Client Key Generation].
-2. Construct the row-selector vector $\mu_i$ as specified in [Regev
-   Encryption].
-3. Generate the deployed row selector
-   $c = A^T \cdot \mathbf{s} + d^{-1} \cdot e + \Delta \cdot d^{-1} \cdot \mu_i$
-   as specified in [Regev Encryption], where $d^{-1}$ is taken modulo $q$.
-4. Generate the packing key
-   $pk = \mathsf{GeneratePackingKey}(s^\star)$ as specified in
-   [PackingKeyGeneration].
-5. Form the abstract query material
-
-   $$
-   (c, pk).
-   $$
-
-6. For the deployed seeded representation specified by this ZIP, the
-   client MUST transmit only the query-dependent selector component
-   $c_\mathsf{online}$ and the condensed packing-key component
-   $pk_\mathsf{condensed}$.
-
-Here:
-
-- $c_\mathsf{online} = c \in \mathbb{Z}_q^m$ is the deployed selector
-  defined in [Regev Encryption]. Each entry $c_\mathsf{online}[j]$
-  is the scalar ($b$-value) component of the $j$-th LWE-form selector
-  ciphertext; the corresponding $\mathbf{a}$-vector components are
-  reconstructed by the server from $\mathsf{seed\_A}$.
-- $pk_\mathsf{condensed}$ contains only the second rows (row 1 per
-  [Packing-Level Ciphertext Convention]) of the 33 packing-key RLWE
-  ciphertexts in $pk$, in row-major $(r, u)$ order.
-
-The corresponding public/query-independent components of the selector
-and packing key MUST NOT be transmitted. They are reconstructed by the
-server from the fixed public seeds $\mathsf{seed\_A}$ and
-$\mathsf{seed\_pack}$ as specified in [Public Seeds].
-
-7. Form the deployed transmitted query object
-
-   $$
-   Q = (c_\mathsf{online}, pk_\mathsf{condensed}).
-   $$
-
-The client MUST generate fresh query material separately for each PIR
-query. Reuse of $s^\star$ or of query material derived from it is not
-allowed.
-
-Using the fixed public seeds together with the transmitted query object
-$Q$, the server obtains enough information to evaluate the selected row
-query while preserving the privacy of the row index. In particular,
-$c_\mathsf{online}$ carries the query-dependent selector information,
-while $pk_\mathsf{condensed}$ enables response packing under the client's
-fresh $s^\star$ once the omitted public rows are reconstructed.
-
-Any conforming transport or API framing MUST preserve the order of the
-components of $Q$ and the ordering of the automorphism and gadget-digit
-indices within $pk_\mathsf{condensed}$.
-
 
 ### Canonical Plaintext Packing
 
@@ -975,6 +773,228 @@ are ordered as in [Packing-Level Ciphertext Convention]:
 4. Return the resulting plaintext slot vector
    $(v_0, \ldots, v_{d-1})$ in $\mathbb{Z}_{p_2}^d$.
 
+## Client Work
+
+The protocol proceeds as follows:
+
+1. The client computes the deployed transmitted query object
+   $Q = (c_\mathsf{online}, pk_\mathsf{condensed})$ for row index $i$ as specified in
+   [Client Query Generation].
+2. The client sends $Q$ to the server using an implementation-defined
+   transport encoding.
+3. The server reconstructs the omitted public/query-independent
+   packing-key components from $\mathsf{seed\_pack}$ as specified in
+   [Public Seeds].
+4. The server evaluates the query as specified in
+   [Server Computation] to compute the abstract server response
+   object $R$.
+5. The server returns $R$ using an implementation-defined transport
+   encoding.
+6. The client recovers the returned row as
+   $\mathsf{DecodeYPIRSPResponse}(R, L_\mathsf{value}, L_\mathsf{row})$
+   in the sense specified in [Client Recovery of the Selected Row].
+
+### Client Key Generation
+
+For each query, the client MUST sample one fresh packing/query secret
+
+$$
+s^\star(X) = \sum_{j=0}^{d-1} s^\star_j X^j \in R_q,
+$$
+
+where $d = 2048$, each coefficient $s^\star_j$ is sampled independently from
+$D_{\mathbb{Z},\sigma}$, and each sampled coefficient is then reduced modulo
+$q$.
+
+This same fresh $s^\star$ is used in two roles:
+
+1. as the packing-level RLWE secret for [PackingKeyGeneration] and
+   [Packing-level RLWE Decryption], and
+2. as the source of the selector LWE secret used in [Regev Encryption].
+
+The selector LWE secret is defined coefficient-wise from the same polynomial:
+
+$$
+\mathbf{s} = (s^\star_0, \ldots, s^\star_{d-1}) \in \mathbb{Z}_q^n,
+\qquad n = d = 2048.
+$$
+
+That is, the selector LWE secret is exactly the coefficient vector of the fresh
+RLWE secret polynomial, in increasing coefficient order from $X^0$ through
+$X^{d-1}$.
+
+The client MUST sample a fresh $s^\star$ for every PIR query. Reuse of $s^\star$
+across queries is not allowed.
+
+### Packing-Level Ciphertext Convention
+
+A packing-level RLWE ciphertext under secret $s^\star \in R_q$
+is a pair $(c_0, c_1) \in R_q^2$ stored as a two-row polynomial
+matrix:
+
+- Row 0 (public row): $c_0 = -\rho$, the negation of the public
+  random ring element.
+- Row 1 (second row): $c_1 = \rho \cdot s^\star + e + m$, where $e$
+  is a noise polynomial and $m$ is the plaintext polynomial.
+
+Decryption recovers $m + e$ as $c_1 + c_0 \cdot s^\star$.
+
+When this ZIP writes a packing-level RLWE ciphertext as $(a, b)$,
+$a$ denotes row 0 and $b$ denotes row 1. The decryption identity is
+therefore $b + a \cdot s^\star$.
+
+Throughout this ZIP, "public row" means row 0 and "second row" means
+row 1 under this convention. When [PackingKeyGeneration] refers to
+the seeded public element $\rho_{r,u}$ determining the public row of
+$K_{r,u}$, the stored row 0 is $-\rho_{r,u}$. The second row
+$\beta_{r,u}$ transmitted in $pk_\mathsf{condensed}$ is row 1 of
+$K_{r,u}$.
+
+### PackingKeyGeneration
+
+Define the function $\mathsf{GeneratePackingKey}(s^\star)$ as follows, where
+$s^\star \in R_q$ is the fresh client secret sampled in
+[Client Key Generation].
+
+For any odd integer $k \in \{1, 3, \ldots, 2d - 1\}$, define the
+packing-level ring automorphism
+$\tau_k : R_q \rightarrow R_q$ by
+
+$$\tau_k(f(X)) = f(X^k) \bmod (X^d + 1).$$
+
+The canonical CDKS automorphism order for this ZIP is
+
+$$k_r = d / 2^r + 1 \qquad \text{for } r \in \{0, \ldots, 10\}.$$
+
+Equivalently, the 11 automorphisms are
+$\tau_{2049}, \tau_{1025}, \tau_{513}, \tau_{257}, \tau_{129},
+\tau_{65}, \tau_{33}, \tau_{17}, \tau_{9}, \tau_{5}, \tau_{3}$, in
+that order. The packing key MUST contain exactly one key-switch matrix
+for each of those automorphisms, indexed by increasing matrix index
+$r$.
+
+For any polynomial $f = \sum_{j=0}^{d-1} f_j X^j \in R_q$, define
+its base-$B_\mathsf{ks}$ gadget decomposition
+
+$$f = \sum_{u=0}^{L_\mathsf{ks}-1} B_\mathsf{ks}^u \cdot f^{(u)}$$
+
+where each coefficient of each digit polynomial $f^{(u)}$ is the unique
+integer in $\{0, \ldots, B_\mathsf{ks} - 1\}$ obtained from the
+canonical base-$B_\mathsf{ks}$ expansion of the corresponding
+coefficient of $f$ in $\{0, \ldots, q - 1\}$.
+
+The digit index $u$ runs over the $L_\mathsf{ks} = 3$ gadget digits.
+
+The function $\mathsf{GeneratePackingKey}(s^\star)$ proceeds as follows:
+
+1. Construct 33 seeded public ring elements
+   $\rho_{r,u} \in R_q$ for
+   $r \in \{0, \ldots, 10\}$ and
+   $u \in \{0, 1, 2\}$ by expanding $\mathsf{seed\_pack}$ as specified
+   in [Expansion of $\mathsf{seed\_pack}$ (Packing Public Randomness)].
+2. For each matrix index $r$ and gadget digit $u$, sample a noise
+   polynomial $e_{r,u} \leftarrow D_{\mathbb{Z},\sigma}^d$, with
+   $\sigma$ as specified in [Parameters], and form one packing-level
+   RLWE ciphertext $K_{r,u}$ under secret $s^\star$ whose plaintext is
+
+   $$B_\mathsf{ks}^u \cdot \tau_{k_r}(s^\star),$$
+
+   using the convention in [Packing-Level Ciphertext Convention].
+
+   The seeded element $\rho_{r,u}$ determines the public row of
+   $K_{r,u}$: row 0 is $-\rho_{r,u}$. Let $\beta_{r,u}$
+   denote the second row (row 1) of $K_{r,u}$.
+
+3. For each $r \in \{0, \ldots, 10\}$, define the key-switch matrix for
+   automorphism $\tau_{k_r}$ as
+
+   $$K_r = (K_{r,0}, K_{r,1}, K_{r,2}).$$
+4. Let
+
+   $$pk = (K_0, \ldots, K_{10}).$$
+
+5. Return $pk$.
+
+The complete packing key therefore contains exactly 11 matrices and
+exactly 33 RLWE ciphertexts.
+
+Concrete byte encoding of the packing key is out of scope for this ZIP.
+
+For the seeded representation deployed by this ZIP, the client transmits
+only the condensed packing-key component
+$pk_\mathsf{condensed} = (\beta_{0,0}, \beta_{0,1}, \beta_{0,2}, \ldots, \beta_{10,2})$,
+that is, the second rows (row 1 per
+[Packing-Level Ciphertext Convention]) of the 33 RLWE ciphertexts in
+row-major $(r,u)$ order. The corresponding public rows (row 0) are not
+transmitted; the server reconstructs them from $\mathsf{seed\_pack}$ as
+specified in [Public Seeds].
+
+In the reference implementation, the transmitted condensed packing-key
+component occupies
+$11 \cdot 3 \cdot 2048 \cdot 8 = 540{,}672$ bytes.
+
+### Client Query Generation
+
+For each PIR query, the client MUST construct fresh query material for
+the selected row index $i$ as follows:
+
+1. Sample a fresh $s^\star$ as specified in [Client Key Generation].
+2. Construct the row-selector vector $\mu_i$ as specified in [Regev
+   Encryption].
+3. Generate the deployed row selector
+   $c = A^T \cdot \mathbf{s} + d^{-1} \cdot e + \Delta \cdot d^{-1} \cdot \mu_i$
+   as specified in [Regev Encryption], where $d^{-1}$ is taken modulo $q$.
+4. Generate the packing key
+   $pk = \mathsf{GeneratePackingKey}(s^\star)$ as specified in
+   [PackingKeyGeneration].
+5. Form the abstract query material
+
+   $$
+   (c, pk).
+   $$
+
+6. For the deployed seeded representation specified by this ZIP, the
+   client MUST transmit only the query-dependent selector component
+   $c_\mathsf{online}$ and the condensed packing-key component
+   $pk_\mathsf{condensed}$.
+
+Here:
+
+- $c_\mathsf{online} = c \in \mathbb{Z}_q^m$ is the deployed selector
+  defined in [Regev Encryption]. Each entry $c_\mathsf{online}[j]$
+  is the scalar ($b$-value) component of the $j$-th LWE-form selector
+  ciphertext; the corresponding $\mathbf{a}$-vector components are
+  reconstructed by the server from $\mathsf{seed\_A}$.
+- $pk_\mathsf{condensed}$ contains only the second rows (row 1 per
+  [Packing-Level Ciphertext Convention]) of the 33 packing-key RLWE
+  ciphertexts in $pk$, in row-major $(r, u)$ order.
+
+The corresponding public/query-independent components of the selector
+and packing key MUST NOT be transmitted. They are reconstructed by the
+server from the fixed public seeds $\mathsf{seed\_A}$ and
+$\mathsf{seed\_pack}$ as specified in [Public Seeds].
+
+7. Form the deployed transmitted query object
+
+   $$
+   Q = (c_\mathsf{online}, pk_\mathsf{condensed}).
+   $$
+
+The client MUST generate fresh query material separately for each PIR
+query. Reuse of $s^\star$ or of query material derived from it is not
+allowed.
+
+Using the fixed public seeds together with the transmitted query object
+$Q$, the server obtains enough information to evaluate the selected row
+query while preserving the privacy of the row index. In particular,
+$c_\mathsf{online}$ carries the query-dependent selector information,
+while $pk_\mathsf{condensed}$ enables response packing under the client's
+fresh $s^\star$ once the omitted public rows are reconstructed.
+
+Any conforming transport or API framing MUST preserve the order of the
+components of $Q$ and the ordering of the automorphism and gadget-digit
+indices within $pk_\mathsf{condensed}$.
+
 ### Client Recovery of the Selected Row
 
 Let `L_value` be the PIR value size fixed for the selected database tier
@@ -1017,30 +1037,7 @@ follows:
 7. Return the first $L_\mathsf{row}$ decoded bytes as the returned row
    of the selected PIR database.
 
-### Query Procedure
-
-The protocol proceeds as follows:
-
-1. The client computes the deployed transmitted query object
-   $Q = (c_\mathsf{online}, pk_\mathsf{condensed})$ for row index $i$ as specified in
-   [Client Query Generation].
-2. The client sends $Q$ to the server using an implementation-defined
-   transport encoding.
-3. The server reconstructs the omitted public/query-independent
-   packing-key components from $\mathsf{seed\_pack}$ as specified in
-   [Public Seeds].
-4. The server evaluates the query as specified in
-   [Server Computation] to compute the abstract server response
-   object $R$.
-5. The server returns $R$ using an implementation-defined transport
-   encoding.
-6. The client recovers the returned row as
-   $\mathsf{DecodeYPIRSPResponse}(R, L_\mathsf{value}, L_\mathsf{row})$
-   in the sense specified in [Client Recovery of the Selected Row].
-
-Unlike standard YPIR (which is built on DoublePIR and retrieves a single
-element), YPIR+SP returns an entire PIR value. In this ZIP, the PIR
-value is a serialized Tier 1 or Tier 2 row.
+## Common (Client and Server) Specification
 
 ### Security
 
