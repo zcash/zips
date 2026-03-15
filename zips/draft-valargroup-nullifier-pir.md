@@ -455,20 +455,26 @@ The digit index $u$ runs over the $L_\mathsf{ks} = 3$ gadget digits.
 
 The function $\mathsf{GeneratePackingKey}(s^\star)$ proceeds as follows:
 
-1. Construct 33 public mask polynomials
-   $a_{r,u} \in R_{q_2}$ for
+1. Construct 33 seeded public ring elements
+   $\rho_{r,u} \in R_{q_2}$ for
    $r \in \{0, \ldots, 10\}$ and
    $u \in \{0, 1, 2\}$ by expanding $\mathsf{seed\_pack}$ as specified
-   in [Expansion of $\mathsf{seed\_pack}$ (Packing Mask Polynomials)].
+   in [Expansion of $\mathsf{seed\_pack}$ (Packing Public Randomness)].
 2. For each matrix index $r$ and gadget digit $u$, sample a noise
    polynomial $e_{r,u} \leftarrow D_{\mathbb{Z},\sigma}^d$, with
-   $\sigma$ as specified in [Parameters], and form the RLWE ciphertext
+   $\sigma$ as specified in [Parameters], and form one packing-level
+   RLWE ciphertext $K_{r,u}$ under secret $s^\star$ whose plaintext is
 
-   $$K_{r,u} = (a_{r,u}, b_{r,u})$$
+   $$B_\mathsf{ks}^u \cdot \tau_{k_r}(s^\star),$$
 
-   with
+   using the same ciphertext row/sign convention as the deployed
+   packing implementation.
 
-   $$b_{r,u} = a_{r,u} \cdot s^\star + e_{r,u} + B_\mathsf{ks}^u \cdot \tau_{k_r}(s^\star) \in R_{q_2}.$$
+   The seeded element $\rho_{r,u}$ determines the query-independent
+   public row of $K_{r,u}$ under that convention. Let $\beta_{r,u}$
+   denote the corresponding secret/noise-dependent second row of
+   $K_{r,u}$.
+
 3. For each $r \in \{0, \ldots, 10\}$, define the key-switch matrix for
    automorphism $\tau_{k_r}$ as
 
@@ -486,11 +492,12 @@ Concrete byte encoding of the packing key is out of scope for this ZIP.
 
 For the seeded representation deployed by this ZIP, the client transmits
 only the condensed packing-key component
-$pk_\mathsf{condensed} = (b_{0,0}, b_{0,1}, b_{0,2}, \ldots, b_{10,2})$,
+$pk_\mathsf{condensed} = (\beta_{0,0}, \beta_{0,1}, \beta_{0,2}, \ldots, \beta_{10,2})$,
 that is, the secret/noise-dependent second rows of the 33 RLWE
 ciphertexts in row-major $(r,u)$ order. The corresponding seeded public
-rows $(a_{r,u})$ are not transmitted; the server reconstructs them from
-$\mathsf{seed\_pack}$ as specified in [Public Seeds].
+rows are not transmitted; the server reconstructs them from
+$\mathsf{seed\_pack}$ as specified in [Public Seeds], using the same
+row/sign convention as [PackingKeyGeneration].
 
 In the reference implementation, the transmitted condensed packing-key
 component occupies
@@ -626,7 +633,7 @@ a_{j,0}
 - a_{j,1}X^{d-1}.
 $$
 
-This is the negacyclic lifting used by the deployed implementation: the
+This is the negacyclic lifting: the
 message carried by $t_j$ becomes the coefficient-0 plaintext of
 $\overline{t}_j$, and the remaining coefficients contain only the induced
 RLWE noise terms.
@@ -649,28 +656,21 @@ under $K(\tau_{t_\ell})$ as follows:
 
 1. Compute the coefficient-wise ring automorphism
    $\tau_{t_\ell}(C) = (\tau_{t_\ell}(a), \tau_{t_\ell}(b))$.
-2. Write the first component in gadget form:
+2. Interpret the automorphed ciphertext in the same stored-row
+   convention used by [PackingKeyGeneration], and write its first row in
+   gadget form:
 
    $$
-   \tau_{t_\ell}(a) = \sum_{u=0}^{L_\mathsf{ks}-1} B_\mathsf{ks}^u \cdot f^{(u)}
+   c^\mathsf{row0}_\ell = \sum_{u=0}^{L_\mathsf{ks}-1} B_\mathsf{ks}^u \cdot f^{(u)}
    $$
 
    with digit polynomials $f^{(u)}$ as defined in
    [PackingKeyGeneration].
-3. If
-   $K(\tau_{t_\ell}) = (K_{\ell,0}, \ldots, K_{\ell,L_\mathsf{ks}-1})$
-   with
-   $K_{\ell,u} = (a_{\ell,u}, b_{\ell,u})$,
-   output
-
-   $$
-   \mathsf{AutoKS}_{\ell}(C)
-   =
-   \left(
-     \sum_{u=0}^{L_\mathsf{ks}-1} a_{\ell,u} \cdot f^{(u)},
-     \tau_{t_\ell}(b) + \sum_{u=0}^{L_\mathsf{ks}-1} b_{\ell,u} \cdot f^{(u)}
-   \right).
-   $$
+3. Apply the homomorphic key-switch procedure induced by
+   $K(\tau_{t_\ell})$ to obtain one packing-level RLWE ciphertext
+   $\mathsf{AutoKS}_{\ell}(C)$ that decrypts under $s^\star$ to the same
+   plaintext as the automorphed ciphertext $\tau_{t_\ell}(C)$, up to the
+   usual RLWE noise growth.
 
 Define the recursive packing function
 $\mathsf{CDKS}_\ell(C_0, \ldots, C_{2^\ell-1})$ on lifted ciphertexts by:
@@ -728,6 +728,12 @@ $\mathsf{ApplyCDKSTransformation}(T, pk)$ as follows:
    $$
 
 3. Return $\widehat{C}$.
+
+Implementations MAY realize this lifted chunk transformation via
+an algebraically equivalent offline/online split in which precomputed
+query-independent components are combined with the online SimplePIR
+$b$-values, provided that the resulting packed ciphertext is equivalent
+to $\mathsf{ApplyCDKSTransformation}(T, pk)$.
 
 The packed ciphertext for the chunk is therefore
 
@@ -1086,7 +1092,8 @@ Implementations MUST expand $\mathsf{seed\_pack}$ as follows:
 These 33 seeded ring elements are the public-random part of the packing
 public parameters. The client transmits only the complementary
 secret/noise-dependent second rows; the corresponding seeded public rows
-are reconstructed by the server from $\mathsf{seed\_pack}$.
+are reconstructed by the server from $\mathsf{seed\_pack}$ using the
+same row/sign convention referenced in [PackingKeyGeneration].
 
 ## Instantiations
 
