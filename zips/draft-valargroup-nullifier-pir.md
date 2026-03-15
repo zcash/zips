@@ -392,8 +392,8 @@ public LWE matrix $A$ via negacyclic extraction.
 Given a query $Q = (c_\mathsf{online}, pk_\mathsf{condensed})$ and
 the active PIR database tier, the server MUST compute the response
 as follows. Let $m$ be the number of database rows, $W$ the number
-of 14-bit plaintext-word columns (from [Canonical Plaintext Packing]),
-and let $d = 2048$.
+of 14-bit plaintext-word columns (from [Canonical Plaintext Packing]).
+Recall, $d = 2048$.
 
 The server operates on the row-serialized and plaintext-packed database prepared during `Server_Setup`; any equivalent use of precomputed query-independent artifacts is permitted only as specified in [Precomputation].
 
@@ -427,25 +427,21 @@ The server operates on the row-serialized and plaintext-packed database prepared
    from $pk_\mathsf{condensed}$ and $\mathsf{seed\_pack}$ using the
    convention in [Packing-Level Ciphertext Convention].
 
-4. **Pack.** For each packing chunk $j$, form the $d$ SimplePIR-level
-   ciphertexts
-   $t_{j,z} = (\mathbf{h}_{jd+z},\; d \cdot b'_{jd+z} \bmod q)$
-   for $z \in \{0, \ldots, d-1\}$, where $\mathbf{h}_k$ is column $k$
-   of $H$. The factor of $d$ restores the $d^{-1}$ pre-scaling
-   applied in [Client Query Generation]. Compute
+4. **Pack.** For each plaintext-word column
+   $k \in \{0, \ldots, W-1\}$, form the SimplePIR-level ciphertext
+   $t_k = (\mathbf{h}_k,\; b'_k)$, where $\mathbf{h}_k$ is column $k$ of
+   $H$. Let $T = (t_0, \ldots, t_{W-1})$, and compute
 
    $$
-   \widehat{C}_j =
-   \mathsf{ApplyCDKSTransformation}((t_{j,0}, \ldots, t_{j,d-1}), pk)
+   \widehat{R} =
+   \mathsf{PackSimplePIRResponse}(T, pk).
    $$
-
-   as defined in [CDKS Transformation].
 
 5. **Modulus switching.** Apply [Split Modulus Switching] to each
-   $\widehat{C}_j$.
+   ciphertext in $\widehat{R}$.
 
-The resulting sequence of modulus-switched packed RLWE ciphertexts
-is the server response $R$.
+The resulting sequence of modulus-switched packed RLWE ciphertexts is
+the server response $R$.
 
 ### Canonical Plaintext Packing
 
@@ -486,7 +482,54 @@ $f^{(u)}_\ell$ computed in step 2 of each $\mathsf{AutoKS}_\ell$
 call ([CDKS Transformation]) depend only on row 0, so they may be
 stored and reused with different packing keys.
 
-### CDKS Transformation
+### Packing
+
+Note to reader: refer to "Packing" subsection of Rationale.
+
+Let $T = (t_0, \ldots, t_{W_\mathsf{value}-1})$ be the ordered sequence of
+SimplePIR-level LWE ciphertexts corresponding to the selected PIR value,
+where $L_\mathsf{value}$ is the PIR value size in bytes fixed for the
+queried tier in [Parameters] and $W_\mathsf{value}$ is determined from
+$L_\mathsf{value}$ by [Canonical Plaintext Packing], before any
+additional all-zero word padding used only to complete the final
+ciphertext chunk. The server MUST pack $T$ so that the resulting
+packing-level ciphertexts decrypt, under the client's fresh
+packing-level secret, to the same ordered plaintext words.
+
+Define the function
+$\mathsf{PackSimplePIRResponse}(T, pk)$ as follows:
+
+1. Let $d = 2048$ be the packing-level ring degree from [Parameters] and
+   let $m = \lceil W_\mathsf{value} / d \rceil$.
+2. Partition $T$ into $m$ consecutive chunks of length $d$:
+   $(t_{j,0}, \ldots, t_{j,d-1})$ for $j \in \{0, \ldots, m-1\}$. If the
+   final chunk is shorter than $d$, pad it with SimplePIR-level
+   encryptions of zero so that it has exactly $d$ inputs.
+3. For each chunk $j$, compute
+
+   $$
+   \widehat{C}_j =
+   \mathsf{ApplyCDKSTransformation}((t_{j,0}, \ldots, t_{j,d-1}), pk)
+   $$
+
+   to produce one packing-level RLWE ciphertext
+   $\widehat{C}_j = (\widehat{a}_j, \widehat{b}_j) \in R_q^2$.
+4. Return the ordered packed sequence
+   $\widehat{R} = (\widehat{C}_0, \ldots, \widehat{C}_{m-1})$.
+
+The order of slots within each $\widehat{C}_j$ MUST match the order of
+the 14-bit plaintext words obtained from the canonical byte-to-word
+mapping in [Canonical Plaintext Packing]. Slot $\ell$ of $\widehat{C}_j$ MUST correspond
+to word index $jd + \ell$ of that packed representation. Any additional
+slots introduced only to complete the final ciphertext chunk MUST decode
+to zero.
+
+This packing procedure is also responsible for restoring the
+$d^{-1}$ pre-scaling applied in [Client Query Generation], so that the
+packed/decrypted selector semantics match the unscaled plaintext-word
+selection behavior.
+
+#### CDKS Transformation
 
 Let $d = 2048$ and let $L = \log_2(d) = 11$.
 
@@ -666,9 +709,9 @@ ordered chunk $(t_0, \ldots, t_{d-1})$.
 
 Note,
 
-- the $d$-scaling of each $b'_k$ in [Server Computation] step 4
-  restores the $d^{-1}$ pre-scaling from [Client Query Generation],
-  so that the effective packed/decrypted selector semantics are
+- the packing procedure defined in [Packing] restores the $d^{-1}$
+  pre-scaling from [Client Query Generation], so that the effective
+  packed/decrypted selector semantics are
   $A^T \mathbf{s} + e + \Delta \mu_i$ (see
   [Why A Is Negacyclic But the Database Is Not]);
 - the canonical packing-key index order remains
@@ -679,46 +722,6 @@ Note,
 - when the seeded condensed representation is used, the server
   reconstructs the omitted public rows of the packing key from
   $\mathsf{seed\_pack}$ as specified in [Public Seeds].
-
-### Packing
-
-Let $T = (t_0, \ldots, t_{W_\mathsf{value}-1})$ be the ordered sequence of
-SimplePIR-level LWE ciphertexts corresponding to the selected PIR value,
-where $L_\mathsf{value}$ is the PIR value size in bytes fixed for the
-queried tier in [Parameters] and $W_\mathsf{value}$ is determined from
-$L_\mathsf{value}$ by [Canonical Plaintext Packing], before any
-additional all-zero word padding used only to complete the final
-ciphertext chunk. The server MUST pack $T$ so that the resulting
-packing-level ciphertexts decrypt, under the client's fresh
-packing-level secret, to the same ordered plaintext words.
-
-Define the function
-$\mathsf{PackSimplePIRResponse}(T, pk, L_\mathsf{value})$ as follows:
-
-1. Let $d = 2048$ be the packing-level ring degree from [Parameters] and
-   let $m = \lceil W_\mathsf{value} / d \rceil$.
-2. Partition $T$ into $m$ consecutive chunks of length $d$:
-   $(t_{j,0}, \ldots, t_{j,d-1})$ for $j \in \{0, \ldots, m-1\}$. If the
-   final chunk is shorter than $d$, pad it with SimplePIR-level
-   encryptions of zero so that it has exactly $d$ inputs.
-3. For each chunk $j$, compute
-
-   $$
-   \widehat{C}_j =
-   \mathsf{ApplyCDKSTransformation}((t_{j,0}, \ldots, t_{j,d-1}), pk)
-   $$
-
-   to produce one packing-level RLWE ciphertext
-   $\widehat{C}_j = (\widehat{a}_j, \widehat{b}_j) \in R_q^2$.
-4. Return the ordered packed sequence
-   $\widehat{R} = (\widehat{C}_0, \ldots, \widehat{C}_{m-1})$.
-
-The order of slots within each $\widehat{C}_j$ MUST match the order of
-the 14-bit plaintext words obtained from the canonical byte-to-word
-mapping in [Canonical Plaintext Packing]. Slot $\ell$ of $\widehat{C}_j$ MUST correspond
-to word index $jd + \ell$ of that packed representation. Any additional
-slots introduced only to complete the final ciphertext chunk MUST decode
-to zero.
 
 ### Split Modulus Switching
 
@@ -1673,6 +1676,69 @@ the polynomial arithmetic to be carried out efficiently in 64-bit
 machine words. In other words, the construction needs a modulus of
 roughly 56 bits overall, but realizes it as two smaller compatible
 factors so that the NTT-based implementation remains practical.
+
+## Packing
+
+### Negacyclic lifting during packing
+
+The packing step needs the constant coefficient of the lifted product
+$\widetilde{a}_j(X) s^\star(X)$ to reproduce the ordinary LWE inner
+product $\langle \mathbf{a}_j, \mathbf{s} \rangle$.
+
+In the ring $R_q = \mathbb{Z}_q[X]/(X^d + 1)$, wraparound terms satisfy
+$X^d = -1$. The constant coefficient therefore comes from the $a_{j,0}s_0$
+term and from each wrapped pair
+$(-a_{j,d-k}X^k)(s^\star_{d-k}X^{d-k}) = -a_{j,d-k}s^\star_{d-k}X^d
+= a_{j,d-k}s^\star_{d-k}$ for $1 \le k \le d-1$. The reversal of the
+coefficient order in $\widetilde{a}_j(X)$ aligns the matching secret and
+ciphertext coordinates under negacyclic convolution, and the explicit
+minus signs cancel the wraparound sign so that the coefficient-0 term is
+exactly
+$\sum_{i=0}^{d-1} a_{j,i}s^\star_i = \langle \mathbf{a}_j, \mathbf{s}
+\rangle$. The other coefficients then contain only the induced
+ring-product noise terms and do not carry message content.
+
+This lifting is the bridge from the
+intermediate SimplePIR-style LWE ciphertexts to the RLWE domain in which
+the CDKS packing procedure can combine many such scalar ciphertexts into
+one compact packed response.
+
+### Why place the message in coefficient 0 during packing
+
+The packing input is one scalar plaintext per lifted ciphertext, so the
+construction needs that scalar to appear in one fixed, known coefficient.
+
+Coefficient 0 is the natural choice because it is the quantity recovered
+directly by the lifted decryption relation above, and it remains fixed
+under the ring automorphisms used later in packing. This gives the CDKS
+step a uniform input form: each lifted ciphertext contributes one scalar
+message in coefficient 0, while the remaining coefficients contain only
+noise.
+
+### Rationale for gadget decomposition during key switching
+
+After applying a ring automorphism, the intermediate ciphertext is no
+longer directly decryptable under the original packing secret, so the
+server must key-switch it back. The key-switch operation depends on the
+automorphed row polynomial $a'$, whose coefficients are arbitrary
+elements of $\mathbb{Z}_q$. Handling $a'$ directly would require working
+with full-modulus coefficients during the switch, which is inefficient
+and leads to a less compact and less reusable switching structure.
+
+Gadget decomposition avoids this by writing
+
+$$
+a' = \sum_{u=0}^{L_{\mathsf{ks}}-1} B_{\mathsf{ks}}^u \cdot f^{(u)},
+$$
+
+where the digit polynomials $f^{(u)}$ have small coefficients in a fixed
+base $B_{\mathsf{ks}}$. This lets the server precompute key-switch
+ciphertexts for the powers of $B_{\mathsf{ks}}$ and then perform the
+switch digit-by-digit, combining those precomputed ciphertexts with the
+small coefficients of the $f^{(u)}$. In effect, the construction
+replaces one switch on arbitrary $q$-sized coefficients with a bounded
+number of switches on small digits, which is the standard tradeoff that
+makes key switching practical in RLWE schemes.
 
 ## Construction Choice
 
