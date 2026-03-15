@@ -383,8 +383,9 @@ $$
 This scales both the sampled noise and the unique nonzero selector entry
 by $d^{-1}$ before ring-based encryption and extraction.
 
-When the deployed ring-generated selector path is viewed in LWE form, the same
-fresh secret $\mathbf{s}$ is paired with the public matrix induced by the seeded ring blocks under the negacyclic extraction convention.
+Equivalently, the same fresh ring secret $s^\star$ determines the LWE
+secret vector $\mathbf{s}$, and the seeded ring blocks determine the
+public LWE matrix $A$ via negacyclic extraction.
 
 ## Server Computation
 
