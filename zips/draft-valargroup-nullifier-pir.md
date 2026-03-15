@@ -180,7 +180,7 @@ The following are explicitly out of scope:
 - Sub-second end-to-end query latency. The two sequential PIR round-trips
   impose a latency floor determined by network conditions.
 - Retrieval of data other than nullifier exclusion proofs.
-- YPIR transport-level wire format between client and server.
+- PIR transport-level wire format between client and server.
 - Noise analysis. Refer to YPIR paper for noise and security analysis. We directly use the suggested values with no amendments [^YPIR].
 - The outer transport and wire-level encoding of queries and responses is out of scope for this ZIP.
 
@@ -223,6 +223,8 @@ database hint.
 # Specification
 
 ## PIR Operations
+
+This ZIP specifies the YPIR+SP scheme [^YPIR].
 
 `Server_Setup`
 
@@ -383,18 +385,6 @@ by $d^{-1}$ before ring-based encryption and extraction.
 
 When the deployed ring-generated selector path is viewed in LWE form, the same
 fresh secret $\mathbf{s}$ is paired with the public matrix induced by the seeded ring blocks under the negacyclic extraction convention.
-
-## YPIR+SP
-
-YPIR+SP [^YPIR] eliminates the hint by packing the SimplePIR response
-into RLWE ciphertexts using the CDKS transformation [^CDKS].
-
-RLWE ciphertexts encrypt $d$ values in a single ciphertext (as
-coefficients of a polynomial in $\mathbb{Z}[x]/(x^d + 1)$ ), compared to
-one value per LWE ciphertext. This yields dramatically less ciphertext
-overhead, making it possible to compress the entire SimplePIR row
-response — which would otherwise require the hint for decryption — into
-a small number of RLWE ciphertexts that the client can decrypt directly.
 
 ## Server Computation
 
