@@ -198,8 +198,6 @@ The nullifier exclusion tree is split into three tiers:
 - Tier 1 contains depth-11 to depth-18 subtrees and is served as a PIR database.
 - Tier 2 contains depth-18 to depth-26 subtrees and is served as a PIR database.
 
-## PIR Construction
-
 Each proof retrieval consists of one plaintext download plus two
 sequential PIR queries:
 
