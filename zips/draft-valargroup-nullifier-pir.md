@@ -381,21 +381,12 @@ overhead, making it possible to compress the entire SimplePIR row
 response — which would otherwise require the hint for decryption — into
 a small number of RLWE ciphertexts that the client can decrypt directly.
 
-## Pre-processing
+## Server Computation
 
-The server computation splits into a query-independent offline phase
-and a query-dependent online phase. The CDKS packing transformation
-from [CDKS Transformation] is linear in the second-row (scalar)
-components of its input ciphertexts. This allows precomputation of
-everything that depends only on the first-row (vector) components,
-which are determined entirely by $\mathsf{seed\_A}$ and the database.
-
-### Server Pre-processing
-
-Before any client query arrives, the server MUST precompute the
-following query-independent artifacts for the active PIR database
-tier. Let $m$ be the number of database rows, $W$ the number of
-14-bit plaintext-word columns (from [Canonical Plaintext Packing]),
+Given a query $Q = (c_\mathsf{online}, pk_\mathsf{condensed})$ and
+the active PIR database tier, the server MUST compute the response
+as follows. Let $m$ be the number of database rows, $W$ the number
+of 14-bit plaintext-word columns (from [Canonical Plaintext Packing]),
 and let $d = 2048$.
 
 1. **Selector hint.** Let
@@ -409,47 +400,10 @@ and let $d = 2048$.
 
    where $\mathsf{DB} \in \mathbb{Z}_q^{m \times W}$ is the packed
    plaintext database from [Canonical Plaintext Packing].
-
    Column $k$ of $H$ is the $\mathbf{a}$-component of the
-   SimplePIR-level ciphertext $t_k$ for any query — it does not
-   depend on the client's secret or selector.
+   SimplePIR-level ciphertext $t_k$ for any query.
 
-2. **Lifted placeholder ciphertexts.** For each packing chunk
-   $j \in \{0, \ldots, \lceil W/d \rceil - 1\}$, form $d$ placeholder
-   ciphertexts $t^\mathsf{off}_k = (\mathbf{h}_k, 0)$ where
-   $\mathbf{h}_k$ is column $k$ of $H$ and the scalar component is
-   zero. Apply the negacyclic lifting from [CDKS Transformation] to
-   obtain
-   $\overline{t}^\mathsf{off}_k = (\overline{a}_k(X), 0)$.
-
-3. **Packing precomputation.** For each chunk, evaluate the CDKS
-   packing tree on the lifted placeholders
-   $(\overline{t}^\mathsf{off}_0, \ldots,
-   \overline{t}^\mathsf{off}_{d-1})$, using the seeded packing
-   public parameters reconstructed from $\mathsf{seed\_pack}$ with
-   a zero secret. Store the resulting first-row polynomial and
-   per-level intermediate state (gadget-decomposition products and
-   automorphism index tables).
-
-4. **Packing constants.** Precompute
-   $Y_\ell = X^{d/2^\ell}$ and $-Y_\ell$ in evaluation form for
-   $\ell \in \{1, \ldots, L\}$.
-
-Every retained offline artifact MUST be a deterministic function of
-the database and the fixed public seeds only. Any secret or noise
-values used internally during packing precomputation (e.g. the zero
-secret in step 3) MUST be either zero, discarded, or algebraically
-irrelevant to the retained state. The artifacts MUST be recomputed
-when the database changes. They do not depend on any client secret
-or query.
-
-### Server Online Evaluation
-
-Given the precomputed artifacts from [Server Pre-processing] and a
-received query $Q = (c_\mathsf{online}, pk_\mathsf{condensed})$, the
-server MUST compute the packed response as follows:
-
-1. **Database scan.** Compute the query-dependent scalar components
+2. **Database scan.** Compute the query-dependent scalar components
 
    $$
    b'_k = \sum_{j=0}^{m-1}
@@ -459,39 +413,50 @@ server MUST compute the packed response as follows:
 
    for each plaintext-word column $k \in \{0, \ldots, W-1\}$.
    For indices $k \geq W$ (padding positions in the final chunk),
-   define $b'_k = 0$.
+   define $b'_k = 0$ and $\mathbf{h}_k = \mathbf{0} \in \mathbb{Z}_q^n$.
 
-2. **Reconstruct packing key.** Recover the full packing key from
-   $pk_\mathsf{condensed}$ and $\mathsf{seed\_pack}$ using the
+3. **Reconstruct packing key.** Recover the full packing key $pk$
+   from $pk_\mathsf{condensed}$ and $\mathsf{seed\_pack}$ using the
    convention in [Packing-Level Ciphertext Convention].
 
-3. **Online packing.** For each packing chunk $j$, combine the
-   precomputed first-row result and intermediate packing-tree state
-   from [Server Pre-processing] with the client's packing-key
-   second rows from $pk_\mathsf{condensed}$ to obtain the packed
-   ciphertext $\widehat{C}_j = (\widehat{a}_j, \widehat{b}_j)$:
+4. **Pack.** For each packing chunk $j$, form the $d$ SimplePIR-level
+   ciphertexts
+   $t_{j,z} = (\mathbf{h}_{jd+z},\; d \cdot b'_{jd+z} \bmod q_2)$
+   for $z \in \{0, \ldots, d-1\}$, where $\mathbf{h}_k$ is column $k$
+   of $H$. The factor of $d$ restores the $d^{-1}$ pre-scaling
+   applied in [Client Query Generation]. Compute
 
-   - $\widehat{a}_j$ is the precomputed first-row polynomial
-     (query-independent).
+   $$
+   \widehat{C}_j =
+   \mathsf{ApplyCDKSTransformation}((t_{j,0}, \ldots, t_{j,d-1}), pk)
+   $$
 
-   - $\widehat{b}_j$ is formed by adding two contributions:
-     the second-row result from the online packing-tree traversal
-     using $pk_\mathsf{condensed}$, and the $d$-restored online
-     $b$-values:
+   as defined in [CDKS Transformation].
 
-     $$
-     \widehat{b}_j \mathrel{+}= \sum_{z=0}^{d-1}
-       (d \cdot b'_{jd+z} \bmod q_2)\, X^z.
-     $$
-
-     This restores the factor of $d$ removed by the client's
-     $d^{-1}$ pre-scaling in [Regev Encryption].
-
-4. **Modulus switching.** Apply [Split Modulus Switching] to each
+5. **Modulus switching.** Apply [Split Modulus Switching] to each
    $\widehat{C}_j$.
 
 The resulting sequence of modulus-switched packed RLWE ciphertexts
 is the server response $R$.
+
+### Precomputation
+
+$H$ and the row-0 components of the CDKS packing tree depend only
+on $\mathsf{seed\_A}$ and the database; they do not depend on the
+client's query or packing key. An implementation MAY precompute
+these query-independent artifacts before any query arrives and
+reuse them across queries to the same database, provided that:
+
+- every retained artifact is a deterministic function of the
+  database and the fixed public seeds only;
+- the artifacts are recomputed when the database changes;
+- the resulting packed ciphertexts are identical to those produced
+  by evaluating $\mathsf{ApplyCDKSTransformation}$ directly.
+
+In particular, the gadget-decomposition digit polynomials
+$f^{(u)}_\ell$ computed in step 2 of each $\mathsf{AutoKS}_\ell$
+call ([CDKS Transformation]) depend only on row 0, so they may be
+stored and reused with different packing keys.
 
 ### Client Key Generation
 
@@ -538,6 +503,10 @@ matrix:
   is a noise polynomial and $m$ is the plaintext polynomial.
 
 Decryption recovers $m + e$ as $c_1 + c_0 \cdot s^\star$.
+
+When this ZIP writes a packing-level RLWE ciphertext as $(a, b)$,
+$a$ denotes row 0 and $b$ denotes row 1. The decryption identity is
+therefore $b + a \cdot s^\star$.
 
 Throughout this ZIP, "public row" means row 0 and "second row" means
 row 1 under this convention. When [PackingKeyGeneration] refers to
@@ -776,31 +745,52 @@ Y_\ell = X^{d / 2^\ell} \in R_{q_2},
 t_\ell = 2^\ell + 1.
 $$
 
-Let $K(\tau_{t_\ell})$ denote the unique key-switch matrix in
-$pk = \mathsf{GeneratePackingKey}(s^\star)$ corresponding to automorphism
-$\tau_{t_\ell}$ as specified in [PackingKeyGeneration].
+Level $\ell$ uses the key-switch matrix at packing-key index
+$r = L - \ell$ in $pk = \mathsf{GeneratePackingKey}(s^\star)$
+(since $k_{L-\ell} = d/2^{L-\ell} + 1 = 2^\ell + 1 = t_\ell$). Write
+
+$$K_\ell = K_{L-\ell} = (K_{L-\ell,\,0},\; K_{L-\ell,\,1},\; K_{L-\ell,\,2}).$$
 
 For any packing-level RLWE ciphertext
-$C = (a(X), b(X)) \in R_{q_2}^2$, define the homomorphic automorphism
-under $K(\tau_{t_\ell})$ as follows:
+$C = (a(X), b(X)) \in R_{q_2}^2$, define
 
-1. Compute the coefficient-wise ring automorphism
-   $\tau_{t_\ell}(C) = (\tau_{t_\ell}(a), \tau_{t_\ell}(b))$.
-2. Interpret the automorphed ciphertext in the convention of
-   [Packing-Level Ciphertext Convention], and write its public row
-   (row 0) in gadget form:
+$$\mathsf{AutoKS}_\ell(C)$$
+
+as follows:
+
+1. Apply the ring automorphism to both rows:
+   $(a', b') = (\tau_{t_\ell}(a),\; \tau_{t_\ell}(b))$.
+2. Gadget-decompose $a'$ (row 0 of the automorphed ciphertext):
 
    $$
-   c^\mathsf{row0}_\ell = \sum_{u=0}^{L_\mathsf{ks}-1} B_\mathsf{ks}^u \cdot f^{(u)}
+   a' = \sum_{u=0}^{L_\mathsf{ks}-1} B_\mathsf{ks}^u \cdot f^{(u)}
    $$
 
    with digit polynomials $f^{(u)}$ as defined in
    [PackingKeyGeneration].
-3. Apply the homomorphic key-switch procedure induced by
-   $K(\tau_{t_\ell})$ to obtain one packing-level RLWE ciphertext
-   $\mathsf{AutoKS}_{\ell}(C)$ that decrypts under $s^\star$ to the same
-   plaintext as the automorphed ciphertext $\tau_{t_\ell}(C)$, up to the
-   usual RLWE noise growth.
+3. For each gadget digit $u \in \{0, \ldots, L_\mathsf{ks}-1\}$,
+   multiply the key-switch ciphertext $K_{L-\ell,\,u}$ by $f^{(u)}$
+   (scalar-polynomial ring multiplication applied to both rows of
+   $K_{L-\ell,\,u}$).
+4. Sum the products:
+
+   $$
+   S = \sum_{u=0}^{L_\mathsf{ks}-1} K_{L-\ell,\,u} \cdot f^{(u)}
+   \;\in R_{q_2}^2.
+   $$
+
+5. Form the output ciphertext:
+
+   $$
+   \mathsf{AutoKS}_\ell(C) = (0,\; b') + S.
+   $$
+
+   Concretely, row 0 of the output is row 0 of $S$, and row 1 is
+   $b' +{}$ row 1 of $S$.
+
+Under the convention in [Packing-Level Ciphertext Convention], the
+output decrypts under $s^\star$ to $\tau_{t_\ell}(m)$ (plus noise),
+where $m$ is the plaintext of $C$.
 
 Define the recursive packing function
 $\mathsf{CDKS}_\ell(C_0, \ldots, C_{2^\ell-1})$ on lifted ciphertexts by:
@@ -859,43 +849,28 @@ $\mathsf{ApplyCDKSTransformation}(T, pk)$ as follows:
 
 3. Return $\widehat{C}$.
 
-Implementations MAY realize this lifted chunk transformation via
-the offline/online split specified in [Server Pre-processing] and
-[Server Online Evaluation], or any algebraically equivalent
-realization, provided that decryption of the resulting packed
-ciphertext under $s^\star$ yields the same ordered plaintext-word
-vector as decryption of
-$\mathsf{ApplyCDKSTransformation}(T, pk)$.
-
 The packed ciphertext for the chunk is therefore
 
 $$
 \widehat{C} = \mathsf{ApplyCDKSTransformation}(T, pk).
 $$
 
-For $d = 2048$, the transform therefore runs for exactly 11 levels. Slot
-$\ell$ of $\widehat{C}$ MUST correspond to input position $\ell$ in the
-ordered chunk $(t_0, \ldots, t_{d-1})$. Any implementation-equivalent
-realization of the same transform is acceptable, provided that it
-produces ciphertexts with the same plaintext-slot ordering and the same
-effective decryption semantics under $s^\star$.
+For $d = 2048$, the transform runs for exactly 11 levels. Slot $\ell$
+of $\widehat{C}$ MUST correspond to input position $\ell$ in the
+ordered chunk $(t_0, \ldots, t_{d-1})$.
 
 Note,
 
-- the client-side selector generation uses the pre-scaling by $d^{-1}
-  \bmod q$ specified in [Client Query Generation];
-- the server-side packing procedure MUST restore the corresponding
-  factor of $d$ modulo $q_2$ by scaling each online $b$-value by $d$
-  when injecting it into the packed ciphertext's second row, as
-  specified in [Server Online Evaluation], or apply an algebraically
-  equivalent transformation that produces the effective packed/decrypted
-  selector semantics $A^T \mathbf{s} + e + \Delta \mu_i$ (see
+- the $d$-scaling of each $b'_k$ in [Server Computation] step 4
+  restores the $d^{-1}$ pre-scaling from [Client Query Generation],
+  so that the effective packed/decrypted selector semantics are
+  $A^T \mathbf{s} + e + \Delta \mu_i$ (see
   [Why A Is Negacyclic But the Database Is Not]);
 - the canonical packing-key index order remains
   $\tau_{2049}, \tau_{1025}, \tau_{513}, \tau_{257}, \tau_{129},
   \tau_{65}, \tau_{33}, \tau_{17}, \tau_{9}, \tau_{5}, \tau_{3}$ as
-  specified in [PackingKeyGeneration], and level $\ell$ uses the unique
-  matrix for automorphism $\tau_{2^\ell + 1}$;
+  specified in [PackingKeyGeneration]; level $\ell$ uses the matrix at
+  index $r = L - \ell$ as derived in [CDKS Transformation];
 - when the seeded condensed representation is used, the server
   reconstructs the omitted public rows of the packing key from
   $\mathsf{seed\_pack}$ as specified in [Public Seeds].
@@ -989,12 +964,10 @@ $\mathsf{LiftModulusSwitchedRLWECiphertext}((a', b'))$ as follows:
 
 Define the function
 $\mathsf{DecryptPackingRLWECiphertext}((a, b), s^\star)$ for a packing-level
-RLWE ciphertext $(a, b) \in R_{q_2}^2$ as follows:
+RLWE ciphertext $(a, b) \in R_{q_2}^2$ as follows, where $(a, b)$
+are ordered as in [Packing-Level Ciphertext Convention]:
 
-This decryption procedure is analogous to [Regev Encryption], but over
-the packing-level RLWE ring $R_{q_2}$ instead of the SimplePIR-level LWE space.
-
-1. Compute $u = b - a \cdot s^\star \in R_{q_2}$.
+1. Compute $u = b + a \cdot s^\star \in R_{q_2}$.
 2. Let $\Delta_2 = \lfloor q_2 / p_2 \rfloor$, where $p_2 = 2^{14}$ is
    the packing-level plaintext modulus from [Parameters].
 3. For each coefficient of $u$, round to the nearest multiple of
@@ -1057,9 +1030,9 @@ The protocol proceeds as follows:
 3. The server reconstructs the omitted public/query-independent
    packing-key components from $\mathsf{seed\_pack}$ as specified in
    [Public Seeds].
-4. The server evaluates the query using the offline/online split
-   specified in [Server Pre-processing] and [Server Online Evaluation]
-   to compute the abstract server response object $R$.
+4. The server evaluates the query as specified in
+   [Server Computation] to compute the abstract server response
+   object $R$.
 5. The server returns $R$ using an implementation-defined transport
    encoding.
 6. The client recovers the returned row as
@@ -1854,8 +1827,9 @@ size is what enables the small download sizes summarized in [Bandwidth
 Summary].
 
 A packing-level RLWE ciphertext has the form $(a, b)$, where $a$ is the
-mask polynomial and $b$ is the payload polynomial. During decryption the
-client computes $u = b - a \cdot s$, so $a$ contributes through
+mask polynomial (stored as $-\rho$) and $b$ is the payload polynomial.
+During decryption the client computes $u = b + a \cdot s$
+(see [Packing-Level Ciphertext Convention]), so $a$ contributes through
 multiplication by the secret key, while $b$ more directly carries the
 encoded plaintext.
 
