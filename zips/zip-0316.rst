@@ -852,6 +852,34 @@ derive an internal P2PKH FVK from the external P2PKH FVK (i.e. its parent)
 without having the external spending key, because child derivation at the
 Change level is non-hardened.
 
+For transparent P2SH multisig keys as specified in ZIP 48 [#zip-0048]_,
+a Full Viewing Key consists of a threshold $t$ and $N$ Account-level
+extended public keys $(\mathsf{c}_i, \mathsf{pk}_i)$ at path
+``m/48'/coin_type'/account'/133000'``. $t$ and $N$ MUST satisfy
+$1 \le t \le N \le 255$. We define the canonical serialization of this
+FVK as
+$\mathsf{fvk\_ser} = [t] \,||\, [N] \,||\, \mathsf{c}_{\pi(0)} \,||\, \mathsf{ser_P}(\mathsf{pk}_{\pi(0)}) \,||\, \cdots \,||\, \mathsf{c}_{\pi(N-1)} \,||\, \mathsf{ser_P}(\mathsf{pk}_{\pi(N-1)})$
+where $\pi$ is the permutation that sorts keys in ascending lexicographic
+order of $\mathsf{ser_P}(\mathsf{pk}_i)$ (consistent with the
+``sortedmulti()`` ordering specified in BIP 383 [#bip-0383]_),
+$[t]$ and $[N]$ are single bytes, and each
+$(\mathsf{c}_i, \mathsf{pk}_i)$ pair is $65$ bytes ($32$-byte chain code
+concatenated with $33$-byte compressed public key).
+
+The external and internal $\mathsf{ovk}$ components are then derived as
+follows:
+
+- Let $K = \mathsf{BLAKE2b‐256}(\texttt{"Zcash\_ZIP48MsOVK"},\, \mathsf{fvk\_ser})$.
+- Let $I_\mathsf{ovk} = \mathsf{PRF^{expand}}_{\mathsf{LEOS2BSP}_{256}(K)}\big([\mathtt{0xd1}]\big)$.
+- Let $\mathsf{ovk_{external}}$ be the first $32$ bytes of
+  $I_\mathsf{ovk}$ and let $\mathsf{ovk_{internal}}$ be the
+  remaining $32$ bytes of $I_\mathsf{ovk}$.
+
+The two-step derivation is necessary because $\mathsf{PRF^{expand}}$ requires a
+$256$-bit key, while the FVK serialization for a multisig wallet is
+variable-length. The BLAKE2b-256 step derives a fixed-size PRF key from the
+variable-length multi-party key material.
+
 
 Deriving a UIVK from a UFVK
 ---------------------------
@@ -1324,6 +1352,7 @@ References
 .. [#zip-0032-specification-wallet-usage] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Specification: Wallet usage <zip-0032.rst#specification-wallet-usage>`_
 .. [#zip-0032-sapling-key-path] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling key path <zip-0032.rst#sapling-key-path>`_
 .. [#zip-0032-orchard-key-path] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Orchard key path <zip-0032.rst#orchard-key-path>`_
+.. [#zip-0048] `ZIP 48: Transparent Multisig Wallets <zip-0048.md>`_
 .. [#zip-0203-default-expiry] `ZIP 203: Transaction Expiry — Changes for Blossom <zip-0203.rst#changes-for-blossom>`_
 .. [#zip-0211] `ZIP 211: Disabling Addition of New Value to the Sprout Chain Value Pool <zip-0211.rst>`_
 .. [#zip-0224] `ZIP 224: Orchard Shielded Protocol <zip-0224.rst>`_
@@ -1337,6 +1366,7 @@ References
 .. [#bip-0044-path-change] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets — Path levels: Change <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#change>`_
 .. [#bip-0044-path-index] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets — Path levels: Index <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#index>`_
 .. [#bip-0350] `BIP 350: Bech32m format for v1+ witness addresses <https://github.com/bitcoin/bips/blob/master/bip-0350.mediawiki>`_
+.. [#bip-0383] `BIP 383: Multisig Output Script Descriptors <https://github.com/bitcoin/bips/blob/master/bip-0383.mediawiki>`_
 .. [#P2PKH] `Transactions: P2PKH Script Validation — Bitcoin Developer Guide <https://developer.bitcoin.org/devguide/transactions.html#p2pkh-script-validation>`_
 .. [#P2SH] `Transactions: P2SH Scripts — Bitcoin Developer Guide <https://developer.bitcoin.org/devguide/transactions.html#pay-to-script-hash-p2sh>`_
 .. [#Bitcoin-CompactSize] `Variable length integer. Bitcoin Wiki <https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer>`_
