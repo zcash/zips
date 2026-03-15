@@ -226,59 +226,47 @@ database hint.
 
 `Server_Setup`
 
-: Server-side initialization: the parameter set ([Parameters]),
-  database row serialization ([Instantiations]), public-seed expansion
-  ([Public Seeds]), and optional query-independent preprocessing
-  ([Precomputation]).
+: Server-side initialization: fix the deployed parameter set
+  ([Parameters]); construct the tier databases and row serializations
+  ([Instantiations]); expand the fixed public seeds and derived
+  public/query-independent material ([Public Seeds]); encode each
+  serialized PIR row into plaintext words
+  ([Canonical Plaintext Packing]); and optionally perform
+  query-independent preprocessing ([Precomputation]).
 
 `Client_Query`
 
-: Client-side query construction: fresh key generation
-  ([Client Key Generation]), row-selector encryption
-  ([Regev Encryption]), and packed query generation
-  ([Client Query Generation]).
+: Client-side query construction: sample fresh query material
+  ([Client Key Generation]); construct the row-selector encryption
+  ([Regev Encryption]); form the deployed transmitted query object
+  ([Client Query Generation]); and send that query using an
+  implementation-defined transport encoding.
 
 `Server_Answer`
 
-: Server-side response computation: selector application over the
-  database matrix, CDKS packing ([Packing]), and split modulus switching
-  ([Split Modulus Switching]).
+: Server-side response computation: reconstruct omitted
+  public/query-independent query material from the fixed public seeds
+  ([Public Seeds]); evaluate the query over the active PIR database tier
+  ([Server Computation]); and return the resulting abstract server
+  response object using an implementation-defined transport encoding.
 
 `Client_Recover`
 
-: Client-side response decryption: packing-level RLWE decryption
-  ([Packing-level RLWE Decryption]) and row recovery
-  ([Client Recovery of the Selected Row]).
+: Client-side response processing: decode the server response by
+  packing-level RLWE decryption ([Packing-level RLWE Decryption]) and
+  row recovery ([Client Recovery of the Selected Row]).
 
-The end-to-end sequencing of these operations is specified below:
+The protocol proceeds in the order:
+1. `Server_Setup`
+2. `Client_Query`
+3. `Server_Answer`
+4. `Client_Recover`.
 
-The protocol proceeds through these operations in the following order:
-
-1. `Server_Setup`:
-   * Fix the deployed parameter set as specified in [Parameters].
-   * Construct the tier databases and row serializations as specified in [Instantiations].
-   * Expand the fixed public seeds and derived public/query-independent material as specified in [Public Seeds].
-   * Encode each serialized PIR row into plaintext words as specified in [Canonical Plaintext Packing].
-   * The server MAY precompute query-independent response material as specified in [Precomputation].
-2. `Client_Query`:
-   * The client computes the deployed transmitted query object
-   $Q = (c_\mathsf{online}, pk_\mathsf{condensed})$ for row index $i$ as specified in
-   [Client Query Generation].
-   * The client sends $Q$ to the server using an implementation-defined
-   transport encoding.
-3. `Server_Answer`:
-   * The server reconstructs the omitted public/query-independent
-   packing-key components from $\mathsf{seed\_pack}$ as specified in
-   [Public Seeds].
-   * The server evaluates the query as specified in
-   [Server Computation] to compute the abstract server response
-   object $R$.
-   * The server returns $R$ using an implementation-defined transport
-   encoding.
-4. `Client_Recover`:
-   * The client recovers the returned row as
-   $\mathsf{DecodeYPIRSPResponse}(R, L_\mathsf{value}, L_\mathsf{row})$
-   in the sense specified in [Client Recovery of the Selected Row].
+A `Server_Setup` instantiation is tied to one fixed database state.
+`Client_Query`, `Server_Answer`, and `Client_Recover` MAY be invoked
+repeatedly against that instantiation. After any database update, the
+server MUST create a new `Server_Setup` instantiation before answering
+queries for the updated state.
 
 ## Parameters
 
@@ -1261,6 +1249,12 @@ The server MUST construct the exclusion tree and the corresponding PIR
 databases (Tiers 0, 1, and 2) once from the nullifier set at the start
 of each Protocol Epoch. The databases are static for the duration of
 the epoch.
+
+For each nullifier snapshot, the server MUST establish a distinct
+`Server_Setup` instantiation from the tier databases and associated
+public/query-independent material derived from that snapshot. A
+`Server_Setup` instantiation for one nullifier snapshot MUST NOT be used
+to answer queries against a different snapshot.
 
 #### Tree Structure
 
