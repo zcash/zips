@@ -577,9 +577,186 @@ defined by this ZIP.
 
 ### CDKS Transformation
 
-Implement CDKS transformation as specified in [^CDKS].
+Let $d = 2048$ and let $L = \log_2(d) = 11$.
 
-TODO: specify
+For one packing chunk, let
+
+$$
+T = (t_0, \ldots, t_{d-1})
+$$
+
+be the ordered sequence of $d$ SimplePIR-level ciphertexts to be packed,
+where each
+
+$$
+t_j = (\mathbf{a}_j, b_j) \in \mathbb{Z}_q^d \times \mathbb{Z}_q
+$$
+
+decrypts under the selector secret
+$\mathbf{s} = (s^\star_0, \ldots, s^\star_{d-1})$ from
+[Client Key Generation].
+
+Define the lifted packing-level RLWE ciphertext
+
+$$
+\overline{t}_j = (\overline{a}_j(X), \overline{b}_j(X)) \in R_{q_2}^2
+$$
+
+by:
+
+$$
+\overline{b}_j(X) = b_j
+$$
+
+and
+
+$$
+\overline{a}_j(X) = -\widetilde{a}_j(X),
+$$
+
+where, writing
+$\mathbf{a}_j = (a_{j,0}, \ldots, a_{j,d-1})$,
+
+$$
+\widetilde{a}_j(X) =
+a_{j,0}
+- a_{j,d-1}X
+- a_{j,d-2}X^2
+- \cdots
+- a_{j,1}X^{d-1}.
+$$
+
+This is the negacyclic lifting used by the deployed implementation: the
+message carried by $t_j$ becomes the coefficient-0 plaintext of
+$\overline{t}_j$, and the remaining coefficients contain only the induced
+RLWE noise terms.
+
+For each level $\ell \in \{1, \ldots, L\}$, define:
+
+$$
+Y_\ell = X^{d / 2^\ell} \in R_{q_2},
+\qquad
+t_\ell = 2^\ell + 1.
+$$
+
+Let $K(\tau_{t_\ell})$ denote the unique key-switch matrix in
+$pk = \mathsf{GeneratePackingKey}(s^\star)$ corresponding to automorphism
+$\tau_{t_\ell}$ as specified in [PackingKeyGeneration].
+
+For any packing-level RLWE ciphertext
+$C = (a(X), b(X)) \in R_{q_2}^2$, define the homomorphic automorphism
+under $K(\tau_{t_\ell})$ as follows:
+
+1. Compute the coefficient-wise ring automorphism
+   $\tau_{t_\ell}(C) = (\tau_{t_\ell}(a), \tau_{t_\ell}(b))$.
+2. Write the first component in gadget form:
+
+   $$
+   \tau_{t_\ell}(a) = \sum_{u=0}^{L_\mathsf{ks}-1} B_\mathsf{ks}^u \cdot f^{(u)}
+   $$
+
+   with digit polynomials $f^{(u)}$ as defined in
+   [PackingKeyGeneration].
+3. If
+   $K(\tau_{t_\ell}) = (K_{\ell,0}, \ldots, K_{\ell,L_\mathsf{ks}-1})$
+   with
+   $K_{\ell,u} = (a_{\ell,u}, b_{\ell,u})$,
+   output
+
+   $$
+   \mathsf{AutoKS}_{\ell}(C)
+   =
+   \left(
+     \sum_{u=0}^{L_\mathsf{ks}-1} a_{\ell,u} \cdot f^{(u)},
+     \tau_{t_\ell}(b) + \sum_{u=0}^{L_\mathsf{ks}-1} b_{\ell,u} \cdot f^{(u)}
+   \right).
+   $$
+
+Define the recursive packing function
+$\mathsf{CDKS}_\ell(C_0, \ldots, C_{2^\ell-1})$ on lifted ciphertexts by:
+
+1. Base case:
+
+   $$
+   \mathsf{CDKS}_0(C_0) = C_0.
+   $$
+
+2. Recursive case for $\ell \geq 1$:
+   - Let
+
+     $$
+     C^\mathsf{even} =
+     \mathsf{CDKS}_{\ell-1}(C_0, \ldots, C_{2^{\ell-1}-1})
+     $$
+
+     and
+
+     $$
+     C^\mathsf{odd} =
+     \mathsf{CDKS}_{\ell-1}(C_{2^{\ell-1}}, \ldots, C_{2^\ell-1}).
+     $$
+
+   - Form the two branch combinations
+
+     $$
+     C^\mathsf{sum}_\ell = C^\mathsf{even} + Y_\ell \cdot C^\mathsf{odd},
+     $$
+
+     $$
+     C^\mathsf{diff}_\ell = C^\mathsf{even} - Y_\ell \cdot C^\mathsf{odd}.
+     $$
+
+   - Output
+
+     $$
+     \mathsf{CDKS}_\ell(C_0, \ldots, C_{2^\ell-1})
+     =
+     C^\mathsf{sum}_\ell + \mathsf{AutoKS}_\ell(C^\mathsf{diff}_\ell).
+     $$
+
+Define the chunk-level function
+$\mathsf{ApplyCDKSTransformation}(T, pk)$ as follows:
+
+1. Lift each SimplePIR-level ciphertext $t_j$ in
+   $T = (t_0, \ldots, t_{d-1})$ to $\overline{t}_j$ by the negacyclic
+   lifting rule above.
+2. Compute
+
+   $$
+   \widehat{C} =
+   \mathsf{CDKS}_L(\overline{t}_0, \ldots, \overline{t}_{d-1}).
+   $$
+
+3. Return $\widehat{C}$.
+
+The packed ciphertext for the chunk is therefore
+
+$$
+\widehat{C} = \mathsf{ApplyCDKSTransformation}(T, pk).
+$$
+
+For $d = 2048$, the transform therefore runs for exactly 11 levels. Slot
+$\ell$ of $\widehat{C}$ MUST correspond to input position $\ell$ in the
+ordered chunk $(t_0, \ldots, t_{d-1})$. Any implementation-equivalent
+realization of the same transform is acceptable, provided that it
+produces ciphertexts with the same plaintext-slot ordering and the same
+effective decryption semantics under $s^\star$.
+
+Note,
+
+- the client-side selector generation uses the pre-scaling by $d^{-1}
+  \bmod q$ specified in [Client Query Generation];
+- the server-side packing procedure MUST restore the corresponding
+  factor of $d$ modulo $q_2$ in the packed payload, or apply an
+  algebraically equivalent transformation;
+- the canonical packing-key index order remains
+  $\tau_{2049}, \tau_{1025}, \tau_{513}, \tau_{257}, \tau_{129},
+  \tau_{65}, \tau_{33}, \tau_{17}, \tau_{9}, \tau_{5}, \tau_{3}$ as
+  specified in [PackingKeyGeneration], and level $\ell$ uses the unique
+  matrix for automorphism $\tau_{2^\ell + 1}$;
+- when the seeded condensed representation is used, the server
+  reconstructs the omitted public rows of the packing key from
+  $\mathsf{seed\_pack}$ as specified in [Public Seeds].
 
 ### Packing
 
@@ -589,11 +766,9 @@ where $L_\mathsf{value}$ is the PIR value size in bytes fixed for the
 queried tier in [Parameters] and $W_\mathsf{value}$ is determined from
 $L_\mathsf{value}$ by [Canonical Plaintext Packing], before any
 additional all-zero word padding used only to complete the final
-ciphertext chunk. The server MUST apply the YPIR+SP packing procedure
-using the packing material associated with the client's query so that
-the resulting packed ciphertexts decrypt, under the client's fresh
-packing-level secret, to the same ordered plaintext words as the
-selected PIR value.
+ciphertext chunk. The server MUST pack $T$ so that the resulting
+packing-level ciphertexts decrypt, under the client's fresh
+packing-level secret, to the same ordered plaintext words.
 
 Define the function
 $\mathsf{PackSimplePIRResponse}(T, pk, L_\mathsf{value})$ as follows:
@@ -604,27 +779,15 @@ $\mathsf{PackSimplePIRResponse}(T, pk, L_\mathsf{value})$ as follows:
    $(t_{j,0}, \ldots, t_{j,d-1})$ for $j \in \{0, \ldots, m-1\}$. If the
    final chunk is shorter than $d$, pad it with SimplePIR-level
    encryptions of zero so that it has exactly $d$ inputs.
-3. For each chunk $j$, apply the "CDKS Transformation" (see section) using the
-   packing key $pk$, the canonical automorphism order
-   $\tau_{2049}, \tau_{1025}, \tau_{513}, \tau_{257}, \tau_{129},
-   \tau_{65}, \tau_{33}, \tau_{17}, \tau_{9}, \tau_{5}, \tau_{3}$, and
-   the corresponding key-switch matrices output by
-   $\mathsf{GeneratePackingKey}(s^\star)$ as specified in
-   [PackingKeyGeneration] to produce one packing-level RLWE ciphertext
-   $\widehat{C}_j = (\widehat{a}_j, \widehat{b}_j) \in R_{q_2}^2$ such
-   that, for every slot index $\ell \in \{0, \ldots, d-1\}$, slot
-   $\ell$ of $\widehat{C}_j$ decrypts under $s^\star$ to the same plaintext
-   value that $t_{j,\ell}$ decrypts to under the corresponding
-   SimplePIR-level secret.
-   For the deployed packing-enabled selector path, this step MUST also
-   restore the selector pre-scaling from [Regev Encryption]: the packed
-   payload contribution derived from the accumulated SimplePIR $b$-values
-   MUST be multiplied by $d$ modulo
-   $q_2$, or an algebraically equivalent transformation MUST be applied,
-   so that the packed ciphertexts implement the effective selector
-   semantics $A^T \cdot \mathbf{s} + e + \Delta \cdot \mu_i$ rather than
-   the pre-scaled form $A^T \cdot \mathbf{s} + d^{-1} \cdot e + \Delta
-   \cdot d^{-1} \cdot \mu_i$.
+3. For each chunk $j$, compute
+
+   $$
+   \widehat{C}_j =
+   \mathsf{ApplyCDKSTransformation}((t_{j,0}, \ldots, t_{j,d-1}), pk)
+   $$
+
+   to produce one packing-level RLWE ciphertext
+   $\widehat{C}_j = (\widehat{a}_j, \widehat{b}_j) \in R_{q_2}^2$.
 4. Return the ordered packed sequence
    $\widehat{R} = (\widehat{C}_0, \ldots, \widehat{C}_{m-1})$.
 
