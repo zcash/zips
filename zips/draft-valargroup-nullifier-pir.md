@@ -228,8 +228,8 @@ database hint.
 
 : Server-side initialization: the parameter set ([Parameters]),
   database row serialization ([Instantiations]), public-seed expansion
-  ([Public Seeds]), and preprocessing artifacts including packing keys
-  ([PackingKeyGeneration]).
+  ([Public Seeds]), and optional query-independent preprocessing
+  ([Precomputation]).
 
 `Client_Query`
 
@@ -252,11 +252,14 @@ database hint.
 
 The end-to-end sequencing of these operations is specified below:
 
-The protocol proceeds as follows:
+The protocol proceeds through these operations in the following order:
 
 1. `Server_Setup`:
-   * Encode the database into matrix as specified in [Canonical Plaintext Packing].
-   * Precompute query-independent material as specified in [Precomputation].
+   * Fix the deployed parameter set as specified in [Parameters].
+   * Construct the tier databases and row serializations as specified in [Instantiations].
+   * Expand the fixed public seeds and derived public/query-independent material as specified in [Public Seeds].
+   * Encode each serialized PIR row into plaintext words as specified in [Canonical Plaintext Packing].
+   * The server MAY precompute query-independent response material as specified in [Precomputation].
 2. `Client_Query`:
    * The client computes the deployed transmitted query object
    $Q = (c_\mathsf{online}, pk_\mathsf{condensed})$ for row index $i$ as specified in
@@ -412,6 +415,8 @@ the active PIR database tier, the server MUST compute the response
 as follows. Let $m$ be the number of database rows, $W$ the number
 of 14-bit plaintext-word columns (from [Canonical Plaintext Packing]),
 and let $d = 2048$.
+
+The server operates on the row-serialized and plaintext-packed database prepared during `Server_Setup`; any equivalent use of precomputed query-independent artifacts is permitted only as specified in [Precomputation].
 
 1. **Selector hint.** Let
    $A \in \mathbb{Z}_q^{n \times m}$ be the implicit public matrix
@@ -831,30 +836,6 @@ $X^{d-1}$.
 The client MUST sample a fresh $s^\star$ for every PIR query. Reuse of $s^\star$
 across queries is not allowed.
 
-### Packing-Level Ciphertext Convention
-
-A packing-level RLWE ciphertext under secret $s^\star \in R_q$
-is a pair $(c_0, c_1) \in R_q^2$ stored as a two-row polynomial
-matrix:
-
-- Row 0 (public row): $c_0 = -\rho$, the negation of the public
-  random ring element.
-- Row 1 (second row): $c_1 = \rho \cdot s^\star + e + m$, where $e$
-  is a noise polynomial and $m$ is the plaintext polynomial.
-
-Decryption recovers $m + e$ as $c_1 + c_0 \cdot s^\star$.
-
-When this ZIP writes a packing-level RLWE ciphertext as $(a, b)$,
-$a$ denotes row 0 and $b$ denotes row 1. The decryption identity is
-therefore $b + a \cdot s^\star$.
-
-Throughout this ZIP, "public row" means row 0 and "second row" means
-row 1 under this convention. When [PackingKeyGeneration] refers to
-the seeded public element $\rho_{r,u}$ determining the public row of
-$K_{r,u}$, the stored row 0 is $-\rho_{r,u}$. The second row
-$\beta_{r,u}$ transmitted in $pk_\mathsf{condensed}$ is row 1 of
-$K_{r,u}$.
-
 ### PackingKeyGeneration
 
 Define the function $\mathsf{GeneratePackingKey}(s^\star)$ as follows, where
@@ -1042,7 +1023,7 @@ follows:
 7. Return the first $L_\mathsf{row}$ decoded bytes as the returned row
    of the selected PIR database.
 
-## Common (Client and Server) Specification
+## Common Conventions and Public Material
 
 ### Security
 
@@ -1050,6 +1031,30 @@ The security of YPIR+SP is best viewed as relying primarily on the RLWE assumpti
 
 The RLWE assumption is standard in lattice-based
 cryptography. Circular security is a well-studied additional assumption shared with Spiral and OnionPIR [^YPIR].
+
+### Packing-Level Ciphertext Convention
+
+A packing-level RLWE ciphertext under secret $s^\star \in R_q$
+is a pair $(c_0, c_1) \in R_q^2$ stored as a two-row polynomial
+matrix:
+
+- Row 0 (public row): $c_0 = -\rho$, the negation of the public
+  random ring element.
+- Row 1 (second row): $c_1 = \rho \cdot s^\star + e + m$, where $e$
+  is a noise polynomial and $m$ is the plaintext polynomial.
+
+Decryption recovers $m + e$ as $c_1 + c_0 \cdot s^\star$.
+
+When this ZIP writes a packing-level RLWE ciphertext as $(a, b)$,
+$a$ denotes row 0 and $b$ denotes row 1. The decryption identity is
+therefore $b + a \cdot s^\star$.
+
+Throughout this ZIP, "public row" means row 0 and "second row" means
+row 1 under this convention. When [PackingKeyGeneration] refers to
+the seeded public element $\rho_{r,u}$ determining the public row of
+$K_{r,u}$, the stored row 0 is $-\rho_{r,u}$. The second row
+$\beta_{r,u}$ transmitted in $pk_\mathsf{condensed}$ is row 1 of
+$K_{r,u}$.
 
 ### Public Seeds
 
