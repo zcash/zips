@@ -590,12 +590,12 @@ For each level $\ell \in \{1, \ldots, L\}$, define:
 $$
 Y_\ell = X^{d / 2^\ell} \in R_q,
 \qquad
-t_\ell = 2^\ell + 1.
+\kappa_\ell = 2^\ell + 1.
 $$
 
 Level $\ell$ uses the key-switch matrix at packing-key index
 $r = L - \ell$ in $pk = \mathsf{GeneratePackingKey}(s^\star)$
-(since $k_{L-\ell} = d/2^{L-\ell} + 1 = 2^\ell + 1 = t_\ell$). Write
+(since $k_{L-\ell} = d/2^{L-\ell} + 1 = 2^\ell + 1 = \kappa_\ell$). Write
 
 $$K_\ell = K_{L-\ell} = (K_{L-\ell,\,0},\; K_{L-\ell,\,1},\; K_{L-\ell,\,2}).$$
 
@@ -607,7 +607,7 @@ $$\mathsf{AutoKS}_\ell(C)$$
 as follows:
 
 1. Apply the ring automorphism to both rows:
-   $(a', b') = (\tau_{t_\ell}(a),\; \tau_{t_\ell}(b))$.
+   $(a', b') = (\tau_{\kappa_\ell}(a),\; \tau_{\kappa_\ell}(b))$.
 2. Gadget-decompose $a'$ (row 0 of the automorphed ciphertext):
 
    $$
@@ -637,7 +637,7 @@ as follows:
    $b' +{}$ row 1 of $S$.
 
 Under the convention in [Packing-Level Ciphertext Convention], the
-output decrypts under $s^\star$ to $\tau_{t_\ell}(m)$ (plus noise),
+output decrypts under $s^\star$ to $\tau_{\kappa_\ell}(m)$ (plus noise),
 where $m$ is the plaintext of $C$.
 
 Define the recursive packing function
@@ -1715,15 +1715,37 @@ step a uniform input form: each lifted ciphertext contributes one scalar
 message in coefficient 0, while the remaining coefficients contain only
 noise.
 
+### Monomial multiplication, automorphism, and key switching
+
+The monomial factor $Y_\ell = X^{d/2^\ell}$ and the automorphism
+$\tau_{\kappa_\ell}$ serve different but complementary roles in each CDKS
+level. Multiplication by $Y_\ell$ shifts the odd branch into coefficient
+positions disjoint from the even branch, so that the two halves no longer
+compete for coefficient 0. This creates the slot separation needed for
+packing.
+
+The automorphism then rearranges the difference branch so that it can be
+added back to the sum branch in the same ciphertext. The key identity is
+$\tau_{\kappa_\ell}(Y_\ell) = -Y_\ell$, which turns the subtraction in
+$C^\mathsf{diff}_\ell$ into the matching addition pattern when
+$\mathsf{AutoKS}_\ell(C^\mathsf{diff}_\ell)$ is combined with
+$C^\mathsf{sum}_\ell$. This is not an exact cancellation of noise terms;
+rather, it is a structured combination that preserves messages while
+giving the partial-trace signal gain used by CDKS.
+
+Applying $\tau_{\kappa_\ell}$ changes the decryption key from $s^\star$
+to $\tau_{\kappa_\ell}(s^\star)$. Key switching converts the automorphed
+ciphertext back under the original secret $s^\star$, allowing the result
+to be added to the sum branch and reused at the next packing level.
+
 ### Rationale for gadget decomposition during key switching
 
-After applying a ring automorphism, the intermediate ciphertext is no
-longer directly decryptable under the original packing secret, so the
-server must key-switch it back. The key-switch operation depends on the
-automorphed row polynomial $a'$, whose coefficients are arbitrary
-elements of $\mathbb{Z}_q$. Handling $a'$ directly would require working
-with full-modulus coefficients during the switch, which is inefficient
-and leads to a less compact and less reusable switching structure.
+The key-switch operation depends on the automorphed row polynomial $a'$,
+whose coefficients are arbitrary elements of $\mathbb{Z}_q$. If key
+switching were performed directly with those full-modulus coefficients,
+then multiplying by $a'$ could amplify the ciphertext noise by a factor
+as large as $q$, which would quickly drown out the message and make the
+result unusable.
 
 Gadget decomposition avoids this by writing
 
@@ -1732,13 +1754,20 @@ a' = \sum_{u=0}^{L_{\mathsf{ks}}-1} B_{\mathsf{ks}}^u \cdot f^{(u)},
 $$
 
 where the digit polynomials $f^{(u)}$ have small coefficients in a fixed
-base $B_{\mathsf{ks}}$. This lets the server precompute key-switch
-ciphertexts for the powers of $B_{\mathsf{ks}}$ and then perform the
-switch digit-by-digit, combining those precomputed ciphertexts with the
-small coefficients of the $f^{(u)}$. In effect, the construction
-replaces one switch on arbitrary $q$-sized coefficients with a bounded
-number of switches on small digits, which is the standard tradeoff that
-makes key switching practical in RLWE schemes.
+base $B_{\mathsf{ks}}$. This replaces one multiplication by a polynomial
+with $q$-scale coefficients by a bounded number of multiplications by
+small digits. As a result, the noise grows by roughly
+$B_{\mathsf{ks}} \cdot \log_{B_{\mathsf{ks}}} q$ rather than by $q$,
+which is the difference between a usable ciphertext and one that is
+destroyed by noise.
+
+This control of per-step noise growth is especially important for the
+packing algorithm, which chains $\log_2 N$ automorphisms and associated
+key switches in sequence. Because each step adds noise, the gadget base
+$B_{\mathsf{ks}}$ is a tuning parameter: a smaller base reduces noise
+growth per step, while increasing the number of decomposition components
+and therefore the size of the key-switch material and the amount of
+computation.
 
 ## Construction Choice
 
