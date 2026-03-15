@@ -250,8 +250,32 @@ database hint.
   ([Packing-level RLWE Decryption]) and row recovery
   ([Client Recovery of the Selected Row]).
 
-The end-to-end sequencing of these operations is specified in
-[Client Work].
+The end-to-end sequencing of these operations is specified below:
+
+The protocol proceeds as follows:
+
+1. `Server_Setup`:
+   * Encode the database into matrix as specified in [Canonical Plaintext Packing].
+   * Precompute query-independent material as specified in [Precomputation].
+2. `Client_Query`:
+   * The client computes the deployed transmitted query object
+   $Q = (c_\mathsf{online}, pk_\mathsf{condensed})$ for row index $i$ as specified in
+   [Client Query Generation].
+   * The client sends $Q$ to the server using an implementation-defined
+   transport encoding.
+3. `Server_Answer`:
+   * The server reconstructs the omitted public/query-independent
+   packing-key components from $\mathsf{seed\_pack}$ as specified in
+   [Public Seeds].
+   * The server evaluates the query as specified in
+   [Server Computation] to compute the abstract server response
+   object $R$.
+   * The server returns $R$ using an implementation-defined transport
+   encoding.
+4. `Client_Recover`:
+   * The client recovers the returned row as
+   $\mathsf{DecodeYPIRSPResponse}(R, L_\mathsf{value}, L_\mathsf{row})$
+   in the sense specified in [Client Recovery of the Selected Row].
 
 ## Parameters
 
@@ -439,25 +463,6 @@ and let $d = 2048$.
 The resulting sequence of modulus-switched packed RLWE ciphertexts
 is the server response $R$.
 
-### Precomputation
-
-$H$ and the row-0 components of the CDKS packing tree depend only
-on $\mathsf{seed\_A}$ and the database; they do not depend on the
-client's query or packing key. An implementation MAY precompute
-these query-independent artifacts before any query arrives and
-reuse them across queries to the same database, provided that:
-
-- every retained artifact is a deterministic function of the
-  database and the fixed public seeds only;
-- the artifacts are recomputed when the database changes;
-- the resulting packed ciphertexts are identical to those produced
-  by evaluating $\mathsf{ApplyCDKSTransformation}$ directly.
-
-In particular, the gadget-decomposition digit polynomials
-$f^{(u)}_\ell$ computed in step 2 of each $\mathsf{AutoKS}_\ell$
-call ([CDKS Transformation]) depend only on row 0, so they may be
-stored and reused with different packing keys.
-
 ### Canonical Plaintext Packing
 
 For YPIR plaintext packing, implementations MUST map each serialized
@@ -477,6 +482,25 @@ of that word MUST be zero. If additional all-zero words are needed to
 complete the final packing chunk of length $d = 2048$, those words are
 internal YPIR padding and are not part of the serialized tier-row format
 defined by this ZIP.
+
+### Precomputation
+
+$H$ and the row-0 components of the CDKS packing tree depend only
+on $\mathsf{seed\_A}$ and the database; they do not depend on the
+client's query or packing key. An implementation MAY precompute
+these query-independent artifacts before any query arrives and
+reuse them across queries to the same database, provided that:
+
+- every retained artifact is a deterministic function of the
+  database and the fixed public seeds only;
+- the artifacts are recomputed when the database changes;
+- the resulting packed ciphertexts are identical to those produced
+  by evaluating $\mathsf{ApplyCDKSTransformation}$ directly.
+
+In particular, the gadget-decomposition digit polynomials
+$f^{(u)}_\ell$ computed in step 2 of each $\mathsf{AutoKS}_\ell$
+call ([CDKS Transformation]) depend only on row 0, so they may be
+stored and reused with different packing keys.
 
 ### CDKS Transformation
 
@@ -774,25 +798,6 @@ are ordered as in [Packing-Level Ciphertext Convention]:
    $(v_0, \ldots, v_{d-1})$ in $\mathbb{Z}_{p_2}^d$.
 
 ## Client Work
-
-The protocol proceeds as follows:
-
-1. The client computes the deployed transmitted query object
-   $Q = (c_\mathsf{online}, pk_\mathsf{condensed})$ for row index $i$ as specified in
-   [Client Query Generation].
-2. The client sends $Q$ to the server using an implementation-defined
-   transport encoding.
-3. The server reconstructs the omitted public/query-independent
-   packing-key components from $\mathsf{seed\_pack}$ as specified in
-   [Public Seeds].
-4. The server evaluates the query as specified in
-   [Server Computation] to compute the abstract server response
-   object $R$.
-5. The server returns $R$ using an implementation-defined transport
-   encoding.
-6. The client recovers the returned row as
-   $\mathsf{DecodeYPIRSPResponse}(R, L_\mathsf{value}, L_\mathsf{row})$
-   in the sense specified in [Client Recovery of the Selected Row].
 
 ### Client Key Generation
 
