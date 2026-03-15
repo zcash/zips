@@ -276,10 +276,10 @@ Their product is
 
 $$q = q_{2,1} \cdot q_{2,2} = 66\,974\,689\,739\,603\,969 \approx 2^{56}.$$
 
-Throughout this ZIP, $q_2$ denotes this packing-level ciphertext modulus.
-That is,
+Throughout this ZIP, $q$ denotes both the selector-level and packing-level
+ciphertext modulus. That is,
 
-$$q_2 = q = q_{2,1} \cdot q_{2,2}.$$
+$$q = q_{2,1} \cdot q_{2,2}.$$
 
 Both primes satisfy $q_{2,1} \equiv q_{2,2} \equiv 1 \pmod{2d}$ (with
 $d = 2048$), the condition
@@ -295,7 +295,7 @@ $q_\mathsf{mask} = 268\,369\,921$ and $q_\mathsf{payload} = 2^{20}$.
 For packing-key generation and CDKS key-switching, implementations MUST
 use gadget base
 $B_\mathsf{ks} = 2^{19}$ and gadget length
-$L_\mathsf{ks} = \lceil \log_{B_\mathsf{ks}}(q_2) \rceil = 3$.
+$L_\mathsf{ks} = \lceil \log_{B_\mathsf{ks}}(q) \rceil = 3$.
 
 Concretely, each automorphism-specific key-switch matrix therefore has
 exactly $L_\mathsf{ks} = 3$ columns.
@@ -317,13 +317,13 @@ these rows before they are loaded into the PIR database.
 
 ## Coefficient Representatives
 
-Unless otherwise specified, every element of $\mathbb{Z}_q$ or $\mathbb{Z}_{q_2}$
+Unless otherwise specified, every element of $\mathbb{Z}_q$
 in this ZIP is serialized and decomposed using its canonical representative in
-$\{0, \ldots, q-1\}$ or $\{0, \ldots, q_2-1\}$, respectively.
+$\{0, \ldots, q-1\}$.
 
 When this ZIP refers to sampling from $D_{\mathbb{Z},\sigma}$, the sampled values
 are integers. After sampling, each coefficient is reduced modulo the relevant
-ciphertext modulus to obtain an element of $\mathbb{Z}_q$ or $\mathbb{Z}_{q_2}$.
+ciphertext modulus to obtain an element of $\mathbb{Z}_q$.
 
 Centered representatives MUST NOT be used for serialization, public-seed
 expansion, or gadget decomposition unless explicitly stated.
@@ -421,7 +421,7 @@ and let $d = 2048$.
 
 4. **Pack.** For each packing chunk $j$, form the $d$ SimplePIR-level
    ciphertexts
-   $t_{j,z} = (\mathbf{h}_{jd+z},\; d \cdot b'_{jd+z} \bmod q_2)$
+   $t_{j,z} = (\mathbf{h}_{jd+z},\; d \cdot b'_{jd+z} \bmod q)$
    for $z \in \{0, \ldots, d-1\}$, where $\mathbf{h}_k$ is column $k$
    of $H$. The factor of $d$ restores the $d^{-1}$ pre-scaling
    applied in [Client Query Generation]. Compute
@@ -463,12 +463,12 @@ stored and reused with different packing keys.
 For each query, the client MUST sample one fresh packing/query secret
 
 $$
-s^\star(X) = \sum_{j=0}^{d-1} s^\star_j X^j \in R_{q_2},
+s^\star(X) = \sum_{j=0}^{d-1} s^\star_j X^j \in R_q,
 $$
 
 where $d = 2048$, each coefficient $s^\star_j$ is sampled independently from
 $D_{\mathbb{Z},\sigma}$, and each sampled coefficient is then reduced modulo
-$q_2$.
+$q$.
 
 This same fresh $s^\star$ is used in two roles:
 
@@ -476,8 +476,7 @@ This same fresh $s^\star$ is used in two roles:
    [Packing-level RLWE Decryption], and
 2. as the source of the selector LWE secret used in [Regev Encryption].
 
-Because $q = q_2$ for this ZIP, the selector LWE secret is defined
-coefficient-wise from the same polynomial:
+The selector LWE secret is defined coefficient-wise from the same polynomial:
 
 $$
 \mathbf{s} = (s^\star_0, \ldots, s^\star_{d-1}) \in \mathbb{Z}_q^n,
@@ -493,8 +492,8 @@ across queries is not allowed.
 
 ### Packing-Level Ciphertext Convention
 
-A packing-level RLWE ciphertext under secret $s^\star \in R_{q_2}$
-is a pair $(c_0, c_1) \in R_{q_2}^2$ stored as a two-row polynomial
+A packing-level RLWE ciphertext under secret $s^\star \in R_q$
+is a pair $(c_0, c_1) \in R_q^2$ stored as a two-row polynomial
 matrix:
 
 - Row 0 (public row): $c_0 = -\rho$, the negation of the public
@@ -518,12 +517,12 @@ $K_{r,u}$.
 ### PackingKeyGeneration
 
 Define the function $\mathsf{GeneratePackingKey}(s^\star)$ as follows, where
-$s^\star \in R_{q_2}$ is the fresh client secret sampled in
+$s^\star \in R_q$ is the fresh client secret sampled in
 [Client Key Generation].
 
 For any odd integer $k \in \{1, 3, \ldots, 2d - 1\}$, define the
 packing-level ring automorphism
-$\tau_k : R_{q_2} \rightarrow R_{q_2}$ by
+$\tau_k : R_q \rightarrow R_q$ by
 
 $$\tau_k(f(X)) = f(X^k) \bmod (X^d + 1).$$
 
@@ -538,7 +537,7 @@ that order. The packing key MUST contain exactly one key-switch matrix
 for each of those automorphisms, indexed by increasing matrix index
 $r$.
 
-For any polynomial $f = \sum_{j=0}^{d-1} f_j X^j \in R_{q_2}$, define
+For any polynomial $f = \sum_{j=0}^{d-1} f_j X^j \in R_q$, define
 its base-$B_\mathsf{ks}$ gadget decomposition
 
 $$f = \sum_{u=0}^{L_\mathsf{ks}-1} B_\mathsf{ks}^u \cdot f^{(u)}$$
@@ -546,14 +545,14 @@ $$f = \sum_{u=0}^{L_\mathsf{ks}-1} B_\mathsf{ks}^u \cdot f^{(u)}$$
 where each coefficient of each digit polynomial $f^{(u)}$ is the unique
 integer in $\{0, \ldots, B_\mathsf{ks} - 1\}$ obtained from the
 canonical base-$B_\mathsf{ks}$ expansion of the corresponding
-coefficient of $f$ in $\{0, \ldots, q_2 - 1\}$.
+coefficient of $f$ in $\{0, \ldots, q - 1\}$.
 
 The digit index $u$ runs over the $L_\mathsf{ks} = 3$ gadget digits.
 
 The function $\mathsf{GeneratePackingKey}(s^\star)$ proceeds as follows:
 
 1. Construct 33 seeded public ring elements
-   $\rho_{r,u} \in R_{q_2}$ for
+   $\rho_{r,u} \in R_q$ for
    $r \in \{0, \ldots, 10\}$ and
    $u \in \{0, 1, 2\}$ by expanding $\mathsf{seed\_pack}$ as specified
    in [Expansion of $\mathsf{seed\_pack}$ (Packing Public Randomness)].
@@ -705,7 +704,7 @@ $\mathbf{s} = (s^\star_0, \ldots, s^\star_{d-1})$ from
 Define the lifted packing-level RLWE ciphertext
 
 $$
-\overline{t}_j = (\overline{a}_j(X), \overline{b}_j(X)) \in R_{q_2}^2
+\overline{t}_j = (\overline{a}_j(X), \overline{b}_j(X)) \in R_q^2
 $$
 
 by:
@@ -740,7 +739,7 @@ RLWE noise terms.
 For each level $\ell \in \{1, \ldots, L\}$, define:
 
 $$
-Y_\ell = X^{d / 2^\ell} \in R_{q_2},
+Y_\ell = X^{d / 2^\ell} \in R_q,
 \qquad
 t_\ell = 2^\ell + 1.
 $$
@@ -752,7 +751,7 @@ $r = L - \ell$ in $pk = \mathsf{GeneratePackingKey}(s^\star)$
 $$K_\ell = K_{L-\ell} = (K_{L-\ell,\,0},\; K_{L-\ell,\,1},\; K_{L-\ell,\,2}).$$
 
 For any packing-level RLWE ciphertext
-$C = (a(X), b(X)) \in R_{q_2}^2$, define
+$C = (a(X), b(X)) \in R_q^2$, define
 
 $$\mathsf{AutoKS}_\ell(C)$$
 
@@ -776,7 +775,7 @@ as follows:
 
    $$
    S = \sum_{u=0}^{L_\mathsf{ks}-1} K_{L-\ell,\,u} \cdot f^{(u)}
-   \;\in R_{q_2}^2.
+   \;\in R_q^2.
    $$
 
 5. Form the output ciphertext:
@@ -904,7 +903,7 @@ $\mathsf{PackSimplePIRResponse}(T, pk, L_\mathsf{value})$ as follows:
    $$
 
    to produce one packing-level RLWE ciphertext
-   $\widehat{C}_j = (\widehat{a}_j, \widehat{b}_j) \in R_{q_2}^2$.
+   $\widehat{C}_j = (\widehat{a}_j, \widehat{b}_j) \in R_q^2$.
 4. Return the ordered packed sequence
    $\widehat{R} = (\widehat{C}_0, \ldots, \widehat{C}_{m-1})$.
 
@@ -918,20 +917,20 @@ to zero.
 ### Split Modulus Switching
 
 The packed sequence $\widehat{R}$ is represented over the packing-level
-modulus $q_2$. Before transport, the server MUST apply split modulus
+modulus $q$. Before transport, the server MUST apply split modulus
 switching to $\widehat{R}$ as specified in this section.
 
 Define the function
 $\mathsf{SplitModulusSwitchRLWECiphertext}((a, b))$ for a packing-level
-RLWE ciphertext $(a, b) \in R_{q_2}^2$ as follows:
+RLWE ciphertext $(a, b) \in R_q^2$ as follows:
 
 1. Let $q_\mathsf{mask} = 268\,369\,921$ and
    $q_\mathsf{payload} = 2^{20}$ as specified in [Parameters].
 2. For each coefficient $a_k$ of $a$, let
-   $a'_k = \lfloor (q_\mathsf{mask} / q_2) \cdot a_k \rceil \bmod q_\mathsf{mask}$,
+   $a'_k = \lfloor (q_\mathsf{mask} / q) \cdot a_k \rceil \bmod q_\mathsf{mask}$,
    where $\lfloor \cdot \rceil$ denotes rounding to the nearest integer.
 3. For each coefficient $b_k$ of $b$, let
-   $b'_k = \lfloor (q_\mathsf{payload} / q_2) \cdot b_k \rceil \bmod q_\mathsf{payload}$.
+   $b'_k = \lfloor (q_\mathsf{payload} / q) \cdot b_k \rceil \bmod q_\mathsf{payload}$.
 4. Return the modulus-switched ciphertext
    $C' = (a', b') \in R_{q_\mathsf{mask}} \times R_{q_\mathsf{payload}}$.
 
@@ -954,21 +953,21 @@ For client-side decoding, define the function
 $\mathsf{LiftModulusSwitchedRLWECiphertext}((a', b'))$ as follows:
 
 1. For each coefficient $a'_k$ of $a'$, let
-   $\widetilde{a}_k = \lfloor (q_2 / q_\mathsf{mask}) \cdot a'_k \rceil \bmod q_2$.
+   $\widetilde{a}_k = \lfloor (q / q_\mathsf{mask}) \cdot a'_k \rceil \bmod q$.
 2. For each coefficient $b'_k$ of $b'$, let
-   $\widetilde{b}_k = \lfloor (q_2 / q_\mathsf{payload}) \cdot b'_k \rceil \bmod q_2$.
+   $\widetilde{b}_k = \lfloor (q / q_\mathsf{payload}) \cdot b'_k \rceil \bmod q$.
 3. Return the lifted ciphertext
-   $\widetilde{C} = (\widetilde{a}, \widetilde{b}) \in R_{q_2}^2$.
+   $\widetilde{C} = (\widetilde{a}, \widetilde{b}) \in R_q^2$.
 
 ### Packing-level RLWE Decryption
 
 Define the function
 $\mathsf{DecryptPackingRLWECiphertext}((a, b), s^\star)$ for a packing-level
-RLWE ciphertext $(a, b) \in R_{q_2}^2$ as follows, where $(a, b)$
+RLWE ciphertext $(a, b) \in R_q^2$ as follows, where $(a, b)$
 are ordered as in [Packing-Level Ciphertext Convention]:
 
-1. Compute $u = b + a \cdot s^\star \in R_{q_2}$.
-2. Let $\Delta_2 = \lfloor q_2 / p_2 \rfloor$, where $p_2 = 2^{14}$ is
+1. Compute $u = b + a \cdot s^\star \in R_q$.
+2. Let $\Delta_2 = \lfloor q / p_2 \rfloor$, where $p_2 = 2^{14}$ is
    the packing-level plaintext modulus from [Parameters].
 3. For each coefficient of $u$, round to the nearest multiple of
    $\Delta_2$ and divide by $\Delta_2$ to recover the corresponding
@@ -1814,7 +1813,7 @@ Packing and split modulus switching solve different problems.
 The CDKS packing step reduces the number of ciphertexts in the server's
 response by combining many SimplePIR-level LWE ciphertexts into a small
 number of packing-level RLWE ciphertexts. However, those packed RLWE
-ciphertexts are still represented over the full packing modulus $q_2$.
+ciphertexts are still represented over the full packing modulus $q$.
 Packing therefore compresses the response structurally, but it does not
 yet make each packed ciphertext cheap to transmit.
 
@@ -1856,7 +1855,7 @@ $A^T \mathbf{s} + d^{-1} e + \Delta d^{-1} \mu_i$.
 
 On the packing-enabled path, the server's packing procedure later restores
 that factor by multiplying the packed $b$ contribution by $d$ modulo
-$q_2$, yielding the effective selector semantics
+$q$, yielding the effective selector semantics
 $A^T \mathbf{s} + e + \Delta \mu_i$ at the packed/decrypted level.
 
 Accordingly, the deployed query is not generated from an unstructured LWE
