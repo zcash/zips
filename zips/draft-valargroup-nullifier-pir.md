@@ -946,6 +946,51 @@ cryptography. Circular security is a well-studied additional assumption shared w
 
 ### Public Seeds
 
+This ZIP binds exactly two fixed public seeds for the deployed YPIR+SP
+path:
+
+- $\mathsf{seed\_A} = \mathtt{0x00}^{32}$ for the active row-selector
+  public-randomness path.
+- $\mathsf{seed\_pack} = \mathtt{0x02} \,\|\, \mathtt{0x00}^{31}$ for
+  packing public randomness.
+
+These public seeds are query-independent and MUST NOT be confused with
+the client's fresh private per-query secret $s^\star$ from
+[Client Key Generation]. This ZIP does not define additional public-seed
+domains for unused paths outside the deployed YPIR+SP construction.
+
+#### ChaCha20 RNG Initialization
+
+For each public seed in this section, implementations MUST initialize a
+ChaCha20 RNG instance directly from the 32-byte seed, with no stream
+override and no additional nonce-based domain separation.
+
+More precisely, this ZIP uses the standard 20-round ChaCha stream cipher
+[^ChaCha20]. For a seed
+$\mathsf{seed} = (\mathsf{seed}[0], \ldots, \mathsf{seed}[31])$, the
+initial 16-word ChaCha state is:
+
+$$
+(\mathtt{0x61707865}, \mathtt{0x3320646e}, \mathtt{0x79622d32},
+\mathtt{0x6b206574}, k_0, \ldots, k_7, 0, 0, 0, 0),
+$$
+
+where $(k_0, \ldots, k_7)$ are the eight 32-bit little-endian words of
+the 32-byte seed, in order.
+
+For each seed expansion, this RNG instance is initialized exactly once
+and then consumed continuously from byte position 0 onward. It MUST NOT
+be reinitialized between successive public ring elements derived from
+the same seed. Whenever this ZIP refers to reading successive 64-bit RNG
+outputs, it means:
+
+1. Partition the keystream into consecutive 8-byte chunks
+   $(K[0..7], K[8..15], K[16..23], \ldots)$.
+2. Interpret each chunk as one 64-bit unsigned integer in little-endian
+   order.
+3. Consume those 64-bit integers in that order, with no skipping,
+   rewinding, or rejection sampling.
+
 #### Public-Ring-Element Expansion
 
 For the packed RLWE layer, each seeded public ring element is sampled as
@@ -977,7 +1022,8 @@ CRT-composing them.
 #### Expansion of $\mathsf{seed\_A}$ (Row-Selector Public Randomness)
 
 $\mathsf{seed\_A}$ defines the public randomness used by the deployed
-row-selector query.
+row-selector query. No alternate stream selection or nonce-derived
+domain separation is applied.
 
 Implementations MUST expand $\mathsf{seed\_A}$ as follows:
 
