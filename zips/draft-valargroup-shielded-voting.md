@@ -1225,7 +1225,7 @@ any party can check:
 $$C_2^{\mathsf{agg}} - D_{\mathsf{combined}} = [\mathsf{total}\_\mathsf{ballots}]\, G$$
 
 When the full election authority secret key is available (e.g., for
-testing or single-EA configurations), correct decryption MAY
+testing), correct decryption MAY
 alternatively be proven via the aggregate variant of the DLEQ proof
 (see [Aggregate Decryption Proof]).
 
