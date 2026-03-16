@@ -289,6 +289,101 @@ a pair of Pallas points $(C_1, C_2)$ where
 $\mathsf{Enc}(v, r) = \bigl([r]\, G,\; [v]\, G + [r]\, \mathsf{ea}\_\mathsf{pk}\bigr)$.
 
 
+## Chaum-Pedersen DLEQ Proof
+
+The protocol uses a non-interactive Chaum-Pedersen proof of
+discrete-log equality (DLEQ) [^chaum-pedersen] to verify correct usage
+of secret key material during decryption. The proof is instantiated
+over the Pallas curve with a Fiat-Shamir challenge derived from
+BLAKE2b-256 [^blake2].
+
+**Statement.** Given two pairs of Pallas points $(G, P)$ and $(H, Q)$,
+a DLEQ proof demonstrates:
+
+$$\log_G(P) = \log_H(Q)$$
+
+That is, the same scalar $x$ satisfies $P = [x]\, G$ and
+$Q = [x]\, H$.
+
+A proof is a pair of Pallas scalars $(e, z)$, serialized as 64 bytes
+($e \mathbin\| z$, 32 bytes each).
+
+### Proof Generation
+
+The prover, holding secret $x$, computes:
+
+1. Sample $k \leftarrow \mathbb{F}_{q_{\mathbb{P}}}$ uniformly at random.
+2. $R_1 = [k]\, G, \quad R_2 = [k]\, H$.
+3. $e = \mathsf{DLEQChallenge}(G, P, H, Q, R_1, R_2)$.
+4. $z = k + e \cdot x$.
+5. Output $(e, z)$.
+
+### Proof Verification
+
+The verifier, given $(G, P, H, Q)$ and a proof $(e, z)$, checks:
+
+1. Parse $e$ and $z$ as canonical Pallas scalar field elements. Reject
+   if either is a non-canonical encoding.
+2. $R_1 = [z]\, G - [e]\, P$.
+3. $R_2 = [z]\, H - [e]\, Q$.
+4. $e' = \mathsf{DLEQChallenge}(G, P, H, Q, R_1, R_2)$.
+5. Accept if and only if $e' = e$.
+
+### Challenge Derivation
+
+The Fiat-Shamir challenge binds the proof to the full statement and
+the prover's commitments:
+
+$$e = \mathsf{HashToScalar}\bigl(\text{"svote-dleq-v1"} \mathbin\| \mathsf{compress}(G) \mathbin\| \mathsf{compress}(P) \mathbin\| \mathsf{compress}(H) \mathbin\| \mathsf{compress}(Q) \mathbin\| \mathsf{compress}(R_1) \mathbin\| \mathsf{compress}(R_2)\bigr)$$
+
+where $\mathsf{compress}$ denotes the 32-byte affine compressed point
+encoding and $\mathsf{HashToScalar}$ applies BLAKE2b-256 (unkeyed) to
+the concatenation and maps the 32-byte digest to a Pallas scalar. The
+domain tag `"svote-dleq-v1"` (13 bytes, ASCII) prevents cross-protocol
+challenge reuse.
+
+All input points MUST be validated as on-curve Pallas points at
+deserialization time. The proof contains only scalars; each MUST be a
+canonical encoding in $\mathbb{F}_{q_{\mathbb{P}}}$.
+
+### Partial Decryption Proof
+
+In threshold mode, each validator $i$ proves that their partial
+decryption was computed using their correct Shamir share $s_i$. The
+DLEQ proof is instantiated with:
+
+- $P = \mathsf{VK}\_i = [s_i]\, G$ — the validator's public
+  verification key, derived from their Shamir share.
+- $H = C_1^{\mathsf{agg}}$ — the first component of the aggregate
+  ciphertext.
+- $Q = D_i = [s_i]\, C_1^{\mathsf{agg}}$ — the validator's partial
+  decryption.
+- $x = s_i$ — the validator's Shamir share (private).
+
+The proof demonstrates
+$\log_G(\mathsf{VK}\_i) = \log_{C_1^{\mathsf{agg}}}(D_i)$, confirming
+that the same share used to derive $\mathsf{VK}\_i$ was used to compute
+$D_i$.
+
+### Aggregate Decryption Proof
+
+When the full election authority secret key is available (e.g., for
+testing), correct decryption of the
+aggregate ciphertext can be proven directly. The DLEQ proof is
+instantiated with:
+
+- $P = \mathsf{ea}\_\mathsf{pk} = [\mathsf{ea}\_\mathsf{sk}]\, G$.
+- $H = C_1^{\mathsf{agg}}$.
+- $Q = C_2^{\mathsf{agg}} - [v]\, G$ — the decryption point, where $v$
+  is the claimed plaintext total.
+- $x = \mathsf{ea}\_\mathsf{sk}$.
+
+The proof demonstrates
+$\log_G(\mathsf{ea}\_\mathsf{pk}) = \log_{C_1^{\mathsf{agg}}}(C_2^{\mathsf{agg}} - [v]\, G)$,
+confirming that the decryptor knows $\mathsf{ea}\_\mathsf{sk}$ and
+correctly derived $v$.
+
+
 ## Data Structures
 
 ### Vote Authority Note (VAN)
@@ -1110,10 +1205,31 @@ independently verify the aggregation.
 
 **Step 2: Threshold decryption and public verification.** At least $t$
 validators produce partial decryptions that are combined via Lagrange
-interpolation to recover $\mathsf{total}\_\mathsf{ballots}$. The procedure,
-including partial decryption submission, Lagrange combination, and
-public verification, is specified in [^ea-ceremony]. Individual vote
-amounts are never revealed; only the aggregate total per
+interpolation to recover $\mathsf{total}\_\mathsf{ballots}$. The procedure
+for partial decryption submission and Lagrange combination is specified
+in [^ea-ceremony].
+
+Each validator $i$ computes $D_i = [s_i]\, C_1^{\mathsf{agg}}$ using
+their Shamir share $s_i$ and submits $D_i$ along with a
+Chaum-Pedersen DLEQ proof demonstrating correct share usage (see
+[Partial Decryption Proof]). A verifier MUST check each per-validator
+proof against the validator's published verification key
+$\mathsf{VK}\_i$ and $C_1^{\mathsf{agg}}$ before accepting $D_i$ for
+Lagrange combination.
+
+The combined result MUST be publicly verified. Given the aggregate
+ciphertext $\mathsf{agg} = (C_1^{\mathsf{agg}}, C_2^{\mathsf{agg}})$ and
+the Lagrange-combined partial decryption point $D_{\mathsf{combined}}$,
+any party can check:
+
+$$C_2^{\mathsf{agg}} - D_{\mathsf{combined}} = [\mathsf{total}\_\mathsf{ballots}]\, G$$
+
+When the full election authority secret key is available (e.g., for
+testing or single-EA configurations), correct decryption MAY
+alternatively be proven via the aggregate variant of the DLEQ proof
+(see [Aggregate Decryption Proof]).
+
+Individual vote amounts are never revealed; only the aggregate total per
 (proposal, decision) pair.
 
 
@@ -1307,12 +1423,22 @@ authority check is intended. An additional non-zero gate
 provides defense-in-depth by rejecting $\mathsf{proposal}\_\mathsf{id} = 0$
 on active rows.
 
-## Why Threshold Secret Sharing and No Per-Validator DLEQ Proofs
+## Why Threshold Secret Sharing
 
-See [^ea-ceremony] for the rationale behind threshold secret sharing
-(including the trusted dealer model and the omission of Feldman VSS
-commitments) and the omission of per-validator DLEQ proofs for partial
-decryptions.
+See [^ea-ceremony] for the rationale behind threshold secret sharing,
+including the trusted dealer model and the omission of Feldman VSS
+commitments.
+
+## Why Per-Validator DLEQ Proofs
+
+The Chaum-Pedersen DLEQ proof defined in [Chaum-Pedersen DLEQ Proof]
+is instantiated per-validator in [Partial Decryption Proof]: each
+validator proves $\log_G(\mathsf{VK}\_i) = \log_{C_1}(D_i)$,
+demonstrating that their partial decryption $D_i$ was computed using
+the same Shamir share $s_i$ that defines their public verification key
+$\mathsf{VK}\_i$. This enables on-chain rejection of incorrect partial
+decryptions before Lagrange combination, without requiring the verifier
+to know $s_i$ or reconstruct $\mathsf{ea}\_\mathsf{sk}$.
 
 ## Why a Send-Based VAN Model
 
@@ -1423,9 +1549,9 @@ finalization of this ZIP.
 
 # Open issues
 
-- Open issues related to the EA key ceremony (per-validator DLEQ proofs,
-  Feldman VSS commitments, distributed key generation, and post-quantum
-  encryption) are tracked in [^ea-ceremony].
+- Open issues related to the EA key ceremony (Feldman VSS commitments,
+  distributed key generation, and post-quantum encryption) are tracked
+  in [^ea-ceremony].
 - Hardware wallet firmware with voting-aware signing (e.g., a
   governance network byte) would allow a simplified Delegation Proof
   circuit that removes the dummy signed note scaffolding (signed note
@@ -1472,6 +1598,10 @@ finalization of this ZIP.
 [^pir-governance]: [Private Information Retrieval for Nullifier Exclusion Proofs](draft-valargroup-nullifier-pir)
 
 [^ea-ceremony]: [Election Authority Key Ceremony](draft-valargroup-ea-key-ceremony)
+
+[^chaum-pedersen]: [D. Chaum and T. P. Pedersen, "Wallet Databases with Observers", CRYPTO 1992](https://link.springer.com/chapter/10.1007/3-540-48071-4_7)
+
+[^blake2]: [J.-P. Aumasson, S. Neves, Z. Wilcox-O'Hearn, and C. Winnerlein, "BLAKE2: simpler, smaller, fast as MD5", 2013](https://blake2.net/blake2.pdf)
 
 [^halo2]: [S. Bowe, J. Grigg, and D. Hopwood, "Recursive Proof Composition without a Trusted Setup", 2019](https://eprint.iacr.org/2019/1021)
 
