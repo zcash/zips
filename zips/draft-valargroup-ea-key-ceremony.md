@@ -223,6 +223,119 @@ because $\mathsf{total\_value}$ is bounded by total ZEC supply
 ballots).
 
 
+## Chaum-Pedersen DLEQ Proof
+
+The protocol uses a non-interactive Chaum-Pedersen proof of
+discrete-log equality (DLEQ) [^chaum-pedersen] to verify correct usage
+of secret key material during El Gamal decryption. The proof is
+instantiated over the Pallas curve with a Fiat-Shamir challenge
+derived from BLAKE2b-256 [^blake2].
+
+**Statement.** Given two pairs of Pallas points $(G, P)$ and $(H, Q)$,
+a DLEQ proof demonstrates:
+
+$$\log_G(P) = \log_H(Q)$$
+
+That is, the same scalar $x$ satisfies $P = x \cdot G$ and
+$Q = x \cdot H$.
+
+A proof is a pair of Pallas scalars $(e, z)$, serialized as 64 bytes
+($e \mathbin\| z$, 32 bytes each).
+
+### Proof Generation
+
+The prover, holding secret $x$, computes:
+
+1. Sample $k \leftarrow \mathbb{F}_q$ uniformly at random.
+2. $R_1 = k \cdot G, \quad R_2 = k \cdot H$.
+3. $e = \mathsf{DLEQChallenge}(G, P, H, Q, R_1, R_2)$.
+4. $z = k + e \cdot x$.
+5. Output $(e, z)$.
+
+### Proof Verification
+
+The verifier, given $(G, P, H, Q)$ and a proof $(e, z)$, checks:
+
+1. Parse $e$ and $z$ as canonical Pallas scalar field elements. Reject
+   if either is a non-canonical encoding.
+2. $R_1 = z \cdot G - e \cdot P$.
+3. $R_2 = z \cdot H - e \cdot Q$.
+4. $e' = \mathsf{DLEQChallenge}(G, P, H, Q, R_1, R_2)$.
+5. Accept if and only if $e' = e$.
+
+### Challenge Derivation
+
+The Fiat-Shamir challenge binds the proof to the full statement and
+the prover's commitments:
+
+$$e = \mathsf{HashToScalar}\bigl(\text{"svote-dleq-v1"} \mathbin\| \mathsf{compress}(G) \mathbin\| \mathsf{compress}(P) \mathbin\| \mathsf{compress}(H) \mathbin\| \mathsf{compress}(Q) \mathbin\| \mathsf{compress}(R_1) \mathbin\| \mathsf{compress}(R_2)\bigr)$$
+
+where $\mathsf{compress}$ denotes the 32-byte affine compressed point
+encoding and $\mathsf{HashToScalar}$ applies BLAKE2b-256 (unkeyed) to
+the concatenation and maps the 32-byte digest to a Pallas scalar. The
+domain tag `"svote-dleq-v1"` (13 bytes, ASCII) prevents cross-protocol
+challenge reuse.
+
+All input points MUST be validated as on-curve Pallas points at
+deserialization time. The proof contains only scalars; each MUST be a
+canonical encoding in $\mathbb{F}_q$.
+
+### Partial Decryption Proof
+
+Each validator $i$ proves that their partial decryption was computed
+using their correct Shamir share $f(i)$. The DLEQ proof is
+instantiated with:
+
+- $P = \mathsf{VK}_i = f(i) \cdot G$ — the validator's public
+  verification key, derived from their Shamir share.
+- $H = C_{1,\text{agg}}$ — the first component of the aggregate
+  ciphertext.
+- $Q = D_i = f(i) \cdot C_{1,\text{agg}}$ — the validator's partial
+  decryption.
+- $x = f(i)$ — the validator's Shamir share (private).
+
+The proof demonstrates
+$\log_G(\mathsf{VK}_i) = \log_{C_{1,\text{agg}}}(D_i)$, confirming
+that the same share used to derive $\mathsf{VK}_i$ was used to compute
+$D_i$.
+
+### Aggregate Decryption Proof
+
+When the full election authority secret key is available (e.g., for
+testing), correct decryption of the aggregate ciphertext can be proven
+directly via two complementary DLEQ variants.
+
+**Partial-decrypt DLEQ (key binding).** The full secret key is treated
+as a single "share" in the partial-decrypt protocol. The proof is
+instantiated with:
+
+- $\mathsf{VK} = \mathsf{ea\_pk} = \mathsf{ea\_sk} \cdot G$.
+- $H = C_{1,\text{agg}}$.
+- $D = \mathsf{ea\_sk} \cdot C_{1,\text{agg}}$.
+- $x = \mathsf{ea\_sk}$.
+
+This demonstrates
+$\log_G(\mathsf{ea\_pk}) = \log_{C_{1,\text{agg}}}(D)$,
+confirming the decryptor used the correct secret key. The plaintext
+total is then verified separately:
+$C_{2,\text{agg}} - D = \mathsf{total\_value} \cdot G$.
+
+**Aggregate DLEQ (plaintext binding).** The proof binds the claimed
+plaintext $\mathsf{total\_value}$ directly into the Fiat-Shamir
+challenge. It is instantiated with:
+
+- $P = \mathsf{ea\_pk} = \mathsf{ea\_sk} \cdot G$.
+- $H = C_{1,\text{agg}}$.
+- $Q = C_{2,\text{agg}} - \mathsf{total\_value} \cdot G$.
+- $x = \mathsf{ea\_sk}$.
+
+The verifier recomputes $Q$ from $C_{2,\text{agg}}$ and
+$\mathsf{total\_value}$, so the proof demonstrates
+$\log_G(\mathsf{ea\_pk}) = \log_{C_{1,\text{agg}}}(C_{2,\text{agg}} - \mathsf{total\_value} \cdot G)$,
+confirming that the decryptor knows $\mathsf{ea\_sk}$ and correctly
+derived $\mathsf{total\_value}$ in a single verification step.
+
+
 ## ECIES on Pallas
 
 Share distribution uses ECIES [^ecies] instantiated on Pallas with the
@@ -347,6 +460,9 @@ After the voting window closes and the round transitions to **TALLYING**:
 
    $$D_i = f(i) \cdot C_{1,\text{agg}}$$
 
+   Each $D_i$ MUST be accompanied by a Chaum-Pedersen DLEQ proof
+   demonstrating correct share usage (see [Partial Decryption Proof]).
+
 3. The partial decryptions are combined via Lagrange interpolation in
    the exponent. Given partial decryptions $\{(i, D_i)\}$ from a set
    $S$ of at least $t$ validators, the Lagrange coefficients are:
@@ -453,34 +569,19 @@ trusted to distribute correct shares, and any tampering would be
 caught at tally time. Distributed key generation is a potential future
 enhancement (see [Open issues]).
 
-## Why No Per-Validator DLEQ Proofs
+## Why Per-Validator DLEQ Proofs
 
-Each validator's partial decryption $D_i = [s_i]\, \sum C_{1,j}$ is
-posted on-chain without a Chaum–Pedersen DLEQ proof [^chaum-pedersen]
-attesting that $s_i$ matches the validator's committed share. This is a
-deliberate simplification.
+Each validator's partial decryption $D_i = f(i) \cdot C_{1,\text{agg}}$
+is posted on-chain with a Chaum-Pedersen DLEQ proof (see
+[Partial Decryption Proof]) attesting that $f(i)$ matches the
+validator's committed verification key $\mathsf{VK}_i$.
 
-Without DLEQ proofs, a malicious validator can post a bogus $D_i$. Any
-Lagrange combination that includes this $D_i$ will produce an incorrect
-message point, causing the baby-step giant-step search to fail or
-return an implausible result. However, a bogus $D_i$ cannot cause a
-wrong tally to be accepted: the decrypted result is publicly
-verifiable (anyone can check that the claimed
-$\mathsf{total}\_\mathsf{ballots}$ satisfies the decryption equation for
-the on-chain aggregate ciphertext), so a tally derived from a corrupted
-subset will always be detected.
+Without DLEQ proofs, a malicious validator could post a bogus $D_i$.
+Any Lagrange combination that includes such a $D_i$ would produce an
+incorrect message point, causing the baby-step giant-step search to
+fail or return an implausible result.
 
-The missing DLEQ proofs are therefore a liveness issue, not a
-correctness one. A single malicious validator can force the tally
-procedure to try alternative subsets of size $t$ to find a fully honest
-quorum, delaying finalization. Under the CometBFT assumption that fewer
-than one-third of validators are Byzantine, such an honest quorum
-always exists.
-
-Adding per-validator DLEQ proofs would allow immediate identification
-and exclusion of misbehaving validators, reducing verification to
-$O(1)$ per partial decryption. This is left as a future enhancement
-(see [Open issues]).
+Per-validator DLEQ proofs allow immediate identification and exclusion of misbehaving validators.
 
 ## Why Classical El Gamal Rather Than Post-Quantum Encryption
 
@@ -525,10 +626,6 @@ open issue.
 
 # Open Issues
 
-- Per-validator Chaum–Pedersen DLEQ proofs for partial decryptions
-  would allow immediate identification of misbehaving validators at
-  tally time, converting the current liveness cost (subset search) to
-  $O(1)$ verification. See [Why No Per-Validator DLEQ Proofs].
 - Feldman VSS commitments from the dealer during the key ceremony
   would let each validator verify that its Shamir share is consistent
   with $\mathsf{ea}\_\mathsf{pk}$, removing the trust assumption on the
@@ -566,9 +663,15 @@ Halo 2 zero-knowledge proof circuits.
 
 [^draft-coinholder-voting]: [Draft ZIP: Zcash Shielded Coinholder Voting](draft-valargroup-coinholder-voting-setup.md)
 
-[^draft-voting-protocol]: [Draft ZIP: Zcash Shielded Voting Protocol](draft-valargroup-voting-protocol.md)
+[^draft-voting-protocol]: [Draft ZIP: Shielded Voting Protocol](draft-valargroup-shielded-voting)
+
+[^blake2]: [J.-P. Aumasson, S. Neves, Z. Wilcox-O'Hearn, and C. Winnerlein, "BLAKE2: simpler, smaller, fast as MD5", 2013](https://blake2.net/blake2.pdf)
+
+[^chaum-pedersen]: [D. Chaum and T. P. Pedersen, "Wallet Databases with Observers", CRYPTO 1992](https://link.springer.com/chapter/10.1007/3-540-48071-4_7)
 
 [^elgamal]: [T. ElGamal, "A public key cryptosystem and a signature scheme based on discrete logarithms", IEEE Transactions on Information Theory, vol. 31, no. 4, pp. 469-472, 1985](https://doi.org/10.1109/TIT.1985.1057074)
+
+[^feldman]: [P. Feldman, "A practical scheme for non-interactive verifiable secret sharing", FOCS 1987](https://doi.org/10.1109/SFCS.1987.4)
 
 [^ecies]: [V. Shoup, "A Proposal for an ISO Standard for Public Key Encryption", version 2.1, 2001](https://www.shoup.net/papers/iso-2_1.pdf)
 
