@@ -368,20 +368,38 @@ $D_i$.
 ### Aggregate Decryption Proof
 
 When the full election authority secret key is available (e.g., for
-testing), correct decryption of the
-aggregate ciphertext can be proven directly. The DLEQ proof is
+testing), correct decryption of the aggregate ciphertext can be proven
+directly via two complementary DLEQ variants.
+
+**Partial-decrypt DLEQ (key binding).** The full secret key is treated
+as a single "share" in the partial-decrypt protocol. The proof is
 instantiated with:
 
-- $P = \mathsf{ea}\_\mathsf{pk} = [\mathsf{ea}\_\mathsf{sk}]\, G$.
+- $\mathsf{VK} = \mathsf{ea\_pk} = [\mathsf{ea\_sk}]\, G$.
 - $H = C_1^{\mathsf{agg}}$.
-- $Q = C_2^{\mathsf{agg}} - [v]\, G$ — the decryption point, where $v$
-  is the claimed plaintext total.
-- $x = \mathsf{ea}\_\mathsf{sk}$.
+- $D = [\mathsf{ea\_sk}]\, C_1^{\mathsf{agg}}$.
+- $x = \mathsf{ea\_sk}$.
 
-The proof demonstrates
-$\log_G(\mathsf{ea}\_\mathsf{pk}) = \log_{C_1^{\mathsf{agg}}}(C_2^{\mathsf{agg}} - [v]\, G)$,
-confirming that the decryptor knows $\mathsf{ea}\_\mathsf{sk}$ and
-correctly derived $v$.
+This demonstrates
+$\log_G(\mathsf{ea\_pk}) = \log_{C_1^{\mathsf{agg}}}(D)$,
+confirming the decryptor used the correct secret key. The plaintext
+total is then verified separately:
+$C_2^{\mathsf{agg}} - D = [v]\, G$.
+
+**Aggregate DLEQ (plaintext binding).** The proof binds the claimed
+plaintext $v$ directly into the Fiat-Shamir challenge. It is
+instantiated with:
+
+- $P = \mathsf{ea\_pk} = [\mathsf{ea\_sk}]\, G$.
+- $H = C_1^{\mathsf{agg}}$.
+- $Q = C_2^{\mathsf{agg}} - [v]\, G$.
+- $x = \mathsf{ea\_sk}$.
+
+The verifier recomputes $Q$ from $C_2^{\mathsf{agg}}$ and $v$, so
+the proof demonstrates
+$\log_G(\mathsf{ea\_pk}) = \log_{C_1^{\mathsf{agg}}}(C_2^{\mathsf{agg}} - [v]\, G)$,
+confirming that the decryptor knows $\mathsf{ea\_sk}$ and correctly
+derived $v$ in a single verification step.
 
 
 ## Data Structures
