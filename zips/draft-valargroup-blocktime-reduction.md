@@ -41,11 +41,11 @@ the Sapling and Orchard shielded protocols.
 This solves three problems. 
 - Significantly improves the UX for actors who need 1 or 2 conf's. (Near Intents, small payments) The user-latency goes down 3x.
 - Increases consensus bandwidth, which amplifies the scaling impact of a future shielded pool which does not require shielded sync.
-- Introduces action limits, which short term more than doubles the Orchard TPS (2.9 → 6.1 TPS), while lowering the worst-case sandblast bandwidth on shielded sync by 42% (270.5 → 156.83 MB/day).
+- Introduces action limits, which short term more than doubles the Orchard TPS (2.9 → 6.1 TPS), while lowering the impact a DoS attacker can impose on wallets for shielded sync by 42% (270.5 → 156.83 MB/day).
 
 The action limits significantly decrease the number of Sprout and Sapling pool 
 outputs available per block, to lower the maximum shielded sync burden under 
-sandblasting.
+attempted DoS.
 
 The emission schedule of mined ZEC will be the same in terms of ZEC/day, 
 but this requires the emission per block to be adjusted
@@ -79,47 +79,54 @@ latency.
 
 It is estimated that this reduction in blocktime would increase the stale rate from today's 0.4% to 1.3%. For reference, Ethereum operated at 5.4% stale rate.
 
-Note that, for a given security requirement (in terms of the expected
-cost of a rollback attack), the number of confirmations
-needed increases more slowly than the decrease in block time. So decreasing the 
-block target spacing can provide a better trade-off between latency and 
-security while block validation + propogation times remains small relative to
-block time. See [^slowfastblocks] for further analysis in various attack models.
-That analysis suggests that this would improve finality times by a factor of at
-least 2.9, if you assume the attacker has a fixed percentage of network 
-hashpower. Whereas if you assume the attack model depends on purely $ cost of
-hashpower and block rewards, this reduces the variance of time until sufficient
-economic finality.
+There are multiple threat models for rollback attacks. Loosely speaking,
+lowering block time while keeping it significantly lower than block propogation 
+delay helps improve finality time. This is because more honest
+miners quickly build on the block, and the block propogation constraint ensures
+stale rates have not significantly increased. See [^slowfastblocks] for 
+analysis in various attack models. As this proposal meets the constraint of
+keeping stale rates low, this should under the "X% of hashpower is byzantine"
+threat model improve user confirmation times by a factor slightly under 3x. 
+Under the posts "Economic" threat model, where the user requires the block
+rewards built on-top of their payment to exceed the value of the payment, this
+significantly improves the variance in confirmation latency. (But makes the 
+mean latency a bit higher due to stale rate) As noted there, this attack model
+is not applied at sizable transactions. Its only potentially applied for small
+value ones, where actually the granularity of block times likely lowers time
+until sufficient finality. We do not argue for reducing wall-clock block 
+confirmation counts aside from exisitng 1-2 confirmation users in this ZIP.
+However, we do expect many classes of users to be able to wall-clock lower 
+theirs under consistent threat modelling of what they choose today.
 
-However, Zcash uniquely has a second cost on scaling, the shielded sync. In
-Zcash, we refer to attacks where an adversary spams the chain as a sandblast
-attack. Every shielded transaction induces a bandwidth overhead for every wallet
-and an extra trial decryption. Today the worst case sandblast can induce 270.5
-MB of wallet sync download to clients per day, and ~4.8M trial decrypts per
+However, Zcash uniquely has a second cost on scaling, the shielded sync. Every 
+shielded transaction induces a bandwidth overhead for every wallet
+and an extra trial decryption, so we must carefully understand the impact a DOS 
+attacker can cause. Today the worst case DOS attack can induce 270.5
+MB of wallet sync download to clients per day, and 4.8M trial decrypts per
 day. We propose introducing action limits in Orchard (306 actions per block),
 and (input+output) limits for Sapling (300 per block). With these limits, the
-worst case becomes 156.83 MB bandwidth and ~2.1M trial decrypts per day. This 
+worst case becomes 156.83 MB bandwidth and 2.1M trial decrypts per day. This 
 is a 42% improvement in worst case wallet sync bandwidth despite 3x more blocks.
 This yields a 2x in Orchard TPS, and keeps Sapling TPS at a higher level than
 today's Orchard TPS.
 
 However, every wallet does have to download every compact block header, which
 is 90 bytes. This leads to an extra 200kb of wallet bandwidth per day in
-exchange for the improved UX and sandblast attack benefits.
+exchange for the improved UX.
 
 The reduced Sapling and Sprout per-block limits are justified by the
 current distribution of shielded funds across pools. As of March 2026:
 
 | Pool | Balance | Share of shielded supply |
 |------|---------|--------------------------|
-| Orchard | 4,511,193 ZEC | ~87.6% |
-| Sapling | 616,131 ZEC | ~12.0% |
-| Sprout | 25,480 ZEC | ~0.5% |
+| Orchard | 4,511,193 ZEC | 87.5% |
+| Sapling | 616,131 ZEC | 12.0% |
+| Sprout | 25,480 ZEC | 0.5% |
 
 The vast majority of shielded activity is already in Orchard, and this
 trend is expected to continue. The Sapling and Sprout limits are set
 generously relative to their current usage while substantially reducing
-their potential for sandblast abuse.
+their potential for DOS abuse.
 
 ## Stale block rate
 
@@ -514,9 +521,9 @@ outputs = 4 IOs), the limit of 300 IOs allows $\lfloor 300 / 4 \rfloor
 the reduced Sapling limit, the post-NU7 Sapling TPS (3.0) still
 exceeds the current pre-NU7 Orchard TPS (2.9).
 
-### Fee incentives and sandblast resistance
+### Fee incentives and DoS resistance
 
-A concern with per-pool limits is that a sandblast attacker could fill
+A concern with per-pool limits is that a DoS attacker could fill
 the Sapling or Sprout budget to crowd out Orchard transactions (or vice
 versa). The global shielded budget prevents this from being worse than
 filling any single pool, but it is worth examining whether fee
@@ -527,7 +534,7 @@ actions*: each Sapling output or spend counts as one logical action, and
 each Orchard action counts as one logical action. The marginal fee per
 logical action is the same regardless of pool. Therefore, an attacker
 gains no fee advantage by spamming Sapling instead of Orchard (or vice
-versa) — the cost per unit of shielded budget consumed is identical.
+versa). The cost per unit of shielded budget consumed is identical.
 
 Furthermore, because the global shielded budget is shared, filling
 the Sapling budget necessarily reduces the Orchard budget by the same
