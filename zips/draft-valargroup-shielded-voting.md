@@ -1349,9 +1349,7 @@ on active rows.
 
 ## Why Threshold Secret Sharing
 
-See [^ea-ceremony] for the rationale behind threshold secret sharing,
-including the trusted dealer model and the omission of Feldman VSS
-commitments.
+See [^ea-ceremony] for the rationale behind threshold secret sharing.
 
 ## Why a Send-Based VAN Model
 
@@ -1462,9 +1460,7 @@ finalization of this ZIP.
 
 # Open issues
 
-- Open issues related to the EA key ceremony (Feldman VSS commitments,
-  distributed key generation, and post-quantum encryption) are tracked
-  in [^ea-ceremony].
+- Open issues related to the EA key ceremony are tracked in [^ea-ceremony].
 - Hardware wallet firmware with voting-aware signing (e.g., a
   governance network byte) would allow a simplified Delegation Proof
   circuit that removes the dummy signed note scaffolding (signed note
