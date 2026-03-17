@@ -226,8 +226,8 @@ as:
 $$
 \mathsf{PoWTargetSpacing}(\mathsf{height}) :=
   \begin{cases}
-    \mathsf{PreBlossomPoWTargetSpacing},                  &\text{if not } \mathsf{IsBlossomActivated}(\mathsf{height}) \\
-    \mathsf{PostBlossomPoWTargetSpacing},                  &\text{if } \mathsf{IsBlossomActivated}(\mathsf{height}) \text{ and not } \mathsf{IsNU7Activated}(\mathsf{height}) \\
+    \mathsf{PreBlossomPoWTargetSpacing},                  &\text{if not } \mathsf{IsBlossomActivated}(\mathsf{height}) \\\\
+    \mathsf{PostBlossomPoWTargetSpacing},                  &\text{if } \mathsf{IsBlossomActivated}(\mathsf{height}) \text{ and not } \mathsf{IsNU7Activated}(\mathsf{height}) \\\\
     \mathsf{PostNU7PoWTargetSpacing}        &\text{otherwise}
   \end{cases}
 $$
@@ -244,10 +244,10 @@ $$
 \mathsf{Halving}(\mathsf{height}) :=
   \begin{cases}
     \left\lfloor \dfrac{\mathsf{height} - \mathsf{SlowStartShift}}{\mathsf{PreBlossomHalvingInterval}} \right\rfloor,
-      &\text{if not } \mathsf{IsBlossomActivated}(\mathsf{height}) \\[1.5ex]
+      &\text{if not } \mathsf{IsBlossomActivated}(\mathsf{height}) \\\\[1.5ex]
     \left\lfloor \dfrac{\mathsf{BlossomActivationHeight} - \mathsf{SlowStartShift}}{\mathsf{PreBlossomHalvingInterval}}
       + \dfrac{\mathsf{height} - \mathsf{BlossomActivationHeight}}{\mathsf{PostBlossomHalvingInterval}} \right\rfloor,
-      &\text{if } \mathsf{IsBlossomActivated}(\mathsf{height}) \text{ and not } \mathsf{IsNU7Activated}(\mathsf{height}) \\[1.5ex]
+      &\text{if } \mathsf{IsBlossomActivated}(\mathsf{height}) \text{ and not } \mathsf{IsNU7Activated}(\mathsf{height}) \\\\[1.5ex]
     \left\lfloor \dfrac{\mathsf{BlossomActivationHeight} - \mathsf{SlowStartShift}}{\mathsf{PreBlossomHalvingInterval}}
       + \dfrac{\mathsf{NU7ActivationHeight} - \mathsf{BlossomActivationHeight}}{\mathsf{PostBlossomHalvingInterval}}
       + \dfrac{\mathsf{height} - \mathsf{NU7ActivationHeight}}{\mathsf{PostNU7HalvingInterval}} \right\rfloor,
