@@ -63,9 +63,10 @@ The motivations for decreasing the block target spacing are:
   confirmation to 25 seconds on average.
 
 - **Greater throughput.** With 3× as many blocks per day and the same
-  2 MB block size limit, we will have proven out higher consensus bandwidth.
-  Short term, when paired with the action limits, we will more than double the
-  Orchard TPS for 2-action transactions. Longer term, when we get a shielded pool with no shielded sync burden, we will have 3x higher throughput.
+  2 MB block size limit, we will have allocated higher consensus bandwidth 
+  capacity. Short term, when paired with the action limits, we will more than 
+  double the Orchard TPS for 2-action transactions. Longer term, when we get a 
+  shielded pool with no shielded sync burden, we will have 3x higher throughput.
 
 - **Complementary to finality improvements.** This proposal is
   complementary to, and does not compete with, finality mechanisms
@@ -80,9 +81,9 @@ latency.
 It is estimated that this reduction in blocktime would increase the stale rate from today's 0.4% to 1.3%. For reference, Ethereum operated at 5.4% stale rate.
 
 There are multiple threat models for rollback attacks. Loosely speaking,
-lowering block time while keeping it significantly lower than block propogation 
+lowering block time while keeping it significantly lower than block propagation 
 delay helps improve finality time. This is because more honest
-miners quickly build on the block, and the block propogation constraint ensures
+miners quickly build on the block, and the block propagation constraint ensures
 stale rates have not significantly increased. See [^slowfastblocks] for 
 analysis in various attack models. As this proposal meets the constraint of
 keeping stale rates low, this should under the "X% of hashpower is byzantine"
@@ -131,9 +132,9 @@ their potential for DOS abuse.
 ## Stale block rate
 
 The stale rate is the percentage of blocks that get orphaned, which relates to 
-mining centralization risk, block propogation delay, and block verification 
+mining centralization risk, block propagation delay, and block verification 
 times. Today the stale rate is 0.4%, but this may be lower than what pure block
-propogation delay may imply due to hashpower centralization in mining pools.
+propagation delay may imply due to hashpower centralization in mining pools.
 
 At 25-second block target spacing, the projected stale (orphan) block
 rate is approximately 1.3% using theoretical models, or approximately
@@ -141,11 +142,11 @@ rate is approximately 1.3% using theoretical models, or approximately
 delays. Both figures are well below Ethereum's historical stale rate of 5.4%
 when it operated under proof-of-work. [^forum-proposal]
 
-(TODO: Refine above numbers and expand on them. The 1.3% is derived from a very straightforward method, of estimating propogation delay using the current uncle
-rate and block time as a poisson process. The 3.9% is taken from noticing that current p90 block propogation between EU and US nodes is 700ms, and then 
+(TODO: Refine above numbers and expand on them. The 1.3% is derived from a very straightforward method, of estimating propagation delay using the current uncle
+rate and block time as a poisson process. The 3.9% is taken from noticing that current p90 block propagation between EU and US nodes is 700ms, and then 
 rounding that up to 1s. This needs to be combined with measuring latencies when the blocks are full, yet it is hard to see how this could risk approaching 2s.)
 
-@evan-forbes is working on experiments to further show the block propogation delay, under different network and hardware configurations.
+@evan-forbes is working on experiments to further show the block propagation delay, under different network and hardware configurations.
 
 
 ## Block processing time
@@ -179,7 +180,7 @@ batch-verified in a small number of batches.
 
 **Estimated timing.** On a typical 4-core machine, worst-case full
 block verification (including proof verification for all shielded
-components) is estimated at under 500ms second for a block at the
+components) is estimated at under 500ms for a block at the
 action limits. (TODO: Refine with easily citeable benchmarks)
 When transactions have already been pre-verified upon
 entering the mempool, which is the typical case for a node that has
