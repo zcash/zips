@@ -299,42 +299,6 @@ $\log_G(\mathsf{VK}_i) = \log_{C_{1,\text{agg}}}(D_i)$, confirming
 that the same share used to derive $\mathsf{VK}_i$ was used to compute
 $D_i$.
 
-### Aggregate Decryption Proof
-
-When the full election authority secret key is available (e.g., for
-testing), correct decryption of the aggregate ciphertext can be proven
-directly via two complementary DLEQ variants.
-
-**Partial-decrypt DLEQ (key binding).** The full secret key is treated
-as a single "share" in the partial-decrypt protocol. The proof is
-instantiated with:
-
-- $\mathsf{VK} = \mathsf{ea\_pk} = \mathsf{ea\_sk} \cdot G$.
-- $H = C_{1,\text{agg}}$.
-- $D = \mathsf{ea\_sk} \cdot C_{1,\text{agg}}$.
-- $x = \mathsf{ea\_sk}$.
-
-This demonstrates
-$\log_G(\mathsf{ea\_pk}) = \log_{C_{1,\text{agg}}}(D)$,
-confirming the decryptor used the correct secret key. The plaintext
-total is then verified separately:
-$C_{2,\text{agg}} - D = \mathsf{total\_value} \cdot G$.
-
-**Aggregate DLEQ (plaintext binding).** The proof binds the claimed
-plaintext $\mathsf{total\_value}$ directly into the Fiat-Shamir
-challenge. It is instantiated with:
-
-- $P = \mathsf{ea\_pk} = \mathsf{ea\_sk} \cdot G$.
-- $H = C_{1,\text{agg}}$.
-- $Q = C_{2,\text{agg}} - \mathsf{total\_value} \cdot G$.
-- $x = \mathsf{ea\_sk}$.
-
-The verifier recomputes $Q$ from $C_{2,\text{agg}}$ and
-$\mathsf{total\_value}$, so the proof demonstrates
-$\log_G(\mathsf{ea\_pk}) = \log_{C_{1,\text{agg}}}(C_{2,\text{agg}} - \mathsf{total\_value} \cdot G)$,
-confirming that the decryptor knows $\mathsf{ea\_sk}$ and correctly
-derived $\mathsf{total\_value}$ in a single verification step.
-
 
 ## ECIES on Pallas
 
