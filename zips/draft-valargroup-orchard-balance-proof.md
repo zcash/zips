@@ -67,10 +67,6 @@ Dummy signed note
   solely for obtaining a spend authorization signature from the holder's
   key. See [Wallet Signing].
 
-The terms "Vote Authority Note (VAN)", "governance nullifier", "voting
-round", "governance hotkey", and "ballot" are defined in the Shielded
-Voting Protocol ZIP [^voting-protocol].
-
 
 # Abstract
 
@@ -135,7 +131,7 @@ keys on hardware wallets such as Keystone. Without a delegation mechanism,
 hardware wallet users must either export their spending keys to software
 (negating the security benefit of hardware custody) or forgo participation entirely.
 This ZIP therefore specifies a PCZT-based signing flow (see
-[Hardware Wallet Signing]) that works with any hardware wallet supporting
+[Wallet Signing]) that works with any hardware wallet supporting
 Orchard PCZT signing today, requiring no firmware changes.
 
 
@@ -175,13 +171,14 @@ the PCZT but learns no information about the holder's real
 Orchard balance or delegation context. The PCZT contains a 1-zatoshi
 dummy note with no on-chain counterpart; the holder's actual note
 commitments, values, and nullifiers are never transmitted to the device.
-The VAN commitment, governance nullifiers, and voting round identifier are
+The application commitment, alternate nullifiers, and usage identifier are
 committed via the dummy note's nullifier inside the ZKP circuit and
-do not appear as plaintext fields in the PCZT. The output address (governance hotkey) is
-visible on the device but is freshly generated per voting round and is not
-linked to the holder's on-chain Orchard addresses. An attacker with
-physical access to the device during signing learns only that the holder
-is participating in a governance round and the declared voting weight.
+do not appear as plaintext fields in the PCZT. The output address
+(application hotkey) is visible on the device but is freshly generated
+per usage instance and is not linked to the holder's on-chain Orchard
+addresses. An attacker with physical access to the device during signing
+learns only that the holder is participating in a proof-of-balance
+instance and the declared balance.
 
 
 # Requirements
@@ -206,8 +203,8 @@ is participating in a governance round and the declared voting weight.
   air-drop distribution, or delegation) are out of scope.
 - Privacy-preserving retrieval of non-membership Merkle paths (e.g., via
   PIR) is out of scope.
-- Value denomination conversions (e.g., converting zatoshi to ballot
-  counts) are application-specific and out of scope.
+- Value denomination conversions (e.g., converting zatoshi to
+  application-specific units) are out of scope.
 - Transaction-level encoding of claims is out of scope; this ZIP specifies
   only the proof statement and its verification.
 
@@ -681,9 +678,9 @@ distinguishes real notes from padded notes:
 
 ## Wallet Signing
 
-The delegation signing flow proceeds in five steps:
+The signing flow proceeds in five steps:
 
-1. The wallet generates a governance hotkey on the local device.
+1. The wallet generates an application hotkey on the local device.
 2. The wallet constructs a dummy signed note whose nullifier commits
    to the delegation context.
 3. The wallet builds a PCZT containing the dummy signed note.
@@ -691,12 +688,12 @@ The delegation signing flow proceeds in five steps:
 5. The wallet extracts the signature and assembles the delegation
    submission.
 
-Each interaction with the hardware wallet device delegates up to 5
-Orchard notes (the per-delegation batch size defined in
-[^voting-protocol]). A holder with more than 5 notes repeats the flow
-for each batch of up to 5, producing a separate VAN per batch. The
-holder MAY choose to delegate fewer batches than their full note set,
-voting with only the balance covered by the delegated batches.
+Each interaction with the hardware wallet device delegates up to
+$N_{\max}$ Orchard notes (the default batch size is 5). A holder with
+more than $N_{\max}$ notes repeats the flow for each batch, producing a
+separate application commitment per batch. The holder MAY choose to
+delegate fewer batches than their full note set, claiming only the
+balance covered by the delegated batches.
 
 ### Dummy Signed Note Construction
 
@@ -718,17 +715,20 @@ The wallet constructs a dummy Orchard note as follows:
 
    Concretely, the signed note's $\text{ρ}$ is set to:
 
-$$\text{ρ}^{\mathsf{signed}} = \mathsf{Poseidon}\bigl(\mathsf{cmx}\_\mathsf{1}, \mathsf{cmx}\_\mathsf{2}, \mathsf{cmx}\_\mathsf{3}, \mathsf{cmx}\_\mathsf{4}, \mathsf{cmx}\_\mathsf{5}, \mathsf{van}, \mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}\bigr)$$
+$$\text{ρ}^{\mathsf{signed}} = \mathsf{Poseidon}\bigl(\mathsf{cmx}\_\mathsf{1}, \ldots, \mathsf{cmx}\_{N_{\max}}, \mathsf{app\_commitment}, \mathsf{instance\_id}\bigr)$$
 
-   where $\mathsf{cmx}\_\mathsf{1} \ldots \mathsf{cmx}\_\mathsf{5}$ are the
-   extracted note commitments of the 5 delegated note slots (real notes
-   plus zero-value padding notes), $\mathsf{van}$ is the VAN commitment
-   as defined in [^voting-protocol], and
-   $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}$ is the round identifier.
+   where $\mathsf{cmx}\_\mathsf{1} \ldots \mathsf{cmx}\_{N_{\max}}$ are the
+   extracted note commitments of the $N_{\max}$ delegated note slots
+   (real notes plus zero-value padding notes),
+   $\mathsf{app\_commitment}$ is an application-defined commitment
+   (e.g., a VAN commitment in the voting protocol [^voting-protocol]),
+   and $\mathsf{instance\_id}$ is the usage identifier that uniquely
+   identifies the proof-of-balance instance.
 
-   This is a 7-input Poseidon hash using the $\mathsf{P128Pow5T3}$
-   instantiation (width $t = 3$, rate 2) over $\mathbb{F}_{q_{\mathbb{P}}}$.
-   The seven inputs are absorbed in four permutations.
+   With $N_{\max} = 5$ this is a 7-input Poseidon hash using the
+   $\mathsf{P128Pow5T3}$ instantiation (width $t = 3$, rate 2) over
+   $\mathbb{F}_{q_{\mathbb{P}}}$. The seven inputs are absorbed in four
+   permutations.
 
 3. **Value.** The note value MUST be set to 1 zatoshi (0.00000001 ZEC)
    in the PCZT so that the hardware wallet device renders all transaction
@@ -742,11 +742,11 @@ $$\text{ρ}^{\mathsf{signed}} = \mathsf{Poseidon}\bigl(\mathsf{cmx}\_\mathsf{1},
    note construction using the address, value (1 zatoshi), rho, and
    rseed above.
 
-For fewer than 5 real notes, the wallet pads the remaining slots with
-zero-value dummy notes at diversifier indices $1000 + i$ (external
-scope) from the holder's full viewing key. These padding notes enter
-the $\text{ρ}$ commitment via their $\mathsf{cmx}$ values but do not
-correspond to real on-chain notes.
+For fewer than $N_{\max}$ real notes, the wallet pads the remaining
+slots with zero-value dummy notes at diversifier indices $1000 + i$
+(external scope) from the holder's full viewing key. These padding notes
+enter the $\text{ρ}$ commitment via their $\mathsf{cmx}$ values but do
+not correspond to real on-chain notes.
 
 ### PCZT Construction
 
@@ -764,13 +764,14 @@ The wallet constructs a PCZT as a single-action Orchard transaction:
 
 #### Output Side
 
-- A single output of 1 zatoshi is addressed to the governance hotkey.
-- The output memo SHOULD contain a human-readable delegation description:
+- A single output of 1 zatoshi is addressed to the application hotkey.
+- The output memo SHOULD contain a human-readable delegation description.
+  For example, a voting application might use:
 
-  `"I am authorizing this hotkey managed by my wallet to vote on`
-  `{round_name} with {amount}.{frac} ZEC."`
+  `"I am authorizing this hotkey managed by my wallet to participate`
+  `in {instance_name} with {amount}.{frac} ZEC."`
 
-  where `{round_name}` is the voting round title and
+  where `{instance_name}` identifies the proof-of-balance instance and
   `{amount}.{frac}` is the holder's eligible ZEC balance.
 
 #### ZIP-32 Derivation
@@ -803,17 +804,17 @@ standard Orchard transaction. The user sees fields such as:
 
     To
     #1 0.00000001 ZEC
-    {governance hotkey address}
+    {application hotkey address}
     Memo: I am authorizing this hotkey managed by my
-          wallet to vote on {round_name} with
+          wallet to participate in {instance_name} with
           {amount}.{frac} ZEC
 
 The 0.00000001 ZEC amount (1 zatoshi) and 0 ZEC fee confirm that no
 real funds are being transferred. The "To" address matches the
-governance hotkey address displayed in the wallet application. The memo
+application hotkey address displayed in the wallet application. The memo
 provides human-readable context for what the user is authorizing.
 
-The hardware wallet device has no awareness of governance semantics. It
+The hardware wallet device has no awareness of application semantics. It
 interprets the PCZT identically to any other Orchard transaction.
 
 ### Signature Extraction and Submission
@@ -831,14 +832,13 @@ wallet:
    transaction identifier computed over the PCZT.
 
 3. Assembles the delegation submission by combining the hardware wallet
-   signature and sighash with the Delegation Proof and other public
-   inputs. The full delegation message structure is defined in the
-   Delegation Message section of [^voting-protocol].
+   signature and sighash with the Claim proof and other public inputs.
+   The submission format is application-defined.
 
-The delegation submission is sent to the vote chain. The wallet does
-not need the hardware wallet device again for the remainder of the
-voting round; all subsequent operations (voting, share submission) use
-the governance hotkey.
+The delegation submission is sent to the application verifier. The
+wallet does not need the hardware wallet device again for the remainder
+of the usage instance; all subsequent operations use the application
+hotkey.
 
 # Rationale
 
@@ -890,7 +890,7 @@ PCZT rather than 0. When an Orchard Action has a 0-value
 note, Keystone's suppress the display of transaction fields
 (amount, fee, addresses, memo), presenting the user with insufficient
 information to make an informed signing decision. Setting the value to
-1 zatoshi causes the device to render allfields normally.
+1 zatoshi causes the device to render all fields normally.
 
 The Claim circuit enforces that the signed note value is 0 regardless of
 the PCZT value. The 1-zatoshi value exists solely in the serialized PCZT
@@ -900,21 +900,20 @@ protocol security or fund safety.
 ## Why a Dummy Note Instead of a Real Note
 
 A holder's real Orchard notes are not spent or consumed during
-delegation. The dummy signed note is constructed specifically for
-governance and never appears in any on-chain note commitment tree. This
-design has three advantages:
+delegation. The dummy signed note is constructed specifically for the
+proof-of-balance flow and never appears in any on-chain note commitment
+tree. This design has three advantages:
 
-- **No fund risk.** Because the PCZT is never broadcast to
-  the Zcash mainchain and the signed note has no on-chain existence,
+- **No fund risk.** Because the PCZT is never broadcast
+  to the Zcash mainchain and the signed note has no on-chain existence,
   there is no scenario in which the delegation signing could result in
   loss of funds.
 - **Note reusability.** Because real notes are never consumed on
   mainchain, they remain fully spendable and available for other
-  applications that use the proof-of-balance mechanism. Governance
-  nullifiers are domain-separated by
-  $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}$, so the same notes
-  can participate in concurrent voting rounds or other balance-proof
-  use cases without conflict.
+  applications that use the proof-of-balance mechanism. Alternate
+  nullifiers are domain-separated by $\mathsf{instance\_id}$, so the
+  same notes can participate in concurrent proof-of-balance instances
+  without conflict.
 - **PCZT compatibility.** The dummy note reuses the standard Orchard
   Action structure, allowing the PCZT to pass through the
   hardware wallet's existing PCZT parser and signer without
@@ -925,16 +924,17 @@ design has three advantages:
 Because the dummy signed note does not correspond to any on-chain note,
 its inputs can be freely chosen. The design sets
 $\text{ρ}^{\mathsf{signed}}$ to a Poseidon hash of the delegated note
-commitments, the VAN, and the voting round identifier. Because
-$\text{ρ}$ enters the note commitment (and therefore the sighash), the
-hardware wallet's signature is cryptographically bound to the exact
-delegation context. An attacker cannot replay the signature for a
-different set of notes, a different VAN, or a different voting round.
+commitments, the application commitment, and the usage identifier.
+Because $\text{ρ}$ enters the note commitment (and therefore the
+sighash), the hardware wallet's signature is cryptographically bound to
+the exact delegation context. An attacker cannot replay the signature
+for a different set of notes, a different application commitment, or a
+different usage instance.
 
-This binding is enforced by the Claim circuit, which the vote chain
-verifies. The hardware wallet device does not need to understand the
-binding; it is sufficient that the device signs the sighash derived from
-the PCZT containing the committed $\text{ρ}$. No custom signing
+This binding is enforced by the Claim circuit, which the application
+verifier checks. The hardware wallet device does not need to understand
+the binding; it is sufficient that the device signs the sighash derived
+from the PCZT containing the committed $\text{ρ}$. No custom signing
 protocol is required — the standard Orchard PCZT flow is reused, and
 all existing hardware wallets that support Orchard signing are
 compatible without firmware changes.
@@ -944,7 +944,7 @@ compatible without firmware changes.
 The PCZT uses the standard ZIP 244 [^zip-244] transaction
 identifier as the sighash. This is the only sighash format that
 existing hardware wallet Orchard signing implementations can produce.
-Using a governance-specific sighash would require firmware changes,
+Using an application-specific sighash would require firmware changes,
 which this specification explicitly avoids.
 
 The ZIP 244 sighash commits to the full Orchard bundle structure
@@ -982,26 +982,27 @@ this ZIP.
 
 # Open issues
 
-- **v2 hardware wallet signing with a new transaction format.** The
-  hardware wallet signing flow specified in this ZIP (v1) reuses the
-  existing Orchard PCZT format and requires no firmware changes from any
-  custodian. A v2 of the protocol could introduce a new transaction
-  format purpose-built for token holder voting, enabling:
+- **v2 signing with a new transaction format.** The signing flow
+  specified in this ZIP (v1) reuses the existing Orchard PCZT format and
+  requires no firmware changes from any hardware wallet vendor. A v2 of
+  the protocol could introduce a new transaction format purpose-built for
+  proof-of-balance, enabling:
 
   - Finer-grained delegation from a hardware wallet to a hotkey, without
     requiring the ZK circuit to verify blake2b.
-  - Combination of the first and second ZKPs in the voting design into a
-    single proof.
-  - Better UX for what the user is signing over, with governance-aware
+  - Reduction in the number of ZKPs required by downstream application
+    protocols.
+  - Better UX for what the user is signing over, with application-aware
     context display on the device screen.
 
-  However, v2 would require a firmware update, and then every one of those users
-  would need to update their device before they could vote.
+  However, v2 would require a firmware update, and every user of a
+  hardware wallet would need to update their device before they could
+  participate.
 
   If both v1 (compatible with the base Zcash transaction format) and v2
-  (governance-specific format) are supported simultaneously, the system
+  (application-specific format) are supported simultaneously, the system
   SHOULD NOT publicly leak which custody method or protocol version a
-  voter is using. This will come with proving and format overheads whose
+  holder is using. This will come with proving and format overheads whose
   design can be determined closer to the time of v2 deployment.
 
 - **Memo content standardization.** The delegation memo format is
