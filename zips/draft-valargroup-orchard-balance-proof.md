@@ -728,6 +728,8 @@ The wallet constructs a dummy Orchard note as follows:
 1. **Address.** The signed note's address is derived from the holder's
    full viewing key at diversifier index 0 with external scope:
    $\mathsf{addr}^{\mathsf{signed}} = \mathsf{fvk.address\_at}(0, \mathsf{External})$.
+   A fixed index is used because the address is a private witness inside
+   the ZKP circuit and is never publicly transmitted.
 
 2. **Nullifier commitment.** Because the dummy note
    has no on-chain existence, its fields (including $\text{ρ}$) can be
