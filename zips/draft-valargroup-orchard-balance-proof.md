@@ -171,7 +171,7 @@ specification is out of scope for this document.
 
 **Hardware wallet device exposure.** When the PCZT-based hardware wallet
 signing flow (see [Hardware Wallet Signing]) is used, the device observes
-the governance PCZT but learns no information about the holder's real
+the PCZT but learns no information about the holder's real
 Orchard balance or delegation context. The PCZT contains a 1-zatoshi
 dummy note with no on-chain counterpart; the holder's actual note
 commitments, values, and nullifiers are never transmitted to the device.
@@ -686,7 +686,7 @@ The delegation signing flow proceeds in five steps:
 1. The wallet generates a governance hotkey on the local device.
 2. The wallet constructs a dummy signed note whose nullifier commits
    to the delegation context.
-3. The wallet builds a governance PCZT containing the dummy signed note.
+3. The wallet builds a PCZT containing the dummy signed note.
 4. The hardware wallet device signs the PCZT and returns the signature.
 5. The wallet extracts the signature and assembles the delegation
    submission.
@@ -748,10 +748,9 @@ scope) from the holder's full viewing key. These padding notes enter
 the $\text{ρ}$ commitment via their $\mathsf{cmx}$ values but do not
 correspond to real on-chain notes.
 
-### Governance PCZT Construction
+### PCZT Construction
 
-The wallet constructs a governance PCZT as a single-action Orchard
-transaction:
+The wallet constructs a PCZT as a single-action Orchard transaction:
 
 #### Spend Side
 
@@ -791,8 +790,8 @@ IoFinalizer computes the ZIP 244 [^zip-244] transaction identifier
 
 ### Device Display
 
-During signing, the hardware wallet device displays the governance PCZT
-as a standard Orchard transaction. The user sees fields such as:
+During signing, the hardware wallet device displays the PCZT as a
+standard Orchard transaction. The user sees fields such as:
 
     Amount: 0.00000001 ZEC
     Fee: 0 ZEC
@@ -815,8 +814,7 @@ governance hotkey address displayed in the wallet application. The memo
 provides human-readable context for what the user is authorizing.
 
 The hardware wallet device has no awareness of governance semantics. It
-interprets the governance PCZT identically to any other Orchard
-transaction.
+interprets the PCZT identically to any other Orchard transaction.
 
 ### Signature Extraction and Submission
 
@@ -830,7 +828,7 @@ wallet:
    rather than by byte-diffing against the unsigned version.
 
 2. Extracts the sighash that the device signed. This is the ZIP 244
-   transaction identifier computed over the governance PCZT.
+   transaction identifier computed over the PCZT.
 
 3. Assembles the delegation submission by combining the hardware wallet
    signature and sighash with the Delegation Proof and other public
@@ -888,7 +886,7 @@ smaller ones, so the width bound is maintained permanently.
 ## Why 1 Zatoshi Instead of 0
 
 The dummy signed note uses a value of 1 zatoshi (0.00000001 ZEC) in the
-governance PCZT rather than 0. When an Orchard Action has a 0-value
+PCZT rather than 0. When an Orchard Action has a 0-value
 note, Keystone's suppress the display of transaction fields
 (amount, fee, addresses, memo), presenting the user with insufficient
 information to make an informed signing decision. Setting the value to
@@ -906,7 +904,7 @@ delegation. The dummy signed note is constructed specifically for
 governance and never appears in any on-chain note commitment tree. This
 design has three advantages:
 
-- **No fund risk.** Because the governance PCZT is never broadcast to
+- **No fund risk.** Because the PCZT is never broadcast to
   the Zcash mainchain and the signed note has no on-chain existence,
   there is no scenario in which the delegation signing could result in
   loss of funds.
@@ -918,7 +916,7 @@ design has three advantages:
   can participate in concurrent voting rounds or other balance-proof
   use cases without conflict.
 - **PCZT compatibility.** The dummy note reuses the standard Orchard
-  Action structure, allowing the governance PCZT to pass through the
+  Action structure, allowing the PCZT to pass through the
   hardware wallet's existing PCZT parser and signer without
   modification.
 
@@ -943,7 +941,7 @@ compatible without firmware changes.
 
 ## Why ZIP 244 Sighash
 
-The governance PCZT uses the standard ZIP 244 [^zip-244] transaction
+The PCZT uses the standard ZIP 244 [^zip-244] transaction
 identifier as the sighash. This is the only sighash format that
 existing hardware wallet Orchard signing implementations can produce.
 Using a governance-specific sighash would require firmware changes,
