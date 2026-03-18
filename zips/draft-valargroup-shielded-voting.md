@@ -197,7 +197,7 @@ see [^pir-governance].
 
 - A holder's on-chain identity (spending key, standard nullifiers) is
   not linkable to their voting activity.
-- 1 user-facing signature per 5 notes.
+- 1 user-facing signatures per 5 notes.
 - No double-delegation for the same note within a voting round
 - No double voting for the same voting share within the same proposal
 - Individual vote amounts are not revealed at any point; only aggregate
@@ -279,25 +279,6 @@ a pair of Pallas points $(C_1, C_2)$ where
 $\mathsf{Enc}(v, r) = \bigl([r]\, G,\; [v]\, G + [r]\, \mathsf{ea}\_\mathsf{pk}\bigr)$.
 
 
-## Chaum-Pedersen DLEQ Proof
-
-The protocol uses a non-interactive Chaum-Pedersen proof of
-discrete-log equality (DLEQ) [^chaum-pedersen] to verify correct usage
-of secret key material during decryption. The DLEQ proof construction, including the statement, proof generation, proof verification, and
-Fiat-Shamir challenge derivation with the `"svote-dleq-v1"` domain
-tag, is defined in [^ea-ceremony]. A proof is a pair of Pallas scalars
-$(e, z)$ demonstrating $\log_G(P) = \log_H(Q)$.
-
-### Partial Decryption Proof
-
-In threshold mode, each validator $i$ proves that their partial
-decryption was computed using their correct Shamir share $s_i$. The
-DLEQ proof instantiation for partial decryption — with
-$P = \mathsf{VK}\_i = [s_i]\, G$,
-$H = C_1^{\mathsf{agg}}$,
-$Q = D_i = [s_i]\, C_1^{\mathsf{agg}}$, and
-$x = s_i$ — is defined in [^ea-ceremony].
-
 ## Data Structures
 
 ### Vote Authority Note (VAN)
@@ -343,12 +324,14 @@ where $\mathsf{tag}_{\mathsf{van}}$ is the field-element encoding of the domain
 separator `"vote authority spend"` and $\mathsf{vsk.nk}$ is the nullifier
 deriving key from the governance hotkey's full viewing key.
 
-**Lifecycle.** A VAN is created during delegation (Phase 1) and consumed
-during voting (Phase 2), which produces a replacement VAN with updated
-$\mathsf{proposal}\_\mathsf{authority}$. The VAN model is designed to
-support future extensions such as partial delegation (splitting
-$\mathsf{num}\_\mathsf{ballots}$ across multiple delegates), but this
-ZIP specifies only the delegation and voting operations.
+A VAN MUST be created during delegation (Phase 1) and
+consumed during voting (Phase 2), which MUST produce a replacement VAN
+with updated $\mathsf{proposal}\_\mathsf{authority}$.
+
+The VAN model is
+designed to support future extensions such as partial delegation
+(splitting $\mathsf{num}\_\mathsf{ballots}$ across multiple delegates),
+but this ZIP specifies only the delegation and voting operations.
 
 ### Vote Commitment (VC)
 
@@ -367,13 +350,18 @@ where:
 - $\mathsf{vote}\_\mathsf{decision} \in \{ 0 .. q_{\mathbb{P}}-1 \}$ — the
   voter's choice (0-indexed into the proposal's declared options).
 
-A VC is created during voting (Phase 2) and opened during share reveal
-(Phase 4/5). The VC hash is posted on-chain as a public input of the
-Vote Proof and inserted into the VCT, but its preimage fields
+A VC MUST be created during voting (Phase 2) and opened during share reveal (Phase 4/5).
+
+The VC hash MUST be posted on-chain as a public input of
+the Vote Proof and inserted into the VCT.
+
+Its preimage fields
 ($\mathsf{shares}\_\mathsf{hash}$ and $\mathsf{vote}\_\mathsf{decision}$)
-are private witnesses in that proof. During share reveal, the Vote
-Reveal Proof proves membership in the VCT without exposing which VC is
-being opened.
+MUST be private witnesses in that proof.
+
+During share reveal, the Vote
+Reveal Proof MUST prove membership in the VCT without exposing which VC
+is being opened.
 
 ### Vote Share
 
@@ -416,13 +404,17 @@ where $\mathsf{tag}_{\mathsf{share}}$ is the field-element encoding of
 `"share spend"`, $\mathsf{vc}$ is the vote commitment (private), and
 $\mathsf{blind}$ is the blind factor for the revealed share.
 
+The share
+nullifier MUST be posted on-chain as a public input of the Vote Reveal
+Proof and added to the share nullifier set to prevent double-counting.
+
 ### Vote Commitment Tree
 
-The VCT is an incremental Merkle tree [^protocol-merkletree] of depth
-$\mathsf{MerkleDepth}^{\mathsf{vct}} = 24$ that stores both VANs and VCs as leaves.
-It uses the same append-only data structure as the Orchard note
-commitment tree, but with Poseidon [^poseidon] over the Pallas
-scalar field for internal node hashing instead of Sinsemilla,
+The VCT MUST be an incremental Merkle tree [^protocol-merkletree] of
+depth $\mathsf{MerkleDepth}^{\mathsf{vct}} = 24$ that stores both VANs
+and VCs as leaves. It MUST use the same append-only data structure as
+the Orchard note commitment tree, but with Poseidon [^poseidon] over
+the Pallas scalar field for internal node hashing instead of Sinsemilla,
 using the same instantiation as the nullifier non-membership
 tree [^balance-proof].
 
@@ -431,21 +423,19 @@ first Poseidon input is $\mathsf{DOMAIN}\_\mathsf{VAN} = 0$ for VANs and
 $\mathsf{DOMAIN}\_\mathsf{VC} = 1$ for VCs, making it impossible for a valid VAN
 preimage to produce the same hash as a valid VC preimage.
 
-Leaves are inserted in transaction order: a delegation transaction
+Leaves MUST be inserted in transaction order: a delegation transaction
 inserts one VAN; a vote transaction inserts both a new VAN and a VC.
 
 ### Nullifier Sets
 
-The vote chain maintains three disjoint nullifier sets:
+The vote chain MUST maintain three disjoint nullifier sets:
 
 1. **Governance nullifiers**: prevent double-delegation of mainchain
    Orchard notes within a voting round.
 2. **VAN nullifiers**: prevent double-spending of voting authority.
 3. **Share nullifiers**: prevent double-counting of revealed shares.
 
-Each set is append-only within a voting round. The vote chain rejects
-any transaction that publishes a nullifier already present in the
-corresponding set.
+Each set SHOULD BE append-only within a voting round. The vote chain MUST reject any transaction that publishes a nullifier already present in the corresponding set.
 
 ### Domain Separator Tags
 
@@ -1178,6 +1168,25 @@ never observes plaintext vote amounts or voter identities.
 The vote chain's consensus mechanism, block structure, transaction
 encoding, and API are out of scope for this ZIP.
 
+## Chaum-Pedersen DLEQ Proof
+
+The protocol uses a non-interactive Chaum-Pedersen proof of
+discrete-log equality (DLEQ) [^chaum-pedersen] to verify correct usage
+of secret key material during decryption. The DLEQ proof construction, including the statement, proof generation, proof verification, and
+Fiat-Shamir challenge derivation with the `"svote-dleq-v1"` domain
+tag, is defined in [^ea-ceremony]. A proof is a pair of Pallas scalars
+$(e, z)$ demonstrating $\log_G(P) = \log_H(Q)$.
+
+### Partial Decryption Proof
+
+In threshold mode, each validator $i$ proves that their partial
+decryption was computed using their correct Shamir share $s_i$. The
+DLEQ proof instantiation for partial decryption — with
+$P = \mathsf{VK}\_i = [s_i]\, G$,
+$H = C_1^{\mathsf{agg}}$,
+$Q = D_i = [s_i]\, C_1^{\mathsf{agg}}$, and
+$x = s_i$ — is defined in [^ea-ceremony].
+
 
 # Rationale
 
@@ -1234,6 +1243,19 @@ benefit of hardware custody, or forgo participation in governance
 entirely. Delegation preserves the hardware wallet's role as the sole
 custodian of spending keys while enabling full participation in the
 voting protocol.
+
+## Why 5 Notes per Delegation
+
+The Delegation Proof fixes the note slot count at 5 (with padding for
+holders who have fewer notes). This choice balances wallet coverage
+against proof cost: empirical analysis of the Orchard shielded pool
+shows that over 90% of wallets hold 5 or fewer notes, so most holders
+can delegate their full balance with a single user-facing signature.
+
+Each additional note slot adds a full set of per-note constraints to
+the circuit, increasing proving time. A higher
+slot count would cover marginally more wallets at a disproportionate
+cost in prover resources. Holders with more than 5 notes can perform multiple delegations, each covering up to 5 notes.
 
 ## Why a Dummy Signed Note
 
