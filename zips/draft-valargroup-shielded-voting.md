@@ -63,16 +63,12 @@ Voting round
 Election authority (EA)
 
 : The set of validators that collectively hold Shamir shares of the
-  El Gamal secret key $\mathsf{ea}\_\mathsf{sk}$ for a voting round. No single
-  validator holds the full key. At tally time, $t$ validators cooperate
-  to produce partial decryptions of the aggregate ciphertext.
+  El Gamal secret key $\mathsf{ea}\_\mathsf{sk}$ for a voting round.
 
 Submission server
 
 : An untrusted server to which a voter delegates the construction and
-  submission of Vote Reveal Proofs. The server learns encrypted shares
-  and vote decisions but cannot decrypt share amounts or link shares to
-  voter identities. See [^submission-server].
+  submission of Vote Reveal Proofs.
 
 Governance hotkey
 : An Orchard key hierarchy, distinct from the holder's spending key,
