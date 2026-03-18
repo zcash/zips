@@ -510,42 +510,26 @@ See [Why Deterministic Hotkey Derivation].
 
 ## Ballot Scaling
 
-Orchard note values are denominated in zatoshi. To reduce the bit-width
-of values flowing through El Gamal encryption and downstream range
-checks, the protocol converts zatoshi to ballots:
+Orchard note values are denominated in zatoshi. The Delegation Proof
+MUST convert zatoshi to ballots:
 
 $$\mathsf{num}\_\mathsf{ballots} = \left\lfloor \frac{\sum v_i}{12{,}500{,}000} \right\rfloor$$
 
 where $v_i$ are the values of the delegated Orchard notes. One ballot
 equals 0.125 ZEC.
 
-This conversion is enforced in the Delegation Proof circuit. The prover
-witnesses $\mathsf{num}\_\mathsf{ballots}$ and a remainder $r$, and the circuit
-constrains:
+The prover MUST witness $\mathsf{num}\_\mathsf{ballots}$ and a
+remainder $r$. The Delegation Proof circuit MUST enforce:
 
 1. $\mathsf{num}\_\mathsf{ballots} \times 12{,}500{,}000 + r = \sum v_i$
-2. $0 \leq r < 2^{24}$
-3. $\mathsf{num}\_\mathsf{ballots} \geq 1$ and $\mathsf{num}\_\mathsf{ballots} \leq 2^{30}$
+2. $0 \leq r < 2^{24}$ (see [Why a 24-bit Remainder Range])
+3. $\mathsf{num}\_\mathsf{ballots} \geq 1$
+4. $\mathsf{num}\_\mathsf{ballots} \leq 2^{30}$
 
-The 30-bit upper bound on $\mathsf{num}\_\mathsf{ballots}$ accommodates up to
-$\approx 134$ million ZEC, well above the 21 million ZEC supply cap.
-The minimum of 1 ballot prevents dust delegations (holdings below
-0.125 ZEC) from producing voting authority.
-
-<details>
-<summary>
-
-### Rationale for remainder range
-</summary>
-
-The remainder is range-checked to 24 bits ($< 16{,}777{,}216$), which
-is wider than the divisor ($12{,}500{,}000$). A prover can set
-$r > 12{,}500{,}000$, effectively shorting themselves one ballot. This
-is harmless: $\mathsf{num}\_\mathsf{ballots}$ does not appear in any governance
-nullifier, so the only effect is the prover voting with slightly less
-weight than they could. The wider check avoids a custom non-power-of-two
-range check in circuit.
-</details>
+The 30-bit upper bound accommodates up to $\approx 134$ million ZEC,
+well above the 21 million ZEC supply cap. The minimum of 1 ballot
+ensures that holdings below 0.125 ZEC MUST NOT produce voting
+authority.
 
 
 ## Delegation Phase
@@ -1233,6 +1217,17 @@ scalar multiplications are faster, range checks are tighter, and the
 bounded discrete-log search at tally time has a smaller search space.
 The 0.125 ZEC minimum also prevents dust delegations from bloating vote
 chain state.
+
+## Why a 24-bit Remainder Range
+
+The remainder in the ballot scaling constraint is range-checked to
+24 bits ($< 16{,}777{,}216$), which is wider than the divisor
+($12{,}500{,}000$). A prover can set $r > 12{,}500{,}000$, effectively
+shorting themselves one ballot. This is harmless:
+$\mathsf{num}\_\mathsf{ballots}$ does not appear in any governance
+nullifier, so the only effect is the prover voting with slightly less
+weight than they could. The wider check avoids a custom
+non-power-of-two range check in circuit.
 
 ## Why Delegation to a Hotkey
 
