@@ -197,21 +197,16 @@ see [^pir-governance].
 
 - A holder's on-chain identity (spending key, standard nullifiers) is
   not linkable to their voting activity.
-- Double-delegation of the same Orchard note within a voting round is
-  detectable via deterministic governance nullifiers.
-- Double-voting with the same Vote Authority Note is detectable via
-  deterministic VAN nullifiers.
-- Double-counting of the same vote share is detectable via deterministic
-  share nullifiers.
+- 1 user-facing signature per 5 notes.
+- No double-delegation for the same note within a voting round
+- No double voting for the same voting share within the same proposal
 - Individual vote amounts are not revealed at any point; only aggregate
   totals per (proposal, decision) pair are recoverable.
 - The aggregate tally is publicly verifiable: any party can confirm the
   homomorphic accumulation.
 - The protocol supports up to 15 proposals per voting round.
-- The Vote Commitment Tree has capacity for at least several million
+- The Vote Commitment Tree has capacity for 2^24 = 16.7 million
   leaves (combined VANs and VCs) per voting round.
-- The protocol supports delegation of voting authority to a third-party
-  hotkey.
 - The delegation phase is compatible with hardware wallets that support
   only the standard Orchard PCZT [^pczt] signing flow, without
   requiring firmware changes specific to the voting protocol.
@@ -219,18 +214,13 @@ see [^pir-governance].
 
 # Non-requirements
 
-- The consensus mechanism and operational parameters of the vote chain
-  are out of scope for this ZIP.
+- The consensus mechanism and operational parameters of the vote chain.
 - The election authority key ceremony (generation, threshold sharing,
   and distribution of $\mathsf{ea}\_\mathsf{sk}$ shares) is specified separately
   in [^ea-ceremony].
 - The operational process for conducting a coinholder vote (validator
-  setup, poll creation, deadlines) is out of scope; it is expected to
-  be specified in a separate ZIP.
-- Distributed key generation of the election authority's El Gamal keypair
-  among validators (producing $\mathsf{ea}\_\mathsf{pk}$ without any single
-  party constructing $\mathsf{ea}\_\mathsf{sk}$) is out of scope; the current
-  design uses a trusted dealer.
+  setup, poll creation, deadlines) is out of scope; it is specified
+  in [^voting-setup].
 - Post-quantum security of the El Gamal encryption layer is out of
   scope.
 - Privacy-preserving retrieval of nullifier non-membership proofs is
@@ -1507,6 +1497,8 @@ finalization of this ZIP.
 [^pir-governance]: [Private Information Retrieval for Nullifier Exclusion Proofs](draft-valargroup-nullifier-pir)
 
 [^ea-ceremony]: [Election Authority Key Ceremony](draft-valargroup-ea-key-ceremony)
+
+[^voting-setup]: [Zcash Shielded Coinholder Voting](draft-valargroup-shielded-voting-setup)
 
 [^chaum-pedersen]: [D. Chaum and T. P. Pedersen, "Wallet Databases with Observers", CRYPTO 1992](https://link.springer.com/chapter/10.1007/3-540-48071-4_7)
 
