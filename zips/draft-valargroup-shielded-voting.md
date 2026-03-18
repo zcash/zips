@@ -597,7 +597,8 @@ Given a primary input:
   governance nullifiers for each note slot.
 - $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$
 - $\mathsf{cmx}\_\mathsf{new} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$ — output note
-  commitment (to the governance hotkey address).
+  commitment to the governance hotkey address (PCZT scaffolding; not
+  inserted into any on-chain tree).
 
 #### Auxiliary Inputs
 
@@ -610,9 +611,10 @@ in [^balance-proof]:
 - Signed note data: $\mathsf{g}\_\mathsf{d}^{\mathsf{signed}}, \mathsf{pk}\_\mathsf{d}^{\mathsf{signed}},
   \text{ρ}^{\mathsf{signed}}, \text{ψ}^{\mathsf{signed}},
   \mathsf{rcm}^{\mathsf{signed}}, \mathsf{cm}^{\mathsf{signed}}$ (value = 0).
-- Output note data: $\mathsf{g}\_\mathsf{d}^{\mathsf{new}}, \mathsf{pk}\_\mathsf{d}^{\mathsf{new}},
+- Output note data (PCZT scaffolding): $\mathsf{g}\_\mathsf{d}^{\mathsf{new}}, \mathsf{pk}\_\mathsf{d}^{\mathsf{new}},
   \mathsf{v}^{\mathsf{new}}, \text{ρ}^{\mathsf{new}},
   \text{ψ}^{\mathsf{new}}, \mathsf{rcm}^{\mathsf{new}}$ (address = hotkey).
+  $\mathsf{v}^{\mathsf{new}}$ is not constrained by the circuit.
 
 #### Conditions
 
@@ -663,7 +665,17 @@ $(\mathsf{ak}, \mathsf{nk})$.
 
 **Output note commitment.** The circuit MUST enforce that
 $\mathsf{cmx}\_\mathsf{new}$ is a correctly constructed note commitment
-to an output note addressed to the governance hotkey.
+to an output note addressed to the governance hotkey. The output note
+exists solely to satisfy the PCZT signing flow: a standard Orchard
+Action requires exactly one spend and one output, so the governance
+PCZT includes a minimal output to the hotkey address.
+
+The vote chain SHOULD NOT insert $\mathsf{cmx}\_\mathsf{new}$ into any commitment tree
+or use it beyond proof verification; it serves only to make the
+hardware wallet's signed sighash commit to a complete Action structure.
+
+See [^keystone-voting] for the PCZT construction details and
+[Why a Dummy Signed Note] for the design rationale.
 
 **VAN integrity.** The circuit MUST enforce that the public VAN
 commitment matches the claimed governance hotkey, ballot count, round,
