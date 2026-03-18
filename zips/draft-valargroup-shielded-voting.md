@@ -657,15 +657,37 @@ A verifier that receives a Delegation Proof $\pi$ together with a spend
 authorization signature $\sigma$ MUST perform the following checks:
 
 1. Verify $\pi$ against the public inputs.
-2. Verify $\sigma$ as a valid $\mathsf{SpendAuthSig}^{\mathsf{Orchard}}$
-   signature on the application-defined sighash, under $\mathsf{rk}$.
-3. Verify that $\mathsf{rt}^{\mathsf{cm}}$ and $\mathsf{rt}^{\mathsf{excl}}$ correspond
+2. Verify that $\mathsf{sighash}\_\mathsf{del}$ is exactly 32 bytes.
+3. Verify $\sigma$ as a valid $\mathsf{SpendAuthSig}^{\mathsf{Orchard}}$
+   signature on $\mathsf{sighash}\_\mathsf{del}$, under $\mathsf{rk}$.
+4. Verify that $\mathsf{rt}^{\mathsf{cm}}$ and $\mathsf{rt}^{\mathsf{excl}}$ correspond
    to the published pool snapshot for $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}$.
-4. Verify that no $\mathsf{gov}\_{\mathsf{null}\_\mathsf{i}}$ appears in the governance
+5. Verify that no $\mathsf{gov}\_{\mathsf{null}\_\mathsf{i}}$ appears in the governance
    nullifier set. If any does, reject as a double-delegation.
-5. Verify that $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}$ matches an active round.
-6. Insert $\mathsf{van}$ into the VCT.
-7. Add all $\mathsf{gov}\_{\mathsf{null}\_\mathsf{i}}$ to the governance nullifier set.
+6. Verify that $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}$ matches an active round.
+7. Insert $\mathsf{van}$ into the VCT.
+8. Add all $\mathsf{gov}\_{\mathsf{null}\_\mathsf{i}}$ to the governance nullifier set.
+
+### Delegation Sighash
+
+The delegation sighash $\mathsf{sighash}\_\mathsf{del}$ is a
+client-provided 32-byte value included in the delegation message. For
+hardware wallet flows, the client computes it as the ZIP 244 [^zip-244]
+shielded transaction sighash of a governance PCZT [^pczt]; the
+construction of this PCZT for Keystone devices is specified
+in [^keystone-voting]. For software wallets, the client signs the
+sighash directly without PCZT construction.
+
+The vote chain verifies the
+$\mathsf{SpendAuthSig}^{\mathsf{Orchard}}$ against this
+client-provided sighash without recomputing it. The sighash does not
+need to be independently reconstructible by the vote chain because the
+Delegation Proof provides the governance data binding: the ZKP proves
+that $\mathsf{rk}$ is a valid rerandomization of the holder's spend
+authorization key, that the holder owns the claimed notes, and that the
+VAN commitment is correctly constructed. An attacker who substitutes a
+different sighash cannot produce a valid signature under
+$\mathsf{rk}$ without knowledge of the holder's spending key.
 
 ### Delegation Message
 
@@ -675,6 +697,7 @@ A delegation transaction submitted to the vote chain MUST contain:
 |---|---|---|
 | $\pi\_\mathsf{del}$ | Proof | The Delegation Proof |
 | $\sigma\_\mathsf{del}$ | Signature | SpendAuthSig under $\mathsf{rk}$ |
+| $\mathsf{sighash}\_\mathsf{del}$ | 32 bytes | Client-computed sighash (see [Delegation Sighash]) |
 | $\mathsf{signed}\_{\mathsf{note}\_\mathsf{nullifier}}$ | Pallas scalar | Dummy note nullifier |
 | $\mathsf{rk}$ | Pallas point | Randomized verification key |
 | $\mathsf{rt}^{\mathsf{cm}}$ | Pallas scalar | Note commitment tree root |
@@ -858,20 +881,54 @@ spend authorization signature $\sigma$ MUST perform the following
 checks:
 
 1. Verify $\pi$ against the public inputs.
-2. Verify $\sigma$ as a valid $\mathsf{SpendAuthSig}^{\mathsf{Orchard}}$
-   signature on the application-defined sighash, under
-   $\mathsf{r}\_\mathsf{vpk}$.
-3. Verify that $\mathsf{van}\_\mathsf{nullifier}$ does not appear in the VAN
+2. Compute the vote sighash from the message fields
+   (see [Vote Sighash]).
+3. Verify $\sigma$ as a valid $\mathsf{SpendAuthSig}^{\mathsf{Orchard}}$
+   signature on the vote sighash, under $\mathsf{r}\_\mathsf{vpk}$.
+4. Verify that $\mathsf{van}\_\mathsf{nullifier}$ does not appear in the VAN
    nullifier set. If it does, reject as double-voting.
-4. Verify that $\mathsf{rt}^{\mathsf{vct}}$ matches a published VCT root at
+5. Verify that $\mathsf{rt}^{\mathsf{vct}}$ matches a published VCT root at
    $\mathsf{anchor}\_\mathsf{height}$.
-5. Verify that $\mathsf{proposal}\_\mathsf{id}$ is valid for the current round
+6. Verify that $\mathsf{proposal}\_\mathsf{id}$ is valid for the current round
    and within the voting window.
-6. Verify that $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}$ matches an active round.
-7. Verify that $\mathsf{ea}\_\mathsf{pk}$ matches the published election
+7. Verify that $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}$ matches an active round.
+8. Verify that $\mathsf{ea}\_\mathsf{pk}$ matches the published election
    authority public key for this round.
-8. Insert $\mathsf{van}_{\mathsf{new}}$ and $\mathsf{vc}$ into the VCT.
-9. Add $\mathsf{van}\_\mathsf{nullifier}$ to the VAN nullifier set.
+9. Insert $\mathsf{van}_{\mathsf{new}}$ and $\mathsf{vc}$ into the VCT.
+10. Add $\mathsf{van}\_\mathsf{nullifier}$ to the VAN nullifier set.
+
+### Vote Sighash
+
+The vote sighash is computed by the vote chain from the vote message
+fields. Unlike the delegation sighash, it is not client-provided;
+the governance hotkey is software-controlled and signs the same
+chain-computable digest.
+
+The vote sighash is $\mathsf{BLAKE2b\text{-}256}(\mathsf{vote}\_\mathsf{payload})$
+using an unkeyed BLAKE2b-256 hash (no personalization parameter).
+$\mathsf{vote}\_\mathsf{payload}$ is the concatenation of a domain
+prefix followed by the message fields, each zero-padded to 32 bytes:
+
+| Component | Encoding | Size |
+|---|---|---|
+| `"SVOTE_CAST_VOTE_SIGHASH_V0"` | raw ASCII bytes | 26 |
+| $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}$ | field element, zero-padded to 32 | 32 |
+| $\mathsf{r}\_\mathsf{vpk}$ | compressed point, zero-padded to 32 | 32 |
+| $\mathsf{van}\_\mathsf{nullifier}$ | field element, zero-padded to 32 | 32 |
+| $\mathsf{van}\_{\mathsf{new}}$ | field element, zero-padded to 32 | 32 |
+| $\mathsf{vc}$ | field element, zero-padded to 32 | 32 |
+| $\mathsf{proposal}\_\mathsf{id}$ | 4-byte LE integer, zero-padded to 32 | 32 |
+| $\mathsf{anchor}\_\mathsf{height}$ | 8-byte LE integer, zero-padded to 32 | 32 |
+
+Total payload: 250 bytes. Pallas field elements and compressed points
+use their canonical little-endian
+encoding [^protocol-pallasandvesta], right-padded with zero bytes to
+fill 32 bytes when shorter. Integer fields are encoded as unsigned
+little-endian and right-padded with zero bytes to 32 bytes.
+
+The voter's client MUST compute the same digest and sign it with
+the governance hotkey's spend-authorizing key (rerandomized by
+$\alpha_v$) before submitting the vote message.
 
 ### Vote Message
 
@@ -1205,29 +1262,19 @@ cost in prover resources. Holders with more than 5 notes can perform multiple de
 The Delegation Proof includes a dummy signed note (value 0) whose rho is
 deterministically bound to the delegation context. This mechanism exists
 to obtain a $\mathsf{SpendAuthSig}^{\mathsf{Orchard}}$ from hardware
-wallets (e.g., Keystone) that support only the standard Orchard PCZT
-signing flow.
+wallets that support only the standard Orchard PCZT signing flow,
+without requiring firmware changes specific to governance. The dummy
+note's rho binding ensures the sighash transitively commits to the
+delegation context (all note commitments, the VAN, and the voting
+round), even though the hardware wallet is unaware of governance
+semantics.
 
-Without voting-specific firmware, the hardware wallet interprets the
-delegation as a standard Orchard Action and signs the transaction
-sighash accordingly. The dummy note's rho binding ensures this signature
-is non-replayable and scoped to the exact delegation context (all note
-commitments, the VAN, and the voting round), even though the hardware
-wallet is unaware of governance semantics. The sighash that the hardware
-wallet signs commits to a structure that appears to be a fund-moving
-transaction - this is an inherent consequence of reusing the standard
-signing flow and cannot be avoided without firmware changes.
-
-When hardware wallet firmware adds voting-aware signing (e.g., a
-governance network byte analogous to the testnet byte), the firmware can
-display the delegation context to the user (notes, amounts, voting
-round) and sign a governance-specific sighash that binds directly to
-the delegation parameters. The signed note scaffolding (signed note
-integrity, signed note nullifier, rho binding, and output note
-commitment) can then be removed from the circuit. This migration is
-purely subtractive: the simplified circuit is a strict subset of the
-current one, and only the Delegation Proof changes. The Vote Proof
-and Vote Reveal Proof are unaffected.
+The governance PCZT construction, signing flow, and rationale for
+specific design choices (1-zatoshi display value, rho binding for
+non-replayability, ZIP 244 sighash reuse) are specified
+in [^keystone-voting]. When hardware wallet firmware adds voting-aware
+signing, the signed note scaffolding can be removed from the circuit;
+this migration path is also discussed in [^keystone-voting].
 
 ## Why $N_s$ Shares Per Vote
 
@@ -1388,18 +1435,11 @@ This ZIP does not specify a consensus change to the Zcash mainchain.
 Deployment considerations are specific to the vote chain and will be
 addressed in the operational voting process ZIP.
 
-The protocol is designed to support two hardware wallet modes for the
-delegation phase. In the pre-firmware mode, the spend authorization
-signature is obtained through a standard PCZT-based signing flow: the
-hardware wallet signs what it interprets as an Orchard Action, and the
-dummy signed note mechanism (see [Why a Dummy Signed Note]) ensures
-correctness. In the post-firmware mode, the hardware wallet recognizes
-a governance-specific network byte, displays the delegation context
-(notes, amounts, voting round) to the user, and signs a
-governance-specific sighash. Both modes produce a valid
-$\mathsf{SpendAuthSig}^{\mathsf{Orchard}}$ that the Delegation Proof
-consumes. The post-firmware circuit is a strict subset of the
-pre-firmware circuit (see [Open issues]).
+The delegation phase supports hardware wallets via a governance PCZT
+that reuses the standard Orchard signing flow. The PCZT construction,
+signing interaction, and device display are specified
+in [^keystone-voting] for Keystone devices. Software wallets sign the
+delegation sighash directly without PCZT construction.
 
 
 # Reference implementation
@@ -1418,12 +1458,9 @@ pre-firmware circuit (see [Open issues]).
 
 # Open issues
 
-- Hardware wallet firmware with voting-aware signing (e.g., a
-  governance network byte) would allow a simplified Delegation Proof
-  circuit that removes the dummy signed note scaffolding (signed note
-  integrity, rho binding, output note commitment). The migration is
-  purely subtractive: the post-firmware circuit is a strict subset of
-  the pre-firmware circuit. See [Why a Dummy Signed Note].
+- Voting-aware hardware wallet firmware would allow a simplified
+  Delegation Proof circuit that removes the dummy signed note
+  scaffolding. See [^keystone-voting] for the migration path.
 - Partial delegation (a VAN-to-VAN delegation proof that consumes
   one VAN and produces two with subdivided $\mathsf{num}\_\mathsf{ballots}$)
   is enabled by the send-based VAN model but not specified in this
@@ -1474,6 +1511,8 @@ pre-firmware circuit (see [Open issues]).
 
 [^ea-ceremony]: [Election Authority Key Ceremony](draft-valargroup-ea-key-ceremony)
 
+[^keystone-voting]: [Keystone Hardware Wallet Voting Delegation](draft-valargroup-keystone-voting)
+
 [^voting-setup]: [Zcash Shielded Coinholder Voting](draft-valargroup-shielded-voting-setup)
 
 [^submission-server]: [Vote Share Submission Server](draft-valargroup-submission-server)
@@ -1485,6 +1524,10 @@ pre-firmware circuit (see [Open issues]).
 [^protocol-concretesinsemilla]: [Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 5.4.1.9: Sinsemilla Hash Function](protocol/protocol.pdf#concretesinsemillahash)
 
 [^protocol-concretecommitivk]: [Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 5.4.9.4: CommitIvk](protocol/protocol.pdf#concretecommitivk)
+
+[^protocol-pallasandvesta]: [Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 5.4.9.6: Pallas and Vesta](protocol/protocol.pdf#pallasandvesta)
+
+[^zip-244]: [ZIP 244: Transaction Identifier and Signature Validation for v5 Transactions](zip-0244)
 
 [^pczt]: [zcash/zips issue #693: Standardize a protocol for creating shielded transactions offline (PCZT)](https://github.com/zcash/zips/issues/693)
 
