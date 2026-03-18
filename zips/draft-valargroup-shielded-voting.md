@@ -200,7 +200,7 @@ see [^pir-governance].
 
 - A holder's on-chain identity (spending key, standard nullifiers) is
   not linkable to their voting activity.
-- 1 user-facing signatures per 5 notes.
+- The number of user-facing signatures is minimized. Over 90% of wallets require 1 user-facing signature in our system. The rest may require more signatures.
 - No double-delegation for the same note within a voting round
 - No double voting for the same voting share within the same proposal
 - Individual vote amounts are not revealed at any point; only aggregate
@@ -230,9 +230,9 @@ see [^pir-governance].
   specified separately in [^pir-governance].
 
 
-# Specification
+# High-level summary
 
-## Protocol Overview
+This section is non-normative.
 
 The protocol proceeds in five phases within a voting round.
 
@@ -261,12 +261,15 @@ homomorphically.
 
 **Phase 5: Tally.** After the voting window closes, at least $t$
 validators produce partial decryptions of the aggregate ciphertext per
-(proposal, decision) pair. The partial decryptions are stored on-chain and combined via
-Lagrange interpolation to recover the total ballot count (via bounded
-discrete-log search). Correctness is publicly verifiable: anyone can
-recompute the Lagrange combination from the on-chain partial
-decryptions.
+(proposal, decision) pair. The partial decryptions are stored on-chain
+and combined via Lagrange interpolation to recover the total ballot
+count (via the bounded discrete-log recovery procedure defined
+in [^ea-ceremony]). Correctness is publicly
+verifiable: anyone can recompute the Lagrange combination from the
+on-chain partial decryptions.
 
+
+# Specification
 
 ## El Gamal Encryption on Pallas
 
@@ -439,19 +442,6 @@ The vote chain MUST maintain three disjoint nullifier sets:
 
 Each set SHOULD BE append-only within a voting round. The vote chain MUST reject any transaction that publishes a nullifier already present in the corresponding set.
 
-### Domain Separator Tags
-
-Several constructions in this protocol use a domain separator tag
-encoded as a Pallas scalar. Each tag is defined by a fixed ASCII
-string. To convert a tag string to a field element, interpret its
-byte representation as an unsigned little-endian integer:
-
-$$\mathsf{tag} = \sum_{j=0}^{\ell-1} b_j \cdot 256^j$$
-
-where $b_0, \ldots, b_{\ell-1}$ are the ASCII byte values of the string
-and $\ell$ is its length. All tag strings in this protocol are shorter
-than 32 bytes, so the resulting integer is less than $2^{256}$ and fits
-in $\mathbb{F}_{q_{\mathbb{P}}}$ without reduction.
 
 The protocol defines three tags:
 
@@ -507,6 +497,46 @@ interpreted as a Pallas scalar via $\mathsf{FromUniformBytes}$, and
 then derives $\mathsf{vsk.ak}$, $\mathsf{vsk.nk}$, and
 $\mathsf{rivk}\_\mathsf{v}$ from $\mathsf{sk}\_\mathsf{v}$ following
 § 4.2.3 'Orchard Key Components' [^protocol-orchardkeycomponents].
+See [Why Deterministic Hotkey Derivation].
+
+### Per-Vote Secret Derivation
+
+The El Gamal encryption randomness $r_i$, per-share blind factors
+$\mathsf{blind}\_\mathsf{i}$, and spend authorization randomizer
+$\alpha_v$ used in the Vote Proof MUST be derived deterministically
+from the hotkey seed. This ensures that all per-vote secrets can be
+reconstructed from the BIP 39 mnemonic if the app is terminated
+between delegation and voting.
+
+For a vote on proposal $\mathsf{proposal}\_\mathsf{id}$ consuming
+VAN commitment $\mathsf{van}\_\mathsf{old}$ in voting round
+$\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}$, the wallet MUST
+derive a 64-byte per-vote root:
+
+$$\mathsf{vote}\_\mathsf{root} = \mathsf{Blake2b}\text{-}512\bigl(\texttt{"ZcashVoteSecret"},\; \mathsf{sk}\_\mathsf{v} \| \mathsf{voting}\_{\mathsf{round}\_\mathsf{id}} \| \mathsf{proposal}\_\mathsf{id} \| \mathsf{van}\_\mathsf{old}\bigr)$$
+
+where $\|$ denotes concatenation of canonical little-endian encodings
+(32 bytes for field elements, 1 byte for
+$\mathsf{proposal}\_\mathsf{id}$).
+
+From $\mathsf{vote}\_\mathsf{root}$, the wallet MUST derive each
+per-share secret:
+
+$$r_i = \mathsf{FromUniformBytes}\!\bigl(\mathsf{Blake2b}\text{-}512(\texttt{"ZcashVoteElGam"},\; \mathsf{vote}\_\mathsf{root} \| i)\bigr)$$
+
+$$\mathsf{blind}\_\mathsf{i} = \mathsf{FromUniformBytes}\!\bigl(\mathsf{Blake2b}\text{-}512(\texttt{"ZcashVoteBlind"},\; \mathsf{vote}\_\mathsf{root} \| i)\bigr)$$
+
+where $i$ is the share index encoded as a single byte. The spend
+authorization randomizer is:
+
+$$\alpha_v = \mathsf{FromUniformBytes}\!\bigl(\mathsf{Blake2b}\text{-}512(\texttt{"ZcashVoteAlpha"},\; \mathsf{vote}\_\mathsf{root})\bigr)$$
+
+All Blake2b invocations above use the first argument as the
+personalization parameter (truncated or padded to 16 bytes per the
+Blake2b spec) and the second argument as the input message.
+$\mathsf{FromUniformBytes}$ interprets a 64-byte input as a Pallas
+scalar. [^protocol-pallasandvesta]
+
 See [Why Deterministic Hotkey Derivation].
 
 
@@ -846,7 +876,7 @@ $$0 \leq \mathsf{v}\_\mathsf{i} < 2^{30} \quad \text{for each } i \in \{0 \ldots
 This bound is critical for two reasons: (1) it ensures the base-field
 share sum and the scalar-field El Gamal encoding agree (no modular
 reduction in either field), and (2) it keeps the aggregate discrete log
-small enough for efficient baby-step giant-step recovery at tally time.
+small enough for efficient recovery at tally time (see [^ea-ceremony]).
 
 **Condition 10: Shares hash integrity.** The circuit MUST enforce that
 the blinded share commitments and their aggregate hash are correctly
@@ -886,8 +916,9 @@ checks:
    signature on the vote sighash, under $\mathsf{r}\_\mathsf{vpk}$.
 4. Verify that $\mathsf{van}\_\mathsf{nullifier}$ does not appear in the VAN
    nullifier set. If it does, reject as double-voting.
-5. Verify that $\mathsf{rt}^{\mathsf{vct}}$ matches a published VCT root at
-   $\mathsf{anchor}\_\mathsf{height}$.
+5. Verify that $\mathsf{anchor}\_\mathsf{height}$ refers to a VCT state
+   within the current voting round and that $\mathsf{rt}^{\mathsf{vct}}$
+   matches the VCT root at that height.
 6. Verify that $\mathsf{proposal}\_\mathsf{id}$ is valid for the current round
    and within the voting window.
 7. Verify that $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}$ matches an active round.
@@ -1173,6 +1204,19 @@ The following table lists every Poseidon call site in this protocol:
 | Governance nullifier | 4 | $\mathsf{ConstantLength}\langle 4 \rangle$ | 2 |
 | Rho binding | 7 | $\mathsf{ConstantLength}\langle 7 \rangle$ | 4 |
 
+### Domain Separator Tags
+
+Several constructions in this protocol use a domain separator tag
+encoded as a Pallas scalar. Each tag is defined by a fixed ASCII
+string. To convert a tag string to a field element, interpret its
+byte representation as an unsigned little-endian integer:
+
+$$\mathsf{tag} = \sum_{j=0}^{\ell-1} b_j \cdot 256^j$$
+
+where $b_0, \ldots, b_{\ell-1}$ are the ASCII byte values of the string
+and $\ell$ is its length. All tag strings in this protocol are shorter
+than 32 bytes, so the resulting integer is less than $2^{256}$ and fits
+in $\mathbb{F}_{q_{\mathbb{P}}}$ without reduction.
 
 # Rationale
 
@@ -1203,7 +1247,8 @@ non-membership tree in [^balance-proof].
 Expressing vote values in ballots ($\lfloor \text{zatoshi} / 12{,}500{,}000 \rfloor$) rather
 than raw zatoshi reduces bit-width throughout the protocol: El Gamal
 scalar multiplications are faster, range checks are tighter, and the
-bounded discrete-log search at tally time has a smaller search space.
+discrete-log recovery at tally time [^ea-ceremony] has a smaller
+search space.
 The 0.125 ZEC minimum also prevents dust delegations from bloating vote
 chain state.
 
@@ -1245,18 +1290,19 @@ voting protocol.
 
 The voting flow spans multiple app sessions: delegation (ZKP #1),
 one or more votes (ZKP #2), and vote signing. Each step requires
-the hotkey's spend-authorizing key. Additionally, the El Gamal
-encryption randomness and per-share blind factors used in the Vote
-Proof are derived deterministically from the spending key via a
-domain-separated PRF, so crash recovery extends to per-vote secrets
-as well.
+the hotkey's spend-authorizing key. The per-vote secrets ($r_i$,
+$\mathsf{blind}\_\mathsf{i}$, $\alpha_v$) are also derived
+deterministically from the hotkey seed via a domain-separated PRF
+(see [Per-Vote Secret Derivation]), so crash recovery extends to
+all secrets needed for vote construction.
 
 Deriving every secret from a single seed means the wallet stores
 only a BIP 39 mnemonic in its keychain. If the app is terminated
 between delegation and voting, or between proposals, all key
 material is reconstructed from the mnemonic. Randomly sampled keys
 would require securely persisting each component ($\mathsf{vsk}$,
-$\mathsf{vsk.nk}$, $\mathsf{rivk}\_\mathsf{v}$) independently,
+$\mathsf{vsk.nk}$, $\mathsf{rivk}\_\mathsf{v}$, and all per-vote
+$r_i$ and $\mathsf{blind}\_\mathsf{i}$ values) independently,
 and any storage failure would be unrecoverable.
 
 ## Why VAN Nullifier Domain Separation
