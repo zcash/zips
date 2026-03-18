@@ -1000,12 +1000,8 @@ sign the application-defined sighash directly.
 
 A reference implementation of the Claim circuit (including the
 non-membership tree, alternate nullifier derivation, and multi-note
-batching for $N_ {\max} = 5$) exists in the coinholder voting codebase used
-for this design.
-
-At the time of writing, some implementation repositories are not publicly
-accessible. Public, stable links will be added before finalization of
-this ZIP.
+batching for $N_ {\max} = 5$) is available at
+[valargroup/voting-circuits](https://github.com/valargroup/voting-circuits).
 
 
 # Open issues
