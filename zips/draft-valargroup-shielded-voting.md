@@ -488,11 +488,24 @@ transitively through the VAN commitment and the rho binding (see
 [Delegation Proof]), which the holder's hardware wallet authenticates
 via the spend authorization signature.
 
-The hotkey MAY be generated deterministically from a seed (e.g., via
-Blake2b with a voting-specific personalization) or sampled randomly.
-The generation method is an application concern; the protocol requires
-only that the resulting key material satisfies the standard Orchard
-key relationships above.
+The hotkey MUST be derived deterministically from a seed
+$\mathsf{seed}\_\mathsf{v}$. The wallet MUST generate
+$\mathsf{seed}\_\mathsf{v}$ by creating a fresh BIP 39
+mnemonic [^bip39], converting it to a 64-byte BIP 39 seed, and
+storing the mnemonic in local secure storage (e.g., the platform
+keychain). The mnemonic MUST be generated independently of the
+holder's wallet mnemonic and MUST NOT be exported or backed up;
+it is needed only for the duration of the voting round.
+
+The wallet computes
+
+$$\mathsf{sk}\_\mathsf{v} = \mathsf{Blake2b}\text{-}512(\texttt{"ZcashVotingHotKy"},\; \mathsf{seed}\_\mathsf{v})$$
+
+interpreted as a Pallas scalar via $\mathsf{FromUniformBytes}$, and
+then derives $\mathsf{vsk.ak}$, $\mathsf{vsk.nk}$, and
+$\mathsf{rivk}\_\mathsf{v}$ from $\mathsf{sk}\_\mathsf{v}$ following
+§ 4.2.3 'Orchard Key Components' [^protocol-orchardkeycomponents].
+See [Why Deterministic Hotkey Derivation].
 
 
 ## Ballot Scaling
@@ -1244,6 +1257,24 @@ entirely. Delegation preserves the hardware wallet's role as the sole
 custodian of spending keys while enabling full participation in the
 voting protocol.
 
+## Why Deterministic Hotkey Derivation
+
+The voting flow spans multiple app sessions: delegation (ZKP #1),
+one or more votes (ZKP #2), and vote signing. Each step requires
+the hotkey's spend-authorizing key. Additionally, the El Gamal
+encryption randomness and per-share blind factors used in the Vote
+Proof are derived deterministically from the spending key via a
+domain-separated PRF, so crash recovery extends to per-vote secrets
+as well.
+
+Deriving every secret from a single seed means the wallet stores
+only a BIP 39 mnemonic in its keychain. If the app is terminated
+between delegation and voting, or between proposals, all key
+material is reconstructed from the mnemonic. Randomly sampled keys
+would require securely persisting each component ($\mathsf{vsk}$,
+$\mathsf{vsk.nk}$, $\mathsf{rivk}\_\mathsf{v}$) independently,
+and any storage failure would be unrecoverable.
+
 ## Why 5 Notes per Delegation
 
 The Delegation Proof fixes the note slot count at 5 (with padding for
@@ -1511,6 +1542,10 @@ finalization of this ZIP.
 [^protocol]: [Zcash Protocol Specification, Version 2025.6.3 [NU6.1] or later](protocol/protocol.pdf)
 
 [^protocol-concretespendauthsig]: [Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 5.4.7.1: Spend Authorization Signature (Orchard)](protocol/protocol.pdf#concretespendauthsig)
+
+[^protocol-orchardkeycomponents]: [Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 4.2.3: Orchard Key Components](protocol/protocol.pdf#orchardkeycomponents)
+
+[^bip39]: [M. Palatinus, P. Rusnak, A. Voisine, and S. Bowe, "BIP 39: Mnemonic code for generating deterministic keys", 2013](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki)
 
 [^poseidon]: [Poseidon: A New Hash Function for Zero-Knowledge Proof Systems](https://eprint.iacr.org/2019/458)
 
