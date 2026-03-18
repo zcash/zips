@@ -689,11 +689,11 @@ The signing flow proceeds in five steps:
    submission.
 
 Each interaction with the hardware wallet device delegates up to
-$N_{\max}$ Orchard notes (the default batch size is 5). A holder with
-more than $N_{\max}$ notes repeats the flow for each batch, producing a
-separate application commitment per batch. The holder MAY choose to
-delegate fewer batches than their full note set, claiming only the
-balance covered by the delegated batches.
+$N_{\max}$ Orchard notes. A holder with more than $N_{\max}$ notes
+repeats the flow for each batch, producing a separate application
+commitment per batch. The holder MAY choose to delegate fewer batches
+than their full note set, claiming only the balance covered by the
+delegated batches.
 
 ### Dummy Signed Note Construction
 
