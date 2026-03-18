@@ -1085,26 +1085,6 @@ corresponding proof and perform the out-of-circuit checks specified in
 The vote chain's consensus mechanism, block structure, transaction
 encoding, and API are out of scope for this ZIP.
 
-## Chaum-Pedersen DLEQ Proof
-
-The protocol uses a non-interactive Chaum-Pedersen proof of
-discrete-log equality (DLEQ) [^chaum-pedersen] to verify correct usage
-of secret key material during decryption. The DLEQ proof construction, including the statement, proof generation, proof verification, and
-Fiat-Shamir challenge derivation with the `"svote-dleq-v1"` domain
-tag, is defined in [^ea-ceremony]. A proof is a pair of Pallas scalars
-$(e, z)$ demonstrating $\log_G(P) = \log_H(Q)$.
-
-### Partial Decryption Proof
-
-In threshold mode, each validator $i$ proves that their partial
-decryption was computed using their correct Shamir share $s_i$. The
-DLEQ proof instantiation for partial decryption — with
-$P = \mathsf{VK}\_i = [s_i]\, G$,
-$H = C_1^{\mathsf{agg}}$,
-$Q = D_i = [s_i]\, C_1^{\mathsf{agg}}$, and
-$x = s_i$ — is defined in [^ea-ceremony].
-
-
 # Rationale
 
 ## Why a Separate Vote Chain
@@ -1422,18 +1402,20 @@ pre-firmware circuit (see [Open issues]).
 
 # Reference implementation
 
-A reference implementation of the three ZKP circuits (Delegation Proof,
-Vote Proof, and Vote Reveal Proof) and the vote chain state machine
-exists in the coinholder voting codebase used for this design.
-
-At the time of writing, some implementation repositories are not
-publicly accessible. Public, stable links will be added before
-finalization of this ZIP.
+- [^ref-circuits] — Halo 2 circuits for the Delegation Proof, Vote
+  Proof, and Vote Reveal Proof.
+- [^ref-vote-sdk] — Cosmos SDK vote chain implementing the VCT,
+  nullifier sets, encrypted share accumulator, ceremony, tally, and
+  submission server.
+- [^ref-nullifier-pir] — PIR server and client for privately retrieving
+  nullifier non-membership proofs.
+- [^ref-librustvoting] — Client-side Rust library for proof generation,
+  vote construction, tree synchronization, and governance PCZT
+  construction.
 
 
 # Open issues
 
-- Open issues related to the EA key ceremony are tracked in [^ea-ceremony].
 - Hardware wallet firmware with voting-aware signing (e.g., a
   governance network byte) would allow a simplified Delegation Proof
   circuit that removes the dummy signed note scaffolding (signed note
@@ -1463,6 +1445,11 @@ finalization of this ZIP.
   updating the Merkle membership circuits in both the Vote Proof and
   Vote Reveal Proof, reproving the verification key, and coordinating
   a CometBFT chain upgrade. See [Why VCT Depth 24].
+- Open issues related to the EA key ceremony are tracked in [^ea-ceremony].
+- Open issues related to the submission server (share decomposition
+  strategy, client confirmation via PIR, balance amendment, decision
+  encryption) are tracked in [^submission-server].
+- Open issues related to the balance proof are tracked in [^balance-proof].
 
 
 # References
@@ -1498,3 +1485,11 @@ finalization of this ZIP.
 [^protocol-concretecommitivk]: [Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 5.4.9.4: CommitIvk](protocol/protocol.pdf#concretecommitivk)
 
 [^pczt]: [zcash/zips issue #693: Standardize a protocol for creating shielded transactions offline (PCZT)](https://github.com/zcash/zips/issues/693)
+
+[^ref-circuits]: [valargroup/voting-circuits: Halo 2 ZKP circuits for shielded voting](https://github.com/valargroup/voting-circuits)
+
+[^ref-vote-sdk]: [valargroup/vote-sdk: Cosmos SDK vote chain for shielded voting](https://github.com/valargroup/vote-sdk)
+
+[^ref-nullifier-pir]: [valargroup/vote-nullifier-pir: PIR system for nullifier non-membership proofs](https://github.com/valargroup/vote-nullifier-pir)
+
+[^ref-librustvoting]: [valargroup/librustvoting: Client-side voting library for proof generation and vote construction](https://github.com/valargroup/librustvoting)
