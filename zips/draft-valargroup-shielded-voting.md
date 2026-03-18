@@ -540,11 +540,12 @@ The Delegation Proof establishes that a holder owns unspent Orchard
 notes at a pool snapshot and converts the proven balance into a VAN on
 the vote chain.
 
-The per-note ownership checks (note commitment integrity, Merkle path
-validity, nullifier derivation, diversified address integrity, and
-nullifier non-membership) are identical to those in the Batched Claim
-circuit defined in [^balance-proof]. This section specifies only the
-conditions that extend beyond the Balance Proof.
+The Delegation Proof circuit MUST enforce the same per-note ownership
+checks (note commitment integrity, Merkle path validity, nullifier
+derivation, diversified address integrity, and nullifier
+non-membership) as the Batched Claim circuit defined
+in [^balance-proof]. This section specifies only the conditions that
+extend beyond the Balance Proof.
 
 #### Public Inputs
 
@@ -584,19 +585,20 @@ in [^balance-proof]:
 #### Conditions
 
 **Per-note conditions (5 note slots, with padding).** For each note
-$i \in \{1 \ldots 5\}$, the following conditions from the Batched Claim
-circuit [^balance-proof] apply:
+$i \in \{1 \ldots 5\}$, the circuit MUST enforce the following
+conditions from the Batched Claim circuit [^balance-proof]:
 
 - Note commitment integrity.
 - Merkle path validity in $\mathsf{rt}^{\mathsf{cm}}$ (skipped for padded
   notes).
-- Diversified address integrity (same $\mathsf{ivk}$ owns all notes).
+- Diversified address integrity (same $\mathsf{ivk}$ MUST own all notes).
 - Standard nullifier derivation (kept private).
 - Nullifier non-membership in $\mathsf{rt}^{\mathsf{excl}}$ (skipped for padded
   notes).
-- Padded notes have value 0.
+- Padded notes MUST have value 0.
 
-**Governance nullifier derivation.** For each real note $i$:
+**Governance nullifier derivation.** For each real note $i$, the
+circuit MUST enforce:
 
 $$\mathsf{gov}\_{\mathsf{null}\_\mathsf{i}} = \mathsf{Poseidon}\bigl(\mathsf{nk}, \mathsf{tag}_{\mathsf{gov}}, \mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}, \mathsf{nf}^{\mathsf{old}}_i\bigr)$$
 
@@ -607,31 +609,34 @@ instantiation of the alternate nullifier derivation defined
 in [^balance-proof], with $\mathsf{tag} = \mathsf{tag}_{\mathsf{gov}}$ and
 $\mathsf{dom} = \mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}$.
 
-**Signed note integrity.** The signed note is a dummy note with value 0.
-Its note commitment $\mathsf{cm}^{\mathsf{signed}}$ is correctly constructed, and
+**Signed note integrity.** The signed note MUST be a dummy note with
+value 0. The circuit MUST enforce that
+$\mathsf{cm}^{\mathsf{signed}}$ is correctly constructed and that
 $\mathsf{signed}\_{\mathsf{note}\_\mathsf{nullifier}}$ is correctly derived from it.
 
-**Rho binding.** The signed note's $\text{ρ}^{\mathsf{signed}}$ is
-deterministically bound to the delegation context:
+**Rho binding.** The circuit MUST enforce that
+$\text{ρ}^{\mathsf{signed}}$ is deterministically bound to the
+delegation context:
 
 $$\text{ρ}^{\mathsf{signed}} = \mathsf{Poseidon}\bigl(\mathsf{cmx}\_\mathsf{1}, \mathsf{cmx}\_\mathsf{2}, \mathsf{cmx}\_\mathsf{3}, \mathsf{cmx}\_\mathsf{4}, \mathsf{cmx}\_\mathsf{5}, \mathsf{van}, \mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}\bigr)$$
 
 This makes the spend authorization signature non-replayable and scoped
 to the exact delegation context.
 
-**Spend authority.** $\mathsf{rk} = \mathsf{SpendAuthSig}^{\mathsf{Orchard}}\mathsf{.RandomizePublic}(\alpha, \mathsf{ak}^{\mathbb{P}})$.
+**Spend authority.** The circuit MUST enforce that $\mathsf{rk} = \mathsf{SpendAuthSig}^{\mathsf{Orchard}}\mathsf{.RandomizePublic}(\alpha, \mathsf{ak}^{\mathbb{P}})$.
 
-**Diversified address integrity for signed note.** The signed note's
-address belongs to $(\mathsf{ak}, \mathsf{nk})$.
+**Diversified address integrity for signed note.** The circuit MUST
+enforce that the signed note's address belongs to
+$(\mathsf{ak}, \mathsf{nk})$.
 
-**Output note commitment.** $\mathsf{cmx}\_\mathsf{new}$ is a correctly
-constructed note commitment to an output note addressed to the
-governance hotkey.
+**Output note commitment.** The circuit MUST enforce that
+$\mathsf{cmx}\_\mathsf{new}$ is a correctly constructed note commitment
+to an output note addressed to the governance hotkey.
 
-**VAN integrity.** The public VAN commitment matches the claimed
-governance hotkey, ballot count, round, and full proposal authority
-(using the two-layer construction defined in [Vote Authority Note
-(VAN)]):
+**VAN integrity.** The circuit MUST enforce that the public VAN
+commitment matches the claimed governance hotkey, ballot count, round,
+and full proposal authority (using the two-layer construction defined
+in [Vote Authority Note (VAN)]):
 
 $$\mathsf{van}\_\mathsf{core} = \mathsf{Poseidon}\bigl(\mathsf{DOMAIN}\_\mathsf{VAN}, \mathsf{vpk}\_{\mathsf{g}\_\mathsf{d}}, \mathsf{vpk}\_{\mathsf{pk}\_\mathsf{d}}, \mathsf{num}\_\mathsf{ballots}, \mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}, \mathsf{MAX}\_{\mathsf{PROPOSAL}\_\mathsf{AUTHORITY}}\bigr)$$
 
@@ -639,7 +644,8 @@ $$\mathsf{van} = \mathsf{Poseidon}\bigl(\mathsf{van}\_\mathsf{core}, \mathsf{gov
 
 where $\mathsf{MAX}\_{\mathsf{PROPOSAL}\_\mathsf{AUTHORITY}} = 2^{16} - 1$.
 
-**Ballot scaling.** $\mathsf{num}\_\mathsf{ballots} = \lfloor \sum v_i / 12{,}500{,}000 \rfloor$,
+**Ballot scaling.** The circuit MUST enforce that
+$\mathsf{num}\_\mathsf{ballots} = \lfloor \sum v_i / 12{,}500{,}000 \rfloor$
 with $\mathsf{num}\_\mathsf{ballots} \geq 1$, as defined in [Ballot Scaling].
 
 #### Out-of-Circuit Verification
