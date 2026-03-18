@@ -200,16 +200,14 @@ see [^pir-governance].
 
 - A holder's on-chain identity (spending key, standard nullifiers) is
   not linkable to their voting activity.
-- The number of user-facing signatures is minimized. Over 90% of wallets require 1 user-facing signature in our system. The rest may require more signatures.
-- No double-delegation for the same note within a voting round
-- No double voting for the same voting share within the same proposal
+- The number of user-facing signatures required for delegation is
+  minimized.
+- No double-delegation for the same note within a voting round.
+- No double voting for the same voting share within the same proposal.
 - Individual vote amounts are not revealed at any point; only aggregate
   totals per (proposal, decision) pair are recoverable.
 - The aggregate tally is publicly verifiable: any party can confirm the
   homomorphic accumulation.
-- The protocol supports up to 15 proposals per voting round.
-- The Vote Commitment Tree has capacity for 2^24 = 16.7 million
-  leaves (combined VANs and VCs) per voting round.
 - The delegation phase is compatible with hardware wallets that support
   only the standard Orchard PCZT [^pczt] signing flow, without
   requiring firmware changes specific to the voting protocol.
