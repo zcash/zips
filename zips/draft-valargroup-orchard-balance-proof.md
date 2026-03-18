@@ -62,9 +62,10 @@ Claim
 
 Dummy signed note
 
-: A synthetic Orchard note with value 0 (in the Claim circuit) whose
-  $\text{ρ}$ is deterministically bound to the delegation context. The
-  note does not exist in any on-chain note commitment tree.
+: A synthetic Orchard note with value 0 (in the Claim circuit) that
+  does not exist in any on-chain note commitment tree. It is constructed
+  solely for obtaining a spend authorization signature from the holder's
+  key. See [Wallet Signing].
 
 The terms "Vote Authority Note (VAN)", "governance nullifier", "voting
 round", "governance hotkey", and "ballot" are defined in the Shielded
@@ -175,8 +176,8 @@ Orchard balance or delegation context. The PCZT contains a 1-zatoshi
 dummy note with no on-chain counterpart; the holder's actual note
 commitments, values, and nullifiers are never transmitted to the device.
 The VAN commitment, governance nullifiers, and voting round identifier are
-embedded in the rho binding inside the ZKP circuit and do not appear as
-plaintext fields in the PCZT. The output address (governance hotkey) is
+committed via the dummy note's nullifier inside the ZKP circuit and
+do not appear as plaintext fields in the PCZT. The output address (governance hotkey) is
 visible on the device but is freshly generated per voting round and is not
 linked to the holder's on-chain Orchard addresses. An attacker with
 physical access to the device during signing learns only that the holder
@@ -678,13 +679,13 @@ distinguishes real notes from padded notes:
   performing them is also sound since padded notes use valid dummy data.
 
 
-## Hardware Wallet Signing
+## Wallet Signing
 
 The delegation signing flow proceeds in five steps:
 
 1. The wallet generates a governance hotkey on the local device.
-2. The wallet constructs a dummy signed note with rho bound to the
-   delegation context.
+2. The wallet constructs a dummy signed note whose nullifier commits
+   to the delegation context.
 3. The wallet builds a governance PCZT containing the dummy signed note.
 4. The hardware wallet device signs the PCZT and returns the signature.
 5. The wallet extracts the signature and assembles the delegation
@@ -705,7 +706,17 @@ The wallet constructs a dummy Orchard note as follows:
    full viewing key at diversifier index 0 with external scope:
    $\mathsf{addr}^{\mathsf{signed}} = \mathsf{fvk.address\_at}(0, \mathsf{External})$.
 
-2. **Rho binding.** The signed note's $\text{ρ}$ is set to:
+2. **Nullifier commitment.** Because the dummy note
+   has no on-chain existence, its fields (including $\text{ρ}$) can be
+   freely chosen. This design utilizes that freedom: $\text{ρ}$ is set to
+   a hash of the delegation context so that the note commitment, and
+   therefore the sighash, cryptographically binds the hardware wallet's
+   signature to the exact set of notes being delegated. This avoids
+   requiring a custom signing protocol; the hardware wallet signs a
+   standard Orchard PCZT, and the binding is enforced by the ZKP circuit
+   rather than by device firmware.
+
+   Concretely, the signed note's $\text{ρ}$ is set to:
 
 $$\text{ρ}^{\mathsf{signed}} = \mathsf{Poseidon}\bigl(\mathsf{cmx}\_\mathsf{1}, \mathsf{cmx}\_\mathsf{2}, \mathsf{cmx}\_\mathsf{3}, \mathsf{cmx}\_\mathsf{4}, \mathsf{cmx}\_\mathsf{5}, \mathsf{van}, \mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}\bigr)$$
 
@@ -734,8 +745,8 @@ $$\text{ρ}^{\mathsf{signed}} = \mathsf{Poseidon}\bigl(\mathsf{cmx}\_\mathsf{1},
 For fewer than 5 real notes, the wallet pads the remaining slots with
 zero-value dummy notes at diversifier indices $1000 + i$ (external
 scope) from the holder's full viewing key. These padding notes enter
-the rho binding via their $\mathsf{cmx}$ values but do not correspond
-to real on-chain notes.
+the $\text{ρ}$ commitment via their $\mathsf{cmx}$ values but do not
+correspond to real on-chain notes.
 
 ### Governance PCZT Construction
 
@@ -911,20 +922,24 @@ design has three advantages:
   hardware wallet's existing PCZT parser and signer without
   modification.
 
-## Why Rho Binding Provides Non-Replayability
+## Why the Dummy Note's ρ Provides Non-Replayability
 
-The dummy signed note's $\text{ρ}^{\mathsf{signed}}$ is set to a
-Poseidon hash of the delegated note commitments, the VAN, and the
-voting round identifier. Because $\text{ρ}$ enters the note commitment
-(and therefore the sighash), the hardware wallet's signature is
-cryptographically bound to the exact delegation context. An attacker
-cannot replay the signature for a different set of notes, a different
-VAN, or a different voting round.
+Because the dummy signed note does not correspond to any on-chain note,
+its inputs can be freely chosen. The design sets
+$\text{ρ}^{\mathsf{signed}}$ to a Poseidon hash of the delegated note
+commitments, the VAN, and the voting round identifier. Because
+$\text{ρ}$ enters the note commitment (and therefore the sighash), the
+hardware wallet's signature is cryptographically bound to the exact
+delegation context. An attacker cannot replay the signature for a
+different set of notes, a different VAN, or a different voting round.
 
-This binding is enforced by the Claim circuit's rho binding condition,
-which the vote chain verifies. The hardware wallet device does not need
-to understand the binding; it is sufficient that the device signs the
-sighash derived from the PCZT containing the bound $\text{ρ}$.
+This binding is enforced by the Claim circuit, which the vote chain
+verifies. The hardware wallet device does not need to understand the
+binding; it is sufficient that the device signs the sighash derived from
+the PCZT containing the committed $\text{ρ}$. No custom signing
+protocol is required — the standard Orchard PCZT flow is reused, and
+all existing hardware wallets that support Orchard signing are
+compatible without firmware changes.
 
 ## Why ZIP 244 Sighash
 
