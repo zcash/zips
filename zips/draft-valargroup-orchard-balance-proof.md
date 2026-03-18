@@ -168,7 +168,7 @@ linking the querier to a nullifier range. Private information retrieval
 specification is out of scope for this document.
 
 **Hardware wallet device exposure.** When the PCZT-based hardware wallet
-signing flow (see [Hardware Wallet Signing]) is used, the device observes
+signing flow (see [Wallet Signing]) is used, the device observes
 the PCZT but learns no information about the holder's real
 Orchard balance or delegation context. The PCZT contains a 1-zatoshi
 dummy note with no on-chain counterpart; the holder's actual note
@@ -954,13 +954,39 @@ The ZIP 244 sighash commits to the full Orchard bundle structure
 $\text{ρ}$), providing the necessary cryptographic binding without
 a custom signature scheme.
 
+## Why Not a Custom Signing Protocol
+
+A future version of this specification could define a custom signing
+protocol purpose-built for proof-of-balance, rather than reusing the
+standard Orchard PCZT format. This would require ecosystem-wide
+coordination (firmware updates to all participating hardware wallets)
+but could yield several improvements:
+
+- **Binding application actions to the signature.** Many use cases want
+  to prove balance *and* take an action in a single step (e.g., casting
+  a vote). A custom signing protocol could commit to the application
+  action directly in the signature, reducing the number of ZKPs required
+  by downstream protocols.
+- **Removing the hotkey indirection.** With a richer signing format, the
+  holder could authorize actions directly from the hardware wallet
+  without delegating to an application hotkey, simplifying the trust
+  model.
+- **Improved on-device display.** A custom format could present
+  application-aware context (e.g., "Vote on proposal X with Y ZEC")
+  rather than the generic Orchard transaction fields shown today.
+
+This specification intentionally avoids a custom signing protocol to
+maximize compatibility with existing wallets. The trade-off is accepted:
+downstream protocols may require additional ZKPs or hotkey indirection
+that a purpose-built signing format could eliminate.
+
 
 # Deployment
 
 This ZIP does not specify a consensus change. Deployment considerations
 are application-specific.
 
-The hardware wallet signing flow specified in [Hardware Wallet Signing]
+The hardware wallet signing flow specified in [Wallet Signing]
 requires no firmware changes and no changes to Zcash mainchain consensus
 rules. Any hardware wallet that supports Orchard PCZT signing can
 participate immediately.
@@ -983,33 +1009,6 @@ this ZIP.
 
 
 # Open issues
-
-- **v2 signing with a new transaction format.** The signing flow
-  specified in this ZIP (v1) reuses the existing Orchard PCZT format and
-  requires no firmware changes from any hardware wallet vendor. A v2 of
-  the protocol could introduce a new transaction format purpose-built for
-  proof-of-balance, enabling:
-
-  - Finer-grained delegation from a hardware wallet to a hotkey, without
-    requiring the ZK circuit to verify blake2b.
-  - Reduction in the number of ZKPs required by downstream application
-    protocols.
-  - Better UX for what the user is signing over, with application-aware
-    context display on the device screen.
-
-  However, v2 would require a firmware update, and every user of a
-  hardware wallet would need to update their device before they could
-  participate.
-
-  If both v1 (compatible with the base Zcash transaction format) and v2
-  (application-specific format) are supported simultaneously, the system
-  SHOULD NOT publicly leak which custody method or protocol version a
-  holder is using. This will come with proving and format overheads whose
-  design can be determined closer to the time of v2 deployment.
-
-- **Memo content standardization.** The delegation memo format is
-  currently informational. A future revision could specify a structured
-  memo format to support programmatic verification of delegation intent.
 
 
 # References
