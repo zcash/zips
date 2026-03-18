@@ -72,7 +72,7 @@ Submission server
 : An untrusted server to which a voter delegates the construction and
   submission of Vote Reveal Proofs. The server learns encrypted shares
   and vote decisions but cannot decrypt share amounts or link shares to
-  voter identities.
+  voter identities. See [^submission-server].
 
 Governance nullifier
 
@@ -185,7 +185,8 @@ and blinded share commitments for each share they submit, along with
 the proposal identifier and vote decision, but cannot decrypt plaintext
 amounts or link shares to voter identities. The
 primary trust requirement on submission servers is not leaking timing
-metadata; using multiple independent servers with randomized delays for submission mitigates this risk.
+metadata; using multiple independent servers with randomized delays
+for submission mitigates this risk. See [^submission-server].
 
 **Non-membership tree queries.** Obtaining exclusion proofs for the
 nullifier non-membership tree during delegation requires querying a data
@@ -246,9 +247,9 @@ with the voted proposal's authority bit cleared, and a Vote Commitment
 containing $N_s$ El Gamal-encrypted shares of the voter's ballot count.
 
 **Phase 3: Share submission.** The voter sends each encrypted share as
-an independent payload to one or more submission servers. Each payload
-contains the data necessary for the server to construct a Vote Reveal
-Proof.
+an independent payload to one or more submission
+servers [^submission-server]. Each payload contains the data necessary
+for the server to construct a Vote Reveal Proof.
 
 **Phase 4: Share reveal.** Each submission server constructs a Vote
 Reveal Proof (proving the share belongs to a valid VC in the VCT without
@@ -897,7 +898,8 @@ The Vote Reveal Proof opens a single encrypted share from a Vote
 Commitment, revealing the El Gamal ciphertext for homomorphic
 accumulation, without revealing the plaintext amount or which Vote
 Commitment the share came from. This proof is constructed by the
-submission server, not the voter.
+submission server, not the voter. The Vote Reveal Proof circuit MUST
+enforce all conditions specified below.
 
 #### Public Inputs
 
@@ -935,13 +937,14 @@ The prover (submission server) knows:
 
 ##### Vote Commitment Membership
 
-**Condition 1: Merkle tree membership.** The VC exists in the VCT:
-$(\mathsf{path}^{\mathsf{vct}}, \mathsf{pos}^{\mathsf{vct}})$ is a valid Merkle path
-from $\mathsf{vc}$ to $\mathsf{rt}^{\mathsf{vct}}$, without revealing which
-leaf. The VC value is a private witness.
+**Condition 1: Merkle tree membership.** The circuit MUST enforce that
+the VC exists in the VCT:
+$(\mathsf{path}^{\mathsf{vct}}, \mathsf{pos}^{\mathsf{vct}})$ MUST be
+a valid Merkle path from $\mathsf{vc}$ to $\mathsf{rt}^{\mathsf{vct}}$,
+without revealing which leaf. The VC value is a private witness.
 
-**Condition 2: Vote commitment integrity.** The VC is correctly
-constructed from its components:
+**Condition 2: Vote commitment integrity.** The circuit MUST enforce
+that the VC is correctly constructed from its components:
 
 $$\mathsf{vc} = \mathsf{Poseidon}\bigl(\mathsf{DOMAIN}\_\mathsf{VC}, \mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}, \mathsf{shares}\_\mathsf{hash}, \mathsf{proposal}\_\mathsf{id}, \mathsf{vote}\_\mathsf{decision}\bigr)$$
 
@@ -951,36 +954,37 @@ revealed share is attributed to the correct proposal and decision.
 
 ##### Share Opening
 
-**Condition 3: Shares hash integrity.** The $\mathsf{shares}\_\mathsf{hash}$ is
-recomputed from the witness share commitments:
+**Condition 3: Shares hash integrity.** The circuit MUST enforce that
+$\mathsf{shares}\_\mathsf{hash}$ is recomputed from the witness share
+commitments:
 
 $$\mathsf{shares}\_\mathsf{hash} = \mathsf{Poseidon}\bigl(\mathsf{share}\_{\mathsf{comm}\_\mathsf{0}}, \ldots, \mathsf{share}\_{\mathsf{comm}_{N_s - 1}}\bigr)$$
 
-The recomputed $\mathsf{shares}\_\mathsf{hash}$ is constrained equal to the one
-inside the VC (via condition 2). The share commitments are blinded
+The recomputed $\mathsf{shares}\_\mathsf{hash}$ MUST equal the one inside
+the VC (via condition 2). The share commitments are blinded
 (see [Why Blinded Share Commitments]), so they do not reveal the
 ciphertexts or blind factors of other shares to the prover.
 
-**Condition 4: Share membership.** The commitment derived from the
-public $x$-coordinates $C_{1,x}, C_{2,x}$ and the witness blind
-factor matches the share commitment at position
+**Condition 4: Share membership.** The circuit MUST enforce that the
+commitment derived from the public $x$-coordinates $C_{1,x}, C_{2,x}$
+and the witness blind factor matches the share commitment at position
 $\mathsf{share}\_\mathsf{index}$:
 
 $$\mathsf{Poseidon}\bigl(\mathsf{blind}_{\mathsf{share}\_\mathsf{index}}, C_{1,x}, C_{2,x}\bigr) = \mathsf{share}\_\mathsf{comms}[\mathsf{share}\_\mathsf{index}]$$
 
-The circuit encodes $\mathsf{share}\_\mathsf{index}$ as a one-hot selector
-vector over $N_s$ positions. The mux extracts the corresponding
-$\mathsf{share}\_\mathsf{comm}$ via a dot product and constrains equality with
-the commitment derived from the public ciphertext coordinates and the
-witness blind factor. Only the blind factor for the revealed share is
-needed; the remaining $N_s - 1$ share commitments used in condition 3
-are opaque witnesses that do not expose their underlying ciphertexts
-or blind factors.
+The circuit MUST encode $\mathsf{share}\_\mathsf{index}$ as a one-hot
+selector vector over $N_s$ positions. The mux MUST extract the
+corresponding $\mathsf{share}\_\mathsf{comm}$ via a dot product and
+constrain equality with the commitment derived from the public
+ciphertext coordinates and the witness blind factor. Only the blind
+factor for the revealed share is needed; the remaining $N_s - 1$ share
+commitments used in condition 3 are opaque witnesses that do not expose
+their underlying ciphertexts or blind factors.
 
 ##### Nullifier
 
-**Condition 5: Share nullifier.** The public
-$\mathsf{share}\_\mathsf{nullifier}$ is correctly derived:
+**Condition 5: Share nullifier.** The circuit MUST enforce that the
+public $\mathsf{share}\_\mathsf{nullifier}$ is correctly derived:
 
 $$\mathsf{share}\_\mathsf{nullifier} = \mathsf{Poseidon}\bigl(\mathsf{tag}_{\mathsf{share}}, \mathsf{vc}, \mathsf{share}\_\mathsf{index}, \mathsf{blind}\bigr)$$
 
@@ -1050,114 +1054,33 @@ condition 3 of the Vote Reveal Proof, the server uses the blinded
 share commitments, which do not expose the ciphertexts or blind
 factors of the other shares (see [Why Per-Server Share Isolation]).
 
-
-## Submission Server
-
-The submission server is an untrusted party that constructs Vote Reveal
-Proofs on behalf of voters. Delegating proof construction to a
-server provides two benefits:
-
-- **Reliability.** A mobile client may be killed or lose connectivity
-  during proof generation. Servers are always-on.
-- **Temporal unlinkability.** If a voter submitted all $N_s$ shares
-  directly, an observer could link them by timing. Servers stagger
-  submissions at randomized delays across the voting window, mixing
-  shares from many voters.
-
-For each payload received, the server:
-
-1. Waits a randomized delay.
-2. Obtains the current VCT Merkle path for the VC.
-3. Derives the share nullifier.
-4. Constructs the Vote Reveal Proof.
-5. Submits the share reveal transaction to the vote chain.
-
-**What the server learns:** the encrypted share ciphertext and blind
-factor for a single share, the blinded share commitments for all $N_s$
-shares, the proposal identifier, and the vote decision. **What it
-cannot learn:** the plaintext share amount (El Gamal encrypted under
-$\mathsf{ea}\_\mathsf{pk}$), the ciphertexts or blind factors of other
-shares (hidden behind blinded commitments), the voter's identity (the
-VC hides the link), or which VCT leaf the VC corresponds to (the
-Merkle path is a private witness in the proof).
-
-Voters MAY distribute shares across multiple independent servers to
+Voters MUST distribute shares across multiple independent servers to
 further limit any single server's view of their voting activity.
-Specification of server selection, communication protocols, and timing
-parameters is deferred to the operational voting process ZIP.
+Server selection, temporal mixing, and communication protocols are
+specified in [^submission-server].
 
 
-## Homomorphic Tally
+## Tally
 
-After the voting window closes, the tally proceeds in two steps.
-
-**Step 1: Public aggregation.** For each
-$(\mathsf{proposal}\_\mathsf{id}, \mathsf{vote}\_\mathsf{decision})$ pair, the aggregate
-ciphertext is the component-wise sum of all revealed shares attributed
-to that pair:
-
-$$\mathsf{agg} = \Bigl(\sum C_{1,j}, \sum C_{2,j}\Bigr)$$
-
-This is publicly computable from on-chain data. Any party can
-independently verify the aggregation.
-
-**Step 2: Threshold decryption and public verification.** At least $t$
-validators produce partial decryptions that are combined via Lagrange
-interpolation to recover $\mathsf{total}\_\mathsf{ballots}$. The procedure
-for partial decryption submission and Lagrange combination is specified
-in [^ea-ceremony].
-
-Each validator $i$ computes $D_i = [s_i]\, C_1^{\mathsf{agg}}$ using
-their Shamir share $s_i$ and submits $D_i$ along with a
-Chaum-Pedersen DLEQ proof demonstrating correct share usage (see
-[Partial Decryption Proof]). A verifier MUST check each per-validator
-proof against the validator's published verification key
-$\mathsf{VK}\_i$ and $C_1^{\mathsf{agg}}$ before accepting $D_i$ for
-Lagrange combination.
-
-The combined result MUST be publicly verified. Given the aggregate
-ciphertext $\mathsf{agg} = (C_1^{\mathsf{agg}}, C_2^{\mathsf{agg}})$ and
-the Lagrange-combined partial decryption point $D_{\mathsf{combined}}$,
-any party can check:
-
-$$C_2^{\mathsf{agg}} - D_{\mathsf{combined}} = [\mathsf{total}\_\mathsf{ballots}]\, G$$
-
-When the full election authority secret key is available (e.g., for
-testing), correct decryption MAY
-alternatively be proven via the aggregate variant of the DLEQ proof
-(see [Aggregate Decryption Proof]).
-
-Individual vote amounts are never revealed; only the aggregate total per
-(proposal, decision) pair.
-
-
-## Election Authority Key
-
-Each voting round uses a fresh election authority keypair
-$(\mathsf{ea}\_\mathsf{sk}, \mathsf{ea}\_\mathsf{pk})$ produced by the key
-ceremony specified in [^ea-ceremony]. After the ceremony, no single
-party holds $\mathsf{ea}\_\mathsf{sk}$; each validator holds only a Shamir
-share. At tally time, at least $t = \lceil n/2 \rceil + 1$ validators
-cooperate to produce partial decryptions without reconstructing the
-full secret key.
+After the voting window closes, the vote chain MUST decrypt the per-
+$(\mathsf{proposal}\_\mathsf{id}, \mathsf{vote}\_\mathsf{decision})$
+aggregate ciphertexts using the threshold decryption procedure
+specified in [^ea-ceremony].
 
 
 ## Vote Chain
 
-The vote chain is a purpose-built chain that records all governance
-transactions. It maintains:
+The vote chain MUST maintain the following state per voting round:
 
-- The **Vote Commitment Tree**: an append-only Poseidon Merkle tree
-  storing VANs and VCs.
-- Three **nullifier sets**: governance, VAN, and share nullifiers.
-- An **encrypted share accumulator**: per
-  $(\mathsf{proposal}\_\mathsf{id}, \mathsf{vote}\_\mathsf{decision})$, the running
-  component-wise sum of revealed El Gamal ciphertexts.
+- The **Vote Commitment Tree** as defined in [Vote Commitment Tree].
+- Three disjoint **nullifier sets** as defined in [Nullifier Sets].
+- A **per-$(\mathsf{proposal}\_\mathsf{id}, \mathsf{vote}\_\mathsf{decision})$
+  encrypted share accumulator**: the running component-wise sum of
+  revealed El Gamal ciphertexts.
 
-For each transaction type, the chain verifies the corresponding proof,
-checks nullifier freshness, updates the VCT, and (for share reveals)
-accumulates the ciphertext. All verification is ZKP-based - the chain
-never observes plaintext vote amounts or voter identities.
+For each transaction type, the vote chain MUST verify the
+corresponding proof and perform the out-of-circuit checks specified in
+[Delegation Proof], [Vote Proof], or [Vote Reveal Proof] respectively.
 
 The vote chain's consensus mechanism, block structure, transaction
 encoding, and API are out of scope for this ZIP.
@@ -1564,7 +1487,7 @@ finalization of this ZIP.
 
 [^voting-setup]: [Zcash Shielded Coinholder Voting](draft-valargroup-shielded-voting-setup)
 
-[^chaum-pedersen]: [D. Chaum and T. P. Pedersen, "Wallet Databases with Observers", CRYPTO 1992](https://link.springer.com/chapter/10.1007/3-540-48071-4_7)
+[^submission-server]: [Vote Share Submission Server](draft-valargroup-submission-server)
 
 [^halo2]: [S. Bowe, J. Grigg, and D. Hopwood, "Recursive Proof Composition without a Trusted Setup", 2019](https://eprint.iacr.org/2019/1021)
 
