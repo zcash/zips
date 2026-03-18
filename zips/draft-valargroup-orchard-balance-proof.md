@@ -60,24 +60,11 @@ Claim
   committed value at a given pool snapshot, and revealing the note's
   alternate nullifier in a specified domain.
 
-Governance PCZT
-
-: A Partially Created Zcash Transaction [^pczt] constructed solely for
-  governance delegation. The PCZT contains a single Orchard Action that
-  spends a dummy signed note and produces an output to the governance
-  hotkey address.
-
 Dummy signed note
 
 : A synthetic Orchard note with value 0 (in the Claim circuit) whose
   $\text{ρ}$ is deterministically bound to the delegation context. The
   note does not exist in any on-chain note commitment tree.
-
-Rho binding
-
-: The constraint that the dummy signed note's
-  $\text{ρ}^{\mathsf{signed}}$ equals a Poseidon hash of the delegated
-  note commitments, the VAN commitment, and the voting round identifier.
 
 The terms "Vote Authority Note (VAN)", "governance nullifier", "voting
 round", "governance hotkey", and "ballot" are defined in the Shielded
@@ -1032,8 +1019,6 @@ this ZIP.
 [^draft-str4d-orchard-balance-proof]: [Draft ZIP: Air drops, Proof-of-Balance, and Stake-weighted Polling](draft-str4d-orchard-balance-proof)
 
 [^voting-protocol]: [Shielded Voting Protocol](draft-valargroup-shielded-voting)
-
-[^pczt]: [zcash/zips issue #693: Standardize a protocol for creating shielded transactions offline (PCZT)](https://github.com/zcash/zips/issues/693)
 
 [^zip-244]: [ZIP 244: Transaction Identifier Non-Malleability](zip-0244)
 
