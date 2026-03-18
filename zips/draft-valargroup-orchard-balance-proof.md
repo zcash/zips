@@ -1038,7 +1038,3 @@ this ZIP.
 [^zip-244]: [ZIP 244: Transaction Identifier Non-Malleability](zip-0244)
 
 [^zip-32]: [ZIP 32: Shielded Hierarchical Deterministic Wallets](zip-0032)
-
-[^protocol-concretespendauthsig]: [Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 5.4.7.1: Spend Authorization Signature (Orchard)](protocol/protocol.pdf#concretespendauthsig)
-
-[^ur]: [BCR-2020-005: Uniform Resources (UR)](https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2020-005-ur.md)
