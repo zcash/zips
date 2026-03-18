@@ -689,7 +689,8 @@ A delegation transaction submitted to the vote chain MUST contain:
 The Vote Proof demonstrates that a holder of a valid VAN is casting a
 vote: consuming the old VAN, producing a new VAN with decremented
 proposal authority, and constructing a Vote Commitment that binds $N_s$
-El Gamal-encrypted shares to the chosen proposal and decision.
+El Gamal-encrypted shares to the chosen proposal and decision. The
+Vote Proof circuit MUST enforce all conditions specified below.
 
 #### Public Inputs
 
@@ -743,89 +744,77 @@ The prover knows:
 
 ##### VAN Ownership and Spending
 
-**Condition 1: Merkle tree membership.** The old VAN exists in the VCT:
-$(\mathsf{path}^{\mathsf{vct}}, \mathsf{pos}^{\mathsf{vct}})$ is a valid Merkle path of
-depth $\mathsf{MerkleDepth}^{\mathsf{vct}}$ from $\mathsf{van}_{\mathsf{old}}$ to the
-anchor $\mathsf{rt}^{\mathsf{vct}}$, using Poseidon for internal node hashing.
+**Condition 1: Merkle tree membership.** The circuit MUST enforce that
+the old VAN exists in the VCT:
+$(\mathsf{path}^{\mathsf{vct}}, \mathsf{pos}^{\mathsf{vct}})$ MUST be
+a valid Merkle path of depth $\mathsf{MerkleDepth}^{\mathsf{vct}}$
+from $\mathsf{van}_{\mathsf{old}}$ to the anchor
+$\mathsf{rt}^{\mathsf{vct}}$, using Poseidon for internal node hashing.
 
-**Condition 2: Old VAN integrity.** The old VAN commitment matches the
-claimed fields (using the two-layer construction defined in
-[Vote Authority Note (VAN)]):
+**Condition 2: Old VAN integrity.** The circuit MUST enforce that
+the old VAN commitment matches the claimed fields (using the two-layer
+construction defined in [Vote Authority Note (VAN)]):
 
 $$\mathsf{van}\_{\mathsf{core}\_\mathsf{old}} = \mathsf{Poseidon}\bigl(\mathsf{DOMAIN}\_\mathsf{VAN}, \mathsf{vpk}\_{\mathsf{g}\_\mathsf{d}}, \mathsf{vpk}\_{\mathsf{pk}\_\mathsf{d}}, \mathsf{num}\_\mathsf{ballots}, \mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}, \mathsf{proposal}\_{\mathsf{authority}\_\mathsf{old}}\bigr)$$
 
 $$\mathsf{van}\_\mathsf{old} = \mathsf{Poseidon}\bigl(\mathsf{van}\_{\mathsf{core}\_\mathsf{old}}, \mathsf{gov}\_{\mathsf{comm}\_\mathsf{rand}}\bigr)$$
 
-**Condition 3: Diversified address integrity.** The VAN's address
-belongs to the voting key:
+**Condition 3: Diversified address integrity.** The circuit MUST
+enforce that the VAN's address belongs to the voting key:
 
 $$\mathsf{vpk}\_{\mathsf{pk}\_\mathsf{d}} = [\mathsf{ivk}\_\mathsf{v}]\, \mathsf{vpk}\_{\mathsf{g}\_\mathsf{d}}$$
 
 where $\mathsf{ivk}\_\mathsf{v} = \mathsf{CommitIvk}_{\mathsf{rivk}\_\mathsf{v}}\!\bigl(\mathsf{Extract}_{\mathbb{P}}(\mathsf{vsk.ak}),\; \mathsf{vsk.nk}\bigr)$ [^protocol-concretecommitivk].
 
-**Condition 4: Spend authority.** The randomized voting public key is
-a valid rerandomization:
+**Condition 4: Spend authority.** The circuit MUST enforce that the
+randomized voting public key is a valid rerandomization:
 
 $$\mathsf{r}\_\mathsf{vpk} = \mathsf{vsk.ak} + [\alpha_v]\, G$$
 
-**Condition 5: VAN nullifier.** The public $\mathsf{van}\_\mathsf{nullifier}$
-is correctly derived:
+**Condition 5: VAN nullifier.** The circuit MUST enforce that the
+public $\mathsf{van}\_\mathsf{nullifier}$ is correctly derived:
 
 $$\mathsf{van}\_\mathsf{nullifier} = \mathsf{Poseidon}\bigl(\mathsf{vsk.nk}, \mathsf{tag}_{\mathsf{van}}, \mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}, \mathsf{van}_{\mathsf{old}}\bigr)$$
 
 where $\mathsf{tag}_{\mathsf{van}}$ is the field-element encoding of
 `"vote authority spend"`.
 
-<details>
-<summary>
-
-### Rationale for VAN nullifier domain separation
-</summary>
-
-The VAN nullifier uses $\mathsf{vsk.nk}$ (the governance hotkey's
-nullifier deriving key) as the Poseidon key, while the governance
-nullifier uses $\mathsf{nk}$ (the holder's nullifier deriving key).
-When the hotkey is a separate key from the holder's, these are distinct
-field elements, and cross-circuit collision resistance follows from the
-key difference alone. When the hotkey reuses the holder's key hierarchy
-(e.g., in an all-software flow without hardware wallet separation),
-$\mathsf{vsk.nk} = \mathsf{nk}$ and collision resistance relies on
-the domain tags being distinct: `"vote authority spend"` and
-`"governance authorization"` differ in both byte length and content,
-producing distinct field elements. The domain tags provide
-defense-in-depth in both cases.
-</details>
+See [Why VAN Nullifier Domain Separation].
 
 ##### New VAN Construction
 
-**Condition 6: Proposal authority decrement.** Bit
-$\mathsf{proposal}\_\mathsf{id}$ is cleared in the authority bitmask:
+**Condition 6: Proposal authority decrement.** The circuit MUST
+enforce that bit $\mathsf{proposal}\_\mathsf{id}$ is cleared in the
+authority bitmask:
 
-- $\mathsf{proposal}\_{\mathsf{authority}\_\mathsf{old}}$ is decomposed into 16 boolean
-  wires $b_0, \ldots, b_{15}$ that recompose to the original value.
-- The bit at position $\mathsf{proposal}\_\mathsf{id}$ is asserted to be 1
-  (the voter has authority for this proposal).
-- $\mathsf{proposal}\_{\mathsf{authority}\_\mathsf{new}}$ is the recomposition with bit
-  $\mathsf{proposal}\_\mathsf{id}$ cleared; all other bits are unchanged.
+- $\mathsf{proposal}\_{\mathsf{authority}\_\mathsf{old}}$ MUST be decomposed into
+  16 boolean wires $b_0, \ldots, b_{15}$ that recompose to the original
+  value.
+- The bit at position $\mathsf{proposal}\_\mathsf{id}$ MUST be 1 (the voter
+  has authority for this proposal).
+- $\mathsf{proposal}\_{\mathsf{authority}\_\mathsf{new}}$ MUST be the recomposition
+  with bit $\mathsf{proposal}\_\mathsf{id}$ cleared; all other bits MUST be
+  unchanged.
 
-**Condition 7: New VAN integrity.** The new VAN is correctly
-constructed (using the two-layer construction defined in
-[Vote Authority Note (VAN)]):
+**Condition 7: New VAN integrity.** The circuit MUST enforce that the
+new VAN is correctly constructed (using the two-layer construction
+defined in [Vote Authority Note (VAN)]):
 
 $$\mathsf{van}\_{\mathsf{core}\_\mathsf{new}} = \mathsf{Poseidon}\bigl(\mathsf{DOMAIN}\_\mathsf{VAN}, \mathsf{vpk}\_{\mathsf{g}\_\mathsf{d}}, \mathsf{vpk}\_{\mathsf{pk}\_\mathsf{d}}, \mathsf{num}\_\mathsf{ballots}, \mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}, \mathsf{proposal}\_{\mathsf{authority}\_\mathsf{new}}\bigr)$$
 
 $$\mathsf{van}\_\mathsf{new} = \mathsf{Poseidon}\bigl(\mathsf{van}\_{\mathsf{core}\_\mathsf{new}}, \mathsf{gov}\_{\mathsf{comm}\_\mathsf{rand}}\bigr)$$
 
-The new VAN reuses the old VAN's diversified address and commitment
+The new VAN MUST reuse the old VAN's diversified address and commitment
 randomness; only $\mathsf{proposal}\_\mathsf{authority}$ changes.
 
 ##### Vote Commitment Construction
 
-**Condition 8: Shares sum correctness.**
+**Condition 8: Shares sum correctness.** The circuit MUST enforce:
 
 $$\sum_{i=0}^{N_s - 1} \mathsf{v}\_\mathsf{i} = \mathsf{num}\_\mathsf{ballots}$$
 
-**Condition 9: Shares range check.** Each share is bounded:
+**Condition 9: Shares range check.** The circuit MUST enforce that
+each share is bounded:
 
 $$0 \leq \mathsf{v}\_\mathsf{i} < 2^{30} \quad \text{for each } i \in \{0 \ldots N_s - 1\}$$
 
@@ -834,26 +823,28 @@ share sum and the scalar-field El Gamal encoding agree (no modular
 reduction in either field), and (2) it keeps the aggregate discrete log
 small enough for efficient baby-step giant-step recovery at tally time.
 
-**Condition 10: Shares hash integrity.** The blinded share commitments
-and their aggregate hash are correctly computed:
+**Condition 10: Shares hash integrity.** The circuit MUST enforce that
+the blinded share commitments and their aggregate hash are correctly
+computed:
 
 $$\mathsf{share}\_{\mathsf{comm}\_\mathsf{i}} = \mathsf{Poseidon}\bigl(\mathsf{blind}\_\mathsf{i}, C_{1,i,x}, C_{2,i,x}\bigr) \quad \text{for each } i$$
 
 $$\mathsf{shares}\_\mathsf{hash} = \mathsf{Poseidon}\bigl(\mathsf{share}\_{\mathsf{comm}\_\mathsf{0}}, \ldots, \mathsf{share}\_{\mathsf{comm}_{N_s - 1}}\bigr)$$
 
-**Condition 11: El Gamal encryption integrity.** Each ciphertext is a
-valid encryption of its share under $\mathsf{ea}\_\mathsf{pk}$:
+**Condition 11: El Gamal encryption integrity.** The circuit MUST
+enforce that each ciphertext is a valid encryption of its share under
+$\mathsf{ea}\_\mathsf{pk}$:
 
 $$C_{1,i} = [r_i]\, G$$
 $$C_{2,i} = [\mathsf{v}\_\mathsf{i}]\, G + [r_i]\, \mathsf{ea}\_\mathsf{pk}$$
 
-The circuit constrains equality on the $x$-coordinates of the computed
-and witnessed ciphertext points. Constraining only $x$-coordinates is
-sufficient because the shared randomness $r_i$ binds both curve points,
-leaving no prover freedom in the $y$-coordinates.
+The circuit MUST constrain equality on the $x$-coordinates of the
+computed and witnessed ciphertext points. Constraining only
+$x$-coordinates is sufficient because the shared randomness $r_i$ binds
+both curve points, leaving no prover freedom in the $y$-coordinates.
 
-**Condition 12: Vote commitment integrity.** The public vote commitment
-matches the private vote details:
+**Condition 12: Vote commitment integrity.** The circuit MUST enforce
+that the public vote commitment matches the private vote details:
 
 $$\mathsf{vc} = \mathsf{Poseidon}\bigl(\mathsf{DOMAIN}\_\mathsf{VC}, \mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}, \mathsf{shares}\_\mathsf{hash}, \mathsf{proposal}\_\mathsf{id}, \mathsf{vote}\_\mathsf{decision}\bigr)$$
 
@@ -1275,6 +1266,21 @@ material is reconstructed from the mnemonic. Randomly sampled keys
 would require securely persisting each component ($\mathsf{vsk}$,
 $\mathsf{vsk.nk}$, $\mathsf{rivk}\_\mathsf{v}$) independently,
 and any storage failure would be unrecoverable.
+
+## Why VAN Nullifier Domain Separation
+
+The VAN nullifier uses $\mathsf{vsk.nk}$ (the governance hotkey's
+nullifier deriving key) as the Poseidon key, while the governance
+nullifier uses $\mathsf{nk}$ (the holder's nullifier deriving key).
+When the hotkey is a separate key from the holder's, these are distinct
+field elements, and cross-circuit collision resistance follows from the
+key difference alone. When the hotkey reuses the holder's key hierarchy
+(e.g., in an all-software flow without hardware wallet separation),
+$\mathsf{vsk.nk} = \mathsf{nk}$ and collision resistance relies on
+the domain tags being distinct: `"vote authority spend"` and
+`"governance authorization"` differ in both byte length and content,
+producing distinct field elements. The domain tags provide
+defense-in-depth in both cases.
 
 ## Why 5 Notes per Delegation
 
