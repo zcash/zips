@@ -74,6 +74,12 @@ Submission server
   and vote decisions but cannot decrypt share amounts or link shares to
   voter identities. See [^submission-server].
 
+Governance hotkey
+: An Orchard key hierarchy, distinct from the holder's spending key,
+  that provides the key material for all voting operations after
+  delegation. The hotkey is generated on a general-purpose device
+  capable of ZKP construction.
+
 Governance nullifier
 
 : An alternate nullifier (as defined in [^balance-proof]) scoped to the
