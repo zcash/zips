@@ -904,10 +904,10 @@ delegation. The dummy signed note is constructed specifically for the
 proof-of-balance flow and never appears in any on-chain note commitment
 tree. This design has three advantages:
 
-- **No fund risk.** Because the PCZT is never broadcast
-  to the Zcash mainchain and the signed note has no on-chain existence,
-  there is no scenario in which the delegation signing could result in
-  loss of funds.
+- **No fund risk.** Because the proof-of-balance transaction is never
+  broadcast to the Zcash mainchain and the signed note has no on-chain
+  existence, there is no scenario in which the delegation signing could
+  result in loss of funds.
 - **Note reusability.** Because real notes are never consumed on
   mainchain, they remain fully spendable and available for other
   applications that use the proof-of-balance mechanism. Alternate
