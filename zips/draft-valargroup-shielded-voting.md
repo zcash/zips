@@ -416,10 +416,9 @@ Proof and added to the share nullifier set to prevent double-counting.
 The VCT MUST be an incremental Merkle tree [^protocol-merkletree] of
 depth $\mathsf{MerkleDepth}^{\mathsf{vct}} = 24$ that stores both VANs
 and VCs as leaves. It MUST use the same append-only data structure as
-the Orchard note commitment tree, but with Poseidon [^poseidon] over
-the Pallas scalar field for internal node hashing instead of Sinsemilla,
-using the same instantiation as the nullifier non-membership
-tree [^balance-proof].
+the Orchard note commitment tree, but with Poseidon over the Pallas
+scalar field for internal node hashing instead of Sinsemilla
+(see [Poseidon Instantiation]).
 
 Domain separation between VANs and VCs is achieved structurally: the
 first Poseidon input is $\mathsf{DOMAIN}\_\mathsf{VAN} = 0$ for VANs and
@@ -1143,6 +1142,37 @@ corresponding proof and perform the out-of-circuit checks specified in
 
 The vote chain's consensus mechanism, block structure, transaction
 encoding, and API are out of scope for this ZIP.
+
+### Poseidon Instantiation
+
+All Poseidon hashes in this protocol use the same instantiation as
+the nullifier non-membership tree defined in [^balance-proof]:
+$\mathsf{P128Pow5T3}$ over $\mathbb{F}_{q_{\mathbb{P}}}$ (the Pallas
+base field), with S-box $x^5$, width $t = 3$, rate $r = 2$, targeting
+128-bit security, using the standard parameter generation procedure
+from [^poseidon].
+
+Hashes with $L$ inputs use $\mathsf{ConstantLength}\langle L \rangle$
+mode (absorbing $L$ field elements with length padding) for
+$L \leq 7$. The shares hash ($L = N_s = 16$) uses variable-length
+sponge absorption without length padding, absorbing two elements per
+permutation.
+
+The following table lists every Poseidon call site in this protocol:
+
+| Hash | Inputs ($L$) | Mode | Permutations |
+|---|---|---|---|
+| VAN core | 6 | $\mathsf{ConstantLength}\langle 6 \rangle$ | 3 |
+| VAN blinding | 2 | $\mathsf{ConstantLength}\langle 2 \rangle$ | 1 |
+| VAN nullifier | 4 | $\mathsf{ConstantLength}\langle 4 \rangle$ | 2 |
+| Vote commitment | 5 | $\mathsf{ConstantLength}\langle 5 \rangle$ | 3 |
+| Blinded share commitment | 3 | $\mathsf{ConstantLength}\langle 3 \rangle$ | 2 |
+| Shares hash | 16 | Sponge | 8 |
+| Share nullifier | 4 | $\mathsf{ConstantLength}\langle 4 \rangle$ | 2 |
+| VCT internal node | 2 | $\mathsf{ConstantLength}\langle 2 \rangle$ | 1 |
+| Governance nullifier | 4 | $\mathsf{ConstantLength}\langle 4 \rangle$ | 2 |
+| Rho binding | 7 | $\mathsf{ConstantLength}\langle 7 \rangle$ | 4 |
+
 
 # Rationale
 
