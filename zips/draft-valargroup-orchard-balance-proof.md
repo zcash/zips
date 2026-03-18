@@ -129,8 +129,10 @@ experience of the Zcash coinholder voting system.
 A key practical consideration is that many holders custody their spending
 keys on hardware wallets such as Keystone. Without a delegation mechanism,
 hardware wallet users must either export their spending keys to software
-(negating the security benefit of hardware custody) or forgo participation entirely.
-This ZIP therefore specifies a PCZT-based signing flow (see
+(negating the security benefit of hardware custody) or perform many more
+hardware wallet signing interactions (one per protocol action rather than
+a single delegation) each with limited ability to verify the signing
+context on screen. This ZIP therefore specifies a PCZT-based signing flow (see
 [Wallet Signing]) that works with any hardware wallet supporting
 Orchard PCZT signing today, requiring no firmware changes.
 
