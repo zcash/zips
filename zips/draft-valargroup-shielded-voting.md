@@ -306,10 +306,12 @@ where:
 
 - $\mathsf{DOMAIN}\_\mathsf{VAN} = 0$ — domain tag distinguishing VANs from VCs
   in the shared VCT.
-- $\mathsf{vpk}\_{\mathsf{g}\_\mathsf{d}} \in \mathbb{P}^*$ — diversified base of the
+- $\mathsf{vpk}\_{\mathsf{g}\_\mathsf{d}} \in \{ 0 .. q_{\mathbb{P}}-1 \}$ —
+  $\mathsf{Extract}\_{\mathbb{P}}$ of the diversified base of the governance
+  hotkey address.
+- $\mathsf{vpk}\_{\mathsf{pk}\_\mathsf{d}} \in \{ 0 .. q_{\mathbb{P}}-1 \}$ —
+  $\mathsf{Extract}\_{\mathbb{P}}$ of the diversified transmission key of the
   governance hotkey address.
-- $\mathsf{vpk}\_{\mathsf{pk}\_\mathsf{d}} \in \mathbb{P}^*$ — diversified transmission
-  key of the governance hotkey address.
 - $\mathsf{num}\_\mathsf{ballots} \in \{1 \ldots 2^{30}\}$ — total voting
   weight in ballots.
 - $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}} \in \{ 0 .. q_{\mathbb{P}}-1 \}$ — scopes this VAN to a specific voting round.
@@ -373,7 +375,12 @@ is being opened.
 
 A vote share is one of $N_s = 16$ encrypted portions of a voter's ballot
 count within a VC. The value 16 is chosen as a sufficiently high number
-to ensure amount privacy through share decomposition.
+to ensure amount privacy through share decomposition. This ZIP
+constrains only that the shares sum to $\mathsf{num}\_\mathsf{ballots}$
+and that each share is in $[0, 2^{30})$; the strategy for how the
+client decomposes the ballot count across shares (e.g., uniform random
+vs. powers-of-two denominations) affects temporal mixing effectiveness
+and is specified in [^submission-server].
 
 For share index $i \in \{0 \ldots N_s - 1\}$:
 
@@ -468,11 +475,16 @@ A governance hotkey consists of:
   spending key via the standard Orchard key hierarchy.
 - A CommitIvk trapdoor $\mathsf{rivk}\_\mathsf{v}$, derived from the
   hotkey's spending key.
-- A diversified address
-  $(\mathsf{vpk}\_{\mathsf{g}\_\mathsf{d}}, \mathsf{vpk}\_{\mathsf{pk}\_\mathsf{d}})$
-  at a chosen diversifier index, where
-  $\mathsf{vpk}\_{\mathsf{pk}\_\mathsf{d}} = [\mathsf{ivk}\_\mathsf{v}]\, \mathsf{vpk}\_{\mathsf{g}\_\mathsf{d}}$
-  and $\mathsf{ivk}\_\mathsf{v} = \mathsf{CommitIvk}\_{\mathsf{rivk}\_\mathsf{v}}\!\bigl(\mathsf{Extract}\_{\mathbb{P}}(\mathsf{vsk.ak}),\; \mathsf{vsk.nk}\bigr)$.
+- A diversified address at a chosen diversifier index, consisting of
+  the diversified base point and the diversified transmission key point,
+  where the transmission key satisfies
+  $[\mathsf{ivk}\_\mathsf{v}]\, \mathsf{g}\_{\mathsf{d}}$
+  with $\mathsf{ivk}\_\mathsf{v} = \mathsf{CommitIvk}\_{\mathsf{rivk}\_\mathsf{v}}\!\bigl(\mathsf{Extract}\_{\mathbb{P}}(\mathsf{vsk.ak}),\; \mathsf{vsk.nk}\bigr)$.
+  The VAN commitment (see [Vote Authority Note (VAN)]) stores the
+  $x$-coordinates $\mathsf{vpk}\_{\mathsf{g}\_\mathsf{d}} = \mathsf{Extract}\_{\mathbb{P}}(\mathsf{g}\_\mathsf{d})$
+  and $\mathsf{vpk}\_{\mathsf{pk}\_\mathsf{d}} = \mathsf{Extract}\_{\mathbb{P}}(\mathsf{pk}\_\mathsf{d})$;
+  the full curve points are used in the diversified address integrity
+  check (see [Vote Proof]).
 
 The Delegation Proof does not constrain the hotkey address to match the
 holder's key; the output address is bound to the delegation
@@ -790,10 +802,11 @@ The prover knows:
 - $\mathsf{rivk}\_\mathsf{v} ⦂ \mathsf{Commit}^{\mathsf{ivk}}\mathsf{.Trapdoor}$ —
   CommitIvk randomness for the voting key.
 - $\alpha_v$ — spend authorization randomizer for the voting hotkey.
-- $\mathsf{vpk}\_{\mathsf{g}\_\mathsf{d}} ⦂ \mathbb{P}^*$ — diversified base from the
-  VAN.
+- $\mathsf{vpk}\_{\mathsf{g}\_\mathsf{d}} ⦂ \mathbb{P}^*$ — diversified base point from the
+  VAN (full point; $\mathsf{Extract}\_{\mathbb{P}}$ applied for VAN integrity hash).
 - $\mathsf{vpk}\_{\mathsf{pk}\_\mathsf{d}} ⦂ \mathbb{P}^*$ — diversified transmission
-  key from the VAN.
+  key point from the VAN (full point; $\mathsf{Extract}\_{\mathbb{P}}$ applied for
+  VAN integrity hash).
 - $\mathsf{num}\_\mathsf{ballots}$ — total voting weight in ballots.
 - $\mathsf{proposal}\_{\mathsf{authority}\_\mathsf{old}}$,
   $\mathsf{proposal}\_{\mathsf{authority}\_\mathsf{new}}$ — old and new bitmasks.
@@ -820,7 +833,9 @@ $\mathsf{rt}^{\mathsf{vct}}$, using Poseidon for internal node hashing.
 
 **Condition 2: Old VAN integrity.** The circuit MUST enforce that
 the old VAN commitment matches the claimed fields (using the two-layer
-construction defined in [Vote Authority Note (VAN)]):
+construction defined in [Vote Authority Note (VAN)]). The
+$\mathsf{vpk}$ values in the Poseidon input are x-coordinates, i.e.,
+$\mathsf{Extract}\_{\mathbb{P}}$ of the corresponding full points:
 
 $$\mathsf{van}\_{\mathsf{core}\_\mathsf{old}} = \mathsf{Poseidon}\bigl(\mathsf{DOMAIN}\_\mathsf{VAN}, \mathsf{vpk}\_{\mathsf{g}\_\mathsf{d}}, \mathsf{vpk}\_{\mathsf{pk}\_\mathsf{d}}, \mathsf{num}\_\mathsf{ballots}, \mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}, \mathsf{proposal}\_{\mathsf{authority}\_\mathsf{old}}\bigr)$$
 
@@ -938,6 +953,15 @@ checks:
    authority public key for this round.
 9. Insert $\mathsf{van}_{\mathsf{new}}$ and $\mathsf{vc}$ into the VCT.
 10. Add $\mathsf{van}\_\mathsf{nullifier}$ to the VAN nullifier set.
+
+Note: $\mathsf{vote}\_\mathsf{decision}$ is a private witness in the
+Vote Proof and MUST NOT be validated out-of-circuit at this stage.
+
+It is validated when the share is revealed:
+the Vote Reveal Proof makes
+$\mathsf{vote}\_\mathsf{decision}$ a public input, and the vote chain
+checks its validity at that point (see [Vote Reveal Proof]
+out-of-circuit step 6).
 
 ### Vote Sighash
 
@@ -1105,8 +1129,10 @@ following checks:
 3. Verify that $\mathsf{rt}^{\mathsf{vct}}$ matches a published VCT root.
 4. Verify that $\mathsf{proposal}\_\mathsf{id}$ is valid for the current round.
 5. Verify that $\mathsf{voting}\_{\mathsf{round}\_\mathsf{id}}$ matches an active round.
-6. Add $\mathsf{share}\_\mathsf{nullifier}$ to the share nullifier set.
-7. Accumulate $\mathsf{enc}\_\mathsf{share}$ into the aggregate ciphertext for
+6. Verify that $\mathsf{vote}\_\mathsf{decision}$ is a valid option for the
+   proposal identified by $\mathsf{proposal}\_\mathsf{id}$ in this round.
+7. Add $\mathsf{share}\_\mathsf{nullifier}$ to the share nullifier set.
+8. Accumulate $\mathsf{enc}\_\mathsf{share}$ into the aggregate ciphertext for
    $(\mathsf{proposal}\_\mathsf{id}, \mathsf{vote}\_\mathsf{decision})$:
 
 $$\mathsf{agg}[\mathsf{proposal}\_\mathsf{id}][\mathsf{vote}\_\mathsf{decision}] \mathrel{+}= \mathsf{enc}\_\mathsf{share}$$
@@ -1196,10 +1222,8 @@ base field), with S-box $x^5$, width $t = 3$, rate $r = 2$, targeting
 from [^poseidon].
 
 Hashes with $L$ inputs use $\mathsf{ConstantLength}\langle L \rangle$
-mode (absorbing $L$ field elements with length padding) for
-$L \leq 7$. The shares hash ($L = N_s = 16$) uses variable-length
-sponge absorption without length padding, absorbing two elements per
-permutation.
+mode (absorbing $L$ field elements with length padding), absorbing
+two elements per permutation.
 
 The following table lists every Poseidon call site in this protocol:
 
@@ -1210,7 +1234,7 @@ The following table lists every Poseidon call site in this protocol:
 | VAN nullifier | 4 | $\mathsf{ConstantLength}\langle 4 \rangle$ | 2 |
 | Vote commitment | 5 | $\mathsf{ConstantLength}\langle 5 \rangle$ | 3 |
 | Blinded share commitment | 3 | $\mathsf{ConstantLength}\langle 3 \rangle$ | 2 |
-| Shares hash | 16 | Sponge | 8 |
+| Shares hash | 16 | $\mathsf{ConstantLength}\langle 16 \rangle$ | 8 |
 | Share nullifier | 4 | $\mathsf{ConstantLength}\langle 4 \rangle$ | 2 |
 | VCT internal node | 2 | $\mathsf{ConstantLength}\langle 2 \rangle$ | 1 |
 | Governance nullifier | 4 | $\mathsf{ConstantLength}\langle 4 \rangle$ | 2 |
