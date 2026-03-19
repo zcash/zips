@@ -1,9 +1,29 @@
-name: Render ZIPs
-description: GitHub Action to compile ZIPs only
+name: Render All
+description: GitHub Action to compile ZIPs and the protocol specification.
 author: Deirdre Connolly and Daira-Emma Hopwood
 runs:
-  using: docker
-  image: ../../../Dockerfile
-  # Runs "make all-zips".
-  args:
-    - all-zips
+  using: composite
+  steps:
+    - uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
+
+    - name: Restore Nix store cache
+      id: nix-cache
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      with:
+        path: /tmp/nix-closure
+        key: nix-devshell-${{ runner.os }}-${{ hashFiles('flake.lock', 'flake.nix') }}
+
+    - name: Import cached Nix store paths
+      if: steps.nix-cache.outputs.cache-hit == 'true'
+      shell: bash
+      run: nix-store --import < /tmp/nix-closure/store.nar
+
+    - shell: bash
+      run: nix develop --profile /tmp/dev-profile --command make all
+
+    - name: Export Nix store for caching
+      if: steps.nix-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        mkdir -p /tmp/nix-closure
+        nix-store --export $(nix-store -qR /tmp/dev-profile) > /tmp/nix-closure/store.nar

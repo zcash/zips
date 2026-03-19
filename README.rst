@@ -212,6 +212,7 @@ written.
     <tr> <td>2005</td> <td class="left"><a href="zips/zip-2005.md">Quantum Recoverability</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/1135">zips#1135</a></td>
     <tr> <td>guide-markdown</td> <td class="left"><a href="zips/zip-guide-markdown.md">{Something Short and To the Point}</a></td> <td>Draft</td> <td class="left"></td>
     <tr> <td>guide</td> <td class="left"><a href="zips/zip-guide.rst">{Something Short and To the Point}</a></td> <td>Draft</td> <td class="left"></td>
+    <tr> <td>template</td> <td class="left"><a href="zips/zip-template.md">{Template for new ZIPs}</a></td> <td>Draft</td> <td class="left"></td>
   </table></embed>
 
 Drafts without assigned ZIP numbers
@@ -384,4 +385,5 @@ Index of ZIPs
     <tr> <td>2005</td> <td class="left"><a href="zips/zip-2005.md">Quantum Recoverability</a></td> <td>Draft</td>
     <tr> <td>guide-markdown</td> <td class="left"><a href="zips/zip-guide-markdown.md">{Something Short and To the Point}</a></td> <td>Draft</td>
     <tr> <td>guide</td> <td class="left"><a href="zips/zip-guide.rst">{Something Short and To the Point}</a></td> <td>Draft</td>
+    <tr> <td>template</td> <td class="left"><a href="zips/zip-template.md">{Template for new ZIPs}</a></td> <td>Draft</td>
   </table></embed>

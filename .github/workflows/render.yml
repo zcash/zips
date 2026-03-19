@@ -8,29 +8,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 3
-
-      - name: Verify nonexistence of `rendered`
-        shell: bash
-        run: |
-          if [ -e rendered ]; then exit 1; fi
-
-      - name: Set git config
-        run: git config --global --add safe.directory /github/workspace
-
-      - name: Compile ZIPs
-        uses: ./.github/actions/render
-
-  render-protocol:
-    needs: render
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6.0.2
-        with:
-          fetch-depth: 100
 
       - name: Verify nonexistence of `rendered` and `base_ref`
         shell: bash
@@ -38,8 +18,21 @@ jobs:
           if [ -e rendered ]; then exit 1; fi
           if [ -e base_ref ]; then exit 1; fi
 
-      - name: Set git config
-        run: git config --global --add safe.directory /github/workspace
+      - uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
+
+      - name: Restore Nix store cache
+        id: nix-cache
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: /tmp/nix-closure
+          key: nix-devshell-${{ runner.os }}-${{ hashFiles('flake.lock', 'flake.nix') }}
+
+      - name: Import cached Nix store paths
+        if: steps.nix-cache.outputs.cache-hit == 'true'
+        run: nix-store --import < /tmp/nix-closure/store.nar
+
+      - name: Compile ZIPs
+        run: nix develop --profile /tmp/dev-profile --command make all-zips
 
       - name: Set base ref
         run: |
@@ -47,4 +40,10 @@ jobs:
           if ! ( grep -E '^[0-9a-f]{40}$' base_ref ); then exit 1; fi
 
       - name: Compile Protocol Specification
-        uses: ./.github/actions/render-protocol
+        run: nix develop --profile /tmp/dev-profile --command make all
+
+      - name: Export Nix store for caching
+        if: steps.nix-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p /tmp/nix-closure
+          nix-store --export $(nix-store -qR /tmp/dev-profile) > /tmp/nix-closure/store.nar
