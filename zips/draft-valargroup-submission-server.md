@@ -101,10 +101,8 @@ of similar transactions from hundreds of voters. The timing fingerprint
 is destroyed.
 
 Delegating proof construction to a server also addresses mobile client
-reliability: a mobile wallet may be killed or lose connectivity during
-the multi-minute zero-knowledge proof generation required for each Vote
-Reveal Proof. Servers are always-on and can complete proof generation
-reliably.
+reliability: a mobile client may be killed or lose connectivity at the
+later scheduled time for temporal mixing. Servers are always-on and can complete share submission reliably.
 
 
 # Privacy Implications
