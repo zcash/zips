@@ -60,6 +60,13 @@ Claim
   committed value at a given pool snapshot, and revealing the note's
   alternate nullifier in a specified domain.
 
+Dummy signed note
+
+: A synthetic Orchard note with value 0 (in the Claim circuit) that
+  does not exist in any on-chain note commitment tree. It is constructed
+  solely for obtaining a spend authorization signature from the holder's
+  key. See [Wallet Signing].
+
 
 # Abstract
 
@@ -119,6 +126,16 @@ in a 2023 draft. [^draft-str4d-orchard-balance-proof] This ZIP builds on
 that work with a concrete instantiation informed by the implementation
 experience of the Zcash coinholder voting system.
 
+A key practical consideration is that many holders custody their spending
+keys on hardware wallets such as Keystone. Without a delegation mechanism,
+hardware wallet users must either export their spending keys to software
+(negating the security benefit of hardware custody) or perform many more
+hardware wallet signing interactions (one per protocol action rather than
+a single delegation) each with limited ability to verify the signing
+context on screen. This ZIP therefore specifies a PCZT-based signing flow (see
+[Wallet Signing]) that works with any hardware wallet supporting
+Orchard PCZT signing today, requiring no firmware changes.
+
 
 # Privacy Implications
 
@@ -150,6 +167,21 @@ linking the querier to a nullifier range. Private information retrieval
 (PIR) techniques can mitigate this leakage [^pir-nullifier-exclusion]; their
 specification is out of scope for this document.
 
+**Hardware wallet device exposure.** When the PCZT-based hardware wallet
+signing flow (see [Wallet Signing]) is used, the device observes
+the PCZT but learns no information about the holder's real
+Orchard balance or delegation context. The PCZT contains a 1-zatoshi
+dummy note with no on-chain counterpart; the holder's actual note
+commitments, values, and nullifiers are never transmitted to the device.
+The application commitment, alternate nullifiers, and usage identifier are
+committed via the dummy note's nullifier inside the ZKP circuit and
+do not appear as plaintext fields in the PCZT. The output address
+(application hotkey) is visible on the device but is freshly generated
+per usage instance and is not linked to the holder's on-chain Orchard
+addresses. An attacker with physical access to the device during signing
+learns only that the holder is participating in a proof-of-balance
+instance and the declared balance.
+
 
 # Requirements
 
@@ -173,8 +205,8 @@ specification is out of scope for this document.
   air-drop distribution, or delegation) are out of scope.
 - Privacy-preserving retrieval of non-membership Merkle paths (e.g., via
   PIR) is out of scope.
-- Value denomination conversions (e.g., converting zatoshi to ballot
-  counts) are application-specific and out of scope.
+- Value denomination conversions (e.g., converting zatoshi to
+  application-specific units) are out of scope.
 - Transaction-level encoding of claims is out of scope; this ZIP specifies
   only the proof statement and its verification.
 
@@ -631,20 +663,210 @@ as follows:
 
 To avoid leaking the number of notes a holder is claiming, the circuit
 SHOULD accept a fixed number of note slots $N_ {\max}$ (for example,
-$N_ {\max} = 5$). Unused slots are filled with *padded notes*: randomly
-generated note data with value 0. Padded notes satisfy all circuit
-checks (the commitment is valid, the Merkle path can use any valid leaf,
-and the non-membership check passes for random nullifiers with overwhelming
-probability).
+$N_ {\max} = 5$). Unused slots are filled with *padded notes*.
 
-An $\mathsf{is\_real}$ flag (private witness, constrained to be boolean)
-distinguishes real notes from padded notes:
+Each note slot carries a private boolean witness
+$\mathsf{is\_real} \in \{0, 1\}$, constrained by
+$\mathsf{is\_real} \cdot (1 - \mathsf{is\_real}) = 0$.
+A padded note is a slot with $\mathsf{is\_real} = 0$.
 
-- Padded notes MUST have $\mathsf{v^{old}} = 0$.
-- Merkle membership and non-membership checks MAY be skipped for padded
-  notes (conditioned on $\mathsf{is\_real} = 0$) as an optimization, but
-  performing them is also sound since padded notes use valid dummy data.
+A padded note MUST satisfy the following:
 
+- **Value.** The value MUST be 0, enforced by the constraint
+  $(1 - \mathsf{is\_real}) \cdot \mathsf{v^{old}} = 0$.
+- **Ownership.** The note is derived from the same full viewing key as
+  real notes (using a distinct diversifier index per padded slot), so it
+  passes the diversified address integrity check with the shared
+  $\mathsf{ivk}$.
+- **Note commitment integrity.** The commitment is recomputed from the
+  padded note's plaintext (value 0, random nullifier, random
+  $\text{ψ}$, fresh $\mathsf{rcm}$) and constrained to equal the
+  witnessed $\mathsf{cm}$. This check is not gated by
+  $\mathsf{is\_real}$.
+- **Merkle membership.** The Merkle path is computed for the padded
+  note, but the root equality check is gated:
+  $\mathsf{is\_real} \cdot (\mathsf{root} - \mathsf{rt^{cm}}) = 0$.
+  For padded notes ($\mathsf{is\_real} = 0$) the constraint is
+  trivially satisfied regardless of the computed root, effectively
+  skipping the membership check.
+- **Nullifier non-membership.** The IMT non-membership check is NOT
+  gated by $\mathsf{is\_real}$. Padded notes MUST provide a valid
+  non-membership proof against $\mathsf{rt^{excl}}$. Because padded
+  nullifiers are random field elements, they fall within an unrevealed
+  interval with overwhelming probability.
+- **Nullifier derivation.** The standard nullifier is derived in-circuit
+  (not gated). It is used for the non-membership check and the alternate
+  nullifier derivation but is never revealed.
+- **Alternate nullifier.** The alternate nullifier is derived and
+  published for every slot (not gated). The application verifier MAY
+  ignore alternate nullifiers corresponding to zero-value slots.
+
+
+## Wallet Signing
+
+The signing flow proceeds in five steps:
+
+1. The wallet generates an application hotkey on the local device.
+2. The wallet constructs a dummy signed note whose nullifier commits
+   to the delegation context.
+3. The wallet builds a PCZT containing the dummy signed note.
+4. The hardware wallet device signs the PCZT and returns the signature.
+5. The wallet extracts the signature and assembles the delegation
+   submission.
+
+Each interaction with the hardware wallet device delegates up to
+$N_{\max}$ Orchard notes (we utilize the default batch size of 5).
+A holder with more than $N_{\max}$ notes repeats the flow for each batch,
+producing a separate application commitment per batch. The holder MAY choose
+to delegate fewer batches than their full note set, claiming only the balance
+covered by the delegated batches.
+
+### Dummy Signed Note Construction
+
+The wallet constructs a dummy Orchard note as follows:
+
+1. **Address.** The signed note's address is derived from the holder's
+   full viewing key at diversifier index 0 with external scope:
+   $\mathsf{addr}^{\mathsf{signed}} = \mathsf{fvk.address\_at}(0, \mathsf{External})$.
+   A fixed index is used because the address is a private witness inside
+   the ZKP circuit and is never publicly transmitted.
+
+2. **Nullifier commitment.** Because the dummy note
+   has no on-chain existence, its fields (including $\text{ρ}$) can be
+   freely chosen. This design utilizes that freedom: $\text{ρ}$ is set to
+   a hash of the delegation context so that the note commitment, and
+   therefore the sighash, cryptographically binds the hardware wallet's
+   signature to the exact set of notes being delegated. This avoids
+   requiring a custom signing protocol; the hardware wallet signs a
+   standard Orchard PCZT, and the binding is enforced by the ZKP circuit
+   rather than by device firmware.
+
+   Concretely, the signed note's $\text{ρ}$ is set to:
+
+$$\text{ρ}^{\mathsf{signed}} = \mathsf{Poseidon}\bigl(\mathsf{cmx}\_\mathsf{1}, \ldots, \mathsf{cmx}\_{N_{\max}}, \mathsf{app\_commitment}, \mathsf{instance\_id}\bigr)$$
+
+   where $\mathsf{cmx}\_\mathsf{1} \ldots \mathsf{cmx}\_{N_{\max}}$ are the
+   extracted note commitments of the $N_{\max}$ delegated note slots
+   (real notes plus zero-value padding notes),
+   $\mathsf{app\_commitment}$ is an application-defined commitment
+   (e.g., a VAN commitment in the voting protocol [^voting-protocol]),
+   and $\mathsf{instance\_id}$ is the usage identifier that uniquely
+   identifies the proof-of-balance instance.
+
+   With $N_{\max} = 5$ this is a 7-input Poseidon hash using the
+   $\mathsf{P128Pow5T3}$ instantiation (width $t = 3$, rate 2) over
+   $\mathbb{F}_{q_{\mathbb{P}}}$. The seven inputs are absorbed in four
+   permutations.
+
+3. **Value.** The note value MUST be set to 1 zatoshi (0.00000001 ZEC)
+   in the PCZT so that the hardware wallet device renders all transaction
+   fields. A value of 0 causes a Keystone device to suppress
+   field display, degrading the user experience. The Claim circuit treats
+   the signed note value as 0 regardless of the PCZT value.
+
+4. **Rseed.** A fresh random $\mathsf{rseed}$ is sampled for the note.
+
+5. **Note construction.** The note is constructed via standard Orchard
+   note construction using the address, value (1 zatoshi), rho, and
+   rseed above.
+
+For fewer than $N_{\max}$ real notes, the wallet pads the remaining
+slots with zero-value dummy notes at diversifier indices $1000 + i$
+(external scope) from the holder's full viewing key. These padding notes
+enter the $\text{ρ}$ commitment via their $\mathsf{cmx}$ values but do
+not correspond to real on-chain notes.
+
+### PCZT Construction
+
+The wallet constructs a PCZT as a single-action Orchard transaction:
+
+#### Spend Side
+
+- The single spend consumes the dummy signed note constructed above.
+- A dummy Merkle authentication path (all-zero siblings, position 0)
+  is used. The path is not verified on-chain; spend authorization is
+  established by the ZKP circuit.
+- The Orchard bundle builder generates the spend authorization
+  randomizer $\alpha$ and the randomized verification key
+  $\mathsf{rk} = \mathsf{ak} + [\alpha]\, G$ internally.
+
+#### Output Side
+
+- A single output of 1 zatoshi is addressed to the application hotkey.
+- The output memo SHOULD contain a human-readable delegation description.
+  For example, a voting application might use:
+
+  `"I am authorizing this hotkey managed by my wallet to participate`
+  `in {instance_name} with {amount}.{frac} ZEC."`
+
+  where `{instance_name}` identifies the proof-of-balance instance and
+  `{amount}.{frac}` is the holder's eligible ZEC balance.
+
+#### ZIP-32 Derivation
+
+The spend MUST include a ZIP 32 [^zip-32] derivation path so that the
+hardware wallet device can derive the correct spending key:
+
+$$\mathsf{path} = [32', \mathsf{coin\_type}', \mathsf{account}']$$
+
+where $\mathsf{coin\_type}$ is 133 for Zcash mainnet.
+
+#### Finalization
+
+The wallet applies the PCZT Creator and IoFinalizer roles. The
+IoFinalizer computes the ZIP 244 [^zip-244] transaction identifier
+(sighash) that the hardware wallet device will sign.
+
+### Device Display
+
+During signing, the hardware wallet device displays the PCZT as a
+standard Orchard transaction. The user sees fields such as:
+
+    Amount: 0.00000001 ZEC
+    Fee: 0 ZEC
+
+    Orchard
+    From
+    #1 0.00000001 ZEC Mine
+    <shielded>
+
+    To
+    #1 0.00000001 ZEC
+    {application hotkey address}
+    Memo: I am authorizing this hotkey managed by my
+          wallet to participate in {instance_name} with
+          {amount}.{frac} ZEC
+
+The 0.00000001 ZEC amount (1 zatoshi) and 0 ZEC fee confirm that no
+real funds are being transferred. The "To" address matches the
+application hotkey address displayed in the wallet application. The memo
+provides human-readable context for what the user is authorizing.
+
+The hardware wallet device has no awareness of application semantics. It
+interprets the PCZT identically to any other Orchard transaction.
+
+### Signature Extraction and Submission
+
+After receiving the signed PCZT from the hardware wallet device, the
+wallet:
+
+1. Parses the signed PCZT structurally and reads the `spend_auth_sig`
+   field from the relevant action. Some devices (e.g., Keystone) redact
+   sensitive fields ($\alpha$, rseed, ZIP-32 derivation) after signing,
+   so the wallet MUST extract the signature by parsing the PCZT structure
+   rather than by byte-diffing against the unsigned version.
+
+2. Extracts the sighash that the device signed. This is the ZIP 244
+   transaction identifier computed over the PCZT.
+
+3. Assembles the delegation submission by combining the hardware wallet
+   signature and sighash with the Claim proof and other public inputs.
+   The submission format is application-defined.
+
+The delegation submission is sent to the application verifier. The
+wallet does not need the hardware wallet device again for the remainder
+of the usage instance; all subsequent operations use the application
+hotkey.
 
 # Rationale
 
@@ -689,32 +911,123 @@ Sentinels partition the field into intervals each narrower than $2^{250}$
 at initialization. Real nullifier insertions only split intervals into
 smaller ones, so the width bound is maintained permanently.
 
+## Why 1 Zatoshi Instead of 0
+
+The dummy signed note uses a value of 1 zatoshi (0.00000001 ZEC) in the
+PCZT rather than 0. When an Orchard Action has a 0-value
+note, Keystone's suppress the display of transaction fields
+(amount, fee, addresses, memo), presenting the user with insufficient
+information to make an informed signing decision. Setting the value to
+1 zatoshi causes the device to render all fields normally.
+
+The Claim circuit enforces that the signed note value is 0 regardless of
+the PCZT value. The 1-zatoshi value exists solely in the serialized PCZT
+for the benefit of the device's display logic and has no effect on
+protocol security or fund safety.
+
+## Why a Dummy Note Instead of a Real Note
+
+A holder's real Orchard notes are not spent or consumed during
+delegation. The dummy signed note is constructed specifically for the
+proof-of-balance flow and never appears in any on-chain note commitment
+tree. This design has three advantages:
+
+- **No fund risk.** Because the proof-of-balance transaction is never
+  broadcast to the Zcash mainchain and the signed note has no on-chain
+  existence, there is no scenario in which the delegation signing could
+  result in loss of funds.
+- **Note reusability.** Because real notes are never consumed on
+  mainchain, they remain fully spendable and available for other
+  applications that use the proof-of-balance mechanism. Alternate
+  nullifiers are domain-separated by $\mathsf{instance\_id}$, so the
+  same notes can participate in concurrent proof-of-balance instances
+  without conflict.
+- **PCZT compatibility.** The dummy note reuses the standard Orchard
+  Action structure, allowing the PCZT to pass through the
+  hardware wallet's existing PCZT parser and signer without
+  modification.
+
+## Why the Dummy Note's ρ Provides Non-Replayability
+
+Because the dummy signed note does not correspond to any on-chain note,
+its inputs can be freely chosen. The design sets
+$\text{ρ}^{\mathsf{signed}}$ to a Poseidon hash of the delegated note
+commitments, the application commitment, and the usage identifier.
+Because $\text{ρ}$ enters the note commitment (and therefore the
+sighash), the hardware wallet's signature is cryptographically bound to
+the exact delegation context. An attacker cannot replay the signature
+for a different set of notes, a different application commitment, or a
+different usage instance.
+
+This binding is enforced by the Claim circuit, which the application
+verifier checks. The hardware wallet device does not need to understand
+the binding; it is sufficient that the device signs the sighash derived
+from the PCZT containing the committed $\text{ρ}$. No custom signing
+protocol is required — the standard Orchard PCZT flow is reused, and
+all existing hardware wallets that support Orchard signing are
+compatible without firmware changes.
+
+## Why ZIP 244 Sighash
+
+The PCZT uses the standard ZIP 244 [^zip-244] transaction
+identifier as the sighash. This is the only sighash format that
+existing hardware wallet Orchard signing implementations can produce.
+Using an application-specific sighash would require firmware changes,
+which this specification explicitly avoids.
+
+The ZIP 244 sighash commits to the full Orchard bundle structure
+(including the dummy note's commitment, which embeds the bound
+$\text{ρ}$), providing the necessary cryptographic binding without
+a custom signature scheme.
+
+## Why Not a Custom Signing Protocol
+
+A future version of this specification could define a custom signing
+protocol purpose-built for proof-of-balance, rather than reusing the
+standard Orchard PCZT format. This would require ecosystem-wide
+coordination (firmware updates to all participating hardware wallets)
+but could yield several improvements:
+
+- **Binding application actions to the signature.** Many use cases want
+  to prove balance *and* take an action in a single step (e.g., casting
+  a vote). A custom signing protocol could commit to the application
+  action directly in the signature, reducing the number of ZKPs required
+  by downstream protocols.
+- **Removing the hotkey indirection.** With a richer signing format, the
+  holder could authorize actions directly from the hardware wallet
+  without delegating to an application hotkey, simplifying the trust
+  model.
+- **Improved on-device display.** A custom format could present
+  application-aware context (e.g., "Vote on proposal X with Y ZEC")
+  rather than the generic Orchard transaction fields shown today.
+
+This specification intentionally avoids a custom signing protocol to
+maximize compatibility with existing wallets. The trade-off is accepted:
+downstream protocols may require additional ZKPs or hotkey indirection
+that a purpose-built signing format could eliminate.
+
 
 # Deployment
 
 This ZIP does not specify a consensus change. Deployment considerations
 are application-specific.
 
-For applications using hardware wallets (e.g., Keystone), the spend
-authorization signature is obtained through a PCZT-based signing flow
-where the hardware wallet signs a transaction that encodes the claim
-context. The hardware wallet need not understand the claim semantics; it
-signs a standard Orchard spend authorization. Applications that support
-Keystone firmware with voting-aware context display can provide richer
-user assurance, but both modes use the same underlying circuit and
-signature scheme.
+The hardware wallet signing flow specified in [Wallet Signing]
+requires no firmware changes and no changes to Zcash mainchain consensus
+rules. Any hardware wallet that supports Orchard PCZT signing can
+participate immediately.
+
+Software wallets that hold the spending key directly do not need the
+PCZT construction; they follow the same Claim proof specification but
+sign the application-defined sighash directly.
 
 
 # Reference implementation
 
 A reference implementation of the Claim circuit (including the
 non-membership tree, alternate nullifier derivation, and multi-note
-batching for $N_ {\max} = 5$) exists in the coinholder voting codebase used
-for this design.
-
-At the time of writing, some implementation repositories are not publicly
-accessible. Public, stable links will be added before finalization of
-this ZIP.
+batching for $N_ {\max} = 5$) is available at
+[valargroup/voting-circuits](https://github.com/valargroup/voting-circuits).
 
 
 # Open issues
@@ -741,3 +1054,9 @@ this ZIP.
 [^pir-nullifier-exclusion]: [Draft ZIP: Private Information Retrieval for Nullifier Exclusion Proofs](https://github.com/zcash/zips/pull/1198)
 
 [^draft-str4d-orchard-balance-proof]: [Draft ZIP: Air drops, Proof-of-Balance, and Stake-weighted Polling](draft-str4d-orchard-balance-proof)
+
+[^voting-protocol]: [Shielded Voting Protocol](draft-valargroup-shielded-voting)
+
+[^zip-244]: [ZIP 244: Transaction Identifier Non-Malleability](zip-0244)
+
+[^zip-32]: [ZIP 32: Shielded Hierarchical Deterministic Wallets](zip-0032)
