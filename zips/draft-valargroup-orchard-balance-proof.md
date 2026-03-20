@@ -1053,10 +1053,10 @@ batching for $N_ {\max} = 5$) is available at
 
 [^pir-nullifier-exclusion]: [Draft ZIP: Private Information Retrieval for Nullifier Exclusion Proofs](https://github.com/zcash/zips/pull/1198)
 
-[^draft-str4d-orchard-balance-proof]: [Draft ZIP: Air drops, Proof-of-Balance, and Stake-weighted Polling](draft-str4d-orchard-balance-proof)
+[^draft-str4d-orchard-balance-proof]: [Draft ZIP: Air drops, Proof-of-Balance, and Stake-weighted Polling](draft-str4d-orchard-balance-proof.md)
 
-[^voting-protocol]: [Shielded Voting Protocol](draft-valargroup-shielded-voting)
+[^voting-protocol]: [Shielded Voting Protocol](draft-valargroup-shielded-voting.md)
 
-[^zip-244]: [ZIP 244: Transaction Identifier Non-Malleability](zip-0244)
+[^zip-244]: [ZIP 244: Transaction Identifier Non-Malleability](zip-0244.rst)
 
-[^zip-32]: [ZIP 32: Shielded Hierarchical Deterministic Wallets](zip-0032)
+[^zip-32]: [ZIP 32: Shielded Hierarchical Deterministic Wallets](zip-0032.rst)
