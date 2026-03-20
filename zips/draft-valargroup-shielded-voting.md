@@ -392,10 +392,11 @@ For share index $i \in \{0 \ldots N_s - 1\}$:
 
 **Blinded share commitment:**
 
-$$\mathsf{share}\_{\mathsf{comm}\_\mathsf{i}} = \mathsf{Poseidon}(\mathsf{blind}\_\mathsf{i}, C_{1,i,x}, C_{2,i,x})$$
+$$\mathsf{share}\_{\mathsf{comm}\_\mathsf{i}} = \mathsf{Poseidon}(\mathsf{blind}\_\mathsf{i}, C_{1,i,x}, C_{2,i,x}, C_{1,i,y}, C_{2,i,y})$$
 
-where $C_{1,i,x}$ and $C_{2,i,x}$ denote the $x$-coordinates of the
-ciphertext points.
+where $C_{1,i,x}$, $C_{2,i,x}$ denote the $x$-coordinates and
+$C_{1,i,y}$, $C_{2,i,y}$ denote the $y$-coordinates of the ciphertext
+points. See [Why Share Commitments Bind Full Curve Points].
 
 ### Shares Hash
 
@@ -907,7 +908,7 @@ small enough for efficient recovery at tally time (see [^ea-ceremony]).
 the blinded share commitments and their aggregate hash are correctly
 computed:
 
-$$\mathsf{share}\_{\mathsf{comm}\_\mathsf{i}} = \mathsf{Poseidon}\bigl(\mathsf{blind}\_\mathsf{i}, C_{1,i,x}, C_{2,i,x}\bigr) \quad \text{for each } i$$
+$$\mathsf{share}\_{\mathsf{comm}\_\mathsf{i}} = \mathsf{Poseidon}\bigl(\mathsf{blind}\_\mathsf{i}, C_{1,i,x}, C_{2,i,x}, C_{1,i,y}, C_{2,i,y}\bigr) \quad \text{for each } i$$
 
 $$\mathsf{shares}\_\mathsf{hash} = \mathsf{Poseidon}\bigl(\mathsf{share}\_{\mathsf{comm}\_\mathsf{0}}, \ldots, \mathsf{share}\_{\mathsf{comm}_{N_s - 1}}\bigr)$$
 
@@ -918,10 +919,12 @@ $\mathsf{ea}\_\mathsf{pk}$:
 $$C_{1,i} = [r_i]\, G$$
 $$C_{2,i} = [\mathsf{v}\_\mathsf{i}]\, G + [r_i]\, \mathsf{ea}\_\mathsf{pk}$$
 
-The circuit MUST constrain equality on the $x$-coordinates of the
-computed and witnessed ciphertext points. Constraining only
-$x$-coordinates is sufficient because the shared randomness $r_i$ binds
-both curve points, leaving no prover freedom in the $y$-coordinates.
+The circuit MUST constrain equality on both the $x$- and
+$y$-coordinates of the computed and witnessed ciphertext points. The
+$y$-coordinates are needed because they appear in the share commitment
+(condition 10); the ECC gadget already produces full curve points, so
+no additional decomposition cost is incurred.
+See [Why Share Commitments Bind Full Curve Points].
 
 **Condition 12: Vote commitment integrity.** The circuit MUST enforce
 that the public vote commitment matches the private vote details:
@@ -1030,10 +1033,9 @@ Given a primary input:
 
 - $\mathsf{share}\_\mathsf{nullifier} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$ —
   prevents double-counting.
-- $C_{1,x}, C_{2,x} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$ — the $x$-coordinates
-  of the El Gamal ciphertext $(C_1, C_2)$ for this share. The full
-  points are carried in the share reveal message for homomorphic
-  accumulation, but only the $x$-coordinates are circuit public inputs.
+- $C_{1,x}, C_{1,y}, C_{2,x}, C_{2,y} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$ — the
+  $x$- and $y$-coordinates of the El Gamal ciphertext points $(C_1, C_2)$
+  for this share.
 - $\mathsf{proposal}\_\mathsf{id} ⦂ \{1 \ldots 15\}$ — which proposal.
 - $\mathsf{vote}\_\mathsf{decision} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$ — the voter's choice.
 - $\mathsf{rt}^{\mathsf{vct}} ⦂ \{ 0 .. q_{\mathbb{P}}-1 \}$ — root of the
@@ -1089,11 +1091,12 @@ the VC (via condition 2). The share commitments are blinded
 ciphertexts or blind factors of other shares to the prover.
 
 **Condition 4: Share membership.** The circuit MUST enforce that the
-commitment derived from the public $x$-coordinates $C_{1,x}, C_{2,x}$
-and the witness blind factor matches the share commitment at position
+commitment derived from the public ciphertext coordinates
+$C_{1,x}, C_{2,x}, C_{1,y}, C_{2,y}$ and the witness blind factor
+matches the share commitment at position
 $\mathsf{share}\_\mathsf{index}$:
 
-$$\mathsf{Poseidon}\bigl(\mathsf{blind}_{\mathsf{share}\_\mathsf{index}}, C_{1,x}, C_{2,x}\bigr) = \mathsf{share}\_\mathsf{comms}[\mathsf{share}\_\mathsf{index}]$$
+$$\mathsf{Poseidon}\bigl(\mathsf{blind}_{\mathsf{share}\_\mathsf{index}}, C_{1,x}, C_{2,x}, C_{1,y}, C_{2,y}\bigr) = \mathsf{share}\_\mathsf{comms}[\mathsf{share}\_\mathsf{index}]$$
 
 The circuit MUST encode $\mathsf{share}\_\mathsf{index}$ as a one-hot
 selector vector over $N_s$ positions. The mux MUST extract the
@@ -1231,7 +1234,7 @@ The following table lists every Poseidon call site in this protocol:
 | VAN blinding | 2 | $\mathsf{ConstantLength}\langle 2 \rangle$ | 1 |
 | VAN nullifier | 4 | $\mathsf{ConstantLength}\langle 4 \rangle$ | 2 |
 | Vote commitment | 5 | $\mathsf{ConstantLength}\langle 5 \rangle$ | 3 |
-| Blinded share commitment | 3 | $\mathsf{ConstantLength}\langle 3 \rangle$ | 2 |
+| Blinded share commitment | 5 | $\mathsf{ConstantLength}\langle 5 \rangle$ | 3 |
 | Shares hash | 16 | $\mathsf{ConstantLength}\langle 16 \rangle$ | 8 |
 | Share nullifier | 4 | $\mathsf{ConstantLength}\langle 4 \rangle$ | 2 |
 | VCT internal node | 2 | $\mathsf{ConstantLength}\langle 2 \rangle$ | 1 |
@@ -1398,12 +1401,37 @@ sees only individual shares, not a voter's complete ballot allocation.
 ## Why Blinded Share Commitments
 
 Each share commitment includes a random blind factor:
-$\mathsf{share}\_{\mathsf{comm}\_\mathsf{i}} = \mathsf{Poseidon}(\mathsf{blind}\_\mathsf{i}, C_{1,i,x}, C_{2,i,x})$.
+$\mathsf{share}\_{\mathsf{comm}\_\mathsf{i}} = \mathsf{Poseidon}(\mathsf{blind}\_\mathsf{i}, C_{1,i,x}, C_{2,i,x}, C_{1,i,y}, C_{2,i,y})$.
 Without blinding, an observer could compute
-$\mathsf{Poseidon}(C_{1,i,x}, C_{2,i,x})$ for each on-chain ciphertext
+$\mathsf{Poseidon}(C_{1,i,x}, C_{2,i,x}, C_{1,i,y}, C_{2,i,y})$ for each on-chain ciphertext
 and compare against the $\mathsf{shares}\_\mathsf{hash}$ values committed in
 VCs, linking revealed shares back to specific vote commitments. The
 blind factor makes this reverse computation infeasible.
+
+## Why Share Commitments Bind Full Curve Points
+
+On the Pallas curve, every $x$-coordinate has two valid $y$-values:
+$P$ and $-P$. If the share commitment bound only the $x$-coordinates
+of the ciphertext points, a malicious block proposer could negate
+$C_1$ and $C_2$ by flipping the sign bits in their compressed
+encodings (2 bit flips) without changing the $x$-coordinates. The
+negated ciphertext encrypts $-v$ instead of $v$ under the same
+El Gamal key, so the tally would accumulate $\mathsf{Enc}(-v)$ instead
+of $\mathsf{Enc}(v)$, corrupting the election result. The Vote Reveal
+Proof would still verify because the share commitment — binding only
+$x$-coordinates — would be unchanged.
+
+Including both $x$- and $y$-coordinates in the share commitment hash binds each commitment to
+the exact curve point. Flipping a sign bit changes the $y$-coordinate,
+producing a different $\mathsf{share}\_\mathsf{comm}$, which cascades
+through $\mathsf{shares}\_\mathsf{hash} \to \mathsf{vc} \to$ Merkle
+root, invalidating the proof.
+
+Full $y$-coordinates are used rather than 1-bit sign values because
+the $y$-cells are already available from the ECC gadget output in the
+Vote Proof circuit; extracting parity bits in-circuit would require a
+255-bit field decomposition gadget, adding substantial constraint cost
+for no security benefit.
 
 ## Why Per-Server Share Isolation
 
