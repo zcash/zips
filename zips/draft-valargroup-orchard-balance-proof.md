@@ -869,16 +869,6 @@ the same notes in a concurrent application. Alternate nullifiers avoid
 this by operating entirely off the main chain: the standard nullifiers are
 never revealed, and the notes remain spendable.
 
-## Why Poseidon for the Non-Membership Tree
-
-The Orchard note commitment tree uses Sinsemilla for Merkle hashing.
-Sinsemilla operates on bitstrings and requires decomposition of field
-elements into bits before hashing, incurring overhead in an arithmetic
-circuit. Poseidon operates natively on field elements, avoiding this
-decomposition. Since the non-membership tree is new infrastructure with
-no backwards-compatibility constraint, the more circuit-efficient
-primitive is used.
-
 ## Why Sentinel Initialization
 
 Without sentinels, the initial non-membership tree would contain a single
