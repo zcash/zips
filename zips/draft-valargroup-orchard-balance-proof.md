@@ -343,8 +343,11 @@ supports up to $2^{29} \approx 537$ million leaves. As of early 2026,
 the Zcash Orchard pool contains roughly 51 million nullifiers, so
 depth 29 provides about one order of magnitude of headroom.
 
-Unused leaf positions MUST be filled with a canonical empty leaf value
-$\mathsf{GapCommit}(0, 0)$.
+Unused leaf positions MUST be filled with the canonical empty leaf value
+$\mathsf{GapCommit}(0, 0)$. This is non-overlapping with every valid
+gap encoding because the sentinel set always includes $0$ (see
+[Sentinel Initialization]), so $\mathsf{low} = 0$ can never appear in
+a valid gap.
 
 ### Sentinel Initialization
 
