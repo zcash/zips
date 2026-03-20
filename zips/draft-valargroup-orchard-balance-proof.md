@@ -869,15 +869,6 @@ the same notes in a concurrent application. Alternate nullifiers avoid
 this by operating entirely off the main chain: the standard nullifiers are
 never revealed, and the notes remain spendable.
 
-## Why (low, width) Leaf Encoding
-
-Storing $\mathsf{width} = \mathsf{end} - \mathsf{low}$ in the leaf
-instead of $\mathsf{end}$ eliminates one field subtraction from the
-in-circuit interval check. The tree builder performs this subtraction once
-during construction; the circuit evaluates the check once per claim per
-note. Since the number of claims vastly exceeds the number of tree
-rebuilds, the net constraint savings is significant.
-
 ## Why Poseidon for the Non-Membership Tree
 
 The Orchard note commitment tree uses Sinsemilla for Merkle hashing.
