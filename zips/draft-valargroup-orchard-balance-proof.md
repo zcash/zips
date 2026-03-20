@@ -364,10 +364,10 @@ the mechanism for double-claim prevention.
 
 Applications SHOULD derive the domain deterministically from public
 parameters that bind it to a specific context. For example, an
-application-specific domain tag can be constructed by encoding a
-UTF-8 string as a little-endian Pallas base field element (zero-padded
-to 32 bytes), then combining it with a round or event identifier that
-is unique per claim context.
+application identifier (such as a UTF-8 protocol name encoded as a
+little-endian Pallas base field element, zero-padded to 32 bytes) can
+be combined with a round or event identifier via a hash, producing a
+single field element that is unique per claim context.
 
 Applications MAY define their own domain derivation scheme provided it
 satisfies the uniqueness requirement above.
@@ -379,24 +379,20 @@ Given a nullifier domain $\mathsf{dom}$ and an Orchard note with standard
 nullifier $\mathsf{nf^{old}}$, the alternate nullifier $\mathsf{nf_ {dom}}$
 is computed as:
 
-$$\mathsf{nf_ {dom}} = \mathsf{DeriveAlternateNullifier_ {nk}}(\mathsf{tag}, \mathsf{dom}, \mathsf{nf^{old}}) = \mathsf{Poseidon}(\mathsf{nk}, \mathsf{tag}, \mathsf{dom}, \mathsf{nf^{old}})$$
+$$\mathsf{nf_ {dom}} = \mathsf{DeriveAlternateNullifier_ {nk}}(\mathsf{dom}, \mathsf{nf^{old}}) = \mathsf{Poseidon}(\mathsf{nk}, \mathsf{dom}, \mathsf{nf^{old}})$$
 
 where:
 
 - $\mathsf{nk} \in \mathbb{F}_ {q_ {\mathbb{P}}}$ is the nullifier deriving
   key from the holder's full viewing key.
-- $\mathsf{tag} \in \mathbb{F}_ {q_ {\mathbb{P}}}$ is an application-defined
-  domain separator constant that identifies the protocol type (e.g.,
-  governance, air-drop). This value is fixed per application and known to
-  both prover and verifier.
-- $\mathsf{dom} \in \mathbb{F}_ {q_ {\mathbb{P}}}$ is the nullifier domain.
+- $\mathsf{dom} \in \mathbb{F}_ {q_ {\mathbb{P}}}$ is the nullifier domain
+  (see [Nullifier Domains]).
 - $\mathsf{nf^{old}} \in \mathbb{F}_ {q_ {\mathbb{P}}}$ is the note's
   standard Orchard nullifier, computed as
   $\mathsf{DeriveNullifier_ {nk}}(\text{ρ}^{\mathsf{old}}, \text{ψ}^{\mathsf{old}}, \mathsf{cm^{old}})$.
 
-This is a 4-input Poseidon hash. Using the standard $\mathsf{P128Pow5T3}$
-instantiation (width $t = 3$, rate 2), this requires two permutations
-to absorb four input elements.
+This is a 3-input Poseidon hash. Using the standard $\mathsf{P128Pow5T3}$
+instantiation (width $t = 3$, rate 2), this requires two permutations.
 
 ### Properties
 
@@ -420,23 +416,23 @@ The security of the alternate nullifier derivation relies on Poseidon
 being a pseudorandom function (PRF) when keyed with a uniformly random
 element of $\mathbb{F}_ {q_ {\mathbb{P}}}$.
 
-**Unlinkability.** Model $\mathsf{Poseidon}(\mathsf{nk}, \cdot, \cdot, \cdot)$
+**Unlinkability.** Model $\mathsf{Poseidon}(\mathsf{nk}, \cdot, \cdot)$
 as a PRF keyed by $\mathsf{nk}$. An adversary who does not know
 $\mathsf{nk}$ sees outputs that are indistinguishable from random. Given
-$\mathsf{nf_ {dom}} = \mathsf{Poseidon}(\mathsf{nk}, \mathsf{tag}, \mathsf{dom}, \mathsf{nf^{old}})$
+$\mathsf{nf_ {dom}} = \mathsf{Poseidon}(\mathsf{nk}, \mathsf{dom}, \mathsf{nf^{old}})$
 and $\mathsf{nf^{old}}$, the adversary cannot verify the relationship
 without $\mathsf{nk}$. The nullifier deriving key $\mathsf{nk}$ is a
 255-bit value derived from the spending key and is never revealed on-chain.
 
 **Cross-domain unlinkability.** For two domains $\mathsf{dom_ 1} \neq \mathsf{dom_ 2}$,
-the tuples $(\mathsf{tag}, \mathsf{dom_ 1}, \mathsf{nf^{old}})$ and
-$(\mathsf{tag}, \mathsf{dom_ 2}, \mathsf{nf^{old}})$ are distinct inputs to the PRF.
+the tuples $(\mathsf{dom_ 1}, \mathsf{nf^{old}})$ and
+$(\mathsf{dom_ 2}, \mathsf{nf^{old}})$ are distinct inputs to the PRF.
 Under the PRF assumption, their outputs are jointly indistinguishable from
 independent random values.
 
 **Collision resistance.** If $\mathsf{nf^{old}_ 1} \neq \mathsf{nf^{old}_ 2}$,
-then $(\mathsf{nk}, \mathsf{tag}, \mathsf{dom}, \mathsf{nf^{old}_ 1})$ and
-$(\mathsf{nk}, \mathsf{tag}, \mathsf{dom}, \mathsf{nf^{old}_ 2})$ are distinct Poseidon
+then $(\mathsf{nk}, \mathsf{dom}, \mathsf{nf^{old}_ 1})$ and
+$(\mathsf{nk}, \mathsf{dom}, \mathsf{nf^{old}_ 2})$ are distinct Poseidon
 inputs, so their outputs collide with negligible probability under
 Poseidon's collision resistance.
 
@@ -585,10 +581,8 @@ To prove $\mathsf{low} \leq \mathsf{nf^{old}} \leq \mathsf{low} + \mathsf{width}
 </details>
 
 **Alternate nullifier integrity.** $\hspace{0.5em}$
-$\mathsf{nf_ {dom}} = \mathsf{Poseidon}(\mathsf{nk}, \mathsf{tag}, \mathsf{dom}, \mathsf{nf^{old}})$,
-where $\mathsf{tag}$ is the application-defined domain separator constant
-(see [Alternate Nullifier Derivation]), fixed per application and embedded
-in the circuit definition.
+$\mathsf{nf_ {dom}} = \mathsf{Poseidon}(\mathsf{nk}, \mathsf{dom}, \mathsf{nf^{old}})$
+(see [Alternate Nullifier Derivation]).
 
 ### Circuit Implementation Notes
 
