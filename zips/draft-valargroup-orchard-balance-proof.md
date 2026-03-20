@@ -848,7 +848,7 @@ wallet:
    so the wallet MUST extract the signature by parsing the PCZT structure
    rather than by byte-diffing against the unsigned version.
 
-2. Extracts the sighash that the device signed. This is the ZIP 244
+2. Recomputes the sighash that the device signed. This is the ZIP 244
    transaction identifier computed over the PCZT.
 
 3. Assembles the delegation submission by combining the hardware wallet
