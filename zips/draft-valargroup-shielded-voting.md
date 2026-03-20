@@ -688,7 +688,7 @@ The vote chain SHOULD NOT insert $\mathsf{cmx}\_\mathsf{new}$ into any commitmen
 or use it beyond proof verification; it serves only to make the
 hardware wallet's signed sighash commit to a complete Action structure.
 
-See [^keystone-voting] for the PCZT construction details and
+See [^balance-proof] for the PCZT construction details and
 [Why a Dummy Signed Note] for the design rationale.
 
 **VAN integrity.** The circuit MUST enforce that the public VAN
@@ -729,8 +729,8 @@ The delegation sighash $\mathsf{sighash}\_\mathsf{del}$ is a
 client-provided 32-byte value included in the delegation message. For
 hardware wallet flows, the client computes it as the ZIP 244 [^zip-244]
 shielded transaction sighash of a governance PCZT [^pczt]; the
-construction of this PCZT for Keystone devices is specified
-in [^keystone-voting]. For software wallets, the client signs the
+construction of this PCZT is specified
+in [^balance-proof]. For software wallets, the client signs the
 sighash directly without PCZT construction.
 
 The vote chain verifies the
@@ -1379,18 +1379,12 @@ The Delegation Proof includes a dummy signed note (value 0) whose rho is
 deterministically bound to the delegation context. This mechanism exists
 to obtain a $\mathsf{SpendAuthSig}^{\mathsf{Orchard}}$ from hardware
 wallets that support only the standard Orchard PCZT signing flow,
-without requiring firmware changes specific to governance. The dummy
-note's rho binding ensures the sighash transitively commits to the
-delegation context (all note commitments, the VAN, and the voting
-round), even though the hardware wallet is unaware of governance
-semantics.
+without requiring firmware changes specific to governance.
 
-The governance PCZT construction, signing flow, and rationale for
-specific design choices (1-zatoshi display value, rho binding for
-non-replayability, ZIP 244 sighash reuse) are specified
-in [^keystone-voting]. When hardware wallet firmware adds voting-aware
-signing, the signed note scaffolding can be removed from the circuit;
-this migration path is also discussed in [^keystone-voting].
+The dummy signed note construction, PCZT signing flow, and design
+rationale (1-zatoshi display value, rho binding for non-replayability,
+ZIP 244 sighash reuse, and the trade-offs of a future custom signing
+protocol) are specified in [^balance-proof].
 
 ## Why $N_s$ Shares Per Vote
 
@@ -1578,11 +1572,7 @@ This ZIP does not specify a consensus change to the Zcash mainchain.
 Deployment considerations are specific to the vote chain and will be
 addressed in the operational voting process ZIP.
 
-The delegation phase supports hardware wallets via a governance PCZT
-that reuses the standard Orchard signing flow. The PCZT construction,
-signing interaction, and device display are specified
-in [^keystone-voting] for Keystone devices. Software wallets sign the
-delegation sighash directly without PCZT construction.
+construction.
 
 
 # Reference implementation
@@ -1601,9 +1591,10 @@ delegation sighash directly without PCZT construction.
 
 # Open issues
 
-- Voting-aware hardware wallet firmware would allow a simplified
-  Delegation Proof circuit that removes the dummy signed note
-  scaffolding. See [^keystone-voting] for the migration path.
+- A future custom signing protocol purpose-built for proof-of-balance
+  could simplify the Delegation Proof circuit by removing the dummy
+  signed note scaffolding and enable further improvements described in
+  [^balance-proof].
 - Partial delegation (a VAN-to-VAN delegation proof that consumes
   one VAN and produces two with subdivided $\mathsf{num}\_\mathsf{ballots}$)
   is enabled by the send-based VAN model but not specified in this
@@ -1645,8 +1636,6 @@ delegation sighash directly without PCZT construction.
 [^pir-governance]: [Private Information Retrieval for Nullifier Exclusion Proofs](draft-valargroup-nullifier-pir)
 
 [^ea-ceremony]: [Election Authority Key Ceremony](draft-valargroup-ea-key-ceremony)
-
-[^keystone-voting]: [Keystone Hardware Wallet Voting Delegation](draft-valargroup-keystone-voting)
 
 [^voting-setup]: [Zcash Shielded Coinholder Voting](draft-valargroup-shielded-voting-setup)
 
