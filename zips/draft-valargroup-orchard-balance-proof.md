@@ -903,11 +903,8 @@ interprets the PCZT identically to any other Orchard transaction.
 After receiving the signed PCZT from the hardware wallet device, the
 wallet:
 
-1. Parses the signed PCZT structurally and reads the `spend_auth_sig`
-   field from the relevant action. Some devices (e.g., Keystone) redact
-   sensitive fields ($\alpha$, rseed, ZIP-32 derivation) after signing,
-   so the wallet MUST extract the signature by parsing the PCZT structure
-   rather than by byte-diffing against the unsigned version.
+1. Parses the signed PCZT and reads the `spend_auth_sig` field from
+   the relevant action.
 
 2. Recomputes the sighash that the device signed. This is the ZIP 244
    transaction identifier computed over the PCZT.
