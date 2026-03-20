@@ -362,12 +362,13 @@ independent claim contexts. Two claims that share the same domain and the
 same underlying note will produce the same alternate nullifier, which is
 the mechanism for double-claim prevention.
 
-Applications SHOULD derive the domain deterministically from public
-parameters that bind it to a specific context. For example, an
-application identifier (such as a UTF-8 protocol name encoded as a
-little-endian Pallas base field element, zero-padded to 32 bytes) can
-be combined with a round or event identifier via a hash, producing a
-single field element that is unique per claim context.
+Applications SHOULD derive the domain deterministically by hashing a
+protocol identifier with an application-specific instance value. The
+protocol identifier SHOULD be the application's ZIP number, encoded as
+a little-endian Pallas base field element, which guarantees
+cross-application uniqueness. The instance value (such as a round or
+event identifier) ensures uniqueness across instances of the same
+application.
 
 Applications MAY define their own domain derivation scheme provided it
 satisfies the uniqueness requirement above.
