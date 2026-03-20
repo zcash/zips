@@ -333,8 +333,8 @@ ZKP circuits as a public input.
 The round enters the **PENDING** state. The EA key ceremony
 (see [^draft-ceremony]) runs automatically. On successful completion, the
 round transitions to **ACTIVE**, the voting window opens, and the
-transition timestamp is recorded as `ceremony_start`. Clients use
-`ceremony_start` together with `vote_end_time` to compute the
+transition timestamp is recorded as `ceremony_phase_start`. Clients use
+`ceremony_phase_start` together with `vote_end_time` to compute the
 last-moment buffer for submission timing
 (see [^draft-submission-server]).
 
