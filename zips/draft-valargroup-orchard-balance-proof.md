@@ -188,8 +188,7 @@ instance and the declared balance.
 - A holder can prove ownership of an unspent Orchard note at a pool
   snapshot without revealing the note's standard nullifier.
 - Double-claiming the same note within the same nullifier domain is
-  detectable: the alternate nullifier is deterministic, so a duplicate
-  claim produces an identical value that the verifier can reject.
+  detectable.
 - Claims are unlinkable to the holder's past or future on-chain spends,
   and to their claims in other nullifier domains.
 - The holder proves spend authority (not merely viewing access).
