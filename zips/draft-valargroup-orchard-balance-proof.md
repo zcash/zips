@@ -233,10 +233,10 @@ in-circuit proofs that a given nullifier is absent from the revealed set.
 
 ### Construction
 
-Let $S = \{s_ 0, s_ 1, \ldots, s_ {m-1}\}$ be the set of all Orchard
+Let $S = \{s_ 0, s_ 1, \ldots, s_ {m-1}\} \subset \mathbb{F}_ {q_ {\mathbb{P}}}$ be the set of all Orchard
 nullifiers revealed on the consensus chain as of block height $h$, together
-with a set of sentinel values (see [Sentinel Initialization]). Sort $S$ in
-ascending order as elements of $\mathbb{F}_ {q_ {\mathbb{P}}}$.
+with the sentinel values defined in [Sentinel Initialization]. Sort $S$ in
+ascending order.
 Because sentinel initialization is mandatory, $S$ is non-empty.
 
 For each pair of consecutive elements $(s_ i, s_ {i+1})$ where $s_ i < s_ {i+1}$
@@ -332,7 +332,7 @@ initialized with sentinel values that partition $\mathbb{F}_ {q_ {\mathbb{P}}}$
 into intervals each of width strictly less than $2^{250}$.
 
 For the Pallas base field ($q_ {\mathbb{P}} \approx 2^{254}$),
-implementations MUST insert 17 sentinels at:
+implementations MUST insert 17 sentinels $s_k \in \mathbb{F}_ {q_ {\mathbb{P}}}$ at:
 
 $$s_k = k \cdot 2^{250}, \quad k \in \{0,1,\ldots,16\}.$$
 
@@ -347,8 +347,7 @@ The width bound is critical for the soundness of the in-circuit range
 checks. If any interval had width $\geq 2^{250}$, the range check could
 overflow, allowing a prover to falsely claim non-membership.
 
-Sentinel values are fixed per deployment and MUST be published alongside the
-tree specification so that any party can reconstruct the tree independently.
+These sentinel values are constants defined by this specification.
 
 
 ## Nullifier Domains
