@@ -38,14 +38,13 @@ Share payload
 Voter
 
 : A holder of voting authority (a VAN) who has produced a Vote
-  Commitment containing $N_s$ encrypted shares and wishes to have those
+  Commitment containing encrypted shares and wishes to have those
   shares revealed on-chain.
 
 Election authority (EA)
 
 : The set of validators that collectively hold Shamir shares of the
-  El Gamal secret key $\mathsf{ea}\_\mathsf{sk}$ for a voting round.
-  See [^ea-ceremony].
+  El Gamal secret key for a voting round.
 
 For definitions of *Vote Commitment*, *Vote Commitment Tree*, *vote
 share*, *Vote Reveal Proof*, *share nullifier*, and *blinded share
@@ -102,7 +101,7 @@ is destroyed.
 
 Delegating proof construction to a server also addresses mobile client
 reliability: a mobile client may be killed or lose connectivity at the
-later scheduled time for temporal mixing. Servers are always-on and can complete share submission reliably.
+scheduled submission time for temporal mixing. Servers are always-on and can complete share submission reliably.
 
 
 # Privacy Implications
@@ -130,10 +129,22 @@ with the EA to gain an information advantage). These requirements pull
 in opposite directions; the resolution is specified in [Server
 Selection].
 
-**Decision visibility.** Submission servers see the vote decision
-(proposal option) for each share they handle. A malicious server could
-selectively censor shares for a specific decision. Mitigation
-strategies are discussed in [Decision Censorship Resistance].
+**Decision and share count visibility.** Vote decisions are public
+inputs to the Vote Reveal Proof and appear in every share reveal
+transaction on-chain.
+
+Because share counts are visible, an observer who also sees the
+aggregate weight for each decision after tally publication can, in
+low-participation options, narrow individual voter balances to a
+range. The protocol limits this inference in two ways: encrypted amounts keep exact balances hidden, and non-uniform share
+decomposition strategies break the direct relationship between share
+count and voter balance (see [Open Design Questions]). Encrypting
+decisions entirely would close this channel but at substantial circuit
+cost (see [Why Not Encrypt Decisions]).
+
+Decision visibility also means a malicious submission server could
+selectively delay or drop shares for a particular decision; the
+redundancy mechanisms in [Decision Censorship Resistance] address this.
 
 **Voter identity isolation.** Even a fully compromised election
 authority (one that reconstructs $\mathsf{ea}\_\mathsf{sk}$ and
@@ -389,16 +400,22 @@ on-chain arrival time.
 
 ## Why Not Encrypt Decisions
 
-Encrypting vote decisions (in addition to amounts) would hide the
-decision from submission servers, eliminating the decision censorship
-vector entirely. However, this requires each decision option to carry
-its own encrypted ciphertext, and the ZK circuit must prove that
-exactly one option is non-zero. For a proposal with $k$ options, this
-multiplies the per-share circuit cost by $k$ and adds $k - 1$
-zero-check constraints. The complexity increase is significant for
-proposals with many options and is not justified given that multi-server
-redundancy provides adequate censorship resistance under the honest
-majority assumption.
+Because vote decisions are public, an observer who also sees the
+published aggregate weight can, for low-participation options, narrow
+the range of individual voter balances — even though exact amounts
+remain encrypted. Encrypting decisions would close this channel but at
+significant cost: a per-option ciphertext approach requires each share
+to carry $k$ ciphertexts ($\mathrm{Enc}(v)$ for the chosen option,
+$\mathrm{Enc}(0)$ for the remaining $k - 1$), multiplying per-share
+circuit cost by $k$. A validator-decrypted variant hides per-option
+counts from the public but not from validators, and making the
+bucketing publicly verifiable requires an additional proof system that
+scales with total share count.
+
+The protocol instead limits share-count informativeness through
+non-uniform share decomposition (see [Open Design Questions]), which
+breaks the direct relationship between share count and individual
+voter balances without adding circuit complexity.
 
 ## Why Not TEE-Based Proof Construction
 
@@ -425,10 +442,8 @@ but are not yet resolved:
   decomposition (where each share carries a standard denomination like
   $2^0, 2^1, \ldots, 2^{15}$ ballots) would make shares from
   different voters indistinguishable by amount, strengthening the
-  mixing guarantee. However, this requires additional circuit work to
-  prove that the decomposition is valid. The choice of decomposition
-  strategy directly affects the submission server's mixing
-  effectiveness.
+  mixing guarantee. The current choice is to partially decompose the full amount into base-10 decomposition while randomizing the remainder across the remaining shares via PRF. Non-uniform decomposition also mitigates the share
+  count inference described in [Why Not Encrypt Decisions].
 - **Client confirmation via PIR.** Voters currently have no
   privacy-preserving way to confirm that their shares were submitted.
   A PIR-based confirmation mechanism (querying the vote chain for
@@ -443,11 +458,6 @@ but are not yet resolved:
   or padding the declared balance and proving the amendment in ZK —
   would mitigate this. This is orthogonal to the submission server but
   affects the end-to-end privacy guarantee.
-- **Decision encryption.** If the honest-majority assumption proves
-  insufficient for decision censorship resistance in practice,
-  encrypting vote decisions would eliminate the vector entirely at the
-  cost of increased circuit complexity. See [Why Not Encrypt
-  Decisions].
 - **TEE-based proof construction.** Running Vote Reveal Proof
   construction inside a Trusted Execution Environment would allow the
   server to handle decrypted decisions without observing them,
