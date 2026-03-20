@@ -530,10 +530,6 @@ $\mathsf{Extract}_ {\mathbb{P}}(\mathsf{cm^{old}})$ to the anchor $\mathsf{rt^{c
 **Nullifier derivation.** $\hspace{0.5em}$
 $\mathsf{nf^{old}} = \mathsf{DeriveNullifier_ {nk}}(\text{ρ}^{\mathsf{old}}, \text{ψ}^{\mathsf{old}}, \mathsf{cm^{old}})$.
 
-The standard nullifier is computed inside the circuit but is NOT a public
-input. It is used only as an intermediate value for the non-membership
-check and the alternate nullifier derivation. It is never revealed.
-
 **Spend authority.** $\hspace{0.5em}$
 $\mathsf{rk} = \mathsf{SpendAuthSig^{Orchard}.RandomizePublic}(\alpha, \mathsf{ak}^{\mathbb{P}})$.
 
