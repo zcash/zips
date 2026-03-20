@@ -329,16 +329,19 @@ used by Orchard for nullifier derivation.
 
 ### Tree Depth
 
-This specification uses a tree depth of
-$\mathsf{MerkleDepth^{excl}} = 29$, supporting up to $2^{29} \approx 537$
-million leaves. Each nullifier insertion splits one gap into two, replacing one leaf
-with two (adding one leaf), so the tree supports approximately 537 million distinct
-nullifiers. As of early 2026, the Zcash Orchard pool contains roughly
-51 million nullifiers, so depth 29 provides about one order of magnitude
-of headroom.
-Implementations MAY choose a different depth to suit their capacity
-requirements, but the circuit MUST be parameterized accordingly based on
-the chosen depth.
+$\mathsf{MerkleDepth^{excl}}$ MUST be large enough to accommodate the
+number of gap leaves. Each nullifier in the pool adds at most one leaf
+(by splitting an existing gap), so the tree requires capacity for at
+least $|N| + 17$ leaves, where $|N|$ is the size of the Orchard
+nullifier set and 17 is the number of sentinels for the Pallas base
+field. Concretely:
+
+$$\mathsf{MerkleDepth^{excl}} \geq \lceil \log_ 2(|N| + 17) \rceil$$
+
+A depth of $\mathsf{MerkleDepth^{excl}} = 29$ is RECOMMENDED. This
+supports up to $2^{29} \approx 537$ million leaves. As of early 2026,
+the Zcash Orchard pool contains roughly 51 million nullifiers, so
+depth 29 provides about one order of magnitude of headroom.
 
 Unused leaf positions MUST be filled with a canonical empty leaf value
 $\mathsf{GapCommit}(0, 0)$.
