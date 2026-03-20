@@ -751,10 +751,8 @@ $$\text{ρ}^{\mathsf{signed}} = \mathsf{Poseidon}\bigl(\mathsf{cmx}\_\mathsf{1},
    permutations.
 
 3. **Value.** The note value MUST be set to 1 zatoshi (0.00000001 ZEC)
-   in the PCZT so that the hardware wallet device renders all transaction
-   fields. A value of 0 causes a Keystone device to suppress
-   field display, degrading the user experience. The Claim circuit treats
-   the signed note value as 0 regardless of the PCZT value.
+   in the PCZT. The Claim circuit treats the signed note value as 0
+   regardless of the PCZT value.
 
 4. **Rseed.** A fresh random $\mathsf{rseed}$ is sampled for the note.
 
