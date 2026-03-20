@@ -156,9 +156,11 @@ $\mathsf{nf_ {dom_ 1}}$ and $\mathsf{nf_ {dom_ 2}}$ are unlinkable. This
 follows from the PRF property: distinct inputs produce outputs that are
 computationally indistinguishable from independent random values.
 
-**Spend authority prevents viewing-key delegation.** The circuit requires
-a valid spend authorization signature, ensuring that a party with only a
-viewing key cannot make claims on behalf of the holder.
+**Spend authority prevents viewing-key delegation.** The circuit
+constrains correct derivation of $\mathsf{rk}$, and the protocol
+requires a valid spend authorization signature under $\mathsf{rk}$
+(see [Spend Authorization Signature]), ensuring that a party with only
+a viewing key cannot make claims on behalf of the holder.
 
 **Non-membership tree queries.** Obtaining a Merkle path in the nullifier
 non-membership tree requires querying a data source that holds the full
