@@ -347,7 +347,8 @@ $\mathsf{GapCommit}(0, 0)$.
 
 Before inserting any real nullifiers, the non-membership tree MUST be
 initialized with sentinel values that partition $\mathbb{F}_ {q_ {\mathbb{P}}}$
-into intervals each of width strictly less than $2^{250}$.
+into intervals each of width strictly less than $2^{250}$. The sentinel
+set MUST include the value $0$.
 
 For the Pallas base field ($q_ {\mathbb{P}} \approx 2^{254}$),
 implementations MUST insert 17 sentinels $s_k \in \mathbb{F}_ {q_ {\mathbb{P}}}$ at:
