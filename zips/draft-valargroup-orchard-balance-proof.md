@@ -628,6 +628,25 @@ The alternate nullifier integrity check is a single Poseidon hash
 (two permutations at width 3).
 
 
+## Spend Authorization Signature
+
+Each Claim proof MUST be accompanied by a spend authorization signature
+$\sigma$, which is a $\mathsf{SpendAuthSig^{Orchard}}$ signature under
+the randomized key $\mathsf{rk}$ that is a public input to the circuit.
+
+The signature MUST be computed over a sighash that binds the signature
+to the specific claim, ensuring that it cannot be replayed for a
+different set of public inputs. Applications MAY achieve this binding
+directly (by including the public inputs in the sighash) or indirectly
+(through values that the Claim circuit constrains to be consistent with
+the public inputs).
+
+The concrete sighash derivation is application-defined. The [Wallet Signing]
+section specifies a PCZT-based signing flow that reuses the standard
+ZIP 244 [^zip-244] sighash, enabling compatibility with existing hardware
+wallets.
+
+
 ## Out-of-Circuit Verification
 
 A verifier that receives a Claim proof $\pi$ together with a spend
@@ -637,8 +656,8 @@ authorization signature $\sigma$ MUST perform the following checks:
    $(\mathsf{rt^{cm}}, \mathsf{rt^{excl}}, \mathsf{rk}, \mathsf{cv}, \mathsf{nf_ {dom}}, \mathsf{dom})$.
 
 2. Verify $\sigma$ as a valid $\mathsf{SpendAuthSig^{Orchard}}$ signature
-   on the application-defined sighash, under the randomized key
-   $\mathsf{rk}$.
+   on the sighash (see [Spend Authorization Signature]), under the
+   randomized key $\mathsf{rk}$.
 
 3. Verify that $\mathsf{rt^{cm}}$ corresponds to the Orchard note
    commitment tree root at the declared snapshot height.
