@@ -45,7 +45,8 @@ Vote Commitment (VC)
 Vote Commitment Tree (VCT)
 
 : An append-only Poseidon Merkle tree maintained by the vote chain that
-  stores both VANs and VCs as leaves.
+  stores both VANs and VCs as leaves. A separate VCT is maintained per
+  voting round; trees from different rounds are fully isolated.
 
 Vote share
 
@@ -422,12 +423,14 @@ Proof and added to the share nullifier set to prevent double-counting.
 
 ### Vote Commitment Tree
 
-The VCT MUST be an incremental Merkle tree [^protocol-merkletree] of
-depth $\mathsf{MerkleDepth}^{\mathsf{vct}} = 24$ that stores both VANs
-and VCs as leaves. It MUST use the same append-only data structure as
-the Orchard note commitment tree, but with Poseidon over the Pallas
-scalar field for internal node hashing instead of Sinsemilla
-(see [Poseidon Instantiation]).
+The vote chain MUST maintain a separate VCT per voting round. Each
+round's VCT MUST be an incremental Merkle tree [^protocol-merkletree]
+of depth $\mathsf{MerkleDepth}^{\mathsf{vct}} = 24$ that stores both
+VANs and VCs as leaves. Leaves, roots, and tree state from one round
+MUST NOT carry over into another. The tree MUST use the same
+append-only data structure as the Orchard note commitment tree, but
+with Poseidon over the Pallas scalar field for internal node hashing
+instead of Sinsemilla (see [Poseidon Instantiation]).
 
 Domain separation between VANs and VCs is achieved structurally: the
 first Poseidon input is $\mathsf{DOMAIN}\_\mathsf{VAN} = 0$ for VANs and
@@ -1549,7 +1552,9 @@ The Orchard note commitment tree uses depth 32, supporting $2^{32}$
 each voter generates one VAN per delegation and two leaves (a new VAN
 plus a VC) per vote. Even 10,000 voters each voting on 50 proposals
 produce roughly 1 million leaves, well within the $2^{24}$
-(~16.7 million) capacity of a depth-24 tree.
+(~16.7 million) capacity of a depth-24 tree. Because each voting round
+maintains its own VCT, this budget applies per round rather than
+accumulating across rounds.
 
 The reduced depth saves constraint rows in every circuit that performs
 a Merkle membership proof (Vote Proof and Vote Reveal Proof), since
@@ -1614,14 +1619,6 @@ delegation sighash directly without PCZT construction.
   to track VCT paths (e.g., full server-side path retrieval), this
   tradeoff should be revisited.
   See [Why a Send-Based VAN Model].
-- The VCT depth of 24 ($2^{24} \approx 16.7$ million leaves) is
-  sufficient for current governance usage projections, but may need to
-  be increased via a vote chain upgrade if participation grows
-  significantly (e.g., more voters, more proposals per round, or more
-  frequent rounds reusing the same tree). Increasing the depth requires
-  updating the Merkle membership circuits in both the Vote Proof and
-  Vote Reveal Proof, reproving the verification key, and coordinating
-  a CometBFT chain upgrade. See [Why VCT Depth 24].
 - Open issues related to the EA key ceremony are tracked in [^ea-ceremony].
 - Open issues related to the submission server (share decomposition
   strategy, client confirmation via PIR, balance amendment, decision
