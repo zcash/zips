@@ -194,8 +194,7 @@ instance and the declared balance.
 - The holder proves spend authority (not merely viewing access).
 - The construction allows a holder to participate in multiple independent
   applications using the same notes, provided each application uses a
-  distinct nullifier domain. This is a natural consequence of the
-  domain-separated alternate nullifier derivation.
+  distinct nullifier domain.
 
 
 # Non-requirements
