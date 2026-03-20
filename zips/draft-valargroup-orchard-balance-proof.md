@@ -483,6 +483,7 @@ Given a primary input:
 - $\mathsf{rt^{cm}} ⦂ \{ 0 .. q_ {\mathbb{P}}-1 \}$
 - $\mathsf{rt^{excl}} ⦂ \{ 0 .. q_ {\mathbb{P}}-1 \}$
 - $\mathsf{rk} ⦂ \mathsf{SpendAuthSig^{Orchard}.Public}$
+- $\mathsf{cv} ⦂ \mathsf{ValueCommit^{Orchard}.Output}$
 - $\mathsf{nf_ {dom}} ⦂ \{ 0 .. q_ {\mathbb{P}}-1 \}$
 - $\mathsf{dom} ⦂ \{ 0 .. q_ {\mathbb{P}}-1 \}$
 
@@ -505,6 +506,7 @@ the prover knows an auxiliary input:
 - $\mathsf{rivk} ⦂ \mathsf{Commit^{ivk}.Trapdoor}$
 - $\mathsf{rivk\_ {internal}} ⦂ \mathsf{Commit^{ivk}.Trapdoor}$
 - $\alpha ⦂ \{ 0 .. 2^{\ell^{\mathsf{Orchard}}_ {\mathsf{scalar}}}-1 \}$
+- $\mathsf{rcv} ⦂ \{ 0 .. 2^{\ell^{\mathsf{Orchard}}_ {\mathsf{scalar}}}-1 \}$
 - $\mathsf{low} ⦂ \mathbb{F}_ {q_ {\mathbb{P}}}$
 - $\mathsf{width} ⦂ \mathbb{F}_ {q_ {\mathbb{P}}}$
 - $\mathsf{path^{excl}} ⦂ \{ 0 .. q_ {\mathbb{P}}-1 \}^{[\mathsf{MerkleDepth^{excl}}]}$
@@ -525,6 +527,9 @@ $(\mathsf{path^{cm}}, \mathsf{pos^{cm}})$ is a valid Merkle path of depth
 $\mathsf{MerkleDepth^{Orchard}}$, as defined in
 § 4.9 'Merkle Path Validity' [^protocol-merklepath], from
 $\mathsf{Extract}_ {\mathbb{P}}(\mathsf{cm^{old}})$ to the anchor $\mathsf{rt^{cm}}$.
+
+**Value commitment integrity.** $\hspace{0.5em}$
+$\mathsf{cv} = \mathsf{ValueCommit^{Orchard}_ {rcv}}(\mathsf{v^{old}})$.
 
 **Nullifier derivation.** $\hspace{0.5em}$
 $\mathsf{nf^{old}} = \mathsf{DeriveNullifier_ {nk}}(\text{ρ}^{\mathsf{old}}, \text{ψ}^{\mathsf{old}}, \mathsf{cm^{old}})$.
@@ -587,7 +592,7 @@ in the circuit definition.
 
 ### Circuit Implementation Notes
 
-The first five conditions (note commitment integrity through diversified
+The first six conditions (note commitment integrity through diversified
 address integrity) are adapted from the corresponding Orchard Action
 statement checks. In particular, note-commitment Merkle membership uses
 $\mathsf{Extract}_ {\mathbb{P}}(\mathsf{cm^{old}})$ as in the Orchard
@@ -609,7 +614,7 @@ A verifier that receives a Claim proof $\pi$ together with a spend
 authorization signature $\sigma$ MUST perform the following checks:
 
 1. Verify $\pi$ against the public inputs
-   $(\mathsf{rt^{cm}}, \mathsf{rt^{excl}}, \mathsf{rk}, \mathsf{nf_ {dom}}, \mathsf{dom})$.
+   $(\mathsf{rt^{cm}}, \mathsf{rt^{excl}}, \mathsf{rk}, \mathsf{cv}, \mathsf{nf_ {dom}}, \mathsf{dom})$.
 
 2. Verify $\sigma$ as a valid $\mathsf{SpendAuthSig^{Orchard}}$ signature
    on the application-defined sighash, under the randomized key
@@ -641,14 +646,15 @@ as follows:
 
 - The public inputs $\mathsf{rt^{cm}}$, $\mathsf{rt^{excl}}$,
   $\mathsf{rk}$, and $\mathsf{dom}$ are shared across all $N$ notes.
-- Each note $i$ contributes its own alternate nullifier
-  $\mathsf{nf_ {dom,i}}$ as a public input.
+- Each note $i$ contributes its own value commitment
+  $\mathsf{cv_ i}$ and alternate nullifier
+  $\mathsf{nf_ {dom,i}}$ as public inputs.
 - A single $\mathsf{ivk}$ (derived from the shared $\mathsf{ak}$ and
   $\mathsf{nk}$) is constrained to own all $N$ notes, ensuring they
   belong to the same holder.
-- All $N$ note commitment integrity, Merkle path, nullifier derivation,
-  non-membership, and alternate nullifier checks are performed
-  independently per note.
+- All $N$ note commitment integrity, value commitment integrity,
+  Merkle path, nullifier derivation, non-membership, and alternate
+  nullifier checks are performed independently per note.
 
 ### Note Padding
 
@@ -665,6 +671,9 @@ A padded note MUST satisfy the following:
 
 - **Value.** The value MUST be 0, enforced by the constraint
   $(1 - \mathsf{is\_real}) \cdot \mathsf{v^{old}} = 0$.
+- **Value commitment.** The value commitment is computed for every slot
+  (not gated). Padded notes commit to value 0 with a fresh
+  $\mathsf{rcv}$.
 - **Ownership.** The note is derived from the same full viewing key as
   real notes (using a distinct diversifier index per padded slot), so it
   passes the diversified address integrity check with the shared
@@ -691,6 +700,20 @@ A padded note MUST satisfy the following:
 - **Alternate nullifier.** The alternate nullifier is derived and
   published for every slot (not gated). The application verifier MAY
   ignore alternate nullifiers corresponding to zero-value slots.
+
+
+## Sub-Circuit Instantiation
+
+When the Claim circuit is used as a sub-circuit of an application-specific
+circuit, the application circuit has direct access to the private witnesses
+including the note value $\mathsf{v^{old}}$. In this case, the value
+commitment $\mathsf{cv}$ MAY be omitted from the public inputs if the
+application circuit binds to the note values through its own mechanism.
+For example, an application circuit that converts note values to
+application-specific units (such as vote weight) may bind to
+$\mathsf{v^{old}}$ directly within the circuit and expose the converted
+result through its own public outputs. All other conditions of the Claim
+circuit MUST still be enforced.
 
 
 ## Wallet Signing
