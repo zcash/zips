@@ -261,7 +261,7 @@ heights:
 $$
 \mathsf{BlockSubsidy}(\mathsf{height}) :=
   \begin{cases}
-    \ldots &\text{(prior cases unchanged)} \\[1ex]
+    \ldots &\text{(prior cases unchanged)} \\\\[1ex]
     \left\lfloor \dfrac{\mathsf{MaxBlockSubsidy}}{\mathsf{BlossomPoWTargetSpacingRatio} \cdot \mathsf{NU7PoWTargetSpacingRatio} \cdot 2^{\mathsf{Halving}(\mathsf{height})}} \right\rfloor,
       &\text{if } \mathsf{IsNU7Activated}(\mathsf{height})
   \end{cases}
