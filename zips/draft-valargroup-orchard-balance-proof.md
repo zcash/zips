@@ -227,9 +227,26 @@ be able to independently verify both roots.
 
 ## Nullifier Non-Membership Tree
 
-The nullifier non-membership tree is a Merkle tree whose leaves encode
-the gaps between consecutive revealed nullifiers, enabling efficient
-in-circuit proofs that a given nullifier is absent from the revealed set.
+The nullifier non-membership tree is a Merkle tree whose leaves are
+commitments to the gaps between consecutive revealed nullifiers, enabling
+efficient in-circuit proofs that a given nullifier is absent from the
+revealed set.
+
+The relationship between the sorted nullifier set and the tree is
+illustrated below:
+
+```
+            /  \                          ..
+           /    \                        /
+       gcm_0    gcm_1               gcm_2      <-- Gap commitments (tree leaves)
+      /\            /\              /\
+  |(l_0, w_0)| |(l_1, w_1)|   |(l_2, w_2) ..  <-- Gap encodings (low, width)
+s_0|          |s_1|         |s_2|          ..   <-- Sorted nullifier set + sentinels
+```
+
+Each gap between consecutive nullifiers is encoded as a
+$(\mathsf{low}, \mathsf{width})$ pair, then committed via
+$\mathsf{GapCommit}$ (see [Hash Function]) to produce a tree leaf.
 
 ### Construction
 
@@ -240,18 +257,19 @@ ascending order.
 Because sentinel initialization is mandatory, $S$ is non-empty.
 
 For each pair of consecutive elements $(s_ i, s_ {i+1})$ where $s_ i < s_ {i+1}$
-and $s_ {i+1} - s_ i > 1$, create a leaf with:
+and $s_ {i+1} - s_ i > 1$, compute a gap encoding:
 
 - $\mathsf{low} = s_ i + 1$: the first value in the gap
 - $\mathsf{width} = s_ {i+1} - s_ i - 2$: the number of additional values
   in the gap beyond $\mathsf{low}$
 
-The leaf represents the closed interval
+The gap encoding represents the closed interval
 $[\mathsf{low},\; \mathsf{low} + \mathsf{width}]$, which contains exactly
-the field elements between $s_ i$ and $s_ {i+1}$ exclusive.
+the field elements between $s_ i$ and $s_ {i+1}$ exclusive. The
+corresponding tree leaf is $\mathsf{GapCommit}(\mathsf{low}, \mathsf{width})$.
 
 After processing all consecutive pairs, if $s_ {m-1} < q_ {\mathbb{P}} - 1$,
-a terminal leaf MUST be added with:
+a terminal gap MUST be added with:
 
 - $\mathsf{low} = s_ {m-1} + 1$
 - $\mathsf{width} = (q_ {\mathbb{P}} - 1) - \mathsf{low}$
@@ -280,7 +298,7 @@ The non-membership tree uses Poseidon [^protocol-poseidon] with the
 $\mathsf{P128Pow5T3}$ instantiation (width $t = 3$, rate 2) over the
 Pallas base field $\mathbb{F}_ {q_ {\mathbb{P}}}$ for all hashing:
 
-- **Leaf hash:** $\mathsf{PoseidonLeafHash}(\mathsf{low}, \mathsf{width})$,
+- **Gap commitment:** $\mathsf{GapCommit}(\mathsf{low}, \mathsf{width})$,
   a 2-input Poseidon hash (one permutation).
 - **Internal node hash:** $\mathsf{PoseidonNodeHash}(\mathsf{left}, \mathsf{right})$,
   a 2-input Poseidon hash (one permutation), where $\mathsf{left}$ and
@@ -313,8 +331,8 @@ used by Orchard for nullifier derivation.
 
 This specification uses a tree depth of
 $\mathsf{MerkleDepth^{excl}} = 29$, supporting up to $2^{29} \approx 537$
-million leaves. Each nullifier insertion splits one interval leaf into two
-(adding one leaf), so the tree supports approximately 537 million distinct
+million leaves. Each nullifier insertion splits one gap into two, replacing one leaf
+with two (adding one leaf), so the tree supports approximately 537 million distinct
 nullifiers. As of early 2026, the Zcash Orchard pool contains roughly
 51 million nullifiers, so depth 29 provides about one order of magnitude
 of headroom.
@@ -323,7 +341,7 @@ requirements, but the circuit MUST be parameterized accordingly based on
 the chosen depth.
 
 Unused leaf positions MUST be filled with a canonical empty leaf value
-(the hash of the zero interval).
+$\mathsf{GapCommit}(0, 0)$.
 
 ### Sentinel Initialization
 
@@ -543,7 +561,7 @@ Then $\mathsf{pk_ d^{old}} = [\mathsf{ivk}]\, \mathsf{g_ d^{old}}$ or
 $\mathsf{pk_ d^{old}} = [\mathsf{ivk\_ {internal}}]\, \mathsf{g_ d^{old}}$.
 
 **Nullifier non-membership.** $\hspace{0.5em}$
-Let $\mathsf{leaf} = \mathsf{PoseidonLeafHash}(\mathsf{low}, \mathsf{width})$
+Let $\mathsf{leaf} = \mathsf{GapCommit}(\mathsf{low}, \mathsf{width})$
 (see [Hash Function]).
 $(\mathsf{path^{excl}}, \mathsf{pos^{excl}})$ is a valid Merkle path of
 depth $\mathsf{MerkleDepth^{excl}}$ from $\mathsf{leaf}$ to the anchor
