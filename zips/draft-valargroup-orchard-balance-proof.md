@@ -199,8 +199,6 @@ instance and the declared balance.
 
 # Non-requirements
 
-- Application-specific protocols that consume claims (such as voting,
-  air-drop distribution, or delegation) are out of scope.
 - Privacy-preserving retrieval of non-membership Merkle paths (e.g., via
   PIR) is out of scope.
 - Value denomination conversions (e.g., converting zatoshi to
