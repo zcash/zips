@@ -250,9 +250,9 @@ $\mathsf{GapCommit}$ (see [Hash Function]) to produce a tree leaf.
 
 ### Construction
 
-Let $S = \{s_ 0, s_ 1, \ldots, s_ {m-1}\} \subset \mathbb{F}_ {q_ {\mathbb{P}}}$ be the set of all Orchard
-nullifiers revealed on the consensus chain as of block height $h$, together
-with the sentinel values defined in [Sentinel Initialization]. Sort $S$ in
+Let $S = \{s_ 0, s_ 1, \ldots, s_ {m-1}\} \subset \mathbb{F}_ {q_ {\mathbb{P}}}$ be the union of the set of all Orchard
+nullifiers revealed on the consensus chain as of block height $h$ and
+the sentinel values defined in [Sentinel Initialization]. Sort $S$ in
 ascending order.
 Because sentinel initialization is mandatory, $S$ is non-empty.
 
