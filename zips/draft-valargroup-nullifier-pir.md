@@ -149,6 +149,15 @@ document:
 - IP obfuscation or mixing network round-trips across multiple servers to
   prevent an observer from attributing queries to a single client.
 
+Because each note's retrieval consists of two sequential PIR queries, any
+client failure that occurs between the two queries and suppresses the second
+one gives the server an error-based oracle that can leak bits of the queried
+row index. This applies at every layer: a malicious server can craft responses
+that cause failures during PIR decryption, during response decoding, or during
+application-level validation of the recovered data. See
+[Rationale for Query Completion Requirement] for a detailed description of the
+attack.
+
 
 # Requirements
 
@@ -162,9 +171,10 @@ document:
   between them.
 - Total bandwidth per query (upload plus download) under
   10MB, suitable for mobile networks.
-- Two sequential network round-trips per query are acceptable.
-- The hash function used in the exclusion tree must be efficient inside
-  zero-knowledge proof circuits.
+- Exclusion-tree work stays practical on both sides of the proof:
+  server-side tree construction, padding, and PIR database generation
+  for each snapshot, and in-circuit
+  verification of the retrieved authentication path.
 - 128-bit computational security with correctness error probability at
   most $2^{-40}$. A client can detect and recover from a correctness
   error by re-issuing the query.
@@ -1636,6 +1646,17 @@ All internal node hashes are served directly by Tier 0, Tier 1, and Tier
 2. The client computes exactly 1 hash during proof retrieval: the
 sibling leaf hash in Tier 2.
 
+##### Query Completion Requirement
+
+A client MUST transmit both PIR queries (Tier 1 and Tier 2) for every
+note, regardless of whether the Tier 1 response was successfully
+decrypted and regardless of whether the decrypted values pass
+application-level validation. No failure — at the cryptographic,
+decoding, or application layer — that occurs while processing the
+Tier 1 response MUST be allowed to prevent the Tier 2 query from being
+sent. See [Rationale for Query Completion Requirement] for the attack
+that motivates this requirement.
+
 
 # Rationale
 
@@ -2066,6 +2087,32 @@ The $(low, width)$ encoding reduces this to one subtraction ($t - low$)
 and one unsigned comparison ($< width$), saving one comparison gate in the
 circuit. Since the exclusion range check is performed for every balance
 proof, this saving applies to every protocol participant.
+
+## Rationale for Query Completion Requirement
+
+Each note's retrieval requires two sequential PIR queries (Tier 1
+followed by Tier 2). If a client failure after the first query
+suppresses the second, the server obtains an error-based oracle.
+
+The most subtle form of this attack does not require corrupting the PIR
+response at the cryptographic layer. PIR decryption can succeed, yet the
+recovered database entry can contain malformed application-level data
+(for example, an out-of-range Merkle node or an invalid field element).
+If the client asserts on or panics from such a value before issuing the
+second query, the server learns whether the queried row contained the
+malformed entry.
+
+A malicious server can amplify this by placing malformed values in a
+chosen subset of rows. Depending on whether the client aborts, the
+server infers whether the queried row falls inside or outside that
+subset, leaking one bit of the row index per attempt. Over multiple
+protocol epochs the server can repeat the attack with different subsets
+to recover the full row index.
+
+The [Query Completion Requirement] prevents this by requiring that both
+queries are always transmitted, regardless of any failure at the
+cryptographic, decoding, or application layer while processing the
+Tier 1 response.
 
 # Deployment
 
