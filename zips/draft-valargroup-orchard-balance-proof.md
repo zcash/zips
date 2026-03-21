@@ -62,10 +62,11 @@ Claim
 
 Dummy signed note
 
-: A synthetic Orchard note with value 0 (in the Claim circuit) that
-  does not exist in any on-chain note commitment tree. It is constructed
-  solely for obtaining a spend authorization signature from the holder's
-  key. See [Wallet Signing].
+: A synthetic Orchard note with value 1 zatoshi that does not exist in
+  any on-chain note commitment tree. It is constructed solely for
+  obtaining a spend authorization signature from the holder's key. Its
+  value does not contribute to the claimed balance. See [Wallet Signing]
+  and [Dummy Signed Note].
 
 
 # Abstract
@@ -697,6 +698,58 @@ as follows:
   Merkle path, nullifier derivation, non-membership, and alternate
   nullifier checks are performed independently per note.
 
+### Dummy Signed Note
+
+When the PCZT-based signing flow (see [Wallet Signing]) is used, the
+batched circuit MUST include an additional slot for the dummy signed
+note alongside the $N_{\max}$ claimed note slots. This slot has the
+following additional public input:
+
+- $\mathsf{nf^{signed}} ⦂ \{ 0 .. q_ {\mathbb{P}}-1 \}$
+
+and the following additional auxiliary inputs:
+
+- $\mathsf{g_ d^{signed}} ⦂ \mathbb{P}^*$
+- $\mathsf{pk_ d^{signed}} ⦂ \mathbb{P}^*$
+- $\text{ρ}^{\mathsf{signed}} ⦂ \mathbb{F}_ {q_ {\mathbb{P}}}$
+- $\text{ψ}^{\mathsf{signed}} ⦂ \mathbb{F}_ {q_ {\mathbb{P}}}$
+- $\mathsf{rcm^{signed}} ⦂ \{ 0 .. 2^{\ell^{\mathsf{Orchard}}_ {\mathsf{scalar}}}-1 \}$
+- $\mathsf{cm^{signed}} ⦂ \mathbb{P}$
+- $\mathsf{app\_commitment} ⦂ \mathbb{F}_ {q_ {\mathbb{P}}}$
+- $\mathsf{instance\_id} ⦂ \mathbb{F}_ {q_ {\mathbb{P}}}$
+
+The following conditions MUST hold for the dummy signed note:
+
+**Signed note commitment integrity.** $\hspace{0.5em}$
+$\mathsf{NoteCommit^{Orchard}_ {rcm^{signed}}}(\mathsf{repr}_ {\mathbb{P}}(\mathsf{g_ d^{signed}}), \mathsf{repr}_ {\mathbb{P}}(\mathsf{pk_ d^{signed}}), 1, \text{ρ}^{\mathsf{signed}}, \text{ψ}^{\mathsf{signed}}) \in \{ \mathsf{cm^{signed}}, \bot \}$.
+
+The value is fixed to 1 (zatoshi) to match the PCZT value used for
+hardware wallet display (see [Wallet Signing]). The dummy signed note's
+value does not contribute to the claimed balance.
+
+**Signed note nullifier derivation.** $\hspace{0.5em}$
+$\mathsf{nf^{signed}} = \mathsf{DeriveNullifier_ {nk}}(\text{ρ}^{\mathsf{signed}}, \text{ψ}^{\mathsf{signed}}, \mathsf{cm^{signed}})$.
+
+**Rho binding.** $\hspace{0.5em}$
+$\text{ρ}^{\mathsf{signed}} = \mathsf{Poseidon}\bigl(\mathsf{cmx_ 1}, \ldots, \mathsf{cmx_ {N_ {\max}}}, \mathsf{app\_commitment}, \mathsf{instance\_id}\bigr)$
+
+where $\mathsf{cmx_ i} = \mathsf{Extract}_ {\mathbb{P}}(\mathsf{cm^{old}_ i})$
+is the extracted note commitment of the $i$-th claimed note slot
+(real or padded). This binds the hardware wallet's signature to the
+exact set of notes being claimed and the application context.
+
+**Spend authority.** $\hspace{0.5em}$
+$\mathsf{rk} = \mathsf{SpendAuthSig^{Orchard}.RandomizePublic}(\alpha, \mathsf{ak}^{\mathbb{P}})$.
+
+This is the same $\mathsf{rk}$ shared across the $N_{\max}$ claimed
+note slots.
+
+**Diversified address integrity.** $\hspace{0.5em}$
+$\mathsf{pk_ d^{signed}} = [\mathsf{ivk}]\, \mathsf{g_ d^{signed}}$
+where $\mathsf{ivk}$ is derived from the shared
+$\mathsf{ak}^{\mathbb{P}}$ and $\mathsf{nk}$ as in the claimed note
+conditions.
+
 ### Note Padding
 
 To avoid leaking the number of notes a holder is claiming, the circuit
@@ -786,36 +839,16 @@ The wallet constructs a dummy Orchard note as follows:
    A fixed index is used because the address is a private witness inside
    the ZKP circuit and is never publicly transmitted.
 
-2. **Nullifier commitment.** Because the dummy note
-   has no on-chain existence, its fields (including $\text{ρ}$) can be
-   freely chosen. This design utilizes that freedom: $\text{ρ}$ is set to
-   a hash of the delegation context so that the note commitment, and
-   therefore the sighash, cryptographically binds the hardware wallet's
-   signature to the exact set of notes being delegated. This avoids
-   requiring a custom signing protocol; the hardware wallet signs a
-   standard Orchard PCZT, and the binding is enforced by the ZKP circuit
-   rather than by device firmware.
-
-   Concretely, the signed note's $\text{ρ}$ is set to:
-
-$$\text{ρ}^{\mathsf{signed}} = \mathsf{Poseidon}\bigl(\mathsf{cmx}\_\mathsf{1}, \ldots, \mathsf{cmx}\_{N_{\max}}, \mathsf{app\_commitment}, \mathsf{instance\_id}\bigr)$$
-
-   where $\mathsf{cmx}\_\mathsf{1} \ldots \mathsf{cmx}\_{N_{\max}}$ are the
-   extracted note commitments of the $N_{\max}$ delegated note slots
-   (real notes plus zero-value padding notes),
-   $\mathsf{app\_commitment}$ is an application-defined commitment
-   (e.g., a VAN commitment in the voting protocol [^voting-protocol]),
-   and $\mathsf{instance\_id}$ is the usage identifier that uniquely
-   identifies the proof-of-balance instance.
-
-   With $N_{\max} = 5$ this is a 7-input Poseidon hash using the
-   $\mathsf{P128Pow5T3}$ instantiation (width $t = 3$, rate 2) over
-   $\mathbb{F}_{q_{\mathbb{P}}}$. The seven inputs are absorbed in four
-   permutations.
+2. **Nullifier commitment.** The signed note's $\text{ρ}$ is set to
+   the value specified by the rho binding condition in [Dummy Signed Note].
+   Because the dummy note has no on-chain existence, $\text{ρ}$ can be
+   freely chosen; this design binds the hardware wallet's signature to
+   the exact set of notes being claimed and the application context via
+   the ZKP circuit, avoiding the need for a custom signing protocol.
 
 3. **Value.** The note value MUST be set to 1 zatoshi (0.00000001 ZEC)
-   in the PCZT. The Claim circuit treats the signed note value as 0
-   regardless of the PCZT value.
+   in the PCZT, matching the value used in the signed note commitment
+   integrity condition (see [Dummy Signed Note]).
 
 4. **Rseed.** A fresh random $\mathsf{rseed}$ is sampled for the note.
 
@@ -951,10 +984,10 @@ note, Keystone's suppress the display of transaction fields
 information to make an informed signing decision. Setting the value to
 1 zatoshi causes the device to render all fields normally.
 
-The Claim circuit enforces that the signed note value is 0 regardless of
-the PCZT value. The 1-zatoshi value exists solely in the serialized PCZT
-for the benefit of the device's display logic and has no effect on
-protocol security or fund safety.
+The Batched Claim circuit uses the 1-zatoshi value in the signed note
+commitment integrity check (see [Dummy Signed Note]), matching the
+PCZT value. The dummy signed note's value does not contribute to the
+claimed balance.
 
 ## Why a Dummy Note Instead of a Real Note
 
@@ -990,8 +1023,9 @@ the exact delegation context. An attacker cannot replay the signature
 for a different set of notes, a different application commitment, or a
 different usage instance.
 
-This binding is enforced by the Claim circuit, which the application
-verifier checks. The hardware wallet device does not need to understand
+This binding is enforced by the Batched Claim circuit's rho binding
+condition (see [Dummy Signed Note]), which the application verifier
+checks. The hardware wallet device does not need to understand
 the binding; it is sufficient that the device signs the sighash derived
 from the PCZT containing the committed $\text{ρ}$. No custom signing
 protocol is required — the standard Orchard PCZT flow is reused, and
