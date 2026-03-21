@@ -813,6 +813,34 @@ result through its own public outputs. All other conditions of the Claim
 circuit MUST still be enforced.
 
 
+## Application Requirements
+
+An application instantiating this ZIP MUST define the following:
+
+- An **application hotkey**: a key pair generated locally by the wallet,
+  freshly generated per proof-of-balance instance, and not linked to the
+  holder's on-chain Orchard addresses. When the PCZT-based signing flow
+  is used, the output is addressed to this key (see [Wallet Signing]).
+  All subsequent application-level operations use the hotkey in place of
+  the holder's spending key.
+- An **application verifier**: the component that accepts or rejects
+  claims by performing the checks in [Out-of-Circuit Verification]. It
+  MUST maintain a persistent set of accepted alternate nullifiers per
+  domain for double-claim detection.
+- A **nullifier domain** derivation, as specified in [Nullifier Domains].
+- An **application commitment** ($\mathsf{app\_commitment}$): a value
+  that commits to application-specific context, included in the rho
+  binding (see [Dummy Signed Note]). For example, a voting protocol
+  might commit to the delegated vote weight and recipient address.
+- An **instance identifier** ($\mathsf{instance\_id}$): a unique
+  identifier for the proof-of-balance instance, included in the rho
+  binding (see [Dummy Signed Note]).
+- A **sighash derivation**: the method for computing the sighash for the
+  spend authorization signature (see [Spend Authorization Signature]).
+  Applications using the PCZT-based signing flow use the ZIP 244
+  [^zip-244] sighash.
+
+
 ## Wallet Signing
 
 The signing flow proceeds in five steps:
