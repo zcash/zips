@@ -679,7 +679,10 @@ authorization signature $\sigma$ MUST perform the following checks:
 
 The Claim circuit defined in [Claim Circuit] proves a statement about a
 single note. Applications that require proving aggregate balance across
-multiple notes MAY use the following batching extension.
+multiple notes MAY use the following batching extension. Applications
+that use the PCZT-based signing flow (see [Wallet Signing]) MUST use
+the batched circuit, as the dummy signed note (see [Dummy Signed Note])
+requires binding to the claimed note slots.
 
 ### Batched Claim Circuit
 
