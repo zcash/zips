@@ -738,7 +738,7 @@ $\text{ρ}^{\mathsf{signed}} = \mathsf{Poseidon}\bigl(\mathsf{cmx_ 1}, \ldots, \
 
 where $\mathsf{cmx_ i} = \mathsf{Extract}_ {\mathbb{P}}(\mathsf{cm^{old}_ i})$
 is the extracted note commitment of the $i$-th claimed note slot
-(real or padded). This binds the hardware wallet's signature to the
+(real or dummy). This binds the hardware wallet's signature to the
 exact set of notes being claimed and the application context.
 
 **Spend authority.** $\hspace{0.5em}$
@@ -757,46 +757,25 @@ conditions.
 
 To avoid leaking the number of notes a holder is claiming, the circuit
 SHOULD accept a fixed number of note slots $N_ {\max}$ (for example,
-$N_ {\max} = 5$). Unused slots are filled with *padded notes*.
+$N_ {\max} = 5$). Unused slots are filled with dummy notes (Orchard
+notes with $\mathsf{v^{old}} = 0$).
 
-Each note slot carries a private boolean witness
-$\mathsf{is\_real} \in \{0, 1\}$, constrained by
-$\mathsf{is\_real} \cdot (1 - \mathsf{is\_real}) = 0$.
-A padded note is a slot with $\mathsf{is\_real} = 0$.
+Dummy notes use the same Merkle path validity check as the standard
+Orchard Action circuit [^protocol-actionstatement]: if
+$\mathsf{v^{old}} = 0$, the Merkle path check is skipped.
 
-A padded note MUST satisfy the following:
+All other conditions are enforced unconditionally:
 
-- **Value.** The value MUST be 0, enforced by the constraint
-  $(1 - \mathsf{is\_real}) \cdot \mathsf{v^{old}} = 0$.
-- **Value commitment.** The value commitment is computed for every slot
-  (not gated). Padded notes commit to value 0 with a fresh
-  $\mathsf{rcv}$.
-- **Ownership.** The note is derived from the same full viewing key as
-  real notes (using a distinct diversifier index per padded slot), so it
-  passes the diversified address integrity check with the shared
-  $\mathsf{ivk}$.
-- **Note commitment integrity.** The commitment is recomputed from the
-  padded note's plaintext (value 0, random nullifier, random
-  $\text{ψ}$, fresh $\mathsf{rcm}$) and constrained to equal the
-  witnessed $\mathsf{cm}$. This check is not gated by
-  $\mathsf{is\_real}$.
-- **Merkle membership.** The Merkle path is computed for the padded
-  note, but the root equality check is gated:
-  $\mathsf{is\_real} \cdot (\mathsf{root} - \mathsf{rt^{cm}}) = 0$.
-  For padded notes ($\mathsf{is\_real} = 0$) the constraint is
-  trivially satisfied regardless of the computed root, effectively
-  skipping the membership check.
-- **Nullifier non-membership.** The IMT non-membership check is NOT
-  gated by $\mathsf{is\_real}$. Padded notes MUST provide a valid
-  non-membership proof against $\mathsf{rt^{excl}}$. Because padded
-  nullifiers are random field elements, they fall within an unrevealed
-  interval with overwhelming probability.
-- **Nullifier derivation.** The standard nullifier is derived in-circuit
-  (not gated). It is used for the non-membership check and the alternate
-  nullifier derivation but is never revealed.
-- **Alternate nullifier.** The alternate nullifier is derived and
-  published for every slot (not gated). The application verifier MAY
-  ignore alternate nullifiers corresponding to zero-value slots.
+- Dummy notes commit to value 0 with a fresh $\mathsf{rcv}$.
+- Dummy notes are derived from the same full viewing key as real notes
+  (using a distinct diversifier index per slot).
+- Dummy notes MUST provide a valid non-membership proof against
+  $\mathsf{rt^{excl}}$. Because dummy nullifiers are random field
+  elements, they fall within an unrevealed interval with overwhelming
+  probability.
+- The alternate nullifier is derived and published for every slot. The
+  application verifier MAY ignore alternate nullifiers corresponding
+  to zero-value slots.
 
 
 ## Sub-Circuit Instantiation
