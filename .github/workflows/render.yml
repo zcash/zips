@@ -18,7 +18,8 @@ jobs:
           if [ -e rendered ]; then exit 1; fi
           if [ -e base_ref ]; then exit 1; fi
 
-      - uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
 
       - name: Restore Nix store cache
         id: nix-cache
@@ -45,5 +46,15 @@ jobs:
       - name: Export Nix store for caching
         if: steps.nix-cache.outputs.cache-hit != 'true'
         run: |
+          # Free up some space before creating the (possibly very large) store tarball.
+          df
+          dpkg-query -Wf '${Installed-Size}\t${Package}\n' | sort -rn 2>/dev/null | head -30
+          docker system prune --all --force || /bin/true
+          sudo apt-get -y remove --purge \
+            '^docker.*' '^microsoft-edge.*' azure-cli '^google-cloud-cli.*' '^google-chrome.*' \
+            firefox java-common '^llvm-.*' '^libllvm.*' '^libclang-.*' '^mysql-.*' powershell snapd
+          sudo apt-get -y autoremove --purge
+          dpkg-query -Wf '${Installed-Size}\t${Package}\n' | sort -rn 2>/dev/null | head -30
+          df
           mkdir -p /tmp/nix-closure
           nix-store --export $(nix-store -qR /tmp/dev-profile) > /tmp/nix-closure/store.nar
