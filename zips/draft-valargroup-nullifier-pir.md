@@ -80,7 +80,7 @@ Both schemes operate on the same nullifier exclusion tree. They differ
 only in how the client retrieves authentication path data from the
 server.
 
-**Version 0 (full download):** The client downloads the complete
+**Full download:** The client downloads the complete
 exclusion tree data (the Tier 0 plaintext, all Tier 1 rows, and all
 leaf records) and locally computes Tier 2 internal node hashes on
 demand. This scheme requires no cryptographic interaction with the server
@@ -88,7 +88,7 @@ and leaks no information about which nullifier the client is checking,
 at the cost of a larger download (approximately 3.3 GB for the Orchard
 nullifier set of size 49,813,801 as of Mainnet block height 3,268,870).
 
-**Version 1 (YPIR+SP):** The client retrieves authentication path data
+**PIR (YPIR+SP):** The client retrieves authentication path data
 via two sequential PIR queries using YPIR+SP [^YPIR], a single-server
 PIR protocol built on SimplePIR [^SimplePIR] whose security depends on
 LWE and RLWE. YPIR+SP requires a single untrusted server, no
@@ -168,14 +168,14 @@ the PIR construction has undergone full external review.
 
 # Privacy Implications
 
-**Version 0 (full download).** Because the client downloads the entire
+**Full download.** Because the client downloads the entire
 tree regardless of which nullifier it is checking, the server learns
 nothing about the client's query target. The server does learn that the
 client is participating in whatever protocol uses the exclusion tree for
 the current Protocol Epoch. No query-count metadata is leaked because
 the download is a single request independent of the number of notes.
 
-**Version 1 (YPIR+SP).** Query privacy rests on the [Regev encryption] of
+**PIR (YPIR+SP).** Query privacy rests on the [Regev encryption] of
 the client's selection vector. Regev encryption ensures the query is
 computationally indistinguishable from random under the LWE assumption.
 Therefore the server learns nothing about the target
@@ -1328,18 +1328,18 @@ leaf encoding, and authentication path structure. They differ only in
 how the client obtains the tier data needed to assemble the
 authentication path.
 
-The server MUST advertise the retrieval scheme versions it supports.
-Servers MUST support version 0. Servers MAY additionally support
-version 1.
+The server MUST advertise the retrieval schemes it supports.
+Servers MUST support full download. Servers MAY additionally support
+PIR retrieval.
 
 A client MUST verify that the server supports the client's chosen
-retrieval scheme version before issuing queries. If the server does not
-support the client's preferred version, the client MUST fall back to
-version 0.
+retrieval scheme before issuing queries. If the server does not
+support the client's preferred scheme, the client MUST fall back to
+full download.
 
-Wallet implementations MUST support version 0. Wallet implementations
-MAY support version 1. Wallet implementations that support both
-versions MUST allow the user to select which version to use.
+Wallet implementations MUST support full download. Wallet
+implementations MAY support PIR retrieval. Wallet implementations that
+support both schemes MUST allow the user to select which to use.
 
 ## Instantiations
 
@@ -1347,7 +1347,7 @@ versions MUST allow the user to select which version to use.
 
 The server MUST construct the exclusion tree and the corresponding tier
 databases once from the nullifier set at the start of each Protocol
-Epoch. For servers supporting version 1, this includes the PIR databases
+Epoch. For servers supporting PIR retrieval, this includes the PIR databases
 (Tiers 0, 1, and 2). The databases are static for the duration of the
 epoch.
 
@@ -1747,7 +1747,7 @@ sibling leaf hash in Tier 2.
 
 ##### Query Completion Requirement
 
-This requirement applies to version 1 (YPIR+SP) clients only. Version 0
+This requirement applies to PIR retrieval clients only. Full download
 clients download all data in a single request and are not subject to
 this requirement.
 
@@ -1760,9 +1760,9 @@ Tier 1 response MUST NOT be allowed to prevent the Tier 2 query from being
 sent. See [Rationale for Query Completion Requirement] for the attack
 that motivates this requirement.
 
-### Version 0: Full Download
+### Full Download Retrieval
 
-Version 0 provides a full download retrieval scheme in which the client
+Full download provides a retrieval scheme in which the client
 downloads all tree data from the server and computes authentication
 paths locally. Because the client downloads the same data regardless of
 which nullifier it is checking, the server learns nothing about the
@@ -1770,7 +1770,7 @@ client's query target.
 
 #### Server Data
 
-A version 0 server MUST make the following data available for download:
+A server supporting full download MUST make the following data available:
 
 1. **Tier 0 data** (196,576 bytes): identical to the Tier 0 plaintext
    payload specified in [Tier 0: Plaintext Broadcast (Depths 0–11)].
@@ -1792,7 +1792,7 @@ height 3,268,870), the total download is approximately 3.2 GB
 (dominated by the leaf records). With standard HTTP compression
 (e.g., gzip or zstd), this is expected to be approximately 2 GB.
 
-#### Client Procedure (Version 0)
+#### Client Procedure (Full Download)
 
 For each note whose nullifier exclusion proof is needed:
 
@@ -1835,7 +1835,7 @@ For each note whose nullifier exclusion proof is needed:
    authentication path and the target leaf hash, and verify it against
    the published depth-29 root.
 
-#### Computation Summary (Version 0)
+#### Computation Summary (Full Download)
 
 | Step                  | Hashes per note |
 | --------------------- | --------------- |
@@ -1852,24 +1852,24 @@ For a wallet proving $k$ notes, the total is $510k$ Poseidon hashes.
 
 Providing two retrieval schemes addresses two distinct concerns:
 
-1. **Minimal trust baseline.** Version 0 (full download) requires no
-   cryptographic assumptions beyond the collision resistance of Poseidon.
-   The server cannot learn which nullifier the client is checking because
-   the client downloads the entire tree. This provides a baseline that
-   is usable even before the YPIR+SP construction has undergone full
+1. **Minimal trust baseline.** Full download requires no cryptographic
+   assumptions beyond the collision resistance of Poseidon. The server
+   cannot learn which nullifier the client is checking because the
+   client downloads the entire tree. This provides a baseline that is
+   usable even before the YPIR+SP construction has undergone full
    external review.
 
-2. **Bandwidth efficiency.** Version 1 (YPIR+SP) reduces per-query
-   bandwidth from approximately 3.3 GB to approximately 3.5 MB, making
-   it practical for mobile wallets. However, its privacy guarantee
-   depends on the hardness of LWE and RLWE.
+2. **Bandwidth efficiency.** PIR retrieval reduces per-query bandwidth
+   from approximately 3.3 GB to approximately 3.5 MB, making it
+   practical for mobile wallets. However, its privacy guarantee depends
+   on the hardness of LWE and RLWE.
 
-Version 0 reuses the same tree structure and tier layout as version 1.
-The Tier 0 plaintext and Tier 1 rows are served identically; the only
-difference is that version 0 clients download all Tier 2 leaf records
-directly instead of issuing encrypted PIR queries. This design avoids
-maintaining two separate tree formats and allows servers to support both
-versions from the same tree build.
+Full download reuses the same tree structure and tier layout as PIR
+retrieval. The Tier 0 plaintext and Tier 1 rows are served identically;
+the only difference is that full download clients download all Tier 2
+leaf records directly instead of issuing encrypted PIR queries. This
+design avoids maintaining two separate tree formats and allows servers
+to support both schemes from the same tree build.
 
 The full download omits Tier 2 internal node hashes to reduce download
 size. Tier 2 has 262,144 rows of 254 internal nodes each (254 × 32 =
