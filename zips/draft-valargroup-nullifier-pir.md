@@ -176,9 +176,9 @@ the recovered data. See [Rationale for Query Completion Requirement] for a detai
   or client state carried over from a previous session.
 - Single untrusted server with no per-client state. The server holds only
   the public database and processes PIR queries statelessly. A client could
-  PIR query multiple independent servers without requiring coordination
+  PIR Query multiple independent servers without requiring coordination
   between them.
-- Total bandwidth for a nullifier exclusion proof query (upload plus download)
+- Total bandwidth for a Nullifier Exclusion Proof Query (upload plus download)
   under 10MB, suitable for mobile networks.
 - Exclusion-tree work stays practical on both sides of the proof:
   server-side tree construction, padding, and PIR database generation
@@ -186,7 +186,7 @@ the recovered data. See [Rationale for Query Completion Requirement] for a detai
   verification of the retrieved authentication path.
 - 128-bit computational security with correctness error probability at
   most $2^{-40}$. A client can detect and recover from a correctness
-  error by re-issuing the PIR query under new secret keys.
+  error by re-issuing a PIR Query under new secret keys.
 
 
 # Non-requirements
@@ -237,9 +237,9 @@ sequential PIR queries:
 1. The client obtains Tier 0 and uses the target nullifier to identify
    the index of the Tier 1 subtree containing the exclusion range for
    that nullifier.
-2. The client issues a PIR query for the corresponding Tier 1 row.
+2. The client issues a PIR Query for the corresponding Tier 1 row.
 3. From the Tier 1 row, the client derives the Tier 2 row index and
-   issues a second PIR query. If there is an error in Tier 1 row retrieval, the
+   issues a second PIR Query. If there is an error in Tier 1 row retrieval, the
    client queries for a random Tier 2 row index.
 4. From Tier 0 and the recovered Tier 1 and Tier 2 rows, the client
    reconstructs the depth-26 authentication path used for nullifier
@@ -250,7 +250,18 @@ sequential PIR queries:
 The client only computes a O(depth) number of hashes, namely to check validity
 of its retrieved authentication path.
 
-For each PIR tier, the client hides the selected row with Regev
+Each PIR Query is done via YPIR+SP, where SP stands for "SimplePIR". In YPIR+SP,
+the server organizes a database of N entries into $\sqrt{N} \cross \sqrt{N}$ 
+matrix. The intuition is that the client additively-homomorphically encrypts a 
+"selector vector", which if multiplied by the database-matrix, returns a single matrix column. This is the "SimplePIR" style of operation.
+We consider ourselves as operating over the transpose of the matrix, so we can
+continue always talk about the rows of the database, rather its columns. (TODO:
+is this actually helping making the explanation simpler, re-examine after DB
+layout is explained in ZIP)
+Then the server packs this encrypted column from LWE ciphertexts into RLWE
+ciphertexts, letting us remove the precomputed database hint from SimplePIR.
+
+Thus for each PIR tier, the client hides their selected database row with Regev
 encryption, the server evaluates the corresponding SimplePIR-style
 matrix-vector product, and YPIR+SP packs the resulting response into
 RLWE ciphertexts so that the client does not need a precomputed
@@ -274,7 +285,7 @@ This ZIP specifies the YPIR+SP scheme [^YPIR].
 
 `Client_Query`
 
-: Client-side query construction: sample fresh query material
+: Client-side query construction: sample fresh PIR Query material
   ([Client Key Generation]); construct the row-selector encryption
   ([Regev Encryption]); form the deployed transmitted query object
   ([Query Generation]); and send that query using an
@@ -332,7 +343,7 @@ $$q = q_{2,1} \cdot q_{2,2} = 66\,974\,689\,739\,603\,969 \approx 2^{56}.$$
 Throughout this ZIP, $q$ denotes both the selector-level and packing-level
 ciphertext modulus. That is,
 
-$$q = q_{2,1} \cdot q_{2,2}.$$
+$$q = q_{2,1} \cdot q_{2,2}$$
 
 Both primes satisfy $q_{2,1} \equiv q_{2,2} \equiv 1 \pmod{2d}$ (with
 $d = 2048$), the condition
@@ -343,7 +354,7 @@ remain within 64-bit machine words.
 
 For transmission after packing, implementations MUST use split modulus
 switching with target coefficient moduli
-$q_\mathsf{mask} = 268\,369\,921$ and $q_\mathsf{payload} = 2^{20}$.
+$q_\mathsf{mask} = q_{2,1} = 268\,369\,921$ and $q_\mathsf{payload} = 2^{20}$.
 
 For packing-key generation and CDKS key-switching, implementations MUST
 use gadget base
@@ -386,11 +397,7 @@ objects, coefficients MUST be interpreted via canonical representatives.
 
 ## Regev Encryption
 
-Row selection is represented in LWE form over $\mathbb{Z}_q$, with selector dimension $n = 2048$, ciphertext modulus
-$q = q_{2,1} \cdot q_{2,2}$, plaintext modulus $p = 2^{14}$, and scaling factor
-$\Delta = \lfloor q / p \rfloor$.
-
-Let $m$ be the number of database rows and let
+Let $m$ be the number of database rows. The client will be doing Regev encryption in LWE form over $\mathbb{Z}_q$, on a row-selector vector. Let
 $\mu_i \in \mathbb{Z}_p^m$ denote the row-selector vector for row index $i$,
 where $\mu_i[j] = 1$ exactly when $j = i$ and $\mu_i[j] = 0$ otherwise.
 
@@ -399,8 +406,7 @@ $\mathsf{seed\_A}$ as specified in
 [Expansion of $\mathsf{seed\_A}$ (Row-Selector Public Randomness)] and
 [Negacyclic Extraction of the Deployed Selector Matrix].
 
-The deployed selector path does not sample an independent LWE secret vector.
-Instead, for each query the client samples one fresh ring secret
+For each query the client samples one fresh ring secret
 $s^\star \in R_q = \mathbb{Z}_q[X]/(X^d + 1)$ as specified in
 [Client Key Generation], with $d = n = 2048$. The selector LWE secret
 vector $\mathbf{s} \in \mathbb{Z}_q^n$ is derived from $s^\star$ as
@@ -808,7 +814,7 @@ $\mathsf{LiftModulusSwitchedRLWECiphertext}((a', b'))$ as follows:
 
 ### Client Key Generation
 
-For each query, the client MUST sample one fresh packing/query secret
+For each PIR Query, the client MUST sample one fresh packing/query secret
 
 $$
 s^\star(X) = \sum_{j=0}^{d-1} s^\star_j X^j \in R_q,
