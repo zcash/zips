@@ -154,7 +154,7 @@ database, ensuring that its access pattern reveals nothing about the target.
 The client retrieves the exclusion proof from an untrusted server without
 revealing which nullifier it is checking (see [PIR Construction]).
 
-This ZIP also specifies a non-PIR alternative (v0) in which the client
+This ZIP also specifies a full download (v0) in which the client
 downloads the complete exclusion tree and computes authentication paths
 locally. While more bandwidth-intensive, the full download scheme
 requires no trust assumptions beyond data integrity: the server learns
@@ -1762,7 +1762,7 @@ that motivates this requirement.
 
 ### Version 0: Full Download
 
-Version 0 provides a non-PIR retrieval scheme in which the client
+Version 0 provides a full download retrieval scheme in which the client
 downloads all tree data from the server and computes authentication
 paths locally. Because the client downloads the same data regardless of
 which nullifier it is checking, the server learns nothing about the
