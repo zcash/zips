@@ -216,7 +216,16 @@ The nullifier exclusion tree is split into three tiers (ranges of depths):
 - Tier 2 contains depth-18 to depth-26 subtrees and is served as a PIR database.
 
 Each Tier contains every inner node hash, and information for the range of
-nullifiers in each descendant sub-tree.
+nullifiers in each descendant sub-tree. The reason for containing every inner 
+node hash is to reduce the amount of client hashing required. We encode the 
+range of nullifiers in each descendant sub-tree, using one 32 byte value at 
+every leaf. So Tier 0's size is 196kb, computed as follows:
+- One value for every depth=11 node, where each leaf contains (node_hash, 
+ max_valid_nullifier_in_sub_tree), which is 64 bytes. This is a total of $64 * 2^11 = 131\,072 \text{bytes}$
+- Every inner node's hash, which is $32 * (2^11 - 1) = 65\,504 \text{bytes}$
+
+Similar analysis applies for every other tier, where the number of rows in a tier is $2^(initial\_depth)$. Lowering the number of initial rows is the primary optiomization target.
+
 Each proof retrieval consists of the Tier 0 plaintext download plus two
 sequential PIR queries:
 
