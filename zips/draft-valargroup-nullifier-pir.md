@@ -171,18 +171,18 @@ the recovered data. See [Rationale for Query Completion Requirement] for a detai
   its first query without any prior download beyond the query itself
   or client state carried over from a previous session.
 - Single untrusted server with no per-client state. The server holds only
-  the public database and processes queries statelessly. A client could
-  query multiple independent servers without requiring coordination
+  the public database and processes PIR queries statelessly. A client could
+  PIR query multiple independent servers without requiring coordination
   between them.
-- Total bandwidth per query (upload plus download) under
-  10MB, suitable for mobile networks.
+- Total bandwidth for a nullifier exclusion proof query (upload plus download)
+  under 10MB, suitable for mobile networks.
 - Exclusion-tree work stays practical on both sides of the proof:
   server-side tree construction, padding, and PIR database generation
   for each snapshot, and in-circuit
   verification of the retrieved authentication path.
 - 128-bit computational security with correctness error probability at
   most $2^{-40}$. A client can detect and recover from a correctness
-  error by re-issuing the query.
+  error by re-issuing the PIR query under new secret keys.
 
 
 # Non-requirements
