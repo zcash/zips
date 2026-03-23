@@ -156,8 +156,9 @@ document:
   a single client.
 
 Because each note's retrieval consists of two sequential PIR queries, if a
-client failure occurs during the processing of the first query, the client must
-still complete the second query. Suppressing the second query would give
+client failure occurs during the processing of the first query, the client
+is still required to complete the second query, as specified in
+[Query Completion Requirement]. Suppressing the second query would give
 the server an error-based oracle that can leak a bit of the queried row index.
 A malicious server can craft responses that cause failures during PIR
 decryption, during response decoding, or during application-level validation of 
@@ -1674,9 +1675,9 @@ sibling leaf hash in Tier 2.
 A client MUST transmit both PIR queries (Tier 1 and Tier 2) for every
 note, regardless of whether the Tier 1 response was successfully
 decrypted and regardless of whether the decrypted values pass
-application-level validation. No failure — at the cryptographic,
-decoding, or application layer — that occurs while processing the
-Tier 1 response MUST be allowed to prevent the Tier 2 query from being
+application-level validation. Any failures — at the cryptographic,
+decoding, or application layer — that occur while processing the
+Tier 1 response MUST NOT be allowed to prevent the Tier 2 query from being
 sent. See [Rationale for Query Completion Requirement] for the attack
 that motivates this requirement.
 
