@@ -25,6 +25,10 @@ PIR (Private Information Retrieval)
   a server-held database without the server learning which record was
   requested.
 
+PIR Query
+
+: A request for a record made by the client of a PIR protocol.
+
 LWE (Learning With Errors)
 
 : A lattice-based cryptographic assumption based on the hardness of obtaining
