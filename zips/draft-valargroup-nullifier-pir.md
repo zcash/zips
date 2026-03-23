@@ -70,7 +70,7 @@ Protocol Epoch
 # Abstract
 
 This document specifies two retrieval schemes for nullifier exclusion
-proofs from a Zcash nullifier set, versioned as v0 and v1. Any
+proofs from a Zcash nullifier set: full download and PIR. Any
 point-in-time protocol requiring proof-of-balance (such as airdrops,
 stake-weighted polling, or governance voting) needs to verify that notes
 are unspent by checking their nullifiers against the spent set, without
@@ -109,8 +109,8 @@ path. Total bandwidth is approximately 3.5 MB on
 the first query, or approximately 3.3 MB once the Tier 0 plaintext is cached
 (dominated by the Tier 2 upload).
 
-Wallet implementations are required to support v0 and can optionally
-support v1. See [Retrieval Scheme Versioning] for the conformance
+Wallet implementations are required to support full download and can
+optionally support PIR. See [Retrieval Scheme Versioning] for the conformance
 requirements.
 
 
@@ -154,14 +154,14 @@ database, ensuring that its access pattern reveals nothing about the target.
 The client retrieves the exclusion proof from an untrusted server without
 revealing which nullifier it is checking (see [PIR Construction]).
 
-This ZIP also specifies a full download (v0) in which the client
+This ZIP also specifies a full download alternative in which the client
 downloads the complete exclusion tree and computes authentication paths
 locally. While more bandwidth-intensive, the full download scheme
 requires no trust assumptions beyond data integrity: the server learns
 nothing because the client downloads everything, and the client can
 independently verify the tree against published roots. Providing both
 schemes allows wallet implementations to offer a choice between
-bandwidth efficiency (v1) and minimal trust assumptions (v0), and
+bandwidth efficiency (PIR) and minimal trust assumptions (full download), and
 ensures that the nullifier exclusion proof system is usable even before
 the PIR construction has undergone full external review.
 
@@ -263,9 +263,9 @@ every leaf. So Tier 0's size is 196kb, computed as follows:
 
 Similar analysis applies for every other tier, where the number of rows in a tier is $2^(initial\_depth)$. Lowering the number of initial rows is the primary optiomization target.
 
-This ZIP specifies two retrieval schemes. Under v0 (full download), the
+This ZIP specifies two retrieval schemes. Under full download, the
 client downloads Tier 0, all Tier 1 rows, and all leaf records, then
-computes Tier 2 internal nodes locally for each note. Under v1 (YPIR+SP),
+computes Tier 2 internal nodes locally for each note. Under PIR retrieval,
 each proof retrieval consists of the Tier 0 plaintext download plus two
 sequential PIR queries:
 
@@ -1871,7 +1871,7 @@ directly instead of issuing encrypted PIR queries. This design avoids
 maintaining two separate tree formats and allows servers to support both
 versions from the same tree build.
 
-The v0 download omits Tier 2 internal node hashes to reduce download
+The full download omits Tier 2 internal node hashes to reduce download
 size. Tier 2 has 262,144 rows of 254 internal nodes each (254 × 32 =
 8,128 bytes per row), totaling approximately 2 GB. Including them would
 nearly double the download size. Instead, the client computes the 510
