@@ -56,23 +56,31 @@ and *vote chain*, see [^coinholder-voting].
 
 This ZIP specifies the submission server, a protocol participant in
 the Zcash shielded voting system that receives encrypted vote shares
-from voters and submits them to the vote chain at randomized intervals.
-The server constructs a Vote Reveal Proof for each share, mixing
-submissions from many voters into a single interleaved stream that
+from voters and submits them to the vote chain at client-specified
+times. The server constructs a Vote Reveal Proof for each share and
+submits the corresponding transaction at the time designated by the
+voter, interleaving submissions from many voters into a stream that
 destroys timing correlations.
 
 Without temporal mixing, a voter who submits $N_s$ shares for $P$
 proposals produces $N_s \times P$ transactions in a short burst. An
 observer can group these by timing, and after the tally is published,
 cross-reference the group against low-participation proposal options to
-narrow the voter's balance to a small range. The submission server
-eliminates this attack surface by interleaving shares from many voters
-across the entire voting window.
+narrow the voter's balance to a small range. Client-controlled
+submission timing eliminates this attack surface: each share carries a
+$\mathsf{submit\_at}$ timestamp sampled uniformly from the remaining
+voting window, spreading shares from a single voter across time and
+interleaving them with shares from other voters.
 
 Each share is sent to half of the available servers, balancing
 censorship resistance (redundancy ensures an honest server can relay)
 against amount privacy (limiting the servers that see each share's
 ciphertext).
+
+Voters who cast their vote near the end of the voting window use a
+reduced *last-moment mode*: a single share carrying the full ballot
+count is submitted immediately, sacrificing temporal mixing in exchange
+for guaranteed inclusion before the deadline.
 
 
 # Motivation
@@ -93,25 +101,30 @@ of the voter's choices, and social context (forum posts, public
 advocacy) can close the remaining gap.
 
 The submission server solves this by introducing an intermediary that
-collects shares from many voters and submits them interleaved at
-randomized delays across the voting window. The $N_s \times P$
-transactions from a single voter are mixed into a stream of thousands
-of similar transactions from hundreds of voters. The timing fingerprint
-is destroyed.
+holds shares and submits them at client-specified times spread across
+the voting window. The $N_s \times P$ transactions from a single voter
+are interleaved into a stream of thousands of similar transactions from
+hundreds of voters. The timing fingerprint is destroyed.
 
-Delegating proof construction to a server also addresses mobile client
-reliability: a mobile client may be killed or lose connectivity at the
-scheduled submission time for temporal mixing. Servers are always-on and can complete share submission reliably.
+The client samples a $\mathsf{submit\_at}$ timestamp for each share,
+drawn uniformly from the remaining voting window. The server holds the
+share until that time, then constructs the Vote Reveal Proof and
+submits the transaction. This design gives the client control over its
+own temporal mixing distribution while delegating proof construction
+and reliable delivery to the always-on server. A mobile client may be
+killed or lose connectivity at the scheduled submission time, but the
+server guarantees delivery.
 
 
 # Privacy Implications
 
-**Temporal mixing.** The submission server's primary privacy
-contribution is destroying timing correlations between a voter's
-shares. Without mixing, an observer can group shares by submission
-time and, after tally publication, use low-participation proposal
-options to reconstruct individual balances. With mixing, the observer
-sees only a uniform stream of share reveals from many voters.
+**Temporal mixing.** The client's primary privacy mechanism is
+spreading share submissions across the voting window by sampling
+independent $\mathsf{submit\_at}$ timestamps. The submission server
+executes these schedules reliably, interleaving shares from many
+voters into a uniform stream. Without this mixing, an observer can
+group shares by submission time and, after tally publication, use
+low-participation proposal options to reconstruct individual balances.
 
 **Per-server information.** Each submission server learns the encrypted
 share ciphertext and blind factor for the single share it reveals, the
@@ -158,13 +171,26 @@ delegation proof and the alternate nullifier unlinkability property
 established in [^balance-proof]; the EA never sees anything that
 connects the two.
 
-**Timing metadata.** The primary trust requirement on submission
-servers is not leaking timing metadata that could re-link shares to
-voters. Using multiple independent servers with randomized submission
-delays mitigates this risk, but a server that logs receipt timestamps
-could correlate shares received in the same session. Voters who
+**Timing metadata.** Submission servers see $\mathsf{submit\_at}$
+timestamps but these are independently sampled per share and do not
+reveal the voter's identity or total ballot count. A server that logs
+receipt timestamps could correlate shares received in the same session,
+but because each share is sent to independently selected server
+subsets, no single server sees all of a voter's shares. Voters who
 distribute shares across multiple servers limit any single server's
 view of their submission pattern.
+
+**Last-moment privacy trade-off.** Voters who cast within the
+last-moment buffer (see [Last-Moment Voting]) submit a single share
+carrying their full ballot count with immediate delivery. This
+sacrifices temporal mixing entirely: the share's on-chain arrival time
+directly reflects when the voter cast. The trade-off is accepted
+because each share requires the server to construct a Vote Reveal
+Proof (a computationally expensive ZKP), and with little time
+remaining the server may not complete all 16 proofs before the
+deadline — resulting in a partially counted or entirely lost vote.
+A single share requires only one proof, prioritizing inclusion over
+mixing.
 
 
 # Requirements
@@ -208,11 +234,13 @@ For each share payload received, the server MUST:
 1. Validate the payload: verify that the vote commitment exists in the
    VCT at the claimed position, that the blinded share commitment at
    the claimed index is consistent with the provided ciphertext and
-   blind factor, and that the share nullifier has not already been
-   published.
-2. Enqueue the share for delayed submission.
-3. After the randomized delay expires, obtain the current VCT Merkle
-   path for the vote commitment.
+   blind factor, that the share nullifier has not already been
+   published, and that $\mathsf{submit\_at} \leq \mathsf{vote\_end\_time}$.
+2. Enqueue the share for submission at the client-specified
+   $\mathsf{submit\_at}$ time (or immediately if
+   $\mathsf{submit\_at} = 0$).
+3. At the scheduled time, obtain the current VCT Merkle path for the
+   vote commitment.
 4. Derive the share nullifier.
 5. Construct the Vote Reveal Proof.
 6. Submit the share reveal transaction to the vote chain.
@@ -221,23 +249,85 @@ If the share reveal transaction is rejected (e.g., because another
 server already revealed the same share), the server SHOULD discard the
 payload without retry.
 
-## Temporal Mixing
+## Submission Timing
 
-The submission server MUST NOT submit share reveal transactions
-immediately upon receipt. Instead, it MUST enqueue each share and
-submit it after a randomized delay drawn uniformly from the remaining
-voting window:
+Each share payload includes a $\mathsf{submit\_at}$ field: a Unix
+timestamp (seconds) specifying when the server SHOULD submit the
+corresponding share reveal transaction. The server MUST NOT submit the
+share before this time.
 
-$$\mathsf{delay} \leftarrow \mathsf{Uniform}(0, \; \mathsf{vote\_end\_time} - \mathsf{now})$$
+- When $\mathsf{submit\_at} > 0$, the server enqueues the share and
+  submits it at or shortly after the specified time. Small inter-share
+  jitter (on the order of seconds) SHOULD be applied to avoid
+  simultaneous transaction bursts when multiple shares target nearby
+  timestamps.
+- When $\mathsf{submit\_at} = 0$, the server MUST submit the share as
+  soon as possible (last-moment mode; see [Last-Moment Voting]).
 
-This ensures that shares from a single voter are spread across the
-entire remaining window and interleaved with shares from other voters.
-The server MUST NOT batch shares from the same session or submit them
-in receipt order.
+The server MUST reject any payload where
+$\mathsf{submit\_at} > \mathsf{vote\_end\_time}$ with an error.
 
-A server that receives a share with less than a configurable minimum
-remaining window (e.g., 10 minutes) SHOULD submit it promptly rather
-than risk missing the deadline.
+### Client-Side Delay Sampling
+
+The client is responsible for choosing $\mathsf{submit\_at}$ for each
+share. For normal votes (cast outside the last-moment buffer), the
+client MUST sample each share's submission time independently from a
+uniform distribution over the remaining voting window:
+
+$$\mathsf{submit\_at} \leftarrow \mathsf{Uniform}(\mathsf{now}, \; \mathsf{vote\_end\_time} - \mathsf{last\_moment\_buffer})$$
+
+The upper bound excludes the last-moment buffer to ensure all shares
+are submitted before the window in which last-moment voters begin
+casting. See [Last-Moment Voting] for the buffer definition.
+
+The client MUST NOT batch shares or assign identical timestamps.
+Independent sampling ensures that shares from a single voter are spread
+across time and interleaved with shares from other voters.
+
+## Last-Moment Voting
+
+A voter who casts within the *last-moment buffer* (the final portion
+of the voting window) uses a reduced submission mode:
+
+### Last-Moment Buffer
+
+The last-moment buffer is defined as:
+
+$$\mathsf{last\_moment\_buffer} = \min\!\left(\left\lfloor 0.1 \times (\mathsf{vote\_end\_time} - \mathsf{ceremony\_start}) \right\rfloor, \; 3600\right)$$
+
+That is, 10% of the total round duration (from ceremony completion to
+vote end), capped at 1 hour. A voter is in last-moment mode when:
+
+$$\mathsf{now} \geq \mathsf{vote\_end\_time} - \mathsf{last\_moment\_buffer}$$
+
+### Single-Share Mode
+
+In last-moment mode, the client MUST:
+
+1. Place the entire ballot count into a single share (share index 0).
+   The remaining $N_s - 1$ share slots carry zero value.
+2. Build only one share payload (for share index 0).
+3. Set $\mathsf{submit\_at} = 0$ (immediate submission).
+
+The server processes immediate shares without inter-share jitter delay.
+
+### Privacy Rationale
+
+Last-moment mode sacrifices temporal mixing for guaranteed inclusion.
+Each share requires the server to construct a Vote Reveal Proof — a
+computationally expensive ZKP — before submitting the transaction.
+With 16 shares and little time remaining, the server may not complete
+all 16 proofs before the voting window closes, resulting in lost votes.
+A single share requires only one proof, maximizing the likelihood that
+the vote is included before the deadline. Getting the vote counted is
+more important than preserving temporal mixing when the window is
+nearly closed.
+
+The on-chain footprint of a last-moment vote is indistinguishable from
+a single normal share reveal (same transaction format, same proof
+type). An observer cannot determine whether a share reveal near the
+deadline is a last-moment vote or a normally-timed share that happened
+to be scheduled late.
 
 ## Server Selection
 
@@ -303,10 +393,13 @@ share is sent to $\lceil s/2 \rceil$ servers, the share will still be
 revealed by another server unless all $\lceil s/2 \rceil$ recipients
 fail simultaneously.
 
-Servers SHOULD persist enqueued shares to durable storage so that
-shares survive process restarts. A server that restarts during the
-voting window SHOULD resume submission of any persisted shares whose
-deadlines have not yet passed.
+Servers SHOULD persist enqueued shares (including their
+$\mathsf{submit\_at}$ timestamps) to durable storage so that shares
+survive process restarts. A server that restarts during the voting
+window SHOULD resume submission of any persisted shares whose
+$\mathsf{submit\_at}$ times have not yet passed. For shares whose
+$\mathsf{submit\_at}$ has already elapsed, the server SHOULD submit
+them as soon as possible after restart.
 
 Servers SHOULD NOT persist share data beyond the end of the voting
 round. After the round transitions to TALLYING, all share payloads,
@@ -321,15 +414,16 @@ securely erased.
 Naively submitting votes reveals balance through metadata. Even with
 encrypted amounts, an observer can group transactions by timing, and
 after tally publication, use low-participation proposal options to
-narrow individual balances. The submission server is the minimal
-additional protocol participant that solves temporal unlinkability
-without requiring complex client-side background scheduling.
+narrow individual balances. The submission server solves this by
+providing reliable, always-on execution of client-specified submission
+schedules and by constructing Vote Reveal Proofs on the voter's behalf.
 
-Client-side temporal mixing (where the wallet itself staggers
+Fully client-side temporal mixing (where the wallet itself staggers
 submissions over the voting window) was considered but rejected for
 reliability: mobile clients may be killed, lose connectivity, or enter
-low-power states during the multi-hour voting window. A server provides
-the always-on guarantee that mixing requires.
+low-power states during the multi-hour voting window. The hybrid
+design — client chooses when, server guarantees delivery — preserves
+client autonomy over timing while ensuring reliable execution.
 
 ## Why Half the Servers
 
@@ -388,15 +482,17 @@ validators must collude to reconstruct $\mathsf{ea}\_\mathsf{sk}$,
 and the server selection rule ensures each share is visible to at most
 half the validators.
 
-## Why Uniform Random Delay
+## Why Client-Controlled Timing
 
-The delay distribution is uniform over the remaining voting window
-rather than, for example, exponential or Gaussian. A uniform
-distribution ensures that share reveals are spread evenly across time,
-preventing clustering at the beginning or end of the window. This
-provides the strongest mixing guarantee: an observer cannot distinguish
-early-submitted shares from late-submitted ones based on their
-on-chain arrival time.
+The client samples from a uniform distribution over the remaining
+window (excluding the last-moment buffer) rather than, for example,
+exponential or Gaussian. Because each share's $\mathsf{submit\_at}$ is
+sampled independently, a single voter's shares may cluster by chance.
+However, uniform sampling ensures that the *aggregate* stream of share
+reveals across all voters is roughly uniform over time. An individual
+voter's cluster is indistinguishable from coincidental proximity of
+shares belonging to different voters, provided the total volume of
+share reveals is sufficiently large.
 
 ## Why Not Encrypt Decisions
 
@@ -435,15 +531,14 @@ assumption without these additional dependencies.
 Several design questions affect the submission server's effectiveness
 but are not yet resolved:
 
-- **Share decomposition strategy.** The Voting Protocol
-  ZIP [^voting-protocol] specifies $N_s = 16$ shares per vote but
-  leaves the decomposition strategy (how the ballot count is split
-  across shares) as an open design decision. A powers-of-two
-  decomposition (where each share carries a standard denomination like
-  $2^0, 2^1, \ldots, 2^{15}$ ballots) would make shares from
-  different voters indistinguishable by amount, strengthening the
-  mixing guarantee. The current choice is to partially decompose the full amount into base-10 decomposition while randomizing the remainder across the remaining shares via PRF. Non-uniform decomposition also mitigates the share
-  count inference described in [Why Not Encrypt Decisions].
+- **Share decomposition strategy.** For normal votes, the ballot count
+  is split roughly evenly across $N_s = 16$ shares (floor division,
+  remainder added to the last share). For last-moment votes, the full
+  count goes into a single share (see [Last-Moment Voting]). Alternative
+  decomposition strategies (such as powers-of-two denominations that
+  make shares from different voters indistinguishable by amount, or
+  base-10 decomposition with PRF-randomized remainders) could
+  strengthen the mixing guarantee but are not yet adopted.
 - **Client confirmation via PIR.** Voters currently have no
   privacy-preserving way to confirm that their shares were submitted.
   A PIR-based confirmation mechanism (querying the vote chain for
