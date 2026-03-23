@@ -146,31 +146,29 @@ affects response correctness or cross-query linkability, but not the
 confidentiality of the query itself.
 
 All queries have identical size for a given database configuration. However,
-each unspent note requires exactly one pair of PIR queries (Tier 1 + Tier 2),
-so an observer who can count a client's queries learns the exact number of
+each unspent note requires exactly two consecutive PIR queries (Tier 1 + Tier 2).
+An observer who can count a client's queries learns the exact number of
 unspent notes that client's wallet held at the snapshot height. The following
 approaches to mitigating this metadata leakage are out of scope for this
 document:
-- Padding the query count (e.g. to a fixed number or the next power of two)
-  to hide the true number of unspent notes.
-- IP obfuscation or mixing network round-trips across multiple servers to
-  prevent an observer from attributing queries to a single client.
+- Padding the query count to hide the true number of unspent notes.
+- IP obfuscation techniques to prevent an observer from attributing queries to
+  a single client.
 
-Because each note's retrieval consists of two sequential PIR queries, any
-client failure that occurs between the two queries and suppresses the second
-one gives the server an error-based oracle that can leak bits of the queried
-row index. This applies at every layer: a malicious server can craft responses
-that cause failures during PIR decryption, during response decoding, or during
-application-level validation of the recovered data. See
-[Rationale for Query Completion Requirement] for a detailed description of the
-attack.
+Because each note's retrieval consists of two sequential PIR queries, if a
+client failure occurs during the processing of the first query, the client must
+still complete the second query. Suppressing the second query would give
+the server an error-based oracle that can leak a bit of the queried row index.
+A malicious server can craft responses that cause failures during PIR
+decryption, during response decoding, or during application-level validation of 
+the recovered data. See [Rationale for Query Completion Requirement] for a detailed description of the attacks.
 
 
 # Requirements
 
 - No client-side preprocessing. A mobile wallet must be able to issue
   its first query without any prior download beyond the query itself
-  or any client state carried over from a previous session.
+  or client state carried over from a previous session.
 - Single untrusted server with no per-client state. The server holds only
   the public database and processes queries statelessly. A client could
   query multiple independent servers without requiring coordination
@@ -197,7 +195,8 @@ The following are explicitly out of scope for this ZIP:
   impose a latency floor determined by network conditions.
 - Retrieval of data other than nullifier exclusion proofs.
 - PIR transport-level wire format between client and server.
-- Noise analysis. Refer to YPIR paper for noise and security analysis. We directly use the suggested values with no amendments [^YPIR].
+- Noise analysis. Refer to YPIR paper for noise and security analysis. We directly use the suggested values with no amendments [^YPIR]. (TODO: Bring this
+  into the ZIP. WIP section # noise-analysis)
 - The outer transport and wire-level encoding of queries and responses is out of scope for this ZIP.
 
 
@@ -205,16 +204,20 @@ The following are explicitly out of scope for this ZIP:
 
 This section is non-normative.
 
-
 <Rest of content providing context for understanding the Specification.>
 
-The nullifier exclusion tree is split into three tiers:
+We organize a binary merkle tree into "depths". depth-0 refers to the merkle 
+root, depth-1 refers to the next layer of the merkle tree with two nodes. 
+Depth-i of the tree has $2^i$ nodes.
+The nullifier exclusion tree is split into three tiers (ranges of depths):
 
 - Tier 0 contains the top levels of the tree and is downloaded in plaintext by all clients.
 - Tier 1 contains depth-11 to depth-18 subtrees and is served as a PIR database.
 - Tier 2 contains depth-18 to depth-26 subtrees and is served as a PIR database.
 
-Each proof retrieval consists of one plaintext download plus two
+Each Tier contains every inner node hash, and information for the range of
+nullifiers in each descendant sub-tree.
+Each proof retrieval consists of the Tier 0 plaintext download plus two
 sequential PIR queries:
 
 1. The client obtains Tier 0 and uses the target nullifier to identify
@@ -222,12 +225,16 @@ sequential PIR queries:
    that nullifier.
 2. The client issues a PIR query for the corresponding Tier 1 row.
 3. From the Tier 1 row, the client derives the Tier 2 row index and
-   issues a second PIR query.
+   issues a second PIR query. If there is an error in Tier 1 row retrieval, the
+   client queries for a random Tier 2 row index.
 4. From Tier 0 and the recovered Tier 1 and Tier 2 rows, the client
    reconstructs the depth-26 authentication path used for nullifier
    non-membership.
 5. The client appends the 3 deterministic empty-subtree siblings needed
    by the depth-29 Claim circuit.
+
+The client only computes a O(depth) number of hashes, namely to check validity
+of its retrieved authentication path.
 
 For each PIR tier, the client hides the selected row with Regev
 encryption, the server evaluates the corresponding SimplePIR-style
