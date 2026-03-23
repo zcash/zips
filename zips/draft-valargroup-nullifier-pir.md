@@ -27,18 +27,20 @@ PIR (Private Information Retrieval)
 
 LWE (Learning With Errors)
 
-: A lattice-based cryptographic assumption in which ciphertexts are noisy
-  linear equations. Each LWE ciphertext encrypts a single scalar value.
+: A lattice-based cryptographic assumption based on the hardness of obtaining
+  solutions to systems of noisy linear equations [^Regev2024]. This can be
+  used to construct an encryption scheme in which each ciphertext encrypts a
+  single scalar value.
 
 RLWE (Ring Learning With Errors)
 
 : A structured variant of LWE where operations take place in a polynomial
   ring $\mathbb{Z}[x]/(x^d + 1)$. A single RLWE ciphertext encrypts $d$
-  values simultaneously.
+  values simultaneously, roughly speaking.
 
 CDKS transformation
 
-: The Chen-Dai-Kim-Song packing procedure [^CDKS] that converts $d$ LWE
+: The Chen–Dai–Kim–Song packing procedure [^CDKS2020] that converts $d$ LWE
   ciphertexts into one RLWE ciphertext using ring automorphisms and
   key-switching matrices.
 
@@ -51,7 +53,7 @@ Packing key
 
 Interval Merkle tree
 
-: A Merkle tree, where each leaf commits to a continuous range of valid values.
+: A Merkle tree, where each leaf commits to a continuous range of values.
   A client proves inclusion of a value in one of the tree's intervals.
 
 Protocol Epoch
@@ -74,10 +76,11 @@ The construction uses YPIR+SP [^YPIR], a single-server PIR protocol built on
 SimplePIR [^SimplePIR] whose security depends on LWE and RLWE. YPIR+SP requires
 a single untrusted server, no client-side database hint and no DB 
 pre-processing per client. This makes it suited for privacy in the Zcash 
-setting.
+setting. It is also plausibly post-quantum for suitable parameter choices.
 
-For the Orchard nullifier set of size 49,813,801 (as of block height 3,268,870), the nullifier exclusion tree is a binary merkle tree, organized into a
-three-tier data structure spanning 26 levels of depth:
+For the Orchard nullifier set of size 49,813,801 (as of Mainnet block height 3,268,870),
+the nullifier exclusion tree is a binary Merkle tree, organized into a three-tier data
+structure spanning 26 levels of depth:
 
 1. Plaintext broadcast tier (192 KB, cacheable)
 2. Small PIR tier (24 MB)
@@ -103,21 +106,25 @@ reveal the client's nullifier in this balance snapshot. This means the client
 must be able to create a proof that the correct nullifier for a note was not
 spent at the snapshot height. To achieve this, we make a Merkle tree of all
 known nullifiers at snapshot height, and in zero knowledge prove exclusion of
-the user's nullifier into this snapshot height. Hence the name "Nullifier
-exclusion proof".
+the user's nullifier from the snapshot at this height — hence the name
+"Nullifier exclusion proof".
 
 There is a problem though, how does the user get the exclusion proof?
 A user directly querying a centralized server for the exclusion proof would
 reveal their nullifier to the server, breaking the privacy guarantee.
 The alternative of downloading the entire set of Orchard nullifiers is 
-impractical. As of block height 3,268,870 with 49,813,784 nullifiers, it's already 1.48 GiB (assuming binary serialization). As Zcash scales, this grows unboundedly.
+impractical. As of Mainnet block height 3,268,870 with 49,813,784 nullifiers,
+this would already take 1.48 GiB (assuming binary serialization). As Zcash
+scales, absent fundamental changes in the protocol design, the size of this
+set will grow without bound.
 
 The existing solution in the design of token holder voting prior to this ZIP is
 to not allow snapshots of balances, but instead "snapshots of balances that
-moved in a registration period". This lowers the download size to just grow in
-the number of transactions during registration period. It comes at the cost of
-voting friction (requiring users to move funds), safety, and anonymity as you're
-not anonymous amongst all notes, only recently moved notes.
+moved in a registration period". This lowers the download size to just grow
+proportionally to the number of spends in transactions during the registration
+period. However it comes at the cost of voting friction and safety (requiring
+users to move funds), and anonymity (as the notes that the user votes with are
+not indistinguishable among all notes, only among recently moved notes).
 
 Private Information Retrieval (PIR) provides a cryptographic solution to 
 retrieve the exclusion proofs. PIR allows a client to retrieve a record from a 
@@ -130,11 +137,11 @@ revealing which nullifier it is checking (see [PIR Construction]).
 
 # Privacy Implications
 
-Query privacy rests entirely on the Regev encryption of the client's
-selection vector (see [Regev Encryption]). Regev encryption ensures the query
+Query privacy rests entirely on the [Regev encryption] of the client's
+selection vector. Regev encryption ensures the query
 is computationally indistinguishable from random under the LWE assumption. 
 Therefore the server learns nothing about the target record. 
-Every other component - CDKS packing, modulus switching, the packing key -
+Every other component —CDKS packing, modulus switching, the packing key—
 affects response correctness or cross-query linkability, but not the 
 confidentiality of the query itself.
 
@@ -161,7 +168,6 @@ attack.
 
 # Requirements
 
-
 - No client-side preprocessing. A mobile wallet must be able to issue
   its first query without any prior download beyond the query itself
   or any client state carried over from a previous session.
@@ -182,7 +188,7 @@ attack.
 
 # Non-requirements
 
-The following are explicitly out of scope:
+The following are explicitly out of scope for this ZIP:
 
 - Incremental database updates. The PIR database is computed once from
   the nullifier set at a given snapshot height and is treated
@@ -197,7 +203,7 @@ The following are explicitly out of scope:
 
 # High-level summary
 
-This subsection is non-normative.
+This section is non-normative.
 
 
 <Rest of content providing context for understanding the Specification.>
@@ -212,7 +218,8 @@ Each proof retrieval consists of one plaintext download plus two
 sequential PIR queries:
 
 1. The client obtains Tier 0 and uses the target nullifier to identify
-   the Tier 1 subtree index.
+   the index of the Tier 1 subtree containing the exclusion range for
+   that nullifier.
 2. The client issues a PIR query for the corresponding Tier 1 row.
 3. From the Tier 1 row, the client derives the Tier 2 row index and
    issues a second PIR query.
@@ -1799,7 +1806,7 @@ step and reduce communication.
 In SimplePIR [^SimplePIR], the database is reshaped into a
 $\sqrt{N} \times \sqrt{N}$ matrix $D$ where each cell holds one byte.
 To retrieve row $i$, the client constructs a unit selection vector
-$\mu$, encrypts it under Regev [^Regev05], and sends the ciphertext to
+$\mu$, encrypts it under Regev [^Regev2024], and sends the ciphertext to
 the server. The server then computes one matrix-vector product, so the
 online work is dominated by memory bandwidth rather than computation.
 
@@ -2151,9 +2158,9 @@ three-tier Poseidon tree, the Tier 1 / Tier 2 query orchestration described in t
 
 [^InsPIRe]: [InsPIRe: Communication-Efficient PIR with Server-side Preprocessing](https://eprint.iacr.org/2025/1352)
 
-[^CDKS]: [Efficient Homomorphic Conversion Between Ring LWE Ciphertexts](https://eprint.iacr.org/2020/015)
+[^CDKS2020]: [Efficient Homomorphic Conversion Between Ring LWE Ciphertexts](https://eprint.iacr.org/2020/015). Hao Chen, Wei Dai, Miran Kim, and Yongsoo Song. Cryptology ePrint Archive 2020/015, December 2020. Also published in Applied Cryptography and Network Security, 2021.
 
-[^Regev05]: [On Lattices, Learning with Errors, Random Linear Codes, and Cryptography](https://doi.org/10.1145/1568318.1568324)
+[^Regev2024]: [On Lattices, Learning with Errors, Random Linear Codes, and Cryptography](https://arxiv.org/abs/2401.03703). Oded Regev. arXiv:2401.03703v1 [cs.CR], January 2024. Updated and corrected version of a paper originally published under the same title [in STOC 2005](https://doi.org/10.1145/1568318.1568324).
 
 [^ChaCha20]: [ChaCha20 and Poly1305 for IETF Protocols (RFC 8439)](https://www.rfc-editor.org/rfc/rfc8439)
 
