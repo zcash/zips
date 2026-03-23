@@ -251,15 +251,12 @@ The client only computes a O(depth) number of hashes, namely to check validity
 of its retrieved authentication path.
 
 Each PIR Query is done via YPIR+SP, where SP stands for "SimplePIR". In YPIR+SP,
-the server organizes a database of N entries into $\sqrt{N} \cross \sqrt{N}$ 
-matrix. The intuition is that the client additively-homomorphically encrypts a 
-"selector vector", which if multiplied by the database-matrix, returns a single matrix column. This is the "SimplePIR" style of operation.
-We consider ourselves as operating over the transpose of the matrix, so we can
-continue always talk about the rows of the database, rather its columns. (TODO:
-is this actually helping making the explanation simpler, re-examine after DB
-layout is explained in ZIP)
-Then the server packs this encrypted column from LWE ciphertexts into RLWE
-ciphertexts, letting us remove the precomputed database hint from SimplePIR.
+the server organizes each tier database as a matrix of rows and plaintext-word columns (see [Database Shape]). The client
+additively-homomorphically encrypts a row-selector vector; the server multiplies
+this vector by the database matrix, producing one scalar per column. This is the
+"SimplePIR" style of operation. The server then packs these per-column outputs
+from LWE ciphertexts into RLWE ciphertexts, removing the need for a
+precomputed database hint.
 
 Thus for each PIR tier, the client hides their selected database row with Regev
 encryption, the server evaluates the corresponding SimplePIR-style
@@ -395,9 +392,107 @@ expansion, or gadget decomposition unless explicitly stated.
 For [PackingKeyGeneration], [Split Modulus Switching], and all transport-facing
 objects, coefficients MUST be interpreted via canonical representatives.
 
+## Plaintext Encoding
+
+The YPIR+SP database for each tier is a matrix: each row holds one
+PIR record (the serialized subtree bytes for that tier entry), split
+into 14-bit plaintext-word columns. The column count is rounded up
+to a multiple of the ring degree $d = 2048$ to form packing chunks,
+and the row count is rounded up to a power of two (at least $d$).
+The subsections below define the byte-to-word mapping and the
+resulting database shape.
+
+### Byte-to-Word Mapping
+
+For YPIR plaintext packing, implementations MUST map each serialized
+`L_value`-byte row into 14-bit plaintext words by interpreting the row as
+a contiguous little-endian bitstream:
+
+- Bit 0 is the least-significant bit of byte 0.
+- Within each byte, bits are ordered from least significant to most
+  significant.
+- Word index $k$ is formed from bits $14k$ through $14k + 13$, with bit
+  $14k$ becoming the least-significant bit of that 14-bit word.
+
+If the final 14-bit word is only partially filled by row bits, the
+missing high bits of that word MUST be zero.
+
+### Database Shape
+
+Given a tier with $m$ logical rows and serialized row length
+$L_\mathsf{value}$ bytes, implementations MUST derive the database
+dimensions as follows.
+
+**Column dimensions.** The number of plaintext-word columns
+carrying row data is
+
+$$
+W_\mathsf{value} = \left\lceil \frac{8 \, L_\mathsf{value}}{14} \right\rceil.
+$$
+
+The number of packing chunks (RLWE ciphertexts per response) is
+
+$$
+I = \left\lceil \frac{W_\mathsf{value}}{d} \right\rceil
+$$
+
+with $d = 2048$. The total padded column count is
+
+$$
+W_\mathsf{pad} = I \cdot d.
+$$
+
+The $z = W_\mathsf{pad} - W_\mathsf{value}$ trailing columns in the
+last packing chunk are all-zero padding words. These are internal
+YPIR padding and are not part of the serialized tier-row format
+defined by this ZIP.
+
+**Row dimensions.** The padded row count is
+
+$$
+m_\mathsf{pad} = \max\!\bigl(d,\; 2^{\lceil \log_2 m \rceil}\bigr).
+$$
+
+The row-dimension exponent is
+
+$$
+\nu_1 = \log_2(m_\mathsf{pad} / d).
+$$
+
+Logical rows $m$ through $m_\mathsf{pad} - 1$ (if any) are all-zero
+padding rows.
+
+**Database matrix.** The server MUST construct the plaintext database
+
+$$
+\mathsf{DB} \in \mathbb{Z}_p^{\,m_\mathsf{pad} \times W_\mathsf{pad}}
+$$
+
+where row $j < m$ contains the $W_\mathsf{value}$ plaintext words
+from the serialized tier row followed by $z$ zeros, and rows
+$j \geq m$ are all-zero. Column $k$ of $\mathsf{DB}$ contains the
+$k$-th plaintext word from every row. An implementation MAY store
+the matrix in transposed form for efficient dot products; the logical
+row-major definition is unchanged.
+
+### Deployed Values
+
+For the nullifier-exclusion-tree instantiation in [Instantiations]:
+
+| Derived quantity | Tier 1 | Tier 2 |
+|---|---|---|
+| Logical rows $m$ | $2^{11} = 2{,}048$ | $2^{18} = 262{,}144$ |
+| Serialized row length $L_\mathsf{value}$ | 12,224 bytes | 24,512 bytes |
+| Plaintext-word columns $W_\mathsf{value}$ | 6,986 | 14,007 |
+| Packing chunks $I$ | 4 | 7 |
+| Padded columns $W_\mathsf{pad}$ | 8,192 | 14,336 |
+| Trailing zero words $z$ | 1,206 | 329 |
+| Padded rows $m_\mathsf{pad}$ | 2,048 | 262,144 |
+| Row-dimension exponent $\nu_1$ | 0 | 7 |
+
 ## Regev Encryption
 
-Let $m$ be the number of database rows. The client will be doing Regev encryption in LWE form over $\mathbb{Z}_q$, on a row-selector vector. Let
+Let $m = m_\mathsf{pad}$ be the padded row count from [Database Shape]. The client will be doing Regev encryption in LWE form over $\mathbb{Z}_q$, on a row-selector vector. Let
 $\mu_i \in \mathbb{Z}_p^m$ denote the row-selector vector for row index $i$,
 where $\mu_i[j] = 1$ exactly when $j = i$ and $\mu_i[j] = 0$ otherwise.
 
@@ -433,46 +528,49 @@ public LWE matrix $A$ via negacyclic extraction.
 
 Given a query $Q = (c_\mathsf{online}, pk_\mathsf{condensed})$ and
 the active PIR database tier, the server MUST compute the response
-as follows. Let $m$ be the number of database rows, $W$ the number
-of 14-bit plaintext-word columns (from [Plaintext Encoding]).
+as follows. Let $m_\mathsf{pad}$, $W_\mathsf{value}$, and
+$W_\mathsf{pad}$ be the padded row count, value-carrying column
+count, and padded column count derived in [Database Shape].
 Recall, $d = 2048$.
 
 The server operates on the row-serialized and plaintext-packed database prepared during `Server_Setup`; any equivalent use of precomputed query-independent artifacts is permitted only as specified in [Precomputation].
 
 1. **Selector hint.** Let
-   $A \in \mathbb{Z}_q^{n \times m}$ be the implicit public matrix
+   $A \in \mathbb{Z}_q^{n \times m_\mathsf{pad}}$ be the implicit public matrix
    from [Negacyclic Extraction of the Deployed Selector Matrix].
    Compute
 
    $$
-   H = A \cdot \mathsf{DB} \in \mathbb{Z}_q^{n \times W},
+   H = A \cdot \mathsf{DB} \in \mathbb{Z}_q^{n \times W_\mathsf{pad}},
    $$
 
-   where $\mathsf{DB} \in \mathbb{Z}_q^{m \times W}$ is the packed
-   plaintext database from [Plaintext Encoding].
+   where $\mathsf{DB} \in \mathbb{Z}_q^{m_\mathsf{pad} \times W_\mathsf{pad}}$
+   is the plaintext database from [Database Shape].
    Column $k$ of $H$ is the $\mathbf{a}$-component of the
    corresponding SimplePIR-level ciphertext.
 
 2. **Database scan.** Compute the query-dependent scalar components
 
    $$
-   b'_k = \sum_{j=0}^{m-1}
+   b'_k = \sum_{j=0}^{m_\mathsf{pad}-1}
      \mathsf{DB}[j][k] \cdot c_\mathsf{online}[j]
    \pmod{q}
    $$
 
-   for each plaintext-word column $k \in \{0, \ldots, W-1\}$.
-   For indices $k \geq W$ (padding positions in the final chunk),
-   define $b'_k = 0$ and $\mathbf{h}_k = \mathbf{0} \in \mathbb{Z}_q^n$.
+   for each column $k \in \{0, \ldots, W_\mathsf{pad}-1\}$.
+   For columns $k \geq W_\mathsf{value}$ the padding columns of
+   $\mathsf{DB}$ are zero, so $b'_k = 0$ and
+   $\mathbf{h}_k = \mathbf{0} \in \mathbb{Z}_q^n$.
 
 3. **Reconstruct packing key.** Recover the full packing key $pk$
    from $pk_\mathsf{condensed}$ and $\mathsf{seed\_pack}$ using the
    convention in [Packing-Level Ciphertext Convention].
 
-4. **Pack.** For each plaintext-word column
-   $k \in \{0, \ldots, W-1\}$, form the SimplePIR-level ciphertext
-   $t_k = (\mathbf{h}_k,\; b'_k)$, where $\mathbf{h}_k$ is column $k$ of
-   $H$. Let $T = (t_0, \ldots, t_{W-1})$, and compute
+4. **Pack.** For each column
+   $k \in \{0, \ldots, W_\mathsf{pad}-1\}$, form the SimplePIR-level
+   ciphertext $t_k = (\mathbf{h}_k,\; b'_k)$, where $\mathbf{h}_k$ is
+   column $k$ of $H$. Let $T = (t_0, \ldots, t_{W_\mathsf{pad}-1})$,
+   and compute
 
    $$
    \widehat{R} =
@@ -484,26 +582,6 @@ The server operates on the row-serialized and plaintext-packed database prepared
 
 The resulting sequence of modulus-switched packed RLWE ciphertexts is
 the server response $R$.
-
-### Plaintext Encoding
-
-For YPIR plaintext packing, implementations MUST map each serialized
-`L_value`-byte row into 14-bit plaintext words by interpreting the row as
-a contiguous little-endian bitstream:
-
-- Bit 0 is the least-significant bit of byte 0.
-- Within each byte, bits are ordered from least significant to most
-  significant.
-- Word index $k$ is formed from bits $14k$ through $14k + 13$, with bit
-  $14k$ becoming the least-significant bit of that 14-bit word.
-
-For a row of `L_value` bytes, let
-$W_\mathsf{value} = \lceil 8L_\mathsf{value} / 14 \rceil$. If the final
-14-bit word is only partially filled by row bits, the missing high bits
-of that word MUST be zero. If additional all-zero words are needed to
-complete the final packing chunk of length $d = 2048$, those words are
-internal YPIR padding and are not part of the serialized tier-row format
-defined by this ZIP.
 
 ### Precomputation
 
@@ -528,25 +606,23 @@ stored and reused with different packing keys.
 
 Note to reader: refer to "Packing" subsection of Rationale.
 
-Let $T = (t_0, \ldots, t_{W_\mathsf{value}-1})$ be the ordered sequence of
-SimplePIR-level LWE ciphertexts corresponding to the selected PIR value,
-where $L_\mathsf{value}$ is the PIR value size in bytes fixed for the
-queried tier in [Parameters] and $W_\mathsf{value}$ is determined from
-$L_\mathsf{value}$ by [Plaintext Encoding], before any
-additional all-zero word padding used only to complete the final
-ciphertext chunk. The server MUST pack $T$ so that the resulting
-packing-level ciphertexts decrypt, under the client's fresh
+Let $T = (t_0, \ldots, t_{W_\mathsf{pad}-1})$ be the ordered sequence of
+SimplePIR-level LWE ciphertexts produced by [Server Computation], where
+$W_\mathsf{pad} = I \cdot d$ is the padded column count from
+[Database Shape]. The first $W_\mathsf{value}$ entries correspond to
+value-carrying columns; the remaining $z$ entries correspond to
+all-zero padding columns. The server MUST pack $T$ so that the
+resulting packing-level ciphertexts decrypt, under the client's fresh
 packing-level secret, to the same ordered plaintext words.
 
 Define the function
 $\mathsf{PackSimplePIRResponse}(T, pk)$ as follows:
 
-1. Let $d = 2048$ be the packing-level ring degree from [Parameters] and
-   let $m = \lceil W_\mathsf{value} / d \rceil$.
-2. Partition $T$ into $m$ consecutive chunks of length $d$:
-   $(t_{j,0}, \ldots, t_{j,d-1})$ for $j \in \{0, \ldots, m-1\}$. If the
-   final chunk is shorter than $d$, pad it with SimplePIR-level
-   encryptions of zero so that it has exactly $d$ inputs.
+1. Let $d = 2048$ be the packing-level ring degree from [Parameters].
+   Because $W_\mathsf{pad} = I \cdot d$, the input length is exactly
+   $I$ chunks of $d$ ciphertexts.
+2. Partition $T$ into $I$ consecutive chunks of length $d$:
+   $(t_{j,0}, \ldots, t_{j,d-1})$ for $j \in \{0, \ldots, I-1\}$.
 3. For each chunk $j$, compute
 
    $$
@@ -557,14 +633,14 @@ $\mathsf{PackSimplePIRResponse}(T, pk)$ as follows:
    to produce one packing-level RLWE ciphertext
    $\widehat{C}_j = (\widehat{a}_j, \widehat{b}_j) \in R_q^2$.
 4. Return the ordered packed sequence
-   $\widehat{R} = (\widehat{C}_0, \ldots, \widehat{C}_{m-1})$.
+   $\widehat{R} = (\widehat{C}_0, \ldots, \widehat{C}_{I-1})$.
 
 The order of slots within each $\widehat{C}_j$ MUST match the order of
 the 14-bit plaintext words obtained from the canonical byte-to-word
-mapping in [Plaintext Encoding]. Slot $\ell$ of $\widehat{C}_j$ MUST correspond
-to word index $jd + \ell$ of that packed representation. Any additional
-slots introduced only to complete the final ciphertext chunk MUST decode
-to zero.
+mapping in [Byte-to-Word Mapping]. Slot $\ell$ of $\widehat{C}_j$ MUST
+correspond to word index $jd + \ell$ of that packed representation.
+Slots corresponding to trailing zero-word positions ($jd + \ell \geq
+W_\mathsf{value}$) MUST decode to zero.
 
 This packing procedure is also responsible for restoring the
 $d^{-1}$ pre-scaling applied in [Query Generation], so that the
@@ -996,10 +1072,9 @@ in [Parameters], and let `L_row` be the row serialization length defined
 by this ZIP for that tier (12,224 bytes for Tier 1 and 24,512 bytes for
 Tier 2). For this ZIP, `L_value = L_row` for both tiers: Tier 1 uses
 12,224 bytes and Tier 2 uses 24,512 bytes, as specified in [Parameters].
-Let $W_\mathsf{value}$ be the
-number of plaintext words produced by the canonical byte-to-word mapping
-defined in [Plaintext Encoding], before any all-zero word
-padding used only to complete the final ciphertext chunk.
+Let $W_\mathsf{value}$, $W_\mathsf{pad}$, and $I$ be the value-carrying
+column count, padded column count, and packing-chunk count from
+[Database Shape].
 
 Given the server's response to a PIR query, the client MUST recover the
 selected tier row of length $L_\mathsf{row}$ for the queried tier. It
@@ -1018,12 +1093,12 @@ follows:
    $\mathsf{DecryptPackingRLWECiphertext}(\widetilde{C}_j, s^\star) = (v_{j,0}, \ldots, v_{j,d-1})$
    for each $\widetilde{C}_j$, obtaining slot values in $\mathbb{Z}_{p_2}$.
 3. Form the concatenated slot sequence
-   $V = v_{0,0} \| \ldots \| v_{0,d-1} \| v_{1,0} \| \ldots \| v_{m-1,d-1}$.
+   $V = v_{0,0} \| \ldots \| v_{0,d-1} \| v_{1,0} \| \ldots \| v_{I-1,d-1}$.
 4. Let $W = V[0..W_\mathsf{value}-1]$.
 5. Reconstruct a byte string $B$ by writing the least-significant 14 bits
    of each word in $W$ in order as a contiguous bitstream, regrouping
    that bitstream into 8-bit bytes using the inverse of the canonical
-   byte-to-word mapping in [Plaintext Encoding].
+   byte-to-word mapping in [Byte-to-Word Mapping].
 6. Verify that any unused high bits of the final 14-bit word are zero.
    If the final ciphertext chunk contained additional all-zero padding
    words beyond $W_\mathsf{value}$, verify that those omitted words also
@@ -1219,7 +1294,7 @@ $$
 a(X)\cdot X^c \bmod (X^d + 1).
 $$
 
-Let $m$ be the number of database rows for the queried PIR tier, and let
+Let $m = m_\mathsf{pad}$ be the padded row count from [Database Shape], and let
 
 $$
 B = \left\lceil \frac{m}{d} \right\rceil.
