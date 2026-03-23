@@ -175,10 +175,10 @@ client is participating in whatever protocol uses the exclusion tree for
 the current Protocol Epoch. No query-count metadata is leaked because
 the download is a single request independent of the number of notes.
 
-**Version 1 (YPIR+SP).** Query privacy rests entirely on the
-[Regev encryption] of the client's selection vector. Regev encryption
-ensures the query is computationally indistinguishable from random under
-the LWE assumption. Therefore the server learns nothing about the target
+**Version 1 (YPIR+SP).** Query privacy rests on the [Regev encryption] of
+the client's selection vector. Regev encryption ensures the query is
+computationally indistinguishable from random under the LWE assumption.
+Therefore the server learns nothing about the target
 record. Every other component (CDKS packing, modulus switching, the
 packing key) affects response correctness or cross-query linkability,
 but not the confidentiality of the query itself.
