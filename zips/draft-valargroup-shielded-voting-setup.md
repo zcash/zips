@@ -152,9 +152,10 @@ delegation, vote, and share reveal. The proof circuits are specified in
 A complete deployment consists of:
 
 - **Vote chain nodes** — one or more `shieldedvoted` instances running CometBFT
-  consensus. Each node embeds a helper server that processes queued vote
-  shares and submits share reveal transactions at randomized intervals
-  (see [^draft-voting-protocol]).
+  consensus. Each node embeds a helper server that accepts vote share
+  payloads from clients and submits the corresponding share reveal
+  transactions at client-specified times
+  (see [^draft-submission-server]).
 - **Nullifier service** — a PIR server that provides private nullifier
   exclusion proofs to voters (see [Nullifier Service (PIR Server)]).
 - **Service discovery API** — a centralized bootstrap directory that
@@ -331,7 +332,11 @@ ZKP circuits as a public input.
 
 The round enters the **PENDING** state. The EA key ceremony
 (see [^draft-ceremony]) runs automatically. On successful completion, the
-round transitions to **ACTIVE** and the voting window opens.
+round transitions to **ACTIVE**, the voting window opens, and the
+transition timestamp is recorded as `ceremony_phase_start`. Clients use
+`ceremony_phase_start` together with `vote_end_time` to compute the
+last-moment buffer for submission timing
+(see [^draft-submission-server]).
 
 ### Round Lifecycle
 
@@ -436,6 +441,8 @@ mitigation is to spin up a new chain with the fix.
 [^draft-ceremony]: [Draft ZIP: Election Authority Key Ceremony](draft-valargroup-ea-key-ceremony.md)
 
 [^draft-pir]: [Draft ZIP: Private Information Retrieval for Nullifier Exclusion Proofs](draft-valargroup-gov-pir.md)
+
+[^draft-submission-server]: [Draft ZIP: Vote Share Submission Server](draft-valargroup-submission-server.md)
 
 [^draft-onchain-voting]: [Draft ZIP: On-chain Accountable Voting](draft-ecc-onchain-accountable-voting.md)
 
