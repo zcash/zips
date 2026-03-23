@@ -69,21 +69,33 @@ Protocol Epoch
 
 # Abstract
 
-This document specifies a private information retrieval (PIR) scheme for
-privately retrieving nullifier exclusion proofs from a Zcash nullifier
-set. Any point-in-time protocol requiring proof-of-balance — such as
-airdrops, stake-weighted polling, or governance voting — needs to verify
-that notes are unspent by checking their nullifiers against the spent
-set, without revealing which nullifier is being checked.
+This document specifies two retrieval schemes for nullifier exclusion
+proofs from a Zcash nullifier set, versioned as v0 and v1. Any
+point-in-time protocol requiring proof-of-balance (such as airdrops,
+stake-weighted polling, or governance voting) needs to verify that notes
+are unspent by checking their nullifiers against the spent set, without
+revealing which nullifier is being checked.
 
-The construction uses YPIR+SP [^YPIR], a single-server PIR protocol built on
-SimplePIR [^SimplePIR] whose security depends on LWE and RLWE. YPIR+SP requires
-a single untrusted server, no client-side database hint and no DB 
-pre-processing per client. This makes it suited for privacy in the Zcash 
-setting. It is also plausibly post-quantum for suitable parameter choices.
+Both schemes operate on the same nullifier exclusion tree. They differ
+only in how the client retrieves authentication path data from the
+server.
 
-For the Orchard nullifier set of size 49,813,801 (as of Mainnet block height 3,268,870),
-the nullifier exclusion tree is a binary Merkle tree, organized into a three-tier data
+**Version 0 (full download):** The client downloads the complete
+exclusion tree data (the Tier 0 plaintext, all Tier 1 rows, and all
+leaf records) and locally computes Tier 2 internal node hashes on
+demand. This scheme requires no cryptographic interaction with the server
+and leaks no information about which nullifier the client is checking,
+at the cost of a larger download (approximately 3.3 GB for the Orchard
+nullifier set of size 49,813,801 as of Mainnet block height 3,268,870).
+
+**Version 1 (YPIR+SP):** The client retrieves authentication path data
+via two sequential PIR queries using YPIR+SP [^YPIR], a single-server
+PIR protocol built on SimplePIR [^SimplePIR] whose security depends on
+LWE and RLWE. YPIR+SP requires a single untrusted server, no
+client-side database hint and no DB pre-processing per client. This
+makes it suited for privacy in the Zcash setting. It is also plausibly
+post-quantum for suitable parameter choices. For the Orchard nullifier
+set size above, the exclusion tree is organized into a three-tier data
 structure spanning 26 levels of depth:
 
 1. Plaintext broadcast tier (192 KB, cacheable)
@@ -96,6 +108,10 @@ deterministic empty-subtree siblings to obtain the depth-29 authentication
 path. Total bandwidth is approximately 3.5 MB on
 the first query, or approximately 3.3 MB once the Tier 0 plaintext is cached
 (dominated by the Tier 2 upload).
+
+Wallet implementations are required to support v0 and can optionally
+support v1. See [Retrieval Scheme Versioning] for the conformance
+requirements.
 
 
 # Motivation
@@ -130,24 +146,42 @@ period. However it comes at the cost of voting friction and safety (requiring
 users to move funds), and anonymity (as the notes that the user votes with are
 not indistinguishable among all notes, only among recently moved notes).
 
-Private Information Retrieval (PIR) provides a cryptographic solution to 
-retrieve the exclusion proofs. PIR allows a client to retrieve a record from a 
-server-held database without the server learning which record was requested. 
-The server processes the encrypted query by touching every record in the 
-database, ensuring that its access pattern reveals nothing about the target. 
-The client retrieves the exclusion proof from an untrusted server without 
+Private Information Retrieval (PIR) provides a cryptographic solution to
+retrieve the exclusion proofs. PIR allows a client to retrieve a record from a
+server-held database without the server learning which record was requested.
+The server processes the encrypted query by touching every record in the
+database, ensuring that its access pattern reveals nothing about the target.
+The client retrieves the exclusion proof from an untrusted server without
 revealing which nullifier it is checking (see [PIR Construction]).
+
+This ZIP also specifies a non-PIR alternative (v0) in which the client
+downloads the complete exclusion tree and computes authentication paths
+locally. While more bandwidth-intensive, the full download scheme
+requires no trust assumptions beyond data integrity: the server learns
+nothing because the client downloads everything, and the client can
+independently verify the tree against published roots. Providing both
+schemes allows wallet implementations to offer a choice between
+bandwidth efficiency (v1) and minimal trust assumptions (v0), and
+ensures that the nullifier exclusion proof system is usable even before
+the PIR construction has undergone full external review.
 
 
 # Privacy Implications
 
-Query privacy rests entirely on the [Regev encryption] of the client's
-selection vector. Regev encryption ensures the query
-is computationally indistinguishable from random under the LWE assumption. 
-Therefore the server learns nothing about the target record. 
-Every other component —CDKS packing, modulus switching, the packing key—
-affects response correctness or cross-query linkability, but not the 
-confidentiality of the query itself.
+**Version 0 (full download).** Because the client downloads the entire
+tree regardless of which nullifier it is checking, the server learns
+nothing about the client's query target. The server does learn that the
+client is participating in whatever protocol uses the exclusion tree for
+the current Protocol Epoch. No query-count metadata is leaked because
+the download is a single request independent of the number of notes.
+
+**Version 1 (YPIR+SP).** Query privacy rests entirely on the
+[Regev encryption] of the client's selection vector. Regev encryption
+ensures the query is computationally indistinguishable from random under
+the LWE assumption. Therefore the server learns nothing about the target
+record. Every other component (CDKS packing, modulus switching, the
+packing key) affects response correctness or cross-query linkability,
+but not the confidentiality of the query itself.
 
 All queries have identical size for a given database configuration. However,
 each unspent note requires exactly two consecutive PIR queries (Tier 1 + Tier 2).
@@ -199,10 +233,8 @@ The following are explicitly out of scope for this ZIP:
 - Sub-second end-to-end query latency. The two sequential PIR round-trips
   impose a latency floor determined by network conditions.
 - Retrieval of data other than nullifier exclusion proofs.
-- PIR transport-level wire format between client and server.
 - Noise analysis. Refer to YPIR paper for noise and security analysis. We directly use the suggested values with no amendments [^YPIR]. (TODO: Bring this
   into the ZIP. WIP section # noise-analysis)
-- The outer transport and wire-level encoding of queries and responses is out of scope for this ZIP.
 
 
 # High-level summary
@@ -231,7 +263,10 @@ every leaf. So Tier 0's size is 196kb, computed as follows:
 
 Similar analysis applies for every other tier, where the number of rows in a tier is $2^(initial\_depth)$. Lowering the number of initial rows is the primary optiomization target.
 
-Each proof retrieval consists of the Tier 0 plaintext download plus two
+This ZIP specifies two retrieval schemes. Under v0 (full download), the
+client downloads Tier 0, all Tier 1 rows, and all leaf records, then
+computes Tier 2 internal nodes locally for each note. Under v1 (YPIR+SP),
+each proof retrieval consists of the Tier 0 plaintext download plus two
 sequential PIR queries:
 
 1. The client obtains Tier 0 and uses the target nullifier to identify
@@ -322,14 +357,14 @@ queries for the updated state.
 Implementations MUST use the following parameters for the YPIR+SP
 instantiation specified by this ZIP:
 
-| Parameter | Value |
-|---|---|
-| Selector LWE dimension $n$ | 2048 |
-| Ring degree $d$ | 2048 |
-| Ciphertext modulus $q$ | $q_{2,1} \cdot q_{2,2}$ |
-| Packing/plaintext modulus $p$ | $2^{14}$ |
-| Noise width $\sigma$ | $6.4\sqrt{2\pi}$ |
-| Gadget length $L_\mathsf{ks}$ | 3 |
+| Parameter                     | Value                   |
+| ----------------------------- | ----------------------- |
+| Selector LWE dimension $n$    | 2048                    |
+| Ring degree $d$               | 2048                    |
+| Ciphertext modulus $q$        | $q_{2,1} \cdot q_{2,2}$ |
+| Packing/plaintext modulus $p$ | $2^{14}$                |
+| Noise width $\sigma$          | $6.4\sqrt{2\pi}$        |
+| Gadget length $L_\mathsf{ks}$ | 3                       |
 
 The ciphertext modulus is the product of two 28-bit
 NTT-friendly primes:
@@ -371,10 +406,10 @@ $\Delta = \lfloor q / 2^{14} \rfloor = 4\,087\,810\,653\,052$.
 For the nullifier-exclusion-tree instantiation in [Instantiations], the
 PIR database values are the raw serialized tier rows:
 
-| Tier | Serialized row length and PIR value size |
-|---|---|
-| Tier 1 | 12,224 bytes |
-| Tier 2 | 24,512 bytes |
+| Tier   | Serialized row length and PIR value size |
+| ------ | ---------------------------------------- |
+| Tier 1 | 12,224 bytes                             |
+| Tier 2 | 24,512 bytes                             |
 
 No explicit file-level or wire-level zero-padding bytes are appended to
 these rows before they are loaded into the PIR database.
@@ -1277,14 +1312,44 @@ second rows (row 1); the corresponding public rows (row 0) are
 reconstructed by the server from $\mathsf{seed\_pack}$ using the
 convention in [Packing-Level Ciphertext Convention].
 
+## Retrieval Scheme Versioning
+
+This ZIP defines two retrieval schemes, identified by integer version
+numbers:
+
+| Version | Scheme        | Description                                                              |
+| ------- | ------------- | ------------------------------------------------------------------------ |
+| 0       | Full download | Client downloads all tree data and computes authentication paths locally |
+| 1       | YPIR+SP       | Client retrieves authentication path data via two sequential PIR queries |
+
+Both schemes operate on the same nullifier exclusion tree (see
+[Nullifier Exclusion Tree]). They share identical tree construction,
+leaf encoding, and authentication path structure. They differ only in
+how the client obtains the tier data needed to assemble the
+authentication path.
+
+The server MUST advertise the retrieval scheme versions it supports.
+Servers MUST support version 0. Servers MAY additionally support
+version 1.
+
+A client MUST verify that the server supports the client's chosen
+retrieval scheme version before issuing queries. If the server does not
+support the client's preferred version, the client MUST fall back to
+version 0.
+
+Wallet implementations MUST support version 0. Wallet implementations
+MAY support version 1. Wallet implementations that support both
+versions MUST allow the user to select which version to use.
+
 ## Instantiations
 
 ### Nullifier Exclusion Tree
 
-The server MUST construct the exclusion tree and the corresponding PIR
-databases (Tiers 0, 1, and 2) once from the nullifier set at the start
-of each Protocol Epoch. The databases are static for the duration of
-the epoch.
+The server MUST construct the exclusion tree and the corresponding tier
+databases once from the nullifier set at the start of each Protocol
+Epoch. For servers supporting version 1, this includes the PIR databases
+(Tiers 0, 1, and 2). The databases are static for the duration of the
+epoch.
 
 For each nullifier snapshot, the server MUST establish a distinct
 `Server_Setup` instantiation from the tier databases and associated
@@ -1450,12 +1515,12 @@ Depth 18 ──────────────  262,144 subtree roots
 Depth 26 ──────────────  leaves (up to 67,108,864)
 ```
 
-| Tier | Depths | Siblings provided | Retrieval method |
-|---|---|---|---|
-| 0 | 0–11 | 11 | Plaintext broadcast |
-| 1 | 11–18 | 7 | PIR query |
-| 2 | 18–26 | 8 | PIR query |
-| **Total** | | **26** | |
+| Tier      | Depths | Siblings provided | Retrieval method    |
+| --------- | ------ | ----------------- | ------------------- |
+| 0         | 0–11   | 11                | Plaintext broadcast |
+| 1         | 11–18  | 7                 | PIR query           |
+| 2         | 18–26  | 8                 | PIR query           |
+| **Total** |        | **26**            |                     |
 
 ##### Tier 0: Plaintext Broadcast (Depths 0–11)
 
@@ -1466,9 +1531,9 @@ payload, identical for all clients:
 
 Each record contains:
 
-| Field | Size | Purpose |
-|---|---|---|
-| `hash` | 32 bytes | Merkle hash of the subtree rooted at this node |
+| Field     | Size     | Purpose                                          |
+| --------- | -------- | ------------------------------------------------ |
+| `hash`    | 32 bytes | Merkle hash of the subtree rooted at this node   |
 | `min_key` | 32 bytes | Smallest key in this subtree (for binary search) |
 
 Count: $2^{11} = 2{,}048$ records $\times$ 64 bytes = **131,072 bytes
@@ -1506,10 +1571,10 @@ row contains a complete 7-level subtree (depths 11–18). The subtree root
 (the depth-11 node) is not included, as the client already has it from
 Tier 0.
 
-| Property | Value | Derivation |
-|---|---|---|
-| Rows | $2^{11} = 2{,}048$ | One per depth-11 subtree |
-| Content per row | 7-level subtree (depths 11–18) | See below |
+| Property        | Value                          | Derivation               |
+| --------------- | ------------------------------ | ------------------------ |
+| Rows            | $2^{11} = 2{,}048$             | One per depth-11 subtree |
+| Content per row | 7-level subtree (depths 11–18) | See below                |
 
 **Internal nodes** (relative depths 1–6, absolute depths 12–17):
 
@@ -1527,8 +1592,8 @@ These are Tier 2 subtree roots, each containing a 32-byte hash and a
 The PIR value size for this tier is given in [Parameters]. Rows are
 loaded into the PIR database exactly as serialized below.
 
-| Metric | Value |
-|---|---|
+| Metric        | Value                                      |
+| ------------- | ------------------------------------------ |
 | Database size | 2,048 rows $\times$ 12,224 B = **23.9 MB** |
 
 **Row serialization (12,224 bytes):**
@@ -1579,10 +1644,10 @@ row contains a complete 8-level subtree (depths 18–26). The subtree root
 (the depth-18 node) is not included, as the client already has it from
 Tier 1.
 
-| Property | Value | Derivation |
-|---|---|---|
-| Rows | $2^{18} = 262{,}144$ | One per depth-18 subtree |
-| Content per row | 8-level subtree (depths 18–26) | See below |
+| Property        | Value                          | Derivation               |
+| --------------- | ------------------------------ | ------------------------ |
+| Rows            | $2^{18} = 262{,}144$           | One per depth-18 subtree |
+| Content per row | 8-level subtree (depths 18–26) | See below                |
 
 **Internal nodes** (relative depths 1–7, absolute depths 19–25):
 
@@ -1602,8 +1667,8 @@ hash is computed as $\mathsf{Hash}(\mathsf{low} \| \mathsf{width})$.
 The PIR value size for this tier is given in [Parameters]. Rows are
 loaded into the PIR database exactly as serialized below.
 
-| Metric | Value |
-|---|---|
+| Metric        | Value                                        |
+| ------------- | -------------------------------------------- |
 | Database size | 262,144 rows $\times$ 24,512 B = **5.98 GB** |
 
 **Row serialization (24,512 bytes):**
@@ -1650,13 +1715,13 @@ $8160 + 64i \ldots 8191 + 64i$.
 
 ##### Bandwidth Summary
 
-| Component | Upload | Download | Round trip |
-|---|---|---|---|
-| Tier 0 payload | — | 192 KB | 192 KB |
-| PIR Query 1 (Tier 1, 24 MB) | 544 KB | ~48 KB | ~592 KB |
-| PIR Query 2 (Tier 2, 6 GB) | 2.6 MB | ~84 KB | ~2.7 MB |
-| **Total (first query)** | **3.2 MB** | **~324 KB** | **~3.5 MB** |
-| **Total (Tier 0 cached)** | **3.2 MB** | **~132 KB** | **~3.3 MB** |
+| Component                   | Upload     | Download    | Round trip  |
+| --------------------------- | ---------- | ----------- | ----------- |
+| Tier 0 payload              | —          | 192 KB      | 192 KB      |
+| PIR Query 1 (Tier 1, 24 MB) | 544 KB     | ~48 KB      | ~592 KB     |
+| PIR Query 2 (Tier 2, 6 GB)  | 2.6 MB     | ~84 KB      | ~2.7 MB     |
+| **Total (first query)**     | **3.2 MB** | **~324 KB** | **~3.5 MB** |
+| **Total (Tier 0 cached)**   | **3.2 MB** | **~132 KB** | **~3.3 MB** |
 
 Upload is dominated by the Tier 2 query-dependent selector component
 ($\mathsf{packed\_query\_row}$, proportional to the number of database
@@ -1669,18 +1734,22 @@ efficiently.
 
 ##### Client Computation Summary
 
-| Step | Binary search | Hashes computed | Sibling hashes read |
-|---|---|---|---|
-| Tier 0 | Over 2,048 keys | 0 | 11 |
-| Tier 1 | Over 128 keys | 0 | 7 |
-| Tier 2 | Over 256 keys | 1 (sibling leaf hash) | 8 |
-| **Total** | | **1** | **26** |
+| Step      | Binary search   | Hashes computed       | Sibling hashes read |
+| --------- | --------------- | --------------------- | ------------------- |
+| Tier 0    | Over 2,048 keys | 0                     | 11                  |
+| Tier 1    | Over 128 keys   | 0                     | 7                   |
+| Tier 2    | Over 256 keys   | 1 (sibling leaf hash) | 8                   |
+| **Total** |                 | **1**                 | **26**              |
 
 All internal node hashes are served directly by Tier 0, Tier 1, and Tier
 2. The client computes exactly 1 hash during proof retrieval: the
 sibling leaf hash in Tier 2.
 
 ##### Query Completion Requirement
+
+This requirement applies to version 1 (YPIR+SP) clients only. Version 0
+clients download all data in a single request and are not subject to
+this requirement.
 
 A client MUST transmit both PIR queries (Tier 1 and Tier 2) for every
 note, regardless of whether the Tier 1 response was successfully
@@ -1691,8 +1760,123 @@ Tier 1 response MUST NOT be allowed to prevent the Tier 2 query from being
 sent. See [Rationale for Query Completion Requirement] for the attack
 that motivates this requirement.
 
+### Version 0: Full Download
+
+Version 0 provides a non-PIR retrieval scheme in which the client
+downloads all tree data from the server and computes authentication
+paths locally. Because the client downloads the same data regardless of
+which nullifier it is checking, the server learns nothing about the
+client's query target.
+
+#### Server Data
+
+A version 0 server MUST make the following data available for download:
+
+1. **Tier 0 data** (196,576 bytes): identical to the Tier 0 plaintext
+   payload specified in [Tier 0: Plaintext Broadcast (Depths 0–11)].
+
+2. **All Tier 1 rows** ($2{,}048$ rows, each 12,224 bytes = 25,034,752
+   bytes total): the complete set of Tier 1 row data as specified in
+   [Tier 1: Small PIR (Depths 11–18)], concatenated in row-index order.
+
+3. **All leaf records** ($n$ records, each 64 bytes): every real
+   (non-empty) exclusion-range leaf in the depth-26 tree, serialized in
+   ascending order by $\mathsf{low}$. Each record is a 64-byte pair
+   $[\mathsf{low} \| \mathsf{width}]$ using the same encoding specified
+   in [Leaf Encoding]. The server MUST also provide the count of real
+   leaf records $n$ so that clients can distinguish real leaves from the
+   canonical empty padding.
+
+For the Orchard nullifier set of size 49,813,801 (as of Mainnet block
+height 3,268,870), the total download is approximately 3.2 GB
+(dominated by the leaf records). With standard HTTP compression
+(e.g., gzip or zstd), this is expected to be approximately 2 GB.
+
+#### Client Procedure (Version 0)
+
+For each note whose nullifier exclusion proof is needed:
+
+1. **Tier 0 lookup**: Binary search the 2,048 `min_key` values in
+   Tier 0 to find the subtree index $S_1$, exactly as specified in
+   [Tier 0: Plaintext Broadcast (Depths 0–11)]. Read 11 sibling hashes
+   from Tier 0.
+
+2. **Tier 1 lookup**: Read the Tier 1 row at index $S_1$ from the
+   downloaded Tier 1 data. Binary search its 128 `min_key` values to
+   find the sub-subtree index $S_2$, exactly as specified in
+   [Tier 1: Small PIR (Depths 11–18)]. Read 7 sibling hashes from
+   the row.
+
+3. **Tier 2 row computation**: Compute the Tier 2 row index as
+   $S_1 \times 128 + S_2$. Extract the 256 leaf records for this
+   row from the downloaded leaf data (leaf indices
+   $[\text{row} \times 256, \; \text{row} \times 256 + 255]$).
+   For indices beyond the real leaf count, use the canonical empty leaf
+   $(\mathsf{low} = 0, \mathsf{width} = 0)$.
+
+4. **Compute Tier 2 internal nodes**: Compute the leaf hash for each of
+   the 256 leaves as $\mathsf{Poseidon}(\mathsf{low}, \mathsf{width})$
+   (256 hashes). Then compute the 254 internal node hashes bottom-up in
+   breadth-first order (254 hashes). Total: 510 Poseidon hashes.
+
+5. **Extract Tier 2 siblings**: Binary search the 256 leaf
+   $\mathsf{low}$ values to find the target position. Read 8 sibling
+   hashes from the computed internal nodes, following the same procedure
+   as [Tier 2: Large PIR (Depths 18–26)]. The client MUST verify that
+   the target nullifier falls within the decoded $(\mathsf{low},
+   \mathsf{width})$ interval; otherwise it MUST reject the leaf.
+
+6. **Assemble authentication path**: Combine the 11 + 7 + 8 = 26
+   sibling hashes from Tiers 0, 1, and 2. Append 3 deterministic
+   empty-subtree siblings as specified in [Authentication Path] to
+   obtain the complete depth-29 path.
+
+7. **Verify root**: Reconstruct the depth-29 Merkle root from the
+   authentication path and the target leaf hash, and verify it against
+   the published depth-29 root.
+
+#### Computation Summary (Version 0)
+
+| Step                  | Hashes per note |
+| --------------------- | --------------- |
+| Tier 2 leaf hashes    | 256             |
+| Tier 2 internal nodes | 254             |
+| **Total**             | **510**         |
+
+For a wallet proving $k$ notes, the total is $510k$ Poseidon hashes.
+
 
 # Rationale
+
+## Retrieval Scheme Versioning
+
+Providing two retrieval schemes addresses two distinct concerns:
+
+1. **Minimal trust baseline.** Version 0 (full download) requires no
+   cryptographic assumptions beyond the collision resistance of Poseidon.
+   The server cannot learn which nullifier the client is checking because
+   the client downloads the entire tree. This provides a baseline that
+   is usable even before the YPIR+SP construction has undergone full
+   external review.
+
+2. **Bandwidth efficiency.** Version 1 (YPIR+SP) reduces per-query
+   bandwidth from approximately 3.3 GB to approximately 3.5 MB, making
+   it practical for mobile wallets. However, its privacy guarantee
+   depends on the hardness of LWE and RLWE.
+
+Version 0 reuses the same tree structure and tier layout as version 1.
+The Tier 0 plaintext and Tier 1 rows are served identically; the only
+difference is that version 0 clients download all Tier 2 leaf records
+directly instead of issuing encrypted PIR queries. This design avoids
+maintaining two separate tree formats and allows servers to support both
+versions from the same tree build.
+
+The v0 download omits Tier 2 internal node hashes to reduce download
+size. Tier 2 has 262,144 rows of 254 internal nodes each (254 × 32 =
+8,128 bytes per row), totaling approximately 2 GB. Including them would
+nearly double the download size. Instead, the client computes the 510
+Poseidon hashes needed per note on demand, which is negligible on modern
+hardware.
 
 ## Parameter Selection
 
@@ -1856,11 +2040,11 @@ size grows with $\sqrt{N}$.
 On a database of $N$ bytes, the hint size is roughly $4\sqrt{N}$ KB
 [^SimplePIR]:
 
-| Database size | Hint size            |
-|---------------|----------------------|
-| 100 KB        | $\approx$ 1.25 MB   |
-| 10 MB         | $\approx$ 12.6 MB   |
-| 1 GB          | 128 MB               |
+| Database size | Hint size         |
+| ------------- | ----------------- |
+| 100 KB        | $\approx$ 1.25 MB |
+| 10 MB         | $\approx$ 12.6 MB |
+| 1 GB          | 128 MB            |
 
 For the Tier 2 database in this document (6 GB, see
 [Tier 2: Large PIR (Depths 18–26)]), the hint would exceed 300 MB. That
@@ -1891,12 +2075,12 @@ YPIR+SP and InsPIRe build on SimplePIR while supporting full-row retrieval (see 
 
 The following table compares communication costs for a 32 GB database:
 
-| Metric | SimplePIR | DoublePIR | YPIR | YPIR+SP | InsPIRe |
-|---|---|---|---|---|---|
-| Hint | 724 MB | 16 MB | **0** | **0** | **0** |
-| Query | 724 KB | 1.4 MB | 2.5 MB | 2.2 MB | ~1.1 MB |
-| Response | 724 KB | 32 KB | 12 KB | 444 KB | ~96 KB |
-| Throughput | 10.4 GB/s | 9.9 GB/s | 12.1 GB/s | 6.1 GB/s | up to 9.4 GB/s |
+| Metric     | SimplePIR | DoublePIR | YPIR      | YPIR+SP  | InsPIRe        |
+| ---------- | --------- | --------- | --------- | -------- | -------------- |
+| Hint       | 724 MB    | 16 MB     | **0**     | **0**    | **0**          |
+| Query      | 724 KB    | 1.4 MB    | 2.5 MB    | 2.2 MB   | ~1.1 MB        |
+| Response   | 724 KB    | 32 KB     | 12 KB     | 444 KB   | ~96 KB         |
+| Throughput | 10.4 GB/s | 9.9 GB/s  | 12.1 GB/s | 6.1 GB/s | up to 9.4 GB/s |
 
 <details>
 <summary>
