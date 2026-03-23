@@ -249,14 +249,18 @@ containing $N_s$ El Gamal-encrypted shares of the voter's ballot count.
 
 **Phase 3: Share submission.** The voter sends each encrypted share as
 an independent payload to one or more submission
-servers [^submission-server]. Each payload contains the data necessary
-for the server to construct a Vote Reveal Proof.
+servers [^submission-server]. Each payload includes a client-chosen
+$\mathsf{submit\_at}$ timestamp and the data necessary for the server
+to construct a Vote Reveal Proof. If the voter is casting near the end
+of the voting window (within the last-moment buffer defined
+in [^submission-server]), the voter places the full ballot count into a
+single share and requests immediate submission.
 
 **Phase 4: Share reveal.** Each submission server constructs a Vote
 Reveal Proof (proving the share belongs to a valid VC in the VCT without
-revealing which one) and submits it to the vote chain at a randomized
-delay. The chain accumulates the revealed El Gamal ciphertexts
-homomorphically.
+revealing which one) and submits it to the vote chain at the
+client-specified time. The chain accumulates the revealed El Gamal
+ciphertexts homomorphically.
 
 **Phase 5: Tally.** After the voting window closes, at least $t$
 validators produce partial decryptions of the aggregate ciphertext per
@@ -1176,6 +1180,7 @@ payload. For share $i$, the payload MUST contain:
 | $\mathsf{enc}\_\mathsf{share}$ | El Gamal ciphertext $(C_1, C_2)$ for this share |
 | $\mathsf{blind}$ | Blind factor for this share |
 | $\mathsf{share}\_{\mathsf{comm}\_0} \ldots \mathsf{share}\_{\mathsf{comm}\_{N_s - 1}}$ | All $N_s$ blinded share commitments |
+| $\mathsf{submit\_at}$ | Unix timestamp (seconds) for when the server should submit the share reveal transaction. 0 means immediate (last-moment mode). See [^submission-server] |
 
 The server receives only the ciphertext and blind factor for the
 single share it is responsible for revealing. The remaining $N_s - 1$
@@ -1390,10 +1395,20 @@ protocol) are specified in [^balance-proof].
 
 Splitting a vote into $N_s$ shares serves two purposes. First, it
 provides temporal unlinkability: shares are submitted independently at
-randomized times, preventing an observer from attributing all shares
-to a single voter by timing correlation. Second, it limits the election
-authority's view: even if the EA decrypts individual ciphertexts, it
-sees only individual shares, not a voter's complete ballot allocation.
+client-chosen times spread across the voting window, preventing an
+observer from attributing all shares to a single voter by timing
+correlation. Second, it limits the election authority's view: even if
+the EA decrypts individual ciphertexts, it sees only individual shares,
+not a voter's complete ballot allocation.
+
+When a voter casts near the end of the voting window, the protocol
+falls back to single-share mode: the full ballot count is placed in one
+share and submitted immediately. This sacrifices both benefits above but
+ensures the vote is counted — each share requires the server to
+construct a computationally expensive Vote Reveal Proof, and with
+insufficient time remaining the server may not complete all $N_s$
+proofs before the deadline. See [^submission-server] for the
+last-moment buffer definition and timing details.
 
 ## Why Blinded Share Commitments
 
