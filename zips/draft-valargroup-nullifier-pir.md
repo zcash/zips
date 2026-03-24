@@ -172,14 +172,14 @@ the recovered data. See [Rationale for Query Completion Requirement] for a detai
 # Requirements
 
 - No client-side preprocessing. A mobile wallet must be able to issue
-  its first query without any prior download beyond the query itself
-  or client state carried over from a previous session.
-- Single untrusted server with no per-client state. The server holds only
-  the public database and processes PIR queries statelessly. A client could
-  PIR Query multiple independent servers without requiring coordination
-  between them.
-- Total bandwidth for a Nullifier Exclusion Proof Query (upload plus download)
-  under 10MB, suitable for mobile networks.
+  its first PIR Query without any prior download beyond the PIR Query
+  itself or client state carried over from a previous session.
+- Single untrusted server that holds no per-client state across PIR Queries.
+  The server holds only the public database and processes PIR Queries
+  statelessly. A client could query multiple independent servers without
+  requiring coordination between them.
+- Total bandwidth per PIR Query/Response under 10MiB, suitable for
+  mobile networks.
 - Exclusion-tree work stays practical on both sides of the proof:
   server-side tree construction, padding, and PIR database generation
   for each snapshot, and in-circuit
