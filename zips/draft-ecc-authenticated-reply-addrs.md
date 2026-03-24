@@ -8,7 +8,7 @@
     Created: 2023-11-12
     License: MIT
     Discussions-To: <https://github.com/zcash/zips/issues/1230>
-    Pull-Request: <https://github.com/zcash/zips/pull/???>
+    Pull-Request: <https://github.com/zcash/zips/pull/1061>
 
 
 # Terminology
