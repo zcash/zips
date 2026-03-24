@@ -497,11 +497,11 @@ For the nullifier-exclusion-tree instantiation in [Instantiations]:
 
 ## Regev Encryption
 
-Let $m = m_\mathsf{pad}$ be the padded row count from [Database Shape]. The client will be doing Regev encryption in LWE form over $\mathbb{Z}_q$, on a row-selector vector. Let
-$\mu_i \in \mathbb{Z}_p^m$ denote the row-selector vector for row index $i$,
+The client will be doing Regev encryption in LWE form over $\mathbb{Z}_q$, on a row-selector vector. Let
+$\mu_i \in \mathbb{Z}_p^{m_\mathsf{pad}}$ denote the row-selector vector for row index $i$,
 where $\mu_i[j] = 1$ exactly when $j = i$ and $\mu_i[j] = 0$ otherwise.
 
-Let $A \in \mathbb{Z}_q^{n \times m}$ be the implicit public matrix derived from
+Let $A \in \mathbb{Z}_q^{n \times m_\mathsf{pad}}$ be the implicit public matrix derived from
 $\mathsf{seed\_A}$ as specified in
 [Expansion of $\mathsf{seed\_A}$ (Row-Selector Public Randomness)] and
 [Negacyclic Extraction of the Selector Matrix].
@@ -513,7 +513,7 @@ vector $\mathbf{s} \in \mathbb{Z}_q^n$ is derived from $s^\star$ as
 specified in [Client Key Generation].
 
 For each query, the client MUST also sample a fresh noise vector
-$e \leftarrow D_{\mathbb{Z},\sigma}^{m}$ and reduce each entry modulo $q$.
+$e \leftarrow D_{\mathbb{Z},\sigma}^{m_\mathsf{pad}}$ and reduce each entry modulo $q$.
 Let $d^{-1}$ denote the
 multiplicative inverse of the ring degree $d$ modulo $q$. The client MUST
 form the selector as
@@ -522,12 +522,12 @@ $$
 c = A^T \cdot \mathbf{s} + d^{-1} \cdot e + \Delta \cdot d^{-1} \cdot \mu_i.
 $$
 
-Here $A$ is defined by negacyclic extraction as a $d \times m$ matrix,
+Here $A$ is defined by negacyclic extraction as a $d \times m_\mathsf{pad}$ matrix,
 with one column per selector position. The PIR selector
-$\mu_i \in \{0,1\}^m$ is indexed by database row, so the query is written
-against the transposed view $A^T \in \mathbb{Z}_q^{m \times d}$: this
+$\mu_i \in \{0,1\}^{m_\mathsf{pad}}$ is indexed by database row, so the query is written
+against the transposed view $A^T \in \mathbb{Z}_q^{m_\mathsf{pad} \times d}$: this
 maps the $d$-dimensional secret vector $\mathbf{s}$ to an
-$m$-dimensional ciphertext vector with one entry per logical database
+$m_\mathsf{pad}$-dimensional ciphertext vector with one entry per logical database
 row. This is only an orientation convention; row $j$ of $A^T$ is column
 $j$ of $A$.
 
@@ -1044,7 +1044,7 @@ the selected row index $i$ as follows:
 
 Here:
 
-- $c_\mathsf{online} = c \in \mathbb{Z}_q^m$ is the selector
+- $c_\mathsf{online} = c \in \mathbb{Z}_q^{m_\mathsf{pad}}$ is the selector
   defined in [Regev Encryption]. Each entry $c_\mathsf{online}[j]$
   is the scalar ($b$-value) component of the $j$-th LWE-form selector
   ciphertext; the corresponding $\mathbf{a}$-vector components are
@@ -1271,7 +1271,7 @@ public matrix $A$ by the procedure defined in
 #### Negacyclic Extraction of the Selector Matrix
 
 This subsection defines the implicit public matrix
-$A \in \mathbb{Z}_q^{n \times m}$ used in [Regev Encryption], as derived
+$A \in \mathbb{Z}_q^{n \times m_\mathsf{pad}}$ used in [Regev Encryption], as derived
 from the seeded ring elements expanded from $\mathsf{seed\_A}$.
 
 Let $d = n = 2048$, let
@@ -1308,10 +1308,10 @@ $$
 a(X)\cdot X^c \bmod (X^d + 1).
 $$
 
-Let $m = m_\mathsf{pad}$ be the padded row count from [Database Shape], and let
+Let
 
 $$
-B = \left\lceil \frac{m}{d} \right\rceil.
+B = \left\lceil \frac{m_\mathsf{pad}}{d} \right\rceil.
 $$
 
 Implementations MUST expand exactly $B$ seeded ring elements from
@@ -1333,10 +1333,10 @@ A = \left[ A^{(0)} \mid A^{(1)} \mid \cdots \mid A^{(B-1)} \right],
 $$
 
 with the final block truncated on the right if necessary so that $A$
-has exactly $m$ columns.
+has exactly $m_\mathsf{pad}$ columns.
 
 Equivalently, for
-$j \in \{0, \ldots, m-1\}$, let
+$j \in \{0, \ldots, m_\mathsf{pad}-1\}$, let
 $b = \lfloor j/d \rfloor$ and $c = j \bmod d$.
 Then column $j$ of $A$ is column $c$ of $\mathsf{NCyc}(a^{(b)})$.
 
