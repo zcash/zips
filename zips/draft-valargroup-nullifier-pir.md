@@ -94,7 +94,7 @@ The client retrieves the 26 sibling hashes for the depth-26 PIR tree in two
 sequential PIR queries plus the plaintext download, then appends 3
 deterministic empty-subtree siblings to obtain the depth-29 authentication
 path. Total bandwidth is approximately 3.5 MB on
-the first query, or approximately 3.3 MB once the Tier 0 plaintext is cached
+the first nullifier exclusion proof request, or approximately 3.3 MB once the Tier 0 plaintext is cached
 (dominated by the Tier 2 upload).
 
 
