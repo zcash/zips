@@ -7,8 +7,8 @@
     Category: Standards / Wallet
     Created: 2023-11-12
     License: MIT
-    Discussions-To: <https://github.com/zcash/zips/issues/???>
-    Pull-Request: <https://github.com/zcash/zips/pull/???>
+    Discussions-To: <https://github.com/zcash/zips/issues/1230>
+    Pull-Request: <https://github.com/zcash/zips/pull/1061>
 
 
 # Terminology

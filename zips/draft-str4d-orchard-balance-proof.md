@@ -6,6 +6,7 @@
     Category: Informational
     Created: 2023-12-07
     License: MIT
+    Discussions-To: <https://github.com/zcash/zips/issues/1229>
 
 
 # Terminology
