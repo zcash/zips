@@ -215,8 +215,10 @@ of UA come precisely from their applicability across all new protocol
 upgrades.
 
 For `Revision 2`_, users must be able to visually distinguish addresses
-that risk information being leaked on-chain as a result of a transfer
-from addresses that present no such risks.
+that risk information being leaked on-chain as a result of a transfer,
+from addresses that present no such risks, with the exception of pool-crossing
+amounts. The latter are accepted leage in the UA design, in order to achieve
+the desired wallet compatibility properties.
 
 Receivers
 ---------
@@ -372,15 +374,6 @@ The Human-Readable Parts of Unified Viewing Keys are defined as:
 * *ivk_prefix* || “``test``” for Unified Incoming Viewing Keys on Testnet;
 * *fvk_prefix* for Unified Full Viewing Keys on Mainnet;
 * *fvk_prefix* || “``test``” for Unified Full Viewing Keys on Testnet.
-
-While support for Revision 2 UAs/UVKs is still being rolled out across
-the Zcash ecosystem, a Producer can maximize interoperability by
-generating a Revision 0 UA/UVK in cases where the conditions on its
-use are met (i.e. there are no MUST-understand Metadata Items, and at
-least one shielded item). At some point when Revision 2 UA/UVKs are
-widely supported, this will be unnecessary and it will be sufficient
-to always produce Revision 2 UA/UVKs.
-
 
 Encoding of Unified Addresses
 -----------------------------
@@ -546,7 +539,10 @@ $\mathtt{addr}$ field:
   derivation of external addresses only). To produce the key information vector
   for a UIVK, it is necessary to perform an additional step of non-hardened
   derivation from the keys provided in the UFVK's key information vector
-  using the external child path index (index 0).
+  using the external child path index (index 0). Producers MUST encode
+  $\mathsf{n_keys}$ in a deterministic order, which may vary depending upon the
+  template in use. For ZIP 48 keys, this is lexicographic by chain code and
+  pubkey.
 
   The number of ``@N`` key placeholders in the descriptor template MUST equal
   $\mathtt{n\_keys}.$ Consumers MUST reject P2SH Viewing Key Items for which
@@ -594,28 +590,27 @@ and this should be taken into account in the design of such Items.
 Requirements for both Unified Addresses and Unified Viewing Keys
 ----------------------------------------------------------------
 
-* A `Revision 0`_ Unified Address, or a `Revision 2`_ Unified Address encoded
-  with the `zu` prefix MUST contain at least one shielded Item (Typecodes
-  $\mathtt{0x02}$ and $\mathtt{0x03}$). Consumers MUST reject addresses
-  that violate this restriction.
+* A Unified Address or Unified Viewing Key MUST contain at least one
+  non-metadata Item.
+
+* A `Revision 0`_ Unified Address MUST contain at least one shielded Item
+  (currently Typecodes $\mathtt{0x02}$ and $\mathtt{0x03}$). Consumers MUST
+  reject addresses that violate this restriction.
 
 * A `Revision 2`_ Unified Address encoded with the ``zu`` prefix MUST NOT
-  contain any transparent Items (Typecodes $\mathtt{0x00}$ and
-  $\mathtt{0x01}$), and MUST only contain Item types listed in
-  the `Typecode Registry`_.
-  Consumers MUST reject addresses that violate this restriction.
+  contain any transparent Items (currently Typecodes $\mathtt{0x00}$ and
+  $\mathtt{0x01}$). Consumers MUST reject addresses that violate this
+  restriction.
 
-* A `Revision 0`_ Unified Viewing Key MUST contain at least one shielded
-  Item (Typecodes $\mathtt{0x02}$ and $\mathtt{0x03}$). This requirement
-  is dropped for `Revision 2`_ UVKs; however, a `Revision 2`_ UVK MUST
-  contain at least one non-Metadata Item. Consumers MUST reject any UVK
-  that violates the restriction applying to its Revision.
+* A `Revision 0`_ Unified Viewing Key MUST contain at least one shielded Item
+  (currently Typecodes $\mathtt{0x02}$ and $\mathtt{0x03}$). This requirement
+  is dropped for `Revision 2`_ UVKs. Consumers MUST reject any UVK that
+  violates the restriction applying to its Revision.
 
-* The $\mathtt{typecode}$ and $\mathtt{length}$ fields are
-  encoded as $\mathtt{compactSize}.$ [#Bitcoin-CompactSize]_
-  (Although existing Receiver Encodings and Viewing Key Encodings are
-  all less than 256 bytes and so could use a one-byte length field,
-  encodings for experimental types may be longer.)
+* The $\mathtt{typecode}$ and $\mathtt{length}$ fields are encoded as
+  $\mathtt{compactSize}.$ [#Bitcoin-CompactSize]_ (Although existing Receiver
+  Encodings and Viewing Key Encodings are all less than 256 bytes and so could
+  use a one-byte length field, encodings for experimental types may be longer.)
 
 * Within a single UA or UVK, all HD-derived Receivers, FVKs, and IVKs SHOULD
   represent an Address or Viewing Key for the same account (as used in
@@ -635,8 +630,8 @@ Requirements for both Unified Addresses and Unified Viewing Keys
   upgrade [#zip-0211]_) to send funds into the Sprout chain value
   pool, this would not be generally useful.
 
-* Producers MUST NOT generate UA/UVKs containing Items with typecodes
-  that are Unassigned in the `Typecode Registry`_.
+* It is RECOMMENDED that Producers upgrade to understand and generate
+  `Revision 2`_ addresses as soon as possible.
 
 * With the exception of MUST-understand Metadata Items, Consumers
   MUST ignore constituent Items with Typecodes they do not recognise.
@@ -962,15 +957,18 @@ typecodes that are Unassigned.
 
 The guiding principle for ``zu`` addresses is that a ``zu`` address MUST NOT
 contain any Items whose interpretation in transaction construction could result
-in an observer of the chain being able to distinguish transactions sent to
-addresses containing such Items from transactions sent to addresses that do
-not.
+in an unprivileged observer of the chain being able to distinguish transactions
+sent to addresses containing such Items from transactions sent to addresses
+that do not.
+
+In contrast, the guiding principle for ``tu`` addresses is that a ``tu``
+address MAY contain items whose interpretation in transaction construction
+could result in additional information being leaked on-chain. As such a user
+giving out a ``tu`` address should recognise that they may be giving up some
+privacy in transactions received at that address.
 
 If a new Metadata Item type should not be allowed in ``zu`` addresses, it MUST
-be assigned in the MUST-understand Metadata range.  It is permissible to change
-an entry in the MUST-understand Metadata range to "only allowed in ``tu`` when
-understood", i.e. the last two columns for such an entry in the table below can
-change from "❌ | ❌" to "❌ | ✅" when it is assigned.
+be assigned in the MUST-understand Metadata range.
 
 Experimental Typecodes ($\mathtt{0xFFFA}$ to $\mathtt{0xFFFF}$) are permitted
 at the discretion of wallets that have opted into the corresponding experiment
@@ -1106,7 +1104,7 @@ The following derivations are applied to each component FVK:
   is obtained by deriving the child key with non-hardened index $0$
   as described in [#bip-0032-public-to-public]_.
 
-* For a P2SH FVK (as of `Revision 0.1`_), the corresponding P2SH IVK
+* For a P2SH FVK (as of `Revision 2`_), the corresponding P2SH IVK
   is obtained by:
 
   1. Replacing each occurrence of ``/**`` in the descriptor template
@@ -1543,6 +1541,18 @@ Marshall Gaucher, Joseph Van Geffen, Brad Miller, Deirdre Connolly, Teor,
 Eran Tromer, Conrado Gouvêa, and Marek Bielik for discussions on the subject of
 Unified Addresses and Unified Viewing Keys.
 
+Changelog
+=========
+
+`Revision 1`_ of this specification originally defined addresses with
+capabilities essentially equivalent to the ``tu`` encoding specified in
+`Revision 2`_; however, this specification was rejected by the community on the
+grounds that users should be able to gain some sense of the privacy
+implications of an address that they are sharing by visual inspection, which
+unified addresses inhibit in general. `Revision 2`_ proposes the ``zu`` and
+``tu`` prefixes to provide such visual distinguisability while retaining the
+benefits related to supporting protocol upgrades and expiry metadata for both
+shielded-only and transparent-transfer-permitting address types.
 
 References
 ==========
