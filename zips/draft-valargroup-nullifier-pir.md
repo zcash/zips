@@ -202,7 +202,6 @@ The following are explicitly out of scope for this ZIP:
 - PIR transport-level wire format between client and server.
 - Noise analysis. Refer to YPIR paper for noise and security analysis. We directly use the suggested values with no amendments [^YPIR]. (TODO: Bring this
   into the ZIP. WIP section # noise-analysis)
-- The outer transport and wire-level encoding of queries and responses is out of scope for this ZIP.
 
 
 # High-level summary
