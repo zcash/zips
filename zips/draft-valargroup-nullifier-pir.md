@@ -238,8 +238,9 @@ sequential PIR queries:
    the index of the Tier 1 subtree containing the exclusion range for
    that nullifier.
 2. The client issues a PIR Query for the corresponding Tier 1 row.
-3. From the Tier 1 row, the client derives the Tier 2 row index and
-   issues a second PIR Query. If there is an error in Tier 1 row retrieval, the
+3. From the Tier 1 row, the client derives the index of the Tier 2
+   subtree containing the exclusion range for the target nullifier,
+   and issues a second PIR query. If there is an error in Tier 1 row retrieval, the
    client queries for a random Tier 2 row index.
 4. From Tier 0 and the recovered Tier 1 and Tier 2 rows, the client
    reconstructs the depth-26 authentication path used for nullifier
