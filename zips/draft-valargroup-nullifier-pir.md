@@ -522,6 +522,15 @@ $$
 c = A^T \cdot \mathbf{s} + d^{-1} \cdot e + \Delta \cdot d^{-1} \cdot \mu_i.
 $$
 
+Here $A$ is defined by negacyclic extraction as a $d \times m$ matrix,
+with one column per selector position. The PIR selector
+$\mu_i \in \{0,1\}^m$ is indexed by database row, so the query is written
+against the transposed view $A^T \in \mathbb{Z}_q^{m \times d}$: this
+maps the $d$-dimensional secret vector $\mathbf{s}$ to an
+$m$-dimensional ciphertext vector with one entry per logical database
+row. This is only an orientation convention; row $j$ of $A^T$ is column
+$j$ of $A$.
+
 This scales both the sampled noise and the unique nonzero selector entry
 by $d^{-1}$ before ring-based encryption and extraction.
 
@@ -2072,6 +2081,11 @@ $A$ corresponds to the seeded ring elements, so the ring-based query can
 be viewed coefficient-wise, before packing restoration, as the deployed
 selector
 $A^T \mathbf{s} + d^{-1} e + \Delta d^{-1} \mu_i$.
+
+The transpose here is only the row-selector view of the same extracted
+matrix: $A$ is defined column-wise from the seeded ring elements, while
+$A^T$ is the equivalent orientation that yields one LWE coordinate per
+database row.
 
 On the packing-enabled path, the server's packing procedure later restores
 that factor by multiplying the packed $b$ contribution by $d$ modulo
