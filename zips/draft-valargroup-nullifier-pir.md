@@ -382,9 +382,14 @@ Unless otherwise specified, every element of $\mathbb{Z}_q$
 in this ZIP is serialized and decomposed using its canonical representative in
 $\{0, \ldots, q-1\}$.
 
-When this ZIP refers to sampling from $D_{\mathbb{Z},\sigma}$, the sampled values
-are integers. After sampling, each coefficient is reduced modulo the relevant
-ciphertext modulus to obtain an element of $\mathbb{Z}_q$.
+When this ZIP refers to sampling from $D_{\mathbb{Z},\sigma}$, it means the
+one-dimensional discrete Gaussian distribution over $\mathbb{Z}$ with real
+width parameter $\sigma > 0$; that is, an integer $x \in \mathbb{Z}$ is
+sampled with probability proportional to
+$\exp(-\pi x^2 / \sigma^2)$. Likewise, $D_{\mathbb{Z},\sigma}^m$ denotes the
+product distribution of $m$ independent samples from $D_{\mathbb{Z},\sigma}$.
+After sampling, each coefficient is reduced modulo the relevant ciphertext
+modulus to obtain an element of $\mathbb{Z}_q$.
 
 Centered representatives MUST NOT be used for serialization, public-seed
 expansion, or gadget decomposition unless explicitly stated.
