@@ -30,7 +30,8 @@ download() {
 mkdir -p temp
 
 problems=$(grep -o '="https://[^"]*"[^>]*>' render.sh | while read line; do
-  #echo "Checking $line" 1>&2
+  # Output problems to stdout, and warnings to temp/.warnings.txt
+
   url=$(echo "$line" |sed 's|="\(https://[^"]*\)".*|\1|')
   current_url=$(echo "$url" |sed -n 's|\([^@]\)@[^/]*\(/.*\)|\1\2|p')
   filename=$(basename "$url")
@@ -42,17 +43,17 @@ problems=$(grep -o '="https://[^"]*"[^>]*>' render.sh | while read line; do
   download "$referenced" "$url"
 
   if [ -z "$current_url" ]; then
-    echo "  $url is not versioned."
+    echo "::error:: $url is not versioned."
   elif [ ! -f "$referenced" ]; then
-    echo "  $url could not be downloaded."
+    echo "::error:: $url could not be downloaded."
   else
     download "$current" "$current_url"
 
     maybe_delete=0
     if [ ! -f "$current" ]; then
-      echo "  $current_url could not be downloaded."
+      echo "::warning:: $current_url could not be downloaded." >>temp/.warnings.txt
     elif ! diff -q --binary "$referenced" "$current" >/dev/null; then
-      echo "  $url is not the current version (it does not match $current_url)."
+      echo "::warning:: $url is not the current version (it does not match $current_url)." >>temp/.warnings.txt
     else
       maybe_delete=1
     fi
@@ -60,29 +61,42 @@ problems=$(grep -o '="https://[^"]*"[^>]*>' render.sh | while read line; do
     # Check the SRI digest regardless of whether it is the current version.
     given=$(echo "$line" |sed -n 's|="https://[^"]*" integrity="\([^"]*\)" crossorigin="anonymous".*|\1|p')
     if [ -z "$given" ]; then
-      echo "  Did not find 'integrity="..." crossorigin="anonymous"' in: $line"
+      echo "::error:: Did not find 'integrity="..." crossorigin="anonymous"' in: $line"
     else
       calculated=$(sridigest "$referenced")
       if [ "$given" != "$calculated" ]; then
-        echo "  Given SRI digest '$given' for $url does not match calculated digest '$calculated'."
+        echo "::error:: Given SRI digest '$given' for $url does not match calculated digest '$calculated'."
       elif [ $maybe_delete -eq 1 ]; then
         rm -f "$referenced" "$current"
       fi
     fi
   fi
 done)
+warnings=$(<temp/.warnings.txt)
+rm -f temp/.warnings.txt
 
+# Exit with 1 if only warnings, 2 if there are any problems.
+exitcode=0
 if [ -n "$problems" ]; then
   echo "Problems found:"
   echo "$problems"
   echo ""
+fi
+if [ -n "$warnings" ]; then
+  echo "Warnings found:"
+  echo "$warnings"
+  echo ""
+  exitcode=1
+fi
+if [ -n "$problems" ]; then exitcode=2; fi
+if [ "$exitcode" -gt 0 ]; then
   echo "The relevant SRI digests and files are:"
   for f in temp/*; do
     if [ -f "$f" ]; then echo "  $(sridigest $f)  $f"; fi
   done
-  exit 1
+  exit $exitcode
 else
-  echo "No problems detected."
+  echo "No problems or warnings detected."
   # All of the downloaded files should have been deleted.
   rmdir temp
 fi
