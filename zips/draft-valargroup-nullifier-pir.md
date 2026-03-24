@@ -1815,9 +1815,14 @@ product of two 28-bit NTT-friendly primes rather than as a single large
 prime. This CRT representation gives the implementation enough modulus
 headroom for the packing and key-switching steps while still allowing
 the polynomial arithmetic to be carried out efficiently in 64-bit
-machine words. In other words, the construction needs a modulus of
-roughly 56 bits overall, but realizes it as two smaller compatible
-factors so that the NTT-based implementation remains practical.
+machine words. The construction needs an overall modulus of roughly
+56 bits, but CRT makes it possible to realize that modulus as two
+smaller compatible factors and perform each polynomial operation
+separately modulo $q_{2,1}$ and $q_{2,2}$, where the NTT is supported
+and the intermediate arithmetic remains practical. The two residue-wise
+results are then CRT-recombined modulo $q$. In other words, the scheme
+gets the headroom of a roughly 56-bit modulus without giving up
+practical NTT-based performance.
 
 ## Packing
 
