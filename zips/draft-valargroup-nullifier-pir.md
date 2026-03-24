@@ -272,7 +272,7 @@ This ZIP specifies the YPIR+SP scheme [^YPIR].
 
 `Server_Setup`
 
-: Server-side initialization: fix the deployed parameter set
+: Server-side initialization: fix the parameter set
   ([Parameters]); construct the tier databases and row serializations
   ([Instantiations]); expand the fixed public seeds and derived
   public/query-independent material ([Public Seeds]); encode each
@@ -284,7 +284,7 @@ This ZIP specifies the YPIR+SP scheme [^YPIR].
 
 : Client-side query construction: sample fresh PIR Query material
   ([Client Key Generation]); construct the row-selector encryption
-  ([Regev Encryption]); form the deployed transmitted query object
+  ([Regev Encryption]); form the transmitted query object
   ([Query Generation]); and send that query using an
   implementation-defined transport encoding.
 
@@ -475,7 +475,7 @@ $k$-th plaintext word from every row. An implementation MAY store
 the matrix in transposed form for efficient dot products; the logical
 row-major definition is unchanged.
 
-### Deployed Values
+### Nullifier Instantiation Values
 
 For the nullifier-exclusion-tree instantiation in [Instantiations]:
 
@@ -499,7 +499,7 @@ where $\mu_i[j] = 1$ exactly when $j = i$ and $\mu_i[j] = 0$ otherwise.
 Let $A \in \mathbb{Z}_q^{n \times m}$ be the implicit public matrix derived from
 $\mathsf{seed\_A}$ as specified in
 [Expansion of $\mathsf{seed\_A}$ (Row-Selector Public Randomness)] and
-[Negacyclic Extraction of the Deployed Selector Matrix].
+[Negacyclic Extraction of the Selector Matrix].
 
 For each query the client samples one fresh ring secret
 $s^\star \in R_q = \mathbb{Z}_q[X]/(X^d + 1)$ as specified in
@@ -511,7 +511,7 @@ For each query, the client MUST also sample a fresh noise vector
 $e \leftarrow D_{\mathbb{Z},\sigma}^{m}$ and reduce each entry modulo $q$.
 Let $d^{-1}$ denote the
 multiplicative inverse of the ring degree $d$ modulo $q$. The client MUST
-form the deployed selector as
+form the selector as
 
 $$
 c = A^T \cdot \mathbf{s} + d^{-1} \cdot e + \Delta \cdot d^{-1} \cdot \mu_i.
@@ -537,7 +537,7 @@ The server operates on the row-serialized and plaintext-packed database prepared
 
 1. **Selector hint.** Let
    $A \in \mathbb{Z}_q^{n \times m_\mathsf{pad}}$ be the implicit public matrix
-   from [Negacyclic Extraction of the Deployed Selector Matrix].
+   from [Negacyclic Extraction of the Selector Matrix].
    Compute
 
    $$
@@ -990,7 +990,7 @@ exactly 33 RLWE ciphertexts.
 
 Concrete byte encoding of the packing key is out of scope for this ZIP.
 
-For the seeded representation deployed by this ZIP, the client transmits
+For the seeded representation specified by this ZIP, the client transmits
 only the condensed packing-key component
 $pk_\mathsf{condensed} = (\beta_{0,0}, \beta_{0,1}, \beta_{0,2}, \ldots, \beta_{10,2})$,
 that is, the second rows (row 1 per
@@ -1011,7 +1011,7 @@ the selected row index $i$ as follows:
 1. Sample a fresh $s^\star$ as specified in [Client Key Generation].
 2. Construct the row-selector vector $\mu_i$ as specified in [Regev
    Encryption].
-3. Generate the deployed row selector
+3. Generate the row selector
    $c = A^T \cdot \mathbf{s} + d^{-1} \cdot e + \Delta \cdot d^{-1} \cdot \mu_i$
    as specified in [Regev Encryption], where $d^{-1}$ is taken modulo $q$.
 4. Generate the packing key
@@ -1023,14 +1023,14 @@ the selected row index $i$ as follows:
    (c, pk).
    $$
 
-6. For the deployed seeded representation specified by this ZIP, the
+6. For the seeded representation specified by this ZIP, the
    client MUST transmit only the query-dependent selector component
    $c_\mathsf{online}$ and the condensed packing-key component
    $pk_\mathsf{condensed}$.
 
 Here:
 
-- $c_\mathsf{online} = c \in \mathbb{Z}_q^m$ is the deployed selector
+- $c_\mathsf{online} = c \in \mathbb{Z}_q^m$ is the selector
   defined in [Regev Encryption]. Each entry $c_\mathsf{online}[j]$
   is the scalar ($b$-value) component of the $j$-th LWE-form selector
   ciphertext; the corresponding $\mathbf{a}$-vector components are
@@ -1044,7 +1044,7 @@ and packing key MUST NOT be transmitted. They are reconstructed by the
 server from the fixed public seeds $\mathsf{seed\_A}$ and
 $\mathsf{seed\_pack}$ as specified in [Public Seeds].
 
-7. Form the deployed transmitted query object
+1. Form the transmitted query object
 
    $$
    Q = (c_\mathsf{online}, pk_\mathsf{condensed}).
@@ -1157,7 +1157,7 @@ $K_{r,u}$.
 
 ### Public Seeds
 
-This ZIP binds exactly two fixed public seeds for the deployed YPIR+SP
+This ZIP binds exactly two fixed public seeds for the YPIR+SP
 path:
 
 - $\mathsf{seed\_A} = \mathtt{0x00}^{32}$ for the active row-selector
@@ -1168,7 +1168,7 @@ path:
 These public seeds are query-independent and MUST NOT be confused with
 the client's fresh private per-query secret $s^\star$ from
 [Client Key Generation]. This ZIP does not define additional public-seed
-domains for unused paths outside the deployed YPIR+SP construction.
+domains for unused paths outside the YPIR+SP construction.
 
 #### ChaCha20 RNG Initialization
 
@@ -1247,14 +1247,14 @@ Implementations MUST expand $\mathsf{seed\_A}$ as follows:
    $R_q = \mathbb{Z}_q[X]/(X^d + 1)$ by the procedure in
    [Public-Ring-Element Expansion].
 5. Use these sampled ring elements, in order, as the public
-   query-independent randomness of the deployed selector-generation
+   query-independent randomness of the selector-generation
    procedure.
 
 These seeded ring elements are converted into the implicit selector
 public matrix $A$ by the procedure defined in
-[Negacyclic Extraction of the Deployed Selector Matrix].
+[Negacyclic Extraction of the Selector Matrix].
 
-#### Negacyclic Extraction of the Deployed Selector Matrix
+#### Negacyclic Extraction of the Selector Matrix
 
 This subsection defines the implicit public matrix
 $A \in \mathbb{Z}_q^{n \times m}$ used in [Regev Encryption], as derived
@@ -1951,7 +1951,7 @@ database-dependent hint by packing the intermediate LWE-form response
 into a more compact RLWE form.
 
 YPIR+SP uses one fresh 2048-coefficient secret polynomial per query:
-$s^\star$, whose coefficient vector defines the deployed row-selector
+$s^\star$, whose coefficient vector defines the row-selector
 LWE secret $\mathbf{s}$ and which is also used to derive the packing
 material and decrypt the packed response.
 
@@ -2060,7 +2060,7 @@ recovering the packed PIR value.
 
 ## Why A Is Negacyclic But the Database Is Not
 
-In the deployed selector path, the query uses ring structure, but the
+In the selector path, the query uses ring structure, but the
 server still evaluates it as an implicit LWE selector. The earlier
 negacyclic extraction rule defines exactly which implicit public matrix
 $A$ corresponds to the seeded ring elements, so the ring-based query can
@@ -2073,7 +2073,7 @@ that factor by multiplying the packed $b$ contribution by $d$ modulo
 $q$, yielding the effective selector semantics
 $A^T \mathbf{s} + e + \Delta \mu_i$ at the packed/decrypted level.
 
-Accordingly, the deployed query is not generated from an unstructured LWE
+Accordingly, the query is not generated from an unstructured LWE
 matrix directly. Instead, the client encrypts a polynomial selector using
 ring structure, and the server's first pass still consumes the resulting
 LWE-form selector and produces the same kind of per-row LWE outputs that
