@@ -244,8 +244,9 @@ sequential PIR queries:
 4. From Tier 0 and the recovered Tier 1 and Tier 2 rows, the client
    reconstructs the depth-26 authentication path used for nullifier
    non-membership.
-5. The client appends the 3 deterministic empty-subtree siblings needed
-   by the depth-29 Claim circuit.
+5. The client appends the 3 deterministic empty-subtree siblings
+   to extend the depth-26 path to depth 29 for compatibility with the
+   Claim circuit. This is to account for the future nullifier tree growth, aiming to avoid chain upgrades for verufying key updates. See "Tree Depth vs. Circuit Depth" rationale for details.
 
 The client only computes a O(depth) number of hashes, namely to check validity
 of its retrieved authentication path.
@@ -2208,8 +2209,8 @@ The benefit is that the circuit's proving and verification keys support
 trees up to depth 29 without regeneration. As the Orchard nullifier set
 grows beyond $2^{26}$, only the PIR tier structure and server databases
 need to be updated. The circuit parameters remain unchanged. Changing
-the circuit depth would require new key generation and distribution to
-all clients, an operationally costly step that this headroom avoids.
+the circuit depth would require new verifying keys, which are embedded
+in the state machine of the vote chain. Therefore, require a network upgrade to deploy. This headroom avoids that.
 
 ## Rationale for (low, width) encoding
 
