@@ -1,0 +1,49 @@
+name: Status of dependency check
+on:
+  workflow_run:
+    workflows: ["Check dependencies of rendered ZIPs"]
+    types: [completed]
+
+permissions:
+  actions: read # Needed to list artifacts
+  checks: write # Needed to post the status
+
+jobs:
+  post_status:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v8
+        with:
+          script: |
+            const runId = context.payload.workflow_run.id;
+            let conclusion = context.payload.workflow_run.conclusion;
+            let title = 'Dependencies are incorrect or could not be checked';
+
+            if (conclusion === 'success') {
+               // Check if the "neutral-signal" artifact exists.
+               const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: runId,
+               });
+
+               if (artifacts.data.artifacts.some(a => a.name === 'neutral-signal') {
+                 conclusion = 'neutral';
+                 title = 'Dependencies are correct but not up-to-date';
+               } else {
+                 title = 'Dependencies are correct and up-to-date';
+               }
+            }
+
+            await github.rest.checks.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'Dependency check result',
+              head_sha: context.payload.workflow_run.head_sha,
+              status: 'completed',
+              conclusion,
+              output: {
+                title,
+                summary: "See 'View details' on 'Check dependencies of rendered ZIPs' for more information."
+              }
+            });
