@@ -106,7 +106,7 @@ The client retrieves the 26 sibling hashes for the depth-26 PIR tree in two
 sequential PIR queries plus the plaintext download, then appends 3
 deterministic empty-subtree siblings to obtain the depth-29 authentication
 path. Total bandwidth is approximately 3.5 MB on
-the first query, or approximately 3.3 MB once the Tier 0 plaintext is cached
+the first nullifier exclusion proof request, or approximately 3.3 MB once the Tier 0 plaintext is cached
 (dominated by the Tier 2 upload).
 
 Wallet implementations are required to support full download and can
@@ -206,14 +206,14 @@ the recovered data. See [Rationale for Query Completion Requirement] for a detai
 # Requirements
 
 - No client-side preprocessing. A mobile wallet must be able to issue
-  its first query without any prior download beyond the query itself
-  or client state carried over from a previous session.
-- Single untrusted server with no per-client state. The server holds only
-  the public database and processes PIR queries statelessly. A client could
-  PIR Query multiple independent servers without requiring coordination
-  between them.
-- Total bandwidth for a Nullifier Exclusion Proof Query (upload plus download)
-  under 10MB, suitable for mobile networks.
+  its first PIR Query without any prior download beyond the PIR Query
+  itself or client state carried over from a previous session.
+- Single untrusted server that holds no per-client state across PIR Queries.
+  The server holds only the public database and processes PIR Queries
+  statelessly. A client could query multiple independent servers without
+  requiring coordination between them.
+- Total bandwidth per PIR Query/Response under 10MiB, suitable for
+  mobile networks.
 - Exclusion-tree work stays practical on both sides of the proof:
   server-side tree construction, padding, and PIR database generation
   for each snapshot, and in-circuit
@@ -273,28 +273,27 @@ sequential PIR queries:
    the index of the Tier 1 subtree containing the exclusion range for
    that nullifier.
 2. The client issues a PIR Query for the corresponding Tier 1 row.
-3. From the Tier 1 row, the client derives the Tier 2 row index and
-   issues a second PIR Query. If there is an error in Tier 1 row retrieval, the
+3. From the Tier 1 row, the client derives the index of the Tier 2
+   subtree containing the exclusion range for the target nullifier,
+   and issues a second PIR query. If there is an error in Tier 1 row retrieval, the
    client queries for a random Tier 2 row index.
 4. From Tier 0 and the recovered Tier 1 and Tier 2 rows, the client
    reconstructs the depth-26 authentication path used for nullifier
    non-membership.
-5. The client appends the 3 deterministic empty-subtree siblings needed
-   by the depth-29 Claim circuit.
+5. The client appends the 3 deterministic empty-subtree siblings
+   to extend the depth-26 path to depth 29 for compatibility with the
+   Claim circuit. This is to account for the future nullifier tree growth, aiming to avoid chain upgrades for verufying key updates. See "Tree Depth vs. Circuit Depth" rationale for details.
 
 The client only computes a O(depth) number of hashes, namely to check validity
 of its retrieved authentication path.
 
 Each PIR Query is done via YPIR+SP, where SP stands for "SimplePIR". In YPIR+SP,
-the server organizes a database of N entries into $\sqrt{N} \cross \sqrt{N}$ 
-matrix. The intuition is that the client additively-homomorphically encrypts a 
-"selector vector", which if multiplied by the database-matrix, returns a single matrix column. This is the "SimplePIR" style of operation.
-We consider ourselves as operating over the transpose of the matrix, so we can
-continue always talk about the rows of the database, rather its columns. (TODO:
-is this actually helping making the explanation simpler, re-examine after DB
-layout is explained in ZIP)
-Then the server packs this encrypted column from LWE ciphertexts into RLWE
-ciphertexts, letting us remove the precomputed database hint from SimplePIR.
+the server organizes each tier database as a matrix of rows and plaintext-word columns (see [Database Shape]). The client
+additively-homomorphically encrypts a row-selector vector; the server multiplies
+this vector by the database matrix, producing one scalar per column. This is the
+"SimplePIR" style of operation. The server then packs these per-column outputs
+from LWE ciphertexts into RLWE ciphertexts, removing the need for a
+precomputed database hint.
 
 Thus for each PIR tier, the client hides their selected database row with Regev
 encryption, the server evaluates the corresponding SimplePIR-style
@@ -845,7 +844,7 @@ This ZIP specifies the YPIR+SP scheme [^YPIR].
 
 `Server_Setup`
 
-: Server-side initialization: fix the deployed parameter set
+: Server-side initialization: fix the parameter set
   ([Parameters]); construct the tier databases and row serializations
   ([Data Structure Layout]); expand the fixed public seeds and derived
   public/query-independent material ([Public Seeds]); encode each
@@ -857,7 +856,7 @@ This ZIP specifies the YPIR+SP scheme [^YPIR].
 
 : Client-side query construction: sample fresh PIR Query material
   ([Client Key Generation]); construct the row-selector encryption
-  ([Regev Encryption]); form the deployed transmitted query object
+  ([Regev Encryption]); form the transmitted query object
   ([Query Generation]); and send that query using an
   implementation-defined transport encoding.
 
@@ -955,9 +954,14 @@ Unless otherwise specified, every element of $\mathbb{Z}_q$
 in this ZIP is serialized and decomposed using its canonical representative in
 $\{0, \ldots, q-1\}$.
 
-When this ZIP refers to sampling from $D_{\mathbb{Z},\sigma}$, the sampled values
-are integers. After sampling, each coefficient is reduced modulo the relevant
-ciphertext modulus to obtain an element of $\mathbb{Z}_q$.
+When this ZIP refers to sampling from $D_{\mathbb{Z},\sigma}$, it means the
+one-dimensional discrete Gaussian distribution over $\mathbb{Z}$ with real
+width parameter $\sigma > 0$; that is, an integer $x \in \mathbb{Z}$ is
+sampled with probability proportional to
+$\exp(-\pi x^2 / \sigma^2)$. Likewise, $D_{\mathbb{Z},\sigma}^m$ denotes the
+product distribution of $m$ independent samples from $D_{\mathbb{Z},\sigma}$.
+After sampling, each coefficient is reduced modulo the relevant ciphertext
+modulus to obtain an element of $\mathbb{Z}_q$.
 
 Centered representatives MUST NOT be used for serialization, public-seed
 expansion, or gadget decomposition unless explicitly stated.
@@ -965,16 +969,114 @@ expansion, or gadget decomposition unless explicitly stated.
 For [PackingKeyGeneration], [Split Modulus Switching], and all transport-facing
 objects, coefficients MUST be interpreted via canonical representatives.
 
+### Plaintext Encoding
+
+The YPIR+SP database for each tier is a matrix: each row holds one
+PIR record (the serialized subtree bytes for that tier entry), split
+into 14-bit plaintext-word columns. The column count is rounded up
+to a multiple of the ring degree $d = 2048$ to form packing chunks,
+and the row count is rounded up to a power of two (at least $d$).
+The subsections below define the byte-to-word mapping and the
+resulting database shape.
+
+#### Byte-to-Word Mapping
+
+For YPIR plaintext packing, implementations MUST map each serialized
+`L_value`-byte row into 14-bit plaintext words by interpreting the row as
+a contiguous little-endian bitstream:
+
+- Bit 0 is the least-significant bit of byte 0.
+- Within each byte, bits are ordered from least significant to most
+  significant.
+- Word index $k$ is formed from bits $14k$ through $14k + 13$, with bit
+  $14k$ becoming the least-significant bit of that 14-bit word.
+
+If the final 14-bit word is only partially filled by row bits, the
+missing high bits of that word MUST be zero.
+
+#### Database Shape
+
+Given a tier with $m$ logical rows and serialized row length
+$L_\mathsf{value}$ bytes, implementations MUST derive the database
+dimensions as follows.
+
+**Column dimensions.** The number of plaintext-word columns
+carrying row data is
+
+$$
+W_\mathsf{value} = \left\lceil \frac{8 \, L_\mathsf{value}}{14} \right\rceil.
+$$
+
+The number of packing chunks (RLWE ciphertexts per response) is
+
+$$
+I = \left\lceil \frac{W_\mathsf{value}}{d} \right\rceil
+$$
+
+with $d = 2048$. The total padded column count is
+
+$$
+W_\mathsf{pad} = I \cdot d.
+$$
+
+The $z = W_\mathsf{pad} - W_\mathsf{value}$ trailing columns in the
+last packing chunk are all-zero padding words. These are internal
+YPIR padding and are not part of the serialized tier-row format
+defined by this ZIP.
+
+**Row dimensions.** The padded row count is
+
+$$
+m_\mathsf{pad} = \max\!\bigl(d,\; 2^{\lceil \log_2 m \rceil}\bigr).
+$$
+
+The row-dimension exponent is
+
+$$
+\nu_1 = \log_2(m_\mathsf{pad} / d).
+$$
+
+Logical rows $m$ through $m_\mathsf{pad} - 1$ (if any) are all-zero
+padding rows.
+
+**Database matrix.** The server MUST construct the plaintext database
+
+$$
+\mathsf{DB} \in \mathbb{Z}_p^{\,m_\mathsf{pad} \times W_\mathsf{pad}}
+$$
+
+where row $j < m$ contains the $W_\mathsf{value}$ plaintext words
+from the serialized tier row followed by $z$ zeros, and rows
+$j \geq m$ are all-zero. Column $k$ of $\mathsf{DB}$ contains the
+$k$-th plaintext word from every row. An implementation MAY store
+the matrix in transposed form for efficient dot products; the logical
+row-major definition is unchanged.
+
+#### Nullifier Instantiation Values
+
+For the nullifier-exclusion-tree instantiation in [Instantiations]:
+
+| Derived quantity | Tier 1 | Tier 2 |
+|---|---|---|
+| Logical rows $m$ | $2^{11} = 2{,}048$ | $2^{18} = 262{,}144$ |
+| Serialized row length $L_\mathsf{value}$ | 12,224 bytes | 24,512 bytes |
+| Plaintext-word columns $W_\mathsf{value}$ | 6,986 | 14,007 |
+| Packing chunks $I$ | 4 | 7 |
+| Padded columns $W_\mathsf{pad}$ | 8,192 | 14,336 |
+| Trailing zero words $z$ | 1,206 | 329 |
+| Padded rows $m_\mathsf{pad}$ | 2,048 | 262,144 |
+| Row-dimension exponent $\nu_1$ | 0 | 7 |
+
 ### Regev Encryption
 
-Let $m$ be the number of database rows. The client will be doing Regev encryption in LWE form over $\mathbb{Z}_q$, on a row-selector vector. Let
-$\mu_i \in \mathbb{Z}_p^m$ denote the row-selector vector for row index $i$,
+The client will be doing Regev encryption in LWE form over $\mathbb{Z}_q$, on a row-selector vector. Let
+$\mu_i \in \mathbb{Z}_p^{m_\mathsf{pad}}$ denote the row-selector vector for row index $i$,
 where $\mu_i[j] = 1$ exactly when $j = i$ and $\mu_i[j] = 0$ otherwise.
 
-Let $A \in \mathbb{Z}_q^{n \times m}$ be the implicit public matrix derived from
+Let $A \in \mathbb{Z}_q^{n \times m_\mathsf{pad}}$ be the implicit public matrix derived from
 $\mathsf{seed\_A}$ as specified in
 [Expansion of $\mathsf{seed\_A}$ (Row-Selector Public Randomness)] and
-[Negacyclic Extraction of the Deployed Selector Matrix].
+[Negacyclic Extraction of the Selector Matrix].
 
 For each query the client samples one fresh ring secret
 $s^\star \in R_q = \mathbb{Z}_q[X]/(X^d + 1)$ as specified in
@@ -983,14 +1085,23 @@ vector $\mathbf{s} \in \mathbb{Z}_q^n$ is derived from $s^\star$ as
 specified in [Client Key Generation].
 
 For each query, the client MUST also sample a fresh noise vector
-$e \leftarrow D_{\mathbb{Z},\sigma}^{m}$ and reduce each entry modulo $q$.
+$e \leftarrow D_{\mathbb{Z},\sigma}^{m_\mathsf{pad}}$ and reduce each entry modulo $q$.
 Let $d^{-1}$ denote the
 multiplicative inverse of the ring degree $d$ modulo $q$. The client MUST
-form the deployed selector as
+form the selector as
 
 $$
 c = A^T \cdot \mathbf{s} + d^{-1} \cdot e + \Delta \cdot d^{-1} \cdot \mu_i.
 $$
+
+Here $A$ is defined by negacyclic extraction as a $d \times m_\mathsf{pad}$ matrix,
+with one column per selector position. The PIR selector
+$\mu_i \in \{0,1\}^{m_\mathsf{pad}}$ is indexed by database row, so the query is written
+against the transposed view $A^T \in \mathbb{Z}_q^{m_\mathsf{pad} \times d}$: this
+maps the $d$-dimensional secret vector $\mathbf{s}$ to an
+$m_\mathsf{pad}$-dimensional ciphertext vector with one entry per logical database
+row. This is only an orientation convention; row $j$ of $A^T$ is column
+$j$ of $A$.
 
 This scales both the sampled noise and the unique nonzero selector entry
 by $d^{-1}$ before ring-based encryption and extraction.
@@ -1003,46 +1114,49 @@ public LWE matrix $A$ via negacyclic extraction.
 
 Given a query $Q = (c_\mathsf{online}, pk_\mathsf{condensed})$ and
 the active PIR database tier, the server MUST compute the response
-as follows. Let $m$ be the number of database rows, $W$ the number
-of 14-bit plaintext-word columns (from [Plaintext Encoding]).
+as follows. Let $m_\mathsf{pad}$, $W_\mathsf{value}$, and
+$W_\mathsf{pad}$ be the padded row count, value-carrying column
+count, and padded column count derived in [Database Shape].
 Recall, $d = 2048$.
 
 The server operates on the row-serialized and plaintext-packed database prepared during `Server_Setup`; any equivalent use of precomputed query-independent artifacts is permitted only as specified in [Precomputation].
 
 1. **Selector hint.** Let
-   $A \in \mathbb{Z}_q^{n \times m}$ be the implicit public matrix
-   from [Negacyclic Extraction of the Deployed Selector Matrix].
+   $A \in \mathbb{Z}_q^{n \times m_\mathsf{pad}}$ be the implicit public matrix
+   from [Negacyclic Extraction of the Selector Matrix].
    Compute
 
    $$
-   H = A \cdot \mathsf{DB} \in \mathbb{Z}_q^{n \times W},
+   H = A \cdot \mathsf{DB} \in \mathbb{Z}_q^{n \times W_\mathsf{pad}},
    $$
 
-   where $\mathsf{DB} \in \mathbb{Z}_q^{m \times W}$ is the packed
-   plaintext database from [Plaintext Encoding].
+   where $\mathsf{DB} \in \mathbb{Z}_q^{m_\mathsf{pad} \times W_\mathsf{pad}}$
+   is the plaintext database from [Database Shape].
    Column $k$ of $H$ is the $\mathbf{a}$-component of the
    corresponding SimplePIR-level ciphertext.
 
 2. **Database scan.** Compute the query-dependent scalar components
 
    $$
-   b'_k = \sum_{j=0}^{m-1}
+   b'_k = \sum_{j=0}^{m_\mathsf{pad}-1}
      \mathsf{DB}[j][k] \cdot c_\mathsf{online}[j]
    \pmod{q}
    $$
 
-   for each plaintext-word column $k \in \{0, \ldots, W-1\}$.
-   For indices $k \geq W$ (padding positions in the final chunk),
-   define $b'_k = 0$ and $\mathbf{h}_k = \mathbf{0} \in \mathbb{Z}_q^n$.
+   for each column $k \in \{0, \ldots, W_\mathsf{pad}-1\}$.
+   For columns $k \geq W_\mathsf{value}$ the padding columns of
+   $\mathsf{DB}$ are zero, so $b'_k = 0$ and
+   $\mathbf{h}_k = \mathbf{0} \in \mathbb{Z}_q^n$.
 
 3. **Reconstruct packing key.** Recover the full packing key $pk$
    from $pk_\mathsf{condensed}$ and $\mathsf{seed\_pack}$ using the
    convention in [Packing-Level Ciphertext Convention].
 
-4. **Pack.** For each plaintext-word column
-   $k \in \{0, \ldots, W-1\}$, form the SimplePIR-level ciphertext
-   $t_k = (\mathbf{h}_k,\; b'_k)$, where $\mathbf{h}_k$ is column $k$ of
-   $H$. Let $T = (t_0, \ldots, t_{W-1})$, and compute
+4. **Pack.** For each column
+   $k \in \{0, \ldots, W_\mathsf{pad}-1\}$, form the SimplePIR-level
+   ciphertext $t_k = (\mathbf{h}_k,\; b'_k)$, where $\mathbf{h}_k$ is
+   column $k$ of $H$. Let $T = (t_0, \ldots, t_{W_\mathsf{pad}-1})$,
+   and compute
 
    $$
    \widehat{R} =
@@ -1054,26 +1168,6 @@ The server operates on the row-serialized and plaintext-packed database prepared
 
 The resulting sequence of modulus-switched packed RLWE ciphertexts is
 the server response $R$.
-
-#### Plaintext Encoding
-
-For YPIR plaintext packing, implementations MUST map each serialized
-`L_value`-byte row into 14-bit plaintext words by interpreting the row as
-a contiguous little-endian bitstream:
-
-- Bit 0 is the least-significant bit of byte 0.
-- Within each byte, bits are ordered from least significant to most
-  significant.
-- Word index $k$ is formed from bits $14k$ through $14k + 13$, with bit
-  $14k$ becoming the least-significant bit of that 14-bit word.
-
-For a row of `L_value` bytes, let
-$W_\mathsf{value} = \lceil 8L_\mathsf{value} / 14 \rceil$. If the final
-14-bit word is only partially filled by row bits, the missing high bits
-of that word MUST be zero. If additional all-zero words are needed to
-complete the final packing chunk of length $d = 2048$, those words are
-internal YPIR padding and are not part of the serialized tier-row format
-defined by this ZIP.
 
 #### Precomputation
 
@@ -1098,25 +1192,23 @@ stored and reused with different packing keys.
 
 Note to reader: refer to "Packing" subsection of Rationale.
 
-Let $T = (t_0, \ldots, t_{W_\mathsf{value}-1})$ be the ordered sequence of
-SimplePIR-level LWE ciphertexts corresponding to the selected PIR value,
-where $L_\mathsf{value}$ is the PIR value size in bytes fixed for the
-queried tier in [Parameters] and $W_\mathsf{value}$ is determined from
-$L_\mathsf{value}$ by [Plaintext Encoding], before any
-additional all-zero word padding used only to complete the final
-ciphertext chunk. The server MUST pack $T$ so that the resulting
-packing-level ciphertexts decrypt, under the client's fresh
+Let $T = (t_0, \ldots, t_{W_\mathsf{pad}-1})$ be the ordered sequence of
+SimplePIR-level LWE ciphertexts produced by [Server Computation], where
+$W_\mathsf{pad} = I \cdot d$ is the padded column count from
+[Database Shape]. The first $W_\mathsf{value}$ entries correspond to
+value-carrying columns; the remaining $z$ entries correspond to
+all-zero padding columns. The server MUST pack $T$ so that the
+resulting packing-level ciphertexts decrypt, under the client's fresh
 packing-level secret, to the same ordered plaintext words.
 
 Define the function
 $\mathsf{PackSimplePIRResponse}(T, pk)$ as follows:
 
-1. Let $d = 2048$ be the packing-level ring degree from [Parameters] and
-   let $m = \lceil W_\mathsf{value} / d \rceil$.
-2. Partition $T$ into $m$ consecutive chunks of length $d$:
-   $(t_{j,0}, \ldots, t_{j,d-1})$ for $j \in \{0, \ldots, m-1\}$. If the
-   final chunk is shorter than $d$, pad it with SimplePIR-level
-   encryptions of zero so that it has exactly $d$ inputs.
+1. Let $d = 2048$ be the packing-level ring degree from [Parameters].
+   Because $W_\mathsf{pad} = I \cdot d$, the input length is exactly
+   $I$ chunks of $d$ ciphertexts.
+2. Partition $T$ into $I$ consecutive chunks of length $d$:
+   $(t_{j,0}, \ldots, t_{j,d-1})$ for $j \in \{0, \ldots, I-1\}$.
 3. For each chunk $j$, compute
 
    $$
@@ -1127,14 +1219,14 @@ $\mathsf{PackSimplePIRResponse}(T, pk)$ as follows:
    to produce one packing-level RLWE ciphertext
    $\widehat{C}_j = (\widehat{a}_j, \widehat{b}_j) \in R_q^2$.
 4. Return the ordered packed sequence
-   $\widehat{R} = (\widehat{C}_0, \ldots, \widehat{C}_{m-1})$.
+   $\widehat{R} = (\widehat{C}_0, \ldots, \widehat{C}_{I-1})$.
 
 The order of slots within each $\widehat{C}_j$ MUST match the order of
 the 14-bit plaintext words obtained from the canonical byte-to-word
-mapping in [Plaintext Encoding]. Slot $\ell$ of $\widehat{C}_j$ MUST correspond
-to word index $jd + \ell$ of that packed representation. Any additional
-slots introduced only to complete the final ciphertext chunk MUST decode
-to zero.
+mapping in [Byte-to-Word Mapping]. Slot $\ell$ of $\widehat{C}_j$ MUST
+correspond to word index $jd + \ell$ of that packed representation.
+Slots corresponding to trailing zero-word positions ($jd + \ell \geq
+W_\mathsf{value}$) MUST decode to zero.
 
 This packing procedure is also responsible for restoring the
 $d^{-1}$ pre-scaling applied in [Query Generation], so that the
@@ -1484,7 +1576,7 @@ exactly 33 RLWE ciphertexts.
 
 Concrete byte encoding of the packing key is out of scope for this ZIP.
 
-For the seeded representation deployed by this ZIP, the client transmits
+For the seeded representation specified by this ZIP, the client transmits
 only the condensed packing-key component
 $pk_\mathsf{condensed} = (\beta_{0,0}, \beta_{0,1}, \beta_{0,2}, \ldots, \beta_{10,2})$,
 that is, the second rows (row 1 per
@@ -1505,7 +1597,7 @@ the selected row index $i$ as follows:
 1. Sample a fresh $s^\star$ as specified in [Client Key Generation].
 2. Construct the row-selector vector $\mu_i$ as specified in [Regev
    Encryption].
-3. Generate the deployed row selector
+3. Generate the row selector
    $c = A^T \cdot \mathbf{s} + d^{-1} \cdot e + \Delta \cdot d^{-1} \cdot \mu_i$
    as specified in [Regev Encryption], where $d^{-1}$ is taken modulo $q$.
 4. Generate the packing key
@@ -1517,14 +1609,14 @@ the selected row index $i$ as follows:
    (c, pk).
    $$
 
-6. For the deployed seeded representation specified by this ZIP, the
+6. For the seeded representation specified by this ZIP, the
    client MUST transmit only the query-dependent selector component
    $c_\mathsf{online}$ and the condensed packing-key component
    $pk_\mathsf{condensed}$.
 
 Here:
 
-- $c_\mathsf{online} = c \in \mathbb{Z}_q^m$ is the deployed selector
+- $c_\mathsf{online} = c \in \mathbb{Z}_q^{m_\mathsf{pad}}$ is the selector
   defined in [Regev Encryption]. Each entry $c_\mathsf{online}[j]$
   is the scalar ($b$-value) component of the $j$-th LWE-form selector
   ciphertext; the corresponding $\mathbf{a}$-vector components are
@@ -1538,7 +1630,7 @@ and packing key MUST NOT be transmitted. They are reconstructed by the
 server from the fixed public seeds $\mathsf{seed\_A}$ and
 $\mathsf{seed\_pack}$ as specified in [Public Seeds].
 
-7. Form the deployed transmitted query object
+1. Form the transmitted query object
 
    $$
    Q = (c_\mathsf{online}, pk_\mathsf{condensed}).
@@ -1566,10 +1658,9 @@ in [Parameters], and let `L_row` be the row serialization length defined
 by this ZIP for that tier (12,224 bytes for Tier 1 and 24,512 bytes for
 Tier 2). For this ZIP, `L_value = L_row` for both tiers: Tier 1 uses
 12,224 bytes and Tier 2 uses 24,512 bytes, as specified in [Parameters].
-Let $W_\mathsf{value}$ be the
-number of plaintext words produced by the canonical byte-to-word mapping
-defined in [Plaintext Encoding], before any all-zero word
-padding used only to complete the final ciphertext chunk.
+Let $W_\mathsf{value}$, $W_\mathsf{pad}$, and $I$ be the value-carrying
+column count, padded column count, and packing-chunk count from
+[Database Shape].
 
 Given the server's response to a PIR query, the client MUST recover the
 selected tier row of length $L_\mathsf{row}$ for the queried tier. It
@@ -1588,12 +1679,12 @@ follows:
    $\mathsf{DecryptPackingRLWECiphertext}(\widetilde{C}_j, s^\star) = (v_{j,0}, \ldots, v_{j,d-1})$
    for each $\widetilde{C}_j$, obtaining slot values in $\mathbb{Z}_{p_2}$.
 3. Form the concatenated slot sequence
-   $V = v_{0,0} \| \ldots \| v_{0,d-1} \| v_{1,0} \| \ldots \| v_{m-1,d-1}$.
+   $V = v_{0,0} \| \ldots \| v_{0,d-1} \| v_{1,0} \| \ldots \| v_{I-1,d-1}$.
 4. Let $W = V[0..W_\mathsf{value}-1]$.
 5. Reconstruct a byte string $B$ by writing the least-significant 14 bits
    of each word in $W$ in order as a contiguous bitstream, regrouping
    that bitstream into 8-bit bytes using the inverse of the canonical
-   byte-to-word mapping in [Plaintext Encoding].
+   byte-to-word mapping in [Byte-to-Word Mapping].
 6. Verify that any unused high bits of the final 14-bit word are zero.
    If the final ciphertext chunk contained additional all-zero padding
    words beyond $W_\mathsf{value}$, verify that those omitted words also
@@ -1652,7 +1743,7 @@ $K_{r,u}$.
 
 #### Public Seeds
 
-This ZIP binds exactly two fixed public seeds for the deployed YPIR+SP
+This ZIP binds exactly two fixed public seeds for the YPIR+SP
 path:
 
 - $\mathsf{seed\_A} = \mathtt{0x00}^{32}$ for the active row-selector
@@ -1663,7 +1754,7 @@ path:
 These public seeds are query-independent and MUST NOT be confused with
 the client's fresh private per-query secret $s^\star$ from
 [Client Key Generation]. This ZIP does not define additional public-seed
-domains for unused paths outside the deployed YPIR+SP construction.
+domains for unused paths outside the YPIR+SP construction.
 
 ##### ChaCha20 RNG Initialization
 
@@ -1742,17 +1833,17 @@ Implementations MUST expand $\mathsf{seed\_A}$ as follows:
    $R_q = \mathbb{Z}_q[X]/(X^d + 1)$ by the procedure in
    [Public-Ring-Element Expansion].
 5. Use these sampled ring elements, in order, as the public
-   query-independent randomness of the deployed selector-generation
+   query-independent randomness of the selector-generation
    procedure.
 
 These seeded ring elements are converted into the implicit selector
 public matrix $A$ by the procedure defined in
-[Negacyclic Extraction of the Deployed Selector Matrix].
+[Negacyclic Extraction of the Selector Matrix].
 
-##### Negacyclic Extraction of the Deployed Selector Matrix
+##### Negacyclic Extraction of the Selector Matrix
 
 This subsection defines the implicit public matrix
-$A \in \mathbb{Z}_q^{n \times m}$ used in [Regev Encryption], as derived
+$A \in \mathbb{Z}_q^{n \times m_\mathsf{pad}}$ used in [Regev Encryption], as derived
 from the seeded ring elements expanded from $\mathsf{seed\_A}$.
 
 Let $d = n = 2048$, let
@@ -1789,10 +1880,10 @@ $$
 a(X)\cdot X^c \bmod (X^d + 1).
 $$
 
-Let $m$ be the number of database rows for the queried PIR tier, and let
+Let
 
 $$
-B = \left\lceil \frac{m}{d} \right\rceil.
+B = \left\lceil \frac{m_\mathsf{pad}}{d} \right\rceil.
 $$
 
 Implementations MUST expand exactly $B$ seeded ring elements from
@@ -1814,10 +1905,10 @@ A = \left[ A^{(0)} \mid A^{(1)} \mid \cdots \mid A^{(B-1)} \right],
 $$
 
 with the final block truncated on the right if necessary so that $A$
-has exactly $m$ columns.
+has exactly $m_\mathsf{pad}$ columns.
 
 Equivalently, for
-$j \in \{0, \ldots, m-1\}$, let
+$j \in \{0, \ldots, m_\mathsf{pad}-1\}$, let
 $b = \lfloor j/d \rfloor$ and $c = j \bmod d$.
 Then column $j$ of $A$ is column $c$ of $\mathsf{NCyc}(a^{(b)})$.
 
@@ -1911,9 +2002,14 @@ product of two 28-bit NTT-friendly primes rather than as a single large
 prime. This CRT representation gives the implementation enough modulus
 headroom for the packing and key-switching steps while still allowing
 the polynomial arithmetic to be carried out efficiently in 64-bit
-machine words. In other words, the construction needs a modulus of
-roughly 56 bits overall, but realizes it as two smaller compatible
-factors so that the NTT-based implementation remains practical.
+machine words. The construction needs an overall modulus of roughly
+56 bits, but CRT makes it possible to realize that modulus as two
+smaller compatible factors and perform each polynomial operation
+separately modulo $q_{2,1}$ and $q_{2,2}$, where the NTT is supported
+and the intermediate arithmetic remains practical. The two residue-wise
+results are then CRT-recombined modulo $q$. In other words, the scheme
+gets the headroom of a roughly 56-bit modulus without giving up
+practical NTT-based performance.
 
 ## Packing
 
@@ -2061,7 +2157,7 @@ database-dependent hint by packing the intermediate LWE-form response
 into a more compact RLWE form.
 
 YPIR+SP uses one fresh 2048-coefficient secret polynomial per query:
-$s^\star$, whose coefficient vector defines the deployed row-selector
+$s^\star$, whose coefficient vector defines the row-selector
 LWE secret $\mathbf{s}$ and which is also used to derive the packing
 material and decrypt the packed response.
 
@@ -2170,7 +2266,7 @@ recovering the packed PIR value.
 
 ## Why A Is Negacyclic But the Database Is Not
 
-In the deployed selector path, the query uses ring structure, but the
+In the selector path, the query uses ring structure, but the
 server still evaluates it as an implicit LWE selector. The earlier
 negacyclic extraction rule defines exactly which implicit public matrix
 $A$ corresponds to the seeded ring elements, so the ring-based query can
@@ -2178,12 +2274,17 @@ be viewed coefficient-wise, before packing restoration, as the deployed
 selector
 $A^T \mathbf{s} + d^{-1} e + \Delta d^{-1} \mu_i$.
 
+The transpose here is only the row-selector view of the same extracted
+matrix: $A$ is defined column-wise from the seeded ring elements, while
+$A^T$ is the equivalent orientation that yields one LWE coordinate per
+database row.
+
 On the packing-enabled path, the server's packing procedure later restores
 that factor by multiplying the packed $b$ contribution by $d$ modulo
 $q$, yielding the effective selector semantics
 $A^T \mathbf{s} + e + \Delta \mu_i$ at the packed/decrypted level.
 
-Accordingly, the deployed query is not generated from an unstructured LWE
+Accordingly, the query is not generated from an unstructured LWE
 matrix directly. Instead, the client encrypts a polynomial selector using
 ring structure, and the server's first pass still consumes the resulting
 LWE-form selector and produces the same kind of per-row LWE outputs that
@@ -2294,8 +2395,8 @@ The benefit is that the circuit's proving and verification keys support
 trees up to depth 29 without regeneration. As the Orchard nullifier set
 grows beyond $2^{26}$, only the PIR tier structure and server databases
 need to be updated. The circuit parameters remain unchanged. Changing
-the circuit depth would require new key generation and distribution to
-all clients, an operationally costly step that this headroom avoids.
+the circuit depth would require new verifying keys, which are embedded
+in the state machine of the vote chain. Therefore, require a network upgrade to deploy. This headroom avoids that.
 
 ## Rationale for (low, width) encoding
 
