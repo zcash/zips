@@ -159,11 +159,11 @@ downloads the complete exclusion tree and computes authentication paths
 locally. While more bandwidth-intensive, the full download scheme
 requires no trust assumptions beyond data integrity: the server learns
 nothing because the client downloads everything, and the client can
-independently verify the tree against published roots. Providing both
-schemes allows wallet implementations to offer a choice between
-bandwidth efficiency (PIR) and minimal trust assumptions (full download), and
-ensures that the nullifier exclusion proof system is usable even before
-the PIR construction has undergone full external review.
+independently verify the tree against published roots. This full download 
+alternative is provided due to concern due to insufficient intra-Zcash time to 
+review the PIR scheme. Providing both schemes allows wallet implementations to 
+offer a choice between bandwidth efficiency (PIR) and lower cryptographic 
+trust assumptions (full 1.6GB download).
 
 
 # Privacy Implications
@@ -476,9 +476,9 @@ retrieval scheme before issuing queries. If the server does not
 support the client's preferred scheme, the client MUST fall back to
 full download.
 
-Wallet implementations MUST support full download. Wallet
-implementations MAY support PIR retrieval. Wallet implementations that
-support both schemes MUST allow the user to select which to use.
+Wallet implementations MUST support one of full download or PIR retrieval. 
+Wallet implementations that support both schemes MUST allow the user to select 
+which to use.
 
 
 ## Full Download Retrieval
