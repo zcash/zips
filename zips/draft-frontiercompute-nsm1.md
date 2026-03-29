@@ -18,11 +18,10 @@ when, and only when, they appear in all capitals, as shown here.
 
 ## Abstract
 
-This ZIP specifies a structured memo envelope for protocol events committed to
-Zcash shielded transactions. The envelope carries a version byte, event type,
-cohort identifier, payload hash, timestamp, optional serial hash, and
-human-readable note. It is designed for application protocols that need compact
-on-chain commitments while keeping participant-identifying data off-chain.
+This ZIP specifies an application-layer attestation format for lifecycle events
+committed to Zcash shielded transactions. It defines event typing, BLAKE2b hash
+construction rules, Merkle tree aggregation, and a verification procedure for
+on-chain commitments that keep participant-identifying data off-chain.
 
 This draft is based on the deployed `NSM1` memo protocol currently used by the
 Nordic Shield lifecycle attestation system. In that deployment, event payloads
@@ -30,25 +29,36 @@ are hashed with BLAKE2b-256 using the personalization string
 `NordicShield_`, inserted into an append-only Merkle tree, and periodically
 anchored to Zcash using a memo of type `0x09`.
 
+## Relationship to ZIP 302
+
+This ZIP defines application-layer attestation semantics. The memo container
+format is specified separately by ZIP 302 (Structured Memos, PR #638). When
+ZIP 302 is deployed, NSM1 attestation payloads SHOULD be encoded as a ZIP 302
+part type. Until then, the binary layout below serves as a transitional
+encoding within the raw 512-byte memo field.
+
+The parts of this ZIP that are independent of the container are: the event type
+registry, hash construction rules, Merkle tree aggregation, and the
+verification procedure.
+
 ## Motivation
 
-Zcash shielded memos are expressive enough to carry structured application
-commitments, but the ecosystem lacks a compact convention for representing
-typed lifecycle events that can be independently recomputed by external
-verifiers.
+Zcash shielded memos can carry structured application commitments, but the
+ecosystem lacks a convention for typed lifecycle events that can be
+independently recomputed by external verifiers.
 
 Applications that track ownership, deployment, billing, transfer, and exit
 events need:
 
 - deterministic hash construction
 - stable event typing
-- a memo format that can be parsed without application-specific heuristics
+- a payload format that can be parsed without application-specific heuristics
 - a way to commit large event histories without writing full plaintext records
   to the chain
 
-This ZIP standardizes the memo structure and event commitment rules used by one
-such deployment so that other builders can implement compatible tooling,
-verification, and future extensions.
+This ZIP standardizes the event commitment rules used by one such deployment
+so that other builders can implement compatible tooling, verification, and
+future extensions.
 
 ## Requirements
 
@@ -66,9 +76,9 @@ An implementation of this ZIP:
 
 ## Specification
 
-### Memo Envelope
+### Binary Payload Layout
 
-Before memo encoding, the binary payload format is:
+Before memo encoding (or ZIP 302 part encoding), the binary payload is:
 
 ```text
 byte 0      : version            = 0x01
@@ -80,7 +90,7 @@ bytes 46..77: serial_hash        = 32 bytes, or 32 zero bytes when unused
 bytes 78..n : note               = UTF-8 human-readable note, optional
 ```
 
-For human-readable transport, the memo envelope SHOULD be rendered as:
+For human-readable transport, the payload SHOULD be rendered as:
 
 ```text
 NSM1:{type}:{payload}
@@ -239,10 +249,10 @@ distinct human-readable protocol marker.
 
 Reference implementations are available at:
 
-- [Frontier-Compute/zec-pay](https://github.com/Frontier-Compute/zec-pay), which implements the deployed `NSM1` memo protocol, Merkle tree maintenance, proof bundle generation, and root anchoring flow.
+- [Frontier-Compute/nsm1](https://github.com/Frontier-Compute/nsm1), which implements the deployed `NSM1` memo protocol, Merkle tree maintenance, proof bundle generation, and root anchoring flow.
 - [Frontier-Compute/nsm1-verify](https://github.com/Frontier-Compute/nsm1-verify), which provides a standalone Rust and WASM verifier for NSM1 leaf hashes and Merkle proofs.
 
-In the deployed `zec-pay` implementation:
+In the deployed `nsm1` implementation:
 
 - event payload hashes are computed with BLAKE2b-256 and personalization `NordicShield_`
 - Merkle internal nodes use personalization `NordicShield_MRK`
@@ -259,7 +269,7 @@ A companion test vector package SHOULD provide:
 
 The deployed `NSM1` implementation publishes those vectors separately as:
 
-- [Frontier-Compute/zec-pay/TEST_VECTORS.md](https://github.com/Frontier-Compute/zec-pay/blob/main/TEST_VECTORS.md)
+- [Frontier-Compute/nsm1/TEST_VECTORS.md](https://github.com/Frontier-Compute/nsm1/blob/main/TEST_VECTORS.md)
 - [TEST_VECTORS.md](./TEST_VECTORS.md)
 
 ## Acknowledgements
@@ -271,6 +281,6 @@ shielded memo and Orchard tooling ecosystem.
 
 [^zip-guide]: [ZIP guide](https://zips.z.cash/zip-guide).
 
-[^zec-pay]: [Frontier-Compute/zec-pay](https://github.com/Frontier-Compute/zec-pay).
+[^nsm1]: [Frontier-Compute/nsm1](https://github.com/Frontier-Compute/nsm1).
 
 [^nsm1-verify]: [Frontier-Compute/nsm1-verify](https://github.com/Frontier-Compute/nsm1-verify).
