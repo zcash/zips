@@ -196,7 +196,7 @@ for the root-commitment case even as the underlying event history grows.
 
 ## Privacy Considerations
 
-This protocol is intended to avoid writing participant-identifying plaintext
+This protocol avoids writing participant-identifying plaintext
 data to chain. Implementations MUST ensure that `wallet_hash`, `serial_hash`,
 contract digests, and other memo inputs are derived values rather than directly
 identifying customer records.
