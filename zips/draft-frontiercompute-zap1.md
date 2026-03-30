@@ -1,5 +1,5 @@
 ZIP: ???
-Title: Structured Memo Protocol for Application-Layer Attestation (NSM1)
+Title: Structured Memo Protocol for Application-Layer Attestation (ZAP1)
 Owners: Frontier Compute <ops@frontiercompute.io>
 Credits: Zk-nd3r
 Status: Draft
@@ -23,7 +23,7 @@ committed to Zcash shielded transactions. It defines event typing, BLAKE2b hash
 construction rules, Merkle tree aggregation, and a verification procedure for
 on-chain commitments that keep participant-identifying data off-chain.
 
-This draft is based on the deployed `NSM1` memo protocol currently used by the
+This draft is based on the deployed `ZAP1` memo protocol currently used by the
 Nordic Shield lifecycle attestation system. In that deployment, event payloads
 are hashed with BLAKE2b-256 using the personalization string
 `NordicShield_`, inserted into an append-only Merkle tree, and periodically
@@ -33,7 +33,7 @@ anchored to Zcash using a memo of type `0x09`.
 
 This ZIP defines application-layer attestation semantics. The memo container
 format is specified separately by ZIP 302 (Structured Memos, PR #638). When
-ZIP 302 is deployed, NSM1 attestation payloads SHOULD be encoded as a ZIP 302
+ZIP 302 is deployed, ZAP1 attestation payloads SHOULD be encoded as a ZIP 302
 part type. Until then, the binary layout below serves as a transitional
 encoding within the raw 512-byte memo field.
 
@@ -93,12 +93,12 @@ bytes 78..n : note               = UTF-8 human-readable note, optional
 For human-readable transport, the payload SHOULD be rendered as:
 
 ```text
-NSM1:{type}:{payload}
+ZAP1:{type}:{payload}
 ```
 
 where:
 
-- `NSM1` is the protocol marker
+- `ZAP1` is the protocol marker
 - `{type}` is the two-digit lowercase hexadecimal event type
 - `{payload}` is the hexadecimal encoding of the full binary layout above
 
@@ -121,7 +121,7 @@ This draft defines the following event type assignments:
 | `0x0B` | `STAKING_WITHDRAW` | `BLAKE2b_32(wallet_hash || amount_zat_be)` | Reserved |
 | `0x0C` | `STAKING_REWARD` | `BLAKE2b_32(wallet_hash || epoch_be || reward_zat_be)` | Reserved |
 
-Implementations of the deployed `NSM1` flow currently use the first nine event
+Implementations of the deployed `ZAP1` flow currently use the first nine event
 types in production. The staking event types are reserved and MUST NOT be
 assumed stable until separately activated.
 
@@ -150,7 +150,7 @@ If no serial number is applicable, `serial_hash` MUST be 32 zero bytes.
 ### Merkle Tree Commitments
 
 Applications using this memo protocol SHOULD aggregate event payload hashes into
-an append-only binary Merkle tree. For the deployed `NSM1` protocol:
+an append-only binary Merkle tree. For the deployed `ZAP1` protocol:
 
 - each event produces one leaf
 - leaves are ordered by insertion sequence
@@ -173,9 +173,9 @@ When anchoring a Merkle root to Zcash:
 
 - the event type MUST be `0x09`
 - the payload hash MUST be the raw current Merkle root
-- the memo SHOULD be encoded as `NSM1:09:{payload}`
+- the memo SHOULD be encoded as `ZAP1:09:{payload}`
 
-The deployed `NSM1` implementation broadcasts shielded memo commitments using
+The deployed `ZAP1` implementation broadcasts shielded memo commitments using
 `zingo-cli`. The current deployment anchors every 10 events or every 24 hours,
 whichever occurs first.
 
@@ -232,13 +232,13 @@ This ZIP does not address:
 - theft of the key used to authorize anchor transactions
 - application-level authorization of transfers or exits
 
-The deployed `NSM1` stack currently uses single-operator anchor signing, with a
+The deployed `ZAP1` stack currently uses single-operator anchor signing, with a
 separate FROST migration design under development for threshold authorization of
 future root anchors.
 
 ## Backwards Compatibility
 
-This ZIP codifies the deployed version-`0x01` `NSM1` format. Existing proof
+This ZIP codifies the deployed version-`0x01` `ZAP1` format. Existing proof
 bundles remain valid as long as verifiers preserve the original event hash
 construction, Merkle hashing rules, and anchor transaction references.
 
@@ -249,14 +249,14 @@ distinct human-readable protocol marker.
 
 Reference implementations are available at:
 
-- [Frontier-Compute/nsm1](https://github.com/Frontier-Compute/nsm1), which implements the deployed `NSM1` memo protocol, Merkle tree maintenance, proof bundle generation, and root anchoring flow.
-- [Frontier-Compute/nsm1-verify](https://github.com/Frontier-Compute/nsm1-verify), which provides a standalone Rust and WASM verifier for NSM1 leaf hashes and Merkle proofs.
+- [Frontier-Compute/zap1](https://github.com/Frontier-Compute/zap1), which implements the deployed `ZAP1` memo protocol, Merkle tree maintenance, proof bundle generation, and root anchoring flow.
+- [Frontier-Compute/zap1-verify](https://github.com/Frontier-Compute/zap1-verify), which provides a standalone Rust and WASM verifier for ZAP1 leaf hashes and Merkle proofs.
 
-In the deployed `nsm1` implementation:
+In the deployed `zap1` implementation:
 
 - event payload hashes are computed with BLAKE2b-256 and personalization `NordicShield_`
 - Merkle internal nodes use personalization `NordicShield_MRK`
-- root anchors are transmitted as `NSM1:09:{root}`
+- root anchors are transmitted as `ZAP1:09:{root}`
 
 ## Test Vectors
 
@@ -267,20 +267,20 @@ A companion test vector package SHOULD provide:
 - the expected `leaf_hash`
 - the hash personalization strings used
 
-The deployed `NSM1` implementation publishes those vectors separately as:
+The deployed `ZAP1` implementation publishes those vectors separately as:
 
-- [Frontier-Compute/nsm1/TEST_VECTORS.md](https://github.com/Frontier-Compute/nsm1/blob/main/TEST_VECTORS.md)
+- [Frontier-Compute/zap1/TEST_VECTORS.md](https://github.com/Frontier-Compute/zap1/blob/main/TEST_VECTORS.md)
 - [TEST_VECTORS.md](./TEST_VECTORS.md)
 
 ## Acknowledgements
 
-This draft draws on the deployed Nordic Shield `NSM1` protocol and the Zcash
+This draft draws on the deployed Nordic Shield `ZAP1` protocol and the Zcash
 shielded memo and Orchard tooling ecosystem.
 
 ## References
 
 [^zip-guide]: [ZIP guide](https://zips.z.cash/zip-guide).
 
-[^nsm1]: [Frontier-Compute/nsm1](https://github.com/Frontier-Compute/nsm1).
+[^zap1]: [Frontier-Compute/zap1](https://github.com/Frontier-Compute/zap1).
 
-[^nsm1-verify]: [Frontier-Compute/nsm1-verify](https://github.com/Frontier-Compute/nsm1-verify).
+[^zap1-verify]: [Frontier-Compute/zap1-verify](https://github.com/Frontier-Compute/zap1-verify).
