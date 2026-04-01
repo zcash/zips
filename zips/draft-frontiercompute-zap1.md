@@ -23,8 +23,7 @@ committed to Zcash shielded transactions. It defines event typing, BLAKE2b hash
 construction rules, Merkle tree aggregation, and a verification procedure for
 on-chain commitments that keep participant-identifying data off-chain.
 
-This draft is based on the deployed `ZAP1` memo protocol currently used by the
-Nordic Shield lifecycle attestation system. In that deployment, event payloads
+This draft is based on the deployed `ZAP1` memo protocol (formerly `NSM1`). In the reference deployment, event payloads
 are hashed with BLAKE2b-256 using the personalization string
 `NordicShield_`, inserted into an append-only Merkle tree, and periodically
 anchored to Zcash using a memo of type `0x09`.
@@ -274,7 +273,7 @@ The deployed `ZAP1` implementation publishes those vectors separately as:
 
 ## Acknowledgements
 
-This draft draws on the deployed Nordic Shield `ZAP1` protocol and the Zcash
+This draft draws on the deployed `ZAP1` protocol (formerly `NSM1`) and the Zcash
 shielded memo and Orchard tooling ecosystem.
 
 ## References
