@@ -1,5 +1,5 @@
 ZIP: ???
-Title: Structured Memo Protocol for Application-Layer Attestation (ZAP1)
+Title: Structured Attestation Protocol for Application-Layer Lifecycle Events (ZAP1)
 Owners: Frontier Compute <ops@frontiercompute.io>
 Credits: Zk-nd3r
 Status: Draft
@@ -23,18 +23,18 @@ committed to Zcash shielded transactions. It defines event typing, BLAKE2b hash
 construction rules, Merkle tree aggregation, and a verification procedure for
 on-chain commitments that keep participant-identifying data off-chain.
 
-This draft is based on the deployed `ZAP1` memo protocol (formerly `NSM1`). In the reference deployment, event payloads
+This draft is based on the deployed `ZAP1` attestation protocol (formerly `NSM1`). In the reference deployment, event payloads
 are hashed with BLAKE2b-256 using the personalization string
 `NordicShield_`, inserted into an append-only Merkle tree, and periodically
-anchored to Zcash using a memo of type `0x09`.
+anchored to Zcash using a transaction with type byte `0x09`.
 
 ## Relationship to ZIP 302
 
-This ZIP defines application-layer attestation semantics. The memo container
-format is specified separately by ZIP 302 (Structured Memos, PR #638). When
+This ZIP defines application-layer attestation semantics. The carrier format
+is specified separately by ZIP 302 (Structured Memos, PR #638). When
 ZIP 302 is deployed, ZAP1 attestation payloads SHOULD be encoded as a ZIP 302
 part type. Until then, the binary layout below serves as a transitional
-encoding within the raw 512-byte memo field.
+encoding within the raw 512-byte shielded memo field.
 
 The parts of this ZIP that are independent of the container are: the event type
 registry, hash construction rules, Merkle tree aggregation, and the
@@ -63,10 +63,10 @@ future extensions.
 
 An implementation of this ZIP:
 
-- MUST treat the memo payload as a binary structure before any wallet-specific
+- MUST treat the attestation payload as a binary structure before any wallet-specific
   memo encoding.
 - MUST encode integers in big-endian byte order.
-- MUST NOT place participant PII directly in the memo payload.
+- MUST NOT place participant PII directly in the attestation payload.
 - MUST derive event payload hashes deterministically from the underlying event
   fields.
 - MUST preserve event insertion order when deriving Merkle roots.
@@ -77,7 +77,7 @@ An implementation of this ZIP:
 
 ### Binary Payload Layout
 
-Before memo encoding (or ZIP 302 part encoding), the binary payload is:
+Before shielded memo encoding (or ZIP 302 part encoding), the binary attestation payload is:
 
 ```text
 byte 0      : version            = 0x01
@@ -86,7 +86,7 @@ bytes 2..5  : cohort_id          = u32 big-endian
 bytes 6..37 : payload_hash       = 32 bytes
 bytes 38..45: timestamp          = u64 big-endian unix seconds
 bytes 46..77: serial_hash        = 32 bytes, or 32 zero bytes when unused
-bytes 78..n : note               = UTF-8 human-readable note, optional
+bytes 78..n : label              = UTF-8 human-readable label, optional
 ```
 
 For human-readable transport, the payload SHOULD be rendered as:
@@ -135,7 +135,7 @@ The hash input for each event type is defined in the table above. The
 `MERKLE_ROOT` event is a special case whose payload hash is the 32-byte Merkle
 root itself, without an additional BLAKE2b compression step.
 
-For event types that carry a serial number, the `serial_hash` memo field MUST
+For event types that carry a serial number, the `serial_hash` payload field MUST
 be:
 
 ```text
@@ -148,7 +148,7 @@ If no serial number is applicable, `serial_hash` MUST be 32 zero bytes.
 
 ### Merkle Tree Commitments
 
-Applications using this memo protocol SHOULD aggregate event payload hashes into
+Applications using this attestation protocol SHOULD aggregate event payload hashes into
 an append-only binary Merkle tree. For the deployed `ZAP1` protocol:
 
 - each event produces one leaf
@@ -183,7 +183,7 @@ whichever occurs first.
 To verify a committed event, a verifier:
 
 1. recomputes the event payload hash from the application fields
-2. reconstructs the memo payload and event leaf hash
+2. reconstructs the attestation payload and event leaf hash
 3. walks the Merkle proof path to derive the root
 4. retrieves the referenced anchor transaction
 5. confirms that the memo contains the same `0x09` root commitment
@@ -195,7 +195,7 @@ This design separates protocol semantics from wallet transport.
 
 The binary layout is fixed-width for all critical fields so parsers can extract
 event type, cohort identifier, and proof-relevant material without needing to
-understand any free-form note text. BLAKE2b-256 is used for compactness and
+understand any free-form label text. BLAKE2b-256 is used for compactness and
 performance. Personalization strings provide domain separation between event
 payload hashing and Merkle internal-node hashing.
 
@@ -207,11 +207,11 @@ for the root-commitment case even as the underlying event history grows.
 
 This protocol avoids writing participant-identifying plaintext
 data to chain. Implementations MUST ensure that `wallet_hash`, `serial_hash`,
-contract digests, and other memo inputs are derived values rather than directly
+contract digests, and other payload inputs are derived values rather than directly
 identifying customer records.
 
-The optional note field may leak application metadata if misused. Protocols
-using this ZIP SHOULD either omit the note field or constrain it to operational
+The optional `label` field may leak application metadata if misused. Protocols
+using this ZIP SHOULD either omit the `label` field or constrain it to operational
 strings that do not identify participants.
 
 ## Security Considerations
@@ -241,14 +241,14 @@ This ZIP codifies the deployed version-`0x01` `ZAP1` format. Existing proof
 bundles remain valid as long as verifiers preserve the original event hash
 construction, Merkle hashing rules, and anchor transaction references.
 
-Future incompatible memo layouts MUST use a new version byte and SHOULD use a
+Future incompatible payload layouts MUST use a new version byte and SHOULD use a
 distinct human-readable protocol marker.
 
 ## Reference Implementation
 
 Reference implementations are available at:
 
-- [Frontier-Compute/zap1](https://github.com/Frontier-Compute/zap1), which implements the deployed `ZAP1` memo protocol, Merkle tree maintenance, proof bundle generation, and root anchoring flow.
+- [Frontier-Compute/zap1](https://github.com/Frontier-Compute/zap1), which implements the deployed `ZAP1` attestation protocol, Merkle tree maintenance, proof bundle generation, and root anchoring flow.
 - [Frontier-Compute/zap1-verify](https://github.com/Frontier-Compute/zap1-verify), which provides a standalone Rust and WASM verifier for ZAP1 leaf hashes and Merkle proofs.
 
 In the deployed `zap1` implementation:
