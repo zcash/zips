@@ -81,7 +81,7 @@ Before shielded memo encoding (or ZIP 302 part encoding), the binary attestation
 
 ```text
 byte 0      : version            = 0x01
-byte 1      : type               = 0x01..0x0c
+byte 1      : type               = 0x01..0x0f
 bytes 2..5  : cohort_id          = u32 big-endian
 bytes 6..37 : payload_hash       = 32 bytes
 bytes 38..45: timestamp          = u64 big-endian unix seconds
@@ -117,12 +117,15 @@ This draft defines the following event type assignments:
 | `0x08` | `EXIT` | `BLAKE2b_32(wallet_hash || serial_number || timestamp_be)` | Deployed |
 | `0x09` | `MERKLE_ROOT` | raw 32-byte Merkle root | Deployed |
 | `0x0A` | `STAKING_DEPOSIT` | `BLAKE2b_32(wallet_hash || amount_zat_be || validator_id)` | Reserved |
-| `0x0B` | `STAKING_WITHDRAW` | `BLAKE2b_32(wallet_hash || amount_zat_be)` | Reserved |
-| `0x0C` | `STAKING_REWARD` | `BLAKE2b_32(wallet_hash || epoch_be || reward_zat_be)` | Reserved |
+| `0x0B` | `STAKING_WITHDRAW` | `BLAKE2b_32(wallet_hash || amount_zat_be || validator_id)` | Reserved |
+| `0x0C` | `STAKING_REWARD` | `BLAKE2b_32(wallet_hash || amount_zat_be || epoch_be)` | Reserved |
+| `0x0D` | `GOVERNANCE_PROPOSAL` | `BLAKE2b_32(wallet_hash || proposal_id || proposal_hash)` | Reserved |
+| `0x0E` | `GOVERNANCE_VOTE` | `BLAKE2b_32(wallet_hash || proposal_id || vote_commitment)` | Reserved |
+| `0x0F` | `GOVERNANCE_RESULT` | `BLAKE2b_32(wallet_hash || proposal_id || result_hash)` | Reserved |
 
 Implementations of the deployed `ZAP1` flow currently use the first nine event
-types in production. The staking event types are reserved and MUST NOT be
-assumed stable until separately activated.
+types in production. The staking and governance event types are reserved and
+MUST NOT be assumed stable until separately activated.
 
 ### Hash Construction
 
