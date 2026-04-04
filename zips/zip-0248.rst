@@ -561,11 +561,19 @@ TransparentInputAuth
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 | Bytes                       | Name                     | Data Type                              | Description                                                         |
 +=============================+==========================+========================================+=====================================================================+
+|``varies``                   |``sighashInfo``           |``TransparentSighashInfo``              |The sighash version and associated information for this input.       |
+|                             |                          |                                        |[#zip-0230-transparent-sighash-info]_ [#zip-0246-sighash-versioning]_|
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 |``varies``                   |``scriptSigLen``          |``compactSize``                         |Length of the scriptSig.                                             |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 |``scriptSigLen``             |``scriptSig``             |``byte[scriptSigLen]``                  |The script satisfying the conditions of the referenced output's      |
 |                             |                          |                                        |scriptPubKey.                                                        |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+
+The ``TransparentSighashInfo`` type is defined in ZIP 230
+[#zip-0230-transparent-sighash-info]_. It consists of a ``compactSize``-prefixed
+byte array containing the sighash version and any associated data required by
+that version, as specified in ZIP 246 [#zip-0246-sighash-versioning]_.
 
 
 Sapling Bundle
@@ -641,11 +649,13 @@ that authorize the spends and validate the outputs.
 +=============================+==========================+========================================+=====================================================================+
 |``192 * nSpendsSapling``     |``vSpendProofsSapling``   |``byte[192 * nSpendsSapling]``          |Encodings of the zk-SNARK proofs for each Sapling Spend.             |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
-|``64 * nSpendsSapling``      |``vSpendAuthSigsSapling`` |``byte[64 * nSpendsSapling]``           |Authorizing signatures for each Sapling Spend.                       |
+|``varies``                   |``vSpendAuthSigsSapling`` |``SaplingSignature[nSpendsSapling]``    |Authorizing signatures for each Sapling Spend.                       |
+|                             |                          |                                        |[#zip-0230-sapling-signature]_                                       |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 |``192 * nOutputsSapling``    |``vOutputProofsSapling``  |``byte[192 * nOutputsSapling]``         |Encodings of the zk-SNARK proofs for each Sapling Output.            |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
-|``64``                       |``bindingSigSapling``     |``byte[64]``                            |A Sapling binding signature on the SIGHASH transaction hash.         |
+|``varies``                   |``bindingSigSapling``     |``SaplingSignature``                    |A Sapling binding signature on the SIGHASH transaction hash.         |
+|                             |                          |                                        |[#zip-0230-sapling-signature]_                                       |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 
 * The values of ``nSpendsSapling`` and ``nOutputsSapling`` are not re-encoded in
@@ -735,9 +745,11 @@ that authorize the actions.
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 |``sizeProofsOrchard``        |``proofsOrchard``         |``byte[sizeProofsOrchard]``             |Encoding of aggregated zk-SNARK proofs for Orchard Actions.          |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
-|``64 * nActionsOrchard``     |``vSpendAuthSigsOrchard`` |``byte[64 * nActionsOrchard]``          |Authorizing signatures for each Orchard Action.                      |
+|``varies``                   |``vSpendAuthSigsOrchard`` |``OrchardSignature[nActionsOrchard]``   |Authorizing signatures for each Orchard Action.                      |
+|                             |                          |                                        |[#zip-0230-orchard-signature]_                                       |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
-|``64``                       |``bindingSigOrchard``     |``byte[64]``                            |An Orchard binding signature on the SIGHASH transaction hash.        |
+|``varies``                   |``bindingSigOrchard``     |``OrchardSignature``                    |An Orchard binding signature on the SIGHASH transaction hash.        |
+|                             |                          |                                        |[#zip-0230-orchard-signature]_                                       |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 
 * The value of ``nActionsOrchard`` is not re-encoded in the authorizing data; it
@@ -806,6 +818,44 @@ The following transaction validity rules are added:
 
       \forall \mathsf{a}. \sum_{\mathsf{d} \in \mathsf{mValuePoolDeltas} | \mathsf{AssetUuid}(\mathsf{d}) = \mathsf{a}} \mathsf{d.value} = 0
 
+Sighash Versioning
+-------------------
+
+This ZIP adopts the sighash algorithm versioning defined in ZIP 246
+[#zip-0246-sighash-versioning]_. Where previously each transaction version had a
+single associated sighash algorithm, going forward it is possible for signers to
+use any sighash algorithm within the closed set specified for a given transaction
+version (and made available in consensus via network upgrades).
+
+The sighash version is encoded as a single byte alongside any associated data
+that the sighash algorithm version requires (for deterministically computing the
+digest):
+
+``sighashInfo = [sighashVersion] || associatedData``
+
+where ``associatedData`` is specific to the bundle it appears in.
+
+The following sighash algorithm versions are defined for V6 transactions:
+
++--------------------+-------------------------------------------------------+
+|                    |:math:`\hspace{4.5em}` ``associatedData``              |
++--------------------+-------------+-------------+-------------+-------------+
+| ``sighashVersion`` | Transparent |   Sapling   |   Orchard   |  Issuance   |
++--------------------+-------------+-------------+-------------+-------------+
+| 0                  |``[]``       |``[]``       |``[]``       |``[]``       |
++--------------------+-------------+-------------+-------------+-------------+
+
+Version 0 is by convention the "commit to all effecting data" sighash algorithm.
+Other versions can commit to whatever makes sense for desired functionality
+within a given transaction version. Consensus rules choose the digest algorithm
+for each signer based on ``sighashVersion``.
+
+Sighash version information is present alongside each signature in the
+authorizing data of the transaction, via the per-signature structures defined in
+ZIP 230 [#zip-0230]_ (``TransparentSighashInfo``, ``SaplingSignature``,
+``OrchardSignature``). See ZIP 246 [#zip-0246]_ for the full specification of
+sighash versioning.
+
 Digest Algorithms
 -----------------
 
@@ -864,7 +914,7 @@ The personalization field of this hash is set to::
 
 ``ZcashTxHash_`` has 1 underscore character.
 
-As in ZIP 143 [#zip-0143]_, CONSENSUS_BRANCH_ID is the 4-byte little-endian
+As in ZIP 244 [#zip-0244]_, CONSENSUS_BRANCH_ID is the 4-byte little-endian
 encoding of the consensus branch ID for the epoch of the block containing the
 transaction.
 
@@ -1195,6 +1245,13 @@ A new per-input transaction digest algorithm is defined that constructs a hash
 that may be signed by a transaction creator to commit to the effects of the
 transaction. This follows closely the algorithm from ZIP 244 [#zip-0244]_.
 
+The digest algorithm used for a given signature is determined by the
+``sighashVersion`` from the signer's ``sighashInfo``, as specified in the
+`Sighash Versioning`_ section. For sighash version 0 (the only version
+currently defined for V6 transactions), the digest algorithm is as specified
+below. Future sighash versions, defined via updates to ZIP 246
+[#zip-0246]_, may specify different digest algorithms.
+
 For transactions that have no transparent inputs, the signature digest is
 identical to the transaction identifier digest.
 
@@ -1265,8 +1322,8 @@ The following restrictions apply:
 - Using ``SIGHASH_SINGLE`` without a corresponding output at the same index
   causes validation failure.
 
-For signatures over Sapling Spends or Orchard Actions, ``hash_type`` is set to
-``SIGHASH_ALL`` (0x01).
+For sighash version 0, signatures over Sapling Spends or Orchard Actions use
+``hash_type = SIGHASH_ALL`` (0x01).
 
 S.3.0b: prevouts_sig_digest
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1394,8 +1451,14 @@ A.1.0: transparent_auth_digest
 ..............................
 
 In the case that the transaction contains transparent inputs, this is a
-BLAKE2b-256 hash of the concatenated ``scriptSig`` values (each with leading
-``compactSize`` length) for all transparent inputs.
+BLAKE2b-256 hash of the following concatenated values for each transparent
+input::
+
+   A.1.0a: TransparentSighashInfo (field encoding bytes)
+   A.1.0b: scriptSig              (field encoding bytes, with compactSize length prefix)
+
+The field encoding of ``TransparentSighashInfo`` is specified in ZIP 230
+[#zip-0230-transparent-sighash-info]_.
 
 The personalization field of this hash is set to::
 
@@ -1412,9 +1475,12 @@ In the case that Sapling spends or outputs are present, this is a BLAKE2b-256
 hash of the following concatenated values::
 
    A.1.2a: vSpendProofsSapling    (192 bytes per spend)
-   A.1.2b: vSpendAuthSigsSapling  (64 bytes per spend)
+   A.1.2b: vSpendAuthSigsSapling  (SaplingSignature field encoding per spend)
    A.1.2c: vOutputProofsSapling   (192 bytes per output)
-   A.1.2d: bindingSigSapling      (64 bytes)
+   A.1.2d: bindingSigSapling      (SaplingSignature field encoding)
+
+The ``SaplingSignature`` field encoding includes ``sighashInfo``, as specified in
+ZIP 230 [#zip-0230-sapling-signature]_.
 
 The personalization field of this hash is set to::
 
@@ -1431,8 +1497,11 @@ In the case that Orchard actions are present, this is a BLAKE2b-256 hash of the
 following concatenated values::
 
    A.1.3a: proofsOrchard         (aggregated proofs)
-   A.1.3b: vSpendAuthSigsOrchard (64 bytes per action)
-   A.1.3c: bindingSigOrchard     (64 bytes)
+   A.1.3b: vSpendAuthSigsOrchard (OrchardSignature field encoding per action)
+   A.1.3c: bindingSigOrchard     (OrchardSignature field encoding)
+
+The ``OrchardSignature`` field encoding includes ``sighashInfo``, as specified in
+ZIP 230 [#zip-0230-orchard-signature]_.
 
 The personalization field of this hash is set to::
 
@@ -1722,11 +1791,16 @@ References
 .. [#protocol-blockchain] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.3: The Block Chain <protocol/protocol.pdf#blockchain>`_
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
 .. [#protocol-subsidies] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 7.8: Block Subsidy and Founders' Reward <protocol/protocol.pdf#subsidies>`_
-.. [#zip-0143] `ZIP 143: Transaction Signature Validation for Overwinter <https://zips.z.cash/zip-0143>`_
 .. [#zip-0203] `ZIP 203: Transaction Expiry <https://zips.z.cash/zip-0203>`_
 .. [#zip-0212] `ZIP 212: Allow Recipient to Derive Ephemeral Secret from Note Plaintext <https://zips.z.cash/zip-0212>`_
 .. [#zip-0225] `ZIP 225: Version 5 Transaction Format <https://zips.z.cash/zip-0225>`_
+.. [#zip-0230] `ZIP 230: Version 6 Transaction Format <zip-0230.rst>`_
+.. [#zip-0230-transparent-sighash-info] `ZIP 230: Version 6 Transaction Format — Transparent Sighash Information <zip-0230.rst#transparent-sighash-information-transparentsighashinfo>`_
+.. [#zip-0230-sapling-signature] `ZIP 230: Version 6 Transaction Format — Sapling Signature <zip-0230.rst#sapling-signature-saplingsignature>`_
+.. [#zip-0230-orchard-signature] `ZIP 230: Version 6 Transaction Format — Orchard Signature <zip-0230.rst#orchard-signature-orchardsignature>`_
 .. [#zip-0239] `ZIP 239: Relay of Version 5 Transactions <https://zips.z.cash/zip-0239>`_
 .. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <https://zips.z.cash/zip-0244>`_
+.. [#zip-0246] `ZIP 246: Digests for the Version 6 Transaction Format <zip-0246.rst>`_
+.. [#zip-0246-sighash-versioning] `ZIP 246: Digests for the Version 6 Transaction Format — Sighash Versioning <zip-0246.rst#sighash-versioning>`_
 .. [#zip-0307] `ZIP 307: Light Client Protocol for Payment Detection <https://zips.z.cash/zip-0307>`_
 
