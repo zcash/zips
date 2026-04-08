@@ -246,8 +246,8 @@ measured CFP-SL latency and desired time-to-finality targets.
 Subprotocol Interface Requirements
 ------------------------------------
 
-CCC-SL places the following requirements on Π\ :sub:`origbft` (instantiated
-by ``CFP-SL``):
+CCC-SL places the following requirements on Π\ :sub:`origbft` (which is
+instantiated as ``CFP-SL`` in Shielded Labs Crosslink v1):
 
 * Π\ :sub:`origbft` MUST be a protocol with an identified set of blocks
   forming a DAG with a defined genesis block ``Origin_bft``.
@@ -458,7 +458,7 @@ BC block validity (structural)
   bc-valid only if:
 
   1. ``H.context_bft`` is a hash identifying a bft-valid block in
-     Π\ :sub:`bft` (``CFP-SL``).
+     Π\ :sub:`bft`.
 
   2. ``H.context_bft`` refers to a bft-block that is an ancestor of, or
      equal to, the bft-block referred to by ``H``'s bc-parent's
