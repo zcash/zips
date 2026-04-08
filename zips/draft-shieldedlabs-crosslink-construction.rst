@@ -1,7 +1,7 @@
 ::
 
   ZIP: Unassigned {numbers are assigned by ZIP editors}
-  Title: Crosslink 2: Hybrid PoW/PoS Consensus Construction
+  Title: CCC-SL: Crosslink Consensus Construction from Shielded Labs
   Owners: Nate Wilcox <nate@shieldedlabs.com>
   Credits: Daira-Emma Hopwood
            Jack Grigg
@@ -25,27 +25,40 @@ defined in the Zcash protocol specification [#protocol-networks]_.
 
 The terms below are to be interpreted as follows:
 
-Crosslink 2
-  The hybrid consensus construction specified by this ZIP, integrating a
-  best-chain (PoW) subprotocol with a BFT (PoS) subprotocol to produce a
-  protocol with both availability and assured finality.
+CCC-SL (Crosslink Consensus Construction from Shielded Labs)
+  The hybrid consensus construction specified by this ZIP, integrating the
+  Zcash PoW best-chain protocol with ``CFP-SL`` to produce a protocol with
+  both availability and assured finality. CCC-SL is the core of Shielded Labs
+  Crosslink v1 and is closely based on CCC-TFLv2 from the TFL book [#tfl-book]_.
+
+CCC-TFLv2 (Crosslink Consensus Construction from the TFL Book, version 2)
+  The abstract hybrid consensus construction documented in the Zcash TFL book
+  [#tfl-book]_. CCC-SL is the Shielded Labs adaptation and extension of this
+  construction for the Zcash PoW+TFL deployment.
+
+CFP-SL (Crosslink Finalization Protocol from Shielded Labs)
+  The BFT Proof-of-Stake finalization protocol used as the BFT subprotocol
+  within CCC-SL. CFP-SL satisfies the interface requirements (``Final
+  Agreement`` and related properties) defined in this ZIP.
 
 Best-chain subprotocol (Π\ :sub:`bc`)
-  The Proof-of-Work best-chain protocol modified to participate in Crosslink 2.
-  Blocks in this protocol are called "bc-blocks" and chains are "bc-chains".
+  The Zcash Proof-of-Work best-chain protocol, modified by CCC-SL to
+  participate in the hybrid construction. Blocks in this protocol are called
+  "bc-blocks" and chains are "bc-chains".
 
 Original best-chain subprotocol (Π\ :sub:`origbc`)
-  The "off-the-shelf" PoW best-chain protocol before Crosslink 2 modifications.
-  For the Zcash PoW+TFL deployment, this corresponds to the Zcash NU5/NU6
-  consensus protocol.
+  The "off-the-shelf" PoW best-chain protocol before CCC-SL modifications.
+  For the Zcash deployment, this corresponds to the Zcash NU5/NU6 consensus
+  protocol.
 
 BFT subprotocol (Π\ :sub:`bft`)
-  The Byzantine Fault Tolerant Proof-of-Stake protocol modified to participate
-  in Crosslink 2. Blocks in this protocol are called "bft-blocks" and finality
-  is called "bft-finality".
+  The BFT protocol (instantiated by ``CFP-SL``) modified to participate in
+  CCC-SL. Blocks in this protocol are called "bft-blocks" and finality is
+  called "bft-finality".
 
 Original BFT subprotocol (Π\ :sub:`origbft`)
-  The "off-the-shelf" BFT protocol before Crosslink 2 modifications.
+  The "off-the-shelf" BFT protocol before CCC-SL adaptation modifications.
+  CFP-SL is a specific instance of this with Zcash-specific adaptations.
 
 bc-confirmation-depth (σ)
   A protocol parameter specifying the number of bc-block confirmations required
@@ -55,7 +68,7 @@ bc-confirmation-depth (σ)
 
 Finalization gap bound (L)
   A protocol parameter specifying the maximum number of unfinalized bc-blocks
-  permitted before the protocol enters Stalled Mode. MUST satisfy ``L ≥ 2σ``.
+  permitted before CCC-SL enforces Stalled Mode. MUST satisfy ``L ≥ 2σ``.
 
 Bounded-availability depth (μ)
   A per-node choice of confirmation depth for the locally bounded-available
@@ -63,8 +76,8 @@ Bounded-availability depth (μ)
 
 Locally finalized chain (``localfin``)
   Each node's monotonically advancing view of the bc-chain that has been
-  finalized by the BFT protocol. Once a bc-block is in a node's locally
-  finalized chain, it will never be removed from it.
+  finalized by ``CFP-SL``. Once a bc-block is in a node's locally finalized
+  chain, it will never be removed from it.
 
 Locally bounded-available chain (``localba``)
   Each node's view of the confirmed (but not necessarily finalized) bc-chain,
@@ -72,11 +85,11 @@ Locally bounded-available chain (``localba``)
 
 Finality gap
   At a given time, the number of bc-blocks in the bc-best-chain that have not
-  yet been finalized.
+  yet been finalized by ``CFP-SL``.
 
 Stalled Mode
-  A mode entered when the finality gap exceeds ``L``, during which bc-block
-  producers are constrained to produce only stalled blocks.
+  A mode enforced by CCC-SL when the finality gap exceeds ``L``, during which
+  bc-block producers are constrained to produce only stalled blocks.
 
 Stalled block
   A bc-block produced during Stalled Mode, constrained by the ``isStalledBlock``
@@ -84,19 +97,18 @@ Stalled block
   unfinalized zone).
 
 Final Agreement
-  The property of the BFT subprotocol that all bft-valid blocks in honest view
-  are consistent: for any two such blocks, one must be an ancestor of the other.
+  The property of the BFT subprotocol (``CFP-SL``) that all bft-valid blocks
+  in honest view are consistent: for any two such blocks, one must be an
+  ancestor of the other.
 
 Prefix Consistency
-  The property of the best-chain subprotocol that any two honest nodes' views
-  of their best chains are consistent up to their confirmed depths: at most one
-  honest node's confirmed chain can extend beyond the other's confirmed chain
-  at any time.
+  The property of the best-chain subprotocol (Zcash PoW) that any two honest
+  nodes' confirmed best-chains are consistent up to their confirmed depths.
 
 ``bftLastFinal(B)``
   For a bft-block ``B``, the function returning the last bft-block that is
   considered final in the context of ``B`` (including ``B`` itself, if
-  applicable).
+  applicable). This function is defined by ``CFP-SL``.
 
 ``snapshot(B)``
   For a bft-block or bft-proposal ``B``, the bc-block at the base of the
@@ -116,29 +128,31 @@ Prefix Consistency
 Abstract
 ========
 
-This ZIP specifies the Crosslink 2 construction, a hybrid consensus protocol
-integrating a Proof-of-Work (PoW) best-chain protocol with a Byzantine Fault
-Tolerant (BFT) Proof-of-Stake protocol. The construction provides both the
-availability properties of the PoW chain and the assured finality of the BFT
-protocol, while adding bounded availability to protect users during finality
-stalls.
+This ZIP specifies **CCC-SL** (the Crosslink Consensus Construction from
+Shielded Labs), the hybrid consensus protocol at the core of Shielded Labs
+Crosslink v1 [#zip-crosslink-overview]_. CCC-SL integrates the Zcash
+Proof-of-Work best-chain protocol with the ``CFP-SL`` BFT finalization
+protocol to provide both the availability properties of the PoW chain and the
+assured finality of a BFT protocol.
 
-The key contributions of Crosslink 2 are:
+CCC-SL is closely based on the ``CCC-TFLv2`` construction from the Zcash TFL
+book [#tfl-book]_. The key features of CCC-SL are:
 
 1. Cross-referencing fields in both bc-blocks and bft-blocks/proposals that
    allow each chain to objectively verify properties of the other.
 
-2. A locally finalized chain maintained by each node that advances
-   monotonically and never rolls back.
+2. A locally finalized chain (``localfin``) maintained by each node that
+   advances monotonically and never rolls back.
 
-3. A locally bounded-available chain providing a confirmed-but-not-necessarily-
-   finalized view of the PoW chain.
+3. A locally bounded-available chain (``localba``) providing a
+   confirmed-but-not-necessarily-finalized view of the PoW chain.
 
 4. A Stalled Mode mechanism implementing bounded availability when the
    finality gap exceeds the threshold ``L``.
 
 This ZIP is accompanied by ZIP [#zip-crosslink-overview]_, which provides the
-design motivation and architecture overview for the broader PoW+TFL protocol.
+design motivation and architecture overview for the full Shielded Labs
+Crosslink v1 protocol suite.
 
 
 Motivation
@@ -149,14 +163,14 @@ See ZIP [#zip-crosslink-overview]_ for the full motivation. In brief:
 * Zcash's current PoW-only consensus provides only probabilistic finality,
   creating friction for exchanges, bridges, and other services.
 
-* Integrating a BFT finality layer in a hybrid construction preserves PoW
+* Integrating ``CFP-SL`` as a finality layer via CCC-SL preserves PoW
   availability and security while adding assured finality.
 
-* Crosslink 2 improves on the Snap-and-Chat construction [#ebb-and-flow]_ by
-  eliminating the need for transaction-log sanitization and by implementing
-  bounded availability.
+* CCC-SL (following CCC-TFLv2) improves on the Snap-and-Chat construction
+  [#ebb-and-flow]_ by eliminating the need for transaction-log sanitization
+  and by implementing bounded availability.
 
-* The cross-referencing design of Crosslink 2 enables each chain to provide
+* The cross-referencing design of CCC-SL enables each chain to provide
   objective validity checks on the other, strengthening the security of the
   hybrid construction.
 
@@ -164,7 +178,7 @@ See ZIP [#zip-crosslink-overview]_ for the full motivation. In brief:
 Requirements
 ============
 
-The Crosslink 2 construction MUST satisfy:
+CCC-SL MUST satisfy:
 
 * **Assured Finality**: If both subprotocols satisfy their safety assumptions,
   the locally finalized chain of any two honest nodes must be consistent —
@@ -185,9 +199,9 @@ The Crosslink 2 construction MUST satisfy:
   from the block itself and its ancestors in both chains, with no external
   context beyond the two chains.
 
-* **Minimal Subprotocol Modification**: The modifications to the PoW and BFT
-  subprotocols SHOULD be as minimal as possible while satisfying the above
-  requirements.
+* **Minimal Subprotocol Modification**: The modifications to the PoW and
+  ``CFP-SL`` subprotocols SHOULD be as minimal as possible while satisfying
+  the above requirements.
 
 
 Non-requirements
@@ -195,15 +209,15 @@ Non-requirements
 
 The following are out of scope for this ZIP:
 
-* The specific BFT algorithm to be used for Π\ :sub:`bft` (e.g., Tendermint,
-  HotStuff, or another protocol). This ZIP specifies only the interface
-  requirements that Π\ :sub:`origbft` must satisfy.
+* The specific BFT algorithm used internally by ``CFP-SL``. This ZIP specifies
+  only the interface requirements (Final Agreement, etc.) that
+  Π\ :sub:`origbft` must satisfy. The CFP-SL specification is a separate ZIP.
 
-* The PoS staking mechanics, validator registration, delegation, and slashing
-  rules. These will be specified in a separate ZIP.
+* The staking mechanics, Finalizer registration, delegation, and slashing
+  rules (specified in the RSM-SL-v1 ZIP).
 
-* Reward distribution between PoW miners and PoS validators. This will be
-  specified in a separate funding ZIP.
+* Reward distribution between PoW miners and Finalizers (a separate funding
+  ZIP).
 
 * The specific activation height(s) for the network upgrade.
 
@@ -214,7 +228,7 @@ Specification
 Parameters
 ----------
 
-Crosslink 2 is parameterized by:
+CCC-SL is parameterized by:
 
 * **bc-confirmation-depth** ``σ ∈ ℕ⁺``: the number of bc-block headers
   included in each bft-block's ``headers_bc`` field, representing the depth
@@ -223,20 +237,20 @@ Crosslink 2 is parameterized by:
 
 * **Finalization gap bound** ``L ∈ ℕ⁺``, where ``L`` is significantly greater
   than ``σ`` (the minimum is ``L ≥ 2σ``): the maximum finality gap before
-  Stalled Mode is entered.
+  Stalled Mode is enforced.
 
 The precise values of ``σ`` and ``L`` for Mainnet and Testnet deployment are
-to be determined through a network upgrade process ZIP and will take into
-account measured BFT protocol latency and desired time-to-finality targets.
+to be determined through a network upgrade process ZIP, taking into account
+measured CFP-SL latency and desired time-to-finality targets.
 
 Subprotocol Interface Requirements
 ------------------------------------
 
-Crosslink 2 places the following requirements on Π\ :sub:`origbft`:
+CCC-SL places the following requirements on Π\ :sub:`origbft` (instantiated
+by ``CFP-SL``):
 
 * Π\ :sub:`origbft` MUST be a protocol with an identified set of blocks
-  forming a DAG (directed acyclic graph) with a defined genesis block
-  ``Origin_bft``.
+  forming a DAG with a defined genesis block ``Origin_bft``.
 
 * Π\ :sub:`origbft` MUST define a function
   ``bftValid(B) → Boolean`` determining whether a bft-block ``B`` is valid
@@ -252,32 +266,33 @@ Crosslink 2 places the following requirements on Π\ :sub:`origbft`:
   all times ``t``, ``bftLastFinal(C)`` must be an ancestor of every other
   bft-valid block that honest nodes have finalized.
 
-Crosslink 2 places the following requirements on Π\ :sub:`origbc`:
+CCC-SL places the following requirements on Π\ :sub:`origbc` (the Zcash PoW
+protocol):
 
 * Π\ :sub:`origbc` MUST be a best-chain protocol with bc-blocks forming a tree
   rooted at ``Origin_bc``.
 
-* Π\ :sub:`origbc` MUST define a fork-choice function that selects the
-  "best chain" among all bc-valid chains known to a node.
+* Π\ :sub:`origbc` MUST define a fork-choice function selecting the "best
+  chain" among all bc-valid chains known to a node.
 
-* Π\ :sub:`origbc` MUST satisfy **Prefix Consistency** (also called Common
-  Prefix): in any execution where assumptions hold, for any two honest nodes'
-  confirmed chains ``C1`` and ``C2``, one is a prefix of the other.
+* Π\ :sub:`origbc` MUST satisfy **Prefix Consistency** (Common Prefix): in any
+  execution where assumptions hold, for any two honest nodes' confirmed chains
+  ``C1`` and ``C2``, one is a prefix of the other.
 
 Structural Additions
 --------------------
 
-The Crosslink 2 construction extends the block formats of both subprotocols
-with cross-referencing fields:
+CCC-SL extends the block formats of both subprotocols with cross-referencing
+fields:
 
 bc-block structural additions
   Each bc-block header MUST include, in addition to all
   Π\ :sub:`origbc`-block fields:
 
   * ``context_bft``: a hash identifying a bft-block. This commits the
-    bc-block producer to their view of the BFT chain at the time the block
-    was produced. The referenced bft-block MUST be a bft-valid block in the
-    bc-block producer's view at the time of production.
+    bc-block producer to their view of the ``CFP-SL`` chain at the time the
+    block was produced. The referenced bft-block MUST be a bft-valid block in
+    the bc-block producer's view at the time of production.
 
 bft-proposal structural additions
   Each non-genesis bft-proposal MUST include, in addition to all
@@ -286,8 +301,8 @@ bft-proposal structural additions
   * ``headers_bc``: a sequence of exactly ``σ`` bc-block headers (zero-indexed,
     deepest first, i.e., ``headers_bc[0]`` is deepest and
     ``headers_bc[σ-1]`` is the most recent). These headers MUST form a valid
-    chain in Π\ :sub:`bc` (i.e., each header's parent hash must match the
-    previous header's hash). The genesis bft-block has ``headers_bc = null``.
+    chain in Π\ :sub:`bc` (each header's parent hash must match the previous
+    header's hash). The genesis bft-block has ``headers_bc = null``.
 
 bft-block structural additions
   Each non-genesis bft-block MUST include, in addition to all
@@ -325,8 +340,8 @@ Based on the structural additions above, define:
     candidate(H) := lastCommonAncestor(snapshot(LF(H)), H.truncate_bc(σ))
 
   When ``H`` is the tip of a node's bc-best-chain, ``candidate(H)`` gives the
-  candidate finalization point subject to the local finalization update rule
-  below. It represents the deepest bc-block that both (a) has been snapshotted
+  candidate finalization point (subject to the local finalization update rule
+  below). It represents the deepest bc-block that both (a) has been snapshotted
   by the last final bft-block in context, and (b) is at least ``σ`` deep in
   the bc-best-chain.
 
@@ -336,8 +351,6 @@ Locally Finalized Chain
 Each node ``i`` maintains a locally finalized bc-chain ``localfin_i``,
 initialized at ``Origin_bc``. The chain state MUST NOT be exposed to external
 clients of the node until the node has synced (see `Syncing and Checkpoints`_).
-
-The locally finalized chain update rule is:
 
 When node ``i``'s bc-best-chain view is updated from ``ch_i(s)`` to
 ``ch_i(t)``::
@@ -392,25 +405,24 @@ the software (committing to a known bc-block and bft-block at a given height)
 to accelerate syncing.
 
 Checkpoints MUST be chosen conservatively to avoid committing to blocks that
-could be reorganized or that have not been finalized. A checkpoint at bc-height
-``h`` SHOULD only be used if the bft protocol has finalized bc-blocks up to
-height ``h - σ`` or deeper.
+could be reorganized or that have not been finalized by ``CFP-SL``. A
+checkpoint at bc-height ``h`` SHOULD only be used if ``CFP-SL`` has finalized
+bc-blocks up to height ``h - σ`` or deeper.
 
-Π\ :sub:`bft` Changes from Π\ :sub:`origbft`
-----------------------------------------------
+Π\ :sub:`bft` (CFP-SL) Changes from Π\ :sub:`origbft`
+--------------------------------------------------------
 
 BFT block and proposal validity
   In addition to Π\ :sub:`origbft` validity rules, a bft-proposal ``P`` is
   bft-valid only if:
 
   1. ``P.headers_bc`` is a sequence of exactly ``σ`` bc-block headers forming
-     a valid bc-chain (i.e., headers are correctly linked by parent hashes and
-     each satisfies the bc-block header validity rules, including proof-of-work
-     and difficulty adjustment).
+     a valid bc-chain (headers are correctly linked by parent hashes and each
+     satisfies the bc-block header validity rules, including proof-of-work and
+     difficulty adjustment).
 
-  2. For each header ``h`` in ``P.headers_bc``, the proof-of-work in ``h``
-     MUST be valid (checking this requires only the headers, not the full
-     blocks, enabling denial-of-service mitigation).
+  2. For each header ``h`` in ``P.headers_bc``, the proof-of-work MUST be
+     valid (checking this requires only the headers, enabling DoS mitigation).
 
   3. ``P.headers_bc[σ-1]`` (the most recent header) MUST be at block height
      at least as great as the snapshot committed to in the bft-parent of
@@ -420,60 +432,55 @@ BFT block and proposal validity
      (i.e., a descendant of) the snapshot committed to in the bft-parent of
      ``P``.
 
-BFT honest proposal rule
-  An honest bft-node proposing a bft-block at time ``t`` MUST set
+BFT honest proposal rule (CFP-SL)
+  An honest CFP-SL Finalizer proposing a bft-block at time ``t`` MUST set
   ``headers_bc`` to the sequence of the most recent ``σ`` bc-block headers
-  in the node's bc-best-chain at time ``t``. The node MUST only propose if
-  it has a bc-best-chain that is at least ``σ`` blocks deep.
+  in the node's bc-best-chain at time ``t``. The Finalizer MUST only propose
+  if they have a bc-best-chain that is at least ``σ`` blocks deep.
 
-BFT honest voting rule
-  An honest bft-node voting on a bft-proposal ``P`` MUST verify that
+BFT honest voting rule (CFP-SL)
+  An honest CFP-SL Finalizer voting on a bft-proposal ``P`` MUST verify that
   ``P.headers_bc`` satisfies the proposal validity rules above. In particular,
   it MUST verify proof-of-work for all headers in ``P.headers_bc`` before
   accepting the proposal.
 
-  If ``P.headers_bc`` connects to the validator's known bc-chain, the validator
-  SHOULD download and fully validate any bc-blocks it has not yet seen before
-  voting. If the headers do not connect to any known bc-chain, the validator
-  SHOULD assign lower priority to validating the proposal (to limit DoS
-  exposure) and MAY drop it.
+  If ``P.headers_bc`` connects to the Finalizer's known bc-chain, the
+  Finalizer SHOULD download and fully validate any bc-blocks it has not yet
+  seen before voting. If the headers do not connect to any known bc-chain, the
+  Finalizer SHOULD assign lower priority to validating the proposal (to limit
+  DoS exposure) and MAY drop it.
 
-Π\ :sub:`bc` Changes from Π\ :sub:`origbc`
---------------------------------------------
+Π\ :sub:`bc` (Zcash PoW) Changes from Π\ :sub:`origbc`
+---------------------------------------------------------
 
 BC block validity (structural)
   In addition to Π\ :sub:`origbc` validity rules, a bc-block ``H`` is
   bc-valid only if:
 
   1. ``H.context_bft`` is a hash identifying a bft-valid block in
-     Π\ :sub:`bft`.
+     Π\ :sub:`bft` (``CFP-SL``).
 
   2. ``H.context_bft`` refers to a bft-block that is an ancestor of, or
      equal to, the bft-block referred to by ``H``'s bc-parent's
      ``context_bft`` field. (Context can only move forward in the bft-chain.)
 
 BC contextual validity (finality gap)
-  A bc-block ``H`` is contextually valid (with respect to its bc-ancestors
-  and the bft-chain) only if the finality gap constraint is satisfied. The
-  finality gap for ``H`` is approximately the number of bc-blocks in the
-  bc-chain ending at ``H`` that have not yet been finalized:
-
-  Let ``fin_height(H)`` be the bc-height of ``candidate(H)``. Let
-  ``tip_height(H)`` be the bc-height of ``H``. The finality gap is
+  A bc-block ``H`` is contextually valid only if the finality gap constraint
+  is satisfied. Let ``fin_height(H)`` be the bc-height of ``candidate(H)``
+  and ``tip_height(H)`` be the bc-height of ``H``. The finality gap is
   ``tip_height(H) - fin_height(H)``.
 
-  If the finality gap at ``H`` exceeds ``L``, then ``H`` MUST be a
-  stalled block (i.e., ``isStalledBlock(H)`` MUST return ``true``).
+  If the finality gap at ``H`` exceeds ``L``, then ``H`` MUST be a stalled
+  block (i.e., ``isStalledBlock(H)`` MUST return ``true``).
 
 BC honest block production
   An honest bc-block producer creating bc-block ``H`` at time ``t`` MUST:
 
   1. Set ``H.context_bft`` to the hash of the most recent bft-valid block
-     in the producer's bft-node view at time ``t``.
+     in the producer's CFP-SL node view at time ``t``.
 
   2. Check the finality gap: if the finality gap would exceed ``L`` for the
-     new block, the producer MUST apply the stalled-block policy
-     (``isStalledBlock`` MUST return ``true`` for ``H``).
+     new block, the producer MUST apply the stalled-block policy.
 
   3. Not include ``H.context_bft`` referencing a bft-block whose
      ``headers_bc[σ-1]`` refers to a bc-block that is not a prefix of
@@ -482,33 +489,31 @@ BC honest block production
 Stalled Mode Policy
 --------------------
 
-The stalled-block predicate ``isStalledBlock(H) → Boolean`` determines
-whether a bc-block is a stalled block. The specific definition of
-``isStalledBlock`` for the Zcash PoW+TFL deployment is deferred to a
-subsequent consensus ZIP, but MUST satisfy:
+The stalled-block predicate ``isStalledBlock(H) → Boolean`` determines whether
+a bc-block is a stalled block. The specific definition of ``isStalledBlock``
+for the Zcash deployment is deferred to a subsequent consensus ZIP, but MUST
+satisfy:
 
-1. A stalled block MUST NOT include transactions that spend outputs
-   created in bc-blocks that are not in the locally finalized chain
-   (i.e., unfinalized outputs). This prevents users from having their
-   funds locked in a deep unfinalized zone.
+1. A stalled block MUST NOT include transactions that spend outputs created in
+   bc-blocks that are not in the locally finalized chain (i.e., unfinalized
+   outputs). This prevents users from having their funds locked in a deep
+   unfinalized zone.
 
 2. A stalled block MAY include coinbase transactions for miner rewards.
 
-3. The validity of ``isStalledBlock(H)`` MUST be objectively determinable
-   from ``H`` and its bc-ancestors (i.e., it requires no external state
-   beyond the chain).
+3. The validity of ``isStalledBlock(H)`` MUST be objectively determinable from
+   ``H`` and its bc-ancestors (it requires no external state beyond the chain).
 
-4. Nodes MUST enforce the stalled block policy: a non-stalled block with
-   a finality gap exceeding ``L`` MUST be rejected as bc-invalid.
+4. Nodes MUST enforce the stalled block policy: a non-stalled block with a
+   finality gap exceeding ``L`` MUST be rejected as bc-invalid.
 
 Open questions
 ''''''''''''''
 
-* Should stalled blocks be permitted to include transactions spending outputs
-  from finalized blocks only, or should they be empty of user transactions
-  entirely? The tradeoff is between allowing some transaction throughput
-  (for urgently needed transactions) during a finality stall versus simplifying
-  the specification and implementation.
+* Should stalled blocks be permitted to include transactions spending finalized
+  outputs only, or should they be entirely empty of user transactions? The
+  tradeoff is between some throughput during a stall versus specification
+  simplicity.
 
 * What is the correct definition of "unfinalized outputs" in the context of
   Zcash shielded transactions, where output ownership is not publicly visible?
@@ -524,32 +529,30 @@ TODO: Specify the precise values of ``σ`` and ``L`` for Mainnet and Testnet.
 Security Analysis
 -----------------
 
-The following properties are claimed for Crosslink 2 under the stated
-assumptions.
+The following properties are claimed for CCC-SL under the stated assumptions.
 
 Assured Finality
 ''''''''''''''''
 
-**Property**: If Π\ :sub:`bft` satisfies Final Agreement and Π\ :sub:`bc`
-satisfies Prefix Consistency, then for any two honest nodes ``i`` and ``j``
-at any times ``t`` and ``u``, their locally finalized chains are consistent:
-either ``localfin_i(t) ≼_bc localfin_j(u)`` or
+**Property**: If ``CFP-SL`` satisfies Final Agreement and the Zcash PoW
+protocol satisfies Prefix Consistency, then for any two honest nodes ``i`` and
+``j`` at any times ``t`` and ``u``, their locally finalized chains are
+consistent: either ``localfin_i(t) ≼_bc localfin_j(u)`` or
 ``localfin_j(u) ≼_bc localfin_i(t)``.
 
 *Proof sketch*: By the ``UpdateLocalFin`` rule, ``localfin_i(t)`` is always
-equal to ``candidate(ch_i(r))`` for some time ``r ≤ t``. By the definition
-of ``candidate``, this is the last common ancestor of ``snapshot(LF(ch_i(r)))``
+equal to ``candidate(ch_i(r))`` for some time ``r ≤ t``. By the definition of
+``candidate``, this is the last common ancestor of ``snapshot(LF(ch_i(r)))``
 and ``ch_i(r).truncate_bc(σ)``.
 
-By Final Agreement of Π\ :sub:`bft`, ``LF(ch_i(r))`` and ``LF(ch_j(s))``
-(for any two honest nodes and times) must be consistent: one is an ancestor of
-the other in the bft-chain. By the monotonic inclusion of snapshots in
-bft-ancestor chains and Prefix Consistency of Π\ :sub:`bc`, this implies that
-``candidate(ch_i(r))`` and ``candidate(ch_j(s))`` are consistent bc-blocks.
-
-Since both ``localfin_i(t)`` and ``localfin_j(u)`` are derived from
-``candidate`` values of consistent bft-finalization points and consistent
-bc-chains, they must be consistent.
+By Final Agreement of ``CFP-SL``, ``LF(ch_i(r))`` and ``LF(ch_j(s))`` (for
+any two honest nodes and times) must be consistent: one is an ancestor of the
+other in the bft-chain. By the monotonic inclusion of snapshots in bft-ancestor
+chains and Prefix Consistency of the PoW protocol, ``candidate(ch_i(r))`` and
+``candidate(ch_j(s))`` are consistent bc-blocks. Since both
+``localfin_i(t)`` and ``localfin_j(u)`` are derived from ``candidate`` values
+of consistent finalization points and consistent bc-chains, they must be
+consistent.
 
 Bounded Availability
 ''''''''''''''''''''
@@ -559,11 +562,11 @@ the finality gap in the chain accepted by honest full nodes MUST NOT exceed
 ``L``.
 
 *Proof sketch*: By the BC contextual validity rule, a bc-block with a finality
-gap exceeding ``L`` that is not a stalled block is rejected as bc-invalid. Since
-honest bc-block producers only produce stalled blocks when the finality gap
-would exceed ``L``, and since honest full nodes reject non-stalled blocks with
-gap ``> L``, the finality gap in any honest full node's view of the bc-chain
-is at most ``L``.
+gap exceeding ``L`` that is not a stalled block is rejected as bc-invalid.
+Since honest bc-block producers only produce stalled blocks when the gap would
+exceed ``L``, and honest full nodes reject non-stalled blocks with gap ``> L``,
+the finality gap in any honest full node's view of the bc-chain is at most
+``L``.
 
 Resilience of Finality to PoW Reorgs
 ''''''''''''''''''''''''''''''''''''''
@@ -581,14 +584,14 @@ finalized chain, never rolling it back.
 Reference Implementation
 ========================
 
-A prototype implementation of Crosslink is being developed in the
-``zebra-crosslink`` component of [#zebra-crosslink]_ and the
+A prototype implementation of CCC-SL is being developed in the
+``zebra-crosslink`` component of [#zebra-crosslink]_ and integrated in the
 ``crosslink_monolith`` repository [#crosslink-monolith]_. These implementations
 are experimental and should not be used in production.
 
-Reference documentation for the Crosslink 2 construction is available in the
-Zcash Trailing Finality Layer design book [#tfl-book]_, specifically the
-"Crosslink 2 Construction" chapter.
+Reference documentation for CCC-SL's theoretical foundations is available in
+the Zcash TFL design book [#tfl-book]_, specifically the "Crosslink 2
+Construction" chapter (which corresponds to CCC-TFLv2, the basis for CCC-SL).
 
 
 References
@@ -598,10 +601,10 @@ References
 .. [#protocol] `Zcash Protocol Specification, Version 2022.3.8 or later <protocol/protocol.pdf>`_
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2022.3.8. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
-.. [#zip-crosslink-overview] `ZIP [Unassigned]: Zcash Trailing Finality Layer: Design Overview and Motivation <draft-shieldedlabs-crosslink-overview.rst>`_
+.. [#zip-crosslink-overview] `ZIP [Unassigned]: Shielded Labs Crosslink v1: Protocol Overview and Architecture <draft-shieldedlabs-crosslink-overview.rst>`_
 .. [#tfl-book] `Zcash Trailing Finality Layer Design Book — The Crosslink 2 Construction <https://electric-coin-company.github.io/tfl-book/design/crosslink/construction.html>`_
 .. [#ebb-and-flow] `Ebb-and-Flow Protocols: A Resolution of the Availability-Finality Dilemma. David Neu, Joachim Neu, Ertem Nusret Tas, David Tse. <https://eprint.iacr.org/2020/1091.pdf>`_
 .. [#zebra-crosslink] `ShieldedLabs zebra-crosslink repository <https://github.com/ShieldedLabs/zebra-crosslink>`_
 .. [#crosslink-monolith] `ShieldedLabs crosslink_monolith repository <https://github.com/ShieldedLabs/crosslink_monolith>`_
 
-.. [#note-snapshot] The snapshot function as defined in the tfl-book returns the bc-block at depth 1 from the deepest header, i.e., the parent of ``headers_bc[0]``. This means the snapshot is a bc-block that is at depth ``σ+1`` relative to the tip of the snapshotted chain. This choice ensures that a bft-block referring to a snapshot has evidence (via the ``σ`` headers) that the snapshot was confirmed at the time of the proposal.
+.. [#note-snapshot] The snapshot function returns the bc-block at depth 1 from the deepest header, i.e., the parent of ``headers_bc[0]``. This means the snapshot is a bc-block at depth ``σ+1`` relative to the tip of the snapshotted chain. This ensures that a bft-block referring to a snapshot provides evidence (via the ``σ`` headers) that the snapshot was confirmed at the time of the proposal.
