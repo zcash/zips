@@ -6,8 +6,8 @@ Status: Draft
 Category: Standards Track
 Created: 2026-03-28
 License: MIT
-Discussions-To: <https://forum.zcashcommunity.com/>
-Pull-Request: <https://github.com/zcash/zips/pulls>
+Discussions-To: <https://github.com/zcash/zips/pull/1243>
+Pull-Request: <https://github.com/zcash/zips/pull/1243>
 
 ## Terminology
 
@@ -31,7 +31,7 @@ anchored to Zcash using a transaction with type byte `0x09`.
 ## Relationship to ZIP 302
 
 This ZIP defines application-layer attestation semantics. The carrier format
-is specified separately by ZIP 302 (Structured Memos, PR #638). When
+is specified separately by ZIP 302 [^zip-0302] (Structured Memos, PR #638). When
 ZIP 302 is deployed, ZAP1 attestation payloads SHOULD be encoded as a ZIP 302
 part type. Until then, the binary layout below serves as a transitional
 encoding within the raw 512-byte shielded memo field.
@@ -64,7 +64,7 @@ future extensions.
 An implementation of this ZIP:
 
 - MUST treat the attestation payload as a binary structure before any wallet-specific
-  memo encoding.
+  shielded memo encoding.
 - MUST encode integers in big-endian byte order.
 - MUST NOT place participant PII directly in the attestation payload.
 - MUST derive event payload hashes deterministically from the underlying event
@@ -77,7 +77,7 @@ An implementation of this ZIP:
 
 ### Binary Payload Layout
 
-Before shielded memo encoding (or ZIP 302 part encoding), the binary attestation payload is:
+Before shielded shielded memo encoding (or ZIP 302 part encoding), the binary attestation payload is:
 
 ```text
 byte 0      : version            = 0x01
@@ -128,11 +128,26 @@ types in production. The staking and governance event types are reserved and
 MUST NOT be assumed stable until separately activated.
 
 ### Hash Construction
+nField sizes for hash inputs:
+
+- `wallet_hash`: 32 bytes (application-derived identifier)
+- `serial_number`: 32 bytes
+- `contract_sha256`: 32 bytes
+- `facility_id`: 32 bytes (zero-padded if shorter)
+- `timestamp_be`: u64 big-endian (8 bytes)
+- `month_be`: u16 big-endian (2 bytes)
+- `year_be`: u16 big-endian (2 bytes)
+- `amount_zat_be`: u64 big-endian (8 bytes)
+- `epoch_be`: u32 big-endian (4 bytes)
+- `validator_id`: 32 bytes
+- `proposal_id`: 32 bytes
+- `proposal_hash`, `vote_commitment`, `result_hash`: 32 bytes each
+- `old_wallet`, `new_wallet`: 32 bytes each
 
 Unless otherwise specified, event payload hashes use BLAKE2b with:
 
 - digest length: 32 bytes
-- personalization: `NordicShield_`
+- personalization: `NordicShield_` (13 bytes, zero-padded to 16 bytes per BLAKE2b spec)
 
 The hash input for each event type is defined in the table above. The
 `MERKLE_ROOT` event is a special case whose payload hash is the 32-byte Merkle
@@ -175,7 +190,7 @@ When anchoring a Merkle root to Zcash:
 
 - the event type MUST be `0x09`
 - the payload hash MUST be the raw current Merkle root
-- the memo SHOULD be encoded as `ZAP1:09:{payload}`
+- the shielded memo field SHOULD be encoded as `ZAP1:09:{payload}`
 
 The deployed `ZAP1` implementation broadcasts shielded memo commitments using
 `zingo-cli`. The current deployment anchors every 10 events or every 24 hours,
@@ -189,7 +204,7 @@ To verify a committed event, a verifier:
 2. reconstructs the attestation payload and event leaf hash
 3. walks the Merkle proof path to derive the root
 4. retrieves the referenced anchor transaction
-5. confirms that the memo contains the same `0x09` root commitment
+5. confirms that the shielded memo field contains the same `0x09` root commitment
 6. confirms that the transaction is mined on the intended chain
 
 ## Rationale
@@ -203,7 +218,7 @@ performance. Personalization strings provide domain separation between event
 payload hashing and Merkle internal-node hashing.
 
 Anchoring Merkle roots rather than full event records minimizes chain load while
-preserving independent verifiability. The memo remains short and constant-sized
+preserving independent verifiability. The shielded memo field remains short and constant-sized
 for the root-commitment case even as the underlying event history grows.
 
 ## Privacy Considerations
@@ -226,7 +241,7 @@ underlying application database. Security depends on:
 - correct Merkle insertion ordering
 - correct association between proof bundles and the anchored root that covers
   them
-- correct wallet-side retrieval of the mined memo-bearing transaction
+- correct wallet-side retrieval of the mined shielded-memo-bearing transaction
 
 This ZIP does not address:
 
@@ -252,7 +267,7 @@ distinct human-readable protocol marker.
 Reference implementations are available at:
 
 - [Frontier-Compute/zap1](https://github.com/Frontier-Compute/zap1), which implements the deployed `ZAP1` attestation protocol, Merkle tree maintenance, proof bundle generation, and root anchoring flow.
-- [Frontier-Compute/zap1-verify](https://github.com/Frontier-Compute/zap1-verify), which provides a standalone Rust and WASM verifier for ZAP1 leaf hashes and Merkle proofs.
+- [Frontier-Compute/zap1-verify](https://github.com/Frontier-Compute/zap1-verify) [^zap1-verify], which provides a standalone Rust and WASM verifier for ZAP1 leaf hashes and Merkle proofs.
 
 In the deployed `zap1` implementation:
 
@@ -269,20 +284,17 @@ A companion test vector package SHOULD provide:
 - the expected `leaf_hash`
 - the hash personalization strings used
 
-The deployed `ZAP1` implementation publishes those vectors separately as:
+The deployed `ZAP1` implementation [^zap1] publishes those vectors separately as:
 
 - [Frontier-Compute/zap1/TEST_VECTORS.md](https://github.com/Frontier-Compute/zap1/blob/main/TEST_VECTORS.md)
-- [TEST_VECTORS.md](./TEST_VECTORS.md)
-
-## Acknowledgements
-
-This draft draws on the deployed `ZAP1` protocol (formerly `NSM1`) and the Zcash
-shielded memo and Orchard tooling ecosystem.
+- [TEST_VECTORS.md](https://github.com/Frontier-Compute/zap1/blob/main/TEST_VECTORS.md)
 
 ## References
 
-[^zip-guide]: [ZIP guide](https://zips.z.cash/zip-guide).
+[^BCP14]: [Information on BCP 14 -- "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"](https://www.rfc-editor.org/info/bcp14)
 
-[^zap1]: [Frontier-Compute/zap1](https://github.com/Frontier-Compute/zap1).
+[^zip-0302]: [ZIP 302: Standardized Memo Field Format](https://zips.z.cash/zip-0302)
 
-[^zap1-verify]: [Frontier-Compute/zap1-verify](https://github.com/Frontier-Compute/zap1-verify).
+[^zap1]: [Frontier-Compute/zap1: ZAP1 attestation protocol reference implementation](https://github.com/Frontier-Compute/zap1)
+
+[^zap1-verify]: [Frontier-Compute/zap1-verify: standalone Rust and WASM verifier for ZAP1 proofs](https://github.com/Frontier-Compute/zap1-verify)
