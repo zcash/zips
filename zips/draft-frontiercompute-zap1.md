@@ -77,7 +77,7 @@ An implementation of this ZIP:
 
 ### Binary Payload Layout
 
-Before shielded shielded memo encoding (or ZIP 302 part encoding), the binary attestation payload is:
+Before shielded memo encoding (or ZIP 302 part encoding), the binary attestation payload is:
 
 ```text
 byte 0      : version            = 0x01
@@ -128,7 +128,7 @@ types in production. The staking and governance event types are reserved and
 MUST NOT be assumed stable until separately activated.
 
 ### Hash Construction
-nField sizes for hash inputs:
+Field sizes for hash inputs:
 
 - `wallet_hash`: 32 bytes (application-derived identifier)
 - `serial_number`: 32 bytes
