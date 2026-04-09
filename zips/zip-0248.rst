@@ -495,6 +495,66 @@ BundleData
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 
 
+Parsing Rules
+-------------
+
+The rules in this section are requirements on the byte encoding of a V6
+transaction. A byte stream that violates any of these rules is not a
+well-formed V6 transaction and MUST be rejected by any parser, regardless
+of which bundle types the parser understands. Enforcement of these rules
+is what makes it safe for a wallet to parse, identify, and compute the
+transaction identifier for a transaction containing bundle types that the
+wallet does not itself implement.
+
+* Each of ``mValuePoolDeltas``, ``mEffectBundles``, and ``mAuthBundles`` MUST
+  contain at most one entry per key, and the entries MUST be encoded in
+  strictly increasing key order as defined in `Transaction Format`_.
+
+* Every ``ValuePoolDelta`` record MUST have a nonzero ``value`` field. A
+  ``ValuePoolDelta`` record that would have ``value = 0`` MUST be elided from
+  the encoding of ``mValuePoolDeltas``.
+
+* In every ``ValuePoolDelta`` record, ``assetUuid`` MUST be the zero-length
+  byte array if ``assetClass = 0``, and MUST be a 64-byte value if
+  ``assetClass = 1``. No other value of ``assetClass`` is permitted.
+
+* For each ``bundleType`` that appears in any of ``mValuePoolDeltas``,
+  ``mEffectBundles``, or ``mAuthBundles``, all entries for that ``bundleType``
+  across all three maps MUST encode the same ``bundleVariant``. (This,
+  combined with the constraint that each of ``mEffectBundles`` and
+  ``mAuthBundles`` is keyed by ``bundleType``, ensures that a transaction
+  uses at most one variant of any given bundle type.)
+
+* For each ``bundleType`` that appears in ``mAuthBundles``, a corresponding
+  entry with the same ``bundleVariant`` MUST exist in ``mEffectBundles``.
+
+* A bundle type MUST NOT appear in any map for which the corresponding column
+  of the `V6 Transaction Bundle Type Registry`_ is marked ❌, and MUST NOT
+  appear in any map at all if its row in the registry is marked as Reserved.
+
+* Within the encoding of any bundle's effecting and authorizing data, every
+  per-element sequence in the authorizing data that is described as
+  corresponding to a per-element sequence in the effecting data MUST have
+  exactly the same length as that effecting-data sequence, and the element at
+  each index in the authorizing-data sequence corresponds to the element at
+  the same index in the effecting-data sequence. For the bundle types
+  defined by this ZIP this requires:
+
+  * ``vSpendProofsSapling`` and ``vSpendAuthSigsSapling`` each have
+    ``nSpendsSapling`` elements;
+  * ``vOutputProofsSapling`` has ``nOutputsSapling`` elements;
+  * ``vSpendAuthSigsOrchard`` has ``nActionsOrchard`` elements, and
+    ``proofsOrchard`` aggregates exactly ``nActionsOrchard`` per-action
+    proofs.
+
+A wallet that successfully parses a V6 transaction under these rules is
+guaranteed to be able to compute the transaction identifier (given, for
+each bundle type it does not understand, the corresponding 32-byte
+``bundle_effects_digest`` value as described in `Implications for Wallets`_),
+and to enumerate the transparent value flows of the transaction at the
+granularity of bundle types.
+
+
 Transparent Bundle
 ------------------
 
@@ -661,15 +721,9 @@ that authorize the spends and validate the outputs.
 * The field ``bindingSigSapling`` is present if and only if
   $\mathtt{nSpendsSapling} + \mathtt{nOutputsSapling} > 0$.
 
-* The elements of ``vSpendProofsSapling`` and ``vSpendAuthSigsSapling`` have a
-  1:1 correspondence to the elements of ``vSpendsSapling`` in the effecting data
-  and MUST be ordered such that the element at a given index corresponds to the
-  ``SaplingSpendEffecting`` at the same index.
-
-* The elements of ``vOutputProofsSapling`` have a 1:1 correspondence to the
-  elements of ``vOutputsSapling`` in the effecting data and MUST be ordered such
-  that the proof at a given index corresponds to the ``SaplingOutput`` at the
-  same index.
+The 1:1 correspondences between Sapling authorizing-data elements and the
+elements of the corresponding effecting data are required by the parsing
+rules in `Parsing Rules`_.
 
 
 Orchard Bundle
@@ -753,11 +807,9 @@ that authorize the actions.
 * The fields ``sizeProofsOrchard``, ``proofsOrchard``, and ``bindingSigOrchard``
   are present if and only if $\mathtt{nActionsOrchard} > 0$.
 
-* The proofs aggregated in ``proofsOrchard``, and the elements of
-  ``vSpendAuthSigsOrchard``, each have a 1:1 correspondence to the elements of
-  ``vActionsOrchard`` in the effecting data and MUST be ordered such that the
-  proof or signature at a given index corresponds to the
-  ``OrchardActionEffecting`` at the same index.
+The 1:1 correspondences between Orchard authorizing-data elements and the
+elements of the corresponding effecting data are required by the parsing
+rules in `Parsing Rules`_.
 
 
 Consensus Rules
@@ -787,12 +839,6 @@ The following transaction validity rules are added:
 * Within the scope of a block, the sum of the fee bundle values must equal 0.
   That is, the fees collected by the coinbase transaction must equal the sum of
   fees paid by all other transactions in the block.
-
-* For each ``bundleType`` that appears in any of ``mValuePoolDeltas``,
-  ``mEffectBundles``, or ``mAuthBundles``, all entries for that ``bundleType``
-  across all three maps MUST have the same ``bundleVariant``. (This, combined
-  with the constraint that each map is keyed by ``bundleType``, ensures that a
-  transaction uses at most one variant of any given bundle type.)
 
 * For the coinbase transaction, the sum of value pool deltas in the ZEC asset
   is equal to the negative of the block subsidy for that block; the block
