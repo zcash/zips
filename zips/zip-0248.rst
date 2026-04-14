@@ -261,11 +261,11 @@ type, it MUST:
 
 6. If authorizing data is permitted, define the encoding of that data.
 
-7. Define the digest algorithm for the bundle's contribution to the transaction
-   identifier, if effecting data is present.
-
-8. Define the digest algorithm for the bundle's contribution to the authorizing
-   data commitment, if authorizing data is present.
+7. Specify which fields of the effecting data are compact (intended for the
+   light wallet protocol) and which are noncompact. The digest algorithms
+   for the bundle's contributions to the transaction identifier and
+   authorizing data commitment are determined by the `Opaque Digest
+   Personalizations`_ and do not need to be specified per bundle type.
 
 A bundle type MUST NOT permit entries in ``mAuthBundles`` unless it also permits
 entries in ``mEffectBundles``. That is, authorizing data cannot exist without
@@ -282,6 +282,31 @@ A new variant of an existing bundle type MUST affect the same value pool(s) as
 the original bundle type. This ensures that a client that does not recognize a
 particular ``bundleVariant`` can still determine which pool(s) are affected by
 the bundle and inform its user accordingly.
+
+Opaque Digest Personalizations
+``````````````````````````````
+
+The digest of each bundle's data is computed as a flat BLAKE2b-256 hash
+using one of three fixed personalization strings. The hash input is always
+prefixed with ``compactSize(bundleType) || compactSize(bundleVariant)``,
+which provides domain separation between bundle types without needing to
+embed the bundle identifier in the personalization. This allows any wallet
+to compute the transaction identifier and authorizing data commitment for
+a v6 transaction, even one containing bundle types the wallet does not
+understand.
+
+The personalizations are:
+
+* ``"ZTxIdCEffectHash"`` — compact effects digest
+* ``"ZTxIdNEffectHash"`` — noncompact effects digest
+* ``"ZTxAutBundleHash"`` — authorizing data digest
+
+For each of these, the hash input is::
+
+  compactSize(bundleType) || compactSize(bundleVariant) || <data bytes>
+
+where ``<data bytes>`` is ``vCompactData``, ``vNoncompactData``, or
+``vAuthData`` respectively.
 
 V6 Transaction Bundle Type Registry
 ```````````````````````````````````
@@ -410,11 +435,11 @@ Transaction Format
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 | varies                      |``nEffectBundles``            |``compactSize``                                 |Number of bundles in the transaction that have per-bundle data.      |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
-| varies                      |``mEffectBundles``            |``BundleData[nEffectBundles]``                  |A map from bundle identifier to the effecting data of a bundle.      |
+| varies                      |``mEffectBundles``            |``EffectBundleData[nEffectBundles]``            |A map from bundle identifier to the effecting data of a bundle.      |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 | varies                      |``nAuthBundles``              |``compactSize``                                 |Number of bundles in the transaction that have per-bundle data.      |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
-| varies                      |``mAuthBundles``              |``BundleData[nAuthBundles]``                    |A map from bundle identifier to the authorizing data of a bundle.    |
+| varies                      |``mAuthBundles``              |``AuthBundleData[nAuthBundles]``                |A map from bundle identifier to the authorizing data of a bundle.    |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 
 ``mValuePoolDeltas`` is interpreted as a map keyed by the tuple
@@ -466,8 +491,15 @@ Let $\mathsf{AssetUuid}(\mathsf{d})$ be the asset indicated by the ``mValuePoolD
        \bot & \text{otherwise}
     \end{cases}
 
-BundleData
-----------
+EffectBundleData
+----------------
+
+Each entry in ``mEffectBundles`` separates the bundle's effecting data into
+a **compact** portion (the subset intended for the light wallet protocol, such
+as nullifiers, commitments, ephemeral keys, and the leading bytes of encrypted
+ciphertexts) and a **noncompact** portion (everything else). This split enables
+trustless partial verification: a light client can verify the compact data it
+receives against the transaction identifier without needing the noncompact data.
 
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 | Bytes                       | Name                         | Data Type                                      | Description                                                         |
@@ -476,11 +508,39 @@ BundleData
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 | varies                      |``bundleVariant``             |``compactSize``                                 |An encoding of the bundle variant identifier.                        |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
-| varies                      |``nBundleDataLen``            |``compactSize``                                 |The length of the ``vBundleData`` byte array.                        |
+| varies                      |``nCompactDataLen``           |``compactSize``                                 |The length of the ``vCompactData`` byte array.                       |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
-| varies                      |``vBundleData``               |``byte[nBundleDataLen]``                        |The effecting or authorizing data for the bundle, dependent upon     |
-|                             |                              |                                                |whether the ``BundleData`` occurs in ``mEffectBundles`` or           |
-|                             |                              |                                                |``mAuthBundles``.                                                    |
+| varies                      |``vCompactData``              |``byte[nCompactDataLen]``                       |The compact effecting data for the bundle, as defined by the         |
+|                             |                              |                                                |bundle type's defining ZIP.                                          |
++-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
+| varies                      |``nNoncompactDataLen``        |``compactSize``                                 |The length of the ``vNoncompactData`` byte array.                    |
++-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
+| varies                      |``vNoncompactData``           |``byte[nNoncompactDataLen]``                    |The noncompact effecting data for the bundle, as defined by the      |
+|                             |                              |                                                |bundle type's defining ZIP.                                          |
++-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
+
+The compact/noncompact split for each bundle type defined in this ZIP is
+specified in the corresponding bundle section below. When a ZIP introduces a
+new bundle type, it MUST specify which fields of its effecting data belong to
+the compact portion and which to the noncompact portion.
+
+AuthBundleData
+--------------
+
+Each entry in ``mAuthBundles`` carries the bundle's authorizing data as a
+single byte array.
+
++-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
+| Bytes                       | Name                         | Data Type                                      | Description                                                         |
++=============================+==============================+================================================+=====================================================================+
+| varies                      |``bundleType``                |``compactSize``                                 |An encoding of the bundle type identifier.                           |
++-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
+| varies                      |``bundleVariant``             |``compactSize``                                 |An encoding of the bundle variant identifier.                        |
++-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
+| varies                      |``nAuthDataLen``              |``compactSize``                                 |The length of the ``vAuthData`` byte array.                          |
++-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
+| varies                      |``vAuthData``                 |``byte[nAuthDataLen]``                          |The authorizing data for the bundle, as defined by the bundle        |
+|                             |                              |                                                |type's defining ZIP.                                                 |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 
 
@@ -540,11 +600,9 @@ wallet does not itself implement.
     proofs.
 
 A wallet that successfully parses a V6 transaction under these rules is
-guaranteed to be able to compute the transaction identifier (given, for
-each bundle type it does not understand, the corresponding 32-byte
-``bundle_effects_digest`` value as described in `Implications for Wallets`_),
-and to enumerate the transparent value flows of the transaction at the
-granularity of bundle types.
+guaranteed to be able to compute the transaction identifier using the
+`Opaque Digest Personalizations`_, and to enumerate the transparent value
+flows of the transaction at the granularity of bundle types.
 
 
 Transparent Bundle
@@ -990,20 +1048,11 @@ follows::
     ├── header_digest
     ├── value_pool_deltas_digest
     └── effects_bundles_digest
-        ├─ (bundle_type_id || bundle_variant || transparent_effects_digest)
-        ├─ (bundle_type_id || bundle_variant || sapling_effects_digest)
-        │   ├── sapling_spends_digest
-        │   │   ├── sapling_spends_compact_digest
-        │   │   └── sapling_spends_noncompact_digest
-        │   └── sapling_outputs_digest
-        │       ├── sapling_outputs_compact_digest
-        │       ├── sapling_outputs_memos_digest
-        │       └── sapling_outputs_noncompact_digest
-        ├─ (bundle_type_id || bundle_variant || orchard_effects_digest)
-        │   ├── orchard_actions_compact_digest
-        │   ├── orchard_actions_memos_digest
-        │   └── orchard_actions_noncompact_digest
-        └─ (bundle_type_id || bundle_variant || unknown_bundle_effects_digest) ...
+        ├─ (bundle_type_id || bundle_variant || bundle_effects_digest)
+        │   ├── compact_effects_digest
+        │   └── noncompact_effects_digest
+        ├─ ...
+        └─ (bundle_type_id || bundle_variant || bundle_effects_digest) ...
 
 Each node written as ``snake_case`` in this tree is a BLAKE2b-256 hash of its
 children, initialized with a personalization string specific to that branch
@@ -1078,10 +1127,31 @@ the following values are concatenated::
    T.3b: bundleVariant         (compactSize encoding)
    T.3c: bundle_effects_digest (32-byte hash output)
 
-where ``bundle_effects_digest`` is the root hash of the bundle's effecting data
-tree, as defined below for each known bundle type.
+``bundle_effects_digest`` is a BLAKE2b-256 hash of the following values::
 
-The personalization field of this hash is set to::
+   T.3c.i:  compact_effects_digest    (32-byte hash output)
+   T.3c.ii: noncompact_effects_digest (32-byte hash output)
+
+The personalization field of ``bundle_effects_digest`` is set to::
+
+  "ZTxBndEffectHash"
+
+``compact_effects_digest`` is::
+
+  BLAKE2b-256("ZTxIdCEffectHash",
+              compactSize(bundleType) || compactSize(bundleVariant) || vCompactData)
+
+``noncompact_effects_digest`` is::
+
+  BLAKE2b-256("ZTxIdNEffectHash",
+              compactSize(bundleType) || compactSize(bundleVariant) || vNoncompactData)
+
+In the case that a bundle has empty ``vCompactData`` or ``vNoncompactData``,
+the corresponding digest is still computed over the
+``compactSize(bundleType) || compactSize(bundleVariant)`` prefix (i.e. it is
+not the hash of the empty string).
+
+The personalization field of ``effects_bundles_digest`` is set to::
 
   "ZTxIdEffBnd_Hash" (1 underscore character)
 
@@ -1563,6 +1633,11 @@ In the case that the transaction has no auth bundles, ``auth_bundles_digest`` is
 
   BLAKE2b-256("ZTxAuthBnd__Hash", [])
 
+.. note:: The auth digest approach (flat vs structured, and whether to use
+   the `Opaque Digest Personalizations`_ or per-bundle algorithms) is still
+   under discussion. The per-bundle auth digest sections below are retained
+   from the structured approach pending this decision.
+
 A.1.0: transparent_auth_digest
 ..............................
 
@@ -1653,11 +1728,12 @@ encounters a bundle with a recognized ``bundleType`` but unrecognized
 ``bundleVariant`` SHOULD alert the user that the transaction affects a pool the
 wallet is aware of, but in a way the wallet does not fully understand.
 
-For bundle types not understood by a wallet, the wallet can compute the
-transaction identifier so long as it has been provided with the 32-byte
-``bundle_effects_digest`` value for each bundle that it does not understand.
-This enables partial verification of transactions containing unknown bundle
-types.
+For bundle types not understood by a wallet, the wallet computes
+``compact_effects_digest`` and ``noncompact_effects_digest`` as flat
+BLAKE2b-256 hashes of the raw ``vCompactData`` and ``vNoncompactData`` bytes
+using the `Opaque Digest Personalizations`_. This enables any wallet to
+compute the transaction identifier for any well-formed v6 transaction, even
+if it contains bundle types the wallet does not understand.
 
 A wallet MUST NOT construct or sign a transaction containing a bundle type or
 variant that it does not fully understand.
@@ -1668,6 +1744,52 @@ Rationale
 Effecting data bundles and authorizing data bundles are stored separately in
 the transaction format so that the authorizing data may be pruned by
 straightforward truncation of the encoded representation of the transaction.
+
+Rationale for flat effect digests with compact/noncompact split
+---------------------------------------------------------------
+
+The transaction identifier commits to the effecting data of each bundle via
+flat BLAKE2b-256 hashes using the `Opaque Digest Personalizations`_, rather
+than per-bundle structured sub-tree digests as used in ZIP 244 [#zip-0244]_.
+This has two advantages:
+
+* Any wallet can compute the transaction identifier for any well-formed v6
+  transaction, even one containing bundle types the wallet does not understand.
+  With structured digests, a wallet that encounters an unknown bundle type
+  would need the ``bundle_effects_digest`` to be supplied externally by a
+  source that implements the bundle type's digest algorithm.
+
+* New bundle types do not need to specify a digest algorithm in their defining
+  ZIP — only the compact/noncompact split of their effecting data. This
+  reduces the per-bundle-type specification cost.
+
+The effecting data is split into compact and noncompact portions in the wire
+format (``EffectBundleData``) and hashed separately, so that a light client
+can verify the compact data it receives against the transaction identifier
+without needing the noncompact data. This supports trustless partial
+verification in the light wallet protocol, reducing trust in the light wallet
+server.
+
+Rationale for structured auth digests
+-------------------------------------
+
+The authorizing data commitment retains per-bundle structured digests
+(defined by each bundle type's defining ZIP) rather than using flat hashes.
+This asymmetry with the effects side is motivated by two considerations:
+
+* It is less important for wallets to be able to compute the authorizing data
+  commitment without understanding the corresponding bundle types. Full
+  validators check auth digests as part of transaction validation, so a
+  wallet that cannot compute the auth commitment for an unknown bundle type
+  can still rely on the network's full validators for that assurance.
+
+* Structured auth digests support *selective malleability*: the ability to
+  modify specific components of the authorizing data (such as sighash types
+  or sighash version information) without invalidating the entire auth
+  commitment. This is used by the existing sighash versioning mechanism and
+  is motivated by the possible future addition of *action groups* to support
+  ZSA asset swaps, where different signers may need to commit to different
+  subsets of the transaction's effects.
 
 
 Deployment
