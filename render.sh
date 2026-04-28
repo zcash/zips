@@ -5,9 +5,9 @@
 
 set -euo pipefail
 
-if ! ( ( [ "x$1" = "x--rst" ] || [ "x$1" = "x--pandoc" ] || [ "x$1" = "x--mmd" ] ) && [ $# -eq 3 ] ); then
+if ! ( [ $# -eq 3 ] && ( [ "x$1" = "x--rst" ] || [ "x$1" = "x--pandoc" ] || [ "x$1" = "x--mmd" ] ) ); then
     cat - <<EndOfUsage
-Usage: render.sh --rst|--pandoc|--mmd <inputfile> <htmlfile> <title>
+Usage: render.sh --rst|--pandoc|--mmd <inputfile> <htmlfile>
 
 --rst     render reStructuredText using rst2html5
 --pandoc  render Markdown using pandoc
