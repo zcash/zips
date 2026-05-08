@@ -160,16 +160,15 @@ near worst-case scenario. [^devnet-blocktime-test]
 
 ## Block processing time
 
-A prerequisite for reducing the target block spacing is that block validation and
-propagation must remain small relative to the target spacing. The per-pool
+A prerequisite for reducing the target block spacing is that block validation
+and propagation must remain small relative to the target spacing. The per-pool
 propagation remain small relative to the target spacing. The per-pool
 action limits introduced by this proposal ensure that worst-case
 *per-block* processing time is lower than today's. The fact that there
 are three times as many blocks in unit time does mean that the *overall*
-worst-case proportion of time taken for processing, and the cost of
-sync after a given time offline (for both full nodes and light clients)
-will increase. We accept this trade-off. (TODO: be concrete with timing
-increases, and the effect of parallelism.)
+worst-case proportion of time taken for processing, and the worst cost of
+sync after a given time offline for full nodes will increase. We accept this
+trade-off. These computational limits parallelize well. The max bandwidth requirement from the chain is 655kbps, so syncing with 10mbps bandwidth still has a 15x advantage factor over full blocks on mainnet.
 
 **Current worst case:** A full 2 MB block today can contain up to ~617
 Orchard actions or ~2,090 Sapling outputs, with no per-pool limits. A fully
