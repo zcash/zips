@@ -1,7 +1,8 @@
 
     ZIP: Unassigned
     Title: Shorter Block Target Spacing
-    Owners: ValarDragon <dojha@berkeley.edu>
+    Owners: Dev Ojha <dev@valargroup.dev>
+            Evan Forbes <evan@valargroup.dev>
     Status: Draft
     Category: Consensus
     Created: 2026-03-13
@@ -41,7 +42,7 @@ the Sapling and Orchard shielded protocols.
 This solves three problems. 
 - Significantly improves the UX for actors who need 1 or 2 conf's. (Near Intents, small payments) The user-latency goes down 3x.
 - Increases consensus bandwidth, which amplifies the scaling impact of a future shielded pool which does not require shielded sync.
-- Introduces action limits, which short term more than doubles the Orchard TPS (2.9 → 6.1 TPS), while lowering the impact a DoS attacker can impose on wallets; for example, maximum shielded sync bandwidth for light clients is reduced by 42% (270.5 → 156.83 MB/day).
+- Introduces action limits. These provide limits of the number of actions that can go into a block. There is a global limit across all pools, and per pool limits. It is configured to more than double the Orchard TPS (2.9 → 6.1 TPS), while lowering the impact a DoS attacker can impose on wallets; for example, maximum shielded sync bandwidth for light clients is reduced by 42% (270.5 → 156.83 MB/day).
 
 The action limits significantly decrease the number of Sprout and Sapling pool 
 outputs available per block, to lower the maximum shielded sync burden under 
@@ -75,7 +76,7 @@ The motivations for decreasing the block target spacing are:
   gadget is also deployed.
 
 The throughput goal on its own could be achieved via a block size increase.
-However the main goal of this proposal is to foremost improve the transaction
+However the goal of this proposal is to foremost improve the transaction
 latency.
 
 It is estimated that this reduction in blocktime would increase the stale rate from today's 0.4% to 1.3%. For reference, Ethereum operated at 5.4% stale rate.
@@ -104,9 +105,17 @@ shielded transaction induces a bandwidth overhead for every wallet
 and an extra trial decryption, so we must carefully understand the impact a DOS 
 attacker can cause. Today the worst-case DoS attack can induce 270.5
 MB of wallet sync download to clients per day, and 4.8M trial decryptions per
-day. We propose introducing action limits in Orchard (306 actions per block),
-and (input+output) limits for Sapling (300 per block). With these limits, the
-worst case becomes 156.83 MB bandwidth and 2.1M trial decrypts per day. This 
+day. We propose introducing global action limits and per-pool action limits as follows:
+
+- A maximum of 306 actions per block across all pools
+
+- A maximum of 306 Orchard actions per block
+
+- A maximum of 300 Sapling inputs + outputs. (Total inputs + outputs < 300)
+
+- A maximum of 25 Sprout JoinSplits per block.
+
+With these limits, the worst case becomes 156.83 MB bandwidth and 2.1M trial decrypts per day. This 
 is a 42% improvement in worst case wallet sync bandwidth despite 3x more blocks.
 This yields a 2x in Orchard TPS, and keeps Sapling TPS at a higher level than
 today's Orchard TPS.
@@ -141,7 +150,7 @@ approximately 3.26%, derived from measured Zcash network propagation
 delays. A devnet experiment with 99 geographically-distributed Zebra
 nodes producing 2MB blocks at 25-second target spacing measured a stale
 block rate of 4.86% and a fork rate of 0.37%. Both observed figures are
-below the 5% safety threshold set by Ethereum's historical proof-of-work
+below the 5.4% safety threshold set by Ethereum's historical proof-of-work
 stale rate. [^forum-proposal] The only modification required to achieve
 these rates was tuning TCP configuration (more details in the linked
 footnote). The devnet's node distribution was significantly more
@@ -168,9 +177,13 @@ packed Orchard block requires verifying all action proofs and spend
 authorization signatures for those ~617 actions.
 
 **Proposed worst case:** With the action limits, a block contains at
-most 306 Orchard actions and a maximum of 300 Sapling inputs+outputs. This is roughly half the
-current Orchard worst case and a fraction of the Sapling worst case.
-The per-block verification work is therefore substantially reduced.
+most 306 actions across pools. There is separately, limits per pool. We propose per-pool limits of:
+
+- 306 Orchard actions
+- 300 Sapling inputs+outputs.
+- 25 Sprout JoinSplits.
+
+This means the new worst case block processing time, if Orchard dominant, would be half of today's worst case, and Sapling's would be one sixth. The per-block verification work is therefore substantially reduced.
 
 **Batch verification.** Orchard transaction verification benefits from
 batch validation, where proof and signature verification is amortized
@@ -430,18 +443,25 @@ measured in blocks (marked "No change"):
 
 ### Anchor selection depth
 
-ZIP 213 [^zip-0213] recommends selecting an anchor 10 blocks back from
+ZIP 315 [^zip-0315], recommends selecting an anchor 3 blocks back from
 the chain tip when constructing shielded transactions. The recommended
-anchor depth SHOULD remain at 10 blocks after activation, reducing the
-wall-clock anchor delay from ~12.5 minutes to ~4.2 minutes. This
+anchor depth SHOULD remain at 3 blocks after activation, reducing the average
+wall-clock anchor delay from ~3.75 minutes to ~1.25 minutes. This
 follows the same precedent set by the Blossom upgrade (ZIP 208
-[^zip-0208]), which halved the anchor delay from ~25 minutes to ~12.5
-minutes without changing the 10-block depth.
+[^zip-0208]), which did not update the anchor depth and therefore halved delay.
 
 | Parameter | Current | Post-activation | Notes |
 |-----------|---------|-----------------|-------|
-| Recommended anchor depth | 10 blocks (~12.5 min) | 10 blocks (~4.2 min) | No change; follows Blossom precedent |
+| Recommended anchor depth | 3 blocks (~3.75 min) | 3 blocks (~1.25 min) | No change; follows Blossom precedent |
 
+The increased likelihood of forking due to block time reduction should not be
+concerning here. For an issue to occur when anchor depth is 3 blocks back, you
+must have a 4 block re-org. In the many years of Ethereum PoW, a 4 block re-org
+has never been observed [^lovejoy-reorg]. So we are not practically at risk of 
+inherent randomness causing a re-org. In other POW chains, re-orgs of 4+ 
+blocks resulted from a consensus split of some form, including the recent
+Litecoin attack, or an attack from a surge in hashpower.
+Anchor height depth is not intended to protect against those two vectors.
 
 # Rationale
 
@@ -584,8 +604,6 @@ activation heights and consensus branch IDs.
 
 [^zip-0208]: [ZIP 208: Shorter Block Target Spacing](zip-0208.rst)
 
-[^zip-0213]: [ZIP 213: Shielded Coinbase](zip-0213.rst)
-
 [^zip-0315]: [ZIP 315: Best Practices for Wallet Implementations](zip-0315.rst)
 
 [^zip-0317]: [ZIP 317: Proportional Transfer Fee Mechanism](zip-0317.rst)
@@ -593,6 +611,8 @@ activation heights and consensus branch IDs.
 [^crosslink]: [Crosslink — a Zcash Finality Protocol](https://electric-coin-company.github.io/zcash-crosslink/)
 
 [^slowfastblocks]: [On Slow and Fast Block Times](https://blog.ethereum.org/2015/09/14/on-slow-and-fast-block-times/)
+
+[^lovejoy-reorg]: [Lovejoy, James P. (2020). *An Empirical Analysis of Chain Reorganizations and Double-Spend Attacks on Proof-of-Work Cryptocurrencies.* M.Eng. thesis, Massachusetts Institute of Technology, Department of Electrical Engineering and Computer Science.](https://static1.squarespace.com/static/6675a0d5fc9e317c60db9b37/t/66eb3560532516773c4f7ece/1726690657755/LovejoyJamesP-meng-eecs-2020+%281%29.pdf)
 
 [^forum-proposal]: [Forum: Proposal — Lower Zcash Block Target Spacing to 25s](https://forum.zcashcommunity.com/t/proposal-lower-zcash-block-target-spacing-to-25s/54577)
 
