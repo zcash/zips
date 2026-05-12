@@ -1,6 +1,6 @@
 
     ZIP: Unassigned
-    Title: Shorter Block Target Spacing
+    Title: 25-second Block Target Spacing
     Owners: Dev Ojha <dev@valargroup.dev>
             Evan Forbes <evan@valargroup.dev>
     Status: Draft
