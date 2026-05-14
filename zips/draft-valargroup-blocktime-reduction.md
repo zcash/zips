@@ -111,7 +111,7 @@ clients per day, and 4.8M trial decryptions per day [^syncsimulator]. This is d
 one with max utilizing Sapling transactions, with few inputs and many outputs.
 The worst-cast DOS for node verification time is done with many Sapling inputs,
 and a single transparent output, totalling 5600 Sapling inputs and ZKP's. This
-takes 3.2s on our 4 physical-core benchmark machine. Meanwhile regular userflow
+takes 3.2s on a modern AMD laptop CPU with 4 pinned threads. Meanwhile regular userflow
 has far lower costs on the network, than the DOS model.
 
 We propose introducing global action limits and per-pool action limits as follows:
@@ -205,9 +205,9 @@ action limits, a worst-case block's Orchard bundle can be fully
 batch-verified in a small number of batches.
 
 **Measured timing.** We benchmarked worst-case block verification with
-Zebra, limited to 4 physical cores.[^verification-benchmark] The figures
-report wall-clock time for verifying the zero-knowledge proofs and
-signatures in a single block, without any mempool pre-verification.
+Zebra on a modern AMD laptop CPU with 4 pinned threads.[^verification-benchmark]
+The figures report wall-clock time for verifying the zero-knowledge proofs
+and signatures in a single block, without any mempool pre-verification.
 
 | Case | Block composition | Mean ± stddev |
 |------|-------------------|---------------|
