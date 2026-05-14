@@ -192,7 +192,7 @@ most 330 actions across pools. There is separately, limits per pool. We propose 
 - 25 Sprout JoinSplits.
 
 This means the new worst case block processing time, if Orchard dominant,
-would be a little over half of today's worst case, and Sapling's would be
+would be about three quarters of today's worst case, and Sapling's would be
 less than one tenth. The per-block verification work is therefore substantially reduced.
 
 **Batch verification.** Orchard transaction verification benefits from
@@ -213,7 +213,7 @@ and signatures in a single block, without any mempool pre-verification.
 |------|-------------------|---------------|
 | Full Orchard limit (proposed) | 330 Orchard actions | 432.11 ± 11.03 ms |
 | Full Sapling limit (proposed) | 300 Sapling spends, 0 outputs | 271.51 ± 5.03 ms |
-| Today's Orchard worst case | ~616 actions in dense multi-action txs in a 2 MB block | 769.85 ± 16.18 ms |
+| Today's Orchard worst case | ~436 actions in dense multi-action txs in a 2 MB block | 556.53 ± 9.81 ms |
 | Today's Sapling worst case | ~5,600 spends in dense multi-spend txs in a 2 MB block | 3,174.90 ± 144.04 ms |
 
 - **Full Orchard limit (proposed)** — binding post-NU7 verification worst case.
