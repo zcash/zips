@@ -1,0 +1,60 @@
+name: Check Renderability
+
+on:
+  pull_request:
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 3
+
+      - name: Verify nonexistence of `rendered` and `base_ref`
+        shell: bash
+        run: |
+          if [ -e rendered ]; then exit 1; fi
+          if [ -e base_ref ]; then exit 1; fi
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
+
+      - name: Restore Nix store cache
+        id: nix-cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: /tmp/nix-closure
+          key: nix-devshell-${{ runner.os }}-${{ hashFiles('flake.lock', 'flake.nix') }}
+
+      - name: Import cached Nix store paths
+        if: steps.nix-cache.outputs.cache-hit == 'true'
+        run: nix-store --import < /tmp/nix-closure/store.nar
+
+      - name: Compile ZIPs
+        run: nix develop --profile /tmp/dev-profile --command make all-zips
+
+      - name: Set base ref
+        run: |
+          git show --format=%H --no-notes --no-patch "HEAD~1" -- |tee base_ref
+          if ! ( grep -E '^[0-9a-f]{40}$' base_ref ); then exit 1; fi
+
+      - name: Compile Protocol Specification
+        run: nix develop --profile /tmp/dev-profile --command make all
+
+      - name: Export Nix store for caching
+        if: steps.nix-cache.outputs.cache-hit != 'true'
+        run: |
+          # Free up some space before creating the (possibly very large) store tarball.
+          df
+          dpkg-query -Wf '${Installed-Size}\t${Package}\n' | sort -rn 2>/dev/null | head -30
+          docker system prune --all --force || /bin/true
+          sudo apt-get -y remove --purge \
+            '^docker.*' '^microsoft-edge.*' azure-cli '^google-cloud-cli.*' '^google-chrome.*' \
+            firefox java-common '^llvm-.*' '^libllvm.*' '^libclang-.*' '^mysql-.*' powershell snapd
+          sudo apt-get -y autoremove --purge
+          dpkg-query -Wf '${Installed-Size}\t${Package}\n' | sort -rn 2>/dev/null | head -30
+          df
+          mkdir -p /tmp/nix-closure
+          nix-store --export $(nix-store -qR /tmp/dev-profile) > /tmp/nix-closure/store.nar

@@ -1,58 +1,69 @@
-# Dependencies:
-# sudo apt-get install python3-pip pandoc perl sed
-# sudo pip3 install rst2html5
+# Dependencies: see zips/zip-guide.rst and protocol/README.rst
 
-.PHONY: all all-zips release protocol discard
+MARKDOWN_OPTION?=--mmd
+
+.PHONY: all-zips all-docker all tag-release protocol all-protocol discard
 all-zips: .Makefile.uptodate
-	find . -name 'zip-*.rst' -o -name 'zip-*.md' |sort >.zipfilelist.new
+	echo "$(patsubst zips/%,%,$(sort $(wildcard zips/zip-*.rst) $(wildcard zips/zip-*.md)))" >.zipfilelist.new
 	diff .zipfilelist.current .zipfilelist.new || cp -f .zipfilelist.new .zipfilelist.current
 	rm -f .zipfilelist.new
+	echo "$(patsubst zips/%,%,$(sort $(wildcard zips/draft-*.rst) $(wildcard zips/draft-*.md)))" >.draftfilelist.new
+	diff .draftfilelist.current .draftfilelist.new || cp -f .draftfilelist.new .draftfilelist.current
+	rm -f .draftfilelist.new
+	mkdir -p rendered
+	cp -r static/* rendered/
 	$(MAKE) README.rst
-	$(MAKE) index.html $(addsuffix .html,$(filter-out README,$(basename $(sort $(wildcard *.rst) $(wildcard *.md)))))
+	$(MAKE) rendered/index.html $(addprefix rendered/,$(addsuffix .html,$(basename $(patsubst zips/%,%,$(sort $(wildcard zips/*.rst) $(wildcard zips/*.md))))))
 
-all: all-zips protocol
+all-docker:
+	git config --global --add safe.directory "$(shell pwd)"
+	$(MAKE) all
 
-release:
-	$(MAKE) -C protocol release
+all: all-zips all-protocol
 
 protocol:
-	$(MAKE) -C protocol
+	$(MAKE) -C protocol protocol
+
+protocol-dark:
+	$(MAKE) -C protocol protocol-dark
+
+all-protocol:
+	$(MAKE) -C protocol all
+
+all-specs: all-zips
+	$(MAKE) -C protocol all-specs
 
 discard:
-	git checkout -- '*.html' 'protocol/*.pdf'
+	rm -r rendered
+	git checkout -- 'README.rst'
 
-.Makefile.uptodate: Makefile
+.Makefile.uptodate: Makefile render.sh
 	$(MAKE) clean
 	touch .Makefile.uptodate
 
-define PROCESSRST
-$(eval TITLE := $(shell echo '$(basename $<)' | sed -E 's|zip-0{0,3}|ZIP |;s|draft-|Draft |')$(shell grep -E '^(\.\.)?\s*Title: ' $< |sed -E 's|.*Title||'))
-rst2html5 -v --title="$(TITLE)" $< >$@
-./edithtml.sh --rst $@
-endef
+rendered/index.html: README.rst render.sh
+	./render.sh --rst $< $@
 
-define PROCESSMD
-$(eval TITLE := $(shell echo '$(basename $<)' | sed -E 's|zip-0{0,3}|ZIP |;s|draft-|Draft |')$(shell grep -E '^(\.\.)?\s*Title: ' $< |sed -E 's|.*Title||'))
-pandoc --from=markdown --to=html $< --output=$@
-./edithtml.sh --md $@ "${TITLE}"
-endef
+rendered/%.html: zips/%.rst render.sh
+	./render.sh --rst $< $@
 
-index.html: README.rst edithtml.sh
-	$(PROCESSRST)
+rendered/%.html: zips/%.md render.sh
+	./render.sh $(MARKDOWN_OPTION) $< $@
 
-%.html: %.rst edithtml.sh
-	$(PROCESSRST)
-
-%.html: %.md edithtml.sh
-	$(PROCESSMD)
-
-README.rst: .zipfilelist.current makeindex.sh README.template $(sort $(wildcard zip-*.rst) $(wildcard zip-*.md))
+README.rst: .zipfilelist.current .draftfilelist.current makeindex.sh README.template $(wildcard zips/zip-*.rst) $(wildcard zips/zip-*.md) $(wildcard zips/draft-*.rst) $(wildcard zips/draft-*.md)
 	./makeindex.sh | cat README.template - >README.rst
 
-.PHONY: linkcheck
-linkcheck: protocol/protocol.pdf protocol/canopy.pdf protocol/heartwood.pdf protocol/blossom.pdf protocol/sapling.pdf
-	./links_and_dests.py --check $(filter-out $(wildcard draft-*.html),$(wildcard *.html)) protocol/protocol.pdf protocol/canopy.pdf protocol/heartwood.pdf protocol/blossom.pdf protocol/sapling.pdf
+.PHONY: linkcheck updatecheck clean all-clean
+linkcheck: all
+	./links_and_dests.py --check $(filter-out $(wildcard rendered/draft-*.html),$(wildcard rendered/*.html)) $(filter-out rendered/protocol/sprout.pdf,$(wildcard rendered/protocol/*.pdf))
 
-.PHONY: clean
+updatecheck:
+	./update_check.sh
+
 clean:
-	rm -f .zipfilelist.* README.rst index.html $(addsuffix .html,$(basename $(sort $(wildcard *.rst) $(wildcard *.md))))
+	rm -f .zipfilelist.* README.rst rendered/index.html $(addprefix rendered/,$(addsuffix .html,$(basename $(patsubst zips/%,%,$(sort $(wildcard zips/*.rst) $(wildcard zips/*.md))))))
+	rm -rf temp
+
+all-clean:
+	$(MAKE) clean
+	$(MAKE) -C protocol clean
