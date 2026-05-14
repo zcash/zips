@@ -39,16 +39,16 @@ This proposal specifies a change in the block target spacing from 75
 seconds to 25 seconds in NU7, and introduces per-pool action limits for
 the Sapling and Orchard shielded protocols.
 
-This solves three problems. 
+This solves three problems.
 - Significantly improves the UX for actors who need 1 or 2 conf's. (Near Intents, small payments) The user-latency goes down 3x.
 - Increases consensus bandwidth, which amplifies the scaling impact of a future shielded pool which does not require shielded sync.
-- Introduces action limits. These provide limits of the number of actions that can go into a block. There is a global limit across all pools, and per pool limits. It is configured to more than double the Orchard TPS (2.9 → 6.1 TPS), while lowering the impact a DoS attacker can impose on wallets; for example, maximum shielded sync bandwidth for light clients is reduced by 42% (270.5 → 156.83 MB/day).
+- Introduces action limits. These provide limits of the number of actions that can go into a block. There is a global limit across all pools, and per pool limits. It is configured to more than double the Orchard TPS (2.9 → 6.6 TPS), while lowering the impact a DoS attacker can impose on wallets; for example, maximum shielded sync bandwidth for light clients is reduced by 37% (271 → 169 MB/day).
 
-The action limits significantly decrease the number of Sprout and Sapling pool 
-outputs available per block, to lower the maximum shielded sync burden under 
+The action limits significantly decrease the number of Sprout and Sapling pool
+outputs available per block, to lower the maximum shielded sync burden under
 attempted DoS.
 
-The emission schedule of mined ZEC will be the same in terms of ZEC/day, 
+The emission schedule of mined ZEC will be the same in terms of ZEC/day,
 but this requires the emission per block to be adjusted
 to take account of the changed block target spacing.
 
@@ -64,74 +64,83 @@ The motivations for decreasing the block target spacing are:
   confirmation to 25 seconds on average.
 
 - **Greater throughput.** With 3× as many blocks per day and the same
-  2 MB block size limit, we will have allocated higher consensus bandwidth 
-  capacity. Short term, when paired with the action limits, we will more than 
-  double the Orchard TPS for 2-action transactions. Longer term, when we get a 
+  2 MB block size limit, we will have allocated higher consensus bandwidth
+  capacity. Short term, when paired with the action limits, we will more than
+  double the Orchard TPS for 2-action transactions. Longer term, when we get a
   shielded pool with no shielded sync burden, we will have 3x higher throughput.
 
-- **Complementary to finality improvements.** This proposal is
-  complementary to, and does not compete with, finality mechanisms
-  such as Crosslink [^crosslink]. Faster block times improve the
-  responsiveness of the base layer regardless of whether an additional finality
-  gadget is also deployed.
-
 The throughput goal on its own could be achieved via a block size increase.
-However the goal of this proposal is to foremost improve the transaction
+However the goal of this proposal is foremost to improve the transaction
 latency.
 
-It is estimated that this reduction in blocktime would increase the stale rate from today's 0.4% to 1.3%. For reference, Ethereum operated at 5.4% stale rate.
+This proposal is complementary to, and does not compete with, finality
+mechanisms such as Crosslink [^crosslink]. Faster block times improve the
+responsiveness of the base layer regardless of whether an additional finality
+gadget is also deployed. Rollback-risk analysis depends on the threat model.
+For models that bound an attacker by a fixed fraction of total hash power,
+reducing the block target spacing can reduce confirmation latency by nearly the
+same factor, provided that block validation and propagation remain small
+relative to the target spacing. Given that is maintained here, this proposal is
+expected to improve confirmation latency by slightly less than 3x for users
+applying the same rollback-risk tolerance as today. See [#slowfastblocks]_ for
+analysis under several attack models.
 
-There are multiple threat models for rollback attacks. Loosely speaking,
-lowering block time while keeping it significantly lower than block propagation 
-delay helps improve finality time. This is because more honest
-miners quickly build on the block, and the block propagation constraint ensures
-stale rates have not significantly increased. See [^slowfastblocks] for 
-analysis in various attack models. As this proposal meets the constraint of
-keeping stale rates low, this should under the "X% of hashpower is byzantine"
-threat model improve user confirmation times by a factor slightly under 3x. 
-Under the post's "Economic" threat model, where the user requires the block
-rewards built on-top of their payment to exceed the value of the payment, this
-significantly improves the variance in confirmation latency (but makes the 
-mean latency a bit higher due to stale rate). As noted there, this attack model
-is not applied at sizable transactions. It is only potentially applied for small-valued
-transactions, where the granularity of block times likely lowers time
-until sufficient finality. We do not argue for reducing block confirmation counts in this ZIP.
-However, we do expect many classes of users to be able to reduce their expected 
-time until funds are considered to have been received under threat modelling 
-consistent with block confirmation counts they choose today.
+Economic rollback models give a different result. For recipients who wait until
+the block rewards built on top of their payment exceed the payment value, then
+shorter block times significantly reduce the variance of their waiting time,
+while the mean stays roughly the same. Recall that proof of work block times
+have high very high variance, so variance reduction is a substantial benefit.
+This ZIP does not argue for clients reducing confirmation counts, but it does
+expect many users to see a lower expected time until receipt under confirmation
+policies comparable to those they use today.
 
-Zcash has a second cost imposed by scaling, the shielded sync. Every 
-shielded transaction induces a bandwidth overhead for every wallet
-and an extra trial decryption, so we must carefully understand the impact a DOS 
-attacker can cause. Today the worst-case DoS attack can induce 270.5
-MB of wallet sync download to clients per day, and 4.8M trial decryptions per
-day. We propose introducing global action limits and per-pool action limits as follows:
+## Security
 
-- A maximum of 306 actions per block across all pools
+Scaling and block time reductions in Zcash impose three security costs, one on
+full nodes and miners' ability to verify blocks, a second on clients for
+shielded sync, and a third on the whole network for the uncle rate and fork
+rate. Action limits are introduced in this ZIP to limit the block processing
+costs, and client shielded sync costs. The proposed parameterization lowers the
+worst case for shielded sync and node processing times relative to today, while
+yielding far higher Orchard TPS. We benchmark, and the uncle-rate post-proposal
+on networks more distributed than mainnet at maximum load is far lower than
+ETH-PoW was, leading to conclusion that it is safe.
 
-- A maximum of 306 Orchard actions per block
+Today the worst-case DoS attack can induce 271 MB of wallet sync download to
+clients per day, and 4.8M trial decryptions per day [^syncsimulator]. This is d
+one with max utilizing Sapling transactions, with few inputs and many outputs.
+The worst-cast DOS for node verification time is done with many Sapling inputs,
+and a single transparent output, totalling 5680 Sapling inputs and ZKP's. This
+takes 4s on our 4 physical-core benchmark machine. Meanwhile regular userflow
+has far lower costs on the network, than the DOS model.
 
-- A maximum of 300 Sapling inputs + outputs. (Total inputs + outputs < 300)
+We propose introducing global action limits and per-pool action limits as follows:
+
+- A maximum of 330 actions per block across all pools
+
+- A maximum of 330 Orchard actions per block
+
+- A maximum of 300 Sapling inputs + outputs. (Total inputs + outputs <= 300)
 
 - A maximum of 25 Sprout JoinSplits per block.
 
-With these limits, the worst case becomes 156.83 MB bandwidth and 2.1M trial decrypts per day. This 
-is a 42% improvement in worst case wallet sync bandwidth despite 3x more blocks.
-This yields a 2x in Orchard TPS, and keeps Sapling TPS at a higher level than
-today's Orchard TPS.
+With these limits, the worst case client load becomes 169 MB bandwidth and 2.3M
+trial decrypts per day. This is a 37% improvement in worst case wallet sync
+bandwidth despite 3x more blocks. This yields a 2x in Orchard TPS, and keeps
+Sapling TPS at a higher level than today's Orchard TPS. We expand on these derivations in []
 
 However, every wallet does have to download every compact block header, which
 is 90 bytes. This leads to an extra 200kb of wallet bandwidth per day in
 exchange for the improved UX.
 
 The reduced Sapling and Sprout per-block limits are justified by the
-current distribution of shielded funds across pools. As of March 2026:
+current distribution of shielded funds across pools. As of May 2026:
 
 | Pool | Balance | Share of shielded supply |
 |------|---------|--------------------------|
-| Orchard | 4,511,193 ZEC | 87.5% |
-| Sapling | 616,131 ZEC | 12.0% |
-| Sprout | 25,480 ZEC | 0.5% |
+| Orchard | 4,534,914 ZEC | 87.9% |
+| Sapling | 597,910 ZEC | 11.6% |
+| Sprout | 25,409 ZEC | 0.5% |
 
 The vast majority of shielded activity is already in Orchard, and this
 trend is expected to continue. The Sapling and Sprout limits are set
@@ -140,8 +149,8 @@ their potential for DoS.
 
 ## Stale block rate
 
-The stale rate is the percentage of blocks that get orphaned, which relates to 
-mining centralization risk, block propagation delay, and block verification 
+The stale rate is the percentage of blocks that get orphaned, which relates to
+mining centralization risk, block propagation delay, and block verification
 times. Today the stale rate is 0.4%, but this may be lower than what pure block
 propagation delay may imply due to hashpower centralization in mining pools.
 
@@ -176,13 +185,15 @@ packed Orchard block requires verifying all action proofs and spend
 authorization signatures for those ~617 actions.
 
 **Proposed worst case:** With the action limits, a block contains at
-most 306 actions across pools. There is separately, limits per pool. We propose per-pool limits of:
+most 330 actions across pools. There is separately, limits per pool. We propose per-pool limits of:
 
-- 306 Orchard actions
+- 330 Orchard actions
 - 300 Sapling inputs+outputs.
 - 25 Sprout JoinSplits.
 
-This means the new worst case block processing time, if Orchard dominant, would be half of today's worst case, and Sapling's would be one sixth. The per-block verification work is therefore substantially reduced.
+This means the new worst case block processing time, if Orchard dominant,
+would be a little over half of today's worst case, and Sapling's would be
+one sixth. The per-block verification work is therefore substantially reduced.
 
 **Batch verification.** Orchard transaction verification benefits from
 batch validation, where proof and signature verification is amortized
@@ -197,7 +208,7 @@ batch-verified in a small number of batches.
 limited to 4 threads, availability verification for an Orchard-heavy
 block at the action limits completed in 529.00--554.30 ms, and
 availability verification for a Sapling-heavy block at the action
-limits completed in 1.1017--1.1329 s.
+limits completed in 1.1017--1.1329 s. {TODO: @Evan please update this, should be 210ms range. Lets also cite benchmark code}
 When transactions have already been pre-verified upon
 entering the mempool, which is the typical case for a node that has
 been online, block validation reduces to checking signatures and
@@ -302,8 +313,8 @@ the difference will eventually be reissued.
 
 Define the following constants in § 5.3 'Constants':
 
-$$\mathsf{GlobalShieldedBudget} := 306$$
-$$\mathsf{OrchardBlockActionLimit} := 306$$
+$$\mathsf{GlobalShieldedBudget} := 330$$
+$$\mathsf{OrchardBlockActionLimit} := 330$$
 $$\mathsf{SaplingBlockIOLimit} := 300$$
 $$\mathsf{SproutBlockJoinSplitLimit} := 25$$
 
@@ -315,7 +326,7 @@ be satisfied:
 
 - The total number of Orchard actions across all transactions in the
   block MUST NOT exceed $\mathsf{OrchardBlockActionLimit}$. That is,
-  $\sum_{\mathit{tx} \in \mathit{block}} \mathit{nActionsOrchard}(\mathit{tx}) \leq 306$.
+  $\sum_{\mathit{tx} \in \mathit{block}} \mathit{nActionsOrchard}(\mathit{tx}) \leq 330$.
 
 - The total number of Sapling inputs and outputs across all
   transactions in the block MUST NOT exceed
@@ -333,7 +344,7 @@ In addition to the per-pool limits, the total shielded cost across all
 pools in a block MUST NOT exceed $\mathsf{GlobalShieldedBudget}$. The
 shielded cost of a block is defined as:
 
-$$\sum_{\mathit{tx}} \mathit{nActionsOrchard}(\mathit{tx}) \;+\; \sum_{\mathit{tx}} (\mathit{nSpendsSapling}(\mathit{tx}) + \mathit{nOutputsSapling}(\mathit{tx})) \;+\; 2 \times \sum_{\mathit{tx}} \mathit{nJoinSplit}(\mathit{tx}) \;\leq\; 306$$
+$$\sum_{\mathit{tx}} \mathit{nActionsOrchard}(\mathit{tx}) \;+\; \sum_{\mathit{tx}} (\mathit{nSpendsSapling}(\mathit{tx}) + \mathit{nOutputsSapling}(\mathit{tx})) \;+\; 2 \times \sum_{\mathit{tx}} \mathit{nJoinSplit}(\mathit{tx}) \;\leq\; 330$$
 
 where the factor of 2 for Sprout JoinSplits reflects that each
 JoinSplit produces 2 shielded outputs.
@@ -375,14 +386,14 @@ consisting of:
 
 With these limits, the worst-case compact sync bandwidth per block is:
 
-- **Orchard:** $306 \times 148 = 45{,}288$ bytes
+- **Orchard:** $330 \times 148 = 48{,}840$ bytes
 - **Sapling:** at most $300 \times 116 = 34{,}800$ bytes (all-output
   pathological case)
 
 Due to the global shielded budget, these cannot stack: a block that
-uses 306 Orchard actions has zero budget remaining for Sapling or
+uses 330 Orchard actions has zero budget remaining for Sapling or
 Sprout. The worst-case compact sync bandwidth per block is therefore
-always bounded by the Orchard case at 45,288 bytes.
+always bounded by the Orchard case at 48,840 bytes.
 
 See the [Rationale](#rationale) section for the full daily bandwidth
 analysis.
@@ -456,8 +467,8 @@ follows the same precedent set by the Blossom upgrade (ZIP 208
 The increased likelihood of forking due to block time reduction should not be
 concerning here. For an issue to occur when anchor depth is 3 blocks back, you
 must have a 4 block re-org. In the many years of Ethereum PoW, a 4 block re-org
-has never been observed [^lovejoy-reorg]. So we are not practically at risk of 
-inherent randomness causing a re-org. In other POW chains, re-orgs of 4+ 
+has never been observed [^lovejoy-reorg]. So we are not practically at risk of
+inherent randomness causing a re-org. In other POW chains, re-orgs of 4+
 blocks resulted from a consensus split of some form, including the recent
 Litecoin attack, or an attack from a surge in hashpower.
 Anchor height depth is not intended to protect against those two vectors.
@@ -483,9 +494,9 @@ the current protocol. This section presents the analysis.
 
 | Parameter | Value |
 |-----------|-------|
-| $\mathsf{OrchardBlockActionLimit}$ | 306 actions |
+| $\mathsf{OrchardBlockActionLimit}$ | 330 actions |
 | Compact sync bandwidth per action | 148 bytes |
-| Compact bandwidth per block | $306 \times 148 = 45{,}288$ bytes |
+| Compact bandwidth per block | $330 \times 148 = 48{,}840$ bytes |
 
 **Sapling pool:**
 
@@ -501,21 +512,21 @@ the current protocol. This section presents the analysis.
 | Metric | Current (75s, no pool limits) | Proposed (25s, action limits) |
 |--------|-------------------------------|-------------------------------|
 | Blocks per day | 1,152 | 3,456 |
-| Max Orchard actions/block | ~617 (block-size limited) | 306 |
+| Max Orchard actions/block | ~617 (block-size limited) | 330 |
 | Max Sapling IOs/block | ~2,140 (block-size limited) | 300 |
-| Orchard compact BW/day | ~105.2 MB | 156.52 MB |
+| Orchard compact BW/day | ~105.2 MB | 168.79 MB |
 | Sapling compact BW/day | ~270.38 MB | 120.27 MB |
 | Compact block headers/day | ~0.10 MB | 0.31 MB |
-| **Worst-case total BW/day** | **~270.5 MB** | **156.83 MB** |
-| Worst-case trial decrypts/day | ~4.8M | ~2.1M |
+| **Worst-case total BW/day** | **~270.5 MB** | **169.10 MB** |
+| Worst-case trial decrypts/day | ~4.8M | ~2.3M |
 
-The worst-case compact sync bandwidth is **156.83 MB/day**, a reduction
-of **42%** from today's worst case of approximately 270.5 MB/day. This
+The worst-case compact sync bandwidth is **169.10 MB/day**, a reduction
+of **37%** from today's worst case of approximately 270.5 MB/day. This
 is despite a 3× increase in block frequency and overall throughput
 capacity.
 
-The binding constraint is Orchard at 306 actions per block:
-$306 \times 148 \times 3{,}456 + 90 \times 3{,}456 = 156.83\text{ MB/day}$.
+The binding constraint is Orchard at 330 actions per block:
+$330 \times 148 \times 3{,}456 + 90 \times 3{,}456 = 169.10\text{ MB/day}$.
 
 The trial decryption count also decreases significantly, since the
 per-block action limits more than offset the 3× increase in block count.
@@ -530,14 +541,14 @@ Orchard wallets always attempt both.
 
 ### Normal transaction throughput
 
-For standard 2-action Orchard transactions, the action limit of 306
-allows $\lfloor 306 / 2 \rfloor = 153$ transactions per block, giving:
+For standard 2-action Orchard transactions, the action limit of 330
+allows $\lfloor 330 / 2 \rfloor = 165$ transactions per block, giving:
 
-$$\mathsf{orchard\_tps} = 153 \;/\; 25 = 6.12 \text{ TPS}$$
+$$\mathsf{orchard\_tps} = 165 \;/\; 25 = 6.6 \text{ TPS}$$
 
 For comparison, the current protocol (75s blocks, block-size limited)
 supports approximately 2.9 TPS for 2-action Orchard transactions. This
-is a **2.1× increase** in normal Orchard throughput.
+is a **2.3× increase** in normal Orchard throughput.
 
 **Sapling throughput.** For standard Sapling transactions (2 spends + 2
 outputs = 4 IOs), the limit of 300 IOs allows $\lfloor 300 / 4 \rfloor
@@ -563,13 +574,13 @@ versa). The cost per unit of shielded budget consumed is identical.
 Furthermore, because the global shielded budget is shared, filling
 the Sapling budget necessarily reduces the Orchard budget by the same
 amount. An attacker who spends their entire budget on Sapling spam at
-300 IOs leaves only 6 Orchard actions available in that block. But
-this attack is no cheaper than filling 306 Orchard actions directly,
+300 IOs leaves only 30 Orchard actions available in that block. But
+this attack is no cheaper than filling 330 Orchard actions directly,
 since the per-action fee is the same. The global budget ensures that
-the total shielded sync cost per block is bounded to 306 units
+the total shielded sync cost per block is bounded to 330 units
 regardless of the attacker's pool choice.
 
-The Orchard per-pool cap of 306 also guarantees that legitimate Orchard
+The Orchard per-pool cap of 330 also guarantees that legitimate Orchard
 transactions always have access to the full Orchard budget when Sapling
 and Sprout are not used, which is the expected common case going
 forward.
@@ -610,6 +621,8 @@ activation heights and consensus branch IDs.
 [^crosslink]: [Crosslink — a Zcash Finality Protocol](https://electric-coin-company.github.io/zcash-crosslink/)
 
 [^slowfastblocks]: [On Slow and Fast Block Times](https://blog.ethereum.org/2015/09/14/on-slow-and-fast-block-times/)
+
+[^syncsimulator]: [Shielded Sync Simulator](https://nu7syncsimulator.valargroup.dev/)
 
 [^lovejoy-reorg]: [Lovejoy, James P. (2020). *An Empirical Analysis of Chain Reorganizations and Double-Spend Attacks on Proof-of-Work Cryptocurrencies.* M.Eng. thesis, Massachusetts Institute of Technology, Department of Electrical Engineering and Computer Science.](https://static1.squarespace.com/static/6675a0d5fc9e317c60db9b37/t/66eb3560532516773c4f7ece/1726690657755/LovejoyJamesP-meng-eecs-2020+%281%29.pdf)
 
