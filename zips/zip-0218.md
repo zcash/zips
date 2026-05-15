@@ -192,7 +192,7 @@ most 330 actions across pools. There is separately, limits per pool. We propose 
 - 25 Sprout JoinSplits.
 
 This means the new worst case block processing time, if Orchard dominant,
-would be about three quarters of today's worst case, and Sapling's would be
+would be a little over half of today's worst case, and Sapling's would be
 less than one tenth. The per-block verification work is therefore substantially reduced.
 
 **Batch verification.** Orchard transaction verification benefits from
@@ -213,7 +213,7 @@ and signatures in a single block, without any mempool pre-verification.
 |------|-------------------|---------------|
 | Full Orchard limit (proposed) | 330 Orchard actions | 432.11 ± 11.03 ms |
 | Full Sapling limit (proposed) | 300 Sapling spends, 0 outputs | 271.51 ± 5.03 ms |
-| Today's Orchard worst case | ~436 actions in dense multi-action txs in a 2 MB block | 556.53 ± 9.81 ms |
+| Today's Orchard worst case | ~617 actions in dense multi-action txs in a 2 MB block | 769.85 ± 16.18 ms |
 | Today's Sapling worst case | ~5,600 spends in dense multi-spend txs in a 2 MB block | 3,174.90 ± 144.04 ms |
 
 - **Full Orchard limit (proposed)** — binding post-NU7 verification worst case.
@@ -270,6 +270,34 @@ $$
     \mathsf{PostNU7PoWTargetSpacing}        &\text{otherwise}
   \end{cases}
 $$
+
+### Averaging window [averaging-window]
+
+In § 2 'Notation', add $\mathsf{PostNU7PoWAveragingWindow}$ to the
+list of integer constants.
+
+In § 5.3 'Constants', define:
+
+$$\mathsf{PostNU7PoWAveragingWindow} := 51$$
+
+In § 7.7.3 'Difficulty adjustment', redefine
+$\mathsf{PoWAveragingWindow}$ as a height-dependent function:
+
+$$
+\mathsf{PoWAveragingWindow}(\mathsf{height}) :=
+  \begin{cases}
+    17,                                  &\text{if not } \mathsf{IsNU7Activated}(\mathsf{height}) \\\\
+    \mathsf{PostNU7PoWAveragingWindow}   &\text{otherwise}
+  \end{cases}
+$$
+
+All other references to $\mathsf{PoWAveragingWindow}$ in
+§ 7.7.3 'Difficulty adjustment' that previously took the constant
+value 17 are reinterpreted as
+$\mathsf{PoWAveragingWindow}(\mathsf{height})$ for the height of the
+block under consideration. This includes the size of the averaging
+window used to compute the average target threshold and the average
+block timespan.
 
 ### Halving interval and block subsidy
 
@@ -413,11 +441,12 @@ analysis.
 ## Effect on difficulty adjustment
 
 As with the Blossom activation [^zip-0208], the difficulty adjustment
-parameters $\mathsf{PoWAveragingWindow}$ and
-$\mathsf{PoWMedianBlockSpan}$ refer to numbers of blocks and do *not*
-change at activation. The change in the effective value of
-$\mathsf{PoWTargetSpacing}$ will cause the block spacing to adjust to
-the new target at the normal rate for a difficulty adjustment.
+parameter $\mathsf{PoWMedianBlockSpan}$ refers to a number of blocks
+and does not change at activation. The change in the effective value
+of $\mathsf{PoWTargetSpacing}$ will cause the block spacing to adjust
+to the new target at the normal rate for a difficulty adjustment. See
+[Difficulty averaging window](#difficulty-averaging-window) in the
+Rationale for analysis of the $\mathsf{PoWAveragingWindow}$ change.
 
 It is likely that the difficulty adjustment for the first few blocks
 after activation will be limited by $\mathsf{PoWMaxAdjustDown}$. This
@@ -598,6 +627,54 @@ and Sprout are not used, which is the expected common case going
 forward.
 
 
+## Difficulty averaging window [difficulty-averaging-window]
+
+This proposal increases $\mathsf{PoWAveragingWindow}$ from 17 to 51 at
+NU7 activation (specified in
+[Averaging window](#averaging-window) under Consensus changes), so the
+wall-clock smoothing window stays at
+$51 \times 25 = 17 \times 75 = 1{,}275$ seconds rather than
+contracting threefold.
+
+The motivations are:
+
+1. To preserve the wall-clock duration over which difficulty is
+   smoothed, so that NU7 does not amplify difficulty-manipulation
+   attacks like the one recently observed on Litecoin
+   [^litecoin-difficulty-attack].
+2. As an additional improvement over keeping
+   $\mathsf{PoWAveragingWindow} = 17$, to reduce the standard
+   deviation of block-spacing averages over short rolling windows.
+
+Under a Zebra difficulty-adjustment simulator
+[^daa-recovery-benchmark] with a stable hash rate and with
+$\mathsf{PoWAveragingWindow} = 17$ unchanged across the transition,
+the expected block spacing recovers to within 5% of the new 25 s
+target within 62 blocks of NU7 activation:
+
+| Expected spacing      | Blocks after activation | Wall-clock |
+|-----------------------|-------------------------|------------|
+| 75 s (pre-NU7 target) | —                       | —          |
+| 56.8 s (activation)   | 0                       | —          |
+| $\leq 30$ s           | 30                      | \~21 min   |
+| $\leq 26.25$ s        | 62                      | \~36 min   |
+
+Setting $\mathsf{PoWAveragingWindow} = 51$ is expected to require
+roughly 3× as many blocks to cross each threshold, which is the same
+wall-clock duration as today.
+
+For a real-world reference point, the Blossom upgrade [^zip-0208]
+made a 2× target-spacing reduction (150 s → 75 s) with
+$\mathsf{PoWAveragingWindow}$ unchanged; mainnet block spacing
+(20-block rolling average) reached approximately 74 s at height
+653,664 — 64 blocks after activation.
+
+Two geographically-distributed devnets of 99 Zebra nodes across 14
+regions (1 vCPU per node), one at $\mathsf{PoWAveragingWindow} = 17$
+and one at 51, confirmed a \~1-second reduction in the standard
+deviation of 5- and 10-block rolling-average block spacings.
+
+
 # Deployment
 
 This proposal is intended to be deployed as part of NU7, should tokenholder polling and developer consensus agree on it. A separate ZIP will specify the deployment details including
@@ -643,3 +720,7 @@ activation heights and consensus branch IDs.
 [^devnet-blocktime-test]: [Forum: Zcash Block Time Reduction Appears Safe for NU7 w/ Zebra-only Devnet](https://forum.zcashcommunity.com/t/zcash-block-time-reduction-appears-safe-for-nu7-w-zebra-only-devnet/55586)
 
 [^verification-benchmark]: [Zebra worst-case block verification benchmark (`worst_case_tx_verification.rs`)](https://github.com/valargroup/zebra/blob/evan/benchmark-worst-case-block-verification/zebra-consensus/benches/worst_case_tx_verification.rs)
+
+[^daa-recovery-benchmark]: [Zebra difficulty-adjustment recovery simulator: `benchmark_hash_rate_shock_daa_configurations` in `zebra-state/src/service/check/difficulty.rs`](https://github.com/valargroup/zebra/blob/evan/benchmark-worst-case-block-verification/zebra-state/src/service/check/difficulty.rs#L555). The 3× target-spacing transition is exercised by [`simulate_three_x_target_spacing_reduction`](https://github.com/valargroup/zebra/blob/evan/benchmark-worst-case-block-verification/zebra-state/src/service/check/difficulty.rs#L397) in the same file.
+
+[^litecoin-difficulty-attack]: [Litecoin MWEB Security Incident Postmortem](https://litecoin.com/news/litecoin-mweb-security-incident-postmortem)
