@@ -484,13 +484,21 @@ measured in blocks (marked "No change"):
 
 | Constant                                    | Current | Post-activation | Notes |
 |---------------------------------------------|---------|-----------------|-------|
-| `COINBASE_MATURITY`                         | 100     | 100             | No change; security measured in blocks |
-| `MAX_REORG_LENGTH`                          | 99      | 99              | No change; follows `COINBASE_MATURITY` |
+| `COINBASE_MATURITY`                         | 100     | 300             | Scale by 3 |
+| `MAX_REORG_LENGTH`                          | 99      | 299             | Scale by 3; follows `COINBASE_MATURITY` |
 | `TX_EXPIRING_SOON_THRESHOLD`                | 3       | 3               | No change; |
 | `MAX_BLOCKS_IN_TRANSIT_PER_PEER`            | 16      | 48              | Scale by 3 |
 | `BLOCK_DOWNLOAD_WINDOW`                     | 1024    | 3072            | Scale by 3 |
 | `MIN_BLOCKS_TO_KEEP`                        | 288     | 864             | Scale by 3; keep 6 hours worth of blocks |
 | `NETWORK_UPGRADE_PEER_PREFERENCE_BLOCK_PERIOD` | 1728 | 1728           | No change;  |
+
+`COINBASE_MATURITY` and `MAX_REORG_LENGTH` are scaled with the
+target-spacing change so their wall-clock coverage (~125 min) is
+preserved. Holding them at 100 blocks would shrink that window to
+~42 minutes, far less than recent multi-hour consensus splits
+observed on deployed PoW chains, for example Litecoin's ~3-hour
+fork following the April 2026 MWEB exploit
+[^litecoin-mweb-incident].
 
 ### Anchor selection depth
 
@@ -641,7 +649,7 @@ The motivations are:
 1. To preserve the wall-clock duration over which difficulty is
    smoothed, so that NU7 does not amplify difficulty-manipulation
    attacks like the one recently observed on Litecoin
-   [^litecoin-difficulty-attack].
+   [^litecoin-mweb-incident].
 2. As an additional improvement over keeping
    $\mathsf{PoWAveragingWindow} = 17$, to reduce the standard
    deviation of block-spacing averages over short rolling windows.
@@ -723,4 +731,4 @@ activation heights and consensus branch IDs.
 
 [^daa-recovery-benchmark]: [Zebra difficulty-adjustment recovery simulator: `benchmark_hash_rate_shock_daa_configurations` in `zebra-state/src/service/check/difficulty.rs`](https://github.com/valargroup/zebra/blob/evan/benchmark-worst-case-block-verification/zebra-state/src/service/check/difficulty.rs#L555). The 3× target-spacing transition is exercised by [`simulate_three_x_target_spacing_reduction`](https://github.com/valargroup/zebra/blob/evan/benchmark-worst-case-block-verification/zebra-state/src/service/check/difficulty.rs#L397) in the same file.
 
-[^litecoin-difficulty-attack]: [Litecoin MWEB Security Incident Postmortem](https://litecoin.com/news/litecoin-mweb-security-incident-postmortem)
+[^litecoin-mweb-incident]: [Litecoin MWEB Security Incident Postmortem](https://litecoin.com/news/litecoin-mweb-security-incident-postmortem)
