@@ -102,7 +102,7 @@ shielded sync, and a third on the whole network for the uncle rate and fork
 rate. Action limits are introduced in this ZIP to limit the block processing
 costs, and client shielded sync costs. The proposed parameterization lowers the
 worst case for shielded sync and node processing times relative to today, while
-yielding far higher Orchard TPS. We benchmark, and the uncle-rate post-proposal
+yielding far higher Orchard TPS. We benchmark [block verification](#block-processing-time), and the uncle-rate post-proposal
 on networks more distributed than mainnet at maximum load is far lower than
 ETH-PoW was, leading to conclusion that it is safe.
 
@@ -110,8 +110,8 @@ Today the worst-case DoS attack can induce 271 MB of wallet sync download to
 clients per day, and 4.8M trial decryptions per day [^syncsimulator]. This is d
 one with max utilizing Sapling transactions, with few inputs and many outputs.
 The worst-cast DOS for node verification time is done with many Sapling inputs,
-and a single transparent output, totalling 5680 Sapling inputs and ZKP's. This
-takes 4s on our 4 physical-core benchmark machine. Meanwhile regular userflow
+and a single transparent output, totalling 5600 Sapling inputs and ZKP's. This
+takes 3.2s on a modern AMD laptop CPU with 4 pinned threads. Meanwhile regular userflow
 has far lower costs on the network, than the DOS model.
 
 We propose introducing global action limits and per-pool action limits as follows:
@@ -192,8 +192,8 @@ most 330 actions across pools. There is separately, limits per pool. We propose 
 - 25 Sprout JoinSplits.
 
 This means the new worst case block processing time, if Orchard dominant,
-would be a little over half of today's worst case, and Sapling's would be
-one sixth. The per-block verification work is therefore substantially reduced.
+would be about three quarters of today's worst case, and Sapling's would be
+less than one tenth. The per-block verification work is therefore substantially reduced.
 
 **Batch verification.** Orchard transaction verification benefits from
 batch validation, where proof and signature verification is amortized
@@ -204,11 +204,23 @@ verification during live network syncing since version 3.0.0. With the
 action limits, a worst-case block's Orchard bundle can be fully
 batch-verified in a small number of batches.
 
-**Estimated timing.** In local benchmarks on a modern AMD laptop CPU
-limited to 4 threads, availability verification for an Orchard-heavy
-block at the action limits completed in 529.00--554.30 ms, and
-availability verification for a Sapling-heavy block at the action
-limits completed in 1.1017--1.1329 s. {TODO: @Evan please update this, should be 210ms range. Lets also cite benchmark code}
+**Measured timing.** We benchmarked worst-case block verification with
+Zebra on a modern AMD laptop CPU with 4 pinned threads.[^verification-benchmark]
+The figures report wall-clock time for verifying the zero-knowledge proofs
+and signatures in a single block, without any mempool pre-verification.
+
+| Case | Block composition | Mean ± stddev |
+|------|-------------------|---------------|
+| Full Orchard limit (proposed) | 330 Orchard actions | 432.11 ± 11.03 ms |
+| Full Sapling limit (proposed) | 300 Sapling spends, 0 outputs | 271.51 ± 5.03 ms |
+| Today's Orchard worst case | ~436 actions in dense multi-action txs in a 2 MB block | 556.53 ± 9.81 ms |
+| Today's Sapling worst case | ~5,600 spends in dense multi-spend txs in a 2 MB block | 3,174.90 ± 144.04 ms |
+
+- **Full Orchard limit (proposed)** — binding post-NU7 verification worst case.
+- **Full Sapling limit (proposed)** — verification worst case is all-spends; the bandwidth worst case (all-outputs) is in [Rationale](#rationale).
+- **Today's Orchard worst case** — dense multi-action (single-action would understate the byte bound).
+- **Today's Sapling worst case** — analogous, dense multi-spend.
+
 When transactions have already been pre-verified upon
 entering the mempool, which is the typical case for a node that has
 been online, block validation reduces to checking signatures and
@@ -629,3 +641,5 @@ activation heights and consensus branch IDs.
 [^forum-proposal]: [Forum: Proposal — Lower Zcash Block Target Spacing to 25s](https://forum.zcashcommunity.com/t/proposal-lower-zcash-block-target-spacing-to-25s/54577)
 
 [^devnet-blocktime-test]: [Forum: Zcash Block Time Reduction Appears Safe for NU7 w/ Zebra-only Devnet](https://forum.zcashcommunity.com/t/zcash-block-time-reduction-appears-safe-for-nu7-w-zebra-only-devnet/55586)
+
+[^verification-benchmark]: [Zebra worst-case block verification benchmark (`worst_case_tx_verification.rs`)](https://github.com/valargroup/zebra/blob/evan/benchmark-worst-case-block-verification/zebra-consensus/benches/worst_case_tx_verification.rs)
