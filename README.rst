@@ -62,6 +62,7 @@ NU7 Candidate ZIPs
 
 The following ZIPs are under consideration for deployment in NU7:
 
+- `ZIP 218: 25-second Block Target Spacing <zips/zip-0218.md>`__
 - `ZIP 226: Transfer and Burn of Zcash Shielded Assets <zips/zip-0226.rst>`__
 - `ZIP 227: Issuance of Zcash Shielded Assets <zips/zip-0227.rst>`__
 - `ZIP 230: Version 6 Transaction Format <zips/zip-0230.rst>`__
@@ -169,6 +170,7 @@ written.
     <tr> <td><span class="reserved">129</span></td> <td class="left"><a class="reserved" href="zips/zip-0129.md">Zcash Transparent Multisig Setup</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/1060">zips#1060</a></td>
     <tr> <td>204</td> <td class="left"><a href="zips/zip-0204.rst">Zcash P2P Network Protocol</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/352">zips#352</a></td>
     <tr> <td><span class="reserved">217</span></td> <td class="left"><a class="reserved" href="zips/zip-0217.rst">Aggregate Signatures</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/1137">zips#1137</a></td>
+    <tr> <td>218</td> <td class="left"><a href="zips/zip-0218.md">25-second Block Target Spacing</a></td> <td>Draft</td> <td class="left"><a href="https://forum.zcashcommunity.com/t/proposal-lower-zcash-block-target-spacing-to-25s/54577">https://forum.zcashcommunity.com/t/proposal-lower-zcash-block-target-spacing-to-25s/54577</a></td>
     <tr> <td><span class="reserved">219</span></td> <td class="left"><a class="reserved" href="zips/zip-0219.rst">Disabling Addition of New Value to the Sapling Chain Value Pool</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/428">zips#428</a></td>
     <tr> <td>222</td> <td class="left"><a href="zips/zip-0222.rst">Transparent Zcash Extensions</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/1231">zips#1231</a></td>
     <tr> <td>226</td> <td class="left"><a href="zips/zip-0226.rst">Transfer and Burn of Zcash Shielded Assets</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/618">zips#618</a></td>
@@ -304,6 +306,7 @@ Index of ZIPs
     <tr> <td>215</td> <td class="left"><a href="zips/zip-0215.rst">Explicitly Defining and Modifying Ed25519 Validation Rules</a></td> <td>Final</td>
     <tr> <td>216</td> <td class="left"><a href="zips/zip-0216.rst">Require Canonical Jubjub Point Encodings</a></td> <td>Final</td>
     <tr> <td><span class="reserved">217</span></td> <td class="left"><a class="reserved" href="zips/zip-0217.rst">Aggregate Signatures</a></td> <td>Reserved</td>
+    <tr> <td>218</td> <td class="left"><a href="zips/zip-0218.md">25-second Block Target Spacing</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">219</span></td> <td class="left"><a class="reserved" href="zips/zip-0219.rst">Disabling Addition of New Value to the Sapling Chain Value Pool</a></td> <td>Reserved</td>
     <tr> <td><strike>220</strike></td> <td class="left"><strike><a href="zips/zip-0220.rst">Zcash Shielded Assets</a></strike></td> <td>Withdrawn</td>
     <tr> <td>221</td> <td class="left"><a href="zips/zip-0221.rst">FlyClient - Consensus-Layer Changes</a></td> <td>Final</td>
