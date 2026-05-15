@@ -192,7 +192,7 @@ most 330 actions across pools. There is separately, limits per pool. We propose 
 - 25 Sprout JoinSplits.
 
 This means the new worst case block processing time, if Orchard dominant,
-would be a little over half of today's worst case, and Sapling's would be
+would be 14% of today's worst case, and Sapling's would be
 less than one tenth. The per-block verification work is therefore substantially reduced.
 
 **Batch verification.** Orchard transaction verification benefits from
