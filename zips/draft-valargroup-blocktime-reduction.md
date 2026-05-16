@@ -484,13 +484,38 @@ measured in blocks (marked "No change"):
 
 | Constant                                    | Current | Post-activation | Notes |
 |---------------------------------------------|---------|-----------------|-------|
-| `COINBASE_MATURITY`                         | 100     | 100             | No change; security measured in blocks |
-| `MAX_REORG_LENGTH`                          | 99      | 99              | No change; follows `COINBASE_MATURITY` |
+| `COINBASE_MATURITY`                         | 100     | 100             | No change; |
+| `MAX_REORG_LENGTH`                          | 99      | 300             | Scale by 3; decoupled from `COINBASE_MATURITY` |
 | `TX_EXPIRING_SOON_THRESHOLD`                | 3       | 3               | No change; |
 | `MAX_BLOCKS_IN_TRANSIT_PER_PEER`            | 16      | 48              | Scale by 3 |
 | `BLOCK_DOWNLOAD_WINDOW`                     | 1024    | 3072            | Scale by 3 |
 | `MIN_BLOCKS_TO_KEEP`                        | 288     | 864             | Scale by 3; keep 6 hours worth of blocks |
 | `NETWORK_UPGRADE_PEER_PREFERENCE_BLOCK_PERIOD` | 1728 | 1728           | No change;  |
+
+Zebra's `MAX_REORG_LENGTH` is currently 100, set just below
+`COINBASE_MATURITY` by Bitcoin-inherited convention. At Bitcoin's
+10-minute spacing 100 blocks covers about 16.7 hours, at Zcash's
+current 75-second spacing about 125 minutes, and at NU7's proposed
+25-second spacing only about 42 minutes. Recent incidents show
+consensus splits can persist beyond tens of minutes. For example,
+Litecoin's April 2026 MWEB incident produced a 13-block invalid
+chain that was later reorged out, with a ~3-hour recovery window
+per the postmortem [^litecoin-mweb-incident].
+
+This proposal is fundamentally about decreasing the target
+spacing, which makes the wall-clock margin shorter for any given
+`MAX_REORG_LENGTH`. The optimal long-term value for that parameter
+likely needs to change further in the future, but that is out of
+scope here. The change in this proposal is the minimum needed to
+avoid making the problem worse. Raising `MAX_REORG_LENGTH` to 300
+blocks preserves the current ~125 minute window at 25-second
+spacing, while `COINBASE_MATURITY` remains 100.
+
+This deliberately means that a supported reorg may invalidate a
+mature coinbase output. That case is already a valid consequence
+of deep PoW reorgs in the abstract protocol model. Zebra will now
+handle such reorgs rather than reject them at the old 100-block
+bound.
 
 ### Anchor selection depth
 
@@ -641,7 +666,7 @@ The motivations are:
 1. To preserve the wall-clock duration over which difficulty is
    smoothed, so that NU7 does not amplify difficulty-manipulation
    attacks like the one recently observed on Litecoin
-   [^litecoin-difficulty-attack].
+   [^litecoin-mweb-incident].
 2. As an additional improvement over keeping
    $\mathsf{PoWAveragingWindow} = 17$, to reduce the standard
    deviation of block-spacing averages over short rolling windows.
@@ -723,4 +748,4 @@ activation heights and consensus branch IDs.
 
 [^daa-recovery-benchmark]: [Zebra difficulty-adjustment recovery simulator: `benchmark_hash_rate_shock_daa_configurations` in `zebra-state/src/service/check/difficulty.rs`](https://github.com/valargroup/zebra/blob/evan/benchmark-worst-case-block-verification/zebra-state/src/service/check/difficulty.rs#L555). The 3× target-spacing transition is exercised by [`simulate_three_x_target_spacing_reduction`](https://github.com/valargroup/zebra/blob/evan/benchmark-worst-case-block-verification/zebra-state/src/service/check/difficulty.rs#L397) in the same file.
 
-[^litecoin-difficulty-attack]: [Litecoin MWEB Security Incident Postmortem](https://litecoin.com/news/litecoin-mweb-security-incident-postmortem)
+[^litecoin-mweb-incident]: [Litecoin MWEB Security Incident Postmortem](https://litecoin.com/news/litecoin-mweb-security-incident-postmortem)
