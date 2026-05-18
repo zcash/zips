@@ -15,12 +15,16 @@ Title: Orchard Quantum Recoverability
 Owners: Daira-Emma Hopwood &lt;daira@jacaranda.org&gt;
         Jack Grigg &lt;thestr4d@gmail.com&gt;
 Credits: Sean Bowe
+         Dev Ojha
+         Kris Nuttycombe
 Status: Draft
 Category: Consensus
 Created: 2025-03-31
 License: MIT
 Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/1135">https://github.com/zcash/zips/issues/1135</a>&gt;
 Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/1126">https://github.com/zcash/zips/pull/1126</a>&gt;
+              &lt;<a href="https://github.com/zcash/zips/pull/1184">https://github.com/zcash/zips/pull/1184</a>&gt;
+              &lt;<a href="https://github.com/zcash/zips/pull/1275">https://github.com/zcash/zips/pull/1275</a>&gt;
 </code></pre>
 
 <h1 id="terminology"><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
@@ -43,6 +47,10 @@ Specification. <a href="#fn:3" id="fnref:3" title="see footnote" class="footnote
 and a variable suffixed with <span class="math">\(\star\)</span> indicates a bit-sequence encoding of
 an elliptic curve point.</p>
 
+<p>The notation <span class="math">\({k \choose n}\)</span> denotes the binomial coefficient — the
+number of ways of choosing <span class="math">\(n\)</span> items from a set of <span class="math">\(k\)</span>, equal to
+<span class="math">\(\frac{k!}{n!(k-n)!}\)</span> for <span class="math">\(0 \leq n \leq k\)</span>.</p>
+
 <p>For brevity, in the discussion sections of this ZIP we abbreviate
 <span class="math">\(\mathsf{H^{rcm,Orchard}}\)</span> as <span class="math">\(\mathsf{H^{rcm}}\)</span>,
 <span class="math">\(\mathsf{PRF^{nfOrchard}}\)</span> as <span class="math">\(\mathsf{PRF^{nf}}\)</span>,
@@ -59,8 +67,7 @@ protocol after the deployment of ZSAs.</p>
 
 <p>The terms &#8220;recoverable note&#8221; and &#8220;recoverable note plaintext&#8221; refer to a
 note or note plaintext that was created according to this proposal. As
-initially deployed, these are necessarily Orchard or OrchardZSA notes or
-note plaintexts.</p>
+initially deployed, these are necessarily Orchard notes or note plaintexts.</p>
 
 <p>The term &#8220;Recovery Protocol&#8221; refers to a potential new shielded protocol
 that would allow recovery of funds held in recoverable Orchard[ZSA] notes.
@@ -130,8 +137,8 @@ Sapling <a href="#fn:8" id="fnref:8" title="see footnote" class="footnote"><sup>
 and Orchard <a href="#fn:10" id="fnref:10" title="see footnote" class="footnote"><sup>10</sup></a> <a href="#fn:11" id="fnref:11" title="see footnote" class="footnote"><sup>11</sup></a>.)</p>
 
 <p>This proposal is implementable at low risk, and required changes to existing
-libraries and wallets are small. It can optionally be done at the same time
-as changes necessary to implement Memo Bundles <a href="#fn:12" id="fnref:12" title="see footnote" class="footnote"><sup>12</sup></a> and/or ZSAs <a href="#fn:5" title="see footnote" class="footnote"><sup>5</sup></a>.</p>
+libraries and wallets are small. It is compatible with Memo Bundles <a href="#fn:12" id="fnref:12" title="see footnote" class="footnote"><sup>12</sup></a>
+and/or ZSAs <a href="#fn:5" title="see footnote" class="footnote"><sup>5</sup></a>.</p>
 
 <h1 id="requirements"><span class="section-heading">Requirements</span><span class="section-anchor"> <a rel="bookmark" href="#requirements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
 
@@ -142,9 +149,9 @@ in a future upgrade) that is expected to be secure against
 discrete-log-breaking and quantum adversaries.</li>
 <li>No particular choice of post-quantum proving system or commitment
 tree hash should be assumed for that alternate protocol.</li>
-<li>The proposed scheme should be fully compatible with FROST
-multisignatures <a href="#fn:13" id="fnref:13" title="see footnote" class="footnote"><sup>13</sup></a>, hardware wallets, and the combination
-of both.</li>
+<li>The proposed scheme should be fully compatible with FROST threshold
+multisignatures <a href="#fn:13" id="fnref:13" title="see footnote" class="footnote"><sup>13</sup></a>, hardware wallets, and the combination of
+both.</li>
 <li>The proposed scheme should not require regeneration of existing
 non-multisignature keys or addresses.</li>
 <li>The changes made to the pre-quantum protocol should not cause a
@@ -152,8 +159,8 @@ significant regression in performance, applicability, or security
 against any given adversary class, or require significant re-analysis
 of that protocol&#8217;s pre-quantum security.</li>
 <li>The Recovery Protocol should ensure no loss of security against
-pre-quantum adversaries — including when FROST multisignatures and/or
-hardware wallets are used.</li>
+pre-quantum adversaries — including when FROST threshold multisignatures
+and/or hardware wallets are used.</li>
 <li>Recovery of funds from hardware wallets that support this protocol
 should not require exposing the pre-quantum spend authorizing key
 <span class="math">\(\mathsf{ask}\)</span> to theft.</li>
@@ -180,12 +187,9 @@ need to be indistinguishable from non-Recovery spends.</li>
 
 <p>This subsection and the flow diagram below are non-normative.</p>
 
-<p>The Quantum Recoverability proposal was originally designed to be
-deployed alongside ZSAs <a href="#fn:5" title="see footnote" class="footnote"><sup>5</sup></a> <a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a> and memo bundles
-<a href="#fn:12" title="see footnote" class="footnote"><sup>12</sup></a>. Whether or not that is still the case, we retain the
-same approach of defining a new note plaintext format, with lead byte
-<span class="math">\(\mathtt{0x03}.\)</span> The <span class="math">\(\mathsf{pre\_rcm}\)</span> value is computed differently
-for this new format, by including all of the note fields in
+<p>This proposal defines a new note plaintext format for Orchard notes,
+with lead byte <span class="math">\(\mathtt{0x03}.\)</span> The <span class="math">\(\mathsf{pre\_rcm}\)</span> value is computed
+differently for this new format, by including all of the note fields in
 <span class="math">\(\mathsf{pre\_rcm}\)</span>. This means that an adversary constrained to treat
 the PRF used to derive <span class="math">\(\mathsf{rcm}\)</span> from <span class="math">\(\mathsf{pre\_rcm}\)</span> as a
 random oracle, could not vary any note field without producing a
@@ -224,7 +228,7 @@ hardware-wallet use cases are described in
 <a href="#usagewithfrost">Usage with FROST</a> and
 <a href="#usagewithhardwarewallets">Usage with hardware wallets</a>.</p>
 
-<h2 id="flowdiagramfortheorchardandorchardzsaprotocols"><span class="section-heading">Flow diagram for the Orchard and OrchardZSA protocols</span><span class="section-anchor"> <a rel="bookmark" href="#flowdiagramfortheorchardandorchardzsaprotocols"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+<h2 id="flowdiagramfortheorchardprotocol"><span class="section-heading">Flow diagram for the Orchard protocol</span><span class="section-anchor"> <a rel="bookmark" href="#flowdiagramfortheorchardprotocol"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
 <p>This diagram shows, approximately, the derivation of Orchard keys,
 addresses, notes, note commitments, and nullifiers. All of the flow
@@ -254,7 +258,12 @@ graph BT
 <p>The bold lines are changes introduced by this ZIP, which all take the form
 of additional inputs to derivation functions or alternative derivations.
 The derivations shown in the box labelled <a href="#proposedrecoverystatement">Proposed Recovery Statement</a>
-are, roughly speaking, those enforced by the section of that name.</p>
+are, roughly speaking, those enforced by the section of that name. The
+diagram shows the recoverable-note case (<span class="math">\(\mathsf{leadByte} = \mathtt{0x03}\)</span>);
+for <span class="math">\(\mathsf{leadByte} = \mathtt{0x02}\)</span> the existing Orchard derivation
+<span class="math">\(\mathsf{rcm} = \mathsf{ToScalar^{Orchard}}\big(\mathsf{PRF^{expand}_{rseed}}([\mathtt{0x05}] \,||\, \underline{\text{ρ}})\kern-0.1em\big)\)</span>
+applies, and the additional fields feeding into <span class="math">\(\mathsf{pre\_rcm}\)</span>
+are absent.</p>
 
 <pre><code class="mermaid">graph BT
   classDef default stroke:#111111;
@@ -281,8 +290,7 @@ are, roughly speaking, those enforced by the section of that name.</p>
     ivk --&gt; ivkmul
     rseed --&gt; Hpsi[H&lt;sup&gt;ψ&lt;/sup&gt;]:::func
     rho --&gt; Hpsi
-    leadByte([leadByte]) ==&gt; pre_rcm
-    v([v, AssetBase]) ===&gt; pre_rcm([pre_rcm])
+    v([#8239;v#8239;]) ==&gt; pre_rcm([pre_rcm])
     pkd ====&gt; pre_rcm
     gd ==&gt; pre_rcm
     psi ===&gt; pre_rcm
@@ -295,8 +303,8 @@ are, roughly speaking, those enforced by the section of that name.</p>
     Hpsi --&gt; psi([#8239;ψ#8239;])
     gd --&gt; NoteCommit:::func
     pkd --&gt; NoteCommit
-    v --&gt; NoteCommit
     psi --&gt; NoteCommit
+    v --&gt; NoteCommit
     rcm --&gt; NoteCommit
     rho --&gt; NoteCommit
     cm --&gt; DeriveNullifier:::func
@@ -313,16 +321,17 @@ are, roughly speaking, those enforced by the section of that name.</p>
 
 <h1 id="specification"><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
 
-<h2 id="usagewithzcashshieldedassets"><span class="section-heading">Usage with Zcash Shielded Assets</span><span class="section-anchor"> <a rel="bookmark" href="#usagewithzcashshieldedassets"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+<h2 id="proactivemovementoffundstorecoverablenotes"><span class="section-heading">Proactive movement of funds to recoverable notes</span><span class="section-anchor"> <a rel="bookmark" href="#proactivemovementoffundstorecoverablenotes"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
-<p>This proposal has been designed to activate either prior to, or at the same
-time as, any possible activation of ZSAs <a href="#fn:5" title="see footnote" class="footnote"><sup>5</sup></a> <a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a>.</p>
+<p>Once this proposal is deployed, wallets SHOULD move all of the funds they
+control (including transparent, Sprout, and Sapling funds) into recoverable
+Orchard notes as soon as practically possible. This does not depend on support
+from other wallets for receiving recoverable notes, because wallet-internal
+addresses can be used.</p>
 
-<p>Whether or not ZSAs are deployed at the same time, the proposal anticipates that an
-<span class="math">\(\mathsf{AssetBase}\)</span> field will be added to note plaintexts with lead byte <span class="math">\(\mathtt{0x03}\)</span>.
-This field will be set to the 32-byte constant
-<span class="math">\(\mathsf{LEBS2OSP}_{\ell_{\mathbb{P}}}​​\big(\mathsf{repr}_{\mathbb{P}​}(\mathcal{V}^{\mathsf{Orchard}})\kern-0.1em\big)\)</span>
-as long as ZSAs are not deployed.</p>
+<p>Non-recoverable funds may be received after existing funds have been made
+recoverable. Wallets SHOULD therefore treat the movement of funds to
+recoverable notes as an ongoing process.</p>
 
 <h2 id="usagewithfrost"><span class="section-heading">Usage with FROST</span><span class="section-anchor"> <a rel="bookmark" href="#usagewithfrost"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
@@ -389,8 +398,8 @@ key— is retained.</p>
 access to <span class="math">\(\mathsf{qsk}\)</span>, which is held by every participant (see below
 for more detail on <a href="#keystorageoptionsandanalysis">Key storage options</a>).
 Therefore, it is RECOMMENDED that as soon as a fully post-quantum protocol
-that supports multisignatures is available, all funds held under FROST keys
-be transferred into that protocol&#8217;s shielded pool.</p>
+that supports threshold multisignatures is available, all funds held under
+FROST keys be transferred into that protocol&#8217;s shielded pool.</p>
 
 <h2 id="usagewithhardwarewallets"><span class="section-heading">Usage with hardware wallets</span><span class="section-anchor"> <a rel="bookmark" href="#usagewithhardwarewallets"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
@@ -537,13 +546,17 @@ from the seed phrase (with or without SLIP 39 Shamir backup <a href="#fn:16" id=
 A deployment that does not use ZIP 32 is responsible for the security of
 its own backup arrangements.</p>
 
+<h2 id="usagewithotherproposalsrequiringnoteplaintextformatchanges"><span class="section-heading">Usage with other proposals requiring note plaintext format changes</span><span class="section-anchor"> <a rel="bookmark" href="#usagewithotherproposalsrequiringnoteplaintextformatchanges"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>This proposal was originally designed to be deployed alongside ZSAs <a href="#fn:5" title="see footnote" class="footnote"><sup>5</sup></a>
+<a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a> and memo bundles <a href="#fn:12" title="see footnote" class="footnote"><sup>12</sup></a>, which also defined a new note
+plaintext format. Since this proposal now defines lead byte <span class="math">\(\mathtt{0x03}\)</span>,
+those proposals will need to use a new lead byte value or values.</p>
+
 <h2 id="specificationupdates"><span class="section-heading">Specification Updates</span><span class="section-anchor"> <a rel="bookmark" href="#specificationupdates"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
 <p>This is written as a set of changes to version 2025.6.2 of the protocol
-specification, and to the contents of ZIPs as of February 2026. If other
-changes for v6 transactions (memo bundles <a href="#fn:12" title="see footnote" class="footnote"><sup>12</sup></a>, ZSAs <a href="#fn:5" title="see footnote" class="footnote"><sup>5</sup></a>
-<a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a>) are deployed simultaneously, these changes will need to be
-merged with theirs.</p>
+specification, and to the contents of ZIPs as of May 2026.</p>
 
 <h3 id="changestotheprotocolspecification"><span class="section-heading">Changes to the Protocol Specification</span><span class="section-anchor"> <a rel="bookmark" href="#changestotheprotocolspecification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
 
@@ -563,18 +576,64 @@ merged with theirs.</p>
 <p>with</p>
 
 <blockquote>
+<p>Let the constant <span class="math">\(\mathsf{ZIP2005ActivationHeight}\)</span> be as defined in
+<a href="#deployment">[ZIP 2005, Deployment]</a>.</p>
+
 <p>Define <span class="math">\(\mathsf{allowedLeadBytes^{protocol}}(\mathsf{height}, \mathsf{txVersion}) =\)</span>
 <span class="math">\(\hspace{2em} \begin{cases}
 \{ \mathtt{0x01} \},&amp;\!\!\!\text{if } \mathsf{height} &lt; \mathsf{CanopyActivationHeight} \\
 \{ \mathtt{0x01}, \mathtt{0x02} \},&amp;\!\!\!\text{if } \mathsf{CanopyActivationHeight} \leq \mathsf{height} &lt; \mathsf{CanopyActivationHeight} + \mathsf{ZIP212GracePeriod} \\
-\{ \mathtt{0x02} \},&amp;\!\!\!\text{if } \mathsf{CanopyActivationHeight} + \mathsf{ZIP212GracePeriod} \leq \mathsf{height} \text{ and } \mathsf{txVersion} &lt; 6 \\
+\{ \mathtt{0x02} \},&amp;\!\!\!\text{if } \mathsf{CanopyActivationHeight} + \mathsf{ZIP212GracePeriod} \leq \mathsf{height} \text{ and } \\
+   &amp;\;\; (\mathsf{height} &lt; \mathsf{ZIP2005ActivationHeight} \text{ or } \mathsf{protocol} \neq \mathsf{Orchard}) \\
+\{ \mathtt{0x02}, \mathtt{0x03} \},&amp;\!\!\!\text{if } \mathsf{ZIP2005ActivationHeight} \leq \mathsf{height} \text{ and } \mathsf{protocol} = \mathsf{Orchard} \text{ and } \mathsf{txVersion} &lt; 6 \\
 \{ \mathtt{0x03} \},&amp;\!\!\!\text{otherwise.}
 \end{cases}\)</span></p>
 </blockquote>
 
-<p>and delete &#8220;or <span class="math">\(\mathsf{txVersion}\)</span>&#8221; from &#8220;It is intentional that the
-definition of <span class="math">\(\mathsf{allowedLeadBytes}\)</span> does not currently depend on
-<span class="math">\(\mathsf{protocol}\)</span> or <span class="math">\(\mathsf{txVersion}\)</span>.&#8221;</p>
+<p>Replace</p>
+
+<blockquote>
+<p>Senders SHOULD choose the highest note plaintext lead byte allowed under this
+condition.</p>
+</blockquote>
+
+<p>with</p>
+
+<blockquote>
+<p><span class="math">\(\mathsf{ZIP2005ActivationHeight}\)</span> specifies the first block height at which
+recoverable note plaintexts with lead byte <span class="math">\(\mathtt{0x03}\)</span> are allowed to
+occur in Orchard outputs. Orchard note plaintexts sent to <em>wallet-internal</em>
+addresses, and dummy note plaintexts, SHOULD use lead byte <span class="math">\(\mathtt{0x03}\)</span>
+starting from this height. Orchard note plaintexts in v5 transactions sent
+to <em>external</em> addresses SHOULD use lead byte <span class="math">\(\mathtt{0x02}\)</span> until wallet
+support for receiving note plaintexts with lead byte <span class="math">\(\mathtt{0x03}\)</span> is
+widespread in the Zcash ecosystem.</p>
+
+<p>In other cases, senders SHOULD choose the highest note plaintext lead byte
+allowed according to <span class="math">\(\mathsf{allowedLeadBytes}.\)</span></p>
+</blockquote>
+
+<p>Delete the non-normative note:</p>
+
+<blockquote>
+<ul>
+<li>It is intentional that the definition of <span class="math">\(\mathsf{allowedLeadBytes}\)</span> does
+not currently depend on <span class="math">\(\mathsf{protocol}\)</span> or <span class="math">\(\mathsf{txVersion}.\)</span> It
+might do so in future.</li>
+</ul>
+</blockquote>
+
+<p>Add the non-normative note:</p>
+
+<blockquote>
+<ul>
+<li>For Orchard note plaintexts sent in v6 transactions <a href="#fn:17" id="fnref:17" title="see footnote" class="footnote"><sup>17</sup></a>, the only
+allowed lead byte value is <span class="math">\(\mathtt{0x03}.\)</span></li>
+</ul>
+</blockquote>
+
+<p>It is assumed for these changes that v6 transactions will not activate before
+<span class="math">\(\mathsf{ZIP2005ActivationHeight}\)</span>.</p>
 
 <h4 id="§4.1.2‘pseudorandomfunctions’"><span class="section-heading">§ 4.1.2 ‘Pseudo Random Functions’</span><span class="section-anchor"> <a rel="bookmark" href="#§4.1.2‘pseudorandomfunctions’"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
 
@@ -587,9 +646,9 @@ definition of <span class="math">\(\mathsf{allowedLeadBytes}\)</span> does not c
 <li>[<strong>NU5</strong> onward] in § 4.2.3 ‘Orchard Key Components’ <a href="#fn:14" title="see footnote" class="footnote"><sup>14</sup></a>,
 with inputs <span class="math">\([\mathtt{0x06}]\)</span>, <span class="math">\([\mathtt{0x07}]\)</span>, <span class="math">\([\mathtt{0x08}]\)</span>, and with
 first byte <span class="math">\(\mathtt{0x82}\)</span>;</li>
-<li>in the processes of sending (§ 4.7.2 ‘Sending Notes (Sapling)’ <a href="#fn:17" id="fnref:17" title="see footnote" class="footnote"><sup>17</sup></a>
-and § 4.7.3 ‘Sending Notes (Orchard)’ <a href="#fn:18" id="fnref:18" title="see footnote" class="footnote"><sup>18</sup></a>) and of receiving
-(§ 4.20 ‘In-band secret distribution (Sapling and Orchard)’ <a href="#fn:19" id="fnref:19" title="see footnote" class="footnote"><sup>19</sup></a>)
+<li>in the processes of sending (§ 4.7.2 ‘Sending Notes (Sapling)’ <a href="#fn:18" id="fnref:18" title="see footnote" class="footnote"><sup>18</sup></a>
+and § 4.7.3 ‘Sending Notes (Orchard)’ <a href="#fn:19" id="fnref:19" title="see footnote" class="footnote"><sup>19</sup></a>) and of receiving
+(§ 4.20 ‘In-band secret distribution (Sapling and Orchard)’ <a href="#fn:20" id="fnref:20" title="see footnote" class="footnote"><sup>20</sup></a>)
 notes, for Sapling with inputs <span class="math">\([\mathtt{0x04}]\)</span> and <span class="math">\([\mathtt{0x05}]\)</span>,
 and for Orchard <span class="math">\([t] || \underline{\text{ρ}}\)</span> with
 <span class="math">\(t \in \{ \mathtt{0x05}, \mathtt{0x04}, \mathtt{0x09} \}\)</span>;</li>
@@ -604,9 +663,9 @@ and for Orchard <span class="math">\([t] || \underline{\text{ρ}}\)</span> with
 with inputs <span class="math">\([\mathtt{0x06}]\)</span>, <span class="math">\([\mathtt{0x07}]\)</span>, <span class="math">\([\mathtt{0x08}]\)</span>, and with
 first byte in <span class="math">\(\{ \mathtt{0x0C}, \mathtt{0x0D}, \mathtt{0x82} \}\)</span>
 (<span class="math">\(\mathtt{0x0C}\)</span> and <span class="math">\(\mathtt{0x0D}\)</span> are also specified in [ZIP 2005]);</li>
-<li>in the processes of sending (§ 4.7.2 ‘Sending Notes (Sapling)’ <a href="#fn:17" title="see footnote" class="footnote"><sup>17</sup></a>
-and § 4.7.3 ‘Sending Notes (Orchard)’ <a href="#fn:18" title="see footnote" class="footnote"><sup>18</sup></a>) and of receiving
-(§ 4.20 ‘In-band secret distribution (Sapling and Orchard)’ <a href="#fn:19" title="see footnote" class="footnote"><sup>19</sup></a>)
+<li>in the processes of sending (§ 4.7.2 ‘Sending Notes (Sapling)’ <a href="#fn:18" title="see footnote" class="footnote"><sup>18</sup></a>
+and § 4.7.3 ‘Sending Notes (Orchard)’ <a href="#fn:19" title="see footnote" class="footnote"><sup>19</sup></a>) and of receiving
+(§ 4.20 ‘In-band secret distribution (Sapling and Orchard)’ <a href="#fn:20" title="see footnote" class="footnote"><sup>20</sup></a>)
 notes, for Sapling with inputs <span class="math">\([\mathtt{0x04}]\)</span> and <span class="math">\([\mathtt{0x05}]\)</span>,
 and for Orchard with first byte in
 <span class="math">\(\{ \mathtt{0x05}, \mathtt{0x04}, \mathtt{0x09}, \mathtt{0x0A}, \mathtt{0x0B} \}\)</span>
@@ -626,7 +685,7 @@ and for Orchard with first byte in
 <h4 id="§4.2.3‘orchardkeycomponents’"><span class="section-heading">§ 4.2.3 ‘Orchard Key Components’</span><span class="section-anchor"> <a rel="bookmark" href="#§4.2.3‘orchardkeycomponents’"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
 
 <p>Add <span class="math">\(\ell_{\mathsf{qsk}}\)</span> and <span class="math">\(\ell_{\mathsf{qk}}\)</span> to the constants obtained
-from § 5.3 ‘Constants’ <a href="#fn:20" id="fnref:20" title="see footnote" class="footnote"><sup>20</sup></a>.</p>
+from § 5.3 ‘Constants’ <a href="#fn:21" id="fnref:21" title="see footnote" class="footnote"><sup>21</sup></a>.</p>
 
 <p>Replace from &#8220;From this spending key&#8221; up to and including the line
 &#8220;let <span class="math">\(\mathsf{ak} = \mathsf{Extract}_{\mathbb{P}}(\mathsf{ak}^{\mathbb{P}})\)</span>&#8221;
@@ -637,7 +696,7 @@ in the algorithm with:</p>
 <span class="math">\(\mathsf{ask} \;{\small ⦂}\; \mathbb{F}^{*}_{r_{\mathbb{P}}}\)</span> is derived
 directly from <span class="math">\(\mathsf{sk}\)</span>. However, this might not be the case for
 protocols that require distributed generation of shares of <span class="math">\(\mathsf{ask}\)</span>,
-such as FROST&#8217;s Distributed Key Generation <a href="#fn:21" id="fnref:21" title="see footnote" class="footnote"><sup>21</sup></a>
+such as FROST&#8217;s Distributed Key Generation <a href="#fn:22" id="fnref:22" title="see footnote" class="footnote"><sup>22</sup></a>
 (see <a href="#usagewithfrost">[ZIP 2005, Usage with Frost]</a> for further
 discussion). To support this we define an alternative derivation method
 using an additional &#8220;quantum spending key&#8221;, <span class="math">\(\mathsf{qsk}\)</span>, and
@@ -664,7 +723,7 @@ false.)</p>
 <li><span class="math">\(\mathsf{H^{nk}}(\mathsf{sk}) = \mathsf{ToBase^{Orchard}}\big(\mathsf{PRF^{expand}_{sk}}([\mathtt{0x07}])\kern-0.1em\big)\)</span></li>
 <li><span class="math">\(\mathsf{H^{rivk}}(\mathsf{sk}) = \mathsf{ToScalar^{Orchard}}\big(\mathsf{PRF^{expand}_{sk}}([\mathtt{0x08}])\kern-0.1em\big)\)</span></li>
 <li><span class="math">\(\mathsf{H^{qsk}}(\mathsf{sk}) = \mathsf{truncate}_{32}\big(\mathsf{PRF^{expand}_{sk}}([\mathtt{0x0C}])\kern-0.1em\big)\)</span></li>
-<li><span class="math">\(\mathsf{H^{qk}}(\mathsf{qsk}) = \mathsf{BLAKE3.derive\_key}(\texttt{“Zcash ZIP 2005 qk-derivation v1”}, \mathsf{qsk}, 32)\)</span> <a href="#fn:22" id="fnref:22" title="see footnote" class="footnote"><sup>22</sup></a>.</li>
+<li><span class="math">\(\mathsf{H^{qk}}(\mathsf{qsk}) = \mathsf{BLAKE3.derive\_key}(\texttt{“Zcash ZIP 2005 qk-derivation v1”}, \mathsf{qsk}, 32)\)</span> <a href="#fn:23" id="fnref:23" title="see footnote" class="footnote"><sup>23</sup></a>.</li>
 <li><span class="math">\(\mathsf{H}^{\mathsf{rivk\_ext}}_{\mathsf{qk}}(\mathsf{ak}, \mathsf{nk}) = \mathsf{ToScalar^{Orchard}}\big(\mathsf{PRF^{expand}_{qk}}\big([\mathtt{0x0D}] \,||\, \mathsf{I2LEOSP}_{256}(\mathsf{ak}) \,||\, \mathsf{I2LEOSP}_{256}(\mathsf{nk})\kern-0.1em\big)\kern-0.15em\big)\)</span>.</li>
 </ul>
 
@@ -705,7 +764,7 @@ and corresponding “internal” keys MUST be derived as follows:</p>
 <span class="math">\(\mathsf{ak}^{\mathbb{P}}\)</span> include direct generation of an Orchard Spend
 authorizing key <span class="math">\(\mathsf{ask} \;{\small ⦂}\; \mathbb{F}^{*}_{r_{\mathbb{P}}}\)</span> followed by
 <span class="math">\(\mathsf{ak}^{\mathbb{P}} = \mathsf{SpendAuthSig^{Orchard}.DerivePublic}(\mathsf{ask})\)</span>,
-or FROST distributed key generation <a href="#fn:21" title="see footnote" class="footnote"><sup>21</sup></a> in which the
+or FROST distributed key generation <a href="#fn:22" title="see footnote" class="footnote"><sup>22</sup></a> in which the
 corresponding spend-authorization material is <span class="math">\(t\)</span>-of-<span class="math">\(n\)</span> shared among the
 participants.</p>
 </blockquote>
@@ -736,42 +795,37 @@ for further discussion of storage requirements for <span class="math">\(\mathsf{
 <p>Add after the definition of <span class="math">\(\mathsf{leadByte}\)</span>:</p>
 
 <blockquote>
-<p>Define <span class="math">\(\mathsf{H^{rcm,Sapling}_{rseed}}(\_, \_) = \mathsf{ToScalar^{Sapling}}\big(\mathsf{PRF^{expand}_{rseed}}([\mathtt{0x04}])\kern-0.1em\big)\)</span></p>
+<p>Define <span class="math">\(\mathsf{Derive\_rcm^{Sapling}_{rseed}}(\mathsf{leadByte}) = \begin{cases}
+\mathsf{LEOS2IP}_{256}(\mathsf{rseed}),&amp;\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x01} \\
+\mathsf{ToScalar^{Sapling}}\big(\mathsf{PRF^{expand}_{rseed}}([\mathtt{0x04}])\kern-0.1em\big),&amp;\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x02}
+\end{cases}\)</span></p>
 
-<p>Define <span class="math">\(\mathsf{H^{esk,Sapling}_{rseed}}(\_, \_) = \mathsf{ToScalar^{Sapling}}\big(\mathsf{PRF^{expand}_{rseed}}([\mathtt{0x05}])\kern-0.1em\big)\)</span>.</p>
+<p>Define <span class="math">\(\mathsf{H^{esk,Sapling}_{rseed}}(\_) = \mathsf{ToScalar^{Sapling}}\big(\mathsf{PRF^{expand}_{rseed}}([\mathtt{0x05}])\kern-0.1em\big)\)</span>.</p>
 
-<p>(<span class="math">\(\mathsf{H^{rcm,Sapling}}\)</span> and <span class="math">\(\mathsf{H^{esk,Sapling}}\)</span> intentionally
-take arguments that are unused.)</p>
+<p>(<span class="math">\(\mathsf{H^{esk,Sapling}}\)</span> intentionally takes an argument that is unused.)</p>
 </blockquote>
 
 <p>Replace the lines deriving <span class="math">\(\mathsf{rcm}\)</span> and <span class="math">\(\mathsf{esk}\)</span> with</p>
 
 <blockquote>
-<p>Derive <span class="math">\(\mathsf{rcm} = \mathsf{H^{rcm,Sapling}_{rseed}}(\bot, \bot)\)</span></p>
+<p>Derive <span class="math">\(\mathsf{rcm} = \mathsf{Derive\_rcm^{Sapling}_{rseed}}(\mathsf{leadByte})\)</span></p>
 
-<p>Derive <span class="math">\(\mathsf{esk} = \mathsf{H^{esk,Sapling}_{rseed}}(\bot, \bot)\)</span></p>
+<p>Derive <span class="math">\(\mathsf{esk} = \mathsf{H^{esk,Sapling}_{rseed}}(\bot)\)</span></p>
 </blockquote>
 
 <h4 id="§4.7.3‘sendingnotesorchard’"><span class="section-heading">§ 4.7.3 ‘Sending Notes (Orchard)’</span><span class="section-anchor"> <a rel="bookmark" href="#§4.7.3‘sendingnotesorchard’"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
 
-<p>Add after the definition of <span class="math">\(\mathsf{leadByte}\)</span>:</p>
-
-<blockquote>
-<p>Let <span class="math">\(\mathsf{AssetBase} = \mathcal{V}^{\mathsf{Orchard}}\)</span> as defined in
-§ 5.4.8.3 ‘Homomorphic Pedersen commitments (Sapling and Orchard)’.</p>
-</blockquote>
-
 <p>Add before &#8220;For each Action description&#8221;:</p>
 
 <blockquote>
-<p>Define <span class="math">\(\mathsf{H^{rcm,Orchard}_{rseed}}\big(\mathsf{leadByte}, (\mathsf{g}\star_{\mathsf{d}}, \mathsf{pk}\star_{\mathsf{d}}, \mathsf{v}, \underline{\text{ρ}}, \text{ψ}, \mathsf{AssetBase}\kern0.05em\star)\kern-0.1em\big) =\)</span>
+<p>Define <span class="math">\(\mathsf{H^{rcm,Orchard}_{rseed}}(\mathsf{g}\star_{\mathsf{d}}, \mathsf{pk}\star_{\mathsf{d}}, \mathsf{v}, \underline{\text{ρ}}, \text{ψ}) =\)</span>
 <span class="math">\(\mathsf{ToScalar^{Orchard}}\big(\mathsf{PRF^{expand}_{rseed}}(\mathsf{pre\_rcm})\kern-0.1em\big)\)</span></p>
 
-<p>where <span class="math">\(\mathsf{pre\_rcm} = \begin{cases}
-[\mathtt{0x05}] \,||\, \underline{\text{ρ}},&amp;\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x02} \\
-[\mathtt{0x0B}, \mathsf{leadByte}] \,||\, \mathsf{LEBS2OSP}_{256}(\mathsf{g}\star_{\mathsf{d}}) \,||\, \mathsf{LEBS2OSP}_{256}(\mathsf{pk}\star_{\mathsf{d}}) \\
-\hphantom{[\mathtt{0x0B}, \mathsf{leadByte}]} \,||\, \mathsf{I2LEOSP}_{64}(\mathsf{v}) \,||\, \underline{\text{ρ}} \,||\, \mathsf{I2LEOSP}_{256}(\text{ψ}) \\
-\hphantom{[\mathtt{0x0B}, \mathsf{leadByte}]} \,||\, \mathsf{LEBS2OSP}_{256}(\mathsf{AssetBase}\kern0.05em\star),&amp;\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x03}
+<p>where <span class="math">\(\mathsf{pre\_rcm} = [\mathtt{0x0B}] \,||\, \mathsf{LEBS2OSP}_{256}(\mathsf{g}\star_{\mathsf{d}}) \,||\, \mathsf{LEBS2OSP}_{256}(\mathsf{pk}\star_{\mathsf{d}}) \,||\, \mathsf{I2LEOSP}_{64}(\mathsf{v}) \,||\, \underline{\text{ρ}} \,||\, \mathsf{I2LEOSP}_{256}(\text{ψ})\)</span>.</p>
+
+<p>Define <span class="math">\(\mathsf{Derive\_rcm^{Orchard}_{rseed}}(\mathsf{leadByte}, \mathsf{g}\star_{\mathsf{d}}, \mathsf{pk}\star_{\mathsf{d}}, \mathsf{v}, \underline{\text{ρ}}, \text{ψ}) = \begin{cases}
+\mathsf{ToScalar^{Orchard}}\big(\mathsf{PRF^{expand}_{rseed}}([\mathtt{0x05}] \,||\, \underline{\text{ρ}})\kern-0.1em\big),&amp;\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x02} \\
+\mathsf{H^{rcm,Orchard}_{rseed}}(\mathsf{g}\star_{\mathsf{d}}, \mathsf{pk}\star_{\mathsf{d}}, \mathsf{v}, \underline{\text{ρ}}, \text{ψ}),&amp;\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x03}
 \end{cases}\)</span></p>
 
 <p>Define <span class="math">\(\mathsf{H^{esk,Orchard}_{rseed}}(\underline{\text{ρ}}) = \mathsf{ToScalar^{Orchard}}\big(\mathsf{PRF^{expand}_{rseed}}([\mathtt{0x04}] \,||\, \underline{\text{ρ}})\kern-0.1em\big)\)</span>.</p>
@@ -779,14 +833,13 @@ take arguments that are unused.)</p>
 <p>Define <span class="math">\(\mathsf{H^{\text{ψ},Orchard}_{rseed}}(\underline{\text{ρ}}) = \mathsf{ToBase^{Orchard}}\big(\mathsf{PRF^{expand}_{rseed}}([\mathtt{0x09}] \,||\, \underline{\text{ρ}})\kern-0.1em\big)\)</span>.</p>
 </blockquote>
 
-<p>The first-byte domain separator <span class="math">\(\mathtt{0x0A}\)</span> for <span class="math">\(\mathsf{PRF^{expand}}\)</span> is reserved by this ZIP for use by split notes in ZIP 226 <a href="#fn:23" id="fnref:23" title="see footnote" class="footnote"><sup>23</sup></a>.</p>
+<p>The first-byte domain separator <span class="math">\(\mathtt{0x0A}\)</span> for <span class="math">\(\mathsf{PRF^{expand}}\)</span> is reserved by this ZIP for use by split notes in ZIP 226 <a href="#fn:24" id="fnref:24" title="see footnote" class="footnote"><sup>24</sup></a>.</p>
 
 <p>Insert before the derivation of <span class="math">\(\mathsf{esk}\)</span>:</p>
 
 <blockquote>
 <p>Let <span class="math">\(\mathsf{g}\star_{\mathsf{d}} = \mathsf{repr}_{\mathbb{P}}(\mathsf{g_d})\)</span>,
-<span class="math">\(\mathsf{pk}\star_{\mathsf{d}} = \mathsf{repr}_{\mathbb{P}}(\mathsf{pk_d})\)</span>,
-and <span class="math">\(\mathsf{AssetBase}\kern0.05em\star = \mathsf{repr}_{\mathbb{P}}(\mathsf{AssetBase})\)</span>.</p>
+and <span class="math">\(\mathsf{pk}\star_{\mathsf{d}} = \mathsf{repr}_{\mathbb{P}}(\mathsf{pk_d})\)</span>.</p>
 </blockquote>
 
 <p>and use these in the inputs to <span class="math">\(\mathsf{NoteCommit^{Orchard}}\)</span>.</p>
@@ -799,7 +852,7 @@ with</p>
 </blockquote>
 
 <blockquote>
-<p>Derive <span class="math">\(\mathsf{rcm} = \mathsf{H^{rcm,Orchard}_{rseed}}\big(\mathsf{leadByte}, (\mathsf{g}\star_{\mathsf{d}}, \mathsf{pk}\star_{\mathsf{d}}, \mathsf{v}, \underline{\text{ρ}}, \text{ψ}, \mathsf{AssetBase}\kern0.05em\star)\kern-0.1em\big)\)</span></p>
+<p>Derive <span class="math">\(\mathsf{rcm} = \mathsf{Derive\_rcm^{Orchard}_{rseed}}(\mathsf{leadByte}, \mathsf{g}\star_{\mathsf{d}}, \mathsf{pk}\star_{\mathsf{d}}, \mathsf{v}, \underline{\text{ρ}}, \text{ψ})\)</span></p>
 </blockquote>
 
 <blockquote>
@@ -811,29 +864,22 @@ with</p>
 <p>Add</p>
 
 <blockquote>
-<p>Let <span class="math">\(\mathsf{H^{rcm,Sapling}}\)</span> be as defined in
+<p>Let <span class="math">\(\mathsf{Derive\_rcm^{Sapling}}\)</span> be as defined in
 § 4.7.2 ‘Sending Notes (Sapling)’.</p>
 </blockquote>
 
 <p>Replace the line deriving <span class="math">\(\mathsf{rcm}\)</span> with</p>
 
 <blockquote>
-<p>Derive <span class="math">\(\mathsf{rcm} = \mathsf{H^{rcm,Sapling}_{rseed}}(\bot, \bot)\)</span></p>
+<p>Derive <span class="math">\(\mathsf{rcm} = \mathsf{Derive\_rcm^{Sapling}_{rseed}}(\mathsf{leadByte})\)</span></p>
 </blockquote>
 
 <h4 id="§4.8.3‘dummynotesorchard’"><span class="section-heading">§ 4.8.3 ‘Dummy Notes (Orchard)’</span><span class="section-anchor"> <a rel="bookmark" href="#§4.8.3‘dummynotesorchard’"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
 
-<p>Add after the definition of <span class="math">\(\mathsf{leadByte}\)</span>:</p>
-
-<blockquote>
-<p>Let <span class="math">\(\mathsf{AssetBase} = \mathcal{V}^{\mathsf{Orchard}}\)</span> as defined in
-§ 5.4.8.3 ‘Homomorphic Pedersen commitments (Sapling and Orchard)’.</p>
-</blockquote>
-
 <p>Insert before &#8220;The spend-related fields &#8230;&#8221;:</p>
 
 <blockquote>
-<p>Let <span class="math">\(\mathsf{H^{rcm,Orchard}}\)</span> and <span class="math">\(\mathsf{H^{\text{ψ},Orchard}}\)</span> be
+<p>Let <span class="math">\(\mathsf{Derive\_rcm^{Orchard}}\)</span> and <span class="math">\(\mathsf{H^{\text{ψ},Orchard}}\)</span> be
 as defined in § 4.7.3 ‘Sending Notes (Orchard)’.</p>
 </blockquote>
 
@@ -841,34 +887,29 @@ as defined in § 4.7.3 ‘Sending Notes (Orchard)’.</p>
 
 <blockquote>
 <p>Let <span class="math">\(\mathsf{g}\star_{\mathsf{d}} = \mathsf{repr}_{\mathbb{P}}(\mathsf{g_d})\)</span>,
-<span class="math">\(\mathsf{pk}\star_{\mathsf{d}} = \mathsf{repr}_{\mathbb{P}}(\mathsf{pk_d})\)</span>,
-and <span class="math">\(\mathsf{AssetBase}\kern0.05em\star = \mathsf{repr}_{\mathbb{P}}(\mathsf{AssetBase})\)</span>.</p>
+and <span class="math">\(\mathsf{pk}\star_{\mathsf{d}} = \mathsf{repr}_{\mathbb{P}}(\mathsf{pk_d})\)</span>.</p>
 
-<p>Derive <span class="math">\(\mathsf{rcm} = \mathsf{H^{rcm,Orchard}_{rseed}}\big(\mathsf{leadByte}, (\mathsf{g}\star_{\mathsf{d}}, \mathsf{pk}\star_{\mathsf{d}}, \mathsf{v}, \underline{\text{ρ}}, \text{ψ}, \mathsf{AssetBase}\kern0.05em\star)\kern-0.1em\big)\)</span></p>
+<p>Derive <span class="math">\(\mathsf{rcm} = \mathsf{Derive\_rcm^{Orchard}_{rseed}}(\mathsf{leadByte}, \mathsf{g}\star_{\mathsf{d}}, \mathsf{pk}\star_{\mathsf{d}}, \mathsf{v}, \underline{\text{ρ}}, \text{ψ})\)</span></p>
 
 <p>Derive <span class="math">\(\text{ψ} = \mathsf{H^{\text{ψ},Orchard}_{rseed}}(\underline{\text{ρ}})\)</span></p>
 </blockquote>
 
 <p>and use <span class="math">\(\mathsf{g}\star_{\mathsf{d}}\)</span>, <span class="math">\(\mathsf{pk}\star_{\mathsf{d}}\)</span>,
-and <span class="math">\(\mathsf{AssetBase}\kern0.05em\star\)</span> in the inputs to
-<span class="math">\(\mathsf{NoteCommit^{Orchard}}\)</span>.</p>
+in the inputs to <span class="math">\(\mathsf{NoteCommit^{Orchard}}\)</span>.</p>
+
+<p>Per § 3.2.1, use <span class="math">\(\mathsf{leadByte} = \mathtt{0x03}\)</span> starting from
+<span class="math">\(\mathsf{ZIP2005ActivationHeight}\)</span>. The choice is operationally irrelevant
+for dummy notes, since their plaintexts cannot be decrypted.</p>
 
 <h4 id="§4.20.2and§4.20.3‘decryptionusinganincomingfullviewingkeysaplingandorchard’"><span class="section-heading">§ 4.20.2 and § 4.20.3 ‘Decryption using an Incoming/Full Viewing Key (Sapling and Orchard)’</span><span class="section-anchor"> <a rel="bookmark" href="#§4.20.2and§4.20.3‘decryptionusinganincomingfullviewingkeysaplingandorchard’"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
-
-<p>Add after the definition of <span class="math">\(\mathsf{leadByte}\)</span>:</p>
-
-<blockquote>
-<p>Let <span class="math">\(\mathsf{AssetBase} = \mathcal{V}^{\mathsf{Orchard}}\)</span> as defined in
-§ 5.4.8.3 ‘Homomorphic Pedersen commitments (Sapling and Orchard)’.</p>
-</blockquote>
 
 <p>For both § 4.20.2 and § 4.20.3, add before the decryption procedure:</p>
 
 <blockquote>
-<p>Let <span class="math">\(\mathsf{H^{rcm,Sapling}}\)</span> and <span class="math">\(\mathsf{H^{esk,Sapling}}\)</span>
-be as defined in § 4.7.2 ‘Sending Notes (Sapling)’.</p>
+<p>Let <span class="math">\(\mathsf{Derive\_rcm^{Sapling}}\)</span> and <span class="math">\(\mathsf{H^{esk,Sapling}}\)</span> be
+as defined in § 4.7.2 ‘Sending Notes (Sapling)’.</p>
 
-<p>Let <span class="math">\(\mathsf{H^{rcm,Orchard}}\)</span>, <span class="math">\(\mathsf{H^{esk,Orchard}}\)</span>,
+<p>Let <span class="math">\(\mathsf{Derive\_rcm^{Orchard}}\)</span>, <span class="math">\(\mathsf{H^{esk,Orchard}}\)</span>,
 and <span class="math">\(\mathsf{H^{\text{ψ},Orchard}}\)</span> be as defined in
 § 4.7.3 ‘Sending Notes (Orchard)’.</p>
 </blockquote>
@@ -928,11 +969,11 @@ delete the word &#8220;later&#8221;.</p>
 <span class="math">\(\hspace{2.5em}\)</span>  if <span class="math">\(\mathsf{repr}_{\mathbb{G}}\big(\mathsf{KA.DerivePublic}(\mathsf{esk}, \mathsf{g_d})\kern-0.1em\big) \neq \mathtt{ephemeralKey}\)</span>, return <span class="math">\(\bot\)</span> <br></p>
 
 <p><span class="math">\(\hspace{1.0em}\)</span> let <span class="math">\(\mathsf{pk_d} = \mathsf{KA.DerivePublic}(\mathsf{ivk}, \mathsf{g_d})\)</span> <br>
-<span class="math">\(\hspace{1.0em}\)</span> let <span class="math">\(\mathsf{g}\star_{\mathsf{d}} = \mathsf{repr}_{\mathbb{P}}(\mathsf{g_d})\)</span>, <span class="math">\(\mathsf{pk}\star_{\mathsf{d}} = \mathsf{repr}_{\mathbb{P}}(\mathsf{pk_d})\)</span>, and <span class="math">\(\mathsf{AssetBase}\kern0.05em\star = \mathsf{repr}_{\mathbb{P}}(\mathsf{AssetBase})\)</span> <br>
+<span class="math">\(\hspace{1.0em}\)</span> let <span class="math">\(\mathsf{g}\star_{\mathsf{d}} = \mathsf{repr}_{\mathbb{P}}(\mathsf{g_d})\)</span>, <span class="math">\(\mathsf{pk}\star_{\mathsf{d}} = \mathsf{repr}_{\mathbb{P}}(\mathsf{pk_d})\)</span> <br>
 <span class="math">\(\hspace{1.0em}\)</span> let <span class="math">\(\text{ψ} = \mathsf{H^{\text{ψ},Orchard}_{rseed}}(\underline{\text{ρ}})\)</span> for Orchard or <span class="math">\(\bot\)</span> for Sapling <br>
 <span class="math">\(\hspace{1.0em}\)</span> let <span class="math">\(\mathsf{rcm} = \begin{cases}
-\mathsf{LEOS2IP}_{256}(\mathsf{rseed}),&amp;\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x01} \\
-\mathsf{H^{rcm,protocol}_{rseed}}\big(\mathsf{leadByte}, (\mathsf{g}\star_{\mathsf{d}}, \mathsf{pk}\star_{\mathsf{d}}, \mathsf{v}, \underline{\text{ρ}}, \text{ψ}, \mathsf{AssetBase}\kern0.05em\star)\kern-0.1em\big),&amp;\!\!\!\text{otherwise}
+\mathsf{Derive\_rcm^{Sapling}_{rseed}}(\mathsf{leadByte}),&amp;\!\!\!\text{if } \mathsf{protocol} = \mathsf{Sapling} \\
+\mathsf{Derive\_rcm^{Orchard}_{rseed}}(\mathsf{leadByte}, \mathsf{g}\star_{\mathsf{d}}, \mathsf{pk}\star_{\mathsf{d}}, \mathsf{v}, \underline{\text{ρ}}, \text{ψ}),&amp;\!\!\!\text{if } \mathsf{protocol} = \mathsf{Orchard}
   \end{cases}\)</span> <br>
 <span class="math">\(\hspace{1.0em}\)</span> if <span class="math">\(\mathsf{rcm} \geq r_{\mathbb{G}}\)</span>, return <span class="math">\(\bot\)</span></p>
 </blockquote>
@@ -941,7 +982,7 @@ delete the word &#8220;later&#8221;.</p>
 <span class="math">\(\mathsf{rcm}\)</span> can depend on <span class="math">\(\mathsf{g_d}\)</span> and <span class="math">\(\mathsf{pk_d}\)</span>.
 The definitions of <span class="math">\(\mathsf{pre\_rcm}\)</span> and <span class="math">\(\mathsf{pre\_esk}\)</span> are moved into
 § 4.7.2 ‘Sending Notes (Sapling)’ and § 4.7.3 ‘Sending Notes (Orchard)’ which
-define <span class="math">\(\mathsf{H^{rcm,protocol}}\)</span>.</p>
+define <span class="math">\(\mathsf{Derive\_rcm^{\{Sapling,Orchard\}}}\)</span>.</p>
 
 <p>For § 4.20.3, replace</p>
 
@@ -958,11 +999,11 @@ define <span class="math">\(\mathsf{H^{rcm,protocol}}\)</span>.</p>
 
 <blockquote>
 <p><span class="math">\(\hspace{1.0em}\)</span> let <span class="math">\(\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})\)</span>. if (for Sapling) <span class="math">\(\mathsf{g_d} = \bot\)</span>, return <span class="math">\(\bot\)</span> <br>
-<span class="math">\(\hspace{1.0em}\)</span> let <span class="math">\(\mathsf{g}\star_{\mathsf{d}} = \mathsf{repr}_{\mathbb{P}}(\mathsf{g_d})\)</span>, <span class="math">\(\mathsf{pk}\star_{\mathsf{d}} = \mathsf{repr}_{\mathbb{P}}(\mathsf{pk_d})\)</span>, and <span class="math">\(\mathsf{AssetBase}\kern0.05em\star = \mathsf{repr}_{\mathbb{P}}(\mathsf{AssetBase})\)</span> <br>
+<span class="math">\(\hspace{1.0em}\)</span> let <span class="math">\(\mathsf{g}\star_{\mathsf{d}} = \mathsf{repr}_{\mathbb{P}}(\mathsf{g_d})\)</span>, <span class="math">\(\mathsf{pk}\star_{\mathsf{d}} = \mathsf{repr}_{\mathbb{P}}(\mathsf{pk_d})\)</span> <br>
 <span class="math">\(\hspace{1.0em}\)</span> let <span class="math">\(\text{ψ} = \mathsf{H^{\text{ψ},Orchard}_{rseed}}(\underline{\text{ρ}})\)</span> for Orchard or <span class="math">\(\bot\)</span> for Sapling <br>
 <span class="math">\(\hspace{1.0em}\)</span> let <span class="math">\(\mathsf{rcm} = \begin{cases}
-\mathsf{LEOS2IP}_{256}(\mathsf{rseed}),&amp;\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x01} \\
-\mathsf{H^{rcm,protocol}_{rseed}}\big(\mathsf{leadByte}, (\mathsf{g}\star_{\mathsf{d}}, \mathsf{pk}\star_{\mathsf{d}}, \mathsf{v}, \underline{\text{ρ}}, \text{ψ}, \mathsf{AssetBase}\kern0.05em\star)\kern-0.1em\big),&amp;\!\!\!\text{otherwise}
+\mathsf{Derive\_rcm^{Sapling}_{rseed}}(\mathsf{leadByte}),&amp;\!\!\!\text{if } \mathsf{protocol} = \mathsf{Sapling} \\
+\mathsf{Derive\_rcm^{Orchard}_{rseed}}(\mathsf{leadByte}, \mathsf{g}\star_{\mathsf{d}}, \mathsf{pk}\star_{\mathsf{d}}, \mathsf{v}, \underline{\text{ρ}}, \text{ψ}),&amp;\!\!\!\text{if } \mathsf{protocol} = \mathsf{Orchard}
   \end{cases}\)</span> <br>
 <span class="math">\(\hspace{1.0em}\)</span> if <span class="math">\(\mathsf{rcm} \geq r_{\mathbb{G}}\)</span>, return <span class="math">\(\bot\)</span></p>
 </blockquote>
@@ -1015,12 +1056,12 @@ designers familiar with the Zcash shielded protocols. It is recommended
 to first read the slides of, and/or watch the following presentations:</p>
 
 <ul>
-<li><em>Understanding Zcash Security</em> at Zcon3 <a href="#fn:24" id="fnref:24" title="see footnote" class="footnote"><sup>24</sup></a></li>
+<li><em>Understanding Zcash Security</em> at Zcon3 <a href="#fn:25" id="fnref:25" title="see footnote" class="footnote"><sup>25</sup></a></li>
 <li><em>Post-Quantum Zcash</em> at ZconVI <a href="#fn:7" title="see footnote" class="footnote"><sup>7</sup></a></li>
 </ul>
 
 <p>To understand the modelling of hash function and commitment security
-against a quantum adversary we also recommend <a href="#fn:25" id="fnref:25" title="see footnote" class="footnote"><sup>25</sup></a> and <a href="#fn:26" id="fnref:26" title="see footnote" class="footnote"><sup>26</sup></a>.</p>
+against a quantum adversary we also recommend <a href="#fn:26" id="fnref:26" title="see footnote" class="footnote"><sup>26</sup></a> and <a href="#fn:27" id="fnref:27" title="see footnote" class="footnote"><sup>27</sup></a>.</p>
 
 <h2 id="proposedrecoveryprotocol"><span class="section-heading">Proposed Recovery Protocol</span><span class="section-anchor"> <a rel="bookmark" href="#proposedrecoveryprotocol"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
@@ -1030,8 +1071,8 @@ changes to be adopted now are likely to be sufficient to securely support
 a Recovery Protocol.</p>
 
 <p>The proposed Recovery Protocol works, roughly speaking, by enforcing the
-derivations given in the <a href="#flowdiagramfortheorchardandorchardzsaprotocols">Flow diagram for the Orchard and OrchardZSA protocols</a>,
-and we suggest having that diagram open in another window to refer to it.</p>
+derivations given in the <a href="#flowdiagramfortheorchardprotocol">Flow diagram for the Orchard protocol</a>, and we
+suggest having that diagram open in another window to refer to it.</p>
 
 <h3 id="proposedrecoverystatement"><span class="section-heading">Proposed Recovery Statement</span><span class="section-anchor"> <a rel="bookmark" href="#proposedrecoverystatement"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
 
@@ -1047,23 +1088,18 @@ and we suggest having that diagram open in another window to refer to it.</p>
 <p><span class="math">\(\mathsf{H^{rivk\_int}_{rivk\_ext}}(\mathsf{ak}, \mathsf{nk}) = \mathsf{ToScalar^{Orchard}}\big(\mathsf{PRF^{expand}_{rivk\_ext}}\big([\mathtt{0x83}] \,||\, \mathsf{I2LEOSP}_{256}(\mathsf{ak}) \,||\, \mathsf{I2LEOSP}_{256}(\mathsf{nk})\kern-0.1em\big)\kern-0.15em\big)\)</span></p>
 </blockquote>
 
-<p>Import these definitions from § 4.7.3 ‘Sending Notes (Orchard)’ <a href="#fn:18" title="see footnote" class="footnote"><sup>18</sup></a>, specialized to <span class="math">\(\mathsf{leadByte} = \mathtt{0x03}\)</span>:</p>
+<p>Import these definitions from § 4.7.3 ‘Sending Notes (Orchard)’ <a href="#fn:19" title="see footnote" class="footnote"><sup>19</sup></a>:</p>
 
 <blockquote>
-<p>Define <span class="math">\(\mathsf{H^{rcm,Orchard}_{rseed}}\big(\mathsf{leadByte}, (\mathsf{g}\star_{\mathsf{d}}, \mathsf{pk}\star_{\mathsf{d}}, \mathsf{v}, \underline{\text{ρ}}, \text{ψ}, \mathsf{AssetBase}\kern0.05em\star)\kern-0.1em\big) =\)</span>
+<p>Define <span class="math">\(\mathsf{H^{rcm,Orchard}_{rseed}}(\mathsf{g}\star_{\mathsf{d}}, \mathsf{pk}\star_{\mathsf{d}}, \mathsf{v}, \underline{\text{ρ}}, \text{ψ}) =\)</span>
 <span class="math">\(\mathsf{ToScalar^{Orchard}}\big(\mathsf{PRF^{expand}_{rseed}}(\mathsf{pre\_rcm})\kern-0.1em\big)\)</span></p>
 
-<p>where <span class="math">\(\mathsf{pre\_rcm} = \begin{cases}
-\sout{[\mathtt{0x05}] \,||\, \underline{\text{ρ}},}&amp;\!\!\!\sout{\text{if } \mathsf{leadByte} = \mathtt{0x02}} \\
-[\mathtt{0x0B}, \mathsf{leadByte}] \,||\, \mathsf{LEBS2OSP}_{256}(\mathsf{g}\star_{\mathsf{d}}) \,||\, \mathsf{LEBS2OSP}_{256}(\mathsf{pk}\star_{\mathsf{d}}) \\
-\hphantom{[\mathtt{0x0B}, \mathsf{leadByte}]} \,||\, \mathsf{I2LEOSP}_{64}(\mathsf{v}) \,||\, \underline{\text{ρ}} \,||\, \mathsf{I2LEOSP}_{256}(\text{ψ}) \\
-\hphantom{[\mathtt{0x0B}, \mathsf{leadByte}]} \,||\, \mathsf{LEBS2OSP}_{256}(\mathsf{AssetBase}\kern0.05em\star),&amp;\!\!\!\text{if } \mathsf{leadByte} = \mathtt{0x03}
-\end{cases}\)</span></p>
+<p>where <span class="math">\(\mathsf{pre\_rcm} = [\mathtt{0x0B}] \,||\, \mathsf{LEBS2OSP}_{256}(\mathsf{g}\star_{\mathsf{d}}) \,||\, \mathsf{LEBS2OSP}_{256}(\mathsf{pk}\star_{\mathsf{d}}) \,||\, \mathsf{I2LEOSP}_{64}(\mathsf{v}) \,||\, \underline{\text{ρ}} \,||\, \mathsf{I2LEOSP}_{256}(\text{ψ})\)</span>.</p>
 
 <p>Define <span class="math">\(\mathsf{H^{\text{ψ},Orchard}_{rseed}}(\underline{\text{ρ}}) = \mathsf{ToBase^{Orchard}}\big(\mathsf{PRF^{expand}_{rseed}}([\mathtt{0x09}] \,||\, \underline{\text{ρ}})\kern-0.1em\big)\)</span>.</p>
 </blockquote>
 
-<p>Import this definition from § 5.4.7.1 ‘Spend Authorization Signature (Sapling and Orchard)’ <a href="#fn:27" id="fnref:27" title="see footnote" class="footnote"><sup>27</sup></a>:</p>
+<p>Import this definition from § 5.4.7.1 ‘Spend Authorization Signature (Sapling and Orchard)’ <a href="#fn:28" id="fnref:28" title="see footnote" class="footnote"><sup>28</sup></a>:</p>
 
 <blockquote>
 <p>Define <span class="math">\(\mathcal{G}^{\mathsf{Orchard}} = \mathsf{GroupHash}^{\mathbb{P}}(\texttt{“z.cash:Orchard”}, \texttt{“G”})\)</span>.</p>
@@ -1126,7 +1162,7 @@ and we suggest having that diagram open in another window to refer to it.</p>
 \wedge\; \mathsf{ivk} \not\in \{0, \bot\} \vphantom{\Big(}\\
 \wedge\; \text{let } \mathsf{pk_d} = [\mathsf{ivk}]\, \mathsf{g_d} \vphantom{\big(}\\
 \wedge\; \text{let } \text{ψ} = \mathsf{H}^{\text{ψ}}_{\mathsf{r}\text{ψ}}(\underline{\text{ρ}}) \vphantom{\Big(}\\
-\wedge\; \text{let } \mathsf{noterepr} = \big(\mathsf{repr}_{\mathbb{P}}(\mathsf{g_d}), \mathsf{repr}_{\mathbb{P}}(\mathsf{pk_d}), \mathsf{v}, \underline{\text{ρ}}, \text{ψ}, {\mathsf{AssetBase}\kern0.05em\star}\big) \vphantom{\big(}\\
+\wedge\; \text{let } \mathsf{noterepr} = \big(\mathsf{repr}_{\mathbb{P}}(\mathsf{g_d}), \mathsf{repr}_{\mathbb{P}}(\mathsf{pk_d}), \mathsf{v}, \underline{\text{ρ}}, \text{ψ}\big) \vphantom{\big(}\\
 \wedge\; \text{let } \mathsf{rcm} = \mathsf{H^{rcm,Orchard}_{rseed}}\big(\mathtt{0x03}, \mathsf{noterepr}\big) \vphantom{\Big(}\\
 \wedge\; \text{let } \mathsf{cm} = \mathsf{NoteCommit^{Orchard}_{rcm}}(\mathsf{noterepr}) \vphantom{\big(}\\
 \wedge\; \mathsf{cm} \neq \bot \vphantom{\Big(}\\
@@ -1193,9 +1229,9 @@ post-quantum knowledge-sound.</p>
 <h3 id="repairingthenotecommitmentmerkletree"><span class="section-heading">Repairing the note commitment Merkle tree</span><span class="section-anchor"> <a rel="bookmark" href="#repairingthenotecommitmentmerkletree"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
 
 <p><span class="math">\(\mathsf{MerkleCRH}\)</span> is instantiated using
-<span class="math">\(\mathsf{SinsimillaHash}\)</span> <a href="#fn:28" id="fnref:28" title="see footnote" class="footnote"><sup>28</sup></a>.
+<span class="math">\(\mathsf{SinsimillaHash}\)</span> <a href="#fn:29" id="fnref:29" title="see footnote" class="footnote"><sup>29</sup></a>.
 Its collision resistance depends on the Discrete Logarithm Relation Problem
-on the Pallas curve <a href="#fn:29" id="fnref:29" title="see footnote" class="footnote"><sup>29</sup></a>, and so it is not
+on the Pallas curve <a href="#fn:30" id="fnref:30" title="see footnote" class="footnote"><sup>30</sup></a>, and so it is not
 post-quantum collision-resistant or collapsing. However, because the note
 commitment tree is public, it is possible to re-hash all of its leaves to
 construct a new Merkle tree using a collapsing hash function.
@@ -1203,8 +1239,8 @@ Suppose this has been done.</p>
 
 <blockquote>
 <p>The post-quantum security of Merkle trees —considered as position-binding
-vector commitments which is the property required by Zcash <a href="#fn:24" title="see footnote" class="footnote"><sup>24</sup></a>—
-is proven under reasonable assumptions in <a href="#fn:30" id="fnref:30" title="see footnote" class="footnote"><sup>30</sup></a> and <a href="#fn:31" id="fnref:31" title="see footnote" class="footnote"><sup>31</sup></a>.</p>
+vector commitments which is the property required by Zcash <a href="#fn:25" title="see footnote" class="footnote"><sup>25</sup></a>—
+is proven under reasonable assumptions in <a href="#fn:31" id="fnref:31" title="see footnote" class="footnote"><sup>31</sup></a> and <a href="#fn:32" id="fnref:32" title="see footnote" class="footnote"><sup>32</sup></a>.</p>
 </blockquote>
 
 <p>Note: when we rehash the commitment tree, we could include both <span class="math">\(\text{ρ}\)</span> and
@@ -1231,29 +1267,35 @@ Balance property.</p>
 
 <p>We prefer to fix this without changing <span class="math">\(\mathsf{NoteCommit}\)</span> itself.
 Instead we change how <span class="math">\(\mathsf{rcm}\)</span> is computed to be a hash of <span class="math">\(\mathsf{rseed}\)</span> and
-<span class="math">\(\mathsf{noterepr} = (\mathsf{g}\star_{\mathsf{d}}, \mathsf{pk}\star_{\mathsf{d}}, \mathsf{v}, \underline{\text{ρ}}, \text{ψ}, \mathsf{AssetBase}\kern0.05em\star)\)</span>,
+<span class="math">\(\mathsf{noterepr} = (\mathsf{g}\star_{\mathsf{d}}, \mathsf{pk}\star_{\mathsf{d}}, \mathsf{v}, \underline{\text{ρ}}, \text{ψ})\)</span>,
 as detailed in the <a href="#specification">Specification</a> section.
 Specifically, when <span class="math">\(\mathsf{leadByte} = \mathtt{0x03}\)</span> we have:</p>
 
-<p><span class="math">\(\hspace{2em}\mathsf{rcm} = \mathsf{H^{rcm}_{rseed}}(\mathsf{leadByte}, \mathsf{noterepr}) = \mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}(\mathsf{pre\_rcm}))\)</span></p>
+<p><span class="math">\(\hspace{2em}\mathsf{rcm} = \mathsf{H^{rcm}_{rseed}}(\mathsf{noterepr}) = \mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}(\mathsf{pre\_rcm}))\)</span></p>
 
-<p><span class="math">\(\text{where } \mathsf{pre\_rcm} = [\mathtt{0x0B}, \mathsf{leadByte}] \,||\, \mathsf{encode}(\mathsf{noterepr})\)</span></p>
+<p><span class="math">\(\text{where } \mathsf{pre\_rcm} = [\mathtt{0x0B}] \,||\, \mathsf{encode}(\mathsf{noterepr})\)</span></p>
 
 <h3 id="informalsecurityargumentforbindingofnotecommitments"><span class="section-heading">Informal security argument for binding of note commitments</span><span class="section-anchor"> <a rel="bookmark" href="#informalsecurityargumentforbindingofnotecommitments"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
 
-<p>We can view the output of <span class="math">\(\mathsf{NoteCommit_{rcm}}(\mathsf{noterepr})\)</span>
+<p>For the formal versions of these arguments and their adaptation to the
+post-quantum setting, see the <a href="#thm-key-binding-rom">key-binding</a> and
+<a href="#thm-spendability-collide">Spendability</a> theorems below, and
+<a href="#adaptationtothequantumsetting">§ Adaptation to the quantum setting</a>.</p>
+
+<p>We can view the output of <span class="math">\(\mathsf{NoteCommit_{rcm}}\)</span> for
+<span class="math">\(\mathsf{notetuple} = (\mathsf{rseed}, \mathsf{noterepr})\)</span>
 as the point addition of a randomization term
-<span class="math">\([\mathsf{H^{rcm}_{rseed}}(\mathsf{leadByte}, \mathsf{noterepr})]\, \mathcal{R}\)</span>,
-and some other function of <span class="math">\(\mathsf{rseed}\)</span>, <span class="math">\(\mathsf{leadByte}\)</span>, and
-<span class="math">\(\mathsf{noterepr}\)</span>.</p>
+<span class="math">\([\mathsf{H^{rcm}_{rseed}}(\mathsf{noterepr})]\, \mathcal{R}\)</span>,
+and some other function of <span class="math">\(\mathsf{notetuple}\)</span>.</p>
 
 <p>Without loss of generality, we can write that function as
-<span class="math">\([\mathsf{f}(\mathsf{rseed}, \mathsf{leadByte}, \mathsf{noterepr})]\, \mathcal{R}\)</span>,
+<span class="math">\([\mathsf{f}(\mathsf{notetuple})]\, \mathcal{R}\)</span>,
 by expanding each of the Sinemilla bases
 <span class="math">\(\mathcal{C}_j = \mathcal{Q}(D) \text{ or } \mathcal{S}(j)\)</span> used by
 <a href="https://zips.z.cash/protocol/protocol.pdf#concretesinsemillahash"><span class="math">\(\mathsf{HashToSinsimillaPoint}\)</span></a>
 as <span class="math">\(\mathcal{C}_j = [c_j]\, \mathcal{R}\)</span> for some <span class="math">\(c_j\)</span>. That is,
-<span class="math">\[\mathsf{NoteCommit_{rcm}}(\mathsf{noterepr}) = [\mathsf{H^{rcm}_{rseed}}(\mathsf{leadByte}, \mathsf{noterepr}) + \mathsf{f}(\mathsf{rseed}, \mathsf{leadByte}, \mathsf{noterepr})]\, \mathcal{R}.\]</span></p>
+the note commitment for <span class="math">\(\mathsf{notetuple}\)</span> is
+<span class="math">\[[\mathsf{H^{rcm}_{rseed}}(\mathsf{noterepr}) + \mathsf{f}(\mathsf{notetuple})]\, \mathcal{R}.\]</span></p>
 
 <p>We will model <span class="math">\(\mathsf{H^{rcm}}\)</span> as a random oracle independent of <span class="math">\(\mathsf{f}\)</span> with
 uniform output on <span class="math">\(\mathbb{F}_{r_{\mathbb{P}}}.\)</span> This is reasonable because
@@ -1263,7 +1305,7 @@ Pallas curve.</p>
 
 <blockquote>
 <p>The fact that <span class="math">\(\mathsf{NoteCommit}\)</span> has
-<span class="math">\(\text{ψ} = \mathsf{H}^{\text{ψ}}(\mathsf{rseed}, \text{ρ})\)</span> as an
+<span class="math">\(\text{ψ} = \mathsf{H}^{\text{ψ}}_{\mathsf{rseed}}(\text{ρ})\)</span> as an
 input does not affect the analysis provided that <span class="math">\(\mathsf{H^{rcm}}\)</span> and
 <span class="math">\(\mathsf{H}^{\text{ψ}}\)</span> can be treated as independent. In practice both
 are defined in terms of <span class="math">\(\mathsf{PRF^{expand}}\)</span>, but with strict domain
@@ -1271,7 +1313,7 @@ separation, and so the assumption of independence is reasonable as long
 as BLAKE2b-512 can be modelled as a random oracle. Note that since the
 input to <span class="math">\(\mathsf{H^{rcm}}\)</span> needs more than one BLAKE2b input block, we
 require that a HAIFA sponge can be modelled as a random oracle which is
-justified by <a href="#fn:32" id="fnref:32" title="see footnote" class="footnote"><sup>32</sup></a>. It is possible that there could be
+justified by <a href="#fn:33" id="fnref:33" title="see footnote" class="footnote"><sup>33</sup></a>. It is possible that there could be
 better-than-generic quantum attacks against BLAKE2b-512, but none have
 been published to our knowledge. In practice, we consider it reasonable to
 assume that BLAKE2b-512 has the properties needed for <span class="math">\(\mathsf{H^{rcm}}\)</span>
@@ -1280,11 +1322,11 @@ to be collapsing. Taking the 512-bit BLAKE2b output modulo
 </blockquote>
 
 <p>For each <span class="math">\(\mathsf{H^{rcm}}\)</span> oracle query the adversary chooses
-<span class="math">\(\mathsf{rseed}, \mathsf{leadByte}, \mathsf{noterepr}\)</span>
+<span class="math">\(\mathsf{notetuple} = (\mathsf{rseed}, \mathsf{noterepr})\)</span>
 and obtains a &#8220;random&#8221;
-<span class="math">\(\mathsf{rcm} = \mathsf{H^{rcm}_{rseed}}(\mathsf{leadByte}, \mathsf{noterepr})\)</span>.</p>
+<span class="math">\(\mathsf{rcm} = \mathsf{H^{rcm}_{rseed}}(\mathsf{noterepr})\)</span>.</p>
 
-<p>We have <span class="math">\(\mathsf{cm}_x = \mathsf{Extract}_{\mathbb{P}}([\mathsf{H^{rcm}_{rseed}}(\mathsf{leadByte}, \mathsf{noterepr}) + \mathsf{f}(\mathsf{rseed}, \mathsf{leadByte}, \mathsf{noterepr})]\, \mathcal{R})\)</span>.</p>
+<p>We have <span class="math">\(\mathsf{cm}_x = \mathsf{Extract}_{\mathbb{P}}([\mathsf{H^{rcm}_{rseed}}(\mathsf{noterepr}) + \mathsf{f}(\mathsf{notetuple})]\, \mathcal{R})\)</span>.</p>
 
 <p>Over all Pallas curve points <span class="math">\(P\)</span>, the number of outputs of
 <span class="math">\(\mathsf{Extract}_{\mathbb{P}}(P)\)</span> is <span class="math">\((\mathbb{F}_{r_\mathbb{P}} + 1)/2 \approx 2^{253}\)</span> —
@@ -1298,8 +1340,8 @@ negligible effect.</p>
 </blockquote>
 
 <p>There are two values of <span class="math">\(\mathsf{cm}\)</span> that match <span class="math">\(\mathsf{cm}_x\)</span> in their <span class="math">\(x\)</span>-coordinate.
-Because the output of <span class="math">\(\mathsf{NoteCommit_{rcm}}(\mathsf{noterepr})\)</span> is
-of the form <span class="math">\(\mathsf{cm} = F(\mathsf{noterepr}) + [\mathsf{rcm}]\, \mathcal{R}\)</span>,
+Because the output of <span class="math">\(\mathsf{NoteCommit_{rcm}}\)</span> for <span class="math">\(\mathsf{notetuple}\)</span> is
+of the form <span class="math">\(\mathsf{cm} = [\mathsf{f}(\mathsf{notetuple}) + \mathsf{rcm}]\, \mathcal{R}\)</span>,
 for any given note we have exactly two values of <span class="math">\(\mathsf{rcm}\)</span> that will pass
 the commitment check.</p>
 
@@ -1309,8 +1351,7 @@ note in the tree. As argued above, the distribution of <span class="math">\(\mat
 indistinguishable from uniform-random on <span class="math">\(\mathbb{F}_{r_\mathbb{P}}\)</span>. The
 success probability for each attempt in a classical search is therefore
 <span class="math">\(2N/r_{\mathbb{P}}\)</span> where <span class="math">\(r_{\mathbb{P}}\)</span> is the order of the Pallas curve,
-and that is negligible because <span class="math">\(N \leq 2^{32} \ll r_{\mathbb{P}}\)</span>. This is
-also infeasible for a quantum adversary using a Grover search.</p>
+and that is negligible because <span class="math">\(N \leq 2^{32} \ll r_{\mathbb{P}}\)</span>.</p>
 
 <p>We&#8217;re not finished yet because we also have to prove that the nullifier is
 computed deterministically for a given note.</p>
@@ -1336,15 +1377,14 @@ derivations use post-quantum hashes (and <span class="math">\(\mathsf{ask} \maps
 is deterministic). <br>
 In particular, <span class="math">\(\mathsf{ivk}\)</span> is an essentially random function of
 <span class="math">\(\mathsf{sk}\)</span>, and so we expect that an adversary has no better attack
-than to search for values of <span class="math">\(\mathsf{sk}\)</span> (possibly using a Grover search)
+than to search for values of <span class="math">\(\mathsf{sk}\)</span>
 to find one that reproduces a given <span class="math">\(\mathsf{ivk}\)</span>. Since <span class="math">\(\mathsf{ivk}\)</span>
 must be an <span class="math">\(x\)</span>-coordinate of a Pallas curve point (see the note at the end of
 <a href="https://zips.z.cash/protocol/protocol.pdf#orchardkeycomponents">§ 4.2.3 Orchard Key Components</a>),
 it can take on <span class="math">\((r_{\mathbb{P}}-1)/2\)</span> values. So if there are <span class="math">\(T\)</span> targets
 the success probability for each attempt in a classical search is
 <span class="math">\(2T/(r_{\mathbb{P}}-1)\)</span>, which is negligible provided that
-<span class="math">\(T \ll r_{\mathbb{P}}\)</span>. This is also infeasible for a quantum adversary
-using a Grover search for reasonable values of <span class="math">\(T\)</span>.</p></li>
+<span class="math">\(T \ll r_{\mathbb{P}}\)</span>.</p></li>
 <li><p>Case <span class="math">\(\mathsf{qk} \neq \bot\)</span>: This case is almost the same except that
 <span class="math">\(\mathsf{ivk}\)</span> is now an essentially random function of
 <span class="math">\((\mathsf{nk}, \mathsf{ak}, \mathsf{qk})\)</span>. The success probability
@@ -1355,7 +1395,8 @@ case.</p></li>
 <p>The above security argument means that provided we also check the uses of
 <span class="math">\(\mathsf{H^{rcm}}\)</span> and <span class="math">\(\mathsf{H}^{\text{ψ}}\)</span> in the post-quantum
 <a href="#proposedrecoverystatement">Recovery Statement</a>, Orchard note commitments
-can be considered binding on all of the note fields.</p>
+can be considered binding on the note tuple
+<span class="math">\((\mathsf{rseed}, \mathsf{noterepr})\)</span>.</p>
 
 <p>Note that the argument associated with
 <a href="https://zips.z.cash/protocol/protocol.pdf#thmsinsemillaex">Theorem 5.4.4</a>
@@ -1367,25 +1408,6 @@ computing Sinsemilla inside a circuit.&#8221;) is not applicable when it is
 necessary to defend against a discrete-log-breaking or quantum adversary.
 Therefore, the post-quantum <a href="#proposedrecoverystatement">Recovery Statement</a>
 will need to use complete curve additions to implement Sinsemilla.</p>
-
-<h3 id="adaptationtothequantumsetting"><span class="section-heading">Adaptation to the quantum setting</span><span class="section-anchor"> <a rel="bookmark" href="#adaptationtothequantumsetting"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
-
-<p>In order to adapt this argument to the quantum setting, we need to consider
-<em>collapsing</em> hash functions as defined in <a href="#fn:25" title="see footnote" class="footnote"><sup>25</sup></a> <a href="#fn:26" title="see footnote" class="footnote"><sup>26</sup></a>.</p>
-
-<p>TODO: does <span class="math">\(\mathsf{Extract}_{\mathbb{P}}\)</span> cause any difficulty for lifting
-to QROM?</p>
-
-<p>By the argument in <a href="#fn:33" id="fnref:33" title="see footnote" class="footnote"><sup>33</sup></a>, the best known <em>generic</em> quantum
-attack on a hash function is simply the classical attack of <a href="#fn:34" id="fnref:34" title="see footnote" class="footnote"><sup>34</sup></a>.
-(In particular, the Brassard–Høyer–Tapp algorithm <a href="#fn:35" id="fnref:35" title="see footnote" class="footnote"><sup>35</sup></a> is entirely
-unimplementable for a 253-bit output size: to achieve the claimed speed-up,
-it would require running Grover&#8217;s algorithm with a quantum circuit that
-does random accesses to a <span class="math">\(2^{92.3}\)</span>-bit quantum memory.) Therefore, an
-output size of 253 bits does not exclude a hash function from being collapsing.</p>
-
-<p>TODO: discuss <a href="#fn:36" id="fnref:36" title="see footnote" class="footnote"><sup>36</sup></a> (sponge security), <a href="#fn:25" title="see footnote" class="footnote"><sup>25</sup></a> <a href="#fn:26" title="see footnote" class="footnote"><sup>26</sup></a>
-(collapse-binding property).</p>
 
 <h3 id="securityargumentforkeybinding"><span class="section-heading">Security argument for key binding</span><span class="section-anchor"> <a rel="bookmark" href="#securityargumentforkeybinding"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
 
@@ -1399,9 +1421,10 @@ Orchard properties need different components of the key witness pinned:</p>
 — the latter via the
 <a href="#lemma-prf-nf-pinning"><span class="math">\(\mathsf{PRF^{nf}}\)</span>-pinning lemma</a>):
 <span class="math">\(\mathsf{nk}\)</span> uniquely determined by <span class="math">\(\mathsf{ivk}\)</span>.</li>
-<li><strong>Spend Authorization</strong>: <span class="math">\(\mathsf{qk}\)</span> uniquely determined by
-<span class="math">\(\mathsf{ivk}\)</span> when <span class="math">\(\mathsf{qk} \neq \bot\)</span> (i.e., when
-<span class="math">\(\mathsf{use\_qsk} = \mathsf{true}\)</span>).</li>
+<li><strong>Spend Authorization</strong>: <span class="math">\(\mathsf{ak}\)</span> (up to <span class="math">\(y\)</span>-sign of
+<span class="math">\(\mathsf{ak}^{\mathbb{P}}\)</span>) uniquely determined by <span class="math">\(\mathsf{ivk}\)</span>;
+and <span class="math">\(\mathsf{qk}\)</span> uniquely determined by <span class="math">\(\mathsf{ivk}\)</span> when
+<span class="math">\(\mathsf{qk} \neq \bot\)</span> (i.e., when <span class="math">\(\mathsf{use\_qsk} = \mathsf{true}\)</span>).</li>
 </ul>
 
 <p>The formal key-binding condition stated below covers both of these
@@ -1525,18 +1548,28 @@ total queries to the random oracles used in the key-binding condition. Then
 <p><strong>Proof sketch.</strong></p>
 
 <p><em>Algebraic setup.</em>
-<span class="math">\(\mathsf{Commit^{ivk}_{rivk}}(\mathsf{ak}, \mathsf{nk})\)</span> is a Sinsemilla
-short commitment, of the form
-<span class="math">\(\mathsf{ShortHash}\big([h(\mathsf{ak}, \mathsf{nk}) + \mathsf{rivk}] \cdot \mathcal{S}\big)\)</span>
-for a Pedersen-like deterministic hash <span class="math">\(h\)</span> and a Sinsemilla base
-<span class="math">\(\mathcal{S}\)</span> (TODO: verify the exact form of <span class="math">\(h\)</span> and <span class="math">\(\mathcal{S}\)</span>
-from § 5.4.1.10 &#8216;Sinsemilla Commit Function&#8217;). Domain separation in
+By § 5.4.1.10 “Sinsemilla commitments”,
+<span class="math">\[\mathsf{Commit^{ivk}_{rivk}}(\mathsf{ak}, \mathsf{nk}) =
+\mathsf{Extract}_{\mathbb{P}}\big(M' + [\mathsf{rivk}]\, \mathcal{S}\big),\]</span>
+where <span class="math">\(\mathcal{S}\)</span> is the rivk-randomization base
+<span class="math">\[\mathcal{S} := \mathsf{GroupHash}^{\mathbb{P}}(\texttt{“z.cash:Orchard-CommitIvk-r”}, \texttt{“”}),\]</span>
+and
+<span class="math">\[M' := \mathsf{SinsemillaHashToPoint}\big(\texttt{“z.cash:Orchard-CommitIvk-M”},\;
+\mathsf{I2LEBSP}_{\ell^{\mathsf{Orchard}}_{\mathsf{base}}}(\mathsf{ak}) \,\Vert\,
+\mathsf{I2LEBSP}_{\ell^{\mathsf{Orchard}}_{\mathsf{base}}}(\mathsf{nk})\big).\]</span>
+By expanding the Sinsemilla bases used inside <span class="math">\(\mathsf{SinsemillaHashToPoint}\)</span>
+as scalar multiples of <span class="math">\(\mathcal{S}\)</span>, without loss of generality we have
+<span class="math">\(M' = [h(\mathsf{ak}, \mathsf{nk})]\, \mathcal{S}\)</span> for a Pedersen-like
+deterministic scalar hash <span class="math">\(h\)</span>, so
+<span class="math">\[\mathsf{Commit^{ivk}_{rivk}}(\mathsf{ak}, \mathsf{nk}) =
+\mathsf{Extract}_{\mathbb{P}}\big([h(\mathsf{ak}, \mathsf{nk}) + \mathsf{rivk}]\, \mathcal{S}\big).\]</span>
+Domain separation in
 the protocol&#8217;s BLAKE2b instantiations ensures <span class="math">\(h\)</span> does not query
 <span class="math">\(\mathsf{H^{rivk\_ext}}\)</span>, <span class="math">\(\mathsf{H^{rivk\_legacy}}\)</span>,
 <span class="math">\(\mathsf{H^{rivk\_int}}\)</span>, <span class="math">\(\mathsf{H^{ask}}\)</span>, or <span class="math">\(\mathsf{H^{nk}}\)</span>:
 <span class="math">\(h\)</span> depends only on fixed Sinsemilla bases and on <span class="math">\((\mathsf{ak}, \mathsf{nk})\)</span>.</p>
 
-<p>By the same <span class="math">\(y^2 = f(x)\)</span> argument used in the Spendability proof
+<p>By the same <span class="math">\(y^2 = Y(x)\)</span> argument used in the Spendability proof
 (using § 5.4.9.7 for the <span class="math">\(\mathsf{Extract}_{\mathbb{P}}\)</span>-style
 <span class="math">\(x\)</span>-coordinate convention), a key-binding break implies
 <span class="math">\[h(\mathsf{ak}, \mathsf{nk}) + \mathsf{rivk} \equiv \pm\big(h(\mathsf{ak}', \mathsf{nk}') + \mathsf{rivk}'\big) \pmod{r_{\mathbb{P}}}.\]</span>
@@ -1631,18 +1664,15 @@ upstream collisions in the both-internal sub-case — total at most
 <span class="math">\(\mathsf{H^{rivk\_int}}\)</span>, <span class="math">\(\mathsf{H^{ask}}\)</span>, <span class="math">\(\mathsf{H^{nk}}\)</span>) as a
 single combined uniform random oracle on the joint query domain (each
 RO contributes its outputs independently of the others), and
-union-bounding over the at most <span class="math">\(\binom{q_{\mathsf{kb}}}{2}\)</span> pairs
+union-bounding over the at most <span class="math">\({q_{\mathsf{kb}} \choose 2}\)</span> pairs
 of distinct witnesses,
 <span class="math">\[\varepsilon_{\mathsf{kb}}(\mathcal{A}, q_{\mathsf{kb}}) \leq \frac{3 q_{\mathsf{kb}}(q_{\mathsf{kb}}-1)}{2 r_{\mathbb{P}}}.\]</span></p>
-
-<p>(TODO: verify the exact form of <span class="math">\(h\)</span> and <span class="math">\(\mathcal{S}\)</span> from
-§ 5.4.1.10 &#8216;Sinsemilla Commit Function&#8217;.)</p>
 
 <h2 id="securityargumentforspendability"><span class="section-heading">Security argument for Spendability</span><span class="section-anchor"> <a rel="bookmark" href="#securityargumentforspendability"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
 <p>DeriveNullifier is based on a Pedersen hash. In the current Orchard
 protocol, the property that it is infeasible to find two distinct
-Orchard notes with the same nullifier (including possible nullfiers
+Orchard notes with the same nullifier (including possible nullifiers
 of split OrchardZSA notes), depends on the collision resistance of
 that hash, which would not hold against a discrete-log-breaking
 adversary.</p>
@@ -1673,8 +1703,8 @@ in § 4.16 ‘Computing ρ values and Nullifiers’ as:</p>
 
 <p>Also recall from <a href="#repairingnotecommitments">Repairing note commitments</a> that we have</p>
 
-<p><span class="math">\[\mathsf{cm} = [\mathsf{H^{rcm}_{rseed}}(\mathsf{leadByte}, \mathsf{noterepr})
- + \mathsf{f}(\mathsf{rseed}, \mathsf{leadByte}, \mathsf{noterepr})]\, \mathcal{R}.\]</span></p>
+<p><span class="math">\[\mathsf{cm} = [\mathsf{H^{rcm}_{rseed}}(\mathsf{noterepr})
+ + \mathsf{f}(\mathsf{rseed}, \mathsf{noterepr})]\, \mathcal{R}.\]</span></p>
 
 <p>Let <span class="math">\(K_{\kern-.08em\mathcal{R}}\)</span> denote the discrete logarithm of
 <span class="math">\(\mathcal{K}\)</span> with respect to <span class="math">\(\mathcal{R}\)</span>. This is well-defined and
@@ -1685,21 +1715,21 @@ respect to it; and <span class="math">\(\mathcal{K}\)</span> is non-identity by 
 <p>Recall that <span class="math">\(\text{ψ}\)</span> is determined by <span class="math">\(\mathsf{rseed}\)</span> via
 <span class="math">\(\text{ψ} = \mathsf{H}^{\text{ψ}}_{\mathsf{rseed}}(\text{ρ})\)</span>.
 The nullifier corresponding to
-<span class="math">\((\mathsf{nk}, \text{ρ}, \mathsf{rseed}, \mathsf{leadByte}, \mathsf{noterepr})\)</span>
+<span class="math">\((\mathsf{nk}, \text{ρ}, \mathsf{rseed}, \mathsf{noterepr})\)</span>
 is then
 <span class="math">\[\mathsf{Extract}_{\mathbb{P}}\Big(
 \big[
   \big((\mathsf{PRF^{nf}_{nk}}(\text{ρ}) + \text{ψ}) \bmod q_{\mathbb{P}}\big) \cdot K_{\kern-.08em\mathcal{R}}
-  + \mathsf{H^{rcm}_{rseed}}(\mathsf{leadByte}, \mathsf{noterepr}) + \mathsf{f}(\mathsf{rseed}, \mathsf{leadByte}, \mathsf{noterepr})
+  + \mathsf{H^{rcm}_{rseed}}(\mathsf{noterepr}) + \mathsf{f}(\mathsf{rseed}, \mathsf{noterepr})
 \big]\, \mathcal{R}
 \Big).\]</span></p>
 
 <p>We model <span class="math">\(\mathsf{H^{rcm}}\)</span> as a random oracle with output uniform on
 <span class="math">\(\mathbb{F}_{r_{\mathbb{P}}}\)</span>. The functions <span class="math">\(\mathsf{f}\)</span>,
 <span class="math">\(\mathsf{H}^{\text{ψ}}\)</span>, and <span class="math">\(\mathsf{PRF^{nf}}\)</span> are deterministic
-functions of <span class="math">\(\mathsf{notetuple}\)</span> that <strong>do not query <span class="math">\(\mathsf{H^{rcm}}\)</span></strong>:
-<span class="math">\(\mathsf{f}(\mathsf{rseed}, \mathsf{leadByte}, \mathsf{noterepr})\)</span> is the
-Sinsemilla-base lift; <span class="math">\(\mathsf{H}^{\text{ψ}}\)</span> and <span class="math">\(\mathsf{PRF^{nf}}\)</span> are
+functions of <span class="math">\(\mathsf{notetuple} = (\mathsf{rseed}, \mathsf{noterepr})\)</span>
+that <strong>do not query <span class="math">\(\mathsf{H^{rcm}}\)</span></strong>: <span class="math">\(\mathsf{f}(\mathsf{notetuple})\)</span>
+is the Sinsemilla-base lift; <span class="math">\(\mathsf{H}^{\text{ψ}}\)</span> and <span class="math">\(\mathsf{PRF^{nf}}\)</span> are
 conventional hash functions.</p>
 
 <blockquote>
@@ -1726,8 +1756,8 @@ small.</p>
 
 <p>We give a reduction-based argument that any classical adversary
 <span class="math">\(\mathcal{A}\)</span> in the Random Oracle Model attempting to find two valid
-<a href="#proposedrecoverystatement">Recovery Statement</a> witnesses for distinct
-underlying notes that have colliding nullifiers, succeeds with probability at most
+<a href="#proposedrecoverystatement">Recovery Statement</a> witnesses with distinct
+note tuples that have colliding nullifiers, succeeds with probability at most
 <span class="math">\(\frac{q_{\mathsf{rcm}}(q_{\mathsf{rcm}}-1)}{r_{\mathbb{P}}} + \varepsilon_{\mathsf{kb}}(\mathcal{A}, q_{\mathsf{kb}})\)</span>,
 where <span class="math">\(q_{\mathsf{rcm}}\)</span> is the number of queries <span class="math">\(\mathcal{A}\)</span> makes
 to <span class="math">\(\mathsf{H^{rcm}}\)</span>, and <span class="math">\(q_{\mathsf{kb}}\)</span> is as defined above.
@@ -1735,14 +1765,14 @@ The bound depends only on <span class="math">\(q_{\mathsf{rcm}}\)</span> and on
 <span class="math">\(\varepsilon_{\mathsf{kb}}(\mathcal{A}, q_{\mathsf{kb}})\)</span>,
 not on running time.</p>
 
-<p>The components <span class="math">\(\mathsf{rseed}, \mathsf{leadByte}, \mathsf{noterepr}\)</span>
+<p>The components <span class="math">\(\mathsf{rseed}, \mathsf{noterepr}\)</span>
 are fields of <span class="math">\(\mathsf{notetuple}\)</span> by definition; and <span class="math">\(\text{ρ}\)</span>,
 <span class="math">\(\mathsf{g_d}\)</span>, <span class="math">\(\mathsf{pk_d}\)</span>, and <span class="math">\(\text{ψ}\)</span> are fields of
 <span class="math">\(\mathsf{noterepr}\)</span>, hence of <span class="math">\(\mathsf{notetuple}\)</span>.</p>
 
 <p><strong><span class="math">\(\mathsf{ivk}\)</span>-pinning lemma.</strong> <a id="lemma-ivk-pinning"></a>
 For any valid Recovery Statement witness <span class="math">\(w\)</span> with
-<span class="math">\(\mathsf{notetuple} = (\mathsf{rseed}, \mathsf{leadByte}, \mathsf{noterepr})\)</span>,
+<span class="math">\(\mathsf{notetuple} = (\mathsf{rseed}, \mathsf{noterepr})\)</span>,
 the value <span class="math">\(\mathsf{ivk} = \log_{\mathsf{g_d}}(\mathsf{pk_d})\)</span> is
 well-defined, since <span class="math">\(\mathsf{g_d} \neq \mathcal{O}_{\mathbb{P}}\)</span> on the
 prime-order Pallas curve and
@@ -1761,11 +1791,11 @@ is a function of <span class="math">\(\mathsf{ivk}_i\)</span>, which is in turn 
 <span class="math">\(\text{ρ}_i\)</span> is a field of <span class="math">\(\mathsf{notetuple}_i\)</span>.</p>
 
 <p>The argument here covers nullifier-binding — it argues that <span class="math">\(\mathsf{nf}\)</span>
-binds the underlying note (<span class="math">\(\mathsf{noterepr}\)</span>, plus <span class="math">\(\mathsf{rseed}\)</span> and
-<span class="math">\(\mathsf{leadByte}\)</span>) under <span class="math">\(\mathsf{H^{rcm}}\)</span> modelled as a random oracle
+binds the note tuple <span class="math">\((\mathsf{rseed}, \mathsf{noterepr})\)</span>
+under <span class="math">\(\mathsf{H^{rcm}}\)</span> modelled as a random oracle
 and the <a href="#thm-key-binding-rom">key-binding theorem</a>.</p>
 
-<p><strong>Theorem (distinct-note Spendability, classical ROM).</strong> <a id="thm-spendability"></a>
+<p><strong>Theorem (distinct-notetuple Spendability, classical ROM).</strong> <a id="thm-spendability"></a>
 Let <span class="math">\(\mathcal{A}\)</span> be a classical adversary with oracle access to
 <span class="math">\(\mathsf{H^{rcm}}\)</span> having output uniform on <span class="math">\(\mathbb{F}_{r_{\mathbb{P}}}\)</span>,
 making at most <span class="math">\(q_{\mathsf{rcm}}\)</span> oracle queries. The <em>Spendability-collision</em>
@@ -1777,9 +1807,9 @@ satisfying:</p>
 <dd>both witnesses satisfy the
 <a href="#proposedrecoverystatement">Proposed Recovery Statement</a>.</dd>
 
-<dt><a id="thm-spendability-distinct"></a><strong>Distinct underlying notes</strong></dt>
+<dt><a id="thm-spendability-distinct"></a><strong>Distinct note tuples</strong></dt>
 <dd>the <span class="math">\(\mathsf{H^{rcm}}\)</span>-input tuples
-<span class="math">\(\mathsf{notetuple}_i := (\mathsf{rseed}_i, \mathsf{leadByte}_i, \mathsf{noterepr}_i)\)</span>
+<span class="math">\(\mathsf{notetuple}_i := (\mathsf{rseed}_i, \mathsf{noterepr}_i)\)</span>
 satisfy <span class="math">\(\mathsf{notetuple}_1 \neq \mathsf{notetuple}_2\)</span>.</dd>
 
 <dt><a id="thm-spendability-collide"></a><strong>Colliding nullifiers</strong></dt>
@@ -1794,7 +1824,7 @@ taken over the random oracle&#8217;s responses and any internal randomness of
 <span class="math">\(\mathcal{A}\)</span>.</p>
 
 <p>This bound is essentially tight against classical generic adversaries.
-Maurer <a href="#fn:37" id="fnref:37" title="see footnote" class="footnote"><sup>37</sup></a> (Section 2, p. 5) establishes a matching upper
+Maurer <a href="#fn:34" id="fnref:34" title="see footnote" class="footnote"><sup>34</sup></a> (Section 2, p. 5) establishes a matching upper
 bound of <span class="math">\({k \choose 2}/N\)</span> on the success probability of any
 classical algorithm in finding a collision against a random oracle with
 an <span class="math">\(N\)</span>-element output space using <span class="math">\(k\)</span> queries. Maurer&#8217;s bound applies
@@ -1804,7 +1834,7 @@ Applying Maurer with <span class="math">\(N = r_{\mathbb{P}}\)</span> (the <span
 output space) gives <span class="math">\({q_{\mathsf{rcm}} \choose 2}/r_{\mathbb{P}}\)</span> for
 the equality event; doubling for the sign relaxation gives our
 <span class="math">\(\frac{q_{\mathsf{rcm}}(q_{\mathsf{rcm}}-1)}{r_{\mathbb{P}}}\)</span> bound.
-Classical parallel collision search <a href="#fn:33" title="see footnote" class="footnote"><sup>33</sup></a> (top of p. 8)
+Classical parallel collision search <a href="#fn:35" id="fnref:35" title="see footnote" class="footnote"><sup>35</sup></a> (top of p. 8)
 achieves the equality-event regime up to a constant factor; the same
 adversaries achieve a constant fraction of the doubled bound for the
 <span class="math">\(\pm\)</span>-equivalence event.</p>
@@ -1813,7 +1843,7 @@ adversaries achieve a constant fraction of the doubled bound for the
 <span class="math">\(\mathcal{A}\)</span> makes at most <span class="math">\(q_{\mathsf{rcm}}\)</span> queries to
 <span class="math">\(\mathsf{H^{rcm}}\)</span> before outputting <span class="math">\((w_1, w_2)\)</span> satisfying
 <a href="#thm-spendability-validity"><strong>Validity of witnesses</strong></a>,
-<a href="#thm-spendability-distinct"><strong>Distinct underlying notes</strong></a>, and
+<a href="#thm-spendability-distinct"><strong>Distinct note tuples</strong></a>, and
 <a href="#thm-spendability-collide"><strong>Colliding nullifiers</strong></a>. The probability
 that <span class="math">\((w_1, w_2)\)</span> contains a key-binding break is at most
 <span class="math">\(\varepsilon_{\mathsf{kb}}(\mathcal{A}, q_{\mathsf{kb}})\)</span>; condition on
@@ -1832,14 +1862,14 @@ determined by <span class="math">\(\mathsf{notetuple}\)</span> via the
 <span class="math">\(F_i := \mathsf{F}(\mathsf{notetuple}_i)\)</span> for <span class="math">\(i \in \{1, 2\}\)</span>.</p>
 
 <p><span class="math">\(\mathsf{Extract}_{\mathbb{P}}\)</span> (§ 5.4.9.7 &#8216;Coordinate Extractor for
-Pallas&#8217; <a href="#fn:38" id="fnref:38" title="see footnote" class="footnote"><sup>38</sup></a>) is the <span class="math">\(x\)</span>-coordinate of
+Pallas&#8217; <a href="#fn:36" id="fnref:36" title="see footnote" class="footnote"><sup>36</sup></a>) is the <span class="math">\(x\)</span>-coordinate of
 its argument for non-identity points, with the identity mapping to <span class="math">\(0\)</span>.
-Since Pallas has the form <span class="math">\(y^2 = f(x)\)</span> and no Pallas point has
+Since Pallas has the form <span class="math">\(y^2 = Y(x)\)</span> and no Pallas point has
 <span class="math">\(x\)</span>-coordinate <span class="math">\(0\)</span>, the collision <span class="math">\(\mathsf{nf}_1 = \mathsf{nf}_2\)</span>
 holds iff <span class="math">\(F_1 \equiv \pm F_2 \pmod{r_{\mathbb{P}}}\)</span>.</p>
 
 <p><em>Independence claim per pair.</em>
-By <a href="#thm-spendability-distinct"><strong>Distinct underlying notes</strong></a>,
+By <a href="#thm-spendability-distinct"><strong>Distinct note tuples</strong></a>,
 <span class="math">\(\mathsf{notetuple}_1 \neq \mathsf{notetuple}_2\)</span>, so the
 <span class="math">\(\mathsf{H^{rcm}}\)</span> outputs at <span class="math">\(\mathsf{notetuple}_1, \mathsf{notetuple}_2\)</span>
 are independent uniform on <span class="math">\(\mathbb{F}_{r_{\mathbb{P}}}\)</span>. The
@@ -1852,7 +1882,7 @@ contribution scaled by <span class="math">\(K_{\kern-.08em\mathcal{R}}\)</span>)
 The win condition <span class="math">\(F_1 \equiv \pm F_2\)</span> is a linear constraint on a
 pair of independent uniform variables, satisfied with probability at
 most <span class="math">\(2/r_{\mathbb{P}}\)</span> (one per sign). Union-bounding over the at
-most <span class="math">\(\binom{q_{\mathsf{rcm}}}{2}\)</span> pairs of distinct
+most <span class="math">\({q_{\mathsf{rcm}} \choose 2}\)</span> pairs of distinct
 <span class="math">\(\mathsf{H^{rcm}}\)</span> queries:
 <span class="math">\[\Pr[\text{win} \mid \neg\,\text{break}] \leq \frac{q_{\mathsf{rcm}}(q_{\mathsf{rcm}}-1)}{r_{\mathbb{P}}}.\]</span>
 Decomposing on whether a key-binding break occurs and applying
@@ -1868,36 +1898,245 @@ Substituting, an adversary <span class="math">\(\mathcal{A}\)</span> that makes 
 wins the Spendability-collision game with probability at most
 <span class="math">\(\frac{q_{\mathsf{rcm}}(q_{\mathsf{rcm}}-1)}{r_{\mathbb{P}}} \;+\; \frac{3\, q_{\mathsf{kb}}(q_{\mathsf{kb}}-1)}{2\, r_{\mathbb{P}}}\)</span>.</p>
 
-<p>TODO (QROM lift): The reduction is straight-line and does not adaptively
-reprogram <span class="math">\(\mathsf{H^{rcm}}\)</span> on inputs the adversary may have queried in
-superposition, so we expect a clean lift to the quantum random-oracle
-model via standard QROM techniques <a href="#fn:25" title="see footnote" class="footnote"><sup>25</sup></a> <a href="#fn:26" title="see footnote" class="footnote"><sup>26</sup></a> <a href="#fn:30" title="see footnote" class="footnote"><sup>30</sup></a>
-<a href="#fn:31" title="see footnote" class="footnote"><sup>31</sup></a>, with at most a small loss factor. The technical conditions
-have not yet been verified.</p>
+<p>For the post-quantum lift of this bound and of the
+<a href="#thm-key-binding-rom">key-binding bound</a> above, see the next section.</p>
+
+<h2 id="adaptationtothequantumsetting"><span class="section-heading">Adaptation to the quantum setting</span><span class="section-anchor"> <a rel="bookmark" href="#adaptationtothequantumsetting"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>The classical-ROM proofs above (for <a href="#thm-key-binding-rom">key binding</a>
+and <a href="#thm-spendability-collide">Spendability</a>) rely on
+<span class="math">\(\mathsf{H^{rcm}}\)</span> and the various <span class="math">\(\mathsf{rivk}\)</span>-derivation hashes
+being collision-resistant. The natural quantum analog is called the
+<em>collapsing</em> property, introduced by Unruh <a href="#fn:26" title="see footnote" class="footnote"><sup>26</sup></a> <a href="#fn:27" title="see footnote" class="footnote"><sup>27</sup></a>.
+It says that even a quantum adversary holding a <em>superposition</em> over
+several preimages of a fixed output cannot tell —by any subsequent
+measurement— which preimage it now has. This is the right property
+for our reductions. Each proof above splits cases based on which oracle
+query produced the colliding output; that case analysis works the same
+classically and quantumly only if the underlying hash &#8220;collapses&#8221; the
+adversary&#8217;s superposition to a single classical preimage.</p>
+
+<p>Subsequent work has analyzed whether standard hash-function
+constructions inherit collapsing from their compression function. Unruh
+<a href="#fn:27" title="see footnote" class="footnote"><sup>27</sup></a> proved this for Merkle–Damgård (with a padding
+restriction); Czajkowski et al. <a href="#fn:37" id="fnref:37" title="see footnote" class="footnote"><sup>37</sup></a> for the <em>sponge</em>
+construction (the absorb-then-squeeze paradigm used by SHA-3 / Keccak),
+with <a href="#fn:33" title="see footnote" class="footnote"><sup>33</sup></a> strengthening the sponge result via the related notion
+of quantum indifferentiability. Fehr <a href="#fn:38" id="fnref:38" title="see footnote" class="footnote"><sup>38</sup></a> gave a unified
+algebraic framework that recovers these results and proves the
+collapsing property of HAIFA, a Merkle–Damgård variant with a
+per-iteration salt and counter. Gunsing and Mennink <a href="#fn:39" id="fnref:39" title="see footnote" class="footnote"><sup>39</sup></a> extended
+this kind of analysis to tree-hash constructions, relevant for the
+Recovery Protocol&#8217;s note-commitment tree.</p>
+
+<p>BLAKE2b uses HAIFA, so by Fehr&#8217;s theorem modelling <span class="math">\(\mathsf{H^{rcm}}\)</span>
+as collapsing reduces to modelling BLAKE2b&#8217;s compression function as
+collapsing. The &#8220;iv-preimage resistance&#8221; side condition Fehr&#8217;s theorem
+requires for arbitrary-length inputs is automatically satisfied if the
+compression function is modelled as a random oracle — which is also
+the modelling assumption underlying the classical-ROM analyses above.</p>
+
+<p>By the argument in <a href="#fn:35" title="see footnote" class="footnote"><sup>35</sup></a>, the best known <em>generic</em> quantum
+attack on a hash function is simply the classical attack of <a href="#fn:40" id="fnref:40" title="see footnote" class="footnote"><sup>40</sup></a>.
+(In particular, the Brassard–Høyer–Tapp algorithm <a href="#fn:41" id="fnref:41" title="see footnote" class="footnote"><sup>41</sup></a> is
+entirely unimplementable for a 253-bit output size: to achieve the
+claimed speed-up, it would require running Grover&#8217;s algorithm with a
+quantum circuit that does random accesses to a <span class="math">\(2^{92.3}\)</span>-bit quantum
+memory.) Therefore, an output size of 253 bits does not exclude a hash
+function from being collapsing.</p>
+
+<p><span class="math">\(\mathsf{Extract}_{\mathbb{P}}\)</span> does not interfere with the QROM lift:
+it is a deterministic 2-to-1 map on non-identity Pallas points (sending
+<span class="math">\(P\)</span> and <span class="math">\(-P\)</span> to the same <span class="math">\(x\)</span>-coordinate) and does not query
+<span class="math">\(\mathsf{H^{rcm}}\)</span> or any other random oracle, so it composes with the
+underlying random oracle the same way classically and quantumly. The
+factor of 2 from the 2-to-1 reduction is already absorbed into the
+break-probability bound (each <span class="math">\(\mathsf{cm}_x\)</span> has exactly two valid
+<span class="math">\(\mathsf{cm}\)</span> values, hence exactly two valid <span class="math">\(\mathsf{rcm}\)</span> values, as
+stated in the Spendability proof above).</p>
+
+<p>This factor-of-2 absorption relies on the
+<a href="https://en.wikipedia.org/wiki/Fiber_%28mathematics%29">fibres</a> <span class="math">\(\{P, -P\}\)</span>
+of <span class="math">\(\mathsf{Extract}_{\mathbb{P}}\)</span> forming a <em>uniform</em> partition of the
+non-identity points of <span class="math">\(\mathbb{P}\)</span> — the free <span class="math">\(\mathbb{Z}/2\)</span> negation action
+gives every fibre for non-identity points exactly size 2 — which is what lets
+birthday-style bounds substitute <span class="math">\(r_{\mathbb{P}} \to r_{\mathbb{P}}/2\)</span> cleanly.
+A non-uniform mapping would not admit such a substitution.</p>
+
+<h3 id="qromliftofthesecurityarguments"><span class="section-heading">QROM lift of the security arguments</span><span class="section-anchor"> <a rel="bookmark" href="#qromliftofthesecurityarguments"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>The classical-ROM reductions for both
+<a href="#thm-spendability-collide">Spendability</a> and
+<a href="#thm-key-binding-rom">key binding</a> satisfy the standard conditions for
+a &#8220;clean&#8221; lift to the quantum random-oracle model:</p>
+
+<ul>
+<li><em>Straight-line.</em> Neither reduction rewinds the adversary or measures
+intermediate state; both inspect the adversary&#8217;s classical output and
+bound the probability over the random oracles' randomness.
+Rewinding-based QROM techniques <a href="#fn:31" title="see footnote" class="footnote"><sup>31</sup></a> <a href="#fn:32" title="see footnote" class="footnote"><sup>32</sup></a> are therefore
+not needed.</li>
+<li><em>No adaptive reprogramming.</em> Both reductions treat their random
+oracles as fixed random functions throughout; neither reprograms
+responses to adversary-queried inputs.</li>
+</ul>
+
+<p><strong>Concrete QROM bounds.</strong> By Zhandry&#8217;s compressed-oracle technique
+<a href="#fn:42" id="fnref:42" title="see footnote" class="footnote"><sup>42</sup></a> (see also <a href="#fn:43" id="fnref:43" title="see footnote" class="footnote"><sup>43</sup></a> for a classical-style derivation),
+the classical <span class="math">\(q^2 / N\)</span> collision probability
+transfers to <span class="math">\(O(q^3 / N)\)</span> in QROM: an adversary making at most <span class="math">\(q\)</span>
+quantum queries to a random oracle with output space of size <span class="math">\(N\)</span>
+finds a collision with probability <span class="math">\(O(q^3 / N)\)</span>. Applied to our
+reductions:</p>
+
+<ul>
+<li><span class="math">\(\varepsilon^{\mathsf{QROM}}_{\mathsf{Spendability}} \leq O\!\left(q_{\mathsf{rcm}}^3 / r_{\mathbb{P}}\right) + \varepsilon^{\mathsf{QROM}}_{\mathsf{kb}}.\)</span></li>
+<li><span class="math">\(\varepsilon^{\mathsf{QROM}}_{\mathsf{kb}} \leq O\!\left(q_{\mathsf{kb}}^3 / r_{\mathbb{P}}\right).\)</span></li>
+</ul>
+
+<p>These are worst-case theoretical bounds. An adversary that saturates
+them would need to mount a BHT-style attack, which is unimplementable
+for a 253-bit output (as discussed above, the BHT algorithm would
+require a quantum circuit randomly accessing a <span class="math">\(2^{92.3}\)</span>-bit quantum
+memory). In practice the achievable bound remains close to the
+classical <span class="math">\(q^2 / r_{\mathbb{P}}\)</span>, since the best <em>known</em> generic
+quantum attack is the classical attack of <a href="#fn:40" title="see footnote" class="footnote"><sup>40</sup></a> — Bernstein
+<a href="#fn:35" title="see footnote" class="footnote"><sup>35</sup></a> is careful to flag this as best-known rather than
+provably best.</p>
+
+<p>For the parameters relevant to Zcash (<span class="math">\(q_{\mathsf{rcm}},
+q_{\mathsf{kb}} \ll 2^{60}\)</span> and <span class="math">\(r_{\mathbb{P}} \approx 2^{254}\)</span>),
+the <span class="math">\(O(q^3 / r_{\mathbb{P}})\)</span> worst-case bound is at most
+<span class="math">\(\sim 2^{-74}\)</span>, while the practically achievable
+<span class="math">\(O(q^2 / r_{\mathbb{P}})\)</span> bound stays closer to <span class="math">\(\sim 2^{-134}\)</span>.</p>
 
 <h2 id="effectsofdiscrete-log-breakingattacksbeforetheswitchtotherecoveryprotocol"><span class="section-heading">Effects of discrete-log-breaking attacks before the switch to the Recovery Protocol</span><span class="section-anchor"> <a rel="bookmark" href="#effectsofdiscrete-log-breakingattacksbeforetheswitchtotherecoveryprotocol"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
-<p>TBD: explain that such attacks can break Balance and Spendability, including
-Spendability for transactions after switching to the Recovery Protocol.</p>
+<p>A practical discrete-log-breaking attack —either by a sufficiently large quantum
+computer running Shor&#8217;s algorithm, or a major advance in classical cryptanalysis
+of the discrete logarithm or Diffie–Hellman problems— would compromise the
+cryptographic primitives underlying Zcash&#8217;s shielded protocols.</p>
 
-<p>Note that with <a href="#deployment">Deployment</a> option 2 (deploying at the same time as
-v6 transactions), we can identify the precise set of note commitments for
-recoverable (lead byte <span class="math">\(\mathtt{0x03}\)</span>) Orchard notes, since they are exactly
-the commitments for Orchard outputs of v6 transactions. However, we cannot
-identify the precise set of nullifiers for recoverable notes: an Orchard action
-in a v6 transaction could be spending either a recoverable or non-recoverable
-note, and their nullifier sets are indistinguishable.</p>
+<p>Note and value commitments in Orchard[ZSA] and Sapling are Pedersen-style and
+lose binding; the proof systems used in the shielded protocols (Halo 2 over
+Vesta in Orchard[ZSA], Groth16 over BLS12&#8211;381 in Sapling or Sprout) lose
+soundness; and the RedDSA binding and spend authorization signatures in
+Orchard[ZSA] and Sapling can be forged. Sprout&#8217;s note commitments are
+SHA-256-based and survive a discrete log break, but the broken proof system is
+sufficient to forge JoinSplit statements, and the Ed25519 spend authorization
+and JoinSplit signatures can be forged. In addition, the ECDSA signatures used
+for transparent spend authentication can be forged.</p>
 
-<p>On the other hand, within the Recovery Statement we know that the
-note being spent is recoverable.</p>
+<p>The combined effect is severe. An adversary can:</p>
+
+<ul>
+<li>break Balance for the Sapling or Orchard pools by forging value-commitment
+openings or binding signatures;</li>
+<li>break Balance for the Sprout, Sapling, or Orchard pools by forging Groth16 or
+Halo 2 proofs of balanced transactions;</li>
+<li>break Spend authentication (i.e. steal funds, independently of a Balance break)
+for the Sprout, Sapling, or Orchard pools by forging alternative note witnesses
+for any commitment on chain, or by forging Groth16 or Halo 2 proofs of valid
+spends;</li>
+<li>break Spend authentication for the Sapling or Orchard pools by forging RedJubjub
+or RedPallas spend authorization signatures, or for the transparent pool by
+forging ECDSA-over-secp256k1 signatures used in scripts;</li>
+<li>break Spendability via roadblock or Faerie Gold attacks, preventing users from
+spending their own funds;</li>
+<li>break Privacy of note plaintexts by finding the <span class="math">\(\mathsf{ivk}\)</span> for a known
+Sapling or Orchard address, or the <span class="math">\(\mathsf{sk_{enc}}\)</span> for a known Sprout
+address, or by breaking the Diffie–Hellman-based note encryption (again only
+for a known recipient address).</li>
+</ul>
+
+<p>Attacks on transparent spend authentication are not addressed by this proposal.
+<a href="#fn:44" id="fnref:44" title="see footnote" class="footnote"><sup>44</sup></a> discusses these attacks in the context of Bitcoin. For Zcash, we
+should note that P2PK and legacy P2MS (non-P2SH) scripts have never been
+supported by Zcash wallets, but Zcash is vulnerable to &#8220;on-spend&#8221; attacks in a
+similar way to Bitcoin, with the additional consideration that some Zcash
+wallets might be more likely to reuse transparent addresses. The discussion of
+Segwit is not relevant to Zcash.</p>
+
+<h2 id="effectsofdiscrete-log-breakingattacksaftertheswitchtotherecoveryprotocol"><span class="section-heading">Effects of discrete-log-breaking attacks after the switch to the Recovery Protocol</span><span class="section-anchor"> <a rel="bookmark" href="#effectsofdiscrete-log-breakingattacksaftertheswitchtotherecoveryprotocol"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>We assume for this section that the legacy Orchard, OrchardZSA (if deployed),
+Sapling, and Sprout protocols will be switched off. Any remaining funds in
+the Sapling and Sprout pools, as well as funds in non-recoverable Orchard notes,
+would be rendered permanently unspendable.</p>
+
+<p>The Balance, Spend authentication, and Spendability attacks are possible only
+<em>before</em> the switch to the Recovery Protocol — that is, while legacy Orchard,
+Sapling, and (if ZIP 2003 is not deployed first <a href="#fn:45" id="fnref:45" title="see footnote" class="footnote"><sup>45</sup></a>) Sprout spends are
+still accepted by the consensus rules.</p>
+
+<p>If a balance violation occurred in any pool before its protocol was switched
+off, it would not necessarily be detected. The only constraint on such attacks
+is the ZIP 209 turnstile mechanism <a href="#fn:46" id="fnref:46" title="see footnote" class="footnote"><sup>46</sup></a>. If there were evidence of
+balance violation having occurred, confidence in Zcash as a whole could
+potentially be undermined despite the turnstile constraints (especially if the
+violation was in the largest pool, currently Orchard). Therefore, it will be
+essential to ensure that the pre-quantum protocols are switched off well in
+advance of the potential availability of cryptographically relevant quantum
+computers.</p>
+
+<p>If the transparent protocol is not switched off, then the situation with respect
+to transparent spend authentication is unchanged. Balance for the transparent
+protocol cannot be violated directly by a discrete-log break (but funds created
+by a balance violation in a shielded pool can be moved into the transparent pool
+up to that shielded pool&#8217;s turnstile limit).</p>
+
+<p>The changes made by ZIP 2005 are only intended to address Balance preservation,
+Spend authentication, and Spendability for recoverable Orchard[ZSA] notes. The
+situation with respect to Privacy is unchanged for any pool.</p>
+
+<p>In particular, the note encryption for Orchard[ZSA], Sapling, and Sprout pools
+is subject to &#8220;Harvest Now, Decrypt Later&#8221; attacks: that is, a
+discrete-log-breaking attack can be performed as long as an adversary has both
+the ciphertext (which is published on the block chain) and the recipient
+address. Other protocol changes are under consideration to mitigate this risk
+for future transfers.</p>
+
+<p>Due to the zero-knowledge property, Groth16 and Halo 2 proofs do not leak
+further information relevant to Privacy when addresses are unknown. The same is
+true of Sapling or Orchard[ZSA] spend authentication signatures, due to key
+rerandomization.</p>
+
+<h2 id="attacksaddressedbytherecoveryprotocol"><span class="section-heading">Attacks addressed by the Recovery Protocol</span><span class="section-anchor"> <a rel="bookmark" href="#attacksaddressedbytherecoveryprotocol"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>The Recovery Statement&#8217;s <span class="math">\(\mathsf{BindKeys}\)</span> constraint pins the key witness via
+<span class="math">\(\mathsf{PRF^{expand}}\)</span> (modelled as collapsing), not via discrete-log hardness.
+So (if no mistakes are made in the design or instantiation), fresh Balance,
+Spend authentication, or Spendability attacks against the Recovery Protocol
+should require breaking post-quantum binding rather than just discrete logs.
+Funds in recoverable Orchard notes can therefore be spent through the Recovery
+Protocol after the switch. However, if the adversary attacked either
+Spendability (e.g. via a roadblock attack) or Spend authorization before the
+switch to the Recovery Protocol, then it could affect the legitimate holder&#8217;s
+ability to spend the funds afterward. The window between
+<span class="math">\(\mathsf{ZIP2005ActivationHeight}\)</span> and the switch is the critical exposure
+period for recoverable Orchard funds.</p>
+
+<p>Note that we can precisely identify the set of note commitments for recoverable
+Orchard notes in v6 transactions, even if we cannot decrypt them, since only
+recoverable notes are allowed in that case. However, Orchard notes in v5
+transactions after <span class="math">\(\mathsf{ZIP2005ActivationHeight}\)</span> could be either
+recoverable or not.</p>
+
+<p>We cannot identify the precise set of nullifiers for recoverable notes: an
+Orchard action in a v6 transaction could be spending either a recoverable or
+non-recoverable note, and their nullifier sets are indistinguishable.</p>
+
+<p>On the other hand, within the Recovery Statement we know that the note being
+spent is recoverable.</p>
 
 <h1 id="deployment"><span class="section-heading">Deployment</span><span class="section-anchor"> <a rel="bookmark" href="#deployment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
 
-<p>As far as I&#8217;m aware, all existing Zcash wallets already derive
-<span class="math">\((\mathsf{ak}, \mathsf{nk}, \mathsf{rivk})\)</span> from a spending key
-<span class="math">\(\mathsf{sk}\)</span> in the way specified for the
-<span class="math">\(\mathsf{use\_qsk} = \mathsf{false}\)</span> case in
-§ 4.2.3 ‘Orchard Key Components’ <a href="#fn:14" title="see footnote" class="footnote"><sup>14</sup></a>.</p>
+<p>Let <span class="math">\(\mathsf{ZIP2005ActivationHeight}\)</span> be {{TBD}}.</p>
+
+<p>As far as the author of this ZIP is aware, all existing Zcash wallets already
+derive <span class="math">\((\mathsf{ak}, \mathsf{nk}, \mathsf{rivk})\)</span> from a spending key
+<span class="math">\(\mathsf{sk}\)</span> in the way specified for the <span class="math">\(\mathsf{use\_qsk} = \mathsf{false}\)</span>
+case in § 4.2.3 ‘Orchard Key Components’ <a href="#fn:14" title="see footnote" class="footnote"><sup>14</sup></a>.</p>
 
 <p>FROST distributed key generation requires the <span class="math">\(\mathsf{use\_qsk} = \mathsf{true}\)</span> case.
 There is no significant existing deployment of FROST, so we can
@@ -1911,28 +2150,25 @@ doing it this way involves fewer components. This also allows us to avoid
 any security compromise and use 256-bit cryptovalues for both integrity
 and randomization, which would otherwise have been difficult.</p>
 
-<p>There are two options for deployment:</p>
+<p>Two options were considered for deployment:</p>
 
 <ol>
-<li>Deploy this change prior to the next network upgrade. This would
-optimize time-to-deployment. An activation height is still needed
-so that wallets do not start sending recoverable note plaintexts
-before the receiving wallet can have been expected to upgrade.</li>
+<li>Deploy this change prior to the next network upgrade. This optimizes
+time-to-deployment. An activation height is still needed, in order to
+identify a height from which wallets must re-scan if they are missing
+recoverable notes due to late deployment.</li>
 <li>Deploy this change at the same time as the next network upgrade (NU7),
 at the same time as v6 transactions.</li>
 </ol>
 
-<p>With either option, it is proposed to enforce this change with v6
-transactions. That is, every Orchard output of a v6-onward transaction
-will be a recoverable note. This implies that when the pre-quantum
-protocol is turned off, v5 and earlier outputs will no longer be spendable.</p>
+<p>With either option, it is proposed to enforce this change with v6 transactions.
+That is, every Orchard output of a v6-onward transaction will be a recoverable
+note.</p>
 
-<p>Deploying via a transaction-version bump (rather than as a soft addition
-within v5) reduces the risk of the kind of difficulties that occurred with
-<a href="https://zips.z.cash/zip-0212">ZIP 212</a>, where some wallets were following
-the old protocol after the Canopy upgrade and sending non-conformant note
-plaintexts. If memo bundles or ZSAs are deployed simultaneously, those
-changes share the same version-bump signal.</p>
+<p>This ZIP currently reflects the first option. The risk of some wallets
+not having deployed support for receiving the new note plaintext format
+is mitigated by initially only using that format for note plaintexts sent
+to wallet-internal addresses.</p>
 
 <p>When a compliant wallet receives an Orchard note with lead byte
 <span class="math">\(\mathtt{0x02}\)</span>, the associated funds are not recoverable and need to be
@@ -2015,91 +2251,123 @@ manipulate the note selection algorithm to some extent.</p>
 </li>
 
 <li id="fn:17">
-<p><a href="protocol/protocol.pdf#saplingsend">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 4.7.2: Sending Notes (Sapling)</a> <a href="#fnref:17" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://github.com/zcash/zips/pull/1156">ZIP 248: Extensible Transaction Format (PR: zcash/zips#1156)</a> <a href="#fnref:17" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:18">
-<p><a href="protocol/protocol.pdf#orchardsend">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 4.7.3: Sending Notes (Orchard)</a> <a href="#fnref:18" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="protocol/protocol.pdf#saplingsend">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 4.7.2: Sending Notes (Sapling)</a> <a href="#fnref:18" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:19">
-<p><a href="protocol/protocol.pdf#saplingandorchardinband">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 4.20: In-band secret distribution (Sapling and Orchard)</a> <a href="#fnref:19" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="protocol/protocol.pdf#orchardsend">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 4.7.3: Sending Notes (Orchard)</a> <a href="#fnref:19" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:20">
-<p><a href="protocol/protocol.pdf#constants">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.3: Constants</a> <a href="#fnref:20" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="protocol/protocol.pdf#saplingandorchardinband">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 4.20: In-band secret distribution (Sapling and Orchard)</a> <a href="#fnref:20" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:21">
-<p><a href="zip-0312#key-generation">ZIP 312: FROST for Spend Authorization Multisignatures — Key Generation</a> <a href="#fnref:21" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="protocol/protocol.pdf#constants">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.3: Constants</a> <a href="#fnref:21" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:22">
-<p><a href="https://github.com/BLAKE3-team/BLAKE3-specs/blob/master/blake3.pdf">BLAKE3: One Function, Fast Everywhere. Jack O&#8217;Connor, Jean-Philippe Aumasson, Samuel Neves, and Zooko Wilcox-O&#8217;Hearn, 2020.</a> See § 2.1.2 for the <code>derive_key</code> mode. <a href="#fnref:22" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="zip-0312#key-generation">ZIP 312: FROST for Spend Authorization Multisignatures — Key Generation</a> <a href="#fnref:22" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:23">
-<p><a href="zip-0226#split-notes">ZIP 226: Transfer and Burn of Zcash Shielded Assets — Split Notes</a> <a href="#fnref:23" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://github.com/BLAKE3-team/BLAKE3-specs/blob/master/blake3.pdf">BLAKE3: One Function, Fast Everywhere. Jack O&#8217;Connor, Jean-Philippe Aumasson, Samuel Neves, and Zooko Wilcox, 2020.</a> See § 2.1.2 for the <code>derive_key</code> mode. <a href="#fnref:23" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:24">
-<p>Understanding Zcash Security (<a href="https://www.youtube.com/watch?v=f6UToqiIdeY">video</a>, <a href="https://raw.githubusercontent.com/daira/zcash-security/main/zcash-security.pdf">slides</a>). Presentation by Daira-Emma Hopwood at Zcon3. <a href="#fnref:24" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="zip-0226#split-notes">ZIP 226: Transfer and Burn of Zcash Shielded Assets — Split Notes</a> <a href="#fnref:24" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:25">
-<p><a href="https://eprint.iacr.org/2015/361">Computationally binding quantum commitments. Dominique Unruh.</a> <a href="#fnref:25" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p>Understanding Zcash Security (<a href="https://www.youtube.com/watch?v=f6UToqiIdeY">video</a>, <a href="https://raw.githubusercontent.com/daira/zcash-security/main/zcash-security.pdf">slides</a>). Presentation by Daira-Emma Hopwood at Zcon3. <a href="#fnref:25" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:26">
-<p><a href="https://eprint.iacr.org/2016/508">Collapse-binding quantum commitments without random oracles. Dominique Unruh.</a> <a href="#fnref:26" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://eprint.iacr.org/2015/361">Computationally binding quantum commitments. Dominique Unruh.</a>. Also published in EUROCRYPT 2016, LNCS vol. 9666. <a href="#fnref:26" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:27">
-<p><a href="protocol/protocol.pdf#concretespendauthsig">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.4.7.1: Spend Authorization Signature (Sapling and Orchard)</a> <a href="#fnref:27" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://eprint.iacr.org/2016/508">Collapse-binding quantum commitments without random oracles. Dominique Unruh.</a>. Also published in ASIACRYPT 2016, LNCS vol. 10032. <a href="#fnref:27" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:28">
-<p><a href="protocol/protocol.pdf#concretesinsemillahash">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.4.1.9: Sinsemilla Hash Function</a> <a href="#fnref:28" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="protocol/protocol.pdf#concretespendauthsig">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.4.7.1: Spend Authorization Signature (Sapling and Orchard)</a> <a href="#fnref:28" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:29">
-<p><a href="protocol/protocol.pdf#sinsemillasecurity">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.4.1.9: Sinsemilla Hash Function — Security argument</a> <a href="#fnref:29" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="protocol/protocol.pdf#concretesinsemillahash">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.4.1.9: Sinsemilla Hash Function</a> <a href="#fnref:29" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:30">
-<p><a href="https://eprint.iacr.org/2021/334">Post-Quantum Succinct Arguments: Breaking the Quantum Rewinding Barrier. Alessandro Chiesa, Fermi Ma, Nicholas Spooner, and Mark Zhandr.</a> <a href="#fnref:30" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="protocol/protocol.pdf#sinsemillasecurity">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.4.1.9: Sinsemilla Hash Function — Security argument</a> <a href="#fnref:30" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:31">
-<p><a href="https://eprint.iacr.org/2025/947">Quantum Rewinding for IOP-Based Succinct Arguments. Alessandro Chiesa, Marcel Dall&#8217;Agnol, Zijing Di, Ziyi Guan, and Nicholas Spooner.</a> <a href="#fnref:31" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://eprint.iacr.org/2021/334">Post-Quantum Succinct Arguments: Breaking the Quantum Rewinding Barrier. Alessandro Chiesa, Fermi Ma, Nicholas Spooner, and Mark Zhandr.</a>. Also published in FOCS 2021. <a href="#fnref:31" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:32">
-<p><a href="https://eprint.iacr.org/2025/731">The Sponge is Quantum Indifferentiable. Gorjan Alagic, Joseph Carolan, Christian Majenz, and Saliha Tokat.</a> <a href="#fnref:32" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://eprint.iacr.org/2025/947">Quantum Rewinding for IOP-Based Succinct Arguments. Alessandro Chiesa, Marcel Dall&#8217;Agnol, Zijing Di, Ziyi Guan, and Nicholas Spooner.</a> <a href="#fnref:32" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:33">
-<p><a href="https://cr.yp.to/hash/collisioncost-20090517.pdf">Cost analysis of hash collisions: Will quantum computers make SHARCS obsolete? Daniel J. Bernstein.</a> <a href="#fnref:33" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://eprint.iacr.org/2025/731">The Sponge is Quantum Indifferentiable. Gorjan Alagic, Joseph Carolan, Christian Majenz, and Saliha Tokat.</a> <a href="#fnref:33" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:34">
-<p><a href="https://link.springer.com/article/10.1007/PL00003816">Parallel collision search with cryptanalytic applications. Paul C. van Oorschot and Michael Wiener.</a> <a href="#fnref:34" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://crypto.ethz.ch/publications/files/Maurer02.pdf">Indistinguishability of Random Systems. Ueli Maurer.</a>. Also published in Advances in Cryptology — EUROCRYPT 2002, LNCS vol. 2332, pp. 110–132. <a href="#fnref:34" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:35">
-<p><a href="https://arxiv.org/abs/quant-ph/9705002">Quantum Algorithm for the Collision Problem. Gilles Brassard, Peter Høyer, and Alain Tapp.</a> <a href="#fnref:35" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://cr.yp.to/hash/collisioncost-20090517.pdf">Cost analysis of hash collisions: Will quantum computers make SHARCS obsolete? Daniel J. Bernstein.</a>. Presented at SHARCS 2009. <a href="#fnref:35" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:36">
-<p><a href="https://eprint.iacr.org/2017/771">Post-quantum security of the sponge construction. Jan Czajkowski, Leon Groot Bruinderink, Andreas Hülsing, Christian Schaffner, and Dominique Unruh.</a> <a href="#fnref:36" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="protocol/protocol.pdf#concreteextractorpallas">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.4.9.7: Coordinate Extractor for Pallas</a> <a href="#fnref:36" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:37">
-<p><a href="https://crypto.ethz.ch/publications/files/Maurer02.pdf">Indistinguishability of Random Systems. Ueli Maurer.</a> Advances in Cryptology — EUROCRYPT 2002, LNCS vol. 2332, pp. 110–132. <a href="#fnref:37" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://eprint.iacr.org/2017/771">Post-quantum security of the sponge construction. Jan Czajkowski, Leon Groot Bruinderink, Andreas Hülsing, Christian Schaffner, and Dominique Unruh.</a>. Also published in PQCrypto 2018, LNCS vol. 10786. <a href="#fnref:37" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:38">
-<p><a href="protocol/protocol.pdf#concreteextractorpallas">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.4.9.7: Coordinate Extractor for Pallas</a> <a href="#fnref:38" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://eprint.iacr.org/2018/887">Classical Proofs for the Quantum Collapsing Property of Classical Hash Functions. Serge Fehr.</a>. Also published in TCC 2018, LNCS vol. 11240, pp. 315–338. <a href="#fnref:38" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:39">
+<p><a href="https://eprint.iacr.org/2022/248">Collapseability of Tree Hashes. Aldo Gunsing and Bart Mennink.</a>. Also published in PQCrypto 2020, LNCS vol. 12100, pp. 524–544. <a href="#fnref:39" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:40">
+<p><a href="https://link.springer.com/article/10.1007/PL00003816">Parallel collision search with cryptanalytic applications. Paul C. van Oorschot and Michael Wiener.</a> <a href="#fnref:40" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:41">
+<p><a href="https://arxiv.org/abs/quant-ph/9705002">Quantum Algorithm for the Collision Problem. Gilles Brassard, Peter Høyer, and Alain Tapp.</a>. Also published in LATIN 1998, LNCS vol. 1380, pp. 163–169. <a href="#fnref:41" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:42">
+<p><a href="https://eprint.iacr.org/2018/276">How to Record Quantum Queries, and Applications to Quantum Indifferentiability. Mark Zhandry.</a>. Also published in CRYPTO 2019, LNCS vol. 11693. <a href="#fnref:42" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:43">
+<p><a href="https://eprint.iacr.org/2020/1305">On the Compressed-Oracle Technique, and Post-Quantum Security of Proofs of Sequential Work. Kai-Min Chung, Serge Fehr, Yu-Hsuan Huang, and Tai-Ning Liao.</a>. Also published in EUROCRYPT 2021, LNCS vol. 12826. <a href="#fnref:43" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:44">
+<p><a href="https://quantumai.google/static/site-assets/downloads/cryptocurrency-whitepaper.pdf">Securing Elliptic Curve Cryptocurrencies against Quantum Vulnerabilities: Resource Estimates and Mitigations. Ryan Babbush, Adam Zalcman, Craig Gidney, Michael Broughton, Tanuj Khattar, Hartmut Neven, Thiago Bergamaschi, Justin Drake, and Dan Boneh</a> <a href="#fnref:44" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:45">
+<p><a href="zip-2003">ZIP 2003: Disallow version 4 transactions</a> <a href="#fnref:45" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:46">
+<p><a href="zip-0209">ZIP 209: Prohibit Negative Shielded Chain Value Pool Balances</a> <a href="#fnref:46" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 </ol>
