@@ -278,7 +278,7 @@ list of integer constants.
 
 In § 5.3 'Constants', define:
 
-$$\mathsf{PostNU7PoWAveragingWindow} := 51$$
+$$\mathsf{PostNU7PoWAveragingWindow} := 102$$
 
 In § 7.7.3 'Difficulty adjustment', redefine
 $\mathsf{PoWAveragingWindow}$ as a height-dependent function:
@@ -485,37 +485,38 @@ measured in blocks (marked "No change"):
 | Constant                                    | Current | Post-activation | Notes |
 |---------------------------------------------|---------|-----------------|-------|
 | `COINBASE_MATURITY`                         | 100     | 100             | No change; |
-| `MAX_REORG_LENGTH`                          | 99      | 300             | Scale by 3; decoupled from `COINBASE_MATURITY` |
+| `MAX_REORG_LENGTH`                          | 99      | 600             | Scale by 6; decoupled from `COINBASE_MATURITY` |
 | `TX_EXPIRING_SOON_THRESHOLD`                | 3       | 3               | No change; |
 | `MAX_BLOCKS_IN_TRANSIT_PER_PEER`            | 16      | 48              | Scale by 3 |
 | `BLOCK_DOWNLOAD_WINDOW`                     | 1024    | 3072            | Scale by 3 |
 | `MIN_BLOCKS_TO_KEEP`                        | 288     | 864             | Scale by 3; keep 6 hours worth of blocks |
 | `NETWORK_UPGRADE_PEER_PREFERENCE_BLOCK_PERIOD` | 1728 | 1728           | No change;  |
 
-Zebra's `MAX_REORG_LENGTH` is currently 100, set just below
-`COINBASE_MATURITY` by Bitcoin-inherited convention. At Bitcoin's
-10-minute spacing 100 blocks covers about 16.7 hours, at Zcash's
-current 75-second spacing about 125 minutes, and at NU7's proposed
-25-second spacing only about 42 minutes. Recent incidents show
-consensus splits can persist beyond tens of minutes. For example,
-Litecoin's April 2026 MWEB incident produced a 13-block invalid
-chain that was later reorged out, with a ~3-hour recovery window
-per the postmortem [^litecoin-mweb-incident].
-
 This proposal is fundamentally about decreasing the target
 spacing, which makes the wall-clock margin shorter for any given
-`MAX_REORG_LENGTH`. The optimal long-term value for that parameter
-likely needs to change further in the future, but that is out of
-scope here. The change in this proposal is the minimum needed to
-avoid making the problem worse. Raising `MAX_REORG_LENGTH` to 300
-blocks preserves the current ~125 minute window at 25-second
-spacing, while `COINBASE_MATURITY` remains 100.
+`MAX_REORG_LENGTH`. Zebra's `MAX_REORG_LENGTH` is currently 99, set
+just below `COINBASE_MATURITY` (= 100) by Bitcoin-inherited
+convention. At Zcash's launch 150-second spacing it covered about
+4.2 hours, at the current 75-second spacing about 125 minutes, and
+at NU7's proposed 25-second spacing only about 42 minutes. 
+
+Recent incidents show consensus splits can persist beyond tens of minutes:
+for example, Litecoin's April 2026 MWEB incident produced a
+13-block invalid chain that was later reorged out, with a ~3-hour
+recovery window per the postmortem [^litecoin-mweb-incident]. The
+optimal long-term value for `MAX_REORG_LENGTH` likely needs to
+change further in the future, but that is out of scope here.
+Raising it to 600 blocks restores the ~4.2-hour wall-clock window
+it provided at Zcash's launch 150-second target spacing, while
+`COINBASE_MATURITY` remains 100. This is more conservative than the
+~125-minute window at today's 75-second spacing. Given the incident
+above and that the launch 150-second-spacing value predates this
+line of evidence, restoring the launch wall-clock margin is the
+safer choice.
 
 This deliberately means that a supported reorg may invalidate a
 mature coinbase output. That case is already a valid consequence
-of deep PoW reorgs in the abstract protocol model. Zebra will now
-handle such reorgs rather than reject them at the old 100-block
-bound.
+of deep PoW reorgs in the abstract protocol model. 
 
 ### Anchor selection depth
 
@@ -654,12 +655,15 @@ forward.
 
 ## Difficulty averaging window [difficulty-averaging-window]
 
-This proposal increases $\mathsf{PoWAveragingWindow}$ from 17 to 51 at
-NU7 activation (specified in
-[Averaging window](#averaging-window) under Consensus changes), so the
-wall-clock smoothing window stays at
-$51 \times 25 = 17 \times 75 = 1{,}275$ seconds rather than
-contracting threefold.
+This proposal increases $\mathsf{PoWAveragingWindow}$ from 17 to 102
+at NU7 activation (specified in
+[Averaging window](#averaging-window) under Consensus changes), so
+that the wall-clock smoothing window is
+$102 \times 25 = 17 \times 150 = 2{,}550$ seconds — the same
+wall-clock window the value $\mathsf{PoWAveragingWindow} = 17$ was
+originally chosen to provide at Zcash's launch target spacing of
+150 s. At today's 75 s spacing the same value covers only 1,275 s,
+and at NU7's proposed 25 s spacing it would cover only 425 s.
 
 The motivations are:
 
@@ -684,9 +688,10 @@ target within 62 blocks of NU7 activation:
 | $\leq 30$ s           | 30                      | \~21 min   |
 | $\leq 26.25$ s        | 62                      | \~36 min   |
 
-Setting $\mathsf{PoWAveragingWindow} = 51$ is expected to require
-roughly 3× as many blocks to cross each threshold, which is the same
-wall-clock duration as today.
+Setting $\mathsf{PoWAveragingWindow} = 102$ is expected to require
+roughly 6× as many blocks to cross each threshold, which is the
+same wall-clock duration as recovery would have taken at Zcash's
+launch 150 s spacing with $\mathsf{PoWAveragingWindow} = 17$.
 
 For a real-world reference point, the Blossom upgrade [^zip-0208]
 made a 2× target-spacing reduction (150 s → 75 s) with
@@ -697,7 +702,9 @@ $\mathsf{PoWAveragingWindow}$ unchanged; mainnet block spacing
 Two geographically-distributed devnets of 99 Zebra nodes across 14
 regions (1 vCPU per node), one at $\mathsf{PoWAveragingWindow} = 17$
 and one at 51, confirmed a \~1-second reduction in the standard
-deviation of 5- and 10-block rolling-average block spacings.
+deviation of 5- and 10-block rolling-average block spacings. The
+variance reduction is expected to be somewhat larger at
+$\mathsf{PoWAveragingWindow} = 102$.
 
 
 # Deployment
