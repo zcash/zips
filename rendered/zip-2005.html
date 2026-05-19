@@ -17,7 +17,7 @@ Owners: Daira-Emma Hopwood &lt;daira@jacaranda.org&gt;
 Credits: Sean Bowe
          Dev Ojha
          Kris Nuttycombe
-Status: Draft
+Status: Proposed
 Category: Consensus
 Created: 2025-03-31
 License: MIT
@@ -200,8 +200,9 @@ derivation of <span class="math">\(\mathsf{rcm}\)</span> is checked in the Recov
 <p>Essentially the same technique also needs to be applied to the
 function <span class="math">\(\mathsf{Commit^{ivk}}\)</span> that is used to derive Orchard
 incoming viewing keys. The randomness <span class="math">\(\mathsf{rivk}\)</span> in
-<span class="math">\(\mathsf{Commit^{ivk}}\)</span> is derived from one of two random oracles,
-depending on which key material the user holds:</p>
+<span class="math">\(\mathsf{Commit^{ivk}}\)</span> is derived directly or indirectly from
+<span class="math">\(\mathsf{rivk\_ext}\)</span>, which is in turn derived from one of two random
+oracles, depending on which key material the user holds:</p>
 
 <ul>
 <li>For existing Orchard keys, <span class="math">\(\mathsf{rivk\_ext}\)</span> is derived from
@@ -218,7 +219,9 @@ The Recovery Protocol checks this derivation together with a
 <span class="math">\(\mathsf{H^{qk}}(\mathsf{qsk}) = \mathsf{qk}\)</span>.</li>
 </ul>
 
-<p>Both branches are covered uniformly by the
+<p>Both branches (and both cases
+<span class="math">\(\mathsf{rivk} \in \big\{ \mathsf{rivk\_ext},\, \mathsf{H^{rivk\_int}_{rivk\_ext}}(\mathsf{ak}, \mathsf{nk}) \big\}\)</span>)
+are covered uniformly by the
 <a href="#securityargumentforkeybinding">Security argument for key binding</a>:
 each binds the keys <span class="math">\((\mathsf{ak}, \mathsf{nk}, \mathsf{rivk})\)</span> — and,
 when in use, <span class="math">\(\mathsf{qk}\)</span> — to the incoming-viewing key <span class="math">\(\mathsf{ivk}\)</span>
@@ -443,7 +446,8 @@ in the <span class="math">\(\mathsf{SoK^{sk}}\)</span> box of the diagram below.
   rivk_legacy([rivk_legacy]) --&gt;|¬use_qsk| rivk_ext
 </code></pre>
 
-<p>When <span class="math">\(\mathsf{use\_qsk}\)</span> is used, on the other hand, it is possible for
+<p><a id="linking-commitments"></a>
+When <span class="math">\(\mathsf{use\_qsk}\)</span> is used, on the other hand, it is possible for
 the Recovery Protocol to support spend authorization using a simpler
 statement that only uses <span class="math">\(\mathsf{H^{qk}}\)</span> and a commitment scheme.
 For example, for some hiding and collapse-binding commitment
@@ -603,14 +607,15 @@ condition.</p>
 <p><span class="math">\(\mathsf{ZIP2005ActivationHeight}\)</span> specifies the first block height at which
 recoverable note plaintexts with lead byte <span class="math">\(\mathtt{0x03}\)</span> are allowed to
 occur in Orchard outputs. Orchard note plaintexts sent to <em>wallet-internal</em>
-addresses, and dummy note plaintexts, SHOULD use lead byte <span class="math">\(\mathtt{0x03}\)</span>
-starting from this height. Orchard note plaintexts in v5 transactions sent
-to <em>external</em> addresses SHOULD use lead byte <span class="math">\(\mathtt{0x02}\)</span> until wallet
-support for receiving note plaintexts with lead byte <span class="math">\(\mathtt{0x03}\)</span> is
-widespread in the Zcash ecosystem.</p>
+addresses SHOULD use lead byte <span class="math">\(\mathtt{0x03}\)</span> starting from this height.
+Orchard note plaintexts in v5 transactions sent to <em>external</em> addresses
+SHOULD use lead byte <span class="math">\(\mathtt{0x02}\)</span> until wallet support for receiving note
+plaintexts with lead byte <span class="math">\(\mathtt{0x03}\)</span> is widespread in the Zcash ecosystem.</p>
 
-<p>In other cases, senders SHOULD choose the highest note plaintext lead byte
-allowed according to <span class="math">\(\mathsf{allowedLeadBytes}.\)</span></p>
+<p>In other cases, senders of non-dummy note plaintexts SHOULD choose the
+highest note plaintext lead byte allowed according to <span class="math">\(\mathsf{allowedLeadBytes}.\)</span>
+For dummy note plaintexts, any of the allowed lead bytes MAY be used (it does
+not matter which).</p>
 </blockquote>
 
 <p>Delete the non-normative note:</p>
@@ -980,9 +985,9 @@ delete the word &#8220;later&#8221;.</p>
 
 <p>The order of operations has to be altered because the derivation of
 <span class="math">\(\mathsf{rcm}\)</span> can depend on <span class="math">\(\mathsf{g_d}\)</span> and <span class="math">\(\mathsf{pk_d}\)</span>.
-The definitions of <span class="math">\(\mathsf{pre\_rcm}\)</span> and <span class="math">\(\mathsf{pre\_esk}\)</span> are moved into
-§ 4.7.2 ‘Sending Notes (Sapling)’ and § 4.7.3 ‘Sending Notes (Orchard)’ which
-define <span class="math">\(\mathsf{Derive\_rcm^{\{Sapling,Orchard\}}}\)</span>.</p>
+The definitions of <span class="math">\(\mathsf{pre\_rcm}\)</span> and <span class="math">\(\mathsf{pre\_esk}\)</span> are moved or inlined
+into § 4.7.2 ‘Sending Notes (Sapling)’ and § 4.7.3 ‘Sending Notes (Orchard)’ which
+define <span class="math">\(\mathsf{Derive\_rcm^{\{Sapling,Orchard\}}}\)</span> and <span class="math">\(\mathsf{H^{esk,\{Sapling,Orchard\}}}\)</span>.</p>
 
 <p>For § 4.20.3, replace</p>
 
@@ -1161,7 +1166,7 @@ suggest having that diagram open in another window to refer to it.</p>
 \wedge\; \text{let } \mathsf{ivk} = \mathsf{Commit^{ivk}_{rivk}}(\mathsf{ak}, \mathsf{nk}) \vphantom{\big(}\\
 \wedge\; \mathsf{ivk} \not\in \{0, \bot\} \vphantom{\Big(}\\
 \wedge\; \text{let } \mathsf{pk_d} = [\mathsf{ivk}]\, \mathsf{g_d} \vphantom{\big(}\\
-\wedge\; \text{let } \text{ψ} = \mathsf{H}^{\text{ψ}}_{\mathsf{r}\text{ψ}}(\underline{\text{ρ}}) \vphantom{\Big(}\\
+\wedge\; \text{let } \text{ψ} = \mathsf{H^{\text{ψ},Orchard}_{rseed}}(\underline{\text{ρ}}) \vphantom{\Big(}\\
 \wedge\; \text{let } \mathsf{noterepr} = \big(\mathsf{repr}_{\mathbb{P}}(\mathsf{g_d}), \mathsf{repr}_{\mathbb{P}}(\mathsf{pk_d}), \mathsf{v}, \underline{\text{ρ}}, \text{ψ}\big) \vphantom{\big(}\\
 \wedge\; \text{let } \mathsf{rcm} = \mathsf{H^{rcm,Orchard}_{rseed}}\big(\mathtt{0x03}, \mathsf{noterepr}\big) \vphantom{\Big(}\\
 \wedge\; \text{let } \mathsf{cm} = \mathsf{NoteCommit^{Orchard}_{rcm}}(\mathsf{noterepr}) \vphantom{\big(}\\
@@ -1192,6 +1197,8 @@ very little extra.</p>
 <p>All of the operations below need to be implemented with complete additions,
 even if they are incomplete in the current Orchard[ZSA] statement/circuit.</p>
 
+<p>In <span class="math">\(\mathsf{SoK^{sk}}\)</span> and the main circuit:</p>
+
 <ul>
 <li>7 BLAKE2b-512 compressions:
 
@@ -1200,13 +1207,8 @@ even if they are incomplete in the current Orchard[ZSA] statement/circuit.</p>
 and <span class="math">\(\mathsf{H^{ask}}\)</span> + <span class="math">\(\mathsf{H^{nk}}\)</span> + <span class="math">\(\mathsf{H^{rivk\_legacy}}\)</span> when <span class="math">\(\mathsf{use\_qsk}\)</span> is false (3 compressions)</li>
 <li>1 to compute <span class="math">\(\mathsf{H^{rivk\_int}}\)</span></li>
 <li>1 to compute <span class="math">\(\mathsf{H^{\text{ψ}}}\)</span></li>
-<li>2 to compute <span class="math">\(\mathsf{H^{rcm}}\)</span>
-
-<ul>
-<li>we could potentially save these two by using Poseidon to implement <span class="math">\(\mathsf{H^{rcm}}\)</span>, but it seems not worth it.</li>
+<li>2 to compute <span class="math">\(\mathsf{H^{rcm}}\)</span></li>
 </ul></li>
-</ul></li>
-<li>1 BLAKE3 compression for <span class="math">\(\mathsf{H^{qk}}\)</span> (with the <span class="math">\(\mathsf{derive\_key}\)</span> context key precomputed as a constant)</li>
 <li>1 use of <span class="math">\(\mathsf{Commit^{ivk}}\)</span> (<span class="math">\(\mathsf{SinsemillaShortCommit}\)</span>)</li>
 <li>1 use of <span class="math">\(\mathsf{NoteCommit}\)</span> (<span class="math">\(\mathsf{SinsemillaCommit}\)</span>)</li>
 <li>1 full-width fixed-base Pallas scalar multiplication, <span class="math">\([\mathsf{ask}]\, \mathcal{G}^{\mathsf{Orchard}}\)</span></li>
@@ -1214,6 +1216,15 @@ and <span class="math">\(\mathsf{H^{ask}}\)</span> + <span class="math">\(\maths
 <li>1 Merkle tree path check</li>
 <li>1 additional use of <span class="math">\(\mathsf{MerkleCRH}\)</span> to compute <span class="math">\(\mathsf{leaf}\)</span>.</li>
 </ul>
+
+<p>In <span class="math">\(\mathsf{SoK^{qsk}}\)</span>:</p>
+
+<ul>
+<li>1 BLAKE3 compression for <span class="math">\(\mathsf{H^{qk}}\)</span> (with the <span class="math">\(\mathsf{derive\_key}\)</span> context key precomputed as a constant)</li>
+</ul>
+
+<p>plus, potentially, <a href="#linking-commitments">linking commitments</a> between
+the circuits.</p>
 
 <p>The expensive parts of this are the 7 BLAKE2b compressions.</p>
 
@@ -1240,7 +1251,8 @@ Suppose this has been done.</p>
 <blockquote>
 <p>The post-quantum security of Merkle trees —considered as position-binding
 vector commitments which is the property required by Zcash <a href="#fn:25" title="see footnote" class="footnote"><sup>25</sup></a>—
-is proven under reasonable assumptions in <a href="#fn:31" id="fnref:31" title="see footnote" class="footnote"><sup>31</sup></a> and <a href="#fn:32" id="fnref:32" title="see footnote" class="footnote"><sup>32</sup></a>.</p>
+is proven under reasonable assumptions in <a href="#fn:31" id="fnref:31" title="see footnote" class="footnote"><sup>31</sup></a>, <a href="#fn:32" id="fnref:32" title="see footnote" class="footnote"><sup>32</sup></a>, and
+<a href="#fn:33" id="fnref:33" title="see footnote" class="footnote"><sup>33</sup></a>.</p>
 </blockquote>
 
 <p>Note: when we rehash the commitment tree, we could include both <span class="math">\(\text{ρ}\)</span> and
@@ -1313,7 +1325,7 @@ separation, and so the assumption of independence is reasonable as long
 as BLAKE2b-512 can be modelled as a random oracle. Note that since the
 input to <span class="math">\(\mathsf{H^{rcm}}\)</span> needs more than one BLAKE2b input block, we
 require that a HAIFA sponge can be modelled as a random oracle which is
-justified by <a href="#fn:33" id="fnref:33" title="see footnote" class="footnote"><sup>33</sup></a>. It is possible that there could be
+justified by <a href="#fn:34" id="fnref:34" title="see footnote" class="footnote"><sup>34</sup></a>. It is possible that there could be
 better-than-generic quantum attacks against BLAKE2b-512, but none have
 been published to our knowledge. In practice, we consider it reasonable to
 assume that BLAKE2b-512 has the properties needed for <span class="math">\(\mathsf{H^{rcm}}\)</span>
@@ -1824,7 +1836,7 @@ taken over the random oracle&#8217;s responses and any internal randomness of
 <span class="math">\(\mathcal{A}\)</span>.</p>
 
 <p>This bound is essentially tight against classical generic adversaries.
-Maurer <a href="#fn:34" id="fnref:34" title="see footnote" class="footnote"><sup>34</sup></a> (Section 2, p. 5) establishes a matching upper
+Maurer <a href="#fn:35" id="fnref:35" title="see footnote" class="footnote"><sup>35</sup></a> (Section 2, p. 5) establishes a matching upper
 bound of <span class="math">\({k \choose 2}/N\)</span> on the success probability of any
 classical algorithm in finding a collision against a random oracle with
 an <span class="math">\(N\)</span>-element output space using <span class="math">\(k\)</span> queries. Maurer&#8217;s bound applies
@@ -1834,7 +1846,7 @@ Applying Maurer with <span class="math">\(N = r_{\mathbb{P}}\)</span> (the <span
 output space) gives <span class="math">\({q_{\mathsf{rcm}} \choose 2}/r_{\mathbb{P}}\)</span> for
 the equality event; doubling for the sign relaxation gives our
 <span class="math">\(\frac{q_{\mathsf{rcm}}(q_{\mathsf{rcm}}-1)}{r_{\mathbb{P}}}\)</span> bound.
-Classical parallel collision search <a href="#fn:35" id="fnref:35" title="see footnote" class="footnote"><sup>35</sup></a> (top of p. 8)
+Classical parallel collision search <a href="#fn:36" id="fnref:36" title="see footnote" class="footnote"><sup>36</sup></a> (top of p. 8)
 achieves the equality-event regime up to a constant factor; the same
 adversaries achieve a constant fraction of the doubled bound for the
 <span class="math">\(\pm\)</span>-equivalence event.</p>
@@ -1862,7 +1874,7 @@ determined by <span class="math">\(\mathsf{notetuple}\)</span> via the
 <span class="math">\(F_i := \mathsf{F}(\mathsf{notetuple}_i)\)</span> for <span class="math">\(i \in \{1, 2\}\)</span>.</p>
 
 <p><span class="math">\(\mathsf{Extract}_{\mathbb{P}}\)</span> (§ 5.4.9.7 &#8216;Coordinate Extractor for
-Pallas&#8217; <a href="#fn:36" id="fnref:36" title="see footnote" class="footnote"><sup>36</sup></a>) is the <span class="math">\(x\)</span>-coordinate of
+Pallas&#8217; <a href="#fn:37" id="fnref:37" title="see footnote" class="footnote"><sup>37</sup></a>) is the <span class="math">\(x\)</span>-coordinate of
 its argument for non-identity points, with the identity mapping to <span class="math">\(0\)</span>.
 Since Pallas has the form <span class="math">\(y^2 = Y(x)\)</span> and no Pallas point has
 <span class="math">\(x\)</span>-coordinate <span class="math">\(0\)</span>, the collision <span class="math">\(\mathsf{nf}_1 = \mathsf{nf}_2\)</span>
@@ -1919,13 +1931,13 @@ adversary&#8217;s superposition to a single classical preimage.</p>
 <p>Subsequent work has analyzed whether standard hash-function
 constructions inherit collapsing from their compression function. Unruh
 <a href="#fn:27" title="see footnote" class="footnote"><sup>27</sup></a> proved this for Merkle–Damgård (with a padding
-restriction); Czajkowski et al. <a href="#fn:37" id="fnref:37" title="see footnote" class="footnote"><sup>37</sup></a> for the <em>sponge</em>
+restriction); Czajkowski et al. <a href="#fn:38" id="fnref:38" title="see footnote" class="footnote"><sup>38</sup></a> for the <em>sponge</em>
 construction (the absorb-then-squeeze paradigm used by SHA-3 / Keccak),
-with <a href="#fn:33" title="see footnote" class="footnote"><sup>33</sup></a> strengthening the sponge result via the related notion
-of quantum indifferentiability. Fehr <a href="#fn:38" id="fnref:38" title="see footnote" class="footnote"><sup>38</sup></a> gave a unified
+with <a href="#fn:34" title="see footnote" class="footnote"><sup>34</sup></a> strengthening the sponge result via the related notion
+of quantum indifferentiability. Fehr <a href="#fn:39" id="fnref:39" title="see footnote" class="footnote"><sup>39</sup></a> gave a unified
 algebraic framework that recovers these results and proves the
 collapsing property of HAIFA, a Merkle–Damgård variant with a
-per-iteration salt and counter. Gunsing and Mennink <a href="#fn:39" id="fnref:39" title="see footnote" class="footnote"><sup>39</sup></a> extended
+per-iteration salt and counter. Gunsing and Mennink <a href="#fn:32" title="see footnote" class="footnote"><sup>32</sup></a> extended
 this kind of analysis to tree-hash constructions, relevant for the
 Recovery Protocol&#8217;s note-commitment tree.</p>
 
@@ -1936,7 +1948,7 @@ requires for arbitrary-length inputs is automatically satisfied if the
 compression function is modelled as a random oracle — which is also
 the modelling assumption underlying the classical-ROM analyses above.</p>
 
-<p>By the argument in <a href="#fn:35" title="see footnote" class="footnote"><sup>35</sup></a>, the best known <em>generic</em> quantum
+<p>By the argument in <a href="#fn:36" title="see footnote" class="footnote"><sup>36</sup></a>, the best known <em>generic</em> quantum
 attack on a hash function is simply the classical attack of <a href="#fn:40" id="fnref:40" title="see footnote" class="footnote"><sup>40</sup></a>.
 (In particular, the Brassard–Høyer–Tapp algorithm <a href="#fn:41" id="fnref:41" title="see footnote" class="footnote"><sup>41</sup></a> is
 entirely unimplementable for a 253-bit output size: to achieve the
@@ -1974,7 +1986,7 @@ a &#8220;clean&#8221; lift to the quantum random-oracle model:</p>
 <li><em>Straight-line.</em> Neither reduction rewinds the adversary or measures
 intermediate state; both inspect the adversary&#8217;s classical output and
 bound the probability over the random oracles' randomness.
-Rewinding-based QROM techniques <a href="#fn:31" title="see footnote" class="footnote"><sup>31</sup></a> <a href="#fn:32" title="see footnote" class="footnote"><sup>32</sup></a> are therefore
+Rewinding-based QROM techniques <a href="#fn:31" title="see footnote" class="footnote"><sup>31</sup></a> <a href="#fn:33" title="see footnote" class="footnote"><sup>33</sup></a> are therefore
 not needed.</li>
 <li><em>No adaptive reprogramming.</em> Both reductions treat their random
 oracles as fixed random functions throughout; neither reprograms
@@ -2001,7 +2013,7 @@ require a quantum circuit randomly accessing a <span class="math">\(2^{92.3}\)</
 memory). In practice the achievable bound remains close to the
 classical <span class="math">\(q^2 / r_{\mathbb{P}}\)</span>, since the best <em>known</em> generic
 quantum attack is the classical attack of <a href="#fn:40" title="see footnote" class="footnote"><sup>40</sup></a> — Bernstein
-<a href="#fn:35" title="see footnote" class="footnote"><sup>35</sup></a> is careful to flag this as best-known rather than
+<a href="#fn:36" title="see footnote" class="footnote"><sup>36</sup></a> is careful to flag this as best-known rather than
 provably best.</p>
 
 <p>For the parameters relevant to Zcash (<span class="math">\(q_{\mathsf{rcm}},
@@ -2287,11 +2299,11 @@ manipulate the note selection algorithm to some extent.</p>
 </li>
 
 <li id="fn:26">
-<p><a href="https://eprint.iacr.org/2015/361">Computationally binding quantum commitments. Dominique Unruh.</a>. Also published in EUROCRYPT 2016, LNCS vol. 9666. <a href="#fnref:26" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://eprint.iacr.org/2015/361">Computationally binding quantum commitments. Dominique Unruh.</a> Also published in EUROCRYPT 2016, LNCS vol. 9666. <a href="#fnref:26" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:27">
-<p><a href="https://eprint.iacr.org/2016/508">Collapse-binding quantum commitments without random oracles. Dominique Unruh.</a>. Also published in ASIACRYPT 2016, LNCS vol. 10032. <a href="#fnref:27" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://eprint.iacr.org/2016/508">Collapse-binding quantum commitments without random oracles. Dominique Unruh.</a> Also published in ASIACRYPT 2016, LNCS vol. 10032. <a href="#fnref:27" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:28">
@@ -2307,39 +2319,39 @@ manipulate the note selection algorithm to some extent.</p>
 </li>
 
 <li id="fn:31">
-<p><a href="https://eprint.iacr.org/2021/334">Post-Quantum Succinct Arguments: Breaking the Quantum Rewinding Barrier. Alessandro Chiesa, Fermi Ma, Nicholas Spooner, and Mark Zhandr.</a>. Also published in FOCS 2021. <a href="#fnref:31" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://eprint.iacr.org/2021/334">Post-Quantum Succinct Arguments: Breaking the Quantum Rewinding Barrier. Alessandro Chiesa, Fermi Ma, Nicholas Spooner, and Mark Zhandr.</a> Also published in FOCS 2021. <a href="#fnref:31" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:32">
-<p><a href="https://eprint.iacr.org/2025/947">Quantum Rewinding for IOP-Based Succinct Arguments. Alessandro Chiesa, Marcel Dall&#8217;Agnol, Zijing Di, Ziyi Guan, and Nicholas Spooner.</a> <a href="#fnref:32" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://eprint.iacr.org/2022/248">Collapseability of Tree Hashes. Aldo Gunsing and Bart Mennink.</a> Also published in PQCrypto 2020, LNCS vol. 12100, pp. 524–544. <a href="#fnref:32" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:33">
-<p><a href="https://eprint.iacr.org/2025/731">The Sponge is Quantum Indifferentiable. Gorjan Alagic, Joseph Carolan, Christian Majenz, and Saliha Tokat.</a> <a href="#fnref:33" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://eprint.iacr.org/2025/947">Quantum Rewinding for IOP-Based Succinct Arguments. Alessandro Chiesa, Marcel Dall&#8217;Agnol, Zijing Di, Ziyi Guan, and Nicholas Spooner.</a> <a href="#fnref:33" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:34">
-<p><a href="https://crypto.ethz.ch/publications/files/Maurer02.pdf">Indistinguishability of Random Systems. Ueli Maurer.</a>. Also published in Advances in Cryptology — EUROCRYPT 2002, LNCS vol. 2332, pp. 110–132. <a href="#fnref:34" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://eprint.iacr.org/2025/731">The Sponge is Quantum Indifferentiable. Gorjan Alagic, Joseph Carolan, Christian Majenz, and Saliha Tokat.</a> <a href="#fnref:34" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:35">
-<p><a href="https://cr.yp.to/hash/collisioncost-20090517.pdf">Cost analysis of hash collisions: Will quantum computers make SHARCS obsolete? Daniel J. Bernstein.</a>. Presented at SHARCS 2009. <a href="#fnref:35" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://crypto.ethz.ch/publications/files/Maurer02.pdf">Indistinguishability of Random Systems. Ueli Maurer.</a> Also published in Advances in Cryptology — EUROCRYPT 2002, LNCS vol. 2332, pp. 110–132. <a href="#fnref:35" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:36">
-<p><a href="protocol/protocol.pdf#concreteextractorpallas">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.4.9.7: Coordinate Extractor for Pallas</a> <a href="#fnref:36" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://cr.yp.to/hash/collisioncost-20090517.pdf">Cost analysis of hash collisions: Will quantum computers make SHARCS obsolete? Daniel J. Bernstein.</a> Presented at SHARCS 2009. <a href="#fnref:36" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:37">
-<p><a href="https://eprint.iacr.org/2017/771">Post-quantum security of the sponge construction. Jan Czajkowski, Leon Groot Bruinderink, Andreas Hülsing, Christian Schaffner, and Dominique Unruh.</a>. Also published in PQCrypto 2018, LNCS vol. 10786. <a href="#fnref:37" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="protocol/protocol.pdf#concreteextractorpallas">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.4.9.7: Coordinate Extractor for Pallas</a> <a href="#fnref:37" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:38">
-<p><a href="https://eprint.iacr.org/2018/887">Classical Proofs for the Quantum Collapsing Property of Classical Hash Functions. Serge Fehr.</a>. Also published in TCC 2018, LNCS vol. 11240, pp. 315–338. <a href="#fnref:38" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://eprint.iacr.org/2017/771">Post-quantum security of the sponge construction. Jan Czajkowski, Leon Groot Bruinderink, Andreas Hülsing, Christian Schaffner, and Dominique Unruh.</a> Also published in PQCrypto 2018, LNCS vol. 10786. <a href="#fnref:38" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:39">
-<p><a href="https://eprint.iacr.org/2022/248">Collapseability of Tree Hashes. Aldo Gunsing and Bart Mennink.</a>. Also published in PQCrypto 2020, LNCS vol. 12100, pp. 524–544. <a href="#fnref:39" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://eprint.iacr.org/2018/887">Classical Proofs for the Quantum Collapsing Property of Classical Hash Functions. Serge Fehr.</a> Also published in TCC 2018, LNCS vol. 11240, pp. 315–338. <a href="#fnref:39" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:40">
@@ -2347,11 +2359,11 @@ manipulate the note selection algorithm to some extent.</p>
 </li>
 
 <li id="fn:41">
-<p><a href="https://arxiv.org/abs/quant-ph/9705002">Quantum Algorithm for the Collision Problem. Gilles Brassard, Peter Høyer, and Alain Tapp.</a>. Also published in LATIN 1998, LNCS vol. 1380, pp. 163–169. <a href="#fnref:41" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://arxiv.org/abs/quant-ph/9705002">Quantum Algorithm for the Collision Problem. Gilles Brassard, Peter Høyer, and Alain Tapp.</a> Also published in LATIN 1998, LNCS vol. 1380, pp. 163–169. <a href="#fnref:41" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:42">
-<p><a href="https://eprint.iacr.org/2018/276">How to Record Quantum Queries, and Applications to Quantum Indifferentiability. Mark Zhandry.</a>. Also published in CRYPTO 2019, LNCS vol. 11693. <a href="#fnref:42" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://eprint.iacr.org/2018/276">How to Record Quantum Queries, and Applications to Quantum Indifferentiability. Mark Zhandry.</a> Also published in CRYPTO 2019, LNCS vol. 11693. <a href="#fnref:42" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:43">
