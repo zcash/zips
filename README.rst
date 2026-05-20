@@ -198,7 +198,6 @@ written.
     <tr> <td>312</td> <td class="left"><a href="zips/zip-0312.rst">FROST for Spend Authorization Multisignatures</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/382">zips#382</a></td>
     <tr> <td><span class="reserved">314</span></td> <td class="left"><a class="reserved" href="zips/zip-0314.rst">Privacy upgrades to the Zcash light client protocol</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/434">zips#434</a></td>
     <tr> <td>315</td> <td class="left"><a href="zips/zip-0315.rst">Best Practices for Wallet Implementations</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/447">zips#447</a></td>
-    <tr> <td><span class="reserved">318</span></td> <td class="left"><a class="reserved" href="zips/zip-0318.rst">Associated Payload Encryption</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/633">zips#633</a></td>
     <tr> <td><span class="reserved">319</span></td> <td class="left"><a class="reserved" href="zips/zip-0319.rst">Options for Shielded Pool Retirement</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/635">zips#635</a></td>
     <tr> <td><span class="reserved">322</span></td> <td class="left"><a class="reserved" href="zips/zip-0322.rst">Generic Signed Message Format</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/429">zips#429</a></td>
     <tr> <td><span class="reserved">323</span></td> <td class="left"><a class="reserved" href="zips/zip-0323.rst">Specification of getblocktemplate for Zcash</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/405">zips#405</a></td>
@@ -355,7 +354,6 @@ Index of ZIPs
     <tr> <td>315</td> <td class="left"><a href="zips/zip-0315.rst">Best Practices for Wallet Implementations</a></td> <td>Draft</td>
     <tr> <td>316</td> <td class="left"><a href="zips/zip-0316.rst">Unified Addresses and Unified Viewing Keys</a></td> <td>[Revision 0] Active, [Revision 1] Withdrawn, [Revision 2] Draft</td>
     <tr> <td>317</td> <td class="left"><a href="zips/zip-0317.rst">Proportional Transfer Fee Mechanism</a></td> <td>Active</td>
-    <tr> <td><span class="reserved">318</span></td> <td class="left"><a class="reserved" href="zips/zip-0318.rst">Associated Payload Encryption</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">319</span></td> <td class="left"><a class="reserved" href="zips/zip-0319.rst">Options for Shielded Pool Retirement</a></td> <td>Reserved</td>
     <tr> <td>320</td> <td class="left"><a href="zips/zip-0320.rst">Defining an Address Type to which funds can only be sent from Transparent Addresses</a></td> <td>Active</td>
     <tr> <td>321</td> <td class="left"><a href="zips/zip-0321.rst">Payment Request URIs</a></td> <td>Active</td>
