@@ -187,7 +187,6 @@ written.
     <tr> <td><span class="reserved">260</span></td> <td class="left"><a class="reserved" href="zips/zip-0260.md">Extending Block Messages with Additional Authentication Data</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/522">zips#522</a></td>
     <tr> <td><span class="reserved">270</span></td> <td class="left"><a class="reserved" href="zips/zip-0270.md">Key Rotation for Tracked Signing Keys</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/1047">zips#1047</a></td>
     <tr> <td>302</td> <td class="left"><a href="zips/zip-0302.rst">Standardized Memo Field Format</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/366">zips#366</a></td>
-    <tr> <td><span class="reserved">303</span></td> <td class="left"><a class="reserved" href="zips/zip-0303.rst">Sprout Payment Disclosure</a></td> <td>Reserved</td> <td class="left"></td>
     <tr> <td>304</td> <td class="left"><a href="zips/zip-0304.rst">Sapling Address Signatures</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/345">zips#345</a></td>
     <tr> <td><span class="reserved">305</span></td> <td class="left"><a class="reserved" href="zips/zip-0305.rst">Best Practices for Hardware Wallets supporting Sapling</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/346">zips#346</a></td>
     <tr> <td><span class="reserved">306</span></td> <td class="left"><a class="reserved" href="zips/zip-0306.rst">Security Considerations for Anchor Selection</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/351">zips#351</a></td>
@@ -198,7 +197,6 @@ written.
     <tr> <td>312</td> <td class="left"><a href="zips/zip-0312.rst">FROST for Spend Authorization Multisignatures</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/382">zips#382</a></td>
     <tr> <td><span class="reserved">314</span></td> <td class="left"><a class="reserved" href="zips/zip-0314.rst">Privacy upgrades to the Zcash light client protocol</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/434">zips#434</a></td>
     <tr> <td>315</td> <td class="left"><a href="zips/zip-0315.rst">Best Practices for Wallet Implementations</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/447">zips#447</a></td>
-    <tr> <td><span class="reserved">318</span></td> <td class="left"><a class="reserved" href="zips/zip-0318.rst">Associated Payload Encryption</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/633">zips#633</a></td>
     <tr> <td><span class="reserved">319</span></td> <td class="left"><a class="reserved" href="zips/zip-0319.rst">Options for Shielded Pool Retirement</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/635">zips#635</a></td>
     <tr> <td><span class="reserved">322</span></td> <td class="left"><a class="reserved" href="zips/zip-0322.rst">Generic Signed Message Format</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/429">zips#429</a></td>
     <tr> <td><span class="reserved">323</span></td> <td class="left"><a class="reserved" href="zips/zip-0323.rst">Specification of getblocktemplate for Zcash</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/405">zips#405</a></td>
@@ -251,6 +249,7 @@ Withdrawn, Rejected, or Obsolete ZIPs
     <tr> <td><strike>220</strike></td> <td class="left"><strike><a href="zips/zip-0220.rst">Zcash Shielded Assets</a></strike></td> <td>Withdrawn</td>
     <tr> <td><strike>230</strike></td> <td class="left"><strike><a href="zips/zip-0230.rst">Withdrawn Version 6 Transaction Format</a></strike></td> <td>Withdrawn</td>
     <tr> <td><strike>254</strike></td> <td class="left"><strike><a href="zips/zip-0254.md">Deployment of the NU7 Network Upgrade (Withdrawn)</a></strike></td> <td>Withdrawn</td>
+    <tr> <td><strike>303</strike></td> <td class="left"><strike><a href="zips/zip-0303.rst">Sprout Payment Disclosure</a></strike></td> <td>Withdrawn</td>
     <tr> <td><strike>313</strike></td> <td class="left"><strike><a href="zips/zip-0313.rst">Reduce Conventional Transaction Fee to 1000 zatoshis</a></strike></td> <td>Obsolete</td>
     <tr> <td><strike>1001</strike></td> <td class="left"><strike><a href="zips/zip-1001.rst">Keep the Block Distribution as Initially Defined — 90% to Miners</a></strike></td> <td>Obsolete</td>
     <tr> <td><strike>1002</strike></td> <td class="left"><strike><a href="zips/zip-1002.rst">Opt-in Donation Feature</a></strike></td> <td>Obsolete</td>
@@ -340,7 +339,7 @@ Index of ZIPs
     <tr> <td>300</td> <td class="left"><a href="zips/zip-0300.rst">Cross-chain Atomic Transactions</a></td> <td>Proposed</td>
     <tr> <td>301</td> <td class="left"><a href="zips/zip-0301.rst">Zcash Stratum Protocol</a></td> <td>Active</td>
     <tr> <td>302</td> <td class="left"><a href="zips/zip-0302.rst">Standardized Memo Field Format</a></td> <td>Draft</td>
-    <tr> <td><span class="reserved">303</span></td> <td class="left"><a class="reserved" href="zips/zip-0303.rst">Sprout Payment Disclosure</a></td> <td>Reserved</td>
+    <tr> <td><strike>303</strike></td> <td class="left"><strike><a href="zips/zip-0303.rst">Sprout Payment Disclosure</a></strike></td> <td>Withdrawn</td>
     <tr> <td>304</td> <td class="left"><a href="zips/zip-0304.rst">Sapling Address Signatures</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">305</span></td> <td class="left"><a class="reserved" href="zips/zip-0305.rst">Best Practices for Hardware Wallets supporting Sapling</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">306</span></td> <td class="left"><a class="reserved" href="zips/zip-0306.rst">Security Considerations for Anchor Selection</a></td> <td>Reserved</td>
@@ -355,7 +354,6 @@ Index of ZIPs
     <tr> <td>315</td> <td class="left"><a href="zips/zip-0315.rst">Best Practices for Wallet Implementations</a></td> <td>Draft</td>
     <tr> <td>316</td> <td class="left"><a href="zips/zip-0316.rst">Unified Addresses and Unified Viewing Keys</a></td> <td>[Revision 0] Active, [Revision 1] Withdrawn, [Revision 2] Draft</td>
     <tr> <td>317</td> <td class="left"><a href="zips/zip-0317.rst">Proportional Transfer Fee Mechanism</a></td> <td>Active</td>
-    <tr> <td><span class="reserved">318</span></td> <td class="left"><a class="reserved" href="zips/zip-0318.rst">Associated Payload Encryption</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">319</span></td> <td class="left"><a class="reserved" href="zips/zip-0319.rst">Options for Shielded Pool Retirement</a></td> <td>Reserved</td>
     <tr> <td>320</td> <td class="left"><a href="zips/zip-0320.rst">Defining an Address Type to which funds can only be sent from Transparent Addresses</a></td> <td>Active</td>
     <tr> <td>321</td> <td class="left"><a href="zips/zip-0321.rst">Payment Request URIs</a></td> <td>Active</td>
