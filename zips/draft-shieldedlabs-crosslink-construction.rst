@@ -10,7 +10,7 @@
   Category: Consensus
   Created: 2026-04-08
   License: MIT
-  Discussions-To: <https://github.com/zcash/zips/issues>
+  Discussions-To: TBD (no specific discussion thread yet)
 
 
 Terminology
@@ -28,8 +28,9 @@ The terms below are to be interpreted as follows:
 CCC-SL (Crosslink Consensus Construction from Shielded Labs)
   The hybrid consensus construction specified by this ZIP, integrating the
   Zcash PoW best-chain protocol with ``CFP-SL`` to produce a protocol with
-  both availability and assured finality. CCC-SL is the core of Shielded Labs
-  Crosslink v1 and is closely based on CCC-TFLv2 from the TFL book [#tfl-book]_.
+  both availability and Crosslink Finality. CCC-SL is the core of Shielded
+  Labs Crosslink v1 and is closely based on CCC-TFLv2 from the TFL book
+  [#tfl-book]_.
 
 CCC-TFLv2 (Crosslink Consensus Construction from the TFL Book, version 2)
   The abstract hybrid consensus construction documented in the Zcash TFL book
@@ -105,6 +106,34 @@ Prefix Consistency
   The property of the best-chain subprotocol (Zcash PoW) that any two honest
   nodes' confirmed best-chains are consistent up to their confirmed depths.
 
+Crosslink Finality
+  The finality property provided by CCC-SL, as defined in the zebra-crosslink
+  design documentation [#zebra-crosslink-terminology]_. Formally: for any two
+  honest nodes ``i`` and ``j`` at any times ``t`` and ``u``, if both
+  ``localfin_i(t)`` and ``localfin_j(u)`` are non-genesis then one is a
+  prefix of the other (``localfin_i(t) ≼_bc localfin_j(u)`` or
+  ``localfin_j(u) ≼_bc localfin_i(t)``). See the Security Analysis section.
+
+``≼_bc`` (bc-prefix relation)
+  ``A ≼_bc B`` holds iff the bc-chain with tip ``A`` is a prefix of the
+  bc-chain with tip ``B``; equivalently, ``A`` is an ancestor of ``B`` or
+  ``A = B``. The notation ``≼`` (without subscript) is used as a shorthand
+  for ``≼_bc`` when the context is unambiguous.
+
+``C.truncate_bc(k)``
+  For a bc-chain ``C`` and natural number ``k``: the bc-chain obtained by
+  removing the last ``k`` blocks from ``C``. The tip of ``C.truncate_bc(k)``
+  is the block at depth ``k`` in ``C``. If ``len(C) ≤ k``, the result is the
+  genesis block ``Origin_bc``. When applied to a block ``H`` (shorthand for
+  the chain ending at ``H``), ``H.truncate_bc(k)`` denotes the block at
+  depth ``k`` from ``H``.
+
+``lastCommonAncestor(A, B)``
+  For two bc-blocks ``A`` and ``B``: the most recent (deepest) bc-block that
+  is an ancestor of both ``A`` and ``B``. Equivalently, the tip of the longest
+  common prefix of the bc-chains ending at ``A`` and ``B``. If one block is an
+  ancestor of the other, ``lastCommonAncestor(A, B) = min(A, B)`` by depth.
+
 ``bftLastFinal(B)``
   For a bft-block ``B``, the function returning the last bft-block that is
   considered final in the context of ``B`` (including ``B`` itself, if
@@ -133,7 +162,7 @@ Shielded Labs), the hybrid consensus protocol at the core of Shielded Labs
 Crosslink v1 [#zip-crosslink-overview]_. CCC-SL integrates the Zcash
 Proof-of-Work best-chain protocol with the ``CFP-SL`` BFT finalization
 protocol to provide both the availability properties of the PoW chain and the
-assured finality of a BFT protocol.
+Crosslink Finality of a BFT protocol.
 
 CCC-SL is closely based on the ``CCC-TFLv2`` construction from the Zcash TFL
 book [#tfl-book]_. The key features of CCC-SL are:
@@ -164,7 +193,7 @@ See ZIP [#zip-crosslink-overview]_ for the full motivation. In brief:
   creating friction for exchanges, bridges, and other services.
 
 * Integrating ``CFP-SL`` as a finality layer via CCC-SL preserves PoW
-  availability and security while adding assured finality.
+  availability and security while adding Crosslink Finality.
 
 * CCC-SL (following CCC-TFLv2) improves on the Snap-and-Chat construction
   [#ebb-and-flow]_ by eliminating the need for transaction-log sanitization
@@ -180,7 +209,7 @@ Requirements
 
 CCC-SL MUST satisfy:
 
-* **Assured Finality**: If both subprotocols satisfy their safety assumptions,
+* **Crosslink Finality**: If both subprotocols satisfy their safety assumptions,
   the locally finalized chain of any two honest nodes must be consistent —
   neither node's locally finalized chain can conflict with the other's.
 
@@ -191,9 +220,11 @@ CCC-SL MUST satisfy:
 * **Prefix Consistency** (inherited from Π\ :sub:`bc`): Two honest nodes'
   confirmed best-chains must be consistent.
 
-* **Bounded Availability**: The finality gap MUST NOT exceed ``L`` while
-  honest bc-block producers follow the protocol. When the gap reaches ``L``,
-  bc-block producers MUST enter Stalled Mode.
+* **Bounded Availability**: The finality depth of any non-stalled bc-block
+  MUST NOT exceed ``L`` while honest bc-block producers follow the protocol.
+  (Stalled blocks may exist at finality depth greater than ``L``; the bound
+  applies to transaction-carrying blocks only.) When the finality depth at the
+  chain tip exceeds ``L``, bc-block producers MUST enter Stalled Mode.
 
 * **Objective Validity**: The validity of any bc-block MUST be determinable
   from the block itself and its ancestors in both chains, with no external
@@ -531,8 +562,8 @@ Security Analysis
 
 The following properties are claimed for CCC-SL under the stated assumptions.
 
-Assured Finality
-''''''''''''''''
+Crosslink Finality
+''''''''''''''''''
 
 **Property**: If ``CFP-SL`` satisfies Final Agreement and the Zcash PoW
 protocol satisfies Prefix Consistency, then for any two honest nodes ``i`` and
@@ -558,15 +589,19 @@ Bounded Availability
 ''''''''''''''''''''
 
 **Property**: If all honest bc-block producers follow the stalled-block policy,
-the finality gap in the chain accepted by honest full nodes MUST NOT exceed
-``L``.
+then every non-stalled bc-block accepted by honest full nodes has finality depth
+at most ``L``. (Stalled blocks may have finality depth greater than ``L``; the
+bound applies only to transaction-carrying, non-stalled blocks.)
 
-*Proof sketch*: By the BC contextual validity rule, a bc-block with a finality
-gap exceeding ``L`` that is not a stalled block is rejected as bc-invalid.
-Since honest bc-block producers only produce stalled blocks when the gap would
-exceed ``L``, and honest full nodes reject non-stalled blocks with gap ``> L``,
-the finality gap in any honest full node's view of the bc-chain is at most
-``L``.
+*Proof sketch*: By the BC contextual validity rule, a bc-block whose finality
+gap exceeds ``L`` that is not a stalled block is rejected as bc-invalid. Since
+honest bc-block producers only produce stalled blocks when the gap would exceed
+``L``, and honest full nodes reject non-stalled blocks with
+``tip_height(H) - fin_height(H) > L``, all non-stalled blocks in any honest
+full node's view of the bc-chain satisfy ``tip_height(H) - fin_height(H) ≤ L``.
+Stalled blocks may accumulate arbitrarily, but they do not carry new
+unfinalized-output-spending transactions, so the set of pending unfinalized
+user transactions is bounded.
 
 Resilience of Finality to PoW Reorgs
 ''''''''''''''''''''''''''''''''''''''
@@ -606,5 +641,6 @@ References
 .. [#ebb-and-flow] `Ebb-and-Flow Protocols: A Resolution of the Availability-Finality Dilemma. David Neu, Joachim Neu, Ertem Nusret Tas, David Tse. <https://eprint.iacr.org/2020/1091.pdf>`_
 .. [#zebra-crosslink] `ShieldedLabs zebra-crosslink repository <https://github.com/ShieldedLabs/zebra-crosslink>`_
 .. [#crosslink-monolith] `ShieldedLabs crosslink_monolith repository <https://github.com/ShieldedLabs/crosslink_monolith>`_
+.. [#zebra-crosslink-terminology] `Shielded Labs zebra-crosslink design book: Terminology <https://github.com/ShieldedLabs/zebra-crosslink/blob/main/book/src/design/terminology.md>`_
 
 .. [#note-snapshot] The snapshot function returns the bc-block at depth 1 from the deepest header, i.e., the parent of ``headers_bc[0]``. This means the snapshot is a bc-block at depth ``σ+1`` relative to the tip of the snapshotted chain. This ensures that a bft-block referring to a snapshot provides evidence (via the ``σ`` headers) that the snapshot was confirmed at the time of the proposal.

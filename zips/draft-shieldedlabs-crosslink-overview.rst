@@ -10,7 +10,7 @@
   Category: Informational
   Created: 2026-04-08
   License: MIT
-  Discussions-To: <https://github.com/zcash/zips/issues>
+  Discussions-To: TBD (no specific discussion thread yet)
 
 
 Terminology
@@ -58,7 +58,7 @@ Crosslink Consensus Construction from Shielded Labs (CCC-SL)
 Crosslink Finalization Protocol from Shielded Labs (CFP-SL)
   The Proof-of-Stake BFT protocol used as the finalization subprotocol in
   Shielded Labs Crosslink v1, with "adaptation modifications" to interface
-  with ``CCC-SL``. ``CFP-SL`` provides assured finality by running Byzantine
+  with ``CCC-SL``. ``CFP-SL`` provides Crosslink Finality by running Byzantine
   Fault Tolerant consensus over snapshots of the Zcash PoW chain.
 
 Roster State Module (RSM)
@@ -98,10 +98,24 @@ Roster Evolution Rules
   govern how the Active Roster Mapping changes over time: new stakers joining,
   unstaking and unbonding, slashing, and similar events.
 
-Assured Finality
-  A protocol property that assures that transactions cannot be reverted by the
-  protocol. Once a transaction achieves finality it retains that property
-  indefinitely (so long as protocol requirements are met).
+Crosslink Finality
+  The finality property provided by Shielded Labs Crosslink v1, as defined in
+  the zebra-crosslink design documentation [#zebra-crosslink-terminology]_.
+  Crosslink Finality has five key characteristics:
+
+  1. **Accountable**: Safety violations can be attributed to specific
+     Finalizers, enabling slashing penalties.
+  2. **Irreversible**: Once a block achieves Crosslink Finality, it cannot be
+     reverted by the protocol under any circumstances permitted by the security
+     assumptions.
+  3. **Objectively verifiable**: Any third party with access to the chain data
+     can independently verify whether a given block has achieved Crosslink
+     Finality without trusting any particular node.
+  4. **Globally consistent**: All honest nodes that agree on the chain data
+     agree on which blocks have achieved Crosslink Finality.
+  5. **Asymmetric cost-of-attack defense**: An adversary seeking to violate
+     Crosslink Finality must expend significantly more resources than honest
+     participants spend to maintain it.
 
 Trailing Finality
   A protocol property wherein transactions become final some time after first
@@ -127,8 +141,8 @@ Abstract
 
 This ZIP describes the high-level design goals, motivations, and architecture
 of **Shielded Labs Crosslink v1**, a complete protocol and implementation
-produced by the Shielded Labs non-profit to add assured finality to the Zcash
-network.
+produced by the Shielded Labs non-profit to add Crosslink Finality to the
+Zcash network.
 
 Shielded Labs Crosslink v1 builds on the Zcash Trailing Finality Layer (TFL)
 initiative and its ``CCC-TFLv2`` hybrid construction, extending it into a
@@ -147,7 +161,7 @@ Background: The TFL Initiative and CCC-TFLv2
 =============================================
 
 The Zcash Trailing Finality Layer (TFL) was an initiative by the former
-Electric Coin Company (ECC) to introduce assured finality to Zcash through
+Electric Coin Company (ECC) to introduce Crosslink Finality to Zcash through
 a hybrid Proof-of-Work / Proof-of-Stake consensus design. The TFL design book
 [#tfl-book]_ documents this initiative and produces the Crosslink Consensus
 Construction (version 2, ``CCC-TFLv2``), which provides the theoretical
@@ -185,8 +199,8 @@ terminology and make different design trade-offs in some areas.
 Motivation
 ==========
 
-Probabilistic vs. Assured Finality
------------------------------------
+Probabilistic vs. Crosslink Finality
+--------------------------------------
 
 The current Zcash consensus protocol uses Nakamoto-style Proof-of-Work, which
 provides only *probabilistic* finality: a transaction confirmed at depth ``k``
@@ -204,16 +218,16 @@ they are not impossible. This limitation has several practical consequences:
 * **Wallet complexity**: Wallets must communicate uncertainty about
   transaction finality to users, complicating UX.
 
-Assured finality — the property that a finalized transaction *cannot* be
+Crosslink Finality — the property that a finalized transaction *cannot* be
 reversed by the protocol — removes these limitations. Any system that can
-rely on assured finality can offer faster, safer service with simpler
+rely on Crosslink Finality can offer faster, safer service with simpler
 reasoning about transaction status.
 
 Why Proof-of-Stake for Finality?
 ---------------------------------
 
 Proof-of-Stake (PoS) consensus protocols using Byzantine Fault Tolerant (BFT)
-algorithms are well-established approaches for providing assured finality.
+algorithms are well-established approaches for providing Crosslink Finality.
 Tendermint, PBFT, Casper, and related protocols all achieve this goal with
 strong theoretical foundations. Integrating a BFT PoS layer into Zcash as a
 *finality layer* — rather than replacing PoW entirely — allows the ecosystem to:
@@ -274,7 +288,7 @@ Shielded Labs Crosslink v1 MUST satisfy the following requirements:
 Finality Requirements
 ---------------------
 
-* The protocol MUST provide assured finality for transactions included in
+* The protocol MUST provide Crosslink Finality for transactions included in
   finalized blocks.
 
 * The expected time-to-finality SHOULD be below 30 minutes under normal
@@ -315,9 +329,10 @@ Backward Compatibility Requirements
 Bounded Availability Requirements
 -----------------------------------
 
-* ``CCC-SL`` MUST implement bounded availability: the PoW best-chain MUST NOT
-  grow more than ``L`` blocks ahead of the finalized chain during a finality
-  stall, where ``L`` is a protocol parameter.
+* ``CCC-SL`` MUST implement bounded availability: the finality depth of any
+  non-stalled bc-block MUST NOT exceed ``L``, where ``L`` is a protocol
+  parameter. (Stalled blocks may exist at any finality depth; Bounded
+  Availability bounds the depth of *transaction-carrying* blocks only.)
 
 * ``L`` MUST be set significantly larger than the bc-confirmation-depth ``σ``,
   with a minimum of ``L ≥ 2σ``.
@@ -441,7 +456,7 @@ CCC-SL: Crosslink Consensus Construction from Shielded Labs
 
 CFP-SL: Crosslink Finalization Protocol from Shielded Labs
   CFP-SL is the BFT Proof-of-Stake consensus protocol run by Finalizers to
-  provide assured finality. It operates over snapshots of the Zcash PoW chain:
+  provide Crosslink Finality. It operates over snapshots of the Zcash PoW chain:
   each CFP-SL proposal commits to a sequence of PoW block headers, and
   finalized CFP-SL blocks determine which PoW blocks are considered final.
 
@@ -575,7 +590,7 @@ Hybrid Protocol Security
 The security of Shielded Labs Crosslink v1 depends on the security of both the
 Zcash PoW subprotocol and ``CFP-SL``, as well as the correctness of ``CCC-SL``.
 The CCC-SL specification (ZIP [#zip-ccc-sl]_) includes a security analysis
-establishing the key properties: Assured Finality, Prefix Consistency, and
+establishing the key properties: Crosslink Finality, Prefix Consistency, and
 Bounded Availability.
 
 CFP-SL Failure
@@ -624,6 +639,75 @@ and integrated in the ``crosslink_monolith`` repository [#crosslink-monolith]_.
 These implementations are experimental and should not be used in production.
 
 
+Appendix: Divergences Between Reference Sources
+================================================
+
+The Shielded Labs Crosslink v1 ZIPs draw on three main reference sources:
+
+1. **The TFL book** [#tfl-book]_ — the original ECC design document specifying
+   ``CCC-TFLv2``.
+2. **The zebra-crosslink design book** [#zebra-crosslink-cl2]_ — Shielded Labs'
+   working design documentation, which is based on the TFL book but records
+   intentional divergences.
+3. **These ZIPs** (this document and the CCC-SL construction ZIP) — the formal
+   protocol specifications for Shielded Labs Crosslink v1.
+
+The zebra-crosslink design book ``book/src`` is treated as the authoritative
+source for terminology and design decisions when sources diverge. The following
+known divergences exist between these sources:
+
+Finality Terminology
+---------------------
+
+* **TFL book** uses "Assured Finality" as the name of the formal safety
+  property of the hybrid construction.
+* **zebra-crosslink** ``security-properties.md`` [#zebra-crosslink-security]_
+  refers to the same concept as "Irreversible Finality".
+* **zebra-crosslink** ``terminology.md`` [#zebra-crosslink-terminology]_
+  defines "Crosslink Finality" as the user-facing name for this property, with
+  five defining characteristics (accountable, irreversible, objectively
+  verifiable, globally consistent, asymmetric cost-of-attack defense).
+* **These ZIPs** adopt "Crosslink Finality" as the primary term, following
+  ``terminology.md`` as the authoritative source.
+
+Stalled Mode
+------------
+
+* **CCC-TFLv2** (TFL book) and **CCC-SL** (these ZIPs) include Stalled Mode:
+  when the finality depth exceeds ``L``, bc-block producers MUST produce only
+  stalled blocks (blocks that do not include new unfinalized-output-spending
+  transactions).
+* **zebra-crosslink** explicitly omits Stalled Mode from its current design.
+  The ``cl2-construction.md`` file in the zebra-crosslink design book contains
+  a prominent warning: "The ``zebra-crosslink`` design in this book diverges
+  from this text by *not* including 'Stalled Mode' rules."
+* **These ZIPs** retain Stalled Mode from CCC-TFLv2, as it is a key component
+  of the Bounded Availability property. This divergence from the current
+  zebra-crosslink implementation is intentional and will need to be resolved
+  before deployment.
+
+``finality_depth`` Naming
+--------------------------
+
+* **TFL book** defines ``finality_depth(H)`` as the height of ``H`` minus the
+  height of ``snapshot(LF(H))``, and uses ``finality_depth(H) > L`` as the
+  condition for Stalled Mode.
+* **These ZIPs** use the equivalent expression
+  ``tip_height(H) - fin_height(H) > L``, where ``fin_height(H)`` is the
+  height of ``candidate(H)``. The quantity ``candidate(H)`` is closely
+  related to ``snapshot(LF(H))`` via the ``lastCommonAncestor`` function.
+  The two formulations are equivalent in normal operation.
+
+Construction Name
+-----------------
+
+* **TFL book** and **zebra-crosslink** refer to the hybrid construction as
+  "Crosslink 2" (or "CL2").
+* **These ZIPs** use "CCC-SL" (Crosslink Consensus Construction from Shielded
+  Labs) to distinguish the Shielded Labs adaptation from the abstract
+  CCC-TFLv2 construction.
+
+
 References
 ==========
 
@@ -636,3 +720,6 @@ References
 .. [#ebb-and-flow] `Ebb-and-Flow Protocols: A Resolution of the Availability-Finality Dilemma. David Neu, Joachim Neu, Ertem Nusret Tas, David Tse. <https://eprint.iacr.org/2020/1091.pdf>`_
 .. [#zebra-crosslink] `ShieldedLabs zebra-crosslink repository <https://github.com/ShieldedLabs/zebra-crosslink>`_
 .. [#crosslink-monolith] `ShieldedLabs crosslink_monolith repository <https://github.com/ShieldedLabs/crosslink_monolith>`_
+.. [#zebra-crosslink-terminology] `Shielded Labs zebra-crosslink design book: Terminology <https://github.com/ShieldedLabs/zebra-crosslink/blob/main/book/src/design/terminology.md>`_
+.. [#zebra-crosslink-cl2] `Shielded Labs zebra-crosslink design book: Crosslink 2 Construction <https://github.com/ShieldedLabs/zebra-crosslink/blob/main/book/src/design/cl2-construction.md>`_
+.. [#zebra-crosslink-security] `Shielded Labs zebra-crosslink design book: Security Properties <https://github.com/ShieldedLabs/zebra-crosslink/blob/main/book/src/design/security-properties.md>`_
