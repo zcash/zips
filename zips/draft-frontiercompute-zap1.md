@@ -46,6 +46,23 @@ Zcash shielded memos can carry structured application commitments, but the
 ecosystem lacks a convention for typed lifecycle events that can be
 independently recomputed by external verifiers.
 
+Exposing Zcash state and actions to agents is straightforward. A REST or
+GraphQL endpoint can be wrapped as an MCP server in a small amount of code, and
+wallet-layer MCP implementations can expose balances, signing workflows, sync
+state, and transaction construction. These surfaces share one property: the
+consumer must trust the server response. If the backend is wrong, compromised,
+or unavailable later, the agent has no independent receipt it can hand to a
+third party for verification.
+
+ZAP1 closes that gap. It exposes no balances and moves no value. It produces a
+receipt: a typed event committed to a BLAKE2b Merkle tree, with the root
+anchored in Zcash memo data, verifiable from the public schema, proof material,
+and chain anchor without trusting the issuer's server.
+
+The distinction is categorical. Tool servers answer "what does this backend say
+right now?" ZAP1 answers "what happened, provable later to another verifier?"
+The protocol exists for the proof artifact, not for tool exposure.
+
 Applications that track ownership, deployment, billing, transfer, and exit
 events need:
 
