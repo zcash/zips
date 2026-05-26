@@ -25,12 +25,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Generate app token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - name: Checkout repository
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: publish
           fetch-depth: 0
-          ssh-key: ${{ secrets.DEPLOY_KEY }}
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Verify nonexistence of `base_ref`
         shell: bash
@@ -43,14 +50,13 @@ jobs:
           if ! ( grep -E '^[0-9a-f]{40}$' base_ref ); then exit 1; fi
 
       - name: Setup Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
 
       - name: Merge `main` to the `publish` branch
         run: |
           set -x
           git config --global user.name 'github_actions'
           git config --global user.email 'actions@github.com'
-          git config --global --add safe.directory /github/workspace
           version="$(git describe --tags --abbrev=6 origin/main |sed 's/-1-g.*//')"
           # Merge preferring the version in main.
           git merge -s recursive -Xtheirs origin/main --commit -m 'Auto-deploy: merging "main" branch'
@@ -59,23 +65,23 @@ jobs:
           git tag -f "${version}-auto"
 
       - name: Compile ZIPs and Zcash Protocol Specification
-        uses: ./.github/actions/render-protocol
+        uses: ./.github/actions/render
 
       - name: Set `.gitignore` to not ignore `rendered/`
         # This needs to be afer rendering so that it is not considered to make the tree dirty.
         run: sed -i 's@^rendered/$@@' .gitignore
 
       - name: Commit and push to `publish` branch
-        uses: EndBug/add-and-commit@v9.1.4
+        uses: EndBug/add-and-commit@290ea2c423ad77ca9c62ae0f5b224379612c0321 # v10.0.0
         with:
           add: 'rendered'
           default_author: github_actions
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: 'rendered'
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0

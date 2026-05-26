@@ -1,5 +1,5 @@
     ZIP: Unassigned {numbers are assigned by ZIP editors}
-    Title: {Something Short and To the Point}
+    Title: {Template for new ZIPs}
     Owners: First Owner <email>
             ...
     Credits: First Credited

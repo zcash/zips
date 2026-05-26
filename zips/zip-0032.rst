@@ -66,8 +66,8 @@ Zcash's transparent addresses [#slip-0044]_) generate keys and addresses determi
 advantages over random generation:
 
 - Wallets only need to store a single seed (particularly useful for hardware wallets).
-- A one-time backup of the seed (usually stored as a word phrase [#bip-0039]_) can be used to recover funds
-  from all future addresses.
+- A one-time backup of the seed (usually stored as a BIP 39 mnemonic [#bip-0039]_ or SLIP 39 shares
+  [#slip-0039]_) can be used to recover funds from all future addresses.
 - Keys are arranged into a tree of chains, enabling wallets to represent "accounts" or other high-level
   structures.
 - Viewing authority or spending authority can be delegated independently for sub-trees without compromising
@@ -148,6 +148,51 @@ Note: no corresponding notation is currently defined for the result of
 `Hardened-only child key derivation`_ with non-zero $\mathsf{lead}$ and/or non-empty $\mathsf{tag}$.
 
 
+Specification: Wallet seeds
+===========================
+
+Several of the key derivation algorithms specified in this ZIP derive a master key from a
+seed byte sequence. Any such seed byte sequence MUST be at least 32 and at most 252 bytes.
+
+The method of generating such a seed byte sequence for Zcash purposes MUST ensure that it
+has at least 256 bits of entropy. This requirement also applies to any mnemonic or input
+randomness used to obtain the seed byte sequence. See ZIP 315 [#zip-0315-wallet-seeds]_ for
+further guidance.
+
+Rationale for the 256-bit entropy requirement
+---------------------------------------------
+
+.. raw:: html
+
+   <details>
+   <summary>Click to show/hide</summary>
+
+Zcash consistently uses cryptovalues of length at or close to 256 bits, throughout its
+cryptographic design. Although the target security level for the protocol against classical
+cryptanalytic attacks is $2^{125}$ (i.e. any such attack should take at least $2^{125}$
+operations, as explained in [#zcash-security]_), this does not imply that 128-bit keys or
+seeds are sufficient. The apparent gap between the security target and the key length is
+well motivated: it provides better resistance to attacks using parallel hardware
+[#Bernstein2005]_ in the multi-user setting [#Zaverucha2012]_; it takes into account small
+entropy losses in the key derivation process; and it simplifies the analysis of the protocol
+against quantum attacks for unknown addresses [#zcash-security]_, or in the context of a
+future post-quantum recovery protocol [#zip-2005]_.
+
+In particular, for the hierarchical key derivation method described in this ZIP, if the seed
+or mnemonic has entropy less than 256 bits, it will be a weak link in the derivation of
+*all* keys belonging to that wallet.
+
+It should be noted that an adversary can search for uses of lower-entropy mnemonics across
+multiple wallets simultaneously. They can collect a large set of (transparent or shielded)
+target addresses and/or viewing keys, and then perform a brute-force search over mnemonics
+in a lower-entropy subspace, efficiently checking whether the first few addresses or viewing
+keys that would be generated from each mnemonic match any of the targets.
+
+.. raw:: html
+
+   </details>
+
+
 Specification: Sapling key derivation
 =====================================
 
@@ -187,7 +232,7 @@ Define
 Sapling master key generation
 -----------------------------
 
-Let $S$ be a seed byte sequence of a chosen length, which MUST be at least 32 and at most 252 bytes.
+Let $S$ be a seed byte sequence meeting the requirements in `Specification: Wallet seeds`_.
 
 - Calculate $I = \mathsf{BLAKE2b}\text{-}\mathsf{512}(\texttt{“ZcashIP32Sapling”}, S)$.
 - Split $I$ into two 32-byte sequences, $I_L$ and $I_R$.
@@ -440,7 +485,7 @@ is the normal Orchard spending key (opaque 32 bytes), and $\mathsf{c}$ is the ch
 Orchard master key generation
 -----------------------------
 
-Let $S$ be a seed byte sequence of a chosen length, which MUST be at least 32 and at most 252 bytes.
+Let $S$ be a seed byte sequence meeting the requirements in `Specification: Wallet seeds`_.
 
 - Return $\mathsf{MKGh}^\mathsf{Orchard}(S)$ as the master extended spending key
   $m_\mathsf{Orchard}$.
@@ -473,7 +518,7 @@ Define $\mathsf{DeriveInternalFVK^{Orchard}}(\mathsf{ak}, \mathsf{nk}, \mathsf{r
 as follows:
 
 - Let $K = \mathsf{I2LEBSP}_{256}(\mathsf{rivk})$.
-- Let $\mathsf{rivk_{internal}} = \mathsf{ToScalar^{Orchard}}(\mathsf{PRF^{expand}}(K, [\mathtt{0x83}] \,||\, \mathsf{I2LEOSP_{256}}(\mathsf{ak}) \,||\, \mathsf{I2LEOSP_{256}}(\mathsf{nk})))$.
+- Let $\mathsf{rivk_{internal}} = \mathsf{ToScalar^{Orchard}}\big(\mathsf{PRF}^{\mathsf{expand}}_{K}\big([\mathtt{0x83}] \,||\, \mathsf{I2LEOSP_{256}}(\mathsf{ak}) \,||\, \mathsf{I2LEOSP_{256}}(\mathsf{nk})\kern-0.1em\big)\kern-0.15em\big)$.
 - Return $(\mathsf{ak}, \mathsf{nk}, \mathsf{rivk_{internal}})$.
 
 The result of applying $\mathsf{DeriveInternalFVK^{Orchard}}$ to the external full viewing
@@ -500,8 +545,8 @@ Account level. It was implemented in `zcashd` as part of support for ZIP 316 [#z
 
 Note that the resulting FVK may be invalid, as specified in [#protocol-orchardkeycomponents]_.
 
-Orchard diversifier derivation
-------------------------------
+Orchard diversifier and OVK derivation
+--------------------------------------
 
 As with Sapling, we define a mechanism for deterministically deriving a sequence of diversifiers, without
 leaking how many diversified addresses have already been generated for an account. Unlike Sapling, we do so
@@ -510,18 +555,24 @@ key. This means that the full viewing key provides the capability to determine t
 within the sequence, which matches the capabilities of a Sapling extended full viewing key but simplifies the
 key structure.
 
-Given an Orchard extended spending key $(\mathsf{sk}_i, \mathsf{c}_i)$:
+Let $\mathsf{DeriveDkAndOvk^{Orchard}}$ be as defined in [#protocol-orchardkeycomponents]_.
 
-- Let $(\mathsf{ak}, \mathsf{nk}, \mathsf{rivk})$ be the Orchard full viewing key for $\mathsf{sk}_i$.
-- Let $K = \mathsf{I2LEBSP}_{256}(\mathsf{rivk})$.
-- $\mathsf{dk}_i = \mathsf{truncate}_{32}(\mathsf{PRF^{expand}}(K, [\mathtt{0x82}] \,||\, \mathsf{I2LEOSP}_{256}(\mathsf{ak}) \,||\, \mathsf{I2LEOSP}_{256}(\mathsf{nk})))$.
+Given an Orchard full viewing key $(\mathsf{ak}, \mathsf{nk}, \mathsf{rivk})$ (which may be
+either external or internal):
+
+- $(\mathsf{dk}, \mathsf{ovk}) = \mathsf{DeriveDkAndOvk^{Orchard}}(\mathsf{rivk}, \mathsf{ak}, \mathsf{nk})$.
 - Let $j$ be the index of the desired diversifier, in the range $0\,..\, 2^{88} - 1$.
-- $d_{i,j} = \mathsf{FF1}\text{-}\mathsf{AES256.Encrypt}(\mathsf{dk}_i, \texttt{“”}, \mathsf{I2LEBSP}_{88}(j))$.
+- $\mathsf{d}_j = \mathsf{FF1}\text{-}\mathsf{AES256.Encrypt}\big(\mathsf{dk}, \texttt{“”}, \mathsf{I2LEBSP}_{88}(j)\kern-0.1em\big)$.
 
-Note that unlike Sapling, all Orchard diversifiers are valid, and thus all possible values of $j$ yield
-valid diversifiers.
+Note that unlike Sapling, all Orchard diversifiers are valid, and thus all possible values
+of $j$ yield valid diversifiers.
 
-The default diversifier for $(\mathsf{sk}_i, \mathsf{c}_i)$ is defined to be $d_{i,0}.$
+The default diversifier for $(\mathsf{ak}, \mathsf{nk}, \mathsf{rivk})$ is defined to be
+$\mathsf{d}_0.$
+
+No mechanism is provided to derive distinct Outgoing Viewing Keys ($\!\mathsf{ovk}$) for
+each diversified address. This is because payments are sent from accounts (with external
+or internal scope), not from specific diversified addresses [#zip-0316-usage-of-outgoing-viewing-keys]_.
 
 
 Specification: Registered key derivation
@@ -552,7 +603,7 @@ We instantiate the hardened key generation process with the following constants:
 Registered subtree root key generation
 --------------------------------------
 
-Let $S$ be a seed byte sequence of a chosen length, which MUST be at least 32 and at most 252 bytes.
+Let $S$ be a seed byte sequence meeting the requirements in `Specification: Wallet seeds`_.
 
 The registered subtree root is obtained as:
 
@@ -624,7 +675,7 @@ We instantiate the hardened key derivation process with the following constants:
 Ad-hoc master key generation (deprecated)
 -----------------------------------------
 
-Let $S$ be a seed byte sequence of a chosen length, which MUST be at least 32 and at most 252 bytes.
+Let $S$ be a seed byte sequence meeting the requirements in `Specification: Wallet seeds`_.
 
 The master extended ad-hoc key is:
 
@@ -872,6 +923,7 @@ References
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
 .. [#bip-0032] `BIP 32: Hierarchical Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki>`_
 .. [#bip-0039] `BIP 39: Mnemonic code for generating deterministic keys <https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki>`_
+.. [#slip-0039] `SLIP 39: Shamir's Secret-Sharing for Mnemonic Codes <https://github.com/satoshilabs/slips/blob/master/slip-0039.md>`_
 .. [#bip-0043] `BIP 43: Purpose Field for Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0043.mediawiki>`_
 .. [#bip-0044] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>`_
 .. [#slip-0044] `SLIP 44: Registered coin types for BIP-0044 <https://github.com/satoshilabs/slips/blob/master/slip-0044.md>`_
@@ -890,5 +942,11 @@ References
 .. [#protocol-orchardfullviewingkeyencoding] `Zcash Protocol Specification, Version 2022.2.19. Section 5.6.4.4: Orchard Raw Full Viewing Keys <protocol/protocol.pdf#orchardfullviewingkeyencoding>`_
 .. [#protocol-orchardspendingkeyencoding] `Zcash Protocol Specification, Version 2022.2.19. Section 5.6.4.5: Orchard Spending Keys <protocol/protocol.pdf#orchardspendingkeyencoding>`_
 .. [#NIST-SP-800-38G] `NIST Special Publication 800-38G — Recommendation for Block Cipher Modes of Operation: Methods for Format-Preserving Encryption <https://dx.doi.org/10.6028/NIST.SP.800-38G>`_
+.. [#zcash-security] `Understanding the Security of Zcash. Presentation by Daira-Emma Hopwood at Zcon3 <https://www.youtube.com/watch?v=f6UToqiIdeY>`_ (`slides <https://raw.githubusercontent.com/daira/zcash-security/main/zcash-security.pdf>`_).
+.. [#Bernstein2005] `Understanding brute force. Daniel Bernstein, 2005. <https://cr.yp.to/papers.html#bruteforce>`_
+.. [#Zaverucha2012] `Hybrid Encryption in the Multi-User Setting. Gregory M. Zaverucha, 2012. <https://eprint.iacr.org/2012/159>`_
 .. [#zip-0000] `ZIP 0: ZIP Process <zip-0000.rst>`_
+.. [#zip-0315-wallet-seeds] `ZIP 315: Best Practices for Wallet Implementations — Specification: Wallet seeds <zip-0315.rst#wallet-seeds>`_
 .. [#zip-0316] `ZIP 316: Unified Addresses and Unified Viewing Keys <zip-0316.rst>`_
+.. [#zip-0316-usage-of-outgoing-viewing-keys] `ZIP 316: Unified Addresses and Unified Viewing Keys — Usage of Outgoing Viewing Keys <zip-0316.rst#usage-of-outgoing-viewing-keys>`_
+.. [#zip-2005] `ZIP 2005: Orchard Quantum Recoverability <zip-2005.md>`_

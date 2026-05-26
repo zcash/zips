@@ -4,44 +4,98 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    multimarkdown6 = {
+      url = "github:zcash/MultiMarkdown-6/543434c9df78b6be9e8125ff19a5e6934dc8ba82";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-utils.follows = "flake-utils";
+    };
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+      multimarkdown6,
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
+        mmd = multimarkdown6.packages.${system}.default;
+
+        # Pin docutils and rst2html5 to the versions specified in zip-guide.rst.
+        docutils = pkgs.python3Packages.docutils.overridePythonAttrs (old: rec {
+          version = "0.21.2";
+          src = pkgs.fetchPypi {
+            pname = "docutils";
+            inherit version;
+            hash = "sha256-OmsYcy7fGC2qPNEndbuzOM9WkUaPke7rEJ3v9uv6mG8=";
+          };
+        });
+
+        # This is a separate PyPI package from docutils' built-in rst2html5;
+        # it provides its own HTML5 writer with different math handling.
+        rst2html5 = pkgs.python3Packages.buildPythonPackage rec {
+          pname = "rst2html5";
+          version = "2.0.1";
+          pyproject = true;
+
+          src = pkgs.fetchPypi {
+            inherit pname version;
+            hash = "sha256-MJmYyF+rAo8vywGizNyIbbCvxDmCYueVoC6pxNDzKuk=";
+          };
+
+          build-system = [ pkgs.python3Packages.poetry-core ];
+
+          dependencies = [
+            docutils
+            pkgs.python3Packages.genshi
+            pkgs.python3Packages.pygments
+          ];
+
+          # rst2html5_.py is a top-level module referenced by the entry point
+          # but poetry-core's include directive doesn't always install it.
+          postInstall = ''
+            cp rst2html5_.py $out/${pkgs.python3.sitePackages}/
+          '';
+
+          # Tests require additional fixtures not included in the PyPI tarball
+          doCheck = false;
+        };
       in
       {
         devShells.default = pkgs.mkShell {
-          buildInputs = with pkgs; [
+          buildInputs = [
             # Core dependencies for render.sh
-            python3Packages.docutils  # provides rst2html5
-            pandoc                    # pandoc markdown renderer
-            multimarkdown             # multimarkdown renderer
-            perl                      # perl for text processing
+            rst2html5 # rst2html5 2.0.1 (PyPI)
+            pkgs.python3Packages.pygments # syntax highlighting for code blocks
+            pkgs.pandoc # pandoc markdown renderer
+            mmd # multimarkdown renderer (zcash fork)
+            pkgs.perl # perl for text processing
 
             # Build system dependencies
-            gnumake                   # make command for building
-            git                       # required by Makefile for safe.directory
+            pkgs.gnumake # make command for building
+            pkgs.git # required by Makefile for safe.directory
 
             # LaTeX dependencies for protocol PDF generation
-            (texlive.combine {
-              inherit (texlive) scheme-full;
+            (pkgs.texlive.combine {
+              inherit (pkgs.texlive) scheme-full;
             })
 
             # Python dependencies for links_and_dests.py
-            python3
-            python3Packages.beautifulsoup4
-            python3Packages.html5lib
-            python3Packages.certifi
+            pkgs.python3
+            pkgs.python3Packages.beautifulsoup4
+            pkgs.python3Packages.html5lib
+            pkgs.python3Packages.certifi
 
             # Standard utilities (usually available, but ensuring they're present)
-            coreutils                 # sed, grep, cat, basename, wc, diff, cp, rm, mkdir, touch
-            bash                      # shell interpreter
-            gnused                    # GNU sed
-            gnugrep                   # GNU grep
-            diffutils                 # diff command
-            findutils                 # utilities for finding files
+            pkgs.coreutils
+            pkgs.bash
+            pkgs.gnused
+            pkgs.gnugrep
+            pkgs.diffutils
+            pkgs.findutils
           ];
 
           shellHook = ''
