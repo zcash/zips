@@ -491,7 +491,7 @@ RSM-SL-v1: Roster State Module (Shielded Labs v1)
     the Active Roster Mapping changes over time as part of Zcash's broader
     ledger state consensus.
 
-  RSM-SL-v1 will be specified in a companion ZIP.
+  RSM-SL-v1 is specified in ZIP [#zip-rsm-sl-v1]_.
 
 CNTP-SL: Crosslink Network Transport Protocol from Shielded Labs
   CNTP-SL is the network transport layer providing the communication substrate
@@ -558,7 +558,7 @@ CCC-SL construction requires the following changes (specified in detail in ZIP
   finality gap constraint and Stalled Mode policy.
 
 The RSM-SL-v1 staking rules add new transaction types and ledger state to the
-Zcash protocol, specified as consensus rule additions.
+Zcash protocol, specified in ZIP [#zip-rsm-sl-v1]_.
 
 Network Upgrade Mechanism
 --------------------------
@@ -627,7 +627,7 @@ Shielded Labs Crosslink v1 introduces new on-chain data (CFP-SL blocks,
 Finalizer votes, cross-references between chains, and staking transactions).
 Care must be taken to ensure that this new data does not leak information about
 shielded transactions. The privacy implications of Finalizer identity and
-staking will be analyzed in the RSM-SL-v1 specification ZIP.
+staking is analyzed in ZIP [#zip-rsm-sl-v1]_.
 
 
 Reference Implementation
@@ -716,6 +716,7 @@ References
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2022.3.8. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
 .. [#zip-ccc-sl] `ZIP [Unassigned]: CCC-SL: Crosslink Consensus Construction from Shielded Labs <draft-shieldedlabs-crosslink-construction.rst>`_
+.. [#zip-rsm-sl-v1] `ZIP [Unassigned]: RSM-SL-v1: Crosslink Ledger State and Ledger Mutations <draft-shieldedlabs-crosslink-ledger-state.rst>`_
 .. [#tfl-book] `Zcash Trailing Finality Layer Design Book <https://electric-coin-company.github.io/tfl-book/>`_
 .. [#ebb-and-flow] `Ebb-and-Flow Protocols: A Resolution of the Availability-Finality Dilemma. David Neu, Joachim Neu, Ertem Nusret Tas, David Tse. <https://eprint.iacr.org/2020/1091.pdf>`_
 .. [#zebra-crosslink] `ShieldedLabs zebra-crosslink repository <https://github.com/ShieldedLabs/zebra-crosslink>`_
