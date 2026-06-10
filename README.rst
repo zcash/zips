@@ -130,6 +130,7 @@ Released ZIPs
     <tr> <td>252</td> <td class="left"><a href="zips/zip-0252.rst">Deployment of the NU5 Network Upgrade</a></td> <td>Final</td>
     <tr> <td>253</td> <td class="left"><a href="zips/zip-0253.md">Deployment of the NU6 Network Upgrade</a></td> <td>Final</td>
     <tr> <td>255</td> <td class="left"><a href="zips/zip-0255.md">Deployment of the NU6.1 Network Upgrade</a></td> <td>Proposed</td>
+    <tr> <td>256</td> <td class="left"><a href="zips/zip-0256.md">Deployment of Consensus Bug Fixes Between NU6.1 and NU6.2</a></td> <td>Proposed</td>
     <tr> <td>257</td> <td class="left"><a href="zips/zip-0257.md">Deployment of the Orchard Temporary Vulnerability Mitigation and NU6.2 Network Upgrade</a></td> <td>Proposed</td>
     <tr> <td>271</td> <td class="left"><a href="zips/zip-0271.md">Dev Fund Extension and One-Time Disbursement</a></td> <td>Proposed</td>
     <tr> <td>300</td> <td class="left"><a href="zips/zip-0300.rst">Cross-chain Atomic Transactions</a></td> <td>Proposed</td>
@@ -336,6 +337,7 @@ Index of ZIPs
     <tr> <td>253</td> <td class="left"><a href="zips/zip-0253.md">Deployment of the NU6 Network Upgrade</a></td> <td>Final</td>
     <tr> <td><strike>254</strike></td> <td class="left"><strike><a href="zips/zip-0254.md">Deployment of the NU7 Network Upgrade (Withdrawn)</a></strike></td> <td>Withdrawn</td>
     <tr> <td>255</td> <td class="left"><a href="zips/zip-0255.md">Deployment of the NU6.1 Network Upgrade</a></td> <td>Proposed</td>
+    <tr> <td>256</td> <td class="left"><a href="zips/zip-0256.md">Deployment of Consensus Bug Fixes Between NU6.1 and NU6.2</a></td> <td>Proposed</td>
     <tr> <td>257</td> <td class="left"><a href="zips/zip-0257.md">Deployment of the Orchard Temporary Vulnerability Mitigation and NU6.2 Network Upgrade</a></td> <td>Proposed</td>
     <tr> <td>258</td> <td class="left"><a href="zips/zip-0258.md">Deployment of the NU6.3 Network Upgrade</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">260</span></td> <td class="left"><a class="reserved" href="zips/zip-0260.md">Extending Block Messages with Additional Authentication Data</a></td> <td>Reserved</td>
