@@ -535,7 +535,7 @@ analogous parameters open):
 - The interaction with the final Ironwood consensus-rule text, in particular
   that a cross-pool migration spend is not treated as a prohibited "payment to
   another user".
-
+- Definition of "Typical balance"
 
 # References
 
