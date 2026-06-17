@@ -1,5 +1,5 @@
     ZIP: XXX
-    Title: Ironwood Transaction Format
+    Title: Version 6 Transaction Format
     Owners: Daira-Emma Hopwood <daira@jacaranda.org>
             ‹other ZODL / Valar Group authors›
     Status: Draft
@@ -87,9 +87,9 @@ used for the Orchard bundle.
 
 # Non-requirements
 
-This ZIP does not define the Ironwood circuit or the `enableCrossAddress` constraint
-(see [^ironwood-circuit]), the activation height or consensus branch ID (see
-[^ironwood-deploy]), or wallet behaviour for migrating funds across the turnstile.
+This ZIP does not define the Ironwood circuit or the `enableCrossAddressOrchard`
+constraint (see [^ironwood-circuit]), the activation height or consensus branch ID
+(see [^ironwood-deploy]), or wallet behaviour for migrating funds across the turnstile.
 
 This ZIP does not reintroduce the OrchardZSA, issuance, or asset-burn fields, the
 `zip233Amount` field, or per-transparent-input sighash information that appeared in the
@@ -112,7 +112,6 @@ Bytes                    | Name                     | Data Type                 
 `4`                      | `nConsensusBranchId`     | `uint32`                               | Consensus branch ID; MUST be the NU6.3 branch ID [^ironwood-deploy].
 `4`                      | `lock_time`              | `uint32`                               | Unix-epoch UTC time or block height, encoded as in Bitcoin.
 `4`                      | `nExpiryHeight`          | `uint32`                               | A block height in {1 .. 499999999} after which the transaction will expire, or 0 to disable expiry. [^zip-0203]
-`8`                      | `fee`                    | `uint64`                               | The fee to be paid by this transaction, in zatoshis. **(Under discussion — see [Open Issues](#open-issues).)**
 **Transparent Transaction Fields** ||||
 `varies`                 | `tx_in_count`            | `compactSize`                          | Number of transparent inputs in `tx_in`.
 `varies`                 | `tx_in`                  | `tx_in`                                | Transparent inputs, encoded as in Bitcoin.
@@ -183,14 +182,16 @@ output note uses that format. This is the note-level distinction between the two
   bit was reserved as `0`.
 
 * For coinbase transactions, `enableSpendsOrchard` MUST be `0` in both `flagsOrchard` and
-  `flagsIronwood`.
+  `flagsIronwood`. (From NU6.3, coinbase transactions are additionally constrained to have an
+  empty Orchard bundle — forcing newly created shielded value into Ironwood — specified
+  separately.)
 
-* The `anchorOrchard` field refers to the Orchard note commitment tree; the
-  `anchorIronwood` field refers to the Ironwood note commitment tree. The two trees, and
-  their nullifier sets, are disjoint.
+* The `anchorOrchard` field refers to the Orchard note commitment tree, and the
+  `anchorIronwood` field to the Ironwood note commitment tree. The Orchard and Ironwood pools
+  have separate, independent note commitment trees and nullifier sets.
 
 * The following rules apply from NU6.3 activation. *(Their placement — this ZIP or the
-  deployment ZIP — is under discussion; see [Open Issues](#open-issues).)*
+  deployment ZIP — is under discussion; see [Open Issues](#openissues).)*
     * A version 6 transaction MUST have `enableCrossAddressOrchard = 0` in `flagsOrchard`,
       restricting the legacy Orchard pool to same-receiver actions (see [^ironwood-circuit]).
     * No new value may enter the Orchard pool: `valueBalanceOrchard` MUST be greater than
@@ -205,51 +206,127 @@ authorizing data**. The version 5 algorithm is unchanged.
 
 ### Ironwood bundle digest
 
-The version 6 txid digest adds an Ironwood bundle digest as the last child, after the Orchard
-bundle digest:
+Relative to the txid digest for v5 transactions [^zip-0244-txiddigest], the version 6 txid digest
+adds an Ironwood bundle digest as the last child, after the Orchard bundle digest:
 
-    txid = BLAKE2b-256("ZcashTxHash_" || consensusBranchId,
-                       header_digest || transparent_digest || sapling_digest ||
-                       orchard_digest || ironwood_digest)
+    txid_digest_v6 = BLAKE2b-256("ZcashTxHash_" || consensusBranchId,
+                                 header_digest || transparent_digest || sapling_digest ||
+                                 orchard_digest_v6 || ironwood_digest_v6)
 
-and the auth digest adds an Ironwood auth digest as the last child, after the Orchard one:
+Relative to the auth digest for v5 transactions [^zip-0244-authorizingdatacommitment], the
+version 6 auth digest adds an Ironwood auth digest as the last child, after the Orchard one:
 
-    auth_digest = BLAKE2b-256("ZTxAuthHash_" || consensusBranchId,
-                              transparent_auth_digest || sapling_auth_digest ||
-                              orchard_auth_digest || ironwood_auth_digest)
-
-`ironwood_digest` and `ironwood_auth_digest` are computed with **the same structure as the Orchard
-`orchard_digest` and `orchard_auth_digest`** (ZIP 244), but with Ironwood-specific 16-byte BLAKE2b
-personalizations at each node:
-
-node                  | Orchard (ZIP 244)  | Ironwood
---------------------- | ------------------ | ------------------
-bundle (txid)         | `ZTxIdOrchardHash` | `ZTxIdIronwd_Hash`
-actions — compact     | `ZTxIdOrcActCHash` | `ZTxIdIrnActCHash`
-actions — memos       | `ZTxIdOrcActMHash` | `ZTxIdIrnActMHash`
-actions — non-compact | `ZTxIdOrcActNHash` | `ZTxIdIrnActNHash`
-auth                  | `ZTxAuthOrchaHash` | `ZTxAuthIrnwdHash`
-
-When a version 6 transaction has no Ironwood actions, `ironwood_digest` and `ironwood_auth_digest`
-are the hashes of empty input under the bundle and auth personalizations respectively —
-`BLAKE2b-256("ZTxIdIronwd_Hash", [])` and `BLAKE2b-256("ZTxAuthIrnwdHash", [])` — distinct from the
-Orchard empty-bundle digests.
+    auth_digest_v6 = BLAKE2b-256("ZTxAuthHash_" || consensusBranchId,
+                                 transparent_auth_digest || sapling_auth_digest ||
+                                 orchard_auth_digest_v6 || ironwood_auth_digest_v6)
 
 ### Anchor commitment (version 6)
 
-In version 5, the Orchard anchor `anchorOrchard` is part of the **effecting data**: it is committed
-in `orchard_digest` (and hence the txid), while the Orchard auth digest commits only to proofs and
-signatures [^zip-0244].
+In version 5, the Sapling anchor (encoded redundantly as `anchor` in each
+`sapling_spends_noncompact_digest`) and the Orchard anchor (`anchorOrchard` in `orchard_digest`)
+are part of the **effecting data**: they are committed to in `txid_digest`, while the Sapling and
+Orchard auth digests commit only to proofs and signatures [^zip-0244-authorizingdatacommitment].
 
-In **version 6**, for **both** the Orchard and Ironwood bundles, the anchor is instead part of the
+In version 6, for Sapling, Orchard, and Ironwood bundles, the anchor is instead part of the
 **authorizing data**. Relative to ZIP 244, for version 6 transactions:
 
-- `orchard_digest` / `ironwood_digest` omit `anchorOrchard` / `anchorIronwood`;
-- `orchard_auth_digest` / `ironwood_auth_digest` additionally commit to `anchorOrchard` /
-  `anchorIronwood`.
+- `sapling_spends_noncompact_digest`, `orchard_digest`, and `ironwood_digest` omit the anchor.
+- `sapling_auth_digest`, `orchard_auth_digest`, and `ironwood_auth_digest` additionally commit
+  to `anchorSapling`, `anchorOrchard`, or `anchorIronwood` respectively, after the existing fields.
 
 This lets the anchor be updated (re-anchored to a more recent note commitment tree root) without
 changing the transaction ID, while signatures still bind to the specific anchor used.
+
+`ironwood_digest` and `ironwood_auth_digest` are computed with *the same structure* as the Orchard
+`orchard_digest` and `orchard_auth_digest` (ZIP 244), but with Ironwood-specific 16-byte BLAKE2b
+personalizations at each node. Also, distinct personalizations are used for Sapling and Orchard nodes
+where the encoding has changed as a result of moving the anchor commitments to auth data, as follows:
+
+node                                  | v5 personalization | v6 personalization | Comment for v6
+------------------------------------- | ------------------ | ------------------ | -------------------------
+sapling_digest[_v6]                   | `ZTxIdSaplingHash` | `ZTxIdSaplingHash` | not changed directly
+sapling_spends_digest                 | `ZTxIdSSpendsHash` | `ZTxIdSSpendsHash` | unchanged
+sapling_spends_compact_digest         | `ZTxIdSSpendCHash` | `ZTxIdSSpendCHash` | unchanged
+sapling_spends_noncompact_digest[_v6] | `ZTxIdSSpendNHash` | `ZTxIdSSpendNH_v6` | omits `anchor`
+sapling_auth_digest[_v6]              | `ZTxAuthSapliHash` | `ZTxAuthSapliH_v6` | includes `anchorSapling`
+------------------------------------- | ------------------ | ------------------ | -------------------------
+orchard_digest[_v6]                   | `ZTxIdOrchardHash` | `ZTxIdOrchardH_v6` | omits `anchorOrchard`
+orchard_actions_compact_digest        | `ZTxIdOrcActCHash` | `ZTxIdOrcActCHash` | unchanged
+orchard_actions_memos_digest          | `ZTxIdOrcActMHash` | `ZTxIdOrcActMHash` | unchanged
+orchard_actions_noncompact_digest     | `ZTxIdOrcActNHash` | `ZTxIdOrcActNHash` | unchanged
+orchard_auth_digest_v6                | `ZTxAuthOrchaHash` | `ZTxAuthOrchaH_v6` | includes `anchorOrchard`
+------------------------------------- | ------------------ | ------------------ | -------------------------
+ironwood_digest                       | n/a                | `ZTxIdIronwd_H_v6` | omits `anchorIronwood`
+ironwood_actions_compact_digest       | n/a                | `ZTxIdIrnActCH_v6` |
+ironwood_actions_memos_digest         | n/a                | `ZTxIdIrnActMH_v6` |
+ironwood_actions_noncompact_digest    | n/a                | `ZTxIdIrnActNH_v6` |
+ironwood_auth_digest                  | n/a                | `ZTxAuthIrnwdH_v6` | includes `anchorIronwood`
+
+As in the case of Sapling and Orchard, when a version 6 transaction has no Ironwood actions,
+`ironwood_digest` and `ironwood_auth_digest` are the hashes of empty input under the bundle and
+auth personalizations respectively, i.e. `BLAKE2b-256("ZTxIdIronwd_H_v6", [])` and
+`BLAKE2b-256("ZTxAuthIrnwdH_v6", [])`, which are distinct from the Orchard empty-bundle digests.
+
+### Summary of the resulting digest structure and personalizations
+
+Below, `(*)` indicates a node that is directly changed relative to v5, and `(+)` indicates a node
+that is added relative to v5.
+
+The txid digest structure becomes:
+
+    txid_digest_v6
+    ├── header_digest
+    ├── transparent_digest
+    │   ├── prevouts_digest
+    │   ├── sequence_digest
+    │   └── outputs_digest
+    ├── sapling_digest_v6
+    │   ├── sapling_spends_digest_v6
+    │   │   ├── sapling_spends_compact_digest
+    │   │   └── sapling_spends_noncompact_digest_v6 (*)
+    │   │       ├── cv
+    │   │       └── rk
+    │   ├── sapling_outputs_digest
+    │   │   ├── sapling_outputs_compact_digest
+    │   │   ├── sapling_outputs_memos_digest
+    │   │   └── sapling_outputs_noncompact_digest
+    │   └── valueBalance
+    ├── orchard_digest_v6 (*)
+    │   ├── orchard_actions_compact_digest
+    │   ├── orchard_actions_memos_digest
+    │   ├── orchard_actions_noncompact_digest
+    │   ├── flagsOrchard
+    │   └── valueBalanceOrchard
+    └── ironwood_digest_v6 (+)
+        ├── ironwood_actions_compact_digest
+        ├── ironwood_actions_memos_digest
+        ├── ironwood_actions_noncompact_digest
+        ├── flagsIronwood
+        └── valueBalanceIronwood
+
+The auth digest structure becomes:
+
+    auth_digest_v6
+    ├── transparent_scripts_digest
+    ├── sapling_auth_digest_v6 (*)
+    │   ├── vSpendProofsSapling
+    │   ├── vSpendAuthSigsSapling
+    │   ├── vOutputProofsSapling
+    │   ├── bindingSigSapling
+    │   └── anchorSapling (+)
+    ├── orchard_auth_digest_v6 (*)
+    │   ├── proofsOrchard
+    │   ├── vSpendAuthSigsOrchard
+    │   ├── bindingSigOrchard
+    │   └── anchorOrchard (+)
+    └── ironwood_auth_digest_v6 (+)
+        ├── proofsIronwood
+        ├── vSpendAuthSigsIronwood
+        ├── bindingSigIronwood
+        └── anchorIronwood
+
+Note that the nodes under each of `sapling_digest_v6`, `orchard_digest_v6`, `ironwood_digest_v6`,
+and their `auth_digest`s are present only if the corresponding bundle is non-empty.
 
 ### Block commitments
 
@@ -257,15 +334,13 @@ The `hashBlockCommitments` authorizing-data commitment [^zip-0244] incorporates 
 digest — which now includes the Ironwood auth digest, and (per the change above) the anchors — with
 no further structural change.
 
-
-## Changes to the Protocol Specification
-
-Corresponding changes are required in § 4.17 ‘Chain Value Pool Balances’
-[^protocol-chainvalue] to define an Ironwood chain value pool balance alongside the existing
-Sprout, Sapling, and Orchard pools. These mirror the changes to ZIP 209 below and are not
-spelled out here.
-
 ## Changes to ZIP 209
+
+ZIP 209 [^zip-0209] is extended to track an Ironwood chain value pool balance and to require
+it, like the other shielded pool balances, not to become negative.
+
+[TODO take account of changes that should be (but are not currently) made in ZIP 256.
+The check for each pool is now that the chain value pool balance stays within [0, MAX_MONEY].]
 
 In the Terminology section, after the paragraph
 
@@ -292,6 +367,77 @@ with
 > negative in the block chain created as a result of accepting a block, then all nodes MUST
 > reject the block as invalid.
 
+## Changes to the Protocol Specification
+
+Changes corresponding to the [ZIP 209 changes above](#changestozip209) are required in
+§ 4.17 ‘Chain Value Pool Balances’ [^protocol-chainvalue] to define an Ironwood chain value
+pool balance alongside those for the existing Sprout, Sapling, and Orchard pools. These
+mirror the changes above and are not spelled out here.
+
+## Changes to ZIP 221
+
+The history tree that commits to chain history [^zip-0221] gains Ironwood metadata, exactly
+as it gained Orchard metadata at NU5. The new fields are computed and aggregated identically
+to the corresponding `...Orchard...` fields.
+
+In the "Tree Node specification" section, after field 14 `nOrchardTxCount`, add:
+
+> 15. [NU6.3 onward] `hashEarliestIronwoodRoot`
+>
+>     Leaf node
+>       Calculated as the note commitment root of the final Ironwood treestate
+>       (similar to `hashEarliestOrchardRoot`).
+>
+>     Internal or root node
+>       Inherited from the left child.
+>
+>     Serialized as `char[32]`.
+>
+> 16. [NU6.3 onward] `hashLatestIronwoodRoot`
+>
+>     Leaf node
+>       Calculated as the note commitment root of the final Ironwood treestate
+>       (similar to `hashLatestOrchardRoot`).
+>
+>     Internal or root node
+>       Inherited from the right child.
+>
+>     Serialized as `char[32]`.
+>
+> 17. [NU6.3 onward] `nIronwoodTxCount`
+>
+>     Leaf node
+>       The number of transactions in the leaf block where `vActionsIronwood`
+>       is non-empty.
+>
+>     Internal or root node
+>       The sum of the `nIronwoodTxCount` field of both children.
+>
+>     Serialized as `CompactSize uint`.
+
+Replace
+
+> The fields marked "[NU5 onward]" are omitted before NU5 activation [^zip-0252].
+>
+> Each node, when serialized, is between 147 and 171 bytes long (between 212 and 244 bytes
+> after NU5 activation). [...]
+
+with
+
+> The fields marked "[NU5 onward]" are omitted before NU5 activation [^zip-0252]. The fields
+> marked "[NU6.3 onward]" are omitted before NU6.3 activation.
+>
+> Each node, when serialized, is between 147 and 171 bytes long (between 212 and 244 bytes
+> after NU5 activation, and between 277 and 317 bytes after NU6.3 activation). [...]
+
+The pseudocode node structure and `serialize` / `make_leaf` / `make_parent` functions are
+extended with `hashEarliestIronwoodRoot`, `hashLatestIronwoodRoot`, and `nIronwoodTxCount`
+in the same way the "# NU5 only" Orchard fields were added (present iff NU6.3 has activated;
+the roots inherited from the left/right child and the count summed, in internal nodes).
+
+`hashChainHistoryRoot` continues to be the BLAKE2b-256 digest of the serialized root node;
+its value changes at NU6.3 only through the added node fields. The `hashBlockCommitments`
+header field [^zip-0244] is unaffected beyond this.
 
 # Rationale
 
@@ -312,28 +458,15 @@ independently.
 address), with bit 2 reserved as `0` before NU6.3. This is reverse compatible: a legacy
 Orchard-pool spend after NU6.3 requires the restricted state, which is bit 2 = `0` —
 exactly the value that signers treating bit 2 as a reserved-zero bit already produce. The
-in-circuit constraint and the equivalent internal `disableCrossAddress` instance value are
-discussed in [^ironwood-circuit].
+in-circuit constraint and the equivalent internal `disableCrossAddressOrchard` instance
+value are discussed in [^ironwood-circuit].
 
 
 # Open Issues
 
-* **Explicit `fee` field.** Whether to include an explicit `fee` field (as shown above) is
-  under discussion: it is desired by some authors but has received pushback. It is retained
-  in this draft pending that discussion, and may be removed (reverting to an implicit fee,
-  as in version 5) if the pushback is sustained.
-
-* **Ironwood transaction-hashing personalizations.** The personalization strings specified above
-  match the current implementation (librustzcash); the choices (including the `Irn` / `Ironwd`
-  abbreviations) are pending confirmation.
-
 * **Placement of the turnstile / value-pool rules.** The "no new value into Orchard" rule
   and the ZIP 209 chain value pool balance accounting could instead live in
   [^ironwood-deploy]; the placement is to be decided.
-
-* **Flag naming.** Whether the new flag is named `enableCrossAddressOrchard` (matching the
-  `…Orchard` suffix of the existing flag bits, since it is an Orchard-protocol flag) or
-  simply `enableCrossAddress`.
 
 
 # Deployment
@@ -358,6 +491,8 @@ group ID, and the NU6.3 consensus branch ID are specified in [^ironwood-deploy].
 
 [^zip-0209]: [ZIP 209: Prohibit Negative Shielded Chain Value Pool Balances](zip-0209.rst)
 
+[^zip-0221]: [ZIP 221: FlyClient - Consensus-Layer Changes](zip-0221.rst)
+
 [^zip-0224]: [ZIP 224: Orchard Shielded Protocol](zip-0224.rst)
 
 [^zip-0225]: [ZIP 225: Version 5 Transaction Format](zip-0225.rst)
@@ -365,6 +500,12 @@ group ID, and the NU6.3 consensus branch ID are specified in [^ironwood-deploy].
 [^zip-0230]: [ZIP 230: Withdrawn Version 6 Transaction Format](zip-0230.rst)
 
 [^zip-0244]: [ZIP 244: Transaction Identifier Non-Malleability](zip-0244.rst)
+
+[^zip-0244-txiddigest]: [ZIP 244: Transaction Identifier Non-Malleability. Section: TxId Digest](zip-0244.rst#txid-digest)
+
+[^zip-0244-authorizingdatacommitment]: [ZIP 244: Transaction Identifier Non-Malleability. Section: Authorizing Data Commitment](zip-0244.rst#authorizing-data-commitment)
+
+[^zip-0252]: [ZIP 252: Deployment of the NU5 Network Upgrade](zip-0252.rst)
 
 [^zip-2005]: [ZIP 2005: Orchard Quantum Recoverability](zip-2005.md)
 

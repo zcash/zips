@@ -234,7 +234,7 @@ be deleted.
     <tr> <td class="left">draft-ecc-authenticated-reply-addrs</td> <td class="left"><a href="zips/draft-ecc-authenticated-reply-addrs.md">Authenticated Reply Addresses</a></td> <td class="left"><a href="https://github.com/zcash/zips/issues/1230">zips#1230</a></td>
     <tr> <td class="left">draft-ecc-onchain-accountable-voting</td> <td class="left"><a href="zips/draft-ecc-onchain-accountable-voting.md">On-chain Accountable Voting</a></td> <td class="left"></td>
     <tr> <td class="left">draft-str4d-orchard-balance-proof</td> <td class="left"><a href="zips/draft-str4d-orchard-balance-proof.md">Air drops, Proof-of-Balance, and Stake-weighted Polling</a></td> <td class="left"><a href="https://github.com/zcash/zips/issues/1229">zips#1229</a></td>
-    <tr> <td class="left">draft-zodl-valargroup-ironwood-txformat</td> <td class="left"><a href="zips/draft-zodl-valargroup-ironwood-txformat.md">Ironwood Transaction Format</a></td> <td class="left"></td>
+    <tr> <td class="left">draft-zodl-valargroup-ironwood-txformat</td> <td class="left"><a href="zips/draft-zodl-valargroup-ironwood-txformat.md">Version 6 Transaction Format</a></td> <td class="left"></td>
   </table></embed>
 
 Withdrawn, Rejected, or Obsolete ZIPs
