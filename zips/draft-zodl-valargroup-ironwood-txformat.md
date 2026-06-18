@@ -195,7 +195,7 @@ Bytes                    | Name                     | Data Type                 
 **Orchard Transaction Fields** ||||
 `varies`                 | `nActionsOrchard`        | `compactSize`                          | The number of Orchard Action descriptions in `vActionsOrchard`.
 `820 * nActionsOrchard`  | `vActionsOrchard`        | `OrchardAction[nActionsOrchard]`       | A sequence of Orchard Action descriptions, encoded per § 7.5 ‘Action Description Encoding and Consensus’.
-`1`                      | `flagsOrchard`           | `byte`                                 | An 8-bit value representing a set of flags. From LSB to MSB: `enableSpendsOrchard`, `enableOutputsOrchard`, `enableCrossAddressOrchard` (new at NU6.3); the remaining bits MUST be `0`.
+`1`                      | `flagsOrchard`           | `byte`                                 | An 8-bit value representing a set of flags. From LSB to MSB: `enableSpends`, `enableOutputs`, `enableCrossAddress` (new at NU6.3); the remaining bits MUST be `0`.
 `8`                      | `valueBalanceOrchard`    | `int64`                                | The net value of Orchard spends minus outputs.
 `32`                     | `anchorOrchard`          | `byte[32]`                             | A root of the Orchard note commitment tree at some block height in the past.
 `varies`                 | `sizeProofsOrchard`      | `compactSize`                          | Length in bytes of `proofsOrchard`. Value is `2720 + 2272 * nActionsOrchard`.
@@ -205,7 +205,7 @@ Bytes                    | Name                     | Data Type                 
 **Ironwood Transaction Fields (new)** ||||
 `varies`                 | `nActionsIronwood`       | `compactSize`                          | The number of Ironwood Action descriptions in `vActionsIronwood`.
 `820 * nActionsIronwood` | `vActionsIronwood`       | `OrchardAction[nActionsIronwood]`      | A sequence of Ironwood Action descriptions, using the same encoding as Orchard Actions (§ 7.5).
-`1`                      | `flagsIronwood`          | `byte`                                 | The same layout as `flagsOrchard`, including `enableCrossAddressOrchard` at bit 2; the remaining bits MUST be `0`.
+`1`                      | `flagsIronwood`          | `byte`                                 | The same layout as `flagsOrchard`, including `enableCrossAddress` at bit 2; the remaining bits MUST be `0`.
 `8`                      | `valueBalanceIronwood`   | `int64`                                | The net value of Ironwood spends minus outputs.
 `32`                     | `anchorIronwood`         | `byte[32]`                             | A root of the **Ironwood** note commitment tree at some block height in the past.
 `varies`                 | `sizeProofsIronwood`     | `compactSize`                          | Length in bytes of `proofsIronwood`. Value is `2720 + 2272 * nActionsIronwood`.
@@ -218,6 +218,11 @@ The encoding of the transparent and Sapling fields is unchanged from version 5
 Orchard Action descriptions. Every Ironwood-pool output note uses the quantum-recoverable
 note plaintext format (lead byte `0x03`) defined in ZIP 2005 [^zip-2005]; no Orchard-pool
 output note uses that format. This is the only note-level distinction between the two pools.
+
+Two `flagsOrchard` bits have been renamed relative to version 5: `enableSpendsOrchard` →
+`enableSpends` and `enableOutputsOrchard` → `enableOutputs`. In version 6 these bits
+—together with `enableCrossAddress`— are defined with the same meaning in both `flagsOrchard`
+and `flagsIronwood`, so the previous `...Orchard` suffix would be misleading.
 
 ## Consensus Rules
 
@@ -254,10 +259,17 @@ output note uses that format. This is the only note-level distinction between th
   `anchorIronwood` field to the Ironwood note commitment tree. The Orchard and Ironwood
   pools have separate, independent note commitment trees and nullifier sets.
 
+Version 4, version 5, and version 6 transactions are all valid from NU6.3 activation onward;
+this ZIP defines only the version 6 format (the version 4 and version 5 formats are
+unchanged). The NU6.3 consensus rules on Orchard actions apply regardless of transaction
+version. In particular, the Orchard-protocol cross-address restriction is enforced for every
+Orchard-pool Action mined from NU6.3 onward [^draft-zodl-valargroup-action-circuit-update],
+so that it cannot be bypassed by using a version 5 transaction.
+
 See [^draft-zodl-valargroup-deploy-nu6.3] for additional consensus requirements that apply
 to **all** transactions from NU6.3 onward, regardless of transaction version. (Briefly and
 non-normatively, these are that coinbase transactions must have an empty Orchard component;
-that the `enableCrossAddressOrchard` bit of `flagsOrchard` must be `0`; and that
+that the `enableCrossAddress` bit of `flagsOrchard` must be `0`; and that
 $\mathsf{v}^{\textsl{balanceOrchardPool}}$ must be nonnegative.)
 
 ## Transaction Identifiers, Signature Hashing, and Block Commitments
