@@ -168,50 +168,59 @@ A version 6 transaction is encoded as follows. Fields up to and including the Or
 component are as in the version 5 format [^zip-0225], except as noted; the Ironwood component
 is new.
 
-Bytes                    | Name                     | Data Type                              | Description
------------------------- | ------------------------ | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-**Common Transaction Fields** ||||
-`4`                      | `header`                 | `uint32`                               | Contains the `fOverwintered` flag (bit 31, always set) and `version` (bits 30 .. 0), which MUST be `6`.
-`4`                      | `nVersionGroupId`        | `uint32`                               | Version group ID (nonzero); the version 6 value fixed in [^draft-zodl-valargroup-deploy-nu6.3].
-`4`                      | `nConsensusBranchId`     | `uint32`                               | Consensus branch ID; MUST be the NU6.3 branch ID [^draft-zodl-valargroup-deploy-nu6.3].
-`4`                      | `lock_time`              | `uint32`                               | Unix-epoch UTC time or block height, encoded as in Bitcoin.
-`4`                      | `nExpiryHeight`          | `uint32`                               | A block height in {1 .. 499999999} after which the transaction will expire, or 0 to disable expiry. [^zip-0203]
-**Transparent Transaction Fields** ||||
-`varies`                 | `tx_in_count`            | `compactSize`                          | Number of transparent inputs in `tx_in`.
-`varies`                 | `tx_in`                  | `tx_in`                                | Transparent inputs, encoded as in Bitcoin.
-`varies`                 | `tx_out_count`           | `compactSize`                          | Number of transparent outputs in `tx_out`.
-`varies`                 | `tx_out`                 | `tx_out`                               | Transparent outputs, encoded as in Bitcoin.
-**Sapling Transaction Fields (unchanged from v5)** ||||
-`varies`                 | `nSpendsSapling`         | `compactSize`                          | Number of Sapling Spend descriptions in `vSpendsSapling`.
-`96 * nSpendsSapling`    | `vSpendsSapling`         | `SpendDescriptionV5[nSpendsSapling]`   | Sapling Spend descriptions, encoded per § 7.3 ‘Spend Description Encoding and Consensus’.
-`varies`                 | `nOutputsSapling`        | `compactSize`                          | Number of Sapling Output descriptions in `vOutputsSapling`.
-`756 * nOutputsSapling`  | `vOutputsSapling`        | `OutputDescriptionV5[nOutputsSapling]` | Sapling Output descriptions, encoded per § 7.4 ‘Output Description Encoding and Consensus’.
-`8`                      | `valueBalanceSapling`    | `int64`                                | The net value of Sapling Spends minus Outputs.
-`32`                     | `anchorSapling`          | `byte[32]`                             | A root of the Sapling note commitment tree at some block height in the past.
-`192 * nSpendsSapling`   | `vSpendProofsSapling`    | `byte[192 * nSpendsSapling]`           | Encodings of the zk-SNARK proofs for each Sapling Spend.
-`64 * nSpendsSapling`    | `vSpendAuthSigsSapling`  | `byte[64 * nSpendsSapling]`            | Authorizing signatures for each Sapling Spend.
-`192 * nOutputsSapling`  | `vOutputProofsSapling`   | `byte[192 * nOutputsSapling]`          | Encodings of the zk-SNARK proofs for each Sapling Output.
-`64`                     | `bindingSigSapling`      | `byte[64]`                             | A Sapling binding signature on the SIGHASH transaction hash.
-**Orchard Transaction Fields** ||||
-`varies`                 | `nActionsOrchard`        | `compactSize`                          | The number of Orchard Action descriptions in `vActionsOrchard`.
-`820 * nActionsOrchard`  | `vActionsOrchard`        | `OrchardAction[nActionsOrchard]`       | A sequence of Orchard Action descriptions, encoded per § 7.5 ‘Action Description Encoding and Consensus’.
-`1`                      | `flagsOrchard`           | `byte`                                 | An 8-bit value representing a set of flags. From LSB to MSB: `enableSpends`, `enableOutputs`, `enableCrossAddress` (new at NU6.3); the remaining bits MUST be `0`.
-`8`                      | `valueBalanceOrchard`    | `int64`                                | The net value of Orchard spends minus outputs.
-`32`                     | `anchorOrchard`          | `byte[32]`                             | A root of the Orchard note commitment tree at some block height in the past.
-`varies`                 | `sizeProofsOrchard`      | `compactSize`                          | Length in bytes of `proofsOrchard`. Value is `2720 + 2272 * nActionsOrchard`.
-`sizeProofsOrchard`      | `proofsOrchard`          | `byte[sizeProofsOrchard]`              | Encoding of aggregated zk-SNARK proofs for Orchard Actions.
-`64 * nActionsOrchard`   | `vSpendAuthSigsOrchard`  | `byte[64 * nActionsOrchard]`           | Authorizing signatures for each Orchard Action.
-`64`                     | `bindingSigOrchard`      | `byte[64]`                             | An Orchard binding signature on the SIGHASH transaction hash.
-**Ironwood Transaction Fields (new)** ||||
-`varies`                 | `nActionsIronwood`       | `compactSize`                          | The number of Ironwood Action descriptions in `vActionsIronwood`.
-`820 * nActionsIronwood` | `vActionsIronwood`       | `OrchardAction[nActionsIronwood]`      | A sequence of Ironwood Action descriptions, using the same encoding as Orchard Actions (§ 7.5).
-`1`                      | `flagsIronwood`          | `byte`                                 | The same layout as `flagsOrchard`, including `enableCrossAddress` at bit 2; the remaining bits MUST be `0`.
-`8`                      | `valueBalanceIronwood`   | `int64`                                | The net value of Ironwood spends minus outputs.
-`32`                     | `anchorIronwood`         | `byte[32]`                             | A root of the **Ironwood** note commitment tree at some block height in the past.
-`varies`                 | `sizeProofsIronwood`     | `compactSize`                          | Length in bytes of `proofsIronwood`. Value is `2720 + 2272 * nActionsIronwood`.
-`sizeProofsIronwood`     | `proofsIronwood`         | `byte[sizeProofsIronwood]`             | Encoding of aggregated zk-SNARK proofs for Ironwood Actions.
-`64 * nActionsIronwood`  | `vSpendAuthSigsIronwood` | `byte[64 * nActionsIronwood]`          | Authorizing signatures for each Ironwood Action.
-`64`                     | `bindingSigIronwood`     | `byte[64]`                             | An Ironwood binding signature on the SIGHASH transaction hash.
+| Note | Bytes                           | Name                     | Data Type                              | Description
+| ---- | ------------------------------- | ------------------------ | -------------------------------------- | -----------
+| **Common Transaction Fields** |||||
+|      | $4$                             | `header`                 | `uint32`                               | Contains the `fOverwintered` flag (bit 31, always set) and `version` (bits 30 .. 0), which MUST be `6`.
+|      | $4$                             | `nVersionGroupId`        | `uint32`                               | Version group ID (nonzero); the version 6 value fixed in [^draft-zodl-valargroup-deploy-nu6.3].
+|      | $4$                             | `nConsensusBranchId`     | `uint32`                               | Consensus branch ID; MUST be the NU6.3 branch ID [^draft-zodl-valargroup-deploy-nu6.3].
+|      | $4$                             | `lock_time`              | `uint32`                               | Unix-epoch UTC time or block height, encoded as in Bitcoin.
+|      | $4$                             | `nExpiryHeight`          | `uint32`                               | A block height in {1 .. 499999999} after which the transaction will expire, or 0 to disable expiry. [^zip-0203]
+| **Transparent Transaction Fields** |||||
+|      | `varies`                        | `tx_in_count`            | `compactSize`                          | Number of transparent inputs in `tx_in`.
+|      | `varies`                        | `tx_in`                  | `tx_in`                                | Transparent inputs, encoded as in Bitcoin.
+|      | `varies`                        | `tx_out_count`           | `compactSize`                          | Number of transparent outputs in `tx_out`.
+|      | `varies`                        | `tx_out`                 | `tx_out`                               | Transparent outputs, encoded as in Bitcoin.
+| **Sapling Transaction Fields (unchanged from v5)** |||||
+|      | `varies`                        | `nSpendsSapling`         | `compactSize`                          | Number of Sapling Spend descriptions in `vSpendsSapling`.
+|      | $96\,\cdot$ `nSpendsSapling`    | `vSpendsSapling`         | `SpendDescriptionV5[nSpendsSapling]`   | Sapling Spend descriptions, encoded per § 7.3 ‘Spend Description Encoding and Consensus’.
+|      | `varies`                        | `nOutputsSapling`        | `compactSize`                          | Number of Sapling Output descriptions in `vOutputsSapling`.
+|      | $756\,\cdot$ `nOutputsSapling`  | `vOutputsSapling`        | `OutputDescriptionV5[nOutputsSapling]` | Sapling Output descriptions, encoded per § 7.4 ‘Output Description Encoding and Consensus’.
+| †    | $8$                             | `valueBalanceSapling`    | `int64`                                | The net value of Sapling Spends minus Outputs.
+| ‡    | $32$                            | `anchorSapling`          | `byte[32]`                             | A root of the Sapling note commitment tree at some block height in the past.
+|      | $192\,\cdot$ `nSpendsSapling`   | `vSpendProofsSapling`    | `byte[192 * nSpendsSapling]`           | Encodings of the zk-SNARK proofs for each Sapling Spend.
+|      | $64\,\cdot$ `nSpendsSapling`    | `vSpendAuthSigsSapling`  | `byte[64 * nSpendsSapling]`            | Authorizing signatures for each Sapling Spend.
+|      | $192\,\cdot$ `nOutputsSapling`  | `vOutputProofsSapling`   | `byte[192 * nOutputsSapling]`          | Encodings of the zk-SNARK proofs for each Sapling Output.
+| †    | $64$                            | `bindingSigSapling`      | `byte[64]`                             | A Sapling binding signature on the SIGHASH transaction hash.
+| **Orchard Transaction Fields** |||||
+|      | `varies`                        | `nActionsOrchard`        | `compactSize`                          | The number of Orchard Action descriptions in `vActionsOrchard`.
+|      | $820\,\cdot$ `nActionsOrchard`  | `vActionsOrchard`        | `OrchardAction[nActionsOrchard]`       | A sequence of Orchard Action descriptions, encoded per § 7.5 ‘Action Description Encoding and Consensus’.
+| §    | $1$                             | `flagsOrchard`           | `byte`                                 | An 8-bit value representing a set of flags. From LSB to MSB: `enableSpends`, `enableOutputs`, `enableCrossAddress` (new at NU6.3); the remaining bits MUST be 0.
+| §    | $8$                             | `valueBalanceOrchard`    | `int64`                                | The net value of Orchard spends minus outputs.
+| §    | $32$                            | `anchorOrchard`          | `byte[32]`                             | A root of the Orchard note commitment tree at some block height in the past.
+| §    | `varies`                        | `sizeProofsOrchard`      | `compactSize`                          | Length in bytes of `proofsOrchard`. Value is `2720 + 2272 * nActionsOrchard`.
+| §    | `sizeProofsOrchard`             | `proofsOrchard`          | `byte[sizeProofsOrchard]`              | Encoding of aggregated zk-SNARK proofs for Orchard Actions.
+|      | $64\,\cdot$ `nActionsOrchard`   | `vSpendAuthSigsOrchard`  | `byte[64 * nActionsOrchard]`           | Authorizing signatures for each Orchard Action.
+| §    | $64$                            | `bindingSigOrchard`      | `byte[64]`                             | An Orchard binding signature on the SIGHASH transaction hash.
+| **Ironwood Transaction Fields (new)** |||||
+|      | `varies`                        | `nActionsIronwood`       | `compactSize`                          | The number of Ironwood Action descriptions in `vActionsIronwood`.
+|      | $820\,\cdot$ `nActionsIronwood` | `vActionsIronwood`       | `OrchardAction[nActionsIronwood]`      | A sequence of Ironwood Action descriptions, using the same encoding as Orchard Actions (§ 7.5).
+| ◊    | $1$                             | `flagsIronwood`          | `byte`                                 | The same layout as `flagsOrchard`, including `enableCrossAddress` at bit 2; the remaining bits MUST be 0.
+| ◊    | $8$                             | `valueBalanceIronwood`   | `int64`                                | The net value of Ironwood spends minus outputs.
+| ◊    | $32$                            | `anchorIronwood`         | `byte[32]`                             | A root of the **Ironwood** note commitment tree at some block height in the past.
+| ◊    | `varies`                        | `sizeProofsIronwood`     | `compactSize`                          | Length in bytes of `proofsIronwood`. Value is `2720 + 2272 * nActionsIronwood`.
+| ◊    | `sizeProofsIronwood`            | `proofsIronwood`         | `byte[sizeProofsIronwood]`             | Encoding of aggregated zk-SNARK proofs for Ironwood Actions.
+|      | $64\,\cdot$ `nActionsIronwood`  | `vSpendAuthSigsIronwood` | `byte[64 * nActionsIronwood]`          | Authorizing signatures for each Ironwood Action.
+| ◊    | $64$                            | `bindingSigIronwood`     | `byte[64]`                             | An Ironwood binding signature on the SIGHASH transaction hash.
+
+Fields marked in the Note column are conditionally present:
+
+| Note | Description
+| ---- | -----------
+| †    | `valueBalanceSapling` and `bindingSigSapling` are present if and only if `nSpendsSapling + nOutputsSapling > 0`. If `valueBalanceSapling` is not present, it is taken to be 0.
+| ‡    | `anchorSapling` is present if and only if `nSpendsSapling > 0`.
+| §    | `flagsOrchard`, `valueBalanceOrchard`, `anchorOrchard`, `sizeProofsOrchard`, `proofsOrchard`, and `bindingSigOrchard` are present if and only if `nActionsOrchard > 0`. If `valueBalanceOrchard` is not present, it is taken to be 0.
+| ◊    | `flagsIronwood`, `valueBalanceIronwood`, `anchorIronwood`, `sizeProofsIronwood`, `proofsIronwood`, and `bindingSigIronwood` are present if and only if `nActionsIronwood > 0`. If `valueBalanceIronwood` is not present, it is taken to be 0.
 
 The encoding of the transparent and Sapling fields is unchanged from version 5
 [^zip-0225]. Ironwood Action descriptions use the same `OrchardAction` encoding as
@@ -229,31 +238,21 @@ and `flagsIronwood`, so the previous `...Orchard` suffix would be misleading.
 * `nVersionGroupId` MUST equal the version 6 version group ID, and `nConsensusBranchId`
   MUST equal the NU6.3 consensus branch ID, both defined in [^draft-zodl-valargroup-deploy-nu6.3].
 
-* As in version 5 [^zip-0225]:
-    * The Orchard fields `flagsOrchard`, `valueBalanceOrchard`, `anchorOrchard`,
-      `sizeProofsOrchard`, `proofsOrchard`, and `bindingSigOrchard` are present if and
-      only if `nActionsOrchard > 0`. If `valueBalanceOrchard` is not present, it is taken
-      to be `0`.
-    * The proofs in `proofsOrchard` and the signatures in `vSpendAuthSigsOrchard` each
-      correspond 1:1 to the elements of `vActionsOrchard`, in the same order.
-
-* The same rules apply to the Ironwood component:
-    * The Ironwood fields `flagsIronwood`, `valueBalanceIronwood`, `anchorIronwood`,
-      `sizeProofsIronwood`, `proofsIronwood`, and `bindingSigIronwood` are present if and
-      only if `nActionsIronwood > 0`. If `valueBalanceIronwood` is not present, it is
-      taken to be `0`.
-    * The proofs in `proofsIronwood` and the signatures in `vSpendAuthSigsIronwood` each
-      correspond 1:1 to the elements of `vActionsIronwood`, in the same order.
+* The proofs in `proofsOrchard` and the signatures in `vSpendAuthSigsOrchard` each
+  correspond 1:1 to the elements of `vActionsOrchard`, in the same order; likewise the
+  proofs in `proofsIronwood` and the signatures in `vSpendAuthSigsIronwood` to the
+  elements of `vActionsIronwood`. (Conditional presence of fields is given in the format
+  table above.)
 
 * In each of `flagsOrchard` and `flagsIronwood`:
-    * Bits 3..7 inclusive MUST be `0`.
-    * The semantics of the `enableSpends` and `enableOutputs` bits are as in ZIP 224.
+    * Bits 3..7 inclusive MUST be 0.
+    * The semantics of the `enableSpends` and `enableOutputs` bits are as in ZIP 224 [^zip-0224].
     * The `enableCrossAddress` bit is specified in [^draft-zodl-valargroup-action-circuit-update].
-      Before NU6.3 this bit of `flagsOrchard` was reserved as `0` in v5 transactions.
+      Before NU6.3 this bit of `flagsOrchard` was reserved as 0 in v5 transactions.
 
 * For coinbase transactions,
-    * `flagsOrchard` MUST be `0`.
-    * The `enableSpends` bit of `flagsIronwood` MUST be `0`.
+    * `flagsOrchard` MUST be 0.
+    * The `enableSpends` bit of `flagsIronwood` MUST be 0.
 
 * The `anchorOrchard` field refers to the Orchard note commitment tree, and the
   `anchorIronwood` field to the Ironwood note commitment tree. The Orchard and Ironwood
@@ -269,8 +268,8 @@ so that it cannot be bypassed by using a version 5 transaction.
 See [^draft-zodl-valargroup-deploy-nu6.3] for additional consensus requirements that apply
 to **all** transactions from NU6.3 onward, regardless of transaction version. (Briefly and
 non-normatively, these are that coinbase transactions must have an empty Orchard component;
-that the `enableCrossAddress` bit of `flagsOrchard` must be `0`; and that
-$\mathsf{v}^{\textsl{balanceOrchardPool}}$ must be nonnegative.)
+that the `enableCrossAddress` bit of `flagsOrchard` must be 0; and that
+$\mathsf{v}^{\textit{OrchardPoolBalance}}$ must be nonnegative.)
 
 ## Transaction Identifiers, Signature Hashing, and Block Commitments
 
@@ -319,25 +318,26 @@ personalizations at each node. Also, distinct personalizations are used for Sapl
 where what is directly hashed has been affected as a result of moving the anchor commitments to auth
 data, as follows:
 
-node                                  | v5 personalization | v6 personalization | Comment for v6
-------------------------------------- | ------------------ | ------------------ | -------------------------
-sapling_digest[_v6]                   | `ZTxIdSaplingHash` | `ZTxIdSaplingHash` | not changed directly
-sapling_spends_digest                 | `ZTxIdSSpendsHash` | `ZTxIdSSpendsHash` | unchanged
-sapling_spends_compact_digest         | `ZTxIdSSpendCHash` | `ZTxIdSSpendCHash` | unchanged
-sapling_spends_noncompact_digest[_v6] | `ZTxIdSSpendNHash` | `ZTxIdSSpendNH_v6` | omits `anchor`
-sapling_auth_digest[_v6]              | `ZTxAuthSapliHash` | `ZTxAuthSapliH_v6` | includes `anchorSapling`
-------------------------------------- | ------------------ | ------------------ | -------------------------
-orchard_digest[_v6]                   | `ZTxIdOrchardHash` | `ZTxIdOrchardH_v6` | omits `anchorOrchard`
-orchard_actions_compact_digest        | `ZTxIdOrcActCHash` | `ZTxIdOrcActCHash` | unchanged
-orchard_actions_memos_digest          | `ZTxIdOrcActMHash` | `ZTxIdOrcActMHash` | unchanged
-orchard_actions_noncompact_digest     | `ZTxIdOrcActNHash` | `ZTxIdOrcActNHash` | unchanged
-orchard_auth_digest[_v6]              | `ZTxAuthOrchaHash` | `ZTxAuthOrchaH_v6` | includes `anchorOrchard`
-------------------------------------- | ------------------ | ------------------ | -------------------------
-ironwood_digest_v6                    | n/a                | `ZTxIdIronwd_H_v6` | omits `anchorIronwood`
-ironwood_actions_compact_digest_v6    | n/a                | `ZTxIdIrnActCH_v6` |
-ironwood_actions_memos_digest_v6      | n/a                | `ZTxIdIrnActMH_v6` |
-ironwood_actions_noncompact_digest_v6 | n/a                | `ZTxIdIrnActNH_v6` |
-ironwood_auth_digest_v6               | n/a                | `ZTxAuthIrnwdH_v6` | includes `anchorIronwood`
+| Node                                    | v5 personalization | v6 personalization | Comment for v6            |
+|:--------------------------------------- | ------------------ | ------------------ | ------------------------- |
+| $\hspace{22em}$ **Sapling** ||||
+| `sapling_digest[_v6]`                   | `ZTxIdSaplingHash` | `ZTxIdSaplingHash` | not changed directly      |
+| `sapling_spends_digest`                 | `ZTxIdSSpendsHash` | `ZTxIdSSpendsHash` | unchanged                 |
+| `sapling_spends_compact_digest`         | `ZTxIdSSpendCHash` | `ZTxIdSSpendCHash` | unchanged                 |
+| `sapling_spends_noncompact_digest[_v6]` | `ZTxIdSSpendNHash` | `ZTxIdSSpendNH_v6` | omits `anchor`            |
+| `sapling_auth_digest[_v6]`              | `ZTxAuthSapliHash` | `ZTxAuthSapliH_v6` | includes `anchorSapling`  |
+| $\hspace{22em}$ **Orchard** ||||
+| `orchard_digest[_v6]`                   | `ZTxIdOrchardHash` | `ZTxIdOrchardH_v6` | omits `anchorOrchard`     |
+| `orchard_actions_compact_digest`        | `ZTxIdOrcActCHash` | `ZTxIdOrcActCHash` | unchanged                 |
+| `orchard_actions_memos_digest`          | `ZTxIdOrcActMHash` | `ZTxIdOrcActMHash` | unchanged                 |
+| `orchard_actions_noncompact_digest`     | `ZTxIdOrcActNHash` | `ZTxIdOrcActNHash` | unchanged                 |
+| `orchard_auth_digest[_v6]`              | `ZTxAuthOrchaHash` | `ZTxAuthOrchaH_v6` | includes `anchorOrchard`  |
+| $\hspace{22em}$ **Ironwood** ||||
+| `ironwood_digest_v6`                    | n/a                | `ZTxIdIronwd_H_v6` | omits `anchorIronwood`    |
+| `ironwood_actions_compact_digest_v6`    | n/a                | `ZTxIdIrnActCH_v6` |                           |
+| `ironwood_actions_memos_digest_v6`      | n/a                | `ZTxIdIrnActMH_v6` |                           |
+| `ironwood_actions_noncompact_digest_v6` | n/a                | `ZTxIdIrnActNH_v6` |                           |
+| `ironwood_auth_digest_v6`               | n/a                | `ZTxAuthIrnwdH_v6` | includes `anchorIronwood` |
 
 As in the case of Sapling and Orchard, when a version 6 transaction has no Ironwood actions,
 `ironwood_digest_v6` and `ironwood_auth_digest_v6` are the hashes of empty input under the component
@@ -545,10 +545,10 @@ accounted for independently.
 ## `enableCrossAddress` polarity
 
 This flag is encoded in the enabled sense (`1` = cross-address transfers enabled, the
-normal case for Ironwood-pool actions; `0` = action outputs restricted to use the same
-protocol-level address as the action's spend), with bit 2 reserved as `0` before NU6.3.
+normal case for Ironwood-pool actions; 0 = action outputs restricted to use the same
+protocol-level address as the action's spend), with bit 2 reserved as 0 before NU6.3.
 This is backward-compatible: an Orchard-pool spend after NU6.3 requires the restricted
-state, which is bit 2 = `0` — exactly the value that signers treating bit 2 as a
+state, which is bit 2 = 0 — exactly the value that signers treating bit 2 as a
 reserved-zero bit already produce. The in-circuit constraint and the equivalent
 internal `disableCrossAddress` instance value are discussed in
 [^draft-zodl-valargroup-action-circuit-update].
@@ -558,6 +558,12 @@ internal `disableCrossAddress` instance value are discussed in
 
 This transaction format is deployed at NU6.3. Activation heights, the version 6 version
 group ID, and the NU6.3 consensus branch ID are specified in [^draft-zodl-valargroup-deploy-nu6.3].
+
+
+# Acknowledgements
+
+We thank the developers of Penumbra [^penumbra] for demonstrating the advantages of
+treating the note commitment tree anchor as authorizing data rather than effecting data.
 
 
 # References
@@ -607,3 +613,5 @@ group ID, and the NU6.3 consensus branch ID are specified in [^draft-zodl-valarg
 [^draft-zodl-valargroup-ironwood-migration]: [Wallet Considerations for NU6.3 and Migration to the Ironwood Pool (draft)](draft-zodl-valargroup-ironwood-migration.md)
 
 [^zcash-ironwood]: [GitHub repository zcash/ironwood: Formal Verification of the Zcash Protocol and Documentation for the Ironwood Pool](https://github.com/zcash/ironwood)
+
+[^penumbra]: [The Penumbra Protocol](https://protocol.penumbra.zone/main/index.html)
