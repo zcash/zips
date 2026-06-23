@@ -48,7 +48,7 @@ Orchard protocol (or Orchard shielded protocol)
 # Abstract
 
 This ZIP defines version 6 of the Zcash transaction format, to be activated at NU6.3
-[^zip-0257].
+[^zip-0258].
 
 NU6.3 [^draft-zodl-valargroup-deploy-nu6.3] introduces the Ironwood shielded pool, an
 Orchard-protocol successor to the *Orchard pool*, that ensures quantum recoverability
@@ -116,9 +116,8 @@ in [^draft-zodl-valargroup-ironwood-migration].
 
 There is no reason to believe that the soundness vulnerability described in [^zip-0257]
 could have led to any compromise of key material associated with existing addresses.
-However, we encourage users to rotate addresses regularly in any case, and wallet
-developers to support that practice. Further implications of address usage policy for
-privacy against quantum adversaries are discussed in [^zip-2005].
+Independent of the soundness bug, we recommend address rotation for quantum privacy
+implications discussed in [^zip-2005].
 
 
 # Requirements
@@ -147,6 +146,8 @@ The `flags` fields in the *Orchard-pool* and *Ironwood-pool* components must sup
 encoding an indication of whether outputs to the *Orchard pool* are required to use
 a protocol-level address for which the transaction creator can authorize spends.
 
+The one known Orchard-supporting hardware wallet, Keystone, must continue to be able to
+sign v5 tx format Orchard -> Transparent unshielding transactions, without firmware update. 
 
 # Non-requirements
 
@@ -174,13 +175,13 @@ is new.
 
 | Note | Bytes                           | Name                     | Data Type                              | Description
 | ---- | ------------------------------- | ------------------------ | -------------------------------------- | -----------
-| **Common Transaction Fields** |||||
+| **Common Transaction Fields (unchanged from v5)** |||||
 |      | $4$                             | `header`                 | `uint32`                               | Contains the `fOverwintered` flag (bit 31, always set) and `version` (bits 30 .. 0), which MUST be `6`.
 |      | $4$                             | `nVersionGroupId`        | `uint32`                               | Version group ID (nonzero); the version 6 value fixed in [^draft-zodl-valargroup-deploy-nu6.3].
 |      | $4$                             | `nConsensusBranchId`     | `uint32`                               | Consensus branch ID; MUST be the NU6.3 branch ID [^draft-zodl-valargroup-deploy-nu6.3].
 |      | $4$                             | `lock_time`              | `uint32`                               | Unix-epoch UTC time or block height, encoded as in Bitcoin.
 |      | $4$                             | `nExpiryHeight`          | `uint32`                               | A block height in {1 .. 499999999} after which the transaction will expire, or 0 to disable expiry. [^zip-0203]
-| **Transparent Transaction Fields** |||||
+| **Transparent Transaction Fields (unchanged from v5)** |||||
 |      | `varies`                        | `tx_in_count`            | `compactSize`                          | Number of transparent inputs in `tx_in`.
 |      | `varies`                        | `tx_in`                  | `tx_in`                                | Transparent inputs, encoded as in Bitcoin.
 |      | `varies`                        | `tx_out_count`           | `compactSize`                          | Number of transparent outputs in `tx_out`.
@@ -255,7 +256,6 @@ and `flagsIronwood`, so the previous `...Orchard` suffix would be misleading.
       Before NU6.3 this bit of `flagsOrchard` was reserved as 0 in v5 transactions.
 
 * For coinbase transactions,
-    * `flagsOrchard` MUST be 0.
     * The `enableSpends` bit of `flagsIronwood` MUST be 0.
 
 * The `anchorOrchard` field refers to the Orchard note commitment tree, and the
@@ -279,7 +279,7 @@ $\mathsf{v}^{\textit{OrchardPoolBalance}}$ must be nonnegative.)
 
 Version 6 transaction identifiers (txids), authorizing-data commitments ("auth digests"),
 and signature hashes are computed as in ZIP 244 [^zip-0244], with two changes: an
-**Ironwood component digest** is added, and for version 6 the Orchard and Ironwood anchors
+**Ironwood component digest** is added, and for version 6 the Sapling, Orchard and Ironwood anchors
 move from effecting data to authorizing data. The version 5 algorithm is unchanged.
 
 ### Ironwood component digest
@@ -411,49 +411,10 @@ and their `auth_digest`s are present only if the corresponding component is non-
 
 ### Block commitments
 
-The `hashBlockCommitments` authorizing-data commitment [^zip-0244] incorporates the version 6 auth
+The `hashAuthDataRoot` component of `hashBlockCommitments` [^zip-0244] incorporates the version 6 auth
 digest — which now includes the Ironwood auth digest, and (per the change above) the anchors — with
 no further structural change.
 
-## Changes to ZIP 209
-
-ZIP 209 [^zip-0209] is extended to track an Ironwood chain value pool balance and to require
-it, like the other shielded pool balances, not to become negative.
-
-[TODO take account of changes that should be (but are not currently) made in ZIP 256.
-The check for each pool is now that the chain value pool balance stays within [0, MAX_MONEY].]
-
-In the Terminology section, after the paragraph
-
-> The "Orchard chain value pool balance" for a given block chain is the negation of the sum
-> of all `valueBalanceOrchard` fields for transactions in the block chain. (Before NU5 has
-> activated, the Orchard chain value pool balance is zero.)
-
-add
-
-> The "Ironwood chain value pool balance" for a given block chain is the negation of the sum
-> of all `valueBalanceIronwood` fields for transactions in the block chain. (Before NU6.3
-> has activated, the Ironwood chain value pool balance is zero.)
-
-In the Specification section, replace
-
-> If any of the "Sprout chain value pool balance", "Sapling chain value pool balance", or
-> "Orchard chain value pool balance" would become negative in the block chain created as a
-> result of accepting a block, then all nodes MUST reject the block as invalid.
-
-with
-
-> If any of the "Sprout chain value pool balance", "Sapling chain value pool balance",
-> "Orchard chain value pool balance", or "Ironwood chain value pool balance" would become
-> negative in the block chain created as a result of accepting a block, then all nodes MUST
-> reject the block as invalid.
-
-## Changes to the Protocol Specification
-
-Changes corresponding to the [ZIP 209 changes above](#changestozip209) are required in
-§ 4.17 ‘Chain Value Pool Balances’ [^protocol-chainvalue] to define an Ironwood chain value
-pool balance alongside those for the existing Sprout, Sapling, and *Orchard pools*. These
-mirror the changes above and are not spelled out here.
 
 ## Changes to ZIP 221
 
