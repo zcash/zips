@@ -96,6 +96,11 @@ to remain secure against discrete-log-breaking and quantum adversaries. This cha
 does not by itself make Zcash secure against attacks using quantum computers, but is
 a necessary and substantial step toward that goal.
 
+Recovery would not be possible for funds still in the *Sprout*, *Sapling*, or
+*Orchard pools*; all such funds would be inaccessible after their respective
+protocols are disabled. They should be migrated to the *Ironwood pool* in
+order to take advantage of this change.
+
 The version 6 transaction format also changes the authorization structure for all
 supported shielded pools (*Sapling*, *Orchard*, and *Ironwood*) so that anchors are
 considered to be authorizing data rather than effecting data. This allows a transaction
