@@ -29,20 +29,20 @@ The term "Recovery Protocol" is to be interpreted as described in [^zip-2005].
 The terms below are to be interpreted as follows:
 
 Orchard protocol (or Orchard shielded protocol)
-:   The shared cryptographic design that supports the Orchard pool and the Ironwood
-    pool, including the Pallas and Vesta curves, the Sinsemilla hash, the Action
+:   The shared cryptographic design that supports the *Orchard pool* and the
+    *Ironwood pool*, including the Pallas and Vesta curves, the Sinsemilla hash, the Action
     circuit (as modified by [^draft-zodl-valargroup-action-circuit-update]), the
     note, note commitment, nullifier, and key constructions, and the note encryption
     (as modified by [^zip-2005]) used for these two pools.
 
-Orchard pool (or Orchard shielded pool)
+*Orchard pool* (or Orchard shielded pool)
 :   The value pool, with its own note commitment tree, anchor, and chain value pool
     balance, that was introduced by ZIP 224 [^zip-0224].
 
-Ironwood pool (or Ironwood shielded pool)
+*Ironwood pool* (or Ironwood shielded pool)
 :   A new value pool of the Orchard protocol, introduced by this ZIP, with its own note
-    commitment tree, anchor, and chain value pool balance, distinct from the Orchard
-    pool.
+    commitment tree, anchor, and chain value pool balance, distinct from the
+    *Orchard pool*.
 
 
 # Abstract
@@ -51,27 +51,27 @@ This ZIP defines version 6 of the Zcash transaction format, to be activated at N
 [^zip-0257].
 
 NU6.3 [^draft-zodl-valargroup-deploy-nu6.3] introduces the Ironwood shielded pool, an
-Orchard-protocol successor to the Orchard pool, that ensures quantum recoverability
+Orchard-protocol successor to the *Orchard pool*, that ensures quantum recoverability
 [^zip-2005] and has supply integrity supported from the start by formal verification
 efforts [^zcash-ironwood].
 
 This requires a new transaction version that can hold an **Ironwood component**:
 a second Orchard-protocol shielded component that commits to, and spends from, the
-Ironwood shielded pool, rather than the Orchard pool. The Ironwood component reuses
+Ironwood shielded pool, rather than the *Orchard pool*. The Ironwood component reuses
 the Orchard Action encoding and proof system unchanged. This ZIP defines the
 corresponding txid, signature-hash, and block-commitment changes.
 
-The addition of the Ironwood pool does not change address structures or encodings.
+The addition of the *Ironwood pool* does not change address structures or encodings.
 At the protocol level, Orchard spending-key and viewing-key material grants authority
-to spend or view notes in both the Orchard and Ironwood pools. However, NU6.3 enforces
-that outputs to the Orchard pool are sent to an Orchard-protocol-level address for
+to spend or view notes in both the *Orchard* and *Ironwood pools*. However, NU6.3 enforces
+that outputs to the *Orchard pool* are sent to an Orchard-protocol-level address for
 which the transaction creator can authorize spends. The intent is that transfers
-between users will automatically create notes in the Ironwood pool. The address
-restriction discourages economic activity between users within the Orchard pool, and
-encourages faster migration to the Ironwood pool.
+between users will automatically create notes in the *Ironwood pool*. The address
+restriction discourages economic activity between users within the *Orchard pool*, and
+encourages faster migration to the *Ironwood pool*.
 
 This ZIP specifies only the transaction format and its associated hashing. The Action
-circuit changes needed to restrict address usage within the Orchard pool are specified
+circuit changes needed to restrict address usage within the *Orchard pool* are specified
 in [^draft-zodl-valargroup-action-circuit-update], and implications for wallets are
 discussed in [^draft-zodl-valargroup-ironwood-migration]. Activation parameters are
 specified in the NU6.3 deployment ZIP [^draft-zodl-valargroup-deploy-nu6.3].
@@ -82,23 +82,22 @@ specified in the NU6.3 deployment ZIP [^draft-zodl-valargroup-deploy-nu6.3].
 The main purpose of the NU6.3 network upgrade is to bolster confidence in Zcash's supply
 integrity, after the discovery and remediation of the Orchard soundness vulnerability
 described in [^zip-0257]. The turnstile mechanism [^zip-0209] ensures that the overall
-ZEC supply is bounded. However, since a substantial portion of ZEC was in the Orchard
-pool at the time this vulnerability was remediated, it is necessary to take further steps
-to ensure confidence in the supply by migrating funds to a new pool.
+ZEC supply is bounded. However, since a substantial portion of ZEC was in the
+*Orchard pool* at the time this vulnerability was remediated, it is necessary to take
+further steps to ensure confidence in the supply by migrating funds to a new pool.
 
-All funds in the Ironwood pool will be **quantum-recoverable** [^zip-2005]. The existing
-Zcash shielded protocols are dependent on the hardness of finding discrete logarithms;
-an adversary who can do so (via quantum computers or otherwise) would be able to steal
-or forge funds. In the event of needing to disable the Orchard protocol in order to
-prevent these attacks, it will be possible to use a Recovery Protocol to recover funds
-from the Ironwood pool. This Recovery Protocol is expected to remain secure against
-discrete-log-breaking and quantum adversaries. Recovery would not be possible for
-funds still in the Sprout, Sapling, or Orchard pools at that point. This change does
-not by itself make Zcash secure against attacks using quantum computers, but is a
-necessary and substantial step toward that goal.
+All funds in the *Ironwood pool* will be **quantum-recoverable** [^zip-2005].
+The existing Zcash shielded protocols are dependent on the hardness of finding
+discrete logarithms; an adversary who can do so (via quantum computers or otherwise)
+would be able to steal or forge funds. In the event of needing to disable these
+protocols in order to prevent such attacks, it will be possible to use a Recovery
+Protocol to recover funds from the *Ironwood pool*. This Recovery Protocol is expected
+to remain secure against discrete-log-breaking and quantum adversaries. This change
+does not by itself make Zcash secure against attacks using quantum computers, but is
+a necessary and substantial step toward that goal.
 
 The version 6 transaction format also changes the authorization structure for all
-supported shielded pools (Sapling, Orchard, and Ironwood) so that anchors are
+supported shielded pools (*Sapling*, *Orchard*, and *Ironwood*) so that anchors are
 considered to be authorizing data rather than effecting data. This allows a transaction
 to be pre-authorized and its proofs computed independently after choosing an anchor,
 and also improves opportunities for parallelism in transaction creation.
@@ -107,7 +106,7 @@ and also improves opportunities for parallelism in transaction creation.
 # Privacy Implications
 
 The turnstile mechanism reveals the amounts in each transaction that cross between pools,
-including the amounts migrated into the Ironwood pool. This is considered in full detail
+including the amounts migrated into the *Ironwood pool*. This is considered in full detail
 in [^draft-zodl-valargroup-ironwood-migration].
 
 There is no reason to believe that the soundness vulnerability described in [^zip-0257]
@@ -121,16 +120,16 @@ privacy against quantum adversaries are discussed in [^zip-2005].
 
 Changes relative to v5 transactions should be minimized.
 
-The version 6 transaction format must be able to carry an Ironwood-pool component in
-addition to transparent-pool, Sapling-pool, and Orchard-pool components similar to
+The version 6 transaction format must be able to carry an *Ironwood-pool* component in
+addition to transparent-pool, *Sapling-pool*, and *Orchard-pool* components similar to
 those in a version 5 transaction.
 
 The Ironwood component must reuse the Orchard Action design and component encoding, so
 that implementation is shared between them to the maximum extent possible.
 
 The transaction identifier, signature hash, and authorizing-data commitment must
-commit to the Ironwood-pool component when it is present, using personalizations
-distinct from those used for the Orchard-pool component.
+commit to the *Ironwood-pool* component when it is present, using personalizations
+distinct from those used for the *Orchard-pool* component.
 
 The changes to the authorization structure must support pre-authorizing transactions
 using spending key material, and later updating the anchor and proofs (for all
@@ -139,8 +138,8 @@ supported shielded pools).
 Personalizations for nodes in the digest tree must be changed when what is hashed at
 that node changes.
 
-The `flags` fields in the Orchard-pool and Ironwood-pool components must support
-encoding an indication of whether outputs to the Orchard pool are required to use
+The `flags` fields in the *Orchard-pool* and *Ironwood-pool* components must support
+encoding an indication of whether outputs to the *Orchard pool* are required to use
 a protocol-level address for which the transaction creator can authorize spends.
 
 
@@ -224,8 +223,8 @@ Fields marked in the Note column are conditionally present:
 
 The encoding of the transparent and Sapling fields is unchanged from version 5
 [^zip-0225]. Ironwood Action descriptions use the same `OrchardAction` encoding as
-Orchard Action descriptions. Every Ironwood-pool output note uses the quantum-recoverable
-note plaintext format (lead byte `0x03`) defined in ZIP 2005 [^zip-2005]; no Orchard-pool
+Orchard Action descriptions. Every *Ironwood-pool* output note uses the quantum-recoverable
+note plaintext format (lead byte `0x03`) defined in ZIP 2005 [^zip-2005]; no *Orchard-pool*
 output note uses that format. This is the only note-level distinction between the two pools.
 
 Two `flagsOrchard` bits have been renamed relative to version 5: `enableSpendsOrchard` →
@@ -255,14 +254,14 @@ and `flagsIronwood`, so the previous `...Orchard` suffix would be misleading.
     * The `enableSpends` bit of `flagsIronwood` MUST be 0.
 
 * The `anchorOrchard` field refers to the Orchard note commitment tree, and the
-  `anchorIronwood` field to the Ironwood note commitment tree. The Orchard and Ironwood
-  pools have separate, independent note commitment trees and nullifier sets.
+  `anchorIronwood` field to the Ironwood note commitment tree. The *Orchard* and
+  *Ironwood pools* have separate, independent note commitment trees and nullifier sets.
 
 Version 4, version 5, and version 6 transactions are all valid from NU6.3 activation onward;
 this ZIP defines only the version 6 format (the version 4 and version 5 formats are
 unchanged). The NU6.3 consensus rules on Orchard actions apply regardless of transaction
 version. In particular, the Orchard-protocol cross-address restriction is enforced for every
-Orchard-pool Action mined from NU6.3 onward [^draft-zodl-valargroup-action-circuit-update],
+*Orchard-pool* Action mined from NU6.3 onward [^draft-zodl-valargroup-action-circuit-update],
 so that it cannot be bypassed by using a version 5 transaction.
 
 See [^draft-zodl-valargroup-deploy-nu6.3] for additional consensus requirements that apply
@@ -448,7 +447,7 @@ with
 
 Changes corresponding to the [ZIP 209 changes above](#changestozip209) are required in
 § 4.17 ‘Chain Value Pool Balances’ [^protocol-chainvalue] to define an Ironwood chain value
-pool balance alongside those for the existing Sprout, Sapling, and Orchard pools. These
+pool balance alongside those for the existing Sprout, Sapling, and *Orchard pools*. These
 mirror the changes above and are not spelled out here.
 
 ## Changes to ZIP 221
@@ -529,7 +528,7 @@ update), were omitted from this upgrade.
 
 ## Reuse of the Orchard protocol with minimal changes
 
-Carrying the Ironwood pool as a second Orchard-protocol component, rather than defining a
+Carrying the *Ironwood pool* as a second Orchard-protocol component, rather than defining a
 new shielded protocol, keeps the transaction-format and implementation surface small:
 the Action encoding, proving system, authorization, and note encryption (modulo the new
 note plaintext format defined by [^zip-2005]) are inherited unchanged. The pools are
@@ -538,16 +537,16 @@ balances, and component position, not by separate circuits.
 
 ## Separate state
 
-Giving the Ironwood pool its own note commitment tree, anchor, and nullifier set creates
-a state boundary from the Orchard pool, so that their chain value pool balance can be
+Giving the *Ironwood pool* its own note commitment tree, anchor, and nullifier set creates
+a state boundary from the *Orchard pool*, so that their chain value pool balance can be
 accounted for independently.
 
 ## `enableCrossAddress` polarity
 
 This flag is encoded in the enabled sense (`1` = cross-address transfers enabled, the
-normal case for Ironwood-pool actions; 0 = action outputs restricted to use the same
+normal case for *Ironwood-pool* actions; 0 = action outputs restricted to use the same
 protocol-level address as the action's spend), with bit 2 reserved as 0 before NU6.3.
-This is backward-compatible: an Orchard-pool spend after NU6.3 requires the restricted
+This is backward-compatible: an *Orchard-pool* spend after NU6.3 requires the restricted
 state, which is bit 2 = 0 — exactly the value that signers treating bit 2 as a
 reserved-zero bit already produce. The in-circuit constraint and the equivalent
 internal `disableCrossAddress` instance value are discussed in
