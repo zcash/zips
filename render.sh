@@ -59,7 +59,13 @@ cat <(
             # Not actually MathJax. KaTeX is compatible if we use the right headers.
             pandoc --mathjax --from=markdown --to=html "${inputfile}" --output="${outputfile}.temp"
         else
-            multimarkdown ${inputfile} -o "${outputfile}.temp"
+            cat "${inputfile}" \
+            | sed 's|[\][$]|💲|g;
+                   s|[$]\([.,:;!?-][^ $]\)|💲\1|g;
+                   s|[$]\([.,:;!?-]\)|\\kern-0.05em\\textsf{\\small \1}$|g;
+                   s|[$]—|\\kern-0.3em$ —|g;
+                   s|💲|$|g' \
+            | multimarkdown -o "${outputfile}.temp"
         fi
 
         # Both pandoc and multimarkdown just output the HTML body.
