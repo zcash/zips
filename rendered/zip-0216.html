@@ -30,53 +30,52 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/400">https://g
         <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <p>The Sapling specification was originally written with the intent that all values, including Jubjub points, are strongly typed with canonical representations. <a id="footnote-reference-5" class="footnote_reference" href="#protocol-jubjub">11</a> This has significant advantages for security analysis, because it allows the protocol to be modelled with just the abstract types.</p>
             <p>The intention of the Jubjub implementation (both in the <cite>jubjub</cite> crate <a id="footnote-reference-6" class="footnote_reference" href="#jubjub-crate">26</a> and its prior implementations) was to ensure that only canonical point encodings would be accepted by the decoding logic. However, an oversight in the implementation allowed an edge case to slip through: for each point on the curve where the
-                <span class="math">\(u\!\)</span>
-            -coordinate is zero, there are two encodings that will be accepted:</p>
+                <span class="math">\(u\kern-0.15em\)</span>
+             -coordinate is zero, there are two encodings that will be accepted:</p>
             <pre data-language="rust"><span class="c1">// Fix the sign of `u` if necessary</span>
 <span class="kd">let</span><span class="w"> </span><span class="n">flip_sign</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Choice</span><span class="p">::</span><span class="n">from</span><span class="p">((</span><span class="n">u</span><span class="p">.</span><span class="n">to_bytes</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">^</span><span class="w"> </span><span class="n">sign</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
 <span class="kd">let</span><span class="w"> </span><span class="n">u_negated</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">-</span><span class="n">u</span><span class="p">;</span>
 <span class="kd">let</span><span class="w"> </span><span class="n">final_u</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Fq</span><span class="p">::</span><span class="n">conditional_select</span><span class="p">(</span><span class="o">&amp;</span><span class="n">u</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">u_negated</span><span class="p">,</span><span class="w"> </span><span class="n">flip_sign</span><span class="p">);</span></pre>
             <p>This code accepts either sign bit, because <code>u_negated == u</code>.</p>
             <p>There are two points on the Jubjub curve with
-                <span class="math">\(u\!\)</span>
-            -coordinate zero:</p>
+                <span class="math">\(u\kern-0.15em\)</span>
+             -coordinate zero:</p>
             <ul>
                 <li>
-                    <span class="math">\((0, 1)\!\)</span>
-                , which is the identity;</li>
+                    <span class="math">\((0, 1)\kern-0.03em\textsf{,}\)</span>
+                 which is the identity;</li>
                 <li>
-                    <span class="math">\((0, -1)\!\)</span>
-                , which is a point of order two.</li>
+                    <span class="math">\((0, -1)\kern-0.03em\textsf{,}\)</span>
+                 which is a point of order two.</li>
             </ul>
             <p>Each of these has a single non‑canonical encoding in which the value of the sign bit is
-                <span class="math">\(1\!\)</span>
-            .</p>
+                <span class="math">\(1\kern-0.03em\textsf{.}\)</span>
+            </p>
             <p>This creates a consensus issue because (unlike other non‑canonical point encodings that are rejected) either of the above encodings can be decoded, and then re-encoded to a <em>different</em> encoding. For example, if a non‑canonical encoding appeared in a transaction field, then node implementations that store points internally as abstract curve points, and used those to derive transaction IDs, would derive different IDs than nodes which store transactions as bytes (such as <cite>zcashd</cite>).</p>
             <p>This issue is not known to cause any security vulnerability, beyond the risk of consensus incompatibility. In fact, for some of the fields that would otherwise be affected, the issue does not occur because there are already consensus rules that prohibit small‑order points, and this incidentally prohibits non‑canonical encodings.</p>
             <p>Adjustments to the protocol specification were made in versions 2020.1.8, 2020.1.9, 2020.1.15, 2021.1.17, and 2023.4.0 to match the <cite>zcashd</cite> implementation. Further changes were also made in version 2025.6.0. The fact that this required six specification revisions to get right, conclusively demonstrates the problem.</p>
         </section>
         <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <p>Let
-                <span class="math">\(\mathsf{abst}_{\mathbb{J}}\!\)</span>
-            ,
-                <span class="math">\(\mathsf{repr}_{\mathbb{J}}\!\)</span>
-            , and
+                <span class="math">\(\mathsf{abst}_{\mathbb{J}}\kern-0.03em\textsf{,}\)</span>
+                <span class="math">\(\mathsf{repr}_{\mathbb{J}}\kern-0.03em\textsf{,}\)</span>
+             and
                 <span class="math">\(q_{\mathbb{J}}\)</span>
              be as defined in <a id="footnote-reference-7" class="footnote_reference" href="#protocol-jubjub">11</a>.</p>
             <p>Define a non‑canonical compressed encoding of a Jubjub point to be a sequence of
                 <span class="math">\(256\)</span>
              bits,
-                <span class="math">\(b\!\)</span>
-            , such that
+                <span class="math">\(b\kern-0.03em\textsf{,}\)</span>
+             such that
                 <span class="math">\(\mathsf{abst}_{\mathbb{J}}(b) \neq \bot\)</span>
              and
-                <span class="math">\(\mathsf{repr_{\mathbb{J}}}\big(\mathsf{abst}_{\mathbb{J}}(b)\big) \neq b\!\)</span>
-            .</p>
+                <span class="math">\(\mathsf{repr_{\mathbb{J}}}\big(\mathsf{abst}_{\mathbb{J}}(b)\big) \neq b\kern-0.03em\textsf{.}\)</span>
+            </p>
             <p>Non‑normative note: There are two such bit sequences,
                 <span class="math">\(\mathsf{I2LEOSP}_{\ell_{\mathbb{J}}}(2^{255} + 1)\)</span>
              and
-                <span class="math">\(\mathsf{I2LEOSP}_{\ell_{\mathbb{J}}}(2^{255} + q_{\mathbb{J}} - 1)\!\)</span>
-            . The Sapling protocol uses little‑endian ordering when converting between bit and byte sequences, so the first of these sequences corresponds to a
+                <span class="math">\(\mathsf{I2LEOSP}_{\ell_{\mathbb{J}}}(2^{255} + q_{\mathbb{J}} - 1)\kern-0.03em\textsf{.}\)</span>
+             The Sapling protocol uses little‑endian ordering when converting between bit and byte sequences, so the first of these sequences corresponds to a
                 <span class="math">\(\mathtt{0x01}\)</span>
              byte, followed by
                 <span class="math">\(30\)</span>
@@ -114,15 +113,15 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/400">https://g
             <blockquote>
                 <ul>
                     <li>
-                        <span class="math">\(\mathsf{pk\star_d}\!\)</span>
-                    .</li>
+                        <span class="math">\(\mathsf{pk\star_d}\kern-0.03em\textsf{.}\)</span>
+                    </li>
                 </ul>
             </blockquote>
             <p>
                 <span class="math">\(\mathsf{pk\star_d}\)</span>
              also MUST be considered invalid if it encodes the zero point
-                <span class="math">\(\mathcal{O}_{\mathbb{J}}\!\)</span>
-            .</p>
+                <span class="math">\(\mathcal{O}_{\mathbb{J}}\kern-0.03em\textsf{.}\)</span>
+            </p>
             <p>These requirements on
                 <span class="math">\(\mathsf{pk\star_d}\)</span>
              affect the decryption of
@@ -134,26 +133,25 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/400">https://g
                 <span class="math">\(\mathsf{pk_d}\)</span>
              is computed as
                 <span class="math">\(\mathsf{KA^{Sapling}.DerivePublic}(\mathsf{ivk}, \mathsf{g_d}) =\)</span>
-                <span class="math">\([\mathsf{ivk}]\,\mathsf{g_d}\!\)</span>
-            . Since
+                <span class="math">\([\mathsf{ivk}]\,\mathsf{g_d}\kern-0.03em\textsf{.}\)</span>
+             Since
                 <span class="math">\(\mathsf{g_d}\)</span>
              is an output of
-                <span class="math">\(\mathsf{DiversifyHash^{Sapling}} \;{\small ⦂}\; \mathbb{B}^{[\ell_d]} \rightarrow \mathbb{J}^{(r)*} \cup \{\bot\}\!\)</span>
-            , it cannot be
-                <span class="math">\(\mathcal{O}_{\mathbb{J}}\!\)</span>
-            .
+                <span class="math">\(\mathsf{DiversifyHash^{Sapling}} \;{\small ⦂}\; \mathbb{B}^{[\ell_d]} \rightarrow \mathbb{J}^{(r)*} \cup \{\bot\}\kern-0.03em\textsf{,}\)</span>
+             it cannot be
+                <span class="math">\(\mathcal{O}_{\mathbb{J}}\kern-0.03em\textsf{.}\)</span>
                 <span class="math">\(\mathsf{ivk}\)</span>
              cannot be
                 <span class="math">\(0\)</span>
              for a validly constructed Sapling incoming viewing key <a id="footnote-reference-15" class="footnote_reference" href="#protocol-saplingkeycomponents">5</a>, and so the computed value of
                 <span class="math">\(\mathsf{pk_d}\)</span>
              cannot be
-                <span class="math">\(\mathcal{O}_{\mathbb{J}}\!\)</span>
-            . An implementation MAY redundantly enforce that the computed value of
+                <span class="math">\(\mathcal{O}_{\mathbb{J}}\kern-0.03em\textsf{.}\)</span>
+             An implementation MAY redundantly enforce that the computed value of
                 <span class="math">\(\mathsf{pk_d}\)</span>
              is not
-                <span class="math">\(\mathcal{O}_{\mathbb{J}}\!\)</span>
-            .</p>
+                <span class="math">\(\mathcal{O}_{\mathbb{J}}\kern-0.03em\textsf{.}\)</span>
+            </p>
             <p>There are some additional fields in the consensus protocol that encode Jubjub points, but where non‑canonical encodings MUST already be rejected as a side effect of existing consensus rules.</p>
             <p>In Sapling Spend descriptions:</p>
             <blockquote>
@@ -162,8 +160,8 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/400">https://g
                         <span class="math">\(\mathtt{cv}\)</span>
                     </li>
                     <li>
-                        <span class="math">\(\mathtt{rk}\!\)</span>
-                    .</li>
+                        <span class="math">\(\mathtt{rk}\kern-0.03em\textsf{.}\)</span>
+                    </li>
                 </ul>
             </blockquote>
             <p>In Sapling Output descriptions <a id="footnote-reference-16" class="footnote_reference" href="#protocol-outputdesc">7</a>:</p>
@@ -173,21 +171,21 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/400">https://g
                         <span class="math">\(\mathtt{cv}\)</span>
                     </li>
                     <li>
-                        <span class="math">\(\mathtt{ephemeralKey}\!\)</span>
-                    .</li>
+                        <span class="math">\(\mathtt{ephemeralKey}\kern-0.03em\textsf{.}\)</span>
+                    </li>
                 </ul>
             </blockquote>
             <p>These fields cannot by consensus contain small‑order points. All of the points with non‑canonical encodings are small‑order.</p>
             <p>Implementations MAY choose to reject non‑canonical encodings of the above four fields early in decoding of a transaction. This eliminates the risk that parts of the transaction could be re-serialized from their internal representation to a different byte sequence than in the original transaction, e.g. when calculating transaction IDs.</p>
             <p>In addition, Sapling addresses and full viewing keys MUST be considered invalid when imported if they contain non‑canonical Jubjub point encodings, or encodings of points that are not in the prime‑order subgroup
-                <span class="math">\(\mathbb{J}^{(r)}\!\)</span>
-            . These requirements MAY be enforced in advance of NU5 activation. This affects the fields listed below.</p>
+                <span class="math">\(\mathbb{J}^{(r)}\kern-0.03em\textsf{.}\)</span>
+             These requirements MAY be enforced in advance of NU5 activation. This affects the fields listed below.</p>
             <p>In Sapling payment addresses <a id="footnote-reference-17" class="footnote_reference" href="#protocol-saplingpaymentaddrencoding">13</a>:</p>
             <blockquote>
                 <ul>
                     <li>the encoding of
-                        <span class="math">\(\mathsf{pk_d}\!\)</span>
-                    .</li>
+                        <span class="math">\(\mathsf{pk_d}\kern-0.03em\textsf{.}\)</span>
+                    </li>
                 </ul>
             </blockquote>
             <p>In Sapling full viewing keys <a id="footnote-reference-18" class="footnote_reference" href="#protocol-saplingfullviewingkeyencoding">15</a> and extended full viewing keys <a id="footnote-reference-19" class="footnote_reference" href="#zip-0032-extfvk">20</a>:</p>
@@ -197,8 +195,8 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/400">https://g
                         <span class="math">\(\mathsf{ak}\)</span>
                     </li>
                     <li>the encoding of
-                        <span class="math">\(\mathsf{nk}\!\)</span>
-                    .</li>
+                        <span class="math">\(\mathsf{nk}\kern-0.03em\textsf{.}\)</span>
+                    </li>
                 </ul>
             </blockquote>
             <p>
@@ -206,28 +204,28 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/400">https://g
              and
                 <span class="math">\(\mathsf{ak}\)</span>
              also MUST be considered invalid if they encode the zero point
-                <span class="math">\(\mathcal{O}_{\mathbb{J}}\!\)</span>
-            .</p>
+                <span class="math">\(\mathcal{O}_{\mathbb{J}}\kern-0.03em\textsf{.}\)</span>
+            </p>
             <p>The fields mentioned in this Specification are intended to be a complete list of the places where compressed encodings of Jubjub points occur in the Zcash consensus protocol and in plaintext, address, or key formats.</p>
             <p>Note: Some versions of the Zcash protocol specification mistakenly allowed
                 <span class="math">\(\mathsf{pk_d}\)</span>
              in a Sapling payment address, or
                 <span class="math">\(\mathsf{pk\star_d}\)</span>
              in a decrypted
-                <span class="math">\(\mathsf{C^{out}}\!\)</span>
-            , to encode the zero point. The history is explained in a note added in version 2023.4.0 of the protocol specification <a id="footnote-reference-20" class="footnote_reference" href="#protocol-2023-4-0">18</a>:</p>
+                <span class="math">\(\mathsf{C^{out}}\kern-0.03em\textsf{,}\)</span>
+             to encode the zero point. The history is explained in a note added in version 2023.4.0 of the protocol specification <a id="footnote-reference-20" class="footnote_reference" href="#protocol-2023-4-0">18</a>:</p>
             <blockquote>
                 <p>A previous version of this specification did not have the requirement for the decoded point
                     <span class="math">\(\mathsf{pk_d}\)</span>
                  of a Sapling note to be in the set of prime‑order points
                     <span class="math">\(\mathbb{J}^{(r)*}\)</span>
                  (i.e. "if ...
-                    <span class="math">\(\mathsf{pk_d} \not\in \mathbb{J}^{(r)*}\!\)</span>
-                , return
+                    <span class="math">\(\mathsf{pk_d} \not\in \mathbb{J}^{(r)*}\kern-0.03em\textsf{,}\)</span>
+                 return
                     <span class="math">\(\bot\!\)</span>
                 "). That did not match the implementation in <cite>zcashd</cite>. In fact the history is a little more complicated. The current specification matches the implementation in <cite>librustzcash</cite> as of <a id="footnote-reference-21" class="footnote_reference" href="#librustzcash-pr109">31</a>, which has been used in <cite>zcashd</cite> since v2.1.2. However, there was another implementation of Sapling note decryption used in <cite>zcashd</cite> for consensus checks, specifically the check that a shielded coinbase output decrypts successfully with the zero
-                    <span class="math">\(\mathsf{ovk}\!\)</span>
-                . This was corrected to enforce the same restriction on the decrypted
+                    <span class="math">\(\mathsf{ovk}\kern-0.03em\textsf{.}\)</span>
+                 This was corrected to enforce the same restriction on the decrypted
                     <span class="math">\(\mathsf{pk_d}\)</span>
                  in <cite>zcashd</cite> v5.5.0, originally set to activate in a soft fork at block height 2121200 on both Mainnet and Testnet <a id="footnote-reference-22" class="footnote_reference" href="#zcashd-pr6459">29</a>. (On Testnet this height was in the past as of the <cite>zcashd</cite> v5.5.0 release, and so the change would have been immediately enforced on upgrade.) Since the soft fork was observed to be retrospectively valid after that height, the implementation was simplified in <a id="footnote-reference-23" class="footnote_reference" href="#zcashd-pr6725">30</a> to use the <cite>librustzcash</cite> implementation in all cases, which reflects the specification above. <cite>zebra</cite> always used the <cite>librustzcash</cite> implementation.</p>
             </blockquote>
@@ -238,8 +236,8 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/400">https://g
              and the type of
                 <span class="math">\(\mathsf{pk_d}\)</span>
              in both Sapling and Orchard to
-                <span class="math">\(\mathsf{KA^{protocol}.PublicPrimeOrder}\!\)</span>
-            , in order to make the exclusion of the zero point more obvious <a id="footnote-reference-25" class="footnote_reference" href="#zips-issue664">32</a>. This also has the effect that a Sapling incoming viewing key <a id="footnote-reference-26" class="footnote_reference" href="#protocol-saplinginviewingkeyencoding">14</a> or a Sapling IVK Encoding in a Unified Incoming Viewing Key <a id="footnote-reference-27" class="footnote_reference" href="#zip-0316">25</a> that encodes the zero
+                <span class="math">\(\mathsf{KA^{protocol}.PublicPrimeOrder}\kern-0.03em\textsf{,}\)</span>
+             in order to make the exclusion of the zero point more obvious <a id="footnote-reference-25" class="footnote_reference" href="#zips-issue664">32</a>. This also has the effect that a Sapling incoming viewing key <a id="footnote-reference-26" class="footnote_reference" href="#protocol-saplinginviewingkeyencoding">14</a> or a Sapling IVK Encoding in a Unified Incoming Viewing Key <a id="footnote-reference-27" class="footnote_reference" href="#zip-0316">25</a> that encodes the zero
                 <span class="math">\(\mathsf{ivk}\)</span>
              MUST be considered invalid when imported. Another note was also added explicitly covering the encoding of
                 <span class="math">\(\mathsf{pk_d}\)</span>
@@ -248,16 +246,16 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/400">https://g
                 <p>The restriction on
                     <span class="math">\(\mathsf{pk_d}\)</span>
                  reflects its current type
-                    <span class="math">\(\mathsf{KA^{Sapling}.PublicPrimeOrder} = \mathbb{J}^{(r)*}\!\)</span>
-                . In versions of this specification prior to 2025.6.0,
+                    <span class="math">\(\mathsf{KA^{Sapling}.PublicPrimeOrder} = \mathbb{J}^{(r)*}\kern-0.03em\textsf{.}\)</span>
+                 In versions of this specification prior to 2025.6.0,
                     <span class="math">\(\mathsf{pk_d}\)</span>
                  had type
-                    <span class="math">\(\mathsf{KA^{Sapling}.PublicPrimeSubgroup} = \mathbb{J}^{(r)}\!\)</span>
-                , i.e. including
-                    <span class="math">\(\mathcal{O}_{\mathbb{J}}\!\)</span>
-                . Implementations of consumers for this encoding may need to be updated to exclude
-                    <span class="math">\(\mathcal{O}_{\mathbb{J}}\!\)</span>
-                , and should be checked for consistency with the current version of [ZIP-216].</p>
+                    <span class="math">\(\mathsf{KA^{Sapling}.PublicPrimeSubgroup} = \mathbb{J}^{(r)}\kern-0.03em\textsf{,}\)</span>
+                 i.e. including
+                    <span class="math">\(\mathcal{O}_{\mathbb{J}}\kern-0.03em\textsf{.}\)</span>
+                 Implementations of consumers for this encoding may need to be updated to exclude
+                    <span class="math">\(\mathcal{O}_{\mathbb{J}}\kern-0.03em\textsf{,}\)</span>
+                 and should be checked for consistency with the current version of [ZIP-216].</p>
             </blockquote>
             <section id="retroactive-applicability"><h3><span class="section-heading">Retroactive applicability</span><span class="section-anchor"> <a rel="bookmark" href="#retroactive-applicability"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>As originally specified, this ZIP required that the new validity rules be applied only after NU5 activation. This was necessary because a transaction containing a non‑canonical Jubjub point encoding could have been included in any block before NU5 activation.</p>
@@ -274,8 +272,8 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/400">https://g
                 <p>Rejecting non‑canonical
                     <span class="math">\(\mathsf{pk\star_d}\)</span>
                  encodings cannot lead to loss of funds sent to a Sapling address that has been correctly generated as specified in <a id="footnote-reference-33" class="footnote_reference" href="#protocol-saplingkeycomponents">5</a>, because such an address cannot have
-                    <span class="math">\(\mathsf{ivk} = 0\!\)</span>
-                , which is the only case in which
+                    <span class="math">\(\mathsf{ivk} = 0\kern-0.03em\textsf{,}\)</span>
+                 which is the only case in which
                     <span class="math">\(\mathsf{pk\star_d}\)</span>
                  could be non‑canonical. They are rejected in wallet rescanning by current <cite>zcashd</cite> and by <cite>librustzcash</cite>-based light wallets.</p>
                 <p>Note: There are no such non‑canonical
@@ -299,21 +297,21 @@ Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/400">https://g
             <p>The public inputs of Jubjub points to the Spend circuit (
                 <span class="math">\(\!\mathsf{rk}\)</span>
              and
-                <span class="math">\(\mathsf{cv^{old}}\!\)</span>
-            ) and Output circuit (
+                <span class="math">\(\mathsf{cv^{old}}\kern-0.15em\)</span>
+             ) and Output circuit (
                 <span class="math">\(\!\mathsf{cv^{new}}\)</span>
              and
-                <span class="math">\(\mathsf{epk}\!\)</span>
-            ) are not affected because they are represented in affine coordinates as elements of the correct field (
-                <span class="math">\(\!\mathbb{F}_{r_\mathbb{S}} = \mathbb{F}_{q_\mathbb{J}}\!\)</span>
-            ), and so no issue of encoding canonicity arises.</p>
+                <span class="math">\(\mathsf{epk}\kern-0.15em\)</span>
+             ) are not affected because they are represented in affine coordinates as elements of the correct field (
+                <span class="math">\(\!\mathbb{F}_{r_\mathbb{S}} = \mathbb{F}_{q_\mathbb{J}}\kern-0.15em\)</span>
+             ), and so no issue of encoding canonicity arises.</p>
             <p>Encodings of elliptic curve points on Curve25519, BN‑254
-                <span class="math">\(\mathbb{G}_1\!\)</span>
-            , BN‑254
-                <span class="math">\(\mathbb{G}_2\!\)</span>
-            , BLS12‑381
-                <span class="math">\(\mathbb{G}_1\!\)</span>
-            , and BLS12‑381
+                <span class="math">\(\mathbb{G}_1\kern-0.03em\textsf{,}\)</span>
+             BN‑254
+                <span class="math">\(\mathbb{G}_2\kern-0.03em\textsf{,}\)</span>
+             BLS12‑381
+                <span class="math">\(\mathbb{G}_1\kern-0.03em\textsf{,}\)</span>
+             and BLS12‑381
                 <span class="math">\(\mathbb{G}_2\)</span>
              are not affected.</p>
             <p>Encodings of elliptic curve points on the Pallas and Vesta curves <a id="footnote-reference-37" class="footnote_reference" href="#protocol-pallasandvesta">12</a> used by the Orchard shielded protocol are also not affected.</p>
