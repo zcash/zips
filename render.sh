@@ -24,6 +24,11 @@ if ! [ -f "${inputfile}" ]; then
     exit
 fi
 
+# Set RENDER_INTERMEDIATE to a path to capture the post-sed, pre-renderer stream
+# (used by the render regression tests; see test/). Defaults to /dev/null, so normal
+# runs are unaffected and the `tee` below is a harmless pass-through.
+intermediate="${RENDER_INTERMEDIATE:-/dev/null}"
+
 if [ "x$1" = "x--rst" ]; then
     filetype='.rst'
 else
@@ -60,7 +65,7 @@ cat <(
                s|[$]\([^$]\+\)[$]\([.,:;!?]\)\ |:math:`\1\\kern-0.03em\\textsf{\2}` |g;
                s|[$]\([^$]\+\)[$]|:math:`\1`|g;
                s|💲|$|g' |
-          #tee "${inputfile}-debug" |
+          tee "${intermediate}" |
           rst2html5 -v --title="${title}" - |
           sed "s|<script src=\"http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML\"></script>|${Math1}\n    ${Math2}\n    ${Math3}|;
                s|</head>|${ViewAndStyle}</head>|"
@@ -84,7 +89,7 @@ cat <(
                    s|[$]\([^$]\+\)[$]\([.,:;!?]\)$|$\1\\kern-0.05em\\textsf{\2}$|g;
                    s|[$]\([^$]\+\)[$]\([.,:;!?]\)\ |$\1\\kern-0.05em\\textsf{\2}$ |g;
                    s|💲|\\$|g' |
-              #tee "${inputfile}-debug" |
+              tee "${intermediate}" |
               multimarkdown -o "${outputfile}.temp"
         fi
 

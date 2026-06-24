@@ -50,10 +50,27 @@ rendered/%.html: zips/%.rst render.sh
 rendered/%.html: zips/%.md render.sh
 	./render.sh $(MARKDOWN_OPTION) $< $@
 
+# Render-regression test fixtures, kept out of zips/ so the ZIP set stays clean.
+# Output goes under rendered/test/, with css/ and assets/ symlinked from the parent
+# rendered/ dir so the pages are viewable with correct styling in a browser.
+rendered/test/%.html: test/render/%.rst render.sh | rendered/test
+	./render.sh --rst $< $@
+
+rendered/test/%.html: test/render/%.md render.sh | rendered/test
+	./render.sh $(MARKDOWN_OPTION) $< $@
+
+rendered/test:
+	mkdir -p rendered/test
+	ln -sfn ../css rendered/test/css
+	ln -sfn ../assets rendered/test/assets
+
 README.rst: .zipfilelist.current .draftfilelist.current makeindex.sh README.template $(wildcard zips/zip-*.rst) $(wildcard zips/zip-*.md) $(wildcard zips/draft-*.rst) $(wildcard zips/draft-*.md)
 	./makeindex.sh | cat README.template - >README.rst
 
-.PHONY: linkcheck updatecheck clean all-clean
+.PHONY: linkcheck updatecheck clean all-clean test
+test:
+	./test/render-test.sh
+
 linkcheck: all
 	./links_and_dests.py --check $(filter-out $(wildcard rendered/draft-*.html),$(wildcard rendered/*.html)) $(filter-out rendered/protocol/sprout.pdf,$(wildcard rendered/protocol/*.pdf))
 
