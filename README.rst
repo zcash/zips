@@ -28,8 +28,8 @@ Participation in the Zcash project is subject to a `Code of
 Conduct <https://github.com/zcash/zcash/blob/master/code_of_conduct.md>`__.
 
 The Zcash protocol is documented in its
-`Protocol Specification <rendered/protocol/protocol.pdf>`__
-`(dark mode version) <rendered/protocol/protocol-dark.pdf>`__.
+`Protocol Specification <https://zips.z.cash/protocol/protocol.pdf>`__
+`(dark mode version) <https://zips.z.cash/protocol/protocol-dark.pdf>`__.
 
 To start contributing, first read `ZIP 0 <zips/zip-0000.rst>`__ which documents the ZIP process.
 Then clone `this repo <https://github.com/zcash/zips>`__ from GitHub, and start adding
