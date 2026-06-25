@@ -264,7 +264,7 @@ Withdrawn, Rejected, or Obsolete ZIPs
     <tr> <td><strike>210</strike></td> <td class="left"><strike><a href="zips/zip-0210.rst">Sapling Anchor Deduplication within Transactions</a></strike></td> <td>Withdrawn</td>
     <tr> <td><strike>220</strike></td> <td class="left"><strike><a href="zips/zip-0220.rst">Zcash Shielded Assets</a></strike></td> <td>Withdrawn</td>
     <tr> <td><strike>230</strike></td> <td class="left"><strike><a href="zips/zip-0230.rst">Withdrawn Version 6 Transaction Format</a></strike></td> <td>Withdrawn</td>
-    <tr> <td><strike>246</strike></td> <td class="left"><strike><a href="zips/zip-0246.rst">Digests for the Version 6 Transaction Format</a></strike></td> <td>Withdrawn</td>
+    <tr> <td><strike>246</strike></td> <td class="left"><strike><a href="zips/zip-0246.rst">Digests for the Withdrawn Version 6 Transaction Format</a></strike></td> <td>Withdrawn</td>
     <tr> <td><strike>254</strike></td> <td class="left"><strike><a href="zips/zip-0254.md">Deployment of the NU7 Network Upgrade (Withdrawn)</a></strike></td> <td>Withdrawn</td>
     <tr> <td><strike>303</strike></td> <td class="left"><strike><a href="zips/zip-0303.rst">Sprout Payment Disclosure</a></strike></td> <td>Withdrawn</td>
     <tr> <td><strike>313</strike></td> <td class="left"><strike><a href="zips/zip-0313.rst">Reduce Conventional Transaction Fee to 1000 zatoshis</a></strike></td> <td>Obsolete</td>
@@ -344,7 +344,7 @@ Index of ZIPs
     <tr> <td>243</td> <td class="left"><a href="zips/zip-0243.rst">Transaction Signature Validation for Sapling</a></td> <td>Final</td>
     <tr> <td>244</td> <td class="left"><a href="zips/zip-0244.rst">Transaction Identifier Non-Malleability</a></td> <td>Final</td>
     <tr> <td>245</td> <td class="left"><a href="zips/zip-0245.rst">Transaction Identifier Digests & Signature Validation for Transparent Zcash Extensions</a></td> <td>Draft</td>
-    <tr> <td><strike>246</strike></td> <td class="left"><strike><a href="zips/zip-0246.rst">Digests for the Version 6 Transaction Format</a></strike></td> <td>Withdrawn</td>
+    <tr> <td><strike>246</strike></td> <td class="left"><strike><a href="zips/zip-0246.rst">Digests for the Withdrawn Version 6 Transaction Format</a></strike></td> <td>Withdrawn</td>
     <tr> <td>250</td> <td class="left"><a href="zips/zip-0250.rst">Deployment of the Heartwood Network Upgrade</a></td> <td>Final</td>
     <tr> <td>251</td> <td class="left"><a href="zips/zip-0251.rst">Deployment of the Canopy Network Upgrade</a></td> <td>Final</td>
     <tr> <td>252</td> <td class="left"><a href="zips/zip-0252.rst">Deployment of the NU5 Network Upgrade</a></td> <td>Final</td>
