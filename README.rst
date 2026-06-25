@@ -188,7 +188,7 @@ written.
     <tr> <td>226</td> <td class="left"><a href="zips/zip-0226.rst">Transfer and Burn of Zcash Shielded Assets</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/618">zips#618</a></td>
     <tr> <td>227</td> <td class="left"><a href="zips/zip-0227.rst">Issuance of Zcash Shielded Assets</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/618">zips#618</a></td>
     <tr> <td><span class="reserved">228</span></td> <td class="left"><a class="reserved" href="zips/zip-0228.rst">Asset Swaps for Zcash Shielded Assets</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/776">zips#776</a></td>
-    <tr> <td>229</td> <td class="left"><a href="zips/zip-0229.md">Version 6 Transaction Format</a></td> <td>Draft</td> <td class="left"></td>
+    <tr> <td>229</td> <td class="left"><a href="zips/zip-0229.md">Version 6 Transaction Format</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/1326">zips#1326</a></td>
     <tr> <td>231</td> <td class="left"><a href="zips/zip-0231.md">Memo Bundles</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/627">zips#627</a></td>
     <tr> <td>233</td> <td class="left"><a href="zips/zip-0233.md">Network Sustainability Mechanism: Removing Funds From Circulation</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/922">zips#922</a></td>
     <tr> <td>234</td> <td class="left"><a href="zips/zip-0234.md">Network Sustainability Mechanism: Issuance Smoothing</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/923">zips#923</a></td>
@@ -226,7 +226,8 @@ written.
     <tr> <td>2002</td> <td class="left"><a href="zips/zip-2002.rst">Explicit Fees</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/803">zips#803</a></td>
     <tr> <td>2003</td> <td class="left"><a href="zips/zip-2003.rst">Disallow version 4 transactions</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/825">zips#825</a></td>
     <tr> <td>2004</td> <td class="left"><a href="zips/zip-2004.rst">Remove the dependency of consensus on note encryption</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/917">zips#917</a></td>
-    <tr> <td><span class="reserved">2006</span></td> <td class="left"><a class="reserved" href="zips/zip-2006.rst">Restricting Transfers to the Orchard Pool</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/1305">zips#1305</a></td>
+    <tr> <td><span class="reserved">2006</span></td> <td class="left"><a class="reserved" href="zips/zip-2006.md">Restricting Transfers into the Orchard Pool</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/1305">zips#1305</a></td>
+    <tr> <td><span class="reserved">2007</span></td> <td class="left"><a class="reserved" href="zips/zip-2007.md">Quantum Recoverability for a Subset of Transparent Addresses</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/1302">zips#1302</a></td>
     <tr> <td>guide-markdown</td> <td class="left"><a href="zips/zip-guide-markdown.md">{Something Short and To the Point}</a></td> <td>Draft</td> <td class="left"></td>
     <tr> <td>guide</td> <td class="left"><a href="zips/zip-guide.rst">{Something Short and To the Point}</a></td> <td>Draft</td> <td class="left"></td>
     <tr> <td>template</td> <td class="left"><a href="zips/zip-template.md">{Template for new ZIPs}</a></td> <td>Draft</td> <td class="left"></td>
@@ -413,7 +414,8 @@ Index of ZIPs
     <tr> <td>2003</td> <td class="left"><a href="zips/zip-2003.rst">Disallow version 4 transactions</a></td> <td>Draft</td>
     <tr> <td>2004</td> <td class="left"><a href="zips/zip-2004.rst">Remove the dependency of consensus on note encryption</a></td> <td>Draft</td>
     <tr> <td>2005</td> <td class="left"><a href="zips/zip-2005.md">Ironwood Quantum Recoverability</a></td> <td>Proposed</td>
-    <tr> <td><span class="reserved">2006</span></td> <td class="left"><a class="reserved" href="zips/zip-2006.rst">Restricting Transfers to the Orchard Pool</a></td> <td>Reserved</td>
+    <tr> <td><span class="reserved">2006</span></td> <td class="left"><a class="reserved" href="zips/zip-2006.md">Restricting Transfers into the Orchard Pool</a></td> <td>Reserved</td>
+    <tr> <td><span class="reserved">2007</span></td> <td class="left"><a class="reserved" href="zips/zip-2007.md">Quantum Recoverability for a Subset of Transparent Addresses</a></td> <td>Reserved</td>
     <tr> <td>guide-markdown</td> <td class="left"><a href="zips/zip-guide-markdown.md">{Something Short and To the Point}</a></td> <td>Draft</td>
     <tr> <td>guide</td> <td class="left"><a href="zips/zip-guide.rst">{Something Short and To the Point}</a></td> <td>Draft</td>
     <tr> <td>template</td> <td class="left"><a href="zips/zip-template.md">{Template for new ZIPs}</a></td> <td>Draft</td>
