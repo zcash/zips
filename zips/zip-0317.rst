@@ -8,10 +8,11 @@
   Original-Authors: Aditya Bharadwaj
   Credits: Madars Virza
            Francisco Gindre
-  Status: Active
+  Status: [Revision 0] Active, [Revision 2] Draft
   Category: Standards / Wallet
   Obsoletes: ZIP 313
   Created: 2022-08-15
+  Last-Updated: 2026-06-26
   License: MIT
   Discussions-To: <https://forum.zcashcommunity.com/t/zip-proportional-output-fee-mechanism-pofm/42808>
   Pull-Request: <https://github.com/zcash/zips/pull/631>
@@ -95,11 +96,39 @@ Let $\mathsf{max}(a, b)$ be the greater of $a$ and $b$. |br|
 Let $\mathsf{floor}(x)$ be the largest integer $\leq x$. |br|
 Let $\mathsf{ceiling}(x)$ be the smallest integer $\geq x$.
 
+Revisions
+---------
+
+.. _`Revision 0`:
+
+* Revision 0: The initial fee mechanism specified by this ZIP, in effect
+  prior to the Ironwood network upgrade.
+
+.. _`Revision 2`:
+
+* Revision 2 (draft): Adds fee handling for memo bundles [#zip-0231]_, which
+  are defined as a modification to the Extensible Transaction Format
+  [#zip-0248]_. This revision is a draft, and depends on ZIP 248, which has
+  not yet been deployed.
+
 Fee calculation
 ---------------
 
-This specification defines several parameters that are used to calculate the
-conventional fee:
+Wallets implementing this specification SHOULD use a conventional fee,
+calculated in zatoshis, of
+
+|br|
+
+.. math::
+
+   \mathit{conventional\_fee} = \mathit{marginal\_fee} \cdot \mathsf{max}(\mathit{grace\_actions},\, \mathit{logical\_actions})
+
+|br|
+
+where $\mathit{logical\_actions}$ is the sum of the contributions defined by
+the applicable revision of this specification (see `Revisions`_). A
+contribution defined by a given revision is also included in all later
+revisions. This calculation uses the following parameters:
 
 ============================================== ============= ==============================================
 Parameter                                          Value     Units
@@ -110,37 +139,24 @@ Parameter                                          Value     Units
 :math:`\mathit{p2pkh\_standard\_output\_size}` :math:`34`    bytes
 ============================================== ============= ==============================================
 
-Wallets implementing this specification SHOULD use a conventional fee
-calculated in zatoshis per the following formulae:
+As of `Revision 0`_, the following contributions are defined:
 
 |br|
 
 .. math::
 
    \begin{array}{lcl}
-     \mathit{free\_memo\_chunks}                    &=& \begin{cases}
-                                                          2, &\!\!\textsf{if } \mathit{nOutputsSapling} + \mathit{nA\kern-0.05em ctionsOrchard} > 0, \\
-                                                          0, &\!\!\textsf{otherwise}
-                                                        \end{cases}
-     \\[4ex]
      \mathit{contribution}_{\,\mathsf{Transparent}} &=& \mathsf{max}\big(\mathsf{ceiling}\big(\frac{\mathit{tx\_in\_total\_size}}{\mathit{p2pkh\_standard\_input\_size}}\big),\,
                                                                          \mathsf{ceiling}\big(\frac{\mathit{tx\_out\_total\_size}}{\mathit{p2pkh\_standard\_output\_size}}\big)\big) \\
      \mathit{contribution}_{\,\mathsf{Sprout}}      &=& 2 \cdot \mathit{nJoinSplit} \\
      \mathit{contribution}_{\,\mathsf{Sapling}}     &=& \mathsf{max}(\mathit{nSpendsSapling},\, \mathit{nOutputsSapling}) \\
-     \mathit{contribution}_{\,\mathsf{Orchard}}     &=& \mathit{nA\kern-0.1em ctionsOrchard} \\
-     \mathit{contribution}_{\,\mathsf{Memos}}       &=& \mathsf{max}\big(0, \mathit{nMemoChunks} - \mathit{free\_memo\_chunks}\big) \\
-     \\
-     \mathit{logical\_actions}                      &=& \mathit{contribution}_{\,\mathsf{Transparent}} +
-                                                        \mathit{contribution}_{\,\mathsf{Sprout}} +
-                                                        \mathit{contribution}_{\,\mathsf{Sapling}} +
-                                                        \mathit{contribution}_{\,\mathsf{Orchard}} \\
-                                   & & \hspace{1em} +\; \mathit{contribution}_{\,\mathsf{Memos}} \\
-     \\
-     \mathit{conventional\_fee} &=& \mathit{marginal\_fee} \cdot \mathsf{max}(\mathit{grace\_actions},\, \mathit{logical\_actions}) \\[6ex]
+     \mathit{contribution}_{\,\mathsf{Orchard}}     &=& \mathit{nA\kern-0.1em ctionsOrchard}
    \end{array}
 
-The inputs to this formula are taken from transaction fields defined in the Zcash protocol
-specification [#protocol-txnencoding]_:
+|br|
+
+These contributions are computed from transaction fields defined in the Zcash
+protocol specification [#protocol-txnencoding]_:
 
 ============================================= ====== ====================================================================
 Input                                         Units  Description
@@ -151,6 +167,31 @@ Input                                         Units  Description
 :math:`\mathit{nSpendsSapling}`               number the number of Sapling spends
 :math:`\mathit{nOutputsSapling}`              number the number of Sapling outputs
 :math:`\mathit{nA\kern-0.1em ctionsOrchard}`  number the number of Orchard actions
+============================================= ====== ====================================================================
+
+As of `Revision 2`_ (draft), the $\mathit{logical\_actions}$ sum additionally
+includes a contribution for memo bundles [#zip-0231]_:
+
+|br|
+
+.. math::
+
+   \begin{array}{lcl}
+     \mathit{free\_memo\_chunks}              &=& \begin{cases}
+                                                    2, &\!\!\textsf{if } \mathit{nOutputsSapling} + \mathit{nA\kern-0.05em ctionsOrchard} > 0, \\
+                                                    0, &\!\!\textsf{otherwise}
+                                                  \end{cases}
+     \\[4ex]
+     \mathit{contribution}_{\,\mathsf{Memos}} &=& \mathsf{max}\big(0, \mathit{nMemoChunks} - \mathit{free\_memo\_chunks}\big)
+   \end{array}
+
+|br|
+
+This contribution is computed from one additional transaction field:
+
+============================================= ====== ====================================================================
+Input                                         Units  Description
+============================================= ====== ====================================================================
 :math:`\mathit{nMemoChunks}`                  number the number of memo chunks
 ============================================= ====== ====================================================================
 
@@ -596,6 +637,17 @@ Kris Nuttycombe, Jack Grigg, Francisco Gindre, Greg Pfeil, Teor, and
 Deirdre Connolly for reviews and suggested improvements.
 
 
+Change History
+==============
+
+2026-06-26
+----------
+
+- Introduced the revisions mechanism: recast the existing fee mechanism as
+  Revision 0, and moved the memo bundle fee handling into a draft Revision 2.
+- Removed the ZSA issuance and asset-creation fee contributions (ZIP 227).
+
+
 References
 ==========
 
@@ -604,6 +656,7 @@ References
 .. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2022.3.8. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
 .. [#sigop-limit] `zcash/zips issue #568 - Document block transparent sigops limit consensus rule <https://github.com/zcash/zips/issues/568>`_
 .. [#madars-1] `Madars concrete soft-fork proposal <https://forum.zcashcommunity.com/t/zip-reduce-default-shielded-transaction-fee-to-1000-zats/37566/89>`_
-.. [#zip-0231] `ZIP 231: Memo Bundles <zip-0231.rst>`_
+.. [#zip-0231] `ZIP 231: Memo Bundles <zip-0231.md>`_
+.. [#zip-0248] `ZIP 248: Extensible Transaction Format (unmerged) <https://github.com/zcash/zips/pull/1156>`_
 .. [#zip-0313] `ZIP 313: Reduce Conventional Transaction Fee to 1000 zatoshis <zip-0313.rst>`_
 .. [#zip-0401] `ZIP 401: Addressing Mempool Denial-of-Service <zip-0401.rst>`_
