@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZIP 256: Deployment of Consensus Bug Fixes Between NU6.1 and NU6.2</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.33/dist/katex.min.css" integrity="sha384-fgYS3VC1089n2J3rVcEbXDHlnDLQ9B2Y1hvpQ720q1NvxCduQqT4JoGc4u2QCnzE" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.33/dist/katex.min.js" integrity="sha384-YPHNAPyrxGS8BNnA7Q4ommqra8WQPEjooVSLzFgwgs8OXJBvadbyvx4QpfiFurGr" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.33/dist/contrib/auto-render.min.js" integrity="sha384-JKXHIJf8PKPyDFptuKZoUyMRQJAmQKj4B4xyOca62ebJhciMYGiDdq/9twUUWyZH" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<pre><code>ZIP: 256
+Title: Deployment of Consensus Bug Fixes Between NU6.1 and NU6.2
+Owners: Daira-Emma Hopwood &lt;daira@jacaranda.org&gt;
+Status: Proposed
+Category: Consensus / Network
+Created: 2026-06-09
+License: MIT
+Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/1294">https://github.com/zcash/zips/issues/1294</a>&gt;
+</code></pre>
+
+<h1 id="terminology"><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>The key words &#8220;MUST&#8221; and &#8220;MUST NOT&#8221; in this document are to be interpreted as
+described in BCP 14 <a href="#fn:1" id="fnref:1" title="see footnote" class="footnote"><sup>1</sup></a> when, and only when, they appear in all capitals.</p>
+
+<p>The term &#8220;network upgrade&#8221; in this document is to be interpreted as described
+in ZIP 200. <a href="#fn:2" id="fnref:2" title="see footnote" class="footnote"><sup>2</sup></a></p>
+
+<p>The character § is used when referring to sections of the Zcash Protocol
+Specification. <a href="#fn:3" id="fnref:3" title="see footnote" class="footnote"><sup>3</sup></a></p>
+
+<p>The terms &#8220;Mainnet&#8221; and &#8220;Testnet&#8221; are to be interpreted as described in
+§ 3.12 ‘Mainnet and Testnet’. <a href="#fn:4" id="fnref:4" title="see footnote" class="footnote"><sup>4</sup></a></p>
+
+<h1 id="abstract"><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>This ZIP retrospectively documents the deployment and specification of
+several consensus and denial-of-service bug fixes that were applied to the
+Zcash node implementations, after the activation of NU6.1 <a href="#fn:5" id="fnref:5" title="see footnote" class="footnote"><sup>5</sup></a>, up to
+but not including the Orchard Temporary Vulnerability Mitigation and the
+NU6.2 network upgrade. The latter are documented in ZIP 257. <a href="#fn:6" id="fnref:6" title="see footnote" class="footnote"><sup>6</sup></a>.</p>
+
+<h1 id="motivation"><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>Between the activation of NU6.1 and that of NU6.2, several consensus enforcement
+bugs and denial-of-service vulnerabilities were reported and mitigated in the
+zcashd and zebra full node implementations. This period corresponded to a sudden
+spike in vulnerability reports, precipitated by the widespread use of capable AI
+models for vulnerability discovery and mitigation.</p>
+
+<p>These vulnerabilities were fixed and deployed in zcashd releases v6.12.0 to
+v6.12.4 inclusive, and in zebra releases v4.2.0 to v4.5.1 inclusive.</p>
+
+<p>This ZIP records the nature of those fixes, the releases in which they were
+deployed, and corresponding specification changes and clarifications, so that
+the behaviour of the network across this period is fully documented.</p>
+
+<h1 id="specification"><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<h2 id="consensusrulechanges"><span class="section-heading">Consensus rule changes</span><span class="section-anchor"> <a rel="bookmark" href="#consensusrulechanges"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>The changes in this ZIP include the constricting consensus rule changes described
+here. The corresponding <a href="#consensuschangesinthezcashprotocolspecification">consensus changes in the Zcash Protocol Specification</a>
+are described in that section.</p>
+
+<h3 id="orchardidentityrk"><span class="section-heading">Orchard identity rk</span><span class="section-anchor"> <a rel="bookmark" href="#orchardidentityrk"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>An Orchard action with <span class="math">\(\mathtt{rk}\)</span> encoding the zero point on the Pallas curve
+caused a panic during proof verification. Both zcashd and zebra now reject
+<span class="math">\(\mathtt{rk}\)</span> encoding <span class="math">\(\mathcal{O}_{\mathbb{P}}\kern-0.05em\textsf{.}\)</span> This is a constricting
+consensus rule change, since the specification previously permitted <span class="math">\(\mathtt{rk}\)</span>
+to encode the zero point. It is enforced by zcashd from v6.12.1, by zebra from v4.3.1,
+and reflected in the <code>orchard</code> crate from version 0.13.0. <a href="#fn:7" id="fnref:7" title="see footnote" class="footnote"><sup>7</sup></a></p>
+
+<h3 id="changestochainvaluebalanceaccountingruleszip209"><span class="section-heading">Changes to chain value balance accounting rules (ZIP 209)</span><span class="section-anchor"> <a rel="bookmark" href="#changestochainvaluebalanceaccountingruleszip209"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>As a consequence of the integer-overflow and value-range hardening described
+below for zcashd v6.12.1, the following change was made to ZIP 209.</p>
+
+<p>In ZIP 209&#8217;s Specification section, replace</p>
+
+<blockquote>
+<p>If any of the &#8220;Sprout chain value pool balance&#8221;, &#8220;Sapling chain value pool
+balance&#8221;, or &#8220;Orchard chain value pool balance&#8221; would become negative in the
+block chain created as a result of accepting a block, then all nodes MUST reject
+the block as invalid.</p>
+</blockquote>
+
+<p>with</p>
+
+<blockquote>
+<p>If any of the Sprout chain value pool balance, Sapling chain value pool balance,
+Orchard chain value pool balance, transparent chain value pool balance, or
+deferred development fund chain value pool balance would become negative in the
+block chain created as a result of accepting a block, then all nodes MUST reject
+the block as invalid.</p>
+
+<p>If the sum of these chain value pool balances (i.e. the total supply, computed
+without possibility of overflow) would become greater than <span class="math">\(\mathsf{MAX\_MONEY}\)</span>
+zatoshis in the block chain created as a result of accepting a block, then all
+nodes MUST reject the block as invalid.</p>
+</blockquote>
+
+<p>The extension of the non-negativity rule to the deferred development pool balance
+had already been implemented for NU6 <a href="#fn:8" id="fnref:8" title="see footnote" class="footnote"><sup>8</sup></a> <a href="#fn:9" id="fnref:9" title="see footnote" class="footnote"><sup>9</sup></a>.</p>
+
+<p>The extension of the non-negativity rule to the transparent balance, and the rule
+on the total supply, were implemented in zcashd v6.12.1 <a href="#fn:10" id="fnref:10" title="see footnote" class="footnote"><sup>10</sup></a>, in
+response to weaknesses in zcashd&#8217;s chain value pool balance accounting <a href="#fn:7" title="see footnote" class="footnote"><sup>7</sup></a>:</p>
+
+<ul>
+<li><p><strong>Chain value pool balance-tracking reset.</strong> A duplicate block header could
+silently reset chain value pool balance-tracking fields, effectively disabling
+ZIP 209 <a href="#fn:11" id="fnref:11" title="see footnote" class="footnote"><sup>11</sup></a> turnstile enforcement for versions of zcashd from v6.0.0
+(the first release in which the bug was triggerable on Mainnet) prior to
+v6.12.1. A variation on the attack could persist corrupted per-block
+chain value pool deltas. zcashd v6.12.1 onward defers pool-value initialization
+until after the duplicate-data check, adds a chain-supply checkpoint at NU6.1
+activation covering all value pools, and recomputes shielded chain value pool
+deltas (since the checkpoint) from block data on startup.</p></li>
+<li><p><strong>Chain value pool balance hardening.</strong> Complementary to the above fixes,
+zcashd v6.12.1 onward tightened its implementation of turnstile and lockbox
+accounting to more rigorously apply overflow/underflow checking, supporting
+local reasoning about the correctness of the accounting arithmetic.</p></li>
+</ul>
+
+<p>An intended effect of the latter hardening was to enforce the stricter consensus
+rules described above in zcashd. Zebra had already been using checked arithmetic
+consistently, representing each chain value pool balance as an amount required to
+be non-negative and at most <span class="math">\(\mathsf{MAX\_MONEY}\kern-0.05em\textsf{,}\)</span> and constraining each intermediate
+value to its correct range.</p>
+
+<h2 id="consensuschangesinthezcashprotocolspecification"><span class="section-heading">Consensus changes in the Zcash Protocol Specification</span><span class="section-anchor"> <a rel="bookmark" href="#consensuschangesinthezcashprotocolspecification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>This section includes only consensus changes; additional
+<a href="#clarificationstothezcashprotocolspecification">clarifications to the Zcash Protocol Specification</a>
+are given in a later section.</p>
+
+<h3 id="rk-relatedchanges"><span class="section-heading">rk-related changes</span><span class="section-anchor"> <a rel="bookmark" href="#rk-relatedchanges"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Add a consensus rule in § 4.6 ‘Action descriptions’:</p>
+
+<blockquote>
+<ul>
+<li><span class="math">\(\mathsf{rk}\)</span> MUST NOT be the identity point <span class="math">\(\mathcal{O}_{\mathbb{P}}\kern-0.05em\textsf{.}\)</span></li>
+</ul>
+</blockquote>
+
+<p>In the same section, change the non-normative note</p>
+
+<blockquote>
+<ul>
+<li><span class="math">\(\mathsf{cv}\)</span> and <span class="math">\(\mathsf{rk}\)</span> can be the zero point <span class="math">\(\mathcal{O}_{\mathbb{P}}\kern-0.05em\textsf{.}\)</span>
+<span class="math">\(\mathsf{epk}\)</span> cannot be <span class="math">\(\mathcal{O}_{\mathbb{P}}\kern-0.05em\textsf{.}\)</span></li>
+</ul>
+</blockquote>
+
+<p>to</p>
+
+<blockquote>
+<ul>
+<li><span class="math">\(\mathsf{cv}\)</span> can be the zero point <span class="math">\(\mathcal{O}_{\mathbb{P}}\kern-0.05em\textsf{.}\)</span>
+<span class="math">\(\mathsf{rk}\)</span> and <span class="math">\(\mathsf{epk}\)</span> cannot be <span class="math">\(\mathcal{O}_{\mathbb{P}}\kern-0.05em\textsf{.}\)</span></li>
+</ul>
+</blockquote>
+
+<p>Add a non-normative note:</p>
+
+<blockquote>
+<ul>
+<li>The restriction <span class="math">\(\mathsf{rk} \neq \mathcal{O}_{\mathbb{P}}\)</span> was enforced as
+a &#8220;soft fork&#8221;, without a specific activation height, by zcashd from v6.12.1 and
+by zebra from v4.3.1 [ZIP-256]. It was introduced in response to a panic that
+<span class="math">\(\mathtt{rk}\)</span> encoding the zero point caused during proof verification, in both
+zcashd and zebra. The bug occurred in conversion of the <span class="math">\(\mathsf{rk}\)</span> Pallas
+curve point to the corresponding circuit public inputs. The underlying circuit
+implementation did and does support <span class="math">\(\mathsf{rk} = \mathcal{O}_{\mathbb{P}}\kern-0.05em\textsf{,}\)</span>
+represented with coordinates <span class="math">\((0, 0)\kern-0.05em\textsf{,}\)</span> and that case would have been harmless
+had it been handled correctly, but excluding it was the simpler and safer response
+under the circumstances.</li>
+</ul>
+</blockquote>
+
+<p>Also add a note to § 4.18.4 ‘Action Statement (Orchard)’ explaining that the case
+<span class="math">\(\mathsf{rk} = \mathcal{O}_{\mathbb{P}}\)</span> will not occur due to the above consensus
+rule.</p>
+
+<h3 id="zip209-relatedchanges"><span class="section-heading">ZIP 209-related changes</span><span class="section-anchor"> <a rel="bookmark" href="#zip209-relatedchanges"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Make changes in § 4.17 ‘Chain Value Pool Balances’ <a href="#fn:12" id="fnref:12" title="see footnote" class="footnote"><sup>12</sup></a>
+corresponding to the changes to ZIP 209. These mirror the changes described
+above and are not spelled out here.</p>
+
+<h2 id="additionalconsensusnodeimplementationconformancefixes"><span class="section-heading">Additional consensus node implementation conformance fixes</span><span class="section-anchor"> <a rel="bookmark" href="#additionalconsensusnodeimplementationconformancefixes"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>Each of the following makes an implementation enforce a rule the protocol
+specification already defines, restoring agreement of zcashd and zebra to
+the specification and to each other.</p>
+
+<p>No consensus rule change is introduced for these implementation flaws.
+<a href="#clarificationstothezcashprotocolspecification">Clarifications to the Zcash Protocol Specification</a>
+relating to two of these flaws are given in that section below.</p>
+
+<ul>
+<li><p><strong>Sprout transaction verification.</strong> A flaw in zcashd&#8217;s verification of
+Sprout proofs on block connection could have allowed invalid Sprout
+transactions to be accepted. Fixed in zcashd v6.12.0 <a href="#fn:13" id="fnref:13" title="see footnote" class="footnote"><sup>13</sup></a>.
+<a href="#fn:14" id="fnref:14" title="see footnote" class="footnote"><sup>14</sup></a></p></li>
+<li><p><a id="invalidephemeralkey"><strong>Orchard invalid <span class="math">\(\mathtt{ephemeralKey}\)</span>.</strong></a>
+An Orchard action with <span class="math">\(\mathtt{ephemeralKey}\)</span> encoding the zero point —or any
+other 32-byte string that does not encode a valid Pallas curve point— was accepted
+by zcashd but rejected by zebra as required by § 4.6 <a href="#fn:15" id="fnref:15" title="see footnote" class="footnote"><sup>15</sup></a>, a
+potential consensus split. zcashd now requires <span class="math">\(\mathtt{ephemeralKey}\)</span> to decode
+to a valid non-zero Pallas point. This was partially fixed in zcashd v6.12.1
+(rejecting the zero Pallas point encoding) <a href="#fn:7" title="see footnote" class="footnote"><sup>7</sup></a>. The fix was
+extended to all invalid encodings in v6.12.2 <a href="#fn:16" id="fnref:16" title="see footnote" class="footnote"><sup>16</sup></a>.</p></li>
+<li><p><strong>Sapling v4 <span class="math">\(\mathtt{valueBalanceSapling}\)</span> normalization.</strong> The v4
+transaction deserializer accepted a transaction with no Spend descriptions and
+no Output descriptions, but <span class="math">\(\mathtt{valueBalanceSapling}\)</span> encoding a non-zero
+value. The value was normalized to zero during deserialization, so the
+consensus check that should have rejected it ran against the normalized zero
+and never fired. zebra rejected the encoding at deserialization as required by
+§ 7.1.2 <a href="#fn:17" id="fnref:17" title="see footnote" class="footnote"><sup>17</sup></a>, so the malformed encoding would have caused
+a consensus split. zcashd now rejects it at deserialization, matching zebra.
+Fixed in zcashd v6.12.2 <a href="#fn:16" title="see footnote" class="footnote"><sup>16</sup></a>.</p></li>
+<li><p><strong>NU5-onward block-body poisoning.</strong> In NU5 and later, the authorizing data of
+v5 transactions is committed by the header&#8217;s <span class="math">\(\mathtt{hashBlockCommitments}\)</span>
+(via <span class="math">\(\mathtt{hashAuthDataRoot}\kern-0.15em\)</span> ), not by <span class="math">\(\mathtt{hashMerkleRoot}\kern-0.05em\textsf{.}\)</span> A
+body-derived rejection firing before the auth-commitment check could
+permanently mark an honest header invalid. zcashd now pre-checks
+<span class="math">\(\mathtt{hashBlockCommitments}\)</span> before any body-mutable check on the
+active-tip path, and treats the sidechain case as body-replaceable. This
+closes the class of vulnerabilities, including the <code>bad-blk-sigops</code>,
+<code>bad-cb-length</code>, and <code>bad-blk-length</code> trigger paths. Initial fix in zcashd
+v6.12.2 <a href="#fn:16" title="see footnote" class="footnote"><sup>16</sup></a>; structurally closed in v6.12.4 <a href="#fn:18" id="fnref:18" title="see footnote" class="footnote"><sup>18</sup></a>.
+<a href="#fn:19" id="fnref:19" title="see footnote" class="footnote"><sup>19</sup></a></p></li>
+<li><p><strong>P2SH input sigop count.</strong> zebra&#8217;s P2SH input signature-operation count did
+not match zcashd; this was corrected to restore agreement. Fixed in zebra
+v4.5.1 <a href="#fn:20" id="fnref:20" title="see footnote" class="footnote"><sup>20</sup></a>.</p></li>
+<li><p><strong>Input ordering.</strong> zebra did not preserve the order of inputs in
+<code>spent_outputs</code> for transactions spending a mix of chain and mempool outputs,
+and so an input could be matched against the wrong spent output during
+validation. Fixed in zebra v4.2.0 <a href="#fn:21" id="fnref:21" title="see footnote" class="footnote"><sup>21</sup></a>.</p></li>
+<li><p><strong>Other zebra validity fixes.</strong> zebra accepted coinbase transactions
+containing Sapling spends; did not validate transparent input/output alignment
+before script verification; and could treat a v5 transaction as verified on
+the basis of its mined transaction id alone. These were corrected in zebra
+v4.4.0 <a href="#fn:22" id="fnref:22" title="see footnote" class="footnote"><sup>22</sup></a>.</p></li>
+</ul>
+
+<h2 id="denial-of-serviceandnode-crashhardening"><span class="section-heading">Denial-of-service and node-crash hardening</span><span class="section-anchor"> <a rel="bookmark" href="#denial-of-serviceandnode-crashhardening"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>The following issues allowed remotely triggered crashes or unbounded resource use.
+They affect node liveness but do not change which blocks or transactions are valid.</p>
+
+<h3 id="zcashd"><span class="section-heading">Zcashd</span><span class="section-anchor"> <a rel="bookmark" href="#zcashd"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<ul>
+<li><p><strong>Coinbase shielded value-balance crash.</strong> A coinbase transaction with a
+positive Sapling or Orchard value balance would desynchronize chain-supply
+accounting from pool balances in <code>ConnectBlock</code>, triggering a node abort and a
+crash loop on restart. Fixed in zcashd v6.12.4. <a href="#fn:19" title="see footnote" class="footnote"><sup>19</sup></a></p></li>
+<li><p><strong>Out-of-range pool-value delta.</strong> A block whose aggregate per-pool value
+delta was out of monetary range left the sending peer unbanned, and re-wrote
+the body to disk on each replay. Fixed in zcashd v6.12.4. <a href="#fn:19" title="see footnote" class="footnote"><sup>19</sup></a></p></li>
+<li><p><strong>Use-after-free in <code>ConnectBlock</code>.</strong> CVE-2024&#8211;52911, a use-after-free in the
+script verification path inherited from Bitcoin Core <a href="#fn:23" id="fnref:23" title="see footnote" class="footnote"><sup>23</sup></a>. Fixed
+in zcashd v6.12.3.</p></li>
+<li><p><strong>Integer-overflow and value-range hardening.</strong> Chain value pool balance
+accumulation was hardened against undefined behaviour from signed integer
+overflow. Value range exceptions are now caught as consensus rejections.
+Fixed in zcashd v6.12.1. <a href="#fn:7" title="see footnote" class="footnote"><sup>7</sup></a></p></li>
+</ul>
+
+<h3 id="zebra"><span class="section-heading">Zebra</span><span class="section-anchor"> <a rel="bookmark" href="#zebra"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<ul>
+<li><strong>Unbounded preallocation and duplicate-delivery DoS.</strong> The fix for this
+issue added caps on <code>Vec::with_capacity</code> reservations driven by peer-supplied
+counts; added caps on <code>block::Hash</code> and <code>CountedHeader</code> allocation; and removed
+rejected block hashes from <code>SentHashes</code> so that honest re-deliveries are not
+short-circuited. Fixed in zebra v4.5.0. <a href="#fn:24" id="fnref:24" title="see footnote" class="footnote"><sup>24</sup></a></li>
+</ul>
+
+<h2 id="clarificationstothezcashprotocolspecification"><span class="section-heading">Clarifications to the Zcash Protocol Specification</span><span class="section-anchor"> <a rel="bookmark" href="#clarificationstothezcashprotocolspecification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>These clarifications do not change consensus rules.</p>
+
+<h3 id="§7.1.2‘transactionconsensusrules’"><span class="section-heading">§ 7.1.2 ‘Transaction Consensus Rules’</span><span class="section-anchor"> <a rel="bookmark" href="#§7.1.2‘transactionconsensusrules’"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>In reference to this rule:</p>
+
+<blockquote>
+<p>If <span class="math">\(\mathsf{effectiveVersion} = 4\)</span> and there are no Spend descriptions or
+Output descriptions, then <span class="math">\(\mathtt{valueBalanceSapling}\)</span> MUST be <span class="math">\(0\kern-0.05em\textsf{.}\)</span></p>
+</blockquote>
+
+<p>add the note:</p>
+
+<blockquote>
+<p>zcashd prior to v6.12.1 misimplemented the rule that requires
+<span class="math">\(\mathtt{valueBalanceSapling} = 0\)</span> for a v4 transaction with no Spend
+descriptions and no Output descriptions. It incorrectly normalized the
+value to <span class="math">\(0\)</span> when no Spend or Output descriptions were present, with the
+consequence that the failure case for this rule was never reached. For
+clarification, <span class="math">\(\mathtt{valueBalanceSapling}\)</span> refers to the value as
+encoded in the transaction, which is not normalized in this way; it does
+not refer to <span class="math">\(\mathsf{v^{balanceSapling}}\kern-0.05em\textsf{.}\)</span></p>
+</blockquote>
+
+<h3 id="varioussections"><span class="section-heading">Various sections</span><span class="section-anchor"> <a rel="bookmark" href="#varioussections"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>The consensus rule &#8220;Elements of an Action description MUST be canonical encodings
+of the types given above.&#8221; in § 4.6 ‘Action descriptions’, properly belongs in
+§ 7.5 ‘Action Description Encoding and Consensus’ <a href="#fn:25" id="fnref:25" title="see footnote" class="footnote"><sup>25</sup></a>.</p>
+
+<p>Similarly, the corresponding rules in § 4.3 ‘JoinSplit Descriptions’,
+§ 4.4 ‘Spend Descriptions’, and § 4.5 ‘Output Descriptions’, belong in
+§ 7.2, § 7.3, and § 7.4 respectively.</p>
+
+<p>Add a non-normative note in section § 7.5 documenting the
+<a href="#invalidephemeralkey">invalid <span class="math">\(\mathsf{ephemeralKey}\)</span> issue</a> and the versions
+of zcashd it affected.</p>
+
+<p>Wherever else Pallas curve points are decoded, add cross-references to
+§ 5.4.9.6 ‘Pallas and Vesta’, and include implementation notes on validation
+in that section. Similarly, wherever points on other elliptic curves are
+decoded, add cross-references to the relevant sections.</p>
+
+<h2 id="deployment"><span class="section-heading">Deployment</span><span class="section-anchor"> <a rel="bookmark" href="#deployment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>These fixes were enforced immediately on upgrade in each release below; none
+was gated on a block height or network-upgrade activation.</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Release  </th>
+	<th> Date  </th>
+	<th> Fixes </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> zcashd v6.12.0 </td>
+	<td> 2026&#8211;03&#8211;27 </td>
+	<td> Sprout transaction verification </td>
+</tr>
+<tr>
+	<td> zcashd v6.12.1 </td>
+	<td> 2026&#8211;04&#8211;17 </td>
+	<td> Orchard zero <span class="math">\(\mathtt{rk}\)</span> / <span class="math">\(\mathtt{ephemeralKey}\kern-0.05em\textsf{;}\)</span> chain value-pool accounting; integer-overflow / value-range hardening </td>
+</tr>
+<tr>
+	<td> zcashd v6.12.2 </td>
+	<td> 2026&#8211;05&#8211;06 </td>
+	<td> Sapling <code>valueBalanceSapling</code> normalization; strengthened <span class="math">\(\mathtt{ephemeralKey}\)</span> check; block-body poisoning (initial) </td>
+</tr>
+<tr>
+	<td> zcashd v6.12.3 </td>
+	<td> 2026&#8211;05&#8211;07 </td>
+	<td> CVE-2024&#8211;52911 use-after-free </td>
+</tr>
+<tr>
+	<td> zcashd v6.12.4 </td>
+	<td> 2026&#8211;06&#8211;01 </td>
+	<td> block-body poisoning (structural); coinbase value-balance crash; out-of-range pool-value delta </td>
+</tr>
+<tr>
+	<td> zebra v4.2.0 </td>
+	<td> 2026&#8211;03&#8211;12 </td>
+	<td> input-ordering validity fix </td>
+</tr>
+<tr>
+	<td> zebra v4.3.1 </td>
+	<td> 2026&#8211;04&#8211;17 </td>
+	<td> Orchard zero <span class="math">\(\mathtt{rk}\)</span> / <span class="math">\(\mathtt{ephemeralKey}\)</span> </td>
+</tr>
+<tr>
+	<td> zebra v4.4.0 </td>
+	<td> 2026&#8211;05&#8211;01 </td>
+	<td> coinbase Sapling spend; transparent input/output alignment; v5-verification </td>
+</tr>
+<tr>
+	<td> zebra v4.5.0 </td>
+	<td> 2026&#8211;05&#8211;28 </td>
+	<td> preallocation / duplicate-delivery DoS </td>
+</tr>
+<tr>
+	<td> zebra v4.5.1 </td>
+	<td> 2026&#8211;05&#8211;29 </td>
+	<td> P2SH input sigop count </td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="backwardcompatibility"><span class="section-heading">Backward compatibility</span><span class="section-anchor"> <a rel="bookmark" href="#backwardcompatibility"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>Most of these fixes tighten validity checks or harden the node, rejecting inputs
+that were already invalid under the specification but were previously accepted
+(or mishandled) by one or both full node implementations. Honest blocks and
+transactions remain valid, so upgraded nodes do not diverge from each other.
+Where one implementation previously accepted a malformed encoding, the fix
+restores agreement with the other (for example the Sapling
+<span class="math">\(\mathtt{valueBalanceSapling}\)</span> and Orchard <span class="math">\(\mathtt{ephemeralKey}\)</span> cases, where
+the specification already required the relevant encodings to be rejected).</p>
+
+<p>The exclusion of Orchard <span class="math">\(\mathsf{rk}\)</span> = <span class="math">\(\mathcal{O}_{\mathbb{P}}\)</span> is a soft
+fork: it removes transactions from the valid set rather than adding any, so it
+cannot cause an upgraded node to reject a block that conforming miners produce.
+<span class="math">\(\mathsf{rk}\)</span> is the spend authorization validating key randomized by <span class="math">\(\alpha\kern-0.05em\textsf{.}\)</span>
+When, as specified, <span class="math">\(\alpha\)</span> is generated uniformly at random,
+<span class="math">\(\mathsf{rk}\)</span> = <span class="math">\(\mathcal{O}_{\mathbb{P}}\)</span> only with negligible probability —
+so in practice no honest transaction is affected.</p>
+
+<p>The changes to chain value balance accounting would only affect consensus in
+the event of another violation of intended consensus security properties.</p>
+
+<p>The denial-of-service hardening changes do not affect block or transaction
+validity.</p>
+
+<h1 id="references"><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<div class="footnotes">
+<hr />
+<ol>
+
+<li id="fn:1">
+<p><a href="https://www.rfc-editor.org/info/bcp14">Information on BCP 14 — &#8220;RFC 2119: Key words for use in RFCs to Indicate Requirement Levels&#8221; and &#8220;RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words&#8221;</a> <a href="#fnref:1" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:2">
+<p><a href="zip-0200">ZIP 200: Network Upgrade Mechanism</a> <a href="#fnref:2" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:3">
+<p><a href="protocol/protocol.pdf">Zcash Protocol Specification, Version 2025.6.3 or later</a> <a href="#fnref:3" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:4">
+<p><a href="protocol/protocol.pdf#networks">Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.12: Mainnet and Testnet</a> <a href="#fnref:4" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:5">
+<p><a href="zip-0255">ZIP 255: Deployment of the NU6.1 Network Upgrade</a> <a href="#fnref:5" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:6">
+<p><a href="zip-0257">ZIP 257: Deployment of the Orchard Temporary Vulnerability Mitigation and NU6.2 Network Upgrade</a> <a href="#fnref:6" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:7">
+<p><a href="https://zodl.com/zcashd-zebra-april-2026-disclosure/">Several Zcash Vulnerabilities Successfully Remediated (Zcash Open Development Lab, 2026&#8211;04&#8211;17; zcashd v6.12.1, zebra v4.3.1)</a> <a href="#fnref:7" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:8">
+<p><a href="https://github.com/zcash/zcash/pull/6912">Add lockbox funding streams and chain lockbox value pool tracking for NU6 (zcash/zcash#6912)</a> <a href="#fnref:8" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:9">
+<p><a href="https://github.com/ZcashFoundation/zebra/pull/8729">Track the balance of the deferred chain value pool (ZcashFoundation/zebra#8729)</a> <a href="#fnref:9" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:10">
+<p><a href="https://github.com/zcash/zcash/pull/7141">zcashd v6.12.1 post-release merge (zcash/zcash#7141)</a> <a href="#fnref:10" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:11">
+<p><a href="zip-0209">ZIP 209: Prohibit Negative Shielded Chain Value Pool Balances</a> <a href="#fnref:11" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:12">
+<p><a href="protocol/protocol.pdf#chainvaluepoolbalances">Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 4.17: Chain Value Pool Balances</a> <a href="#fnref:12" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:13">
+<p><a href="https://github.com/zcash/zcash/pull/7133">zcashd v6.12.0 post-release merge (zcash/zcash#7133)</a> <a href="#fnref:13" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:14">
+<p><a href="https://zodl.com/zcashd-sprout-verification-vulnerability/">Zcash Vulnerability Successfully Remediated (Zcash Open Development Lab, 2026&#8211;03&#8211;31; zcashd v6.12.0)</a> <a href="#fnref:14" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:15">
+<p><a href="protocol/protocol.pdf#actiondesc">Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 4.6: Action Descriptions</a> <a href="#fnref:15" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:16">
+<p><a href="https://github.com/zcash/zcash/pull/7157">Hotfix v6.12.2 (zcash/zcash#7157)</a> <a href="#fnref:16" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:17">
+<p><a href="protocol/protocol.pdf#txnconsensus">Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 7.1.2: Transaction Consensus Rules</a> <a href="#fnref:17" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:18">
+<p><a href="https://github.com/zcash/zcash/pull/7174">Zcashd release v6.20.0, which published the v6.12.4 security fixes (zcash/zcash#7174)</a> <a href="#fnref:18" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:19">
+<p><a href="https://github.com/zcash/zcash/security/advisories/GHSA-ghc3-g8w4-whf9">Urgent Zcash hotfixes v6.12.4 &amp; v6.20.0 (zcashd, affected v5.0.0–v6.13.0)</a> <a href="#fnref:19" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:20">
+<p><a href="https://github.com/ZcashFoundation/zebra/blob/main/CHANGELOG.md#zebra-451---2026-05-29">Zebra CHANGELOG — Zebra 4.5.1 (2026&#8211;05&#8211;29)</a> <a href="#fnref:20" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:21">
+<p><a href="https://github.com/ZcashFoundation/zebra/blob/main/CHANGELOG.md#zebra-420---2026-03-12">Zebra CHANGELOG — Zebra 4.2.0 (2026&#8211;03&#8211;12)</a> <a href="#fnref:21" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:22">
+<p><a href="https://github.com/ZcashFoundation/zebra/blob/main/CHANGELOG.md#zebra-440---2026-05-01">Zebra CHANGELOG — Zebra 4.4.0 (2026&#8211;05&#8211;01)</a> <a href="#fnref:22" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:23">
+<p><a href="https://bitcoincore.org/en/2026/05/05/disclose-cve-2024-52911/">Bitcoin Core disclosure of CVE-2024&#8211;52911</a> <a href="#fnref:23" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:24">
+<p><a href="https://github.com/ZcashFoundation/zebra/blob/main/CHANGELOG.md#zebra-450---2026-05-28">Zebra CHANGELOG — Zebra 4.5.0 (2026&#8211;05&#8211;28)</a> <a href="#fnref:24" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:25">
+<p><a href="protocol/protocol.pdf#actionencodingandconsensus">Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 7.5: Action Description Encoding and Consensus</a> <a href="#fnref:25" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+</ol>
+</div>
+</body>
+</html>
