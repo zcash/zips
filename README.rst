@@ -233,6 +233,7 @@ be deleted.
     <tr> <th>Draft name</th> <th>Title</th> <th>Discussions-To</th> </tr>
     <tr> <td class="left">draft-arya-dairaemma-disable-addition-of-transparent-chain-value</td> <td class="left"><a href="zips/draft-arya-dairaemma-disable-addition-of-transparent-chain-value.md">Disabling Addition of New Value to the Transparent Chain Value Pool</a></td> <td class="left"><a href="https://github.com/zcash/zips/issues/1115">zips#1115</a></td>
     <tr> <td class="left">draft-arya-deploy-nu7</td> <td class="left"><a href="zips/draft-arya-deploy-nu7.md">Deployment of the NU7 Network Upgrade</a></td> <td class="left"><a href="https://github.com/zcash/zips/issues/839">zips#839</a></td>
+    <tr> <td class="left">draft-dairaemma-nu6.3-consequences-for-wallets</td> <td class="left"><a href="zips/draft-dairaemma-nu6.3-consequences-for-wallets.md">NU6.3 Consequences for Wallets</a></td> <td class="left"><a href="https://github.com/zcash/zips/issues/1318">zips#1318</a></td>
     <tr> <td class="left">draft-ecc-authenticated-reply-addrs</td> <td class="left"><a href="zips/draft-ecc-authenticated-reply-addrs.md">Authenticated Reply Addresses</a></td> <td class="left"><a href="https://github.com/zcash/zips/issues/1230">zips#1230</a></td>
     <tr> <td class="left">draft-ecc-onchain-accountable-voting</td> <td class="left"><a href="zips/draft-ecc-onchain-accountable-voting.md">On-chain Accountable Voting</a></td> <td class="left"></td>
     <tr> <td class="left">draft-str4d-orchard-balance-proof</td> <td class="left"><a href="zips/draft-str4d-orchard-balance-proof.md">Air drops, Proof-of-Balance, and Stake-weighted Polling</a></td> <td class="left"><a href="https://github.com/zcash/zips/issues/1229">zips#1229</a></td>
@@ -250,7 +251,7 @@ Withdrawn, Rejected, or Obsolete ZIPs
     <tr> <td><strike>210</strike></td> <td class="left"><strike><a href="zips/zip-0210.rst">Sapling Anchor Deduplication within Transactions</a></strike></td> <td>Withdrawn</td>
     <tr> <td><strike>220</strike></td> <td class="left"><strike><a href="zips/zip-0220.rst">Zcash Shielded Assets</a></strike></td> <td>Withdrawn</td>
     <tr> <td><strike>230</strike></td> <td class="left"><strike><a href="zips/zip-0230.rst">Withdrawn Version 6 Transaction Format</a></strike></td> <td>Withdrawn</td>
-    <tr> <td><strike>246</strike></td> <td class="left"><strike><a href="zips/zip-0246.rst">Digests for the Version 6 Transaction Format</a></strike></td> <td>Withdrawn</td>
+    <tr> <td><strike>246</strike></td> <td class="left"><strike><a href="zips/zip-0246.rst">Digests for the Withdrawn Version 6 Transaction Format</a></strike></td> <td>Withdrawn</td>
     <tr> <td><strike>254</strike></td> <td class="left"><strike><a href="zips/zip-0254.md">Deployment of the NU7 Network Upgrade (Withdrawn)</a></strike></td> <td>Withdrawn</td>
     <tr> <td><strike>303</strike></td> <td class="left"><strike><a href="zips/zip-0303.rst">Sprout Payment Disclosure</a></strike></td> <td>Withdrawn</td>
     <tr> <td><strike>313</strike></td> <td class="left"><strike><a href="zips/zip-0313.rst">Reduce Conventional Transaction Fee to 1000 zatoshis</a></strike></td> <td>Obsolete</td>
@@ -330,7 +331,7 @@ Index of ZIPs
     <tr> <td>243</td> <td class="left"><a href="zips/zip-0243.rst">Transaction Signature Validation for Sapling</a></td> <td>Final</td>
     <tr> <td>244</td> <td class="left"><a href="zips/zip-0244.rst">Transaction Identifier Non-Malleability</a></td> <td>Final</td>
     <tr> <td>245</td> <td class="left"><a href="zips/zip-0245.rst">Transaction Identifier Digests & Signature Validation for Transparent Zcash Extensions</a></td> <td>Draft</td>
-    <tr> <td><strike>246</strike></td> <td class="left"><strike><a href="zips/zip-0246.rst">Digests for the Version 6 Transaction Format</a></strike></td> <td>Withdrawn</td>
+    <tr> <td><strike>246</strike></td> <td class="left"><strike><a href="zips/zip-0246.rst">Digests for the Withdrawn Version 6 Transaction Format</a></strike></td> <td>Withdrawn</td>
     <tr> <td>250</td> <td class="left"><a href="zips/zip-0250.rst">Deployment of the Heartwood Network Upgrade</a></td> <td>Final</td>
     <tr> <td>251</td> <td class="left"><a href="zips/zip-0251.rst">Deployment of the Canopy Network Upgrade</a></td> <td>Final</td>
     <tr> <td>252</td> <td class="left"><a href="zips/zip-0252.rst">Deployment of the NU5 Network Upgrade</a></td> <td>Final</td>
