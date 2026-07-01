@@ -358,26 +358,48 @@ from a set of transactions in a node's mempool:
 1. Set the block template $T$ to include a placeholder for the
    coinbase transaction (see Note below).
 
-2. For each transaction $\mathit{tx}$ in the mempool, calculate
-   $\mathit{tx.weight\_ratio} = \mathsf{min}\!\left(\frac{\mathsf{max}(1,\, \mathit{tx.fee})}{\mathit{conventional\_fee}(\mathit{tx})},\, \mathit{weight\_ratio\_cap}\right)$
-   and add the transaction to the set of candidate transactions.
+2. Construct the set of candidate transactions. An implementation MAY
+   support chains of dependent transactions in the mempool, or MAY
+   restrict the candidate set to transactions whose inputs are all
+   already confirmed in the chain. Specifically, either:
 
-3. Repeat while there is any candidate transaction that pays at least the
-   conventional fee:
+   a. (Dependent transactions allowed.) For each transaction
+      $\mathit{tx}$ in the mempool, add $\mathit{tx}$ to the set of
+      candidate transactions. A transaction $\mathit{tx}$ in the
+      candidate set is said to be *eligible* if every in-mempool
+      ancestor of $\mathit{tx}$ has already been included in $T$;
+      otherwise it is *ineligible*. An "in-mempool ancestor" of
+      $\mathit{tx}$ is any transaction in the mempool that
+      $\mathit{tx}$ directly or transitively spends a transparent
+      output of. Or:
+   b. (Dependent transactions omitted.) For each transaction
+      $\mathit{tx}$ in the mempool whose transparent inputs (if any)
+      all spend outputs of transactions already confirmed in the chain
+      (i.e. not other mempool transactions), add $\mathit{tx}$ to the
+      set of candidate transactions. Every candidate transaction is
+      *eligible*.
+
+   In either case, for each candidate transaction $\mathit{tx}$ calculate
+   $\mathit{tx.weight\_ratio} = \mathsf{min}\!\left(\frac{\mathsf{max}(1,\, \mathit{tx.fee})}{\mathit{conventional\_fee}(\mathit{tx})},\, \mathit{weight\_ratio\_cap}\right)$.
+
+3. Repeat while there is any eligible candidate transaction that pays
+   at least the conventional fee:
 
    a. Pick one of those transactions at random with probability in direct
       proportion to its $\mathit{weight\_ratio}$, and remove it from the set of
       candidate transactions. Let $B$ be the block template $T$
-      with this transaction included.
+      with this transaction included (after its in-mempool ancestors,
+      which by eligibility are already in $T$).
    b. If $B$ would be within the block size limit and block sigop
       limit [#sigop-limit]_, set $T := B$.
 
-4. Repeat while there is any candidate transaction:
+4. Repeat while there is any eligible candidate transaction:
 
    a. Pick one of those transactions at random with probability in direct
       proportion to its $\mathit{weight\_ratio}$, and remove it from the set of
       candidate transactions. Let $B$ be the block template $T$
-      with this transaction included.
+      with this transaction included (after its in-mempool ancestors,
+      which by eligibility are already in $T$).
    b. If $B$ would be within the block size limit and block sigop
       limit [#sigop-limit]_ and $\mathit{block\_unpaid\_actions}(B) \leq \mathit{block\_unpaid\_action\_limit}$,
       set $T := B$.
@@ -434,6 +456,18 @@ Calculating $\mathit{tx.weight\_ratio}$ in terms of $\mathsf{max}(1,\, \mathit{t
 rather than just $\mathit{tx.fee}$ avoids needing to define "with probability in direct
 proportion to its $\mathit{weight\_ratio}$" for the case where all remaining candidate
 transactions would have $\mathit{weight\_ratio} = 0$.
+
+The candidate set in step 2 is specified in two variants so that the
+algorithm accommodates both implementations that track chains of
+dependent in-mempool transactions and those that do not. Including
+dependent transactions tends to increase the total fees collected and
+allows fee-paying children to "pull in" lower-fee parents; omitting
+them is simpler and avoids the need to reason about ancestor sets when
+evaluating the block size, sigop, and unpaid-action limits. Both
+variants are conformant. In either case, each candidate transaction's
+$\mathit{weight\_ratio}$ is computed from its own fee and conventional
+fee; the algorithm does not redistribute fees from a child to its
+ancestors when choosing candidates.
 
 Incentive compatibility for miners
 ''''''''''''''''''''''''''''''''''
