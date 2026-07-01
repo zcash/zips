@@ -281,44 +281,43 @@ them. Both levers are exercised by the specification below.
 
 # Requirements
 
-The migration flow MUST satisfy the following high-level goals. The Specification
-section defines how they are met; this section does not itself impose conformance
-requirements beyond those.
+The following high-level goals are the bounds against which the Specification
+section is evaluated. They do not themselves impose conformance requirements; the
+conformance language (per BCP 14 [^BCP14]) appears only in the Specification.
 
-* The user MUST be able to migrate *Orchard-pool* funds to the *Ironwood pool*,
-  and MUST be informed that doing so is necessary to retain access to those funds.
+* The user can migrate *Orchard-pool* funds to the *Ironwood pool*, and is
+  informed that doing so is necessary to retain access to those funds.
 
-* The wallet MUST obtain the user's consent, before any funds leave the
-  *Orchard pool*, to the public revelation of pool-crossing amounts, consistent
-  with ZIP 315. [^zip-0315]
+* Before any funds leave the *Orchard pool*, the wallet obtains the user's consent
+  to the public revelation of pool-crossing amounts, consistent with
+  ZIP 315. [^zip-0315]
 
-* All *Orchard-pool* funds at or above the dust floor SHOULD eventually be
-  transferred to the *Ironwood pool*.
+* All *Orchard-pool* funds at or above the dust floor are eventually transferred
+  to the *Ironwood pool*.
 
-* By default the migration SHOULD de-correlate individual transfers from each
-  other and from the user's interaction with the application, to the extent
-  practical on the target platform. In particular it SHOULD mitigate leakage of:
-  the linkage of particular migration transactions to one another (clustering);
-  information about the distribution of individual note values; and information
-  about a wallet's total balance.
+* By default, the migration de-correlates individual transfers from each other and
+  from the user's interaction with the application, to the extent practical on the
+  target platform. In particular it mitigates leakage of: the linkage of particular
+  migration transactions to one another (clustering); information about the
+  distribution of individual note values; and information about a wallet's total
+  balance.
 
-* The migration SHOULD let a user complete migration with a small number of
-  signing sessions for typical balances, because adoption drives the size of the
-  anonymity set on which everyone's privacy depends.
+* The migration lets a user complete migration with a small number of signing
+  sessions for typical balances, because adoption drives the size of the anonymity
+  set on which everyone's privacy depends.
 
-* The migration SHOULD complete reliably even when best-effort background
-  scheduling does not run, without requiring the user to keep the application in
-  the foreground.
+* The migration completes reliably even when best-effort background scheduling does
+  not run, without requiring the user to keep the application in the foreground.
 
-* The user MUST be given an informed choice about network-layer privacy (Tor or
-  VPN) before the migration begins.
+* Before the migration begins, the user is given an informed choice about
+  network-layer privacy (Tor or VPN).
 
-* The wallet MUST report migration progress and MUST NOT present the fallback
+* The wallet reports migration progress, and does not present the fallback
   (prompting on the next application open) as an error.
 
-* The migration MUST adapt safely when the user spends *Orchard-pool* funds
-  outside the migration, when scheduled transactions expire, or when the
-  application is reinstalled.
+* The migration adapts safely when the user spends *Orchard-pool* funds outside the
+  migration, when scheduled transactions expire, or when the application is
+  reinstalled.
 
 
 # Non-requirements
