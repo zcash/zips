@@ -215,7 +215,7 @@ written.
     <tr> <td><span class="reserved">323</span></td> <td class="left"><a class="reserved" href="zips/zip-0323.rst">Specification of getblocktemplate for Zcash</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/405">zips#405</a></td>
     <tr> <td>324</td> <td class="left"><a href="zips/zip-0324.rst">URI-Encapsulated Payments</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/421">zips#421</a></td>
     <tr> <td>325</td> <td class="left"><a href="zips/zip-0325.md">Account Metadata Keys</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/1233">zips#1233</a></td>
-    <tr> <td><span class="reserved">326</span></td> <td class="left"><a class="reserved" href="zips/zip-0326.rst">NU6.3 Consequences for Wallets</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/1318">zips#1318</a></td>
+    <tr> <td>326</td> <td class="left"><a href="zips/zip-0326.md">NU6.3 Consequences for Wallets</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/1318">zips#1318</a></td>
     <tr> <td><span class="reserved">332</span></td> <td class="left"><a class="reserved" href="zips/zip-0332.rst">Wallet Recovery from zcashd HD Seeds</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/675">zips#675</a></td>
     <tr> <td><span class="reserved">339</span></td> <td class="left"><a class="reserved" href="zips/zip-0339.rst">Wallet Recovery Words</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/364">zips#364</a></td>
     <tr> <td><span class="reserved">350</span></td> <td class="left"><a class="reserved" href="zips/zip-0350.md">Bech32m</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/484">zips#484</a></td>
@@ -383,7 +383,7 @@ Index of ZIPs
     <tr> <td><span class="reserved">323</span></td> <td class="left"><a class="reserved" href="zips/zip-0323.rst">Specification of getblocktemplate for Zcash</a></td> <td>Reserved</td>
     <tr> <td>324</td> <td class="left"><a href="zips/zip-0324.rst">URI-Encapsulated Payments</a></td> <td>Draft</td>
     <tr> <td>325</td> <td class="left"><a href="zips/zip-0325.md">Account Metadata Keys</a></td> <td>Draft</td>
-    <tr> <td><span class="reserved">326</span></td> <td class="left"><a class="reserved" href="zips/zip-0326.rst">NU6.3 Consequences for Wallets</a></td> <td>Reserved</td>
+    <tr> <td>326</td> <td class="left"><a href="zips/zip-0326.md">NU6.3 Consequences for Wallets</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">332</span></td> <td class="left"><a class="reserved" href="zips/zip-0332.rst">Wallet Recovery from zcashd HD Seeds</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">339</span></td> <td class="left"><a class="reserved" href="zips/zip-0339.rst">Wallet Recovery Words</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">350</span></td> <td class="left"><a class="reserved" href="zips/zip-0350.md">Bech32m</a></td> <td>Reserved</td>
