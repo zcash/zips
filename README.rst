@@ -140,6 +140,7 @@ Released ZIPs
     <tr> <td>317</td> <td class="left"><a href="zips/zip-0317.rst">Proportional Transfer Fee Mechanism</a></td> <td>Active</td>
     <tr> <td>320</td> <td class="left"><a href="zips/zip-0320.rst">Defining an Address Type to which funds can only be sent from Transparent Addresses</a></td> <td>Active</td>
     <tr> <td>321</td> <td class="left"><a href="zips/zip-0321.rst">Payment Request URIs</a></td> <td>Active</td>
+    <tr> <td>374</td> <td class="left"><a href="zips/zip-0374.md">Partially Created Zcash Transaction Format</a></td> <td>[Revision 0] Draft</td>
     <tr> <td>401</td> <td class="left"><a href="zips/zip-0401.rst">Addressing Mempool Denial-of-Service</a></td> <td>Active</td>
     <tr> <td>1014</td> <td class="left"><a href="zips/zip-1014.rst">Establishing a Dev Fund for ECC, ZF, and Major Grants</a></td> <td>Active</td>
     <tr> <td>1015</td> <td class="left"><a href="zips/zip-1015.rst">Block Subsidy Allocation for Non-Direct Development Funding</a></td> <td>Final</td>
@@ -236,7 +237,6 @@ be deleted.
     <tr> <td class="left">draft-ecc-authenticated-reply-addrs</td> <td class="left"><a href="zips/draft-ecc-authenticated-reply-addrs.md">Authenticated Reply Addresses</a></td> <td class="left"><a href="https://github.com/zcash/zips/issues/1230">zips#1230</a></td>
     <tr> <td class="left">draft-ecc-onchain-accountable-voting</td> <td class="left"><a href="zips/draft-ecc-onchain-accountable-voting.md">On-chain Accountable Voting</a></td> <td class="left"></td>
     <tr> <td class="left">draft-str4d-orchard-balance-proof</td> <td class="left"><a href="zips/draft-str4d-orchard-balance-proof.md">Air drops, Proof-of-Balance, and Stake-weighted Polling</a></td> <td class="left"><a href="https://github.com/zcash/zips/issues/1229">zips#1229</a></td>
-    <tr> <td class="left">draft-str4d-pczt</td> <td class="left"><a href="zips/draft-str4d-pczt.md">Partially Created Zcash Transaction Format</a></td> <td class="left"><a href="https://github.com/zcash/zips/issues/693">zips#693</a></td>
   </table></embed>
 
 Withdrawn, Rejected, or Obsolete ZIPs
@@ -372,6 +372,7 @@ Index of ZIPs
     <tr> <td><span class="reserved">332</span></td> <td class="left"><a class="reserved" href="zips/zip-0332.rst">Wallet Recovery from zcashd HD Seeds</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">339</span></td> <td class="left"><a class="reserved" href="zips/zip-0339.rst">Wallet Recovery Words</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">350</span></td> <td class="left"><a class="reserved" href="zips/zip-0350.md">Bech32m</a></td> <td>Reserved</td>
+    <tr> <td>374</td> <td class="left"><a href="zips/zip-0374.md">Partially Created Zcash Transaction Format</a></td> <td>[Revision 0] Draft</td>
     <tr> <td>400</td> <td class="left"><a href="zips/zip-0400.rst">Wallet.dat format</a></td> <td>Draft</td>
     <tr> <td>401</td> <td class="left"><a href="zips/zip-0401.rst">Addressing Mempool Denial-of-Service</a></td> <td>Active</td>
     <tr> <td><span class="reserved">402</span></td> <td class="left"><a class="reserved" href="zips/zip-0402.rst">New Wallet Database Format</a></td> <td>Reserved</td>
