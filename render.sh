@@ -24,6 +24,11 @@ if ! [ -f "${inputfile}" ]; then
     exit
 fi
 
+# Set RENDER_INTERMEDIATE to a path to capture the post-sed, pre-renderer stream
+# (used by the render regression tests; see test/). Defaults to /dev/null, so normal
+# runs are unaffected and the `tee` below is a harmless pass-through.
+intermediate="${RENDER_INTERMEDIATE:-/dev/null}"
+
 if [ "x$1" = "x--rst" ]; then
     filetype='.rst'
 else
@@ -38,28 +43,54 @@ Math3='<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.33/dist/contri
 
 Mermaid='<script defer src="https://cdn.jsdelivr.net/npm/mermaid@11.12.3/dist/mermaid.min.js" integrity="sha384-jFhLSLFn4m565eRAS0CDMWubMqOtfZWWbE8kqgGdU+VHbJ3B2G/4X8u+0BM8MtdU" crossorigin="anonymous" onload="mermaid.initialize({ startOnLoad: true });"></script>'
 
+# Our `style.css` must load *after* KaTeX's CSS so that our `.katex .*` overrides win the
+# cascade (several KaTeX font rules have the same specificity as ours). Both paths inject
+# `ViewAndStyle` at the end of `<head>`, so our stylesheet always loads last. (Unlike
+# `<meta charset>`, the viewport meta has no early-placement requirement.)
 ViewAndStyle='<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css">'
 
 cat <(
-    if [ "x$1" = "x--rst" ]; then
-        # These are basic regexps so \+ is needed, not +.
-        # We use the Unicode 💲 character to move an escaped $ out of the way,
-        # which is much easier than trying to handle escapes within a capture.
+    # These are basic regexps so \+ is needed, not +, and similarly for \?.
+    # We use the Unicode 💲 character to move an escaped $ out of the way,
+    # which is much easier than trying to handle escapes within a capture.
+    # In both rst and Markdown, we must be careful not to rewrite a math span
+    # so that it has a non-whitespace character immediately after it.
 
-        cat "${inputfile}" \
-        | sed 's|[\][$]|💲|g;
-               s|[$]\([^$]\+\)[$]\([.,:;!?)-]\)|:math:`\1\\!`\2|g;
+    if [ "x$1" = "x--rst" ]; then
+        # For rst we want to unescape `\$`, because $ is not reserved without our $ extension.
+        cat "${inputfile}" |
+          sed 's|[\][$]|💲|g;
+               s|[$]\([^$]\+\)[$]\([—)-]\)|:math:`\1\\kern-0.15em` \2|g;
+               s|[$]\([^$]\+\)[$]\([.,:;!?]\)$|:math:`\1\\kern-0.03em\\textsf{\2}`|g;
+               s|[$]\([^$]\+\)[$]\([.,:;!?]\)\ |:math:`\1\\kern-0.03em\\textsf{\2}` |g;
                s|[$]\([^$]\+\)[$]|:math:`\1`|g;
-               s|💲|$|g' \
-        | rst2html5 -v --title="${title}" - \
-        | sed "s|<script src=\"http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML\"></script>|${Math1}\n    ${Math2}\n    ${Math3}|;
+               s|💲|$|g' |
+          tee "${intermediate}" |
+          rst2html5 -v --title="${title}" - |
+          sed "s|<script src=\"http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML\"></script>|${Math1}\n    ${Math2}\n    ${Math3}|;
                s|</head>|${ViewAndStyle}</head>|"
     else
         if [ "x$1" = "x--pandoc" ]; then
             # Not actually MathJax. KaTeX is compatible if we use the right headers.
             pandoc --mathjax --from=markdown --to=html "${inputfile}" --output="${outputfile}.temp"
         else
-            multimarkdown ${inputfile} -o "${outputfile}.temp"
+            # For Markdown we just want to protect `\$`.
+            # We match a whole `$...$` span (as the rst rules above do), so we only
+            # ever rewrite a *closing* delimiter. Matching a lone `$` would misfire
+            # on the *opening* `$` of a span whose content starts with punctuation
+            # (e.g. `$-x$`). Caveat: this is line-by-line, so a multi-line `$...$`
+            # span (which Markdown allows) is not matched. Punctuation just after
+            # such a span won't be fixed, and a line carrying both one span's close
+            # and another's open can still mismatch. These cases are rare, would show
+            # up when reviewing rendered output, and are easy to work around.
+            cat "${inputfile}" |
+              sed 's|[\][$]|💲|g;
+                   s|[$]\([^$]\+\)[$]\([—)-]\)|$\1\\kern-0.15em$ \2|g;
+                   s|[$]\([^$]\+\)[$]\([.,:;!?]\)$|$\1\\kern-0.05em\\textsf{\2}$|g;
+                   s|[$]\([^$]\+\)[$]\([.,:;!?]\)\ |$\1\\kern-0.05em\\textsf{\2}$ |g;
+                   s|💲|\\$|g' |
+              tee "${intermediate}" |
+              multimarkdown -o "${outputfile}.temp"
         fi
 
         # Both pandoc and multimarkdown just output the HTML body.
@@ -68,7 +99,6 @@ cat <(
         echo "<head>"
         echo "    <title>${title}</title>"
         echo "    <meta charset=\"utf-8\" />"
-        echo "    ${ViewAndStyle}"
         if grep -q -E 'class="mermaid"' "${outputfile}.temp"; then
             echo "    ${Mermaid}"
         fi
@@ -77,6 +107,8 @@ cat <(
             echo "    ${Math2}"
             echo "    ${Math3}"
         fi
+        # ViewAndStyle last, so our `style.css` loads after the KaTeX CSS (as in rst).
+        echo "    ${ViewAndStyle}"
         echo "</head>"
         echo "<body>"
         cat "${outputfile}.temp"
