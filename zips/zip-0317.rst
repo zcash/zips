@@ -8,10 +8,11 @@
   Original-Authors: Aditya Bharadwaj
   Credits: Madars Virza
            Francisco Gindre
-  Status: Active
+  Status: [Revision 0] Active, [Revision 1: NU6.3] Draft, [Revision 2] Draft
   Category: Standards / Wallet
   Obsoletes: ZIP 313
   Created: 2022-08-15
+  Last-Updated: 2026-06-26
   License: MIT
   Discussions-To: <https://forum.zcashcommunity.com/t/zip-proportional-output-fee-mechanism-pofm/42808>
   Pull-Request: <https://github.com/zcash/zips/pull/631>
@@ -65,8 +66,9 @@ while still allowing low fees for regular transaction use cases.
 Requirements
 ============
 
-* The conventional fee formula should not favour or discriminate against any
-  of the Orchard, Sapling, or transparent protocols.
+* The conventional fee formula should not favour or discriminate against
+  transactions involving any of the Ironwood, Orchard, Sapling, or transparent
+  pools.
 * The fee for a transaction should scale linearly with the number of inputs
   and/or outputs.
 * Users should not be penalised for sending transactions constructed
@@ -78,8 +80,6 @@ Requirements
 * The conventional fee should not leak private information used in
   constructing the transaction; that is, it should be computable from only
   the public data of the transaction.
-* Users should be discouraged from issuing new “garbage” Custom Assets.
-  The fee should reflect the cost of adding new data to the global state.
 
 
 Specification
@@ -97,11 +97,44 @@ Let $\mathsf{max}(a, b)$ be the greater of $a$ and $b$. |br|
 Let $\mathsf{floor}(x)$ be the largest integer $\leq x$. |br|
 Let $\mathsf{ceiling}(x)$ be the smallest integer $\geq x$.
 
+Revisions
+---------
+
+.. _`Revision 0`:
+
+* Revision 0: The initial fee mechanism specified by this ZIP, in effect
+  prior to NU6.3.
+
+.. _`Revision 1`:
+
+* Revision 1: Adds a contribution for *Ironwood-pool* [#zip-0229]_ Actions, to
+  be enacted at NU6.3 which introduces the *Ironwood pool* [#zip-0258]_ [#Ironwood-book]_.
+
+.. _`Revision 2`:
+
+* Revision 2 (draft): Adds fee handling for memo bundles [#zip-0231]_, which
+  are defined as a modification to the Extensible Transaction Format
+  [#zip-0248]_. This revision is a draft, and depends on ZIP 248, which has
+  not yet been deployed.
+
 Fee calculation
 ---------------
 
-This specification defines several parameters that are used to calculate the
-conventional fee:
+Wallets implementing this specification SHOULD use a conventional fee,
+calculated in zatoshis, of
+
+|br|
+
+.. math::
+
+   \mathit{conventional\_fee} = \mathit{marginal\_fee} \cdot \mathsf{max}(\mathit{grace\_actions},\, \mathit{logical\_actions})
+
+|br|
+
+where $\mathit{logical\_actions}$ is the sum of the contributions defined by
+the applicable revision of this specification (see `Revisions`_). A
+contribution defined by a given revision is also included in all later
+revisions. This calculation uses the following parameters:
 
 ============================================== ============= ==============================================
 Parameter                                          Value     Units
@@ -110,44 +143,26 @@ Parameter                                          Value     Units
 :math:`\mathit{grace\_actions}`                :math:`2`     logical actions
 :math:`\mathit{p2pkh\_standard\_input\_size}`  :math:`150`   bytes
 :math:`\mathit{p2pkh\_standard\_output\_size}` :math:`34`    bytes
-:math:`\mathit{creation\_cost}`                :math:`100`   logical actions
 ============================================== ============= ==============================================
 
-Wallets implementing this specification SHOULD use a conventional fee
-calculated in zatoshis per the following formulae:
+As of `Revision 0`_, the following contributions are defined:
 
 |br|
 
 .. math::
 
    \begin{array}{lcl}
-     \mathit{free\_memo\_chunks}                    &=& \begin{cases}
-                                                          2, &\!\!\textsf{if } \mathit{nOutputsSapling} + \mathit{nA\kern-0.05em ctionsOrchard} > 0, \\
-                                                          0, &\!\!\textsf{otherwise}
-                                                        \end{cases}
-     \\[4ex]
      \mathit{contribution}_{\,\mathsf{Transparent}} &=& \mathsf{max}\big(\mathsf{ceiling}\big(\frac{\mathit{tx\_in\_total\_size}}{\mathit{p2pkh\_standard\_input\_size}}\big),\,
                                                                          \mathsf{ceiling}\big(\frac{\mathit{tx\_out\_total\_size}}{\mathit{p2pkh\_standard\_output\_size}}\big)\big) \\
      \mathit{contribution}_{\,\mathsf{Sprout}}      &=& 2 \cdot \mathit{nJoinSplit} \\
      \mathit{contribution}_{\,\mathsf{Sapling}}     &=& \mathsf{max}(\mathit{nSpendsSapling},\, \mathit{nOutputsSapling}) \\
-     \mathit{contribution}_{\,\mathsf{Orchard}}     &=& \mathit{nA\kern-0.1em ctionsOrchard} \\
-     \mathit{contribution}_{\,\mathsf{ZSAIssuance}} &=& \mathit{nZS\kern-0.1em AIssueNotes} \\
-     \mathit{contribution}_{\,\mathsf{ZSACreation}} &=& \mathit{creation\_cost} \cdot \mathit{nA\kern-0.1em ssetCreations} \\
-     \mathit{contribution}_{\,\mathsf{Memos}}       &=& \mathsf{max}\big(0, \mathit{nMemoChunks} - \mathit{free\_memo\_chunks}\big) \\
-     \\
-     \mathit{logical\_actions}                      &=& \mathit{contribution}_{\,\mathsf{Transparent}} +
-                                                        \mathit{contribution}_{\,\mathsf{Sprout}} +
-                                                        \mathit{contribution}_{\,\mathsf{Sapling}} +
-                                                        \mathit{contribution}_{\,\mathsf{Orchard}} \\
-                                   & & \hspace{1em} +\; \mathit{contribution}_{\,\mathsf{ZSAIssuance}} +
-                                                        \mathit{contribution}_{\,\mathsf{ZSACreation}} +
-                                                        \mathit{contribution}_{\,\mathsf{Memos}} \\
-     \\
-     \mathit{conventional\_fee} &=& \mathit{marginal\_fee} \cdot \mathsf{max}(\mathit{grace\_actions},\, \mathit{logical\_actions}) \\[6ex]
+     \mathit{contribution}_{\,\mathsf{Orchard}}     &=& \mathit{nA\kern-0.1em ctionsOrchard}
    \end{array}
 
-The inputs to this formula are taken from transaction fields defined in the Zcash protocol
-specification [#protocol-txnencoding]_:
+|br|
+
+These contributions are computed from transaction fields defined in the Zcash
+protocol specification [#protocol-txnencoding]_:
 
 ============================================= ====== ====================================================================
 Input                                         Units  Description
@@ -158,8 +173,51 @@ Input                                         Units  Description
 :math:`\mathit{nSpendsSapling}`               number the number of Sapling spends
 :math:`\mathit{nOutputsSapling}`              number the number of Sapling outputs
 :math:`\mathit{nA\kern-0.1em ctionsOrchard}`  number the number of Orchard actions
-:math:`\mathit{nZS\kern-0.1em AIssueNotes}`   number the number of ``IssueNote`` outputs
-:math:`\mathit{nA\kern-0.1em ssetCreations}`  number the number of Custom Assets newly added to the Global Issuance State
+============================================= ====== ====================================================================
+
+As of `Revision 1`_, the $\mathit{logical\_actions}$ sum additionally includes
+a contribution for Ironwood-pool [#zip-0229]_ Actions, which use the same
+Action structure as Orchard-pool Actions:
+
+|br|
+
+.. math::
+
+   \mathit{contribution}_{\,\mathsf{Ironwood}} = \mathit{nA\kern-0.1em ctionsIronwood}
+
+|br|
+
+This contribution is computed from one additional transaction field:
+
+============================================= ====== ====================================================================
+Input                                         Units  Description
+============================================= ====== ====================================================================
+:math:`\mathit{nA\kern-0.1em ctionsIronwood}` number the number of Ironwood actions
+============================================= ====== ====================================================================
+
+As of `Revision 2`_ (draft), the $\mathit{logical\_actions}$ sum additionally
+includes a contribution for memo bundles [#zip-0231]_:
+
+|br|
+
+.. math::
+
+   \begin{array}{lcl}
+     \mathit{free\_memo\_chunks}              &=& \begin{cases}
+                                                    2, &\!\!\textsf{if } \mathit{nOutputsSapling} + \mathit{nA\kern-0.05em ctionsOrchard} + \mathit{nA\kern-0.05em ctionsIronwood} > 0, \\
+                                                    0, &\!\!\textsf{otherwise}
+                                                  \end{cases}
+     \\[4ex]
+     \mathit{contribution}_{\,\mathsf{Memos}} &=& \mathsf{max}\big(0, \mathit{nMemoChunks} - \mathit{free\_memo\_chunks}\big)
+   \end{array}
+
+|br|
+
+This contribution is computed from one additional transaction field:
+
+============================================= ====== ====================================================================
+Input                                         Units  Description
+============================================= ====== ====================================================================
 :math:`\mathit{nMemoChunks}`                  number the number of memo chunks
 ============================================= ====== ====================================================================
 
@@ -175,9 +233,9 @@ Rationale for logical actions
    <details>
    <summary>Click to show/hide</summary>
 
-The intention is to make the fee paid for a transaction depend on its
-impact on the network, without discriminating between different protocols
-(Orchard, Sapling, or transparent). The impact on the network depends on
+The intention is to make the fee paid for a transaction depend on its impact
+on the network, without discriminating between different transaction components
+(Ironwood, Orchard, Sapling, or transparent). The impact on the network depends on
 the numbers of inputs and outputs.
 
 A previous proposal used $\mathit{inputs} + \mathit{outputs}$ instead of logical actions.
@@ -278,15 +336,6 @@ This returns the conventional fee for a minimal transaction (as
 described above) to the original conventional fee of 10000 zatoshis
 specified in [#zip-0313]_, and imposes a non-trivial cost for
 potential denial-of-service attacks.
-
-**ZSA Creation Cost**
-
-Every newly created Custom Asset adds a new row to the Global Issuance
-State [#zip-0227-global-issuance-state]_ that full validators need to
-track in perpetuity. Subsequent issuance, finalization, or burn of
-existing Custom Assets only changes the values in the corresponding row.
-Imposing a higher cost on Custom Asset creation events disincentivizes
-the creation of "junk" assets.
 
 **Memo Chunks**
 
@@ -614,6 +663,19 @@ Kris Nuttycombe, Jack Grigg, Francisco Gindre, Greg Pfeil, Teor, and
 Deirdre Connolly for reviews and suggested improvements.
 
 
+Change History
+==============
+
+2026-06-26
+----------
+
+- Added a draft of Revision 1, which adds an Ironwood-pool Action
+  contribution, to be enacted at the Ironwood network upgrade (NU6.3).
+- Introduced the revisions mechanism: recast the existing fee mechanism as
+  Revision 0, and moved the memo bundle fee handling into a draft Revision 2.
+- Removed the ZSA issuance and asset-creation fee contributions (ZIP 227).
+
+
 References
 ==========
 
@@ -622,7 +684,10 @@ References
 .. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2022.3.8. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
 .. [#sigop-limit] `zcash/zips issue #568 - Document block transparent sigops limit consensus rule <https://github.com/zcash/zips/issues/568>`_
 .. [#madars-1] `Madars concrete soft-fork proposal <https://forum.zcashcommunity.com/t/zip-reduce-default-shielded-transaction-fee-to-1000-zats/37566/89>`_
-.. [#zip-0227-global-issuance-state] `ZIP 227: Issuance of Zcash Shielded Assets — Global Issuance State <zip-0227.rst#global-issuance-state>`_
-.. [#zip-0231] `ZIP 231: Memo Bundles <zip-0231.rst>`_
+.. [#zip-0229] `ZIP 229: Version 6 Transaction Format <zip-0229.md>`_
+.. [#zip-0231] `ZIP 231: Memo Bundles <zip-0231.md>`_
+.. [#zip-0248] `ZIP 248: Extensible Transaction Format (unmerged) <https://github.com/zcash/zips/pull/1156>`_
+.. [#zip-0258] `ZIP 258: Deployment of the NU6.3 Network Upgrade <zip-0258.md>`_
 .. [#zip-0313] `ZIP 313: Reduce Conventional Transaction Fee to 1000 zatoshis <zip-0313.rst>`_
 .. [#zip-0401] `ZIP 401: Addressing Mempool Denial-of-Service <zip-0401.rst>`_
+.. [#Ironwood-book] `The Ironwood Book <https://zcash.github.io/ironwood/>`_
