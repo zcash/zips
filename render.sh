@@ -18,6 +18,7 @@ fi
 
 inputfile="$2"
 outputfile="$3"
+mkdir -p "$(dirname "${outputfile}")"
 
 if ! [ -f "${inputfile}" ]; then
     echo "File not found: ${inputfile}"
