@@ -2,6 +2,11 @@
 
 SHELL=/bin/bash -eo pipefail
 
+# The Raleway Tabular Lining Figures fonts used for pool names are vendored under
+# ./texmf (see the note in protocol.tex), because newer TeX Live (e.g. 2025 under
+# `nix develop`) ships raleway without them. Point the build at the vendored tree.
+export TEXMFHOME := $(CURDIR)/texmf
+
 # Experimental; options are pdflatex, lualatex, or xelatex.
 # On Debian, LuaLaTeX needs the texlive-luatex package, and XeLaTeX needs the texlive-xetex package.
 # Make sure to read <https://github.com/zcash/zips/issues/249>.
