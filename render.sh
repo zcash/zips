@@ -16,6 +16,28 @@ EndOfUsage
     exit
 fi
 
+# This script embeds non-ASCII UTF-8 characters in its sed programs and processes
+# UTF-8 input, so running under a non-UTF-8 locale would silently corrupt the output.
+# Fail loudly instead of emitting mojibake. `locale charmap` reports the effective
+# character map (UTF-8 on a UTF-8 locale; US-ASCII / ANSI_X3.4-1968 under C / POSIX).
+# Note: macOS has no real C.UTF-8 locale, so there `locale charmap` reports US-ASCII
+# for it; C.UTF-8 is thus rejected on macOS (correctly, it is unusable there) and
+# accepted on Linux (where it genuinely is UTF-8).
+charmap="$(locale charmap 2>/dev/null || true)"
+case "${charmap}" in
+    UTF-8|UTF8|utf-8|utf8) ;;
+    *)
+        # Suggest a UTF-8 locale in the current language when we can read it from
+        # LANG, else fall back to en_US. C / POSIX have no usable .UTF-8 form (on
+        # macOS even C.UTF-8 is really US-ASCII), so do not propose them.
+        lang="$(locale 2>/dev/null | sed -n 's/^LANG=//p' | tr -d '"' | cut -d. -f1)"
+        case "${lang}" in ''|C|POSIX) lang=en_US ;; esac
+        echo "render.sh: a UTF-8 locale is required, but the current character map is" >&2
+        echo "'${charmap:-unknown}'. Set a UTF-8 locale (e.g. LANG=${lang}.UTF-8) and retry." >&2
+        exit 1
+        ;;
+esac
+
 inputfile="$2"
 outputfile="$3"
 mkdir -p "$(dirname "${outputfile}")"
