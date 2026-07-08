@@ -56,6 +56,11 @@ cat <(
     # which is much easier than trying to handle escapes within a capture.
     # In both rst and Markdown, we must be careful not to rewrite a math span
     # so that it has a non-whitespace character immediately after it.
+    #
+    # PORTABILITY: bash 3.2 (the macOS system /bin/bash) mis-parses an apostrophe
+    # in a comment inside this process substitution as an opening quote, then
+    # scans to end-of-file (an "unexpected EOF" quote-matching error). Keep the
+    # comments in this cat <(...) block free of apostrophes; reword to avoid them.
 
     if [ "x$1" = "x--rst" ]; then
         # For rst we want to unescape `\$`, because $ is not reserved without our $ extension.
@@ -81,9 +86,10 @@ cat <(
             # on the *opening* `$` of a span whose content starts with punctuation
             # (e.g. `$-x$`). Caveat: this is line-by-line, so a multi-line `$...$`
             # span (which Markdown allows) is not matched. Punctuation just after
-            # such a span won't be fixed, and a line carrying both one span's close
-            # and another's open can still mismatch. These cases are rare, would show
-            # up when reviewing rendered output, and are easy to work around.
+            # such a span will not be fixed, and a line carrying both the close of
+            # one span and the open of another can still mismatch. These cases are
+            # rare, would show up when reviewing rendered output, and are easy to
+            # work around.
             cat "${inputfile}" |
               sed 's|[\][$]|💲|g;
                    s|[$]\([^$]\+\)[$]\([—)-]\)|$\1\\kern-0.15em$ \2|g;
