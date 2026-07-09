@@ -3,17 +3,504 @@
 <head>
     <title>ZIP 326: NU6.3 Consequences for Wallets</title>
     <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.33/dist/katex.min.css" integrity="sha384-fgYS3VC1089n2J3rVcEbXDHlnDLQ9B2Y1hvpQ720q1NvxCduQqT4JoGc4u2QCnzE" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.33/dist/katex.min.js" integrity="sha384-YPHNAPyrxGS8BNnA7Q4ommqra8WQPEjooVSLzFgwgs8OXJBvadbyvx4QpfiFurGr" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.33/dist/contrib/auto-render.min.js" integrity="sha384-JKXHIJf8PKPyDFptuKZoUyMRQJAmQKj4B4xyOca62ebJhciMYGiDdq/9twUUWyZH" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css">
+</head>
 <body>
-    <section>
-        <pre>ZIP: 326
+<pre><code>ZIP: 326
 Title: NU6.3 Consequences for Wallets
 Owners: Daira-Emma Hopwood &lt;daira@jacaranda.org&gt;
-Status: Reserved
+Status: Draft
 Category: Wallet
 Created: 2026-06-30
 License: MIT
-Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/1318">https://github.com/zcash/zips/issues/1318</a>&gt;</pre>
-    </section>
+Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/1318">https://github.com/zcash/zips/issues/1318</a>&gt;
+</code></pre>
+
+<h1 id="terminology"><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>The key words &#8220;MUST&#8221;, &#8220;MUST NOT&#8221;, &#8220;SHOULD&#8221;, &#8220;SHOULD NOT&#8221;, and &#8220;MAY&#8221; in this document are to
+be interpreted as described in BCP 14 <a href="#fn:1" id="fnref:1" title="see footnote" class="footnote"><sup>1</sup></a> when, and only when, they appear in all
+capitals.</p>
+
+<p>The term &#8220;network upgrade&#8221; in this document is to be interpreted as described in
+ZIP 200. <a href="#fn:2" id="fnref:2" title="see footnote" class="footnote"><sup>2</sup></a></p>
+
+<p>The character § is used when referring to sections of the Zcash Protocol
+Specification. <a href="#fn:3" id="fnref:3" title="see footnote" class="footnote"><sup>3</sup></a></p>
+
+<p>The terms &#8220;Mainnet&#8221; and &#8220;Testnet&#8221; are to be interpreted as described in § 3.12
+‘Mainnet and Testnet’. <a href="#fn:4" id="fnref:4" title="see footnote" class="footnote"><sup>4</sup></a></p>
+
+<p>The terms &#8220;Orchard protocol&#8221;, &#8220;<em>Orchard pool</em>&#8221;, &#8220;<em>Ironwood pool</em>&#8221;, &#8220;<em>Orchard-pool</em> Action&#8221;,
+and &#8220;version 6 transaction&#8221; are to be interpreted as described in <a href="#fn:5" id="fnref:5" title="see footnote" class="footnote"><sup>5</sup></a>. NU6.3 and its
+activation height are as defined in <a href="#fn:6" id="fnref:6" title="see footnote" class="footnote"><sup>6</sup></a>.</p>
+
+<p>The terms &#8220;quantum spending key&#8221; (<span class="math">\(\mathsf{qsk}\kern-0.15em\)</span> ), the flag <span class="math">\(\mathsf{use\_qsk}\)</span> that affects
+derivation of viewing keys and addresses, and the term &#8220;recoverable note&#8221; are to be interpreted
+as described in ZIP 2005. <a href="#fn:7" id="fnref:7" title="see footnote" class="footnote"><sup>7</sup></a> (Recall from that ZIP that <span class="math">\(\mathsf{use\_qsk}\)</span> does <em>not</em>
+determine whether a note is quantum-recoverable — every <em>Ironwood-pool</em> note is recoverable
+and no <em>Orchard-pool</em> note is, regardless of <span class="math">\(\mathsf{use\_qsk}\)</span>.)</p>
+
+<p>An &#8220;incoming viewing key&#8221; (<span class="math">\(\mathsf{ivk}\kern-0.15em\)</span> ) is as described in § 3.1 ‘Payment Addresses and
+Keys’. <a href="#fn:8" id="fnref:8" title="see footnote" class="footnote"><sup>8</sup></a> We distinguish the <em>external</em> and <em>internal</em> incoming
+viewing keys of an account, derived as described in ZIP 32. <a href="#fn:9" id="fnref:9" title="see footnote" class="footnote"><sup>9</sup></a></p>
+
+<p>The &#8220;birthday height&#8221; of an account is a lower bound, known to the wallet, on the height of the
+first block in which the account could have received funds. A correctly recorded birthday height
+is at or below the height at which the account&#8217;s keys were first usable; it has traditionally
+been safe for a wallet to use a conservatively <em>early</em> birthday height.</p>
+
+<p>A &#8220;light wallet&#8221; is a wallet that does not validate the consensus rules itself. It requires the
+assistance of a light wallet server in order to learn of relevant transactions by
+trial-decrypting (scanning) &#8220;compact ciphertexts&#8221;. <a href="#fn:10" id="fnref:10" title="see footnote" class="footnote"><sup>10</sup></a></p>
+
+<h1 id="abstract"><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>The NU6.3 network upgrade <a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a> introduces the <em>Ironwood pool</em>, an Orchard-protocol
+successor to the <em>Orchard pool</em>, that ensures quantum recoverability (ZIP 2005 <a href="#fn:7" title="see footnote" class="footnote"><sup>7</sup></a>)
+and has supply integrity supported from the start by formal verification efforts <a href="#fn:11" id="fnref:11" title="see footnote" class="footnote"><sup>11</sup></a>.</p>
+
+<p>The introduction of a new pool requires wallets to take account of the Orchard-to-Ironwood
+migration strategy specified in <a href="#fn:12" id="fnref:12" title="see footnote" class="footnote"><sup>12</sup></a>.</p>
+
+<p>This ZIP specifies the consequences for wallets of several other changes made in NU6.3:</p>
+
+<ul>
+<li>ZIP 2005 introduces a <span class="math">\(\mathsf{use\_qsk}\)</span> key distinction, which affects how viewing keys
+and addresses are derived <a href="#fn:13" id="fnref:13" title="see footnote" class="footnote"><sup>13</sup></a>. In order to more efficiently support
+scanning for incoming <em>Ironwood-pool</em> funds, we place constraints on how <span class="math">\(\mathsf{use\_qsk}\)</span>
+is chosen and describe optimizations to the scanning algorithm.</li>
+<li>We also explain how scanning for <em>Orchard-pool</em> funds should be handled across the upgrade.</li>
+<li>We describe how wallets should randomize note ciphertexts when spending under the
+<em>Orchard pool</em>&#8217;s post-NU6.3 same-address restriction, in order to maintain privacy against
+quantum and discrete-log-breaking adversaries.</li>
+</ul>
+
+<h1 id="motivation"><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>For interoperability with existing addresses, <em>Ironwood-pool</em> notes are allowed to use
+<span class="math">\(\mathsf{use\_qsk} = \textsf{false}\)</span> keys as well as <span class="math">\(\mathsf{use\_qsk} = \textsf{true}\)</span> keys.</p>
+
+<p>In ZIP 2005, the incoming viewing key (and the diversifier key and outgoing viewing key) are
+derived through <span class="math">\(\mathsf{rivk}\kern-0.05em\textsf{,}\)</span> which depends on <span class="math">\(\mathsf{use\_qsk}\kern-0.05em\textsf{;}\)</span> consequently the addresses
+an account exposes, and the <span class="math">\(\mathsf{ivk}\)</span> needed to trial-decrypt notes sent to them, <em>also depend
+on</em> <span class="math">\(\mathsf{use\_qsk}\kern-0.05em\textsf{.}\)</span> A wallet that did not know which value applied — for example after
+restoring from seed — would therefore have to trial-decrypt each <em>Ironwood-pool</em> note ciphertext
+against <em>four</em> incoming viewing keys: the external and the internal, each for
+<span class="math">\(\mathsf{use\_qsk} \in \{\textsf{false}, \textsf{true}\}\kern-0.05em\textsf{.}\)</span></p>
+
+<p>A wallet that performed its own key derivation always knows which <span class="math">\(\mathsf{use\_qsk}\)</span> value is
+used, but that value is not traditionally stored with wallet recovery information, and requiring
+the user to record it would worsen the recovery user experience.</p>
+
+<p>This ZIP specifies key-generation restrictions, and the scanning rules they enable, that keep
+scanning cost close to its pre-NU6.3 level in the common cases while remaining correct in the
+restore-from-seed case.</p>
+
+<p>The recommendations here assume that pools and activations refer to Mainnet, and that a secure
+wallet either does not support Testnet, or strictly segregates key material between Testnet and
+Mainnet.</p>
+
+<h1 id="specification"><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<h2 id="scanningforironwood-poolandorchard-poolnotes"><span class="section-heading">Scanning for Ironwood-pool and Orchard-pool notes</span><span class="section-anchor"> <a rel="bookmark" href="#scanningforironwood-poolandorchard-poolnotes"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>A receiver, and the corresponding incoming viewing key, is scoped to the Orchard <em>protocol</em>, not
+to a pool: the same <span class="math">\(\mathsf{ivk}\)</span> is used to trial-decrypt both <em>Orchard-pool</em> and
+<em>Ironwood-pool</em> note ciphertexts.</p>
+
+<p>We assume that secure wallets do not expose <em>internal</em> receivers or viewing keys to any
+party that is not subject to the same restrictions as the wallet itself. A wallet MUST NOT use
+the fact that it knows the internal addresses of all of its accounts to send funds from one
+account to an <em>internal</em> address of another.</p>
+
+<h2 id="walletkey-generationrestrictions"><span class="section-heading">Wallet key-generation restrictions</span><span class="section-anchor"> <a rel="bookmark" href="#walletkey-generationrestrictions"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>The following restrictions make the scanning optimizations below sound. They concern only how a
+wallet generates and uses keys; they are not consensus rules.</p>
+
+<ul>
+<li>For each ZIP 32 account, a wallet MUST generate keys with the same value of
+<span class="math">\(\mathsf{use\_qsk}\)</span> — either all <span class="math">\(\mathsf{use\_qsk} = \textsf{true}\)</span> or all
+<span class="math">\(\mathsf{use\_qsk} = \textsf{false}\kern-0.05em\textsf{,}\)</span> never a mixture.</li>
+<li>A wallet MUST NOT send funds to any external receiver (including its own) in the <em>Orchard
+pool</em> after NU6.3 activation.</li>
+<li>Any wallet that generates <span class="math">\(\mathsf{use\_qsk} = \textsf{true}\)</span> keys:
+
+<ul>
+<li>MUST NOT send <em>Orchard-pool</em> funds to them at any point; and</li>
+<li>MUST NOT expose the corresponding Orchard-protocol receivers or viewing keys before NU6.3
+activation, since otherwise <em>Orchard-pool</em> funds could be sent to a
+<span class="math">\(\mathsf{use\_qsk} = \textsf{true}\)</span> account, which would incur extra scanning cost or risk
+loss of funds.</li>
+</ul></li>
+</ul>
+
+<p>To make these restrictions easier to satisfy, a production wallet MUST NOT generate
+<span class="math">\(\mathsf{use\_qsk} = \textsf{true}\)</span> keys at all before NU6.3 has activated on Mainnet.
+It follows that:</p>
+
+<ul>
+<li>the mistake of exposing the corresponding receivers or viewing keys before NU6.3 Mainnet
+activation is excluded; and</li>
+<li>any account that creates <span class="math">\(\mathsf{use\_qsk} = \textsf{true}\)</span> keys will have a birthday height
+after NU6.3 Mainnet activation.</li>
+</ul>
+
+<h3 id="rationaleforkey-generationrestrictions"><span class="section-heading">Rationale for key-generation restrictions</span><span class="section-anchor"> <a rel="bookmark" href="#rationaleforkey-generationrestrictions"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<details>
+<summary>
+Rationale
+</summary>
+
+<p><em>Orchard-pool</em> notes do not benefit in any way from <span class="math">\(\mathsf{use\_qsk} = \textsf{true}\kern-0.05em\textsf{;}\)</span> they are
+never recoverable in any case.</p>
+
+<p>If a <span class="math">\(\mathsf{use\_qsk} = \textsf{true}\)</span> account were able to hold <em>Orchard-pool</em> funds, that
+case would need to be handled by scanning the <em>Orchard pool</em> with <span class="math">\(\mathsf{use\_qsk} = \textsf{true}\kern-0.05em\textsf{,}\)</span>
+or else the funds would be lost. Neither the extra scanning cost nor the possibility of losing
+funds are at all desirable.</p>
+
+<blockquote>
+<p>Exposing the address or viewing key is not enough to send <em>Orchard-pool</em> funds to a
+<span class="math">\(\mathsf{use\_qsk} = \textsf{true}\)</span> account <em>after</em> NU6.3 activation: at that point a
+sender would need the spending key, because the <em>Orchard pool</em>&#8217;s same-address restriction
+<a href="#fn:14" id="fnref:14" title="see footnote" class="footnote"><sup>14</sup></a> requires the spend side of an action to be at the same expanded receiver as
+its output side, and control over the spending key is something that wallets can enforce.
+This property cannot be enforced by consensus — any party that knows a
+<span class="math">\(\mathsf{use\_qsk} = \textsf{true}\)</span> spending key can send funds to it regardless of the
+same-address restriction, since the spend side of the action can be a dummy — but the wallet
+restrictions above are sufficient.</p>
+</blockquote>
+
+</details>
+
+<h3 id="scanranges"><span class="section-heading">Scan ranges</span><span class="section-anchor"> <a rel="bookmark" href="#scanranges"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Under the restrictions above, a wallet can reduce its scanning load and complexity:</p>
+
+<ul>
+<li><p><em>Orchard-pool</em> note ciphertexts SHOULD NOT be scanned with <span class="math">\(\mathsf{use\_qsk} = \textsf{true}\)</span>
+incoming viewing keys.</p></li>
+<li><p>For an account with birthday height after NU6.3 activation, the account will not have received
+<em>Orchard-pool</em> funds, so <em>Orchard-pool</em> note ciphertexts SHOULD NOT be scanned at all, with
+either the internal or the external <span class="math">\(\mathsf{ivk}\kern-0.05em\textsf{.}\)</span></p></li>
+<li><p>For an account with birthday height before NU6.3 activation, <em>Orchard-pool</em> note ciphertexts
+SHOULD NOT be scanned with the <em>external</em> <span class="math">\(\mathsf{use\_qsk} = \textsf{false}\)</span> <span class="math">\(\mathsf{ivk}\)</span>
+after NU6.3 activation. (A transaction containing such an output would have to have been created
+by a non-conformant wallet that sent funds to an external <em>Orchard-pool</em> receiver after NU6.3.)</p></li>
+<li><p>If an account&#8217;s <em>Orchard-pool</em> balance is known to be zero at a block at or after NU6.3
+activation, then <em>Orchard-pool</em> note ciphertexts SHOULD NOT be scanned in any block that
+descends from that block in the block tree. (After NU6.3, no new value may enter the <em>Orchard
+pool</em> <a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a>, so a zero balance there cannot subsequently become non-zero.)</p></li>
+</ul>
+
+<p>Note that, for an account with birthday height before NU6.3, it might seem as though scanning
+could be further optimized by not scanning the <em>Ironwood pool</em> with <span class="math">\(\mathsf{use\_qsk} =
+\textsf{true}\)</span> incoming viewing keys. However, because a conservatively early birthday height has
+traditionally been safe, such an optimization would <em>not</em> be safe — a <span class="math">\(\mathsf{use\_qsk} =
+\textsf{true}\)</span> account whose recorded birthday height was set too early would have its
+<span class="math">\(\mathsf{use\_qsk} = \textsf{true}\)</span> <em>Ironwood-pool</em> notes skipped — and so it is not specified.</p>
+
+<p>These rules are summarized in the following table. <code>NU6_3ActivationHeight</code> is the NU6.3 activation
+height <a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a>; <code>later_of</code> denotes the maximum of two heights.</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th>Pool  </th>
+	<th> <span class="math">\(\mathsf{use\_qsk}\)</span> </th>
+	<th> <span class="math">\(\mathsf{ivk}\)</span> scope </th>
+	<th> Block range to scan</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td>Orchard </td>
+	<td> <span class="math">\(\textsf{false}\)</span> </td>
+	<td> internal    </td>
+	<td> birthday to (<em>Orchard-pool</em> balance known-zero after NU6.3)</td>
+</tr>
+<tr>
+	<td>Orchard </td>
+	<td> <span class="math">\(\textsf{false}\)</span> </td>
+	<td> external    </td>
+	<td> birthday to NU6_3ActivationHeight − 1</td>
+</tr>
+<tr>
+	<td>Orchard </td>
+	<td> <span class="math">\(\textsf{true}\)</span>  </td>
+	<td> either    </td>
+	<td> nothing</td>
+</tr>
+<tr>
+	<td>Ironwood </td>
+	<td> either*    </td>
+	<td> either*    </td>
+	<td> later_of(birthday, NU6_3ActivationHeight) to tip</td>
+</tr>
+</tbody>
+</table>
+
+<p>&#8220;either*&#8221; means subject to the first-funds optimization below.</p>
+
+<p>The following additional rule does not fit well into the table:</p>
+
+<ul>
+<li>Once a wallet that is scanning sees that it has received funds in either the <em>Orchard pool</em> or
+the <em>Ironwood pool</em> with a given <span class="math">\(\mathsf{use\_qsk}\)</span> value, it SHOULD stop scanning with the
+other <span class="math">\(\mathsf{use\_qsk}\)</span> value. (Because <span class="math">\(\mathsf{use\_qsk}\)</span> is uniform per account, observing
+funds under one value is reliable evidence of the account&#8217;s <span class="math">\(\mathsf{use\_qsk}\)</span> choice; this
+remains true even if the transaction that provided the evidence is later reorged away, since it
+was consensus-valid on some chain.)</li>
+</ul>
+
+<h3 id="first-fundsscanningintheironwoodpool"><span class="section-heading">First-funds scanning in the Ironwood pool</span><span class="section-anchor"> <a rel="bookmark" href="#first-fundsscanningintheironwoodpool"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>The rules so far do not, on their own, save a wallet that does not yet know its <span class="math">\(\mathsf{use\_qsk}\)</span>
+value from scanning with up to four incoming viewing keys in the <em>Ironwood pool</em> until it first receives
+funds there. We describe an optimization for the <em>Ironwood pool</em> below. (It could be applied
+separately to the <em>Orchard pool</em>, but that is less helpful, because the other rules almost subsume
+the benefit.)</p>
+
+<p>While the wallet knows that no <em>Ironwood-pool</em> funds have been received by the account before the
+block being scanned, it only needs to use the <em>external</em> incoming viewing keys, with one exception: if
+the transaction&#8217;s <code>valueBalanceIronwood</code> is negative (value is entering the <em>Ironwood pool</em>), then
+the transaction has an input to the pool via the value balance, which might go to an
+<em>Ironwood-pool</em> note at an <em>internal</em> receiver of this wallet. (No other party can address an
+internal receiver, so before the account has received <em>Ironwood-pool</em> funds, an internal note for
+it can only arise from the account&#8217;s own transaction, which must be funded either by spending
+existing <em>Ironwood-pool</em> funds — of which there are none yet — or by such an inflow.)</p>
+
+<p>Let <code>initial_use_qsk_set</code> be the set of <span class="math">\(\mathsf{use\_qsk}\)</span> values that could have been used by the
+account: either a singleton set, when the wallet knows its <span class="math">\(\mathsf{use\_qsk}\)</span> value, or
+<span class="math">\(\{\textsf{false}, \textsf{true}\}\)</span> when it does not (for example when restoring from seed). The
+resulting scanning algorithm, applied to each account, is:</p>
+
+<pre><code>let mut use_qsk_set : Set&lt;bool&gt; := initial_use_qsk_set
+
+// Incoming shielded funds cannot be spent in the same block in which they are
+// received. The optimization can therefore be applied up to *and including* this
+// block (or the NU6.3 activation block, if later).
+let mut no_ironwood_until_after : Height = later_of(birthday, NU6_3ActivationHeight)
+
+for height in arbitrary order {
+    // Account for reorgs: retain the conclusion that no Ironwood funds have been
+    // received only up to the fork height (the highest block still on the
+    // canonical chain), floored at the NU6.3 activation block.
+    if (a reorg has occurred whose last unchanged block is at fork_height)
+       and fork_height &lt; no_ironwood_until_after {
+        no_ironwood_until_after := later_of(fork_height, NU6_3ActivationHeight)
+    }
+
+    let received_ironwood_in_block : bool := false
+    for each Ironwood output in each transaction at height {
+        let scope_set :=
+            if valueBalanceIronwood &lt; 0 or height &gt; no_ironwood_until_after {
+                {internal, external}
+            } else {
+                {external}
+            }
+        for (scope in scope_set, use_qsk in use_qsk_set) {
+            if the output decrypts using ivk(scope, use_qsk) {
+                record the funds
+                use_qsk_set := {use_qsk}
+                received_ironwood_in_block := true
+            }
+        }
+    }
+    if !received_ironwood_in_block and height == no_ironwood_until_after {
+        // No Ironwood funds were received in this or any prior block, so the
+        // optimization can be applied to the next block.
+        no_ironwood_until_after := height + 1
+    }
+}
+</code></pre>
+
+<p>A wallet MAY scan in any order. Only scanning forward from the birthday height can take full
+advantage of the optimization, but it is possible to scan forward and backward in parallel.</p>
+
+<p>As further optimizations (not shown in the pseudocode):</p>
+
+<ul>
+<li><p>A wallet can also track whether the account has received any funds at all. This avoids having
+to conservatively scan other users' migration transactions with <code>scope_set</code> set to
+<span class="math">\(\{\textsf{internal}, \textsf{external}\}\kern-0.05em\textsf{.}\)</span></p></li>
+<li><p>If the wallet is scanning for <em>Orchard-pool</em> funds in parallel — which, as specified above, uses
+only <span class="math">\(\mathsf{use\_qsk} = \textsf{false}\)</span> — it can narrow <code>use_qsk_set</code> to <span class="math">\(\{\textsf{false}\}\)</span>
+whenever it sees any.</p></li>
+</ul>
+
+<h3 id="scanningwhenrestoringfromseed"><span class="section-heading">Scanning when restoring from seed</span><span class="section-anchor"> <a rel="bookmark" href="#scanningwhenrestoringfromseed"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>The only situation in which a wallet does not know an account&#8217;s <span class="math">\(\mathsf{use\_qsk}\)</span> value is
+restoring from seed, since <span class="math">\(\mathsf{use\_qsk}\)</span> is not stored with wallet recovery information. In
+that situation the wallet MUST take <code>initial_use_qsk_set</code> to be <span class="math">\(\{\textsf{false}, \textsf{true}\}\)</span>
+and scan with both values until the locking rule narrows it. This must be done even if the wallet
+implementation always makes a fixed <span class="math">\(\mathsf{use\_qsk}\)</span> choice itself, because restoration must
+work across wallet implementations: a seed created by one wallet may be restored into another.</p>
+
+<h3 id="outgoing-notedetection"><span class="section-heading">Outgoing-note detection</span><span class="section-anchor"> <a rel="bookmark" href="#outgoing-notedetection"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>The outgoing viewing key <span class="math">\(\mathsf{ovk}\)</span> (and its internal counterpart) is likewise derived through
+<span class="math">\(\mathsf{rivk}\)</span> and so also depends on <span class="math">\(\mathsf{use\_qsk}\kern-0.05em\textsf{.}\)</span> A wallet that detects its own outgoing
+notes via <span class="math">\(\mathsf{ovk}\)</span> uses the <span class="math">\(\mathsf{ovk}\)</span> for the same per-account <span class="math">\(\mathsf{use\_qsk}\)</span>
+value, so the considerations above apply unchanged; no additional <span class="math">\(\mathsf{use\_qsk}\)</span> dimension is
+introduced beyond the <span class="math">\(\mathsf{ivk}\)</span> scanning described here.</p>
+
+<h2 id="receivingfundsintotheironwoodpool"><span class="section-heading">Receiving funds into the Ironwood pool</span><span class="section-anchor"> <a rel="bookmark" href="#receivingfundsintotheironwoodpool"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>Because receivers are scoped to the Orchard <em>protocol</em> rather than to a pool (see above), an
+Orchard-protocol receiver that was exposed before NU6.3 can receive <em>Ironwood-pool</em> funds after
+NU6.3, and a wallet that supports NU6.3 will scan for them as specified above. Once an
+Orchard-protocol receiver has been exposed, no party can be prevented from sending funds to it in
+either pool, subject to the consensus rules.</p>
+
+<p>The send-path change by which a wallet <em>chooses</em> to route new payments to an Orchard-protocol
+receiver into the <em>Ironwood pool</em> rather than the <em>Orchard pool</em> is a general send-path concern,
+and is out of scope here; see the migration ZIP. <a href="#fn:12" title="see footnote" class="footnote"><sup>12</sup></a></p>
+
+<h2 id="fabricatedsame-addressoutputsandrandomizednoteciphertexts"><span class="section-heading">Fabricated same-address outputs and randomized note ciphertexts</span><span class="section-anchor"> <a rel="bookmark" href="#fabricatedsame-addressoutputsandrandomizednoteciphertexts"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<blockquote>
+<p>Note: The primary home for this requirement is expected to be the action-circuit update
+ZIP <a href="#fn:14" title="see footnote" class="footnote"><sup>14</sup></a>, which introduces the same-address restriction that causes it. It is stated
+here until that ZIP is written, after which this section will cross-reference it.</p>
+</blockquote>
+
+<p>After NU6.3, every <em>Orchard-pool</em> Action is subject to the same-address restriction: the output
+expanded receiver [TODO define] of each Action must equal its spent-note expanded receiver. <a href="#fn:14" title="see footnote" class="footnote"><sup>14</sup></a>
+To spend in the <em>Orchard pool</em> under this restriction, a wallet pairs each real spend with a
+fabricated, zero-valued output addressed to the spent note&#8217;s own receiver.</p>
+
+<p>For such a fabricated output, the wallet MUST fill the note ciphertext <code>enc_ciphertext</code> with
+random bytes, rather than with a real encryption of the note plaintext to the spent note&#8217;s
+receiver.</p>
+
+<p>If <code>enc_ciphertext</code> were instead a real encryption, it would trial-decrypt under the spent note&#8217;s
+receiver&#8217;s <span class="math">\(\mathsf{ivk}\kern-0.05em\textsf{,}\)</span> in the same Action that carries the spend&#8217;s nullifier. Any party holding
+that <span class="math">\(\mathsf{ivk}\)</span> — including a quantum adversary that has recovered the <span class="math">\(\mathsf{ivk}\)</span> from the
+published (diversified) address, which is feasible, unlike recovering the nullifier key — could
+then link the nullifier to the address and so detect the spend. Randomizing <code>enc_ciphertext</code>
+prevents this. The note and its commitment are unchanged.</p>
+
+<p>In a Partially Created Zcash Transaction (PCZT) <a href="#fn:15" id="fnref:15" title="see footnote" class="footnote"><sup>15</sup></a>, the fabricated output still carries its
+explicit recipient, value, and <code>rseed</code>, but no user-supplied address; a signer therefore recovers
+nothing from the ciphertext, reads a value of zero, and classifies the output as a tolerable dummy
+output, rather than reconstructing an expected ciphertext and rejecting the mismatch.</p>
+
+<h1 id="rationale"><span class="section-heading">Rationale</span><span class="section-anchor"> <a rel="bookmark" href="#rationale"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>The key-generation restrictions are chosen so that the only situation requiring both
+<span class="math">\(\mathsf{use\_qsk}\)</span> values to be scanned is restoration from seed, and so that no scanning rule
+relies on the recorded birthday height being accurate as an <em>upper</em> bound. The latter is
+essential: it has always been safe to set a conservatively early birthday height, and the
+restore-from-seed case — the one case in which <span class="math">\(\mathsf{use\_qsk}\)</span> is unknown — is also the case in
+which the birthday height is least reliable. Pruning <span class="math">\(\mathsf{use\_qsk} = \textsf{true}\)</span>
+<em>Ironwood-pool</em> scanning by birthday height would therefore be unsafe in exactly the case it would
+apply, so it is not specified.</p>
+
+<p>Requiring <span class="math">\(\mathsf{use\_qsk} = \textsf{true}\)</span> keys not to be generated before NU6.3 Mainnet
+activation, rather than merely recommending it, keeps the <em>Orchard pool</em> free of
+<span class="math">\(\mathsf{use\_qsk} = \textsf{true}\)</span> funds without relying on senders' behaviour, and bounds the
+birthday height of every <span class="math">\(\mathsf{use\_qsk} = \textsf{true}\)</span> account.</p>
+
+<p>The first-funds optimization rests on the observation that, before an account has received any
+<em>Ironwood-pool</em> funds, an <em>internal</em> <em>Ironwood-pool</em> note for it can only be created by the
+account&#8217;s own transaction, and only when value enters the pool via the value balance. The &#8220;up to
+and including this block&#8221; treatment is sound because incoming shielded funds cannot be spent in
+the block in which they are received.</p>
+
+<p>The reorg handling retains the &#8220;no funds received&#8221; conclusion only up to the fork height, not the
+chain tip: a shallow reorg at the scanning frontier can replace blocks below the watermark while
+leaving the chain the same length or longer, so keying the rollback on the tip height would leave a
+stale watermark and could cause an internal <em>Ironwood-pool</em> note on the new branch to be missed.</p>
+
+<h1 id="deployment"><span class="section-heading">Deployment</span><span class="section-anchor"> <a rel="bookmark" href="#deployment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>This ZIP describes wallet behaviour consequent on the deployment of NU6.3. <a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a> The
+restrictions on generating and using <span class="math">\(\mathsf{use\_qsk} = \textsf{true}\)</span> keys take effect
+immediately; the scanning rules apply from NU6.3 activation.</p>
+
+<h1 id="references"><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<div class="footnotes">
+<hr />
+<ol>
+
+<li id="fn:1">
+<p><a href="https://www.rfc-editor.org/info/bcp14">Information on BCP 14 — &#8220;RFC 2119: Key words for use in RFCs to Indicate Requirement Levels&#8221; and &#8220;RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words&#8221;</a> <a href="#fnref:1" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:2">
+<p><a href="zip-0200">ZIP 200: Network Upgrade Mechanism</a> <a href="#fnref:2" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:3">
+<p><a href="protocol/protocol.pdf">Zcash Protocol Specification, Version 2026.8.0 [NU6.3] or later</a> <a href="#fnref:3" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:4">
+<p><a href="protocol/protocol.pdf#networks">Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 3.12: Mainnet and Testnet</a> <a href="#fnref:4" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:5">
+<p><a href="zip-0229">ZIP 229: Version 6 Transaction Format</a> <a href="#fnref:5" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:6">
+<p><a href="zip-0258">ZIP 258: Deployment of the NU6.3 Network Upgrade</a> <a href="#fnref:6" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:7">
+<p><a href="zip-2005">ZIP 2005: Ironwood Quantum Recoverability</a> <a href="#fnref:7" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:8">
+<p><a href="protocol/protocol.pdf#addressesandkeys">Zcash Protocol Specification, Version 2026.8.0 [NU6.3] or later. Section 3.1: Payment Addresses and Keys</a> <a href="#fnref:8" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:9">
+<p><a href="zip-0032">ZIP 32: Shielded Hierarchical Deterministic Wallets</a> <a href="#fnref:9" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:10">
+<p><a href="zip-0307">ZIP 307: Light Client Protocol for Payment Detection</a> <a href="#fnref:10" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:11">
+<p><a href="https://zcash.github.io/ironwood/">The Ironwood Book</a> <a href="#fnref:11" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:12">
+<p><a href="zip-0318">ZIP 318: Orchard to Ironwood Migration</a> <a href="#fnref:12" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:13">
+<p><a href="zip-2005#usagewithfrost">ZIP 2005: Ironwood Quantum Recoverability, section &#8220;Usage with FROST&#8221;</a> <a href="#fnref:13" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:14">
+<p><a href="zip-2006">ZIP 2006: Restricting Transfers into the Orchard Pool</a> <a href="#fnref:14" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:15">
+<p><a href="https://github.com/zcash/zips/issues/693">zcash/zips issue #693: Standardize a protocol for creating shielded transactions offline</a> <a href="#fnref:15" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+</ol>
+</div>
 </body>
 </html>
