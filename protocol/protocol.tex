@@ -2052,6 +2052,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\CommitIvkOutputType}{\maybe{\range{0}{\ParamP{q}-1}}}
 \newcommand{\DeriveNullifierAlg}{\mathsf{DeriveNullifier}}
 \newcommand{\DeriveNullifier}[1]{\DeriveNullifierAlg_{#1}}
+\newcommand{\DeriveNoteCommitRandAlg}{\mathsf{Derive\_rcm}}
+\newcommand{\DeriveNoteCommitRand}[2]{\DeriveNoteCommitRandAlg^{#1}_{#2}}
 
 % Symmetric encryption
 
@@ -2739,6 +2741,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\ReprP}{\bitseq{\ellP}}
 \newcommand{\ReprPBytes}{\byteseq{\ellP/8}}
 \newcommand{\reprP}{\repr_{\GroupP}}
+\newcommand{\gdStar}{\mathsf{g}\mathord{\star}_{\mathsf{d}}}
+\newcommand{\pkdStar}{\mathsf{pk}\mathord{\star}_{\mathsf{d}}}
 \newcommand{\abstP}{\abst_{\GroupP}}
 \newcommand{\SignedScalarLimitP}{\frac{\ParamP{r}-1}{2}}
 
@@ -6491,6 +6495,24 @@ in \crossref{saplingsend}.
 Let $\NotePlaintextLeadByte$ be the \notePlaintextLeadByte, chosen according to
 \crossref{noteptconcept} with $\Pool \in \setof{\OrchardLikePoolIdList}$.
 
+\nusixthree{
+\vspace{0.5ex}
+Define $\mathsf{H}^{\mathsf{rcm,Orchard}}_{\NoteSeedBytes}(\gdStar, \pkdStar, \Value, \NoteUniqueRandBytes, \NoteNullifierRand) = \ToScalar{Orchard}\big(\PRFexpand{\NoteSeedBytes}(\NoteCommitRandPre)\kern-0.1em\big)$, where
+$\NoteCommitRandPre = [\hexint{0B}] \bconcat \LEBStoOSPOf{256}{\gdStar} \bconcat \LEBStoOSPOf{256}{\pkdStar} \bconcat \ItoLEOSPOf{64}{\Value} \bconcat \NoteUniqueRandBytes \bconcat \ItoLEOSPOf{256}{\NoteNullifierRand}$.
+
+\vspace{-0.5ex}
+Define $\DeriveNoteCommitRand{\OrchardProto}{\NoteSeedBytes}(\NotePlaintextLeadByte, \gdStar, \pkdStar, \Value, \NoteUniqueRandBytes, \NoteNullifierRand) = \begin{cases}
+        \ToScalar{Orchard}\big(\PRFexpand{\NoteSeedBytes}([\hexint{05}] \bconcat \NoteUniqueRandBytes)\kern-0.1em\big), &\!\!\!\textsf{if } \NotePlaintextLeadByte = \hexint{02} \\
+        \mathsf{H}^{\mathsf{rcm,Orchard}}_{\NoteSeedBytes}(\gdStar, \pkdStar, \Value, \NoteUniqueRandBytes, \NoteNullifierRand), &\!\!\!\textsf{if } \NotePlaintextLeadByte = \hexint{03}
+\end{cases}$
+
+\vspace{-0.5ex}
+Define $\mathsf{H}^{\mathsf{esk,Orchard}}_{\NoteSeedBytes}(\NoteUniqueRandBytes) = \ToScalar{Orchard}\big(\PRFexpand{\NoteSeedBytes}([\hexint{04}] \bconcat \NoteUniqueRandBytes)\kern-0.1em\big)$.
+
+\vspace{-0.5ex}
+Define $\mathsf{H}^{\uppsi,\mathsf{Orchard}}_{\NoteSeedBytes}(\NoteUniqueRandBytes) = \ToBase{Orchard}\big(\PRFexpand{\NoteSeedBytes}([\hexint{09}] \bconcat \NoteUniqueRandBytes)\kern-0.09em\big)$.
+} %nusixthree
+
 \vspace{0.5ex}
 \introlist
 For each \actionDescription, the sender selects a value $\Value \typecolon \range{0}{\MAXMONEY}$
@@ -6504,15 +6526,18 @@ performs the following steps:
   \item Choose a uniformly random \commitmentTrapdoor $\ValueCommitRand \leftarrowR \ValueCommitGenTrapdoor{Orchard}()$.
   \item Choose uniformly random $\NoteSeedBytes \leftarrowR \NoteSeedBytesType$.
   \item Let $\NoteUniqueRand = \nfOld{}$ from the same \actionDescription, and let $\NoteUniqueRandBytes = \ItoLEOSPOf{256}{\NoteUniqueRand}$.
-  \item Derive $\EphemeralPrivate = \ToScalar{Orchard}\big(\PRFexpand{\NoteSeedBytes}([4] \bconcat \NoteUniqueRandBytes)\kern-0.1em\big)$.
+  \nusixthree{\item Let $\gdStar = \reprP\Of{\DiversifiedTransmitBase}$ and $\pkdStar = \reprP\Of{\DiversifiedTransmitPublic}$.}
+  \item Derive $\EphemeralPrivate = {}$\notnusixthree{$\ToScalar{Orchard}\big(\PRFexpand{\NoteSeedBytes}([4] \bconcat \NoteUniqueRandBytes)\kern-0.1em\big)$}\nusixthree{$\mathsf{H}^{\mathsf{esk,Orchard}}_{\NoteSeedBytes}(\NoteUniqueRandBytes)$}.
   \item If $\EphemeralPrivate = 0 \pmod{\ParamP{r}}$, repeat the above steps using a different $\NoteSeedBytes$.
-  \item Derive $\NoteCommitRand = \ToScalar{Orchard}\big(\PRFexpand{\NoteSeedBytes}([5] \bconcat \NoteUniqueRandBytes)\kern-0.1em\big)$.
-  \item Derive $\NoteNullifierRand = \ToBase{Orchard}\big(\PRFexpand{\NoteSeedBytes}([9] \bconcat \NoteUniqueRandBytes)\kern-0.09em\big)$.
+  \item Derive $\NoteNullifierRand = {}$\notnusixthree{$\ToBase{Orchard}\big(\PRFexpand{\NoteSeedBytes}([9] \bconcat \NoteUniqueRandBytes)\kern-0.09em\big)$}\nusixthree{$\mathsf{H}^{\uppsi,\mathsf{Orchard}}_{\NoteSeedBytes}(\NoteUniqueRandBytes)$}.
+  \item Derive $\NoteCommitRand = {}$\notnusixthree{$\ToScalar{Orchard}\big(\PRFexpand{\NoteSeedBytes}([5] \bconcat \NoteUniqueRandBytes)\kern-0.1em\big)$}\nusixthree{$\mathsf{Derive\_rcm}^{\mathsf{Orchard}}_{\NoteSeedBytes}(\NotePlaintextLeadByte, \gdStar, \pkdStar, \Value, \NoteUniqueRandBytes, \NoteNullifierRand)$}.
   \item Let $\cvNet{}$ be the \valueCommitment to the value of the input \note minus the value $\Value$
         of the output \note for this \actionTransfer, using $\ValueCommitRand$, as described in \crossref{orchardbalance}.
-  \item Let $\cmX = \ExtractPbot\big(\NoteCommit{Orchard}{\NoteCommitRand}(\reprP\Of{\DiversifiedTransmitBase},
+  \notnusixthree{\item Let $\cmX = \ExtractPbot\big(\NoteCommit{Orchard}{\NoteCommitRand}(\reprP\Of{\DiversifiedTransmitBase},
                                                                            \reprP\Of{\DiversifiedTransmitPublic},
-                                                                           \Value, \NoteUniqueRand, \NoteNullifierRand)\kern-0.1em\big)$.
+                                                                           \Value, \NoteUniqueRand, \NoteNullifierRand)\kern-0.1em\big)$.}%
+  \nusixthree{\item Let $\cmX = \ExtractPbot\big(\NoteCommit{Orchard}{\NoteCommitRand}(\gdStar, \pkdStar,
+                                                                           \Value, \NoteUniqueRand, \NoteNullifierRand)\kern-0.1em\big)$.}
   \item If $\cmX = \bot$, repeat the above steps using a different $\NoteSeedBytes$.
   \item Let $\NotePlaintext{} = (\NotePlaintextLeadByte, \Diversifier, \Value, \NoteSeedBytes, \Memo)$.
         \vspace{0.25ex}
@@ -6698,6 +6723,9 @@ Let $\ItoLEOSP{}$ be as defined in \crossref{endian}.
 Let $\NotePlaintextLeadByte$ be the \notePlaintextLeadByte, chosen according to
 \crossref{noteptconcept} with $\Pool = \OrchardPoolId$.
 
+\nusixthree{\vspace{-0.25ex}
+Let $\mathsf{Derive\_rcm}^{\mathsf{Orchard}}$ and $\mathsf{H}^{\uppsi,\mathsf{Orchard}}$ be as defined in \crossref{orchardsend}.\par}
+
 \introlist
 \vspace{0.5ex}
 The spend-related fields of an \actionDescription for a \dummy \OrchardPoolAdj input \note are
@@ -6711,11 +6739,14 @@ constructed as follows:
   \item Choose uniformly random $\NoteSeedBytes \leftarrowR \NoteSeedBytesType$.
   \item Choose uniformly random $\NoteUniqueRandPoint \leftarrowR \GroupP$.
   \item Let $\NoteUniqueRand = \ExtractP(\NoteUniqueRandPoint)$ and $\NoteUniqueRandBytes = \ItoLEOSPOf{256}{\NoteUniqueRand}$.
-  \item Derive $\NoteCommitRand = \ToScalar{Orchard}\big(\PRFexpand{\NoteSeedBytes}([5] \bconcat \NoteUniqueRandBytes)\kern-0.1em\big)$.
-  \item Derive $\NoteNullifierRand = \ToBase{Orchard}\big(\PRFexpand{\NoteSeedBytes}([9] \bconcat \NoteUniqueRandBytes)\kern-0.1em\big)$.
-  \item Let $\cm = \NoteCommit{Orchard}{\NoteCommitRand}\big(\reprP\Of{\DiversifiedTransmitBase},
+  \nusixthree{\item Let $\gdStar = \reprP\Of{\DiversifiedTransmitBase}$ and $\pkdStar = \reprP\Of{\DiversifiedTransmitPublic}$.}
+  \item Derive $\NoteNullifierRand = {}$\notnusixthree{$\ToBase{Orchard}\big(\PRFexpand{\NoteSeedBytes}([9] \bconcat \NoteUniqueRandBytes)\kern-0.1em\big)$}\nusixthree{$\mathsf{H}^{\uppsi,\mathsf{Orchard}}_{\NoteSeedBytes}(\NoteUniqueRandBytes)$}.
+  \item Derive $\NoteCommitRand = {}$\notnusixthree{$\ToScalar{Orchard}\big(\PRFexpand{\NoteSeedBytes}([5] \bconcat \NoteUniqueRandBytes)\kern-0.1em\big)$}\nusixthree{$\mathsf{Derive\_rcm}^{\mathsf{Orchard}}_{\NoteSeedBytes}(\NotePlaintextLeadByte, \gdStar, \pkdStar, \Value, \NoteUniqueRandBytes, \NoteNullifierRand)$}.
+  \notnusixthree{\item Let $\cm = \NoteCommit{Orchard}{\NoteCommitRand}\big(\reprP\Of{\DiversifiedTransmitBase},
                                                              \reprP\Of{\DiversifiedTransmitPublic},
-                                                             \Value, \NoteUniqueRand, \NoteNullifierRand\big)$.
+                                                             \Value, \NoteUniqueRand, \NoteNullifierRand\big)$.}%
+  \nusixthree{\item Let $\cm = \NoteCommit{Orchard}{\NoteCommitRand}\big(\gdStar, \pkdStar,
+                                                             \Value, \NoteUniqueRand, \NoteNullifierRand\big)$.}
   \item If $\cm = \bot$, repeat the above steps using a different $\NoteSeedBytes$.
   \item Let $\nf = \DeriveNullifier{\NullifierKey}(\NoteUniqueRand, \NoteNullifierRand, \cm)$.
   \item Construct a \dummy \merklePath $\TreePath{}$ for use in the
