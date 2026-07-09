@@ -55,10 +55,10 @@ protocol: $(PDFDIR)/protocol.pdf
 protocol-dark: $(PDFDIR)/protocol-dark.pdf
 
 all-pdfs: .Makefile.uptodate
-	$(MAKE) $(PDFDIR)/protocol.pdf $(PDFDIR)/protocol-dark.pdf $(PDFDIR)/nu6_1.pdf $(PDFDIR)/nu6.pdf $(PDFDIR)/nu5.pdf $(PDFDIR)/canopy.pdf $(PDFDIR)/heartwood.pdf $(PDFDIR)/blossom.pdf $(PDFDIR)/sapling.pdf
+	$(MAKE) $(PDFDIR)/nu6_3.pdf $(PDFDIR)/protocol.pdf $(PDFDIR)/protocol-dark.pdf $(PDFDIR)/nu6_1.pdf $(PDFDIR)/nu6.pdf $(PDFDIR)/nu5.pdf $(PDFDIR)/canopy.pdf $(PDFDIR)/heartwood.pdf $(PDFDIR)/blossom.pdf $(PDFDIR)/sapling.pdf
 
 all-specs: .Makefile.uptodate
-	$(MAKE) nu6_2 nu6_2-dark nu6_1 nu6 nu5 canopy heartwood blossom sapling
+	$(MAKE) nu6_3 nu6_2 nu6_2-dark nu6_1 nu6 nu5 canopy heartwood blossom sapling
 
 discard:
 	git checkout -- "$(PDFDIR)/*.pdf"
@@ -93,6 +93,9 @@ $(PDFDIR)/protocol.pdf: protocol.tex zcash.bib jubjub.png key_components_sapling
 
 $(PDFDIR)/protocol-dark.pdf: protocol.tex zcash.bib jubjub.png key_components_sapling.png key_components_orchard_dark.png incremental_merkle_dark.png
 	$(MAKE) nu6_2-dark
+
+$(PDFDIR)/nu6_3.pdf: protocol.tex zcash.bib jubjub.png key_components_sapling.png key_components_orchard.png incremental_merkle.png
+	$(MAKE) nu6_3
 
 .PHONY: auxsapling sapling
 auxsapling:
@@ -210,6 +213,32 @@ nu6_2-dark:
 	$(MAKE) auxnu6_2-dark
 	mkdir -p $(PDFDIR)
 	mv -f aux/nu6_2-dark.pdf $(PDFDIR)/protocol-dark.pdf
+
+.PHONY: auxnu6_3 nu6_3
+auxnu6_3:
+	printf '\\toggletrue{isnusixthree}\n\\renewcommand{\\docversion}{Version %s [\\NUSixThreeSpec]}\n' "$$(git describe --tags --abbrev=6 |sed 's/-1-g.*//;s/-auto//')" |tee protocol.ver
+	mkdir -p aux
+	rm -f aux/nu6_3.*
+	cp mymakeindex.sh aux
+	$(LATEXMK) -jobname=nu6_3 -auxdir=aux -outdir=aux $(EXTRAOPT) protocol $(NOCRUFT)
+
+nu6_3:
+	$(MAKE) auxnu6_3
+	mkdir -p $(PDFDIR)
+	mv -f aux/nu6_3.pdf $(PDFDIR)
+
+.PHONY: auxnu6_3-dark nu6_3-dark
+auxnu6_3-dark:
+	printf '\\toggletrue{darkmode}\\toggletrue{isnusixthree}\n\\renewcommand{\\docversion}{Version %s [\\NUSixThreeSpec]}\n' "$$(git describe --tags --abbrev=6 |sed 's/-1-g.*//;s/-auto//')" |tee protocol.ver
+	mkdir -p aux
+	rm -f aux/nu6_3-dark.*
+	cp mymakeindex.sh aux
+	$(LATEXMK) -jobname=nu6_3-dark -auxdir=aux -outdir=aux $(EXTRAOPT) protocol $(NOCRUFT)
+
+nu6_3-dark:
+	$(MAKE) auxnu6_3-dark
+	mkdir -p $(PDFDIR)
+	mv -f aux/nu6_3-dark.pdf $(PDFDIR)
 
 .PHONY: clean
 clean:
