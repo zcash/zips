@@ -1,4 +1,4 @@
-ZIP: 328
+ZIP: Unassigned
     Title: Direct Wallet Transaction Submission via Dandelion++ P2P Relay
     Owners: y4ssi <y4ssi@zodl.com>
     Status: Draft
@@ -25,8 +25,8 @@ blocks and transaction-related RPCs to light clients.
 newly-constructed transaction for broadcast, including but not limited to a
 compact-block server.
 
-**Dandelion++ stem phase / fluff phase / stem peer:** As defined in ZIP 327.
-[^zip-0327]
+**Dandelion++ stem phase / fluff phase / stem peer:** As defined in draft-dandelion (PR [#1329](https://github.com/zcash/zips/pull/1329)).
+[^draft-dandelion]
 
 **IP-to-transaction correlation:** The ability of a network observer to determine
 which IP address originated a given transaction by observing when and where the
@@ -37,7 +37,7 @@ transaction first appeared on the P2P network.
 
 This ZIP specifies how Zcash light-client wallets MAY submit newly-constructed
 transactions directly to a full node peer via the Zcash P2P network — using the
-Dandelion++ stem-phase forwarding defined in ZIP 327 [^zip-0327] — instead of
+Dandelion++ stem-phase forwarding defined in draft-dandelion (PR [#1329](https://github.com/zcash/zips/pull/1329)) [^draft-dandelion] — instead of
 through a compact-block server, while continuing to use compact-block servers
 exclusively for chain synchronisation.
 
@@ -49,7 +49,7 @@ that correlation for the submission path.
 
 No consensus-rule changes are required. This ZIP covers the **wallet side**
 (sometimes called "Component A"); the full-node relay behaviour it depends on is
-specified in ZIP 327 (Component B). [^zip-0327]
+specified in draft-dandelion (PR [#1329](https://github.com/zcash/zips/pull/1329)) (Component B). [^draft-dandelion]
 
 
 # Motivation
@@ -109,7 +109,7 @@ submitting IP together for the transaction's onward propagation.
    without degrading other functionality.
 
 5. The receiving full node SHOULD implement the Dandelion++ relay behaviour of
-   ZIP 327. [^zip-0327] A wallet submitting via P2P gains no privacy benefit if
+   draft-dandelion (PR [#1329](https://github.com/zcash/zips/pull/1329)). [^draft-dandelion] A wallet submitting via P2P gains no privacy benefit if
    the node immediately floods the transaction; however, a non-implementing node
    simply flood-broadcasts it, which is a safe fallback.
 
@@ -146,7 +146,7 @@ reducing leakage about the wallet's connectivity.
 To request that the receiving full node treat the transaction as a stem-phase
 candidate (rather than immediately flooding it), the wallet MUST send the `tx`
 message with **no prior `inv` announcement** on this connection. This is the
-"unadvertised `tx`" convention of ZIP 327 §Stem-phase forwarding. [^zip-0327]
+"unadvertised `tx`" convention of draft-dandelion §Stem-phase forwarding (PR [#1329](https://github.com/zcash/zips/pull/1329)). [^draft-dandelion]
 
 Rationale: advertising via `inv` before `tx` is the normal relay path, which
 signals the sending node already received the transaction from elsewhere.
@@ -224,8 +224,9 @@ fallback).
 
 ## Relationship to Zaino
 
-A Zaino [^ZAINO] instance co-located with a Zebra node could implement the ZIP 327
-relay path natively, routing wallet submissions received via `SendTransaction`
+A Zaino [^ZAINO] instance co-located with a Zebra node could implement the
+draft-dandelion (PR [#1329](https://github.com/zcash/zips/pull/1329)) relay path
+natively, routing wallet submissions received via `SendTransaction`
 through the local node's stem path. This would help wallets that cannot open a
 direct P2P connection, without wallet-software changes. It is RECOMMENDED as a
 complement to (not a replacement for) this ZIP.
@@ -245,7 +246,7 @@ node, performs the `version`/`verack` handshake (advertising protocol version
 `inv`. Chain synchronisation continues to use the lightwalletd endpoint. A
 fallback to `SendTransaction` is available when no P2P peer is reachable.
 
-Full-node relay (Component B) is specified and implemented under ZIP 327:
+Full-node relay (Component B) is specified and implemented in draft-dandelion (PR [#1329](https://github.com/zcash/zips/pull/1329)):
 [zcashfoundation/zebra#10928](https://github.com/zcashfoundation/zebra/pull/10928).
 
 
@@ -260,7 +261,7 @@ Full-node relay (Component B) is specified and implemented under ZIP 327:
 
 [^zip-0307]: [ZIP 307: Light Client Protocol for Payment Detection](https://zips.z.cash/zip-0307)
 
-[^zip-0327]: ZIP 327: Dandelion++ Transaction Propagation for Zcash P2P Nodes.
+[^draft-dandelion]: draft-dandelion: Dandelion++ Transaction Propagation for Zcash P2P Nodes. PR: https://github.com/zcash/zips/pull/1329
 (In preparation — see zcash/zips#1329.)
 
 [^DPPLUSPLUS]: Venkatakrishnan, S.B., Fanti, G., Viswanath, P. "Dandelion++: Lightweight
