@@ -249,6 +249,7 @@ be deleted.
     <tr> <td class="left">draft-arya-deploy-nu7</td> <td class="left"><a href="zips/draft-arya-deploy-nu7.md">Deployment of the NU7 Network Upgrade</a></td> <td class="left"><a href="https://github.com/zcash/zips/issues/839">zips#839</a></td>
     <tr> <td class="left">draft-ecc-authenticated-reply-addrs</td> <td class="left"><a href="zips/draft-ecc-authenticated-reply-addrs.md">Authenticated Reply Addresses</a></td> <td class="left"><a href="https://github.com/zcash/zips/issues/1230">zips#1230</a></td>
     <tr> <td class="left">draft-ecc-onchain-accountable-voting</td> <td class="left"><a href="zips/draft-ecc-onchain-accountable-voting.md">On-chain Accountable Voting</a></td> <td class="left"></td>
+    <tr> <td class="left">draft-nuttycom-zewif</td> <td class="left"><a href="zips/draft-nuttycom-zewif.md">ZeWIF: Zcash Wallet Interchange Format</a></td> <td class="left"></td>
     <tr> <td class="left">draft-str4d-orchard-balance-proof</td> <td class="left"><a href="zips/draft-str4d-orchard-balance-proof.md">Air drops, Proof-of-Balance, and Stake-weighted Polling</a></td> <td class="left"><a href="https://github.com/zcash/zips/issues/1229">zips#1229</a></td>
   </table></embed>
 
