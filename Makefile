@@ -2,8 +2,15 @@
 
 MARKDOWN_OPTION?=--mmd
 
+# If a document exists as both .rst and .md, the .rst pattern rule silently
+# shadows the .md, so a stale stub can mask its replacement ZIP.
+DUPLICATE_SOURCES := $(filter \
+  $(patsubst %.rst,%,$(wildcard zips/*.rst)), \
+  $(patsubst %.md,%,$(wildcard zips/*.md)))
+
 .PHONY: all-zips all-docker all tag-release protocol all-protocol discard
 all-zips: .Makefile.uptodate
+	$(if $(DUPLICATE_SOURCES),$(error Both .rst and .md sources exist for: $(DUPLICATE_SOURCES)))
 	echo "$(patsubst zips/%,%,$(sort $(wildcard zips/zip-*.rst) $(wildcard zips/zip-*.md)))" >.zipfilelist.new
 	diff .zipfilelist.current .zipfilelist.new || cp -f .zipfilelist.new .zipfilelist.current
 	rm -f .zipfilelist.new
