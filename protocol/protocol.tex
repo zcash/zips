@@ -1535,6 +1535,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\xPaymentAddresses}{\termxes{payment address}}
 \newcommand{\shieldedPaymentAddress}{\term{shielded payment address}}
 \newcommand{\shieldedPaymentAddresses}{\termes{shielded payment address}}
+\newcommand{\expandedReceiver}{\term{expanded receiver}}
 \newcommand{\unifiedPaymentAddress}{\term{unified payment address}}
 \newcommand{\unifiedPaymentAddresses}{\termes{unified payment address}}
 \newcommand{\xUnifiedPaymentAddresses}{\termxes{unified payment address}}
@@ -2184,6 +2185,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\nfOldRepr}[1]{{\MakeRepr{\nf}{\mathsf{old}}}_{#1}}
 \newcommand{\enableSpends}{\mathsf{enableSpends}}
 \newcommand{\enableOutputs}{\mathsf{enableOutputs}}
+\newcommand{\enableCrossAddress}{\mathsf{enableCrossAddress}}
+\newcommand{\disableCrossAddress}{\mathsf{disableCrossAddress}}
 \newcommand{\Memo}{\mathsf{memo}}
 \newcommand{\MemoByteLength}{512}
 \newcommand{\MemoType}{\byteseq{\MemoByteLength}}
@@ -6149,8 +6152,10 @@ where
 \vspace{-1ex}
 An \actionTransfer, as specified in \crossref{actions}, is encoded in \transactions as an
 \defining{\actionDescription}.
-Each version 5 \transaction includes a sequence of zero or more \defining{\actionDescriptions}.
-(Version 4 \transactions cannot contain \actionDescriptions.)
+
+Each \versionsForOrchardPool \transaction has a sequence of \actionDescriptions for the \OrchardPool.
+\nusixthree{Version 6 \transactions additionally have a sequence of \actionDescriptions
+for the \IronwoodPool.} Version 4 \transactions cannot contain \actionDescriptions.
 
 \introlist
 Each \actionDescription is authorized by a signature, called the \defining{\spendAuthSignature}.
@@ -6176,6 +6181,9 @@ Let $\vk$ be the \HaloTwo \verifyingKey identified by the \Orchard circuit versi
 in the consensus rules below.
 
 \nusixthree{Let $\Pool$ be $\OrchardPoolId$ or $\IronwoodPoolId$.}
+
+\nusixthree{Define an \expandedReceiver as in \cite{ZIP-2006}, i.e. $(\DiversifiedTransmitBase, \DiversifiedTransmitPublic)$
+for a \shieldedPaymentAddress.}
 
 \vspace{0.5ex}
 \introsection
@@ -6217,16 +6225,22 @@ An \actionDescription comprises $(\cvNet{}\kern-0.2em, \rt{\OrchardLikePoolId}\k
   \item $\enableOutputs \typecolon \bit$ is a flag that is set in order to enable \nh{non-zero-valued}
         outputs in this Action;
         \vspace{-0.3ex}
-  \item $\Proof{} \typecolon \ActionProof$ is a \zkSNARKProof for the \actionStatement defined in
-        \shortcrossref{actionstatement}, with \primaryInput
-        $(\cv, \rt{\OrchardPoolId}\kern-0.1em, \nf\kern-0.1em, \AuthSignRandomizedPublic, \cmX, \enableSpends, \enableOutputs)$
+  \item $\enableCrossAddress \typecolon \bit$ is a flag that is set in order to enable the \expandedReceiver
+        of the output \note to be different from the \expandedReceiver of the input \note in this Action
+        \cite{ZIP-2006};
+        \vspace{-0.3ex}
+  \item $\Proof{}^{\OrchardLikePoolId} \typecolon \ActionProof$ is a \zkSNARKProof for the \actionStatement
+        defined in \shortcrossref{actionstatement}, with \primaryInput
+        $(\cv, \rt{\OrchardPoolId}\kern-0.1em, \nf\kern-0.1em, \AuthSignRandomizedPublic, \cmX, \enableSpends, \enableOutputs, \disableCrossAddress)$
+        where $\disableCrossAddress = 1 - \enableCrossAddress$.
 \end{itemize}
 
 \vspace{-1.5ex}
-\pnote{The $\rt{\OrchardLikePoolId}$, $\enableSpends$, and $\enableOutputs$ components are the
-same for all \actionTransfers in a \transaction, and are encoded once in the \transaction body
-(\crossref{txnencoding}), not the $\type{ActionDescription}$ structure.
-$\Proof{}$ is aggregated with other Action proofs and encoded in the $\proofsOrchard$ field.}
+\pnote{The $\rt{\OrchardLikePoolId}$, $\enableSpendsField{\OrchardLike}$, and $\enableOutputsField{\OrchardLike}$
+components are the same for all \actionTransfers in a \transaction, and are encoded once\nusixthree{ for each pool}
+in the \transaction body (\crossref{txnencoding}), not the $\type{ActionDescription}$ structure.
+$\Proof{}^{\OrchardLikePoolId}$ is aggregated with other \OrchardLikePoolId Action proofs and
+encoded in the $\proofsField{\OrchardLike}$ field.}
 
 \begin{consensusrules}
         \vspace{-0.25ex}
@@ -6235,21 +6249,24 @@ $\Proof{}$ is aggregated with other Action proofs and encoded in the $\proofsOrc
   \item Let $\SigHash$ be the \sighashTxHash of this \transaction, not associated with an input,
         as defined in \crossref{sighash} using $\SIGHASHALL$.
 
-        The \spendAuthSignature \MUST be a valid $\SpendAuthSig{Orchard}$ signature over $\SigHash$
+        The \spendAuthSignature \MUST be a valid $\SpendAuthSig{\OrchardLike}$ signature over $\SigHash$
         using $\AuthSignRandomizedPublic$ as the \validatingKey ---
-        i.e.\ $\SpendAuthSigValidate{Orchard}{\AuthSignRandomizedPublic}(\SigHash, \spendAuthSig) = 1$.
+        i.e.\ $\SpendAuthSigValidate{\OrchardLike}{\AuthSignRandomizedPublic}(\SigHash, \spendAuthSig) = 1$.
         As specified in \crossref{concretereddsa}, validation of the $\RedDSAReprR{}$ component
         of the signature prohibits \nonCanonicalPoint encodings.
         \vspace{-0.25ex}
   \nufiveprenusixtwoitem{$\vk$ \MUST be the \verifyingKey identified by
         \texttt{OrchardCircuitVersion::}\linebreak[2]\texttt{InsecurePreNU6\_2}.}
         \vspace{-0.25ex}
-  \nusixtwoonwarditem{$\vk$ \MUST be the \verifyingKey identified by
+  \nusixtwoonly{$\vk$ \MUST be the \verifyingKey identified by
         \texttt{OrchardCircuitVersion::FixedPostNU6\_2}.}
         \vspace{-0.25ex}
-  \item The proof $\Proof{}$ \MUST be valid for \verifyingKey $\vk$ given a \primaryInput
+  \nusixthreeonwarditem{$\vk$ \MUST be the \verifyingKey identified by
+        \texttt{OrchardCircuitVersion::PostNU6\_3}.}
+        \vspace{-0.25ex}
+  \item The proof $\Proof{}^{\OrchardLikePoolId}$ \MUST be valid for \verifyingKey $\vk$ given a \primaryInput
         $(\cv, \rt{\OrchardLikePoolId}, \nf, \AuthSignRandomizedPublic, \cmX, \enableSpends,$ $\enableOutputs)$ ---
-        i.e.\ ${\ActionVerify}_{\vk}\big(\kern-0.1em(\cv, \rt{\OrchardLikePoolId}, \nf, \AuthSignRandomizedPublic, \cmX, \enableSpends, \enableOutputs), \Proof{}\big) = 1$.
+        i.e.\ ${\ActionVerify}_{\vk}\big(\kern-0.1em(\cv, \rt{\OrchardLikePoolId}, \nf, \AuthSignRandomizedPublic, \cmX, \enableSpends, \enableOutputs), \Proof{}^{\OrchardLikePoolId}\big) = 1$.
         \vspace{-0.25ex}
   \item $\AuthSignRandomizedPublic$ \MUSTNOT be the identity point $\ZeroP$.
 \end{consensusrules}
