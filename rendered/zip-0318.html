@@ -3,18 +3,1574 @@
 <head>
     <title>ZIP 318: Orchard to Ironwood Migration</title>
     <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css"></head>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.33/dist/katex.min.css" integrity="sha384-fgYS3VC1089n2J3rVcEbXDHlnDLQ9B2Y1hvpQ720q1NvxCduQqT4JoGc4u2QCnzE" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.33/dist/katex.min.js" integrity="sha384-YPHNAPyrxGS8BNnA7Q4ommqra8WQPEjooVSLzFgwgs8OXJBvadbyvx4QpfiFurGr" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.33/dist/contrib/auto-render.min.js" integrity="sha384-JKXHIJf8PKPyDFptuKZoUyMRQJAmQKj4B4xyOca62ebJhciMYGiDdq/9twUUWyZH" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css">
+</head>
 <body>
-    <section>
-        <pre>ZIP: 318
+<pre><code>ZIP: 318
 Title: Orchard to Ironwood Migration
 Owners: Schell Carl Scivally &lt;efsubenovex@gmail.com&gt;
         Pacu Gindre &lt;pacu@zecdev.org&gt;
-Status: Reserved
+        Kris Nuttycombe &lt;kris@nutty.land&gt;
+Status: Draft
 Category: Wallet
 Created: 2026-06-16
 License: MIT
-Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/1315">https://github.com/zcash/zips/issues/1315</a>&gt;</pre>
-    </section>
+Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/1315">https://github.com/zcash/zips/issues/1315</a>&gt;
+</code></pre>
+
+<div class="note"></div>
+
+<p>This document is a pre-proposal working draft produced for discussion with the
+librustzcash / Zcash team. It is modeled in part on ZIP 308 (Sprout to Sapling
+Migration) <a href="#fn:1" id="fnref:1" title="see footnote" class="footnote"><sup>1</sup></a> and adapts that precedent to an <em>Orchard</em>-to-<em>Ironwood</em>
+migration. It is <strong>not</strong> a ratified ZIP. All numeric parameters are provisional
+and require ratification (see <a href="#openissues">Open issues</a>).</p>
+
+<h1 id="terminology"><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>The key words &#8220;MUST&#8221;, &#8220;MUST NOT&#8221;, &#8220;SHOULD&#8221;, &#8220;SHOULD NOT&#8221;, &#8220;MAY&#8221;, and &#8220;RECOMMENDED&#8221;
+in this document are to be interpreted as described in BCP 14 <a href="#fn:2" id="fnref:2" title="see footnote" class="footnote"><sup>2</sup></a> when, and
+only when, they appear in all capitals.</p>
+
+<p>The terms &#8220;<em>Orchard pool</em>&#8221; and &#8220;<em>Ironwood pool</em>&#8221; are to be interpreted as
+described in ZIP 229 <a href="#fn:3" id="fnref:3" title="see footnote" class="footnote"><sup>3</sup></a>. Following the convention in the protocol
+specification <a href="#fn:4" id="fnref:4" title="see footnote" class="footnote"><sup>4</sup></a>, we use <em>slanted text</em> to refer to pool names, in order
+to more clearly distinguish them from shielded protocols.</p>
+
+<p>The term &#8220;network upgrade&#8221; is to be interpreted as described in ZIP 200.
+<a href="#fn:5" id="fnref:5" title="see footnote" class="footnote"><sup>5</sup></a></p>
+
+<p>The terms &#8220;Mainnet&#8221; and &#8220;Testnet&#8221; are to be interpreted as defined in the Zcash
+protocol specification. <a href="#fn:6" id="fnref:6" title="see footnote" class="footnote"><sup>6</sup></a></p>
+
+<p>The terms &#8220;trusted TXO&#8221;, &#8220;untrusted TXO&#8221;, &#8220;known-spendable&#8221;, and
+&#8220;confirmed-spendable&#8221; are to be interpreted as defined in ZIP 315. <a href="#fn:7" id="fnref:7" title="see footnote" class="footnote"><sup>7</sup></a></p>
+
+<p>The terms below are to be interpreted as follows:</p>
+
+<dl>
+<dt>Migration</dt>
+<dd>The process by which a wallet transfers a user&#8217;s funds from the <em>Orchard pool</em>
+to the <em>Ironwood pool</em>.</dd>
+
+<dt>Pool-crossing transfer</dt>
+<dd>A transaction that moves value from one shielded pool to another. The net
+amount crossing between the pools is revealed on-chain. <a href="#fn:8" id="fnref:8" title="see footnote" class="footnote"><sup>8</sup></a></dd>
+
+<dt>Note preparation</dt>
+<dd>A wallet-internal send-to-self transaction (or set of such transactions)
+whose purpose is to restructure the wallet&#8217;s existing notes — dividing
+larger notes, combining smaller ones, or both — into notes that exactly
+fund the planned migration transactions, so that the entire migration
+schedule can be pre-signed and broadcast without waiting for change from
+earlier transactions to confirm.</dd>
+
+<dt>Migration transaction (or part)</dt>
+<dd>A single pool-crossing transfer that moves part of the user&#8217;s <em>Orchard-pool</em>
+balance to the <em>Ironwood pool</em> as part of a migration. In the recommended
+scheme each migration transaction spends exactly one <em>Orchard-pool</em> note and
+moves exactly one denomination to a single <em>Ironwood</em> output.</dd>
+
+<dt>Denomination</dt>
+<dd>A canonical amount of the form <span class="math">\(n \times 10^k\)</span> ZEC with <span class="math">\(n \in \{1, 2, 5\}\)</span>
+(for example <code>100, 50, 20, 10, 5, 2, 1, 0.5</code> ZEC), bounded below by the
+maximum residual value and above by a cap specified in
+<a href="#amountselectioncanonicalquantization">Amount selection, canonical quantization</a>.</dd>
+
+<dt>Maximum residual value</dt>
+<dd>The value below which any remainder of the balance is left unmigrated, in
+order to prevent small, user-identifying amounts from being leaked in
+pool-crossing transactions.</dd>
+
+<dt>Anchor-height bucket (boundary)</dt>
+<dd>A shared, network-wide interval of block heights delimited by <em>boundaries</em>:
+blocks whose height is <span class="math">\(\equiv 0 \pmod{M}\)</span> for a network-wide modulus <span class="math">\(M\)</span>
+(provisionally 144). The anchor height of a migration transaction is drawn
+at random from among past boundaries rather than derived from the wallet&#8217;s
+own chain tip, so that the anchor does not reveal when a particular wallet
+last synchronized.</dd>
+
+<dt>Cohort</dt>
+<dd>The set of all migration transactions, from all wallets, that share the
+same boundary anchor.</dd>
+
+<dt>Multiplicity (<span class="math">\(k\kern-0.15em\)</span> )</dt>
+<dd>The number of migration transactions a single wallet contributes to one
+cohort.</dd>
+
+<dt>Migration schedule</dt>
+<dd>The ordered set of migration transactions, together with their scheduled
+broadcast heights, that a wallet plans in order to complete a migration.</dd>
+
+<dt>Background scheduling</dt>
+<dd>The use of platform mechanisms (for example, <em>BGTaskScheduler</em> on iOS or
+<em>WorkManager</em> on Android) to broadcast a migration transaction at an
+approximate future time without requiring the user to have the application in
+the foreground.</dd>
+</dl>
+
+<h1 id="abstract"><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>This ZIP specifies best practices for wallets migrating funds from the
+<em>Orchard pool</em> to the <em>Ironwood pool</em> introduced by the NU6.3 network upgrade
+<a href="#fn:9" id="fnref:9" title="see footnote" class="footnote"><sup>9</sup></a>. It is written with light client wallets in mind,
+because their reliance on a light wallet server and on mobile background
+scheduling makes the privacy and reliability concerns most acute, but the same
+practices apply to desktop and full-node wallets.</p>
+
+<p>Because a pool-crossing transfer reveals the migrated amount on-chain, directly
+sending from one pool to another can reveal the wallet balance. A naive
+migration risks linking transfers to a single wallet and to the user&#8217;s
+activity, again potentially revealing balance, and also risking that migration
+transactions could be linked to personally identifying information such as IP
+addresses. To mitigate this, wallets should decompose the balance into
+notes with values drawn from a fixed set of denominations, which may then
+be sent across the turnstile as multiple
+transactions submitted to the chain over time using a network anonymity layer.
+In order to avoid linking transactions via anchor selection, proofs are made
+and updated against anchors drawn from shared, network-wide boundary heights,
+forming cohorts that mix many wallets and de-correlate transfers from when the
+user opens the application.</p>
+
+<p>The migration runs as a two-phase process: a note-preparation phase followed by
+a scheduled transaction-creation phase. Migration transactions are pre-signed,
+persisted, and then have their proofs updated and are broadcast by best-effort
+background tasks, with a fallback that prompts the user on the next application
+open when a scheduled window is missed. Synchronization is kept decoupled in
+time from broadcast. This ZIP also specifies user-consent, network-privacy,
+progress-reporting, and error-handling requirements.</p>
+
+<h1 id="motivation"><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>The <em>Ironwood pool</em>, introduced by the NU6.3 network upgrade <a href="#fn:9" title="see footnote" class="footnote"><sup>9</sup></a>,
+enables verification of the Zcash shielded supply after NU6.2 mitigated a
+soundness flaw in the Orchard circuit
+<a href="#fn:10" id="fnref:10" title="see footnote" class="footnote"><sup>10</sup></a>. To that end, NU6.3 enables a
+rule that disables ordinary payments within the old <em>Orchard pool</em> while
+still permitting change <a href="#fn:11" id="fnref:11" title="see footnote" class="footnote"><sup>11</sup></a>; therefore, wallets are required to
+add functionality to migrate Orchard funds to the <em>Ironwood pool</em>.</p>
+
+<p>Migrating funds between shielded pools is fundamentally different from spending
+within a single pool. Within a pool, both balances and the relationships
+between transactions remain private; a pool-crossing transfer, however,
+necessarily reveals the net amount crossing between the pools on-chain
+<a href="#fn:8" title="see footnote" class="footnote"><sup>8</sup></a>, so the only privacy levers available to a wallet are the shape of
+the amounts it migrates and the timing of their broadcast. If a wallet
+migrates a user&#8217;s entire balance in a single transaction, that amount, its
+timing, and (via network-layer metadata) potentially the user&#8217;s IP address are
+all exposed at once, and the transfer can be correlated with the wallet&#8217;s other
+activity.</p>
+
+<p>ZIP 315 <a href="#fn:7" title="see footnote" class="footnote"><sup>7</sup></a> already establishes that the user&#8217;s consent is needed to
+reveal amounts publicly, and that wallets should minimize pool crossing. A mass
+migration event is a case where many users perform pool-crossing transfers in a
+relatively short window. This both creates an opportunity (many simultaneous
+migrations form an anonymity set) and a risk, because an observer who can
+distinguish one user&#8217;s transfers from the crowd learns a great deal.</p>
+
+<p>A precedent exists in ZIP 308 <a href="#fn:1" title="see footnote" class="footnote"><sup>1</sup></a>, which defined a privacy-preserving
+procedure for the Sprout-to-Sapling migration by sending a bounded amount per
+period and hiding individual migration transactions among those of all migrating
+users. This ZIP adapts that idea to the light-client setting, where the wallet
+does not run a full validator, scheduling is constrained by mobile operating
+systems, and synchronization happens against a light wallet server whose operator
+is a potential observer. The security analysis of migration strategies is subtle,
+and the more obvious strategies leak significant information; this document
+records the analysis behind the chosen strategy, including several rejected
+alternatives (see <a href="#alternatives">Alternatives</a>).</p>
+
+<p>The goal of this ZIP is therefore to document how a light client wallet SHOULD
+perform the Orchard-to-Ironwood migration so that, by default, individual
+transfers are as hard as practical to correlate to a specific wallet or to the
+user&#8217;s behaviour, while still completing the migration reliably and giving the
+user enough information to consent to any residual information leakage. The
+separate NU6.3 routing change — that new payments to Orchard receivers (inside
+existing unified addresses) are sent via the <em>Ironwood pool</em> <a href="#fn:11" title="see footnote" class="footnote"><sup>11</sup></a> — is a
+general send-path concern and is out of scope, although the migration
+destination is the same <em>Ironwood</em> receiver.</p>
+
+<h1 id="requirements"><span class="section-heading">Requirements</span><span class="section-anchor"> <a rel="bookmark" href="#requirements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<ul>
+<li><p>The user can migrate <em>Orchard-pool</em> funds to the <em>Ironwood pool</em>, and is
+informed that using a privacy preserving migration method is necessary for
+the user to be able to preserve the privacy of transaction amounts when
+spending Orchard funds.</p></li>
+<li><p>Before any funds leave the <em>Orchard pool</em>, the wallet obtains the user&#8217;s consent
+to the public revelation of pool-crossing amounts, consistent with
+ZIP 315. <a href="#fn:7" title="see footnote" class="footnote"><sup>7</sup></a></p></li>
+<li><p>All <em>Orchard-pool</em> funds, except a residual value, are eventually transferred
+to the <em>Ironwood pool</em>.</p></li>
+<li><p>The migration process, by default, preserves the following privacy
+invariants, to the extent practical on the target platform:</p></li>
+<li><p> <strong>Transfer unlinkability.</strong> An observer cannot cluster the migration
+transactions of a single wallet — by value, structure, anchor, expiry, or
+timing — into a per-wallet set.</p></li>
+<li><p> <strong>Behavioural de-correlation.</strong> Broadcasts of migration transactions are
+de-correlated from the user&#8217;s interaction with the application and from wallet
+synchronization, so that transfers reveal neither when the user opens the
+application nor when the wallet has synchronized.</p></li>
+<li><p> <strong>Balance privacy.</strong> Neither any single transfer nor the observable set of
+transfers reveals any wallet&#8217;s total <em>Orchard-pool</em> balance.</p></li>
+<li><p> <strong>Note-distribution privacy.</strong> The migration does not reveal the
+distribution of individual note values held by the wallet.</p></li>
+<li><p> <strong>Holdings-concentration privacy.</strong> The migration does not reveal the
+number of users that hold funds in the <em>Orchard pool</em> or how funds are
+distributed between those users' holdings.</p></li>
+<li><p> <strong>Migration-status privacy.</strong> A chain-observing adversary who knows the
+values of notes a wallet has received — including an adversary who has
+deliberately targeted a victim by sending notes of attacker-chosen
+values — cannot determine whether or when the wallet has migrated those
+funds.</p></li>
+<li><p>The user can authorize the migration in a small number of signing sessions —
+a single session for typical balances and note distributions. Additional
+sessions are needed only when multi-layer note preparation is required and
+the wallet does not pre-sign the layers as a chain; this affects wallets
+holding very many notes and wallets with very large balances identically.</p></li>
+<li><p>The migration completes reliably even when best-effort background scheduling does
+not run, without requiring the user to keep the application in the foreground.</p></li>
+<li><p>Before the migration begins, the user is given an informed choice about
+network-layer privacy options (Tor, VPN, or Nym).</p></li>
+<li><p>The wallet reports migration progress, and does not present the fallback
+(prompting on the next application open) as an error.</p></li>
+<li><p>The migration adapts safely when the user spends <em>Orchard-pool</em> funds outside the
+migration, when scheduled transactions expire, or when the application is
+reinstalled.</p></li>
+</ul>
+
+<h1 id="non-requirements"><span class="section-heading">Non-requirements</span><span class="section-anchor"> <a rel="bookmark" href="#non-requirements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>The following are explicitly <strong>not</strong> requirements of this flow:</p>
+
+<ul>
+<li><p><strong>Statelessness.</strong> The migration is permitted to rely on locally persisted
+state (the migration schedule and pre-signed transactions). It is not required
+to be reconstructible from on-chain data alone. (The tradeoff against a
+stateless, chain-recoverable design is discussed in
+<a href="#rationaleforthestatefuldesign">Rationale for the stateful design</a>.)</p></li>
+<li><p><strong>Multi-device and recovery continuity.</strong> A migration in progress is not
+required to be resumable on another device, nor after restoring from seed on a
+new device. A wallet that detects unspent <em>Orchard-pool</em> funds after such a
+restore may treat the situation as requiring a fresh migration.</p></li>
+<li><p><strong>Guaranteed background execution.</strong> Background scheduling is best-effort.
+Wallets are not required to guarantee that any transfer is broadcast without the
+user ever opening the application.</p></li>
+<li><p><strong>Network-layer anonymity.</strong> Network-layer anonymity (for example, Tor) is
+offered as an opt-in but is not mandated; the user MAY proceed without it but
+this option should not be recommended except in cases where the user is
+confident in the privacy provided by the attached lightwalletd server, e.g.
+Tor should not be required if the user connects to their own private
+lightwalletd.</p></li>
+<li><p><strong>Provably leak-free migration.</strong> The procedure does not have to provably leak
+no information; migration transactions need only be hidden among the population
+of canonical-shaped <em>Orchard</em>→<em>Ironwood</em> spends (see
+<a href="#rationaleforthecanonicaltransactionshape">Rationale for the canonical transaction shape</a>),
+and a small residual amount is left unmigrated.</p></li>
+</ul>
+
+<h1 id="specification"><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<h2 id="overviewtwo-phasearchitecture"><span class="section-heading">Overview, two-phase architecture</span><span class="section-anchor"> <a rel="bookmark" href="#overviewtwo-phasearchitecture"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>A wallet performing a privacy-preserving migration SHOULD implement it as two
+phases:</p>
+
+<ol>
+<li><p><strong>Note preparation</strong> (see <a href="#phase1notepreparation">Phase 1, Note preparation</a>):
+quantization of the migratable balance into canonical denominations, followed
+by one or more wallet-internal send-to-self transactions that restructure the
+<em>Orchard-pool</em> balance into notes that exactly fund the planned migration
+transactions.</p></li>
+<li><p><strong>Scheduled migration transactions</strong> (see
+<a href="#phase2scheduledmigrationtransactions">Phase 2, Scheduled migration transactions</a>):
+pre-signed pool-crossing transfers, each transferring a canonical denomination
+at a scheduled broadcast height with a boundary anchor, broadcast by
+best-effort background tasks.</p></li>
+</ol>
+
+<p>A wallet MAY offer an immediate single-transfer migration in addition to the
+privacy-preserving flow (see
+<a href="#migrationentrypointanduserconsent">Migration entry point and user consent</a>),
+but it SHOULD present the privacy trade-off of doing so.</p>
+
+<h2 id="migrationentrypointanduserconsent"><span class="section-heading">Migration entry point and user consent</span><span class="section-anchor"> <a rel="bookmark" href="#migrationentrypointanduserconsent"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>When a wallet detects a non-zero confirmed-spendable <em>Orchard-pool</em> balance
+once the NU6.3 network upgrade is scheduled or has activated, it SHOULD surface
+a dedicated migration entry point. (Surfacing the entry point before activation
+allows note preparation to begin early; see
+<a href="#phase1notepreparation">Phase 1, Note preparation</a>.)</p>
+
+<ul>
+<li><p>The entry point MUST display the <em>Orchard-pool</em>-specific balance at risk.</p></li>
+<li><p>The wallet SHOULD offer the user a choice between:</p></li>
+<li><p> <strong>Migrate immediately</strong>: a single pool-crossing transfer with no delay and
+minimal privacy; and</p></li>
+<li><p> <strong>Migrate with privacy</strong>: the scheduled, quantized approach specified below.</p></li>
+<li><p>Before any funds leave the <em>Orchard pool</em>, the wallet MUST present the full
+proposed migration schedule and obtain the user&#8217;s confirmation. This
+confirmation constitutes the user&#8217;s consent, required by ZIP 315 <a href="#fn:7" title="see footnote" class="footnote"><sup>7</sup></a>, to
+the public revelation of the pool-crossing amounts.</p></li>
+<li><p>Once the schedule is confirmed, individual transfers within it SHOULD be
+broadcast automatically when their scheduled broadcast height arrives, and
+SHOULD NOT require separate per-transfer confirmation.</p></li>
+</ul>
+
+<p>To keep the choice tractable for users who may not know what is best, the wallet
+SHOULD minimize the number of privacy-tuning options exposed.</p>
+
+<h2 id="phase1notepreparation"><span class="section-heading">Phase 1, Note preparation</span><span class="section-anchor"> <a rel="bookmark" href="#phase1notepreparation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>Note preparation begins with <strong>amount selection</strong>: quantization of the
+migratable balance into the canonical denominations that the Phase 2 migration
+transactions will transfer. Quantization is necessarily the first step,
+because the note-preparation transactions cannot be constructed without
+knowing the exact note values they must produce.</p>
+
+<h3 id="amountselectioncanonicalquantization"><span class="section-heading">Amount selection, canonical quantization</span><span class="section-anchor"> <a rel="bookmark" href="#amountselectioncanonicalquantization"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>The migratable <em>Orchard-pool</em> balance MUST be decomposed into a set of migration
+transactions, each transferring a single denomination. It is RECOMMENDED that
+the denominations be selected by <strong>canonical quantization</strong> rather than by
+random or arbitrary sizing. Canonical denominations collide across wallets
+and resist leaking information that can be used for wallet fingerprinting (see
+<a href="#whyvaluecollisionprovidesprivacy">Why value collision provides privacy</a>).
+A wallet MAY use a different amount-selection strategy provided it achieves the
+same effect, namely that migrated amounts collide across the migrating population
+rather than fingerprinting the wallet. Random arbitrary amounts do not achieve
+this and are a rejected alternative (see
+<a href="#alternatives">Alternatives</a>).</p>
+
+<ul>
+<li><p>Permitted denominations are the values <span class="math">\(v = n \times 10^k\)</span> ZEC with
+<span class="math">\(n \in \{1, 2, 5\}\)</span> and <code>MAX_RESIDUAL_VALUE</code> <span class="math">\(\le v &lt;\)</span> <code>DENOM_CAP</code>, where:</p></li>
+<li><p> <code>MAX_RESIDUAL_VALUE</code>, the smallest permitted denomination, is
+<strong>0.01 ZEC</strong>; the portion of the balance smaller than this value should not
+be decomposed and is left unmigrated as the residual.</p></li>
+<li><p> <code>DENOM_CAP</code> is <strong>10000 ZEC plus the canonical fee</strong>, making
+<strong>10000 ZEC</strong> the largest pool-crossing denomination; equivalently,
+<code>DENOM_CAP</code> caps the funding-note values (denomination plus fee) produced
+by note preparation.</p></li>
+<li><p>The balance is decomposed by <strong>decimal digit expansion</strong> of the integer- and
+fractional-ZEC digits, each digit expanding greedily into parts drawn from
+<span class="math">\(\{5, 2, 1\}\)</span> times its place value (so a digit of 9 yields <code>5, 2, 2</code>; 8
+yields <code>5, 2, 1</code>; 7 yields <code>5, 2</code>; 6 yields <code>5, 1</code>; 4 yields <code>2, 2</code>; 3
+yields <code>2, 1</code>). Value in places above the largest denomination is decomposed
+into repeated maximal-denomination (10000 ZEC) parts. For example:</p></li>
+</ul>
+
+<pre><code class="```">  123.45  ZEC -&gt; [100, 20, 2, 1, 0.2, 0.2, 0.05]
+  540     ZEC -&gt; [500, 20, 20]
+  25000   ZEC -&gt; [10000, 10000, 5000]
+
+</code></pre>
+
+<ul>
+<li><p>The baseline quantization is a <strong>pure, deterministic function of the
+balance</strong>: there is no rare, high-entropy &#8220;remainder&#8221; output. Every emitted
+denomination is canonical and therefore collision-prone across wallets,
+whether the decomposition is deterministic or randomized (below). This is the
+key privacy property (see <a href="#privacyimplications">Privacy Implications</a>).</p></li>
+<li><p>A wallet MAY randomize the decomposition for improved balance hiding,
+substituting smaller denominations for the greedy choice. At each selection
+step the available options are the denominations <span class="math">\(n \times 10^k\kern-0.05em\textsf{,}\)</span> for the
+magnitude <span class="math">\(10^k\)</span> of the value remaining, that do not exceed that value.
+Smaller denominations SHOULD be chosen with low frequency so that expected
+part counts stay small; provisionally: where all of
+<span class="math">\(\{1, 2, 5\} \times 10^k\)</span> are available, <span class="math">\(1 \times 10^k\)</span> is chosen with 10%
+frequency and <span class="math">\(2 \times 10^k\)</span> with 25% frequency (<span class="math">\(5 \times 10^k\)</span>
+otherwise); where only <span class="math">\(\{1, 2\} \times 10^k\)</span> are available, <span class="math">\(1 \times 10^k\)</span>
+is chosen with 25% frequency. Randomization changes only which canonical
+denominations are emitted, never the values themselves.</p></li>
+<li><p>A wallet SHOULD exclude any preexisting unspent notes that already have quantized
+values from the computation of balance to be migrated; this situation can arise from
+a migration that is resumed after a wallet restore and such notes can be used in
+a Migration Transaction directly.</p></li>
+<li><p>The quantization leaves a deterministic residual of less than
+<code>MAX_RESIDUAL_VALUE</code> (the balance modulo the smallest denomination)
+unmigrated; this residual remains in the <em>Orchard pool</em> at the end of the
+migration. Notes individually smaller than <code>MAX_RESIDUAL_VALUE</code> are
+nonetheless migratable, because note preparation may combine them; whether
+consuming a given small note is economic is a ZIP 317 marginal-fee
+consideration. <a href="#fn:12" id="fnref:12" title="see footnote" class="footnote"><sup>12</sup></a></p></li>
+</ul>
+
+<p>The fee for each part is in addition to its denomination (the visible
+Orchard-out value of a part is its denomination plus the canonical fee;
+equivalently the <em>Ironwood</em> output equals the denomination). Each part is
+funded by a single note of exactly this value, produced by note preparation.</p>
+
+<h3 id="notepreparationtransactions"><span class="section-heading">Note preparation transactions</span><span class="section-anchor"> <a rel="bookmark" href="#notepreparationtransactions"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>A migration transaction spends exactly one <em>Orchard-pool</em> note (see
+<a href="#canonicalmigrationtransactionstructure">Canonical migration transaction structure</a>).
+The purpose of the note-preparation transactions is to ensure that a note of
+exactly the right value exists for every part of the schedule, so that every
+part can be funded independently of the others and the entire schedule can be
+pre-signed at once. After NU6.3, anchors are no longer committed to by signature
+digests and therefore migration transactions may be signed as soon as preparation
+transactions that construct the notes being spent have been constructed. Only the
+proving step requires that the funding notes have been mined and that a candidate
+boundary anchor exists (see
+<a href="#anchor-heightbucketingandcohorts">Anchor-height bucketing and cohorts</a>).
+Whether preparation divides larger notes into smaller ones, combines smaller
+notes into larger ones, or both, is purely a function of the wallet&#8217;s existing
+note distribution, and the distinction is not visible on-chain (see
+<a href="#rationaleforthecanonicaltransactionshape">Rationale for the canonical transaction shape</a>).</p>
+
+<ul>
+<li><p>Note preparation MUST be implemented as one or more wallet-internal
+send-to-self transactions with no external receiver.</p></li>
+<li><p>For mobile wallets, proving time is a concern. For that reason, and also for
+indistinguishability, Note preparation transactions SHOULD be constructed
+such that each preparation transaction contains exactly
+16 Orchard actions, padding if necessary to reach this threshold. Because a
+bundle&#8217;s action count is the sum of its spends and outputs (each is paired
+with a fabricated counterpart under NU6.3), a 16-action transaction can
+consume and produce at most 16 notes in total — for example, 15 spends and
+one output when consolidating, or one spend and 15 outputs when splitting.</p></li>
+<li><p>The output notes of preparation are determined by the quantization above:
+one note per scheduled part, valued at exactly that part&#8217;s denomination plus
+the canonical fee, together with at residual notes with cumulative value less than
+<code>MAX_RESIDUAL_VALUE</code>.</p></li>
+<li><p>Where the number of notes involved exceeds what a single 16-action
+transaction can accommodate, preparation SHOULD be partitioned into multiple
+transactions with disjoint input notes wherever possible, so that the
+transactions can confirm in parallel rather than chaining through one
+another&#8217;s outputs.</p></li>
+<li><p>Partitioning with disjoint inputs is not always possible: a funding note
+that must combine value from more notes than one transaction can spend
+(consolidation), or a large note that must be divided into more funding
+notes than one transaction can produce (splitting), requires preparation to
+proceed in <strong>layers</strong>, with later preparation transactions spending the
+outputs of earlier ones. While all layers MAY be constructed and signed in
+a single session, each layer can be proved and broadcast only after the
+previous layer&#8217;s outputs have been mined and witnessed, so each layer
+extends the preparation phase by mining and witness-synchronization latency
+— a handful of blocks, not an anchor-height bucket, since preparation
+transactions anchor at the wallet&#8217;s ordinary near-tip depth (see below).
+The number of layers required is logarithmic in the number of notes
+consumed or produced, with base approximately 15 (the per-transaction
+fan-in or fan-out).</p></li>
+<li><p>On-chain, layered splitting and layered consolidation are indistinguishable
+from each other and from parallel preparation of the same transaction
+count: preparation values and direction are fully shielded, so a
+large-balance wallet dividing a single note and a wallet consolidating many
+small notes present the same observable footprint (see
+<a href="#rationaleforthecanonicaltransactionshape">Rationale for the canonical transaction shape</a>).</p></li>
+<li><p>A note-preparation transaction SHOULD anchor at the wallet&#8217;s ordinary
+near-tip anchor depth (a small number of confirmations below the chain tip
+observed at proving time), <strong>not</strong> at a bucketed boundary height. The
+boundary-anchor machinery exists to protect the pool-crossing migration
+transactions, whose crossing values are public: their anchors must not
+reveal when a particular wallet synchronized. A preparation transaction is
+a fully shielded send-to-self — its values, direction, and linkage are
+hidden — so its anchor reveals only that some wallet recently synchronized,
+which broadcasting any transaction already reveals. Using the ordinary
+anchor keeps preparation proofs identical to those of routine shielded
+spends and lets successive layers proceed without waiting out boundary
+intervals.</p></li>
+<li><p>The broadcasts of a wallet&#8217;s preparation transactions SHOULD be temporally
+decoupled from one another: the delay from each preparation transaction to
+the next is drawn (using a CSPRNG) from an exponential distribution with
+mean <code>PREP_MEAN_DELAY</code> (<strong>24 blocks</strong>, about thirty minutes at 75-second
+block spacing), rounded to the nearest whole number of blocks, with any
+draw exceeding <code>PREP_MAX_DELAY</code> (<strong>96 blocks</strong>, about two
+hours) discarded and redrawn; a later layer&#8217;s schedule begins after the
+previous layer&#8217;s last scheduled transaction plus a small mining margin.
+Although preparation values are fully shielded, a burst of identically
+shaped padded transactions appearing at a single moment is itself a
+linkable cluster — by shape and timing — and such a burst would also
+visibly precede the wallet&#8217;s scheduled transfers. The much tighter spacing
+relative to the transfers' <code>MEAN_DELAY</code> is possible precisely because no
+anchor bucketing constrains preparation, and keeps the preparation phase
+short while preventing the cluster.</p></li>
+<li><p>If the wallet&#8217;s existing notes already exactly fund every planned part, note preparation MAY
+be skipped.</p></li>
+<li><p>Note preparation MAY be performed at any time after the user initiates the
+migration, including before the network upgrade that activates the
+<em>Ironwood pool</em> has finalized.</p></li>
+<li><p>The wallet MUST wait until the boundary that closes the anchor-height bucket
+in which a note-preparation transaction was mined has passed before treating
+its output notes as available to fund the Phase 2 migration transactions.
+This is implied by the candidate anchor set (see
+<a href="#anchor-heightbucketingandcohorts">Anchor-height bucketing and cohorts</a>):
+no boundary at or after the notes' creation exists any earlier. Spending the
+notes <em>across the turnstile</em> sooner would require anchoring to a non-boundary
+tree state between the preparation transaction and the next boundary, making
+it possible for a lightwalletd-compromising adversary to correlate a user&#8217;s
+synchronization behaviour (attached to a public IP address) with the anchor
+selected by their wallet. This constraint applies only to the pool-crossing
+spends: a later <em>preparation</em> layer may spend the notes as soon as they are
+mined and witnessed, per the ordinary-anchor rule above.</p></li>
+</ul>
+
+<h2 id="phase2scheduledmigrationtransactions"><span class="section-heading">Phase 2, Scheduled migration transactions</span><span class="section-anchor"> <a rel="bookmark" href="#phase2scheduledmigrationtransactions"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<h3 id="canonicalmigrationtransactionstructure"><span class="section-heading">Canonical migration transaction structure</span><span class="section-anchor"> <a rel="bookmark" href="#canonicalmigrationtransactionstructure"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Each migration transaction SHOULD have:</p>
+
+<ul>
+<li>exactly one <em>Orchard</em> spend, with the Orchard bundle padded to exactly two
+actions, so that the presence or absence of an <em>Orchard</em> change output is not
+observable;</li>
+<li>exactly one <em>Ironwood</em> output, whose value is a single canonical denomination,
+in a single-action <em>Ironwood</em> bundle with no padding action (see
+<a href="#rationaleforthecanonicaltransactionshape">Rationale for the canonical transaction shape</a>);</li>
+<li>no transparent inputs or outputs;</li>
+<li>no spends from any pool other than <em>Orchard</em>;</li>
+<li>the canonical fee (provisionally the ZIP 317 minimum fee) <a href="#fn:12" title="see footnote" class="footnote"><sup>12</sup></a>;</li>
+<li>the canonical anchor described in
+<a href="#anchor-heightbucketingandcohorts">Anchor-height bucketing and cohorts</a> and
+the canonical expiry height described below;</li>
+<li><code>lock_time = 0</code>;</li>
+<li>no nonstandard fee amount or any other outputs (this would partition the
+anonymity set between wallets that add such outputs and those that do not).</li>
+</ul>
+
+<p>The canonical expiry height is computed from the transaction&#8217;s scheduled
+broadcast height: take the most recent height at or below it that
+<code>EXPIRY_MODULUS</code> (the number of blocks corresponding to 30 days, 34560 blocks at 75-second block
+spacing) divides without remainder, and add 2 × <code>EXPIRY_MODULUS</code>
+(69120 blocks): a rolling window that guarantees every transaction between one
+and two months of validity from its scheduled broadcast. Unlike the anchor,
+the expiry height is committed by the transaction digest <a href="#fn:3" title="see footnote" class="footnote"><sup>3</sup></a> and is
+therefore fixed when the schedule is signed; because the schedule precomputes
+every broadcast height (see <a href="#transferscheduling">Transfer scheduling</a>), the
+expiry is nonetheless known at signing time. The bucketed rule makes the
+committed value identical for every migration transaction — from any wallet —
+whose scheduled broadcast falls within the same 30-day period, so an expiry
+height reveals only the coarse period in which its broadcast was scheduled,
+information the broadcast itself substantially makes public. (Deriving the
+expiry from the construction height instead would reveal the otherwise
+unobservable period in which the wallet&#8217;s schedule was created, and would
+deny the late parts of a long schedule their full validity window, forcing
+needless rebuilds.) For example, NU6.3 activates at Mainnet height 3428143, so every
+migration transaction scheduled for broadcast before height 3456000 has
+expiry height 3490560, and one scheduled between heights 3456000 and 3490559
+has expiry height 3525120. Parts still unbroadcast when their expiry height
+is reached are rebuilt with a fresh anchor and expiry (see
+<a href="#errorhandling">Error handling</a>).</p>
+
+<p>This strict, uniform structure serves two audiences. To an observer, it makes
+every migration transaction structurally identical both to every other
+migration transaction and to an ordinary manually created <em>Orchard</em>→<em>Ironwood</em>
+spend, and it hides whether a change output is present (see
+<a href="#rationaleforthecanonicaltransactionshape">Rationale for the canonical transaction shape</a>).
+To the wallet that created it, the same structure serves as a canonical
+migration-transaction predicate for chain-based status recovery, with
+disambiguation from other conforming transactions provided by viewing-key
+information that an observer lacks: whether the <em>Ironwood</em> output belongs to
+the wallet&#8217;s own account, and whether its value is a canonical denomination.</p>
+
+<h3 id="anchor-heightbucketingandcohorts"><span class="section-heading">Anchor-height bucketing and cohorts</span><span class="section-anchor"> <a rel="bookmark" href="#anchor-heightbucketingandcohorts"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<ul>
+<li><p>The anchor height of each migration transaction MUST be a shared,
+network-wide boundary height, rather than a value derived from the wallet&#8217;s
+own chain tip, so that the anchor does not reveal precisely when this wallet
+last synchronized.</p></li>
+<li><p>Buckets are delimited by <strong>boundaries</strong>: blocks whose height is
+<span class="math">\(\equiv 0 \pmod{M}\kern-0.05em\textsf{,}\)</span> with <span class="math">\(M\)</span> provisionally <code>144</code>, equal to <code>MEAN_DELAY</code>. At
+the current target block spacing of 75 seconds, a boundary occurs every
+<span class="math">\(144 \times 75\,\text{s} = 3\)</span> hours. A longer interval concentrates
+migration transactions onto fewer shared anchors, enlarging per-anchor
+cohorts. <code>EXPIRY_MODULUS</code> (34560 blocks) is an exact multiple of <span class="math">\(M\)</span> (240
+buckets), so expiry buckets align with anchor buckets.</p></li>
+<li><p>Each migration transaction MUST take, as its <em>Orchard</em> anchor, the tree
+state as of a boundary drawn from the <strong>candidate anchor set</strong>: those
+boundaries that are above the NU6.3 activation height, at or after the
+height at which the transaction&#8217;s funding note was created, and at or
+before the most recent boundary the wallet has observed at proving time. An
+anchor therefore reveals only that its creator had scanned beyond that
+boundary at <em>some</em> time before broadcast, and sharing it does <strong>not</strong> link
+a wallet&#8217;s transactions to one another (see
+<a href="#rationaleforanchorselection">Rationale for anchor selection</a>).</p></li>
+<li><p>The draw MUST be recency-weighted: the anchor&#8217;s age <span class="math">\(a \geq 1\kern-0.05em\textsf{,}\)</span> measured in
+boundaries before the most recent boundary the wallet has observed at
+proving time, is drawn (using a CSPRNG) from a geometric distribution with
+parameter <strong>1/2</strong> — so the most recent boundary is never used, the most
+probable age is one boundary, and the mean age is two boundaries (about six
+hours). A draw exceeding <code>ANCHOR_AGE_CAP</code> (provisionally <strong>16 boundaries</strong>,
+about two days) or falling outside the candidate set MUST be discarded and
+redrawn; equivalently, the distribution is truncated to the candidate set.</p></li>
+<li><p>The set of all migration transactions sharing a boundary anchor forms a
+<strong>cohort</strong>. A wallet MAY contribute several migration transactions to the
+same cohort (multiplicity <span class="math">\(k \geq 1\kern-0.15em\)</span> ), because all denominations are
+canonical and therefore not attributable to a single wallet by their values
+(see <a href="#onmultiplicityandcohorts">On multiplicity and cohorts</a>).</p></li>
+</ul>
+
+<h3 id="transferscheduling"><span class="section-heading">Transfer scheduling</span><span class="section-anchor"> <a rel="bookmark" href="#transferscheduling"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>The schedule is constructed in <strong>block deltas</strong>: starting from the height at
+which the schedule is committed (lower-bounded so that every part can anchor;
+see below), the wallet assigns each part a scheduled broadcast height by
+advancing a running height by an independently drawn delay per part, so that a
+wallet&#8217;s broadcasts approximate a Poisson process.</p>
+
+<ul>
+<li><p>The wallet MUST first shuffle the quantized parts into a uniformly random
+order, so that the temporal sequence of denominations a wallet emits is not
+a predictable function of its balance (for example, a largest-first
+ordering would let an observer infer migration progress from any part it
+could attribute, and would make the sequence predictable to a targeted
+adversary who knows the balance).</p></li>
+<li><p>The delay to each successive migration transaction MUST be drawn from an
+exponential distribution with rate <span class="math">\(\lambda = 1 /\)</span> <code>MEAN_DELAY</code>, so that the
+expected delay is <code>MEAN_DELAY</code> (provisionally <strong>144 blocks</strong>, about three
+hours at 75-second block spacing), rounded to a whole number of blocks; any
+draw exceeding <code>MAX_DELAY</code> (provisionally <strong>576 blocks</strong>, about twelve
+hours) MUST be discarded and redrawn.</p></li>
+<li><p>The schedule MUST place every migration transaction at a scheduled height
+whose candidate anchor set (see
+<a href="#anchor-heightbucketingandcohorts">Anchor-height bucketing and cohorts</a>) is
+non-empty, so that no transaction can ever lack a valid boundary to anchor
+to and no fallback anchor-selection rule is needed. Concretely, the running
+height from which the delays accumulate MUST start no earlier than one full
+bucket interval past the lowest candidate boundary — the first boundary
+strictly above the NU6.3 activation height and at or after the estimated
+creation height of the funding notes (the last scheduled note-preparation
+transaction plus a small mining margin). Lower-bounding the starting height,
+rather than clamping individual transactions, preserves the drawn
+inter-arrival gaps and hence the schedule&#8217;s Poisson character.</p></li>
+<li><p>All randomness used in scheduling — the shuffle, the delay draws, and the
+anchor-age draws — and in the randomized decomposition of
+<a href="#amountselectioncanonicalquantization">Amount selection, canonical quantization</a>
+MUST be generated by a cryptographically secure random number generator.</p></li>
+<li><p>The wallet MUST propose the complete schedule to the user before any
+transfer is sent, obtaining confirmation of the whole schedule (see
+<a href="#migrationentrypointanduserconsent">Migration entry point and user consent</a>).</p></li>
+<li><p>Each migration transaction takes a canonical anchor drawn from the
+recency-weighted distribution over the candidate anchor set (see
+<a href="#anchor-heightbucketingandcohorts">Anchor-height bucketing and cohorts</a>).
+Because the version 6 transaction format commits the anchor as authorizing
+data rather than in the signature hash <a href="#fn:3" title="see footnote" class="footnote"><sup>3</sup></a>, the wallet can attach
+or update a pre-signed transaction&#8217;s anchor and proof without re-signing.</p></li>
+<li><p>Whenever the application is granted background processing time, the wallet
+SHOULD synchronize and construct the proofs of upcoming scheduled
+transactions, drawing each transaction&#8217;s anchor from the candidate anchor
+set as observed at proving time, but MUST NOT broadcast a migration
+transaction within the same background processing window in which a
+synchronization is performed (see
+<a href="#decouplingsynchronizationfrombroadcast">Decoupling synchronization from broadcast</a>).</p></li>
+<li><p>Spreading a wallet&#8217;s transfers over time with memoryless inter-transfer
+delays, and drawing each transfer&#8217;s anchor independently, are the primary
+means by which the wallet&#8217;s own transfers are kept from being linked to one
+another; distinct per-wallet anchor heights are <strong>not</strong> required, because a
+shared boundary anchor carries no per-wallet information.</p></li>
+</ul>
+
+<h3 id="pre-signedtransactionstorage"><span class="section-heading">Pre-signed transaction storage</span><span class="section-anchor"> <a rel="bookmark" href="#pre-signedtransactionstorage"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<ul>
+<li><p>Once the schedule is committed, migration transactions SHOULD be pre-signed and
+persisted, reusing the wallet&#8217;s existing transaction-resubmission storage
+mechanism where one exists.</p></li>
+<li><p>Under the version 6 transaction format, the anchor is committed as
+authorizing data rather than by the signature hash <a href="#fn:3" title="see footnote" class="footnote"><sup>3</sup></a>, so a
+pre-signed transaction&#8217;s anchor and proof can be updated at (or near)
+broadcast time without re-signing. This is what allows the entire schedule
+to be signed in a single session while each transaction carries a boundary
+anchor drawn from the shared candidate set (see
+<a href="#rationaleforanchorselection">Rationale for anchor selection</a>).</p></li>
+<li><p>If a stored transaction becomes invalid (for example, because its input notes
+were spent outside the migration, or it expired), the wallet MUST detect this
+and prompt the user to re-initiate the affected step (see
+<a href="#errorhandling">Error handling</a>).</p></li>
+</ul>
+
+<h3 id="backgroundscheduling"><span class="section-heading">Background scheduling</span><span class="section-anchor"> <a rel="bookmark" href="#backgroundscheduling"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<ul>
+<li><p>Background scheduling MUST be treated as best-effort. The operating system
+chooses the exact execution time within the requested window.</p></li>
+<li><p>A single background processing window MUST be used either to synchronize
+(updating the anchors and proofs of upcoming transactions) or to broadcast,
+never both (see
+<a href="#decouplingsynchronizationfrombroadcast">Decoupling synchronization from broadcast</a>).</p></li>
+<li><p>If a scheduled window is missed, the wallet MAY fall back to prompting the user
+on the next application open (see
+<a href="#fallbackonapplicationopen">Fallback on application open</a>).</p></li>
+</ul>
+
+<p>Platform-specific guidance is given in
+<a href="#platformconsiderations">Platform considerations</a>.</p>
+
+<h3 id="decouplingsynchronizationfrombroadcast"><span class="section-heading">Decoupling synchronization from broadcast</span><span class="section-anchor"> <a rel="bookmark" href="#decouplingsynchronizationfrombroadcast"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>A background session is defined as a period of time wherein the wallet is
+performing computation and network interaction decoupled from any
+user interaction with the wallet interface. While a background session
+and user interaction with the wallet interface may coincide, the wallet
+MUST NOT permit the user&#8217;s behavior to influence the execution of
+the background operations.</p>
+
+<ul>
+<li><p>The wallet MUST NOT perform a wallet synchronization in the same background
+session as a migration broadcast, because doing so would let an observer
+correlate the synchronization (which may leak wallet-identifying data) with the broadcast.</p></li>
+<li><p>Where a synchronization is needed, it MUST be separated in time from any
+broadcast. In the recommended flow migration transactions produce no
+<em>Orchard-pool</em> change, so the required synchronizations are the one that
+witnesses the notes produced by note preparation before the first scheduled
+send, and the routine background synchronizations that allow the proofs of
+upcoming transactions to be constructed (see
+<a href="#transferscheduling">Transfer scheduling</a>). A migration transaction that
+produces change in the <em>Orchard pool</em> (for example, one rebuilt during error
+recovery) requires the wallet to synchronize before that change can be spent;
+the wallet MUST schedule that synchronization decoupled in time from the
+broadcast of the next migration transaction.</p></li>
+</ul>
+
+<p>How a wallet determines when a synchronization is needed is implementation-defined.</p>
+
+<h3 id="fallbackonapplicationopen"><span class="section-heading">Fallback on application open</span><span class="section-anchor"> <a rel="bookmark" href="#fallbackonapplicationopen"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<ul>
+<li><p>On every application launch, the wallet MUST reconcile the scheduled broadcast
+times against the transfers actually completed, and MUST surface any overdue
+transfers. This on-launch reconciliation is the primary catch-up mechanism and
+MUST NOT rely on notification delivery.</p></li>
+<li><p>When the user is prompted to send overdue transfers, the wallet SHOULD disclose
+that sending them at application-open time correlates the broadcasts with the
+wallet&#8217;s sync activity, weakening the privacy of those transfers.</p></li>
+<li><p>The wallet MUST NOT send more than one overdue transfer at wallet open.
+While this may delay the migration of user funds, the alternative (sending
+multiple transactions with pool-crossing value within the same session)
+leaks balance.</p></li>
+<li><p>When a window is missed and the remaining transfers are rescheduled, the
+wallet SHOULD shift the remaining schedule by the offset, or redraw the
+delays of the remaining transfers.</p></li>
+<li><p>A slip of up to approximately two hours in which the background task eventually
+runs SHOULD be treated as normal operation and SHOULD NOT be surfaced as an
+error.</p></li>
+</ul>
+
+<h2 id="destination"><span class="section-heading">Destination</span><span class="section-anchor"> <a rel="bookmark" href="#destination"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<ul>
+<li>The destination of a migration MUST be the user&#8217;s internal change address in
+the <em>Ironwood pool</em>. Migration to the <em>Sapling pool</em> MUST NOT be offered or
+recommended as part of this flow.</li>
+</ul>
+
+<h2 id="network-layerprivacy"><span class="section-heading">Network-layer privacy</span><span class="section-anchor"> <a rel="bookmark" href="#network-layerprivacy"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>Before the schedule is committed, the wallet MUST present a network-privacy step.</p>
+
+<ul>
+<li><p>The wallet MUST offer Tor <a href="#fn:13" id="fnref:13" title="see footnote" class="footnote"><sup>13</sup></a> and (if available) Nym <a href="#fn:14" id="fnref:14" title="see footnote" class="footnote"><sup>14</sup></a> network
+options. When enabled, all migration transaction broadcasts MUST be routed
+through the selected network.</p></li>
+<li><p>If Tor and Nym are unavailable on the user&#8217;s network or region, the wallet
+SHOULD suggest using a trusted VPN before proceeding.</p></li>
+<li><p>The user MAY proceed without Tor, Nym, or a VPN; the choice is the user&#8217;s.</p></li>
+<li><p>The wallet MUST display a disclaimer explaining the IP-correlation risk:
+because pool-crossing transfers are visible on-chain, without network-level
+privacy a server or network operator can correlate the broadcasting IP
+address with the on-chain event; if IPs are reused, this may leak the
+total Orchard balance of the wallet to the server operator.</p></li>
+<li><p>Broadcasting migration transactions to a different server than the one used for
+synchronization MAY further reduce correlation, and a wallet MAY do so.</p></li>
+</ul>
+
+<h2 id="platformconsiderations"><span class="section-heading">Platform considerations</span><span class="section-anchor"> <a rel="bookmark" href="#platformconsiderations"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>This section is non-normative except where it restates requirements from
+<a href="#backgroundscheduling">Background scheduling</a> and
+<a href="#decouplingsynchronizationfrombroadcast">Decoupling synchronization from broadcast</a>.
+The flow applies to both iOS and Android; differences are noted where they affect
+implementation.</p>
+
+<h3 id="ios"><span class="section-heading">iOS</span><span class="section-anchor"> <a rel="bookmark" href="#ios"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<ul>
+<li>Background scheduling SHOULD use <em>BGTaskScheduler</em> with a background-processing
+task type suitable for longer work.</li>
+<li>A single task execution MUST either synchronize (updating anchors and
+proofs) or broadcast, never both.</li>
+<li>If the task does not run, the next application open MUST surface the fallback
+prompt.</li>
+</ul>
+
+<h3 id="android"><span class="section-heading">Android</span><span class="section-anchor"> <a rel="bookmark" href="#android"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<ul>
+<li>Background scheduling SHOULD use <em>WorkManager</em> with a flex interval aligned to
+the scheduled broadcast heights.</li>
+<li>A single Worker execution MUST either synchronize (updating anchors and
+proofs) or broadcast, never both.</li>
+<li>OEM battery-optimization behaviour (for example on MIUI or One UI) may suppress
+tasks even when permissions are granted; this is acknowledged as a known
+limitation. During onboarding the wallet SHOULD request a battery-optimization
+exemption to improve reliability, and MUST continue to function (relying on the
+on-launch fallback) if the exemption is denied.</li>
+<li>On every application launch, the wallet MUST reconcile whether a pending
+transfer is overdue and surface the fallback prompt if needed.</li>
+<li>WorkManager task persistence across reboots SHOULD be verified by the
+implementation; if a boot receiver is used to re-enqueue tasks, the relevant
+platform permission must be declared.</li>
+</ul>
+
+<h2 id="statusnotifications"><span class="section-heading">Status notifications</span><span class="section-anchor"> <a rel="bookmark" href="#statusnotifications"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<ul>
+<li><p>On a successful transfer, the wallet MAY show a notification.</p></li>
+<li><p>On a failed transfer, the wallet MUST surface the failure with the ability to
+retry. The retry affordance SHOULD lead to a self-contained screen that does not
+start a synchronization.</p></li>
+<li><p>Notification delivery SHOULD NOT be relied upon as the primary status mechanism;
+on-launch reconciliation is primary (see
+<a href="#fallbackonapplicationopen">Fallback on application open</a>).</p></li>
+<li><p>On platforms where notifications can be cleared by a reboot or suppressed by the
+OS or OEM managers (notably Android), the wallet MUST disclose that notification
+delivery is not guaranteed and MUST direct the user to return to the application
+to check progress.</p></li>
+</ul>
+
+<h2 id="progressvisibility"><span class="section-heading">Progress visibility</span><span class="section-anchor"> <a rel="bookmark" href="#progressvisibility"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>The wallet SHOULD report migration progress.</p>
+
+<h2 id="user-facingcopyrequirements"><span class="section-heading">User-facing copy requirements</span><span class="section-anchor"> <a rel="bookmark" href="#user-facingcopyrequirements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>Because background scheduling is best-effort, product copy SHOULD NOT describe the
+migration as automatic or guaranteed. The fallback of prompting on the next
+application open MUST be presented as a normal part of the flow, not as an error
+state.</p>
+
+<h2 id="errorhandling"><span class="section-heading">Error handling</span><span class="section-anchor"> <a rel="bookmark" href="#errorhandling"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>The wallet MUST handle at least the following conditions.</p>
+
+<ul>
+<li><p><strong>Transient broadcast failure (network unavailable).</strong> The stored pre-signed
+transaction MUST NOT be discarded. The task SHOULD retry within its window and
+rely on background backoff for the next window. If broadcast continues to fail,
+the on-launch fallback MUST offer the user the choice to send now or retry in
+the background.</p></li>
+<li><p><strong>Invalid transaction (input note already spent).</strong> If the user spends
+<em>Orchard-pool</em> funds outside the migration, a queued migration transaction may
+become invalid. The wallet MUST detect this (the detection condition is that
+the confirmed-spendable <em>Orchard-pool</em> balance is greater than zero while the
+next scheduled migration transaction is missing or invalid), MUST notify the
+user of the failure, and MUST construct a revised schedule for the remaining
+unspent balance using a fresh anchor. The screen that does so MUST be
+self-contained and MUST NOT trigger a synchronization. A rebuilt transaction
+MAY produce change in the <em>Orchard pool</em>: the canonical shape hides whether
+change is present, so this carries no privacy penalty, only the operational
+cost of a later synchronization to recover the change.</p></li>
+<li><p><strong>Expired transaction.</strong> A pre-signed transaction that reaches its expiry height
+<a href="#fn:15" id="fnref:15" title="see footnote" class="footnote"><sup>15</sup></a> before being broadcast MUST be detected on the next application open
+and handled in the same way as an invalid transaction: a new transaction with a
+fresh anchor and expiry is constructed for the affected part, with its
+denomination unchanged.</p></li>
+<li><p><strong>Canonical fee change.</strong> Exact-value funding notes bake the canonical fee
+into note values at preparation time. If the canonical fee changes between
+preparation and broadcast, the affected pre-signed parts no longer match the
+canonical structure and SHOULD be rebuilt (producing or consuming the difference
+as <em>Orchard-pool</em> change) or the remaining balance re-prepared. This carries
+no privacy penalty, but costs an additional confirmation round.</p></li>
+<li><p><strong>Negligible remaining balance.</strong> If, after the last scheduled transfer, only an
+amount below a significance threshold remains (for example, due to fee
+rounding), the wallet MAY treat the migration as complete and inform the user
+that a negligible amount remains. If the remaining amount is above
+<code>MAX_RESIDUAL_VALUE</code>, the wallet MAY add a final transfer. Wallets SHOULD
+apply the ZIP 317 marginal-fee considerations <a href="#fn:12" title="see footnote" class="footnote"><sup>12</sup></a> when deciding
+whether a residual note is economic to migrate.</p></li>
+<li><p><strong>Note-preparation transaction unconfirmed or failed.</strong> If the application is
+closed before a note-preparation transaction confirms, on re-open the wallet
+MUST report that it is waiting for confirmation and MUST proceed to scheduling
+once the preparation transactions confirm. If a preparation transaction
+expired, the wallet MUST offer to retry it. Where preparation was partitioned
+across multiple transactions, partial confirmation MUST be handled: parts
+funded by confirmed preparation outputs MAY proceed on schedule while the
+remainder waits.</p></li>
+<li><p><strong>Application reinstall or restore on a new device.</strong> On detecting unspent
+<em>Orchard-pool</em> funds with no local migration state, the wallet MAY treat the
+situation as requiring a fresh migration (already-confirmed transfers remain
+on-chain; only the remaining balance is rescheduled). See
+<a href="#non-requirements">Non-requirements</a>.</p></li>
+</ul>
+
+<h1 id="rationale"><span class="section-heading">Rationale</span><span class="section-anchor"> <a rel="bookmark" href="#rationale"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<h2 id="rationaleforthescheduledbackgroundapproach"><span class="section-heading">Rationale for the scheduled background approach</span><span class="section-anchor"> <a rel="bookmark" href="#rationaleforthescheduledbackgroundapproach"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>The chosen approach broadcasts migration transactions from best-effort background
+tasks at pre-determined, randomly drawn times that are de-correlated from the
+user&#8217;s interaction with the application. An alternative considered was a guided
+&#8220;on-open&#8221; approach, in which each transfer is created at the moment the user
+opens the application.</p>
+
+<p>The on-open approach was dismissed primarily because user-triggered sends leak too
+much information: the scan ranges a wallet requests from a light wallet server
+already link its notes to one user, and if each pool-crossing send also coincides
+with an application open, an observer can monitor the wallet across the entire
+migration. It also provides no temporal de-correlation, because every transfer is
+anchored to the moment of user interaction.</p>
+
+<p>The scheduled approach achieves temporal de-correlation in the common case. Its
+worst case (when no background task ever runs and the user sends everything on a
+single application open) is no worse than the on-open approach, while its best
+case is significantly better. Pre-signed transactions can be stored using existing
+transaction-resubmission infrastructure.</p>
+
+<h2 id="rationaleforpoissontransferscheduling"><span class="section-heading">Rationale for Poisson transfer scheduling</span><span class="section-anchor"> <a rel="bookmark" href="#rationaleforpoissontransferscheduling"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>This subsection is non-normative.</p>
+
+<p>Drawing inter-transfer delays from an exponential distribution makes the
+schedule memoryless: observing one of a wallet&#8217;s broadcasts gives an observer
+no information about when its next broadcast will occur, so there is no
+per-wallet timing signature to recover. Because the superposition of
+independent Poisson processes is itself a Poisson process, the aggregate
+traffic of all wallets following this schedule blends into a single pooled
+process from which no individual wallet&#8217;s contribution is separable by timing
+analysis. Shuffling the parts before scheduling extends the same property to
+values: the sequence of denominations a wallet emits is not a predictable
+function of its balance.</p>
+
+<p>The mean delay must not be short relative to the anchor-bucket interval. A
+schedule whose delays are much shorter than the bucket interval (for example,
+minutes) would compress a wallet&#8217;s entire migration into a tight, predictable
+window, and the burst itself would be a clustering signal. With <code>MEAN_DELAY</code>
+equal to the bucket modulus (<span class="math">\(M\)</span> = 144), a wallet&#8217;s broadcasts spread across
+many boundary intervals, and its transfers are distributed across several
+cohorts. Resampling draws above <code>MAX_DELAY</code> bounds the
+worst-case gap so that the migration completes in bounded time and canonical
+expiry windows remain practical, at a negligible cost in memorylessness at
+the tail.</p>
+
+<p>Delays are denominated in blocks rather than wall-clock time because bucket
+boundaries, anchors, and expiry heights are all block-denominated, and block
+height is what an on-chain observer measures.</p>
+
+<p>Routine background synchronization does not undermine the schedule&#8217;s
+de-correlation properties: a synchronization reveals to the light wallet
+server only that some wallet has synchronized past a given height, while a
+migration transaction&#8217;s anchor is the shared boundary anchor common to its
+entire cohort. Provided synchronization and broadcast never share a
+background processing window, the server learns nothing that correlates a
+specific synchronizing wallet with a specific migration transaction.</p>
+
+<p>The same reasoning applies, at a smaller scale, to the note-preparation
+broadcasts. Their values and direction are fully shielded, but a burst of
+identically shaped padded transactions appearing at a single instant is a
+shape-and-timing cluster attributable to one wallet, and such a burst also
+telegraphs that a migration schedule will follow it. Spacing the preparation
+broadcasts with a smaller-mean exponential (<code>PREP_MEAN_DELAY</code>) prevents the
+cluster from forming without materially delaying the migration: preparation
+is unconstrained by anchor buckets — its transactions anchor at the wallet&#8217;s
+ordinary near-tip depth — so its spacing serves only to break up the burst,
+not to place transactions into shared anchor cohorts.</p>
+
+<h2 id="rationaleforthestatefuldesign"><span class="section-heading">Rationale for the stateful design</span><span class="section-anchor"> <a rel="bookmark" href="#rationaleforthestatefuldesign"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>An attractive alternative is a
+<strong>stateless, chain-recoverable</strong> design: persist no scheduler state at all, and
+instead recover migration progress from the chain using the wallet&#8217;s viewing keys
+(identifying migration transactions by the canonical predicate) plus a
+deterministic re-computation of the quantization of the remaining balance. Because
+the quantization is a pure function of the balance, it recomputes identically on
+every activation and after restore-from-seed, which makes that design robust to
+restart and to multi-device restore.</p>
+
+<p>This unified proposal nonetheless adopts a <strong>stateful</strong> design (a persisted
+schedule plus pre-signed transactions) and treats statelessness and
+multi-device/recovery continuity as non-requirements (see
+<a href="#non-requirements">Non-requirements</a>). The reasons are:</p>
+
+<ul>
+<li>Persisted, pre-signed transactions make best-effort background broadcast
+practical, and make temporal de-correlation of broadcast from synchronization
+and from application opens straightforward to implement.</li>
+<li>Statelessness was judged to make the desired temporal de-correlation harder, not
+easier, while the robustness it buys (restart and restore continuity) is not
+required for this flow.</li>
+</ul>
+
+<p>The chain-recoverability property is not wasted: the canonical
+migration-transaction predicate of
+<a href="#canonicalmigrationtransactionstructure">Canonical migration transaction structure</a>
+still lets a wallet, using its viewing keys, reconstruct which denominations have
+confirmed, which is how
+the reinstall/restore case is handled as a fresh migration. The full stateless
+design is recorded as a rejected alternative (see
+<a href="#alternatives">Alternatives</a>).</p>
+
+<h2 id="rationaleforcanonicalamountselection"><span class="section-heading">Rationale for canonical amount selection</span><span class="section-anchor"> <a rel="bookmark" href="#rationaleforcanonicalamountselection"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>Privacy for value-transparent transfers comes from <strong>value collision</strong> (many
+wallets emitting the same amount) and <strong>ambiguity of grouping</strong> (an observer
+cannot tell which amounts belong together), not from unpredictability of the
+amount. A high-entropy random amount collides with no other wallet and is a
+near-unique fingerprint; a random partition into high-entropy pieces additionally
+exposes the balance to subset-sum reconstruction. Canonical
+denominations are therefore preferred precisely because they are <em>not</em> distinctive:
+many wallets emit identical denominations, so no single transfer is identifiable by
+its value, and a wallet MAY safely place several transfers in one cohort.
+Randomizing the <em>choice among canonical denominations</em> (see
+<a href="#amountselectioncanonicalquantization">Amount selection, canonical quantization</a>)
+is categorically different from randomizing amounts: every emitted part still
+collides with the population, while the multiset emitted for a given balance
+is no longer predictable, which improves balance hiding and further weakens
+targeted subset-sum. The detailed privacy argument is in
+<a href="#whyvaluecollisionprovidesprivacy">Why value collision provides privacy</a> and the
+sections that follow it; the discarded random-amount strategies are listed in
+<a href="#alternatives">Alternatives</a>.</p>
+
+<h2 id="rationaleforthecanonicaltransactionshape"><span class="section-heading">Rationale for the canonical transaction shape</span><span class="section-anchor"> <a rel="bookmark" href="#rationaleforthecanonicaltransactionshape"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>The canonical migration transaction spends exactly one <em>Orchard-pool</em> note,
+pads the Orchard bundle to exactly two actions, and produces exactly one
+<em>Ironwood</em> output. Under NU6.3, Orchard bundles pair every spend and every
+output with a fabricated counterpart, so a bundle&#8217;s action count is the sum
+of its spends and outputs; values and the fabricated/real distinction are
+hidden. The canonical two-action Orchard bundle therefore consists of one
+spend action and one output action, and does not reveal whether the output
+action carries a change output or a zero-valued dummy. This has two
+consequences:</p>
+
+<ul>
+<li><p><strong>Indistinguishability from manual spends.</strong> An automated migration
+transaction is structurally identical to a manually created
+<em>Orchard</em>→<em>Ironwood</em> spend, which takes the same shape. The anonymity set for
+a migration transaction is therefore the whole population of conforming
+cross-pool spends, not merely the transactions generated by migrating
+wallets. Because NU6.3 disables ordinary payments within the old pool
+<a href="#fn:11" title="see footnote" class="footnote"><sup>11</sup></a>, that population constitutes essentially all post-upgrade
+<em>Orchard-pool</em> activity; this strengthens the ZIP 308 <a href="#fn:1" title="see footnote" class="footnote"><sup>1</sup></a> stance
+that migration transactions need be hidden only among themselves.</p></li>
+<li><p><strong>Change carries no privacy penalty.</strong> A change-bearing migration transaction
+(for example, one rebuilt during error recovery, or one sent by a wallet that
+skipped note preparation) is indistinguishable from a change-free one.
+Producing change has only an operational cost: the change cannot be spent
+until a later synchronization witnesses it, and a part that would spend it
+cannot be pre-signed until then.</p></li>
+</ul>
+
+<p>The <em>Ironwood</em> bundle is a single action, not padded to the two-action
+minimum. Unlike the Orchard side, where padding hides whether a change output
+is present, the Ironwood side of a canonical transfer has exactly one output
+and nothing left to hide: its shape is already fixed by the
+<a href="#canonicalmigrationtransactionstructure">canonical structure</a>. A padding
+dummy would therefore buy no indistinguishability, while costing an extra
+action&#8217;s proof — a real burden when a hardware device generates the proofs,
+since each action&#8217;s proving data must cross the device&#8217;s
+bandwidth-constrained link. What matters is that <strong>one</strong> action count is
+pinned as canonical: if padding were left optional, conforming wallets would split
+into distinguishable padded and unpadded populations, partitioning the very
+anonymity set the canonical shape exists to unify. (The indistinguishability
+argument above extends to manually created <em>Orchard</em>→<em>Ironwood</em> spends to the
+extent that they are built to this same single-action shape, which wallet
+builders are encouraged to use for this transfer form.)</p>
+
+<p>A corollary is that note preparation and pre-signing are motivated
+operationally rather than by privacy: the privacy properties come from the
+canonical shape, the canonical values, and the scheduling, while exact-value
+funding notes are what allow the entire schedule to be pre-signed at once and
+broadcast in any order.</p>
+
+<p>The same hiding applies to note preparation: because fabricated components
+are indistinguishable from real ones, an <span class="math">\(N\kern-0.15em\)</span> -action preparation transaction
+reveals nothing about how its actions divide between spends and outputs —
+whether it divides notes, combines them, or both. Only its action count and
+timing are observable.</p>
+
+<h2 id="rationalefordecouplingsynchronizationfrombroadcast"><span class="section-heading">Rationale for decoupling synchronization from broadcast</span><span class="section-anchor"> <a rel="bookmark" href="#rationalefordecouplingsynchronizationfrombroadcast"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>Linking synchronization and broadcast in the same background session would let an
+observer correlate the two events and thereby link the broadcast to the wallet.
+Keeping them separated in time preserves the de-correlation that the scheduling is
+designed to provide. The principal place a synchronization is unavoidable is after the
+note-preparation transactions confirm, since the wallet must witness the prepared
+notes before the first scheduled send; the exceptional case of a migration
+transaction that outputs change back to the <em>Orchard pool</em> is handled the same
+way, by scheduling the synchronization at a different time from the next
+broadcast.</p>
+
+<h2 id="rationaleforanchor-heightbucketing"><span class="section-heading">Rationale for anchor-height bucketing</span><span class="section-anchor"> <a rel="bookmark" href="#rationaleforanchor-heightbucketing"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>Drawing anchors from shared, network-wide boundaries means a transaction&#8217;s
+anchor reveals only that the creator had scanned beyond that boundary at some
+time before broadcast, not the wallet&#8217;s precise sync height or sync schedule,
+and allows many users' transactions to share anchors. This mirrors the
+goal of ZIP 308 <a href="#fn:1" title="see footnote" class="footnote"><sup>1</sup></a> (hiding individual migration transactions among those
+of all migrating users), adapted to anchor selection in the light-client setting,
+and complements the anchor-selection guidance of ZIP 315. <a href="#fn:7" title="see footnote" class="footnote"><sup>7</sup></a></p>
+
+<h2 id="rationaleforanchorselection"><span class="section-heading">Rationale for anchor selection</span><span class="section-anchor"> <a rel="bookmark" href="#rationaleforanchorselection"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>This subsection is non-normative.</p>
+
+<p>A &#8220;sign ahead, broadcast later&#8221; workflow can leak information through anchor
+selection: if the anchor were fixed at signing time — as it is under the
+version 5 transaction-digest rules <a href="#fn:16" id="fnref:16" title="see footnote" class="footnote"><sup>16</sup></a>, where the anchor is committed
+by the signature hash — then at broadcast time the gap between the anchor&#8217;s
+age and the broadcast height would reveal when the transaction was prepared.</p>
+
+<p>Two design choices eliminate this leak. First, the version 6 transaction
+format <a href="#fn:3" title="see footnote" class="footnote"><sup>3</sup></a> commits the anchor as authorizing data — a public input to
+the proof — rather than in the signature hash, so the prover can choose the
+anchor <em>after</em> signing, and the wallet can update a pre-signed transaction&#8217;s
+anchor and proof at broadcast time without re-signing (see
+<a href="#pre-signedtransactionstorage">Pre-signed transaction storage</a>). Second, the
+anchor is drawn at random from the shared candidate set of boundaries rather
+than pinned to the most recent boundary.</p>
+
+<p>Pinning to the most recent boundary would create a bottleneck at each
+boundary: the anonymity set for a transaction anchored at boundary <span class="math">\(B\)</span> is the
+set of wallets that had scanned beyond <span class="math">\(B\)</span> by proving time — a set that an
+adversary who compromises a light wallet server can approximate by observing
+which clients have fetched blocks past <span class="math">\(B\)</span> — and shortly after each boundary
+that set is small. Drawing the anchor at random from all candidate boundaries
+means an observed anchor implies membership only in the set of wallets that
+scanned beyond that boundary at <em>some</em> time before broadcast, a set that has
+had time to grow. This is also why no privacy-preserving block-download
+mechanism is required for these invariants: the light wallet server learns
+which wallets have scanned past a given height, but that knowledge narrows
+the sender of a migration transaction no further than the anchor itself
+already does.</p>
+
+<p>The randomized draw carries a tension: an earlier anchor requires the
+transaction&#8217;s funding note to have existed at that boundary, so the
+population able to emit early anchors is bounded by the wallets whose note
+preparation had confirmed by then — potentially a smaller global anonymity
+set. This is mitigated by the fact that note preparation can be performed
+before the network upgrade activates, so the funding notes of many wallets
+already exist at the earliest post-activation boundaries. The candidate set
+is nonetheless always restricted to boundaries above the NU6.3 activation
+height, so that wallets that prepared before the upgrade do not form a
+distinguishable subpopulation emitting pre-activation anchors.</p>
+
+<p>The draw is recency-weighted rather than uniform over the candidate set, for
+four reasons. First, uniformity across wallets: under a uniform draw over
+each wallet&#8217;s own window, the anchor-age distribution a wallet emits is a
+function of when it prepared — early preparers emit anchors spread over a
+wide window, late preparers only recent ones — so anchor age becomes a
+statistical fingerprint of preparation date. Under a fixed, capped
+recency-weighted distribution, every wallet whose window is at least
+<code>ANCHOR_AGE_CAP</code> deep draws from the identical distribution, and wallets with
+shallower windows are forced toward recent anchors, where the common
+distribution already concentrates. Second, the cap bounds the inevitable
+preparation-time leak: an anchor always places the creation of the funding
+note before it, but no anchor can reveal more than &#8220;prepared at least
+<code>ANCHOR_AGE_CAP</code> boundaries ago&#8221; — little more than the act of broadcasting
+already reveals. Third, concentration: the same reasoning that prefers
+canonical denominations to high-entropy amounts prefers few, heavily-used
+anchors to many thinly-used ones; recency weighting produces large per-anchor
+cohorts. Fourth, alignment with manual spends: a conforming wallet making a
+one-off <em>Orchard</em>→<em>Ironwood</em> spend will naturally use a recent boundary, and
+keeping the migration flow&#8217;s anchor ages similar prevents anchor age from
+partitioning automated and manual traffic. The cap also bounds the tree
+states a wallet must retain for proving to the last <code>ANCHOR_AGE_CAP</code>
+boundaries.</p>
+
+<p>The cost of recency weighting is a sharper posterior on proving time (a
+recent anchor implies proving shortly after it); this is blunted by the
+decoupling of proving from broadcast and by the exponential scheduling delay
+between them, which together turn &#8220;shortly after the anchor&#8221; into a
+multi-boundary window. The most recent boundary is excluded entirely because
+transactions anchored to it could only have been produced by wallets that
+synchronized within the current boundary interval — the bottleneck in
+miniature. In the first days after activation, every wallet&#8217;s window is
+shallow and all distributions collapse onto the few boundaries that exist;
+privacy in that regime rests on cohort size (all migrating wallets share
+those anchors), not on anchor diversity.</p>
+
+<h1 id="privacyimplications"><span class="section-heading">Privacy Implications</span><span class="section-anchor"> <a rel="bookmark" href="#privacyimplications"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>The migration necessarily reveals information; the requirements in this ZIP are
+intended to minimize it and to ensure the user consents to what remains. The
+principal sources of leakage are:</p>
+
+<ul>
+<li><p><strong>Migrated amounts.</strong> Each migration transaction reveals on-chain the value it
+moves from the <em>Orchard pool</em> to the <em>Ironwood pool</em>. <a href="#fn:8" title="see footnote" class="footnote"><sup>8</sup></a> Quantizing the
+balance into canonical denominations means no single transaction reveals the
+user&#8217;s whole <em>Orchard-pool</em> balance, and each amount collides with those of many
+other wallets.</p></li>
+<li><p><strong>Linkage between a wallet&#8217;s own transfers.</strong> If multiple migration transactions
+could be grouped by a shared distinctive value, anchor, expiry, or broadcast
+time, an observer might cluster them as belonging to one wallet. Canonical
+amounts, shared network-wide boundary anchors, bucketed expiries, and
+de-correlated broadcast times are intended to defeat this clustering.</p></li>
+<li><p><strong>Synchronization timing.</strong> The anchor height of a transaction reveals that
+its creator had scanned beyond that height at some time before broadcast.
+Drawing anchors at random from the shared boundary set prevents an observer
+from inferring when a specific wallet synchronized, and from narrowing the
+sender to the initially small set of wallets that had scanned past the most
+recent boundary. Triggering a wallet synchronization in the same background
+session as a broadcast would let an observer correlate the two;
+synchronization is therefore kept decoupled in time from broadcast.</p></li>
+<li><p><strong>Correlation with user behaviour.</strong> If transfers are broadcast at the moment the
+user opens the application, an observer (in particular a light wallet server that
+also sees the user&#8217;s scan-range requests) can monitor the wallet across the whole
+migration. De-correlating broadcasts from application opens is the primary
+privacy goal of the chosen approach.</p></li>
+<li><p><strong>Network-layer metadata.</strong> Without network-level privacy, the server or network
+operator that receives a broadcast can correlate the broadcasting IP address with
+the on-chain pool-crossing event. This ZIP requires offering Tor as an opt-in and
+disclosing the residual IP-correlation risk.</p></li>
+<li><p><strong>Change back to the Orchard pool.</strong> A migration transaction that produces change
+in the <em>Orchard pool</em> requires the wallet to synchronize before that change can
+be spent, creating a point where synchronization and migration interact and must
+be carefully separated in time. Because the canonical shape pads the Orchard
+bundle to two actions, the presence or absence of change is not itself visible
+on-chain; the concern is operational, not a distinguisher.</p></li>
+<li><p><strong>Note-preparation transactions.</strong> A note-preparation transaction is fully
+shielded: its values, and whether it divides notes, combines them, or both, are
+hidden. Its only observable features are its action count and its timing, which
+reveal at most a loose bound on the number of notes involved.</p></li>
+</ul>
+
+<p>The remaining subsections of this section are non-normative; they analyze the
+privacy properties of the procedure specified above.</p>
+
+<h2 id="threatmodel"><span class="section-heading">Threat model</span><span class="section-anchor"> <a rel="bookmark" href="#threatmodel"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>This subsection is non-normative.</p>
+
+<p>The adversary observes all on-chain migration transactions: for each, the net
+Orchard-out and Ironwood-in amounts and the block (hence time). The adversary does
+<strong>not</strong> see addresses. The adversary&#8217;s goal is <strong>clustering</strong>: partitioning the
+global stream of migration transactions into per-wallet sets. Successful clustering
+reconstructs a wallet&#8217;s migration (and hence its balance and behavior) without any
+address.</p>
+
+<p>We additionally consider a <strong>targeted</strong> adversary who augments chain
+observation with off-chain knowledge of a victim&#8217;s incoming note values — in
+the strongest case having deliberately sent the victim notes of
+attacker-chosen values (&#8220;tagging&#8221;). This adversary&#8217;s goal is to determine
+whether, when, or in what amounts the victim has migrated (see
+<a href="#ontargetednotetagging">On targeted note tagging</a>).</p>
+
+<h2 id="whyvaluecollisionprovidesprivacy"><span class="section-heading">Why value collision provides privacy</span><span class="section-anchor"> <a rel="bookmark" href="#whyvaluecollisionprovidesprivacy"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>This subsection is non-normative.</p>
+
+<p>Privacy for value-transparent transfers comes from <strong>value collision</strong> (many
+wallets emitting the <em>same</em> amount) and <strong>ambiguity of grouping</strong> (an observer
+cannot tell which amounts belong together), not from unpredictability of the
+amount. Randomizing amounts is counterproductive: a high-entropy amount collides
+with no other wallet and is a near-unique fingerprint.</p>
+
+<p>Every part in this design is a canonical denomination drawn from a small
+shared set (<code>…, 100, 50, 20, 10, 5, 2, 1, 0.5, …</code>). Many wallets emit identical
+denominations, so no single part is distinctive by its value.</p>
+
+<h2 id="onmultiplicityandcohorts"><span class="section-heading">On multiplicity and cohorts</span><span class="section-anchor"> <a rel="bookmark" href="#onmultiplicityandcohorts"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>This subsection is non-normative.</p>
+
+<p>A wallet MAY place several parts into the same cohort. This does <strong>not</strong> let the
+adversary attribute those parts to one wallet, because:</p>
+
+<ul>
+<li><strong>Canonical values are not self-identifying.</strong> Several <code>100</code>-ZEC parts in a
+cohort cannot be attributed to one contributor versus several; the adversary
+cannot tell whether three co-located <code>100</code>s came from one wallet or three. The
+grouping is ambiguous <em>by construction</em>, and there is no rare value to anchor a
+reconstruction (the design has no high-entropy remainder).</li>
+<li><strong>Parts are not linked by inputs.</strong> Each part is a separate transaction spending
+an <em>Orchard-pool</em> note, which publishes only an unlinkable nullifier; shielded
+inputs do not visibly link a wallet&#8217;s transactions. The mandated absence of
+transparent components, the shared boundary anchors, the canonical fee, and
+the uniform two-action, single-output structure mean nothing on-chain ties one
+wallet&#8217;s co-located parts together.</li>
+</ul>
+
+<p>This is precisely why multiplicity is safe <strong>only</strong> under canonical amounts.</p>
+
+<p>What a cohort <em>does</em> reveal is only the <strong>aggregate throughput</strong> of the entire
+migrating population (the total value of all parts sharing that anchor), which
+is population-level information, not any individual&#8217;s magnitude.</p>
+
+<h2 id="onsubset-sum"><span class="section-heading">On subset-sum</span><span class="section-anchor"> <a rel="bookmark" href="#onsubset-sum"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>This subsection is non-normative.</p>
+
+<p>A worry with canonical decompositions is <strong>targeted</strong> subset-sum (find a subset
+summing to a <em>known</em> target). This specification accepts the limited residual
+exposure on the following grounds:</p>
+
+<ul>
+<li>Canonical values compose ambiguously: many unrelated parts sum to clean totals,
+so the constraint &#8220;this subset sums to a round number&#8221; is weak and yields
+exponentially many spurious solutions for an <strong>untargeted</strong> adversary (one
+without a known total).</li>
+<li>If an adversary already knows a wallet&#8217;s total balance from off-chain data,
+learning that the wallet migrated that balance reveals no <em>new</em> information; the
+only further gain would be transaction-level linkage, which remains hard due to
+canonical collision, dispersion, and the lack of intra-cohort linkage.</li>
+<li>Therefore the dominant practical risk is <strong>rarity</strong> (below), which the
+<code>DENOM_CAP</code> bounds.</li>
+</ul>
+
+<h2 id="ontargetednotetagging"><span class="section-heading">On targeted note tagging</span><span class="section-anchor"> <a rel="bookmark" href="#ontargetednotetagging"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>This subsection is non-normative.</p>
+
+<p>An adversary may target a victim by sending notes of attacker-chosen,
+distinctive values, hoping to recognize those values (or their sum) when the
+victim&#8217;s funds cross the pool boundary. Three mechanisms defeat this:</p>
+
+<ul>
+<li><p><strong>Quantization severs received values from migrated values.</strong> Migrated
+amounts are drawn from the canonical denomination set regardless of the
+values of the notes that fund them; a distinctive received value never
+appears as a pool-crossing amount, and any sub-<code>MAX_RESIDUAL_VALUE</code> tail it
+contributes is withheld as the residual rather than revealed.</p></li>
+<li><p><strong>Note preparation absorbs tagged notes invisibly.</strong> The preparation
+transaction is fully shielded, so consuming a tagged note and re-minting
+canonical funding notes reveals nothing about the tagged note&#8217;s value or
+whether it participated at all.</p></li>
+<li><p><strong>Randomized decomposition hides the multiset.</strong> Even an adversary who knows
+the victim&#8217;s entire balance (for example, having funded it) cannot predict
+the emitted denomination multiset when the wallet randomizes its
+decomposition, and every denomination the adversary might look for collides
+with those of concurrently migrating wallets.</p></li>
+</ul>
+
+<p>What the tagging adversary retains is population-level information: that some
+wallets migrated during a given period. Determining that a specific victim&#8217;s
+funds have — or have not — migrated requires clustering the victim&#8217;s
+transactions out of that population, which the mechanisms above are designed
+to prevent.</p>
+
+<h2 id="acceptedresidualleaks"><span class="section-heading">Accepted residual leaks</span><span class="section-anchor"> <a rel="bookmark" href="#acceptedresidualleaks"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>This subsection is non-normative.</p>
+
+<ul>
+<li><strong>Rarity bounded by the cap.</strong> No single part exceeds the maximum
+denomination of 10000 ZEC, so no transfer is extremely large/rare. Larger
+denominations (e.g. 10000 ZEC) are rarer than smaller ones, but every value
+is shared by many wallets in a large migrating population.</li>
+<li><strong>Aggregate cohort throughput.</strong> A cohort reveals the population&#8217;s total migrated
+value at that boundary (not individual magnitudes).</li>
+<li><strong>Total part count and migration duration</strong> for very large balances loosely
+indicate <em>bucketed</em> magnitude (a whale emits many parts over a longer
+period), which is far weaker than a unique value.</li>
+<li><strong>Whale self-selection (deliberate).</strong> Large holders who want fast, clean UX may
+choose to migrate in a single transfer instead of using this procedure. This is
+accepted: forcing whales into a long, manually-driven many-transaction process
+would harm adoption, and lower adoption shrinks the anonymity set for <em>everyone</em>.</li>
+</ul>
+
+<h2 id="whalehandling"><span class="section-heading">Whale handling</span><span class="section-anchor"> <a rel="bookmark" href="#whalehandling"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>This subsection is non-normative.</p>
+
+<p>For large balances:</p>
+
+<ul>
+<li>The number of parts grows with the balance, and with it the expected
+duration of the migration (roughly <code>MEAN_DELAY</code> blocks per part). A very
+large balance therefore takes proportionally longer to migrate.</li>
+<li>Dividing a very large note into its funding notes may require layered
+preparation (see
+<a href="#notepreparationtransactions">Note preparation transactions</a>), adding each
+layer&#8217;s scheduled broadcast spread plus its mining latency to the
+preparation phase, and additional signing sessions if the layers are not
+pre-signed as a chain. This is exactly the
+situation of a wallet consolidating very many small notes, and the two are
+indistinguishable on-chain.</li>
+<li><span class="math">\(k\)</span> per cohort is bounded by <code>K_MAX</code> (enforced by redrawing anchor ages) to
+limit the per-cohort count signal, keeping per-wallet multiplicity within a
+range that the (canonical, ambiguous) cohort can absorb.</li>
+<li>Whales remain weakly protected and may self-select to a single transfer, as
+above.</li>
+</ul>
+
+<h2 id="anoteoncohortsizevs.per-walletmultiplicity"><span class="section-heading">A note on cohort size vs. per-wallet multiplicity</span><span class="section-anchor"> <a rel="bookmark" href="#anoteoncohortsizevs.per-walletmultiplicity"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>This subsection is non-normative.</p>
+
+<p>Two different quantities should not be conflated:</p>
+
+<ul>
+<li><strong>Cohort size</strong> (parts from <em>all</em> wallets at a boundary): larger is always better
+for privacy (bigger crowd). Coordinated boundaries exist to maximize it.</li>
+<li><strong>Per-wallet multiplicity <span class="math">\(k\)</span></strong>: the number of a <em>single</em> wallet&#8217;s parts in one
+cohort. Under canonical-only amounts, <span class="math">\(k &gt; 1\)</span> is safe (parts are unattributable),
+but <code>K_MAX</code> (enforced by redrawing anchor ages) keeps <span class="math">\(k\)</span> modest relative to
+expected cohort size so that per-wallet multiplicity stays well within the
+crowd.</li>
+</ul>
+
+<h1 id="deployment"><span class="section-heading">Deployment</span><span class="section-anchor"> <a rel="bookmark" href="#deployment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>This is a Wallet-category ZIP and does not itself introduce consensus rules. It
+applies to wallets once the <em>Ironwood pool</em> is activated by its network upgrade
+<a href="#fn:9" title="see footnote" class="footnote"><sup>9</sup></a> and the migration becomes relevant. The note-preparation phase MAY be
+performed before that activation (see
+<a href="#phase1notepreparation">Phase 1, Note preparation</a>).</p>
+
+<h1 id="referenceimplementation"><span class="section-heading">Reference implementation</span><span class="section-anchor"> <a rel="bookmark" href="#referenceimplementation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>TODO: link to the SDK and wallet pull requests implementing this flow. Phase 2 is
+intended to be implemented in a Rust backend exposed through a public SDK
+interface, so that wallets can integrate against a stable interface (initially with
+mocked data) and later switch to the production implementation.</p>
+
+<h1 id="alternatives"><span class="section-heading">Alternatives</span><span class="section-anchor"> <a rel="bookmark" href="#alternatives"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>The following alternative designs were considered and rejected.</p>
+
+<ul>
+<li><p><strong>Migrating the raw balance in a single transfer</strong> publicly reveals the
+exact balance, and the transfer is trivially linkable to the wallet&#8217;s other
+activity.</p></li>
+<li><p><strong>Random arbitrary amounts per transfer</strong> produce high-entropy values that
+collide with no other wallet; each transfer is a near-unique fingerprint.</p></li>
+<li><p><strong>Random partition into high-entropy pieces</strong>: the pieces sum to the
+balance, exposing it to subset-sum reconstruction, and each piece is
+self-fingerprinting.</p></li>
+<li><p><strong>Whole-ZEC bucketed parts with a high-entropy sub-1-ZEC remainder</strong>: the
+rare remainder is a discriminator that makes co-locating parts in a cohort
+dangerous, and is itself near-unique. Superseded by canonical-only
+quantization, which has no remainder output.</p></li>
+<li><p><strong>Randomized per-wallet multiplicity <span class="math">\(k\)</span></strong> adds behavioural entropy — itself
+a fingerprint — without dispersing co-located parts; it is dominated by a
+deterministic, cohort-size-governed <span class="math">\(k\kern-0.05em\textsf{.}\)</span></p></li>
+<li><p><strong>Guided on-open sending</strong>: creating each transfer at the moment the user
+opens the application makes every broadcast coincide with application opens
+and light-wallet-server scan-range requests, letting an observer track the
+wallet across the whole migration; it provides no temporal de-correlation
+(see
+<a href="#rationaleforthescheduledbackgroundapproach">Rationale for the scheduled background approach</a>).</p></li>
+<li><p><strong>Short-interval memoryless timing</strong> (inter-transfer delays of minutes
+rather than hours): delays much shorter than the anchor-bucket interval
+compress a wallet&#8217;s entire migration into one or two buckets, producing a
+tight, predictable burst that is itself a clustering signal, and such
+schedules are incompatible with shared boundary anchors (see
+<a href="#rationaleforpoissontransferscheduling">Rationale for Poisson transfer scheduling</a>).</p></li>
+<li><p><strong>Stateless, chain-recoverable migration</strong> (no persisted schedule): robust
+to restart and restore-from-seed, but statelessness is a non-requirement
+here, and persisted state makes temporal de-correlation and pre-signed
+background scheduling simpler (see
+<a href="#rationaleforthestatefuldesign">Rationale for the stateful design</a>).</p></li>
+<li><p><strong>A privacy/speed slider exposed to the user</strong>: the decision and the UI are
+too complex for typical users; the wallet picks sensible defaults instead.</p></li>
+</ul>
+
+<h1 id="openissues"><span class="section-heading">Open issues</span><span class="section-anchor"> <a rel="bookmark" href="#openissues"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>The following points are open for the Zcash core team. Several are provisional
+&#8220;magic numbers&#8221; that require ratification, analysis, and ideally simulation (cf.
+ZIP 308, which left analogous parameters open):</p>
+
+<ul>
+<li><strong>Per-cohort multiplicity bound <code>K_MAX</code></strong>: multiplicity emerges from the
+schedule and the anchor-age draws rather than being chosen directly; <code>K_MAX</code>
+(enforced by redrawing anchor ages) SHOULD be set relative to expected
+cohort size, and the redraw rule&#8217;s effect on the anchor-age distribution
+needs analysis.</li>
+<li><strong>Minimum synchronization before the first scheduled send</strong>: define the minimum
+requirement for witnessing the notes produced by note preparation, and how a
+wallet detects when a synchronization is needed.</li>
+<li><strong>Fallback de-correlation</strong>: define behaviour for users whose background tasks
+never run, so broadcast remains de-correlated from synchronization.</li>
+<li><strong>Note-preparation transaction size</strong>: the canonical action count for
+note-preparation transactions (provisionally 16), and the structuring of
+preparation across multiple parallel transactions or layered chains for very
+large balances or note counts.</li>
+<li><strong>Preparation broadcast spacing</strong>: the preparation inter-arrival parameters
+(<code>PREP_MEAN_DELAY</code>, provisionally 24 blocks, and <code>PREP_MAX_DELAY</code>,
+provisionally 96 blocks) trade the preparation phase&#8217;s duration against the
+shape-and-timing clustering of a wallet&#8217;s preparation broadcasts, and need
+the same analysis as the transfer parameters.</li>
+<li><strong>Owner-side reliability of the canonical predicate</strong>: manually created
+transactions matching the observer-visible predicate are a design goal here
+(they enlarge the anonymity set; see
+<a href="#rationaleforthecanonicaltransactionshape">Rationale for the canonical transaction shape</a>),
+not the defect ZIP 308 warned of; confirm that viewing-key information (whether
+the <em>Ironwood</em> output belongs to the wallet&#8217;s own account, and whether its
+value is a canonical denomination) suffices to disambiguate the wallet&#8217;s own
+migration parts for chain-based status recovery.</li>
+<li><strong>Throughput simulation</strong> at 75 s block spacing for representative balances (e.g.
+1, 10, 100, 1000, 10000 ZEC) under the chosen <span class="math">\(M\kern-0.05em\textsf{,}\)</span> <code>MEAN_DELAY</code>,
+<code>PREP_MEAN_DELAY</code>, <code>DENOM_CAP</code>, <code>ANCHOR_AGE_CAP</code>, and <code>K_MAX</code>.</li>
+</ul>
+
+<h1 id="references"><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<div class="footnotes">
+<hr />
+<ol>
+
+<li id="fn:1">
+<p><a href="zip-0308">ZIP 308: Sprout to Sapling Migration</a> <a href="#fnref:1" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:2">
+<p><a href="https://www.rfc-editor.org/info/bcp14">Information on BCP 14, &#8220;RFC 2119: Key words for use in RFCs to Indicate Requirement Levels&#8221; and &#8220;RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words&#8221;</a> <a href="#fnref:2" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:3">
+<p><a href="zip-0229">ZIP 229: Version 6 Transaction Format</a> <a href="#fnref:3" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:4">
+<p><a href="protocol/protocol.pdf">Zcash Protocol Specification, Version 2025.6.3 [NU6.1] or later</a> <a href="#fnref:4" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:5">
+<p><a href="zip-0200">ZIP 200: Network Upgrade Mechanism</a> <a href="#fnref:5" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:6">
+<p><a href="protocol/protocol.pdf#networks">Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.12: Mainnet and Testnet</a> <a href="#fnref:6" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:7">
+<p><a href="zip-0315">ZIP 315: Best Practices for Wallet Implementations</a> <a href="#fnref:7" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:8">
+<p><a href="zip-0209">ZIP 209: Prohibit Negative Shielded Chain Value Pool Balances</a> <a href="#fnref:8" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:9">
+<p><a href="zip-0258">ZIP 258: Deployment of the NU6.3 Network Upgrade</a> <a href="#fnref:9" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:10">
+<p><a href="draft-zodl-valargroup-action-circuit-update">NU6.2 and NU6.3 updates to the Orchard Circuit (draft)</a> <a href="#fnref:10" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:11">
+<p><a href="zip-2006">ZIP 2006: Restricting Transfers into the Orchard Pool</a> <a href="#fnref:11" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:12">
+<p><a href="zip-0317">ZIP 317: Proportional Transfer Fee Mechanism</a> <a href="#fnref:12" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:13">
+<p><a href="https://www.torproject.org/">Tor Project</a> <a href="#fnref:13" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:14">
+<p><a href="https://nymtech.net/">Nym</a> <a href="#fnref:14" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:15">
+<p><a href="zip-0203">ZIP 203: Transaction Expiry</a> <a href="#fnref:15" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:16">
+<p><a href="zip-0244">ZIP 244: Transaction Identifier Non-Malleability</a> <a href="#fnref:16" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+</ol>
+</div>
 </body>
 </html>
