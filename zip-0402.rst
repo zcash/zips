@@ -1,0 +1,166 @@
+::
+
+  ZIP: 402
+  Title: Change the fundamental wallet database from BerkeleyDB to SQLite
+  Owners: Alfredo Garcia <oxarbitrage@gmail.com>
+  Status: Draft
+  Category: Wallet
+  Created: 2020-05-30
+  License: MIT
+
+
+Terminology
+===========
+
+The key words "MUST" and "MAY" in this document are to be interpreted as described in RFC 2119. [#RFC2119]_
+
+Abstract
+========
+
+This document proposes a change of the database zcashd wallet currently use from BerkeleyDB into SQLite. It also proposes the separation of wallet transaction and other recoverable data into a separated database file.
+
+Motivation
+==========
+
+The main reason of the database change is reliability, SQLite haves a very good atomicity implementation [#SQLiteAtomic]_. Relational databases reduces redundancy and SQLite specifically is the world most used for local storage, it is also well mantained, have a good C++ interface, it is portable and open source.
+
+The database separation between recoverable versus non-recoverable data is to avoid writting too often to the file where the important non-recoverable data like public and private keys are located. Isolating transactions and others from the main wallet database will increase performance and reduce the risk of corruption.
+
+Specification
+=============
+
+After [#ZIP400]_ and its detailed information about all database keys-values and functionality we know what is needed to change the fundamental database to something else.
+
+This document proposes a new relational schema for 2 new SQLite databases where all the original properties are present but just organized in a different way. Below schema is an aproximation and can change during implementation.
+
+The following sql schema is proposed for a database named **wallet.sqlite** with non-recoverable information::
+
+    CREATE TABLE accounts(
+        id                INTEGER PRIMARY KEY AUTOINCREMENT
+        id_address        INTEGER
+        name              TEXT
+        account           BLOB);
+        
+    CREATE TABLE account_entries(
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        id_account        INTEGER,
+        entry             BLOB);
+
+    CREATE TABLE addresses(
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        address           TEXT,
+        id_account        INTEGER,
+        name              TEXT,
+        purpose           TEXT);
+        
+    CREATE TABLE destdata(
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        id_address        INTEGER,
+        key               TEXT,
+        value             TEXT);
+        
+    CREATE TABLE sapling(
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        id_address        INTEGER,
+        key               BLOB,
+        ckey              BLOB,
+        meta              BLOB,
+        cmeta             BLOB,
+        ivk               BLOB,
+        extfvk            BLOB);
+        
+    CREATE TABLE settings(
+        chdseed           BLOB
+        hdchain           BLOB
+        hdseed            BLOB
+        minversion        TEXT
+        mkey              BLOB
+        version           TEXT
+        cscript           BLOB);
+        
+    CREATE TABLE sprout(
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        id_address        INTEGER,
+        key               BLOB,
+        ckey              BLOB,
+        meta              BLOB,
+        cmeta             BLOB,
+        vkey              BLOB);
+
+    CREATE TABLE transparent(
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        id_address        INTEGER,
+        key               BLOB,
+        ckey              BLOB,
+        poolindex         INTEGER,
+        meta              BLOB,
+        cmeta             BLOB,
+        destination       TEXT,
+        is_default        BOOLEAN);
+
+A separated database named **transactions.sqlite** with recoverable information and the following tables is proposed::
+
+    CREATE TABLE transactions(
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        hash              BLOB,
+        tx                BLOB);
+        
+    CREATE TABLE state(
+        bestblock         BLOB,
+        orderposnext      INTEGER,
+        witnesscachesize  INTEGER);
+
+A new class ``SQLite`` will be added to the wallet collection of classes where the following low level functions can be found:
+
+- ``Open(strFile)`` - Open a new database file.
+- ``Exist(strFile)`` - Check if a database exist.
+- ``Schema(strSchema)`` - Create a new schema.
+- ``Write(strSql)`` - Insert or update a database table. 
+- ``Read(strSql)`` - Select data from a table.
+- ``Erase(strSql)`` - Delete rows from a table.
+- ``Count(strSql)`` - Get the count of rows from a select query. This is a special case of ``Read()``.
+- ``GetRow(strSql)`` - Get a single row from a table. This is a special case of ``Read()``.
+- ``GetVersion(strFile)`` - Get the version of the current database.
+
+``CWalletDB`` is renamed to ``CWalletDBD`` to avoid ambiguity. A new class ``CWalletSQLite`` will be created as a copy of the same definition. This means the new class will have the same member functions with the same arguments and the same return values as the original version, the difference is in the implementation of functions where the ones in the new class will write/read to/from SQLite using the low level functions listed above.
+
+As an example, in ``CWalletDB`` we currently have ``WriteSaplingPaymentAddress``::
+
+    return Write(std::make_pair(std::string("sapzaddr"), addr), ivk, false);
+
+After implementation this function will be located at ``CWalletDBD::WriteSaplingPaymentAddress()`` with the same functionality.
+
+In ``CWalletSQLite::WriteSaplingPaymentAddress()`` a possible implementation can be something similar to::
+
+    auto id_address = GetRow("SELECT id from addresses WHERE address=addr");
+    return Write("INSERT OR REPLACE INTO sapling(id_address, ivk) VALUES(id_address, ivk)");
+
+All member functions in the new ``CWalletSQLite`` class need to be refactored to interact with the new database. Exceptions to this rule can happen if performance can be increased by changing the inputs/outputs of any of the member functions or by combining 2 or more functions into 1.
+
+Adding more keys
+----------------
+
+It is common practice for the zcashd developers to add new keys and values to the database for different purposes, to do it in SQLite the schema need to change.
+The implementation must guarantee that adding new fields to any table will be a non breaking change while renaming tables, renaming columns or changing column types may be fatal if not implemented propertly. 
+
+To mitigate the risk a version system must be implemented so older database schema can be updated propertly.
+Schema tests must be created by the implementation.
+
+Requirements
+============
+
+Sqlite3 is needed as a dependendency of zcashd [#SQLiteGithub]_. No additional dependencies are needed.
+
+Backward compatilibility
+========================
+
+A new wallet created after the code is implemented and tested will be created with SQLite. Command line options to choose the underlying database may be provided. A converter tool from/to SQLite/BDB may be useful and can be provided as part of the implementation.
+
+References
+==========
+
+.. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
+.. [#SQLiteAtomic] `SQLite atomic implementation <https://www.sqlite.org/atomiccommit.html>`_
+.. [#ZIP400] `ZIP 400 - Wallet database format <https://github.com/zcash/zips/pull/372>`_
+.. [#ZIP402Issue] `ZIP 402 Issue <https://github.com/zcash/zips/issues/365>`_
+.. [#SQLiteGithub] `SQLite Github mirror <https://github.com/sqlite/sqlite>`_
