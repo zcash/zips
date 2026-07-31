@@ -472,7 +472,7 @@ intervals.</p></li>
 <li><p>The broadcasts of a wallet&#8217;s preparation transactions SHOULD be temporally
 decoupled from one another: the delay from each preparation transaction to
 the next is drawn (using a CSPRNG) from an exponential distribution with
-mean <code>PREP_MEAN_DELAY</code> (<strong>24 blocks</strong>, about thirty minutes at 75-second
+mean <code>PREP_MEAN_DELAY</code> (<strong>16 blocks</strong>, about twenty minutes at 75-second
 block spacing), rounded to the nearest whole number of blocks, with any
 draw exceeding <code>PREP_MAX_DELAY</code> (<strong>96 blocks</strong>, about two
 hours) discarded and redrawn; a later layer&#8217;s schedule begins after the
@@ -571,12 +571,12 @@ network-wide boundary height, rather than a value derived from the wallet&#8217;
 own chain tip, so that the anchor does not reveal precisely when this wallet
 last synchronized.</p></li>
 <li><p>Buckets are delimited by <strong>boundaries</strong>: blocks whose height is
-<span class="math">\(\equiv 0 \pmod{M}\kern-0.05em\textsf{,}\)</span> with <span class="math">\(M\)</span> provisionally <code>144</code>, equal to <code>MEAN_DELAY</code>. At
-the current target block spacing of 75 seconds, a boundary occurs every
-<span class="math">\(144 \times 75\,\text{s} = 3\)</span> hours. A longer interval concentrates
-migration transactions onto fewer shared anchors, enlarging per-anchor
-cohorts. <code>EXPIRY_MODULUS</code> (34560 blocks) is an exact multiple of <span class="math">\(M\)</span> (240
-buckets), so expiry buckets align with anchor buckets.</p></li>
+<span class="math">\(\equiv 0 \pmod{M}\kern-0.05em\textsf{,}\)</span> with <span class="math">\(M\)</span> provisionally <code>144</code>. At the current target
+block spacing of 75 seconds, a boundary occurs approximately every
+<span class="math">\(144 \times 75\,\text{s} = 3\)</span> hours. This interval concentrates migration
+transactions onto fewer shared anchors, enlarging per-anchor cohorts.
+<code>EXPIRY_MODULUS</code> (34560 blocks) is an exact multiple of <span class="math">\(M\)</span> (240 buckets),
+so expiry buckets align with anchor buckets.</p></li>
 <li><p>Each migration transaction MUST take, as its <em>Orchard</em> anchor, the tree
 state as of a boundary drawn from the <strong>candidate anchor set</strong>: those
 boundaries that are above the NU6.3 activation height, at or after the
@@ -591,9 +591,10 @@ boundaries before the most recent boundary the wallet has observed at
 proving time, is drawn (using a CSPRNG) from a geometric distribution with
 parameter <strong>1/2</strong> — so the most recent boundary is never used, the most
 probable age is one boundary, and the mean age is two boundaries (about six
-hours). A draw exceeding <code>ANCHOR_AGE_CAP</code> (provisionally <strong>16 boundaries</strong>,
-about two days) or falling outside the candidate set MUST be discarded and
-redrawn; equivalently, the distribution is truncated to the candidate set.</p></li>
+hours). A draw exceeding <code>ANCHOR_AGE_CAP</code> (provisionally <strong>4 boundaries</strong>,
+about twelve hours) or falling outside the candidate set MUST be discarded
+and redrawn; equivalently, the distribution is truncated to the candidate
+set.</p></li>
 <li><p>The set of all migration transactions sharing a boundary anchor forms a
 <strong>cohort</strong>. A wallet MAY contribute several migration transactions to the
 same cohort (multiplicity <span class="math">\(k \geq 1\kern-0.15em\)</span> ), because all denominations are
@@ -618,8 +619,8 @@ could attribute, and would make the sequence predictable to a targeted
 adversary who knows the balance).</p></li>
 <li><p>The delay to each successive migration transaction MUST be drawn from an
 exponential distribution with rate <span class="math">\(\lambda = 1 /\)</span> <code>MEAN_DELAY</code>, so that the
-expected delay is <code>MEAN_DELAY</code> (provisionally <strong>144 blocks</strong>, about three
-hours at 75-second block spacing), rounded to a whole number of blocks; any
+expected delay is <code>MEAN_DELAY</code> (provisionally <strong>66 blocks</strong>, about 82
+minutes at 75-second block spacing), rounded to a whole number of blocks; any
 draw exceeding <code>MAX_DELAY</code> (provisionally <strong>576 blocks</strong>, about twelve
 hours) MUST be discarded and redrawn.</p></li>
 <li><p>The schedule MUST place every migration transaction at a scheduled height
@@ -932,16 +933,18 @@ analysis. Shuffling the parts before scheduling extends the same property to
 values: the sequence of denominations a wallet emits is not a predictable
 function of its balance.</p>
 
-<p>The mean delay must not be short relative to the anchor-bucket interval. A
+<p>The mean delay must not be too short relative to the anchor-bucket interval. A
 schedule whose delays are much shorter than the bucket interval (for example,
 minutes) would compress a wallet&#8217;s entire migration into a tight, predictable
-window, and the burst itself would be a clustering signal. With <code>MEAN_DELAY</code>
-equal to the bucket modulus (<span class="math">\(M\)</span> = 144), a wallet&#8217;s broadcasts spread across
-many boundary intervals, and its transfers are distributed across several
-cohorts. Resampling draws above <code>MAX_DELAY</code> bounds the
-worst-case gap so that the migration completes in bounded time and canonical
-expiry windows remain practical, at a negligible cost in memorylessness at
-the tail.</p>
+window, and the burst itself would be a clustering signal. With
+<code>MEAN_DELAY</code> = 66 blocks and the bucket modulus <span class="math">\(M\)</span> = 144, a wallet broadcasts
+about two parts per bucket on average while the exponential tail continues to
+spread its transfers across several cohorts. This roughly halves the expected
+inter-transfer latency compared with a 144-block mean. Keeping <code>MAX_DELAY</code> at
+576 blocks, more than eight mean delays, preserves nearly all of the
+exponential distribution&#8217;s variance while bounding the worst-case gap so that
+migration completes in bounded time and canonical expiry windows remain
+practical.</p>
 
 <p>Delays are denominated in blocks rather than wall-clock time because bucket
 boundaries, anchors, and expiry heights are all block-denominated, and block
