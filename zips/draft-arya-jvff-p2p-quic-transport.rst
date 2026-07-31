@@ -1,0 +1,1714 @@
+::
+
+  ZIP: XXX
+  Title: Version 2 Zcash P2P Network Protocol
+  Owners: Arya <arya@zfnd.org>
+          Janito <janito@zfnd.org>
+  Status: Draft
+  Category: Network
+  Created: 2026-07-31
+  License: MIT
+  Discussions-To: <https://github.com/zcash/zips/issues/352>
+
+
+Terminology
+===========
+
+The key words "MUST", "MUST NOT", "SHOULD", "SHOULD NOT", "MAY", and "RECOMMENDED" in
+this document are to be interpreted as described in BCP 14 [#BCP14]_ when, and only
+when, they appear in all capitals.
+
+The terms "Mainnet" and "Testnet" are to be interpreted as described in section 3.12 of
+the Zcash Protocol Specification. [#protocol-networks]_
+
+The term "network upgrade" is to be interpreted as described in ZIP 200. [#zip-0200]_
+
+The term "block chain" in this document is to be interpreted as described in section 3.3
+of the Zcash Protocol Specification. [#protocol-blockchain]_
+
+The term "legacy protocol" in this document refers to the Zcash P2P network protocol
+specified in ZIP 204 [#zip-0204]_.
+
+peer
+  A network node that participates in the Zcash P2P protocol by maintaining connections
+  to other peers over one or more supported transports and exchanging protocol data
+  over streams.
+
+transport
+  A concrete mechanism, such as QUIC [#rfc9000]_, that carries connections between
+  peers and provides the stream layer of this protocol (see `Stream Layer`_ and
+  `Transports`_).
+
+connection
+  A session between two peers over a supported transport, over which P2P streams
+  are exchanged.
+
+initiator
+  The peer that initiated a connection (the transport-level client).
+
+responder
+  The peer that accepted a connection (the transport-level server).
+
+inbound connection
+  A connection that was initiated by the remote peer.
+
+outbound connection
+  A connection that was initiated by the local node.
+
+stream
+  An ordered, reliable byte stream within a connection, provided by the transport.
+  Streams are typed by their first byte (see `Stream Layer`_).
+
+request stream
+  A bidirectional stream carrying a single request and its response.
+
+announcement stream
+  A long-lived unidirectional stream carrying unsolicited announcements
+  (blocks, transactions, or peer addresses).
+
+record
+  A length-delimited unit of data on an announcement or handshake stream.
+
+protocol version
+  A 32-bit integer identifying the set of protocol features supported by a node. Higher
+  values indicate support for more recent features.
+
+
+Abstract
+========
+
+This ZIP specifies version 2 of the Zcash peer-to-peer network protocol, a
+successor to the protocol specified in ZIP 204 [#zip-0204]_. It specifies the
+protocol's transport-neutral stream layer, the QUIC transport that realizes it,
+the connection handshake, stream and record types, and relay behavior, and is
+intended to be sufficient for an implementor to build a conformant Zcash network
+peer.
+
+
+Motivation
+==========
+
+ZIP 204 [#zip-0204]_ specifies the current Zcash P2P network protocol, whose
+message-passing architecture is inherited from Bitcoin: a single unencrypted TCP
+bytestream carrying framed messages with implicit correlation between requests and
+responses. This ZIP proposes a successor protocol that replaces that architecture
+with a transport based on QUIC [#rfc9000]_. The motivations for this change are:
+
+- **Transport security.** The legacy transport was unencrypted and unauthenticated,
+  exposing all P2P traffic to passive network observers. QUIC integrates TLS 1.3
+  [#rfc8446]_ [#rfc9001]_, encrypting all connections. (Bitcoin addressed the same
+  gap with a bespoke encrypted transport, BIP 324 [#bip-0324]_; QUIC provides
+  equivalent protection using a standardized protocol.)
+
+- **Multiplexing without head-of-line blocking.** On the legacy transport, a single
+  2 MiB ``block`` message stalled all other traffic on the connection. QUIC streams
+  allow concurrent block downloads, transaction relay, and control traffic to
+  proceed independently, at both the application and packet-loss level.
+
+- **Explicit request correlation.** Legacy responses (``block``, ``tx``,
+  ``headers``, ``notfound``) carried no request identifiers, forcing implementations
+  to correlate them heuristically. In this protocol, each request occupies its own
+  stream, so correlation, cancellation, and per-request timeouts are structural.
+
+- **Simplification.** Transport-level mechanisms that the legacy protocol carried in
+  the application layer — payload checksums, network magic, keep-alives and latency
+  measurement, flow control — are provided by QUIC and are deleted from the
+  application protocol.
+
+No backwards compatibility with the legacy protocol is provided; this ZIP replaces
+it entirely. See `Deployment`_.
+
+The semantics of the protocol are specified against an abstract stream layer rather
+than against QUIC directly, so that future revisions can define additional
+transports to be used simultaneously with QUIC — in particular a transport carrying
+the stream layer over the Nym mixnet [#nym]_, providing network-level metadata
+protection that a direct QUIC connection does not. See `Stream Layer`_ and
+`Transports`_.
+
+This ZIP does not specify the encoding of transactions and blocks; for those, refer to
+the Zcash Protocol Specification [#protocol-txnencoding]_ [#protocol-blockencoding]_.
+
+
+Changes from the Legacy Protocol
+================================
+
+This section is non-normative. Relative to the legacy protocol specified in
+ZIP 204 [#zip-0204]_, this ZIP:
+
+- Specifies the protocol semantics against an abstract stream layer, with QUIC as
+  the initial concrete transport, anticipating additional simultaneous transports
+  such as the Nym mixnet (see `Stream Layer`_ and `Transports`_).
+- Replaces unencrypted TCP with QUIC over UDP, on the same port numbers.
+- Replaces network magic bytes with transport-level network identification (for
+  the QUIC transport, ALPN protocol identifiers; see `QUIC Transport`_).
+- Removes per-message headers entirely: the 12-byte command string is replaced by a
+  1-byte stream type, and the length and ``SHA-256d`` checksum fields are subsumed
+  by QUIC framing and authenticated encryption.
+- Replaces the ``version``/``verack`` handshake with a single ``init`` record
+  exchange on a dedicated handshake stream (see `Connection Handshake`_). The
+  ``timestamp``, ``addr_recv``, and ``addr_from`` fields are removed.
+- Removes ``ping`` and ``pong``; QUIC provides keep-alives and RTT measurement.
+- Removes ``reject``; QUIC application error codes are used instead
+  (see `Application Error Codes`_).
+- Removes ``inv``, ``getdata``, and ``notfound``; announcements are carried on
+  dedicated unidirectional streams, and object requests carry per-item results.
+- Removes the inventory-walk ``getblocks`` message; headers-first synchronization
+  is the only synchronization method.
+- Removes the deprecated ``alert`` message.
+- Removes BIP 37 Bloom filtering (``filterload``, ``filteradd``, ``filterclear``)
+  and the ``NODE_BLOOM`` service flag.
+- Removes the legacy ``addr`` message and ``CAddress``/``CService`` encodings;
+  the ``addrv2`` address encoding of ZIP 155 [#zip-0155]_ is the only address
+  format.
+- Retains divided block relay — header-based block announcement and compact block
+  relay — recast onto announcement streams and request streams
+  (see `Block Relay`_).
+
+
+Specification
+=============
+
+Network Parameters
+------------------
+
+Networks
+````````
+
+There are three Zcash networks: Mainnet, Testnet, and Regtest. Every connection is
+bound to exactly one network, determined during connection establishment: each
+transport defines how the network is identified, such that a connection between
+peers on different networks fails before any application data is exchanged (see
+`Transports`_). This replaces the network magic bytes of the legacy protocol.
+
+DNS Seeds
+`````````
+
+The following DNS seed hostnames are used for initial peer discovery.
+
+**Mainnet:**
+
+- ``dnsseed.z.cash``
+- ``dnsseed.str4d.xyz``
+- ``mainnet.seeder.zfnd.org``
+- ``mainnet.is.yolo.money``
+
+**Testnet:**
+
+- ``dnsseed.testnet.z.cash``
+- ``testnet.seeder.zfnd.org``
+- ``testnet.is.yolo.money``
+
+Regtest does not use DNS seeds or hardcoded seed nodes.
+
+
+Peer Discovery
+--------------
+
+A node discovers peers through the following mechanisms:
+
+1. **DNS seeding.** On startup, a node queries the DNS seed hostnames listed above
+   for A and AAAA records, and attempts connections to the resulting addresses on
+   the default port of the QUIC transport.
+
+2. **Hardcoded seed nodes.** If DNS seeding fails or is insufficient, the node
+   MAY fall back to a compiled-in list of seed node addresses. DNS seeding is
+   preferred over hardcoded seed nodes.
+
+3. **Address relay.** Connected peers exchange address information using
+   ``get-addr`` request streams and address announcement streams (see
+   `get-addr`_ and `Address Announcements`_). This mechanism operates
+   independently of the above.
+
+
+Transports
+----------
+
+The protocol semantics in this document are defined against the abstract stream
+layer of `Stream Layer`_. A *transport* is a concrete mechanism that carries
+connections between peers and realizes that stream layer. This ZIP defines a
+single transport, based on QUIC (see `QUIC Transport`_). Future revisions may
+define additional transports — a transport carrying the stream layer over the Nym
+mixnet is anticipated (see `Deployment`_) — and a node MAY support several
+transports simultaneously. The protocol semantics on a connection are identical
+regardless of its transport.
+
+Every transport MUST provide:
+
+- confidentiality and integrity for all application data;
+- identification of the network (see `Networks`_) during connection
+  establishment, such that a connection between peers on different networks
+  fails before any application data is exchanged;
+- the stream operations and guarantees of `Transport Requirements`_.
+
+Connection Management
+`````````````````````
+
+The transport provides keep-alives and round-trip time measurement; the legacy
+``ping``/``pong`` messages have no equivalent in this protocol.
+
+- A node SHOULD use an idle timeout of at least 120 seconds, and SHOULD use the
+  transport's keep-alive mechanism to keep connections it wishes to retain from
+  idling out. The specific values are implementation-defined.
+- A node SHOULD close a connection on which the application handshake (see
+  `Connection Handshake`_) has not completed within a reasonable time after the
+  transport connection is established. The specific timeout is
+  implementation-defined; values between 3 and 60 seconds were used by legacy
+  implementations.
+- Per-request timeouts are implementation-defined and are applied per stream
+  (see `Request Streams`_).
+
+The specific connection limits are implementation-defined. For reference, legacy
+implementations used the following values, which remain reasonable defaults: zcashd
+defaulted to a maximum of 125 peer connections, of which a maximum of 8 were
+outbound; Zebra computes its limits from a configurable initial target size
+(default 25), applying multipliers to derive an outbound limit of 75 and an inbound
+limit of 125.
+
+A node SHOULD maintain at most one connection to a given remote address, and MUST
+detect connections to itself via the handshake nonce (see `Init Record`_).
+
+QUIC Transport
+``````````````
+
+The QUIC transport uses QUIC version 1 [#rfc9000]_ over UDP, secured with TLS 1.3
+[#rfc8446]_ as specified by RFC 9001 [#rfc9001]_.
+
+- A node MUST NOT use 0-RTT (early data). Requests carried in 0-RTT data are
+  replayable by an attacker; prohibiting 0-RTT avoids this class of attack
+  entirely.
+- QUIC datagrams [#rfc9221]_ are not used by this protocol. A node MUST ignore
+  the peer's ``max_datagram_frame_size`` transport parameter and MUST NOT send
+  DATAGRAM frames.
+- A node MAY support connection migration as specified in RFC 9000.
+- The address validation and amplification limits of RFC 9000 (including Retry
+  packets) apply; a responder under load SHOULD use Retry to validate client
+  addresses before committing state.
+- QUIC's loss recovery provides round-trip time measurement, and QUIC PING
+  frames provide keep-alives. A node using the QUIC transport SHOULD advertise a
+  ``max_idle_timeout`` transport parameter consistent with the idle timeout of
+  `Connection Management`_.
+
+Network Identification
+''''''''''''''''''''''
+
+The network of a QUIC connection is identified by an Application-Layer Protocol
+Negotiation (ALPN) [#rfc7301]_ protocol identifier, negotiated in the QUIC-TLS
+handshake:
+
++-----------+------------------------+
+| Network   | ALPN Identifier        |
++===========+========================+
+| Mainnet   | ``zcash/main``         |
++-----------+------------------------+
+| Testnet   | ``zcash/test``         |
++-----------+------------------------+
+| Regtest   | ``zcash/regtest``      |
++-----------+------------------------+
+
+A node MUST offer exactly the ALPN identifier of the network it operates on, and
+MUST NOT complete a connection on which ALPN negotiation did not select that
+identifier.
+
+Incompatible future revisions of this transport will be assigned new ALPN
+identifiers.
+
+Default Ports
+'''''''''''''
+
+The QUIC transport uses the following default UDP port numbers, unchanged from
+the legacy protocol:
+
++-----------+----------------+
+| Network   | Default Port   |
++===========+================+
+| Mainnet   | 8233           |
++-----------+----------------+
+| Testnet   | 18233          |
++-----------+----------------+
+| Regtest   | 18344          |
++-----------+----------------+
+
+Certificates
+''''''''''''
+
+Connections are encrypted but endpoints are not authenticated: the goal is
+protection against passive network observers, not endpoint identity.
+
+- A node presents a self-signed X.509 certificate, or a raw public key
+  [#rfc7250]_, for an Ed25519 or ECDSA P-256 key. The key MAY be ephemeral or
+  persistent, at the node's option; a node concerned about cross-connection
+  linkability SHOULD use per-connection ephemeral keys.
+- A node MUST NOT require the peer's certificate to chain to any certification
+  authority, and MUST NOT reject a connection on the basis of certificate
+  contents (subject names, expiry, or extensions).
+- Client certificates are not requested: the responder MUST NOT require TLS
+  client authentication.
+
+Stream Layer Mapping
+''''''''''''''''''''
+
+The abstract stream layer of `Transport Requirements`_ maps onto QUIC as follows:
+
++------------------------------------+--------------------------------------------+
+| Stream layer concept               | QUIC realization                           |
++====================================+============================================+
+| Bidirectional / unidirectional     | QUIC bidirectional / unidirectional        |
+| stream                             | streams.                                   |
++------------------------------------+--------------------------------------------+
+| Finishing a stream direction       | A STREAM frame with the FIN bit.           |
++------------------------------------+--------------------------------------------+
+| Resetting a stream with an error   | ``RESET_STREAM`` carrying the application  |
+| code                               | error code.                                |
++------------------------------------+--------------------------------------------+
+| Cancelling a peer's sending with   | ``STOP_SENDING`` carrying the application  |
+| an error code                      | error code.                                |
++------------------------------------+--------------------------------------------+
+| Closing the connection with an     | ``CONNECTION_CLOSE`` (application variant) |
+| error code                         | carrying the application error code.       |
++------------------------------------+--------------------------------------------+
+| Per-stream backpressure            | QUIC stream and connection flow control.   |
++------------------------------------+--------------------------------------------+
+| Stream concurrency limits          | ``initial_max_streams_bidi``,              |
+|                                    | ``initial_max_streams_uni``, and           |
+|                                    | ``MAX_STREAMS`` frames.                    |
++------------------------------------+--------------------------------------------+
+| Keep-alive                         | QUIC PING frames.                          |
++------------------------------------+--------------------------------------------+
+
+
+Stream Layer
+------------
+
+All application data is carried on streams provided by the transport. The first
+byte of every stream is a *stream type* that determines the format and semantics
+of the remaining stream data.
+
+Transport Requirements
+``````````````````````
+
+The stream layer that every transport provides consists of *bidirectional*
+streams (both peers can send) and *unidirectional* streams (only the opener can
+send), with the following operations and guarantees:
+
+- Either peer can **open** streams of either kind at any time. The receiver of a
+  stream can tell which peer opened it and of which kind it is.
+- Data written to a stream is delivered reliably and in order within that
+  stream. Streams are mutually independent: delay or loss on one stream MUST NOT
+  prevent delivery of data on other streams.
+- A sender can **finish** its sending direction of a stream, signalling that no
+  more data will be sent on it.
+- A peer can **reset** a stream it is sending on, abandoning it with an
+  application error code (see `Application Error Codes`_), and can **cancel**
+  the peer's sending direction of a stream, requesting with an application error
+  code that the peer stop sending.
+- Either peer can **close** the connection with an application error code.
+- The receiver of a stream can apply per-stream backpressure to bound how much
+  data it must buffer.
+- Each peer can bound the number of streams of each kind that the other peer may
+  have concurrently open. A node SHOULD allow at least 32 concurrent
+  bidirectional streams, and SHOULD allow at least 8 concurrent unidirectional
+  streams (sufficient for the announcement streams plus headroom for future
+  types).
+
+How each transport realizes these operations is specified in the corresponding
+transport section (for QUIC, see `Stream Layer Mapping`_).
+
+Stream Types
+````````````
+
++----------+-------------------------+-----------------+--------------------------------------+
+| Code     | Name                    | Kind            | Description                          |
++==========+=========================+=================+======================================+
+| ``0x00`` | Handshake               | Bidirectional,  | Connection handshake and control     |
+|          |                         | initiator only  | (see `Connection Handshake`_).       |
++----------+-------------------------+-----------------+--------------------------------------+
+| ``0x01`` | ``get-headers``         | Bidirectional   | Request block headers.               |
++----------+-------------------------+-----------------+--------------------------------------+
+| ``0x02`` | ``get-blocks``          | Bidirectional   | Request blocks, full or compact.     |
++----------+-------------------------+-----------------+--------------------------------------+
+| ``0x03`` | ``get-tx``              | Bidirectional   | Request transactions.                |
++----------+-------------------------+-----------------+--------------------------------------+
+| ``0x04`` | ``get-addr``            | Bidirectional   | Request peer addresses.              |
++----------+-------------------------+-----------------+--------------------------------------+
+| ``0x05`` | ``get-mempool``         | Bidirectional   | Request mempool contents.            |
++----------+-------------------------+-----------------+--------------------------------------+
+| ``0x10`` | Block announcements     | Unidirectional  | Announce new blocks (see             |
+|          |                         |                 | `Block Announcements`_).             |
++----------+-------------------------+-----------------+--------------------------------------+
+| ``0x11`` | Transaction             | Unidirectional  | Announce new transactions (see       |
+|          | announcements           |                 | `Transaction Announcements`_).       |
++----------+-------------------------+-----------------+--------------------------------------+
+| ``0x12`` | Address announcements   | Unidirectional  | Gossip peer addresses (see           |
+|          |                         |                 | `Address Announcements`_).           |
++----------+-------------------------+-----------------+--------------------------------------+
+
+A node receiving a stream whose type byte it does not recognize MUST reset that
+stream with the ``UNSUPPORTED_STREAM_TYPE`` error code (see
+`Application Error Codes`_) and MUST NOT treat it as a connection error or assign
+a misbehavior penalty. This allows future stream types to be deployed without
+version gating.
+
+Request Streams
+```````````````
+
+A request stream is a bidirectional stream carrying exactly one request and its
+response:
+
+1. The requesting peer opens a bidirectional stream, writes the stream type byte
+   followed by the request in the format defined for that type, and finishes its
+   sending direction.
+2. The responding peer writes the response in the format defined for that type
+   and finishes its sending direction.
+
+Either peer may open request streams; there is no client/server asymmetry beyond
+the rules stated for individual stream types.
+
+- A responder that cannot or will not serve a request MAY reset the stream with
+  the ``REFUSED`` error code instead of sending a response.
+- A requester that no longer needs a response SHOULD cancel the responder's
+  sending direction with the ``CANCELLED`` error code; the responder SHOULD then
+  reset the stream and abandon work on the request.
+- A node SHOULD apply an implementation-defined timeout to each outstanding
+  request, cancelling the stream if the response does not complete in time.
+- A node MUST NOT send more than one request on a stream. Any data following a
+  complete request or response on a stream is a connection error of type
+  ``PROTOCOL_ERROR``.
+
+A node bounds the number of concurrent requests a peer may have outstanding using
+the transport's stream concurrency limits (see `Transport Requirements`_).
+
+Announcement Streams
+````````````````````
+
+An announcement stream is a long-lived unidirectional stream carrying a sequence
+of records for one announcement topic.
+
+- After the connection handshake completes, each peer SHOULD open one
+  announcement stream of each type it intends to send announcements on, and keep
+  it open for the life of the connection.
+- A node MUST NOT open more than one announcement stream of a given type in the
+  same direction at a time. A second concurrent stream of the same type is a
+  connection error of type ``PROTOCOL_ERROR``. If an announcement stream is
+  reset or finished, the sender MAY open a replacement.
+- Announcements are best-effort: if transport backpressure prevents a record
+  from being written promptly, the sender MAY drop the announcement rather than
+  queueing it indefinitely.
+
+Records
+```````
+
+Each record on an announcement or handshake stream is encoded as a CompactSize
+length prefix followed by that many bytes of payload:
+
++---------+-------------+----------------------------------------------------+
+| Size    | Field       | Description                                        |
++=========+=============+====================================================+
+| varies  | ``length``  | Payload length in bytes (CompactSize).             |
++---------+-------------+----------------------------------------------------+
+| varies  | ``payload`` | Record payload; format depends on the stream type. |
++---------+-------------+----------------------------------------------------+
+
+The maximum length of a record payload — and of any individually length-prefixed
+element in a request or response, such as a serialized block — is 2,097,152 bytes
+(2 MiB). A node MUST treat a length prefix exceeding this limit as a connection
+error of type ``FLOOD``.
+
+A record MUST NOT be processed until it is complete. A stream that is finished
+in the middle of a record is a connection error of type ``PROTOCOL_ERROR``.
+
+Application Error Codes
+```````````````````````
+
+The following application error codes are used when closing a connection,
+resetting a stream, or cancelling a peer's sending direction (see
+`Transport Requirements`_):
+
++----------+-----------------------------+---------------------------------------------+
+| Code     | Constant                    | Usage                                       |
++==========+=============================+=============================================+
+| ``0x00`` | ``NO_ERROR``                | Graceful connection close.                  |
++----------+-----------------------------+---------------------------------------------+
+| ``0x01`` | ``PROTOCOL_ERROR``          | The peer violated this specification.       |
++----------+-----------------------------+---------------------------------------------+
+| ``0x02`` | ``UNSUPPORTED_STREAM_TYPE`` | Stream reset: unrecognized stream type.     |
++----------+-----------------------------+---------------------------------------------+
+| ``0x03`` | ``OBSOLETE``                | The peer's protocol version is below the    |
+|          |                             | minimum for the current network epoch (see  |
+|          |                             | `Network Upgrade Epoch Enforcement`_).      |
++----------+-----------------------------+---------------------------------------------+
+| ``0x04`` | ``SELF_CONNECTION``         | The connection is to the node itself (see   |
+|          |                             | `Init Record`_).                            |
++----------+-----------------------------+---------------------------------------------+
+| ``0x05`` | ``FLOOD``                   | The peer exceeded a size or rate limit.     |
++----------+-----------------------------+---------------------------------------------+
+| ``0x06`` | ``MISBEHAVIOR``             | The peer's misbehavior score reached the    |
+|          |                             | ban threshold (see                          |
+|          |                             | `Misbehavior and Banning`_).                |
++----------+-----------------------------+---------------------------------------------+
+| ``0x07`` | ``CANCELLED``               | Stop-sending/reset: the request is no       |
+|          |                             | longer wanted.                              |
++----------+-----------------------------+---------------------------------------------+
+| ``0x08`` | ``REFUSED``                 | Stream reset: the responder declines to     |
+|          |                             | serve this request.                         |
++----------+-----------------------------+---------------------------------------------+
+| ``0x09`` | ``INTERNAL_ERROR``          | The sender encountered an internal error.   |
++----------+-----------------------------+---------------------------------------------+
+
+A node receiving an error code it does not recognize MUST treat it as
+``INTERNAL_ERROR``.
+
+
+Data Types and Encoding
+-----------------------
+
+All multi-byte integer types are encoded in little-endian byte order unless otherwise
+specified. The integer types used in this specification (``uint8``, ``uint16``,
+``uint32``, ``uint64``) have their conventional meanings.
+
+CompactSize
+```````````
+
+.. note::
+
+  The CompactSize encoding is used in the Zcash Protocol Specification (section 7)
+  but is not formally defined there. It is defined here for completeness.
+
+A variable-length unsigned integer encoding used for lengths and counts:
+
++------------------------------------------+---------------+---------------------------------------------------+
+| Value Range                              | Encoding Size | Format                                            |
++==========================================+===============+===================================================+
+| 0 to 252                                 | 1 byte        | Single byte with the value directly.              |
++------------------------------------------+---------------+---------------------------------------------------+
+| 253 to 0xFFFF                            | 3 bytes       | ``0xFD`` followed by the value as ``uint16``.     |
++------------------------------------------+---------------+---------------------------------------------------+
+| 0x10000 to 0xFFFFFFFF                    | 5 bytes       | ``0xFE`` followed by the value as ``uint32``.     |
++------------------------------------------+---------------+---------------------------------------------------+
+| 0x100000000 to 0xFFFFFFFFFFFFFFFF        | 9 bytes       | ``0xFF`` followed by the value as ``uint64``.     |
++------------------------------------------+---------------+---------------------------------------------------+
+
+Encodings MUST be canonical: the shortest possible encoding MUST be used for any given
+value. A node MUST reject non-canonical CompactSize encodings.
+
+Strings
+```````
+
+Character strings are encoded as a CompactSize length prefix followed by that many bytes
+of string data. There is no NUL terminator.
+
+Network Address Record
+``````````````````````
+
+Peer addresses use the ``addrv2`` encoding specified in ZIP 155 [#zip-0155]_
+(derived from BIP 155 [#bip-0155]_); it is the only address encoding in this
+protocol. Each address record has the following format:
+
+  +---------+---------------+------------------------------------------------+
+  | Size    | Field         | Description                                    |
+  +=========+===============+================================================+
+  | 4       | ``time``      | Unix-epoch UTC time in seconds when the node   |
+  |         |               | was last seen (``uint32``, little-endian).     |
+  +---------+---------------+------------------------------------------------+
+  | varies  | ``services``  | Service bits (CompactSize-encoded ``uint64``). |
+  +---------+---------------+------------------------------------------------+
+  | 1       | ``networkID`` | Network identifier (``uint8``).                |
+  +---------+---------------+------------------------------------------------+
+  | varies  | ``sizeAddr``  | Length of ``addr`` in bytes (CompactSize).     |
+  +---------+---------------+------------------------------------------------+
+  | varies  | ``addr``      | Network address (``sizeAddr`` bytes).          |
+  |         |               | Interpretation depends on ``networkID``.       |
+  +---------+---------------+------------------------------------------------+
+  | 2       | ``port``      | Port number (``uint16``, big-endian); its      |
+  |         |               | interpretation depends on the network ID and   |
+  |         |               | transport. MUST be 0 if not relevant for the   |
+  |         |               | network.                                       |
+  +---------+---------------+------------------------------------------------+
+
+The following network IDs are defined:
+
+  +------------+-------------+--------------+-------------------------------------+
+  | Network ID | Name        | Address Size | Description                         |
+  +============+=============+==============+=====================================+
+  | ``0x01``   | ``IPV4``    | 4 bytes      | IPv4 address.                       |
+  +------------+-------------+--------------+-------------------------------------+
+  | ``0x02``   | ``IPV6``    | 16 bytes     | IPv6 address.                       |
+  +------------+-------------+--------------+-------------------------------------+
+  | ``0x04``   | ``TORV3``   | 32 bytes     | Tor v3 onion service address        |
+  |            |             |              | (Ed25519 public key).               |
+  +------------+-------------+--------------+-------------------------------------+
+  | ``0x05``   | ``I2P``     | 32 bytes     | I2P overlay network address         |
+  |            |             |              | (SHA-256 hash).                     |
+  +------------+-------------+--------------+-------------------------------------+
+  | ``0x06``   | ``CJDNS``   | 16 bytes     | Cjdns overlay network address       |
+  |            |             |              | (IPv6 in ``fc00::/8``).             |
+  +------------+-------------+--------------+-------------------------------------+
+
+Network ID ``0x03`` is reserved (it was assigned to Tor v2 in BIP 155 [#bip-0155]_,
+but Tor v2 addresses are no longer supported and MUST NOT be used).
+
+The ``addr`` field MUST NOT exceed 512 bytes; a node MUST reject an address record
+with a longer ``addr`` field, irrespective of the network ID. A node MUST reject
+addresses whose length does not match the expected length for the given network ID.
+A node MUST NOT gossip addresses with unrecognized network IDs.
+
+``IPV4`` and ``IPV6`` addresses are encoded in network byte order (big-endian).
+``TORV3`` addresses consist of the 32-byte Ed25519 master public key of the onion
+service. ``I2P`` addresses consist of the decoded 32-byte SHA-256 hash. ``CJDNS``
+addresses are 16-byte IPv6 addresses in the ``fc00::/8`` range, encoded in network
+byte order.
+
+.. note::
+
+  The QUIC transport runs over UDP, which the Tor and I2P overlay networks do not
+  carry, so ``TORV3`` and ``I2P`` addresses are not reachable via the transport
+  defined in this ZIP; they remain defined for gossip so that nodes can learn
+  them ahead of a future revision that defines an overlay-capable transport. A
+  future revision that adds transports — such as one over the Nym mixnet
+  [#nym]_ — is also expected to assign new network IDs for the addresses of those
+  transports, and to extend address gossip to indicate the transports on which a
+  peer is reachable. See `Deployment`_.
+
+Transaction References
+``````````````````````
+
+Transactions are identified in announcements and requests by *transaction
+references*. Per ZIP 239 [#zip-0239]_, transactions with version ≥ 5 are relayed by
+wtxid (the txid followed by the authorizing data commitment ``auth_digest``), and
+transactions with version ≤ 4 by txid. A transaction reference is encoded as a
+1-byte type followed by a type-dependent identifier:
+
++----------+-------------+--------------+---------------------------------------------+
+| Type     | Name        | Total Size   | Description                                 |
++==========+=============+==============+=============================================+
+| ``0x01`` | ``TXID``    | 33 bytes     | Transaction with version ≤ 4, identified    |
+|          |             |              | by its 32-byte txid.                        |
++----------+-------------+--------------+---------------------------------------------+
+| ``0x02`` | ``WTXID``   | 65 bytes     | Transaction with version ≥ 5, identified    |
+|          |             |              | by its 64-byte wtxid (txid followed by      |
+|          |             |              | ``auth_digest``). See ZIP 239 [#zip-0239]_. |
++----------+-------------+--------------+---------------------------------------------+
+| ``0x03`` | ``SHORTID`` | 39 bytes     | Transaction within a specific block,        |
+|          |             |              | identified by a 32-byte block hash followed |
+|          |             |              | by a 6-byte short transaction ID (see       |
+|          |             |              | `Short Transaction IDs`_). Only valid in    |
+|          |             |              | ``get-tx`` requests.                        |
++----------+-------------+--------------+---------------------------------------------+
+
+A node MUST reject transaction references with unrecognized types. Using ``TXID``
+for a transaction with version ≥ 5, or ``WTXID`` for a transaction with version
+≤ 4, is a protocol violation subject to a misbehavior penalty (see
+`Misbehavior and Banning`_ and ZIP 239 [#zip-0239]_).
+
+
+Service Flags
+-------------
+
+Service flags are advertised in the ``services`` field of ``init`` records and
+network address records. In the table below, bit $k$ refers to the bit with
+numeric weight $2^k$; that is, the ``services`` field has the corresponding flag
+set if and only if ``services & (1 << k) != 0``.
+
++------------------+-----+------------------------------------------------------+
+| Name             | Bit | Description                                          |
++==================+=====+======================================================+
+| ``NODE_NETWORK`` | 0   | The node is capable of serving the complete block    |
+|                  |     | chain.                                               |
++------------------+-----+------------------------------------------------------+
+
+Bits 24–31 are reserved for temporary experiments.
+
+The legacy ``NODE_BLOOM`` flag (bit 2) is retired along with BIP 37 Bloom
+filtering, and MUST NOT be advertised.
+
+
+Connection Handshake
+--------------------
+
+Peers perform an application handshake immediately after the transport
+connection is established.
+
+Handshake Sequence
+``````````````````
+
+1. The initiator opens a bidirectional stream with stream type ``0x00`` (the
+   *handshake stream*) and sends an ``init`` record.
+2. The responder sends its own ``init`` record on the same stream.
+3. The handshake is complete for a peer once it has both sent and received an
+   ``init`` record. The negotiated protocol version is
+   ``min(local_version, remote_version)``.
+
+Only the initiator may open the handshake stream, and a connection has exactly
+one: a handshake stream opened by the responder, or a second handshake stream, is
+a connection error of type ``PROTOCOL_ERROR``.
+
+A node MUST NOT open any other stream before it has sent its ``init`` record, and
+MUST NOT send announcement records or requests before the handshake is complete.
+A node MAY buffer streams received from a peer before the handshake completes, or
+MAY reset them with ``REFUSED``; it MUST NOT process them before the handshake
+completes.
+
+The handshake stream remains open for the life of the connection. Future record
+kinds on the handshake stream may be defined by later revisions; a node MUST
+ignore handshake-stream records whose kind it does not recognize. Finishing or
+resetting the handshake stream signals intent to disconnect; a node observing this
+SHOULD close the connection with ``NO_ERROR``.
+
+Records on the handshake stream use the encoding of `Records`_. The record payload
+begins with a 1-byte record kind; kind ``0x00`` is the ``init`` record.
+
+Init Record
+```````````
+
+The ``init`` record payload (following the kind byte) has the following format:
+
++---------+------------------+--------------------------------------------------------+
+| Size    | Field            | Description                                            |
++=========+==================+========================================================+
+| 4       | ``version``      | The sender's advertised protocol version (``uint32``). |
++---------+------------------+--------------------------------------------------------+
+| varies  | ``services``     | Service flags (CompactSize-encoded ``uint64``).        |
++---------+------------------+--------------------------------------------------------+
+| 8       | ``nonce``        | Random nonce for self-connection detection             |
+|         |                  | (``uint64``).                                          |
++---------+------------------+--------------------------------------------------------+
+| varies  | ``user_agent``   | User agent string (CompactSize-prefixed, max 256       |
+|         |                  | bytes).                                                |
++---------+------------------+--------------------------------------------------------+
+| 4       | ``start_height`` | Best block height known to the sender (``uint32``).    |
++---------+------------------+--------------------------------------------------------+
+| 1       | ``relay``        | Whether the sender wants transaction relay             |
+|         |                  | (``uint8``; 0 or 1).                                   |
++---------+------------------+--------------------------------------------------------+
+| 1       | ``announce``     | Whether the sender requests high-bandwidth compact     |
+|         |                  | block announcements (``uint8``; 0 or 1). See           |
+|         |                  | `Compact Block Relay`_.                                |
++---------+------------------+--------------------------------------------------------+
+| 1       | ``full_ids``     | Whether the sender requests full transaction IDs in    |
+|         |                  | compact block announcements (``uint8``; 0 or 1). See   |
+|         |                  | `Full Transaction IDs`_.                               |
++---------+------------------+--------------------------------------------------------+
+
+All fields are mandatory. The legacy ``timestamp``, ``addr_recv``, and
+``addr_from`` fields are removed: they served clock sanity checks and address
+self-discovery functions that are out of scope for this protocol.
+
+The ``nonce`` field is used for self-connection detection. If a node receives an
+``init`` record containing a nonce it recently sent in its own ``init`` records,
+it MUST close the connection with the ``SELF_CONNECTION`` error code.
+
+If ``relay`` is 0, the peer MUST NOT open a transaction announcement stream to
+the sender, and SHOULD NOT announce transactions to it by any other means.
+
+There is no mechanism for changing the value of the ``relay``, ``announce``, or
+``full_ids`` fields during the life of a connection (unlike BIP 152 [#bip-0152]_,
+in which the corresponding preferences can be renegotiated at any time with the
+``sendcmpct`` message). A node that wants to change these preferences for a peer
+disconnects and performs a new handshake.
+
+Handshake Validation
+````````````````````
+
+A receiving node MUST validate the ``init`` record as follows:
+
+- The ``version`` field MUST be at least the minimum protocol version of this
+  ZIP (see `Protocol Versioning`_), and at least the protocol version
+  associated with the current network epoch (see
+  `Network Upgrade Epoch Enforcement`_). On failure, the node MUST close the
+  connection with the ``OBSOLETE`` error code.
+- The ``nonce`` MUST NOT match the local node's nonce (self-connection
+  detection).
+- The ``user_agent`` string MUST NOT exceed 256 bytes.
+- The ``relay``, ``announce``, and ``full_ids`` fields MUST each be 0 or 1.
+- A peer MUST NOT send more than one ``init`` record per connection.
+
+Except where another error code is specified above, a node MUST close the
+connection with the ``PROTOCOL_ERROR`` error code if any of these checks fail.
+
+
+Protocol Versioning
+-------------------
+
+Protocol versions are 32-bit integers, advertised in the ``version`` field of the
+``init`` record. The *negotiated protocol version* of a connection is the minimum
+of the two peers' advertised versions. The negotiated protocol version determines
+whether the peer meets the minimum version requirements for the current network
+epoch (see `Network Upgrade Epoch Enforcement`_), and gates any features that
+later revisions of this protocol introduce under new protocol versions.
+
+The current protocol version is 170160 (``PROTOCOL_VERSION``). The protocol
+version from which the protocol specified by this ZIP is deployed
+has not yet been assigned; it will be assigned according to `Assigning Protocol
+Versions to Network Upgrades`_. That version is the minimum peer protocol version
+of this protocol: every node implementing this ZIP necessarily advertises at
+least that version, and version-gated features of the legacy protocol (such as
+``MSG_WTX`` relay and ``addrv2`` support) are unconditionally in effect.
+
+Network Upgrade Epoch Enforcement
+`````````````````````````````````
+
+Each network upgrade defines a minimum protocol version. When a network upgrade
+activates (as defined in ZIP 200 [#zip-0200]_), a node MUST disconnect any peer whose
+negotiated protocol version is less than the protocol version associated with the
+current epoch, using the ``OBSOLETE`` error code.
+
+The following protocol versions are associated with network upgrades on Mainnet:
+
++-------------------+------------------+-------------------+
+| Network Upgrade   | Protocol Version | Activation Height |
++===================+==================+===================+
+| Sprout            | 170002           | (always active)   |
++-------------------+------------------+-------------------+
+| Overwinter        | 170005           | 347,500           |
++-------------------+------------------+-------------------+
+| Sapling           | 170007           | 419,200           |
++-------------------+------------------+-------------------+
+| Blossom           | 170009           | 653,600           |
++-------------------+------------------+-------------------+
+| Heartwood         | 170011           | 903,000           |
++-------------------+------------------+-------------------+
+| Canopy            | 170013           | 1,046,400         |
++-------------------+------------------+-------------------+
+| NU5               | 170100           | 1,687,104         |
++-------------------+------------------+-------------------+
+| NU6               | 170120           | 2,726,400         |
++-------------------+------------------+-------------------+
+| NU6.1             | 170140           | 3,146,400         |
++-------------------+------------------+-------------------+
+| NU6.2             | 170150           | 3,364,600         |
++-------------------+------------------+-------------------+
+| NU6.3             | 170160           | 3,428,143         |
++-------------------+------------------+-------------------+
+
+The following protocol versions are associated with network upgrades on Testnet:
+
++-------------------+------------------+-------------------+
+| Network Upgrade   | Protocol Version | Activation Height |
++===================+==================+===================+
+| Sprout            | 170002           | (always active)   |
++-------------------+------------------+-------------------+
+| Overwinter        | 170003           | 207,500           |
++-------------------+------------------+-------------------+
+| Sapling           | 170007           | 280,000           |
++-------------------+------------------+-------------------+
+| Blossom           | 170008           | 584,000           |
++-------------------+------------------+-------------------+
+| Heartwood         | 170010           | 903,800           |
++-------------------+------------------+-------------------+
+| Canopy            | 170012           | 1,028,500         |
++-------------------+------------------+-------------------+
+| NU5               | 170050           | 1,842,420         |
++-------------------+------------------+-------------------+
+| NU6               | 170110           | 2,976,000         |
++-------------------+------------------+-------------------+
+| NU6.1             | 170130           | 3,536,500         |
++-------------------+------------------+-------------------+
+| NU6.2             | 170150           | 4,052,000         |
++-------------------+------------------+-------------------+
+| NU6.3             | 170160           | 4,134,000         |
++-------------------+------------------+-------------------+
+
+Note that Testnet protocol versions differ from Mainnet for several upgrades
+(Overwinter, Blossom, Heartwood, Canopy, NU5, NU6, and NU6.1), but coincide for
+Sapling, NU6.2, and NU6.3. The coincidences for NU6.2 and NU6.3 are a consequence of
+the ad hoc assignment used through NU6.3; see `Assigning Protocol Versions to Network
+Upgrades`_ for the rule adopted to prevent such coincidences from NU7 onward.
+
+Assigning Protocol Versions to Network Upgrades
+```````````````````````````````````````````````
+
+When a new network upgrade is defined, it is assigned a protocol version for each network
+on which it will activate. In the tables above, the *Mainnet protocol version* and
+*Testnet protocol version* of an upgrade are the values in the Mainnet and Testnet tables
+respectively; Regtest uses the Testnet protocol version. These assignments MUST satisfy
+the following invariants:
+
+1. **Zcash range.** Every assigned protocol version is of the form ``170000 + n`` with
+   ``0 ≤ n ≤ 999``. The leading ``170`` distinguishes Zcash protocol versions from those
+   of Bitcoin Core, from which the legacy protocol's version numbering was inherited.
+   When this range nears exhaustion, a successor scheme will need to be specified.
+
+2. **Per-network monotonicity.** For a given network, the protocol version assigned to an
+   upgrade MUST be strictly greater than any preceding protocol version assigned to that
+   network. This is what allows a node to reject peers that have not upgraded (see
+   `Network Upgrade Epoch Enforcement`_).
+
+
+Through NU6.3, protocol versions were assigned by hand and do not follow a single rule;
+in particular the Testnet and Mainnet protocol versions of NU6.2 and NU6.3 are equal
+(``170150`` and ``170160`` respectively), so those values do not by themselves identify
+a network. From NU7 onward, protocol versions MUST be assigned by the following
+procedure, which preserves the invariants above and additionally guarantees that no
+protocol version is ever assigned to more than one (network, upgrade) pair:
+
+  Let ``M`` be the Mainnet protocol version of the immediately preceding upgrade, and let
+  ``base`` be the least value of the form ``170000 + 20·k`` that is strictly greater than
+  ``M``. Then the Testnet protocol version of the new upgrade is ``base``, and its
+  Mainnet protocol version is ``base + 10``.
+
+Equivalently, from NU7 onward Testnet protocol versions are congruent to 0 modulo 20 and
+Mainnet protocol versions are congruent to 10 modulo 20, so the two never coincide.
+
+For example, the preceding Mainnet protocol version at NU7 is NU6.3's ``170160``; the
+least ``170000 + 20·k`` strictly greater than ``170160`` is ``170180``, so NU7 is
+assigned Testnet protocol version ``170180`` and Mainnet protocol version ``170190``.
+The upgrade following NU7 would then be assigned ``170200`` (Testnet) and ``170210``
+(Mainnet).
+
+
+Request Stream Types
+--------------------
+
+This section defines each request stream type. For each type, the request and
+response formats and their semantics are specified. All requests and responses
+follow the lifecycle of `Request Streams`_.
+
+``get-headers``
+```````````````
+
+:Stream type: ``0x01``
+:Request:
+
+  +---------+---------------------------+------------------------------------------+
+  | Size    | Field                     | Description                              |
+  +=========+===========================+==========================================+
+  | varies  | ``locator_count``         | Number of block locator hashes           |
+  |         |                           | (CompactSize).                           |
+  +---------+---------------------------+------------------------------------------+
+  | varies  | ``locator_hashes``        | Block locator hashes (each 32 bytes),    |
+  |         |                           | from highest to lowest height.           |
+  +---------+---------------------------+------------------------------------------+
+  | 32      | ``hash_stop``             | Hash of the last desired header, or all  |
+  |         |                           | zeros to request as many as possible.    |
+  +---------+---------------------------+------------------------------------------+
+
+:Response:
+
+  +---------+-------------+---------------------------------------------------+
+  | Size    | Field       | Description                                       |
+  +=========+=============+===================================================+
+  | varies  | ``count``   | Number of headers (CompactSize).                  |
+  +---------+-------------+---------------------------------------------------+
+  | varies  | ``headers`` | Block headers, each encoded as a CompactSize      |
+  |         |             | length prefix followed by the serialized header   |
+  |         |             | [#protocol-blockheader]_ (including the Equihash  |
+  |         |             | solution).                                        |
+  +---------+-------------+---------------------------------------------------+
+
+Requests block headers starting after the first block locator hash found in the
+responder's best chain, up to and including ``hash_stop`` or 160 headers
+(``MAX_HEADERS_RESULTS``), whichever comes first. The ``locator_count`` MUST NOT
+exceed 101.
+
+The response ``count`` MUST NOT exceed 160. The headers MUST form a contiguous
+chain (each header's ``hashPrevBlock`` must match the hash of the preceding
+header). A node receiving non-contiguous headers SHOULD assign a misbehavior
+penalty of 20 points.
+
+The legacy always-zero transaction count that followed each header in ``headers``
+messages is removed.
+
+``get-blocks``
+``````````````
+
+:Stream type: ``0x02``
+:Request:
+
+  +---------+---------------+----------------------------------------------------+
+  | Size    | Field         | Description                                        |
+  +=========+===============+====================================================+
+  | varies  | ``count``     | Number of entries (CompactSize).                   |
+  +---------+---------------+----------------------------------------------------+
+  | varies  | ``entries``   | ``count`` entries, each a 1-byte requested format  |
+  |         |               | (``0x00`` full block, ``0x01`` compact block)      |
+  |         |               | followed by a 32-byte block hash.                  |
+  +---------+---------------+----------------------------------------------------+
+
+:Response: For each requested entry, in request order:
+
+  +---------+---------------+----------------------------------------------------+
+  | Size    | Field         | Description                                        |
+  +=========+===============+====================================================+
+  | 1       | ``result``    | ``0x00``: a full block follows. ``0x01``: a        |
+  |         |               | compact block follows. ``0x02``: not found         |
+  |         |               | (nothing follows for this entry).                  |
+  +---------+---------------+----------------------------------------------------+
+  | varies  | ``object``    | If ``result`` is ``0x00``: a CompactSize length    |
+  |         |               | prefix followed by the serialized block            |
+  |         |               | [#protocol-blockencoding]_. If ``result`` is       |
+  |         |               | ``0x01``: a compact block (see                     |
+  |         |               | `Compact Block Encoding`_).                        |
+  +---------+---------------+----------------------------------------------------+
+
+Requests blocks by hash, replacing the legacy ``getdata`` message with
+``MSG_BLOCK`` and ``MSG_CMPCT_BLOCK`` inventory entries. (The legacy ``getblocks``
+inventory walk has no equivalent in this protocol; synchronization is
+headers-first only. See `Headers-First Synchronization`_.)
+
+The ``count`` MUST NOT exceed 128. An entry with an unrecognized requested format
+is a connection error of type ``PROTOCOL_ERROR``.
+
+A responder answering an entry that requested a compact block MAY substitute a
+full block (``result = 0x00``), and SHOULD do so for blocks that are not recent. A
+requester SHOULD NOT request a compact block for a block that is not close to its
+current chain tip (BIP 152 [#bip-0152]_ recommends within 5 blocks). A responder
+MUST NOT answer a request for a full block with a compact block.
+
+``get-tx``
+``````````
+
+:Stream type: ``0x03``
+:Request:
+
+  +---------+---------------+----------------------------------------------------+
+  | Size    | Field         | Description                                        |
+  +=========+===============+====================================================+
+  | varies  | ``count``     | Number of transaction references (CompactSize).    |
+  +---------+---------------+----------------------------------------------------+
+  | varies  | ``txrefs``    | ``count`` transaction references (see              |
+  |         |               | `Transaction References`_). All three reference    |
+  |         |               | types are permitted.                               |
+  +---------+---------------+----------------------------------------------------+
+
+:Response: For each requested reference, in request order:
+
+  +---------+---------------+----------------------------------------------------+
+  | Size    | Field         | Description                                        |
+  +=========+===============+====================================================+
+  | 1       | ``result``    | ``0x00``: a transaction follows. ``0x02``: not     |
+  |         |               | found (nothing follows for this entry).            |
+  +---------+---------------+----------------------------------------------------+
+  | varies  | ``tx``        | If ``result`` is ``0x00``: a CompactSize length    |
+  |         |               | prefix followed by the serialized transaction      |
+  |         |               | [#protocol-txnencoding]_.                          |
+  +---------+---------------+----------------------------------------------------+
+
+Requests transactions by reference. The ``count`` MUST NOT exceed 50,000.
+
+``SHORTID`` references identify a transaction within a block relayed by a compact
+block; their handling is specified in `Requesting Missing Transactions`_.
+
+``get-addr``
+````````````
+
+:Stream type: ``0x04``
+:Request: Empty (the stream is finished immediately after the stream type byte).
+:Response:
+
+  +---------+---------------+----------------------------------------------------+
+  | Size    | Field         | Description                                        |
+  +=========+===============+====================================================+
+  | varies  | ``count``     | Number of address records (CompactSize).           |
+  +---------+---------------+----------------------------------------------------+
+  | varies  | ``addresses`` | ``count`` network address records (see             |
+  |         |               | `Network Address Record`_).                        |
+  +---------+---------------+----------------------------------------------------+
+
+Requests peer addresses from the remote node. The response ``count`` MUST NOT
+exceed 1000; a node receiving a larger response SHOULD assign a misbehavior
+penalty of 20 points.
+
+A node SHOULD send ``get-addr`` at most once per connection, and SHOULD only
+answer ``get-addr`` requests on inbound connections (resetting the stream with
+``REFUSED`` otherwise), to impede address-based fingerprinting attacks.
+
+``get-mempool``
+```````````````
+
+:Stream type: ``0x05``
+:Request: Empty (the stream is finished immediately after the stream type byte).
+:Response:
+
+  +---------+---------------+----------------------------------------------------+
+  | Size    | Field         | Description                                        |
+  +=========+===============+====================================================+
+  | varies  | ``count``     | Number of transaction references (CompactSize).    |
+  +---------+---------------+----------------------------------------------------+
+  | varies  | ``txrefs``    | ``count`` transaction references (see              |
+  |         |               | `Transaction References`_). ``SHORTID``            |
+  |         |               | references MUST NOT be used.                       |
+  +---------+---------------+----------------------------------------------------+
+
+Requests references to the contents of the peer's transaction memory pool; the
+requester may then fetch transactions of interest with ``get-tx``. A node MAY
+decline to serve ``get-mempool`` by resetting the stream with ``REFUSED``.
+
+
+Announcement Stream Types
+-------------------------
+
+Block Announcements
+```````````````````
+
+:Stream type: ``0x10``
+
+Each record payload on a block announcement stream has the following format:
+
+  +---------+---------------+----------------------------------------------------+
+  | Size    | Field         | Description                                        |
+  +=========+===============+====================================================+
+  | 1       | ``kind``      | ``0x00``: header announcement. ``0x01``: compact   |
+  |         |               | block announcement.                                |
+  +---------+---------------+----------------------------------------------------+
+  | varies  | ``payload``   | For ``kind = 0x00``: a serialized block header     |
+  |         |               | [#protocol-blockheader]_. For ``kind = 0x01``: a   |
+  |         |               | compact block (see `Compact Block Encoding`_).     |
+  +---------+---------------+----------------------------------------------------+
+
+Blocks are announced immediately; they are not subject to the trickling delay
+applied to transactions.
+
+A node announces a new block to a given peer in one of two ways:
+
+1. If the peer requested high-bandwidth compact block announcements (the
+   ``announce`` field of its ``init`` record was 1), by sending a compact block
+   announcement (``kind = 0x01``).
+2. Otherwise, by sending header announcements (``kind = 0x00``) for the new block
+   and for any intermediate blocks the peer has not yet been sent, up to a small
+   implementation-defined limit. This follows the design of BIP 130
+   [#bip-0130]_.
+
+A node MUST NOT send compact block announcements to a peer whose ``init`` record
+had ``announce = 0``.
+
+An announcing node SHOULD only announce a block if it expects the peer to be able
+to connect the announced header to the peer's known chain (for example, because
+the parent block was previously announced to or by that peer). A node receiving
+an announcement whose header does not connect to its known chain SHOULD recover
+by sending a ``get-headers`` request, and MUST NOT assign a misbehavior penalty
+solely because a header does not connect.
+
+Transaction Announcements
+`````````````````````````
+
+:Stream type: ``0x11``
+
+Each record payload on a transaction announcement stream is a single transaction
+reference (see `Transaction References`_) of type ``TXID`` or ``WTXID``.
+``SHORTID`` references MUST NOT be used in announcements.
+
+A node MUST NOT open a transaction announcement stream to a peer whose ``init``
+record had ``relay = 0``.
+
+Announcements are subject to the trickling delay of `Trickling`_. Interested
+peers fetch announced transactions with ``get-tx`` requests.
+
+Address Announcements
+`````````````````````
+
+:Stream type: ``0x12``
+
+Each record payload on an address announcement stream is a single network address
+record (see `Network Address Record`_).
+
+Address announcements are subject to the rate limits of `Address Relay`_.
+
+
+Block Relay
+-----------
+
+Divided Block Relay
+```````````````````
+
+In the relay protocol inherited from Bitcoin, a new block was announced with an
+inventory message and transferred as a single monolithic ``block`` message
+containing the header together with all of its transactions — even though the
+receiver typically already held most of those transactions in its mempool.
+
+This protocol instead divides block headers and block transactions, in the same
+way that the modern Bitcoin protocol does:
+
+- Block headers are gossiped directly on block announcement streams, as in
+  BIP 130 [#bip-0130]_.
+- Block transactions are relayed separately from headers using compact block
+  relay (adapted from BIP 152 [#bip-0152]_): a block is transferred as its header
+  plus identifiers of its transactions, and only the transactions the receiver is
+  missing are requested and transferred, using ``get-tx`` requests.
+
+Unlike Bitcoin, which negotiates each of these mechanisms with a dedicated message
+(``sendheaders`` and ``sendcmpct`` respectively, because the Bitcoin protocol no
+longer bumps its protocol version to deploy new features), both mechanisms are
+unconditional in this protocol. The per-connection preferences — whether a peer
+wants high-bandwidth compact block announcements, and whether it wants
+transactions identified by full rather than short transaction IDs — are carried in
+the ``announce`` and ``full_ids`` fields of the ``init`` record (see
+`Init Record`_).
+
+Headers-First Synchronization
+`````````````````````````````
+
+Nodes synchronize the block chain using a headers-first approach; it is the only
+synchronization method in this protocol.
+
+1. The synchronizing node sends a ``get-headers`` request with a block locator.
+2. The remote peer responds with up to 160 headers.
+3. The synchronizing node validates the headers and requests full blocks via
+   ``get-blocks`` requests.
+4. Steps 1–3 repeat until the node is synchronized with the network.
+
+Block Download Parameters
+`````````````````````````
+
+- **Download window:** A node SHOULD NOT request blocks more than 1024 blocks ahead
+  of its current validated tip (``BLOCK_DOWNLOAD_WINDOW``).
+- **Per-peer limit:** A node SHOULD NOT have more than 16 blocks in transit from a
+  single peer simultaneously (``MAX_BLOCKS_IN_TRANSIT_PER_PEER``).
+- **Stalling timeout:** If a peer has not delivered a requested block within 2 seconds
+  (``BLOCK_STALLING_TIMEOUT``) and there are other peers available with the same
+  block, the node MAY request the block from an alternative peer (cancelling the
+  original request stream with ``CANCELLED``).
+- **Maximum headers per response:** 160 (``MAX_HEADERS_RESULTS``).
+
+Compact Block Relay
+```````````````````
+
+Compact block relay is adapted from BIP 152 [#bip-0152]_. This section specifies
+the protocol flows and the Zcash-specific differences from BIP 152; BIP 152
+provides the design rationale.
+
+The differences from BIP 152 are:
+
+- There is no ``sendcmpct`` message. Compact block relay is unconditional, and
+  the high-bandwidth announcement preference is carried in the ``announce`` field
+  of the ``init`` record (see `Init Record`_), and cannot be changed during the
+  life of a connection. (A future change to the compact block encoding would be
+  deployed under a new protocol version.)
+- A compact block can identify the block's transactions either by short
+  transaction IDs or by full transaction IDs, at the receiver's option (the
+  ``full_ids`` field of the ``init`` record; see `Full Transaction IDs`_).
+  BIP 152 supports only short transaction IDs.
+- There are no ``getblocktxn`` and ``blocktxn`` messages. Missing transactions
+  are requested with ``get-tx`` requests (using ``SHORTID``, ``TXID``, or
+  ``WTXID`` references) and delivered in the corresponding responses; see
+  `Requesting Missing Transactions`_.
+- The ``header`` field of a compact block uses the Zcash block header encoding
+  [#protocol-blockheader]_, including the Equihash solution, rather than the
+  80-byte Bitcoin header.
+- The input to the short transaction ID computation is based on the wtxid as
+  defined in ZIP 239 [#zip-0239]_ for version 5 transactions, rather than on
+  either the txid (BIP 152 version 1) or the BIP 141 wtxid (BIP 152 version 2);
+  see `Short Transaction IDs`_.
+
+Compact Block Encoding
+''''''''''''''''''''''
+
+A compact block relays a block as its header plus a compact representation of its
+transactions:
+
+  +---------+---------------------+---------------------------------------------------+
+  | Size    | Field               | Description                                       |
+  +=========+=====================+===================================================+
+  | varies  | ``header``          | The block header, encoded as a CompactSize        |
+  |         |                     | length prefix followed by the serialized header   |
+  |         |                     | [#protocol-blockheader]_ (including the Equihash  |
+  |         |                     | solution).                                        |
+  +---------+---------------------+---------------------------------------------------+
+  | 8       | ``nonce``           | Nonce for short transaction ID computation        |
+  |         |                     | (``uint64``, little-endian). If ``ids_kind`` is   |
+  |         |                     | 1, this field SHOULD be 0 and MUST be ignored.    |
+  +---------+---------------------+---------------------------------------------------+
+  | 1       | ``ids_kind``        | 0 if ``ids`` contains short transaction IDs;      |
+  |         |                     | 1 if it contains full transaction IDs             |
+  |         |                     | (``uint8``).                                      |
+  +---------+---------------------+---------------------------------------------------+
+  | varies  | ``ids_count``       | Number of transaction IDs (CompactSize).          |
+  +---------+---------------------+---------------------------------------------------+
+  | varies  | ``ids``             | If ``ids_kind`` is 0: short transaction IDs,      |
+  |         |                     | 6 bytes each, little-endian (see                  |
+  |         |                     | `Short Transaction IDs`_). If ``ids_kind`` is 1:  |
+  |         |                     | full transaction IDs, 64 bytes each (see          |
+  |         |                     | `Full Transaction IDs`_).                         |
+  +---------+---------------------+---------------------------------------------------+
+  | varies  | ``prefilled_count`` | Number of prefilled transactions (CompactSize).   |
+  +---------+---------------------+---------------------------------------------------+
+  | varies  | ``prefilled_txns``  | Prefilled transactions (see below).               |
+  +---------+---------------------+---------------------------------------------------+
+
+Each transaction in the block, in block order, is represented either by a
+transaction ID in ``ids`` (short or full, according to ``ids_kind``) or by a full
+serialized transaction in ``prefilled_txns``; the total number of transactions in
+the block is ``ids_count + prefilled_count``.
+
+A node MUST set ``ids_kind`` to 1 in compact blocks sent to a peer that set
+``full_ids = 1`` in its ``init`` record, and SHOULD set ``ids_kind`` to 0
+otherwise. A node MUST reject a compact block with an ``ids_kind`` value other
+than 0 or 1.
+
+Each entry of ``prefilled_txns`` has the following format:
+
+  +---------+-----------+------------------------------------------------------+
+  | Size    | Field     | Description                                          |
+  +=========+===========+======================================================+
+  | varies  | ``index`` | Differentially encoded index of this transaction     |
+  |         |           | within the block (CompactSize; see below).           |
+  +---------+-----------+------------------------------------------------------+
+  | varies  | ``tx``    | A full serialized transaction, encoded as a          |
+  |         |           | CompactSize length prefix followed by the            |
+  |         |           | serialized transaction [#protocol-txnencoding]_.     |
+  +---------+-----------+------------------------------------------------------+
+
+Prefilled transaction indexes are differentially encoded: the first ``index`` is the
+absolute index of the first prefilled transaction within the block, and each
+subsequent ``index`` is the difference between the absolute index of that prefilled
+transaction and the absolute index of the previous prefilled transaction, minus one.
+A node MUST reject a compact block in which any absolute index would exceed
+65535, or in which indexes overflow or are not strictly increasing.
+
+The coinbase transaction MUST be prefilled. A sender SHOULD additionally prefill any
+transaction that it predicts the receiver does not have.
+
+Short Transaction IDs
+'''''''''''''''''''''
+
+The short transaction ID of a transaction, relative to a given compact block, is
+computed as follows:
+
+1. Let ``input`` be the transaction identifier used for relay of the transaction:
+   for a transaction with version ≥ 5, its 64-byte wtxid as defined in ZIP 239
+   [#zip-0239]_ (the txid followed by the ``auth_digest``); for a transaction with
+   version ≤ 4, its 32-byte txid.
+2. Compute the single SHA-256 hash of the serialized block header (as it appears in
+   the ``header`` field, without the length prefix) followed by the 8-byte
+   little-endian encoding of the ``nonce`` field.
+3. Let ``k0`` and ``k1`` be the ``uint64`` values obtained by interpreting the first
+   and second 8 bytes, respectively, of that hash in little-endian byte order.
+4. The short transaction ID is the least significant 6 bytes, in little-endian byte
+   order, of ``SipHash-2-4(k0, k1, input)``, where SipHash-2-4 is as used in BIP 152
+   [#bip-0152]_.
+
+The ``nonce`` SHOULD be chosen uniformly at random by the sender of a compact
+block, so that short ID collisions between blocks and senders are independent.
+
+Full Transaction IDs
+''''''''''''''''''''
+
+The full transaction ID of a transaction is the 64-byte value consisting of the
+transaction's txid followed by its ``auth_digest``. For a transaction with version
+≥ 5, this is the wtxid used for relay, as defined in ZIP 239 [#zip-0239]_. For a
+transaction with version ≤ 4, the ``auth_digest`` is the placeholder value
+consisting of 32 bytes of ``0xFF`` defined in ZIP 244 [#zip-0244]_.
+
+A full transaction ID commits to all data of the serialized transaction, so matching
+against full transaction IDs is exact: unlike short transaction IDs, full transaction
+IDs are not subject to collisions, and no ``nonce`` is involved in their computation.
+
+A node that does not maintain a set of candidate transactions suitable for short
+transaction ID matching — for example, a pruned node — can request full transaction
+IDs in the compact blocks sent to it by setting ``full_ids = 1`` in its ``init``
+record, at the cost of larger compact blocks.
+
+Requesting Missing Transactions
+'''''''''''''''''''''''''''''''
+
+Transactions that could not be matched while reconstructing a block from a compact
+block are requested with ``get-tx`` requests, rather than with dedicated messages
+as in BIP 152 (``getblocktxn`` and ``blocktxn``, which identify transactions by
+index within the block):
+
+- If the compact block had ``ids_kind = 0``, each unmatched short transaction ID
+  is requested as a ``SHORTID`` transaction reference containing the block hash
+  and the short transaction ID copied from the compact block. Because short
+  transaction IDs depend on the ``nonce`` of the compact block they appeared in,
+  the responding node interprets them using the ``nonce`` of the compact block it
+  most recently sent to the requesting peer for the identified block. A node
+  receiving a ``SHORTID`` reference for a block for which it has not recently
+  sent that peer a compact block, or whose short transaction ID matches no
+  transaction — or more than one transaction — in the identified block, SHOULD
+  answer that reference with a not-found result.
+- If the compact block had ``ids_kind = 1``, each unmatched full transaction ID
+  is requested as an ordinary transaction reference: a ``TXID`` reference
+  containing the txid if the ``auth_digest`` half of the full transaction ID is
+  the 32-byte ``0xFF`` placeholder (indicating a pre-v5 transaction), or a
+  ``WTXID`` reference containing the full transaction ID otherwise.
+
+A node that sends a compact block for a block MUST be able, for a reasonable
+implementation-defined time thereafter, to serve that block's transactions to the
+same peer via ``get-tx`` — including by ``SHORTID`` references, and irrespective
+of whether those transactions remain in its mempool.
+
+Relay Protocol
+''''''''''''''
+
+A node follows the BIP 152 [#bip-0152]_ protocol flows:
+
+- **High-bandwidth mode** (the receiver's ``init`` record had ``announce = 1``):
+  the sender announces a new block by sending a compact block announcement
+  directly. To minimize propagation latency, the sender MAY do so as soon as it
+  has validated the block header (checking proof of work and difficulty), before
+  fully validating the block. A node SHOULD request high-bandwidth announcements
+  from at most 3 peers, preferring the peers that most recently announced blocks
+  to it first; to change its selection, it disconnects and reconnects with a new
+  ``init`` record.
+- **Low-bandwidth mode** (the receiver's ``init`` record had ``announce = 0``):
+  blocks are announced to the receiver with header announcements (see
+  `Block Announcements`_), and the receiver MAY then request a compact block via
+  a ``get-blocks`` entry with requested format ``0x01``. The responder MAY answer
+  with a full block instead, and SHOULD do so for blocks that are not recent.
+
+Upon receiving a compact block, a node attempts to reconstruct the block by
+matching each transaction ID in ``ids`` against the transactions it already holds
+(in its mempool or otherwise) — computing short transaction IDs for the held
+transactions if ``ids_kind`` is 0, or comparing full transaction IDs directly if
+``ids_kind`` is 1:
+
+- If all transactions are available, the node reconstructs and validates the block
+  as if it had been received as a full block.
+- If one or more transactions are missing, or (for short transaction IDs) if two or
+  more held transactions collide on the same short ID, the node requests the
+  unresolved transactions with a ``get-tx`` request (see
+  `Requesting Missing Transactions`_), and completes reconstruction as the
+  response arrives.
+- If any requested transaction is answered with a not-found result, or if
+  reconstruction fails after the responses arrive (for example, because a short ID
+  collision caused a wrong match and the reconstructed block is invalid), the node
+  SHOULD fall back to requesting the full block via ``get-blocks``, and MUST NOT
+  assign a misbehavior penalty solely because reconstruction failed.
+
+A transaction received while reconstructing a block from a compact block is part
+of that block; consensus rules are enforced on the reconstructed block, and the
+short ID matching mechanism does not weaken them — an incorrectly reconstructed
+block fails validation of the block's merkle root and authorizing data commitment.
+
+
+Transaction Relay
+-----------------
+
+Announcement-Based Relay
+````````````````````````
+
+Transaction relay follows an announcement-based protocol:
+
+1. A node with a new transaction sends a transaction reference on its transaction
+   announcement stream to each peer (subject to trickling).
+2. Peers that want the transaction request it with a ``get-tx`` request.
+3. The originating node serves the transaction in the ``get-tx`` response.
+
+Transactions with version ≤ 4 MUST be announced using ``TXID`` references.
+Transactions with version ≥ 5 MUST be announced using ``WTXID`` references.
+Using the wrong reference type for a transaction version SHOULD incur a misbehavior
+penalty. See ZIP 239 [#zip-0239]_.
+
+Trickling
+`````````
+
+To impede network topology inference, transaction announcements SHOULD NOT be sent
+immediately but SHOULD instead be "trickled" at random intervals. The specific
+trickling parameters are implementation-defined. For reference, the zcashd
+implementation of the legacy protocol used the following values:
+
+- The average broadcast interval is 5 seconds (``INVENTORY_BROADCAST_INTERVAL``).
+- For outbound peers, the effective interval in seconds is halved rounding down
+  (2 seconds on average).
+- At most 35 announcements (``INVENTORY_BROADCAST_MAX``) are sent per trickle
+  interval.
+- Broadcast times follow a Poisson distribution centered on the broadcast interval.
+
+The Zebra implementation uses a 7-second gossip delay (``PEER_GOSSIP_DELAY``).
+
+Transaction Expiry
+``````````````````
+
+A node SHOULD NOT relay a transaction that will expire within 3 blocks of its view of
+the current chain tip (``TX_EXPIRING_SOON_THRESHOLD``).
+
+Orphan Transactions
+```````````````````
+
+An orphan transaction is one that references inputs from unknown parent transactions.
+
+- A node SHOULD store at most 100 orphan transactions
+  (``DEFAULT_MAX_ORPHAN_TRANSACTIONS``).
+- Orphan transactions expire and are removed after 1200 seconds (20 minutes,
+  ``ORPHAN_TX_EXPIRE_TIME``).
+- Only fully transparent transactions are eligible for orphan storage.
+- When the orphan pool is full, the oldest orphan transactions are evicted.
+
+Relay Fee
+`````````
+
+Transactions are subject to a minimum relay fee. Both the zcashd and Zebra
+implementations use a base rate of 100 zatoshis per 1000 bytes
+(``DEFAULT_MIN_RELAY_TX_FEE``), though the zcashd implementation applies additional
+logic for low-fee and free transactions [#zcashd-relay-fee]_. A node SHOULD NOT relay
+transactions with fees below its minimum relay fee threshold.
+
+
+Address Relay
+-------------
+
+Address relay allows nodes to discover peers by propagating network address records
+through the network, via address announcement streams and ``get-addr`` requests.
+
+Rate Limiting
+`````````````
+
+Address records SHOULD be subject to rate limiting to prevent address flooding. The
+specific rate-limiting mechanism is implementation-defined. For reference, the
+zcashd implementation of the legacy protocol used a token-bucket algorithm:
+
+- Rate: 0.1 address records per second per peer (``MAX_ADDR_RATE_PER_SECOND``).
+- Bucket capacity: 1000 (``MAX_ADDR_PROCESSING_TOKEN_BUCKET``), replenished at 0.1
+  tokens per second.
+- Upon receiving a ``get-addr`` response, 1000 tokens (``MAX_ADDR_TO_SEND``) are
+  added to the bucket, exempt from the soft limit.
+- Whitelisted peers bypass address rate limiting.
+
+A node MAY additionally apply backpressure on the peer's address announcement
+stream to bound the rate at which it receives address records.
+
+Address Broadcasting
+````````````````````
+
+The specific broadcast intervals are implementation-defined. For reference, the
+zcashd implementation of the legacy protocol used the following values:
+
+- Addresses are broadcast to peers at an average interval of 30 seconds
+  (``AVG_ADDRESS_BROADCAST_INTERVAL``).
+- A node's own address is broadcast approximately every 9.6 hours
+  (``AVG_LOCAL_ADDRESS_BROADCAST_INTERVAL = 24 * 24 * 60 = 34560`` seconds).
+
+
+Misbehavior and Banning
+-----------------------
+
+Nodes SHOULD track misbehavior scores for each connected peer. For reference, the
+zcashd implementation of the legacy protocol banned a peer when its cumulative
+score reached or exceeded 100 (``DEFAULT_BANSCORE_THRESHOLD``), with bans lasting
+24 hours (``DEFAULT_MISBEHAVING_BANTIME``); the Zebra implementation also uses a
+threshold of 100 (``MAX_PEER_MISBEHAVIOR_SCORE``) but bans persist indefinitely.
+The ban threshold and duration are implementation-defined.
+
+When a peer's misbehavior score reaches the ban threshold, the node SHOULD close
+the connection with the ``MISBEHAVIOR`` error code.
+
+Whitelisted peers accumulate misbehavior scores but are exempt from banning.
+
+Violations of "MUST"-level requirements of this specification that are attributable
+to the peer — malformed records, invalid stream usage, or exceeded hard limits —
+are connection errors: the node closes the connection with the indicated error code
+(``PROTOCOL_ERROR`` or ``FLOOD`` unless otherwise specified), without scoring. The
+misbehavior score is used for violations where immediate disconnection would be
+disproportionate or would harm honest-but-buggy peers:
+
++--------+-------------------------------------------------------------------+
+| Points | Violation                                                         |
++========+===================================================================+
+| 20     | ``get-headers`` response with more than 160 headers.              |
++--------+-------------------------------------------------------------------+
+| 20     | Non-contiguous headers in a ``get-headers`` response.             |
++--------+-------------------------------------------------------------------+
+| 20     | ``get-addr`` response with more than 1000 address records.        |
++--------+-------------------------------------------------------------------+
+| 100    | Using a ``TXID`` reference to announce a v5 transaction, or a     |
+|        | ``WTXID`` reference to announce a v4-or-earlier transaction (see  |
+|        | ZIP 239 [#zip-0239]_).                                            |
++--------+-------------------------------------------------------------------+
+| varies | Transaction, block, or header validation failure. The penalty is  |
+|        | determined by the severity of the validation error.               |
++--------+-------------------------------------------------------------------+
+
+
+Network Upgrade Peer Management
+-------------------------------
+
+Network upgrade peer management is specified in ZIP 201 [#zip-0201]_. This section
+summarizes the key behaviors.
+
+Pre-Activation
+``````````````
+
+In the 1728-block window (``NETWORK_UPGRADE_PEER_PREFERENCE_BLOCK_PERIOD``) before a
+network upgrade activation height, a node SHOULD preferentially connect to peers that
+advertise a protocol version at or above the version required by the upcoming upgrade.
+This period corresponds to approximately 1.5 days at the post-Blossom block interval.
+
+Post-Activation
+```````````````
+
+After a network upgrade activates, a node MUST disconnect any peer whose negotiated
+protocol version is below the version required by the active epoch, using the
+``OBSOLETE`` error code.
+
+
+Deployment
+==========
+
+This ZIP replaces the legacy protocol without a compatibility bridge: nodes
+implementing this protocol do not interoperate with nodes implementing the
+legacy protocol. Deployment is coordinated through the network upgrade
+mechanism [#zip-0200]_: the protocol version from which this protocol is in effect
+will be assigned to a network upgrade, and the epoch enforcement of ZIP 201
+[#zip-0201]_ retires legacy-protocol peers at activation, as with any other network
+upgrade.
+
+DNS seeders are expected to probe and serve the QUIC endpoints of nodes
+implementing this ZIP.
+
+The protocol semantics are specified against the abstract stream layer of
+`Stream Layer`_, and QUIC is the only transport defined by this ZIP. Future
+revisions are expected to define additional transports to be used simultaneously
+with QUIC; in particular, a transport carrying the stream layer over the Nym
+mixnet [#nym]_ is anticipated, providing network-level metadata protection
+(resistance to traffic analysis of which peers are communicating) that a direct
+QUIC connection does not.
+
+.. note::
+
+  The QUIC and Nym transports are complementary rather than alternatives, which
+  is why simultaneous use of multiple transports is a design goal. Mix routing
+  and cover traffic give a mixnet substantially higher and more variable latency
+  than a direct QUIC connection. That latency is unacceptable for
+  latency-critical, anonymity-insensitive traffic — block propagation and
+  synchronization, where slow relay measurably harms consensus and mining
+  fairness — but is a worthwhile price for anonymity-critical traffic, above all
+  a node originating its own transactions, where linking a transaction to its
+  submitting network address undermines the privacy that Zcash's shielded
+  protocol provides on-chain. A node is therefore expected to use both
+  transports in parallel: QUIC connections for bulk relay and synchronization,
+  and Nym connections where anonymity matters more than latency, selected per
+  connection according to the traffic it will carry.
+
+Transports mapping the stream layer onto a multiplexed
+TCP connection could similarly serve overlay networks such as Tor and I2P that
+cannot carry UDP. A node supporting several transports listens on each of them
+and treats connections identically at the semantic layer regardless of
+transport. The ``TORV3`` and ``I2P`` network IDs remain defined in
+`Network Address Record`_ in anticipation of such revisions.
+
+
+Formal Model
+============
+
+A TLA+ formal specification of the connection lifecycle of the legacy TCP-based
+protocol is available at [#formal-model]_. It covers the handshake, keepalive,
+block synchronization, and disconnection phases of the legacy protocol
+[#zip-0204]_, and has not yet been updated for the protocol specified here.
+
+
+References
+==========
+
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#protocol-networks] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
+.. [#protocol-blockchain] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.3: The Block Chain <protocol/protocol.pdf#blockchain>`_
+.. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
+.. [#protocol-blockencoding] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 7.6: Block Encoding <protocol/protocol.pdf#blockencoding>`_
+.. [#protocol-blockheader] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 7.5: Block Header Encoding <protocol/protocol.pdf#blockheader>`_
+.. [#zip-0155] `ZIP 155: addrv2 message <zip-0155.rst>`_
+.. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
+.. [#zip-0201] `ZIP 201: Network Peer Management for Overwinter <zip-0201.rst>`_
+.. [#zip-0204] `ZIP 204: Zcash P2P Network Protocol <zip-0204.rst>`_
+.. [#zip-0239] `ZIP 239: Relay of Version 5 Transactions <zip-0239.rst>`_
+.. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`_
+.. [#bip-0130] `BIP 130: sendheaders message <https://github.com/bitcoin/bips/blob/master/bip-0130.mediawiki>`_
+.. [#bip-0152] `BIP 152: Compact Block Relay <https://github.com/bitcoin/bips/blob/master/bip-0152.mediawiki>`_
+.. [#bip-0155] `BIP 155: addrv2 message <https://github.com/bitcoin/bips/blob/master/bip-0155.mediawiki>`_
+.. [#bip-0324] `BIP 324: Version 2 P2P Encrypted Transport Protocol <https://github.com/bitcoin/bips/blob/master/bip-0324.mediawiki>`_
+.. [#rfc7250] `RFC 7250: Using Raw Public Keys in Transport Layer Security (TLS) and Datagram Transport Layer Security (DTLS) <https://www.rfc-editor.org/rfc/rfc7250.html>`_
+.. [#rfc7301] `RFC 7301: Transport Layer Security (TLS) Application-Layer Protocol Negotiation Extension <https://www.rfc-editor.org/rfc/rfc7301.html>`_
+.. [#rfc8446] `RFC 8446: The Transport Layer Security (TLS) Protocol Version 1.3 <https://www.rfc-editor.org/rfc/rfc8446.html>`_
+.. [#rfc9000] `RFC 9000: QUIC: A UDP-Based Multiplexed and Secure Transport <https://www.rfc-editor.org/rfc/rfc9000.html>`_
+.. [#rfc9001] `RFC 9001: Using TLS to Secure QUIC <https://www.rfc-editor.org/rfc/rfc9001.html>`_
+.. [#rfc9221] `RFC 9221: An Unreliable Datagram Extension to QUIC <https://www.rfc-editor.org/rfc/rfc9221.html>`_
+.. [#nym] `The Nym Mixnet <https://nymtech.net/>`_
+.. [#zcashd-relay-fee] `zcashd relay fee policy (policy.h) <https://github.com/zcash/zcash/blob/cfcfcd93b06d2ee897f1d24eb62692c9e9e0e66d/src/policy/policy.h#L65-L77>`_
+.. [#formal-model] `Zcash P2P Protocol TLA+ Specification <https://github.com/oxarbitrage/zcash-p2p-spec>`_
