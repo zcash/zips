@@ -545,7 +545,7 @@ Protocol versions are 32-bit integers. The following versions are significant:
 | 170040  | ``MIN_TESTNET_PEER_PROTO_VERSION``  | Minimum protocol version for Testnet     |
 |         |                                     | peers.                                   |
 +---------+-------------------------------------+------------------------------------------+
-| 170140  | ``PROTOCOL_VERSION``                | Current protocol version.                |
+| 170160  | ``PROTOCOL_VERSION``                | Current protocol version.                |
 +---------+-------------------------------------+------------------------------------------+
 
 Network Upgrade Epoch Enforcement
@@ -580,6 +580,10 @@ The following protocol versions are associated with network upgrades on Mainnet:
 +-------------------+------------------+-------------------+
 | NU6.1             | 170140           | 3,146,400         |
 +-------------------+------------------+-------------------+
+| NU6.2             | 170150           | 3,364,600         |
++-------------------+------------------+-------------------+
+| NU6.3             | 170160           | 3,428,143         |
++-------------------+------------------+-------------------+
 
 The following protocol versions are associated with network upgrades on Testnet:
 
@@ -604,9 +608,57 @@ The following protocol versions are associated with network upgrades on Testnet:
 +-------------------+------------------+-------------------+
 | NU6.1             | 170130           | 3,536,500         |
 +-------------------+------------------+-------------------+
+| NU6.2             | 170150           | 4,052,000         |
++-------------------+------------------+-------------------+
+| NU6.3             | 170160           | 4,134,000         |
++-------------------+------------------+-------------------+
 
 Note that Testnet protocol versions differ from Mainnet for several upgrades
-(Overwinter, Blossom, Heartwood, Canopy, NU5, NU6, and NU6.1).
+(Overwinter, Blossom, Heartwood, Canopy, NU5, NU6, and NU6.1), but coincide for
+Sapling, NU6.2, and NU6.3. The coincidences for NU6.2 and NU6.3 are a consequence of
+the ad hoc assignment used through NU6.3; see `Assigning Protocol Versions to Network
+Upgrades`_ for the rule adopted to prevent such coincidences from NU7 onward.
+
+Assigning Protocol Versions to Network Upgrades
+```````````````````````````````````````````````
+
+When a new network upgrade is defined, it is assigned a protocol version for each network
+on which it will activate. In the tables above, the *Mainnet protocol version* and
+*Testnet protocol version* of an upgrade are the values in the Mainnet and Testnet tables
+respectively; Regtest uses the Testnet protocol version. These assignments MUST satisfy
+the following invariants:
+
+1. **Zcash range.** Every assigned protocol version is of the form ``170000 + n`` with
+   ``0 ≤ n ≤ 999``. The leading ``170`` distinguishes Zcash protocol versions from those
+   of Bitcoin Core, from which the ``version`` message format is inherited. When this
+   range nears exhaustion, a successor scheme will need to be specified.
+
+2. **Per-network monotonicity.** For a given network, the protocol version assigned to an
+   upgrade MUST be strictly greater than any preceding protocol version assigned to that
+   network. This is what allows a node to reject peers that have not upgraded (see
+   `Network Upgrade Epoch Enforcement`_).
+
+
+Through NU6.3, protocol versions were assigned by hand and do not follow a single rule;
+in particular the Testnet and Mainnet protocol versions of NU6.2 and NU6.3 are equal
+(``170150`` and ``170160`` respectively), so those values do not by themselves identify
+a network. From NU7 onward, protocol versions MUST be assigned by the following
+procedure, which preserves the invariants above and additionally guarantees that no
+protocol version is ever assigned to more than one (network, upgrade) pair:
+
+  Let ``M`` be the Mainnet protocol version of the immediately preceding upgrade, and let
+  ``base`` be the least value of the form ``170000 + 20·k`` that is strictly greater than
+  ``M``. Then the Testnet protocol version of the new upgrade is ``base``, and its
+  Mainnet protocol version is ``base + 10``.
+
+Equivalently, from NU7 onward Testnet protocol versions are congruent to 0 modulo 20 and
+Mainnet protocol versions are congruent to 10 modulo 20, so the two never coincide.
+
+For example, the preceding Mainnet protocol version at NU7 is NU6.3's ``170160``; the
+least ``170000 + 20·k`` strictly greater than ``170160`` is ``170180``, so NU7 is
+assigned Testnet protocol version ``170180`` and Mainnet protocol version ``170190``.
+The upgrade following NU7 would then be assigned ``170200`` (Testnet) and ``170210``
+(Mainnet).
 
 
 Message Types

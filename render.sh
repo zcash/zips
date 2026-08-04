@@ -16,8 +16,31 @@ EndOfUsage
     exit
 fi
 
+# This script embeds non-ASCII UTF-8 characters in its sed programs and processes
+# UTF-8 input, so running under a non-UTF-8 locale would silently corrupt the output.
+# Fail loudly instead of emitting mojibake. `locale charmap` reports the effective
+# character map (UTF-8 on a UTF-8 locale; US-ASCII / ANSI_X3.4-1968 under C / POSIX).
+# Note: macOS has no real C.UTF-8 locale, so there `locale charmap` reports US-ASCII
+# for it; C.UTF-8 is thus rejected on macOS (correctly, it is unusable there) and
+# accepted on Linux (where it genuinely is UTF-8).
+charmap="$(locale charmap 2>/dev/null || true)"
+case "${charmap}" in
+    UTF-8|UTF8|utf-8|utf8) ;;
+    *)
+        # Suggest a UTF-8 locale in the current language when we can read it from
+        # LANG, else fall back to en_US. C / POSIX have no usable .UTF-8 form (on
+        # macOS even C.UTF-8 is really US-ASCII), so do not propose them.
+        lang="$(locale 2>/dev/null | sed -n 's/^LANG=//p' | tr -d '"' | cut -d. -f1)"
+        case "${lang}" in ''|C|POSIX) lang=en_US ;; esac
+        echo "render.sh: a UTF-8 locale is required, but the current character map is" >&2
+        echo "'${charmap:-unknown}'. Set a UTF-8 locale (e.g. LANG=${lang}.UTF-8) and retry." >&2
+        exit 1
+        ;;
+esac
+
 inputfile="$2"
 outputfile="$3"
+mkdir -p "$(dirname "${outputfile}")"
 
 if ! [ -f "${inputfile}" ]; then
     echo "File not found: ${inputfile}"
@@ -55,6 +78,11 @@ cat <(
     # which is much easier than trying to handle escapes within a capture.
     # In both rst and Markdown, we must be careful not to rewrite a math span
     # so that it has a non-whitespace character immediately after it.
+    #
+    # PORTABILITY: bash 3.2 (the macOS system /bin/bash) mis-parses an apostrophe
+    # in a comment inside this process substitution as an opening quote, then
+    # scans to end-of-file (an "unexpected EOF" quote-matching error). Keep the
+    # comments in this cat <(...) block free of apostrophes; reword to avoid them.
 
     if [ "x$1" = "x--rst" ]; then
         # For rst we want to unescape `\$`, because $ is not reserved without our $ extension.
@@ -80,9 +108,10 @@ cat <(
             # on the *opening* `$` of a span whose content starts with punctuation
             # (e.g. `$-x$`). Caveat: this is line-by-line, so a multi-line `$...$`
             # span (which Markdown allows) is not matched. Punctuation just after
-            # such a span won't be fixed, and a line carrying both one span's close
-            # and another's open can still mismatch. These cases are rare, would show
-            # up when reviewing rendered output, and are easy to work around.
+            # such a span will not be fixed, and a line carrying both the close of
+            # one span and the open of another can still mismatch. These cases are
+            # rare, would show up when reviewing rendered output, and are easy to
+            # work around.
             cat "${inputfile}" |
               sed 's|[\][$]|💲|g;
                    s|[$]\([^$]\+\)[$]\([—)-]\)|$\1\\kern-0.15em$ \2|g;

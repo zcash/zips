@@ -2,8 +2,15 @@
 
 MARKDOWN_OPTION?=--mmd
 
+# If a document exists as both .rst and .md, the .rst pattern rule silently
+# shadows the .md, so a stale stub can mask its replacement ZIP.
+DUPLICATE_SOURCES := $(filter \
+  $(patsubst %.rst,%,$(wildcard zips/*.rst)), \
+  $(patsubst %.md,%,$(wildcard zips/*.md)))
+
 .PHONY: all-zips all-docker all tag-release protocol all-protocol discard
 all-zips: .Makefile.uptodate
+	$(if $(DUPLICATE_SOURCES),$(error Both .rst and .md sources exist for: $(DUPLICATE_SOURCES)))
 	echo "$(patsubst zips/%,%,$(sort $(wildcard zips/zip-*.rst) $(wildcard zips/zip-*.md)))" >.zipfilelist.new
 	diff .zipfilelist.current .zipfilelist.new || cp -f .zipfilelist.new .zipfilelist.current
 	rm -f .zipfilelist.new
@@ -41,13 +48,21 @@ discard:
 	cp -r static/* rendered
 	touch .Makefile.uptodate
 
-rendered/index.html: README.rst render.sh
+# The `rendered` directory (with its copied static assets) must exist before any
+# file is rendered. Depend on it order-only so the render targets don't rebuild
+# when its mtime changes, but the directory is always (re)created if missing —
+# independent of the `.Makefile.uptodate` stamp, and safe under parallel `make`.
+rendered:
+	mkdir -p rendered
+	cp -r static/* rendered
+
+rendered/index.html: README.rst render.sh | rendered
 	./render.sh --rst $< $@
 
-rendered/%.html: zips/%.rst render.sh
+rendered/%.html: zips/%.rst render.sh | rendered
 	./render.sh --rst $< $@
 
-rendered/%.html: zips/%.md render.sh
+rendered/%.html: zips/%.md render.sh | rendered
 	./render.sh $(MARKDOWN_OPTION) $< $@
 
 # Render-regression test fixtures, kept out of zips/ so the ZIP set stays clean.
