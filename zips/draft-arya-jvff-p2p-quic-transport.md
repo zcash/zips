@@ -158,9 +158,13 @@ ZIP 204 [^zip-0204], this ZIP:
 - Removes `inv`, `getdata`, and `notfound`; announcements are carried on
   dedicated unidirectional streams, and object requests carry per-item results.
 - Removes the inventory-walk `getblocks` message; headers-first
-  synchronization is the baseline synchronization method, and a new
-  `get-hashes` request stream supports checkpoint-based synchronization
-  strategies (see [`get-hashes`](#get-hashes) and [^draft-sync]).
+  synchronization is the baseline synchronization method, and new request
+  streams support checkpoint-based bulk synchronization: `get-hashes`
+  (known hashes and sync-cost metadata), `get-block-range` (anchored block
+  streaming), `get-tree-roots` (note commitment tree roots, verified
+  against header commitments), and `get-object` (content-addressed
+  synchronization artifacts). See [Synchronization](#synchronization) and
+  [^draft-sync].
 - Removes the deprecated `alert` message.
 - Removes BIP 37 Bloom filtering (`filterload`, `filteradd`, `filterclear`)
   and the `NODE_BLOOM` service flag.
@@ -354,6 +358,29 @@ protection against passive network observers, not endpoint identity.
 - Client certificates are not requested: the responder MUST NOT require TLS
   client authentication.
 
+#### Bulk Transfer Performance
+
+Bulk synchronization moves hundreds of gigabytes over the request streams of
+this protocol, and its throughput is governed by transport configuration
+rather than by the protocol itself. The following applies to nodes that
+serve or perform bulk synchronization (see [^draft-sync]):
+
+- A node SHOULD size its flow control windows to the bandwidth-delay
+  product it intends to sustain: at least 16 MiB of per-stream receive
+  window and 64 MiB of connection receive window are RECOMMENDED. Default
+  windows tuned for interactive traffic cap bulk throughput at a small
+  fraction of link capacity once round-trip time is non-negligible.
+- A node serving bulk streams SHOULD use a paced, model-based congestion
+  controller suited to high bandwidth-delay paths; loss-triggered
+  controllers collapse under modest jitter at these transfer sizes.
+- Implementations SHOULD use platform UDP batching and segmentation
+  offloads where available; per-packet processing, not cryptography, is the
+  dominant CPU cost of QUIC bulk transfer.
+- One QUIC connection is typically processed by one core, bounding
+  per-connection throughput. Synchronizing nodes obtain aggregate
+  throughput by downloading from several peers concurrently rather than by
+  tuning a single connection (see [^draft-sync]).
+
 #### Stream Layer Mapping
 
 The abstract stream layer of [Transport Requirements](#transportrequirements)
@@ -534,6 +561,9 @@ transport section (for QUIC, see [Stream Layer Mapping](#streamlayermapping)).
 | `0x04` | [`get-addr`](#get-addr)   | Bidirectional                 | Request peer addresses.                                              |
 | `0x05` | [`get-mempool`](#get-mempool) | Bidirectional             | Subscribe to mempool contents.                                       |
 | `0x06` | [`get-hashes`](#get-hashes) | Bidirectional               | Request best-chain block hashes and sync-cost metadata at a height stride. |
+| `0x07` | [`get-block-range`](#get-block-range) | Bidirectional     | Stream a contiguous range of blocks, verified against an anchor hash. |
+| `0x08` | [`get-tree-roots`](#get-tree-roots) | Bidirectional       | Request per-block note commitment tree roots for a height range.     |
+| `0x09` | [`get-object`](#get-object) | Bidirectional               | Request a range of a content-addressed synchronization artifact.     |
 | `0x10` | Block announcements       | Unidirectional                | Announce new blocks (see [Block Announcements](#blockannouncements)). |
 | `0x11` | Transaction announcements | Unidirectional                | Announce new transactions (see [Transaction Announcements](#transactionannouncements)). |
 | `0x12` | Address announcements     | Unidirectional                | Gossip peer addresses (see [Address Announcements](#addressannouncements)). |
@@ -752,9 +782,19 @@ network address records. In the table below, bit $k$ refers to the bit with
 numeric weight $2^k$; that is, the `services` field has the corresponding flag
 set if and only if `services & (1 << k) != 0`.
 
-| Name           | Bit | Description                                                 |
-|----------------|-----|-------------------------------------------------------------|
-| `NODE_NETWORK` | 0   | The node is capable of serving the complete block chain.    |
+| Name                   | Bit | Description                                                 |
+|------------------------|-----|-------------------------------------------------------------|
+| `NODE_NETWORK`         | 0   | The node is capable of serving the complete block chain.    |
+| `NODE_TREE_ROOTS`      | 3   | The node maintains a per-block note commitment tree root index and serves [`get-tree-roots`](#get-tree-roots) requests. |
+| `NODE_SYNC_ARTIFACTS`  | 4   | The node serves content-addressed synchronization artifacts via [`get-object`](#get-object) requests. |
+| `NODE_NETWORK_LIMITED` | 10  | The node is capable of serving at least the most recent 2,304 blocks (approximately two days). |
+
+A node that does not hold the complete block chain — because it synchronized
+from a state snapshot and has not finished backfilling, or because it prunes
+historical blocks — MUST NOT advertise `NODE_NETWORK`; it SHOULD advertise
+`NODE_NETWORK_LIMITED` if it can serve at least the most recent 2,304 blocks
+of its best chain. A node selecting peers to request historical blocks from
+uses these flags (see [^draft-sync]).
 
 Bits 24–31 are reserved for temporary experiments.
 
@@ -1169,6 +1209,145 @@ misbehavior penalty of 20 points if they do not match the downloaded blocks
 (the `hash` identifies the blocks uniquely, so a mismatch is not
 attributable to a different chain view).
 
+### `get-block-range`
+
+Stream type: `0x07`
+
+**Request:**
+
+| Size   | Field        | Description                                                 |
+|--------|--------------|-------------------------------------------------------------|
+| 32     | `final_hash` | Hash of the highest block in the requested range.           |
+| varies | `count`      | Maximum number of blocks requested (CompactSize). MUST NOT exceed 16,384. |
+
+**Response:**
+
+| Size   | Field    | Description                                                                                        |
+|--------|----------|----------------------------------------------------------------------------------------------------|
+| 1      | `result` | `0x00`: blocks follow. `0x02`: not found (the responder does not have the block with hash `final_hash`; nothing follows). |
+| varies | `blocks` | A sequence of up to `count` serialized blocks, each encoded as a CompactSize length prefix followed by the serialized block (see [Serialized Blocks](#serializedblocks)), in *descending* height order: the first block is the block whose hash is `final_hash`, and each subsequent block is the parent of the previous one. |
+
+`get-block-range` is the bulk block download primitive: where `get-blocks`
+requests individual blocks by hash, `get-block-range` streams a contiguous
+chain of blocks identified by a single *anchor* — typically a hash the
+requester has verified against a trusted commitment, a validated header, or
+an already-verified block (see [^draft-sync]).
+
+Delivery is in descending height order so that every block is verifiable
+*on arrival*: the first delivered block MUST hash to `final_hash`, and each
+subsequent delivered block MUST hash to the `hashPrevBlock` of the
+previously delivered block. A delivered block that violates this rule is a
+connection error of type `PROTOCOL_ERROR` — the rule is checkable by
+hashing alone, so a violation is never attributable to a different chain
+view. A requester with a trusted anchor therefore accepts no unverified
+bytes, needs no download handles for the range's interior blocks, and can
+assign blame exactly.
+
+The responder serves the ancestor chain of the block with hash
+`final_hash`, whether or not that block is in its best chain. It MAY finish
+its sending direction early, having delivered fewer than `count` blocks
+(for example, to bound the resources committed to one stream); a truncated
+range is resumable, since the requester knows the next expected hash (the
+`hashPrevBlock` of the last delivered block) and MAY re-request the
+remainder — from the same or a different peer — using it as `final_hash`. A
+requester that no longer wants the remainder cancels the responder's
+sending direction with `CANCELLED`; delivered blocks remain verified and
+usable. Transport flow control bounds the buffering on both sides.
+
+### `get-tree-roots`
+
+Stream type: `0x08`
+
+**Request:**
+
+| Size   | Field          | Description                                                  |
+|--------|----------------|--------------------------------------------------------------|
+| 4      | `start_height` | Height of the first requested entry (`uint32`, little-endian). |
+| varies | `count`        | Maximum number of entries requested (CompactSize). MUST NOT exceed 4,000. |
+
+**Response:**
+
+| Size   | Field     | Description                               |
+|--------|-----------|-------------------------------------------|
+| varies | `count`   | Number of entries (CompactSize).          |
+| varies | `entries` | `count` entries, each encoded as follows. |
+
+Entry `k`, for `k` from 0 to `count − 1`, describes the block at height
+`start_height + k` of the responder's best chain:
+
+| Size   | Field            | Description                                                                        |
+|--------|------------------|------------------------------------------------------------------------------------|
+| 32     | `sapling_root`   | Root of the Sapling note commitment tree after this block.                         |
+| 32     | `orchard_root`   | Root of the Orchard note commitment tree after this block.                         |
+| 32     | `ironwood_root`  | Root of the Ironwood note commitment tree after this block.                        |
+| varies | `sapling_txs`    | Number of transactions in this block with Sapling components, as counted by the block's chain history tree leaf (CompactSize; see ZIP 221 [^zip-0221]). |
+| varies | `orchard_txs`    | Number of transactions in this block with Orchard-pool components (CompactSize).   |
+| varies | `ironwood_txs`   | Number of transactions in this block with Ironwood-pool components (CompactSize).  |
+| 32     | `auth_data_root` | The block's authorizing data commitment `hashAuthDataRoot` (see ZIP 244 [^zip-0244]). |
+
+For a pool that is not active at the entry's height, the corresponding root
+field is 32 zero bytes and the corresponding count is 0.
+
+Requests the per-block data from which a synchronizing node can reproduce
+each block's note commitment tree roots and chain history tree without
+recomputing the trees from the blocks' note commitments — the dominant CPU
+cost of validating historical blocks under checkpoint-based
+synchronization. The entries are not self-authenticating: a node MUST NOT
+rely on them for any purpose until it has verified them against the chain's
+header commitments — `hashFinalSaplingRoot` and, from NU5,
+`hashBlockCommitments` binding the chain history root of ZIP 221 [^zip-0221]
+and the authorizing data commitment of ZIP 244 [^zip-0244] — as specified in
+[^draft-sync]. An entry that fails that verification for a block whose
+header is authenticated SHOULD incur a misbehavior penalty of 100 points.
+
+Serving `get-tree-roots` requires a per-block root index that not every
+node maintains (in particular, a node that itself synchronized without
+computing historical trees may not have one). A node that maintains the
+index advertises the `NODE_TREE_ROOTS` service flag (see
+[Service Flags](#serviceflags)). The response MAY contain fewer entries
+than requested, and MAY be empty; truncation MUST be a prefix (the returned
+entries MUST correspond to the lowest requested heights). A node without
+the index refuses the stream with `REFUSED`.
+
+### `get-object`
+
+Stream type: `0x09`
+
+**Request:**
+
+| Size   | Field    | Description                                                        |
+|--------|----------|--------------------------------------------------------------------|
+| 32     | `hash`   | SHA-256 hash of the requested object.                              |
+| varies | `offset` | Byte offset into the object at which to start (CompactSize).       |
+| varies | `length` | Maximum number of bytes requested (CompactSize). MUST NOT exceed 33,554,432 (32 MiB). |
+
+**Response:**
+
+| Size   | Field    | Description                                                                                        |
+|--------|----------|----------------------------------------------------------------------------------------------------|
+| 1      | `result` | `0x00`: the object is available; its size and data follow. `0x02`: not found (nothing follows).    |
+| varies | `size`   | Total size of the object in bytes (CompactSize).                                                   |
+| varies | `data`   | The object's bytes from `offset`, up to `length` bytes or the end of the object, whichever comes first. |
+
+Requests a byte range of a *synchronization artifact*: an immutable,
+content-addressed object identified by the SHA-256 hash of its contents.
+The protocol does not interpret artifact contents; artifacts are named by
+trusted commitments and synchronization metadata (for example, known-hash
+chunk files and state snapshot pieces; see [^draft-sync]), and a node
+serves whichever artifacts it holds or can reproduce deterministically from
+its chain state. A node that serves artifacts advertises the
+`NODE_SYNC_ARTIFACTS` service flag (see [Service Flags](#serviceflags)).
+
+The responder MAY finish its sending direction early, having delivered
+fewer than the requested bytes; the requester detects the shortfall from
+`size` and MAY re-request the remainder from any peer, since object bytes
+are position-addressed and identical everywhere. An object is verified by
+hashing its complete contents; artifacts are therefore expected to be
+divided into pieces no larger than the per-request maximum, so that each
+piece is independently fetchable and verifiable (see [^draft-sync]).
+Requests for offsets at or beyond the object's size are answered with
+`result = 0x00`, the object's `size`, and no data.
+
 
 ## Announcement Stream Types
 
@@ -1515,9 +1694,12 @@ The following rules apply to headers-first synchronization:
 A node MAY synchronize spans of the historical chain against *trusted
 commitments*: checkpoint data — bindings of block heights to block hashes —
 obtained through a channel the node already trusts, such as its own binary
-or local configuration. A recommended concrete strategy using `get-hashes`
-is specified in [^draft-sync]; any checkpoint-based synchronization
-procedure MUST obey the following rules.
+or local configuration. The bulk primitives of this protocol —
+`get-hashes`, `get-block-range` (whose descending delivery authenticates
+every block against a committed anchor on arrival), `get-tree-roots`, and
+`get-object` — exist to serve such procedures; a recommended concrete
+strategy is specified in [^draft-sync]. Any checkpoint-based
+synchronization procedure MUST obey the following rules.
 
 - **Validated advancement.** A node MUST NOT advance its validated chain
   except through blocks that it has either validated under the consensus
@@ -1549,10 +1731,18 @@ for this protocol.
 
 ### Block Download Parameters
 
-The block download parameters of ZIP 204 [^zip-0204-blockdownload] — the
-download window, the per-peer in-transit limit, and the stalling timeout —
-apply unchanged. On a stall, the node MAY re-request the block from an
-alternative peer, cancelling the original request stream with `CANCELLED`.
+For headers-first synchronization and near-tip block fetching via
+`get-blocks`, the block download parameters of ZIP 204
+[^zip-0204-blockdownload] — the download window, the per-peer in-transit
+limit, and the stalling timeout — apply unchanged. On a stall, the node MAY
+re-request the block from an alternative peer, cancelling the original
+request stream with `CANCELLED`.
+
+Bulk transfer via `get-block-range` and `get-object` is not governed by
+those parameters: in-flight volume is bounded in bytes by transport flow
+control and by the synchronizing node's scheduling policy, for which
+[^draft-sync] gives recommendations (work unit sizing, per-peer budgets,
+and stall detection).
 
 
 ## Transaction Relay
@@ -1672,6 +1862,8 @@ The misbehavior score works as follows:
 | 20     | `get-headers` response with more than 160 headers.                                                                 |
 | 20     | Non-contiguous headers in a `get-headers` response.                                                                |
 | 20     | `get-addr` response with more than 1000 address records.                                                           |
+| 20     | `get-hashes` span metadata that does not match the downloaded blocks of the span (see [`get-hashes`](#get-hashes)). |
+| 100    | A `get-tree-roots` entry that fails verification against authenticated header commitments (see [`get-tree-roots`](#get-tree-roots)). |
 | 100    | Using a `TXID` reference to announce a v5 transaction, or a `WTXID` reference to announce a v4-or-earlier transaction (see ZIP 239 [^zip-0239]). |
 | varies | Transaction, block, or header validation failure. The penalty is determined by the severity of the validation error. (See [Relay Protocol](#relayprotocol) for an exemption covering compact blocks relayed before full validation.) |
 
@@ -1832,6 +2024,8 @@ specified here.
 [^zip-0200]: [ZIP 200: Network Upgrade Mechanism](zip-0200.rst)
 
 [^zip-0201]: [ZIP 201: Network Peer Management for Overwinter](zip-0201.rst)
+
+[^zip-0221]: [ZIP 221: FlyClient - Consensus-Layer Changes](zip-0221.rst)
 
 [^zip-0204]: [ZIP 204: Zcash P2P Network Protocol](zip-0204.rst)
 
