@@ -1196,8 +1196,9 @@ re-request the missing tail.
 Responses are not self-authenticating: the returned hashes are only as
 trustworthy as the peer that sent them. A node MUST NOT rely on them for any
 security-relevant purpose without verifying them against trusted data (such
-as the trusted commitments of the checkpointed synchronization strategy
-recommended in [^draft-sync]) or fully validating the corresponding blocks.
+as the trusted commitments of
+[Checkpointed Synchronization](#checkpointedsynchronization)) or fully
+validating the corresponding blocks.
 
 
 ## Announcement Stream Types
@@ -1298,9 +1299,11 @@ are carried in the `announce` and `full_ids` fields of the `init` record (see
 
 Nodes synchronize the block chain using a headers-first approach; it is the
 baseline synchronization method of this protocol, which every node supports.
-(Recommended synchronization rules and strategies — including a
-checkpoint-based strategy built on `get-hashes` — are specified in
-[^draft-sync].)
+It is the *full-validation* method: it assumes no trusted data beyond the
+consensus rules and the genesis block. (An alternative method for nodes
+with trusted checkpoint data is specified in
+[Checkpointed Synchronization](#checkpointedsynchronization); recommended
+concrete synchronization strategies are specified in [^draft-sync].)
 
 1. The synchronizing node sends a `get-headers` request with a block locator
    (typically with `tx_ids = 0`; see [`get-headers`](#get-headers)).
@@ -1308,6 +1311,69 @@ checkpoint-based strategy built on `get-hashes` — are specified in
 3. The synchronizing node validates the headers and requests full blocks via
    `get-blocks` requests.
 4. Steps 1–3 repeat until the node is synchronized with the network.
+
+The following rules apply to headers-first synchronization:
+
+- A node MUST validate each received header — including its proof of work
+  and its difficulty adjustment — before requesting the corresponding block
+  and before extending its header chain with it. Proof of work makes a long
+  fake header chain expensive to produce; validating it eagerly keeps that
+  cost on the attacker.
+- Received headers, even with valid proof of work, establish only that work
+  was expended: a node MUST NOT treat a block as part of its best chain
+  until the block itself has been validated under the consensus rules.
+  Until then, headers serve to select and schedule block downloads.
+- A node SHOULD compare the chains offered by several peers — for example,
+  by their advertised `start_height` and by probing with `get-headers` —
+  rather than committing its block download budget to the first or
+  best-connected peer; this bounds the delay a peer serving a stale or
+  low-work chain can cause.
+- A node MUST NOT assign a misbehavior penalty solely because a peer's
+  headers do not connect to its known chain or reflect a different best
+  chain (see [Block Announcements](#blockannouncements)); penalties apply
+  to provably invalid headers and blocks, per
+  [Misbehavior and Banning](#misbehaviorandbanning).
+
+### Checkpointed Synchronization
+
+A node MAY synchronize spans of the historical chain against *trusted
+commitments*: checkpoint data — bindings of block heights to block hashes —
+obtained through a channel the node already trusts, such as its own binary
+or local configuration. The `get-hashes` request stream (see
+[`get-hashes`](#get-hashes)) exists to support this: it supplies checkpoint
+hashes to verify against a commitment, and per-height hashes to use as
+`get-blocks` download handles. A recommended concrete strategy is specified
+in [^draft-sync]; any checkpoint-based synchronization procedure MUST obey
+the following rules.
+
+- **Validated advancement.** A node MUST NOT advance its validated chain
+  except through blocks that it has either validated under the consensus
+  rules, or authenticated by an unbroken hash chain terminating in a
+  checkpoint bound by a trusted commitment. The extent to which consensus
+  checks may be abbreviated for checkpoint-authenticated blocks is a matter
+  of local policy.
+- **Untrusted inputs.** Peer-supplied data — hashes, headers, blocks — MUST
+  NOT be relied upon for any security-relevant purpose until verified under
+  the previous rule; until then it MAY be used only to select and schedule
+  downloads. Data received from peers MUST NOT be incorporated into a
+  node's trusted commitments.
+- **Tolerance of divergent views.** A node MUST NOT assign a misbehavior
+  penalty to a peer solely because the peer's `get-hashes` responses fail
+  verification against the node's commitments, or reflect a different best
+  chain; such responses are discarded and MAY be retried with other peers.
+- **Reorganization margin.** Commitment-based authentication SHOULD NOT be
+  applied within 100 blocks of the node's view of the network chain tip,
+  matching the responder-side margin of [`get-hashes`](#get-hashes); the
+  chain near the tip is subject to reorganization and is synchronized
+  headers-first.
+- **Headers-first fallback.** A node MUST be capable of completing
+  synchronization using headers-first synchronization alone, and MUST fall
+  back to it where its commitments end or where too few peers serve
+  `get-hashes`.
+
+The commitment scheme itself — checkpoint spacing, any chunking, and the
+hash or signature scheme binding it — is local to the node and out of scope
+for this protocol.
 
 ### Block Download Parameters
 
@@ -1805,6 +1871,30 @@ transport, [Certificates](#certificates)). Onion addresses are also free to
 generate, which weakens address-based banning and address book protections
 for `TORV3` addresses (see [Misbehavior and Banning](#misbehaviorandbanning)
 and [Address Book Management](#addressbookmanagement)).
+
+**Synchronization.** The two synchronization methods rest on different
+trust bases with different failure modes. Headers-first synchronization
+trusts proof of work: an attacker feeding a node a false history must
+outspend the honest chain's accumulated work over the forged span, but an
+eclipsing attacker with sufficient hash power is not otherwise prevented
+from doing so. Checkpointed synchronization trusts the node's commitment
+(which shares a trust base with the node's own binary): below its
+checkpoints, an attacker who cannot break the block hash function cannot
+cause the node to accept a false history no matter how many of the node's
+connections it controls — a strictly stronger guarantee over the committed
+span — while above them the node falls back to headers-first
+synchronization and its properties. Under either method, an attacker
+controlling a node's connections can withhold data and stall
+synchronization; the mitigations are redundancy and re-requesting from
+alternative peers (see
+[Block Download Parameters](#blockdownloadparameters)), and headers-first
+nodes additionally bound stale-chain delay by comparing chains across peers
+(see
+[Headers-First Synchronization](#headers-firstsynchronization)).
+Unverified `get-hashes` responses and unvalidated headers are never more
+than download scheduling inputs (see
+[Checkpointed Synchronization](#checkpointedsynchronization)), so serving
+false ones can waste a node's bandwidth but not corrupt its chain.
 
 **Eclipse attacks.** An attacker that controls all of a node's connections
 controls its view of the block chain and mempool. The structural defenses are
