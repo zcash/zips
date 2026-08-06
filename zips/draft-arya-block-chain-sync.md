@@ -226,25 +226,56 @@ recomputation:
    has already authenticated, so that entries describe known blocks
    rather than the responder's view of a best chain.
 2. Verify the entries against headers that checkpointed synchronization has
-   authenticated: from NU5, rebuild the chain history tree of ZIP 221
-   [^zip-0221] from the supplied roots and counts, and check each block's
-   `hashBlockCommitments` (which binds the history tree root and the
-   authorizing data commitment, ZIP 244 [^zip-0244]) against the rebuilt
-   values — each block's header commits to the history tree containing its
-   parent's data, so verification runs one block behind the supplied
-   entries. Between Sapling and NU5, check each supplied Sapling root
-   directly against the header's `hashFinalSaplingRoot`. Before a pool's
-   activation, the supplied root MUST be the empty tree root.
-3. A verified root replaces the recomputation: the node adopts the root,
-   maintains tree *frontiers* only at strategy boundaries (where full
-   per-block validation resumes), and stores what its serving obligations
-   require.
+   authenticated. Which check applies depends on what the block's header
+   commits to at that height, which changes at Heartwood — *not* at NU5:
+
+   - **Between Sapling activation and Heartwood activation**, the header
+     field at offset 4 (`hashFinalSaplingRoot`) is the block's Sapling note
+     commitment tree root. Each supplied Sapling root is checked directly
+     against it.
+   - **From Heartwood activation**, ZIP 221 [^zip-0221] repurposes that
+     field to carry the chain history root (`hashChainHistoryRoot`, and
+     from NU5 `hashBlockCommitments`, which binds the chain history root
+     together with the authorizing data commitment of ZIP 244
+     [^zip-0244]). A direct comparison against a note commitment tree root
+     is therefore *not* a valid check anywhere above Heartwood. The node
+     instead rebuilds the chain history tree from the supplied roots and
+     counts and checks the rebuilt values against each header. Each
+     block's header commits to the history tree containing its *parent's*
+     data, so an entry is verified only once the *following* block's
+     header has been checked against it.
+   - **Before a pool's activation** at the entry's height, the entry's
+     root field is 32 zero bytes and its count is 0, as the v2 protocol
+     requires [^draft-p2p-v2]; an entry that deviates fails verification.
+   - **A root that no header commits to** at the entry's height is not
+     verifiable by this procedure. The chain history tree leaf of ZIP 221
+     binds the Sapling and (from NU5) Orchard roots, but defines no
+     Ironwood field, so no header authenticates an Ironwood root.
+
+3. A **verified** root replaces the recomputation: the node adopts the
+   root, maintains tree *frontiers* only at strategy boundaries (where
+   full per-block validation resumes), and stores what its serving
+   obligations require. A node MUST NOT adopt a root that the procedure of
+   step 2 has not verified against an authenticated header, and MUST
+   recompute that pool's tree from the blocks' note commitments instead.
+   Two cases in particular are not verified by an entry's own arrival:
+
+   - Because verification above Heartwood runs one block behind, the
+     highest entry of a response is unverified until the entry for the
+     following block is obtained and checked against its header. A node
+     either extends the requested range by one entry or holds the highest
+     entry unadopted.
+   - Entries MAY be obtained and verified in any order, but each entry is
+     adopted only when its own check passes; an entry at the boundary of a
+     range is not adopted merely because its neighbours were.
+
 4. An entry that fails verification is discarded with a misbehavior penalty
    (per the v2 protocol); the node falls back to recomputing that span's
    trees locally.
 
 No additional trust is involved: every adopted root is authenticated by a
-header that is itself authenticated by the trusted commitment.
+header that is itself authenticated by the trusted commitment, and a root
+that no header authenticates is never adopted.
 
 ### Spentness Hints
 
@@ -257,11 +288,37 @@ and make historical commits order-independent, at the cost of a small hint
 artifact whose wrongness can only ever cause synchronization to fail, never
 to accept invalid state.
 
-The node draws a uniformly random secret *salt* for each synchronization
-attempt, and maintains additive aggregates of salted hashes
-(`H(salt ‖ item)`, summed with wrapping addition), one per aggregate
-described below. An attacker who cannot predict the salt cannot craft items
-whose hashes cancel.
+The node draws a fresh secret *salt* for each synchronization attempt and
+maintains an additive aggregate for each of the item classes described
+below. The aggregate is a sum of keyed hashes, and its parameters are
+security-critical: the guarantee that a wrong hint can only cause failure
+rests on an attacker being unable to construct items whose hashes cancel.
+They are therefore specified rather than left to the implementation:
+
+- The **salt** is 32 bytes drawn from a cryptographically secure random
+  number generator, freshly for each synchronization attempt. It MUST NOT
+  be transmitted, logged, or derived from any peer-supplied or otherwise
+  predictable value, and MUST NOT be reused across attempts.
+- Each item's hash is `H_a(item) = BLAKE2b-256(item)` computed with the
+  salt as the BLAKE2b *key* and a per-aggregate 16-byte personalization
+  string `a` (for example `b"ZcashHintTrans\x00\x00"` for the transparent
+  aggregate and `b"ZcashHintNfSapl"` and the corresponding names for each
+  nullifier pool). Keying — rather than prefixing the salt to the message
+  — makes the construction a pseudorandom function and is not subject to
+  length extension, and the personalization domain-separates the
+  aggregates so that a cancellation in one cannot be transplanted into
+  another.
+- The aggregate is the sum of those hashes, interpreted as 256-bit
+  little-endian unsigned integers, **modulo 2^256**. The wide accumulator
+  is what makes an accidental or forged cancellation negligible; a
+  machine-word accumulator would admit a false zero with probability
+  around 2^-32 per attempt, which is not a sufficient margin for a check
+  whose failure is a silent retry rather than a ban.
+
+A pseudorandom function of a secret key is required, not merely "some
+hash": an affine hash such as keyed multiply-shift or a polynomial hash is
+linear over the accumulator group, so cancellation relations hold for
+*every* key and secrecy of the salt would provide no protection at all.
 
 **Transparent outputs.** A *spentness hint artifact* — bound by the trusted
 commitment and fetched like any other artifact — carries one bit per
@@ -302,15 +359,43 @@ construction and verification:
 **Value pools.** No lookups are needed for value tracking either: shielded
 pool balances are sums of the blocks' value balance fields, which commute,
 and the transparent pool balance at the terminal height is the sum of the
-constructed UTXO set's amounts.
+constructed UTXO set's amounts. These are consensus quantities, not
+aggregates: they MUST be accumulated with checked arithmetic that detects
+overflow, and a node MUST NOT reuse the deliberately modular arithmetic of
+the hint aggregates for them.
 
-Because no step reads state written by an earlier block, blocks and ranges
-MAY be verified and committed in any order within the span, and the
-per-input reads and per-output deletes disappear entirely. A nonzero
-aggregate at the terminal height means the hints, the snapshot sets, or
-the delivered blocks were wrong; the node discards the affected state and
-falls back to checkpointed synchronization without hints. As with all
-synchronization data in this ZIP, wrong hints produce failure, not fraud.
+**What order-independence does and does not cover.** The state construction
+above reads no state written by an earlier block, so the *construction* —
+the UTXO set, the nullifier sets, the aggregates, and the value pool
+totals — is order-independent, and blocks and ranges MAY be verified and
+committed in any order within the span. The per-input reads and per-output
+deletes disappear entirely.
+
+Order-independence does not extend to consensus rules whose outcome is not
+a function of the terminal totals. A node applying hints MUST account for
+each of the following, either by checking it in height order or by
+recording it as covered by the trusted commitment under the v2 protocol's
+validated advancement rule:
+
+- **Non-negative pool balances at every block.** ZIP 209 [^zip-0209]
+  requires rejecting a block at which any chain value pool balance would
+  become negative. A terminal total says nothing about a running balance
+  that dips negative at an interior height and recovers; below the final
+  checkpoint this rule is among those vouched for by the trusted
+  commitment, and above it, blocks are committed in height order under
+  full validation.
+- **Coinbase maturity and the pre-NU5 shielded-coinbase rule**, which
+  depend on the creation height and coinbase status of the *spent* output
+  — exactly the lookup that hints remove. A hint artifact that is used
+  above the reach of a trusted commitment MUST therefore carry, per output
+  hinted spent, the output's creation height and whether it was a coinbase
+  output, so that the check remains local to the spending block.
+
+A nonzero aggregate at the terminal height means the hints, the snapshot
+sets, or the delivered blocks were wrong; the node discards the affected
+state and falls back to checkpointed synchronization without hints. As with
+all synchronization data in this ZIP, wrong hints produce failure, not
+fraud.
 
 ### Snapshot Synchronization
 
@@ -333,10 +418,16 @@ A node with no chain state MAY become operational at a *snapshot height*
    frontiers (via their header-committed roots) and the chain history tree
    (via `hashBlockCommitments` of the following block, ZIP 221 [^zip-0221])
    — MUST be verified against headers authenticated by the trusted
-   commitment. The parts the chain does not commit to (the transparent UTXO
-   set, the nullifier sets, the Sprout tree) are authenticated solely by
-   the manifest commitment, which therefore carries the same trust as the
-   node's binary — the trust model of the checkpoints themselves.
+   commitment. Because the chain history tree at `H` is committed by the
+   *following* block's header, the trusted commitment MUST authenticate
+   the header at height `H + 1` for that verification to be possible; a
+   commitment that stops at `H` leaves the chain history tree unverified,
+   and the node MUST treat it as an uncommitted component. The parts the
+   chain does not commit to (the transparent UTXO set, the nullifier sets,
+   the Sprout tree, and the chain value pool balances) are authenticated
+   solely by the manifest commitment, which therefore carries the same
+   trust as the node's binary — the trust model of the checkpoints
+   themselves.
 4. **Begin operating at `H`**: validate blocks above `H` under the
    consensus rules (or checkpointed synchronization, where commitments
    reach above `H`), participate fully in relay, and serve the blocks it
@@ -347,12 +438,42 @@ A node with no chain state MAY become operational at a *snapshot height*
    below `H` using checkpointed synchronization, at low priority, and
    advertise `NODE_NETWORK` when complete. Backfill SHOULD use the
    snapshot's own sets as spentness hints (see
-   [Spentness Hints](#spentnesshints)): when the aggregates check out at
-   `H`, the node has *verified* the snapshot's transparent UTXO set and
-   nullifier sets against the chain, discharging the only components of
-   the snapshot that were trusted without chain verification. A node MAY
-   instead operate indefinitely without deep history (pruned operation),
-   never advertising `NODE_NETWORK`.
+   [Spentness Hints](#spentnesshints)), which reconciles the snapshot's
+   uncommitted components against the chain the node has just replayed.
+
+   The reconciliation discharges the snapshot's trust only to the extent
+   that each component is actually compared, so each MUST be covered
+   explicitly. A comparison over outpoints alone is **not** sufficient: a
+   snapshot entry that no span output ever created contributes no term to
+   the spend-cancellation aggregate, so a fabricated or amount-inflated
+   UTXO would pass unnoticed. Backfill therefore verifies, at `H`:
+
+   - **The transparent UTXO set**, by an aggregate over whole entries
+     rather than outpoints. The node adds `H_a` of each entry it
+     constructs — the outpoint, the value, the `scriptPubKey`, the
+     creation height, and the coinbase flag, in a canonical encoding —
+     and subtracts `H_a` of each entry of the snapshot's set as it
+     streams it in. Neither side performs a lookup. A zero aggregate
+     proves the two sets are equal as sets of complete entries, so a
+     phantom outpoint, an inflated value, or an altered script is caught.
+   - **The nullifier sets**, by the aggregates already described.
+   - **The Sprout note commitment tree**, which no header commits to, by
+     recomputing it from the JoinSplit note commitments of the replayed
+     blocks and comparing the resulting root and frontier. Sprout is a
+     closed pool of bounded size, so this is inexpensive.
+   - **The chain value pool balances**, by recomputing them over the
+     replayed span (with checked arithmetic, see
+     [Spentness Hints](#spentnesshints)) and comparing them to the
+     snapshot's.
+
+   When all four check out, the snapshot's uncommitted components have been
+   verified against the chain and the node's trust base is that of a fully
+   synchronized node. Until they do, they remain trusted on the strength of
+   the commitment. A mismatch in any of them means the snapshot was wrong:
+   the node discards it and falls back to checkpointed synchronization from
+   genesis. A node MAY instead operate indefinitely without deep history
+   (pruned operation), never advertising `NODE_NETWORK`; such a node never
+   discharges the snapshot's trust.
 
 Snapshot heights SHOULD lie at least the v2 protocol's reorganization
 margin below the network tip at the time the commitment is published, and
@@ -452,14 +573,17 @@ authenticated by header commitments; artifacts are authenticated by the
 trusted commitment; and the only data trusted without chain verification
 (the snapshot's uncommitted state components) carries exactly the trust of
 the binary that shipped the commitment, as the checkpoints already do —
-and even that trust is discharged when hint-verified backfill completes
-(see [Spentness Hints](#spentnesshints)). Malicious synchronization data
-produces failure, not fraud: every verification failure is detected and
-routed around, and is attributed and penalized where blame is provable
-under the v2 protocol's misbehavior rules. (Two failures are deliberately
-*not* attributed: a nonzero hint aggregate, which implicates the hints,
-the snapshot sets, or the blocks without distinguishing them, and an
-assembled artifact piece whose ranges came from several peers — see
+and that trust is discharged, for each component the reconciliation of
+[Snapshot Synchronization](#snapshotsynchronization) step 5 actually
+compares, when hint-verified backfill completes (see
+[Spentness Hints](#spentnesshints)). A node that never backfills never
+discharges it. Malicious synchronization data produces failure, not
+fraud: every verification failure is detected and routed around, and is
+attributed and penalized where blame is provable under the v2 protocol's
+misbehavior rules. (Two failures are deliberately *not* attributed: a
+nonzero hint aggregate, which implicates the hints, the snapshot sets,
+or the blocks without distinguishing them, and an assembled artifact
+piece whose ranges came from several peers — see
 [Download Scheduling](#downloadscheduling).) Spentness hints in
 particular cannot cause acceptance of an incorrect state — a wrong hint
 surfaces as a nonzero aggregate.
@@ -501,6 +625,8 @@ interchangeably with `get-object` peers.
 [^protocol-blockchain]: [Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 3.3: The Block Chain](protocol/protocol.pdf#blockchain)
 
 [^draft-p2p-v2]: [Draft ZIP: Version 2 Zcash P2P Network Protocol](draft-arya-jvff-p2p-quic-transport.md)
+
+[^zip-0209]: [ZIP 209: Prohibit Negative Shielded Chain Value Pool Balances](zip-0209.rst)
 
 [^zip-0221]: [ZIP 221: FlyClient - Consensus-Layer Changes](zip-0221.rst)
 
