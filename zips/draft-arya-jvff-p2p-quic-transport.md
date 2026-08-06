@@ -1218,14 +1218,15 @@ Stream type: `0x07`
 | Size   | Field        | Description                                                 |
 |--------|--------------|-------------------------------------------------------------|
 | 32     | `final_hash` | Hash of the highest block in the requested range.           |
-| varies | `count`      | Maximum number of blocks requested (CompactSize). MUST NOT exceed 16,384. |
+| varies | `count`      | Maximum number of blocks requested (CompactSize). MUST NOT exceed 65,536. |
+| varies | `max_bytes`  | Maximum total serialized size of the delivered blocks, in bytes (CompactSize). MUST NOT exceed 67,108,864 (64 MiB). |
 
 **Response:**
 
 | Size   | Field    | Description                                                                                        |
 |--------|----------|----------------------------------------------------------------------------------------------------|
 | 1      | `result` | `0x00`: blocks follow. `0x02`: not found (the responder does not have the block with hash `final_hash`; nothing follows). |
-| varies | `blocks` | A sequence of up to `count` serialized blocks, each encoded as a CompactSize length prefix followed by the serialized block (see [Serialized Blocks](#serializedblocks)), in *descending* height order: the first block is the block whose hash is `final_hash`, and each subsequent block is the parent of the previous one. |
+| varies | `blocks` | A sequence of serialized blocks, each encoded as a CompactSize length prefix followed by the serialized block (see [Serialized Blocks](#serializedblocks)), in *descending* height order: the first block is the block whose hash is `final_hash`, and each subsequent block is the parent of the previous one. |
 
 `get-block-range` is the bulk block download primitive: where `get-blocks`
 requests individual blocks by hash, `get-block-range` streams a contiguous
@@ -1233,26 +1234,43 @@ chain of blocks identified by a single *anchor* — typically a hash the
 requester has verified against a trusted commitment, a validated header, or
 an already-verified block (see [^draft-sync]).
 
+The responder streams blocks until it has delivered `count` blocks, or
+until delivering the next block would bring the total serialized size of
+the delivered blocks above `max_bytes`, whichever comes first — except
+that it MUST be willing to deliver the first block regardless of
+`max_bytes`, so that a maximum-size block is always retrievable. Because
+block sizes vary by three orders of magnitude across the chain's history,
+`max_bytes` — not `count` — is what bounds the work a stream commits one
+peer to; a synchronizing node downloads from many peers concurrently, one
+work unit per stream, and sizes units in bytes (see [^draft-sync]).
+
 Delivery is in descending height order so that every block is verifiable
-*on arrival*: the first delivered block MUST hash to `final_hash`, and each
-subsequent delivered block MUST hash to the `hashPrevBlock` of the
-previously delivered block. A delivered block that violates this rule is a
-connection error of type `PROTOCOL_ERROR` — the rule is checkable by
-hashing alone, so a violation is never attributable to a different chain
-view. A requester with a trusted anchor therefore accepts no unverified
-bytes, needs no download handles for the range's interior blocks, and can
-assign blame exactly.
+*on arrival*: the first delivered block's header MUST hash to
+`final_hash`, each subsequent delivered block's header MUST hash to the
+`hashPrevBlock` of the previously delivered block, and each delivered
+block's transactions MUST match its header's transaction merkle root.
+A delivered block that violates these rules is a connection error of type
+`PROTOCOL_ERROR` — the rules are checkable by hashing alone, so a
+violation is never attributable to a different chain view. A requester
+with a trusted anchor therefore accepts no unverified bytes, needs no
+download handles for the range's interior blocks, and can assign blame
+exactly. (Header commitments that require further context, such as the
+authorizing data commitment, are checked at validation time according to
+the node's synchronization strategy.)
 
 The responder serves the ancestor chain of the block with hash
-`final_hash`, whether or not that block is in its best chain. It MAY finish
-its sending direction early, having delivered fewer than `count` blocks
-(for example, to bound the resources committed to one stream); a truncated
-range is resumable, since the requester knows the next expected hash (the
-`hashPrevBlock` of the last delivered block) and MAY re-request the
-remainder — from the same or a different peer — using it as `final_hash`. A
-requester that no longer wants the remainder cancels the responder's
-sending direction with `CANCELLED`; delivered blocks remain verified and
-usable. Transport flow control bounds the buffering on both sides.
+`final_hash`, whether or not that block is in its best chain. It MAY also
+finish its sending direction early, before either request bound is reached
+(for example, to bound the resources committed to one stream). Truncation
+for any reason is resumable, since the requester knows the next expected
+hash (the `hashPrevBlock` of the last delivered block) and MAY re-request
+the remainder — from the same or a different peer — using it as
+`final_hash`; a stream truncated by `max_bytes` thereby self-chunks a long
+span into byte-bounded, individually verified units even when the
+requester has no per-block size information. A requester that no longer
+wants the remainder cancels the responder's sending direction with
+`CANCELLED`; delivered blocks remain verified and usable. Transport flow
+control bounds the buffering on both sides.
 
 ### `get-tree-roots`
 

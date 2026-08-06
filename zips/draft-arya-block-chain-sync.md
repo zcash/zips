@@ -185,15 +185,17 @@ known-hash list as follows:
    using the span metadata toward a byte target (see
    [Download Scheduling](#downloadscheduling)), each ending at a listed
    height. Any listed hash can end a unit, so unit boundaries are chosen
-   freely — by bytes, not by a fixed block count.
+   freely — by bytes, not by a fixed block count — and each unit's
+   request carries the byte target as its `max_bytes` bound.
 
 3. **Stream each unit with `get-block-range`**, anchored at the unit's
    final hash. Delivery is descending, so each delivered block is verified
    on arrival: it must hash to the anchor or to the previously delivered
-   block's `hashPrevBlock`, and (as a cross-check) must match the
-   known-hash list at its height. A truncated or cancelled unit keeps its
-   verified prefix, and the remainder is re-requested from any peer using
-   the next expected hash as its anchor.
+   block's `hashPrevBlock`, carry transactions matching its header, and
+   (as a cross-check) match the known-hash list at its height. A
+   truncated or cancelled unit keeps its verified prefix, and the
+   remainder is re-requested from any peer using the next expected hash
+   as its anchor.
 
 4. **Commit** each completed range in height order, applying whatever
    abbreviated validation local policy permits for
@@ -202,10 +204,13 @@ known-hash list as follows:
    [Verified Tree Roots](#verifiedtreeroots) are available.
 
 A node with a commitment that binds only spaced checkpoint hashes (rather
-than a full known-hash list) applies the same procedure with units ending
-at checkpoint heights; interior per-block cross-checks are then
-unavailable, but the descending hash chain still authenticates every
-delivered block against the checkpoint anchor.
+than a full known-hash list) applies the same procedure with units
+anchored at checkpoint heights; interior per-block cross-checks and
+advance sizing are then unavailable, but neither is needed: the request's
+`max_bytes` bound makes each stream a byte-sized unit regardless of block
+sizes, the descending hash chain authenticates every delivered block
+against the checkpoint anchor, and the node continues the span by
+re-anchoring on the next expected hash.
 
 ### Verified Tree Roots
 
@@ -238,6 +243,72 @@ recomputation:
 
 No additional trust is involved: every adopted root is authenticated by a
 header that is itself authenticated by the trusted commitment.
+
+### Spentness Hints
+
+After tree work is eliminated, the dominant remaining state cost of
+committing historical blocks is random access: looking up and deleting each
+transparent input's spent output, and inserting (and, under full
+validation, membership-testing) each revealed nullifier. Spentness hints —
+adapted from Bitcoin's SwiftSync [^swiftsync] — eliminate the random access
+and make historical commits order-independent, at the cost of a small hint
+artifact whose wrongness can only ever cause synchronization to fail, never
+to accept invalid state.
+
+The node draws a uniformly random secret *salt* for each synchronization
+attempt, and maintains additive aggregates of salted hashes
+(`H(salt ‖ item)`, summed with wrapping addition), one per aggregate
+described below. An attacker who cannot predict the salt cannot craft items
+whose hashes cancel.
+
+**Transparent outputs.** A *spentness hint artifact* — bound by the trusted
+commitment and fetched like any other artifact — carries one bit per
+transparent output created in the synchronized span, in canonical order
+(by block height, then transaction index, then output index): whether the
+output is still unspent at the span's terminal height. During the span:
+
+- An output hinted *unspent* is written to the transparent UTXO set as it
+  is created — and, during the span, never looked up or deleted.
+- An output hinted *spent* is never stored; its outpoint is added to the
+  transparent aggregate.
+- Every transparent input subtracts its referenced outpoint from the
+  transparent aggregate. No lookup is performed.
+
+At the terminal height, the transparent aggregate MUST be exactly zero:
+the multiset of outputs hinted spent then equals the multiset of outputs
+actually spent, so the constructed UTXO set is exactly the set of
+never-spent outputs, without a single random read.
+
+**Nullifiers.** The nullifier sets never shrink, so no per-item hint is
+needed; what the hint mechanism provides instead is lookup-free
+construction and verification:
+
+- When synchronizing below a snapshot (backfill), the snapshot's nullifier
+  set for each pool serves as the hint: the node adds every member of the
+  snapshot set to that pool's aggregate — verifying while streaming it in
+  sorted order that its elements are strictly increasing, hence distinct —
+  and subtracts every nullifier revealed by the span's blocks. A zero
+  aggregate at the snapshot height proves the nullifiers revealed in the
+  span are exactly the snapshot set, and therefore that no nullifier was
+  revealed twice.
+- Without a snapshot, the node accumulates revealed nullifiers per pool
+  and constructs each set in one batch (for example, by external sort) at
+  the terminal height, checking distinctness in the same pass; per-spend
+  membership tests below the final checkpoint are vouched for by the
+  trusted commitment.
+
+**Value pools.** No lookups are needed for value tracking either: shielded
+pool balances are sums of the blocks' value balance fields, which commute,
+and the transparent pool balance at the terminal height is the sum of the
+constructed UTXO set's amounts.
+
+Because no step reads state written by an earlier block, blocks and ranges
+MAY be verified and committed in any order within the span, and the
+per-input reads and per-output deletes disappear entirely. A nonzero
+aggregate at the terminal height means the hints, the snapshot sets, or
+the delivered blocks were wrong; the node discards the affected state and
+falls back to checkpointed synchronization without hints. As with all
+synchronization data in this ZIP, wrong hints produce failure, not fraud.
 
 ### Snapshot Synchronization
 
@@ -272,9 +343,14 @@ A node with no chain state MAY become operational at a *snapshot height*
    can serve the most recent 2,304 blocks.
 5. **Backfill in the background.** The node SHOULD backfill the history
    below `H` using checkpointed synchronization, at low priority, and
-   advertise `NODE_NETWORK` when complete; it MAY instead operate
-   indefinitely without deep history (pruned operation), never advertising
-   `NODE_NETWORK`.
+   advertise `NODE_NETWORK` when complete. Backfill SHOULD use the
+   snapshot's own sets as spentness hints (see
+   [Spentness Hints](#spentnesshints)): when the aggregates check out at
+   `H`, the node has *verified* the snapshot's transparent UTXO set and
+   nullifier sets against the chain, discharging the only components of
+   the snapshot that were trusted without chain verification. A node MAY
+   instead operate indefinitely without deep history (pruned operation),
+   never advertising `NODE_NETWORK`.
 
 Snapshot heights SHOULD lie at least the v2 protocol's reorganization
 margin below the network tip at the time the commitment is published, and
@@ -298,10 +374,11 @@ approaches the client's link capacity and no single peer can stall
 progress. A node SHOULD apply the following discipline to bulk transfers
 (`get-block-range` units and `get-object` pieces):
 
-- **Work units of 16–64 MiB**, sized with the known-hash span metadata (for
-  block ranges) or manifest piece sizes (for artifacts). Units near the
-  commit frontier SHOULD be smaller, so the frontier advances promptly;
-  deep lookahead units MAY be larger.
+- **Work units of 16–64 MiB**, realized for block ranges by the request's
+  `max_bytes` bound (with the known-hash span metadata, where available,
+  used to plan unit boundaries in advance), and for artifacts by manifest
+  piece sizes. Units near the commit frontier SHOULD be smaller, so the
+  frontier advances promptly; deep lookahead units MAY be larger.
 - **Pull-based assignment with per-peer budgets.** Maintain an estimate of
   each peer's delivery rate (for example, an exponentially weighted moving
   average); let each peer's connection pull the next unassigned unit
@@ -344,7 +421,8 @@ A synchronizing node SHOULD proceed as follows:
 2. For spans covered by known-hash commitments — backfill below a
    snapshot, or the whole chain when no snapshot is used — it SHOULD use
    checkpointed synchronization, with verified tree roots where peers
-   serve them.
+   serve them and spentness hints where its commitment (or snapshot)
+   provides them.
 3. Above the reach of its commitments, and within the reorganization
    margin of the tip, it uses headers-first synchronization.
 4. Every strategy degrades toward headers-first synchronization when its
@@ -364,9 +442,13 @@ The trust base is unchanged by acceleration: verified tree roots are
 authenticated by header commitments; artifacts are authenticated by the
 trusted commitment; and the only data trusted without chain verification
 (the snapshot's uncommitted state components) carries exactly the trust of
-the binary that shipped the commitment, as the checkpoints already do.
-Malicious synchronization data produces failure, not fraud: every
-verification failure is detected, attributed, penalized, and routed around.
+the binary that shipped the commitment, as the checkpoints already do —
+and even that trust is discharged when hint-verified backfill completes
+(see [Spentness Hints](#spentnesshints)). Malicious synchronization data
+produces failure, not fraud: every verification failure is detected,
+attributed, penalized, and routed around, and spentness hints in
+particular cannot cause acceptance of an incorrect state — a wrong hint
+surfaces as a nonzero aggregate.
 
 **Serving capacity.** Snapshot-synchronized and pruned nodes cannot serve
 deep history; if they became the majority, historical blocks and artifacts
@@ -411,5 +493,7 @@ interchangeably with `get-object` peers.
 [^zip-0244]: [ZIP 244: Transaction Identifier Non-Malleability](zip-0244.rst)
 
 [^assumeutxo]: [Bitcoin Core: assumeutxo design and usage](https://github.com/bitcoin/bitcoin/blob/master/doc/assumeutxo.md)
+
+[^swiftsync]: [Ruben Somsen: SwiftSync — speeding up IBD with pre-generated hints](https://gist.github.com/RubenSomsen/a61a37d14182ccd78760e477c78133cd)
 
 [^era1]: [era1 archival file format specification](https://github.com/eth-clients/e2store-format-specs/blob/main/formats/era1.md)
