@@ -222,7 +222,9 @@ recomputation:
 
 1. For each block in the span, obtain the entry (Sapling, Orchard, and
    Ironwood roots, shielded transaction counts, and authorizing data
-   commitment).
+   commitment), anchoring each request's `final_hash` at a hash the node
+   has already authenticated, so that entries describe known blocks
+   rather than the responder's view of a best chain.
 2. Verify the entries against headers that checkpointed synchronization has
    authenticated: from NU5, rebuild the chain history tree of ZIP 221
    [^zip-0221] from the supplied roots and counts, and check each block's
@@ -405,10 +407,17 @@ progress. A node SHOULD apply the following discipline to bulk transfers
   fastest peers do, assign remaining units redundantly to the fastest
   peers and cancel the losers; this bounds the tail of the download at the
   cost of at most one duplicate unit per peer.
-- **Exact blame.** A block failing its arrival check, or an artifact piece
-  failing its hash, is attributable with certainty to the delivering peer
-  and is handled per the v2 protocol's error and misbehavior rules; the
-  failed unit is reassigned elsewhere.
+- **Exact blame.** A block failing its arrival check is attributable with
+  certainty to the delivering peer, as is an artifact piece that fails
+  its hash after being delivered entirely by one peer; both are handled
+  per the v2 protocol's error and misbehavior rules, and the failed unit
+  is reassigned elsewhere. A piece assembled from ranges delivered by
+  several peers is *not* attributable when it fails its hash — the v2
+  protocol forbids assigning a penalty in that case — so the node
+  re-fetches the piece with each candidate peer serving it whole, which
+  isolates a misbehaving peer; a scheduler that assigns each piece to a
+  single peer (as the unit sizes above make natural) keeps blame exact
+  from the start.
 
 ## Strategy Selection
 
@@ -445,8 +454,13 @@ trusted commitment; and the only data trusted without chain verification
 the binary that shipped the commitment, as the checkpoints already do —
 and even that trust is discharged when hint-verified backfill completes
 (see [Spentness Hints](#spentnesshints)). Malicious synchronization data
-produces failure, not fraud: every verification failure is detected,
-attributed, penalized, and routed around, and spentness hints in
+produces failure, not fraud: every verification failure is detected and
+routed around, and is attributed and penalized where blame is provable
+under the v2 protocol's misbehavior rules. (Two failures are deliberately
+*not* attributed: a nonzero hint aggregate, which implicates the hints,
+the snapshot sets, or the blocks without distinguishing them, and an
+assembled artifact piece whose ranges came from several peers — see
+[Download Scheduling](#downloadscheduling).) Spentness hints in
 particular cannot cause acceptance of an incorrect state — a wrong hint
 surfaces as a nonzero aggregate.
 

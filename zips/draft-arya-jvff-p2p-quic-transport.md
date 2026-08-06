@@ -645,6 +645,11 @@ sequence of records for one announcement topic.
 - Announcements are best-effort: if transport backpressure prevents a record
   from being written promptly, the sender MAY drop the announcement rather
   than queueing it indefinitely.
+- A record on an announcement stream that does not conform to the format
+  defined for its stream type — a *nonconforming record* — is a connection
+  error of type `PROTOCOL_ERROR`, unless other handling is specified for
+  the stream type. (New record formats are introduced under new protocol
+  versions, so an unrecognized format is a violation, not a newer peer.)
 
 ### Records
 
@@ -771,8 +776,16 @@ as a 1-byte type followed by a type-dependent identifier:
 
 A transaction reference with an unrecognized type is a connection error of
 type `PROTOCOL_ERROR`. Using the wrong reference type for a transaction's
-version is subject to a misbehavior penalty (see
-[Misbehavior and Banning](#misbehaviorandbanning)).
+version is subject to a misbehavior penalty only where the sender of the
+reference necessarily holds the transaction and so knows its version:
+in announcement stream records and `get-mempool` response records (see
+[Misbehavior and Banning](#misbehaviorandbanning)). A `get-tx` requester,
+by contrast, may not hold the transaction it is requesting, and can have
+derived the reference type from data supplied by another peer (see
+[Requesting Missing Transactions](#requestingmissingtransactions)); a
+responder receiving a `get-tx` reference whose type does not match the
+referenced transaction's version MUST answer that reference with a
+not-found result, and MUST NOT assign a misbehavior penalty for it.
 
 
 ## Service Flags
@@ -1015,8 +1028,11 @@ already holds most of a block's transactions.
 
 The response `count` MUST NOT exceed 160. The headers MUST form a contiguous
 chain (each header's `hashPrevBlock` must match the hash of the preceding
-header). A node receiving non-contiguous headers SHOULD assign a misbehavior
-penalty of 20 points.
+header). A node receiving a response with more than 160 headers, or with
+non-contiguous headers, SHOULD discard the response and assign a misbehavior
+penalty of 20 points; this is the handling of such responses, in place of
+the connection error that [Request Streams](#requeststreams) would otherwise
+prescribe.
 
 The legacy always-zero transaction count that followed each header in
 `headers` messages is removed.
@@ -1083,8 +1099,10 @@ byte).
 | varies | `addresses` | `count` network address records (see [Network Address Record](#networkaddressrecord)). |
 
 Requests peer addresses from the remote node. The response `count` MUST NOT
-exceed 1000; a node receiving a larger response SHOULD assign a misbehavior
-penalty of 20 points.
+exceed 1000; a node receiving a larger response SHOULD discard the response
+and assign a misbehavior penalty of 20 points (this is the handling of such
+responses, in place of the connection error that
+[Request Streams](#requeststreams) would otherwise prescribe).
 
 To impede address-based fingerprinting attacks, a node SHOULD send `get-addr`
 only on outbound connections, at most once per connection, and SHOULD only
@@ -1238,7 +1256,11 @@ The responder streams blocks until it has delivered `count` blocks, or
 until delivering the next block would bring the total serialized size of
 the delivered blocks above `max_bytes`, whichever comes first — except
 that it MUST be willing to deliver the first block regardless of
-`max_bytes`, so that a maximum-size block is always retrievable. Because
+`max_bytes`, so that a maximum-size block is always retrievable. A
+response that exceeds either bound — more than `count` blocks, or any
+block after the first whose delivery brings the total serialized size
+above `max_bytes` — is a connection error of type `FLOOD`; both bounds
+are exact, so an honest responder never exceeds them. Because
 block sizes vary by three orders of magnitude across the chain's history,
 `max_bytes` — not `count` — is what bounds the work a stream commits one
 peer to; a synchronizing node downloads from many peers concurrently, one
@@ -1281,6 +1303,7 @@ Stream type: `0x08`
 | Size   | Field          | Description                                                  |
 |--------|----------------|--------------------------------------------------------------|
 | 4      | `start_height` | Height of the first requested entry (`uint32`, little-endian). |
+| 32     | `final_hash`   | Hash of the block at the highest requested height, `start_height + count − 1` (see below). |
 | varies | `count`        | Maximum number of entries requested (CompactSize). MUST NOT exceed 4,000. |
 
 **Response:**
@@ -1291,7 +1314,8 @@ Stream type: `0x08`
 | varies | `entries` | `count` entries, each encoded as follows. |
 
 Entry `k`, for `k` from 0 to `count − 1`, describes the block at height
-`start_height + k` of the responder's best chain:
+`start_height + k` of the chain identified by `final_hash` — the block
+with hash `final_hash` and its ancestors:
 
 | Size   | Field            | Description                                                                        |
 |--------|------------------|------------------------------------------------------------------------------------|
@@ -1310,7 +1334,23 @@ Requests the per-block data from which a synchronizing node can reproduce
 each block's note commitment tree roots and chain history tree without
 recomputing the trees from the blocks' note commitments — the dominant CPU
 cost of validating historical blocks under checkpoint-based
-synchronization. The entries are not self-authenticating: a node MUST NOT
+synchronization.
+
+The `final_hash` field anchors the request to a specific chain: the
+requester sets it to the hash — taken from headers it has already
+authenticated (see [^draft-sync]) — of the block at the highest requested
+height, and the requested entries describe that block and its ancestors,
+which `final_hash` identifies uniquely. A responder whose best chain does
+not contain the block with hash `final_hash` at height
+`start_height + count − 1` MUST refuse the stream with `REFUSED` rather
+than serve entries for different blocks. An honest peer with a divergent
+chain view therefore refuses rather than serving mismatching entries, so
+an entry that fails verification is never attributable to a different
+chain view (cf. the tolerance rule of
+[Checkpointed Synchronization](#checkpointedsynchronization), which this
+anchoring makes unnecessary here).
+
+The entries are not self-authenticating: a node MUST NOT
 rely on them for any purpose until it has verified them against the chain's
 header commitments — `hashFinalSaplingRoot` and, from NU5,
 `hashBlockCommitments` binding the chain history root of ZIP 221 [^zip-0221]
@@ -1364,7 +1404,23 @@ hashing its complete contents; artifacts are therefore expected to be
 divided into pieces no larger than the per-request maximum, so that each
 piece is independently fetchable and verifiable (see [^draft-sync]).
 Requests for offsets at or beyond the object's size are answered with
-`result = 0x00`, the object's `size`, and no data.
+`result = 0x00`, the object's `size`, and no data. A response carrying
+more than `length` bytes of data, or data extending beyond the end of the
+object as given by its own `size` field, is a connection error of type
+`FLOOD`.
+
+Object data is verified only by hashing the complete object, so
+misdelivery is attributable only when a single peer delivered every byte:
+a node that has fetched all of an object's bytes from one peer, and finds
+that they do not hash to the requested `hash`, SHOULD assign that peer a
+misbehavior penalty of 100 points. A node that assembled an object from
+ranges delivered by more than one peer MUST NOT assign a misbehavior
+penalty when the assembled object fails verification — any of the
+contributing peers could be at fault — and SHOULD instead discard the
+data and re-fetch the object with each candidate peer serving the whole
+object, which isolates a misbehaving peer. The `size` field is likewise
+unverifiable until the object is complete; disagreement between peers
+about an object's `size` is resolved by the hash check, not penalized.
 
 
 ## Announcement Stream Types
@@ -1399,6 +1455,18 @@ regardless of its `announce` preference; in particular, if a block's compact
 block encoding would exceed the maximum record payload length (see
 [Records](#records)), the sender announces that block with a header
 announcement instead.
+
+A node SHOULD NOT send a header announcement for a block it has not fully
+validated, except as the oversize substitute above for a compact block
+announcement to a peer that requested high-bandwidth announcements.
+Correspondingly, the pre-validation penalty exemption of
+[Relay Protocol](#relayprotocol) applies to announcements of either kind
+received on a connection on which the receiving node requested
+high-bandwidth announcements (its `init` record had `announce = 1`); a
+header announcement received where the receiver's `announce` was 0 carries
+no such exemption, and an announced block that fails full validation is
+subject to the rules of
+[Misbehavior and Banning](#misbehaviorandbanning).
 
 An announcing node SHOULD only announce a block if it expects the peer to be
 able to connect the announced header to the peer's known chain (for example,
@@ -1510,7 +1578,8 @@ in the block is `ids_count + prefilled_count`. A compact block in which
 
 A node MUST set `ids_kind` to 1 in compact blocks sent to a peer that set
 `full_ids = 1` in its `init` record, and SHOULD set `ids_kind` to 0 otherwise.
-A node MUST reject a compact block with an `ids_kind` value other than 0 or 1.
+A compact block with an `ids_kind` value other than 0 or 1 is a
+nonconforming record (see [Announcement Streams](#announcementstreams)).
 
 Each entry of `prefilled_txns` has the following format:
 
@@ -1523,9 +1592,10 @@ Prefilled transaction indexes are differentially encoded: the first `index`
 is the absolute index of the first prefilled transaction within the block, and
 each subsequent `index` is the difference between the absolute index of that
 prefilled transaction and the absolute index of the previous prefilled
-transaction, minus one. A node MUST reject a compact block in which any
-absolute index would exceed 65535, or in which indexes overflow or are not
-strictly increasing.
+transaction, minus one. A compact block in which any absolute index would
+exceed 65535, or in which indexes overflow or are not strictly increasing,
+is a nonconforming record (see
+[Announcement Streams](#announcementstreams)).
 
 The coinbase transaction MUST be prefilled. A sender SHOULD additionally
 prefill any transaction that it predicts the receiver does not have.
@@ -1606,9 +1676,13 @@ A node follows the BIP 152 [^bip-0152] protocol flows:
   it has validated the block header (checking proof of work and difficulty),
   before fully validating the block. Because a high-bandwidth announcement may
   legitimately precede full validation by the announcing peer, a node MUST NOT
-  assign a misbehavior penalty for a compact block announcement of a block
-  that fails full validation, provided the block's header is valid (including
-  its proof of work). A node SHOULD request high-bandwidth
+  assign a misbehavior penalty for a high-bandwidth announcement — a compact
+  block announcement, or a header announcement substituted for one (see
+  [Block Announcements](#blockannouncements)) — of a block that fails full
+  validation, provided the block's header is valid (including its proof of
+  work); the same exemption covers the block's transactions served under
+  [Requesting Missing Transactions](#requestingmissingtransactions). A node
+  SHOULD request high-bandwidth
   announcements from at most 3 peers, preferring the peers that most recently
   announced blocks to it first; to change its selection, it disconnects and
   reconnects with a new `init` record.
@@ -1868,10 +1942,31 @@ honest-but-buggy peer or a peer on a different chain could commit, instead
 accumulate a per-peer *misbehavior score* that leads to disconnection and
 banning only when it crosses a threshold.
 
+Every misbehavior penalty — including any implementation-defined penalty
+assigned under the final row of the table below — is constrained by the
+following principle: a node MUST NOT assign a misbehavior penalty unless
+the violation is provable from the received data together with data the
+node has independently authenticated, does not depend on the node's own
+chain view, mempool contents, clock, or local policy, and could not be
+committed by a conformant peer acting on honest but divergent state.
+Behavior that fails this test — however suspicious — is instead handled by
+discarding the data, refusing or cancelling streams, rate limits and
+backpressure, or disconnection without a ban. Penalties assigned on
+weaker evidence are worse than none: they let an attacker who can arrange
+the appearance of misbehavior induce honest nodes to ban one another,
+narrowing each victim's peer set toward the attacker's own nodes.
+
 The misbehavior score works as follows:
 
-- A node SHOULD maintain a misbehavior score for each connected peer,
-  initialized to zero when the connection is established.
+- A node SHOULD maintain a misbehavior score for each peer. Scores SHOULD
+  be keyed by network address and persist across connections for a period
+  on the order of the ban duration: several penalties in this protocol are
+  detected only after a delay (span metadata is checked once the span's
+  blocks have been downloaded; tree-root entries verify one block
+  behind), so a purely per-connection score would let a peer shed its
+  score — or escape a deferred penalty entirely — by reconnecting. A
+  penalty detected after the offending connection has closed SHOULD be
+  applied to the address's score.
 - When the node detects one of the violations listed below, it adds the
   listed number of points to the peer's score:
 
@@ -1882,8 +1977,37 @@ The misbehavior score works as follows:
 | 20     | `get-addr` response with more than 1000 address records.                                                           |
 | 20     | `get-hashes` span metadata that does not match the downloaded blocks of the span (see [`get-hashes`](#get-hashes)). |
 | 100    | A `get-tree-roots` entry that fails verification against authenticated header commitments (see [`get-tree-roots`](#get-tree-roots)). |
-| 100    | Using a `TXID` reference to announce a v5 transaction, or a `WTXID` reference to announce a v4-or-earlier transaction (see ZIP 239 [^zip-0239]). |
-| varies | Transaction, block, or header validation failure. The penalty is determined by the severity of the validation error. (See [Relay Protocol](#relayprotocol) for an exemption covering compact blocks relayed before full validation.) |
+| 100    | A `get-object` object, delivered entirely by the peer, that fails verification against the requested content hash (see [`get-object`](#get-object)). |
+| 100    | Announcing a v5 transaction with a `TXID` reference, or a v4-or-earlier transaction with a `WTXID` reference, in an announcement stream record or a `get-mempool` response record (see [Transaction References](#transactionreferences) and ZIP 239 [^zip-0239]). Wrong-typed references in `get-tx` requests are exempt. |
+| varies | Transaction, block, or header validation failure that is provable under the principle above: an invalid signature or proof, malformed structure, invalid proof of work, or a commitment mismatch, established with full context. The penalty is determined by the severity of the validation error, subject to the exemptions below. |
+
+Validation-failure penalties apply only where the invalidity proves that
+*this* peer misbehaved. In particular, a node MUST NOT assign a
+misbehavior penalty for:
+
+- **Expiry.** A transaction that is expired, or expires too soon, relative
+  to the receiver's chain tip: relay and trickling delays make expiry
+  races possible between honest peers (see
+  [Transaction Expiry](#transactionexpiry)).
+- **Local policy.** Rejection under local mempool policy — fee
+  requirements, orphan handling, conflicts with mempool contents, or
+  resource limits (see [Mempool Policy](#mempoolpolicy)).
+- **Missing or moved state.** A transaction whose inputs are unknown to
+  the receiver or already spent in its current view, or any object the
+  receiver lacks the context to validate.
+- **Content of requested objects.** Consensus invalidity of a block,
+  transaction, or artifact that the node itself requested by hash or
+  reference (`get-blocks`, `get-block-range`, `get-tx`, `get-object`):
+  the responder served exactly the bytes the identifier names, and blame
+  for the object's existence lies with the peer that announced it, under
+  the rules above. (Delivered data that does *not* match the requested
+  identifier is covered by each stream type's own rules.)
+- **Block reconstruction service.** Transactions served in fulfilment of
+  the serving obligation of
+  [Requesting Missing Transactions](#requestingmissingtransactions) (see
+  the exemption in [Relay Protocol](#relayprotocol)).
+
+Score thresholds and banning work as follows:
 
 - When a peer's score reaches or exceeds the node's ban threshold, the node
   SHOULD close the connection with the `MISBEHAVIOR` error code and ban the
@@ -1895,7 +2019,7 @@ The misbehavior score works as follows:
   reference values used by legacy implementations, see ZIP 204
   [^zip-0204-misbehavior].
 - Whitelisted peers accumulate misbehavior scores but are exempt from
-  banning.
+  banning and from the threshold-triggered disconnection.
 
 Bans are keyed by network address, and are only as strong as the cost of
 acquiring a new address. Banning is a meaningful deterrent for IP-based
@@ -1903,6 +2027,14 @@ transports; for overlay networks whose addresses are free to generate (such
 as Tor onion services), it excludes only the banned address, and inbound
 connection limits — not ban lists — bound the node's exposure (see
 [Address Book Management](#addressbookmanagement)).
+
+Address granularity cuts both ways even on IP transports. A single IPv6
+operator typically controls at least a /64, so per-address IPv6 bans are
+nearly free to evade; a node MAY key IPv6 bans and scores by prefix (a
+/64 is a reasonable default). Conversely, a single IPv4 address behind
+carrier-grade NAT may be shared by many independent users, so a ban can
+exclude bystanders — a reason to keep ban durations bounded rather than
+to widen their scope.
 
 
 # Security and Privacy Considerations
