@@ -179,8 +179,10 @@ ZIP 204 [^zip-0204], this ZIP:
   [Application Error Codes](#applicationerrorcodes)).
 - Removes `inv`, `getdata`, and `notfound`; announcements are carried on
   dedicated unidirectional streams, and object requests carry per-item results.
-- Removes the inventory-walk `getblocks` message; headers-first synchronization
-  is the only synchronization method.
+- Removes the inventory-walk `getblocks` message; headers-first
+  synchronization is the baseline synchronization method, and a new
+  `get-hashes` request stream supports checkpoint-based synchronization
+  strategies (see [`get-hashes`](#get-hashes) and [^draft-sync]).
 - Removes the deprecated `alert` message.
 - Removes BIP 37 Bloom filtering (`filterload`, `filteradd`, `filterclear`)
   and the `NODE_BLOOM` service flag.
@@ -566,6 +568,7 @@ transport section (for QUIC, see [Stream Layer Mapping](#streamlayermapping)).
 | `0x03` | `get-tx`                  | Bidirectional                 | Request transactions.                                                |
 | `0x04` | `get-addr`                | Bidirectional                 | Request peer addresses.                                              |
 | `0x05` | `get-mempool`             | Bidirectional                 | Request mempool contents.                                            |
+| `0x06` | `get-hashes`              | Bidirectional                 | Request best-chain block hashes at a height stride.                  |
 | `0x10` | Block announcements       | Unidirectional                | Announce new blocks (see [Block Announcements](#blockannouncements)). |
 | `0x11` | Transaction announcements | Unidirectional                | Announce new transactions (see [Transaction Announcements](#transactionannouncements)). |
 | `0x12` | Address announcements     | Unidirectional                | Gossip peer addresses (see [Address Announcements](#addressannouncements)). |
@@ -1054,7 +1057,8 @@ Stream type: `0x02`
 
 Requests full blocks by hash, replacing the legacy `getdata` message with
 `MSG_BLOCK` inventory entries. (The legacy `getblocks` inventory walk has no
-equivalent in this protocol; synchronization is headers-first only. See
+equivalent in this protocol; block hashes to request are learned from
+headers, announcements, or `get-hashes` responses. See
 [Headers-First Synchronization](#headers-firstsynchronization).)
 
 The `count` MUST NOT exceed 128.
@@ -1150,6 +1154,50 @@ omit references it has already sent to the same peer — in the snapshot, in an
 earlier record, or on a transaction announcement stream — and the requester
 MUST tolerate duplicate references. A node MAY decline to serve `get-mempool`
 by resetting its sending direction of the stream with `REFUSED`.
+
+### `get-hashes`
+
+Stream type: `0x06`
+
+**Request:**
+
+| Size   | Field          | Description                                                          |
+|--------|----------------|----------------------------------------------------------------------|
+| 4      | `start_height` | Height of the first requested block hash (`uint32`, little-endian).  |
+| 4      | `stride`       | Spacing between requested heights (`uint32`, little-endian). MUST be ≥ 1. |
+| varies | `count`        | Maximum number of block hashes requested (CompactSize).              |
+
+**Response:**
+
+| Size   | Field    | Description                                                                                                    |
+|--------|----------|----------------------------------------------------------------------------------------------------------------|
+| varies | `count`  | Number of block hashes returned (CompactSize).                                                                 |
+| varies | `hashes` | Block hashes, 32 bytes each: the hash of the block at height `start_height + k × stride` in the responder's best chain, for `k` from 0 to `count − 1`. |
+
+Requests the hashes of the blocks at heights `start_height + k × stride` of
+the responder's best chain, for `k` from 0 to `count − 1`. Setting `stride`
+to 1 requests the hashes of consecutive blocks; a larger `stride` requests
+hashes at a regular spacing (for example, the spacing of the requester's
+checkpoints; see [^draft-sync]). Responders serve `get-hashes` purely from
+the height-to-hash index of their best chain.
+
+The requested `count` MUST NOT exceed 50,000, `stride` MUST NOT be 0, and
+the greatest requested height (`start_height + (count − 1) × stride`) MUST
+NOT exceed `0xFFFFFFFF`.
+
+The response `count` MAY be less than the requested count, and MAY be 0: a
+node omits requested heights above its chain tip, and SHOULD NOT include the
+hashes of blocks fewer than 100 blocks below its chain tip (which could
+still be affected by a chain reorganization). Truncation MUST be a prefix:
+if fewer hashes are returned than were requested, the returned hashes MUST
+correspond to the lowest requested heights, so that the requester can
+re-request the missing tail.
+
+Responses are not self-authenticating: the returned hashes are only as
+trustworthy as the peer that sent them. A node MUST NOT rely on them for any
+security-relevant purpose without verifying them against trusted data (such
+as the trusted commitments of the checkpointed synchronization strategy
+recommended in [^draft-sync]) or fully validating the corresponding blocks.
 
 
 ## Announcement Stream Types
@@ -1249,7 +1297,10 @@ are carried in the `announce` and `full_ids` fields of the `init` record (see
 ### Headers-First Synchronization
 
 Nodes synchronize the block chain using a headers-first approach; it is the
-only synchronization method in this protocol.
+baseline synchronization method of this protocol, which every node supports.
+(Recommended synchronization rules and strategies — including a
+checkpoint-based strategy built on `get-hashes` — are specified in
+[^draft-sync].)
 
 1. The synchronizing node sends a `get-headers` request with a block locator
    (typically with `tx_ids = 0`; see [`get-headers`](#get-headers)).
@@ -1855,6 +1906,8 @@ here.
 [^zip-0204-assignment]: [ZIP 204: Zcash P2P Network Protocol — Assigning Protocol Versions to Network Upgrades](https://zips.z.cash/zip-0204#assigning-protocol-versions-to-network-upgrades)
 
 [^zip-0239]: [ZIP 239: Relay of Version 5 Transactions](zip-0239.rst)
+
+[^draft-sync]: [Draft ZIP: Block Chain Synchronization](draft-arya-block-chain-sync.md)
 
 [^zip-0244]: [ZIP 244: Transaction Identifier Non-Malleability](zip-0244.rst)
 
