@@ -533,7 +533,7 @@ transport section (for QUIC, see [Stream Layer Mapping](#streamlayermapping)).
 | `0x03` | [`get-tx`](#get-tx)       | Bidirectional                 | Request transactions.                                                |
 | `0x04` | [`get-addr`](#get-addr)   | Bidirectional                 | Request peer addresses.                                              |
 | `0x05` | [`get-mempool`](#get-mempool) | Bidirectional             | Subscribe to mempool contents.                                       |
-| `0x06` | [`get-hashes`](#get-hashes) | Bidirectional               | Request best-chain block hashes at a height stride.                  |
+| `0x06` | [`get-hashes`](#get-hashes) | Bidirectional               | Request best-chain block hashes and sync-cost metadata at a height stride. |
 | `0x10` | Block announcements       | Unidirectional                | Announce new blocks (see [Block Announcements](#blockannouncements)). |
 | `0x11` | Transaction announcements | Unidirectional                | Announce new transactions (see [Transaction Announcements](#transactionannouncements)). |
 | `0x12` | Address announcements     | Unidirectional                | Gossip peer addresses (see [Address Announcements](#addressannouncements)). |
@@ -1103,36 +1103,71 @@ Stream type: `0x06`
 
 **Response:**
 
-| Size   | Field    | Description                                                                                                    |
-|--------|----------|----------------------------------------------------------------------------------------------------------------|
-| varies | `count`  | Number of block hashes returned (CompactSize).                                                                 |
-| varies | `hashes` | Block hashes, 32 bytes each: the hash of the block at height `start_height + k × stride` in the responder's best chain, for `k` from 0 to `count − 1`. |
+| Size   | Field     | Description                               |
+|--------|-----------|-------------------------------------------|
+| varies | `count`   | Number of entries (CompactSize).          |
+| varies | `entries` | `count` entries, each encoded as follows. |
+
+Entry `k`, for `k` from 0 to `count − 1`, describes the block at height
+`h_k = start_height + k × stride` of the responder's best chain, and the
+*span* of blocks at heights greater than `h_k − stride` and at most `h_k`
+(bounded below by height 0). For `stride = 1`, each entry's span is exactly
+its own block.
+
+| Size   | Field        | Description                                                                                        |
+|--------|--------------|----------------------------------------------------------------------------------------------------|
+| 32     | `hash`       | Hash of the block at height `h_k`.                                                                 |
+| varies | `span_size`  | The sum, over the span's blocks, of each block's *size value*: the block's serialized size (see [Serialized Blocks](#serializedblocks)) divided by 7,844 and rounded up (CompactSize; see below). |
+| varies | `span_txs`   | Total number of transactions in the span's blocks, including coinbase transactions (CompactSize).  |
+| varies | `span_notes` | Total number of note commitments added by the span's blocks: two per JoinSplit description, plus one per Sapling Output description, plus one per Orchard-protocol Action description (in the Orchard or, from NU6.3, the Ironwood pool) (CompactSize). |
 
 Requests the hashes of the blocks at heights `start_height + k × stride` of
 the responder's best chain, for `k` from 0 to `count − 1`. Setting `stride`
-to 1 requests the hashes of consecutive blocks; a larger `stride` requests
-hashes at a regular spacing (for example, the spacing of the requester's
-checkpoints; see [^draft-sync]). Responders serve `get-hashes` purely from
-the height-to-hash index of their best chain.
+to 1 requests consecutive blocks; a larger `stride` requests hashes at a
+regular spacing (for example, the spacing of the requester's checkpoints;
+see [^draft-sync]), with each entry's span metadata then aggregating the
+blocks between consecutive entries.
+
+The size unit 7,844 is the maximum serialized block size (2,000,000 bytes)
+divided by 255 and rounded up, so a block's size value is a 1-byte quantity
+between 1 and 255 expressing its size relative to the maximum block size,
+and `size value × 7,844` is always an upper bound on the block's size. For
+`stride = 1`, `span_size` is exactly the block's size value, and each
+metadata field typically occupies a single CompactSize byte. (A future
+consensus change to the maximum block size would redefine the unit under a
+new protocol version.)
+
+The `span_*` fields are *scheduling hints*: they let a synchronizing node
+estimate, before downloading, the download volume and the validation and
+note-commitment-tree work in each span of the chain, and so divide download
+work across peers and interleave transfer with computation to reach the tip
+fastest (see [^draft-sync]). They are deterministic functions of the span's
+blocks — for a given `hash`, every honest responder returns identical
+values. A node MUST NOT rely on them for any consensus or validity purpose.
 
 The requested `count` MUST NOT exceed 50,000, `stride` MUST NOT be 0, and
 the greatest requested height (`start_height + (count − 1) × stride`) MUST
 NOT exceed `0xFFFFFFFF`.
 
 The response `count` MAY be less than the requested count, and MAY be 0: a
-node omits requested heights above its chain tip, and SHOULD NOT include the
-hashes of blocks fewer than 100 blocks below its chain tip (which could
+node omits requested heights above its chain tip, and SHOULD NOT include
+entries for blocks fewer than 100 blocks below its chain tip (which could
 still be affected by a chain reorganization). Truncation MUST be a prefix:
-if fewer hashes are returned than were requested, the returned hashes MUST
+if fewer entries are returned than were requested, the returned entries MUST
 correspond to the lowest requested heights, so that the requester can
 re-request the missing tail.
 
 Responses are not self-authenticating: the returned hashes are only as
-trustworthy as the peer that sent them. A node MUST NOT rely on them for any
-security-relevant purpose without verifying them against trusted data (such
-as the trusted commitments of
+trustworthy as the peer that sent them, and a node MUST NOT rely on them for
+any security-relevant purpose without verifying them against trusted data
+(such as the trusted commitments of
 [Checkpointed Synchronization](#checkpointedsynchronization)) or fully
-validating the corresponding blocks.
+validating the corresponding blocks. The span metadata, by contrast, is
+checkable after the fact: once a node has downloaded the blocks of an
+entry's span, it SHOULD verify any hints it relied upon, and SHOULD assign a
+misbehavior penalty of 20 points if they do not match the downloaded blocks
+(the `hash` identifies the blocks uniquely, so a mismatch is not
+attributable to a different chain view).
 
 
 ## Announcement Stream Types
