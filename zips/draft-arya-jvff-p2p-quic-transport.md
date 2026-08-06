@@ -174,6 +174,18 @@ ZIP 204 [^zip-0204], this ZIP:
 
 # Specification
 
+This specification is organized bottom-up. [Transports](#transports) defines
+how connections are established and secured (QUIC and Tor);
+[Stream Layer](#streamlayer) defines the typed streams that carry all
+application data, and [Data Types and Encoding](#datatypesandencoding) the
+shared encodings. [Connection Handshake](#connectionhandshake) and
+[Protocol Versioning](#protocolversioning) cover connection setup.
+[Request Stream Types](#requeststreamtypes) and
+[Announcement Stream Types](#announcementstreamtypes) specify the individual
+request and announcement formats, and [Block Relay](#blockrelay),
+[Synchronization](#synchronization), [Transaction Relay](#transactionrelay),
+and [Address Relay](#addressrelay) the behaviors built on them.
+
 ## Network Parameters
 
 ### Networks
@@ -516,12 +528,12 @@ transport section (for QUIC, see [Stream Layer Mapping](#streamlayermapping)).
 | Code   | Name                      | Kind                          | Description                                                          |
 |--------|---------------------------|-------------------------------|----------------------------------------------------------------------|
 | `0x00` | Handshake                 | Bidirectional, initiator only | Connection handshake and control (see [Connection Handshake](#connectionhandshake)). |
-| `0x01` | `get-headers`             | Bidirectional                 | Request block headers, optionally with transaction IDs.              |
-| `0x02` | `get-blocks`              | Bidirectional                 | Request full blocks.                                                 |
-| `0x03` | `get-tx`                  | Bidirectional                 | Request transactions.                                                |
-| `0x04` | `get-addr`                | Bidirectional                 | Request peer addresses.                                              |
-| `0x05` | `get-mempool`             | Bidirectional                 | Request mempool contents.                                            |
-| `0x06` | `get-hashes`              | Bidirectional                 | Request best-chain block hashes at a height stride.                  |
+| `0x01` | [`get-headers`](#get-headers) | Bidirectional             | Request block headers, optionally with transaction IDs.              |
+| `0x02` | [`get-blocks`](#get-blocks) | Bidirectional               | Request full blocks.                                                 |
+| `0x03` | [`get-tx`](#get-tx)       | Bidirectional                 | Request transactions.                                                |
+| `0x04` | [`get-addr`](#get-addr)   | Bidirectional                 | Request peer addresses.                                              |
+| `0x05` | [`get-mempool`](#get-mempool) | Bidirectional             | Subscribe to mempool contents.                                       |
+| `0x06` | [`get-hashes`](#get-hashes) | Bidirectional               | Request best-chain block hashes at a height stride.                  |
 | `0x10` | Block announcements       | Unidirectional                | Announce new blocks (see [Block Announcements](#blockannouncements)). |
 | `0x11` | Transaction announcements | Unidirectional                | Announce new transactions (see [Transaction Announcements](#transactionannouncements)). |
 | `0x12` | Address announcements     | Unidirectional                | Gossip peer addresses (see [Address Announcements](#addressannouncements)). |
@@ -839,6 +851,22 @@ A receiving node MUST validate the `init` record as follows:
 
 Except where another error code is specified above, a node MUST close the
 connection with the `PROTOCOL_ERROR` error code if any of these checks fail.
+
+### Example (non-normative)
+
+Connection establishment over the QUIC transport:
+
+```
+Initiator                                     Responder
+   ═══ QUIC handshake (ALPN "zcash/main") ═══
+   ── open stream 0x00: type byte, init ────▶
+   ◀──────── same stream: init ──────────────
+        (handshake is complete for each peer once it
+         has both sent and received an init record)
+   ── open announcement streams 0x10..0x12 ─▶
+   ◀─ open announcement streams 0x10..0x12 ──
+   ...requests and announcements flow in both directions...
+```
 
 
 ## Protocol Versioning
@@ -1191,82 +1219,6 @@ Both mechanisms are unconditional; the per-connection preferences are carried
 in the `announce` and `full_ids` fields of the `init` record (see
 [Init Record](#initrecord)).
 
-### Headers-First Synchronization
-
-Nodes synchronize the block chain using a headers-first approach; it is the
-baseline synchronization method of this protocol, which every node supports.
-It is the *full-validation* method: it assumes no trusted data beyond the
-consensus rules and the genesis block. (An alternative method for nodes
-with trusted checkpoint data is specified in
-[Checkpointed Synchronization](#checkpointedsynchronization); recommended
-concrete synchronization strategies are specified in [^draft-sync].)
-
-1. The synchronizing node sends a `get-headers` request with a block locator
-   (typically with `tx_ids = 0`; see [`get-headers`](#get-headers)).
-2. The remote peer responds with up to 160 headers.
-3. The synchronizing node validates the headers and requests full blocks via
-   `get-blocks` requests.
-4. Steps 1–3 repeat until the node is synchronized with the network.
-
-The following rules apply to headers-first synchronization:
-
-- A node MUST validate each received header — including its proof of work
-  and its difficulty adjustment — before requesting the corresponding block
-  and before extending its header chain with it.
-- Received headers, even with valid proof of work, establish only that work
-  was expended: a node MUST NOT treat a block as part of its best chain
-  until the block itself has been validated under the consensus rules.
-  Until then, headers serve to select and schedule block downloads.
-- A node MUST NOT assign a misbehavior penalty solely because a peer's
-  headers do not connect to its known chain or reflect a different best
-  chain (see [Block Announcements](#blockannouncements)); penalties apply
-  to provably invalid headers and blocks, per
-  [Misbehavior and Banning](#misbehaviorandbanning).
-
-### Checkpointed Synchronization
-
-A node MAY synchronize spans of the historical chain against *trusted
-commitments*: checkpoint data — bindings of block heights to block hashes —
-obtained through a channel the node already trusts, such as its own binary
-or local configuration. A recommended concrete strategy using `get-hashes`
-is specified in [^draft-sync]; any checkpoint-based synchronization
-procedure MUST obey the following rules.
-
-- **Validated advancement.** A node MUST NOT advance its validated chain
-  except through blocks that it has either validated under the consensus
-  rules, or authenticated by an unbroken hash chain terminating in a
-  checkpoint bound by a trusted commitment. The extent to which consensus
-  checks may be abbreviated for checkpoint-authenticated blocks is a matter
-  of local policy.
-- **Untrusted inputs.** Peer-supplied data — hashes, headers, blocks — MUST
-  NOT be relied upon for any security-relevant purpose until verified under
-  the previous rule; until then it MAY be used only to select and schedule
-  downloads. Data received from peers MUST NOT be incorporated into a
-  node's trusted commitments.
-- **Tolerance of divergent views.** A node MUST NOT assign a misbehavior
-  penalty to a peer solely because the peer's `get-hashes` responses fail
-  verification against the node's commitments, or reflect a different best
-  chain; such responses are discarded and MAY be retried with other peers.
-- **Reorganization margin.** Commitment-based authentication SHOULD NOT be
-  applied within 100 blocks of the node's view of the network chain tip
-  (matching the responder-side margin of [`get-hashes`](#get-hashes)); the
-  chain near the tip is synchronized headers-first.
-- **Headers-first fallback.** A node MUST be capable of completing
-  synchronization using headers-first synchronization alone, and MUST fall
-  back to it where its commitments end or where too few peers serve
-  `get-hashes`.
-
-The commitment scheme itself — checkpoint spacing, any chunking, and the
-hash or signature scheme binding it — is local to the node and out of scope
-for this protocol.
-
-### Block Download Parameters
-
-The block download parameters of ZIP 204 [^zip-0204-blockdownload] — the
-download window, the per-peer in-transit limit, and the stalling timeout —
-apply unchanged. On a stall, the node MAY re-request the block from an
-alternative peer, cancelling the original request stream with `CANCELLED`.
-
 ### Compact Block Relay
 
 Compact block relay is adapted from BIP 152 [^bip-0152]. This section
@@ -1464,6 +1416,108 @@ otherwise:
 An incorrectly reconstructed block fails validation of the block's merkle
 root and authorizing data commitment, so short ID matching does not weaken
 consensus enforcement.
+
+#### Example (non-normative)
+
+A new block reaches peer B (high-bandwidth mode) and peer C (low-bandwidth
+mode) from peer A:
+
+```
+A ── block announcements ────▶ B : compact block (header, short
+                                   IDs, prefilled coinbase)
+     B matches the short IDs against transactions it
+     holds; two are unknown
+B ── get-tx ─────────────────▶ A : [SHORTID, SHORTID]
+A ── response ───────────────▶ B : the two transactions
+     B reconstructs the block and validates it
+
+A ── block announcements ────▶ C : header announcement
+C ── get-headers ────────────▶ A : locator, hash_stop = block
+                                   hash, tx_ids = 1
+A ── response ───────────────▶ C : header, coinbase, full
+                                   transaction IDs
+     C matches the IDs, fetches missing transactions
+     via get-tx, reconstructs, and validates
+```
+
+
+## Synchronization
+
+### Headers-First Synchronization
+
+Nodes synchronize the block chain using a headers-first approach; it is the
+baseline synchronization method of this protocol, which every node supports.
+It is the *full-validation* method: it assumes no trusted data beyond the
+consensus rules and the genesis block. (An alternative method for nodes
+with trusted checkpoint data is specified in
+[Checkpointed Synchronization](#checkpointedsynchronization); recommended
+concrete synchronization strategies are specified in [^draft-sync].)
+
+1. The synchronizing node sends a `get-headers` request with a block locator
+   (typically with `tx_ids = 0`; see [`get-headers`](#get-headers)).
+2. The remote peer responds with up to 160 headers.
+3. The synchronizing node validates the headers and requests full blocks via
+   `get-blocks` requests.
+4. Steps 1–3 repeat until the node is synchronized with the network.
+
+The following rules apply to headers-first synchronization:
+
+- A node MUST validate each received header — including its proof of work
+  and its difficulty adjustment — before requesting the corresponding block
+  and before extending its header chain with it.
+- Received headers, even with valid proof of work, establish only that work
+  was expended: a node MUST NOT treat a block as part of its best chain
+  until the block itself has been validated under the consensus rules.
+  Until then, headers serve to select and schedule block downloads.
+- A node MUST NOT assign a misbehavior penalty solely because a peer's
+  headers do not connect to its known chain or reflect a different best
+  chain (see [Block Announcements](#blockannouncements)); penalties apply
+  to provably invalid headers and blocks, per
+  [Misbehavior and Banning](#misbehaviorandbanning).
+
+### Checkpointed Synchronization
+
+A node MAY synchronize spans of the historical chain against *trusted
+commitments*: checkpoint data — bindings of block heights to block hashes —
+obtained through a channel the node already trusts, such as its own binary
+or local configuration. A recommended concrete strategy using `get-hashes`
+is specified in [^draft-sync]; any checkpoint-based synchronization
+procedure MUST obey the following rules.
+
+- **Validated advancement.** A node MUST NOT advance its validated chain
+  except through blocks that it has either validated under the consensus
+  rules, or authenticated by an unbroken hash chain terminating in a
+  checkpoint bound by a trusted commitment. The extent to which consensus
+  checks may be abbreviated for checkpoint-authenticated blocks is a matter
+  of local policy.
+- **Untrusted inputs.** Peer-supplied data — hashes, headers, blocks — MUST
+  NOT be relied upon for any security-relevant purpose until verified under
+  the previous rule; until then it MAY be used only to select and schedule
+  downloads. Data received from peers MUST NOT be incorporated into a
+  node's trusted commitments.
+- **Tolerance of divergent views.** A node MUST NOT assign a misbehavior
+  penalty to a peer solely because the peer's `get-hashes` responses fail
+  verification against the node's commitments, or reflect a different best
+  chain; such responses are discarded and MAY be retried with other peers.
+- **Reorganization margin.** Commitment-based authentication SHOULD NOT be
+  applied within 100 blocks of the node's view of the network chain tip
+  (matching the responder-side margin of [`get-hashes`](#get-hashes)); the
+  chain near the tip is synchronized headers-first.
+- **Headers-first fallback.** A node MUST be capable of completing
+  synchronization using headers-first synchronization alone, and MUST fall
+  back to it where its commitments end or where too few peers serve
+  `get-hashes`.
+
+The commitment scheme itself — checkpoint spacing, any chunking, and the
+hash or signature scheme binding it — is local to the node and out of scope
+for this protocol.
+
+### Block Download Parameters
+
+The block download parameters of ZIP 204 [^zip-0204-blockdownload] — the
+download window, the per-peer in-transit limit, and the stalling timeout —
+apply unchanged. On a stall, the node MAY re-request the block from an
+alternative peer, cancelling the original request stream with `CANCELLED`.
 
 
 ## Transaction Relay
