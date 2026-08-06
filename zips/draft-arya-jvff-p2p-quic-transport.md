@@ -57,12 +57,6 @@ requester
     the initiator or the responder of a connection may be the requester on a
     given request stream.
 
-inbound connection
-:   A connection that was initiated by the remote peer.
-
-outbound connection
-:   A connection that was initiated by the local node.
-
 stream
 :   An ordered, reliable byte stream within a connection, provided by the
     transport. Streams are typed by their first byte (see
@@ -134,15 +128,6 @@ motivations for this change are:
 No backwards compatibility with the legacy protocol is provided; this ZIP
 replaces it entirely. See [Deployment](#deployment).
 
-The semantics of the protocol are specified against an abstract stream layer
-rather than against any single transport, and a node may support several
-transports simultaneously: the QUIC transport is suited to low-latency bulk
-relay, the Tor transport to anonymity-sensitive traffic. Future revisions can
-define additional transports — in particular one carrying the stream layer over
-the Nym mixnet [^nym], providing network-level metadata protection that a
-direct QUIC connection does not. See [Stream Layer](#streamlayer) and
-[Transports](#transports).
-
 This ZIP does not specify the encoding of transactions and block headers; for
 those, refer to the Zcash Protocol Specification [^protocol-txnencoding]
 [^protocol-blockheader]. The encoding of a whole block in terms of its header
@@ -156,13 +141,6 @@ consensus protocol [^protocol-blockheader], and is specified in
 This section is non-normative. Relative to the legacy protocol specified in
 ZIP 204 [^zip-0204], this ZIP:
 
-- Specifies the protocol semantics against an abstract stream layer, realized
-  by two concrete transports — QUIC and Tor onion services — and anticipating
-  additional simultaneous transports such as the Nym mixnet (see
-  [Stream Layer](#streamlayer) and [Transports](#transports)).
-- Replaces unencrypted TCP with QUIC over UDP (on the same port numbers), and
-  adds a transport carried over Tor onion services (see
-  [Tor Transport](#tortransport)).
 - Replaces network magic bytes with transport-level network identification (for
   the QUIC transport, ALPN protocol identifiers; for the Tor transport, an
   in-band network identifier; see [QUIC Transport](#quictransport) and
@@ -201,30 +179,15 @@ ZIP 204 [^zip-0204], this ZIP:
 ### Networks
 
 There are three Zcash networks: Mainnet, Testnet, and Regtest. Every connection
-is bound to exactly one network, determined during connection establishment:
-each transport defines how the network is identified, such that a connection
-between peers on different networks fails before any application data is
-exchanged (see [Transports](#transports)). This replaces the network magic
-bytes of the legacy protocol.
+is bound to exactly one network, determined during connection establishment as
+each transport defines (see [Transports](#transports)); this replaces the
+network magic bytes of the legacy protocol.
 
 ### DNS Seeds
 
-The following DNS seed hostnames are used for initial peer discovery.
-
-**Mainnet:**
-
-- `dnsseed.z.cash`
-- `dnsseed.str4d.xyz`
-- `mainnet.seeder.zfnd.org`
-- `mainnet.is.yolo.money`
-
-**Testnet:**
-
-- `dnsseed.testnet.z.cash`
-- `testnet.seeder.zfnd.org`
-- `testnet.is.yolo.money`
-
-Regtest does not use DNS seeds or hardcoded seed nodes.
+The DNS seed hostnames used for initial peer discovery on each network are
+those listed in ZIP 204 [^zip-0204-dnsseeds]. Regtest does not use DNS seeds
+or hardcoded seed nodes.
 
 
 ## Peer Discovery
@@ -301,12 +264,8 @@ The transport provides keep-alives and round-trip time measurement; the legacy
 - Per-request timeouts are implementation-defined and are applied per stream
   (see [Request Streams](#requeststreams)).
 
-The specific connection limits are implementation-defined. For reference,
-legacy implementations used the following values, which remain reasonable
-defaults: zcashd defaulted to a maximum of 125 peer connections, of which a
-maximum of 8 were outbound; Zebra computes its limits from a configurable
-initial target size (default 25), applying multipliers to derive an outbound
-limit of 75 and an inbound limit of 125.
+The specific connection limits are implementation-defined; the legacy
+reference values in ZIP 204 [^zip-0204] remain reasonable defaults.
 
 A node SHOULD maintain at most one connection to a given remote address, and
 MUST detect connections to itself via the handshake nonce (see
@@ -319,9 +278,8 @@ TLS 1.3 [^rfc8446] as specified by RFC 9001 [^rfc9001].
 
 - A node MUST NOT use 0-RTT (early data), and a responder MUST NOT enable the
   acceptance of early data. If a peer nevertheless attempts to use 0-RTT, the
-  node MUST close the connection with the `PROTOCOL_ERROR` error code.
-  Requests carried in 0-RTT data are replayable by an attacker; prohibiting
-  0-RTT avoids this class of attack entirely.
+  node MUST close the connection with the `PROTOCOL_ERROR` error code. (0-RTT
+  data is replayable by an attacker.)
 - QUIC datagrams [^rfc9221] are not used by this protocol. A node MUST ignore
   the peer's `max_datagram_frame_size` transport parameter and MUST NOT send
   DATAGRAM frames.
@@ -420,21 +378,16 @@ allows a node to participate in the network without exposing an IP address.
 - The secure channel is provided by Tor itself: onion service connections are
   end-to-end encrypted, and the connection is authenticated to the responder's
   onion address (the Ed25519 key that the `TORV3` address encodes). TLS is not
-  used inside the connection. As with the QUIC transport's certificates (see
-  [Certificates](#certificates)), no identity beyond reachability at the
-  advertised address is implied: the initiator is deliberately not
-  authenticated.
+  used inside the connection, and the initiator is deliberately not
+  authenticated (cf. [Certificates](#certificates)).
 - The transport provides a single ordered bytestream per connection; the
   stream layer is realized on top of it by the framing layer of
   [Stream Framing](#streamframing).
 
 *Note:* The underlying Tor connection is a single TCP-like bytestream, so loss
 or congestion on it stalls all streams of the connection; the framing layer
-removes head-of-line blocking between streams at the application level only.
-Together with the latency of onion routing, this makes the transport a poor fit
-for latency-critical bulk relay; a node supporting both transports selects the
-transport per connection according to the traffic it will carry (see
-[Deployment](#deployment)).
+removes head-of-line blocking between streams at the application level only
+(see [Deployment](#deployment) for transport selection).
 
 #### Connection Preamble
 
@@ -740,55 +693,25 @@ unchanged from the payload of the legacy `block` message:
 
 ### Network Address Record
 
-Peer addresses use the `addrv2` encoding specified in ZIP 155 [^zip-0155]
-(derived from BIP 155 [^bip-0155]); it is the only address encoding in this
-protocol. Each address record has the following format:
+Peer addresses use the `addrv2` address record specified in ZIP 155
+[^zip-0155]; it is the only address encoding in this protocol. The record
+fields (`time`, `services`, `networkID`, `sizeAddr`, `addr`, `port`), the
+network IDs (`IPV4`, `IPV6`, `TORV3`, `I2P`, `CJDNS`), the 512-byte `addr`
+limit, the per-network-ID length and encoding rules, and the prohibition on
+gossiping addresses with unrecognized network IDs are all as specified in
+ZIP 155.
 
-| Size   | Field       | Description                                                                                                        |
-|--------|-------------|--------------------------------------------------------------------------------------------------------------------|
-| 4      | `time`      | Unix-epoch UTC time in seconds when the node was last seen (`uint32`, little-endian).                              |
-| varies | `services`  | Service bits (CompactSize-encoded `uint64`).                                                                       |
-| 1      | `networkID` | Network identifier (`uint8`).                                                                                      |
-| varies | `sizeAddr`  | Length of `addr` in bytes (CompactSize).                                                                           |
-| varies | `addr`      | Network address (`sizeAddr` bytes). Interpretation depends on `networkID`.                                         |
-| 2      | `port`      | Port number (`uint16`, big-endian); its interpretation depends on the network ID and transport. MUST be 0 if not relevant for the network. |
-
-The following network IDs are defined:
-
-| Network ID | Name    | Address Size | Description                                            |
-|------------|---------|--------------|--------------------------------------------------------|
-| `0x01`     | `IPV4`  | 4 bytes      | IPv4 address.                                          |
-| `0x02`     | `IPV6`  | 16 bytes     | IPv6 address.                                          |
-| `0x04`     | `TORV3` | 32 bytes     | Tor v3 onion service address (Ed25519 public key).     |
-| `0x05`     | `I2P`   | 32 bytes     | I2P overlay network address (SHA-256 hash).            |
-| `0x06`     | `CJDNS` | 16 bytes     | Cjdns overlay network address (IPv6 in `fc00::/8`).    |
-
-Network ID `0x03` is reserved (it was assigned to Tor v2 in BIP 155
-[^bip-0155], but Tor v2 addresses are no longer supported and MUST NOT be
-used).
-
-The `addr` field MUST NOT exceed 512 bytes; a node MUST reject an address
-record with a longer `addr` field, irrespective of the network ID. A node MUST
-reject addresses whose length does not match the expected length for the given
-network ID. A node MUST NOT gossip addresses with unrecognized network IDs.
-
-`IPV4` and `IPV6` addresses are encoded in network byte order (big-endian).
-`TORV3` addresses consist of the 32-byte Ed25519 master public key of the
-onion service. `I2P` addresses consist of the decoded 32-byte SHA-256 hash.
-`CJDNS` addresses are 16-byte IPv6 addresses in the `fc00::/8` range, encoded
-in network byte order.
+The `port` field is interpreted per transport: for QUIC endpoints it is the
+UDP port, and for `TORV3` addresses it is the onion service virtual port (see
+[Tor Transport](#tortransport)). It MUST be 0 if not relevant for the
+network.
 
 *Note:* Each network ID implies the transport by which the address is
-reachable: `IPV4`, `IPV6`, and `CJDNS` addresses identify QUIC endpoints (the
-QUIC transport runs over UDP, which the Tor and I2P overlay networks do not
-carry), and `TORV3` addresses identify onion services of the Tor transport
-(see [Tor Transport](#tortransport)), with the `port` field carrying the onion
-service virtual port. `I2P` addresses are not reachable via either transport
-defined in this ZIP; they remain defined for gossip so that nodes can learn
-them ahead of a future revision that defines an I2P-capable transport. A
-future revision that adds transports — such as one over the Nym mixnet [^nym]
-— is also expected to assign new network IDs for the addresses of those
-transports. See [Deployment](#deployment).
+reachable: `IPV4`, `IPV6`, and `CJDNS` addresses identify QUIC endpoints, and
+`TORV3` addresses identify onion services of the Tor transport. `I2P`
+addresses are not reachable via either transport defined in this ZIP; they
+remain defined for gossip so that nodes can learn them ahead of a future
+revision that defines an I2P-capable transport.
 
 ### Transaction References
 
@@ -805,10 +728,9 @@ as a 1-byte type followed by a type-dependent identifier:
 | `0x03` | `SHORTID` | 39 bytes   | Transaction within a specific block, identified by a 32-byte block hash followed by a 6-byte short transaction ID (see [Short Transaction IDs](#shorttransactionids)). Only valid in `get-tx` requests. |
 
 A transaction reference with an unrecognized type is a connection error of
-type `PROTOCOL_ERROR`. Using `TXID` for a transaction with version ≥ 5, or
-`WTXID` for a transaction with version ≤ 4, is a protocol violation subject to
-a misbehavior penalty (see [Misbehavior and Banning](#misbehaviorandbanning)
-and ZIP 239 [^zip-0239]).
+type `PROTOCOL_ERROR`. Using the wrong reference type for a transaction's
+version is subject to a misbehavior penalty (see
+[Misbehavior and Banning](#misbehaviorandbanning)).
 
 
 ## Service Flags
@@ -887,8 +809,7 @@ The `init` record payload (following the kind byte) has the following format:
 | 1      | `full_ids`     | Whether the sender requests full transaction IDs in compact block announcements (`uint8`; 0 or 1). See [Full Transaction IDs](#fulltransactionids). |
 
 All fields are mandatory. The legacy `timestamp`, `addr_recv`, and `addr_from`
-fields are removed: they served clock sanity checks and address self-discovery
-functions that are out of scope for this protocol.
+fields are removed.
 
 The `nonce` field is used for self-connection detection. If a node receives an
 `init` record containing a nonce it recently sent in its own `init` records,
@@ -898,10 +819,8 @@ If `relay` is 0, the peer MUST NOT open a transaction announcement stream to
 the sender, and SHOULD NOT announce transactions to it by any other means.
 
 There is no mechanism for changing the value of the `relay`, `announce`, or
-`full_ids` fields during the life of a connection (unlike BIP 152
-[^bip-0152], in which the corresponding preferences can be renegotiated at any
-time with the `sendcmpct` message). A node that wants to change these
-preferences for a peer disconnects and performs a new handshake.
+`full_ids` fields during the life of a connection; a node that wants to
+change them disconnects and performs a new handshake.
 
 ### Handshake Validation
 
@@ -962,6 +881,10 @@ associated with the current epoch, using the `OBSOLETE` error code.
 The protocol versions associated with network upgrades on each network are
 tabulated in ZIP 204 [^zip-0204-epochs].
 
+In the preference window before an upgrade's activation, a node SHOULD
+preferentially connect to peers advertising the upcoming epoch's protocol
+version, as specified in ZIP 201 [^zip-0201].
+
 
 ## Request Stream Types
 
@@ -1011,23 +934,16 @@ start at height 1 (the block after the genesis block). If `locator_count` is
 indicates that the responder has no headers to return.
 
 If `tx_ids` is 1, each entry additionally identifies the block's transactions:
-the coinbase transaction is carried in full (it is unique to the block and
-never otherwise relayed), and every other transaction is identified by its
-full transaction ID, so that the requester can obtain the block's transactions
-via `get-tx` without transferring those it already holds (see
-[Relay Protocol](#relayprotocol) and
-[Requesting Missing Transactions](#requestingmissingtransactions)). A
-responder that cannot supply the transactions of a returned header — for
-example, because it has validated only the header — sets `has_txs` to `0x00`
-for that entry; the requester falls back to requesting the full block via
-`get-blocks`.
+the coinbase transaction in full (it is never otherwise relayed), and every
+other transaction by its full transaction ID, letting the requester fetch only
+the transactions it is missing via `get-tx` (see
+[Relay Protocol](#relayprotocol)). A responder that cannot supply a returned
+header's transactions sets `has_txs` to `0x00` for that entry, and the
+requester falls back to `get-blocks`.
 
-A node performing bulk synchronization of historical blocks SHOULD set
-`tx_ids` to 0 and download full blocks via `get-blocks`: the transaction-ID
-form pays off for blocks near the chain tip, whose transactions the requester
-is likely to already hold, and is redundant when the block's transactions will
-be transferred in full anyway (see
-[Headers-First Synchronization](#headers-firstsynchronization)).
+A node performing bulk synchronization SHOULD set `tx_ids` to 0: the
+transaction-ID form pays off only near the chain tip, where the requester
+already holds most of a block's transactions.
 
 The response `count` MUST NOT exceed 160. The headers MUST form a contiguous
 chain (each header's `hashPrevBlock` must match the hash of the preceding
@@ -1055,20 +971,10 @@ Stream type: `0x02`
 | 1      | `result` | `0x00`: a full block follows. `0x02`: not found (nothing follows for this entry).                                |
 | varies | `object` | If `result` is `0x00`: a CompactSize length prefix followed by the serialized block (see [Serialized Blocks](#serializedblocks)). |
 
-Requests full blocks by hash, replacing the legacy `getdata` message with
-`MSG_BLOCK` inventory entries. (The legacy `getblocks` inventory walk has no
-equivalent in this protocol; block hashes to request are learned from
-headers, announcements, or `get-hashes` responses. See
-[Headers-First Synchronization](#headers-firstsynchronization).)
-
-The `count` MUST NOT exceed 128.
-
-The response is always a full block: compact blocks cannot be requested, and
-occur only as announcements (see [Compact Block Relay](#compactblockrelay)).
-A node that wants to transfer only the transactions it is missing instead
-requests the block's transaction IDs via `get-headers` with `tx_ids = 1` and
-fetches the missing transactions with `get-tx` (see
-[Relay Protocol](#relayprotocol)).
+Requests full blocks by hash; the hashes to request are learned from headers,
+announcements, or `get-hashes` responses. The `count` MUST NOT exceed 128.
+Compact blocks cannot be requested — they occur only as announcements (see
+[Compact Block Relay](#compactblockrelay)).
 
 ### `get-tx`
 
@@ -1271,13 +1177,8 @@ management practices of [Address Relay](#addressrelay).
 
 ### Divided Block Relay
 
-In the relay protocol inherited from Bitcoin, a new block was announced with
-an inventory message and transferred as a single monolithic `block` message
-containing the header together with all of its transactions — even though the
-receiver typically already held most of those transactions in its mempool.
-
-This protocol instead divides block headers and block transactions, in the
-same way that the modern Bitcoin protocol does:
+This protocol divides block headers and block transactions, rather than
+transferring monolithic `block` messages as the legacy protocol did:
 
 - Block headers are gossiped directly on block announcement streams, as in
   BIP 130 [^bip-0130].
@@ -1286,13 +1187,8 @@ same way that the modern Bitcoin protocol does:
   header plus identifiers of its transactions, and only the transactions the
   receiver is missing are requested and transferred, using `get-tx` requests.
 
-Unlike Bitcoin, which negotiates each of these mechanisms with a dedicated
-message (`sendheaders` and `sendcmpct` respectively, because the Bitcoin
-protocol no longer bumps its protocol version to deploy new features), both
-mechanisms are unconditional in this protocol. The per-connection preferences
-— whether a peer wants high-bandwidth compact block announcements, and whether
-it wants transactions identified by full rather than short transaction IDs —
-are carried in the `announce` and `full_ids` fields of the `init` record (see
+Both mechanisms are unconditional; the per-connection preferences are carried
+in the `announce` and `full_ids` fields of the `init` record (see
 [Init Record](#initrecord)).
 
 ### Headers-First Synchronization
@@ -1316,18 +1212,11 @@ The following rules apply to headers-first synchronization:
 
 - A node MUST validate each received header — including its proof of work
   and its difficulty adjustment — before requesting the corresponding block
-  and before extending its header chain with it. Proof of work makes a long
-  fake header chain expensive to produce; validating it eagerly keeps that
-  cost on the attacker.
+  and before extending its header chain with it.
 - Received headers, even with valid proof of work, establish only that work
   was expended: a node MUST NOT treat a block as part of its best chain
   until the block itself has been validated under the consensus rules.
   Until then, headers serve to select and schedule block downloads.
-- A node SHOULD compare the chains offered by several peers — for example,
-  by their advertised `start_height` and by probing with `get-headers` —
-  rather than committing its block download budget to the first or
-  best-connected peer; this bounds the delay a peer serving a stale or
-  low-work chain can cause.
 - A node MUST NOT assign a misbehavior penalty solely because a peer's
   headers do not connect to its known chain or reflect a different best
   chain (see [Block Announcements](#blockannouncements)); penalties apply
@@ -1339,12 +1228,9 @@ The following rules apply to headers-first synchronization:
 A node MAY synchronize spans of the historical chain against *trusted
 commitments*: checkpoint data — bindings of block heights to block hashes —
 obtained through a channel the node already trusts, such as its own binary
-or local configuration. The `get-hashes` request stream (see
-[`get-hashes`](#get-hashes)) exists to support this: it supplies checkpoint
-hashes to verify against a commitment, and per-height hashes to use as
-`get-blocks` download handles. A recommended concrete strategy is specified
-in [^draft-sync]; any checkpoint-based synchronization procedure MUST obey
-the following rules.
+or local configuration. A recommended concrete strategy using `get-hashes`
+is specified in [^draft-sync]; any checkpoint-based synchronization
+procedure MUST obey the following rules.
 
 - **Validated advancement.** A node MUST NOT advance its validated chain
   except through blocks that it has either validated under the consensus
@@ -1362,10 +1248,9 @@ the following rules.
   verification against the node's commitments, or reflect a different best
   chain; such responses are discarded and MAY be retried with other peers.
 - **Reorganization margin.** Commitment-based authentication SHOULD NOT be
-  applied within 100 blocks of the node's view of the network chain tip,
-  matching the responder-side margin of [`get-hashes`](#get-hashes); the
-  chain near the tip is subject to reorganization and is synchronized
-  headers-first.
+  applied within 100 blocks of the node's view of the network chain tip
+  (matching the responder-side margin of [`get-hashes`](#get-hashes)); the
+  chain near the tip is synchronized headers-first.
 - **Headers-first fallback.** A node MUST be capable of completing
   synchronization using headers-first synchronization alone, and MUST fall
   back to it where its commitments end or where too few peers serve
@@ -1377,15 +1262,10 @@ for this protocol.
 
 ### Block Download Parameters
 
-- **Download window:** A node SHOULD NOT request blocks more than 1024 blocks
-  ahead of its current validated tip (`BLOCK_DOWNLOAD_WINDOW`).
-- **Per-peer limit:** A node SHOULD NOT have more than 16 blocks in transit
-  from a single peer simultaneously (`MAX_BLOCKS_IN_TRANSIT_PER_PEER`).
-- **Stalling timeout:** If a peer has not delivered a requested block within 2
-  seconds (`BLOCK_STALLING_TIMEOUT`) and there are other peers available with
-  the same block, the node MAY request the block from an alternative peer
-  (cancelling the original request stream with `CANCELLED`).
-- **Maximum headers per response:** 160 (`MAX_HEADERS_RESULTS`).
+The block download parameters of ZIP 204 [^zip-0204-blockdownload] — the
+download window, the per-peer in-transit limit, and the stalling timeout —
+apply unchanged. On a stall, the node MAY re-request the block from an
+alternative peer, cancelling the original request stream with `CANCELLED`.
 
 ### Compact Block Relay
 
@@ -1496,15 +1376,10 @@ version ≥ 5, this is the wtxid used for relay, as defined in ZIP 239
 placeholder value consisting of 32 bytes of `0xFF` defined in ZIP 244
 [^zip-0244].
 
-A full transaction ID commits to all data of the serialized transaction, so
-matching against full transaction IDs is exact: unlike short transaction IDs,
-full transaction IDs are not subject to collisions, and no `nonce` is involved
-in their computation.
-
-A node that does not maintain a set of candidate transactions suitable for
-short transaction ID matching — for example, a pruned node — can request full
-transaction IDs in the compact blocks sent to it by setting `full_ids = 1` in
-its `init` record, at the cost of larger compact blocks.
+Matching against full transaction IDs is exact — they are not subject to
+collisions and involve no `nonce`. A node unable to do short-ID matching (for
+example, a pruned node) requests full transaction IDs by setting
+`full_ids = 1` in its `init` record, at the cost of larger compact blocks.
 
 #### Requesting Missing Transactions
 
@@ -1549,8 +1424,7 @@ A node follows the BIP 152 [^bip-0152] protocol flows:
   legitimately precede full validation by the announcing peer, a node MUST NOT
   assign a misbehavior penalty for a compact block announcement of a block
   that fails full validation, provided the block's header is valid (including
-  its proof of work); the proof-of-work requirement already makes such
-  announcements expensive to produce. A node SHOULD request high-bandwidth
+  its proof of work). A node SHOULD request high-bandwidth
   announcements from at most 3 peers, preferring the peers that most recently
   announced blocks to it first; to change its selection, it disconnects and
   reconnects with a new `init` record.
@@ -1587,11 +1461,9 @@ otherwise:
   `get-blocks`, and MUST NOT assign a misbehavior penalty solely because
   reconstruction failed.
 
-A transaction received while reconstructing a block from a compact block is
-part of that block; consensus rules are enforced on the reconstructed block,
-and the short ID matching mechanism does not weaken them — an incorrectly
-reconstructed block fails validation of the block's merkle root and
-authorizing data commitment.
+An incorrectly reconstructed block fails validation of the block's merkle
+root and authorizing data commitment, so short ID matching does not weaken
+consensus enforcement.
 
 
 ## Transaction Relay
@@ -1605,53 +1477,26 @@ Transaction relay follows an announcement-based protocol:
 2. Peers that want the transaction request it with a `get-tx` request.
 3. The originating node serves the transaction in the `get-tx` response.
 
-Transactions with version ≤ 4 MUST be announced using `TXID` references.
-Transactions with version ≥ 5 MUST be announced using `WTXID` references.
-Using the wrong reference type for a transaction version SHOULD incur a
-misbehavior penalty. See ZIP 239 [^zip-0239].
+Announcements use `TXID` and `WTXID` references according to transaction
+version, as specified in
+[Transaction References](#transactionreferences).
 
 ### Trickling
 
 To impede network topology inference, transaction announcements SHOULD NOT be
 sent immediately but SHOULD instead be "trickled" at random intervals. The
-specific trickling parameters are implementation-defined. For reference, the
-zcashd implementation of the legacy protocol used the following values:
-
-- The average broadcast interval is 5 seconds
-  (`INVENTORY_BROADCAST_INTERVAL`).
-- For outbound peers, the effective interval in seconds is halved rounding
-  down (2 seconds on average).
-- At most 35 announcements (`INVENTORY_BROADCAST_MAX`) are sent per trickle
-  interval.
-- Broadcast times follow a Poisson distribution centered on the broadcast
-  interval.
-
-The Zebra implementation uses a 7-second gossip delay (`PEER_GOSSIP_DELAY`).
+specific parameters are implementation-defined; for the reference values used
+by legacy implementations, see ZIP 204 [^zip-0204-txrelay].
 
 ### Transaction Expiry
 
 A node SHOULD NOT relay a transaction that will expire within 3 blocks of its
 view of the current chain tip (`TX_EXPIRING_SOON_THRESHOLD`).
 
-### Orphan Transactions
+### Mempool Policy
 
-An orphan transaction is one that references inputs from unknown parent
-transactions.
-
-- A node SHOULD store at most 100 orphan transactions
-  (`DEFAULT_MAX_ORPHAN_TRANSACTIONS`).
-- Orphan transactions expire and are removed after 1200 seconds (20 minutes,
-  `ORPHAN_TX_EXPIRE_TIME`).
-- Only fully transparent transactions are eligible for orphan storage.
-- When the orphan pool is full, the oldest orphan transactions are evicted.
-
-### Relay Fee
-
-Transactions are subject to a minimum relay fee. Both the zcashd and Zebra
-implementations use a base rate of 100 zatoshis per 1000 bytes
-(`DEFAULT_MIN_RELAY_TX_FEE`), though the zcashd implementation applies
-additional logic for low-fee and free transactions [^zcashd-relay-fee]. A node
-SHOULD NOT relay transactions with fees below its minimum relay fee threshold.
+Orphan transaction handling and the minimum relay fee are local mempool
+policy, unchanged from the legacy protocol; see ZIP 204 [^zip-0204-txrelay].
 
 
 ## Address Relay
@@ -1663,31 +1508,19 @@ requests.
 ### Rate Limiting
 
 Address records SHOULD be subject to rate limiting to prevent address
-flooding. The specific rate-limiting mechanism is implementation-defined. For
-reference, the zcashd implementation of the legacy protocol used a
-token-bucket algorithm:
-
-- Rate: 0.1 address records per second per peer (`MAX_ADDR_RATE_PER_SECOND`).
-- Bucket capacity: 1000 (`MAX_ADDR_PROCESSING_TOKEN_BUCKET`), replenished at
-  0.1 tokens per second.
-- Upon receiving a `get-addr` response, 1000 tokens (`MAX_ADDR_TO_SEND`) are
-  added to the bucket, exempt from the soft limit.
-- Whitelisted peers bypass address rate limiting.
+flooding. The specific mechanism is implementation-defined; for the
+token-bucket reference values used by zcashd, see ZIP 204
+[^zip-0204-addressrelay].
 
 A node MAY additionally apply backpressure on the peer's address announcement
 stream to bound the rate at which it receives address records.
 
 ### Address Book Management
 
-Relayed addresses are unauthenticated, attacker-suppliable data. A node whose
-address book can be filled by a single peer — or by many addresses under one
-attacker's control — can be steered into making all of its outbound
-connections to that attacker, eclipsing its view of the network [^eclipse].
-Rate limiting alone does not prevent this; the address book itself must be
-structured so that no source can take it over.
-
-A node SHOULD segment its address book by IP range, in the manner of the
-Bitcoin Core address manager design [^eclipse]:
+Relayed addresses are unauthenticated, attacker-suppliable data; an address
+book that one source can fill leads to eclipse [^eclipse]. A node SHOULD
+segment its address book by IP range, in the manner of the Bitcoin Core
+address manager design:
 
 - Define an address's *group* as an IP-range prefix of its address — for
   reference, Bitcoin Core and zcashd use the /16 prefix for IPv4 and the /32
@@ -1709,30 +1542,21 @@ group. Outbound peer selection SHOULD NOT be biased toward the addresses most
 recently received, since those are the easiest for an attacker to have
 planted.
 
-Addresses of overlay networks (`TORV3`, `I2P`) have no meaningful IP-range
-structure, and generating them is essentially free — an attacker can mint
-onion service addresses without limit, so bucketing cannot bound an attacker's
-share of them. A node SHOULD treat each overlay network as a separate segment
-of its address book with its own bounded capacity, so that overlay addresses
-cannot displace IP-based addresses (or vice versa), and a node that supports
-both IP-based and overlay transports SHOULD retain a minimum number of
-outbound connections on IP-based transports.
+Addresses of overlay networks (`TORV3`, `I2P`) have no IP-range structure and
+are free to generate, so bucketing cannot bound an attacker's share of them.
+A node SHOULD treat each overlay network as a separate bounded segment of its
+address book, and a node supporting both IP-based and overlay transports
+SHOULD retain a minimum number of outbound connections on IP-based
+transports.
 
 ### Address Broadcasting
 
-The specific broadcast intervals are implementation-defined. For reference,
-the zcashd implementation of the legacy protocol used the following values:
+The specific broadcast intervals are implementation-defined; for the
+reference values used by zcashd, see ZIP 204 [^zip-0204-addressrelay].
 
-- Addresses are broadcast to peers at an average interval of 30 seconds
-  (`AVG_ADDRESS_BROADCAST_INTERVAL`).
-- A node's own address is broadcast approximately every 9.6 hours
-  (`AVG_LOCAL_ADDRESS_BROADCAST_INTERVAL = 24 * 24 * 60 = 34560` seconds).
-
-How a node determines its own externally reachable addresses in order to
-advertise them is out of scope for this ZIP: the legacy protocol's
-`addr_recv`-based self-discovery is removed along with that field (see
-[Init Record](#initrecord)), leaving static configuration and other local
-mechanisms.
+How a node determines its own externally reachable addresses is out of scope
+for this ZIP; the legacy `addr_recv`-based self-discovery is removed (see
+[Init Record](#initrecord)).
 
 
 ## Misbehavior and Banning
@@ -1768,13 +1592,9 @@ The misbehavior score works as follows:
 - While an address is banned, the node SHOULD NOT initiate connections to it,
   SHOULD refuse inbound connections from it, and SHOULD NOT include it in
   `get-addr` responses or address announcements.
-- The ban threshold and ban duration are implementation-defined. For
-  reference, the zcashd implementation of the legacy protocol banned a peer
-  when its cumulative score reached or exceeded 100
-  (`DEFAULT_BANSCORE_THRESHOLD`), with bans lasting 24 hours
-  (`DEFAULT_MISBEHAVING_BANTIME`); the Zebra implementation also uses a
-  threshold of 100 (`MAX_PEER_MISBEHAVIOR_SCORE`) but bans persist
-  indefinitely.
+- The ban threshold and ban duration are implementation-defined; for the
+  reference values used by legacy implementations, see ZIP 204
+  [^zip-0204-misbehavior].
 - Whitelisted peers accumulate misbehavior scores but are exempt from
   banning.
 
@@ -1786,26 +1606,6 @@ connection limits — not ban lists — bound the node's exposure (see
 [Address Book Management](#addressbookmanagement)).
 
 
-## Network Upgrade Peer Management
-
-Network upgrade peer management is specified in ZIP 201 [^zip-0201]. This
-section summarizes the key behaviors.
-
-### Pre-Activation
-
-In the 1728-block window (`NETWORK_UPGRADE_PEER_PREFERENCE_BLOCK_PERIOD`)
-before a network upgrade activation height, a node SHOULD preferentially
-connect to peers that advertise a protocol version at or above the version
-required by the upcoming upgrade. This period corresponds to approximately 1.5
-days at the post-Blossom block interval.
-
-### Post-Activation
-
-After a network upgrade activates, a node MUST disconnect any peer whose
-negotiated protocol version is below the version required by the active epoch,
-using the `OBSOLETE` error code.
-
-
 # Security and Privacy Considerations
 
 **Scope of transport encryption.** Transport encryption protects the
@@ -1813,19 +1613,9 @@ confidentiality and integrity of each connection against passive network
 observers. Peers are deliberately not authenticated (see
 [Certificates](#certificates)), so an active attacker in a position to
 intercept a connection can terminate the encryption with its own certificate
-and read or modify that connection's traffic. This matches the stated goal of
-the transport; the legacy protocol offered neither encryption nor
-authentication. As in the legacy protocol, the structural defense against an
-active attacker seeking to control a node's view of the network is redundancy:
-connections to multiple, independently discovered peers. Authenticating
-specific trusted peers — for example, by pinning a peer's raw public key
-configured out of band — is compatible with this protocol but out of scope for
-this ZIP.
-
-**Replay.** The prohibition of 0-RTT early data (see
-[QUIC Transport](#quictransport)) eliminates replay of application data by
-on-path observers; all application data is carried under keys established by a
-completed handshake.
+and read or modify that connection's traffic. The structural defense against
+an active attacker seeking to control a node's view of the network is
+redundancy: connections to multiple, independently discovered peers.
 
 **Denial of service.** QUIC's address validation and amplification limits,
 including Retry packets, bound the cost that spoofed-source floods can impose
@@ -1859,42 +1649,27 @@ against a global adversary correlating traffic timing across the Tor network.
 The anticipated Nym mixnet transport (see [Deployment](#deployment)) is
 directed at that stronger adversary.
 
-**Tor.** On a Tor transport connection, the initiator is anonymous: it
-reveals no network address to the responder or to network observers, and a
-node SHOULD therefore prefer the Tor transport (where available) for the
-traffic most sensitive to linkage — above all announcing transactions it
-originated. The responder, by contrast, is *pseudonymous*: its onion address
-is a stable identifier that authenticates the connection, so a node that
-values unlinkability across its inbound connections should weigh that
-persistence (contrast the per-connection ephemeral certificates of the QUIC
-transport, [Certificates](#certificates)). Onion addresses are also free to
-generate, which weakens address-based banning and address book protections
-for `TORV3` addresses (see [Misbehavior and Banning](#misbehaviorandbanning)
-and [Address Book Management](#addressbookmanagement)).
+**Tor.** On a Tor transport connection the initiator is anonymous — it
+reveals no network address to the responder or to network observers — so a
+node SHOULD prefer the Tor transport (where available) for the traffic most
+sensitive to linkage, above all announcing transactions it originated. The
+responder's onion address is a stable, linkable identifier, and onion
+addresses are free to generate, which weakens address-based banning and
+address book protections for `TORV3` addresses (see
+[Misbehavior and Banning](#misbehaviorandbanning) and
+[Address Book Management](#addressbookmanagement)).
 
-**Synchronization.** The two synchronization methods rest on different
-trust bases with different failure modes. Headers-first synchronization
-trusts proof of work: an attacker feeding a node a false history must
-outspend the honest chain's accumulated work over the forged span, but an
-eclipsing attacker with sufficient hash power is not otherwise prevented
-from doing so. Checkpointed synchronization trusts the node's commitment
-(which shares a trust base with the node's own binary): below its
+**Synchronization.** Headers-first synchronization trusts proof of work:
+forging a history requires outspending the honest chain's accumulated work
+over the forged span, which an eclipsing attacker with sufficient hash power
+can in principle do. Checkpointed synchronization trusts the node's
+commitment, which shares a trust base with its binary: below its
 checkpoints, an attacker who cannot break the block hash function cannot
-cause the node to accept a false history no matter how many of the node's
-connections it controls — a strictly stronger guarantee over the committed
-span — while above them the node falls back to headers-first
-synchronization and its properties. Under either method, an attacker
+cause acceptance of a false history. Under either method, an attacker
 controlling a node's connections can withhold data and stall
 synchronization; the mitigations are redundancy and re-requesting from
 alternative peers (see
-[Block Download Parameters](#blockdownloadparameters)), and headers-first
-nodes additionally bound stale-chain delay by comparing chains across peers
-(see
-[Headers-First Synchronization](#headers-firstsynchronization)).
-Unverified `get-hashes` responses and unvalidated headers are never more
-than download scheduling inputs (see
-[Checkpointed Synchronization](#checkpointedsynchronization)), so serving
-false ones can waste a node's bandwidth but not corrupt its chain.
+[Block Download Parameters](#blockdownloadparameters)).
 
 **Eclipse attacks.** An attacker that controls all of a node's connections
 controls its view of the block chain and mempool. The structural defenses are
@@ -1938,37 +1713,17 @@ over the Nym mixnet [^nym] is anticipated, providing network-level metadata
 protection (resistance to traffic analysis of which peers are communicating)
 stronger than onion routing provides.
 
-*Note:* These transports are complementary rather than alternatives, which is
-why simultaneous use of multiple transports is a design goal. Onion routing,
-and to a greater degree mix routing and cover traffic, impose substantially
-higher and more variable latency than a direct QUIC connection. That latency
-is unacceptable for latency-critical, anonymity-insensitive traffic — block
-propagation and synchronization, where slow relay measurably harms consensus
-and mining fairness — but is a worthwhile price for anonymity-critical
-traffic, above all a node originating its own transactions, where linking a
-transaction to its submitting network address undermines the privacy that
-Zcash's shielded protocol provides on-chain. A node is therefore expected to
-use its transports in parallel: QUIC connections for bulk relay and
-synchronization, and Tor (eventually Nym) connections where anonymity matters
-more than latency, selected per connection according to the traffic it will
-carry.
-
-The Tor transport shows how the stream layer is carried over an overlay
-network that cannot carry UDP (see [Tor Transport](#tortransport)); a future
-revision could define an I2P transport along the same lines, and the `I2P`
-network ID remains defined in
-[Network Address Record](#networkaddressrecord) in anticipation. A node
-supporting several transports listens on each of them and treats connections
-identically at the semantic layer regardless of transport.
+*Note:* The transports are complementary rather than alternatives: a node is
+expected to use QUIC for latency-critical bulk relay and synchronization, and
+Tor (eventually Nym) where anonymity matters more than latency, selected per
+connection according to the traffic it will carry.
 
 
 # Formal Model
 
-A TLA+ formal specification of the connection lifecycle of the legacy
-TCP-based protocol is available at [^formal-model]. It covers the handshake,
-keepalive, block synchronization, and disconnection phases of the legacy
-protocol [^zip-0204], and has not yet been updated for the protocol specified
-here.
+A TLA+ formal specification of the legacy protocol's connection lifecycle is
+available at [^formal-model]; it has not yet been updated for the protocol
+specified here.
 
 
 # References
@@ -1993,6 +1748,16 @@ here.
 
 [^zip-0204-epochs]: [ZIP 204: Zcash P2P Network Protocol — Network Upgrade Epoch Enforcement](https://zips.z.cash/zip-0204#network-upgrade-epoch-enforcement)
 
+[^zip-0204-dnsseeds]: [ZIP 204: Zcash P2P Network Protocol — DNS Seeds](https://zips.z.cash/zip-0204#dns-seeds)
+
+[^zip-0204-blockdownload]: [ZIP 204: Zcash P2P Network Protocol — Block Download Parameters](https://zips.z.cash/zip-0204#block-download-parameters)
+
+[^zip-0204-txrelay]: [ZIP 204: Zcash P2P Network Protocol — Transaction Relay](https://zips.z.cash/zip-0204#transaction-relay)
+
+[^zip-0204-addressrelay]: [ZIP 204: Zcash P2P Network Protocol — Address Relay](https://zips.z.cash/zip-0204#address-relay)
+
+[^zip-0204-misbehavior]: [ZIP 204: Zcash P2P Network Protocol — Misbehavior and Banning](https://zips.z.cash/zip-0204#misbehavior-and-banning)
+
 [^zip-0204-assignment]: [ZIP 204: Zcash P2P Network Protocol — Assigning Protocol Versions to Network Upgrades](https://zips.z.cash/zip-0204#assigning-protocol-versions-to-network-upgrades)
 
 [^zip-0239]: [ZIP 239: Relay of Version 5 Transactions](zip-0239.rst)
@@ -2004,8 +1769,6 @@ here.
 [^bip-0130]: [BIP 130: sendheaders message](https://github.com/bitcoin/bips/blob/master/bip-0130.mediawiki)
 
 [^bip-0152]: [BIP 152: Compact Block Relay](https://github.com/bitcoin/bips/blob/master/bip-0152.mediawiki)
-
-[^bip-0155]: [BIP 155: addrv2 message](https://github.com/bitcoin/bips/blob/master/bip-0155.mediawiki)
 
 [^bip-0324]: [BIP 324: Version 2 P2P Encrypted Transport Protocol](https://github.com/bitcoin/bips/blob/master/bip-0324.mediawiki)
 
@@ -2028,7 +1791,5 @@ here.
 [^nym]: [The Nym Mixnet](https://nymtech.net/)
 
 [^eclipse]: [Ethan Heilman, Alison Kendler, Aviv Zohar, Sharon Goldberg. Eclipse Attacks on Bitcoin's Peer-to-Peer Network. 24th USENIX Security Symposium, 2015.](https://eprint.iacr.org/2015/263)
-
-[^zcashd-relay-fee]: [zcashd relay fee policy (policy.h)](https://github.com/zcash/zcash/blob/cfcfcd93b06d2ee897f1d24eb62692c9e9e0e66d/src/policy/policy.h#L65-L77)
 
 [^formal-model]: [Zcash P2P Protocol TLA+ Specification](https://github.com/oxarbitrage/zcash-p2p-spec)
