@@ -272,11 +272,20 @@ The transport provides keep-alives and round-trip time measurement; the legacy
 - A node SHOULD use an idle timeout of at least 120 seconds, and SHOULD use the
   transport's keep-alive mechanism to keep connections it wishes to retain from
   idling out. The specific values are implementation-defined.
-- A node SHOULD close a connection on which the application handshake (see
+- A node MUST close a connection on which the application handshake (see
   [Connection Handshake](#connectionhandshake)) has not completed within a
-  reasonable time after the transport connection is established. The specific
-  timeout is implementation-defined; values between 3 and 60 seconds were used
-  by legacy implementations.
+  bounded time, measured from the establishment of the transport connection so
+  that it covers everything a peer sends beforehand — including the Tor
+  transport's connection preamble (see [Tor Transport](#tortransport)). The
+  specific timeout is implementation-defined; values between 3 and 60 seconds
+  were used by legacy implementations. Without such a timeout, a peer that
+  connects and then sends nothing holds a connection slot indefinitely, and the
+  transport's keep-alive mechanism — answered by the transport stack rather
+  than by the application — will report the connection healthy.
+- A node SHOULD bound the number of concurrent inbound connections it accepts,
+  and SHOULD bound the share of them originating from any one transport, so
+  that inbound slots on a transport whose addresses are free to generate cannot
+  displace the rest.
 - Per-request timeouts are implementation-defined and are applied per stream
   (see [Request Streams](#requeststreams)).
 
@@ -454,6 +463,29 @@ corresponding limit (see [Stream Framing](#streamframing)). A node MUST allow
 an `initial_max_stream_data` of at least 2,228,224 bytes (the maximum record
 payload length plus framing headroom), and SHOULD allow the stream concurrency
 minimums of [Transport Requirements](#transportrequirements).
+
+The preamble precedes every frame, and therefore precedes the record payload
+limit of [Records](#records) and the malformed-frame rule of
+[Stream Framing](#streamframing); neither bounds it. Its fields are bounded
+here instead, and a node MUST enforce these bounds while parsing the preamble,
+before allocating storage for a field:
+
+- The `network` string MUST NOT exceed 16 bytes.
+- Each of the four flow control fields MUST NOT exceed 2^62 − 1, the
+  corresponding limit in QUIC [^rfc9000].
+- A node MUST close the connection immediately, without sending frames, if a
+  preamble field exceeds its bound, if the preamble is not complete within the
+  handshake timeout below, or if a CompactSize in the preamble is not
+  canonically encoded (see [CompactSize](#compactsize)).
+
+The handshake timeout of
+[Connection Management](#connectionmanagement) runs from the establishment of
+the transport connection, so it covers the preamble as well as the `init`
+record; an initiator that opens a connection and stalls mid-preamble is closed
+by it. This matters most for this transport: onion service addresses are free
+to generate and effectively unbannable (see
+[Misbehavior and Banning](#misbehaviorandbanning)), so a connection slot held
+open at no cost is the resource an attacker is actually consuming.
 
 Incompatible future revisions of this transport will be assigned new network
 identifier strings.
@@ -715,6 +747,17 @@ A variable-length unsigned integer encoding used for lengths and counts:
 Encodings MUST be canonical: the shortest possible encoding MUST be used for
 any given value. A node MUST reject non-canonical CompactSize encodings.
 
+Every CompactSize count and length in this protocol is peer-supplied and may
+be as large as 2^64 − 1 on the wire, whatever bound this document places on
+its legitimate values. A node MUST check a count or length against its
+specified bound *before* using it, and MUST NOT allocate storage in
+proportion to a declared count before the corresponding data has been
+received. Where this document requires a bound on a sum of two counts, the
+node MUST also bound each addend, since a sum of two unbounded values can
+wrap and satisfy the bound on the sum. Likewise, a node computing an offset
+or a remaining length from peer-supplied values MUST perform the arithmetic
+in a way that cannot overflow or underflow.
+
 ### Strings
 
 Character strings are encoded as a CompactSize length prefix followed by that
@@ -747,6 +790,29 @@ The `port` field is interpreted per transport: for QUIC endpoints it is the
 UDP port, and for `TORV3` addresses it is the onion service virtual port (see
 [Tor Transport](#tortransport)). It MUST be 0 if not relevant for the
 network.
+
+The `time` field of a relayed record is attacker-suppliable and
+unauthenticated: it is the relaying peer's claim about when the address was
+last seen, and nothing binds it to reality. Because it is the freshness
+signal an address manager ranks on, an unvalidated `time` set far in the
+future makes an attacker's addresses permanently the freshest entries of
+whatever buckets they occupy, and so a preferred choice at every outbound
+peer selection — an eclipse vector [^eclipse] that operates from inside the
+buckets, where the bucketing of
+[Address Book Management](#addressbookmanagement) affords no protection. A
+node therefore:
+
+- MUST clamp the `time` of a relayed record before storing it: a `time` more
+  than 10 minutes in the future, or equal to 0, is replaced by the current
+  time less 5 days.
+- SHOULD NOT relay, and SHOULD eventually evict, a record whose clamped
+  `time` is more than 30 days in the past.
+- SHOULD NOT make the relayed `time` the primary key of outbound peer
+  selection, and SHOULD prefer its own record of successful connections to
+  an address over any peer's claim about it.
+
+These are the protections legacy implementations applied in code; they are
+stated here because the field is load-bearing for peer selection.
 
 *Note:* Each network ID implies the transport by which the address is
 reachable: `IPV4`, `IPV6`, and `CJDNS` addresses identify QUIC endpoints, and
@@ -892,7 +958,7 @@ A receiving node MUST validate the `init` record as follows:
 Except where another error code is specified above, a node MUST close the
 connection with the `PROTOCOL_ERROR` error code if any of these checks fail.
 
-### Example (non-normative)
+### Handshake Example (non-normative)
 
 Connection establishment over the QUIC transport:
 
@@ -1011,9 +1077,23 @@ requester falls back to `get-blocks`.
 
 A node performing bulk synchronization SHOULD set `tx_ids` to 0: the
 transaction-ID form pays off only near the chain tip, where the requester
-already holds most of a block's transactions.
+already holds most of a block's transactions. Because the `ids` array is not
+individually length-prefixed, the record payload limit of
+[Records](#records) does not bound it, and a `tx_ids = 1` request over large
+historical blocks would otherwise compel a response of hundreds of megabytes
+from a request of a few dozen bytes. Both directions are therefore bounded:
 
-The response `count` MUST NOT exceed 160. The headers MUST form a contiguous
+- An entry's `ids_count` MUST NOT exceed 65,536, the greatest number of
+  transactions a block can contain (see
+  [Compact Block Encoding](#compactblockencoding)). A larger value is a
+  connection error of type `FLOOD`.
+- A responder SHOULD bound the total serialized size of its response, and MAY
+  set `has_txs` to `0x00` for any entry, or return fewer entries, to stay
+  within that bound; the requester falls back to `get-blocks` for those
+  entries.
+
+The response `count` MUST NOT exceed 160, and MUST NOT exceed the number of
+headers the request could have selected. The headers MUST form a contiguous
 chain (each header's `hashPrevBlock` must match the hash of the preceding
 header). A node receiving non-contiguous headers SHOULD assign a misbehavior
 penalty of 20 points.
@@ -1044,6 +1124,22 @@ announcements, or `get-hashes` responses. The `count` MUST NOT exceed 128.
 Compact blocks cannot be requested — they occur only as announcements (see
 [Compact Block Relay](#compactblockrelay)).
 
+Each delivered block MUST be the block that was requested: the header of the
+block delivered for an entry MUST hash to that entry's requested hash. A
+delivered block that does not is a connection error of type `PROTOCOL_ERROR`
+— the check is by hashing alone, so a violation is never attributable to a
+different chain view. Without this rule a peer could answer every entry with
+some other valid block, choosing which of two competing blocks the requester
+sees while remaining syntactically conformant.
+
+A `count` of 128 bounds the number of blocks but not their size, and blocks
+differ in size by three orders of magnitude across the chain's history. A
+responder SHOULD therefore also apply a byte budget, and MAY finish its
+sending direction after any complete entry, having answered fewer entries
+than were requested; the requester re-requests the remainder from any peer.
+For bulk synchronization, `get-block-range` — which is byte-bounded by
+construction — is the appropriate primitive (see [^draft-sync]).
+
 ### `get-tx`
 
 Stream type: `0x03`
@@ -1063,6 +1159,20 @@ Stream type: `0x03`
 | varies | `tx`     | If `result` is `0x00`: a CompactSize length prefix followed by the serialized transaction [^protocol-txnencoding]. |
 
 Requests transactions by reference. The `count` MUST NOT exceed 50,000.
+
+Each delivered transaction MUST be the transaction that was requested: it
+MUST match the corresponding entry's reference, under the identifier that
+reference names (txid, wtxid, or the short transaction ID relative to the
+named block). A delivered transaction that does not is a connection error of
+type `PROTOCOL_ERROR`.
+
+As with `get-blocks`, the `count` bound does not bound the response in bytes:
+50,000 references occupy a request of a few megabytes but could name
+transactions totalling far more, an amplification the count limit alone does
+not address. A responder SHOULD apply a byte budget to the response, and MAY
+finish its sending direction after any complete entry; the requester
+re-requests what it still needs. A requester SHOULD size a request to the
+bytes it is prepared to receive rather than to the count limit.
 
 `SHORTID` references identify a transaction within a block relayed by a
 compact block; their handling is specified in
@@ -1129,6 +1239,17 @@ earlier record, or on a transaction announcement stream — and the requester
 MUST tolerate duplicate references. A node MAY decline to serve `get-mempool`
 by resetting its sending direction of the stream with `REFUSED`.
 
+Serving the snapshot costs the responder a full serialization of its mempool
+for a request of one byte, so a node SHOULD rate-limit `get-mempool`
+per peer — a peer that repeatedly cancels and re-opens the stream is
+requesting that work again each time — and SHOULD decline the request from a
+peer for which it has set `relay = 0` in its `init` record, since such a peer
+has declined transaction relay in the other direction. A node concerned about
+topology inference SHOULD apply the trickling delay of
+[Trickling](#trickling) to the post-snapshot records, as above; without it the
+subscription reports each transaction's arrival at the responder without
+delay, which is exactly what trickling exists to obscure.
+
 ### `get-hashes`
 
 Stream type: `0x06`
@@ -1189,10 +1310,13 @@ The requested `count` MUST NOT exceed 50,000, `stride` MUST NOT be 0, and
 the greatest requested height (`start_height + (count − 1) × stride`) MUST
 NOT exceed `0xFFFFFFFF`.
 
-The response `count` MAY be less than the requested count, and MAY be 0: a
-node omits requested heights above its chain tip, and SHOULD NOT include
-entries for blocks fewer than 100 blocks below its chain tip (which could
-still be affected by a chain reorganization). Truncation MUST be a prefix:
+The response `count` MUST NOT exceed the requested `count`, MAY be less, and
+MAY be 0: a node omits requested heights above its chain tip, and SHOULD NOT
+include entries for blocks within 100 blocks of its chain tip (which could
+still be affected by a chain reorganization; the same margin as the
+reorganization rule of
+[Checkpointed Synchronization](#checkpointedsynchronization)). Truncation
+MUST be a prefix:
 if fewer entries are returned than were requested, the returned entries MUST
 correspond to the lowest requested heights, so that the requester can
 re-request the missing tail.
@@ -1205,9 +1329,20 @@ any security-relevant purpose without verifying them against trusted data
 validating the corresponding blocks. The span metadata, by contrast, is
 checkable after the fact: once a node has downloaded the blocks of an
 entry's span, it SHOULD verify any hints it relied upon, and SHOULD assign a
-misbehavior penalty of 20 points if they do not match the downloaded blocks
-(the `hash` identifies the blocks uniquely, so a mismatch is not
-attributable to a different chain view).
+misbehavior penalty of 20 points if `span_txs` or `span_notes` do not match
+the downloaded blocks. Those two fields are determined by the block hashes
+alone, so a mismatch is not attributable to a different chain view.
+
+`span_size` is not. A block's serialized size depends on its authorizing
+data — notably `scriptSig` lengths — which the txid, and hence the block
+hash, does not commit to (see [`get-block-range`](#get-block-range) and
+ZIP 244 [^zip-0244]). A node that obtained the hints from one peer and the
+blocks from another therefore MUST NOT penalize a `span_size` mismatch
+unless it has verified the delivered blocks' authorizing data commitment;
+otherwise a peer that pads the blocks it serves would cause the penalty to
+fall on the honest peer that served the hints, which is an eviction
+primitive rather than a defense. A `span_size` mismatch on unverified
+blocks is instead grounds to re-fetch the blocks.
 
 ### `get-block-range`
 
@@ -1248,15 +1383,37 @@ Delivery is in descending height order so that every block is verifiable
 *on arrival*: the first delivered block's header MUST hash to
 `final_hash`, each subsequent delivered block's header MUST hash to the
 `hashPrevBlock` of the previously delivered block, and each delivered
-block's transactions MUST match its header's transaction merkle root.
-A delivered block that violates these rules is a connection error of type
-`PROTOCOL_ERROR` — the rules are checkable by hashing alone, so a
-violation is never attributable to a different chain view. A requester
-with a trusted anchor therefore accepts no unverified bytes, needs no
-download handles for the range's interior blocks, and can assign blame
-exactly. (Header commitments that require further context, such as the
-authorizing data commitment, are checked at validation time according to
-the node's synchronization strategy.)
+block's transactions MUST match its header's transaction merkle root, and
+each delivered block's serialized size MUST NOT exceed the maximum block
+size permitted by the consensus rules. A delivered block that violates
+these rules is a connection error of type `PROTOCOL_ERROR` — the rules are
+checkable by hashing alone, so a violation is never attributable to a
+different chain view. A requester with a trusted anchor therefore needs no
+download handles for the range's interior blocks and can assign blame
+exactly.
+
+These checks bind each delivered block to the committed chain, but they do
+not bind all of its bytes. The transaction merkle root commits to txids,
+and from NU5 a v5 transaction's txid excludes its *authorizing data* —
+`scriptSig`s, proofs, and signatures — which is committed separately by
+`hashAuthDataRoot` within the header's `hashBlockCommitments` (see ZIP 244
+[^zip-0244]). Recovering the authorizing data commitment from the header
+requires the chain history root at the parent block, which arrival-time
+checking does not have, so this check is necessarily deferred to
+validation time. A responder can consequently deliver blocks that satisfy
+every rule above while carrying arbitrary authorizing data, padded up to
+the element size limit.
+
+A requester therefore MUST NOT store a delivered block, serve it to
+another peer, or use it to regenerate a synchronization artifact until its
+authorizing data commitment has been checked against its header. A block
+whose authorizing data commitment fails that check SHOULD incur a
+misbehavior penalty of 100 points against the peer that delivered it: the
+delivered block matches the committed chain by txid, so the discrepancy is
+attributable to that peer and not to a different chain view. A requester
+SHOULD also bound the bytes it accepts on a stream by `max_bytes`,
+independently of the block count, since a block may be padded well beyond
+the size its hints predicted.
 
 The responder serves the ancestor chain of the block with hash
 `final_hash`, whether or not that block is in its best chain. It MAY also
@@ -1311,12 +1468,31 @@ each block's note commitment tree roots and chain history tree without
 recomputing the trees from the blocks' note commitments — the dominant CPU
 cost of validating historical blocks under checkpoint-based
 synchronization. The entries are not self-authenticating: a node MUST NOT
-rely on them for any purpose until it has verified them against the chain's
-header commitments — `hashFinalSaplingRoot` and, from NU5,
-`hashBlockCommitments` binding the chain history root of ZIP 221 [^zip-0221]
-and the authorizing data commitment of ZIP 244 [^zip-0244] — as specified in
-[^draft-sync]. An entry that fails that verification for a block whose
-header is authenticated SHOULD incur a misbehavior penalty of 100 points.
+rely on any part of an entry for any purpose until it has verified that part
+against the chain's header commitments, as specified in [^draft-sync].
+Which commitment applies depends on the height, and changes at Heartwood
+rather than at NU5: between Sapling and Heartwood activation the header
+field `hashFinalSaplingRoot` is the block's Sapling root and is compared
+directly; from Heartwood activation ZIP 221 [^zip-0221] repurposes that
+field to carry the chain history root (`hashChainHistoryRoot`, and from NU5
+`hashBlockCommitments`, which binds it together with the authorizing data
+commitment of ZIP 244 [^zip-0244]), and entries are verified by
+reconstructing the chain history tree.
+
+Not every field of an entry is authenticated at every height. The chain
+history tree leaf defines no Ironwood field, so no header commits to an
+`ironwood_root`; and reconstruction verifies an entry only once the
+*following* block's header has been checked against it, so the highest
+entry of a response is not yet verified when the response completes. A node
+MUST NOT rely on an unverified root, and recomputes the corresponding tree
+instead.
+
+An entry that fails verification against an authenticated header SHOULD
+incur a misbehavior penalty of 100 points. A node MUST NOT assign that
+penalty on the basis of a check that does not apply at the entry's height:
+in particular, comparing a supplied Sapling root against
+`hashFinalSaplingRoot` above Heartwood activation compares it against an
+unrelated commitment and would penalize every honest responder.
 
 Serving `get-tree-roots` requires a per-block root index that not every
 node maintains (in particular, a node that itself synchronized without
@@ -1325,7 +1501,8 @@ index advertises the `NODE_TREE_ROOTS` service flag (see
 [Service Flags](#serviceflags)). The response MAY contain fewer entries
 than requested, and MAY be empty; truncation MUST be a prefix (the returned
 entries MUST correspond to the lowest requested heights). A node without
-the index refuses the stream with `REFUSED`.
+the index refuses the stream with `REFUSED`. The response `count` MUST NOT
+exceed the requested `count`.
 
 ### `get-object`
 
@@ -1336,7 +1513,7 @@ Stream type: `0x09`
 | Size   | Field    | Description                                                        |
 |--------|----------|--------------------------------------------------------------------|
 | 32     | `hash`   | SHA-256 hash of the requested object.                              |
-| varies | `offset` | Byte offset into the object at which to start (CompactSize).       |
+| varies | `offset` | Byte offset into the object at which to start (CompactSize). MUST NOT exceed 2^48 − 1. |
 | varies | `length` | Maximum number of bytes requested (CompactSize). MUST NOT exceed 33,554,432 (32 MiB). |
 
 **Response:**
@@ -1363,8 +1540,35 @@ are position-addressed and identical everywhere. An object is verified by
 hashing its complete contents; artifacts are therefore expected to be
 divided into pieces no larger than the per-request maximum, so that each
 piece is independently fetchable and verifiable (see [^draft-sync]).
-Requests for offsets at or beyond the object's size are answered with
-`result = 0x00`, the object's `size`, and no data.
+
+The number of bytes returned is determined as follows, and a responder MUST
+evaluate the two cases in this order:
+
+1. If `offset` is greater than or equal to the object's `size`, the
+   response is `result = 0x00`, the object's `size`, and no data.
+2. Otherwise the responder returns at most `min(length, size − offset)`
+   bytes, starting at `offset`.
+
+Evaluating the bound as `min(offset + length, size)` is not equivalent: the
+sum can wrap, yielding an end position below `offset` and a byte count that
+underflows to an enormous value. `offset` is bounded above for the same
+reason, and a responder MUST reject a request whose `offset` exceeds that
+bound as a connection error of type `PROTOCOL_ERROR`.
+
+The same discipline applies to the requester. A response's `size` is
+peer-supplied and unauthenticated until the assembled object is hashed: a
+requester MUST NOT compute a remaining length as `size − received` without
+first checking that `size` is at least `received`, and a peer reporting a
+`size` inconsistent with a previous response for the same `hash`, or below
+the bytes it has already delivered, is a connection error of type
+`PROTOCOL_ERROR`.
+
+Artifact data cannot be checked until the whole object is assembled and
+hashed. An assembled object whose SHA-256 hash does not match the requested
+`hash` SHOULD incur a misbehavior penalty of 100 points against the peers
+that supplied the mismatching bytes, so that a peer answering with
+well-formed garbage is deselected rather than reassigned the same work
+indefinitely.
 
 
 ## Announcement Stream Types
@@ -1504,9 +1708,13 @@ its transactions:
 Each transaction in the block, in block order, is represented either by a
 transaction ID in `ids` (short or full, according to `ids_kind`) or by a full
 serialized transaction in `prefilled_txns`; the total number of transactions
-in the block is `ids_count + prefilled_count`. A compact block in which
-`ids_count + prefilled_count` exceeds 65,536 is a connection error of type
-`FLOOD`.
+in the block is `ids_count + prefilled_count`. Each of `ids_count` and
+`prefilled_count` MUST NOT exceed 65,536, and their sum MUST NOT exceed
+65,536; a compact block violating any of these is a connection error of type
+`FLOOD`. Bounding the two counts individually is required as well as
+bounding the sum: each is an independent CompactSize that may be as large as
+2^64 − 1 on the wire, and a sum of two such values can wrap to a small
+number that satisfies a bound the addends do not.
 
 A node MUST set `ids_kind` to 1 in compact blocks sent to a peer that set
 `full_ids = 1` in its `init` record, and SHOULD set `ids_kind` to 0 otherwise.
@@ -1524,8 +1732,11 @@ is the absolute index of the first prefilled transaction within the block, and
 each subsequent `index` is the difference between the absolute index of that
 prefilled transaction and the absolute index of the previous prefilled
 transaction, minus one. A node MUST reject a compact block in which any
-absolute index would exceed 65535, or in which indexes overflow or are not
-strictly increasing.
+absolute index is greater than or equal to `ids_count + prefilled_count`, or
+in which indexes overflow or are not strictly increasing. The bound is the
+block's own transaction count, not the protocol maximum: an index below
+65,536 can still lie outside a small block, and a reconstructor sized to the
+block's actual transaction count would then write out of bounds.
 
 The coinbase transaction MUST be prefilled. A sender SHOULD additionally
 prefill any transaction that it predicts the receiver does not have.
@@ -1649,7 +1860,7 @@ An incorrectly reconstructed block fails validation of the block's merkle
 root and authorizing data commitment, so short ID matching does not weaken
 consensus enforcement.
 
-#### Example (non-normative)
+#### Compact Block Relay Example (non-normative)
 
 A new block reaches peer B (high-bandwidth mode) and peer C (low-bandwidth
 mode) from peer A:
@@ -1734,10 +1945,12 @@ synchronization procedure MUST obey the following rules.
   penalty to a peer solely because the peer's `get-hashes` responses fail
   verification against the node's commitments, or reflect a different best
   chain; such responses are discarded and MAY be retried with other peers.
-- **Reorganization margin.** Commitment-based authentication SHOULD NOT be
-  applied within 100 blocks of the node's view of the network chain tip
-  (matching the responder-side margin of [`get-hashes`](#get-hashes)); the
-  chain near the tip is synchronized headers-first.
+- **Reorganization margin.** Commitment-based authentication MUST NOT be
+  applied within 100 blocks of the node's view of the network chain tip; the
+  chain near the tip is synchronized headers-first. The responder-side
+  margin of [`get-hashes`](#get-hashes) is the same depth, measured the same
+  way, so that a responder's hints and a requester's authentication agree
+  about which blocks are near enough to the tip to be unsettled.
 - **Headers-first fallback.** A node MUST be capable of completing
   synchronization using headers-first synchronization alone, and MUST fall
   back to it where its commitments end or where too few peers serve
@@ -1880,8 +2093,10 @@ The misbehavior score works as follows:
 | 20     | `get-headers` response with more than 160 headers.                                                                 |
 | 20     | Non-contiguous headers in a `get-headers` response.                                                                |
 | 20     | `get-addr` response with more than 1000 address records.                                                           |
-| 20     | `get-hashes` span metadata that does not match the downloaded blocks of the span (see [`get-hashes`](#get-hashes)). |
+| 20     | `get-hashes` span metadata (`span_txs` or `span_notes`) that does not match the downloaded blocks of the span (see [`get-hashes`](#get-hashes)). |
 | 100    | A `get-tree-roots` entry that fails verification against authenticated header commitments (see [`get-tree-roots`](#get-tree-roots)). |
+| 100    | A block delivered by `get-block-range` whose authorizing data commitment fails verification against its header (see [`get-block-range`](#get-block-range)). |
+| 100    | Artifact data delivered by `get-object` that does not hash to the requested object hash (see [`get-object`](#get-object)). |
 | 100    | Using a `TXID` reference to announce a v5 transaction, or a `WTXID` reference to announce a v4-or-earlier transaction (see ZIP 239 [^zip-0239]). |
 | varies | Transaction, block, or header validation failure. The penalty is determined by the severity of the validation error. (See [Relay Protocol](#relayprotocol) for an exemption covering compact blocks relayed before full validation.) |
 
@@ -1925,6 +2140,16 @@ the stream concurrency limits (see
 limits of each request stream type, and address rate limiting (see
 [Address Relay](#addressrelay)); exceeding a hard size or rate limit is a
 connection error of type `FLOOD`.
+
+A count limit is not by itself a bound on work, because the per-item size
+varies by orders of magnitude: `get-block-range` and `get-object` are
+therefore bounded in bytes as well (`max_bytes` and `length`), and for
+`get-blocks`, `get-tx`, and `get-headers` the responder applies its own byte
+budget and may finish early, with the requester re-requesting the remainder.
+The general shape of the defense is that a responder is never obliged to
+spend unbounded bandwidth, disk reads, or memory on one cheap request, and
+that every peer-supplied count or length is checked against its bound before
+it is used to size an allocation (see [CompactSize](#compactsize)).
 
 **Fingerprinting and linkability.** A persistent TLS key would allow a node
 to be recognized across connections and network locations; a node concerned
