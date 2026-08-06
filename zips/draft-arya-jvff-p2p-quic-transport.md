@@ -283,9 +283,9 @@ The transport provides keep-alives and round-trip time measurement; the legacy
 The specific connection limits are implementation-defined; the legacy
 reference values in ZIP 204 [^zip-0204] remain reasonable defaults.
 
-A node SHOULD maintain at most one connection to a given remote address, and
-MUST detect connections to itself via the handshake nonce (see
-[Init Record](#initrecord)).
+A node SHOULD maintain at most one connection to a given remote address.
+Self-connection detection via the handshake nonce is specified in
+[Init Record](#initrecord).
 
 ### QUIC Transport
 
@@ -332,14 +332,8 @@ identifiers.
 
 #### Default Ports
 
-The QUIC transport uses the following default UDP port numbers, unchanged from
-the legacy protocol:
-
-| Network | Default Port |
-|---------|--------------|
-| Mainnet | 8233         |
-| Testnet | 18233        |
-| Regtest | 18344        |
+The QUIC transport uses the default port numbers of the legacy protocol,
+as specified in ZIP 204 [^zip-0204-ports], as UDP port numbers.
 
 #### Certificates
 
@@ -693,32 +687,10 @@ A node receiving an error code it does not recognize MUST treat it as
 
 ## Data Types and Encoding
 
-All multi-byte integer types are encoded in little-endian byte order unless
-otherwise specified. The integer types used in this specification (`uint8`,
-`uint16`, `uint32`, `uint64`) have their conventional meanings.
-
-### CompactSize
-
-*Note:* The CompactSize encoding is used in the Zcash Protocol Specification
-(section 7) but is not formally defined there. It is defined here for
-completeness.
-
-A variable-length unsigned integer encoding used for lengths and counts:
-
-| Value Range                       | Encoding Size | Format                                        |
-|-----------------------------------|---------------|-----------------------------------------------|
-| 0 to 252                          | 1 byte        | Single byte with the value directly.          |
-| 253 to 0xFFFF                     | 3 bytes       | `0xFD` followed by the value as `uint16`.     |
-| 0x10000 to 0xFFFFFFFF             | 5 bytes       | `0xFE` followed by the value as `uint32`.     |
-| 0x100000000 to 0xFFFFFFFFFFFFFFFF | 9 bytes       | `0xFF` followed by the value as `uint64`.     |
-
-Encodings MUST be canonical: the shortest possible encoding MUST be used for
-any given value. A node MUST reject non-canonical CompactSize encodings.
-
-### Strings
-
-Character strings are encoded as a CompactSize length prefix followed by that
-many bytes of string data. There is no NUL terminator.
+The integer types and byte order, the CompactSize variable-length integer
+encoding (including its canonicity requirement), and the string encoding are
+as specified in ZIP 204 [^zip-0204-datatypes]. As there, a node MUST reject
+non-canonical CompactSize encodings.
 
 ### Serialized Blocks
 
@@ -778,9 +750,8 @@ version is subject to a misbehavior penalty (see
 ## Service Flags
 
 Service flags are advertised in the `services` field of `init` records and
-network address records. In the table below, bit $k$ refers to the bit with
-numeric weight $2^k$; that is, the `services` field has the corresponding flag
-set if and only if `services & (1 << k) != 0`.
+network address records. Bit numbering is as in ZIP 204
+[^zip-0204-serviceflags]: bit $k$ is the bit with numeric weight $2^k$.
 
 | Name                   | Bit | Description                                                 |
 |------------------------|-----|-------------------------------------------------------------|
@@ -796,7 +767,8 @@ historical blocks — MUST NOT advertise `NODE_NETWORK`; it SHOULD advertise
 of its best chain. A node selecting peers to request historical blocks from
 uses these flags (see [^draft-sync]).
 
-Bits 24–31 are reserved for temporary experiments.
+Bits 24–31 remain reserved for temporary experiments, as in ZIP 204
+[^zip-0204-serviceflags].
 
 A node MUST ignore service bits that it does not recognize, and SHOULD
 preserve them when relaying address records (see
@@ -883,8 +855,8 @@ A receiving node MUST validate the `init` record as follows:
   protocol version associated with the current network epoch (see
   [Network Upgrade Epoch Enforcement](#networkupgradeepochenforcement)). On
   failure, the node MUST close the connection with the `OBSOLETE` error code.
-- The `nonce` MUST NOT match the local node's nonce (self-connection
-  detection).
+- The `nonce` is checked for self-connection as specified in
+  [Init Record](#initrecord).
 - The `user_agent` string MUST NOT exceed 256 bytes.
 - The `relay`, `announce`, and `full_ids` fields MUST each be 0 or 1.
 - A peer MUST NOT send more than one `init` record per connection.
@@ -1015,8 +987,9 @@ already holds most of a block's transactions.
 
 The response `count` MUST NOT exceed 160. The headers MUST form a contiguous
 chain (each header's `hashPrevBlock` must match the hash of the preceding
-header). A node receiving non-contiguous headers SHOULD assign a misbehavior
-penalty of 20 points.
+header). A node receiving an oversized response or non-contiguous headers
+SHOULD assign a misbehavior penalty (see
+[Misbehavior and Banning](#misbehaviorandbanning)).
 
 The legacy always-zero transaction count that followed each header in
 `headers` messages is removed.
@@ -1041,7 +1014,7 @@ Stream type: `0x02`
 
 Requests full blocks by hash; the hashes to request are learned from headers,
 announcements, or `get-hashes` responses. The `count` MUST NOT exceed 128.
-Compact blocks cannot be requested — they occur only as announcements (see
+Compact blocks cannot be requested (see
 [Compact Block Relay](#compactblockrelay)).
 
 ### `get-tx`
@@ -1084,7 +1057,7 @@ byte).
 
 Requests peer addresses from the remote node. The response `count` MUST NOT
 exceed 1000; a node receiving a larger response SHOULD assign a misbehavior
-penalty of 20 points.
+penalty (see [Misbehavior and Banning](#misbehaviorandbanning)).
 
 To impede address-based fingerprinting attacks, a node SHOULD send `get-addr`
 only on outbound connections, at most once per connection, and SHOULD only
@@ -1126,8 +1099,7 @@ Records after the snapshot SHOULD be subject to the same trickling delay as
 transaction announcements (see [Trickling](#trickling)). The responder MAY
 omit references it has already sent to the same peer — in the snapshot, in an
 earlier record, or on a transaction announcement stream — and the requester
-MUST tolerate duplicate references. A node MAY decline to serve `get-mempool`
-by resetting its sending direction of the stream with `REFUSED`.
+MUST tolerate duplicate references.
 
 ### `get-hashes`
 
@@ -1197,17 +1169,16 @@ if fewer entries are returned than were requested, the returned entries MUST
 correspond to the lowest requested heights, so that the requester can
 re-request the missing tail.
 
-Responses are not self-authenticating: the returned hashes are only as
-trustworthy as the peer that sent them, and a node MUST NOT rely on them for
-any security-relevant purpose without verifying them against trusted data
-(such as the trusted commitments of
-[Checkpointed Synchronization](#checkpointedsynchronization)) or fully
-validating the corresponding blocks. The span metadata, by contrast, is
+Responses are not self-authenticating: a node MUST NOT rely on the returned
+hashes for any security-relevant purpose until they are verified, per the
+untrusted-inputs rule of
+[Checkpointed Synchronization](#checkpointedsynchronization). The span
+metadata, by contrast, is
 checkable after the fact: once a node has downloaded the blocks of an
 entry's span, it SHOULD verify any hints it relied upon, and SHOULD assign a
-misbehavior penalty of 20 points if they do not match the downloaded blocks
-(the `hash` identifies the blocks uniquely, so a mismatch is not
-attributable to a different chain view).
+misbehavior penalty (see [Misbehavior and Banning](#misbehaviorandbanning))
+if they do not match the downloaded blocks (the `hash` identifies the blocks
+uniquely, so a mismatch is not attributable to a different chain view).
 
 ### `get-block-range`
 
@@ -1241,8 +1212,7 @@ that it MUST be willing to deliver the first block regardless of
 `max_bytes`, so that a maximum-size block is always retrievable. Because
 block sizes vary by three orders of magnitude across the chain's history,
 `max_bytes` — not `count` — is what bounds the work a stream commits one
-peer to; a synchronizing node downloads from many peers concurrently, one
-work unit per stream, and sizes units in bytes (see [^draft-sync]).
+peer to; scheduling recommendations are given in [^draft-sync].
 
 Delivery is in descending height order so that every block is verifiable
 *on arrival*: the first delivered block's header MUST hash to
@@ -1312,11 +1282,10 @@ recomputing the trees from the blocks' note commitments — the dominant CPU
 cost of validating historical blocks under checkpoint-based
 synchronization. The entries are not self-authenticating: a node MUST NOT
 rely on them for any purpose until it has verified them against the chain's
-header commitments — `hashFinalSaplingRoot` and, from NU5,
-`hashBlockCommitments` binding the chain history root of ZIP 221 [^zip-0221]
-and the authorizing data commitment of ZIP 244 [^zip-0244] — as specified in
-[^draft-sync]. An entry that fails that verification for a block whose
-header is authenticated SHOULD incur a misbehavior penalty of 100 points.
+header commitments, as specified in [^draft-sync]. An entry that fails that
+verification for a block whose header is authenticated SHOULD incur a
+misbehavior penalty (see
+[Misbehavior and Banning](#misbehaviorandbanning)).
 
 Serving `get-tree-roots` requires a per-block root index that not every
 node maintains (in particular, a node that itself synchronized without
@@ -1360,9 +1329,9 @@ The responder MAY finish its sending direction early, having delivered
 fewer than the requested bytes; the requester detects the shortfall from
 `size` and MAY re-request the remainder from any peer, since object bytes
 are position-addressed and identical everywhere. An object is verified by
-hashing its complete contents; artifacts are therefore expected to be
-divided into pieces no larger than the per-request maximum, so that each
-piece is independently fetchable and verifiable (see [^draft-sync]).
+hashing its complete contents; piece sizing conventions that keep each
+piece independently fetchable and verifiable are specified in
+[^draft-sync].
 Requests for offsets at or beyond the object's size are answered with
 `result = 0x00`, the object's `size`, and no data.
 
@@ -1461,9 +1430,9 @@ The differences from BIP 152 are:
 
 - There is no `sendcmpct` message. Compact block relay is unconditional, and
   the high-bandwidth announcement preference is carried in the `announce`
-  field of the `init` record (see [Init Record](#initrecord)), and cannot be
-  changed during the life of a connection. (A future change to the compact
-  block encoding would be deployed under a new protocol version.)
+  field of the `init` record (see [Init Record](#initrecord)). (A future
+  change to the compact block encoding would be deployed under a new protocol
+  version.)
 - A compact block cannot be requested: BIP 152's `getdata` with
   `MSG_CMPCT_BLOCK` has no equivalent, and compact blocks occur only as
   high-bandwidth announcements. A peer announced to in low-bandwidth mode
@@ -1519,13 +1488,10 @@ Each entry of `prefilled_txns` has the following format:
 | varies | `index` | Differentially encoded index of this transaction within the block (CompactSize; see below).     |
 | varies | `tx`    | A full serialized transaction, encoded as a CompactSize length prefix followed by the serialized transaction [^protocol-txnencoding]. |
 
-Prefilled transaction indexes are differentially encoded: the first `index`
-is the absolute index of the first prefilled transaction within the block, and
-each subsequent `index` is the difference between the absolute index of that
-prefilled transaction and the absolute index of the previous prefilled
-transaction, minus one. A node MUST reject a compact block in which any
-absolute index would exceed 65535, or in which indexes overflow or are not
-strictly increasing.
+Prefilled transaction indexes are differentially encoded as in BIP 152
+[^bip-0152]. A node MUST reject a compact block in which any absolute index
+would exceed 65535, or in which indexes overflow or are not strictly
+increasing.
 
 The coinbase transaction MUST be prefilled. A sender SHOULD additionally
 prefill any transaction that it predicts the receiver does not have.
@@ -1533,20 +1499,15 @@ prefill any transaction that it predicts the receiver does not have.
 #### Short Transaction IDs
 
 The short transaction ID of a transaction, relative to a given compact block,
-is computed as follows:
+is computed as specified in BIP 152 [^bip-0152], with two substitutions:
 
-1. Let `input` be the transaction identifier used for relay of the
-   transaction: for a transaction with version ≥ 5, its 64-byte wtxid as
+1. The input to SipHash-2-4 is the transaction identifier used for relay of
+   the transaction: for a transaction with version ≥ 5, its 64-byte wtxid as
    defined in ZIP 239 [^zip-0239] (the txid followed by the `auth_digest`);
    for a transaction with version ≤ 4, its 32-byte txid.
-2. Compute the single SHA-256 hash of the serialized block header (as it
-   appears in the `header` field, without the length prefix) followed by the
-   8-byte little-endian encoding of the `nonce` field.
-3. Let `k0` and `k1` be the `uint64` values obtained by interpreting the first
-   and second 8 bytes, respectively, of that hash in little-endian byte order.
-4. The short transaction ID is the least significant 6 bytes, in little-endian
-   byte order, of `SipHash-2-4(k0, k1, input)`, where SipHash-2-4 is as used
-   in BIP 152 [^bip-0152].
+2. The header hashed together with the `nonce` field to derive the SipHash
+   keys is the serialized Zcash block header [^protocol-blockheader] (as it
+   appears in the `header` field, without the length prefix).
 
 The `nonce` SHOULD be chosen uniformly at random by the sender of a compact
 block, so that short ID collisions between blocks and senders are independent.
@@ -1610,8 +1571,8 @@ A node follows the BIP 152 [^bip-0152] protocol flows:
   that fails full validation, provided the block's header is valid (including
   its proof of work). A node SHOULD request high-bandwidth
   announcements from at most 3 peers, preferring the peers that most recently
-  announced blocks to it first; to change its selection, it disconnects and
-  reconnects with a new `init` record.
+  announced blocks to it first; changing the selection requires a new
+  connection (see [Init Record](#initrecord)).
 - **Low-bandwidth mode** (the receiver's `init` record had `announce = 0`):
   blocks are announced to the receiver with header announcements (see
   [Block Announcements](#blockannouncements)). The receiver MAY then request
@@ -1787,8 +1748,9 @@ by legacy implementations, see ZIP 204 [^zip-0204-txrelay].
 
 ### Transaction Expiry
 
-A node SHOULD NOT relay a transaction that will expire within 3 blocks of its
-view of the current chain tip (`TX_EXPIRING_SOON_THRESHOLD`).
+The avoidance of relaying transactions that are about to expire
+(`TX_EXPIRING_SOON_THRESHOLD`) is unchanged from the legacy protocol; see
+ZIP 204 [^zip-0204-txrelay].
 
 ### Mempool Policy
 
@@ -2050,6 +2012,12 @@ specified here.
 [^zip-0204-epochs]: [ZIP 204: Zcash P2P Network Protocol — Network Upgrade Epoch Enforcement](https://zips.z.cash/zip-0204#network-upgrade-epoch-enforcement)
 
 [^zip-0204-dnsseeds]: [ZIP 204: Zcash P2P Network Protocol — DNS Seeds](https://zips.z.cash/zip-0204#dns-seeds)
+
+[^zip-0204-ports]: [ZIP 204: Zcash P2P Network Protocol — Default Ports](https://zips.z.cash/zip-0204#default-ports)
+
+[^zip-0204-datatypes]: [ZIP 204: Zcash P2P Network Protocol — Data Types and Encoding](https://zips.z.cash/zip-0204#data-types-and-encoding)
+
+[^zip-0204-serviceflags]: [ZIP 204: Zcash P2P Network Protocol — Service Flags](https://zips.z.cash/zip-0204#service-flags)
 
 [^zip-0204-blockdownload]: [ZIP 204: Zcash P2P Network Protocol — Block Download Parameters](https://zips.z.cash/zip-0204#block-download-parameters)
 

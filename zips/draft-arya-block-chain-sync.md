@@ -28,8 +28,9 @@ and the synchronization rules of that protocol, are to be interpreted as
 defined there.
 
 best chain
-:   The consensus block chain that a node considers current, as determined by
-    the consensus rules; its *tip* is its highest block.
+:   The best valid block chain, as described in section 3.3 of the Zcash
+    Protocol Specification [^protocol-blockchain]; its *tip* is its highest
+    block.
 
 validated tip
 :   The highest block that a node has accepted into its best chain under the
@@ -44,15 +45,14 @@ checkpoint
     authoritative for the block at that height.
 
 trusted commitment
-:   Data, obtained by a node through a channel it already trusts (for
-    example, compiled into its binary or supplied by local configuration),
-    that binds synchronization data the node will rely on — block hashes,
-    and, for snapshot synchronization, a state snapshot manifest.
+:   As defined in the v2 protocol's checkpointed synchronization rules
+    [^draft-p2p-v2]; extended in this ZIP to also bind, for snapshot
+    synchronization, a state snapshot manifest.
 
 synchronization artifact
-:   An immutable, content-addressed byte object served via `get-object` —
-    for example, a known-hash chunk file or a snapshot piece. An artifact is
-    identified by the SHA-256 hash of its contents.
+:   The immutable, content-addressed byte object served via `get-object`, as
+    defined in the v2 protocol [^draft-p2p-v2] — for example, a known-hash
+    chunk file or a snapshot piece.
 
 known-hash list
 :   The block hashes of every height of a span of the chain, together with
@@ -60,9 +60,9 @@ known-hash list
     example, as the pinned hashes of a list of chunk artifacts).
 
 anchor
-:   A block hash that a synchronizing node has verified against a trusted
-    commitment (directly, or via a verified artifact), against which a
-    `get-block-range` stream authenticates every delivered block.
+:   The anchor of a `get-block-range` stream, as defined in the v2 protocol
+    [^draft-p2p-v2]; in this ZIP, always a block hash verified against a
+    trusted commitment (directly, or via a verified artifact).
 
 work unit
 :   A contiguous range of blocks (or a byte range of an artifact) scheduled
@@ -128,9 +128,8 @@ implementation compiles in known-hash lists covering every block — over 100
 MB of hashes that grow with the chain — because the legacy protocol offered
 no way to fetch and verify them. Under this ZIP, a binary need only pin the
 SHA-256 hashes of the chunk artifacts (a few kilobytes); the artifacts
-themselves are fetched from untrusted peers via `get-object` (or any
-mirror) and verified, and every synced node can regenerate them
-byte-identically to serve others.
+themselves are obtained and verified as specified in
+[Synchronization Data](#synchronizationdata).
 
 
 # Specification
@@ -156,8 +155,8 @@ A node's trusted commitment binds the data its strategies rely on:
 Chunk artifacts are deterministic functions of the chain, so any node that
 has synchronized the covered span can regenerate them byte-identically and
 serve them; artifact pieces SHOULD be no larger than the `get-object`
-per-request maximum (32 MiB) so each piece is independently fetchable and
-verifiable.
+per-request maximum [^draft-p2p-v2] so each piece is independently fetchable
+and verifiable.
 
 ## Recommended Strategies
 
@@ -167,9 +166,8 @@ rule requires it) and MAY implement the others.
 ### Headers-First Synchronization
 
 Headers-first synchronization is specified in the v2 protocol
-[^draft-p2p-v2]. It is the full-validation strategy: it assumes no trusted
-commitments, and every accepted block is validated under the consensus
-rules. It is also the strategy for the chain near the tip, above the reach
+[^draft-p2p-v2], where it is characterized as the baseline, full-validation
+method. It is also the strategy for the chain near the tip, above the reach
 of commitments, whatever strategy covered the history below.
 
 ### Checkpointed Synchronization
@@ -178,8 +176,7 @@ A node MAY synchronize the span of the block chain covered by a verified
 known-hash list as follows:
 
 1. **Obtain and verify the known-hash list** for the target span (see
-   [Synchronization Data](#synchronizationdata)). Every listed hash is now
-   an anchor.
+   [Synchronization Data](#synchronizationdata)).
 
 2. **Partition the span into work units**: contiguous block ranges, sized
    using the span metadata toward a byte target (see
@@ -189,13 +186,12 @@ known-hash list as follows:
    request carries the byte target as its `max_bytes` bound.
 
 3. **Stream each unit with `get-block-range`**, anchored at the unit's
-   final hash. Delivery is descending, so each delivered block is verified
-   on arrival: it must hash to the anchor or to the previously delivered
-   block's `hashPrevBlock`, carry transactions matching its header, and
-   (as a cross-check) match the known-hash list at its height. A
+   final hash. Each delivered block is verified on arrival under the v2
+   protocol's `get-block-range` delivery rules [^draft-p2p-v2] and — as a
+   cross-check — matched against the known-hash list at its height. A
    truncated or cancelled unit keeps its verified prefix, and the
-   remainder is re-requested from any peer using the next expected hash
-   as its anchor.
+   remainder is re-requested from any peer per the v2 protocol's
+   resumption rule.
 
 4. **Commit** each completed range in height order, applying whatever
    abbreviated validation local policy permits for
@@ -206,19 +202,17 @@ known-hash list as follows:
 A node with a commitment that binds only spaced checkpoint hashes (rather
 than a full known-hash list) applies the same procedure with units
 anchored at checkpoint heights; interior per-block cross-checks and
-advance sizing are then unavailable, but neither is needed: the request's
-`max_bytes` bound makes each stream a byte-sized unit regardless of block
-sizes, the descending hash chain authenticates every delivered block
-against the checkpoint anchor, and the node continues the span by
-re-anchoring on the next expected hash.
+advance sizing are then unavailable, but neither is needed — steps 2 and 3
+already bound each unit in bytes and authenticate every delivered block
+against its anchor.
 
 ### Verified Tree Roots
 
-Recomputing the note commitment trees is the dominant CPU cost of
-committing checkpoint-authenticated blocks. A node MAY instead obtain each
-historical block's tree roots with `get-tree-roots` from `NODE_TREE_ROOTS`
-peers and verify them against header commitments, skipping the
-recomputation:
+A node MAY avoid the note commitment tree recomputation that dominates the
+CPU cost of committing checkpoint-authenticated blocks (see
+[Motivation](#motivation)) by obtaining each historical block's tree roots
+with `get-tree-roots` from `NODE_TREE_ROOTS` peers and verifying them
+against header commitments:
 
 1. For each block in the span, obtain the entry (Sapling, Orchard, and
    Ironwood roots, shielded transaction counts, and authorizing data
@@ -307,8 +301,7 @@ MAY be verified and committed in any order within the span, and the
 per-input reads and per-output deletes disappear entirely. A nonzero
 aggregate at the terminal height means the hints, the snapshot sets, or
 the delivered blocks were wrong; the node discards the affected state and
-falls back to checkpointed synchronization without hints. As with all
-synchronization data in this ZIP, wrong hints produce failure, not fraud.
+falls back to checkpointed synchronization without hints.
 
 ### Snapshot Synchronization
 
@@ -318,7 +311,7 @@ A node with no chain state MAY become operational at a *snapshot height*
 1. **Obtain the manifest** whose SHA-256 hash is bound by the trusted
    commitment, from any source (`get-object`, mirrors, bundled). The
    manifest lists the snapshot's content-addressed pieces and their sizes.
-2. **Fetch and verify the pieces** (each ≤ 32 MiB) from
+2. **Fetch and verify the pieces** from
    `NODE_SYNC_ARTIFACTS` peers via `get-object` and/or out-of-band mirrors,
    scheduling them like any other work units (see
    [Download Scheduling](#downloadscheduling)); a piece is accepted only if
@@ -338,9 +331,8 @@ A node with no chain state MAY become operational at a *snapshot height*
 4. **Begin operating at `H`**: validate blocks above `H` under the
    consensus rules (or checkpointed synchronization, where commitments
    reach above `H`), participate fully in relay, and serve the blocks it
-   accumulates. The node MUST NOT advertise `NODE_NETWORK` while it lacks
-   the chain below `H`; it SHOULD advertise `NODE_NETWORK_LIMITED` once it
-   can serve the most recent 2,304 blocks.
+   accumulates, advertising service flags as the v2 protocol requires of a
+   node that lacks the complete chain [^draft-p2p-v2].
 5. **Backfill in the background.** The node SHOULD backfill the history
    below `H` using checkpointed synchronization, at low priority, and
    advertise `NODE_NETWORK` when complete. Backfill SHOULD use the
@@ -360,8 +352,7 @@ regenerate and serve them. A wrong or corrupted snapshot cannot cause
 acceptance of a false state — a piece that does not match the manifest, or
 a frontier that fails header verification, is rejected and the node falls
 back to checkpointed synchronization; the commitment's only unverifiable
-claims are those with no on-chain commitment, and those are exactly as
-trustworthy as the binary that carried the commitment. (This is the trust
+claims are those with no on-chain commitment (see step 3). (This is the trust
 model of Bitcoin's assumeutxo [^assumeutxo] and of Ethereum's era archives
 [^era1], with the difference that Zcash's header commitments make the tree
 components independently verifiable.)
@@ -398,9 +389,9 @@ progress. A node SHOULD apply the following discipline to bulk transfers
 - **Stall detection, twice over.** Cancel (with `CANCELLED`) and reassign a
   unit whose peer delivers no bytes for a few seconds, falls below an
   absolute configured rate floor, or sustains a rate far below the current
-  peer median (for example, a quarter). Verified prefixes of cancelled
-  block-range units are kept; the remainder re-anchors on the next
-  expected hash.
+  peer median (for example, a quarter). Cancelled block-range units keep
+  their verified prefix and are resumed per step 3 of
+  [Checkpointed Synchronization](#checkpointedsynchronization).
 - **End-game duplication.** When unassigned work runs out before the
   fastest peers do, assign remaining units redundantly to the fastest
   peers and cancel the losers; this bounds the tail of the download at the
@@ -438,17 +429,15 @@ The security properties of the strategies are analyzed in the v2 protocol's
 security considerations [^draft-p2p-v2]. All strategies here satisfy its
 synchronization rules, so the choice between them — including every
 fallback — affects performance, not the integrity of the resulting chain.
-The trust base is unchanged by acceleration: verified tree roots are
-authenticated by header commitments; artifacts are authenticated by the
-trusted commitment; and the only data trusted without chain verification
-(the snapshot's uncommitted state components) carries exactly the trust of
-the binary that shipped the commitment, as the checkpoints already do —
-and even that trust is discharged when hint-verified backfill completes
-(see [Spentness Hints](#spentnesshints)). Malicious synchronization data
+The trust base is unchanged by acceleration: every accelerating input is
+either authenticated against the chain or bound by the trusted commitment,
+and the only data trusted without chain verification (the snapshot's
+uncommitted state components) carries exactly the trust of the binary that
+shipped the commitment, as the checkpoints already do — and even that trust
+is discharged when hint-verified backfill completes (see
+[Spentness Hints](#spentnesshints)). Malicious synchronization data
 produces failure, not fraud: every verification failure is detected,
-attributed, penalized, and routed around, and spentness hints in
-particular cannot cause acceptance of an incorrect state — a wrong hint
-surfaces as a nonzero aggregate.
+attributed, penalized, and routed around.
 
 **Serving capacity.** Snapshot-synchronized and pruned nodes cannot serve
 deep history; if they became the majority, historical blocks and artifacts
