@@ -1262,7 +1262,7 @@ Stream type: `0x06`
 | Size   | Field          | Description                                                          |
 |--------|----------------|----------------------------------------------------------------------|
 | 4      | `start_height` | Height of the first requested block hash (`uint32`, little-endian).  |
-| varies | `count`        | Maximum number of block hashes requested (CompactSize).              |
+| 4      | `count`        | Maximum number of block hashes requested (`uint32`, little-endian).  |
 
 **Response:**
 
@@ -1342,8 +1342,8 @@ Stream type: `0x07`
 | Size   | Field        | Description                                                 |
 |--------|--------------|-------------------------------------------------------------|
 | 32     | `final_hash` | Hash of the highest block in the requested range.           |
-| varies | `count`      | Maximum number of blocks requested (CompactSize). MUST NOT exceed 65,536. |
-| varies | `max_bytes`  | Maximum total serialized size of the delivered blocks, in bytes (CompactSize). MUST NOT exceed 67,108,864 (64 MiB). |
+| 4      | `count`      | Maximum number of blocks requested (`uint32`, little-endian). MUST NOT exceed 65,536. |
+| 4      | `max_bytes`  | Maximum total serialized size of the delivered blocks, in bytes (`uint32`, little-endian). MUST NOT exceed 67,108,864 (64 MiB). |
 
 **Response:**
 
@@ -1431,7 +1431,7 @@ Stream type: `0x08`
 |--------|----------------|--------------------------------------------------------------|
 | 4      | `start_height` | Height of the first requested entry (`uint32`, little-endian). |
 | 32     | `final_hash`   | Hash of the block at the highest requested height, `start_height + count − 1` (see below). |
-| varies | `count`        | Maximum number of entries requested (CompactSize). MUST NOT exceed 4,000. |
+| 4      | `count`        | Maximum number of entries requested (`uint32`, little-endian). MUST NOT exceed 4,000. |
 
 **Response:**
 
@@ -1524,8 +1524,8 @@ Stream type: `0x09`
 | Size   | Field    | Description                                                        |
 |--------|----------|--------------------------------------------------------------------|
 | 32     | `hash`   | SHA-256 hash of the requested object.                              |
-| varies | `offset` | Byte offset into the object at which to start (CompactSize). MUST NOT exceed 2^48 − 1. |
-| varies | `length` | Maximum number of bytes requested (CompactSize). MUST NOT exceed 33,554,432 (32 MiB). |
+| 8      | `offset` | Byte offset into the object at which to start (`uint64`, little-endian). MUST NOT exceed 2^48 − 1. |
+| 4      | `length` | Maximum number of bytes requested (`uint32`, little-endian). MUST NOT exceed 33,554,432 (32 MiB). |
 
 **Response:**
 
@@ -2263,6 +2263,25 @@ neither the node's IP address nor which peers it communicates with — but not
 against a global adversary correlating traffic timing across the Tor network.
 The anticipated Nym mixnet transport (see [Deployment](#deployment)) is
 directed at that stronger adversary.
+
+**Length leakage.** Encryption conceals the content of application data but
+not its length: neither TLS over TCP nor QUIC pads application data by
+default, so encrypted packet sizes leak plaintext lengths. (QUIC defines
+PADDING frames [^rfc9000], but an implementation must use them explicitly.)
+The Tor transport is coarser — Tor pads relay cells to a 509-byte body —
+so leakage there is granular rather than byte-exact. To remove the
+sharpest instance of this channel, every request format in this protocol
+whose fields are position-fixed (`get-hashes`, `get-block-range`,
+`get-tree-roots`, `get-object`, and the empty `get-addr` and `get-mempool`
+requests) uses fixed-length integer encodings: every request of a given
+type has a single wire length, smaller than a Tor cell body, so its
+encrypted size reveals at most the stream type and never the field values,
+and there is no way to misimplement the encoding so that it leaks lengths
+but still interoperates. Requests that carry variable-length lists
+(`get-headers`, `get-blocks`, `get-tx`) and responses necessarily reveal
+their gross size; a node MAY additionally use QUIC PADDING frames to
+obscure those lengths, at a bandwidth cost this specification does not
+mandate.
 
 **Tor.** On a Tor transport connection the initiator is anonymous — it
 reveals no network address to the responder or to network observers — so a
