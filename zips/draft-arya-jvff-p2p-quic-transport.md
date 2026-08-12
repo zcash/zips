@@ -587,7 +587,7 @@ transport section (for QUIC, see [Stream Layer Mapping](#streamlayermapping)).
 | `0x03` | [`get-tx`](#get-tx)       | Bidirectional                 | Request transactions.                                                |
 | `0x04` | [`get-addr`](#get-addr)   | Bidirectional                 | Request peer addresses.                                              |
 | `0x05` | [`get-mempool`](#get-mempool) | Bidirectional             | Subscribe to mempool contents.                                       |
-| `0x06` | [`get-hashes`](#get-hashes) | Bidirectional               | Request best-chain block hashes and sync-cost metadata at a height stride. |
+| `0x06` | [`get-hashes`](#get-hashes) | Bidirectional               | Request best-chain block hashes and per-block sync-cost metadata. |
 | `0x07` | [`get-block-range`](#get-block-range) | Bidirectional     | Stream a contiguous range of blocks, verified against an anchor hash. |
 | `0x08` | [`get-tree-roots`](#get-tree-roots) | Bidirectional       | Request per-block note commitment tree roots for a height range.     |
 | `0x09` | [`get-object`](#get-object) | Bidirectional               | Request a range of a content-addressed synchronization artifact.     |
@@ -1250,7 +1250,6 @@ Stream type: `0x06`
 | Size   | Field          | Description                                                          |
 |--------|----------------|----------------------------------------------------------------------|
 | 4      | `start_height` | Height of the first requested block hash (`uint32`, little-endian).  |
-| 4      | `stride`       | Spacing between requested heights (`uint32`, little-endian). MUST be ≥ 1. |
 | varies | `count`        | Maximum number of block hashes requested (CompactSize).              |
 
 **Response:**
@@ -1261,36 +1260,32 @@ Stream type: `0x06`
 | varies | `entries` | `count` entries, each encoded as follows. |
 
 Entry `k`, for `k` from 0 to `count − 1`, describes the block at height
-`h_k = start_height + k × stride` of the responder's best chain, and the
-*span* of blocks at heights greater than `h_k − stride` and at most `h_k`
-(bounded below by height 0). For `stride = 1`, each entry's span is exactly
-its own block.
+`start_height + k` of the responder's best chain:
 
-| Size   | Field        | Description                                                                                        |
-|--------|--------------|----------------------------------------------------------------------------------------------------|
-| 32     | `hash`       | Hash of the block at height `h_k`.                                                                 |
-| varies | `span_size`  | The sum, over the span's blocks, of each block's serialized size in bytes (see [Serialized Blocks](#serializedblocks)) (CompactSize). |
-| varies | `span_txs`   | Total number of transactions in the span's blocks, including coinbase transactions (CompactSize).  |
-| varies | `span_notes` | Total number of note commitments added by the span's blocks: two per JoinSplit description, plus one per Sapling Output description, plus one per Orchard-protocol Action description (in the Orchard or, from NU6.3, the Ironwood pool) (CompactSize). |
+| Size   | Field   | Description                                                                                        |
+|--------|---------|----------------------------------------------------------------------------------------------------|
+| 32     | `hash`  | Hash of the block at height `start_height + k`.                                                    |
+| varies | `size`  | The block's serialized size in bytes (see [Serialized Blocks](#serializedblocks)) (CompactSize).   |
+| varies | `txs`   | Number of transactions in the block, including the coinbase transaction (CompactSize).             |
+| varies | `notes` | Number of note commitments added by the block: two per JoinSplit description, plus one per Sapling Output description, plus one per Orchard-protocol Action description (in the Orchard or, from NU6.3, the Ironwood pool) (CompactSize). |
 
-Requests the hashes of the blocks at heights `start_height + k × stride` of
-the responder's best chain, for `k` from 0 to `count − 1`. Setting `stride`
-to 1 requests consecutive blocks; a larger `stride` requests hashes at a
-regular spacing (for example, the spacing of the requester's checkpoints;
-see [^draft-sync]), with each entry's span metadata then aggregating the
-blocks between consecutive entries.
+Requests the hashes of `count` consecutive blocks of the responder's best
+chain starting at `start_height`, together with per-block sync-cost
+metadata. A requester that needs coarser granularity (for example, the
+spacing of its checkpoints; see [^draft-sync]) aggregates the per-block
+values itself.
 
-The `span_*` fields are *scheduling hints*: they let a synchronizing node
-estimate, before downloading, the download volume and the validation and
-note-commitment-tree work in each span of the chain, and so divide download
-work across peers and interleave transfer with computation to reach the tip
-fastest (see [^draft-sync]). They are deterministic functions of the span's
-blocks — for a given `hash`, every honest responder returns identical
-values. A node MUST NOT rely on them for any consensus or validity purpose.
+The `size`, `txs`, and `notes` fields are *scheduling hints*: they let a
+synchronizing node estimate, before downloading, the download volume and
+the validation and note-commitment-tree work in each range of the chain,
+and so divide download work across peers and interleave transfer with
+computation to reach the tip fastest (see [^draft-sync]). They are
+deterministic functions of the block — for a given `hash`, every honest
+responder returns identical values. A node MUST NOT rely on them for any
+consensus or validity purpose.
 
-The requested `count` MUST NOT exceed 50,000, `stride` MUST NOT be 0, and
-the greatest requested height (`start_height + (count − 1) × stride`) MUST
-NOT exceed `0xFFFFFFFF`.
+The requested `count` MUST NOT exceed 50,000, and the greatest requested
+height (`start_height + count − 1`) MUST NOT exceed `0xFFFFFFFF`.
 
 The response `count` MUST NOT exceed the requested `count`, MAY be less, and
 MAY be 0: a node omits requested heights above its chain tip, and SHOULD NOT
@@ -1306,24 +1301,24 @@ re-request the missing tail.
 Responses are not self-authenticating: a node MUST NOT rely on the returned
 hashes for any security-relevant purpose until they are verified, per the
 untrusted-inputs rule of
-[Checkpointed Synchronization](#checkpointedsynchronization). The span
+[Checkpointed Synchronization](#checkpointedsynchronization). The
 metadata, by contrast, is
-checkable after the fact: once a node has downloaded the blocks of an
-entry's span, it SHOULD verify any hints it relied upon, and SHOULD assign a
+checkable after the fact: once a node has downloaded an entry's block, it
+SHOULD verify any hints it relied upon, and SHOULD assign a
 misbehavior penalty (see [Misbehavior and Banning](#misbehaviorandbanning))
-if `span_txs` or `span_notes` do not match the downloaded blocks. Those two
-fields are determined by the block hashes alone, so a mismatch is not
+if `txs` or `notes` do not match the downloaded block. Those two
+fields are determined by the block hash alone, so a mismatch is not
 attributable to a different chain view.
 
-`span_size` is not. A block's serialized size depends on its authorizing
+`size` is not. A block's serialized size depends on its authorizing
 data — notably `scriptSig` lengths — which the txid, and hence the block
 hash, does not commit to (see [`get-block-range`](#get-block-range) and
 ZIP 244 [^zip-0244]). A node that obtained the hints from one peer and the
-blocks from another therefore MUST NOT penalize a `span_size` mismatch
+blocks from another therefore MUST NOT penalize a `size` mismatch
 unless it has verified the delivered blocks' authorizing data commitment;
 otherwise a peer that pads the blocks it serves would cause the penalty to
 fall on the honest peer that served the hints, which is an eviction
-primitive rather than a defense. A `span_size` mismatch on unverified
+primitive rather than a defense. A `size` mismatch on unverified
 blocks is instead grounds to re-fetch the blocks.
 
 ### `get-block-range`
@@ -2127,8 +2122,8 @@ The misbehavior score works as follows:
 - A node SHOULD maintain a misbehavior score for each peer. Scores SHOULD
   be keyed by network address and persist across connections for a period
   on the order of the ban duration: several penalties in this protocol are
-  detected only after a delay (span metadata is checked once the span's
-  blocks have been downloaded; tree-root entries verify one block
+  detected only after a delay (sync-cost metadata is checked once the
+  corresponding block has been downloaded; tree-root entries verify one block
   behind), so a purely per-connection score would let a peer shed its
   score — or escape a deferred penalty entirely — by reconnecting. A
   penalty detected after the offending connection has closed SHOULD be
@@ -2141,7 +2136,7 @@ The misbehavior score works as follows:
 | 20     | `get-headers` response with more than 160 headers.                                                                 |
 | 20     | Non-contiguous headers in a `get-headers` response.                                                                |
 | 20     | `get-addr` response with more than 1000 address records.                                                           |
-| 20     | `get-hashes` span metadata (`span_txs` or `span_notes`) that does not match the downloaded blocks of the span (see [`get-hashes`](#get-hashes)). |
+| 20     | `get-hashes` metadata (`txs` or `notes`) that does not match the downloaded block (see [`get-hashes`](#get-hashes)). |
 | 100    | A `get-tree-roots` entry that fails verification against authenticated header commitments (see [`get-tree-roots`](#get-tree-roots)). |
 | 100    | A block delivered by `get-block-range` whose authorizing data commitment fails verification against its header (see [`get-block-range`](#get-block-range)). |
 | 100    | A `get-object` object, delivered entirely by the peer, that fails verification against the requested content hash (see [`get-object`](#get-object)). |
