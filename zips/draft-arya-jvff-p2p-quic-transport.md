@@ -1188,6 +1188,18 @@ and assign a misbehavior penalty (see
 such responses, in place of the connection error that
 [Request Streams](#requeststreams) would otherwise prescribe.
 
+Each returned record carries the address's last-known service flags in its
+`services` field (see [Service Flags](#serviceflags) and
+[Network Address Record](#networkaddressrecord)). A responder SHOULD set
+that field to the services it last observed the address advertise in an
+`init` record, or the services the record was relayed to it with if it has
+never connected to the address. The requester MAY use the field to select
+candidate peers offering the services it needs (for example,
+`NODE_SYNC_ARTIFACTS` or `NODE_TREE_ROOTS`), but relayed service flags are
+an unauthenticated claim: the peer's actual services are established only by
+the `services` field of its own `init` record upon connecting, and a node
+MUST NOT treat an address book entry's flags as more than a selection hint.
+
 To impede address-based fingerprinting attacks, a node SHOULD send `get-addr`
 only on outbound connections, at most once per connection, and SHOULD only
 answer `get-addr` requests on inbound connections (resetting its sending
