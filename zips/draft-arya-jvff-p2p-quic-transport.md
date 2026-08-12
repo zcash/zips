@@ -1269,7 +1269,7 @@ its own block.
 | Size   | Field        | Description                                                                                        |
 |--------|--------------|----------------------------------------------------------------------------------------------------|
 | 32     | `hash`       | Hash of the block at height `h_k`.                                                                 |
-| varies | `span_size`  | The sum, over the span's blocks, of each block's *size value*: the block's serialized size (see [Serialized Blocks](#serializedblocks)) divided by 7,844 and rounded up (CompactSize; see below). |
+| varies | `span_size`  | The sum, over the span's blocks, of each block's serialized size in bytes (see [Serialized Blocks](#serializedblocks)) (CompactSize). |
 | varies | `span_txs`   | Total number of transactions in the span's blocks, including coinbase transactions (CompactSize).  |
 | varies | `span_notes` | Total number of note commitments added by the span's blocks: two per JoinSplit description, plus one per Sapling Output description, plus one per Orchard-protocol Action description (in the Orchard or, from NU6.3, the Ironwood pool) (CompactSize). |
 
@@ -1279,15 +1279,6 @@ to 1 requests consecutive blocks; a larger `stride` requests hashes at a
 regular spacing (for example, the spacing of the requester's checkpoints;
 see [^draft-sync]), with each entry's span metadata then aggregating the
 blocks between consecutive entries.
-
-The size unit 7,844 is the maximum serialized block size (2,000,000 bytes)
-divided by 255 and rounded up, so a block's size value is a 1-byte quantity
-between 1 and 255 expressing its size relative to the maximum block size,
-and `size value × 7,844` is always an upper bound on the block's size. For
-`stride = 1`, `span_size` is exactly the block's size value, and each
-metadata field typically occupies a single CompactSize byte. (A future
-consensus change to the maximum block size would redefine the unit under a
-new protocol version.)
 
 The `span_*` fields are *scheduling hints*: they let a synchronizing node
 estimate, before downloading, the download volume and the validation and
