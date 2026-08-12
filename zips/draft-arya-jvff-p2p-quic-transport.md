@@ -301,10 +301,11 @@ Self-connection detection via the handshake nonce is specified in
 The QUIC transport uses QUIC version 1 [^rfc9000] over UDP, secured with
 TLS 1.3 [^rfc8446] as specified by RFC 9001 [^rfc9001].
 
-- A node MUST NOT use 0-RTT (early data), and a responder MUST NOT enable the
-  acceptance of early data. If a peer nevertheless attempts to use 0-RTT, the
-  node MUST close the connection with the `PROTOCOL_ERROR` error code. (0-RTT
-  data is replayable by an attacker.)
+- A node MUST NOT use 0-RTT (early data). Note: a peer that attempts to use
+  0-RTT MUST have its connection closed — a responder MUST NOT enable the
+  acceptance of early data, and a node whose peer nevertheless attempts to
+  use 0-RTT MUST close the connection with the `PROTOCOL_ERROR` error code.
+  (0-RTT data is replayable by an attacker.)
 - QUIC datagrams [^rfc9221] are not used by this protocol. A node MUST ignore
   the peer's `max_datagram_frame_size` transport parameter and MUST NOT send
   DATAGRAM frames.
