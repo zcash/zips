@@ -471,7 +471,7 @@ before allocating storage for a field:
 - A node MUST close the connection immediately, without sending frames, if a
   preamble field exceeds its bound, if the preamble is not complete within the
   handshake timeout below, or if a CompactSize in the preamble is not
-  canonically encoded (see [CompactSize](#compactsize)).
+  canonically encoded (see [Data Types and Encoding](#datatypesandencoding)).
 
 The handshake timeout of
 [Connection Management](#connectionmanagement) runs from the establishment of
@@ -2240,7 +2240,7 @@ budget and may finish early, with the requester re-requesting the remainder.
 The general shape of the defense is that a responder is never obliged to
 spend unbounded bandwidth, disk reads, or memory on one cheap request, and
 that every peer-supplied count or length is checked against its bound before
-it is used to size an allocation (see [CompactSize](#compactsize)).
+it is used to size an allocation (see [Data Types and Encoding](#datatypesandencoding)).
 
 **Fingerprinting and linkability.** A persistent TLS key would allow a node
 to be recognized across connections and network locations; a node concerned
