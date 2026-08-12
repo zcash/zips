@@ -2293,6 +2293,17 @@ address book protections for `TORV3` addresses (see
 [Misbehavior and Banning](#misbehaviorandbanning) and
 [Address Book Management](#addressbookmanagement)).
 
+**Mixnets.** The two kinds of traffic most sensitive to linkage are mempool
+transaction propagation — announcing a transaction links the announcing
+node to it, and a `get-mempool` subscription reveals interest in the
+mempool's contents — and address book queries, whose `get-addr`
+request/response pattern is a fingerprinting and mapping primitive. A node
+implementer SHOULD carry both over a mixnet transport once one is
+available (the anticipated Nym transport; see [Deployment](#deployment)),
+and in the interim SHOULD carry them over the Tor transport where
+available, per the preference above. Mixnet delay and cover traffic
+address the timing correlation that onion routing alone does not.
+
 **Synchronization.** Headers-first synchronization trusts proof of work:
 forging a history requires outspending the honest chain's accumulated work
 over the forged span, which an eclipsing attacker with sufficient hash power
