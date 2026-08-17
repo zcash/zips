@@ -152,6 +152,15 @@ A node's trusted commitment binds the data its strategies rely on:
   mirrors — accepted only if their hashes match the commitment. A
   verified known-hash list makes every listed hash an anchor, and its span
   metadata gives per-height sizes and costs for scheduling.
+
+  The commitment MAY additionally bind, for each height range, the
+  SHA-256 hash of that range's *spentness-hint chunk* — the hint bits for
+  the transparent outputs created in the range (see
+  [Spentness Hints](#spentnesshints)) — obtained like any artifact and
+  verified against these hashes. Unlike entry chunks, hint chunks are
+  functions of the list's terminal height as well as of the chain, so
+  extending the commitment's coverage changes every hint-chunk hash while
+  leaving the entry-chunk hashes stable.
 - **A snapshot manifest hash**, for snapshot synchronization (see
   [Snapshot Synchronization](#snapshotsynchronization)).
 
@@ -281,9 +290,11 @@ committing historical blocks is random access: looking up and deleting each
 transparent input's spent output, and inserting (and, under full
 validation, membership-testing) each revealed nullifier. Spentness hints —
 adapted from Bitcoin's SwiftSync [^swiftsync] — eliminate the random access
-and make historical commits order-independent, at the cost of a small hint
-artifact whose wrongness can only ever cause synchronization to fail, never
-to accept invalid state.
+and make historical commits order-independent, at the cost of small hint
+chunks bound by the same commitment as the known-hash list, whose wrongness
+can only ever cause synchronization to fail, never to accept invalid state.
+Hints apply only within the reach of the trusted commitment: a node MUST
+NOT apply them above the final checkpoint.
 
 The node draws a fresh secret *salt* for each synchronization attempt and
 maintains an additive aggregate for each of the item classes described
@@ -317,11 +328,13 @@ hash": an affine hash such as keyed multiply-shift or a polynomial hash is
 linear over the accumulator group, so cancellation relations hold for
 *every* key and secrecy of the salt would provide no protection at all.
 
-**Transparent outputs.** A *spentness hint artifact* — bound by the trusted
-commitment and fetched like any other artifact — carries one bit per
-transparent output created in the synchronized span, in canonical order
+**Transparent outputs.** Each known-hash range's spentness-hint chunk (see
+[Synchronization Data](#synchronizationdata)) carries one bit per
+transparent output created in the range, in canonical order
 (by block height, then transaction index, then output index): whether the
-output is still unspent at the span's terminal height. During the span:
+output is still unspent at the *terminal height* — the highest height the
+commitment's hint chunks cover, at or below the final checkpoint. During
+the span:
 
 - An output hinted *unspent* is written to the transparent UTXO set as it
   is created — and, during the span, never looked up or deleted.
@@ -341,17 +354,17 @@ construction and verification:
 
 - When synchronizing below a snapshot (backfill), the snapshot's nullifier
   set for each pool serves as the hint: the node adds every member of the
-  snapshot set to that pool's aggregate — verifying while streaming it in
-  sorted order that its elements are strictly increasing, hence distinct —
-  and subtracts every nullifier revealed by the span's blocks. A zero
-  aggregate at the snapshot height proves the nullifiers revealed in the
-  span are exactly the snapshot set, and therefore that no nullifier was
-  revealed twice.
+  snapshot set to that pool's aggregate and subtracts every nullifier
+  revealed by the span's blocks. A zero aggregate at the snapshot height
+  proves the nullifiers revealed in the span are exactly the snapshot set.
+  No distinctness check is needed: double-reveal below the final
+  checkpoint is excluded by the trusted commitment, and the multiset
+  equality transfers the revealed nullifiers' distinctness to the
+  snapshot set.
 - Without a snapshot, the node accumulates revealed nullifiers per pool
   and constructs each set in one batch (for example, by external sort) at
-  the terminal height, checking distinctness in the same pass; per-spend
-  membership tests below the final checkpoint are vouched for by the
-  trusted commitment.
+  the terminal height; per-spend membership tests below the final
+  checkpoint are vouched for by the trusted commitment.
 
 **Value pools.** No lookups are needed for value tracking either: shielded
 pool balances are sums of the blocks' value balance fields, which commute,
@@ -383,10 +396,10 @@ validated advancement rule:
   full validation.
 - **Coinbase maturity and the pre-NU5 shielded-coinbase rule**, which
   depend on the creation height and coinbase status of the *spent* output
-  — exactly the lookup that hints remove. A hint artifact that is used
-  above the reach of a trusted commitment MUST therefore carry, per output
-  hinted spent, the output's creation height and whether it was a coinbase
-  output, so that the check remains local to the spending block.
+  — exactly the lookup that hints remove. This is why hints are confined
+  to the reach of the trusted commitment, where these per-spend checks
+  are vouched for; above the final checkpoint, blocks are committed in
+  height order with the lookups performed.
 
 A nonzero aggregate at the terminal height means the hints, the snapshot
 sets, or the delivered blocks were wrong; the node discards the affected
@@ -410,7 +423,9 @@ A node with no chain state MAY become operational at a *snapshot height*
 3. **Verify the state against the chain where possible.** The snapshot
    contains, at minimum: the transparent UTXO set; the Sprout, Sapling,
    Orchard, and Ironwood nullifier sets; the note commitment tree frontiers
-   of each pool; the chain history tree; and the chain value pool balances.
+   of each pool; the chain history tree; and the shielded chain value pool
+   balances. (The transparent pool balance is not carried: it is the sum
+   of the UTXO set's amounts, computed locally.)
    The parts that the chain commits to — the Sapling, Orchard, and Ironwood
    frontiers (via their header-committed roots) and the chain history tree
    (via `hashBlockCommitments` of the following block, ZIP 221 [^zip-0221])
@@ -421,7 +436,7 @@ A node with no chain state MAY become operational at a *snapshot height*
    commitment that stops at `H` leaves the chain history tree unverified,
    and the node MUST treat it as an uncommitted component. The parts the
    chain does not commit to (the transparent UTXO set, the nullifier sets,
-   the Sprout tree, and the chain value pool balances) are authenticated
+   the Sprout tree, and the shielded pool balances) are authenticated
    solely by the manifest commitment, which therefore carries the same
    trust as the node's binary — the trust model of the checkpoints
    themselves.
@@ -457,10 +472,11 @@ A node with no chain state MAY become operational at a *snapshot height*
      recomputing it from the JoinSplit note commitments of the replayed
      blocks and comparing the resulting root and frontier. Sprout is a
      closed pool of bounded size, so this is inexpensive.
-   - **The chain value pool balances**, by recomputing them over the
-     replayed span (with checked arithmetic, see
+   - **The shielded chain value pool balances**, by recomputing them over
+     the replayed span (with checked arithmetic, see
      [Spentness Hints](#spentnesshints)) and comparing them to the
-     snapshot's.
+     snapshot's. The transparent pool balance needs no separate check: it
+     is implied by the whole-entry comparison of the UTXO set.
 
    When all four check out, the snapshot's uncommitted components have been
    verified against the chain and the node's trust base is that of a fully
