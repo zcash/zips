@@ -587,7 +587,7 @@ operators of full nodes are encouraged to retain `NODE_NETWORK` and
 `NODE_SYNC_ARTIFACTS`, and artifacts remain regenerable by any backfilled
 node and servable from out-of-band mirrors.
 
-**Fingerprinting.** The heights, strides, and units a node requests reveal
+**Fingerprinting.** The heights, ranges, and units a node requests reveal
 its implementation, configuration, and synchronization progress. This is
 comparable to the fingerprinting surface of headers-first synchronization
 and of the `user_agent` field, and carries the same mitigation: nodes
