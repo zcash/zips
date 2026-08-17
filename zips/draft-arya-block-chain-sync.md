@@ -162,7 +162,9 @@ A node's trusted commitment binds the data its strategies rely on:
   than one per range — because they are a function of the final
   checkpoint height as well as of the chain: extending the commitment's
   coverage would change every per-range hint hash anyway, while the
-  entry-chunk hashes stay stable.
+  entry-chunk hashes stay stable. A commitment from an older release
+  simply covers a lower final checkpoint: its hints remain valid for that
+  shorter span, and the node synchronizes above it normally.
 - **A snapshot manifest hash**, for snapshot synchronization (see
   [Snapshot Synchronization](#snapshotsynchronization)).
 
@@ -285,6 +287,20 @@ No additional trust is involved: every adopted root is authenticated by a
 header that is itself authenticated by the trusted commitment, and a root
 that no header authenticates is never adopted.
 
+**Frontier artifacts.** Adopting verified roots leaves the node without
+the tree *frontiers* it needs to resume appending note commitments where
+full validation begins. The trusted commitment MAY bind the hash of a
+*frontier artifact* — the serialized Sapling, Orchard, and Ironwood
+frontiers at the final checkpoint — obtained like any artifact. A
+frontier whose recomputed root matches the root verified for that height
+by the procedure above is adopted, so the binding itself carries no
+trust: a wrong frontier fails the root comparison and the node falls
+back to rebuilding that pool's tree from the span's note commitments.
+The Ironwood frontier cannot be verified this way (no header
+authenticates an Ironwood root); it is authenticated only by the
+commitment's hash, or rebuilt from the pool's note commitments — a
+bounded cost, since the pool postdates NU6.3 activation.
+
 ### Spentness Hints
 
 After tree work is eliminated, the dominant remaining state cost of
@@ -310,10 +326,9 @@ They are therefore specified rather than left to the implementation:
   be transmitted, logged, or derived from any peer-supplied or otherwise
   predictable value, and MUST NOT be reused across attempts.
 - Each item's hash is `H_a(item) = BLAKE2b-256(item)` computed with the
-  salt as the BLAKE2b *key* and a per-aggregate 16-byte personalization
-  string `a` (for example `b"ZcashHintTrans\x00\x00"` for the transparent
-  aggregate and `b"ZcashHintNfSapl\x00"` and the corresponding names for each
-  nullifier pool). Keying — rather than prefixing the salt to the message
+  salt as the BLAKE2b *key* and the aggregate's 16-byte personalization
+  string `a`, as listed in the table below the next item.
+  Keying — rather than prefixing the salt to the message
   — makes the construction a pseudorandom function and is not subject to
   length extension, and the personalization domain-separates the
   aggregates so that a cancellation in one cannot be transplanted into
@@ -325,6 +340,16 @@ They are therefore specified rather than left to the implementation:
   around 2^-32 per attempt, which is not a sufficient margin for a check
   whose failure is a silent retry rather than a ban.
 
+The aggregates, their items, and their personalization strings are:
+
+| Aggregate             | Item                                                                 | Personalization             |
+|-----------------------|----------------------------------------------------------------------|-----------------------------|
+| Transparent outpoints | The 36-byte outpoint (txid, then output index), as serialized in transaction inputs | `b"ZcashHintTrans\x00\x00"` |
+| Sprout nullifiers     | The 32-byte nullifier                                                | `b"ZcashHintNfSprt\x00"`    |
+| Sapling nullifiers    | The 32-byte nullifier                                                | `b"ZcashHintNfSapl\x00"`    |
+| Orchard nullifiers    | The 32-byte nullifier                                                | `b"ZcashHintNfOrch\x00"`    |
+| Ironwood nullifiers   | The 32-byte nullifier                                                | `b"ZcashHintNfIron\x00"`    |
+
 A pseudorandom function of a secret key is required, not merely "some
 hash": an affine hash such as keyed multiply-shift or a polynomial hash is
 linear over the accumulator group, so cancellation relations hold for
@@ -335,7 +360,10 @@ linear over the accumulator group, so cancellation relations hold for
 transparent output created at or below the *terminal height* — the final
 checkpoint — in canonical order (by block height, then transaction index,
 then output index): whether the output is still unspent at that height.
-During the span:
+The `txouts` metadata of the verified entry chunks gives each height's bit
+count, so a node can check the bitmap's length before downloading any
+block bodies, and a work unit anywhere in the span can locate its first
+bit without processing the blocks below it. During the span:
 
 - An output hinted *unspent* is written to the transparent UTXO set as it
   is created — and, during the span, never looked up or deleted.
@@ -362,10 +390,11 @@ construction and verification:
   checkpoint is excluded by the trusted commitment, and the multiset
   equality transfers the revealed nullifiers' distinctness to the
   snapshot set.
-- Without a snapshot, the node accumulates revealed nullifiers per pool
-  and constructs each set in one batch (for example, by external sort) at
-  the terminal height; per-spend membership tests below the final
-  checkpoint are vouched for by the trusted commitment.
+- Without a snapshot, there is no nullifier aggregate at all: revealed
+  nullifiers are simply inserted as they are encountered — insertion is
+  sequential-write work, not the random reads the hints exist to remove —
+  and per-spend membership tests below the final checkpoint are vouched
+  for by the trusted commitment.
 
 **Value pools.** No lookups are needed for value tracking either: shielded
 pool balances are sums of the blocks' value balance fields, which commute,
@@ -402,9 +431,15 @@ validated advancement rule:
   are vouched for; above the final checkpoint, blocks are committed in
   height order with the lookups performed.
 
-A nonzero aggregate at the terminal height means the hints, the snapshot
-sets, or the delivered blocks were wrong; the node discards the affected
-state and falls back to checkpointed synchronization without hints. As with
+A node SHOULD obtain and verify the hint bitmap — its hash against the
+commitment, and its bit count against the span's transparent output
+total, summed from the verified entry chunks' `txouts` metadata — before
+processing any block bodies with hints, so that an unavailable or
+malformed bitmap costs nothing but its fetch. A nonzero aggregate at the
+terminal height means the hints, the snapshot sets, or the delivered
+blocks were wrong; the node keeps its verified known-hash list and any
+verified header chain, discards only the state derived from hinted
+processing, and re-downloads and commits the span without hints. As with
 all synchronization data in this ZIP, wrong hints produce failure, not
 fraud.
 
@@ -621,10 +656,13 @@ request streams, service flags, and synchronization rules used here. No
 version gating is required beyond the v2 protocol's own deployment: each
 primitive is refused by nodes that do not serve it, and every strategy
 degrades gracefully (see [Strategy Selection](#strategyselection)).
-Implementations SHOULD bundle current chunk artifacts and snapshot
-manifests with releases while serving peers are scarce; the same
-content-addressed artifacts MAY be served by out-of-band HTTPS mirrors
-interchangeably with `get-object` peers.
+Distribution can be purely in-band: the known-hash list is reassembled
+via `get-hashes`, and hint, frontier, and snapshot artifacts are served
+by `NODE_SYNC_ARTIFACTS` peers via `get-object` — which requires that
+seeders and any configured initial peers include such nodes.
+Implementations MAY additionally bundle current artifacts with releases,
+or serve them from out-of-band HTTPS mirrors interchangeably with
+`get-object` peers.
 
 
 # References
