@@ -424,9 +424,9 @@ A node with no chain state MAY become operational at a *snapshot height*
 3. **Verify the state against the chain where possible.** The snapshot
    contains, at minimum: the transparent UTXO set; the Sprout, Sapling,
    Orchard, and Ironwood nullifier sets; the note commitment tree frontiers
-   of each pool; the chain history tree; and the shielded chain value pool
-   balances. (The transparent pool balance is not carried: it is the sum
-   of the UTXO set's amounts, computed locally.)
+   of each pool; the chain history tree; and the chain value pool
+   balances, which the node needs as the starting point for the
+   pool-balance consensus rules above `H`.
    The parts that the chain commits to — the Sapling, Orchard, and Ironwood
    frontiers (via their header-committed roots) and the chain history tree
    (via `hashBlockCommitments` of the following block, ZIP 221 [^zip-0221])
@@ -437,7 +437,7 @@ A node with no chain state MAY become operational at a *snapshot height*
    commitment that stops at `H` leaves the chain history tree unverified,
    and the node MUST treat it as an uncommitted component. The parts the
    chain does not commit to (the transparent UTXO set, the nullifier sets,
-   the Sprout tree, and the shielded pool balances) are authenticated
+   the Sprout tree, and the chain value pool balances) are authenticated
    solely by the manifest commitment, which therefore carries the same
    trust as the node's binary — the trust model of the checkpoints
    themselves.
@@ -473,11 +473,10 @@ A node with no chain state MAY become operational at a *snapshot height*
      recomputing it from the JoinSplit note commitments of the replayed
      blocks and comparing the resulting root and frontier. Sprout is a
      closed pool of bounded size, so this is inexpensive.
-   - **The shielded chain value pool balances**, by recomputing them over
-     the replayed span (with checked arithmetic, see
+   - **The chain value pool balances**, by recomputing them over the
+     replayed span (with checked arithmetic, see
      [Spentness Hints](#spentnesshints)) and comparing them to the
-     snapshot's. The transparent pool balance needs no separate check: it
-     is implied by the whole-entry comparison of the UTXO set.
+     snapshot's.
 
    When all four check out, the snapshot's uncommitted components have been
    verified against the chain and the node's trust base is that of a fully
