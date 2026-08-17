@@ -309,51 +309,13 @@ transparent input's spent output, and inserting (and, under full
 validation, membership-testing) each revealed nullifier. Spentness hints —
 adapted from Bitcoin's SwiftSync [^swiftsync] — eliminate the random access
 and make historical commits order-independent, at the cost of a small hint
-bitmap bound by the trusted commitment, whose wrongness
-can only ever cause synchronization to fail, never to accept invalid state.
+bitmap bound by the trusted commitment, which vouches for its correctness
+exactly as it vouches for the known block hashes: the bitmap is a
+deterministic function of the chain, regenerable and auditable by any
+synchronized node, and its pinned hash is updated by each release that
+updates the checkpoints.
 Hints apply only within the reach of the trusted commitment: a node MUST
 NOT apply them above the final checkpoint.
-
-The node draws a fresh secret *salt* for each synchronization attempt and
-maintains an additive aggregate for each of the item classes described
-below. The aggregate is a sum of keyed hashes, and its parameters are
-security-critical: the guarantee that a wrong hint can only cause failure
-rests on an attacker being unable to construct items whose hashes cancel.
-They are therefore specified rather than left to the implementation:
-
-- The **salt** is 32 bytes drawn from a cryptographically secure random
-  number generator, freshly for each synchronization attempt. It MUST NOT
-  be transmitted, logged, or derived from any peer-supplied or otherwise
-  predictable value, and MUST NOT be reused across attempts.
-- Each item's hash is `H_a(item) = BLAKE2b-256(item)` computed with the
-  salt as the BLAKE2b *key* and the aggregate's 16-byte personalization
-  string `a`, as listed in the table below the next item.
-  Keying — rather than prefixing the salt to the message
-  — makes the construction a pseudorandom function and is not subject to
-  length extension, and the personalization domain-separates the
-  aggregates so that a cancellation in one cannot be transplanted into
-  another.
-- The aggregate is the sum of those hashes, interpreted as 256-bit
-  little-endian unsigned integers, **modulo 2^256**. The wide accumulator
-  is what makes an accidental or forged cancellation negligible; a
-  32-bit accumulator would admit a false zero with probability
-  around 2^-32 per attempt, which is not a sufficient margin for a check
-  whose failure is a silent retry rather than a ban.
-
-The aggregates, their items, and their personalization strings are:
-
-| Aggregate             | Item                                                                 | Personalization             |
-|-----------------------|----------------------------------------------------------------------|-----------------------------|
-| Transparent outpoints | The 36-byte outpoint (txid, then output index), as serialized in transaction inputs | `b"ZcashHintTrans\x00\x00"` |
-| Sprout nullifiers     | The 32-byte nullifier                                                | `b"ZcashHintNfSprt\x00"`    |
-| Sapling nullifiers    | The 32-byte nullifier                                                | `b"ZcashHintNfSapl\x00"`    |
-| Orchard nullifiers    | The 32-byte nullifier                                                | `b"ZcashHintNfOrch\x00"`    |
-| Ironwood nullifiers   | The 32-byte nullifier                                                | `b"ZcashHintNfIron\x00"`    |
-
-A pseudorandom function of a secret key is required, not merely "some
-hash": an affine hash such as keyed multiply-shift or a polynomial hash is
-linear over the accumulator group, so cancellation relations hold for
-*every* key and secrecy of the salt would provide no protection at all.
 
 **Transparent outputs.** The spentness hints (see
 [Synchronization Data](#synchronizationdata)) carry one bit per
@@ -367,46 +329,31 @@ bit without processing the blocks below it. During the span:
 
 - An output hinted *unspent* is written to the transparent UTXO set as it
   is created — and, during the span, never looked up or deleted.
-- An output hinted *spent* is never stored; its outpoint is added to the
-  transparent aggregate.
-- Every transparent input subtracts its referenced outpoint from the
-  transparent aggregate. No lookup is performed.
+- An output hinted *spent* is never stored.
+- Transparent inputs perform no lookup at all.
 
-At the terminal height, the transparent aggregate MUST be exactly zero:
-the multiset of outputs hinted spent then equals the multiset of outputs
-actually spent, so the constructed UTXO set is exactly the set of
-never-spent outputs, without a single random read.
+The constructed UTXO set is then exactly the set of outputs unspent at
+the terminal height, without a single random read: every output hinted
+spent is one the committed chain spends within the span, on the
+authority of the commitment.
 
-**Nullifiers.** The nullifier sets never shrink, so no per-item hint is
-needed; what the hint mechanism provides instead is lookup-free
-construction and verification:
-
-- When synchronizing below a snapshot (backfill), the snapshot's nullifier
-  set for each pool serves as the hint: the node adds every member of the
-  snapshot set to that pool's aggregate and subtracts every nullifier
-  revealed by the span's blocks. A zero aggregate at the snapshot height
-  proves the nullifiers revealed in the span are exactly the snapshot set.
-  No distinctness check is needed: double-reveal below the final
-  checkpoint is excluded by the trusted commitment, and the multiset
-  equality transfers the revealed nullifiers' distinctness to the
-  snapshot set.
-- Without a snapshot, there is no nullifier aggregate at all: revealed
-  nullifiers are simply inserted as they are encountered — insertion is
-  sequential-write work, not the random reads the hints exist to remove —
-  and per-spend membership tests below the final checkpoint are vouched
-  for by the trusted commitment.
+**Nullifiers.** The nullifier sets never shrink, so no hint is needed at
+all: revealed nullifiers are simply inserted as they are encountered —
+insertion is sequential-write work, not the random reads the hints exist
+to remove — and per-spend membership tests below the final checkpoint
+are vouched for by the trusted commitment. When backfilling below a
+snapshot, the reconstructed sets are compared with the snapshot's at `H`
+(see [Snapshot Synchronization](#snapshotsynchronization)).
 
 **Value pools.** No lookups are needed for value tracking either: shielded
 pool balances are sums of the blocks' value balance fields, which commute,
 and the transparent pool balance at the terminal height is the sum of the
-constructed UTXO set's amounts. These are consensus quantities, not
-aggregates: they MUST be accumulated with checked arithmetic that detects
-overflow, and a node MUST NOT reuse the deliberately modular arithmetic of
-the hint aggregates for them.
+constructed UTXO set's amounts. These are consensus quantities: they MUST
+be accumulated with checked arithmetic that detects overflow.
 
 **What order-independence does and does not cover.** The state construction
 above reads no state written by an earlier block, so the *construction* —
-the UTXO set, the nullifier sets, the aggregates, and the value pool
+the UTXO set, the nullifier sets, and the value pool
 totals — is order-independent, and blocks and ranges MAY be verified and
 committed in any order within the span. The per-input reads and per-output
 deletes disappear entirely.
@@ -435,13 +382,12 @@ A node SHOULD obtain and verify the hint bitmap — its hash against the
 commitment, and its bit count against the span's transparent output
 total, summed from the verified entry chunks' `txouts` metadata — before
 processing any block bodies with hints, so that an unavailable or
-malformed bitmap costs nothing but its fetch. A nonzero aggregate at the
-terminal height means the hints, the snapshot sets, or the delivered
-blocks were wrong; the node keeps its verified known-hash list and any
-verified header chain, discards only the state derived from hinted
-processing, and re-downloads and commits the span without hints. As with
-all synchronization data in this ZIP, wrong hints produce failure, not
-fraud.
+malformed bitmap costs nothing but its fetch; a bitmap that fails either
+check is discarded and the span is synchronized without hints. A
+published bitmap that is wrong despite matching its pinned hash is a
+defect of the commitment itself, exactly as a wrong checkpoint hash would
+be; because the bitmap is deterministic, publishers and third parties can
+regenerate and cross-check it, and release processes SHOULD do so.
 
 ### Snapshot Synchronization
 
@@ -483,27 +429,25 @@ A node with no chain state MAY become operational at a *snapshot height*
    node that lacks the complete chain [^draft-p2p-v2].
 5. **Backfill in the background.** The node SHOULD backfill the history
    below `H` using checkpointed synchronization, at low priority, and
-   advertise `NODE_NETWORK` when complete. Backfill SHOULD use the
-   snapshot's own sets as spentness hints (see
-   [Spentness Hints](#spentnesshints)), which reconciles the snapshot's
-   uncommitted components against the chain the node has just replayed.
+   advertise `NODE_NETWORK` when complete. On completion, backfill
+   reconciles the snapshot's uncommitted components against the chain the
+   node has just replayed. (The hint bitmap's bits are relative to the
+   final checkpoint rather than `H`, so backfill below a snapshot
+   proceeds without transparent hints; as background work, it is not on
+   the critical path that hints exist to shorten.)
 
    The reconciliation discharges the snapshot's trust only to the extent
    that each component is actually compared, so each MUST be covered
-   explicitly. A comparison over outpoints alone is **not** sufficient: a
-   snapshot entry that no span output ever created contributes no term to
-   the spend-cancellation aggregate, so a fabricated or amount-inflated
-   UTXO would pass unnoticed. Backfill therefore verifies, at `H`:
+   explicitly, and over complete entries: a comparison over outpoints
+   alone would let a fabricated or amount-inflated UTXO entry pass
+   unnoticed. Backfill therefore verifies, at `H`:
 
-   - **The transparent UTXO set**, by an aggregate over whole entries
-     rather than outpoints. The node adds `H_a` of each entry it
-     constructs — the outpoint, the value, the `scriptPubKey`, the
-     creation height, and the coinbase flag, in a canonical encoding —
-     and subtracts `H_a` of each entry of the snapshot's set as it
-     streams it in. Neither side performs a lookup. A zero aggregate
-     proves the two sets are equal as sets of complete entries, so a
+   - **The transparent UTXO set**, compared as complete entries — the
+     outpoint, the value, the `scriptPubKey`, the creation height, and
+     the coinbase flag, in a canonical encoding — between the set the
+     replay constructs and the set the snapshot supplied, so that a
      phantom outpoint, an inflated value, or an altered script is caught.
-   - **The nullifier sets**, by the aggregates already described.
+   - **The nullifier sets**, by the same whole-value comparison per pool.
    - **The Sprout note commitment tree**, which no header commits to, by
      recomputing it from the JoinSplit note commitments of the replayed
      blocks and comparing the resulting root and frontier. Sprout is a
@@ -617,22 +561,24 @@ fallback — affects performance, not the integrity of the resulting chain.
 The trust base is unchanged by acceleration: every accelerating input is
 either authenticated against the chain or bound by the trusted commitment,
 and the only data trusted without chain verification
-(the snapshot's uncommitted state components) carries exactly the trust of
-the binary that shipped the commitment, as the checkpoints already do —
-and that trust is discharged, for each component the reconciliation of
+(the spentness hints and the snapshot's uncommitted state components)
+carries exactly the trust of
+the binary that shipped the commitment, as the checkpoints already do.
+The snapshot components' trust is discharged, for each component the
+reconciliation of
 [Snapshot Synchronization](#snapshotsynchronization) step 5 actually
-compares, when hint-verified backfill completes (see
-[Spentness Hints](#spentnesshints)). A node that never backfills never
-discharges it. Malicious synchronization data produces failure, not
+compares, when backfill completes; a node that never backfills never
+discharges it. The spentness hints stand or fall with the commitment
+itself, exactly as the checkpoint hashes do, and are auditable in the
+same way: the bitmap is a deterministic function of the chain that any
+synchronized node can regenerate and cross-check. Malicious
+synchronization data from peers produces failure, not
 fraud: every verification failure is detected and routed around, and is
 attributed and penalized where blame is provable under the v2 protocol's
-misbehavior rules. (Two failures are deliberately *not* attributed: a
-nonzero hint aggregate, which implicates the hints, the snapshot sets,
-or the blocks without distinguishing them, and an assembled artifact
+misbehavior rules. (One failure is deliberately *not* attributed: an
+assembled artifact
 piece whose ranges came from several peers — see
-[Download Scheduling](#downloadscheduling).) Spentness hints in
-particular cannot cause acceptance of an incorrect state — a wrong hint
-surfaces as a nonzero aggregate.
+[Download Scheduling](#downloadscheduling).)
 
 **Serving capacity.** Snapshot-synchronized and pruned nodes cannot serve
 deep history; if they became the majority, historical blocks and artifacts
