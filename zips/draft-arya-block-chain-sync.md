@@ -22,7 +22,7 @@ section 3.3 of the Zcash Protocol Specification. [^protocol-blockchain]
 
 The term "v2 protocol" in this document refers to the version 2 Zcash P2P
 network protocol [^draft-p2p-v2]. The terms "peer" and "request stream", the
-`get-headers`, `get-blocks`, `get-tx`, `get-hashes`, `get-block-range`,
+`get-headers`, `get-blocks`, `get-hashes`, `get-block-range`,
 `get-tree-roots`, and `get-object` request stream types, the service flags,
 and the synchronization rules of that protocol, are to be interpreted as
 defined there.
@@ -190,8 +190,8 @@ known-hash list as follows:
    protocol's `get-block-range` delivery rules [^draft-p2p-v2] and — as a
    cross-check — matched against the known-hash list at its height. A
    truncated or cancelled unit keeps its verified prefix, and the
-   remainder is re-requested from any peer per the v2 protocol's
-   resumption rule.
+   remainder is re-requested from any peer, anchored at the next expected
+   hash, as the v2 protocol's `get-block-range` truncation rules provide.
 
 4. **Commit** each completed range in height order, applying whatever
    abbreviated validation local policy permits for
@@ -223,8 +223,8 @@ against header commitments:
    authenticated. Which check applies depends on what the block's header
    commits to at that height, which changes at Heartwood — *not* at NU5:
 
-   - **Between Sapling activation and Heartwood activation**, the header
-     field at offset 4 (`hashFinalSaplingRoot`) is the block's Sapling note
+   - **Between Sapling activation and Heartwood activation**, the fourth
+     header field (`hashFinalSaplingRoot`) is the block's Sapling note
      commitment tree root. Each supplied Sapling root is checked directly
      against it.
    - **From Heartwood activation**, ZIP 221 [^zip-0221] repurposes that
@@ -296,7 +296,7 @@ They are therefore specified rather than left to the implementation:
 - Each item's hash is `H_a(item) = BLAKE2b-256(item)` computed with the
   salt as the BLAKE2b *key* and a per-aggregate 16-byte personalization
   string `a` (for example `b"ZcashHintTrans\x00\x00"` for the transparent
-  aggregate and `b"ZcashHintNfSapl"` and the corresponding names for each
+  aggregate and `b"ZcashHintNfSapl\x00"` and the corresponding names for each
   nullifier pool). Keying — rather than prefixing the salt to the message
   — makes the construction a pseudorandom function and is not subject to
   length extension, and the personalization domain-separates the
@@ -305,7 +305,7 @@ They are therefore specified rather than left to the implementation:
 - The aggregate is the sum of those hashes, interpreted as 256-bit
   little-endian unsigned integers, **modulo 2^256**. The wide accumulator
   is what makes an accidental or forged cancellation negligible; a
-  machine-word accumulator would admit a false zero with probability
+  32-bit accumulator would admit a false zero with probability
   around 2^-32 per attempt, which is not a sufficient margin for a check
   whose failure is a silent retry rather than a ban.
 
