@@ -123,12 +123,13 @@ removing them is worth:
    installs a verified state snapshot at a recent height and is operational
    in minutes, backfilling history in the background if it chooses.
 
-Checkpoints themselves also motivate the artifact machinery. The Zebra
+Checkpoints themselves also motivate this machinery. The Zebra
 implementation compiles in known-hash lists covering every block — over 100
 MB of hashes that grow with the chain — because the legacy protocol offered
-no way to fetch and verify them. Under this ZIP, a binary need only pin the
-SHA-256 hashes of the chunk artifacts (a few kilobytes); the artifacts
-themselves are obtained and verified as specified in
+no way to fetch and verify them. Under this ZIP, a binary compiles in only
+the expected hashes of the list itself, chunked by height range (a few
+kilobytes); the full known-hash list is then obtained verifiably from the
+P2P network with `get-hashes`, as specified in
 [Synchronization Data](#synchronizationdata).
 
 
@@ -141,12 +142,14 @@ strategy below and are not restated here.
 
 A node's trusted commitment binds the data its strategies rely on:
 
-- **Known-hash lists**, as the pinned SHA-256 hashes of chunk artifacts.
-  A node obtains the artifacts from any source — bundled with its release,
+- **Known-hash lists**, as pinned SHA-256 hashes of the list's *chunks*:
+  each chunk is the canonical serialization of the `get-hashes` entries
+  for a fixed height range. A node obtains the entries from its peers with
+  `get-hashes` and verifies them by reassembling each chunk and comparing
+  its hash against the commitment. The same bytes MAY instead be obtained
+  as chunk artifacts from any source — bundled with the release,
   `get-object` requests to `NODE_SYNC_ARTIFACTS` peers, or out-of-band
-  mirrors — and accepts them only if their hashes match the commitment.
-  Equivalently, a node MAY obtain the same data via `get-hashes` and verify
-  it by reassembling the chunk artifacts and comparing their hashes. A
+  mirrors — accepted only if their hashes match the commitment. A
   verified known-hash list makes every listed hash an anchor, and its span
   metadata gives per-height sizes and costs for scheduling.
 - **A snapshot manifest hash**, for snapshot synchronization (see
