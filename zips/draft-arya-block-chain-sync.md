@@ -153,14 +153,16 @@ A node's trusted commitment binds the data its strategies rely on:
   verified known-hash list makes every listed hash an anchor, and its span
   metadata gives per-height sizes and costs for scheduling.
 
-  The commitment MAY additionally bind, for each height range, the
-  SHA-256 hash of that range's *spentness-hint chunk* — the hint bits for
-  the transparent outputs created in the range (see
-  [Spentness Hints](#spentnesshints)) — obtained like any artifact and
-  verified against these hashes. Unlike entry chunks, hint chunks are
-  functions of the list's terminal height as well as of the chain, so
-  extending the commitment's coverage changes every hint-chunk hash while
-  leaving the entry-chunk hashes stable.
+  The commitment MAY additionally bind a single SHA-256 hash of the
+  *spentness hints*: the hint bits for every transparent output created
+  at or below the final checkpoint (see
+  [Spentness Hints](#spentnesshints)), serialized in canonical order,
+  obtained like any artifact and verified whole against this hash. The
+  hints are committed separately from the entry chunks — one hash rather
+  than one per range — because they are a function of the final
+  checkpoint height as well as of the chain: extending the commitment's
+  coverage would change every per-range hint hash anyway, while the
+  entry-chunk hashes stay stable.
 - **A snapshot manifest hash**, for snapshot synchronization (see
   [Snapshot Synchronization](#snapshotsynchronization)).
 
@@ -290,8 +292,8 @@ committing historical blocks is random access: looking up and deleting each
 transparent input's spent output, and inserting (and, under full
 validation, membership-testing) each revealed nullifier. Spentness hints —
 adapted from Bitcoin's SwiftSync [^swiftsync] — eliminate the random access
-and make historical commits order-independent, at the cost of small hint
-chunks bound by the same commitment as the known-hash list, whose wrongness
+and make historical commits order-independent, at the cost of a small hint
+bitmap bound by the trusted commitment, whose wrongness
 can only ever cause synchronization to fail, never to accept invalid state.
 Hints apply only within the reach of the trusted commitment: a node MUST
 NOT apply them above the final checkpoint.
@@ -328,13 +330,12 @@ hash": an affine hash such as keyed multiply-shift or a polynomial hash is
 linear over the accumulator group, so cancellation relations hold for
 *every* key and secrecy of the salt would provide no protection at all.
 
-**Transparent outputs.** Each known-hash range's spentness-hint chunk (see
-[Synchronization Data](#synchronizationdata)) carries one bit per
-transparent output created in the range, in canonical order
-(by block height, then transaction index, then output index): whether the
-output is still unspent at the *terminal height* — the highest height the
-commitment's hint chunks cover, at or below the final checkpoint. During
-the span:
+**Transparent outputs.** The spentness hints (see
+[Synchronization Data](#synchronizationdata)) carry one bit per
+transparent output created at or below the *terminal height* — the final
+checkpoint — in canonical order (by block height, then transaction index,
+then output index): whether the output is still unspent at that height.
+During the span:
 
 - An output hinted *unspent* is written to the transparent UTXO set as it
   is created — and, during the span, never looked up or deleted.
