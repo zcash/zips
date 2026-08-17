@@ -1279,6 +1279,7 @@ Entry `k`, for `k` from 0 to `count − 1`, describes the block at height
 | 32     | `hash`  | Hash of the block at height `start_height + k`.                                                    |
 | varies | `size`  | The block's serialized size in bytes (see [Serialized Blocks](#serializedblocks)) (CompactSize).   |
 | varies | `txs`   | Number of transactions in the block, including the coinbase transaction (CompactSize).             |
+| varies | `txouts` | Number of transparent outputs created by the block's transactions, including coinbase outputs (CompactSize). |
 | varies | `notes` | Number of note commitments added by the block: two per JoinSplit description, plus one per Sapling Output description, plus one per Orchard-protocol Action description (in the Orchard or, from NU6.3, the Ironwood pool) (CompactSize). |
 
 Requests the hashes of `count` consecutive blocks of the responder's best
@@ -1287,11 +1288,14 @@ metadata. A requester that needs coarser granularity (for example, the
 spacing of its checkpoints; see [^draft-sync]) aggregates the per-block
 values itself.
 
-The `size`, `txs`, and `notes` fields are *scheduling hints*: they let a
+The `size`, `txs`, `txouts`, and `notes` fields are *scheduling hints*:
+they let a
 synchronizing node estimate, before downloading, the download volume and
 the validation and note-commitment-tree work in each range of the chain,
 and so divide download work across peers and interleave transfer with
-computation to reach the tip fastest (see [^draft-sync]). They are
+computation to reach the tip fastest (see [^draft-sync]). Cumulative
+`txouts` values additionally locate each block's bits within the
+spentness-hint bitmap of [^draft-sync]. They are
 deterministic functions of the block — for a given `hash`, every honest
 responder returns identical values. A node MUST NOT rely on them for any
 consensus or validity purpose.
