@@ -680,12 +680,12 @@ sequence of records for one announcement topic.
 
 ### Records
 
-Each record on an announcement or handshake stream is encoded as a CompactSize
-length prefix followed by that many bytes of payload:
+Each record on an announcement or handshake stream is encoded as a fixed-size
+4-byte length prefix followed by that many bytes of payload:
 
 | Size   | Field     | Description                                        |
 |--------|-----------|----------------------------------------------------|
-| varies | `length`  | Payload length in bytes (CompactSize).             |
+| 4      | `length`  | Payload length in bytes (`uint32`, little-endian). |
 | varies | `payload` | Record payload; format depends on the stream type. |
 
 The maximum length of a record payload — and of any individually
@@ -1213,20 +1213,18 @@ Stream type: `0x05`
 byte).
 
 **Response:** Open-ended. The response is a sequence of records (see
-[Records](#records)), each with the following payload:
-
-| Size   | Field    | Description                                                                                              |
-|--------|----------|----------------------------------------------------------------------------------------------------------|
-| varies | `count`  | Number of transaction references (CompactSize).                                                          |
-| varies | `txrefs` | `count` transaction references (see [Transaction References](#transactionreferences)). `SHORTID` references MUST NOT be used. |
+[Records](#records)), each a single transaction reference (see
+[Transaction References](#transactionreferences)) of type `TXID` or `WTXID`;
+each field of a reference is fixed in size for its type. `SHORTID` references
+MUST NOT be used.
 
 Subscribes to the contents of the peer's transaction memory pool. The
-responder first sends one or more records that together reference every
-transaction currently in its mempool (the snapshot; a single record with
-`count = 0` is valid and indicates an empty mempool). It then keeps its
-sending direction open, and sends further records referencing transactions as
-they are accepted into its mempool, until the stream or connection ends. The
-requester fetches transactions of interest with `get-tx`.
+responder first sends a record for each transaction currently in its mempool
+(the snapshot; no snapshot records indicate an empty mempool). It then keeps
+its sending direction open, and sends further records referencing
+transactions as they are accepted into its mempool, until the stream or
+connection ends. The requester fetches transactions of interest with
+`get-tx`.
 
 This is the one stream type whose response is open-ended (see
 [Request Streams](#requeststreams)): the responder finishing its sending
