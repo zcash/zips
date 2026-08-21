@@ -14,7 +14,7 @@ Status: Draft
 Category: Consensus
 Created: 2026-08-19
 License: BSD-2-Clause
-Discussions-To: https://github.com/zcash/zips/issues/1353
+Discussions-To: <https://github.com/zcash/zips/issues/1353>
 ```
 
 
@@ -233,11 +233,11 @@ implemented, under the same removal schedule.
 
 # Appendix: Simulation
 
-A fork of the [NSM Simulator](https://github.com/eigerco/zsf-simulator)
-(TODO for ZIP owner: publish and link) allows us to simulate the effects of
-this ZIP on the Money Reserve and the block subsidy, as well as generate plots
-like the ones above. Assuming that 100 ZEC per day is removed from circulation
-from activation, this fragment of its output:
+A [fork](https://github.com/ShieldedLabs/zsf-simulator/tree/halving-preserving-issuance)
+of the [NSM Simulator](https://github.com/eigerco/zsf-simulator) allows us to
+simulate the effects of this ZIP on the Money Reserve and the block subsidy, as
+well as generate plots like the ones above. Assuming that 100 ZEC per day is
+removed from circulation from activation, this fragment of its output:
 
 ```
 Halving  3 at block  4406400:
