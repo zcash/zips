@@ -62,8 +62,9 @@ Every other ZIP 317 parameter, the `conventional_fee` formula, and the
 RECOMMENDED block template construction algorithm are unchanged; `unpaid_actions`
 is defined in terms of `marginal_fee` and reflects the new value automatically.
 
-The fraction burned by ZIP 235 [^zip-0235] is unchanged: of a 2,000-zatoshi
-fee, 1,200 zatoshis are burned and 800 are paid to the miner.
+In the event that ZIP 235 [^zip-0235] is activated, the fraction removed from 
+circulation is unchanged: of a 2,000-zatoshi fee, 1,200 zatoshis will be 
+removed from circulation and 800 must be claimed by the miner.
 
 ## Interaction with the `getstandardfee` RPC endpoint
 
