@@ -96,9 +96,9 @@ the argument against it.
 
 **Precedent.** ZIP 313 [^zip-0313] set the conventional fee to 1,000 zatoshis in
 2020 as a wallet convention with no network upgrade. Once ZIP 317 obsoleted it,
-that fee bought zero paid actions and drew the low fee penalty. Changing
-`marginal_fee` itself avoids that: a conforming transaction stays fully paid
-under every ZIP 317 formula.
+that fee bought zero paid actions (mitigated via the _block_unpaid_action_limit_)
+and incurred the low fee penalty. Those hazards do not occur in the case of a
+change that always decreases the conventional fee of a given transaction.
 
 **Why this is safe.** The other defense layers are independent of the fee level:
 `block_unpaid_action_limit` caps underpriced actions at 50 per block and Zebra
