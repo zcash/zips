@@ -132,17 +132,17 @@ Transaction schedule
 --------------------
 
 When migration is enabled, a node will send up to 5 transactions for inclusion
-in each block with height a multiple of 500 (that is, they are sent immediately
-after seeing a block with height 499, modulo 500). Up to the limit of 5, as
+in each block with height a multiple of 100 (that is, they are sent immediately
+after seeing a block with height 99, modulo 100). Up to the limit of 5, as
 many transactions are sent as are needed to migrate the remaining funds
 (possibly with a remainder less than 0.01 ZEC left unmigrated).
 
 Nodes SHOULD NOT send migration transactions during initial block download, or
-if the timestamp of the triggering block (with height 499, modulo 500) is more
+if the timestamp of the triggering block (with height 99, modulo 100) is more
 than three hours in the past according to the node's adjusted local clock.
 
-Note: the 500-block interval has *not* been altered as a result of the halving
-of target block spacing to 75 seconds with the Blossom upgrade. [#zip-0208]_
+Note: the original specification of this ZIP used a 500-block interval; this
+was reduced to 100 blocks (see "Support in zcashd" below).
 
 The migration transactions to be sent in a particular batch can take
 significant time to generate, and this time depends on the speed of the user's
@@ -175,13 +175,21 @@ coordinated time. Sending multiple transactions in each batch ensures that:
 * less information about balances is leaked;
 * it is easier to finish in a reasonable length of time.
 
-The choice of 500 blocks as the batch interval ensures that each batch occurs
-at a different time of day (both before and after the Blossom upgrade), which
-may help to mitigate problems with the availability of nodes being correlated
-with the local time-of-day.
+The original choice of 500 blocks as the batch interval ensured that each
+batch occurred at a different time of day (both before and after the Blossom
+upgrade), which helped to mitigate problems with the availability of nodes
+being correlated with the local time-of-day. The current 100-block interval
+no longer has this property.
 
-Simulation shows that the migration process will typically complete reasonably
-quickly even if the amount to be migrated is large:
+The following simulation results reflect the original parameters
+(500-block interval, exponents in 6..8). With the current parameters
+(100-block interval, exponents in 8..10 when more than 1 ZEC remains to
+migrate, falling back to the slow exponent range for the final amount
+below 1 ZEC), migrations complete significantly faster.
+
+Simulation shows that, under the original parameters, the migration process
+would typically complete reasonably quickly even if the amount to be
+migrated were large:
 
 +-----------+--------------------------------------------+
 |           |     Time in days to complete migration     |
@@ -220,7 +228,14 @@ If the remaining amount to be migrated is less than 0.01 ZEC, end the migration.
 Otherwise, the amount to send in each transaction is chosen according to the
 following distribution:
 
-1. Choose an integer exponent uniformly in the range 6 to 8 inclusive.
+1. Choose an integer exponent uniformly in a range that depends on the
+   remaining amount to be migrated:
+
+   * If the remaining amount is greater than 1 ZEC, choose the exponent
+     uniformly in the range 8 to 10 inclusive ("fast range").
+   * Otherwise, choose the exponent uniformly in the range 6 to 8
+     inclusive ("slow range").
+
 2. Choose an integer mantissa uniformly in the range 1 to 99 inclusive.
 3. Calculate amount := (mantissa \* 10\ :sup:`exponent`) zatoshi.
 4. If amount is greater than the amount remaining to send, repeat from step 1.
@@ -271,9 +286,9 @@ the same as for a normal transaction sending the same amount with the same
 wallet state. Only the ``vpub_new`` of the last JoinSplit will be nonzero.
 There will always be exactly one Sapling Output.
 
-The expiry delta for migration transactions MUST be 450 blocks. Since these
-transactions are sent when the block height is 499 modulo 500, their expiry
-height will be 451 blocks later, i.e. ``nExpiryHeight`` will be 450 modulo 500.
+The expiry delta for migration transactions MUST be 50 blocks. Since these
+transactions are sent when the block height is 99 modulo 100, their expiry
+height will be 51 blocks later, i.e. ``nExpiryHeight`` will be 50 modulo 100.
 
 The fee for each migration transaction MUST be 0.0001 ZEC. This fee is taken
 from the funds to be migrated.
@@ -303,17 +318,19 @@ Open questions
 
 The above strategy has several "magic number" parameters:
 
-* the interval between batches (500 blocks)
+* the interval between batches (100 blocks)
 * the maximum number of transactions in a batch (5)
-* the distribution of exponents (uniform integer in 6..8)
+* the distribution of exponents (uniform integer in 8..10 when the remaining
+  amount is greater than 1 ZEC, otherwise uniform integer in 6..8)
+* the threshold between the fast and slow exponent ranges (1 ZEC)
 * the distribution of mantissae (uniform integer in 1..99).
 
 These have been chosen by guesswork. Should we change any of them?
 
-In particular, if the amount to migrate is large, then this strategy can
-result in fairly large amounts (up to 99 ZEC, worth USD ~6700 at time of
-writing) transferred in each transaction. This leaks the fact that the
-transaction was sent by a user who has at least that amount.
+In particular, when the remaining amount to migrate is large, this strategy
+can result in fairly large amounts (up to 9900 ZEC) transferred in each
+transaction. This leaks the fact that the transaction was sent by a user who
+has at least that amount.
 
 The strategy does not migrate any remaining fractional amount less than
 0.01 ZEC (worth USD ~0.68 at time of writing). Is this reasonable?
@@ -421,6 +438,7 @@ The following PRs implement this specification:
 * https://github.com/zcash/zcash/pull/3997 (bugfix)
 * https://github.com/zcash/zcash/pull/4002 (minor RPC improvements)
 * https://github.com/zcash/zcash/pull/4005 (change expiry for migration transactions)
+* https://github.com/zcash/zcash/pull/7132 (speed up Sprout-to-Sapling migration)
 
 
 References
