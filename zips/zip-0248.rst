@@ -238,13 +238,15 @@ the pool (e.g., a shielded spend releasing value), while a negative delta means
 the bundle is consuming value from the pool (e.g., a shielded output absorbing
 value, or a transaction fee).
 
-For a valid non-coinbase transaction, the sum of all value pool deltas for each
-asset MUST equal zero. This ensures that value is neither created nor destroyed
-— it is only transferred between bundles within the transaction.
+For a valid transaction, the sum of all value pool deltas for each asset MUST
+equal zero. This ensures that value is neither created nor destroyed — it is
+only transferred between bundles within the transaction.
 
-For a coinbase transaction, the sum of value pool deltas for ZEC equals the
-negative of the block subsidy, reflecting that the block subsidy implicitly
-adds value to the transparent transaction value pool.
+This holds for coinbase transactions as well. The block subsidy enters the
+transparent transaction value pool as the value pool delta of the coinbase
+bundle, and the fees collected from the other transactions in the block enter
+it as the value pool delta of the fee bundle; the coinbase outputs then consume
+that value like any other bundle.
 
 Bundle Type Registration
 ````````````````````````
@@ -321,7 +323,7 @@ be present.
 +============+===============+======================+====================+==================+==============+==============================================+
 | 0          | 0             |✅                    |✅                  |✅                | This ZIP     | Transparent                                  |
 +------------+---------------+----------------------+--------------------+------------------+--------------+----------------------------------------------+
-| 1          |               |                      |                    |                  |              | Reserved                                     |
+| 1          | 0             |✅                    |✅                  |❌                | This ZIP     | Coinbase                                     |
 +------------+---------------+----------------------+--------------------+------------------+--------------+----------------------------------------------+
 | 2          | 0             |✅                    |✅                  |✅                | This ZIP     | Sapling                                      |
 +------------+---------------+----------------------+--------------------+------------------+--------------+----------------------------------------------+
@@ -431,7 +433,9 @@ Transaction Format
 ``mValuePoolDeltas`` is interpreted as a map keyed by the tuple
 $(\mathsf{BundleType}, \mathsf{AssetUuid})$. Lookups in this map are denoted
 with the syntax
-$\mathsf{mValuePoolDeltas}[(\mathsf{BundleType}, \mathsf{AssetUuid})].$
+$\mathsf{mValuePoolDeltas}[(\mathsf{BundleType}, \mathsf{AssetUuid})].$ A
+lookup for a key that is not present yields 0, consistent with the requirement
+that a record having zero value is elided from the encoding.
 
 ``mEffectBundles`` and ``mAuthBundles`` are interpreted as maps keyed by
 ``bundleType``.
@@ -476,6 +480,10 @@ Let $\mathsf{AssetUuid}(\mathsf{d})$ be the asset indicated by the ``mValuePoolD
        \mathsf{d}.\mathsf{assetUuid} & \text{if } \mathsf{d}.\mathsf{assetClass} = 1 \\
        \bot & \text{otherwise}
     \end{cases}
+
+$\mathsf{AssetUuid}$ groups the entries of ``mValuePoolDeltas`` by asset. The
+values of the entries in each such group are required to sum to zero; this
+balance rule is specified in `Cross-bundle and chain-context rules`_.
 
 BundleData
 ----------
@@ -564,17 +572,16 @@ Transparent Bundle
 The transparent bundle's value pool delta in ``mValuePoolDeltas`` represents
 the net value flowing from the transparent inputs to the transparent outputs.
 
-For a non-coinbase transaction, a full validator MUST verify that the ZEC
-value pool delta for ``bundleType = 0`` equals the total value of the
-transparent inputs minus the total value of the transparent outputs. (The
-input values are not encoded in the transaction itself; they are obtained
-from the UTXOs being spent.)
+A full validator MUST verify that the ZEC value pool delta for
+``bundleType = 0`` equals the total value of the transparent inputs minus the
+total value of the transparent outputs. (The input values are not encoded in
+the transaction itself; they are obtained from the UTXOs being spent.)
 
-For a coinbase transaction, the total transparent input value is implicitly
-the block subsidy plus the total transaction fees paid by other transactions
-in the block. A full validator MUST verify that the ZEC value pool delta for
-``bundleType = 0`` equals this implicit input value minus the total value of
-the coinbase transparent outputs.
+This rule applies to coinbase transactions unchanged. A coinbase transaction
+has no transparent inputs, so its transparent value pool delta is the negation
+of the total value of its transparent outputs; the value that those outputs
+consume is contributed to the transparent transaction value pool by the
+coinbase bundle and the fee bundle.
 
 Transparent Effecting Data
 ``````````````````````````
@@ -651,6 +658,40 @@ TransparentInputAuth
 The ``TransparentSighashInfo`` type is defined in `Per-Signature Structures`_.
 It consists of a ``compactSize``-prefixed byte array containing the sighash
 version and any associated data required by that version.
+
+
+Coinbase Bundle
+---------------
+
+A transaction is a *coinbase transaction* if and only if ``mEffectBundles``
+contains an entry with ``bundleType = 1``. The coinbase bundle replaces the
+otherwise-unspendable transparent input that identified a coinbase transaction
+in previous transaction versions, and carries the block height that that input
+was required to encode.
+
+The coinbase bundle's value pool delta in ``mValuePoolDeltas`` is the block
+subsidy, which the coinbase bundle contributes to the transparent transaction
+value pool. The fees collected from the other transactions in the block are
+contributed separately, as the value pool delta of the fee bundle.
+
+The coinbase bundle has no authorizing data.
+
+Coinbase Effecting Data
+```````````````````````
+
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+| Bytes                       | Name                     | Data Type                              | Description                                                         |
++=============================+==========================+========================================+=====================================================================+
+|``4``                        |``blockHeight``           |``uint32``                              |The height of the block in which the transaction is mined.           |
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+|``varies``                   |``coinbaseDataLen``       |``compactSize``                         |Length of the ``coinbaseData`` byte array.                           |
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+|``coinbaseDataLen``          |``coinbaseData``          |``byte[coinbaseDataLen]``               |Data chosen by the miner. Consensus assigns no meaning to its        |
+|                             |                          |                                        |contents.                                                            |
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+
+* ``blockHeight`` MUST be in the range {1 .. 499999999}.
+* ``coinbaseDataLen`` MUST be at most 94.
 
 
 Sapling Bundle
@@ -836,8 +877,10 @@ Zcash Protocol Specification. These rules are additional to the parsing rules
 above; a transaction that satisfies the parsing rules but violates any of
 these consensus rules is well-formed but invalid.
 
-Let ``FeeBundleId`` be the identifier of the fee bundle. In V7 transactions,
-$\mathsf{FeeBundleId} = 4$ as defined in the table above.
+Let ``CoinbaseBundleId`` be the identifier of the coinbase bundle, and
+``FeeBundleId`` be the identifier of the fee bundle. In V7 transactions,
+$\mathsf{CoinbaseBundleId} = 1$ and $\mathsf{FeeBundleId} = 4$ as defined in
+the table above.
 
 Bundle-local rules
 ``````````````````
@@ -849,6 +892,14 @@ it understands the bundle type that the rule applies to.
 * The ``assetClass`` value for any entry in ``mValuePoolDeltas`` having
   ``bundleType = FeeBundleId`` MUST be 0 (fee amounts are denominated in ZEC
   and no other asset).
+
+* The ``assetClass`` value for any entry in ``mValuePoolDeltas`` having
+  ``bundleType = CoinbaseBundleId`` MUST be 0 (the block subsidy is
+  denominated in ZEC and no other asset).
+
+* A coinbase transaction MUST NOT spend any transparent output. If a
+  transparent bundle is present in a coinbase transaction, its effecting data
+  MUST have ``tx_in_count = 0``.
 
 * For coinbase transactions, the ``enableSpendsOrchard`` bit of the Orchard
   bundle's ``flagsOrchard`` field MUST be 0.
@@ -873,20 +924,24 @@ full validators.
   That is, the fees collected by the coinbase transaction MUST equal the sum of
   fees paid by all other transactions in the block.
 
-* For the coinbase transaction, the sum of value pool deltas in the ZEC asset
-  MUST be equal to the negative of the block subsidy for that block; the block
-  subsidy adds an implicit input value to the transparent transaction value
-  pool that the coinbase outputs consume.
+* Exactly one transaction in a block MUST be a coinbase transaction, and it
+  MUST be the first transaction in the block.
+
+* The ``blockHeight`` field of the coinbase bundle's effecting data MUST equal
+  the height of the block containing the transaction.
+
+* The value of $\mathsf{mValuePoolDeltas}[(\mathsf{CoinbaseBundleId}, \mathsf{Zec})]$
+  MUST equal the block subsidy for the block containing the transaction.
 
   .. math::
 
-      \sum_{\mathsf{d} \in \mathsf{mValuePoolDeltas} | \mathsf{AssetUuid}(\mathsf{d}) = \mathsf{Zec}} \mathsf{d.value} = -\mathsf{BlockSubsidy}(\mathsf{height})
+      \mathsf{mValuePoolDeltas}[(\mathsf{CoinbaseBundleId}, \mathsf{Zec})] = \mathsf{BlockSubsidy}(\mathsf{blockHeight})
 
   where $\mathsf{BlockSubsidy}$ is defined in § 7.8 'Block Subsidy and
   Founders' Reward'. [#protocol-subsidies]_
 
-* For all non-coinbase transactions, the sum of value pool delta values in each
-  asset MUST equal 0.
+* For every transaction, the sum of value pool delta values in each asset MUST
+  equal 0.
 
   .. math::
 
@@ -1002,6 +1057,7 @@ follows::
     ├── value_pool_deltas_digest
     └── effects_bundles_digest
         ├─ (bundle_type_id || bundle_variant || transparent_effects_digest)
+        ├─ (bundle_type_id || bundle_variant || coinbase_effects_digest)
         ├─ (bundle_type_id || bundle_variant || sapling_effects_digest)
         │   ├── sapling_spends_digest
         │   │   ├── sapling_spends_compact_digest
@@ -1166,6 +1222,21 @@ In the case that the transaction has transparent inputs but no transparent
 outputs, ``outputs_digest`` is::
 
   BLAKE2b-256("ZTxIdOutputsHash", [])
+
+T.3.1: coinbase_effects_digest
+..............................
+
+A BLAKE2b-256 hash of the following values::
+
+   T.3.1a: blockHeight   (4-byte little-endian block height)
+   T.3.1b: coinbaseData  (byte array with leading ``compactSize`` length)
+
+The personalization field of this hash is set to::
+
+  "ZTxIdCoinbasHash"
+
+This digest is present only for coinbase transactions; a transaction that has
+no coinbase bundle contributes no entry for it to ``effects_bundles_digest``.
 
 T.3.2: sapling_effects_digest
 .............................
@@ -1680,6 +1751,32 @@ Effecting data bundles and authorizing data bundles are stored separately in
 the transaction format so that the authorizing data may be pruned by
 straightforward truncation of the encoded representation of the transaction.
 
+Representing the coinbase as a bundle makes the value pool delta balance rule
+universal. Previously the coinbase transaction was the sole exception: its
+deltas summed to the negation of the block subsidy rather than to zero, because
+the subsidy entered the transparent transaction value pool implicitly. With the
+subsidy carried as the coinbase bundle's value pool delta, every transaction
+balances to zero in every asset, and a wallet can enumerate the value flows of
+a coinbase transaction using the same rule it applies to any other transaction.
+
+The coinbase bundle also gives the coinbase metadata a place of its own. In
+previous transaction versions that metadata was encoded as the ``scriptSig`` of
+a single transparent input whose previous output reference pointed at nothing,
+so a coinbase transaction had to be recognized by that unspendable reference,
+and the block height had to be encoded as a script push. The coinbase bundle
+encodes the height directly, and its presence identifies the transaction. The
+``coinbaseData`` limit of 94 bytes holds the encoded size of that field to
+what the previous encoding spent on the same content. A coinbase ``scriptSig``
+was limited to 100 bytes, of which the leading push of the block height took 5;
+of the 95 bytes that remained, the ``compactSize`` length prefix of
+``coinbaseData`` now takes one.
+
+Neither the previous output reference nor the sequence number of the input
+being replaced is carried over. Both were artifacts of encoding the coinbase
+metadata as a transparent input: the reference identified no output, and the
+sequence number had no effect on the validity of a transaction that spends
+nothing.
+
 
 Deployment
 ==========
@@ -1768,8 +1865,8 @@ Treat bundles as individually versioned.
   * NSM field similarly never produces value
   * ZSA burns would be split into "value balance out of Orchard pool" and
     "value balance being removed from ZSA issuance"
-  * See also the conversation we had about refactoring coinbase transactions.
-    TODO: Figure out how to integrate the two.
+  * The coinbase subsidy is a bundle that only produces value; see
+    `Coinbase Bundle`_.
 * Privacy effect is minimal
 
   * We already follow a bundle approach with a transparent transaction value
