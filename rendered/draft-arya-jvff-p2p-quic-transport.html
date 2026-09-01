@@ -1,0 +1,3723 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Draft arya-jvff-p2p-quic-transport: Version 2 Zcash P2P Network Protocol</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.33/dist/katex.min.css" integrity="sha384-fgYS3VC1089n2J3rVcEbXDHlnDLQ9B2Y1hvpQ720q1NvxCduQqT4JoGc4u2QCnzE" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.33/dist/katex.min.js" integrity="sha384-YPHNAPyrxGS8BNnA7Q4ommqra8WQPEjooVSLzFgwgs8OXJBvadbyvx4QpfiFurGr" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.33/dist/contrib/auto-render.min.js" integrity="sha384-JKXHIJf8PKPyDFptuKZoUyMRQJAmQKj4B4xyOca62ebJhciMYGiDdq/9twUUWyZH" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<pre><code>ZIP: XXX
+Title: Version 2 Zcash P2P Network Protocol
+Owners: Arya &lt;arya@zfnd.org&gt;
+        Janito &lt;janito@zfnd.org&gt;
+Status: Draft
+Category: Network
+Created: 2026-07-31
+License: MIT
+Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/352">https://github.com/zcash/zips/issues/352</a>&gt;
+</code></pre>
+
+<h1 id="terminology"><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>The key words &#8220;MUST&#8221;, &#8220;MUST NOT&#8221;, &#8220;SHOULD&#8221;, &#8220;SHOULD NOT&#8221;, &#8220;MAY&#8221;, and
+&#8220;RECOMMENDED&#8221; in this document are to be interpreted as described in BCP 14
+<a href="#fn:1" id="fnref:1" title="see footnote" class="footnote"><sup>1</sup></a> when, and only when, they appear in all capitals.</p>
+
+<p>The terms &#8220;Mainnet&#8221; and &#8220;Testnet&#8221; are to be interpreted as described in
+section 3.12 of the Zcash Protocol Specification. <a href="#fn:2" id="fnref:2" title="see footnote" class="footnote"><sup>2</sup></a></p>
+
+<p>The term &#8220;network upgrade&#8221; is to be interpreted as described in ZIP 200.
+<a href="#fn:3" id="fnref:3" title="see footnote" class="footnote"><sup>3</sup></a></p>
+
+<p>The term &#8220;block chain&#8221; in this document is to be interpreted as described in
+section 3.3 of the Zcash Protocol Specification. <a href="#fn:4" id="fnref:4" title="see footnote" class="footnote"><sup>4</sup></a></p>
+
+<p>The term &#8220;legacy protocol&#8221; in this document refers to the Zcash P2P network
+protocol specified in ZIP 204 <a href="#fn:5" id="fnref:5" title="see footnote" class="footnote"><sup>5</sup></a>.</p>
+
+<dl>
+<dt>peer</dt>
+<dd>A network node that participates in the Zcash P2P protocol by maintaining
+connections to other peers over one or more supported transports and
+exchanging protocol data over streams.</dd>
+
+<dt>transport</dt>
+<dd>A concrete mechanism, such as QUIC <a href="#fn:6" id="fnref:6" title="see footnote" class="footnote"><sup>6</sup></a> or Tor onion services
+<a href="#fn:7" id="fnref:7" title="see footnote" class="footnote"><sup>7</sup></a>, that carries connections between peers and provides the
+stream layer of this protocol (see <a href="#streamlayer">Stream Layer</a> and
+<a href="#transports">Transports</a>).</dd>
+
+<dt>connection</dt>
+<dd>A session between two peers over a supported transport, over which P2P
+streams are exchanged.</dd>
+
+<dt>initiator</dt>
+<dd>The peer that initiated a connection (the transport-level client).</dd>
+
+<dt>responder</dt>
+<dd>The peer that accepted a connection (the transport-level server). In the
+context of a single request stream, <em>responder</em> instead denotes the peer
+serving the request, irrespective of which peer accepted the connection
+(see <a href="#requeststreams">Request Streams</a>); which sense is meant is
+indicated by context.</dd>
+
+<dt>requester</dt>
+<dd>The peer that opened a request stream and sends the request on it. Either
+the initiator or the responder of a connection may be the requester on a
+given request stream.</dd>
+
+<dt>stream</dt>
+<dd>An ordered, reliable byte stream within a connection, provided by the
+transport. Streams are typed by their first byte (see
+<a href="#streamlayer">Stream Layer</a>).</dd>
+
+<dt>request stream</dt>
+<dd>A bidirectional stream carrying a single request and its response.</dd>
+
+<dt>announcement stream</dt>
+<dd>A long-lived unidirectional stream carrying unsolicited announcements
+(blocks, transactions, or peer addresses).</dd>
+
+<dt>record</dt>
+<dd>A length-delimited unit of data on an announcement or handshake stream.</dd>
+
+<dt>protocol version</dt>
+<dd>A 32-bit integer identifying the set of protocol features supported by a
+node. Higher values indicate support for more recent features.</dd>
+</dl>
+
+<h1 id="abstract"><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>This ZIP specifies version 2 of the Zcash peer-to-peer network protocol, a
+successor to the protocol specified in ZIP 204 <a href="#fn:5" title="see footnote" class="footnote"><sup>5</sup></a>. It specifies the
+protocol&#8217;s transport-neutral stream layer, the QUIC and Tor transports that
+realize it, the connection handshake, stream and record types, and relay
+behavior, and is intended to be sufficient for an implementor to build a
+conformant Zcash network peer.</p>
+
+<h1 id="motivation"><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>ZIP 204 <a href="#fn:5" title="see footnote" class="footnote"><sup>5</sup></a> specifies the current Zcash P2P network protocol, whose
+message-passing architecture is inherited from Bitcoin: a single unencrypted TCP
+bytestream carrying framed messages with implicit correlation between requests
+and responses. This ZIP proposes a successor protocol that replaces that
+architecture with multiplexed streams carried over an arbitrary transport that
+provides a secure channel between peers and a means of identifying the network
+and addressing peers. The protocol is specified against that abstract transport
+interface; this ZIP defines two concrete transports, one based on QUIC
+<a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a> and one carried over Tor onion services <a href="#fn:7" title="see footnote" class="footnote"><sup>7</sup></a>. The
+motivations for this change are:</p>
+
+<ul>
+<li><p><strong>Transport security.</strong> The legacy transport was unencrypted and
+unauthenticated, exposing all P2P traffic to passive network observers. Every
+transport of this protocol provides an encrypted channel: the QUIC transport
+integrates TLS 1.3 <a href="#fn:8" id="fnref:8" title="see footnote" class="footnote"><sup>8</sup></a> <a href="#fn:9" id="fnref:9" title="see footnote" class="footnote"><sup>9</sup></a>, and the Tor transport inherits the
+encryption of onion service connections. (Bitcoin addressed the same gap with
+a bespoke encrypted transport, BIP 324 <a href="#fn:10" id="fnref:10" title="see footnote" class="footnote"><sup>10</sup></a>; this protocol provides
+equivalent protection using standardized protocols.)</p></li>
+<li><p><strong>Multiplexing without head-of-line blocking.</strong> On the legacy transport, a
+single 2 MiB <code>block</code> message stalled all other traffic on the connection.
+Streams allow concurrent block downloads, transaction relay, and control
+traffic to proceed independently — on the QUIC transport, at both the
+application and packet-loss level.</p></li>
+<li><p><strong>Explicit request correlation.</strong> Legacy responses (<code>block</code>, <code>tx</code>, <code>headers</code>,
+<code>notfound</code>) carried no request identifiers, forcing implementations to
+correlate them heuristically. In this protocol, each request occupies its own
+stream, so correlation, cancellation, and per-request timeouts are
+structural.</p></li>
+<li><p><strong>Simplification.</strong> Transport-level mechanisms that the legacy protocol
+carried in the application layer — payload checksums, network magic,
+keep-alives and latency measurement, flow control — are provided by the
+transport and are deleted from the application protocol.</p></li>
+</ul>
+
+<p>No backwards compatibility with the legacy protocol is provided; this ZIP
+replaces it entirely. See <a href="#deployment">Deployment</a>.</p>
+
+<p>This ZIP does not specify the encoding of transactions and block headers; for
+those, refer to the Zcash Protocol Specification <a href="#fn:11" id="fnref:11" title="see footnote" class="footnote"><sup>11</sup></a>
+<a href="#fn:12" id="fnref:12" title="see footnote" class="footnote"><sup>12</sup></a>. The encoding of a whole block in terms of its header
+and transactions is part of the peer-to-peer protocol rather than the
+consensus protocol <a href="#fn:12" title="see footnote" class="footnote"><sup>12</sup></a>, and is specified in
+<a href="#serializedblocks">Serialized Blocks</a>.</p>
+
+<h1 id="changesfromthelegacyprotocol"><span class="section-heading">Changes from the Legacy Protocol</span><span class="section-anchor"> <a rel="bookmark" href="#changesfromthelegacyprotocol"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>This section is non-normative. Relative to the legacy protocol specified in
+ZIP 204 <a href="#fn:5" title="see footnote" class="footnote"><sup>5</sup></a>, this ZIP:</p>
+
+<ul>
+<li>Replaces network magic bytes with transport-level network identification (for
+the QUIC transport, ALPN protocol identifiers; for the Tor transport, an
+in-band network identifier; see <a href="#quictransport">QUIC Transport</a> and
+<a href="#tortransport">Tor Transport</a>).</li>
+<li>Removes per-message headers entirely: the 12-byte command string is replaced
+by a 1-byte stream type, and the length and <code>SHA-256d</code> checksum fields are
+subsumed by QUIC framing and authenticated encryption.</li>
+<li>Replaces the <code>version</code>/<code>verack</code> handshake with a single <code>init</code> record
+exchange on a dedicated handshake stream (see
+<a href="#connectionhandshake">Connection Handshake</a>). The <code>timestamp</code>, <code>addr_recv</code>,
+and <code>addr_from</code> fields are removed.</li>
+<li>Removes <code>ping</code> and <code>pong</code>; QUIC provides keep-alives and RTT measurement.</li>
+<li>Removes <code>reject</code>; QUIC application error codes are used instead (see
+<a href="#applicationerrorcodes">Application Error Codes</a>).</li>
+<li>Removes <code>inv</code>, <code>getdata</code>, and <code>notfound</code>; announcements are carried on
+dedicated unidirectional streams, and object requests carry per-item results.</li>
+<li>Removes the inventory-walk <code>getblocks</code> message; headers-first
+synchronization is the baseline synchronization method, and new request
+streams support checkpoint-based bulk synchronization: <code>get-hashes</code>
+(known hashes and sync-cost metadata), <code>get-block-range</code> (anchored block
+streaming), <code>get-tree-roots</code> (note commitment tree roots, verified
+against header commitments), and <code>get-object</code> (content-addressed
+synchronization artifacts). See <a href="#synchronization">Synchronization</a> and
+<a href="#fn:13" id="fnref:13" title="see footnote" class="footnote"><sup>13</sup></a>.</li>
+<li>Removes the deprecated <code>alert</code> message.</li>
+<li>Removes BIP 37 Bloom filtering (<code>filterload</code>, <code>filteradd</code>, <code>filterclear</code>)
+and the <code>NODE_BLOOM</code> service flag.</li>
+<li>Removes the legacy <code>addr</code> message and <code>CAddress</code>/<code>CService</code> encodings; the
+<code>addrv2</code> address encoding of ZIP 155 <a href="#fn:14" id="fnref:14" title="see footnote" class="footnote"><sup>14</sup></a> is the only address format.</li>
+<li>Retains divided block relay — header-based block announcement and compact
+block relay — recast onto announcement streams and request streams, with a
+block&#8217;s coinbase transaction and transaction IDs additionally available in
+<code>get-headers</code> responses (see <a href="#blockrelay">Block Relay</a>).</li>
+</ul>
+
+<h1 id="specification"><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>This specification is organized bottom-up. <a href="#transports">Transports</a> defines
+how connections are established and secured (QUIC and Tor);
+<a href="#streamlayer">Stream Layer</a> defines the typed streams that carry all
+application data, and <a href="#datatypesandencoding">Data Types and Encoding</a> the
+shared encodings. <a href="#connectionhandshake">Connection Handshake</a> and
+<a href="#protocolversioning">Protocol Versioning</a> cover connection setup.
+<a href="#requeststreamtypes">Request Stream Types</a> and
+<a href="#announcementstreamtypes">Announcement Stream Types</a> specify the individual
+request and announcement formats, and <a href="#blockrelay">Block Relay</a>,
+<a href="#synchronization">Synchronization</a>, <a href="#transactionrelay">Transaction Relay</a>,
+and <a href="#addressrelay">Address Relay</a> the behaviors built on them.</p>
+
+<h2 id="networkparameters"><span class="section-heading">Network Parameters</span><span class="section-anchor"> <a rel="bookmark" href="#networkparameters"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<h3 id="networks"><span class="section-heading">Networks</span><span class="section-anchor"> <a rel="bookmark" href="#networks"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>There are three Zcash networks: Mainnet, Testnet, and Regtest. Every connection
+is bound to exactly one network, determined during connection establishment as
+each transport defines (see <a href="#transports">Transports</a>); this replaces the
+network magic bytes of the legacy protocol.</p>
+
+<h3 id="dnsseeds"><span class="section-heading">DNS Seeds</span><span class="section-anchor"> <a rel="bookmark" href="#dnsseeds"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>The DNS seed hostnames used for initial peer discovery on each network are
+those listed in ZIP 204 <a href="#fn:15" id="fnref:15" title="see footnote" class="footnote"><sup>15</sup></a>. Regtest does not use DNS seeds
+or hardcoded seed nodes.</p>
+
+<h2 id="peerdiscovery"><span class="section-heading">Peer Discovery</span><span class="section-anchor"> <a rel="bookmark" href="#peerdiscovery"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>A node discovers peers through the following mechanisms:</p>
+
+<ol>
+<li><p><strong>Persisted addresses.</strong> A node SHOULD persist the peer addresses it learns
+(see <a href="#addressrelay">Address Relay</a>) across restarts, and on startup SHOULD
+attempt connections to previously learned addresses before consulting
+seeds.</p></li>
+<li><p><strong>DNS seeding.</strong> When the node has no usable persisted addresses — on first
+start, or when too few persisted addresses yield successful connections —
+it queries the DNS seed hostnames listed above for A and AAAA records, and
+attempts connections to the resulting addresses on the default port of the
+QUIC transport.</p></li>
+<li><p><strong>Hardcoded seed nodes.</strong> If DNS seeding fails or is insufficient, the node
+MAY fall back to a compiled-in list of seed node addresses. DNS seeding is
+preferred over hardcoded seed nodes.</p></li>
+<li><p><strong>Address relay.</strong> Connected peers exchange address information using
+<code>get-addr</code> request streams and address announcement streams (see
+<a href="#get-addr"><code>get-addr</code></a> and
+<a href="#addressannouncements">Address Announcements</a>). This mechanism operates
+independently of the above.</p></li>
+</ol>
+
+<p>DNS seeding yields IP addresses only, and so bootstraps only IP-based
+transports such as QUIC. Addresses of peers reachable over overlay transports —
+such as the <code>TORV3</code> addresses of the Tor transport (see
+<a href="#tortransport">Tor Transport</a>) — are learned through address relay or provided
+by local configuration.</p>
+
+<h2 id="transports"><span class="section-heading">Transports</span><span class="section-anchor"> <a rel="bookmark" href="#transports"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>The protocol semantics in this document are defined against the abstract stream
+layer of <a href="#streamlayer">Stream Layer</a>. A <em>transport</em> is a concrete mechanism
+that carries connections between peers and realizes that stream layer. This ZIP
+defines two transports: one based on QUIC (see
+<a href="#quictransport">QUIC Transport</a>), and one carried over Tor onion services (see
+<a href="#tortransport">Tor Transport</a>). Future revisions may define additional
+transports — a transport carrying the stream layer over the Nym mixnet is
+anticipated (see <a href="#deployment">Deployment</a>) — and a node MAY support several
+transports simultaneously. The protocol semantics on a connection are identical
+regardless of its transport.</p>
+
+<p>Every transport MUST provide:</p>
+
+<ul>
+<li>a secure channel between the two peers: confidentiality and integrity for
+all application data;</li>
+<li>identification of the network (see <a href="#networks">Networks</a>) during connection
+establishment, such that a connection between peers on different networks
+fails before any application data is exchanged;</li>
+<li>a form of address by which peers reachable over the transport are identified,
+encodable as a network address record (see
+<a href="#networkaddressrecord">Network Address Record</a>);</li>
+<li>the stream operations and guarantees of
+<a href="#transportrequirements">Transport Requirements</a>.</li>
+</ul>
+
+<h3 id="connectionmanagement"><span class="section-heading">Connection Management</span><span class="section-anchor"> <a rel="bookmark" href="#connectionmanagement"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>The transport provides keep-alives and round-trip time measurement; the legacy
+<code>ping</code>/<code>pong</code> messages have no equivalent in this protocol.</p>
+
+<ul>
+<li>A node SHOULD use an idle timeout of at least 120 seconds, and SHOULD use the
+transport&#8217;s keep-alive mechanism to keep connections it wishes to retain from
+idling out. The specific values are implementation-defined.</li>
+<li>A node MUST close a connection on which the application handshake (see
+<a href="#connectionhandshake">Connection Handshake</a>) has not completed within a
+bounded time, measured from the establishment of the transport connection so
+that it covers everything a peer sends beforehand — including the Tor
+transport&#8217;s connection preamble (see <a href="#tortransport">Tor Transport</a>). The
+specific timeout is implementation-defined; values between 3 and 60 seconds
+were used by legacy implementations. Without such a timeout, a peer that
+connects and then sends nothing holds a connection slot indefinitely, and the
+transport&#8217;s keep-alive mechanism — answered by the transport stack rather
+than by the application — will report the connection healthy.</li>
+<li>A node SHOULD bound the number of concurrent inbound connections it accepts,
+and SHOULD bound the share of them originating from any one transport, so
+that inbound slots on a transport whose addresses are free to generate cannot
+displace the rest.</li>
+<li>Per-request timeouts are implementation-defined and are applied per stream
+(see <a href="#requeststreams">Request Streams</a>).</li>
+</ul>
+
+<p>The specific connection limits are implementation-defined; the legacy
+reference values in ZIP 204 <a href="#fn:5" title="see footnote" class="footnote"><sup>5</sup></a> remain reasonable defaults.</p>
+
+<p>A node SHOULD maintain at most one connection to a given remote address.
+Self-connection detection via the handshake nonce is specified in
+<a href="#initrecord">Init Record</a>.</p>
+
+<h3 id="quictransport"><span class="section-heading">QUIC Transport</span><span class="section-anchor"> <a rel="bookmark" href="#quictransport"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>The QUIC transport uses QUIC version 1 <a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a> over UDP, secured with
+TLS 1.3 <a href="#fn:8" title="see footnote" class="footnote"><sup>8</sup></a> as specified by RFC 9001 <a href="#fn:9" title="see footnote" class="footnote"><sup>9</sup></a>.</p>
+
+<ul>
+<li>A node MUST NOT use 0-RTT (early data). Note: a peer that attempts to use
+0-RTT MUST have its connection closed — a responder MUST NOT enable the
+acceptance of early data, and a node whose peer nevertheless attempts to
+use 0-RTT MUST close the connection with the <code>PROTOCOL_ERROR</code> error code.
+(0-RTT data is replayable by an attacker.)</li>
+<li>QUIC datagrams <a href="#fn:16" id="fnref:16" title="see footnote" class="footnote"><sup>16</sup></a> are not used by this protocol. A node MUST ignore
+the peer&#8217;s <code>max_datagram_frame_size</code> transport parameter and MUST NOT send
+DATAGRAM frames.</li>
+<li>A node MAY support connection migration as specified in RFC 9000. Migration
+links the node&#8217;s traffic across the old and new network paths; a node for
+which that linkage is a privacy concern SHOULD establish a fresh connection
+instead of migrating.</li>
+<li>The address validation and amplification limits of RFC 9000 (including Retry
+packets) apply; a responder under load SHOULD use Retry to validate client
+addresses before committing state.</li>
+<li>QUIC&#8217;s loss recovery provides round-trip time measurement, and QUIC PING
+frames provide keep-alives. A node using the QUIC transport SHOULD advertise
+a <code>max_idle_timeout</code> transport parameter consistent with the idle timeout of
+<a href="#connectionmanagement">Connection Management</a>.</li>
+</ul>
+
+<h4 id="networkidentification"><span class="section-heading">Network Identification</span><span class="section-anchor"> <a rel="bookmark" href="#networkidentification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+
+<p>The network of a QUIC connection is identified by an Application-Layer Protocol
+Negotiation (ALPN) <a href="#fn:17" id="fnref:17" title="see footnote" class="footnote"><sup>17</sup></a> protocol identifier, negotiated in the QUIC-TLS
+handshake:</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Network </th>
+	<th> ALPN Identifier </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> Mainnet </td>
+	<td> <code>zcash/main</code> </td>
+</tr>
+<tr>
+	<td> Testnet </td>
+	<td> <code>zcash/test</code> </td>
+</tr>
+<tr>
+	<td> Regtest </td>
+	<td> <code>zcash/regtest</code> </td>
+</tr>
+</tbody>
+</table>
+
+<p>A node MUST offer exactly the ALPN identifier of the network it operates on,
+and MUST NOT complete a connection on which ALPN negotiation did not select
+that identifier.</p>
+
+<p>Incompatible future revisions of this transport will be assigned new ALPN
+identifiers.</p>
+
+<h4 id="defaultports"><span class="section-heading">Default Ports</span><span class="section-anchor"> <a rel="bookmark" href="#defaultports"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+
+<p>The QUIC transport uses the default port numbers of the legacy protocol,
+as specified in ZIP 204 <a href="#fn:18" id="fnref:18" title="see footnote" class="footnote"><sup>18</sup></a>, as UDP port numbers.</p>
+
+<h4 id="certificates"><span class="section-heading">Certificates</span><span class="section-anchor"> <a rel="bookmark" href="#certificates"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+
+<p>Connections are encrypted but endpoints are not authenticated: the goal is
+protection against passive network observers, not endpoint identity.</p>
+
+<ul>
+<li>A node presents a self-signed X.509 certificate, or a raw public key
+<a href="#fn:19" id="fnref:19" title="see footnote" class="footnote"><sup>19</sup></a>, for an Ed25519 or ECDSA P-256 key. The key MAY be ephemeral or
+persistent, at the node&#8217;s option; a node concerned about cross-connection
+linkability SHOULD use per-connection ephemeral keys.</li>
+<li>A node MUST be prepared to accept both certificate encodings (X.509 and raw
+public key) and both key types from its peer.</li>
+<li>A node MUST NOT require the peer&#8217;s certificate to chain to any certification
+authority, and MUST NOT reject a connection on the basis of certificate
+contents (subject names, expiry, or extensions).</li>
+<li>Client certificates are not requested: the responder MUST NOT require TLS
+client authentication.</li>
+</ul>
+
+<h4 id="bulktransferperformance"><span class="section-heading">Bulk Transfer Performance</span><span class="section-anchor"> <a rel="bookmark" href="#bulktransferperformance"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+
+<p>Bulk synchronization moves hundreds of gigabytes over the request streams of
+this protocol, and its throughput is governed by transport configuration
+rather than by the protocol itself. The following applies to nodes that
+serve or perform bulk synchronization (see <a href="#fn:13" title="see footnote" class="footnote"><sup>13</sup></a>):</p>
+
+<ul>
+<li>A node SHOULD size its flow control windows to the bandwidth-delay
+product it intends to sustain: at least 16 MiB of per-stream receive
+window and 64 MiB of connection receive window are RECOMMENDED. Default
+windows tuned for interactive traffic cap bulk throughput at a small
+fraction of link capacity once round-trip time is non-negligible.</li>
+<li>A node serving bulk streams SHOULD use a paced, model-based congestion
+controller suited to high bandwidth-delay paths; loss-triggered
+controllers collapse under modest jitter at these transfer sizes.</li>
+<li>Implementations SHOULD use platform UDP batching and segmentation
+offloads where available; per-packet processing, not cryptography, is the
+dominant CPU cost of QUIC bulk transfer.</li>
+<li>One QUIC connection is typically processed by one core, bounding
+per-connection throughput. Synchronizing nodes obtain aggregate
+throughput by downloading from several peers concurrently rather than by
+tuning a single connection (see <a href="#fn:13" title="see footnote" class="footnote"><sup>13</sup></a>).</li>
+</ul>
+
+<h4 id="streamlayermapping"><span class="section-heading">Stream Layer Mapping</span><span class="section-anchor"> <a rel="bookmark" href="#streamlayermapping"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+
+<p>The abstract stream layer of <a href="#transportrequirements">Transport Requirements</a>
+maps onto QUIC as follows:</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Stream layer concept        </th>
+	<th> QUIC realization               </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> Bidirectional / unidirectional stream   </td>
+	<td> QUIC bidirectional / unidirectional streams.        </td>
+</tr>
+<tr>
+	<td> Finishing a stream direction      </td>
+	<td> A STREAM frame with the FIN bit.           </td>
+</tr>
+<tr>
+	<td> Resetting a stream with an error code   </td>
+	<td> <code>RESET_STREAM</code> carrying the application error code.      </td>
+</tr>
+<tr>
+	<td> Cancelling a peer&#8217;s sending with an error code </td>
+	<td> <code>STOP_SENDING</code> carrying the application error code.      </td>
+</tr>
+<tr>
+	<td> Closing the connection with an error code  </td>
+	<td> <code>CONNECTION_CLOSE</code> (application variant) carrying the application error code. </td>
+</tr>
+<tr>
+	<td> Per-stream backpressure       </td>
+	<td> QUIC stream and connection flow control.         </td>
+</tr>
+<tr>
+	<td> Stream concurrency limits      </td>
+	<td> <code>initial_max_streams_bidi</code>, <code>initial_max_streams_uni</code>, and <code>MAX_STREAMS</code> frames. </td>
+</tr>
+<tr>
+	<td> Keep-alive          </td>
+	<td> QUIC PING frames.               </td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="tortransport"><span class="section-heading">Tor Transport</span><span class="section-anchor"> <a rel="bookmark" href="#tortransport"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>The Tor transport carries connections over the Tor network <a href="#fn:20" id="fnref:20" title="see footnote" class="footnote"><sup>20</sup></a> as
+connections to version 3 onion services <a href="#fn:7" title="see footnote" class="footnote"><sup>7</sup></a>. It serves traffic for
+which the metadata protection of onion routing outweighs its latency cost (see
+<a href="#deployment">Deployment</a> and
+<a href="#securityandprivacyconsiderations">Security and Privacy Considerations</a>), and
+allows a node to participate in the network without exposing an IP address.</p>
+
+<ul>
+<li>A node that accepts inbound connections over this transport runs a version 3
+onion service and advertises its address as a <code>TORV3</code> network address record
+(see <a href="#networkaddressrecord">Network Address Record</a>); the record&#8217;s <code>port</code>
+field is the onion service virtual port, which SHOULD be the default port of
+the network (see <a href="#defaultports">Default Ports</a>).</li>
+<li>The initiator connects to the responder&#8217;s onion service through the Tor
+network. The initiator needs no onion service of its own and is anonymous to
+the responder.</li>
+<li>The secure channel is provided by Tor itself: onion service connections are
+end-to-end encrypted, and the connection is authenticated to the responder&#8217;s
+onion address (the Ed25519 key that the <code>TORV3</code> address encodes). TLS is not
+used inside the connection, and the initiator is deliberately not
+authenticated (cf. <a href="#certificates">Certificates</a>).</li>
+<li>The transport provides a single ordered bytestream per connection; the
+stream layer is realized on top of it by the framing layer of
+<a href="#streamframing">Stream Framing</a>.</li>
+</ul>
+
+<p><em>Note:</em> The underlying Tor connection is a single TCP-like bytestream, so loss
+or congestion on it stalls all streams of the connection; the framing layer
+removes head-of-line blocking between streams at the application level only
+(see <a href="#deployment">Deployment</a> for transport selection).</p>
+
+<h4 id="connectionpreamble"><span class="section-heading">Connection Preamble</span><span class="section-anchor"> <a rel="bookmark" href="#connectionpreamble"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+
+<p>Immediately after the connection is established, each peer sends a <em>preamble</em>,
+before any frames:</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Size </th>
+	<th> Field      </th>
+	<th> Description               </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> varies </td>
+	<td> <code>network</code>     </td>
+	<td> Network identifier string (CompactSize-prefixed; see below).   </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>initial_max_data</code>   </td>
+	<td> Initial connection-level flow control credit in bytes (CompactSize). </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>initial_max_stream_data</code> </td>
+	<td> Initial per-stream flow control credit in bytes (CompactSize).  </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>initial_max_streams_bidi</code> </td>
+	<td> Initial limit on the peer&#8217;s concurrent bidirectional streams (CompactSize). </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>initial_max_streams_uni</code> </td>
+	<td> Initial limit on the peer&#8217;s concurrent unidirectional streams (CompactSize). </td>
+</tr>
+</tbody>
+</table>
+
+<p>The <code>network</code> string is the identifier of the node&#8217;s network, using the same
+values as the QUIC transport&#8217;s ALPN identifiers (see
+<a href="#networkidentification">Network Identification</a>): <code>zcash/main</code>, <code>zcash/test</code>,
+or <code>zcash/regtest</code>. A node MUST close the connection if the peer&#8217;s <code>network</code>
+string differs from its own; this replaces ALPN-based network identification,
+which is unavailable without TLS.</p>
+
+<p>The flow control fields play the role of the corresponding QUIC transport
+parameters: they are the initial credit available to the <em>peer</em> for the
+corresponding limit (see <a href="#streamframing">Stream Framing</a>). A node MUST allow
+an <code>initial_max_stream_data</code> of at least 2,228,224 bytes (the maximum record
+payload length plus framing headroom), and SHOULD allow the stream concurrency
+minimums of <a href="#transportrequirements">Transport Requirements</a>.</p>
+
+<p>The preamble precedes every frame, and therefore precedes the record payload
+limit of <a href="#records">Records</a> and the malformed-frame rule of
+<a href="#streamframing">Stream Framing</a>; neither bounds it. Its fields are bounded
+here instead, and a node MUST enforce these bounds while parsing the preamble,
+before allocating storage for a field:</p>
+
+<ul>
+<li>The <code>network</code> string MUST NOT exceed 16 bytes.</li>
+<li>Each of the four flow control fields MUST NOT exceed 2<sup>62</sup> − 1, the
+corresponding limit in QUIC <a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a>.</li>
+<li>A node MUST close the connection immediately, without sending frames, if a
+preamble field exceeds its bound, if the preamble is not complete within the
+handshake timeout below, or if a CompactSize in the preamble is not
+canonically encoded (see <a href="#datatypesandencoding">Data Types and Encoding</a>).</li>
+</ul>
+
+<p>The handshake timeout of
+<a href="#connectionmanagement">Connection Management</a> runs from the establishment of
+the transport connection, so it covers the preamble as well as the <code>init</code>
+record; an initiator that opens a connection and stalls mid-preamble is closed
+by it. This matters most for this transport: onion service addresses are free
+to generate and effectively unbannable (see
+<a href="#misbehaviorandbanning">Misbehavior and Banning</a>), so a connection slot held
+open at no cost is the resource an attacker is actually consuming.</p>
+
+<p>Incompatible future revisions of this transport will be assigned new network
+identifier strings.</p>
+
+<h4 id="streamframing"><span class="section-heading">Stream Framing</span><span class="section-anchor"> <a rel="bookmark" href="#streamframing"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+
+<p>The stream layer is realized over the connection&#8217;s ordered bytestream by a
+framing layer whose stream semantics — stream states, flow control, and error
+signalling — are modeled on those of QUIC <a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a>.</p>
+
+<p>Stream IDs are integers. The two least significant bits of a stream ID encode
+its kind, as in QUIC: <code>0x0</code> initiator-opened bidirectional, <code>0x1</code>
+responder-opened bidirectional, <code>0x2</code> initiator-opened unidirectional, <code>0x3</code>
+responder-opened unidirectional. Successive streams of each kind are opened
+with sequentially increasing stream IDs; a stream is opened implicitly by the
+first frame that its opener sends referencing its ID.</p>
+
+<p>Each frame is a 1-byte frame type followed by type-dependent fields. Integer
+fields, including stream IDs, are CompactSize-encoded.</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Type </th>
+	<th> Frame    </th>
+	<th> Fields        </th>
+	<th> Semantics                  </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> <code>0x00</code> </td>
+	<td> <code>PING</code>    </td>
+	<td> 8-byte opaque value     </td>
+	<td> Keep-alive and RTT measurement; the receiver MUST respond with <code>PONG</code>.  </td>
+</tr>
+<tr>
+	<td> <code>0x01</code> </td>
+	<td> <code>PONG</code>    </td>
+	<td> 8-byte echoed value     </td>
+	<td> Response to <code>PING</code>.               </td>
+</tr>
+<tr>
+	<td> <code>0x02</code> </td>
+	<td> <code>STREAM</code>   </td>
+	<td> stream ID, flags (1 byte), length, data </td>
+	<td> Appends <code>data</code> to the stream. Flag bit 0 (<code>FIN</code>) finishes the sender&#8217;s direction of the stream. </td>
+</tr>
+<tr>
+	<td> <code>0x03</code> </td>
+	<td> <code>RESET_STREAM</code>  </td>
+	<td> stream ID, error code    </td>
+	<td> Resets the sender&#8217;s direction of the stream (see <a href="#transportrequirements">Transport Requirements</a>). </td>
+</tr>
+<tr>
+	<td> <code>0x04</code> </td>
+	<td> <code>STOP_SENDING</code>  </td>
+	<td> stream ID, error code    </td>
+	<td> Requests that the peer stop sending on the stream.       </td>
+</tr>
+<tr>
+	<td> <code>0x05</code> </td>
+	<td> <code>MAX_DATA</code>   </td>
+	<td> maximum        </td>
+	<td> Raises the connection-level flow control limit (cumulative bytes of stream data). </td>
+</tr>
+<tr>
+	<td> <code>0x06</code> </td>
+	<td> <code>MAX_STREAM_DATA</code> </td>
+	<td> stream ID, maximum     </td>
+	<td> Raises the flow control limit of one stream (cumulative bytes).    </td>
+</tr>
+<tr>
+	<td> <code>0x07</code> </td>
+	<td> <code>MAX_STREAMS_BIDI</code> </td>
+	<td> count        </td>
+	<td> Raises the limit on the peer&#8217;s cumulative count of opened bidirectional streams. </td>
+</tr>
+<tr>
+	<td> <code>0x08</code> </td>
+	<td> <code>MAX_STREAMS_UNI</code> </td>
+	<td> count        </td>
+	<td> Raises the limit on the peer&#8217;s cumulative count of opened unidirectional streams. </td>
+</tr>
+<tr>
+	<td> <code>0x09</code> </td>
+	<td> <code>CLOSE</code>   </td>
+	<td> error code       </td>
+	<td> Closes the connection with an application error code; the sender then closes the underlying connection. </td>
+</tr>
+</tbody>
+</table>
+
+<p>Flow control limits are cumulative, as in QUIC: a limit counts total bytes
+sent on a stream (respectively, on all streams; respectively, total streams
+opened) since the beginning of the connection, and each <code>MAX_*</code> frame
+communicates a new absolute limit. Limits never decrease; a <code>MAX_*</code> frame with
+a lower value than a previously communicated limit is ignored. A node MUST NOT
+exceed a limit communicated by its peer; a peer that does so is a connection
+error of type <code>PROTOCOL_ERROR</code> (equally, a frame that is malformed or has an
+unrecognized frame type).</p>
+
+<p>The <code>length</code> of a <code>STREAM</code> frame MUST NOT exceed 65,536 bytes; larger
+application writes are split across multiple <code>STREAM</code> frames, allowing frames
+of other streams to be interleaved between them.</p>
+
+<p>The abstract stream layer maps onto this framing as follows:</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Stream layer concept        </th>
+	<th> Framing realization          </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> Bidirectional / unidirectional stream   </td>
+	<td> Stream ID kinds <code>0x0</code>/<code>0x1</code> and <code>0x2</code>/<code>0x3</code>.   </td>
+</tr>
+<tr>
+	<td> Finishing a stream direction      </td>
+	<td> A <code>STREAM</code> frame with the <code>FIN</code> flag.     </td>
+</tr>
+<tr>
+	<td> Resetting a stream with an error code   </td>
+	<td> <code>RESET_STREAM</code> carrying the application error code.  </td>
+</tr>
+<tr>
+	<td> Cancelling a peer&#8217;s sending with an error code </td>
+	<td> <code>STOP_SENDING</code> carrying the application error code.  </td>
+</tr>
+<tr>
+	<td> Closing the connection with an error code  </td>
+	<td> <code>CLOSE</code> carrying the application error code.   </td>
+</tr>
+<tr>
+	<td> Per-stream backpressure       </td>
+	<td> <code>MAX_DATA</code> and <code>MAX_STREAM_DATA</code> credit.    </td>
+</tr>
+<tr>
+	<td> Stream concurrency limits      </td>
+	<td> Preamble initial limits and <code>MAX_STREAMS_*</code> frames.  </td>
+</tr>
+<tr>
+	<td> Keep-alive          </td>
+	<td> <code>PING</code> frames.           </td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="streamlayer"><span class="section-heading">Stream Layer</span><span class="section-anchor"> <a rel="bookmark" href="#streamlayer"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>All application data is carried on streams provided by the transport. The
+first byte of every stream is a <em>stream type</em> that determines the format and
+semantics of the remaining stream data.</p>
+
+<h3 id="transportrequirements"><span class="section-heading">Transport Requirements</span><span class="section-anchor"> <a rel="bookmark" href="#transportrequirements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>The stream layer that every transport provides consists of <em>bidirectional</em>
+streams (both peers can send) and <em>unidirectional</em> streams (only the opener can
+send), with the following operations and guarantees:</p>
+
+<ul>
+<li>Either peer can <strong>open</strong> streams of either kind at any time. The receiver of
+a stream can tell which peer opened it and of which kind it is.</li>
+<li>Data written to a stream is delivered reliably and in order within that
+stream. Streams are mutually independent: delay or loss on one stream MUST
+NOT prevent delivery of data on other streams.</li>
+<li>A sender can <strong>finish</strong> its sending direction of a stream, signalling that no
+more data will be sent on it.</li>
+<li>A peer can <strong>reset</strong> a stream it is sending on, abandoning it with an
+application error code (see
+<a href="#applicationerrorcodes">Application Error Codes</a>), and can <strong>cancel</strong> the
+peer&#8217;s sending direction of a stream, requesting with an application error
+code that the peer stop sending.</li>
+<li>Either peer can <strong>close</strong> the connection with an application error code.</li>
+<li>The receiver of a stream can apply per-stream backpressure to bound how much
+data it must buffer.</li>
+<li>Each peer can bound the number of streams of each kind that the other peer
+may have concurrently open. A node SHOULD allow at least 32 concurrent
+bidirectional streams, and SHOULD allow at least 8 concurrent unidirectional
+streams (sufficient for the announcement streams plus headroom for future
+types).</li>
+</ul>
+
+<p>How each transport realizes these operations is specified in the corresponding
+transport section (for QUIC, see <a href="#streamlayermapping">Stream Layer Mapping</a>).</p>
+
+<h3 id="streamtypes"><span class="section-heading">Stream Types</span><span class="section-anchor"> <a rel="bookmark" href="#streamtypes"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Code </th>
+	<th> Name      </th>
+	<th> Kind       </th>
+	<th> Description               </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> <code>0x00</code> </td>
+	<td> Handshake     </td>
+	<td> Bidirectional, initiator only </td>
+	<td> Connection handshake and control (see <a href="#connectionhandshake">Connection Handshake</a>). </td>
+</tr>
+<tr>
+	<td> <code>0x01</code> </td>
+	<td> <a href="#get-headers"><code>get-headers</code></a> </td>
+	<td> Bidirectional    </td>
+	<td> Request block headers, optionally with transaction IDs.    </td>
+</tr>
+<tr>
+	<td> <code>0x02</code> </td>
+	<td> <a href="#get-blocks"><code>get-blocks</code></a> </td>
+	<td> Bidirectional    </td>
+	<td> Request full blocks.             </td>
+</tr>
+<tr>
+	<td> <code>0x03</code> </td>
+	<td> <a href="#get-tx"><code>get-tx</code></a>  </td>
+	<td> Bidirectional     </td>
+	<td> Request transactions.            </td>
+</tr>
+<tr>
+	<td> <code>0x04</code> </td>
+	<td> <a href="#get-addr"><code>get-addr</code></a> </td>
+	<td> Bidirectional     </td>
+	<td> Request peer addresses.            </td>
+</tr>
+<tr>
+	<td> <code>0x05</code> </td>
+	<td> <a href="#get-mempool"><code>get-mempool</code></a> </td>
+	<td> Bidirectional    </td>
+	<td> Subscribe to mempool contents.          </td>
+</tr>
+<tr>
+	<td> <code>0x06</code> </td>
+	<td> <a href="#get-hashes"><code>get-hashes</code></a> </td>
+	<td> Bidirectional    </td>
+	<td> Request best-chain block hashes and per-block sync-cost metadata. </td>
+</tr>
+<tr>
+	<td> <code>0x07</code> </td>
+	<td> <a href="#get-block-range"><code>get-block-range</code></a> </td>
+	<td> Bidirectional  </td>
+	<td> Stream a contiguous range of blocks, verified against an anchor hash. </td>
+</tr>
+<tr>
+	<td> <code>0x08</code> </td>
+	<td> <a href="#get-tree-roots"><code>get-tree-roots</code></a> </td>
+	<td> Bidirectional  </td>
+	<td> Request per-block note commitment tree roots for a height range.  </td>
+</tr>
+<tr>
+	<td> <code>0x09</code> </td>
+	<td> <a href="#get-object"><code>get-object</code></a> </td>
+	<td> Bidirectional    </td>
+	<td> Request a range of a content-addressed synchronization artifact.  </td>
+</tr>
+<tr>
+	<td> <code>0x10</code> </td>
+	<td> Block announcements  </td>
+	<td> Unidirectional    </td>
+	<td> Announce new blocks (see <a href="#blockannouncements">Block Announcements</a>). </td>
+</tr>
+<tr>
+	<td> <code>0x11</code> </td>
+	<td> Transaction announcements </td>
+	<td> Unidirectional    </td>
+	<td> Announce new transactions (see <a href="#transactionannouncements">Transaction Announcements</a>). </td>
+</tr>
+<tr>
+	<td> <code>0x12</code> </td>
+	<td> Address announcements  </td>
+	<td> Unidirectional    </td>
+	<td> Gossip peer addresses (see <a href="#addressannouncements">Address Announcements</a>). </td>
+</tr>
+</tbody>
+</table>
+
+<p>Stream type <code>0x00</code> and the ranges <code>0x01</code>–<code>0x0F</code> and <code>0x10</code>–<code>0x1F</code> are reserved
+for the handshake, request stream types, and announcement stream types
+respectively; future revisions are expected to assign new stream types from the
+matching range.</p>
+
+<p>To <em>refuse</em> a stream opened by its peer, a node cancels the peer&#8217;s sending
+direction of that stream with the applicable error code and, if the stream is
+bidirectional, also resets its own sending direction with the same code;
+refusing a unidirectional stream involves only the cancellation.</p>
+
+<p>A node receiving a stream whose type byte it does not recognize MUST refuse
+that stream with the <code>UNSUPPORTED_STREAM_TYPE</code> error code (see
+<a href="#applicationerrorcodes">Application Error Codes</a>) and MUST NOT treat it as a
+connection error or assign a misbehavior penalty. This allows future stream
+types to be deployed without version gating.</p>
+
+<p>A stream that is finished by its opener before a complete type byte has been
+received is a connection error of type <code>PROTOCOL_ERROR</code>.</p>
+
+<h3 id="requeststreams"><span class="section-heading">Request Streams</span><span class="section-anchor"> <a rel="bookmark" href="#requeststreams"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>A request stream is a bidirectional stream carrying exactly one request and its
+response:</p>
+
+<ol>
+<li>The requester opens a bidirectional stream, writes the stream type byte
+followed by the request in the format defined for that type, and finishes
+its sending direction.</li>
+<li>The responder writes the response in the format defined for that type and
+finishes its sending direction. (For a stream type that defines an
+open-ended response, the responder instead keeps its sending direction open;
+see <a href="#get-mempool"><code>get-mempool</code></a>.)</li>
+</ol>
+
+<p>Either peer may open request streams; there is no client/server asymmetry
+beyond the rules stated for individual stream types.</p>
+
+<ul>
+<li>A responder MAY begin serving a request as soon as the request is
+syntactically complete, without waiting for the requester to finish its
+sending direction.</li>
+<li>A responder that cannot or will not serve a request MAY reset its sending
+direction of the stream with the <code>REFUSED</code> error code instead of sending a
+response.</li>
+<li>A requester that no longer needs a response SHOULD cancel the responder&#8217;s
+sending direction with the <code>CANCELLED</code> error code; the responder SHOULD then
+reset the stream and abandon work on the request.</li>
+<li>A reset or refused request stream is never resumed or reused. A requester
+that retries a request after a reset does so by opening a new stream, and
+the next byte the requesting side sends — the first byte of that new stream
+— MUST be the stream type byte, as for any other stream.</li>
+<li>A node SHOULD apply an implementation-defined timeout to each outstanding
+request, cancelling the stream if the response does not complete in time.</li>
+<li>A node MUST NOT send more than one request on a stream. Unless the stream
+type defines an open-ended response, any data following a complete request
+or response on a stream is a connection error of type <code>PROTOCOL_ERROR</code>.</li>
+<li>A request or response that does not conform to the format defined for its
+stream type — including an unrecognized <code>result</code> value in a response — is a
+connection error of type <code>PROTOCOL_ERROR</code>, unless other handling is
+specified for the stream type.</li>
+</ul>
+
+<p>A node bounds the number of concurrent requests a peer may have outstanding
+using the transport&#8217;s stream concurrency limits (see
+<a href="#transportrequirements">Transport Requirements</a>).</p>
+
+<h3 id="announcementstreams"><span class="section-heading">Announcement Streams</span><span class="section-anchor"> <a rel="bookmark" href="#announcementstreams"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>An announcement stream is a long-lived unidirectional stream carrying a
+sequence of records for one announcement topic.</p>
+
+<ul>
+<li>After the connection handshake completes, each peer SHOULD open one
+announcement stream of each type it intends to send announcements on, and
+keep it open for the life of the connection.</li>
+<li>A node MUST NOT open more than one announcement stream of a given type in
+the same direction at a time. A second concurrent stream of the same type is
+a connection error of type <code>PROTOCOL_ERROR</code>. If an announcement stream is
+reset or finished, the sender MAY open a replacement.</li>
+<li>Announcements are best-effort: if transport backpressure prevents a record
+from being written promptly, the sender MAY drop the announcement rather
+than queueing it indefinitely.</li>
+<li>A record on an announcement stream that does not conform to the format
+defined for its stream type — a <em>nonconforming record</em> — is a connection
+error of type <code>PROTOCOL_ERROR</code>, unless other handling is specified for
+the stream type. (New record formats are introduced under new protocol
+versions, so an unrecognized format is a violation, not a newer peer.)</li>
+</ul>
+
+<h3 id="records"><span class="section-heading">Records</span><span class="section-anchor"> <a rel="bookmark" href="#records"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Each record on an announcement or handshake stream is encoded as a fixed-size
+4-byte length prefix followed by that many bytes of payload:</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Size </th>
+	<th> Field  </th>
+	<th> Description          </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> 4  </td>
+	<td> <code>length</code> </td>
+	<td> Payload length in bytes (<code>uint32</code>, little-endian). </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>payload</code> </td>
+	<td> Record payload; format depends on the stream type. </td>
+</tr>
+</tbody>
+</table>
+
+<p>The maximum length of a record payload — and of any individually
+length-prefixed element in a request or response, such as a serialized block —
+is 2,097,152 bytes (2 MiB). A node MUST treat a length prefix exceeding this
+limit as a connection error of type <code>FLOOD</code>.</p>
+
+<p>A record MUST NOT be processed until it is complete. A stream that is finished
+in the middle of a record is a connection error of type <code>PROTOCOL_ERROR</code>.</p>
+
+<h3 id="applicationerrorcodes"><span class="section-heading">Application Error Codes</span><span class="section-anchor"> <a rel="bookmark" href="#applicationerrorcodes"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>The following application error codes are used when closing a connection,
+resetting a stream, or cancelling a peer&#8217;s sending direction (see
+<a href="#transportrequirements">Transport Requirements</a>):</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Code </th>
+	<th> Constant     </th>
+	<th> Usage                           </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> <code>0x00</code> </td>
+	<td> <code>NO_ERROR</code>    </td>
+	<td> Graceful connection close.                      </td>
+</tr>
+<tr>
+	<td> <code>0x01</code> </td>
+	<td> <code>PROTOCOL_ERROR</code>   </td>
+	<td> The peer violated this specification.                   </td>
+</tr>
+<tr>
+	<td> <code>0x02</code> </td>
+	<td> <code>UNSUPPORTED_STREAM_TYPE</code> </td>
+	<td> Stream refusal: unrecognized stream type.                  </td>
+</tr>
+<tr>
+	<td> <code>0x03</code> </td>
+	<td> <code>OBSOLETE</code>    </td>
+	<td> The peer&#8217;s protocol version is below the minimum for the current network epoch (see <a href="#networkupgradeepochenforcement">Network Upgrade Epoch Enforcement</a>). </td>
+</tr>
+<tr>
+	<td> <code>0x04</code> </td>
+	<td> <code>SELF_CONNECTION</code>   </td>
+	<td> The connection is to the node itself (see <a href="#initrecord">Init Record</a>).           </td>
+</tr>
+<tr>
+	<td> <code>0x05</code> </td>
+	<td> <code>FLOOD</code>     </td>
+	<td> The peer exceeded a size or rate limit.                   </td>
+</tr>
+<tr>
+	<td> <code>0x06</code> </td>
+	<td> <code>MISBEHAVIOR</code>    </td>
+	<td> The peer&#8217;s misbehavior score reached the ban threshold (see <a href="#misbehaviorandbanning">Misbehavior and Banning</a>). </td>
+</tr>
+<tr>
+	<td> <code>0x07</code> </td>
+	<td> <code>CANCELLED</code>    </td>
+	<td> Stop-sending/reset: the request is no longer wanted.                </td>
+</tr>
+<tr>
+	<td> <code>0x08</code> </td>
+	<td> <code>REFUSED</code>     </td>
+	<td> Stream reset: the responder declines to serve this request.              </td>
+</tr>
+<tr>
+	<td> <code>0x09</code> </td>
+	<td> <code>INTERNAL_ERROR</code>   </td>
+	<td> The sender encountered an internal error.                  </td>
+</tr>
+</tbody>
+</table>
+
+<p>Where this document states that an event is a <em>connection error</em> of a given
+type, a node detecting that event MUST close the connection with the
+corresponding error code.</p>
+
+<p>A node receiving an error code it does not recognize MUST treat it as
+<code>INTERNAL_ERROR</code>.</p>
+
+<h2 id="datatypesandencoding"><span class="section-heading">Data Types and Encoding</span><span class="section-anchor"> <a rel="bookmark" href="#datatypesandencoding"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>The integer types and byte order, the CompactSize variable-length integer
+encoding (including its canonicity requirement), and the string encoding are
+as specified in ZIP 204 <a href="#fn:21" id="fnref:21" title="see footnote" class="footnote"><sup>21</sup></a>. As there, a node MUST reject
+non-canonical CompactSize encodings.</p>
+
+<p>Every CompactSize count and length in this protocol is peer-supplied and may
+be as large as 2<sup>64</sup> − 1 on the wire, whatever bound this document places on
+its legitimate values. A node MUST check a count or length against its
+specified bound <em>before</em> using it, and MUST NOT allocate storage in
+proportion to a declared count before the corresponding data has been
+received. Where this document requires a bound on a sum of two counts, the
+node MUST also bound each addend, since a sum of two unbounded values can
+wrap and satisfy the bound on the sum. Likewise, a node computing an offset
+or a remaining length from peer-supplied values MUST perform the arithmetic
+in a way that cannot overflow or underflow.</p>
+
+<h3 id="serializedblocks"><span class="section-heading">Serialized Blocks</span><span class="section-anchor"> <a rel="bookmark" href="#serializedblocks"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>The Zcash Protocol Specification defines the encodings of block headers and
+transactions, but leaves the encoding of a whole block to the peer-to-peer
+protocol <a href="#fn:12" title="see footnote" class="footnote"><sup>12</sup></a>. A serialized block is encoded as follows,
+unchanged from the payload of the legacy <code>block</code> message:</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Size </th>
+	<th> Field  </th>
+	<th> Description                 </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> varies </td>
+	<td> <code>header</code> </td>
+	<td> The serialized block header <a href="#fn:12" title="see footnote" class="footnote"><sup>12</sup></a> (including the Equihash solution). </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>tx_count</code> </td>
+	<td> Number of transactions in the block (CompactSize).       </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>txns</code>  </td>
+	<td> <code>tx_count</code> serialized transactions <a href="#fn:11" title="see footnote" class="footnote"><sup>11</sup></a>, in block order. </td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="networkaddressrecord"><span class="section-heading">Network Address Record</span><span class="section-anchor"> <a rel="bookmark" href="#networkaddressrecord"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Peer addresses use the <code>addrv2</code> address record specified in ZIP 155
+<a href="#fn:14" title="see footnote" class="footnote"><sup>14</sup></a>; it is the only address encoding in this protocol. The record
+fields (<code>time</code>, <code>services</code>, <code>networkID</code>, <code>sizeAddr</code>, <code>addr</code>, <code>port</code>), the
+network IDs (<code>IPV4</code>, <code>IPV6</code>, <code>TORV3</code>, <code>I2P</code>, <code>CJDNS</code>), the 512-byte <code>addr</code>
+limit, the per-network-ID length and encoding rules, and the prohibition on
+gossiping addresses with unrecognized network IDs are all as specified in
+ZIP 155.</p>
+
+<p>The <code>port</code> field is interpreted per transport: for QUIC endpoints it is the
+UDP port, and for <code>TORV3</code> addresses it is the onion service virtual port (see
+<a href="#tortransport">Tor Transport</a>). It MUST be 0 if not relevant for the
+network.</p>
+
+<p>The <code>time</code> field of a relayed record is attacker-suppliable and
+unauthenticated: it is the relaying peer&#8217;s claim about when the address was
+last seen, and nothing binds it to reality. Because it is the freshness
+signal an address manager ranks on, an unvalidated <code>time</code> set far in the
+future makes an attacker&#8217;s addresses permanently the freshest entries of
+whatever buckets they occupy, and so a preferred choice at every outbound
+peer selection — an eclipse vector <a href="#fn:22" id="fnref:22" title="see footnote" class="footnote"><sup>22</sup></a> that operates from inside the
+buckets, where the bucketing of
+<a href="#addressbookmanagement">Address Book Management</a> affords no protection. A
+node therefore:</p>
+
+<ul>
+<li>MUST clamp the <code>time</code> of a relayed record before storing it: a <code>time</code> more
+than 10 minutes in the future, or equal to 0, is replaced by the current
+time less 5 days.</li>
+<li>SHOULD NOT relay, and SHOULD eventually evict, a record whose clamped
+<code>time</code> is more than 30 days in the past.</li>
+<li>SHOULD NOT make the relayed <code>time</code> the primary key of outbound peer
+selection, and SHOULD prefer its own record of successful connections to
+an address over any peer&#8217;s claim about it.</li>
+</ul>
+
+<p>These are the protections legacy implementations applied in code; they are
+stated here because the field is load-bearing for peer selection.</p>
+
+<p><em>Note:</em> Each network ID implies the transport by which the address is
+reachable: <code>IPV4</code>, <code>IPV6</code>, and <code>CJDNS</code> addresses identify QUIC endpoints, and
+<code>TORV3</code> addresses identify onion services of the Tor transport. <code>I2P</code>
+addresses are not reachable via either transport defined in this ZIP; they
+remain defined for gossip so that nodes can learn them ahead of a future
+revision that defines an I2P-capable transport.</p>
+
+<h3 id="transactionreferences"><span class="section-heading">Transaction References</span><span class="section-anchor"> <a rel="bookmark" href="#transactionreferences"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Transactions are identified in announcements and requests by <em>transaction
+references</em>. Per ZIP 239 <a href="#fn:23" id="fnref:23" title="see footnote" class="footnote"><sup>23</sup></a>, transactions with version ≥ 5 are relayed
+by wtxid (the txid followed by the authorizing data commitment <code>auth_digest</code>),
+and transactions with version ≤ 4 by txid. A transaction reference is encoded
+as a 1-byte type followed by a type-dependent identifier:</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Type </th>
+	<th> Name  </th>
+	<th> Total Size </th>
+	<th> Description                          </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> <code>0x01</code> </td>
+	<td> <code>TXID</code> </td>
+	<td> 33 bytes </td>
+	<td> Transaction with version ≤ 4, identified by its 32-byte txid.             </td>
+</tr>
+<tr>
+	<td> <code>0x02</code> </td>
+	<td> <code>WTXID</code> </td>
+	<td> 65 bytes </td>
+	<td> Transaction with version ≥ 5, identified by its 64-byte wtxid (txid followed by <code>auth_digest</code>). See ZIP 239 <a href="#fn:23" title="see footnote" class="footnote"><sup>23</sup></a>. </td>
+</tr>
+<tr>
+	<td> <code>0x03</code> </td>
+	<td> <code>SHORTID</code> </td>
+	<td> 39 bytes </td>
+	<td> Transaction within a specific block, identified by a 32-byte block hash followed by a 6-byte short transaction ID (see <a href="#shorttransactionids">Short Transaction IDs</a>). Only valid in <code>get-tx</code> requests. </td>
+</tr>
+</tbody>
+</table>
+
+<p>A transaction reference with an unrecognized type is a connection error of
+type <code>PROTOCOL_ERROR</code>. Using the wrong reference type for a transaction&#8217;s
+version is subject to a misbehavior penalty only where the sender of the
+reference necessarily holds the transaction and so knows its version:
+in announcement stream records and <code>get-mempool</code> response records (see
+<a href="#misbehaviorandbanning">Misbehavior and Banning</a>). A <code>get-tx</code> requester,
+by contrast, may not hold the transaction it is requesting, and can have
+derived the reference type from data supplied by another peer (see
+<a href="#requestingmissingtransactions">Requesting Missing Transactions</a>); a
+responder receiving a <code>get-tx</code> reference whose type does not match the
+referenced transaction&#8217;s version MUST answer that reference with a
+not-found result, and MUST NOT assign a misbehavior penalty for it.</p>
+
+<h2 id="serviceflags"><span class="section-heading">Service Flags</span><span class="section-anchor"> <a rel="bookmark" href="#serviceflags"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>Service flags are advertised in the <code>services</code> field of <code>init</code> records and
+network address records. Bit numbering is as in ZIP 204</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Name     </th>
+	<th> Bit </th>
+	<th> Description             </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> <code>NODE_NETWORK</code>   </td>
+	<td> 0 </td>
+	<td> The node is capable of serving the complete block chain. </td>
+</tr>
+<tr>
+	<td> <code>NODE_TREE_ROOTS</code>  </td>
+	<td> 3 </td>
+	<td> The node maintains a per-block note commitment tree root index and serves <a href="#get-tree-roots"><code>get-tree-roots</code></a> requests. </td>
+</tr>
+<tr>
+	<td> <code>NODE_SYNC_ARTIFACTS</code> </td>
+	<td> 4 </td>
+	<td> The node serves content-addressed synchronization artifacts via <a href="#get-object"><code>get-object</code></a> requests. </td>
+</tr>
+<tr>
+	<td> <code>NODE_NETWORK_LIMITED</code> </td>
+	<td> 10 </td>
+	<td> The node is capable of serving at least the most recent 2,304 blocks (approximately two days). </td>
+</tr>
+</tbody>
+</table>
+
+<p>A node that does not hold the complete block chain — because it synchronized
+from a state snapshot and has not finished backfilling, or because it prunes
+historical blocks — MUST NOT advertise <code>NODE_NETWORK</code>; it SHOULD advertise
+<code>NODE_NETWORK_LIMITED</code> if it can serve at least the most recent 2,304 blocks
+of its best chain. A node selecting peers to request historical blocks from
+uses these flags (see <a href="#fn:13" title="see footnote" class="footnote"><sup>13</sup></a>).</p>
+
+<p>Bits 24–31 remain reserved for temporary experiments, as in ZIP 204
+<a href="#fn:24" id="fnref:24" title="see footnote" class="footnote"><sup>24</sup></a>.</p>
+
+<p>A node MUST ignore service bits that it does not recognize, and SHOULD
+preserve them when relaying address records (see
+<a href="#addressrelay">Address Relay</a>).</p>
+
+<p>The legacy <code>NODE_BLOOM</code> flag (bit 2) is retired along with BIP 37 Bloom
+filtering, and MUST NOT be advertised.</p>
+
+<h2 id="connectionhandshake"><span class="section-heading">Connection Handshake</span><span class="section-anchor"> <a rel="bookmark" href="#connectionhandshake"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>Peers perform an application handshake immediately after the transport
+connection is established.</p>
+
+<h3 id="handshakesequence"><span class="section-heading">Handshake Sequence</span><span class="section-anchor"> <a rel="bookmark" href="#handshakesequence"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<ol>
+<li>The initiator opens a bidirectional stream with stream type <code>0x00</code> (the
+<em>handshake stream</em>) and sends an <code>init</code> record.</li>
+<li>The responder sends its own <code>init</code> record on the same stream.</li>
+<li>The handshake is complete for a peer once it has both sent and received an
+<code>init</code> record. The negotiated protocol version is
+<code>min(local_version, remote_version)</code>.</li>
+</ol>
+
+<p>The two <code>init</code> records are independent: the responder MAY send its <code>init</code>
+record as soon as it observes the handshake stream&#8217;s type byte, without
+waiting for the initiator&#8217;s <code>init</code> record to arrive.</p>
+
+<p>Only the initiator may open the handshake stream, and a connection has exactly
+one: a handshake stream opened by the responder, or a second handshake stream,
+is a connection error of type <code>PROTOCOL_ERROR</code>.</p>
+
+<p>A node MUST NOT open any other stream before it has sent its <code>init</code> record,
+and MUST NOT send announcement records or requests before the handshake is
+complete. A node MAY buffer streams received from a peer before the handshake
+completes, or MAY refuse them with <code>REFUSED</code> (see
+<a href="#streamtypes">Stream Types</a>); it MUST NOT process them before the handshake
+completes.</p>
+
+<p>The handshake stream remains open for the life of the connection. Future
+record kinds on the handshake stream may be defined by later revisions; a node
+MUST ignore handshake-stream records whose kind it does not recognize.
+Finishing or resetting the handshake stream signals intent to disconnect; a
+node observing this SHOULD close the connection with <code>NO_ERROR</code>.</p>
+
+<p>Records on the handshake stream use the encoding of <a href="#records">Records</a>. The
+record payload begins with a 1-byte record kind; kind <code>0x00</code> is the <code>init</code>
+record.</p>
+
+<h3 id="initrecord"><span class="section-heading">Init Record</span><span class="section-anchor"> <a rel="bookmark" href="#initrecord"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>The <code>init</code> record payload (following the kind byte) has the following format:</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Size </th>
+	<th> Field   </th>
+	<th> Description                        </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> 4  </td>
+	<td> <code>version</code>  </td>
+	<td> The sender&#8217;s advertised protocol version (<code>uint32</code>).              </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>services</code>  </td>
+	<td> Service flags (CompactSize-encoded <code>uint64</code>).               </td>
+</tr>
+<tr>
+	<td> 8  </td>
+	<td> <code>nonce</code>  </td>
+	<td> Random nonce for self-connection detection (<code>uint64</code>).             </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>user_agent</code> </td>
+	<td> User agent string (CompactSize-prefixed, max 256 bytes).             </td>
+</tr>
+<tr>
+	<td> 4  </td>
+	<td> <code>start_height</code> </td>
+	<td> Best block height known to the sender (<code>uint32</code>).              </td>
+</tr>
+<tr>
+	<td> 1  </td>
+	<td> <code>relay</code>  </td>
+	<td> Whether the sender wants transaction relay (<code>uint8</code>; 0 or 1).           </td>
+</tr>
+<tr>
+	<td> 1  </td>
+	<td> <code>announce</code>  </td>
+	<td> Whether the sender requests high-bandwidth compact block announcements (<code>uint8</code>; 0 or 1). See <a href="#compactblockrelay">Compact Block Relay</a>. </td>
+</tr>
+<tr>
+	<td> 1  </td>
+	<td> <code>full_ids</code>  </td>
+	<td> Whether the sender requests full transaction IDs in compact block announcements (<code>uint8</code>; 0 or 1). See <a href="#fulltransactionids">Full Transaction IDs</a>. </td>
+</tr>
+</tbody>
+</table>
+
+<p>All fields are mandatory. The legacy <code>timestamp</code>, <code>addr_recv</code>, and <code>addr_from</code>
+fields are removed.</p>
+
+<p>The <code>nonce</code> field is used for self-connection detection. If a node receives an
+<code>init</code> record containing a nonce it recently sent in its own <code>init</code> records,
+it MUST close the connection with the <code>SELF_CONNECTION</code> error code.</p>
+
+<p>If <code>relay</code> is 0, the peer MUST NOT open a transaction announcement stream to
+the sender, and SHOULD NOT announce transactions to it by any other means.</p>
+
+<p>There is no mechanism for changing the value of the <code>relay</code>, <code>announce</code>, or
+<code>full_ids</code> fields during the life of a connection; a node that wants to
+change them disconnects and performs a new handshake.</p>
+
+<h3 id="handshakevalidation"><span class="section-heading">Handshake Validation</span><span class="section-anchor"> <a rel="bookmark" href="#handshakevalidation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>A receiving node MUST validate the <code>init</code> record as follows:</p>
+
+<ul>
+<li>The <code>version</code> field MUST be at least the minimum protocol version of this
+ZIP (see <a href="#protocolversioning">Protocol Versioning</a>), and at least the
+protocol version associated with the current network epoch (see
+<a href="#networkupgradeepochenforcement">Network Upgrade Epoch Enforcement</a>). On
+failure, the node MUST close the connection with the <code>OBSOLETE</code> error code.</li>
+<li>The <code>nonce</code> is checked for self-connection as specified in
+<a href="#initrecord">Init Record</a>.</li>
+<li>The <code>user_agent</code> string MUST NOT exceed 256 bytes.</li>
+<li>The <code>relay</code>, <code>announce</code>, and <code>full_ids</code> fields MUST each be 0 or 1.</li>
+<li>A peer MUST NOT send more than one <code>init</code> record per connection.</li>
+</ul>
+
+<p>Except where another error code is specified above, a node MUST close the
+connection with the <code>PROTOCOL_ERROR</code> error code if any of these checks fail.</p>
+
+<h3 id="handshakeexamplenon-normative"><span class="section-heading">Handshake Example (non-normative)</span><span class="section-anchor"> <a rel="bookmark" href="#handshakeexamplenon-normative"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Connection establishment over the QUIC transport:</p>
+
+<pre><code>Initiator                                     Responder
+   ═══ QUIC handshake (ALPN &quot;zcash/main&quot;) ═══
+   ── open stream 0x00: type byte, init ────▶
+   ◀──────── same stream: init ──────────────
+        (handshake is complete for each peer once it
+         has both sent and received an init record)
+   ── open announcement streams 0x10..0x12 ─▶
+   ◀─ open announcement streams 0x10..0x12 ──
+   ...requests and announcements flow in both directions...
+</code></pre>
+
+<h2 id="protocolversioning"><span class="section-heading">Protocol Versioning</span><span class="section-anchor"> <a rel="bookmark" href="#protocolversioning"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>Protocol versions are 32-bit integers, advertised in the <code>version</code> field of
+the <code>init</code> record. The <em>negotiated protocol version</em> of a connection is the
+minimum of the two peers' advertised versions. The negotiated protocol version
+determines whether the peer meets the minimum version requirements for the
+current network epoch (see
+<a href="#networkupgradeepochenforcement">Network Upgrade Epoch Enforcement</a>), and
+gates any features that later revisions of this protocol introduce under new
+protocol versions.</p>
+
+<p>Protocol versions inhabit a single numbering space shared with the legacy
+protocol: a protocol version is assigned to a (network, network upgrade) pair,
+not to a P2P protocol revision, and denotes the same version whether it is
+advertised in a legacy <code>version</code> message or in an <code>init</code> record. The
+association of protocol versions with network upgrades, and the procedure by
+which future network upgrades are assigned protocol versions, are specified in
+ZIP 204 <a href="#fn:25" id="fnref:25" title="see footnote" class="footnote"><sup>25</sup></a> and are not duplicated here.</p>
+
+<p>At the time of writing, the current protocol version — advertised by nodes
+implementing the legacy protocol — is 170160 (<code>PROTOCOL_VERSION</code>). The
+protocol version from which the protocol specified by this ZIP is deployed has
+not yet been assigned; it will be the protocol version that ZIP 204&#8217;s
+assignment procedure <a href="#fn:25" title="see footnote" class="footnote"><sup>25</sup></a> assigns to the network upgrade
+that deploys this protocol (see <a href="#deployment">Deployment</a>). That version is
+the minimum peer protocol version of this protocol: every node implementing
+this ZIP necessarily advertises at least that version, and version-gated
+features of the legacy protocol (such as <code>MSG_WTX</code> relay and <code>addrv2</code> support)
+are unconditionally in effect.</p>
+
+<h3 id="networkupgradeepochenforcement"><span class="section-heading">Network Upgrade Epoch Enforcement</span><span class="section-anchor"> <a rel="bookmark" href="#networkupgradeepochenforcement"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Each network upgrade defines a minimum protocol version. When a network
+upgrade activates (as defined in ZIP 200 <a href="#fn:3" title="see footnote" class="footnote"><sup>3</sup></a>), a node MUST disconnect
+any peer whose negotiated protocol version is less than the protocol version
+associated with the current epoch, using the <code>OBSOLETE</code> error code.</p>
+
+<p>The protocol versions associated with network upgrades on each network are
+tabulated in ZIP 204 <a href="#fn:26" id="fnref:26" title="see footnote" class="footnote"><sup>26</sup></a>.</p>
+
+<p>In the preference window before an upgrade&#8217;s activation, a node SHOULD
+preferentially connect to peers advertising the upcoming epoch&#8217;s protocol
+version, as specified in ZIP 201 <a href="#fn:27" id="fnref:27" title="see footnote" class="footnote"><sup>27</sup></a>.</p>
+
+<h2 id="requeststreamtypes"><span class="section-heading">Request Stream Types</span><span class="section-anchor"> <a rel="bookmark" href="#requeststreamtypes"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>This section defines each request stream type. For each type, the request and
+response formats and their semantics are specified. All requests and responses
+follow the lifecycle of <a href="#requeststreams">Request Streams</a>.</p>
+
+<h3 id="get-headers"><span class="section-heading"><code>get-headers</code></span><span class="section-anchor"> <a rel="bookmark" href="#get-headers"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Stream type: <code>0x01</code></p>
+
+<p><strong>Request:</strong></p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Size </th>
+	<th> Field   </th>
+	<th> Description               </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> varies </td>
+	<td> <code>locator_count</code> </td>
+	<td> Number of block locator hashes (CompactSize).      </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>locator_hashes</code> </td>
+	<td> Block locator hashes (each 32 bytes), from highest to lowest height. </td>
+</tr>
+<tr>
+	<td> 32  </td>
+	<td> <code>hash_stop</code>  </td>
+	<td> Hash of the last desired header, or all zeros to request as many as possible. </td>
+</tr>
+<tr>
+	<td> 1  </td>
+	<td> <code>tx_ids</code>   </td>
+	<td> Whether each returned header should be accompanied by the block&#8217;s coinbase transaction and transaction IDs (<code>uint8</code>; 0 or 1). </td>
+</tr>
+</tbody>
+</table>
+
+<p><strong>Response:</strong></p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Size </th>
+	<th> Field  </th>
+	<th> Description          </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> varies </td>
+	<td> <code>count</code> </td>
+	<td> Number of entries (CompactSize).     </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>entries</code> </td>
+	<td> <code>count</code> entries, each encoded as follows.   </td>
+</tr>
+</tbody>
+</table>
+
+<p>Each entry:</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Size </th>
+	<th> Field  </th>
+	<th> Description                      </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> varies </td>
+	<td> <code>header</code> </td>
+	<td> The block header, encoded as a CompactSize length prefix followed by the serialized header <a href="#fn:12" title="see footnote" class="footnote"><sup>12</sup></a> (including the Equihash solution). </td>
+</tr>
+<tr>
+	<td> 1  </td>
+	<td> <code>has_txs</code> </td>
+	<td> Present only if the request had <code>tx_ids = 1</code>. <code>0x01</code>: the coinbase transaction and transaction IDs follow. <code>0x00</code>: nothing further follows for this entry. </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>coinbase</code> </td>
+	<td> Present only if <code>has_txs</code> is <code>0x01</code>: the block&#8217;s coinbase transaction, encoded as a CompactSize length prefix followed by the serialized transaction <a href="#fn:11" title="see footnote" class="footnote"><sup>11</sup></a>. </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>ids_count</code></td>
+	<td> Present only if <code>has_txs</code> is <code>0x01</code>: the number of transaction IDs (CompactSize).     </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>ids</code>  </td>
+	<td> Present only if <code>has_txs</code> is <code>0x01</code>: the full transaction IDs (64 bytes each; see <a href="#fulltransactionids">Full Transaction IDs</a>) of the block&#8217;s transactions other than the coinbase transaction, in block order. </td>
+</tr>
+</tbody>
+</table>
+
+<p>Requests block headers starting after the first block locator hash found in
+the responder&#8217;s best chain, up to and including <code>hash_stop</code> or 160 headers
+(<code>MAX_HEADERS_RESULTS</code>), whichever comes first. The <code>locator_count</code> MUST NOT
+exceed 101, and <code>tx_ids</code> MUST be 0 or 1.</p>
+
+<p>If none of the locator hashes are found in the responder&#8217;s best chain, headers
+start at height 1 (the block after the genesis block). If <code>locator_count</code> is
+0, the response consists solely of the entry for the header whose hash is
+<code>hash_stop</code>, if the responder has it. A response with <code>count = 0</code> is valid and
+indicates that the responder has no headers to return.</p>
+
+<p>If <code>tx_ids</code> is 1, each entry additionally identifies the block&#8217;s transactions:
+the coinbase transaction in full (it is never otherwise relayed), and every
+other transaction by its full transaction ID, letting the requester fetch only
+the transactions it is missing via <code>get-tx</code> (see
+<a href="#relayprotocol">Relay Protocol</a>). A responder that cannot supply a returned
+header&#8217;s transactions sets <code>has_txs</code> to <code>0x00</code> for that entry, and the
+requester falls back to <code>get-blocks</code>.</p>
+
+<p>A node performing bulk synchronization SHOULD set <code>tx_ids</code> to 0: the
+transaction-ID form pays off only near the chain tip, where the requester
+already holds most of a block&#8217;s transactions. Because the <code>ids</code> array is not
+individually length-prefixed, the record payload limit of
+<a href="#records">Records</a> does not bound it, and a <code>tx_ids = 1</code> request over large
+historical blocks would otherwise compel a response of hundreds of megabytes
+from a request of a few dozen bytes. Both directions are therefore bounded:</p>
+
+<ul>
+<li>An entry&#8217;s <code>ids_count</code> MUST NOT exceed 65,536, the greatest number of
+transactions a block can contain (see
+<a href="#compactblockencoding">Compact Block Encoding</a>). A larger value is a
+connection error of type <code>FLOOD</code>.</li>
+<li>A responder SHOULD bound the total serialized size of its response, and MAY
+set <code>has_txs</code> to <code>0x00</code> for any entry, or return fewer entries, to stay
+within that bound; the requester falls back to <code>get-blocks</code> for those
+entries.</li>
+</ul>
+
+<p>The response <code>count</code> MUST NOT exceed 160, and MUST NOT exceed the number of
+headers the request could have selected. The headers MUST form a contiguous
+chain (each header&#8217;s <code>hashPrevBlock</code> must match the hash of the preceding
+header). A node receiving a response with more than 160 headers, or with
+non-contiguous headers, SHOULD discard the response and assign a misbehavior
+penalty (see <a href="#misbehaviorandbanning">Misbehavior and Banning</a>); this is the
+handling of such responses, in place of the connection error that
+<a href="#requeststreams">Request Streams</a> would otherwise prescribe.</p>
+
+<p>The legacy always-zero transaction count that followed each header in
+<code>headers</code> messages is removed.</p>
+
+<h3 id="get-blocks"><span class="section-heading"><code>get-blocks</code></span><span class="section-anchor"> <a rel="bookmark" href="#get-blocks"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Stream type: <code>0x02</code></p>
+
+<p><strong>Request:</strong></p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Size </th>
+	<th> Field </th>
+	<th> Description        </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> varies </td>
+	<td> <code>count</code> </td>
+	<td> Number of block hashes (CompactSize). </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>hashes</code> </td>
+	<td> <code>count</code> block hashes (each 32 bytes). </td>
+</tr>
+</tbody>
+</table>
+
+<p><strong>Response:</strong> For each requested hash, in request order:</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Size </th>
+	<th> Field </th>
+	<th> Description                          </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> 1  </td>
+	<td> <code>result</code> </td>
+	<td> <code>0x00</code>: a full block follows. <code>0x02</code>: not found (nothing follows for this entry).        </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>object</code> </td>
+	<td> If <code>result</code> is <code>0x00</code>: a CompactSize length prefix followed by the serialized block (see <a href="#serializedblocks">Serialized Blocks</a>). </td>
+</tr>
+</tbody>
+</table>
+
+<p>Requests full blocks by hash; the hashes to request are learned from headers,
+announcements, or <code>get-hashes</code> responses. The <code>count</code> MUST NOT exceed 128.
+Compact blocks cannot be requested (see
+<a href="#compactblockrelay">Compact Block Relay</a>).</p>
+
+<p>Each delivered block MUST be the block that was requested: the header of the
+block delivered for an entry MUST hash to that entry&#8217;s requested hash. A
+delivered block that does not is a connection error of type <code>PROTOCOL_ERROR</code>
+— the check is by hashing alone, so a violation is never attributable to a
+different chain view. Without this rule a peer could answer every entry with
+some other valid block, choosing which of two competing blocks the requester
+sees while remaining syntactically conformant.</p>
+
+<p>A <code>count</code> of 128 bounds the number of blocks but not their size, and blocks
+differ in size by three orders of magnitude across the chain&#8217;s history. A
+responder SHOULD therefore also apply a byte budget, and MAY finish its
+sending direction after any complete entry, having answered fewer entries
+than were requested; the requester re-requests the remainder from any peer.
+For bulk synchronization, <code>get-block-range</code> — which is byte-bounded by
+construction — is the appropriate primitive (see <a href="#fn:13" title="see footnote" class="footnote"><sup>13</sup></a>).</p>
+
+<h3 id="get-tx"><span class="section-heading"><code>get-tx</code></span><span class="section-anchor"> <a rel="bookmark" href="#get-tx"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Stream type: <code>0x03</code></p>
+
+<p><strong>Request:</strong></p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Size </th>
+	<th> Field </th>
+	<th> Description                         </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> varies </td>
+	<td> <code>count</code> </td>
+	<td> Number of transaction references (CompactSize).                </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>txrefs</code> </td>
+	<td> <code>count</code> transaction references (see <a href="#transactionreferences">Transaction References</a>). All three reference types are permitted. </td>
+</tr>
+</tbody>
+</table>
+
+<p><strong>Response:</strong> For each requested reference, in request order:</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Size </th>
+	<th> Field </th>
+	<th> Description                     </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> 1  </td>
+	<td> <code>result</code> </td>
+	<td> <code>0x00</code>: a transaction follows. <code>0x02</code>: not found (nothing follows for this entry).   </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>tx</code>  </td>
+	<td> If <code>result</code> is <code>0x00</code>: a CompactSize length prefix followed by the serialized transaction <a href="#fn:11" title="see footnote" class="footnote"><sup>11</sup></a>. </td>
+</tr>
+</tbody>
+</table>
+
+<p>Requests transactions by reference. The <code>count</code> MUST NOT exceed 50,000.</p>
+
+<p>Each delivered transaction MUST be the transaction that was requested: it
+MUST match the corresponding entry&#8217;s reference, under the identifier that
+reference names (txid, wtxid, or the short transaction ID relative to the
+named block). A delivered transaction that does not is a connection error of
+type <code>PROTOCOL_ERROR</code>.</p>
+
+<p>As with <code>get-blocks</code>, the <code>count</code> bound does not bound the response in bytes:
+50,000 references occupy a request of a few megabytes but could name
+transactions totalling far more, an amplification the count limit alone does
+not address. A responder SHOULD apply a byte budget to the response, and MAY
+finish its sending direction after any complete entry; the requester
+re-requests what it still needs. A requester SHOULD size a request to the
+bytes it is prepared to receive rather than to the count limit.</p>
+
+<p><code>SHORTID</code> references identify a transaction within a block relayed by a
+compact block; their handling is specified in
+<a href="#requestingmissingtransactions">Requesting Missing Transactions</a>.</p>
+
+<h3 id="get-addr"><span class="section-heading"><code>get-addr</code></span><span class="section-anchor"> <a rel="bookmark" href="#get-addr"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Stream type: <code>0x04</code></p>
+
+<p><strong>Request:</strong> Empty (the stream is finished immediately after the stream type
+byte).</p>
+
+<p><strong>Response:</strong></p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Size </th>
+	<th> Field  </th>
+	<th> Description                </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> varies </td>
+	<td> <code>count</code>  </td>
+	<td> Number of address records (CompactSize).         </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>addresses</code> </td>
+	<td> <code>count</code> network address records (see <a href="#networkaddressrecord">Network Address Record</a>). </td>
+</tr>
+</tbody>
+</table>
+
+<p>Requests peer addresses from the remote node. The response <code>count</code> MUST NOT
+exceed 1000; a node receiving a larger response SHOULD discard the response
+and assign a misbehavior penalty (see
+<a href="#misbehaviorandbanning">Misbehavior and Banning</a>); this is the handling of
+such responses, in place of the connection error that
+<a href="#requeststreams">Request Streams</a> would otherwise prescribe.</p>
+
+<p>Each returned record carries the address&#8217;s last-known service flags in its
+<code>services</code> field (see <a href="#serviceflags">Service Flags</a> and
+<a href="#networkaddressrecord">Network Address Record</a>). A responder SHOULD set
+that field to the services it last observed the address advertise in an
+<code>init</code> record, or the services the record was relayed to it with if it has
+never connected to the address. The requester MAY use the field to select
+candidate peers offering the services it needs (for example,
+<code>NODE_SYNC_ARTIFACTS</code> or <code>NODE_TREE_ROOTS</code>), but relayed service flags are
+an unauthenticated claim: the peer&#8217;s actual services are established only by
+the <code>services</code> field of its own <code>init</code> record upon connecting, and a node
+MUST NOT treat an address book entry&#8217;s flags as more than a selection hint.</p>
+
+<p>To impede address-based fingerprinting attacks, a node SHOULD send <code>get-addr</code>
+only on outbound connections, at most once per connection, and SHOULD only
+answer <code>get-addr</code> requests on inbound connections (resetting its sending
+direction of the stream with <code>REFUSED</code> otherwise).</p>
+
+<h3 id="get-mempool"><span class="section-heading"><code>get-mempool</code></span><span class="section-anchor"> <a rel="bookmark" href="#get-mempool"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Stream type: <code>0x05</code></p>
+
+<p><strong>Request:</strong> Empty (the stream is finished immediately after the stream type
+byte).</p>
+
+<p><strong>Response:</strong> Open-ended. The response is a sequence of records (see
+<a href="#records">Records</a>), each a single transaction reference (see
+<a href="#transactionreferences">Transaction References</a>) of type <code>TXID</code> or <code>WTXID</code>;
+each field of a reference is fixed in size for its type. <code>SHORTID</code> references
+MUST NOT be used.</p>
+
+<p>Subscribes to the contents of the peer&#8217;s transaction memory pool. The
+responder first sends a record for each transaction currently in its mempool
+(the snapshot; no snapshot records indicate an empty mempool). It then keeps
+its sending direction open, and sends further records referencing
+transactions as they are accepted into its mempool, until the stream or
+connection ends. The requester fetches transactions of interest with
+<code>get-tx</code>.</p>
+
+<p>This is the one stream type whose response is open-ended (see
+<a href="#requeststreams">Request Streams</a>): the responder finishing its sending
+direction ends the subscription (for example, on shutdown), and a requester
+that no longer wants the subscription cancels the responder&#8217;s sending
+direction with <code>CANCELLED</code>. A node MUST NOT open more than one concurrent
+<code>get-mempool</code> stream to the same peer; a second concurrent subscription is a
+connection error of type <code>PROTOCOL_ERROR</code>.</p>
+
+<p>Records after the snapshot SHOULD be subject to the same trickling delay as
+transaction announcements (see <a href="#trickling">Trickling</a>). The responder MAY
+omit references it has already sent to the same peer — in the snapshot, in an
+earlier record, or on a transaction announcement stream — and the requester
+MUST tolerate duplicate references.</p>
+
+<p>Serving the snapshot costs the responder a full serialization of its mempool
+for a request of one byte, so a node SHOULD rate-limit <code>get-mempool</code>
+per peer — a peer that repeatedly cancels and re-opens the stream is
+requesting that work again each time — and SHOULD decline the request from a
+peer for which it has set <code>relay = 0</code> in its <code>init</code> record, since such a peer
+has declined transaction relay in the other direction. A node concerned about
+topology inference SHOULD apply the trickling delay of
+<a href="#trickling">Trickling</a> to the post-snapshot records, as above; without it the
+subscription reports each transaction&#8217;s arrival at the responder without
+delay, which is exactly what trickling exists to obscure.</p>
+
+<h3 id="get-hashes"><span class="section-heading"><code>get-hashes</code></span><span class="section-anchor"> <a rel="bookmark" href="#get-hashes"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Stream type: <code>0x06</code></p>
+
+<p><strong>Request:</strong></p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Size </th>
+	<th> Field   </th>
+	<th> Description               </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> 4  </td>
+	<td> <code>start_height</code> </td>
+	<td> Height of the first requested block hash (<code>uint32</code>, little-endian). </td>
+</tr>
+<tr>
+	<td> 4  </td>
+	<td> <code>count</code>  </td>
+	<td> Maximum number of block hashes requested (<code>uint32</code>, little-endian). </td>
+</tr>
+</tbody>
+</table>
+
+<p><strong>Response:</strong></p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Size </th>
+	<th> Field  </th>
+	<th> Description        </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> varies </td>
+	<td> <code>count</code> </td>
+	<td> Number of entries (CompactSize).   </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>entries</code> </td>
+	<td> <code>count</code> entries, each encoded as follows. </td>
+</tr>
+</tbody>
+</table>
+
+<p>Entry <code>k</code>, for <code>k</code> from 0 to <code>count − 1</code>, describes the block at height
+<code>start_height + k</code> of the responder&#8217;s best chain:</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Size </th>
+	<th> Field </th>
+	<th> Description                      </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> 32  </td>
+	<td> <code>hash</code> </td>
+	<td> Hash of the block at height <code>start_height + k</code>.             </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>size</code> </td>
+	<td> The block&#8217;s serialized size in bytes (see <a href="#serializedblocks">Serialized Blocks</a>) (CompactSize). </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>txs</code> </td>
+	<td> Number of transactions in the block, including the coinbase transaction (CompactSize).    </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>txouts</code> </td>
+	<td> Number of transparent outputs created by the block&#8217;s transactions, including coinbase outputs (CompactSize). </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>notes</code> </td>
+	<td> Number of note commitments added by the block: two per JoinSplit description, plus one per Sapling Output description, plus one per Orchard-protocol Action description (in the Orchard or, from NU6.3, the Ironwood pool) (CompactSize). </td>
+</tr>
+</tbody>
+</table>
+
+<p>Requests the hashes of <code>count</code> consecutive blocks of the responder&#8217;s best
+chain starting at <code>start_height</code>, together with per-block sync-cost
+metadata. A requester that needs coarser granularity (for example, the
+spacing of its checkpoints; see <a href="#fn:13" title="see footnote" class="footnote"><sup>13</sup></a>) aggregates the per-block
+values itself.</p>
+
+<p>The <code>size</code>, <code>txs</code>, <code>txouts</code>, and <code>notes</code> fields are <em>scheduling hints</em>:
+they let a
+synchronizing node estimate, before downloading, the download volume and
+the validation and note-commitment-tree work in each range of the chain,
+and so divide download work across peers and interleave transfer with
+computation to reach the tip fastest (see <a href="#fn:13" title="see footnote" class="footnote"><sup>13</sup></a>). Cumulative
+<code>txouts</code> values additionally locate each block&#8217;s bits within the
+spentness-hint bitmap of <a href="#fn:13" title="see footnote" class="footnote"><sup>13</sup></a>. They are
+deterministic functions of the block — for a given <code>hash</code>, every honest
+responder returns identical values. A node MUST NOT rely on them for any
+consensus or validity purpose.</p>
+
+<p>The requested <code>count</code> MUST NOT exceed 50,000, and the greatest requested
+height (<code>start_height + count − 1</code>) MUST NOT exceed <code>0xFFFFFFFF</code>.</p>
+
+<p>The response <code>count</code> MUST NOT exceed the requested <code>count</code>, MAY be less, and
+MAY be 0: a node omits requested heights above its chain tip, and SHOULD NOT
+include entries for blocks within 100 blocks of its chain tip (which could
+still be affected by a chain reorganization; the same margin as the
+reorganization rule of
+<a href="#checkpointedsynchronization">Checkpointed Synchronization</a>). Truncation
+MUST be a prefix:
+if fewer entries are returned than were requested, the returned entries MUST
+correspond to the lowest requested heights, so that the requester can
+re-request the missing tail.</p>
+
+<p>Responses are not self-authenticating: a node MUST NOT rely on the returned
+hashes for any security-relevant purpose until they are verified, per the
+untrusted-inputs rule of
+<a href="#checkpointedsynchronization">Checkpointed Synchronization</a>. The
+metadata, by contrast, is
+checkable after the fact: once a node has downloaded an entry&#8217;s block, it
+SHOULD verify any hints it relied upon, and SHOULD assign a
+misbehavior penalty (see <a href="#misbehaviorandbanning">Misbehavior and Banning</a>)
+if <code>txs</code> or <code>notes</code> do not match the downloaded block. Those two
+fields are determined by the block hash alone, so a mismatch is not
+attributable to a different chain view.</p>
+
+<p><code>size</code> is not. A block&#8217;s serialized size depends on its authorizing
+data — notably <code>scriptSig</code> lengths — which the txid, and hence the block
+hash, does not commit to (see <a href="#get-block-range"><code>get-block-range</code></a> and
+ZIP 244 <a href="#fn:28" id="fnref:28" title="see footnote" class="footnote"><sup>28</sup></a>). A node that obtained the hints from one peer and the
+blocks from another therefore MUST NOT penalize a <code>size</code> mismatch
+unless it has verified the delivered blocks' authorizing data commitment;
+otherwise a peer that pads the blocks it serves would cause the penalty to
+fall on the honest peer that served the hints, which is an eviction
+primitive rather than a defense. A <code>size</code> mismatch on unverified
+blocks is instead grounds to re-fetch the blocks.</p>
+
+<h3 id="get-block-range"><span class="section-heading"><code>get-block-range</code></span><span class="section-anchor"> <a rel="bookmark" href="#get-block-range"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Stream type: <code>0x07</code></p>
+
+<p><strong>Request:</strong></p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Size </th>
+	<th> Field  </th>
+	<th> Description             </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> 32  </td>
+	<td> <code>final_hash</code> </td>
+	<td> Hash of the highest block in the requested range.   </td>
+</tr>
+<tr>
+	<td> 4  </td>
+	<td> <code>count</code>  </td>
+	<td> Maximum number of blocks requested (<code>uint32</code>, little-endian). MUST NOT exceed 65,536. </td>
+</tr>
+<tr>
+	<td> 4  </td>
+	<td> <code>max_bytes</code> </td>
+	<td> Maximum total serialized size of the delivered blocks, in bytes (<code>uint32</code>, little-endian). MUST NOT exceed 67,108,864 (64 MiB). </td>
+</tr>
+</tbody>
+</table>
+
+<p><strong>Response:</strong></p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Size </th>
+	<th> Field </th>
+	<th> Description                      </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> 1  </td>
+	<td> <code>result</code> </td>
+	<td> <code>0x00</code>: blocks follow. <code>0x02</code>: not found (the responder does not have the block with hash <code>final_hash</code>; nothing follows). </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>blocks</code> </td>
+	<td> A sequence of serialized blocks, each encoded as a CompactSize length prefix followed by the serialized block (see <a href="#serializedblocks">Serialized Blocks</a>), in <em>descending</em> height order: the first block is the block whose hash is <code>final_hash</code>, and each subsequent block is the parent of the previous one. </td>
+</tr>
+</tbody>
+</table>
+
+<p><code>get-block-range</code> is the bulk block download primitive: where <code>get-blocks</code>
+requests individual blocks by hash, <code>get-block-range</code> streams a contiguous
+chain of blocks identified by a single <em>anchor</em> — typically a hash the
+requester has verified against a trusted commitment, a validated header, or
+an already-verified block (see <a href="#fn:13" title="see footnote" class="footnote"><sup>13</sup></a>).</p>
+
+<p>The responder streams blocks until it has delivered <code>count</code> blocks, or
+until delivering the next block would bring the total serialized size of
+the delivered blocks above <code>max_bytes</code>, whichever comes first — except
+that it MUST be willing to deliver the first block regardless of
+<code>max_bytes</code>, so that a maximum-size block is always retrievable. A
+response that exceeds either bound — more than <code>count</code> blocks, or any
+block after the first whose delivery brings the total serialized size
+above <code>max_bytes</code> — is a connection error of type <code>FLOOD</code>; both bounds
+are exact, so an honest responder never exceeds them. Because
+block sizes vary by three orders of magnitude across the chain&#8217;s history,
+<code>max_bytes</code> — not <code>count</code> — is what bounds the work a stream commits one
+peer to; scheduling recommendations are given in <a href="#fn:13" title="see footnote" class="footnote"><sup>13</sup></a>.</p>
+
+<p>Delivery is in descending height order so that every block is verifiable
+<em>on arrival</em>: the first delivered block&#8217;s header MUST hash to
+<code>final_hash</code>, each subsequent delivered block&#8217;s header MUST hash to the
+<code>hashPrevBlock</code> of the previously delivered block, and each delivered
+block&#8217;s transactions MUST match its header&#8217;s transaction merkle root, and
+each delivered block&#8217;s serialized size MUST NOT exceed the maximum block
+size permitted by the consensus rules. A delivered block that violates
+these rules is a connection error of type <code>PROTOCOL_ERROR</code> — the rules are
+checkable by hashing alone, so a violation is never attributable to a
+different chain view. A requester with a trusted anchor therefore needs no
+download handles for the range&#8217;s interior blocks and can assign blame
+exactly.</p>
+
+<p>These checks bind each delivered block to the committed chain, but they do
+not bind all of its bytes. The transaction merkle root commits to txids,
+and from NU5 a v5 transaction&#8217;s txid excludes its <em>authorizing data</em> —
+<code>scriptSig</code>s, proofs, and signatures — which is committed separately by
+<code>hashAuthDataRoot</code> within the header&#8217;s <code>hashBlockCommitments</code> (see ZIP 244
+<a href="#fn:28" title="see footnote" class="footnote"><sup>28</sup></a>). Recovering the authorizing data commitment from the header
+requires the chain history root at the parent block, which arrival-time
+checking does not have, so this check is necessarily deferred to
+validation time. A responder can consequently deliver blocks that satisfy
+every rule above while carrying arbitrary authorizing data, padded up to
+the element size limit.</p>
+
+<p>A requester therefore MUST NOT store a delivered block, serve it to
+another peer, or use it to regenerate a synchronization artifact until its
+authorizing data commitment has been checked against its header. A block
+whose authorizing data commitment fails that check SHOULD incur a
+misbehavior penalty of 100 points against the peer that delivered it: the
+delivered block matches the committed chain by txid, so the discrepancy is
+attributable to that peer and not to a different chain view. A requester
+SHOULD also bound the bytes it accepts on a stream by <code>max_bytes</code>,
+independently of the block count, since a block may be padded well beyond
+the size its hints predicted.</p>
+
+<p>The responder serves the ancestor chain of the block with hash
+<code>final_hash</code>, whether or not that block is in its best chain. It MAY also
+finish its sending direction early, before either request bound is reached
+(for example, to bound the resources committed to one stream). Truncation
+for any reason is resumable, since the requester knows the next expected
+hash (the <code>hashPrevBlock</code> of the last delivered block) and MAY re-request
+the remainder — from the same or a different peer — using it as
+<code>final_hash</code>; a stream truncated by <code>max_bytes</code> thereby self-chunks a long
+span into byte-bounded, individually verified units even when the
+requester has no per-block size information. A requester that no longer
+wants the remainder cancels the responder&#8217;s sending direction with
+<code>CANCELLED</code>; delivered blocks remain verified and usable. Transport flow
+control bounds the buffering on both sides.</p>
+
+<h3 id="get-tree-roots"><span class="section-heading"><code>get-tree-roots</code></span><span class="section-anchor"> <a rel="bookmark" href="#get-tree-roots"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Stream type: <code>0x08</code></p>
+
+<p><strong>Request:</strong></p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Size </th>
+	<th> Field   </th>
+	<th> Description             </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> 4  </td>
+	<td> <code>start_height</code> </td>
+	<td> Height of the first requested entry (<code>uint32</code>, little-endian). </td>
+</tr>
+<tr>
+	<td> 32  </td>
+	<td> <code>final_hash</code> </td>
+	<td> Hash of the block at the highest requested height, <code>start_height + count − 1</code> (see below). </td>
+</tr>
+<tr>
+	<td> 4  </td>
+	<td> <code>count</code>  </td>
+	<td> Maximum number of entries requested (<code>uint32</code>, little-endian). MUST NOT exceed 4,000. </td>
+</tr>
+</tbody>
+</table>
+
+<p><strong>Response:</strong></p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Size </th>
+	<th> Field  </th>
+	<th> Description        </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> varies </td>
+	<td> <code>count</code> </td>
+	<td> Number of entries (CompactSize).   </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>entries</code> </td>
+	<td> <code>count</code> entries, each encoded as follows. </td>
+</tr>
+</tbody>
+</table>
+
+<p>Entry <code>k</code>, for <code>k</code> from 0 to <code>count − 1</code>, describes the block at height
+<code>start_height + k</code> of the chain identified by <code>final_hash</code> — the block
+with hash <code>final_hash</code> and its ancestors:</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Size </th>
+	<th> Field   </th>
+	<th> Description                  </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> 32  </td>
+	<td> <code>sapling_root</code> </td>
+	<td> Root of the Sapling note commitment tree after this block.       </td>
+</tr>
+<tr>
+	<td> 32  </td>
+	<td> <code>orchard_root</code> </td>
+	<td> Root of the Orchard note commitment tree after this block.       </td>
+</tr>
+<tr>
+	<td> 32  </td>
+	<td> <code>ironwood_root</code> </td>
+	<td> Root of the Ironwood note commitment tree after this block.      </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>sapling_txs</code> </td>
+	<td> Number of transactions in this block with Sapling components, as counted by the block&#8217;s chain history tree leaf (CompactSize; see ZIP 221 <a href="#fn:29" id="fnref:29" title="see footnote" class="footnote"><sup>29</sup></a>). </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>orchard_txs</code> </td>
+	<td> Number of transactions in this block with Orchard-pool components (CompactSize). </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>ironwood_txs</code> </td>
+	<td> Number of transactions in this block with Ironwood-pool components (CompactSize). </td>
+</tr>
+<tr>
+	<td> 32  </td>
+	<td> <code>auth_data_root</code> </td>
+	<td> The block&#8217;s authorizing data commitment <code>hashAuthDataRoot</code> (see ZIP 244 <a href="#fn:28" title="see footnote" class="footnote"><sup>28</sup></a>). </td>
+</tr>
+</tbody>
+</table>
+
+<p>For a pool that is not active at the entry&#8217;s height, the corresponding root
+field is 32 zero bytes and the corresponding count is 0.</p>
+
+<p>Requests the per-block data from which a synchronizing node can reproduce
+each block&#8217;s note commitment tree roots and chain history tree without
+recomputing the trees from the blocks' note commitments — the dominant CPU
+cost of validating historical blocks under checkpoint-based
+synchronization.</p>
+
+<p>The <code>final_hash</code> field anchors the request to a specific chain: the
+requester sets it to the hash — taken from headers it has already
+authenticated (see <a href="#fn:13" title="see footnote" class="footnote"><sup>13</sup></a>) — of the block at the highest requested
+height, and the requested entries describe that block and its ancestors,
+which <code>final_hash</code> identifies uniquely. A responder whose best chain does
+not contain the block with hash <code>final_hash</code> at height
+<code>start_height + count − 1</code> MUST refuse the stream with <code>REFUSED</code> rather
+than serve entries for different blocks. An honest peer with a divergent
+chain view therefore refuses rather than serving mismatching entries, so
+an entry that fails verification is never attributable to a different
+chain view (cf. the tolerance rule of
+<a href="#checkpointedsynchronization">Checkpointed Synchronization</a>, which this
+anchoring makes unnecessary here).</p>
+
+<p>The entries are not self-authenticating: a node MUST NOT
+rely on any part of an entry for any purpose until it has verified that part
+against the chain&#8217;s header commitments, as specified in <a href="#fn:13" title="see footnote" class="footnote"><sup>13</sup></a>.
+Which commitment applies depends on the height, and changes at Heartwood
+rather than at NU5: between Sapling and Heartwood activation the header
+field <code>hashFinalSaplingRoot</code> is the block&#8217;s Sapling root and is compared
+directly; from Heartwood activation ZIP 221 <a href="#fn:29" title="see footnote" class="footnote"><sup>29</sup></a> repurposes that
+field to carry the chain history root (<code>hashChainHistoryRoot</code>, and from NU5
+<code>hashBlockCommitments</code>, which binds it together with the authorizing data
+commitment of ZIP 244 <a href="#fn:28" title="see footnote" class="footnote"><sup>28</sup></a>), and entries are verified by
+reconstructing the chain history tree.</p>
+
+<p>Not every field of an entry is authenticated at every height. The chain
+history tree leaf defines no Ironwood field, so no header commits to an
+<code>ironwood_root</code>; and reconstruction verifies an entry only once the
+<em>following</em> block&#8217;s header has been checked against it, so the highest
+entry of a response is not yet verified when the response completes. A node
+MUST NOT rely on an unverified root, and recomputes the corresponding tree
+instead.</p>
+
+<p>An entry that fails verification against an authenticated header SHOULD
+incur a misbehavior penalty (see
+<a href="#misbehaviorandbanning">Misbehavior and Banning</a>). A node MUST NOT assign
+that penalty on the basis of a check that does not apply at the entry&#8217;s
+height: in particular, comparing a supplied Sapling root against
+<code>hashFinalSaplingRoot</code> above Heartwood activation compares it against an
+unrelated commitment and would penalize every honest responder.</p>
+
+<p>Serving <code>get-tree-roots</code> requires a per-block root index that not every
+node maintains (in particular, a node that itself synchronized without
+computing historical trees may not have one). A node that maintains the
+index advertises the <code>NODE_TREE_ROOTS</code> service flag (see
+<a href="#serviceflags">Service Flags</a>). The response MAY contain fewer entries
+than requested, and MAY be empty; truncation MUST be a prefix (the returned
+entries MUST correspond to the lowest requested heights). A node without
+the index refuses the stream with <code>REFUSED</code>. The response <code>count</code> MUST NOT
+exceed the requested <code>count</code>.</p>
+
+<h3 id="get-object"><span class="section-heading"><code>get-object</code></span><span class="section-anchor"> <a rel="bookmark" href="#get-object"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Stream type: <code>0x09</code></p>
+
+<p><strong>Request:</strong></p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Size </th>
+	<th> Field </th>
+	<th> Description              </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> 32  </td>
+	<td> <code>hash</code> </td>
+	<td> SHA-256 hash of the requested object.        </td>
+</tr>
+<tr>
+	<td> 8  </td>
+	<td> <code>offset</code> </td>
+	<td> Byte offset into the object at which to start (<code>uint64</code>, little-endian). MUST NOT exceed 2<sup>48</sup> − 1. </td>
+</tr>
+<tr>
+	<td> 4  </td>
+	<td> <code>length</code> </td>
+	<td> Maximum number of bytes requested (<code>uint32</code>, little-endian). MUST NOT exceed 33,554,432 (32 MiB). </td>
+</tr>
+</tbody>
+</table>
+
+<p><strong>Response:</strong></p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Size </th>
+	<th> Field </th>
+	<th> Description                      </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> 1  </td>
+	<td> <code>result</code> </td>
+	<td> <code>0x00</code>: the object is available; its size and data follow. <code>0x02</code>: not found (nothing follows). </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>size</code> </td>
+	<td> Total size of the object in bytes (CompactSize).             </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>data</code> </td>
+	<td> The object&#8217;s bytes from <code>offset</code>, up to <code>length</code> bytes or the end of the object, whichever comes first. </td>
+</tr>
+</tbody>
+</table>
+
+<p>Requests a byte range of a <em>synchronization artifact</em>: an immutable,
+content-addressed object identified by the SHA-256 hash of its contents.
+The protocol does not interpret artifact contents; artifacts are named by
+trusted commitments and synchronization metadata (for example, known-hash
+chunk files and state snapshot pieces; see <a href="#fn:13" title="see footnote" class="footnote"><sup>13</sup></a>), and a node
+serves whichever artifacts it holds or can reproduce deterministically from
+its chain state. A node that serves artifacts advertises the
+<code>NODE_SYNC_ARTIFACTS</code> service flag (see <a href="#serviceflags">Service Flags</a>).</p>
+
+<p>The responder MAY finish its sending direction early, having delivered
+fewer than the requested bytes; the requester detects the shortfall from
+<code>size</code> and MAY re-request the remainder from any peer, since object bytes
+are position-addressed and identical everywhere. An object is verified by
+hashing its complete contents; piece sizing conventions that keep each
+piece independently fetchable and verifiable are specified in
+<a href="#fn:13" title="see footnote" class="footnote"><sup>13</sup></a>.</p>
+
+<p>The number of bytes returned is determined as follows, and a responder MUST
+evaluate the two cases in this order:</p>
+
+<ol>
+<li>If <code>offset</code> is greater than or equal to the object&#8217;s <code>size</code>, the
+response is <code>result = 0x00</code>, the object&#8217;s <code>size</code>, and no data.</li>
+<li>Otherwise the responder returns at most <code>min(length, size − offset)</code>
+bytes, starting at <code>offset</code>.</li>
+</ol>
+
+<p>Evaluating the bound as <code>min(offset + length, size)</code> is not equivalent: the
+sum can wrap, yielding an end position below <code>offset</code> and a byte count that
+underflows to an enormous value. <code>offset</code> is bounded above for the same
+reason, and a responder MUST reject a request whose <code>offset</code> exceeds that
+bound as a connection error of type <code>PROTOCOL_ERROR</code>.</p>
+
+<p>A response carrying more than <code>length</code> bytes of data, or data extending
+beyond the end of the object as given by its own <code>size</code> field, is a
+connection error of type <code>FLOOD</code>.</p>
+
+<p>The same discipline applies to the requester. A response&#8217;s <code>size</code> is
+peer-supplied and unauthenticated until the assembled object is hashed: a
+requester MUST NOT compute a remaining length as <code>size − received</code> without
+first checking that <code>size</code> is at least <code>received</code>, and a peer reporting a
+<code>size</code> inconsistent with a previous response for the same <code>hash</code>, or below
+the bytes it has already delivered, is a connection error of type
+<code>PROTOCOL_ERROR</code>.</p>
+
+<p>Object data is verified only by hashing the complete object, so
+misdelivery is attributable only when a single peer delivered every byte:
+a node that has fetched all of an object&#8217;s bytes from one peer, and finds
+that they do not hash to the requested <code>hash</code>, SHOULD assign that peer a
+misbehavior penalty (see
+<a href="#misbehaviorandbanning">Misbehavior and Banning</a>), so that a peer answering
+with well-formed garbage is deselected rather than reassigned the same work
+indefinitely. A node that assembled an object from
+ranges delivered by more than one peer MUST NOT assign a misbehavior
+penalty when the assembled object fails verification — any of the
+contributing peers could be at fault — and SHOULD instead discard the
+data and re-fetch the object with each candidate peer serving the whole
+object, which isolates a misbehaving peer. Disagreement between peers
+about an object&#8217;s <code>size</code> is resolved by the hash check, not penalized.</p>
+
+<h2 id="announcementstreamtypes"><span class="section-heading">Announcement Stream Types</span><span class="section-anchor"> <a rel="bookmark" href="#announcementstreamtypes"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<h3 id="blockannouncements"><span class="section-heading">Block Announcements</span><span class="section-anchor"> <a rel="bookmark" href="#blockannouncements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Stream type: <code>0x10</code></p>
+
+<p>Each record payload on a block announcement stream has the following format:</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Size </th>
+	<th> Field  </th>
+	<th> Description                        </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> 1  </td>
+	<td> <code>kind</code> </td>
+	<td> <code>0x00</code>: header announcement. <code>0x01</code>: compact block announcement.          </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>payload</code> </td>
+	<td> For <code>kind = 0x00</code>: a serialized block header <a href="#fn:12" title="see footnote" class="footnote"><sup>12</sup></a>. For <code>kind = 0x01</code>: a compact block (see <a href="#compactblockencoding">Compact Block Encoding</a>). </td>
+</tr>
+</tbody>
+</table>
+
+<p>Blocks are announced immediately; they are not subject to the trickling delay
+applied to transactions.</p>
+
+<p>A node announces a new block to a given peer in one of two ways:</p>
+
+<ol>
+<li>If the peer requested high-bandwidth compact block announcements (the
+<code>announce</code> field of its <code>init</code> record was 1), by sending a compact block
+announcement (<code>kind = 0x01</code>).</li>
+<li>Otherwise, by sending header announcements (<code>kind = 0x00</code>) for the new
+block and for any intermediate blocks the peer has not yet been sent, up to
+a small implementation-defined limit. This follows the design of BIP 130
+<a href="#fn:30" id="fnref:30" title="see footnote" class="footnote"><sup>30</sup></a>.</li>
+</ol>
+
+<p>A node MUST NOT send compact block announcements to a peer whose <code>init</code>
+record had <code>announce = 0</code>. Header announcements MAY be sent to any peer,
+regardless of its <code>announce</code> preference; in particular, if a block&#8217;s compact
+block encoding would exceed the maximum record payload length (see
+<a href="#records">Records</a>), the sender announces that block with a header
+announcement instead.</p>
+
+<p>A node SHOULD NOT send a header announcement for a block it has not fully
+validated, except as the oversize substitute above for a compact block
+announcement to a peer that requested high-bandwidth announcements.
+Correspondingly, the pre-validation penalty exemption of
+<a href="#relayprotocol">Relay Protocol</a> applies to announcements of either kind
+received on a connection on which the receiving node requested
+high-bandwidth announcements (its <code>init</code> record had <code>announce = 1</code>); a
+header announcement received where the receiver&#8217;s <code>announce</code> was 0 carries
+no such exemption, and an announced block that fails full validation is
+subject to the rules of
+<a href="#misbehaviorandbanning">Misbehavior and Banning</a>.</p>
+
+<p>An announcing node SHOULD only announce a block if it expects the peer to be
+able to connect the announced header to the peer&#8217;s known chain (for example,
+because the parent block was previously announced to or by that peer). A node
+receiving an announcement whose header does not connect to its known chain
+SHOULD recover by sending a <code>get-headers</code> request, and MUST NOT assign a
+misbehavior penalty solely because a header does not connect.</p>
+
+<h3 id="transactionannouncements"><span class="section-heading">Transaction Announcements</span><span class="section-anchor"> <a rel="bookmark" href="#transactionannouncements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Stream type: <code>0x11</code></p>
+
+<p>Each record payload on a transaction announcement stream is a single
+transaction reference (see <a href="#transactionreferences">Transaction References</a>)
+of type <code>TXID</code> or <code>WTXID</code>. <code>SHORTID</code> references MUST NOT be used in
+announcements.</p>
+
+<p>A node MUST NOT open a transaction announcement stream to a peer whose <code>init</code>
+record had <code>relay = 0</code>.</p>
+
+<p>Announcements are subject to the trickling delay of <a href="#trickling">Trickling</a>.
+Interested peers fetch announced transactions with <code>get-tx</code> requests.</p>
+
+<h3 id="addressannouncements"><span class="section-heading">Address Announcements</span><span class="section-anchor"> <a rel="bookmark" href="#addressannouncements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Stream type: <code>0x12</code></p>
+
+<p>Each record payload on an address announcement stream is a single network
+address record (see <a href="#networkaddressrecord">Network Address Record</a>).</p>
+
+<p>Address announcements are subject to the rate limits and address book
+management practices of <a href="#addressrelay">Address Relay</a>.</p>
+
+<h2 id="blockrelay"><span class="section-heading">Block Relay</span><span class="section-anchor"> <a rel="bookmark" href="#blockrelay"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<h3 id="dividedblockrelay"><span class="section-heading">Divided Block Relay</span><span class="section-anchor"> <a rel="bookmark" href="#dividedblockrelay"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>This protocol divides block headers and block transactions, rather than
+transferring monolithic <code>block</code> messages as the legacy protocol did:</p>
+
+<ul>
+<li>Block headers are gossiped directly on block announcement streams, as in
+BIP 130 <a href="#fn:30" title="see footnote" class="footnote"><sup>30</sup></a>.</li>
+<li>Block transactions are relayed separately from headers using compact block
+relay (adapted from BIP 152 <a href="#fn:31" id="fnref:31" title="see footnote" class="footnote"><sup>31</sup></a>): a block is transferred as its
+header plus identifiers of its transactions, and only the transactions the
+receiver is missing are requested and transferred, using <code>get-tx</code> requests.</li>
+</ul>
+
+<p>Both mechanisms are unconditional; the per-connection preferences are carried
+in the <code>announce</code> and <code>full_ids</code> fields of the <code>init</code> record (see
+<a href="#initrecord">Init Record</a>).</p>
+
+<h3 id="compactblockrelay"><span class="section-heading">Compact Block Relay</span><span class="section-anchor"> <a rel="bookmark" href="#compactblockrelay"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Compact block relay is adapted from BIP 152 <a href="#fn:31" title="see footnote" class="footnote"><sup>31</sup></a>. This section
+specifies the protocol flows and the Zcash-specific differences from BIP 152;
+BIP 152 provides the design rationale.</p>
+
+<p>The differences from BIP 152 are:</p>
+
+<ul>
+<li>There is no <code>sendcmpct</code> message. Compact block relay is unconditional, and
+the high-bandwidth announcement preference is carried in the <code>announce</code>
+field of the <code>init</code> record (see <a href="#initrecord">Init Record</a>). (A future
+change to the compact block encoding would be deployed under a new protocol
+version.)</li>
+<li>A compact block cannot be requested: BIP 152&#8217;s <code>getdata</code> with
+<code>MSG_CMPCT_BLOCK</code> has no equivalent, and compact blocks occur only as
+high-bandwidth announcements. A peer announced to in low-bandwidth mode
+instead requests the block&#8217;s coinbase transaction and transaction IDs via
+<code>get-headers</code> with <code>tx_ids = 1</code> (see <a href="#relayprotocol">Relay Protocol</a>).</li>
+<li>A compact block can identify the block&#8217;s transactions either by short
+transaction IDs or by full transaction IDs, at the receiver&#8217;s option (the
+<code>full_ids</code> field of the <code>init</code> record; see
+<a href="#fulltransactionids">Full Transaction IDs</a>). BIP 152 supports only short
+transaction IDs.</li>
+<li>There are no <code>getblocktxn</code> and <code>blocktxn</code> messages. Missing transactions are
+requested with <code>get-tx</code> requests (using <code>SHORTID</code>, <code>TXID</code>, or <code>WTXID</code>
+references) and delivered in the corresponding responses; see
+<a href="#requestingmissingtransactions">Requesting Missing Transactions</a>.</li>
+<li>The <code>header</code> field of a compact block uses the Zcash block header encoding
+<a href="#fn:12" title="see footnote" class="footnote"><sup>12</sup></a>, including the Equihash solution, rather than the
+80-byte Bitcoin header.</li>
+<li>The input to the short transaction ID computation is based on the wtxid as
+defined in ZIP 239 <a href="#fn:23" title="see footnote" class="footnote"><sup>23</sup></a> for version 5 transactions, rather than on
+either the txid (BIP 152 version 1) or the BIP 141 wtxid (BIP 152
+version 2); see <a href="#shorttransactionids">Short Transaction IDs</a>.</li>
+</ul>
+
+<h4 id="compactblockencoding"><span class="section-heading">Compact Block Encoding</span><span class="section-anchor"> <a rel="bookmark" href="#compactblockencoding"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+
+<p>A compact block relays a block as its header plus a compact representation of
+its transactions:</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Size </th>
+	<th> Field    </th>
+	<th> Description                      </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> varies </td>
+	<td> <code>header</code>   </td>
+	<td> The block header, encoded as a CompactSize length prefix followed by the serialized header <a href="#fn:12" title="see footnote" class="footnote"><sup>12</sup></a> (including the Equihash solution). </td>
+</tr>
+<tr>
+	<td> 8  </td>
+	<td> <code>nonce</code>   </td>
+	<td> Nonce for short transaction ID computation (<code>uint64</code>, little-endian). If <code>ids_kind</code> is 1, this field SHOULD be 0 and MUST be ignored. </td>
+</tr>
+<tr>
+	<td> 1  </td>
+	<td> <code>ids_kind</code>  </td>
+	<td> 0 if <code>ids</code> contains short transaction IDs; 1 if it contains full transaction IDs (<code>uint8</code>).  </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>ids_count</code>  </td>
+	<td> Number of transaction IDs (CompactSize).               </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>ids</code>    </td>
+	<td> If <code>ids_kind</code> is 0: short transaction IDs, 6 bytes each, little-endian (see <a href="#shorttransactionids">Short Transaction IDs</a>). If <code>ids_kind</code> is 1: full transaction IDs, 64 bytes each (see <a href="#fulltransactionids">Full Transaction IDs</a>). </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>prefilled_count</code> </td>
+	<td> Number of prefilled transactions (CompactSize).             </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>prefilled_txns</code> </td>
+	<td> Prefilled transactions (see below).                </td>
+</tr>
+</tbody>
+</table>
+
+<p>Each transaction in the block, in block order, is represented either by a
+transaction ID in <code>ids</code> (short or full, according to <code>ids_kind</code>) or by a full
+serialized transaction in <code>prefilled_txns</code>; the total number of transactions
+in the block is <code>ids_count + prefilled_count</code>. Each of <code>ids_count</code> and
+<code>prefilled_count</code> MUST NOT exceed 65,536, and their sum MUST NOT exceed
+65,536; a compact block violating any of these is a connection error of type
+<code>FLOOD</code>. Bounding the two counts individually is required as well as
+bounding the sum: each is an independent CompactSize that may be as large as
+2<sup>64</sup> − 1 on the wire, and a sum of two such values can wrap to a small
+number that satisfies a bound the addends do not.</p>
+
+<p>A node MUST set <code>ids_kind</code> to 1 in compact blocks sent to a peer that set
+<code>full_ids = 1</code> in its <code>init</code> record, and SHOULD set <code>ids_kind</code> to 0 otherwise.
+A compact block with an <code>ids_kind</code> value other than 0 or 1 is a
+nonconforming record (see <a href="#announcementstreams">Announcement Streams</a>).</p>
+
+<p>Each entry of <code>prefilled_txns</code> has the following format:</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Size </th>
+	<th> Field </th>
+	<th> Description                      </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> varies </td>
+	<td> <code>index</code> </td>
+	<td> Differentially encoded index of this transaction within the block (CompactSize; see below).  </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> <code>tx</code> </td>
+	<td> A full serialized transaction, encoded as a CompactSize length prefix followed by the serialized transaction <a href="#fn:11" title="see footnote" class="footnote"><sup>11</sup></a>. </td>
+</tr>
+</tbody>
+</table>
+
+<p>Prefilled transaction indexes are differentially encoded as in BIP 152
+<a href="#fn:31" title="see footnote" class="footnote"><sup>31</sup></a>. A compact block in which any absolute index is
+greater than or equal to <code>ids_count + prefilled_count</code>, or in which indexes
+overflow or are not strictly increasing, is a nonconforming record (see
+<a href="#announcementstreams">Announcement Streams</a>). The bound is the block&#8217;s own
+transaction count, not the protocol maximum: an index below 65,536 can
+still lie outside a small block, and a reconstructor sized to the block&#8217;s
+actual transaction count would then write out of bounds.</p>
+
+<p>The coinbase transaction MUST be prefilled. A sender SHOULD additionally
+prefill any transaction that it predicts the receiver does not have.</p>
+
+<h4 id="shorttransactionids"><span class="section-heading">Short Transaction IDs</span><span class="section-anchor"> <a rel="bookmark" href="#shorttransactionids"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+
+<p>The short transaction ID of a transaction, relative to a given compact block,
+is computed as specified in BIP 152 <a href="#fn:31" title="see footnote" class="footnote"><sup>31</sup></a>, with two substitutions:</p>
+
+<ol>
+<li>The input to SipHash-2&#8211;4 is the transaction identifier used for relay of
+the transaction: for a transaction with version ≥ 5, its 64-byte wtxid as
+defined in ZIP 239 <a href="#fn:23" title="see footnote" class="footnote"><sup>23</sup></a> (the txid followed by the <code>auth_digest</code>);
+for a transaction with version ≤ 4, its 32-byte txid.</li>
+<li>The header hashed together with the <code>nonce</code> field to derive the SipHash
+keys is the serialized Zcash block header <a href="#fn:12" title="see footnote" class="footnote"><sup>12</sup></a> (as it
+appears in the <code>header</code> field, without the length prefix).</li>
+</ol>
+
+<p>The <code>nonce</code> SHOULD be chosen uniformly at random by the sender of a compact
+block, so that short ID collisions between blocks and senders are independent.</p>
+
+<h4 id="fulltransactionids"><span class="section-heading">Full Transaction IDs</span><span class="section-anchor"> <a rel="bookmark" href="#fulltransactionids"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+
+<p>The full transaction ID of a transaction is the 64-byte value consisting of
+the transaction&#8217;s txid followed by its <code>auth_digest</code>. For a transaction with
+version ≥ 5, this is the wtxid used for relay, as defined in ZIP 239
+<a href="#fn:23" title="see footnote" class="footnote"><sup>23</sup></a>. For a transaction with version ≤ 4, the <code>auth_digest</code> is the
+placeholder value consisting of 32 bytes of <code>0xFF</code> defined in ZIP 244
+<a href="#fn:28" title="see footnote" class="footnote"><sup>28</sup></a>.</p>
+
+<p>Matching against full transaction IDs is exact — they are not subject to
+collisions and involve no <code>nonce</code>. A node unable to do short-ID matching (for
+example, a pruned node) requests full transaction IDs by setting
+<code>full_ids = 1</code> in its <code>init</code> record, at the cost of larger compact blocks.</p>
+
+<h4 id="requestingmissingtransactions"><span class="section-heading">Requesting Missing Transactions</span><span class="section-anchor"> <a rel="bookmark" href="#requestingmissingtransactions"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+
+<p>Transactions that could not be matched while reconstructing a block from a
+compact block are requested with <code>get-tx</code> requests, rather than with dedicated
+messages as in BIP 152 (<code>getblocktxn</code> and <code>blocktxn</code>, which identify
+transactions by index within the block):</p>
+
+<ul>
+<li>If the compact block had <code>ids_kind = 0</code>, each unmatched short transaction ID
+is requested as a <code>SHORTID</code> transaction reference containing the block hash
+and the short transaction ID copied from the compact block. Because short
+transaction IDs depend on the <code>nonce</code> of the compact block they appeared in,
+the responding node interprets them using the <code>nonce</code> of the compact block
+it most recently sent to the requesting peer for the identified block. A
+node receiving a <code>SHORTID</code> reference for a block for which it has not
+recently sent that peer a compact block, or whose short transaction ID
+matches no transaction — or more than one transaction — in the identified
+block, SHOULD answer that reference with a not-found result.</li>
+<li>If the compact block had <code>ids_kind = 1</code> — and likewise for each unmatched
+full transaction ID from a <code>get-headers</code> response with <code>tx_ids = 1</code> (see
+<a href="#get-headers"><code>get-headers</code></a>) — each unmatched full transaction ID is
+requested as an ordinary transaction reference: a <code>TXID</code> reference
+containing the txid if the <code>auth_digest</code> half of the full transaction ID is
+the 32-byte <code>0xFF</code> placeholder (indicating a pre-v5 transaction), or a
+<code>WTXID</code> reference containing the full transaction ID otherwise.</li>
+</ul>
+
+<p>A node that has sent a peer a compact block, or a <code>get-headers</code> entry carrying
+transaction IDs, MUST be able, for a reasonable implementation-defined time
+thereafter, to serve that block&#8217;s transactions to the same peer via <code>get-tx</code> —
+including by <code>SHORTID</code> references in the compact block case, and irrespective
+of whether those transactions remain in its mempool.</p>
+
+<h4 id="relayprotocol"><span class="section-heading">Relay Protocol</span><span class="section-anchor"> <a rel="bookmark" href="#relayprotocol"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+
+<p>A node follows the BIP 152 <a href="#fn:31" title="see footnote" class="footnote"><sup>31</sup></a> protocol flows:</p>
+
+<ul>
+<li><strong>High-bandwidth mode</strong> (the receiver&#8217;s <code>init</code> record had <code>announce = 1</code>):
+the sender announces a new block by sending a compact block announcement
+directly. To minimize propagation latency, the sender MAY do so as soon as
+it has validated the block header (checking proof of work and difficulty),
+before fully validating the block. Because a high-bandwidth announcement may
+legitimately precede full validation by the announcing peer, a node MUST NOT
+assign a misbehavior penalty for a high-bandwidth announcement — a compact
+block announcement, or a header announcement substituted for one (see
+<a href="#blockannouncements">Block Announcements</a>) — of a block that fails full
+validation, provided the block&#8217;s header is valid (including its proof of
+work); the same exemption covers the block&#8217;s transactions served under
+<a href="#requestingmissingtransactions">Requesting Missing Transactions</a>. A node
+SHOULD request high-bandwidth
+announcements from at most 3 peers, preferring the peers that most recently
+announced blocks to it first; changing the selection requires a new
+connection (see <a href="#initrecord">Init Record</a>).</li>
+<li><strong>Low-bandwidth mode</strong> (the receiver&#8217;s <code>init</code> record had <code>announce = 0</code>):
+blocks are announced to the receiver with header announcements (see
+<a href="#blockannouncements">Block Announcements</a>). The receiver MAY then request
+the block&#8217;s coinbase transaction and transaction IDs — a <code>get-headers</code>
+request with <code>tx_ids = 1</code> whose <code>hash_stop</code> is the announced block hash —
+and reconstruct the block, fetching the transactions it is missing with
+<code>get-tx</code>; or it MAY request the full block via <code>get-blocks</code>. The receiver
+SHOULD use the transaction-ID form only for blocks close to its chain tip
+(BIP 152 <a href="#fn:31" title="see footnote" class="footnote"><sup>31</sup></a> recommends within 5 blocks), and request full blocks
+otherwise.</li>
+</ul>
+
+<p>Upon receiving a compact block — or the equivalent header, coinbase
+transaction, and transaction IDs from a <code>get-headers</code> response with
+<code>tx_ids = 1</code> — a node attempts to reconstruct the block by matching each
+transaction ID against the transactions it already holds (in its mempool or
+otherwise) — computing short transaction IDs for the held transactions if the
+IDs are short (<code>ids_kind = 0</code>), or comparing full transaction IDs directly
+otherwise:</p>
+
+<ul>
+<li>If all transactions are available, the node reconstructs and validates the
+block as if it had been received as a full block.</li>
+<li>If one or more transactions are missing, or (for short transaction IDs) if
+two or more held transactions collide on the same short ID, the node
+requests the unresolved transactions with a <code>get-tx</code> request (see
+<a href="#requestingmissingtransactions">Requesting Missing Transactions</a>), and
+completes reconstruction as the response arrives.</li>
+<li>If any requested transaction is answered with a not-found result, or if
+reconstruction fails after the responses arrive (for example, because a
+short ID collision caused a wrong match and the reconstructed block is
+invalid), the node SHOULD fall back to requesting the full block via
+<code>get-blocks</code>, and MUST NOT assign a misbehavior penalty solely because
+reconstruction failed.</li>
+</ul>
+
+<p>An incorrectly reconstructed block fails validation of the block&#8217;s merkle
+root and authorizing data commitment, so short ID matching does not weaken
+consensus enforcement.</p>
+
+<h4 id="compactblockrelayexamplenon-normative"><span class="section-heading">Compact Block Relay Example (non-normative)</span><span class="section-anchor"> <a rel="bookmark" href="#compactblockrelayexamplenon-normative"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+
+<p>A new block reaches peer B (high-bandwidth mode) and peer C (low-bandwidth
+mode) from peer A:</p>
+
+<pre><code>A ── block announcements ────▶ B : compact block (header, short
+                                   IDs, prefilled coinbase)
+     B matches the short IDs against transactions it
+     holds; two are unknown
+B ── get-tx ─────────────────▶ A : [SHORTID, SHORTID]
+A ── response ───────────────▶ B : the two transactions
+     B reconstructs the block and validates it
+
+A ── block announcements ────▶ C : header announcement
+C ── get-headers ────────────▶ A : locator, hash_stop = block
+                                   hash, tx_ids = 1
+A ── response ───────────────▶ C : header, coinbase, full
+                                   transaction IDs
+     C matches the IDs, fetches missing transactions
+     via get-tx, reconstructs, and validates
+</code></pre>
+
+<h2 id="synchronization"><span class="section-heading">Synchronization</span><span class="section-anchor"> <a rel="bookmark" href="#synchronization"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<h3 id="headers-firstsynchronization"><span class="section-heading">Headers-First Synchronization</span><span class="section-anchor"> <a rel="bookmark" href="#headers-firstsynchronization"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Nodes synchronize the block chain using a headers-first approach; it is the
+baseline synchronization method of this protocol, which every node supports.
+It is the <em>full-validation</em> method: it assumes no trusted data beyond the
+consensus rules and the genesis block. (An alternative method for nodes
+with trusted checkpoint data is specified in
+<a href="#checkpointedsynchronization">Checkpointed Synchronization</a>; recommended
+concrete synchronization strategies are specified in <a href="#fn:13" title="see footnote" class="footnote"><sup>13</sup></a>.)</p>
+
+<ol>
+<li>The synchronizing node sends a <code>get-headers</code> request with a block locator
+(typically with <code>tx_ids = 0</code>; see <a href="#get-headers"><code>get-headers</code></a>).</li>
+<li>The remote peer responds with up to 160 headers.</li>
+<li>The synchronizing node validates the headers and requests full blocks via
+<code>get-blocks</code> requests.</li>
+<li>Steps 1–3 repeat until the node is synchronized with the network.</li>
+</ol>
+
+<p>The following rules apply to headers-first synchronization:</p>
+
+<ul>
+<li>A node MUST validate each received header — including its proof of work
+and its difficulty adjustment — before requesting the corresponding block
+and before extending its header chain with it.</li>
+<li>Received headers, even with valid proof of work, establish only that work
+was expended: a node MUST NOT treat a block as part of its best chain
+until the block itself has been validated under the consensus rules.
+Until then, headers serve to select and schedule block downloads.</li>
+<li>A node MUST NOT assign a misbehavior penalty solely because a peer&#8217;s
+headers do not connect to its known chain or reflect a different best
+chain (see <a href="#blockannouncements">Block Announcements</a>); penalties apply
+to provably invalid headers and blocks, per
+<a href="#misbehaviorandbanning">Misbehavior and Banning</a>.</li>
+</ul>
+
+<h3 id="checkpointedsynchronization"><span class="section-heading">Checkpointed Synchronization</span><span class="section-anchor"> <a rel="bookmark" href="#checkpointedsynchronization"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>A node MAY synchronize spans of the historical chain against <em>trusted
+commitments</em>: checkpoint data — bindings of block heights to block hashes —
+obtained through a channel the node already trusts, such as its own binary
+or local configuration. The bulk primitives of this protocol —
+<code>get-hashes</code>, <code>get-block-range</code> (whose descending delivery authenticates
+every block against a committed anchor on arrival), <code>get-tree-roots</code>, and
+<code>get-object</code> — exist to serve such procedures; a recommended concrete
+strategy is specified in <a href="#fn:13" title="see footnote" class="footnote"><sup>13</sup></a>. Any checkpoint-based
+synchronization procedure MUST obey the following rules.</p>
+
+<ul>
+<li><strong>Validated advancement.</strong> A node MUST NOT advance its validated chain
+except through blocks that it has either validated under the consensus
+rules, or authenticated by an unbroken hash chain terminating in a
+checkpoint bound by a trusted commitment. The extent to which consensus
+checks may be abbreviated for checkpoint-authenticated blocks is a matter
+of local policy.</li>
+<li><strong>Untrusted inputs.</strong> Peer-supplied data — hashes, headers, blocks — MUST
+NOT be relied upon for any security-relevant purpose until verified under
+the previous rule; until then it MAY be used only to select and schedule
+downloads. Data received from peers MUST NOT be incorporated into a
+node&#8217;s trusted commitments.</li>
+<li><strong>Tolerance of divergent views.</strong> A node MUST NOT assign a misbehavior
+penalty to a peer solely because the peer&#8217;s <code>get-hashes</code> responses fail
+verification against the node&#8217;s commitments, or reflect a different best
+chain; such responses are discarded and MAY be retried with other peers.</li>
+<li><strong>Reorganization margin.</strong> Commitment-based authentication MUST NOT be
+applied within 100 blocks of the node&#8217;s view of the network chain tip; the
+chain near the tip is synchronized headers-first. The responder-side
+margin of <a href="#get-hashes"><code>get-hashes</code></a> is the same depth, measured the same
+way, so that a responder&#8217;s hints and a requester&#8217;s authentication agree
+about which blocks are near enough to the tip to be unsettled.</li>
+<li><strong>Headers-first fallback.</strong> A node MUST be capable of completing
+synchronization using headers-first synchronization alone, and MUST fall
+back to it where its commitments end or where too few peers serve
+<code>get-hashes</code>.</li>
+</ul>
+
+<p>The commitment scheme itself — checkpoint spacing, any chunking, and the
+hash or signature scheme binding it — is local to the node and out of scope
+for this protocol.</p>
+
+<h3 id="blockdownloadparameters"><span class="section-heading">Block Download Parameters</span><span class="section-anchor"> <a rel="bookmark" href="#blockdownloadparameters"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>For headers-first synchronization and near-tip block fetching via
+<code>get-blocks</code>, the block download parameters of ZIP 204
+<a href="#fn:32" id="fnref:32" title="see footnote" class="footnote"><sup>32</sup></a> — the download window, the per-peer in-transit
+limit, and the stalling timeout — apply unchanged. On a stall, the node MAY
+re-request the block from an alternative peer, cancelling the original
+request stream with <code>CANCELLED</code>.</p>
+
+<p>Bulk transfer via <code>get-block-range</code> and <code>get-object</code> is not governed by
+those parameters: in-flight volume is bounded in bytes by transport flow
+control and by the synchronizing node&#8217;s scheduling policy, for which
+<a href="#fn:13" title="see footnote" class="footnote"><sup>13</sup></a> gives recommendations (work unit sizing, per-peer budgets,
+and stall detection).</p>
+
+<h2 id="transactionrelay"><span class="section-heading">Transaction Relay</span><span class="section-anchor"> <a rel="bookmark" href="#transactionrelay"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<h3 id="announcement-basedrelay"><span class="section-heading">Announcement-Based Relay</span><span class="section-anchor"> <a rel="bookmark" href="#announcement-basedrelay"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Transaction relay follows an announcement-based protocol:</p>
+
+<ol>
+<li>A node with a new transaction sends a transaction reference on its
+transaction announcement stream to each peer (subject to trickling).</li>
+<li>Peers that want the transaction request it with a <code>get-tx</code> request.</li>
+<li>The originating node serves the transaction in the <code>get-tx</code> response.</li>
+</ol>
+
+<p>Announcements use <code>TXID</code> and <code>WTXID</code> references according to transaction
+version, as specified in
+<a href="#transactionreferences">Transaction References</a>.</p>
+
+<h3 id="trickling"><span class="section-heading">Trickling</span><span class="section-anchor"> <a rel="bookmark" href="#trickling"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>To impede network topology inference, transaction announcements SHOULD NOT be
+sent immediately but SHOULD instead be &#8220;trickled&#8221; at random intervals. The
+specific parameters are implementation-defined; for the reference values used
+by legacy implementations, see ZIP 204 <a href="#fn:33" id="fnref:33" title="see footnote" class="footnote"><sup>33</sup></a>.</p>
+
+<h3 id="transactionexpiry"><span class="section-heading">Transaction Expiry</span><span class="section-anchor"> <a rel="bookmark" href="#transactionexpiry"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>The avoidance of relaying transactions that are about to expire
+(<code>TX_EXPIRING_SOON_THRESHOLD</code>) is unchanged from the legacy protocol; see
+ZIP 204 <a href="#fn:33" title="see footnote" class="footnote"><sup>33</sup></a>.</p>
+
+<h3 id="mempoolpolicy"><span class="section-heading">Mempool Policy</span><span class="section-anchor"> <a rel="bookmark" href="#mempoolpolicy"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Orphan transaction handling and the minimum relay fee are local mempool
+policy, unchanged from the legacy protocol; see ZIP 204 <a href="#fn:33" title="see footnote" class="footnote"><sup>33</sup></a>.</p>
+
+<h2 id="addressrelay"><span class="section-heading">Address Relay</span><span class="section-anchor"> <a rel="bookmark" href="#addressrelay"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>Address relay allows nodes to discover peers by propagating network address
+records through the network, via address announcement streams and <code>get-addr</code>
+requests.</p>
+
+<h3 id="ratelimiting"><span class="section-heading">Rate Limiting</span><span class="section-anchor"> <a rel="bookmark" href="#ratelimiting"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Address records SHOULD be subject to rate limiting to prevent address
+flooding. The specific mechanism is implementation-defined; for the
+token-bucket reference values used by zcashd, see ZIP 204
+<a href="#fn:34" id="fnref:34" title="see footnote" class="footnote"><sup>34</sup></a>.</p>
+
+<p>A node MAY additionally apply backpressure on the peer&#8217;s address announcement
+stream to bound the rate at which it receives address records.</p>
+
+<h3 id="addressbookmanagement"><span class="section-heading">Address Book Management</span><span class="section-anchor"> <a rel="bookmark" href="#addressbookmanagement"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Relayed addresses are unauthenticated, attacker-suppliable data; an address
+book that one source can fill leads to eclipse <a href="#fn:22" title="see footnote" class="footnote"><sup>22</sup></a>. A node SHOULD
+segment its address book by IP range, in the manner of the Bitcoin Core
+address manager design:</p>
+
+<ul>
+<li>Define an address&#8217;s <em>group</em> as an IP-range prefix of its address — for
+reference, Bitcoin Core and zcashd use the /16 prefix for IPv4 and the /32
+prefix for IPv6 — and, for a relayed address, its <em>source group</em> as the
+group of the peer that relayed it.</li>
+<li>Partition the address book into a bounded number of bounded-size buckets,
+and assign each address to a bucket determined by its group and its source
+group (keyed with a node-local secret), so that addresses from any one
+source group can occupy only a bounded fraction of the buckets. When a
+bucket is full, evict within the bucket; do not let insertions grow the
+book or displace addresses in other buckets.</li>
+<li>Keep addresses learned from independently trusted mechanisms (DNS seeding,
+local configuration) distinguishable from relayed addresses, and do not let
+relayed addresses evict them.</li>
+</ul>
+
+<p>A node SHOULD also diversify its outbound connections across groups: for
+reference, Bitcoin Core and zcashd make at most one outbound connection per
+group. Outbound peer selection SHOULD NOT be biased toward the addresses most
+recently received, since those are the easiest for an attacker to have
+planted.</p>
+
+<p>Addresses of overlay networks (<code>TORV3</code>, <code>I2P</code>) have no IP-range structure and
+are free to generate, so bucketing cannot bound an attacker&#8217;s share of them.
+A node SHOULD treat each overlay network as a separate bounded segment of its
+address book, and a node supporting both IP-based and overlay transports
+SHOULD retain a minimum number of outbound connections on IP-based
+transports.</p>
+
+<h3 id="addressbroadcasting"><span class="section-heading">Address Broadcasting</span><span class="section-anchor"> <a rel="bookmark" href="#addressbroadcasting"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>The specific broadcast intervals are implementation-defined; for the
+reference values used by zcashd, see ZIP 204 <a href="#fn:34" title="see footnote" class="footnote"><sup>34</sup></a>.</p>
+
+<p>How a node determines its own externally reachable addresses is out of scope
+for this ZIP; the legacy <code>addr_recv</code>-based self-discovery is removed (see
+<a href="#initrecord">Init Record</a>).</p>
+
+<h2 id="misbehaviorandbanning"><span class="section-heading">Misbehavior and Banning</span><span class="section-anchor"> <a rel="bookmark" href="#misbehaviorandbanning"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>Peer misbehavior is handled by two mechanisms, split by severity. Unambiguous
+violations of &#8220;MUST&#8221;-level requirements — malformed records, invalid stream
+usage, exceeded hard limits — are <em>connection errors</em>: the node closes the
+connection immediately with the indicated error code (<code>PROTOCOL_ERROR</code> or
+<code>FLOOD</code> unless otherwise specified), with no score kept. Violations for which
+immediate disconnection would be disproportionate, or which an
+honest-but-buggy peer or a peer on a different chain could commit, instead
+accumulate a per-peer <em>misbehavior score</em> that leads to disconnection and
+banning only when it crosses a threshold.</p>
+
+<p>Every misbehavior penalty — including any implementation-defined penalty
+assigned under the final row of the table below — is constrained by the
+following principle: a node MUST NOT assign a misbehavior penalty unless
+the violation is provable from the received data together with data the
+node has independently authenticated, does not depend on the node&#8217;s own
+chain view, mempool contents, clock, or local policy, and could not be
+committed by a conformant peer acting on honest but divergent state.
+Behavior that fails this test — however suspicious — is instead handled by
+discarding the data, refusing or cancelling streams, rate limits and
+backpressure, or disconnection without a ban. Penalties assigned on
+weaker evidence are worse than none: they let an attacker who can arrange
+the appearance of misbehavior induce honest nodes to ban one another,
+narrowing each victim&#8217;s peer set toward the attacker&#8217;s own nodes.</p>
+
+<p>The misbehavior score works as follows:</p>
+
+<ul>
+<li>A node SHOULD maintain a misbehavior score for each peer. Scores SHOULD
+be keyed by network address and persist across connections for a period
+on the order of the ban duration: several penalties in this protocol are
+detected only after a delay (sync-cost metadata is checked once the
+corresponding block has been downloaded; tree-root entries verify one block
+behind), so a purely per-connection score would let a peer shed its
+score — or escape a deferred penalty entirely — by reconnecting. A
+penalty detected after the offending connection has closed SHOULD be
+applied to the address&#8217;s score.</li>
+<li>When the node detects one of the violations listed below, it adds the
+listed number of points to the peer&#8217;s score:</li>
+</ul>
+
+<table>
+<colgroup>
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Points </th>
+	<th> Violation                           </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> 20  </td>
+	<td> <code>get-headers</code> response with more than 160 headers.                 </td>
+</tr>
+<tr>
+	<td> 20  </td>
+	<td> Non-contiguous headers in a <code>get-headers</code> response.                </td>
+</tr>
+<tr>
+	<td> 20  </td>
+	<td> <code>get-addr</code> response with more than 1000 address records.               </td>
+</tr>
+<tr>
+	<td> 20  </td>
+	<td> <code>get-hashes</code> metadata (<code>txs</code> or <code>notes</code>) that does not match the downloaded block (see <a href="#get-hashes"><code>get-hashes</code></a>). </td>
+</tr>
+<tr>
+	<td> 100 </td>
+	<td> A <code>get-tree-roots</code> entry that fails verification against authenticated header commitments (see <a href="#get-tree-roots"><code>get-tree-roots</code></a>). </td>
+</tr>
+<tr>
+	<td> 100 </td>
+	<td> A block delivered by <code>get-block-range</code> whose authorizing data commitment fails verification against its header (see <a href="#get-block-range"><code>get-block-range</code></a>). </td>
+</tr>
+<tr>
+	<td> 100 </td>
+	<td> A <code>get-object</code> object, delivered entirely by the peer, that fails verification against the requested content hash (see <a href="#get-object"><code>get-object</code></a>). </td>
+</tr>
+<tr>
+	<td> 100 </td>
+	<td> Announcing a v5 transaction with a <code>TXID</code> reference, or a v4-or-earlier transaction with a <code>WTXID</code> reference, in an announcement stream record or a <code>get-mempool</code> response record (see <a href="#transactionreferences">Transaction References</a> and ZIP 239 <a href="#fn:23" title="see footnote" class="footnote"><sup>23</sup></a>). Wrong-typed references in <code>get-tx</code> requests are exempt. </td>
+</tr>
+<tr>
+	<td> varies </td>
+	<td> Transaction, block, or header validation failure that is provable under the principle above: an invalid signature or proof, malformed structure, invalid proof of work, or a commitment mismatch, established with full context. The penalty is determined by the severity of the validation error, subject to the exemptions below. </td>
+</tr>
+</tbody>
+</table>
+
+<p>Validation-failure penalties apply only where the invalidity proves that
+<em>this</em> peer misbehaved. In particular, a node MUST NOT assign a
+misbehavior penalty for:</p>
+
+<ul>
+<li><strong>Expiry.</strong> A transaction that is expired, or expires too soon, relative
+to the receiver&#8217;s chain tip: relay and trickling delays make expiry
+races possible between honest peers (see
+<a href="#transactionexpiry">Transaction Expiry</a>).</li>
+<li><strong>Local policy.</strong> Rejection under local mempool policy — fee
+requirements, orphan handling, conflicts with mempool contents, or
+resource limits (see <a href="#mempoolpolicy">Mempool Policy</a>).</li>
+<li><strong>Missing or moved state.</strong> A transaction whose inputs are unknown to
+the receiver or already spent in its current view, or any object the
+receiver lacks the context to validate.</li>
+<li><strong>Content of requested objects.</strong> Consensus invalidity of a block,
+transaction, or artifact that the node itself requested by hash or
+reference (<code>get-blocks</code>, <code>get-block-range</code>, <code>get-tx</code>, <code>get-object</code>):
+the responder served exactly the bytes the identifier names, and blame
+for the object&#8217;s existence lies with the peer that announced it, under
+the rules above. (Delivered data that does <em>not</em> match the requested
+identifier is covered by each stream type&#8217;s own rules.)</li>
+<li><strong>Block reconstruction service.</strong> Transactions served in fulfilment of
+the serving obligation of
+<a href="#requestingmissingtransactions">Requesting Missing Transactions</a> (see
+the exemption in <a href="#relayprotocol">Relay Protocol</a>).</li>
+</ul>
+
+<p>Score thresholds and banning work as follows:</p>
+
+<ul>
+<li>When a peer&#8217;s score reaches or exceeds the node&#8217;s ban threshold, the node
+SHOULD close the connection with the <code>MISBEHAVIOR</code> error code and ban the
+peer&#8217;s network address.</li>
+<li>While an address is banned, the node SHOULD NOT initiate connections to it,
+SHOULD refuse inbound connections from it, and SHOULD NOT include it in
+<code>get-addr</code> responses or address announcements.</li>
+<li>The ban threshold and ban duration are implementation-defined; for the
+reference values used by legacy implementations, see ZIP 204
+<a href="#fn:35" id="fnref:35" title="see footnote" class="footnote"><sup>35</sup></a>.</li>
+<li>Whitelisted peers accumulate misbehavior scores but are exempt from
+banning and from the threshold-triggered disconnection.</li>
+</ul>
+
+<p>Bans are keyed by network address, and are only as strong as the cost of
+acquiring a new address. Banning is a meaningful deterrent for IP-based
+transports; for overlay networks whose addresses are free to generate (such
+as Tor onion services), it excludes only the banned address, and inbound
+connection limits — not ban lists — bound the node&#8217;s exposure (see
+<a href="#addressbookmanagement">Address Book Management</a>).</p>
+
+<p>Address granularity cuts both ways even on IP transports. A single IPv6
+operator typically controls at least a /64, so per-address IPv6 bans are
+nearly free to evade; a node MAY key IPv6 bans and scores by prefix (a
+/64 is a reasonable default). Conversely, a single IPv4 address behind
+carrier-grade NAT may be shared by many independent users, so a ban can
+exclude bystanders — a reason to keep ban durations bounded rather than
+to widen their scope.</p>
+
+<h1 id="securityandprivacyconsiderations"><span class="section-heading">Security and Privacy Considerations</span><span class="section-anchor"> <a rel="bookmark" href="#securityandprivacyconsiderations"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p><strong>Scope of transport encryption.</strong> Transport encryption protects the
+confidentiality and integrity of each connection against passive network
+observers. Peers are deliberately not authenticated (see
+<a href="#certificates">Certificates</a>), so an active attacker in a position to
+intercept a connection can terminate the encryption with its own certificate
+and read or modify that connection&#8217;s traffic. The structural defense against
+an active attacker seeking to control a node&#8217;s view of the network is
+redundancy: connections to multiple, independently discovered peers.</p>
+
+<p><strong>Denial of service.</strong> QUIC&#8217;s address validation and amplification limits,
+including Retry packets, bound the cost that spoofed-source floods can impose
+(see <a href="#quictransport">QUIC Transport</a>). At the application layer, resource
+consumption is bounded by the record payload limit (see <a href="#records">Records</a>),
+the stream concurrency limits (see
+<a href="#transportrequirements">Transport Requirements</a>), the per-request count
+limits of each request stream type, and address rate limiting (see
+<a href="#addressrelay">Address Relay</a>); exceeding a hard size or rate limit is a
+connection error of type <code>FLOOD</code>.</p>
+
+<p>A count limit is not by itself a bound on work, because the per-item size
+varies by orders of magnitude: <code>get-block-range</code> and <code>get-object</code> are
+therefore bounded in bytes as well (<code>max_bytes</code> and <code>length</code>), and for
+<code>get-blocks</code>, <code>get-tx</code>, and <code>get-headers</code> the responder applies its own byte
+budget and may finish early, with the requester re-requesting the remainder.
+The general shape of the defense is that a responder is never obliged to
+spend unbounded bandwidth, disk reads, or memory on one cheap request, and
+that every peer-supplied count or length is checked against its bound before
+it is used to size an allocation (see <a href="#datatypesandencoding">Data Types and Encoding</a>).</p>
+
+<p><strong>Fingerprinting and linkability.</strong> A persistent TLS key would allow a node
+to be recognized across connections and network locations; a node concerned
+about this uses per-connection ephemeral keys (see
+<a href="#certificates">Certificates</a>). Connection migration links a node&#8217;s traffic
+across network paths (see <a href="#quictransport">QUIC Transport</a>). The <code>user_agent</code>
+field of the <code>init</code> record is a fingerprinting vector; a node MAY advertise a
+generic user agent string. The <code>get-addr</code> policy (see <a href="#get-addr"><code>get-addr</code></a>)
+impedes fingerprinting of a node&#8217;s address book, and trickling (see
+<a href="#trickling">Trickling</a>) impedes inference of the network topology and of the
+origin of a transaction from announcement timing.</p>
+
+<p><strong>Traffic analysis.</strong> QUIC encrypts payloads but conceals neither packet
+timing and volume nor the IP addresses of the communicating peers. In
+particular, an adversary observing a node&#8217;s traffic may still be able to
+identify it as the originator of a transaction. The Tor transport (see
+<a href="#tortransport">Tor Transport</a>) defends against this adversary when it is
+local — an observer of the node&#8217;s network, or the remote peer itself, learns
+neither the node&#8217;s IP address nor which peers it communicates with — but not
+against a global adversary correlating traffic timing across the Tor network.
+The anticipated Nym mixnet transport (see <a href="#deployment">Deployment</a>) is
+directed at that stronger adversary.</p>
+
+<p><strong>Length leakage.</strong> Encryption conceals the content of application data but
+not its length: neither TLS over TCP nor QUIC pads application data by
+default, so encrypted packet sizes leak plaintext lengths. (QUIC defines
+PADDING frames <a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a>, but an implementation must use them explicitly.)
+The Tor transport is coarser — Tor pads relay cells to a 509-byte body —
+so leakage there is granular rather than byte-exact. To remove the
+sharpest instance of this channel, every request format in this protocol
+whose fields are position-fixed (<code>get-hashes</code>, <code>get-block-range</code>,
+<code>get-tree-roots</code>, <code>get-object</code>, and the empty <code>get-addr</code> and <code>get-mempool</code>
+requests) uses fixed-length integer encodings: every request of a given
+type has a single wire length, smaller than a Tor cell body, so its
+encrypted size reveals at most the stream type and never the field values,
+and there is no way to misimplement the encoding so that it leaks lengths
+but still interoperates. Requests that carry variable-length lists
+(<code>get-headers</code>, <code>get-blocks</code>, <code>get-tx</code>) and responses necessarily reveal
+their gross size; a node MAY additionally use QUIC PADDING frames to
+obscure those lengths, at a bandwidth cost this specification does not
+mandate.</p>
+
+<p><strong>Tor.</strong> On a Tor transport connection the initiator is anonymous — it
+reveals no network address to the responder or to network observers — so a
+node SHOULD prefer the Tor transport (where available) for the traffic most
+sensitive to linkage, above all announcing transactions it originated. The
+responder&#8217;s onion address is a stable, linkable identifier, and onion
+addresses are free to generate, which weakens address-based banning and
+address book protections for <code>TORV3</code> addresses (see
+<a href="#misbehaviorandbanning">Misbehavior and Banning</a> and
+<a href="#addressbookmanagement">Address Book Management</a>).</p>
+
+<p><strong>Mixnets.</strong> The two kinds of traffic most sensitive to linkage are mempool
+transaction propagation — announcing a transaction links the announcing
+node to it, and a <code>get-mempool</code> subscription reveals interest in the
+mempool&#8217;s contents — and address book queries, whose <code>get-addr</code>
+request/response pattern is a fingerprinting and mapping primitive. A node
+implementer SHOULD carry both over a mixnet transport once one is
+available (the anticipated Nym transport; see <a href="#deployment">Deployment</a>),
+and in the interim SHOULD carry them over the Tor transport where
+available, per the preference above. Mixnet delay and cover traffic
+address the timing correlation that onion routing alone does not.</p>
+
+<p><strong>Synchronization.</strong> Headers-first synchronization trusts proof of work:
+forging a history requires outspending the honest chain&#8217;s accumulated work
+over the forged span, which an eclipsing attacker with sufficient hash power
+can in principle do. Checkpointed synchronization trusts the node&#8217;s
+commitment, which shares a trust base with its binary: below its
+checkpoints, an attacker who cannot break the block hash function cannot
+cause acceptance of a false history. Under either method, an attacker
+controlling a node&#8217;s connections can withhold data and stall
+synchronization; the mitigations are redundancy and re-requesting from
+alternative peers (see
+<a href="#blockdownloadparameters">Block Download Parameters</a>).</p>
+
+<p><strong>Eclipse attacks.</strong> An attacker that controls all of a node&#8217;s connections
+controls its view of the block chain and mempool. The structural defenses are
+segmentation of the address book by IP range and diversity in outbound peer
+selection (see <a href="#addressbookmanagement">Address Book Management</a> and
+<a href="#fn:22" title="see footnote" class="footnote"><sup>22</sup></a>), persisted addresses (see <a href="#peerdiscovery">Peer Discovery</a>), and
+rate-limited, validated address relay (see <a href="#addressrelay">Address Relay</a>).
+Overlay addresses such as onion services deserve particular caution here,
+since an attacker can generate them without limit (see
+<a href="#addressbookmanagement">Address Book Management</a>).</p>
+
+<h1 id="deployment"><span class="section-heading">Deployment</span><span class="section-anchor"> <a rel="bookmark" href="#deployment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>This ZIP replaces the legacy protocol without a compatibility bridge: nodes
+implementing this protocol do not interoperate with nodes implementing the
+legacy protocol. Deployment is coordinated through the network upgrade
+mechanism <a href="#fn:3" title="see footnote" class="footnote"><sup>3</sup></a>: the protocol version from which this protocol is in
+effect will be assigned to a network upgrade, and the epoch enforcement of
+ZIP 201 <a href="#fn:27" title="see footnote" class="footnote"><sup>27</sup></a> retires legacy-protocol peers at activation, as with any
+other network upgrade.</p>
+
+<p>Because there is no compatibility bridge, an implementation deploying this
+protocol is expected to also implement the legacy protocol during the
+transition: before activation, a node participates in the network over the
+legacy protocol while also listening on the QUIC transport, so that DNS
+seeders and upgraded peers can discover and exercise QUIC endpoints ahead of
+activation. The QUIC transport uses UDP where the legacy transport uses TCP,
+so both can be served concurrently on the same port number and address. At
+activation, epoch enforcement retires legacy-protocol connections, and the
+node continues on this protocol alone.</p>
+
+<p>DNS seeders are expected to probe and serve the QUIC endpoints of nodes
+implementing this ZIP.</p>
+
+<p>The protocol semantics are specified against the abstract stream layer of
+<a href="#streamlayer">Stream Layer</a>; QUIC and Tor are the transports defined by this
+ZIP. Future revisions are expected to define additional transports to be used
+simultaneously with them; in particular, a transport carrying the stream layer
+over the Nym mixnet <a href="#fn:36" id="fnref:36" title="see footnote" class="footnote"><sup>36</sup></a> is anticipated, providing network-level metadata
+protection (resistance to traffic analysis of which peers are communicating)
+stronger than onion routing provides.</p>
+
+<p><em>Note:</em> The transports are complementary rather than alternatives: a node is
+expected to use QUIC for latency-critical bulk relay and synchronization, and
+Tor (eventually Nym) where anonymity matters more than latency, selected per
+connection according to the traffic it will carry.</p>
+
+<h1 id="formalmodel"><span class="section-heading">Formal Model</span><span class="section-anchor"> <a rel="bookmark" href="#formalmodel"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>A TLA+ formal specification of the legacy protocol&#8217;s connection lifecycle is
+available at <a href="#fn:37" id="fnref:37" title="see footnote" class="footnote"><sup>37</sup></a>; it has not yet been updated for the protocol
+specified here.</p>
+
+<h1 id="references"><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<div class="footnotes">
+<hr />
+<ol>
+
+<li id="fn:1">
+<p><a href="https://www.rfc-editor.org/info/bcp14">Information on BCP 14 — &#8220;RFC 2119: Key words for use in RFCs to Indicate Requirement Levels&#8221; and &#8220;RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words&#8221;</a> <a href="#fnref:1" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:2">
+<p><a href="protocol/protocol.pdf#networks">Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 3.12: Mainnet and Testnet</a> <a href="#fnref:2" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:3">
+<p><a href="zip-0200">ZIP 200: Network Upgrade Mechanism</a> <a href="#fnref:3" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:4">
+<p><a href="protocol/protocol.pdf#blockchain">Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 3.3: The Block Chain</a> <a href="#fnref:4" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:5">
+<p><a href="zip-0204">ZIP 204: Zcash P2P Network Protocol</a> <a href="#fnref:5" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:6">
+<p><a href="https://www.rfc-editor.org/rfc/rfc9000.html">RFC 9000: QUIC: A UDP-Based Multiplexed and Secure Transport</a> <a href="#fnref:6" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:7">
+<p><a href="https://spec.torproject.org/rend-spec/index.html">Tor Rendezvous Specification — Version 3 Onion Services</a> <a href="#fnref:7" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:8">
+<p><a href="https://www.rfc-editor.org/rfc/rfc8446.html">RFC 8446: The Transport Layer Security (TLS) Protocol Version 1.3</a> <a href="#fnref:8" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:9">
+<p><a href="https://www.rfc-editor.org/rfc/rfc9001.html">RFC 9001: Using TLS to Secure QUIC</a> <a href="#fnref:9" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:10">
+<p><a href="https://github.com/bitcoin/bips/blob/master/bip-0324.mediawiki">BIP 324: Version 2 P2P Encrypted Transport Protocol</a> <a href="#fnref:10" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:11">
+<p><a href="protocol/protocol.pdf#txnencoding">Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.1: Transaction Encoding and Consensus</a> <a href="#fnref:11" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:12">
+<p><a href="protocol/protocol.pdf#blockheader">Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.6: Block Header Encoding and Consensus</a> <a href="#fnref:12" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:13">
+<p><a href="draft-arya-block-chain-sync">Draft ZIP: Block Chain Synchronization</a> <a href="#fnref:13" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:14">
+<p><a href="zip-0155">ZIP 155: addrv2 message</a> <a href="#fnref:14" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:15">
+<p><a href="https://zips.z.cash/zip-0204#dns-seeds">ZIP 204: Zcash P2P Network Protocol — DNS Seeds</a> <a href="#fnref:15" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:16">
+<p><a href="https://www.rfc-editor.org/rfc/rfc9221.html">RFC 9221: An Unreliable Datagram Extension to QUIC</a> <a href="#fnref:16" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:17">
+<p><a href="https://www.rfc-editor.org/rfc/rfc7301.html">RFC 7301: Transport Layer Security (TLS) Application-Layer Protocol Negotiation Extension</a> <a href="#fnref:17" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:18">
+<p><a href="https://zips.z.cash/zip-0204#default-ports">ZIP 204: Zcash P2P Network Protocol — Default Ports</a> <a href="#fnref:18" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:19">
+<p><a href="https://www.rfc-editor.org/rfc/rfc7250.html">RFC 7250: Using Raw Public Keys in Transport Layer Security (TLS) and Datagram Transport Layer Security (DTLS)</a> <a href="#fnref:19" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:20">
+<p><a href="https://www.torproject.org/">The Tor Project</a> <a href="#fnref:20" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:21">
+<p><a href="https://zips.z.cash/zip-0204#data-types-and-encoding">ZIP 204: Zcash P2P Network Protocol — Data Types and Encoding</a> <a href="#fnref:21" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:22">
+<p><a href="https://eprint.iacr.org/2015/263">Ethan Heilman, Alison Kendler, Aviv Zohar, Sharon Goldberg. Eclipse Attacks on Bitcoin&#8217;s Peer-to-Peer Network. 24th USENIX Security Symposium, 2015.</a> <a href="#fnref:22" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:23">
+<p><a href="zip-0239">ZIP 239: Relay of Version 5 Transactions</a> <a href="#fnref:23" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:24">
+<p>bit <span class="math">\(k\)</span> is the bit with numeric weight <span class="math">\(2^k\kern-0.05em\textsf{.}\)</span> <a href="#fnref:24" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:25">
+<p><a href="https://zips.z.cash/zip-0204#assigning-protocol-versions-to-network-upgrades">ZIP 204: Zcash P2P Network Protocol — Assigning Protocol Versions to Network Upgrades</a> <a href="#fnref:25" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:26">
+<p><a href="https://zips.z.cash/zip-0204#network-upgrade-epoch-enforcement">ZIP 204: Zcash P2P Network Protocol — Network Upgrade Epoch Enforcement</a> <a href="#fnref:26" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:27">
+<p><a href="zip-0201">ZIP 201: Network Peer Management for Overwinter</a> <a href="#fnref:27" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:28">
+<p><a href="zip-0244">ZIP 244: Transaction Identifier Non-Malleability</a> <a href="#fnref:28" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:29">
+<p><a href="zip-0221">ZIP 221: FlyClient - Consensus-Layer Changes</a> <a href="#fnref:29" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:30">
+<p><a href="https://github.com/bitcoin/bips/blob/master/bip-0130.mediawiki">BIP 130: sendheaders message</a> <a href="#fnref:30" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:31">
+<p><a href="https://github.com/bitcoin/bips/blob/master/bip-0152.mediawiki">BIP 152: Compact Block Relay</a> <a href="#fnref:31" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:32">
+<p><a href="https://zips.z.cash/zip-0204#block-download-parameters">ZIP 204: Zcash P2P Network Protocol — Block Download Parameters</a> <a href="#fnref:32" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:33">
+<p><a href="https://zips.z.cash/zip-0204#transaction-relay">ZIP 204: Zcash P2P Network Protocol — Transaction Relay</a> <a href="#fnref:33" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:34">
+<p><a href="https://zips.z.cash/zip-0204#address-relay">ZIP 204: Zcash P2P Network Protocol — Address Relay</a> <a href="#fnref:34" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:35">
+<p><a href="https://zips.z.cash/zip-0204#misbehavior-and-banning">ZIP 204: Zcash P2P Network Protocol — Misbehavior and Banning</a> <a href="#fnref:35" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:36">
+<p><a href="https://nymtech.net/">The Nym Mixnet</a> <a href="#fnref:36" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:37">
+<p><a href="https://github.com/oxarbitrage/zcash-p2p-spec">Zcash P2P Protocol TLA+ Specification</a> <a href="#fnref:37" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+</ol>
+</div>
+</body>
+</html>
