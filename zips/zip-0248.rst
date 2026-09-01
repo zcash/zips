@@ -335,13 +335,15 @@ be present.
 +------------+---------------+----------------------+--------------------+------------------+--------------+----------------------------------------------+
 | 3          |               |✅                    |✅                  |✅                | ZIP 226      | OrchardZSA                                   |
 +------------+---------------+----------------------+--------------------+------------------+--------------+----------------------------------------------+
-| 4          | 0             |✅                    |❌                  |❌                | ZIP 2002     | Transaction fee                              |
+| 4          | 0             |✅                    |✅                  |✅                | This ZIP     | Ironwood                                     |
 +------------+---------------+----------------------+--------------------+------------------+--------------+----------------------------------------------+
-| 5          | 0             |✅                    |❌                  |❌                | ZIP 233      | ZIP 233 NSM field                            |
+| 5          | 0             |✅                    |❌                  |❌                | ZIP 2002     | Transaction fee                              |
 +------------+---------------+----------------------+--------------------+------------------+--------------+----------------------------------------------+
-| 6          | 0             |❌                    |✅                  |✅                | ZIP 270      | Key rotation                                 |
+| 6          | 0             |✅                    |❌                  |❌                | ZIP 233      | ZIP 233 NSM field                            |
 +------------+---------------+----------------------+--------------------+------------------+--------------+----------------------------------------------+
-| 7          | 0             |✅                    |✅                  |✅                | TBD          | Lockbox disbursement                         |
+| 7          | 0             |❌                    |✅                  |✅                | ZIP 270      | Key rotation                                 |
++------------+---------------+----------------------+--------------------+------------------+--------------+----------------------------------------------+
+| 8          | 0             |✅                    |✅                  |✅                | TBD          | Lockbox disbursement                         |
 +------------+---------------+----------------------+--------------------+------------------+--------------+----------------------------------------------+
 |            | 0             |❌                    |✅                  |❌                | ZIP 231      | Memos                                        |
 +------------+---------------+----------------------+--------------------+------------------+--------------+----------------------------------------------+
@@ -554,9 +556,9 @@ wallet does not itself implement.
   * ``vSpendProofsSapling`` and ``vSpendAuthSigsSapling`` each have
     ``nSpendsSapling`` elements;
   * ``vOutputProofsSapling`` has ``nOutputsSapling`` elements;
-  * ``vSpendAuthSigsOrchard`` has ``nActionsOrchard`` elements, and
-    ``proofsOrchard`` aggregates exactly ``nActionsOrchard`` per-action
-    proofs.
+  * in each Orchard protocol bundle, ``vSpendAuthSigsOrchard`` has
+    ``nActionsOrchard`` elements, and ``proofsOrchard`` aggregates exactly
+    ``nActionsOrchard`` per-action proofs.
 
 A wallet that successfully parses a V7 transaction under these rules is
 guaranteed to be able to compute the transaction identifier (given, for
@@ -791,15 +793,28 @@ elements of the corresponding effecting data are required by the parsing
 rules in `Parsing Rules`_.
 
 
-Orchard Bundle
---------------
+Orchard Protocol Bundles
+------------------------
 
-Orchard Effecting Data
-``````````````````````
+The Orchard protocol supports two value pools: the *Orchard pool*, and the
+*Ironwood pool* introduced by ZIP 229 [#zip-0229]_. Each has its own note
+commitment tree, nullifier set, and chain value pool balance, and each is acted
+upon by its own bundle type: the Orchard bundle, ``bundleType = 3``, acts on
+the *Orchard pool*, and the Ironwood bundle, ``bundleType = 4``, acts on the
+*Ironwood pool*.
 
-The effecting data for the Orchard bundle describes the Orchard actions. Unlike
-the V5 transaction format defined in ZIP 225 [#zip-0225]_, the value balance is
-not included here; it appears in ``mValuePoolDeltas`` instead.
+Both bundle types use the encoding defined in this section. Where a field is
+described below as belonging to the bundle's pool, that pool is the
+*Orchard pool* for an Orchard bundle and the *Ironwood pool* for an Ironwood
+bundle.
+
+Orchard Protocol Effecting Data
+```````````````````````````````
+
+The effecting data for an Orchard protocol bundle describes the Orchard
+actions. Unlike the V5 transaction format defined in ZIP 225 [#zip-0225]_, the
+value balance is not included here; it appears in ``mValuePoolDeltas``
+instead.
 
 +-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
 | Bytes                       | Name                     | Data Type                                 | Description                                                         |
@@ -814,8 +829,8 @@ not included here; it appears in ``mValuePoolDeltas`` instead.
 |                             |                          |                                           |* ``enableOutputsOrchard``                                           |
 |                             |                          |                                           |* The remaining bits are set to :math:`0\!`.                         |
 +-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
-|``32``                       |``anchorOrchard``         |``byte[32]``                               |A root of the Orchard note commitment tree at some block height      |
-|                             |                          |                                           |in the past.                                                         |
+|``32``                       |``anchorOrchard``         |``byte[32]``                               |A root of the note commitment tree of the bundle's pool, at some     |
+|                             |                          |                                           |block height in the past.                                            |
 +-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
 
 * The fields ``flagsOrchard`` and ``anchorOrchard`` are present if and only if
@@ -845,11 +860,11 @@ OrchardActionEffecting
 |                             |                          |                                        |of the transmission key with the ephemeral secret key.               |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 
-Orchard Authorizing Data
-````````````````````````
+Orchard Protocol Authorizing Data
+`````````````````````````````````
 
-The authorizing data for the Orchard bundle contains the proofs and signatures
-that authorize the actions.
+The authorizing data for an Orchard protocol bundle contains the proofs and
+signatures that authorize the actions.
 
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 | Bytes                       | Name                     | Data Type                              | Description                                                         |
@@ -870,9 +885,9 @@ that authorize the actions.
 * The fields ``sizeProofsOrchard``, ``proofsOrchard``, and ``bindingSigOrchard``
   are present if and only if $\mathtt{nActionsOrchard} > 0$.
 
-The 1:1 correspondences between Orchard authorizing-data elements and the
-elements of the corresponding effecting data are required by the parsing
-rules in `Parsing Rules`_.
+The 1:1 correspondences between the authorizing-data elements of an Orchard
+protocol bundle and the elements of the corresponding effecting data are
+required by the parsing rules in `Parsing Rules`_.
 
 
 Consensus Rules
@@ -885,7 +900,7 @@ these consensus rules is well-formed but invalid.
 
 Let ``CoinbaseBundleId`` be the identifier of the coinbase bundle, and
 ``FeeBundleId`` be the identifier of the fee bundle. In V7 transactions,
-$\mathsf{CoinbaseBundleId} = 1$ and $\mathsf{FeeBundleId} = 4$ as defined in
+$\mathsf{CoinbaseBundleId} = 1$ and $\mathsf{FeeBundleId} = 5$ as defined in
 the table above.
 
 Bundle-local rules
@@ -907,8 +922,8 @@ it understands the bundle type that the rule applies to.
   transparent bundle is present in a coinbase transaction, its effecting data
   MUST have ``tx_in_count = 0``.
 
-* For coinbase transactions, the ``enableSpendsOrchard`` bit of the Orchard
-  bundle's ``flagsOrchard`` field MUST be 0.
+* For coinbase transactions, the ``enableSpendsOrchard`` bit of the
+  ``flagsOrchard`` field of every Orchard protocol bundle MUST be 0.
 
 Cross-bundle and chain-context rules
 ````````````````````````````````````
@@ -973,13 +988,13 @@ where ``associatedData`` is specific to the bundle it appears in.
 
 The following sighash algorithm versions are defined for V7 transactions:
 
-+--------------------+-------------------------------------------------------+
-|                    |:math:`\hspace{4.5em}` ``associatedData``              |
-+--------------------+-------------+-------------+-------------+-------------+
-| ``sighashVersion`` | Transparent |   Sapling   |   Orchard   |  Issuance   |
-+--------------------+-------------+-------------+-------------+-------------+
-| 0                  |``[]``       |``[]``       |``[]``       |``[]``       |
-+--------------------+-------------+-------------+-------------+-------------+
++--------------------+---------------------------------------------------------------------+
+|                    |:math:`\hspace{4.5em}` ``associatedData``                            |
++--------------------+-------------+-------------+-------------+-------------+-------------+
+| ``sighashVersion`` | Transparent |   Sapling   |   Orchard   |  Ironwood   |  Issuance   |
++--------------------+-------------+-------------+-------------+-------------+-------------+
+| 0                  |``[]``       |``[]``       |``[]``       |``[]``       |``[]``       |
++--------------------+-------------+-------------+-------------+-------------+-------------+
 
 Version 0 is by convention the "commit to all effecting data" sighash algorithm.
 Other versions can commit to whatever makes sense for desired functionality
@@ -1077,6 +1092,10 @@ follows::
         │   ├── orchard_actions_compact_digest
         │   ├── orchard_actions_memos_digest
         │   └── orchard_actions_noncompact_digest
+        ├─ (bundle_type_id || bundle_variant || ironwood_effects_digest)
+        │   ├── ironwood_actions_compact_digest
+        │   ├── ironwood_actions_memos_digest
+        │   └── ironwood_actions_noncompact_digest
         └─ (bundle_type_id || bundle_variant || unknown_bundle_effects_digest) ...
 
 Each node written as ``snake_case`` in this tree is a BLAKE2b-256 hash of its
@@ -1381,6 +1400,10 @@ The personalization field of this hash is set to::
 T.3.3: orchard_effects_digest
 .............................
 
+The digest defined here and in its child sections is the Orchard bundle's
+instance of a digest shape shared with the Ironwood bundle; T.3.4 gives the
+Ironwood instance.
+
 In the case that Orchard actions are present, the Orchard effects digest is a
 BLAKE2b-256 hash of the following values::
 
@@ -1443,6 +1466,34 @@ inclusion in the ``CompactBlock`` format. For each action::
 The personalization field of this hash is set to::
 
   "ZTxIdOrcActNHash"
+
+T.3.4: ironwood_effects_digest
+..............................
+
+The Ironwood bundle uses the same effecting data encoding as the Orchard
+bundle, and ``ironwood_effects_digest`` is computed over that data exactly as
+``orchard_effects_digest`` and its children are computed (T.3.3), except that
+each personalization string is replaced as follows:
+
++-------------------------------------+----------------------+----------------------+
+| Digest                              | Orchard bundle       | Ironwood bundle      |
++=====================================+======================+======================+
+| effects digest                      |``ZTxIdOrchardHash``  |``ZTxIdIronwd_Hash``  |
++-------------------------------------+----------------------+----------------------+
+| actions compact digest              |``ZTxIdOrcActCHash``  |``ZTxIdIrnActCHash``  |
++-------------------------------------+----------------------+----------------------+
+| actions memos digest                |``ZTxIdOrcActMHash``  |``ZTxIdIrnActMHash``  |
++-------------------------------------+----------------------+----------------------+
+| actions noncompact digest           |``ZTxIdOrcActNHash``  |``ZTxIdIrnActNHash``  |
++-------------------------------------+----------------------+----------------------+
+
+The personalization strings differ so that the digest of a bundle acting on one
+pool cannot be reused as the digest of a bundle acting on the other.
+
+In the case that the transaction has no Ironwood actions,
+``ironwood_effects_digest`` is::
+
+  BLAKE2b-256("ZTxIdIronwd_Hash", [])
 
 Signature Digest
 ````````````````
@@ -1618,6 +1669,7 @@ the authorizing data of a transaction. The overall structure is::
         ├─ (bundle_type_id || bundle_variant || transparent_auth_digest)
         ├─ (bundle_type_id || bundle_variant || sapling_auth_digest)
         ├─ (bundle_type_id || bundle_variant || orchard_auth_digest)
+        ├─ (bundle_type_id || bundle_variant || ironwood_auth_digest)
         └─ (bundle_type_id || bundle_variant || unknown_bundle_auth_digest) ...
 
 auth_digest
@@ -1717,6 +1769,20 @@ In the case that the transaction has no Orchard actions::
 
   BLAKE2b-256("ZTxAuthOrchaHash", [])
 
+A.1.4: ironwood_auth_digest
+...........................
+
+The Ironwood bundle uses the same authorizing data encoding as the Orchard
+bundle, and ``ironwood_auth_digest`` is computed over that data exactly as
+``orchard_auth_digest`` (A.1.3), except that the personalization field of the
+hash is set to::
+
+  "ZTxAuthIrnwdHash"
+
+In the case that the transaction has no Ironwood actions::
+
+  BLAKE2b-256("ZTxAuthIrnwdHash", [])
+
 
 Implications for Wallets
 ------------------------
@@ -1774,6 +1840,19 @@ subsidy is not a function of the block height alone once issuance depends on
 accumulated chain state, so evaluating the issuance schedule would require a
 client to track that state. Its value is the coinbase bundle's value pool
 delta, and a consensus rule ties the two together.
+
+The Orchard and Ironwood bundles share one encoding because the *Orchard pool*
+and the *Ironwood pool* are two pools of the same shielded protocol
+[#zip-0229]_. The action encoding, proving system, authorization, and note
+encryption are common to both; the pools differ in their note commitment trees,
+nullifier sets, and chain value pool balances.
+
+Each pool gets its own bundle type rather than a variant of a single type
+because a variant is required to affect the same value pool(s) as the type it
+varies, so that a client encountering an unrecognized variant still knows which
+pools the bundle touches. Two pools therefore cannot share a bundle type, and
+separate types also keep the two value pool deltas separable, which a client
+needs in order to report the two chain value pool balances independently.
 
 The coinbase bundle also gives the coinbase metadata a place of its own. In
 previous transaction versions that metadata was encoded as the ``scriptSig`` of
@@ -2034,6 +2113,7 @@ References
 .. [#zip-0203] `ZIP 203: Transaction Expiry <https://zips.z.cash/zip-0203>`_
 .. [#zip-0212] `ZIP 212: Allow Recipient to Derive Ephemeral Secret from Note Plaintext <https://zips.z.cash/zip-0212>`_
 .. [#zip-0225] `ZIP 225: Version 5 Transaction Format <https://zips.z.cash/zip-0225>`_
+.. [#zip-0229] `ZIP 229: Version 6 Transaction Format <zip-0229.md>`_
 .. [#zip-0239] `ZIP 239: Relay of Version 5 Transactions <https://zips.z.cash/zip-0239>`_
 .. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <https://zips.z.cash/zip-0244>`_
 .. [#zip-0307] `ZIP 307: Light Client Protocol for Payment Detection <https://zips.z.cash/zip-0307>`_
