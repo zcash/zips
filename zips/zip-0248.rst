@@ -670,9 +670,12 @@ in previous transaction versions, and carries the block height that that input
 was required to encode.
 
 The coinbase bundle's value pool delta in ``mValuePoolDeltas`` is the block
-subsidy, which the coinbase bundle contributes to the transparent transaction
-value pool. The fees collected from the other transactions in the block are
-contributed separately, as the value pool delta of the fee bundle.
+subsidy: the new issuance that consensus awards to the miner of the block. The
+fees collected from the other transactions in the block are contributed
+separately, as the value pool delta of the fee bundle.
+
+The subsidy is also carried in the bundle's own effecting data, as
+``blockSubsidy``.
 
 The coinbase bundle has no authorizing data.
 
@@ -684,6 +687,8 @@ Coinbase Effecting Data
 +=============================+==========================+========================================+=====================================================================+
 |``4``                        |``blockHeight``           |``uint32``                              |The height of the block in which the transaction is mined.           |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+|``8``                        |``blockSubsidy``          |``int64``                               |The block subsidy for that block, in zatoshis.                       |
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 |``varies``                   |``coinbaseDataLen``       |``compactSize``                         |Length of the ``coinbaseData`` byte array.                           |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 |``coinbaseDataLen``          |``coinbaseData``          |``byte[coinbaseDataLen]``               |Data chosen by the miner. Consensus assigns no meaning to its        |
@@ -691,6 +696,7 @@ Coinbase Effecting Data
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 
 * ``blockHeight`` MUST be in the range {1 .. 499999999}.
+* ``blockSubsidy`` MUST be nonnegative.
 * ``coinbaseDataLen`` MUST be at most 94.
 
 
@@ -907,8 +913,8 @@ it understands the bundle type that the rule applies to.
 Cross-bundle and chain-context rules
 ````````````````````````````````````
 
-The following rules relate value pool deltas across bundles within a
-transaction, or across transactions within a block. They MUST be enforced by
+The following rules relate the contents of a bundle to the other bundles of
+its transaction, or to the block that contains it. They MUST be enforced by
 full validators.
 
 * For coinbase transactions, the value of $\mathsf{mValuePoolDeltas}[(\mathsf{FeeBundleId}, \mathsf{Zec})]$
@@ -930,15 +936,16 @@ full validators.
 * The ``blockHeight`` field of the coinbase bundle's effecting data MUST equal
   the height of the block containing the transaction.
 
+* The ``blockSubsidy`` field of the coinbase bundle's effecting data MUST equal
+  the block subsidy for that block, as defined in § 7.8 'Block Subsidy and
+  Founders' Reward'. [#protocol-subsidies]_
+
 * The value of $\mathsf{mValuePoolDeltas}[(\mathsf{CoinbaseBundleId}, \mathsf{Zec})]$
-  MUST equal the block subsidy for the block containing the transaction.
+  MUST equal the ``blockSubsidy`` field of the coinbase bundle's effecting data.
 
   .. math::
 
-      \mathsf{mValuePoolDeltas}[(\mathsf{CoinbaseBundleId}, \mathsf{Zec})] = \mathsf{BlockSubsidy}(\mathsf{blockHeight})
-
-  where $\mathsf{BlockSubsidy}$ is defined in § 7.8 'Block Subsidy and
-  Founders' Reward'. [#protocol-subsidies]_
+      \mathsf{mValuePoolDeltas}[(\mathsf{CoinbaseBundleId}, \mathsf{Zec})] = \mathsf{blockSubsidy}
 
 * For every transaction, the sum of value pool delta values in each asset MUST
   equal 0.
@@ -1229,7 +1236,8 @@ T.3.1: coinbase_effects_digest
 A BLAKE2b-256 hash of the following values::
 
    T.3.1a: blockHeight   (4-byte little-endian block height)
-   T.3.1b: coinbaseData  (byte array with leading ``compactSize`` length)
+   T.3.1b: blockSubsidy  (8-byte signed little-endian)
+   T.3.1c: coinbaseData  (byte array with leading ``compactSize`` length)
 
 The personalization field of this hash is set to::
 
@@ -1755,9 +1763,17 @@ Representing the coinbase as a bundle makes the value pool delta balance rule
 universal. Previously the coinbase transaction was the sole exception: its
 deltas summed to the negation of the block subsidy rather than to zero, because
 the subsidy entered the transparent transaction value pool implicitly. With the
-subsidy carried as the coinbase bundle's value pool delta, every transaction
+subsidy carried in the coinbase bundle's value pool delta, every transaction
 balances to zero in every asset, and a wallet can enumerate the value flows of
 a coinbase transaction using the same rule it applies to any other transaction.
+
+Carrying ``blockSubsidy`` in the effecting data states the subsidy in the
+bundle it belongs to, and commits it to the transaction identifier along with
+the rest of that data. Deriving it instead is not open to every client: the
+subsidy is not a function of the block height alone once issuance depends on
+accumulated chain state, so evaluating the issuance schedule would require a
+client to track that state. Its value is the coinbase bundle's value pool
+delta, and a consensus rule ties the two together.
 
 The coinbase bundle also gives the coinbase metadata a place of its own. In
 previous transaction versions that metadata was encoded as the ``scriptSig`` of
