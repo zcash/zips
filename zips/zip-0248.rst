@@ -1414,11 +1414,9 @@ instead.
 +-----------------------------+--------------------------+-----------------------------------------+---------------------------------------------------------------------+
 |``756 * nOutputsSapling``    |``vOutputsSapling``       |``SaplingOutput[nOutputsSapling]``       |Sapling Output descriptions.                                         |
 +-----------------------------+--------------------------+-----------------------------------------+---------------------------------------------------------------------+
-|``32``                       |``anchorSapling``         |``byte[32]``                             |A root of the Sapling note commitment tree at some block height      |
-|                             |                          |                                         |in the past.                                                         |
-+-----------------------------+--------------------------+-----------------------------------------+---------------------------------------------------------------------+
 
-* The field ``anchorSapling`` is present if and only if $\mathtt{nSpendsSapling} > 0$.
+The anchor is not part of the effecting data; it appears in
+`Sapling Authorizing Data`_.
 
 SaplingSpendEffecting
 .....................
@@ -1471,12 +1469,19 @@ that authorize the spends and validate the outputs.
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 |``varies``                   |``bindingSigSapling``     |``SaplingSignature``                    |A Sapling binding signature on the SIGHASH transaction hash.         |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+|``32``                       |``anchorSapling``         |``byte[32]``                            |A root of the Sapling note commitment tree at some block height      |
+|                             |                          |                                        |in the past.                                                         |
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 
 * The values of ``nSpendsSapling`` and ``nOutputsSapling`` are not re-encoded in
   the authorizing data; they are taken from the corresponding effecting data.
 
 * The field ``bindingSigSapling`` is present if and only if
   $\mathtt{nSpendsSapling} + \mathtt{nOutputsSapling} > 0$.
+
+* The field ``anchorSapling`` is present if and only if
+  $\mathtt{nSpendsSapling} > 0$. A Sapling bundle with outputs but no spends
+  references no anchor.
 
 The 1:1 correspondences between Sapling authorizing-data elements and the
 elements of the corresponding effecting data are required by the parsing
@@ -1501,24 +1506,20 @@ digest is a BLAKE2b-256 hash of the following values::
 
    T.3.2a: sapling_spends_digest   (32-byte hash)
    T.3.2b: sapling_outputs_digest  (32-byte hash)
-   T.3.2c: anchorSapling           (32 bytes)
 
 The personalization field of this hash is set to::
 
-  "ZTxIdSaplingHash"
+  "ZTxIdSaplingH_v7"
 
-If $\mathtt{nSpendsSapling} = 0$ (in which case the ``anchorSapling`` field is
-not present in the wire encoding), the value hashed at position T.3.2c is 32
-zero bytes. Otherwise it is the encoding of ``anchorSapling`` as it appears in
-the Sapling effecting data.
-
-Note that unlike ZIP 244, the value balance is not included here; it is committed
-via ``value_pool_deltas_digest`` instead.
+Note that unlike ZIP 244, neither the value balance nor the anchor is included
+here. The value balance is committed via ``value_pool_deltas_digest``, and the
+anchor via ``sapling_auth_digest``; the personalization differs from ZIP 244's
+``ZTxIdSaplingHash`` because what is directly hashed has changed.
 
 In the case that the transaction has no Sapling spends or outputs,
 ``sapling_effects_digest`` is::
 
-  BLAKE2b-256("ZTxIdSaplingHash", [])
+  BLAKE2b-256("ZTxIdSaplingH_v7", [])
 
 T.3.2a: sapling_spends_digest
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1635,17 +1636,21 @@ hash of the following concatenated values::
    A.1.2b: vSpendAuthSigsSapling  (SaplingSignature field encoding per spend)
    A.1.2c: vOutputProofsSapling   (192 bytes per output)
    A.1.2d: bindingSigSapling      (SaplingSignature field encoding)
+   A.1.2e: anchorSapling          (32 bytes, present iff nSpendsSapling > 0)
 
 The ``SaplingSignature`` field encoding is defined in `Per-Signature Structures`_
 and includes ``sighashInfo``.
 
 The personalization field of this hash is set to::
 
-  "ZTxAuthSapliHash"
+  "ZTxAuthSapliH_v7"
+
+The personalization differs from ZIP 244's ``ZTxAuthSapliHash`` because this
+digest now also commits to the anchor.
 
 In the case that the transaction has no Sapling spends or outputs::
 
-  BLAKE2b-256("ZTxAuthSapliHash", [])
+  BLAKE2b-256("ZTxAuthSapliH_v7", [])
 
 
 Orchard Protocol Bundles
@@ -1689,12 +1694,12 @@ instead.
 |                             |                          |                                           |* ``enableCrossAddress`` [#zip-2006]_                                |
 |                             |                          |                                           |* The remaining bits are set to :math:`0\!`.                         |
 +-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
-|``32``                       |``anchorOrchard``         |``byte[32]``                               |A root of the note commitment tree of the bundle's pool, at some     |
-|                             |                          |                                           |block height in the past.                                            |
-+-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
 
-* The fields ``flagsOrchard`` and ``anchorOrchard`` are present if and only if
+* The field ``flagsOrchard`` is present if and only if
   $\mathtt{nActionsOrchard} > 0$.
+
+The anchor is not part of the effecting data; it appears in
+`Orchard Protocol Authorizing Data`_.
 
 OrchardActionEffecting
 ......................
@@ -1738,12 +1743,16 @@ signatures that authorize the actions.
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 |``varies``                   |``bindingSigOrchard``     |``OrchardSignature``                    |An Orchard binding signature on the SIGHASH transaction hash.        |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+|``32``                       |``anchorOrchard``         |``byte[32]``                            |A root of the note commitment tree of the bundle's pool, at some     |
+|                             |                          |                                        |block height in the past.                                            |
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 
 * The value of ``nActionsOrchard`` is not re-encoded in the authorizing data; it
   is taken from the corresponding effecting data.
 
-* The fields ``sizeProofsOrchard``, ``proofsOrchard``, and ``bindingSigOrchard``
-  are present if and only if $\mathtt{nActionsOrchard} > 0$.
+* The fields ``sizeProofsOrchard``, ``proofsOrchard``, ``bindingSigOrchard``,
+  and ``anchorOrchard`` are present if and only if
+  $\mathtt{nActionsOrchard} > 0$.
 
 The 1:1 correspondences between the authorizing-data elements of an Orchard
 protocol bundle and the elements of the corresponding effecting data are
@@ -1775,19 +1784,20 @@ BLAKE2b-256 hash of the following values::
    T.3.3b: orchard_actions_memos_digest      (32-byte hash)
    T.3.3c: orchard_actions_noncompact_digest (32-byte hash)
    T.3.3d: flagsOrchard                      (1 byte)
-   T.3.3e: anchorOrchard                     (32 bytes)
 
 The personalization field of this hash is set to::
 
-  "ZTxIdOrchardHash"
+  "ZTxIdOrchardH_v7"
 
-Note that unlike ZIP 244, the value balance is not included here; it is committed
-via ``value_pool_deltas_digest`` instead.
+Note that unlike ZIP 244, neither the value balance nor the anchor is included
+here. The value balance is committed via ``value_pool_deltas_digest``, and the
+anchor via ``orchard_auth_digest``; the personalization differs from ZIP 244's
+``ZTxIdOrchardHash`` because what is directly hashed has changed.
 
 In the case that the transaction has no Orchard actions, ``orchard_effects_digest``
 is::
 
-  BLAKE2b-256("ZTxIdOrchardHash", [])
+  BLAKE2b-256("ZTxIdOrchardH_v7", [])
 
 T.3.3a: orchard_actions_compact_digest
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1842,7 +1852,7 @@ each personalization string is replaced as follows:
 +-------------------------------------+----------------------+----------------------+
 | Digest                              | Orchard bundle       | Ironwood bundle      |
 +=====================================+======================+======================+
-| effects digest                      |``ZTxIdOrchardHash``  |``ZTxIdIronwd_Hash``  |
+| effects digest                      |``ZTxIdOrchardH_v7``  |``ZTxIdIronwd_Hash``  |
 +-------------------------------------+----------------------+----------------------+
 | actions compact digest              |``ZTxIdOrcActCHash``  |``ZTxIdIrnActCHash``  |
 +-------------------------------------+----------------------+----------------------+
@@ -1868,25 +1878,29 @@ following concatenated values::
    A.1.3a: proofsOrchard         (aggregated proofs)
    A.1.3b: vSpendAuthSigsOrchard (OrchardSignature field encoding per action)
    A.1.3c: bindingSigOrchard     (OrchardSignature field encoding)
+   A.1.3d: anchorOrchard         (32 bytes)
 
 The ``OrchardSignature`` field encoding is defined in `Per-Signature Structures`_
 and includes ``sighashInfo``.
 
 The personalization field of this hash is set to::
 
-  "ZTxAuthOrchaHash"
+  "ZTxAuthOrchaH_v7"
+
+The personalization differs from ZIP 244's ``ZTxAuthOrchaHash`` because this
+digest now also commits to the anchor.
 
 In the case that the transaction has no Orchard actions::
 
-  BLAKE2b-256("ZTxAuthOrchaHash", [])
+  BLAKE2b-256("ZTxAuthOrchaH_v7", [])
 
 A.1.4: ironwood_auth_digest
 ...........................
 
 The Ironwood bundle uses the same authorizing data encoding as the Orchard
 bundle, and ``ironwood_auth_digest`` is computed over that data exactly as
-``orchard_auth_digest`` (A.1.3), except that the personalization field of the
-hash is set to::
+``orchard_auth_digest`` (A.1.3), including its commitment to the anchor, except
+that the personalization field of the hash is set to::
 
   "ZTxAuthIrnwdHash"
 
@@ -1932,6 +1946,14 @@ varies, so that a client encountering an unrecognized variant still knows which
 pools the bundle touches. Two pools therefore cannot share a bundle type, and
 separate types also keep the two value pool deltas separable, which a client
 needs in order to report the two chain value pool balances independently.
+
+The Sapling and Orchard protocol anchors are authorizing data rather than
+effecting data, following ZIP 229 [#zip-0229]_. An anchor selects the note
+commitment tree state that the bundle's proofs are verified against, which is a
+property of how the spends are authorized rather than of what the transaction
+does. Placing it there lets a bundle be re-anchored to a more recent root
+without changing the transaction identifier, while the proofs still bind to the
+anchor actually used.
 
 The coinbase bundle also gives the coinbase metadata a place of its own. In
 previous transaction versions that metadata was encoded as the ``scriptSig`` of
