@@ -247,11 +247,11 @@ For a valid transaction, the sum of all value pool deltas for each asset MUST
 equal zero. This ensures that value is neither created nor destroyed — it is
 only transferred between bundles within the transaction.
 
-This holds for coinbase transactions as well. The block subsidy enters the
-transparent transaction value pool as the value pool delta of the coinbase
-bundle, and the fees collected from the other transactions in the block enter
-it as the value pool delta of the fee bundle; the coinbase outputs then consume
-that value like any other bundle.
+This holds for coinbase transactions as well. The part of the block subsidy
+that the transaction pays out enters the transparent transaction value pool as
+the value pool delta of the coinbase bundle, and the fees collected from the
+other transactions in the block enter it as the value pool delta of the fee
+bundle; the coinbase outputs then consume that value like any other bundle.
 
 Bundle Type Registration
 ````````````````````````
@@ -604,7 +604,8 @@ it understands the bundle type that the rule applies to.
 
 * The ``assetClass`` value for any entry in ``mValuePoolDeltas`` having
   ``bundleType = CoinbaseBundleId`` MUST be 0 (the block subsidy is
-  denominated in ZEC and no other asset).
+  denominated in ZEC and no other asset). The same applies to the
+  ``blockSubsidy`` and ``lockboxValue`` fields of its effecting data.
 
 * A coinbase transaction MUST NOT spend any transparent output. If a
   transparent bundle is present in a coinbase transaction, its effecting data
@@ -648,12 +649,18 @@ full validators.
   the block subsidy for that block, as defined in § 7.8 'Block Subsidy and
   Founders' Reward'. [#protocol-subsidies]_
 
+* The ``lockboxValue`` field of the coinbase bundle's effecting data MUST equal
+  the total value that the funding streams for that block deposit into the
+  deferred pool, as defined in § 7.10 'Payment of Funding Streams, Deferred
+  Lockbox, and Lockbox Disbursement'. [#protocol-fundingstreams]_
+
 * The value of $\mathsf{mValuePoolDeltas}[(\mathsf{CoinbaseBundleId}, \mathsf{Zec})]$
-  MUST equal the ``blockSubsidy`` field of the coinbase bundle's effecting data.
+  MUST equal the part of the block subsidy that is not deposited into the
+  lockbox.
 
   .. math::
 
-      \mathsf{mValuePoolDeltas}[(\mathsf{CoinbaseBundleId}, \mathsf{Zec})] = \mathsf{blockSubsidy}
+      \mathsf{mValuePoolDeltas}[(\mathsf{CoinbaseBundleId}, \mathsf{Zec})] = \mathsf{blockSubsidy} - \mathsf{lockboxValue}
 
 * For every transaction, the sum of value pool delta values in each asset MUST
   equal 0.
@@ -1325,13 +1332,18 @@ otherwise-unspendable transparent input that identified a coinbase transaction
 in previous transaction versions, and carries the block height that that input
 was required to encode.
 
-The coinbase bundle's value pool delta in ``mValuePoolDeltas`` is the block
-subsidy: the new issuance that consensus awards to the miner of the block. The
-fees collected from the other transactions in the block are contributed
-separately, as the value pool delta of the fee bundle.
+The block subsidy is the whole of the new issuance for the block, which
+consensus splits between the miner, the funding streams that pay to an address,
+and the funding streams that deposit into the deferred pool (the "lockbox")
+[#zip-2001]_. Only the part that is not deposited into the lockbox is paid out
+by this transaction, so the coinbase bundle's value pool delta in
+``mValuePoolDeltas`` is the block subsidy less the lockbox deposit. The fees
+collected from the other transactions in the block are contributed separately,
+as the value pool delta of the fee bundle.
 
-The subsidy is also carried in the bundle's own effecting data, as
-``blockSubsidy``.
+The bundle's own effecting data carries the two components, as ``blockSubsidy``
+and ``lockboxValue``, so that the split is recoverable from the transaction
+rather than only their difference.
 
 The coinbase bundle has no authorizing data.
 
@@ -1345,6 +1357,9 @@ Coinbase Effecting Data
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 |``8``                        |``blockSubsidy``          |``int64``                               |The block subsidy for that block, in zatoshis.                       |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+|``8``                        |``lockboxValue``          |``int64``                               |The part of that block subsidy deposited into the lockbox, in        |
+|                             |                          |                                        |zatoshis.                                                            |
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 |``varies``                   |``coinbaseDataLen``       |``compactSize``                         |Length of the ``coinbaseData`` byte array.                           |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 |``coinbaseDataLen``          |``coinbaseData``          |``byte[coinbaseDataLen]``               |Data chosen by the miner. Consensus assigns no meaning to its        |
@@ -1353,6 +1368,7 @@ Coinbase Effecting Data
 
 * ``blockHeight`` MUST be in the range {1 .. 499999999}.
 * ``blockSubsidy`` MUST be nonnegative.
+* ``lockboxValue`` MUST be in the range {0 .. ``blockSubsidy``}.
 * ``coinbaseDataLen`` MUST be at most 94.
 
 Coinbase Digests
@@ -1365,7 +1381,8 @@ A BLAKE2b-256 hash of the following values::
 
    T.3.1a: blockHeight   (4-byte little-endian block height)
    T.3.1b: blockSubsidy  (8-byte signed little-endian)
-   T.3.1c: coinbaseData  (byte array with leading ``compactSize`` length)
+   T.3.1c: lockboxValue  (8-byte signed little-endian)
+   T.3.1d: coinbaseData  (byte array with leading ``compactSize`` length)
 
 The personalization field of this hash is set to::
 
@@ -1893,13 +1910,15 @@ subsidy carried in the coinbase bundle's value pool delta, every transaction
 balances to zero in every asset, and a wallet can enumerate the value flows of
 a coinbase transaction using the same rule it applies to any other transaction.
 
-Carrying ``blockSubsidy`` in the effecting data states the subsidy in the
-bundle it belongs to, and commits it to the transaction identifier along with
-the rest of that data. Deriving it instead is not open to every client: the
-subsidy is not a function of the block height alone once issuance depends on
-accumulated chain state, so evaluating the issuance schedule would require a
-client to track that state. Its value is the coinbase bundle's value pool
-delta, and a consensus rule ties the two together.
+Carrying ``blockSubsidy`` and ``lockboxValue`` in the effecting data states
+both components of the issuance in the bundle they belong to, and commits them
+to the transaction identifier along with the rest of that data. The value pool
+delta is their difference, so without them a client could see how much the
+coinbase pays out but not how much was issued or how much went to the lockbox.
+Deriving them instead is not open to every client: the subsidy is not a
+function of the block height alone once issuance depends on accumulated chain
+state, so evaluating the issuance schedule would require a client to track that
+state.
 
 The Orchard and Ironwood bundles share one encoding because the *Orchard pool*
 and the *Ironwood pool* are two pools of the same shielded protocol. The action
@@ -2170,6 +2189,7 @@ References
 .. [#protocol-blockchain] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.3: The Block Chain <protocol/protocol.pdf#blockchain>`_
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
 .. [#protocol-subsidies] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 7.8: Block Subsidy and Founders' Reward <protocol/protocol.pdf#subsidies>`_
+.. [#protocol-fundingstreams] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 7.10: Payment of Funding Streams, Deferred Lockbox, and Lockbox Disbursement <protocol/protocol.pdf#fundingstreams>`_
 .. [#zip-0203] `ZIP 203: Transaction Expiry <https://zips.z.cash/zip-0203>`_
 .. [#zip-0212] `ZIP 212: Allow Recipient to Derive Ephemeral Secret from Note Plaintext <https://zips.z.cash/zip-0212>`_
 .. [#zip-0225] `ZIP 225: Version 5 Transaction Format <https://zips.z.cash/zip-0225>`_
@@ -2177,5 +2197,6 @@ References
 .. [#zip-0239] `ZIP 239: Relay of Version 5 Transactions <https://zips.z.cash/zip-0239>`_
 .. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <https://zips.z.cash/zip-0244>`_
 .. [#zip-0307] `ZIP 307: Light Client Protocol for Payment Detection <https://zips.z.cash/zip-0307>`_
+.. [#zip-2001] `ZIP 2001: Lockbox Funding Streams <zip-2001.rst>`_
 .. [#zip-2006] `ZIP 2006: Restricting Transfers into the Orchard Pool <zip-2006.md>`_
 
