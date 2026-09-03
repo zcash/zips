@@ -39,6 +39,15 @@ Specification. <a href="#fn:3" id="fnref:3" title="see footnote" class="footnote
 <p>The terms &#8220;Mainnet&#8221; and &#8220;Testnet&#8221; are to be interpreted as described in
 § 3.12 ‘Mainnet and Testnet’. <a href="#fn:4" id="fnref:4" title="see footnote" class="footnote"><sup>4</sup></a></p>
 
+<p>The terms &#8220;V7 transaction format&#8221;, &#8220;V7 transaction&#8221;, and &#8220;pre-V7 transaction
+format&#8221; are to be interpreted as defined in ZIP 248. <a href="#fn:5" id="fnref:5" title="see footnote" class="footnote"><sup>5</sup></a> A note
+plaintext or note ciphertext is described as &#8220;V7-onward&#8221; or &#8220;pre-V7&#8221; according
+to the format of the transaction that contains it.</p>
+
+<p>The terms &#8220;Orchard protocol&#8221;, &#8220;<em>Orchard pool</em>&#8221;, and &#8220;<em>Ironwood pool</em>&#8221; are to be
+interpreted as described in ZIP 229. <a href="#fn:6" id="fnref:6" title="see footnote" class="footnote"><sup>6</sup></a> The term &#8220;Orchard protocol
+bundle&#8221; is to be interpreted as defined in ZIP 248. <a href="#fn:5" title="see footnote" class="footnote"><sup>5</sup></a></p>
+
 <h1 id="abstract"><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
 
 <p>Currently, the memo associated with a shielded output is fixed to 512 bytes of data.</p>
@@ -63,7 +72,7 @@ ability of a consensus node to validate the transaction.</li>
 <p>In Zcash transaction versions v2 to v5 inclusive, each Sapling or Orchard
 shielded output contains a ciphertext comprised of a 52-byte note plaintext and
 corresponding 512-byte memo field, with a 16-byte authentication tag
-<a href="#fn:5" id="fnref:5" title="see footnote" class="footnote"><sup>5</sup></a>. Recipients can only decrypt the outputs sent to
+<a href="#fn:7" id="fnref:7" title="see footnote" class="footnote"><sup>7</sup></a>. Recipients can only decrypt the outputs sent to
 them, and thus can also only observe the memo fields included with the outputs
 they can decrypt.</p>
 
@@ -97,21 +106,21 @@ support the inclusion of such proofs.</p>
 <p>Another motivation is that it is desirable, for clients with more stringent
 bandwidth constraints, to be able to transmit encrypted notes to the client
 without including the encrypted memo data. In the current light client protocol
-<a href="#fn:6" id="fnref:6" title="see footnote" class="footnote"><sup>6</sup></a>, this is done by truncating the note ciphertext to just the part
+<a href="#fn:8" id="fnref:8" title="see footnote" class="footnote"><sup>8</sup></a>, this is done by truncating the note ciphertext to just the part
 that encrypts the note plaintext, removing the 512-byte encrypted memo and the
 16-byte AEAD authentication tag. Because the authentication tag is not
 transmitted to the light client, the decryption performed by the client does
 not meet the standard IND-CCA2 ∧ INT-CTXT security notion for an authenticated
-encryption scheme <a href="#fn:7" id="fnref:7" title="see footnote" class="footnote"><sup>7</sup></a>.</p>
+encryption scheme <a href="#fn:9" id="fnref:9" title="see footnote" class="footnote"><sup>9</sup></a>.</p>
 
 <p>By decoupling memo data from note ciphertexts, this proposal reduces the
-v6-onward note ciphertext to 100 bytes (excluding any other changes to the note
+V7-onward note ciphertext to 100 bytes (excluding any other changes to the note
 plaintext proposed by other ZIPs). This makes it practical for the light client
 protocol to transmit complete note ciphertexts, including the AEAD tag, in
 exchange for a relatively minor bandwidth increase compared to the current
 truncated ciphertexts. This allows light clients to perform fully authenticated
-decryption, ensuring security against chosen ciphertext attacks and simplifying the security
-argument.</p>
+decryption, ensuring security against chosen ciphertext attacks and simplifying
+the security argument.</p>
 
 <p>Instead of the memo data, this ZIP proposes that it is possible to indicate
 whether a memo is present for the recipient. When using the light client
@@ -146,10 +155,10 @@ Orchard) spending more input notes.</p>
 It becomes possible to construct transactions for which there are many more
 recipients than distinct memos, or vice versa. Without mitigation, this could
 result in more observably distinct patterns relating the number of recipients
-to the number of possible memos. In particular, a v6-onward transaction with no memo
+to the number of possible memos. In particular, a V7 transaction with no memo
 would be distinguishable from one with a memo.</p>
 
-<p>To mitigate this, a v6-onward transaction with any shielded outputs is required to
+<p>To mitigate this, a V7 transaction with any shielded outputs is required to
 include at least 2 memo chunks in its memo bundle and pad the memo to a
 multiple of 2 chunks (see <a href="#memobundlepadding">Memo bundle padding</a>). This ensures that the common
 use case of sending a transaction without including explicit memo data is
@@ -211,9 +220,481 @@ is decryptable by a recipient.</li>
 
 <h1 id="specification"><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
 
-<p>Since this proposal is defined only for v6 and later transactions, it is not
-necessary to consider Sprout JoinSplit outputs. The following sections apply
-to both Sapling and Orchard outputs in v6-onward transactions.</p>
+<p>Since this proposal is defined only for V7 transactions, it is not
+necessary to consider Sprout JoinSplit outputs. The following sections apply to
+Sapling outputs, and to the outputs of Orchard protocol actions in either the
+<em>Orchard pool</em> or the <em>Ironwood pool</em>, in V7 transactions.</p>
+
+<h2 id="changestozip248"><span class="section-heading">Changes to ZIP 248</span><span class="section-anchor"> <a rel="bookmark" href="#changestozip248"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>This ZIP proposes to register a new bundle type for Memos, and new versions of
+the Sapling bundle type and of each Orchard protocol bundle type, in the
+V7 transaction bundle type registry defined in ZIP 248 <a href="#fn:5" title="see footnote" class="footnote"><sup>5</sup></a>:</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> BundleType </th>
+	<th> BundleVariant </th>
+	<th> <code>mValuePoolDeltas</code> </th>
+	<th> <code>mEffectBundles</code> </th>
+	<th> <code>mAuthBundles</code> </th>
+	<th> Bundle kind      </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> TBD  </td>
+	<td> 0    </td>
+	<td>❌     </td>
+	<td>✅    </td>
+	<td>❌    </td>
+	<td> Memos       </td>
+</tr>
+<tr>
+	<td> 2   </td>
+	<td> TBD   </td>
+	<td>✅     </td>
+	<td>✅    </td>
+	<td>✅    </td>
+	<td> Sapling-post-ZIP 231    </td>
+</tr>
+<tr>
+	<td> 3   </td>
+	<td> TBD   </td>
+	<td>✅     </td>
+	<td>✅    </td>
+	<td>✅    </td>
+	<td> Orchard post-ZIP 231    </td>
+</tr>
+<tr>
+	<td> 4   </td>
+	<td> TBD   </td>
+	<td>✅     </td>
+	<td>✅    </td>
+	<td>✅    </td>
+	<td> Ironwood post-ZIP 231   </td>
+</tr>
+</tbody>
+</table>
+
+<p>The Memos bundle has no value pool deltas (memo data does not involve value
+transfers) and no authorizing data. The effecting data consists of the encoded
+memo bundle as defined in <a href="#encodingintransactions">Encoding in transactions</a>.</p>
+
+<p>The Sapling-post-ZIP 231 entry is a new variant of the existing Sapling bundle
+type (<code>bundleType</code> 2). The Orchard post-ZIP 231 and Ironwood post-ZIP 231
+entries are new variants of the two bundle types that use the Orchard protocol
+bundle encoding — the Orchard bundle (<code>bundleType</code> 3) and the Ironwood bundle
+(<code>bundleType</code> 4) — and share one encoding between them, as in ZIP 248. Because
+ZIP 248 requires that each bundle map is keyed by <code>bundleType</code> alone, a
+transaction that includes a Sapling-post-ZIP 231 bundle cannot also include a
+pre-ZIP 231 Sapling bundle, and likewise for each Orchard protocol bundle
+type.</p>
+
+<p>If this ZIP is activated in the same network upgrade as ZIP 248, the encodings
+of the Sapling bundle and of the Orchard protocol bundles described in this ZIP
+will be used for variant 0 of bundle types 2, 3, and 4, and ZIP 248&#8217;s
+definitions of those bundles must be updated accordingly. If this ZIP is
+activated in a network upgrade AFTER the network upgrade in which ZIP 248 is
+activated, the encodings it describes will be assigned distinct bundle variant
+identifiers for their respective bundle types.</p>
+
+<h2 id="sapling-post-zip231bundle"><span class="section-heading">Sapling-post-ZIP 231 Bundle</span><span class="section-anchor"> <a rel="bookmark" href="#sapling-post-zip231bundle"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>The Sapling-post-ZIP 231 bundle replaces the Sapling bundle defined in
+ZIP 248 <a href="#fn:5" title="see footnote" class="footnote"><sup>5</sup></a>. The only change is that the note plaintext in each
+Sapling output is shortened: the 512-byte memo field is replaced by a
+32-byte <span class="math">\(\mathsf{K^{memo}}\kern-0.05em\textsf{,}\)</span> reducing <code>encCiphertext</code> from 580 bytes to
+100 bytes.</p>
+
+<h3 id="sapling-post-zip231effectingdata"><span class="section-heading">Sapling-post-ZIP 231 Effecting Data</span><span class="section-anchor"> <a rel="bookmark" href="#sapling-post-zip231effectingdata"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>The effecting data for the Sapling-post-ZIP 231 bundle describes the Sapling
+spends and outputs.</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Bytes     </th>
+	<th> Name    </th>
+	<th> Data Type         </th>
+	<th> Description                 </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> varies     </td>
+	<td> <code>nSpendsSapling</code> </td>
+	<td> <code>compactSize</code>        </td>
+	<td> Number of Sapling Spend descriptions.          </td>
+</tr>
+<tr>
+	<td> 96 * nSpendsSapling  </td>
+	<td> <code>vSpendsSapling</code> </td>
+	<td> <code>SaplingSpendEffecting[nSpendsSapling]</code>  </td>
+	<td> Effecting data for each Sapling Spend.          </td>
+</tr>
+<tr>
+	<td> varies     </td>
+	<td> <code>nOutputsSapling</code> </td>
+	<td> <code>compactSize</code>        </td>
+	<td> Number of Sapling Output descriptions.          </td>
+</tr>
+<tr>
+	<td> 276 * nOutputsSapling </td>
+	<td> <code>vOutputsSapling</code> </td>
+	<td> <code>SaplingOutputPostZIP231[nOutputsSapling]</code> </td>
+	<td> Sapling Output descriptions.             </td>
+</tr>
+</tbody>
+</table>
+
+<p>As in ZIP 248 <a href="#fn:5" title="see footnote" class="footnote"><sup>5</sup></a>, the anchor is not part of the effecting data; it
+appears in the authorizing data below.</p>
+
+<p><code>SaplingSpendEffecting</code> is unchanged from ZIP 248 <a href="#fn:5" title="see footnote" class="footnote"><sup>5</sup></a>.</p>
+
+<h4 id="saplingoutputpostzip231"><span class="section-heading">SaplingOutputPostZIP231</span><span class="section-anchor"> <a rel="bookmark" href="#saplingoutputpostzip231"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Bytes </th>
+	<th> Name   </th>
+	<th> Data Type </th>
+	<th> Description                            </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> 32 </td>
+	<td> <code>cv</code>   </td>
+	<td> <code>byte[32]</code> </td>
+	<td> A value commitment to the net value of the output note.                 </td>
+</tr>
+<tr>
+	<td> 32 </td>
+	<td> <code>cmu</code>   </td>
+	<td> <code>byte[32]</code> </td>
+	<td> The <span class="math">\(u\kern-0.15em\)</span> -coordinate of the note commitment for the output note.               </td>
+</tr>
+<tr>
+	<td> 32 </td>
+	<td> <code>ephemeralKey</code> </td>
+	<td> <code>byte[32]</code> </td>
+	<td> An encoding of an ephemeral Jubjub public key.                   </td>
+</tr>
+<tr>
+	<td> 100 </td>
+	<td> <code>encCiphertext</code> </td>
+	<td> <code>byte[100]</code> </td>
+	<td> The encrypted contents of the note plaintext, which contains <span class="math">\(\mathsf{K^{memo}}\)</span> in place of the 512-byte memo field.  </td>
+</tr>
+<tr>
+	<td> 80 </td>
+	<td> <code>outCiphertext</code> </td>
+	<td> <code>byte[80]</code> </td>
+	<td> The encrypted contents of the byte string created by concatenation of the transmission key with the ephemeral secret key. </td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="sapling-post-zip231authorizingdata"><span class="section-heading">Sapling-post-ZIP 231 Authorizing Data</span><span class="section-anchor"> <a rel="bookmark" href="#sapling-post-zip231authorizingdata"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>The authorizing data is unchanged from the Sapling bundle defined in
+ZIP 248 <a href="#fn:5" title="see footnote" class="footnote"><sup>5</sup></a>.</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Bytes     </th>
+	<th> Name      </th>
+	<th> Data Type       </th>
+	<th> Description             </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> 32      </td>
+	<td> <code>anchorSapling</code>   </td>
+	<td> <code>byte[32]</code>      </td>
+	<td> A root of the Sapling note commitment tree at some block height in the past. </td>
+</tr>
+<tr>
+	<td> 192 * nSpendsSapling </td>
+	<td> <code>vSpendProofsSapling</code> </td>
+	<td> <code>byte[192 * nSpendsSapling]</code>  </td>
+	<td> Encodings of the zk-SNARK proofs for each Sapling Spend.  </td>
+</tr>
+<tr>
+	<td> 64 * nSpendsSapling  </td>
+	<td> <code>vSpendAuthSigsSapling</code> </td>
+	<td> <code>byte[64 * nSpendsSapling]</code>  </td>
+	<td> Authorizing signatures for each Sapling Spend.    </td>
+</tr>
+<tr>
+	<td> 192 * nOutputsSapling </td>
+	<td> <code>vOutputProofsSapling</code> </td>
+	<td> <code>byte[192 * nOutputsSapling]</code>  </td>
+	<td> Encodings of the zk-SNARK proofs for each Sapling Output. </td>
+</tr>
+<tr>
+	<td> 64      </td>
+	<td> <code>bindingSigSapling</code>  </td>
+	<td> <code>byte[64]</code>      </td>
+	<td> A Sapling binding signature on the SIGHASH transaction hash. </td>
+</tr>
+</tbody>
+</table>
+
+<ul>
+<li>The field <code>anchorSapling</code> is present if and only if
+<span class="math">\(\mathtt{nSpendsSapling} &gt; 0\kern-0.05em\textsf{.}\)</span></li>
+<li>The values of <code>nSpendsSapling</code> and <code>nOutputsSapling</code> are not re-encoded in
+the authorizing data; they are taken from the corresponding effecting data.</li>
+<li>The field <code>bindingSigSapling</code> is present if and only if
+<span class="math">\(\mathtt{nSpendsSapling} + \mathtt{nOutputsSapling} &gt; 0\kern-0.05em\textsf{.}\)</span></li>
+<li>The elements of <code>vSpendProofsSapling</code> and <code>vSpendAuthSigsSapling</code> have a
+1:1 correspondence to the elements of <code>vSpendsSapling</code> in the effecting data
+and MUST be ordered such that the element at a given index corresponds to the
+<code>SaplingSpendEffecting</code> at the same index.</li>
+<li>The elements of <code>vOutputProofsSapling</code> have a 1:1 correspondence to the
+elements of <code>vOutputsSapling</code> in the effecting data and MUST be ordered such
+that the proof at a given index corresponds to the <code>SaplingOutputPostZIP231</code>
+at the same index.</li>
+</ul>
+
+<h2 id="orchard-protocol-post-zip231bundle"><span class="section-heading">Orchard-protocol-post-ZIP 231 Bundle</span><span class="section-anchor"> <a rel="bookmark" href="#orchard-protocol-post-zip231bundle"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>The Orchard-protocol-post-ZIP 231 bundle replaces the Orchard protocol bundle
+defined in ZIP 248 <a href="#fn:5" title="see footnote" class="footnote"><sup>5</sup></a>, and like it is shared by the Orchard and
+Ironwood bundle types. As with Sapling, the only change is that the note
+plaintext in each Orchard action is shortened: the 512-byte memo field is
+replaced by a 32-byte <span class="math">\(\mathsf{K^{memo}}\kern-0.05em\textsf{,}\)</span> reducing <code>encCiphertext</code> from
+580 bytes to 100 bytes.</p>
+
+<h3 id="orchard-protocol-post-zip231effectingdata"><span class="section-heading">Orchard-protocol-post-ZIP 231 Effecting Data</span><span class="section-anchor"> <a rel="bookmark" href="#orchard-protocol-post-zip231effectingdata"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>The effecting data for an Orchard-protocol-post-ZIP 231 bundle describes the
+Orchard actions.</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Bytes     </th>
+	<th> Name    </th>
+	<th> Data Type         </th>
+	<th> Description                                   </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> varies     </td>
+	<td> <code>nActionsOrchard</code> </td>
+	<td> <code>compactSize</code>        </td>
+	<td> The number of Orchard Action descriptions.                            </td>
+</tr>
+<tr>
+	<td> 340 * nActionsOrchard </td>
+	<td> <code>vActionsOrchard</code> </td>
+	<td> <code>OrchardActionPostZIP231[nActionsOrchard]</code> </td>
+	<td> Effecting data for each Orchard Action.                            </td>
+</tr>
+<tr>
+	<td> 1      </td>
+	<td> <code>flagsOrchard</code>  </td>
+	<td> <code>byte</code>         </td>
+	<td> An 8-bit value representing a set of flags. Ordered from LSB to MSB: <code>enableSpends</code>, <code>enableOutputs</code>, <code>enableCrossAddress</code>. The remaining bits are set to <span class="math">\(0\kern-0.05em\textsf{.}\)</span> </td>
+</tr>
+</tbody>
+</table>
+
+<ul>
+<li>The field <code>flagsOrchard</code> is present if and only if
+<span class="math">\(\mathtt{nActionsOrchard} &gt; 0\kern-0.05em\textsf{.}\)</span></li>
+<li>For coinbase transactions, the <code>enableSpends</code> bit MUST be set to <span class="math">\(0\kern-0.05em\textsf{.}\)</span></li>
+<li>In an Orchard bundle, the <code>enableCrossAddress</code> bit MUST be set to <span class="math">\(0\kern-0.05em\textsf{.}\)</span> The bit
+is unrestricted in an Ironwood bundle.</li>
+</ul>
+
+<p>As in ZIP 248 <a href="#fn:5" title="see footnote" class="footnote"><sup>5</sup></a>, the anchor is not part of the effecting data; it
+appears in the authorizing data below.</p>
+
+<h4 id="orchardactionpostzip231"><span class="section-heading">OrchardActionPostZIP231</span><span class="section-anchor"> <a rel="bookmark" href="#orchardactionpostzip231"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Bytes </th>
+	<th> Name   </th>
+	<th> Data Type </th>
+	<th> Description                            </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> 32 </td>
+	<td> <code>cv</code>   </td>
+	<td> <code>byte[32]</code> </td>
+	<td> A value commitment to the net value of the input note minus the output note.            </td>
+</tr>
+<tr>
+	<td> 32 </td>
+	<td> <code>nullifier</code>  </td>
+	<td> <code>byte[32]</code> </td>
+	<td> The nullifier of the input note.                       </td>
+</tr>
+<tr>
+	<td> 32 </td>
+	<td> <code>rk</code>   </td>
+	<td> <code>byte[32]</code> </td>
+	<td> The randomized validating key for this Action.                   </td>
+</tr>
+<tr>
+	<td> 32 </td>
+	<td> <code>cmx</code>   </td>
+	<td> <code>byte[32]</code> </td>
+	<td> The <span class="math">\(x\kern-0.15em\)</span> -coordinate of the note commitment for the output note.               </td>
+</tr>
+<tr>
+	<td> 32 </td>
+	<td> <code>ephemeralKey</code> </td>
+	<td> <code>byte[32]</code> </td>
+	<td> An encoding of an ephemeral Pallas public key.                   </td>
+</tr>
+<tr>
+	<td> 100 </td>
+	<td> <code>encCiphertext</code> </td>
+	<td> <code>byte[100]</code> </td>
+	<td> The encrypted contents of the note plaintext, which contains <span class="math">\(\mathsf{K^{memo}}\)</span> in place of the 512-byte memo field.  </td>
+</tr>
+<tr>
+	<td> 80 </td>
+	<td> <code>outCiphertext</code> </td>
+	<td> <code>byte[80]</code> </td>
+	<td> The encrypted contents of the byte string created by concatenation of the transmission key with the ephemeral secret key. </td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="orchard-protocol-post-zip231authorizingdata"><span class="section-heading">Orchard-protocol-post-ZIP 231 Authorizing Data</span><span class="section-anchor"> <a rel="bookmark" href="#orchard-protocol-post-zip231authorizingdata"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>The authorizing data is unchanged from the Orchard protocol bundle defined in
+ZIP 248 <a href="#fn:5" title="see footnote" class="footnote"><sup>5</sup></a>.</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Bytes     </th>
+	<th> Name      </th>
+	<th> Data Type       </th>
+	<th> Description                    </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> 32      </td>
+	<td> <code>anchorOrchard</code>   </td>
+	<td> <code>byte[32]</code>      </td>
+	<td> A root of the note commitment tree of the bundle&#8217;s pool, at some block height in the past. </td>
+</tr>
+<tr>
+	<td> varies     </td>
+	<td> <code>sizeProofsOrchard</code>  </td>
+	<td> <code>compactSize</code>      </td>
+	<td> Length in bytes of <code>proofsOrchard</code>. Value is <span class="math">\(2720 + 2272 \cdot \mathtt{nActionsOrchard}\kern-0.05em\textsf{.}\)</span> </td>
+</tr>
+<tr>
+	<td> sizeProofsOrchard  </td>
+	<td> <code>proofsOrchard</code>   </td>
+	<td> <code>byte[sizeProofsOrchard]</code>   </td>
+	<td> Encoding of aggregated zk-SNARK proofs for Orchard Actions.        </td>
+</tr>
+<tr>
+	<td> 64 * nActionsOrchard </td>
+	<td> <code>vSpendAuthSigsOrchard</code> </td>
+	<td> <code>byte[64 * nActionsOrchard]</code>  </td>
+	<td> Authorizing signatures for each Orchard Action.           </td>
+</tr>
+<tr>
+	<td> 64      </td>
+	<td> <code>bindingSigOrchard</code>  </td>
+	<td> <code>byte[64]</code>      </td>
+	<td> An Orchard binding signature on the SIGHASH transaction hash.        </td>
+</tr>
+</tbody>
+</table>
+
+<ul>
+<li>The value of <code>nActionsOrchard</code> is not re-encoded in the authorizing data; it
+is taken from the corresponding effecting data.</li>
+<li>The fields <code>anchorOrchard</code>, <code>sizeProofsOrchard</code>, <code>proofsOrchard</code>, and
+<code>bindingSigOrchard</code> are present if and only if <span class="math">\(\mathtt{nActionsOrchard} &gt; 0\kern-0.05em\textsf{.}\)</span></li>
+<li>The proofs aggregated in <code>proofsOrchard</code>, and the elements of
+<code>vSpendAuthSigsOrchard</code>, each have a 1:1 correspondence to the elements of
+<code>vActionsOrchard</code> in the effecting data and MUST be ordered such that the
+proof or signature at a given index corresponds to the
+<code>OrchardActionPostZIP231</code> at the same index.</li>
+</ul>
 
 <h2 id="memobundle"><span class="section-heading">Memo bundle</span><span class="section-anchor"> <a rel="bookmark" href="#memobundle"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
@@ -221,7 +702,7 @@ to both Sapling and Orchard outputs in v6-onward transactions.</p>
 a 256-byte chunk of memo plaintext. These memo chunks represent zero or more
 encrypted memos.</p>
 
-<p>Each v6-onward transaction may contain a single memo bundle, and a memo bundle may contain
+<p>Each V7 transaction may contain a single memo bundle, and a memo bundle may contain
 at most <span class="math">\(\mathsf{memo\_chunk\_limit}\)</span> = 64 memo chunks. This limits the total amount
 of memo data that can be conveyed within a single transaction to
 <span class="math">\(\mathsf{memo\_chunk\_limit}\)</span> × 256 = 16384 bytes, or 16 KiB.</p>
@@ -250,11 +731,11 @@ single transaction. To share a memo among multiple recipients, the same
 does not violate the above constraint because all recipients decrypt the same
 memo.</p>
 
-<p>In note plaintexts of v6-onward transactions, the 512-byte memo field
+<p>In note plaintexts of V7 transactions, the 512-byte memo field
 is replaced by the 32-byte <span class="math">\(\mathsf{K^{memo}}\kern-0.05em\textsf{.}\)</span></p>
 
 <p>The explicit encodings of the note plaintexts for Sapling and Orchard outputs
-are specified in ZIP 230 <a href="#fn:8" id="fnref:8" title="see footnote" class="footnote"><sup>8</sup></a>.</p>
+are specified in <a href="#changestothezcashprotocolspecification">Changes to the Zcash Protocol Specification</a>.</p>
 
 <p>The transaction builder generates a 32-byte salt value <span class="math">\(\mathsf{salt}\)</span> from a CSPRNG.
 A new salt MUST be generated for each memo bundle.</p>
@@ -264,7 +745,7 @@ A new salt MUST be generated for each memo bundle.</p>
 <p><span class="math">\(\hspace{2em}\mathsf{encryption\_key} = \mathsf{PRF^{expand}_{K^{memo}}}([\mathtt{0xE0}] \,||\, \mathsf{salt})\)</span></p>
 
 <p>The first byte <span class="math">\(\mathtt{0xE0}\)</span> should be added to the documentation of inputs to
-<span class="math">\(\mathsf{PRF^{expand}}\)</span> in § 4.1.2 ‘Pseudo Random Functions’ <a href="#fn:9" id="fnref:9" title="see footnote" class="footnote"><sup>9</sup></a>.</p>
+<span class="math">\(\mathsf{PRF^{expand}}\)</span> in § 4.1.2 ‘Pseudo Random Functions’ <a href="#fn:10" id="fnref:10" title="see footnote" class="footnote"><sup>10</sup></a>.</p>
 
 <p>If the generated key <span class="math">\(\mathsf{encryption\_key}\)</span> is 32 <span class="math">\(\mathtt{0xFF}\)</span> bytes,
 the transaction constructor SHOULD repeat this procedure with a different salt, in
@@ -273,8 +754,8 @@ Since that has negligible probability, it alternatively could omit this check.</
 
 <p>Each memo MUST have a length that is a multiple of 256 bytes. (For UTF-8 text
 memos, padding is performed at the application level as specified in ZIP 302
-<a href="#fn:10" id="fnref:10" title="see footnote" class="footnote"><sup>10</sup></a>.) The memo is split into 256-byte plaintext chunks. Each plaintext
-chunk is encrypted with ChaCha20Poly1305 <a href="#fn:11" id="fnref:11" title="see footnote" class="footnote"><sup>11</sup></a> as follows:</p>
+<a href="#fn:11" id="fnref:11" title="see footnote" class="footnote"><sup>11</sup></a>.) The memo is split into 256-byte plaintext chunks. Each plaintext
+chunk is encrypted with ChaCha20Poly1305 <a href="#fn:12" id="fnref:12" title="see footnote" class="footnote"><sup>12</sup></a> as follows:</p>
 
 <p><span class="math">\(\hspace{2em}\mathsf{IETF\_AEAD\_CHACHA20\_POLY1305}(\mathsf{encryption\_key}, \mathsf{nonce}, \mathsf{memo\_chunk})\)</span></p>
 
@@ -286,7 +767,7 @@ chunk is encrypted with ChaCha20Poly1305 <a href="#fn:11" id="fnref:11" title="s
 <li><span class="math">\(\mathsf{MemoChunk} := \mathbb{B}^{{\kern-0.05em\tiny\mathbb{Y}}[272]}\)</span></li>
 </ul>
 
-<p>This is a variant of the STREAM construction <a href="#fn:12" id="fnref:12" title="see footnote" class="footnote"><sup>12</sup></a>.</p>
+<p>This is a variant of the STREAM construction <a href="#fn:13" id="fnref:13" title="see footnote" class="footnote"><sup>13</sup></a>.</p>
 
 <ul>
 <li><span class="math">\(\mathsf{counter}\)</span> is a big-endian chunk counter starting at zero and incrementing
@@ -380,15 +861,15 @@ process that is independent of the trial decryption of note ciphertexts.</p>
 Rationale for deferred memo decryption
 </summary>
 
-<p>In pre-v6 transactions performed by full-node wallets, trial decryption of each
-shielded output performs constant work regardless of whether the output belongs
-to the wallet: the AEAD decryption of the full 580-byte note ciphertext costs
-the same whether it succeeds or fails.</p>
+<p>In pre-V7 transactions performed by full-node wallets, trial decryption
+of each shielded output performs constant work regardless of whether the output
+belongs to the wallet: the AEAD decryption of the full 580-byte note ciphertext
+costs the same whether it succeeds or fails.</p>
 
-<p>With memo bundles, successful trial decryption of a 100-byte v6 note ciphertext
-yields a memo key <span class="math">\(\mathsf{K^{memo}}\kern-0.05em\textsf{,}\)</span> and if the key is not the no-memo
-sentinel, the wallet must scan up to <span class="math">\(\mathsf{memo\_chunk\_limit}\)</span> memo chunks
-to recover the memo. This additional work — potentially up to 64 AEAD
+<p>With memo bundles, successful trial decryption of a 100-byte V7-onward note
+ciphertext yields a memo key <span class="math">\(\mathsf{K^{memo}}\kern-0.05em\textsf{,}\)</span> and if the key is not the
+no-memo sentinel, the wallet must scan up to <span class="math">\(\mathsf{memo\_chunk\_limit}\)</span> memo
+chunks to recover the memo. This additional work — potentially up to 64 AEAD
 operations — creates a timing differential between successful and unsuccessful
 trial decryptions that could be exploited by an adversary to determine whether
 a node&#8217;s wallet recognized a particular output.</p>
@@ -401,6 +882,9 @@ transaction.
 <br/></p>
 
 <h2 id="encodingintransactions"><span class="section-heading">Encoding in transactions</span><span class="section-anchor"> <a rel="bookmark" href="#encodingintransactions"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>The following describes the effecting data for the memo bundle. This data
+appears in <code>mEffectBundles</code> with the memo bundle type identifier.</p>
 
 <table>
 <colgroup>
@@ -460,20 +944,28 @@ transaction.
 
 <ul>
 <li><span class="math">\(\mathtt{saltOrHash}\)</span> contains the <span class="math">\(\mathsf{memo\_bundle\_digest}\)</span> as defined in
-<a href="#transactionsighash">Transaction sighash</a>.</li>
+<a href="#transactiondigest">Transaction Digest</a>.</li>
 <li>The <span class="math">\(\mathtt{nMemoChunks}\)</span> and <span class="math">\(\mathtt{vMemoChunks}\)</span> fields will be absent.</li>
 </ul>
 
-<h2 id="transactionsighash"><span class="section-heading">Transaction sighash</span><span class="section-anchor"> <a rel="bookmark" href="#transactionsighash"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+<h2 id="transactiondigest"><span class="section-heading">Transaction Digest</span><span class="section-anchor"> <a rel="bookmark" href="#transactiondigest"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
-<p><span class="math">\(\mathsf{memo\_chunk\_digest}[i] = H(\mathtt{vMemoChunks}[i]) \\\)</span>
-<span class="math">\(\mathsf{memo\_bundle\_digest} = H(\mathsf{concat}(\mathsf{memo\_chunk\_digests}))\)</span></p>
+<p>The memo bundle contributes to the transaction identifier via the
+<code>effects_bundles_digest</code> defined in ZIP 248 <a href="#fn:5" title="see footnote" class="footnote"><sup>5</sup></a>.</p>
+
+<p>The memo bundle&#8217;s effect digest is computed as follows:</p>
+
+<p><span class="math">\(\mathsf{memo\_chunk\_digest}[i] = \mathsf{BLAKE2b\text{-}256}(\texttt{&quot;ZTxIdMemoChunkHs&quot;}, \mathtt{vMemoChunks}[i]) \\\)</span>
+<span class="math">\(\mathsf{memo\_bundle\_digest} = \mathsf{BLAKE2b\text{-}256}(\texttt{&quot;ZTxIdMemoBundHsh&quot;}, \mathsf{concat}(\mathsf{memo\_chunk\_digests}))\)</span></p>
+
+<p>For pruned chunks, the <span class="math">\(\mathsf{memo\_chunk\_digest}\)</span> stored in the transaction
+encoding is used directly.</p>
 
 <p>The memo bundle digest is used in place of the full memo bundle when
 the bundle has been pruned.</p>
 
-<p>TODO: finish this as a modification to ZIP 248 <a href="#fn:13" id="fnref:13" title="see footnote" class="footnote"><sup>13</sup></a>, which defines
-the v6 transaction digest structure. Note that <span class="math">\(\mathtt{fAllPruned}\)</span> MUST NOT
+<p>TODO: finish this as a modification to ZIP 248 <a href="#fn:5" title="see footnote" class="footnote"><sup>5</sup></a>, which defines
+the V7 transaction digest structure. Note that <span class="math">\(\mathtt{fAllPruned}\)</span> MUST NOT
 contribute to the transaction digest, as it is not part of the committed
 transaction data.</p>
 
@@ -504,11 +996,6 @@ from a server that has pruned it.</p>
 
 <h2 id="changestothezcashprotocolspecification"><span class="section-heading">Changes to the Zcash Protocol Specification</span><span class="section-anchor"> <a rel="bookmark" href="#changestothezcashprotocolspecification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
-<p>The changes to support memo bundles that affect the definitions of note
-plaintexts and note ciphertexts, interact with the addition of an
-<span class="math">\(\mathsf{asset\_base}\)</span> field to v6-onward Orchard note plaintexts in order to
-support ZSAs, which must be merged with the changes in this section.</p>
-
 <p>Changes to the algorithms for encryption and decryption are specified below.
 Note that <a href="#fn:16" id="fnref:16" title="see footnote" class="footnote"><sup>16</sup></a> also updates these algorithms, but the merge is trivial.</p>
 
@@ -528,13 +1015,13 @@ Note that <a href="#fn:16" id="fnref:16" title="see footnote" class="footnote"><
 <blockquote>
 <p>The form of a Sapling or Orchard note plaintext depends on the version of
 the transaction in which it will be included; specifically whether that
-version is pre-v6, or v6-onward.</p>
+version is pre-V7, or V7-onward.</p>
 
-<p>Each pre-v6 Sapling or Orchard note plaintext (denoted <span class="math">\(\mathbf{np}\kern-0.15em\)</span> ) consists of</p>
+<p>Each pre-V7 Sapling or Orchard note plaintext (denoted <span class="math">\(\mathbf{np}\kern-0.15em\)</span> ) consists of</p>
 
 <p><span class="math">\(\hspace{2em}(\mathsf{leadByte} \;{\small ⦂}\; \mathbb{B}^{{\kern-0.05em\tiny\mathbb{Y}}}, \mathsf{d} \;{\small ⦂}\; \mathbb{B}^{[\ell_{\mathsf{d}}]}, \mathsf{rseed} \;{\small ⦂}\; \mathbb{B}^{{\kern-0.05em\tiny\mathbb{Y}}[32]}, \mathsf{memo} \;{\small ⦂}\; \mathbb{B}^{{\kern-0.05em\tiny\mathbb{Y}}[512]})\)</span></p>
 
-<p>Each v6-onward Sapling or Orchard note plaintext (denoted <span class="math">\(\mathbf{np}\kern-0.15em\)</span> ) consists of</p>
+<p>Each V7-onward Sapling or Orchard note plaintext (denoted <span class="math">\(\mathbf{np}\kern-0.15em\)</span> ) consists of</p>
 
 <p><span class="math">\(\hspace{2em}(\mathsf{leadByte} \;{\small ⦂}\; \mathbb{B}^{{\kern-0.05em\tiny\mathbb{Y}}}, \mathsf{d} \;{\small ⦂}\; \mathbb{B}^{[\ell_{\mathsf{d}}]}, \mathsf{rseed} \;⦂\; \mathbb{B}^{{\kern-0.05em\tiny\mathbb{Y}}[32]}, \mathsf{K^{memo}} \;{\small ⦂}\; \mathbb{B}^{{\kern-0.05em\tiny\mathbb{Y}}[32]})\)</span></p>
 </blockquote></li>
@@ -544,17 +1031,17 @@ version is pre-v6, or v6-onward.</p>
 
 <ul>
 <li><p>Change the paragraph that describes &#8220;The encoding of a Sapling or Orchard note plaintext&#8221;
-to refer to &#8220;The encoding of a pre-v6 Sapling or Orchard note plaintext&#8221;.</p></li>
+to refer to &#8220;The encoding of a pre-V7 Sapling or Orchard note plaintext&#8221;.</p></li>
 <li><p>Add a new paragraph at the end of the section:</p>
 
 <blockquote>
-<p>The encoding of a v6-onward Sapling or Orchard note plaintext consists of:</p>
+<p>The encoding of a V7-onward Sapling or Orchard note plaintext consists of:</p>
 
 <p><span class="math">\(\begin{array}{|c|c|c|c|c|} \hline \raisebox{0.6ex}{\mathstrut} \text{8-bit } \mathsf{leadByte} &amp; \text{88-bit } \mathsf{d} &amp; \text{64-bit } \mathsf{v} &amp; \text{256-bit } \mathsf{rseed} &amp; \text{32-byte } \mathsf{K^{memo}} \\\hline \end{array}\)</span></p>
 
 <ul>
-<li>A byte {{MBLEADBYTE}}, indicating this version of the encoding of a v6-onward
-Sapling or Orchard note plaintext.</li>
+<li>A byte {{MBLEADBYTE}}, indicating this version of the encoding of an
+V7-onward Sapling or Orchard note plaintext.</li>
 <li>11 bytes specifying <span class="math">\(\mathsf{d}\kern-0.05em\textsf{.}\)</span></li>
 <li>8 bytes specifying <span class="math">\(\mathsf{v}\kern-0.05em\textsf{.}\)</span></li>
 <li>32 bytes specifying <span class="math">\(\mathsf{rseed}\kern-0.05em\textsf{.}\)</span></li>
@@ -571,7 +1058,8 @@ to indicate that there is no memo for this note plaintext.</p>
 
 <ul>
 <li><p>Add a reference to this ZIP specifying the construction of the memo bundle and
-derivation of <span class="math">\(\mathsf{K^{memo}}\)</span> in the case of a v6-onward note plaintext.</p></li>
+derivation of <span class="math">\(\mathsf{K^{memo}}\)</span> in the case of a V7-onward note
+plaintext.</p></li>
 <li><p>Change</p>
 
 <blockquote>
@@ -582,8 +1070,8 @@ derivation of <span class="math">\(\mathsf{K^{memo}}\)</span> in the case of a v
 
 <blockquote>
 <p>Let <span class="math">\(\mathbf{np}\)</span> be the encoding of a Sapling note plaintext using <span class="math">\(\mathsf{leadByte}\kern-0.05em\textsf{,}\)</span> <span class="math">\(\mathsf{d}\kern-0.05em\textsf{,}\)</span>
-<span class="math">\(\mathsf{v}\kern-0.05em\textsf{,}\)</span> <span class="math">\(\mathsf{rseed}\kern-0.05em\textsf{,}\)</span> and either <span class="math">\(\mathsf{memo}\)</span> for a pre-v6 note plaintext or
-<span class="math">\(\mathsf{K^{memo}}\)</span> for a v6-onward note plaintext.</p>
+<span class="math">\(\mathsf{v}\kern-0.05em\textsf{,}\)</span> <span class="math">\(\mathsf{rseed}\kern-0.05em\textsf{,}\)</span> and either <span class="math">\(\mathsf{memo}\)</span> for a pre-V7 note plaintext or
+<span class="math">\(\mathsf{K^{memo}}\)</span> for a V7-onward note plaintext.</p>
 </blockquote>
 
 <p>replacing &#8220;Sapling&#8221; with Orchard in the case of § 4.7.3.</p></li>
@@ -592,24 +1080,24 @@ derivation of <span class="math">\(\mathsf{K^{memo}}\)</span> in the case of a v
 <p>In § 4.20.1 ‘Encryption (Sapling and Orchard)’ <a href="#fn:20" id="fnref:20" title="see footnote" class="footnote"><sup>20</sup></a>:</p>
 
 <ul>
-<li><p>For v6-onward note ciphertexts, the KDF used to derive the note encryption key
-uses a different BLAKE2b-256 personalization string than for pre-v6 note
+<li><p>For V7-onward note ciphertexts, the KDF used to derive the note encryption key
+uses a different BLAKE2b-256 personalization string than for pre-V7 note
 ciphertexts, to provide domain separation. The personalization string is formed
 by concatenating a protocol prefix with the 4-byte little-endian encoding of
 the transaction version group id (<span class="math">\(\mathsf{nVersionGroupId}\kern-0.15em\)</span> ):</p>
 
 <blockquote>
-<p>For v6-onward Sapling note ciphertexts:</p>
+<p>For V7-onward Sapling note ciphertexts:</p>
 
 <p><span class="math">\(\hspace{2em}\mathsf{KDF^{Sapling}}(\mathsf{sharedSecret}, \mathsf{ephemeralKey}) := \mathsf{BLAKE2b\text{-}256}(\text{&quot;Zc_SaplingKD&quot;} \,||\, \mathsf{I2LEOSP}_{32}(\mathsf{nVersionGroupId}), \mathsf{sharedSecret} \,||\, \mathsf{ephemeralKey})\)</span></p>
 
-<p>For v6-onward Orchard note ciphertexts:</p>
+<p>For V7-onward Orchard note ciphertexts:</p>
 
 <p><span class="math">\(\hspace{2em}\mathsf{KDF^{Orchard}}(\mathsf{sharedSecret}, \mathsf{ephemeralKey}) := \mathsf{BLAKE2b\text{-}256}(\text{&quot;Zc_OrchardKD&quot;} \,||\, \mathsf{I2LEOSP}_{32}(\mathsf{nVersionGroupId}), \mathsf{sharedSecret} \,||\, \mathsf{ephemeralKey})\)</span></p>
 </blockquote>
 
-<p>This prevents a malicious lightwalletd server from presenting a v6 note ciphertext
-to a wallet as though it were a partial v5 ciphertext, which could otherwise cause
+<p>This prevents a malicious lightwalletd server from presenting a V7 note ciphertext
+to a wallet as though it were a partial v5 or v6 ciphertext, which could otherwise cause
 the wallet to decrypt and act on unauthenticated plaintext.</p></li>
 <li><p>Change</p>
 
@@ -623,14 +1111,14 @@ in § 5.5 ‘Encodings of Note Plaintexts and Memo Fields’.</p>
 
 <blockquote>
 <p>Let <span class="math">\(\mathbf{np}\)</span> be the encoding of the Sapling or Orchard note plaintext (which may be
-pre-v6 or v6-onward), as defined in § 5.5 ‘Encodings of Note Plaintexts and Memo Fields’.</p>
+pre-V7 or V7-onward), as defined in § 5.5 ‘Encodings of Note Plaintexts and Memo Fields’.</p>
 </blockquote></li>
 <li><p>Add another normative note to that section:</p>
 
 <blockquote>
 <ul>
 <li><span class="math">\(\mathsf{C^{enc}}\)</span> will be of length either 580 or 100 bytes, depending on whether
-<span class="math">\(\mathbf{np}\)</span> is a pre-v6 or v6-onward note plaintext.</li>
+<span class="math">\(\mathbf{np}\)</span> is a pre-V7 or V7-onward note plaintext.</li>
 </ul>
 </blockquote></li>
 </ul>
@@ -642,8 +1130,8 @@ and § 4.20.3 ‘Decryption using an Outgoing Viewing Key (Sapling and Orchard)�
 <li>Replace <span class="math">\(\mathsf{memo} \;{\small ⦂}\; \mathbb{B}^{{\kern-0.05em\tiny\mathbb{Y}}[512]}\)</span> with
 <span class="math">\(\mathsf{memoOrKey}\kern-0.05em\textsf{.}\)</span></li>
 <li>Specify that the type of <span class="math">\(\mathsf{memoOrKey}\)</span> is <span class="math">\(\mathbb{B}^{{\kern-0.05em\tiny\mathbb{Y}}[512]}\)</span>
-when decrypting a pre-v6 note ciphertext, or <span class="math">\(\mathbb{B}^{{\kern-0.05em\tiny\mathbb{Y}}[32]}\)</span> when
-decrypting a v6-onward note ciphertext. In the latter case, it is used as <span class="math">\(\mathsf{K^{memo}}\)</span>
+when decrypting a pre-V7 note ciphertext, or <span class="math">\(\mathbb{B}^{{\kern-0.05em\tiny\mathbb{Y}}[32]}\)</span> when
+decrypting a V7-onward note ciphertext. In the latter case, it is used as <span class="math">\(\mathsf{K^{memo}}\)</span>
 to decrypt the memo bundle as described in <a href="#memobundle">Memo bundle</a>.</li>
 </ul>
 
@@ -664,7 +1152,7 @@ policy would allow wallet implementations to make reasonable assumptions about
 memo availability when recovering from backup or performing initial
 synchronization.</p>
 
-<h2 id="interactionwithzip302zip-0302">Interaction with ZIP 302 <a href="#fn:10" title="see footnote" class="footnote"><sup>10</sup></a></h2>
+<h2 id="interactionwithzip302zip-0302">Interaction with ZIP 302 <a href="#fn:11" title="see footnote" class="footnote"><sup>11</sup></a></h2>
 
 <p>TBD</p>
 
@@ -865,14 +1353,14 @@ transaction with exposed memo data using a well-known <span class="math">\(\math
 
 <h2 id="domainseparationofnoteciphertexts"><span class="section-heading">Domain separation of note ciphertexts</span><span class="section-anchor"> <a rel="bookmark" href="#domainseparationofnoteciphertexts"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
-<p>V6-onward note ciphertexts use KDF personalization strings that incorporate the
+<p>V7-onward note ciphertexts use KDF personalization strings that incorporate the
 transaction version group id (<span class="math">\(\text{&quot;Zc_SaplingKD&quot;} \,||\, \mathsf{nVersionGroupId}\)</span>
 and <span class="math">\(\text{&quot;Zc_OrchardKD&quot;} \,||\, \mathsf{nVersionGroupId}\kern-0.15em\)</span> ), providing domain
-separation from pre-v6 note ciphertexts. This prevents a downgrade attack in
-which a malicious lightwalletd server presents a v6 note ciphertext as a partial
-v5 note ciphertext. Without domain separation, a wallet that supports the v5
-partial-ciphertext optimization (downloading note ciphertexts without the MAC to
-save bandwidth) could decrypt a v6 ciphertext without verifying its
+separation from pre-V7 note ciphertexts. This prevents a downgrade attack in
+which a malicious lightwalletd server presents a V7 note ciphertext as a partial
+v5 or v6 note ciphertext. Without domain separation, a wallet that supports the
+v5/v6 partial-ciphertext optimization (downloading note ciphertexts without the
+MAC to save bandwidth) could decrypt a V7 ciphertext without verifying its
 authentication tag, potentially acting on unauthenticated data. Using the
 version group id rather than a fixed suffix ensures that domain separation
 extends automatically to future transaction versions.</p>
@@ -941,39 +1429,39 @@ unpruned encoding of the memo. Jack Grigg discovered this attack.</li>
 </li>
 
 <li id="fn:5">
-<p><a href="protocol/protocol.pdf#noteptconcept">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 3.2.1: Note Plaintexts and Memo Fields</a> <a href="#fnref:5" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="zip-0248">ZIP 248: Extensible Transaction Format</a> <a href="#fnref:5" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:6">
-<p><a href="zip-0307">ZIP 307: Light Client Protocol for Payment Detection</a> <a href="#fnref:6" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="zip-0229">ZIP 229: Version 6 Transaction Format</a> <a href="#fnref:6" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:7">
-<p><a href="https://eprint.iacr.org/2000/025">Authenticated Encryption: Relations among notions and analysis of the generic composition paradigm</a> <a href="#fnref:7" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="protocol/protocol.pdf#noteptconcept">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 3.2.1: Note Plaintexts and Memo Fields</a> <a href="#fnref:7" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:8">
-<p><a href="zip-0230#orchard-note-plaintext">ZIP 230: Version 6 Transaction Format — Orchard Note Plaintext</a> <a href="#fnref:8" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="zip-0307">ZIP 307: Light Client Protocol for Payment Detection</a> <a href="#fnref:8" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:9">
-<p><a href="protocol/protocol.pdf#abstractprfs">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 4.1.2: Pseudo Random Functions</a> <a href="#fnref:9" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://eprint.iacr.org/2000/025">Authenticated Encryption: Relations among notions and analysis of the generic composition paradigm</a> <a href="#fnref:9" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:10">
-<p><a href="zip-0302">ZIP 302: Standardized Memo Field Format</a> <a href="#fnref:10" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="protocol/protocol.pdf#abstractprfs">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 4.1.2: Pseudo Random Functions</a> <a href="#fnref:10" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:11">
-<p><a href="https://www.rfc-editor.org/rfc/rfc8439.html">RFC 8439: ChaCha20 and Poly1305 for IETF Protocols</a> <a href="#fnref:11" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="zip-0302">ZIP 302: Standardized Memo Field Format</a> <a href="#fnref:11" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:12">
-<p><a href="https://eprint.iacr.org/2015/189">Online Authenticated-Encryption and its Nonce-Reuse Misuse-Resistance</a> <a href="#fnref:12" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://www.rfc-editor.org/rfc/rfc8439.html">RFC 8439: ChaCha20 and Poly1305 for IETF Protocols</a> <a href="#fnref:12" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:13">
-<p><a href="https://github.com/zcash/zips/pull/1156">ZIP 248: Extensible Transaction Format (PR: zcash/zips#1156)</a> <a href="#fnref:13" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://eprint.iacr.org/2015/189">Online Authenticated-Encryption and its Nonce-Reuse Misuse-Resistance</a> <a href="#fnref:13" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:14">

@@ -25,12 +25,13 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/919">https://githu
             <p>The term "network upgrade" in this document is to be interpreted as described in ZIP 200. <a id="footnote-reference-2" class="footnote_reference" href="#zip-0200">7</a></p>
             <p>The character § is used when referring to sections of the Zcash Protocol Specification. <a id="footnote-reference-3" class="footnote_reference" href="#protocol">2</a></p>
             <p>The terms "Mainnet" and "Testnet" are to be interpreted as described in § 3.12 ‘Mainnet and Testnet’. <a id="footnote-reference-4" class="footnote_reference" href="#protocol-networks">4</a></p>
+            <p>The terms "V7 transaction format" and "V7 transaction" are to be interpreted as defined in ZIP 248. <a id="footnote-reference-5" class="footnote_reference" href="#zip-0248">9</a></p>
         </section>
         <section id="abstract"><h2><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>This proposal adds an explicit <code>fee</code> field to the v6 transaction format. Instead of fees being implicit in the difference between the input value and output value of the transaction, all value transfers, including fee transfers to miners, will be explicit and committed to via the txid.</p>
+            <p>This proposal makes the transaction fee explicit in the V7 transaction format, as an entry in the transparent transaction value pool balance map defined in ZIP 248 <a id="footnote-reference-6" class="footnote_reference" href="#zip-0248">9</a>. Instead of fees being implicit in the difference between the input value and output value of the transaction, all value transfers, including fee transfers to miners, will be explicit and committed to via the txid.</p>
         </section>
         <section id="motivation"><h2><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>When it comes to fee selection, it should be very hard to make mistakes. The current transparent fee computation (inherited from Bitcoin) — input value less output value — is prone to user error. It is very easy to forget to add an output for a change address, make a calculation error <a id="footnote-reference-5" class="footnote_reference" href="#bitcointalk-fee-error">6</a>, mix up units etc.</p>
+            <p>When it comes to fee selection, it should be very hard to make mistakes. The current transparent fee computation (inherited from Bitcoin) — input value less output value — is prone to user error. It is very easy to forget to add an output for a change address, make a calculation error <a id="footnote-reference-7" class="footnote_reference" href="#bitcointalk-fee-error">6</a>, mix up units etc.</p>
             <p>In addition, when signing a transaction with a hardware wallet, using an implicit fee means that the hardware wallet must recompute the fee on its own and cannot simply display the value being committed to.</p>
             <p>Finally, this change will make it possible for light clients to determine the fee paid by a transaction without needing to download and inspect transparent inputs to the transaction.</p>
         </section>
@@ -38,56 +39,68 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/919">https://githu
             <p>Parties that see a transaction, even in isolation, reliably know its fee. That is, the fee must be explicit in the encoding of the transaction, and no potentially error-prone calculations or additional chain data are needed to compute it.</p>
         </section>
         <section id="specification"><h2><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <section id="changes-to-zip-230">
-                <h3>Changes to ZIP 230 <a id="footnote-reference-6" class="footnote_reference" href="#zip-0230">8</a></h3>
-                <p>The following field is appended to the Common Transaction Fields of the v6 transaction format after <code>nExpiryHeight</code> <a id="footnote-reference-7" class="footnote_reference" href="#zip-0230-transaction-format">9</a>:</p>
+            <section id="changes-to-zip-248"><h3><span class="section-heading">Changes to ZIP 248</span><span class="section-anchor"> <a rel="bookmark" href="#changes-to-zip-248"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>This ZIP proposes to register bundle type 5 variant 0 ("Transaction fee") in the V7 transaction bundle type registry defined in ZIP 248 <a id="footnote-reference-8" class="footnote_reference" href="#zip-0248">9</a>.</p>
                 <table>
                     <thead>
                         <tr>
-                            <th>Bytes</th>
-                            <th>Name</th>
-                            <th>Data Type</th>
-                            <th>Description</th>
+                            <th>BundleType</th>
+                            <th>BundleVariant</th>
+                            <th><code>mValuePoolDeltas</code></th>
+                            <th><code>mEffectBundles</code></th>
+                            <th><code>mAuthBundles</code></th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
-                            <td>8</td>
-                            <td><code>fee</code></td>
-                            <td><code>uint64</code></td>
-                            <td>The fee to be paid by this transaction, in zatoshis.</td>
+                            <td>5</td>
+                            <td>0</td>
+                            <td>✅</td>
+                            <td>❌</td>
+                            <td>❌</td>
                         </tr>
                     </tbody>
                 </table>
-                <p>Note: If both this ZIP and ZIP 233 are selected for inclusion in the same Network Upgrade, then the ordering of fields in the transaction format will be <code>fee</code> and then <code>zip233Amount</code>.</p>
+                <p>The fee bundle has no effecting data and no authorizing data. The transaction fee is represented solely as an entry in <code>mValuePoolDeltas</code> with <code>bundleType = 5</code> and <code>assetClass = 0</code> (ZEC).</p>
+                <p>For non-coinbase transactions, the <code>value</code> field of this entry MUST be nonpositive, representing the fee being removed from the transparent transaction value pool. For coinbase transactions, the <code>value</code> field MUST be nonnegative, representing the total fees collected from other transactions in the block being added to the ZEC transparent transaction value pool.</p>
             </section>
             <section id="changes-to-the-zcash-protocol-specification"><h3><span class="section-heading">Changes to the Zcash Protocol Specification</span><span class="section-anchor"> <a rel="bookmark" href="#changes-to-the-zcash-protocol-specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
-                <p>In § 3.4 ‘Transactions and Treestates’ <a id="footnote-reference-8" class="footnote_reference" href="#protocol-transactions">3</a> (last modified by ZIP 236 <a id="footnote-reference-9" class="footnote_reference" href="#zip-0236">10</a>), add the following consensus rule and note:</p>
+                <p>Let
+                    <span class="math">\(\mathsf{FeeBundleId} = 5.\)</span>
+                </p>
+                <p>Let
+                    <span class="math">\(\mathsf{Zec}\)</span>
+                 be the asset UUID for ZEC as defined in ZIP 248 <a id="footnote-reference-9" class="footnote_reference" href="#zip-0248">9</a>.</p>
+                <p>In § 3.4 'Transactions and Treestates' <a id="footnote-reference-10" class="footnote_reference" href="#protocol-transactions">3</a> (last modified by ZIP 236 <a id="footnote-reference-11" class="footnote_reference" href="#zip-0236">8</a>), add the following consensus rules:</p>
                 <blockquote>
                     <ul>
-                        <li>[NU7 onward] For v6 and later transactions, the remaining value in the transparent transaction value pool, in zatoshis, MUST be equal to the value of the transaction’s <code>fee</code> field.</li>
+                        <li>[NU7 onward] The <code>assetClass</code> for any entry in <code>mValuePoolDeltas</code> having <code>bundleType</code>
+                            <span class="math">\(= \mathsf{FeeBundleId}\)</span>
+                         MUST be 0. That is, fee amounts MUST be denominated in ZEC.</li>
+                        <li>[NU7 onward] For non-coinbase V7 transactions, the value of
+                            <span class="math">\(\mathsf{mValuePoolDeltas}[(\mathsf{FeeBundleId}, \mathsf{Zec})]\)</span>
+                         MUST be nonpositive. Its absolute value represents the transaction fee in zatoshis.</li>
+                        <li>[NU7 onward] For coinbase V7 transactions, the value of
+                            <span class="math">\(\mathsf{mValuePoolDeltas}[(\mathsf{FeeBundleId}, \mathsf{Zec})]\)</span>
+                         MUST be nonnegative. It represents the total transaction fees collected from all other transactions in the block.</li>
                     </ul>
-                    <p>Non-normative note: The effect of these rules is that the <code>fee</code> field of v6 and later coinbase transactions will always be zero.</p>
                 </blockquote>
-                <p>In § 7.1 ‘Transaction Encoding and Consensus’ <a id="footnote-reference-10" class="footnote_reference" href="#protocol-txnconsensus">5</a>, add:</p>
+                <p>In § 7.1 'Transaction Encoding and Consensus' <a id="footnote-reference-12" class="footnote_reference" href="#protocol-txnconsensus">5</a>, add:</p>
                 <blockquote>
-                    <p>[NU7 onward] <code>fee</code> MUST be in the range
+                    <p>[NU7 onward] The absolute value of the fee bundle's value pool delta MUST be in the range
                         <span class="math">\(\{ 0 .. \mathsf{MAX\_MONEY} \}\kern-0.03em\textsf{.}\)</span>
                     </p>
                 </blockquote>
             </section>
-            <section id="modifications-relative-to-zip-244">
-                <h3>Modifications relative to ZIP 244 <a id="footnote-reference-11" class="footnote_reference" href="#zip-0244">11</a></h3>
-                <p>Relative to the sighash algorithm defined in ZIP 244, the sighash algorithm that applies to v6 transactions differs by appending the <code>fee</code> field to the Common Transaction Fields that are the input to the digest in T.1: header_digest <a id="footnote-reference-12" class="footnote_reference" href="#zip-0244-header-digest">12</a>:</p>
-                <pre>T.1f: fee (8-byte little-endian fee amount)</pre>
-                <p>Note: If both this ZIP and ZIP 233 are selected for inclusion in the same Network Upgrade, then the ambiguity in ordering of the fields added by these ZIPs would need to be resolved.</p>
+            <section id="modifications-to-digest-algorithms"><h3><span class="section-heading">Modifications to Digest Algorithms</span><span class="section-anchor"> <a rel="bookmark" href="#modifications-to-digest-algorithms"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+                <p>The fee amount is committed to the transaction identifier and signature digest via the <code>value_pool_deltas_digest</code> defined in ZIP 248 <a id="footnote-reference-13" class="footnote_reference" href="#zip-0248">9</a>. Since the fee bundle (bundle type 5) has no effecting data and no authorizing data, its only contribution to the transaction digest is through its entry in <code>mValuePoolDeltas</code>.</p>
             </section>
             <section id="applicability"><h3><span class="section-heading">Applicability</span><span class="section-anchor"> <a rel="bookmark" href="#applicability"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
                 <p>All of these changes apply identically to Mainnet and Testnet.</p>
             </section>
         </section>
         <section id="deployment"><h2><span class="section-heading">Deployment</span><span class="section-anchor"> <a rel="bookmark" href="#deployment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
-            <p>This ZIP is proposed to be deployed with the next transaction version change, which is assumed to be v6. <a id="footnote-reference-13" class="footnote_reference" href="#zip-0230">8</a></p>
+            <p>This ZIP is proposed to be deployed with the next transaction version change, which is assumed to be V7. <a id="footnote-reference-14" class="footnote_reference" href="#zip-0248">9</a></p>
         </section>
         <section id="reference-implementation"><h2><span class="section-heading">Reference implementation</span><span class="section-anchor"> <a rel="bookmark" href="#reference-implementation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
             <p>TBD</p>
@@ -149,51 +162,19 @@ Pull-Request: &lt;<a href="https://github.com/zcash/zips/pull/919">https://githu
                     </tr>
                 </tbody>
             </table>
-            <table id="zip-0230" class="footnote">
-                <tbody>
-                    <tr>
-                        <th>8</th>
-                        <td><a href="zip-0230">ZIP 230: Version 6 Transaction Format</a></td>
-                    </tr>
-                </tbody>
-            </table>
-            <table id="zip-0230-transaction-format" class="footnote">
-                <tbody>
-                    <tr>
-                        <th>9</th>
-                        <td><a href="zip-0230#transaction-format">ZIP 230: Version 6 Transaction Format — Specification: Transaction Format</a></td>
-                    </tr>
-                </tbody>
-            </table>
             <table id="zip-0236" class="footnote">
                 <tbody>
                     <tr>
-                        <th>10</th>
+                        <th>8</th>
                         <td><a href="zip-0236">ZIP 236: Blocks should balance exactly</a></td>
                     </tr>
                 </tbody>
             </table>
-            <table id="zip-0244" class="footnote">
+            <table id="zip-0248" class="footnote">
                 <tbody>
                     <tr>
-                        <th>11</th>
-                        <td><a href="zip-0244">ZIP 244: Transaction Identifier Non-Malleability</a></td>
-                    </tr>
-                </tbody>
-            </table>
-            <table id="zip-0244-header-digest" class="footnote">
-                <tbody>
-                    <tr>
-                        <th>12</th>
-                        <td><a href="zip-0244#t-1-header-digest">ZIP 244: Transaction Identifier Non-Malleability. Section T.1: Header Digest</a></td>
-                    </tr>
-                </tbody>
-            </table>
-            <table id="zip-0246" class="footnote">
-                <tbody>
-                    <tr>
-                        <th>13</th>
-                        <td><a href="zip-0246">ZIP 246: Digests for the Version 6 Transaction Format</a></td>
+                        <th>9</th>
+                        <td><a href="zip-0248">ZIP 248: Extensible Transaction Format</a></td>
                     </tr>
                 </tbody>
             </table>
