@@ -116,8 +116,8 @@ transaction format change.
 In the future, this change may reduce the amount of information leakage, since
 transactions created using the proposed TLV format will include bundles only
 for those protocols for which the transaction modifies chain state. For example,
-if this transaction format change is deployed in NU7 and NU8 defines a bundle
-type for TZE components, it will not be possible for a chain observer to
+if this transaction format change is deployed in NU8 and a hypothetical NU9
+defines a bundle type for TZE components, it will not be possible for a chain observer to
 distinguish whether or not the wallet that produced an Orchard-only transaction
 is one that has been updated to understand the TZE component. Under prior
 practices for changing the transaction format, this would have been
@@ -550,10 +550,6 @@ wallet does not itself implement.
 * For each ``bundleType`` that appears in ``mAuthBundles``, a corresponding
   entry with the same ``bundleVariant`` MUST exist in ``mEffectBundles``.
 
-* A bundle type MUST NOT appear in any map for which the corresponding column
-  of the `V7 Transaction Bundle Type Registry`_ is marked ❌, and MUST NOT
-  appear in any map at all if its row in the registry is marked as Reserved.
-
 * Within the encoding of any bundle's effecting and authorizing data, every
   per-element sequence in the authorizing data that is described as
   corresponding to a per-element sequence in the effecting data MUST have
@@ -597,6 +593,13 @@ The following rules constrain the contents of individual bundles. A wallet
 or full validator only needs to enforce a given rule in this subsection if
 it understands the bundle type that the rule applies to.
 
+* A bundle type MUST NOT appear in any map for which the corresponding column
+  of the `V7 Transaction Bundle Type Registry`_ is marked ❌, and MUST NOT
+  appear in any map at all if its row in the registry is marked as Reserved.
+  A parser cannot check this for a bundle type it does not know, because the
+  registry grows with each network upgrade; a full validator always knows the
+  registry in force for the block it is validating.
+
 * The ``assetClass`` value for any entry in ``mValuePoolDeltas`` having
   ``bundleType = FeeBundleId`` MUST be 0 (fee amounts are denominated in ZEC
   and no other asset).
@@ -609,6 +612,9 @@ it understands the bundle type that the rule applies to.
 * A coinbase transaction MUST NOT spend any transparent output. If a
   transparent bundle is present in a coinbase transaction, its effecting data
   MUST have ``tx_in_count = 0``.
+
+* For coinbase transactions, the ``nSpendsSapling`` field of the Sapling
+  bundle's effecting data MUST be 0.
 
 * For coinbase transactions, the ``enableSpends`` bit of the ``flagsOrchard``
   field of every Orchard protocol bundle MUST be 0.
@@ -1312,9 +1318,9 @@ Coinbase Effecting Data
 +=============================+==========================+========================================+=====================================================================+
 |``4``                        |``blockHeight``           |``uint32``                              |The height of the block in which the transaction is mined.           |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
-|``8``                        |``blockSubsidy``          |``int64``                               |The block subsidy for that block, in zatoshis.                       |
+|``8``                        |``blockSubsidy``          |``uint64``                              |The block subsidy for that block, in zatoshis.                       |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
-|``8``                        |``lockboxValue``          |``int64``                               |The part of that block subsidy deposited into the lockbox, in        |
+|``8``                        |``lockboxValue``          |``uint64``                              |The part of that block subsidy deposited into the lockbox, in        |
 |                             |                          |                                        |zatoshis.                                                            |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 |``varies``                   |``coinbaseDataLen``       |``compactSize``                         |Length of the ``coinbaseData`` byte array.                           |
@@ -1324,7 +1330,6 @@ Coinbase Effecting Data
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 
 * ``blockHeight`` MUST be in the range {1 .. 499999999}.
-* ``blockSubsidy`` MUST be nonnegative.
 * ``lockboxValue`` MUST be in the range {0 .. ``blockSubsidy``}.
 * ``coinbaseDataLen`` MUST be at most 94.
 
@@ -1337,8 +1342,8 @@ T.3.1: coinbase_effects_digest
 A BLAKE2b-256 hash of the following values::
 
    T.3.1a: blockHeight   (4-byte little-endian block height)
-   T.3.1b: blockSubsidy  (8-byte signed little-endian)
-   T.3.1c: lockboxValue  (8-byte signed little-endian)
+   T.3.1b: blockSubsidy  (8-byte unsigned little-endian)
+   T.3.1c: lockboxValue  (8-byte unsigned little-endian)
    T.3.1d: coinbaseData  (byte array with leading ``compactSize`` length)
 
 The personalization field of this hash is set to::
