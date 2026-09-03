@@ -696,58 +696,7 @@ within a given transaction version. Consensus rules choose the digest algorithm
 for each signer based on ``sighashVersion``.
 
 Sighash version information is present alongside each signature in the
-authorizing data of the transaction, via the per-signature structures defined
-below.
-
-Per-Signature Structures
-````````````````````````
-
-The following structures carry sighash version information alongside each
-signature in the authorizing data of a V7 transaction.
-
-Transparent Sighash Information (``TransparentSighashInfo``)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-+-----------------------------+------------------------------+----------------------------------+---------------------------------------------------+
-| Bytes                       | Name                         | Data Type                        | Description                                       |
-+=============================+==============================+==================================+===================================================+
-| varies                      |``sizeSighashInfo``           |``compactSize``                   |The size in bytes of ``sighashInfo``.              |
-+-----------------------------+------------------------------+----------------------------------+---------------------------------------------------+
-| ``sizeSighashInfo``         |``sighashInfo``               |``byte[sizeSighashInfo]``         |The sighash version and associated information,    |
-|                             |                              |                                  |as defined in `Sighash Versioning`_.               |
-+-----------------------------+------------------------------+----------------------------------+---------------------------------------------------+
-
-Sapling Signature (``SaplingSignature``)
-''''''''''''''''''''''''''''''''''''''''
-
-+-----------------------------+------------------------------+----------------------------------+---------------------------------------------------+
-| Bytes                       | Name                         | Data Type                        | Description                                       |
-+=============================+==============================+==================================+===================================================+
-| varies                      |``sizeSighashInfo``           |``compactSize``                   |The size in bytes of ``sighashInfo``.              |
-+-----------------------------+------------------------------+----------------------------------+---------------------------------------------------+
-| ``sizeSighashInfo``         |``sighashInfo``               |``byte[sizeSighashInfo]``         |The sighash version and associated information,    |
-|                             |                              |                                  |as defined in `Sighash Versioning`_.               |
-+-----------------------------+------------------------------+----------------------------------+---------------------------------------------------+
-| 64                          |``signature``                 |``byte[64]``                      |An encoding of a RedJubjub signature, which may be |
-|                             |                              |                                  |either a ``spendAuthSig`` or ``bindingSig``        |
-|                             |                              |                                  |depending on context.                              |
-+-----------------------------+------------------------------+----------------------------------+---------------------------------------------------+
-
-Orchard Signature (``OrchardSignature``)
-''''''''''''''''''''''''''''''''''''''''
-
-+-----------------------------+------------------------------+----------------------------------+---------------------------------------------------+
-| Bytes                       | Name                         | Data Type                        | Description                                       |
-+=============================+==============================+==================================+===================================================+
-| varies                      |``sizeSighashInfo``           |``compactSize``                   |The size in bytes of ``sighashInfo``.              |
-+-----------------------------+------------------------------+----------------------------------+---------------------------------------------------+
-| ``sizeSighashInfo``         |``sighashInfo``               |``byte[sizeSighashInfo]``         |The sighash version and associated information,    |
-|                             |                              |                                  |as defined in `Sighash Versioning`_.               |
-+-----------------------------+------------------------------+----------------------------------+---------------------------------------------------+
-| 64                          |``signature``                 |``byte[64]``                      |An encoding of a RedPallas signature, which may be |
-|                             |                              |                                  |either a ``spendAuthSig`` or ``bindingSig``        |
-|                             |                              |                                  |depending on context.                              |
-+-----------------------------+------------------------------+----------------------------------+---------------------------------------------------+
+authorizing data of each bundle.
 
 Digest Algorithms
 -----------------
@@ -877,8 +826,8 @@ is::
 
   BLAKE2b-256("ZTxIdEffBnd_Hash", [])
 
-Signature Digest
-````````````````
+v0 Signature Digest
+```````````````````
 
 A new per-input transaction digest algorithm is defined that constructs a hash
 that may be signed by a transaction creator to commit to the effects of the
@@ -891,7 +840,7 @@ currently defined for V7 transactions), the digest algorithm is as specified
 below. Future network upgrades may define additional sighash algorithm versions
 with divergent behavior.
 
-For transactions that have no transparent inputs, the signature digest is
+For transactions that have no transparent inputs, the v0 signature digest is
 identical to the transaction identifier digest.
 
 For transactions with transparent inputs, the signature digest replaces
@@ -1103,7 +1052,8 @@ TransparentInputAuth
 | Bytes                       | Name                     | Data Type                              | Description                                                         |
 +=============================+==========================+========================================+=====================================================================+
 |``varies``                   |``sighashInfo``           |``TransparentSighashInfo``              |The sighash version and associated information for this input,       |
-|                             |                          |                                        |as defined in `Per-Signature Structures`_.                           |
+|                             |                          |                                        |as defined in                                                        |
+|                             |                          |                                        |`Transparent Sighash Information (``TransparentSighashInfo``)`_.     |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 |``varies``                   |``scriptSigLen``          |``compactSize``                         |Length of the scriptSig.                                             |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
@@ -1111,9 +1061,17 @@ TransparentInputAuth
 |                             |                          |                                        |scriptPubKey.                                                        |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 
-The ``TransparentSighashInfo`` type is defined in `Per-Signature Structures`_.
-It consists of a ``compactSize``-prefixed byte array containing the sighash
-version and any associated data required by that version.
+Transparent Sighash Information (``TransparentSighashInfo``)
+............................................................
+
++-----------------------------+------------------------------+----------------------------------+---------------------------------------------------+
+| Bytes                       | Name                         | Data Type                        | Description                                       |
++=============================+==============================+==================================+===================================================+
+| varies                      |``sizeSighashInfo``           |``compactSize``                   |The size in bytes of ``sighashInfo``.              |
++-----------------------------+------------------------------+----------------------------------+---------------------------------------------------+
+| ``sizeSighashInfo``         |``sighashInfo``               |``byte[sizeSighashInfo]``         |The sighash version and associated information,    |
+|                             |                              |                                  |as defined in `Sighash Versioning`_.               |
++-----------------------------+------------------------------+----------------------------------+---------------------------------------------------+
 
 Transparent Sighash Algorithms
 ''''''''''''''''''''''''''''''
@@ -1311,7 +1269,7 @@ input::
    A.1.0b: scriptSig              (field encoding bytes, with compactSize length prefix)
 
 The field encoding of ``TransparentSighashInfo`` is defined in
-`Per-Signature Structures`_.
+`Transparent Sighash Information (``TransparentSighashInfo``)`_.
 
 The personalization field of this hash is set to::
 
@@ -1482,6 +1440,22 @@ that authorize the spends and validate the outputs.
 * The field ``bindingSigSapling`` is present if and only if
   $\mathtt{nSpendsSapling} + \mathtt{nOutputsSapling} > 0$.
 
+Sapling Signature (``SaplingSignature``)
+........................................
+
++-----------------------------+------------------------------+----------------------------------+---------------------------------------------------+
+| Bytes                       | Name                         | Data Type                        | Description                                       |
++=============================+==============================+==================================+===================================================+
+| varies                      |``sizeSighashInfo``           |``compactSize``                   |The size in bytes of ``sighashInfo``.              |
++-----------------------------+------------------------------+----------------------------------+---------------------------------------------------+
+| ``sizeSighashInfo``         |``sighashInfo``               |``byte[sizeSighashInfo]``         |The sighash version and associated information,    |
+|                             |                              |                                  |as defined in `Sighash Versioning`_.               |
++-----------------------------+------------------------------+----------------------------------+---------------------------------------------------+
+| 64                          |``signature``                 |``byte[64]``                      |An encoding of a RedJubjub signature, which may be |
+|                             |                              |                                  |either a ``spendAuthSig`` or ``bindingSig``        |
+|                             |                              |                                  |depending on context.                              |
++-----------------------------+------------------------------+----------------------------------+---------------------------------------------------+
+
 The 1:1 correspondences between Sapling authorizing-data elements and the
 elements of the corresponding effecting data are required by the parsing
 rules in `Parsing Rules`_.
@@ -1492,7 +1466,7 @@ Sapling Sighash Algorithms
 For the Sapling bundle at ``bundleVariant = 0``, sighash version 0 is the only
 version defined, and its ``associatedData`` is the empty byte string. A Sapling
 ``spendAuthSig`` or ``bindingSig`` made with it commits to the digest defined
-in `Signature Digest`_, computed with ``hash_type = SIGHASH_ALL`` (0x01).
+in `v0 Signature Digest`_, computed with ``hash_type = SIGHASH_ALL`` (0x01).
 
 Sapling Digests
 '''''''''''''''
@@ -1637,8 +1611,8 @@ hash of the following concatenated values::
    A.1.2d: vOutputProofsSapling   (192 bytes per output)
    A.1.2e: bindingSigSapling      (SaplingSignature field encoding)
 
-The ``SaplingSignature`` field encoding is defined in `Per-Signature Structures`_
-and includes ``sighashInfo``.
+The ``SaplingSignature`` field encoding is defined in
+`Sapling Signature (``SaplingSignature``)`_ and includes ``sighashInfo``.
 
 The personalization field of this hash is set to::
 
@@ -1753,6 +1727,22 @@ signatures that authorize the actions.
   and ``bindingSigOrchard`` are present if and only if
   $\mathtt{nActionsOrchard} > 0$.
 
+Orchard Signature (``OrchardSignature``)
+........................................
+
++-----------------------------+------------------------------+----------------------------------+---------------------------------------------------+
+| Bytes                       | Name                         | Data Type                        | Description                                       |
++=============================+==============================+==================================+===================================================+
+| varies                      |``sizeSighashInfo``           |``compactSize``                   |The size in bytes of ``sighashInfo``.              |
++-----------------------------+------------------------------+----------------------------------+---------------------------------------------------+
+| ``sizeSighashInfo``         |``sighashInfo``               |``byte[sizeSighashInfo]``         |The sighash version and associated information,    |
+|                             |                              |                                  |as defined in `Sighash Versioning`_.               |
++-----------------------------+------------------------------+----------------------------------+---------------------------------------------------+
+| 64                          |``signature``                 |``byte[64]``                      |An encoding of a RedPallas signature, which may be |
+|                             |                              |                                  |either a ``spendAuthSig`` or ``bindingSig``        |
+|                             |                              |                                  |depending on context.                              |
++-----------------------------+------------------------------+----------------------------------+---------------------------------------------------+
+
 The 1:1 correspondences between the authorizing-data elements of an Orchard
 protocol bundle and the elements of the corresponding effecting data are
 required by the parsing rules in `Parsing Rules`_.
@@ -1763,7 +1753,7 @@ Orchard Protocol Sighash Algorithms
 For the Orchard and Ironwood bundles at ``bundleVariant = 0``, sighash version
 0 is the only version defined, and its ``associatedData`` is the empty byte
 string. An Orchard ``spendAuthSig`` or ``bindingSig`` made with it commits to
-the digest defined in `Signature Digest`_, computed with
+the digest defined in `v0 Signature Digest`_, computed with
 ``hash_type = SIGHASH_ALL`` (0x01).
 
 Orchard Protocol Digests
@@ -1879,8 +1869,8 @@ following concatenated values::
    A.1.3c: vSpendAuthSigsOrchard (OrchardSignature field encoding per action)
    A.1.3d: bindingSigOrchard     (OrchardSignature field encoding)
 
-The ``OrchardSignature`` field encoding is defined in `Per-Signature Structures`_
-and includes ``sighashInfo``.
+The ``OrchardSignature`` field encoding is defined in
+`Orchard Signature (``OrchardSignature``)`_ and includes ``sighashInfo``.
 
 The personalization field of this hash is set to::
 
