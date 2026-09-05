@@ -144,13 +144,6 @@ change to the ZIP 401 [^zip-0401] `low_fee_penalty` is required.
 
 # Rationale
 
-**Why a power of 10.** A discrete alphabet (100, 1,000, 10,000) reduces fee
-entropy, simplifies UX, and gives a dynamic fee mechanism natural tier
-boundaries. 500 and 2,500 are off it; 100 is a 50x cut, too low for spam
-deterrence at any plausible price. Even 500 would cost 1.6x the design point at
-the price of record, so alphabet alignment, not denial-of-service headroom, is
-the argument against it.
-
 **Why remove the cap rather than raise it.** Any cap is a chosen point. Of ZIP
 317's two arguments that overpaying gains no significant advantage, only the
 first depends on the cap; the second, that *c* times the fee on one transaction
@@ -171,6 +164,20 @@ enforces 0, ZIP 401 eviction bounds memory denial of service, and ZIP 235 burn
 makes sustained spam permanently costly. Filling 2 MB blocks costs *N* x *C* / 5
 per hour against a design-point *C* ~$144/hour, so ~$453/hour at the price of
 record.
+
+
+# Alternatives
+
+**`marginal_fee` = 500.** Halves the minimum fee to 1,000 zatoshis, which
+exceeds the design-point fiat cost only at prices above 10 *P* ($300). It was
+suggested in review; this ZIP prefers 1,000 to retain twice the
+denial-of-service margin at lower prices.
+
+**`marginal_fee` = 100.** A 50x cut whose 200-zatoshi minimum fee falls below
+the design-point cost at any price under 50 *P* ($1,500): too weak a deterrent.
+
+**No change.** Fiat cost continues to track price; at the price of record the
+minimum fee costs 15.7x the design point.
 
 
 # Deployment
