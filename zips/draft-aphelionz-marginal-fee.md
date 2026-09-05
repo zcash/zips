@@ -34,17 +34,17 @@ parameters and formulae are unchanged.
 
 ZIP 317 was designed in late 2022, when ZEC near the design point *P* = $30 made
 its 10,000-zatoshi minimum fee cost about $0.003. The parameters are static, so
-fiat cost tracks price. At the price of record, $472 (2026-08-11) or ~15.7 *P*:
+fiat cost tracks price. At the price of record, $800 (2026-08-29) or ~26.7 *P*:
 
 | `marginal_fee` | Min. tx fee    | Fiat cost   | vs. design point |
 |----------------|----------------|-------------|------------------|
-| 5,000          | 10,000 zats    | $0.0472     | 15.7x            |
-| **1,000**      | **2,000 zats** | **$0.0094** | **3.1x**         |
+| 5,000          | 10,000 zats    | $0.0800     | 26.7x            |
+| **1,000**      | **2,000 zats** | **$0.0160** | **5.3x**         |
 
 The proposed fee exceeds the design-point fiat cost at any price above 5 *P*
 ($150), so this is a 5x reduction that does not restore the 2022 level.
 `marginal_fee = 1000` was rejected during ZIP 317's design [^madars-1] as too
-weak a deterrent at $30; at the price of record it costs 3.1x that value.
+weak a deterrent at $30; at the price of record it costs 5.3x that value.
 
 Separately, ZIP 317's recommended block template construction algorithm caps a
 transaction's selection weight at `weight_ratio_cap` = 4 times that of a
@@ -164,7 +164,7 @@ independent of the fee level: `block_unpaid_action_limit` bounds unpaid actions
 per block, and ZIP 401 [^zip-0401] mempool cost limiting bounds memory
 consumption. Reducing `marginal_fee` by a factor of 5 reduces the cost of
 filling blocks by the same factor; at the price of record that cost remains
-3.1x what it was at the ZIP 317 design point.
+5.3x what it was at the ZIP 317 design point.
 
 
 # Alternatives
@@ -178,7 +178,7 @@ denial-of-service margin at lower prices.
 the design-point cost at any price under 50 *P* ($1,500): too weak a deterrent.
 
 **No change.** Fiat cost continues to track price; at the price of record the
-minimum fee costs 15.7x the design point.
+minimum fee costs 26.7x the design point.
 
 
 # Deployment
