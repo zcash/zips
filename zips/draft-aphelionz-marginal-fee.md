@@ -139,10 +139,7 @@ no network upgrade is required, and users MUST retain the ability to override
 the fee.
 
 Nodes SHOULD update relay and mempool eviction thresholds to the new value. No
-change to the ZIP 401 [^zip-0401] `low_fee_penalty` is required. Node
-implementations MUST support a configuration option overriding the relay-policy
-`marginal_fee`, defaulting to 1,000, so operators can revert without a software
-update.
+change to the ZIP 401 [^zip-0401] `low_fee_penalty` is required.
 
 
 # Rationale
