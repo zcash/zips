@@ -60,9 +60,9 @@ a user who pays for priority receives what is paid for.
 
 The formula's structure is unchanged, so wallets pay the same amount for the
 same transaction shape. If wallets adopt the new value at different times, the
-fee partitions transactions by wallet software version until adoption
-converges. To bound this window, wallets SHOULD switch at the activation
-height given in the Deployment section rather than upon release.
+fee segments by wallet software. To bound this window, wallets SHOULD switch
+at the activation height given in the Deployment section rather than upon
+release.
 
 Removing `weight_ratio_cap` permits arbitrarily large selection multipliers.
 Wallets SHOULD NOT expose fee multipliers outside a small discrete set of
