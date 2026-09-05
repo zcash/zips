@@ -1,5 +1,5 @@
     ZIP: Unassigned
-    Title: Reduce Marginal Fee to 1000 Zatoshis
+    Title: Reduce Marginal Fee to 1000 Zatoshis and Remove the Weight Ratio Cap
     Owners: Mark Henderson <mark@shieldedlabs.net>
     Status: Draft
     Category: Standards / Wallet
@@ -12,8 +12,9 @@
 
 # Terminology
 
-The key words "MUST" and "SHOULD" in this document are to be interpreted as
-described in BCP 14 [^BCP14] when, and only when, they appear in all capitals.
+The key words "MUST", "SHOULD", and "SHOULD NOT" in this document are to be
+interpreted as described in BCP 14 [^BCP14] when, and only when, they appear
+in all capitals.
 
 Fee terminology is as defined in ZIP 317 [^zip-0317]; "zatoshi" is as defined in
 the Zcash protocol specification. [^protocol]
@@ -23,8 +24,10 @@ the Zcash protocol specification. [^protocol]
 
 This ZIP reduces ZIP 317's [^zip-0317] `marginal_fee` from 5,000 to 1,000
 zatoshis per logical action, lowering the minimal 2-action conventional fee from
-10,000 to 2,000 zatoshis. All other ZIP 317 parameters and formulae are
-unchanged.
+10,000 to 2,000 zatoshis. It also removes the `weight_ratio_cap` constant from
+ZIP 317's recommended block template construction algorithm, making a
+transaction's selection weight proportional to its fee. All other ZIP 317
+parameters and formulae are unchanged.
 
 
 # Motivation
@@ -43,12 +46,26 @@ The proposed fee exceeds the design-point fiat cost at any price above 5 *P*
 `marginal_fee = 1000` was rejected during ZIP 317's design [^madars-1] as too
 weak a deterrent at $30; at the price of record it costs 3.1x that value.
 
+Separately, ZIP 317's recommended block template construction algorithm caps a
+transaction's selection weight at `weight_ratio_cap` = 4 times that of a
+transaction paying exactly the conventional fee, so fee paid beyond 4x the
+conventional fee buys no additional selection probability. ZIP 317 describes
+the value 4 as a compromise between no prioritization and arbitrary
+prioritization by ability to pay: a chosen point, not a derived quantity.
+Removing the cap makes selection weight proportional to fee at every level, so
+a user who pays for priority receives what is paid for.
+
 
 # Privacy Implications
 
 The formula's structure is unchanged, so wallets pay the same amount for the
 same transaction shape. In transition, wallets split between 5,000 and 1,000 are
 distinguishable by fee; the mitigation is coordinated deployment.
+
+Removing `weight_ratio_cap` permits arbitrarily large selection multipliers.
+Wallets SHOULD NOT expose fee multipliers outside a small discrete set of
+recommended values; arbitrary fee values widen the fee value space and shrink
+each value's anonymity set.
 
 
 # Specification
@@ -72,6 +89,39 @@ change.
 In the event that ZIP 235 [^zip-0235] is activated, the fraction removed from 
 circulation is unchanged: of a 2,000-zatoshi fee, 1,200 zatoshis will be 
 removed from circulation and 800 must be claimed by the miner.
+
+## Removal of `weight_ratio_cap`
+
+In the section **Recommended algorithm for block template construction** of
+ZIP 317, the sentence
+
+> Define constants `weight_ratio_cap` = 4 and `block_unpaid_action_limit` = 50.
+
+is replaced with
+
+> Define the constant `block_unpaid_action_limit` = 50.
+
+and in step 2 of the algorithm, the definition
+
+> `tx.weight_ratio = min(max(1, tx.fee) / conventional_fee(tx), weight_ratio_cap)`
+
+is replaced with
+
+> `tx.weight_ratio = max(1, tx.fee) / conventional_fee(tx)`
+
+In the section **Rationale for block template construction algorithm**, the
+paragraph beginning "The weighting in step 2 does not create a situation", its
+two numbered list items, and the paragraph beginning "The rationale for
+choosing `weight_ratio_cap` = 4" are replaced with:
+
+> The weighting in step 2 prioritizes transactions in direct proportion to fee
+> paid. Overpaying does not disadvantage other users' transactions in
+> aggregate: an adversary who pays *c* times the conventional fee for one
+> transaction, rather than the conventional fee for each of *c* transactions,
+> is more likely to get each transaction into a block relative to competing
+> transactions, but those transactions take up less block space, all else
+> (e.g. choice of input or output types) being equal, leaving more block space
+> for the other users' transactions.
 
 ## Interaction with the `getstandardfee` RPC endpoint
 
@@ -100,6 +150,14 @@ boundaries. 500 and 2,500 are off it; 100 is a 50x cut, too low for spam
 deterrence at any plausible price. Even 500 would cost 1.6x the design point at
 the price of record, so alphabet alignment, not denial-of-service headroom, is
 the argument against it.
+
+**Why remove the cap rather than raise it.** Any cap is a chosen point. Of ZIP
+317's two arguments that overpaying gains no significant advantage, only the
+first depends on the cap; the second, that *c* times the fee on one transaction
+occupies less block space than *c* transactions and so leaves more room for
+others, is independent of it and carries the argument. The algorithm
+discriminates among candidates only when they exceed a block's capacity, so the
+cap's removal has no effect outside sustained contention.
 
 **Precedent.** ZIP 313 [^zip-0313] set the conventional fee to 1,000 zatoshis in
 2020 as a wallet convention with no network upgrade. Once ZIP 317 obsoleted it,
@@ -142,6 +200,12 @@ correctness, since nodes and wallets on either value interoperate.
 Relay policy updates SHOULD ship before or with wallet updates; a 2,000-zatoshi
 transaction reaching a node still on `marginal_fee = 5000` is relayed and mined,
 but incurs the ZIP 401 low fee penalty. Deploy on Testnet before Mainnet.
+
+Use of the block template construction algorithm is voluntary, and the
+`weight_ratio_cap` removal needs no coordination: under partial adoption a
+transaction paying *c* times the conventional fee receives weight *c* at
+upgraded block producers and min(*c*, 4) elsewhere. Producers ordering
+candidates greedily by fee are unaffected.
 
 
 # References
