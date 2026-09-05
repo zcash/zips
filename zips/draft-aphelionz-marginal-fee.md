@@ -131,9 +131,10 @@ The two MUST be kept consistent.
 
 ## Wallet and node adoption
 
-Wallets SHOULD use `marginal_fee = 1000` upon this ZIP reaching Active status.
-ZIP 317 fees are a convention, not a consensus rule, so no network upgrade is
-required, and users MUST retain the ability to override the fee.
+Wallets SHOULD use `marginal_fee = 1000` from the activation height given in
+the Deployment section. ZIP 317 fees are a convention, not a consensus rule, so
+no network upgrade is required, and users MUST retain the ability to override
+the fee.
 
 Nodes SHOULD update relay and mempool eviction thresholds to the new value, and
 the ZIP 401 [^zip-0401] `low_fee_penalty` SHOULD be recalibrated. Node
@@ -175,24 +176,19 @@ record.
 
 # Deployment
 
-## Schedule
+## Activation
 
-This ZIP changes no consensus rule: `marginal_fee` is a wallet convention and a
-node relay policy parameter, so deployment needs no activation height, no
-network upgrade, and no coordination with any upgrade schedule. Only the ZIP
-process and ordinary release cycles bind, which makes a Mainnet target of
-2026-10-01 achievable:
+Wallets and node relay policy SHOULD adopt `marginal_fee = 1000` at Mainnet
+block height 3500000, expected in late September 2026. This ZIP changes no
+consensus rule, so the height requires no network upgrade; it synchronizes the
+switch, bounding the transition window described under Privacy Implications.
+Releases containing the change SHOULD ship in advance of the activation height
+and use the previous value until it is reached. On Testnet, implementations
+SHOULD adopt the new value as soon as releases are available; no coordinated
+height is specified.
 
-| Date       | Milestone                                                          |
-|------------|--------------------------------------------------------------------|
-| 2026-08-25 | `Discussions-To` filled, PR opened upstream                        |
-| 2026-09-01 | Node implementations land the relay policy change and the override |
-| 2026-09-08 | Testnet                                                            |
-| 2026-09-22 | Wallet releases using `marginal_fee = 1000`                        |
-| 2026-10-01 | Mainnet default                                                    |
-
-There is no flag day: slipping a milestone delays the date without affecting
-correctness, since nodes and wallets on either value interoperate.
+Nodes and wallets on either value interoperate, so a missed height degrades
+privacy of the transition, not correctness.
 
 
 ## Ordering
