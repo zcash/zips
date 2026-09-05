@@ -99,7 +99,9 @@ The protocol spec has its own `Makefile` in `protocol/`.
 
 A `nix` flake is provided that includes all tooling required to build using the
 Makefile. Use `nix develop -c` to render ZIPs and specifications using the
-canonical tool set.
+canonical tool set — for example, `nix develop -c make all-zips`. Without it,
+the build depends on whatever tool versions happen to be installed: the
+rendered output will not be reproducible, and the build might not work at all.
 
 ### File Naming
 
