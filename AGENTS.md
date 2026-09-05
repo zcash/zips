@@ -80,6 +80,7 @@ zips/              ZIP source files (.rst or .md)
   zip-guide.rst    Template for new reStructuredText ZIPs
   zip-guide-markdown.md  Template for new Markdown ZIPs
 protocol/          Zcash Protocol Specification (LaTeX)
+scripts/           Helper scripts for contributors and editors
 rendered/          Build output (HTML); git-ignored content, do not edit
 static/            CSS and static assets copied into rendered/
 render.sh          Renders a single .rst or .md to HTML
@@ -284,6 +285,11 @@ New subsections, etc. MUST use the corresponding macro (`\lsubsection`,
 `\lsubsubsection`, etc.) with a unique label argument. Use `\introsection`
 before subsections and `\introlist` before lists to avoid page breaks at
 undesirable points near the start of the subsection or list.
+
+To resolve a protocol-spec section number (as used by Update ZIPs) to its
+label, title, and protocol.tex source line — or to look one up by label or
+title substring — use `scripts/find-section.py`. It reads the numbering
+from a prior build's `protocol/aux/*.aux` files, so run a build first.
 
 ## Changelog and Commit Discipline
 
