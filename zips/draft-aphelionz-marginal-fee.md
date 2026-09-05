@@ -55,12 +55,19 @@ distinguishable by fee; the mitigation is coordinated deployment.
 
 ## Changes to ZIP 317
 
-In the **Fee calculation** table of ZIP 317 [^zip-0317], the `marginal_fee` row
-changes from 5000 to 1000 zatoshis per logical action.
+In the parameter table of the **Fee calculation** section of ZIP 317
+[^zip-0317], the entry
 
-Every other ZIP 317 parameter, the `conventional_fee` formula, and the
-RECOMMENDED block template construction algorithm are unchanged; `unpaid_actions`
-is defined in terms of `marginal_fee` and reflects the new value automatically.
+> `marginal_fee` | 5000 | zatoshis per logical action (as defined below)
+
+is replaced with
+
+> `marginal_fee` | 1000 | zatoshis per logical action (as defined below)
+
+No other entry in the table changes. The `conventional_fee` formula and the
+definition of `unpaid_actions` in the **Recommended algorithm for block
+template construction** reference `marginal_fee` and require no wording
+change.
 
 In the event that ZIP 235 [^zip-0235] is activated, the fraction removed from 
 circulation is unchanged: of a 2,000-zatoshi fee, 1,200 zatoshis will be 
