@@ -158,12 +158,12 @@ that fee bought zero paid actions (mitigated via the _block_unpaid_action_limit_
 and incurred the low fee penalty. Those hazards do not occur in the case of a
 change that always decreases the conventional fee of a given transaction.
 
-**Why this is safe.** The other defense layers are independent of the fee level:
-`block_unpaid_action_limit` caps underpriced actions at 50 per block and Zebra
-enforces 0, ZIP 401 eviction bounds memory denial of service, and ZIP 235 burn
-makes sustained spam permanently costly. Filling 2 MB blocks costs *N* x *C* / 5
-per hour against a design-point *C* ~$144/hour, so ~$453/hour at the price of
-record.
+**Denial-of-service margin.** The deterrents against block-filling are
+independent of the fee level: `block_unpaid_action_limit` bounds unpaid actions
+per block, and ZIP 401 [^zip-0401] mempool cost limiting bounds memory
+consumption. Reducing `marginal_fee` by a factor of 5 reduces the cost of
+filling blocks by the same factor; at the price of record that cost remains
+3.1x what it was at the ZIP 317 design point.
 
 
 # Alternatives
