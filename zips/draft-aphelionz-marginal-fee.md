@@ -200,7 +200,7 @@ privacy of the transition, not correctness.
 
 ## Ordering
 
-Relay policy updates SHOULD ship before or with wallet updates. A 2,000-zatoshi
+Relay policy updates MUST ship before wallet updates. A 2,000-zatoshi
 transaction reaching a node still on `marginal_fee = 5000` is relayed, but it
 incurs the ZIP 401 low fee penalty, and it counts 2 unpaid actions there, so it
 is mined only where the producer's `block_unpaid_action_limit` configuration
