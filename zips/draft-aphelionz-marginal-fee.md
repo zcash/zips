@@ -200,9 +200,11 @@ privacy of the transition, not correctness.
 
 ## Ordering
 
-Relay policy updates SHOULD ship before or with wallet updates; a 2,000-zatoshi
-transaction reaching a node still on `marginal_fee = 5000` is relayed and mined,
-but incurs the ZIP 401 low fee penalty. Deploy on Testnet before Mainnet.
+Relay policy updates SHOULD ship before or with wallet updates. A 2,000-zatoshi
+transaction reaching a node still on `marginal_fee = 5000` is relayed, but it
+incurs the ZIP 401 low fee penalty, and it counts 2 unpaid actions there, so it
+is mined only where the producer's `block_unpaid_action_limit` configuration
+permits unpaid actions. Deploy on Testnet before Mainnet.
 
 Use of the block template construction algorithm is voluntary, and the
 `weight_ratio_cap` removal needs no coordination: under partial adoption a
