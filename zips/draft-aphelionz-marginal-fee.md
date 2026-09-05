@@ -59,8 +59,10 @@ a user who pays for priority receives what is paid for.
 # Privacy Implications
 
 The formula's structure is unchanged, so wallets pay the same amount for the
-same transaction shape. In transition, wallets split between 5,000 and 1,000 are
-distinguishable by fee; the mitigation is coordinated deployment.
+same transaction shape. If wallets adopt the new value at different times, the
+fee partitions transactions by wallet software version until adoption
+converges. To bound this window, wallets SHOULD switch at the activation
+height given in the Deployment section rather than upon release.
 
 Removing `weight_ratio_cap` permits arbitrarily large selection multipliers.
 Wallets SHOULD NOT expose fee multipliers outside a small discrete set of
