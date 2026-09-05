@@ -127,9 +127,10 @@ choosing `weight_ratio_cap` = 4" are replaced with:
 
 ## Interaction with the `getstandardfee` RPC endpoint
 
-The v0 estimator behind the `getstandardfee` RPC endpoint specifies a
-synthetic fill `floor` of 1,000 zatoshis per action: this ZIP's `marginal_fee`.
-The two MUST be kept consistent.
+zebrad's `getstandardfee` RPC endpoint reports the ZIP 317 `marginal_fee`.
+Implementations providing this or an equivalent endpoint MUST report 1,000
+zatoshis per logical action from the activation height given in the
+Deployment section.
 
 ## Wallet and node adoption
 
