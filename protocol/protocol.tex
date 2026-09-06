@@ -8643,6 +8643,18 @@ Let $\BlockHeight$ be the \blockHeight of the \block containing this \transactio
 let $\TxVersion$ be the \transactionVersionNumber.
 } %canopy
 
+\nusixthree{
+Let $\Protocol$ be $\SaplingProto$ for a \SaplingPoolAdj \note, or $\OrchardProto$ for an
+\OrchardLikePoolAdj \note.
+
+\vspace{-0.4ex}
+Let $\DeriveNoteCommitRand{\SaplingProto}{}$ and $\HEsk{Sapling}{}$ be as defined in \crossref{saplingsend}.
+
+\vspace{-0.4ex}
+Let $\DeriveNoteCommitRand{\OrchardProto}{}$, $\HEsk{Orchard}{}$, and $\HPsi{Orchard}{}$ be as defined
+in \crossref{orchardsend}.
+} %nusixthree
+
 \introsection
 The recipient will attempt to decrypt the $\ephemeralKey$ and $\TransmitCiphertext{}$
 components of the \noteCiphertext:
@@ -8659,6 +8671,7 @@ components of the \noteCiphertext:
 \Value \typecolon \ValueType, \NoteCommitRandBytesOrSeedBytes \typecolon \NoteSeedBytesType, \Memo \typecolon \MemoType)$
 from $\TransmitPlaintext{}$
   \item if $\NotePlaintextLeadByte \not\in \allowedLeadBytes{\Pool}(\BlockHeight, \TxVersion)$, return $\bot$
+\notnusixthree{%
 \notbeforecanopy{
   \item \canopy{for $\Pool = \SaplingPoolId$, let $\NoteCommitRandPre = [4]$ and $\EphemeralPrivatePre = [5]$}
 } %notbeforecanopy
@@ -8666,6 +8679,12 @@ from $\TransmitPlaintext{}$
   \item for $\Pool = \OrchardPoolId$, let $\NoteUniqueRandBytes = \ItoLEOSP{256}\big(\nfOld{}$ from the same \actionDescription$\kern-0.2em\big)\kern-0.08em$, $\NoteCommitRandPre = [5] \bconcat \NoteUniqueRandBytes$,
         and $\EphemeralPrivatePre = [4] \bconcat \NoteUniqueRandBytes$
 } %nufive
+} %notnusixthree
+\nusixthree{
+  \item let $\NoteUniqueRandBytes = \ItoLEOSP{256}\big(\nfOld{}$ from the same \actionDescription$\kern-0.2em\big)$
+        if $\Protocol = \OrchardProto$, or $\bot$ otherwise
+} %nusixthree
+\notnusixthree{%
   \item let $\NoteCommitRand = \notcanopy{\LEOStoIP{256}(\NoteCommitRandBytes)}\canopy{\begin{cases}
           \LEOStoIP{256}(\NoteSeedBytes),&\caseif \NotePlaintextLeadByte = \hexint{01} \\
           \ToScalar{}\big(\PRFexpand{\NoteSeedBytes}(\NoteCommitRandPre)\kern-0.1em\big),&\caseotherwise
@@ -8684,15 +8703,34 @@ from $\TransmitPlaintext{}$
   \item \blank
 } %canopy
   \item let $\DiversifiedTransmitPublic = \KADerivePublic{}(\InViewingKey, \DiversifiedTransmitBase)$
+} %notnusixthree
+\nusixthree{
+  \item let $\DiversifiedTransmitBase = \DiversifyHash{}(\Diversifier)$.
+        if (for $\Protocol = \SaplingProto$) $\DiversifiedTransmitBase = \bot$, return $\bot$
+  \canopyonwarditem{if $\NotePlaintextLeadByte \neq \hexint{01}$:}
+  \item \tab let $\EphemeralPrivate = \HEsk{\Protocol}{\NoteSeedBytes}(\NoteUniqueRandBytes)$
+  \item \tab if $\reprG{}\big(\KADerivePublic{}(\EphemeralPrivate, \DiversifiedTransmitBase)\kern-0.12em\big) \neq \ephemeralKey$,
+        return $\bot$
+  \item \blank
+  \item let $\DiversifiedTransmitPublic = \KADerivePublic{}(\InViewingKey, \DiversifiedTransmitBase)$
+  \item let $\gdStar = \reprP\Of{\DiversifiedTransmitBase}$, $\pkdStar = \reprP\Of{\DiversifiedTransmitPublic}$
+  \item let $\NoteNullifierRand = \HPsi{Orchard}{\NoteSeedBytes}(\NoteUniqueRandBytes)$ if $\Protocol = \OrchardProto$,
+        or $\bot$ otherwise
+  \item let $\NoteCommitRand = \begin{cases}
+          \DeriveNoteCommitRand{\SaplingProto}{\NoteSeedBytes}(\NotePlaintextLeadByte),&\caseif \Protocol = \SaplingProto \\
+          \DeriveNoteCommitRand{\OrchardProto}{\NoteSeedBytes}(\NotePlaintextLeadByte, \gdStar, \pkdStar, \Value, \NoteUniqueRandBytes, \NoteNullifierRand),&\caseif \Protocol = \OrchardProto
+        \end{cases}$
+  \item if $\NoteCommitRand \geq \ParamG{r}$, return $\bot$
+} %nusixthree
         \vspace{-0.25ex}
   \item \notbeforenufive{for $\Pool = \SaplingPoolId$,} let $\NoteTuple{} = (\Diversifier, \DiversifiedTransmitPublic, \Value, \NoteCommitRand)$
         \vspace{-0.25ex}
 \nufive{
-  \item for $\Pool = \OrchardPoolId$, let $\NoteTuple{} = (\Diversifier, \DiversifiedTransmitPublic, \Value, \NoteUniqueRand, \NoteNullifierRand, \NoteCommitRand)$
-        where $\NoteNullifierRand = \ToBase{Orchard}\big(\PRFexpand{\NoteSeedBytes}([9] \bconcat \NoteUniqueRandBytes)\kern-0.1em\big)$
+  \item for $\Pool \notnusixthree{= \OrchardPoolId}\nusixthree{\in \setof{\OrchardLikePoolIdList}}$, let $\NoteTuple{} = (\Diversifier, \DiversifiedTransmitPublic, \Value, \NoteUniqueRand, \NoteNullifierRand, \NoteCommitRand)$\notnusixthree{
+        where $\NoteNullifierRand = \ToBase{Orchard}\big(\PRFexpand{\NoteSeedBytes}([9] \bconcat \NoteUniqueRandBytes)\kern-0.1em\big)$}
         \vspace{-0.2ex}
 } %nufive
-  \item let $\cmstar' = \NoteCommitment{}\Of{\NoteTuple{}}\,$. \nufive{if (for $\Pool = \OrchardPoolId$) $\cmstar' = \bot$, return $\bot$}
+  \item let $\cmstar' = \NoteCommitment{}\Of{\NoteTuple{}}\,$. \nufive{if (for $\Pool \notnusixthree{= \OrchardPoolId}\nusixthree{\in \setof{\OrchardLikePoolIdList}}$) $\cmstar' = \bot$, return $\bot$}
         \vspace{-0.2ex}
   \item if $\ItoLEOSP{256}\big(\ExtractG{}(\cmstar')\kern-0.1em\big) \neq \cmstarField$, return $\bot$
         \vspace{-1ex}
@@ -8755,6 +8793,18 @@ Let $\BlockHeight$ be the \blockHeight of the \block containing this \transactio
 let $\TxVersion$ be the \transactionVersionNumber.
 } %canopy
 
+\nusixthree{
+Let $\Protocol$ be $\SaplingProto$ for a \SaplingPoolAdj \note, or $\OrchardProto$ for an
+\OrchardLikePoolAdj \note.
+
+\vspace{-0.4ex}
+Let $\DeriveNoteCommitRand{\SaplingProto}{}$ and $\HEsk{Sapling}{}$ be as defined in \crossref{saplingsend}.
+
+\vspace{-0.4ex}
+Let $\DeriveNoteCommitRand{\OrchardProto}{}$, $\HEsk{Orchard}{}$, and $\HPsi{Orchard}{}$ be as defined
+in \crossref{orchardsend}.
+} %nusixthree
+
 \vspace{-0.5ex}
 Let $(\ephemeralKey, \TransmitCiphertext{}, \OutCiphertext)$ be the \noteCiphertext.
 
@@ -8783,7 +8833,8 @@ The \outgoingViewingKey holder will attempt to decrypt the \noteCiphertext as fo
   \item let $\EphemeralPrivate = \LEOStoIPOf{256}{\EphemeralPrivateBytes}$
         and $\DiversifiedTransmitPublic = \abstG{}\Of{\DiversifiedTransmitPublicRepr}$
         \vspace{-0.2ex}
-  \item if $\EphemeralPrivate \geq \ParamG{r}$ or $\DiversifiedTransmitPublic = \bot$, return $\bot$
+  \item if $\EphemeralPrivate \geq \ParamG{r}$ or $\DiversifiedTransmitPublic = \bot$\nusixthree{ or
+        (for $\Protocol = \SaplingProto$) $\DiversifiedTransmitPublic \not\in \SubgroupJstar$ (see note below)}, return $\bot$
   \item if $\reprP\big(\DiversifiedTransmitPublic\big) \neq \DiversifiedTransmitPublicRepr$, return $\bot$
         \vspace{-0.2ex}
   \item let $\DHSecret{} = \KAAgree{}(\EphemeralPrivate, \DiversifiedTransmitPublic)$
@@ -8796,6 +8847,7 @@ The \outgoingViewingKey holder will attempt to decrypt the \noteCiphertext as fo
 \Value \typecolon \ValueType, \NoteCommitRandBytesOrSeedBytes \typecolon \NoteSeedBytesType, \Memo \typecolon \MemoType)$
 from $\TransmitPlaintext{}$
   \item if $\NotePlaintextLeadByte \not\in \allowedLeadBytes{\Pool}(\BlockHeight, \TxVersion)$, return $\bot$
+\notnusixthree{%
 \notbeforecanopy{
   \item \canopy{for $\Pool = \SaplingPoolId$, let $\NoteCommitRandPre = [4]$ and $\EphemeralPrivatePre = [5]$}
 } %notbeforecanopy
@@ -8803,8 +8855,15 @@ from $\TransmitPlaintext{}$
   \item for $\Pool = \OrchardPoolId$, let $\NoteUniqueRandBytes = \ItoLEOSP{256}\big(\nfOld{}$ from the same \actionDescription$\kern-0.2em\big)\kern-0.08em$, $\NoteCommitRandPre = [5] \bconcat \NoteUniqueRandBytes$,
         and $\EphemeralPrivatePre = [4] \bconcat \NoteUniqueRandBytes$
 } %nufive
-  \canopyonwarditem{if $\NotePlaintextLeadByte \neq \hexint{01}$ and $\ToScalar{}\big(\PRFexpand{\NoteSeedBytes}(\EphemeralPrivatePre)\kern-0.1em\big) \neq \EphemeralPrivate$, return $\bot$}
+} %notnusixthree
+\nusixthree{
+  \item let $\NoteUniqueRandBytes = \ItoLEOSP{256}\big(\nfOld{}$ from the same \actionDescription$\kern-0.2em\big)$
+        if $\Protocol = \OrchardProto$, or $\bot$ otherwise
+} %nusixthree
+  \canopyonwarditem{if $\NotePlaintextLeadByte \neq \hexint{01}$ and
+        $\notnusixthree{\ToScalar{}\big(\PRFexpand{\NoteSeedBytes}(\EphemeralPrivatePre)\kern-0.1em\big)}\nusixthree{\HEsk{\Protocol}{\NoteSeedBytes}(\NoteUniqueRandBytes)} \neq \EphemeralPrivate$, return $\bot$}
         \vspace{-0.2ex}
+\notnusixthree{%
   \item let $\NoteCommitRand = \notcanopy{\LEOStoIP{256}(\NoteCommitRandBytes)}\canopy{\begin{cases}
           \LEOStoIP{256}(\NoteSeedBytes),&\caseif \NotePlaintextLeadByte = \hexint{01} \\
           \ToScalar{}\big(\PRFexpand{\NoteSeedBytes}(\NoteCommitRandPre)\kern-0.1em\big),&\caseotherwise
@@ -8813,14 +8872,27 @@ from $\TransmitPlaintext{}$
         \vspace{-0.2ex}
   \item let $\DiversifiedTransmitBase = \DiversifyHash{}(\Diversifier)$.
         if\notbeforenufive{ (for $\Pool = \SaplingPoolId$)} $\DiversifiedTransmitBase = \bot$ or $\DiversifiedTransmitPublic \not\in \SubgroupJstar$ (see note below), return $\bot$
+} %notnusixthree
+\nusixthree{
+  \item let $\DiversifiedTransmitBase = \DiversifyHash{}(\Diversifier)$.
+        if (for $\Protocol = \SaplingProto$) $\DiversifiedTransmitBase = \bot$, return $\bot$
+  \item let $\gdStar = \reprP\Of{\DiversifiedTransmitBase}$, $\pkdStar = \reprP\Of{\DiversifiedTransmitPublic}$
+  \item let $\NoteNullifierRand = \HPsi{Orchard}{\NoteSeedBytes}(\NoteUniqueRandBytes)$ if $\Protocol = \OrchardProto$,
+        or $\bot$ otherwise
+  \item let $\NoteCommitRand = \begin{cases}
+          \DeriveNoteCommitRand{\SaplingProto}{\NoteSeedBytes}(\NotePlaintextLeadByte),&\caseif \Protocol = \SaplingProto \\
+          \DeriveNoteCommitRand{\OrchardProto}{\NoteSeedBytes}(\NotePlaintextLeadByte, \gdStar, \pkdStar, \Value, \NoteUniqueRandBytes, \NoteNullifierRand),&\caseif \Protocol = \OrchardProto
+        \end{cases}$
+  \item if $\NoteCommitRand \geq \ParamG{r}$, return $\bot$
+} %nusixthree
   \item \notbeforenufive{for $\Pool = \SaplingPoolId$,} let $\NoteTuple{} = (\Diversifier, \DiversifiedTransmitPublic, \Value, \NoteCommitRand)$
         \vspace{-0.2ex}
 \nufive{
-  \item for $\Pool = \OrchardPoolId$, let $\NoteTuple{} = (\Diversifier, \DiversifiedTransmitPublic, \Value, \NoteUniqueRand, \NoteNullifierRand, \NoteCommitRand)$
-        where $\NoteNullifierRand = \ToBase{Orchard}\big(\PRFexpand{\NoteSeedBytes}([9] \bconcat \NoteUniqueRandBytes)\kern-0.1em\big)$
+  \item for $\Pool \notnusixthree{= \OrchardPoolId}\nusixthree{\in \setof{\OrchardLikePoolIdList}}$, let $\NoteTuple{} = (\Diversifier, \DiversifiedTransmitPublic, \Value, \NoteUniqueRand, \NoteNullifierRand, \NoteCommitRand)$\notnusixthree{
+        where $\NoteNullifierRand = \ToBase{Orchard}\big(\PRFexpand{\NoteSeedBytes}([9] \bconcat \NoteUniqueRandBytes)\kern-0.1em\big)$}
         \vspace{-0.2ex}
 } %nufive
-  \item let $\cmstar' = \NoteCommitment{}\Of{\NoteTuple{}}\,$. \nufive{if (for $\Pool = \OrchardPoolId$) $\cmstar' = \bot$, return $\bot$}
+  \item let $\cmstar' = \NoteCommitment{}\Of{\NoteTuple{}}\,$. \nufive{if (for $\Pool \notnusixthree{= \OrchardPoolId}\nusixthree{\in \setof{\OrchardLikePoolIdList}}$) $\cmstar' = \bot$, return $\bot$}
   \item if $\ItoLEOSP{256}\big(\ExtractG{}(\cmstar')\kern-0.1em\big) \neq \cmstarField$, return $\bot$
         \vspace{-0.5ex}
   \item if $\reprG{}\big(\KADerivePublic{}(\EphemeralPrivate, \DiversifiedTransmitBase)\kern-0.12em\big) \neq \ephemeralKey$,
@@ -8861,7 +8933,7 @@ from $\TransmitPlaintext{}$
   \item For \Sapling \outgoingCiphertexts, $\DiversifiedTransmitPublicRepr$ could also be \nonCanonicalPoint.
         The above algorithm explicitly returns $\bot$ if
         $\reprP\big(\DiversifiedTransmitPublic\big) \neq \DiversifiedTransmitPublicRepr$. However,
-        this is technically redundant with the later check that returns $\bot$ if
+        this is technically redundant with the\notnusixthree{ later} check that returns $\bot$ if
         $\DiversifiedTransmitPublic \not\in \smash{\SubgroupJstar}$, because only \smallOrderAdj \jubjubCurve
         points have \nonCanonicalPoint encodings. This check is enforced retrospectively for consensus
         by current \zcashd and \zebra versions, and for wallet rescanning by current \zcashd.
@@ -16093,6 +16165,10 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
               \item Add the \Sapling{} forms $\DeriveNoteCommitRand{\SaplingProto}{}$ and
                     $\HEsk{Sapling}{}$ in \crossref{saplingsend}, and use them in
                     \crossref{saplingdummynotes}.
+              \item Route the receive-side re-derivations in \crossref{decryptivk} and
+                    \crossref{decryptovk} through the lead-byte-dependent derivation
+                    functions, deriving before the commitment recomputation and covering
+                    \IronwoodPoolAdj \notes.
               \item Add the optional \quantumSpendingKey and \quantumIntermediateKey and
                     the $\UseQsk$ derivation branch in \crossref{orchardkeycomponents},
                     with constants in \crossref{constants} and updated uses of
