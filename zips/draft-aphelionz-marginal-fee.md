@@ -126,12 +126,14 @@ same way: a wallet convention, no network upgrade.
 
 # Deployment
 
-Node operators SHOULD update relay policy immediately without coordination,
-since `block_unpaid_action_limit` would prevent lower fee transactions from
-inclusion.
+Relay policy and block template updates MUST ship before wallets adopt the new
+fee: a 2,000-zatoshi transaction counts 2 unpaid actions under the old
+parameters, and producers configured with `block_unpaid_action_limit = 0` will
+not mine it. Node operators need no coordination and SHOULD update as soon as
+releases are available.
 
-Wallets and node relay policy SHOULD adopt `marginal_fee = 1000` at Mainnet
-block height 3500000, expected in late September 2026.
+Wallets SHOULD adopt `marginal_fee = 1000` at Mainnet block height 3500000,
+expected in late September 2026.
 
 # References
 
