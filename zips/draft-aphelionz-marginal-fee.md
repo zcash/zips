@@ -12,22 +12,19 @@
 
 # Terminology
 
-The key words "MUST", "SHOULD", and "SHOULD NOT" in this document are to be
-interpreted as described in BCP 14 [^BCP14] when, and only when, they appear
-in all capitals.
+The key words "MUST", and "SHOULD" in this document are to be interpreted as
+described in BCP 14 [^BCP14] when, and only when, they appear in all capitals.
 
 Fee terminology is as defined in ZIP 317 [^zip-0317]; "zatoshi" is as defined in
 the Zcash protocol specification. [^protocol]
 
-
 # Abstract
 
 This ZIP cuts ZIP 317's [^zip-0317] `marginal_fee` from 5,000 to 1,000
-zatoshis per logical action, so the conventional fee drops from 10,000 to 2,000
-zatoshis. It also removes `weight_ratio_cap` from ZIP 317's block template
-algorithm, so paying a higher fee always buys proportionally more chance of
-being selected. Nothing else in ZIP 317 changes.
-
+zatoshis per logical action, so the minimum conventional fee drops from
+10,000 to 2,000 zatoshis. It also removes `weight_ratio_cap` from ZIP 317's
+block template algorithm, so paying a higher fee always buys proportionally
+more chance of being selected. Nothing else in ZIP 317 changes.
 
 # Motivation
 
@@ -45,13 +42,16 @@ Separately, ZIP 317's block template algorithm caps a transaction's weight at
 buys nothing. ZIP 317 itself describes the 4 as a compromise rather than a
 derived number. Removing the cap means that if you pay more, you get more.
 
-# Privacy Implications
+# Security and Privacy Implications
 
-The shape of the fee formula doesn't change, so every wallet still pays the
-same fee for the same transaction shape. But if wallets switch at different
-times, the fee reveals which wallet made the transaction. To keep that window
-short, wallets SHOULD switch at the activation height given under Deployment,
-not when the release ships.
+*Privacy:* If wallets switch to the new fee at different times, the fee
+reveals which wallet software made the transaction. To keep that window
+short, wallets SHOULD switch at the activation height given under
+Deployment, not when the release ships.
+
+*Security:* `grace_actions` and `block_unpaid_action_limit` still
+bound unpaid actions per block, and ZIP 401 [^zip-0401] mempool cost
+limiting still bounds memory.
 
 # Specification
 
@@ -119,7 +119,7 @@ dollar cost.
 
 **Why remove the cap instead of raising it.** In practice, there is nothing
 to prevent miners from including transactions with higher fees in preference
-to transactions with lower fees, regardless of what is written in ZIP-317.
+to transactions with lower fees, regardless of what is written in ZIP 317.
 
 **Precedent.** ZIP 313 [^zip-0313] changed the conventional fee in 2020 the
 same way: a wallet convention, no network upgrade.
@@ -127,10 +127,10 @@ same way: a wallet convention, no network upgrade.
 # Deployment
 
 Relay policy and block template updates MUST ship before wallets adopt the new
-fee: a 2,000-zatoshi transaction counts 2 unpaid actions under the old
-parameters, and producers configured with `block_unpaid_action_limit = 0` will
-not mine it. Node operators need no coordination and SHOULD update as soon as
-releases are available.
+fee: a 2,000-zatoshi transaction counts 2 unpaid actions under the old parameters,
+and producers configured with `block_unpaid_action_limit = 0` will not mine it.
+Node operators need no coordination and SHOULD update as soon as releases are
+available.
 
 Wallets SHOULD adopt `marginal_fee = 1000` at Mainnet block height 3500000,
 expected in late September 2026.
@@ -148,5 +148,3 @@ expected in late September 2026.
 [^zip-0317]: [ZIP 317: Proportional Transfer Fee Mechanism](zip-0317)
 
 [^zip-0401]: [ZIP 401: Addressing Mempool Denial-of-Service](zip-0401)
-
-[^madars-1]: [Madars Virza, concrete soft-fork proposal](https://forum.zcashcommunity.com/t/zip-reduce-default-shielded-transaction-fee-to-1000-zats/37566/89)
