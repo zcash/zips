@@ -115,14 +115,16 @@ same way: a wallet convention, no network upgrade.
 
 # Deployment
 
-Relay policy and block template updates MUST ship before wallets adopt the new
-fee: a 2,000-zatoshi transaction counts 2 unpaid actions under the old parameters,
-and producers configured with `block_unpaid_action_limit = 0` will not mine it.
-Node operators need no coordination and SHOULD update as soon as releases are
-available.
+Node implementations MUST ship the new relay policy before wallets adopt the new
+fee. `block_unpaid_action_limit` is 0 in both zebra and zakura and is not
+operator-configurable, so an un-upgraded node will not relay a 2,000-zatoshi
+transaction at all, since it counts 2 unpaid actions under the old parameters.
 
-Wallets SHOULD adopt `marginal_fee = 1000` at Mainnet block height 3500000,
-expected in late September 2026.
+Wallets SHOULD adopt `marginal_fee = 1000` at Mainnet block height 3650000,
+expected in early February 2027. This is past the end-of-service halt of
+both zebra v6.3.0 (height 3564960) and zakura v1.3.1 (height 3501339), by
+which point operators still running MUST have moved to a release carrying
+the new policy.
 
 The `weight_ratio_cap` change affects block producers only and has no wallet
 dependency, so the two parameter changes can be adopted in either order.
