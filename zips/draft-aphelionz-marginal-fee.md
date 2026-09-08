@@ -42,16 +42,12 @@ Separately, ZIP 317's block template algorithm caps a transaction's weight at
 buys nothing. ZIP 317 itself describes the 4 as a compromise rather than a
 derived number. Removing the cap means that if you pay more, you get more.
 
-# Security and Privacy Implications
+# Privacy Implications
 
 *Privacy:* If wallets switch to the new fee at different times, the fee
 reveals which wallet software made the transaction. To keep that window
 short, wallets SHOULD switch at the activation height given under
 Deployment, not when the release ships.
-
-*Security:* `grace_actions` and `block_unpaid_action_limit` still
-bound unpaid actions per block, and ZIP 401 [^zip-0401] mempool cost
-limiting still bounds memory.
 
 # Specification
 
