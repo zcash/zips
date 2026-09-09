@@ -120,8 +120,8 @@ fee. `block_unpaid_action_limit` is 0 in both zebra and zakura and is not
 operator-configurable, so an un-upgraded node will not relay a 2,000-zatoshi
 transaction at all, since it counts 2 unpaid actions under the old parameters.
 
-Wallets SHOULD adopt `marginal_fee = 1000` at Mainnet block height 3650000,
-expected in early February 2027. This is past the end-of-service halt of
+Wallets SHOULD adopt `marginal_fee = 1000` at Mainnet block height 3590000,
+expected in mid December 2026. This is past the end-of-service halt of
 both zebra v6.3.0 (height 3564960) and zakura v1.3.1 (height 3501339), by
 which point operators still running MUST have moved to a release carrying
 the new policy.
