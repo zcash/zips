@@ -7,6 +7,9 @@ Usage:
 Each QUERY is one of:
   - a section number, e.g. "4.20.2";
   - a label, e.g. "decryptivk";
+  - a protocol.tex line number prefixed with "line:", e.g. "line:13869"
+    (as reported in an Overfull \\hbox warning, say), which reports the
+    enclosing section;
   - otherwise, a case-insensitive title substring, e.g. "Key Components".
 
 Section numbering is assigned at build time and differs between build
@@ -61,6 +64,35 @@ def defining_line(texpath, label):
     return fallback
 
 
+SECTIONING_RE = re.compile(DEFINING_RE_TEMPLATE)
+# A label is the last simple {alphanumeric} group on a sectioning line; title
+# groups contain spaces or macros, so they don't match.
+SIMPLE_GROUP_RE = re.compile(r"\{([A-Za-z0-9]+)\}")
+
+
+def sectioning_lines(texpath):
+    """One pass over protocol.tex: [(line number, label)] per sectioning line."""
+    out = []
+    with open(texpath, encoding="utf-8", errors="replace") as f:
+        for i, line in enumerate(f, 1):
+            if SECTIONING_RE.search(line):
+                groups = SIMPLE_GROUP_RE.findall(line)
+                if groups:
+                    out.append((i, groups[-1]))
+    return out
+
+
+def enclosing_section(texpath, labels, lineno):
+    """The nearest sectioning command at or before lineno whose label is
+    numbered in the aux file (labels excluded from this build variant are
+    skipped)."""
+    by_label = {label: entry for entry in labels for label in [entry[0]]}
+    for defline, label in reversed(sectioning_lines(texpath)):
+        if defline <= lineno and label in by_label:
+            return by_label[label]
+    return None
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -84,7 +116,16 @@ def main():
 
     status = 0
     for q in args.queries:
-        if re.fullmatch(r"[0-9]+(\.[0-9]+)*", q):
+        if q.startswith("line:"):
+            try:
+                lineno = int(q[len("line:"):])
+            except ValueError:
+                print(f"{q}: not a line number")
+                status = 1
+                continue
+            entry = enclosing_section(texpath, labels, lineno)
+            matches = [entry] if entry else []
+        elif re.fullmatch(r"[0-9]+(\.[0-9]+)*", q):
             matches = [e for e in labels if e[1] == q]
         else:
             matches = [e for e in labels if e[0] == q]
