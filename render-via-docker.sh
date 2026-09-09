@@ -3,5 +3,5 @@ set -efuxo pipefail
 
 TAG='zcash-zips-render'
 
-docker build -t "$TAG" .
-docker run -v "$(pwd):/zips" "$TAG"
+podman build -t "$TAG" .
+podman run --rm --userns=keep-id -v "$(pwd):/zips" "$TAG"
