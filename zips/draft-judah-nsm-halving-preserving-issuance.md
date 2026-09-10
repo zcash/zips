@@ -58,19 +58,26 @@ calculated by $\mathsf{IssuedSupply}(\mathsf{height})$ defined in
 the total ZEC/TAZ value remaining to be issued, as calculated by
 $\mathsf{MAX\_MONEY} - \mathsf{IssuedSupply}(\mathsf{height})$.
 
-$\mathsf{LegacyBlockSubsidy}(\mathsf{height})$ is the block subsidy as calculated
-by the rules in force before this ZIP, i.e. $\mathsf{BlockSubsidy}(\mathsf{height})$
-as defined in § 7.8 ‘Calculating Block Subsidy, Funding Streams, Lockbox
-Disbursement, and Founders' Reward’ [^protocol-subsidies] prior to this change.
+"Scheduled Block Subsidy" - The block subsidy given by the existing halving
+schedule, i.e. $\mathsf{BlockSubsidy}(\mathsf{height})$ as defined in § 7.8
+‘Calculating Block Subsidy, Funding Streams, Lockbox Disbursement, and Founders'
+Reward’ [^protocol-subsidies] prior to this ZIP, renamed
+$\mathsf{ScheduledBlockSubsidy}(\mathsf{height})$ in the Specification below.
 
-"Expected Issued Supply" - The Issued Supply that the current rules would have
-produced had every block subsidy been claimed in full and no ZEC/TAZ been
-removed from circulation:
-$\mathsf{ExpectedIssuedSupply}(\mathsf{height}) = \sum_{i=0}^{\mathsf{height}} \mathsf{LegacyBlockSubsidy}(i)$.
+"Expected Issued Supply" - The Issued Supply that the existing halving schedule
+would have produced at a given height had every block subsidy and fee been
+claimed in full and no ZEC/TAZ been removed from circulation;
+$\mathsf{ExpectedIssuedSupply}(\mathsf{height})$ is defined in the Specification
+below.
 
-"Deficit" - The part of the Money Reserve that the current rules would already
-have issued:
-$\mathsf{Deficit}(\mathsf{height}) = \mathsf{max}(0,\ \mathsf{ExpectedIssuedSupply}(\mathsf{height}) - \mathsf{IssuedSupply}(\mathsf{height}))$.
+"Issuance Deficit" - The amount by which the Issued Supply at a given height
+falls below the Expected Issued Supply, i.e. the total ZEC/TAZ that the
+existing halving schedule would have issued by that height but that is not in
+any chain value pool: funds removed from circulation via ZIP 233
+[^zip-0233], plus block subsidy and fees left unclaimed by coinbase
+transactions prior to NU6 [^zip-0236].
+$\mathsf{IssuanceDeficit}(\mathsf{height})$ is defined in the Specification
+below.
 
 
 # Abstract
@@ -79,20 +86,22 @@ This ZIP proposes a change to how nodes calculate the block subsidy.
 
 The step function around the 4-year halving intervals inherited from Bitcoin
 is retained unchanged. In addition, each block issues a fixed portion of the
-current value of the Deficit — the ZEC/TAZ that the current rules would already
-have issued but which has been removed from circulation — so that such funds
-are reissued along a smooth curve on top of the existing schedule.
+current Issuance Deficit (the ZEC/TAZ that the existing schedule would already
+have issued but which has been removed from circulation or left unclaimed), so
+that such funds are reissued along a smooth curve on top of the existing
+schedule.
 
-The new issuance scheme is identical to the current issuance whenever no
+The new issuance scheme is identical to the existing schedule whenever no
 ZEC/TAZ has been removed from circulation or left unclaimed, and retains the
-overall supply cap of `MAX_MONEY`. It is proposed as an alternative to ZIP 234 [^zip-0234], from
-which its structure and much of its text are adapted.
+existing supply cap (which is below $\mathsf{MAX\_MONEY}$). It is proposed as
+an alternative to ZIP 234 [^zip-0234], from which its structure and much of
+its text are adapted.
 
 
 # Motivation
 
 The current block reward halving schedule is fixed and does not provide a way
-to “recycle” funds removed from circulation via ZIP-233 into future issuance.
+to “recycle” funds removed from circulation via ZIP 233 into future issuance.
 Once scheduled issuance ends, the network becomes reliant on transaction fees
 for the security budget.
 
@@ -105,12 +114,17 @@ Key Objectives:
 3. We want to retain the existing ZEC supply cap of 21 million.
 4. We want the issuance rate to remain identical to the historical rate for
    Zcash (and before that, Bitcoin), including the 4-year halving structure,
-   whenever no ZEC/TAZ has been removed from circulation.
+   whenever no ZEC/TAZ has been removed from circulation or left unclaimed.
 5. We want issuance to be easy for all network users to understand and predict.
-6. We want the new issuance to activate at a block with as minimal a delta from
-   the current issuance as possible.
-7. We want to preserve Zcash's existing 4-year halving schedule; this ZIP is a
-   variation of ZIP 234 [^zip-0234] that differs only in that respect.
+6. We want to preserve Zcash's existing 4-year halving schedule.
+
+This ZIP is a variation of ZIP 234 [^zip-0234] that differs only in Key
+Objective 6. ZIP 234 replaces the halving schedule with a smooth curve in order
+to reissue funds removed from circulation; this ZIP shows that reissuance does
+not require that change. The halving schedule is a long-standing, widely
+understood property of Zcash on which block subsidy recipients and the wider
+community rely, and this ZIP allows the question of whether to change it to be
+decided on its own merits.
 
 This NSM-based issuance scheme preserves the core aspects of Zcash's issuance
 policy, the halving schedule, and the 21-million-coin cap. Critically,
@@ -122,23 +136,22 @@ future block subsidies, ensuring they benefit the network's long-term security.
 # Requirements
 
 Reissuing funds removed from circulation while preserving halvings is possible
-using an exponential decay formula applied to the Deficit that satisfies the
-following requirements:
+using an exponential decay formula applied to the Issuance Deficit that
+satisfies the following requirements:
 
 1. The issuance can be summarized into a reasonably simple explanation.
-2. If no ZEC is removed from circulation (and every subsidy is claimed in
-   full), block subsidies are identical to the current issuance.
-3. If the Deficit is greater than 0, then the additional block subsidy must be
-   non-zero, so that funds removed from circulation are eventually fully
-   reissued.
+2. If no ZEC/TAZ is removed from circulation (and every subsidy is claimed in
+   full), block subsidies are identical to the existing halving schedule.
+3. If the Issuance Deficit is greater than 0, then the additional block
+   subsidy must be non-zero, so that funds removed from circulation are
+   eventually fully reissued.
 4. For any 4-year period, the additional block subsidies paid out are
-   approximately equal to half of the Deficit at the beginning of that 4-year
-   period, if no ZEC is removed from circulation during those 4 years.
+   approximately equal to half of the Issuance Deficit at the beginning of
+   that 4-year period, if no ZEC/TAZ is removed from circulation during those
+   4 years.
 5. Decrease the short-term impact of the deployment of this ZIP on block subsidy
    recipients, and minimize the potential reputation risk to Zcash of changing
    the block subsidy amount.
-6. The immediate change in issuance when this mechanism activates should be
-   minimal.
 
 # Specification
 
@@ -146,17 +159,52 @@ following requirements:
 
 $\mathsf{BLOCK\_SUBSIDY\_FRACTION} = 4126 / 10\_000\_000\_000 = 0.0000004126$
 
-$\mathsf{DEPLOYMENT\_BLOCK\_HEIGHT} = \mathsf{TBD}$ (the NU7 activation height)
+$\mathsf{DEPLOYMENT\_BLOCK\_HEIGHT} =$ the NU7 activation height on the
+relevant network. It MUST be no earlier than the NU7 activation height, and
+MUST be at least 1.
 
-$\mathsf{DeficitAfter}(\mathsf{height}) =$ The value of the Deficit after the
-specified block height.
+## Changes to the Zcash Protocol Specification
 
-## Issuance Calculation
+In § 7.8 ‘Calculating Block Subsidy, Funding Streams, Lockbox Disbursement, and
+Founders' Reward’ [^protocol-subsidies]:
 
-At the $\mathsf{DEPLOYMENT\_BLOCK\_HEIGHT}$, nodes MUST switch from the current issuance
-calculation, to the following:
+Rename the existing function $\mathsf{BlockSubsidy}(\mathsf{height})$ to
+$\mathsf{ScheduledBlockSubsidy}(\mathsf{height})$, leaving its definition
+unchanged.
 
-$\mathsf{BlockSubsidy}(\mathsf{height}) = \mathsf{LegacyBlockSubsidy}(\mathsf{height}) + \mathsf{ceiling}(\mathsf{BLOCK\_SUBSIDY\_FRACTION} \cdot \mathsf{DeficitAfter}(\mathsf{height} - 1))$
+Add the following definitions, where $\mathsf{IssuedSupply}$ is as defined in
+§ 4.17 ‘Chain Value Pool Balances’ [^protocol-chainvaluepoolbalances]:
+
+$\mathsf{ExpectedIssuedSupply}(\mathsf{height}) := \sum_{\mathsf{h}=0}^{\mathsf{height}} \mathsf{ScheduledBlockSubsidy}(\mathsf{h})$
+
+$\mathsf{IssuanceDeficit}(\mathsf{height}) := \mathsf{ExpectedIssuedSupply}(\mathsf{height}) - \mathsf{IssuedSupply}(\mathsf{height})$
+
+Define $\mathsf{BlockSubsidy}(\mathsf{height})$ as:
+
+$$\mathsf{BlockSubsidy}(\mathsf{height}) := \begin{cases}
+\mathsf{ScheduledBlockSubsidy}(\mathsf{height}), & \text{if } \mathsf{height} < \mathsf{DEPLOYMENT\_BLOCK\_HEIGHT} \\
+\mathsf{ScheduledBlockSubsidy}(\mathsf{height}) + \mathsf{ceiling}(\mathsf{BLOCK\_SUBSIDY\_FRACTION} \cdot \mathsf{IssuanceDeficit}(\mathsf{height} - 1)), & \text{otherwise}
+\end{cases}$$
+
+Add $\mathsf{BLOCK\_SUBSIDY\_FRACTION}$, with the value given under
+Parameters above, to § 5.3 ‘Constants’ [^protocol-constants].
+
+All other uses of $\mathsf{BlockSubsidy}(\mathsf{height})$ in the protocol
+specification ($\mathsf{FoundersReward}$, $\mathsf{fsValue}$ and hence
+$\mathsf{totalDeferredOutput}$, $\mathsf{MinerSubsidy}$, and the total input
+value of a coinbase transaction in § 7.1.2 [^protocol-txnconsensus]) are
+unchanged and refer to the redefined function; in particular, funding streams
+receive their fixed percentage of the total (scheduled plus additional) block
+subsidy. Note that $\mathsf{BlockSubsidy}(\mathsf{height})$ now depends on the
+chain value pool balances after block $\mathsf{height} - 1$, and not only on
+$\mathsf{height}$.
+
+In § 4.17 ‘Chain Value Pool Balances’ [^protocol-chainvaluepoolbalances], add
+the consensus rule:
+
+> [NU7 onward] If $\mathsf{IssuanceDeficit}(\mathsf{height})$ would become
+> negative in the block chain created as a result of accepting a block at
+> $\mathsf{height}$, then all nodes MUST reject the block as invalid.
 
 ## Applicability
 
@@ -165,49 +213,68 @@ All of these changes apply identically to Mainnet and Testnet.
 
 # Rationale
 
-* Leaving the current schedule in place and applying an exponential decay
-  function only to the Deficit satisfies **Requirements 1**, **2** and **4**
-  above.
+* Leaving the existing schedule in place and applying an exponential decay
+  function only to the Issuance Deficit satisfies **Requirements 1**, **2**
+  and **4** above.
 * We round up to the next zatoshi to satisfy **Requirement 3** above. Since
-  $\mathsf{BLOCK\_SUBSIDY\_FRACTION} < 1$, the additional subsidy never exceeds
-  the Deficit, so the supply cap is preserved.
-* The issuance formula depends only on `DeficitAfter(height - 1)` (derived from
-  the Issued Supply and the height) and a single constant fraction, making it
-  simple to implement, explain, and verify.
+  $\mathsf{BLOCK\_SUBSIDY\_FRACTION} < 1$ and the Issuance Deficit is a
+  non-negative integer number of zatoshi, the additional subsidy never exceeds
+  the Issuance Deficit, so the Issued Supply never exceeds the Expected Issued
+  Supply and the supply cap is preserved.
+* By § 7.1.2 [^protocol-txnconsensus], the net increase in the Issued Supply
+  from a block is at most $\mathsf{BlockSubsidy}(\mathsf{height})$ (fees and
+  lockbox disbursements are transfers between pools), so the Issuance Deficit
+  can never become negative unless an implementation is in error. The
+  consensus rule above makes such an error a block-validity failure rather than
+  silently clamping the value.
+* This ZIP makes the exact value of the Issued Supply at every height
+  consensus-critical, since a one-zatoshi disagreement about the chain value
+  pool balances would produce different block subsidies. Implementations MUST
+  compute the chain value pool balances in § 4.17 identically from genesis.
+  (The same applies to ZIP 234.)
+* The issuance formula depends only on `IssuanceDeficit(height - 1)` (derived
+  from the Issued Supply and the height) and a single constant fraction, making
+  it simple to implement, explain, and verify.
 
-## Parameters
+## Rationale for Parameters
 
-Because the formula reduces to the current subsidy whenever the Deficit is
-zero, activation can occur at any height with no jump in issuance other than
-the reissuance of funds removed from circulation before activation (Key
-Objective 6), so no special activation height is needed. That jump equals the
-amount removed times $\mathsf{BLOCK\_SUBSIDY\_FRACTION}$. For example, if a
-total of 100,000 ZEC were removed from circulation prior to activation, then
-at activation the issuance would be larger than BTC-style issuance by
+Because the formula reduces to the existing schedule whenever the Issuance
+Deficit is zero, activation can occur at any height and no special activation
+height is needed. The only change at activation is the reissuance of the
+Issuance Deficit existing at that point, at
+$\mathsf{BLOCK\_SUBSIDY\_FRACTION}$ per block. For example, if a total of
+100,000 ZEC were removed from circulation prior to activation, then at
+activation the issuance would be larger than the Scheduled Block Subsidy by
 $100\_000\textsf{ ZEC} \cdot \mathsf{BLOCK\_SUBSIDY\_FRACTION}$, which we
 calculate equals $0.04126$ ZEC. This example is chosen to demonstrate that a
 very large amount removed from circulation (much larger than expected) would
-elevate issuance by a relatively small amount.
+elevate issuance by a relatively small amount, satisfying **Requirement 5**.
 
-On Mainnet the Deficit also includes approximately 365 ZEC of historically
-unclaimed block subsidy (TODO for ZIP owner: confirm from a full node), which
-is reissued from activation at an initial rate of about 0.00015 ZEC per block.
+Since NU6, coinbase transactions are required to claim the full miner subsidy
+and fees [^zip-0236], so the part of the Issuance Deficit not attributable to
+funds removed from circulation is a fixed historical amount: on Mainnet
+approximately 365 ZEC (estimated from the NSM Simulator's predicted supply at
+that height; TODO for ZIP owner: confirm $\mathsf{IssuanceDeficit}$ at height
+2,726,399 from a full node), which is reissued from activation at an initial
+rate of about 0.00015 ZEC per block.
 
 ## BLOCK_SUBSIDY_FRACTION
 
-Let $\mathsf{IntendedMoneyReserveFractionRemainingAfterFourYears} = 0.5$.
+Let $\mathsf{IntendedIssuanceDeficitFractionRemainingAfterFourYears} = 0.5$.
 
-The value $4126 / 10\_000\_000\_000$ satisfies the approximation within $\pm 0.002\%$:
+The value $4126 / 10\_000\_000\_000$ satisfies the approximation within $\pm 0.003\%$:
 
-$(1 - \mathsf{BLOCK\_SUBSIDY\_FRACTION})^\mathsf{PostBlossomHalvingInterval} \approx \mathsf{IntendedMoneyReserveFractionRemainingAfterFourYears}$
+$(1 - \mathsf{BLOCK\_SUBSIDY\_FRACTION})^\mathsf{PostBlossomHalvingInterval} \approx \mathsf{IntendedIssuanceDeficitFractionRemainingAfterFourYears}$
 
-This implies that after a period of 4 years around half of the Deficit will
-have been issued as additional block subsidies, thus satisfying **Requirement 4**.
+This implies that after a period of 4 years around half of the Issuance
+Deficit will have been issued as additional block subsidies, thus satisfying
+**Requirement 4**.
 
-The largest possible value of the Deficit is less than $\mathsf{MAX\_MONEY}$, in
-the theoretically possible case that all issued funds are removed from
-circulation. If this happened, the largest interim sum in the block subsidy
-calculation would be less than $\mathsf{MAX\_MONEY} \cdot 4126 / 10\_000\_000\_000$.
+The largest possible value of the Issuance Deficit is less than
+$\mathsf{MAX\_MONEY}$, in the theoretically possible case that all issued funds
+are removed from circulation. If this happened, the largest interim sum in the
+block subsidy calculation would be less than
+$\mathsf{MAX\_MONEY} \cdot 4126 / 10\_000\_000\_000$.
 
 This uses at most 62.91 bits, which is just under the 63-bit limit for signed
 two's complement 64-bit integer amount types.
@@ -247,16 +314,18 @@ Halving  3 at block  4406400:
   removed in period: 14583333333333 (~  145833.333 ZEC)
 ```
 
-shows that the difference between this and the current issuance scheme during
-the first full halving period after activation consists of the reissuance of
-funds removed from circulation; with no ZEC removed (and every subsidy claimed in
-full) the difference is exactly 0 at every height.
+shows that the difference between this and the existing halving schedule during
+the first full halving period after activation consists almost entirely of the
+reissuance of funds removed from circulation (the remainder being reissuance of
+the pre-NU6 shortfall); with no ZEC removed (and every subsidy claimed in full)
+the difference is exactly 0 at every height.
 
 
 # Appendix: Considerations for the Future
 
-Future protocol changes may not increase the payout rate of the Deficit to a
-reasonable approximation beyond the four year half-life constraint.
+Future protocol changes may not increase the payout rate of the Issuance
+Deficit to a reasonable approximation beyond the four year half-life
+constraint.
 
 
 # Deployment
@@ -277,11 +346,13 @@ Circulation" [^zip-0233]), and MUST NOT be deployed together with ZIP 234.
 
 [^protocol-networks]: [Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 3.12: Mainnet and Testnet](protocol/protocol.pdf#networks)
 
-[^protocol-chainvaluepoolbalances]: [Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 4.17 Chain Value Pool Balances](protocol/protocol.pdf#chainvaluepoolbalances)
+[^protocol-chainvaluepoolbalances]: [Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 4.17: Chain Value Pool Balances](protocol/protocol.pdf#chainvaluepoolbalances)
 
 [^protocol-constants]: [Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.3: Constants](protocol/protocol.pdf#constants)
 
-[^protocol-diffadjustment]: [Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 7.7.3 Difficulty Adjustment](protocol/protocol.pdf#diffadjustment)
+[^protocol-diffadjustment]: [Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 7.7.3: Difficulty Adjustment](protocol/protocol.pdf#diffadjustment)
+
+[^protocol-txnconsensus]: [Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 7.1.2: Transaction Consensus Rules](protocol/protocol.pdf#txnconsensus)
 
 [^protocol-subsidies]: [Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 7.8: Calculating Block Subsidy, Funding Streams, Lockbox Disbursement, and Founders' Reward](protocol/protocol.pdf#subsidies)
 
@@ -290,5 +361,7 @@ Circulation" [^zip-0233]), and MUST NOT be deployed together with ZIP 234.
 [^zip-0233]: [ZIP 233: Network Sustainability Mechanism: Removing Funds From Circulation](zip-0233.md)
 
 [^zip-0234]: [ZIP 234: Network Sustainability Mechanism: Issuance Smoothing](zip-0234.md)
+
+[^zip-0236]: [ZIP 236: Blocks should balance exactly](zip-0236.rst)
 
 [^draft-arya-deploy-nu7]: [draft-arya-deploy-nu7: Deployment of the NU7 Network Upgrade](draft-arya-deploy-nu7.md)
