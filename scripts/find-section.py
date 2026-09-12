@@ -16,8 +16,11 @@ Section numbering is assigned at build time and differs between build
 variants, so this reads the \\newlabel entries from an aux file produced by
 a prior `make` in protocol/ (default: the most recently modified
 protocol/aux/*.aux). Run a build first if protocol/aux/ is empty. The
-defining line reported for each match is the first line of protocol.tex
-that uses the label in a sectioning or \\extralabel command.
+source location reported for each match is the range of protocol.tex lines
+the section spans: from the line that defines its heading up to the line
+before the next heading of the same or higher level (so a section's range
+includes its subsections). A change-history entry or other non-section
+label, which has no extent, reports just its defining line.
 """
 
 import argparse
@@ -64,30 +67,58 @@ def defining_line(texpath, label):
     return fallback
 
 
-SECTIONING_RE = re.compile(DEFINING_RE_TEMPLATE)
-# A label is the last simple {alphanumeric} group on a sectioning line; title
+# A label is the last simple {alphanumeric} group on a heading line; title
 # groups contain spaces or macros, so they don't match.
 SIMPLE_GROUP_RE = re.compile(r"\{([A-Za-z0-9]+)\}")
+# A real section heading: \lsection, \lsubsection, …, possibly wrapped in an
+# \extralabel on the same line. The nesting level is 1 + the number of "sub"
+# prefixes (lsection = 1, lsubsection = 2, …).
+SECTION_CMD_RE = re.compile(r"\\(l(?:sub)*section)\b")
 
 
-def sectioning_lines(texpath):
-    """One pass over protocol.tex: [(line number, label)] per sectioning line."""
-    out = []
+def scan_headings(texpath):
+    """Single pass over protocol.tex. Returns (headings, n_lines) where
+    headings is [(line number, label, level)] for each real \\l…section
+    heading, in source order. The label is the last simple {alphanumeric}
+    group on the line (so an \\extralabel-wrapped heading gives the inner
+    label); the level is 1 + the number of "sub" prefixes. Change-history
+    entries and other \\extralabel/\\headingandlabel lines carrying no
+    \\l…section are not headings and are excluded."""
+    headings = []
+    n_lines = 0
     with open(texpath, encoding="utf-8", errors="replace") as f:
         for i, line in enumerate(f, 1):
-            if SECTIONING_RE.search(line):
+            n_lines = i
+            m = SECTION_CMD_RE.search(line)
+            if m:
                 groups = SIMPLE_GROUP_RE.findall(line)
                 if groups:
-                    out.append((i, groups[-1]))
-    return out
+                    headings.append((i, groups[-1], 1 + m.group(1).count("sub")))
+    return headings, n_lines
 
 
-def enclosing_section(texpath, labels, lineno):
-    """The nearest sectioning command at or before lineno whose label is
+def section_range(start, headings, n_lines):
+    """(start, end) source-line span of the section whose heading is at
+    `start`: up to the line before the next heading of the same or higher
+    level (so the span includes subsections). If `start` is not a real
+    section heading, the span is just (start, start)."""
+    level = next((lvl for defline, _label, lvl in headings if defline == start), None)
+    if level is None:
+        return (start, start)
+    end = n_lines
+    for defline, _label, lvl in headings:
+        if defline > start and lvl <= level:
+            end = defline - 1
+            break
+    return (start, end)
+
+
+def enclosing_section(headings, labels, lineno):
+    """The nearest section heading at or before lineno whose label is
     numbered in the aux file (labels excluded from this build variant are
     skipped)."""
-    by_label = {label: entry for entry in labels for label in [entry[0]]}
-    for defline, label in reversed(sectioning_lines(texpath)):
+    by_label = {entry[0]: entry for entry in labels}
+    for defline, label, _lvl in reversed(headings):
         if defline <= lineno and label in by_label:
             return by_label[label]
     return None
@@ -112,6 +143,7 @@ def main():
     texpath = os.path.join(protodir, "protocol.tex")
 
     labels = load_labels(auxpath)
+    headings, n_lines = scan_headings(texpath)
     print(f"# numbering from {os.path.relpath(auxpath, protodir)}")
 
     status = 0
@@ -123,7 +155,7 @@ def main():
                 print(f"{q}: not a line number")
                 status = 1
                 continue
-            entry = enclosing_section(texpath, labels, lineno)
+            entry = enclosing_section(headings, labels, lineno)
             matches = [entry] if entry else []
         elif re.fullmatch(r"[0-9]+(\.[0-9]+)*", q):
             matches = [e for e in labels if e[1] == q]
@@ -137,8 +169,13 @@ def main():
             continue
         for label, number, page, title in matches:
             line = defining_line(texpath, label)
-            where = f"protocol.tex:{line}" if line else "(no defining line found)"
-            print(f"{number or '-':<10} {label:<40} p.{page:<5} {where:<20} {title}")
+            if line:
+                start, end = section_range(line, headings, n_lines)
+                where = (f"protocol.tex:{start}-{end}" if end > start
+                         else f"protocol.tex:{start}")
+            else:
+                where = "(no defining line found)"
+            print(f"{number or '-':<10} {label:<40} p.{page:<5} {where:<24} {title}")
     sys.exit(status)
 
 
