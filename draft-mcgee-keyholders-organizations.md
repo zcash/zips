@@ -1,5 +1,5 @@
-    ZIP: XXX
-    Title: Update to ZIP 1016: Key-Holder Organizations
+    ZIP: Unassigned
+    Title: Update to ZIP 1016 & ZIP 271: Key-Holder Organizations
     Owners: Jason McGee <jason@shieldedlabs.net>
     Status: Draft
     Category: Process
