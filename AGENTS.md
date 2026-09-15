@@ -80,6 +80,7 @@ zips/              ZIP source files (.rst or .md)
   zip-guide.rst    Template for new reStructuredText ZIPs
   zip-guide-markdown.md  Template for new Markdown ZIPs
 protocol/          Zcash Protocol Specification (LaTeX)
+scripts/           Helper scripts for contributors and editors
 rendered/          Build output (HTML); git-ignored content, do not edit
 static/            CSS and static assets copied into rendered/
 render.sh          Renders a single .rst or .md to HTML
@@ -99,7 +100,9 @@ The protocol spec has its own `Makefile` in `protocol/`.
 
 A `nix` flake is provided that includes all tooling required to build using the
 Makefile. Use `nix develop -c` to render ZIPs and specifications using the
-canonical tool set.
+canonical tool set — for example, `nix develop -c make all-zips`. Without it,
+the build depends on whatever tool versions happen to be installed: the
+rendered output will not be reproducible, and the build might not work at all.
 
 ### File Naming
 
@@ -273,13 +276,20 @@ and the `\nnote` macro or `{nnotes}` environment is used for non-normative,
 explanatory notes or rationale.
 
 Substantive changes to the protocol specification MUST have a corresponding
-Change History entry. If there is no "open" entry (with an undated use of
-`\historyentry`) at the top of the Change History section, add one.
+Change History entry. If there is no "open" entry at the top of the Change
+History section, add one as `\historyentry{\docversion}{}`. The release
+process replaces `\docversion` and the empty second argument with the
+released version and its date, so a dated entry is a closed one.
 
 New subsections, etc. MUST use the corresponding macro (`\lsubsection`,
 `\lsubsubsection`, etc.) with a unique label argument. Use `\introsection`
 before subsections and `\introlist` before lists to avoid page breaks at
 undesirable points near the start of the subsection or list.
+
+To resolve a protocol-spec section number (as used by Update ZIPs) to its
+label, title, and protocol.tex source line — or to look one up by label or
+title substring — use `scripts/find-section.py`. It reads the numbering
+from a prior build's `protocol/aux/*.aux` files, so run a build first.
 
 ## Changelog and Commit Discipline
 
