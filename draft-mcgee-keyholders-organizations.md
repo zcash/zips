@@ -153,6 +153,6 @@ amount, and activation height are unchanged.
 
 [^coindesk-3]: [CoinDesk, 9 March 2026: Josh Swihart's Zcash Open Development Lab raises $25 million in seed funding](https://www.coindesk.com/business/2026/03/09/josh-swihart-s-zcash-open-development-lab-raises-usd25-million-in-seed-funding)
 
-[^bootstrap-statement]: [Bootstrap Board statement on resolution of governance dispute, DATE TBD](URL TBD)
+[^bootstrap-statement]: [Bootstrap Board statement on resolution of governance dispute, 2026-09-15](https://forum.zcashcommunity.com/t/draft-zip-to-replace-ecc-with-zodl-as-a-key-holder-organization/57618/2)
 
 [^sovright-rename]: [Sovright: Why We Changed Our Name](https://sovright.com/rename.html)
