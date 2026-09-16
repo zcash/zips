@@ -223,7 +223,8 @@ $\mathsf{height}$.
 In § 4.17 ‘Chain Value Pool Balances’ [^protocol-chainvaluepoolbalances], add
 the following definition. Let $\mathsf{removed}(\mathsf{height})$ be the total
 value removed from circulation in the block at $\mathsf{height}$ by any
-deployed mechanism (such as ZIP 233 [^zip-0233]), or 0 if none is deployed, and
+deployed mechanism (such as ZIP 233 [^zip-0233] or ZIP 235 [^zip-0235]), or 0
+if none is deployed, and
 $\mathsf{NU7ActivationHeight}$ be the NU7 activation height on the relevant
 network. [^draft-arya-deploy-nu7]
 
@@ -233,7 +234,8 @@ $$\mathsf{NSMValueBalance}(\mathsf{height}) := \begin{cases}
 \mathsf{NSMValueBalance}(\mathsf{height} - 1) - \mathsf{AdditionalBlockSubsidy}(\mathsf{height}) + \mathsf{removed}(\mathsf{height}), & \text{otherwise}
 \end{cases}$$
 
-The NSM Value Balance is not a chain value pool and is not included in
+The NSM Value Balance is tracked as consensus state alongside the chain value
+pools. It is not a spendable chain value pool and is not included in
 $\mathsf{IssuedSupply}(\mathsf{height})$: it counts ZEC/TAZ that is not in
 circulation, consistent with ZIP 233 [^zip-0233], which subtracts removed funds
 from the issued supply. Reissuance moves value from the NSM Value Balance into
@@ -413,6 +415,8 @@ mechanism is deployed.
 [^zip-0233]: [ZIP 233: Network Sustainability Mechanism: Removing Funds From Circulation](zip-0233.md)
 
 [^zip-0234]: [ZIP 234: Network Sustainability Mechanism: Issuance Smoothing](zip-0234.md)
+
+[^zip-0235]: [ZIP 235: Remove 60% of Transaction Fees From Circulation](zip-0235.md)
 
 [^zip-0236]: [ZIP 236: Blocks should balance exactly](zip-0236.rst)
 
