@@ -15,6 +15,7 @@ Category: Consensus
 Created: 2026-08-19
 License: BSD-2-Clause
 Discussions-To: <https://github.com/zcash/zips/issues/1353>
+Pull-Request: <https://github.com/zcash/zips/pull/1354>
 ```
 
 
@@ -41,7 +42,9 @@ ZEC on Mainnet and TAZ on Testnet.
 The terms "Block Subsidy" and "Issuance" are to be interpreted as described in
 ZIP 233. [^zip-0233]
 
-Let $\mathsf{PostBlossomHalvingInterval}$ be as defined in [^protocol-diffadjustment].
+Let $\mathsf{PostBlossomHalvingInterval}$ be as defined in
+[^protocol-diffadjustment], and $\mathsf{PostNU7HalvingInterval}$ be as defined
+in ZIP 218. [^zip-0218]
 
 $\mathsf{MAX\_MONEY}$, as defined in § 5.3 ‘Constants’ [^protocol-constants],
 is the total ZEC/TAZ supply cap measured in zatoshi, corresponding to
@@ -64,19 +67,11 @@ schedule, i.e. $\mathsf{BlockSubsidy}(\mathsf{height})$ as defined in § 7.8
 Reward’ [^protocol-subsidies] prior to this ZIP, renamed
 $\mathsf{ScheduledBlockSubsidy}(\mathsf{height})$ in the Specification below.
 
-"Expected Issued Supply" - The Issued Supply that the existing halving schedule
-would have produced at a given height had every block subsidy and fee been
-claimed in full and no ZEC/TAZ been removed from circulation;
-$\mathsf{ExpectedIssuedSupply}(\mathsf{height})$ is defined in the Specification
-below.
-
-"Issuance Deficit" - The amount by which the Issued Supply at a given height
-falls below the Expected Issued Supply, i.e. the total ZEC/TAZ that the
-existing halving schedule would have issued by that height but that is not in
-any chain value pool: funds removed from circulation via ZIP 233
-[^zip-0233], plus block subsidy and fees left unclaimed by coinbase
-transactions prior to NU6 [^zip-0236].
-$\mathsf{IssuanceDeficit}(\mathsf{height})$ is defined in the Specification
+"NSM Value Balance" - The total ZEC/TAZ that has been removed from
+circulation and not yet reissued: funds removed via ZIP 233 [^zip-0233], plus
+block subsidy and fees left unclaimed by coinbase transactions prior to NU6
+[^zip-0236]. It is not part of the Issued Supply.
+$\mathsf{NSMValueBalance}(\mathsf{height})$ is defined in the Specification
 below.
 
 
@@ -86,10 +81,9 @@ This ZIP proposes a change to how nodes calculate the block subsidy.
 
 The step function around the 4-year halving intervals inherited from Bitcoin
 is retained unchanged. In addition, each block issues a fixed portion of the
-current Issuance Deficit (the ZEC/TAZ that the existing schedule would already
-have issued but which has been removed from circulation or left unclaimed), so
-that such funds are reissued along a smooth curve on top of the existing
-schedule.
+current NSM Value Balance (the ZEC/TAZ that has been removed from circulation
+or left unclaimed), so that such funds are reissued along a smooth curve on top
+of the existing schedule.
 
 The new issuance scheme is identical to the existing schedule whenever no
 ZEC/TAZ has been removed from circulation or left unclaimed, and retains the
@@ -136,19 +130,18 @@ future block subsidies, ensuring they benefit the network's long-term security.
 # Requirements
 
 Reissuing funds removed from circulation while preserving halvings is possible
-using an exponential decay formula applied to the Issuance Deficit that
+using an exponential decay formula applied to the NSM Value Balance that
 satisfies the following requirements:
 
 1. The issuance can be summarized into a reasonably simple explanation.
 2. If no ZEC/TAZ is removed from circulation (and every subsidy is claimed in
    full), block subsidies are identical to the existing halving schedule.
-3. If the Issuance Deficit is greater than 0, then the additional block
+3. If the NSM Value Balance is greater than 0, then the additional block
    subsidy must be non-zero, so that funds removed from circulation are
    eventually fully reissued.
-4. For any 4-year period, the additional block subsidies paid out are
-   approximately equal to half of the Issuance Deficit at the beginning of
-   that 4-year period, if no ZEC/TAZ is removed from circulation during those
-   4 years.
+4. For any halving period, the additional block subsidies paid out are
+   approximately equal to half of the NSM Value Balance at the beginning of
+   that period, if no ZEC/TAZ is removed from circulation during it.
 5. Decrease the short-term impact of the deployment of this ZIP on block subsidy
    recipients, and minimize the potential reputation risk to Zcash of changing
    the block subsidy amount.
@@ -157,37 +150,65 @@ satisfies the following requirements:
 
 ## Parameters
 
-$\mathsf{BLOCK\_SUBSIDY\_FRACTION} = 4126 / 10\_000\_000\_000 = 0.0000004126$
+$\mathsf{LN2\_SCALED} = 6\_931\_680\_000$
 
-$\mathsf{DEPLOYMENT\_BLOCK\_HEIGHT} =$ the NU7 activation height on the
-relevant network. It MUST be no earlier than the NU7 activation height, and
-MUST be at least 1.
+$\mathsf{HalvingInterval}(\mathsf{height}) =$ the number of blocks in a
+halving period at $\mathsf{height}$: $\mathsf{PostNU7HalvingInterval}$ if
+ZIP 218 [^zip-0218] is deployed and $\mathsf{IsNU7Activated}(\mathsf{height})$
+as defined there, otherwise $\mathsf{PostBlossomHalvingInterval}$.
+
+$\mathsf{BLOCK\_SUBSIDY\_FRACTION}(\mathsf{height}) = \mathsf{floor}(\mathsf{LN2\_SCALED} / \mathsf{HalvingInterval}(\mathsf{height})) / 10\_000\_000\_000$
+
+This is $4126 / 10\_000\_000\_000 = 0.0000004126$ with
+$\mathsf{PostBlossomHalvingInterval} = 1\_680\_000$, the value specified by
+ZIP 234 [^zip-0234], and $1375 / 10\_000\_000\_000$ with
+$\mathsf{PostNU7HalvingInterval} = 5\_040\_000$. See the BLOCK_SUBSIDY_FRACTION
+section below.
+
+$\mathsf{INITIAL\_NSM\_VALUE\_BALANCE} =$ the block subsidy and fees left
+unclaimed by coinbase transactions before NU6, in zatoshi, which seeds the NSM
+Value Balance at NU7 activation. Since ZIP 236 [^zip-0236] requires coinbase
+transactions to claim their full value, this is the fixed amount
+
+$\sum_{\mathsf{h}=0}^{\mathsf{H}} \mathsf{ScheduledBlockSubsidy}(\mathsf{h}) - \mathsf{IssuedSupply}(\mathsf{H})$
+
+for any $\mathsf{H}$ from the last pre-NU6 height up to
+$\mathsf{NU7ActivationHeight} - 1$. On Mainnet, with
+$\mathsf{H} = 2\_726\_399$, the sum is exactly 15,750,000 ZEC and the value is
+approximately 350.8 ZEC (TODO for ZIP owner: state the exact zatoshi value
+from a full node, and likewise for Testnet with $\mathsf{H} = 2\_975\_999$).
+
+$\mathsf{DEPLOYMENT\_BLOCK\_HEIGHT} =$ the height at which reissuance begins
+on the relevant network, as assigned by the NU7 deployment ZIP
+[^draft-arya-deploy-nu7] (named $\mathsf{NSM\_REISSUANCE\_HEIGHT}$ in
+[^draft-valargroup-deploy-nu7]). It MUST be no earlier than the NU7 activation
+height, and MUST be at least 1.
 
 ## Changes to the Zcash Protocol Specification
 
 In § 7.8 ‘Calculating Block Subsidy, Funding Streams, Lockbox Disbursement, and
 Founders' Reward’ [^protocol-subsidies]:
 
-Rename the existing function $\mathsf{BlockSubsidy}(\mathsf{height})$ to
+Apply the changes of ZIP 218 [^zip-0218] first, if it is deployed. Then rename
+the resulting function $\mathsf{BlockSubsidy}(\mathsf{height})$ to
 $\mathsf{ScheduledBlockSubsidy}(\mathsf{height})$, leaving its definition
 unchanged.
 
-Add the following definitions, where $\mathsf{IssuedSupply}$ is as defined in
-§ 4.17 ‘Chain Value Pool Balances’ [^protocol-chainvaluepoolbalances]:
+Add the following definition, where $\mathsf{NSMValueBalance}$ is as defined
+in § 4.17 ‘Chain Value Pool Balances’ [^protocol-chainvaluepoolbalances] below:
 
-$\mathsf{ExpectedIssuedSupply}(\mathsf{height}) := \sum_{\mathsf{h}=0}^{\mathsf{height}} \mathsf{ScheduledBlockSubsidy}(\mathsf{h})$
-
-$\mathsf{IssuanceDeficit}(\mathsf{height}) := \mathsf{ExpectedIssuedSupply}(\mathsf{height}) - \mathsf{IssuedSupply}(\mathsf{height})$
+$$\mathsf{AdditionalBlockSubsidy}(\mathsf{height}) := \begin{cases}
+0, & \text{if } \mathsf{height} < \mathsf{DEPLOYMENT\_BLOCK\_HEIGHT} \\
+\mathsf{ceiling}(\mathsf{BLOCK\_SUBSIDY\_FRACTION}(\mathsf{height}) \cdot \mathsf{NSMValueBalance}(\mathsf{height} - 1)), & \text{otherwise}
+\end{cases}$$
 
 Define $\mathsf{BlockSubsidy}(\mathsf{height})$ as:
 
-$$\mathsf{BlockSubsidy}(\mathsf{height}) := \begin{cases}
-\mathsf{ScheduledBlockSubsidy}(\mathsf{height}), & \text{if } \mathsf{height} < \mathsf{DEPLOYMENT\_BLOCK\_HEIGHT} \\
-\mathsf{ScheduledBlockSubsidy}(\mathsf{height}) + \mathsf{ceiling}(\mathsf{BLOCK\_SUBSIDY\_FRACTION} \cdot \mathsf{IssuanceDeficit}(\mathsf{height} - 1)), & \text{otherwise}
-\end{cases}$$
+$\mathsf{BlockSubsidy}(\mathsf{height}) := \mathsf{ScheduledBlockSubsidy}(\mathsf{height}) + \mathsf{AdditionalBlockSubsidy}(\mathsf{height})$
 
-Add $\mathsf{BLOCK\_SUBSIDY\_FRACTION}$, with the value given under
-Parameters above, to § 5.3 ‘Constants’ [^protocol-constants].
+Add $\mathsf{LN2\_SCALED}$ and $\mathsf{INITIAL\_NSM\_VALUE\_BALANCE}$ to § 5.3
+‘Constants’ [^protocol-constants], and $\mathsf{HalvingInterval}$ and
+$\mathsf{BLOCK\_SUBSIDY\_FRACTION}$, as given under Parameters above, to § 7.8.
 
 All other uses of $\mathsf{BlockSubsidy}(\mathsf{height})$ in the protocol
 specification ($\mathsf{FoundersReward}$, $\mathsf{fsValue}$ and hence
@@ -196,13 +217,31 @@ value of a coinbase transaction in § 7.1.2 [^protocol-txnconsensus]) are
 unchanged and refer to the redefined function; in particular, funding streams
 receive their fixed percentage of the total (scheduled plus additional) block
 subsidy. Note that $\mathsf{BlockSubsidy}(\mathsf{height})$ now depends on the
-chain value pool balances after block $\mathsf{height} - 1$, and not only on
+NSM Value Balance after block $\mathsf{height} - 1$, and not only on
 $\mathsf{height}$.
 
 In § 4.17 ‘Chain Value Pool Balances’ [^protocol-chainvaluepoolbalances], add
-the consensus rule:
+the following definition. Let $\mathsf{removed}(\mathsf{height})$ be the total
+value removed from circulation in the block at $\mathsf{height}$ by any
+deployed mechanism (such as ZIP 233 [^zip-0233]), or 0 if none is deployed, and
+$\mathsf{NU7ActivationHeight}$ be the NU7 activation height on the relevant
+network. [^draft-arya-deploy-nu7]
 
-> [NU7 onward] If $\mathsf{IssuanceDeficit}(\mathsf{height})$ would become
+$$\mathsf{NSMValueBalance}(\mathsf{height}) := \begin{cases}
+0, & \text{if } \mathsf{height} < \mathsf{NU7ActivationHeight} - 1 \\
+\mathsf{INITIAL\_NSM\_VALUE\_BALANCE}, & \text{if } \mathsf{height} = \mathsf{NU7ActivationHeight} - 1 \\
+\mathsf{NSMValueBalance}(\mathsf{height} - 1) - \mathsf{AdditionalBlockSubsidy}(\mathsf{height}) + \mathsf{removed}(\mathsf{height}), & \text{otherwise}
+\end{cases}$$
+
+The NSM Value Balance is not a chain value pool and is not included in
+$\mathsf{IssuedSupply}(\mathsf{height})$: it counts ZEC/TAZ that is not in
+circulation, consistent with ZIP 233 [^zip-0233], which subtracts removed funds
+from the issued supply. Reissuance moves value from the NSM Value Balance into
+the Issued Supply through the block subsidy.
+
+Add the consensus rule:
+
+> [NU7 onward] If $\mathsf{NSMValueBalance}(\mathsf{height})$ would become
 > negative in the block chain created as a result of accepting a block at
 > $\mathsf{height}$, then all nodes MUST reject the block as invalid.
 
@@ -214,34 +253,28 @@ All of these changes apply identically to Mainnet and Testnet.
 # Rationale
 
 * Leaving the existing schedule in place and applying an exponential decay
-  function only to the Issuance Deficit satisfies **Requirements 1**, **2**
+  function only to the NSM Value Balance satisfies **Requirements 1**, **2**
   and **4** above.
 * We round up to the next zatoshi to satisfy **Requirement 3** above. Since
-  $\mathsf{BLOCK\_SUBSIDY\_FRACTION} < 1$ and the Issuance Deficit is a
+  $\mathsf{BLOCK\_SUBSIDY\_FRACTION} < 1$ and the NSM Value Balance is a
   non-negative integer number of zatoshi, the additional subsidy never exceeds
-  the Issuance Deficit, so the Issued Supply never exceeds the Expected Issued
-  Supply and the supply cap is preserved.
-* By § 7.1.2 [^protocol-txnconsensus], the net increase in the Issued Supply
-  from a block is at most $\mathsf{BlockSubsidy}(\mathsf{height})$ (fees and
-  lockbox disbursements are transfers between pools), so the Issuance Deficit
-  can never become negative unless an implementation is in error. The
-  consensus rule above makes such an error a block-validity failure rather than
-  silently clamping the value.
-* This ZIP makes the exact value of the Issued Supply at every height
-  consensus-critical, since a one-zatoshi disagreement about the chain value
-  pool balances would produce different block subsidies. Implementations MUST
-  compute the chain value pool balances in § 4.17 identically from genesis.
-  (The same applies to ZIP 234.)
-* The issuance formula depends only on `IssuanceDeficit(height - 1)` (derived
-  from the Issued Supply and the height) and a single constant fraction, making
-  it simple to implement, explain, and verify.
+  the balance it is calculated from, so from NU7 activation the sum of the
+  Issued Supply and the NSM Value Balance changes by exactly the Scheduled
+  Block Subsidy each block and the supply cap is preserved.
+* By the previous point the NSM Value Balance can never become negative unless
+  an implementation is in error. The consensus rule above makes such an error
+  a block-validity failure rather than silently clamping the value.
+* The issuance formula depends only on
+  $\mathsf{NSMValueBalance}(\mathsf{height} - 1)$ and a single fraction,
+  making it simple to implement, explain, and verify.
 
 ## Rationale for Parameters
 
-Because the formula reduces to the existing schedule whenever the Issuance
-Deficit is zero, activation can occur at any height and no special activation
-height is needed. The only change at activation is the reissuance of the
-Issuance Deficit existing at that point, at
+Because the formula reduces to the existing schedule whenever the NSM Value
+Balance is zero, the rule itself places no constraint on the deployment
+height. The only change at deployment is the reissuance of the NSM Value
+Balance at that point ($\mathsf{INITIAL\_NSM\_VALUE\_BALANCE}$ plus anything
+removed from circulation since NU7 activation) at
 $\mathsf{BLOCK\_SUBSIDY\_FRACTION}$ per block. For example, if a total of
 100,000 ZEC were removed from circulation prior to activation, then at
 activation the issuance would be larger than the Scheduled Block Subsidy by
@@ -251,30 +284,44 @@ very large amount removed from circulation (much larger than expected) would
 elevate issuance by a relatively small amount, satisfying **Requirement 5**.
 
 Since NU6, coinbase transactions are required to claim the full miner subsidy
-and fees [^zip-0236], so the part of the Issuance Deficit not attributable to
-funds removed from circulation is a fixed historical amount: on Mainnet
-approximately 365 ZEC (estimated from the NSM Simulator's predicted supply at
-that height; TODO for ZIP owner: confirm $\mathsf{IssuanceDeficit}$ at height
-2,726,399 from a full node), which is reissued from activation at an initial
-rate of about 0.00015 ZEC per block.
+and fees [^zip-0236], so the part of the NSM Value Balance not attributable to
+funds removed from circulation is a fixed historical amount,
+$\mathsf{INITIAL\_NSM\_VALUE\_BALANCE}$: on Mainnet approximately 350.8 ZEC,
+reissued from deployment at an initial rate of about 0.00014 ZEC per block on
+the 75-second block schedule, or 0.00005 ZEC per block under ZIP 218, about
+0.17 ZEC per day either way.
 
 ## BLOCK_SUBSIDY_FRACTION
 
-Let $\mathsf{IntendedIssuanceDeficitFractionRemainingAfterFourYears} = 0.5$.
+Let $\mathsf{IntendedFractionRemainingAfterOneHalvingPeriod} = 0.5$, i.e. the
+NSM Value Balance should halve over the same period as the block subsidy does.
+The fraction is therefore stated as a function of the halving schedule rather
+than as a constant, so that it keeps this property whatever the block target
+spacing:
 
-The value $4126 / 10\_000\_000\_000$ satisfies the approximation within $\pm 0.003\%$:
+$(1 - \mathsf{BLOCK\_SUBSIDY\_FRACTION}(\mathsf{height}))^{\mathsf{HalvingInterval}(\mathsf{height})} \approx \mathsf{IntendedFractionRemainingAfterOneHalvingPeriod}$
 
-$(1 - \mathsf{BLOCK\_SUBSIDY\_FRACTION})^\mathsf{PostBlossomHalvingInterval} \approx \mathsf{IntendedIssuanceDeficitFractionRemainingAfterFourYears}$
+Solving gives a fraction of approximately
+$\ln 2 / \mathsf{HalvingInterval}(\mathsf{height})$. $\mathsf{LN2\_SCALED}$ is
+$10^{10} \cdot \ln 2 = 6\_931\_471\_806$ rounded up to a multiple of
+$\mathsf{PostBlossomHalvingInterval}$, so that on the 75-second schedule the
+numerator is exactly the 4126 of ZIP 234 [^zip-0234], which satisfies the
+approximation within $\pm 0.003\%$. ZIP 218 [^zip-0218] does not change
+$\mathsf{PostBlossomHalvingInterval}$; it defines a separate
+$\mathsf{PostNU7HalvingInterval} = 5\_040\_000$ for its 25-second blocks, and
+with that interval the numerator is 1375. A numerator fixed at 4126 would
+instead halve the balance about every 1.33 years under ZIP 218, because it
+would apply three times as often.
 
-This implies that after a period of 4 years around half of the Issuance
-Deficit will have been issued as additional block subsidies, thus satisfying
+This implies that after one halving period around half of the NSM Value
+Balance will have been issued as additional block subsidies, thus satisfying
 **Requirement 4**.
 
-The largest possible value of the Issuance Deficit is less than
+The largest possible value of the NSM Value Balance is less than
 $\mathsf{MAX\_MONEY}$, in the theoretically possible case that all issued funds
-are removed from circulation. If this happened, the largest interim sum in the
-block subsidy calculation would be less than
-$\mathsf{MAX\_MONEY} \cdot 4126 / 10\_000\_000\_000$.
+are removed from circulation. If this happened, the largest interim product in
+the block subsidy calculation would be less than
+$\mathsf{MAX\_MONEY} \cdot 4126$, since the numerator is at most 4126.
 
 This uses at most 62.91 bits, which is just under the 63-bit limit for signed
 two's complement 64-bit integer amount types.
@@ -323,17 +370,20 @@ the difference is exactly 0 at every height.
 
 # Appendix: Considerations for the Future
 
-Future protocol changes may not increase the payout rate of the Issuance
-Deficit to a reasonable approximation beyond the four year half-life
+Future protocol changes may not increase the payout rate of the NSM Value
+Balance to a reasonable approximation beyond the one-halving-period half-life
 constraint.
 
 
 # Deployment
 
-This ZIP is proposed to activate with Network Upgrade 7. [^draft-arya-deploy-nu7]
-It MUST be deployed at the same time or after ZIP 233 ("NSM: Removing Funds From
-Circulation" [^zip-0233]), and MUST NOT be deployed together with ZIP 234.
-[^zip-0234]
+This ZIP is proposed to activate with Network Upgrade 7,
+[^draft-arya-deploy-nu7] with reissuance beginning at
+$\mathsf{DEPLOYMENT\_BLOCK\_HEIGHT}$. It MUST NOT be deployed together with
+ZIP 234. [^zip-0234] It does not depend on ZIP 233 ("NSM: Removing Funds From
+Circulation" [^zip-0233]): funds removed from circulation by ZIP 233, or by any
+other mechanism, are credited to the NSM Value Balance if and when that
+mechanism is deployed.
 
 
 # References
@@ -358,6 +408,8 @@ Circulation" [^zip-0233]), and MUST NOT be deployed together with ZIP 234.
 
 [^zip-0200]: [ZIP 200: Network Upgrade Mechanism](zip-0200.rst)
 
+[^zip-0218]: [ZIP 218: 25-second Block Target Spacing](zip-0218.md)
+
 [^zip-0233]: [ZIP 233: Network Sustainability Mechanism: Removing Funds From Circulation](zip-0233.md)
 
 [^zip-0234]: [ZIP 234: Network Sustainability Mechanism: Issuance Smoothing](zip-0234.md)
@@ -365,3 +417,5 @@ Circulation" [^zip-0233]), and MUST NOT be deployed together with ZIP 234.
 [^zip-0236]: [ZIP 236: Blocks should balance exactly](zip-0236.rst)
 
 [^draft-arya-deploy-nu7]: [draft-arya-deploy-nu7: Deployment of the NU7 Network Upgrade](draft-arya-deploy-nu7.md)
+
+[^draft-valargroup-deploy-nu7]: [draft-valargroup-deploy-nu7: NU7 deployment draft (zcash/zips#1363)](https://github.com/zcash/zips/pull/1363)
