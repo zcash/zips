@@ -112,7 +112,7 @@ Key Objectives:
 5. We want issuance to be easy for all network users to understand and predict.
 6. We want to preserve Zcash's existing 4-year halving schedule.
 
-This ZIP is a variation of ZIP 234 [^zip-0234] that differs only in Key
+This ZIP is an alternative to ZIP 234 [^zip-0234] that differs only in Key
 Objective 6. ZIP 234 replaces the halving schedule with a smooth curve in order
 to reissue funds removed from circulation; this ZIP shows that reissuance does
 not require that change. The halving schedule is a long-standing, widely
