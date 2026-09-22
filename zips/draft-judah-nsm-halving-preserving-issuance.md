@@ -1,5 +1,5 @@
 ```
-ZIP: unassigned
+ZIP: 237
 Title: Network Sustainability Mechanism: Halving-Preserving Issuance
 Owners: Judah Caruso <judah@shieldedlabs.net>
 Original-Authors: Nathan Wilcox
