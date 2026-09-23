@@ -4,10 +4,10 @@
   Title: Consensus rules for a Zcash Development Fund
   Owners: Daira-Emma Hopwood <daira@jacaranda.org>
           Kris Nuttycombe <kris@nutty.land>
-  Status: [Revision 0: Canopy, Revision 1: NU6] Final, [Revision 2: NU6.1] Proposed
+  Status: [Revision 0: Canopy, Revision 1: NU6] Final, [Revision 2: NU6.1] Proposed, [Revision 3: NU7] Draft
   Category: Consensus
   Created: 2020-02-28
-  Last-Updated: 2025-10-14
+  Last-Updated: 2026-09-24
   License: MIT
   Discussions-To: <https://forum.zcashcommunity.com/t/community-sentiment-polling-results-nu4-and-draft-zip-1014/35560>
 
@@ -69,6 +69,11 @@ and lasting for 1 year.
 of Zcash development via block subsidies, to be enacted at Network Upgrade 6.1
 and lasting for 3 years.
 
+`Revision 3`_ of this ZIP describes consensus rule changes related to block
+target spacing changes to 25 seconds in ZIP 218 [#zip-0218]_, to be enacted
+at Network Upgrade 7. It preserves the end of the `Revision 2`_ funding
+streams at the third halving.
+
 Applicability
 =============
 
@@ -128,8 +133,13 @@ Revisions
 .. _`Revision 2`:
 
 * Revision 2: Funding streams defined to start at the end height of the
-  `Revision 2`_ funding streams, and last for three years, as agreed upon
+  `Revision 1`_ funding streams, and last for three years, as agreed upon
   in ZIP 1016 [#zip-1016]_.
+
+.. _`Revision 3`:
+
+* Revision 3: Extend the `Revision 2`_ funding streams to the third halving
+  under the 25-second block target spacing of ZIP 218 [#zip-0218]_.
 
 Activation
 ----------
@@ -147,6 +157,9 @@ Since ZIP 1015 specifies that the specified funding streams start at the second
 halving, the activation height of NU6 on Mainnet therefore SHALL be 2726400.
 
 `Revision 1`_ of ZIP 207 [#zip-0207]_ SHALL be activated in NU6.
+
+For `Revision 3`_, the NU7 activation height $A$ on each network SHALL be
+a multiple of 3. ZIP 259 [#zip-0259]_ assigns the activation heights.
 
 As specified in [#zip-0207]_, a funding stream is active for a span of blocks
 that includes the block at its start height, but excludes the block at its end
@@ -210,6 +223,55 @@ As of `Revision 2`_, the following additional streams are defined for Testnet:
 ``FS_FPF_ZCG_H3``      8           100         3536500       4476000
 ``FS_CCF_H3``         12           100         3536500       4476000
 ================= =========== ============= ============== ============
+
+As of `Revision 3`_, the end height of each `Revision 2`_ funding stream
+on each network SHALL be $\mathsf{HeightForHalving}(3)$, calculated using
+the post-NU7 $\mathsf{Halving}$ function of ZIP 218 [#zip-0218]_. This
+change takes effect at NU7 activation on that network. The start height,
+numerator, and denominator of each stream remain as specified above. The
+end height is exclusive, as specified in ZIP 207 [#zip-0207]_.
+
+For a network on which NU7 activates before the third halving, let $A$ be
+its NU7 activation height, and let $H_3$ be the pre-NU7 third-halving
+height (4406400 on Mainnet or 4476000 on Testnet). The new end height is
+$A + 3 \cdot (H_3 - A)$. This expression is equivalent to
+$\mathsf{HeightForHalving}(3)$ under ZIP 218 for these networks. If NU7
+activates at or after $H_3$, this revision does not reactivate an expired
+funding stream.
+
+The value of each stream at a post-NU7 height SHALL continue to be
+calculated separately using the floor operation in ZIP 207 [#zip-0207]_
+and the post-NU7 $\mathsf{BlockSubsidy}$ of ZIP 218 [#zip-0218]_. No
+fractional zatoshi is paid or carried forward. In particular, when the
+post-NU7 block subsidy is 52083333 zatoshi before the third halving,
+``FS_FPF_ZCG_H3`` receives 4166666 zatoshi and ``FS_CCF_H3`` receives
+6249999 zatoshi per block.
+
+As of `Revision 3`_, the address-period calculation in ZIP 207
+[#zip-0207]_ is changed for ``FS_FPF_ZCG_H3`` on each network. Let $A$ be
+the NU7 activation height, $C = \mathsf{AddressChangeInterval} = 35000$,
+$I = \mathsf{PostBlossomHalvingInterval} = 1680000$, and
+$H_1 = \mathsf{HeightForHalving}(1)$. Define:
+
+.. math::
+
+    \mathsf{AddressPeriod}_{\mathsf{NU7}}(\mathsf{height}) =
+        \begin{cases}
+            \mathsf{AddressPeriod}(\mathsf{height}),
+                &\textsf{if } \mathsf{height} < A \\
+            \mathsf{floor}\left(
+                \dfrac{3(A + I - H_1) + \mathsf{height} - A}{3C}
+            \right), &\textsf{otherwise}
+        \end{cases}
+
+For ``FS_FPF_ZCG_H3``, the $\mathsf{AddressIndex}$ and $\mathsf{Address}$
+calculations in ZIP 207 SHALL use $\mathsf{AddressPeriod}_{\mathsf{NU7}}$ in place
+of $\mathsf{AddressPeriod}$, including when calculating the period at the
+stream's start height. This preserves the address index at activation. If
+NU7 activates partway through an address period, its remaining block count
+is tripled; each subsequent period lasts 105000 blocks. At the 25-second
+target spacing, each period therefore retains approximately its previous
+wall-clock duration and funding amount, subject to per-block rounding.
 
 Notes for `Revision 0`_:
 
@@ -341,6 +403,10 @@ Mainnet Recipients for `Revision 2`_
   FS_FPF_ZCG_H3.AddressList[0..35] = ["t3cFfPt1Bcvgez9ZbMBFWeZsskxTkPzGCow"] * 36
   FS_CCF_H3 = DEFERRED_POOL as defined in ZIP 207
 
+The `Revision 2`_ address list remains valid under `Revision 3`_: the
+last active block still selects index 35 when NU7 activates during the
+`Revision 2`_ funding stream.
+
 Testnet Recipient Addresses for `Revision 0`_
 ---------------------------------------------
 
@@ -423,6 +489,10 @@ Testnet Recipients for `Revision 2`_
   FS_FPF_ZCG_H3.AddressList[0..26] = ["t2HifwjUj9uyxr9bknR8LFuQbc98c3vkXtu"] * 27
   FS_CCF_H3 = DEFERRED_POOL as defined in ZIP 207
 
+The `Revision 2`_ address list remains valid under `Revision 3`_: the
+last active block still selects index 26 when NU7 activates during the
+`Revision 2`_ funding stream.
+
 Rationale for `Revision 0`_
 ===========================
 
@@ -448,9 +518,19 @@ Deployment
 
 `Revision 2`_ of this proposal is intended to be deployed with NU6.1. [#zip-0255]_
 
+`Revision 3`_ of this proposal is intended to be deployed with NU7. [#zip-0259]_
+
 
 Change History
 ==============
+
+2026-09-24
+----------
+
+- Added Revision 3 to keep the existing funding streams active until the
+  third halving under ZIP 218, clarify rounding of their values, and
+  preserve the address-period duration under 25-second blocks. The NU7
+  activation height is required to be a multiple of 3.
 
 2025-10-14
 ----------
@@ -500,9 +580,11 @@ References
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
 .. [#zip-0207] `ZIP 207: Funding Streams <zip-0207.rst>`_
 .. [#zip-0208] `ZIP 208: Shorter Block Target Spacing <zip-0208.rst>`_
+.. [#zip-0218] `ZIP 218: 25-second Block Target Spacing <zip-0218.md>`_
 .. [#zip-0251] `ZIP 251: Deployment of the Canopy Network Upgrade <zip-0251.rst>`_
 .. [#zip-0253] `ZIP 253: Deployment of the NU6 Network Upgrade <zip-0253.rst>`_
 .. [#zip-0255] `ZIP 255: Deployment of the NU6.1 Network Upgrade <zip-0255.rst>`_
+.. [#zip-0259] `ZIP 259: Deployment of the NU7 Network Upgrade <zip-0259.md>`_
 .. [#zip-1014] `ZIP 1014: Establishing a Dev Fund for ECC, ZF, and Major Grants <zip-1014.rst>`_
 .. [#zip-1015] `ZIP 1015: Block Subsidy Allocation for Non-Direct Development Funding <zip-1015.rst>`_
-.. [#zip-1016] `ZIP 1016: Community and Coinholder Funding Model <zip-1016.rst>`_
+.. [#zip-1016] `ZIP 1016: Community and Coinholder Funding Model <zip-1016.md>`_
