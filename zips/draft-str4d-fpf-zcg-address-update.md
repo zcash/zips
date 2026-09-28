@@ -51,6 +51,11 @@ with:
 > FS_FPF_ZCG_H3.AddressList[N..35] = ["t1MkHnkxVjNpNbCrSs3AJ8J7ZSp6NTYiUcG"] * (36 - N)
 > ```
 
+and add the following note: 
+
+> Note: The addresses `FS_FPF_ZCG_H3.AddressList[N..35]` were altered
+> by the NU7 upgrade in {{reference to this ZIP}}.
+
 ## Consensus node implementor note
 
 Once a mainnet activation height has been specified in ZIP 259 [^zip-0259],
