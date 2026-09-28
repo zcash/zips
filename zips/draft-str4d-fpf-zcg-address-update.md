@@ -48,7 +48,7 @@ with:
 > ```
 > N = FundingStream[FS_FPF_ZCG_H3].AddressIndex(NU7ActivationHeight - 1) + 1
 > FS_FPF_ZCG_H3.AddressList[0..N-1] = ["t3cFfPt1Bcvgez9ZbMBFWeZsskxTkPzGCow"] * N
-> FS_FPF_ZCG_H3.AddressList[N..35] = ["TBD"] * (36 - N)
+> FS_FPF_ZCG_H3.AddressList[N..35] = ["t1MkHnkxVjNpNbCrSs3AJ8J7ZSp6NTYiUcG"] * (36 - N)
 > ```
 
 ## Consensus node implementor note
