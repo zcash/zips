@@ -36,6 +36,9 @@ branch. It is normally measured in seconds. (This is also sometimes
 called the &#8220;target block time&#8221;, but &#8220;block target spacing&#8221; is the term
 used in the Zcash Protocol Specification <a href="#fn:3" id="fnref:3" title="see footnote" class="footnote"><sup>3</sup></a>.)</p>
 
+<p>The term &#8220;TPS&#8221; refers to the maximum number of transactions per second
+supported by a Zcash subprotocol, assuming the target block spacing.</p>
+
 <p>The character § is used when referring to sections of the Zcash Protocol
 Specification. <a href="#fn:4" id="fnref:4" title="see footnote" class="footnote"><sup>4</sup></a></p>
 
@@ -46,14 +49,22 @@ Specification. <a href="#fn:4" id="fnref:4" title="see footnote" class="footnote
 
 <p>This proposal specifies a change in the block target spacing from 75
 seconds to 25 seconds in NU7, and introduces per-pool action limits for
-the Sapling and Orchard shielded protocols.</p>
+the Sapling, Orchard, and Ironwood shielded pools.</p>
 
 <p>This solves three problems.</p>
 
 <ul>
-<li>Significantly improves the UX for actors who need 1 or 2 conf&#8217;s. (Near Intents, small payments) The user-latency goes down 3x.</li>
-<li>Increases consensus bandwidth, which amplifies the scaling impact of a future shielded pool which does not require shielded sync.</li>
-<li>Introduces action limits. These provide limits of the number of actions that can go into a block. There is a global limit across all pools, and per pool limits. It is configured to more than double the Orchard TPS (2.9 → 6.6 TPS), while lowering the impact a DoS attacker can impose on wallets; for example, maximum shielded sync bandwidth for light clients is reduced by 37% (271 → 169 MB/day).</li>
+<li>Significantly improves the UX for actors who need 1 or 2 confirmations,
+such as Near Intents, and for small payments. The user-visible latency
+goes down 3x.</li>
+<li>Increases consensus bandwidth, which would amplify the scaling impact
+of any future shielded pools that do not require shielded sync.</li>
+<li>Introduces action limits. These provide limits on the number of actions that
+can go into a block. There is a <em>block shielded action limit</em> across all
+shielded pools, as well as per-pool limits. These limits are configured to more
+than double Orchard-protocol TPS (2.9 → 6.6 TPS), while lowering the impact
+a DoS attacker can impose on wallets; for example, maximum shielded sync
+bandwidth for light clients is reduced by 37% (271 → 169 MB/day).</li>
 </ul>
 
 <p>The action limits significantly decrease the number of Sprout and Sapling pool
@@ -77,9 +88,10 @@ payments, exchange deposits, and cross-chain bridge operations. A
 confirmation to 25 seconds on average.</p></li>
 <li><p><strong>Greater throughput.</strong> With 3× as many blocks per day and the same
 2 MB block size limit, we will have allocated higher consensus bandwidth
-capacity. Short term, when paired with the action limits, we will more than
-double the Orchard TPS for 2-action transactions. Longer term, when we get a
-shielded pool with no shielded sync burden, we will have 3x higher throughput.</p></li>
+capacity. In the short term, when paired with the action limits, we will more than
+double the Ironwood TPS for 2-action transactions. In the longer term, when
+we get a shielded pool with no shielded sync burden, we will have 3x higher
+throughput.</p></li>
 </ul>
 
 <p>The throughput goal on its own could be achieved via a block size increase.
@@ -92,7 +104,7 @@ responsiveness of the base layer regardless of whether an additional finality
 gadget is also deployed. Rollback-risk analysis depends on the threat model.
 For models that bound an attacker by a fixed fraction of total hash power,
 reducing the block target spacing can reduce confirmation latency by nearly the
-same factor, provided that block validation and propagation remain small
+same factor, provided that block validation and propagation times remain small
 relative to the target spacing. Given that is maintained here, this proposal is
 expected to improve confirmation latency by slightly less than 3x for users
 applying the same rollback-risk tolerance as today. See <a href="#cn:1" id="cnref:1" title="see citation" class="citation">(1)</a>_ for
@@ -102,7 +114,8 @@ analysis under several attack models.</p>
 the block rewards built on top of their payment exceed the payment value, then
 shorter block times significantly reduce the variance of their waiting time,
 while the mean stays roughly the same. Recall that proof of work block times
-have high very high variance, so variance reduction is a substantial benefit.
+while the mean stays roughly the same. Recall that proof-of-work block times
+have high variance, so variance reduction is a substantial benefit.
 This ZIP does not argue for clients reducing confirmation counts, but it does
 expect many users to see a lower expected time until receipt under confirmation
 policies comparable to those they use today.</p>
@@ -110,43 +123,49 @@ policies comparable to those they use today.</p>
 <h2 id="security"><span class="section-heading">Security</span><span class="section-anchor"> <a rel="bookmark" href="#security"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
 <p>Scaling and block time reductions in Zcash impose three security costs, one on
-full nodes and miners' ability to verify blocks, a second on clients for
+full nodes' and miners' ability to verify blocks, a second on clients for
 shielded sync, and a third on the whole network for the uncle rate and fork
 rate. Action limits are introduced in this ZIP to limit the block processing
 costs, and client shielded sync costs. The proposed parameterization lowers the
 worst case for shielded sync and node processing times relative to today, while
-yielding far higher Orchard TPS. We benchmark <a href="#block-processing-time">block verification</a>, and the uncle-rate post-proposal
+yielding far higher Ironwood TPS. We benchmark
+<a href="#block-processing-time">block verification</a>, and the uncle-rate post-proposal
 on networks more distributed than mainnet at maximum load is far lower than
 ETH-PoW was, leading to conclusion that it is safe.</p>
 
 <p>Today the worst-case DoS attack can induce 271 MB of wallet sync download to
-clients per day, and 4.8M trial decryptions per day <a href="#fn:7" id="fnref:7" title="see footnote" class="footnote"><sup>7</sup></a>. This is d
-one with max utilizing Sapling transactions, with few inputs and many outputs.
-The worst-cast DOS for node verification time is done with many Sapling inputs,
-and a single transparent output, totalling 5600 Sapling inputs and ZKP&#8217;s. This
-takes 3.2s on a modern AMD laptop CPU with 4 pinned threads. Meanwhile regular userflow
-has far lower costs on the network, than the DOS model.</p>
+clients per day, and 4.8M trial decryptions per day <a href="#fn:7" id="fnref:7" title="see footnote" class="footnote"><sup>7</sup></a>. This is
+achieved by fully utilizing block space with Sapling transactions that have
+few inputs and many outputs. The worst-case DoS for node verification time
+uses many Sapling inputs and a single transparent output, totaling 5,600
+Sapling inputs and zero-knowledge proofs. This takes 3.2 seconds on a modern
+AMD laptop CPU with 4 pinned threads. Regular user flows impose far lower
+costs on the network than this DoS model.</p>
 
-<p>We propose introducing global action limits and per-pool action limits as follows:</p>
+<p>We propose introducing block shielded action limits and per-pool action limits as follows:</p>
 
 <ul>
-<li><p>A maximum of 330 actions per block across all pools</p></li>
+<li><p>A block shielded action limit of 330 across all pools</p></li>
 <li><p>A maximum of 330 Orchard actions per block</p></li>
+<li><p>A maximum of 330 Ironwood actions per block</p></li>
 <li><p>A maximum of 300 Sapling inputs + outputs. (Total inputs + outputs &lt;= 300)</p></li>
-<li><p>A maximum of 25 Sprout JoinSplits per block.</p></li>
+<li><p>No Sprout JoinSplits (achieved by deploying this ZIP in conjunction with
+ZIP 2003 <a href="#fn:8" id="fnref:8" title="see footnote" class="footnote"><sup>8</sup></a> which disables v4 transactions).</p></li>
 </ul>
 
 <p>With these limits, the worst case client load becomes 169 MB bandwidth and 2.3M
 trial decrypts per day. This is a 37% improvement in worst case wallet sync
-bandwidth despite 3x more blocks. This yields a 2x in Orchard TPS, and keeps
-Sapling TPS at a higher level than today&#8217;s Orchard TPS. We expand on these derivations in []</p>
+bandwidth despite 3× more blocks. This yields a 2.3× increase in Ironwood TPS,
+and keeps Sapling TPS at a higher level than today&#8217;s Ironwood TPS.</p>
 
 <p>However, every wallet does have to download every compact block header, which
 is 90 bytes. This leads to an extra 200kb of wallet bandwidth per day in
 exchange for the improved UX.</p>
 
 <p>The reduced Sapling and Sprout per-block limits are justified by the
-current distribution of shielded funds across pools. As of May 2026:</p>
+The reduced Sapling per-block limit and disabling of Sprout is justified by
+the current distribution of shielded funds across pools (other motivations for
+disabling Sprout are discussed in ZIP 2003). As of May 2026:</p>
 
 <table>
 <colgroup>
@@ -183,16 +202,18 @@ current distribution of shielded funds across pools. As of May 2026:</p>
 </table>
 
 <p>The vast majority of shielded activity is already in Orchard, and this
-trend is expected to continue. The Sapling and Sprout limits are set
-generously relative to their current usage while substantially reducing
-their potential for DoS.</p>
+trend is expected to continue. The Sapling limit is set generously relative
+to current usage while substantially reducing the potential for DoS.
+Furthermore, this ZIP is proposed to activate together with disabling v4
+transactions in NU7, which would prevent any Sprout transactions from being
+included in blocks.</p>
 
 <h2 id="staleblockrate"><span class="section-heading">Stale block rate</span><span class="section-anchor"> <a rel="bookmark" href="#staleblockrate"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
 <p>The stale rate is the percentage of blocks that get orphaned, which relates to
 mining centralization risk, block propagation delay, and block verification
 times. Today the stale rate is 0.4%, but this may be lower than what pure block
-propagation delay may imply due to hashpower centralization in mining pools.</p>
+propagation delay may imply due to hash-power centralization in mining pools.</p>
 
 <p>At 25-second block target spacing, the theoretical stale block rate is
 approximately 3.26%, derived from measured Zcash network propagation
@@ -200,11 +221,11 @@ delays. A devnet experiment with 99 geographically-distributed Zebra
 nodes producing 2MB blocks at 25-second target spacing measured a stale
 block rate of 4.86% and a fork rate of 0.37%. Both observed figures are
 below the 5.4% safety threshold set by Ethereum&#8217;s historical proof-of-work
-stale rate. <a href="#fn:8" id="fnref:8" title="see footnote" class="footnote"><sup>8</sup></a> The only modification required to achieve
+stale rate. <a href="#fn:9" id="fnref:9" title="see footnote" class="footnote"><sup>9</sup></a> The only modification required to achieve
 these rates was tuning TCP configuration (more details in the linked
 footnote). The devnet&#8217;s node distribution was significantly more
 decentralized than today&#8217;s mainnet, so these figures represent a
-near worst-case scenario. <a href="#fn:9" id="fnref:9" title="see footnote" class="footnote"><sup>9</sup></a></p>
+near worst-case scenario. <a href="#fn:10" id="fnref:10" title="see footnote" class="footnote"><sup>10</sup></a></p>
 
 <h2 id="blockprocessingtime"><span class="section-heading">Block processing time</span><span class="section-anchor"> <a rel="bookmark" href="#blockprocessingtime"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
@@ -219,34 +240,37 @@ sync after a given time offline for full nodes will increase. We accept this
 trade-off. These computational limits parallelize well. The max bandwidth requirement from the chain is 655kbps, so syncing with 10mbps bandwidth still has a 15x advantage factor over full blocks on mainnet.</p>
 
 <p><strong>Current worst case:</strong> A full 2 MB block today can contain up to <sub>617</sub>
-Orchard actions or <sub>2</sub>,090 Sapling outputs, with no per-pool limits. A fully
-packed Orchard block requires verifying all action proofs and spend
-authorization signatures for those <sub>617</sub> actions.</p>
+Orchard or Ironwood actions, or <sub>2</sub>,090 Sapling outputs, with no per-pool
+limits. A fully packed Orchard-protocol block requires verifying all action
+proofs, spend authorization, and binding signatures, and checking validity
+of curve point encodings, for those <sub>617</sub> actions.</p>
 
 <p><strong>Proposed worst case:</strong> With the action limits, a block contains at
-most 330 actions across pools. There is separately, limits per pool. We propose per-pool limits of:</p>
+most 330 actions across pools. There are also separate per-pool limits:</p>
 
 <ul>
 <li>330 Orchard actions</li>
+<li>330 Ironwood actions</li>
 <li>300 Sapling inputs+outputs.</li>
-<li>25 Sprout JoinSplits.</li>
 </ul>
 
-<p>This means the new worst case block processing time, if Orchard dominant,
-would be 14% of today&#8217;s worst case, and Sapling&#8217;s would be
-less than one tenth. The per-block verification work is therefore substantially reduced.</p>
+<p>This means the new worst case block processing time, if Orchard- or
+Ironwood-dominant, would be 14% of today&#8217;s worst case, and Sapling&#8217;s would be
+less than one tenth. The worst case per-block verification work is therefore
+substantially reduced.</p>
 
-<p><strong>Batch verification.</strong> Orchard transaction verification benefits from
-batch validation, where proof and signature verification is amortized
-across multiple transactions. In Zebra, Orchard
-transactions are batch-verified in groups of up to 64 transactions
-(each worst case being a single action). Zebra has performed batch
-verification during live network syncing since version 3.0.0. With the
-action limits, a worst-case block&#8217;s Orchard bundle can be fully
-batch-verified in a small number of batches.</p>
+<p><strong>Batch verification.</strong> Ironwood transaction verification benefits from
+batch validation, where proof and signature verification is amortized across
+multiple transactions. Ironwood uses the same Action encoding and proof system
+as Orchard. <a href="#fn:11" id="fnref:11" title="see footnote" class="footnote"><sup>11</sup></a> In current node software, Orchard transactions are
+batch-verified in groups of up to 64 transactions (each worst case being a
+single action). Zebra has performed batch verification during live network
+syncing since version 3.0.0. With the action limits, the Orchard-protocol
+bundles in a worst-case block can be fully batch-verified in a small number of
+batches.</p>
 
 <p><strong>Measured timing.</strong> We benchmarked worst-case block verification with
-Zebra on a modern AMD laptop CPU with 4 pinned threads.<a href="#fn:10" id="fnref:10" title="see footnote" class="footnote"><sup>10</sup></a>
+Zebra on a modern AMD laptop CPU with 4 pinned threads.<a href="#fn:12" id="fnref:12" title="see footnote" class="footnote"><sup>12</sup></a>
 The figures report wall-clock time for verifying the zero-knowledge proofs
 and signatures in a single block, without any mempool pre-verification.</p>
 
@@ -292,14 +316,21 @@ and signatures in a single block, without any mempool pre-verification.</p>
 <ul>
 <li><strong>Full Orchard limit (proposed)</strong> — binding post-NU7 verification worst case.</li>
 <li><strong>Full Sapling limit (proposed)</strong> — verification worst case is all-spends; the bandwidth worst case (all-outputs) is in <a href="#rationale">Rationale</a>.</li>
-<li><strong>Today&#8217;s Orchard worst case</strong> — dense multi-action (single-action would understate the byte bound).</li>
+<li><strong>Full Sapling limit (proposed)</strong> — verification worst case is all-spends;
+the bandwidth worst case (all-outputs) is in <a href="#rationale">Rationale</a>.</li>
+<li><strong>Today&#8217;s Orchard worst case</strong> — dense multi-action (single-action would
+understate the byte bound).</li>
 <li><strong>Today&#8217;s Sapling worst case</strong> — analogous, dense multi-spend.</li>
 </ul>
 
 <p>When transactions have already been pre-verified upon
 entering the mempool, which is the typical case for a node that has
 been online, block validation reduces to checking signatures and
-state updates, which is even cheaper.</p>
+When transactions have already been pre-verified upon entering the mempool,
+block validation reduces to checking signatures and state updates, which is even
+cheaper. This is the typical case for a node that has been online under normal
+usage of the network, but under DoS attack it cannot be assumed, because the
+adversary can send blocks with transactions that were never in the mempool.</p>
 
 <h1 id="specification"><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
 
@@ -438,9 +469,9 @@ The existing 75-second schedule falls short of <span class="math">\(\mathsf{MAX\
 <p>Define the following constants in § 5.3 &#8216;Constants&#8217;:</p>
 
 <p><span class="math">\[\mathsf{GlobalShieldedBudget} := 330\]</span>
-<span class="math">\[\mathsf{OrchardBlockActionLimit} := 330\]</span>
+<span class="math">\[\mathsf{OrchardProtocolBlockActionLimit} := 330\]</span>
 <span class="math">\[\mathsf{SaplingBlockIOLimit} := 300\]</span>
-<span class="math">\[\mathsf{SproutBlockJoinSplitLimit} := 25\]</span></p>
+<span class="math">\[\mathsf{SproutBlockJoinSplitLimit} := 0\]</span></p>
 
 <p>For each block at height <span class="math">\(\mathsf{height}\)</span> where
 <span class="math">\(\mathsf{IsNU7Activated}(\mathsf{height})\kern-0.05em\textsf{,}\)</span> the following limits MUST
@@ -450,8 +481,11 @@ be satisfied:</p>
 
 <ul>
 <li><p>The total number of Orchard actions across all transactions in the
-block MUST NOT exceed <span class="math">\(\mathsf{OrchardBlockActionLimit}\kern-0.05em\textsf{.}\)</span> That is,
-<span class="math">\(\sum_{\mathit{tx} \in \mathit{block}} \mathit{nActionsOrchard}(\mathit{tx}) \leq 330\kern-0.05em\textsf{.}\)</span></p></li>
+block MUST NOT exceed <span class="math">\(\mathsf{OrchardProtocolBlockActionLimit}\kern-0.05em\textsf{.}\)</span> That is,
+<span class="math">\(\sum_{\mathit{tx} \in \mathit{block}} \mathit{nActionsOrchard}(\mathit{tx}) \leq \mathsf{OrchardProtocolBlockActionLimit}\kern-0.05em\textsf{.}\)</span></p></li>
+<li><p>The total number of Ironwood actions across all transactions in the
+block MUST NOT exceed <span class="math">\(\mathsf{OrchardProtocolBlockActionLimit}\kern-0.05em\textsf{.}\)</span> That is,
+<span class="math">\(\sum_{\mathit{tx} \in \mathit{block}} \mathit{nActionsIronwood}(\mathit{tx}) \leq \mathsf{OrchardProtocolBlockActionLimit}\kern-0.05em\textsf{.}\)</span></p></li>
 <li><p>The total number of Sapling inputs and outputs across all
 transactions in the block MUST NOT exceed
 <span class="math">\(\mathsf{SaplingBlockIOLimit}\kern-0.05em\textsf{.}\)</span> That is,
@@ -459,18 +493,22 @@ transactions in the block MUST NOT exceed
 <li><p>The total number of Sprout JoinSplits across all transactions in
 the block MUST NOT exceed <span class="math">\(\mathsf{SproutBlockJoinSplitLimit}\kern-0.05em\textsf{.}\)</span> That
 is,
-<span class="math">\(\sum_{\mathit{tx} \in \mathit{block}} \mathit{nJoinSplit}(\mathit{tx}) \leq 25\kern-0.05em\textsf{.}\)</span></p></li>
+<span class="math">\(\sum_{\mathit{tx} \in \mathit{block}} \mathit{nJoinSplit}(\mathit{tx}) \leq 0\kern-0.05em\textsf{.}\)</span></p></li>
 </ul>
 
-<p><strong>Global shielded budget:</strong></p>
+<p><strong>Block shielded budget:</strong></p>
 
 <p>In addition to the per-pool limits, the total shielded cost across all
-pools in a block MUST NOT exceed <span class="math">\(\mathsf{GlobalShieldedBudget}\kern-0.05em\textsf{.}\)</span> The
+pools in a block MUST NOT exceed <span class="math">\(\mathsf{BlockShieldedBudget}\kern-0.05em\textsf{.}\)</span> The
 shielded cost of a block is defined as:</p>
 
-<p><span class="math">\[\sum_{\mathit{tx}} \mathit{nActionsOrchard}(\mathit{tx}) \;+\; \sum_{\mathit{tx}} (\mathit{nSpendsSapling}(\mathit{tx}) + \mathit{nOutputsSapling}(\mathit{tx})) \;+\; 2 \times \sum_{\mathit{tx}} \mathit{nJoinSplit}(\mathit{tx}) \;\leq\; 330\]</span></p>
+<p><span class="math">\[\sum_{\mathit{tx}} \left(\mathit{nActionsOrchard}(\mathit{tx}) + \mathit{nActionsIronwood}(\mathit{tx})\right) \;+\; \sum_{\mathit{tx}} (\mathit{nSpendsSapling}(\mathit{tx}) + \mathit{nOutputsSapling}(\mathit{tx})) \;+\; 2 \times \sum_{\mathit{tx}} \mathit{nJoinSplit}(\mathit{tx}) \;\leq\; \mathsf{GlobalShieldedBudget}\]</span></p>
 
-<p>where the factor of 2 for Sprout JoinSplits reflects that each
+<p>Thus, Orchard and Ironwood do not receive separate 330-unit global
+budgets: every action in either pool consumes one unit of the same global
+budget.</p>
+
+<p>The factor of 2 for Sprout JoinSplits reflects that each
 JoinSplit produces 2 shielded outputs.</p>
 
 <p>This global budget ensures that the worst-case shielded sync bandwidth
@@ -483,10 +521,12 @@ before.</p>
 <h4 id="rationale:compactsyncbandwidthperaction"><span class="section-heading">Rationale: Compact sync bandwidth per action</span><span class="section-anchor"> <a rel="bookmark" href="#rationale:compactsyncbandwidthperaction"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
 
 <p>The limits above are chosen to bound the worst-case bandwidth that
-lightweight wallets must download for shielded sync. The compact
-representation used for syncing has the following per-note costs:</p>
+lightweight wallets must download for shielded sync. The Light Wallet
+Protocol represents both Orchard and Ironwood actions using
+<code>CompactOrchardAction</code>. <a href="#fn:13" id="fnref:13" title="see footnote" class="footnote"><sup>13</sup></a> The per-action field payload
+has the following costs:</p>
 
-<p><strong>Orchard:</strong> 148 bytes per action, consisting of:</p>
+<p><strong>Orchard and Ironwood:</strong> 148 bytes per action, consisting of:</p>
 
 <table>
 <colgroup>
@@ -572,22 +612,22 @@ consisting of:</p>
 <p>With these limits, the worst-case compact sync bandwidth per block is:</p>
 
 <ul>
-<li><strong>Orchard:</strong> <span class="math">\(330 \times 148 = 48{,}840\)</span> bytes</li>
+<li><strong>Orchard or Ironwood:</strong> <span class="math">\(330 \times 148 = 48{,}840\)</span> bytes</li>
 <li><strong>Sapling:</strong> at most <span class="math">\(300 \times 116 = 34{,}800\)</span> bytes (all-output
 pathological case)</li>
 </ul>
 
 <p>Due to the global shielded budget, these cannot stack: a block that
-uses 330 Orchard actions has zero budget remaining for Sapling or
-Sprout. The worst-case compact sync bandwidth per block is therefore
-always bounded by the Orchard case at 48,840 bytes.</p>
+uses 330 Orchard and/or Ironwood actions has zero budget remaining for
+Sapling. The worst-case compact sync bandwidth per block is
+therefore always bounded by the Orchard-protocol case at 48,840 bytes.</p>
 
 <p>See the <a href="#rationale">Rationale</a> section for the full daily bandwidth
 analysis.</p>
 
 <h2 id="effectondifficultyadjustment"><span class="section-heading">Effect on difficulty adjustment</span><span class="section-anchor"> <a rel="bookmark" href="#effectondifficultyadjustment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
-<p>As with the Blossom activation <a href="#fn:11" id="fnref:11" title="see footnote" class="footnote"><sup>11</sup></a>, the difficulty adjustment
+<p>As with the Blossom activation <a href="#fn:14" id="fnref:14" title="see footnote" class="footnote"><sup>14</sup></a>, the difficulty adjustment
 parameter <span class="math">\(\mathsf{PoWMedianBlockSpan}\)</span> refers to a number of blocks
 and does not change at activation. The change in the effective value
 of <span class="math">\(\mathsf{PoWTargetSpacing}\)</span> will cause the block spacing to adjust
@@ -602,7 +642,7 @@ is not anticipated to cause any problem.</p>
 <h2 id="minimumdifficultyblocksontestnet"><span class="section-heading">Minimum difficulty blocks on Testnet</span><span class="section-anchor"> <a rel="bookmark" href="#minimumdifficultyblocksontestnet"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
 <p>On Testnet, the minimum-difficulty block threshold defined in ZIP 205
-<a href="#fn:12" id="fnref:12" title="see footnote" class="footnote"><sup>12</sup></a> and modified by ZIP 208 <a href="#fn:11" title="see footnote" class="footnote"><sup>11</sup></a> continues to use
+<a href="#fn:15" id="fnref:15" title="see footnote" class="footnote"><sup>15</sup></a> and modified by ZIP 208 <a href="#fn:14" title="see footnote" class="footnote"><sup>14</sup></a> continues to use
 <span class="math">\(6 \cdot \mathsf{PoWTargetSpacing}(\mathsf{height})\)</span> seconds.
 After activation, this threshold becomes <span class="math">\(6 \times 25 = 150\)</span> seconds.</p>
 
@@ -703,7 +743,7 @@ at NU7&#8217;s proposed 25-second spacing only about 42 minutes.</p>
 <p>Recent incidents show consensus splits can persist beyond tens of minutes:
 for example, Litecoin&#8217;s April 2026 MWEB incident produced a
 13-block invalid chain that was later reorged out, with a <sub>3</sub>-hour
-recovery window per the postmortem <a href="#fn:13" id="fnref:13" title="see footnote" class="footnote"><sup>13</sup></a>. The
+recovery window per the postmortem <a href="#fn:16" id="fnref:16" title="see footnote" class="footnote"><sup>16</sup></a>. The
 optimal long-term value for <code>MAX_REORG_LENGTH</code> likely needs to
 change further in the future, but that is out of scope here.
 Raising it to 600 blocks restores the <sub>4</sub>.2-hour wall-clock window
@@ -720,12 +760,12 @@ of deep PoW reorgs in the abstract protocol model.</p>
 
 <h3 id="anchorselectiondepth"><span class="section-heading">Anchor selection depth</span><span class="section-anchor"> <a rel="bookmark" href="#anchorselectiondepth"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
 
-<p>ZIP 315 <a href="#fn:14" id="fnref:14" title="see footnote" class="footnote"><sup>14</sup></a>, recommends selecting an anchor 3 blocks back from
+<p>ZIP 315 <a href="#fn:17" id="fnref:17" title="see footnote" class="footnote"><sup>17</sup></a>, recommends selecting an anchor 3 blocks back from
 the chain tip when constructing shielded transactions. The recommended
 anchor depth SHOULD remain at 3 blocks after activation, reducing the average
 wall-clock anchor delay from <sub>3</sub>.75 minutes to <sub>1</sub>.25 minutes. This
 follows the same precedent set by the Blossom upgrade (ZIP 208
-<a href="#fn:11" title="see footnote" class="footnote"><sup>11</sup></a>), which did not update the anchor depth and therefore halved delay.</p>
+<a href="#fn:14" title="see footnote" class="footnote"><sup>14</sup></a>), which did not update the anchor depth and therefore halved delay.</p>
 
 <table>
 <colgroup>
@@ -757,7 +797,7 @@ follows the same precedent set by the Blossom upgrade (ZIP 208
 <p>The increased likelihood of forking due to block time reduction should not be
 concerning here. For an issue to occur when anchor depth is 3 blocks back, you
 must have a 4 block re-org. In the many years of Ethereum PoW, a 4 block re-org
-has never been observed <a href="#fn:15" id="fnref:15" title="see footnote" class="footnote"><sup>15</sup></a>. So we are not practically at risk of
+has never been observed <a href="#fn:18" id="fnref:18" title="see footnote" class="footnote"><sup>18</sup></a>. So we are not practically at risk of
 inherent randomness causing a re-org. In other POW chains, re-orgs of 4+
 blocks resulted from a consensus split of some form, including the recent
 Litecoin attack, or an attack from a surge in hashpower.
@@ -806,7 +846,7 @@ the current protocol. This section presents the analysis.</p>
 </tbody>
 </table>
 
-<p><strong>Orchard pool:</strong></p>
+<p><strong>Orchard and Ironwood pools:</strong></p>
 
 <table>
 <colgroup>
@@ -823,8 +863,8 @@ the current protocol. This section presents the analysis.</p>
 
 <tbody>
 <tr>
-	<td> <span class="math">\(\mathsf{OrchardBlockActionLimit}\)</span> </td>
-	<td> 330 actions </td>
+	<td> <span class="math">\(\mathsf{OrchardProtocolBlockActionLimit}\)</span> </td>
+	<td> 330 actions per pool </td>
 </tr>
 <tr>
 	<td> Compact sync bandwidth per action </td>
@@ -896,7 +936,7 @@ the current protocol. This section presents the analysis.</p>
 	<td> 3,456 </td>
 </tr>
 <tr>
-	<td> Max Orchard actions/block </td>
+	<td> Max Orchard + Ironwood actions/block </td>
 	<td> <sub>617</sub> (block-size limited) </td>
 	<td> 330 </td>
 </tr>
@@ -906,7 +946,7 @@ the current protocol. This section presents the analysis.</p>
 	<td> 300 </td>
 </tr>
 <tr>
-	<td> Orchard compact BW/day </td>
+	<td> Orchard or Ironwood compact BW/day </td>
 	<td> <sub>105</sub>.2 MB </td>
 	<td> 168.79 MB </td>
 </tr>
@@ -938,7 +978,7 @@ of <strong>37%</strong> from today&#8217;s worst case of approximately 270.5 MB/
 is despite a 3× increase in block frequency and overall throughput
 capacity.</p>
 
-<p>The binding constraint is Orchard at 330 actions per block:
+<p>The binding constraint is Orchard or Ironwood at 330 actions per block:
 <span class="math">\(330 \times 148 \times 3{,}456 + 90 \times 3{,}456 = 169.10\textsf{ MB/day}\kern-0.05em\textsf{.}\)</span></p>
 
 <p>The trial decryption count also decreases significantly, since the
@@ -949,15 +989,16 @@ outputs/actions, because wallets must attempt decryption with both the
 internal and external incoming viewing keys (IVKs). The internal IVK
 detects change outputs sent back to the wallet, while the external IVK
 detects incoming payments. In principle, wallets could avoid trial decrypts
-with their IVK assuming other sync trade-offs are taken, but current Sapling and
-Orchard wallets always attempt both.</p>
+with their IVK assuming other sync trade-offs are taken, but current Sapling
+and Orchard-protocol wallets always attempt both.</p>
 
 <h3 id="normaltransactionthroughput"><span class="section-heading">Normal transaction throughput</span><span class="section-anchor"> <a rel="bookmark" href="#normaltransactionthroughput"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
 
-<p>For standard 2-action Orchard transactions, the action limit of 330
-allows <span class="math">\(\lfloor 330 / 2 \rfloor = 165\)</span> transactions per block, giving:</p>
+<p>For standard 2-action Orchard or Ironwood transactions, the action limit
+of 330 allows <span class="math">\(\lfloor 330 / 2 \rfloor = 165\)</span> transactions per block,
+giving:</p>
 
-<p><span class="math">\[\mathsf{orchard\_tps} = 165 \;/\; 25 = 6.6 \textsf{ TPS}\]</span></p>
+<p><span class="math">\[\mathsf{orchard\_protocol\_tps} = 165 \;/\; 25 = 6.6 \textsf{ TPS}\]</span></p>
 
 <p>For comparison, the current protocol (75s blocks, block-size limited)
 supports approximately 2.9 TPS for 2-action Orchard transactions. This
@@ -971,32 +1012,31 @@ exceeds the current pre-NU7 Orchard TPS (2.9).</p>
 
 <h3 id="feeincentivesanddosresistance"><span class="section-heading">Fee incentives and DoS resistance</span><span class="section-anchor"> <a rel="bookmark" href="#feeincentivesanddosresistance"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
 
-<p>A concern with per-pool limits is that a DoS attacker could fill
-the Sapling or Sprout budget to crowd out Orchard transactions (or vice
-versa). The global shielded budget prevents this from being worse than
-filling any single pool, but it is worth examining whether fee
-incentives create an asymmetry.</p>
+<p>A concern with per-pool limits is that a DoS attacker could fill one
+pool&#8217;s budget to crowd out transactions in another pool. The global
+shielded budget prevents this from being worse than filling any single
+pool, but it is worth examining whether fee incentives create an
+asymmetry.</p>
 
-<p>Under ZIP 317 <a href="#fn:16" id="fnref:16" title="see footnote" class="footnote"><sup>16</sup></a>, the conventional fee is based on <em>logical
+<p>Under ZIP 317 <a href="#fn:19" id="fnref:19" title="see footnote" class="footnote"><sup>19</sup></a>, the conventional fee is based on <em>logical
 actions</em>: each Sapling output or spend counts as one logical action, and
-each Orchard action counts as one logical action. The marginal fee per
-logical action is the same regardless of pool. Therefore, an attacker
-gains no fee advantage by spamming Sapling instead of Orchard (or vice
-versa). The cost per unit of shielded budget consumed is identical.</p>
+each Orchard or Ironwood action counts as one logical action. The marginal
+fee per logical action is the same regardless of pool. Therefore, an
+attacker gains no fee advantage from choosing one pool over another. The
+cost per unit of shielded budget consumed is identical.</p>
 
-<p>Furthermore, because the global shielded budget is shared, filling
-the Sapling budget necessarily reduces the Orchard budget by the same
-amount. An attacker who spends their entire budget on Sapling spam at
-300 IOs leaves only 30 Orchard actions available in that block. But
-this attack is no cheaper than filling 330 Orchard actions directly,
-since the per-action fee is the same. The global budget ensures that
-the total shielded sync cost per block is bounded to 330 units
-regardless of the attacker&#8217;s pool choice.</p>
+<p>Furthermore, because the global shielded budget is shared, filling one
+pool&#8217;s budget necessarily reduces the remaining budget for all other
+pools by the same amount. An attacker who spends their entire budget on
+Sapling spam at 300 IOs leaves only 30 Orchard or Ironwood actions
+available in that block. But this attack is no cheaper than filling 330
+Orchard or Ironwood actions directly, since the per-action fee is the
+same. The global budget ensures that the total shielded sync cost per
+block is bounded to 330 units regardless of the attacker&#8217;s pool choice.</p>
 
-<p>The Orchard per-pool cap of 330 also guarantees that legitimate Orchard
-transactions always have access to the full Orchard budget when Sapling
-and Sprout are not used, which is the expected common case going
-forward.</p>
+<p>The 330-action per-pool cap also allows either Orchard or Ironwood
+transactions to use the full global budget when other shielded pools are
+not used.</p>
 
 <h2 id="difficulty-averaging-window"><span class="section-heading">Difficulty averaging window</span><span class="section-anchor"> <a rel="bookmark" href="#difficulty-averaging-window"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
@@ -1016,14 +1056,14 @@ and at NU7&#8217;s proposed 25 s spacing it would cover only 425 s.</p>
 <li>To preserve the wall-clock duration over which difficulty is
 smoothed, so that NU7 does not amplify difficulty-manipulation
 attacks like the one recently observed on Litecoin
-<a href="#fn:13" title="see footnote" class="footnote"><sup>13</sup></a>.</li>
+<a href="#fn:16" title="see footnote" class="footnote"><sup>16</sup></a>.</li>
 <li>As an additional improvement over keeping
 <span class="math">\(\mathsf{PoWAveragingWindow} = 17\kern-0.05em\textsf{,}\)</span> to reduce the standard
 deviation of block-spacing averages over short rolling windows.</li>
 </ol>
 
 <p>Under a Zebra difficulty-adjustment simulator
-<a href="#fn:17" id="fnref:17" title="see footnote" class="footnote"><sup>17</sup></a> with a stable hash rate and with
+<a href="#fn:20" id="fnref:20" title="see footnote" class="footnote"><sup>20</sup></a> with a stable hash rate and with
 <span class="math">\(\mathsf{PoWAveragingWindow} = 17\)</span> unchanged across the transition,
 the expected block spacing recovers to within 5% of the new 25 s
 target within 62 blocks of NU7 activation:</p>
@@ -1072,7 +1112,7 @@ roughly 6× as many blocks to cross each threshold, which is the
 same wall-clock duration as recovery would have taken at Zcash&#8217;s
 launch 150 s spacing with <span class="math">\(\mathsf{PoWAveragingWindow} = 17\kern-0.05em\textsf{.}\)</span></p>
 
-<p>For a real-world reference point, the Blossom upgrade <a href="#fn:11" title="see footnote" class="footnote"><sup>11</sup></a>
+<p>For a real-world reference point, the Blossom upgrade <a href="#fn:14" title="see footnote" class="footnote"><sup>14</sup></a>
 made a 2× target-spacing reduction (150 s → 75 s) with
 <span class="math">\(\mathsf{PoWAveragingWindow}\)</span> unchanged; mainnet block spacing
 (20-block rolling average) reached approximately 74 s at height
@@ -1125,43 +1165,55 @@ activation heights and consensus branch IDs.</p>
 </li>
 
 <li id="fn:8">
-<p><a href="https://forum.zcashcommunity.com/t/proposal-lower-zcash-block-target-spacing-to-25s/54577">Forum: Proposal — Lower Zcash Block Target Spacing to 25s</a> <a href="#fnref:8" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p>zip-2003 <a href="#fnref:8" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:9">
-<p><a href="https://forum.zcashcommunity.com/t/zcash-block-time-reduction-appears-safe-for-nu7-w-zebra-only-devnet/55586">Forum: Zcash Block Time Reduction Appears Safe for NU7 w/ Zebra-only Devnet</a> <a href="#fnref:9" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://forum.zcashcommunity.com/t/proposal-lower-zcash-block-target-spacing-to-25s/54577">Forum: Proposal — Lower Zcash Block Target Spacing to 25s</a> <a href="#fnref:9" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:10">
-<p><a href="https://github.com/valargroup/zebra/blob/evan/benchmark-worst-case-block-verification/zebra-consensus/benches/worst_case_tx_verification.rs">Zebra worst-case block verification benchmark (<code>worst_case_tx_verification.rs</code>)</a> <a href="#fnref:10" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://forum.zcashcommunity.com/t/zcash-block-time-reduction-appears-safe-for-nu7-w-zebra-only-devnet/55586">Forum: Zcash Block Time Reduction Appears Safe for NU7 w/ Zebra-only Devnet</a> <a href="#fnref:10" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:11">
-<p><a href="zip-0208">ZIP 208: Shorter Block Target Spacing</a> <a href="#fnref:11" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="zip-0229">ZIP 229: Version 6 Transaction Format</a> <a href="#fnref:11" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:12">
-<p><a href="zip-0205">ZIP 205: Deployment of the Sapling Network Upgrade</a> <a href="#fnref:12" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://github.com/valargroup/zebra/blob/evan/benchmark-worst-case-block-verification/zebra-consensus/benches/worst_case_tx_verification.rs">Zebra worst-case block verification benchmark (<code>worst_case_tx_verification.rs</code>)</a> <a href="#fnref:12" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:13">
-<p><a href="https://litecoin.com/news/litecoin-mweb-security-incident-postmortem">Litecoin MWEB Security Incident Postmortem</a> <a href="#fnref:13" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://github.com/zcash/lightwallet-protocol/blob/v0.5.0/walletrpc/compact_formats.proto">Zcash Light Wallet Protocol v0.5.0: <code>compact_formats.proto</code></a> <a href="#fnref:13" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:14">
-<p><a href="zip-0315">ZIP 315: Best Practices for Wallet Implementations</a> <a href="#fnref:14" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="zip-0208">ZIP 208: Shorter Block Target Spacing</a> <a href="#fnref:14" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:15">
-<p><a href="https://static1.squarespace.com/static/6675a0d5fc9e317c60db9b37/t/66eb3560532516773c4f7ece/1726690657755/LovejoyJamesP-meng-eecs-2020+%281%29.pdf">Lovejoy, James P. (2020). <em>An Empirical Analysis of Chain Reorganizations and Double-Spend Attacks on Proof-of-Work Cryptocurrencies.</em> M.Eng. thesis, Massachusetts Institute of Technology, Department of Electrical Engineering and Computer Science.</a> <a href="#fnref:15" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="zip-0205">ZIP 205: Deployment of the Sapling Network Upgrade</a> <a href="#fnref:15" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:16">
-<p><a href="zip-0317">ZIP 317: Proportional Transfer Fee Mechanism</a> <a href="#fnref:16" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://litecoin.com/news/litecoin-mweb-security-incident-postmortem">Litecoin MWEB Security Incident Postmortem</a> <a href="#fnref:16" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:17">
-<p><a href="https://github.com/valargroup/zebra/blob/evan/benchmark-worst-case-block-verification/zebra-state/src/service/check/difficulty.rs#L555">Zebra difficulty-adjustment recovery simulator: <code>benchmark_hash_rate_shock_daa_configurations</code> in <code>zebra-state/src/service/check/difficulty.rs</code></a>. The 3× target-spacing transition is exercised by <a href="https://github.com/valargroup/zebra/blob/evan/benchmark-worst-case-block-verification/zebra-state/src/service/check/difficulty.rs#L397"><code>simulate_three_x_target_spacing_reduction</code></a> in the same file. <a href="#fnref:17" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="zip-0315">ZIP 315: Best Practices for Wallet Implementations</a> <a href="#fnref:17" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:18">
+<p><a href="https://static1.squarespace.com/static/6675a0d5fc9e317c60db9b37/t/66eb3560532516773c4f7ece/1726690657755/LovejoyJamesP-meng-eecs-2020+%281%29.pdf">Lovejoy, James P. (2020). <em>An Empirical Analysis of Chain Reorganizations and Double-Spend Attacks on Proof-of-Work Cryptocurrencies.</em> M.Eng. thesis, Massachusetts Institute of Technology, Department of Electrical Engineering and Computer Science.</a> <a href="#fnref:18" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:19">
+<p><a href="zip-0317">ZIP 317: Proportional Transfer Fee Mechanism</a> <a href="#fnref:19" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:20">
+<p><a href="https://github.com/valargroup/zebra/blob/evan/benchmark-worst-case-block-verification/zebra-state/src/service/check/difficulty.rs#L555">Zebra difficulty-adjustment recovery simulator: <code>benchmark_hash_rate_shock_daa_configurations</code> in <code>zebra-state/src/service/check/difficulty.rs</code></a>. The 3× target-spacing transition is exercised by <a href="https://github.com/valargroup/zebra/blob/evan/benchmark-worst-case-block-verification/zebra-state/src/service/check/difficulty.rs#L397"><code>simulate_three_x_target_spacing_reduction</code></a> in the same file. <a href="#fnref:20" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 </ol>
