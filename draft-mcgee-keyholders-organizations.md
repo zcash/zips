@@ -60,7 +60,7 @@ announced $25 million in seed funding in March 2026. [^coindesk-3]
 
 Bootstrap and ZODL later reached an agreement resolving the dispute. Under that
 agreement, Bootstrap renounced any authority as a Key-Holder Organization under
-ZIP 271 over the lockbox multisig, and stated that the new company or others
+ZIP 271 over the lockbox multisig [^bootstrap-forum-post], and stated that the new company or others
 would submit a new ZIP to transfer legal authority over the relevant key in
 accordance with the ZIP process. [^bootstrap-statement] This is that ZIP.
 Bootstrap has since changed its name to Sovright. [^sovright-rename]
@@ -150,6 +150,8 @@ amount, and activation height are unchanged.
 [^coindesk-1]: [CoinDesk, 8 January 2026: Top privacy token Zcash falls 14% after key developer team quits over governance clash](https://www.coindesk.com/tech/2026/01/08/zcash-developer-team-behind-ecc-quits-after-governance-clash-with-bootstrap-board)
 
 [^coindesk-2]: [CoinDesk, 8 January 2026: Zcash governance clash tanked the token. Here's why it may not be as big as it seems.](https://www.coindesk.com/business/2026/01/08/zcash-governance-dispute-may-not-be-as-big-as-it-seems)
+
+[^bootstrap-forum-post]: [A Message From the Bootstrap Board On Settlement with ZODL](https://forum.zcashcommunity.com/t/a-message-from-the-bootstrap-board/54329/36)
 
 [^coindesk-3]: [CoinDesk, 9 March 2026: Josh Swihart's Zcash Open Development Lab raises $25 million in seed funding](https://www.coindesk.com/business/2026/03/09/josh-swihart-s-zcash-open-development-lab-raises-usd25-million-in-seed-funding)
 
