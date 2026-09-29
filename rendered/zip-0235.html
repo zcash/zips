@@ -20,7 +20,7 @@ Owners: Jason McGee &lt;jason@shieldedlabs.net&gt;
 Original-Authors: Nathan Wilcox
 Credits:
 Status: Draft
-Category: Ecosystem
+Category: Consensus / Ecosystem
 Created: 2023-09-21
 License: BSD-2-Clause
 Discussions-To: &lt;<a href="https://github.com/zcash/zips/issues/924">https://github.com/zcash/zips/issues/924</a>&gt;
@@ -49,6 +49,8 @@ ZEC on Mainnet and TAZ on Testnet.</p>
 <p>The terms &#8220;Block Subsidy&#8221; and &#8220;Issuance&#8221; are to be interpreted as described in
 ZIP 233. <a href="#fn:6" id="fnref:6" title="see footnote" class="footnote"><sup>6</sup></a></p>
 
+<p>&#8220;NSM Value Balance&#8221; is to be interpreted as defined in ZIP 237. <a href="#fn:7" id="fnref:7" title="see footnote" class="footnote"><sup>7</sup></a></p>
+
 <h1 id="abstract"><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
 
 <p>This ZIP proposes to remove 60% of transaction fees from circulation, while
@@ -71,7 +73,7 @@ of the network as described below:</p>
 
 <ol>
 <li><strong>Network Sustainability</strong>: This mechanism involves temporarily reducing the
-supply of ZEC, similar to asset burning in Ethereum’s EIP-1559 <a href="#fn:7" id="fnref:7" title="see footnote" class="footnote"><sup>7</sup></a>,
+supply of ZEC, similar to asset burning in Ethereum’s EIP-1559 <a href="#fn:8" id="fnref:8" title="see footnote" class="footnote"><sup>8</sup></a>,
 but with long-term sustainability benefits. Unlike a permanent burn, the
 removed funds are intended to be reissued through future block subsidies.</li>
 <li><strong>Incentivizing Transaction Inclusion</strong>: By maintaining a 40% share of
@@ -97,8 +99,9 @@ beyond the original issuance schedule.</li>
 <h1 id="requirements"><span class="section-heading">Requirements</span><span class="section-anchor"> <a rel="bookmark" href="#requirements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
 
 <ul>
-<li>For each block, at least 60% (rounded down) of the total fees are to be
-removed from circulation.</li>
+<li>For each block, 60% (rounded down) of the total fees are to be removed from
+circulation.</li>
+<li>The rule does not require any transaction format change.</li>
 <li>No restrictions are placed on the destination of the remaining proportion of
 fees.</li>
 <li>Any fractions are rounded in favor of the miner.</li>
@@ -108,11 +111,37 @@ fees.</li>
 
 <h2 id="consensusrulechanges"><span class="section-heading">Consensus Rule Changes</span><span class="section-anchor"> <a rel="bookmark" href="#consensusrulechanges"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
-<p>For a given block, the coinbase transaction MUST have a <span class="math">\(\mathsf{zip233\_amount}\kern-0.05em\textsf{,}\)</span>
-as defined in <a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a>, that is greater than or equal to
-<span class="math">\(\mathsf{floor}(\mathsf{transactionFees} \cdot 6 / 10)\kern-0.05em\textsf{.}\)</span></p>
+<p>For the block at height <span class="math">\(\mathsf{height}\kern-0.05em\textsf{,}\)</span> let
+<span class="math">\(\mathsf{TransactionFees}(\mathsf{height})\)</span> be the total value in zatoshi of the
+transaction fees paid by the non-coinbase transactions in the block. Define:</p>
 
-<p>The version of a coinbase transaction MUST be v6 or later <a href="#fn:8" id="fnref:8" title="see footnote" class="footnote"><sup>8</sup></a>.</p>
+<p><span class="math">\[\mathsf{NSMFeeContribution}(\mathsf{height}) := \mathsf{floor}\!\left(\frac{6 \cdot \mathsf{TransactionFees}(\mathsf{height})}{10}\right)\]</span></p>
+
+<p><span class="math">\[\mathsf{MinerFees}(\mathsf{height}) := \mathsf{TransactionFees}(\mathsf{height}) - \mathsf{NSMFeeContribution}(\mathsf{height})\]</span></p>
+
+<p>The calculation uses the aggregate fees of the block, not the fees of each
+transaction.</p>
+
+<p>In § 7.1.2 ‘Transaction Consensus Rules’ <a href="#fn:9" id="fnref:9" title="see footnote" class="footnote"><sup>9</sup></a>, change the
+definition of the total input value of a coinbase transaction to:</p>
+
+<blockquote>
+<p>define the total input value of its coinbase transaction to be the value in
+zatoshi of the block subsidy, plus the transaction fees paid by transactions
+in the block (pre-NU7) or <span class="math">\(\mathsf{MinerFees}(\mathsf{height})\)</span> (NU7 onward),
+plus <span class="math">\(\mathsf{totalDeferredInput}(\mathsf{height})\kern-0.05em\textsf{.}\)</span></p>
+</blockquote>
+
+<p>The rule that the total output value of a coinbase transaction MUST be equal to
+its total input value is unchanged. <a href="#fn:10" id="fnref:10" title="see footnote" class="footnote"><sup>10</sup></a></p>
+
+<p><span class="math">\(\mathsf{NSMFeeContribution}(\mathsf{height})\)</span> is not produced as an output in
+any chain value pool. It is removed from circulation in the block at
+<span class="math">\(\mathsf{height}\kern-0.05em\textsf{,}\)</span> and is therefore not included in the Issued Supply as
+calculated in § 4.17 ‘Chain Value Pool Balances’.
+<a href="#fn:11" id="fnref:11" title="see footnote" class="footnote"><sup>11</sup></a> If ZIP 237 <a href="#fn:7" title="see footnote" class="footnote"><sup>7</sup></a> is deployed,
+<span class="math">\(\mathsf{NSMFeeContribution}(\mathsf{height})\)</span> is included in
+<span class="math">\(\mathsf{removed}(\mathsf{height})\kern-0.05em\textsf{,}\)</span> and so is credited to the NSM Value Balance.</p>
 
 <h2 id="applicability"><span class="section-heading">Applicability</span><span class="section-anchor"> <a rel="bookmark" href="#applicability"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
@@ -125,22 +154,30 @@ implementation and protocol changes. Additionally, transaction fees are
 currently small enough that the reduction in miner fees is unlikely to be a
 concern.</p>
 
-<h2 id="rationaleforrequiringthecoinbasetransactiontobev6orlater"><span class="section-heading">Rationale for requiring the coinbase transaction to be v6 or later</span><span class="section-anchor"> <a rel="bookmark" href="#rationaleforrequiringthecoinbasetransactiontobev6orlater"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+<h2 id="rationaleforablock-levelrule"><span class="section-heading">Rationale for a block-level rule</span><span class="section-anchor"> <a rel="bookmark" href="#rationaleforablock-levelrule"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
-<p>There is no explicit mechanism in prior transaction versions to remove
-the required funds from circulation. Since <span class="math">\(\mathsf{zip233\_amount} = 0\)</span>
-for transaction versions prior to v6, absent the rule about the coinbase
-transaction version it would be technically possible to satisfy the constraint
-on <span class="math">\(\mathsf{zip233\_amount}\)</span> with earlier versions than v6, but only when
-<span class="math">\(\mathsf{transactionFees} = 0\kern-0.05em\textsf{.}\)</span> That would introduce a corner case in the
-transaction consensus rules that is not useful, since it is expected that the
-<span class="math">\(\mathsf{transactionFees}\)</span> will normally be non-zero.</p>
+<p>The amount removed from circulation is a function of the block&#8217;s fees alone, so
+every node calculates it from data that it already validates. The coinbase
+transaction does not state the amount, and so no transaction field is needed.
+This lets the rule apply to coinbase transactions of every transaction version
+that is valid at NU7, and does not require the explicit NSM field of ZIP 233.
+<a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a></p>
+
+<p>Because ZIP 236 <a href="#fn:10" title="see footnote" class="footnote"><sup>10</sup></a> requires the coinbase transaction to claim its full
+total input value, the miner receives exactly <span class="math">\(\mathsf{MinerFees}(\mathsf{height})\kern-0.05em\textsf{.}\)</span>
+A miner cannot remove less than the required amount by underclaiming, and cannot
+claim more than it is entitled to.</p>
+
+<p>The contribution is rounded down once for the whole block. Rounding each
+transaction&#8217;s fee separately would, in aggregate, remove less than 60% of the
+fees: for example, two transactions that each pay a fee of 1 zatoshi would each
+contribute 0.</p>
 
 <h2 id="estimatedimpactonminers"><span class="section-heading">Estimated impact on miners</span><span class="section-anchor"> <a rel="bookmark" href="#estimatedimpactonminers"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
 <p>Over 100,000 blocks starting at block 2235515, there were 316130 transactions.
 60608 of them are categorized as &#8216;sandblasting&#8217; transactions. The remaining
-transactions have an average of 5.46 logical actions (see ZIP 317 <a href="#fn:9" id="fnref:9" title="see footnote" class="footnote"><sup>9</sup></a>).</p>
+transactions have an average of 5.46 logical actions (see ZIP 317 <a href="#fn:12" id="fnref:12" title="see footnote" class="footnote"><sup>12</sup></a>).</p>
 
 <p>The total fees paid to miners from those transactions, assuming the ZIP 317
 regime, would be 87.86 ZEC. 100,000 blocks is approximately 3 months of blocks.
@@ -148,7 +185,7 @@ Extrapolating to a year, we would expect 351.44 ZEC in fees paid to miners over
 a year.</p>
 
 <p>If 60% of these fees are removed from circulation, that would be 210.864 ZEC per
-year. <a href="#fn:10" id="fnref:10" title="see footnote" class="footnote"><sup>10</sup></a></p>
+year. <a href="#fn:13" id="fnref:13" title="see footnote" class="footnote"><sup>13</sup></a></p>
 
 <h2 id="considerationsforthefuture"><span class="section-heading">Considerations for the Future</span><span class="section-anchor"> <a rel="bookmark" href="#considerationsforthefuture"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
@@ -175,8 +212,8 @@ support network sustainability, including but not limited to:</p>
 
 <h1 id="deployment"><span class="section-heading">Deployment</span><span class="section-anchor"> <a rel="bookmark" href="#deployment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
 
-<p>The implementation of this ZIP MUST be deployed at the same time or after
-ZIP 233 (&#8220;NSM: Removing Funds From Circulation&#8221; <a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a>).</p>
+<p>This ZIP is proposed to activate with Network Upgrade 7. <a href="#fn:14" id="fnref:14" title="see footnote" class="footnote"><sup>14</sup></a> It does not
+require the activation of ZIP 233 (&#8220;NSM: Removing Funds From Circulation&#8221; <a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a>).</p>
 
 <h1 id="references"><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
 
@@ -193,15 +230,15 @@ ZIP 233 (&#8220;NSM: Removing Funds From Circulation&#8221; <a href="#fn:6" titl
 </li>
 
 <li id="fn:3">
-<p><a href="protocol/protocol.pdf">Zcash Protocol Specification, Version 2025.6.2 [NU6.1] or later</a> <a href="#fnref:3" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="protocol/protocol.pdf">Zcash Protocol Specification, Version 2026.8.0 [NU6.3] or later</a> <a href="#fnref:3" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:4">
-<p><a href="protocol/protocol.pdf#networks">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 3.12: Mainnet and Testnet</a> <a href="#fnref:4" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="protocol/protocol.pdf#networks">Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 3.12: Mainnet and Testnet</a> <a href="#fnref:4" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:5">
-<p><a href="protocol/protocol.pdf#notation">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 2: Notation</a> <a href="#fnref:5" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="protocol/protocol.pdf#notation">Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 2: Notation</a> <a href="#fnref:5" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:6">
@@ -209,19 +246,35 @@ ZIP 233 (&#8220;NSM: Removing Funds From Circulation&#8221; <a href="#fn:6" titl
 </li>
 
 <li id="fn:7">
-<p><a href="https://eips.ethereum.org/EIPS/eip-1559">EIP-1559: Fee market change for ETH 1.0 chain</a> <a href="#fnref:7" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="zip-0237">ZIP 237: Network Sustainability Mechanism: Halving-Preserving Issuance</a> <a href="#fnref:7" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:8">
-<p><a href="zip-0230">ZIP 230: Version 6 Transaction Format</a> <a href="#fnref:8" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://eips.ethereum.org/EIPS/eip-1559">EIP-1559: Fee market change for ETH 1.0 chain</a> <a href="#fnref:8" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:9">
-<p><a href="zip-0317">ZIP 317: Proportional Transfer Fee Mechanism</a> <a href="#fnref:9" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="protocol/protocol.pdf#txnconsensus">Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.1.2: Transaction Consensus Rules</a> <a href="#fnref:9" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:10">
-<p><a href="https://github.com/eigerco/zsf-fee-estimator">GitHub repository eigerco/zsf-fee-estimator</a> <a href="#fnref:10" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="zip-0236">ZIP 236: Blocks should balance exactly</a> <a href="#fnref:10" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:11">
+<p><a href="protocol/protocol.pdf#chainvaluepoolbalances">Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 4.17: Chain Value Pool Balances</a> <a href="#fnref:11" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:12">
+<p><a href="zip-0317">ZIP 317: Proportional Transfer Fee Mechanism</a> <a href="#fnref:12" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:13">
+<p><a href="https://github.com/eigerco/zsf-fee-estimator">GitHub repository eigerco/zsf-fee-estimator</a> <a href="#fnref:13" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:14">
+<p><a href="zip-0259">ZIP 259: Deployment of the NU7 Network Upgrade</a> <a href="#fnref:14" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 </ol>
