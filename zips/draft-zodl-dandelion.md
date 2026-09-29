@@ -1,4 +1,4 @@
-ZIP: Unassigned
+    ZIP: Unassigned
     Title: Dandelion++ Transaction Propagation for Zcash P2P Nodes
     Owners: y4ssi <y4ssi@zodl.com>
     Status: Draft
@@ -6,6 +6,7 @@ ZIP: Unassigned
     Created: 2026-07-09
     License: MIT
     Discussions-To: <https://github.com/zcash/zips/issues/TODO>
+    Pull-Request: <https://github.com/zcash/zips/pull/1329>
 
 
 # Terminology
@@ -41,7 +42,7 @@ IP-to-transaction correlation.
 This ZIP covers only the **full-node P2P relay behavior** (sometimes called
 "Component B"). A companion mechanism for wallets to submit transactions directly
 to a node via P2P rather than through a compact-block server is described in
-draft-dandelion-wallet (PR [#1330](https://github.com/zcash/zips/pull/1330)). [^draft-dandelion-wallet]
+draft-zodl-dandelion-wallet (PR [#1330](https://github.com/zcash/zips/pull/1330)). [^draft-zodl-dandelion-wallet]
 
 
 # Motivation
@@ -232,7 +233,7 @@ Chain synchronisation always uses the lightwalletd endpoint regardless of this s
 A fallback to lwd submission is available when all P2P peers are unreachable.
 
 The wallet-side specification (peer discovery, tx message format, error handling) is
-in the companion draft (PR [#1330](https://github.com/zcash/zips/pull/1330)). [^draft-dandelion-wallet]
+in the companion draft (PR [#1330](https://github.com/zcash/zips/pull/1330)). [^draft-zodl-dandelion-wallet]
 
 
 # Changelog
@@ -255,5 +256,5 @@ https://arxiv.org/abs/1805.11060
 
 [^zip-0307]: [ZIP 307: Light Client Protocol for Payment Detection](https://zips.z.cash/zip-0307)
 
-[^draft-dandelion-wallet]: draft-dandelion-wallet: Direct Wallet Transaction Submission via Dandelion++ P2P Relay. PR: https://github.com/zcash/zips/pull/1330
+[^draft-zodl-dandelion-wallet]: draft-zodl-dandelion-wallet: Direct Wallet Transaction Submission via Dandelion++ P2P Relay. PR: https://github.com/zcash/zips/pull/1330
 (In preparation — see zcash/zips#1330.)
