@@ -105,10 +105,10 @@ Deployment section.
 **Why a `marginal_fee` of 1,000.** A 5x cut still leaves the fee 5x above its 2022
 dollar cost.
 
-**Why a `weight_ratio_cap` of 10.** Like the 4 it replaces, 10 is a compromise
-rather than a derived number. The one hard constraint is that the new maximum
-stay at or below today's 40,000 zatoshis, which bounds the cap at 20; 10 leaves
-room to move further later.
+**Why a `weight_ratio_cap` of 10.** This maintains the rationale in ZIP 317, section
+"Rationale for block template construction algorithm", of limiting the ability of an
+adversary to gain a significant advantage over other users by paying more than the
+conventional fee.
 
 **Precedent.** ZIP 313 [^zip-0313] reduced the conventional fee in 2020 the
 same way: a wallet convention, no network upgrade.
