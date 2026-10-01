@@ -110,7 +110,7 @@ rather than a derived number. The one hard constraint is that the new maximum
 stay at or below today's 40,000 zatoshis, which bounds the cap at 20; 10 leaves
 room to move further later.
 
-**Precedent.** ZIP 313 [^zip-0313] changed the conventional fee in 2020 the
+**Precedent.** ZIP 313 [^zip-0313] reduced the conventional fee in 2020 the
 same way: a wallet convention, no network upgrade.
 
 # Deployment
