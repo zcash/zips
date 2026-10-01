@@ -79,11 +79,9 @@ ZIP 317, the sentence
 
 is replaced with
 
-> Define constants `weight_ratio_cap` = 10 and `block_unpaid_action_limit` = 50.
-
-In the section **Rationale for block template construction algorithm**, the
-paragraph beginning "The rationale for choosing `weight_ratio_cap` = 4" is
-replaced with:
+In the section **Recommended algorithm for block template construction** of
+ZIP 317, replace the constant definition `weight_ratio_cap` = 4 with
+`weight_ratio_cap` = 10.
 
 > The rationale for choosing `weight_ratio_cap` = 10 is as a compromise between
 > not allowing any prioritization of transactions relative to those that pay the
