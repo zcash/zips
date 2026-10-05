@@ -15,6 +15,7 @@
            Linda Naeun Lee
            George Tankersley
            Henry de Valence
+           The Vizor wallet developers
   Status: Draft
   Category: Standards / Wallet
   Created: 2019-07-17
@@ -56,11 +57,12 @@ Payment secret
   The 32-byte secret $S$ carried in the ``key`` parameter of a payment URI,
   from which every key of the payment wallet is derived.
 Payment wallet
-  The single-account, Orchard-only wallet derived from a payment secret as
-  specified in `Payment wallet derivation`_.
+  The single-account wallet derived from a payment secret as specified in
+  `Payment wallet derivation`_. Its Sapling funds, if any, are outside the
+  scope of this specification.
 Payment address
-  The Orchard payment address of the payment wallet to which the funds of a
-  URI-Encapsulated Payment are sent.
+  The Orchard-only payment address of the payment wallet to which the funds of
+  a URI-Encapsulated Payment are sent.
 Minter
   The party (and their wallet software) that creates a payment URI and funds
   its payment address. This is the *sender* of the payment.
@@ -71,8 +73,8 @@ Claimant
 Funding transaction
   A transaction that sends funds to the payment address.
 Claim transaction
-  A transaction, created by a claimant, that spends all of the notes held by a
-  payment wallet to one of the claimant's own addresses.
+  A transaction, created by a claimant, that spends all of the spendable notes
+  held by a payment wallet to one of the claimant's own addresses.
 Reclaim
   A claim transaction created by the minter, taking back funds that were not
   claimed by anyone else.
@@ -86,8 +88,8 @@ unmodified (secure) messaging service, printed medium, or other channel over
 which a short string can be conveyed. The sender need not know the recipient's
 address and the recipient need not have a Zcash wallet already installed.
 
-A payment is created by deriving a fresh 32-byte *payment secret*, deriving an
-Orchard-only *payment wallet* from that secret, and sending funds to its
+A payment is created by deriving a fresh 32-byte *payment secret*, deriving a
+*payment wallet* from that secret, and sending funds to its Orchard-only
 payment address. The payment secret, together with a block height from which
 the funds can be found and optional advisory metadata (amount and description),
 is encoded in the fragment of an ordinary HTTPS URL. Because the fragment is
@@ -97,9 +99,11 @@ compatible wallet.
 
 Anyone who learns the URI can claim the payment: their wallet derives the
 payment wallet, scans the chain from the given height, and sweeps every note it
-finds into an address of its own in a single transaction. Until that happens
-the minter can take the funds back by the same procedure; there is no on-chain
-expiry. A claim transaction is an ordinary fully-shielded Orchard transaction,
+finds into an address of its own in a single transaction, taking the whole
+balance rather than the advertised amount. Until that happens the minter can
+take the funds back by the same procedure; there is no on-chain expiry and no
+limit on the age of a payment. A claim transaction is an ordinary
+fully-shielded Orchard transaction,
 indistinguishable on chain from any other, and it is constructed so that the
 payment secret does not grant visibility of where the funds went after the
 claim.
@@ -107,7 +111,9 @@ claim.
 The proposal specifies the syntax and semantics of Payment-Encapsulating URIs,
 the derivation of payment wallets, the workflow of minting, claiming and
 reclaiming payments, and the behaviour expected of wallet software and of
-hosts that appear in payment URIs.
+hosts that appear in payment URIs. It also describes, informatively, the
+payment-link formats already deployed by the Vizor wallet, which follow the
+same model of a bearer secret for a standard single-account wallet.
 
 Usage Story
 -----------
@@ -254,6 +260,10 @@ protocols for using them, is meant to fulfill the following requirements:
   indistinguishable from normal fully-shielded transactions (except, possibly,
   for the statistics of the number of shielded inputs and outputs).
 
+* A payment should remain claimable for as long as its funds are unspent, so
+  that a payment that is printed, kept, or opened late does not silently
+  become unclaimable.
+
 * Don't lose funds, even if wallets crash, or everything but the sending
   wallet master secret is lost. Payments minted by a wallet should be
   recoverable from that wallet's seed, and a payment URI on its own should be
@@ -279,6 +289,10 @@ Non-requirements
 * This proposal does not provide an on-chain expiry for unclaimed payments.
   Reclaiming is a wallet-side action of the minter.
 
+* Funds sent to Sapling addresses of the payment wallet are outside the scope
+  of this proposal. Such funds can be recovered only by restoring the payment
+  wallet's mnemonic sentence in a wallet that supports Sapling.
+
 
 Specification
 =============
@@ -299,7 +313,7 @@ RFC 3986 [#RFC3986]_, with the following structure::
                / otherparam
   version      = "v=1"
   keyparam     = "key=" bech32m
-  heightparam  = "height=" 1*DIGIT
+  heightparam  = "height=" %x31-39 *DIGIT
   amountparam  = "amount=" 1*DIGIT [ "." 1*8DIGIT ]
   descparam    = "desc=" *qchar
   otherparam   = 1*( ALPHA / DIGIT / "-" / "_" ) "=" *qchar
@@ -308,12 +322,15 @@ RFC 3986 [#RFC3986]_, with the following structure::
 where ``host``, ``port``, ``path-abempty``, ``unreserved``, ``pct-encoded``,
 ``ALPHA``, and ``DIGIT`` are as defined in RFC 3986 [#RFC3986]_, and
 ``bech32m`` is a Bech32m string as specified in `Encoding of the payment
-secret`_.
+secret`_. This grammar describes the URIs that producers emit; the handling of
+other input by consumers is specified below.
 
-The scheme MUST be ``https``. The ``host`` MAY be any host; see `Hosts and
-landing pages`_. The path SHOULD be empty or ``/``. The URI MUST NOT contain a
-query component (``?``): everything specific to the payment MUST be carried in
-the fragment, so that it is never sent to the host.
+The scheme MUST be ``https``; consumers MUST match it case-insensitively, as
+RFC 3986 requires. The ``host`` MAY be any host; see `Hosts and landing
+pages`_. The path SHOULD be empty or ``/``. Producers MUST NOT include a query
+component (``?``): everything specific to the payment MUST be carried in the
+fragment, so that it is never sent to the host. Consumers MUST NOT use a query
+component, if one is present, to interpret the payment.
 
 The fragment consists of attribute-value pairs separated by ``&``. The
 following attributes are defined:
@@ -323,9 +340,9 @@ following attributes are defined:
   encounters any other value MUST reject the URI as unsupported.
 * ``key``: the payment secret, encoded as specified in `Encoding of the
   payment secret`_. MUST be present.
-* ``height``: a block height, in decimal without leading ``+`` or whitespace,
-  at or before the height of the first funding transaction. MUST be present
-  and MUST be greater than zero. See `Semantics`_.
+* ``height``: a block height, in decimal without sign, whitespace or leading
+  zeros, at or before the height of the first funding transaction, and no less
+  than the minimum birthday height given in `Semantics`_. MUST be present.
 * ``amount``: the nominal amount of the payment in decimal ZEC, following the
   same syntax and interpretation as the ``amount`` parameter of ZIP 321
   [#zip-0321-amount]_; in addition, it MUST be greater than zero. MAY be
@@ -334,32 +351,95 @@ following attributes are defined:
   value is UTF-8 text [#RFC3629]_, percent-encoded as described below, and
   MUST NOT exceed 512 bytes after decoding.
 
+The attributes ``v``, ``key`` and ``height`` are *strict*, and ``amount`` and
+``desc`` are *advisory*.
+
 Producers MUST emit ``v`` first, followed by ``key``, ``height``, ``amount``
 (if present) and ``desc`` (if present), in that order. Consumers MUST accept
 the defined attributes in any order.
 
-Consumers MUST reject a URI in which any defined attribute appears more than
-once, in which a pair lacks an ``=``, or in which any of the defined attributes
-is malformed. Consumers MUST ignore attributes they do not recognise, so that
-future versions of this specification can add optional attributes without
-changing ``v``.
+Consumers process the fragment as follows:
+
+* Empty pairs (as produced by ``&&``, or by a leading or trailing ``&``) MUST
+  be skipped.
+* A pair that contains no ``=`` is read as a name with an empty value.
+* Pairs whose name is not a defined attribute MUST be ignored, whether or not
+  they contain ``=``, so that future versions of this specification can add
+  optional attributes without changing ``v``.
+* Consumers MUST reject a URI in which a strict attribute is absent, appears
+  more than once, or is malformed or out of range.
+* If an advisory attribute appears more than once, or its value is malformed
+  or out of range (for ``amount``: not of the syntax above, zero, or greater
+  than the maximum money supply; for ``desc``: not decodable as described
+  below, or longer than 512 bytes after decoding), consumers MUST treat that
+  attribute as absent and MUST NOT reject the URI for that reason.
 
 Producers MUST percent-encode every byte of the ``desc`` value other than the
 ``unreserved`` characters of RFC 3986 (``ALPHA``, ``DIGIT``, ``-``, ``.``,
 ``_``, ``~``); in particular a space MUST be encoded as ``%20``. Consumers
 MUST decode ``%XX`` sequences and MUST treat an unencoded ``+`` as a space (for
-compatibility with form-encoding libraries), and MUST reject a ``desc`` value
-that does not decode to valid UTF-8.
+compatibility with form-encoding libraries). A ``desc`` value that contains a
+``%`` not followed by two hexadecimal digits, or that does not decode to valid
+UTF-8, is malformed.
 
 A Payment-Encapsulating URI MUST NOT exceed 16384 bytes. Consumers MAY reject
-longer inputs before parsing them.
+longer inputs, measured after removing leading and trailing whitespace, before
+parsing them.
+
+Rationale for advisory attributes being lenient
+'''''''''''''''''''''''''''''''''''''''''''''''
+
+.. raw:: html
+
+   <details>
+   <summary>Click to show/hide</summary>
+
+The funds held by the payment wallet are authoritative, and ``amount`` and
+``desc`` only describe them. Rejecting a URI because one of them is malformed
+would make a funded payment unclaimable in conforming wallets because of a
+display-only field, which is the worse failure for a bearer instrument that
+may already be printed. The strict attributes, by contrast, determine which
+wallet is scanned and from where; guessing at them could hide funds or point
+the claimant at the wrong wallet.
+
+.. raw:: html
+
+   </details>
+
+Sanitization of the description
+'''''''''''''''''''''''''''''''
+
+The ``desc`` value is text chosen by whoever produced the URI. Before
+displaying it, or using it in any other way (for example in a memo), a
+consumer MUST transform the decoded value as follows:
+
+* each line break, paragraph separator or other whitespace control character
+  (TAB, LF, VT, FF, CR, NEL U+0085, LINE SEPARATOR U+2028 and PARAGRAPH
+  SEPARATOR U+2029) is replaced by a space;
+* every other control character (Unicode general category ``Cc``, that is the
+  C0 controls, DEL and the C1 controls) is removed;
+* the invisible format characters that can hide or reorder displayed text are
+  removed: the bidirectional marks (U+061C, U+200E, U+200F), the bidirectional
+  embeddings, overrides and isolates (U+202A to U+202E and U+2066 to U+2069),
+  the deprecated format controls (U+206A to U+206F), ZERO WIDTH SPACE
+  (U+200B), WORD JOINER and the invisible operators (U+2060 to U+2064), ZERO
+  WIDTH NO-BREAK SPACE (U+FEFF), and the interlinear annotation controls
+  (U+FFF9 to U+FFFB).
+
+ZERO WIDTH JOINER, ZERO WIDTH NON-JOINER and variation selectors are kept,
+since emoji sequences and several scripts depend on them. If the result is
+empty or consists only of whitespace, ``desc`` is treated as absent.
+
+Producers MUST NOT emit a ``desc`` value that is blank, or that this
+transformation would change.
 
 Semantics
 ---------
 
 The ``key`` parameter deterministically determines a payment wallet, as
 specified in `Payment wallet derivation`_. The URI represents the capability to
-spend every Orchard note received by that wallet's payment address.
+spend every Orchard note (and, once the Ironwood pool is deployed, every
+Ironwood note) received by that wallet.
 
 The ``height`` parameter is the *birthday* of the payment wallet: the block
 height from which a consumer scans the chain for the payment wallet's notes.
@@ -371,10 +451,18 @@ a smaller value only increases the claimant's scanning cost. A consumer MUST
 NOT assume that no notes exist below ``height``; it simply does not look for
 them.
 
+``height`` MUST be greater than or equal to the *minimum birthday height* of
+the network identified by ``key``: the activation height of NU5, which is
+1687104 on Mainnet and 1842420 on Testnet, or 1 on Regtest. Consumers MUST
+reject a URI whose ``height`` is lower. A payment wallet's Orchard funds
+cannot predate the activation of NU5, which introduced the Orchard pool.
+There is no upper bound and no lower bound relative to the chain tip; see
+`Payment Rendering and Blockchain Lookup`_.
+
 The ``amount`` and ``desc`` parameters are advisory. They exist so that wallet
 software can describe the payment to the user before the chain has been
 scanned. The amount that can actually be claimed is the total value of the
-unspent Orchard notes received by the payment address, less the transaction fee
+unspent notes held by the payment wallet, less the transaction fee
 of the claim transaction, and MAY differ from ``amount`` in either direction
 (possibly being zero).
 
@@ -410,11 +498,16 @@ A Bech32m-encoded payment secret is 52 data characters plus the 6-character
 checksum, the ``1`` separator, and the Human-Readable Part.
 
 Producers MUST use lowercase. Consumers MUST accept either all-lowercase or
-all-uppercase encodings, as for Bech32, and MUST reject:
+all-uppercase encodings (so the Human-Readable Part is matched
+case-insensitively), as for Bech32, and MUST reject:
 
 * a string whose checksum is not a valid *Bech32m* checksum (in particular a
   string carrying a Bech32 checksum MUST be rejected);
 * a string whose decoded data part is not exactly 32 bytes;
+* a string whose padding bits (the 4 bits left over when the 52 5-bit groups
+  are converted to 32 bytes) are not all zero, since these would give a second
+  spelling of the same secret;
+* a string that mixes lowercase and uppercase characters;
 * a string whose Human-Readable Part is not one of those listed above
   ("unsupported network");
 * a string whose Human-Readable Part identifies a network other than the one
@@ -453,10 +546,25 @@ follows:
    Unified Address [#zip-0316]_ containing only that Orchard Receiver.
 
 The Orchard full viewing key, incoming viewing key and outgoing viewing key of
-the payment wallet are those of $\mathsf{sk}$. The payment wallet has no
-Sapling or transparent components: a producer MUST NOT send funds to any
-Sapling or transparent address derived from $\mathsf{seed}$, and a consumer
-is not required to look for any.
+the payment wallet are those of $\mathsf{sk}$.
+
+The pools within the scope of this specification are the Orchard pool and,
+once it is deployed, the Ironwood pool [#zip-0258]_. A minter MUST fund the
+payment address, that is the Orchard receiver, or the receiver in a later
+shielded pool such as Ironwood to which a payment to the payment address is
+directed once that pool is deployed. A minter MUST NOT send funds to any
+Sapling or transparent address derived from $\mathsf{seed}$; no transparent
+receiver is ever advertised for a payment wallet.
+
+A claimant scans for and spends the payment wallet's Orchard notes and, once
+the Ironwood pool is deployed, its Ironwood notes. Transparent value can
+reach a payment wallet only if someone pays one of its transparent addresses
+(the BIP 44 [#bip-0044]_ addresses of account $0$ of $\mathsf{seed}$ for
+$\mathit{coin\_type}$) out of band; a claimant that finds such funds MUST
+sweep them as specified in `Claiming`_. Funds sent to a Sapling receiver of
+the payment wallet are outside the scope of this specification: they are
+recoverable only by restoring the mnemonic sentence of step 1 in a wallet that
+supports Sapling (see also `Known Uses`_).
 
 Implementations MAY compute $\mathsf{seed}$ directly from $S$ without
 materialising the mnemonic sentence, provided the result is identical.
@@ -469,14 +577,23 @@ Rationale for an Orchard-only payment wallet
    <details>
    <summary>Click to show/hide</summary>
 
-Restricting the payment wallet to a single pool keeps the claim transaction
-free of cross-pool transfers, which would be visible on chain as changes in
-pool balances and would link the funding and claim transactions. Orchard is
-chosen because it is the pool with the best privacy properties, because its
-proofs are the cheapest to generate on mobile devices, and because scanning
-for Orchard notes is the smallest workload for a light client. Supporting
-several pools would multiply the scanning cost for every claimant for no
-benefit to the minter, who controls which pool the funds are sent to.
+Funding only the current shielded pool keeps the usual claim transaction free
+of cross-pool transfers, which would be visible on chain as
+changes in pool balances and would link the funding and claim transactions.
+Orchard is chosen because it is the pool with the best privacy properties,
+because its proofs are the cheapest to generate on mobile devices, and
+because scanning for Orchard notes is the smallest workload for a light
+client. Supporting older pools would multiply the scanning cost for every
+claimant for no benefit to the minter, who controls which pool the funds are
+sent to. The Ironwood pool is included because it is the successor to
+Orchard; a payment funded after its deployment should not be stranded because
+the sender's wallet directed it there.
+
+Some deployed payment links (see `Known Uses`_) describe a payment address
+with both Orchard and Sapling receivers. Funds that such a link's minter sent
+to the Sapling receiver are not claimable under this specification, but
+remain recoverable from the mnemonic sentence in any wallet that supports
+Sapling.
 
 .. raw:: html
 
@@ -599,22 +716,26 @@ The minter's wallet:
 1. Obtains a payment secret $S$ as specified in `Minting a payment secret`_,
    and derives the payment address as specified in `Payment wallet
    derivation`_.
-2. Creates and broadcasts a *funding transaction* paying the payment address.
-   The funding output MUST be an Orchard output to the payment address. The
-   funding transaction SHOULD be a fully-shielded Orchard transaction, so that
-   it is indistinguishable from ordinary transactions, and MAY carry ``desc``
-   (or nothing) in the memo of the funding output.
-3. Records ``height``, which MUST be at most the height at which the funding
+2. Chooses ``height``, which MUST be at most the height at which the funding
    transaction is mined. A wallet that generates the URI before the funding
    transaction is mined SHOULD use the chain tip height at the time the
    funding transaction is created.
-4. Encodes the payment URI as specified in `Syntax`_.
+3. Durably records the payment, as described below, before broadcasting any
+   funding transaction.
+4. Creates and broadcasts a *funding transaction* paying the payment address.
+   The funding output MUST be an Orchard output to the payment address (or, once
+   the Ironwood pool is deployed, an output in that pool, as specified in
+   `Payment wallet derivation`_). The funding transaction SHOULD be a
+   fully-shielded transaction, so that it is indistinguishable from ordinary
+   transactions, and MAY carry ``desc`` (or nothing) in the memo of the
+   funding output.
+5. Encodes the payment URI as specified in `Syntax`_.
 
 The funding amount SHOULD include, in addition to the nominal amount shown in
 ``amount``, a *fee reserve* so that the claimant receives the nominal amount
 after paying the fee of the claim transaction. The RECOMMENDED reserve is
 10000 zatoshis, which is the ZIP 317 [#zip-0317]_ conventional fee of a claim
-transaction with at most two Orchard actions. A minter that funds the same
+transaction with at most two logical actions. A minter that funds the same
 payment address with more than one note SHOULD increase the reserve by 5000
 zatoshis for each additional note beyond the second, since each additional
 spend adds a logical action.
@@ -624,11 +745,24 @@ of the minter, and SHOULD NOT send the same payment address more than one
 funding transaction, except to top up a payment before the URI has been
 transmitted.
 
-The minter's wallet SHOULD record, for each payment it mints, the index (if
-seed-derived), ``height``, the nominal amount and ``desc``, so that it can
-display status and reclaim the payment without rescanning. The minter's wallet
-MUST retain the ability to derive the payment wallet of every payment it has
+Before broadcasting the funding transaction, the minter's wallet MUST durably
+record enough information to find and reclaim the payment: for a seed-derived
+secret, its index and ``height``; for a random secret, the secret itself and
+``height``. This ensures that a crash between broadcast and recording cannot
+leave funds in a payment wallet that no one knows about. The minter's wallet
+SHOULD also record the nominal amount and ``desc``, so that it can display
+status and reclaim the payment without rescanning. The minter's wallet MUST
+retain the ability to derive the payment wallet of every payment it has
 minted (see `Recovery From Wallet Crash`_).
+
+A minter whose spending keys are held by a hardware signer creates the
+funding transaction through its usual signing flow (for example using a
+Partially Created Zcash Transaction [#zip-0374]_). Hardware custody protects
+only the funding account: the payment secret and the payment wallet's keys
+always exist on the host device, and later on the claimant's device.
+Seed-derived payment secrets require the wallet seed, so a minter whose seed
+is available only to a hardware signer uses random secrets (see `Minting a
+payment secret`_) or a seed that is available to the host.
 
 Clients MAY generate and transmit the URI before the funding transaction is
 mined; the claimant's wallet will show the payment as *Pending* until it is.
@@ -673,6 +807,21 @@ other content in that message is automatically generated and contains no
 payment-specific or manually-generated information, and thus may be discarded
 during rendering.
 
+Intake of payment URIs
+----------------------
+
+Payment URIs may reach a wallet from any web page or application that can
+trigger an applink_, so a wallet MUST bound the resources that incoming URIs
+can consume:
+
+* it MUST apply the length limit of `Syntax`_ before any other processing;
+* it SHOULD bound the number of payment URIs awaiting processing at any one
+  time, and SHOULD treat a URI that designates the same payment wallet as one
+  already awaiting processing as a duplicate rather than processing it twice;
+* a malformed URI MUST NOT prevent the processing of other URIs; and
+* it MUST NOT begin scanning for, or claiming, a payment solely because a URI
+  was received (see `Claiming`_).
+
 Payment Rendering and Blockchain Lookup
 ---------------------------------------
 
@@ -687,9 +836,20 @@ MUST:
   derivation`_;
 * create a *temporary wallet* for that viewing key that is isolated from the
   user's own accounts (for example, a separate database or a separately named
-  wallet instance), with ``height`` as its birthday; and
-* scan the chain from ``height`` to the current tip for Orchard notes received
-  by the payment address, and for spends of those notes.
+  wallet instance), with ``height`` as its birthday;
+* scan the chain from ``height`` to the current tip for Orchard notes (and,
+  once the Ironwood pool is deployed, Ironwood notes) received by the payment
+  wallet, and for spends of those notes; and
+* look for unspent transparent outputs received by the payment wallet's
+  transparent addresses (see `Payment wallet derivation`_), using the
+  wallet's usual transparent address discovery.
+
+A wallet MUST NOT refuse to process a payment URI because its ``height`` is
+far below the chain tip. When the range to be scanned is large (for example,
+more than about 100000 blocks), the wallet SHOULD warn the user that finding
+the funds may take longer than usual, SHOULD show the progress of the scan,
+and SHOULD let the user cancel it. If ``height`` is above the current chain
+tip, the wallet SHOULD treat the payment as *Pending*.
 
 The wallet MUST NOT import the payment wallet's keys into the user's own
 accounts, and MUST NOT display the payment address to the user as an address
@@ -716,15 +876,65 @@ transactions seen in the mempool, and convey their existence to the user.
 These do not suffice for entering the *Ready to claim* state.
 
 **Confirmations.** A wallet MUST NOT spend a note of the payment wallet that
-has fewer than 2 confirmations. A wallet SHOULD require at least 10
-confirmations for any note whose funding transaction it did not itself create
-(which is every note, from the claimant's point of view), to protect against
-chain reorganizations; a minter reclaiming notes that it funded itself MAY use
-the lower bound.
+has fewer than 2 confirmations. A note whose funding transaction the wallet
+did not itself create (which is every note, from the claimant's point of
+view) is an untrusted TXO in the sense of ZIP 315 [#zip-0315]_: the temporary
+wallet MUST NOT treat it as trusted, and SHOULD require at least 10
+confirmations before spending it, to protect against chain reorganizations.
+A minter reclaiming notes that it funded itself MAY use the lower bound.
 
 The aforementioned conditions may change over time (e.g., the notes may be
 spent by someone else in the interim), so the status SHOULD be updated
 periodically while the payment is displayed.
+
+Rationale for not limiting the age of a payment
+'''''''''''''''''''''''''''''''''''''''''''''''
+
+.. raw:: html
+
+   <details>
+   <summary>Click to show/hide</summary>
+
+A claim window, such as refusing any payment whose birthday is more than
+100000 blocks (about 87 days) behind the tip, bounds the scanning work that a
+URI can demand. It would also turn a bearer gift into an expiring one: cards
+that are printed, kept in a drawer, or opened after a holiday would become
+unclaimable in conforming wallets while their funds are still on chain, and
+falling back to restoring the mnemonic sentence in a general-purpose wallet is
+not something most recipients can be expected to do. The scanning cost of an
+old payment is the same as that of restoring any wallet with an old birthday,
+for a single account, and the user can be warned and can cancel. A hostile
+URI can therefore cost the user time but cannot take control of the scan.
+
+.. raw:: html
+
+   </details>
+
+Rationale for the confirmation policy
+'''''''''''''''''''''''''''''''''''''
+
+.. raw:: html
+
+   <details>
+   <summary>Click to show/hide</summary>
+
+It has been argued that a single confirmation suffices for the funding notes,
+because they were created expressly for a single-use wallet and so the usual
+concerns about untrusted senders do not apply. Provenance is not the risk,
+however: the minter still holds the payment secret (and, for seed-derived
+secrets, can always re-derive it), as may other parties who have seen the
+URI. If a chain reorganization removes the funding transaction or the claim
+transaction, the minter can double-spend the funding transaction's inputs, or
+another holder of the URI can have their own claim mined instead, and the
+claimant's apparent receipt disappears. Ten confirmations, the ZIP 315
+recommendation for untrusted TXOs, make this impractical. The claim
+transaction itself is different: it is created on the claimant's device, so
+its output is treated as trusted (see `Claiming`_) and becomes spendable after
+the shorter trusted depth.
+
+.. raw:: html
+
+   </details>
 
 Claiming
 --------
@@ -732,23 +942,31 @@ Claiming
 When the user chooses to claim the payment, the wallet app constructs a single
 *claim transaction* with the following properties:
 
-* It spends every unspent Orchard note of the payment wallet that satisfies
-  the confirmation policy above. (If the number of such notes exceeds what one
-  transaction can reasonably carry, the wallet MAY claim in more than one
-  transaction.)
-* It has exactly one non-dummy output, to an Orchard receiver belonging to
-  the claimant's own wallet. Since the inputs are all Orchard notes, a wallet
-  MUST select an Orchard receiver of the claimant's address; it MUST NOT send
-  to a Sapling or transparent receiver.
-* The output value is the sum of the inputs minus the transaction fee. There
-  is no change output.
+* It spends every unspent Orchard (or Ironwood) note of the payment wallet
+  that satisfies the confirmation policy above. (If the number of such notes
+  exceeds what one transaction can reasonably carry, the wallet MAY claim in
+  more than one transaction.)
+* If the payment wallet holds transparent outputs that satisfy the
+  confirmation policy above (which applies to transparent outputs as it does
+  to notes), the claim MUST also sweep them to the same
+  destination, either as further inputs of the claim transaction or in an
+  additional transaction with the same properties, as needed to keep each
+  transaction's ZIP 317 fee proportionate.
+* It has exactly one non-dummy output, to an Orchard (or Ironwood) receiver
+  belonging to the claimant's own wallet; a wallet MUST NOT send to a Sapling
+  or transparent receiver.
+* The output value is the sum of the inputs minus the transaction fee, so that
+  the claim transfers the payment wallet's full spendable balance. The wallet
+  MUST NOT limit the claim to the value of ``amount``, which remains advisory,
+  and there is no change output.
 * The fee is the ZIP 317 [#zip-0317]_ conventional fee for the transaction as
   constructed.
-* The output's note ciphertext MUST NOT be encrypted to the payment wallet's
-  outgoing viewing key. The wallet MUST instead use the "no outgoing viewing
-  key" construction of the protocol [#protocol-saplingandorchardinband]_
-  (a random $\mathsf{ock}$), so that no holder of the payment secret can
-  decrypt the output.
+* The claim transaction MUST NOT use the payment wallet's outgoing viewing
+  key, or any other key derived from the payment secret, to encrypt any of its
+  outputs. The wallet MUST instead use the "no outgoing viewing key"
+  construction of the protocol [#protocol-saplingandorchardinband]_ (a random
+  $\mathsf{ock}$) for every output, so that no holder of the payment secret
+  can decrypt the output.
 * The memo of the output SHOULD identify the origin of the funds as a
   URI-Encapsulated Payment, and MAY include the ``desc`` value, truncated so
   that the memo does not exceed 512 bytes of UTF-8 and remains a valid text
@@ -773,17 +991,58 @@ mined, and as “Claimed” once it is mined with the number of confirmations th
 wallet considers final. The claimed funds appear in the claimant's wallet as an
 ordinary received note.
 
+Rationale for sweeping transparent funds
+''''''''''''''''''''''''''''''''''''''''
+
+.. raw:: html
+
+   <details>
+   <summary>Click to show/hide</summary>
+
+Spending a transparent output is normally avoided because it links addresses
+on chain. Here it reveals nothing about the claimant: the payment wallet is
+single-use, its keys are already known to the minter and to every holder of
+the URI, and the destination is still a shielded receiver of the claimant
+with no outgoing viewing key of the payment wallet. Leaving the value behind
+would only leave it for whichever other holder of the URI takes it.
+
+.. raw:: html
+
+   </details>
+
+Rationale for sweeping the full balance
+'''''''''''''''''''''''''''''''''''''''
+
+.. raw:: html
+
+   <details>
+   <summary>Click to show/hide</summary>
+
+Sending exactly the advertised amount would make ``amount`` binding and would
+fail in two ways. Any excess (from over-funding, a top-up, or a fee reserve
+larger than the actual fee) would stay in the payment wallet, where anyone else
+who holds the URI, including the minter, could take it. And any shortfall
+(from a lower funding amount, or a fee higher than the reserve) would make the
+payment unclaimable until the minter topped it up. Sweeping the whole balance
+gives the claimant everything the URI controls, and the wallet shows the
+amount actually found before the user confirms.
+
+.. raw:: html
+
+   </details>
+
 The claim transaction is constructed on the claimant's own device, by the same
 wallet application that receives its output. The claimant's wallet SHOULD
 therefore record the claim transaction as soon as it is broadcast (so that the
 incoming funds are shown without waiting for it to be mined) and SHOULD treat
 it as a trusted transaction in the sense of ZIP 315 [#zip-0315]_, so that the
 received note becomes spendable after the number of confirmations the wallet
-requires for trusted transaction outputs rather than the larger number it
-requires for untrusted ones. This is the "mark specific external transactions
-as trusted" allowance of ZIP 315: although the output is not an output of a
-transaction created by the claimant's wallet, its origin is known to be the
-payment wallet that the claimant's own device just controlled.
+requires for trusted transaction outputs (3 under the ZIP 315 recommended
+policy) rather than the larger number it requires for untrusted ones. This is
+the "mark specific external transactions as trusted" allowance of ZIP 315:
+although the output is not an output of a transaction created by the
+claimant's wallet, its origin is known to be the payment wallet that the
+claimant's own device just controlled.
 
 If the claim transaction expires unmined, or is otherwise rendered irrevocably
 invalid (e.g., by a reorganization), the wallet SHOULD convey this and SHOULD
@@ -803,8 +1062,10 @@ who later obtains it holds the payment wallet's full viewing key. If the claim
 transaction's output were encrypted to the payment wallet's outgoing viewing
 key, as a wallet normally does for its own spends, every such party could
 decrypt the output and learn the claimant's address and the amount they
-received. Using a random $\mathsf{ock}$ instead makes the claim output
-opaque to the payment secret. The trade-off is that the claimant cannot use
+received. This includes the minter, who can re-derive a seed-derived payment
+secret at any time and would otherwise learn the claimant's address and be
+able to link later payments to it. Using a random $\mathsf{ock}$ instead makes
+the claim output opaque to the payment secret. The trade-off is that the claimant cannot use
 the payment secret to prove or recover where the funds went; their own wallet
 is the only record, which is the same situation as for any other received
 note.
@@ -820,8 +1081,8 @@ At any time prior to the payment being claimed, the minter is capable of
 cancelling the payment, by themselves claiming the payment into their own
 wallet (thereby “clawing back” the funds). The minter's wallet SHOULD offer
 this feature. A reclaim is a claim transaction as specified in `Claiming`_,
-constructed by the minter's wallet with one of its own Orchard receivers as the
-destination; all requirements of that section apply, except that the minter
+constructed by the minter's wallet with one of its own Orchard (or Ironwood)
+receivers as the destination; all requirements of that section apply, except that the minter
 MAY use the lower confirmation bound for notes it funded itself.
 
 There is no on-chain expiry: an unclaimed payment remains claimable, by the
@@ -891,40 +1152,87 @@ also be restored, by any wallet, from the 24-word mnemonic sentence that
 encodes the payment secret (see `Payment wallet derivation`_).
 
 
-Compatibility
-=============
+Known Uses
+==========
 
-*This section is informative.*
+*This section is informative. It describes deployed formats; it is not part of
+the specification.*
 
-Before this version of the specification, at least one wallet deployed an
-encoding of the same scheme (a BIP 39 phrase, Orchard-only payment wallet at
-account 0, a birthday height, and an advisory amount and message) using a
-different URI layout. Consumers MAY accept the following forms in addition to
-the ``v=1`` form specified above; producers SHOULD emit only the ``v=1`` form,
-which is the RECOMMENDED encoding.
+The Vizor wallet deployed payment links before this revision of the ZIP, using
+the same model: a bearer secret for an ordinary single-account wallet,
+derived from a BIP 39 phrase as in `Payment wallet derivation`_ (ZIP 32
+account 0, empty passphrase), found by scanning from a birthday height, and
+funded with the advertised amount plus a 10000-zatoshi fee reserve in a single
+fully-shielded transaction without a memo. Kris Nuttycombe's draft
+"Mnemonic-Encapsulated Payment Links" describes that protocol; the shapes
+below are taken from it and from links observed in use.
 
-Legacy URIs have the shape ``https://<host>/payment-links/open#<tag>=<payload>``
-where ``<tag>`` is ``v1``, ``v2`` or ``v3`` and ``<payload>`` is unpadded
-base64url [#RFC4648]_ of a JSON document:
+A wallet may accept these forms in addition to the ``v=1`` form. When it does,
+it derives the payment wallet from the phrase or entropy as in `Payment wallet
+derivation`_, and everything in `Lifecycle Specification`_ applies unchanged:
+the claim sweeps the whole balance, does not use the payment wallet's outgoing
+viewing key, and follows the confirmation policy above. New payments use the
+``v=1`` form.
 
-* ``v1`` and ``v2``: a JSON object with members ``v`` (the integer 1 or 2,
-  which must agree with the tag), ``network`` (the string ``"main"``),
-  ``mnemonic`` (the BIP 39 sentence as a string), ``amountZatoshi`` (an
-  integer or decimal string, in zatoshis), ``birthdayHeight`` (an integer or
-  decimal string) and an optional ``presentation.message`` string. Other
-  members are ignored.
-* ``v3``: a JSON array whose elements are, in order: the network string
-  (``"main"``), the BIP 39 entropy as an unpadded base64url string (16, 20,
-  24, 28 or 32 bytes), the birthday height, the amount in zatoshis as a
-  decimal string, two implementation-specific elements, and an optional
-  message string; the array has between 4 and 8 elements.
+**Custom-scheme form.** ``vizor://payment-link?p=<payload>``, where the value
+of ``p``, after percent-decoding, is base64url [#RFC4648]_ of a UTF-8 JSON
+[#RFC8259]_ object. The draft says producers emit padded base64url and that
+readers accept padded and unpadded payloads. The object has these members
+(unknown members are ignored, and string values are trimmed):
 
-The payment wallet of a legacy URI is derived exactly as in `Payment wallet
-derivation`_, starting from the mnemonic sentence (``v1``, ``v2``) or from the
-entropy (``v3``); note that legacy entropy may be shorter than 32 bytes,
-yielding a phrase of fewer than 24 words. Only Mainnet URIs of this form have
-been observed; consumers that accept them should reject any other ``network``
-value. All of the claiming requirements in `Claiming`_ apply unchanged.
+* ``v``: the JSON number ``1``;
+* ``network``: ``"main"``, ``"test"`` or ``"regtest"``;
+* ``address``: the payment wallet's default Unified Address. The draft
+  describes it as having an Orchard and a Sapling receiver and no transparent
+  receiver; a published test vector of the deployed implementation instead
+  shows an Orchard-only address.
+  A reader may check it against the address it derives;
+* ``amountZatoshi``: the amount the recipient is meant to receive, in
+  zatoshis, as a decimal string or a JSON integer;
+* ``mnemonic``: the BIP 39 English phrase, with words separated by
+  whitespace. Producers generate 24 words, and phrases of 12 or more words
+  are accepted;
+* ``birthdayHeight``: a block height, as a JSON integer or a decimal string;
+* ``label``: a short string;
+* ``createdAt``: an ISO 8601 timestamp in UTC;
+* ``presentation`` (optional): an object with an optional ``artworkId`` (a
+  card artwork identifier of 1 to 64 letters, digits, ``-`` or ``_``) and an
+  optional ``message`` (at most 128 extended grapheme clusters [#UAX29]_ and
+  512 bytes of UTF-8).
+
+**HTTPS forms.** ``https://<host>/payment-links/open#<tag>=<payload>``, where
+``<tag>`` is ``v1``, ``v2`` or ``v3`` and ``<payload>`` is base64url of a
+UTF-8 JSON document. Observed payloads are unpadded; readers accept both
+unpadded payloads and payloads with canonical padding, and reject non-zero
+trailing bits.
+
+* ``v1`` and ``v2``: a JSON object with the members above. The inner ``v``
+  is the JSON number 1 or 2, matching the tag. How ``v2`` differs from ``v1``
+  has not been documented.
+* ``v3``: a JSON array of 4 to 8 elements: the network string (``"main"``);
+  the BIP 39 entropy as base64url (16, 20, 24, 28 or 32 bytes, so the phrase
+  may have fewer than 24 words); the birthday height, as a JSON integer or a
+  decimal string; the amount in zatoshis as a decimal string; a card artwork
+  identifier; a fiat value (a JSON number in the observed link); and the
+  message string.
+
+Only Mainnet links of the HTTPS forms have been observed. Unlike the advisory
+``amount`` of the ``v=1`` form, the amount of these forms is a required
+member: readers treat a payload whose amount is missing, zero, not an integer
+or above the maximum money supply (or, for ``v3``, not a JSON string) as
+malformed. The birthday height is subject to the same minimum birthday height
+as ``height`` (see `Semantics`_), and the message is limited to 512 bytes and
+sanitized as specified for ``desc`` (see `Sanitization of the description`_).
+
+The deployed protocol differs from this specification in its claim behaviour:
+it sweeps exactly the advertised amount, spends funds with a single
+confirmation, refuses links whose birthday is more than 100000 blocks behind
+the tip, and allows a Sapling destination. This specification does not adopt
+these choices; see `Rationale for sweeping the full balance`_, `Rationale for
+the confirmation policy`_ and `Rationale for not limiting the age of a
+payment`_. If a minter using these forms sent funds to a Sapling receiver,
+those funds are outside the scope of this specification and are recoverable
+by restoring the phrase in a wallet that supports Sapling.
 
 
 Security Considerations
@@ -997,8 +1305,21 @@ Security Considerations
   wallet as a way of making them a party to a transfer they did not intend.
 
 * The claim memo may include the ``desc`` text, which is attacker-controlled.
-  Wallets must truncate it to the memo size, must not interpret it as markup
-  or as a URI, and should display it as the claim made by the URI's author.
+  Wallets must sanitize it (see `Sanitization of the description`_), truncate
+  it to the memo size, must not interpret it as markup or as a URI, and should
+  display it as the claim made by the URI's author.
+
+* Any web page can deliver payment URIs to a wallet through an applink. The
+  intake bounds in `Intake of payment URIs`_ limit the work such a page can
+  cause, and the temporary wallet is the only state a hostile URI can
+  populate. A URI with a very old ``height`` can make a scan long; wallets
+  warn about this and let the user cancel, rather than refusing old payments.
+
+* Funds sent to a Sapling receiver of a payment wallet are not found by a
+  conforming claimant. Minters must fund only the Orchard (or Ironwood)
+  receiver, as specified. Transparent funds sent out of band are swept by the
+  claim, which reveals on chain that those transparent outputs were spent
+  into the shielded pool.
 
 * Users may have casually-established communication channels (e.g., they have
   entered the phone number of a new contact without bothering to double-check
@@ -1126,7 +1447,7 @@ to a single note of a fixed amount.
 The present design instead includes a birthday height in the URI and scans
 from there, which is exactly the operation a light client already performs for
 its own accounts and requires no additional infrastructure. Because the
-payment wallet is a single Orchard account with a known birthday that is
+payment wallet is a single account with a known birthday that is
 usually close to the chain tip, the scan is short in practice. It also means
 that the payment address can be funded with any number of notes, at any time
 after minting, and that top-ups and partial reclaims behave naturally.
@@ -1172,8 +1493,11 @@ Open Questions
 * Whether, once ZIP 316 Revision 2 is deployed, the payment address should be
   required to be encoded as a ``zu`` Unified Address.
 
-* Whether the confirmation policy in `Payment Rendering and Blockchain
-  Lookup`_ should instead defer to ZIP 315 [#zip-0315]_.
+* How the payment address and its encoding are to be specified once the
+  Ironwood pool is deployed.
+
+* Whether the `Known Uses`_ section should be kept once the deployed formats
+  are no longer produced.
 
 * Whether to specify a fixed memo prefix for claim transactions, so that
   claimed payments can be recognised in wallet history across
@@ -1198,13 +1522,34 @@ Test vectors for this ZIP will cover:
   payment secret;
 * canonical payment URIs with and without ``amount`` and ``desc``, including a
   ``desc`` containing non-ASCII and reserved characters; and
+* an all-uppercase ``key``, which is accepted, and URIs containing empty pairs
+  and pairs without ``=``, which are skipped or ignored;
 * inputs that MUST be rejected: a Bech32 (non-m) checksum, a 31- or 33-byte
-  data part, an unknown Human-Readable Part, a wrong-network Human-Readable
-  Part, ``v=2``, a duplicated attribute, ``height=0``, ``amount=0``,
-  ``amount=1.`` and ``amount=0.123456789``.
+  data part, non-zero padding bits, a mixed-case ``key``, an unknown
+  Human-Readable Part, a wrong-network Human-Readable Part, ``v=2``, a
+  duplicated ``v``, ``key`` or ``height``, ``height=0``, a ``height`` with a
+  leading zero, and a ``height`` one below the minimum birthday height;
+* inputs whose ``amount`` or ``desc`` is treated as absent: ``amount=0``,
+  ``amount=1.``, ``amount=0.123456789``, a duplicated ``amount``, a ``desc``
+  with a malformed percent escape or invalid UTF-8, a ``desc`` longer than
+  512 bytes, and a ``desc`` that is blank after sanitization;
+* a ``desc`` containing characters that sanitization replaces or removes; and
+* the HTTPS forms described in `Known Uses`_, padded and unpadded.
 
 .. TODO: add the actual vectors once the shared vector file is published; the
    descriptions above are the agreed coverage.
+
+
+Acknowledgements
+================
+
+This revision merges the work in Kris Nuttycombe's draft "Mnemonic-Encapsulated
+Payment Links", which specified the payment-link protocol deployed by the Vizor
+wallet. That draft contributed the rules for recording a payment durably before
+funding it, for funding through a hardware signer, and for bounding the intake
+of incoming links, as well as the description of the formats in `Known Uses`_.
+Thanks to the Vizor wallet developers for deploying and documenting that
+protocol.
 
 
 Reference implementation
@@ -1220,11 +1565,14 @@ References
 .. [#RFC3629] `RFC 3629: UTF-8, a transformation format of ISO 10646 <https://www.rfc-editor.org/rfc/rfc3629.html>`_
 .. [#RFC3986] `Uniform Resource Identifier (URI): Generic Syntax <https://tools.ietf.org/html/rfc3986>`_
 .. [#RFC4648] `RFC 4648: The Base16, Base32, and Base64 Data Encodings <https://www.rfc-editor.org/rfc/rfc4648.html>`_
+.. [#RFC8259] `RFC 8259: The JavaScript Object Notation (JSON) Data Interchange Format <https://www.rfc-editor.org/rfc/rfc8259.html>`_
+.. [#UAX29] `Unicode Standard Annex #29: Unicode Text Segmentation <https://www.unicode.org/reports/tr29/>`_
 .. [#protocol] `Zcash Protocol Specification, Version 2025.6.3 or later <protocol/protocol.pdf>`_
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
 .. [#protocol-orchardkeycomponents] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 4.2.3: Orchard Key Components <protocol/protocol.pdf#orchardkeycomponents>`_
 .. [#protocol-saplingandorchardinband] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section: In-band secret distribution (Sapling and Orchard) <protocol/protocol.pdf#saplingandorchardinband>`_
 .. [#bip-0039] `BIP 39: Mnemonic code for generating deterministic keys <https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki>`_
+.. [#bip-0044] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>`_
 .. [#bip-0350] `BIP 350: Bech32m format for v1+ witness addresses <https://github.com/bitcoin/bips/blob/master/bip-0350.mediawiki>`_
 .. [#slip-0044] `SLIP 44: Registered coin types for BIP-0044 <https://github.com/satoshilabs/slips/blob/master/slip-0044.md>`_
 .. [#zip-0032-orchard] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Orchard key path <zip-0032.rst#orchard-key-path>`_
@@ -1233,10 +1581,12 @@ References
 .. [#zip-0203] `ZIP 203: Transaction Expiry <zip-0203.rst>`_
 .. [#zip-0315] `ZIP 315: Best Practices for Wallet Implementations <zip-0315.rst>`_
 .. [#zip-0316] `ZIP 316: Unified Addresses and Unified Viewing Keys <zip-0316.rst>`_
+.. [#zip-0258] `ZIP 258: Deployment of the NU6.3 Network Upgrade <zip-0258.md>`_
 .. [#zip-0317] `ZIP 317: Proportional Transfer Fee Mechanism <zip-0317.rst>`_
 .. [#zip-0321] `ZIP 321: Payment Request URIs <zip-0321.rst>`_
 .. [#zip-0321-amount] `ZIP 321: Payment Request URIs — ZEC Transfer Amount <zip-0321.rst#zec-transfer-amount>`_
 .. [#zip-0325] `ZIP 325: Account Metadata Keys <zip-0325.md>`_
+.. [#zip-0374] `ZIP 374: Partially Created Zcash Transaction Format <zip-0374.md>`_
 .. [#app-links] `Android Developer Guides: Handling Android App Links <https://developer.android.com/training/app-links>`_
 .. [#universal-links] `Apple Xcode Documentation: Allowing apps and websites to link to your content <https://developer.apple.com/documentation/uikit/inter-process_communication/allowing_apps_and_websites_to_link_to_your_content>`_
 .. [#app-uri-handlers] `Microsoft Universal Windows Platform Documentation: Enable apps for websites using app URI handlers <https://docs.microsoft.com/en-us/windows/uwp/launch-resume/web-to-app-linking>`_
