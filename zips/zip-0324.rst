@@ -58,8 +58,7 @@ Payment secret
   from which every key of the payment wallet is derived.
 Payment wallet
   The single-account wallet derived from a payment secret as specified in
-  `Payment wallet derivation`_. Its Sapling funds, if any, are outside the
-  scope of this specification.
+  `Payment wallet derivation`_.
 Payment address
   The Orchard-only payment address of the payment wallet to which the funds of
   a URI-Encapsulated Payment are sent.
@@ -102,7 +101,7 @@ payment wallet, scans the chain from the given height, and sweeps every note it
 finds into an address of its own in a single transaction, taking the whole
 balance rather than the advertised amount. Until that happens the minter can
 take the funds back by the same procedure; there is no on-chain expiry and no
-limit on the age of a payment. A claim transaction is an ordinary
+limit on the age of a payment. A claim transaction is normally an ordinary
 fully-shielded Orchard transaction,
 indistinguishable on chain from any other, and it is constructed so that the
 payment secret does not grant visibility of where the funds went after the
@@ -198,7 +197,7 @@ Privacy Implications
 
 A URI-Encapsulated Payment involves two on-chain transactions: a funding
 transaction from the minter to the payment address, and a claim transaction
-from the payment address to the claimant. Both are fully-shielded Orchard
+from the payment address to the claimant. Both are normally fully-shielded Orchard
 transactions and are not distinguishable on chain from other Orchard
 transactions, except through timing correlation and the statistics of their
 numbers of actions.
@@ -288,10 +287,6 @@ Non-requirements
 
 * This proposal does not provide an on-chain expiry for unclaimed payments.
   Reclaiming is a wallet-side action of the minter.
-
-* Funds sent to Sapling addresses of the payment wallet are outside the scope
-  of this proposal. Such funds can be recovered only by restoring the payment
-  wallet's mnemonic sentence in a wallet that supports Sapling.
 
 
 Specification
@@ -438,8 +433,7 @@ Semantics
 
 The ``key`` parameter deterministically determines a payment wallet, as
 specified in `Payment wallet derivation`_. The URI represents the capability to
-spend every Orchard note (and, once the Ironwood pool is deployed, every
-Ironwood note) received by that wallet.
+spend all funds received by that wallet, in any pool.
 
 The ``height`` parameter is the *birthday* of the payment wallet: the block
 height from which a consumer scans the chain for the payment wallet's notes.
@@ -548,52 +542,52 @@ follows:
 The Orchard full viewing key, incoming viewing key and outgoing viewing key of
 the payment wallet are those of $\mathsf{sk}$.
 
-The pools within the scope of this specification are the Orchard pool and,
-once it is deployed, the Ironwood pool [#zip-0258]_. A minter MUST fund the
-payment address, that is the Orchard receiver, or the receiver in a later
-shielded pool such as Ironwood to which a payment to the payment address is
-directed once that pool is deployed. A minter MUST NOT send funds to any
-Sapling or transparent address derived from $\mathsf{seed}$; no transparent
-receiver is ever advertised for a payment wallet.
+The payment wallet is the whole of account $0$ of $\mathsf{seed}$: besides
+its Orchard keys, it has the Sapling keys at ZIP 32 path
+$m_\mathsf{Sapling} / 32' / \mathit{coin\_type}' / 0'$
+[#zip-0032-sapling]_, the transparent keys of the BIP 44 [#bip-0044]_ account
+$0$ for $\mathit{coin\_type}$, and the keys of any later shielded pool, such
+as the Ironwood pool [#zip-0258]_, for the same account.
 
-A claimant scans for and spends the payment wallet's Orchard notes and, once
-the Ironwood pool is deployed, its Ironwood notes. Transparent value can
-reach a payment wallet only if someone pays one of its transparent addresses
-(the BIP 44 [#bip-0044]_ addresses of account $0$ of $\mathsf{seed}$ for
-$\mathit{coin\_type}$) out of band; a claimant that finds such funds MUST
-sweep them as specified in `Claiming`_. Funds sent to a Sapling receiver of
-the payment wallet are outside the scope of this specification: they are
-recoverable only by restoring the mnemonic sentence of step 1 in a wallet that
-supports Sapling (see also `Known Uses`_).
+A minter SHOULD fund the payment address, that is the Orchard receiver, or,
+once a later shielded pool such as Ironwood is deployed, the receiver in that
+pool to which a payment to the payment address is directed. A minter SHOULD
+NOT send funds to a Sapling address of the payment wallet, and MUST NOT
+advertise a transparent receiver for it. Funds can nevertheless reach other
+addresses of the payment wallet, for example if someone pays one of its
+transparent addresses out of band, or if a deployed format advertised a
+Sapling receiver (see `Known Uses`_).
+
+A claimant MUST scan for the payment wallet's funds in every shielded pool
+(Orchard, Sapling, and Ironwood once deployed) and at its transparent
+addresses, and MUST sweep all of them as specified in `Claiming`_.
 
 Implementations MAY compute $\mathsf{seed}$ directly from $S$ without
 materialising the mnemonic sentence, provided the result is identical.
 
-Rationale for an Orchard-only payment wallet
-''''''''''''''''''''''''''''''''''''''''''''
+Rationale for an Orchard-only payment address and an all-pool claim
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 .. raw:: html
 
    <details>
    <summary>Click to show/hide</summary>
 
-Funding only the current shielded pool keeps the usual claim transaction free
-of cross-pool transfers, which would be visible on chain as
-changes in pool balances and would link the funding and claim transactions.
-Orchard is chosen because it is the pool with the best privacy properties,
-because its proofs are the cheapest to generate on mobile devices, and
-because scanning for Orchard notes is the smallest workload for a light
-client. Supporting older pools would multiply the scanning cost for every
-claimant for no benefit to the minter, who controls which pool the funds are
-sent to. The Ironwood pool is included because it is the successor to
-Orchard; a payment funded after its deployment should not be stranded because
-the sender's wallet directed it there.
+Orchard is preferred for funding because it is the current shielded pool,
+with the best privacy properties and the cheapest proofs on mobile devices,
+and because an Orchard-only Unified Address keeps the payment address short.
+Funding a single current pool also keeps the usual claim transaction free of
+cross-pool transfers, which would be visible on chain as changes in pool
+balances.
 
-Some deployed payment links (see `Known Uses`_) describe a payment address
-with both Orchard and Sapling receivers. Funds that such a link's minter sent
-to the Sapling receiver are not claimable under this specification, but
-remain recoverable from the mnemonic sentence in any wallet that supports
-Sapling.
+Sweeping everything the payment wallet holds costs the recipient no privacy:
+the payment wallet is single-use, its keys are already known to the minter
+and to every holder of the URI, the destination is a shielded receiver of the
+claimant, and the payment wallet's outgoing viewing key is not used. Leaving
+funds in a pool that the claimant does not scan would only strand them, or
+leave them for whichever other holder of the URI takes them. Some deployed
+payment links (see `Known Uses`_) describe a payment address with both
+Orchard and Sapling receivers, so Sapling funds do occur in practice.
 
 .. raw:: html
 
@@ -723,8 +717,8 @@ The minter's wallet:
 3. Durably records the payment, as described below, before broadcasting any
    funding transaction.
 4. Creates and broadcasts a *funding transaction* paying the payment address.
-   The funding output MUST be an Orchard output to the payment address (or, once
-   the Ironwood pool is deployed, an output in that pool, as specified in
+   The funding output SHOULD be an Orchard output to the payment address (or,
+   once the Ironwood pool is deployed, an output in that pool, as specified in
    `Payment wallet derivation`_). The funding transaction SHOULD be a
    fully-shielded transaction, so that it is indistinguishable from ordinary
    transactions, and MAY carry ``desc`` (or nothing) in the memo of the
@@ -837,9 +831,9 @@ MUST:
 * create a *temporary wallet* for that viewing key that is isolated from the
   user's own accounts (for example, a separate database or a separately named
   wallet instance), with ``height`` as its birthday;
-* scan the chain from ``height`` to the current tip for Orchard notes (and,
-  once the Ironwood pool is deployed, Ironwood notes) received by the payment
-  wallet, and for spends of those notes; and
+* scan the chain from ``height`` to the current tip for notes of every
+  shielded pool (Orchard, Sapling, and Ironwood once deployed) received by the
+  payment wallet, and for spends of those notes; and
 * look for unspent transparent outputs received by the payment wallet's
   transparent addresses (see `Payment wallet derivation`_), using the
   wallet's usual transparent address discovery.
@@ -875,13 +869,15 @@ Within the *Pending* state, the wallet app MAY also consider unmined
 transactions seen in the mempool, and convey their existence to the user.
 These do not suffice for entering the *Ready to claim* state.
 
-**Confirmations.** A wallet MUST NOT spend a note of the payment wallet that
-has fewer than 2 confirmations. A note whose funding transaction the wallet
-did not itself create (which is every note, from the claimant's point of
-view) is an untrusted TXO in the sense of ZIP 315 [#zip-0315]_: the temporary
-wallet MUST NOT treat it as trusted, and SHOULD require at least 10
-confirmations before spending it, to protect against chain reorganizations.
-A minter reclaiming notes that it funded itself MAY use the lower bound.
+**Confirmations.** A wallet MUST NOT spend a note of the payment wallet that has
+fewer than 3 confirmations, the ZIP 315 depth for trusted TXOs. A note whose
+funding transaction the wallet did not itself create (which is every note, from
+the claimant's point of view) is an untrusted TXO in the sense of ZIP 315
+[#zip-0315]_: the temporary wallet MUST NOT treat it as trusted, and SHOULD
+require at least 10 confirmations before spending it, to protect against chain
+reorganizations. A minter reclaiming notes that it funded itself MAY treat them
+as trusted and use the lower bound of 3 confirmations. The same policy applies
+to transparent outputs held by the payment wallet.
 
 The aforementioned conditions may change over time (e.g., the notes may be
 spent by someone else in the interim), so the status SHOULD be updated
@@ -942,19 +938,15 @@ Claiming
 When the user chooses to claim the payment, the wallet app constructs a single
 *claim transaction* with the following properties:
 
-* It spends every unspent Orchard (or Ironwood) note of the payment wallet
-  that satisfies the confirmation policy above. (If the number of such notes
-  exceeds what one transaction can reasonably carry, the wallet MAY claim in
-  more than one transaction.)
-* If the payment wallet holds transparent outputs that satisfy the
-  confirmation policy above (which applies to transparent outputs as it does
-  to notes), the claim MUST also sweep them to the same
-  destination, either as further inputs of the claim transaction or in an
-  additional transaction with the same properties, as needed to keep each
-  transaction's ZIP 317 fee proportionate.
-* It has exactly one non-dummy output, to an Orchard (or Ironwood) receiver
-  belonging to the claimant's own wallet; a wallet MUST NOT send to a Sapling
-  or transparent receiver.
+* It spends all funds of the payment wallet that satisfy the confirmation
+  policy above: every unspent Orchard, Sapling and (once deployed) Ironwood
+  note, and every unspent transparent output. The claim MUST sweep all of
+  them. Where ZIP 317 fees, transaction size or the rules of a pool make a
+  single transaction impractical, the wallet MAY claim in more than one
+  transaction, each with the properties listed here.
+* It has exactly one non-dummy output, to a shielded receiver belonging to
+  the claimant's own wallet. The wallet SHOULD use an Orchard (or, once
+  deployed, Ironwood) receiver and MUST NOT send to a transparent receiver.
 * The output value is the sum of the inputs minus the transaction fee, so that
   the claim transfers the payment wallet's full spendable balance. The wallet
   MUST NOT limit the claim to the value of ``amount``, which remains advisory,
@@ -991,20 +983,21 @@ mined, and as “Claimed” once it is mined with the number of confirmations th
 wallet considers final. The claimed funds appear in the claimant's wallet as an
 ordinary received note.
 
-Rationale for sweeping transparent funds
-''''''''''''''''''''''''''''''''''''''''
+Rationale for sweeping transparent and Sapling funds
+''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 .. raw:: html
 
    <details>
    <summary>Click to show/hide</summary>
 
-Spending a transparent output is normally avoided because it links addresses
-on chain. Here it reveals nothing about the claimant: the payment wallet is
-single-use, its keys are already known to the minter and to every holder of
-the URI, and the destination is still a shielded receiver of the claimant
-with no outgoing viewing key of the payment wallet. Leaving the value behind
-would only leave it for whichever other holder of the URI takes it.
+Spending a transparent output, or moving value between shielded pools, is
+normally avoided because it is visible on chain. Here it reveals nothing about
+the claimant: the payment wallet is single-use, its keys are already known to
+the minter and to every holder of the URI, and the destination is still a
+shielded receiver of the claimant with no outgoing viewing key of the payment
+wallet. Leaving the value behind would strand it, or leave it for whichever
+other holder of the URI takes it.
 
 .. raw:: html
 
@@ -1081,9 +1074,9 @@ At any time prior to the payment being claimed, the minter is capable of
 cancelling the payment, by themselves claiming the payment into their own
 wallet (thereby “clawing back” the funds). The minter's wallet SHOULD offer
 this feature. A reclaim is a claim transaction as specified in `Claiming`_,
-constructed by the minter's wallet with one of its own Orchard (or Ironwood)
-receivers as the destination; all requirements of that section apply, except that the minter
-MAY use the lower confirmation bound for notes it funded itself.
+constructed by the minter's wallet with one of its own shielded receivers as
+the destination; all requirements of that section apply, except that the
+minter MAY use the lower confirmation bound for notes it funded itself.
 
 There is no on-chain expiry: an unclaimed payment remains claimable, by the
 minter and by any holder of the URI, indefinitely. A minter who intends to
@@ -1230,9 +1223,8 @@ confirmation, refuses links whose birthday is more than 100000 blocks behind
 the tip, and allows a Sapling destination. This specification does not adopt
 these choices; see `Rationale for sweeping the full balance`_, `Rationale for
 the confirmation policy`_ and `Rationale for not limiting the age of a
-payment`_. If a minter using these forms sent funds to a Sapling receiver,
-those funds are outside the scope of this specification and are recoverable
-by restoring the phrase in a wallet that supports Sapling.
+payment`_. Funds that a minter using these forms sent to a Sapling receiver
+are found and swept like any other funds of the payment wallet.
 
 
 Security Considerations
@@ -1315,11 +1307,11 @@ Security Considerations
   populate. A URI with a very old ``height`` can make a scan long; wallets
   warn about this and let the user cancel, rather than refusing old payments.
 
-* Funds sent to a Sapling receiver of a payment wallet are not found by a
-  conforming claimant. Minters must fund only the Orchard (or Ironwood)
-  receiver, as specified. Transparent funds sent out of band are swept by the
-  claim, which reveals on chain that those transparent outputs were spent
-  into the shielded pool.
+* A claim sweeps every pool the payment wallet holds funds in. Sweeping
+  transparent outputs, or Sapling notes into Orchard, reveals on chain the
+  value that leaves the transparent or Sapling pool, but nothing about the
+  claimant beyond that. Minters should fund the Orchard (or Ironwood) receiver
+  so that the usual claim is a plain Orchard transaction.
 
 * Users may have casually-established communication channels (e.g., they have
   entered the phone number of a new contact without bothering to double-check
@@ -1575,6 +1567,7 @@ References
 .. [#bip-0044] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>`_
 .. [#bip-0350] `BIP 350: Bech32m format for v1+ witness addresses <https://github.com/bitcoin/bips/blob/master/bip-0350.mediawiki>`_
 .. [#slip-0044] `SLIP 44: Registered coin types for BIP-0044 <https://github.com/satoshilabs/slips/blob/master/slip-0044.md>`_
+.. [#zip-0032-sapling] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling key path <zip-0032.rst#sapling-key-path>`_
 .. [#zip-0032-orchard] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Orchard key path <zip-0032.rst#orchard-key-path>`_
 .. [#zip-0032-registered] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Specification: Registered key derivation <zip-0032.rst#specification-registered-key-derivation>`_
 .. [#zip-0173] `ZIP 173: Bech32 Format <zip-0173.rst>`_
