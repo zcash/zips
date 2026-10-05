@@ -34,7 +34,10 @@ Zcash protocol terms are as defined in the Zcash Protocol Specification.
 [#protocol]_
 
 The terms "Mainnet" and "Testnet" in this document are to be interpreted as
-defined in the Zcash protocol specification [#protocol-networks]_. "Regtest"
+defined in the Zcash protocol specification [#protocol-networks]_. The terms
+"Orchard protocol", "*Orchard pool*" and "*Ironwood pool*" are to be
+interpreted as in ZIP 258 [#zip-0258]_, and "NU6.3 activation" refers to the
+activation of the NU6.3 network upgrade specified there. "Regtest"
 refers to the regression-test network used by Zcash full node and wallet
 implementations for local testing.
 
@@ -60,8 +63,9 @@ Payment wallet
   The single-account wallet derived from a payment secret as specified in
   `Payment wallet derivation`_.
 Payment address
-  The Orchard-only payment address of the payment wallet to which the funds of
-  a URI-Encapsulated Payment are sent.
+  The Orchard-protocol payment address of the payment wallet to which the funds
+  of a URI-Encapsulated Payment are sent: in the *Orchard pool* before NU6.3
+  activation, and in the *Ironwood pool* from NU6.3 activation onward.
 Minter
   The party (and their wallet software) that creates a payment URI and funds
   its payment address. This is the *sender* of the payment.
@@ -88,8 +92,9 @@ which a short string can be conveyed. The sender need not know the recipient's
 address and the recipient need not have a Zcash wallet already installed.
 
 A payment is created by deriving a fresh 32-byte *payment secret*, deriving a
-*payment wallet* from that secret, and sending funds to its Orchard-only
-payment address. The payment secret, together with a block height from which
+*payment wallet* from that secret, and sending funds to its payment address,
+an Orchard-protocol address (funded in the Ironwood pool from NU6.3
+activation onward). The payment secret, together with a block height from which
 the funds can be found and optional advisory metadata (amount and description),
 is encoded in the fragment of an ordinary HTTPS URL. Because the fragment is
 never sent to the server named by the URL, the host serves only as an applink_
@@ -102,7 +107,7 @@ finds into an address of its own in a single transaction, taking the whole
 balance rather than the advertised amount. Until that happens the minter can
 take the funds back by the same procedure; there is no on-chain expiry and no
 limit on the age of a payment. A claim transaction is normally an ordinary
-fully-shielded Orchard transaction,
+fully-shielded transaction,
 indistinguishable on chain from any other, and it is constructed so that the
 payment secret does not grant visibility of where the funds went after the
 claim.
@@ -197,9 +202,9 @@ Privacy Implications
 
 A URI-Encapsulated Payment involves two on-chain transactions: a funding
 transaction from the minter to the payment address, and a claim transaction
-from the payment address to the claimant. Both are normally fully-shielded Orchard
-transactions and are not distinguishable on chain from other Orchard
-transactions, except through timing correlation and the statistics of their
+from the payment address to the claimant. Both are normally fully-shielded
+transactions and are not distinguishable on chain from other transactions in
+the same pool, except through timing correlation and the statistics of their
 numbers of actions.
 
 The holder of a payment URI holds the payment wallet's full viewing key. They
@@ -534,10 +539,16 @@ follows:
    $m_\mathsf{Orchard} / 32' / \mathit{coin\_type}' / 0'$ derived from
    $\mathsf{seed}$ as specified in ZIP 32 [#zip-0032-orchard]_ (that is,
    account $0$ of the seed).
-5. The *payment address* is the Orchard diversified payment address of
-   $\mathsf{sk}$ at diversifier index $0$ [#protocol-orchardkeycomponents]_.
-   When the payment address needs to be encoded, it MUST be encoded as a
-   Unified Address [#zip-0316]_ containing only that Orchard Receiver.
+5. The *payment address* is the Orchard-protocol diversified payment address
+   of $\mathsf{sk}$ at diversifier index $0$
+   [#protocol-orchardkeycomponents]_. When the payment address needs to be
+   encoded, it MUST be encoded as a Unified Address [#zip-0316]_ containing
+   only that Orchard Receiver. An Orchard-protocol receiver is scoped to the
+   Orchard protocol rather than to a pool, so the same receiver accepts funds
+   in the *Orchard pool* and in the *Ironwood pool* [#zip-0326-receiving]_.
+   If NU6.3 introduces a distinct encoding for Ironwood-pool payments, that
+   encoding is to be used as specified by ZIP 258 [#zip-0258]_ and the ZIPs it
+   cites; see `Open Questions`_.
 
 The Orchard full viewing key, incoming viewing key and outgoing viewing key of
 the payment wallet are those of $\mathsf{sk}$.
@@ -546,37 +557,48 @@ The payment wallet is the whole of account $0$ of $\mathsf{seed}$: besides
 its Orchard keys, it has the Sapling keys at ZIP 32 path
 $m_\mathsf{Sapling} / 32' / \mathit{coin\_type}' / 0'$
 [#zip-0032-sapling]_, the transparent keys of the BIP 44 [#bip-0044]_ account
-$0$ for $\mathit{coin\_type}$, and the keys of any later shielded pool, such
-as the Ironwood pool [#zip-0258]_, for the same account.
+$0$ for $\mathit{coin\_type}$. Its Orchard-protocol keys serve both the
+*Orchard pool* and the *Ironwood pool*.
 
-A minter SHOULD fund the payment address, that is the Orchard receiver, or,
-once a later shielded pool such as Ironwood is deployed, the receiver in that
-pool to which a payment to the payment address is directed. A minter SHOULD
-NOT send funds to a Sapling address of the payment wallet, and MUST NOT
-advertise a transparent receiver for it. Funds can nevertheless reach other
+A minter funds the payment address as follows:
+
+* for a funding transaction mined before NU6.3 activation, the minter SHOULD
+  fund the payment address in the *Orchard pool*;
+* from NU6.3 activation onward, value can no longer enter the *Orchard pool*
+  [#zip-0258-nu63-rules]_ and wallets do not send to external receivers in
+  it [#zip-0326-keygen]_, so the minter MUST fund the payment address in the
+  *Ironwood pool*.
+
+A minter SHOULD NOT send funds to a Sapling address of the payment wallet, and
+MUST NOT advertise a transparent receiver for it. Funds can nevertheless reach other
 addresses of the payment wallet, for example if someone pays one of its
 transparent addresses out of band, or if a deployed format advertised a
 Sapling receiver (see `Known Uses`_).
 
 A claimant MUST scan for the payment wallet's funds in every shielded pool
-(Orchard, Sapling, and Ironwood once deployed) and at its transparent
-addresses, and MUST sweep all of them as specified in `Claiming`_.
+(Orchard, Ironwood and Sapling) and at its transparent addresses, and MUST
+sweep all of them as specified in `Claiming`_. Spending from the *Orchard
+pool* remains possible after NU6.3 activation, so Orchard-pool funds of
+payments minted earlier stay claimable.
 
 Implementations MAY compute $\mathsf{seed}$ directly from $S$ without
 materialising the mnemonic sentence, provided the result is identical.
 
-Rationale for an Orchard-only payment address and an all-pool claim
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Rationale for an Orchard-protocol payment address and an all-pool claim
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 .. raw:: html
 
    <details>
    <summary>Click to show/hide</summary>
 
-Orchard is preferred for funding because it is the current shielded pool,
+The Orchard protocol is used because it is the current shielded protocol,
 with the best privacy properties and the cheapest proofs on mobile devices,
-and because an Orchard-only Unified Address keeps the payment address short.
-Funding a single current pool also keeps the usual claim transaction free of
+and because a Unified Address with a single Orchard Receiver keeps the payment
+address short. The funding pool follows the current pool for that protocol:
+the *Orchard pool* before NU6.3 activation and the *Ironwood pool* after it,
+when the consensus rules no longer let value enter the *Orchard pool*.
+Funding the current pool also keeps the usual claim transaction free of
 cross-pool transfers, which would be visible on chain as changes in pool
 balances.
 
@@ -717,9 +739,10 @@ The minter's wallet:
 3. Durably records the payment, as described below, before broadcasting any
    funding transaction.
 4. Creates and broadcasts a *funding transaction* paying the payment address.
-   The funding output SHOULD be an Orchard output to the payment address (or,
-   once the Ironwood pool is deployed, an output in that pool, as specified in
-   `Payment wallet derivation`_). The funding transaction SHOULD be a
+   The funding output is an output to the payment address in the pool
+   required by `Payment wallet derivation`_: the *Orchard pool* (SHOULD)
+   before NU6.3 activation, and the *Ironwood pool* (MUST) from NU6.3
+   activation onward. The funding transaction SHOULD be a
    fully-shielded transaction, so that it is indistinguishable from ordinary
    transactions, and MAY carry ``desc`` (or nothing) in the memo of the
    funding output.
@@ -832,8 +855,9 @@ MUST:
   user's own accounts (for example, a separate database or a separately named
   wallet instance), with ``height`` as its birthday;
 * scan the chain from ``height`` to the current tip for notes of every
-  shielded pool (Orchard, Sapling, and Ironwood once deployed) received by the
-  payment wallet, and for spends of those notes; and
+  shielded pool (Orchard, Ironwood and Sapling) received by the payment
+  wallet, as ZIP 326 [#zip-0326]_ specifies for Orchard-protocol notes, and
+  for spends of those notes; and
 * look for unspent transparent outputs received by the payment wallet's
   transparent addresses (see `Payment wallet derivation`_), using the
   wallet's usual transparent address discovery.
@@ -869,15 +893,14 @@ Within the *Pending* state, the wallet app MAY also consider unmined
 transactions seen in the mempool, and convey their existence to the user.
 These do not suffice for entering the *Ready to claim* state.
 
-**Confirmations.** A wallet MUST NOT spend a note of the payment wallet that has
-fewer than 3 confirmations, the ZIP 315 depth for trusted TXOs. A note whose
-funding transaction the wallet did not itself create (which is every note, from
-the claimant's point of view) is an untrusted TXO in the sense of ZIP 315
-[#zip-0315]_: the temporary wallet MUST NOT treat it as trusted, and SHOULD
-require at least 10 confirmations before spending it, to protect against chain
-reorganizations. A minter reclaiming notes that it funded itself MAY treat them
-as trusted and use the lower bound of 3 confirmations. The same policy applies
-to transparent outputs held by the payment wallet.
+**Confirmations.** Confirmations follow ZIP 315 [#zip-0315]_. The funds held
+by the payment wallet (notes and transparent outputs) were received from
+outside the claimant's wallet, and are therefore untrusted TXOs in the sense
+of ZIP 315 for the claimant: the temporary wallet MUST NOT treat them as
+trusted. Whether they are spendable, and how their state is displayed, follow
+the wallet's ZIP 315 confirmation policy for untrusted TXOs. A minter
+reclaiming funds that it sent itself applies its ZIP 315 policy to them in
+the same way, according to whether it treats them as trusted.
 
 The aforementioned conditions may change over time (e.g., the notes may be
 spent by someone else in the interim), so the status SHOULD be updated
@@ -914,19 +937,20 @@ Rationale for the confirmation policy
    <details>
    <summary>Click to show/hide</summary>
 
-It has been argued that a single confirmation suffices for the funding notes,
-because they were created expressly for a single-use wallet and so the usual
-concerns about untrusted senders do not apply. Provenance is not the risk,
-however: the minter still holds the payment secret (and, for seed-derived
-secrets, can always re-derive it), as may other parties who have seen the
-URI. If a chain reorganization removes the funding transaction or the claim
-transaction, the minter can double-spend the funding transaction's inputs, or
-another holder of the URI can have their own claim mined instead, and the
-claimant's apparent receipt disappears. Ten confirmations, the ZIP 315
-recommendation for untrusted TXOs, make this impractical. The claim
-transaction itself is different: it is created on the claimant's device, so
-its output is treated as trusted (see `Claiming`_) and becomes spendable after
-the shorter trusted depth.
+This ZIP sets no confirmation numbers of its own; the classification of
+funds as trusted or untrusted is what matters, and ZIP 315 supplies the
+policy. It has been argued that a single confirmation suffices for the
+funding notes, because they were created expressly for a single-use wallet and
+so the usual concerns about untrusted senders do not apply. Provenance is not
+the risk, however: the minter still holds the payment secret (and, for
+seed-derived secrets, can always re-derive it), as may other parties who have
+seen the URI. If a chain reorganization removes the funding transaction or
+the claim transaction, the minter can double-spend the funding transaction's
+inputs, or another holder of the URI can have their own claim mined instead,
+and the claimant's apparent receipt disappears. These are exactly the risks
+that the ZIP 315 policy for untrusted TXOs addresses. The claim transaction
+itself is different: it is created on the claimant's device, so its output is
+trusted (see `Claiming`_).
 
 .. raw:: html
 
@@ -939,14 +963,19 @@ When the user chooses to claim the payment, the wallet app constructs a single
 *claim transaction* with the following properties:
 
 * It spends all funds of the payment wallet that satisfy the confirmation
-  policy above: every unspent Orchard, Sapling and (once deployed) Ironwood
-  note, and every unspent transparent output. The claim MUST sweep all of
+  policy above: every unspent Orchard, Ironwood and Sapling note, and every
+  unspent transparent output. The claim MUST sweep all of
   them. Where ZIP 317 fees, transaction size or the rules of a pool make a
   single transaction impractical, the wallet MAY claim in more than one
   transaction, each with the properties listed here.
 * It has exactly one non-dummy output, to a shielded receiver belonging to
-  the claimant's own wallet. The wallet SHOULD use an Orchard (or, once
-  deployed, Ironwood) receiver and MUST NOT send to a transparent receiver.
+  the claimant's own wallet, and MUST NOT send to a transparent receiver.
+  Before NU6.3 activation the wallet SHOULD send to its Orchard receiver in
+  the *Orchard pool*; from NU6.3 activation onward it MUST send to an
+  Orchard-protocol receiver in the *Ironwood pool*. Orchard-pool notes of the
+  payment wallet are spent as ZIP 326 requires after NU6.3 activation (with
+  fabricated same-address outputs [#zip-0326-fabricated]_), and their value
+  leaves the *Orchard pool* for the *Ironwood pool*.
 * The output value is the sum of the inputs minus the transaction fee, so that
   the claim transfers the payment wallet's full spendable balance. The wallet
   MUST NOT limit the claim to the value of ``amount``, which remains advisory,
@@ -957,7 +986,9 @@ When the user chooses to claim the payment, the wallet app constructs a single
   key, or any other key derived from the payment secret, to encrypt any of its
   outputs. The wallet MUST instead use the "no outgoing viewing key"
   construction of the protocol [#protocol-saplingandorchardinband]_ (a random
-  $\mathsf{ock}$) for every output, so that no holder of the payment secret
+  $\mathsf{ock}$) for every output that carries a real note ciphertext (the
+  fabricated outputs of ZIP 326 carry random bytes instead), so that no holder
+  of the payment secret
   can decrypt the output.
 * The memo of the output SHOULD identify the origin of the funds as a
   URI-Encapsulated Payment, and MAY include the ``desc`` value, truncated so
@@ -1027,15 +1058,13 @@ amount actually found before the user confirms.
 The claim transaction is constructed on the claimant's own device, by the same
 wallet application that receives its output. The claimant's wallet SHOULD
 therefore record the claim transaction as soon as it is broadcast (so that the
-incoming funds are shown without waiting for it to be mined) and SHOULD treat
-it as a trusted transaction in the sense of ZIP 315 [#zip-0315]_, so that the
-received note becomes spendable after the number of confirmations the wallet
-requires for trusted transaction outputs (3 under the ZIP 315 recommended
-policy) rather than the larger number it requires for untrusted ones. This is
-the "mark specific external transactions as trusted" allowance of ZIP 315:
-although the output is not an output of a transaction created by the
-claimant's wallet, its origin is known to be the payment wallet that the
-claimant's own device just controlled.
+incoming funds are shown without waiting for it to be mined) and SHOULD treat it
+as a trusted transaction in the sense of ZIP 315 [#zip-0315]_, so that its
+output's spendability and display follow the wallet's ZIP 315 confirmation
+policy for trusted TXOs. This is the "mark specific external transactions as
+trusted" allowance of ZIP 315: although the output is not an output of a
+transaction created by the claimant's wallet, its origin is known to be the
+payment wallet that the claimant's own device just controlled.
 
 If the claim transaction expires unmined, or is otherwise rendered irrevocably
 invalid (e.g., by a reorganization), the wallet SHOULD convey this and SHOULD
@@ -1075,8 +1104,8 @@ cancelling the payment, by themselves claiming the payment into their own
 wallet (thereby “clawing back” the funds). The minter's wallet SHOULD offer
 this feature. A reclaim is a claim transaction as specified in `Claiming`_,
 constructed by the minter's wallet with one of its own shielded receivers as
-the destination; all requirements of that section apply, except that the
-minter MAY use the lower confirmation bound for notes it funded itself.
+the destination; all requirements of that section apply, with confirmations
+as described in `Payment Rendering and Blockchain Lookup`_.
 
 There is no on-chain expiry: an unclaimed payment remains claimable, by the
 minter and by any holder of the URI, indefinitely. A minter who intends to
@@ -1151,20 +1180,23 @@ Known Uses
 *This section is informative. It describes deployed formats; it is not part of
 the specification.*
 
-The Vizor wallet deployed payment links before this revision of the ZIP, using
-the same model: a bearer secret for an ordinary single-account wallet,
-derived from a BIP 39 phrase as in `Payment wallet derivation`_ (ZIP 32
-account 0, empty passphrase), found by scanning from a birthday height, and
-funded with the advertised amount plus a 10000-zatoshi fee reserve in a single
-fully-shielded transaction without a memo. Kris Nuttycombe's draft
-"Mnemonic-Encapsulated Payment Links" describes that protocol; the shapes
-below are taken from it and from links observed in use.
+The ``vizor://payment-link`` and ``https://<host>/payment-links/open#v1=``,
+``#v2=`` and ``#v3=`` formats described below were designed and deployed by
+the Vizor wallet developers, before this revision of the ZIP. The
+encapsulated-wallet model of this ZIP follows their deployed design: a bearer
+secret for an ordinary single-account wallet, derived from a BIP 39 phrase
+as in `Payment wallet derivation`_ (ZIP 32 account 0, empty passphrase),
+found by scanning from a birthday height, and funded with the advertised
+amount plus a 10000-zatoshi fee reserve in a single fully-shielded
+transaction without a memo. Kris Nuttycombe's draft "Mnemonic-Encapsulated
+Payment Links" describes that protocol; the shapes below are taken from it
+and from links observed in use.
 
 A wallet may accept these forms in addition to the ``v=1`` form. When it does,
 it derives the payment wallet from the phrase or entropy as in `Payment wallet
 derivation`_, and everything in `Lifecycle Specification`_ applies unchanged:
 the claim sweeps the whole balance, does not use the payment wallet's outgoing
-viewing key, and follows the confirmation policy above. New payments use the
+viewing key, and follows ZIP 315 for confirmations. New payments use the
 ``v=1`` form.
 
 **Custom-scheme form.** ``vizor://payment-link?p=<payload>``, where the value
@@ -1217,13 +1249,13 @@ malformed. The birthday height is subject to the same minimum birthday height
 as ``height`` (see `Semantics`_), and the message is limited to 512 bytes and
 sanitized as specified for ``desc`` (see `Sanitization of the description`_).
 
-The deployed protocol differs from this specification in its claim behaviour:
-it sweeps exactly the advertised amount, spends funds with a single
-confirmation, refuses links whose birthday is more than 100000 blocks behind
-the tip, and allows a Sapling destination. This specification does not adopt
-these choices; see `Rationale for sweeping the full balance`_, `Rationale for
-the confirmation policy`_ and `Rationale for not limiting the age of a
-payment`_. Funds that a minter using these forms sent to a Sapling receiver
+The deployed protocol differs from this specification in its claim behaviour: it
+sweeps exactly the advertised amount, spends funds with a single confirmation
+instead of following ZIP 315, refuses links whose birthday is more than 100000
+blocks behind the tip, and allows a Sapling destination. This specification does
+not adopt these choices; see `Rationale for sweeping the full balance`_,
+`Rationale for the confirmation policy`_ and `Rationale for not limiting the age
+of a payment`_. Funds that a minter using these forms sent to a Sapling receiver
 are found and swept like any other funds of the payment wallet.
 
 
@@ -1310,8 +1342,10 @@ Security Considerations
 * A claim sweeps every pool the payment wallet holds funds in. Sweeping
   transparent outputs, or Sapling notes into Orchard, reveals on chain the
   value that leaves the transparent or Sapling pool, but nothing about the
-  claimant beyond that. Minters should fund the Orchard (or Ironwood) receiver
-  so that the usual claim is a plain Orchard transaction.
+  claimant beyond that. Minters should fund the payment address in the
+  current pool for the Orchard protocol (the *Orchard pool* before NU6.3
+  activation, the *Ironwood pool* after it) so that the usual claim stays
+  within one pool.
 
 * Users may have casually-established communication channels (e.g., they have
   entered the phone number of a new contact without bothering to double-check
@@ -1485,8 +1519,11 @@ Open Questions
 * Whether, once ZIP 316 Revision 2 is deployed, the payment address should be
   required to be encoded as a ``zu`` Unified Address.
 
-* How the payment address and its encoding are to be specified once the
-  Ironwood pool is deployed.
+* How the payment address is to be encoded once NU6.3 is active, if ZIP 258
+  or the ZIPs it cites define a distinct encoding for Ironwood-pool payments.
+
+* Whether payment wallets minted after NU6.3 activation should use the
+  quantum-recoverable key generation of ZIP 2005 [#zip-2005]_.
 
 * Whether the `Known Uses`_ section should be kept once the deployed formats
   are no longer produced.
@@ -1575,11 +1612,17 @@ References
 .. [#zip-0315] `ZIP 315: Best Practices for Wallet Implementations <zip-0315.rst>`_
 .. [#zip-0316] `ZIP 316: Unified Addresses and Unified Viewing Keys <zip-0316.rst>`_
 .. [#zip-0258] `ZIP 258: Deployment of the NU6.3 Network Upgrade <zip-0258.md>`_
+.. [#zip-0258-nu63-rules] `ZIP 258: Deployment of the NU6.3 Network Upgrade — Consensus rules from NU6.3 activation <zip-0258.md>`_
 .. [#zip-0317] `ZIP 317: Proportional Transfer Fee Mechanism <zip-0317.rst>`_
 .. [#zip-0321] `ZIP 321: Payment Request URIs <zip-0321.rst>`_
 .. [#zip-0321-amount] `ZIP 321: Payment Request URIs — ZEC Transfer Amount <zip-0321.rst#zec-transfer-amount>`_
 .. [#zip-0325] `ZIP 325: Account Metadata Keys <zip-0325.md>`_
+.. [#zip-0326] `ZIP 326: NU6.3 Consequences for Wallets <zip-0326.md>`_
+.. [#zip-0326-keygen] `ZIP 326: NU6.3 Consequences for Wallets — Wallet key-generation restrictions <zip-0326.md>`_
+.. [#zip-0326-receiving] `ZIP 326: NU6.3 Consequences for Wallets — Receiving funds into the Ironwood pool <zip-0326.md>`_
+.. [#zip-0326-fabricated] `ZIP 326: NU6.3 Consequences for Wallets — Fabricated same-address outputs and randomized note ciphertexts <zip-0326.md>`_
 .. [#zip-0374] `ZIP 374: Partially Created Zcash Transaction Format <zip-0374.md>`_
+.. [#zip-2005] `ZIP 2005: Ironwood Quantum Recoverability <zip-2005.md>`_
 .. [#app-links] `Android Developer Guides: Handling Android App Links <https://developer.android.com/training/app-links>`_
 .. [#universal-links] `Apple Xcode Documentation: Allowing apps and websites to link to your content <https://developer.apple.com/documentation/uikit/inter-process_communication/allowing_apps_and_websites_to_link_to_your_content>`_
 .. [#app-uri-handlers] `Microsoft Universal Windows Platform Documentation: Enable apps for websites using app URI handlers <https://docs.microsoft.com/en-us/windows/uwp/launch-resume/web-to-app-linking>`_
