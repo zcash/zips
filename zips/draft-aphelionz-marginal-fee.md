@@ -1,4 +1,4 @@
-    ZIP: Unassigned
+    ZIP: 2009
     Title: Reduce Marginal Fee to 1000 Zatoshis and Raise the Weight Ratio Cap to 10
     Owners: Mark Henderson <mark@shieldedlabs.net>
     Status: Draft
@@ -6,8 +6,8 @@
     Updates: ZIP 317
     Created: 2026-04-06
     License: MIT
-    Discussions-To: <TBD>
-    Pull-Request: <TBD>
+    Discussions-To: <https://github.com/zcash/zips/issues/1388>
+    Pull-Request: <https://github.com/zcash/zips/pull/1352>
 
 
 # Terminology
