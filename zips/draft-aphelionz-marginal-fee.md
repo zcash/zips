@@ -73,13 +73,6 @@ the miner.
 ## Change to `weight_ratio_cap`
 
 In the section **Recommended algorithm for block template construction** of
-ZIP 317, the sentence
-
-> Define constants `weight_ratio_cap` = 4 and `block_unpaid_action_limit` = 50.
-
-is replaced with
-
-In the section **Recommended algorithm for block template construction** of
 ZIP 317, replace the constant definition `weight_ratio_cap` = 4 with
 `weight_ratio_cap` = 10.
 
