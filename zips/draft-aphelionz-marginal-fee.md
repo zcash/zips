@@ -74,7 +74,7 @@ the miner.
 
 In the section **Recommended algorithm for block template construction** of
 ZIP 317, replace the constant definition `weight_ratio_cap` = 4 with
-`weight_ratio_cap` = 10.
+`weight_ratio_cap` = 10, and update the rationale as follows:
 
 > The rationale for choosing `weight_ratio_cap` = 10 is as a compromise between
 > not allowing any prioritization of transactions relative to those that pay the
