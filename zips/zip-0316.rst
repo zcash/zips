@@ -942,6 +942,89 @@ set this bound more tightly; a common expiry delta used by many wallets is 40
 blocks from the current chain tip, as suggested in ZIP 203
 [#zip-0203-default-expiry]_.
 
+Viewing Key Birthday Height Metadata
+------------------------------------
+
+Typecode $\mathtt{0xC0}$ is reserved for optional Viewing Key Birthday Height
+metadata. This Metadata Item Type is permitted only in Unified Full Viewing
+Keys and Unified Incoming Viewing Keys.
+
+The value of a $\mathtt{0xC0}$ item MUST be an unsigned 32-bit integer in
+little-endian order specifying the Birthday Height of the UFVK or UIVK: the
+height of the first block, on the Zcash chain associated with the UFVK or
+UIVK, that a user of the viewing key should scan in order to detect funds.
+
+A Producer MAY include a $\mathtt{0xC0}$ item in a UFVK or UIVK. A Producer
+SHOULD set the Birthday Height to a height no greater than the height of the
+earliest block that contains a transaction sending funds to any address
+derivable from the Items of the UFVK or UIVK.
+
+A Producer MUST NOT include a $\mathtt{0xC0}$ item in a Unified Address. A
+Consumer MUST ignore a $\mathtt{0xC0}$ item in a Unified Address.
+
+If a UFVK or UIVK contains both a $\mathtt{0xC0}$ item and a $\mathtt{0xE0}$
+item, then the Producer MUST ensure that the Birthday Height is less than or
+equal to the Address Expiry Height, and a Consumer MUST reject the UFVK or
+UIVK as invalid if the Birthday Height is greater than the Address Expiry
+Height.
+
+A Consumer that scans the chain to detect funds for a UFVK or UIVK that
+contains a $\mathtt{0xC0}$ item SHOULD begin scanning at the Birthday Height.
+The Consumer MAY begin scanning at a lower height. If the Consumer begins
+scanning at a greater height, then it might fail to detect funds.
+
+When deriving a UIVK from a UFVK that contains a $\mathtt{0xC0}$ item, the
+$\mathtt{0xC0}$ item MUST be retained unmodified in the derived UIVK.
+
+When deriving a Unified Address from a UFVK or UIVK that contains a
+$\mathtt{0xC0}$ item, the derived Unified Address MUST NOT contain a
+$\mathtt{0xC0}$ item.
+
+Rationale for Viewing Key Birthday Height Metadata
+''''''''''''''''''''''''''''''''''''''''''''''''''
+
+.. raw:: html
+
+   <details>
+   <summary>Click to show/hide</summary>
+
+A wallet that imports a viewing key without a birthday height must either ask
+the user for one or scan from a conservative default, such as the activation
+height of the oldest shielded protocol that the viewing key supports. Scanning
+from such a default can take much longer than scanning from the actual
+birthday height. Carrying the birthday height in the viewing key removes this
+cost and the need for a separate channel to convey it. A Producer can also set
+a later Birthday Height when the earlier history of the viewing key is not
+relevant to its intended use.
+
+The birthday height is assigned a Typecode outside the MUST-understand range
+because a Consumer that ignores it remains correct: it scans from an earlier
+height, which costs time but cannot cause it to miss funds. A MUST-understand
+Typecode would instead require every existing Consumer to reject an otherwise
+usable viewing key, and would prohibit its use in `Revision 0`_ viewing keys.
+
+The birthday height describes a viewing key, not a payment destination. A
+Sender has no use for it, and including it in a Unified Address would reveal
+the approximate age of the recipient's wallet to every party that sees the
+address. It is therefore prohibited in Unified Addresses. A Consumer ignores
+such an Item instead of rejecting the address, because the Item does not
+affect how a Sender uses the Receivers of the address, and rejecting the
+address would not undo the information leak. A holder of a viewing
+key can already observe the heights of the transactions that the key detects,
+so including the birthday height in the viewing key reveals little additional
+information to such a holder.
+
+Each address derived from an expiring viewing key expires at or before the
+Address Expiry Height of the viewing key, so a conforming Sender will not send
+funds to it in a block above that height. A Birthday Height greater than the
+Address Expiry Height would direct the Consumer to begin scanning after all
+such transactions. Such a viewing key is inconsistent and is treated as
+invalid.
+
+.. raw:: html
+
+   </details>
+
 Typecode Registry
 -----------------
 
@@ -964,8 +1047,9 @@ transaction construction could result in additional information being leaked
 on-chain. As such a user giving out a ``tu`` address should recognise that
 they may be giving up some privacy in transactions received at that address.
 
-If a new Metadata Item type should not be allowed in ``zu`` addresses, it MUST
-be assigned in the MUST-understand Metadata range.
+If a new Metadata Item type is permitted in some Unified Addresses but should not
+be allowed in ``zu`` addresses, it MUST be assigned in the MUST-understand
+Metadata range.
 
 Experimental Typecodes ($\mathtt{0xFFFA}$ to $\mathtt{0xFFFF}$) are permitted
 at the discretion of wallets that have opted into the corresponding experiment
@@ -988,7 +1072,9 @@ properties of ``zu`` addresses.
   +-------------------+--------------------------------------+----+--------+--------+
   | 0x04..=0xBF       | Unassigned                           | ❌ | ❌     | ❌     |
   +-------------------+--------------------------------------+----+--------+--------+
-  | 0xC0..=0xDF       | Non-MUST-understand Metadata         | ❌ | ❌     | ❌     |
+  | 0xC0              | Viewing Key Birthday Height [2]      | ❌ | ❌     | ❌     |
+  +-------------------+--------------------------------------+----+--------+--------+
+  | 0xC1..=0xDF       | Unassigned Non-MUST-understand       | ❌ | ❌     | ❌     |
   +-------------------+--------------------------------------+----+--------+--------+
   | 0xE0              | Address Expiry Height                | ❌ | ✅     | ✅     |
   +-------------------+--------------------------------------+----+--------+--------+
@@ -1002,6 +1088,9 @@ properties of ``zu`` addresses.
   +-------------------+--------------------------------------+----+--------+--------+
 
 [1] See note above regarding experimental typecodes in ``zu`` addresses.
+
+[2] Permitted only in UFVKs and UIVKs, as specified in
+`Viewing Key Birthday Height Metadata`_.
 
 Additions to this registry are made via 2xxx-series ZIPs. This table will be
 updated by the ZIP Editors when such a ZIP transitions to ``Proposed`` status.
@@ -1083,8 +1172,8 @@ all "MUST-understand" Metadata Item Typecodes present in the UFVK in
 order to derive a UIVK from it.
 
 If the source UFVK is Revision 2 then the derived UIVK SHOULD be
-Revision 2; if the source UFVK includes any Metadata Items then
-the derived UIVK MUST be Revision 2.
+Revision 2; if the source UFVK includes any MUST-understand Metadata
+Items then the derived UIVK MUST be Revision 2.
 
 For Metadata Items recognised by the Consumer, the processing of the
 Item when deriving a UIVK is specified in the section or ZIP describing
@@ -1128,8 +1217,8 @@ all "MUST-understand" Metadata Item Typecodes present in the UIVK in
 order to derive a Unified Address from it.
 
 If the source UIVK is `Revision 2`_ then the derived Unified Address
-SHOULD be Revision 2; if the source UIVK includes any Metadata Items
-then the derived Unified Address MUST be Revision 2.
+SHOULD be Revision 2; if the source UIVK includes any MUST-understand
+Metadata Items then the derived Unified Address MUST be Revision 2.
 
 For Metadata Items recognised by the Consumer, the processing of the
 Item when deriving a Unified Address is specified in the section or
