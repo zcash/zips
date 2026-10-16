@@ -43,7 +43,9 @@ Specification. <a href="#fn:3" id="fnref:3" title="see footnote" class="footnote
 <p>The terms &#8220;Mainnet&#8221; and &#8220;Testnet&#8221; are to be interpreted as described in
 § 3.12 ‘Mainnet and Testnet’. <a href="#fn:4" id="fnref:4" title="see footnote" class="footnote"><sup>4</sup></a></p>
 
-<p>The symbol &#8220;<span class="math">\(\,\cdot\,\)</span>&#8221; means multiplication, as described in § 2 ‘Notation’.
+<p>The symbol &#8220;<span class="math">\(\,\cdot\,\)</span>&#8221; means multiplication, and <span class="math">\(\mathsf{floor}(x)\)</span> and
+<span class="math">\(\mathsf{ceiling}(x)\)</span> mean the largest integer <span class="math">\(\leq x\)</span> and the smallest integer
+<span class="math">\(\geq x\kern-0.05em\textsf{,}\)</span> as described in § 2 ‘Notation’.
 <a href="#fn:5" id="fnref:5" title="see footnote" class="footnote"><sup>5</sup></a></p>
 
 <p>&#8220;ZEC/TAZ&#8221; refers to the native currency of Zcash on a given network, i.e.
@@ -81,9 +83,10 @@ Reward’ <a href="#fn:10" id="fnref:10" title="see footnote" class="footnote"><
 <span class="math">\(\mathsf{ScheduledBlockSubsidy}(\mathsf{height})\)</span> in the Specification below.</p>
 
 <p>&#8220;NSM Value Balance&#8221; - The total ZEC/TAZ that has been removed from
-circulation and not yet reissued: funds removed via ZIP 233 <a href="#fn:11" id="fnref:11" title="see footnote" class="footnote"><sup>11</sup></a>, plus
+circulation and not yet reissued: funds removed via ZIP 235 <a href="#fn:11" id="fnref:11" title="see footnote" class="footnote"><sup>11</sup></a> or
+ZIP 233 <a href="#fn:12" id="fnref:12" title="see footnote" class="footnote"><sup>12</sup></a>, plus
 block subsidy and fees left unclaimed by coinbase transactions prior to NU6
-<a href="#fn:12" id="fnref:12" title="see footnote" class="footnote"><sup>12</sup></a>. It is not part of the Issued Supply.
+<a href="#fn:13" id="fnref:13" title="see footnote" class="footnote"><sup>13</sup></a>. It is not part of the Issued Supply.
 <span class="math">\(\mathsf{NSMValueBalance}(\mathsf{height})\)</span> is defined in the Specification
 below.</p>
 
@@ -92,7 +95,8 @@ below.</p>
 <p>This ZIP proposes a change to how nodes calculate the block subsidy.</p>
 
 <p>The step function around the 4-year halving intervals inherited from Bitcoin
-is retained unchanged. In addition, each block issues a fixed portion of the
+is retained unchanged. In addition, from the NSM reissuance height onward, each
+block issues a fixed portion of the
 current NSM Value Balance (the ZEC/TAZ that has been removed from circulation
 or left unclaimed), so that such funds are reissued along a smooth curve on top
 of the existing schedule.</p>
@@ -102,13 +106,14 @@ Value Balance is zero, and retains the existing supply cap (which is below
 <span class="math">\(\mathsf{MAX\_MONEY}\kern-0.15em\)</span> ). Because the balance is seeded at NU7 with historical
 unclaimed value, it is positive at activation even if no funds are removed by a
 deployed removal mechanism. This ZIP is proposed as
-an alternative to ZIP 234 <a href="#fn:13" id="fnref:13" title="see footnote" class="footnote"><sup>13</sup></a>, from which its structure and much of
+an alternative to ZIP 234 <a href="#fn:14" id="fnref:14" title="see footnote" class="footnote"><sup>14</sup></a>, from which its structure and much of
 its text are adapted.</p>
 
 <h1 id="motivation"><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
 
 <p>The current block reward halving schedule is fixed and does not provide a way
-to “recycle” funds removed from circulation via ZIP 233 into future issuance.
+to “recycle” funds removed from circulation (for example via ZIP 235 or
+ZIP 233) into future issuance.
 Once scheduled issuance ends, the network becomes reliant on transaction fees
 for the security budget.</p>
 
@@ -127,7 +132,7 @@ whenever the NSM Value Balance is zero.</li>
 <li>We want to preserve Zcash&#8217;s existing 4-year halving schedule.</li>
 </ol>
 
-<p>This ZIP is an alternative to ZIP 234 <a href="#fn:13" title="see footnote" class="footnote"><sup>13</sup></a> that differs only in Key
+<p>This ZIP is an alternative to ZIP 234 <a href="#fn:14" title="see footnote" class="footnote"><sup>14</sup></a> that differs only in Key
 Objective 6. ZIP 234 replaces the halving schedule with a smooth curve in order
 to reissue funds removed from circulation; this ZIP shows that reissuance does
 not require that change. The halving schedule is a long-standing, widely
@@ -159,7 +164,8 @@ satisfies the following requirements:</p>
 <li>The issuance can be summarized into a reasonably simple explanation.</li>
 <li>If the NSM Value Balance is zero, block subsidies are identical to the
 existing halving schedule.</li>
-<li>If the NSM Value Balance is greater than 0, then the additional block
+<li>From <span class="math">\(\mathsf{DEPLOYMENT\_BLOCK\_HEIGHT}\)</span> onward, if the NSM Value Balance
+is greater than 0, then the additional block
 subsidy must be non-zero, so that funds removed from circulation are
 eventually fully reissued.</li>
 <li>For any halving period, the additional block subsidies paid out are
@@ -178,20 +184,22 @@ the block subsidy amount.</li>
 
 <p><span class="math">\(\mathsf{HalvingInterval}(\mathsf{height} ⦂ \mathbb{N}) :=\)</span> the number of blocks in a
 halving period at <span class="math">\(\mathsf{height}\kern-0.05em\textsf{:}\)</span> <span class="math">\(\mathsf{PostNU7HalvingInterval}\)</span> if
-ZIP 218 <a href="#fn:7" title="see footnote" class="footnote"><sup>7</sup></a> is deployed and <span class="math">\(\mathsf{IsNU7Activated}(\mathsf{height})\)</span>
-as defined there, otherwise <span class="math">\(\mathsf{PostBlossomHalvingInterval}\kern-0.05em\textsf{.}\)</span></p>
+<span class="math">\(\mathsf{IsNU7Activated}(\mathsf{height})\)</span> as defined in ZIP 218 <a href="#fn:7" title="see footnote" class="footnote"><sup>7</sup></a>,
+otherwise <span class="math">\(\mathsf{PostBlossomHalvingInterval}\kern-0.05em\textsf{.}\)</span></p>
 
 <p><span class="math">\(\mathsf{BLOCK\_SUBSIDY\_FRACTION}(\mathsf{height} ⦂ \mathbb{N}) := \mathsf{floor}(\mathsf{LN2\_SCALED} / \mathsf{HalvingInterval}(\mathsf{height})) / 10\_000\_000\_000\)</span></p>
 
 <p>This is <span class="math">\(4126 / 10\_000\_000\_000 = 0.0000004126\)</span> with
 <span class="math">\(\mathsf{PostBlossomHalvingInterval} = 1\_680\_000\kern-0.05em\textsf{,}\)</span> the value specified by
-ZIP 234 <a href="#fn:13" title="see footnote" class="footnote"><sup>13</sup></a>, and <span class="math">\(1375 / 10\_000\_000\_000\)</span> with
-<span class="math">\(\mathsf{PostNU7HalvingInterval} = 5\_040\_000\kern-0.05em\textsf{.}\)</span> See the BLOCK_SUBSIDY_FRACTION
+ZIP 234 <a href="#fn:14" title="see footnote" class="footnote"><sup>14</sup></a>, and <span class="math">\(1375 / 10\_000\_000\_000\)</span> with
+<span class="math">\(\mathsf{PostNU7HalvingInterval} = 5\_040\_000\kern-0.05em\textsf{.}\)</span> Since
+<span class="math">\(\mathsf{DEPLOYMENT\_BLOCK\_HEIGHT}\)</span> is not before NU7 activation, only the latter
+value is used by <span class="math">\(\mathsf{AdditionalBlockSubsidy}\kern-0.05em\textsf{.}\)</span> See the BLOCK_SUBSIDY_FRACTION
 section below.</p>
 
 <p><span class="math">\(\mathsf{INITIAL\_NSM\_VALUE\_BALANCE} ⦂ \{0\,..\,\mathsf{MAX\_MONEY}\} :=\)</span> the block subsidy and fees left
 unclaimed by coinbase transactions before NU6, in zatoshi, which seeds the NSM
-Value Balance at NU7 activation. Since ZIP 236 <a href="#fn:12" title="see footnote" class="footnote"><sup>12</sup></a> requires coinbase
+Value Balance at NU7 activation. Since ZIP 236 <a href="#fn:13" title="see footnote" class="footnote"><sup>13</sup></a> requires coinbase
 transactions to claim their full value, this is the fixed amount</p>
 
 <p><span class="math">\(\sum_{\mathsf{h}=0}^{\mathsf{H}} \mathsf{ScheduledBlockSubsidy}(\mathsf{h}) - \mathsf{IssuedSupply}(\mathsf{H})\)</span></p>
@@ -228,11 +236,44 @@ transactions to claim their full value, this is the fixed amount</p>
 </tbody>
 </table>
 
-<p>These values are the difference between the scheduled issuance and the chain
-value pool totals at the stated heights. <a href="#fn:14" id="fnref:14" title="see footnote" class="footnote"><sup>14</sup></a></p>
+<p>These values are derived as follows, in zatoshi. The scheduled issuance is
+calculated from § 7.8; <span class="math">\(\mathsf{IssuedSupply}(\mathsf{H})\)</span> is the sum of the
+transparent, Sprout, Sapling and Orchard chain value pool balances at
+<span class="math">\(\mathsf{H}\)</span> (the deferred development fund and Ironwood chain value pool
+balances are zero at <span class="math">\(\mathsf{H}\kern-0.15em\)</span> ), which can be checked against the chain
+value pool balances that a full node reports at that height.</p>
+
+<table>
+<colgroup>
+<col />
+<col style="text-align:right;"/>
+<col style="text-align:right;"/>
+</colgroup>
+
+<thead>
+<tr>
+	<th> Network </th>
+	<th style="text-align:right;"> <span class="math">\(\sum_{\mathsf{h}=0}^{\mathsf{H}} \mathsf{ScheduledBlockSubsidy}(\mathsf{h})\)</span> </th>
+	<th style="text-align:right;"> <span class="math">\(\mathsf{IssuedSupply}(\mathsf{H})\)</span> </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> Mainnet </td>
+	<td style="text-align:right;"> 1,575,000,000,000,000 </td>
+	<td style="text-align:right;"> 1,574,963,141,554,480 </td>
+</tr>
+<tr>
+	<td> Testnet </td>
+	<td style="text-align:right;"> 1,603,125,000,000,000 </td>
+	<td style="text-align:right;"> 1,603,069,231,585,043 </td>
+</tr>
+</tbody>
+</table>
 
 <p><span class="math">\(\mathsf{DEPLOYMENT\_BLOCK\_HEIGHT} ⦂ \mathbb{N} :=\)</span> the height at which reissuance begins
-on the relevant network, calculated in <a href="#nsm-reissuance-height">NSM reissuance height</a>
+on the relevant network, calculated in <a href="#nsmreissuanceheight">NSM reissuance height</a>
 below. It is named <span class="math">\(\mathsf{NSM\_REISSUANCE\_HEIGHT}\)</span> in the NU7 deployment
 ZIP <a href="#fn:15" id="fnref:15" title="see footnote" class="footnote"><sup>15</sup></a>.</p>
 
@@ -253,9 +294,10 @@ ZIP 218 <span class="math">\(\mathsf{Halving}\)</span> function equals 3 and 4, 
 <p><span class="math">\(\mathsf{DEPLOYMENT\_BLOCK\_HEIGHT}\)</span> SHALL be the first height <span class="math">\(h\)</span> with
 <span class="math">\(\max(A, H_3 + 1) \leq h &lt; H_4\)</span> for which</p>
 
-<p><span class="math">\[\left\lceil\frac{1375\,(\mathsf{MAX\_MONEY} - S_A(h - 1))}{10^{10}}\right\rceil &lt; B_A(h).\]</span></p>
+<p><span class="math">\[\mathsf{ceiling}\left(\frac{1375\,(\mathsf{MAX\_MONEY} - S_A(h - 1))}{10^{10}}\right) &lt; B_A(h).\]</span></p>
 
-<p>The strict inequality selects the first block where the rounded reference
+<p>Here 1375 is the numerator of <span class="math">\(\mathsf{BLOCK\_SUBSIDY\_FRACTION}\)</span> after NU7 activation.
+The strict inequality selects the first block where the rounded reference
 NSM subsidy is below the scheduled block subsidy. The ceiling is the same
 rounding rule used for <span class="math">\(\mathsf{AdditionalBlockSubsidy}\kern-0.05em\textsf{;}\)</span> the reference
 balance <span class="math">\(\mathsf{MAX\_MONEY} - S_A(h - 1)\)</span> is used only to select the
@@ -266,10 +308,10 @@ resulting height for each network.</p>
 <p>The value can be calculated without testing every block. Set
 <span class="math">\(h_0 = \max(A, H_3 + 1)\kern-0.05em\textsf{,}\)</span> <span class="math">\(b = B_A(h_0)\kern-0.05em\textsf{,}\)</span>
 <span class="math">\(R_0 = \mathsf{MAX\_MONEY} - S_A(h_0 - 1)\kern-0.05em\textsf{,}\)</span> and
-<span class="math">\(R_{\max} = \lfloor (b - 1)10^{10}/1375 \rfloor\kern-0.05em\textsf{.}\)</span> Since <span class="math">\(b\)</span> is constant
+<span class="math">\(R_{\max} = \mathsf{floor}((b - 1) \cdot 10^{10}/1375)\kern-0.05em\textsf{.}\)</span> Since <span class="math">\(b\)</span> is constant
 before <span class="math">\(H_4\kern-0.05em\textsf{,}\)</span> the first qualifying height is</p>
 
-<p><span class="math">\[h_0 + \left\lceil\frac{\max(0, R_0 - R_{\max})}{b}\right\rceil.\]</span></p>
+<p><span class="math">\[h_0 + \mathsf{ceiling}\left(\frac{\max(0, R_0 - R_{\max})}{b}\right).\]</span></p>
 
 <p>For the expected case in which <span class="math">\(A\)</span> lies between the second and third
 pre-NU7 halvings, the ZIP 218 third halving occurs at
@@ -278,7 +320,7 @@ and 4,476,000 on Testnet. Let <span class="math">\(H_2^{(75)}\)</span> be the co
 halving height in the table below. In this range, <span class="math">\(b = 26{,}041{,}666\kern-0.05em\textsf{,}\)</span>
 <span class="math">\(R_{\max} = 189{,}393{,}927{,}272{,}727\kern-0.05em\textsf{,}\)</span> and
 <span class="math">\(R_0 = 262{,}499{,}975{,}638{,}334 - (A - H_2^{(75)})\)</span> zatoshi.
-Consequently <span class="math">\(\lceil (R_0 - R_{\max})/b \rceil = 2{,}807{,}273\)</span>
+Consequently <span class="math">\(\mathsf{ceiling}((R_0 - R_{\max})/b) = 2{,}807{,}273\)</span>
 throughout the range. Including the one-block offset from <span class="math">\(H_3\)</span> to
 <span class="math">\(h_0\)</span> gives
 <span class="math">\(\mathsf{DEPLOYMENT\_BLOCK\_HEIGHT} = H_3 + 2{,}807{,}274\kern-0.05em\textsf{:}\)</span></p>
@@ -327,7 +369,7 @@ That example does not assign an NU7 activation height.</p>
 <p>In § 7.8 ‘Calculating Block Subsidy, Funding Streams, Lockbox Disbursement, and
 Founders' Reward’ <a href="#fn:10" title="see footnote" class="footnote"><sup>10</sup></a>:</p>
 
-<p>Apply the changes of ZIP 218 <a href="#fn:7" title="see footnote" class="footnote"><sup>7</sup></a> first, if it is deployed. Then rename
+<p>Apply the changes of ZIP 218 <a href="#fn:7" title="see footnote" class="footnote"><sup>7</sup></a> first. Then rename
 the resulting function <span class="math">\(\mathsf{BlockSubsidy}(\mathsf{height})\)</span> to
 <span class="math">\(\mathsf{ScheduledBlockSubsidy}(\mathsf{height})\kern-0.05em\textsf{,}\)</span> leaving its definition
 unchanged.</p>
@@ -361,7 +403,7 @@ NSM Value Balance after block <span class="math">\(\mathsf{height} - 1\kern-0.05
 <p>In § 4.17 ‘Chain Value Pool Balances’ <a href="#fn:9" title="see footnote" class="footnote"><sup>9</sup></a>, add
 the following definition. Let <span class="math">\(\mathsf{removed}(\mathsf{height} ⦂ \mathbb{N})\)</span> be the total
 value removed from circulation in the block at <span class="math">\(\mathsf{height}\)</span> by any
-deployed mechanism (such as ZIP 233 <a href="#fn:11" title="see footnote" class="footnote"><sup>11</sup></a> or ZIP 235 <a href="#fn:17" id="fnref:17" title="see footnote" class="footnote"><sup>17</sup></a>), or 0
+deployed mechanism (such as ZIP 233 <a href="#fn:12" title="see footnote" class="footnote"><sup>12</sup></a> or ZIP 235 <a href="#fn:11" title="see footnote" class="footnote"><sup>11</sup></a>), or 0
 if none is deployed, and
 <span class="math">\(\mathsf{NU7ActivationHeight}\)</span> be the NU7 activation height on the relevant
 network. <a href="#fn:15" title="see footnote" class="footnote"><sup>15</sup></a></p>
@@ -375,7 +417,7 @@ network. <a href="#fn:15" title="see footnote" class="footnote"><sup>15</sup></a
 <p>The NSM Value Balance is tracked as consensus state alongside the chain value
 pools. It is not a spendable chain value pool and is not included in
 <span class="math">\(\mathsf{IssuedSupply}(\mathsf{height})\kern-0.05em\textsf{:}\)</span> it counts ZEC/TAZ that is not in
-circulation, consistent with ZIP 233 <a href="#fn:11" title="see footnote" class="footnote"><sup>11</sup></a>, which subtracts removed funds
+circulation, consistent with ZIP 233 <a href="#fn:12" title="see footnote" class="footnote"><sup>12</sup></a>, which subtracts removed funds
 from the issued supply. Reissuance moves value from the NSM Value Balance into
 the Issued Supply through the block subsidy.</p>
 
@@ -385,6 +427,27 @@ the Issued Supply through the block subsidy.</p>
 <p>[NU7 onward] If <span class="math">\(\mathsf{NSMValueBalance}(\mathsf{height})\)</span> would become
 negative in the block chain created as a result of accepting a block at
 <span class="math">\(\mathsf{height}\kern-0.05em\textsf{,}\)</span> then all nodes MUST reject the block as invalid.</p>
+</blockquote>
+
+<p>In § 3.10 ‘Block Subsidy, Funding Streams, and Founders' Reward’
+<a href="#fn:17" id="fnref:17" title="see footnote" class="footnote"><sup>17</sup></a>, add:</p>
+
+<blockquote>
+<p>[NU7 onward] From <span class="math">\(\mathsf{DEPLOYMENT\_BLOCK\_HEIGHT}\kern-0.05em\textsf{,}\)</span> the block subsidy
+also includes value reissued from the NSM Value Balance (§ 4.17), and so
+depends on the NSM Value Balance after the preceding block as well as on the
+block height.</p>
+</blockquote>
+
+<p>In § 3.4 ‘Transactions and Treestates’ <a href="#fn:18" id="fnref:18" title="see footnote" class="footnote"><sup>18</sup></a>, where the
+remaining value in the transparent transaction value pool of coinbase
+transactions in blocks prior to NU6 is said to be destroyed, say instead that
+it is left unclaimed and is not added to any chain value pool, and add:</p>
+
+<blockquote>
+<p>[NU7 onward] This value is included in
+<span class="math">\(\mathsf{INITIAL\_NSM\_VALUE\_BALANCE}\kern-0.05em\textsf{,}\)</span> and so is reissued as specified in
+§ 7.8.</p>
 </blockquote>
 
 <h2 id="applicability"><span class="section-heading">Applicability</span><span class="section-anchor"> <a rel="bookmark" href="#applicability"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
@@ -397,7 +460,12 @@ negative in the block chain created as a result of accepting a block at
 <li>Leaving the existing schedule in place and applying an exponential decay
 function only to the NSM Value Balance satisfies <strong>Requirements 1</strong>, <strong>2</strong>
 and <strong>4</strong> above.</li>
-<li>We round up to the next zatoshi to satisfy <strong>Requirement 3</strong> above. Since
+<li>No reissuance occurs between NU7 activation and
+<span class="math">\(\mathsf{DEPLOYMENT\_BLOCK\_HEIGHT}\kern-0.05em\textsf{,}\)</span> so the NSM Value Balance accumulates
+during that interval. The reissuance height is chosen as described in
+<a href="#nsmreissuanceheight">NSM reissuance height</a> and ZIP 259 <a href="#fn:15" title="see footnote" class="footnote"><sup>15</sup></a>.</li>
+<li>We round up to the next zatoshi to satisfy <strong>Requirement 3</strong> above from
+<span class="math">\(\mathsf{DEPLOYMENT\_BLOCK\_HEIGHT}\)</span> onward. Since
 <span class="math">\(\mathsf{BLOCK\_SUBSIDY\_FRACTION} &lt; 1\)</span> and the NSM Value Balance is a
 non-negative integer number of zatoshi, the additional subsidy never exceeds
 the balance it is calculated from, so from NU7 activation the sum of the
@@ -419,8 +487,10 @@ height. The only change at deployment is the reissuance of the NSM Value
 Balance at that point (<span class="math">\(\mathsf{INITIAL\_NSM\_VALUE\_BALANCE}\)</span> plus anything
 removed from circulation since NU7 activation) at
 <span class="math">\(\mathsf{BLOCK\_SUBSIDY\_FRACTION}\)</span> per block. For example, if a total of
-100,000 ZEC were removed from circulation prior to activation, then at
-activation the issuance would be larger than the Scheduled Block Subsidy by
+100,000 ZEC were removed from circulation between NU7 activation and
+<span class="math">\(\mathsf{DEPLOYMENT\_BLOCK\_HEIGHT}\kern-0.05em\textsf{,}\)</span> then at
+<span class="math">\(\mathsf{DEPLOYMENT\_BLOCK\_HEIGHT}\)</span> the issuance would be larger than the
+Scheduled Block Subsidy by
 <span class="math">\(100\_000\textsf{ ZEC} \cdot \mathsf{BLOCK\_SUBSIDY\_FRACTION}\kern-0.05em\textsf{,}\)</span> which equals
 <span class="math">\(0.01375\)</span> ZEC under the post-NU7 schedule. This example is chosen to demonstrate
 that a very large amount removed from circulation (much larger than expected)
@@ -428,7 +498,7 @@ would elevate issuance by a relatively small amount, satisfying
 <strong>Requirement 5</strong>.</p>
 
 <p>Since NU6, coinbase transactions are required to claim the full miner subsidy
-and fees <a href="#fn:12" title="see footnote" class="footnote"><sup>12</sup></a>, so the part of the NSM Value Balance not attributable to
+and fees <a href="#fn:13" title="see footnote" class="footnote"><sup>13</sup></a>, so the part of the NSM Value Balance not attributable to
 funds removed from circulation is a fixed historical amount,
 <span class="math">\(\mathsf{INITIAL\_NSM\_VALUE\_BALANCE}\kern-0.05em\textsf{:}\)</span> on Mainnet 368.58445520 ZEC,
 reissued from deployment at an initial rate of about 0.00005 ZEC per block
@@ -446,13 +516,15 @@ spacing:</p>
 
 <p>Solving gives a fraction of approximately
 <span class="math">\(\ln 2 / \mathsf{HalvingInterval}(\mathsf{height})\kern-0.05em\textsf{.}\)</span> <span class="math">\(\mathsf{LN2\_SCALED}\)</span> is
-<span class="math">\(10^{10} \cdot \ln 2 = 6\_931\_471\_806\)</span> rounded up to a multiple of
+<span class="math">\(10^{10} \cdot \ln 2 \approx 6\_931\_471\_805.6\)</span> rounded up to a multiple of
 <span class="math">\(\mathsf{PostBlossomHalvingInterval}\kern-0.05em\textsf{,}\)</span> so that on the 75-second schedule the
-numerator is exactly the 4126 of ZIP 234 <a href="#fn:13" title="see footnote" class="footnote"><sup>13</sup></a>, which satisfies the
+numerator is exactly the 4126 of ZIP 234 <a href="#fn:14" title="see footnote" class="footnote"><sup>14</sup></a>, which satisfies the
 approximation within <span class="math">\(\pm 0.003\%\kern-0.05em\textsf{.}\)</span> ZIP 218 <a href="#fn:7" title="see footnote" class="footnote"><sup>7</sup></a> does not change
 <span class="math">\(\mathsf{PostBlossomHalvingInterval}\kern-0.05em\textsf{;}\)</span> it defines a separate
 <span class="math">\(\mathsf{PostNU7HalvingInterval} = 5\_040\_000\)</span> for its 25-second blocks, and
-with that interval the numerator is 1375. A numerator fixed at 4126 would
+with that interval the numerator is 1375, which is the value applied from
+<span class="math">\(\mathsf{DEPLOYMENT\_BLOCK\_HEIGHT}\kern-0.05em\textsf{:}\)</span> <span class="math">\((1 - 1375/10^{10})^{5\_040\_000} \approx 0.50007\kern-0.05em\textsf{,}\)</span>
+within <span class="math">\(+0.015\%\kern-0.05em\textsf{.}\)</span> A numerator fixed at 4126 would
 instead halve the balance about every 1.33 years under ZIP 218, because it
 would apply three times as often.</p>
 
@@ -538,15 +610,15 @@ constraint.</p>
 <p>This ZIP is proposed to activate with Network Upgrade 7 <a href="#fn:15" title="see footnote" class="footnote"><sup>15</sup></a>, with
 reissuance beginning at
 <span class="math">\(\mathsf{DEPLOYMENT\_BLOCK\_HEIGHT}\kern-0.05em\textsf{.}\)</span> It MUST NOT be deployed together with
-ZIP 234. <a href="#fn:13" title="see footnote" class="footnote"><sup>13</sup></a> It does not depend on ZIP 233 (&#8220;NSM: Removing Funds From
-Circulation&#8221; <a href="#fn:11" title="see footnote" class="footnote"><sup>11</sup></a>): funds removed from circulation by ZIP 233, or by any
+ZIP 234. <a href="#fn:14" title="see footnote" class="footnote"><sup>14</sup></a> It does not depend on ZIP 233 (&#8220;NSM: Removing Funds From
+Circulation&#8221; <a href="#fn:12" title="see footnote" class="footnote"><sup>12</sup></a>): funds removed from circulation by ZIP 233, or by any
 other mechanism, are credited to the NSM Value Balance if and when that
-mechanism is deployed.</p>
+mechanism is deployed. This ZIP requires ZIP 218. <a href="#fn:7" title="see footnote" class="footnote"><sup>7</sup></a></p>
 
 <h1 id="referenceimplementation"><span class="section-heading">Reference implementation</span><span class="section-anchor"> <a rel="bookmark" href="#referenceimplementation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
 
 <ul>
-<li>Zebra: <a href="#fn:18" id="fnref:18" title="see footnote" class="footnote"><sup>18</sup></a> <a href="#fn:19" id="fnref:19" title="see footnote" class="footnote"><sup>19</sup></a> <a href="#fn:20" id="fnref:20" title="see footnote" class="footnote"><sup>20</sup></a></li>
+<li>Zebra: <a href="#fn:19" id="fnref:19" title="see footnote" class="footnote"><sup>19</sup></a> <a href="#fn:20" id="fnref:20" title="see footnote" class="footnote"><sup>20</sup></a> <a href="#fn:21" id="fnref:21" title="see footnote" class="footnote"><sup>21</sup></a></li>
 <li>Zakura: TBD</li>
 </ul>
 
@@ -565,19 +637,19 @@ mechanism is deployed.</p>
 </li>
 
 <li id="fn:3">
-<p><a href="protocol/protocol.pdf">Zcash Protocol Specification, Version 2025.6.2 [NU6.1] or later</a> <a href="#fnref:3" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="protocol/protocol.pdf">Zcash Protocol Specification, Version 2026.8.0 [NU6.3] or later</a> <a href="#fnref:3" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:4">
-<p><a href="protocol/protocol.pdf#networks">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 3.12: Mainnet and Testnet</a> <a href="#fnref:4" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="protocol/protocol.pdf#networks">Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 3.12: Mainnet and Testnet</a> <a href="#fnref:4" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:5">
-<p><a href="protocol/protocol.pdf#notation">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 2: Notation</a> <a href="#fnref:5" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="protocol/protocol.pdf#notation">Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 2: Notation</a> <a href="#fnref:5" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:6">
-<p><a href="protocol/protocol.pdf#diffadjustment">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 7.7.3: Difficulty Adjustment</a> <a href="#fnref:6" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="protocol/protocol.pdf#diffadjustment">Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.7.3: Difficulty Adjustment</a> <a href="#fnref:6" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:7">
@@ -585,31 +657,31 @@ mechanism is deployed.</p>
 </li>
 
 <li id="fn:8">
-<p><a href="protocol/protocol.pdf#constants">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.3: Constants</a> <a href="#fnref:8" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="protocol/protocol.pdf#constants">Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 5.3: Constants</a> <a href="#fnref:8" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:9">
-<p><a href="protocol/protocol.pdf#chainvaluepoolbalances">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 4.17: Chain Value Pool Balances</a> <a href="#fnref:9" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="protocol/protocol.pdf#chainvaluepoolbalances">Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 4.17: Chain Value Pool Balances</a> <a href="#fnref:9" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:10">
-<p><a href="protocol/protocol.pdf#subsidies">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 7.8: Calculating Block Subsidy, Funding Streams, Lockbox Disbursement, and Founders' Reward</a> <a href="#fnref:10" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="protocol/protocol.pdf#subsidies">Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.8: Calculating Block Subsidy, Funding Streams, Lockbox Disbursement, and Founders' Reward</a> <a href="#fnref:10" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:11">
-<p><a href="zip-0233">ZIP 233: Network Sustainability Mechanism: Removing Funds From Circulation</a> <a href="#fnref:11" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="zip-0235">ZIP 235: Remove 60% of Transaction Fees From Circulation</a> <a href="#fnref:11" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:12">
-<p><a href="zip-0236">ZIP 236: Blocks should balance exactly</a> <a href="#fnref:12" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="zip-0233">ZIP 233: Network Sustainability Mechanism: Removing Funds From Circulation</a> <a href="#fnref:12" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:13">
-<p><a href="zip-0234">ZIP 234: Network Sustainability Mechanism: Issuance Smoothing</a> <a href="#fnref:13" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="zip-0236">ZIP 236: Blocks should balance exactly</a> <a href="#fnref:13" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:14">
-<p>Zakura <a href="https://github.com/zakura-core/zakura/blob/b85a3f63360024cd077cbcbf1884e3f364c1ddb6/crates/zakura-chain/src/parameters/network/subsidy/constants/mainnet.rs#L35-L43">Mainnet</a> and <a href="https://github.com/zakura-core/zakura/blob/b85a3f63360024cd077cbcbf1884e3f364c1ddb6/crates/zakura-chain/src/parameters/network/subsidy/constants/testnet.rs#L23-L27">Testnet</a> initial NSM balance constants, checked against the <a href="https://github.com/zakura-core/zakura/blob/b85a3f63360024cd077cbcbf1884e3f364c1ddb6/crates/zakura-chain/src/parameters/network/tests.rs#L869-L914">historical chain value pools</a>. <a href="#fnref:14" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="zip-0234">ZIP 234: Network Sustainability Mechanism: Issuance Smoothing</a> <a href="#fnref:14" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:15">
@@ -617,23 +689,27 @@ mechanism is deployed.</p>
 </li>
 
 <li id="fn:16">
-<p><a href="protocol/protocol.pdf#txnconsensus">Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 7.1.2: Transaction Consensus Rules</a> <a href="#fnref:16" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="protocol/protocol.pdf#txnconsensus">Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.1.2: Transaction Consensus Rules</a> <a href="#fnref:16" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:17">
-<p><a href="zip-0235">ZIP 235: Remove 60% of Transaction Fees From Circulation</a> <a href="#fnref:17" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="protocol/protocol.pdf#subsidyconcepts">Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 3.10: Block Subsidy, Funding Streams, and Founders' Reward</a> <a href="#fnref:17" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:18">
-<p><a href="https://github.com/ZcashFoundation/zebra/pull/11454">Zebra PR 11454: feat(chain, consensus, state, rpc): add halving-preserving NU7 issuance</a> <a href="#fnref:18" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="protocol/protocol.pdf#transactions">Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 3.4: Transactions and Treestates</a> <a href="#fnref:18" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:19">
-<p><a href="https://github.com/ZcashFoundation/zebra/pull/11529">Zebra PR 11529: feat(consensus)!: implement NU7 spacing, funding schedules, and shielded limits</a> <a href="#fnref:19" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://github.com/ZcashFoundation/zebra/pull/11454">Zebra PR 11454: feat(chain, consensus, state, rpc): add halving-preserving NU7 issuance</a> <a href="#fnref:19" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:20">
-<p><a href="https://github.com/ZcashFoundation/zebra/pull/11530">Zebra PR 11530: feat(nsm)!: enable merged issuance and fee accounting</a> <a href="#fnref:20" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://github.com/ZcashFoundation/zebra/pull/11529">Zebra PR 11529: feat(consensus)!: implement NU7 spacing, funding schedules, and shielded limits</a> <a href="#fnref:20" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:21">
+<p><a href="https://github.com/ZcashFoundation/zebra/pull/11530">Zebra PR 11530: feat(nsm)!: enable merged issuance and fee accounting</a> <a href="#fnref:21" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 </ol>
