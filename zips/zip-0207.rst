@@ -7,19 +7,18 @@
   Status: [Revision 0: Canopy, Revision 1: NU6] Final, [Revision 2: NU7] Draft
   Category: Consensus
   Created: 2019-01-04
-  Last-Updated: 2026-09-30
+  Last-Updated: 2026-10-13
   License: MIT
 
 
 Terminology
 ===========
 
-The key words "MUST", "SHOULD", "SHOULD NOT", and "MAY" in this document are
-to be interpreted as described in BCP 14 [#BCP14]_ when, and only when, they
-appear in all capitals.
+The key word "MUST" in this document is to be interpreted as described in BCP 14
+[#BCP14]_ when, and only when, it appears in all capitals.
 
 The terms "block subsidy" and "halving" in this document are to be interpreted
-as described in sections 3.9 and 7.7 of the Zcash Protocol Specification.
+as described in sections 3.10 and 7.8 of the Zcash Protocol Specification.
 [#protocol-subsidyconcepts]_ [#protocol-subsidies]_
 
 The terms "consensus branch" and "network upgrade" in this document are to be
@@ -67,6 +66,9 @@ As of NU6, ZIP 1015 [#zip-1015]_ directs part of the block subsidy to a reserve,
 the distribution of which is to be determined via a future ZIP.
 ZIP 2001 [#zip-2001]_ modified this ZIP to augment the funding stream mechanism
 with a common mechanism to implement this proposal.
+ZIP 271 [#zip-0271]_ specifies a one-time disbursement from this reserve at
+NU6.1 activation, which is deducted from the
+`Deferred Development Fund Chain Value Pool Balance`_.
 
 
 Requirements
@@ -194,11 +196,22 @@ first halving so that 48 funding periods fit cleanly within a halving
 interval. This can be leveraged to simplify implementations, by batching the
 necessary outputs for each funding period.
 
+The sequence $\mathsf{FundingStream[FUND].Addresses}$ is indexed from 0, and
+MUST have $\mathsf{FundingStream[FUND].AddressIndex}(\mathsf{FundingStream[FUND].EndHeight} - 1) + 1$
+entries.
+(The protocol specification calls the same sequence $\mathsf{fs.Recipients}$
+and indexes it from 1. [#protocol-fundingstreams]_)
+
+For a funding stream $\mathsf{fs}$ we write $\mathsf{fs.Value}(\mathsf{height})$
+for $\mathsf{FundingStream[fs].Value}(\mathsf{height})$ and
+$\mathsf{fs.Recipient}(\mathsf{height})$ for
+$\mathsf{FundingStream[fs].Address}(\mathsf{height})$ at each block height.
+
 As of `Revision 2`_, the definition of $\mathsf{AddressPeriod}$ above is
 replaced on each network by the following piecewise definition. Let $A$ be
 the NU7 activation height on that network, let
-$R = \mathsf{NU7PoWTargetSpacingRatio} = 3$ as defined in ZIP 218
-[#zip-0218]_, let $C = \mathsf{AddressChangeInterval}$, let
+$R = \mathsf{NU7PoWTargetSpacingRatio} = 3$ and $\mathsf{IsNU7Activated}$ be as
+defined in ZIP 218 [#zip-0218]_, let $C = \mathsf{AddressChangeInterval}$, let
 $I = \mathsf{PostBlossomHalvingInterval}$, and let
 $H_1 = \mathsf{HeightForHalving}(1)$.
 
@@ -227,27 +240,40 @@ subject to per-block rounding.
 Below is a visual representation of how stream addresses align with funding
 periods:
 
-  ================================== ======== ======== ========
-            Example height           Stream A Stream B Stream C
-  ================================== ======== ======== ========
-       ``AddressChangeInterval - 2``    A0
-       ``AddressChangeInterval - 1``    A0
-       ``AddressChangeInterval``        A1       B0       C0
-       ``AddressChangeInterval + 1``    A1       B0       C0
-                \...
-     ``2*AddressChangeInterval - 2``    A1       B0       C0
-     ``2*AddressChangeInterval - 1``    A1       B0       C0
-     ``2*AddressChangeInterval``        A2                C1
-     ``2*AddressChangeInterval + 1``    A2                C1
-                \...
-  ``PostBlossomHalvingInterval - 2``    A2                C1
-  ``PostBlossomHalvingInterval - 1``    A2                C1
-  ``PostBlossomHalvingInterval``                          C2
-  ``PostBlossomHalvingInterval + 1``                      C2
-  ================================== ======== ======== ========
+  ============================================================== ======== ======== ========
+                                                 Example height  Stream A Stream B Stream C
+  ============================================================== ======== ======== ========
+                                  ``AddressChangeInterval - 2``     A0
+                                  ``AddressChangeInterval - 1``     A0
+                                      ``AddressChangeInterval``     A1       B0       C0
+                                  ``AddressChangeInterval + 1``     A1       B0       C0
+                               \...
+                                ``2*AddressChangeInterval - 2``     A1       B0       C0
+                                ``2*AddressChangeInterval - 1``     A1       B0       C0
+                                    ``2*AddressChangeInterval``     A2                C1
+                                ``2*AddressChangeInterval + 1``     A2                C1
+                               \...
+                             ``PostBlossomHalvingInterval - 2``     A2                C1
+                             ``PostBlossomHalvingInterval - 1``     A2                C1
+                                 ``PostBlossomHalvingInterval``                       C2
+                             ``PostBlossomHalvingInterval + 1``                       C2
+                               \...
+       ``PostBlossomHalvingInterval + AddressChangeInterval/2``                       C2
+                               \...
+   ``PostBlossomHalvingInterval + 2*AddressChangeInterval - 1``                       C2
+       ``PostBlossomHalvingInterval + 2*AddressChangeInterval``                       C3
+                               \...
+   ``PostBlossomHalvingInterval + 5*AddressChangeInterval - 1``                       C3
+       ``PostBlossomHalvingInterval + 5*AddressChangeInterval``                       C4
+  ============================================================== ======== ======== ========
 
-On Mainnet, Canopy is planned to activate exactly at the point when the Founders’
-Reward expires, at block height 1046400. On Testnet, there will be a shortened
+The last rows illustrate `Revision 2`_ with NU7 activating halfway through the
+period of address C2, at height ``PostBlossomHalvingInterval + AddressChangeInterval/2``:
+the remaining half of that period is tripled, and the period of C3 lasts
+``3*AddressChangeInterval`` blocks.
+
+On Mainnet, Canopy activated exactly at the point when the Founders’
+Reward expired, at block height 1046400. On Testnet, there was a shortened
 Founders’ Reward address period prior to Canopy activation.
 
 
@@ -256,24 +282,32 @@ Deferred Development Fund Chain Value Pool Balance
 
 As of `Revision 1`_ of this specification, full node implementations MUST track
 an additional $\mathsf{ChainValuePoolBalance^{Deferred}}$ chain value pool
-balance, in addition to the Sprout, Sapling, and Orchard chain value pool
-balances.
+balance, in addition to the other chain value pool balances defined in
+[#protocol-chainvaluepoolbalances]_ (see also ZIP 209 [#zip-0209]_).
 
 Define $\mathsf{totalDeferredOutput}(\mathsf{height}) := \sum_{\mathsf{fs} \in \mathsf{DeferredFundingStreams}(\mathsf{height})} \mathsf{fs.Value}(\mathsf{height})$
 where $\mathsf{DeferredFundingStreams}(\mathsf{height})$ is the set of
 funding streams with recipient identifier $\mathsf{DEFERRED\_POOL}$
 in the block at height $\mathsf{height}$.
 
+Define $\mathsf{totalDeferredInput}(\mathsf{height})$ as in
+[#protocol-subsidies]_: it is $\mathsf{ZIP271DisbursementAmount}$ at the
+height $\mathsf{ZIP271ActivationHeight}$ of the one-time lockbox disbursement
+specified in ZIP 271 [#zip-0271]_, and zero at every other height.
+
 The $\mathsf{ChainValuePoolBalance^{Deferred}}$ chain value pool balance
 for a given block chain is the sum of the values of payments to
-$\mathsf{DEFERRED\_POOL}$ for transactions in the block chain.
+$\mathsf{DEFERRED\_POOL}$ for transactions in the block chain, minus the
+lockbox disbursement from it in that block chain.
 
 Equivalently, $\mathsf{ChainValuePoolBalance^{Deferred}}$ for a block
 chain up to and including height $\mathsf{height}$ is given by
-$\sum_{\mathsf{h} = 0}^{\mathsf{height}} \mathsf{totalDeferredOutput}(\mathsf{h})$.
+$\sum_{\mathsf{h} = 0}^{\mathsf{height}} \left(\mathsf{totalDeferredOutput}(\mathsf{h}) - \mathsf{totalDeferredInput}(\mathsf{h})\right)$.
 
 Note: $\mathsf{totalDeferredOutput}(\mathsf{h})$ is necessarily
-zero for heights $\mathsf{h}$ prior to NU6 activation.
+zero for heights $\mathsf{h}$ prior to NU6 activation, and
+$\mathsf{totalDeferredInput}(\mathsf{h})$ is necessarily zero for heights
+$\mathsf{h}$ prior to NU6.1 activation.
 
 
 Consensus rules
@@ -292,11 +326,21 @@ Once the Canopy network upgrade activates:
    active funding stream that pays the stream's value in the prescribed way to
    the stream's recipient address for the block's height.
 
-3. $\mathsf{fs.Recipient}(\mathsf{height})$ is defined as
-   $\mathsf{fs.Recipients_{\,fs.RecipientIndex}}(\mathsf{height})$.
+3. The recipient $\mathsf{fs.Recipient}(\mathsf{height})$ of a funding stream
+   $\mathsf{fs}$ at block height $\mathsf{height}$ is as defined in
+   `Funding streams`_.
 
-4. The "prescribed way" to pay a transparent multisig P2SH address is to use a
-   standard P2SH script as specified in [#Bitcoin-Multisig]_.
+4. The "prescribed way" to pay a transparent P2SH address is to use a standard
+   P2SH script of the form ``OP_HASH160 RedeemScriptHash OP_EQUAL`` as the
+   ``scriptPubKey`` [#Bitcoin-P2SH]_, where ``RedeemScriptHash`` is the 20-byte
+   script hash in the raw encoding of the address
+   [#protocol-transparentaddrencoding]_.
+
+   As of `Revision 2`_, the "prescribed way" to pay a transparent P2PKH address
+   is to use ``OP_DUP OP_HASH160 <keyHash> OP_EQUALVERIFY OP_CHECKSIG`` as the
+   output's ``scriptPubKey``, where ``<keyHash>`` is the direct push of the
+   20-byte public-key hash decoded from the recipient's Base58Check address. No
+   other script encoding satisfies this funding-stream payment rule.
 
 5. The "prescribed way" to pay a Sapling address is as defined in [#zip-0213]_.
    That is, all Sapling outputs in coinbase transactions (including, but not
@@ -313,19 +357,33 @@ Once the NU6 network upgrade activates:
   active at that block height with a recipient identifier other than
   $\mathsf{DEFERRED\_POOL}$ given by
   $\mathsf{fs.Recipient}(\mathsf{height})$,
-  $\mathsf{cb}$ \MUST contain at least one output that pays
+  $\mathsf{cb}$ MUST contain at least one output that pays
   $\mathsf{fs.Value}(\mathsf{height})$ zatoshi in the prescribed way to
-  the address represented by that recipient identifier.
+  the address represented by that recipient identifier, distinct from the
+  outputs counted for every other such funding stream and for the lockbox
+  disbursement outputs required by ZIP 271 [#zip-0271]_.
+
+Note: The outputs required by rule 2 before NU6 activation are likewise
+distinct for each funding stream. In particular, a single output cannot be
+counted for two active funding streams that have the same recipient and the
+same value.
 
 Rule 5 has subsequently been clarified as follows:
 
 - The "prescribed way" to pay a Sapling or Orchard address is as defined in
-  [#zip-0213]_, using the post-Heartwood consensus rules specified for Sapling
-  and Orchard outputs of coinbase transactions in [#protocol-txnconsensus]_.
+  [#zip-0213]_, using the post-Heartwood consensus rules specified for shielded
+  outputs of coinbase transactions in [#protocol-txnconsensus]_. A Sapling
+  address is paid by a Sapling-pool output. An Orchard address is paid by an
+  Orchard-pool output before NU6.3 activation, and by an Ironwood-pool output
+  from NU6.3 activation onward, since coinbase transactions can then contain
+  no Orchard-pool component [#zip-0213]_.
 
-Note: Up to and including NU6.1 there have been no funding streams defined
+Note: The recipient identifiers permitted above do not include Orchard
+addresses; the "prescribed way" to pay an Orchard address is defined in
+anticipation of a future change.
+Up to and including NU7 there have been no funding streams defined
 with a shielded payment address as a recipient. That might change in future,
-so implementations are encouraged to support Sapling and Orchard outputs as
+so implementations are encouraged to support Sapling and Orchard addresses as
 recipients, as permitted by [#zip-0213]_.
 
 These rules are reproduced in [#protocol-fundingstreams]_.
@@ -334,9 +392,11 @@ The effect of the definition of $\mathsf{ChainValuePoolBalance^{Deferred}}$
 above is that payments to the $\mathsf{DEFERRED\_POOL}$ cause
 $\mathsf{FundingStream[FUND].Value}(\mathsf{height})$ to be added to
 $\mathsf{ChainValuePoolBalance^{Deferred}}$ for the block chain including
-that block.
+that block, and that the lockbox disbursement specified in ZIP 271
+[#zip-0271]_ causes $\mathsf{ZIP271DisbursementAmount}$ to be subtracted from it.
 
-For the funding stream definitions to be activated at Canopy and at NU6, see
+For the funding stream definitions activated at Canopy, NU6, and NU6.1, and
+their changes at NU7, see
 ZIP 214. [#zip-0214]_ Funding stream definitions can be added, changed, or
 deleted in ZIPs associated with subsequent network upgrades, subject to the
 ZIP process. [#zip-0000]_
@@ -369,10 +429,28 @@ Reference Implementation
 * https://github.com/zcash/zcash/pull/4560
 * https://github.com/zcash/zcash/pull/4675
 * https://github.com/zcash/zcash/pull/4830
+* Revision 2, Zebra: [#zebra-11529]_ [#zebra-11527]_
 
 
 Change History
 ==============
+
+2026-10-13
+----------
+
+- Defined ``fs.Value`` and ``fs.Recipient``, and required each address list to
+  cover its funding stream's height range.
+- Clarified that each funding stream requires a distinct output.
+- Defined the "prescribed way" to pay any P2SH address, and applied the P2PKH
+  payment rule of ZIP 2008 [#zip-2008]_ to Revision 2.
+- Clarified the "prescribed way" to pay an Orchard address from NU6.3, and that
+  Orchard addresses are not permitted recipients.
+- Deducted the ZIP 271 lockbox disbursement from the deferred development fund
+  chain value pool balance.
+- Corrected the address-period example table, section numbers, reference
+  titles, and tense.
+- Added the reference implementation of Revision 2, and updated the protocol
+  specification citations.
 
 2026-09-30
 ----------
@@ -409,29 +487,33 @@ References
 ==========
 
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
-.. [#protocol] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal] or later <protocol/protocol.pdf>`_
-.. [#protocol-subsidyconcepts] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 3.10: Block Subsidy and Founders’ Reward <protocol/protocol.pdf#subsidyconcepts>`_
-.. [#protocol-networks] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
-.. [#protocol-constants] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 5.3: Constants <protocol/protocol.pdf#constants>`_
-.. [#protocol-transparentaddrencoding] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 5.6.1.1: Transparent Addresses <protocol/protocol.pdf#transparentaddrencoding>`_
-.. [#protocol-saplingpaymentaddrencoding] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 5.6.3.1: Sapling Payment Addresses <protocol/protocol.pdf#saplingpaymentaddrencoding>`_
-.. [#protocol-txnconsensus] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 7.1.2: Transaction Consensus Rules <protocol/protocol.pdf#txnconsensus>`_
-.. [#protocol-diffadjustment] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 7.7.3: Difficulty adjustment <protocol/protocol.pdf#diffadjustment>`_
-.. [#protocol-subsidies] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 7.8: Calculation of Block Subsidy, Funding Streams, and Founders’ Reward <protocol/protocol.pdf#subsidies>`_
-.. [#protocol-foundersreward] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 7.9: Payment of Founders’ Reward <protocol/protocol.pdf#foundersreward>`_
-.. [#protocol-fundingstreams] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 7.10: Payment of Funding Streams, Deferred Lockbox, and Lockbox Disbursement <protocol/protocol.pdf#fundingstreams>`_
+.. [#protocol-subsidyconcepts] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 3.10: Block Subsidy, Funding Streams, and Founders’ Reward <protocol/protocol.pdf#subsidyconcepts>`_
+.. [#protocol-networks] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
+.. [#protocol-chainvaluepoolbalances] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 4.17: Chain Value Pool Balances <protocol/protocol.pdf#chainvaluepoolbalances>`_
+.. [#protocol-constants] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 5.3: Constants <protocol/protocol.pdf#constants>`_
+.. [#protocol-transparentaddrencoding] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 5.6.1.1: Transparent Addresses <protocol/protocol.pdf#transparentaddrencoding>`_
+.. [#protocol-saplingpaymentaddrencoding] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 5.6.3.1: Sapling Payment Addresses <protocol/protocol.pdf#saplingpaymentaddrencoding>`_
+.. [#protocol-txnconsensus] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.1.2: Transaction Consensus Rules <protocol/protocol.pdf#txnconsensus>`_
+.. [#protocol-diffadjustment] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.7.3: Difficulty adjustment <protocol/protocol.pdf#diffadjustment>`_
+.. [#protocol-subsidies] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.8: Calculating Block Subsidy, Funding Streams, Lockbox Disbursement, and Founders’ Reward <protocol/protocol.pdf#subsidies>`_
+.. [#protocol-foundersreward] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.9: Payment of Founders’ Reward <protocol/protocol.pdf#foundersreward>`_
+.. [#protocol-fundingstreams] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.10: Payment of Funding Streams, Deferred Lockbox, and Lockbox Disbursement <protocol/protocol.pdf#fundingstreams>`_
 .. [#zip-0000] `ZIP 0: ZIP Process <zip-0000.rst>`_
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
 .. [#zip-0208] `ZIP 208: Shorter Block Target Spacing <zip-0208.rst>`_
-.. [#zip-0212] `ZIP 212: Allow Recipient to Derive Sapling Ephemeral Secret from Note Plaintext <zip-0212.rst>`_
+.. [#zip-0209] `ZIP 209: Prohibit Out-of-Range Chain Value Pool Balances <zip-0209.rst>`_
+.. [#zip-0212] `ZIP 212: Allow Recipient to Derive Ephemeral Secret from Note Plaintext <zip-0212.rst>`_
 .. [#zip-0213] `ZIP 213: Shielded Coinbase <zip-0213.rst>`_
 .. [#zip-0214] `ZIP 214: Consensus rules for a Zcash Development Fund <zip-0214.rst>`_
 .. [#zip-0218] `ZIP 218: 25-second Block Target Spacing <zip-0218.md>`_
 .. [#zip-0251] `ZIP 251: Deployment of the Canopy Network Upgrade <zip-0251.rst>`_
-.. [#zip-0253] `ZIP 253: Deployment of the NU6 Network Upgrade <zip-0253.rst>`_
+.. [#zip-0253] `ZIP 253: Deployment of the NU6 Network Upgrade <zip-0253.md>`_
 .. [#zip-0259] `ZIP 259: Deployment of the NU7 Network Upgrade <zip-0259.md>`_
+.. [#zip-0271] `ZIP 271: Dev Fund Extension and One-Time Disbursement <zip-0271.md>`_
 .. [#zip-1014] `ZIP 1014: Establishing a Dev Fund for ECC, ZF, and Major Grants <zip-1014.rst>`_
 .. [#zip-1015] `ZIP 1015: Block Subsidy Allocation for Non-Direct Development Funding <zip-1015.rst>`_
 .. [#zip-2001] `ZIP 2001: Lockbox Funding Streams <zip-2001.rst>`_
-.. [#zip-2008] `ZIP 2008: Update to `FS_FPF_ZCG_H3` address list <zip-2008.md>`_
-.. [#Bitcoin-Multisig] `Bitcoin Developer Documentation — Pay To Script Hash (P2SH) — Multisig <https://developer.bitcoin.org/devguide/transactions.html#multisig>`_
+.. [#zip-2008] `ZIP 2008: Update to FS_FPF_ZCG_H3 address list <zip-2008.md>`_
+.. [#Bitcoin-P2SH] `Transactions: P2SH Scripts — Bitcoin Developer Guide <https://developer.bitcoin.org/devguide/transactions.html#pay-to-script-hash-p2sh>`_
+.. [#zebra-11529] `Zebra PR 11529: feat(consensus)!: implement NU7 spacing, funding schedules, and shielded limits <https://github.com/ZcashFoundation/zebra/pull/11529>`_
+.. [#zebra-11527] `Zebra PR 11527: feat(nu7)!: prepare ZIP 259 deployment and ZIP 2008 payouts <https://github.com/ZcashFoundation/zebra/pull/11527>`_
