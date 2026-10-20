@@ -77,10 +77,18 @@ maximum residual value and above by a cap specified in
 order to prevent small, user-identifying amounts from being leaked in
 pool-crossing transactions.</dd>
 
+<dt>Reference block</dt>
+<dd>A unit of block count equal to one block at the 75-second block target
+spacing in effect before NU7. The block-count parameters of this ZIP that
+represent durations are stated in reference blocks; see
+<a href="#blockcountsacrossthenu7blockspacingchange">Block counts across the NU7 block spacing change</a>.</dd>
+
 <dt>Anchor-height bucket (boundary)</dt>
 <dd>A shared, network-wide interval of block heights delimited by <em>boundaries</em>:
-blocks whose height is <span class="math">\(\equiv 0 \pmod{M}\)</span> for a network-wide modulus <span class="math">\(M\)</span>
-(provisionally 144). The anchor height of a migration transaction is drawn
+blocks whose height is a multiple of a network-wide modulus <span class="math">\(M\)</span>
+(provisionally 144 reference blocks, scaled at NU7 as specified in
+<a href="#blockcountsacrossthenu7blockspacingchange">Block counts across the NU7 block spacing change</a>).
+The anchor height of a migration transaction is drawn
 at random from among past boundaries rather than derived from the wallet&#8217;s
 own chain tip, so that the anchor does not reveal when a particular wallet
 last synchronized.</dd>
@@ -288,6 +296,57 @@ privacy-preserving flow (see
 <a href="#migrationentrypointanduserconsent">Migration entry point and user consent</a>),
 but it SHOULD present the privacy trade-off of doing so.</p>
 
+<h2 id="blockcountsacrossthenu7blockspacingchange"><span class="section-heading">Block counts across the NU7 block spacing change</span><span class="section-anchor"> <a rel="bookmark" href="#blockcountsacrossthenu7blockspacingchange"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>ZIP 218 <a href="#fn:12" id="fnref:12" title="see footnote" class="footnote"><sup>12</sup></a> reduces the block target spacing from 75 seconds to
+25 seconds at NU7 activation. Let <span class="math">\(A\)</span> be <span class="math">\(\mathsf{NU7ActivationHeight}\kern-0.05em\textsf{,}\)</span> and let
+<span class="math">\(R\)</span> be <span class="math">\(\mathsf{NU7PoWTargetSpacingRatio} = 3\kern-0.05em\textsf{,}\)</span> both as defined in ZIP 218
+<a href="#fn:13" id="fnref:13" title="see footnote" class="footnote"><sup>13</sup></a>. On a network with no NU7 activation height, take
+<span class="math">\(A = \infty\kern-0.05em\textsf{;}\)</span> then none of the rules below change any quantity.</p>
+
+<p>The parameters <code>PREP_MEAN_DELAY</code>, <code>PREP_MAX_DELAY</code>, <code>MEAN_DELAY</code>, <code>MAX_DELAY</code>,
+the bucket modulus <span class="math">\(M\kern-0.05em\textsf{,}\)</span> and <code>EXPIRY_MODULUS</code> represent durations. Each is stated
+in reference blocks and has the same value at all heights. A wallet MUST
+convert them to heights as follows, which scales them by <span class="math">\(R\)</span> after activation as
+ZIP 218 recommends for block counts that represent durations
+<a href="#fn:14" id="fnref:14" title="see footnote" class="footnote"><sup>14</sup></a>:</p>
+
+<ul>
+<li><strong>Delays.</strong> A specified delay <span class="math">\(d \geq 0\)</span> is denominated in reference blocks. The
+height reached by advancing <span class="math">\(d\)</span> reference blocks from height <span class="math">\(h\)</span> is</li>
+</ul>
+
+<p><span class="math">\[\mathsf{Advance}(h, d) := \begin{cases}
+h + d &amp; \text{if } h + d \leq A \\
+h + R \cdot d &amp; \text{if } h \geq A \\
+A + R \cdot (h + d - A) &amp; \text{if } h &lt; A &lt; h + d\text{.}
+\end{cases}\]</span></p>
+
+<p>A delay that crosses activation therefore keeps its length in time at the
+target spacing. Where delays accumulate, each height is <span class="math">\(\mathsf{Advance}\)</span>
+of the previous height by the next delay.</p>
+
+<ul>
+<li><p><strong>Boundaries.</strong> A height <span class="math">\(h\)</span> is a boundary if and only if either <span class="math">\(h &lt; A\)</span> and
+<span class="math">\(h\)</span> is a multiple of <span class="math">\(M\kern-0.05em\textsf{,}\)</span> or <span class="math">\(h \geq A\)</span> and <span class="math">\(h\)</span> is a multiple of <span class="math">\(R \cdot M\kern-0.05em\textsf{.}\)</span>
+Every boundary at or after <span class="math">\(A\)</span> is also a multiple of <span class="math">\(M\kern-0.05em\textsf{.}\)</span> All references to
+boundaries in this ZIP (the most recent boundary, the next boundary, and
+anchor ages counted in boundaries) refer to this set. <code>ANCHOR_AGE_CAP</code> is a
+number of boundaries, and is not scaled.</p></li>
+<li><p><strong>Expiry modulus.</strong> The expiry modulus at height <span class="math">\(h\)</span> is</p></li>
+</ul>
+
+<p><span class="math">\[\mathsf{ExpiryModulus}(h) := \begin{cases}
+\mathtt{EXPIRY\_MODULUS} &amp; \text{if } h &lt; A \\
+R \cdot \mathtt{EXPIRY\_MODULUS} &amp; \text{if } h \geq A\text{.}
+\end{cases}\]</span></p>
+
+<p>It is used to compute the canonical expiry height as specified in
+<a href="#canonicalmigrationtransactionstructure">Canonical migration transaction structure</a>.</p>
+
+<p>Block counts that do not represent durations, such as confirmation depths and
+mining margins, are not scaled.</p>
+
 <h2 id="migrationentrypointanduserconsent"><span class="section-heading">Migration entry point and user consent</span><span class="section-anchor"> <a rel="bookmark" href="#migrationentrypointanduserconsent"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
 <p>When a wallet detects a non-zero confirmed-spendable <em>Orchard-pool</em> balance
@@ -387,7 +446,7 @@ unmigrated; this residual remains in the <em>Orchard pool</em> at the end of the
 migration. Notes individually smaller than <code>MAX_RESIDUAL_VALUE</code> are
 nonetheless migratable, because note preparation may combine them; whether
 consuming a given small note is economic is a ZIP 317 marginal-fee
-consideration. <a href="#fn:12" id="fnref:12" title="see footnote" class="footnote"><sup>12</sup></a></p></li>
+consideration. <a href="#fn:15" id="fnref:15" title="see footnote" class="footnote"><sup>15</sup></a></p></li>
 </ul>
 
 <p>The fee for each part is in addition to its denomination (the visible
@@ -472,10 +531,13 @@ intervals.</p></li>
 <li><p>The broadcasts of a wallet&#8217;s preparation transactions SHOULD be temporally
 decoupled from one another: the delay from each preparation transaction to
 the next is drawn (using a CSPRNG) from an exponential distribution with
-mean <code>PREP_MEAN_DELAY</code> (<strong>16 blocks</strong>, about twenty minutes at 75-second
-block spacing), rounded to the nearest whole number of blocks, with any
-draw exceeding <code>PREP_MAX_DELAY</code> (<strong>96 blocks</strong>, about two
-hours) discarded and redrawn; a later layer&#8217;s schedule begins after the
+mean <code>PREP_MEAN_DELAY</code> (<strong>16 reference blocks</strong>, about twenty minutes; 48
+blocks after NU7), rounded to the nearest whole number of reference blocks,
+with any draw exceeding <code>PREP_MAX_DELAY</code> (<strong>96 reference blocks</strong>, about two
+hours; 288 blocks after NU7) discarded and redrawn. Each delay is converted
+to a height by <span class="math">\(\mathsf{Advance}\)</span> (see
+<a href="#blockcountsacrossthenu7blockspacingchange">Block counts across the NU7 block spacing change</a>).
+A later layer&#8217;s schedule begins after the
 previous layer&#8217;s last scheduled transaction plus a small mining margin.
 Although preparation values are fully shielded, a burst of identically
 shaped padded transactions appearing at a single moment is itself a
@@ -519,7 +581,7 @@ in a single-action <em>Ironwood</em> bundle with no padding action (see
 <a href="#rationaleforthecanonicaltransactionshape">Rationale for the canonical transaction shape</a>);</li>
 <li>no transparent inputs or outputs;</li>
 <li>no spends from any pool other than <em>Orchard</em>;</li>
-<li>the canonical fee (provisionally the ZIP 317 minimum fee) <a href="#fn:12" title="see footnote" class="footnote"><sup>12</sup></a>;</li>
+<li>the canonical fee (provisionally the ZIP 317 minimum fee) <a href="#fn:15" title="see footnote" class="footnote"><sup>15</sup></a>;</li>
 <li>the canonical anchor described in
 <a href="#anchor-heightbucketingandcohorts">Anchor-height bucketing and cohorts</a> and
 the canonical expiry height described below;</li>
@@ -529,13 +591,20 @@ anonymity set between wallets that add such outputs and those that do not).</li>
 </ul>
 
 <p>The canonical expiry height is computed from the transaction&#8217;s scheduled
-broadcast height: take the most recent height at or below it that
-<code>EXPIRY_MODULUS</code> (the number of blocks corresponding to 30 days, 34560 blocks at 75-second block
-spacing) divides without remainder, and add 2 × <code>EXPIRY_MODULUS</code>
-(69120 blocks): a rolling window that guarantees every transaction between one
-and two months of validity from its scheduled broadcast. Unlike the anchor,
-the expiry height is committed by the transaction digest <a href="#fn:2" title="see footnote" class="footnote"><sup>2</sup></a> and is
-therefore fixed when the schedule is signed; because the schedule precomputes
+broadcast height <span class="math">\(h\kern-0.05em\textsf{.}\)</span> Let <span class="math">\(E = \mathsf{ExpiryModulus}(h)\)</span> (see
+<a href="#blockcountsacrossthenu7blockspacingchange">Block counts across the NU7 block spacing change</a>),
+where <code>EXPIRY_MODULUS</code> is 34560 reference blocks (30 days), so that <span class="math">\(E\)</span> is 34560
+blocks before NU7 and 103680 blocks after NU7. The canonical expiry height is
+<span class="math">\((h - (h \bmod E)) + 2 \cdot E\kern-0.05em\textsf{:}\)</span> the most recent multiple of <span class="math">\(E\)</span> at or below
+<span class="math">\(h\kern-0.05em\textsf{,}\)</span> plus <span class="math">\(2 \cdot E\kern-0.05em\textsf{.}\)</span> This rolling window gives every transaction between one
+and two months of validity from its scheduled broadcast. A transaction scheduled
+before NU7 activation whose window extends past activation keeps the
+pre-activation block count, so its window is shorter in time, and can be as
+short as about 10 days. Such a transaction is pre-signed for both the consensus
+branch ID before NU7 and that of NU7 (see
+<a href="#pre-signedtransactionstorage">Pre-signed transaction storage</a>). Unlike the
+anchor, the expiry height is committed by the transaction digest <a href="#fn:2" title="see footnote" class="footnote"><sup>2</sup></a> and
+is therefore fixed when the schedule is signed; because the schedule precomputes
 every broadcast height (see <a href="#transferscheduling">Transfer scheduling</a>), the
 expiry is nonetheless known at signing time. The bucketed rule makes the
 committed value identical for every migration transaction — from any wallet —
@@ -543,14 +612,14 @@ whose scheduled broadcast falls within the same 30-day period, so an expiry
 height reveals only the coarse period in which its broadcast was scheduled,
 information the broadcast itself substantially makes public. (Deriving the
 expiry from the construction height instead would reveal the otherwise
-unobservable period in which the wallet&#8217;s schedule was created, and would
-deny the late parts of a long schedule their full validity window, forcing
-needless rebuilds.) For example, NU6.3 activates at Mainnet height 3428143, so every
-migration transaction scheduled for broadcast before height 3456000 has
-expiry height 3490560, and one scheduled between heights 3456000 and 3490559
-has expiry height 3525120. Parts still unbroadcast when their expiry height
-is reached are rebuilt with a fresh anchor and expiry (see
-<a href="#errorhandling">Error handling</a>).</p>
+unobservable period in which the wallet&#8217;s schedule was created, and would deny
+the late parts of a long schedule their full validity window, forcing needless
+rebuilds.) For example, NU6.3 activates at Mainnet height 3428143, so, if NU7
+has not activated by these heights, every migration transaction scheduled for
+broadcast before height 3456000 has expiry height 3490560, and one scheduled
+between heights 3456000 and 3490559 has expiry height 3525120. Parts still
+unbroadcast when their expiry height is reached are rebuilt with a fresh anchor
+and expiry (see <a href="#errorhandling">Error handling</a>).</p>
 
 <p>This strict, uniform structure serves two audiences. To an observer, it makes
 every migration transaction structurally identical both to every other
@@ -570,13 +639,16 @@ the wallet&#8217;s own account, and whether its value is a canonical denominatio
 network-wide boundary height, rather than a value derived from the wallet&#8217;s
 own chain tip, so that the anchor does not reveal precisely when this wallet
 last synchronized.</p></li>
-<li><p>Buckets are delimited by <strong>boundaries</strong>: blocks whose height is
-<span class="math">\(\equiv 0 \pmod{M}\kern-0.05em\textsf{,}\)</span> with <span class="math">\(M\)</span> provisionally <code>144</code>. At the current target
-block spacing of 75 seconds, a boundary occurs approximately every
-<span class="math">\(144 \times 75\,\text{s} = 3\)</span> hours. This interval concentrates migration
-transactions onto fewer shared anchors, enlarging per-anchor cohorts.
-<code>EXPIRY_MODULUS</code> (34560 blocks) is an exact multiple of <span class="math">\(M\)</span> (240 buckets),
-so expiry buckets align with anchor buckets.</p></li>
+<li><p>Buckets are delimited by <strong>boundaries</strong>, as defined in
+<a href="#blockcountsacrossthenu7blockspacingchange">Block counts across the NU7 block spacing change</a>,
+with <span class="math">\(M\)</span> provisionally <code>144</code> reference blocks: before NU7, the multiples of
+144; after NU7, the multiples of <span class="math">\(3 \times 144 = 432\kern-0.05em\textsf{.}\)</span> At either target
+block spacing, a boundary occurs approximately every
+<span class="math">\(144 \times 75\,\text{s} = 432 \times 25\,\text{s} = 3\)</span> hours. This
+interval concentrates migration transactions onto fewer shared anchors,
+enlarging per-anchor cohorts. <code>EXPIRY_MODULUS</code> is an exact multiple of <span class="math">\(M\)</span>
+(240 buckets), so expiry buckets align with anchor buckets both before and
+after NU7.</p></li>
 <li><p>Each migration transaction MUST take, as its <em>Orchard</em> anchor, the tree
 state as of a boundary drawn from the <strong>candidate anchor set</strong>: those
 boundaries that are above the NU6.3 activation height, at or after the
@@ -607,8 +679,10 @@ canonical and therefore not attributable to a single wallet by their values
 <p>The schedule is constructed in <strong>block deltas</strong>: starting from the height at
 which the schedule is committed (lower-bounded so that every part can anchor;
 see below), the wallet assigns each part a scheduled broadcast height by
-advancing a running height by an independently drawn delay per part, so that a
-wallet&#8217;s broadcasts approximate a Poisson process.</p>
+advancing a running height by an independently drawn delay per part, using
+<span class="math">\(\mathsf{Advance}\)</span> (see
+<a href="#blockcountsacrossthenu7blockspacingchange">Block counts across the NU7 block spacing change</a>),
+so that a wallet&#8217;s broadcasts approximate a Poisson process.</p>
 
 <ul>
 <li><p>The wallet MUST first shuffle the quantized parts into a uniformly random
@@ -619,17 +693,19 @@ could attribute, and would make the sequence predictable to a targeted
 adversary who knows the balance).</p></li>
 <li><p>The delay to each successive migration transaction MUST be drawn from an
 exponential distribution with rate <span class="math">\(\lambda = 1 /\)</span> <code>MEAN_DELAY</code>, so that the
-expected delay is <code>MEAN_DELAY</code> (provisionally <strong>66 blocks</strong>, about 82
-minutes at 75-second block spacing), rounded to a whole number of blocks; any
-draw exceeding <code>MAX_DELAY</code> (provisionally <strong>576 blocks</strong>, about twelve
-hours) MUST be discarded and redrawn.</p></li>
+expected delay is <code>MEAN_DELAY</code> (provisionally <strong>66 reference blocks</strong>, about
+82 minutes; 198 blocks after NU7), rounded to a whole number of reference
+blocks; any draw exceeding <code>MAX_DELAY</code> (provisionally <strong>576 reference
+blocks</strong>, about twelve hours; 1728 blocks after NU7) MUST be discarded and
+redrawn.</p></li>
 <li><p>The schedule MUST place every migration transaction at a scheduled height
 whose candidate anchor set (see
 <a href="#anchor-heightbucketingandcohorts">Anchor-height bucketing and cohorts</a>) is
 non-empty, so that no transaction can ever lack a valid boundary to anchor
 to and no fallback anchor-selection rule is needed. Concretely, the running
-height from which the delays accumulate MUST start no earlier than one full
-bucket interval past the lowest candidate boundary — the first boundary
+height from which the delays accumulate MUST start no earlier than the
+boundary that follows the lowest candidate boundary — the lowest candidate
+boundary being the first boundary
 strictly above the NU6.3 activation height and at or after the estimated
 creation height of the funding notes (the last scheduled note-preparation
 transaction plus a small mining margin). Lower-bounding the starting height,
@@ -675,9 +751,23 @@ broadcast time without re-signing. This is what allows the entire schedule
 to be signed in a single session while each transaction carries a boundary
 anchor drawn from the shared candidate set (see
 <a href="#rationaleforanchorselection">Rationale for anchor selection</a>).</p></li>
+<li><p>A transaction&#8217;s signatures commit to a consensus branch ID, and the
+transaction is valid only in blocks to which that consensus branch ID applies
+<a href="#fn:4" title="see footnote" class="footnote"><sup>4</sup></a>. A migration transaction can be mined at any height from its
+scheduled broadcast height to its expiry height. If a network upgrade
+activates within that range, a wallet that pre-signs the transaction MUST sign
+it for each consensus branch ID that applies in the range. For example, take a
+transaction scheduled before NU7 activation whose expiry height is at or after
+the NU7 activation height. It is signed for both the consensus branch ID
+before NU7 and that of NU7. The versions spend the same notes, so at most one
+of them can be mined. The wallet broadcasts the version whose consensus branch
+ID applies to the next block. If a version broadcast before activation has not
+been mined when the network upgrade activates, the wallet broadcasts the
+version for the new consensus branch ID.</p></li>
 <li><p>If a stored transaction becomes invalid (for example, because its input notes
-were spent outside the migration, or it expired), the wallet MUST detect this
-and prompt the user to re-initiate the affected step (see
+were spent outside the migration, it expired, or a network upgrade activated
+that was not scheduled when it was signed), the wallet MUST detect this and
+prompt the user to re-initiate the affected step (see
 <a href="#errorhandling">Error handling</a>).</p></li>
 </ul>
 
@@ -686,6 +776,11 @@ and prompt the user to re-initiate the affected step (see
 <ul>
 <li><p>Background scheduling MUST be treated as best-effort. The operating system
 chooses the exact execution time within the requested window.</p></li>
+<li><p>Platform schedulers take wall-clock times, while the schedule is in block
+heights. When converting a scheduled height into a wake-up time, the wallet
+SHOULD take into account the block target spacing in effect over the heights
+in between: 75 seconds before NU7 activation and 25 seconds after it
+<a href="#fn:13" title="see footnote" class="footnote"><sup>13</sup></a>.</p></li>
 <li><p>A single background processing window MUST be used either to synchronize
 (updating the anchors and proofs of upcoming transactions) or to broadcast,
 never both (see
@@ -761,7 +856,7 @@ recommended as part of this flow.</li>
 <p>Before the schedule is committed, the wallet MUST present a network-privacy step.</p>
 
 <ul>
-<li><p>The wallet MUST offer Tor <a href="#fn:13" id="fnref:13" title="see footnote" class="footnote"><sup>13</sup></a> and (if available) Nym <a href="#fn:14" id="fnref:14" title="see footnote" class="footnote"><sup>14</sup></a> network
+<li><p>The wallet MUST offer Tor <a href="#fn:16" id="fnref:16" title="see footnote" class="footnote"><sup>16</sup></a> and (if available) Nym <a href="#fn:17" id="fnref:17" title="see footnote" class="footnote"><sup>17</sup></a> network
 options. When enabled, all migration transaction broadcasts MUST be routed
 through the selected network.</p></li>
 <li><p>If Tor and Nym are unavailable on the user&#8217;s network or region, the wallet
@@ -863,7 +958,7 @@ MAY produce change in the <em>Orchard pool</em>: the canonical shape hides wheth
 change is present, so this carries no privacy penalty, only the operational
 cost of a later synchronization to recover the change.</p></li>
 <li><p><strong>Expired transaction.</strong> A pre-signed transaction that reaches its expiry height
-<a href="#fn:15" id="fnref:15" title="see footnote" class="footnote"><sup>15</sup></a> before being broadcast MUST be detected on the next application open
+<a href="#fn:18" id="fnref:18" title="see footnote" class="footnote"><sup>18</sup></a> before being broadcast MUST be detected on the next application open
 and handled in the same way as an invalid transaction: a new transaction with a
 fresh anchor and expiry is constructed for the affected part, with its
 denomination unchanged.</p></li>
@@ -878,7 +973,7 @@ amount below a significance threshold remains (for example, due to fee
 rounding), the wallet MAY treat the migration as complete and inform the user
 that a negligible amount remains. If the remaining amount is above
 <code>MAX_RESIDUAL_VALUE</code>, the wallet MAY add a final transfer. Wallets SHOULD
-apply the ZIP 317 marginal-fee considerations <a href="#fn:12" title="see footnote" class="footnote"><sup>12</sup></a> when deciding
+apply the ZIP 317 marginal-fee considerations <a href="#fn:15" title="see footnote" class="footnote"><sup>15</sup></a> when deciding
 whether a residual note is economic to migrate.</p></li>
 <li><p><strong>Note-preparation transaction unconfirmed or failed.</strong> If the application is
 closed before a note-preparation transaction confirms, on re-open the wallet
@@ -937,7 +1032,8 @@ function of its balance.</p>
 schedule whose delays are much shorter than the bucket interval (for example,
 minutes) would compress a wallet&#8217;s entire migration into a tight, predictable
 window, and the burst itself would be a clustering signal. With
-<code>MEAN_DELAY</code> = 66 blocks and the bucket modulus <span class="math">\(M\)</span> = 144, a wallet broadcasts
+<code>MEAN_DELAY</code> = 66 reference blocks and the bucket modulus <span class="math">\(M\)</span> = 144 reference
+blocks (both scaled by the same factor after NU7), a wallet broadcasts
 about two parts per bucket on average while the exponential tail continues to
 spread its transfers across several cohorts. This roughly halves the expected
 inter-transfer latency compared with a 144-block mean. Keeping <code>MAX_DELAY</code> at
@@ -946,9 +1042,10 @@ exponential distribution&#8217;s variance while bounding the worst-case gap so t
 migration completes in bounded time and canonical expiry windows remain
 practical.</p>
 
-<p>Delays are denominated in blocks rather than wall-clock time because bucket
-boundaries, anchors, and expiry heights are all block-denominated, and block
-height is what an on-chain observer measures.</p>
+<p>Delays are denominated in reference blocks, and converted to heights, rather
+than in wall-clock time because bucket boundaries, anchors, and expiry heights
+are all block-denominated, and block height is what an on-chain observer
+measures.</p>
 
 <p>Routine background synchronization does not undermine the schedule&#8217;s
 de-correlation properties: a synchronization reveals to the light wallet
@@ -1104,13 +1201,42 @@ goal of ZIP 308 <a href="#fn:11" title="see footnote" class="footnote"><sup>11</
 of all migrating users), adapted to anchor selection in the light-client setting,
 and complements the anchor-selection guidance of ZIP 315. <a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a></p>
 
+<h2 id="rationaleforscalingblockcountsatnu7"><span class="section-heading">Rationale for scaling block counts at NU7</span><span class="section-anchor"> <a rel="bookmark" href="#rationaleforscalingblockcountsatnu7"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>The delays, the bucket modulus, and the expiry modulus are chosen for their
+durations: the time between broadcasts, the time for a cohort to form, and the
+validity period of a pre-signed transaction. A fixed number of blocks would
+last one third as long after NU7 reduces the block target spacing from 75 to
+25 seconds <a href="#fn:12" title="see footnote" class="footnote"><sup>12</sup></a>, compressing a schedule into a tighter burst, shrinking
+cohorts, and shortening validity to 10–20 days. This ZIP therefore states
+these parameters in reference blocks and scales them by
+<span class="math">\(\mathsf{NU7PoWTargetSpacingRatio}\kern-0.05em\textsf{,}\)</span> as ZIP 218 recommends
+<a href="#fn:14" title="see footnote" class="footnote"><sup>14</sup></a>.</p>
+
+<p>A delay that crosses activation is converted piecewise so that it keeps its
+length in time exactly; it is otherwise drawn as before, so a schedule that
+spans activation keeps its Poisson character in time.</p>
+
+<p>Boundaries after activation are absolute multiples of <span class="math">\(R \cdot M\kern-0.05em\textsf{,}\)</span> not
+multiples of <span class="math">\(R \cdot M\)</span> counted from <span class="math">\(A\kern-0.05em\textsf{,}\)</span> so that all wallets agree on the
+grid using only the height, and so that every boundary is a multiple of <span class="math">\(M\kern-0.05em\textsf{.}\)</span> A
+wallet that retains tree states at every multiple of <span class="math">\(M\)</span> therefore retains every
+boundary, before and after activation, without regard to <span class="math">\(A\kern-0.05em\textsf{.}\)</span> The one bucket
+that contains <span class="math">\(A\)</span> can be shorter or longer in time than the others, up to about
+six hours.</p>
+
+<p>The expiry modulus is selected by the scheduled broadcast height alone, so that
+the canonical expiry height remains a function of that height and every
+transaction scheduled in the same period shares it. Every canonical expiry
+height is a multiple of <code>EXPIRY_MODULUS</code>.</p>
+
 <h2 id="rationaleforanchorselection"><span class="section-heading">Rationale for anchor selection</span><span class="section-anchor"> <a rel="bookmark" href="#rationaleforanchorselection"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
 
 <p>This subsection is non-normative.</p>
 
 <p>A &#8220;sign ahead, broadcast later&#8221; workflow can leak information through anchor
 selection: if the anchor were fixed at signing time — as it is under the
-version 5 transaction-digest rules <a href="#fn:16" id="fnref:16" title="see footnote" class="footnote"><sup>16</sup></a>, where the anchor is committed
+version 5 transaction-digest rules <a href="#fn:19" id="fnref:19" title="see footnote" class="footnote"><sup>19</sup></a>, where the anchor is committed
 by the signature hash — then at broadcast time the gap between the anchor&#8217;s
 age and the broadcast height would reveal when the transaction was prepared.</p>
 
@@ -1371,7 +1497,7 @@ would harm adoption, and lower adoption shrinks the anonymity set for <em>everyo
 
 <ul>
 <li>The number of parts grows with the balance, and with it the expected
-duration of the migration (roughly <code>MEAN_DELAY</code> blocks per part). A very
+duration of the migration (roughly <code>MEAN_DELAY</code> reference blocks per part). A very
 large balance therefore takes proportionally longer to migrate.</li>
 <li>Dividing a very large note into its funding notes may require layered
 preparation (see
@@ -1511,23 +1637,35 @@ too complex for typical users; the wallet picks sensible defaults instead.</p></
 </li>
 
 <li id="fn:12">
-<p><a href="zip-0317">ZIP 317: Proportional Transfer Fee Mechanism</a> <a href="#fnref:12" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="zip-0218">ZIP 218: 25-second Block Target Spacing</a> <a href="#fnref:12" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:13">
-<p><a href="https://www.torproject.org/">Tor Project</a> <a href="#fnref:13" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="zip-0218#blocktargetspacing">ZIP 218: 25-second Block Target Spacing — Block target spacing</a> <a href="#fnref:13" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:14">
-<p><a href="https://nymtech.net/">Nym</a> <a href="#fnref:14" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="zip-0218#block-count-basedconstants">ZIP 218: 25-second Block Target Spacing — Block-count-based constants</a> <a href="#fnref:14" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:15">
-<p><a href="zip-0203">ZIP 203: Transaction Expiry</a> <a href="#fnref:15" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="zip-0317">ZIP 317: Proportional Transfer Fee Mechanism</a> <a href="#fnref:15" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 <li id="fn:16">
-<p><a href="zip-0244">ZIP 244: Transaction Identifier Non-Malleability</a> <a href="#fnref:16" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+<p><a href="https://www.torproject.org/">Tor Project</a> <a href="#fnref:16" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:17">
+<p><a href="https://nymtech.net/">Nym</a> <a href="#fnref:17" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:18">
+<p><a href="zip-0203">ZIP 203: Transaction Expiry</a> <a href="#fnref:18" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:19">
+<p><a href="zip-0244">ZIP 244: Transaction Identifier Non-Malleability</a> <a href="#fnref:19" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
 </li>
 
 </ol>
