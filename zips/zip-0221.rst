@@ -362,13 +362,47 @@ Each MMR node is defined as follows:
 
     Serialized as ``CompactSize uint``.
 
+15. [NU6.3 onward] ``hashEarliestIronwoodRoot``
 
-The fields marked "[NU5 onward]" are omitted before NU5 activation [#zip-0252]_.
+    Leaf node
+      Calculated as the note commitment root of the final Ironwood treestate
+      (similar to ``hashEarliestOrchardRoot``).
+
+    Internal or root node
+      Inherited from the left child.
+
+    Serialized as ``char[32]``.
+
+16. [NU6.3 onward] ``hashLatestIronwoodRoot``
+
+    Leaf node
+      Calculated as the note commitment root of the final Ironwood treestate
+      (similar to ``hashLatestOrchardRoot``).
+
+    Internal or root node
+      Inherited from the right child.
+
+    Serialized as ``char[32]``.
+
+17. [NU6.3 onward] ``nIronwoodTxCount``
+
+    Leaf node
+      The number of transactions in the leaf block where ``vActionsIronwood``
+      is non-empty.
+
+    Internal or root node
+      The sum of the ``nIronwoodTxCount`` field of both children.
+
+    Serialized as ``CompactSize uint``.
+
+
+The fields marked "[NU5 onward]" are omitted before NU5 activation [#zip-0252]_. The
+fields marked "[NU6.3 onward]" are omitted before NU6.3 activation.
 
 Each node, when serialized, is between 147 and 171 bytes long (between 212 and 244 bytes
-after NU5 activation). The canonical serialized representation of a node is used whenever
-creating child commitments for future nodes. Other than the metadata commitments, the
-MMR tree's construction is standard.
+after NU5 activation, and between 277 and 317 bytes after NU6.3 activation). The canonical
+serialized representation of a node is used whenever creating child commitments for future
+nodes. Other than the metadata commitments, the MMR tree's construction is standard.
 
 Once the MMR has been generated, we produce ``hashChainHistoryRoot``, which we define as
 the BLAKE2b-256 digest of the serialization of the root node.
@@ -403,6 +437,10 @@ Tree nodes and hashing (pseudocode)
         hashEarliestOrchardRoot: Optional[bytes] # left child's Orchard root
         hashLatestOrchardRoot: Optional[bytes] # right child's Orchard root
         nOrchardTxCount: Optional[int] # number of Orchard transactions in block
+        # NU6.3 only.
+        hashEarliestIronwoodRoot: Optional[bytes] # left child's Ironwood root
+        hashLatestIronwoodRoot: Optional[bytes] # right child's Ironwood root
+        nIronwoodTxCount: Optional[int] # number of Ironwood transactions in block
 
         consensusBranchId: bytes
 
@@ -426,6 +464,9 @@ Tree nodes and hashing (pseudocode)
                 hashEarliestOrchardRoot=block.orchard_root,
                 hashLatestOrchardRoot=block.orchard_root,
                 nOrchardTxCount=block.orchard_tx_count,
+                hashEarliestIronwoodRoot=block.ironwood_root,
+                hashLatestIronwoodRoot=block.ironwood_root,
+                nIronwoodTxCount=block.ironwood_tx_count,
                 consensusBranchId=block.consensusBranchId)
 
         def serialize(self) -> bytes:
@@ -445,6 +486,10 @@ Tree nodes and hashing (pseudocode)
                 buf += (self.hashEarliestOrchardRoot
                     + self.hashLatestOrchardRoot
                     + serialize_compact_uint(self.nOrchardTxCount))
+            if self.hashEarliestIronwoodRoot is not None:
+                buf += (self.hashEarliestIronwoodRoot
+                    + self.hashLatestIronwoodRoot
+                    + serialize_compact_uint(self.nIronwoodTxCount))
             return buf
 
 
@@ -471,6 +516,11 @@ Tree nodes and hashing (pseudocode)
             nOrchardTxCount=(left_child.nOrchardTxCount + right_child.nOrchardTxCount
                              if left_child.nOrchardTxCount is not None and right_child.nOrchardTxCount is not None
                              else None),
+            hashEarliestIronwoodRoot=left_child.hashEarliestIronwoodRoot,
+            hashLatestIronwoodRoot=right_child.hashLatestIronwoodRoot,
+            nIronwoodTxCount=(left_child.nIronwoodTxCount + right_child.nIronwoodTxCount
+                              if left_child.nIronwoodTxCount is not None and right_child.nIronwoodTxCount is not None
+                              else None),
             consensusBranchId=left_child.consensusBranchId)
 
     def make_root_commitment(root: ZcashMMRNode) -> bytes:
