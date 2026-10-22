@@ -131,6 +131,12 @@ footnotes) and add a corresponding entry in the References section. See
 `zips/zip-guide-markdown.md` for more information about conventions and
 syntax.
 
+Fix errors in references as you discover them. Examples are a citation
+with no entry in the References section, an entry that nothing cites
+(often left behind when the citing text moved to another ZIP), and an
+entry whose link target or title is out of date. Whether the fix goes in
+the current PR or in a new one is decided case by case.
+
 For reStructuredText ZIPs, see `zips/zip-guide.rst` for conventions and
 syntax.
 
