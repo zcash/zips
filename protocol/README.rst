@@ -24,22 +24,19 @@ Building
 
 Use:
 
-* ``make nufour`` to make the draft specification for NU4 (``nufour.pdf``);
-* ``make heartwood`` to make the specification for Heartwood (``protocol.pdf``);
-* ``make blossom`` to make the specification for the Blossom upgrade
-  (``blossom.pdf``);
-* ``make sapling`` to make the specification for the Overwinter and
-  Sapling upgrades (``sapling.pdf``);
-* ``make sprout`` to make a version of the specification that does not
-  include Overwinter or Sapling (``sprout.pdf``).
+* ``make nu6_3`` to make the specification for NU6.3 (``nu6_3.pdf``), which is
+  the default (``protocol.pdf`` is a link to it);
+* ``make nu6_3-dark`` to make its dark mode version (``nu6_3-dark.pdf``, linked
+  as ``protocol-dark.pdf``);
+* ``make nu6_2``, ``make nu6_1``, ``make nu6``, ``make nu5``, ``make canopy``,
+  ``make heartwood``, ``make blossom``, or ``make sapling`` to make the
+  specification for an earlier network upgrade (``nu6_2.pdf``, etc.);
+* ``make all-specs`` to make all of the above;
 * ``make linkcheck`` (in the root of the repo) to build everything and also
   perform link checking. This will access the network.
 
-``make all`` is equivalent to ``make nu5 canopy heartwood blossom sapling``.
-
-By default these use ``latexmk``. If you have trouble getting ``latexmk`` to
-work, you can instead use ``make nolatexmk-sapling``, etc. That is not the
-preferred way of building because it may not run ``pdflatex`` enough times.
+``make all`` makes each of these PDFs whose sources have changed. The builds
+use ``latexmk``.
 
 It is also possible to use the incremental (``-pvc``) mode of ``latexmk`` to
 automatically rebuild when changes in the source files are detected, by adding
