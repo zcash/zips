@@ -3,8 +3,9 @@
   ZIP: 2003
   Title: Disallow version 4 transactions
   Owners: Daira-Emma Hopwood <daira@jacaranda.org>
-  Status: Draft
+  Status: Proposed
   Category: Consensus
+  Created: 2024-10-31
   License: MIT
   Discussions-To: <https://github.com/zcash/zips/issues/825>
   Pull-Request: <https://github.com/zcash/zips/pull/927>
@@ -29,17 +30,18 @@ The terms "Mainnet" and "Testnet" are to be interpreted as described in
 Abstract
 ========
 
-This proposal disallows v4 transactions. Neither the v5 transaction format
-[#zip-0225]_ introduced in the NU5 network upgrade, nor the v6 format [#zip-0229]_
-introduced in NU6.3, support Sprout; and so this will have the effect of disabling
-the ability to spend Sprout funds.
+This proposal disallows all v4 transactions from NU7 onward. It therefore affects
+every workflow that creates v4 transactions, not only workflows involving Sprout.
+Neither the v5 transaction format [#zip-0225]_ introduced in the NU5 network
+upgrade, nor the v6 format [#zip-0229]_ introduced in NU6.3, supports Sprout.
+Because Sprout transfers can only be represented in v4 transactions, this proposal
+also disables the ability to spend Sprout funds.
 
 It is not proposed in this ZIP to unissue, burn, or otherwise make Sprout funds
 permanently unavailable. This leaves open the theoretical possibility of re-enabling
 v4 transactions, or of adding another facility to retrieve these funds if the Zcash
-community considers it worthwhile. However, since it is possible and likely that
-the ability to spend Sprout funds will never be re-enabled, holders of these funds
-should move them out of the Sprout pool without delay.
+community considers it worthwhile. However, the ability to spend Sprout funds may
+never be re-enabled.
 
 
 Motivation
@@ -64,18 +66,32 @@ mechanism defined in ZIP 209 [#zip-0209]_.
 
 Nevertheless, the parts of Sprout that are not shared with Sapling, such as the
 JoinSplit circuit and the handling of Sprout nullifiers and note commitments,
-still impose a substantial burden on the complexity and attack surface of the
-Zcash protocol and of full node implementations. For instance, verification of
-transactions involving Sprout JoinSplit descriptions also has to be taken into
-account for potential denial-of-service attacks. Because of Sprout’s lack of use,
-there is little incentive for node implementations to optimize its verification,
-which may lead to such attacks imposing greater cost than they otherwise would.
+still impose a substantial burden on live transaction-acceptance paths before NU7.
+For instance, verification of transactions involving Sprout JoinSplit descriptions
+has to be taken into account for denial-of-service attacks against mempool and new-
+block processing. Because of Sprout’s lack of use, there is little incentive for
+node implementations to optimize its verification, which may lead to such attacks
+imposing greater cost than they otherwise would.
 
 The deprecation of zcashd, just prior to the NU6.3 upgrade, also removed the
 only maintained software that still provided wallet functionality for Sprout.
-Although it is technically still possible to move Sprout funds, this was and is
-another reason to give holders of Sprout funds sufficient warning of difficulty
-in retrieving them.
+Although the consensus rules still permit moving Sprout funds before NU7, this was
+and is another reason to give holders sufficient warning of difficulty in retrieving
+them.
+
+
+Privacy Implications
+====================
+
+Moving value out of the Sprout pool changes its publicly visible chain value pool
+balance through the ``vpub_old`` and ``vpub_new`` fields [#zip-0209]_. The amount
+moved by a transaction is therefore visible. A short or poorly coordinated exit
+period could also make transaction timing and distinctive amounts easier to
+correlate with particular holders.
+
+Disallowing v4 transactions does not itself disclose additional information about
+notes left in Sprout, but it prevents those notes from being spent unless a future
+consensus change restores a mechanism for doing so.
 
 
 Requirements
@@ -91,12 +107,12 @@ Specification
 In § 7.1.2 ‘Transaction Consensus Rules’ [#protocol-txnconsensus]_ (as of NU6.3),
 change:
 
-> * [NU6.3 onward] The transaction version number MUST be 4 or 5 or 6.
+  * [NU6.3 onward] The transaction version number MUST be 4 or 5 or 6.
 
 to
 
-> * [NU6.3 only, pre-NU7] The transaction version number MUST be 4 or 5 or 6.
-> * [NU7 onward] The transaction version number MUST be 5 or 6.
+  * [NU6.3 only, pre-NU7] The transaction version number MUST be 4 or 5 or 6.
+  * [NU7 onward] The transaction version number MUST be 5 or 6.
 
 These changes apply identically to Mainnet and Testnet.
 
@@ -104,7 +120,8 @@ Interaction with the proposed Network Sustainability Mechanism
 --------------------------------------------------------------
 
 For clarity, the Sprout chain value pool balance as of activation of this ZIP
-remains issued, and is therefore included in $\mathsf{IssuedSupply}$ for the
+remains issued, and is therefore included in $\mathsf{IssuedSupply}$ (as defined in
+§ 4.17 ‘Chain Value Pool Balances’ [#protocol-chainvaluepoolbalances]_) for the
 purpose of calculations in Network Sustainability Mechanism ZIPs that affect
 issuance, including ZIP 237 [#zip-0237]_.
 
@@ -112,13 +129,14 @@ issuance, including ZIP 237 [#zip-0237]_.
 Deployment
 ==========
 
-This ZIP is proposed to be deployed with NU7.
+This ZIP is proposed to be deployed with NU7 [#zip-0259]_.
 
 
 Reference implementation
 ========================
 
-TBD
+* Zebra: [#zebra-9787]_ [#zebra-11528]_
+* Zakura: [#zakura-959]_
 
 
 Acknowledgements
@@ -136,12 +154,17 @@ References
 ==========
 
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
-.. [#protocol] `Zcash Protocol Specification, Version v2026.7.0-236-ga735ca [NU6.3 proposal] or later <protocol/nu6_3.pdf>`_
-.. [#protocol-networks] `Zcash Protocol Specification, Version v2026.7.0-236-ga735ca [NU6.3 proposal]. Section 3.12: Mainnet and Testnet <protocol/nu6_3.pdf#networks>`_
-.. [#protocol-txnconsensus] `Zcash Protocol Specification, Version v2026.7.0-236-ga735ca [NU6.3 proposal]. Section 7.1.2: Transaction Consensus Rules <protocol/nu6_3.pdf#txnconsensus>`_
+.. [#protocol] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3] or later <protocol/nu6_3.pdf>`_
+.. [#protocol-networks] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 3.12: Mainnet and Testnet <protocol/nu6_3.pdf#networks>`_
+.. [#protocol-chainvaluepoolbalances] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 4.17: Chain Value Pool Balances <protocol/nu6_3.pdf#chainvaluepoolbalances>`_
+.. [#protocol-txnconsensus] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.1.2: Transaction Consensus Rules <protocol/nu6_3.pdf#txnconsensus>`_
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
 .. [#zip-0209] `ZIP 209: Prohibit Out-of-Range Chain Value Pool Balances <zip-0209.rst>`_
 .. [#zip-0225] `ZIP 225: Version 5 Transaction Format <zip-0225.rst>`_
 .. [#zip-0229] `ZIP 229: Version 6 Transaction Format <zip-0229.md>`_
 .. [#zip-0237] `ZIP 237: Network Sustainability Mechanism: Halving-Preserving Issuance <zip-0237.md>`_
+.. [#zip-0259] `ZIP 259: Deployment of the NU7 Network Upgrade <zip-0259.md>`_
 .. [#cultivating-sapling] `Cultivating Sapling: Faster zk-SNARKs. Sean Bowe, September 13, 2017. <https://electriccoin.co/blog/cultivating-sapling-faster-zksnarks/>`_
+.. [#zebra-9787] `Zebra PR 9787: change(consensus): Implements draft ZIP 2003 for NU7 and uses Testnet network protocol versions on Regtest <https://github.com/ZcashFoundation/zebra/pull/9787>`_
+.. [#zebra-11528] `Zebra PR 11528: fix(consensus): complete ZIP 2003 transaction version rejection <https://github.com/ZcashFoundation/zebra/pull/11528>`_
+.. [#zakura-959] `Zakura PR 959: feat(consensus): disallow version 4 transactions at NU7 <https://github.com/zakura-core/zakura/pull/959>`_
