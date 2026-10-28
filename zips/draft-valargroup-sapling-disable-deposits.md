@@ -42,16 +42,16 @@ NU8 refers to the network upgrade following NU7.
 
 # Abstract
 
-This proposal disables the ability to add new value to the *Sapling pool*,
-making it withdraw-only. From NU8 activation, every transaction's Sapling value
-balance must be nonnegative: value may leave the *Sapling pool*, or move between
+This proposal disables the ability to add new value to the Sapling chain value
+pool balance. From NU8 activation, every transaction's Sapling value balance
+must be nonnegative: value may leave the *Sapling pool*, or move between
 Sapling notes, but no new value may enter it. Coinbase transactions may no
 longer contain Sapling outputs.
 
 This starts the migration of the remaining *Sapling pool* funds into
-quantum-recoverable shielded pools (the *Ironwood pool* today, and Tachyon
-once deployed). It is the Sapling counterpart of what ZIP 211 [^zip-0211] did
-for Sprout at Canopy and what NU6.3 [^zip-0258] did for the *Orchard pool*.
+quantum-recoverable shielded pools (the *Ironwood pool* today). It is the
+Sapling counterpart of what ZIP 211 [^zip-0211] did for Sprout at Canopy and
+what ZIP 2006 [^zip-2006] did for the *Orchard pool* at NU6.3.
 
 
 # Motivation
@@ -67,7 +67,7 @@ shielded pool soon after.
 
 Nothing currently stops new value from entering the *Sapling pool*, and every
 deposit adds to what must later be migrated. Pool migrations take years: about
-22,000 ZEC remains in Sprout six years after ZIP 211 made it withdraw-only
+22,000 ZEC remains in Sprout six years after ZIP 211 disabled additions to it
 [^zip-0211]. The *Sapling pool* holds about 419,900 ZEC, or 8.5% of shielded
 ZEC [^cipherscan-supply]. Disabling deposits now, while all funds remain fully
 spendable, gives custodians and wallets a firm deadline and makes the
@@ -82,6 +82,28 @@ Coinbase outputs to Sapling are essentially unused. [^sapling-activity]
 As with Sprout [^zip-0211], disabling additions also limits the impact of any
 undiscovered soundness bug in Sapling, and is a precondition for eventually
 removing the Sapling shielded protocol.
+
+
+# Privacy Implications
+
+Withdrawals from the *Sapling pool* reveal the amount that leaves it, through
+the Sapling value balance. This is unchanged by this ZIP. However, the ZIP will
+cause most remaining Sapling value to cross a turnstile over time. Wallets
+should therefore migrate Sapling funds in a way that limits linkability of the
+amounts moved; see [Changes to ZIP 318](#changestozip318).
+
+The *Sapling pool* anonymity set is its note commitment set, which this ZIP
+does not reduce. As fewer transactions use the pool, individual Sapling
+transactions may become easier to distinguish by timing and amount, as is true
+of any shielded pool with low usage, but the unlinkability of spent notes from
+the transactions that created them is unaffected.
+
+Full nodes change behaviour at the NU8 activation height, and from that height
+consensus prevents all wallets from adding value to the *Sapling pool*, so
+wallets also change behaviour at that height in this respect. When a wallet
+chooses to migrate its users' Sapling funds is not constrained to a single
+height; using a common migration procedure (ZIP 318 [^zip-0318]) limits how much
+that choice distinguishes wallets.
 
 
 # Requirements
@@ -111,12 +133,10 @@ removing the Sapling shielded protocol.
 The following rules apply to every transaction in a block at a height greater
 than or equal to the NU8 activation height, regardless of transaction version:
 
-* The Sapling value balance of the transaction MUST be nonnegative. For
-  version 4, 5 and 6 transactions, `valueBalanceSapling` MUST be greater than
-  or equal to zero. As before, it is taken to be zero when absent. For a
-  transaction format that expresses value balances as value pool deltas
-  [^zip-0248], the delta for the Sapling bundle and the ZEC asset MUST be
-  greater than or equal to zero.
+* $\mathsf{v}^{\textit{SaplingPoolBalance}}$ MUST be nonnegative, where
+  $\mathsf{v}^{\textit{SaplingPoolBalance}}$ is the transaction's Sapling
+  balancing value as defined in § 4.13 ‘Balance and Binding Signature
+  (Sapling)’. [^protocol-saplingbalance]
 
 * A coinbase transaction MUST NOT contain any Sapling Output descriptions;
   that is, `nOutputsSapling` MUST be zero. Coinbase transactions are already
@@ -124,8 +144,13 @@ than or equal to the NU8 activation height, regardless of transaction version:
 
 Non-normative notes:
 
-* `valueBalanceSapling` is the value of Sapling Spends minus Outputs. When it
-  is nonnegative, value can only move out of the *Sapling pool* or stay inside
+* $\mathsf{v}^{\textit{SaplingPoolBalance}}$ is the value of Sapling Spends
+  minus Outputs. It is encoded as the `valueBalanceSapling` field of version 4,
+  5 and 6 transactions (implicitly zero when absent), so for those versions the
+  rule is equivalent to requiring that encoded field to be nonnegative. For a
+  transaction format that expresses value balances as value pool deltas
+  [^zip-0248], it corresponds to the delta for the Sapling bundle and the ZEC
+  asset. When it is nonnegative, value can only move out of the *Sapling pool* or stay inside
   it. Together with the ZIP 209 [^zip-0209] rule that the Sapling chain value
   pool balance never goes negative, the balance can only stay the same or fall
   from activation onward.
@@ -137,7 +162,7 @@ Non-normative notes:
 * The coinbase rule is partly implied by the balance rule, because a coinbase
   transaction has no Sapling spends. It is stated explicitly so that
   zero-valued Sapling coinbase outputs are excluded too, and to mirror the
-  NU6.3 rule for the *Orchard pool* [^zip-0258].
+  ZIP 2006 rule for the *Orchard pool* [^zip-2006].
 
 ## Changes to ZIP 213
 
@@ -155,6 +180,27 @@ add:
 consensus rules above, gated on NU8 activation, alongside the existing NU6.3
 rule that $\mathsf{v}^{\textit{OrchardPoolBalance}}$ is nonnegative.
 
+## Changes to ZIP 318
+
+ZIP 318 [^zip-0318] is extended so that its migration procedure can take either
+the *Orchard pool* or the *Sapling pool* as its source pool, with the
+*Ironwood pool* as the destination in both cases:
+
+* A migration MUST draw on a single source pool. A wallet with funds in both
+  the *Sapling pool* and the *Orchard pool* runs a separate migration for
+  each, and no note preparation or migration transaction spends from both.
+* For a Sapling-source migration, each canonical migration transaction has
+  exactly one Sapling spend in place of the single Orchard spend, with the
+  Sapling bundle padded so that the presence or absence of a Sapling change
+  output is not observable, and no spends from any other pool. All other
+  properties of the canonical migration transaction are unchanged.
+* Note preparation for a Sapling-source migration is performed within the
+  *Sapling pool*.
+
+Mixing source pools within one transaction or one migration schedule would
+link a user's Sapling and Orchard holdings, so each migration is restricted to
+one source pool.
+
 ## Requirements for wallets and node software
 
 From NU8 activation:
@@ -166,30 +212,16 @@ From NU8 activation:
   reasons. Consensus would accept a mixed transaction whose Sapling spends
   cover its Sapling outputs.
 
-* When a payment is to a Sapling-only address and the wallet cannot fund it
-  entirely from Sapling notes, the wallet MUST refuse it. The error MUST say
-  that the *Sapling pool* no longer accepts deposits. It SHOULD suggest asking
-  the recipient for a Unified Address with an Orchard-protocol receiver.
-
-* When a payment is to a Unified Address that has both a Sapling receiver
-  and an Orchard-protocol receiver, wallets SHOULD pay to the *Ironwood pool*.
-  They MUST do so unless the payment is funded entirely from Sapling notes.
-
 * Wallets SHOULD NOT create new Unified Addresses that include a Sapling
   receiver. They MAY keep producing Sapling receivers before activation for
   compatibility.
 
 * Wallets that hold Sapling funds SHOULD offer to migrate them to the
-  *Ironwood pool*, and SHOULD do so before activation. Wallets SHOULD use
-  migration strategies that limit linkability of the amounts moved, in the
-  spirit of ZIP 308 [^zip-0308] and ZIP 318 [^zip-0318]. Migration into the
-  *Orchard pool* is already not possible.
+  *Ironwood pool*. Wallets SHOULD use the migration procedure of ZIP 318
+  [^zip-0318], as extended below.
 
-* Block template software MUST NOT produce coinbase transactions with Sapling
-  outputs, and SHOULD reject Sapling-only miner addresses with a clear error.
-
-Software SHOULD make these changes clear in user interfaces and API
-documentation before activation.
+* Block template software SHOULD reject Sapling-only miner addresses with a
+  clear error.
 
 Transactions signed for an earlier consensus branch become invalid at NU8
 activation under ZIP 200 [^zip-0200] and ZIP 244 [^zip-0244], so no
@@ -200,7 +232,7 @@ mempool-specific rule is needed.
 
 ## Why a balance rule, not a circuit change
 
-The rule mirrors ZIP 211 for Sprout and the NU6.3 rule for Orchard. It only
+The rule mirrors ZIP 211 for Sprout and ZIP 2006 for Orchard. It only
 needs a check on a field validators already parse. It does not touch the
 Sapling Spend or Output circuits. That avoids a new parameter generation
 ceremony, any risk of a soundness regression in Groth16 circuits, and any new
@@ -209,7 +241,7 @@ and its security is easy to analyse.
 
 ## Why internal transfers stay allowed
 
-NU6.3 also disabled cross-address transfers within the *Orchard pool*. That
+ZIP 2006 also disabled cross-address transfers within the *Orchard pool*. That
 was possible because the new Orchard Action circuit had an `enableCrossAddress`
 flag [^zip-2006]. Doing the same for Sapling would need a new Sapling circuit
 and trusted setup, which this ZIP sets out to avoid.
@@ -228,34 +260,7 @@ pays into the *Ironwood pool*. In the 30 days to height 3,532,124, 4.6% of
 blocks paid their coinbase directly to the *Ironwood pool*, and none contained
 a Sapling output. [^sapling-activity] Leaving Sapling coinbase outputs
 available invites zero-value or misconfigured outputs that add commitments
-with no purpose. The explicit rule matches the Orchard rule that NU6.3 added.
-
-# Privacy and Security Considerations
-
-The security motivation is described under Motivation.
-
-Withdrawals from the *Sapling pool* reveal the amount that leaves it, through
-`valueBalanceSapling`. This is unchanged by this ZIP. However, the ZIP will
-cause most remaining Sapling value to cross a turnstile over time. Wallets
-SHOULD follow the migration guidance above to avoid linking amounts. Users with
-large Sapling balances SHOULD migrate in several transactions spread over time.
-
-As users leave, the *Sapling pool* anonymity set will shrink. Users who stay
-in it get progressively less privacy, and wallets SHOULD tell them so. Note
-that the effective anonymity set is already much smaller than the pool's
-transaction count suggests: most Sapling transactions today are mining pool
-and funding stream coinbase sweeps whose source is publicly known, and many
-of them are round trips back to the same transparent address (see
-[Open issues](#open-issues)). Users may therefore already overestimate the
-privacy that the *Sapling pool* provides.
-
-All clients change behaviour at the same activation height, so this ZIP adds
-no client distinguisher.
-
-This ZIP does not protect Sapling funds that stay in the pool from a quantum
-adversary. Its purpose is to make sure such funds are a small and shrinking
-amount, and that holders are told well in advance.
-
+with no purpose. The explicit rule matches the ZIP 2006 Orchard rule.
 
 # Deployment
 
@@ -295,6 +300,8 @@ This ZIP is proposed for deployment in the NU8 network upgrade.
 
 [^protocol-chainvaluepoolbalances]: [Zcash Protocol Specification. Section 4.17: Chain Value Pool Balances](protocol/protocol.pdf#chainvaluepoolbalances)
 
+[^protocol-saplingbalance]: [Zcash Protocol Specification. Section 4.13: Balance and Binding Signature (Sapling)](protocol/protocol.pdf#saplingbalance)
+
 [^protocol-txnconsensus]: [Zcash Protocol Specification. Section 7.1.2: Transaction Consensus Rules](protocol/protocol.pdf#txnconsensus)
 
 [^zip-0200]: [ZIP 200: Network Upgrade Mechanism](zip-0200.rst)
@@ -315,9 +322,7 @@ This ZIP is proposed for deployment in the NU8 network upgrade.
 
 [^zip-0248]: [ZIP 248: Extensible Transaction Format](zip-0248.rst)
 
-[^zip-0258]: [ZIP 258: Deployment of the NU6.3 Network Upgrade](zip-0258.md)
 
-[^zip-0308]: [ZIP 308: Sprout to Sapling Migration](zip-0308.rst)
 
 [^zip-0318]: [ZIP 318: Orchard to Ironwood Migration](zip-0318.md)
 
