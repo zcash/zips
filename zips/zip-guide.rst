@@ -168,15 +168,16 @@ Notes and warnings
 
 .. note::
     "``.. note::``" in reStructuredText or "``<div class="note"></div>``" in
-    Markdown (followed by a blank line in either case), can be used for an aside
-    from the main text.
+    Markdown (a following blank line is required for Markdown), can be used for
+    an aside from the main text.
 
     The rendering of notes is colourful and may be distracting, so they should
     only be used for important points.
 
 .. warning::
     "``.. warning::``" in reStructuredText, or "``<div class="warning"></div>``"
-    in Markdown (followed by a blank line in either case), can be used for warnings.
+    in Markdown (a following blank line is required for Markdown), can be used
+    for warnings.
 
     Warnings should be used very sparingly — for example to signal that a
     entire specification, or part of it, may be inapplicable or could cause

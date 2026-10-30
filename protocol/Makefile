@@ -55,10 +55,10 @@ protocol: $(PDFDIR)/protocol.pdf
 protocol-dark: $(PDFDIR)/protocol-dark.pdf
 
 all-pdfs: .Makefile.uptodate
-	$(MAKE) $(PDFDIR)/nu6_3.pdf $(PDFDIR)/protocol.pdf $(PDFDIR)/protocol-dark.pdf $(PDFDIR)/nu6_1.pdf $(PDFDIR)/nu6.pdf $(PDFDIR)/nu5.pdf $(PDFDIR)/canopy.pdf $(PDFDIR)/heartwood.pdf $(PDFDIR)/blossom.pdf $(PDFDIR)/sapling.pdf
+	$(MAKE) $(PDFDIR)/protocol.pdf $(PDFDIR)/protocol-dark.pdf $(PDFDIR)/nu6_2.pdf $(PDFDIR)/nu6_1.pdf $(PDFDIR)/nu6.pdf $(PDFDIR)/nu5.pdf $(PDFDIR)/canopy.pdf $(PDFDIR)/heartwood.pdf $(PDFDIR)/blossom.pdf $(PDFDIR)/sapling.pdf
 
 all-specs: .Makefile.uptodate
-	$(MAKE) nu6_3 nu6_2 nu6_2-dark nu6_1 nu6 nu5 canopy heartwood blossom sapling
+	$(MAKE) nu6_3 nu6_3-dark nu6_2 nu6_1 nu6 nu5 canopy heartwood blossom sapling
 
 discard:
 	git checkout -- "$(PDFDIR)/*.pdf"
@@ -88,14 +88,17 @@ $(PDFDIR)/nu6.pdf: protocol.tex zcash.bib jubjub.png key_components_sapling.png 
 $(PDFDIR)/nu6_1.pdf: protocol.tex zcash.bib jubjub.png key_components_sapling.png key_components_orchard.png incremental_merkle.png
 	$(MAKE) nu6_1
 
-$(PDFDIR)/protocol.pdf: protocol.tex zcash.bib jubjub.png key_components_sapling.png key_components_orchard.png incremental_merkle.png
+$(PDFDIR)/nu6_2.pdf: protocol.tex zcash.bib jubjub.png key_components_sapling.png key_components_orchard.png incremental_merkle.png
 	$(MAKE) nu6_2
 
-$(PDFDIR)/protocol-dark.pdf: protocol.tex zcash.bib jubjub.png key_components_sapling.png key_components_orchard_dark.png incremental_merkle_dark.png
-	$(MAKE) nu6_2-dark
-
-$(PDFDIR)/nu6_3.pdf: protocol.tex zcash.bib jubjub.png key_components_sapling.png key_components_orchard.png incremental_merkle.png
+# protocol.pdf and protocol-dark.pdf are symbolic links to the PDFs for the most recent
+# settled network upgrade, so that links to that upgrade's own PDF remain valid when
+# a later upgrade becomes the default.
+$(PDFDIR)/protocol.pdf: protocol.tex zcash.bib jubjub.png key_components_sapling.png key_components_orchard.png incremental_merkle.png
 	$(MAKE) nu6_3
+
+$(PDFDIR)/protocol-dark.pdf: protocol.tex zcash.bib jubjub.png key_components_sapling.png key_components_orchard_dark.png incremental_merkle_dark.png
+	$(MAKE) nu6_3-dark
 
 .PHONY: auxsapling sapling
 auxsapling:
@@ -199,20 +202,7 @@ auxnu6_2:
 nu6_2:
 	$(MAKE) auxnu6_2
 	mkdir -p $(PDFDIR)
-	mv -f aux/nu6_2.pdf $(PDFDIR)/protocol.pdf
-
-.PHONY: auxnu6_2-dark nu6_2-dark
-auxnu6_2-dark:
-	printf '\\toggletrue{darkmode}\\toggletrue{isnusixtwo}\n\\renewcommand{\\docversion}{Version %s [\\NUSixTwoSpec]}\n' "$$(git describe --tags --abbrev=6 |sed 's/-1-g.*//;s/-auto//')" |tee protocol.ver
-	mkdir -p aux
-	rm -f aux/nu6_2-dark.*
-	cp mymakeindex.sh aux
-	$(LATEXMK) -jobname=nu6_2-dark -auxdir=aux -outdir=aux $(EXTRAOPT) protocol $(NOCRUFT)
-
-nu6_2-dark:
-	$(MAKE) auxnu6_2-dark
-	mkdir -p $(PDFDIR)
-	mv -f aux/nu6_2-dark.pdf $(PDFDIR)/protocol-dark.pdf
+	mv -f aux/nu6_2.pdf $(PDFDIR)
 
 .PHONY: auxnu6_3 nu6_3
 auxnu6_3:
@@ -226,6 +216,7 @@ nu6_3:
 	$(MAKE) auxnu6_3
 	mkdir -p $(PDFDIR)
 	mv -f aux/nu6_3.pdf $(PDFDIR)
+	ln -sf nu6_3.pdf $(PDFDIR)/protocol.pdf
 
 .PHONY: auxnu6_3-dark nu6_3-dark
 auxnu6_3-dark:
@@ -239,6 +230,7 @@ nu6_3-dark:
 	$(MAKE) auxnu6_3-dark
 	mkdir -p $(PDFDIR)
 	mv -f aux/nu6_3-dark.pdf $(PDFDIR)
+	ln -sf nu6_3-dark.pdf $(PDFDIR)/protocol-dark.pdf
 
 .PHONY: clean
 clean:
