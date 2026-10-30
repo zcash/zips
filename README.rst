@@ -235,6 +235,7 @@ be deleted.
     <tr> <td class="left">draft-ecc-onchain-accountable-voting</td> <td class="left"><a href="zips/draft-ecc-onchain-accountable-voting.md">On-chain Accountable Voting</a></td> <td class="left"></td>
     <tr> <td class="left">draft-mcgee-keyholders-organizations</td> <td class="left"><a href="zips/draft-mcgee-keyholders-organizations.md">Update to ZIP 1016 & ZIP 271: Key-Holder Organizations</a></td> <td class="left"><a href="URL TBD">URL TBD</a></td>
     <tr> <td class="left">draft-str4d-orchard-balance-proof</td> <td class="left"><a href="zips/draft-str4d-orchard-balance-proof.md">Air drops, Proof-of-Balance, and Stake-weighted Polling</a></td> <td class="left"><a href="https://github.com/zcash/zips/issues/1229">zips#1229</a></td>
+    <tr> <td class="left">draft-valargroup-sapling-disable-deposits</td> <td class="left"><a href="zips/draft-valargroup-sapling-disable-deposits.md">Disabling Sapling Pool Deposits</a></td> <td class="left"><a href="https://forum.zcashcommunity.com/t/sapling-withdraw-only-discussion-kickoff/55223">https://forum.zcashcommunity.com/t/sapling-withdraw-only-discussion-kickoff/55223</a></td>
   </table></embed>
 
 Withdrawn, Rejected, or Obsolete ZIPs
