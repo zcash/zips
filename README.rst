@@ -141,6 +141,7 @@ Released ZIPs
     <tr> <td>2001</td> <td class="left"><a href="zips/zip-2001.rst">Lockbox Funding Streams</a></td> <td>Final</td>
     <tr> <td>2003</td> <td class="left"><a href="zips/zip-2003.rst">Disallow version 4 transactions</a></td> <td>Proposed</td>
     <tr> <td>2005</td> <td class="left"><a href="zips/zip-2005.md">Ironwood Quantum Recoverability</a></td> <td>Proposed</td>
+    <tr> <td>2006</td> <td class="left"><a href="zips/zip-2006.md">Restricting Transfers into the Orchard Pool</a></td> <td>Final</td>
     <tr> <td>2008</td> <td class="left"><a href="zips/zip-2008.md">Update to `FS_FPF_ZCG_H3` address list</a></td> <td>Proposed</td>
   </table></embed>
 
@@ -209,7 +210,6 @@ written.
     <tr> <td><span class="reserved">416</span></td> <td class="left"><a class="reserved" href="zips/zip-0416.rst">Spending Key Derivation in the `zcashd` wallet</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/1175">zips#1175</a></td>
     <tr> <td>2002</td> <td class="left"><a href="zips/zip-2002.rst">Explicit Fees</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/803">zips#803</a></td>
     <tr> <td>2004</td> <td class="left"><a href="zips/zip-2004.rst">Remove the dependency of consensus on note encryption</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/917">zips#917</a></td>
-    <tr> <td><span class="reserved">2006</span></td> <td class="left"><a class="reserved" href="zips/zip-2006.md">Restricting Transfers into the Orchard Pool</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/1305">zips#1305</a></td>
     <tr> <td><span class="reserved">2007</span></td> <td class="left"><a class="reserved" href="zips/zip-2007.md">Quantum Recoverability for a Subset of Transparent Addresses</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/1302">zips#1302</a></td>
     <tr> <td>2009</td> <td class="left"><a href="zips/zip-2009.md">Reduce Marginal Fee to 1000 Zatoshis and Raise the Weight Ratio Cap to 10</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/1388">zips#1388</a></td>
     <tr> <td>guide-markdown</td> <td class="left"><a href="zips/zip-guide-markdown.md">{Something Short and To the Point}</a></td> <td>Draft</td> <td class="left"></td>
@@ -402,7 +402,7 @@ Index of ZIPs
     <tr> <td>2003</td> <td class="left"><a href="zips/zip-2003.rst">Disallow version 4 transactions</a></td> <td>Proposed</td>
     <tr> <td>2004</td> <td class="left"><a href="zips/zip-2004.rst">Remove the dependency of consensus on note encryption</a></td> <td>Draft</td>
     <tr> <td>2005</td> <td class="left"><a href="zips/zip-2005.md">Ironwood Quantum Recoverability</a></td> <td>Proposed</td>
-    <tr> <td><span class="reserved">2006</span></td> <td class="left"><a class="reserved" href="zips/zip-2006.md">Restricting Transfers into the Orchard Pool</a></td> <td>Reserved</td>
+    <tr> <td>2006</td> <td class="left"><a href="zips/zip-2006.md">Restricting Transfers into the Orchard Pool</a></td> <td>Final</td>
     <tr> <td><span class="reserved">2007</span></td> <td class="left"><a class="reserved" href="zips/zip-2007.md">Quantum Recoverability for a Subset of Transparent Addresses</a></td> <td>Reserved</td>
     <tr> <td>2008</td> <td class="left"><a href="zips/zip-2008.md">Update to `FS_FPF_ZCG_H3` address list</a></td> <td>Proposed</td>
     <tr> <td>2009</td> <td class="left"><a href="zips/zip-2009.md">Reduce Marginal Fee to 1000 Zatoshis and Raise the Weight Ratio Cap to 10</a></td> <td>Draft</td>
