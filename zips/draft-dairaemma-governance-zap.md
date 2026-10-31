@@ -10,7 +10,7 @@
     Category: Consensus Process
     Created: 2026-10-30
     License: MIT
-    Discussions-To: <https://forum.zcashcommunity.com/???>
+    Discussions-To: <https://forum.zcashcommunity.com/t/zcash-adoption-pool-zap/58656>
     Pull-Request: <https://github.com/zcash/zips/pull/1431>
 
 
