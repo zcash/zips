@@ -7,6 +7,8 @@
     Category: Consensus / Process
     Created: 2026-10-29
     License: MIT
+    Discussions-To: <https://forum.zcashcommunity.com/t/future-dev-and-legal-defense-fund-zip/58611>
+    Pull-Request: <https://github.com/zcash/zips/pull/1428>
     Updates: 207, 209, 214, 237, 1015, 1016
 
 # Terminology
