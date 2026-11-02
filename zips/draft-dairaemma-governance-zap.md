@@ -30,6 +30,13 @@ are to be interpreted as defined in ZIP 1016 [^zip-1016].
 
 “ZEC” refers to the native currency of Zcash on Mainnet.
 
+A "grant-recipient" refers to a grant that has received ZEC
+disbursed through the ZAP assessment process.
+
+An "end-recipient" refers to a human that receives ZEC.
+
+An "intermediary-recipient" refers to an entity who receives ZEC
+from a `grant-recipient` or another, earlier `intermediary-recipient`.
 
 # Abstract
 
@@ -55,6 +62,31 @@ As specified in ZIP 1015:
 
 There is no shortage of projects that fulfil these criteria and that are in
 desperate need of funding.
+
+Increasing the rate of ZEC adoption requires increasing the number of humans who
+transact in ZEC by receiving ZEC and then sending ZEC onwards so that another
+recipient receives ZEC, too. This circular usage increases the velocity of ZEC
+as a currency.
+
+The most motivated and committed Zcash ecosystem participants are those who
+have a clear and present need for financial privacy, thus shielded ZEC. The
+more parties in the disbursement chain originating at ZAP-approved grants needing
+privacy, the better for the faster growth of the network effect from the initial
+grant recipients.
+
+The disbursement chain therefore looks like this:
+
+    ZAP -> grant recipient -> optionally, intermediate recipient(s) -> end-recipient(s)
+
+The longer this chain of unbroken ZEC to ZEC transactions between individual humans
+can reasonably be expected to be, the more benefit in terms of adoption a given grant-recipient
+could be expected to provide to the Zcash ecosystem in terms of transaction count.
+
+Importantly, the important adoption metric is not just "transactions," which may include
+ZEC -> BTC swaps, but rather increasing the count of shielded ZEC deposits/receives
+(BTC -> ZEC, or, and ideally, shielded ZEC -> shielded ZEC). For this reason, assessments
+of efficacy for adoption rate SHOULD prioritize receipt metrics over spend metrics,
+coin-amount holding, or just "transaction" counts.
 
 ## Background
 
@@ -109,7 +141,6 @@ In addition:
   The purpose of this is to further broaden the holding of ZEC and increase the
   velocity of its use as a currency. This is what *adoption* means.
 
-
 # Non-requirements
 
 * Pleasing everyone.
@@ -138,8 +169,9 @@ increase the velocity of its use as a currency.
 
 ## Examples
 
-Examples of end-recipients who might receive ZEC as a result of grants approved
-under this programme include:
+Examples of end-recipients who might receive ZEC as a result of a shielded ZEC
+spend from an intermediary-recipient or a grant-recipient that has themselves
+received ZEC under this programme include:
 
 * sex workers who are debanked or require electronic payment means otherwise
   unavailable to them, and their clients that require payment discretion;
