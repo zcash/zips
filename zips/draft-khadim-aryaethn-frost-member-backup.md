@@ -198,6 +198,7 @@ fails the check in [Restore].
 | 36     | 32   | $\mathsf{sk}$ |
 
 The member's FROST identifier is the Pallas scalar with integer value $i$.
+The group size $n$ is the number of members.
 
 The signing share is the little-endian encoding of a Pallas scalar, as in the
 FROST(Pallas, BLAKE2b-512) ciphersuite [^zip-0312]. It MUST be the share that
@@ -217,10 +218,13 @@ A decoder MUST reject the string if any of the following holds:
   or not all zero, as ZIP 173 requires [^zip-0173]. A version 1 string leaves
   1 bit, so each payload has only one lowercase string;
 - its human-readable part, compared case-insensitively, is not `zkfrost`;
-- the payload is not exactly 68 bytes long;
 - the format version is not $\mathtt{0x01}$;
+- the payload is not exactly 68 bytes long;
 - $n = 0$, $i = 0$, $i > n$, $t < 2$, or $t > n$. FROST needs at least two
   signers.
+
+Checking the version before the length lets a decoder report a string of a
+later version as unsupported rather than as corrupt.
 
 ## Restore
 
@@ -404,10 +408,11 @@ The full set is in `draft-khadim-aryaethn-frost-member-backup/vectors.json`.
 It covers a 2-of-3 ZIP 2005 group, a 2-of-3 legacy group together with the
 ZIP 2005 viewing key built from the same $\mathsf{sk}$ and $\mathsf{ak}$ (whose
 strings restore under either key, with a different derivation), and a 3-of-5
-ZIP 2005 group; an uppercase string; sixteen strings that decoders must
-reject, two of them for the padding rule and one with a threshold of 1; and a
-valid string paired with another group's viewing key, which the restore must
-reject.
+ZIP 2005 group; an uppercase string; seventeen strings that decoders must
+reject, two of them for the padding rule and one with a threshold of 1; and
+three cases that decode but that the restore must reject: a valid string
+paired with another group's viewing key, a string whose signing share is not
+canonical, and a viewing key with no Orchard component.
 
 Every valid string decodes to the same fields and matches the stated
 derivation with Zkool's code, and every $t$-subset of members restored from
@@ -447,6 +452,12 @@ One member of the 2-of-3 ZIP 2005 group (byte strings in hex):
   identifiers (frost-client's trusted dealer uses 1 to $n$). For their groups
   to fit, a version 2 needs a type byte followed by a short or a full
   identifier.
+- **Identifiers after a refresh.** Refreshing shares to remove a member keeps
+  the other members' identifiers [^frost-refresh], so a group can end up with
+  identifiers 1, 2 and 4 and $n = 3$. Version 1 rejects member 4 ($i > n$), so
+  it covers only groups whose identifiers are 1 to $n$, which is what Zkool
+  creates. A version 2 could drop that check: the restore can match the
+  identifier against the group's verifying shares when it knows them.
 - **Explicit derivation.** A version 2 could record the derivation, so a
   restore does not depend on trying each one, and a third derivation could be
   added without ambiguity.
@@ -510,6 +521,8 @@ One member of the 2-of-3 ZIP 2005 group (byte strings in hex):
 [^zkool-backup]: [Zkool: the zkfrost member backup string](https://github.com/hhanh00/zkool2/blob/4ad5a89e09e939a415dd7376ec94f0a241f98c8c/rust/src/frost/backup.rs)
 
 [^zkool-padding-fix]: [hhanh00/zkool2#1468: Bech32 decoders reject non-canonical padding](https://github.com/hhanh00/zkool2/pull/1468)
+
+[^frost-refresh]: [ZcashFoundation/frost: frost-core `keys::refresh`](https://github.com/ZcashFoundation/frost/blob/main/frost-core/src/keys/refresh.rs)
 
 [^zips-1401]: [zcash/zips#1401: Assign a Metadata Typecode for viewing key birthday height](https://github.com/zcash/zips/issues/1401)
 
