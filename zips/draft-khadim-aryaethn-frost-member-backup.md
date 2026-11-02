@@ -219,7 +219,8 @@ A decoder MUST reject the string if any of the following holds:
 - its human-readable part, compared case-insensitively, is not `zkfrost`;
 - the payload is not exactly 68 bytes long;
 - the format version is not $\mathtt{0x01}$;
-- $n = 0$, $i = 0$, $i > n$, $t = 0$, or $t > n$.
+- $n = 0$, $i = 0$, $i > n$, $t < 2$, or $t > n$. FROST needs at least two
+  signers.
 
 ## Restore
 
@@ -403,17 +404,20 @@ The full set is in `draft-khadim-aryaethn-frost-member-backup/vectors.json`.
 It covers a 2-of-3 ZIP 2005 group, a 2-of-3 legacy group together with the
 ZIP 2005 viewing key built from the same $\mathsf{sk}$ and $\mathsf{ak}$ (whose
 strings restore under either key, with a different derivation), and a 3-of-5
-ZIP 2005 group; an uppercase string; fifteen strings that decoders must
-reject, two of them for the padding rule; and a valid string paired with
-another group's viewing key, which the restore must reject.
+ZIP 2005 group; an uppercase string; sixteen strings that decoders must
+reject, two of them for the padding rule and one with a threshold of 1; and a
+valid string paired with another group's viewing key, which the restore must
+reject.
 
 Every valid string decodes to the same fields and matches the stated
 derivation with Zkool's code, and every $t$-subset of members restored from
 their strings produces a FROST signature that verifies under $\mathsf{ak}$.
-Zkool's code rejects every invalid string except the two padding cases: Zkool
-6.35.0 does not check the padding bits, and decodes those two strings to the
-same fields as the valid string they come from. Zkool 6.36.0 rejects both:
-the fix, hhanh00/zkool2#1468 [^zkool-padding-fix], includes them in its tests.
+Zkool 6.35.0 rejects every invalid string except three. It does not check
+the padding bits, and decodes the two padding strings to the same fields as
+the valid string they come from; it also accepts a threshold of 1. Zkool
+6.36.0 rejects all three: the padding fix, hhanh00/zkool2#1468
+[^zkool-padding-fix], includes the two padding strings in its tests, and the
+decoder now refuses a threshold below 2.
 A third decoder, by the other owner of this ZIP, with the derivations written
 directly from BIP 350, ZIP 316 and ZIP 2005 and no Zcash library, gives the
 expected result for every string, both viewing keys of each group, and every
