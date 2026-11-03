@@ -16,7 +16,7 @@
 
 # Terminology
 
-The key words "MUST" and "SHALL" in this document are to be interpreted as
+The key words "MUST", "SHALL", "SHOULD", and "NOT" in this document are to be interpreted as
 described in BCP 14 [^BCP14] when, and only when, they appear in all capitals.
 
 The terms "Mainnet" and "Testnet" in this document are to be interpreted as
@@ -37,6 +37,7 @@ An "end-recipient" refers to a human that receives ZEC.
 
 An "intermediary-recipient" refers to an entity who receives ZEC
 from a `grant-recipient` or another, earlier `intermediary-recipient`.
+
 
 # Abstract
 
@@ -149,6 +150,7 @@ In addition:
   direct holdings in ZEC or who directly transact in ZEC on the Zcash network.
   The purpose of this is to further broaden the holding of ZEC and increase the
   velocity of its use as a currency. This is what *adoption* means.
+
 
 # Non-requirements
 
