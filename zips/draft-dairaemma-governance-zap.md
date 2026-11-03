@@ -83,7 +83,7 @@ can reasonably be expected to be, the more benefit in terms of adoption a given 
 could be expected to provide to the Zcash ecosystem in terms of transaction count.
 
 Importantly, the important adoption metric is not just "transactions," which may include
-ZEC -> BTC swaps, but rather increasing the count of shielded ZEC deposits/receives
+ZEC -> BTC swaps, but rather increasing the expected count of shielded ZEC deposits/receives
 (BTC -> ZEC, or, and ideally, shielded ZEC -> shielded ZEC). For this reason, assessments
 of efficacy for adoption rate SHOULD prioritize receipt metrics over spend metrics,
 coin-amount holding, or just "transaction" counts.
