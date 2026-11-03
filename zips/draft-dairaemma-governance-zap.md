@@ -30,7 +30,7 @@ are to be interpreted as defined in ZIP 1016 [^zip-1016].
 
 “ZEC” refers to the native currency of Zcash on Mainnet.
 
-A "grant-recipient" refers to a grant that has received ZEC
+A "ZAP Grant Recipient" refers to a grantee that has received ZEC directly
 disbursed through the ZAP assessment process.
 
 An "end-recipient" refers to a human that receives ZEC.
