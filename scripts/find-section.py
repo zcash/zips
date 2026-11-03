@@ -30,7 +30,10 @@ import re
 import sys
 
 NEWLABEL_RE = re.compile(r"\\newlabel\{([^}@]+)\}\{\{([^{}]*)\}\{([^{}]*)\}\{(.*)")
-DEFINING_RE_TEMPLATE = r"\\(?:extralabel|headingandlabel|l(?:sub)*section)\{"
+DEFINITION_CMD_RE = re.compile(
+    r"\\(l(?:sub)*section|extralabel|headingandlabel|historyentry|label)\b"
+)
+SECTION_CMD_RE = re.compile(r"l(?:sub)*section\Z")
 
 
 def detex(s: str) -> str:
@@ -54,46 +57,82 @@ def load_labels(auxpath):
     return labels
 
 
+def braced_argument(text, pos):
+    """Read a balanced argument, allowing whitespace and nested TeX groups."""
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    if pos == len(text):
+        return None
+    if text[pos] != "{":
+        return "", pos
+    depth = 1
+    for match in re.finditer(r"\\.|[{}]", text[pos + 1:]):
+        if match[0] == "{":
+            depth += 1
+        elif match[0] == "}":
+            depth -= 1
+            if depth == 0:
+                end = pos + 1 + match.start()
+                return text[pos + 1:end], end + 1
+    return None
+
+
+def definitions(lines):
+    """Yield (line, definitions), buffering only incomplete command arguments."""
+    pending = ""
+    start = 1
+    for lineno, line in enumerate(lines, 1):
+        if not pending:
+            start = lineno
+        # Ignore comments, but preserve escaped percent signs and newlines.
+        pending += re.sub(r"\\[^\n]|%[^\n]*",
+                          lambda m: "" if m[0].startswith("%") else m[0], line)
+        found = []
+        pos = 0
+        while (match := DEFINITION_CMD_RE.search(pending, pos)):
+            command = match[1]
+            argument = braced_argument(pending, match.end())
+            is_section = SECTION_CMD_RE.fullmatch(command) is not None
+            if argument is not None and (is_section or command == "headingandlabel"):
+                argument = braced_argument(pending, argument[1])
+            if argument is None:
+                start += pending.count("\n", 0, match.start())
+                pending = pending[match.start():]
+                break
+            label, pos = argument
+            label = label.strip()
+            if command == "headingandlabel" and label.startswith(r"\#"):
+                label = label[2:]
+            if re.fullmatch(r"[A-Za-z0-9_.:-]+", label):
+                level = 1 + command.count("sub") if is_section else None
+                found.append((start + pending.count("\n", 0, match.start()), label, level))
+        else:
+            pending = ""
+        yield lineno, found
+
+
 def defining_line(texpath, label):
-    pat = re.compile(DEFINING_RE_TEMPLATE + r".*\{" + re.escape(label) + r"\}")
-    fallback = None
     with open(texpath, encoding="utf-8", errors="replace") as f:
-        for i, line in enumerate(f, 1):
-            if "{" + label + "}" in line:
-                if pat.search(line):
-                    return i
-                if fallback is None:
-                    fallback = i
-    return fallback
-
-
-# A label is the last simple {alphanumeric} group on a heading line; title
-# groups contain spaces or macros, so they don't match.
-SIMPLE_GROUP_RE = re.compile(r"\{([A-Za-z0-9]+)\}")
-# A real section heading: \lsection, \lsubsection, …, possibly wrapped in an
-# \extralabel on the same line. The nesting level is 1 + the number of "sub"
-# prefixes (lsection = 1, lsubsection = 2, …).
-SECTION_CMD_RE = re.compile(r"\\(l(?:sub)*section)\b")
+        for _, entries in definitions(f):
+            for line, name, _ in entries:
+                if name == label:
+                    return line
+    return None
 
 
 def scan_headings(texpath):
     """Single pass over protocol.tex. Returns (headings, n_lines) where
     headings is [(line number, label, level)] for each real \\l…section
-    heading, in source order. The label is the last simple {alphanumeric}
-    group on the line (so an \\extralabel-wrapped heading gives the inner
-    label); the level is 1 + the number of "sub" prefixes. Change-history
-    entries and other \\extralabel/\\headingandlabel lines carrying no
-    \\l…section are not headings and are excluded."""
+    heading, in source order. The label is read from the heading's second
+    argument, which may span lines (so an \\extralabel-wrapped heading gives
+    the inner label); the level is 1 + the number of "sub" prefixes.
+    Change-history entries and other \\extralabel/\\headingandlabel lines
+    carrying no \\l…section are not headings and are excluded."""
     headings = []
     n_lines = 0
     with open(texpath, encoding="utf-8", errors="replace") as f:
-        for i, line in enumerate(f, 1):
-            n_lines = i
-            m = SECTION_CMD_RE.search(line)
-            if m:
-                groups = SIMPLE_GROUP_RE.findall(line)
-                if groups:
-                    headings.append((i, groups[-1], 1 + m.group(1).count("sub")))
+        for n_lines, entries in definitions(f):
+            headings.extend(entry for entry in entries if entry[2] is not None)
     return headings, n_lines
 
 
