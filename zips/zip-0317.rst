@@ -8,11 +8,11 @@
   Original-Authors: Aditya Bharadwaj
   Credits: Madars Virza
            Francisco Gindre
-  Status: [Revision 0] Active, [Revision 1: NU6.3] Draft, [Revision 2] Draft
+  Status: [Revision 0] Active, [Revision 1: NU6.3] Active, [Revision 2] Proposed
   Category: Standards / Wallet
   Obsoletes: ZIP 313
   Created: 2022-08-15
-  Last-Updated: 2026-06-26
+  Last-Updated: 2026-10-22
   License: MIT
   Discussions-To: <https://forum.zcashcommunity.com/t/zip-proportional-output-fee-mechanism-pofm/42808>
   Pull-Request: <https://github.com/zcash/zips/pull/631>
@@ -107,15 +107,18 @@ Revisions
 
 .. _`Revision 1`:
 
-* Revision 1: Adds a contribution for *Ironwood-pool* [#zip-0229]_ Actions, to
-  be enacted at NU6.3 which introduces the *Ironwood pool* [#zip-0258]_ [#Ironwood-book]_.
+* Revision 1: Adds a contribution for *Ironwood-pool* [#zip-0229]_ Actions,
+  enacted at NU6.3, which introduced the *Ironwood pool* [#zip-0258]_ [#Ironwood-book]_.
 
 .. _`Revision 2`:
 
-* Revision 2 (draft): Adds fee handling for memo bundles [#zip-0231]_, which
-  are defined as a modification to the Extensible Transaction Format
-  [#zip-0248]_. This revision is a draft, and depends on ZIP 248, which has
-  not yet been deployed.
+* Revision 2: Reduces $\mathit{marginal\_fee}$ from 5000 to 1000 zatoshis per
+  logical action, and raises $\mathit{weight\_ratio\_cap}$ from 4 to 10, as
+  specified in ZIP 2009 [#zip-2009]_. It applies from
+  $\mathsf{FEE\_REDUCTION\_HEIGHT}$, which is 3590000 on Mainnet and 4465026
+  on Testnet. For a wallet, the height that determines whether it applies is
+  the height of the block in which the transaction is expected to be mined.
+  For a node, it is the height of the next block.
 
 Fee calculation
 ---------------
@@ -136,14 +139,15 @@ the applicable revision of this specification (see `Revisions`_). A
 contribution defined by a given revision is also included in all later
 revisions. This calculation uses the following parameters:
 
-============================================== ============= ==============================================
-Parameter                                          Value     Units
-============================================== ============= ==============================================
-:math:`\mathit{marginal\_fee}`                 :math:`5000`  zatoshis per logical action (as defined below)
-:math:`\mathit{grace\_actions}`                :math:`2`     logical actions
-:math:`\mathit{p2pkh\_standard\_input\_size}`  :math:`150`   bytes
-:math:`\mathit{p2pkh\_standard\_output\_size}` :math:`34`    bytes
-============================================== ============= ==============================================
+============================================== ==================================== ==============================================
+Parameter                                      Value                                Units
+============================================== ==================================== ==============================================
+:math:`\mathit{marginal\_fee}`                 :math:`5000` before Revision 2; |br| zatoshis per logical action (as defined below)
+                                               :math:`1000` from Revision 2
+:math:`\mathit{grace\_actions}`                :math:`2`                            logical actions
+:math:`\mathit{p2pkh\_standard\_input\_size}`  :math:`150`                          bytes
+:math:`\mathit{p2pkh\_standard\_output\_size}` :math:`34`                           bytes
+============================================== ==================================== ==============================================
 
 As of `Revision 0`_, the following contributions are defined:
 
@@ -193,32 +197,6 @@ This contribution is computed from one additional transaction field:
 Input                                         Units  Description
 ============================================= ====== ====================================================================
 :math:`\mathit{nA\kern-0.1em ctionsIronwood}` number the number of Ironwood actions
-============================================= ====== ====================================================================
-
-As of `Revision 2`_ (draft), the $\mathit{logical\_actions}$ sum additionally
-includes a contribution for memo bundles [#zip-0231]_:
-
-|br|
-
-.. math::
-
-   \begin{array}{lcl}
-     \mathit{free\_memo\_chunks}              &=& \begin{cases}
-                                                    2, &\!\!\textsf{if } \mathit{nOutputsSapling} + \mathit{nA\kern-0.05em ctionsOrchard} + \mathit{nA\kern-0.05em ctionsIronwood} > 0, \\
-                                                    0, &\!\!\textsf{otherwise}
-                                                  \end{cases}
-     \\[4ex]
-     \mathit{contribution}_{\,\mathsf{Memos}} &=& \mathsf{max}\big(0, \mathit{nMemoChunks} - \mathit{free\_memo\_chunks}\big)
-   \end{array}
-
-|br|
-
-This contribution is computed from one additional transaction field:
-
-============================================= ====== ====================================================================
-Input                                         Units  Description
-============================================= ====== ====================================================================
-:math:`\mathit{nMemoChunks}`                  number the number of memo chunks
 ============================================= ====== ====================================================================
 
 It is not a consensus requirement that fees follow this formula; however,
@@ -332,27 +310,18 @@ the number of logical actions.
 
 **Marginal Fee**
 
-This returns the conventional fee for a minimal transaction (as
-described above) to the original conventional fee of 10000 zatoshis
-specified in [#zip-0313]_, and imposes a non-trivial cost for
-potential denial-of-service attacks.
+Before `Revision 2`_, $\mathit{marginal\_fee} = 5000$. This returns the
+conventional fee for a minimal transaction (as described above) to the
+original conventional fee of 10000 zatoshis specified in [#zip-0313]_,
+and imposes a non-trivial cost for potential denial-of-service attacks.
 
-**Memo Chunks**
-
-Making the fee linear in the number of memo chunks has the following properties:
-
-- The required fee to add more memo chunks scales at the same rate as adding
-  logical actions, so it isn't a cheaper mechanism for an adversary to bloat
-  chain size.
-- A "baseline transaction" (one spent note, one output to an external recipient
-  with a memo, one change output without a memo) has the same fee as before.
-- A "broadcast transaction" (many outputs to different recipients all given the
-  same memo) is the same fee as before (but a smaller transaction).
-- A "many memos transaction" (many outputs to different recipients all with
-  unique memos) is at most around twice the fee as before.
-
-Combined with the memo bundle size restriction, the maximum additional fee for
-a ZIP 231 memo bundle [#zip-0231]_ over prior transactions is 0.0019 ZEC.
+From `Revision 2`_, $\mathit{marginal\_fee} = 1000$, so a minimal
+transaction pays 2000 zatoshis. The fee is fixed in zatoshis, so its
+cost had risen with the price of ZEC. A marginal fee of 1000 zatoshis
+still imposes a non-trivial cost on denial-of-service attacks, including
+attacks that fill the per-block limit on shielded actions and so crowd
+other users' transactions out of blocks. ZIP 2009 [#zip-2009]_ gives the
+full rationale, including why the marginal fee is not cut further.
 
 .. raw:: html
 
@@ -391,8 +360,8 @@ following section is planned to be implemented by `zcashd` and `zebrad`.
 Recommended algorithm for block template construction
 '''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-Define constants $\mathit{weight\_ratio\_cap} = 4$ and
-$\mathit{block\_unpaid\_action\_limit} = 50$.
+Define constants $\mathit{weight\_ratio\_cap} = 4$ before `Revision 2`_, or
+$10$ from `Revision 2`_, and $\mathit{block\_unpaid\_action\_limit} = 50$.
 
 Let $\mathit{conventional\_fee}(\mathit{tx})$ be the conventional fee for transaction
 $\mathit{tx}$ calculated according to the section `Fee calculation`_.
@@ -474,10 +443,14 @@ fee, for two reasons:
    they get a transaction into the block only at the expense of leaving more
    block space for the other users' transactions.
 
-The rationale for choosing $\mathit{weight\_ratio\_cap} = 4$ is as a compromise
-between not allowing any prioritization of transactions relative to those that
-pay the conventional fee, and allowing arbitrary prioritization based on ability
-to pay.
+The rationale for choosing $\mathit{weight\_ratio\_cap} = 10$ from `Revision 2`_
+is as a compromise between not allowing any prioritization of transactions
+relative to those that pay the conventional fee, and allowing arbitrary
+prioritization based on ability to pay. Because the cap is a multiple of the
+conventional fee, the fee at which a transaction's weight ratio saturates
+falls with $\mathit{marginal\_fee}$. A cap of 10 at
+$\mathit{marginal\_fee} = 1000$ places that point below where it was at
+$\mathit{weight\_ratio\_cap} = 4$ and $\mathit{marginal\_fee} = 5000$.
 
 Calculating $\mathit{tx.weight\_ratio}$ in terms of $\mathsf{max}(1,\, \mathit{tx.fee})$
 rather than just $\mathit{tx.fee}$ avoids needing to define "with probability in direct
@@ -541,6 +514,11 @@ to their policies for transaction mempool acceptance and peer-to-peer
 relaying. These policy changes SHOULD NOT be deployed before the changes
 to block template construction for miners described in the preceding
 paragraph.
+
+`Revision 1`_ took effect at the activation of NU6.3 [#zip-0258]_.
+
+`Revision 2`_ applies from $\mathsf{FEE\_REDUCTION\_HEIGHT}$, as specified in
+ZIP 2009 [#zip-2009]_.
 
 Deployment in zcashd
 --------------------
@@ -666,6 +644,21 @@ Deirdre Connolly for reviews and suggested improvements.
 Change History
 ==============
 
+2026-10-22
+----------
+
+- Added Revision 2, which reduces $\mathit{marginal\_fee}$ to 1000 zatoshis per
+  logical action and raises $\mathit{weight\_ratio\_cap}$ to 10 from
+  $\mathsf{FEE\_REDUCTION\_HEIGHT}$, as specified in ZIP 2009. It is Proposed.
+
+2026-10-21
+----------
+
+- Removed the draft Revision 2, which added fee handling for memo bundles
+  (ZIP 231). Its changes should not be applied to this ZIP until ZIP 231
+  reaches at least Proposed status; until then, ZIP 231 specifies them.
+- Revision 1 is Active, having taken effect at NU6.3.
+
 2026-06-26
 ----------
 
@@ -685,9 +678,8 @@ References
 .. [#sigop-limit] `zcash/zips issue #568 - Document block transparent sigops limit consensus rule <https://github.com/zcash/zips/issues/568>`_
 .. [#madars-1] `Madars concrete soft-fork proposal <https://forum.zcashcommunity.com/t/zip-reduce-default-shielded-transaction-fee-to-1000-zats/37566/89>`_
 .. [#zip-0229] `ZIP 229: Version 6 Transaction Format <zip-0229.md>`_
-.. [#zip-0231] `ZIP 231: Memo Bundles <zip-0231.md>`_
-.. [#zip-0248] `ZIP 248: Extensible Transaction Format (unmerged) <https://github.com/zcash/zips/pull/1156>`_
 .. [#zip-0258] `ZIP 258: Deployment of the NU6.3 Network Upgrade <zip-0258.md>`_
 .. [#zip-0313] `ZIP 313: Reduce Conventional Transaction Fee to 1000 zatoshis <zip-0313.rst>`_
 .. [#zip-0401] `ZIP 401: Addressing Mempool Denial-of-Service <zip-0401.rst>`_
+.. [#zip-2009] `ZIP 2009: Reduce Marginal Fee to 1000 Zatoshis and Raise the Weight Ratio Cap to 10 <zip-2009.md>`_
 .. [#Ironwood-book] `The Ironwood Book <https://zcash.github.io/ironwood/>`_

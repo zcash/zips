@@ -162,6 +162,13 @@ Every ZIP SHOULD contain these sections in order:
 9. **Reference implementation** — required before status reaches Implemented/Final.
 10. **References** — a list of other documents referred to by the ZIP.
 
+A **Change History** section is OPTIONAL. If a ZIP has one, its Preamble MUST
+include a `Last-Updated` field. It is RECOMMENDED for "living ZIPs" (Released
+ZIPs to which semantic changes are made after their initial transition out of
+Draft). When a ZIP that has a Change History section receives semantic changes,
+including changes applied from an Update ZIP, update both its Change History and
+its `Last-Updated` field.
+
 Section and subsection headings MUST be unique within the document (for
 example, use "Rationale for ..." as headings of rationale subsections).
 
