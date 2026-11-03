@@ -88,6 +88,15 @@ ZEC -> BTC swaps, but rather increasing the count of shielded ZEC deposits/recei
 of efficacy for adoption rate SHOULD prioritize receipt metrics over spend metrics,
 coin-amount holding, or just "transaction" counts.
 
+This criterion SHOULD NOT be interpreted to require evidence that is
+not realistically available, or the collection of which could interfere
+with the effectiveness of adoption or the privacy of recipients.
+Collection of information from or relating to intermediate- and/or end-recipients
+MUST only be performed as necessary to assess the effectiveness
+of the grant, appropriately anonymized for that purpose (for example
+by only storing overall statistics), and only with informed consent
+of the participants.
+
 ## Background
 
 Throughout the history of the Zcash project, there have been periodic calls to
