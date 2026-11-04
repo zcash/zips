@@ -64,23 +64,27 @@ As specified in ZIP 1015:
 There is no shortage of projects that fulfil these criteria and that are in
 desperate need of funding.
 
-Moreover, increasing the diversity in human terms of the end recipients who make
-up the social fabric of adoption efforts further secures the Zcash network against
-social and cultural attacks; if everyone uses and relies on Zcash for meaningful
-daily economic activity, fewer social groups will have motivations to see the
-network destroyed or degraded.
+Moreover, increasing the diversity in human terms of the social fabric comprising
+the end recipients of adoption efforts further secures the Zcash network against
+social and cultural attacks; when more varied and different people use and rely on
+Zcash for their meaningful daily economic activity, fewer social groups will have
+intrinsic motivations to see the network destroyed or degraded.
 
 From a security perspective, as a Proof-of-Work chain, 80% of block rewards are
-currently spent on securing the network against attacks by computers (a 51% attack).
-The Zcash Adoption Pool must be explicitly recognized as protecting the chain
-from attacks made by people. In simpler terms: more adoption means more security.
+currently spent on securing the network against computational attacks by computers.
+The Zcash Adoption Pool should be explicitly recognized as protecting the chain
+from social and political attacks made by people.
 
-This observation mirrors the end-to-end encryption debate in the communications security
-realm, but in the realm of money. Zcash should not aim to be merely a cryptocurrency.
-It should aim to be "Signal Private Messenger, but for money." The urgent imperitive for
-success is to become a dual-use technology in the same way the Internet itself is;
-it is used by all parties, during both both war and peace. The faster this happens, the
-earlier the network and the chain is protected from future attacks.
+In simpler terms: more adoption means more security. This phenomenon could be
+referred to as "social security." To reap the benefits of social security, Zcash
+must become a dual-use technology in the same way the Internet itself is dual-use
+technology; by being used for both critical and mundane economic activity to such
+a degree and by all imaginable parties during times of both conflict and calm.
+The faster this happens, the earlier the network and the chain is protected from
+future attacks by anyone who has a social or political reason to do it any harm.
+
+By way of analogy, Zcash should not aim to be merely a cryptocurrency.
+It should aim to be "Signal Private Messenger, but for money."
 
 Increasing the rate of ZEC adoption requires increasing the number of humans who
 transact in ZEC by receiving ZEC and then sending ZEC onwards so that another
