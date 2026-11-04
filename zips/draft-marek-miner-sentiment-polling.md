@@ -71,9 +71,13 @@ Miner Ballot
 :   A string that encodes a miner's answers to the questions of an Election; see
     [Miner Ballots].
 
+Option Character
+:   A byte that is an ASCII digit `1` to `9` or an uppercase ASCII letter `A` to
+    `Z`.
+
 Answer Character
-:   A byte that is an ASCII digit `1` to `9`, an uppercase ASCII letter `A` to
-    `Z`, or a hyphen `-`.
+:   A byte that is an Option Character, a hyphen `-`, or a parenthesis `(` or
+    `)`.
 
 Participation Threshold
 :   The minimum percentage of the blocks in a Voting Period that answer a
@@ -172,16 +176,25 @@ it. A Poll Definition gives:
 * the Election Identifier;
 * the network (Mainnet or Testnet);
 * the Voting Start Height and the Voting End Height;
-* the questions, and the options for each question;
+* the questions, the options for each question, and the maximum number of
+  selections for each multiple-choice question;
 * the Participation Threshold, as a percentage;
 * a link to the announcement of the ZCAP Poll.
 
 The questions and options MUST be identical in wording, order, and number to
 those of the ZCAP Poll. Questions and the options of each question are numbered
 from 1 in order of appearance; an explicit "Abstain" option is an ordinary
-option. A question MUST NOT have more than 35 options, and an Election MUST NOT
-have more than 489 questions, so that every Miner Ballot fits in a 512-byte
-Coinbase Memo.
+option. A question MUST NOT have more than 35 options.
+
+A question is single-choice if the ZCAP Poll allows selecting at most one of its
+options, and multiple-choice otherwise. The maximum number of selections of a
+multiple-choice question MUST be the number of options the ZCAP Poll allows
+selecting for it, which is from 2 to its number of options.
+
+The longest answer string of an Election has 1 character for each single-choice
+question, and the maximum number of selections plus 2 for each multiple-choice
+question. Its length MUST NOT exceed 489, so that every Miner Ballot fits in a
+512-byte Coinbase Memo.
 
 The Election Identifier MUST have 1 to 16 characters, each a lowercase ASCII
 letter `a` to `z`, an ASCII digit `0` to `9`, or a hyphen `-`. It MUST NOT equal
@@ -228,13 +241,16 @@ case-insensitive.
 miner-ballot  = %x7A.70.6F.6C.6C.3A election-id ":" answer-string  ; "zpoll:"
 election-id   = 1*16( %x61-7A / DIGIT / "-" )
 answer-string = 1*answer
-answer        = %x31-39 / %x41-5A / "-"
+answer        = "-" / option / "(" 1*option ")"
+option        = %x31-39 / %x41-5A
 ```
 
-The $i$-th Answer Character of the answer string answers question $i$:
+An Option Character selects an option: a digit `1` to `9` selects options 1 to 9
+respectively, and a letter `A` to `Z` selects options 10 to 35 respectively. The
+$i$-th answer of the answer string answers question $i$:
 
-* a digit `1` to `9` selects options 1 to 9 respectively;
-* a letter `A` to `Z` selects options 10 to 35 respectively;
+* a single Option Character selects its option;
+* Option Characters in parentheses select each of their options;
 * a hyphen `-` leaves the question unanswered.
 
 The answer string is the longest run of Answer Characters immediately following
@@ -244,10 +260,16 @@ Character, or at the end of the containing data.
 A Miner Ballot is valid for an Election $E$ if and only if:
 
 * its election-id equals the Election Identifier of $E$;
-* its answer string has exactly one character per question of $E$;
-* each character of its answer string that is not a hyphen selects an option
-  that exists for the corresponding question;
-* at least one character of its answer string is not a hyphen.
+* its answer string matches `answer-string`, with exactly one answer per
+  question of $E$;
+* each answer to a single-choice question is a hyphen or a single Option
+  Character, and each answer to a multiple-choice question is a hyphen or
+  Option Characters in parentheses;
+* each answer selects only options that exist for its question;
+* the Option Characters in parentheses select options in strictly ascending
+  order, and no more options than the maximum number of selections of the
+  question;
+* at least one answer is not a hyphen.
 
 ## Casting Miner Ballots
 
@@ -309,8 +331,12 @@ Let:
   the Election;
 * $c_{q,o}$ be the number of those blocks whose Miner Ballot selects option $o$
   for question $q$;
-* $A_q = \sum_o c_{q,o}$ be the number of those blocks whose Miner Ballot answers
-  question $q$.
+* $A_q$ be the number of those blocks whose Miner Ballot answers question $q$.
+
+For a single-choice question, $A_q = \sum_o c_{q,o}$. A Miner Ballot can select
+several options of a multiple-choice question, so for such a question the counts
+$c_{q,o}$ can sum to more than $A_q$, and the percentages of its options to more
+than 100%.
 
 The results of the Miner Poll consist of:
 
@@ -361,7 +387,7 @@ do not apply on Testnet.
 This subsection is non-normative.
 
 Consider a hypothetical Mainnet Election with Election Identifier `nu8` and five
-questions, which have 4, 4, 4, 3, and 4 options.
+single-choice questions, which have 4, 4, 4, 3, and 4 options.
 
 The 15-byte Miner Ballot `zpoll:nu8:2311-` selects option 2 for question 1,
 option 3 for question 2, and option 1 for questions 3 and 4; it leaves question 5
@@ -393,11 +419,34 @@ The following table shows how Miner Data is interpreted for this Election:
 | `zpoll:nu8:2311-/ExamplePool/` | Valid; `/` ends the answer string. |
 | `zpoll:nu8:9 zpoll:nu8:2311-` | Valid; the first occurrence is invalid, so the second counts. |
 | `zpoll:nu8:2311` | Invalid: four answers for five questions. |
-| `zpoll:nu8:2311-X` | Invalid: the answer string has six characters. |
+| `zpoll:nu8:2311-X` | Invalid: the answer string has six answers. |
+| `zpoll:nu8:2311-(ExamplePool)` | Invalid: `(` and `E` are Answer Characters, so the answer string is `2311-(E`. |
 | `zpoll:nu8:2314-` | Invalid: question 4 has no option 4. |
 | `zpoll:nu8:-----` | Invalid: no question is answered. |
 | `ZPOLL:nu8:2311-` | Not a Miner Ballot: the prefix is case-sensitive. |
 | `zpoll:nu7:2311-` | Not a Miner Ballot for `nu8`. |
+
+Consider also a hypothetical Election with Election Identifier `devfund` and two
+questions: a multiple-choice question with 6 options and at most 3 selections,
+and a single-choice question with 3 options. Its longest answer string has 5 + 1
+= 6 characters.
+
+| Data | Result |
+|------|--------|
+| `zpoll:devfund:(135)2` | Valid: options 1, 3, and 5 for question 1, and option 2 for question 2. |
+| `zpoll:devfund:(3)-` | Valid: option 3 for question 1; question 2 is unanswered. |
+| `zpoll:devfund:3-` | Invalid: an answer to a multiple-choice question needs parentheses. |
+| `zpoll:devfund:(1)(2)` | Invalid: question 2 is single-choice. |
+| `zpoll:devfund:()2` | Invalid: parentheses enclose no option. |
+| `zpoll:devfund:(1356)2` | Invalid: four selections for question 1. |
+| `zpoll:devfund:(31)2` | Invalid: options not in ascending order. |
+| `zpoll:devfund:(33)2` | Invalid: option 3 is selected twice. |
+| `zpoll:devfund:(17)2` | Invalid: question 1 has no option 7. |
+
+If a Voting Period of 100 blocks has 30 blocks that carry `zpoll:devfund:(135)2`
+and 20 that carry `zpoll:devfund:(3)-`, option 3 of question 1 has 50 votes (50%),
+and options 1 and 5 have 30 votes (30%) each. Question 1 is answered in 50 blocks
+(50%), although its options have 110 votes in total.
 
 
 # Rationale
@@ -463,15 +512,20 @@ Two alternatives were rejected:
 
 ASCII suits string-valued node configuration, ZIP 302 text memos, and block
 explorers. Compactness matters because the 100-byte coinbase script is shared
-with the height encoding and pool tags; the example Miner Ballot is 15 bytes.
-Positional answers need no question numbers, and a hyphen lets a miner skip a
-question that has no "Abstain" option.
+with the height encoding and pool tags; the Miner Ballot `zpoll:nu8:2311-` is 15
+bytes. Positional answers need no question numbers, and a hyphen lets a miner
+skip a question that has no "Abstain" option. Parentheses let a miner answer
+multiple-choice questions, such as the candidate and Dev Fund proposal questions
+of past ZCAP Polls, while answers to single-choice questions stay one character
+long. Requiring ascending order gives each set of selected options a single
+encoding. The maximum number of selections follows the ZCAP Poll, so that the
+results of both polls remain comparable.
 
-The Election Identifier and the exact-length and option-range checks keep stale
-configurations from counting toward a later Election. Ending the answer string at
-the first byte that is not an Answer Character makes a length field unnecessary.
-The case-sensitive prefix gives the encoding a single canonical form; an
-incompatible future encoding would use a different prefix.
+The Election Identifier and the exact-length, option-range, and selection checks
+keep stale configurations from counting toward a later Election. Ending the
+answer string at the first byte that is not an Answer Character makes a length
+field unnecessary. The case-sensitive prefix gives the encoding a single
+canonical form; an incompatible future encoding would use a different prefix.
 
 The Miner Ballot has no network field, and Election Identifiers are unique only
 per network, so that a rehearsal on Testnet can use exactly the Miner Ballots of
@@ -512,6 +566,8 @@ receiver. [^zebra-mining-config]
 # Open issues
 
 * A reference implementation of tallying.
+* ZCAP Poll questions that rank or score options, which Miner Ballots cannot
+  answer.
 * The interaction with memo bundles [^zip-0231], if they are deployed.
 
 
