@@ -588,6 +588,24 @@ Let ``CoinbaseBundleId`` be the identifier of the coinbase bundle, and
 $\mathsf{CoinbaseBundleId} = 1$ and $\mathsf{FeeBundleId} = 5$ as defined in
 the table above.
 
+Shielded balance field substitutions
+````````````````````````````````````
+
+For V7 transactions, references in existing consensus rules and chain value
+pool accounting to ``valueBalanceSapling``, ``valueBalanceOrchard``, and
+``valueBalanceIronwood`` MUST use the ZEC map lookups for bundle types 2, 3,
+and 4, respectively. These values replace the old encoded fields; they are
+not additional contributions. A missing map entry yields zero. The binding
+signature checks use the same values, as specified in `Sapling Bundle`_ and
+`Orchard Protocol Bundles`_.
+
+The existing per-pool value ranges, the nonnegative *Orchard-pool* balancing
+value restriction, and chain value pool nonnegativity rules continue to
+apply. In particular, a V7 transaction contributes the negation of each
+pool's ZEC map lookup to that chain value pool's balance, alongside the
+contributions from pre-V7 transactions. [#protocol-chainvaluepoolbalances]_
+All balance sums MUST be evaluated without integer overflow.
+
 Bundle availability
 ```````````````````
 
@@ -1057,6 +1075,13 @@ would be zero, the effecting bundle MUST be omitted instead. An entry in
 ``mAuthBundles`` MUST NOT be present when ``tx_in_count = 0``; the empty
 authorizing bundle is omitted.
 
+For ``bundleVariant = 0``, all value pool delta entries for this bundle MUST
+have ``assetClass = 0`` (ZEC). If there is no transparent effecting bundle,
+its ZEC value pool delta MUST be zero. If ``tx_in_count > 0``, a corresponding
+entry in ``mAuthBundles`` MUST be present, and the scripts MUST authorize each
+input under the existing transparent script validation rules, using the
+signature digest specified in `Transparent Sighash Algorithms`_.
+
 A full validator MUST verify that the ZEC value pool delta for
 ``bundleType = 0`` equals the total value of the transparent inputs minus the
 total value of the transparent outputs. (The input values are not encoded in
@@ -1435,6 +1460,19 @@ An entry for this bundle in ``mEffectBundles`` MUST contain at least one
 Sapling Spend or Output description. If both ``nSpendsSapling`` and
 ``nOutputsSapling`` would be zero, the bundle MUST be omitted instead.
 
+For ``bundleVariant = 0``, all value pool delta entries for this bundle MUST
+have ``assetClass = 0`` (ZEC). The Sapling balancing value is
+$\mathsf{mValuePoolDeltas}[(2, \mathsf{Zec})]$, with the sign convention of
+the 'Balance and Binding Signature (Sapling)' section. [#protocol-saplingbalance]_
+If there is no Sapling effecting bundle, this value MUST be zero.
+
+Every Sapling effecting bundle MUST have a corresponding entry in
+``mAuthBundles``. A full validator MUST verify the Spend and Output proofs,
+Spend authorizing signatures, and binding signature under the existing
+Sapling consensus rules. In particular, the binding validating key MUST be
+computed using the balancing value above, and the signature messages are
+those specified in `Sapling Sighash Algorithms`_.
+
 Sapling Effecting Data
 ''''''''''''''''''''''
 
@@ -1707,6 +1745,20 @@ the *Orchard pool*, and the Ironwood bundle, ``bundleType = 4``, acts on the
 An entry for either bundle type in ``mEffectBundles`` MUST contain at least
 one Action description (``nActionsOrchard > 0``). If there would be no Actions,
 the bundle MUST be omitted instead.
+
+For ``bundleVariant = 0``, all value pool delta entries for either bundle type
+MUST have ``assetClass = 0`` (ZEC). For a bundle with type identifier
+$\mathsf{b}$, its pool's balancing value is
+$\mathsf{mValuePoolDeltas}[(\mathsf{b}, \mathsf{Zec})]$, with the sign convention
+of the 'Balance and Binding Signature (Orchard)' section. [#protocol-orchardbalance]_
+If there is no effecting bundle for a pool, its balancing value MUST be zero.
+
+Every Orchard or Ironwood effecting bundle MUST have a corresponding entry in
+``mAuthBundles``. A full validator MUST verify the Action proof, Spend
+authorizing signatures, and binding signature under the existing consensus
+rules for that pool. In particular, the binding validating key MUST be
+computed using that pool's balancing value above, and the signature messages
+are those specified in `Orchard Protocol Sighash Algorithms`_.
 
 Both bundle types use the encoding defined in this section. Where a field is
 described below as belonging to the bundle's pool, that pool is the
@@ -2261,6 +2313,9 @@ References
 .. [#protocol-blockchain] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.3: The Block Chain <protocol/protocol.pdf#blockchain>`_
 .. [#protocol-transactions] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.4: Transactions and Treestates <protocol/protocol.pdf#transactions>`_
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
+.. [#protocol-saplingbalance] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Balance and Binding Signature (Sapling) <protocol/protocol.pdf#saplingbalance>`_
+.. [#protocol-orchardbalance] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1] or later. Balance and Binding Signature (Orchard) <protocol/protocol.pdf#orchardbalance>`_
+.. [#protocol-chainvaluepoolbalances] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1] or later. Chain Value Pool Balances <protocol/protocol.pdf#chainvaluepoolbalances>`_
 .. [#protocol-subsidies] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 7.8: Block Subsidy and Founders' Reward <protocol/protocol.pdf#subsidies>`_
 .. [#protocol-fundingstreams] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 7.10: Payment of Funding Streams, Deferred Lockbox, and Lockbox Disbursement <protocol/protocol.pdf#fundingstreams>`_
 .. [#zip-0203] `ZIP 203: Transaction Expiry <zip-0203.rst>`_
